@@ -1,0 +1,32 @@
+.reactive-md-theme,
+.md-document {
+  --paper: #f5f7fb;
+  --surface: #ffffff;
+  --ink: #17233d;
+  --ink-soft: #45536f;
+  --ink-muted: #6b7893;
+  --blue: #365cf5;
+  --blue-deep: #2748d8;
+  --teal: #167875;
+  --line: #dce3ef;
+  --line-strong: #c9d4e8;
+  --danger: #a2273a;
+  --danger-line: #f0cdd3;
+  --warning: #8a5a10;
+  --code-bg: #0f172a;
+  --code-bg-deep: #0b1220;
+  --code-ink: #dce6ff;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", "SFMono-Regular", "Menlo", "Liberation Mono",
+    monospace;
+}
+
+
+[data-theme="dark"] .reactive-md-theme,
+[data-theme="dark"] .md-document,
+.reactive-md-theme[data-theme="dark"],
+.md-document[data-theme="dark"] { color-scheme:dark; --paper:#111827; --surface:#182236; --ink:#e5edfc; --ink-soft:#bbc8de; --ink-muted:#9aaecb; --line:#354560; --line-strong:#50627d; --blue:#8ba6ff; --blue-deep:#7191f5; --teal:#68ccc2; --danger:#ffa0ae; --danger-line:#794853; --code-bg:#0b1220; --code-bg-deep:#090f1c; --code-ink:#dce6ff; }

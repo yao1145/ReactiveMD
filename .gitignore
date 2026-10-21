@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist-library/
+.tasks/
+artifacts/
+*.log
+.npm-cache/

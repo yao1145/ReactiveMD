@@ -1,0 +1,26 @@
+{
+  "name": "@reactive-md/demo",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run --config vitest.config.ts",
+    "test:browser": "node scripts/verify-browser.mjs",
+    "test:intelligent": "node scripts/verify-intelligent.mjs"
+  },
+  "dependencies": {
+    "reactive-md": "file:..",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "8.3.5",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}
