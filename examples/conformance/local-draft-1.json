@@ -34,9 +34,10 @@
       "bindingNames": []
     },
     {
-      "name": "unknown components produce a compiler diagnostic",
+      "name": "unknown components preserve source with a warning",
       "source": "<slidr label=\"Typo\">\n</slidr>",
-      "ok": false,
+      "ok": true,
+      "bindingNames": [],
       "codes": ["local.component.unknown"]
     },
     {

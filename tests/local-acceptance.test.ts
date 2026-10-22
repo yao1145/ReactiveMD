@@ -53,8 +53,8 @@ describe('local syntax acceptance', () => {
     expect(flatten(doc.nodes).some(n => n.type === 'interpolation')).toBe(false);
   });
 
-  it('rejects legacy configuration, executable HTML and undeclared references in local mode', () => {
-    for (const source of ['```reactive-md\nstate:\n  n: 1\n```', '<script>alert(1)</script>', '<counter label="人数" on-click="run">', '{{ absent }}']) {
+  it('rejects legacy configuration, event attributes and undeclared references in local mode', () => {
+    for (const source of ['```reactive-md\nstate:\n  n: 1\n```', '<counter label="人数" on-click="run">', '{{ absent }}']) {
       expect(compileLocal(source).ok).toBe(false);
     }
   });

@@ -166,7 +166,7 @@ function meaningful(nodes: LocalNode[] | undefined): LocalNode[] {
 }
 
 function plainText(node: LocalNode): string {
-  if (node.type === 'text' || node.type === 'inlineCode') return node.value ?? '';
+  if (node.type === 'text' || node.type === 'inlineCode' || node.type === 'fallback') return node.value ?? '';
   if (node.type === 'interpolation') return '\u0000';
   if (node.type === 'break') return ' ';
   return (node.children ?? []).map(plainText).join('');
@@ -250,7 +250,14 @@ export function compileLocal(source: string): LocalCompileResult {
     if (source[index] === '\n') lineStarts.push(index + 1);
   }
   const report = (code: string, message: string, start: number, end = start + 1) => {
-    if (diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) return;
+    if (diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) {
+      // Parser warnings can fill the budget first; a real error still needs to
+      // be visible, so replace the newest disposable warning.
+      let index = diagnostics.length - 1;
+      while (index >= 0 && diagnostics[index].severity !== 'warning') index -= 1;
+      if (index < 0) return;
+      diagnostics.splice(index, 1);
+    }
     const safeStart = Math.max(0, Math.min(source.length, start));
     const safeEnd = Math.max(safeStart, Math.min(source.length, Math.max(safeStart, end)));
     let low = 0;

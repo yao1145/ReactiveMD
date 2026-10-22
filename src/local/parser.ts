@@ -3,6 +3,7 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import type { Diagnostic } from './types';
 import type { LocalNode } from './types';
+import { suggestComponent } from './schema';
 import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_DOCUMENT_LENGTH,
@@ -14,6 +15,7 @@ import {
 const VOID = new Set('input textarea number slider toggle checkbox date counter timer progress edge'.split(' '));
 const PAIRED = new Set('panel card grid tabs tab accordion disclosure if alert badge tooltip select choices radio-group checklist table chart plot timeline diagram node option'.split(' '));
 const INLINE = new Set(['badge', 'tooltip']);
+const KNOWN = new Set([...VOID, ...PAIRED]);
 /** Private-use sentinels keep source tokens opaque while Markdown is parsed. */
 const MARK_OPEN = String.fromCharCode(0xe000);
 const MARK_CLOSE = String.fromCharCode(0xe001);
@@ -26,8 +28,9 @@ const MAX_SYNTAX_NODES = MAX_LOCAL_ARRAY_LENGTH;
 /** Displayed math is parsed by the math view; keep its source comparable to math.ts. */
 const MAX_DISPLAY_MATH_SOURCE = Math.min(50_000, MAX_LOCAL_STRING_LENGTH);
 const markdown = unified().use(remarkParse).use(remarkGfm);
-interface Token { start: number; end: number; node: LocalNode }
+interface Token { start: number; end: number; block?: boolean; node: LocalNode }
 interface RegionResult { tokens: Token[]; end: number; contentEnd: number; indent: number }
+interface ShieldRange { start: number; end: number; block: boolean }
 
 class LocalBudgetError extends Error {
   constructor(
@@ -60,16 +63,56 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
   let markerSerial = 0;
   const reservedMarkers = new Set(source.match(new RegExp(MARK_OPEN + '[0-9]+' + MARK_CLOSE, 'g')) ?? []);
   const codeRanges: { start: number; end: number }[] = [];
-  const findCode = (raw: any): void => {
-    if (raw.type === 'code') codeRanges.push({ start: raw.position.start.offset, end: raw.position.end.offset });
-    for (const child of raw.children ?? []) findCode(child);
+  const footnoteRanges: ShieldRange[] = [];
+  /**
+   * The first Markdown pass decides what is literal code and what is a real
+   * footnote. Both are opaque to the local lexical pass: code was already
+   * shielded before, and footnote definitions must never initialize controls
+   * or interpolations that happen to appear inside them.
+   */
+  const findShielded = (raw: any): void => {
+    if (raw.type === 'code') {
+      codeRanges.push({ start: raw.position.start.offset, end: raw.position.end.offset });
+    } else if (raw.type === 'footnoteReference' || raw.type === 'footnoteDefinition') {
+      const start = raw.position?.start?.offset;
+      const end = raw.position?.end?.offset;
+      if (Number.isInteger(start) && Number.isInteger(end) && end > start) {
+        footnoteRanges.push({ start, end, block: raw.type === 'footnoteDefinition' });
+      }
+    }
+    for (const child of raw.children ?? []) findShielded(child);
   };
   try {
-    findCode(markdown.parse(source));
+    findShielded(markdown.parse(source));
   } catch {
     error('local.parse', '无法解析 Markdown 文档。', 0);
     return { nodes: [], diagnostics };
   }
+  // A definition may contain references; overlapping shields collapse into one
+  // fallback region so the raw source is emitted exactly once.
+  footnoteRanges.sort((a, b) => a.start - b.start || b.end - a.end);
+  const footnoteShields: ShieldRange[] = [];
+  for (const range of footnoteRanges) {
+    const last = footnoteShields[footnoteShields.length - 1];
+    if (last && range.start < last.end) {
+      if (range.end > last.end) last.end = range.end;
+      last.block = last.block || range.block;
+    } else {
+      footnoteShields.push({ ...range });
+    }
+  }
+  const codeEndAt = (offset: number): number | null => {
+    let low = 0;
+    let high = codeRanges.length - 1;
+    while (low <= high) {
+      const middle = (low + high) >> 1;
+      const range = codeRanges[middle];
+      if (offset < range.start) high = middle - 1;
+      else if (offset >= range.end) low = middle + 1;
+      else return range.end;
+    }
+    return null;
+  };
   let codeIndex = 0;
   const node = (type: string, start: number, end: number, extra: Partial<LocalNode> = {}): LocalNode => {
     if (nodeCount >= MAX_SYNTAX_NODES) {
@@ -78,8 +121,16 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
     nodeCount += 1;
     return { type, id: `local-${serial++}`, range: { start, end }, ...extra };
   };
-  function error(code: string, message: string, start: number, end = start + 1) {
-    if (diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) return;
+  function diagnostic(code: string, message: string, severity: 'error' | 'warning', start: number, end = start + 1) {
+    if (diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) {
+      // Warnings must never crowd out a real error: once the budget is full a
+      // new error replaces the newest warning that is still disposable.
+      if (severity === 'warning') return;
+      let index = diagnostics.length - 1;
+      while (index >= 0 && diagnostics[index].severity !== 'warning') index -= 1;
+      if (index < 0) return;
+      diagnostics.splice(index, 1);
+    }
     const safeStart = Math.max(0, Math.min(source.length, start));
     const safeEnd = Math.max(safeStart, Math.min(source.length, Math.max(safeStart, end)));
     let low = 0;
@@ -96,11 +147,17 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
     diagnostics.push({
       code,
       message: text,
-      severity: 'error',
+      severity,
       range: { start: safeStart, end: safeEnd },
       line,
       column: safeStart - lineStarts[low] + 1,
     });
+  }
+  function error(code: string, message: string, start: number, end = start + 1) {
+    diagnostic(code, message, 'error', start, end);
+  }
+  function warning(code: string, message: string, start: number, end = start + 1) {
+    diagnostic(code, message, 'warning', start, end);
   }
   function decode(value: string) {
     return value.replace(/&(quot|apos|amp|lt|gt);/g, (_, key: string) => ({ quot: '"', apos: "'", amp: '&', lt: '<', gt: '>' })[key]!);
@@ -163,6 +220,28 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
     if (!TAG_NAME.test(name)) error('local.tag.name', `标签名 ${name} 使用小写 kebab-case。`, start, start + 1 + name.length);
     return { name, closing: false, self: /\/\s*$/.test(rest), start, end: end + 1, attrs: attributes(rest, start + match[0].length) };
   }
+  /**
+   * Silent tag boundary reader used for unknown components. Their attributes
+   * are inert, so they must never reach `attributes()` or emit diagnostics.
+   */
+  function scanTag(start: number, limit: number) {
+    const match = /^<(\/?)([A-Za-z][A-Za-z0-9_-]*)(?=[\s/>])/.exec(source.slice(start, limit));
+    if (!match) return null;
+    let quote = '', end = start + match[0].length;
+    for (; end < limit; end++) {
+      const c = source[end];
+      if (quote) { if (c === quote) quote = ''; }
+      else if (c === '"' || c === "'") quote = c;
+      else if (c === '>') break;
+    }
+    if (end >= limit) return null;
+    const rest = source.slice(start + match[0].length, end);
+    return { name: match[2], closing: !!match[1], self: !match[1] && /\/\s*$/.test(rest), end: end + 1 };
+  }
+  function beginsLine(offset: number): boolean {
+    const lineStart = source.lastIndexOf('\n', offset - 1) + 1;
+    return /^[ \t]*$/.test(source.slice(lineStart, offset));
+  }
   const ROOT_FENCE_LINE = /^ {0,3}$/;
   const CONTAINER_FENCE_LINE = /^[ \t]*$/;
   function protectedEnd(i: number, end: number, insideContainer: boolean): number | null {
@@ -189,6 +268,44 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
         next = source.indexOf(ticks, next + ticks.length);
       }
       return i + ticks.length;
+    }
+    return null;
+  }
+  /**
+   * Find the matching close of an unknown paired tag. Only the tag's own name
+   * changes depth; nested unknowns, attributes, comments, code and escapes are
+   * opaque, so malformed content inside cannot produce document-wide errors.
+   */
+  function unknownTagEnd(start: number, name: string, limit: number, insideContainer: boolean): { start: number; end: number } | null {
+    let depth = 1;
+    for (let i = start; i < limit;) {
+      if (!insideContainer) {
+        const codeEnd = codeEndAt(i);
+        if (codeEnd !== null && codeEnd > i) { i = Math.min(codeEnd, limit); continue; }
+      }
+      const shield = protectedEnd(i, limit, insideContainer);
+      if (shield !== null) { i = shield; continue; }
+      if (source.startsWith('<!--', i)) {
+        const close = source.indexOf('-->', i + 4);
+        i = close < 0 || close + 3 > limit ? limit : close + 3;
+        continue;
+      }
+      if (source[i] === '<') {
+        const tag = scanTag(i, limit);
+        if (tag) {
+          if (tag.name === name) {
+            if (tag.closing) {
+              depth -= 1;
+              if (depth === 0) return { start: i, end: tag.end };
+            } else if (!tag.self) {
+              depth += 1;
+            }
+          }
+          i = tag.end;
+          continue;
+        }
+      }
+      i++;
     }
     return null;
   }
@@ -239,11 +356,55 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
       error('local.budget', '组件嵌套超过 100 层上限。', openStart, openEnd);
       return { tokens, end, contentEnd: start, indent: 0 };
     }
+    // Raw component tags can hide footnotes from the document's first Markdown
+    // pass. Inspect the dedented body before recognizing any executable tokens.
+    let regionFootnotes = footnoteShields;
+    if (parent) {
+      const bodyEnd = unknownTagEnd(start, parent, end, true)?.start ?? end;
+      const indent = commonIndent(start, bodyEnd);
+      let text = '';
+      const offsets: number[] = [];
+      for (let i = start; i < bodyEnd;) {
+        if (i === 0 || source[i - 1] === '\n') {
+          let skipped = 0;
+          while (skipped < indent && i < bodyEnd && /[ \t]/.test(source[i])) { i++; skipped++; }
+        }
+        if (i >= bodyEnd) break;
+        offsets.push(i);
+        text += source[i++];
+      }
+      offsets.push(bodyEnd);
+      const found: ShieldRange[] = [];
+      const visit = (raw: any): void => {
+        if (raw.type === 'footnoteReference' || raw.type === 'footnoteDefinition') {
+          found.push({ start: offsets[raw.position.start.offset], end: offsets[raw.position.end.offset], block: raw.type === 'footnoteDefinition' });
+          return;
+        }
+        for (const child of raw.children ?? []) visit(child);
+      };
+      visit(markdown.parse(text));
+      regionFootnotes = [...footnoteShields.filter(range => range.start >= start && range.end <= bodyEnd), ...found]
+        .sort((a, b) => a.start - b.start || b.end - a.end);
+    }
+    let footnoteIndex = 0;
     for (let i = start; i < end;) {
       if (parent === undefined) {
         while (codeRanges[codeIndex]?.end <= i) codeIndex++;
         const code = codeRanges[codeIndex];
         if (code && code.start <= i) { i = code.end; continue; }
+      }
+      // Footnotes are shielded at every depth: the first pass may recognize a
+      // definition inside a component even when the surrounding tag made the
+      // document an HTML block for Markdown parsing.
+      while (regionFootnotes[footnoteIndex]?.end <= i) footnoteIndex++;
+      const footnote = regionFootnotes[footnoteIndex];
+      if (footnote && footnote.start <= i) {
+        if (footnote.start === i) {
+          tokens.push({ start: i, end: footnote.end, block: footnote.block, node: node('fallback', i, footnote.end, { value: source.slice(i, footnote.end) }) });
+          warning('local.footnote.unsupported', '脚注不属于本地交互语法，已按原文显示。', i, footnote.end);
+        }
+        i = footnote.end;
+        continue;
       }
       const shield = protectedEnd(i, end, parent !== undefined);
       if (shield !== null) { i = shield; continue; }
@@ -275,6 +436,34 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
         tokens.push({ start: i, end: finish, node: node(display ? 'math' : 'inlineMath', i, finish, { value }) }); i = finish; continue;
       }
       if (source[i] === '<') {
+        const scanned = scanTag(i, end);
+        if (
+          scanned && !scanned.closing && TAG_NAME.test(scanned.name)
+          && scanned.name.length <= MAX_LOCAL_NAME_LENGTH && !KNOWN.has(scanned.name)
+        ) {
+          const stop = scanned.self ? scanned.end : (unknownTagEnd(scanned.end, scanned.name, end, parent !== undefined)?.end ?? null);
+          if (stop === null) {
+            // An unknown tag without a reliable same-name boundary stays fatal.
+            error('local.tag.unclosed', `<${scanned.name}> 缺少 </${scanned.name}>。`, i, scanned.end);
+            i = scanned.end;
+            continue;
+          }
+          const suggestion = suggestComponent(scanned.name);
+          warning(
+            'local.component.unknown',
+            `未知组件 <${scanned.name}>。${suggestion ? `是否想写 <${suggestion}>？` : '当前模式只接受本地交互语法组件。'}`,
+            i,
+            stop,
+          );
+          tokens.push({
+            start: i,
+            end: stop,
+            block: beginsLine(i),
+            node: node('fallback', i, stop, { value: source.slice(i, stop) }),
+          });
+          i = stop;
+          continue;
+        }
         const tag = tagAt(i, end);
         if (tag) {
           if (tag.closing) {
@@ -327,7 +516,7 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
       append(source.slice(cursor, token.start), cursor, true);
       let marker: string;
       do { marker = MARK_OPEN + markerSerial++ + MARK_CLOSE; } while (reservedMarkers.has(marker));
-      const block = token.node.type === 'math' || (token.node.type === 'component' && !INLINE.has(token.node.name!));
+      const block = token.block ?? (token.node.type === 'math' || (token.node.type === 'component' && !INLINE.has(token.node.name!)));
       if (block) append('\n\n', token.start, false);
       const markerStart = masked.length;
       // A generated Markdown image has its own source range. Restore only this
@@ -359,8 +548,15 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
       if (raw.type === 'text') {
         return raw.value ? [node('text', from, to, { value: raw.value })] : [];
       }
+      // Footnotes reached here were parsed from dedented container content, so
+      // they were not shielded by the first pass. Keep their original source
+      // and never walk their children.
+      if (raw.type === 'footnoteReference' || raw.type === 'footnoteDefinition') {
+        warning('local.footnote.unsupported', '脚注不属于本地交互语法，已按原文显示。', from, to);
+        return [node('fallback', from, to, { value: source.slice(from, to) })];
+      }
       const children = raw.children?.flatMap(transform);
-      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || (children[0].type === 'component' && !INLINE.has(children[0].name!)))) return children;
+      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || (children[0].type === 'component' && !INLINE.has(children[0].name!)))) return children;
       if (raw.type === 'paragraph' && !children?.length) return [];
       if (raw.type === 'html') {
         error('local.html', '原始 HTML 不属于本地交互语法。', from, to);

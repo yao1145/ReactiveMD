@@ -308,9 +308,41 @@ interface RenderEnv {
   urlPolicy?: LocalUrlPolicy;
 }
 
-function renderNodes(env: RenderEnv, nodes: LocalNode[] | undefined, visible: boolean): ReactNode {
+function renderNodes(
+  env: RenderEnv,
+  nodes: LocalNode[] | undefined,
+  visible: boolean,
+  block = true,
+): ReactNode {
   if (!nodes || nodes.length === 0) return null;
-  return nodes.map((node, index) => renderNode(env, node, index, visible));
+  return nodes.map((node, index) => renderNode(env, node, index, visible, block));
+}
+
+/**
+ * Unsupported syntax is preserved as inert source. The parser stores the exact
+ * original text in `value`; falling back to the document range keeps older or
+ * hand-built trees readable without ever interpreting their contents.
+ */
+function fallbackSource(env: RenderEnv, node: LocalNode): string {
+  if (typeof node.value === 'string') return node.value;
+  const { start, end } = node.range;
+  if (Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end >= start) {
+    return env.runtime.document.source.slice(start, end);
+  }
+  return '';
+}
+
+function renderFallback(env: RenderEnv, node: LocalNode, key: string, block: boolean): ReactNode {
+  return (
+    <span
+      key={key}
+      className={block ? 'local-fallback local-fallback-block' : 'local-fallback local-fallback-inline'}
+      title="未支持的语法，已按源码原样显示"
+      data-local-fallback=""
+    >
+      {fallbackSource(env, node)}
+    </span>
+  );
 }
 
 /** Render block-parsed children as inline content for labels and options. */
@@ -318,9 +350,13 @@ function renderInlineNodes(env: RenderEnv, nodes: LocalNode[] | undefined, visib
   if (!nodes || nodes.length === 0) return null;
   return nodes.map((node, index) => {
     if (node.type === 'paragraph' || node.type === 'root') {
-      return <span key={node.id || `inline-${index}`}>{renderNodes(env, node.children, visible)}</span>;
+      return (
+        <span key={node.id || `inline-${index}`}>
+          {renderNodes(env, node.children, visible, false)}
+        </span>
+      );
     }
-    return renderNode(env, node, index, visible);
+    return renderNode(env, node, index, visible, false);
   });
 }
 
@@ -329,6 +365,7 @@ function renderNode(
   node: LocalNode,
   index: number,
   visible: boolean,
+  block = true,
 ): ReactNode {
   const key = node.id || `${node.type}-${index}`;
 
@@ -348,23 +385,23 @@ function renderNode(
       return createElement(
         headingTag(node.depth),
         { key },
-        renderNodes(env,node.children, visible),
+        renderNodes(env,node.children, visible, false),
       );
 
     case 'paragraph':
-      return <p key={key}>{renderNodes(env,node.children, visible)}</p>;
+      return <p key={key}>{renderNodes(env,node.children, visible, false)}</p>;
 
     case 'text':
       return <span key={key}>{node.value ?? ''}</span>;
 
     case 'emphasis':
-      return <em key={key}>{renderNodes(env,node.children, visible)}</em>;
+      return <em key={key}>{renderNodes(env,node.children, visible, false)}</em>;
 
     case 'strong':
-      return <strong key={key}>{renderNodes(env,node.children, visible)}</strong>;
+      return <strong key={key}>{renderNodes(env,node.children, visible, false)}</strong>;
 
     case 'delete':
-      return <del key={key}>{renderNodes(env,node.children, visible)}</del>;
+      return <del key={key}>{renderNodes(env,node.children, visible, false)}</del>;
 
     case 'inlineCode':
       return (
@@ -426,7 +463,7 @@ function renderNode(
       if (!href) {
         return (
           <span className="md-link-rejected" key={key} title="已拒绝不安全的链接地址">
-            {renderNodes(env,node.children, visible)}
+            {renderNodes(env,node.children, visible, false)}
           </span>
         );
       }
@@ -439,7 +476,7 @@ function renderNode(
           target={external ? '_blank' : undefined}
           rel={external ? 'noopener noreferrer' : undefined}
         >
-          {renderNodes(env,node.children, visible)}
+          {renderNodes(env,node.children, visible, false)}
         </a>
       );
     }
@@ -498,7 +535,7 @@ function renderNode(
       const align = node.align?.[0] ?? undefined;
       return (
         <td key={key} style={{ textAlign: align ?? undefined }}>
-          {renderNodes(env,node.children, visible)}
+          {renderNodes(env,node.children, visible, false)}
         </td>
       );
     }
@@ -539,14 +576,25 @@ function renderNode(
         </span>
       );
 
+    case 'fallback':
+      return renderFallback(env, node, key, block);
+
+    // The parser turns unsupported footnotes into `fallback` nodes. These
+    // branches only see a raw Markdown footnote AST (older trees or a partial
+    // parse) and keep it visible instead of silently dropping it.
+    case 'footnoteReference':
+      return renderFallback(env, node, key, false);
+
+    case 'footnoteDefinition':
+      return renderFallback(env, node, key, block);
+
     case 'comment':
     case 'definition':
-    case 'footnoteDefinition':
       return null;
 
     default:
       if (node.children && node.children.length) {
-        return <span key={key}>{renderNodes(env,node.children, visible)}</span>;
+        return <span key={key}>{renderNodes(env,node.children, visible, block)}</span>;
       }
       if (typeof node.value === 'string') {
         return <span key={key}>{node.value}</span>;
@@ -567,13 +615,13 @@ function renderTableCells(
     if (tag === 'th') {
       return (
         <th key={cell.id || `${row.id}-h-${index}`} style={{ textAlign: textAlign ?? undefined }}>
-          {renderNodes(env,cell.children, visible)}
+          {renderNodes(env,cell.children, visible, false)}
         </th>
       );
     }
     return (
       <td key={cell.id || `${row.id}-c-${index}`} style={{ textAlign: textAlign ?? undefined }}>
-        {renderNodes(env,cell.children, visible)}
+        {renderNodes(env,cell.children, visible, false)}
       </td>
     );
   });
@@ -1106,6 +1154,8 @@ function inlinePlainText(runtime: LocalRuntime, nodes: LocalNode[] | undefined):
   let text = '';
   for (const node of nodes) {
     if (node.type === 'text' || node.type === 'inlineCode') {
+      text += node.value ?? '';
+    } else if (node.type === 'fallback') {
       text += node.value ?? '';
     } else if (node.type === 'interpolation') {
       try {
