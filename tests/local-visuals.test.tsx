@@ -216,6 +216,25 @@ it('reserves layer spacing for edge labels and paints labels above node cards', 
     html.lastIndexOf('data-diagram-node'),
   );
   expect(html).not.toContain('查看节点与连线');
+  expect(html).toContain('aria-describedby="local-diagram-description-');
+  expect(html).toContain('local-visual-sr-only');
+  expect(html).toContain('输入 → 计算（参数变化）');
+  expect(html).toContain('计算 → 显示（更新结果）');
+});
+
+it('wraps long diagram edge labels and keeps their full description accessible', () => {
+  const runtime = createRuntime();
+  const longLabel = '这是一段非常非常长的连线标签文字';
+  const visual = component('diagram', { label: '长标签' }, [
+    component('node', { id: 'a', label: '输入' }),
+    component('node', { id: 'b', label: '计算' }),
+    component('edge', { from: 'a', to: 'b', label: longLabel }),
+  ]);
+
+  const html = mount(visual, runtime);
+  expect(html).toContain('local-visual-sr-only');
+  expect(html).toContain(longLabel);
+  expect(html.match(/<tspan/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
 });
 
 it('renders plots with a lightweight curve legend and no endpoint readout', () => {

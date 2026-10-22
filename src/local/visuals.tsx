@@ -46,13 +46,16 @@ const DIAGRAM_NODE_WIDTH = 120;
 const DIAGRAM_NODE_HEIGHT = 46;
 const DIAGRAM_LAYER_GAP = 150;
 /* Edge-label metrics mirror the SVG styles below: --text-xs is 12.5px and the
-   plate is a quiet surface chip with a hairline border. Keeping the numbers in
-   user units lets the layout reserve exactly the space the labels need. */
+   text uses a surface-colored halo. Long labels wrap to two lines and then
+   ellipsize, so the layout can reserve a predictable amount of space. */
 const DIAGRAM_EDGE_LABEL_FONT_SIZE = 12.5;
 const DIAGRAM_EDGE_LABEL_PAD_X = 5;
 const DIAGRAM_EDGE_LABEL_PAD_Y = 3;
-const DIAGRAM_EDGE_LABEL_CLEARANCE = 8;
+const DIAGRAM_EDGE_LABEL_CLEARANCE = 12;
 const DIAGRAM_EDGE_LABEL_MARGIN = 10;
+const DIAGRAM_EDGE_LABEL_MAX_WIDTH = 100;
+const DIAGRAM_EDGE_LABEL_MAX_LINES = 2;
+const DIAGRAM_EDGE_LABEL_LINE_HEIGHT = 15;
 
 const NUMERIC_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 const FULL_INTERPOLATION = /^\s*\{\{([\s\S]*)\}\}\s*$/;
@@ -2239,15 +2242,53 @@ function estimateDiagramTextWidth(text: string): number {
   return em * DIAGRAM_EDGE_LABEL_FONT_SIZE;
 }
 
+function fitDiagramLabelLine(text: string, maxWidth: number): string {
+  if (estimateDiagramTextWidth(text) <= maxWidth) return text;
+  let line = '';
+  for (const char of text) {
+    if (estimateDiagramTextWidth(`${line}${char}…`) > maxWidth) break;
+    line += char;
+  }
+  return `${line.trimEnd()}…`;
+}
+
+function wrapDiagramLabel(label: string): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const char of label) {
+    if (line && estimateDiagramTextWidth(line + char) > DIAGRAM_EDGE_LABEL_MAX_WIDTH) {
+      lines.push(line);
+      line = char;
+    } else {
+      line += char;
+    }
+  }
+  if (line) lines.push(line);
+  if (lines.length <= DIAGRAM_EDGE_LABEL_MAX_LINES) return lines;
+  const kept = lines.slice(0, DIAGRAM_EDGE_LABEL_MAX_LINES);
+  kept[DIAGRAM_EDGE_LABEL_MAX_LINES - 1] = fitDiagramLabelLine(
+    lines.slice(DIAGRAM_EDGE_LABEL_MAX_LINES - 1).join(''),
+    DIAGRAM_EDGE_LABEL_MAX_WIDTH,
+  );
+  return kept;
+}
+
 interface DiagramLabelMetrics {
   width: number;
   height: number;
+  lines: string[];
 }
 
 function diagramLabelMetrics(label: string): DiagramLabelMetrics {
+  const lines = wrapDiagramLabel(label);
+  const width = lines.reduce(
+    (widest, line) => Math.max(widest, estimateDiagramTextWidth(line)),
+    0,
+  );
   return {
-    width: estimateDiagramTextWidth(label) + DIAGRAM_EDGE_LABEL_PAD_X * 2,
-    height: DIAGRAM_EDGE_LABEL_FONT_SIZE + DIAGRAM_EDGE_LABEL_PAD_Y * 2,
+    width: width + DIAGRAM_EDGE_LABEL_PAD_X * 2,
+    height: lines.length * DIAGRAM_EDGE_LABEL_LINE_HEIGHT + DIAGRAM_EDGE_LABEL_PAD_Y * 2,
+    lines,
   };
 }
 
@@ -2523,7 +2564,7 @@ function edgeGeometry(
       return {
         d: `M ${x1} ${y1} L ${x2} ${y2}`,
         labelX: (x1 + x2) / 2,
-        labelY: (y1 + y2) / 2 - 10,
+        labelY: (y1 + y2) / 2 - 12,
       };
     }
     const x1 = from.x + offset;
@@ -2571,7 +2612,9 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
     setWriteError(null);
   }, [reset]);
 
-  const markerId = `local-diagram-arrow-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const instanceId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  const markerId = `local-diagram-arrow-${instanceId}`;
+  const descriptionId = `local-diagram-description-${instanceId}`;
   const title = attrText(runtime, node.attrs, 'label', '') || '图解';
   const directionRaw = (node.attrs?.direction ?? 'right').trim().toLowerCase();
   const direction = directionRaw === 'down' ? 'down' : 'right';
@@ -2691,6 +2734,7 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
       </g>,
     );
     if (!edge.label) continue;
+    const label = diagramLabelMetrics(edge.label);
     edgeLabels.push(
       <g key={`edge-label-${edge.key}`} className="local-visual-edge-label-group">
         <text
@@ -2700,7 +2744,15 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
           textAnchor="middle"
           dominantBaseline="middle"
         >
-          {edge.label}
+          {label.lines.map((line, index) => (
+            <tspan
+              key={index}
+              x={geometry.labelX}
+              y={geometry.labelY + (index - (label.lines.length - 1) / 2) * DIAGRAM_EDGE_LABEL_LINE_HEIGHT}
+            >
+              {line}
+            </tspan>
+          ))}
         </text>
       </g>,
     );
@@ -2714,6 +2766,7 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
           viewBox={`0 0 ${layout.width} ${layout.height}`}
           role="group"
           aria-label={`${title}，包含 ${nodes.length} 个节点和 ${edges.length} 条边；用 Tab 聚焦节点，回车选择`}
+          aria-describedby={descriptionId}
         >
           <defs>
             <marker
@@ -2800,6 +2853,21 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
           <span>点击或用 Tab 聚焦节点后按回车查看说明。</span>
         )}
       </div>
+      <ul id={descriptionId} className="local-visual-sr-only" aria-label="节点与连线">
+        {nodes.map((entry) => (
+          <li key={`description-node-${entry.id}`}>{entry.label}</li>
+        ))}
+        {edges.map((edge) => {
+          const from = nodes.find((entry) => entry.id === edge.from);
+          const to = nodes.find((entry) => entry.id === edge.to);
+          return (
+            <li key={`description-edge-${edge.key}`}>
+              {from?.label ?? edge.from} → {to?.label ?? edge.to}
+              {edge.label ? `（${edge.label}）` : ''}
+            </li>
+          );
+        })}
+      </ul>
       {writeError ? <VisualMessage message={writeError} kind="alert" /> : null}
       <Notes notes={notes} />
     </VisualFrame>
