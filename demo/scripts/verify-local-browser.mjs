@@ -158,6 +158,11 @@ try {
       .not.toBe(before);
     await expect(preview().getByText('无法计算', { exact: false })).toHaveCount(0);
   });
+  await check('charts and plots hide the removed data table toggle', async () => {
+    await expect(preview().getByText('查看数据表', { exact: true })).toHaveCount(0);
+    await expect(preview().locator('details summary', { hasText: '查看数据表' })).toHaveCount(0);
+  });
+  await page.screenshot({ path: 'artifacts/local-charts.png', fullPage: true });
 
   await pick('diagram');
   await check('diagram selection updates the document text', async () => {

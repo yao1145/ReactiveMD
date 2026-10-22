@@ -119,10 +119,10 @@ it('renders a searchable, sortable table with page-size pagination', () => {
   expect(html).toContain('chart');
   expect(html).not.toContain('checklist');
   expect(html).toContain('aria-sort="none"');
-  expect(html).not.toContain('查看数据表'); // the enhanced table itself is the data table
+  expect(html).not.toContain('查看数据表'); // the enhanced table is the whole visual, not a fallback
 });
 
-it('renders bar charts with series legend, keyboard marks and a data table fallback', () => {
+it('renders bar charts with series legend and keyboard marks', () => {
   const runtime = createRuntime();
   const visual = component('chart', { kind: 'bar', title: '费用与预算' }, [
     table(
@@ -139,7 +139,7 @@ it('renders bar charts with series legend, keyboard marks and a data table fallb
   expect(html).toContain('预算');
   expect(html).toContain('聚焦或指向图形');
   expect(html).toContain('data-chart-mark');
-  expect(html).toContain('查看数据表');
+  expect(html).not.toContain('查看数据表');
 });
 
 it('shows the donut empty state when every value is zero', () => {
@@ -203,7 +203,8 @@ it('renders plots with curve legend and endpoint readout', () => {
 
   const html = mount(visual, runtime);
   expect(html).toContain('<svg');
-  expect(html).toContain('曲线 1');
+  expect(html).toContain('local-visual-plot-legend');
+  expect(html).toContain('y = x^2');
   expect(html).toContain('终点 x = ');
-  expect(html).toContain('查看数据表');
+  expect(html).not.toContain('查看数据表');
 });

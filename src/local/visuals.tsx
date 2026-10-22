@@ -441,45 +441,6 @@ function Notes({ notes }: { notes: string[] }) {
   );
 }
 
-function DataTableView({
-  caption,
-  head,
-  rows,
-}: {
-  caption: string;
-  head: string[];
-  rows: string[][];
-}) {
-  return (
-    <details className="local-visual-details">
-      <summary>查看数据表</summary>
-      <div className="local-visual-table-scroll">
-        <table className="local-visual-table local-visual-data-table">
-          <caption>{caption}</caption>
-          <thead>
-            <tr>
-              {head.map((cell, index) => (
-                <th key={`${cell}-${index}`} scope="col">
-                  {cell}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {row.map((cell, cellIndex) => (
-                  <td key={cellIndex}>{cell}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </details>
-  );
-}
-
 interface LegendItem {
   name: string;
   color: string;
@@ -792,19 +753,11 @@ function ChartView({ node, runtime }: LocalVisualProps) {
     cells: row.cells,
     texts: header.map((_name, column) => cellText(row.cells[column])),
   }));
-  const fallbackTable = (
-    <DataTableView
-      caption={`${title} 数据`}
-      head={header}
-      rows={sourceRows.map((row) => row.texts.map((text) => text || '—'))}
-    />
-  );
 
   if (!kind) {
     return (
       <VisualFrame className="local-visual-chart" label={title}>
         <VisualMessage message={`未知图表类型“${kindRaw}”。`} kind="alert" />
-        {fallbackTable}
       </VisualFrame>
     );
   }
@@ -856,7 +809,6 @@ function ChartView({ node, runtime }: LocalVisualProps) {
         {errors.map((message, index) => (
           <VisualMessage key={`${message}-${index}`} message={message} kind="alert" />
         ))}
-        {fallbackTable}
       </VisualFrame>
     );
   }
@@ -936,16 +888,6 @@ function ChartView({ node, runtime }: LocalVisualProps) {
       detail: values[index] === null ? '—' : formatNumber(values[index] as number),
       disabled: positive[index] <= 0,
     }));
-    const donutTable = (
-      <DataTableView
-        caption={`${title} 数据`}
-        head={[header[xIndex] || '项目', seriesNames[0]]}
-        rows={rows.map((row) => [
-          row.label,
-          cellText(row.cells[yIndexes[0]]) || '—',
-        ])}
-      />
-    );
 
     if (visibleTotal <= 0) {
       return (
@@ -953,7 +895,6 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           <VisualMessage message="暂无占比" />
           <Notes notes={notes} />
           <ChartLegend items={sliceLegend} hidden={hiddenSlices} onToggle={toggleSlice} label="图例" />
-          {donutTable}
         </VisualFrame>
       );
     }
@@ -1082,7 +1023,6 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           label="图例，可开关扇区"
         />
         <Notes notes={notes} />
-        {donutTable}
       </VisualFrame>
     );
   }
@@ -1103,7 +1043,6 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           onToggle={toggleSeries}
           label="图例，可开关系列"
         />
-        {fallbackTable}
       </VisualFrame>
     );
   }
@@ -1137,7 +1076,6 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           onToggle={toggleSeries}
           label="图例，可开关系列"
         />
-        {fallbackTable}
       </VisualFrame>
     );
   }
@@ -1152,7 +1090,6 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           onToggle={toggleSeries}
           label="图例，可开关系列"
         />
-        {fallbackTable}
       </VisualFrame>
     );
   }
@@ -1525,7 +1462,6 @@ function ChartView({ node, runtime }: LocalVisualProps) {
         label="图例，可开关系列"
       />
       <Notes notes={notes} />
-      {fallbackTable}
     </VisualFrame>
   );
 }
@@ -1769,22 +1705,6 @@ function PlotView({ node, runtime }: LocalVisualProps) {
         );
       });
 
-  const reference = curves.find((curve) => curve.points.length > 0);
-  const dataTable = reference ? (
-    <DataTableView
-      caption={`${label} 采样数据`}
-      head={['x', ...curves.map((_curve, index) => `曲线 ${index + 1}`)]}
-      rows={reference.points.map((point, rowIndex) => [
-        formatNumber(point.x),
-        ...curves.map((curve) => {
-          if (curve.error) return '无法计算';
-          const value = curve.points[rowIndex]?.y;
-          return value === null || value === undefined ? '—' : formatNumber(value);
-        }),
-      ])}
-    />
-  ) : null;
-
   return (
     <VisualFrame className="local-visual-plot" label={label}>
       <div className="local-visual-readout" id={readoutId} aria-live="polite">
@@ -1912,7 +1832,6 @@ function PlotView({ node, runtime }: LocalVisualProps) {
       </div>
       <Notes notes={notes} />
       {legend}
-      {dataTable}
     </VisualFrame>
   );
 }
