@@ -1,6 +1,6 @@
 # Reactive MD Playground
 
-Playground 使用 [本地交互语法](../docs/local-interaction-syntax.md)，内置 [12 份完整示例](../examples/local/README.md)。左侧编辑 Markdown，右侧显示输入、计算结果和可视化；编译错误在诊断区按源码位置显示。
+Playground 使用 [本地交互语法](../docs/local-interaction-syntax.md)，内置 [12 份完整示例](../examples/local/README.md)。第一次使用语法可先读 [新用户入门指南](../docs/local-guide.md)。左侧编辑 Markdown，右侧显示输入、计算结果和可视化；编译错误在诊断区按源码位置显示。
 
 线上演示：[yaozi.raricy.com](https://yaozi.raricy.com/)。
 

@@ -6,6 +6,7 @@
 
 ## 从这里开始
 
+- [新用户入门指南](docs/local-guide.md)：从 Markdown 过渡到交互文档，含完整练习与错误速查。
 - [本地交互语法规范](docs/local-interaction-syntax.md) · [12 份 Demo](examples/local/README.md)：标签、就地参数与 LaTeX 绘图。
 - [本地模式集成](docs/local-integration.md)：`compileLocal`、状态运行时与 React 嵌入。
 - [Demo 说明](demo/README.md)。

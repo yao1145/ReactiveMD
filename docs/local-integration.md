@@ -1,6 +1,6 @@
 # 本地交互文档集成
 
-本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [语法规范](local-interaction-syntax.md)，完整文档见 [12 份示例](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。
+本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](local-guide.md) 和 [语法规范](local-interaction-syntax.md)，完整文档见 [12 份示例](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。
 
 ## React
 

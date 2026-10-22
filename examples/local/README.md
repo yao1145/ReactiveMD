@@ -1,6 +1,6 @@
 # 本地交互语法 Demo
 
-这些文件是 `local-draft-1` 的完整作者示例，对应 [本地交互语法规范](../../docs/local-interaction-syntax.md)。Playground 直接加载本目录；宿主通过 [本地模式 API](../../docs/local-integration.md) 编译和渲染。
+这些文件是 `local-draft-1` 的完整作者示例，对应 [本地交互语法规范](../../docs/local-interaction-syntax.md)。第一次接触语法时，先读 [新用户入门指南](../../docs/local-guide.md)。Playground 直接加载本目录；宿主通过 [本地模式 API](../../docs/local-integration.md) 编译和渲染。
 
 本目录有 11 份正常示例、1 份故意含错的诊断示例。每份文件独立使用，不共享参数。正常示例均没有 YAML 配置、命名动作、事件处理或外部调用。
 
