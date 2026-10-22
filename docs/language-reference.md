@@ -1,5 +1,7 @@
 # Reactive MD v0.2 语言参考
 
+本页对应保留的 `compile` API。新文档请阅读 [本地交互语法规范](local-interaction-syntax.md)，通过 `compileLocal` 编译；两种模式分别解析。
+
 第一次使用请先读 [详细用法指南](guide.md)。本文用于查阅语法和运行语义，组件属性见 [组件参考](components.md)。
 
 Reactive MD 在标准 Markdown 中加入状态、纯表达式和声明式组件。作者编写 Markdown、YAML 和公式；组件提供交互、布局和默认样式。实现采用 TypeScript，Markdown 使用 remark、GFM 与 directive 解析。v0.1 文档继续可用。

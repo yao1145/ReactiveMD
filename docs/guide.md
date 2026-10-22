@@ -1,8 +1,10 @@
 # Reactive MD v0.2 作者指南
 
+本文保留 v0.2 directive/YAML 语法。Playground 使用的新语法见 [本地交互规范](local-interaction-syntax.md) 和 [本地示例](../examples/local/README.md)；宿主通过 [本地 API](local-integration.md) 显式选择模式。
+
 这份指南写给文档作者。你只需要 Markdown、少量 YAML 和公式，不用写 JavaScript 或 CSS。读完后你能独立完成计算器、表单、清单、筛选表、图表、图解和异步查询文档。
 
-当前语法版本是 0.2。`version` 仍接受 `0.1`，旧文档可以继续编译。新文档统一写 `0.2`。
+本页的语法版本是 0.2。`compile` 仍接受 `0.1` 和 `0.2`；本地模式通过 `compileLocal` 编译，无需声明版本。
 
 ## 阅读导航
 

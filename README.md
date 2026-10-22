@@ -1,36 +1,28 @@
 # Reactive MD
 
-用 Markdown 写交互文档。声明状态、绑定输入、连接计算关系，让文字、表单、比较卡片、图表和图解随读者的操作变化。文档作者无需编写 JavaScript 或 CSS。
+用 Markdown 写本地交互文档。放入输入控件，用 `bind` 命名参数，用 `{{ 表达式 }}` 连接文字、公式、图表和图解。文档作者无需编写 JavaScript 或 CSS。
 
-Reactive MD 使用 TypeScript 实现，标准 Markdown 由 remark 解析。v0.2 提供 44 个内置组件、JSON 状态、集合动作、异步宿主接口、持久化与流式会话。
+本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。原有 v0.1/v0.2 API 保留。
 
 ## 从这里开始
 
-- [详细语言用法指南](docs/guide.md)：从第一份文档到表单、集合、图表和异步交互，附完整示例与排错方法。
-- [语言参考](docs/language-reference.md)：快速查阅语法、表达式和运行语义。
-- [组件参考](docs/components.md)：由 schema 自动生成的 44 个组件契约。
-- [宿主集成](docs/integration.md)：TypeScript API、React 渲染、存储和外部服务。
+- [本地交互语法规范](docs/local-interaction-syntax.md) · [12 份改写 Demo](examples/local/README.md)：标签、就地参数与 LaTeX 绘图。
+- [本地模式集成](docs/local-integration.md)：`compileLocal`、状态运行时与 React 嵌入。
+- v0.2 历史参考：[作者指南](docs/guide.md) · [语言参考](docs/language-reference.md) · [44 个组件契约](docs/components.md) · [宿主集成](docs/integration.md)。
 - [语言示例](examples) · [Demo 说明](demo/README.md)。
 
 ## 写一份文档
 
-````markdown
-```reactive-md
-version: "0.2"
-state:
-  count: 0
-actions:
-  increment:
-    - set: count
-      value: "=count + 1"
+```markdown
+<panel title="费用估算">
+<slider bind="people" label="人数" initial="2" min="1" max="20">
+<toggle bind="annual" label="年度付款">
+</panel>
+
+每月费用：**{{ people * (annual ? 80 : 100) }} 元**。
 ```
 
-当前数值：:value{value="=count"}。
-
-::button[加一]{on-click="increment"}
-````
-
-`state` 保存可变值，`computed` 声明计算关系，`bind` 将输入关联到状态，事件引用命名动作。外部效果由宿主注册的 capability 执行。
+输入立即更新结果，面板自带“恢复默认”。独立使用的计数器只需一行 `<counter label="人数">`。
 
 ## 安装与构建
 

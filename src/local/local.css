@@ -1,0 +1,619 @@
+/* Local interaction renderer. It reuses the shared md- and advanced- tokens
+   and only adds the pieces unique to the local-draft-1 component set. */
+
+.local-document {
+  --local-surface: var(--surface, #ffffff);
+  --local-line: var(--line, #dce3ef);
+  --local-line-strong: var(--line-strong, #c9d4e8);
+  --local-ink: var(--ink, #17233d);
+  --local-ink-soft: var(--ink-soft, #45536f);
+  --local-muted: var(--ink-muted, #6b7893);
+  --local-blue: var(--blue, #365cf5);
+  --local-blue-deep: var(--blue-deep, #2748d8);
+  --local-danger: var(--danger, #a2273a);
+  --local-warning: var(--warning, #8a5a10);
+  --local-teal: var(--teal, #167875);
+  --local-radius: var(--radius-md, 12px);
+  --local-radius-sm: var(--radius-sm, 6px);
+}
+
+.local-document .local-error {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--danger-line, #f0cdd3);
+  border-radius: var(--local-radius-sm);
+  background: #fff5f6;
+  color: var(--local-danger);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.local-document:focus-visible {
+  outline: 2px solid var(--local-blue);
+  outline-offset: 4px;
+  border-radius: var(--local-radius-sm);
+}
+
+.local-document .local-interpolation {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------- inactive state */
+
+.local-document.local-inactive {
+  padding: 18px 20px;
+  border: 1px dashed var(--danger-line, #f0cdd3);
+  border-radius: var(--local-radius);
+  background: #fff8f8;
+}
+
+.local-inactive-title {
+  margin: 0 0 8px;
+  color: var(--local-danger);
+  font-weight: 650;
+}
+
+.local-inactive-list {
+  margin: 0;
+  padding-left: 1.3em;
+  color: var(--local-ink-soft);
+  font-size: 13px;
+}
+
+.local-inactive-list li {
+  margin: 3px 0;
+}
+
+/* ----------------------------------------------------------------- layout */
+
+.local-panel {
+  margin: 0.9em 0;
+  padding: 14px 16px;
+  border: 1px solid var(--local-line);
+  border-radius: var(--local-radius);
+  background: var(--local-surface);
+}
+
+.local-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.local-panel-title {
+  margin: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--local-line);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.local-panel-reset {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  font-size: 12.5px;
+}
+
+.local-panel-body > :first-child {
+  margin-top: 0;
+}
+
+.local-panel-body > :last-child {
+  margin-bottom: 0;
+}
+
+.local-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--local-grid-columns, 2), minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+  margin: 0.9em 0;
+  min-width: 0;
+}
+
+.local-grid > * {
+  min-width: 0;
+  margin: 0;
+}
+
+.local-card {
+  margin: 0.25em 0;
+}
+
+/* ------------------------------------------------------------------ tabs */
+
+.local-tabs {
+  margin: 0.9em 0;
+  min-width: 0;
+}
+
+.local-tabs-label {
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.local-tablist {
+  display: flex;
+  gap: 2px;
+  max-width: 100%;
+  border-bottom: 1px solid var(--local-line-strong);
+  overflow-x: auto;
+}
+
+.local-tab {
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--local-radius-sm) var(--local-radius-sm) 0 0;
+  color: var(--local-ink-soft);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.local-tab:hover {
+  background: color-mix(in srgb, var(--local-blue) 7%, var(--local-surface));
+}
+
+.local-tab.is-selected {
+  background: var(--local-surface);
+  border-bottom-color: var(--local-blue);
+  color: var(--local-blue-deep);
+}
+
+.local-tabpanel {
+  padding: 12px 2px 2px;
+  border-radius: var(--local-radius-sm);
+}
+
+.local-tabpanel[hidden] {
+  display: none;
+}
+
+.local-tabpanel:focus-visible {
+  outline: 2px solid var(--local-blue);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------ accordion */
+
+.local-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0.8em 0;
+  min-width: 0;
+}
+
+.local-accordion-label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.local-disclosure {
+  border: 1px solid var(--local-line);
+  border-radius: var(--local-radius-sm);
+  background: var(--local-surface);
+}
+
+.local-disclosure-heading {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.local-disclosure-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--local-radius-sm);
+  color: var(--local-ink);
+  font-size: 14px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.local-disclosure-trigger:hover {
+  background: color-mix(in srgb, var(--local-blue) 6%, var(--local-surface));
+}
+
+.local-chevron {
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.local-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.local-disclosure-panel {
+  padding: 2px 12px 10px;
+}
+
+.local-disclosure-panel[hidden] {
+  display: none;
+}
+
+.local-if[hidden],
+.local-tabpanel[hidden],
+.local-disclosure-panel[hidden] {
+  display: none;
+}
+
+.local-if:focus-visible {
+  outline: 2px solid var(--local-blue);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------- choices */
+
+.local-choice-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.local-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  background: var(--local-surface);
+  border: 1px solid var(--local-line-strong);
+  border-radius: var(--local-radius-sm);
+  color: var(--local-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.local-choice:hover:not(:disabled) {
+  border-color: var(--local-blue);
+}
+
+.local-choice.is-selected {
+  background: color-mix(in srgb, var(--local-blue) 10%, var(--local-surface));
+  border-color: var(--local-blue);
+  color: var(--local-blue-deep);
+}
+
+.local-choice:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.local-choice p {
+  display: inline;
+  margin: 0;
+}
+
+.local-radio-group {
+  border: 0;
+  padding: 0;
+  margin: 0.6em 0;
+}
+
+.local-radio-group legend {
+  padding: 0;
+  margin-bottom: 5px;
+}
+
+.local-radio-option {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 3px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.local-radio-option input {
+  accent-color: var(--local-blue);
+}
+
+.local-radio-option p {
+  display: inline;
+  margin: 0;
+}
+
+.local-select {
+  max-width: 420px;
+}
+
+/* -------------------------------------------------------------- checklist */
+
+.local-checklist {
+  margin: 0.7em 0;
+  padding: 10px 12px;
+  border: 1px solid var(--local-line);
+  border-radius: var(--local-radius-sm);
+  background: var(--local-surface);
+}
+
+.local-checklist legend {
+  padding: 0 4px;
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.local-checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0;
+}
+
+.local-checklist-item input {
+  margin-top: 0.35em;
+  accent-color: var(--local-blue);
+}
+
+.local-checklist-text {
+  cursor: pointer;
+}
+
+.local-checklist-text > p {
+  display: inline;
+  margin: 0;
+}
+
+/* ------------------------------------------------------- counter and timer */
+
+.local-counter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0.6em 0;
+}
+
+.local-counter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.local-counter-button {
+  min-width: 34px;
+  padding: 5px 10px;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.local-counter-value {
+  min-width: 4ch;
+  text-align: center;
+  color: var(--local-blue-deep);
+  font-family: var(--font-mono, monospace);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.local-counter-reset {
+  font-size: 12.5px;
+}
+
+.local-timer {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0.7em 0;
+  padding: 10px 12px;
+  border: 1px solid var(--local-line);
+  border-radius: var(--local-radius-sm);
+  background: var(--local-surface);
+}
+
+.local-timer-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.local-timer-value {
+  color: var(--local-blue-deep);
+  font-family: var(--font-mono, monospace);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.local-timer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.local-timer-status {
+  color: var(--local-muted);
+  font-size: 12px;
+}
+
+/* -------------------------------------------------------------- progress */
+
+.local-progress {
+  margin: 0.7em 0;
+}
+
+.local-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+
+.local-progress-value {
+  color: var(--local-blue-deep);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.local-progress-track {
+  height: 10px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--local-line) 55%, var(--local-surface));
+  border-radius: 999px;
+}
+
+.local-progress-fill {
+  height: 100%;
+  background: var(--local-blue);
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
+/* --------------------------------------------------------------- feedback */
+
+.local-alert {
+  margin: 0.8em 0;
+  padding: 10px 13px;
+  border: 1px solid var(--local-line);
+  border-radius: var(--local-radius-sm);
+  background: color-mix(in srgb, var(--local-blue) 5%, var(--local-surface));
+}
+
+.local-alert-success {
+  border-color: color-mix(in srgb, var(--local-teal) 35%, var(--local-line));
+  background: color-mix(in srgb, var(--local-teal) 7%, var(--local-surface));
+}
+
+.local-alert-warning {
+  border-color: color-mix(in srgb, var(--local-warning) 32%, var(--local-line));
+  background: color-mix(in srgb, var(--local-warning) 8%, var(--local-surface));
+}
+
+.local-alert-title {
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.local-alert-body > :first-child {
+  margin-top: 0;
+}
+
+.local-alert-body > :last-child {
+  margin-bottom: 0;
+}
+
+.local-badge p {
+  display: inline;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- tooltip */
+
+.local-tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.local-tooltip-trigger {
+  border-radius: 3px;
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.local-tooltip-trigger:focus-visible {
+  outline: 2px solid var(--local-blue);
+  outline-offset: 2px;
+}
+
+.local-tooltip-bubble {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+  max-width: 280px;
+  padding: 6px 9px;
+  background: var(--local-ink);
+  border-radius: var(--local-radius-sm);
+  color: var(--local-surface);
+  font-size: 12.5px;
+  line-height: 1.55;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(2px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.local-tooltip-bubble.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ------------------------------------------------------------------ math */
+
+.local-math-display {
+  display: block;
+  margin: 0.8em 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.local-math-inline {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* --------------------------------------------------------------- responsive */
+
+@media (max-width: 620px) {
+  .local-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .local-tooltip-bubble {
+    max-width: 70vw;
+  }
+
+  .local-panel {
+    padding: 12px 13px;
+  }
+
+  .local-counter-row {
+    gap: 4px;
+  }
+
+  .local-timer-value {
+    font-size: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .local-chevron,
+  .local-progress-fill,
+  .local-tooltip-bubble {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+[data-theme="dark"] .local-document .local-error,
+[data-theme="dark"] .local-document.local-inactive {
+  background: var(--paper, #111827);
+}
+
+[data-theme="dark"] .local-panel,
+[data-theme="dark"] .local-disclosure,
+[data-theme="dark"] .local-checklist,
+[data-theme="dark"] .local-timer,
+[data-theme="dark"] .local-tab.is-selected {
+  background: var(--surface, #182236);
+  color: var(--ink, #e5edfc);
+}

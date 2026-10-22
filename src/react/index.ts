@@ -1,5 +1,7 @@
 export { ReactiveDocument } from './ReactiveDocument';
 export type { ReactiveDocumentProps } from './ReactiveDocument';
+export { LocalDocumentView, LocalReactiveDocument } from '../local/LocalDocumentView';
+export type { LocalDocumentViewProps, LocalReactiveDocumentProps } from '../local/LocalDocumentView';
 export { RuntimeDocumentView } from '../ui/viewer';
 export type { RuntimeDocumentViewProps } from '../ui/viewer';
 export type { ComponentProps } from '../ui/components';

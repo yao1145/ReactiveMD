@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { compile, createRuntime, formatDocument, getComponentManifest } from 'reactive-md';
+import { compile, createRuntime, compileLocal, createLocalRuntime, formatDocument, getComponentManifest } from 'reactive-md';
 
 // This import and compilation run in Node without DOM or React rendering.
 for (const name of (await readdir('examples')).filter(name => name.endsWith('.reactive.md'))) {
@@ -14,6 +14,18 @@ for (const name of (await readdir('examples')).filter(name => name.endsWith('.re
   assert.ok(compile(formatDocument(source)).ok, `${name} formatting`);
 }
 assert.equal(getComponentManifest().length, 44);
+
+for (const name of (await readdir('examples/local')).filter(name => name.endsWith('.reactive.md'))) {
+  const result = compileLocal(await readFile(`examples/local/${name}`, 'utf8'));
+  if (name === 'diagnostics.reactive.md') {
+    assert.equal(result.ok, false, 'local diagnostics fixture must fail');
+    continue;
+  }
+  assert.ok(result.ok, `local/${name}: ${JSON.stringify(result.diagnostics)}`);
+  const runtime = createLocalRuntime(result.document);
+  assert.equal(runtime.snapshot().revision, 0);
+  runtime.dispose();
+}
 
 const visited = new Set();
 async function inspectCoreModule(url) {
@@ -49,4 +61,6 @@ assert.ok(!Object.keys(pkg.dependencies).some(name => /react|vite|playwright/.te
 const renderer = await import('reactive-md/react');
 assert.equal(typeof renderer.ReactiveDocument, 'function');
 assert.equal(typeof renderer.RuntimeDocumentView, 'function');
+assert.equal(typeof renderer.LocalReactiveDocument, 'function');
+assert.equal(typeof renderer.LocalDocumentView, 'function');
 console.log('PASS public package imports, language fixtures, React entry and demo/style boundaries');

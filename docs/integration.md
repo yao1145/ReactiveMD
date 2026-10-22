@@ -1,5 +1,7 @@
 # 宿主集成
 
+本页对应 v0.1/v0.2 的 directive/YAML API。本地交互标签通过 `compileLocal`、`createLocalRuntime` 和 `LocalReactiveDocument` 集成，见 [本地模式集成](local-integration.md)。
+
 Reactive MD 的文档作者使用 Markdown；宿主开发者通过 TypeScript 接入存储、组件和外部服务。根目录是语言包，`demo/` 是独立的 Playground 工作区。语言包名为 `reactive-md`，尚未发布到 npm。
 
 ## 构建产物
