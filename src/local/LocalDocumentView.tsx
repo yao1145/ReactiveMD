@@ -29,6 +29,7 @@ import { createLocalRuntime } from './runtime';
 import { MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
 import { LatexView } from './math-view';
 import { LocalVisual } from './visuals';
+import { createHeadingAnchors } from './heading-anchors';
 
 /* ------------------------------------------------------------------ props */
 
@@ -56,6 +57,7 @@ export interface LocalReactiveDocumentProps {
 interface LocalViewContext extends LocalRenderContext {
   report: (diagnostics: Diagnostic[]) => void;
   urlPolicy?: LocalUrlPolicy;
+  anchors: ReturnType<typeof createHeadingAnchors>;
 }
 
 const LocalViewContext = createContext<LocalViewContext | null>(null);
@@ -306,6 +308,7 @@ function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5'
 interface RenderEnv {
   runtime: LocalRuntime;
   urlPolicy?: LocalUrlPolicy;
+  anchors: ReturnType<typeof createHeadingAnchors>;
 }
 
 function renderNodes(
@@ -384,7 +387,7 @@ function renderNode(
     case 'heading':
       return createElement(
         headingTag(node.depth),
-        { key },
+        { key, id: env.anchors.ids.get(node) },
         renderNodes(env,node.children, visible, false),
       );
 
@@ -459,14 +462,15 @@ function renderNode(
     }
 
     case 'link': {
-      const href = safeUrl(node.url, 'link', env.urlPolicy);
-      if (!href) {
+      const allowedHref = safeUrl(node.url, 'link', env.urlPolicy);
+      if (!allowedHref) {
         return (
           <span className="md-link-rejected" key={key} title="已拒绝不安全的链接地址">
             {renderNodes(env,node.children, visible, false)}
           </span>
         );
       }
+      const href = env.anchors.resolve(allowedHref);
       const external = /^https?:/i.test(href);
       return (
         <a
@@ -2016,6 +2020,11 @@ export function LocalDocumentView({
   onDiagnostics,
   urlPolicy,
 }: LocalDocumentViewProps) {
+  const instanceId = useId();
+  const anchors = useMemo(
+    () => createHeadingAnchors(document, `local-heading-${instanceId}`),
+    [document, instanceId],
+  );
   const reportRef = useRef(onDiagnostics);
   reportRef.current = onDiagnostics;
   const report = useCallback((diagnostics: Diagnostic[]) => {
@@ -2044,9 +2053,9 @@ export function LocalDocumentView({
   // current snapshot through runtime.get during the resulting render.
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  const env: RenderEnv = { runtime, urlPolicy };
+  const env: RenderEnv = { runtime, urlPolicy, anchors };
   const render = (nodes?: LocalNode[], visible = true): ReactNode => (
-    <LocalViewContext.Provider value={{ runtime, render, visible, report, urlPolicy }}>
+    <LocalViewContext.Provider value={{ runtime, render, visible, report, urlPolicy, anchors }}>
       {renderNodes(env, nodes ?? [], visible)}
     </LocalViewContext.Provider>
   );

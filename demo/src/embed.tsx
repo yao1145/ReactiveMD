@@ -8,6 +8,10 @@ import './author.css';
 const source = [
   '# 独立的内存实例',
   '',
+  '[跳到本地参数](#本地参数)',
+  '',
+  '## 本地参数',
+  '',
   '<panel title="本地参数">',
   '<input bind="name" label="称呼" initial="读者">',
   '<slider bind="count" label="数量" initial="2" min="1" max="10">',

@@ -9,15 +9,15 @@ import {
   type KeyboardEvent,
   type UIEvent,
 } from 'react';
-import { createLocalRuntime } from 'reactive-md';
-import type { Diagnostic, SourceRange } from 'reactive-md';
+import type { Diagnostic, LocalRuntime, SourceRange } from 'reactive-md';
 import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
 import { AuthorTools } from './author-tools';
 import { EXAMPLES, DEFAULT_EXAMPLE_ID } from './examples';
 import { useLocalCompilation, type LocalCompiledDocument } from './use-local-compilation';
+import { PreviewStateSession } from './preview-state';
 import guideSource from '../../docs/local-guide.md?raw';
 
-type LocalRuntimeInstance = ReturnType<typeof createLocalRuntime>;
+type LocalRuntimeInstance = LocalRuntime;
 
 const DEFAULT_EXAMPLE = EXAMPLES.find((item) => item.id === DEFAULT_EXAMPLE_ID) ?? EXAMPLES[0];
 const SOURCE_PREFIX = 'reactive-md:local:source:';
@@ -29,14 +29,6 @@ const GUIDE_REPOSITORY = 'https://github.com/yao1145/ReactiveMD/blob/main';
 const GUIDE_SOURCE = guideSource
   .replace(/\]\(\.\.\/examples\/local\/([^)]+)\)/g, `](${GUIDE_REPOSITORY}/examples/local/$1)`)
   .replace(/\]\((local-interaction-syntax|local-integration)\.md\)/g, `](${GUIDE_REPOSITORY}/docs/$1.md)`);
-
-function headingSlug(text: string): string {
-  return text
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .replace(/\s+/g, '-');
-}
 
 function browserStorage(): Storage | undefined {
   try { return window.localStorage; } catch { return undefined; }
@@ -128,10 +120,11 @@ function DiagnosticList({ diagnostics, focusDiagnostic, emptyText }: DiagnosticL
 
 interface LocalPreviewProps {
   document: LocalCompiledDocument;
+  session: PreviewStateSession;
   onDiagnostics: (diagnostics: Diagnostic[]) => void;
 }
 
-const LocalPreview = memo(function LocalPreview({ document, onDiagnostics }: LocalPreviewProps) {
+const LocalPreview = memo(function LocalPreview({ document, session, onDiagnostics }: LocalPreviewProps) {
   const [instance, setInstance] = useState<{
     document: LocalCompiledDocument;
     runtime: LocalRuntimeInstance;
@@ -142,8 +135,9 @@ const LocalPreview = memo(function LocalPreview({ document, onDiagnostics }: Loc
 
   useEffect(() => {
     let runtime: LocalRuntimeInstance;
+    let release: () => void;
     try {
-      runtime = createLocalRuntime(document);
+      ({ runtime, release } = session.open(document));
     } catch (error) {
       setInitError(error instanceof Error ? error.message : String(error));
       reportRef.current([unexpectedDiagnostic(error)]);
@@ -151,8 +145,8 @@ const LocalPreview = memo(function LocalPreview({ document, onDiagnostics }: Loc
     }
     setInstance({ document, runtime });
     setInitError(null);
-    return () => runtime.dispose();
-  }, [document]);
+    return release;
+  }, [document, session]);
 
   if (initError) {
     return <div className="preview-error" role="alert">
@@ -173,24 +167,6 @@ interface GuideViewProps {
 }
 
 function GuideView({ dark, onTheme, onBack }: GuideViewProps) {
-  const paper = useRef<HTMLDivElement>(null);
-
-  // The guide's table of contents links to heading anchors. The renderer does
-  // not generate ids, so add GitHub-style slugs once the document is mounted.
-  useEffect(() => {
-    const article = paper.current?.querySelector('.local-document');
-    if (!article) return;
-    const seen = new Map<string, number>();
-    for (const heading of article.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
-      if (heading.id) continue;
-      const base = headingSlug(heading.textContent ?? '');
-      if (!base) continue;
-      const count = seen.get(base) ?? 0;
-      seen.set(base, count + 1);
-      heading.id = count ? `${base}-${count}` : base;
-    }
-  }, []);
-
   return (
     <main className="guide-view">
       <div className="guide-toolbar">
@@ -208,7 +184,7 @@ function GuideView({ dark, onTheme, onBack }: GuideViewProps) {
           </button>
         </div>
       </div>
-      <div className="guide-paper" ref={paper}>
+      <div className="guide-paper">
         <LocalReactiveDocument source={GUIDE_SOURCE} />
       </div>
     </main>
@@ -222,6 +198,8 @@ export default function App() {
   const [dark, setDark] = useState(() => savedItem('reactive-md:theme') === 'dark');
   const [simple, setSimple] = useState(false);
   const [instanceKey, setInstanceKey] = useState(0);
+  const [retainPreviewState, setRetainPreviewState] = useState(true);
+  const [previewSession, setPreviewSession] = useState(() => new PreviewStateSession());
   const [runtimeDiagnostics, setRuntimeDiagnostics] = useState<Diagnostic[]>([]);
   const [activeLine, setActiveLine] = useState(1);
 
@@ -289,6 +267,16 @@ export default function App() {
     setRuntimeDiagnostics([]);
   }, []);
 
+  const beginPreviewSession = useCallback(() => {
+    setPreviewSession(new PreviewStateSession(retainPreviewState));
+    setInstanceKey((key) => key + 1);
+  }, [retainPreviewState]);
+
+  const importSource = useCallback((next: string) => {
+    replaceSource(next);
+    beginPreviewSession();
+  }, [replaceSource, beginPreviewSession]);
+
   const focusDiagnostic = useCallback((range: SourceRange) => {
     setSimple(false);
     window.requestAnimationFrame(() => {
@@ -315,22 +303,22 @@ export default function App() {
     setSelectedExample(example.id);
     setSource(savedSource(example.id));
     setRuntimeDiagnostics([]);
-    setInstanceKey((key) => key + 1);
+    beginPreviewSession();
     try { browserStorage()?.setItem('reactive-md:selection', example.id); } catch { /* optional storage */ }
     if (editorRef.current) editorRef.current.scrollTop = 0;
     if (gutterRef.current) gutterRef.current.scrollTop = 0;
-  }, [flushSourceWrite]);
+  }, [flushSourceWrite, beginPreviewSession]);
 
   const restoreExample = useCallback(() => {
     setSource(currentExample.source);
     setRuntimeDiagnostics([]);
-    setInstanceKey((key) => key + 1);
-  }, [currentExample.source]);
+    beginPreviewSession();
+  }, [currentExample.source, beginPreviewSession]);
 
   const resetInstance = useCallback(() => {
     setRuntimeDiagnostics([]);
-    setInstanceKey((key) => key + 1);
-  }, []);
+    beginPreviewSession();
+  }, [beginPreviewSession]);
 
   const currentDiagnostics = useMemo(
     () => compiled ? dedupeDiagnostics([...compiled.diagnostics, ...runtimeDiagnostics]) : [],
@@ -369,6 +357,9 @@ export default function App() {
   const ready = compiled?.ok === true;
   const compiling = compilation.pending;
   const previewFailed = compiled !== null && !compiled.ok;
+  const previewDocument = compilation.previewDocument && previewSession.canPreview(compilation.previewDocument, source)
+    ? compilation.previewDocument
+    : null;
   const statusLabel = compiling
     ? (compilation.mode === 'fallback' ? '编译中… · 主线程' : '编译中…')
     : compiled
@@ -427,6 +418,18 @@ export default function App() {
             </select>
           </div>
           <div className="bar-group bar-actions">
+            <label className="bar-label" title="编辑时保留兼容的命名参数；修改初值或约束后会重新校验。">
+              <input
+                type="checkbox"
+                checked={retainPreviewState}
+                aria-describedby="preview-state-note"
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  previewSession.setRetention(event.target.checked);
+                  setRetainPreviewState(event.target.checked);
+                }}
+              />{' '}
+              保留试算状态
+            </label>
             <button type="button" className="button button-secondary" onClick={restoreExample}>
               恢复示例
             </button>
@@ -449,7 +452,7 @@ export default function App() {
           simple={simple}
           onTheme={() => setDark((value) => !value)}
           onSimple={() => setSimple((value) => !value)}
-          onImport={replaceSource}
+          onImport={importSource}
           onExport={() => download(`${selectedExample}.reactive.md`, source, 'text/markdown;charset=utf-8')}
         />
 
@@ -500,7 +503,11 @@ export default function App() {
             </div>
 
             <p className="editor-note" id="editor-note">
-              编辑会短暂合并后再按本地语法编译；预览中的交互状态只保存在当前实例。
+              编辑会短暂合并后再按本地语法编译。
+            </p>
+            <p className="editor-note" id="preview-state-note">
+              开启保留后，编辑正文、标签和公式会沿用兼容的命名参数；修改初值或不再满足约束时恢复初值。
+              清单和计时器每次编译后重置。关闭保留后，下次编译使用初值；重新运行、切换或恢复示例、导入和刷新会清空试算。
             </p>
 
             <section className="diagnostics-panel" aria-label="编译与运行诊断">
@@ -535,16 +542,17 @@ export default function App() {
                     focusDiagnostic={focusDiagnostic}
                   />
                 </div>
-              ) : compilation.previewDocument ? (
+              ) : previewDocument ? (
                 <LocalPreview
                   key={instanceKey}
-                  document={compilation.previewDocument}
+                  document={previewDocument}
+                  session={previewSession}
                   onDiagnostics={report}
                 />
               ) : (
                 <div className="preview-loading" role="status"><p>正在准备交互文档…</p></div>
               )}
-              {compiling && compilation.previewDocument && !previewFailed ? (
+              {compiling && previewDocument && !previewFailed ? (
                 <div className="preview-veil" role="status">
                   <strong>正在编译最新源码</strong>
                   <span>预览暂时保留上一次成功的结果，完成后会自动替换。</span>
@@ -564,7 +572,7 @@ export default function App() {
         {view === 'guide' ? (
           <p>指南内容与仓库 <code>docs/local-guide.md</code> 保持一致。</p>
         ) : (
-          <p>浏览器只保存各示例正在编辑的源码；交互状态不持久化，刷新或重新运行会回到初值。</p>
+          <p>试算只保存在本次编辑会话；浏览器保存各示例的源码，刷新或重新运行会回到初值。</p>
         )}
       </footer>
     </div>
