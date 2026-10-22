@@ -4,6 +4,8 @@ Playground 使用 [本地交互语法](../docs/local-interaction-syntax.md)，�
 
 页面顶部的“使用指南”会直接渲染 `docs/local-guide.md`，包含从第一份交互文档到图表、函数曲线和错误速查的完整说明。指南中的文档链接指向仓库，目录锚点可在页内跳转。
 
+编辑源码时，页面合并连续输入并在后台线程编译，等待期间保留上一次预览。当前源码编译成功后更新预览，失败时显示对应诊断。大文档编辑的实现和复测方法见[性能测量](../docs/performance.md#playground-实时编辑)。
+
 线上演示：[yaozi.raricy.com](https://yaozi.raricy.com/)。
 
 ## 启动

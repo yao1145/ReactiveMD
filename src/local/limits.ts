@@ -1,5 +1,6 @@
 /** Shared limits for source compilation, runtime values and visual work. */
 export const MAX_LOCAL_DOCUMENT_LENGTH = 1_000_000;
+export const DEFAULT_MAX_LOCAL_SYNTAX_NODES = 10_000;
 export const MAX_LOCAL_STRING_LENGTH = 100_000;
 export const MAX_LOCAL_ARRAY_LENGTH = 10_000;
 export const MAX_LOCAL_VALUE_CHARACTERS = 100_000;

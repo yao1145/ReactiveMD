@@ -12,7 +12,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | React 入口 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` |
 | 样式入口 | `reactive-md/styles.css` | 一份全局样式表，由宿主显式引入 |
 
-一个包版本只对应一个语法修订。升级包之前，记录应用使用的 `LOCAL_SYNTAX_VERSION`。如果文档源码来自另一个语法修订，保留旧包版本渲染，或按下面的迁移说明改写。`compileLocal(source)` 不提供语法版本参数，也没有其他编译 options。
+一个包版本只对应一个语法修订。升级包之前，记录应用使用的 `LOCAL_SYNTAX_VERSION`。如果文档源码来自另一个语法修订，保留旧包版本渲染，或按下面的迁移说明改写。`compileLocal(source, options?)` 不提供语法版本参数；宿主可以通过 `options.limits.maxSyntaxNodes` 调整单次编译的语法节点预算，见[本地模式集成](local-integration.md)。
 
 ## 0.x 的兼容规则
 

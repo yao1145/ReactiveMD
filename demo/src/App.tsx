@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -8,18 +9,19 @@ import {
   type KeyboardEvent,
   type UIEvent,
 } from 'react';
-import { compileLocal, createLocalRuntime } from 'reactive-md';
+import { createLocalRuntime } from 'reactive-md';
 import type { Diagnostic, SourceRange } from 'reactive-md';
 import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
 import { AuthorTools } from './author-tools';
 import { EXAMPLES, DEFAULT_EXAMPLE_ID } from './examples';
+import { useLocalCompilation, type LocalCompiledDocument } from './use-local-compilation';
 import guideSource from '../../docs/local-guide.md?raw';
 
-type CompiledLocal = Extract<ReturnType<typeof compileLocal>, { ok: true }>;
 type LocalRuntimeInstance = ReturnType<typeof createLocalRuntime>;
 
 const DEFAULT_EXAMPLE = EXAMPLES.find((item) => item.id === DEFAULT_EXAMPLE_ID) ?? EXAMPLES[0];
 const SOURCE_PREFIX = 'reactive-md:local:source:';
+const SOURCE_WRITE_DELAY = 400;
 const GUIDE_REPOSITORY = 'https://github.com/yao1145/ReactiveMD/blob/main';
 
 // The guide lives in docs/ and links to neighbouring files. Send those links
@@ -86,9 +88,10 @@ function dedupeDiagnostics(items: Diagnostic[]): Diagnostic[] {
   return result;
 }
 
-function statusText(ok: boolean, count: number, duration: number): string {
+function statusText(ok: boolean, count: number, duration: number, fallback: boolean): string {
   if (!ok) return '编译失败';
-  return count ? `已编译 · ${count} 条诊断` : `已编译 · ${duration} ms`;
+  const base = count ? `已编译 · ${count} 条诊断` : `已编译 · ${duration} ms`;
+  return fallback ? `${base} · 主线程` : base;
 }
 
 interface DiagnosticListProps {
@@ -124,13 +127,13 @@ function DiagnosticList({ diagnostics, focusDiagnostic, emptyText }: DiagnosticL
 }
 
 interface LocalPreviewProps {
-  document: CompiledLocal['document'];
+  document: LocalCompiledDocument;
   onDiagnostics: (diagnostics: Diagnostic[]) => void;
 }
 
-function LocalPreview({ document, onDiagnostics }: LocalPreviewProps) {
+const LocalPreview = memo(function LocalPreview({ document, onDiagnostics }: LocalPreviewProps) {
   const [instance, setInstance] = useState<{
-    document: CompiledLocal['document'];
+    document: LocalCompiledDocument;
     runtime: LocalRuntimeInstance;
   } | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
@@ -161,7 +164,7 @@ function LocalPreview({ document, onDiagnostics }: LocalPreviewProps) {
     return <div className="preview-loading" role="status"><p>正在准备交互文档…</p></div>;
   }
   return <LocalDocumentView document={document} runtime={instance.runtime} onDiagnostics={onDiagnostics} />;
-}
+});
 
 interface GuideViewProps {
   dark: boolean;
@@ -224,17 +227,10 @@ export default function App() {
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
+  const pendingSourceWrite = useRef<{ exampleId: string; source: string } | null>(null);
+  const sourceWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const compilation = useMemo(() => {
-    const started = performance.now();
-    let result: ReturnType<typeof compileLocal>;
-    try {
-      result = compileLocal(source);
-    } catch (error) {
-      result = { ok: false, diagnostics: [unexpectedDiagnostic(error)] };
-    }
-    return { result, duration: Math.max(0, Math.round(performance.now() - started)) };
-  }, [source]);
+  const compilation = useLocalCompilation(source);
 
   const currentExample = EXAMPLES.find((item) => item.id === selectedExample) ?? DEFAULT_EXAMPLE;
   const compiled = compilation.result;
@@ -244,13 +240,44 @@ export default function App() {
     try { browserStorage()?.setItem('reactive-md:theme', dark ? 'dark' : 'light'); } catch { /* optional storage */ }
   }, [dark]);
 
-  useEffect(() => {
+  // Large sources are written after typing settles rather than on every key.
+  const flushSourceWrite = useCallback(() => {
+    if (sourceWriteTimer.current !== null) {
+      clearTimeout(sourceWriteTimer.current);
+      sourceWriteTimer.current = null;
+    }
+    const pending = pendingSourceWrite.current;
+    pendingSourceWrite.current = null;
+    if (!pending) return;
     try {
       const storage = browserStorage();
-      storage?.setItem(`${SOURCE_PREFIX}${selectedExample}`, source);
-      storage?.setItem('reactive-md:selection', selectedExample);
+      storage?.setItem(`${SOURCE_PREFIX}${pending.exampleId}`, pending.source);
+      storage?.setItem('reactive-md:selection', pending.exampleId);
     } catch { /* optional storage */ }
-  }, [selectedExample, source]);
+  }, []);
+
+  useEffect(() => {
+    pendingSourceWrite.current = { exampleId: selectedExample, source };
+    if (sourceWriteTimer.current !== null) clearTimeout(sourceWriteTimer.current);
+    sourceWriteTimer.current = setTimeout(() => {
+      sourceWriteTimer.current = null;
+      flushSourceWrite();
+    }, SOURCE_WRITE_DELAY);
+  }, [selectedExample, source, flushSourceWrite]);
+
+  useEffect(() => {
+    const flush = () => flushSourceWrite();
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+      flushSourceWrite();
+    };
+  }, [flushSourceWrite]);
 
   const report = useCallback((diagnostics: Diagnostic[]) => {
     if (diagnostics.length === 0) return;
@@ -284,13 +311,15 @@ export default function App() {
   const loadExample = useCallback((exampleId: string) => {
     const example = EXAMPLES.find((item) => item.id === exampleId);
     if (!example) return;
+    flushSourceWrite();
     setSelectedExample(example.id);
     setSource(savedSource(example.id));
     setRuntimeDiagnostics([]);
     setInstanceKey((key) => key + 1);
+    try { browserStorage()?.setItem('reactive-md:selection', example.id); } catch { /* optional storage */ }
     if (editorRef.current) editorRef.current.scrollTop = 0;
     if (gutterRef.current) gutterRef.current.scrollTop = 0;
-  }, []);
+  }, [flushSourceWrite]);
 
   const restoreExample = useCallback(() => {
     setSource(currentExample.source);
@@ -304,7 +333,7 @@ export default function App() {
   }, []);
 
   const currentDiagnostics = useMemo(
-    () => dedupeDiagnostics([...compiled.diagnostics, ...runtimeDiagnostics]),
+    () => compiled ? dedupeDiagnostics([...compiled.diagnostics, ...runtimeDiagnostics]) : [],
     [compiled, runtimeDiagnostics],
   );
 
@@ -337,7 +366,14 @@ export default function App() {
     });
   };
 
-  const ready = compiled.ok;
+  const ready = compiled?.ok === true;
+  const compiling = compilation.pending;
+  const previewFailed = compiled !== null && !compiled.ok;
+  const statusLabel = compiling
+    ? (compilation.mode === 'fallback' ? '编译中… · 主线程' : '编译中…')
+    : compiled
+      ? statusText(compiled.ok, currentDiagnostics.length, compilation.duration, compilation.mode === 'fallback')
+      : '等待编译';
 
   return (
     <div className={`app-shell${simple ? ' is-simple' : ''}`}>
@@ -400,10 +436,11 @@ export default function App() {
           </div>
           <span className="example-hint" title={currentExample.hint}>{currentExample.hint}</span>
           <span
-            className={`status-chip ${ready ? '' : 'is-error'}`}
+            className={`status-chip ${compiling ? 'is-pending' : previewFailed ? 'is-error' : ''}`}
             role="status"
+            title={compilation.failure ?? undefined}
           >
-            {statusText(ready, currentDiagnostics.length, compilation.duration)}
+            {statusLabel}
           </span>
         </div>
 
@@ -463,18 +500,18 @@ export default function App() {
             </div>
 
             <p className="editor-note" id="editor-note">
-              编辑后立即按本地语法重新编译；预览中的交互状态只保存在当前实例。
+              编辑会短暂合并后再按本地语法编译；预览中的交互状态只保存在当前实例。
             </p>
 
             <section className="diagnostics-panel" aria-label="编译与运行诊断">
               <div className="diagnostics-head">
                 <h3>诊断</h3>
-                <span>{currentDiagnostics.length ? `${currentDiagnostics.length} 条` : '无'}</span>
+                <span>{compiling ? '编译中' : currentDiagnostics.length ? `${currentDiagnostics.length} 条` : '无'}</span>
               </div>
               <DiagnosticList
                 diagnostics={currentDiagnostics}
                 focusDiagnostic={focusDiagnostic}
-                emptyText="当前源码没有编译或运行诊断。"
+                emptyText={compiling ? '正在编译最新源码…' : '当前源码没有编译或运行诊断。'}
               />
             </section>
           </section>
@@ -488,14 +525,8 @@ export default function App() {
               <span className={`live-dot ${ready ? 'is-live' : ''}`} aria-hidden="true" />
             </div>
 
-            <div className="preview-stage">
-              {compiled.ok ? (
-                <LocalPreview
-                  key={instanceKey}
-                  document={compiled.document}
-                  onDiagnostics={report}
-                />
-              ) : (
+            <div className="preview-stage" aria-busy={compiling}>
+              {previewFailed && compiled ? (
                 <div className="preview-error" role="alert">
                   <h3>预览已停用</h3>
                   <p>请修正左侧标记的错误，编译成功后预览会自动恢复。</p>
@@ -504,7 +535,21 @@ export default function App() {
                     focusDiagnostic={focusDiagnostic}
                   />
                 </div>
+              ) : compilation.previewDocument ? (
+                <LocalPreview
+                  key={instanceKey}
+                  document={compilation.previewDocument}
+                  onDiagnostics={report}
+                />
+              ) : (
+                <div className="preview-loading" role="status"><p>正在准备交互文档…</p></div>
               )}
+              {compiling && compilation.previewDocument && !previewFailed ? (
+                <div className="preview-veil" role="status">
+                  <strong>正在编译最新源码</strong>
+                  <span>预览暂时保留上一次成功的结果，完成后会自动替换。</span>
+                </div>
+              ) : null}
             </div>
           </section>
         </div>
