@@ -46,6 +46,14 @@ export interface LocalDocument {
   initialState: Record<string, LocalValue>;
   bindings: Record<string, LocalBinding>;
 }
+/** Host-owned budgets for a single compilation. */
+export interface LocalCompileLimits {
+  /** Positive safe integer; defaults to 10,000 cumulative LocalNode creations. */
+  readonly maxSyntaxNodes?: number;
+}
+export interface LocalCompileOptions {
+  readonly limits?: LocalCompileLimits;
+}
 export type LocalCompileResult = { ok: true; document: LocalDocument; diagnostics: Diagnostic[] } | { ok: false; diagnostics: Diagnostic[] };
 export interface LocalSnapshot { revision: number; state: Readonly<Record<string, LocalValue>> }
 export interface LocalRuntime {

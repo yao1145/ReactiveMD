@@ -21,6 +21,7 @@ import {
 } from './schema';
 import type {
   LocalBinding,
+  LocalCompileOptions,
   LocalCompileResult,
   LocalDocument,
   LocalNode,
@@ -240,9 +241,9 @@ interface CompileState {
   expressionKinds: Map<string, LocalValueKind | null>;
 }
 
-export function compileLocal(source: string): LocalCompileResult {
+export function compileLocal(source: string, options?: LocalCompileOptions): LocalCompileResult {
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
-    return { ok: false, diagnostics: parseLocal(source).diagnostics };
+    return { ok: false, diagnostics: parseLocal(source, options).diagnostics };
   }
   const diagnostics: Diagnostic[] = [];
   const lineStarts = [0];
@@ -274,7 +275,7 @@ export function compileLocal(source: string): LocalCompileResult {
 
   let parsed: ReturnType<typeof parseLocal>;
   try {
-    parsed = parseLocal(source);
+    parsed = parseLocal(source, options);
   } catch (error) {
     report('local.parse', `无法解析文档：${error instanceof Error ? error.message : String(error)}`, 0);
     return { ok: false, diagnostics };
@@ -1842,6 +1843,6 @@ function validateTimeline(entry: Entry, shape: TableShape, state: CompileState):
 /* Top-level entry point used by validateExpressions                   */
 /* ------------------------------------------------------------------ */
 
-export function compileLocalDocument(source: string): LocalCompileResult {
-  return compileLocal(source);
+export function compileLocalDocument(source: string, options?: LocalCompileOptions): LocalCompileResult {
+  return compileLocal(source, options);
 }

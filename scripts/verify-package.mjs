@@ -4,6 +4,12 @@ import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { compileLocal, createLocalRuntime } from 'reactive-md';
 
+// Exercise the built public options API, including preservation of defaults.
+assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: 1 } }).ok, false);
+assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: 2 } }).ok, true);
+assert.equal(compileLocal('hello').ok, true);
+assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: Infinity } }).diagnostics[0]?.code, 'local.options.invalid');
+
 // This import and compilation run in Node without DOM or React rendering.
 for (const name of (await readdir('examples/local')).filter(name => name.endsWith('.reactive.md'))) {
   const result = compileLocal(await readFile(`examples/local/${name}`, 'utf8'));

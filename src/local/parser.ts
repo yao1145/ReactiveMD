@@ -2,9 +2,9 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import type { Diagnostic } from './types';
-import type { LocalNode } from './types';
+import type { LocalCompileOptions, LocalNode } from './types';
 import {
-  MAX_LOCAL_ARRAY_LENGTH,
+  DEFAULT_MAX_LOCAL_SYNTAX_NODES,
   MAX_LOCAL_DOCUMENT_LENGTH,
   MAX_LOCAL_DIAGNOSTICS,
   MAX_LOCAL_DIAGNOSTIC_LENGTH,
@@ -21,8 +21,6 @@ const TAG_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const ATTR_NAME = TAG_NAME;
 /** Names longer than this are rejected and never fed to suggestion search. */
 const MAX_LOCAL_NAME_LENGTH = 128;
-/** Total syntax nodes produced by one parse. */
-const MAX_SYNTAX_NODES = MAX_LOCAL_ARRAY_LENGTH;
 /** Displayed math is parsed by the math view; keep its source comparable to math.ts. */
 const MAX_DISPLAY_MATH_SOURCE = Math.min(50_000, MAX_LOCAL_STRING_LENGTH);
 const markdown = unified().use(remarkParse).use(remarkGfm);
@@ -41,14 +39,39 @@ class LocalBudgetError extends Error {
   }
 }
 
+function syntaxNodeLimit(options: LocalCompileOptions | undefined): number | string {
+  if (options === undefined) return DEFAULT_MAX_LOCAL_SYNTAX_NODES;
+  if (typeof options !== 'object' || options === null || Array.isArray(options)) {
+    return '编译选项 options 必须是对象。';
+  }
+  const limits = options.limits;
+  if (limits === undefined) return DEFAULT_MAX_LOCAL_SYNTAX_NODES;
+  if (typeof limits !== 'object' || limits === null || Array.isArray(limits)) {
+    return '编译选项 limits 必须是对象。';
+  }
+  const value = limits.maxSyntaxNodes;
+  if (value === undefined) return DEFAULT_MAX_LOCAL_SYNTAX_NODES;
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+    return '编译选项 limits.maxSyntaxNodes 必须是正的安全整数。';
+  }
+  return value;
+}
+
 /** A lexical pass shields code before recognizing local tags, interpolation and math. */
-export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: Diagnostic[] } {
+export function parseLocal(source: string, options?: LocalCompileOptions): { nodes: LocalNode[]; diagnostics: Diagnostic[] } {
   const diagnostics: Diagnostic[] = [];
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     return { nodes: [], diagnostics: [{
       code: typeof source === 'string' ? 'local.budget' : 'local.parse',
       message: typeof source === 'string' ? `文档超过 ${MAX_LOCAL_DOCUMENT_LENGTH} 字符上限。` : '文档源码必须是字符串。',
       severity: 'error', range: { start: 0, end: typeof source === 'string' && source.length ? 1 : 0 }, line: 1, column: 1,
+    }] };
+  }
+  const maxSyntaxNodes = syntaxNodeLimit(options);
+  if (typeof maxSyntaxNodes === 'string') {
+    return { nodes: [], diagnostics: [{
+      code: 'local.options.invalid', message: maxSyntaxNodes, severity: 'error',
+      range: { start: 0, end: 0 }, line: 1, column: 1,
     }] };
   }
   const lineStarts = [0];
@@ -72,8 +95,8 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
   }
   let codeIndex = 0;
   const node = (type: string, start: number, end: number, extra: Partial<LocalNode> = {}): LocalNode => {
-    if (nodeCount >= MAX_SYNTAX_NODES) {
-      throw new LocalBudgetError('local.budget', `语法节点超过 ${MAX_SYNTAX_NODES} 个上限。`, start, end);
+    if (nodeCount >= maxSyntaxNodes) {
+      throw new LocalBudgetError('local.budget', `语法节点超过 ${maxSyntaxNodes} 个上限。`, start, end);
     }
     nodeCount += 1;
     return { type, id: `local-${serial++}`, range: { start, end }, ...extra };
