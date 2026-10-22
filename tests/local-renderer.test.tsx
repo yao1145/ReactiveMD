@@ -85,8 +85,10 @@ it('fails closed and reports an unevaluable disabled expression', () => {
   expect(html).toMatch(/<input[^>]*disabled=""/);
 });
 
-it('deactivates the preview when compilation reports errors', () => {
-  const html = renderToStaticMarkup(<LocalReactiveDocument source={'<slidr label="未知" />'} />);
+it('deactivates the preview when compilation reports a fatal error', () => {
+  const html = renderToStaticMarkup(
+    <LocalReactiveDocument source={'<number bind="n" label="数字">\n\n结果：{{ missing + 1 }}\n'} />,
+  );
   expect(html).toContain('local-inactive');
   expect(html).toContain('交互预览已停用');
 });

@@ -3,7 +3,7 @@
 [local-draft-1.json](local-draft-1.json) 是可复制的最小语义验收集，包含源码、编译结果、初始参数、状态写入和预期文本。数据随 npm 包分发，其他工具或实现可以读取同一份 JSON。
 
 - `syntaxVersion` 对应核心导出的 `LOCAL_SYNTAX_VERSION`。
-- `ok` 是预期编译结果；失败时 `codes` 是去重后的预期诊断码集合。
+- `ok` 是预期编译结果；`codes` 是去重后的预期诊断码集合，省略时应无诊断。编译成功时也可能包含降级警告。
 - `initial` 检查公开参数的初值；`bindingNames` 在出现时检查完整绑定名集合。
 - `actions` 按 `bind` 查找控件并提交 `value`；有 `codes` 时预期写入被拒绝，否则预期成功。
 - `text` 用更新后的状态求值，结果应等于 `expectedText`。

@@ -23,6 +23,37 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* --------------------------------------------------------- fallback source */
+
+/* Unsupported syntax is shown as inert source. A span keeps the markup valid
+   inside paragraphs, table cells and standalone blocks; pre-wrap preserves the
+   source line breaks without a nested <pre>. */
+.local-document .local-fallback {
+  max-width: 100%;
+  border-radius: var(--local-radius-sm);
+  color: var(--local-ink-soft);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.local-document .local-fallback-inline {
+  display: inline;
+  padding: 0 0.3em;
+  background: color-mix(in srgb, var(--local-warning) 8%, var(--local-surface));
+  box-shadow: inset 0 -1px 0 var(--local-line-strong);
+}
+
+.local-document .local-fallback-block {
+  display: block;
+  margin: 0.7em 0;
+  padding: 9px 12px;
+  border: 1px dashed var(--local-line-strong);
+  background: color-mix(in srgb, var(--local-warning) 6%, var(--local-surface));
+}
+
 /* ---------------------------------------------------------- inactive state */
 
 .local-document.local-inactive {

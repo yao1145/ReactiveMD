@@ -28,3 +28,40 @@ npm run benchmark
 ## 宿主中的大文档
 
 文档源码上限为 1,000,000 个 UTF-16 代码单元，绘图和表达式还有独立计算预算，详见[安全策略](../SECURITY.md)。资源上限控制工作量，编译 API 仍是同步调用。编辑器可以合并连续输入触发的编译；处理来源不可信或较大的文档时，可以在宿主 Worker 或独立进程中编译，并由宿主控制并发和超时。
+
+语法节点预算默认 10,000，宿主可用 `compileLocal(source, { limits: { maxSyntaxNodes: 50_000 } })` 按次调整，见[核心 API](local-integration.md#核心-api)。提高预算后应同时测量编译、内存和最终预览渲染成本。
+
+## Playground 实时编辑
+
+Playground 在独立的模块 Worker 中调用公开的 `compileLocal`，将连续 150 ms 内的编辑合并。调度器最多保留一个正在编译的任务和一份最新待编译源码；过期结果不会替换当前预览或诊断。输入框和导出始终使用最新源码，等待编译时显示“编译中”并保留上一次预览。预览组件复用相同文档，避免每次按键重建整个预览。
+
+源码保存延后执行，切换示例或离开页面时保存待写入的内容。Worker 无法使用或运行失败时，页面提示降级，并合并编辑后在主线程编译；该模式仍有大文档阻塞的成本。正常 Worker 模式中，接收编译结果后的 React 渲染、排版与绘制仍在主线程执行。
+
+语言包的同步编译 API 和 `LocalReactiveDocument` 保持原有行为。其他宿主可以参考 `demo/src/local-compile-worker.ts` 与调度器，将编译放到自己管理的 Worker。
+
+### 复测
+
+在仓库根目录构建语言包后执行：
+
+```sh
+node scripts/benchmark-large-documents.mjs
+```
+
+脚本预热 3 次、测量 20 次，检查 10、100、300、600 节文章编译结果并保存中位数和 P95。启动 Playground 后，可以从仓库根目录执行以下浏览器检查；默认服务器为 `http://127.0.0.1:5184`，可用 `DEMO_URL` 覆盖。
+
+```sh
+node demo/scripts/verify-editing.mjs
+node demo/scripts/benchmark-editing.mjs
+```
+
+编辑基准在 300 节、约 47,000 字符的文章末尾连续键入 10 个字符，按键间隔为 20 ms，记录输入事件到下一次 `requestAnimationFrame` 回调的延迟和主线程长任务。该指标用于观察输入响应，不等同于画面完成绘制的时间；长任务统计包含最终预览渲染。`EDITING_SECTIONS` 可调整节数，`EDITING_REPORT` 可指定报告路径。所有报告写入忽略目录 `artifacts/`。
+
+2026-10-22，在上述 Windows 机器上用本机 Edge 对同一份 46,969 字符文章进行一次前后对比。两边均使用 Vite 开发服务、1440 × 1000 视口，原版为 `94fd72e`，优化版包含本节描述的 Worker 调度与预览复用。
+
+| 指标 | 原版 | 优化版 |
+| --- | ---: | ---: |
+| 输入到下一帧回调的中位延迟 | 147.3 ms | 9.5 ms |
+| 输入到下一帧回调的最大延迟 | 157.9 ms | 36.9 ms |
+| 连续键入 10 个字符的总耗时 | 2,302 ms | 538 ms |
+
+原始报告分别为 `artifacts/benchmark-editing-before.json` 和 `artifacts/benchmark-editing-after.json`。这是一次本机观测，机器负载会影响数值。优化主要减少按键触发的主线程工作，同步 `compileLocal` 本身的算法和单次编译速度保持原样。

@@ -12,7 +12,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | React 入口 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` |
 | 样式入口 | `reactive-md/styles.css` | 一份全局样式表，由宿主显式引入 |
 
-一个包版本只对应一个语法修订。升级包之前，记录应用使用的 `LOCAL_SYNTAX_VERSION`。如果文档源码来自另一个语法修订，保留旧包版本渲染，或按下面的迁移说明改写。`compileLocal(source)` 不提供语法版本参数，也没有其他编译 options。
+一个包版本只对应一个语法修订。升级包之前，记录应用使用的 `LOCAL_SYNTAX_VERSION`。如果文档源码来自另一个语法修订，保留旧包版本渲染，或按下面的迁移说明改写。`compileLocal(source, options?)` 不提供语法版本参数；宿主可以通过 `options.limits.maxSyntaxNodes` 调整单次编译的语法节点预算，见[本地模式集成](local-integration.md)。
 
 ## 0.x 的兼容规则
 
@@ -48,7 +48,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 - `line`、`column` 和 `range` 可以用于程序定位和编辑器跳转。
 - `code` 是字符串标识，例如 `local.type`、`expression-type`、`latex-plot-range`。在一个固定的包版本内可以按它做粗分类；0.x 不承诺跨版本稳定，次版本可能调整 code。
 - `message` 是中文显示文本，可能随时改写。不要解析 message，也不要按完整文本做业务判断。
-- 当前 `local-draft-1` 产生的诊断 `severity` 都是 `error`。编译错误会让 `result.ok` 为 `false` 并停用预览；运行时局部错误只影响对应内容。
+- `severity` 为 `warning` 或 `error`。结构完整的未知标签和脚注保留源码并给出降级警告，编译仍可成功；编译错误会让 `result.ok` 为 `false` 并停用预览。运行时局部错误只影响对应内容。
 
 ## 平台与运行环境
 

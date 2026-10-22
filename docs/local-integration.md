@@ -75,14 +75,31 @@ if (result.ok) {
 }
 ```
 
-### `compileLocal(source: string)`
+### `compileLocal(source: string, options?: LocalCompileOptions)`
 
 `source` 是 `.reactive.md` 原文。返回值是联合类型：
 
 - 成功：`{ ok: true; document: LocalDocument; diagnostics: Diagnostic[] }`
 - 失败：`{ ok: false; diagnostics: Diagnostic[] }`
 
-语法问题通过诊断返回；不是每个错误都会抛异常。`compileLocal` 不接受 options，也没有语法版本参数；当前构建只接受 `local-draft-1`。源码上限为 1,000,000 字符。`document` 是当前运行时对象，不应当作持久化格式。
+语法问题通过诊断返回；当前构建只接受 `local-draft-1`。源码上限为 1,000,000 字符。`document` 是当前运行时对象，不应当作持久化格式。
+
+宿主可以为单次编译设置语法节点预算：
+
+```ts
+import { compileLocal, type LocalCompileOptions } from 'reactive-md';
+
+const options: LocalCompileOptions = {
+  limits: { maxSyntaxNodes: 50_000 },
+};
+const result = compileLocal(source, options);
+```
+
+`limits.maxSyntaxNodes` 默认为 10,000，接受 `1` 到 `Number.MAX_SAFE_INTEGER` 之间的整数。省略选项、`limits` 或 `maxSyntaxNodes` 时使用默认值。`0`、负数、小数、`NaN`、无穷大、字符串、`null` 和错误的选项容器返回 `local.options.invalid` 诊断；超过有效节点预算时返回 `local.budget` 诊断。
+
+预算统计解析过程中累计创建的 `LocalNode`，包括 Markdown 文本、段落、列表、表格、插值、组件及部分中间节点，可能大于最终语法树的节点数。设置只影响本次编译，选项对象保持原样，数组等其他资源上限保持独立。该预算由宿主传入，文档内容不能自行提高。
+
+需要在 React 中使用自定义预算时，先调用 `compileLocal`，再把编译文档和运行时交给 `LocalDocumentView`。`LocalReactiveDocument` 和 Playground 的编译线程使用默认预算。提高节点预算后，宿主应结合实际文档测量内存和预览渲染耗时。
 
 ### `createLocalRuntime(document: LocalDocument)`
 

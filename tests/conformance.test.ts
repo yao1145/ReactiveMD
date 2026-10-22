@@ -34,7 +34,8 @@ describe('portable syntax conformance fixtures', () => {
       expect([...new Set(result.diagnostics.map(diagnostic => diagnostic.code))].sort()).toEqual([...fixture.codes ?? []].sort());
       return;
     }
-    expect(result.diagnostics).toEqual([]);
+    expect([...new Set(result.diagnostics.map(diagnostic => diagnostic.code))].sort()).toEqual([...fixture.codes ?? []].sort());
+    expect(result.diagnostics.every(diagnostic => diagnostic.severity === 'warning')).toBe(true);
     if (fixture.bindingNames) expect(Object.keys(result.document.bindings).sort()).toEqual([...fixture.bindingNames].sort());
     const runtime = createLocalRuntime(result.document);
     try {

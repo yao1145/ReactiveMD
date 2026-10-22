@@ -17,11 +17,22 @@ describe('security regression boundaries', () => {
     '{{ process }}',
     '{{ globalThis }}',
     '{{ eval("1") }}',
-    '<script>alert(1)</script>',
     '<input label="x" onclick="alert(1)">',
     '<input bind="__proto__" label="x">',
   ])('keeps executable input outside the language: %s', source => {
     expect(compileLocal(source).ok).toBe(false);
+  });
+
+  it('preserves script tags as escaped source without executing them', () => {
+    const source = '<script>alert(1)</script>';
+    const result = compileLocal(source);
+    expect(result.ok).toBe(true);
+    expect(result.diagnostics).toEqual([expect.objectContaining({
+      code: 'local.component.unknown', severity: 'warning',
+    })]);
+    const html = renderToStaticMarkup(createElement(LocalReactiveDocument, { source }));
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(html).not.toContain('<script');
   });
 
   it('validates email with bounded work and preserves common valid addresses', () => {

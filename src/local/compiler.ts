@@ -21,6 +21,7 @@ import {
 } from './schema';
 import type {
   LocalBinding,
+  LocalCompileOptions,
   LocalCompileResult,
   LocalDocument,
   LocalNode,
@@ -166,7 +167,7 @@ function meaningful(nodes: LocalNode[] | undefined): LocalNode[] {
 }
 
 function plainText(node: LocalNode): string {
-  if (node.type === 'text' || node.type === 'inlineCode') return node.value ?? '';
+  if (node.type === 'text' || node.type === 'inlineCode' || node.type === 'fallback') return node.value ?? '';
   if (node.type === 'interpolation') return '\u0000';
   if (node.type === 'break') return ' ';
   return (node.children ?? []).map(plainText).join('');
@@ -240,9 +241,9 @@ interface CompileState {
   expressionKinds: Map<string, LocalValueKind | null>;
 }
 
-export function compileLocal(source: string): LocalCompileResult {
+export function compileLocal(source: string, options?: LocalCompileOptions): LocalCompileResult {
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
-    return { ok: false, diagnostics: parseLocal(source).diagnostics };
+    return { ok: false, diagnostics: parseLocal(source, options).diagnostics };
   }
   const diagnostics: Diagnostic[] = [];
   const lineStarts = [0];
@@ -250,7 +251,14 @@ export function compileLocal(source: string): LocalCompileResult {
     if (source[index] === '\n') lineStarts.push(index + 1);
   }
   const report = (code: string, message: string, start: number, end = start + 1) => {
-    if (diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) return;
+    if (diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) {
+      // Parser warnings can fill the budget first; a real error still needs to
+      // be visible, so replace the newest disposable warning.
+      let index = diagnostics.length - 1;
+      while (index >= 0 && diagnostics[index].severity !== 'warning') index -= 1;
+      if (index < 0) return;
+      diagnostics.splice(index, 1);
+    }
     const safeStart = Math.max(0, Math.min(source.length, start));
     const safeEnd = Math.max(safeStart, Math.min(source.length, Math.max(safeStart, end)));
     let low = 0;
@@ -274,7 +282,7 @@ export function compileLocal(source: string): LocalCompileResult {
 
   let parsed: ReturnType<typeof parseLocal>;
   try {
-    parsed = parseLocal(source);
+    parsed = parseLocal(source, options);
   } catch (error) {
     report('local.parse', `无法解析文档：${error instanceof Error ? error.message : String(error)}`, 0);
     return { ok: false, diagnostics };
@@ -1842,6 +1850,6 @@ function validateTimeline(entry: Entry, shape: TableShape, state: CompileState):
 /* Top-level entry point used by validateExpressions                   */
 /* ------------------------------------------------------------------ */
 
-export function compileLocalDocument(source: string): LocalCompileResult {
-  return compileLocal(source);
+export function compileLocalDocument(source: string, options?: LocalCompileOptions): LocalCompileResult {
+  return compileLocal(source, options);
 }
