@@ -1,0 +1,7 @@
+{
+  "name": "reactive-md-core-example",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": { "start": "node index.mjs" }
+}

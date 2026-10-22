@@ -1,0 +1,77 @@
+name: Bug report
+description: Report a reproducible problem in the Reactive MD preview
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report security vulnerabilities here. Read [SECURITY.md](https://github.com/yao1145/ReactiveMD/blob/main/SECURITY.md) first and use a private channel once one is available; never include exploit details, credentials or affected deployments in a public issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the observed result and what you expected instead.
+      placeholder: A short, concrete description.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest sequence that shows the problem.
+      placeholder: |
+        1. Open ...
+        2. Set ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Minimal document source
+      description: Paste the smallest `.reactive.md` source that reproduces the issue, or write "not applicable".
+      render: markdown
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Package version, tarball name, or commit SHA.
+      placeholder: 0.3.0 or f479b22
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Select every place you reproduced the problem.
+      multiple: true
+      options:
+        - Node 22.12
+        - Node 24
+        - Chromium
+        - Microsoft Edge
+        - Firefox
+        - Safari / WebKit
+        - React server rendering
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics or console output
+      description: Paste compiler diagnostics, runtime errors, or browser console errors. Remove secrets and personal data.
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: This report does not contain security details, credentials, or private user data.
+          required: true

@@ -14,7 +14,8 @@ import {
 } from './limits';
 import { compileLatex, LatexError, samplePlot, type LatexEvaluationBudget } from './math';
 import { LatexView } from './math-view';
-import type { LocalNode, LocalRuntime, LocalValue, LocalVisualProps } from './types';
+import type { LocalNode, LocalRuntime, LocalValue } from './types';
+import type { LocalVisualProps } from './render-types';
 
 /* ------------------------------------------------------------------ */
 /* Shared helpers                                                      */

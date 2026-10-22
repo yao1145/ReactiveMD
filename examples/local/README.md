@@ -25,7 +25,7 @@
 | [gallery.reactive.md](gallery.reactive.md) | 常用输入、独立组件和原样代码 |
 | [diagnostics.reactive.md](diagnostics.reactive.md) | 故意含错的诊断示例 |
 
-Playground 的示例索引位于 [demo/src/examples.ts](../../demo/src/examples.ts)。
+Playground 的示例索引位于仓库中的 [demo/src/examples.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/src/examples.ts)。
 
 ## 正常示例的预期行为
 
@@ -63,4 +63,4 @@ parameters 中条件清单位于面板外：它的已有勾选在隐藏后保留
 
 ## 检查入口
 
-`npm test` 检查解析、绑定、表达式、LaTeX、运行时和示例；`npm run test:demo` 检查 Playground 索引；启动应用后用 `npm run test:browser` 检查实际交互。`npm run test:docs` 检查文档链接。实际运行结果见 [实现说明](../../demo/IMPLEMENTATION.md)。
+`npm test` 检查解析、绑定、表达式、LaTeX、运行时和示例；`npm run test:demo` 检查 Playground 索引；启动应用后用 `npm run test:browser` 检查实际交互。`npm run test:docs` 检查文档链接。实际运行结果见[仓库实现说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/IMPLEMENTATION.md)。

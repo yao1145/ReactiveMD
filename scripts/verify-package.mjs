@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { statSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { compileLocal, createLocalRuntime } from 'reactive-md';
@@ -23,11 +24,37 @@ async function inspectCoreModule(url) {
   const source = await readFile(fileURLToPath(url), 'utf8');
   const imports = [...source.matchAll(/from\s*['"]([^'"]+)['"]/g)].map(match => match[1]);
   for (const specifier of imports) {
-    assert.ok(!/^react(?:-dom)?(?:\/|$)/.test(specifier), 'Core graph depends on React');
-    if (specifier.startsWith('.')) await inspectCoreModule(new URL(specifier, url));
+    assert.ok(specifier.startsWith('.'), `Core bundle must include its dependency ${specifier}`);
+    await inspectCoreModule(new URL(specifier, url));
   }
 }
 await inspectCoreModule(new URL('../dist-library/reactive-md.js', import.meta.url));
+
+// The core declaration graph is consumed without React or repository @types.
+const declared = new Set();
+async function inspectCoreDeclaration(url) {
+  if (declared.has(url.href)) return;
+  declared.add(url.href);
+  const source = await readFile(fileURLToPath(url), 'utf8');
+  const specifiers = [
+    ...[...source.matchAll(/\bfrom\s*['"]([^'"]+)['"]/g)].map(match => match[1]),
+    ...[...source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g)].map(match => match[1]),
+  ];
+  for (const specifier of specifiers) {
+    assert.ok(specifier.startsWith('.'), `Core types must not depend on ${specifier} (in ${fileURLToPath(url)})`);
+    const candidates = [
+      new URL(`${specifier}.d.ts`, url),
+      new URL(`${specifier.replace(/\.js$/, '.d.ts')}`, url),
+      new URL(`${specifier}/index.d.ts`, url),
+    ];
+    const target = candidates.find(candidate => {
+      try { return statSync(fileURLToPath(candidate)).isFile(); } catch { return false; }
+    });
+    assert.ok(target, `Core declaration ${specifier} from ${fileURLToPath(url)} is missing`);
+    await inspectCoreDeclaration(target);
+  }
+}
+await inspectCoreDeclaration(new URL('../dist-library/types/index.d.ts', import.meta.url));
 
 // Only public, built entry points may be consumed by the demo.
 async function files(directory) {
@@ -46,8 +73,12 @@ for (const selector of ['.app-shell', '.workbench', '.editor-input', '.observer'
   assert.ok(!css.includes(selector), `Library includes demo selector ${selector}`);
 }
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
-assert.ok(!Object.keys(pkg.dependencies).some(name => /react|vite|playwright/.test(name)), 'Core must not require UI or demo packages');
+assert.equal(pkg.private, undefined, 'package.json must not be private');
+assert.equal(pkg.type, 'module', 'package.json must declare ESM via type: module');
+assert.equal(pkg.license, 'MIT', 'package.json must declare the MIT license');
+assert.deepEqual(Object.keys(pkg.dependencies ?? {}), [], 'Core must not require registry dependencies; bundled packages belong in devDependencies');
+assert.ok(!Object.keys(pkg.dependencies ?? {}).some(name => /react|vite|playwright/.test(name)), 'Core must not require UI or demo packages');
 const renderer = await import('reactive-md/react');
 assert.equal(typeof renderer.LocalReactiveDocument, 'function');
 assert.equal(typeof renderer.LocalDocumentView, 'function');
-console.log('PASS public package imports, local language fixtures and React entry boundaries');
+console.log('PASS public package imports, local language fixtures, core type boundaries and React entry boundaries');

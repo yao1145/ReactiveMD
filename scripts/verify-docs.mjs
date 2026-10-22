@@ -4,7 +4,8 @@ import { resolve, dirname } from 'node:path';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 
-const docs = ['README.md', 'demo/README.md', 'demo/IMPLEMENTATION.md', 'examples/local/README.md',
+const docs = ['README.md', 'README.en.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CHANGELOG.md',
+  'demo/README.md', 'demo/IMPLEMENTATION.md', 'examples/local/README.md', 'examples/integration/README.md', 'examples/conformance/README.md',
   ...(await readdir('docs')).filter(name => name.endsWith('.md')).map(name => `docs/${name}`)];
 const parse = source => unified().use(remarkParse).parse(source);
 function visit(node, type) { return [...(node.type === type ? [node] : []), ...(node.children ?? []).flatMap(child => visit(child, type))]; }

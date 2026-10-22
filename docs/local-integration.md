@@ -2,7 +2,24 @@
 
 本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](local-guide.md) 和 [语法规范](local-interaction-syntax.md)，完整文档见 [12 份示例](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。
 
+## 运行环境与入口
+
+| 入口 | 内容 | 依赖 |
+| --- | --- | --- |
+| `reactive-md` | `compileLocal`、`createLocalRuntime`、表达式与数学工具 | 不依赖 React |
+| `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` | React 19 |
+| `reactive-md/styles.css` | 组件、主题和文档样式 | 由宿主显式引入 |
+
+包只提供 ESM。Node.js 22.12+ 可用于开发和 Node 端编译、运行。Edge 已完成本地交互验证，静态 SSR 已通过独立安装检查；完整矩阵见[版本与兼容性](compatibility.md)。可复制的项目见[独立接入示例](../examples/integration/README.md)。
+
 ## React
+
+在已安装 Reactive MD 的宿主中安装 React；使用 TypeScript 时再安装对应类型包：
+
+```sh
+npm install react@19 react-dom@19
+npm install --save-dev @types/react@19 @types/react-dom@19
+```
 
 ```tsx
 import { LocalReactiveDocument } from 'reactive-md/react';
@@ -22,39 +39,21 @@ export function Article() {
 }
 ```
 
-每个组件实例独立管理内存状态。修改源码会重新编译；销毁实例会清理订阅和计时器。文档中的面板重置其内部参数、输入草稿和组件状态。同名参数在面板外的显示也会同步更新。
+| 属性 | 类型 | 组件 | 说明 |
+| --- | --- | --- | --- |
+| `source` | `string` | `LocalReactiveDocument` | 源码变化时重新编译并创建新运行时；旧实例状态不保留 |
+| `document` | `LocalDocument` | `LocalDocumentView` | 已编译文档；由宿主编译一次 |
+| `runtime` | `LocalRuntime` | `LocalDocumentView` | 宿主创建并负责销毁 |
+| `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | 两者 | 接收编译诊断和控件写入被拒绝时的运行时诊断 |
+| `urlPolicy` | `(url: string, kind: 'image' \| 'link') => boolean` | 两者 | 在协议检查之后决定是否放行图片或链接 |
 
-`onDiagnostics` 接收源码诊断，包含 `code`、`message`、`severity`、`range`、`line` 和 `column`。编译失败时显示诊断并停用交互。运行中的局部计算错误在对应内容附近显示，其余内容继续更新。
+两个组件都没有 `className`、`style` 或插槽属性。`LocalReactiveDocument` 渲染 `<article class="md-document local-document">`；`LocalDocumentView` 使用同样的文档容器。样式覆盖见下文。
 
-## 图片与链接策略
+每个组件实例独立管理内存状态。修改源码会重新编译；销毁实例会清理订阅和计时器。文档中的面板重置其内部参数、输入草稿和组件状态，同名参数在面板外的显示也会同步更新。
 
-图片默认不加载，包括相对路径图片，避免文档自动向宿主接口或外部站点发起请求。宿主可以通过 `urlPolicy` 明确允许图片来源；`LocalReactiveDocument` 和 `LocalDocumentView` 都接受这一属性。链接默认保留安全协议检查。
+编译失败时组件渲染停用提示和诊断列表，`onDiagnostics` 也会收到诊断。运行中的局部计算错误在对应内容附近显示，其余内容继续更新。
 
-```tsx
-import type { LocalUrlPolicy } from 'reactive-md/react';
-
-const urlPolicy: LocalUrlPolicy = (raw, kind) => {
-  if (kind === 'link') return true;
-  try {
-    const url = new URL(raw);
-    return url.protocol === 'https:' && url.origin === 'https://images.example.com';
-  } catch {
-    return false;
-  }
-};
-
-<LocalReactiveDocument source={source} urlPolicy={urlPolicy} />;
-```
-
-传入策略后，图片与链接都需要策略返回 `true` 才能使用。策略抛出异常时拒绝该地址。渲染器始终先检查协议，即使策略放行也不能使用 `javascript:` 或危险的 `data:` 地址。获准加载的图片使用 `referrerPolicy="no-referrer"`；同源请求仍可能携带 Cookie，因此图片白名单应避开业务 API 路径。
-
-## 资源限制
-
-单个字符串最多 100,000 字符，数组最多 10,000 项，数组内字符串总长度最多 100,000 字符。邮箱校验使用有长度上限的线性检查。运行时拒绝超限写入，并保持上一次合法状态。
-
-每个绘图组件最多 16 条曲线，整篇文档最多请求 20,000 个曲线采样点，包括隐藏区域。绘图计算还受共享执行预算限制。超限文档会收到诊断；错误诊断数量和单条消息长度也有上限。
-
-## 编译与状态
+## 核心 API
 
 ```ts
 import { compileLocal, createLocalRuntime } from 'reactive-md';
@@ -76,16 +75,119 @@ if (result.ok) {
 }
 ```
 
-`snapshot()` 在状态变化前返回同一快照，供外部存储订阅使用。`get(node)`、`set(node, value)` 读取和更新输入，`set` 返回诊断数组；成功时为空数组。`reset(panelNode)` 一次恢复面板子树，订阅者收到一次通知。面板内的隐藏控件也在重置范围内。
+### `compileLocal(source: string)`
 
-同名文本控件的写入需要同时满足所有关联控件的约束。`evaluate()` 返回的数组与内部状态隔离，修改返回数组不会更新文档；请通过 `set()` 提交并验证状态变化。`disabled` 与条件隐藏用于交互展示，宿主的业务权限和服务端数据校验仍由宿主执行。
+`source` 是 `.reactive.md` 原文。返回值是联合类型：
 
-自行管理生命周期时，用 `<LocalDocumentView document={result.document} runtime={runtime} />` 渲染，并在卸载时调用 `runtime.dispose()`。输入、表格和计时器的交互由文档组件提供，无需宿主注册动作。
+- 成功：`{ ok: true; document: LocalDocument; diagnostics: Diagnostic[] }`
+- 失败：`{ ok: false; diagnostics: Diagnostic[] }`
 
-## 入口
+语法问题通过诊断返回；不是每个错误都会抛异常。`compileLocal` 不接受 options，也没有语法版本参数；当前构建只接受 `local-draft-1`。源码上限为 1,000,000 字符。`document` 是当前运行时对象，不应当作持久化格式。
 
-| 用途 | 编译和运行 | React |
+### `createLocalRuntime(document: LocalDocument)`
+
+为已编译文档创建独立的内存运行时。`document` 不是本地模式文档、初值超出预算或结构无效时会抛出错误。每个实例拥有独立状态；没有存储、网络或跨实例共享。
+
+### `LocalRuntime`
+
+| 成员 | 参数 | 返回 | 行为 |
+| --- | --- | --- | --- |
+| `document` | — | `LocalDocument` | 创建时使用的编译结果 |
+| `snapshot()` | — | `{ revision: number; state: Readonly<Record<string, LocalValue>> }` | 状态未变时返回同一快照对象；状态冻结 |
+| `get(node)` | `LocalNode` | `LocalValue` | 读取该控件绑定的值；无绑定或未知节点返回 `null`；数组为副本 |
+| `set(node, value)` | `LocalNode`, `LocalValue` | `Diagnostic[]` | 校验所有共享控件；成功返回空数组并提交一次；失败不增加 revision |
+| `evaluate(expression)` | `string` | `LocalValue` | 用当前状态求值；失败抛出 `LocalExpressionError`；数组为副本 |
+| `text(template)` | `string` | `string` | 渲染带 `{{ }}` 的文本；失败抛出错误 |
+| `reset(node)` | `LocalNode` | `void` | 一次恢复该节点子树内的参数和组件状态，只通知一次 |
+| `resetToken(node)` | `LocalNode` | `number` | 控件内部状态的递增标记，供渲染器感知重置 |
+| `subscribe(listener)` | `() => void` | `() => void` | 每次提交调用监听器；返回取消订阅函数 |
+| `dispose()` | — | `void` | 幂等；清理订阅、表达式缓存和重置标记；之后其他成员会抛出 |
+
+`set` 以文档中登记的控件为准，调用方传入的节点元数据不会放宽约束。`disabled` 与条件隐藏用于交互展示，宿主的业务权限和服务端数据校验仍由宿主执行。
+
+### 其他核心导出
+
+- `LOCAL_SYNTAX_VERSION`：当前为字面量 `'local-draft-1'`。用它记录文档所用的语法修订。
+- `compileExpression(source: string)`：返回带 `source`、`dependencies`、`evaluate(env)` 和 `inferType(env)` 的对象；失败抛出 `LocalExpressionError`。
+- `LocalExpressionError`：包含 `code` 和 `offset`。
+- `compileLatex(source: string)`：返回带 `source`、`dependencies` 和 `evaluate(x, env, budget?)` 的对象；失败抛出带 `code`、`offset` 的错误。
+- `samplePlot(expression, env, min, max, samples = 200, sharedBudget?)`：返回 `{ points: { x: number; y: number | null }[]; endpoint: number | null }`；范围、采样数或预算无效时抛出。
+- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalDocument`、`LocalCompileResult`、`LocalRuntime`、`LocalSnapshot`。
+
+`compileExpression`、`compileLatex` 和 `samplePlot` 是较低层的工具，稳定级别与核心 API 相同；通常只需要 `compileLocal` 和 `createLocalRuntime`。
+
+## 诊断
+
+`Diagnostic` 的字段与稳定级别见[版本与兼容性](compatibility.md)中的诊断契约。要点：`line`、`column` 和 `range` 用于程序定位；`code` 可用于当前版本的粗分类，但 0.x 不承诺跨版本稳定；`message` 是中文显示文本，不要解析。
+
+`onDiagnostics` 会在编译结果变化时收到编译诊断，也会收到控件写入被拒绝时的运行时诊断。编译错误文档不激活交互；运行时局部错误只替换对应内容。
+
+## 状态、实例与清理
+
+- `LocalReactiveDocument` 在 `source` 变化时重新编译并创建运行时，清理旧实例；支持 React StrictMode。
+- 自行管理生命周期时，用 `<LocalDocumentView document={result.document} runtime={runtime} />` 渲染，并在卸载时调用 `runtime.dispose()`。
+- `subscribe()` 返回取消订阅函数。`dispose()` 会清空剩余订阅，之后调用其他运行时方法会抛出错误。
+- `snapshot()` 在状态变化前返回同一对象，可用于外部存储订阅。`reset(panelNode)` 对面板子树只提交一次，订阅者收到一次通知；面板内隐藏控件也在重置范围内。
+- 文档状态只保存在内存中。刷新、重新挂载或更换源码都从初值开始；没有持久化、localStorage、Cookie 或服务端写入。
+- 隐藏区域保留参数、标签页和清单状态；隐藏区域中的计时器暂停，恢复显示后保持暂停，由读者再次启动。实例销毁后释放计时器和订阅。
+
+## 图片与链接策略
+
+图片默认不加载，包括相对路径图片，避免文档自动向宿主接口或外部站点发起请求。宿主可以通过 `urlPolicy` 明确允许图片来源；`LocalReactiveDocument` 和 `LocalDocumentView` 都接受这一属性。链接默认保留安全协议检查。
+
+```tsx
+import type { LocalUrlPolicy } from 'reactive-md/react';
+
+const urlPolicy: LocalUrlPolicy = (raw, kind) => {
+  if (kind === 'link') return true;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:' && url.origin === 'https://images.example.com';
+  } catch {
+    return false;
+  }
+};
+
+<LocalReactiveDocument source={source} urlPolicy={urlPolicy} />;
+```
+
+| 目标 | 没有策略时 | 有策略时 |
 | --- | --- | --- |
-| 本地交互标签 | `compileLocal`、`createLocalRuntime` | `LocalReactiveDocument`、`LocalDocumentView` |
+| 图片 | 全部拒绝，包括相对地址 | 先检查带协议的地址，只允许 HTTP(S)；相对地址由策略决定 |
+| 链接 | 允许相对地址和 `http`、`https`、`mailto`、`tel` | 协议检查后由策略决定；外部 HTTP(S) 链接带 `_blank` 和 `noopener noreferrer` |
 
-本地交互模式的参数来自正文控件，表格数据来自 Markdown，不需要服务调用或 YAML 配置。
+策略收到的是去掉首尾空白的原始 URL 和 `'image' | 'link'`。策略抛出异常时拒绝该地址。渲染器始终先检查协议，即使策略放行也不能使用 `javascript:` 或危险的 `data:` 地址。获准加载的图片使用 `referrerPolicy="no-referrer"`；同源请求仍可能携带 Cookie，因此图片白名单应避开业务 API 路径。
+
+`urlPolicy` 只控制渲染出的链接和图片，不是服务端授权或沙箱。宿主仍需处理 CSP、网络出口和不可信作者的隔离策略。
+
+## 主题与样式作用域
+
+`reactive-md/styles.css` 是一份全局样式表，不通过 Shadow DOM 或 CSS Modules 隔离。宿主应显式引入一次；`reactive-md/react` 的库构建把样式提取到该文件，不会在导入 JavaScript 时自动注入。
+
+- 样式选择器以 `.md-document`、`.local-document` 和 `.md-*`、`.local-*` 类名为主。组件渲染的文档根节点是 `.md-document.local-document`。
+- 主题变量声明在 `.md-document` 和 `.reactive-md-theme` 上，包括 `--ink`、`--surface`、`--line`、`--blue`、`--teal`、`--danger`、`--radius-*` 和字体变量。在库样式之后用 `.my-article .md-document { --blue: #245c98; }` 等规则覆盖；文档根节点自带默认值，只在祖先容器上设置变量不会覆盖根节点上的同名值。
+- 深色主题由显式的 `data-theme="dark"` 祖先或文档节点自身触发；组件不读取 `prefers-color-scheme`，也不提供主题切换按钮。
+- 文档默认 `max-width: 720px` 且水平居中。需要铺满宿主容器时，在自己的作用域内覆盖 `.md-document` 的宽度和边距。
+- `.md-*` 和 `.local-*` 类名是当前样式钩子，0.x 中可能随样式重构调整。稳定接入优先使用 CSS 变量和容器级覆盖，不要把内部类名当作 API。
+- 两个 React 组件都不接受 `className` 或 `style`。需要局部覆盖时，用宿主自己的包裹元素限定作用域。
+
+## 资源限制
+
+单个字符串最多 100,000 字符，数组最多 10,000 项，数组内字符串总长度最多 100,000 字符。邮箱校验使用有长度上限的线性检查。运行时拒绝超限写入，并保持上一次合法状态。
+
+单个文档源码最多 1,000,000 字符。诊断最多 100 条，单条消息最多 2,000 字符。
+
+每个绘图组件最多 16 条曲线，整篇文档最多请求 20,000 个曲线采样点，包括隐藏区域。绘图计算还受 2,000,000 步的共享执行预算限制。超限文档会收到诊断；表达式和数学渲染也有各自的深度与记号预算。
+
+这些上限限制单个文档的工作量，不替代宿主对请求大小、并发和执行时间的控制。完整威胁边界见[安全策略](../SECURITY.md)。
+
+## 版本固定与升级
+
+- 在 0.x 阶段固定准确的包版本，并提交 lockfile。`^0.3.0` 只允许补丁版本，但生产接入仍建议写死版本或固定 tarball 的 SHA256。
+- 用一个包版本同时提供核心和 React 入口；不要混用不同版本的 `reactive-md` 和 `reactive-md/react`。
+- 在应用配置或文档元数据中记录 `LOCAL_SYNTAX_VERSION`，与持久化的 `.reactive.md` 源码一起保存。语法修订变化时按[版本与兼容性](compatibility.md)迁移。
+- 升级后重新编译自有文档，检查 `result.diagnostics`、渲染结果和浏览器交互。不要依赖诊断 `message` 的文本。
+
+## 不提供的功能
+
+本地模式不提供状态持久化、插件或自定义组件注册、任意 HTML、作者 CSS、事件处理器、网络请求、外部数据接口、表单提交、Vue 支持、React 18 支持或 CommonJS 入口。宿主不应把这些能力当作可配置项。

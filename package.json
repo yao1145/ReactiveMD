@@ -1,16 +1,38 @@
 {
   "name": "reactive-md",
   "version": "0.3.0",
-  "private": true,
+  "description": "Author interactive local documents in Markdown, with expression-bound inputs, charts and diagrams.",
+  "keywords": [
+    "markdown",
+    "interactive",
+    "local-first",
+    "reactive",
+    "charts",
+    "diagrams",
+    "react",
+    "typescript"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yao1145/ReactiveMD.git"
+  },
+  "homepage": "https://github.com/yao1145/ReactiveMD#readme",
+  "bugs": {
+    "url": "https://github.com/yao1145/ReactiveMD/issues"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "type": "module",
   "workspaces": ["demo"],
-  "files": ["dist-library", "README.md", "docs", "examples"],
+  "files": ["dist-library", "README.md", "README.en.md", "CONTRIBUTING.md", "CHANGELOG.md", "SECURITY.md", "THIRD_PARTY_NOTICES.md", "docs", "examples"],
   "sideEffects": ["**/*.css"],
   "scripts": {
     "dev": "npm run build:lib && npm run dev --workspace=@reactive-md/demo",
     "dev:lib": "vite build --config vite.lib.config.ts --watch",
     "build": "npm run typecheck && npm run build:lib",
-    "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
+    "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
     "build:demo": "npm run build && npm run build --workspace=@reactive-md/demo",
     "preview": "npm run preview --workspace=@reactive-md/demo",
     "typecheck": "tsc --noEmit",
@@ -18,17 +40,16 @@
     "test:demo": "npm run build:lib && npm run test --workspace=@reactive-md/demo",
     "test:browser": "npm run test:browser --workspace=@reactive-md/demo",
     "test:package": "node scripts/verify-package.mjs",
-    "test:docs": "node scripts/verify-docs.mjs"
+    "test:packed": "node scripts/verify-packed.mjs",
+    "test:docs": "node scripts/verify-docs.mjs",
+    "benchmark": "node scripts/benchmark.mjs",
+    "notices": "node scripts/generate-notices.mjs",
+    "prepack": "npm run build && npm run notices"
   },
   "exports": {
     ".": { "types": "./dist-library/types/index.d.ts", "import": "./dist-library/reactive-md.js" },
     "./react": { "types": "./dist-library/types/react/index.d.ts", "import": "./dist-library/reactive-md-react.js" },
     "./styles.css": "./dist-library/reactive-md.css"
-  },
-  "dependencies": {
-    "remark-gfm": "4.0.1",
-    "remark-parse": "11.0.0",
-    "unified": "11.0.5"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -44,7 +65,10 @@
     "@types/react-dom": "19.3.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "remark-gfm": "4.0.1",
+    "remark-parse": "11.0.0",
     "typescript": "7.0.2",
+    "unified": "11.0.5",
     "vite": "8.3.5",
     "vitest": "5.0.5"
   }

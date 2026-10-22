@@ -15,15 +15,15 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
-import type { Diagnostic } from './types';
 import type {
+  Diagnostic,
   LocalDocument,
   LocalNode,
-  LocalRenderContext,
   LocalRuntime,
   LocalSnapshot,
   LocalValue,
 } from './types';
+import type { LocalRenderContext } from './render-types';
 import { compileLocal } from './compiler';
 import { createLocalRuntime } from './runtime';
 import { MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';

@@ -260,11 +260,11 @@
   align-items: center;
 }
 
-.gap-sm {
+.md-document .gap-sm {
   gap: 8px;
 }
 
-.gap-lg {
+.md-document .gap-lg {
   gap: 18px;
 }
 
@@ -450,14 +450,14 @@
   display: none;
 }
 
-.field-error {
+.md-document .field-error {
   display: block;
   color: var(--danger);
   font-size: 12px;
   line-height: 1.5;
 }
 
-.component-error {
+.md-document .component-error {
   display: inline-block;
   padding: 4px 8px;
   background: #fff5f6;
@@ -468,7 +468,7 @@
   line-height: 1.5;
 }
 
-.diag-link {
+.md-document .diag-link {
   margin-left: 5px;
   padding: 0;
   background: none;
@@ -480,13 +480,13 @@
   cursor: pointer;
 }
 
-.md-text-input:focus-visible, .md-select-input:focus-visible, .md-button:focus-visible, .md-slider input:focus-visible, .md-toggle-label input:focus-visible, .diag-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.md-text-input:focus-visible, .md-select-input:focus-visible, .md-button:focus-visible, .md-slider input:focus-visible, .md-toggle-label input:focus-visible, .md-document .diag-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 [data-theme="dark"] .md-card, [data-theme="dark"] .md-document blockquote, [data-theme="dark"] .md-table th { background:var(--surface); color:var(--ink); }
 [data-theme="dark"] .md-text-input, [data-theme="dark"] .md-select-input, [data-theme="dark"] .md-button-secondary, [data-theme="dark"] .md-inline-code { background:var(--paper); color:var(--ink); border-color:var(--line); }
 [data-theme="dark"] .md-button-primary { color:#0b1220; }
 [data-theme="dark"] .md-button-quiet { color:var(--blue); }
 [data-theme="dark"] .md-button-secondary:hover:not(:disabled), [data-theme="dark"] .md-button-quiet:hover:not(:disabled) { background:color-mix(in srgb, var(--blue) 16%, var(--paper)); border-color:var(--line-strong); color:var(--ink); }
 [data-theme="dark"] .md-button-primary:hover:not(:disabled) { background:var(--blue-deep); color:#0b1220; }
-[data-theme="dark"] .component-error { background:var(--paper); }
+[data-theme="dark"] .md-document .component-error { background:var(--paper); }
 @media (max-width:620px) { .md-document { font-size:15.5px; } .md-document h1 { font-size:23px; } .md-document h2 { font-size:19px; } }
 @media (prefers-reduced-motion:reduce) { .md-document *, .md-document *::before, .md-document *::after { animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; scroll-behavior:auto !important; } }

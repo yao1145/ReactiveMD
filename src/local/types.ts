@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-
 export interface SourceRange { start: number; end: number }
 export interface Diagnostic {
   code: string;
@@ -62,10 +60,4 @@ export interface LocalRuntime {
   subscribe(listener: () => void): () => void;
   dispose(): void;
 }
-export interface LocalRenderContext {
-  runtime: LocalRuntime;
-  render(nodes?: LocalNode[], visible?: boolean): ReactNode;
-  visible: boolean;
-}
-export interface LocalVisualProps extends LocalRenderContext { node: LocalNode }
 export const localKey = (node: LocalNode): string => node.attrs?.bind ?? `@${node.id}`;

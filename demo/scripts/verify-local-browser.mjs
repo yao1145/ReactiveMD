@@ -1,9 +1,10 @@
 import { chromium, expect } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
 const baseURL = process.env.DEMO_URL ?? 'http://127.0.0.1:5173';
 await mkdir('artifacts', { recursive: true });
-const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge';
+const browser = await chromium.launch({ ...(channel === 'chromium' ? {} : { channel }), headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(8000);
 const checks = [];
@@ -40,6 +41,43 @@ try {
   await page.goto(baseURL);
   await expect(page.getByLabel('示例', { exact: true })).toHaveValue('pricing');
   await expect(page.getByRole('slider', { name: '人数', exact: true })).toBeVisible();
+  await check('library styles preserve host elements with common class names', async () => {
+    // A separate document excludes the playground's own diagnostic styles.
+    const styleProbe = await browser.newPage();
+    try {
+      await styleProbe.setContent('<!doctype html><html><head><style>span { outline: 3px solid rgb(23,45,67); }</style></head><body></body></html>');
+      await styleProbe.addStyleTag({ content: await readFile(new URL('../../dist-library/reactive-md.css', import.meta.url), 'utf8') });
+      const differences = await styleProbe.evaluate(() => {
+      const host = document.createElement('div');
+      host.style.cssText = 'color:rgb(23,45,67);font-size:19px;line-height:1.4';
+      document.body.append(host);
+      try {
+        const probes = [
+          ['field-error', 'span', ['display', 'color', 'fontSize', 'lineHeight']],
+          ['component-error', 'span', ['display', 'backgroundColor', 'padding', 'borderRadius']],
+          ['diag-link', 'button', ['marginLeft', 'padding', 'borderWidth', 'backgroundColor']],
+          ['gap-sm', 'div', ['gap']],
+          ['gap-lg', 'div', ['gap']],
+          ['data-chart-mark', 'span', ['outlineStyle', 'outlineWidth']],
+        ];
+        return probes.flatMap(([className, tagName, properties]) => {
+          const baseline = document.createElement(tagName);
+          const probe = document.createElement(tagName);
+          baseline.textContent = probe.textContent = 'Host content';
+          if (className === 'data-chart-mark') probe.setAttribute('data-chart-mark', '');
+          else probe.className = className;
+          host.append(baseline, probe);
+          const expected = getComputedStyle(baseline);
+          const actual = getComputedStyle(probe);
+          return properties.filter(key => expected[key] !== actual[key]).map(key => ({
+            className, property: key, expected: expected[key], actual: actual[key],
+          }));
+        });
+      } finally { host.remove(); }
+      });
+      expect(differences).toEqual([]);
+    } finally { await styleProbe.close(); }
+  });
   await check('example picker exposes all twelve local documents', async () => {
     await expect(page.getByLabel('示例', { exact: true }).locator('option')).toHaveCount(12);
   });

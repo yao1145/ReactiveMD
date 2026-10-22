@@ -1,6 +1,6 @@
 # Reactive MD 本地交互语法规范
 
-语法标识：`local-draft-1`，2026-10-22。第一次接触这套语法，建议先读 [新用户入门指南](local-guide.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration.md)。完整示例见 [Demo 索引](../examples/local/README.md)。
+语法标识：`local-draft-1`，2026-10-22。第一次接触这套语法，建议先读 [新用户入门指南](local-guide.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](compatibility.md)。完整示例见 [Demo 索引](../examples/local/README.md)。
 
 ## 1. 定位与范围
 
@@ -434,4 +434,4 @@ node.id 为当前图解内唯一的 `[A-Za-z_][A-Za-z0-9_-]*`。edge 必填 from
 9. 中文输入法、键盘操作、可访问名称和 375px 窄屏可用。
 10. 文档实例独立、销毁清理、无意外网络动作；复杂或超量数学输入能够被执行预算中止。
 
-这些规则用于编译器、运行时和浏览器验收。示例映射及预期观察点见 [Demo 索引](../examples/local/README.md)，实际检查记录见 [实现说明](../demo/IMPLEMENTATION.md)。
+这些规则用于编译器、运行时和浏览器验收。示例映射及预期观察点见 [Demo 索引](../examples/local/README.md)，机器可读的最小验收集见[语言验收数据](../examples/conformance/README.md)，实际检查记录见[仓库实现说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/IMPLEMENTATION.md)。

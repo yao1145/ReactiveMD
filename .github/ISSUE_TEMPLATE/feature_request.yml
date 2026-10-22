@@ -1,0 +1,50 @@
+name: Feature request
+description: Propose a change to the preview API, syntax, documentation or demo
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reactive MD is a 0.x preview with a deliberately small scope. Read [compatibility.md](https://github.com/yao1145/ReactiveMD/blob/main/docs/compatibility.md) before proposing state persistence, plugins, arbitrary HTML, network services or other excluded capabilities.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can an author or host not do today? Include a concrete document or integration example.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest change that solves the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing components, Markdown, or host-side approaches you tried.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Syntax or compiler
+        - Runtime or React renderer
+        - Documentation or examples
+        - Demo or tooling
+        - Packaging or release
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This request stays within local interactive documents and does not require scripts, arbitrary HTML or a remote service.
+          required: true
+        - label: I understand that 0.x minor releases may contain breaking changes.
+          required: true

@@ -2,7 +2,7 @@
 
 这份指南面向会写 Markdown、见过一点 HTML、但没有接触过 Reactive MD 的读者。读完之后，你应该能独立写出带输入控件、实时计算、条件内容、图表和图解的本地交互文档。
 
-本文讲的是 `local-draft-1` 本地交互语法。完整规则见 [本地交互语法规范](local-interaction-syntax.md)，可以直接运行的完整文档见 [示例目录](../examples/local/README.md)。更完整的组件和表达式细节以规范为准。
+本文讲的是 `local-draft-1` 本地交互语法。完整规则见 [本地交互语法规范](local-interaction-syntax.md)，可以直接运行的完整文档见 [示例目录](../examples/local/README.md)。更完整的组件和表达式细节以规范为准。包版本、语法修订和迁移规则见 [版本与兼容性](compatibility.md)。
 
 ## 目录
 
