@@ -21,15 +21,20 @@ import type { LocalVisualProps } from './render-types';
 /* Shared helpers                                                      */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Series colors resolve against the active theme, so charts and plots follow
+ * light/dark tokens without re-rendering. The eight-color cycle and the
+ * position-based wrapping are unchanged.
+ */
 const SERIES_COLORS = [
-  '#2563eb',
-  '#e11d48',
-  '#0d9488',
-  '#d97706',
-  '#7c3aed',
-  '#0891b2',
-  '#65a30d',
-  '#db2777',
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+  'var(--chart-6)',
+  'var(--chart-7)',
+  'var(--chart-8)',
 ];
 
 const CHART_WIDTH = 520;
@@ -39,6 +44,15 @@ const PLOT_HEIGHT = 320;
 const DIAGRAM_MIN_WIDTH = 520;
 const DIAGRAM_NODE_WIDTH = 120;
 const DIAGRAM_NODE_HEIGHT = 46;
+const DIAGRAM_LAYER_GAP = 150;
+/* Edge-label metrics mirror the SVG styles below: --text-xs is 12.5px and the
+   plate is a quiet surface chip with a hairline border. Keeping the numbers in
+   user units lets the layout reserve exactly the space the labels need. */
+const DIAGRAM_EDGE_LABEL_FONT_SIZE = 12.5;
+const DIAGRAM_EDGE_LABEL_PAD_X = 5;
+const DIAGRAM_EDGE_LABEL_PAD_Y = 3;
+const DIAGRAM_EDGE_LABEL_CLEARANCE = 8;
+const DIAGRAM_EDGE_LABEL_MARGIN = 10;
 
 const NUMERIC_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 const FULL_INTERPOLATION = /^\s*\{\{([\s\S]*)\}\}\s*$/;
@@ -604,7 +618,12 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
                       : 'descending'
                     : 'none';
                 return (
-                  <th key={`head-${index}`} scope="col" aria-sort={ariaSort}>
+                  <th
+                    key={`head-${index}`}
+                    scope="col"
+                    aria-sort={ariaSort}
+                    className={numericColumns[index] ? 'is-numeric' : undefined}
+                  >
                     {sortable ? (
                       <button
                         type="button"
@@ -631,7 +650,10 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
                 {table.header.map((_cell, column) => {
                   const cell = row.cells[column];
                   return (
-                    <td key={`cell-${row.index}-${column}`}>
+                    <td
+                      key={`cell-${row.index}-${column}`}
+                      className={numericColumns[column] ? 'is-numeric' : undefined}
+                    >
                       {cell?.error ? (
                         <span className="local-visual-cell-error" title={cell.error}>
                           无法计算
@@ -1001,7 +1023,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                     cy={cy}
                     r={(outer + inner) / 2}
                     fill="none"
-                    stroke={slice.color}
+                    style={{ stroke: slice.color }}
                     strokeWidth={outer - inner}
                     {...markProps}
                   >
@@ -1014,7 +1036,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                   key={slice.key}
                   className="local-visual-donut-slice"
                   d={donutPath(cx, cy, outer, inner, slice.start, slice.end)}
-                  fill={slice.color}
+                  style={{ fill: slice.color }}
                   {...markProps}
                 >
                   <title>{`${slice.label}：${formatNumber(slice.value)}`}</title>
@@ -1221,7 +1243,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
             width={Math.max(1.5, barWidth - 1)}
             height={height}
             rx={2}
-            fill={SERIES_COLORS[position % SERIES_COLORS.length]}
+            style={{ fill: SERIES_COLORS[position % SERIES_COLORS.length] }}
             {...markProps(point)}
           >
             <title>{`${point.series}，${point.label}：${formatNumber(point.value)}`}</title>
@@ -1265,7 +1287,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
               className="local-visual-line"
               d={d}
               fill="none"
-              stroke={SERIES_COLORS[position % SERIES_COLORS.length]}
+              style={{ stroke: SERIES_COLORS[position % SERIES_COLORS.length] }}
               strokeWidth={2.4}
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -1283,7 +1305,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                 key={`area-${position}-${first.row.index}`}
                 className="local-visual-area"
                 d={area}
-                fill={SERIES_COLORS[position % SERIES_COLORS.length]}
+                style={{ fill: SERIES_COLORS[position % SERIES_COLORS.length] }}
               />,
             );
           }
@@ -1307,8 +1329,10 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                 cx={entry.x}
                 cy={entry.y}
                 r={4.5}
-                fill={SERIES_COLORS[position % SERIES_COLORS.length]}
-                stroke="var(--local-surface, #ffffff)"
+                style={{
+                  fill: SERIES_COLORS[position % SERIES_COLORS.length],
+                  stroke: 'var(--surface)',
+                }}
                 strokeWidth={1.5}
                 pointerEvents="none"
               />
@@ -1345,8 +1369,10 @@ function ChartView({ node, runtime }: LocalVisualProps) {
               cx={x}
               cy={y}
               r={6}
-              fill={SERIES_COLORS[position % SERIES_COLORS.length]}
-              stroke="var(--local-surface, #ffffff)"
+              style={{
+                fill: SERIES_COLORS[position % SERIES_COLORS.length],
+                stroke: 'var(--surface)',
+              }}
               strokeWidth={1.5}
               pointerEvents="none"
             />
@@ -1735,10 +1761,6 @@ function PlotView({ node, runtime }: LocalVisualProps) {
           />
           <span className="local-visual-plot-legend-text">
             <span className="local-visual-plot-formula"><LatexView source={curve.source} /></span>
-            <span className="local-visual-endpoint">
-              终点 x = {formatNumber(max)}：
-              {curve.error ? '无法计算' : curve.endpoint === null ? '无定义' : formatNumber(curve.endpoint)}
-            </span>
           </span>
         </div>
       ))}
@@ -1845,8 +1867,10 @@ function PlotView({ node, runtime }: LocalVisualProps) {
             cx={xOf(readX)}
             cy={yOf(value)}
             r={4.5}
-            fill={SERIES_COLORS[index % SERIES_COLORS.length]}
-            stroke="var(--local-surface, #ffffff)"
+            style={{
+              fill: SERIES_COLORS[index % SERIES_COLORS.length],
+              stroke: 'var(--surface)',
+            }}
             strokeWidth={1.5}
           />
         );
@@ -1957,7 +1981,7 @@ function PlotView({ node, runtime }: LocalVisualProps) {
                   className="local-visual-plot-line"
                   d={d}
                   fill="none"
-                  stroke={SERIES_COLORS[curveIndex % SERIES_COLORS.length]}
+                  style={{ stroke: SERIES_COLORS[curveIndex % SERIES_COLORS.length] }}
                   strokeWidth={2.4}
                   strokeLinejoin="round"
                   strokeLinecap="round"
@@ -2201,6 +2225,107 @@ interface DiagramLayout {
   positions: Map<string, { x: number; y: number }>;
 }
 
+/** CJK, kana, hangul and full-width punctuation occupy roughly one em. */
+const DIAGRAM_WIDE_CHAR =
+  /[\u1100-\u115f\u2e80-\u303f\u3040-\u33ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/u;
+
+function estimateDiagramTextWidth(text: string): number {
+  let em = 0;
+  for (const char of text) {
+    if (DIAGRAM_WIDE_CHAR.test(char)) em += 1;
+    else if (/\s/u.test(char)) em += 0.3;
+    else em += 0.58;
+  }
+  return em * DIAGRAM_EDGE_LABEL_FONT_SIZE;
+}
+
+interface DiagramLabelMetrics {
+  width: number;
+  height: number;
+}
+
+function diagramLabelMetrics(label: string): DiagramLabelMetrics {
+  return {
+    width: estimateDiagramTextWidth(label) + DIAGRAM_EDGE_LABEL_PAD_X * 2,
+    height: DIAGRAM_EDGE_LABEL_FONT_SIZE + DIAGRAM_EDGE_LABEL_PAD_Y * 2,
+  };
+}
+
+/**
+ * Parallel edges fan out around the pair's center. The same offsets must be
+ * used for layout measurement and rendering so label bounds stay accurate.
+ */
+function diagramEdgeOffsets(edges: DiagramModelEdge[]): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const edge of edges) {
+    const pair = `${edge.from}\u0000${edge.to}`;
+    totals.set(pair, (totals.get(pair) ?? 0) + 1);
+  }
+  const seen = new Map<string, number>();
+  const offsets = new Map<string, number>();
+  for (const edge of edges) {
+    const pair = `${edge.from}\u0000${edge.to}`;
+    const total = totals.get(pair) ?? 1;
+    const index = seen.get(pair) ?? 0;
+    seen.set(pair, index + 1);
+    offsets.set(edge.key, (index - (total - 1) / 2) * 12);
+  }
+  return offsets;
+}
+
+/**
+ * Grows the viewBox and shifts every node when a label would leave it. Forward
+ * labels already fit between cards thanks to the adaptive layer spacing; this
+ * pass protects back-edge and self-loop labels near the diagram borders.
+ */
+function padDiagramForLabels(
+  layout: DiagramLayout,
+  edges: DiagramModelEdge[],
+  direction: 'right' | 'down',
+): DiagramLayout {
+  const { width, height, positions } = layout;
+  const offsets = diagramEdgeOffsets(edges);
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  for (const edge of edges) {
+    if (!edge.label) continue;
+    const from = positions.get(edge.from);
+    const to = positions.get(edge.to);
+    if (!from || !to) continue;
+    const geometry = edgeGeometry(
+      direction,
+      from,
+      to,
+      offsets.get(edge.key) ?? 0,
+      edge.from === edge.to,
+    );
+    const metrics = diagramLabelMetrics(edge.label);
+    minX = Math.min(minX, geometry.labelX - metrics.width / 2);
+    minY = Math.min(minY, geometry.labelY - metrics.height / 2);
+    maxX = Math.max(maxX, geometry.labelX + metrics.width / 2);
+    maxY = Math.max(maxY, geometry.labelY + metrics.height / 2);
+  }
+  if (!Number.isFinite(minX)) return layout;
+
+  const left = Math.max(0, DIAGRAM_EDGE_LABEL_MARGIN - minX);
+  const top = Math.max(0, DIAGRAM_EDGE_LABEL_MARGIN - minY);
+  const right = Math.max(0, maxX + DIAGRAM_EDGE_LABEL_MARGIN - width);
+  const bottom = Math.max(0, maxY + DIAGRAM_EDGE_LABEL_MARGIN - height);
+  if (left === 0 && top === 0 && right === 0 && bottom === 0) return layout;
+
+  for (const position of positions.values()) {
+    position.x += left;
+    position.y += top;
+  }
+  return {
+    width: width + left + right,
+    height: height + top + bottom,
+    positions,
+  };
+}
+
 function diagramLayout(
   nodes: DiagramModelNode[],
   edges: DiagramModelEdge[],
@@ -2296,9 +2421,11 @@ function diagramLayout(
   const marginY = 30;
 
   const positions = new Map<string, { x: number; y: number }>();
+  let width: number;
+  let height: number;
   if (direction === 'down') {
-    const width = DIAGRAM_MIN_WIDTH;
-    const height = Math.max(
+    width = DIAGRAM_MIN_WIDTH;
+    height = Math.max(
       240,
       marginY * 2 + DIAGRAM_NODE_HEIGHT + (populated.length - 1) * 120,
     );
@@ -2314,35 +2441,48 @@ function diagramLayout(
         positions.set(id, { x, y });
       });
     });
-    return { width, height, positions };
+  } else {
+    // Forward edge labels sit in the channel between two layers. Reserve the
+    // widest estimated label plus breathing room on both sides; fall back to
+    // the original 150px rhythm when there are no labels.
+    const widestLabel = edges.reduce(
+      (widest, edge) =>
+        edge.label ? Math.max(widest, diagramLabelMetrics(edge.label).width) : widest,
+      0,
+    );
+    const layerSpacing = Math.max(
+      DIAGRAM_LAYER_GAP,
+      DIAGRAM_NODE_WIDTH +
+        (widestLabel > 0 ? widestLabel + DIAGRAM_EDGE_LABEL_CLEARANCE * 2 : 0),
+    );
+    width = Math.max(
+      DIAGRAM_MIN_WIDTH,
+      marginX * 2 + DIAGRAM_NODE_WIDTH + (populated.length - 1) * layerSpacing,
+    );
+    height = Math.max(
+      240,
+      marginY * 2 + DIAGRAM_NODE_HEIGHT + (maxCount - 1) * 74,
+    );
+    populated.forEach((group, layerIndex) => {
+      const x =
+        populated.length === 1
+          ? width / 2
+          : marginX +
+            DIAGRAM_NODE_WIDTH / 2 +
+            layerIndex * ((width - marginX * 2 - DIAGRAM_NODE_WIDTH) / (populated.length - 1));
+      group.forEach((id, index) => {
+        const y =
+          group.length === 1
+            ? height / 2
+            : marginY +
+              DIAGRAM_NODE_HEIGHT / 2 +
+              index * ((height - marginY * 2 - DIAGRAM_NODE_HEIGHT) / (group.length - 1));
+        positions.set(id, { x, y });
+      });
+    });
   }
 
-  const width = Math.max(
-    DIAGRAM_MIN_WIDTH,
-    marginX * 2 + DIAGRAM_NODE_WIDTH + (populated.length - 1) * 150,
-  );
-  const height = Math.max(
-    240,
-    marginY * 2 + DIAGRAM_NODE_HEIGHT + (maxCount - 1) * 74,
-  );
-  populated.forEach((group, layerIndex) => {
-    const x =
-      populated.length === 1
-        ? width / 2
-        : marginX +
-          DIAGRAM_NODE_WIDTH / 2 +
-          layerIndex * ((width - marginX * 2 - DIAGRAM_NODE_WIDTH) / (populated.length - 1));
-    group.forEach((id, index) => {
-      const y =
-        group.length === 1
-          ? height / 2
-          : marginY +
-            DIAGRAM_NODE_HEIGHT / 2 +
-            index * ((height - marginY * 2 - DIAGRAM_NODE_HEIGHT) / (group.length - 1));
-      positions.set(id, { x, y });
-    });
-  });
-  return { width, height, positions };
+  return padDiagramForLabels({ width, height, positions }, edges, direction);
 }
 
 interface EdgeGeometry {
@@ -2383,7 +2523,7 @@ function edgeGeometry(
       return {
         d: `M ${x1} ${y1} L ${x2} ${y2}`,
         labelX: (x1 + x2) / 2,
-        labelY: (y1 + y2) / 2 - 6,
+        labelY: (y1 + y2) / 2 - 10,
       };
     }
     const x1 = from.x + offset;
@@ -2406,7 +2546,7 @@ function edgeGeometry(
     const y2 = to.y - height / 2;
     return {
       d: `M ${x1} ${y1} L ${x2} ${y2}`,
-      labelX: (x1 + x2) / 2 + 6,
+      labelX: (x1 + x2) / 2 + 10,
       labelY: (y1 + y2) / 2,
     };
   }
@@ -2524,46 +2664,47 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
   };
 
   const layout = diagramLayout(nodes, edges, direction);
-  const pairTotals = new Map<string, number>();
-  for (const edge of edges) {
-    const key = `${edge.from}\u0000${edge.to}`;
-    pairTotals.set(key, (pairTotals.get(key) ?? 0) + 1);
-  }
-  const pairSeen = new Map<string, number>();
+  const offsets = diagramEdgeOffsets(edges);
+  const edgePaths: ReactNode[] = [];
+  const edgeLabels: ReactNode[] = [];
 
-  const edgeMarks = edges.map((edge) => {
+  for (const edge of edges) {
     const from = layout.positions.get(edge.from);
     const to = layout.positions.get(edge.to);
-    if (!from || !to) return null;
-    const pairKey = `${edge.from}\u0000${edge.to}`;
-    const total = pairTotals.get(pairKey) ?? 1;
-    const seen = pairSeen.get(pairKey) ?? 0;
-    pairSeen.set(pairKey, seen + 1);
-    const offset = (seen - (total - 1) / 2) * 12;
-    const geometry = edgeGeometry(direction, from, to, offset, edge.from === edge.to);
-    return (
+    if (!from || !to) continue;
+    const geometry = edgeGeometry(
+      direction,
+      from,
+      to,
+      offsets.get(edge.key) ?? 0,
+      edge.from === edge.to,
+    );
+    edgePaths.push(
       <g key={`edge-${edge.key}`} className="local-visual-edge">
         <path
           d={geometry.d}
           fill="none"
-          stroke="var(--local-ink-muted, #64748b)"
+          style={{ stroke: 'var(--ink-muted)' }}
           strokeWidth={1.6}
           markerEnd={`url(#${markerId})`}
         />
-        {edge.label ? (
-          <text
-            className="local-visual-edge-label"
-            x={geometry.labelX}
-            y={geometry.labelY}
-            textAnchor="middle"
-            dominantBaseline="middle"
-          >
-            {edge.label}
-          </text>
-        ) : null}
-      </g>
+      </g>,
     );
-  });
+    if (!edge.label) continue;
+    edgeLabels.push(
+      <g key={`edge-label-${edge.key}`} className="local-visual-edge-label-group">
+        <text
+          className="local-visual-edge-label"
+          x={geometry.labelX}
+          y={geometry.labelY}
+          textAnchor="middle"
+          dominantBaseline="middle"
+        >
+          {edge.label}
+        </text>
+      </g>,
+    );
+  }
 
   return (
     <VisualFrame className="local-visual-diagram" label={title}>
@@ -2584,10 +2725,10 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
               markerHeight="7"
               orient="auto-start-reverse"
             >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--local-ink-muted, #64748b)" />
+              <path d="M 0 0 L 10 5 L 0 10 z" style={{ fill: 'var(--ink-muted)' }} />
             </marker>
           </defs>
-          {edgeMarks}
+          {edgePaths}
           {nodes.map((entry) => {
             const position = layout.positions.get(entry.id);
             if (!position) return null;
@@ -2642,6 +2783,7 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
               </g>
             );
           })}
+          {edgeLabels}
         </svg>
       </div>
       <div className="local-visual-diagram-detail" aria-live="polite">
@@ -2660,26 +2802,6 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
       </div>
       {writeError ? <VisualMessage message={writeError} kind="alert" /> : null}
       <Notes notes={notes} />
-      <details className="local-visual-details">
-        <summary>查看节点与连线</summary>
-        <ul className="local-visual-diagram-list">
-          {nodes.map((entry) => (
-            <li key={`list-${entry.id}`}>
-              <strong>{entry.label}</strong>
-            </li>
-          ))}
-          {edges.map((edge) => {
-            const from = nodes.find((entry) => entry.id === edge.from);
-            const to = nodes.find((entry) => entry.id === edge.to);
-            return (
-              <li key={`edge-list-${edge.key}`}>
-                {from?.label ?? edge.from} → {to?.label ?? edge.to}
-                {edge.label ? `（${edge.label}）` : ''}
-              </li>
-            );
-          })}
-        </ul>
-      </details>
     </VisualFrame>
   );
 }

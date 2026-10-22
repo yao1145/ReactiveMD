@@ -195,7 +195,30 @@ it('reads diagram selection from the runtime and shows the selected node detail'
   expect(html).toContain('data-diagram-node');
 });
 
-it('renders plots with curve legend and endpoint readout', () => {
+it('reserves layer spacing for edge labels and paints labels above node cards', () => {
+  const runtime = createRuntime();
+  const visual = component('diagram', { label: '流程' }, [
+    component('node', { id: 'a', label: '输入' }),
+    component('node', { id: 'b', label: '计算' }),
+    component('node', { id: 'c', label: '显示' }),
+    component('edge', { from: 'a', to: 'b', label: '参数变化' }),
+    component('edge', { from: 'b', to: 'c', label: '更新结果' }),
+  ]);
+
+  const html = mount(visual, runtime);
+  const viewBox = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(html);
+  expect(viewBox).not.toBeNull();
+  expect(Number(viewBox![1])).toBeGreaterThan(520);
+  expect(html).toContain('local-visual-edge-label');
+  expect(html).toContain('参数变化');
+  expect(html).not.toContain('local-visual-edge-label-plate');
+  expect(html.indexOf('local-visual-edge-label-group')).toBeGreaterThan(
+    html.lastIndexOf('data-diagram-node'),
+  );
+  expect(html).not.toContain('查看节点与连线');
+});
+
+it('renders plots with a lightweight curve legend and no endpoint readout', () => {
   const runtime = createRuntime();
   const visual = component('plot', { min: '0', max: '2', samples: '20' }, [
     node('math', { value: 'y = x^2' }),
@@ -204,7 +227,10 @@ it('renders plots with curve legend and endpoint readout', () => {
   const html = mount(visual, runtime);
   expect(html).toContain('<svg');
   expect(html).toContain('local-visual-plot-legend');
+  expect(html).toContain('local-visual-plot-formula');
+  expect(html).toContain('<math');
   expect(html).toContain('y = x^2');
-  expect(html).toContain('终点 x = ');
+  expect(html).not.toContain('终点 x = ');
+  expect(html).not.toContain('local-visual-endpoint');
   expect(html).not.toContain('查看数据表');
 });

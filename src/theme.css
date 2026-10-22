@@ -1,24 +1,119 @@
+/* Reactive MD visual tokens. Components consume semantic values from here;
+   component CSS should not introduce one-off colors, sizes or spacing. */
 .reactive-md-theme,
 .md-document {
+  color-scheme: light;
+
+  /* Surfaces */
   --paper: #f5f7fb;
   --surface: #ffffff;
+  --surface-subtle: #f8faff;
+  --surface-hover: color-mix(in srgb, var(--ink) 5%, var(--surface));
+  --surface-active: color-mix(in srgb, var(--ink) 8%, var(--surface));
+
+  /* Text */
   --ink: #17233d;
   --ink-soft: #45536f;
   --ink-muted: #6b7893;
-  --blue: #365cf5;
-  --blue-deep: #2748d8;
-  --teal: #167875;
+
+  /* Borders */
   --line: #dce3ef;
   --line-strong: #c9d4e8;
-  --danger: #a2273a;
-  --danger-line: #f0cdd3;
+
+  /* Accent */
+  --blue: #365cf5;
+  --blue-deep: #2748d8;
+  --blue-soft: #eef2ff;
+  --blue-line: #d7e0f1;
+  --info: var(--blue);
+  --info-soft: var(--blue-soft);
+
+  /* Status */
+  --teal: #167875;
+  --success: var(--teal);
+  --success-soft: #e8f6f2;
+  --success-line: #bfe3d8;
   --warning: #8a5a10;
+  --warning-soft: #fff6e5;
+  --warning-line: #f0dcae;
+  --danger: #a2273a;
+  --danger-soft: #fff5f6;
+  --danger-line: #f0cdd3;
+  --neutral-soft: #eef2fa;
+
+  /* Focus */
+  --focus: var(--blue);
+  --focus-outline: 2px solid var(--focus);
+  --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
+
+  /* Data series */
+  --chart-1: #2563eb;
+  --chart-2: #d93a5c;
+  --chart-3: #0f8f83;
+  --chart-4: #c57a12;
+  --chart-5: #7b5bd6;
+  --chart-6: #1d8aa8;
+  --chart-7: #5f8f1f;
+  --chart-8: #c2417f;
+  --chart-grid: var(--line);
+  --chart-axis: var(--ink-muted);
+
+  /* Code */
   --code-bg: #0f172a;
   --code-bg-deep: #0b1220;
   --code-ink: #dce6ff;
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+
+  /* Type */
+  --text-xs: 12.5px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 21px;
+  --text-2xl: 27px;
+  --leading-tight: 1.3;
+  --leading-snug: 1.5;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.75;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing: 4px base */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --field-gap: var(--space-4);
+
+  /* Radius */
+  --radius-control: 6px;
+  --radius-card: 12px;
+  --radius-panel: 14px;
+  --radius-pill: 999px;
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-card);
+  --radius-lg: var(--radius-panel);
+
+  /* Controls */
+  --control-height-sm: 32px;
+  --control-height: 40px;
+  --control-height-lg: 44px;
+  --control-padding-x: 12px;
+  --control-padding-y: 9px;
+  --disabled-opacity: 0.45;
+
+  /* Motion and elevation */
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
+  --motion-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --shadow-sm: 0 1px 2px rgb(23 35 61 / 6%);
+  --shadow-md: 0 6px 20px rgb(23 35 61 / 8%);
+
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   --font-mono: "Cascadia Code", "Consolas", "SFMono-Regular", "Menlo", "Liberation Mono",
@@ -30,19 +125,47 @@
 .reactive-md-theme[data-theme="dark"],
 .md-document[data-theme="dark"] {
   color-scheme: dark;
+
   --paper: #111827;
   --surface: #182236;
+  --surface-subtle: #1c2940;
+
   --ink: #e5edfc;
   --ink-soft: #bbc8de;
   --ink-muted: #9aaecb;
+
   --line: #354560;
   --line-strong: #50627d;
+
   --blue: #8ba6ff;
   --blue-deep: #7191f5;
+  --blue-soft: #1c2b4a;
+  --blue-line: #334c7a;
+
   --teal: #68ccc2;
+  --success-soft: #19312e;
+  --success-line: #2f5b55;
+  --warning: #f0b84f;
+  --warning-soft: #30250f;
+  --warning-line: #5c4a22;
   --danger: #ffa0ae;
+  --danger-soft: #3a1b1f;
   --danger-line: #794853;
+  --neutral-soft: #22314b;
+
+  --chart-1: #7aa2ff;
+  --chart-2: #ff7a9c;
+  --chart-3: #4fd1c5;
+  --chart-4: #f6c26b;
+  --chart-5: #b8a1ff;
+  --chart-6: #67d4e8;
+  --chart-7: #b6e26a;
+  --chart-8: #ff8fc7;
+
   --code-bg: #0b1220;
   --code-bg-deep: #090f1c;
   --code-ink: #dce6ff;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-md: 0 6px 24px rgb(0 0 0 / 35%);
 }
