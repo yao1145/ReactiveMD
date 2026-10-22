@@ -10,6 +10,7 @@
 .example-hint { color:var(--ink-muted); font-size:12px; }
 [data-theme="dark"] .workbench-bar { background:var(--surface); color:var(--ink); }
 [data-theme="dark"] .button, [data-theme="dark"] .bar-select { background:var(--paper); color:var(--ink); border-color:var(--line); }
+[data-theme="dark"] .author-tools button[aria-pressed="true"] { color:var(--paper); }
 @media(max-width:600px) {
   .author-tools { padding:10px 12px; }
   .author-tool-group { width:100%; }

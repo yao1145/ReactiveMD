@@ -10,15 +10,31 @@ import {
 } from 'react';
 import { compileLocal, createLocalRuntime } from 'reactive-md';
 import type { Diagnostic, SourceRange } from 'reactive-md';
-import { LocalDocumentView } from 'reactive-md/react';
+import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
 import { AuthorTools } from './author-tools';
 import { EXAMPLES, DEFAULT_EXAMPLE_ID } from './examples';
+import guideSource from '../../docs/local-guide.md?raw';
 
 type CompiledLocal = Extract<ReturnType<typeof compileLocal>, { ok: true }>;
 type LocalRuntimeInstance = ReturnType<typeof createLocalRuntime>;
 
 const DEFAULT_EXAMPLE = EXAMPLES.find((item) => item.id === DEFAULT_EXAMPLE_ID) ?? EXAMPLES[0];
 const SOURCE_PREFIX = 'reactive-md:local:source:';
+const GUIDE_REPOSITORY = 'https://github.com/yao1145/ReactiveMD/blob/main';
+
+// The guide lives in docs/ and links to neighbouring files. Send those links
+// to the repository so they still work when the guide is rendered in the demo.
+const GUIDE_SOURCE = guideSource
+  .replace(/\]\(\.\.\/examples\/local\/([^)]+)\)/g, `](${GUIDE_REPOSITORY}/examples/local/$1)`)
+  .replace(/\]\((local-interaction-syntax|local-integration)\.md\)/g, `](${GUIDE_REPOSITORY}/docs/$1.md)`);
+
+function headingSlug(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .replace(/\s+/g, '-');
+}
 
 function browserStorage(): Storage | undefined {
   try { return window.localStorage; } catch { return undefined; }
@@ -147,7 +163,57 @@ function LocalPreview({ document, onDiagnostics }: LocalPreviewProps) {
   return <LocalDocumentView document={document} runtime={instance.runtime} onDiagnostics={onDiagnostics} />;
 }
 
+interface GuideViewProps {
+  dark: boolean;
+  onTheme(): void;
+  onBack(): void;
+}
+
+function GuideView({ dark, onTheme, onBack }: GuideViewProps) {
+  const paper = useRef<HTMLDivElement>(null);
+
+  // The guide's table of contents links to heading anchors. The renderer does
+  // not generate ids, so add GitHub-style slugs once the document is mounted.
+  useEffect(() => {
+    const article = paper.current?.querySelector('.local-document');
+    if (!article) return;
+    const seen = new Map<string, number>();
+    for (const heading of article.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
+      if (heading.id) continue;
+      const base = headingSlug(heading.textContent ?? '');
+      if (!base) continue;
+      const count = seen.get(base) ?? 0;
+      seen.set(base, count + 1);
+      heading.id = count ? `${base}-${count}` : base;
+    }
+  }, []);
+
+  return (
+    <main className="guide-view">
+      <div className="guide-toolbar">
+        <div>
+          <p className="eyebrow">阅读文档</p>
+          <h2>使用指南</h2>
+          <p>面向会写 Markdown 的读者：从第一份交互文档开始，逐步加入条件、图表与函数曲线。</p>
+        </div>
+        <div className="guide-actions">
+          <button type="button" className="button button-secondary" onClick={onTheme}>
+            {dark ? '浅色主题' : '深色主题'}
+          </button>
+          <button type="button" className="button button-secondary" onClick={onBack}>
+            返回 Playground
+          </button>
+        </div>
+      </div>
+      <div className="guide-paper" ref={paper}>
+        <LocalReactiveDocument source={GUIDE_SOURCE} />
+      </div>
+    </main>
+  );
+}
+
 export default function App() {
+  const [view, setView] = useState<'playground' | 'guide'>('playground');
   const [selectedExample, setSelectedExample] = useState(initialExampleId);
   const [source, setSource] = useState(() => savedSource(initialExampleId()));
   const [dark, setDark] = useState(() => savedItem('reactive-md:theme') === 'dark');
@@ -276,14 +342,39 @@ export default function App() {
   return (
     <div className={`app-shell${simple ? ' is-simple' : ''}`}>
       <header className="masthead">
-        <p className="eyebrow">本地交互文档实验室</p>
-        <h1>Reactive MD</h1>
-        <p className="masthead-intro">
-          在 Markdown 中放置输入控件，用 <code>bind</code> 命名参数，再用 <code>{'{{ 表达式 }}'}</code>{' '}
-          读取它们。调整输入，正文、表格、图表和曲线立即更新。
-        </p>
+        <div className="masthead-lead">
+          <p className="eyebrow">本地交互文档实验室</p>
+          <h1>Reactive MD</h1>
+          <p className="masthead-intro">
+            在 Markdown 中放置输入控件，用 <code>bind</code> 命名参数，再用 <code>{'{{ 表达式 }}'}</code>{' '}
+            读取它们。调整输入，正文、表格、图表和曲线立即更新。
+          </p>
+        </div>
+        <nav className="view-switch" aria-label="页面切换">
+          <button
+            type="button"
+            aria-pressed={view === 'playground'}
+            onClick={() => setView('playground')}
+          >
+            Playground
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === 'guide'}
+            onClick={() => setView('guide')}
+          >
+            使用指南
+          </button>
+        </nav>
       </header>
 
+      {view === 'guide' ? (
+        <GuideView
+          dark={dark}
+          onTheme={() => setDark((value) => !value)}
+          onBack={() => setView('playground')}
+        />
+      ) : (
       <main className="workbench">
         <div className="workbench-bar">
           <div className="bar-group">
@@ -418,13 +509,18 @@ export default function App() {
           </section>
         </div>
       </main>
+      )}
 
       <footer className="app-footer">
         <p>
           参数用 <code>bind</code> 命名，正文用 <code>{'{{ }}'}</code> 读取；图表使用 Markdown 表格，
           函数曲线使用 LaTeX，不需要配置块、事件或服务调用。
         </p>
-        <p>浏览器只保存各示例正在编辑的源码；交互状态不持久化，刷新或重新运行会回到初值。</p>
+        {view === 'guide' ? (
+          <p>指南内容与仓库 <code>docs/local-guide.md</code> 保持一致。</p>
+        ) : (
+          <p>浏览器只保存各示例正在编辑的源码；交互状态不持久化，刷新或重新运行会回到初值。</p>
+        )}
       </footer>
     </div>
   );

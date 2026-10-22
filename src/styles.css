@@ -1,2 +1,4 @@
+@import './theme.css';
+@import './base.css';
 @import './local/local.css';
 @import './local/visuals.css';
