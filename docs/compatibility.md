@@ -6,7 +6,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 | 项目 | 当前值 | 说明 |
 | --- | --- | --- |
-| 包版本 | `0.3.0` | 见 `package.json`；尚未发布到 npm |
+| 包版本 | `0.3.0` | 安装 `reactive-md@0.3.0` |
 | 语法版本 | `local-draft-1` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
 | 核心入口 | `reactive-md` | 编译、表达式与运行时，不加载 React |
 | React 入口 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` |
@@ -54,11 +54,11 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 | 环境 | 当前状态 |
 | --- | --- |
-| Node.js 22.12+ | 开发和 Node 端消费的最低版本 |
+| Node.js 22.12+ | 开发和 Node 端消费的最低版本；22.12 与 24 均通过 CI |
 | ESM | 唯一模块格式；不提供 CommonJS 入口 |
 | React 19 | `reactive-md/react` 的要求；核心入口不依赖 React |
 | Microsoft Edge（Chromium 内核） | 已完成本地浏览器验证 |
-| Playwright Chromium | 已配置 Linux CI 检查，首次远端运行待完成 |
+| Playwright Chromium | Linux CI 浏览器检查通过 |
 | Firefox、Safari/WebKit | 未验证，不作支持声明 |
 | SSR | `react-dom/server` 静态渲染由发布前的 packed 检查覆盖；水合未验证，使用前需自行检查 |
 

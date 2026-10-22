@@ -1,12 +1,12 @@
 # 发布清单
 
-本文件是维护者的手动发布流程。Reactive MD 当前为 `0.3.0` 预览版，尚未发布到 npm；仓库里的自动检查不等于 npm 已发布，也不等于所有平台已验证。版本规则见[版本与兼容性](compatibility.md)。
+本文件是维护者的手动发布流程。Reactive MD 当前为 `0.3.0` 公开预览版。版本规则见[版本与兼容性](compatibility.md)。
 
 ## 发布前确认
 
 ### 包名与 scope
 
-`package.json` 当前使用非 scope 名称 `reactive-md`。第一次发布前确认：
+`package.json` 当前使用非 scope 名称 `reactive-md`。发布前确认：
 
 1. 用 `npm view reactive-md` 或 npm 网站确认名称可用；不要仅凭本仓库的配置判断。
 2. 决定继续使用非 scope 名称，还是改成 `@scope/reactive-md`。scope 需要对应的 npm 账号或组织权限。
@@ -29,7 +29,7 @@
 
 ## 本地 tarball 安装
 
-首次发布前，tarball 是唯一支持的安装路径。在仓库根目录：
+发布前用真实 tarball 检查独立安装。在仓库根目录：
 
 ```sh
 npm ci
@@ -69,7 +69,7 @@ import 'reactive-md/styles.css';
 发布说明面向使用者，至少包含：
 
 - 包版本与 `LOCAL_SYNTAX_VERSION`；两者不是同一个版本号。
-- 安装方式：首次发布前写 tarball 路径；发布到 npm 之后才写 `npm install reactive-md@<version>`。
+- 安装方式：`npm install reactive-md@<version>`，并提供可下载 tarball 作为离线安装选项。
 - 用户可见变化、破坏性变更和迁移步骤；直接链接 [变更记录](../CHANGELOG.md)。
 - 已验证的平台，以及未验证的浏览器、SSR 水合等范围。
 - 已知限制和安全说明链接 [SECURITY.md](../SECURITY.md)。
@@ -87,6 +87,6 @@ import 'reactive-md/styles.css';
 7. 手动创建并推送 tag，例如 `v0.3.0`。不要在自动发布工作流中保存 npm token。
 8. 在维护者本机完成 npm 登录和双因素认证后手动发布 tarball：`npm publish reactive-md-0.3.0.tgz --access public`。使用 scope 包名时改为对应的 `@scope/name`。
 9. 在 npm 和 GitHub Releases 上核对包内容、版本、README、许可与发布说明；从公开 registry 重新安装一次。
-10. 只有首次发布成功后，才把 README 的安装段从 tarball 改为 registry 路径，并在文档中写入实际版本。
+10. 从 registry 验证 README 中的安装命令可用，核对 registry 的完整性摘要与发布 tarball 一致。
 
-npm registry 安装是首次发布之后的路径。当前预览阶段不要把它写成可用方式。发布过程中不要提交 token、`.npmrc` 凭据或本机路径；不要用自动发布替代这里的人工核对。
+README 中的版本与安装命令应在打包前准备好，并在发布后验证。发布过程中不要提交 token、`.npmrc` 凭据或本机路径。

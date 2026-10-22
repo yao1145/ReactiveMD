@@ -4,7 +4,7 @@
 
 用 Markdown 写本地交互文档。放入输入控件，用 `bind` 命名参数，用 `{{ 表达式 }}` 连接文字、公式、图表和图解。文档作者无需编写 JavaScript 或 CSS。
 
-本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。当前为 `0.3.0` 预览版，语法修订 `local-draft-1`，尚未发布到 npm。
+本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。当前为 `0.3.0` 预览版，语法修订 `local-draft-1`。
 
 ## 从这里开始
 
@@ -28,35 +28,21 @@
 
 输入立即更新结果，面板自带“恢复默认”。独立使用的计数器只需一行 `<counter label="人数">`。
 
-## 安装与构建
+## 安装
 
-需要 Node.js 22.12 或更新版本。包只提供 ESM 入口。在仓库根目录执行：
-
-```sh
-npm install
-npm run build
-npm test
-npm run test:package
-npm run test:docs
-```
-
-`build` 只构建语言包，输出到 `dist-library/`。`reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。
-
-### 从本地 tarball 安装
-
-首次发布前，从本仓库打包安装：
+需要 Node.js 22.12 或更新版本，包提供 ESM 入口：
 
 ```sh
-npm pack
+npm install reactive-md@0.3.0
 ```
 
-`npm pack` 会通过 `prepack` 构建 `dist-library/` 并生成第三方 notice。在宿主项目中安装输出文件，文件名由包名和版本决定，当前为 `reactive-md-0.3.0.tgz`：
-
-```sh
-npm install /path/to/reactive-md-0.3.0.tgz
-```
+`reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。
 
 React 入口需要 React 19：
+
+```sh
+npm install react@19 react-dom@19
+```
 
 ```tsx
 import { LocalReactiveDocument } from 'reactive-md/react';
@@ -74,6 +60,7 @@ export function Article({ source }: { source: string }) {
 ## 体验 Demo
 
 ```sh
+npm ci
 npm run dev
 ```
 

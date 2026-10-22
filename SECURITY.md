@@ -4,7 +4,7 @@ Reactive MD 渲染作者编写的本地交互文档。文档是不可信输入�
 
 ## 支持范围
 
-当前只维护最新的 0.x 预览版本；未发布到 npm 之前，以 `main` 分支为准。项目不提供长期支持、漏洞赏金或固定响应时限，维护者会尽力处理。1.0 之前的安全修复可能随次版本发布，并按 [变更记录](CHANGELOG.md) 记录。
+当前维护最新的 0.x 预览版本。安全修复可能随次版本发布，并在[变更记录](CHANGELOG.md)中说明影响和迁移步骤。
 
 ## 威胁边界
 
@@ -63,10 +63,6 @@ Reactive MD 渲染作者编写的本地交互文档。文档是不可信输入�
 
 ## 报告漏洞
 
-本文件不声明 GitHub 私密漏洞报告已经启用。维护者在首次公开发布前应完成：
+仓库已启用 GitHub 私密漏洞报告。请通过 [Report a vulnerability](https://github.com/yao1145/ReactiveMD/security/advisories/new) 提交受影响版本、最小复现、预期影响和修复建议。
 
-1. 在仓库 Settings 的 Code security and analysis（或 Security）页面启用 Private vulnerability reporting。
-2. 打开 Security 页面，确认 “Report a vulnerability” 可用。
-3. 在 README、发布说明和仓库简介中链接本文件。
-
-在私密渠道可用之前，不要公开漏洞细节、利用代码、受影响部署、凭据或用户数据。安全的 fallback 是：开一个不含技术细节的公开 issue，请维护者提供私密渠道；或使用维护者 GitHub 个人资料中公开、已验证的联系方式。维护者应先建立私密渠道，再公开邀请安全测试。
+使用私密渠道报告漏洞细节；公开 issue 和 PR 中请移除利用代码、凭据、用户数据及受影响部署的信息。

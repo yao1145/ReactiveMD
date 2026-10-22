@@ -1,6 +1,6 @@
 # 独立集成示例
 
-这些目录使用包的公开入口，可以复制到仓库外运行。先在仓库根目录执行 `npm pack`，得到 `reactive-md-0.3.0.tgz`；以下命令从当前目录开始。版本变化后，请替换压缩包文件名。
+这些目录使用包的公开入口，可以复制到仓库外运行。以下命令从当前目录开始。
 
 ## Node 核心
 
@@ -8,11 +8,11 @@
 
 ```sh
 cd core
-npm install ../../../reactive-md-0.3.0.tgz --offline --ignore-scripts --no-audit --no-fund
+npm install reactive-md@0.3.0 --ignore-scripts --no-audit --no-fund
 npm start
 ```
 
-预期先输出 `人数：2，费用：200`，再输出 `人数：5，费用：500`。源码在 [core/index.mjs](core/index.mjs)。复制到其他位置后，将安装命令中的路径改为压缩包的实际位置。
+预期先输出 `人数：2，费用：200`，再输出 `人数：5，费用：500`。源码在 [core/index.mjs](core/index.mjs)。
 
 ## React 页面
 
@@ -20,7 +20,7 @@ npm start
 
 ```sh
 cd react
-npm install ../../../reactive-md-0.3.0.tgz
+npm install reactive-md@0.3.0
 npm run dev
 ```
 
