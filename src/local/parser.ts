@@ -3,6 +3,13 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import type { Diagnostic } from './types';
 import type { LocalNode } from './types';
+import {
+  MAX_LOCAL_ARRAY_LENGTH,
+  MAX_LOCAL_DOCUMENT_LENGTH,
+  MAX_LOCAL_DIAGNOSTICS,
+  MAX_LOCAL_DIAGNOSTIC_LENGTH,
+  MAX_LOCAL_STRING_LENGTH,
+} from './limits';
 
 const VOID = new Set('input textarea number slider toggle checkbox date counter timer progress edge'.split(' '));
 const PAIRED = new Set('panel card grid tabs tab accordion disclosure if alert badge tooltip select choices radio-group checklist table chart plot timeline diagram node option'.split(' '));
@@ -12,14 +19,44 @@ const MARK_OPEN = String.fromCharCode(0xe000);
 const MARK_CLOSE = String.fromCharCode(0xe001);
 const TAG_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const ATTR_NAME = TAG_NAME;
+/** Names longer than this are rejected and never fed to suggestion search. */
+const MAX_LOCAL_NAME_LENGTH = 128;
+/** Total syntax nodes produced by one parse. */
+const MAX_SYNTAX_NODES = MAX_LOCAL_ARRAY_LENGTH;
+/** Displayed math is parsed by the math view; keep its source comparable to math.ts. */
+const MAX_DISPLAY_MATH_SOURCE = Math.min(50_000, MAX_LOCAL_STRING_LENGTH);
 const markdown = unified().use(remarkParse).use(remarkGfm);
 interface Token { start: number; end: number; node: LocalNode }
 interface RegionResult { tokens: Token[]; end: number; contentEnd: number; indent: number }
 
+class LocalBudgetError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly start: number,
+    readonly end: number,
+  ) {
+    super(message);
+    this.name = 'LocalBudgetError';
+  }
+}
+
 /** A lexical pass shields code before recognizing local tags, interpolation and math. */
 export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: Diagnostic[] } {
   const diagnostics: Diagnostic[] = [];
+  if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
+    return { nodes: [], diagnostics: [{
+      code: typeof source === 'string' ? 'local.budget' : 'local.parse',
+      message: typeof source === 'string' ? `文档超过 ${MAX_LOCAL_DOCUMENT_LENGTH} 字符上限。` : '文档源码必须是字符串。',
+      severity: 'error', range: { start: 0, end: typeof source === 'string' && source.length ? 1 : 0 }, line: 1, column: 1,
+    }] };
+  }
+  const lineStarts = [0];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === '\n') lineStarts.push(index + 1);
+  }
   let serial = 0;
+  let nodeCount = 0;
   let markerSerial = 0;
   const reservedMarkers = new Set(source.match(new RegExp(MARK_OPEN + '[0-9]+' + MARK_CLOSE, 'g')) ?? []);
   const codeRanges: { start: number; end: number }[] = [];
@@ -27,13 +64,43 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
     if (raw.type === 'code') codeRanges.push({ start: raw.position.start.offset, end: raw.position.end.offset });
     for (const child of raw.children ?? []) findCode(child);
   };
-  if (source.length <= 1_000_000) findCode(markdown.parse(source));
+  try {
+    findCode(markdown.parse(source));
+  } catch {
+    error('local.parse', '无法解析 Markdown 文档。', 0);
+    return { nodes: [], diagnostics };
+  }
   let codeIndex = 0;
-  const node = (type: string, start: number, end: number, extra: Partial<LocalNode> = {}): LocalNode =>
-    ({ type, id: `local-${serial++}`, range: { start, end }, ...extra });
+  const node = (type: string, start: number, end: number, extra: Partial<LocalNode> = {}): LocalNode => {
+    if (nodeCount >= MAX_SYNTAX_NODES) {
+      throw new LocalBudgetError('local.budget', `语法节点超过 ${MAX_SYNTAX_NODES} 个上限。`, start, end);
+    }
+    nodeCount += 1;
+    return { type, id: `local-${serial++}`, range: { start, end }, ...extra };
+  };
   function error(code: string, message: string, start: number, end = start + 1) {
-    const prefix = source.slice(0, start).split('\n');
-    diagnostics.push({ code, message, severity: 'error', range: { start, end: Math.min(source.length, Math.max(start, end)) }, line: prefix.length, column: prefix.at(-1)!.length + 1 });
+    if (diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) return;
+    const safeStart = Math.max(0, Math.min(source.length, start));
+    const safeEnd = Math.max(safeStart, Math.min(source.length, Math.max(safeStart, end)));
+    let low = 0;
+    let high = lineStarts.length - 1;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      if (lineStarts[middle] <= safeStart) low = middle;
+      else high = middle - 1;
+    }
+    const line = low + 1;
+    const text = message.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
+      ? `${message.slice(0, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
+      : message;
+    diagnostics.push({
+      code,
+      message: text,
+      severity: 'error',
+      range: { start: safeStart, end: safeEnd },
+      line,
+      column: safeStart - lineStarts[low] + 1,
+    });
   }
   function decode(value: string) {
     return value.replace(/&(quot|apos|amp|lt|gt);/g, (_, key: string) => ({ quot: '"', apos: "'", amp: '&', lt: '<', gt: '>' })[key]!);
@@ -52,7 +119,11 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
         continue;
       }
       const name = match[0]; i += name.length;
-      if (!ATTR_NAME.test(name)) error('local.attribute.name', `属性名 ${name} 必须使用小写 kebab-case。`, offset + start, offset + i);
+      if (name.length > MAX_LOCAL_NAME_LENGTH) {
+        error('local.budget.name', `属性名超过 ${MAX_LOCAL_NAME_LENGTH} 字符上限。`, offset + start, offset + i);
+      } else if (!ATTR_NAME.test(name)) {
+        error('local.attribute.name', `属性名 ${name} 必须使用小写 kebab-case。`, offset + start, offset + i);
+      }
       while (i < raw.length && /\s/.test(raw[i])) i++;
       let value = 'true';
       if (raw[i] === '=') {
@@ -81,6 +152,9 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
     }
     if (end >= limit) { error('local.tag.unclosed', `标签 ${match[2]} 缺少 >。`, start, limit); return null; }
     const name = match[2];
+    if (name.length > MAX_LOCAL_NAME_LENGTH) {
+      error('local.budget.name', `标签名超过 ${MAX_LOCAL_NAME_LENGTH} 字符上限。`, start, start + 1 + name.length);
+    }
     const rest = source.slice(start + match[0].length, end);
     if (match[1]) {
       if (rest.trim()) error('local.tag.closing', `结束标签 </${name}> 不能带属性。`, start, end + 1);
@@ -191,8 +265,12 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
           if (source.startsWith(delimiter, stop)) break;
         }
         if (stop >= end || !source.startsWith(delimiter, stop)) { error('local.math.unclosed', '数学公式缺少结束定界符。', i); i += delimiter.length; continue; }
-        const value = source.slice(i + delimiter.length, stop);
+        let value = source.slice(i + delimiter.length, stop);
         if (!display && (!value || /^\s|\s$/.test(value))) { error('local.math.whitespace', '行内数学内容首尾不能是空白。', i, stop + 1); }
+        if (value.length > MAX_DISPLAY_MATH_SOURCE) {
+          error('local.budget.math', `数学公式超过 ${MAX_DISPLAY_MATH_SOURCE} 字符上限。`, i, stop + delimiter.length);
+          value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
+        }
         const finish = stop + delimiter.length;
         tokens.push({ start: i, end: finish, node: node(display ? 'math' : 'inlineMath', i, finish, { value }) }); i = finish; continue;
       }
@@ -220,7 +298,7 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
   function convert(start: number, end: number, tokens: Token[], indent = 0): LocalNode[] {
     let masked = '', cursor = start;
     const offsets: number[] = [];
-    const markers = new Map<string, LocalNode>();
+    const markers = new Map<number, { marker: string; end: number; node: LocalNode }>();
     const skipCache = new Map<number, number>();
     function lineSkip(absolute: number) {
       const lineStart = source.lastIndexOf('\n', absolute - 1) + 1;
@@ -249,10 +327,13 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
       append(source.slice(cursor, token.start), cursor, true);
       let marker: string;
       do { marker = MARK_OPEN + markerSerial++ + MARK_CLOSE; } while (reservedMarkers.has(marker));
-      markers.set(marker, token.node);
       const block = token.node.type === 'math' || (token.node.type === 'component' && !INLINE.has(token.node.name!));
       if (block) append('\n\n', token.start, false);
-      append(marker, token.start, false);
+      const markerStart = masked.length;
+      // A generated Markdown image has its own source range. Restore only this
+      // exact range; entity decoding and adjacent code cannot forge a node.
+      append(`![${marker}](rmd-internal:placeholder)`, token.start, false);
+      markers.set(markerStart, { marker, end: masked.length, node: token.node });
       if (block) append('\n\n', token.end, false);
       cursor = token.end;
     }
@@ -267,18 +348,16 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
     function transform(raw: any): LocalNode[] {
       const from = offsets[raw.position?.start?.offset ?? 0] ?? start;
       const to = offsets[raw.position?.end?.offset ?? masked.length] ?? end;
-      if (raw.type === 'text') {
-        const output: LocalNode[] = []; let last = 0;
-        const re = new RegExp(MARK_OPEN + '([0-9]+)' + MARK_CLOSE, 'g');
-        for (const match of raw.value.matchAll(re)) {
-          if (!markers.has(match[0])) continue;
-          if (match.index > last) output.push(node('text', from, to, { value: raw.value.slice(last, match.index) }));
-          const item = markers.get(match[0]);
-          if (item && item.type !== 'comment') output.push(item);
-          last = match.index + match[0].length;
+      if (raw.type === 'image') {
+        const slot = markers.get(raw.position?.start?.offset);
+        if (slot && raw.position.end.offset === slot.end
+          && raw.url === 'rmd-internal:placeholder' && raw.alt === slot.marker) {
+          markers.delete(raw.position.start.offset);
+          return slot.node.type === 'comment' ? [] : [slot.node];
         }
-        if (last < raw.value.length) output.push(node('text', from, to, { value: raw.value.slice(last) }));
-        return output;
+      }
+      if (raw.type === 'text') {
+        return raw.value ? [node('text', from, to, { value: raw.value })] : [];
       }
       const children = raw.children?.flatMap(transform);
       if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || (children[0].type === 'component' && !INLINE.has(children[0].name!)))) return children;
@@ -295,11 +374,14 @@ export function parseLocal(source: string): { nodes: LocalNode[]; diagnostics: D
     }
     return tree.children.flatMap(transform);
   }
-  if (source.length > 1_000_000) { error('local.budget', '文档超过 1000000 字符上限。', 0); return { nodes: [], diagnostics }; }
   try {
     const result = region(0, source.length);
     return { nodes: convert(0, source.length, result.tokens), diagnostics };
   } catch (cause) {
+    if (cause instanceof LocalBudgetError) {
+      error(cause.code, cause.message, cause.start, cause.end);
+      return { nodes: [], diagnostics };
+    }
     error('local.parse', `无法解析文档：${cause instanceof Error ? cause.message : String(cause)}`, 0);
     return { nodes: [], diagnostics };
   }

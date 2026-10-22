@@ -1087,6 +1087,10 @@ function refinementDetectsBreak(
  * Samples y(x) across [min, max]. Undefined points and the sample after a
  * detected break become null so a renderer cannot join the two sides of an
  * asymptote. The array always has exactly `samples` points.
+ *
+ * The optional final budget is shared by every curve/plot in a document. Each
+ * evaluation is limited by whatever remains of both that shared budget and the
+ * per-curve budget, and a `latex-budget` error aborts the whole sampling pass.
  */
 export function samplePlot(
   expression: LatexExpression,
@@ -1094,6 +1098,7 @@ export function samplePlot(
   min: number,
   max: number,
   samples = 200,
+  sharedBudget?: LatexEvaluationBudget,
 ): PlotSample {
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
     throw new LatexError('latex-plot-range', '绘图的 min/max 必须是有限数字。', 0);
@@ -1105,16 +1110,45 @@ export function samplePlot(
     throw new LatexError('latex-plot-samples', `采样数必须是 2 到 ${MAX_SAMPLES} 之间的整数。`, 0);
   }
 
-  const budget: LatexEvaluationBudget = {
+  // Each curve keeps its own hard budget, while an optional caller-provided
+  // budget is shared by every curve and every plot in the document. A single
+  // evaluation receives whatever remains of both, so neither limit can be
+  // bypassed by handing out a fresh budget per sample.
+  const localBudget: LatexEvaluationBudget = {
     steps: 0,
     limit: Math.max(MIN_PLOT_STEPS, samples * 1024),
+  };
+
+  const sampleValue = (x: number): number | null => {
+    const localRemaining = localBudget.limit - localBudget.steps;
+    // A malformed external budget fails closed (zero remaining) rather than
+    // becoming an unlimited NaN or Infinity comparison.
+    const sharedRemaining = sharedBudget
+      ? Number.isFinite(sharedBudget.limit) && Number.isFinite(sharedBudget.steps)
+        ? sharedBudget.limit - sharedBudget.steps
+        : 0
+      : Number.POSITIVE_INFINITY;
+    const evaluation: LatexEvaluationBudget = {
+      steps: 0,
+      limit: Math.max(0, Math.min(localRemaining, sharedRemaining)),
+    };
+    try {
+      return safeValue(expression, x, env, evaluation);
+    } finally {
+      localBudget.steps += evaluation.steps;
+      if (sharedBudget) {
+        sharedBudget.steps = Number.isFinite(sharedBudget.steps)
+          ? sharedBudget.steps + evaluation.steps
+          : evaluation.steps;
+      }
+    }
   };
 
   const step = (max - min) / (samples - 1);
   const raw: PlotPoint[] = [];
   for (let i = 0; i < samples; i += 1) {
     const x = i === samples - 1 ? max : min + i * step;
-    raw.push({ x, y: safeValue(expression, x, env, budget) });
+    raw.push({ x, y: sampleValue(x) });
   }
 
   const magnitudes = raw
@@ -1177,7 +1211,7 @@ export function samplePlot(
     };
 
     const midX = point.x + (next.x - point.x) / 2;
-    const midY = safeValue(expression, midX, env, budget);
+    const midY = sampleValue(midX);
     if (midY === null) {
       cutNext();
       continue;
@@ -1195,7 +1229,7 @@ export function samplePlot(
       next.x,
       y2,
       globalSlope,
-      (x) => safeValue(expression, x, env, budget),
+      (x) => sampleValue(x),
     );
     if (singular) cutNext();
   }

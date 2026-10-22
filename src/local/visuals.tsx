@@ -1,12 +1,18 @@
 import {
   useEffect,
   useId,
+  useMemo,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
-import { compileLatex, samplePlot } from './math';
+import {
+  MAX_LOCAL_PLOT_CURVES,
+  MAX_LOCAL_PLOT_POINTS,
+  MAX_LOCAL_PLOT_STEPS,
+} from './limits';
+import { compileLatex, LatexError, samplePlot, type LatexEvaluationBudget } from './math';
 import { LatexView } from './math-view';
 import type { LocalNode, LocalRuntime, LocalValue, LocalVisualProps } from './types';
 
@@ -1478,6 +1484,114 @@ interface PlotCurve {
   error: string | null;
 }
 
+type PlotSampleResult =
+  | { ok: true; curves: PlotCurve[]; notes: string[] }
+  | { ok: false; message: string };
+
+interface PlotBudgetState {
+  revision: number;
+  requestedPoints: Map<string, number>;
+  evaluation: LatexEvaluationBudget;
+  samples: Map<string, PlotSampleResult>;
+}
+
+/**
+ * Document-wide plot accounting. Keys are the runtime instance, so separate
+ * documents never share limits. The snapshot revision starts a fresh budget:
+ * state changes may alter plot expressions and must not inherit an exhausted
+ * budget from the previous render.
+ */
+const documentPlotBudgets = new WeakMap<LocalRuntime, PlotBudgetState>();
+
+function plotBudgetState(runtime: LocalRuntime, revision: number): PlotBudgetState {
+  let budget = documentPlotBudgets.get(runtime);
+  if (!budget || budget.revision !== revision) {
+    budget = {
+      revision,
+      requestedPoints: new Map(),
+      evaluation: { steps: 0, limit: MAX_LOCAL_PLOT_STEPS },
+      samples: new Map(),
+    };
+    documentPlotBudgets.set(runtime, budget);
+  }
+  return budget;
+}
+
+/**
+ * Samples every curve of one plot once per revision. Caching by node id keeps
+ * pointer and keyboard readout updates from resampling, and makes StrictMode's
+ * repeated render unable to charge the shared budget twice.
+ */
+function sampleDocumentPlot(
+  nodeId: string,
+  cacheKey: string,
+  mathNodes: LocalNode[],
+  environment: Record<string, LocalValue>,
+  min: number,
+  max: number,
+  samples: number,
+  runtime: LocalRuntime,
+  revision: number,
+): PlotSampleResult {
+  const budget = plotBudgetState(runtime, revision);
+  const cached = budget.samples.get(cacheKey);
+  if (cached) return cached;
+
+  const fail = (message: string): PlotSampleResult => {
+    const result: PlotSampleResult = { ok: false, message };
+    budget.samples.set(cacheKey, result);
+    return result;
+  };
+
+  if (mathNodes.length > MAX_LOCAL_PLOT_CURVES) {
+    return fail(
+      `plot 最多支持 ${MAX_LOCAL_PLOT_CURVES} 条曲线，当前为 ${mathNodes.length} 条。`,
+    );
+  }
+
+  const requested = mathNodes.length * samples;
+  budget.requestedPoints.set(nodeId, requested);
+  let total = 0;
+  for (const value of budget.requestedPoints.values()) total += value;
+  if (total > MAX_LOCAL_PLOT_POINTS) {
+    return fail(
+      `整篇文档的绘图采样点超过上限：已请求 ${total} 个，最多 ${MAX_LOCAL_PLOT_POINTS} 个。请减少曲线或采样数。`,
+    );
+  }
+
+  const notes: string[] = [];
+  const budgetFailure: { message: string | null } = { message: null };
+  const curves: PlotCurve[] = mathNodes.map((mathNode, index) => {
+    const source = (mathNode.value ?? '').trim();
+    const match = /^y\s*=\s*([\s\S]+)$/.exec(source);
+    if (!match) {
+      notes.push(`曲线 ${index + 1}：无法计算（每块公式需写成 y = 表达式）。`);
+      return { source, expression: null, points: [], endpoint: null, error: 'formula' };
+    }
+    try {
+      const expression = compileLatex(match[1].trim());
+      const result = samplePlot(expression, environment, min, max, samples, budget.evaluation);
+      return { source, expression, points: result.points, endpoint: result.endpoint, error: null };
+    } catch (cause) {
+      if (cause instanceof LatexError && cause.code === 'latex-budget') {
+        // An exhausted document budget makes the whole plot unreliable; do not
+        // draw a partial set of curves.
+        budgetFailure.message = cause.message;
+        return { source, expression: null, points: [], endpoint: null, error: cause.message };
+      }
+      notes.push(`曲线 ${index + 1}：无法计算（${errorMessage(cause)}）。`);
+      return { source, expression: null, points: [], endpoint: null, error: errorMessage(cause) };
+    }
+  });
+  if (budgetFailure.message !== null) {
+    return fail(`绘图计算超过共享执行预算：${budgetFailure.message}`);
+  }
+
+  const result: PlotSampleResult = { ok: true, curves, notes };
+  budget.samples.set(cacheKey, result);
+  return result;
+}
+
 function median(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -1539,7 +1653,45 @@ function PlotView({ node, runtime }: LocalVisualProps) {
   const mathNodes = (node.children ?? []).filter(
     (child) => child.type === 'math' || child.type === 'inlineMath',
   );
-  const environment = { ...runtime.snapshot().state } as Record<string, LocalValue>;
+  const environment = (() => {
+    try {
+      return { ...runtime.snapshot().state } as Record<string, LocalValue>;
+    } catch {
+      return {} as Record<string, LocalValue>;
+    }
+  })();
+  let revision = 0;
+  try {
+    revision = runtime.snapshot().revision;
+  } catch {
+    revision = 0;
+  }
+  const mathKey = mathNodes
+    .map((child) => `${child.id}\u0000${child.value ?? ''}`)
+    .join('\u0001');
+  const cacheKey = `${node.id}\u0000${min}\u0000${max}\u0000${samples}\u0000${mathKey}`;
+
+  // Sampling is cached per document revision, so moving the pointer across the
+  // plot or changing the keyboard readout never resamples every curve.
+  const sampled = useMemo<PlotSampleResult>(
+    () => {
+      if (mathNodes.length === 0 || min === null || max === null || !(max > min)) {
+        return { ok: true, curves: [], notes: [] };
+      }
+      return sampleDocumentPlot(
+        node.id,
+        cacheKey,
+        mathNodes,
+        environment,
+        min,
+        max,
+        samples,
+        runtime,
+        revision,
+      );
+    },
+    [cacheKey, node.id, revision, runtime],
+  );
 
   if (mathNodes.length === 0) {
     return (
@@ -1555,24 +1707,15 @@ function PlotView({ node, runtime }: LocalVisualProps) {
       </VisualFrame>
     );
   }
+  if (!sampled.ok) {
+    return (
+      <VisualFrame className="local-visual-plot" label={label}>
+        <VisualMessage message={sampled.message} kind="alert" />
+      </VisualFrame>
+    );
+  }
 
-  const notes: string[] = [];
-  const curves: PlotCurve[] = mathNodes.map((mathNode, index) => {
-    const source = (mathNode.value ?? '').trim();
-    const match = /^y\s*=\s*([\s\S]+)$/.exec(source);
-    if (!match) {
-      notes.push(`曲线 ${index + 1}：无法计算（每块公式需写成 y = 表达式）。`);
-      return { source, expression: null, points: [], endpoint: null, error: 'formula' };
-    }
-    try {
-      const expression = compileLatex(match[1].trim());
-      const result = samplePlot(expression, environment, min, max, samples);
-      return { source, expression, points: result.points, endpoint: result.endpoint, error: null };
-    } catch (cause) {
-      notes.push(`曲线 ${index + 1}：无法计算（${errorMessage(cause)}）。`);
-      return { source, expression: null, points: [], endpoint: null, error: errorMessage(cause) };
-    }
-  });
+  const { curves, notes } = sampled;
 
   const finitePoints = curves.flatMap((curve) =>
     curve.points.filter(
@@ -1643,10 +1786,13 @@ function PlotView({ node, runtime }: LocalVisualProps) {
     plotSegments(curve.points, ySpan, medianAbs, medianDelta),
   );
 
+  // Readout evaluation shares one bounded budget per render as well, so a
+  // readout update cannot multiply work by the number of curves.
+  const readoutBudget: LatexEvaluationBudget = { steps: 0, limit: MAX_LOCAL_PLOT_STEPS };
   const valueAt = (curve: PlotCurve, x: number): number | null => {
     if (!curve.expression) return null;
     try {
-      const value = curve.expression.evaluate(x, environment);
+      const value = curve.expression.evaluate(x, environment, readoutBudget);
       return typeof value === 'number' && Number.isFinite(value) ? value : null;
     } catch {
       return null;

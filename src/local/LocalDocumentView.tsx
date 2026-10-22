@@ -26,26 +26,36 @@ import type {
 } from './types';
 import { compileLocal } from './compiler';
 import { createLocalRuntime } from './runtime';
+import { MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
 import { LatexView } from './math-view';
 import { LocalVisual } from './visuals';
 
 /* ------------------------------------------------------------------ props */
 
+/**
+ * Host-owned URL allowlist. It runs only after the renderer has validated the
+ * protocol, and a thrown error denies the URL.
+ */
+export type LocalUrlPolicy = (url: string, kind: 'image' | 'link') => boolean;
+
 export interface LocalDocumentViewProps {
   document: LocalDocument;
   runtime: LocalRuntime;
   onDiagnostics?: (diagnostics: Diagnostic[]) => void;
+  urlPolicy?: LocalUrlPolicy;
 }
 
 export interface LocalReactiveDocumentProps {
   source: string;
   onDiagnostics?: (diagnostics: Diagnostic[]) => void;
+  urlPolicy?: LocalUrlPolicy;
 }
 
 /* --------------------------------------------------------------- contexts */
 
 interface LocalViewContext extends LocalRenderContext {
   report: (diagnostics: Diagnostic[]) => void;
+  urlPolicy?: LocalUrlPolicy;
 }
 
 const LocalViewContext = createContext<LocalViewContext | null>(null);
@@ -59,7 +69,6 @@ function useLocal(): LocalViewContext {
 /* ------------------------------------------------------------- attributes */
 
 const FULL_EXPRESSION = /^\s*\{\{([\s\S]*)\}\}\s*$/;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EMPTY_SNAPSHOT: LocalSnapshot = { revision: 0, state: {} };
 
 type ReadAttr =
@@ -258,7 +267,11 @@ interface LocalComponentProps {
 
 const VISUAL_COMPONENTS = new Set(['table', 'chart', 'plot', 'timeline', 'diagram']);
 
-function safeUrl(raw: string | undefined, kind: 'link' | 'image'): string | null {
+function safeUrl(
+  raw: string | undefined,
+  kind: 'image' | 'link',
+  policy?: LocalUrlPolicy,
+): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -270,10 +283,19 @@ function safeUrl(raw: string | undefined, kind: 'link' | 'image'): string | null
       kind === 'image'
         ? name === 'http' || name === 'https'
         : name === 'http' || name === 'https' || name === 'mailto' || name === 'tel';
-    return allowed ? trimmed : null;
+    // Protocol validation always runs first, even when a host policy exists.
+    if (!allowed) return null;
   }
-  if (normalized.startsWith('//')) return trimmed;
-  return trimmed;
+  if (!policy) {
+    // Images never start a network request by default, including relative and
+    // protocol-relative sources. Links keep the historical safe behavior.
+    return kind === 'image' ? null : trimmed;
+  }
+  try {
+    return policy(trimmed, kind) ? trimmed : null;
+  } catch {
+    return null;
+  }
 }
 
 function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' {
@@ -281,24 +303,29 @@ function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5'
   return `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 }
 
-function renderNodes(runtime: LocalRuntime, nodes: LocalNode[] | undefined, visible: boolean): ReactNode {
+interface RenderEnv {
+  runtime: LocalRuntime;
+  urlPolicy?: LocalUrlPolicy;
+}
+
+function renderNodes(env: RenderEnv, nodes: LocalNode[] | undefined, visible: boolean): ReactNode {
   if (!nodes || nodes.length === 0) return null;
-  return nodes.map((node, index) => renderNode(runtime, node, index, visible));
+  return nodes.map((node, index) => renderNode(env, node, index, visible));
 }
 
 /** Render block-parsed children as inline content for labels and options. */
-function renderInlineNodes(runtime: LocalRuntime, nodes: LocalNode[] | undefined, visible: boolean): ReactNode {
+function renderInlineNodes(env: RenderEnv, nodes: LocalNode[] | undefined, visible: boolean): ReactNode {
   if (!nodes || nodes.length === 0) return null;
   return nodes.map((node, index) => {
     if (node.type === 'paragraph' || node.type === 'root') {
-      return <span key={node.id || `inline-${index}`}>{renderNodes(runtime, node.children, visible)}</span>;
+      return <span key={node.id || `inline-${index}`}>{renderNodes(env, node.children, visible)}</span>;
     }
-    return renderNode(runtime, node, index, visible);
+    return renderNode(env, node, index, visible);
   });
 }
 
 function renderNode(
-  runtime: LocalRuntime,
+  env: RenderEnv,
   node: LocalNode,
   index: number,
   visible: boolean,
@@ -307,7 +334,7 @@ function renderNode(
 
   if (node.type === 'component') {
     return (
-      <LocalErrorBoundary key={key} revision={runtimeRevision(runtime)}>
+      <LocalErrorBoundary key={key} revision={runtimeRevision(env.runtime)}>
         {renderComponent(node, visible)}
       </LocalErrorBoundary>
     );
@@ -315,29 +342,29 @@ function renderNode(
 
   switch (node.type) {
     case 'root':
-      return <div key={key}>{renderNodes(runtime, node.children, visible)}</div>;
+      return <div key={key}>{renderNodes(env,node.children, visible)}</div>;
 
     case 'heading':
       return createElement(
         headingTag(node.depth),
         { key },
-        renderNodes(runtime, node.children, visible),
+        renderNodes(env,node.children, visible),
       );
 
     case 'paragraph':
-      return <p key={key}>{renderNodes(runtime, node.children, visible)}</p>;
+      return <p key={key}>{renderNodes(env,node.children, visible)}</p>;
 
     case 'text':
       return <span key={key}>{node.value ?? ''}</span>;
 
     case 'emphasis':
-      return <em key={key}>{renderNodes(runtime, node.children, visible)}</em>;
+      return <em key={key}>{renderNodes(env,node.children, visible)}</em>;
 
     case 'strong':
-      return <strong key={key}>{renderNodes(runtime, node.children, visible)}</strong>;
+      return <strong key={key}>{renderNodes(env,node.children, visible)}</strong>;
 
     case 'delete':
-      return <del key={key}>{renderNodes(runtime, node.children, visible)}</del>;
+      return <del key={key}>{renderNodes(env,node.children, visible)}</del>;
 
     case 'inlineCode':
       return (
@@ -356,7 +383,7 @@ function renderNode(
     }
 
     case 'blockquote':
-      return <blockquote key={key}>{renderNodes(runtime, node.children, visible)}</blockquote>;
+      return <blockquote key={key}>{renderNodes(env,node.children, visible)}</blockquote>;
 
     case 'break':
       return <br key={key} />;
@@ -367,11 +394,11 @@ function renderNode(
     case 'list':
       return node.ordered ? (
         <ol key={key} start={node.start ?? 1} className="md-list">
-          {renderNodes(runtime, node.children, visible)}
+          {renderNodes(env,node.children, visible)}
         </ol>
       ) : (
         <ul key={key} className="md-list">
-          {renderNodes(runtime, node.children, visible)}
+          {renderNodes(env,node.children, visible)}
         </ul>
       );
 
@@ -389,17 +416,17 @@ function renderNode(
               aria-label={node.checked ? '已完成' : '未完成'}
             />
           ) : null}
-          {renderNodes(runtime, node.children, visible)}
+          {renderNodes(env,node.children, visible)}
         </li>
       );
     }
 
     case 'link': {
-      const href = safeUrl(node.url, 'link');
+      const href = safeUrl(node.url, 'link', env.urlPolicy);
       if (!href) {
         return (
           <span className="md-link-rejected" key={key} title="已拒绝不安全的链接地址">
-            {renderNodes(runtime, node.children, visible)}
+            {renderNodes(env,node.children, visible)}
           </span>
         );
       }
@@ -412,13 +439,13 @@ function renderNode(
           target={external ? '_blank' : undefined}
           rel={external ? 'noopener noreferrer' : undefined}
         >
-          {renderNodes(runtime, node.children, visible)}
+          {renderNodes(env,node.children, visible)}
         </a>
       );
     }
 
     case 'image': {
-      const src = safeUrl(node.url, 'image');
+      const src = safeUrl(node.url, 'image', env.urlPolicy);
       if (!src) {
         return (
           <span className="md-image-rejected" key={key}>
@@ -434,6 +461,7 @@ function renderNode(
           alt={node.alt ?? ''}
           title={node.title ?? undefined}
           loading="lazy"
+          referrerPolicy="no-referrer"
         />
       );
     }
@@ -446,14 +474,14 @@ function renderNode(
           <table className="md-table">
             {headRow ? (
               <thead>
-                <tr>{renderTableCells(runtime, headRow, 'th', node.align, visible)}</tr>
+                <tr>{renderTableCells(env,headRow, 'th', node.align, visible)}</tr>
               </thead>
             ) : null}
             {bodyRows.length ? (
               <tbody>
                 {bodyRows.map((row, rowIndex) => (
                   <tr key={row.id || `${key}-row-${rowIndex}`}>
-                    {renderTableCells(runtime, row, 'td', node.align, visible)}
+                    {renderTableCells(env,row, 'td', node.align, visible)}
                   </tr>
                 ))}
               </tbody>
@@ -464,20 +492,20 @@ function renderNode(
     }
 
     case 'tableRow':
-      return <tr key={key}>{renderTableCells(runtime, node, 'td', undefined, visible)}</tr>;
+      return <tr key={key}>{renderTableCells(env,node, 'td', undefined, visible)}</tr>;
 
     case 'tableCell': {
       const align = node.align?.[0] ?? undefined;
       return (
         <td key={key} style={{ textAlign: align ?? undefined }}>
-          {renderNodes(runtime, node.children, visible)}
+          {renderNodes(env,node.children, visible)}
         </td>
       );
     }
 
     case 'interpolation': {
       try {
-        const text = scalarText(runtime.evaluate(node.value ?? ''));
+        const text = scalarText(env.runtime.evaluate(node.value ?? ''));
         if (text === null) throw new Error('无法显示数组');
         return (
           <span className="local-interpolation" key={key}>
@@ -497,7 +525,7 @@ function renderNode(
           key={key}
           className={display ? 'local-math-display' : 'local-math-inline'}
         >
-          <LocalErrorBoundary revision={runtimeRevision(runtime)}>
+          <LocalErrorBoundary revision={runtimeRevision(env.runtime)}>
             <LatexView source={node.value ?? ''} display={display} />
           </LocalErrorBoundary>
         </span>
@@ -518,7 +546,7 @@ function renderNode(
 
     default:
       if (node.children && node.children.length) {
-        return <span key={key}>{renderNodes(runtime, node.children, visible)}</span>;
+        return <span key={key}>{renderNodes(env,node.children, visible)}</span>;
       }
       if (typeof node.value === 'string') {
         return <span key={key}>{node.value}</span>;
@@ -528,7 +556,7 @@ function renderNode(
 }
 
 function renderTableCells(
-  runtime: LocalRuntime,
+  env: RenderEnv,
   row: LocalNode,
   tag: 'th' | 'td',
   tableAlign: ('left' | 'center' | 'right' | null)[] | undefined,
@@ -539,13 +567,13 @@ function renderTableCells(
     if (tag === 'th') {
       return (
         <th key={cell.id || `${row.id}-h-${index}`} style={{ textAlign: textAlign ?? undefined }}>
-          {renderNodes(runtime, cell.children, visible)}
+          {renderNodes(env,cell.children, visible)}
         </th>
       );
     }
     return (
       <td key={cell.id || `${row.id}-c-${index}`} style={{ textAlign: textAlign ?? undefined }}>
-        {renderNodes(runtime, cell.children, visible)}
+        {renderNodes(env,cell.children, visible)}
       </td>
     );
   });
@@ -596,7 +624,12 @@ function textProblem(
   },
 ): string | null {
   if (options.required && value.length === 0) return '请填写此字段';
-  if (options.email && value !== '' && !EMAIL_PATTERN.test(value)) return '请输入有效的邮箱地址';
+  // Check the shared hard limit before the linear email shape check, so a huge
+  // draft never reaches format validation.
+  if (value.length > MAX_LOCAL_STRING_LENGTH) {
+    return `最多允许 ${MAX_LOCAL_STRING_LENGTH} 个字符`;
+  }
+  if (options.email && value !== '' && !isLocalEmail(value)) return '请输入有效的邮箱地址';
   const length = value.length;
   if (options.minLength !== undefined && options.minLength > 0 && value !== '' && length < options.minLength) {
     return `至少需要 ${options.minLength} 个字符`;
@@ -1137,7 +1170,8 @@ function SelectView({ node }: LocalComponentProps) {
 
 function ChoicesView({ node, visible }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const local = useLocal();
+  const { runtime } = local;
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', '选项');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
@@ -1196,7 +1230,7 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
               onClick={() => write(option.value)}
               onKeyDown={(event) => onKeyDown(event, index)}
             >
-              {renderInlineNodes(runtime, option.node.children, visible)}
+              {renderInlineNodes(local, option.node.children, visible)}
             </button>
           );
         })}
@@ -1208,7 +1242,8 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
 
 function RadioGroupView({ node, visible }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const local = useLocal();
+  const { runtime } = local;
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', '选项');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
@@ -1231,7 +1266,7 @@ function RadioGroupView({ node, visible }: LocalComponentProps) {
             checked={current === option.value}
             onChange={() => write(option.value)}
           />
-          <span>{renderInlineNodes(runtime, option.node.children, visible)}</span>
+          <span>{renderInlineNodes(local, option.node.children, visible)}</span>
         </label>
       ))}
       <FieldError message={disabledInvalid ? '无法计算' : error} />
@@ -1255,7 +1290,8 @@ function readChecklistItems(node: LocalNode): ChecklistItem[] {
 
 function ChecklistView({ node, visible }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const local = useLocal();
+  const { runtime } = local;
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', '清单');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
@@ -1286,7 +1322,7 @@ function ChecklistView({ node, visible }: LocalComponentProps) {
             onChange={(event) => toggle(item.id, event.target.checked)}
           />
           <label className="local-checklist-text" htmlFor={`${domId}-${item.id}`}>
-            {renderInlineNodes(runtime, item.node.children, visible)}
+            {renderInlineNodes(local, item.node.children, visible)}
           </label>
         </div>
       ))}
@@ -1841,19 +1877,21 @@ function AlertView({ node, visible }: LocalComponentProps) {
 }
 
 function BadgeView({ node, visible }: LocalComponentProps) {
-  const { runtime } = useLocal();
+  const local = useLocal();
+  const { runtime } = local;
   const rawTone = rawAttr(node, 'tone') ?? 'neutral';
   const tone = rawTone === 'success' || rawTone === 'warning' ? rawTone : 'neutral';
   return (
     <span className={`md-badge md-badge-${tone} local-badge`}>
-      {renderInlineNodes(runtime, node.children, visible)}
+      {renderInlineNodes(local, node.children, visible)}
     </span>
   );
 }
 
 function TooltipView({ node, visible }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const local = useLocal();
+  const { runtime } = local;
   const text = textAttr(runtime, node, 'text', '提示');
   const [open, setOpen] = useState(false);
   const bubbleId = `${domId}-tooltip`;
@@ -1876,7 +1914,7 @@ function TooltipView({ node, visible }: LocalComponentProps) {
           }
         }}
       >
-        {renderInlineNodes(runtime, node.children, visible)}
+        {renderInlineNodes(local, node.children, visible)}
       </span>
       <span
         id={bubbleId}
@@ -1926,6 +1964,7 @@ export function LocalDocumentView({
   document,
   runtime,
   onDiagnostics,
+  urlPolicy,
 }: LocalDocumentViewProps) {
   const reportRef = useRef(onDiagnostics);
   reportRef.current = onDiagnostics;
@@ -1955,9 +1994,10 @@ export function LocalDocumentView({
   // current snapshot through runtime.get during the resulting render.
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
+  const env: RenderEnv = { runtime, urlPolicy };
   const render = (nodes?: LocalNode[], visible = true): ReactNode => (
-    <LocalViewContext.Provider value={{ runtime, render, visible, report }}>
-      {renderNodes(runtime, nodes ?? [], visible)}
+    <LocalViewContext.Provider value={{ runtime, render, visible, report, urlPolicy }}>
+      {renderNodes(env, nodes ?? [], visible)}
     </LocalViewContext.Provider>
   );
 
@@ -1968,7 +2008,11 @@ export function LocalDocumentView({
   );
 }
 
-export function LocalReactiveDocument({ source, onDiagnostics }: LocalReactiveDocumentProps) {
+export function LocalReactiveDocument({
+  source,
+  onDiagnostics,
+  urlPolicy,
+}: LocalReactiveDocumentProps) {
   const result = useMemo(() => compileLocal(source), [source]);
   const runtime = useMemo(() => {
     if (!result.ok) return null;
@@ -2039,6 +2083,7 @@ export function LocalReactiveDocument({ source, onDiagnostics }: LocalReactiveDo
       document={result.document}
       runtime={runtime}
       onDiagnostics={onDiagnostics}
+      urlPolicy={urlPolicy}
     />
   );
 }

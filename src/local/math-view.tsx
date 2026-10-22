@@ -41,8 +41,26 @@ const SPECIAL_COMMANDS: Record<string, string> = {
   '#': 'hash', '_': 'underscore', '$': 'dollar',
 };
 
+const MAX_SOURCE = 50_000;
+const MAX_TOKENS = 20_000;
+const MAX_DEPTH = 120;
+const MAX_FALLBACK = 2_000;
+
+function boundedLiteral(source: string): string {
+  return source.length > MAX_FALLBACK ? `${source.slice(0, MAX_FALLBACK)}…` : source;
+}
+
 function tokenize(source: string): Token[] {
+  if (source.length > MAX_SOURCE) {
+    throw new Error('数学源码超过长度上限。');
+  }
   const tokens: Token[] = [];
+  const push = (token: Token): void => {
+    if (tokens.length >= MAX_TOKENS) {
+      throw new Error('数学输入包含过多记号。');
+    }
+    tokens.push(token);
+  };
   let i = 0;
   while (i < source.length) {
     const ch = source[i];
@@ -56,48 +74,49 @@ function tokenize(source: string): Token[] {
     }
     if (ch === '\\') {
       if (i + 1 >= source.length) {
-        tokens.push({ kind: 'command', value: 'backslash', offset: i });
+        push({ kind: 'command', value: 'backslash', offset: i });
         i += 1;
         continue;
       }
       const next = source[i + 1];
       if (next === '\\') {
-        tokens.push({ kind: 'newline', value: '\\\\', offset: i });
+        push({ kind: 'newline', value: '\\\\', offset: i });
         i += 2;
         continue;
       }
       if (/[A-Za-z]/.test(next)) {
         let j = i + 1;
         while (j < source.length && /[A-Za-z]/.test(source[j])) j += 1;
-        tokens.push({ kind: 'command', value: source.slice(i + 1, j), offset: i });
+        push({ kind: 'command', value: source.slice(i + 1, j), offset: i });
         i = j;
         continue;
       }
-      tokens.push({ kind: 'command', value: SPECIAL_COMMANDS[next] ?? next, offset: i });
+      const special = Object.hasOwn(SPECIAL_COMMANDS, next) ? SPECIAL_COMMANDS[next] : next;
+      push({ kind: 'command', value: special, offset: i });
       i += 2;
       continue;
     }
     if (ch >= '0' && ch <= '9') {
       const match = /^\d+(?:\.\d*)?/.exec(source.slice(i))!;
-      tokens.push({ kind: 'number', value: match[0], offset: i });
+      push({ kind: 'number', value: match[0], offset: i });
       i += match[0].length;
       continue;
     }
     if (ch === '.' && source[i + 1] >= '0' && source[i + 1] <= '9') {
       const match = /^(?:\d+(?:\.\d*)?|\.\d+)/.exec(source.slice(i))!;
-      tokens.push({ kind: 'number', value: match[0], offset: i });
+      push({ kind: 'number', value: match[0], offset: i });
       i += match[0].length;
       continue;
     }
     if (/[A-Za-z]/.test(ch)) {
-      tokens.push({ kind: 'letter', value: ch, offset: i });
+      push({ kind: 'letter', value: ch, offset: i });
       i += 1;
       continue;
     }
-    tokens.push({ kind: 'punct', value: ch, offset: i });
+    push({ kind: 'punct', value: ch, offset: i });
     i += 1;
   }
-  tokens.push({ kind: 'eof', value: '', offset: source.length });
+  push({ kind: 'eof', value: '', offset: source.length });
   return tokens;
 }
 
@@ -160,10 +179,23 @@ class MathRenderer {
   private tokens: Token[];
   private pos = 0;
   private source: string;
+  private depth = 0;
 
   constructor(source: string) {
     this.source = source;
     this.tokens = tokenize(source);
+  }
+
+  private enter(): void {
+    this.depth += 1;
+    if (this.depth > MAX_DEPTH) {
+      this.depth -= 1;
+      throw new Error('数学公式嵌套过深。');
+    }
+  }
+
+  private leave(): void {
+    this.depth -= 1;
   }
 
   render(): ReactNode {
@@ -190,19 +222,33 @@ class MathRenderer {
   }
 
   private parseRow(stop: Stop): ReactNode[] {
-    const output: ReactNode[] = [];
-    for (;;) {
-      const token = this.peek();
-      if (token.kind === 'eof') break;
-      if (token.kind === 'punct' && stop.chars?.has(token.value)) break;
-      if (token.kind === 'command' && stop.commands?.has(token.value)) break;
-      if (token.kind === 'newline' && stop.newline) break;
-      output.push(this.parseAtom());
+    this.enter();
+    try {
+      const output: ReactNode[] = [];
+      for (;;) {
+        const token = this.peek();
+        if (token.kind === 'eof') break;
+        if (token.kind === 'punct' && stop.chars?.has(token.value)) break;
+        if (token.kind === 'command' && stop.commands?.has(token.value)) break;
+        if (token.kind === 'newline' && stop.newline) break;
+        output.push(this.parseAtom());
+      }
+      return output;
+    } finally {
+      this.leave();
     }
-    return output;
   }
 
   private parseAtom(): ReactNode {
+    this.enter();
+    try {
+      return this.parseAtomBody();
+    } finally {
+      this.leave();
+    }
+  }
+
+  private parseAtomBody(): ReactNode {
     const token = this.peek();
     let base: ReactNode;
 
@@ -296,7 +342,7 @@ class MathRenderer {
       this.take();
       return element('mrow', null);
     }
-    if (SPACES[name] !== undefined) {
+    if (Object.hasOwn(SPACES, name)) {
       this.take();
       return element('mspace', { width: SPACES[name] });
     }
@@ -304,11 +350,11 @@ class MathRenderer {
       this.take();
       return element('mo', { mathvariant: 'normal', form: 'prefix' }, name);
     }
-    if (GREEK[name] !== undefined) {
+    if (Object.hasOwn(GREEK, name)) {
       this.take();
       return element('mi', null, GREEK[name]);
     }
-    if (OPERATORS[name] !== undefined) {
+    if (Object.hasOwn(OPERATORS, name)) {
       this.take();
       const char = OPERATORS[name];
       const fences = char === '(' || char === ')' || char === '[' || char === ']'
@@ -382,7 +428,7 @@ class MathRenderer {
         lbrace: '{', rbrace: '}', lvert: '|', rvert: '|', vert: '|',
         lVert: '‖', rVert: '‖', Vert: '‖', langle: '⟨', rangle: '⟩',
       };
-      const char = map[token.value];
+      const char = Object.hasOwn(map, token.value) ? map[token.value] : undefined;
       if (char) {
         this.take();
         return element('mo', { fence: 'true', stretchy: 'true' }, char);
@@ -496,24 +542,30 @@ class MathRenderer {
 /* ------------------------------------------------------------------ */
 
 export function LatexView({ source, display = false }: LatexViewProps): ReactElement {
+  const literal = boundedLiteral(source);
   let body: ReactNode;
-  try {
-    body = new MathRenderer(source).render();
-  } catch {
-    body = element('mtext', null, source);
+  if (source.length > MAX_SOURCE) {
+    body = element('mtext', null, literal);
+  } else {
+    try {
+      body = new MathRenderer(source).render();
+    } catch {
+      body = element('mtext', null, literal);
+    }
   }
+  const annotation = source.length > MAX_FALLBACK ? literal : source;
   return element(
     'math',
     {
       display: display ? 'block' : 'inline',
       className: display ? 'local-math local-math-block' : 'local-math',
-      'aria-label': source,
+      'aria-label': annotation,
     },
     element(
       'semantics',
       null,
       element('mrow', null, body),
-      element('annotation', { encoding: 'application/x-tex' }, source),
+      element('annotation', { encoding: 'application/x-tex' }, annotation),
     ),
   );
 }

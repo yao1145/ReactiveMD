@@ -1,3 +1,8 @@
+import {
+  MAX_LOCAL_ARRAY_LENGTH,
+  MAX_LOCAL_STRING_LENGTH,
+  MAX_LOCAL_VALUE_CHARACTERS,
+} from './limits';
 import type { LocalValue, LocalValueKind } from './types';
 
 /**
@@ -57,10 +62,42 @@ const MAX_PARSE_DEPTH = 100;
 const MAX_AST_DEPTH = 200;
 const MAX_EVAL_STEPS = 10000;
 const MAX_EVAL_DEPTH = 250;
-const MAX_STRING_LENGTH = 100000;
-const MAX_ARRAY_LENGTH = 10000;
-const MAX_TEMPLATE_LENGTH = 100000;
+/** Shared budgets. `MAX_STRING_LENGTH` also caps concatenation results. */
+const MAX_STRING_LENGTH = MAX_LOCAL_STRING_LENGTH;
+const MAX_ARRAY_LENGTH = MAX_LOCAL_ARRAY_LENGTH;
+const MAX_TEMPLATE_LENGTH = MAX_LOCAL_STRING_LENGTH;
 const CACHE_LIMIT = 500;
+
+/**
+ * Allocation-free budget check for a value stored in the runtime or read from
+ * an expression environment. Returns a short reason, or null when the value
+ * fits. String lengths are UTF-16 code units, matching the existing
+ * concatenation budget; `len()` keeps counting code points.
+ */
+export function localValueBudgetError(value: LocalValue): string | null {
+  if (typeof value === 'string') {
+    return value.length > MAX_LOCAL_STRING_LENGTH
+      ? `字符串超过 ${MAX_LOCAL_STRING_LENGTH} 字符上限。`
+      : null;
+  }
+  if (Array.isArray(value)) {
+    if (value.length > MAX_LOCAL_ARRAY_LENGTH) {
+      return `数组超过 ${MAX_LOCAL_ARRAY_LENGTH} 项上限。`;
+    }
+    let characters = 0;
+    for (const item of value) {
+      if (typeof item !== 'string') continue;
+      if (item.length > MAX_LOCAL_STRING_LENGTH) {
+        return `数组成员超过 ${MAX_LOCAL_STRING_LENGTH} 字符上限。`;
+      }
+      characters += item.length;
+      if (characters > MAX_LOCAL_VALUE_CHARACTERS) {
+        return `数组内容超过 ${MAX_LOCAL_VALUE_CHARACTERS} 字符上限。`;
+      }
+    }
+  }
+  return null;
+}
 
 /* ------------------------------------------------------------------ */
 /* Lexer                                                               */
@@ -641,7 +678,14 @@ function checkEnv(env: Record<string, LocalValue>): void {
 
 function checkValue(value: unknown, name: string, offset: number): LocalValue {
   if (value === null) return null;
-  if (typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const budget = localValueBudgetError(value);
+    if (budget) {
+      throw new LocalExpressionError('expression-budget', `变量 "${name}" 的${budget}`, offset);
+    }
+    return value;
+  }
+  if (typeof value === 'boolean') return value;
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
       throw new LocalExpressionError('expression-value', `变量 "${name}" 必须是有限数字。`, offset);
@@ -656,6 +700,10 @@ function checkValue(value: unknown, name: string, offset: number): LocalValue {
       if (typeof item !== 'string') {
         throw new LocalExpressionError('expression-value', `变量 "${name}" 的数组元素必须是字符串。`, offset);
       }
+    }
+    const budget = localValueBudgetError(value as string[]);
+    if (budget) {
+      throw new LocalExpressionError('expression-budget', `变量 "${name}" 的${budget}`, offset);
     }
     return value as string[];
   }
@@ -1086,6 +1134,9 @@ export function interpolate(template: string, env: Record<string, LocalValue>): 
   if (typeof template !== 'string') {
     throw new LocalExpressionError('expression-interpolation', '插值模板必须是字符串。', 0);
   }
+  if (template.length > MAX_TEMPLATE_LENGTH) {
+    throw new LocalExpressionError('expression-budget', `插值模板超过 ${MAX_TEMPLATE_LENGTH} 字符上限。`, 0);
+  }
   if (!template.includes('{{')) return template;
   return renderParts(splitTemplate(template), env);
 }
@@ -1097,6 +1148,9 @@ export function interpolate(template: string, env: Record<string, LocalValue>): 
 export function expressionValue(template: string, env: Record<string, LocalValue>): LocalValue {
   if (typeof template !== 'string') {
     throw new LocalExpressionError('expression-interpolation', '插值模板必须是字符串。', 0);
+  }
+  if (template.length > MAX_TEMPLATE_LENGTH) {
+    throw new LocalExpressionError('expression-budget', `插值模板超过 ${MAX_TEMPLATE_LENGTH} 字符上限。`, 0);
   }
   if (!template.includes('{{')) return template;
   const parts = splitTemplate(template);

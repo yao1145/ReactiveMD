@@ -3,6 +3,16 @@ import { compileExpression, LocalExpressionError, RESERVED_NAMES, type LocalExpr
 import { compileLatex } from './math';
 import { parseLocal } from './parser';
 import {
+  isLocalEmail,
+  MAX_LOCAL_DOCUMENT_LENGTH,
+  MAX_LOCAL_ARRAY_LENGTH,
+  MAX_LOCAL_DIAGNOSTICS,
+  MAX_LOCAL_DIAGNOSTIC_LENGTH,
+  MAX_LOCAL_PLOT_CURVES,
+  MAX_LOCAL_PLOT_POINTS,
+  MAX_LOCAL_STRING_LENGTH,
+} from './limits';
+import {
   getLocalComponent,
   suggestAttribute,
   suggestComponent,
@@ -26,6 +36,12 @@ const NUMBER_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const DATE_TEXT = /^(\d{4})-(\d{2})-(\d{2})$/;
 const EPSILON = 1e-9;
+/** Longer names are rejected before suggestion/edit-distance work. */
+const MAX_LOCAL_NAME_LENGTH = 128;
+/** Keep conflict bursts readable while bounding diagnostic volume. */
+const MAX_INITIAL_CONFLICT_DIAGNOSTICS = 4;
+/** Show at most this many peer locations in one conflict message. */
+const MAX_CONFLICT_PEERS = 3;
 
 /** Bind names that cannot be used because they are literals or plot variables. */
 const EXTRA_RESERVED = new Set(['x', 'y', 'true', 'false', 'null', 'pi', 'e']);
@@ -210,6 +226,7 @@ interface ChecklistInfo {
 
 interface CompileState {
   source: string;
+  lineStarts: number[];
   nodes: LocalNode[];
   report: (code: string, message: string, start: number, end?: number) => void;
   entries: Entry[];
@@ -224,18 +241,34 @@ interface CompileState {
 }
 
 export function compileLocal(source: string): LocalCompileResult {
+  if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
+    return { ok: false, diagnostics: parseLocal(source).diagnostics };
+  }
   const diagnostics: Diagnostic[] = [];
+  const lineStarts = [0];
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === '\n') lineStarts.push(index + 1);
+  }
   const report = (code: string, message: string, start: number, end = start + 1) => {
+    if (diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) return;
     const safeStart = Math.max(0, Math.min(source.length, start));
     const safeEnd = Math.max(safeStart, Math.min(source.length, Math.max(safeStart, end)));
-    const prefix = source.slice(0, safeStart).split('\n');
+    let low = 0;
+    let high = lineStarts.length - 1;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      if (lineStarts[middle] <= safeStart) low = middle;
+      else high = middle - 1;
+    }
     diagnostics.push({
       code,
-      message,
+      message: message.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
+        ? `${message.slice(0, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
+        : message,
       severity: 'error',
       range: { start: safeStart, end: safeEnd },
-      line: prefix.length,
-      column: (prefix.at(-1) ?? '').length + 1,
+      line: low + 1,
+      column: safeStart - lineStarts[low] + 1,
     });
   };
 
@@ -262,6 +295,7 @@ export function compileLocal(source: string): LocalCompileResult {
 
   const state: CompileState = {
     source,
+    lineStarts,
     nodes: parsed.nodes,
     report,
     entries: [],
@@ -332,7 +366,7 @@ function collectEntries(nodes: LocalNode[], parent: Entry | null, out: Entry[], 
         out.push(entry);
         nextParent = entry;
       } else {
-        const suggestion = suggestComponent(node.name);
+        const suggestion = node.name.length <= MAX_LOCAL_NAME_LENGTH ? suggestComponent(node.name) : undefined;
         state.report(
           'local.component.unknown',
           `未知组件 <${node.name}>。${suggestion ? `是否想写 <${suggestion}>？` : '当前模式只接受本地交互语法组件。'}`,
@@ -345,8 +379,27 @@ function collectEntries(nodes: LocalNode[], parent: Entry | null, out: Entry[], 
   }
 }
 
+/** Slice only the opening tag so attribute lookup never rescans component content. */
+function openingTag(source: string, start: number, end: number): string {
+  let quote = '';
+  let index = start;
+  for (; index < end; index += 1) {
+    const char = source[index];
+    if (quote) {
+      if (char === quote) quote = '';
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === '>') {
+      index += 1;
+      break;
+    }
+  }
+  return source.slice(start, index);
+}
+
 function attributeOffset(state: CompileState, entry: Entry, name: string): number {
-  const text = state.source.slice(entry.node.range.start, entry.node.range.end);
+  if (name.length > MAX_LOCAL_NAME_LENGTH) return entry.node.range.start;
+  const text = openingTag(state.source, entry.node.range.start, entry.node.range.end);
   const pattern = new RegExp(`(?:^|[\\s"'/])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|=|/|>)`);
   const match = pattern.exec(text);
   return match ? entry.node.range.start + match.index + (match[0].length - name.length) : entry.node.range.start;
@@ -359,7 +412,7 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
     const prop = entry.schema.props[name];
     const offset = attributeOffset(state, entry, name);
     if (!prop) {
-      const suggestion = suggestAttribute(entry.schema, name);
+      const suggestion = name.length <= MAX_LOCAL_NAME_LENGTH ? suggestAttribute(entry.schema, name) : undefined;
       state.report(
         'local.attribute.unknown',
         `组件 <${entry.name}> 不支持属性 ${name}。${suggestion ? `是否想写 ${suggestion}？` : ''}`,
@@ -369,6 +422,15 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
       continue;
     }
     const info: AttrState = { raw, offset, dynamic: false };
+    if (prop.kind === 'string' && raw.length > MAX_LOCAL_STRING_LENGTH) {
+      state.report(
+        'local.budget.attribute',
+        `组件 <${entry.name}> 的属性 ${name} 超过 ${MAX_LOCAL_STRING_LENGTH} 字符上限。`,
+        offset,
+        offset + name.length,
+      );
+      info.raw = raw.slice(0, MAX_LOCAL_STRING_LENGTH);
+    }
     validatePropValue(entry, name, prop, info, state);
     attrs[name] = info;
   }
@@ -853,7 +915,15 @@ function validateChecklist(entry: Entry, state: CompileState): ChecklistInfo {
   if (!items.length) {
     state.report('local.checklist.body', '<checklist> 需要至少一个任务列表项。', list.range.start, list.range.end);
   }
-  items.forEach((item, index) => {
+  if (items.length > MAX_LOCAL_ARRAY_LENGTH) {
+    state.report(
+      'local.budget.array',
+      `<checklist> 条目超过 ${MAX_LOCAL_ARRAY_LENGTH} 个上限。`,
+      list.range.start,
+      list.range.end,
+    );
+  }
+  items.slice(0, MAX_LOCAL_ARRAY_LENGTH).forEach((item, index) => {
     if (item.type !== 'listItem' || item.checked === null || item.checked === undefined) {
       state.report('local.checklist.body', '<checklist> 只能包含任务列表项（- [ ] / - [x]）。', item.range.start, item.range.end);
       return;
@@ -897,7 +967,14 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
     const rawBind = typeof attrs.bind?.value === 'string' ? attrs.bind.value : '';
     let key = rawBind ? rawBind : `@${entry.node.id}`;
     if (attrs.bind) {
-      if (!IDENTIFIER.test(rawBind)) {
+      if (rawBind.length > MAX_LOCAL_NAME_LENGTH) {
+        state.report(
+          'local.budget.identifier',
+          `参数名超过 ${MAX_LOCAL_NAME_LENGTH} 字符上限。`,
+          attrs.bind.offset ?? entry.node.range.start,
+        );
+        key = `@${entry.node.id}`;
+      } else if (!IDENTIFIER.test(rawBind)) {
         state.report(
           'local.binding.name',
           `参数名“${rawBind}”必须匹配 [A-Za-z_][A-Za-z0-9_]*。`,
@@ -1020,13 +1097,18 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
   let initial: LocalValue;
   if (explicit.length > 0) {
     if (explicit.length > 1) {
-      for (const member of explicit) {
-        const others = explicit.filter((other) => other !== member);
-        const lines = others.map((other) => lineOf(state.source, other.entry.node.range.start));
+      // Precompute lines once; report only a bounded sample of the conflicts.
+      const conflictLines = explicit.map((member) => lineAt(state, member.attrs.initial.offset));
+      const reported = Math.min(explicit.length, MAX_INITIAL_CONFLICT_DIAGNOSTICS);
+      for (let index = 0; index < reported; index += 1) {
+        const peers: number[] = [];
+        for (let step = 1; step < conflictLines.length && peers.length < MAX_CONFLICT_PEERS; step += 1) {
+          peers.push(conflictLines[(index + step) % conflictLines.length]);
+        }
         state.report(
           'local.initial.duplicate',
-          `参数“${group.key}”出现多个显式 initial（另见第 ${lines.join('、')} 行）。`,
-          member.attrs.initial.offset,
+          `参数“${group.key}”出现多个显式 initial（共 ${explicit.length} 处${peers.length ? `；另见第 ${peers.join('、')} 行` : ''}）。`,
+          explicit[index].attrs.initial.offset,
         );
       }
     }
@@ -1037,6 +1119,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
 
   if (family === 'checklist' && !Array.isArray(initial)) initial = [];
   if (bindingSchema.kind !== 'array') validateInitialValue(group, first, initial, family, options, constraints, state);
+  if (family === 'text' || family === 'date') validateStaticInitial(group, initial, state);
 
   const binding: LocalBinding = {
     name: group.key,
@@ -1060,8 +1143,64 @@ function describeConstraints(constraints: NumericConstraints): string {
   return `[${min}, ${max}] / ${constraints.step}`;
 }
 
-function lineOf(source: string, offset: number): number {
-  return source.slice(0, Math.max(0, Math.min(source.length, offset))).split('\n').length;
+function lineAt(state: CompileState, offset: number): number {
+  const target = Math.max(0, Math.min(state.source.length, offset));
+  let low = 0;
+  let high = state.lineStarts.length - 1;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (state.lineStarts[middle] <= target) low = middle;
+    else high = middle - 1;
+  }
+  return low + 1;
+}
+
+/**
+ * A shared string binding must satisfy every owner's static constraints.
+ * Empty values stay allowed at compile time so an optional required input can
+ * still start empty; writes are enforced by the runtime.
+ */
+function validateStaticInitial(group: Group, initial: LocalValue, state: CompileState): void {
+  if (typeof initial !== 'string' || initial === '') return;
+  const first = group.members[0];
+  const offset = first.attrs.initial?.offset ?? first.entry.node.range.start;
+  const length = initial.length;
+  for (const member of group.members) {
+    const { entry, attrs } = member;
+    if (entry.name === 'input' || entry.name === 'textarea') {
+      const minLength = numberValue(entry, attrs, 'min-length') ?? 0;
+      const maxLength = numberValue(entry, attrs, 'max-length');
+      if (length < minLength) {
+        state.report(
+          'local.initial.length',
+          `参数“${group.key}”的初值长度 ${length} 小于 <${entry.name}> 要求的最小长度 ${minLength}。`,
+          offset,
+        );
+      }
+      if (maxLength !== undefined && length > maxLength) {
+        state.report(
+          'local.initial.length',
+          `参数“${group.key}”的初值长度 ${length} 超过 <${entry.name}> 允许的最大长度 ${maxLength}。`,
+          offset,
+        );
+      }
+      if (entry.name === 'input') {
+        const type = typeof attrs.type?.value === 'string' ? attrs.type.value : 'text';
+        if (type === 'email' && !isLocalEmail(initial)) {
+          state.report('local.initial.email', `参数“${group.key}”的初值不是有效邮箱地址。`, offset);
+        }
+      }
+    } else if (entry.name === 'date' && isValidDate(initial)) {
+      const min = typeof attrs.min?.value === 'string' && isValidDate(attrs.min.value) ? attrs.min.value : undefined;
+      const max = typeof attrs.max?.value === 'string' && isValidDate(attrs.max.value) ? attrs.max.value : undefined;
+      if (min && initial < min) {
+        state.report('local.initial.range', `参数“${group.key}”的初值 ${initial} 早于 <date> 的最小日期 ${min}。`, offset);
+      }
+      if (max && initial > max) {
+        state.report('local.initial.range', `参数“${group.key}”的初值 ${initial} 晚于 <date> 的最大日期 ${max}。`, offset);
+      }
+    }
+  }
 }
 
 function bindingOptions(entry: Entry, state: CompileState, family: string): string[] {
@@ -1331,6 +1470,7 @@ function validateExpressions(state: CompileState): void {
 }
 
 function suggestName(name: string, candidates: string[]): string | undefined {
+  if (name.length > MAX_LOCAL_NAME_LENGTH) return undefined;
   let best: string | undefined;
   let distance = Number.POSITIVE_INFINITY;
   for (const candidate of candidates) {
@@ -1361,11 +1501,44 @@ function editDistance(a: string, b: string): number {
 /* Plot math                                                           */
 /* ------------------------------------------------------------------ */
 
+function plotSamples(entry: Entry, attrs: AttrMap): number {
+  const fallback = entry.schema.props.samples?.default;
+  const base = typeof fallback === 'number' ? fallback : 200;
+  return numberValue(entry, attrs, 'samples') ?? base;
+}
+
 function validatePlots(state: CompileState): void {
   const env = state.bindingKinds;
+  let totalPoints = 0;
+  let pointsBudgetExceeded = false;
   for (const entry of state.entries) {
     if (entry.name !== 'plot') continue;
+    const attrs = state.attrs.get(entry.node.id) ?? {};
     const mathNodes = meaningful(entry.node.children).filter((node) => node.type === 'math');
+    const samples = plotSamples(entry, attrs);
+    if (mathNodes.length > MAX_LOCAL_PLOT_CURVES) {
+      state.report(
+        'local.budget.plot.curves',
+        `<plot> 最多支持 ${MAX_LOCAL_PLOT_CURVES} 条曲线，当前有 ${mathNodes.length} 条。`,
+        entry.node.range.start,
+        entry.node.range.end,
+      );
+    }
+    const requested = mathNodes.length * samples;
+    const nextTotal = totalPoints + requested;
+    if (!pointsBudgetExceeded && nextTotal > MAX_LOCAL_PLOT_POINTS) {
+      state.report(
+        'local.budget.plot.points',
+        `文档中的绘图采样点总数超过 ${MAX_LOCAL_PLOT_POINTS} 上限。`,
+        entry.node.range.start,
+        entry.node.range.end,
+      );
+      pointsBudgetExceeded = true;
+    }
+    totalPoints = Math.min(MAX_LOCAL_PLOT_POINTS + 1, nextTotal);
+    // Once the shapes are known to exceed budget, do not spend work compiling
+    // an unbounded number of formulas. The document is already rejected.
+    if (mathNodes.length > MAX_LOCAL_PLOT_CURVES || pointsBudgetExceeded) continue;
     for (const node of mathNodes) {
       const recipe = (node.value ?? '').trim();
       if (!/^y\s*=/u.test(recipe)) {

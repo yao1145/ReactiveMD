@@ -1,9 +1,17 @@
 import type { Diagnostic } from './types';
-import { compileExpression, interpolate, type LocalExpression } from './expression';
+import {
+  compileExpression,
+  interpolate,
+  localValueBudgetError,
+  LocalExpressionError,
+  type LocalExpression,
+} from './expression';
+import { isLocalEmail, MAX_LOCAL_EMAIL_LENGTH } from './limits';
 import { localKey, type LocalBinding, type LocalDocument, type LocalNode, type LocalRuntime, type LocalSnapshot, type LocalValue } from './types';
 
 const DATE_TEXT = /^(\d{4})-(\d{2})-(\d{2})$/;
 const EPSILON = 1e-9;
+const RUNTIME_EXPRESSION_CACHE_LIMIT = 200;
 
 function cloneValue(value: LocalValue): LocalValue {
   return Array.isArray(value) ? [...value] : value;
@@ -82,9 +90,48 @@ function invalid(message: string): ValidationResult {
   return { ok: false, message };
 }
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/**
+ * Validate one string binding against every registered control that shares the
+ * binding. Compiler guarantees are not trusted here: a shared binding must be
+ * writable only when all owners accept the value. Length is checked before the
+ * email validator, whose shared implementation is linear and length-bounded.
+ */
+function validateStringControl(node: LocalNode, value: string): ValidationResult {
+  if (node.name === 'date') {
+    if (!isValidDate(value)) return invalid('日期必须是有效的 YYYY-MM-DD，或空字符串。');
+    if (value === '' && staticBoolean(node, 'required') === true) {
+      return invalid('该日期为必填项。');
+    }
+    const min = rawAttr(node, 'min');
+    const max = rawAttr(node, 'max');
+    if (value !== '' && min && value < min) return invalid(`日期不能早于 ${min}。`);
+    if (value !== '' && max && value > max) return invalid(`日期不能晚于 ${max}。`);
+    return { ok: true, value };
+  }
+  if (node.name === 'input' || node.name === 'textarea') {
+    const length = codePointLength(value);
+    if (value === '' && staticBoolean(node, 'required') === true) {
+      return invalid('该字段为必填项。');
+    }
+    const minLength = staticNumber(node, 'min-length');
+    const maxLength = staticNumber(node, 'max-length');
+    if (minLength !== undefined && minLength > 0 && value !== '' && length < minLength) {
+      return invalid(`至少需要 ${minLength} 个字符。`);
+    }
+    if (maxLength !== undefined && length > maxLength) {
+      return invalid(`最多允许 ${maxLength} 个字符。`);
+    }
+    if (node.name === 'input' && rawAttr(node, 'type') === 'email' && value !== '') {
+      if (value.length > MAX_LOCAL_EMAIL_LENGTH) {
+        return invalid(`邮箱地址不能超过 ${MAX_LOCAL_EMAIL_LENGTH} 个字符。`);
+      }
+      if (!isLocalEmail(value)) return invalid('请输入有效的邮箱地址。');
+    }
+  }
+  return { ok: true, value };
+}
 
-function validateValue(binding: LocalBinding, node: LocalNode, value: LocalValue): ValidationResult {
+function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalValue): ValidationResult {
   switch (binding.type) {
     case 'number': {
       if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -107,33 +154,11 @@ function validateValue(binding: LocalBinding, node: LocalNode, value: LocalValue
       return typeof value === 'boolean' ? { ok: true, value } : invalid(`参数“${binding.name}”需要布尔值。`);
     case 'string': {
       if (typeof value !== 'string') return invalid(`参数“${binding.name}”需要字符串。`);
-      if (node.name === 'date') {
-        if (!isValidDate(value)) return invalid('日期必须是有效的 YYYY-MM-DD，或空字符串。');
-        if (value === '' && staticBoolean(node, 'required') === true) {
-          return invalid('该日期为必填项。');
-        }
-        const min = rawAttr(node, 'min');
-        const max = rawAttr(node, 'max');
-        if (value !== '' && min && value < min) return invalid(`日期不能早于 ${min}。`);
-        if (value !== '' && max && value > max) return invalid(`日期不能晚于 ${max}。`);
-        return { ok: true, value };
-      }
-      if (node.name === 'input' || node.name === 'textarea') {
-        const length = codePointLength(value);
-        if (value === '' && staticBoolean(node, 'required') === true) {
-          return invalid('该字段为必填项。');
-        }
-        const minLength = staticNumber(node, 'min-length');
-        const maxLength = staticNumber(node, 'max-length');
-        if (minLength !== undefined && minLength > 0 && value !== '' && length < minLength) {
-          return invalid(`至少需要 ${minLength} 个字符。`);
-        }
-        if (maxLength !== undefined && length > maxLength) {
-          return invalid(`最多允许 ${maxLength} 个字符。`);
-        }
-        if (node.name === 'input' && rawAttr(node, 'type') === 'email' && value !== '' && !EMAIL_PATTERN.test(value)) {
-          return invalid('请输入有效的邮箱地址。');
-        }
+      const budget = localValueBudgetError(value);
+      if (budget) return invalid(`参数“${binding.name}”${budget}`);
+      for (const node of nodes) {
+        const result = validateStringControl(node, value);
+        if (!result.ok) return result;
       }
       if (binding.options?.length && !binding.options.includes(value)) {
         return invalid(`值“${value}”不在可用选项中：${binding.options.join('、')}。`);
@@ -142,6 +167,8 @@ function validateValue(binding: LocalBinding, node: LocalNode, value: LocalValue
     }
     case 'array': {
       if (!Array.isArray(value)) return invalid(`参数“${binding.name}”需要字符串数组。`);
+      const budget = localValueBudgetError(value);
+      if (budget) return invalid(`参数“${binding.name}”${budget}`);
       const chosen = new Set<string>();
       for (const entry of value) {
         if (typeof entry !== 'string') return invalid(`参数“${binding.name}”的成员必须是字符串。`);
@@ -176,7 +203,21 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
   collectNodes(document.nodes);
 
   const initial: Record<string, LocalValue> = {};
-  for (const [key, binding] of Object.entries(document.bindings)) initial[key] = cloneValue(binding.initial);
+  /** Registered controls per binding; caller-supplied node metadata is ignored. */
+  const controls = new Map<string, LocalNode[]>();
+  for (const [key, binding] of Object.entries(document.bindings)) {
+    const budget = localValueBudgetError(binding.initial);
+    if (budget) {
+      throw new LocalExpressionError('expression-budget', `参数“${key}”${budget}`, 0);
+    }
+    initial[key] = cloneValue(binding.initial);
+    const nodes: LocalNode[] = [];
+    for (const id of binding.nodeIds) {
+      const node = nodeIndex.get(id);
+      if (node) nodes.push(node);
+    }
+    controls.set(key, nodes);
+  }
 
   let state: Record<string, LocalValue> = initial;
   let revision = 0;
@@ -201,6 +242,10 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     let compiled = expressions.get(expression);
     if (!compiled) {
       compiled = compileExpression(expression);
+      if (expressions.size >= RUNTIME_EXPRESSION_CACHE_LIMIT) {
+        const oldest = expressions.keys().next().value;
+        if (oldest !== undefined) expressions.delete(oldest);
+      }
       expressions.set(expression, compiled);
     }
     return compiled;
@@ -226,20 +271,26 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     get(node: LocalNode): LocalValue {
       ensure();
-      const key = localKey(node);
+      const canonical = nodeIndex.get(node.id);
+      if (!canonical) return null;
+      const key = localKey(canonical);
       return Object.hasOwn(state, key) ? cloneValue(state[key]) : null;
     },
 
     set(node: LocalNode, value: LocalValue): Diagnostic[] {
       ensure();
-      const key = localKey(node);
-      const binding = document.bindings[key];
-      if (!binding) {
+      const canonical = nodeIndex.get(node.id);
+      if (!canonical) {
         return [diagnosticFor(document, node, 'local.runtime.binding', '该组件没有可写入的绑定状态。')];
       }
-      const result = validateValue(binding, node, value);
+      const key = localKey(canonical);
+      const binding = Object.hasOwn(document.bindings, key) ? document.bindings[key] : undefined;
+      if (!binding) {
+        return [diagnosticFor(document, canonical, 'local.runtime.binding', '该组件没有可写入的绑定状态。')];
+      }
+      const result = validateValue(binding, controls.get(key) ?? [], value);
       if (!result.ok) {
-        return [diagnosticFor(document, node, 'local.runtime.value', result.message)];
+        return [diagnosticFor(document, canonical, 'local.runtime.value', result.message)];
       }
       const nextValue = cloneValue(result.value);
       if (valuesEqual(state[key], nextValue)) return [];
@@ -249,7 +300,9 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     evaluate(expression: string): LocalValue {
       ensure();
-      return compile(expression).evaluate({ ...state });
+      const value = compile(expression).evaluate({ ...state });
+      // Never hand out the array stored inside runtime state.
+      return Array.isArray(value) ? [...value] : value;
     },
 
     text(template: string): string {
@@ -259,10 +312,17 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     reset(node: LocalNode): void {
       ensure();
-      const ids = subtreeIds(node);
+      const canonical = nodeIndex.get(node.id);
+      if (!canonical) return;
+      const ids = subtreeIds(canonical);
       const next: Record<string, LocalValue> = { ...state };
       for (const [key, binding] of Object.entries(document.bindings)) {
-        if (binding.nodeIds.some((id) => ids.has(id))) next[key] = cloneValue(binding.initial);
+        if (!(controls.get(key) ?? []).some((node) => ids.has(node.id))) continue;
+        const budget = localValueBudgetError(binding.initial);
+        if (budget) {
+          throw new LocalExpressionError('expression-budget', `参数“${key}”${budget}`, 0);
+        }
+        next[key] = cloneValue(binding.initial);
       }
       for (const id of ids) tokens.set(id, (tokens.get(id) ?? 0) + 1);
       commit(next);
@@ -270,7 +330,8 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     resetToken(node: LocalNode): number {
       ensure();
-      return tokens.get(node.id) ?? 0;
+      const canonical = nodeIndex.get(node.id);
+      return canonical ? (tokens.get(canonical.id) ?? 0) : 0;
     },
 
     subscribe(listener: () => void): () => void {
