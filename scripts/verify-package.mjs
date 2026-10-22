@@ -1,20 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { compile, createRuntime, compileLocal, createLocalRuntime, formatDocument, getComponentManifest } from 'reactive-md';
+import { compileLocal, createLocalRuntime } from 'reactive-md';
 
 // This import and compilation run in Node without DOM or React rendering.
-for (const name of (await readdir('examples')).filter(name => name.endsWith('.reactive.md'))) {
-  const source = await readFile(`examples/${name}`, 'utf8');
-  const result = compile(source);
-  assert.ok(result.ok, name + ': ' + JSON.stringify(result.diagnostics));
-  const runtime = createRuntime(result.document);
-  assert.equal(runtime.snapshot().revision, 0);
-  runtime.dispose();
-  assert.ok(compile(formatDocument(source)).ok, `${name} formatting`);
-}
-assert.equal(getComponentManifest().length, 44);
-
 for (const name of (await readdir('examples/local')).filter(name => name.endsWith('.reactive.md'))) {
   const result = compileLocal(await readFile(`examples/local/${name}`, 'utf8'));
   if (name === 'diagnostics.reactive.md') {
@@ -53,14 +42,12 @@ for (const file of await files('demo/src')) {
   assert.ok(imports.every(value => !value.startsWith('../') || value.endsWith('?raw')), `${file} reaches outside the demo`);
 }
 const css = await readFile('dist-library/reactive-md.css', 'utf8');
-for (const selector of ['.app-shell', '.workbench', '.editor-input', '.observer', '.author-tools', '.manifest-dialog']) {
+for (const selector of ['.app-shell', '.workbench', '.editor-input', '.observer', '.author-tools']) {
   assert.ok(!css.includes(selector), `Library includes demo selector ${selector}`);
 }
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 assert.ok(!Object.keys(pkg.dependencies).some(name => /react|vite|playwright/.test(name)), 'Core must not require UI or demo packages');
 const renderer = await import('reactive-md/react');
-assert.equal(typeof renderer.ReactiveDocument, 'function');
-assert.equal(typeof renderer.RuntimeDocumentView, 'function');
 assert.equal(typeof renderer.LocalReactiveDocument, 'function');
 assert.equal(typeof renderer.LocalDocumentView, 'function');
-console.log('PASS public package imports, language fixtures, React entry and demo/style boundaries');
+console.log('PASS public package imports, local language fixtures and React entry boundaries');

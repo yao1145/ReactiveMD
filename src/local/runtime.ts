@@ -1,4 +1,4 @@
-import type { Diagnostic } from '../core/types';
+import type { Diagnostic } from './types';
 import { compileExpression, interpolate, type LocalExpression } from './expression';
 import { localKey, type LocalBinding, type LocalDocument, type LocalNode, type LocalRuntime, type LocalSnapshot, type LocalValue } from './types';
 

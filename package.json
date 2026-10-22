@@ -1,6 +1,6 @@
 {
   "name": "reactive-md",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "workspaces": ["demo"],
@@ -10,32 +10,25 @@
     "dev": "npm run build:lib && npm run dev --workspace=@reactive-md/demo",
     "dev:lib": "vite build --config vite.lib.config.ts --watch",
     "build": "npm run typecheck && npm run build:lib",
-    "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json && node scripts/generate-reference.mjs",
+    "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "build:demo": "npm run build && npm run build --workspace=@reactive-md/demo",
     "preview": "npm run preview --workspace=@reactive-md/demo",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "test:demo": "npm run build:lib && npm run test --workspace=@reactive-md/demo",
     "test:browser": "npm run test:browser --workspace=@reactive-md/demo",
-    "test:intelligent": "npm run test:intelligent --workspace=@reactive-md/demo",
     "test:package": "node scripts/verify-package.mjs",
     "test:docs": "node scripts/verify-docs.mjs"
   },
   "exports": {
     ".": { "types": "./dist-library/types/index.d.ts", "import": "./dist-library/reactive-md.js" },
-    "./core": { "types": "./dist-library/types/core/index.d.ts", "import": "./dist-library/reactive-md.js" },
     "./react": { "types": "./dist-library/types/react/index.d.ts", "import": "./dist-library/reactive-md-react.js" },
-    "./styles.css": "./dist-library/reactive-md.css",
-    "./manifest.json": "./dist-library/components.json"
+    "./styles.css": "./dist-library/reactive-md.css"
   },
   "dependencies": {
-    "remark-directive": "4.0.0",
-    "remark-frontmatter": "5.0.0",
     "remark-gfm": "4.0.1",
     "remark-parse": "11.0.0",
-    "remark-stringify": "11.0.0",
-    "unified": "11.0.5",
-    "yaml": "2.9.1"
+    "unified": "11.0.5"
   },
   "peerDependencies": {
     "react": "^19.0.0",

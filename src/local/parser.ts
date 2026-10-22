@@ -1,7 +1,7 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import type { Diagnostic } from '../core/types';
+import type { Diagnostic } from './types';
 import type { LocalNode } from './types';
 
 const VOID = new Set('input textarea number slider toggle checkbox date counter timer progress edge'.split(' '));

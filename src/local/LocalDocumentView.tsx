@@ -15,7 +15,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
-import type { Diagnostic } from '../core/types';
+import type { Diagnostic } from './types';
 import type {
   LocalDocument,
   LocalNode,

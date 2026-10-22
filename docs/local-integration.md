@@ -52,11 +52,10 @@ if (result.ok) {
 
 自行管理生命周期时，用 `<LocalDocumentView document={result.document} runtime={runtime} />` 渲染，并在卸载时调用 `runtime.dispose()`。输入、表格和计时器的交互由文档组件提供，无需宿主注册动作。
 
-## 模式边界
+## 入口
 
-| 文档 | 编译和运行 | React |
+| 用途 | 编译和运行 | React |
 | --- | --- | --- |
 | 本地交互标签 | `compileLocal`、`createLocalRuntime` | `LocalReactiveDocument`、`LocalDocumentView` |
-| v0.1/v0.2 directive 与 YAML | `compile`、`createRuntime`、`DocumentSession` | `ReactiveDocument`、`RuntimeDocumentView` |
 
-宿主按文档来源选择入口，避免把两种语法混合解析。旧模式的宿主能力、持久化、流式会话和自定义组件说明保留在 [v0.2 集成文档](integration.md)。本地交互模式的参数来自正文控件，表格数据来自 Markdown，不需要服务调用或 YAML 配置。
+本地交互模式的参数来自正文控件，表格数据来自 Markdown，不需要服务调用或 YAML 配置。

@@ -30,7 +30,7 @@ npm run dev
 | `npm run build` | 语言包与类型声明，输出 `dist-library/` |
 | `npm run build:demo` | 构建语言包和应用，输出 `demo/dist/` |
 | `npm run dev:lib` | 监听并重建语言包 |
-| `npm test` | 语言、运行时、会话与渲染器测试 |
+| `npm test` | 语言、运行时与渲染器测试 |
 | `npm run test:demo` | 构建库并检查 Playground 示例 |
 | `npm run test:browser` | 新语法浏览器交互检查 |
 | `npm run test:docs` | 文档本地链接与导航锚点检查 |
@@ -38,8 +38,8 @@ npm run dev
 
 修改应用源码会热更新。修改语言库后，重新运行 `npm run build:lib`，或另开终端运行 `npm run dev:lib`。
 
-浏览器检查需要本机 Edge 和已启动的服务器。默认检查 `http://127.0.0.1:5173`，可用 `DEMO_URL` 指定其他地址；报告和截图写入 `demo/artifacts/`。`scripts/verify-browser.mjs`、`scripts/verify-intelligent.mjs` 保留为 v0.2 Playground 的历史检查脚本，当前命令使用 `scripts/verify-local-browser.mjs`。
+浏览器检查需要本机 Edge 和已启动的服务器。默认检查 `http://127.0.0.1:5173`，可用 `DEMO_URL` 指定其他地址；报告和截图写入 `demo/artifacts/`。
 
 ## 集成
 
-宿主应用使用 [本地模式集成](../docs/local-integration.md) 中的公开 API。原有 directive/YAML 文档继续通过 `compile`、`createRuntime` 和 `ReactiveDocument` 使用，见 [v0.2 集成文档](../docs/integration.md)。
+宿主应用使用 [本地模式集成](../docs/local-integration.md) 中的公开 API。

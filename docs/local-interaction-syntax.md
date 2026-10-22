@@ -1,6 +1,6 @@
 # Reactive MD 本地交互语法规范
 
-语法标识：`local-draft-1`，2026-10-22。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 显式选择本地交互模式，见 [集成说明](local-integration.md)。完整示例见 [Demo 索引](../examples/local/README.md)。保留的 directive/YAML 模式见 [v0.2 语言参考](language-reference.md)。
+语法标识：`local-draft-1`，2026-10-22。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration.md)。完整示例见 [Demo 索引](../examples/local/README.md)。
 
 ## 1. 定位与范围
 

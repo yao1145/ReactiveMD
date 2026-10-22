@@ -1,4 +1,4 @@
-import type { Diagnostic } from '../core/types';
+import type { Diagnostic } from './types';
 import { compileExpression, LocalExpressionError, RESERVED_NAMES, type LocalExpression } from './expression';
 import { compileLatex } from './math';
 import { parseLocal } from './parser';

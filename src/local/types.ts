@@ -1,6 +1,14 @@
-import type { Diagnostic, SourceRange } from '../core/types';
 import type { ReactNode } from 'react';
 
+export interface SourceRange { start: number; end: number }
+export interface Diagnostic {
+  code: string;
+  message: string;
+  severity: 'error' | 'warning';
+  range: SourceRange;
+  line: number;
+  column: number;
+}
 export type LocalValue = string | number | boolean | null | string[];
 export type LocalValueKind = 'string' | 'number' | 'boolean' | 'null' | 'array';
 /** Markdown nodes retain their original source ranges; component attributes remain raw decoded strings. */

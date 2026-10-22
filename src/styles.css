@@ -1,6 +1,2 @@
-@import './ui/styles.css';
-@import './ui/advanced.css';
-@import './ui/visuals.css';
-@import './ui/theme.css';
 @import './local/local.css';
 @import './local/visuals.css';

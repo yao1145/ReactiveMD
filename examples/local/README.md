@@ -1,6 +1,6 @@
 # 本地交互语法 Demo
 
-这些文件是 `local-draft-1` 的完整作者示例，对应 [本地交互语法规范](../../docs/local-interaction-syntax.md)。Playground 直接加载本目录；宿主通过 [本地模式 API](../../docs/local-integration.md) 编译和渲染。上一级 `examples/*.reactive.md` 保留为 v0.2 历史示例。
+这些文件是 `local-draft-1` 的完整作者示例，对应 [本地交互语法规范](../../docs/local-interaction-syntax.md)。Playground 直接加载本目录；宿主通过 [本地模式 API](../../docs/local-integration.md) 编译和渲染。
 
 本目录有 11 份正常示例、1 份故意含错的诊断示例。每份文件独立使用，不共享参数。正常示例均没有 YAML 配置、命名动作、事件处理或外部调用。
 
@@ -8,24 +8,24 @@
 
 建议先看 [计数器](counter.reactive.md)、[方案计算器](pricing.reactive.md) 和 [交互图解](diagram.reactive.md)，再看较长的图表与参数面板。日常写作只需用到其中少数组件。
 
-## 完整目录及旧版迁移对照
+## 完整目录
 
-| 旧 Demo | 新文件 | 本次改写 |
-| --- | --- | --- |
-| comparison：并排比较与布局 | [comparison.reactive.md](comparison.reactive.md) | 开关就地声明，价格就地计算，标签页内部管理选择 |
-| forms：表单与选择 | [parameters.reactive.md](parameters.reactive.md) | 改为实时参数面板，去掉提交、邮箱收集、确认授权和提交状态 |
-| collections：集合与数据表格 | [checklist.reactive.md](checklist.reactive.md) | 用固定可勾选清单替代可编程增删，费用直接写表格 |
-| charts：图表与储蓄计算 | [charts.reactive.md](charts.reactive.md) | 表格生成图表，复利公式使用 LaTeX，期末值由曲线读数提供 |
-| diagram：交互图解 | [diagram.reactive.md](diagram.reactive.md) | 节点自动布局，自带选择和说明；增加双曲线示例 |
-| async：异步宿主动作 | [catalog.reactive.md](catalog.reactive.md) | 替换成本地目录搜索；删除请求、取消、失败和重试流程 |
-| planning：计划与分账 | [planning.reactive.md](planning.reactive.md) | 时间轴直接用表格，计时器自带操作，分账直接计算 |
-| components：内容与辅助组件 | [components.reactive.md](components.reactive.md) | 说明风格真正控制正文，折叠条目替代带事件的列表 |
-| pricing：方案计算器 | [pricing.reactive.md](pricing.reactive.md) | 去掉配置块、统计卡片和动作；面板自带恢复默认 |
-| counter：计数器 | [counter.reactive.md](counter.reactive.md) | 一个组件提供加、减、重置 |
-| gallery：组件画廊 | [gallery.reactive.md](gallery.reactive.md) | 展示常用输入、独立组件和原样代码；移除布局与事件样板 |
-| diagnostics：诊断示例 | [diagnostics.reactive.md](diagnostics.reactive.md) | 换成新语法的绑定、约束、类型、图解和数学错误 |
+| 文件 | 内容 |
+| --- | --- |
+| [counter.reactive.md](counter.reactive.md) | 一行计数器，自带加、减和重置 |
+| [pricing.reactive.md](pricing.reactive.md) | 方案计算器，面板内参数联动 |
+| [comparison.reactive.md](comparison.reactive.md) | 并排比较，开关就地声明，标签页内部管理选择 |
+| [parameters.reactive.md](parameters.reactive.md) | 实时参数面板，含输入、日期和选择器 |
+| [checklist.reactive.md](checklist.reactive.md) | 固定可勾选清单与增强表格 |
+| [charts.reactive.md](charts.reactive.md) | 表格生成图表，复利公式使用 LaTeX |
+| [diagram.reactive.md](diagram.reactive.md) | 自动布局的交互图解与曲线 |
+| [catalog.reactive.md](catalog.reactive.md) | 本地目录搜索、排序和分页 |
+| [planning.reactive.md](planning.reactive.md) | 时间轴、计时器与分账计算 |
+| [components.reactive.md](components.reactive.md) | 内容卡片、折叠、标签页与提示组件 |
+| [gallery.reactive.md](gallery.reactive.md) | 常用输入、独立组件和原样代码 |
+| [diagnostics.reactive.md](diagnostics.reactive.md) | 故意含错的诊断示例 |
 
-Playground 的示例索引位于 [demo/src/examples.ts](../../demo/src/examples.ts)，其余旧示例位于上一级目录。本次按本地交互用途重新筛选功能，服务调用与集合动作通过旧模式 API 保留。
+Playground 的示例索引位于 [demo/src/examples.ts](../../demo/src/examples.ts)。
 
 ## 正常示例的预期行为
 
