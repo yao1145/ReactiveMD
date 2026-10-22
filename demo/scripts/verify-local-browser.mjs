@@ -131,9 +131,12 @@ try {
     expect(await page.locator('#source-editor').evaluate((element) => element.selectionEnd > element.selectionStart)).toBe(true);
   });
 
-  await check('script tags are diagnostics, not executable HTML', async () => {
+  await check('script tags are inert fallback text, not executable HTML', async () => {
+    // Unsupported tags are preserved as fallback content and reported as warnings.
     await page.locator('#source-editor').fill('<script>window.__localInjected=1</script>\n\n# 不应执行');
-    await expect(status()).toContainText('编译失败');
+    await expect(status()).toContainText('已编译');
+    await expect(preview().locator('.local-fallback')).toContainText('window.__localInjected=1');
+    expect(await preview().locator('script').count()).toBe(0);
     expect(await page.evaluate(() => window.__localInjected)).toBeUndefined();
   });
 

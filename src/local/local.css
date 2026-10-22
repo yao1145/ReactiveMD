@@ -30,28 +30,28 @@
    source line breaks without a nested <pre>. */
 .local-document .local-fallback {
   max-width: 100%;
-  border-radius: var(--local-radius-sm);
-  color: var(--local-ink-soft);
-  font-family: var(--font-mono, monospace);
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
   font-size: 0.9em;
-  line-height: 1.55;
+  line-height: var(--leading-snug);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .local-document .local-fallback-inline {
   display: inline;
-  padding: 0 0.3em;
-  background: color-mix(in srgb, var(--local-warning) 8%, var(--local-surface));
-  box-shadow: inset 0 -1px 0 var(--local-line-strong);
+  padding: 0 var(--space-1);
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+  box-shadow: inset 0 -1px 0 var(--line-strong);
 }
 
 .local-document .local-fallback-block {
   display: block;
   margin: 0.7em 0;
-  padding: 9px 12px;
-  border: 1px dashed var(--local-line-strong);
-  background: color-mix(in srgb, var(--local-warning) 6%, var(--local-surface));
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--line-strong);
+  background: color-mix(in srgb, var(--warning) 6%, var(--surface));
 }
 
 /* ---------------------------------------------------------- inactive state */
