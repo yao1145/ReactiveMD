@@ -1,0 +1,1059 @@
+/* Flush source-editor toolbar. Every selector is scoped to .editor-toolbar. */
+
+.editor-toolbar {
+  --editor-toolbar-bg: #161d29;
+  --editor-toolbar-bg-deep: #101722;
+  --editor-toolbar-border: rgba(255, 255, 255, 0.08);
+  --editor-toolbar-line: rgba(255, 255, 255, 0.14);
+  --editor-toolbar-ink: #b9c3d2;
+  --editor-toolbar-ink-strong: #ffffff;
+  --editor-toolbar-muted: #8b99ad;
+  --editor-toolbar-hover: rgba(255, 255, 255, 0.08);
+  --editor-toolbar-focus: #7aa2ff;
+  --editor-toolbar-accent: #8fe3d4;
+  position: relative;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--editor-toolbar-ink);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 45%),
+    linear-gradient(180deg, var(--editor-toolbar-bg), var(--editor-toolbar-bg-deep));
+  border: 0;
+  border-bottom: 1px solid var(--editor-toolbar-border);
+  border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
+  box-shadow: none;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+  line-height: 1;
+}
+
+.editor-toolbar,
+.editor-toolbar *,
+.editor-toolbar *::before,
+.editor-toolbar *::after {
+  box-sizing: border-box;
+}
+
+/* Slots and buttons ---------------------------------------------------- */
+
+.editor-toolbar-slot {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.editor-toolbar-slot-native {
+  margin-left: 4px;
+}
+
+.editor-toolbar-mobile-only {
+  display: none;
+}
+
+.editor-toolbar-button {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: var(--editor-toolbar-ink);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease,
+    opacity 0.15s ease;
+}
+
+.editor-toolbar-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.editor-toolbar-button[aria-expanded="true"] {
+  color: var(--editor-toolbar-ink-strong);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.editor-toolbar-button.is-active {
+  color: #dbe7ff;
+  background: rgba(122, 162, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(122, 162, 255, 0.24);
+}
+
+.editor-toolbar-button:disabled {
+  opacity: 0.34;
+  cursor: not-allowed;
+}
+
+.editor-toolbar-icon {
+  display: block;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+.editor-toolbar-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.editor-toolbar-glyph.is-bold {
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+}
+
+.editor-toolbar-glyph.is-italic {
+  padding-right: 1px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-style: italic;
+  font-weight: 700;
+}
+
+.editor-toolbar-heading-trigger {
+  width: auto;
+  min-width: 76px;
+  gap: 4px;
+  padding: 0 8px;
+}
+
+.editor-toolbar-heading-label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.005em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-toolbar-heading-label-compact {
+  display: none;
+}
+
+.editor-toolbar-list-trigger {
+  width: auto;
+  gap: 0;
+  padding: 0 4px;
+}
+
+.editor-toolbar-insert-trigger {
+  width: auto;
+  gap: 4px;
+  padding: 0 7px 0 6px;
+}
+
+.editor-toolbar-insert-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+}
+
+.editor-toolbar-chevron {
+  width: 9px;
+  height: 9px;
+  margin-left: -1px;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.editor-toolbar-button:hover .editor-toolbar-chevron,
+.editor-toolbar-button[aria-expanded="true"] .editor-toolbar-chevron {
+  opacity: 0.95;
+}
+
+.editor-toolbar-components-trigger {
+  width: auto;
+  min-width: 94px;
+  gap: 5px;
+  padding: 0 10px 0 8px;
+  border: 1px solid rgba(122, 162, 255, 0.26);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(74, 128, 255, 0.22), rgba(45, 212, 191, 0.15));
+  color: #d6e3ff;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.editor-toolbar-components-trigger .editor-toolbar-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--editor-toolbar-accent);
+}
+
+.editor-toolbar-components-label {
+  white-space: nowrap;
+}
+
+.editor-toolbar-components-trigger[aria-expanded="true"] {
+  border-color: rgba(143, 227, 212, 0.48);
+  background: linear-gradient(135deg, rgba(84, 139, 255, 0.34), rgba(45, 212, 191, 0.24));
+  color: #ffffff;
+}
+
+.editor-toolbar-history {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: auto;
+}
+
+/* Container compact mode ----------------------------------------------- */
+
+@container editor-frame (max-width: 500px) {
+  .editor-toolbar-history > .editor-toolbar-desktop-only {
+    display: none;
+  }
+
+  .editor-toolbar-slot.editor-toolbar-mobile-only {
+    display: inline-flex;
+  }
+
+  .editor-toolbar-more-menu .editor-toolbar-more-link {
+    display: none;
+  }
+}
+
+/* Tooltips ------------------------------------------------------------- */
+
+@media (hover: hover) and (pointer: fine) {
+  .editor-toolbar-button[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 7px);
+    left: 50%;
+    z-index: 90;
+    padding: 4px 7px;
+    background: #0b111c;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.9);
+    color: #e6edf7;
+    font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translate(-50%, -2px);
+    transition:
+      opacity 0.12s ease,
+      transform 0.12s ease,
+      visibility 0.12s ease;
+  }
+
+  .editor-toolbar-button[data-tooltip]:hover::after,
+  .editor-toolbar-button[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+  }
+
+  .editor-toolbar-button[aria-expanded="true"]::after {
+    display: none;
+  }
+
+  .editor-toolbar.is-menu-open .editor-toolbar-button[data-tooltip]::after {
+    display: none;
+  }
+
+  .editor-toolbar-history .editor-toolbar-button[data-tooltip]::after {
+    right: 0;
+    left: auto;
+    transform: translateY(-2px);
+  }
+
+  .editor-toolbar-history .editor-toolbar-button[data-tooltip]:hover::after,
+  .editor-toolbar-history .editor-toolbar-button[data-tooltip]:focus-visible::after {
+    transform: translateY(0);
+  }
+}
+
+/* Popovers ------------------------------------------------------------- */
+
+.editor-toolbar-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  color: #dbe4f0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 40%),
+    linear-gradient(180deg, #151d2a, #101722 72%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow:
+    0 24px 50px -20px rgba(0, 0, 0, 0.9),
+    0 8px 22px -12px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: editor-toolbar-pop-in 0.13s ease-out;
+  transform-origin: top left;
+}
+
+.editor-toolbar-heading-menu {
+  width: min(204px, calc(100vw - 24px));
+  padding: 6px;
+}
+
+.editor-toolbar-list-menu {
+  width: min(220px, calc(100vw - 24px));
+  padding: 6px;
+}
+
+.editor-toolbar-insert-menu {
+  width: min(228px, calc(100vw - 24px));
+  padding: 6px;
+}
+
+.editor-toolbar-more-menu {
+  right: 0;
+  left: auto;
+  width: min(188px, calc(100vw - 24px));
+  padding: 6px;
+  transform-origin: top right;
+}
+
+/* Menu items ----------------------------------------------------------- */
+
+.editor-toolbar-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 9px;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: #c8d3e2;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.editor-toolbar-menu-item:disabled {
+  opacity: 0.36;
+  cursor: not-allowed;
+}
+
+.editor-toolbar-menu-item[aria-checked="true"] {
+  color: #eef4ff;
+  background: rgba(84, 139, 255, 0.14);
+}
+
+.editor-toolbar-menu-item[aria-checked="true"]::after {
+  content: "✓";
+  margin-left: auto;
+  color: #9dbcff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.editor-toolbar-menu-icon {
+  width: 16px;
+  height: 16px;
+  color: #8fa2ba;
+}
+
+.editor-toolbar-menu-item[aria-checked="true"] .editor-toolbar-menu-icon,
+.editor-toolbar-menu-item:hover:not(:disabled) .editor-toolbar-menu-icon {
+  color: #b9cff6;
+}
+
+.editor-toolbar-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.editor-toolbar-heading-item {
+  gap: 9px;
+  padding: 5px 8px;
+}
+
+.editor-toolbar-list-item,
+.editor-toolbar-insert-item,
+.editor-toolbar-more-item {
+  gap: 9px;
+}
+
+.editor-toolbar-heading-sample {
+  display: inline-flex;
+  flex: 0 0 26px;
+  align-items: center;
+  justify-content: center;
+  color: #93a4bb;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.editor-toolbar-heading-sample.is-level-0 {
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.editor-toolbar-heading-sample.is-level-1 {
+  color: #c9d9fa;
+  font-size: 15px;
+}
+
+.editor-toolbar-heading-sample.is-level-2 {
+  color: #c2d2f1;
+  font-size: 14px;
+}
+
+.editor-toolbar-heading-sample.is-level-3 {
+  color: #b8c8e4;
+  font-size: 13px;
+}
+
+.editor-toolbar-heading-sample.is-level-4 {
+  color: #aebdd6;
+  font-size: 12px;
+}
+
+.editor-toolbar-heading-sample.is-level-5 {
+  color: #a3b1c8;
+  font-size: 11.5px;
+}
+
+.editor-toolbar-heading-sample.is-level-6 {
+  color: #98a6bb;
+  font-size: 11px;
+}
+
+/* Emoji panel ---------------------------------------------------------- */
+
+.editor-toolbar-emoji-menu {
+  width: min(300px, calc(100vw - 24px));
+  padding: 8px;
+}
+
+.editor-toolbar-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.editor-toolbar-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 30px;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.12s ease, transform 0.1s ease;
+}
+
+.editor-toolbar-emoji:active {
+  transform: scale(0.92);
+}
+
+/* Native component picker ---------------------------------------------- */
+
+.editor-toolbar-native-menu {
+  right: 0;
+  left: auto;
+  display: flex;
+  flex-direction: column;
+  width: min(364px, calc(100vw - 24px));
+  max-height: min(430px, 72vh);
+  padding: 8px;
+  overflow: hidden;
+  transform-origin: top right;
+}
+
+.editor-toolbar-native-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 2px 8px;
+}
+
+.editor-toolbar-native-title {
+  color: #eef4ff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.editor-toolbar-close {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: #9aa9bd;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.editor-toolbar-close .editor-toolbar-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.editor-toolbar-search {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  padding: 6px 9px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.editor-toolbar-search:focus-within {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(122, 162, 255, 0.65);
+  box-shadow: 0 0 0 2px rgba(84, 139, 255, 0.18);
+}
+
+.editor-toolbar-search-icon {
+  width: 15px;
+  height: 15px;
+  color: #7f8fa6;
+}
+
+.editor-toolbar-search-input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: #e6edf7;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.editor-toolbar-search-input::placeholder {
+  color: #718096;
+}
+
+.editor-toolbar-search-input::-webkit-search-decoration,
+.editor-toolbar-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.editor-toolbar-native-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 300px;
+  padding-right: 3px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.editor-toolbar-native-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.editor-toolbar-native-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.editor-toolbar-native-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+
+.editor-toolbar-native-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.editor-toolbar-native-group {
+  padding: 2px 0 4px;
+}
+
+.editor-toolbar-native-group + .editor-toolbar-native-group {
+  margin-top: 3px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.editor-toolbar-native-group-title {
+  margin: 2px 8px 5px;
+  color: #8595ac;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.editor-toolbar-native-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 7px 8px;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: #c9d4e3;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.editor-toolbar-native-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.editor-toolbar-native-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #e5ecf7;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.editor-toolbar-native-description {
+  display: block;
+  overflow: hidden;
+  color: #95a4b9;
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-toolbar-native-badge {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border: 1px solid rgba(143, 227, 212, 0.28);
+  border-radius: 4px;
+  color: var(--editor-toolbar-accent);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.55;
+}
+
+.editor-toolbar-native-add {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: #7f93ad;
+  opacity: 0.35;
+  transition: color 0.12s ease, opacity 0.12s ease;
+}
+
+.editor-toolbar-menu-empty {
+  margin: 16px 8px;
+  color: var(--editor-toolbar-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Hover ---------------------------------------------------------------- */
+
+@media (hover: hover) and (pointer: fine) {
+  .editor-toolbar-button:hover:not(:disabled) {
+    color: var(--editor-toolbar-ink-strong);
+    background: var(--editor-toolbar-hover);
+  }
+
+  .editor-toolbar-button.is-active:hover:not(:disabled) {
+    color: #eef4ff;
+    background: rgba(122, 162, 255, 0.23);
+  }
+
+  .editor-toolbar-components-trigger:hover:not(:disabled) {
+    color: #ffffff;
+    background: linear-gradient(135deg, rgba(84, 139, 255, 0.32), rgba(45, 212, 191, 0.24));
+    border-color: rgba(122, 162, 255, 0.5);
+  }
+
+  .editor-toolbar-emoji:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+
+  .editor-toolbar-menu-item:hover:not(:disabled) {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .editor-toolbar-native-item:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .editor-toolbar-native-item:hover .editor-toolbar-native-add {
+    color: #93b6ff;
+    opacity: 1;
+  }
+
+  .editor-toolbar-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* Focus ---------------------------------------------------------------- */
+
+.editor-toolbar-button:focus-visible,
+.editor-toolbar-emoji:focus-visible,
+.editor-toolbar-menu-item:focus-visible,
+.editor-toolbar-native-item:focus-visible,
+.editor-toolbar-close:focus-visible {
+  outline: 2px solid var(--editor-toolbar-focus);
+  outline-offset: 2px;
+}
+
+.editor-toolbar-emoji:focus-visible {
+  outline-offset: 1px;
+}
+
+.editor-toolbar-menu-item:focus-visible,
+.editor-toolbar-native-item:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Mobile control set --------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .editor-toolbar {
+    gap: 0;
+    padding: 4px 2px;
+  }
+
+  .editor-toolbar-desktop-only {
+    display: none !important;
+  }
+
+  .editor-toolbar-slot.editor-toolbar-mobile-only {
+    display: inline-flex;
+  }
+
+  .editor-toolbar-slot-native {
+    margin-left: 1px;
+  }
+
+  .editor-toolbar-heading-trigger {
+    min-width: 44px;
+    gap: 2px;
+    padding: 0 4px;
+  }
+
+  .editor-toolbar-heading-label {
+    font-size: 12px;
+  }
+
+  .editor-toolbar-heading-label-full {
+    display: none;
+  }
+
+  .editor-toolbar-heading-label-compact {
+    display: inline;
+  }
+
+  .editor-toolbar-more-menu .editor-toolbar-more-link {
+    display: flex;
+  }
+
+  .editor-toolbar-list-trigger {
+    padding: 0 1px;
+  }
+
+  .editor-toolbar-insert-trigger {
+    gap: 2px;
+    padding: 0 3px;
+  }
+
+  .editor-toolbar-insert-trigger .editor-toolbar-chevron {
+    display: none;
+  }
+
+  .editor-toolbar-insert-label {
+    font-size: 11.5px;
+  }
+
+  .editor-toolbar-components-trigger {
+    min-width: 0;
+    gap: 3px;
+    padding: 0 6px 0 5px;
+    font-size: 11px;
+  }
+
+  .editor-toolbar-components-trigger .editor-toolbar-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .editor-toolbar-history {
+    gap: 0;
+  }
+
+  .editor-toolbar-heading-menu {
+    width: min(200px, calc(100vw - 24px));
+  }
+
+  .editor-toolbar-list-menu {
+    width: min(208px, calc(100vw - 48px));
+  }
+
+  .editor-toolbar-insert-menu {
+    right: 0;
+    left: auto;
+    width: min(216px, calc(100vw - 24px));
+    transform-origin: bottom right;
+  }
+
+  .editor-toolbar-more-menu {
+    width: min(188px, calc(100vw - 24px));
+    transform-origin: bottom right;
+  }
+
+  .editor-toolbar-heading-menu,
+  .editor-toolbar-list-menu,
+  .editor-toolbar-insert-menu,
+  .editor-toolbar-more-menu {
+    position: fixed;
+    top: auto;
+    bottom: calc(100% + 6px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    animation-name: editor-toolbar-pop-up;
+  }
+
+  .editor-toolbar-heading-menu,
+  .editor-toolbar-list-menu {
+    transform-origin: bottom left;
+  }
+
+  .editor-toolbar-emoji-menu {
+    position: fixed;
+    top: auto;
+    right: 8px;
+    bottom: 12px;
+    left: 8px;
+    z-index: 80;
+    width: auto;
+    max-width: 380px;
+    margin: 0 auto;
+    overflow-x: auto;
+    overscroll-behavior: contain;
+    transform-origin: bottom center;
+  }
+
+  .editor-toolbar-native-menu {
+    position: fixed;
+    top: auto;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    z-index: 80;
+    width: auto;
+    max-height: min(68vh, 460px);
+    transform-origin: bottom center;
+  }
+
+  .editor-toolbar-native-scroll {
+    max-height: none;
+  }
+}
+
+@media (max-width: 400px) {
+  .editor-toolbar-heading-trigger {
+    padding: 0 2px;
+  }
+
+  .editor-toolbar-insert-trigger {
+    padding: 0 1px;
+  }
+
+  .editor-toolbar-components-trigger {
+    gap: 1px;
+    padding: 0 3px;
+    font-size: 10.5px;
+  }
+
+  .editor-toolbar-components-trigger .editor-toolbar-icon {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+/* Touch targets -------------------------------------------------------- */
+
+@media (pointer: coarse) {
+  .editor-toolbar-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+  }
+
+  .editor-toolbar-heading-trigger,
+  .editor-toolbar-list-trigger,
+  .editor-toolbar-insert-trigger,
+  .editor-toolbar-components-trigger {
+    width: auto;
+    min-height: 44px;
+  }
+
+  .editor-toolbar-heading-trigger,
+  .editor-toolbar-list-trigger {
+    min-width: 44px;
+  }
+
+  .editor-toolbar-menu-item,
+  .editor-toolbar-native-item {
+    min-height: 44px;
+  }
+
+  .editor-toolbar-search {
+    min-height: 44px;
+  }
+
+  .editor-toolbar-emoji-menu {
+    width: auto;
+    padding: 6px;
+  }
+
+  .editor-toolbar-emoji-grid {
+    grid-template-columns: repeat(8, 44px);
+    gap: 1px;
+    justify-content: center;
+  }
+
+  .editor-toolbar-emoji {
+    width: 44px;
+    height: 44px;
+  }
+
+  .editor-toolbar-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .editor-toolbar-close .editor-toolbar-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .editor-toolbar-native-item {
+    padding: 8px;
+  }
+}
+
+/* Motion --------------------------------------------------------------- */
+
+@keyframes editor-toolbar-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes editor-toolbar-pop-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-toolbar-popover {
+    animation: none;
+  }
+
+  .editor-toolbar-button,
+  .editor-toolbar-button[data-tooltip]::after,
+  .editor-toolbar-emoji,
+  .editor-toolbar-menu-item,
+  .editor-toolbar-native-item,
+  .editor-toolbar-native-add,
+  .editor-toolbar-close {
+    transition-duration: 0.01ms;
+  }
+
+  .editor-toolbar-button:active:not(:disabled),
+  .editor-toolbar-emoji:active {
+    transform: none;
+  }
+}

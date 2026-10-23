@@ -322,21 +322,37 @@ textarea {
 
 /* Editor */
 
-.editor-shell {
+.editor-frame {
+  position: relative;
   display: flex;
+  flex-direction: column;
   height: clamp(390px, 56vh, 680px);
+  min-width: 0;
+  container-name: editor-frame;
+  container-type: inline-size;
   background: var(--code-bg);
   border: 1px solid color-mix(in srgb, var(--code-ink) 12%, var(--code-bg));
   border-radius: var(--radius-card);
-  overflow: hidden;
+  overflow: visible;
   transition:
     border-color var(--motion-fast) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard);
 }
 
-.editor-shell:focus-within {
+.editor-frame:focus-within {
   border-color: var(--focus);
   box-shadow: var(--focus-ring);
+}
+
+.editor-shell {
+  display: flex;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  background: var(--code-bg);
+  border: 0;
+  border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
+  overflow: hidden;
 }
 
 .editor-gutter {
@@ -971,7 +987,7 @@ textarea {
     border-bottom: 1px solid var(--line);
   }
 
-  .editor-shell {
+  .editor-frame {
     height: clamp(330px, 46vh, 520px);
   }
 
@@ -1059,7 +1075,7 @@ textarea {
     display: none;
   }
 
-  .editor-shell {
+  .editor-frame {
     height: 360px;
   }
 

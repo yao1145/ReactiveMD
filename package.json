@@ -40,6 +40,7 @@
     "test:components": "vitest run --config vitest.config.ts tests/component-protocol.test.ts tests/conformance.test.ts",
     "test:demo": "npm run build:lib && npm run test --workspace=@reactive-md/demo",
     "test:browser": "npm run test:browser --workspace=@reactive-md/demo",
+    "test:toolbar": "npm run test:toolbar --workspace=@reactive-md/demo",
     "test:package": "node scripts/verify-package.mjs",
     "test:packed": "node scripts/verify-packed.mjs",
     "test:docs": "node scripts/verify-docs.mjs",

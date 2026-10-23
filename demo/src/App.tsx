@@ -12,9 +12,12 @@ import {
 import type { Diagnostic, LocalRuntime, SourceRange } from 'reactive-md';
 import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
 import { AuthorTools } from './author-tools';
+import type { EditorEdit, EditorSelection } from './editor-commands';
+import { EditorToolbar } from './editor-toolbar';
 import { EXAMPLES, DEFAULT_EXAMPLE_ID } from './examples';
 import { useLocalCompilation, type LocalCompiledDocument } from './use-local-compilation';
 import { PreviewStateSession } from './preview-state';
+import { useSourceHistory } from './use-source-history';
 import guideSource from '../../docs/local-guide.md?raw';
 
 type LocalRuntimeInstance = LocalRuntime;
@@ -207,6 +210,15 @@ export default function App() {
   const gutterRef = useRef<HTMLDivElement>(null);
   const pendingSourceWrite = useRef<{ exampleId: string; source: string } | null>(null);
   const sourceWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSelection = useRef<EditorSelection | null>(null);
+  const {
+    canUndo,
+    canRedo,
+    record: recordHistory,
+    undo: undoHistory,
+    redo: redoHistory,
+    reset: resetHistory,
+  } = useSourceHistory(source);
 
   const compilation = useLocalCompilation(source);
 
@@ -272,10 +284,59 @@ export default function App() {
     setInstanceKey((key) => key + 1);
   }, [retainPreviewState]);
 
+  useEffect(() => {
+    const selection = pendingSelection.current;
+    if (!selection) return;
+    pendingSelection.current = null;
+    const editor = editorRef.current;
+    if (!editor) return;
+    const length = editor.value.length;
+    const start = Math.max(0, Math.min(selection.start, length));
+    const end = Math.max(start, Math.min(selection.end, length));
+    editor.focus();
+    editor.setSelectionRange(start, end);
+    setActiveLine(editor.value.slice(0, start).split('\n').length);
+  }, [source]);
+
+  const applyEdit = useCallback((edit: EditorEdit) => {
+    recordHistory(edit.value, edit.selection, 'separate');
+    pendingSelection.current = edit.selection;
+    replaceSource(edit.value);
+  }, [recordHistory, replaceSource]);
+
+  const undoEdit = useCallback(() => {
+    const entry = undoHistory();
+    if (!entry) return;
+    pendingSelection.current = entry.selection;
+    replaceSource(entry.value);
+  }, [replaceSource, undoHistory]);
+
+  const redoEdit = useCallback(() => {
+    const entry = redoHistory();
+    if (!entry) return;
+    pendingSelection.current = entry.selection;
+    replaceSource(entry.value);
+  }, [replaceSource, redoHistory]);
+
   const importSource = useCallback((next: string) => {
+    resetHistory(next);
     replaceSource(next);
     beginPreviewSession();
-  }, [replaceSource, beginPreviewSession]);
+  }, [resetHistory, replaceSource, beginPreviewSession]);
+
+  const exportSource = useCallback(() => {
+    download(`${selectedExample}.reactive.md`, source, 'text/markdown;charset=utf-8');
+  }, [selectedExample, source]);
+
+  const onSourceChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
+    const element = event.currentTarget;
+    recordHistory(
+      element.value,
+      { start: element.selectionStart, end: element.selectionEnd },
+      'merge',
+    );
+    replaceSource(element.value);
+  }, [recordHistory, replaceSource]);
 
   const focusDiagnostic = useCallback((range: SourceRange) => {
     setSimple(false);
@@ -300,20 +361,23 @@ export default function App() {
     const example = EXAMPLES.find((item) => item.id === exampleId);
     if (!example) return;
     flushSourceWrite();
+    const next = savedSource(example.id);
     setSelectedExample(example.id);
-    setSource(savedSource(example.id));
+    setSource(next);
+    resetHistory(next);
     setRuntimeDiagnostics([]);
     beginPreviewSession();
     try { browserStorage()?.setItem('reactive-md:selection', example.id); } catch { /* optional storage */ }
     if (editorRef.current) editorRef.current.scrollTop = 0;
     if (gutterRef.current) gutterRef.current.scrollTop = 0;
-  }, [flushSourceWrite, beginPreviewSession]);
+  }, [flushSourceWrite, beginPreviewSession, resetHistory]);
 
   const restoreExample = useCallback(() => {
+    resetHistory(currentExample.source);
     setSource(currentExample.source);
     setRuntimeDiagnostics([]);
     beginPreviewSession();
-  }, [currentExample.source, beginPreviewSession]);
+  }, [currentExample.source, beginPreviewSession, resetHistory]);
 
   const resetInstance = useCallback(() => {
     setRuntimeDiagnostics([]);
@@ -342,16 +406,29 @@ export default function App() {
   };
 
   const onEditorKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    const modifier = event.metaKey || event.ctrlKey;
+    const key = event.key.toLowerCase();
+    if (modifier && !event.altKey && key === 'z') {
+      event.preventDefault();
+      if (event.shiftKey) redoEdit();
+      else undoEdit();
+      return;
+    }
+    if (modifier && !event.altKey && key === 'y') {
+      event.preventDefault();
+      redoEdit();
+      return;
+    }
     if (event.key !== 'Tab' || event.shiftKey) return;
     event.preventDefault();
     const element = event.currentTarget;
     const start = element.selectionStart;
     const end = element.selectionEnd;
     const next = `${source.slice(0, start)}  ${source.slice(end)}`;
+    const selection = { start: start + 2, end: start + 2 };
+    recordHistory(next, selection, 'separate');
+    pendingSelection.current = selection;
     replaceSource(next);
-    window.requestAnimationFrame(() => {
-      element.setSelectionRange(start + 2, start + 2);
-    });
   };
 
   const ready = compiled?.ok === true;
@@ -453,7 +530,7 @@ export default function App() {
           onTheme={() => setDark((value) => !value)}
           onSimple={() => setSimple((value) => !value)}
           onImport={importSource}
-          onExport={() => download(`${selectedExample}.reactive.md`, source, 'text/markdown;charset=utf-8')}
+          onExport={exportSource}
         />
 
         <div className="workspace">
@@ -466,40 +543,52 @@ export default function App() {
               <span className="syntax-tag">local-draft-1</span>
             </div>
 
-            <label className="sr-only" htmlFor="source-editor">Reactive MD 源码</label>
-            <div className="editor-shell">
-              <div className="editor-gutter" ref={gutterRef} aria-hidden="true">
-                {lines.map((_, index) => {
-                  const lineNumber = index + 1;
-                  return (
-                    <span
-                      key={lineNumber}
-                      className={`gutter-line ${activeLine === lineNumber ? 'is-active' : ''} ${
-                        diagnosticLines.has(lineNumber) ? 'is-diagnostic' : ''
-                      }`}
-                    >
-                      {lineNumber}
-                    </span>
-                  );
-                })}
-              </div>
-              <textarea
-                id="source-editor"
-                ref={editorRef}
-                className="editor-input"
-                value={source}
-                wrap="off"
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                aria-describedby="editor-note"
-                onScroll={onEditorScroll}
-                onChange={(event: ChangeEvent<HTMLTextAreaElement>) => replaceSource(event.target.value)}
-                onKeyDown={onEditorKeyDown}
-                onSelect={(event) => updateActiveLine(event.currentTarget)}
-                onKeyUp={(event) => updateActiveLine(event.currentTarget)}
-                onClick={(event) => updateActiveLine(event.currentTarget)}
+            <div className="editor-frame">
+              <EditorToolbar
+                editorRef={editorRef}
+                onEdit={applyEdit}
+                onUndo={undoEdit}
+                onRedo={redoEdit}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onExport={exportSource}
               />
+
+              <label className="sr-only" htmlFor="source-editor">Reactive MD 源码</label>
+              <div className="editor-shell">
+                <div className="editor-gutter" ref={gutterRef} aria-hidden="true">
+                  {lines.map((_, index) => {
+                    const lineNumber = index + 1;
+                    return (
+                      <span
+                        key={lineNumber}
+                        className={`gutter-line ${activeLine === lineNumber ? 'is-active' : ''} ${
+                          diagnosticLines.has(lineNumber) ? 'is-diagnostic' : ''
+                        }`}
+                      >
+                        {lineNumber}
+                      </span>
+                    );
+                  })}
+                </div>
+                <textarea
+                  id="source-editor"
+                  ref={editorRef}
+                  className="editor-input"
+                  value={source}
+                  wrap="off"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  aria-describedby="editor-note"
+                  onScroll={onEditorScroll}
+                  onChange={onSourceChange}
+                  onKeyDown={onEditorKeyDown}
+                  onSelect={(event) => updateActiveLine(event.currentTarget)}
+                  onKeyUp={(event) => updateActiveLine(event.currentTarget)}
+                  onClick={(event) => updateActiveLine(event.currentTarget)}
+                />
+              </div>
             </div>
 
             <p className="editor-note" id="editor-note">

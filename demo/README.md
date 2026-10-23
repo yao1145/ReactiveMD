@@ -1,6 +1,6 @@
 # Reactive MD Playground
 
-Playground 使用 [本地交互语法](../docs/local-interaction-syntax.md)，内置 [12 份完整示例](../examples/local/README.md)。第一次使用语法可先读 [新用户入门指南](../docs/local-guide.md)。左侧编辑 Markdown，右侧显示输入、计算结果和可视化；编译错误在诊断区按源码位置显示。
+Playground 使用 [本地交互语法](../docs/local-interaction-syntax.md)，内置 [12 份完整示例](../examples/local/README.md)。第一次使用语法可先读 [新用户入门指南](../docs/local-guide.md)。左侧编辑 Markdown，右侧显示输入、计算结果和可视化；编译错误在诊断区按源码位置显示。编辑器工具栏提供常用 Markdown 格式，以及按分组和搜索插入滑块、面板、图表、图解等原生组件的菜单。
 
 页面顶部的“使用指南”会直接渲染 `docs/local-guide.md`，包含从第一份交互文档到图表、函数曲线和错误速查的完整说明。指南中的文档链接指向仓库，目录锚点可在页内跳转。
 
@@ -41,6 +41,7 @@ npm run dev
 | `npm test` | 语言、运行时与渲染器测试 |
 | `npm run test:demo` | 构建库并检查 Playground 示例 |
 | `npm run test:browser` | 新语法浏览器交互检查 |
+| `npm run test:toolbar` | 编辑器工具栏与原生组件插入检查 |
 | `npm run test:docs` | 文档本地链接与导航锚点检查 |
 | `npm run test:package` | 公开包入口、示例与样式边界；需先构建 |
 
