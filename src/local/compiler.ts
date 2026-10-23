@@ -1,5 +1,7 @@
 import type { Diagnostic } from './types';
+import { isLocalColor } from './colors';
 import { compileExpression, LocalExpressionError, RESERVED_NAMES, type LocalExpression } from './expression';
+import { createHeadingAnchors } from './heading-anchors';
 import { compileLatex } from './math';
 import { parseLocal } from './parser';
 import {
@@ -234,9 +236,13 @@ interface CompileState {
   attrs: Map<string, AttrMap>;
   options: Map<string, string[]>;
   tabs: Map<string, string[]>;
+  steps: Map<string, string[]>;
+  selections: Map<string, string[]>;
   diagramNodes: Map<string, string[]>;
   checklists: Map<string, ChecklistInfo>;
   tables: Map<string, LocalNode>;
+  tableShapes: Map<string, TableShape | null>;
+  bindingSlots: Record<string, Record<string, string>>;
   bindingKinds: Record<string, LocalValueKind>;
   expressionKinds: Map<string, LocalValueKind | null>;
 }
@@ -310,9 +316,13 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
     attrs: new Map(),
     options: new Map(),
     tabs: new Map(),
+    steps: new Map(),
+    selections: new Map(),
     diagramNodes: new Map(),
     checklists: new Map(),
     tables: new Map(),
+    tableShapes: new Map(),
+    bindingSlots: Object.create(null),
     bindingKinds: {},
     expressionKinds: new Map(),
   };
@@ -323,6 +333,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
     validateAttributeRelations(entry, state);
   }
   for (const entry of state.entries) validateChildren(entry, state);
+  computeSelections(state);
 
   const bindings = resolveBindings(state);
   state.bindingKinds = bindingKinds(bindings);
@@ -333,17 +344,20 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
 
   const initialState: Record<string, LocalValue> = {};
   for (const [key, binding] of Object.entries(bindings)) initialState[key] = cloneValue(binding.initial);
+  validateNavigation(state, bindings, initialState);
 
   diagnostics.sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
   const hasError = diagnostics.some((diagnostic) => diagnostic.severity === 'error');
   if (hasError) return { ok: false, diagnostics };
 
+  const bindingSlots = slotMap(state);
   const document: LocalDocument = {
     syntax: 'local',
     source,
     nodes: parsed.nodes,
     initialState,
     bindings,
+    ...(bindingSlots ? { bindingSlots } : {}),
   };
   return { ok: true, document, diagnostics };
 }
@@ -440,6 +454,17 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
       info.raw = raw.slice(0, MAX_LOCAL_STRING_LENGTH);
     }
     validatePropValue(entry, name, prop, info, state);
+    if (prop.color) {
+      const scanned = scanInterpolations(info.raw);
+      if (!scanned.segments.length && !scanned.unterminated.length && !isLocalColor(info.raw)) {
+        state.report(
+          'local.attribute.color',
+          `Attribute ${name} on component <${entry.name}> must be a standard CSS named color or #RGB/#RRGGBB, got "${info.raw}".`,
+          offset,
+          offset + name.length,
+        );
+      }
+    }
     attrs[name] = info;
   }
   for (const [name, prop] of Object.entries(entry.schema.props)) {
@@ -643,6 +668,53 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
       report('local.constraint', 'timer duration must be a positive whole number of seconds.', attrs.duration?.offset ?? entry.node.range.start);
     }
   }
+
+  if (entry.name === 'range-slider') {
+    const min = numberValue(entry, attrs, 'min') ?? 0;
+    const max = numberValue(entry, attrs, 'max') ?? 100;
+    const step = numberValue(entry, attrs, 'step') ?? 1;
+    if (!(min <= max)) {
+      report('local.constraint', 'range-slider min cannot exceed max.', attrs.min?.offset ?? entry.node.range.start);
+    }
+    if (!(step > 0) || !Number.isFinite(step)) {
+      report('local.constraint', 'range-slider step must be a finite positive number.', attrs.step?.offset ?? entry.node.range.start);
+    }
+  }
+
+  if (entry.name === 'coordinate') {
+    for (const axis of ['x', 'y'] as const) {
+      const min = numberValue(entry, attrs, `${axis}-min`) ?? -5;
+      const max = numberValue(entry, attrs, `${axis}-max`) ?? 5;
+      if (!(min <= max)) {
+        report('local.constraint', `coordinate ${axis}-min cannot exceed ${axis}-max.`, attrs[`${axis}-min`]?.offset ?? entry.node.range.start);
+      }
+    }
+    const step = numberValue(entry, attrs, 'step') ?? 1;
+    if (!(step > 0) || !Number.isFinite(step)) {
+      report('local.constraint', 'coordinate step must be a finite positive number.', attrs.step?.offset ?? entry.node.range.start);
+    }
+  }
+
+  if (entry.name === 'multi-select') {
+    const maxSelected = numberValue(entry, attrs, 'max-selected');
+    if (maxSelected !== undefined && (!Number.isInteger(maxSelected) || maxSelected < 0)) {
+      report('local.constraint', 'multi-select max-selected must be a nonnegative whole number.', attrs['max-selected']?.offset ?? entry.node.range.start);
+    }
+  }
+
+  if (entry.name === 'table' || entry.name === 'chart') {
+    if (!Object.hasOwn(attrs, 'key')) {
+      for (const name of ['bind', 'initial']) {
+        if (Object.hasOwn(attrs, name)) {
+          report(
+            'local.selection.key',
+            `<${entry.name}> ${name} requires a key attribute naming the selection column.`,
+            attrs[name].offset,
+          );
+        }
+      }
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -685,6 +757,14 @@ function validateChildren(entry: Entry, state: CompileState): void {
       }
       break;
     case 'inline':
+      if (entry.name === 'text' || entry.name === 'jump') {
+        const inlineTypes = new Set(['text', 'emphasis', 'strong', 'delete', 'link', 'image', 'inlineCode', 'inlineMath', 'interpolation', 'break', 'comment', 'fallback']);
+        const isInline = (node: LocalNode): boolean => inlineTypes.has(node.type) && (node.children ?? []).every(isInline);
+        const body = kids.length === 1 && kids[0].type === 'paragraph' ? kids[0].children ?? [] : kids;
+        if (!body.every(isInline)) {
+          report('local.structure.children', `<${entry.name}> only accepts inline Markdown.`, entry.node.range.start, entry.node.range.end);
+        }
+      }
       for (const child of kids) {
         if (hasComponent(child)) {
           report('local.structure.children', `The body of <${entry.name}> cannot contain other interactive components.`, child.range.start, child.range.end);
@@ -759,6 +839,12 @@ function validateChildren(entry: Entry, state: CompileState): void {
       }
       break;
     }
+    case 'steps':
+      validateSteps(entry, state);
+      break;
+    case 'quiz':
+      validateQuiz(entry, state, attrs);
+      break;
   }
 }
 
@@ -799,12 +885,29 @@ function validateOptions(entry: Entry, state: CompileState, attrs: AttrMap): voi
   if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
     state.report('local.structure.children', `<${entry.name}> can only contain <option>.`, entry.node.range.start, entry.node.range.end);
   }
+  if (options.length > MAX_LOCAL_ARRAY_LENGTH) {
+    state.report(
+      'local.budget.array',
+      `<${entry.name}> options exceed the limit of ${MAX_LOCAL_ARRAY_LENGTH}.`,
+      entry.node.range.start,
+      entry.node.range.end,
+    );
+  }
   const values: string[] = [];
   for (const option of options) {
     const optionAttrs = state.attrs.get(option.node.id) ?? {};
     const value = typeof optionAttrs.value?.value === 'string' ? optionAttrs.value.value : '';
     if (!value) {
       state.report('local.option.value', '<option> requires a non-empty value.', option.node.range.start, option.node.range.end);
+      continue;
+    }
+    if (entry.name === 'multi-select' && value.includes(',')) {
+      state.report(
+        'local.option.value',
+        `<multi-select> option values cannot contain commas: "${value}".`,
+        option.node.range.start,
+        option.node.range.end,
+      );
       continue;
     }
     if (values.includes(value)) {
@@ -845,6 +948,69 @@ function validateTabs(entry: Entry, state: CompileState): void {
     values.push(value);
   });
   state.tabs.set(entry.node.id, values);
+}
+
+function validateSteps(entry: Entry, state: CompileState): void {
+  const children = componentChildren(entry);
+  const steps = children.filter((child) => child.name === 'step');
+  if (!steps.length) {
+    state.report('local.structure.children', '<steps> requires at least one <step>.', entry.node.range.start, entry.node.range.end);
+  }
+  for (const child of children) {
+    if (child.name !== 'step') {
+      state.report('local.structure.children', '<steps> can only contain <step>.', child.node.range.start, child.node.range.end);
+    }
+  }
+  if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
+    state.report('local.structure.children', '<steps> can only contain <step>.', entry.node.range.start, entry.node.range.end);
+  }
+  const values: string[] = [];
+  steps.forEach((step, index) => {
+    const stepAttrs = state.attrs.get(step.node.id) ?? {};
+    const rawValue = typeof stepAttrs.value?.value === 'string' ? stepAttrs.value.value.trim() : '';
+    const value = rawValue || `step-${index + 1}`;
+    if (values.includes(value)) {
+      state.report('local.step.value', `Step values in <steps> must be unique; duplicate value "${value}".`, step.node.range.start, step.node.range.end);
+      return;
+    }
+    values.push(value);
+  });
+  state.steps.set(entry.node.id, values);
+}
+
+function validateQuiz(entry: Entry, state: CompileState, attrs: AttrMap): void {
+  const type = typeof attrs.type?.value === 'string' ? attrs.type.value : 'choice';
+  const answer = typeof attrs.answer?.value === 'string' ? attrs.answer.value : '';
+  if (!answer.trim()) {
+    state.report('local.quiz.answer', '<quiz> requires a non-empty answer.', attrs.answer?.offset ?? entry.node.range.start);
+  }
+  if (type === 'number') {
+    if (meaningful(entry.node.children).length) {
+      state.report(
+        'local.structure.children',
+        'A numeric <quiz> cannot have body content; use type="choice" for option-based quizzes.',
+        entry.node.range.start,
+        entry.node.range.end,
+      );
+    }
+    if (answer.trim() && parseNumberText(answer) === null) {
+      state.report('local.quiz.answer', 'A numeric <quiz> answer must be a finite number.', attrs.answer?.offset ?? entry.node.range.start);
+    }
+    const tolerance = numberValue(entry, attrs, 'tolerance');
+    if (tolerance !== undefined && (!Number.isFinite(tolerance) || tolerance < 0)) {
+      state.report('local.constraint', '<quiz> tolerance must be a nonnegative finite number.', attrs.tolerance?.offset ?? entry.node.range.start);
+    }
+    return;
+  }
+  validateOptions(entry, state, attrs);
+  const options = state.options.get(entry.node.id) ?? [];
+  if (answer.trim() && options.length && !options.includes(answer)) {
+    state.report(
+      'local.quiz.answer',
+      `<quiz> answer "${answer}" is not one of the option values: ${options.join(', ')}.`,
+      attrs.answer?.offset ?? entry.node.range.start,
+    );
+  }
 }
 
 function validateDiagram(entry: Entry, state: CompileState): void {
@@ -972,6 +1138,9 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
     const bindingSchema = entry.schema.binding;
     if (!bindingSchema) continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
+    // Table/chart selection only becomes a binding when the author supplies a
+    // key column; existing documents keep their renderer-local selection state.
+    if ((entry.name === 'table' || entry.name === 'chart') && !Object.hasOwn(attrs, 'key')) continue;
     const rawBind = typeof attrs.bind?.value === 'string' ? attrs.bind.value : '';
     let key = rawBind ? rawBind : `@${entry.node.id}`;
     if (attrs.bind) {
@@ -1008,6 +1177,7 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
     const binding = resolveGroup(group, state);
     if (binding) bindings[group.key] = binding;
   }
+  resolveSlotBindings(state, bindings);
   return bindings;
 }
 
@@ -1087,9 +1257,9 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
     }
   }
 
-  if (family === 'choice') {
+  if (family === 'choice' || family === 'selection') {
     for (const member of group.members.slice(1)) {
-      const other = state.options.get(member.entry.node.id) ?? [];
+      const other = bindingOptions(member.entry, state, family);
       if (other.join('\u0000') !== options.join('\u0000')) {
         state.report(
           'local.binding.option',
@@ -1101,25 +1271,30 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
     }
   }
 
+  const maxSelected = family === 'multi-select' ? numberValue(first.entry, first.attrs, 'max-selected') : undefined;
   const explicit = group.members.filter((member) => Object.hasOwn(member.attrs, 'initial'));
   let initial: LocalValue;
-  if (explicit.length > 0) {
-    if (explicit.length > 1) {
-      // Precompute lines once; report only a bounded sample of the conflicts.
-      const conflictLines = explicit.map((member) => lineAt(state, member.attrs.initial.offset));
-      const reported = Math.min(explicit.length, MAX_INITIAL_CONFLICT_DIAGNOSTICS);
-      for (let index = 0; index < reported; index += 1) {
-        const peers: number[] = [];
-        for (let step = 1; step < conflictLines.length && peers.length < MAX_CONFLICT_PEERS; step += 1) {
-          peers.push(conflictLines[(index + step) % conflictLines.length]);
-        }
-        state.report(
-          'local.initial.duplicate',
-          `Parameter "${group.key}" has multiple explicit initial values (${explicit.length} in total${peers.length ? `; see also line ${peers.join(', ')}` : ''}).`,
-          explicit[index].attrs.initial.offset,
-        );
+  if (explicit.length > 1) {
+    // Precompute lines once; report only a bounded sample of the conflicts.
+    const conflictLines = explicit.map((member) => lineAt(state, member.attrs.initial.offset));
+    const reported = Math.min(explicit.length, MAX_INITIAL_CONFLICT_DIAGNOSTICS);
+    for (let index = 0; index < reported; index += 1) {
+      const peers: number[] = [];
+      for (let step = 1; step < conflictLines.length && peers.length < MAX_CONFLICT_PEERS; step += 1) {
+        peers.push(conflictLines[(index + step) % conflictLines.length]);
       }
+      state.report(
+        'local.initial.duplicate',
+        `Parameter "${group.key}" has multiple explicit initial values (${explicit.length} in total${peers.length ? `; see also line ${peers.join(', ')}` : ''}).`,
+        explicit[index].attrs.initial.offset,
+      );
     }
+  }
+  if (family === 'multi-select') {
+    initial = explicit.length
+      ? multiSelectInitial(explicit[0], options, maxSelected, state)
+      : [];
+  } else if (explicit.length > 0) {
     initial = memberInitial(explicit[0], state, family, options);
   } else {
     initial = defaultInitial(first, state, family, options, constraints);
@@ -1142,6 +1317,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
     binding.step = constraints.step;
   }
   if (options.length) binding.options = [...options];
+  if (family === 'multi-select') binding.maxItems = maxSelected ?? options.length;
   return binding;
 }
 
@@ -1214,9 +1390,14 @@ function validateStaticInitial(group: Group, initial: LocalValue, state: Compile
 function bindingOptions(entry: Entry, state: CompileState, family: string): string[] {
   switch (family) {
     case 'choice':
+    case 'multi-select':
       return state.options.get(entry.node.id) ?? [];
     case 'tabs':
       return state.tabs.get(entry.node.id) ?? [];
+    case 'steps':
+      return state.steps.get(entry.node.id) ?? [];
+    case 'selection':
+      return state.selections.get(entry.node.id) ?? [''];
     case 'diagram':
       return state.diagramNodes.get(entry.node.id) ?? [];
     case 'checklist':
@@ -1224,6 +1405,38 @@ function bindingOptions(entry: Entry, state: CompileState, family: string): stri
     default:
       return [];
   }
+}
+
+/** Parse the comma-separated `initial` of `<multi-select>` into a set array. */
+function multiSelectInitial(
+  member: GroupMember,
+  options: string[],
+  maxSelected: number | undefined,
+  state: CompileState,
+): string[] {
+  const info = member.attrs.initial;
+  if (!info) return [];
+  const raw = typeof info.value === 'string' ? info.value : String(info.value ?? '');
+  const chosen: string[] = [];
+  for (const part of raw.split(',').map((value) => value.trim()).filter(Boolean)) {
+    if (!options.includes(part)) {
+      state.report(
+        'local.initial.option',
+        `Initial value "${part}" of parameter "${member.entry.node.id}" is not an option of <multi-select>.`,
+        info.offset,
+      );
+      continue;
+    }
+    if (!chosen.includes(part)) chosen.push(part);
+  }
+  if (maxSelected !== undefined && chosen.length > maxSelected) {
+    state.report(
+      'local.initial.range',
+      `Initial values of <multi-select> exceed max-selected ${maxSelected}.`,
+      info.offset,
+    );
+  }
+  return options.filter((value) => chosen.includes(value));
 }
 
 function memberInitial(
@@ -1268,8 +1481,13 @@ function defaultInitial(
     case 'choice':
       return options[0] ?? '';
     case 'tabs':
+    case 'steps':
     case 'diagram':
       return options[0] ?? '';
+    case 'selection':
+      return '';
+    case 'multi-select':
+      return [];
     case 'timer': {
       const local = constraints ?? numericConstraints(entry, member.attrs, family);
       return local.max ?? 60;
@@ -1344,7 +1562,7 @@ function validateInitialValue(
   if (family === 'boolean' && typeof value !== 'boolean') {
     state.report('local.initial.type', `Initial value of parameter "${key}" must be a boolean.`, first.entry.node.range.start);
   }
-  if ((family === 'choice' || family === 'tabs' || family === 'diagram') && options.length && !options.includes(String(value))) {
+  if ((family === 'choice' || family === 'tabs' || family === 'steps' || family === 'diagram' || family === 'selection') && options.length && !options.includes(String(value))) {
     state.report(
       family === 'diagram' ? 'local.initial.option' : 'local.initial.option',
       `Initial value "${String(value)}" of parameter "${key}" is not among the available values ${options.join(', ')}.`,
@@ -1353,9 +1571,143 @@ function validateInitialValue(
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Expression validation                                               */
-/* ------------------------------------------------------------------ */
+/**
+ * Resolve the independent, exclusive slot bindings of `<range-slider>` and
+ * `<coordinate>`. Each slot registers its own binding key, so `setMany` can
+ * update the slots atomically while `bindingSlots` tells the renderer which
+ * slot maps to which public parameter.
+ */
+function resolveSlotBindings(state: CompileState, bindings: Record<string, LocalBinding>): void {
+  const used = new Set(Object.keys(bindings));
+  for (const entry of state.entries) {
+    const slots = entry.schema.slots;
+    if (!slots?.length) continue;
+    const attrs = state.attrs.get(entry.node.id) ?? {};
+    const map: Record<string, string> = Object.create(null);
+    const keys = new Map<string, string>();
+    for (const slot of slots) {
+      const bindInfo = attrs[slot.bind];
+      let publicKey: string | undefined;
+      if (bindInfo) {
+        const raw = typeof bindInfo.value === 'string' ? bindInfo.value : '';
+        if (raw.length > MAX_LOCAL_NAME_LENGTH) {
+          state.report(
+            'local.budget.identifier',
+            `Parameter name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`,
+            bindInfo.offset ?? entry.node.range.start,
+          );
+        } else if (!IDENTIFIER.test(raw)) {
+          state.report(
+            'local.binding.name',
+            `Parameter name "${raw}" must match [A-Za-z_][A-Za-z0-9_]*.`,
+            bindInfo.offset ?? entry.node.range.start,
+          );
+        } else if (RESERVED_NAMES.has(raw) || EXTRA_RESERVED.has(raw)) {
+          state.report(
+            'local.binding.reserved',
+            `Parameter name "${raw}" is reserved; choose another name.`,
+            bindInfo.offset ?? entry.node.range.start,
+          );
+        } else {
+          publicKey = raw;
+        }
+      }
+      let key = publicKey ?? `@${entry.node.id}:${slot.name}`;
+      if (publicKey && used.has(publicKey)) {
+        state.report(
+          'local.binding.exclusive',
+          `Parameter "${publicKey}" of the ${slot.name} slot of <${entry.name}> is exclusive and cannot be shared with another control.`,
+          bindInfo?.offset ?? entry.node.range.start,
+        );
+        key = `@${entry.node.id}:${slot.name}`;
+      }
+      used.add(key);
+      const constraints = slotConstraints(entry, attrs, slot.name);
+      const initial = slotInitial(entry, attrs, slot, constraints, state);
+      const binding: LocalBinding = {
+        name: key,
+        nodeIds: [entry.node.id],
+        type: slot.kind,
+        initial,
+        owner: entry.node.id,
+      };
+      if (constraints.min !== undefined) binding.min = constraints.min;
+      if (constraints.max !== undefined) binding.max = constraints.max;
+      binding.step = constraints.step;
+      bindings[key] = binding;
+      map[slot.name] = key;
+      keys.set(slot.name, key);
+    }
+    const startKey = keys.get('start');
+    const endKey = keys.get('end');
+    if (startKey && endKey) {
+      const start = bindings[startKey].initial;
+      const end = bindings[endKey].initial;
+      if (typeof start === 'number' && typeof end === 'number' && start > end) {
+        state.report(
+          'local.initial.range',
+          `<range-slider> start ${start} cannot be greater than end ${end}.`,
+          entry.node.range.start,
+          entry.node.range.end,
+        );
+      }
+    }
+    state.bindingSlots[entry.node.id] = map;
+  }
+}
+
+function slotConstraints(entry: Entry, attrs: AttrMap, slot: string): NumericConstraints {
+  if (entry.name === 'coordinate') {
+    return {
+      min: numberValue(entry, attrs, `${slot}-min`) ?? -5,
+      max: numberValue(entry, attrs, `${slot}-max`) ?? 5,
+      step: numberValue(entry, attrs, 'step') ?? 1,
+    };
+  }
+  return {
+    min: numberValue(entry, attrs, 'min') ?? 0,
+    max: numberValue(entry, attrs, 'max') ?? 100,
+    step: numberValue(entry, attrs, 'step') ?? 1,
+  };
+}
+
+function slotInitial(
+  entry: Entry,
+  attrs: AttrMap,
+  slot: { initial: string; initialRule: 'min' | 'max-step' | 'nearest-zero' },
+  constraints: NumericConstraints,
+  state: CompileState,
+): number {
+  const base = constraints.min ?? 0;
+  const info = attrs[slot.initial];
+  if (info && typeof info.value === 'number') {
+    const value = info.value;
+    if (constraints.min !== undefined && value < constraints.min) {
+      state.report('local.initial.range', `Initial value ${value} of <${entry.name}> ${slot.initial} is below the minimum ${constraints.min}.`, info.offset);
+    }
+    if (constraints.max !== undefined && value > constraints.max) {
+      state.report('local.initial.range', `Initial value ${value} of <${entry.name}> ${slot.initial} exceeds the maximum ${constraints.max}.`, info.offset);
+    }
+    if (!onStep(value, base, constraints.step)) {
+      state.report('local.initial.step', `Initial value ${value} of <${entry.name}> ${slot.initial} is not on step ${constraints.step} (based at ${base}).`, info.offset);
+    }
+    return value;
+  }
+  if (slot.initialRule === 'max-step') {
+    const span = (constraints.max ?? base) - base;
+    const index = Math.max(0, Math.floor(span / constraints.step + EPSILON));
+    const value = base + index * constraints.step;
+    return Math.min(constraints.max ?? value, Math.max(constraints.min ?? value, value));
+  }
+  if (slot.initialRule === 'min') return constraints.min ?? 0;
+  return nearestZero(constraints.min, constraints.max, constraints.step) ?? 0;
+}
+
+function slotMap(state: CompileState): Record<string, Record<string, string>> | undefined {
+  return Object.keys(state.bindingSlots).length ? state.bindingSlots : undefined;
+}
+
+
 
 function validateExpressions(state: CompileState): void {
   const env = state.bindingKinds;
@@ -1476,6 +1828,94 @@ function validateExpressions(state: CompileState): void {
     }
   }
 }
+
+/**
+ * Validate static navigation targets after bindings are known: heading slugs
+ * can depend on initial interpolation values, and explicit anchors must be
+ * unique with each other and with heading targets.
+ */
+function validateNavigation(
+  state: CompileState,
+  bindings: Record<string, LocalBinding>,
+  initialState: Record<string, LocalValue>,
+): void {
+  const document: LocalDocument = {
+    syntax: 'local', source: state.source, nodes: state.nodes, initialState, bindings,
+  };
+  const namespace = '__local_core_check__';
+  // Ignore explicit anchors while assigning heading slugs so collisions are
+  // rejected regardless of whether the explicit anchor appears first.
+  const anchors = createHeadingAnchors(document, namespace, false);
+  const headingSlugs = new Set<string>();
+  const visit = (nodes: LocalNode[]): void => {
+    for (const node of nodes) {
+      if (node.type === 'heading') {
+        const id = anchors.ids.get(node);
+        if (id && id.startsWith(`${namespace}-`)) headingSlugs.add(id.slice(namespace.length + 1));
+      }
+      if (node.children) visit(node.children);
+    }
+  };
+  visit(state.nodes);
+
+  const explicit = new Set<string>();
+  for (const entry of state.entries) {
+    if (entry.name !== 'anchor') continue;
+    const attrs = state.attrs.get(entry.node.id) ?? {};
+    const info = attrs.id;
+    if (!info) continue;
+    const id = typeof info.value === 'string' ? info.value : '';
+    if (!id || !IDENTIFIER_ANCHOR.test(id)) {
+      state.report(
+        'local.anchor.id',
+        `Anchor id "${id}" must match [A-Za-z_][A-Za-z0-9_-]*.`,
+        info.offset,
+      );
+      continue;
+    }
+    if (explicit.has(id)) {
+      state.report('local.anchor.duplicate', `Duplicate anchor id "${id}".`, info.offset);
+    } else {
+      explicit.add(id);
+    }
+    if (headingSlugs.has(id)) {
+      state.report(
+        'local.anchor.duplicate',
+        `Anchor id "${id}" collides with an automatic heading target.`,
+        info.offset,
+      );
+    }
+  }
+
+  for (const entry of state.entries) {
+    if (entry.name !== 'jump') continue;
+    const attrs = state.attrs.get(entry.node.id) ?? {};
+    const info = attrs.to;
+    if (!info) continue;
+    const to = typeof info.value === 'string' ? info.value : '';
+    if (!to) {
+      state.report('local.jump.target', '<jump> target cannot be empty.', info.offset);
+      continue;
+    }
+    if (to.startsWith('#') || /\s/.test(to)) {
+      state.report(
+        'local.jump.target',
+        `<jump> target "${to}" must be a bare heading slug or anchor id without "#" or whitespace.`,
+        info.offset,
+      );
+      continue;
+    }
+    if (!explicit.has(to) && !headingSlugs.has(to)) {
+      state.report(
+        'local.jump.target',
+        `<jump> target "${to}" does not resolve to a heading or explicit anchor in this document.`,
+        info.offset,
+      );
+    }
+  }
+}
+
+const IDENTIFIER_ANCHOR = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 
 function suggestName(name: string, candidates: string[]): string | undefined {
   if (name.length > MAX_LOCAL_NAME_LENGTH) return undefined;
@@ -1702,16 +2142,102 @@ function columnIndex(header: string[], name: string): number {
 function validateTables(state: CompileState): void {
   for (const entry of state.entries) {
     if (entry.name === 'table') {
-      const table = state.tables.get(entry.node.id);
-      if (table) tableShape(table, state, entry);
+      tableShapeFor(entry, state);
       continue;
     }
-    const table = state.tables.get(entry.node.id);
-    if (!table) continue;
-    const shape = tableShape(table, state, entry);
+    if (entry.name !== 'chart' && entry.name !== 'timeline') continue;
+    const shape = tableShapeFor(entry, state);
     if (!shape) continue;
     if (entry.name === 'chart') validateChart(entry, shape, state);
-    else if (entry.name === 'timeline') validateTimeline(entry, shape, state);
+    else validateTimeline(entry, shape, state);
+  }
+}
+
+function tableShapeFor(entry: Entry, state: CompileState): TableShape | null {
+  if (state.tableShapes.has(entry.node.id)) return state.tableShapes.get(entry.node.id) ?? null;
+  const table = state.tables.get(entry.node.id);
+  const shape = table ? tableShape(table, state, entry) : null;
+  state.tableShapes.set(entry.node.id, shape);
+  return shape;
+}
+
+/**
+ * Turn the `key` column of a table/chart into the stable selection options used
+ * by its optional `bind`. Selection is only compiled when `key` is present, so
+ * old documents keep the renderer's internal selection state.
+ */
+function computeSelections(state: CompileState): void {
+  for (const entry of state.entries) {
+    if (entry.name !== 'table' && entry.name !== 'chart') continue;
+    const attrs = state.attrs.get(entry.node.id) ?? {};
+    const keyInfo = attrs.key;
+    if (!keyInfo) continue;
+    const keyName = typeof keyInfo.value === 'string' ? keyInfo.value.trim() : '';
+    if (!keyName) {
+      state.report('local.selection.key', `<${entry.name}> key cannot be empty.`, keyInfo.offset);
+      state.selections.set(entry.node.id, ['']);
+      continue;
+    }
+    const shape = tableShapeFor(entry, state);
+    if (!shape) {
+      state.selections.set(entry.node.id, ['']);
+      continue;
+    }
+    const column = columnIndex(shape.header, keyName);
+    if (column < 0) {
+      state.report(
+        'local.selection.key',
+        `<${entry.name}> key column "${keyName}" does not exist in its table.`,
+        keyInfo.offset,
+      );
+      state.selections.set(entry.node.id, ['']);
+      continue;
+    }
+    const values: string[] = [];
+    const seen = new Set<string>();
+    shape.rows.forEach((row, rowIndex) => {
+      const cell = row[column];
+      if (!cell) return;
+      if (hasInterpolation(cell)) {
+        state.report(
+          'local.selection.key',
+          `<${entry.name}> key column "${keyName}" must contain static text; row ${rowIndex + 1} contains an interpolation.`,
+          cell.range.start,
+          cell.range.end,
+        );
+        return;
+      }
+      const text = plainText(cell).trim();
+      if (!text) {
+        state.report(
+          'local.selection.key',
+          `<${entry.name}> key column "${keyName}" cannot be empty in row ${rowIndex + 1}.`,
+          cell.range.start,
+          cell.range.end,
+        );
+        return;
+      }
+      if (seen.has(text)) {
+        state.report(
+          'local.selection.key',
+          `<${entry.name}> key column "${keyName}" must be unique; duplicate value "${text}".`,
+          cell.range.start,
+          cell.range.end,
+        );
+        return;
+      }
+      seen.add(text);
+      values.push(text);
+    });
+    state.selections.set(entry.node.id, ['', ...values]);
+    const initial = attrs.initial;
+    if (initial && typeof initial.value === 'string' && initial.value !== '' && !values.includes(initial.value)) {
+      state.report(
+        'local.initial.option',
+        `Initial selection "${initial.value}" of <${entry.name}> is not a value of key column "${keyName}".`,
+        initial.offset,
+      );
+    }
   }
 }
 

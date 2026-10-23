@@ -1,6 +1,8 @@
 # Reactive MD 本地交互语法规范
 
-语法标识：`local-draft-1`，2026-10-22。第一次接触这套语法，建议先读 [新用户入门指南](local-guide-ch.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration-ch.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](compatibility-ch.md)。完整示例见 [Demo 索引](../examples/local/README.md)。
+本次新增的跳转、正文颜色、多选、区间、坐标、练习题、分步阅读和选择联动，见[新增组块与迁移](local-components-v2-ch.md)。
+
+语法标识：`local-draft-2`，2026-10-23。第一次接触这套语法，建议先读 [新用户入门指南](local-guide-ch.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration-ch.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](compatibility-ch.md)。完整示例见 [Demo 索引](../examples/local/README.md)。
 
 ## 1. 定位与范围
 
@@ -8,7 +10,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 
 基础语言只需要掌握两条连接规则：`bind` 为输入命名，`{{ 表达式 }}` 在其他位置读取它。组件负责自己的选择、展开、搜索、排序、计时和重置。
 
-本草案不包含外部服务调用、提交表单、异步资源、命名动作、事件处理器、可编程集合增删、循环模板或任意脚本。旧版 `state/data/computed/actions` 配置块不属于新语法。数组仅由清单组件产生，表格数据直接写在正文中。
+本草案不包含外部服务调用、提交表单、异步资源、命名动作、事件处理器、可编程集合增删、循环模板或任意脚本。旧版 `state/data/computed/actions` 配置块不属于新语法。数组由清单和多选组件产生，表格数据直接写在正文中。
 
 文档默认只保存当前实例的内存状态。重新打开从初值开始；持久化不属于作者语法。无需声明语言版本、导入组件或编写 YAML。宿主应明确选择草案解析模式，不能把旧语法与新语法混合猜测解析。
 
@@ -37,7 +39,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 
 块组件的开始与结束标签各占一行。开始标签的属性可以跨多行书写。标签内部的 `>` 只有在引号之外才结束标签。缩进只用于可读性：容器内容按共同缩进量去缩进，再按 Markdown 解析；代码围栏内部的缩进保持原样。
 
-行内组件 `badge`、`tooltip` 可以嵌入句子。其他组件为块组件；`option`、`tab`、`disclosure`、`node`、`edge` 是限定父容器内的子组件。
+行内组件 `badge`、`tooltip`、`jump`、`text` 可以嵌入句子。其他组件为块组件；`option`、`tab`、`disclosure`、`node`、`edge` 是限定父容器内的子组件。
 
 ### 3.2 两种标签形态
 
@@ -46,7 +48,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 | 无正文组件 | `<slider bind="a" label="振幅">` | 不写结束标签；也接受末尾的 `/>` |
 | 有正文容器 | `<card title="说明">` 和 `</card>` | 必须显式闭合，允许嵌套 |
 
-无正文组件固定为 `input`、`textarea`、`number`、`slider`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`edge`。其余本草案列出的组件均使用成对标签。`textarea` 的文本通过 `initial` 设置，因此属于无正文组件。
+无正文组件固定为 `input`、`textarea`、`number`、`slider`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`edge`、`anchor`、`range-slider`、`coordinate`。其余本草案列出的组件均使用成对标签。`textarea` 的文本通过 `initial` 设置，因此属于无正文组件。
 
 例如：
 
@@ -295,7 +297,7 @@ chart.kind 默认为 bar，支持 bar、line、area、scatter、donut。支持�
 
 line/area 的横轴按整列类型确定为数值轴或分类轴，按源码顺序连接。donut 数值必须非负，总和为零时显示“暂无占比”。系列名称自动成为图例；默认提供指针与键盘读数，无需事件逻辑。
 
-数值列会随参数更新。计算错误显示在对应图表，不将错误值替换为 0。此基础版本不暴露图表选择作为公开状态。
+数值列会随参数更新。计算错误显示在对应图表，不将错误值替换为 0。提供 key 时可以通过 bind 公开稳定行标识，详见扩展说明。
 
 ### 9.4 时间轴
 
@@ -400,8 +402,9 @@ node.id 为当前图解内唯一的 `[A-Za-z_][A-Za-z0-9_-]*`。edge 必填 from
 | 组织内容 | panel、card、grid、tabs、tab、accordion、disclosure、if |
 | 提示 | alert、badge、tooltip |
 | 可视化 | table、chart、plot、timeline、diagram、node、edge |
+| 本次新增 | jump、anchor、text、section、multi-select、range-slider、coordinate、quiz、steps、step |
 
-共 33 个组件名，其中 option、tab、disclosure、node、edge 为父组件的结构子项。大部分文章只需 Markdown 和两三个输入/展示组件。普通金额可以直接写 `{{ total }} 元`；货币格式、统计卡片不作为入门必需品。
+共 43 个组件名，其中 option、tab、disclosure、node、edge、step 为父组件的结构子项。大部分文章只需 Markdown 和两三个输入/展示组件。普通金额可以直接写 `{{ total }} 元`；货币格式、统计卡片不作为入门必需品。
 
 本草案不接受旧版 form、submit、button、each、list、spinner、stat、value 等标签，也不接受 set/reset 动作属性或 on-* 事件属性。面板的 reset 是固定布尔选项，不是可编程动作。
 
@@ -437,3 +440,6 @@ node.id 为当前图解内唯一的 `[A-Za-z_][A-Za-z0-9_-]*`。edge 必填 from
 10. 文档实例独立、销毁清理、无意外网络动作；复杂或超量数学输入能够被执行预算中止。
 
 这些规则用于编译器、运行时和浏览器验收。示例映射及预期观察点见 [Demo 索引](../examples/local/README.md)，机器可读的最小验收集见[语言验收数据](../examples/conformance/README.md)，实际检查记录见[仓库实现说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/IMPLEMENTATION.md)。
+
+
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。本工作区版本尚未发布。

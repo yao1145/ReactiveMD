@@ -1,9 +1,9 @@
 import { expect, it, vi } from 'vitest';
 import { LOCAL_SYNTAX_VERSION } from '../src/local/version';
 
-it('publishes the local-draft-1 syntax revision as a literal constant', () => {
-  const revision: 'local-draft-1' = LOCAL_SYNTAX_VERSION;
-  expect(revision).toBe('local-draft-1');
+it('publishes the local-draft-2 syntax revision as a literal constant', () => {
+  const revision: 'local-draft-2' = LOCAL_SYNTAX_VERSION;
+  expect(revision).toBe('local-draft-2');
 });
 
 it('loads the core entry without touching React', async () => {
@@ -13,7 +13,7 @@ it('loads the core entry without touching React', async () => {
   });
   try {
     const core = await import('../src/index');
-    expect(core.LOCAL_SYNTAX_VERSION).toBe('local-draft-1');
+    expect(core.LOCAL_SYNTAX_VERSION).toBe('local-draft-2');
     expect(typeof core.compileLocal).toBe('function');
     expect(typeof core.createLocalRuntime).toBe('function');
   } finally {

@@ -47,6 +47,7 @@ function createRuntime(initial: Record<string, LocalValue> = {}): LocalRuntime {
     snapshot: () => ({ revision: 0, state: initial }),
     get: () => null,
     set: () => [],
+    setMany: () => [],
     evaluate: () => null,
     text: (template) => template,
     reset: () => {},

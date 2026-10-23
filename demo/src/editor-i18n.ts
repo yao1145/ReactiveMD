@@ -241,6 +241,8 @@ export const EDITOR_TOOLBAR_COPY: Record<Language, EditorToolbarCopy> = {
   },
 };
 
+import { EXTENDED_NATIVE_COMPONENT_COPY_ZH } from './extended-native-components';
+
 export const NATIVE_COMPONENT_CATALOG_COPY: Record<Language, NativeComponentCatalogCopy> = {
   en: {
     groups: {
@@ -261,6 +263,7 @@ export const NATIVE_COMPONENT_CATALOG_COPY: Record<Language, NativeComponentCata
       hint: '提示反馈',
     },
     components: {
+      ...EXTENDED_NATIVE_COMPONENT_COPY_ZH,
       slider: {
         label: '滑块',
         description: '拖动滑块在指定范围内选择一个数值。',

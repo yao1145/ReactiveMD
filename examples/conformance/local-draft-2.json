@@ -1,0 +1,184 @@
+{
+  "syntaxVersion": "local-draft-2",
+  "cases": [
+    {
+      "name": "shared numeric binding has one initial value and updates prose",
+      "source": "<number bind=\"n\" label=\"Count\" initial=\"2\" min=\"0\" max=\"10\">\n<slider bind=\"n\" label=\"Shared count\" min=\"0\" max=\"10\">\n\nTotal: {{ n * 2 }}",
+      "ok": true,
+      "initial": {
+        "n": 2
+      },
+      "actions": [
+        {
+          "bind": "n",
+          "value": 5
+        }
+      ],
+      "text": "Total: {{ n * 2 }}",
+      "expectedText": "Total: 10"
+    },
+    {
+      "name": "hidden controls initialize their bindings",
+      "source": "<toggle bind=\"show\" label=\"Show\">\n<if when=\"{{ show }}\">\n<number bind=\"n\" label=\"Hidden count\" initial=\"4\">\n</if>\n\n{{ n * 2 }}",
+      "ok": true,
+      "initial": {
+        "show": false,
+        "n": 4
+      },
+      "text": "{{ n * 2 }}",
+      "expectedText": "8"
+    },
+    {
+      "name": "invalid state writes keep the last valid value",
+      "source": "<number bind=\"n\" label=\"Count\" initial=\"4\" min=\"0\" max=\"10\">",
+      "ok": true,
+      "initial": {
+        "n": 4
+      },
+      "actions": [
+        {
+          "bind": "n",
+          "value": 11,
+          "codes": [
+            "local.runtime.value"
+          ]
+        }
+      ],
+      "text": "{{ n }}",
+      "expectedText": "4"
+    },
+    {
+      "name": "code fences keep controls and interpolation literal",
+      "source": "```markdown\n<counter bind=\"n\" label=\"Literal\">\n{{ missing }}\n```",
+      "ok": true,
+      "bindingNames": []
+    },
+    {
+      "name": "unknown components preserve source with a warning",
+      "source": "<slidr label=\"Typo\">\n</slidr>",
+      "ok": true,
+      "bindingNames": [],
+      "codes": [
+        "local.component.unknown"
+      ]
+    },
+    {
+      "name": "unbound expression names produce a compiler diagnostic",
+      "source": "Total: {{ missing * 2 }}",
+      "ok": false,
+      "codes": [
+        "local.binding.unknown"
+      ]
+    },
+    {
+      "name": "multi-select-values",
+      "source": "<multi-select bind=\"subjects\" label=\"Subjects\" max-selected=\"2\">\n<option value=\"math\">Math</option>\n<option value=\"physics\">Physics</option>\n</multi-select>",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "subjects": []
+      },
+      "bindingNames": [
+        "subjects"
+      ],
+      "actions": [
+        {
+          "bind": "subjects",
+          "value": [
+            "physics",
+            "math"
+          ],
+          "codes": []
+        }
+      ],
+      "text": "{{ len(subjects) }}",
+      "expectedText": "2"
+    },
+    {
+      "name": "range-slots",
+      "source": "<range-slider label=\"Interval\" bind-start=\"low\" bind-end=\"high\" initial-start=\"20\" initial-end=\"80\">",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "low": 20,
+        "high": 80
+      },
+      "bindingNames": [
+        "low",
+        "high"
+      ],
+      "text": "{{ high - low }}",
+      "expectedText": "60"
+    },
+    {
+      "name": "coordinate-slots",
+      "source": "<coordinate label=\"Point\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\">",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "px": 1,
+        "py": 2
+      },
+      "bindingNames": [
+        "px",
+        "py"
+      ],
+      "text": "{{ px + py }}",
+      "expectedText": "3"
+    },
+    {
+      "name": "steps-initialization",
+      "source": "<steps label=\"Path\" bind=\"lesson\">\n<step label=\"Read\">\nRead first.\n</step>\n<step label=\"Try\">\nTry next.\n</step>\n</steps>",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "lesson": "step-1"
+      },
+      "bindingNames": [
+        "lesson"
+      ],
+      "actions": [
+        {
+          "bind": "lesson",
+          "value": "step-2",
+          "codes": []
+        }
+      ],
+      "text": "{{ lesson }}",
+      "expectedText": "step-2"
+    },
+    {
+      "name": "jump-colored-prose",
+      "source": "<jump to=\"result\">Results</jump>\n\n<section color=\"#123\">\n\n<text color=\"red\">Important</text>\n\n</section>\n\n<anchor id=\"result\">\n\nDone.",
+      "ok": true,
+      "codes": []
+    },
+    {
+      "name": "quiz-choice",
+      "source": "<quiz label=\"Two plus three\" answer=\"b\">\n<option value=\"a\">4</option>\n<option value=\"b\">5</option>\n</quiz>",
+      "ok": true,
+      "codes": []
+    },
+    {
+      "name": "selection-key",
+      "source": "<table bind=\"project\" key=\"Project\" initial=\"Visual\">\n| Project | Cost |\n| --- | ---: |\n| Content | 120 |\n| Visual | 230 |\n</table>",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "project": "Visual"
+      },
+      "bindingNames": [
+        "project"
+      ],
+      "actions": [
+        {
+          "bind": "project",
+          "value": "Content",
+          "codes": []
+        }
+      ],
+      "text": "{{ project }}",
+      "expectedText": "Content"
+    }
+  ]
+}

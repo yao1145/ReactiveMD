@@ -1,6 +1,6 @@
 {
   "protocolVersion": "component-protocol-1",
-  "syntaxVersion": "local-draft-1",
+  "syntaxVersion": "local-draft-2",
   "cases": [
     {
       "id": "slider-explicit-initial",
@@ -8,11 +8,17 @@
       "source": "<slider bind=\"seats\" label=\"People\" initial=\"2\" min=\"1\" max=\"20\">\n\nCurrently {{ seats }} people.",
       "ok": true,
       "codes": [],
-      "initial": { "seats": 2 },
-      "bindingNames": ["seats"],
+      "initial": {
+        "seats": 2
+      },
+      "bindingNames": [
+        "seats"
+      ],
       "text": "Currently {{ seats }} people.",
       "expectedText": "Currently 2 people.",
-      "htmlIncludes": ["People"]
+      "htmlIncludes": [
+        "People"
+      ]
     },
     {
       "id": "slider-default-min",
@@ -20,8 +26,12 @@
       "source": "<slider bind=\"level\" label=\"Level\" min=\"5\" max=\"15\">",
       "ok": true,
       "codes": [],
-      "initial": { "level": 5 },
-      "bindingNames": ["level"],
+      "initial": {
+        "level": 5
+      },
+      "bindingNames": [
+        "level"
+      ],
       "text": "Level: {{ level }}.",
       "expectedText": "Level: 5."
     },
@@ -31,10 +41,21 @@
       "source": "<slider bind=\"n\" label=\"First\" initial=\"1\" min=\"0\" max=\"10\">\n<slider bind=\"n\" label=\"Second\" min=\"0\" max=\"10\">\n\nShared value {{ n }}.",
       "ok": true,
       "codes": [],
-      "initial": { "n": 1 },
-      "bindingNames": ["n"],
+      "initial": {
+        "n": 1
+      },
+      "bindingNames": [
+        "n"
+      ],
       "actions": [
-        { "bind": "n", "value": 7, "codes": [], "expectedState": { "n": 7 } }
+        {
+          "bind": "n",
+          "value": 7,
+          "codes": [],
+          "expectedState": {
+            "n": 7
+          }
+        }
       ],
       "text": "Shared value {{ n }}.",
       "expectedText": "Shared value 7."
@@ -45,12 +66,41 @@
       "source": "<slider bind=\"amount\" label=\"Amount\" initial=\"4\" min=\"0\" max=\"10\">",
       "ok": true,
       "codes": [],
-      "initial": { "amount": 4 },
-      "bindingNames": ["amount"],
+      "initial": {
+        "amount": 4
+      },
+      "bindingNames": [
+        "amount"
+      ],
       "actions": [
-        { "bind": "amount", "value": 11, "codes": ["local.runtime.value"], "expectedState": { "amount": 4 } },
-        { "bind": "amount", "value": 6, "codes": [], "expectedState": { "amount": 6 } },
-        { "bind": "amount", "value": 1.5, "codes": ["local.runtime.value"], "expectedState": { "amount": 6 } }
+        {
+          "bind": "amount",
+          "value": 11,
+          "codes": [
+            "local.runtime.value"
+          ],
+          "expectedState": {
+            "amount": 4
+          }
+        },
+        {
+          "bind": "amount",
+          "value": 6,
+          "codes": [],
+          "expectedState": {
+            "amount": 6
+          }
+        },
+        {
+          "bind": "amount",
+          "value": 1.5,
+          "codes": [
+            "local.runtime.value"
+          ],
+          "expectedState": {
+            "amount": 6
+          }
+        }
       ],
       "text": "{{ amount }}",
       "expectedText": "6"
@@ -60,7 +110,9 @@
       "component": "slider",
       "source": "<slider bind=\"n\" label=\"First\" min=\"0\" max=\"10\">\n<slider bind=\"n\" label=\"Second\" min=\"0\" max=\"20\">",
       "ok": false,
-      "codes": ["local.binding.constraint"]
+      "codes": [
+        "local.binding.constraint"
+      ]
     },
     {
       "id": "slider-anonymous-controls",
@@ -69,14 +121,19 @@
       "ok": true,
       "codes": [],
       "bindingNames": [],
-      "htmlIncludes": ["Anonymous first", "Anonymous second"]
+      "htmlIncludes": [
+        "Anonymous first",
+        "Anonymous second"
+      ]
     },
     {
       "id": "slider-initial-out-of-range",
       "component": "slider",
       "source": "<slider bind=\"ratio\" label=\"Ratio\" initial=\"12\" min=\"0\" max=\"10\">",
       "ok": false,
-      "codes": ["local.initial.range"]
+      "codes": [
+        "local.initial.range"
+      ]
     },
     {
       "id": "tabs-default-first",
@@ -84,11 +141,31 @@
       "source": "<tabs bind=\"view\" label=\"View\">\n<tab label=\"Overview\">Overview content</tab>\n<tab label=\"Details\" value=\"detail\">Detail content</tab>\n</tabs>",
       "ok": true,
       "codes": [],
-      "initial": { "view": "tab-1" },
-      "bindingNames": ["view"],
+      "initial": {
+        "view": "tab-1"
+      },
+      "bindingNames": [
+        "view"
+      ],
       "actions": [
-        { "bind": "view", "value": "detail", "codes": [], "expectedState": { "view": "detail" } },
-        { "bind": "view", "value": "absent", "codes": ["local.runtime.value"], "expectedState": { "view": "detail" } }
+        {
+          "bind": "view",
+          "value": "detail",
+          "codes": [],
+          "expectedState": {
+            "view": "detail"
+          }
+        },
+        {
+          "bind": "view",
+          "value": "absent",
+          "codes": [
+            "local.runtime.value"
+          ],
+          "expectedState": {
+            "view": "detail"
+          }
+        }
       ],
       "text": "Current tab {{ view }}.",
       "expectedText": "Current tab detail."
@@ -99,12 +176,29 @@
       "source": "<tabs bind=\"view\" label=\"View\" initial=\"detail\">\n<tab label=\"Overview\" value=\"summary\">Summary page</tab>\n<tab label=\"Details\" value=\"detail\">Detail page</tab>\n</tabs>",
       "ok": true,
       "codes": [],
-      "initial": { "view": "detail" },
-      "bindingNames": ["view"],
-      "actions": [
-        { "bind": "view", "value": "summary", "codes": [], "expectedState": { "view": "summary" } }
+      "initial": {
+        "view": "detail"
+      },
+      "bindingNames": [
+        "view"
       ],
-      "reset": { "component": "tabs", "index": 0, "expectedState": { "view": "detail" } },
+      "actions": [
+        {
+          "bind": "view",
+          "value": "summary",
+          "codes": [],
+          "expectedState": {
+            "view": "summary"
+          }
+        }
+      ],
+      "reset": {
+        "component": "tabs",
+        "index": 0,
+        "expectedState": {
+          "view": "detail"
+        }
+      },
       "text": "{{ view }}",
       "expectedText": "detail"
     },
@@ -113,7 +207,9 @@
       "component": "tabs",
       "source": "<tabs bind=\"view\" label=\"First\">\n<tab label=\"A\">First page</tab>\n</tabs>\n<tabs bind=\"view\" label=\"Second\">\n<tab label=\"B\">Second page</tab>\n</tabs>",
       "ok": false,
-      "codes": ["local.binding.exclusive"]
+      "codes": [
+        "local.binding.exclusive"
+      ]
     },
     {
       "id": "tabs-hidden-controls-and-panel-reset",
@@ -121,14 +217,56 @@
       "source": "<panel title=\"Settings\">\n<tabs bind=\"view\" label=\"Sections\" initial=\"basic\">\n<tab label=\"Basic\" value=\"basic\">\n<slider bind=\"a\" label=\"A\" initial=\"2\" min=\"0\" max=\"10\">\n</tab>\n<tab label=\"Advanced\" value=\"advanced\">\n<slider bind=\"b\" label=\"B\" initial=\"7\" min=\"0\" max=\"10\">\n</tab>\n</tabs>\n</panel>",
       "ok": true,
       "codes": [],
-      "initial": { "view": "basic", "a": 2, "b": 7 },
-      "bindingNames": ["a", "b", "view"],
-      "actions": [
-        { "bind": "view", "value": "advanced", "codes": [], "expectedState": { "view": "advanced", "a": 2, "b": 7 } },
-        { "bind": "a", "value": 5, "codes": [], "expectedState": { "view": "advanced", "a": 5, "b": 7 } },
-        { "bind": "b", "value": 9, "codes": [], "expectedState": { "view": "advanced", "a": 5, "b": 9 } }
+      "initial": {
+        "view": "basic",
+        "a": 2,
+        "b": 7
+      },
+      "bindingNames": [
+        "a",
+        "b",
+        "view"
       ],
-      "reset": { "component": "panel", "expectedState": { "view": "basic", "a": 2, "b": 7 } },
+      "actions": [
+        {
+          "bind": "view",
+          "value": "advanced",
+          "codes": [],
+          "expectedState": {
+            "view": "advanced",
+            "a": 2,
+            "b": 7
+          }
+        },
+        {
+          "bind": "a",
+          "value": 5,
+          "codes": [],
+          "expectedState": {
+            "view": "advanced",
+            "a": 5,
+            "b": 7
+          }
+        },
+        {
+          "bind": "b",
+          "value": 9,
+          "codes": [],
+          "expectedState": {
+            "view": "advanced",
+            "a": 5,
+            "b": 9
+          }
+        }
+      ],
+      "reset": {
+        "component": "panel",
+        "expectedState": {
+          "view": "basic",
+          "a": 2,
+          "b": 7
+        }
+      },
       "text": "{{ view }}: {{ a }} / {{ b }}",
       "expectedText": "basic: 2 / 7"
     },
@@ -138,9 +276,15 @@
       "source": "<slider bind=\"a\" label=\"Amplitude\" initial=\"1\" min=\"0\" max=\"3\" step=\"0.5\">\n\n<plot label=\"Sine wave\" min=\"-2\" max=\"2\">\n$$ y = a\\sin x $$\n</plot>",
       "ok": true,
       "codes": [],
-      "initial": { "a": 1 },
-      "bindingNames": ["a"],
-      "htmlIncludes": ["range -2 to 2, 200 samples"]
+      "initial": {
+        "a": 1
+      },
+      "bindingNames": [
+        "a"
+      ],
+      "htmlIncludes": [
+        "range -2 to 2, 200 samples"
+      ]
     },
     {
       "id": "plot-dynamic-range",
@@ -148,47 +292,191 @@
       "source": "<slider bind=\"low\" label=\"Lower bound\" initial=\"-2\" min=\"-10\" max=\"0\">\n<slider bind=\"high\" label=\"Upper bound\" initial=\"3\" min=\"0\" max=\"10\">\n\n<plot label=\"Range curve\" min=\"{{ low }}\" max=\"{{ high }}\">\n$$ y = x $$\n</plot>",
       "ok": true,
       "codes": [],
-      "initial": { "low": -2, "high": 3 },
-      "bindingNames": ["low", "high"],
+      "initial": {
+        "low": -2,
+        "high": 3
+      },
+      "bindingNames": [
+        "low",
+        "high"
+      ],
       "actions": [
-        { "bind": "high", "value": 5, "codes": [], "expectedState": { "high": 5 } }
+        {
+          "bind": "high",
+          "value": 5,
+          "codes": [],
+          "expectedState": {
+            "high": 5
+          }
+        }
       ],
       "text": "{{ high - low }}",
       "expectedText": "7",
-      "htmlIncludes": ["range -2 to 5, 200 samples"]
+      "htmlIncludes": [
+        "range -2 to 5, 200 samples"
+      ]
     },
     {
       "id": "plot-non-number-binding",
       "component": "plot",
       "source": "<toggle bind=\"a\" label=\"Switch\">\n\n<plot label=\"Type error\">\n$$ y = a\\sin x $$\n</plot>",
       "ok": false,
-      "codes": ["local.math.binding"]
+      "codes": [
+        "local.math.binding"
+      ]
     },
     {
       "id": "plot-invalid-range",
       "component": "plot",
       "source": "<plot label=\"Invalid range\" min=\"5\" max=\"5\">\n$$ y = x $$\n</plot>",
       "ok": false,
-      "codes": ["local.constraint"]
+      "codes": [
+        "local.constraint"
+      ]
     },
     {
       "id": "plot-point-budget",
       "component": "plot",
       "source": "<plot label=\"First group\" min=\"-1\" max=\"1\" samples=\"2000\">\n$$ y = x $$\n$$ y = x^2 $$\n$$ y = \\sin x $$\n$$ y = \\cos x $$\n$$ y = x/2 $$\n$$ y = 2x $$\n</plot>\n\n<plot label=\"Second group\" min=\"-1\" max=\"1\" samples=\"2000\">\n$$ y = x + 1 $$\n$$ y = x - 1 $$\n$$ y = 3x $$\n$$ y = \\frac{x}{3} $$\n$$ y = -x $$\n</plot>",
       "ok": false,
-      "codes": ["local.budget.plot.points"]
+      "codes": [
+        "local.budget.plot.points"
+      ]
     },
     {
       "id": "unknown-tag-inert-fallback",
       "component": "slider",
       "source": "<slidr label=\"Typo\">\n<slider bind=\"ghost\" label=\"Should stay inert\" initial=\"4\" min=\"0\" max=\"10\">\n{{ ghost }} should not run.\n</slidr>\n\nOutside still evaluates: {{ 1 + 2 }}.",
       "ok": true,
-      "codes": ["local.component.unknown"],
+      "codes": [
+        "local.component.unknown"
+      ],
       "bindingNames": [],
       "text": "Outside still evaluates: {{ 1 + 2 }}.",
       "expectedText": "Outside still evaluates: 3.",
-      "htmlIncludes": ["Unsupported syntax"],
-      "htmlExcludes": ["<input"]
+      "htmlIncludes": [
+        "Unsupported syntax"
+      ],
+      "htmlExcludes": [
+        "<input"
+      ]
+    },
+    {
+      "id": "v2-multi-select-values",
+      "component": "multi-select",
+      "source": "<multi-select bind=\"subjects\" label=\"Subjects\" max-selected=\"2\">\n<option value=\"math\">Math</option>\n<option value=\"physics\">Physics</option>\n</multi-select>",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "subjects": []
+      },
+      "bindingNames": [
+        "subjects"
+      ],
+      "actions": [
+        {
+          "bind": "subjects",
+          "value": [
+            "physics",
+            "math"
+          ],
+          "codes": []
+        }
+      ],
+      "text": "{{ len(subjects) }}",
+      "expectedText": "2"
+    },
+    {
+      "id": "v2-range-slots",
+      "component": "range-slider",
+      "source": "<range-slider label=\"Interval\" bind-start=\"low\" bind-end=\"high\" initial-start=\"20\" initial-end=\"80\">",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "low": 20,
+        "high": 80
+      },
+      "bindingNames": [
+        "low",
+        "high"
+      ],
+      "text": "{{ high - low }}",
+      "expectedText": "60"
+    },
+    {
+      "id": "v2-coordinate-slots",
+      "component": "coordinate",
+      "source": "<coordinate label=\"Point\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\">",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "px": 1,
+        "py": 2
+      },
+      "bindingNames": [
+        "px",
+        "py"
+      ],
+      "text": "{{ px + py }}",
+      "expectedText": "3"
+    },
+    {
+      "id": "v2-steps-initialization",
+      "component": "steps",
+      "source": "<steps label=\"Path\" bind=\"lesson\">\n<step label=\"Read\">\nRead first.\n</step>\n<step label=\"Try\">\nTry next.\n</step>\n</steps>",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "lesson": "step-1"
+      },
+      "bindingNames": [
+        "lesson"
+      ],
+      "actions": [
+        {
+          "bind": "lesson",
+          "value": "step-2",
+          "codes": []
+        }
+      ],
+      "text": "{{ lesson }}",
+      "expectedText": "step-2"
+    },
+    {
+      "id": "v2-jump-colored-prose",
+      "component": "jump",
+      "source": "<jump to=\"result\">Results</jump>\n\n<section color=\"#123\">\n\n<text color=\"red\">Important</text>\n\n</section>\n\n<anchor id=\"result\">\n\nDone.",
+      "ok": true,
+      "codes": []
+    },
+    {
+      "id": "v2-quiz-choice",
+      "component": "quiz",
+      "source": "<quiz label=\"Two plus three\" answer=\"b\">\n<option value=\"a\">4</option>\n<option value=\"b\">5</option>\n</quiz>",
+      "ok": true,
+      "codes": []
+    },
+    {
+      "id": "v2-selection-key",
+      "component": "table",
+      "source": "<table bind=\"project\" key=\"Project\" initial=\"Visual\">\n| Project | Cost |\n| --- | ---: |\n| Content | 120 |\n| Visual | 230 |\n</table>",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "project": "Visual"
+      },
+      "bindingNames": [
+        "project"
+      ],
+      "actions": [
+        {
+          "bind": "project",
+          "value": "Content",
+          "codes": []
+        }
+      ],
+      "text": "{{ project }}",
+      "expectedText": "Content"
     }
   ]
 }

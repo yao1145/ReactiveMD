@@ -68,6 +68,25 @@ $$
 </tab>
 </tabs>
 
+## 探索坐标与区间
+
+选择一个区间，再拖动坐标点。比较横坐标是否落在区间内，并读取波形在该位置的高度。
+
+<panel title="坐标与区间">
+<range-slider label="观察区间" bind-start="low" bind-end="high" initial-start="-3" initial-end="3" min="-5" max="5" color="#7c3aed">
+
+当前区间：**{{ low }}–{{ high }}**，宽度为 **{{ high - low }}**。
+
+<coordinate label="点的位置" bind-x="px" bind-y="py" initial-x="1" initial-y="2" x-min="-5" x-max="5" y-min="-5" y-max="5" color="#2563eb">
+
+坐标：**({{ px }}, {{ py }})**，距原点 **{{ round(sqrt(px * px + py * py) * 100) / 100 }}**。
+
+{{ px >= low && px <= high ? '横坐标位于观察区间内。' : '横坐标位于观察区间外。' }} 波形在这一横坐标处的高度为 **{{ round(a * sin(f * px) * 100) / 100 }}**。
+
+<quiz type="number" label="点 (3, 4) 到原点的距离是多少？" answer="5" tolerance="0.01" explanation="3² + 4² 的平方根是 5，可以把坐标点拖到 (3, 4) 验证。">
+</quiz>
+</panel>
+
 ## 看看写法
 
 <accordion>

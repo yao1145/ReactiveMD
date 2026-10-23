@@ -1,6 +1,6 @@
 # Language conformance data
 
-[local-draft-1.json](local-draft-1.json) is a copyable minimal semantic conformance suite containing source documents, compilation results, initial parameters, state writes and expected text. The data is distributed with the npm package so other tools or implementations can read the same JSON.
+[local-draft-2.json](local-draft-2.json) is a copyable minimal semantic conformance suite containing source documents, compilation results, initial parameters, state writes and expected text. The data is distributed with the npm package so other tools or implementations can read the same JSON.
 
 - `syntaxVersion` matches the core export `LOCAL_SYNTAX_VERSION`.
 - `ok` is the expected compilation result; `codes` is the deduplicated set of expected diagnostic codes, and when omitted no diagnostics are expected. A successful compile can still contain degradation warnings.
@@ -22,7 +22,7 @@ That command runs the component protocol cases and the existing language conform
 
 ### File and case fields
 
-The file root object contains `protocolVersion`, `syntaxVersion` and a non-empty `cases` array. Currently these are `component-protocol-1` and `local-draft-1`. The package version is identified separately by `package.json` and is not inferred from these two fields.
+The file root object contains `protocolVersion`, `syntaxVersion` and a non-empty `cases` array. Currently these are `component-protocol-1` and `local-draft-2`. The package version is identified separately by `package.json` and is not inferred from these two fields.
 
 | Field | Rule |
 | --- | --- |

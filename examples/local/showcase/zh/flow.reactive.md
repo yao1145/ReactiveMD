@@ -36,6 +36,30 @@
 
 按 Tab 聚焦图中的节点，用方向键移动焦点，再按 Enter 或空格键选择。节点说明和图下正文会跟随选择同步更新。
 
+## 按步骤解释这个流程
+
+<steps label="讲解路线" bind="lesson">
+<step label="读取输入" value="observe">
+先查看输入节点，当前人数为 **{{ people }}**。
+</step>
+<step label="核对计算" value="calculate">
+选择计算节点。每人 80 元，因此 **{{ people }} × 80 = {{ people * 80 }}**。
+</step>
+<step label="解释结果" value="practice">
+选择显示节点，向同伴说明人数变化为何会改变合计。
+
+<quiz type="choice" label="哪个表达式用于计算总费用？" answer="total" explanation="总费用等于人数乘以每人的费用。">
+<option value="total">people × 80</option>
+<option value="sum">people + 80</option>
+<option value="fixed">80</option>
+</quiz>
+
+<counter label="讲解轮数" initial="0" min="0" max="10">
+</step>
+</steps>
+
+当前步骤：**{{ lesson }}**。向同伴讲清一次结果后，可以记录一轮讲解。
+
 ## 看看写法
 
 <accordion>

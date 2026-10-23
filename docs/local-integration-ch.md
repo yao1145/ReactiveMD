@@ -91,7 +91,7 @@ if (result.ok) {
 - 成功：`{ ok: true; document: LocalDocument; diagnostics: Diagnostic[] }`
 - 失败：`{ ok: false; diagnostics: Diagnostic[] }`
 
-语法问题通过诊断返回；当前构建只接受 `local-draft-1`。源码上限为 1,000,000 字符。`document` 是当前运行时对象，不应当作持久化格式。
+语法问题通过诊断返回；当前构建只接受 `local-draft-2`。源码上限为 1,000,000 字符。`document` 是当前运行时对象，不应当作持久化格式。
 
 宿主可以为单次编译设置语法节点预算：
 
@@ -133,7 +133,7 @@ const result = compileLocal(source, options);
 
 ### 其他核心导出
 
-- `LOCAL_SYNTAX_VERSION`：当前为字面量 `'local-draft-1'`。用它记录文档所用的语法修订。
+- `LOCAL_SYNTAX_VERSION`：当前为字面量 `'local-draft-2'`。用它记录文档所用的语法修订。
 - `compileExpression(source: string)`：返回带 `source`、`dependencies`、`evaluate(env)` 和 `inferType(env)` 的对象；失败抛出 `LocalExpressionError`。
 - `LocalExpressionError`：包含 `code` 和 `offset`。
 - `compileLatex(source: string)`：返回带 `source`、`dependencies` 和 `evaluate(x, env, budget?)` 的对象；失败抛出带 `code`、`offset` 的错误。
@@ -217,3 +217,6 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 ## 不提供的功能
 
 本地模式不提供状态持久化、插件或自定义组件注册、任意 HTML、作者 CSS、事件处理器、网络请求、外部数据接口、表单提交、Vue 支持、React 18 支持或 CommonJS 入口。宿主不应把这些能力当作可配置项。
+
+
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。本工作区版本尚未发布。

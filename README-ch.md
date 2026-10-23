@@ -4,12 +4,12 @@
 
 用 Markdown 写本地交互文档。放入输入控件，用 `bind` 命名参数，用 `{{ 表达式 }}` 连接文字、公式、图表和图解。文档作者无需编写 JavaScript 或 CSS。
 
-本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。当前为 `0.3.1` 预览版，语法修订 `local-draft-1`。
+本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。当前工作区为尚未发布的 `0.4.0` 开发预览版，语法修订 `local-draft-2`。
 
 ## 从这里开始
 
 - [新用户入门指南](docs/local-guide-ch.md)：从 Markdown 过渡到交互文档，含完整练习与错误速查。
-- [本地交互语法规范](docs/local-interaction-syntax-ch.md) · [功能演示与示例](examples/local/README.md)：33 个组件名、标签、就地参数与 LaTeX 绘图。
+- [本地交互语法规范](docs/local-interaction-syntax-ch.md) · [功能演示与示例](examples/local/README.md)：43 个组件名、标签、就地参数与 LaTeX 绘图。
 - [本地模式集成](docs/local-integration-ch.md)：`compileLocal`、状态运行时、React 嵌入、URL 策略与样式作用域。
 - [独立接入示例](examples/integration/README.md)：可复制到仓库外运行的 Node 核心和 React 页面。
 - [版本与兼容性](docs/compatibility-ch.md)：0.x 规则、迁移、诊断契约和平台范围。
@@ -28,6 +28,8 @@
 ```
 
 输入立即更新结果，面板自带“恢复默认”。独立使用的计数器只需一行 `<counter label="人数">`。
+
+新增组块需要使用当前工作区构建；已发布的 0.3.1 仍使用 local-draft-1。见[新增组块与迁移](docs/local-components-v2-ch.md)。
 
 ## 安装
 

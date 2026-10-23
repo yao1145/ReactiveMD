@@ -180,6 +180,9 @@ function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalVa
       const ordered = binding.options
         ? binding.options.filter((id) => chosen.has(id))
         : [...chosen];
+      if (binding.maxItems !== undefined && ordered.length > binding.maxItems) {
+        return invalid(`Parameter "${binding.name}" allows at most ${binding.maxItems} selected values.`);
+      }
       return { ok: true, value: ordered };
     }
     case 'null':
@@ -218,6 +221,23 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     }
     controls.set(key, nodes);
   }
+
+  /** Canonical node id -> slot -> binding key, for range-slider and coordinate. */
+  const slotKeys = new Map<string, Record<string, string>>();
+  for (const [id, slots] of Object.entries(document.bindingSlots ?? {})) {
+    slotKeys.set(id, { ...slots });
+  }
+
+  /** Reject a range whose start would cross its end before any commit. */
+  const slotRelationError = (nodeId: string, next: Record<string, LocalValue>): string | null => {
+    const slots = slotKeys.get(nodeId);
+    if (!slots?.start || !slots?.end) return null;
+    const start = next[slots.start];
+    const end = next[slots.end];
+    return typeof start === 'number' && typeof end === 'number' && start > end
+      ? 'The range start cannot be greater than its end.'
+      : null;
+  };
 
   let state: Record<string, LocalValue> = initial;
   let revision = 0;
@@ -269,21 +289,36 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       return snapshot;
     },
 
-    get(node: LocalNode): LocalValue {
+    get(node: LocalNode, slot?: string): LocalValue {
       ensure();
       const canonical = nodeIndex.get(node.id);
       if (!canonical) return null;
-      const key = localKey(canonical);
+      const key = slot === undefined
+        ? localKey(canonical)
+        : slotKeys.get(canonical.id)?.[slot];
+      if (!key) return null;
       return Object.hasOwn(state, key) ? cloneValue(state[key]) : null;
     },
 
-    set(node: LocalNode, value: LocalValue): Diagnostic[] {
+    set(node: LocalNode, value: LocalValue, slot?: string): Diagnostic[] {
       ensure();
       const canonical = nodeIndex.get(node.id);
       if (!canonical) {
         return [diagnosticFor(document, node, 'local.runtime.binding', 'This component has no writable binding state.')];
       }
-      const key = localKey(canonical);
+      const slots = slotKeys.get(canonical.id);
+      let key: string | undefined;
+      if (slot === undefined) {
+        if (slots) {
+          return [diagnosticFor(document, canonical, 'local.runtime.binding', 'This multi-slot component requires a slot such as start/end or x/y.')];
+        }
+        key = localKey(canonical);
+      } else {
+        key = slots?.[slot];
+        if (!key) {
+          return [diagnosticFor(document, canonical, 'local.runtime.binding', `This component has no writable slot "${slot}".`)];
+        }
+      }
       const binding = Object.hasOwn(document.bindings, key) ? document.bindings[key] : undefined;
       if (!binding) {
         return [diagnosticFor(document, canonical, 'local.runtime.binding', 'This component has no writable binding state.')];
@@ -294,7 +329,45 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       }
       const nextValue = cloneValue(result.value);
       if (valuesEqual(state[key], nextValue)) return [];
-      commit({ ...state, [key]: nextValue });
+      const next = { ...state, [key]: nextValue };
+      const crossing = slotRelationError(canonical.id, next);
+      if (crossing) {
+        return [diagnosticFor(document, canonical, 'local.runtime.value', crossing)];
+      }
+      commit(next);
+      return [];
+    },
+
+    setMany(node: LocalNode, values: Readonly<Record<string, LocalValue>>): Diagnostic[] {
+      ensure();
+      const canonical = nodeIndex.get(node.id);
+      if (!canonical) {
+        return [diagnosticFor(document, node, 'local.runtime.binding', 'This component has no writable binding state.')];
+      }
+      const slots = slotKeys.get(canonical.id);
+      if (!slots) {
+        return [diagnosticFor(document, canonical, 'local.runtime.binding', 'This component does not support multiple slots.')];
+      }
+      const entries = Object.entries(values);
+      if (!entries.length) return [];
+      const next: Record<string, LocalValue> = { ...state };
+      for (const [slot, value] of entries) {
+        const key = slots[slot];
+        if (!key || !Object.hasOwn(document.bindings, key)) {
+          return [diagnosticFor(document, canonical, 'local.runtime.binding', `This component has no writable slot "${slot}".`)];
+        }
+        const result = validateValue(document.bindings[key], controls.get(key) ?? [], value);
+        if (!result.ok) {
+          return [diagnosticFor(document, canonical, 'local.runtime.value', result.message)];
+        }
+        next[key] = cloneValue(result.value);
+      }
+      const crossing = slotRelationError(canonical.id, next);
+      if (crossing) {
+        return [diagnosticFor(document, canonical, 'local.runtime.value', crossing)];
+      }
+      if (entries.every(([slot, value]) => valuesEqual(state[slots[slot]], value))) return [];
+      commit(next);
       return [];
     },
 

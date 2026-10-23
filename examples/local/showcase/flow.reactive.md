@@ -36,6 +36,30 @@ You are exploring: **{{ selected == 'input' ? 'Input' : selected == 'compute' ? 
 
 Tab to a diagram node, move focus with the arrow keys, then press Enter or Space to select it. The selected explanation and the text below the diagram stay in sync.
 
+## Explain the flow one step at a time
+
+<steps label="Explanation path" bind="lesson">
+<step label="Read the input" value="observe">
+Start at the Input node: the current headcount is **{{ people }}**.
+</step>
+<step label="Check the calculation" value="calculate">
+Select Compute. Each participant costs 80, giving **{{ people }} × 80 = {{ people * 80 }}**.
+</step>
+<step label="Explain the result" value="practice">
+Select Display and explain why the total changes when headcount changes.
+
+<quiz type="choice" label="Which expression calculates the total?" answer="total" explanation="Multiply headcount by the cost per participant.">
+<option value="total">people × 80</option>
+<option value="sum">people + 80</option>
+<option value="fixed">80</option>
+</quiz>
+
+<counter label="Practice rounds" initial="0" min="0" max="10">
+</step>
+</steps>
+
+Current step: **{{ lesson }}**. After explaining the result to a partner, count one practice round.
+
 ## How it is written
 
 <accordion>

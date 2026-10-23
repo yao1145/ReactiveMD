@@ -77,13 +77,13 @@ describe('native component catalog', () => {
     }
   });
 
-  it('marks exactly badge and tooltip as inline components', () => {
+  it('marks text, badge and tooltip snippets as inline', () => {
     const inlineIds = NATIVE_COMPONENTS.filter((component) => component.inline).map(
       (component) => component.id,
     );
-    expect(inlineIds.sort()).toEqual(['badge', 'tooltip']);
+    expect(inlineIds.sort()).toEqual(['badge', 'text', 'tooltip']);
     for (const component of NATIVE_COMPONENTS) {
-      if (component.id !== 'badge' && component.id !== 'tooltip') {
+      if (!['badge', 'text', 'tooltip'].includes(component.id)) {
         expect(component.inline).not.toBe(true);
       }
     }
@@ -134,7 +134,7 @@ describe('renderNativeSnippet bind names', () => {
   });
 });
 
-describe('native component templates compile as local-draft-1', () => {
+describe('native component templates compile as local-draft-2', () => {
   for (const component of NATIVE_COMPONENTS) {
     it(`${component.id} (${component.group})`, () => {
       expectCompiles(component);

@@ -30,7 +30,7 @@ async function pick(id) {
   if (id === 'pricing') {
     await page.locator('[data-example-id="pricing"]').click();
     await page.getByRole('button', { name: 'Restore example', exact: true }).click();
-  } else if (id === 'gallery' || id === 'diagnostics') {
+  } else if (id === 'diagnostics') {
     await page.getByLabel('Reference', { exact: true }).selectOption(id);
     await page.getByRole('button', { name: 'Restore example', exact: true }).click();
   } else {
@@ -88,9 +88,9 @@ try {
       expect(differences).toEqual([]);
     } finally { await styleProbe.close(); }
   });
-  await check('feature navigation separates seven tours from reference and debugging', async () => {
+  await check('feature navigation separates seven tours from debugging', async () => {
     await expect(page.locator('[data-example-id]')).toHaveCount(7);
-    await expect(page.getByLabel('Reference', { exact: true }).locator('option')).toHaveCount(3);
+    await expect(page.getByLabel('Reference', { exact: true }).locator('option')).toHaveCount(2);
   });
 
   await check('default pricing example starts at 200 USD', async () => {

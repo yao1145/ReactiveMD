@@ -41,6 +41,43 @@ Requests: {{ notes == '' ? 'No special requests yet.' : notes }}
 
 Choose Online, set 6 participants and add materials: the estimate becomes **480 credits**. Reset Workshop details to return to the original **320 credits**.
 
+## Tailor the workshop to your group
+
+Choose the level, pace and subjects. These details shape the learning plan alongside the cost estimate above.
+
+<panel title="Learning preferences">
+<select bind="level" label="Experience level" initial="intro">
+<option value="intro">First workshop</option>
+<option value="advanced">Already familiar</option>
+</select>
+
+<radio-group bind="pace" label="Session pace" initial="guided">
+<option value="guided">Guided practice</option>
+<option value="independent">Independent exploration</option>
+</radio-group>
+
+<multi-select bind="subjects" label="Workshop subjects" max-selected="2" color="#167875">
+<option value="math">Mathematics</option>
+<option value="physics">Physics</option>
+<option value="chemistry">Chemistry</option>
+</multi-select>
+
+<checkbox bind="accessible" label="Include a written step-by-step guide">
+
+| Detail | Your choice |
+| --- | --- |
+| Level | {{ level == 'intro' ? 'Start with a worked example' : 'Compare several approaches' }} |
+| Pace | {{ pace == 'guided' ? 'Work through the steps together' : 'Leave time to explore independently' }} |
+| Subjects | {{ len(subjects) }} / 2 selected |
+
+<if when="{{ contains(subjects, 'chemistry') }}">
+<badge color="#167875">Include a chemistry example</badge>
+</if>
+<if when="{{ accessible }}">
+<alert title="Prepare the written guide">Include the parameter names and the expected result for each step.</alert>
+</if>
+</panel>
+
 ## How it is written
 
 <accordion>

@@ -1,6 +1,6 @@
 # Contributing
 
-Reactive MD is a 0.x preview implementation of `local-draft-1`. Contributions can cover syntax, the compiler, the runtime, the React renderer, documentation, examples and the demo. Before starting, read [Versions and compatibility](docs/compatibility-en.md) and the [local interaction syntax specification](docs/local-interaction-syntax-en.md).
+Reactive MD is a 0.x preview implementation of `local-draft-2`. Contributions can cover syntax, the compiler, the runtime, the React renderer, documentation, examples and the demo. Before starting, read [Versions and compatibility](docs/compatibility-en.md) and the [local interaction syntax specification](docs/local-interaction-syntax-en.md).
 
 When adding or changing a component, define its behavior according to the [component protocol](docs/component-protocol-en.md), and use the [proposal template in the development guide](docs/component-development-en.md) to record declarations, compatibility and acceptance evidence. Components here include input controls, containers, visualizations and structural children.
 

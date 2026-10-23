@@ -1,5 +1,5 @@
 /**
- * Catalog of `local-draft-1` native components offered by the editor toolbar.
+ * Catalog of `local-draft-2` native components offered by the editor toolbar.
  *
  * Templates stay as close to the documented authoring syntax as possible:
  * - `{{bind:base}}` is resolved by `renderNativeSnippet` to a fresh bind name.
@@ -10,6 +10,7 @@
  */
 
 import { NATIVE_COMPONENT_CATALOG_COPY } from './editor-i18n';
+import { EXTENDED_NATIVE_COMPONENTS } from './extended-native-components';
 import type { Language } from './i18n';
 
 export type NativeComponentGroupId = 'input' | 'action' | 'layout' | 'data' | 'hint';
@@ -38,6 +39,7 @@ export const NATIVE_COMPONENT_GROUPS: readonly NativeComponentGroup[] = [
 ];
 
 export const NATIVE_COMPONENTS: readonly NativeComponentDefinition[] = [
+  ...EXTENDED_NATIVE_COMPONENTS,
   /* Input ------------------------------------------------------------- */
   {
     id: 'slider',

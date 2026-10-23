@@ -3,7 +3,7 @@
 勾选准备步骤、清点到场人数，再启动一段专注计时。同一页集中呈现活动安排、完成进度和时间。
 
 <panel title="活动准备进度">
-<checklist bind="done" label="一起做好准备">
+<checklist color="#167875" bind="done" label="一起做好准备">
 - [x] 选定一个要探索的问题
 - [ ] 打开文档，调整一个参数
 - [ ] 向同伴解释观察到的结果
@@ -11,7 +11,7 @@
 
 已完成： **{{ len(done) }} / 3**.
 
-<progress label="准备进度" value="{{ len(done) / 3 * 100 }}">
+<progress color="#167875" label="准备进度" value="{{ len(done) / 3 * 100 }}">
 
 <if when="{{ len(done) == 3 }}">
 <alert tone="success" title="可以开始分享了">问题、示例和观察结果都已准备就绪。</alert>
@@ -41,6 +41,18 @@
 </timeline>
 
 恢复活动准备进度的默认值，会重置该清单。人数计数器和计时器位于面板外，各自保留状态。
+
+## 记录分享后的待办
+
+已完成事项会加上删除线。隐藏再展开这份清单，已经勾选的事项仍会保留。
+
+<toggle bind="followUp" label="显示后续待办" initial="true">
+<if when="{{ followUp }}">
+<checklist label="分享之后" color="#167875">
+- [ ] 保存一个有用的观察结果
+- [ ] 把文档分享给同伴
+</checklist>
+</if>
 
 ## 看看写法
 

@@ -41,6 +41,43 @@
 
 选择线上、调到 6 人并增加材料包，总费用变为 **480 元**。点击活动配置的恢复默认，回到初始的 **320 元**。
 
+## 为小组安排合适的学习内容
+
+选择经验水平、活动节奏和主题，让学习安排与上方的费用方案一起明确下来。
+
+<panel title="学习偏好">
+<select bind="level" label="经验水平" initial="intro">
+<option value="intro">第一次参与</option>
+<option value="advanced">已有使用经验</option>
+</select>
+
+<radio-group bind="pace" label="活动节奏" initial="guided">
+<option value="guided">跟随步骤练习</option>
+<option value="independent">自主探索</option>
+</radio-group>
+
+<multi-select bind="subjects" label="活动主题" max-selected="2" color="#167875">
+<option value="math">数学</option>
+<option value="physics">物理</option>
+<option value="chemistry">化学</option>
+</multi-select>
+
+<checkbox bind="accessible" label="提供书面步骤说明">
+
+| 配置 | 当前安排 |
+| --- | --- |
+| 水平 | {{ level == 'intro' ? '从一个完整示例开始' : '比较几种不同方法' }} |
+| 节奏 | {{ pace == 'guided' ? '一起按步骤练习' : '留出自主探索时间' }} |
+| 主题 | 已选择 {{ len(subjects) }} / 2 项 |
+
+<if when="{{ contains(subjects, 'chemistry') }}">
+<badge color="#167875">加入一个化学示例</badge>
+</if>
+<if when="{{ accessible }}">
+<alert title="准备书面说明">为每一步写明参数名称和预期结果，方便参与者自行查阅。</alert>
+</if>
+</panel>
+
 ## 看看写法
 
 <accordion>

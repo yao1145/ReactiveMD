@@ -1,5 +1,21 @@
 # Implementation and verification notes
 
+## Local review: 0.4.0 / local-draft-2 (2026-10-23)
+
+This checkout adds ten component names (43 total), checked todo styling, component colors and shared table/chart selection. All 43 components are distributed across the original six bilingual scenarios, with nine new editor insertion templates (34 total). The separate new-interactions and component-reference navigation entries have been removed; old bookmarks resolve to Functions and Forms. Syntax and migration are documented in [new components](../docs/local-components-v2-en.md).
+
+Three Claude Code sessions implemented the compiler/runtime, controls/navigation and visual selection in separate file scopes. The coordinator reviewed the changes and fixed integration issues, including order-independent anchor collisions, inline content validation, decimal interval bounds, coordinate draft reset and anonymous step state. This section records implementation and local validation. The live site identifies its deployed commit in release.json; the deployment record below describes an earlier release.
+
+Validation for this review:
+
+- Core suite and Demo suite pass; new core, renderer, visual and integrated acceptance cases are included.
+- Build, component conformance, public package, offline packed install/types/SSR and documentation-link checks pass.
+- Edge checks cover 35 container layouts, both languages across all seven navigation entries at 375/768/1440px, existing local controls and document usability, and desktop/mobile editor insertion.
+- `verify-v2.mjs` checks the six scenarios and boundary cases covering pointer/keyboard input, hidden jump feedback, focus, todo styling, foreground/accent colors, resets, fractional coordinate boundaries, and shared selection after table search/sort/paging. It captures each scenario in English/Chinese light/dark screenshots at 375px and desktop width, with no browser runtime exceptions.
+- The build retains the existing warning about a JavaScript chunk over 500 kB. SSR hydration and screen-reader usability have not been manually verified.
+
+Browser reports and screenshots are in the ignored `demo/artifacts/` directory. The local Vite service listens on `http://127.0.0.1:5173`; it consumes the current workspace library build. Production deployment uses a versioned release directory and an atomic site symlink switch, retaining the previous release for rollback.
+
 ## Local interaction mode (2026-10-22)
 
 The Playground has switched to `local-draft-1` and loads the 12 documents in `examples/local/` directly. Eleven normal examples run, while the diagnostics example fails on purpose and disables interaction. For the authoring syntax see the [local interaction specification](../docs/local-interaction-syntax-en.md); for the public entry points see the [integration guide](../docs/local-integration-en.md).

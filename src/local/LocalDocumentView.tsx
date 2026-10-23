@@ -13,7 +13,10 @@ import {
   type CSSProperties,
   type ChangeEvent,
   type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type RefObject,
 } from 'react';
 import type {
   Diagnostic,
@@ -30,6 +33,7 @@ import { MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
 import { LatexView } from './math-view';
 import { LocalVisual } from './visuals';
 import { createHeadingAnchors } from './heading-anchors';
+import { isLocalColor } from './colors';
 import {
   LocalLocaleProvider,
   defaultLocalize,
@@ -70,6 +74,8 @@ interface LocalViewContext extends LocalRenderContext {
   report: (diagnostics: Diagnostic[]) => void;
   urlPolicy?: LocalUrlPolicy;
   anchors: ReturnType<typeof createHeadingAnchors>;
+  /** The document root; jump navigation stays scoped to this instance. */
+  rootRef: RefObject<HTMLElement | null>;
   t: Localize;
 }
 
@@ -188,6 +194,69 @@ function displayValue(value: LocalValue): string {
   return scalarText(value) ?? '';
 }
 
+/* ------------------------------------------------------------------ color */
+
+/**
+ * The compiler already rejects anything outside the bounded color whitelist.
+ * Re-check here so a hand-built or mutated `LocalDocument` can never smuggle
+ * an arbitrary CSS value into the rendered style.
+ */
+function localColor(node: LocalNode): string | undefined {
+  const raw = rawAttr(node, 'color');
+  if (raw === undefined) return undefined;
+  const value = raw.trim();
+  return value !== '' && isLocalColor(value) ? value : undefined;
+}
+
+/** Accent tokens consumed by local.css; absent colors fall back to the theme. */
+function accentStyle(color: string | undefined): CSSProperties | undefined {
+  if (!color) return undefined;
+  return {
+    '--local-accent': color,
+    '--local-accent-soft': `color-mix(in srgb, ${color} 14%, var(--surface))`,
+    '--local-accent-strong': color,
+  } as CSSProperties;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function snapToStep(value: number, min: number, max: number, step: number): number {
+  const size = Number.isFinite(step) && step > 0 ? step : 1;
+  const maximumSteps = Math.max(0, Math.floor((max - min) / size + 1e-9));
+  const steps = Math.max(0, Math.min(maximumSteps, Math.round((value - min) / size)));
+  const snapped = min + steps * size;
+  return Number(snapped.toPrecision(15));
+}
+
+function slotNumber(runtime: LocalRuntime, node: LocalNode, slot: string, fallback: number): number {
+  try {
+    const value = runtime.get(node, slot);
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function numericRange(
+  runtime: LocalRuntime,
+  node: LocalNode,
+  minName: string,
+  maxName: string,
+  minFallback: number,
+  maxFallback: number,
+  stepFallback = 1,
+): { min: number; max: number; step: number } {
+  let min = numberAttr(runtime, node, minName, minFallback);
+  let max = numberAttr(runtime, node, maxName, maxFallback);
+  if (min > max) [min, max] = [max, min];
+  const rawStep = numberAttr(runtime, node, 'step', stepFallback);
+  const step = Number.isFinite(rawStep) && rawStep > 0 ? rawStep : 1;
+  return { min, max, step };
+}
+
+
 /* ------------------------------------------------------------ state hooks */
 
 function useWriter(node: LocalNode) {
@@ -195,9 +264,9 @@ function useWriter(node: LocalNode) {
   const t = useLocalize();
   const [error, setError] = useState<string | null>(null);
   const write = useCallback(
-    (value: LocalValue): boolean => {
+    (value: LocalValue, slot?: string): boolean => {
       try {
-        const diagnostics = runtime.set(node, value);
+        const diagnostics = runtime.set(node, value, slot);
         if (diagnostics.length) {
           setError(diagnostics.map((item) => item.message).join('; '));
           report(diagnostics);
@@ -212,7 +281,26 @@ function useWriter(node: LocalNode) {
     },
     [node, report, runtime, t],
   );
-  return { write, error, setError };
+  /** Multi-slot writes validate every value before committing one revision. */
+  const writeMany = useCallback(
+    (values: Record<string, LocalValue>): boolean => {
+      try {
+        const diagnostics = runtime.setMany(node, values);
+        if (diagnostics.length) {
+          setError(diagnostics.map((item) => item.message).join('; '));
+          report(diagnostics);
+          return false;
+        }
+        setError(null);
+        return true;
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : t('Cannot write', '无法写入'));
+        return false;
+      }
+    },
+    [node, report, runtime, t],
+  );
+  return { write, writeMany, error, setError };
 }
 
 function useDisabled(node: LocalNode): { disabled: boolean; invalid: boolean } {
@@ -1080,7 +1168,7 @@ function SliderView({ node }: LocalComponentProps) {
   const value = Math.min(max, Math.max(min, rawValue));
 
   return (
-    <div className="md-control md-slider local-slider">
+    <div className="md-control md-slider local-slider" style={accentStyle(localColor(node))}>
       <label className="md-label" htmlFor={`${domId}-slider`}>
         <span>{label}</span>
         <span className="md-slider-value" aria-hidden="true">
@@ -1112,7 +1200,7 @@ function ToggleView({ node }: LocalComponentProps) {
   const checked = currentValue(runtime, node) === true;
 
   return (
-    <div className="md-control md-toggle local-toggle">
+    <div className="md-control md-toggle local-toggle" style={accentStyle(localColor(node))}>
       <label className="md-toggle-label" htmlFor={`${domId}-toggle`}>
         <input
           id={`${domId}-toggle`}
@@ -1138,7 +1226,7 @@ function CheckboxView({ node }: LocalComponentProps) {
   const checked = currentValue(runtime, node) === true;
 
   return (
-    <div className="md-control local-checkbox">
+    <div className="md-control local-checkbox" style={accentStyle(localColor(node))}>
       <label className="md-toggle-label" htmlFor={`${domId}-checkbox`}>
         <input
           id={`${domId}-checkbox`}
@@ -1263,7 +1351,7 @@ function SelectView({ node }: LocalComponentProps) {
   if (options.length === 0) return <LocalError message={t('Missing options', '缺少选项')} />;
 
   return (
-    <div className="md-control md-select local-select">
+    <div className="md-control md-select local-select" style={accentStyle(localColor(node))}>
       <label className="md-label" htmlFor={`${domId}-select`}>
         {label}
       </label>
@@ -1321,7 +1409,7 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
   };
 
   return (
-    <div className="md-control local-choices">
+    <div className="md-control local-choices" style={accentStyle(localColor(node))}>
       <span className="md-label" id={`${domId}-choices-label`}>
         {label}
       </span>
@@ -1374,7 +1462,7 @@ function RadioGroupView({ node, visible }: LocalComponentProps) {
   if (options.length === 0) return <LocalError message={t('Missing options', '缺少选项')} />;
 
   return (
-    <fieldset className="md-control local-radio-group" disabled={disabled}>
+    <fieldset className="md-control local-radio-group" style={accentStyle(localColor(node))} disabled={disabled}>
       <legend className="md-label">{label}</legend>
       {options.map((option) => (
         <label className="local-radio-option" key={option.node.id}>
@@ -1433,21 +1521,31 @@ function ChecklistView({ node, visible }: LocalComponentProps) {
   };
 
   return (
-    <fieldset className="local-checklist" disabled={disabled}>
+    <fieldset
+      className="local-checklist"
+      style={accentStyle(localColor(node))}
+      disabled={disabled}
+    >
       <legend className="md-label">{label}</legend>
-      {items.map((item) => (
-        <div className="local-checklist-item" key={item.id}>
-          <input
-            id={`${domId}-${item.id}`}
-            type="checkbox"
-            checked={selected.includes(item.id)}
-            onChange={(event) => toggle(item.id, event.target.checked)}
-          />
-          <label className="local-checklist-text" htmlFor={`${domId}-${item.id}`}>
-            {renderInlineNodes(local, item.node.children, visible)}
-          </label>
-        </div>
-      ))}
+      {items.map((item) => {
+        const checked = selected.includes(item.id);
+        return (
+          <div className="local-checklist-item" key={item.id}>
+            <input
+              id={`${domId}-${item.id}`}
+              type="checkbox"
+              checked={checked}
+              onChange={(event) => toggle(item.id, event.target.checked)}
+            />
+            <label
+              className={`local-checklist-text${checked ? ' is-checked' : ''}`}
+              htmlFor={`${domId}-${item.id}`}
+            >
+              {renderInlineNodes(local, item.node.children, visible)}
+            </label>
+          </div>
+        );
+      })}
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </fieldset>
   );
@@ -1712,9 +1810,13 @@ function ProgressView({ node }: LocalComponentProps) {
     );
   }
   const percent = (numeric / max) * 100;
+  const color = localColor(node);
 
   return (
-    <div className="local-progress">
+    <div
+      className="local-progress"
+      style={color ? ({ '--local-progress-color': color } as CSSProperties) : undefined}
+    >
       <div className="local-progress-head">
         <span className="md-label">{label}</span>
         <span className="local-progress-value">{Math.round(percent)}%</span>
@@ -2042,8 +2144,12 @@ function BadgeView({ node, visible }: LocalComponentProps) {
   const { runtime } = local;
   const rawTone = rawAttr(node, 'tone') ?? 'neutral';
   const tone = rawTone === 'success' || rawTone === 'warning' ? rawTone : 'neutral';
+  const color = localColor(node);
   return (
-    <span className={`md-badge md-badge-${tone} local-badge`}>
+    <span
+      className={`md-badge md-badge-${tone} local-badge`}
+      style={color ? { color } : undefined}
+    >
       {renderInlineNodes(local, node.children, visible)}
     </span>
   );
@@ -2089,6 +2195,840 @@ function TooltipView({ node, visible }: LocalComponentProps) {
   );
 }
 
+/* ------------------------------------------------------ inline additions */
+
+function JumpView({ node, visible }: LocalComponentProps) {
+  const domId = useId();
+  const local = useLocal();
+  const { anchors, rootRef, runtime, urlPolicy } = local;
+  const t = useLocalize();
+  const feedbackId = `${domId}-jump-feedback`;
+  const [message, setMessage] = useState<string | null>(null);
+  const to = rawAttr(node, 'to') ?? '';
+  const target = anchors.targetId(to);
+  const appearance = rawAttr(node, 'appearance') === 'button' ? 'button' : 'link';
+  const color = localColor(node);
+  const href = target ? `#${target}` : '#';
+  let allowed = target !== undefined;
+  if (allowed && urlPolicy) {
+    try {
+      // Internal fragments still pass through the host's link allowlist.
+      allowed = urlPolicy(`#${to}`, 'link') === true;
+    } catch {
+      allowed = false;
+    }
+  }
+
+  useResetToken(runtime, node, () => setMessage(null));
+
+  const onJump = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (!allowed || !target) {
+      event.preventDefault();
+      setMessage(
+        target
+          ? t('Jump is blocked by the host', '跳转已被主机策略阻止')
+          : t('Jump target not found', '找不到跳转目标'),
+      );
+      return;
+    }
+    const root = rootRef.current;
+    if (!root) return;
+    // Modified clicks keep native link behavior (new tab, download, etc.).
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    let element: HTMLElement | null = null;
+    try {
+      // Attribute lookup stays inside this document instance; never the page.
+      element = root.querySelector<HTMLElement>(`[id="${target}"]`);
+    } catch {
+      element = null;
+    }
+    if (!element) {
+      event.preventDefault();
+      setMessage(t('Jump target not found', '找不到跳转目标'));
+      return;
+    }
+    if (element.closest('[hidden]')) {
+      event.preventDefault();
+      setMessage(t('Jump target is hidden', '跳转目标当前隐藏'));
+      return;
+    }
+    event.preventDefault();
+    if (!element.hasAttribute('tabindex')) element.tabIndex = -1;
+    try {
+      element.focus({ preventScroll: true });
+    } catch {
+      /* Focus support is best-effort. */
+    }
+    let behavior: ScrollBehavior = 'smooth';
+    try {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) behavior = 'auto';
+    } catch {
+      behavior = 'auto';
+    }
+    try {
+      element.scrollIntoView({ behavior, block: 'start' });
+    } catch {
+      /* Older engines may not support smooth scrolling. */
+    }
+    setMessage(null);
+  };
+
+  return (
+    <>
+      <a
+        href={allowed ? href : '#'}
+        className={`local-jump local-jump-${appearance}`}
+        style={accentStyle(color)}
+        data-local-target-missing={target ? undefined : 'true'}
+        data-local-jump-blocked={target && !allowed ? 'true' : undefined}
+        aria-describedby={message ? feedbackId : undefined}
+        onClick={onJump}
+      >
+        {renderInlineNodes(local, node.children, visible)}
+      </a>
+      {message ? (
+        <span
+          id={feedbackId}
+          className="local-jump-feedback"
+          role="status"
+          aria-live="polite"
+        >
+          {message}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+function AnchorView({ node }: LocalComponentProps) {
+  const { anchors } = useLocal();
+  const id = anchors.anchorIds.get(node);
+  if (!id) return null;
+  return <span className="local-anchor" id={id} data-local-anchor="" />;
+}
+
+function TextView({ node, visible }: LocalComponentProps) {
+  const local = useLocal();
+  const color = localColor(node);
+  return (
+    <span className="local-text" style={color ? { color } : undefined}>
+      {renderInlineNodes(local, node.children, visible)}
+    </span>
+  );
+}
+
+function SectionView({ node, visible }: LocalComponentProps) {
+  const { render } = useLocal();
+  const color = localColor(node);
+  return (
+    <div className="local-section" style={color ? { color } : undefined}>
+      {render(node.children ?? [], visible)}
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- controls */
+
+function MultiSelectView({ node, visible }: LocalComponentProps) {
+  const domId = useId();
+  const local = useLocal();
+  const { runtime } = local;
+  const t = useLocalize();
+  const { write, error, setError } = useWriter(node);
+  const label = textAttr(runtime, node, 'label', t('Multi select', '多选'), t);
+  const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const options = readOptions(node);
+  const stored = currentValue(runtime, node);
+  const selected = Array.isArray(stored)
+    ? stored.filter((value): value is string => typeof value === 'string')
+    : [];
+  const maxRaw = numberAttr(runtime, node, 'max-selected', options.length);
+  const max = Number.isFinite(maxRaw) ? Math.max(0, Math.floor(maxRaw)) : options.length;
+  const [query, setQuery] = useState('');
+  useResetToken(runtime, node, () => {
+    setQuery('');
+    setError(null);
+  });
+
+  if (options.length === 0) {
+    return <LocalError message={t('Missing options', '缺少选项')} />;
+  }
+
+  const chosen = new Set(selected);
+  const atMax = selected.length >= max;
+  const needle = query.trim().toLocaleLowerCase();
+  const matches = needle
+    ? options.filter((option) => {
+        const haystack = `${inlinePlainText(runtime, option.node.children, t)} ${option.value}`;
+        return haystack.toLocaleLowerCase().includes(needle);
+      })
+    : options;
+
+  const toggle = (value: string, checked: boolean) => {
+    const next = new Set(chosen);
+    if (checked) {
+      if (!next.has(value) && next.size >= max) return;
+      next.add(value);
+    } else {
+      // Every selected value stays removable, including at the maximum.
+      next.delete(value);
+    }
+    write(options.filter((option) => next.has(option.value)).map((option) => option.value));
+  };
+
+  const clear = () => {
+    setQuery('');
+    if (selected.length > 0) write([]);
+  };
+
+  return (
+    <fieldset
+      className="local-multi-select"
+      style={accentStyle(localColor(node))}
+      disabled={disabled}
+    >
+      <legend className="md-label">{label}</legend>
+      <div className="local-multi-toolbar">
+        <input
+          id={`${domId}-multi-search`}
+          type="search"
+          className="md-text-input local-multi-search"
+          value={query}
+          placeholder={t('Search options', '搜索选项')}
+          aria-label={t(`Search ${label}`, `搜索${label}`)}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
+        />
+        <button
+          type="button"
+          className="md-button md-button-quiet local-multi-clear"
+          onClick={clear}
+        >
+          {t('Clear', '清除')}
+        </button>
+      </div>
+      <div className="local-multi-list" role="group" aria-label={label}>
+        {matches.length === 0 ? (
+          <span className="local-multi-empty">{t('No matching options', '没有匹配选项')}</span>
+        ) : (
+          matches.map((option) => {
+            const checked = chosen.has(option.value);
+            return (
+              <label
+                key={option.node.id}
+                className={`local-multi-option${checked ? ' is-selected' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={!checked && atMax}
+                  onChange={(event) => toggle(option.value, event.target.checked)}
+                />
+                <span>{renderInlineNodes(local, option.node.children, visible)}</span>
+              </label>
+            );
+          })
+        )}
+      </div>
+      <span className="local-multi-count" role="status" aria-live="polite">
+        {t(`${selected.length} of ${max} selected`, `已选 ${selected.length}/${max}`)}
+      </span>
+      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
+    </fieldset>
+  );
+}
+
+function RangeSliderView({ node }: LocalComponentProps) {
+  const local = useLocal();
+  const { runtime } = local;
+  const t = useLocalize();
+  const { write, error, setError } = useWriter(node);
+  const label = textAttr(runtime, node, 'label', t('Range', '范围'), t);
+  const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const { min, max, step } = numericRange(runtime, node, 'min', 'max', 0, 100, 1);
+  const steps = Math.floor((max - min) / step + 1e-9);
+  const defaultStart = min;
+  const defaultEnd = clamp(min + Math.max(0, steps) * step, min, max);
+  let start = snapToStep(slotNumber(runtime, node, 'start', defaultStart), min, max, step);
+  let end = snapToStep(slotNumber(runtime, node, 'end', defaultEnd), min, max, step);
+  if (start > end) start = end;
+  const [crossing, setCrossing] = useState<string | null>(null);
+  useResetToken(runtime, node, () => {
+    setCrossing(null);
+    setError(null);
+  });
+
+  const commit = (slot: 'start' | 'end', raw: number) => {
+    const value = snapToStep(clamp(raw, min, max), min, max, step);
+    if (slot === 'start' && value > end) {
+      setCrossing(t('Start cannot exceed end', '起点不能超过终点'));
+      return;
+    }
+    if (slot === 'end' && value < start) {
+      setCrossing(t('End cannot be less than start', '终点不能小于起点'));
+      return;
+    }
+    setCrossing(null);
+    write(value, slot);
+  };
+
+  return (
+    <div
+      className="md-control local-range-slider"
+      style={accentStyle(localColor(node))}
+      role="group"
+      aria-label={label}
+    >
+      <span className="md-label">{label}</span>
+      <div className="local-range-row">
+        <span className="local-range-name">{t('Start', '起点')}</span>
+        <input
+          type="range"
+          className="local-range-input"
+          min={min}
+          max={end}
+          step={step}
+          value={start}
+          disabled={disabled}
+          aria-label={`${label} ${t('Start', '起点')}`}
+          onChange={(event: ChangeEvent<HTMLInputElement>) =>
+            commit('start', Number(event.target.value))
+          }
+        />
+        <span className="local-range-value" aria-hidden="true">
+          {start}
+        </span>
+      </div>
+      <div className="local-range-row">
+        <span className="local-range-name">{t('End', '终点')}</span>
+        <input
+          type="range"
+          className="local-range-input"
+          min={start}
+          max={max}
+          step={step}
+          value={end}
+          disabled={disabled}
+          aria-label={`${label} ${t('End', '终点')}`}
+          onChange={(event: ChangeEvent<HTMLInputElement>) =>
+            commit('end', Number(event.target.value))
+          }
+        />
+        <span className="local-range-value" aria-hidden="true">
+          {end}
+        </span>
+      </div>
+      <FieldError
+        message={disabledInvalid ? t('Cannot compute', '无法计算') : (crossing ?? error)}
+      />
+    </div>
+  );
+}
+
+interface NumberDraftFieldProps {
+  id: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  disabled: boolean;
+  onCommit: (value: number) => void;
+  reset: number;
+}
+
+function NumberDraftField({
+  id,
+  label,
+  value,
+  min,
+  max,
+  step,
+  disabled,
+  onCommit,
+  reset,
+}: NumberDraftFieldProps) {
+  const [draft, setDraft] = useState(() => String(value));
+  const [focused, setFocused] = useState(false);
+  const last = useRef(value);
+  useEffect(() => {
+    setDraft(String(value));
+    setFocused(false);
+  }, [reset]);
+
+  useEffect(() => {
+    if (last.current !== value) {
+      last.current = value;
+      if (!focused) setDraft(String(value));
+    }
+  }, [value, focused]);
+
+  const parse = (text: string): number | null => {
+    const trimmed = text.trim();
+    if (trimmed === '' || trimmed === '-' || trimmed === '.' || trimmed === '-.') return null;
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed)) return null;
+    return snapToStep(clamp(parsed, min, max), min, max, step);
+  };
+
+  return (
+    <div className="local-number-field">
+      <label className="md-label" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        className="md-text-input"
+        type="text"
+        inputMode="decimal"
+        value={draft}
+        disabled={disabled}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false);
+          const parsed = parse(draft);
+          setDraft(String(parsed ?? value));
+        }}
+        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+          const text = event.target.value;
+          setDraft(text);
+          const parsed = parse(text);
+          if (parsed !== null) onCommit(parsed);
+        }}
+      />
+    </div>
+  );
+}
+
+function CoordinateView({ node }: LocalComponentProps) {
+  const domId = useId();
+  const local = useLocal();
+  const { runtime } = local;
+  const t = useLocalize();
+  const { write, writeMany, error, setError } = useWriter(node);
+  const label = textAttr(runtime, node, 'label', t('Coordinate', '坐标'), t);
+  const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const xRange = numericRange(runtime, node, 'x-min', 'x-max', -5, 5, 1);
+  const yRange = numericRange(runtime, node, 'y-min', 'y-max', -5, 5, 1);
+  const defaultX = snapToStep(0, xRange.min, xRange.max, xRange.step);
+  const defaultY = snapToStep(0, yRange.min, yRange.max, yRange.step);
+  const x = snapToStep(
+    slotNumber(runtime, node, 'x', defaultX),
+    xRange.min,
+    xRange.max,
+    xRange.step,
+  );
+  const y = snapToStep(
+    slotNumber(runtime, node, 'y', defaultY),
+    yRange.min,
+    yRange.max,
+    yRange.step,
+  );
+  const padRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  useResetToken(runtime, node, () => setError(null));
+  const xPercent =
+    xRange.max > xRange.min ? ((x - xRange.min) / (xRange.max - xRange.min)) * 100 : 0;
+  const yPercent =
+    yRange.max > yRange.min ? ((y - yRange.min) / (yRange.max - yRange.min)) * 100 : 0;
+
+  const pointValue = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = padRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return null;
+    const ratioX = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+    const ratioY = clamp((event.clientY - rect.top) / rect.height, 0, 1);
+    return {
+      x: snapToStep(
+        xRange.min + ratioX * (xRange.max - xRange.min),
+        xRange.min,
+        xRange.max,
+        xRange.step,
+      ),
+      y: snapToStep(
+        yRange.min + (1 - ratioY) * (yRange.max - yRange.min),
+        yRange.min,
+        yRange.max,
+        yRange.step,
+      ),
+    };
+  };
+
+  const moveTo = (nextX: number, nextY: number) => {
+    if (nextX === x && nextY === y) return;
+    writeMany({ x: nextX, y: nextY });
+  };
+
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    let nextX = x;
+    let nextY = y;
+    switch (event.key) {
+      case 'ArrowLeft':
+        nextX = snapToStep(x - xRange.step, xRange.min, xRange.max, xRange.step);
+        break;
+      case 'ArrowRight':
+        nextX = snapToStep(x + xRange.step, xRange.min, xRange.max, xRange.step);
+        break;
+      case 'ArrowDown':
+        nextY = snapToStep(y - yRange.step, yRange.min, yRange.max, yRange.step);
+        break;
+      case 'ArrowUp':
+        nextY = snapToStep(y + yRange.step, yRange.min, yRange.max, yRange.step);
+        break;
+      case 'Home':
+        nextX = xRange.min;
+        nextY = yRange.min;
+        break;
+      case 'End':
+        nextX = snapToStep(xRange.max, xRange.min, xRange.max, xRange.step);
+        nextY = snapToStep(yRange.max, yRange.min, yRange.max, yRange.step);
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    moveTo(nextX, nextY);
+  };
+
+  return (
+    <div
+      className="local-coordinate"
+      style={accentStyle(localColor(node))}
+      role="group"
+      aria-label={label}
+    >
+      <span className="md-label">{label}</span>
+      <div
+        ref={padRef}
+        className="local-coordinate-pad"
+        role="group"
+        aria-label={t(`${label} drag area`, `${label} 拖拽区`)}
+        aria-disabled={disabled || undefined}
+        tabIndex={disabled ? -1 : 0}
+        onKeyDown={onKeyDown}
+        onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
+          if (disabled) return;
+          event.preventDefault();
+          dragging.current = true;
+          padRef.current?.focus({ preventScroll: true });
+          try {
+            event.currentTarget.setPointerCapture(event.pointerId);
+          } catch {
+            /* Pointer capture is not available in every environment. */
+          }
+          const point = pointValue(event);
+          if (point) moveTo(point.x, point.y);
+        }}
+        onPointerMove={(event: ReactPointerEvent<HTMLDivElement>) => {
+          if (!dragging.current || disabled) return;
+          const point = pointValue(event);
+          if (point) moveTo(point.x, point.y);
+        }}
+        onPointerUp={(event: ReactPointerEvent<HTMLDivElement>) => {
+          dragging.current = false;
+          try {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          } catch {
+            /* The pointer may already be released. */
+          }
+        }}
+        onPointerCancel={() => {
+          dragging.current = false;
+        }}
+      >
+        <span className="local-coordinate-horizontal" aria-hidden="true" />
+        <span className="local-coordinate-vertical" aria-hidden="true" />
+        <span
+          className="local-coordinate-dot"
+          aria-hidden="true"
+          style={{ left: `${xPercent}%`, top: `${100 - yPercent}%` }}
+        />
+      </div>
+      <span className="md-hint local-hint">
+        {t(
+          'Arrow keys adjust the point; Home and End jump to the lower or upper bounds.',
+          '方向键调整坐标；Home 和 End 跳到最小或最大边界。',
+        )}
+      </span>
+      <div className="local-coordinate-fields">
+        <NumberDraftField
+          id={`${domId}-coordinate-x`}
+          reset={runtime.resetToken(node)}
+          label={`${label} X`}
+          value={x}
+          min={xRange.min}
+          max={xRange.max}
+          step={xRange.step}
+          disabled={disabled}
+          onCommit={(value) => write(value, 'x')}
+        />
+        <NumberDraftField
+          id={`${domId}-coordinate-y`}
+          reset={runtime.resetToken(node)}
+          label={`${label} Y`}
+          value={y}
+          min={yRange.min}
+          max={yRange.max}
+          step={yRange.step}
+          disabled={disabled}
+          onCommit={(value) => write(value, 'y')}
+        />
+      </div>
+      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------- quiz */
+
+type QuizResult = 'correct' | 'incorrect' | 'incomplete';
+
+function QuizView({ node, visible }: LocalComponentProps) {
+  const domId = useId();
+  const local = useLocal();
+  const { runtime } = local;
+  const t = useLocalize();
+  const label = textAttr(runtime, node, 'label', t('Quiz', '测验'), t);
+  const type = rawAttr(node, 'type') === 'number' ? 'number' : 'choice';
+  const answer = (rawAttr(node, 'answer') ?? '').trim();
+  const toleranceRaw = numberAttr(runtime, node, 'tolerance', 0);
+  const tolerance =
+    Number.isFinite(toleranceRaw) && toleranceRaw >= 0 ? toleranceRaw : 0;
+  const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const options = readOptions(node);
+  const explanation = textAttr(runtime, node, 'explanation', '', t);
+  const [draft, setDraft] = useState('');
+  const [result, setResult] = useState<QuizResult | null>(null);
+
+  useResetToken(runtime, node, () => {
+    setDraft('');
+    setResult(null);
+  });
+
+  const numericAnswer = type === 'number' ? Number(answer) : Number.NaN;
+  if (type === 'number' && !Number.isFinite(numericAnswer)) {
+    return <LocalError message={t('Quiz answer must be a number', '测验答案必须是数字')} />;
+  }
+  if (type === 'choice' && options.length === 0) {
+    return <LocalError message={t('Missing options', '缺少选项')} />;
+  }
+
+  const check = () => {
+    if (type === 'choice') {
+      if (draft === '') {
+        setResult('incomplete');
+        return;
+      }
+      setResult(draft === answer ? 'correct' : 'incorrect');
+      return;
+    }
+    const trimmed = draft.trim();
+    const entered = trimmed === '' ? Number.NaN : Number(trimmed);
+    if (!Number.isFinite(entered)) {
+      setResult('incomplete');
+      return;
+    }
+    setResult(Math.abs(entered - numericAnswer) <= tolerance ? 'correct' : 'incorrect');
+  };
+
+  const tryAgain = () => {
+    setDraft('');
+    setResult(null);
+  };
+
+  const feedback =
+    result === null
+      ? null
+      : result === 'correct'
+        ? `${t('Correct', '回答正确')}`
+        : result === 'incorrect'
+          ? `${t('Not quite', '回答不正确')}`
+          : type === 'number'
+            ? t('Enter a number first', '请先输入数字')
+            : t('Choose an answer first', '请先选择答案');
+  const feedbackClass =
+    result === 'correct' ? ' is-correct' : result === 'incorrect' ? ' is-incorrect' : '';
+
+  return (
+    <div className="local-quiz" role="group" aria-label={label}>
+      {type === 'choice' ? (
+        <fieldset className="local-quiz-options" disabled={disabled}>
+          <legend className="md-label">{label}</legend>
+          {options.map((option) => (
+            <label className="local-radio-option" key={option.node.id}>
+              <input
+                type="radio"
+                name={`${domId}-quiz`}
+                value={option.value}
+                checked={draft === option.value}
+                onChange={() => {
+                  setDraft(option.value);
+                  setResult(null);
+                }}
+              />
+              <span>{renderInlineNodes(local, option.node.children, visible)}</span>
+            </label>
+          ))}
+        </fieldset>
+      ) : (
+        <div className="local-quiz-number">
+          <label className="md-label" htmlFor={`${domId}-quiz`}>
+            {label}
+          </label>
+          <input
+            id={`${domId}-quiz`}
+            className="md-text-input local-quiz-input"
+            type="text"
+            inputMode="decimal"
+            value={draft}
+            disabled={disabled}
+            aria-label={label}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => {
+              setDraft(event.target.value);
+              setResult(null);
+            }}
+          />
+        </div>
+      )}
+      <div className="local-quiz-actions">
+        <button
+          type="button"
+          className="md-button md-button-primary local-quiz-check"
+          disabled={disabled}
+          onClick={check}
+        >
+          {t('Check answer', '检查答案')}
+        </button>
+        <button
+          type="button"
+          className="md-button md-button-secondary local-quiz-again"
+          disabled={disabled}
+          onClick={tryAgain}
+        >
+          {t('Try again', '再试一次')}
+        </button>
+      </div>
+      <span
+        className={`local-quiz-feedback${feedbackClass}`}
+        role="status"
+        aria-live="polite"
+      >
+        {feedback ? `${result === 'correct' ? '✓ ' : result === 'incorrect' ? '✗ ' : ''}${feedback}` : ''}
+      </span>
+      {result !== null && explanation ? (
+        <div className="local-quiz-explanation">{explanation}</div>
+      ) : null}
+      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : null} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ steps */
+
+function StepsView({ node, visible }: LocalComponentProps) {
+  const domId = useId();
+  const { runtime, render } = useLocal();
+  const t = useLocalize();
+  const { write, error, setError } = useWriter(node);
+  const label = textAttr(runtime, node, 'label', '', t);
+  const steps = (node.children ?? []).filter(
+    (child) => child.type === 'component' && child.name === 'step',
+  );
+  const values = steps.map((step, index) => rawAttr(step, 'value') ?? `step-${index + 1}`);
+  const labels = steps.map((step, index) =>
+    textAttr(runtime, step, 'label', values[index], t),
+  );
+  const initial = rawAttr(node, 'initial') ?? '';
+  const first = values.includes(initial) ? initial : values[0] ?? '';
+  const stored = currentValue(runtime, node);
+  const boundValue = typeof stored === 'string' ? stored : '';
+  const panelRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const focusAfterNavigation = useRef(false);
+
+  useResetToken(runtime, node, () => {
+    setError(null);
+    focusAfterNavigation.current = false;
+  });
+
+  const current = values.includes(boundValue) ? boundValue : first;
+  const activeIndex = Math.max(0, values.indexOf(current));
+
+  useEffect(() => {
+    if (!focusAfterNavigation.current) return;
+    focusAfterNavigation.current = false;
+    panelRefs.current[activeIndex]?.focus({ preventScroll: true });
+  }, [activeIndex, current]);
+
+  if (steps.length === 0) {
+    return <LocalError message={t('Steps requires at least one step', '步骤至少需要一个 step')} />;
+  }
+
+  const go = (index: number) => {
+    const value = values[index];
+    if (value === undefined) return;
+    focusAfterNavigation.current = true;
+    write(value);
+  };
+
+  return (
+    <section className="local-steps" aria-label={label || t('Steps', '步骤')}>
+      {label ? <div className="local-steps-label">{label}</div> : null}
+      <div className="local-steps-nav">
+        <button
+          type="button"
+          className="md-button md-button-secondary local-steps-prev"
+          disabled={activeIndex <= 0}
+          onClick={() => go(activeIndex - 1)}
+        >
+          {t('Previous', '上一步')}
+        </button>
+        <span className="local-steps-status" role="status" aria-live="polite">
+          {t(`Step ${activeIndex + 1} of ${steps.length}`, `第 ${activeIndex + 1} 步，共 ${steps.length} 步`)}
+        </span>
+        <button
+          type="button"
+          className="md-button md-button-secondary local-steps-next"
+          disabled={activeIndex >= steps.length - 1}
+          onClick={() => go(activeIndex + 1)}
+        >
+          {t('Next', '下一步')}
+        </button>
+      </div>
+      {steps.map((step, index) => {
+        const active = index === activeIndex;
+        return (
+          <div
+            key={step.id}
+            id={`${domId}-step-${index}`}
+            ref={(element) => {
+              panelRefs.current[index] = element;
+            }}
+            className="local-steps-panel"
+            role="group"
+            aria-label={labels[index]}
+            tabIndex={-1}
+            hidden={!active}
+          >
+            {render(step.children ?? [], visible && active)}
+          </div>
+        );
+      })}
+      <FieldError message={error} />
+    </section>
+  );
+}
+
+function StepView() {
+  return null;
+}
+
 const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNode> = {
   panel: PanelView,
   card: CardView,
@@ -2118,6 +3058,16 @@ const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNode> = {
   timer: TimerView,
   checklist: ChecklistView,
   progress: ProgressView,
+  jump: JumpView,
+  anchor: AnchorView,
+  text: TextView,
+  section: SectionView,
+  'multi-select': MultiSelectView,
+  'range-slider': RangeSliderView,
+  coordinate: CoordinateView,
+  quiz: QuizView,
+  steps: StepsView,
+  step: StepView,
 };
 
 /* ---------------------------------------------------------------- document */
@@ -2140,6 +3090,7 @@ export function LocalDocumentView({
   );
   const reportRef = useRef(onDiagnostics);
   reportRef.current = onDiagnostics;
+  const rootRef = useRef<HTMLElement>(null);
   const report = useCallback((diagnostics: Diagnostic[]) => {
     reportRef.current?.(diagnostics);
   }, []);
@@ -2168,7 +3119,9 @@ export function LocalDocumentView({
 
   const env: RenderEnv = { runtime, urlPolicy, anchors, t };
   const render = (nodes?: LocalNode[], visible = true): ReactNode => (
-    <LocalViewContext.Provider value={{ runtime, render, visible, report, urlPolicy, anchors, t }}>
+    <LocalViewContext.Provider
+      value={{ runtime, render, visible, report, urlPolicy, anchors, rootRef, t }}
+    >
       {renderNodes(env, nodes ?? [], visible)}
     </LocalViewContext.Provider>
   );
@@ -2176,6 +3129,7 @@ export function LocalDocumentView({
   return (
     <LocalLocaleProvider locale={locale}>
       <article
+        ref={rootRef}
         className="md-document local-document"
         aria-label={t('Interactive document', '交互文档')}
       >

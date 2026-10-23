@@ -230,8 +230,8 @@ function formatProblems(input: unknown): string[] {
   if (input.protocolVersion !== 'component-protocol-1') {
     problems.push('protocolVersion 必须精确等于 component-protocol-1');
   }
-  if (input.syntaxVersion !== 'local-draft-1') {
-    problems.push('syntaxVersion 必须精确等于 local-draft-1');
+  if (input.syntaxVersion !== 'local-draft-2') {
+    problems.push('syntaxVersion 必须精确等于 local-draft-2');
   }
   if (!Array.isArray(input.cases) || input.cases.length === 0) {
     problems.push('cases 必须是非空数组');
@@ -310,7 +310,7 @@ describe('component-protocol-1 fixture format', () => {
 
   const minimalSuite = () => ({
     protocolVersion: 'component-protocol-1',
-    syntaxVersion: 'local-draft-1',
+    syntaxVersion: 'local-draft-2',
     cases: [{ id: 'format-check', component: 'slider', source: '', ok: true, codes: [] } as Record<string, unknown>],
   });
   type FormatSample = ReturnType<typeof minimalSuite>;

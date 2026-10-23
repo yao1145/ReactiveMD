@@ -1,6 +1,6 @@
 # Release checklist
 
-This file is the maintainers' manual release process. Reactive MD is currently a `0.3.1` public preview. See [Versions and compatibility](compatibility-en.md) for version rules.
+This file is the maintainers' manual release process. This checkout targets the unreleased `0.4.0` development preview. See [Versions and compatibility](compatibility-en.md) for version rules.
 
 ## Before release
 
@@ -14,7 +14,7 @@ This file is the maintainers' manual release process. Reactive MD is currently a
 4. Check release metadata in `package.json`: `repository`, `homepage`, `bugs`, `license`, `engines` and similar fields. They are currently set; before releasing, confirm the URLs and minimum Node version are still correct and that `private` remains removed.
 5. Confirm `files` covers what needs to be published. It currently includes `dist-library`, the READMEs (`README.md`, `README-en.md`, `README-ch.md`), the contributing, changelog and security guides in both languages, `THIRD_PARTY_NOTICES.md`, `docs` and `examples`; add any new documentation or notices to `files` as well.
 
-The package name and version determine the tarball name. The expected filename for `0.3.1` is `reactive-md-0.3.1.tgz`; after renaming or changing the version, use the actual output of `npm pack`.
+The package name and version determine the tarball name. The expected filename for `0.4.0` is `reactive-md-0.4.0.tgz`; after renaming or changing the version, use the actual output of `npm pack`.
 
 ### Third-party notices
 
@@ -42,7 +42,7 @@ npm pack
 mkdir /tmp/reactive-md-consumer
 cd /tmp/reactive-md-consumer
 npm init -y
-npm install /path/to/reactive-md-0.3.1.tgz
+npm install /path/to/reactive-md-0.4.0.tgz
 ```
 
 The core entry can be checked directly in Node:
@@ -84,8 +84,8 @@ Do not write results for checks that have not run, and do not present the existe
 4. Run `npm pack --dry-run` to inspect the file list, size and license files; then run the actual `npm pack` and verify installation in an empty directory.
 5. Check the tarball SHA256 and record it in the release notes or an internal release record.
 6. Merge the release commit and wait for all CI on `main` to pass.
-7. Create and push the tag manually, for example `v0.3.1`. Do not store npm tokens in an automated release workflow.
-8. After signing in to npm and completing two-factor authentication on the maintainer's machine, publish the tarball manually: `npm publish reactive-md-0.3.1.tgz --access public`. With a scoped package name, use the corresponding `@scope/name`.
+7. Create and push the tag manually, for example `v0.4.0`. Do not store npm tokens in an automated release workflow.
+8. After signing in to npm and completing two-factor authentication on the maintainer's machine, publish the tarball manually: `npm publish reactive-md-0.4.0.tgz --access public`. With a scoped package name, use the corresponding `@scope/name`.
 9. Verify the package contents, version, README, license and release notes on npm and GitHub Releases; reinstall once from the public registry.
 10. Verify that the install command in the README works from the registry, and that the registry integrity digest matches the released tarball.
 

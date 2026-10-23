@@ -12,9 +12,9 @@ import {
   MAX_LOCAL_STRING_LENGTH,
 } from './limits';
 
-const VOID = new Set('input textarea number slider toggle checkbox date counter timer progress edge'.split(' '));
-const PAIRED = new Set('panel card grid tabs tab accordion disclosure if alert badge tooltip select choices radio-group checklist table chart plot timeline diagram node option'.split(' '));
-const INLINE = new Set(['badge', 'tooltip']);
+const VOID = new Set('input textarea number slider range-slider coordinate toggle checkbox date counter timer progress edge anchor'.split(' '));
+const PAIRED = new Set('panel card grid tabs tab steps step accordion disclosure if alert badge tooltip select choices radio-group multi-select quiz checklist table chart plot timeline diagram node option jump text section'.split(' '));
+const INLINE = new Set(['badge', 'tooltip', 'jump', 'text']);
 const KNOWN = new Set([...VOID, ...PAIRED]);
 /** Private-use sentinels keep source tokens opaque while Markdown is parsed. */
 const MARK_OPEN = String.fromCharCode(0xe000);

@@ -2,7 +2,7 @@
 
 The Playground opens with a short calculator and six [feature tours](../examples/local/showcase/README.md): functions, forms, data and charts, layout, diagrams, and checklists and timing. Each tour follows one example from a suggested change to the visible result, with key source snippets at the end. English and Chinese versions are available throughout.
 
-Presentation mode shows the document at full width. Choose "Show source" to edit Markdown beside its live preview, or "Presentation mode" to return without resetting the current controls. The reference menu contains the component gallery and an intentionally broken diagnostics example; choosing diagnostics opens the editor. If you are new to the syntax, start with the [getting-started guide](../docs/local-guide-en.md).
+Presentation mode shows the document at full width. Choose "Show source" to edit Markdown beside its live preview, or "Presentation mode" to return without resetting the current controls. All 43 components are distributed across the six scenarios. The auxiliary menu opens an intentionally broken diagnostics example in the editor. If you are new to the syntax, start with the [getting-started guide](../docs/local-guide-en.md).
 
 On phones, open the feature menu to choose a tour. It closes after selection to leave room for the document; import and export tools appear when source editing is open.
 
@@ -16,7 +16,7 @@ While you edit, consecutive keystrokes are coalesced and compiled on a backgroun
 
 "Keep trial state" is on by default. When you edit prose, control labels or formulas, parameter values with the same name and type that still satisfy the new constraints are kept; they are also restored after a temporary compile error is fixed. Changing `initial` or an effective default uses the new initial value. With the option off, the next compile starts from initial values.
 
-Trial values live only in the current editing session. Running again, restoring an example, switching examples, importing a document or refreshing the page resets them; anonymous controls, checklists and timers reset after every recompile. The `LocalReactiveDocument` library component still creates a fresh document instance whenever the source changes.
+Trial values live only in the current editing session. Running again, restoring an example, switching examples, importing a document or refreshing the page resets them; anonymous controls, checklists, timers and the new multi-slot inputs reset after every recompile. The `LocalReactiveDocument` library component still creates a fresh document instance whenever the source changes.
 
 Live demo: [yaozi.raricy.com](https://yaozi.raricy.com/).
 
@@ -37,14 +37,14 @@ Start with Quick start, then choose a feature in the navigation:
 
 | Tour | What to try |
 | --- | --- |
-| Functions & formulas | Flatten a sine wave, compare curves, then explore piecewise functions and savings growth |
-| Forms & bindings | Configure a workshop and watch its summary, estimate and preparation notes change |
-| Data & charts | Change an expense and compare the shared totals, table, bar chart, donut and scatter plot |
-| Content & layout | Switch reading roles and explore cards, tabs, tooltips and disclosures |
-| Diagrams & flow | Follow a headcount from input to calculation and displayed result |
+| Functions & formulas | Compare curves and savings growth, adjust a point and interval, then answer a distance question |
+| Forms & bindings | Configure a workshop with text, choice, multi-select and checkbox inputs |
+| Data & charts | Change expenses and link category selection across the table, bar chart, donut and scatter plot |
+| Content & layout | Jump between sections, style prose colors and explore cards, tabs and disclosures |
+| Diagrams & flow | Follow the calculation through diagram nodes, guided steps and a choice question |
 | Checklists & timing | Prepare a workshop, track completion, count attendees and run a timer |
 
-Feature sources live in `examples/local/showcase/`, with Chinese versions in its `zh/` directory. Quick start, component reference and diagnostics use the corresponding files in `examples/local/` and `examples/local/zh/`. The original standalone examples remain available through the [example catalog](../examples/local/README.md).
+Feature sources live in `examples/local/showcase/`, with Chinese versions in its `zh/` directory. Quick start and diagnostics use the corresponding files in `examples/local/` and `examples/local/zh/`. The original standalone examples remain available through the [example catalog](../examples/local/README.md).
 
 The Playground uses the library through `compileLocal`, `createLocalRuntime` and the `reactive-md/react` renderer entry. Controls declare parameters in the body, and table data is written in Markdown. Table search and sorting affect that table; charts continue to show the full data.
 
@@ -73,3 +73,9 @@ Browser checks require local Edge and a running server. They target `http://127.
 ## Integration
 
 Host applications use the public API described in [local mode integration](../docs/local-integration-en.md).
+
+## Local review of 0.4.0
+
+Run `npm run dev` from the repository root, then open [Functions & formulas](http://127.0.0.1:5173/?example=functions). This checkout uses local-draft-2 and has not been published. The six scenarios cover all components, including the new controls and linked table/chart selection, in English and Chinese. See the [syntax and migration reference](../docs/local-components-v2-en.md).
+
+Use `npm run test:v2 --workspace=@reactive-md/demo` against the running service for the new browser checks.

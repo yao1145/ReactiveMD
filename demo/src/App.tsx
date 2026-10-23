@@ -20,6 +20,7 @@ import {
   exampleSource,
   localizedExample,
   localizedExamples,
+  resolveExampleId,
 } from './examples';
 import {
   COPY,
@@ -71,8 +72,8 @@ function initialLanguage(): Language {
 }
 
 function initialExampleId() {
-  const saved = savedItem(SELECTION_KEY);
-  return EXAMPLES.some((example) => example.id === saved) ? saved! : DEFAULT_EXAMPLE.id;
+  const requested = new URLSearchParams(window.location.search).get('example');
+  return resolveExampleId(requested) ?? resolveExampleId(savedItem(SELECTION_KEY)) ?? DEFAULT_EXAMPLE.id;
 }
 
 // Language-specific drafts live beside the original English draft key so
@@ -698,7 +699,7 @@ export default function App() {
                   <h2>{copy.editor.heading}</h2>
                   <p className="pane-subtitle">{copy.editor.subtitle}</p>
                 </div>
-                <span className="syntax-tag">local-draft-1</span>
+                <span className="syntax-tag">local-draft-2</span>
               </div>
 
               <div className="editor-frame">

@@ -4,12 +4,12 @@
 
 Write local interactive documents in Markdown. Add input controls, name parameters with `bind`, and connect prose, formulas, charts and diagrams with `{{ expressions }}`. Document authors do not write JavaScript or CSS.
 
-Local mode uses HTML-style tags, with parameters and table data written directly in the prose; LaTeX formulas can drive function plots. The TypeScript core and the React renderer can be integrated independently. The current preview is `0.3.1` with syntax revision `local-draft-1`. See [README-ch.md](README-ch.md) for the Chinese overview.
+Local mode uses HTML-style tags, with parameters and table data written directly in the prose; LaTeX formulas can drive function plots. The TypeScript core and the React renderer can be integrated independently. This checkout targets the unreleased `0.4.0` preview with syntax revision `local-draft-2`. See [README-ch.md](README-ch.md) for the Chinese overview.
 
 ## Start here
 
 - [Beginner guide](docs/local-guide-en.md): move from Markdown to interactive documents, with a complete exercise and an error quick reference.
-- [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [Feature tours and examples](examples/local/README.md): 33 component names, tags, in-place parameters and LaTeX plots.
+- [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [Feature tours and examples](examples/local/README.md): 43 component names, tags, in-place parameters and LaTeX plots.
 - [Local mode integration](docs/local-integration-en.md): `compileLocal`, the state runtime, React embedding, URL policy and style scoping.
 - [Standalone integration examples](examples/integration/README.md): Node core and React pages you can copy and run outside the repository.
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
@@ -28,6 +28,8 @@ Monthly cost: **{{ people * (annual ? 80 : 100) }} USD**.
 ```
 
 Inputs update the result immediately, and the panel includes a restore-defaults action. A standalone counter is a single line: `<counter label="People">`.
+
+The new components in this checkout require a local build. The published 0.3.1 package uses local-draft-1. See [new components and migration](docs/local-components-v2-en.md).
 
 ## Install
 

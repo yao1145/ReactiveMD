@@ -21,7 +21,7 @@
 <alert tone="warning" title="费用已超出预算">需要减少 **{{ content + visual + interaction + testing - 690 }}** 元，才能回到 690 元预算内。</alert>
 </if>
 
-<chart title="实际费用与预算比较" y-label="元">
+<chart bind="selectedExpense" key="项目" title="实际费用与预算比较" y-label="元">
 | 项目 | 实际 | 预算 |
 | --- | ---: | ---: |
 | 内容 | {{ content }} | 150 |
@@ -36,7 +36,7 @@
 
 搜索项目、按实际费用排序，或翻页查看。搜索只筛选此表，图表继续展示全部四个项目。
 
-<table label="费用明细" page-size="2">
+<table bind="selectedExpense" key="项目" initial="内容" label="费用明细" page-size="2">
 | 项目 | 实际 | 预算 |
 | --- | ---: | ---: |
 | 内容 | {{ content }} | 150 |
@@ -45,11 +45,13 @@
 | 测试 | {{ testing }} | 120 |
 </table>
 
+当前选择：**{{ selectedExpense }}**。点击行首圆圈或图表中的数据项，其他视图会同步显示选择。搜索、排序和分页保留当前选择。
+
 ## 换一种观察角度
 
 <tabs label="预算视角">
 <tab label="费用占比">
-<chart kind="donut" title="费用流向">
+<chart bind="selectedExpense" key="项目" kind="donut" title="费用流向">
 | 项目 | 实际 |
 | --- | ---: |
 | 内容 | {{ content }} |
@@ -59,7 +61,7 @@
 </chart>
 </tab>
 <tab label="预算与实际">
-<chart kind="scatter" title="预算与实际散点" x="预算" y="实际" x-label="预算" y-label="实际">
+<chart bind="selectedExpense" key="项目" kind="scatter" title="预算与实际散点" x="预算" y="实际" x-label="预算" y-label="实际">
 | 项目 | 实际 | 预算 |
 | --- | ---: | ---: |
 | 内容 | {{ content }} | 150 |

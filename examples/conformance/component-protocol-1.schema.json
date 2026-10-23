@@ -7,7 +7,7 @@
   "required": ["protocolVersion", "syntaxVersion", "cases"],
   "properties": {
     "protocolVersion": { "const": "component-protocol-1" },
-    "syntaxVersion": { "const": "local-draft-1" },
+    "syntaxVersion": { "const": "local-draft-2" },
     "cases": {
       "type": "array", "minItems": 1,
       "items": { "$ref": "#/$defs/case" },

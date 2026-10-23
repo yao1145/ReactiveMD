@@ -13,13 +13,13 @@ function flatten<T extends { children?: T[] }>(nodes: T[]): T[] {
 }
 
 describe('playground local documents consumed through the public package', () => {
-  it('ships a quick start, six feature tours and two reference documents', () => {
-    expect(EXAMPLES).toHaveLength(9);
-    expect(new Set(EXAMPLES.map((example) => example.id)).size).toBe(9);
+  it('ships a quick start, six feature tours and one diagnostics document', () => {
+    expect(EXAMPLES).toHaveLength(8);
+    expect(new Set(EXAMPLES.map((example) => example.id)).size).toBe(8);
     expect(EXAMPLES.filter((example) => example.section === 'quickstart').map((example) => example.id)).toEqual(['pricing']);
     expect(EXAMPLES.filter((example) => example.section === 'feature').map((example) => example.id))
       .toEqual(['functions', 'forms', 'statistics', 'layout', 'flow', 'tasks']);
-    expect(EXAMPLES.filter((example) => example.section === 'reference').map((example) => example.id)).toEqual(['gallery']);
+    expect(EXAMPLES.filter((example) => example.section === 'reference').map((example) => example.id)).toEqual([]);
     expect(EXAMPLES.filter((example) => example.section === 'debug').map((example) => example.id)).toEqual(['diagnostics']);
     expect(EXAMPLES.some((example) => example.id === DEFAULT_EXAMPLE_ID)).toBe(true);
     for (const example of EXAMPLES) {
@@ -86,7 +86,7 @@ describe('playground local documents consumed through the public package', () =>
 
 describe('localized playground examples', () => {
   it('ships English and Chinese metadata and sources for every tour', () => {
-    expect(EXAMPLES).toHaveLength(9);
+    expect(EXAMPLES).toHaveLength(8);
     for (const example of EXAMPLES) {
       expect(example.title.trim().length, example.id).toBeGreaterThan(0);
       expect(example.hint.trim().length, example.id).toBeGreaterThan(0);

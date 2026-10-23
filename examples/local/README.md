@@ -1,8 +1,8 @@
 # Local interaction syntax demo
 
-These are standalone authoring examples for `local-draft-1`, described in the [local interaction syntax specification](../../docs/local-interaction-syntax-en.md). The Playground starts with a [quick calculator](pricing.reactive.md), followed by six focused [feature tours](showcase/README.md). Component reference and diagnostics have their own auxiliary menu. Hosts can compile and render every document through the [local mode API](../../docs/local-integration-en.md).
+These are standalone authoring examples for `local-draft-2`, described in the [local interaction syntax specification](../../docs/local-interaction-syntax-en.md). The Playground starts with a [quick calculator](pricing.reactive.md), followed by six focused [feature tours](showcase/README.md). Components are distributed across these six scenarios; diagnostics has an auxiliary menu. Hosts can compile and render every document through the [local mode API](../../docs/local-integration-en.md).
 
-The original eleven working examples and one intentionally broken diagnostics document remain in this directory, with Chinese versions in [zh/](zh/). The six new feature tours live in [showcase/](showcase/README.md), with Chinese sources in [showcase/zh/](showcase/zh/). Each file runs independently. Controls, expressions and visualizations use local state.
+The original eleven working examples and one intentionally broken diagnostics document remain in this directory, with Chinese versions in [zh/](zh/). The six feature tours live in [showcase/](showcase/README.md), with Chinese sources in [showcase/zh/](showcase/zh/). Each file runs independently. Controls, expressions and visualizations use local state.
 
 ## Start with the short examples
 
@@ -64,3 +64,5 @@ In parameters, the conditional checklist sits outside the panel: its existing ch
 ## Check entry points
 
 `npm test` checks parsing, bindings, expressions, LaTeX, the runtime and examples; `npm run test:demo` checks the Playground index; after starting the app, `npm run test:browser` checks real interactions. `npm run test:docs` checks documentation links. See the [repository implementation notes](https://github.com/yao1145/ReactiveMD/blob/main/demo/IMPLEMENTATION.md) for actual run results.
+
+The [six scenarios](showcase/README.md) include all 43 component names: intervals, coordinates and numeric questions in Functions; input choices in Forms; linked selection in Data; jumps and prose colors in Layout; guided steps and choice questions in Flow; todos and timing in Checklists. The standalone gallery and interaction-tour sources remain available as authoring examples.

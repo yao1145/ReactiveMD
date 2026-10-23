@@ -133,7 +133,7 @@ const ENGLISH: DemoCopy = {
     intro: 'Explore what an interactive document can do. Choose a feature, try a change, then open the source.',
     navigation: 'Explore features',
     reference: 'Reference',
-    more: 'Components & debugging',
+    more: 'Open diagnostics',
     footer: 'Try the controls in each document. Open the source to explore or change how it works.',
   },
   languageToggle: {
@@ -254,7 +254,7 @@ const CHINESE: DemoCopy = {
     intro: '按功能探索交互文档。选一个主题，动手调整，再展开源码看看写法。',
     navigation: '探索功能',
     reference: '查阅',
-    more: '组件与调试',
+    more: '打开调试示例',
     footer: '直接操作文档中的控件；展开源码，可以查看或修改它的写法。',
   },
   languageToggle: {

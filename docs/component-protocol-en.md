@@ -1,6 +1,6 @@
 # Reactive MD component protocol
 
-Protocol revision `component-protocol-1` · applicable syntax `local-draft-1` · current package version `0.3.1` (preview)
+Protocol revision `component-protocol-1` · applicable syntax `local-draft-2` · current package version `0.4.0` (preview)
 
 Components are the building blocks of the Reactive MD language. This protocol defines the shared contract for contribution, implementation and acceptance, connecting author syntax, the compiler, the runtime, the React reference adapter and machine conformance data. Authors writing documents follow the [local interaction syntax specification](local-interaction-syntax-en.md); hosts integrating follow [local mode integration](local-integration-en.md); this document is for contributors, reviewers and tests.
 
@@ -20,8 +20,8 @@ Reactive MD maintains three independent version axes at the same time:
 
 | Version axis | Current value | Determines |
 | --- | --- | --- |
-| Package version | `0.3.1` | npm release, core and React entries, upgrade compatibility rules |
-| Syntax revision | `local-draft-1` | Tags, attributes and expressions authors can write |
+| Package version | `0.4.0` | npm release, core and React entries, upgrade compatibility rules |
+| Syntax revision | `local-draft-2` | Tags, attributes and expressions authors can write |
 | Protocol revision | `component-protocol-1` | Component contribution requirements, acceptance gates and machine data semantics |
 
 The protocol revision is independent of the package version and syntax version. One package version accepts only one syntax revision. A protocol revision may raise contribution and acceptance requirements without changing author syntax; a syntax revision change does not automatically require a protocol revision.
@@ -59,7 +59,7 @@ When a clause restating existing behavior conflicts with the syntax specificatio
 
 ### CP-SCOPE-05 Scope (boundary)
 
-This protocol applies to the 33 component names of `local-draft-1`, their compilation, runtime and reference rendering behavior, and the process for submitting new components or changing existing ones to the repository.
+This protocol applies to the 43 component names of `local-draft-2`, their compilation, runtime and reference rendering behavior, and the process for submitting new components or changing existing ones to the repository.
 
 This document defines contribution and acceptance contracts. The author tutorial and host API have separate documents; see CP-CORE-03 for the portable HTML scope and CP-CORE-05 for extension interface boundaries.
 
@@ -67,14 +67,15 @@ This document defines contribution and acceptance contracts. The author tutorial
 
 ### CP-MODEL-01 Component classification (existing)
 
-`local-draft-1` fixes 33 component names in five categories:
+`local-draft-2` fixes 43 component names in the following groups:
 
 | Category | Components | Notes |
 | --- | --- | --- |
 | Input controls | `input`, `textarea`, `number`, `slider`, `toggle`, `checkbox`, `date`, `select`, `choices`, `radio-group`, `option` | Read reader input and optionally expose parameters |
 | Self-operating controls | `counter`, `timer`, `checklist`, `progress` | Provide increment/decrement, timing, checking or progress display |
 | Organization and structure | `panel`, `card`, `grid`, `tabs`, `tab`, `accordion`, `disclosure`, `if` | Layout, switching, collapsing and conditional display |
-| Feedback | `alert`, `badge`, `tooltip` | Alerts and inline explanations |
+| New components | `jump`, `anchor`, `text`, `section`, `multi-select`, `range-slider`, `coordinate`, `quiz`, `steps`, `step` | Declarations are in the extension reference |
+| Feedback | `alert`, `badge`, `tooltip`, `jump`, `text` | Alerts and inline explanations |
 | Data and visualization | `table`, `chart`, `plot`, `timeline`, `diagram`, `node`, `edge` | Tables, charts, function curves, timelines and diagrams |
 
 `option`, `tab`, `disclosure`, `node` and `edge` are structural children that appear only inside their specified parent components. See [section 12 of the syntax specification](local-interaction-syntax-en.md#12-component-reference-and-syntax-scope) for the complete names and purposes.
@@ -83,8 +84,8 @@ This document defines contribution and acceptance contracts. The author tutorial
 
 | Shape | Author form | Current components |
 | --- | --- | --- |
-| No body (leaf) | `<slider ...>`, no end tag; `<slider ... />` is also accepted | `input`, `textarea`, `number`, `slider`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `edge` |
-| Inline | Paired tags with content embedded in a sentence | `badge`, `tooltip` |
+| No body (leaf) | `<slider ...>`, no end tag; `<slider ... />` is also accepted | `input`, `textarea`, `number`, `slider`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `edge`, `anchor`, `range-slider`, `coordinate` |
+| Inline | Paired tags with content embedded in a sentence | `badge`, `tooltip`, `jump`, `text` |
 | Container | Paired tags whose content continues to parse as Markdown or child components | The remaining components |
 
 Void components must not carry a body; containers must be explicitly closed, and automatic closing or correction of mismatched tags is not allowed. `textarea` text is set through `initial`, so it is a void component.
@@ -112,7 +113,7 @@ The current declaration table is `src/local/schema.ts`; the tag lexical sets are
 
 ### CP-MODEL-04 Name set (existing)
 
-The 33 names of `local-draft-1` are the complete set for the current syntax. Adding, removing or changing the meaning of a name is an author-visible change and is handled under section 10. Implementations may use undocumented node types internally, but authors can only use the names listed here and in the syntax specification.
+The 43 names of `local-draft-2` are the complete set for the current syntax. Adding, removing or changing the meaning of a name is an author-visible change and is handled under section 10. Implementations may use undocumented node types internally, but authors can only use the names listed here and in the syntax specification.
 
 ## 3. Names, syntax and attributes
 
@@ -125,7 +126,7 @@ Tag names and attribute names must use lowercase kebab-case matching `^[a-z][a-z
 - Void components have no end tag; a trailing `/` may be used as self-closing syntax.
 - Containers must use a paired end tag; the end tag must match the most recently unclosed container.
 - Automatic closing, auto-completion or correction of mismatched tags is not supported.
-- Only `badge` and `tooltip` are inline components and can be embedded in sentences; other components are treated as block content.
+- `badge`, `tooltip`, `jump` and `text` are inline components and can be embedded in sentences; other components are treated as block content.
 - Tags, interpolations and formulas inside code fences and inline code are displayed verbatim and are not activated; Markdown comments produce no display content, components or bindings.
 
 ### CP-SYNTAX-03 Attribute values (existing)
@@ -178,7 +179,7 @@ Components may sit in a paragraph or a standalone block. Container content is de
 
 ### CP-SYNTAX-08 Author capability boundary (existing)
 
-Authors cannot execute scripts, write executable HTML, provide author CSS, register event handlers or declare network service calls. Images and links are constrained by the host URL policy in CP-SEC-02. `<script>`, `<style>`, `on-*`, `class`, `style` and legacy directives are not part of `local-draft-1`. Complete unknown tags fall back to source; incomplete or unrecoverable tags produce errors. Document content is never executed as arbitrary HTML.
+Authors cannot execute scripts, write executable HTML, provide author CSS, register event handlers or declare network service calls. Images and links are constrained by the host URL policy in CP-SEC-02. `<script>`, `<style>`, `on-*`, `class`, `style` and legacy directives are not part of `local-draft-2`. Complete unknown tags fall back to source; incomplete or unrecoverable tags produce errors. Document content is never executed as arbitrary HTML.
 
 ## 4. Bindings and state
 
@@ -201,6 +202,11 @@ Components without `bind` still have internal state under the internal key `@<no
 | `checklist` | String array of selected item IDs | `checklist` |
 | `tabs` | Current tab value | `tabs` |
 | `diagram` | Current node ID | `diagram` |
+| `multi-select` | Option value array in source order, exclusive | `multi-select` |
+| `steps` | Current step value, exclusive | `steps` |
+| `selection` | Stable row key, empty string when unselected | `table` and `chart` with key |
+
+Each numeric slot of range-slider and coordinate is also exclusive. Bounds, steps, defaults and atomic batch writes are defined in the [extension declarations](local-components-v2-en.md). Selection can be shared by tables and charts only with identical ordered keys. The initialization, rejection, visibility, reset and disposal clauses below continue to apply.
 
 `timer`, `checklist`, `tabs` and `diagram` are also exclusive families: a public parameter can be owned by only one component, and other controls cannot declare a same-name binding. Hosts can still call the public `runtime.set` through the owning node, and writes follow the same validation.
 
@@ -502,9 +508,9 @@ Editorial changes do not raise the protocol revision. Protocol revisions can shi
 
 ### CP-COMPAT-04 Name governance (required)
 
-- New names must be lowercase kebab-case, semantically clear, and avoid conflicts with the existing 33 names.
+- New names must be lowercase kebab-case, semantically clear, and avoid conflicts with the existing 43 names.
 - Do not use HTML names such as `script`, `style`, `div`, `span` or `a`, and do not use `on-*`, `class` or `style` as author attributes.
-- Within `component-protocol-1`, the existing 33 names are reserved for existing semantics; reusing a name is a breaking change.
+- Within `component-protocol-1`, the existing 43 names are reserved for existing semantics; reusing a name is a breaking change.
 - No implicit aliases. An alias needs its own name, documentation and acceptance evidence.
 - Structural child names and parent constraints are governed together; do not change only the parent component.
 
@@ -541,7 +547,7 @@ Persist only the original `.reactive.md` source and the syntax revision used. `L
 
 ### CP-ACCEPT-02 Machine conformance data (required)
 
-The root object of a machine conformance set contains only `protocolVersion`, `syntaxVersion` and a non-empty `cases` array. The first two are fixed to `component-protocol-1` and `local-draft-1`; the package version is identified by `package.json` and is not inferred from these fields.
+The root object of a machine conformance set contains only `protocolVersion`, `syntaxVersion` and a non-empty `cases` array. The first two are fixed to `component-protocol-1` and `local-draft-2`; the package version is identified by `package.json` and is not inferred from these fields.
 
 Each case contains at least a unique string `id`, component name `component`, source `source`, boolean `ok` and a deduplicated diagnostic code set `codes`. Optional fields `initial`, `bindingNames`, `actions`, `reset`, `text`, `expectedText`, `htmlIncludes` and `htmlExcludes` follow the [language conformance data notes](../examples/conformance/README.md) and the JSON Schema shipped with the repository. The full format follows that document and the Schema; this protocol defines only the semantic gates.
 
@@ -556,7 +562,7 @@ The runner must:
 
 `initial` and `reset.expectedState` use partial matching; `bindingNames` checks the complete public binding name set; `text` and `expectedText` must appear in pairs.
 
-The conformance data of this revision should cover representative `slider`, `tabs` and `plot` cases and at least one complete unknown-tag fallback case. It is a representative gate, not full certification of the 33 components.
+The conformance data of this revision should cover representative `slider`, `tabs` and `plot` cases and at least one complete unknown-tag fallback case. It is a representative gate, not full certification of the 43 components.
 
 ### CP-ACCEPT-03 Component-level evidence (required)
 
@@ -608,7 +614,7 @@ Only SHOULD clauses can be exempted; exemptions must record the rationale, alter
 
 ### CP-IMPL-02 Current coverage (existing / boundary)
 
-The current implementation covers parsing, declarations, compilation, runtime, React rendering, resource budgets and release checks. Real keyboard input, IME, 375px layout and timer pause require corresponding automated browser checks or manual checks; SSR hydration is unverified. The machine data of `component-protocol-1` is a representative gate, not certification of all 33 components.
+The current implementation covers parsing, declarations, compilation, runtime, React rendering, resource budgets and release checks. Real keyboard input, IME, 375px layout and timer pause require corresponding automated browser checks or manual checks; SSR hydration is unverified. The machine data of `component-protocol-1` is a representative gate, not certification of all 43 components.
 
 ### CP-IMPL-03 Extension interfaces (boundary)
 
@@ -617,7 +623,7 @@ If an SDK is provided in the future, it needs a separately defined:
 - Machine format and version negotiation for component declarations.
 - Trust model and sandbox boundary for the host registration API.
 - Budgets, accessibility and acceptance gates for new components.
-- Relationship to the `local-draft-1` syntax revision.
+- Relationship to the `local-draft-2` syntax revision.
 
 These capabilities are future work; they cannot be used as current acceptance evidence and must not be documented as already provided.
 
@@ -682,4 +688,7 @@ The tables below are for review. See the [component development guide](component
 
 | Revision | Date | Notes |
 | --- | --- | --- |
-| `component-protocol-1` | 2026-10-23 | Initial version; applies to `local-draft-1` and package version `0.3.0`, defining component contribution, acceptance and extension boundaries. |
+| `component-protocol-1` | 2026-10-23 | Initial version; originally applied to `local-draft-1` and package version `0.3.0`, defining component contribution, acceptance and extension boundaries. |
+
+
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.

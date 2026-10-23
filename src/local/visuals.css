@@ -106,7 +106,7 @@ table.local-visual-table {
 .local-visual-table td {
   padding: var(--space-2);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
   border-bottom: 1px solid var(--line);
 }
 
@@ -143,6 +143,80 @@ table.local-visual-table {
 
 .local-visual-table tbody tr:hover td {
   background: var(--surface-hover);
+}
+
+/* Opt-in row selection: an extra leading column with a real button. The
+   filled glyph and inset bar keep the selected row identifiable without
+   relying on color alone. */
+.local-visual-select-column {
+  width: 1%;
+}
+
+.local-visual-select-cell {
+  width: 1%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.local-visual-select-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  padding: 0;
+  color: var(--ink-muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.local-visual-select-button::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.local-visual-select-button > span {
+  display: none;
+}
+
+.local-visual-select-button:hover {
+  color: var(--ink);
+  background: transparent;
+}
+
+.local-visual-select-button.is-selected {
+  color: var(--focus);
+}
+
+.local-visual-select-button.is-selected::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.local-visual-select-button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
+}
+
+.local-visual-table tbody tr.is-selected td {
+  background: var(--surface-subtle);
+}
+
+.local-visual-table tbody tr.is-selected td:first-child {
+  box-shadow: inset 3px 0 var(--focus);
 }
 
 /* Numeric columns: right-aligned, tabular figures and a right-aligned sort
@@ -298,8 +372,27 @@ table.local-visual-table {
   transition: opacity var(--motion-fast) var(--ease-standard);
 }
 
+/* Selection is a persistent state, distinct from the transient readout. The
+   halo works for marks whose fill or stroke is set inline by series color;
+   donut slices keep their own ring stroke width. */
+.local-visual-bar.is-selected,
+.local-visual-point.is-selected,
+.local-visual-donut-slice.is-selected {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--focus) 75%, transparent));
+}
+
+.local-visual-bar.is-selected,
+.local-visual-point.is-selected {
+  stroke: var(--focus);
+  stroke-width: 2.5;
+}
+
 .local-visual-hit {
   cursor: crosshair;
+}
+
+.md-document [data-chart-selectable] {
+  cursor: pointer;
 }
 
 .md-document [data-chart-mark] {

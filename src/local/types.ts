@@ -37,6 +37,8 @@ export interface LocalBinding {
   max?: number;
   step?: number;
   options?: string[];
+  /** Upper bound for array selections such as `multi-select`. */
+  maxItems?: number;
   owner?: string;
 }
 export interface LocalDocument {
@@ -45,6 +47,12 @@ export interface LocalDocument {
   nodes: LocalNode[];
   initialState: Record<string, LocalValue>;
   bindings: Record<string, LocalBinding>;
+  /**
+   * Canonical node id -> slot -> binding key for multi-slot components such as
+   * `range-slider` (`start`/`end`) and `coordinate` (`x`/`y`). Renderers use
+   * runtime `get`/`set`/`setMany` with slot names instead of reading this map.
+   */
+  bindingSlots?: Record<string, Record<string, string>>;
 }
 /** Host-owned budgets for a single compilation. */
 export interface LocalCompileLimits {
@@ -59,8 +67,12 @@ export interface LocalSnapshot { revision: number; state: Readonly<Record<string
 export interface LocalRuntime {
   document: LocalDocument;
   snapshot(): LocalSnapshot;
-  get(node: LocalNode): LocalValue;
-  set(node: LocalNode, value: LocalValue): Diagnostic[];
+  /** Read a control value; `slot` is required for multi-slot components. */
+  get(node: LocalNode, slot?: string): LocalValue;
+  /** Write one control value; `slot` selects `start`/`end` or `x`/`y`. */
+  set(node: LocalNode, value: LocalValue, slot?: string): Diagnostic[];
+  /** Atomically write multiple slots of one multi-slot component. */
+  setMany(node: LocalNode, values: Readonly<Record<string, LocalValue>>): Diagnostic[];
   evaluate(expression: string): LocalValue;
   text(template: string): string;
   reset(node: LocalNode): void;

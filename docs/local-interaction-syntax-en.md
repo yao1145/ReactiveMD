@@ -1,6 +1,6 @@
 # Reactive MD local interaction syntax specification
 
-Syntax identifier: `local-draft-1`, 2026-10-22. If this is your first time with the syntax, read the [beginner guide](local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](local-integration-en.md). See [Versions and compatibility](compatibility-en.md) for package version relationships, 0.x compatibility rules and migration. Complete examples are in the [example index](../examples/local/README.md).
+Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with the syntax, read the [beginner guide](local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](local-integration-en.md). See [Versions and compatibility](compatibility-en.md) for package version relationships, 0.x compatibility rules and migration. Complete examples are in the [example index](../examples/local/README.md).
 
 ## 1. Positioning and scope
 
@@ -8,7 +8,7 @@ Reactive MD is for local interactive documents: authors write Markdown and place
 
 The base language requires only two connection rules: `bind` names an input, and `{{ expression }}` reads it elsewhere. Components handle their own selection, expansion, search, sorting, timing and reset.
 
-This draft does not include external service calls, form submission, asynchronous resources, named actions, event handlers, programmable collection edits, loop templates or arbitrary scripts. Legacy `state/data/computed/actions` configuration blocks are not part of the new syntax. Arrays are produced only by the checklist component, and table data is written directly in the prose.
+This draft does not include external service calls, form submission, asynchronous resources, named actions, event handlers, programmable collection edits, loop templates or arbitrary scripts. Legacy `state/data/computed/actions` configuration blocks are not part of the new syntax. Arrays are produced by checklist and multi-select components, and table data is written directly in the prose.
 
 By default a document only keeps in-memory state for the current instance. Reopening starts from initial values; persistence is not part of the author syntax. There is no need to declare a language version, import components or write YAML. Hosts should explicitly select draft parsing mode and must not guess by mixing old and new syntax.
 
@@ -37,7 +37,7 @@ Headings, paragraphs, emphasis, links, images, quotes, lists, plain tables, inli
 
 Block component start and end tags each occupy a line. Attributes in a start tag may span multiple lines. A `>` inside a tag ends the tag only when it is outside quotes. Indentation is only for readability: container content is dedented by the common indentation and then parsed as Markdown; indentation inside code fences is preserved.
 
-The inline components `badge` and `tooltip` can be embedded in sentences. Other components are block components; `option`, `tab`, `disclosure`, `node` and `edge` are child components restricted to specific parent containers.
+The inline components `badge`, `tooltip`, `jump` and `text` can be embedded in sentences. Other components are block components; `option`, `tab`, `disclosure`, `node`, `edge` and `step` are child components restricted to specific parent containers.
 
 ### 3.2 Two tag shapes
 
@@ -400,8 +400,9 @@ Nodes are clickable and keyboard-selectable by default, and the selected notes a
 | Content organization | panel, card, grid, tabs, tab, accordion, disclosure, if |
 | Hints | alert, badge, tooltip |
 | Visualization | table, chart, plot, timeline, diagram, node, edge |
+| New components | jump, anchor, text, section, multi-select, range-slider, coordinate, quiz, steps, step |
 
-33 component names in total, of which option, tab, disclosure, node and edge are structural children of parent components. Most articles only need Markdown and two or three input/display components. Plain amounts can be written directly as `{{ total }} USD`; currency formatting and statistic cards are not entry-level requirements.
+43 component names in total, of which option, tab, disclosure, node, edge and step are structural children of parent components. Most articles only need Markdown and two or three input/display components. Plain amounts can be written directly as `{{ total }} USD`; currency formatting and statistic cards are not entry-level requirements.
 
 This draft does not accept legacy tags such as form, submit, button, each, list, spinner, stat or value, nor set/reset action attributes or on-* event attributes. The panel reset is a fixed boolean option, not a programmable action.
 
@@ -437,3 +438,6 @@ Implementation acceptance must cover:
 10. Document instances are independent, disposal cleans up, and no unintended network actions occur; complex or excessive math input can be halted by the execution budget.
 
 These rules cover compiler, runtime and browser acceptance. See the [example index](../examples/local/README.md) for example mappings and expected observations, the [language conformance data](../examples/conformance/README.md) for the machine-readable minimum acceptance set, and the [repository implementation notes](https://github.com/yao1145/ReactiveMD/blob/main/demo/IMPLEMENTATION.md) for actual check records.
+
+
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.

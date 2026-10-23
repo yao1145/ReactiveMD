@@ -21,7 +21,7 @@ Raise Visual from 230 to 300. The total reaches the 690 budget; increase it agai
 <alert tone="warning" title="Over budget">Reduce expenses by **{{ content + visual + interaction + testing - 690 }}** to return to the 690 budget.</alert>
 </if>
 
-<chart title="Actual against budget" y-label="Credits">
+<chart bind="selectedExpense" key="Category" title="Actual against budget" y-label="Credits">
 | Category | Actual | Budget |
 | --- | ---: | ---: |
 | Content | {{ content }} | 150 |
@@ -36,7 +36,7 @@ Raise Visual from 230 to 300. The total reaches the 690 budget; increase it agai
 
 Search for a category, sort by Actual, or turn the page. Search filters this table; the charts continue to show all four categories.
 
-<table label="Expense details" page-size="2">
+<table bind="selectedExpense" key="Category" initial="Content" label="Expense details" page-size="2">
 | Category | Actual | Budget |
 | --- | ---: | ---: |
 | Content | {{ content }} | 150 |
@@ -45,11 +45,13 @@ Search for a category, sort by Actual, or turn the page. Search filters this tab
 | Testing | {{ testing }} | 120 |
 </table>
 
+Selected expense: **{{ selectedExpense }}**. Choose a row or chart mark to select the same category in the other views. Searching, sorting and paging preserve the selection.
+
 ## Change the perspective
 
 <tabs label="Budget perspectives">
 <tab label="Share of expenses">
-<chart kind="donut" title="Where the money goes">
+<chart bind="selectedExpense" key="Category" kind="donut" title="Where the money goes">
 | Category | Actual |
 | --- | ---: |
 | Content | {{ content }} |
@@ -59,7 +61,7 @@ Search for a category, sort by Actual, or turn the page. Search filters this tab
 </chart>
 </tab>
 <tab label="Budget and actual">
-<chart kind="scatter" title="Budget versus actual" x="Budget" y="Actual" x-label="Budget" y-label="Actual">
+<chart bind="selectedExpense" key="Category" kind="scatter" title="Budget versus actual" x="Budget" y="Actual" x-label="Budget" y-label="Actual">
 | Category | Actual | Budget |
 | --- | ---: | ---: |
 | Content | {{ content }} | 150 |

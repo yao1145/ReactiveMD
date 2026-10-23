@@ -68,6 +68,25 @@ Read the curve at year **{{ t }}** to inspect the ending balance.
 </tab>
 </tabs>
 
+## Explore a point and an interval
+
+Choose an interval, then drag the point. Compare its horizontal position with the interval and read the wave height at that position.
+
+<panel title="Point and interval">
+<range-slider label="Observation interval" bind-start="low" bind-end="high" initial-start="-3" initial-end="3" min="-5" max="5" color="#7c3aed">
+
+Interval: **{{ low }}–{{ high }}**. Width: **{{ high - low }}**.
+
+<coordinate label="Point position" bind-x="px" bind-y="py" initial-x="1" initial-y="2" x-min="-5" x-max="5" y-min="-5" y-max="5" color="#2563eb">
+
+Point: **({{ px }}, {{ py }})**. Distance from the origin: **{{ round(sqrt(px * px + py * py) * 100) / 100 }}**.
+
+{{ px >= low && px <= high ? 'The point lies inside the horizontal interval.' : 'The point lies outside the horizontal interval.' }} Wave height at this x: **{{ round(a * sin(f * px) * 100) / 100 }}**.
+
+<quiz type="number" label="How far is (3, 4) from the origin?" answer="5" tolerance="0.01" explanation="The square root of 3² + 4² is 5. Try placing the point at (3, 4).">
+</quiz>
+</panel>
+
 ## How it is written
 
 <accordion>

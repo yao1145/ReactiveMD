@@ -12,7 +12,7 @@ Reactive MD 渲染作者编写的本地交互文档。文档是不可信输入�
 
 ### 文档内容
 
-- 作者不能执行脚本。`<script>`、原始 HTML、`on-*` 事件属性和作者 CSS 不属于 `local-draft-1`，会作为语法诊断或文本处理，不会作为 HTML 执行。
+- 作者不能执行脚本。`<script>`、原始 HTML、`on-*` 事件属性和作者 CSS 不属于 `local-draft-2`，会作为语法诊断或文本处理，不会作为 HTML 执行。
 - React 渲染器不调用 `dangerouslySetInnerHTML`，也不把文档内容写入 `innerHTML`。
 - 表达式使用自己的解析器和 AST 求值器，不使用 `eval`、`new Function`，不支持赋值、方法调用、属性访问、原型路径或导入。表达式只能读取文档声明的参数和内置函数。
 - LaTeX 通过受预算限制的解析器计算，并由原生 MathML 渲染；渲染器不执行宏、文件、网络或 HTML 入口。未知命令显示为文本。

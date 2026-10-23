@@ -131,7 +131,7 @@ try {
   await expect(nativeMenu.locator('.editor-toolbar-native-title')).toHaveText('Insert component');
   const groupCount = await nativeMenu.locator('.editor-toolbar-native-group').count();
   const itemCount = await nativeMenu.locator('.editor-toolbar-native-item').count();
-  if (groupCount !== 5 || itemCount !== 25) {
+  if (groupCount !== 5 || itemCount !== 34) {
     throw new Error(`Unexpected native catalog: ${groupCount} groups, ${itemCount} items`);
   }
   await page.waitForTimeout(180);
@@ -142,8 +142,8 @@ try {
   await page.keyboard.press('ArrowDown');
   await expect(nativeMenu.getByRole('menuitem').first()).toBeFocused();
   await search.fill('slider');
-  await expect(nativeMenu.locator('.editor-toolbar-native-item')).toHaveCount(1);
-  await nativeMenu.getByRole('menuitem', { name: /Slider/ }).click();
+  await expect(nativeMenu.locator('.editor-toolbar-native-item')).toHaveCount(2);
+  await nativeMenu.getByRole('menuitem', { name: /^Slider\b/ }).click();
   await expect.poll(() => editor.inputValue()).toContain('<slider bind="amount"');
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await expect(page.getByRole('slider', { name: 'Amount', exact: true })).toBeVisible();

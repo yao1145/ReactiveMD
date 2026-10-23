@@ -2,6 +2,14 @@
 
 先并排比较两张卡片，再切换阅读角色、展开常见问题，体验同一份内容如何适应不同的阅读需要。
 
+<anchor id="reading-start">
+
+<section color="#45536f">
+先找到需要的阅读深度。<text color="#a2273a">**把重要提醒放在读者看得见的位置。**</text> 段落可以统一着色，局部文字可以单独强调。
+</section>
+
+<jump to="reading-details" appearance="button" color="#2563eb">跳到常见问题</jump>
+
 <grid>
 <card title="活动之前">
 准备一份简短的 Markdown 文档，想好一个希望读者能动手探索的问题。
@@ -36,6 +44,8 @@
 </tab>
 </tabs>
 
+<anchor id="reading-details">
+
 ## 按需展开细节
 
 <accordion label="活动常见问题">
@@ -48,6 +58,8 @@
 </accordion>
 
 <alert title="保持阅读主线">先呈现主要解释，再让读者决定何时展开补充内容。</alert>
+
+<jump to="reading-start" appearance="button" color="#2563eb">返回阅读概览</jump>
 
 ## 看看写法
 

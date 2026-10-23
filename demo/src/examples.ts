@@ -6,7 +6,6 @@ import layoutSource from '../../examples/local/showcase/layout.reactive.md?raw';
 import flowSource from '../../examples/local/showcase/flow.reactive.md?raw';
 import tasksSource from '../../examples/local/showcase/tasks.reactive.md?raw';
 import pricingSource from '../../examples/local/pricing.reactive.md?raw';
-import gallerySource from '../../examples/local/gallery.reactive.md?raw';
 import diagnosticsSource from '../../examples/local/diagnostics.reactive.md?raw';
 import functionsZhSource from '../../examples/local/showcase/zh/functions.reactive.md?raw';
 import formsZhSource from '../../examples/local/showcase/zh/forms.reactive.md?raw';
@@ -15,7 +14,6 @@ import layoutZhSource from '../../examples/local/showcase/zh/layout.reactive.md?
 import flowZhSource from '../../examples/local/showcase/zh/flow.reactive.md?raw';
 import tasksZhSource from '../../examples/local/showcase/zh/tasks.reactive.md?raw';
 import pricingZhSource from '../../examples/local/zh/pricing.reactive.md?raw';
-import galleryZhSource from '../../examples/local/zh/gallery.reactive.md?raw';
 import diagnosticsZhSource from '../../examples/local/zh/diagnostics.reactive.md?raw';
 
 /** One standalone document, its navigation section and both translations. */
@@ -39,7 +37,7 @@ export interface LocalizedExample {
   source: string;
 }
 
-/** All playground documents use the explicit local-draft-1 syntax. */
+/** All playground documents use the explicit local-draft-2 syntax. */
 export const EXAMPLES: PlaygroundExample[] = [
   {
     id: 'pricing',
@@ -94,16 +92,6 @@ export const EXAMPLES: PlaygroundExample[] = [
     source: tasksSource, sourceZh: tasksZhSource,
   },
   {
-    id: 'gallery',
-    section: 'reference',
-    title: 'Component reference',
-    hint: 'Inputs, standalone components and code as-is',
-    source: gallerySource,
-    titleZh: '组件查阅',
-    hintZh: '输入、独立组件和原样代码',
-    sourceZh: galleryZhSource,
-  },
-  {
     id: 'diagnostics',
     section: 'debug',
     title: 'Errors & debugging',
@@ -116,6 +104,12 @@ export const EXAMPLES: PlaygroundExample[] = [
 ];
 
 export const DEFAULT_EXAMPLE_ID = 'pricing';
+
+/** Keep old tour bookmarks useful after integrating their components. */
+export function resolveExampleId(id: string | null | undefined): string | undefined {
+  const resolved = id === 'explore' ? 'functions' : id === 'gallery' ? 'forms' : id;
+  return EXAMPLES.some(example => example.id === resolved) ? resolved! : undefined;
+}
 
 /** Resolve an example's title, hint and source for the active language. */
 export function localizedExample(example: PlaygroundExample, language: Language): LocalizedExample {

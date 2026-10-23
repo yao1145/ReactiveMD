@@ -1,6 +1,6 @@
 # 贡献指南
 
-Reactive MD 是 `local-draft-1` 的 0.x 预览实现。贡献可以包括语法、编译器、运行时、React 渲染器、文档、示例和 Demo。开始前先读[版本与兼容性](docs/compatibility-ch.md)和[本地交互语法规范](docs/local-interaction-syntax-ch.md)。
+Reactive MD 是 `local-draft-2` 的 0.x 预览实现。贡献可以包括语法、编译器、运行时、React 渲染器、文档、示例和 Demo。开始前先读[版本与兼容性](docs/compatibility-ch.md)和[本地交互语法规范](docs/local-interaction-syntax-ch.md)。
 
 新增或修改组块时，按[组块协议](docs/component-protocol-ch.md)明确行为，使用[开发指南中的提案模板](docs/component-development-ch.md)记录声明、兼容性和验收证据。这里的组块包括控件、容器、可视化和结构子项。
 

@@ -12,7 +12,7 @@ The guarantees below are covered by compiler, runtime and renderer tests; capabi
 
 ### Document content
 
-- Authors cannot execute scripts. `<script>`, raw HTML, `on-*` event attributes and author CSS are not part of `local-draft-1`; they are treated as syntax diagnostics or text, never executed as HTML.
+- Authors cannot execute scripts. `<script>`, raw HTML, `on-*` event attributes and author CSS are not part of `local-draft-2`; they are treated as syntax diagnostics or text, never executed as HTML.
 - The React renderer does not call `dangerouslySetInnerHTML` and does not write document content into `innerHTML`.
 - Expressions use their own parser and AST evaluator, with no `eval` or `new Function`, and no support for assignment, method calls, property access, prototype paths or imports. Expressions can only read parameters declared by the document and built-in functions.
 - LaTeX is evaluated by a budget-limited parser and rendered as native MathML; the renderer does not execute macros, files, network or HTML entry points. Unknown commands are displayed as text.

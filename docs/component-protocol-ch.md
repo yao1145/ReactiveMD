@@ -1,6 +1,6 @@
 # Reactive MD 组块协议
 
-协议修订 `component-protocol-1` · 适用语法 `local-draft-1` · 当前包版本 `0.3.1`（预览）
+协议修订 `component-protocol-1` · 适用语法 `local-draft-2` · 当前包版本 `0.4.0`（预览）
 
 Reactive MD 的组块就是语言中的组件。本协议规定组块在贡献、实现和验收中的共同契约，连接作者语法、编译器、运行时、React 参考适配器和机器验收数据。作者写文档时以[本地交互语法规范](local-interaction-syntax-ch.md)为准；宿主接入以[本地模式集成](local-integration-ch.md)为准；本文供贡献者、评审和测试使用。
 
@@ -20,8 +20,8 @@ Reactive MD 同时维护三个独立版本轴：
 
 | 版本轴 | 当前值 | 决定什么 |
 | --- | --- | --- |
-| 包版本 | `0.3.1` | npm 发布、核心与 React 入口、升级兼容规则 |
-| 语法修订 | `local-draft-1` | 作者可以写出的标签、属性和表达式 |
+| 包版本 | `0.4.0` | npm 发布、核心与 React 入口、升级兼容规则 |
+| 语法修订 | `local-draft-2` | 作者可以写出的标签、属性和表达式 |
 | 协议修订 | `component-protocol-1` | 组块贡献要求、验收门槛和机器数据语义 |
 
 协议修订独立于包版本和语法版本。一个包版本只接受一个语法修订。协议修订可以在不改变作者语法的前提下提高贡献和验收要求；语法修订变化也不必自动提升协议修订。
@@ -59,7 +59,7 @@ Reactive MD 同时维护三个独立版本轴：
 
 ### CP-SCOPE-05 适用范围（边界）
 
-本协议适用于 `local-draft-1` 的 33 个组块名、它们的编译、运行时和参考渲染行为，以及向仓库提交新组块或修改现有组块的流程。
+本协议适用于 `local-draft-2` 的 43 个组块名、它们的编译、运行时和参考渲染行为，以及向仓库提交新组块或修改现有组块的流程。
 
 本文规定贡献与验收契约。作者教程和宿主 API 各有独立文档，HTML 可移植范围见 CP-CORE-03，扩展接口边界见 CP-CORE-05。
 
@@ -67,14 +67,15 @@ Reactive MD 同时维护三个独立版本轴：
 
 ### CP-MODEL-01 组块分类（现有）
 
-`local-draft-1` 固定 33 个组块名，分为五类：
+`local-draft-2` 固定 43 个组块名，分为以下类别：
 
 | 类别 | 组块 | 说明 |
 | --- | --- | --- |
 | 输入控件 | `input`、`textarea`、`number`、`slider`、`toggle`、`checkbox`、`date`、`select`、`choices`、`radio-group`、`option` | 读取读者输入并可选公开参数 |
 | 自操作控件 | `counter`、`timer`、`checklist`、`progress` | 自带增减、计时、勾选或进度显示 |
 | 组织与结构 | `panel`、`card`、`grid`、`tabs`、`tab`、`accordion`、`disclosure`、`if` | 排版、切换、折叠和条件显示 |
-| 反馈 | `alert`、`badge`、`tooltip` | 提示和行内说明 |
+| 新增组块 | `jump`、`anchor`、`text`、`section`、`multi-select`、`range-slider`、`coordinate`、`quiz`、`steps`、`step` | 详细声明见扩展说明 |
+| 反馈 | `alert`、`badge`、`tooltip`、`jump`、`text` | 提示和行内说明 |
 | 数据与可视化 | `table`、`chart`、`plot`、`timeline`、`diagram`、`node`、`edge` | 表格、图表、函数曲线、时间轴和图解 |
 
 `option`、`tab`、`disclosure`、`node`、`edge` 是结构子项，只在指定父组块内出现。完整名称和用途见[语法规范第 12 节](local-interaction-syntax-ch.md#12-组件速查与语法裁剪)。
@@ -83,7 +84,7 @@ Reactive MD 同时维护三个独立版本轴：
 
 | 形态 | 作者写法 | 当前组块 |
 | --- | --- | --- |
-| 无正文（leaf） | `<slider ...>`，不写结束标签；也接受 `<slider ... />` | `input`、`textarea`、`number`、`slider`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`edge` |
+| 无正文（leaf） | `<slider ...>`，不写结束标签；也接受 `<slider ... />` | `input`、`textarea`、`number`、`slider`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`edge`、`anchor`、`range-slider`、`coordinate` |
 | 行内（inline） | 成对标签，内容嵌入句子 | `badge`、`tooltip` |
 | 容器（container） | 成对标签，内部继续解析 Markdown 或子组块 | 其余组块 |
 
@@ -112,7 +113,7 @@ Reactive MD 同时维护三个独立版本轴：
 
 ### CP-MODEL-04 名称集合（现有）
 
-`local-draft-1` 的 33 个名称是当前语法的完整集合。新增名称、删除名称或改变名称含义都属于作者可见变化，按第 10 节处理。实现可以在内部使用未公开的节点类型，但作者只能使用这里和语法规范列出的名称。
+`local-draft-2` 的 43 个名称是当前语法的完整集合。新增名称、删除名称或改变名称含义都属于作者可见变化，按第 10 节处理。实现可以在内部使用未公开的节点类型，但作者只能使用这里和语法规范列出的名称。
 
 ## 3. 名称、语法和属性
 
@@ -125,7 +126,7 @@ Reactive MD 同时维护三个独立版本轴：
 - 无正文组块不写结束标签；末尾 `/` 可以作为自闭合写法。
 - 容器必须写配对的结束标签；结束标签必须匹配最近尚未关闭的容器。
 - 不支持自动闭合、自动补全或纠正错配标签。
-- 行内组块只有 `badge` 和 `tooltip`，可以嵌入句子；其他组块按块级内容处理。
+- 行内组块为 `badge`、`tooltip`、`jump`、`text`，可以嵌入句子；其他组块按块级内容处理。
 - 代码围栏和行内代码中的标签、插值和公式按原文显示，不激活；Markdown 注释不产生显示内容、组块或绑定。
 
 ### CP-SYNTAX-03 属性值（现有）
@@ -178,7 +179,7 @@ $$ y = x^2 $$
 
 ### CP-SYNTAX-08 作者能力边界（现有）
 
-作者不能执行脚本、写入可执行 HTML、提供作者 CSS、注册事件处理器或声明网络服务调用。图片与链接受 CP-SEC-02 的宿主 URL 策略约束。`<script>`、`<style>`、`on-*`、`class`、`style` 和旧版 directive 都不属于 `local-draft-1`。完整未知标签按源码降级，结构不完整或无法恢复的标签产生错误。文档内容不会作为任意 HTML 执行。
+作者不能执行脚本、写入可执行 HTML、提供作者 CSS、注册事件处理器或声明网络服务调用。图片与链接受 CP-SEC-02 的宿主 URL 策略约束。`<script>`、`<style>`、`on-*`、`class`、`style` 和旧版 directive 都不属于 `local-draft-2`。完整未知标签按源码降级，结构不完整或无法恢复的标签产生错误。文档内容不会作为任意 HTML 执行。
 
 ## 4. 绑定与状态
 
@@ -201,6 +202,11 @@ $$ y = x^2 $$
 | `checklist` | 已选条目 ID 的字符串数组 | `checklist` |
 | `tabs` | 当前标签页 value | `tabs` |
 | `diagram` | 当前节点 ID | `diagram` |
+| `multi-select` | 按源码顺序排列的选项 value 数组，独占 | `multi-select` |
+| `steps` | 当前步骤 value，独占 | `steps` |
+| `selection` | 稳定行标识，空字符串表示未选 | 带 key 的 `table`、`chart` |
+
+range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围、步长、默认值和原子批量写入见[扩展声明](local-components-v2-ch.md)。selection 允许表格和图表共享，但有序标识集合必须相同。新组件继续遵守以下初始化、拒绝写入、隐藏、重置和销毁条款。
 
 `timer`、`checklist`、`tabs`、`diagram` 同时是独占 family：一个公开参数只能由一个组块拥有，其他控件不能声明同名绑定。宿主仍可通过所属节点调用公开的 `runtime.set`，写入遵守同一套校验。
 
@@ -502,9 +508,9 @@ $$ y = x^2 $$
 
 ### CP-COMPAT-04 名称治理（要求）
 
-- 新名称必须是小写 kebab-case，语义明确，避免与现有 33 个名称冲突。
+- 新名称必须是小写 kebab-case，语义明确，避免与现有 43 个名称冲突。
 - 不使用 `script`、`style`、`div`、`span`、`a` 等 HTML 名称，也不使用 `on-*`、`class`、`style` 作为作者属性。
-- 在 `component-protocol-1` 内，现有 33 个名称保留给现有语义；复用名称表示破坏性变更。
+- 在 `component-protocol-1` 内，现有 43 个名称保留给现有语义；复用名称表示破坏性变更。
 - 不提供隐式别名。别名需要单独名称、文档和验收证据。
 - 结构子项的名称和父级约束一并治理，不能只改父组块。
 
@@ -541,7 +547,7 @@ $$ y = x^2 $$
 
 ### CP-ACCEPT-02 机器验收数据（要求）
 
-机器验收集的根对象只包含 `protocolVersion`、`syntaxVersion` 和非空 `cases`。前两者固定为 `component-protocol-1` 和 `local-draft-1`；包版本由 `package.json` 标识，不从这两个字段推断。
+机器验收集的根对象只包含 `protocolVersion`、`syntaxVersion` 和非空 `cases`。前两者固定为 `component-protocol-1` 和 `local-draft-2`；包版本由 `package.json` 标识，不从这两个字段推断。
 
 每个 case 至少包含唯一字符串 `id`、组块名 `component`、源码 `source`、布尔 `ok` 和去重诊断码集合 `codes`。可选字段 `initial`、`bindingNames`、`actions`、`reset`、`text`、`expectedText`、`htmlIncludes`、`htmlExcludes` 按[语言验收数据说明](../examples/conformance/README.md)和仓库附带的 JSON Schema 使用。完整格式以该说明和 Schema 为准，本协议只规定语义门槛。
 
@@ -556,7 +562,7 @@ $$ y = x^2 $$
 
 `initial` 和 `reset.expectedState` 做部分匹配；`bindingNames` 检查完整公开绑定名集合；`text` 与 `expectedText` 必须成对。
 
-本修订的验收数据应当覆盖 `slider`、`tabs`、`plot` 的代表性用例和至少一个完整未知标签降级用例。它是代表性门槛，不是 33 个组块的全面认证。
+本修订的验收数据应当覆盖 `slider`、`tabs`、`plot` 的代表性用例和至少一个完整未知标签降级用例。它是代表性门槛，不是 43 个组块的全面认证。
 
 ### CP-ACCEPT-03 组件级证据（要求）
 
@@ -608,7 +614,7 @@ $$ y = x^2 $$
 
 ### CP-IMPL-02 当前覆盖范围（现有 / 边界）
 
-当前实现已覆盖解析、声明、编译、运行时、React 渲染、资源预算和发布检查。真实键盘、输入法、375px 和计时器暂停需要对应的浏览器自动检查或人工检查；SSR 水合未验证。`component-protocol-1` 的机器数据是代表性门槛，不是全部 33 个组块的认证。
+当前实现已覆盖解析、声明、编译、运行时、React 渲染、资源预算和发布检查。真实键盘、输入法、375px 和计时器暂停需要对应的浏览器自动检查或人工检查；SSR 水合未验证。`component-protocol-1` 的机器数据是代表性门槛，不是全部 43 个组块的认证。
 
 ### CP-IMPL-03 扩展接口（边界）
 
@@ -617,7 +623,7 @@ $$ y = x^2 $$
 - 组块声明的机器格式和版本协商。
 - 宿主注册 API 的信任模型和沙箱边界。
 - 新增组块的预算、可访问性和验收门槛。
-- 与 `local-draft-1` 语法修订的关系。
+- 与 `local-draft-2` 语法修订的关系。
 
 这些能力属于后续工作，不能作为当前验收依据，也不能在文档中写成已经提供。
 
@@ -682,4 +688,7 @@ $$ y = x^2 $$
 
 | 修订 | 日期 | 说明 |
 | --- | --- | --- |
-| `component-protocol-1` | 2026-10-23 | 初版；适用于 `local-draft-1` 和包版本 `0.3.0`，定义组块贡献、验收和扩展边界。 |
+| `component-protocol-1` | 2026-10-23 | 初版；最初适用于 `local-draft-1` 和包版本 `0.3.0`，定义组块贡献、验收和扩展边界。 |
+
+
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。本工作区版本尚未发布。

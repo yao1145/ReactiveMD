@@ -6,8 +6,8 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 | 项目 | 当前值 | 说明 |
 | --- | --- | --- |
-| 包版本 | `0.3.1` | 安装 `reactive-md@0.3.1` |
-| 语法版本 | `local-draft-1` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
+| 包版本 | `0.4.0` | 尚未发布；使用当前工作区构建 |
+| 语法版本 | `local-draft-2` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
 | 组块协议 | `component-protocol-1` | 贡献与验收契约，见[组块协议](component-protocol-ch.md)；不是运行时版本选择参数 |
 | 核心入口 | `reactive-md` | 编译、表达式与运行时，不加载 React |
 | React 入口 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` |
@@ -24,11 +24,11 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 ## 破坏性变更与迁移
 
-作者可见的语法变化会建立新的语法修订，例如 `local-draft-2`，并提升次版本、更新 `LOCAL_SYNTAX_VERSION`。核心或 React API 的变化也会记录在变更记录中。项目不自动改写源码；升级后由作者或宿主按记录迁移。
+作者可见的语法变化会建立新的语法修订，例如本次的 `local-draft-2`，并提升次版本、更新 `LOCAL_SYNTAX_VERSION`。核心或 React API 的变化也会记录在变更记录中。项目不自动改写源码；升级后由作者或宿主按记录迁移。
 
-旧版配置语法不属于 `local-draft-1`。常见替换如下：
+旧版配置语法不属于 `local-draft-2`。常见替换如下：
 
-| 旧写法 | `local-draft-1` 中的做法 |
+| 旧写法 | `local-draft-2` 中的做法 |
 | --- | --- |
 | `:::card`、`:::row` 等 directive | `<card>`、`<grid>` 等标签 |
 | YAML `state:` 声明参数 | 控件上的 `bind` 与 `initial` |
@@ -66,3 +66,6 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `createLocalRuntime`，不需要 DOM。React 渲染要求浏览器环境或宿主自行处理服务端输出。
 
 语言范围见[语法规范](local-interaction-syntax-ch.md)，安全边界与宿主责任见[安全策略](../SECURITY-ch.md)。
+
+
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。本工作区版本尚未发布。

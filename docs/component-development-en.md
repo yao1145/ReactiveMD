@@ -2,7 +2,7 @@
 
 This guide is for contributors adding or changing components in Reactive MD. Components include input controls, containers, visualizations and structural children. The shared contract is in the [component protocol](component-protocol-en.md); the author syntax is in the [local interaction syntax specification](local-interaction-syntax-en.md).
 
-The current protocol is `component-protocol-1`, the applicable syntax is `local-draft-1`, and the current package version is `0.3.1`. These three versions represent the contribution contract, the author syntax and the npm release. Updating the protocol document does not automatically change the syntax or public API.
+The current protocol is `component-protocol-1`, the applicable syntax is `local-draft-2`, and the current package version is `0.4.0`. These three versions represent the contribution contract, the author syntax and the npm release. Updating the protocol document does not automatically change the syntax or public API.
 
 ## 1. What to submit
 
@@ -23,14 +23,14 @@ Components continue to follow the simple local interaction scope. Inputs are nam
 
 | Implementation surface | Location | What to check |
 | --- | --- | --- |
-| Tag parsing | [parser.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/parser.ts) | `VOID`, `PAIRED`, `INLINE` and the `KNOWN` set generated from them; shape, nesting, code isolation and unknown-region fallback |
-| Component declaration | [schema.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/schema.ts) | Name, `form`, `childRule`, parent, attribute types and defaults, `binding`, `initialRule` |
-| Compilation | [compiler.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/compiler.ts) | Attributes and child content, expression types, binding family, shared constraints, initial values and budgets |
-| State runtime | [runtime.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/runtime.ts) | Canonical control lookup, write types and constraints, atomic commits, array copies, reset and disposal |
-| Controls and layout | [LocalDocumentView.tsx](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/LocalDocumentView.tsx) | `COMPONENTS`, input drafts, accessible names, keyboard, visibility, reset tokens and effect cleanup |
-| Visualization | [visuals.tsx](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/visuals.tsx), [math.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/math.ts) | `VISUAL_COMPONENTS`, plot or table semantics, local errors, computation budgets, readouts and reset |
-| Styles | [local.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/local.css), [visuals.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/visuals.css), [theme.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/theme.css) | Theme variables, class prefixes, focus, narrow screens and styling effects outside the document |
-| Budgets and types | [limits.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/limits.ts), [types.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/types.ts), [render-types.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/render-types.ts) | Boundaries for new resources; core types do not depend on React; internal nodes do not become a persistence format |
+| Tag parsing | [parser.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/parser.ts) | `VOID`, `PAIRED`, `INLINE` and the `KNOWN` set generated from them; shape, nesting, code isolation and unknown-region fallback |
+| Component declaration | [schema.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/schema.ts) | Name, `form`, `childRule`, parent, attribute types and defaults, `binding`, `initialRule` |
+| Compilation | [compiler.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/compiler.ts) | Attributes and child content, expression types, binding family, shared constraints, initial values and budgets |
+| State runtime | [runtime.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/runtime.ts) | Canonical control lookup, write types and constraints, atomic commits, array copies, reset and disposal |
+| Controls and layout | [LocalDocumentView.tsx](https://github.com/yao1145/ReactiveMD/blob/main/src/local/LocalDocumentView.tsx) | `COMPONENTS`, input drafts, accessible names, keyboard, visibility, reset tokens and effect cleanup |
+| Visualization | [visuals.tsx](https://github.com/yao1145/ReactiveMD/blob/main/src/local/visuals.tsx), [math.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/math.ts) | `VISUAL_COMPONENTS`, plot or table semantics, local errors, computation budgets, readouts and reset |
+| Styles | [local.css](https://github.com/yao1145/ReactiveMD/blob/main/src/local/local.css), [visuals.css](https://github.com/yao1145/ReactiveMD/blob/main/src/local/visuals.css), [theme.css](https://github.com/yao1145/ReactiveMD/blob/main/src/theme.css) | Theme variables, class prefixes, focus, narrow screens and styling effects outside the document |
+| Budgets and types | [limits.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/limits.ts), [types.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/types.ts), [render-types.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/render-types.ts) | Boundaries for new resources; core types do not depend on React; internal nodes do not become a persistence format |
 | Evidence and documentation | `tests/`, [conformance data](../examples/conformance/README.md), [syntax specification](local-interaction-syntax-en.md) | Concrete behavior cases, copyable examples, migration and check records |
 
 A new declaration does not automatically synchronize the parser, runtime and renderer. Conversely, when existing generic validation is sufficient, there is no need to add branches just to complete the file checklist.
@@ -49,7 +49,7 @@ Judge by the [compatibility notes](compatibility-en.md) and the CP-COMPAT clause
 
 A new tag has one more migration impact: the old implementation displays the complete unknown region as inert source, while the new implementation may start executing inner content after recognizing the name. This must be recorded in the proposal with before/after cases. Whether a name joins the core component set is reviewed by maintainers; do not override the meaning of an existing name or quietly add an alias.
 
-This protocol itself adds no author tags or attributes, so it keeps `local-draft-1` and the current package version.
+This protocol itself adds no author tags or attributes, so it keeps `local-draft-2` and the current package version.
 
 ## 4. Filling in a declaration with existing components
 
@@ -199,8 +199,11 @@ Install existing dependencies in the root directory before running checks; see t
 | Public entries, types or distribution files | After building, run `npm run test:package`, `npm run test:packed` |
 | Documentation, syntax, examples or versions | `npm run test:docs`, compilation of the corresponding examples and a migration review |
 
-`npm run test:components` runs the protocol's representative `slider`, `tabs` and `plot` cases plus existing language conformance data. See the [conformance notes](../examples/conformance/README.md) for file format, field meaning and execution order. New components keep adding their own cases; this command does not prove that all 33 components or all browser behavior are certified. Added `tests/**/*.test.ts` or `.tsx` files are also run by the existing `npm test` and CI.
+`npm run test:components` runs the protocol's representative `slider`, `tabs` and `plot` cases plus existing language conformance data. See the [conformance notes](../examples/conformance/README.md) for file format, field meaning and execution order. New components keep adding their own cases; this command does not prove that all 43 components or all browser behavior are certified. Added `tests/**/*.test.ts` or `.tsx` files are also run by the existing `npm test` and CI.
 
 Browser checks must record the specific environment and actions. Check real keyboard and focus, IME drafts, 375px layout, touch, themes, reset, hiding and showing again, timer pause and unmount cleanup as applicable to the component. Existing automated browser checks can provide evidence for corresponding behavior; items not yet covered, such as screen reader experience, require manual checks. Static SSR proves only server output, not real input, effect lifecycles or hydration.
 
 List the commands actually run and observations in the PR. State not run, failed and not applicable separately; do not treat checked boxes as verification evidence.
+
+
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.

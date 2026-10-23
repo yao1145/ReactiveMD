@@ -6,8 +6,8 @@ Reactive MD is currently a 0.x preview. This page covers package versions, synta
 
 | Item | Current value | Notes |
 | --- | --- | --- |
-| Package version | `0.3.1` | Install `reactive-md@0.3.1` |
-| Syntax version | `local-draft-1` | `LOCAL_SYNTAX_VERSION`; the current build accepts only this revision |
+| Package version | `0.4.0` | Unreleased; build this checkout |
+| Syntax version | `local-draft-2` | `LOCAL_SYNTAX_VERSION`; the current build accepts only this revision |
 | Component protocol | `component-protocol-1` | Contribution and acceptance contract, see [Component protocol](component-protocol-en.md); not a runtime version selection parameter |
 | Core entry | `reactive-md` | Compilation, expressions and runtime, without loading React |
 | React entry | `reactive-md/react` | `LocalReactiveDocument`, `LocalDocumentView` |
@@ -26,9 +26,9 @@ One package version corresponds to exactly one syntax revision. Before upgrading
 
 Author-visible syntax changes establish a new syntax revision, such as `local-draft-2`, and raise the minor version and update `LOCAL_SYNTAX_VERSION`. Changes to the core or React API are also recorded in the changelog. The project does not rewrite sources automatically; after upgrading, authors or hosts migrate according to the record.
 
-Legacy configuration syntax is not part of `local-draft-1`. Common replacements:
+Legacy configuration syntax is not part of `local-draft-2`. Common replacements:
 
-| Old form | What to do in `local-draft-1` |
+| Old form | What to do in `local-draft-2` |
 | --- | --- |
 | Directives such as `:::card`, `:::row` | Tags such as `<card>`, `<grid>` |
 | YAML `state:` declaring parameters | `bind` and `initial` on controls |
@@ -66,3 +66,6 @@ Persist the original `.reactive.md` source. Do not persist `LocalDocument`, `Loc
 Node-side consumption means importing `reactive-md` in Node and calling `compileLocal` and `createLocalRuntime` without a DOM. React rendering requires a browser environment, or the host must handle server output itself.
 
 See the [syntax specification](local-interaction-syntax-en.md) for the language scope, and the [security policy](../SECURITY.md) for the security boundary and host responsibilities.
+
+
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.

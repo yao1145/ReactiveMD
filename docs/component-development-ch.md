@@ -2,7 +2,7 @@
 
 本指南面向为 Reactive MD 新增或修改组件的贡献者。组块包括输入控件、容器、可视化和结构子项。共同契约见[组块协议](component-protocol-ch.md)，作者写法见[本地交互语法规范](local-interaction-syntax-ch.md)。
 
-当前协议为 `component-protocol-1`，适用语法为 `local-draft-1`，当前包版本为 `0.3.1`。这三个版本分别表示贡献契约、作者语法和 npm 发布。协议文档更新不自动改变语法或公开 API。
+当前协议为 `component-protocol-1`，适用语法为 `local-draft-2`，当前包版本为 `0.4.0`。这三个版本分别表示贡献契约、作者语法和 npm 发布。协议文档更新不自动改变语法或公开 API。
 
 ## 1. 提交什么
 
@@ -23,14 +23,14 @@
 
 | 实现面 | 位置 | 检查内容 |
 | --- | --- | --- |
-| 标签解析 | [parser.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/parser.ts) | `VOID`、`PAIRED`、`INLINE` 及由其生成的 `KNOWN`；形态、嵌套、代码隔离和未知区域降级 |
-| 组块声明 | [schema.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/schema.ts) | 名称、`form`、`childRule`、父级、属性类型与默认值、`binding`、`initialRule` |
-| 编译 | [compiler.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/compiler.ts) | 属性与子内容、表达式类型、绑定 family、共享约束、初值和预算 |
-| 状态运行时 | [runtime.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/runtime.ts) | 规范控件查找、写入类型与约束、原子提交、数组副本、重置和销毁 |
-| 控件与布局 | [LocalDocumentView.tsx](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/LocalDocumentView.tsx) | `COMPONENTS`、输入草稿、可访问名称、键盘、可见性、重置 token 和 effect 清理 |
-| 可视化 | [visuals.tsx](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/visuals.tsx)、[math.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/math.ts) | `VISUAL_COMPONENTS`、绘图或表格语义、局部错误、计算预算、读数和重置 |
-| 样式 | [local.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/local.css)、[visuals.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/visuals.css)、[theme.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/theme.css) | 主题变量、类名前缀、焦点、窄屏和文档外样式影响 |
-| 预算与类型 | [limits.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/limits.ts)、[types.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/types.ts)、[render-types.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/render-types.ts) | 新增资源的边界；核心类型不依赖 React；内部节点不成为持久化格式 |
+| 标签解析 | [parser.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/parser.ts) | `VOID`、`PAIRED`、`INLINE` 及由其生成的 `KNOWN`；形态、嵌套、代码隔离和未知区域降级 |
+| 组块声明 | [schema.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/schema.ts) | 名称、`form`、`childRule`、父级、属性类型与默认值、`binding`、`initialRule` |
+| 编译 | [compiler.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/compiler.ts) | 属性与子内容、表达式类型、绑定 family、共享约束、初值和预算 |
+| 状态运行时 | [runtime.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/runtime.ts) | 规范控件查找、写入类型与约束、原子提交、数组副本、重置和销毁 |
+| 控件与布局 | [LocalDocumentView.tsx](https://github.com/yao1145/ReactiveMD/blob/main/src/local/LocalDocumentView.tsx) | `COMPONENTS`、输入草稿、可访问名称、键盘、可见性、重置 token 和 effect 清理 |
+| 可视化 | [visuals.tsx](https://github.com/yao1145/ReactiveMD/blob/main/src/local/visuals.tsx)、[math.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/math.ts) | `VISUAL_COMPONENTS`、绘图或表格语义、局部错误、计算预算、读数和重置 |
+| 样式 | [local.css](https://github.com/yao1145/ReactiveMD/blob/main/src/local/local.css)、[visuals.css](https://github.com/yao1145/ReactiveMD/blob/main/src/local/visuals.css)、[theme.css](https://github.com/yao1145/ReactiveMD/blob/main/src/theme.css) | 主题变量、类名前缀、焦点、窄屏和文档外样式影响 |
+| 预算与类型 | [limits.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/limits.ts)、[types.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/types.ts)、[render-types.ts](https://github.com/yao1145/ReactiveMD/blob/main/src/local/render-types.ts) | 新增资源的边界；核心类型不依赖 React；内部节点不成为持久化格式 |
 | 证据与文档 | `tests/`、[验收数据](../examples/conformance/README.md)、[语法规范](local-interaction-syntax-ch.md) | 具体行为用例、可复制示例、迁移和检查记录 |
 
 新增声明不会自动同步解析器、运行时和渲染器。反过来，已有通用校验足够时，也无需为了凑齐文件清单而添加分支。
@@ -49,7 +49,7 @@
 
 新标签还有一项迁移影响：旧实现会把完整的未知区域按惰性原文显示，新实现识别该名称后可能开始执行内部内容。必须在提案中记录这一点，并给出前后用例。名称是否加入核心组件集由维护者评审；不得覆盖现有名称的含义或偷偷添加别名。
 
-本次协议本身不新增作者标签或属性，因此保持 `local-draft-1` 和当前包版本。
+协议格式保持 component-protocol-1；此次能力新增将语法提升到 local-draft-2，开发版本提升到 0.4.0。
 
 ## 4. 用现有组块填写声明
 
@@ -199,8 +199,11 @@ $$ y = a \sin x $$
 | 公开入口、类型或分发文件 | 构建后执行 `npm run test:package`、`npm run test:packed` |
 | 文档、语法、示例或版本 | `npm run test:docs`，对应示例编译及迁移核对 |
 
-`npm run test:components` 执行协议的 `slider`、`tabs`、`plot` 代表性用例和原有语言验收数据。文件格式、字段含义和运行顺序见[验收说明](../examples/conformance/README.md)。新增组块继续补自己的用例；这个命令不证明全部 33 个组块或全部浏览器行为已经认证。新增的 `tests/**/*.test.ts` 或 `.tsx` 也会由已有 `npm test` 和 CI 运行。
+`npm run test:components` 执行协议的 `slider`、`tabs`、`plot` 代表性用例和原有语言验收数据。文件格式、字段含义和运行顺序见[验收说明](../examples/conformance/README.md)。新增组块继续补自己的用例；这个命令不证明全部 43 个组块或全部浏览器行为已经认证。新增的 `tests/**/*.test.ts` 或 `.tsx` 也会由已有 `npm test` 和 CI 运行。
 
 浏览器检查须记录具体环境和操作。按组件适用性检查真实键盘与焦点、输入法草稿、375px 布局、触控、主题、重置、隐藏与再次显示、计时暂停和卸载清理。已有自动浏览器检查可以提供对应行为的证据；读屏体验等尚未覆盖的项目需要人工检查。静态 SSR 只能证明服务器输出，不能证明真实输入、effect 生命周期或水合。
 
 在 PR 中列出实际运行的命令和观察结果。未运行、失败、不适用分别写明，不把清单勾选当成验证证据。
+
+
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。本工作区版本尚未发布。

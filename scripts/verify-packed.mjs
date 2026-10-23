@@ -195,7 +195,7 @@ try {
     'docs/local-integration-en.md',
     'docs/local-integration-ch.md',
     'examples/local/counter.reactive.md',
-    'examples/conformance/local-draft-1.json',
+    'examples/conformance/local-draft-2.json',
     'examples/integration/core/index.mjs',
     'examples/integration/react/main.jsx',
   ]) {
@@ -256,7 +256,7 @@ import { compileLocal, createLocalRuntime, LOCAL_SYNTAX_VERSION } from 'reactive
 
 assert.equal(typeof compileLocal, 'function', 'compileLocal must be exported from the core tarball');
 assert.equal(typeof createLocalRuntime, 'function', 'createLocalRuntime must be exported from the core tarball');
-assert.equal(LOCAL_SYNTAX_VERSION, 'local-draft-1');
+assert.equal(LOCAL_SYNTAX_VERSION, 'local-draft-2');
 
 const result = compileLocal('# Packed core');
 assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
@@ -285,7 +285,7 @@ if (!result.ok) {
 }
 const runtime: LocalRuntime = createLocalRuntime(result.document);
 runtime.dispose();
-const version: 'local-draft-1' = LOCAL_SYNTAX_VERSION;
+const version: 'local-draft-2' = LOCAL_SYNTAX_VERSION;
 void version;
 `,
   );

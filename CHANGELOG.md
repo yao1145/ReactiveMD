@@ -4,6 +4,13 @@ This file records user-visible changes. The project is in a 0.x preview; version
 
 ## Unreleased
 
+### 0.4.0 development preview (local-draft-2)
+
+- Add document jumps/anchors, text/section color, multiple selection, interval and coordinate inputs, practice questions and guided steps.
+- Add checked-item strike-through, component accent colors and stable shared table/chart selection.
+- Extend runtime get/set with optional slots and add atomic setMany. New slot bindings are exclusive.
+- Add a bilingual feature tour and editor insertion templates. See [migration](docs/local-components-v2-en.md). No release has been published.
+
 - The Playground adds a Chinese/English toggle that localizes the interface, examples, guide and built-in control labels, and saves the choice in the browser.
 - `LocalDocumentView` and `LocalReactiveDocument` accept `locale: 'en' | 'zh'` (default `'en'`) for built-in UI labels; compiler and runtime diagnostic messages remain English.
 - `timeline` accepts either the English columns `Task`, `Start`, `Duration` and optional `Notes` or the Chinese columns `事项`, `开始`, `时长` and optional `说明`.

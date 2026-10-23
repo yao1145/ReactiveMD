@@ -3,7 +3,7 @@
 Check off the preparation steps, count the participants and start a short focus timer. This page keeps the plan, progress and timing together.
 
 <panel title="Workshop readiness">
-<checklist bind="done" label="Prepare together">
+<checklist color="#167875" bind="done" label="Prepare together">
 - [x] Choose one question to explore
 - [ ] Open the document and adjust a parameter
 - [ ] Explain the result to a partner
@@ -11,7 +11,7 @@ Check off the preparation steps, count the participants and start a short focus 
 
 Ready: **{{ len(done) }} / 3**.
 
-<progress label="Preparation progress" value="{{ len(done) / 3 * 100 }}">
+<progress color="#167875" label="Preparation progress" value="{{ len(done) / 3 * 100 }}">
 
 <if when="{{ len(done) == 3 }}">
 <alert tone="success" title="Ready to share">Everyone has a question, a working example and a result to discuss.</alert>
@@ -41,6 +41,18 @@ Start when you are ready. Pause to discuss a result, or reset for another round.
 </timeline>
 
 Reset Workshop readiness to restore its checklist. The participant counter and timer are outside that panel and keep their own state.
+
+## Keep track of the follow-up
+
+Checked tasks are crossed out. Hide and reopen this list to see that your completed items stay checked.
+
+<toggle bind="followUp" label="Show follow-up tasks" initial="true">
+<if when="{{ followUp }}">
+<checklist label="After sharing" color="#167875">
+- [ ] Save a useful observation
+- [ ] Share the document with a partner
+</checklist>
+</if>
 
 ## How it is written
 

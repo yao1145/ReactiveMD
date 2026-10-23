@@ -91,7 +91,7 @@ if (result.ok) {
 - Success: `{ ok: true; document: LocalDocument; diagnostics: Diagnostic[] }`
 - Failure: `{ ok: false; diagnostics: Diagnostic[] }`
 
-Syntax problems are returned through diagnostics; the current build accepts only `local-draft-1`. The source limit is 1,000,000 characters. `document` is a current runtime object and should not be treated as a persistence format.
+Syntax problems are returned through diagnostics; the current build accepts only `local-draft-2`. The source limit is 1,000,000 characters. `document` is a current runtime object and should not be treated as a persistence format.
 
 Hosts can set the syntax node budget for a single compilation:
 
@@ -133,7 +133,7 @@ Creates an independent in-memory runtime for a compiled document. Throws if `doc
 
 ### Other core exports
 
-- `LOCAL_SYNTAX_VERSION`: currently the literal `'local-draft-1'`. Use it to record the syntax revision a document uses.
+- `LOCAL_SYNTAX_VERSION`: currently the literal `'local-draft-2'`. Use it to record the syntax revision a document uses.
 - `compileExpression(source: string)`: returns an object with `source`, `dependencies`, `evaluate(env)` and `inferType(env)`; throws `LocalExpressionError` on failure.
 - `LocalExpressionError`: contains `code` and `offset`.
 - `compileLatex(source: string)`: returns an object with `source`, `dependencies` and `evaluate(x, env, budget?)`; throws an error with `code` and `offset` on failure.
@@ -217,3 +217,6 @@ These limits bound the work for a single document; they do not replace host cont
 ## Features not provided
 
 Local mode does not provide state persistence, plugins or custom component registration, arbitrary HTML, author CSS, event handlers, network requests, external data APIs, form submission, Vue support, React 18 support or a CommonJS entry. Hosts should not treat these capabilities as configuration options.
+
+
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.

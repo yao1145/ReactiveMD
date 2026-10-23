@@ -451,6 +451,41 @@ function columnIsNumeric(table: VisualTable, column: number): boolean {
 }
 
 /* ------------------------------------------------------------------ */
+/* Shared selection                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Selection is opt-in through the static `key` attribute. It names a source
+ * column whose text becomes the stable public value, so sorting, searching,
+ * paginating or hiding a series never changes what is selected. Without the
+ * attribute tables and charts keep their pre-selection behavior and never
+ * read or write a binding.
+ */
+function selectionKeyIndex(
+  attrs: Record<string, string> | undefined,
+  header: string[],
+): number {
+  const name = (attrs?.key ?? '').trim();
+  if (!name) return -1;
+  return header.findIndex((entry) => entry.trim() === name);
+}
+
+function rowSelectionKey(keyIndex: number, row: { cells: Cell[] }, t: Localize): string {
+  if (keyIndex < 0) return '';
+  return cellText(row.cells[keyIndex], t).trim();
+}
+
+function readSelection(runtime: LocalRuntime, node: LocalNode, enabled: boolean): string {
+  if (!enabled) return '';
+  try {
+    const value = runtime.get(node);
+    return typeof value === 'string' ? value : '';
+  } catch {
+    return '';
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Shared visual pieces                                                */
 /* ------------------------------------------------------------------ */
 
@@ -556,11 +591,13 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortState | null>(null);
   const [page, setPage] = useState(1);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const reset = runtime.resetToken(node);
   useEffect(() => {
     setQuery('');
     setSort(null);
     setPage(1);
+    setSelectionError(null);
   }, [reset]);
 
   const label = attrText(runtime, node.attrs, 'label', t('Table', '表格'));
@@ -583,6 +620,21 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
       </VisualFrame>
     );
   }
+
+  const keyIndex = selectionKeyIndex(node.attrs, table.headerText);
+  const selectable = keyIndex >= 0;
+  const selectedKey = readSelection(runtime, node, selectable);
+  const writeSelection = (value: string) => {
+    setSelectionError(null);
+    try {
+      const diagnostics = runtime.set(node, value);
+      if (diagnostics.length > 0) {
+        setSelectionError(diagnostics.map((diagnostic) => diagnostic.message).join('; '));
+      }
+    } catch (cause) {
+      setSelectionError(errorMessage(cause));
+    }
+  };
 
   const numericColumns = table.header.map((_cell, index) => columnIsNumeric(table, index));
   const normalizedQuery = query.trim().toLowerCase();
@@ -649,6 +701,11 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
           <caption className="local-visual-sr-only">{label}</caption>
           <thead>
             <tr>
+              {selectable ? (
+                <th scope="col" className="local-visual-select-column">
+                  <span className="local-visual-sr-only">{t('Select', '选择')}</span>
+                </th>
+              ) : null}
               {table.header.map((cell, index) => {
                 const ariaSort =
                   sort && sort.column === index
@@ -687,30 +744,56 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
             </tr>
           </thead>
           <tbody>
-            {pageRows.map((row) => (
-              <tr key={`row-${row.index}`}>
-                {table.header.map((_cell, column) => {
-                  const cell = row.cells[column];
-                  return (
-                    <td
-                      key={`cell-${row.index}-${column}`}
-                      className={numericColumns[column] ? 'is-numeric' : undefined}
-                    >
-                      {cell?.error ? (
-                        <span className="local-visual-cell-error" title={cell.error}>
-                          {t('Cannot compute', '无法计算')}
-                        </span>
-                      ) : (
-                        render(cell?.children ?? [])
-                      )}
+            {pageRows.map((row) => {
+              const rowKey = selectable ? rowSelectionKey(keyIndex, row, t) : '';
+              const selected = selectable && rowKey !== '' && rowKey === selectedKey;
+              return (
+                <tr
+                  key={`row-${row.index}`}
+                  className={selected ? 'is-selected' : undefined}
+                >
+                  {selectable ? (
+                    <td className="local-visual-select-cell">
+                      {rowKey ? (
+                        <button
+                          type="button"
+                          className={`local-visual-select-button${
+                            selected ? ' is-selected' : ''
+                          }`}
+                          aria-pressed={selected}
+                          aria-label={t(`Select row ${rowKey}`, `选择行 ${rowKey}`)}
+                          title={t(`Select row ${rowKey}`, `选择行 ${rowKey}`)}
+                          onClick={() => writeSelection(rowKey)}
+                        >
+                          <span aria-hidden="true">{selected ? '●' : '○'}</span>
+                        </button>
+                      ) : null}
                     </td>
-                  );
-                })}
-              </tr>
-            ))}
+                  ) : null}
+                  {table.header.map((_cell, column) => {
+                    const cell = row.cells[column];
+                    return (
+                      <td
+                        key={`cell-${row.index}-${column}`}
+                        className={numericColumns[column] ? 'is-numeric' : undefined}
+                      >
+                        {cell?.error ? (
+                          <span className="local-visual-cell-error" title={cell.error}>
+                            {t('Cannot compute', '无法计算')}
+                          </span>
+                        ) : (
+                          render(cell?.children ?? [])
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+      {selectionError ? <VisualMessage message={selectionError} kind="alert" /> : null}
       {ordered.length === 0 ? (
         <VisualMessage message={t('No matching results', '没有匹配结果')} />
       ) : null}
@@ -759,6 +842,7 @@ interface ChartRow {
   xValue: number | null;
   values: (number | null)[];
   cells: Cell[];
+  keyValue: string;
 }
 
 interface ChartPoint {
@@ -768,6 +852,9 @@ interface ChartPoint {
   value: number;
   x: number;
   y: number;
+  rowKey: string;
+  selectable: boolean;
+  selected: boolean;
 }
 
 function donutPath(
@@ -801,11 +888,13 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   const [hiddenSeries, setHiddenSeries] = useState<Set<number>>(new Set());
   const [hiddenSlices, setHiddenSlices] = useState<Set<number>>(new Set());
   const [active, setActive] = useState<ChartPoint | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const reset = runtime.resetToken(node);
   useEffect(() => {
     setHiddenSeries(new Set());
     setHiddenSlices(new Set());
     setActive(null);
+    setSelectionError(null);
   }, [reset]);
 
   const readoutId = useId();
@@ -834,10 +923,25 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   }
 
   const header = table.headerText.map((text) => text.trim());
+  const keyIndex = selectionKeyIndex(node.attrs, header);
+  const selectionEnabled = keyIndex >= 0;
+  const selectedRowKey = readSelection(runtime, node, selectionEnabled);
+  const writeSelection = (value: string) => {
+    setSelectionError(null);
+    try {
+      const diagnostics = runtime.set(node, value);
+      if (diagnostics.length > 0) {
+        setSelectionError(diagnostics.map((diagnostic) => diagnostic.message).join('; '));
+      }
+    } catch (cause) {
+      setSelectionError(errorMessage(cause));
+    }
+  };
   const sourceRows = table.rows.map((row) => ({
     index: row.index,
     cells: row.cells,
     texts: header.map((_name, column) => cellText(row.cells[column], t)),
+    keyValue: rowSelectionKey(keyIndex, row, t),
   }));
 
   if (!kind) {
@@ -936,7 +1040,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
       if (kind === 'donut' && cell.numeric < 0) negativeValues += 1;
       return cell.numeric;
     });
-    return { index: source.index, label, xValue, values, cells: source.cells };
+    return { index: source.index, label, xValue, values, cells: source.cells, keyValue: source.keyValue };
   });
 
   if (invalidValues > 0) {
@@ -1041,6 +1145,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
       color: string;
       x: number;
       y: number;
+      rowKey: string;
     }[] = [];
     rows.forEach((row, index) => {
       if (hiddenSlices.has(index)) return;
@@ -1059,6 +1164,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
         color: SERIES_COLORS[index % SERIES_COLORS.length],
         x: cx,
         y: cy,
+        rowKey: row.keyValue,
       });
     });
 
@@ -1094,6 +1200,8 @@ function ChartView({ node, runtime }: LocalVisualProps) {
               </text>
             </g>
             {slices.map((slice) => {
+              const selectable = selectionEnabled && slice.rowKey !== '';
+              const selected = selectable && slice.rowKey === selectedRowKey;
               const point: ChartPoint = {
                 key: slice.key,
                 series: seriesNames[0],
@@ -1101,11 +1209,16 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                 value: slice.value,
                 x: slice.x,
                 y: slice.y,
+                rowKey: slice.rowKey,
+                selectable,
+                selected,
               };
               const markProps = {
                 'data-chart-mark': '',
+                ...(selectable ? { 'data-chart-selectable': '' } : {}),
                 tabIndex: 0,
-                role: 'img' as const,
+                role: selectable ? ('button' as const) : ('img' as const),
+                ...(selectable ? { 'aria-pressed': selected } : {}),
                 'aria-label': t(
                   `${slice.label}: ${formatNumber(slice.value)}`,
                   `${slice.label}：${formatNumber(slice.value)}`,
@@ -1114,7 +1227,13 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                 onBlur: () => setActive(null),
                 onPointerEnter: () => setActive(point),
                 onPointerLeave: () => setActive(null),
+                onClick: selectable ? () => writeSelection(slice.rowKey) : undefined,
                 onKeyDown: (event: ReactKeyboardEvent<SVGElement>) => {
+                  if (selectable && activationKey(event)) {
+                    event.preventDefault();
+                    writeSelection(slice.rowKey);
+                    return;
+                  }
                   if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
                     focusNeighbor(event, '[data-chart-mark]', 1);
                   } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
@@ -1122,11 +1241,12 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                   }
                 },
               };
+              const sliceClass = `local-visual-donut-slice${selected ? ' is-selected' : ''}`;
               if (slice.end - slice.start >= Math.PI * 2 - 1e-6) {
                 return (
                   <circle
                     key={slice.key}
-                    className="local-visual-donut-slice"
+                    className={sliceClass}
                     cx={cx}
                     cy={cy}
                     r={(outer + inner) / 2}
@@ -1147,7 +1267,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
               return (
                 <path
                   key={slice.key}
-                  className="local-visual-donut-slice"
+                  className={sliceClass}
                   d={donutPath(cx, cy, outer, inner, slice.start, slice.end)}
                   style={{ fill: slice.color }}
                   {...markProps}
@@ -1169,6 +1289,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           onToggle={toggleSlice}
           label={t('Legend, toggle slices', '图例，可开关扇区')}
         />
+        {selectionError ? <VisualMessage message={selectionError} kind="alert" /> : null}
         <Notes notes={notes} />
       </VisualFrame>
     );
@@ -1310,17 +1431,25 @@ function ChartView({ node, runtime }: LocalVisualProps) {
 
   const markProps = (point: ChartPoint) => ({
     'data-chart-mark': '',
+    ...(point.selectable ? { 'data-chart-selectable': '' } : {}),
     tabIndex: 0,
-    role: 'img' as const,
+    role: point.selectable ? ('button' as const) : ('img' as const),
+    ...(point.selectable ? { 'aria-pressed': point.selected } : {}),
     'aria-label': t(
-      `${point.series}, ${point.label}: ${formatNumber(point.value)}`,
-      `${point.series}，${point.label}：${formatNumber(point.value)}`,
+      `${point.series}, ${point.label}${point.selectable && point.rowKey !== point.label ? `, ${point.rowKey}` : ''}: ${formatNumber(point.value)}`,
+      `${point.series}，${point.label}${point.selectable && point.rowKey !== point.label ? `，${point.rowKey}` : ''}：${formatNumber(point.value)}`,
     ),
     onFocus: () => setActive(point),
     onBlur: () => setActive(null),
     onPointerEnter: () => setActive(point),
     onPointerLeave: () => setActive(null),
+    onClick: point.selectable ? () => writeSelection(point.rowKey) : undefined,
     onKeyDown: (event: ReactKeyboardEvent<SVGElement>) => {
+      if (point.selectable && activationKey(event)) {
+        event.preventDefault();
+        writeSelection(point.rowKey);
+        return;
+      }
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
         focusNeighbor(event, '[data-chart-mark]', 1);
       } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
@@ -1335,14 +1464,20 @@ function ChartView({ node, runtime }: LocalVisualProps) {
     value: number,
     x: number,
     y: number,
-  ): ChartPoint => ({
-    key: `${position}:${row.index}`,
-    series: seriesNames[position],
-    label: row.label,
-    value,
-    x,
-    y,
-  });
+  ): ChartPoint => {
+    const selectable = selectionEnabled && row.keyValue !== '';
+    return {
+      key: `${position}:${row.index}`,
+      series: seriesNames[position],
+      label: row.label,
+      value,
+      x,
+      y,
+      rowKey: row.keyValue,
+      selectable,
+      selected: selectable && row.keyValue === selectedRowKey,
+    };
+  };
 
   const barMarks: ReactNode[] = [];
   if (kind === 'bar') {
@@ -1363,7 +1498,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
         barMarks.push(
           <rect
             key={`bar-${position}-${row.index}`}
-            className="local-visual-bar"
+            className={`local-visual-bar${point.selected ? ' is-selected' : ''}`}
             x={x}
             y={y}
             width={Math.max(1.5, barWidth - 1)}
@@ -1446,7 +1581,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           pointMarks.push(
             <g key={`point-${position}-${entry.row.index}`} className="local-visual-point-group">
               <circle
-                className="local-visual-hit"
+                className={`local-visual-hit${point.selected ? ' is-selected' : ''}`}
                 cx={entry.x}
                 cy={entry.y}
                 r={12}
@@ -1461,7 +1596,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
             </title>
               </circle>
               <circle
-                className="local-visual-point"
+                className={`local-visual-point${point.selected ? ' is-selected' : ''}`}
                 cx={entry.x}
                 cy={entry.y}
                 r={4.5}
@@ -1491,7 +1626,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
         pointMarks.push(
           <g key={`scatter-${position}-${row.index}`} className="local-visual-point-group">
             <circle
-              className="local-visual-hit"
+              className={`local-visual-hit${point.selected ? ' is-selected' : ''}`}
               cx={x}
               cy={y}
               r={15}
@@ -1506,7 +1641,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
             </title>
             </circle>
             <circle
-              className="local-visual-point"
+              className={`local-visual-point${point.selected ? ' is-selected' : ''}`}
               cx={x}
               cy={y}
               r={6}
@@ -1644,6 +1779,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
         onToggle={toggleSeries}
         label={t('Legend, toggle series', '图例，可开关系列')}
       />
+      {selectionError ? <VisualMessage message={selectionError} kind="alert" /> : null}
       <Notes notes={notes} />
     </VisualFrame>
   );

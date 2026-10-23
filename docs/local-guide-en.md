@@ -2,7 +2,7 @@
 
 This guide is for readers who know Markdown and have seen a little HTML but have not used Reactive MD. By the end, you should be able to write local interactive documents with input controls, live calculations, conditional content, charts and diagrams on your own.
 
-This document covers the `local-draft-1` local interaction syntax. See the [local interaction syntax specification](local-interaction-syntax-en.md) for complete rules and the [example directory](../examples/local/README.md) for complete documents you can run directly. The specification is the authoritative source for more complete component and expression details. See [Versions and compatibility](compatibility-en.md) for package versions, syntax revisions and migration rules.
+This document covers the `local-draft-2` local interaction syntax. See the [local interaction syntax specification](local-interaction-syntax-en.md) for complete rules and the [example directory](../examples/local/README.md) for complete documents you can run directly. The specification is the authoritative source for more complete component and expression details. See [Versions and compatibility](compatibility-en.md) for package versions, syntax revisions and migration rules.
 
 ## Table of contents
 
@@ -939,3 +939,6 @@ This document covers:
 `option`, `tab`, `disclosure`, `node` and `edge` are structural children of parent components and cannot be placed anywhere on their own.
 
 Most articles only need Markdown plus two or three input components and one display component. Connect parameters to prose first, then add charts, diagrams and LaTeX curves as needed.
+
+
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.

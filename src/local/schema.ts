@@ -18,7 +18,9 @@ export type LocalChildRule =
   | 'diagram'
   | 'table'
   | 'plot'
-  | 'content';
+  | 'content'
+  | 'steps'
+  | 'quiz';
 
 export type LocalPropKind = 'string' | 'number' | 'boolean' | 'enum';
 
@@ -35,6 +37,8 @@ export interface LocalPropSchema {
   positive?: boolean;
   min?: number;
   max?: number;
+  /** Reject anything but a bounded named CSS color or #RGB/#RRGGBB. */
+  color?: boolean;
 }
 
 export type LocalBindingFamily =
@@ -46,7 +50,10 @@ export type LocalBindingFamily =
   | 'timer'
   | 'checklist'
   | 'tabs'
-  | 'diagram';
+  | 'diagram'
+  | 'multi-select'
+  | 'selection'
+  | 'steps';
 
 export interface LocalBindingSchema {
   kind: LocalValueKind;
@@ -54,6 +61,23 @@ export interface LocalBindingSchema {
   family: LocalBindingFamily;
   /** Only one component may own this binding, and its state cannot be shared. */
   exclusive?: boolean;
+}
+
+/**
+ * One independently bound value of a multi-slot component. Each slot has its
+ * own public binding name (or an internal `@node:slot` key) and is exclusive in
+ * the first revision of the slot API.
+ */
+export interface LocalBindingSlotSchema {
+  name: string;
+  /** Attribute that names the public binding, e.g. `bind-start`. */
+  bind: string;
+  /** Attribute that provides an explicit initial value, e.g. `initial-start`. */
+  initial: string;
+  kind: LocalValueKind;
+  family: LocalBindingFamily;
+  exclusive: boolean;
+  initialRule: 'min' | 'max-step' | 'nearest-zero';
 }
 
 /**
@@ -68,9 +92,12 @@ export type LocalInitialRule =
   | 'nearest-zero'
   | 'first-option'
   | 'first-tab'
+  | 'first-step'
   | 'first-node'
   | 'checked'
-  | 'duration';
+  | 'duration'
+  | 'empty-array'
+  | 'none';
 
 export interface LocalComponentSchema {
   name: string;
@@ -81,6 +108,8 @@ export interface LocalComponentSchema {
   parent?: readonly string[];
   props: Record<string, LocalPropSchema>;
   binding?: LocalBindingSchema;
+  /** Independent bindings owned by a leaf component (range-slider, coordinate). */
+  slots?: readonly LocalBindingSlotSchema[];
   initialRule?: LocalInitialRule;
 }
 
@@ -96,6 +125,7 @@ const disabled: LocalPropSchema = { kind: 'boolean', dynamic: true, default: fal
 const label: LocalPropSchema = { kind: 'string' };
 const optionalLabel: LocalPropSchema = { kind: 'string' };
 const optionalTitle: LocalPropSchema = { kind: 'string' };
+const color = (): LocalPropSchema => ({ kind: 'string', static: true, color: true });
 
 const numberProp = (extra: Partial<LocalPropSchema> = {}): LocalPropSchema => ({
   kind: 'number',
@@ -178,6 +208,65 @@ const components: LocalComponentSchema[] = [
       max: numberProp({ default: 100 }),
       step: numberProp({ positive: true, default: 1 }),
       disabled,
+      color: color(),
+    },
+  },
+  {
+    name: 'range-slider',
+    form: 'leaf',
+    childRule: 'none',
+    label: 'required',
+    slots: [
+      {
+        name: 'start', bind: 'bind-start', initial: 'initial-start',
+        kind: 'number', family: 'number', exclusive: true, initialRule: 'min',
+      },
+      {
+        name: 'end', bind: 'bind-end', initial: 'initial-end',
+        kind: 'number', family: 'number', exclusive: true, initialRule: 'max-step',
+      },
+    ],
+    props: {
+      label,
+      'bind-start': bind,
+      'bind-end': bind,
+      'initial-start': initialNumber,
+      'initial-end': initialNumber,
+      min: numberProp({ default: 0 }),
+      max: numberProp({ default: 100 }),
+      step: numberProp({ positive: true, default: 1 }),
+      disabled,
+      color: color(),
+    },
+  },
+  {
+    name: 'coordinate',
+    form: 'leaf',
+    childRule: 'none',
+    label: 'required',
+    slots: [
+      {
+        name: 'x', bind: 'bind-x', initial: 'initial-x',
+        kind: 'number', family: 'number', exclusive: true, initialRule: 'nearest-zero',
+      },
+      {
+        name: 'y', bind: 'bind-y', initial: 'initial-y',
+        kind: 'number', family: 'number', exclusive: true, initialRule: 'nearest-zero',
+      },
+    ],
+    props: {
+      label,
+      'bind-x': bind,
+      'bind-y': bind,
+      'initial-x': initialNumber,
+      'initial-y': initialNumber,
+      'x-min': numberProp({ default: -5 }),
+      'x-max': numberProp({ default: 5 }),
+      'y-min': numberProp({ default: -5 }),
+      'y-max': numberProp({ default: 5 }),
+      step: numberProp({ positive: true, default: 1 }),
+      disabled,
+      color: color(),
     },
   },
   {
@@ -187,7 +276,7 @@ const components: LocalComponentSchema[] = [
     label: 'required',
     binding: { kind: 'boolean', required: false, family: 'boolean' },
     initialRule: 'false',
-    props: { label, bind, initial: initialBoolean, disabled },
+    props: { label, bind, initial: initialBoolean, disabled, color: color() },
   },
   {
     name: 'checkbox',
@@ -196,7 +285,7 @@ const components: LocalComponentSchema[] = [
     label: 'required',
     binding: { kind: 'boolean', required: false, family: 'boolean' },
     initialRule: 'false',
-    props: { label, bind, initial: initialBoolean, disabled },
+    props: { label, bind, initial: initialBoolean, disabled, color: color() },
   },
   {
     name: 'date',
@@ -222,7 +311,7 @@ const components: LocalComponentSchema[] = [
     label: 'required',
     binding: { kind: 'string', required: false, family: 'choice' },
     initialRule: 'first-option',
-    props: { label, bind, initial: initialText, disabled },
+    props: { label, bind, initial: initialText, disabled, color: color() },
   },
   {
     name: 'choices',
@@ -231,7 +320,7 @@ const components: LocalComponentSchema[] = [
     label: 'required',
     binding: { kind: 'string', required: false, family: 'choice' },
     initialRule: 'first-option',
-    props: { label, bind, initial: initialText, disabled },
+    props: { label, bind, initial: initialText, disabled, color: color() },
   },
   {
     name: 'radio-group',
@@ -240,14 +329,30 @@ const components: LocalComponentSchema[] = [
     label: 'required',
     binding: { kind: 'string', required: false, family: 'choice' },
     initialRule: 'first-option',
-    props: { label, bind, initial: initialText, disabled },
+    props: { label, bind, initial: initialText, disabled, color: color() },
+  },
+  {
+    name: 'multi-select',
+    form: 'container',
+    childRule: 'options',
+    label: 'required',
+    binding: { kind: 'array', required: false, family: 'multi-select', exclusive: true },
+    initialRule: 'empty-array',
+    props: {
+      label,
+      bind,
+      initial: initialText,
+      'max-selected': numberProp({ integer: true, min: 0 }),
+      disabled,
+      color: color(),
+    },
   },
   {
     name: 'option',
     form: 'container',
     childRule: 'inline',
     label: 'none',
-    parent: ['select', 'choices', 'radio-group'],
+    parent: ['select', 'choices', 'radio-group', 'multi-select', 'quiz'],
     props: { value: { kind: 'string', static: true, required: true } },
   },
 
@@ -289,7 +394,7 @@ const components: LocalComponentSchema[] = [
     label: 'required',
     binding: { kind: 'array', required: false, family: 'checklist', exclusive: true },
     initialRule: 'checked',
-    props: { label, bind, disabled },
+    props: { label, bind, disabled, color: color() },
   },
   {
     name: 'progress',
@@ -300,6 +405,55 @@ const components: LocalComponentSchema[] = [
       label,
       value: { kind: 'number', dynamic: true, required: true },
       max: numberProp({ positive: true, default: 100 }),
+      color: color(),
+    },
+  },
+
+  /* Navigation, emphasis and assessment ---------------------------- */
+  {
+    name: 'jump',
+    form: 'inline',
+    childRule: 'inline',
+    label: 'none',
+    props: {
+      to: { kind: 'string', static: true, required: true },
+      appearance: { kind: 'enum', static: true, values: ['link', 'button'], default: 'link' },
+      color: color(),
+    },
+  },
+  {
+    name: 'anchor',
+    form: 'leaf',
+    childRule: 'none',
+    label: 'none',
+    props: { id: { kind: 'string', static: true, required: true } },
+  },
+  {
+    name: 'text',
+    form: 'inline',
+    childRule: 'inline',
+    label: 'none',
+    props: { color: { kind: 'string', static: true, required: true, color: true } },
+  },
+  {
+    name: 'section',
+    form: 'container',
+    childRule: 'any',
+    label: 'none',
+    props: { color: { kind: 'string', static: true, required: true, color: true } },
+  },
+  {
+    name: 'quiz',
+    form: 'container',
+    childRule: 'quiz',
+    label: 'required',
+    props: {
+      type: { kind: 'enum', static: true, values: ['choice', 'number'], default: 'choice' },
+      label,
+      answer: { kind: 'string', static: true, required: true },
+      explanation: { kind: 'string' },
+      tolerance: numberProp({ min: 0, default: 0 }),
+      disabled,
     },
   },
 
@@ -355,6 +509,30 @@ const components: LocalComponentSchema[] = [
     },
   },
   {
+    name: 'steps',
+    form: 'container',
+    childRule: 'steps',
+    label: 'optional',
+    binding: { kind: 'string', required: false, family: 'steps', exclusive: true },
+    initialRule: 'first-step',
+    props: {
+      label: optionalLabel,
+      bind,
+      initial: initialText,
+    },
+  },
+  {
+    name: 'step',
+    form: 'container',
+    childRule: 'any',
+    label: 'required',
+    parent: ['steps'],
+    props: {
+      label,
+      value: { kind: 'string', static: true },
+    },
+  },
+  {
     name: 'accordion',
     form: 'container',
     childRule: 'disclosures',
@@ -400,6 +578,7 @@ const components: LocalComponentSchema[] = [
     label: 'none',
     props: {
       tone: { kind: 'enum', static: true, values: ['neutral', 'success', 'warning'], default: 'neutral' },
+      color: color(),
     },
   },
   {
@@ -418,11 +597,16 @@ const components: LocalComponentSchema[] = [
     form: 'container',
     childRule: 'table',
     label: 'optional',
+    binding: { kind: 'string', required: false, family: 'selection' },
+    initialRule: 'none',
     props: {
       label: optionalLabel,
       searchable: { kind: 'boolean', default: true },
       sortable: { kind: 'boolean', default: true },
       'page-size': numberProp({ integer: true, positive: true, default: 10 }),
+      bind,
+      key: { kind: 'string', static: true },
+      initial: initialText,
     },
   },
   {
@@ -430,6 +614,8 @@ const components: LocalComponentSchema[] = [
     form: 'container',
     childRule: 'table',
     label: 'none',
+    binding: { kind: 'string', required: false, family: 'selection' },
+    initialRule: 'none',
     props: {
       kind: {
         kind: 'enum',
@@ -442,6 +628,9 @@ const components: LocalComponentSchema[] = [
       y: { kind: 'string', static: true },
       'x-label': { kind: 'string' },
       'y-label': { kind: 'string' },
+      bind,
+      key: { kind: 'string', static: true },
+      initial: initialText,
     },
   },
   {

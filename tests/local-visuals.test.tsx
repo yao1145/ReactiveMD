@@ -55,6 +55,7 @@ function createRuntime(initial: Record<string, LocalValue> = {}): LocalRuntime {
       return [];
     },
     evaluate,
+    setMany: () => [],
     text: (template) =>
       template.replace(/\{\{([\s\S]*?)\}\}/g, (_match, expression: string) => {
         const value = evaluate(expression);

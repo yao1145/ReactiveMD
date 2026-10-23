@@ -4,6 +4,13 @@
 
 ## 未发布
 
+### 0.4.0 开发预览（local-draft-2）
+
+- 新增文档跳转与锚点、正文颜色、多选、区间与二维坐标输入、练习题及分步阅读。
+- 清单勾选后划线，新增组件主色及表格/图表稳定标识的共享选择。
+- runtime.get/set 支持可选槽位，新增原子 setMany；新增槽位绑定为独占。
+- 新增双语功能馆及编辑器插入模板。见[迁移说明](docs/local-components-v2-ch.md)。本版本尚未发布。
+
 - Playground 新增中英文切换，界面、示例、指南和内置控件文案会同步切换，选择保存在浏览器中。
 - `LocalDocumentView` 和 `LocalReactiveDocument` 支持 `locale: 'en' | 'zh'`（默认 `'en'`），用于内置 UI 文案；编译与运行时诊断消息仍为英文。
 - `timeline` 同时接受英文列 `Task`、`Start`、`Duration`（可选 `Notes`）和中文列 `事项`、`开始`、`时长`（可选 `说明`）。
