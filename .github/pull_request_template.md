@@ -16,6 +16,7 @@ List the commands actually run and their results. Do not mark checks that were n
 
 - [ ] `npm run build`
 - [ ] `npm test`
+- [ ] `npm run test:components` (representative component and language conformance cases)
 - [ ] `npm run test:package`
 - [ ] `npm run test:packed`
 - [ ] `npm run test:docs`
@@ -28,6 +29,10 @@ List the commands actually run and their results. Do not mark checks that were n
 - [ ] User-visible change is recorded in `CHANGELOG.md`.
 - [ ] Breaking syntax or API change is described in `docs/compatibility.md`, including migration.
 - [ ] If the syntax revision changes, `LOCAL_SYNTAX_VERSION` and the package minor version are updated.
+
+## Component changes
+
+For new or changed components, include the declaration from [the development template](https://github.com/yao1145/ReactiveMD/blob/main/docs/component-development.md) and identify the affected [protocol](https://github.com/yao1145/ReactiveMD/blob/main/docs/component-protocol.md) clauses. Give the attribute and child-content rules, state and reset behavior, diagnostics, resource budgets, and compatibility classification. Attach component-specific test results and browser evidence where applicable. The representative conformance suite is a starting point for these checks.
 
 ## Checklist
 

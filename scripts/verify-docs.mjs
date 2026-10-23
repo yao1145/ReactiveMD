@@ -5,6 +5,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 
 const docs = ['README.md', 'README.en.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CHANGELOG.md',
+  '.github/pull_request_template.md',
   'demo/README.md', 'demo/IMPLEMENTATION.md', 'examples/local/README.md', 'examples/integration/README.md', 'examples/conformance/README.md',
   ...(await readdir('docs')).filter(name => name.endsWith('.md')).map(name => `docs/${name}`)];
 const parse = source => unified().use(remarkParse).parse(source);

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReactiveMD component-protocol-1 reference cases",
+  "description": "Portable semantic cases and optional React reference-renderer assertions. This is a test-data format, not a loadable component or serialized AST format.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocolVersion", "syntaxVersion", "cases"],
+  "properties": {
+    "protocolVersion": { "const": "component-protocol-1" },
+    "syntaxVersion": { "const": "local-draft-1" },
+    "cases": {
+      "type": "array", "minItems": 1,
+      "items": { "$ref": "#/$defs/case" },
+      "$comment": "Case ids must also be unique across the suite; checked by the reference runner."
+    }
+  },
+  "$defs": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$" },
+    "strings": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "codes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "value": {
+      "oneOf": [
+        { "type": "string" }, { "type": "number" }, { "type": "boolean" }, { "type": "null" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+    "state": { "type": "object", "additionalProperties": { "$ref": "#/$defs/value" } },
+    "action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["bind", "value", "codes"],
+      "properties": {
+        "bind": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "value": { "$ref": "#/$defs/value" },
+        "codes": { "$ref": "#/$defs/codes" },
+        "expectedState": { "$ref": "#/$defs/state" }
+      }
+    },
+    "reset": {
+      "type": "object", "additionalProperties": false,
+      "required": ["component", "expectedState"],
+      "properties": {
+        "component": { "$ref": "#/$defs/name" },
+        "index": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "expectedState": { "$ref": "#/$defs/state" }
+      }
+    },
+    "case": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "component", "source", "ok", "codes"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "component": { "$ref": "#/$defs/name" },
+        "source": { "type": "string" },
+        "ok": { "type": "boolean" },
+        "codes": { "$ref": "#/$defs/codes" },
+        "initial": { "$ref": "#/$defs/state" },
+        "bindingNames": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+        "reset": { "$ref": "#/$defs/reset" },
+        "text": { "type": "string" }, "expectedText": { "type": "string" },
+        "htmlIncludes": { "$ref": "#/$defs/strings" },
+        "htmlExcludes": { "$ref": "#/$defs/strings" }
+      },
+      "dependentRequired": { "text": ["expectedText"], "expectedText": ["text"] },
+      "allOf": [{
+        "if": { "properties": { "ok": { "const": false } }, "required": ["ok"] },
+        "then": { "not": { "anyOf": [
+          { "required": ["initial"] }, { "required": ["bindingNames"] },
+          { "required": ["actions"] }, { "required": ["reset"] },
+          { "required": ["text"] }, { "required": ["expectedText"] },
+          { "required": ["htmlIncludes"] }, { "required": ["htmlExcludes"] }
+        ] } }
+      }]
+    }
+  }
+}

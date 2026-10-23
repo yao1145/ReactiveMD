@@ -2,6 +2,8 @@
 
 Reactive MD 是 `local-draft-1` 的 0.x 预览实现。贡献可以包括语法、编译器、运行时、React 渲染器、文档、示例和 Demo。开始前先读[版本与兼容性](docs/compatibility.md)和[本地交互语法规范](docs/local-interaction-syntax.md)。
 
+新增或修改组块时，按[组块协议](docs/component-protocol.md)明确行为，使用[开发指南中的提案模板](docs/component-development.md)记录声明、兼容性和验收证据。这里的组块包括控件、容器、可视化和结构子项。
+
 ## 环境
 
 - Node.js 22.12 或更新版本。
@@ -25,6 +27,7 @@ npm run test:demo
 | --- | --- |
 | `npm run build` | 类型检查与语言包构建 |
 | `npm test` | 编译器、表达式、LaTeX、运行时和渲染器测试 |
+| `npm run test:components` | 组块协议的代表性用例和已有语言验收数据；新增组块还需自己的针对性测试 |
 | `npm run test:package` | 公开入口、示例可编译和样式边界；需先构建 |
 | `npm run test:packed` | 真实 tarball 的独立离线安装、核心和 React 严格类型检查、CSS 导出与静态 SSR |
 | `npm run notices` | 从已安装依赖生成第三方许可证清单 |
@@ -49,6 +52,7 @@ npm run test:browser
 - 保持改动聚焦。行为变化附带测试；用户可见变化更新文档和相关示例。
 - 语法或公开 API 的破坏性变化先更新[版本与兼容性](docs/compatibility.md)和[变更记录](CHANGELOG.md)，说明旧写法、新写法和迁移方式。不要在没有语法修订的情况下悄悄改变作者语法。
 - 新组件或新属性必须同时实现编译校验、运行时约束、渲染、可访问名称和资源边界。不要只加展示样式。
+- 组块提案须给出属性与子内容声明、状态与生命周期规则、诊断、资源预算、兼容分类和对应验收结果；参考 `slider`、`tabs`、`plot` 的[协议验收数据](examples/conformance/README.md)。协议修订不自动改变包版本、语法修订或公开 API。
 - 资源上限集中在 `src/local/limits.ts`；新增无界输入、循环、递归或绘图计算时，先定义预算。
 - 不引入网络请求、任意 HTML、事件处理器、作者 CSS 或持久化状态。这些不在当前范围内。
 - 更新中文文档时保持与现有术语一致；英文 README 保持简洁，不重复工程细节。

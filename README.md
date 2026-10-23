@@ -13,6 +13,7 @@
 - [本地模式集成](docs/local-integration.md)：`compileLocal`、状态运行时、React 嵌入、URL 策略与样式作用域。
 - [独立接入示例](examples/integration/README.md)：可复制到仓库外运行的 Node 核心和 React 页面。
 - [版本与兼容性](docs/compatibility.md)：0.x 规则、迁移、诊断契约和平台范围。
+- [组块协议](docs/component-protocol.md) · [组块开发指南](docs/component-development.md)：新增组件的声明、行为契约和兼容性验收。
 - [Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。
 
 ## 写一份文档

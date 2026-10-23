@@ -1,0 +1,194 @@
+{
+  "protocolVersion": "component-protocol-1",
+  "syntaxVersion": "local-draft-1",
+  "cases": [
+    {
+      "id": "slider-explicit-initial",
+      "component": "slider",
+      "source": "<slider bind=\"seats\" label=\"人数\" initial=\"2\" min=\"1\" max=\"20\">\n\n当前 {{ seats }} 人。",
+      "ok": true,
+      "codes": [],
+      "initial": { "seats": 2 },
+      "bindingNames": ["seats"],
+      "text": "当前 {{ seats }} 人。",
+      "expectedText": "当前 2 人。",
+      "htmlIncludes": ["人数"]
+    },
+    {
+      "id": "slider-default-min",
+      "component": "slider",
+      "source": "<slider bind=\"level\" label=\"档位\" min=\"5\" max=\"15\">",
+      "ok": true,
+      "codes": [],
+      "initial": { "level": 5 },
+      "bindingNames": ["level"],
+      "text": "档位：{{ level }}。",
+      "expectedText": "档位：5。"
+    },
+    {
+      "id": "slider-shared-update",
+      "component": "slider",
+      "source": "<slider bind=\"n\" label=\"甲\" initial=\"1\" min=\"0\" max=\"10\">\n<slider bind=\"n\" label=\"乙\" min=\"0\" max=\"10\">\n\n共享值 {{ n }}。",
+      "ok": true,
+      "codes": [],
+      "initial": { "n": 1 },
+      "bindingNames": ["n"],
+      "actions": [
+        { "bind": "n", "value": 7, "codes": [], "expectedState": { "n": 7 } }
+      ],
+      "text": "共享值 {{ n }}。",
+      "expectedText": "共享值 7。"
+    },
+    {
+      "id": "slider-rejects-invalid-writes",
+      "component": "slider",
+      "source": "<slider bind=\"amount\" label=\"数量\" initial=\"4\" min=\"0\" max=\"10\">",
+      "ok": true,
+      "codes": [],
+      "initial": { "amount": 4 },
+      "bindingNames": ["amount"],
+      "actions": [
+        { "bind": "amount", "value": 11, "codes": ["local.runtime.value"], "expectedState": { "amount": 4 } },
+        { "bind": "amount", "value": 6, "codes": [], "expectedState": { "amount": 6 } },
+        { "bind": "amount", "value": 1.5, "codes": ["local.runtime.value"], "expectedState": { "amount": 6 } }
+      ],
+      "text": "{{ amount }}",
+      "expectedText": "6"
+    },
+    {
+      "id": "slider-shared-constraint-mismatch",
+      "component": "slider",
+      "source": "<slider bind=\"n\" label=\"甲\" min=\"0\" max=\"10\">\n<slider bind=\"n\" label=\"乙\" min=\"0\" max=\"20\">",
+      "ok": false,
+      "codes": ["local.binding.constraint"]
+    },
+    {
+      "id": "slider-anonymous-controls",
+      "component": "slider",
+      "source": "<slider label=\"匿名甲\" initial=\"3\" min=\"0\" max=\"10\">\n<slider label=\"匿名乙\" initial=\"7\" min=\"0\" max=\"10\">",
+      "ok": true,
+      "codes": [],
+      "bindingNames": [],
+      "htmlIncludes": ["匿名甲", "匿名乙"]
+    },
+    {
+      "id": "slider-initial-out-of-range",
+      "component": "slider",
+      "source": "<slider bind=\"ratio\" label=\"比例\" initial=\"12\" min=\"0\" max=\"10\">",
+      "ok": false,
+      "codes": ["local.initial.range"]
+    },
+    {
+      "id": "tabs-default-first",
+      "component": "tabs",
+      "source": "<tabs bind=\"view\" label=\"视图\">\n<tab label=\"概览\">概览内容</tab>\n<tab label=\"细节\" value=\"detail\">细节内容</tab>\n</tabs>",
+      "ok": true,
+      "codes": [],
+      "initial": { "view": "tab-1" },
+      "bindingNames": ["view"],
+      "actions": [
+        { "bind": "view", "value": "detail", "codes": [], "expectedState": { "view": "detail" } },
+        { "bind": "view", "value": "absent", "codes": ["local.runtime.value"], "expectedState": { "view": "detail" } }
+      ],
+      "text": "当前页 {{ view }}。",
+      "expectedText": "当前页 detail。"
+    },
+    {
+      "id": "tabs-explicit-initial-and-reset",
+      "component": "tabs",
+      "source": "<tabs bind=\"view\" label=\"视图\" initial=\"detail\">\n<tab label=\"概览\" value=\"summary\">摘要页</tab>\n<tab label=\"细节\" value=\"detail\">细节页</tab>\n</tabs>",
+      "ok": true,
+      "codes": [],
+      "initial": { "view": "detail" },
+      "bindingNames": ["view"],
+      "actions": [
+        { "bind": "view", "value": "summary", "codes": [], "expectedState": { "view": "summary" } }
+      ],
+      "reset": { "component": "tabs", "index": 0, "expectedState": { "view": "detail" } },
+      "text": "{{ view }}",
+      "expectedText": "detail"
+    },
+    {
+      "id": "tabs-exclusive-binding",
+      "component": "tabs",
+      "source": "<tabs bind=\"view\" label=\"甲\">\n<tab label=\"A\">甲页</tab>\n</tabs>\n<tabs bind=\"view\" label=\"乙\">\n<tab label=\"B\">乙页</tab>\n</tabs>",
+      "ok": false,
+      "codes": ["local.binding.exclusive"]
+    },
+    {
+      "id": "tabs-hidden-controls-and-panel-reset",
+      "component": "tabs",
+      "source": "<panel title=\"设置\">\n<tabs bind=\"view\" label=\"分页\" initial=\"basic\">\n<tab label=\"基本\" value=\"basic\">\n<slider bind=\"a\" label=\"A\" initial=\"2\" min=\"0\" max=\"10\">\n</tab>\n<tab label=\"高级\" value=\"advanced\">\n<slider bind=\"b\" label=\"B\" initial=\"7\" min=\"0\" max=\"10\">\n</tab>\n</tabs>\n</panel>",
+      "ok": true,
+      "codes": [],
+      "initial": { "view": "basic", "a": 2, "b": 7 },
+      "bindingNames": ["a", "b", "view"],
+      "actions": [
+        { "bind": "view", "value": "advanced", "codes": [], "expectedState": { "view": "advanced", "a": 2, "b": 7 } },
+        { "bind": "a", "value": 5, "codes": [], "expectedState": { "view": "advanced", "a": 5, "b": 7 } },
+        { "bind": "b", "value": 9, "codes": [], "expectedState": { "view": "advanced", "a": 5, "b": 9 } }
+      ],
+      "reset": { "component": "panel", "expectedState": { "view": "basic", "a": 2, "b": 7 } },
+      "text": "{{ view }}：{{ a }} / {{ b }}",
+      "expectedText": "basic：2 / 7"
+    },
+    {
+      "id": "plot-valid-latex",
+      "component": "plot",
+      "source": "<slider bind=\"a\" label=\"振幅\" initial=\"1\" min=\"0\" max=\"3\" step=\"0.5\">\n\n<plot label=\"正弦波\" min=\"-2\" max=\"2\">\n$$ y = a\\sin x $$\n</plot>",
+      "ok": true,
+      "codes": [],
+      "initial": { "a": 1 },
+      "bindingNames": ["a"],
+      "htmlIncludes": ["区间 -2 到 2，200 个采样点"]
+    },
+    {
+      "id": "plot-dynamic-range",
+      "component": "plot",
+      "source": "<slider bind=\"low\" label=\"下限\" initial=\"-2\" min=\"-10\" max=\"0\">\n<slider bind=\"high\" label=\"上限\" initial=\"3\" min=\"0\" max=\"10\">\n\n<plot label=\"范围曲线\" min=\"{{ low }}\" max=\"{{ high }}\">\n$$ y = x $$\n</plot>",
+      "ok": true,
+      "codes": [],
+      "initial": { "low": -2, "high": 3 },
+      "bindingNames": ["low", "high"],
+      "actions": [
+        { "bind": "high", "value": 5, "codes": [], "expectedState": { "high": 5 } }
+      ],
+      "text": "{{ high - low }}",
+      "expectedText": "7",
+      "htmlIncludes": ["区间 -2 到 5，200 个采样点"]
+    },
+    {
+      "id": "plot-non-number-binding",
+      "component": "plot",
+      "source": "<toggle bind=\"a\" label=\"开关\">\n\n<plot label=\"类型错误\">\n$$ y = a\\sin x $$\n</plot>",
+      "ok": false,
+      "codes": ["local.math.binding"]
+    },
+    {
+      "id": "plot-invalid-range",
+      "component": "plot",
+      "source": "<plot label=\"无效范围\" min=\"5\" max=\"5\">\n$$ y = x $$\n</plot>",
+      "ok": false,
+      "codes": ["local.constraint"]
+    },
+    {
+      "id": "plot-point-budget",
+      "component": "plot",
+      "source": "<plot label=\"第一组\" min=\"-1\" max=\"1\" samples=\"2000\">\n$$ y = x $$\n$$ y = x^2 $$\n$$ y = \\sin x $$\n$$ y = \\cos x $$\n$$ y = x/2 $$\n$$ y = 2x $$\n</plot>\n\n<plot label=\"第二组\" min=\"-1\" max=\"1\" samples=\"2000\">\n$$ y = x + 1 $$\n$$ y = x - 1 $$\n$$ y = 3x $$\n$$ y = \\frac{x}{3} $$\n$$ y = -x $$\n</plot>",
+      "ok": false,
+      "codes": ["local.budget.plot.points"]
+    },
+    {
+      "id": "unknown-tag-inert-fallback",
+      "component": "slider",
+      "source": "<slidr label=\"拼写错误\">\n<slider bind=\"ghost\" label=\"不应激活\" initial=\"4\" min=\"0\" max=\"10\">\n{{ ghost }} 不应执行。\n</slidr>\n\n外部仍可计算：{{ 1 + 2 }}。",
+      "ok": true,
+      "codes": ["local.component.unknown"],
+      "bindingNames": [],
+      "text": "外部仍可计算：{{ 1 + 2 }}。",
+      "expectedText": "外部仍可计算：3。",
+      "htmlIncludes": ["未支持的语法，已按源码原样显示"],
+      "htmlExcludes": ["<input"]
+    }
+  ]
+}

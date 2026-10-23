@@ -59,6 +59,7 @@ The author guides are currently in Chinese; API identifiers and types are Englis
 
 - [Local integration](docs/local-integration.md): core and React API, URL policy, lifecycle, styling and version pinning.
 - [Compatibility](docs/compatibility.md): 0.x rules, migration, diagnostics and supported platforms.
+- [Component protocol](docs/component-protocol.md) and [development guide](docs/component-development.md): contribution contracts, a proposal template and conformance cases.
 - [Beginner guide](docs/local-guide.md) and [syntax reference](docs/local-interaction-syntax.md).
 - [Examples](examples/local/README.md): 12 example documents, including one intentional diagnostics fixture.
 - [Standalone integrations](examples/integration/README.md): small Node and React projects you can copy outside the repository.
