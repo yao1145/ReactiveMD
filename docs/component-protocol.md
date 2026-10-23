@@ -1,6 +1,6 @@
 # Reactive MD 组块协议
 
-协议修订 `component-protocol-1` · 适用语法 `local-draft-1` · 当前包版本 `0.3.0`（预览）
+协议修订 `component-protocol-1` · 适用语法 `local-draft-1` · 当前包版本 `0.3.1`（预览）
 
 Reactive MD 的组块就是语言中的组件。本协议规定组块在贡献、实现和验收中的共同契约，连接作者语法、编译器、运行时、React 参考适配器和机器验收数据。作者写文档时以[本地交互语法规范](local-interaction-syntax.md)为准；宿主接入以[本地模式集成](local-integration.md)为准；本文供贡献者、评审和测试使用。
 
@@ -20,7 +20,7 @@ Reactive MD 同时维护三个独立版本轴：
 
 | 版本轴 | 当前值 | 决定什么 |
 | --- | --- | --- |
-| 包版本 | `0.3.0` | npm 发布、核心与 React 入口、升级兼容规则 |
+| 包版本 | `0.3.1` | npm 发布、核心与 React 入口、升级兼容规则 |
 | 语法修订 | `local-draft-1` | 作者可以写出的标签、属性和表达式 |
 | 协议修订 | `component-protocol-1` | 组块贡献要求、验收门槛和机器数据语义 |
 

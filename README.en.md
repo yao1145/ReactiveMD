@@ -2,7 +2,7 @@
 
 Write interactive documents in Markdown. Add input controls, give them names with `bind`, and connect prose, formulas, charts and diagrams with `{{ expressions }}`. Document authors do not write JavaScript or CSS.
 
-The current preview is `0.3.0`, using syntax revision `local-draft-1`.
+The current preview is `0.3.1`, using syntax revision `local-draft-1`.
 
 ## Minimal example
 
@@ -22,7 +22,7 @@ Drag the slider or turn billing on and the result updates immediately. A standal
 The package is ESM and requires Node.js 22.12 or newer:
 
 ```sh
-npm install reactive-md@0.3.0
+npm install reactive-md@0.3.1
 ```
 
 For the React entry, install React 19 as well:

@@ -6,7 +6,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 | 项目 | 当前值 | 说明 |
 | --- | --- | --- |
-| 包版本 | `0.3.0` | 安装 `reactive-md@0.3.0` |
+| 包版本 | `0.3.1` | 安装 `reactive-md@0.3.1` |
 | 语法版本 | `local-draft-1` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
 | 组块协议 | `component-protocol-1` | 贡献与验收契约，见[组块协议](component-protocol.md)；不是运行时版本选择参数 |
 | 核心入口 | `reactive-md` | 编译、表达式与运行时，不加载 React |

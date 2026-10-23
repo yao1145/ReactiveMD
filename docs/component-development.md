@@ -2,7 +2,7 @@
 
 本指南面向为 Reactive MD 新增或修改组件的贡献者。组块包括输入控件、容器、可视化和结构子项。共同契约见[组块协议](component-protocol.md)，作者写法见[本地交互语法规范](local-interaction-syntax.md)。
 
-当前协议为 `component-protocol-1`，适用语法为 `local-draft-1`，当前包版本为 `0.3.0`。这三个版本分别表示贡献契约、作者语法和 npm 发布。协议文档更新不自动改变语法或公开 API。
+当前协议为 `component-protocol-1`，适用语法为 `local-draft-1`，当前包版本为 `0.3.1`。这三个版本分别表示贡献契约、作者语法和 npm 发布。协议文档更新不自动改变语法或公开 API。
 
 ## 1. 提交什么
 
@@ -23,14 +23,14 @@
 
 | 实现面 | 位置 | 检查内容 |
 | --- | --- | --- |
-| 标签解析 | [parser.ts](../src/local/parser.ts) | `VOID`、`PAIRED`、`INLINE` 及由其生成的 `KNOWN`；形态、嵌套、代码隔离和未知区域降级 |
-| 组块声明 | [schema.ts](../src/local/schema.ts) | 名称、`form`、`childRule`、父级、属性类型与默认值、`binding`、`initialRule` |
-| 编译 | [compiler.ts](../src/local/compiler.ts) | 属性与子内容、表达式类型、绑定 family、共享约束、初值和预算 |
-| 状态运行时 | [runtime.ts](../src/local/runtime.ts) | 规范控件查找、写入类型与约束、原子提交、数组副本、重置和销毁 |
-| 控件与布局 | [LocalDocumentView.tsx](../src/local/LocalDocumentView.tsx) | `COMPONENTS`、输入草稿、可访问名称、键盘、可见性、重置 token 和 effect 清理 |
-| 可视化 | [visuals.tsx](../src/local/visuals.tsx)、[math.ts](../src/local/math.ts) | `VISUAL_COMPONENTS`、绘图或表格语义、局部错误、计算预算、读数和重置 |
-| 样式 | [local.css](../src/local/local.css)、[visuals.css](../src/local/visuals.css)、[theme.css](../src/theme.css) | 主题变量、类名前缀、焦点、窄屏和文档外样式影响 |
-| 预算与类型 | [limits.ts](../src/local/limits.ts)、[types.ts](../src/local/types.ts)、[render-types.ts](../src/local/render-types.ts) | 新增资源的边界；核心类型不依赖 React；内部节点不成为持久化格式 |
+| 标签解析 | [parser.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/parser.ts) | `VOID`、`PAIRED`、`INLINE` 及由其生成的 `KNOWN`；形态、嵌套、代码隔离和未知区域降级 |
+| 组块声明 | [schema.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/schema.ts) | 名称、`form`、`childRule`、父级、属性类型与默认值、`binding`、`initialRule` |
+| 编译 | [compiler.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/compiler.ts) | 属性与子内容、表达式类型、绑定 family、共享约束、初值和预算 |
+| 状态运行时 | [runtime.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/runtime.ts) | 规范控件查找、写入类型与约束、原子提交、数组副本、重置和销毁 |
+| 控件与布局 | [LocalDocumentView.tsx](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/LocalDocumentView.tsx) | `COMPONENTS`、输入草稿、可访问名称、键盘、可见性、重置 token 和 effect 清理 |
+| 可视化 | [visuals.tsx](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/visuals.tsx)、[math.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/math.ts) | `VISUAL_COMPONENTS`、绘图或表格语义、局部错误、计算预算、读数和重置 |
+| 样式 | [local.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/local.css)、[visuals.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/visuals.css)、[theme.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/theme.css) | 主题变量、类名前缀、焦点、窄屏和文档外样式影响 |
+| 预算与类型 | [limits.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/limits.ts)、[types.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/types.ts)、[render-types.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/render-types.ts) | 新增资源的边界；核心类型不依赖 React；内部节点不成为持久化格式 |
 | 证据与文档 | `tests/`、[验收数据](../examples/conformance/README.md)、[语法规范](local-interaction-syntax.md) | 具体行为用例、可复制示例、迁移和检查记录 |
 
 新增声明不会自动同步解析器、运行时和渲染器。反过来，已有通用校验足够时，也无需为了凑齐文件清单而添加分支。

@@ -8,7 +8,7 @@
 
 ```sh
 cd core
-npm install reactive-md@0.3.0 --ignore-scripts --no-audit --no-fund
+npm install reactive-md@0.3.1 --ignore-scripts --no-audit --no-fund
 npm start
 ```
 
@@ -20,7 +20,7 @@ npm start
 
 ```sh
 cd react
-npm install reactive-md@0.3.0
+npm install reactive-md@0.3.1
 npm run dev
 ```
 
