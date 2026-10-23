@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run --config vitest.config.ts",
-    "test:browser": "node scripts/verify-local-browser.mjs"
+    "test:browser": "node scripts/verify-local-browser.mjs",
+    "test:toolbar": "node scripts/verify-editor-toolbar.mjs"
   },
   "dependencies": {
     "reactive-md": "file:..",

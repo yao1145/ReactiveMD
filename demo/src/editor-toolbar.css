@@ -1,0 +1,671 @@
+/* Floating source-editor toolbar. Every selector is scoped to .editor-toolbar. */
+
+.editor-toolbar {
+  --editor-toolbar-bg: #161d29;
+  --editor-toolbar-bg-deep: #101722;
+  --editor-toolbar-border: rgba(255, 255, 255, 0.08);
+  --editor-toolbar-line: rgba(255, 255, 255, 0.14);
+  --editor-toolbar-ink: #b9c3d2;
+  --editor-toolbar-ink-strong: #ffffff;
+  --editor-toolbar-muted: #8b99ad;
+  --editor-toolbar-hover: rgba(255, 255, 255, 0.08);
+  --editor-toolbar-focus: #7aa2ff;
+  position: relative;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 5px 7px;
+  color: var(--editor-toolbar-ink);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 45%),
+    linear-gradient(180deg, var(--editor-toolbar-bg), var(--editor-toolbar-bg-deep));
+  border: 1px solid var(--editor-toolbar-border);
+  border-radius: 16px;
+  box-shadow:
+    0 18px 38px -24px rgba(3, 9, 20, 0.9),
+    0 4px 14px -8px rgba(3, 9, 20, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+  line-height: 1;
+}
+
+.editor-toolbar,
+.editor-toolbar *,
+.editor-toolbar *::before,
+.editor-toolbar *::after {
+  box-sizing: border-box;
+}
+
+/* Buttons ------------------------------------------------------------- */
+
+.editor-toolbar-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  color: var(--editor-toolbar-ink);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease,
+    opacity 0.15s ease;
+}
+
+.editor-toolbar-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.editor-toolbar-button[aria-expanded="true"] {
+  color: var(--editor-toolbar-ink-strong);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.editor-toolbar-button:disabled {
+  opacity: 0.34;
+  cursor: not-allowed;
+}
+
+.editor-toolbar-icon {
+  display: block;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+.editor-toolbar-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.editor-toolbar-glyph.is-heading {
+  font-size: 15px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+}
+
+.editor-toolbar-glyph.is-bold {
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+}
+
+.editor-toolbar-glyph.is-italic {
+  padding-right: 1px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-style: italic;
+  font-weight: 700;
+}
+
+.editor-toolbar-glyph.is-strike {
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+.editor-toolbar-heading-trigger {
+  gap: 0;
+}
+
+.editor-toolbar-chevron {
+  width: 9px;
+  height: 9px;
+  margin-left: -1px;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.editor-toolbar-heading-trigger:hover .editor-toolbar-chevron,
+.editor-toolbar-heading-trigger[aria-expanded="true"] .editor-toolbar-chevron {
+  opacity: 0.95;
+}
+
+.editor-toolbar-components-trigger {
+  width: auto;
+  min-width: 68px;
+  gap: 5px;
+  padding: 0 8px 0 7px;
+  border: 1px solid rgba(122, 162, 255, 0.26);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(74, 128, 255, 0.22), rgba(45, 212, 191, 0.15));
+  color: #d6e3ff;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.editor-toolbar-components-trigger .editor-toolbar-icon {
+  width: 16px;
+  height: 16px;
+  color: #8fe3d4;
+}
+
+.editor-toolbar-components-label {
+  white-space: nowrap;
+}
+
+.editor-toolbar-components-trigger[aria-expanded="true"] {
+  border-color: rgba(143, 227, 212, 0.48);
+  background: linear-gradient(135deg, rgba(84, 139, 255, 0.34), rgba(45, 212, 191, 0.24));
+  color: #ffffff;
+}
+
+.editor-toolbar-separator {
+  flex: 0 0 1px;
+  align-self: center;
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: var(--editor-toolbar-line);
+  border-radius: 1px;
+}
+
+.editor-toolbar-history {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: auto;
+}
+
+/* Popovers ------------------------------------------------------------ */
+
+.editor-toolbar-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: 50;
+  color: #dbe4f0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 40%),
+    linear-gradient(180deg, #151d2a, #101722 72%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow:
+    0 24px 50px -20px rgba(0, 0, 0, 0.9),
+    0 8px 22px -12px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: editor-toolbar-pop-in 0.13s ease-out;
+  transform-origin: top left;
+}
+
+.editor-toolbar-emoji-menu {
+  left: 8px;
+  width: min(268px, calc(100% - 16px));
+  padding: 8px;
+}
+
+.editor-toolbar-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.editor-toolbar-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 28px;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.12s ease, transform 0.1s ease;
+}
+
+.editor-toolbar-emoji:active {
+  transform: scale(0.92);
+}
+
+.editor-toolbar-heading-menu {
+  left: 8px;
+  width: min(190px, calc(100% - 16px));
+  padding: 6px;
+}
+
+.editor-toolbar-heading-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 8px;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: #c8d3e2;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.editor-toolbar-heading-sample {
+  display: inline-flex;
+  flex: 0 0 26px;
+  align-items: center;
+  justify-content: center;
+  color: #93a4bb;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.editor-toolbar-heading-sample.is-level-0 {
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.editor-toolbar-heading-sample.is-level-1 {
+  color: #c9d9fa;
+  font-size: 15px;
+}
+
+.editor-toolbar-heading-sample.is-level-2 {
+  color: #c2d2f1;
+  font-size: 14px;
+}
+
+.editor-toolbar-heading-sample.is-level-3 {
+  color: #b8c8e4;
+  font-size: 13px;
+}
+
+.editor-toolbar-heading-sample.is-level-4 {
+  color: #aebdd6;
+  font-size: 12px;
+}
+
+.editor-toolbar-heading-sample.is-level-5 {
+  color: #a3b1c8;
+  font-size: 11.5px;
+}
+
+.editor-toolbar-heading-sample.is-level-6 {
+  color: #98a6bb;
+  font-size: 11px;
+}
+
+.editor-toolbar-native-menu {
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  width: min(340px, calc(100% - 16px));
+  max-height: min(360px, 70vh);
+  padding: 8px;
+  overflow: hidden;
+  transform-origin: top right;
+}
+
+.editor-toolbar-search {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  padding: 6px 9px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.editor-toolbar-search:focus-within {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(122, 162, 255, 0.65);
+  box-shadow: 0 0 0 2px rgba(84, 139, 255, 0.18);
+}
+
+.editor-toolbar-search-icon {
+  width: 15px;
+  height: 15px;
+  color: #7f8fa6;
+}
+
+.editor-toolbar-search-input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: #e6edf7;
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.editor-toolbar-search-input::placeholder {
+  color: #718096;
+}
+
+.editor-toolbar-search-input::-webkit-search-decoration,
+.editor-toolbar-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.editor-toolbar-native-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 292px;
+  padding-right: 3px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.editor-toolbar-native-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.editor-toolbar-native-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.editor-toolbar-native-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+
+.editor-toolbar-native-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+.editor-toolbar-native-group {
+  padding: 2px 0 4px;
+}
+
+.editor-toolbar-native-group + .editor-toolbar-native-group {
+  margin-top: 3px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.editor-toolbar-native-group-title {
+  margin: 2px 8px 4px;
+  color: #7f8ea5;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.editor-toolbar-native-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: #c9d4e3;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.editor-toolbar-native-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.editor-toolbar-native-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #e5ecf7;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.editor-toolbar-native-description {
+  display: block;
+  overflow: hidden;
+  color: #8e9cb0;
+  font-size: 11.3px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-toolbar-native-badge {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border: 1px solid rgba(143, 227, 212, 0.28);
+  border-radius: 4px;
+  color: #8fe3d4;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.55;
+}
+
+.editor-toolbar-native-add {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: #7f93ad;
+  opacity: 0.35;
+  transition: color 0.12s ease, opacity 0.12s ease;
+}
+
+.editor-toolbar-menu-empty {
+  margin: 16px 8px;
+  color: var(--editor-toolbar-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* Interaction states -------------------------------------------------- */
+
+@media (hover: hover) {
+  .editor-toolbar-button:hover:not(:disabled) {
+    color: var(--editor-toolbar-ink-strong);
+    background: var(--editor-toolbar-hover);
+  }
+
+  .editor-toolbar-components-trigger:hover:not(:disabled) {
+    color: #ffffff;
+    background: linear-gradient(135deg, rgba(84, 139, 255, 0.32), rgba(45, 212, 191, 0.24));
+    border-color: rgba(122, 162, 255, 0.5);
+  }
+
+  .editor-toolbar-emoji:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+
+  .editor-toolbar-heading-item:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .editor-toolbar-native-item:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .editor-toolbar-native-item:hover .editor-toolbar-native-add {
+    color: #93b6ff;
+    opacity: 1;
+  }
+}
+
+.editor-toolbar-button:focus-visible,
+.editor-toolbar-emoji:focus-visible,
+.editor-toolbar-heading-item:focus-visible,
+.editor-toolbar-native-item:focus-visible {
+  outline: 2px solid var(--editor-toolbar-focus);
+  outline-offset: 2px;
+}
+
+.editor-toolbar-emoji:focus-visible {
+  outline-offset: 1px;
+}
+
+.editor-toolbar-heading-item:focus-visible,
+.editor-toolbar-native-item:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Responsive ---------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .editor-toolbar {
+    gap: 2px;
+    padding: 6px;
+    border-radius: 14px;
+  }
+
+  .editor-toolbar-separator {
+    margin: 0 2px;
+  }
+
+  .editor-toolbar-components-trigger {
+    min-width: 70px;
+    padding: 0 9px 0 7px;
+  }
+
+  .editor-toolbar-emoji-menu {
+    top: auto;
+    bottom: calc(100% + 8px);
+    left: 6px;
+    width: min(268px, calc(100% - 12px));
+    transform-origin: bottom left;
+  }
+
+  .editor-toolbar-heading-menu {
+    top: auto;
+    bottom: calc(100% + 8px);
+    left: 6px;
+    width: min(190px, calc(100% - 12px));
+    transform-origin: bottom left;
+  }
+
+  .editor-toolbar-native-menu {
+    position: fixed;
+    top: auto;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    width: auto;
+    max-height: min(68vh, 460px);
+    transform-origin: bottom center;
+  }
+
+  .editor-toolbar-native-scroll {
+    max-height: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .editor-toolbar-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .editor-toolbar-chevron {
+    width: 8px;
+    height: 8px;
+  }
+
+  .editor-toolbar-components-trigger {
+    width: auto;
+    min-width: 76px;
+  }
+
+  .editor-toolbar-emoji {
+    height: 30px;
+  }
+
+  .editor-toolbar-native-item {
+    padding: 8px;
+  }
+}
+
+@media (max-width: 400px) {
+  .editor-toolbar {
+    border-radius: 12px;
+  }
+
+  .editor-toolbar-components-trigger {
+    min-width: 66px;
+  }
+}
+
+@keyframes editor-toolbar-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-toolbar-popover {
+    animation: none;
+  }
+
+  .editor-toolbar-button,
+  .editor-toolbar-emoji,
+  .editor-toolbar-heading-item,
+  .editor-toolbar-native-item,
+  .editor-toolbar-native-add {
+    transition-duration: 0.01ms;
+  }
+
+  .editor-toolbar-button:active:not(:disabled),
+  .editor-toolbar-emoji:active {
+    transform: none;
+  }
+}
