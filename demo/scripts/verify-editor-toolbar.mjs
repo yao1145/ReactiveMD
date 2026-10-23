@@ -178,6 +178,8 @@ try {
   await expect(
     page.getByRole('menuitemradio', { name: /标题 1/ }),
   ).toHaveAttribute('aria-checked', 'true');
+  await expect(headingTrigger.locator('.editor-toolbar-heading-label-full')).toBeVisible();
+  await expect(headingTrigger.locator('.editor-toolbar-heading-label-compact')).toBeHidden();
   await page.keyboard.press('Escape');
   await expect(headingTrigger).toBeFocused();
   console.log('PASS heading menu, current level label and checked state');
@@ -226,6 +228,40 @@ try {
   await page.locator('.editor-frame').screenshot({ path: 'artifacts/editor-toolbar-dark.png' });
   console.log('PASS desktop screenshots and dark theme');
 
+  const tablet = await browser.newPage({ viewport: { width: 1024, height: 900 } });
+  tablet.setDefaultTimeout(10000);
+  await tablet.goto(baseURL);
+  const tabletToolbar = tablet.locator('.editor-toolbar');
+  await expect(tabletToolbar).toBeVisible();
+  expectSameIds(
+    await visibleToolbarIds(tabletToolbar),
+    ['heading', 'bold', 'italic', 'list', 'link', 'insert', 'components', 'more'],
+    'Compact desktop controls',
+  );
+  const tabletRows = await tabletToolbar.locator('[data-toolbar-id]').evaluateAll((elements) =>
+    new Set(
+      elements
+        .filter((element) => element.getClientRects().length > 0)
+        .map((element) => Math.round(element.getBoundingClientRect().top)),
+    ).size,
+  );
+  if (tabletRows !== 1) throw new Error(`Compact desktop toolbar wraps onto ${tabletRows} rows`);
+  const tabletHeading = tablet.locator('[data-toolbar-id="heading"]');
+  await expect(tabletHeading.locator('.editor-toolbar-heading-label-full')).toHaveText('标题 1');
+  await expect(tabletHeading.locator('.editor-toolbar-heading-label-compact')).toBeHidden();
+  const tabletMoreTrigger = tablet.locator('[data-toolbar-id="more"]');
+  await tabletMoreTrigger.click();
+  const tabletMoreMenu = tablet.locator('.editor-toolbar-more-menu');
+  await expect(tabletMoreMenu).toBeVisible();
+  await expect(tabletMoreMenu.getByRole('menuitem')).toHaveCount(3);
+  await expect(tabletMoreMenu.getByRole('menuitem', { name: '链接', exact: true })).toHaveCount(0);
+  await tablet.waitForTimeout(180);
+  await tablet.locator('.editor-frame').screenshot({ path: 'artifacts/editor-toolbar-1024.png' });
+  await tablet.keyboard.press('Escape');
+  await expect(tabletMoreTrigger).toBeFocused();
+  await tablet.close();
+  console.log('PASS 1024px compact history actions stay on one row');
+
   const mobile = await browser.newPage({
     viewport: { width: 390, height: 844 },
     hasTouch: true,
@@ -251,6 +287,17 @@ try {
     'Mobile persistent controls',
   );
 
+  const mobileHeading = mobile.locator('[data-toolbar-id="heading"]');
+  const mobileHeadingBox = await mobileHeading.boundingBox();
+  if (!mobileHeadingBox || mobileHeadingBox.width < 43.5) {
+    throw new Error(`Mobile heading target is too narrow: ${JSON.stringify(mobileHeadingBox)}`);
+  }
+  await expect(mobileHeading.locator('.editor-toolbar-heading-label-full')).toBeHidden();
+  await expect(mobileHeading.locator('.editor-toolbar-heading-label-compact')).toHaveText('H1');
+  await expect(mobileHeading.locator('.editor-toolbar-heading-label-compact')).toBeVisible();
+  await expect(mobileHeading.locator('.editor-toolbar-chevron')).toBeVisible();
+  console.log('PASS mobile heading uses compact H1 label with a 44px target');
+
   const controlBoxes = await mobileToolbar.locator('[data-toolbar-id]').evaluateAll((elements) =>
     elements
       .filter((element) => element.getClientRects().length > 0)
@@ -258,6 +305,7 @@ try {
         id: element.dataset.toolbarId,
         top: Math.round(element.getBoundingClientRect().top),
         height: element.getBoundingClientRect().height,
+        width: element.getBoundingClientRect().width,
       })),
   );
   if (new Set(controlBoxes.map((item) => item.top)).size !== 1) {

@@ -852,6 +852,7 @@ export function EditorToolbar({
 
   const headingLabel =
     HEADING_ITEMS.find((item) => item.level === formatState.headingLevel)?.label ?? '正文';
+  const headingCompactLabel = formatState.headingLevel === 0 ? '¶' : `H${formatState.headingLevel}`;
   const headingLabelText = `标题级别：${headingLabel}`;
   const currentListLabel = formatState.list ? LIST_TYPE_LABELS[formatState.list] : null;
   const listLabel = currentListLabel ? `列表：${currentListLabel}` : '列表';
@@ -885,7 +886,15 @@ export function EditorToolbar({
           onClick={() => toggleMenu('heading')}
           onKeyDown={(event) => handleTriggerKeyDown('heading', event)}
         >
-          <span className="editor-toolbar-heading-label">{headingLabel}</span>
+          <span className="editor-toolbar-heading-label editor-toolbar-heading-label-full">
+            {headingLabel}
+          </span>
+          <span
+            className="editor-toolbar-heading-label editor-toolbar-heading-label-compact"
+            aria-hidden="true"
+          >
+            {headingCompactLabel}
+          </span>
           <Icon name="chevron" className="editor-toolbar-chevron" />
         </ToolbarButton>
         {openMenu === 'heading' ? (
@@ -1260,7 +1269,7 @@ export function EditorToolbar({
                 type="button"
                 role="menuitem"
                 tabIndex={-1}
-                className="editor-toolbar-menu-item editor-toolbar-more-item"
+                className="editor-toolbar-menu-item editor-toolbar-more-item editor-toolbar-more-link"
                 onMouseDown={keepEditorFocus}
                 onClick={() => applySimple(insertLink)}
               >

@@ -153,6 +153,10 @@
   white-space: nowrap;
 }
 
+.editor-toolbar-heading-label-compact {
+  display: none;
+}
+
 .editor-toolbar-list-trigger {
   width: auto;
   gap: 0;
@@ -220,6 +224,22 @@
   align-items: center;
   gap: 1px;
   margin-left: auto;
+}
+
+/* Container compact mode ----------------------------------------------- */
+
+@container editor-frame (max-width: 500px) {
+  .editor-toolbar-history > .editor-toolbar-desktop-only {
+    display: none;
+  }
+
+  .editor-toolbar-slot.editor-toolbar-mobile-only {
+    display: inline-flex;
+  }
+
+  .editor-toolbar-more-menu .editor-toolbar-more-link {
+    display: none;
+  }
 }
 
 /* Tooltips ------------------------------------------------------------- */
@@ -769,7 +789,7 @@
 @media (max-width: 640px) {
   .editor-toolbar {
     gap: 0;
-    padding: 4px 3px;
+    padding: 4px 2px;
   }
 
   .editor-toolbar-desktop-only {
@@ -785,17 +805,25 @@
   }
 
   .editor-toolbar-heading-trigger {
-    min-width: 0;
+    min-width: 44px;
     gap: 2px;
-    padding: 0 3px;
-  }
-
-  .editor-toolbar-heading-trigger .editor-toolbar-chevron {
-    display: none;
+    padding: 0 4px;
   }
 
   .editor-toolbar-heading-label {
     font-size: 12px;
+  }
+
+  .editor-toolbar-heading-label-full {
+    display: none;
+  }
+
+  .editor-toolbar-heading-label-compact {
+    display: inline;
+  }
+
+  .editor-toolbar-more-menu .editor-toolbar-more-link {
+    display: flex;
   }
 
   .editor-toolbar-list-trigger {
@@ -902,16 +930,16 @@
 
 @media (max-width: 400px) {
   .editor-toolbar-heading-trigger {
-    padding: 0;
-  }
-
-  .editor-toolbar-insert-trigger {
     padding: 0 2px;
   }
 
+  .editor-toolbar-insert-trigger {
+    padding: 0 1px;
+  }
+
   .editor-toolbar-components-trigger {
-    gap: 2px;
-    padding: 0 5px 0 4px;
+    gap: 1px;
+    padding: 0 3px;
     font-size: 10.5px;
   }
 
@@ -938,6 +966,7 @@
     min-height: 44px;
   }
 
+  .editor-toolbar-heading-trigger,
   .editor-toolbar-list-trigger {
     min-width: 44px;
   }

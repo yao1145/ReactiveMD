@@ -252,6 +252,8 @@ textarea {
   flex-direction: column;
   height: clamp(390px, 56vh, 680px);
   min-width: 0;
+  container-name: editor-frame;
+  container-type: inline-size;
   background: var(--code-bg);
   border: 1px solid #1e293b;
   border-radius: var(--radius-md);
