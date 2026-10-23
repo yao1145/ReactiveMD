@@ -33,6 +33,8 @@ import {
 } from './i18n';
 import { useLocalCompilation, type LocalCompiledDocument } from './use-local-compilation';
 import { PreviewStateSession } from './preview-state';
+import { useEditorHeight } from './use-editor-height';
+import { useGutterMetrics } from './use-gutter-metrics';
 import { useSourceHistory } from './use-source-history';
 import guideEnSource from '../../docs/local-guide-en.md?raw';
 import guideZhSource from '../../docs/local-guide-ch.md?raw';
@@ -276,6 +278,8 @@ export default function App() {
 
   const copy = COPY[language];
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const mirrorRef = useRef<HTMLDivElement>(null);
   const featureMenuRef = useRef<HTMLButtonElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
   const pendingSourceWrite = useRef<{
@@ -285,6 +289,8 @@ export default function App() {
   } | null>(null);
   const sourceWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSelection = useRef<EditorSelection | null>(null);
+  const sourceVisible = view === 'playground' && !simple;
+  useEditorHeight(frameRef, sourceVisible, [language, view, simple, selectedExample]);
   const {
     canUndo,
     canRedo,
@@ -432,10 +438,19 @@ export default function App() {
       editor.focus();
       editor.setSelectionRange(start, end);
       const line = editor.value.slice(0, start).split('\n').length;
-      const styles = window.getComputedStyle(editor);
-      const lineHeight = Number.parseFloat(styles.lineHeight) || 22;
-      editor.scrollTop = Math.max(0, (line - 1) * lineHeight - editor.clientHeight / 3);
-      if (gutterRef.current) gutterRef.current.scrollTop = editor.scrollTop;
+      const gutter = gutterRef.current;
+      const lineElement = gutter?.children[line - 1] as HTMLElement | undefined;
+      if (gutter && lineElement) {
+        const offset = lineElement.getBoundingClientRect().top
+          - gutter.getBoundingClientRect().top
+          + gutter.scrollTop;
+        editor.scrollTop = Math.max(0, offset - editor.clientHeight / 3);
+      } else {
+        const styles = window.getComputedStyle(editor);
+        const lineHeight = Number.parseFloat(styles.lineHeight) || 22;
+        editor.scrollTop = Math.max(0, (line - 1) * lineHeight - editor.clientHeight / 3);
+      }
+      if (gutter) gutter.scrollTop = editor.scrollTop;
       setActiveLine(line);
     });
   }, []);
@@ -504,6 +519,7 @@ export default function App() {
   );
 
   const lines = useMemo(() => source.split('\n'), [source]);
+  const gutterMetrics = useGutterMetrics(lines, mirrorRef, editorRef);
 
   const updateActiveLine = (element: HTMLTextAreaElement) => {
     const line = element.value.slice(0, element.selectionStart).split('\n').length;
@@ -702,7 +718,7 @@ export default function App() {
                 <span className="syntax-tag">local-draft-2</span>
               </div>
 
-              <div className="editor-frame">
+              <div className="editor-frame" ref={frameRef}>
                 <EditorToolbar
                   editorRef={editorRef}
                   onEdit={applyEdit}
@@ -724,6 +740,9 @@ export default function App() {
                           className={`gutter-line ${activeLine === lineNumber ? 'is-active' : ''} ${
                             diagnosticLines.has(lineNumber) ? 'is-diagnostic' : ''
                           }`}
+                          style={gutterMetrics.heights[index]
+                            ? { height: `${gutterMetrics.heights[index]}px` }
+                            : undefined}
                         >
                           {lineNumber}
                         </span>
@@ -735,7 +754,7 @@ export default function App() {
                     ref={editorRef}
                     className="editor-input"
                     value={source}
-                    wrap="off"
+                    wrap="soft"
                     spellCheck={false}
                     autoCapitalize="off"
                     autoCorrect="off"
@@ -747,6 +766,17 @@ export default function App() {
                     onKeyUp={(event) => updateActiveLine(event.currentTarget)}
                     onClick={(event) => updateActiveLine(event.currentTarget)}
                   />
+                  <div
+                    className="editor-mirror"
+                    ref={mirrorRef}
+                    aria-hidden="true"
+                    style={gutterMetrics.width ? { width: gutterMetrics.width } : undefined}
+                  >
+                    {lines.map((line, index) => (
+                      // CRLF sources leave a trailing \r that the textarea treats as the break.
+                      <div key={index}>{line.replace(/\r$/, '') || '\u200b'}</div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
