@@ -46,6 +46,7 @@ export function Article() {
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | 宿主创建并负责销毁 |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | 两者 | 接收编译诊断和控件写入被拒绝时的运行时诊断 |
 | `urlPolicy` | `(url: string, kind: 'image' \| 'link') => boolean` | 两者 | 在协议检查之后决定是否放行图片或链接 |
+| `locale` | `'en' \| 'zh'` | 两者 | 内置控件和标签的语言，默认 `'en'`；编译与运行时诊断消息仍为英文 |
 
 两个组件都没有 `className`、`style` 或插槽属性。`LocalReactiveDocument` 渲染 `<article class="md-document local-document">`；`LocalDocumentView` 使用同样的文档容器。样式覆盖见下文。
 

@@ -16,6 +16,12 @@ import { compileLatex, LatexError, samplePlot, type LatexEvaluationBudget } from
 import { LatexView } from './math-view';
 import type { LocalNode, LocalRuntime, LocalValue } from './types';
 import type { LocalVisualProps } from './render-types';
+import {
+  defaultLocalize,
+  useLocalLocale,
+  useLocalize,
+  type Localize,
+} from './i18n';
 
 /* ------------------------------------------------------------------ */
 /* Shared helpers                                                      */
@@ -276,22 +282,40 @@ interface CollectedText {
   error: string | null;
 }
 
-function scalarText(value: LocalValue): { text: string; kind: CellKind; error: string | null } {
+function scalarText(
+  value: LocalValue,
+  t: Localize = defaultLocalize,
+): { text: string; kind: CellKind; error: string | null } {
   if (value === null) return { text: '', kind: 'null', error: null };
   if (typeof value === 'string') return { text: value, kind: 'string', error: null };
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
-      return { text: 'Cannot compute', kind: 'error', error: 'Result is not a finite number' };
+      return {
+        text: t('Cannot compute', '无法计算'),
+        kind: 'error',
+        error: t('Result is not a finite number', '结果不是有限数字'),
+      };
     }
     return { text: formatNumber(value), kind: 'number', error: null };
   }
   if (typeof value === 'boolean') {
     return { text: value ? 'true' : 'false', kind: 'boolean', error: null };
   }
-  return { text: 'Cannot compute', kind: 'array', error: 'Arrays must first be converted with a function such as len' };
+  return {
+    text: t('Cannot compute', '无法计算'),
+    kind: 'array',
+    error: t(
+      'Arrays must first be converted with a function such as len',
+      '数组需要先用 len 等函数转换',
+    ),
+  };
 }
 
-function collectText(nodes: LocalNode[] | undefined, runtime: LocalRuntime): CollectedText {
+function collectText(
+  nodes: LocalNode[] | undefined,
+  runtime: LocalRuntime,
+  t: Localize = defaultLocalize,
+): CollectedText {
   let text = '';
   let error: string | null = null;
   for (const node of nodes ?? []) {
@@ -302,12 +326,12 @@ function collectText(nodes: LocalNode[] | undefined, runtime: LocalRuntime): Col
     if (node.type === 'interpolation') {
       try {
         const value = runtime.evaluate((node.value ?? '').trim());
-        const scalar = scalarText(value);
+        const scalar = scalarText(value, t);
         if (scalar.error) error ??= scalar.error;
         text += scalar.text;
       } catch (cause) {
         error ??= errorMessage(cause);
-        text += 'Cannot compute';
+        text += t('Cannot compute', '无法计算');
       }
       continue;
     }
@@ -320,7 +344,7 @@ function collectText(nodes: LocalNode[] | undefined, runtime: LocalRuntime): Col
       continue;
     }
     if (node.children && node.children.length > 0) {
-      const nested = collectText(node.children, runtime);
+      const nested = collectText(node.children, runtime, t);
       text += nested.text;
       error ??= nested.error;
       continue;
@@ -330,7 +354,7 @@ function collectText(nodes: LocalNode[] | undefined, runtime: LocalRuntime): Col
   return { text, error };
 }
 
-function readCell(node: LocalNode, runtime: LocalRuntime): Cell {
+function readCell(node: LocalNode, runtime: LocalRuntime, t: Localize = defaultLocalize): Cell {
   const children = node.children ?? [];
   const significant = children.filter(
     (child) => !(child.type === 'text' && !(child.value ?? '').trim()),
@@ -338,7 +362,7 @@ function readCell(node: LocalNode, runtime: LocalRuntime): Cell {
   if (significant.length === 1 && significant[0].type === 'interpolation') {
     try {
       const value = runtime.evaluate((significant[0].value ?? '').trim());
-      const scalar = scalarText(value);
+      const scalar = scalarText(value, t);
       return {
         node,
         children,
@@ -352,7 +376,7 @@ function readCell(node: LocalNode, runtime: LocalRuntime): Cell {
       return {
         node,
         children,
-        text: 'Cannot compute',
+        text: t('Cannot compute', '无法计算'),
         value: undefined,
         kind: 'error',
         numeric: null,
@@ -361,7 +385,7 @@ function readCell(node: LocalNode, runtime: LocalRuntime): Cell {
     }
   }
 
-  const collected = collectText(children, runtime);
+  const collected = collectText(children, runtime, t);
   const plainText = significant.length > 0 && significant.every((child) => child.type === 'text');
   if (plainText && NUMERIC_TEXT.test(collected.text.trim())) {
     const numeric = Number(collected.text.trim());
@@ -381,7 +405,7 @@ function readCell(node: LocalNode, runtime: LocalRuntime): Cell {
   return {
     node,
     children,
-    text: collected.error ? 'Cannot compute' : collected.text,
+    text: collected.error ? t('Cannot compute', '无法计算') : collected.text,
     value: collected.text,
     kind: collected.error ? 'error' : isEmpty ? 'empty' : 'string',
     numeric: null,
@@ -389,24 +413,28 @@ function readCell(node: LocalNode, runtime: LocalRuntime): Cell {
   };
 }
 
-function cellText(cell: Cell | undefined): string {
+function cellText(cell: Cell | undefined, t: Localize = defaultLocalize): string {
   if (!cell) return '';
-  return cell.error ? 'Cannot compute' : cell.text;
+  return cell.error ? t('Cannot compute', '无法计算') : cell.text;
 }
 
-function buildVisualTable(node: LocalNode, runtime: LocalRuntime): VisualTable | null {
+function buildVisualTable(
+  node: LocalNode,
+  runtime: LocalRuntime,
+  t: Localize = defaultLocalize,
+): VisualTable | null {
   const tableNode = node.children?.find((child) => child.type === 'table');
   if (!tableNode) return null;
   const rows = tableNode.children?.filter((child) => child.type === 'tableRow') ?? [];
   if (rows.length === 0) return null;
-  const header = (rows[0].children ?? []).map((cell) => readCell(cell, runtime));
+  const header = (rows[0].children ?? []).map((cell) => readCell(cell, runtime, t));
   return {
     tableNode,
     header,
-    headerText: header.map(cellText),
+    headerText: header.map((cell) => cellText(cell, t)),
     rows: rows.slice(1).map((row, index) => ({
       index,
-      cells: (row.children ?? []).map((cell) => readCell(cell, runtime)),
+      cells: (row.children ?? []).map((cell) => readCell(cell, runtime, t)),
     })),
   };
 }
@@ -483,6 +511,7 @@ function ChartLegend({
   onToggle: (index: number) => void;
   label: string;
 }) {
+  const t = useLocalize();
   return (
     <div className="local-visual-legend" role="group" aria-label={label}>
       {items.map((item, index) => {
@@ -495,7 +524,7 @@ function ChartLegend({
             aria-pressed={!off}
             disabled={item.disabled}
             onClick={() => onToggle(index)}
-            title={off ? `Show ${item.name}` : `Hide ${item.name}`}
+            title={off ? t(`Show ${item.name}`, `显示 ${item.name}`) : t(`Hide ${item.name}`, `隐藏 ${item.name}`)}
           >
             <span
               className="local-visual-swatch"
@@ -504,7 +533,7 @@ function ChartLegend({
             />
             <span className="local-visual-legend-text">
               {item.name}
-              {item.detail ? ` (${item.detail})` : ''}
+              {item.detail ? t(` (${item.detail})`, `（${item.detail}）`) : ''}
             </span>
           </button>
         );
@@ -523,6 +552,7 @@ interface SortState {
 }
 
 function TableView({ node, runtime, render }: LocalVisualProps) {
+  const t = useLocalize();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortState | null>(null);
   const [page, setPage] = useState(1);
@@ -533,17 +563,23 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
     setPage(1);
   }, [reset]);
 
-  const label = attrText(runtime, node.attrs, 'label', 'Table');
+  const label = attrText(runtime, node.attrs, 'label', t('Table', '表格'));
   const searchable = attrBoolean(runtime, node.attrs, 'searchable', true);
   const sortable = attrBoolean(runtime, node.attrs, 'sortable', true);
   const rawPageSize = attrInteger(runtime, node.attrs, 'page-size', 10);
   const pageSize = Math.max(1, rawPageSize);
-  const table = buildVisualTable(node, runtime);
+  const table = buildVisualTable(node, runtime, t);
 
   if (!table || table.header.length === 0) {
     return (
       <VisualFrame className="local-visual-table-block" label={label}>
-        <VisualMessage message="Table requires a non-empty Markdown table." kind="alert" />
+        <VisualMessage
+          message={t(
+            'Table requires a non-empty Markdown table.',
+            '表格需要一个非空的 Markdown 表格。',
+          )}
+          kind="alert"
+        />
       </VisualFrame>
     );
   }
@@ -552,7 +588,7 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
   const normalizedQuery = query.trim().toLowerCase();
   const filtered = table.rows.filter((row) => {
     if (!normalizedQuery) return true;
-    return row.cells.some((cell) => cellText(cell).toLowerCase().includes(normalizedQuery));
+    return row.cells.some((cell) => cellText(cell, t).toLowerCase().includes(normalizedQuery));
   });
   const ordered = [...filtered];
   if (sort) {
@@ -566,7 +602,7 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
         const bv = b?.numeric ?? Number.NEGATIVE_INFINITY;
         result = av === bv ? 0 : av < bv ? -1 : 1;
       } else {
-        result = compareText(cellText(a), cellText(b));
+        result = compareText(cellText(a, t), cellText(b, t));
       }
       if (result === 0) return left.index - right.index;
       return sort.direction === 'asc' ? result : -result;
@@ -588,19 +624,19 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
 
   const sortMarker = (column: number) => {
     if (!sort || sort.column !== column) return '';
-    return sort.direction === 'asc' ? ' (ascending)' : ' (descending)';
+    return sort.direction === 'asc' ? t(' (ascending)', '（升序）') : t(' (descending)', '（降序）');
   };
 
   return (
     <VisualFrame className="local-visual-table-block" label={label}>
       {searchable ? (
         <label className="local-visual-search">
-          <span>Search</span>
+          <span>{t('Search', '搜索')}</span>
           <input
             type="search"
             value={query}
-            placeholder="Search all columns"
-            aria-label={`Search ${label}`}
+            placeholder={t('Search all columns', '搜索所有列')}
+            aria-label={t(`Search ${label}`, `搜索${label}`)}
             onChange={(event) => {
               setQuery(event.target.value);
               setPage(1);
@@ -634,13 +670,16 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
                           sort && sort.column === index ? ' is-sorted' : ''
                         }`}
                         onClick={() => cycleSort(index)}
-                        title="Click to cycle ascending, descending and original order"
+                        title={t(
+                          'Click to cycle ascending, descending and original order',
+                          '点击切换升序、降序和原始顺序',
+                        )}
                       >
-                        {cellText(cell)}
+                        {cellText(cell, t)}
                         {sortMarker(index)}
                       </button>
                     ) : (
-                      cellText(cell)
+                      cellText(cell, t)
                     )}
                   </th>
                 );
@@ -659,7 +698,7 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
                     >
                       {cell?.error ? (
                         <span className="local-visual-cell-error" title={cell.error}>
-                          Cannot compute
+                          {t('Cannot compute', '无法计算')}
                         </span>
                       ) : (
                         render(cell?.children ?? [])
@@ -672,25 +711,33 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
           </tbody>
         </table>
       </div>
-      {ordered.length === 0 ? <VisualMessage message="No matching results" /> : null}
+      {ordered.length === 0 ? (
+        <VisualMessage message={t('No matching results', '没有匹配结果')} />
+      ) : null}
       {totalPages > 1 ? (
-        <nav className="local-visual-pagination" aria-label="Table pagination">
+        <nav
+          className="local-visual-pagination"
+          aria-label={t('Table pagination', '表格分页')}
+        >
           <button
             type="button"
             disabled={currentPage <= 1}
             onClick={() => setPage((value) => Math.max(1, value - 1))}
           >
-            Previous
+            {t('Previous', '上一页')}
           </button>
           <span>
-            Page {currentPage} of {totalPages} · {ordered.length} rows
+            {t(
+              `Page ${currentPage} of ${totalPages} · ${ordered.length} rows`,
+              `第 ${currentPage} / ${totalPages} 页 · 共 ${ordered.length} 行`,
+            )}
           </span>
           <button
             type="button"
             disabled={currentPage >= totalPages}
             onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
           >
-            Next
+            {t('Next', '下一页')}
           </button>
         </nav>
       ) : null}
@@ -750,6 +797,7 @@ function donutPath(
 }
 
 function ChartView({ node, runtime }: LocalVisualProps) {
+  const t = useLocalize();
   const [hiddenSeries, setHiddenSeries] = useState<Set<number>>(new Set());
   const [hiddenSlices, setHiddenSlices] = useState<Set<number>>(new Set());
   const [active, setActive] = useState<ChartPoint | null>(null);
@@ -764,17 +812,23 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   const title =
     attrText(runtime, node.attrs, 'title', '') ||
     attrText(runtime, node.attrs, 'label', '') ||
-    'Chart';
+    t('Chart', '图表');
   const kindRaw = (node.attrs?.kind ?? 'bar').trim().toLowerCase();
   const kind = (CHART_KINDS as string[]).includes(kindRaw) ? (kindRaw as ChartKind) : null;
   const xLabel = attrText(runtime, node.attrs, 'x-label', '');
   const yLabel = attrText(runtime, node.attrs, 'y-label', '');
-  const table = buildVisualTable(node, runtime);
+  const table = buildVisualTable(node, runtime, t);
 
   if (!table || table.header.length === 0) {
     return (
       <VisualFrame className="local-visual-chart" label={title}>
-        <VisualMessage message="chart body requires a non-empty Markdown table." kind="alert" />
+        <VisualMessage
+          message={t(
+            'chart body requires a non-empty Markdown table.',
+            'chart 正文需要一个非空的 Markdown 表格。',
+          )}
+          kind="alert"
+        />
       </VisualFrame>
     );
   }
@@ -783,13 +837,16 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   const sourceRows = table.rows.map((row) => ({
     index: row.index,
     cells: row.cells,
-    texts: header.map((_name, column) => cellText(row.cells[column])),
+    texts: header.map((_name, column) => cellText(row.cells[column], t)),
   }));
 
   if (!kind) {
     return (
       <VisualFrame className="local-visual-chart" label={title}>
-        <VisualMessage message={`Unknown chart type "${kindRaw}".`} kind="alert" />
+        <VisualMessage
+          message={t(`Unknown chart type "${kindRaw}".`, `未知图表类型“${kindRaw}”。`)}
+          kind="alert"
+        />
       </VisualFrame>
     );
   }
@@ -799,7 +856,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   const xName = (node.attrs?.x ?? '').trim();
   const xIndex = xName ? header.indexOf(xName) : 0;
   if (xIndex < 0 || xIndex >= header.length) {
-    errors.push(`x column "${xName}" does not exist.`);
+    errors.push(t(`x column "${xName}" does not exist.`, `x 列“${xName}”不存在。`));
   }
   const yNames = (node.attrs?.y ?? '')
     .split(',')
@@ -809,22 +866,34 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   let yIndexes: number[] = [];
   if (kind === 'donut') {
     if (yNames.length > 1) {
-      errors.push('donut can only use one numeric column; specify a single column in y.');
+      errors.push(
+        t(
+          'donut can only use one numeric column; specify a single column in y.',
+          'donut 只能使用一个数值列，请在 y 中指定唯一列。',
+        ),
+      );
     } else if (yNames.length === 1) {
       const index = header.indexOf(yNames[0]);
-      if (index < 0) errors.push(`y column "${yNames[0]}" does not exist.`);
-      else yIndexes = [index];
+      if (index < 0) {
+        errors.push(t(`y column "${yNames[0]}" does not exist.`, `y 列“${yNames[0]}”不存在。`));
+      } else yIndexes = [index];
     } else if (header.length === 2) {
       yIndexes = [1];
     } else {
-      errors.push('A donut chart with more than two columns must use y to specify the single numeric column.');
+      errors.push(
+        t(
+          'A donut chart with more than two columns must use y to specify the single numeric column.',
+          'donut 多于两列时必须用 y 指定唯一数值列。',
+        ),
+      );
     }
   } else {
     if (yNames.length > 0) {
       for (const name of yNames) {
         const index = header.indexOf(name);
-        if (index < 0) errors.push(`y column "${name}" does not exist.`);
-        else if (!yIndexes.includes(index)) yIndexes.push(index);
+        if (index < 0) {
+          errors.push(t(`y column "${name}" does not exist.`, `y 列“${name}”不存在。`));
+        } else if (!yIndexes.includes(index)) yIndexes.push(index);
       }
     } else {
       yIndexes = header.map((_name, index) => index).filter((index) => index !== xIndex);
@@ -832,7 +901,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   }
 
   if (errors.length === 0 && yIndexes.length === 0) {
-    errors.push('Chart requires at least one numeric series.');
+    errors.push(t('Chart requires at least one numeric series.', '图表至少需要一个数值系列。'));
   }
 
   if (errors.length > 0) {
@@ -845,12 +914,14 @@ function ChartView({ node, runtime }: LocalVisualProps) {
     );
   }
 
-  const seriesNames = yIndexes.map((index) => header[index] || `Series ${index + 1}`);
+  const seriesNames = yIndexes.map(
+    (index) => header[index] || t(`Series ${index + 1}`, `系列 ${index + 1}`),
+  );
   let invalidValues = 0;
   let negativeValues = 0;
   const rows: ChartRow[] = sourceRows.map((source) => {
     const xCell = source.cells[xIndex];
-    const label = source.texts[xIndex] || `Item ${source.index + 1}`;
+    const label = source.texts[xIndex] || t(`Item ${source.index + 1}`, `第 ${source.index + 1} 项`);
     const xValue = xCell && xCell.numeric !== null ? xCell.numeric : null;
     const values = yIndexes.map((column) => {
       const cell = source.cells[column];
@@ -869,18 +940,38 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   });
 
   if (invalidValues > 0) {
-    notes.push(`${invalidValues} values are empty or cannot be computed; gaps are kept in the chart.`);
+    notes.push(
+      t(
+        `${invalidValues} values are empty or cannot be computed; gaps are kept in the chart.`,
+        `${invalidValues} 个数值为空或无法计算，图表中保留空缺。`,
+      ),
+    );
   }
   for (const column of yIndexes) {
     if (!columnIsNumeric(table, column)) {
-      notes.push(`Column "${header[column]}" is not purely numeric; non-numeric values are treated as gaps.`);
+      notes.push(
+        t(
+          `Column "${header[column]}" is not purely numeric; non-numeric values are treated as gaps.`,
+          `列“${header[column]}”不是纯数值列，非数值按空缺处理。`,
+        ),
+      );
     }
   }
   if (kind === 'donut' && negativeValues > 0) {
-    notes.push(`Donut values must be non-negative; ignored ${negativeValues} negative values.`);
+    notes.push(
+      t(
+        `Donut values must be non-negative; ignored ${negativeValues} negative values.`,
+        `环形图数值必须非负，已忽略 ${negativeValues} 个负值。`,
+      ),
+    );
   }
   if (kind === 'scatter' && !columnIsNumeric(table, xIndex)) {
-    notes.push(`scatter horizontal axis column "${header[xIndex]}" requires numeric values.`);
+    notes.push(
+      t(
+        `scatter horizontal axis column "${header[xIndex]}" requires numeric values.`,
+        `scatter 的横轴列“${header[xIndex]}”需要数值。`,
+      ),
+    );
   }
 
   const toggleSeries = (position: number) => {
@@ -924,9 +1015,14 @@ function ChartView({ node, runtime }: LocalVisualProps) {
     if (visibleTotal <= 0) {
       return (
         <VisualFrame className="local-visual-chart local-visual-chart-donut" label={title}>
-          <VisualMessage message="No share to display" />
+          <VisualMessage message={t('No share to display', '暂无占比')} />
           <Notes notes={notes} />
-          <ChartLegend items={sliceLegend} hidden={hiddenSlices} onToggle={toggleSlice} label="Legend" />
+          <ChartLegend
+            items={sliceLegend}
+            hidden={hiddenSlices}
+            onToggle={toggleSlice}
+            label={t('Legend', '图例')}
+          />
         </VisualFrame>
       );
     }
@@ -967,8 +1063,11 @@ function ChartView({ node, runtime }: LocalVisualProps) {
     });
 
     const readout = active
-      ? `${active.label}: ${formatNumber(active.value)}`
-      : 'Focus a slice or legend to view values';
+      ? t(
+          `${active.label}: ${formatNumber(active.value)}`,
+          `${active.label}：${formatNumber(active.value)}`,
+        )
+      : t('Focus a slice or legend to view values', '聚焦扇区或图例查看数值');
 
     return (
       <VisualFrame className="local-visual-chart local-visual-chart-donut" label={title}>
@@ -980,7 +1079,10 @@ function ChartView({ node, runtime }: LocalVisualProps) {
             className="local-visual-svg"
             viewBox={`0 0 ${CHART_WIDTH} 290`}
             role="group"
-            aria-label={`${title}, donut chart, ${rows.length} items`}
+            aria-label={t(
+              `${title}, donut chart, ${rows.length} items`,
+              `${title}，环形图，共 ${rows.length} 项`,
+            )}
             aria-describedby={readoutId}
           >
             <g className="local-visual-donut-center" aria-hidden="true">
@@ -1004,7 +1106,10 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                 'data-chart-mark': '',
                 tabIndex: 0,
                 role: 'img' as const,
-                'aria-label': `${slice.label}: ${formatNumber(slice.value)}`,
+                'aria-label': t(
+                  `${slice.label}: ${formatNumber(slice.value)}`,
+                  `${slice.label}：${formatNumber(slice.value)}`,
+                ),
                 onFocus: () => setActive(point),
                 onBlur: () => setActive(null),
                 onPointerEnter: () => setActive(point),
@@ -1030,7 +1135,12 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                     strokeWidth={outer - inner}
                     {...markProps}
                   >
-                    <title>{`${slice.label}: ${formatNumber(slice.value)}`}</title>
+                    <title>
+                      {t(
+                        `${slice.label}: ${formatNumber(slice.value)}`,
+                        `${slice.label}：${formatNumber(slice.value)}`,
+                      )}
+                    </title>
                   </circle>
                 );
               }
@@ -1042,7 +1152,12 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                   style={{ fill: slice.color }}
                   {...markProps}
                 >
-                  <title>{`${slice.label}: ${formatNumber(slice.value)}`}</title>
+                  <title>
+                    {t(
+                      `${slice.label}: ${formatNumber(slice.value)}`,
+                      `${slice.label}：${formatNumber(slice.value)}`,
+                    )}
+                  </title>
                 </path>
               );
             })}
@@ -1052,7 +1167,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           items={sliceLegend}
           hidden={hiddenSlices}
           onToggle={toggleSlice}
-          label="Legend, toggle slices"
+          label={t('Legend, toggle slices', '图例，可开关扇区')}
         />
         <Notes notes={notes} />
       </VisualFrame>
@@ -1068,12 +1183,12 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   if (visiblePositions.length === 0) {
     return (
       <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
-        <VisualMessage message="All series are hidden in the legend" />
+        <VisualMessage message={t('All series are hidden in the legend', '所有系列已在图例中关闭')} />
         <ChartLegend
           items={legendItems}
           hidden={hiddenSeries}
           onToggle={toggleSeries}
-          label="Legend, toggle series"
+          label={t('Legend, toggle series', '图例，可开关系列')}
         />
       </VisualFrame>
     );
@@ -1086,7 +1201,12 @@ function ChartView({ node, runtime }: LocalVisualProps) {
     ? rows.filter((row) => row.xValue !== null)
     : rows;
   if (useNumericX && plottableRows.length < rows.length) {
-    notes.push(`${rows.length - plottableRows.length} rows have an empty or non-numeric horizontal axis and are not plotted.`);
+    notes.push(
+      t(
+        `${rows.length - plottableRows.length} rows have an empty or non-numeric horizontal axis and are not plotted.`,
+        `${rows.length - plottableRows.length} 行横轴为空或不是数值，未参与绘制。`,
+      ),
+    );
   }
 
   const allValues: number[] = [];
@@ -1100,13 +1220,13 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   if (plottableRows.length === 0) {
     return (
       <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
-        <VisualMessage message="No data rows to plot" />
+        <VisualMessage message={t('No data rows to plot', '没有可绘制的数据行')} />
         <Notes notes={notes} />
         <ChartLegend
           items={legendItems}
           hidden={hiddenSeries}
           onToggle={toggleSeries}
-          label="Legend, toggle series"
+          label={t('Legend, toggle series', '图例，可开关系列')}
         />
       </VisualFrame>
     );
@@ -1114,13 +1234,13 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   if (allValues.length === 0) {
     return (
       <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
-        <VisualMessage message="No values to read" />
+        <VisualMessage message={t('No values to read', '没有可读取的数值')} />
         <Notes notes={notes} />
         <ChartLegend
           items={legendItems}
           hidden={hiddenSeries}
           onToggle={toggleSeries}
-          label="Legend, toggle series"
+          label={t('Legend, toggle series', '图例，可开关系列')}
         />
       </VisualFrame>
     );
@@ -1192,7 +1312,10 @@ function ChartView({ node, runtime }: LocalVisualProps) {
     'data-chart-mark': '',
     tabIndex: 0,
     role: 'img' as const,
-    'aria-label': `${point.series}, ${point.label}: ${formatNumber(point.value)}`,
+    'aria-label': t(
+      `${point.series}, ${point.label}: ${formatNumber(point.value)}`,
+      `${point.series}，${point.label}：${formatNumber(point.value)}`,
+    ),
     onFocus: () => setActive(point),
     onBlur: () => setActive(null),
     onPointerEnter: () => setActive(point),
@@ -1249,7 +1372,12 @@ function ChartView({ node, runtime }: LocalVisualProps) {
             style={{ fill: SERIES_COLORS[position % SERIES_COLORS.length] }}
             {...markProps(point)}
           >
-            <title>{`${point.series}, ${point.label}: ${formatNumber(point.value)}`}</title>
+            <title>
+              {t(
+                `${point.series}, ${point.label}: ${formatNumber(point.value)}`,
+                `${point.series}，${point.label}：${formatNumber(point.value)}`,
+              )}
+            </title>
           </rect>,
         );
       });
@@ -1325,7 +1453,12 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                 fill="transparent"
                 {...markProps(point)}
               >
-                <title>{`${point.series}, ${point.label}: ${formatNumber(point.value)}`}</title>
+                <title>
+              {t(
+                `${point.series}, ${point.label}: ${formatNumber(point.value)}`,
+                `${point.series}，${point.label}：${formatNumber(point.value)}`,
+              )}
+            </title>
               </circle>
               <circle
                 className="local-visual-point"
@@ -1365,7 +1498,12 @@ function ChartView({ node, runtime }: LocalVisualProps) {
               fill="transparent"
               {...markProps(point)}
             >
-              <title>{`${point.series}, ${point.label}: ${formatNumber(point.value)}`}</title>
+              <title>
+              {t(
+                `${point.series}, ${point.label}: ${formatNumber(point.value)}`,
+                `${point.series}，${point.label}：${formatNumber(point.value)}`,
+              )}
+            </title>
             </circle>
             <circle
               className="local-visual-point"
@@ -1386,9 +1524,18 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   }
 
   const readout = active
-    ? `${active.series} · ${active.label}: ${formatNumber(active.value)}`
-    : 'Focus or point at a mark; use arrow keys to change the readout';
-  const ariaLabel = `${title}, ${kind} chart, ${rows.length} items, ${visiblePositions.length} series`;
+    ? t(
+        `${active.series} · ${active.label}: ${formatNumber(active.value)}`,
+        `${active.series} · ${active.label}：${formatNumber(active.value)}`,
+      )
+    : t(
+        'Focus or point at a mark; use arrow keys to change the readout',
+        '聚焦或指向图形，用方向键切换读数',
+      );
+  const ariaLabel = t(
+    `${title}, ${kind} chart, ${rows.length} items, ${visiblePositions.length} series`,
+    `${title}，${kind} 图，共 ${rows.length} 项，${visiblePositions.length} 个系列`,
+  );
 
   return (
     <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
@@ -1495,7 +1642,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
         items={legendItems}
         hidden={hiddenSeries}
         onToggle={toggleSeries}
-        label="Legend, toggle series"
+        label={t('Legend, toggle series', '图例，可开关系列')}
       />
       <Notes notes={notes} />
     </VisualFrame>
@@ -1562,6 +1709,7 @@ function sampleDocumentPlot(
   samples: number,
   runtime: LocalRuntime,
   revision: number,
+  t: Localize = defaultLocalize,
 ): PlotSampleResult {
   const budget = plotBudgetState(runtime, revision);
   const cached = budget.samples.get(cacheKey);
@@ -1575,7 +1723,10 @@ function sampleDocumentPlot(
 
   if (mathNodes.length > MAX_LOCAL_PLOT_CURVES) {
     return fail(
-      `plot supports at most ${MAX_LOCAL_PLOT_CURVES} curves, but has ${mathNodes.length}.`,
+      t(
+        `plot supports at most ${MAX_LOCAL_PLOT_CURVES} curves, but has ${mathNodes.length}.`,
+        `plot 最多支持 ${MAX_LOCAL_PLOT_CURVES} 条曲线，当前为 ${mathNodes.length} 条。`,
+      ),
     );
   }
 
@@ -1585,7 +1736,10 @@ function sampleDocumentPlot(
   for (const value of budget.requestedPoints.values()) total += value;
   if (total > MAX_LOCAL_PLOT_POINTS) {
     return fail(
-      `The document's plot sample count exceeds the limit: ${total} requested, at most ${MAX_LOCAL_PLOT_POINTS} allowed. Reduce curves or samples.`,
+      t(
+        `The document's plot sample count exceeds the limit: ${total} requested, at most ${MAX_LOCAL_PLOT_POINTS} allowed. Reduce curves or samples.`,
+        `整篇文档的绘图采样点超过上限：已请求 ${total} 个，最多 ${MAX_LOCAL_PLOT_POINTS} 个。请减少曲线或采样数。`,
+      ),
     );
   }
 
@@ -1595,7 +1749,12 @@ function sampleDocumentPlot(
     const source = (mathNode.value ?? '').trim();
     const match = /^y\s*=\s*([\s\S]+)$/.exec(source);
     if (!match) {
-      notes.push(`Curve ${index + 1}: cannot compute (each formula block must be written as y = expression).`);
+      notes.push(
+        t(
+          `Curve ${index + 1}: cannot compute (each formula block must be written as y = expression).`,
+          `曲线 ${index + 1}：无法计算（每块公式需写成 y = 表达式）。`,
+        ),
+      );
       return { source, expression: null, points: [], endpoint: null, error: 'formula' };
     }
     try {
@@ -1609,12 +1768,22 @@ function sampleDocumentPlot(
         budgetFailure.message = cause.message;
         return { source, expression: null, points: [], endpoint: null, error: cause.message };
       }
-      notes.push(`Curve ${index + 1}: cannot compute (${errorMessage(cause)}).`);
+      notes.push(
+        t(
+          `Curve ${index + 1}: cannot compute (${errorMessage(cause)}).`,
+          `曲线 ${index + 1}：无法计算（${errorMessage(cause)}）。`,
+        ),
+      );
       return { source, expression: null, points: [], endpoint: null, error: errorMessage(cause) };
     }
   });
   if (budgetFailure.message !== null) {
-    return fail(`Plot computation exceeded the shared execution budget: ${budgetFailure.message}`);
+    return fail(
+      t(
+        `Plot computation exceeded the shared execution budget: ${budgetFailure.message}`,
+        `绘图计算超过共享执行预算：${budgetFailure.message}`,
+      ),
+    );
   }
 
   const result: PlotSampleResult = { ok: true, curves, notes };
@@ -1667,6 +1836,8 @@ function plotSegments(
 }
 
 function PlotView({ node, runtime }: LocalVisualProps) {
+  const t = useLocalize();
+  const locale = useLocalLocale();
   const [activeX, setActiveX] = useState<number | null>(null);
   const reset = runtime.resetToken(node);
   useEffect(() => {
@@ -1674,7 +1845,7 @@ function PlotView({ node, runtime }: LocalVisualProps) {
   }, [reset]);
 
   const readoutId = useId();
-  const label = attrText(runtime, node.attrs, 'label', '') || 'Function plot';
+  const label = attrText(runtime, node.attrs, 'label', '') || t('Function plot', '函数图');
   const xLabel = attrText(runtime, node.attrs, 'x-label', 'x');
   const yLabel = attrText(runtime, node.attrs, 'y-label', 'y');
   const min = attrNumber(runtime, node.attrs, 'min', -10);
@@ -1699,7 +1870,7 @@ function PlotView({ node, runtime }: LocalVisualProps) {
   const mathKey = mathNodes
     .map((child) => `${child.id}\u0000${child.value ?? ''}`)
     .join('\u0001');
-  const cacheKey = `${node.id}\u0000${min}\u0000${max}\u0000${samples}\u0000${mathKey}`;
+  const cacheKey = `${node.id}\u0000${min}\u0000${max}\u0000${samples}\u0000${locale}\u0000${mathKey}`;
 
   // Sampling is cached per document revision, so moving the pointer across the
   // plot or changing the keyboard readout never resamples every curve.
@@ -1718,22 +1889,32 @@ function PlotView({ node, runtime }: LocalVisualProps) {
         samples,
         runtime,
         revision,
+        t,
       );
     },
-    [cacheKey, node.id, revision, runtime],
+    [cacheKey, node.id, revision, runtime, t],
   );
 
   if (mathNodes.length === 0) {
     return (
       <VisualFrame className="local-visual-plot" label={label}>
-        <VisualMessage message="plot body requires one or more $$ formula blocks." kind="alert" />
+        <VisualMessage
+          message={t(
+            'plot body requires one or more $$ formula blocks.',
+            'plot 正文需要一个或多个 $$ 公式块。',
+          )}
+          kind="alert"
+        />
       </VisualFrame>
     );
   }
   if (min === null || max === null || !(max > min)) {
     return (
       <VisualFrame className="local-visual-plot" label={label}>
-        <VisualMessage message="plot min must be less than max." kind="alert" />
+        <VisualMessage
+          message={t('plot min must be less than max.', 'plot 的 min 必须小于 max。')}
+          kind="alert"
+        />
       </VisualFrame>
     );
   }
@@ -1754,7 +1935,11 @@ function PlotView({ node, runtime }: LocalVisualProps) {
   );
 
   const legend = (
-    <div className="local-visual-plot-legend" role="list" aria-label="Curve legend">
+    <div
+      className="local-visual-plot-legend"
+      role="list"
+      aria-label={t('Curve legend', '曲线图例')}
+    >
       {curves.map((curve, index) => (
         <div key={`curve-legend-${index}`} className="local-visual-plot-legend-item" role="listitem">
           <span
@@ -1773,7 +1958,12 @@ function PlotView({ node, runtime }: LocalVisualProps) {
   if (finitePoints.length === 0) {
     return (
       <VisualFrame className="local-visual-plot" label={label}>
-        <VisualMessage message="No plottable values in the current range" />
+        <VisualMessage
+          message={t(
+            'No plottable values in the current range',
+            '当前范围内没有可绘制的值',
+          )}
+        />
         <Notes notes={notes} />
         {legend}
       </VisualFrame>
@@ -1850,13 +2040,21 @@ function PlotView({ node, runtime }: LocalVisualProps) {
   const readX = activeX === null ? null : clampX(activeX);
   const readout =
     readX === null
-      ? `Range [${formatNumber(min)}, ${formatNumber(max)}] · ${samples} samples; use arrow keys or pointer to read values`
-      : `x = ${formatNumber(readX)}; ${curves
+      ? t(
+          `Range [${formatNumber(min)}, ${formatNumber(max)}] · ${samples} samples; use arrow keys or pointer to read values`,
+          `区间 [${formatNumber(min)}, ${formatNumber(max)}] · ${samples} 个采样点；用方向键或指针读取数值`,
+        )
+      : `${t(`x = ${formatNumber(readX)}; `, `x = ${formatNumber(readX)}；`)}${curves
           .map((curve, index) => {
             const value = valueAt(curve, readX);
-            return `Curve ${index + 1}: ${curve.error ? 'cannot compute' : value === null ? 'undefined' : formatNumber(value)}`;
+            const status = curve.error
+              ? t('cannot compute', '无法计算')
+              : value === null
+                ? t('undefined', '无定义')
+                : formatNumber(value);
+            return t(`Curve ${index + 1}: `, `曲线 ${index + 1}：`) + status;
           })
-          .join('; ')}`;
+          .join(t('; ', '；'))}`;
 
   const activeMarks = readX === null
     ? null
@@ -1889,7 +2087,10 @@ function PlotView({ node, runtime }: LocalVisualProps) {
           className="local-visual-svg"
           viewBox={`0 0 ${PLOT_WIDTH} ${PLOT_HEIGHT}`}
           role="group"
-          aria-label={`${label}, range ${formatNumber(min)} to ${formatNumber(max)}, ${samples} samples`}
+          aria-label={t(
+            `${label}, range ${formatNumber(min)} to ${formatNumber(max)}, ${samples} samples`,
+            `${label}，区间 ${formatNumber(min)} 到 ${formatNumber(max)}，${samples} 个采样点`,
+          )}
           aria-describedby={readoutId}
           tabIndex={0}
           onPointerMove={handlePointerMove}
@@ -2023,35 +2224,77 @@ interface TimelineItem {
   sourceIndex: number;
 }
 
+interface TimelineHeaderSet {
+  title: string;
+  start: string;
+  duration: string;
+  notes: string;
+}
+
+const TIMELINE_HEADERS_EN: TimelineHeaderSet = {
+  title: 'Task',
+  start: 'Start',
+  duration: 'Duration',
+  notes: 'Notes',
+};
+
+const TIMELINE_HEADERS_ZH: TimelineHeaderSet = {
+  title: '事项',
+  start: '开始',
+  duration: '时长',
+  notes: '说明',
+};
+
+/**
+ * The compiler accepts either the English or the Chinese header set. Detect
+ * one complete set per table so column indexes always come from the same
+ * language and a partially translated header is reported as invalid.
+ */
+function timelineHeaderSet(header: string[]): TimelineHeaderSet | null {
+  const complete = (set: TimelineHeaderSet) =>
+    header.includes(set.title) && header.includes(set.start) && header.includes(set.duration);
+  if (complete(TIMELINE_HEADERS_EN)) return TIMELINE_HEADERS_EN;
+  if (complete(TIMELINE_HEADERS_ZH)) return TIMELINE_HEADERS_ZH;
+  return null;
+}
+
 function TimelineView({ node, runtime, render }: LocalVisualProps) {
+  const t = useLocalize();
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const reset = runtime.resetToken(node);
   useEffect(() => {
     setActiveKey(null);
   }, [reset]);
 
-  const title = attrText(runtime, node.attrs, 'title', '') || 'Timeline';
-  const unit = attrText(runtime, node.attrs, 'unit', 'minutes');
-  const table = buildVisualTable(node, runtime);
+  const title = attrText(runtime, node.attrs, 'title', '') || t('Timeline', '时间轴');
+  const unit = attrText(runtime, node.attrs, 'unit', t('minutes', '分钟'));
+  const table = buildVisualTable(node, runtime, t);
 
   if (!table) {
     return (
       <VisualFrame className="local-visual-timeline" label={title}>
-        <VisualMessage message="timeline body requires a Markdown table." kind="alert" />
+        <VisualMessage
+          message={t('timeline body requires a Markdown table.', 'timeline 正文需要一个 Markdown 表格。')}
+          kind="alert"
+        />
       </VisualFrame>
     );
   }
 
   const header = table.headerText.map((text) => text.trim());
-  const titleColumn = header.indexOf('Task');
-  const startColumn = header.indexOf('Start');
-  const durationColumn = header.indexOf('Duration');
-  const descriptionColumn = header.indexOf('Notes');
-  if (titleColumn < 0 || startColumn < 0 || durationColumn < 0) {
+  const headers = timelineHeaderSet(header);
+  const titleColumn = headers ? header.indexOf(headers.title) : -1;
+  const startColumn = headers ? header.indexOf(headers.start) : -1;
+  const durationColumn = headers ? header.indexOf(headers.duration) : -1;
+  const descriptionColumn = headers ? header.indexOf(headers.notes) : -1;
+  if (!headers || titleColumn < 0 || startColumn < 0 || durationColumn < 0) {
     return (
       <VisualFrame className="local-visual-timeline" label={title}>
         <VisualMessage
-          message={'timeline table requires the "Task", "Start" and "Duration" columns.'}
+          message={t(
+            'timeline table requires the "Task", "Start" and "Duration" columns.',
+            'timeline 表格需要“事项”“开始”“时长”三列，或“Task”“Start”“Duration”三列。',
+          )}
           kind="alert"
         />
       </VisualFrame>
@@ -2070,7 +2313,8 @@ function TimelineView({ node, runtime, render }: LocalVisualProps) {
       invalidRows.push(rowIndex + 1);
       return;
     }
-    const titleText = cellText(row.cells[titleColumn]) || `Task ${rowIndex + 1}`;
+    const titleText =
+      cellText(row.cells[titleColumn], t) || t(`Task ${rowIndex + 1}`, `事项 ${rowIndex + 1}`);
     items.push({
       key: `item-${row.index}`,
       title: titleText,
@@ -2081,12 +2325,17 @@ function TimelineView({ node, runtime, render }: LocalVisualProps) {
     });
   });
   if (invalidRows.length > 0) {
-    notes.push(`Rows ${invalidRows.join(', ')} have an invalid start or duration (must be non-negative numbers) and are hidden.`);
+    notes.push(
+      t(
+        `Rows ${invalidRows.join(', ')} have an invalid start or duration (must be non-negative numbers) and are hidden.`,
+        `第 ${invalidRows.join('、')} 行的开始或时长不是非负数字，未显示。`,
+      ),
+    );
   }
   if (items.length === 0) {
     return (
       <VisualFrame className="local-visual-timeline" label={title}>
-        <VisualMessage message="No valid timeline items." />
+        <VisualMessage message={t('No valid timeline items.', '没有有效的时间轴事项。')} />
         <Notes notes={notes} />
       </VisualFrame>
     );
@@ -2139,9 +2388,14 @@ function TimelineView({ node, runtime, render }: LocalVisualProps) {
                 activeKey === item.key ? ' is-active' : ''
               }`}
               tabIndex={0}
-              aria-label={`${item.title}, started ${timeText(item.start)}, ended ${timeText(
-                end,
-              )}, duration ${timeText(item.duration)}${item.description.length > 0 ? ', with notes' : ''}`}
+              aria-label={t(
+                `${item.title}, started ${timeText(item.start)}, ended ${timeText(
+                  end,
+                )}, duration ${timeText(item.duration)}${item.description.length > 0 ? ', with notes' : ''}`,
+                `${item.title}，开始 ${timeText(item.start)}，结束 ${timeText(
+                  end,
+                )}，时长 ${timeText(item.duration)}${item.description.length > 0 ? '，有说明' : ''}`,
+              )}
               onFocus={() => setActiveKey(item.key)}
               onBlur={() => setActiveKey((current) => (current === item.key ? null : current))}
               onPointerEnter={() => setActiveKey(item.key)}
@@ -2165,8 +2419,8 @@ function TimelineView({ node, runtime, render }: LocalVisualProps) {
                   {item.title}
                 </span>
                 <span className="local-visual-timeline-times">
-                  Started {timeText(item.start)} · Ended {timeText(end)} · Duration{' '}
-                  {timeText(item.duration)}
+                  {t('Started', '开始')} {timeText(item.start)} · {t('Ended', '结束')}{' '}
+                  {timeText(end)} · {t('Duration', '时长')} {timeText(item.duration)}
                 </span>
               </div>
               <div className="local-visual-timeline-track" aria-hidden="true">
@@ -2190,11 +2444,13 @@ function TimelineView({ node, runtime, render }: LocalVisualProps) {
             {active.description.length > 0 ? (
               render(active.description)
             ) : (
-              <span>No notes.</span>
+              <span>{t('No notes.', '没有说明。')}</span>
             )}
           </>
         ) : (
-          <span>Focus or point at an item to view its notes.</span>
+          <span>
+            {t('Focus or point at an item to view its notes.', '聚焦或指向事项查看说明。')}
+          </span>
         )}
       </div>
       <Notes notes={notes} />
@@ -2604,6 +2860,7 @@ function edgeGeometry(
 }
 
 function DiagramView({ node, runtime, render }: LocalVisualProps) {
+  const t = useLocalize();
   const [localSelected, setLocalSelected] = useState<string | null>(null);
   const [writeError, setWriteError] = useState<string | null>(null);
   const reset = runtime.resetToken(node);
@@ -2615,7 +2872,7 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
   const instanceId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const markerId = `local-diagram-arrow-${instanceId}`;
   const descriptionId = `local-diagram-description-${instanceId}`;
-  const title = attrText(runtime, node.attrs, 'label', '') || 'Diagram';
+  const title = attrText(runtime, node.attrs, 'label', '') || t('Diagram', '图解');
   const directionRaw = (node.attrs?.direction ?? 'right').trim().toLowerCase();
   const direction = directionRaw === 'down' ? 'down' : 'right';
   const children = node.children?.filter((child) => child.type === 'component') ?? [];
@@ -2627,11 +2884,11 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
     if (child.name !== 'node') continue;
     const id = (child.attrs?.id ?? '').trim();
     if (!id) {
-      notes.push('Ignored a node without an id.');
+      notes.push(t('Ignored a node without an id.', '已忽略缺少 id 的节点。'));
       continue;
     }
     if (seenIds.has(id)) {
-      notes.push(`Duplicate node id ${id}; ignored the later node.`);
+      notes.push(t(`Duplicate node id ${id}; ignored the later node.`, `节点 id 重复（${id}），已忽略后一个节点。`));
       continue;
     }
     seenIds.add(id);
@@ -2653,13 +2910,13 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
     const from = (child.attrs?.from ?? '').trim();
     const to = (child.attrs?.to ?? '').trim();
     if (!from || !to || !seenIds.has(from) || !seenIds.has(to)) {
-      notes.push(`Edge ${from || '?'} → ${to || '?'} references a missing endpoint; ignored.`);
+      notes.push(t(`Edge ${from || '?'} → ${to || '?'} references a missing endpoint; ignored.`, `连线 ${from || '?'} → ${to || '?'} 缺少端点，已忽略。`));
       continue;
     }
     const label = attrText(runtime, child.attrs, 'label', '');
     const key = `${from}\u0000${to}\u0000${label}`;
     if (edgeKeys.has(key)) {
-      notes.push(`Duplicate edge: ${from} → ${to}${label ? ` (${label})` : ''}; ignored.`);
+      notes.push(t(`Duplicate edge: ${from} → ${to}${label ? ` (${label})` : ''}; ignored.`, `重复连线：${from} → ${to}${label ? `（${label}）` : ''}，已忽略。`));
       continue;
     }
     edgeKeys.add(key);
@@ -2846,14 +3103,14 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
             {selectedNode.children.length > 0 ? (
               render(selectedNode.children)
             ) : (
-              <span>This node has no description.</span>
+              <span>{t('This node has no description.', '此节点没有说明。')}</span>
             )}
           </>
         ) : (
-          <span>Click a node, or focus it with Tab and press Enter, to view its description.</span>
+          <span>{t('Click a node, or focus it with Tab and press Enter, to view its description.', '点击节点，或用 Tab 聚焦后按 Enter 查看说明。')}</span>
         )}
       </div>
-      <ul id={descriptionId} className="local-visual-sr-only" aria-label="Nodes and edges">
+      <ul id={descriptionId} className="local-visual-sr-only" aria-label={t('Nodes and edges', '节点与连线')}>
         {nodes.map((entry) => (
           <li key={`description-node-${entry.id}`}>{entry.label}</li>
         ))}

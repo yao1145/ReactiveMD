@@ -23,6 +23,18 @@ for (const name of (await readdir('examples/local')).filter(name => name.endsWit
   runtime.dispose();
 }
 
+for (const name of (await readdir('examples/local/zh')).filter(name => name.endsWith('.reactive.md'))) {
+  const result = compileLocal(await readFile(`examples/local/zh/${name}`, 'utf8'));
+  if (name === 'diagnostics.reactive.md') {
+    assert.equal(result.ok, false, 'Chinese diagnostics fixture must fail');
+    continue;
+  }
+  assert.ok(result.ok, `local/zh/${name}: ${JSON.stringify(result.diagnostics)}`);
+  const runtime = createLocalRuntime(result.document);
+  assert.equal(runtime.snapshot().revision, 0);
+  runtime.dispose();
+}
+
 const visited = new Set();
 async function inspectCoreModule(url) {
   if (visited.has(url.href)) return;

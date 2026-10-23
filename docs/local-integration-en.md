@@ -46,6 +46,7 @@ export function Article() {
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | Created by the host, which is responsible for disposal |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | Both | Receives compile diagnostics and runtime diagnostics when control writes are rejected |
 | `urlPolicy` | `(url: string, kind: 'image' \| 'link') => boolean` | Both | Decides whether to allow an image or link after protocol checks |
+| `locale` | `'en' \| 'zh'` | Both | Language for built-in labels and controls; defaults to `'en'`. Compiler and runtime diagnostic messages remain English |
 
 Neither component has `className`, `style` or slot props. `LocalReactiveDocument` renders `<article class="md-document local-document">`; `LocalDocumentView` uses the same document container. See below for style overrides.
 

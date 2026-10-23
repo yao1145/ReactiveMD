@@ -1805,28 +1805,34 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
 }
 
 function validateTimeline(entry: Entry, shape: TableShape, state: CompileState): void {
-  const required = ['Task', 'Start', 'Duration'];
-  for (const name of required) {
-    if (!shape.header.includes(name)) {
-      state.report(
-        'local.timeline.header',
-        `Timeline is missing required column "${name}"; expected Task, Start and Duration, with optional Notes.`,
-        entry.node.range.start,
-        entry.node.range.end,
-      );
-    }
+  const headerSets = [
+    { title: 'Task', start: 'Start', duration: 'Duration', notes: 'Notes' },
+    { title: '事项', start: '开始', duration: '时长', notes: '说明' },
+  ];
+  const headers = headerSets.find((set) =>
+    shape.header.includes(set.title) && shape.header.includes(set.start) && shape.header.includes(set.duration),
+  );
+  if (!headers) {
+    state.report(
+      'local.timeline.header',
+      'Timeline requires either Task, Start and Duration columns or 事项, 开始 and 时长 columns, with optional Notes or 说明.',
+      entry.node.range.start,
+      entry.node.range.end,
+    );
+    return;
   }
+  const allowed = new Set(Object.values(headers));
   for (const name of shape.header) {
-    if (!required.includes(name) && name !== 'Notes') {
+    if (!allowed.has(name)) {
       state.report('local.timeline.header', `Timeline does not support column "${name}".`, entry.node.range.start, entry.node.range.end);
     }
   }
-  for (const name of ['Start', 'Duration']) {
+  for (const name of [headers.start, headers.duration]) {
     const column = columnIndex(shape.header, name);
     if (column >= 0) requireNumericColumn(shape, column, state, entry, name);
   }
-  const startColumn = columnIndex(shape.header, 'Start');
-  const durationColumn = columnIndex(shape.header, 'Duration');
+  const startColumn = columnIndex(shape.header, headers.start);
+  const durationColumn = columnIndex(shape.header, headers.duration);
   shape.rows.forEach((row, rowIndex) => {
     for (const column of [startColumn, durationColumn]) {
       if (column < 0) continue;

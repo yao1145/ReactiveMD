@@ -444,6 +444,75 @@ Independent calculation: {{ n + 2 }}.`);
   });
   await page.screenshot({ path: 'artifacts/local-embed.png', fullPage: true });
 
+  await check('language toggle localizes playground, guide and survives reload', async () => {
+    // A fresh context keeps the saved language out of the English checks above.
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    try {
+      const localized = await context.newPage();
+      localized.setDefaultTimeout(10000);
+      localized.on('pageerror', (error) => errors.push(`language toggle: ${error.message}`));
+      localized.on('request', (request) => {
+        if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== new URL(baseURL).origin) {
+          externalRequests.push(request.url());
+        }
+      });
+
+      await localized.goto(baseURL);
+      await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
+      await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
+      await expect(localized.getByLabel('Example', { exact: true })).toHaveValue('pricing');
+      await expect(localized.getByLabel('Example', { exact: true }).locator('option:checked'))
+        .toHaveText('Plan calculator');
+      await expect(localized.locator('#source-editor')).toHaveValue(/# Plan calculator/);
+      await expect(localized.locator('.preview-stage').getByRole('heading', { name: 'Plan calculator', level: 1 }))
+        .toBeVisible();
+
+      await localized.getByTestId('language-toggle').click();
+      await expect(localized.locator('html')).toHaveAttribute('lang', 'zh-CN');
+      await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
+      await expect(localized.getByLabel('示例', { exact: true })).toHaveValue('pricing');
+      await expect(localized.getByLabel('示例', { exact: true }).locator('option:checked'))
+        .toHaveText('方案计算器');
+      await expect(localized.locator('#source-editor')).toHaveValue(/# 方案计算器/);
+      await expect(localized.locator('.preview-stage').getByRole('heading', { name: '方案计算器', level: 1 }))
+        .toBeVisible();
+      await expect(localized.getByRole('button', { name: '你的方案 恢复默认', exact: true })).toBeVisible();
+      await expect(localized.getByRole('toolbar', { name: '文档编辑工具栏', exact: true })).toBeVisible();
+      await expect(localized.locator('.status-chip')).toContainText('已编译');
+      await expect(localized.getByRole('button', { name: '切换到英文', exact: true })).toBeVisible();
+
+      await localized.getByRole('button', { name: '使用指南', exact: true }).click();
+      await expect(localized.locator('.guide-paper').getByRole('heading', {
+        name: 'Reactive MD 新用户指南',
+        level: 1,
+      })).toBeVisible();
+      await localized.getByRole('button', { name: '返回 Playground', exact: true }).click();
+      await expect(localized.getByRole('toolbar', { name: '文档编辑工具栏', exact: true })).toBeVisible();
+
+      await localized.reload();
+      await expect(localized.locator('html')).toHaveAttribute('lang', 'zh-CN');
+      await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
+      await expect(localized.getByLabel('示例', { exact: true })).toHaveValue('pricing');
+      await expect(localized.locator('#source-editor')).toHaveValue(/# 方案计算器/);
+      await expect(localized.getByRole('button', { name: '切换到英文', exact: true })).toBeVisible();
+      await expect(localized.getByRole('button', { name: '你的方案 恢复默认', exact: true })).toBeVisible();
+
+      await localized.getByRole('button', { name: '切换到英文', exact: true }).click();
+      await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
+      await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
+      await expect(localized.getByLabel('Example', { exact: true })).toHaveValue('pricing');
+      await expect(localized.getByLabel('Example', { exact: true }).locator('option:checked'))
+        .toHaveText('Plan calculator');
+      await expect(localized.locator('#source-editor')).toHaveValue(/# Plan calculator/);
+      await expect(localized.locator('.preview-stage').getByRole('heading', { name: 'Plan calculator', level: 1 }))
+        .toBeVisible();
+      await expect(localized.getByRole('button', { name: 'Switch to Chinese', exact: true })).toBeVisible();
+      await expect(localized.getByRole('toolbar', { name: 'Document editing toolbar', exact: true })).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
+
   await check('no browser runtime exceptions', async () => expect(errors).toEqual([]));
   await check('local interactions make no unexpected external requests', async () => expect(externalRequests).toEqual([]));
   await writeFile('artifacts/local-browser-results.json', JSON.stringify({ baseURL, checks, errors, externalRequests }, null, 2));

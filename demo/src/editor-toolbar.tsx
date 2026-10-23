@@ -46,11 +46,12 @@ import {
   type EditorFormatState,
 } from './editor-commands';
 import {
-  NATIVE_COMPONENT_GROUPS,
-  NATIVE_COMPONENTS,
+  getNativeComponentCatalog,
   renderNativeSnippet,
   type NativeComponentDefinition,
 } from './native-components';
+import { useLanguage, type Language } from './i18n';
+import { EDITOR_TOOLBAR_COPY } from './editor-i18n';
 
 export interface EditorToolbarProps {
   editorRef: RefObject<HTMLTextAreaElement | null>;
@@ -66,7 +67,11 @@ type TextSelection = { start: number; end: number };
 type MenuId = 'emoji' | 'heading' | 'insert' | 'list' | 'more' | 'native';
 type MenuEdge = 'first' | 'last';
 type HeadingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-type SimpleCommand = (value: string, selection: TextSelection) => EditorEdit;
+type SimpleCommand = (
+  value: string,
+  selection: TextSelection,
+  language?: Language,
+) => EditorEdit;
 type IconName =
   | 'smile'
   | 'link'
@@ -100,55 +105,52 @@ const EMOJIS = [
   '📎', '🗂️', '🕒', '✨',
 ] as const;
 
-const HEADING_ITEMS: readonly { level: HeadingLevel; label: string; sample: string }[] = [
-  { level: 0, label: 'Body', sample: '¶' },
-  { level: 1, label: 'Heading 1', sample: 'H1' },
-  { level: 2, label: 'Heading 2', sample: 'H2' },
-  { level: 3, label: 'Heading 3', sample: 'H3' },
-  { level: 4, label: 'Heading 4', sample: 'H4' },
-  { level: 5, label: 'Heading 5', sample: 'H5' },
-  { level: 6, label: 'Heading 6', sample: 'H6' },
+const HEADING_ITEMS: readonly { level: HeadingLevel; sample: string }[] = [
+  { level: 0, sample: '¶' },
+  { level: 1, sample: 'H1' },
+  { level: 2, sample: 'H2' },
+  { level: 3, sample: 'H3' },
+  { level: 4, sample: 'H4' },
+  { level: 5, sample: 'H5' },
+  { level: 6, sample: 'H6' },
 ];
 
 interface ListOption {
   type: 'bullet' | 'ordered' | 'task';
-  label: string;
   icon: IconName;
   command: SimpleCommand;
 }
 
 const LIST_OPTIONS: readonly ListOption[] = [
-  { type: 'bullet', label: 'Bullet list', icon: 'bulletList', command: formatBulletList },
-  { type: 'ordered', label: 'Numbered list', icon: 'orderedList', command: formatOrderedList },
-  { type: 'task', label: 'Task list', icon: 'taskList', command: formatTaskList },
+  { type: 'bullet', icon: 'bulletList', command: formatBulletList },
+  { type: 'ordered', icon: 'orderedList', command: formatOrderedList },
+  { type: 'task', icon: 'taskList', command: formatTaskList },
 ];
 
-const LIST_ACTIONS: readonly { label: string; icon: IconName; command: SimpleCommand }[] = [
-  { label: 'Decrease indent', icon: 'outdent', command: outdentSelection },
-  { label: 'Increase indent', icon: 'indent', command: indentSelection },
+const LIST_ACTIONS: readonly {
+  labelKey: 'decreaseIndent' | 'increaseIndent';
+  icon: IconName;
+  command: SimpleCommand;
+}[] = [
+  { labelKey: 'decreaseIndent', icon: 'outdent', command: outdentSelection },
+  { labelKey: 'increaseIndent', icon: 'indent', command: indentSelection },
 ];
 
 interface InsertItem {
-  label: string;
+  labelKey: keyof typeof EDITOR_TOOLBAR_COPY.en.insertItems;
   icon: IconName;
   command: SimpleCommand;
 }
 
 const INSERT_ITEMS: readonly InsertItem[] = [
-  { label: 'Image', icon: 'image', command: insertImage },
-  { label: 'Table', icon: 'table', command: insertTable },
-  { label: 'Divider', icon: 'divider', command: insertDivider },
-  { label: 'Code block', icon: 'codeBlock', command: insertCodeBlock },
-  { label: 'Inline code', icon: 'inlineCode', command: formatInlineCode },
-  { label: 'Strikethrough', icon: 'strike', command: formatStrike },
-  { label: 'Quote', icon: 'quote', command: formatQuote },
+  { labelKey: 'image', icon: 'image', command: insertImage },
+  { labelKey: 'table', icon: 'table', command: insertTable },
+  { labelKey: 'divider', icon: 'divider', command: insertDivider },
+  { labelKey: 'codeBlock', icon: 'codeBlock', command: insertCodeBlock },
+  { labelKey: 'inlineCode', icon: 'inlineCode', command: formatInlineCode },
+  { labelKey: 'strikethrough', icon: 'strike', command: formatStrike },
+  { labelKey: 'quote', icon: 'quote', command: formatQuote },
 ];
-
-const LIST_TYPE_LABELS: Record<ListOption['type'], string> = {
-  bullet: 'Bullet list',
-  ordered: 'Numbered list',
-  task: 'Task list',
-};
 
 const MOBILE_MENU_WIDTHS: Partial<Record<MenuId, number>> = {
   heading: 200,
@@ -558,16 +560,37 @@ export function EditorToolbar({
   const insertMenuId = `${idPrefix}-insert-menu`;
   const moreMenuId = `${idPrefix}-more-menu`;
   const nativeMenuId = `${idPrefix}-native-menu`;
+  const language = useLanguage();
+  const copy = EDITOR_TOOLBAR_COPY[language];
+  const catalog = useMemo(() => getNativeComponentCatalog(language), [language]);
+  const headingItems = HEADING_ITEMS.map((item) => ({
+    ...item,
+    label: copy.headingLabels[item.level],
+  }));
+  const listOptions = LIST_OPTIONS.map((item) => ({
+    ...item,
+    label: copy.listLabels[item.type],
+  }));
+  const listActions = LIST_ACTIONS.map((item) => ({
+    ...item,
+    label: copy[item.labelKey],
+  }));
+  const insertItems = INSERT_ITEMS.map((item) => ({
+    ...item,
+    label: copy.insertItems[item.labelKey],
+  }));
 
   const filteredGroups = useMemo(() => {
     const term = query.trim().toLowerCase();
-    return NATIVE_COMPONENT_GROUPS.map((group) => ({
-      group,
-      components: NATIVE_COMPONENTS.filter(
-        (component) => component.group === group.id && matchesQuery(component, term),
-      ),
-    })).filter((entry) => entry.components.length > 0);
-  }, [query]);
+    return catalog.groups
+      .map((group) => ({
+        group,
+        components: catalog.components.filter(
+          (component) => component.group === group.id && matchesQuery(component, term),
+        ),
+      }))
+      .filter((entry) => entry.components.length > 0);
+  }, [catalog, query]);
 
   const syncFormatState = useCallback(() => {
     const element = editorRef.current;
@@ -745,7 +768,7 @@ export function EditorToolbar({
 
   const applySimple = (command: SimpleCommand) => {
     const { value, selection } = readEditor(editorRef);
-    commitEdit(command(value, selection));
+    commitEdit(command(value, selection, language));
   };
 
   const applyHeading = (level: HeadingLevel) => {
@@ -851,11 +874,12 @@ export function EditorToolbar({
   };
 
   const headingLabel =
-    HEADING_ITEMS.find((item) => item.level === formatState.headingLevel)?.label ?? 'Body';
+    headingItems.find((item) => item.level === formatState.headingLevel)?.label ??
+    copy.headingLabels[0];
   const headingCompactLabel = formatState.headingLevel === 0 ? '¶' : `H${formatState.headingLevel}`;
-  const headingLabelText = `Heading level: ${headingLabel}`;
-  const currentListLabel = formatState.list ? LIST_TYPE_LABELS[formatState.list] : null;
-  const listLabel = currentListLabel ? `List: ${currentListLabel}` : 'List';
+  const headingLabelText = copy.headingLevelLabel(headingLabel);
+  const currentListLabel = formatState.list ? copy.listLabels[formatState.list] : null;
+  const listLabel = currentListLabel ? copy.listLabelWithType(currentListLabel) : copy.listLabel;
   const listIcon: IconName =
     formatState.list === 'ordered'
       ? 'orderedList'
@@ -867,7 +891,7 @@ export function EditorToolbar({
     <div
       className={`editor-toolbar${openMenu ? ' is-menu-open' : ''}`}
       role="toolbar"
-      aria-label="Document editing toolbar"
+      aria-label={copy.toolbarLabel}
       aria-orientation="horizontal"
       ref={rootRef}
       onKeyDown={handleToolbarKeyDown}
@@ -903,11 +927,11 @@ export function EditorToolbar({
             ref={menuPanelRef}
             className="editor-toolbar-popover editor-toolbar-heading-menu"
             role="menu"
-            aria-label="Heading level"
+            aria-label={copy.headingMenuLabel}
             style={menuPlacement ?? undefined}
             onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
           >
-            {HEADING_ITEMS.map((item) => (
+            {headingItems.map((item) => (
               <button
                 key={item.level}
                 type="button"
@@ -933,7 +957,7 @@ export function EditorToolbar({
 
       <ToolbarButton
         toolbarId="bold"
-        label="Bold"
+        label={copy.bold}
         tabStop={tabStopId === 'bold'}
         onFocus={() => setTabStopId('bold')}
         onClick={() => applySimple(formatBold)}
@@ -944,7 +968,7 @@ export function EditorToolbar({
       </ToolbarButton>
       <ToolbarButton
         toolbarId="italic"
-        label="Italic"
+        label={copy.italic}
         tabStop={tabStopId === 'italic'}
         onFocus={() => setTabStopId('italic')}
         onClick={() => applySimple(formatItalic)}
@@ -977,11 +1001,11 @@ export function EditorToolbar({
             ref={menuPanelRef}
             className="editor-toolbar-popover editor-toolbar-list-menu"
             role="menu"
-            aria-label="List"
+            aria-label={copy.listMenuLabel}
             style={menuPlacement ?? undefined}
             onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
           >
-            {LIST_OPTIONS.map((item) => (
+            {listOptions.map((item) => (
               <button
                 key={item.type}
                 type="button"
@@ -997,9 +1021,9 @@ export function EditorToolbar({
               </button>
             ))}
             <div className="editor-toolbar-menu-divider" role="separator" />
-            {LIST_ACTIONS.map((item) => (
+            {listActions.map((item) => (
               <button
-                key={item.label}
+                key={item.labelKey}
                 type="button"
                 role="menuitem"
                 tabIndex={-1}
@@ -1017,7 +1041,7 @@ export function EditorToolbar({
 
       <ToolbarButton
         toolbarId="link"
-        label="Insert link"
+        label={copy.insertLink}
         className="editor-toolbar-desktop-only"
         tabStop={tabStopId === 'link'}
         onFocus={() => setTabStopId('link')}
@@ -1029,7 +1053,7 @@ export function EditorToolbar({
       <div className="editor-toolbar-slot">
         <ToolbarButton
           toolbarId="insert"
-          label="Insert"
+          label={copy.insert}
           className="editor-toolbar-insert-trigger"
           tabStop={tabStopId === 'insert'}
           onFocus={() => setTabStopId('insert')}
@@ -1040,7 +1064,7 @@ export function EditorToolbar({
           onKeyDown={(event) => handleTriggerKeyDown('insert', event)}
         >
           <Icon name="plus" />
-          <span className="editor-toolbar-insert-label">Insert</span>
+          <span className="editor-toolbar-insert-label">{copy.insert}</span>
           <Icon name="chevron" className="editor-toolbar-chevron" />
         </ToolbarButton>
         {openMenu === 'insert' ? (
@@ -1049,13 +1073,13 @@ export function EditorToolbar({
             ref={menuPanelRef}
             className="editor-toolbar-popover editor-toolbar-insert-menu"
             role="menu"
-            aria-label="Insert content"
+            aria-label={copy.insertMenuLabel}
             style={menuPlacement ?? undefined}
             onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
           >
-            {INSERT_ITEMS.map((item) => (
+            {insertItems.map((item) => (
               <button
-                key={item.label}
+                key={item.labelKey}
                 type="button"
                 role="menuitem"
                 tabIndex={-1}
@@ -1076,7 +1100,7 @@ export function EditorToolbar({
               onClick={() => setOpenMenu('emoji')}
             >
               <Icon name="smile" className="editor-toolbar-menu-icon" />
-              <span>Emoji</span>
+              <span>{copy.emoji}</span>
             </button>
           </div>
         ) : null}
@@ -1086,7 +1110,7 @@ export function EditorToolbar({
             ref={menuPanelRef}
             className="editor-toolbar-popover editor-toolbar-emoji-menu"
             role="menu"
-            aria-label="Insert emoji"
+            aria-label={copy.insertEmojiMenuLabel}
             onKeyDown={(event) => moveEmojiFocus(event, emojiGridRef.current)}
           >
             <div className="editor-toolbar-emoji-grid" ref={emojiGridRef}>
@@ -1097,7 +1121,7 @@ export function EditorToolbar({
                   role="menuitem"
                   tabIndex={-1}
                   className="editor-toolbar-emoji"
-                  aria-label={`Insert emoji ${emoji}`}
+                  aria-label={copy.insertEmojiLabel(emoji)}
                   onMouseDown={keepEditorFocus}
                   onClick={() => applyEmoji(emoji)}
                 >
@@ -1112,7 +1136,7 @@ export function EditorToolbar({
       <div className="editor-toolbar-slot editor-toolbar-slot-native">
         <ToolbarButton
           toolbarId="components"
-          label="Insert native component"
+          label={copy.componentsTriggerLabel}
           className="editor-toolbar-components-trigger"
           tabStop={tabStopId === 'components'}
           onFocus={() => setTabStopId('components')}
@@ -1123,8 +1147,8 @@ export function EditorToolbar({
           onKeyDown={(event) => handleTriggerKeyDown('native', event)}
         >
           <Icon name="sparkle" />
-          <span className="editor-toolbar-components-label editor-toolbar-components-label-full">Components</span>
-          <span className="editor-toolbar-components-label editor-toolbar-components-label-compact">Add</span>
+          <span className="editor-toolbar-components-label editor-toolbar-components-label-full">{copy.componentsLabel}</span>
+          <span className="editor-toolbar-components-label editor-toolbar-components-label-compact">{copy.componentsCompactLabel}</span>
         </ToolbarButton>
         {openMenu === 'native' ? (
           <div
@@ -1132,15 +1156,15 @@ export function EditorToolbar({
             ref={menuPanelRef}
             className="editor-toolbar-popover editor-toolbar-native-menu"
             role="dialog"
-            aria-label="Insert native component"
+            aria-label={copy.nativeMenuLabel}
             onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
           >
             <div className="editor-toolbar-native-head">
-              <span className="editor-toolbar-native-title">Insert component</span>
+              <span className="editor-toolbar-native-title">{copy.nativeTitle}</span>
               <button
                 type="button"
                 className="editor-toolbar-close"
-                aria-label="Close component panel"
+                aria-label={copy.closeNativeLabel}
                 onMouseDown={keepEditorFocus}
                 onClick={closeNativePicker}
               >
@@ -1154,16 +1178,16 @@ export function EditorToolbar({
                 type="search"
                 className="editor-toolbar-search-input"
                 value={query}
-                placeholder="Search components, descriptions or keywords"
-                aria-label="Search native components"
+                placeholder={copy.searchPlaceholder}
+                aria-label={copy.searchLabel}
                 autoComplete="off"
                 spellCheck={false}
                 onChange={(event) => setQuery(event.target.value)}
               />
             </div>
-            <div className="editor-toolbar-native-scroll" role="menu" aria-label="Native component list">
+            <div className="editor-toolbar-native-scroll" role="menu" aria-label={copy.nativeListLabel}>
               {filteredGroups.length === 0 ? (
-                <p className="editor-toolbar-menu-empty">No matching components</p>
+                <p className="editor-toolbar-menu-empty">{copy.noMatchingComponents}</p>
               ) : (
                 filteredGroups.map(({ group, components }) => (
                   <div
@@ -1189,7 +1213,7 @@ export function EditorToolbar({
                           <span className="editor-toolbar-native-label">
                             {component.label}
                             {component.inline ? (
-                              <span className="editor-toolbar-native-badge">Inline</span>
+                              <span className="editor-toolbar-native-badge">{copy.inlineBadge}</span>
                             ) : null}
                           </span>
                           <span className="editor-toolbar-native-description">
@@ -1207,10 +1231,10 @@ export function EditorToolbar({
         ) : null}
       </div>
 
-      <div className="editor-toolbar-history" role="group" aria-label="History and export">
+      <div className="editor-toolbar-history" role="group" aria-label={copy.historyLabel}>
         <ToolbarButton
           toolbarId="undo"
-          label="Undo"
+          label={copy.undo}
           className="editor-toolbar-desktop-only"
           tabStop={tabStopId === 'undo'}
           onFocus={() => setTabStopId('undo')}
@@ -1221,7 +1245,7 @@ export function EditorToolbar({
         </ToolbarButton>
         <ToolbarButton
           toolbarId="redo"
-          label="Redo"
+          label={copy.redo}
           className="editor-toolbar-desktop-only"
           tabStop={tabStopId === 'redo'}
           onFocus={() => setTabStopId('redo')}
@@ -1232,7 +1256,7 @@ export function EditorToolbar({
         </ToolbarButton>
         <ToolbarButton
           toolbarId="download"
-          label="Download document"
+          label={copy.download}
           className="editor-toolbar-desktop-only"
           tabStop={tabStopId === 'download'}
           onFocus={() => setTabStopId('download')}
@@ -1244,7 +1268,7 @@ export function EditorToolbar({
         <div className="editor-toolbar-slot editor-toolbar-mobile-only">
           <ToolbarButton
             toolbarId="more"
-            label="More"
+            label={copy.more}
             className="editor-toolbar-more-trigger"
             tabStop={tabStopId === 'more'}
             onFocus={() => setTabStopId('more')}
@@ -1262,7 +1286,7 @@ export function EditorToolbar({
               ref={menuPanelRef}
               className="editor-toolbar-popover editor-toolbar-more-menu"
               role="menu"
-              aria-label="More actions"
+              aria-label={copy.moreMenuLabel}
               style={menuPlacement ?? undefined}
               onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
             >
@@ -1275,7 +1299,7 @@ export function EditorToolbar({
                 onClick={() => applySimple(insertLink)}
               >
                 <Icon name="link" className="editor-toolbar-menu-icon" />
-                <span>Link</span>
+                <span>{copy.linkMenuItem}</span>
               </button>
               <button
                 type="button"
@@ -1287,7 +1311,7 @@ export function EditorToolbar({
                 onClick={handleUndo}
               >
                 <Icon name="undo" className="editor-toolbar-menu-icon" />
-                <span>Undo</span>
+                <span>{copy.undo}</span>
               </button>
               <button
                 type="button"
@@ -1299,7 +1323,7 @@ export function EditorToolbar({
                 onClick={handleRedo}
               >
                 <Icon name="redo" className="editor-toolbar-menu-icon" />
-                <span>Redo</span>
+                <span>{copy.redo}</span>
               </button>
               <button
                 type="button"
@@ -1310,7 +1334,7 @@ export function EditorToolbar({
                 onClick={handleExport}
               >
                 <Icon name="download" className="editor-toolbar-menu-icon" />
-                <span>Download document</span>
+                <span>{copy.download}</span>
               </button>
             </div>
           ) : null}

@@ -82,7 +82,7 @@ npm ci
 npm run dev
 ```
 
-The command builds the language package first, then starts the standalone `demo/` app at `http://127.0.0.1:5173`. `/embed.html` demonstrates the embedding approach. The demo pages, editor, demo server, assets and browser checks all live in `demo/` and integrate through the package's public entries.
+The command builds the language package first, then starts the standalone `demo/` app at `http://127.0.0.1:5173`. `/embed.html` demonstrates the embedding approach. The masthead language toggle switches the demo between English and Chinese, and the choice is saved in the browser. The demo pages, editor, demo server, assets and browser checks all live in `demo/` and integrate through the package's public entries.
 
 ## Repository layout
 

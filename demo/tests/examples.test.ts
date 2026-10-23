@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime } from 'reactive-md';
-import { EXAMPLES, DEFAULT_EXAMPLE_ID } from '../src/examples';
+import { EXAMPLES, DEFAULT_EXAMPLE_ID, localizedExample, localizedExamples } from '../src/examples';
 
 function exampleSource(id: string) {
   const example = EXAMPLES.find((item) => item.id === id);
@@ -81,4 +81,74 @@ describe('playground local documents consumed through the public package', () =>
       .toBe('The prose can read it too: **3**.');
     counterRuntime.dispose();
   });
+});
+
+describe('localized playground examples', () => {
+  it('ships English and Chinese metadata and sources for all twelve examples', () => {
+    expect(EXAMPLES).toHaveLength(12);
+    for (const example of EXAMPLES) {
+      expect(example.title.trim().length, example.id).toBeGreaterThan(0);
+      expect(example.hint.trim().length, example.id).toBeGreaterThan(0);
+      expect(example.source.trim().length, example.id).toBeGreaterThan(0);
+      expect(example.titleZh.trim().length, example.id).toBeGreaterThan(0);
+      expect(example.hintZh.trim().length, example.id).toBeGreaterThan(0);
+      expect(example.sourceZh.trim().length, example.id).toBeGreaterThan(0);
+      expect(example.sourceZh, example.id).not.toBe(example.source);
+      expect(example.titleZh, example.id).not.toBe(example.title);
+      expect(example.sourceZh, example.id).not.toContain('```reactive-md');
+      expect(example.sourceZh, example.id).not.toContain(':::');
+    }
+  });
+
+  it('resolves English metadata and sources unchanged', () => {
+    const localized = localizedExamples('en');
+    expect(localized).toHaveLength(EXAMPLES.length);
+    localized.forEach((example, index) => {
+      const source = EXAMPLES[index];
+      expect(example).toEqual({
+        id: source.id,
+        title: source.title,
+        hint: source.hint,
+        source: source.source,
+      });
+      expect(localizedExample(source, 'en')).toEqual(example);
+    });
+  });
+
+  it('resolves Chinese metadata and sources from the same ids', () => {
+    const localized = localizedExamples('zh');
+    expect(localized).toHaveLength(EXAMPLES.length);
+    localized.forEach((example, index) => {
+      const source = EXAMPLES[index];
+      expect(example).toEqual({
+        id: source.id,
+        title: source.titleZh,
+        hint: source.hintZh,
+        source: source.sourceZh,
+      });
+      expect(localizedExample(source, 'zh')).toEqual(example);
+    });
+  });
+
+  for (const example of EXAMPLES) {
+    it(`zh ${example.id}: ${example.id === 'diagnostics' ? 'reports intentional errors' : 'compiles and starts'}`, () => {
+      const result = compileLocal(example.sourceZh);
+      if (example.id === 'diagnostics') {
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.diagnostics.length).toBeGreaterThanOrEqual(9);
+        expect(result.diagnostics.every((item) => item.line > 0 && item.column > 0)).toBe(true);
+        // Compiler diagnostics stay English even for Chinese documents.
+        const messages = result.diagnostics.map((item) => item.message).join('\n');
+        expect(messages).toMatch(/undeclared parameter seat\b/);
+        return;
+      }
+      if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+      const runtime = createLocalRuntime(result.document);
+      const snapshot = runtime.snapshot();
+      expect(snapshot.revision).toBe(0);
+      expect(snapshot.state).toBeTypeOf('object');
+      runtime.dispose();
+    });
+  }
 });

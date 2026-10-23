@@ -627,7 +627,7 @@ Remaining seconds: {{ remaining }}.
 </timeline>
 ```
 
-The header must contain `Task`, `Start` and `Duration`, with optional `Notes`. Start times and durations are non-negative numbers, overlapping intervals are allowed, and sorting is stable by start time.
+The header must contain either `Task`, `Start` and `Duration` (optional `Notes`) or `事项`, `开始` and `时长` (optional `说明`). Start times and durations are non-negative numbers, overlapping intervals are allowed, and sorting is stable by start time.
 
 ## 9. Tables and charts
 

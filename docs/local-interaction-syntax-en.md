@@ -299,7 +299,7 @@ Numeric columns update with parameters. Calculation errors display in the corres
 
 ### 9.4 Timelines
 
-timeline supports optional title and unit (display text, default "minutes"), and its body is a table with `Task`, `Start` and `Duration` columns plus an optional `Notes` column. These column names are fixed headers; start and duration are non-negative numbers. Sorting is stable by start time, overlapping intervals are allowed, and notes are viewed with a pointer or keyboard. Table content may use interpolation.
+timeline supports optional title and unit (display text, default "minutes"), and its body is a table with either `Task`, `Start` and `Duration` columns or `事项`, `开始` and `时长` columns, plus optional `Notes` or `说明`. These column names are fixed headers; start and duration are non-negative numbers. Sorting is stable by start time, overlapping intervals are allowed, and notes are viewed with a pointer or keyboard. Table content may use interpolation.
 
 ## 10. LaTeX math and function plots
 

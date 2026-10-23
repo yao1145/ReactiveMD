@@ -1,8 +1,8 @@
 # Local interaction syntax demo
 
-These files are the complete authoring examples for `local-draft-1` and correspond to the [local interaction syntax specification](../../docs/local-interaction-syntax-en.md). If you are new to the syntax, read the [new user guide](../../docs/local-guide-en.md) first. The Playground loads this directory directly; hosts compile and render it through the [local mode API](../../docs/local-integration-en.md).
+These files are the complete authoring examples for `local-draft-1` and correspond to the [local interaction syntax specification](../../docs/local-interaction-syntax-en.md). If you are new to the syntax, read the [new user guide](../../docs/local-guide-en.md) first. The Playground loads this directory directly, or [zh/](zh/) when the demo is in Chinese; hosts compile and render it through the [local mode API](../../docs/local-integration-en.md).
 
-This directory contains eleven working examples and one intentionally broken diagnostics example. Each file is used on its own and shares no parameters. None of the working examples use YAML configuration, named actions, event handlers or external calls.
+This directory contains eleven working examples and one intentionally broken diagnostics example. Each file is used on its own and shares no parameters. None of the working examples use YAML configuration, named actions, event handlers or external calls. Chinese versions of all twelve documents live in [zh/](zh/).
 
 ## Start with the short examples
 

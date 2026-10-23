@@ -4,7 +4,13 @@
  * Every command receives the current source value and selection, clamps the
  * selection, and returns a new value plus the selection that should be
  * restored on the textarea. Nothing in this module touches the DOM.
+ *
+ * Commands that insert human-readable text accept an optional language and
+ * default to English, so direct callers keep their original output.
  */
+
+import type { Language } from './i18n';
+import { EDITOR_COMMAND_COPY, type EditorCommandCopy } from './editor-i18n';
 
 export interface EditorSelection {
   start: number;
@@ -52,6 +58,10 @@ function normalizeSelection(value: string, selection: EditorSelection): EditorSe
   const start = clampIndex(selection.start, value.length);
   const end = clampIndex(selection.end, value.length);
   return start <= end ? { start, end } : { start: end, end: start };
+}
+
+function commandCopy(language: Language): EditorCommandCopy {
+  return EDITOR_COMMAND_COPY[language] ?? EDITOR_COMMAND_COPY.en;
 }
 
 // lastIndexOf('\n', -1) matches a newline at index 0 and skips the first line.
@@ -219,16 +229,28 @@ function toggleInlineMarker(
   };
 }
 
-export function formatBold(value: string, selection: EditorSelection): EditorEdit {
-  return toggleInlineMarker(value, selection, '**', 'bold text');
+export function formatBold(
+  value: string,
+  selection: EditorSelection,
+  language: Language = 'en',
+): EditorEdit {
+  return toggleInlineMarker(value, selection, '**', commandCopy(language).boldPlaceholder);
 }
 
-export function formatItalic(value: string, selection: EditorSelection): EditorEdit {
-  return toggleInlineMarker(value, selection, '*', 'italic text');
+export function formatItalic(
+  value: string,
+  selection: EditorSelection,
+  language: Language = 'en',
+): EditorEdit {
+  return toggleInlineMarker(value, selection, '*', commandCopy(language).italicPlaceholder);
 }
 
-export function formatStrike(value: string, selection: EditorSelection): EditorEdit {
-  return toggleInlineMarker(value, selection, '~~', 'strikethrough text');
+export function formatStrike(
+  value: string,
+  selection: EditorSelection,
+  language: Language = 'en',
+): EditorEdit {
+  return toggleInlineMarker(value, selection, '~~', commandCopy(language).strikePlaceholder);
 }
 
 function longestBacktickRun(text: string): number {
@@ -271,16 +293,21 @@ function surroundingBackticks(
   return outer;
 }
 
-export function formatInlineCode(value: string, rawSelection: EditorSelection): EditorEdit {
+export function formatInlineCode(
+  value: string,
+  rawSelection: EditorSelection,
+  language: Language = 'en',
+): EditorEdit {
   const selection = normalizeSelection(value, rawSelection);
   const { start, end } = selection;
   const selected = value.slice(start, end);
 
   if (start === end) {
-    const insertion = '`code`';
+    const placeholder = commandCopy(language).inlineCodePlaceholder;
+    const insertion = `\`${placeholder}\``;
     return {
       value: value.slice(0, start) + insertion + value.slice(end),
-      selection: { start: start + 1, end: start + 1 + 'code'.length },
+      selection: { start: start + 1, end: start + 1 + placeholder.length },
     };
   }
 
@@ -493,7 +520,11 @@ export function outdentSelection(value: string, rawSelection: EditorSelection): 
 /* Insertions                                                          */
 /* ------------------------------------------------------------------ */
 
-export function insertLink(value: string, rawSelection: EditorSelection): EditorEdit {
+export function insertLink(
+  value: string,
+  rawSelection: EditorSelection,
+  language: Language = 'en',
+): EditorEdit {
   const selection = normalizeSelection(value, rawSelection);
   const { start, end } = selection;
   const selected = value.slice(start, end);
@@ -508,7 +539,7 @@ export function insertLink(value: string, rawSelection: EditorSelection): Editor
     };
   }
 
-  const label = 'link text';
+  const label = commandCopy(language).linkText;
   const insertion = `[${label}](${url})`;
   return {
     value: value.slice(0, start) + insertion + value.slice(end),
@@ -516,7 +547,11 @@ export function insertLink(value: string, rawSelection: EditorSelection): Editor
   };
 }
 
-export function insertImage(value: string, rawSelection: EditorSelection): EditorEdit {
+export function insertImage(
+  value: string,
+  rawSelection: EditorSelection,
+  language: Language = 'en',
+): EditorEdit {
   const selection = normalizeSelection(value, rawSelection);
   const { start, end } = selection;
   const selected = value.slice(start, end);
@@ -531,7 +566,7 @@ export function insertImage(value: string, rawSelection: EditorSelection): Edito
     };
   }
 
-  const alt = 'example image';
+  const alt = commandCopy(language).imageAlt;
   const insertion = `![${alt}](${url})`;
   return {
     value: value.slice(0, start) + insertion + value.slice(end),
@@ -539,10 +574,14 @@ export function insertImage(value: string, rawSelection: EditorSelection): Edito
   };
 }
 
-export function insertCodeBlock(value: string, rawSelection: EditorSelection): EditorEdit {
+export function insertCodeBlock(
+  value: string,
+  rawSelection: EditorSelection,
+  language: Language = 'en',
+): EditorEdit {
   const selection = normalizeSelection(value, rawSelection);
   const selected = value.slice(selection.start, selection.end);
-  const body = selected.length > 0 ? selected : 'Write code here';
+  const body = selected.length > 0 ? selected : commandCopy(language).codeBlockPlaceholder;
   const fence = '`'.repeat(Math.max(3, longestBacktickRun(body) + 1));
   const opening = `${fence}text\n`;
   const insertion = `${opening}${body}\n${fence}`;
@@ -552,12 +591,13 @@ export function insertCodeBlock(value: string, rawSelection: EditorSelection): E
   });
 }
 
-const TABLE = [
-  '| Column 1 | Column 2 | Column 3 |',
-  '| --- | --- | --- |',
-  '| Example 1 | Example 2 | Example 3 |',
-  '| Example 4 | Example 5 | Example 6 |',
-].join('\n');
+function buildTable(copy: EditorCommandCopy): string {
+  return [
+    `| ${copy.tableHeaders.join(' | ')} |`,
+    `| ${copy.tableHeaders.map(() => '---').join(' | ')} |`,
+    ...copy.tableRows.map((row) => `| ${row.join(' | ')} |`),
+  ].join('\n');
+}
 
 function blockPadding(
   value: string,
@@ -597,12 +637,19 @@ function insertBlock(
   };
 }
 
-export function insertTable(value: string, rawSelection: EditorSelection): EditorEdit {
+export function insertTable(
+  value: string,
+  rawSelection: EditorSelection,
+  language: Language = 'en',
+): EditorEdit {
   const selection = normalizeSelection(value, rawSelection);
-  const cellOffset = TABLE.indexOf('Example 1');
-  return insertBlock(value, selection, TABLE, {
+  const copy = commandCopy(language);
+  const table = buildTable(copy);
+  const anchor = copy.tableRows[0][0];
+  const cellOffset = table.indexOf(anchor);
+  return insertBlock(value, selection, table, {
     start: cellOffset,
-    end: cellOffset + 'Example 1'.length,
+    end: cellOffset + anchor.length,
   });
 }
 

@@ -4,6 +4,8 @@ The Playground uses the [local interaction syntax](../docs/local-interaction-syn
 
 The "User Guide" view at the top of the page renders `docs/local-guide-en.md` directly, covering everything from your first interactive document to charts, function curves and a quick error reference. Documentation links in the guide point to the repository, and table-of-contents anchors jump within the page.
 
+The masthead has a language toggle: `中` switches the whole demo to Chinese and `EN` switches back. English is the default. The choice is saved in the browser, each language keeps its own example drafts and guide (`docs/local-guide-ch.md` for Chinese), and the Playground preview is rendered with the matching locale.
+
 While you edit, consecutive keystrokes are coalesced and compiled on a background thread; the previous preview stays visible while waiting. The preview updates once the current source compiles successfully and shows diagnostics when it fails. For implementation details and how to re-measure, see [performance measurement](../docs/performance-en.md#playground-live-editing).
 
 "Keep trial state" is on by default. When you edit prose, control labels or formulas, parameter values with the same name and type that still satisfy the new constraints are kept; they are also restored after a temporary compile error is fixed. Changing `initial` or an effective default uses the new initial value. With the option off, the next compile starts from initial values.
@@ -27,7 +29,7 @@ Open `http://127.0.0.1:5173`. The embed example is at `/embed.html` and shows tw
 
 Start with the counter and cost estimate, then try the parameter panel, checkable checklist, local catalog search, charts, LaTeX function curves, interactive diagram and timer. The diagnostics example contains deliberate errors: the preview should disable interaction and show diagnostics.
 
-Example sources live in `examples/local/` at the repository root. The Playground uses the library through `compileLocal`, `createLocalRuntime` and the `reactive-md/react` renderer entry, without importing language internals directly. Controls declare parameters in the body, and table data is written directly in Markdown.
+Example sources live in `examples/local/` at the repository root, with Chinese versions in `examples/local/zh/`. The Playground uses the library through `compileLocal`, `createLocalRuntime` and the `reactive-md/react` renderer entry, without importing language internals directly. Controls declare parameters in the body, and table data is written directly in Markdown.
 
 ## Development and checks
 

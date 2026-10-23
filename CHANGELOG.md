@@ -2,6 +2,12 @@
 
 This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
 
+## Unreleased
+
+- The Playground adds a Chinese/English toggle that localizes the interface, examples, guide and built-in control labels, and saves the choice in the browser.
+- `LocalDocumentView` and `LocalReactiveDocument` accept `locale: 'en' | 'zh'` (default `'en'`) for built-in UI labels; compiler and runtime diagnostic messages remain English.
+- `timeline` accepts either the English columns `Task`, `Start`, `Duration` and optional `Notes` or the Chinese columns `事项`, `开始`, `时长` and optional `说明`.
+
 ## 0.3.1 (2026-10-23)
 
 Compatibility update that keeps the `local-draft-1` syntax; existing documents need no migration.

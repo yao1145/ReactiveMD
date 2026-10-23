@@ -375,6 +375,30 @@ try {
   await mobile.keyboard.press('Escape');
   console.log('PASS mobile heading and insert menus stay inside the viewport');
 
+  const chinese = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const chineseErrors = [];
+  chinese.setDefaultTimeout(10000);
+  chinese.on('pageerror', (error) => chineseErrors.push(error.message));
+  await chinese.goto(baseURL);
+  await chinese.getByRole('button', { name: 'Switch to Chinese', exact: true }).click();
+  const chineseToolbar = chinese.getByRole('toolbar', { name: '文档编辑工具栏', exact: true });
+  await expect(chineseToolbar).toBeVisible();
+  await expect(chinese.getByRole('button', { name: '加粗', exact: true })).toBeVisible();
+  await expect(chinese.getByRole('button', { name: '斜体', exact: true })).toBeVisible();
+  await expect(chinese.locator('[data-toolbar-id="insert"]')).toHaveAttribute('aria-label', '插入');
+  await expect(chinese.locator('[data-toolbar-id="components"]'))
+    .toHaveAttribute('aria-label', '插入原生组件');
+  await chinese.locator('[data-toolbar-id="components"]').click();
+  const chineseNative = chinese.locator('.editor-toolbar-native-menu');
+  await expect(chineseNative).toBeVisible();
+  await expect(chineseNative.locator('.editor-toolbar-native-title')).toHaveText('插入组件');
+  await expect(chinese.getByPlaceholder('搜索组件、说明或关键词')).toBeVisible();
+  await chinese.getByRole('button', { name: '关闭组件面板', exact: true }).click();
+  await expect(chineseNative).toHaveCount(0);
+  await chinese.close();
+  if (chineseErrors.length) throw new Error(`Chinese page errors: ${JSON.stringify(chineseErrors)}`);
+  console.log('PASS Chinese toolbar labels and component picker copy');
+
   if (errors.length || mobileErrors.length) {
     throw new Error(`Page errors: ${JSON.stringify([...errors, ...mobileErrors])}`);
   }

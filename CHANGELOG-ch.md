@@ -2,6 +2,12 @@
 
 本文件记录用户可见变更。项目处于 0.x 预览阶段，版本与迁移规则见[版本与兼容性](docs/compatibility-ch.md)。
 
+## 未发布
+
+- Playground 新增中英文切换，界面、示例、指南和内置控件文案会同步切换，选择保存在浏览器中。
+- `LocalDocumentView` 和 `LocalReactiveDocument` 支持 `locale: 'en' | 'zh'`（默认 `'en'`），用于内置 UI 文案；编译与运行时诊断消息仍为英文。
+- `timeline` 同时接受英文列 `Task`、`Start`、`Duration`（可选 `Notes`）和中文列 `事项`、`开始`、`时长`（可选 `说明`）。
+
 ## 0.3.1（2026-10-23）
 
 兼容更新，继续采用 `local-draft-1` 语法，无需迁移现有文档。

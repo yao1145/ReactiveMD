@@ -9,6 +9,9 @@
  *   lines so inserted Markdown keeps a natural block layout.
  */
 
+import { NATIVE_COMPONENT_CATALOG_COPY } from './editor-i18n';
+import type { Language } from './i18n';
+
 export type NativeComponentGroupId = 'input' | 'action' | 'layout' | 'data' | 'hint';
 
 export interface NativeComponentGroup {
@@ -325,6 +328,66 @@ export const NATIVE_COMPONENTS: readonly NativeComponentDefinition[] = [
 
 const BIND_TOKEN = /\{\{bind:([^{}]+)\}\}/g;
 const IDENTIFIER = /[A-Za-z_][A-Za-z0-9_]*/g;
+
+function mergeKeywords(base: readonly string[], extra: readonly string[]): string[] {
+  const merged = [...base];
+  for (const keyword of extra) {
+    const normalized = keyword.toLowerCase();
+    if (!merged.some((existing) => existing.toLowerCase() === normalized)) {
+      merged.push(keyword);
+    }
+  }
+  return merged;
+}
+
+export const NATIVE_COMPONENT_GROUPS_ZH: readonly NativeComponentGroup[] =
+  NATIVE_COMPONENT_GROUPS.map((group) => ({
+    ...group,
+    label: NATIVE_COMPONENT_CATALOG_COPY.zh.groups[group.id],
+  }));
+
+// The English catalog keeps its canonical labels and templates, but adds the
+// Chinese keywords so picker search works in either language.
+const NATIVE_COMPONENTS_EN: readonly NativeComponentDefinition[] = NATIVE_COMPONENTS.map(
+  (component) => ({
+    ...component,
+    keywords: mergeKeywords(
+      component.keywords,
+      NATIVE_COMPONENT_CATALOG_COPY.zh.components[component.id]?.keywords ?? [],
+    ),
+  }),
+);
+
+export const NATIVE_COMPONENTS_ZH: readonly NativeComponentDefinition[] = NATIVE_COMPONENTS.map(
+  (component) => {
+    const copy = NATIVE_COMPONENT_CATALOG_COPY.zh.components[component.id];
+    if (!copy) return component;
+    return {
+      ...component,
+      label: copy.label,
+      description: copy.description,
+      keywords: mergeKeywords(component.keywords, copy.keywords),
+      template: copy.template,
+    };
+  },
+);
+
+export interface NativeComponentCatalog {
+  groups: readonly NativeComponentGroup[];
+  components: readonly NativeComponentDefinition[];
+}
+
+/**
+ * Catalog for the active UI language. Labels, descriptions and templates are
+ * localized; keywords keep both English and Chinese terms so either query
+ * works in either language.
+ */
+export function getNativeComponentCatalog(language: Language = 'en'): NativeComponentCatalog {
+  if (language === 'zh') {
+    return { groups: NATIVE_COMPONENT_GROUPS_ZH, components: NATIVE_COMPONENTS_ZH };
+  }
+  return { groups: NATIVE_COMPONENT_GROUPS, components: NATIVE_COMPONENTS_EN };
+}
 
 function collectIdentifiers(source: string): Set<string> {
   return new Set(source.match(IDENTIFIER) ?? []);
