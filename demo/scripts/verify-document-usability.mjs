@@ -45,6 +45,111 @@ try {
   await page.goto(baseURL);
   await expect(page.locator('.status-chip')).toContainText('已编译');
 
+  await check('peer block titles share a scale and nested content stays readable on desktop and mobile', async () => {
+    await edit(`# 排版层级
+
+## 文档章节
+
+正文说明。
+
+<panel title="AAA">
+<slider bind="size" label="参数标签" initial="2" min="0" max="10">
+
+<grid columns="2">
+<card title="嵌套卡片">
+嵌套正文。
+
+<panel title="更深的面板">
+深层正文。
+</panel>
+</card>
+<card title="并排卡片">
+<plot min="0" max="12.56" label="嵌套曲线" x-label="x" y-label="位移">
+$$ y = x $$
+</plot>
+</card>
+</grid>
+</panel>
+
+<plot min="0" max="12.56" label="AAA" x-label="x" y-label="位移">
+$$ y = x $$
+</plot>
+
+<grid columns="2">
+<card title="同级卡片">卡片正文。</card>
+<card title="同级另一张卡片">卡片正文。</card>
+</grid>
+
+<tabs label="同级选项卡">
+<tab label="选项标签">
+<card title="选项内卡片">选项正文。</card>
+</tab>
+</tabs>
+
+<accordion label="同级折叠组">
+<disclosure label="这是一个需要在窄屏下自然换行的较长问题标题，用来检查标题行高和内容边界" open>
+折叠正文。
+</disclosure>
+</accordion>
+
+<alert title="同级提示">提示正文。</alert>
+
+<table label="同级表格">
+| 名称 | 数值 |
+| --- | ---: |
+| 数据 | 2 |
+</table>
+
+<chart title="同级图表">
+| 名称 | 数值 |
+| --- | ---: |
+| 数据 | 2 |
+</chart>
+
+<timeline title="同级时间轴">
+| 事项 | 开始 | 时长 |
+| --- | ---: | ---: |
+| 准备 | 0 | 10 |
+</timeline>
+
+<diagram label="同级图解">
+<node id="start" label="开始">节点正文。</node>
+</diagram>`);
+    await expect(page.locator('.status-chip')).toHaveText(/已编译 · \d+ ms/);
+    const article = preview.locator('.local-document');
+    const titleSelector = '.local-panel-title, .md-card-title, .local-tabs-label, .local-accordion-label, .local-disclosure-trigger, .local-alert-title, .local-visual-title';
+    for (const width of [1280, 375]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const theme of ['light', 'dark']) {
+        await page.locator('html').evaluate((node, value) => node.setAttribute('data-theme', value), theme);
+        const sizes = await article.locator(titleSelector).evaluateAll(nodes => nodes.map(node => {
+          const css = getComputedStyle(node);
+          return { title: node.textContent.trim(), size: css.fontSize, weight: css.fontWeight, leading: css.lineHeight };
+        }));
+        expect(sizes).toHaveLength(17);
+        for (const title of sizes) {
+          const nested = /嵌套|更深|并排|选项内|较长问题/.test(title.title);
+          expect(title, JSON.stringify({ width, theme, title })).toMatchObject({
+            size: nested ? '16px' : '18px', weight: '600', leading: nested ? '24px' : '27px',
+          });
+        }
+        const bodySizes = await article.locator('p').evaluateAll(nodes => nodes
+          .filter(node => /正文/.test(node.textContent) && !node.closest('.local-visual'))
+          .map(node => getComputedStyle(node).fontSize));
+        expect(bodySizes.length).toBeGreaterThan(5);
+        expect(new Set(bodySizes)).toEqual(new Set(['16px']));
+        await expect(article.locator('.local-tab')).toHaveCSS('font-size', '14px');
+        await expect(article.locator('.md-label')).toHaveCSS('font-size', '14px');
+        await expect(article.locator('.md-slider-value')).toHaveCSS('font-size', '12.5px');
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+        await mkdir('artifacts', { recursive: true });
+        await article.screenshot({ path: `artifacts/block-typography-${width}-${theme}.png` });
+      }
+    }
+    await page.locator('html').evaluate(node => node.setAttribute('data-theme', 'light'));
+    await page.setViewportSize({ width: 1280, height: 900 });
+  });
+
   await check('Markdown TOC resolves Chinese, encoded, formatted and duplicate headings', async () => {
     await edit(`[中文目录](#参数说明) · [编码目录](#%E5%8F%82%E6%95%B0%E8%AF%B4%E6%98%8E) · [第二节](#参数说明-1) · [标题碰撞](#参数说明-1-1) · [English](#hello-world)
 

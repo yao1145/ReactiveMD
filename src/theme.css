@@ -70,6 +70,9 @@
   --text-lg: 18px;
   --text-xl: 21px;
   --text-2xl: 27px;
+  /* Peer blocks share a title scale; nested blocks stop at the body size. */
+  --text-block-title: var(--text-lg);
+  --text-block-subtitle: var(--text-md);
   --leading-tight: 1.3;
   --leading-snug: 1.5;
   --leading-normal: 1.6;

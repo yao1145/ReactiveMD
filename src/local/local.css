@@ -2,6 +2,35 @@
    the semantic tokens in theme.css; this file only composes the local
    component set and its interaction states. */
 
+/* Document headings use the Markdown scale. Block titles use one shared
+   scale across containers and visuals, independent of their HTML element.
+   Layout-only wrappers (grid/if) do not introduce a new title level. */
+.local-document {
+  --local-block-title-size: var(--text-block-title);
+}
+
+.local-document :is(.local-panel-body, .md-card-body, .local-tabpanel,
+  .local-disclosure-panel, .local-alert-body) {
+  --local-block-title-size: var(--text-block-subtitle);
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
+}
+
+/* Disclosure items sit below their accordion's optional group title. Keep
+   deeper nesting readable instead of shrinking the text on every level. */
+.local-document .local-accordion:has(> .local-accordion-label) > .local-disclosure {
+  --local-block-title-size: var(--text-block-subtitle);
+}
+
+.local-document :is(.local-panel-title, .md-card-title, .local-tabs-label,
+  .local-accordion-label, .local-disclosure-heading, .local-alert-title,
+  .local-visual-title) {
+  font-size: var(--local-block-title-size);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: -0.01em;
+}
+
 .local-document .local-error {
   display: inline-block;
   padding: 1px var(--space-1);
@@ -181,9 +210,6 @@
   margin: 0;
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--line);
-  font-size: var(--text-md);
-  font-weight: var(--weight-bold);
-  letter-spacing: -0.01em;
 }
 
 .local-document .md-button.local-panel-reset {
@@ -224,9 +250,6 @@
   margin: 0;
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--line);
-  font-size: var(--text-md);
-  font-weight: var(--weight-bold);
-  letter-spacing: -0.01em;
 }
 
 /* ------------------------------------------------------------------ tabs */
@@ -238,8 +261,6 @@
 
 .local-tabs-label {
   margin-bottom: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
 }
 
 .local-tablist {
@@ -262,12 +283,15 @@
   border-bottom: 2px solid transparent;
   border-radius: var(--radius-control) var(--radius-control) 0 0;
   color: var(--ink-soft);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
   cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-standard),
     border-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
+}
+
+.local-document .local-tab {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
 
 .local-tab:hover {
@@ -314,11 +338,6 @@
   min-width: 0;
 }
 
-.local-accordion-label {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
-}
-
 .local-disclosure {
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
@@ -327,23 +346,21 @@
 
 .local-document .local-disclosure-heading {
   margin: 0;
-  font-size: inherit;
-  font-weight: inherit;
 }
 
-.local-disclosure-trigger {
+.local-document .local-disclosure-trigger {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   width: 100%;
   min-height: var(--control-height);
-  padding: 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
   background: transparent;
   border: 0;
   border-radius: var(--radius-control);
   color: var(--ink);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font: inherit;
+  letter-spacing: inherit;
   text-align: left;
   cursor: pointer;
   transition: background-color var(--motion-fast) var(--ease-standard),
@@ -711,8 +728,6 @@
 
 .local-alert-title {
   margin-bottom: var(--space-1);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
 }
 
 .local-alert-body > :first-child {
