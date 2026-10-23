@@ -18,38 +18,38 @@ const preview = page.locator('.preview-stage');
 async function check(name, run) { await run(); checks.push(name); console.log('PASS ' + name); }
 try {
   await page.goto(baseURL);
-  await expect(page.locator('.status-chip')).toContainText('已编译');
+  await expect(page.locator('.status-chip')).toContainText('Compiled');
   await check('editing keeps the last preview while compilation is pending', async () => {
-    await fillSource('# 已编译的文档\n\nOld preview.');
+    await fillSource('# Compiled document\n\nOld preview.');
     await expect(preview).toContainText('Old preview.');
     await fillSource(article(300) + '\n\nLatest preview.');
-    await expect(page.locator('.status-chip')).toContainText('编译中');
+    await expect(page.locator('.status-chip')).toContainText('Compiling');
     await expect(preview).toContainText('Old preview.');
-    await fillSource('# 最新文档\n\nNewest preview.');
+    await fillSource('# Latest document\n\nNewest preview.');
     await expect(preview).toContainText('Newest preview.');
     await expect(preview).not.toContainText('Latest preview.');
   });
   await check('latest diagnostics match current source after invalid input', async () => {
     await fillSource('<slider bind="n" label="N" initial="99" min="0" max="10">');
-    await expect(page.locator('.status-chip')).toContainText('编译失败');
-    await expect(preview.getByRole('heading', { name: '预览已停用' })).toBeVisible();
-    await fillSource('# 已恢复\n\nValid source.');
+    await expect(page.locator('.status-chip')).toContainText('Compile failed');
+    await expect(preview.getByRole('heading', { name: 'Preview disabled' })).toBeVisible();
+    await fillSource('# Recovered\n\nValid source.');
     await expect(preview).toContainText('Valid source.');
-    await expect(page.locator('.status-chip')).toContainText('已编译');
+    await expect(page.locator('.status-chip')).toContainText('Compiled');
   });
   await check('switching examples discards old work and flushes each source separately', async () => {
     await fillSource(article(300) + '\n\nSaved pricing edit.');
-    await page.getByLabel('示例', { exact: true }).selectOption('counter');
-    await page.getByRole('button', { name: '恢复示例', exact: true }).click();
-    await expect(page.locator('.status-chip')).toContainText('已编译');
+    await page.getByLabel('Example', { exact: true }).selectOption('counter');
+    await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+    await expect(page.locator('.status-chip')).toContainText('Compiled');
     await expect(preview).not.toContainText('Saved pricing edit.');
-    await fillSource('# 计数器修改\n\nSaved counter edit.');
-    await page.getByLabel('示例', { exact: true }).selectOption('pricing');
+    await fillSource('# Counter edit\n\nSaved counter edit.');
+    await page.getByLabel('Example', { exact: true }).selectOption('pricing');
     await expect(editor).toHaveValue(article(300) + '\n\nSaved pricing edit.');
-    await page.getByLabel('示例', { exact: true }).selectOption('counter');
-    await expect(editor).toHaveValue('# 计数器修改\n\nSaved counter edit.');
+    await page.getByLabel('Example', { exact: true }).selectOption('counter');
+    await expect(editor).toHaveValue('# Counter edit\n\nSaved counter edit.');
     await page.reload();
-    await expect(editor).toHaveValue('# 计数器修改\n\nSaved counter edit.');
+    await expect(editor).toHaveValue('# Counter edit\n\nSaved counter edit.');
     await expect(preview).toContainText('Saved counter edit.');
   });
   await check('unavailable Worker still compiles and edits', async () => {
@@ -58,7 +58,7 @@ try {
     await fallback.addInitScript(() => { window.Worker = undefined; });
     try {
       await fallback.goto(baseURL);
-      await expect(fallback.locator('.status-chip')).toContainText('已编译');
+      await expect(fallback.locator('.status-chip')).toContainText('Compiled');
       await fallback.locator('#source-editor').fill('# Fallback\n\nWorking without Worker.', { force: true });
       await expect(fallback.locator('.preview-stage')).toContainText('Working without Worker.');
     } finally { await fallback.close(); }

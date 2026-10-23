@@ -6,18 +6,18 @@ import './styles.css';
 import './author.css';
 
 const source = [
-  '# 独立的内存实例',
+  '# Independent in-memory instances',
   '',
-  '[跳到本地参数](#本地参数)',
+  '[Jump to local parameters](#local-parameters)',
   '',
-  '## 本地参数',
+  '## Local parameters',
   '',
-  '<panel title="本地参数">',
-  '<input bind="name" label="称呼" initial="读者">',
-  '<slider bind="count" label="数量" initial="2" min="1" max="10">',
+  '<panel title="Local parameters">',
+  '<input bind="name" label="Name" initial="Reader">',
+  '<slider bind="count" label="Count" initial="2" min="1" max="10">',
   '</panel>',
   '',
-  '你好，**{{ name }}**。当前数量 **{{ count }}**。',
+  'Hello, **{{ name }}**. The current count is **{{ count }}**.',
 ].join('\n');
 
 function EmbeddedInstance({ title }: { title: string }) {
@@ -30,13 +30,13 @@ function EmbeddedInstance({ title }: { title: string }) {
 function EmbeddedDemo() {
   const [key, setKey] = useState(0);
   return <main className="app-shell">
-    <h1>本地交互文档可以嵌入你的应用</h1>
-    <p>两个文档实例使用同一份源码，但各自管理内存状态。重新挂载会从初值开始，刷新页面也不会保留交互结果。</p>
+    <h1>Embed interactive local documents in your app</h1>
+    <p>Both document instances share the same source but manage their own in-memory state. Remounting starts from initial values, and refreshing the page does not keep interaction results.</p>
     <div className="advanced-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,280px),1fr))', gap: 24 }} key={key}>
-      <EmbeddedInstance title="实例 A" />
-      <EmbeddedInstance title="实例 B" />
+      <EmbeddedInstance title="Instance A" />
+      <EmbeddedInstance title="Instance B" />
     </div>
-    <p><button className="button button-secondary" onClick={() => setKey(value => value + 1)}>重新挂载</button>{' '}<a href="/">返回 Playground</a></p>
+    <p><button className="button button-secondary" onClick={() => setKey(value => value + 1)}>Remount</button>{' '}<a href="/">Back to Playground</a></p>
   </main>;
 }
 

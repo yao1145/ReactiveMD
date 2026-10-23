@@ -4,7 +4,7 @@ import { resolve, dirname } from 'node:path';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 
-const docs = ['README.md', 'README.en.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CHANGELOG.md',
+const docs = ['README.md', 'README-en.md', 'README-ch.md', 'CONTRIBUTING.md', 'CONTRIBUTING-ch.md', 'SECURITY.md', 'SECURITY-ch.md', 'CHANGELOG.md', 'CHANGELOG-ch.md',
   '.github/pull_request_template.md',
   'demo/README.md', 'demo/IMPLEMENTATION.md', 'examples/local/README.md', 'examples/integration/README.md', 'examples/conformance/README.md',
   ...(await readdir('docs')).filter(name => name.endsWith('.md')).map(name => `docs/${name}`)];

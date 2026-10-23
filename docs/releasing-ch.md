@@ -1,6 +1,6 @@
 # 发布清单
 
-本文件是维护者的手动发布流程。Reactive MD 当前为 `0.3.1` 公开预览版。版本规则见[版本与兼容性](compatibility.md)。
+本文件是维护者的手动发布流程。Reactive MD 当前为 `0.3.1` 公开预览版。版本规则见[版本与兼容性](compatibility-ch.md)。
 
 ## 发布前确认
 
@@ -12,7 +12,7 @@
 2. 决定继续使用非 scope 名称，还是改成 `@scope/reactive-md`。scope 需要对应的 npm 账号或组织权限。
 3. 如果改名，同时更新 `package.json` 的 `name`、文档中的导入语句、tarball 文件名说明和示例。`reactive-md/react`、`reactive-md/styles.css` 子路径也要随包名调整。
 4. 核对 `package.json` 的 `repository`、`homepage`、`bugs`、`license`、`engines` 等发布元数据；当前已设置，发布前确认 URL 和最低 Node 版本仍然正确，并确认 `private` 保持移除状态。
-5. 确认 `files` 覆盖发布所需内容。当前包含 `dist-library`、中英文 README、`CONTRIBUTING.md`、`CHANGELOG.md`、`SECURITY.md`、`THIRD_PARTY_NOTICES.md`、`docs` 和 `examples`；新增文档或 notice 时同步加入 `files`。
+5. 确认 `files` 覆盖发布所需内容。当前包含 `dist-library`、README（`README.md`、`README-en.md`、`README-ch.md`）、中英文贡献指南、变更记录与安全策略、`THIRD_PARTY_NOTICES.md`、`docs` 和 `examples`；新增文档或 notice 时同步加入 `files`。
 
 包名和版本决定 tarball 名称。当前 `0.3.1` 的预期文件名是 `reactive-md-0.3.1.tgz`；改名或改版本后以 `npm pack` 的实际输出为准。
 
@@ -62,7 +62,7 @@ import { LocalReactiveDocument } from 'reactive-md/react';
 import 'reactive-md/styles.css';
 ```
 
-静态 SSR 渲染由 packed 检查覆盖；水合不在当前检查范围内。安装验证还应确认 tarball 中的 `dist-library/types`、`README.md`、`README.en.md`、`CHANGELOG.md`、`SECURITY.md`、`THIRD_PARTY_NOTICES.md`、`docs` 和 `examples` 完整，并检查 `docs` 中没有指向未打包 `demo/` 文件的本地链接。
+静态 SSR 渲染由 packed 检查覆盖；水合不在当前检查范围内。安装验证还应确认 tarball 中的 `dist-library/types`、`README.md`、`README-en.md`、`README-ch.md`、`CHANGELOG-ch.md`、`SECURITY-ch.md`、`THIRD_PARTY_NOTICES.md`、`docs` 和 `examples` 完整，并检查 `docs` 中没有指向未打包 `demo/` 文件的本地链接。
 
 ## 发布说明
 
@@ -70,9 +70,9 @@ import 'reactive-md/styles.css';
 
 - 包版本与 `LOCAL_SYNTAX_VERSION`；两者不是同一个版本号。
 - 安装方式：`npm install reactive-md@<version>`，并提供可下载 tarball 作为离线安装选项。
-- 用户可见变化、破坏性变更和迁移步骤；直接链接 [变更记录](../CHANGELOG.md)。
+- 用户可见变化、破坏性变更和迁移步骤；直接链接 [变更记录](../CHANGELOG-ch.md)。
 - 已验证的平台，以及未验证的浏览器、SSR 水合等范围。
-- 已知限制和安全说明链接 [SECURITY.md](../SECURITY.md)。
+- 已知限制和安全说明链接 [SECURITY-ch.md](../SECURITY-ch.md)。
 
 不要写尚未执行的检查结果，也不要把 CI 配置存在写成 CI 已通过。
 
@@ -80,7 +80,7 @@ import 'reactive-md/styles.css';
 
 1. 确认工作区干净，变更已审查；`npm ci` 从锁文件安装成功。
 2. 在 Node 22.12 和受支持的较新 LTS（当前为 24）上运行 CI 同等检查：`npm run build`、`npm test`、`npm run test:package`、`npm run test:packed`、`npm run test:docs`、Demo 构建与测试，以及 Chromium 浏览器检查。
-3. 确认版本号、`CHANGELOG.md` 和发布说明一致；语法修订变化时同步更新 `LOCAL_SYNTAX_VERSION`。
+3. 确认版本号、`CHANGELOG-ch.md` 和发布说明一致；语法修订变化时同步更新 `LOCAL_SYNTAX_VERSION`。
 4. 运行 `npm pack --dry-run` 检查文件列表、大小和许可文件；再实际 `npm pack` 并在空目录安装验证。
 5. 检查 tarball 的 SHA256，记录到发布说明或内部发布记录。
 6. 合并发布提交，等待 `main` 上的 CI 全部通过。

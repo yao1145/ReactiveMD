@@ -32,7 +32,7 @@ interface CompilationState {
 }
 
 function createCompileWorker(): LocalCompileWorker {
-  if (typeof Worker === 'undefined') throw new Error('当前浏览器不支持 Web Worker');
+  if (typeof Worker === 'undefined') throw new Error('This browser does not support Web Workers');
   return new Worker(
     new URL('./local-compile-worker.ts', import.meta.url),
     { type: 'module' },

@@ -213,6 +213,10 @@
   white-space: nowrap;
 }
 
+.editor-toolbar-components-label-compact {
+  display: none;
+}
+
 .editor-toolbar-components-trigger[aria-expanded="true"] {
   border-color: rgba(143, 227, 212, 0.48);
   background: linear-gradient(135deg, rgba(84, 139, 255, 0.34), rgba(45, 212, 191, 0.24));
@@ -229,6 +233,10 @@
 /* Container compact mode ----------------------------------------------- */
 
 @container editor-frame (max-width: 500px) {
+  .editor-toolbar {
+    gap: 1px;
+  }
+
   .editor-toolbar-history > .editor-toolbar-desktop-only {
     display: none;
   }
@@ -853,6 +861,14 @@
   .editor-toolbar-components-trigger .editor-toolbar-icon {
     width: 14px;
     height: 14px;
+  }
+
+  .editor-toolbar-components-label-full {
+    display: none;
+  }
+
+  .editor-toolbar-components-label-compact {
+    display: inline;
   }
 
   .editor-toolbar-history {

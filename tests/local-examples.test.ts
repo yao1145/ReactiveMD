@@ -47,7 +47,7 @@ const expectedInitialState: Record<string, Record<string, LocalValue>> = {
   pricing: { seats: 2, annual: false },
   counter: { count: 0 },
   gallery: {
-    name: '小林', quantity: 3, plan: 'pro', annual: false, express: true, budgetLevel: 50,
+    name: 'Alex', quantity: 3, plan: 'pro', annual: false, express: true, budgetLevel: 50,
   },
 };
 
@@ -89,8 +89,8 @@ describe('local-draft-1 examples', () => {
     expect(runtime.set(seats, 5)).toEqual([]);
     expect(runtime.set(annual, true)).toEqual([]);
     expect(runtime.evaluate('seats * (annual ? 80 : 100)')).toBe(400);
-    expect(runtime.text('当前人数：{{ seats }}，每年 {{ annual ? "是" : "否" }}。'))
-      .toBe('当前人数：5，每年 是。');
+    expect(runtime.text('Monthly total: {{ seats * (annual ? 80 : 100) }} USD.'))
+      .toBe('Monthly total: 400 USD.');
 
     runtime.reset(panel);
     expect(runtime.snapshot().state).toMatchObject({ seats: 2, annual: false });
@@ -121,7 +121,7 @@ describe('local-draft-1 examples', () => {
     const diagram = compiled('diagram');
     const diagramRuntime = createLocalRuntime(diagram);
     expect(diagramRuntime.set(node(diagram, 'selected'), 'compute')).toEqual([]);
-    expect(diagramRuntime.text('当前环节：{{ selected }}。')).toBe('当前环节：compute。');
+    expect(diagramRuntime.text('Current step: {{ selected }}.')).toBe('Current step: compute.');
     diagramRuntime.dispose();
   });
 
@@ -147,14 +147,26 @@ describe('local-draft-1 examples', () => {
       expect(diagnostic.range.end).toBeLessThanOrEqual(documents.diagnostics.length);
       expect(diagnostic.range.end).toBeGreaterThanOrEqual(diagnostic.range.start);
     }
-    const text = result.diagnostics.map((diagnostic) => `${diagnostic.code} ${diagnostic.message}`).join('\n');
-    expect(text).toMatch(/未声明的参数 seat\b/);
+    const codes = result.diagnostics.map((diagnostic) => diagnostic.code);
+    expect(new Set(codes)).toEqual(new Set([
+      'local.initial.duplicate',
+      'local.binding.unknown',
+      'local.initial.range',
+      'local.type',
+      'local.component.unknown',
+      'local.attribute.unknown',
+      'local.diagram.edge',
+      'local.math',
+      'local.chart.numeric',
+    ]));
+    const text = result.diagnostics.map((diagnostic) => diagnostic.message).join('\n');
+    expect(text).toMatch(/undeclared parameter seat\b/);
     expect(text).toMatch(/seats/);
     expect(text).toMatch(/ratio/);
-    expect(text).toMatch(/slidr|未知组件|unknown/i);
+    expect(text).toMatch(/slidr/i);
     expect(text).toMatch(/on-click/);
     expect(text).toMatch(/missing/);
-    expect(text).toMatch(/积分|\\int|int/i);
-    expect(text).toMatch(/20 元|数值/);
+    expect(text).toMatch(/\\int/);
+    expect(text).toMatch(/20 USD/);
   });
 });

@@ -465,7 +465,7 @@ const components: LocalComponentSchema[] = [
     label: 'none',
     props: {
       title: optionalTitle,
-      unit: { kind: 'string', default: '分钟' },
+      unit: { kind: 'string', default: 'minutes' },
     },
   },
   {

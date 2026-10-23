@@ -1,20 +1,20 @@
-# 在文档里查找组件
+# Find components in the document
 
-在表格的搜索框输入“视觉”“参数”或其他关键词。点击列名可以排序，分页控件用于翻页。
+Type "visual", "input" or another keyword into the search box above the table. Click a column name to sort, and use the paging controls to move between pages.
 
-<panel title="本地组件目录">
-<table label="组件目录" page-size="4">
-| 名称 | 分类 | 用途 |
+<panel title="Local component catalog">
+<table label="Component catalog" page-size="4">
+| Name | Category | Purpose |
 | --- | --- | --- |
-| slider | 参数 | 拖动调整数字 |
-| toggle | 参数 | 切换开关 |
-| choices | 参数 | 从几个方案中选择 |
-| chart | 视觉 | 把 Markdown 表格变成图表 |
-| plot | 视觉 | 使用 LaTeX 绘制函数 |
-| diagram | 视觉 | 点击节点探索说明 |
-| checklist | 内容 | 勾选完成事项 |
-| timer | 工具 | 开始、暂停和重置倒计时 |
+| slider | Input | Drag to adjust a number |
+| toggle | Input | Flip a switch |
+| choices | Input | Pick from a few options |
+| chart | Visual | Turn a Markdown table into a chart |
+| plot | Visual | Draw a function with LaTeX |
+| diagram | Visual | Select nodes to explore explanations |
+| checklist | Content | Tick off completed items |
+| timer | Utility | Start, pause and reset a countdown |
 </table>
 </panel>
 
-目录数据就在这份文档中。搜索时直接筛选表格内容，恢复默认会清空查询并回到原始顺序。
+The catalog data lives in this document. Searching filters the table directly, and restoring the defaults clears the query and returns to the original order.

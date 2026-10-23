@@ -1,44 +1,44 @@
-# 用内容组织交互
+# Organize interactions with content
 
-将鼠标移到 <tooltip text="输入改变后，相关文字和图表自动更新。">响应式绑定</tooltip>，或使用键盘聚焦查看说明。
+Hover over <tooltip text="When an input changes, the related text and charts update automatically.">reactive bindings</tooltip>, or focus it with the keyboard to read the explanation.
 
-<panel title="阅读偏好">
-<radio-group bind="preference" label="说明风格">
-<option value="concise">简洁</option>
-<option value="detailed">详细</option>
+<panel title="Reading preferences">
+<radio-group bind="preference" label="Explanation style">
+<option value="concise">Concise</option>
+<option value="detailed">Detailed</option>
 </radio-group>
 </panel>
 
 <if when="{{ preference == 'concise' }}">
-给输入命名，在正文中引用它。
+Name the input and reference it in the prose.
 </if>
 
 <if when="{{ preference == 'detailed' }}">
-用 `bind` 为输入参数命名，用 `{{ }}` 读取参数并计算结果。读者调整控件后，相关内容立即更新。
+Name an input parameter with `bind` and read it with `{{ }}` to compute results. When readers adjust a control, the related content updates immediately.
 </if>
 
-## 按自己的节奏阅读
+## Read at your own pace
 
-<accordion label="阅读顺序">
-<disclosure label="理解参数" open>
-找出读者可以改变的内容，例如人数、单价或振幅。
+<accordion label="Reading order">
+<disclosure label="Understand the parameters" open>
+Find what readers can change, such as headcount, unit price or amplitude.
 </disclosure>
 
-<disclosure label="写下关系">
-用算式连接输入和结果，例如 `{{ people * 100 }}`。
+<disclosure label="Write down the relationship">
+Connect inputs and results with an expression, for example `{{ people * 100 }}`.
 </disclosure>
 
-<disclosure label="选择展示方式">
-一句结果用正文，数据比较用图表，数学关系用函数曲线。
+<disclosure label="Choose how to present it">
+Use prose for a single result, charts for comparisons, and function curves for mathematical relationships.
 </disclosure>
 </accordion>
 
-<alert title="继续尝试">
-切换上方选项，观察说明文字的变化。
+<alert title="Keep exploring">
+Switch the option above and watch the explanation change.
 </alert>
 
-<badge tone="success">本地交互</badge>
+<badge tone="success">Local interaction</badge>
 
 ---
 
-> 标题、引用、链接和图片都沿用 Markdown。组件只负责需要交互的部分。
+> Headings, blockquotes, links and images still follow Markdown. Components only handle the parts that need interaction.

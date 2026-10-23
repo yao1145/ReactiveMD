@@ -181,7 +181,7 @@ describe('plot work budgets', () => {
   it('fails closed when a plot supplies more than sixteen curves', () => {
     const runtime = createRuntime();
     const html = mountVisual(plotNode('too-many-curves', 17, 10), runtime);
-    expect(html).toContain('最多支持 16 条曲线');
+    expect(html).toContain('plot supports at most 16 curves');
     expect(html).not.toContain('<svg');
   });
 

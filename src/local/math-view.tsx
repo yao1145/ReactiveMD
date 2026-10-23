@@ -52,12 +52,12 @@ function boundedLiteral(source: string): string {
 
 function tokenize(source: string): Token[] {
   if (source.length > MAX_SOURCE) {
-    throw new Error('数学源码超过长度上限。');
+    throw new Error('Math source exceeds the length limit.');
   }
   const tokens: Token[] = [];
   const push = (token: Token): void => {
     if (tokens.length >= MAX_TOKENS) {
-      throw new Error('数学输入包含过多记号。');
+      throw new Error('Math input contains too many tokens.');
     }
     tokens.push(token);
   };
@@ -190,7 +190,7 @@ class MathRenderer {
     this.depth += 1;
     if (this.depth > MAX_DEPTH) {
       this.depth -= 1;
-      throw new Error('数学公式嵌套过深。');
+      throw new Error('Formula is nested too deeply.');
     }
   }
 

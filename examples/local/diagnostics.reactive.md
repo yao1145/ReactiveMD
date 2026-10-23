@@ -1,54 +1,54 @@
-# 诊断示例
+# Diagnostics example
 
-这份文档故意保留错误，用于检查诊断提示。正确示例请从同目录的其他文档开始。
+This document intentionally keeps errors to exercise the diagnostic messages. Start with the other documents in this folder for correct examples.
 
-## 引用拼错的参数名
+## Reference to a misspelled parameter name
 
-<slider bind="seats" label="人数" initial="2" min="1" max="20">
+<slider bind="seats" label="People" initial="2" min="1" max="20">
 
-当前人数：{{ seat }}。
+Current headcount: {{ seat }}.
 
-## 重复声明初值
+## Duplicate initial declaration
 
-<number bind="seats" label="另一处人数输入" initial="3" min="1" max="20">
+<number bind="seats" label="Another headcount input" initial="3" min="1" max="20">
 
-## 超出范围的初值
+## Initial value out of range
 
-<slider bind="ratio" label="比例" initial="12" min="0" max="10">
+<slider bind="ratio" label="Ratio" initial="12" min="0" max="10">
 
-## 条件类型错误
+## Condition type error
 
 <if when="{{ seats }}">
-这里需要布尔条件，例如 seats 大于 5。
+This needs a boolean condition, such as seats greater than 5.
 </if>
 
-## 未知标签
+## Unknown tag
 
-<slidr label="拼错的滑块" />
+<slidr label="Misspelled slider" />
 
-## 不属于本地交互语言的事件
+## Event outside the local interaction language
 
-<counter label="计数" on-click="increment">
+<counter label="Counter" on-click="increment">
 
-## 缺少节点
+## Missing node
 
-<diagram label="错误连线">
-<node id="input" label="输入">
-只有这一个节点。
+<diagram label="Broken edge">
+<node id="input" label="Input">
+This is the only node.
 </node>
 <edge from="input" to="missing">
 </diagram>
 
-## 不支持计算的数学结构
+## Unsupported math structure
 
-<plot label="积分计算尚不属于绘图语法">
+<plot label="Integrals are not part of the plot grammar">
 $$ y = \int_0^x t^2\,dt $$
 </plot>
 
-## 无效的图表数据
+## Invalid chart data
 
-<chart title="数值列中混入了单位">
-| 项目 | 费用 |
+<chart title="Units mixed into a numeric column">
+| Item | Cost |
 | --- | ---: |
-| 内容 | 20 元 |
+| Content | 20 USD |
 </chart>

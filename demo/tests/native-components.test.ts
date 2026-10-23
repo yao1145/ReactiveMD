@@ -13,7 +13,7 @@ const BIND_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /** Resolve toolbar-only tokens the way `insertTemplate` would in the editor. */
 function fillInsertTokens(template: string): string {
   return template
-    .replace(/\{\{selection(?::[^{}]*)?\}\}/g, '示例内容')
+    .replace(/\{\{selection(?::[^{}]*)?\}\}/g, 'Sample content')
     .replace(/\{\{select:([^{}]*)\}\}/g, '$1')
     .replace(/\{\{caret\}\}/g, '');
 }
@@ -37,7 +37,7 @@ function expectCompiles(component: NativeComponentDefinition): void {
     const diagnostics = result.diagnostics
       .map((item) => `  ${item.line}:${item.column} [${item.code}] ${item.message}`)
       .join('\n');
-    throw new Error(`组件 ${component.id} 的模板无法编译：\n${snippet}\n${diagnostics}`);
+    throw new Error(`Template for component ${component.id} failed to compile:\n${snippet}\n${diagnostics}`);
   }
   expect(result.ok).toBe(true);
   expect(result.document.nodes.length).toBeGreaterThan(0);
@@ -94,13 +94,13 @@ describe('renderNativeSnippet bind names', () => {
   it('avoids an existing bind and increments suffixes', () => {
     const slider = componentById('slider');
 
-    const first = renderNativeSnippet(slider, '<slider bind="amount" label="已有滑块">');
+    const first = renderNativeSnippet(slider, '<slider bind="amount" label="Existing slider">');
     expect(first).toContain('bind="amount2"');
     expect(renderedBind(first)).toMatch(BIND_NAME);
 
     const second = renderNativeSnippet(
       slider,
-      '<slider bind="amount" label="已有滑块">\n当前值：{{ amount2 }}。',
+      '<slider bind="amount" label="Existing slider">\nCurrent value: {{ amount2 }}.',
     );
     expect(second).toContain('bind="amount3"');
     expect(renderedBind(second)).toMatch(BIND_NAME);
@@ -109,12 +109,12 @@ describe('renderNativeSnippet bind names', () => {
   it('avoids plain identifiers used in the document', () => {
     const slider = componentById('slider');
 
-    const prose = renderNativeSnippet(slider, '正文提到 amount 这个普通标识符。');
+    const prose = renderNativeSnippet(slider, 'The prose mentions the ordinary identifier amount.');
     expect(prose).toContain('bind="amount2"');
 
     const crowded = renderNativeSnippet(
       slider,
-      '正文提到 amount、amount2 和 amount3 这些标识符。',
+      'The prose mentions the identifiers amount, amount2 and amount3.',
     );
     expect(crowded).toContain('bind="amount4"');
     expect(renderedBind(crowded)).toMatch(BIND_NAME);

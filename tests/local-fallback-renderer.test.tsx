@@ -128,7 +128,7 @@ describe('fallback source rendering', () => {
     expect(html).toContain('示例卡片');
     expect(text).toContain('卡片正文');
     expect(html).toContain('计数');
-    expect(html).toContain('aria-label="计数 增加"');
+    expect(html).toContain('aria-label="计数 increase"');
 
     const pieces = fallbackMarkup(html);
     expect(pieces.length).toBeGreaterThan(0);

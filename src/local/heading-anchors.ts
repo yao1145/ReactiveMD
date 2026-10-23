@@ -16,10 +16,10 @@ function headingText(nodes: LocalNode[] | undefined, initialState: Record<string
       case 'interpolation':
         try {
           const value = compileExpression(node.value ?? '').evaluate(initialState);
-          if (Array.isArray(value)) return '无法计算';
+          if (Array.isArray(value)) return 'Cannot compute';
           return value === null ? '' : String(value);
         } catch {
-          return '无法计算';
+          return 'Cannot compute';
         }
       default:
         return headingText(node.children, initialState);

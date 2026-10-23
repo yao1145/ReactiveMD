@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 210" role="img" aria-label="输入、计算与视图">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 210" role="img" aria-label="Input, compute and view">
   <rect width="720" height="210" rx="18" fill="#edf2ff"/>
   <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#365cf5" stroke-width="1.5"/></marker></defs>
   <g stroke="#365cf5" stroke-width="3" fill="none" marker-end="url(#arrow)"><path d="M190 105H280"/><path d="M440 105H530"/></g>
   <g fill="white" stroke="#b7c7f2" stroke-width="2"><rect x="30" y="55" width="160" height="100" rx="14"/><rect x="280" y="55" width="160" height="100" rx="14"/><rect x="530" y="55" width="160" height="100" rx="14"/></g>
-  <g font-family="system-ui,sans-serif" font-size="25" font-weight="600" fill="#17233d" text-anchor="middle"><text x="110" y="115">输入</text><text x="360" y="115">计算</text><text x="610" y="115">视图</text></g>
+  <g font-family="system-ui,sans-serif" font-size="25" font-weight="600" fill="#17233d" text-anchor="middle"><text x="110" y="115">Input</text><text x="360" y="115">Compute</text><text x="610" y="115">View</text></g>
 </svg>

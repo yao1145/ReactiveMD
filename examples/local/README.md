@@ -1,66 +1,66 @@
-# 本地交互语法 Demo
+# Local interaction syntax demo
 
-这些文件是 `local-draft-1` 的完整作者示例，对应 [本地交互语法规范](../../docs/local-interaction-syntax.md)。第一次接触语法时，先读 [新用户入门指南](../../docs/local-guide.md)。Playground 直接加载本目录；宿主通过 [本地模式 API](../../docs/local-integration.md) 编译和渲染。
+These files are the complete authoring examples for `local-draft-1` and correspond to the [local interaction syntax specification](../../docs/local-interaction-syntax-en.md). If you are new to the syntax, read the [new user guide](../../docs/local-guide-en.md) first. The Playground loads this directory directly; hosts compile and render it through the [local mode API](../../docs/local-integration-en.md).
 
-本目录有 11 份正常示例、1 份故意含错的诊断示例。每份文件独立使用，不共享参数。正常示例均没有 YAML 配置、命名动作、事件处理或外部调用。
+This directory contains eleven working examples and one intentionally broken diagnostics example. Each file is used on its own and shares no parameters. None of the working examples use YAML configuration, named actions, event handlers or external calls.
 
-## 从短示例开始
+## Start with the short examples
 
-建议先看 [计数器](counter.reactive.md)、[方案计算器](pricing.reactive.md) 和 [交互图解](diagram.reactive.md)，再看较长的图表与参数面板。日常写作只需用到其中少数组件。
+We suggest reading the [counter](counter.reactive.md), [plan calculator](pricing.reactive.md) and [interactive diagram](diagram.reactive.md) first, then the longer charts and parameter panels. Everyday writing uses only a few of these components.
 
-## 完整目录
+## Full catalog
 
-| 文件 | 内容 |
+| File | Contents |
 | --- | --- |
-| [counter.reactive.md](counter.reactive.md) | 一行计数器，自带加、减和重置 |
-| [pricing.reactive.md](pricing.reactive.md) | 方案计算器，面板内参数联动 |
-| [comparison.reactive.md](comparison.reactive.md) | 并排比较，开关就地声明，标签页内部管理选择 |
-| [parameters.reactive.md](parameters.reactive.md) | 实时参数面板，含输入、日期和选择器 |
-| [checklist.reactive.md](checklist.reactive.md) | 固定可勾选清单与增强表格 |
-| [charts.reactive.md](charts.reactive.md) | 表格生成图表，复利公式使用 LaTeX |
-| [diagram.reactive.md](diagram.reactive.md) | 自动布局的交互图解与曲线 |
-| [catalog.reactive.md](catalog.reactive.md) | 本地目录搜索、排序和分页 |
-| [planning.reactive.md](planning.reactive.md) | 时间轴、计时器与分账计算 |
-| [components.reactive.md](components.reactive.md) | 内容卡片、折叠、标签页与提示组件 |
-| [gallery.reactive.md](gallery.reactive.md) | 常用输入、独立组件和原样代码 |
-| [diagnostics.reactive.md](diagnostics.reactive.md) | 故意含错的诊断示例 |
+| [counter.reactive.md](counter.reactive.md) | One-line counter with built-in plus, minus and reset |
+| [pricing.reactive.md](pricing.reactive.md) | Plan calculator with parameters linked inside a panel |
+| [comparison.reactive.md](comparison.reactive.md) | Side-by-side comparison, a switch declared in place, tabs that manage their own selection |
+| [parameters.reactive.md](parameters.reactive.md) | Live parameter panel with text, date and choice inputs |
+| [checklist.reactive.md](checklist.reactive.md) | Fixed checkable list and an enhanced table |
+| [charts.reactive.md](charts.reactive.md) | Charts built from tables, with a compound-interest formula in LaTeX |
+| [diagram.reactive.md](diagram.reactive.md) | Auto-laid-out interactive diagram and curves |
+| [catalog.reactive.md](catalog.reactive.md) | Local catalog search, sorting and paging |
+| [planning.reactive.md](planning.reactive.md) | Timeline, timer and bill-splitting calculation |
+| [components.reactive.md](components.reactive.md) | Content cards, disclosures, tabs and hint components |
+| [gallery.reactive.md](gallery.reactive.md) | Common inputs, standalone components and code shown as-is |
+| [diagnostics.reactive.md](diagnostics.reactive.md) | Intentionally broken diagnostics example |
 
-Playground 的示例索引位于仓库中的 [demo/src/examples.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/src/examples.ts)。
+The Playground example index lives in the repository at [demo/src/examples.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/src/examples.ts).
 
-## 正常示例的预期行为
+## Expected behavior of the working examples
 
-下表列出每份文档的初值与交互验收点。数值按正文公式计算。
+The table below lists the initial values and interaction checkpoints for each document. Numbers follow the formulas in the prose.
 
-| 示例 | 初始显示 | 交互检查 |
+| Example | Initial display | Interaction checks |
 | --- | --- | --- |
-| comparison | 基础 100 元，专业 200 元 | 开启年度付款变为 80/160；切换标签页不用声明变量；恢复默认回到月付 |
-| parameters | 日期 2026-10-22，个人使用，称呼未填 | 输入称呼更新卡片；选择团队更新说明；勾选开关显示准备清单；面板重置恢复字段和开关 |
-| checklist | 1/3 项，进度约 33.33% | 全选后显示完成提示；重置恢复仅第一项勾选；表格按价格排序、搜索和分页 |
-| charts | 4 组预算比较；储蓄参数 10000、500、5%、20 年；方案柱高 40/70 | 利率调为 0 时曲线末端读数 130000；默认复利末端读数约 232643.24；人数调为 5 时柱高 100/175 |
-| diagram | 选中输入节点，a=1、f=1 | 点击计算节点更新详情和正文；a=0 时曲线变平并出现提示；两条固定曲线同时显示 |
-| catalog | 8 行目录，每页 4 行 | 搜索“视觉”得到 chart/plot/diagram；无匹配显示空态；恢复默认清空查询、排序和页码 |
-| planning | 45 分钟时间轴，倒计时暂停在 60 秒，每人 88 元 | timer 开始/暂停/重置；额外费用改为 0 时每人 80 元；开始 15 的参考任务与主体时间重叠 |
-| components | 简洁说明，首个折叠项展开 | 选择详细后切换正文；提示可用键盘聚焦；其他折叠项独立展开 |
-| pricing | 2 人，每人 100 元，合计 200 元 | 年付后 160 元；年付 5 人为 400 元且显示团队提示；重置回到 200 元 |
-| counter | 0 | 连续加三次显示 3；减三次回到 0 后禁用减号；重置回到 0 |
-| gallery | 小林、数量 3、专业版、月付，费用 240 元 | 年付后 192 元；加急区隐藏再出现保留勾选；独立计数器和计时器无需 bind；代码中的 example 不生成变量 |
+| comparison | Basic 100 USD, Pro 200 USD | Annual billing changes them to 80/160; switching tabs needs no declared variable; reset returns to monthly billing |
+| parameters | Date 2026-10-22, personal use, name empty | Entering a name updates the card; selecting team use updates the description; checking the switch shows the preparation checklist; panel reset restores fields and switches |
+| checklist | 1/3 items, progress about 33.33% | Selecting all shows the completion notice; reset restores only the first item; the table sorts by price, searches and pages |
+| charts | 4 budget comparisons; savings parameters 10000, 500, 5%, 20 years; plan bars 40/70 | With the rate at 0 the end-of-curve readout is 130000; the default compound readout is about 232643.24; with 5 people the bars are 100/175 |
+| diagram | Input node selected, a=1, f=1 | Clicking the compute node updates the details and prose; at a=0 the curve flattens and a notice appears; both fixed curves are shown together |
+| catalog | 8 catalog rows, 4 rows per page | Searching for "visual" returns chart/plot/diagram; no match shows the empty state; reset clears the query, sorting and page |
+| planning | 45-minute timeline, countdown paused at 60 seconds, 88 USD per person | timer start/pause/reset; with the extra charge at 0 each person pays 80 USD; the reference task starting at 15 overlaps the main section |
+| components | Concise explanation, first disclosure open | Selecting detailed switches the prose; the tooltip is keyboard-focusable; other disclosures open independently |
+| pricing | 2 people, 100 USD each, 200 USD total | Annual billing gives 160 USD; annual billing for 5 people is 400 USD and shows the team notice; reset returns to 200 USD |
+| counter | 0 | Three increments show 3; three decrements return to 0 and disable minus; reset returns to 0 |
+| gallery | Alex, quantity 3, Pro, monthly billing, cost 240 USD | Annual billing gives 192 USD; hiding and showing the express section keeps its checks; the standalone counter and timer need no bind; `example` in the code block creates no variable |
 
-parameters 中条件清单位于面板外：它的已有勾选在隐藏后保留，不属于该面板的重置范围。gallery 的独立计数器与计时器也位于输入面板外，输入面板重置不影响它们。
+In parameters, the conditional checklist sits outside the panel: its existing checks survive hiding and are outside that panel's reset scope. The standalone counter and timer in gallery also sit outside the input panel, so resetting the input panel does not affect them.
 
-## 诊断示例的预期结果
+## Expected results of the diagnostics example
 
-[diagnostics.reactive.md](diagnostics.reactive.md) 故意包含以下 9 类错误。编辑器应收集可恢复的独立诊断，文件整体不能激活交互。
+[diagnostics.reactive.md](diagnostics.reactive.md) intentionally contains the following 9 error classes. The editor should collect recoverable, independent diagnostics, and the document as a whole must not activate interactions.
 
-1. `seat` 未声明，可提示已有参数 `seats`。
-2. `seats` 的显式 initial 重复，指出两处来源。
-3. `ratio` 初值 12 超过最大值 10。
-4. if.when 的 `seats` 为数字，要求布尔值。
-5. `slidr` 是未知组件，可提示 slider。
-6. `on-click` 不属于 counter，也不属于本地交互事件语法。
-7. edge 的目标 `missing` 不存在。
-8. 积分可以显示，但不属于首版绘图的可计算结构。
-9. 图表费用列的 `20 元` 是文本，需要纯数值。
+1. `seat` is not declared; the message can suggest the existing parameter `seats`.
+2. `seats` has a duplicate explicit initial; both sources are reported.
+3. `ratio` has initial value 12, above the maximum 10.
+4. if.when receives `seats`, a number, where a boolean is required.
+5. `slidr` is an unknown component; the message can suggest `slider`.
+6. `on-click` is not part of counter or the local interaction event syntax.
+7. The edge target `missing` does not exist.
+8. The integral can be displayed but is not a computable structure in the first plot version.
+9. The chart's cost column contains `20 USD`, text where a plain number is required.
 
-## 检查入口
+## Check entry points
 
-`npm test` 检查解析、绑定、表达式、LaTeX、运行时和示例；`npm run test:demo` 检查 Playground 索引；启动应用后用 `npm run test:browser` 检查实际交互。`npm run test:docs` 检查文档链接。实际运行结果见[仓库实现说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/IMPLEMENTATION.md)。
+`npm test` checks parsing, bindings, expressions, LaTeX, the runtime and examples; `npm run test:demo` checks the Playground index; after starting the app, `npm run test:browser` checks real interactions. `npm run test:docs` checks documentation links. See the [repository implementation notes](https://github.com/yao1145/ReactiveMD/blob/main/demo/IMPLEMENTATION.md) for actual run results.

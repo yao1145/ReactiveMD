@@ -101,13 +101,13 @@ const EMOJIS = [
 ] as const;
 
 const HEADING_ITEMS: readonly { level: HeadingLevel; label: string; sample: string }[] = [
-  { level: 0, label: '正文', sample: '¶' },
-  { level: 1, label: '标题 1', sample: 'H1' },
-  { level: 2, label: '标题 2', sample: 'H2' },
-  { level: 3, label: '标题 3', sample: 'H3' },
-  { level: 4, label: '标题 4', sample: 'H4' },
-  { level: 5, label: '标题 5', sample: 'H5' },
-  { level: 6, label: '标题 6', sample: 'H6' },
+  { level: 0, label: 'Body', sample: '¶' },
+  { level: 1, label: 'Heading 1', sample: 'H1' },
+  { level: 2, label: 'Heading 2', sample: 'H2' },
+  { level: 3, label: 'Heading 3', sample: 'H3' },
+  { level: 4, label: 'Heading 4', sample: 'H4' },
+  { level: 5, label: 'Heading 5', sample: 'H5' },
+  { level: 6, label: 'Heading 6', sample: 'H6' },
 ];
 
 interface ListOption {
@@ -118,14 +118,14 @@ interface ListOption {
 }
 
 const LIST_OPTIONS: readonly ListOption[] = [
-  { type: 'bullet', label: '无序列表', icon: 'bulletList', command: formatBulletList },
-  { type: 'ordered', label: '有序列表', icon: 'orderedList', command: formatOrderedList },
-  { type: 'task', label: '任务列表', icon: 'taskList', command: formatTaskList },
+  { type: 'bullet', label: 'Bullet list', icon: 'bulletList', command: formatBulletList },
+  { type: 'ordered', label: 'Numbered list', icon: 'orderedList', command: formatOrderedList },
+  { type: 'task', label: 'Task list', icon: 'taskList', command: formatTaskList },
 ];
 
 const LIST_ACTIONS: readonly { label: string; icon: IconName; command: SimpleCommand }[] = [
-  { label: '减少缩进', icon: 'outdent', command: outdentSelection },
-  { label: '增加缩进', icon: 'indent', command: indentSelection },
+  { label: 'Decrease indent', icon: 'outdent', command: outdentSelection },
+  { label: 'Increase indent', icon: 'indent', command: indentSelection },
 ];
 
 interface InsertItem {
@@ -135,19 +135,19 @@ interface InsertItem {
 }
 
 const INSERT_ITEMS: readonly InsertItem[] = [
-  { label: '图片', icon: 'image', command: insertImage },
-  { label: '表格', icon: 'table', command: insertTable },
-  { label: '分隔线', icon: 'divider', command: insertDivider },
-  { label: '代码块', icon: 'codeBlock', command: insertCodeBlock },
-  { label: '行内代码', icon: 'inlineCode', command: formatInlineCode },
-  { label: '删除线', icon: 'strike', command: formatStrike },
-  { label: '引用', icon: 'quote', command: formatQuote },
+  { label: 'Image', icon: 'image', command: insertImage },
+  { label: 'Table', icon: 'table', command: insertTable },
+  { label: 'Divider', icon: 'divider', command: insertDivider },
+  { label: 'Code block', icon: 'codeBlock', command: insertCodeBlock },
+  { label: 'Inline code', icon: 'inlineCode', command: formatInlineCode },
+  { label: 'Strikethrough', icon: 'strike', command: formatStrike },
+  { label: 'Quote', icon: 'quote', command: formatQuote },
 ];
 
 const LIST_TYPE_LABELS: Record<ListOption['type'], string> = {
-  bullet: '无序列表',
-  ordered: '有序列表',
-  task: '任务列表',
+  bullet: 'Bullet list',
+  ordered: 'Numbered list',
+  task: 'Task list',
 };
 
 const MOBILE_MENU_WIDTHS: Partial<Record<MenuId, number>> = {
@@ -851,11 +851,11 @@ export function EditorToolbar({
   };
 
   const headingLabel =
-    HEADING_ITEMS.find((item) => item.level === formatState.headingLevel)?.label ?? '正文';
+    HEADING_ITEMS.find((item) => item.level === formatState.headingLevel)?.label ?? 'Body';
   const headingCompactLabel = formatState.headingLevel === 0 ? '¶' : `H${formatState.headingLevel}`;
-  const headingLabelText = `标题级别：${headingLabel}`;
+  const headingLabelText = `Heading level: ${headingLabel}`;
   const currentListLabel = formatState.list ? LIST_TYPE_LABELS[formatState.list] : null;
-  const listLabel = currentListLabel ? `列表：${currentListLabel}` : '列表';
+  const listLabel = currentListLabel ? `List: ${currentListLabel}` : 'List';
   const listIcon: IconName =
     formatState.list === 'ordered'
       ? 'orderedList'
@@ -867,7 +867,7 @@ export function EditorToolbar({
     <div
       className={`editor-toolbar${openMenu ? ' is-menu-open' : ''}`}
       role="toolbar"
-      aria-label="文档编辑工具栏"
+      aria-label="Document editing toolbar"
       aria-orientation="horizontal"
       ref={rootRef}
       onKeyDown={handleToolbarKeyDown}
@@ -903,7 +903,7 @@ export function EditorToolbar({
             ref={menuPanelRef}
             className="editor-toolbar-popover editor-toolbar-heading-menu"
             role="menu"
-            aria-label="标题级别"
+            aria-label="Heading level"
             style={menuPlacement ?? undefined}
             onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
           >
@@ -933,7 +933,7 @@ export function EditorToolbar({
 
       <ToolbarButton
         toolbarId="bold"
-        label="加粗"
+        label="Bold"
         tabStop={tabStopId === 'bold'}
         onFocus={() => setTabStopId('bold')}
         onClick={() => applySimple(formatBold)}
@@ -944,7 +944,7 @@ export function EditorToolbar({
       </ToolbarButton>
       <ToolbarButton
         toolbarId="italic"
-        label="斜体"
+        label="Italic"
         tabStop={tabStopId === 'italic'}
         onFocus={() => setTabStopId('italic')}
         onClick={() => applySimple(formatItalic)}
@@ -977,7 +977,7 @@ export function EditorToolbar({
             ref={menuPanelRef}
             className="editor-toolbar-popover editor-toolbar-list-menu"
             role="menu"
-            aria-label="列表"
+            aria-label="List"
             style={menuPlacement ?? undefined}
             onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
           >
@@ -1017,7 +1017,7 @@ export function EditorToolbar({
 
       <ToolbarButton
         toolbarId="link"
-        label="插入链接"
+        label="Insert link"
         className="editor-toolbar-desktop-only"
         tabStop={tabStopId === 'link'}
         onFocus={() => setTabStopId('link')}
@@ -1029,7 +1029,7 @@ export function EditorToolbar({
       <div className="editor-toolbar-slot">
         <ToolbarButton
           toolbarId="insert"
-          label="插入"
+          label="Insert"
           className="editor-toolbar-insert-trigger"
           tabStop={tabStopId === 'insert'}
           onFocus={() => setTabStopId('insert')}
@@ -1040,7 +1040,7 @@ export function EditorToolbar({
           onKeyDown={(event) => handleTriggerKeyDown('insert', event)}
         >
           <Icon name="plus" />
-          <span className="editor-toolbar-insert-label">插入</span>
+          <span className="editor-toolbar-insert-label">Insert</span>
           <Icon name="chevron" className="editor-toolbar-chevron" />
         </ToolbarButton>
         {openMenu === 'insert' ? (
@@ -1049,7 +1049,7 @@ export function EditorToolbar({
             ref={menuPanelRef}
             className="editor-toolbar-popover editor-toolbar-insert-menu"
             role="menu"
-            aria-label="插入内容"
+            aria-label="Insert content"
             style={menuPlacement ?? undefined}
             onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
           >
@@ -1076,7 +1076,7 @@ export function EditorToolbar({
               onClick={() => setOpenMenu('emoji')}
             >
               <Icon name="smile" className="editor-toolbar-menu-icon" />
-              <span>表情</span>
+              <span>Emoji</span>
             </button>
           </div>
         ) : null}
@@ -1086,7 +1086,7 @@ export function EditorToolbar({
             ref={menuPanelRef}
             className="editor-toolbar-popover editor-toolbar-emoji-menu"
             role="menu"
-            aria-label="插入表情"
+            aria-label="Insert emoji"
             onKeyDown={(event) => moveEmojiFocus(event, emojiGridRef.current)}
           >
             <div className="editor-toolbar-emoji-grid" ref={emojiGridRef}>
@@ -1097,7 +1097,7 @@ export function EditorToolbar({
                   role="menuitem"
                   tabIndex={-1}
                   className="editor-toolbar-emoji"
-                  aria-label={`插入表情 ${emoji}`}
+                  aria-label={`Insert emoji ${emoji}`}
                   onMouseDown={keepEditorFocus}
                   onClick={() => applyEmoji(emoji)}
                 >
@@ -1112,7 +1112,7 @@ export function EditorToolbar({
       <div className="editor-toolbar-slot editor-toolbar-slot-native">
         <ToolbarButton
           toolbarId="components"
-          label="插入原生组件"
+          label="Insert native component"
           className="editor-toolbar-components-trigger"
           tabStop={tabStopId === 'components'}
           onFocus={() => setTabStopId('components')}
@@ -1123,7 +1123,8 @@ export function EditorToolbar({
           onKeyDown={(event) => handleTriggerKeyDown('native', event)}
         >
           <Icon name="sparkle" />
-          <span className="editor-toolbar-components-label">插入组件</span>
+          <span className="editor-toolbar-components-label editor-toolbar-components-label-full">Components</span>
+          <span className="editor-toolbar-components-label editor-toolbar-components-label-compact">Add</span>
         </ToolbarButton>
         {openMenu === 'native' ? (
           <div
@@ -1131,15 +1132,15 @@ export function EditorToolbar({
             ref={menuPanelRef}
             className="editor-toolbar-popover editor-toolbar-native-menu"
             role="dialog"
-            aria-label="插入原生组件"
+            aria-label="Insert native component"
             onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
           >
             <div className="editor-toolbar-native-head">
-              <span className="editor-toolbar-native-title">插入组件</span>
+              <span className="editor-toolbar-native-title">Insert component</span>
               <button
                 type="button"
                 className="editor-toolbar-close"
-                aria-label="关闭组件面板"
+                aria-label="Close component panel"
                 onMouseDown={keepEditorFocus}
                 onClick={closeNativePicker}
               >
@@ -1153,16 +1154,16 @@ export function EditorToolbar({
                 type="search"
                 className="editor-toolbar-search-input"
                 value={query}
-                placeholder="搜索组件、说明或关键词"
-                aria-label="搜索原生组件"
+                placeholder="Search components, descriptions or keywords"
+                aria-label="Search native components"
                 autoComplete="off"
                 spellCheck={false}
                 onChange={(event) => setQuery(event.target.value)}
               />
             </div>
-            <div className="editor-toolbar-native-scroll" role="menu" aria-label="原生组件列表">
+            <div className="editor-toolbar-native-scroll" role="menu" aria-label="Native component list">
               {filteredGroups.length === 0 ? (
-                <p className="editor-toolbar-menu-empty">没有匹配的组件</p>
+                <p className="editor-toolbar-menu-empty">No matching components</p>
               ) : (
                 filteredGroups.map(({ group, components }) => (
                   <div
@@ -1188,7 +1189,7 @@ export function EditorToolbar({
                           <span className="editor-toolbar-native-label">
                             {component.label}
                             {component.inline ? (
-                              <span className="editor-toolbar-native-badge">行内</span>
+                              <span className="editor-toolbar-native-badge">Inline</span>
                             ) : null}
                           </span>
                           <span className="editor-toolbar-native-description">
@@ -1206,10 +1207,10 @@ export function EditorToolbar({
         ) : null}
       </div>
 
-      <div className="editor-toolbar-history" role="group" aria-label="历史与导出">
+      <div className="editor-toolbar-history" role="group" aria-label="History and export">
         <ToolbarButton
           toolbarId="undo"
-          label="撤销"
+          label="Undo"
           className="editor-toolbar-desktop-only"
           tabStop={tabStopId === 'undo'}
           onFocus={() => setTabStopId('undo')}
@@ -1220,7 +1221,7 @@ export function EditorToolbar({
         </ToolbarButton>
         <ToolbarButton
           toolbarId="redo"
-          label="重做"
+          label="Redo"
           className="editor-toolbar-desktop-only"
           tabStop={tabStopId === 'redo'}
           onFocus={() => setTabStopId('redo')}
@@ -1231,7 +1232,7 @@ export function EditorToolbar({
         </ToolbarButton>
         <ToolbarButton
           toolbarId="download"
-          label="下载文档"
+          label="Download document"
           className="editor-toolbar-desktop-only"
           tabStop={tabStopId === 'download'}
           onFocus={() => setTabStopId('download')}
@@ -1243,7 +1244,7 @@ export function EditorToolbar({
         <div className="editor-toolbar-slot editor-toolbar-mobile-only">
           <ToolbarButton
             toolbarId="more"
-            label="更多"
+            label="More"
             className="editor-toolbar-more-trigger"
             tabStop={tabStopId === 'more'}
             onFocus={() => setTabStopId('more')}
@@ -1261,7 +1262,7 @@ export function EditorToolbar({
               ref={menuPanelRef}
               className="editor-toolbar-popover editor-toolbar-more-menu"
               role="menu"
-              aria-label="更多操作"
+              aria-label="More actions"
               style={menuPlacement ?? undefined}
               onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
             >
@@ -1274,7 +1275,7 @@ export function EditorToolbar({
                 onClick={() => applySimple(insertLink)}
               >
                 <Icon name="link" className="editor-toolbar-menu-icon" />
-                <span>链接</span>
+                <span>Link</span>
               </button>
               <button
                 type="button"
@@ -1286,7 +1287,7 @@ export function EditorToolbar({
                 onClick={handleUndo}
               >
                 <Icon name="undo" className="editor-toolbar-menu-icon" />
-                <span>撤销</span>
+                <span>Undo</span>
               </button>
               <button
                 type="button"
@@ -1298,7 +1299,7 @@ export function EditorToolbar({
                 onClick={handleRedo}
               >
                 <Icon name="redo" className="editor-toolbar-menu-icon" />
-                <span>重做</span>
+                <span>Redo</span>
               </button>
               <button
                 type="button"
@@ -1309,7 +1310,7 @@ export function EditorToolbar({
                 onClick={handleExport}
               >
                 <Icon name="download" className="editor-toolbar-menu-icon" />
-                <span>下载文档</span>
+                <span>Download document</span>
               </button>
             </div>
           ) : null}

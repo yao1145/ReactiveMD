@@ -1,32 +1,32 @@
-# 用清单组织体验过程
+# Organize a walkthrough with a checklist
 
-<panel title="体验清单">
-<checklist bind="done" label="完成这些操作">
-- [x] 读懂源文档
-- [ ] 调整参数并观察结果
-- [ ] 在手机宽度试用
+<panel title="Walkthrough checklist">
+<checklist bind="done" label="Complete these steps">
+- [x] Read the source document
+- [ ] Adjust parameters and watch the results
+- [ ] Try it at phone width
 </checklist>
 
-已完成 **{{ len(done) }} / 3** 项。
+Done: **{{ len(done) }} / 3**.
 
-<progress label="完成进度" value="{{ len(done) / 3 * 100 }}">
+<progress label="Completion" value="{{ len(done) / 3 * 100 }}">
 
 <if when="{{ len(done) == 3 }}">
-<alert tone="success" title="体验完成">
-你已经看过源码、试过交互，也检查了窄屏效果。
+<alert tone="success" title="Walkthrough complete">
+You have read the source, tried the interactions and checked the narrow layout.
 </alert>
 </if>
 </panel>
 
-## 搜索、排序和分页
+## Search, sorting and paging
 
-<table label="组件费用示例" page-size="3">
-| 名称 | 分类 | 价格 |
+<table label="Component price examples" page-size="3">
+| Name | Category | Price |
 | --- | --- | ---: |
-| 文档 | 基础 | 20 |
-| 参数面板 | 输入 | 45 |
-| 图表 | 视觉 | 80 |
-| 图解 | 视觉 | 65 |
-| 清单 | 基础 | 30 |
-| 计划 | 工具 | 35 |
+| Document | Basic | 20 |
+| Parameter panel | Input | 45 |
+| Chart | Visual | 80 |
+| Diagram | Visual | 65 |
+| Checklist | Basic | 30 |
+| Plan | Utility | 35 |
 </table>

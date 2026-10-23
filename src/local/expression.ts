@@ -77,22 +77,22 @@ const CACHE_LIMIT = 500;
 export function localValueBudgetError(value: LocalValue): string | null {
   if (typeof value === 'string') {
     return value.length > MAX_LOCAL_STRING_LENGTH
-      ? `字符串超过 ${MAX_LOCAL_STRING_LENGTH} 字符上限。`
+      ? `String exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`
       : null;
   }
   if (Array.isArray(value)) {
     if (value.length > MAX_LOCAL_ARRAY_LENGTH) {
-      return `数组超过 ${MAX_LOCAL_ARRAY_LENGTH} 项上限。`;
+      return `Array exceeds the ${MAX_LOCAL_ARRAY_LENGTH}-item limit.`;
     }
     let characters = 0;
     for (const item of value) {
       if (typeof item !== 'string') continue;
       if (item.length > MAX_LOCAL_STRING_LENGTH) {
-        return `数组成员超过 ${MAX_LOCAL_STRING_LENGTH} 字符上限。`;
+        return `Array member exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`;
       }
       characters += item.length;
       if (characters > MAX_LOCAL_VALUE_CHARACTERS) {
-        return `数组内容超过 ${MAX_LOCAL_VALUE_CHARACTERS} 字符上限。`;
+        return `Array contents exceed the ${MAX_LOCAL_VALUE_CHARACTERS}-character limit.`;
       }
     }
   }
@@ -128,11 +128,11 @@ function lex(source: string): Token[] {
 
     if ((char >= '0' && char <= '9') || (char === '.' && /[0-9]/.test(source[i + 1] ?? ''))) {
       const match = NUMBER_PATTERN.exec(source.slice(i));
-      if (!match) throw new LocalExpressionError('expression-syntax', '无效的数字。', i);
+      if (!match) throw new LocalExpressionError('expression-syntax', 'Invalid number.', i);
       const raw = match[0];
       const value = Number(raw);
       if (!Number.isFinite(value)) {
-        throw new LocalExpressionError('expression-number', `数字必须是有限值：${raw}。`, i);
+        throw new LocalExpressionError('expression-number', `Number must be finite: ${raw}.`, i);
       }
       tokens.push({ kind: 'number', value: raw, start: i, number: value });
       i += raw.length;
@@ -153,7 +153,7 @@ function lex(source: string): Token[] {
           break;
         }
         if (current === '\n' || current === '\r') {
-          throw new LocalExpressionError('expression-string', '字符串字面量不能跨行。', start);
+          throw new LocalExpressionError('expression-string', 'String literals cannot span lines.', start);
         }
         if (current === '\\') {
           const next = source[j + 1];
@@ -165,7 +165,7 @@ function lex(source: string): Token[] {
             case 'n': text += '\n'; break;
             case 't': text += '\t'; break;
             default:
-              throw new LocalExpressionError('expression-string', `不支持的转义 \\${next}。`, j);
+              throw new LocalExpressionError('expression-string', `Unsupported escape \\${next}.`, j);
           }
           j += 2;
           continue;
@@ -174,10 +174,10 @@ function lex(source: string): Token[] {
         j += 1;
       }
       if (!closed) {
-        throw new LocalExpressionError('expression-string', '字符串缺少结束引号。', start);
+        throw new LocalExpressionError('expression-string', 'Unterminated string literal.', start);
       }
       if (text.length > MAX_STRING_LENGTH) {
-        throw new LocalExpressionError('expression-budget', '字符串字面量超过长度上限。', start);
+        throw new LocalExpressionError('expression-budget', 'String literal exceeds the length limit.', start);
       }
       tokens.push({ kind: 'string', value: text, start });
       i = j;
@@ -194,7 +194,7 @@ function lex(source: string): Token[] {
 
     const two = source.slice(i, i + 2);
     if (source.startsWith('!==', i) || source.startsWith('===', i)) {
-      throw new LocalExpressionError('expression-syntax', `不支持运算符 ${source.slice(i, i + 3)}。`, i);
+      throw new LocalExpressionError('expression-syntax', `Unsupported operator ${source.slice(i, i + 3)}.`, i);
     }
     if (two === '==' || two === '!=' || two === '<=' || two === '>=' || two === '&&' || two === '||') {
       tokens.push({ kind: 'punct', value: two, start: i });
@@ -207,15 +207,15 @@ function lex(source: string): Token[] {
       continue;
     }
     if (char === '=') {
-      throw new LocalExpressionError('expression-assignment', '表达式不支持赋值。', i);
+      throw new LocalExpressionError('expression-assignment', 'Assignments are not supported.', i);
     }
     if (char === '.') {
-      throw new LocalExpressionError('expression-property', '表达式不支持属性访问。', i);
+      throw new LocalExpressionError('expression-property', 'Property access is not supported.', i);
     }
     if (char === '&' || char === '|') {
-      throw new LocalExpressionError('expression-syntax', `逻辑运算请使用 ${char}${char}。`, i);
+      throw new LocalExpressionError('expression-syntax', `Use ${char}${char} for logical operations.`, i);
     }
-    throw new LocalExpressionError('expression-syntax', `无法识别的字符 "${char}"。`, i);
+    throw new LocalExpressionError('expression-syntax', `Unrecognized character "${char}".`, i);
   }
   tokens.push({ kind: 'eof', value: '', start: source.length });
   return tokens;
@@ -294,15 +294,15 @@ class Parser {
 
   parse(): Ast {
     if (this.peek().kind === 'eof') {
-      throw new LocalExpressionError('expression-empty', '表达式为空。', 0);
+      throw new LocalExpressionError('expression-empty', 'Expression is empty.', 0);
     }
     const ast = this.parseConditional(0);
     const token = this.peek();
     if (token.kind !== 'eof') {
-      throw new LocalExpressionError('expression-syntax', `意外的内容 "${token.value}"。`, token.start);
+      throw new LocalExpressionError('expression-syntax', `Unexpected content "${token.value}".`, token.start);
     }
     if (astDepth(ast) > MAX_AST_DEPTH) {
-      throw new LocalExpressionError('expression-budget', '表达式嵌套过深。', ast.start);
+      throw new LocalExpressionError('expression-budget', 'Expression is nested too deeply.', ast.start);
     }
     return ast;
   }
@@ -325,7 +325,7 @@ class Parser {
   private expect(value: string): Token {
     const token = this.peek();
     if (token.kind !== 'punct' || token.value !== value) {
-      throw new LocalExpressionError('expression-syntax', `缺少 "${value}"。`, token.start);
+      throw new LocalExpressionError('expression-syntax', `Missing "${value}".`, token.start);
     }
     return this.next();
   }
@@ -333,10 +333,10 @@ class Parser {
   private node(ast: Ast, depth: number, start: number): Ast {
     this.nodeCount += 1;
     if (this.nodeCount > MAX_AST_NODES) {
-      throw new LocalExpressionError('expression-budget', '表达式过于复杂。', start);
+      throw new LocalExpressionError('expression-budget', 'Expression is too complex.', start);
     }
     if (depth > MAX_PARSE_DEPTH) {
-      throw new LocalExpressionError('expression-budget', '表达式嵌套过深。', start);
+      throw new LocalExpressionError('expression-budget', 'Expression is nested too deeply.', start);
     }
     return ast;
   }
@@ -447,7 +447,7 @@ class Parser {
       const name = token.value;
       if (this.isPunct('(')) {
         if (!BUILTIN_SET.has(name)) {
-          throw new LocalExpressionError('expression-unknown-function', `未知函数 "${name}"。`, token.start);
+          throw new LocalExpressionError('expression-unknown-function', `Unknown function "${name}".`, token.start);
         }
         this.next();
         const args: Ast[] = [];
@@ -461,8 +461,12 @@ class Parser {
         this.expect(')');
         const [minimum, maximum] = ARITY[name as BuiltinName];
         if (args.length < minimum || args.length > maximum) {
-          const expected = minimum === maximum ? `${minimum}` : minimum === 1 ? '至少 1' : `${minimum}–${maximum}`;
-          throw new LocalExpressionError('expression-arity', `函数 ${name} 需要 ${expected} 个参数。`, token.start);
+          const expected = minimum === maximum
+            ? `${minimum} ${minimum === 1 ? 'argument' : 'arguments'}`
+            : minimum === 1
+              ? 'at least one argument'
+              : `${minimum}–${maximum} arguments`;
+          throw new LocalExpressionError('expression-arity', `Function ${name} expects ${expected}.`, token.start);
         }
         return this.node({ kind: 'call', name: name as BuiltinName, args, start: token.start }, depth, token.start);
       }
@@ -477,10 +481,10 @@ class Parser {
         return this.node({ kind: 'literal', value: constant, start: token.start }, depth, token.start);
       }
       if (FORBIDDEN_NAMES.has(name)) {
-        throw new LocalExpressionError('expression-forbidden-name', `名称 "${name}" 不可用。`, token.start);
+        throw new LocalExpressionError('expression-forbidden-name', `Name "${name}" is not allowed.`, token.start);
       }
       if (BUILTIN_SET.has(name)) {
-        throw new LocalExpressionError('expression-syntax', `函数 ${name} 必须使用括号调用。`, token.start);
+        throw new LocalExpressionError('expression-syntax', `Function ${name} must be called with parentheses.`, token.start);
       }
       if (!this.dependencySet.has(name)) {
         this.dependencySet.add(name);
@@ -494,7 +498,7 @@ class Parser {
       this.expect(')');
       return inner;
     }
-    throw new LocalExpressionError('expression-syntax', '需要一个表达式。', token.start);
+    throw new LocalExpressionError('expression-syntax', 'Expected an expression.', token.start);
   }
 }
 
@@ -504,11 +508,11 @@ class Parser {
 
 function kindName(kind: LocalValueKind): string {
   switch (kind) {
-    case 'string': return '字符串';
-    case 'number': return '数字';
-    case 'boolean': return '布尔值';
+    case 'string': return 'string';
+    case 'number': return 'number';
+    case 'boolean': return 'boolean';
     case 'null': return 'null';
-    case 'array': return '数组';
+    case 'array': return 'array';
   }
 }
 
@@ -526,7 +530,7 @@ function typeError(message: string, offset: number): never {
 
 function requireKind(actual: LocalValueKind, expected: LocalValueKind, offset: number, message: string): void {
   if (actual !== expected) {
-    typeError(`${message}，实际为${kindName(actual)}。`, offset);
+    typeError(`${message}, got ${kindName(actual)}.`, offset);
   }
 }
 
@@ -543,21 +547,21 @@ function inferAst(ast: Ast, env: Record<string, LocalValueKind>): LocalValueKind
       return literalKind(ast.value);
     case 'reference': {
       if (env === null || typeof env !== 'object' || !Object.prototype.hasOwnProperty.call(env, ast.name)) {
-        throw new LocalExpressionError('expression-unknown-name', `未声明的变量 "${ast.name}"。`, ast.start);
+        throw new LocalExpressionError('expression-unknown-name', `Variable "${ast.name}" is not declared.`, ast.start);
       }
       const kind = env[ast.name];
       if (typeof kind !== 'string' || !VALID_KINDS.has(kind)) {
-        throw new LocalExpressionError('expression-value', `变量 "${ast.name}" 的类型无效。`, ast.start);
+        throw new LocalExpressionError('expression-value', `Variable "${ast.name}" has an invalid type.`, ast.start);
       }
       return kind;
     }
     case 'unary': {
       const operand = inferAst(ast.operand, env);
       if (ast.operator === '!') {
-        requireKind(operand, 'boolean', ast.start, '逻辑非需要布尔值');
+        requireKind(operand, 'boolean', ast.start, 'Logical not requires a boolean');
         return 'boolean';
       }
-      requireKind(operand, 'number', ast.start, `一元 ${ast.operator} 需要数字`);
+      requireKind(operand, 'number', ast.start, `Unary ${ast.operator} requires a number`);
       return 'number';
     }
     case 'binary': {
@@ -568,15 +572,15 @@ function inferAst(ast: Ast, env: Record<string, LocalValueKind>): LocalValueKind
           if (left === 'number' && right === 'number') return 'number';
           if (left === 'string' && right === 'string') return 'string';
           return typeError(
-            `运算符 "+" 需要两个数字或两个字符串，实际为${kindName(left)}和${kindName(right)}。`,
+            `Operator "+" requires two numbers or two strings, got ${kindName(left)} and ${kindName(right)}.`,
             ast.start,
           );
         case '-':
         case '*':
         case '/':
         case '%':
-          requireKind(left, 'number', ast.start, `运算符 "${ast.operator}" 需要数字`);
-          requireKind(right, 'number', ast.start, `运算符 "${ast.operator}" 需要数字`);
+          requireKind(left, 'number', ast.start, `Operator "${ast.operator}" requires a number`);
+          requireKind(right, 'number', ast.start, `Operator "${ast.operator}" requires a number`);
           return 'number';
         case '<':
         case '<=':
@@ -584,7 +588,7 @@ function inferAst(ast: Ast, env: Record<string, LocalValueKind>): LocalValueKind
         case '>=':
           if (!((left === 'number' && right === 'number') || (left === 'string' && right === 'string'))) {
             return typeError(
-              `比较运算符 "${ast.operator}" 需要两个数字或两个字符串，实际为${kindName(left)}和${kindName(right)}。`,
+              `Comparison operator "${ast.operator}" requires two numbers or two strings, got ${kindName(left)} and ${kindName(right)}.`,
               ast.start,
             );
           }
@@ -592,25 +596,25 @@ function inferAst(ast: Ast, env: Record<string, LocalValueKind>): LocalValueKind
         case '==':
         case '!=':
           if (left !== right && left !== 'null' && right !== 'null') {
-            return typeError(`相等比较两侧类型必须一致，实际为${kindName(left)}和${kindName(right)}。`, ast.start);
+            return typeError(`Equality comparison requires matching types, got ${kindName(left)} and ${kindName(right)}.`, ast.start);
           }
           return 'boolean';
         case '&&':
         case '||':
-          requireKind(left, 'boolean', ast.start, '逻辑运算需要布尔值');
-          requireKind(right, 'boolean', ast.start, '逻辑运算需要布尔值');
+          requireKind(left, 'boolean', ast.start, 'Logical operators require booleans');
+          requireKind(right, 'boolean', ast.start, 'Logical operators require booleans');
           return 'boolean';
       }
       break;
     }
     case 'conditional': {
-      requireKind(inferAst(ast.test, env), 'boolean', ast.start, '条件表达式的条件必须是布尔值');
+      requireKind(inferAst(ast.test, env), 'boolean', ast.start, 'Conditional test must be a boolean');
       const consequent = inferAst(ast.consequent, env);
       const alternate = inferAst(ast.alternate, env);
       const unified = unifyKinds(consequent, alternate);
       if (unified === null) {
         return typeError(
-          `条件表达式的两个分支类型必须一致或有一个为 null，实际为${kindName(consequent)}和${kindName(alternate)}。`,
+          `Conditional branches must have matching types or one null, got ${kindName(consequent)} and ${kindName(alternate)}.`,
           ast.start,
         );
       }
@@ -632,30 +636,30 @@ function inferAst(ast: Ast, env: Record<string, LocalValueKind>): LocalValueKind
         case 'atan':
         case 'exp':
         case 'log':
-          requireKind(args[0], 'number', ast.start, `函数 ${ast.name} 需要数字`);
+          requireKind(args[0], 'number', ast.start, `Function ${ast.name} requires a number`);
           return 'number';
         case 'min':
         case 'max':
         case 'pow':
         case 'clamp':
-          for (const arg of args) requireKind(arg, 'number', ast.start, `函数 ${ast.name} 需要数字`);
+          for (const arg of args) requireKind(arg, 'number', ast.start, `Function ${ast.name} requires a number`);
           return 'number';
         case 'len':
           if (args[0] !== 'string' && args[0] !== 'array') {
-            typeError(`函数 len 需要字符串或数组，实际为${kindName(args[0])}。`, ast.start);
+            typeError(`Function len requires a string or array, got ${kindName(args[0])}.`, ast.start);
           }
           return 'number';
         case 'contains':
           if (args[0] !== 'string' && args[0] !== 'array') {
-            typeError(`函数 contains 需要字符串或数组，实际为${kindName(args[0])}。`, ast.start);
+            typeError(`Function contains requires a string or array, got ${kindName(args[0])}.`, ast.start);
           }
-          requireKind(args[1], 'string', ast.start, '函数 contains 的成员需要字符串');
+          requireKind(args[1], 'string', ast.start, 'Function contains requires a string member');
           return 'boolean';
       }
       break;
     }
   }
-  throw new LocalExpressionError('expression-type', '不支持的表达式。', 0);
+  throw new LocalExpressionError('expression-type', 'Unsupported expression.', 0);
 }
 
 /* ------------------------------------------------------------------ */
@@ -672,7 +676,7 @@ function fail(message: string, offset: number, code = 'expression-eval'): never 
 
 function checkEnv(env: Record<string, LocalValue>): void {
   if (env === null || typeof env !== 'object' || Array.isArray(env)) {
-    throw new LocalExpressionError('expression-value', '表达式环境必须是对象。', 0);
+    throw new LocalExpressionError('expression-value', 'Expression environment must be an object.', 0);
   }
 }
 
@@ -681,63 +685,63 @@ function checkValue(value: unknown, name: string, offset: number): LocalValue {
   if (typeof value === 'string') {
     const budget = localValueBudgetError(value);
     if (budget) {
-      throw new LocalExpressionError('expression-budget', `变量 "${name}" 的${budget}`, offset);
+      throw new LocalExpressionError('expression-budget', `Variable "${name}": ${budget}`, offset);
     }
     return value;
   }
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
-      throw new LocalExpressionError('expression-value', `变量 "${name}" 必须是有限数字。`, offset);
+      throw new LocalExpressionError('expression-value', `Variable "${name}" must be a finite number.`, offset);
     }
     return value;
   }
   if (Array.isArray(value)) {
     if (value.length > MAX_ARRAY_LENGTH) {
-      throw new LocalExpressionError('expression-budget', `变量 "${name}" 的数组超过长度上限。`, offset);
+      throw new LocalExpressionError('expression-budget', `Variable "${name}" array exceeds the length limit.`, offset);
     }
     for (const item of value) {
       if (typeof item !== 'string') {
-        throw new LocalExpressionError('expression-value', `变量 "${name}" 的数组元素必须是字符串。`, offset);
+        throw new LocalExpressionError('expression-value', `Variable "${name}" array elements must be strings.`, offset);
       }
     }
     const budget = localValueBudgetError(value as string[]);
     if (budget) {
-      throw new LocalExpressionError('expression-budget', `变量 "${name}" 的${budget}`, offset);
+      throw new LocalExpressionError('expression-budget', `Variable "${name}": ${budget}`, offset);
     }
     return value as string[];
   }
-  throw new LocalExpressionError('expression-value', `变量 "${name}" 的值类型无效。`, offset);
+  throw new LocalExpressionError('expression-value', `Variable "${name}" has an invalid value type.`, offset);
 }
 
 function readVariable(env: Record<string, LocalValue>, name: string, offset: number): LocalValue {
   checkEnv(env);
   if (!Object.prototype.hasOwnProperty.call(env, name)) {
-    fail(`未声明的变量 "${name}"。`, offset, 'expression-unknown-name');
+    fail(`Variable "${name}" is not declared.`, offset, 'expression-unknown-name');
   }
   return checkValue(env[name], name, offset);
 }
 
-function requireNumber(value: LocalValue, offset: number, message = '需要数字'): number {
+function requireNumber(value: LocalValue, offset: number, message = 'Expected a number'): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    fail(`${message}。`, offset, 'expression-type');
+    fail(`${message}.`, offset, 'expression-type');
   }
   return value;
 }
 
-function requireBoolean(value: LocalValue, offset: number, message = '需要布尔值'): boolean {
-  if (typeof value !== 'boolean') fail(`${message}。`, offset, 'expression-type');
+function requireBoolean(value: LocalValue, offset: number, message = 'Expected a boolean'): boolean {
+  if (typeof value !== 'boolean') fail(`${message}.`, offset, 'expression-type');
   return value;
 }
 
-function requireString(value: LocalValue, offset: number, message = '需要字符串'): string {
-  if (typeof value !== 'string') fail(`${message}。`, offset, 'expression-type');
+function requireString(value: LocalValue, offset: number, message = 'Expected a string'): string {
+  if (typeof value !== 'string') fail(`${message}.`, offset, 'expression-type');
   return value;
 }
 
 function finiteResult(value: number, offset: number): number {
-  if (Number.isNaN(value)) fail('数学结果无定义。', offset, 'expression-domain');
-  if (!Number.isFinite(value)) fail('数学结果不是有限数字。', offset, 'expression-number');
+  if (Number.isNaN(value)) fail('The result is undefined.', offset, 'expression-domain');
+  if (!Number.isFinite(value)) fail('The result is not a finite number.', offset, 'expression-number');
   return value;
 }
 
@@ -777,10 +781,10 @@ function evalNode(
 ): LocalValue {
   budget.steps += 1;
   if (budget.steps > MAX_EVAL_STEPS) {
-    fail('表达式求值超过步数上限。', ast.start, 'expression-budget');
+    fail('Expression evaluation exceeded the step limit.', ast.start, 'expression-budget');
   }
   if (depth > MAX_EVAL_DEPTH) {
-    fail('表达式求值嵌套过深。', ast.start, 'expression-budget');
+    fail('Expression evaluation is nested too deeply.', ast.start, 'expression-budget');
   }
 
   switch (ast.kind) {
@@ -791,9 +795,9 @@ function evalNode(
     case 'unary': {
       const value = evalNode(ast.operand, env, budget, depth + 1);
       if (ast.operator === '!') {
-        return !requireBoolean(value, ast.start, '逻辑非需要布尔值');
+        return !requireBoolean(value, ast.start, 'Logical not requires a boolean');
       }
-      const number = requireNumber(value, ast.start, `一元 ${ast.operator} 需要数字`);
+      const number = requireNumber(value, ast.start, `Unary ${ast.operator} requires a number`);
       return finiteResult(ast.operator === '-' ? -number : number, ast.start);
     }
     case 'binary': {
@@ -801,14 +805,14 @@ function evalNode(
         const left = requireBoolean(
           evalNode(ast.left, env, budget, depth + 1),
           ast.start,
-          '逻辑运算需要布尔值',
+          'Logical operators require booleans',
         );
         if (ast.operator === '&&' && !left) return false;
         if (ast.operator === '||' && left) return true;
         return requireBoolean(
           evalNode(ast.right, env, budget, depth + 1),
           ast.start,
-          '逻辑运算需要布尔值',
+          'Logical operators require booleans',
         );
       }
 
@@ -822,19 +826,19 @@ function evalNode(
           if (typeof left === 'string' && typeof right === 'string') {
             const value = left + right;
             if (value.length > MAX_STRING_LENGTH) {
-              fail('字符串结果超过长度上限。', ast.start, 'expression-budget');
+              fail('String result exceeds the length limit.', ast.start, 'expression-budget');
             }
             return value;
           }
-          fail('运算符 "+" 需要两个数字或两个字符串。', ast.start, 'expression-type');
+          fail('Operator "+" requires two numbers or two strings.', ast.start, 'expression-type');
         case '-':
         case '*':
         case '/':
         case '%': {
-          const a = requireNumber(left, ast.start, `运算符 "${ast.operator}" 需要数字`);
-          const b = requireNumber(right, ast.start, `运算符 "${ast.operator}" 需要数字`);
+          const a = requireNumber(left, ast.start, `Operator "${ast.operator}" requires a number`);
+          const b = requireNumber(right, ast.start, `Operator "${ast.operator}" requires a number`);
           if ((ast.operator === '/' || ast.operator === '%') && b === 0) {
-            fail('除数不能为零。', ast.start, 'expression-divide-by-zero');
+            fail('Division by zero.', ast.start, 'expression-divide-by-zero');
           }
           const value =
             ast.operator === '-' ? a - b :
@@ -848,7 +852,7 @@ function evalNode(
           const leftKind = literalKind(left);
           const rightKind = literalKind(right);
           if (leftKind !== rightKind && leftKind !== 'null' && rightKind !== 'null') {
-            fail('相等比较两侧类型必须一致。', ast.start, 'expression-type');
+            fail('Equality comparison requires matching types.', ast.start, 'expression-type');
           }
           const equal = deepEqual(left, right);
           return ast.operator === '==' ? equal : !equal;
@@ -863,7 +867,7 @@ function evalNode(
           } else if (typeof left === 'string' && typeof right === 'string') {
             comparison = compareStrings(left, right);
           } else {
-            fail(`比较运算符 "${ast.operator}" 需要两个数字或两个字符串。`, ast.start, 'expression-type');
+            fail(`Comparison operator "${ast.operator}" requires two numbers or two strings.`, ast.start, 'expression-type');
           }
           if (ast.operator === '<') return comparison < 0;
           if (ast.operator === '<=') return comparison <= 0;
@@ -877,7 +881,7 @@ function evalNode(
       const test = requireBoolean(
         evalNode(ast.test, env, budget, depth + 1),
         ast.start,
-        '条件表达式的条件必须是布尔值',
+        'Conditional test must be a boolean',
       );
       return evalNode(test ? ast.consequent : ast.alternate, env, budget, depth + 1);
     }
@@ -897,11 +901,11 @@ function evalNode(
         case 'atan':
         case 'exp':
         case 'log': {
-          const value = requireNumber(args[0], ast.start, `函数 ${ast.name} 需要数字`);
-          if (ast.name === 'sqrt' && value < 0) fail('sqrt 的参数不能为负数。', ast.start, 'expression-domain');
-          if (ast.name === 'log' && value <= 0) fail('log 的参数必须大于零。', ast.start, 'expression-domain');
+          const value = requireNumber(args[0], ast.start, `Function ${ast.name} requires a number`);
+          if (ast.name === 'sqrt' && value < 0) fail('sqrt requires a non-negative argument.', ast.start, 'expression-domain');
+          if (ast.name === 'log' && value <= 0) fail('log requires a positive argument.', ast.start, 'expression-domain');
           if ((ast.name === 'asin' || ast.name === 'acos') && (value < -1 || value > 1)) {
-            fail(`${ast.name} 的参数必须在 -1 到 1 之间。`, ast.start, 'expression-domain');
+            fail(`${ast.name} requires an argument between -1 and 1.`, ast.start, 'expression-domain');
           }
           let result: number;
           switch (ast.name) {
@@ -923,43 +927,43 @@ function evalNode(
         }
         case 'min':
         case 'max': {
-          let result = requireNumber(args[0], ast.start, `函数 ${ast.name} 需要数字`);
+          let result = requireNumber(args[0], ast.start, `Function ${ast.name} requires a number`);
           for (let i = 1; i < args.length; i += 1) {
-            const value = requireNumber(args[i], ast.start, `函数 ${ast.name} 需要数字`);
+            const value = requireNumber(args[i], ast.start, `Function ${ast.name} requires a number`);
             result = ast.name === 'min' ? Math.min(result, value) : Math.max(result, value);
           }
           return finiteResult(result, ast.start);
         }
         case 'pow': {
-          const base = requireNumber(args[0], ast.start, '函数 pow 需要数字');
-          const exponent = requireNumber(args[1], ast.start, '函数 pow 需要数字');
+          const base = requireNumber(args[0], ast.start, 'Function pow requires a number');
+          const exponent = requireNumber(args[1], ast.start, 'Function pow requires a number');
           return finiteResult(Math.pow(base, exponent), ast.start);
         }
         case 'clamp': {
-          const value = requireNumber(args[0], ast.start, '函数 clamp 需要数字');
-          const lower = requireNumber(args[1], ast.start, '函数 clamp 需要数字');
-          const upper = requireNumber(args[2], ast.start, '函数 clamp 需要数字');
-          if (lower > upper) fail('clamp 的下界不能大于上界。', ast.start, 'expression-domain');
+          const value = requireNumber(args[0], ast.start, 'Function clamp requires a number');
+          const lower = requireNumber(args[1], ast.start, 'Function clamp requires a number');
+          const upper = requireNumber(args[2], ast.start, 'Function clamp requires a number');
+          if (lower > upper) fail('clamp lower bound cannot exceed upper bound.', ast.start, 'expression-domain');
           return finiteResult(Math.min(upper, Math.max(lower, value)), ast.start);
         }
         case 'len': {
           const value = args[0];
           if (typeof value === 'string') return Array.from(value).length;
           if (Array.isArray(value)) return value.length;
-          fail('函数 len 需要字符串或数组。', ast.start, 'expression-type');
+          fail('Function len requires a string or array.', ast.start, 'expression-type');
         }
         case 'contains': {
           const haystack = args[0];
-          const needle = requireString(args[1], ast.start, '函数 contains 的成员需要字符串');
+          const needle = requireString(args[1], ast.start, 'Function contains requires a string member');
           if (typeof haystack === 'string') return haystack.includes(needle);
           if (Array.isArray(haystack)) return haystack.includes(needle);
-          fail('函数 contains 需要字符串或数组。', ast.start, 'expression-type');
+          fail('Function contains requires a string or array.', ast.start, 'expression-type');
         }
       }
       break;
     }
   }
-  throw new LocalExpressionError('expression-eval', '不支持的表达式。', 0);
+  throw new LocalExpressionError('expression-eval', 'Unsupported expression.', 0);
 }
 
 /* ------------------------------------------------------------------ */
@@ -970,10 +974,10 @@ const compilationCache = new Map<string, LocalExpression>();
 
 export function compileExpression(source: string): LocalExpression {
   if (typeof source !== 'string') {
-    throw new LocalExpressionError('expression-syntax', '表达式必须是字符串。', 0);
+    throw new LocalExpressionError('expression-syntax', 'Expression must be a string.', 0);
   }
   if (source.length > MAX_EXPRESSION_LENGTH) {
-    throw new LocalExpressionError('expression-budget', `表达式超过 ${MAX_EXPRESSION_LENGTH} 字符上限。`, 0);
+    throw new LocalExpressionError('expression-budget', `Expression exceeds the ${MAX_EXPRESSION_LENGTH}-character limit.`, 0);
   }
   const cached = compilationCache.get(source);
   if (cached) return cached;
@@ -1010,7 +1014,7 @@ type TemplatePart =
 
 function splitTemplate(template: string): TemplatePart[] {
   if (template.length > MAX_TEMPLATE_LENGTH) {
-    throw new LocalExpressionError('expression-budget', '插值模板超过长度上限。', 0);
+    throw new LocalExpressionError('expression-budget', 'Interpolation template exceeds the length limit.', 0);
   }
   const parts: TemplatePart[] = [];
   let cursor = 0;
@@ -1045,7 +1049,7 @@ function splitTemplate(template: string): TemplatePart[] {
         continue;
       }
       if (char === '{' && template[i + 1] === '{') {
-        throw new LocalExpressionError('expression-interpolation', '插值中不能嵌套另一个插值。', i);
+        throw new LocalExpressionError('expression-interpolation', 'Interpolations cannot be nested.', i);
       }
       if (char === '}' && template[i + 1] === '}') {
         closed = true;
@@ -1054,11 +1058,11 @@ function splitTemplate(template: string): TemplatePart[] {
       i += 1;
     }
     if (!closed) {
-      throw new LocalExpressionError('expression-interpolation', '插值缺少 }}。', open);
+      throw new LocalExpressionError('expression-interpolation', 'Interpolation is missing }}.', open);
     }
     const source = template.slice(open + 2, i);
     if (source.trim() === '') {
-      throw new LocalExpressionError('expression-empty', '插值表达式为空。', open + 2);
+      throw new LocalExpressionError('expression-empty', 'Interpolation expression is empty.', open + 2);
     }
     parts.push({ kind: 'expression', source, start: open + 2 });
     cursor = i + 2;
@@ -1097,15 +1101,15 @@ function renderScalar(value: LocalValue, offset: number): string {
   if (typeof value === 'string') return value;
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
-      throw new LocalExpressionError('expression-value', '无法显示非有限数字。', offset);
+      throw new LocalExpressionError('expression-value', 'Cannot display a non-finite number.', offset);
     }
     return String(value);
   }
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (Array.isArray(value)) {
-    throw new LocalExpressionError('expression-type', '数组不能直接插入文本，请先用 len 等函数转换。', offset);
+    throw new LocalExpressionError('expression-type', 'Cannot insert an array as text; convert it with a function such as len first.', offset);
   }
-  throw new LocalExpressionError('expression-type', '无法把该值显示为文本。', offset);
+  throw new LocalExpressionError('expression-type', 'Cannot display this value as text.', offset);
 }
 
 function renderParts(parts: TemplatePart[], env: Record<string, LocalValue>): string {
@@ -1122,7 +1126,7 @@ function renderParts(parts: TemplatePart[], env: Record<string, LocalValue>): st
     }
     length += chunk.length;
     if (length > MAX_STRING_LENGTH) {
-      throw new LocalExpressionError('expression-budget', '插值结果超过长度上限。', 0);
+      throw new LocalExpressionError('expression-budget', 'Interpolation result exceeds the length limit.', 0);
     }
     chunks.push(chunk);
   }
@@ -1132,10 +1136,10 @@ function renderParts(parts: TemplatePart[], env: Record<string, LocalValue>): st
 /** Render a template to scalar text. Arrays are rejected rather than serialized. */
 export function interpolate(template: string, env: Record<string, LocalValue>): string {
   if (typeof template !== 'string') {
-    throw new LocalExpressionError('expression-interpolation', '插值模板必须是字符串。', 0);
+    throw new LocalExpressionError('expression-interpolation', 'Interpolation template must be a string.', 0);
   }
   if (template.length > MAX_TEMPLATE_LENGTH) {
-    throw new LocalExpressionError('expression-budget', `插值模板超过 ${MAX_TEMPLATE_LENGTH} 字符上限。`, 0);
+    throw new LocalExpressionError('expression-budget', `Interpolation template exceeds the ${MAX_TEMPLATE_LENGTH}-character limit.`, 0);
   }
   if (!template.includes('{{')) return template;
   return renderParts(splitTemplate(template), env);
@@ -1147,10 +1151,10 @@ export function interpolate(template: string, env: Record<string, LocalValue>): 
  */
 export function expressionValue(template: string, env: Record<string, LocalValue>): LocalValue {
   if (typeof template !== 'string') {
-    throw new LocalExpressionError('expression-interpolation', '插值模板必须是字符串。', 0);
+    throw new LocalExpressionError('expression-interpolation', 'Interpolation template must be a string.', 0);
   }
   if (template.length > MAX_TEMPLATE_LENGTH) {
-    throw new LocalExpressionError('expression-budget', `插值模板超过 ${MAX_TEMPLATE_LENGTH} 字符上限。`, 0);
+    throw new LocalExpressionError('expression-budget', `Interpolation template exceeds the ${MAX_TEMPLATE_LENGTH}-character limit.`, 0);
   }
   if (!template.includes('{{')) return template;
   const parts = splitTemplate(template);

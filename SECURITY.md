@@ -1,71 +1,71 @@
-# 安全策略
+# Security policy
 
-Reactive MD 渲染作者编写的本地交互文档。文档是不可信输入时，渲染器、表达式和数学求值都按下面的边界处理。宿主仍然负责授权、网络策略和服务端数据。
+Reactive MD renders local interactive documents written by authors. When document content is untrusted input, the renderer, expressions and math evaluation all stay within the boundaries below. The host remains responsible for authorization, network policy and server-side data.
 
-## 支持范围
+## Supported versions
 
-当前维护最新的 0.x 预览版本。安全修复可能随次版本发布，并在[变更记录](CHANGELOG.md)中说明影响和迁移步骤。
+Current maintenance covers the latest 0.x preview. Security fixes may ship in minor releases and are described in the [changelog](CHANGELOG.md) with impact and migration steps.
 
-## 威胁边界
+## Threat boundary
 
-以下保证有编译器、运行时和渲染器测试覆盖；未列出的能力不做承诺。
+The guarantees below are covered by compiler, runtime and renderer tests; capabilities not listed here are not promised.
 
-### 文档内容
+### Document content
 
-- 作者不能执行脚本。`<script>`、原始 HTML、`on-*` 事件属性和作者 CSS 不属于 `local-draft-1`，会作为语法诊断或文本处理，不会作为 HTML 执行。
-- React 渲染器不调用 `dangerouslySetInnerHTML`，也不把文档内容写入 `innerHTML`。
-- 表达式使用自己的解析器和 AST 求值器，不使用 `eval`、`new Function`，不支持赋值、方法调用、属性访问、原型路径或导入。表达式只能读取文档声明的参数和内置函数。
-- LaTeX 通过受预算限制的解析器计算，并由原生 MathML 渲染；渲染器不执行宏、文件、网络或 HTML 入口。未知命令显示为文本。
-- 表达式、模板、表格和图表不会发起网络请求；图表数据必须写在文档里。
+- Authors cannot execute scripts. `<script>`, raw HTML, `on-*` event attributes and author CSS are not part of `local-draft-1`; they are treated as syntax diagnostics or text, never executed as HTML.
+- The React renderer does not call `dangerouslySetInnerHTML` and does not write document content into `innerHTML`.
+- Expressions use their own parser and AST evaluator, with no `eval` or `new Function`, and no support for assignment, method calls, property access, prototype paths or imports. Expressions can only read parameters declared by the document and built-in functions.
+- LaTeX is evaluated by a budget-limited parser and rendered as native MathML; the renderer does not execute macros, files, network or HTML entry points. Unknown commands are displayed as text.
+- Expressions, templates, tables and charts do not make network requests; chart data must be written in the document.
 
-### URL 与网络
+### URLs and networking
 
-- 图片默认全部拒绝，包括相对路径和协议相对地址，因此加载文档本身不会触发图片请求。
-- 只有宿主传入 `urlPolicy` 且策略返回 `true` 时，图片才会加载。带协议的图片地址仍先检查协议，只允许 `http:` 和 `https:`；相对地址则由策略决定。`javascript:`、危险的 `data:` 等地址即使策略放行也会被拒绝。
-- 链接默认允许相对地址和 `http:`、`https:`、`mailto:`、`tel:`；外部 HTTP 链接以新标签打开并带 `noopener noreferrer`。危险协议始终拒绝。
-- 策略抛出异常时拒绝该地址。获准加载的图片使用 `referrerPolicy="no-referrer"`；同源图片仍可能携带 Cookie，图片白名单应避开业务 API。
-- `urlPolicy` 是 URL 允许列表，不是服务端授权。宿主仍需配置 CSP、网络出口、图片代理或沙箱 iframe（当作者完全不可信时）。
+- All images are rejected by default, including relative paths and protocol-relative addresses, so loading the document itself triggers no image requests.
+- Images load only when the host passes `urlPolicy` and the policy returns `true`. Images with a protocol still have that protocol checked first: only `http:` and `https:` are allowed. Relative addresses are decided by the policy. Addresses such as `javascript:` or dangerous `data:` URLs are rejected even if the policy allows them.
+- Links allow relative addresses and `http:`, `https:`, `mailto:` and `tel:` by default; external HTTP links open in a new tab with `noopener noreferrer`. Dangerous protocols are always rejected.
+- If the policy throws, the address is rejected. Images that are allowed to load use `referrerPolicy="no-referrer"`; same-origin images may still carry cookies, so image allowlists should avoid business APIs.
+- `urlPolicy` is a URL allowlist, not server-side authorization. The host still needs to configure CSP, network egress, an image proxy or a sandboxed iframe (when authors are fully untrusted).
 
-### 资源上限
+### Resource limits
 
-`src/local/limits.ts` 定义共享上限，编译、运行时和可视化共同使用：
+`src/local/limits.ts` defines shared limits used by compilation, the runtime and visualizations:
 
-| 限制 | 值 |
+| Limit | Value |
 | --- | --- |
-| 单份文档源码 | 1,000,000 字符 |
-| 解析期间累计创建的语法节点 | 默认 10,000，由宿主按次配置 |
-| 单个字符串值或模板 | 100,000 字符 |
-| 单个数组 | 10,000 项 |
-| 数组内字符串总长度 | 100,000 字符 |
-| 邮箱地址 | 254 字符，线性校验 |
-| 诊断数量 | 100 条 |
-| 单条诊断文本 | 2,000 字符 |
-| 每个绘图组件的曲线数 | 16 |
-| 整篇文档请求的曲线采样点 | 20,000 |
-| 绘图共享计算步数 | 2,000,000 |
+| Source per document | 1,000,000 characters |
+| Syntax nodes created cumulatively during parsing | 10,000 by default, configured per call by the host |
+| A single string value or template | 100,000 characters |
+| A single array | 10,000 items |
+| Total string length within an array | 100,000 characters |
+| Email address | 254 characters, validated in linear time |
+| Number of diagnostics | 100 |
+| Text of a single diagnostic | 2,000 characters |
+| Curves per plot component | 16 |
+| Curve sample points requested by the whole document | 20,000 |
+| Shared computation steps for plotting | 2,000,000 |
 
-超限写入会被拒绝，运行时保持上一次合法状态；编译期超限返回诊断。绘图和数学计算还有各自的深度、记号和节点预算。预算用于限制单个文档的工作量，不替代宿主对请求大小、并发和超时的控制。
+Writes over a limit are rejected and the runtime keeps the last valid state; compile-time overruns return diagnostics. Plotting and math evaluation also have their own depth, token and node budgets. Budgets bound the work for a single document; they do not replace host control over request size, concurrency and timeouts.
 
-宿主通过 `compileLocal(source, { limits: { maxSyntaxNodes } })` 为单次编译调整语法节点预算，取值必须是正的安全整数。文档内容不能修改该设置。省略时保留 10,000 的默认预算；提高节点预算不会改变源码长度、数组、表达式或绘图的其他上限。计数覆盖解析中创建的全部 `LocalNode`，包含部分最终未保留的中间节点。
+Hosts can adjust the syntax node budget for a single compilation with `compileLocal(source, { limits: { maxSyntaxNodes } })`; the value must be a positive safe integer. Document content cannot change this setting. When omitted, the default budget of 10,000 applies; raising the node budget does not change the source length, array, expression or plotting limits. The count covers every `LocalNode` created during parsing, including intermediate nodes that are not kept in the final tree.
 
-### 状态与隔离
+### State and isolation
 
-- 参数状态只存在于当前文档实例的内存中。每个 `LocalReactiveDocument` 或 `LocalDocumentView` 实例独立；销毁时会清理订阅、表达式缓存和计时器。
-- `createLocalRuntime` 会校验初值和共享控件的约束；`set` 以文档中登记的控件为准，忽略调用方伪造的节点元数据，并且只有在所有共享控件都接受时才原子提交。
-- `snapshot()` 返回稳定的冻结快照，其中的数组也被冻结；`get()` 和 `evaluate()` 返回数组副本。状态更新通过 `set()` 校验后提交。
-- `disabled` 和 `if` 只是界面展示状态，不是权限控制。业务权限和值校验必须由宿主在提交到服务端时执行。
+- Parameter state exists only in the memory of the current document instance. Each `LocalReactiveDocument` or `LocalDocumentView` instance is independent; disposal clears subscriptions, expression caches and timers.
+- `createLocalRuntime` validates initial values and constraints on shared controls; `set` relies on the controls registered in the document, ignores forged node metadata from the caller, and commits atomically only when every shared control accepts the write.
+- `snapshot()` returns a stable frozen snapshot, including frozen arrays; `get()` and `evaluate()` return array copies. State updates are committed through validated `set()` calls.
+- `disabled` and `if` are display states only, not permission control. Business permissions and value validation must be enforced by the host when submitting to the server.
 
-## 宿主责任
+## Host responsibilities
 
-- 决定谁可以编写、提交和分享文档；限制不可信作者的请求大小、并发和执行时间。编译 1,000,000 字符的文档仍是真实的 CPU 工作。
-- 为图片和链接配置 `urlPolicy`；维持 CSP、网络出口控制和图片白名单。
-- 在服务端重新校验表单值、权限和业务约束，不信任文档中的 `disabled`、条件显示或客户端状态。
-- 需要持久化时，安全地保存原始 `.reactive.md` 源码；运行时状态和 `LocalDocument` 不应当作持久化格式。
-- 在服务端静态渲染不可信文档之前，评估渲染进程的资源上限；水合行为未验证，不应作为安全边界。
-- 第三方依赖漏洞应同时报告给上游项目；本包只负责自身集成代码。
+- Decide who may write, submit and share documents; limit request size, concurrency and execution time for untrusted authors. Compiling a 1,000,000-character document is still real CPU work.
+- Configure `urlPolicy` for images and links; maintain CSP, network egress control and image allowlists.
+- Revalidate form values, permissions and business constraints on the server; do not trust `disabled`, conditional visibility or client state inside the document.
+- When persistence is needed, store the original `.reactive.md` source securely; runtime state and `LocalDocument` should not be treated as a persistence format.
+- Before statically rendering untrusted documents on the server, assess the resource limits of the rendering process. Hydration behavior is unverified and should not be used as a security boundary.
+- Report vulnerabilities in third-party dependencies upstream as well; this package is responsible only for its own integration code.
 
-## 报告漏洞
+## Reporting vulnerabilities
 
-仓库已启用 GitHub 私密漏洞报告。请通过 [Report a vulnerability](https://github.com/yao1145/ReactiveMD/security/advisories/new) 提交受影响版本、最小复现、预期影响和修复建议。
+The repository has GitHub private vulnerability reporting enabled. Submit affected versions, a minimal reproduction, expected impact and remediation suggestions through [Report a vulnerability](https://github.com/yao1145/ReactiveMD/security/advisories/new).
 
-使用私密渠道报告漏洞细节；公开 issue 和 PR 中请移除利用代码、凭据、用户数据及受影响部署的信息。
+Use the private channel to report vulnerability details; remove exploit code, credentials, user data and information about affected deployments from public issues and PRs.

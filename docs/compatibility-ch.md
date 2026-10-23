@@ -1,6 +1,6 @@
 # 版本与兼容性
 
-Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。公开 API 与样式接入见[本地模式集成](local-integration.md)。
+Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。公开 API 与样式接入见[本地模式集成](local-integration-ch.md)。
 
 ## 版本对应
 
@@ -8,17 +8,17 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | --- | --- | --- |
 | 包版本 | `0.3.1` | 安装 `reactive-md@0.3.1` |
 | 语法版本 | `local-draft-1` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
-| 组块协议 | `component-protocol-1` | 贡献与验收契约，见[组块协议](component-protocol.md)；不是运行时版本选择参数 |
+| 组块协议 | `component-protocol-1` | 贡献与验收契约，见[组块协议](component-protocol-ch.md)；不是运行时版本选择参数 |
 | 核心入口 | `reactive-md` | 编译、表达式与运行时，不加载 React |
 | React 入口 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` |
 | 样式入口 | `reactive-md/styles.css` | 一份全局样式表，由宿主显式引入 |
 
-一个包版本只对应一个语法修订。升级包之前，记录应用使用的 `LOCAL_SYNTAX_VERSION`。如果文档源码来自另一个语法修订，保留旧包版本渲染，或按下面的迁移说明改写。`compileLocal(source, options?)` 不提供语法版本参数；宿主可以通过 `options.limits.maxSyntaxNodes` 调整单次编译的语法节点预算，见[本地模式集成](local-integration.md)。
+一个包版本只对应一个语法修订。升级包之前，记录应用使用的 `LOCAL_SYNTAX_VERSION`。如果文档源码来自另一个语法修订，保留旧包版本渲染，或按下面的迁移说明改写。`compileLocal(source, options?)` 不提供语法版本参数；宿主可以通过 `options.limits.maxSyntaxNodes` 调整单次编译的语法节点预算，见[本地模式集成](local-integration-ch.md)。
 
 ## 0.x 的兼容规则
 
 - 次版本（`0.3` 到 `0.4`）可能包含破坏性变更；补丁版本只做兼容修复和安全修复。
-- 0.x 阶段不承诺固定弃用周期。每项破坏性变更都会写入 [变更记录](../CHANGELOG.md)，说明旧写法、新写法和迁移步骤。
+- 0.x 阶段不承诺固定弃用周期。每项破坏性变更都会写入 [变更记录](../CHANGELOG-ch.md)，说明旧写法、新写法和迁移步骤。
 - 1.0 之前，把每次升级都当成可能需要修改文档源码或宿主代码。
 - 应用应固定包版本，保留原始 `.reactive.md` 源码，并在升级后用自己的文档和示例重新运行编译与渲染检查。
 
@@ -65,4 +65,4 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `createLocalRuntime`，不需要 DOM。React 渲染要求浏览器环境或宿主自行处理服务端输出。
 
-语言范围见[语法规范](local-interaction-syntax.md)，安全边界与宿主责任见[安全策略](../SECURITY.md)。
+语言范围见[语法规范](local-interaction-syntax-ch.md)，安全边界与宿主责任见[安全策略](../SECURITY-ch.md)。

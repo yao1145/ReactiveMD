@@ -1,36 +1,36 @@
-# 边填写，边看结果
+# Fill it in, watch the result
 
-填写你的偏好，下方说明会立即变化。
+Enter your preferences and the description below updates immediately.
 
-<panel title="交流准备">
-<input bind="name" label="称呼" placeholder="怎么称呼你？">
+<panel title="Meeting preparation">
+<input bind="name" label="Name" placeholder="What should we call you?">
 
-<choices bind="role" label="使用方式">
-<option value="personal">个人使用</option>
-<option value="team">团队使用</option>
+<choices bind="role" label="Usage">
+<option value="personal">Personal use</option>
+<option value="team">Team use</option>
 </choices>
 
-<date bind="appointment" label="计划交流的日期" initial="2026-10-22">
+<date bind="appointment" label="Preferred meeting date" initial="2026-10-22">
 
-<textarea bind="message" label="想做什么交互文档？" placeholder="例如：一份可以调整参数的课程讲义">
+<textarea bind="message" label="What interactive document do you want to build?" placeholder="For example: a course handout with adjustable parameters">
 
-<checkbox bind="showNotes" label="显示准备清单">
+<checkbox bind="showNotes" label="Show the preparation checklist">
 </panel>
 
-<card title="当前计划">
-称呼：**{{ name == '' ? '尚未填写' : name }}**。
+<card title="Current plan">
+Name: **{{ name == '' ? 'Not provided yet' : name }}**.
 
-使用方式：{{ role == 'personal' ? '个人使用' : '团队使用' }}。
+Usage: {{ role == 'personal' ? 'Personal use' : 'Team use' }}.
 
-计划日期：{{ appointment }}。
+Planned date: {{ appointment }}.
 
-想法：{{ message == '' ? '可以先从一个小计算器开始。' : message }}
+Idea: {{ message == '' ? 'Start with a small calculator.' : message }}
 </card>
 
 <if when="{{ showNotes }}">
-<checklist label="交流前准备">
-- [ ] 想清楚读者需要调整哪些参数
-- [ ] 准备一个具体的计算或图表示例
-- [ ] 写出希望读者观察到的变化
+<checklist label="Before the meeting">
+- [ ] Decide which parameters readers need to adjust
+- [ ] Prepare a concrete calculation or chart example
+- [ ] Write down the changes you want readers to notice
 </checklist>
 </if>

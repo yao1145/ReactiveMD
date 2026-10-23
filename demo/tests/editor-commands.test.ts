@@ -42,8 +42,8 @@ describe('inline markers', () => {
 
   it('inserts and selects a bold placeholder for an empty selection', () => {
     const edit = formatBold('', { start: 0, end: 0 });
-    expect(edit.value).toBe('**粗体文字**');
-    expect(edit.selection).toEqual({ start: 2, end: 6 });
+    expect(edit.value).toBe('**bold text**');
+    expect(edit.selection).toEqual({ start: 2, end: 11 });
   });
 
   it('wraps and unwraps italic', () => {
@@ -68,8 +68,8 @@ describe('inline markers', () => {
 
   it('inserts and selects an italic placeholder for an empty selection', () => {
     const edit = formatItalic('', { start: 0, end: 0 });
-    expect(edit.value).toBe('*斜体文字*');
-    expect(edit.selection).toEqual({ start: 1, end: 5 });
+    expect(edit.value).toBe('*italic text*');
+    expect(edit.selection).toEqual({ start: 1, end: 12 });
   });
 
   it('wraps, unwraps and inserts strike text', () => {
@@ -82,8 +82,8 @@ describe('inline markers', () => {
     expect(unwrapped.selection).toEqual({ start: 0, end: 5 });
 
     const placeholder = formatStrike('', { start: 0, end: 0 });
-    expect(placeholder.value).toBe('~~删除线文字~~');
-    expect(placeholder.selection).toEqual({ start: 2, end: 7 });
+    expect(placeholder.value).toBe('~~strikethrough text~~');
+    expect(placeholder.selection).toEqual({ start: 2, end: 20 });
   });
 
   it('wraps, unwraps and inserts inline code', () => {
@@ -96,8 +96,8 @@ describe('inline markers', () => {
     expect(unwrapped.selection).toEqual({ start: 0, end: 4 });
 
     const placeholder = formatInlineCode('', { start: 0, end: 0 });
-    expect(placeholder.value).toBe('`代码`');
-    expect(placeholder.selection).toEqual({ start: 1, end: 3 });
+    expect(placeholder.value).toBe('`code`');
+    expect(placeholder.selection).toEqual({ start: 1, end: 5 });
   });
 
   it('chooses a longer delimiter when the selection contains backticks', () => {
@@ -287,8 +287,8 @@ describe('links and images', () => {
 
   it('inserts a link placeholder and selects its label', () => {
     const edit = insertLink('', { start: 0, end: 0 });
-    expect(edit.value).toBe('[链接文字](https://example.com)');
-    expect(edit.selection).toEqual({ start: 1, end: 5 });
+    expect(edit.value).toBe('[link text](https://example.com)');
+    expect(edit.selection).toEqual({ start: 1, end: 10 });
   });
 
   it('turns a selection into an image and selects the URL', () => {
@@ -299,8 +299,8 @@ describe('links and images', () => {
 
   it('inserts an image placeholder and selects its alt text', () => {
     const edit = insertImage('', { start: 0, end: 0 });
-    expect(edit.value).toBe('![示意图](images/example.png)');
-    expect(edit.selection).toEqual({ start: 2, end: 5 });
+    expect(edit.value).toBe('![example image](images/example.png)');
+    expect(edit.selection).toEqual({ start: 2, end: 15 });
   });
 });
 
@@ -313,8 +313,8 @@ describe('code blocks, tables and dividers', () => {
 
   it('inserts a code block placeholder for an empty selection', () => {
     const edit = insertCodeBlock('', { start: 0, end: 0 });
-    expect(edit.value).toBe('```text\n在这里写代码\n```');
-    expect(edit.selection).toEqual({ start: 8, end: 14 });
+    expect(edit.value).toBe('```text\nWrite code here\n```');
+    expect(edit.selection).toEqual({ start: 8, end: 23 });
   });
 
   it('uses a longer fence when the body contains backtick fences', () => {
@@ -328,18 +328,18 @@ describe('code blocks, tables and dividers', () => {
     const edit = insertTable('', { start: 0, end: 0 });
     const lines = edit.value.split('\n');
     expect(lines).toHaveLength(4);
-    expect(lines[0]).toBe('| 列 1 | 列 2 | 列 3 |');
+    expect(lines[0]).toBe('| Column 1 | Column 2 | Column 3 |');
     expect(lines[1]).toBe('| --- | --- | --- |');
-    expect(lines[2]).toContain('| 示例 1 |');
-    expect(lines[3]).toContain('| 示例 4 |');
-    expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('示例 1');
+    expect(lines[2]).toContain('| Example 1 |');
+    expect(lines[3]).toContain('| Example 4 |');
+    expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('Example 1');
   });
 
   it('separates an inserted table from content on the same line', () => {
     const edit = insertTable('before after', { start: 7, end: 7 });
-    expect(edit.value.startsWith('before \n\n| 列 1 |')).toBe(true);
-    expect(edit.value.endsWith('| 示例 6 |\n\nafter')).toBe(true);
-    expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('示例 1');
+    expect(edit.value.startsWith('before \n\n| Column 1 |')).toBe(true);
+    expect(edit.value.endsWith('| Example 6 |\n\nafter')).toBe(true);
+    expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('Example 1');
   });
 
   it('inserts a divider as a block', () => {
@@ -385,33 +385,33 @@ describe('insertTemplate', () => {
   });
 
   it('uses the fallback and selects it when there is no selection', () => {
-    const edit = insertTemplate('', { start: 0, end: 0 }, '{{selection:后备内容}}');
-    expect(edit.value).toBe('后备内容');
-    expect(edit.selection).toEqual({ start: 0, end: 4 });
+    const edit = insertTemplate('', { start: 0, end: 0 }, '{{selection:Fallback content}}');
+    expect(edit.value).toBe('Fallback content');
+    expect(edit.selection).toEqual({ start: 0, end: 16 });
   });
 
   it('uses the selection instead of the fallback when text is selected', () => {
-    const edit = insertTemplate('abc', { start: 0, end: 3 }, '[{{selection:默认}}]');
+    const edit = insertTemplate('abc', { start: 0, end: 3 }, '[{{selection:Fallback}}]');
     expect(edit.value).toBe('[abc]');
     expect(edit.selection).toEqual({ start: 5, end: 5 });
   });
 
   it('places the caret at {{caret}}', () => {
-    const edit = insertTemplate('foo', { start: 1, end: 1 }, '前{{caret}}后');
-    expect(edit.value).toBe('f前后oo');
+    const edit = insertTemplate('foo', { start: 1, end: 1 }, 'A{{caret}}B');
+    expect(edit.value).toBe('fABoo');
     expect(edit.selection).toEqual({ start: 2, end: 2 });
   });
 
   it('inserts and selects {{select}} content', () => {
-    const edit = insertTemplate('', { start: 0, end: 0 }, '{{select:目标}}');
-    expect(edit.value).toBe('目标');
-    expect(edit.selection).toEqual({ start: 0, end: 2 });
+    const edit = insertTemplate('', { start: 0, end: 0 }, '{{select:Target}}');
+    expect(edit.value).toBe('Target');
+    expect(edit.selection).toEqual({ start: 0, end: 6 });
   });
 
   it('prefers select over caret', () => {
-    const edit = insertTemplate('', { start: 0, end: 0 }, '{{caret}}{{select:选中}}');
-    expect(edit.value).toBe('选中');
-    expect(edit.selection).toEqual({ start: 0, end: 2 });
+    const edit = insertTemplate('', { start: 0, end: 0 }, '{{caret}}{{select:Selected}}');
+    expect(edit.value).toBe('Selected');
+    expect(edit.selection).toEqual({ start: 0, end: 8 });
   });
 
   it('places the caret at the end when there is neither select nor caret', () => {
@@ -421,56 +421,56 @@ describe('insertTemplate', () => {
   });
 
   it('leaves no template markers behind', () => {
-    const edit = insertTemplate('x', { start: 0, end: 1 }, '{{selection}}{{caret}}{{select:完}}');
-    expect(edit.value).toBe('x完');
+    const edit = insertTemplate('x', { start: 0, end: 1 }, '{{selection}}{{caret}}{{select:Done}}');
+    expect(edit.value).toBe('xDone');
     expect(edit.value).not.toContain('{{');
-    expect(edit.selection).toEqual({ start: 1, end: 2 });
+    expect(edit.selection).toEqual({ start: 1, end: 5 });
   });
 
   it('adds no blank lines for block insertion into an empty document', () => {
-    const edit = insertTemplate('', { start: 0, end: 0 }, '{{select:块}}', { block: true });
-    expect(edit.value).toBe('块');
-    expect(edit.selection).toEqual({ start: 0, end: 1 });
+    const edit = insertTemplate('', { start: 0, end: 0 }, '{{select:Block}}', { block: true });
+    expect(edit.value).toBe('Block');
+    expect(edit.selection).toEqual({ start: 0, end: 5 });
   });
 
   it('inserts blank lines around a block placed between same-line content', () => {
-    const edit = insertTemplate('前文后文', { start: 2, end: 2 }, '{{select:块}}', {
+    const edit = insertTemplate('beforeafter', { start: 6, end: 6 }, '{{select:Block}}', {
       block: true,
     });
-    expect(edit.value).toBe('前文\n\n块\n\n后文');
-    expect(edit.selection).toEqual({ start: 4, end: 5 });
-    expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('块');
+    expect(edit.value).toBe('before\n\nBlock\n\nafter');
+    expect(edit.selection).toEqual({ start: 8, end: 13 });
+    expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('Block');
   });
 
   it('surrounds a block inserted at the start of a line', () => {
-    const edit = insertTemplate('前文\n后文', { start: 3, end: 3 }, '块', { block: true });
-    expect(edit.value).toBe('前文\n\n块\n\n后文');
-    expect(edit.selection).toEqual({ start: 5, end: 5 });
+    const edit = insertTemplate('before\nafter', { start: 7, end: 7 }, 'Block', { block: true });
+    expect(edit.value).toBe('before\n\nBlock\n\nafter');
+    expect(edit.selection).toEqual({ start: 13, end: 13 });
   });
 
   it('adds only a leading blank line at the end of a non-empty line', () => {
-    const edit = insertTemplate('前文', { start: 2, end: 2 }, '块', { block: true });
-    expect(edit.value).toBe('前文\n\n块');
-    expect(edit.selection).toEqual({ start: 5, end: 5 });
+    const edit = insertTemplate('before', { start: 6, end: 6 }, 'Block', { block: true });
+    expect(edit.value).toBe('before\n\nBlock');
+    expect(edit.selection).toEqual({ start: 13, end: 13 });
   });
 
   it('separates a block from content on the previous line', () => {
-    const edit = insertTemplate('前文\n', { start: 3, end: 3 }, '块', { block: true });
-    expect(edit.value).toBe('前文\n\n块');
-    expect(edit.selection).toEqual({ start: 5, end: 5 });
+    const edit = insertTemplate('before\n', { start: 7, end: 7 }, 'Block', { block: true });
+    expect(edit.value).toBe('before\n\nBlock');
+    expect(edit.selection).toEqual({ start: 13, end: 13 });
 
-    const emptyLine = insertTemplate('\n', { start: 1, end: 1 }, '块', { block: true });
-    expect(emptyLine.value).toBe('\n块');
-    expect(emptyLine.selection).toEqual({ start: 2, end: 2 });
+    const emptyLine = insertTemplate('\n', { start: 1, end: 1 }, 'Block', { block: true });
+    expect(emptyLine.value).toBe('\nBlock');
+    expect(emptyLine.selection).toEqual({ start: 6, end: 6 });
   });
 
   it('keeps select offsets correct after block padding is added', () => {
-    const edit = insertTemplate('开头结尾', { start: 2, end: 2 }, '**{{select:目标}}**', {
+    const edit = insertTemplate('alphabeta', { start: 5, end: 5 }, '**{{select:Target}}**', {
       block: true,
     });
-    expect(edit.value).toBe('开头\n\n**目标**\n\n结尾');
-    expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('目标');
-    expect(edit.selection).toEqual({ start: 6, end: 8 });
+    expect(edit.value).toBe('alpha\n\n**Target**\n\nbeta');
+    expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('Target');
+    expect(edit.selection).toEqual({ start: 9, end: 15 });
   });
 
   it('keeps caret offsets correct after block padding is added', () => {
@@ -481,28 +481,28 @@ describe('insertTemplate', () => {
   });
 
   it('keeps fallback offsets correct after block padding is added', () => {
-    const edit = insertTemplate('前文', { start: 2, end: 2 }, '{{selection:默认}}', {
+    const edit = insertTemplate('before', { start: 6, end: 6 }, '{{selection:Fallback}}', {
       block: true,
     });
-    expect(edit.value).toBe('前文\n\n默认');
-    expect(edit.selection).toEqual({ start: 4, end: 6 });
-    expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('默认');
+    expect(edit.value).toBe('before\n\nFallback');
+    expect(edit.selection).toEqual({ start: 8, end: 16 });
+    expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('Fallback');
   });
 
   it('resolves toolbar tokens nested inside reactive interpolation', () => {
     const edit = insertTemplate(
       '',
       { start: 0, end: 0 },
-      '<if when="{{ {{select:true}} }}">\n内容\n</if>',
+      '<if when="{{ {{select:true}} }}">\nContent\n</if>',
     );
-    expect(edit.value).toBe('<if when="{{ true }}">\n内容\n</if>');
+    expect(edit.value).toBe('<if when="{{ true }}">\nContent\n</if>');
     expect(edit.value.slice(edit.selection.start, edit.selection.end)).toBe('true');
   });
 
   it('leaves ordinary reactive expressions untouched', () => {
-    const edit = insertTemplate('', { start: 0, end: 0 }, '值：{{ 40 }}，光标{{caret}}。');
-    expect(edit.value).toBe('值：{{ 40 }}，光标。');
-    expect(edit.selection).toEqual({ start: 13, end: 13 });
+    const edit = insertTemplate('', { start: 0, end: 0 }, 'Value: {{ 40 }}, cursor{{caret}}.');
+    expect(edit.value).toBe('Value: {{ 40 }}, cursor.');
+    expect(edit.selection).toEqual({ start: 23, end: 23 });
   });
 });
 

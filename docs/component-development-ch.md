@@ -1,6 +1,6 @@
 # 组块开发指南
 
-本指南面向为 Reactive MD 新增或修改组件的贡献者。组块包括输入控件、容器、可视化和结构子项。共同契约见[组块协议](component-protocol.md)，作者写法见[本地交互语法规范](local-interaction-syntax.md)。
+本指南面向为 Reactive MD 新增或修改组件的贡献者。组块包括输入控件、容器、可视化和结构子项。共同契约见[组块协议](component-protocol-ch.md)，作者写法见[本地交互语法规范](local-interaction-syntax-ch.md)。
 
 当前协议为 `component-protocol-1`，适用语法为 `local-draft-1`，当前包版本为 `0.3.1`。这三个版本分别表示贡献契约、作者语法和 npm 发布。协议文档更新不自动改变语法或公开 API。
 
@@ -10,7 +10,7 @@
 
 当前项目通过仓库内代码扩展组块。没有公开的运行时注册器、可装载组件 JSON 或作者导入语法；`LocalComponentSchema`、`LOCAL_COMPONENTS` 和渲染器内部上下文也不是稳定的插件 SDK。验收 JSON 是源码与预期结果，不是组件安装包。
 
-组块继续遵守本地简单交互范围。输入通过 `bind` 命名，输出通过表达式读取。网络服务、作者脚本、任意 HTML、事件处理器、作者 CSS 和持久化状态不属于当前作者语言。图片与链接使用宿主控制的 URL 策略，详见[安全策略](../SECURITY.md)。
+组块继续遵守本地简单交互范围。输入通过 `bind` 命名，输出通过表达式读取。网络服务、作者脚本、任意 HTML、事件处理器、作者 CSS 和持久化状态不属于当前作者语言。图片与链接使用宿主控制的 URL 策略，详见[安全策略](../SECURITY-ch.md)。
 
 ## 2. 从提案到验收
 
@@ -31,13 +31,13 @@
 | 可视化 | [visuals.tsx](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/visuals.tsx)、[math.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/math.ts) | `VISUAL_COMPONENTS`、绘图或表格语义、局部错误、计算预算、读数和重置 |
 | 样式 | [local.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/local.css)、[visuals.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/visuals.css)、[theme.css](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/theme.css) | 主题变量、类名前缀、焦点、窄屏和文档外样式影响 |
 | 预算与类型 | [limits.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/limits.ts)、[types.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/types.ts)、[render-types.ts](https://github.com/yao1145/ReactiveMD/blob/v0.3.1/src/local/render-types.ts) | 新增资源的边界；核心类型不依赖 React；内部节点不成为持久化格式 |
-| 证据与文档 | `tests/`、[验收数据](../examples/conformance/README.md)、[语法规范](local-interaction-syntax.md) | 具体行为用例、可复制示例、迁移和检查记录 |
+| 证据与文档 | `tests/`、[验收数据](../examples/conformance/README.md)、[语法规范](local-interaction-syntax-ch.md) | 具体行为用例、可复制示例、迁移和检查记录 |
 
 新增声明不会自动同步解析器、运行时和渲染器。反过来，已有通用校验足够时，也无需为了凑齐文件清单而添加分支。
 
 ## 3. 怎样判断兼容性
 
-按[兼容说明](compatibility.md)和协议 CP-COMPAT 条款判断。项目当前要求作者可见的语法变化建立新语法修订，并提升包次版本；“旧的合法写法仍可用”不等于可以在原语法修订内增加新标签。
+按[兼容说明](compatibility-ch.md)和协议 CP-COMPAT 条款判断。项目当前要求作者可见的语法变化建立新语法修订，并提升包次版本；“旧的合法写法仍可用”不等于可以在原语法修订内增加新标签。
 
 | 变化 | 处理 |
 | --- | --- |
@@ -188,7 +188,7 @@ $$ y = a \sin x $$
 
 ## 6. 按影响选择检查
 
-在根目录安装现有依赖后执行检查，环境和完整命令见[贡献指南](../CONTRIBUTING.md)。行为变更必须有直接覆盖该行为的测试；以下选择用于确定检查范围。
+在根目录安装现有依赖后执行检查，环境和完整命令见[贡献指南](../CONTRIBUTING-ch.md)。行为变更必须有直接覆盖该行为的测试；以下选择用于确定检查范围。
 
 | 改动 | 最小有用检查 |
 | --- | --- |

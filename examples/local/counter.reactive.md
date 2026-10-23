@@ -1,7 +1,7 @@
-# 计数器
+# Counter
 
-<counter bind="count" label="当前数值">
+<counter bind="count" label="Current value">
 
-正文也可以读取它：**{{ count }}**。
+The prose can read it too: **{{ count }}**.
 
-使用组件自带的加、减和重置按钮操作。
+Use the component's own plus, minus and reset buttons.

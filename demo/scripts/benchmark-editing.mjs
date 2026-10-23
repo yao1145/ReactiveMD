@@ -10,8 +10,8 @@ const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
   await page.goto(baseURL);
-  const editor = page.getByRole('textbox', { name: 'Reactive MD 源码', exact: true });
-  await expect(page.locator('.status-chip')).toContainText('已编译');
+  const editor = page.getByRole('textbox', { name: 'Reactive MD source', exact: true });
+  await expect(page.locator('.status-chip')).toContainText('Compiled');
   const sections = Number(process.env.EDITING_SECTIONS ?? 300);
   const source = article(sections) + '\n\nEdit marker: BASE';
   await editor.evaluate((element, value) => {

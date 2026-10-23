@@ -26,7 +26,7 @@
   },
   "type": "module",
   "workspaces": ["demo"],
-  "files": ["dist-library", "README.md", "README.en.md", "CONTRIBUTING.md", "CHANGELOG.md", "SECURITY.md", "THIRD_PARTY_NOTICES.md", "docs", "examples"],
+  "files": ["dist-library", "README.md", "README-en.md", "README-ch.md", "CONTRIBUTING.md", "CONTRIBUTING-ch.md", "CHANGELOG.md", "CHANGELOG-ch.md", "SECURITY.md", "SECURITY-ch.md", "THIRD_PARTY_NOTICES.md", "docs", "examples"],
   "sideEffects": ["**/*.css"],
   "scripts": {
     "dev": "npm run build:lib && npm run dev --workspace=@reactive-md/demo",

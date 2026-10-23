@@ -23,7 +23,7 @@ scope.onmessage = (event) => {
     try {
       scope.postMessage({ id: request.id, ok: true, result, duration });
     } catch (error) {
-      scope.postMessage({ id: request.id, ok: false, message: `编译结果无法返回：${errorMessage(error)}` });
+      scope.postMessage({ id: request.id, ok: false, message: `Could not return the compile result: ${errorMessage(error)}` });
     }
   } catch (error) {
     scope.postMessage({ id: request.id, ok: false, message: errorMessage(error) });

@@ -58,7 +58,7 @@ function safeDuration(value: number): number {
 export function compileFailureDiagnostic(error: unknown): Diagnostic {
   return {
     code: 'demo.compiler',
-    message: `编译失败：${messageOf(error)}`,
+    message: `Compilation failed: ${messageOf(error)}`,
     severity: 'error',
     range: { start: 0, end: 0 },
     line: 1,
@@ -94,13 +94,13 @@ export class LocalCompileScheduler {
         const detail = event && typeof (event as { message?: unknown }).message === 'string'
           ? String((event as { message: string }).message)
           : '';
-        this.handleWorkerFailure(detail || '编译线程发生错误');
+        this.handleWorkerFailure(detail || 'The compile worker encountered an error');
       };
-      worker.onmessageerror = () => this.handleWorkerFailure('编译线程无法传递编译结果');
+      worker.onmessageerror = () => this.handleWorkerFailure('The compile worker could not deliver the compile result');
       this.worker = worker;
     } catch (error) {
       this.worker = null;
-      options.onModeChange?.('fallback', `无法启动编译线程：${messageOf(error)}`);
+      options.onModeChange?.('fallback', `Could not start the compile worker: ${messageOf(error)}`);
     }
   }
 
@@ -161,7 +161,7 @@ export class LocalCompileScheduler {
       worker.postMessage({ id, source });
     } catch (error) {
       this.inFlight = null;
-      this.handleWorkerFailure(`无法把源码发送给编译线程：${messageOf(error)}`);
+      this.handleWorkerFailure(`Could not send the source to the compile worker: ${messageOf(error)}`);
       this.compileFallback(source);
     }
   }

@@ -1,16 +1,16 @@
-# 贡献指南
+# Contributing
 
-Reactive MD 是 `local-draft-1` 的 0.x 预览实现。贡献可以包括语法、编译器、运行时、React 渲染器、文档、示例和 Demo。开始前先读[版本与兼容性](docs/compatibility.md)和[本地交互语法规范](docs/local-interaction-syntax.md)。
+Reactive MD is a 0.x preview implementation of `local-draft-1`. Contributions can cover syntax, the compiler, the runtime, the React renderer, documentation, examples and the demo. Before starting, read [Versions and compatibility](docs/compatibility-en.md) and the [local interaction syntax specification](docs/local-interaction-syntax-en.md).
 
-新增或修改组块时，按[组块协议](docs/component-protocol.md)明确行为，使用[开发指南中的提案模板](docs/component-development.md)记录声明、兼容性和验收证据。这里的组块包括控件、容器、可视化和结构子项。
+When adding or changing a component, define its behavior according to the [component protocol](docs/component-protocol-en.md), and use the [proposal template in the development guide](docs/component-development-en.md) to record declarations, compatibility and acceptance evidence. Components here include input controls, containers, visualizations and structural children.
 
-## 环境
+## Environment
 
-- Node.js 22.12 或更新版本。
-- 仓库使用 npm workspaces；在根目录执行 `npm ci`。
-- 不提交 `node_modules/`、`dist-library/`、`demo/dist/`、`demo/artifacts/` 或 `.tasks/`。
+- Node.js 22.12 or newer.
+- The repository uses npm workspaces; run `npm ci` from the root.
+- Do not commit `node_modules/`, `dist-library/`, `demo/dist/`, `demo/artifacts/` or `.tasks/`.
 
-## 开发与检查
+## Development and checks
 
 ```sh
 npm ci
@@ -23,43 +23,43 @@ npm run build:demo
 npm run test:demo
 ```
 
-| 命令 | 覆盖内容 |
+| Command | What it covers |
 | --- | --- |
-| `npm run build` | 类型检查与语言包构建 |
-| `npm test` | 编译器、表达式、LaTeX、运行时和渲染器测试 |
-| `npm run test:components` | 组块协议的代表性用例和已有语言验收数据；新增组块还需自己的针对性测试 |
-| `npm run test:package` | 公开入口、示例可编译和样式边界；需先构建 |
-| `npm run test:packed` | 真实 tarball 的独立离线安装、核心和 React 严格类型检查、CSS 导出与静态 SSR |
-| `npm run notices` | 从已安装依赖生成第三方许可证清单 |
-| `npm run benchmark` | Node 编译、运行时和绘图性能；报告写入 `artifacts/benchmark.json` |
-| `npm run test:docs` | 文档相对链接和标题锚点 |
-| `npm run build:demo`、`npm run test:demo` | Demo 构建与示例索引 |
+| `npm run build` | Type checking and the language package build |
+| `npm test` | Compiler, expression, LaTeX, runtime and renderer tests |
+| `npm run test:components` | Representative cases for the component protocol and existing language acceptance data; new components still need their own targeted tests |
+| `npm run test:package` | Public entries, example compilation and style boundaries; requires a prior build |
+| `npm run test:packed` | Standalone offline install of the real tarball, strict type checking for core and React, CSS exports and static SSR |
+| `npm run notices` | Generate the third-party license inventory from installed dependencies |
+| `npm run benchmark` | Node compile, runtime and plotting performance; the report is written to `artifacts/benchmark.json` |
+| `npm run test:docs` | Documentation relative links and heading anchors |
+| `npm run build:demo`, `npm run test:demo` | Demo build and example index |
 
-浏览器检查需要先启动 Demo，并准备本机浏览器。默认地址是 `http://127.0.0.1:5173`，可用 `DEMO_URL` 指向其他地址；报告写入 `demo/artifacts/`。本地默认使用 Edge，CI 在 Linux 上使用 Playwright 的 Chromium（`PLAYWRIGHT_CHANNEL=chromium`）。
+Browser checks require the demo to be running and a local browser available. The default address is `http://127.0.0.1:5173`; set `DEMO_URL` to point at another address. Reports are written to `demo/artifacts/`. Local runs use Edge by default; CI uses Playwright Chromium on Linux (`PLAYWRIGHT_CHANNEL=chromium`).
 
 ```sh
 npm run dev
-# 另一个终端
+# another terminal
 npm run test:browser
 ```
 
-修改语言包后重新运行 `npm run build:lib`，或使用 `npm run dev:lib` 监听重建。
+After changing the language package, rerun `npm run build:lib`, or use `npm run dev:lib` to watch and rebuild.
 
-性能测量条件与当前基线见[性能说明](docs/performance.md)，跨实现可复用的输入与预期结果见[语言验收数据](examples/conformance/README.md)。
+Performance measurement conditions and current baselines are in [Performance measurements](docs/performance-en.md); reusable inputs and expected results across implementations are in the [language conformance data](examples/conformance/README.md).
 
-## 改动要求
+## Change requirements
 
-- 保持改动聚焦。行为变化附带测试；用户可见变化更新文档和相关示例。
-- 语法或公开 API 的破坏性变化先更新[版本与兼容性](docs/compatibility.md)和[变更记录](CHANGELOG.md)，说明旧写法、新写法和迁移方式。不要在没有语法修订的情况下悄悄改变作者语法。
-- 新组件或新属性必须同时实现编译校验、运行时约束、渲染、可访问名称和资源边界。不要只加展示样式。
-- 组块提案须给出属性与子内容声明、状态与生命周期规则、诊断、资源预算、兼容分类和对应验收结果；参考 `slider`、`tabs`、`plot` 的[协议验收数据](examples/conformance/README.md)。协议修订不自动改变包版本、语法修订或公开 API。
-- 资源上限集中在 `src/local/limits.ts`；新增无界输入、循环、递归或绘图计算时，先定义预算。
-- 不引入网络请求、任意 HTML、事件处理器、作者 CSS 或持久化状态。这些不在当前范围内。
-- 更新中文文档时保持与现有术语一致；英文 README 保持简洁，不重复工程细节。
-- 不要提交凭据、`.npmrc` token 或个人路径。不要手工修改 `dist-library/`；它由构建生成。
+- Keep changes focused. Add tests for behavior changes; update documentation and relevant examples for user-visible changes.
+- For breaking changes to syntax or the public API, first update [Versions and compatibility](docs/compatibility-en.md) and the [changelog](CHANGELOG.md), describing the old form, the new form and the migration path. Do not silently change author syntax without a syntax revision.
+- New components or attributes must implement compile validation, runtime constraints, rendering, accessible names and resource boundaries together. Do not add display styling only.
+- A component proposal must state attribute and child-content declarations, state and lifecycle rules, diagnostics, resource budgets, compatibility classification and corresponding acceptance results; see the [protocol acceptance data](examples/conformance/README.md) for `slider`, `tabs` and `plot`. A protocol revision does not automatically change the package version, syntax revision or public API.
+- Resource limits are centralized in `src/local/limits.ts`; when adding unbounded input, loops, recursion or plotting computation, define a budget first.
+- Do not introduce network requests, arbitrary HTML, event handlers, author CSS or persisted state. These are out of the current scope.
+- Keep terminology consistent with the existing documentation; keep the English README concise and do not repeat engineering details.
+- Do not commit credentials, `.npmrc` tokens or personal paths. Do not edit `dist-library/` by hand; it is generated by the build.
 
-## 提交与 PR
+## Commits and pull requests
 
-- PR 说明写清目的、受影响范围和验证命令及结果。没有运行的检查要明确写出，不要写成已通过。
-- 涉及安全的问题不要开公开 issue，按[安全策略](SECURITY.md)处理。
-- 发布是维护者的手工流程，见[发布清单](docs/releasing.md)。贡献者不需要接触 npm 凭据。
+- Describe the purpose, affected scope, verification commands and results in the PR. State any checks you did not run explicitly instead of presenting them as passed.
+- Do not open a public issue for security matters; follow the [security policy](SECURITY.md).
+- Releases are a manual maintainer process; see the [release checklist](docs/releasing-en.md). Contributors do not need npm credentials.

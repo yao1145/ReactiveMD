@@ -1,6 +1,6 @@
 # 本地交互文档集成
 
-本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](local-guide.md) 和 [语法规范](local-interaction-syntax.md)，完整文档见 [12 份示例](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。
+本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](local-guide-ch.md) 和 [语法规范](local-interaction-syntax-ch.md)，完整文档见 [12 份示例](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。
 
 ## 运行环境与入口
 
@@ -10,7 +10,7 @@
 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` | React 19 |
 | `reactive-md/styles.css` | 组件、主题和文档样式 | 由宿主显式引入 |
 
-包只提供 ESM。Node.js 22.12+ 可用于开发和 Node 端编译、运行。Edge 已完成本地交互验证，静态 SSR 已通过独立安装检查；完整矩阵见[版本与兼容性](compatibility.md)。可复制的项目见[独立接入示例](../examples/integration/README.md)。
+包只提供 ESM。Node.js 22.12+ 可用于开发和 Node 端编译、运行。Edge 已完成本地交互验证，静态 SSR 已通过独立安装检查；完整矩阵见[版本与兼容性](compatibility-ch.md)。可复制的项目见[独立接入示例](../examples/integration/README.md)。
 
 ## React
 
@@ -143,7 +143,7 @@ const result = compileLocal(source, options);
 
 ## 诊断
 
-`Diagnostic` 的字段与稳定级别见[版本与兼容性](compatibility.md)中的诊断契约。要点：`line`、`column` 和 `range` 用于程序定位；`code` 可用于当前版本的粗分类，但 0.x 不承诺跨版本稳定；`message` 是中文显示文本，不要解析。
+`Diagnostic` 的字段与稳定级别见[版本与兼容性](compatibility-ch.md)中的诊断契约。要点：`line`、`column` 和 `range` 用于程序定位；`code` 可用于当前版本的粗分类，但 0.x 不承诺跨版本稳定；`message` 是中文显示文本，不要解析。
 
 `onDiagnostics` 会在编译结果变化时收到编译诊断，也会收到控件写入被拒绝时的运行时诊断。编译错误文档不激活交互；运行时局部错误只替换对应内容。
 
@@ -204,13 +204,13 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 每个绘图组件最多 16 条曲线，整篇文档最多请求 20,000 个曲线采样点，包括隐藏区域。绘图计算还受 2,000,000 步的共享执行预算限制。超限文档会收到诊断；表达式和数学渲染也有各自的深度与记号预算。
 
-这些上限限制单个文档的工作量，不替代宿主对请求大小、并发和执行时间的控制。完整威胁边界见[安全策略](../SECURITY.md)。
+这些上限限制单个文档的工作量，不替代宿主对请求大小、并发和执行时间的控制。完整威胁边界见[安全策略](../SECURITY-ch.md)。
 
 ## 版本固定与升级
 
 - 在 0.x 阶段固定准确的包版本，并提交 lockfile。`^0.3.0` 只允许补丁版本，但生产接入仍建议写死版本或固定 tarball 的 SHA256。
 - 用一个包版本同时提供核心和 React 入口；不要混用不同版本的 `reactive-md` 和 `reactive-md/react`。
-- 在应用配置或文档元数据中记录 `LOCAL_SYNTAX_VERSION`，与持久化的 `.reactive.md` 源码一起保存。语法修订变化时按[版本与兼容性](compatibility.md)迁移。
+- 在应用配置或文档元数据中记录 `LOCAL_SYNTAX_VERSION`，与持久化的 `.reactive.md` 源码一起保存。语法修订变化时按[版本与兼容性](compatibility-ch.md)迁移。
 - 升级后重新编译自有文档，检查 `result.diagnostics`、渲染结果和浏览器交互。不要依赖诊断 `message` 的文本。
 
 ## 不提供的功能

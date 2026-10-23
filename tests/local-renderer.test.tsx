@@ -41,13 +41,13 @@ it('renders Markdown, interpolated text and controls with accessible names', () 
 it('renders unbound controls that keep their own state', () => {
   const { html } = mount('<counter label="参与人数" initial="2" min="1" max="20">');
   expect(html).toContain('参与人数');
-  expect(html).toContain('恢复初值');
-  expect(html).toContain('aria-label="参与人数 增加"');
+  expect(html).toContain('Reset');
+  expect(html).toContain('aria-label="参与人数 increase"');
 });
 
 it('shows a local error instead of a stale value when an expression fails', () => {
   const { text } = mount('<number bind="n" label="分母" initial="0">\n\n结果：{{ 1 / n }}。\n');
-  expect(text).toContain('无法计算');
+  expect(text).toContain('Cannot compute');
 });
 
 it('keeps hidden conditional content mounted and hides it from the reader', () => {
@@ -71,7 +71,7 @@ it('reports an unevaluable condition locally and keeps the hidden subtree mounte
     '<number bind="n" label="分母" initial="0">\n\n' +
       '<if when="{{ 1 / n > 1 }}">\n<timer label="条件计时" duration="60">\n</if>\n',
   );
-  expect(text).toContain('无法计算');
+  expect(text).toContain('Cannot compute');
   expect(html).toContain('条件计时');
   expect(html).toContain('hidden');
 });
@@ -81,7 +81,7 @@ it('fails closed and reports an unevaluable disabled expression', () => {
     '<number bind="n" label="分母" initial="0">\n\n' +
       '<input bind="name" label="称呼" disabled="{{ 1 / n > 0 }}">\n',
   );
-  expect(text).toContain('无法计算');
+  expect(text).toContain('Cannot compute');
   expect(html).toMatch(/<input[^>]*disabled=""/);
 });
 
@@ -90,5 +90,5 @@ it('deactivates the preview when compilation reports a fatal error', () => {
     <LocalReactiveDocument source={'<number bind="n" label="数字">\n\n结果：{{ missing + 1 }}\n'} />,
   );
   expect(html).toContain('local-inactive');
-  expect(html).toContain('交互预览已停用');
+  expect(html).toContain('interactive preview is disabled');
 });

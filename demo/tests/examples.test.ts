@@ -56,8 +56,8 @@ describe('playground local documents consumed through the public package', () =>
     expect(runtime.set(seats!, 5)).toEqual([]);
     expect(runtime.set(annual!, true)).toEqual([]);
     expect(runtime.evaluate('seats * (annual ? 80 : 100)')).toBe(400);
-    expect(runtime.text('每月合计：{{ seats * (annual ? 80 : 100) }} 元。'))
-      .toBe('每月合计：400 元。');
+    expect(runtime.text('Monthly total: {{ seats * (annual ? 80 : 100) }} USD.'))
+      .toBe('Monthly total: 400 USD.');
     runtime.dispose();
   });
 
@@ -77,8 +77,8 @@ describe('playground local documents consumed through the public package', () =>
     const count = flatten(counter.document.nodes).find((node) => node.attrs?.bind === 'count');
     expect(counterRuntime.get(count!)).toBe(0);
     counterRuntime.set(count!, 3);
-    expect(counterRuntime.text('正文也可以读取它：**{{ count }}**。'))
-      .toBe('正文也可以读取它：**3**。');
+    expect(counterRuntime.text('The prose can read it too: **{{ count }}**.'))
+      .toBe('The prose can read it too: **3**.');
     counterRuntime.dispose();
   });
 });

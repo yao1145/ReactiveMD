@@ -1,54 +1,54 @@
 # Reactive MD Playground
 
-Playground 使用 [本地交互语法](../docs/local-interaction-syntax.md)，内置 [12 份完整示例](../examples/local/README.md)。第一次使用语法可先读 [新用户入门指南](../docs/local-guide.md)。左侧编辑 Markdown，右侧显示输入、计算结果和可视化；编译错误在诊断区按源码位置显示。编辑器工具栏提供常用 Markdown 格式，以及按分组和搜索插入滑块、面板、图表、图解等原生组件的菜单。
+The Playground uses the [local interaction syntax](../docs/local-interaction-syntax-en.md) and ships with [12 complete examples](../examples/local/README.md). If you are new to the syntax, start with the [getting-started guide](../docs/local-guide-en.md). Edit Markdown on the left; inputs, computed results and visualizations appear on the right. Compile errors are listed in the diagnostics panel by source position. The editor toolbar offers common Markdown formatting plus a menu for inserting native components such as sliders, panels, charts and diagrams, grouped and searchable.
 
-页面顶部的“使用指南”会直接渲染 `docs/local-guide.md`，包含从第一份交互文档到图表、函数曲线和错误速查的完整说明。指南中的文档链接指向仓库，目录锚点可在页内跳转。
+The "User Guide" view at the top of the page renders `docs/local-guide-en.md` directly, covering everything from your first interactive document to charts, function curves and a quick error reference. Documentation links in the guide point to the repository, and table-of-contents anchors jump within the page.
 
-编辑源码时，页面合并连续输入并在后台线程编译，等待期间保留上一次预览。当前源码编译成功后更新预览，失败时显示对应诊断。大文档编辑的实现和复测方法见[性能测量](../docs/performance.md#playground-实时编辑)。
+While you edit, consecutive keystrokes are coalesced and compiled on a background thread; the previous preview stays visible while waiting. The preview updates once the current source compiles successfully and shows diagnostics when it fails. For implementation details and how to re-measure, see [performance measurement](../docs/performance-en.md#playground-live-editing).
 
-“保留试算状态”默认开启。修改正文、控件标签和公式时，会保留同名、同类型且仍满足新约束的参数值；临时编译错误修复后也会恢复这些值。修改 `initial` 或有效默认值时使用新初值。关闭该选项后，下次编译使用初值。
+"Keep trial state" is on by default. When you edit prose, control labels or formulas, parameter values with the same name and type that still satisfy the new constraints are kept; they are also restored after a temporary compile error is fixed. Changing `initial` or an effective default uses the new initial value. With the option off, the next compile starts from initial values.
 
-试算只保留在当前编辑会话中。重新运行、恢复示例、切换示例、导入文档或刷新页面都会重置；匿名控件、清单和计时器每次重新编译后重置。库组件 `LocalReactiveDocument` 在源码变化时仍创建全新的文档实例。
+Trial values live only in the current editing session. Running again, restoring an example, switching examples, importing a document or refreshing the page resets them; anonymous controls, checklists and timers reset after every recompile. The `LocalReactiveDocument` library component still creates a fresh document instance whenever the source changes.
 
-线上演示：[yaozi.raricy.com](https://yaozi.raricy.com/)。
+Live demo: [yaozi.raricy.com](https://yaozi.raricy.com/).
 
-## 启动
+## Getting started
 
-在仓库根目录执行：
+From the repository root:
 
 ```sh
 npm install
 npm run dev
 ```
 
-打开 `http://127.0.0.1:5173`。嵌入示例位于 `/embed.html`，展示两个独立的内存文档实例。语言库已构建时，可以在 `demo/` 执行 `npm run dev`。
+Open `http://127.0.0.1:5173`. The embed example is at `/embed.html` and shows two independent in-memory document instances. If the library is already built, you can run `npm run dev` inside `demo/`.
 
-## 示例
+## Examples
 
-从计数器和费用估算开始，再试参数面板、可勾选清单、本地目录搜索、图表、LaTeX 函数曲线、交互图解与计时器。诊断示例故意含错，预览应停用交互并显示诊断。
+Start with the counter and cost estimate, then try the parameter panel, checkable checklist, local catalog search, charts, LaTeX function curves, interactive diagram and timer. The diagnostics example contains deliberate errors: the preview should disable interaction and show diagnostics.
 
-示例源码位于根目录 `examples/local/`。Playground 通过 `reactive-md` 的 `compileLocal`、`createLocalRuntime` 和 `reactive-md/react` 的渲染入口使用库，不直接导入语言内部模块。参数由正文控件声明，表格数据直接写在 Markdown 中。
+Example sources live in `examples/local/` at the repository root. The Playground uses the library through `compileLocal`, `createLocalRuntime` and the `reactive-md/react` renderer entry, without importing language internals directly. Controls declare parameters in the body, and table data is written directly in Markdown.
 
-## 开发与检查
+## Development and checks
 
-在仓库根目录执行：
+From the repository root:
 
-| 命令 | 内容 |
+| Command | Purpose |
 | --- | --- |
-| `npm run build` | 语言包与类型声明，输出 `dist-library/` |
-| `npm run build:demo` | 构建语言包和应用，输出 `demo/dist/` |
-| `npm run dev:lib` | 监听并重建语言包 |
-| `npm test` | 语言、运行时与渲染器测试 |
-| `npm run test:demo` | 构建库并检查 Playground 示例 |
-| `npm run test:browser` | 新语法浏览器交互检查 |
-| `npm run test:toolbar` | 编辑器工具栏与原生组件插入检查 |
-| `npm run test:docs` | 文档本地链接与导航锚点检查 |
-| `npm run test:package` | 公开包入口、示例与样式边界；需先构建 |
+| `npm run build` | Language package and type declarations, output to `dist-library/` |
+| `npm run build:demo` | Build the language package and app, output to `demo/dist/` |
+| `npm run dev:lib` | Watch and rebuild the language package |
+| `npm test` | Language, runtime and renderer tests |
+| `npm run test:demo` | Build the library and check the Playground examples |
+| `npm run test:browser` | Browser interaction checks for the new syntax |
+| `npm run test:toolbar` | Editor toolbar and native component insertion checks |
+| `npm run test:docs` | Local documentation links and navigation anchors |
+| `npm run test:package` | Public package entries, examples and style boundaries; build first |
 
-修改应用源码会热更新。修改语言库后，重新运行 `npm run build:lib`，或另开终端运行 `npm run dev:lib`。
+Changes to app sources hot-reload. After changing the language library, run `npm run build:lib` again, or run `npm run dev:lib` in a separate terminal.
 
-浏览器检查需要本机 Edge 和已启动的服务器。默认检查 `http://127.0.0.1:5173`，可用 `DEMO_URL` 指定其他地址；报告和截图写入 `demo/artifacts/`。
+Browser checks require local Edge and a running server. They target `http://127.0.0.1:5173` by default; set `DEMO_URL` to use another address. Reports and screenshots are written to `demo/artifacts/`.
 
-## 集成
+## Integration
 
-宿主应用使用 [本地模式集成](../docs/local-integration.md) 中的公开 API。
+Host applications use the public API described in [local mode integration](../docs/local-integration-en.md).

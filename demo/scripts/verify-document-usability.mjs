@@ -20,9 +20,9 @@ async function check(name, run) {
 }
 
 async function edit(source) {
-  const marker = `浏览器检查版本 ${++revision}`;
+  const marker = `Browser check revision ${++revision}`;
   await editor.fill(`${source}\n\n${marker}`);
-  await expect(page.locator('.status-chip')).toContainText('已编译');
+  await expect(page.locator('.status-chip')).toContainText('Compiled');
   await expect(preview).toContainText(marker);
 }
 
@@ -33,89 +33,89 @@ async function maxSlider(name) {
   return slider;
 }
 
-const trialSource = `<panel title="试算参数">
-<slider bind="count" label="试算人数" initial="2" min="0" max="10">
-<input bind="name" label="试算称呼" initial="读者">
-<toggle bind="annual" label="试算年付">
+const trialSource = `<panel title="Trial parameters">
+<slider bind="count" label="Trial count" initial="2" min="0" max="10">
+<input bind="name" label="Trial name" initial="Reader">
+<toggle bind="annual" label="Trial annual billing">
 </panel>
 
-试算结果：{{ count * 2 }}；{{ name }}；{{ annual }}。`;
+Trial result: {{ count * 2 }}; {{ name }}; {{ annual }}.`;
 
 try {
   await page.goto(baseURL);
-  await expect(page.locator('.status-chip')).toContainText('已编译');
+  await expect(page.locator('.status-chip')).toContainText('Compiled');
 
   await check('peer block titles share a scale and nested content stays readable on desktop and mobile', async () => {
-    await edit(`# 排版层级
+    await edit(`# Typography hierarchy
 
-## 文档章节
+## Document section
 
-正文说明。
+Body copy.
 
 <panel title="AAA">
-<slider bind="size" label="参数标签" initial="2" min="0" max="10">
+<slider bind="size" label="Parameter label" initial="2" min="0" max="10">
 
 <grid columns="2">
-<card title="嵌套卡片">
-嵌套正文。
+<card title="Nested card">
+Nested body copy.
 
-<panel title="更深的面板">
-深层正文。
+<panel title="Deeper panel">
+Deep body copy.
 </panel>
 </card>
-<card title="并排卡片">
-<plot min="0" max="12.56" label="嵌套曲线" x-label="x" y-label="位移">
+<card title="Side-by-side card">
+<plot min="0" max="12.56" label="Nested curve" x-label="x" y-label="Displacement">
 $$ y = x $$
 </plot>
 </card>
 </grid>
 </panel>
 
-<plot min="0" max="12.56" label="AAA" x-label="x" y-label="位移">
+<plot min="0" max="12.56" label="AAA" x-label="x" y-label="Displacement">
 $$ y = x $$
 </plot>
 
 <grid columns="2">
-<card title="同级卡片">卡片正文。</card>
-<card title="同级另一张卡片">卡片正文。</card>
+<card title="Peer card">Card body copy.</card>
+<card title="Another peer card">Card body copy.</card>
 </grid>
 
-<tabs label="同级选项卡">
-<tab label="选项标签">
-<card title="选项内卡片">选项正文。</card>
+<tabs label="Peer tabs">
+<tab label="Tab label">
+<card title="Card inside tab">Tab body copy.</card>
 </tab>
 </tabs>
 
-<accordion label="同级折叠组">
-<disclosure label="这是一个需要在窄屏下自然换行的较长问题标题，用来检查标题行高和内容边界" open>
-折叠正文。
+<accordion label="Peer accordion">
+<disclosure label="A longer question title that needs to wrap naturally on narrow screens to check heading line height and content bounds" open>
+Collapsed body copy.
 </disclosure>
 </accordion>
 
-<alert title="同级提示">提示正文。</alert>
+<alert title="Peer alert">Alert body copy.</alert>
 
-<table label="同级表格">
-| 名称 | 数值 |
+<table label="Peer table">
+| Name | Value |
 | --- | ---: |
-| 数据 | 2 |
+| Data | 2 |
 </table>
 
-<chart title="同级图表">
-| 名称 | 数值 |
+<chart title="Peer chart">
+| Name | Value |
 | --- | ---: |
-| 数据 | 2 |
+| Data | 2 |
 </chart>
 
-<timeline title="同级时间轴">
-| 事项 | 开始 | 时长 |
+<timeline title="Peer timeline">
+| Task | Start | Duration |
 | --- | ---: | ---: |
-| 准备 | 0 | 10 |
+| Prepare | 0 | 10 |
 </timeline>
 
-<diagram label="同级图解">
-<node id="start" label="开始">节点正文。</node>
+<diagram label="Peer diagram">
+<node id="start" label="Start">Node body copy.</node>
 </diagram>`);
-    await expect(page.locator('.status-chip')).toHaveText(/已编译 · \d+ ms/);
+    await expect(page.locator('.status-chip')).toHaveText(/Compiled · \d+ ms/);
     const article = preview.locator('.local-document');
     const titleSelector = '.local-panel-title, .md-card-title, .local-tabs-label, .local-accordion-label, .local-disclosure-trigger, .local-alert-title, .local-visual-title';
     for (const width of [1280, 375]) {
@@ -128,13 +128,13 @@ $$ y = x $$
         }));
         expect(sizes).toHaveLength(17);
         for (const title of sizes) {
-          const nested = /嵌套|更深|并排|选项内|较长问题/.test(title.title);
+          const nested = /Nested|Deeper|Side-by-side|inside tab|longer question/.test(title.title);
           expect(title, JSON.stringify({ width, theme, title })).toMatchObject({
             size: nested ? '16px' : '18px', weight: '600', leading: nested ? '24px' : '27px',
           });
         }
         const bodySizes = await article.locator('p').evaluateAll(nodes => nodes
-          .filter(node => /正文/.test(node.textContent) && !node.closest('.local-visual'))
+          .filter(node => /body copy/i.test(node.textContent) && !node.closest('.local-visual'))
           .map(node => getComputedStyle(node).fontSize));
         expect(bodySizes.length).toBeGreaterThan(5);
         expect(new Set(bodySizes)).toEqual(new Set(['16px']));
@@ -179,65 +179,65 @@ $$ y = x $$
   });
 
   await check('dynamic heading IDs and TOC links stay stable while parameters change', async () => {
-    await edit(`<slider bind="n" label="标题参数" initial="2" min="0" max="10">
+    await edit(`<slider bind="n" label="Heading parameter" initial="2" min="0" max="10">
 
-[查看动态标题](#当前-2)
+[View dynamic heading](#current-2)
 
-## 当前 {{ n }}`);
+## Current {{ n }}`);
     const heading = preview.getByRole('heading', { level: 2 });
     const initialId = await heading.getAttribute('id');
-    const href = await preview.getByRole('link', { name: '查看动态标题' }).getAttribute('href');
-    await maxSlider('标题参数');
-    await expect(heading).toHaveText('当前 10');
+    const href = await preview.getByRole('link', { name: 'View dynamic heading' }).getAttribute('href');
+    await maxSlider('Heading parameter');
+    await expect(heading).toHaveText('Current 10');
     await expect(heading).toHaveAttribute('id', initialId);
-    await expect(preview.getByRole('link', { name: '查看动态标题' })).toHaveAttribute('href', href);
+    await expect(preview.getByRole('link', { name: 'View dynamic heading' })).toHaveAttribute('href', href);
     expect(decodeURIComponent(href.slice(1))).toBe(initialId);
   });
 
   await check('prose and formula edits preserve the latest named numeric, text and boolean values', async () => {
     await edit(trialSource);
-    await expect(page.getByRole('checkbox', { name: '保留试算状态', exact: true })).toBeChecked();
-    await maxSlider('试算人数');
-    await preview.getByRole('textbox', { name: '试算称呼', exact: true }).fill('林同学');
-    await preview.getByRole('checkbox', { name: '试算年付', exact: true }).check();
-    await edit(trialSource.replace('count * 2', 'count * 3') + '\n\n补充说明。');
-    await expect(preview.getByRole('slider', { name: '试算人数', exact: true })).toHaveValue('10');
-    await expect(preview.getByRole('textbox', { name: '试算称呼', exact: true })).toHaveValue('林同学');
-    await expect(preview.getByRole('checkbox', { name: '试算年付', exact: true })).toBeChecked();
-    await expect(preview).toContainText('试算结果：30；林同学；true');
+    await expect(page.getByRole('checkbox', { name: 'Keep trial state', exact: true })).toBeChecked();
+    await maxSlider('Trial count');
+    await preview.getByRole('textbox', { name: 'Trial name', exact: true }).fill('Alex');
+    await preview.getByRole('checkbox', { name: 'Trial annual billing', exact: true }).check();
+    await edit(trialSource.replace('count * 2', 'count * 3') + '\n\nAdditional note.');
+    await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('10');
+    await expect(preview.getByRole('textbox', { name: 'Trial name', exact: true })).toHaveValue('Alex');
+    await expect(preview.getByRole('checkbox', { name: 'Trial annual billing', exact: true })).toBeChecked();
+    await expect(preview).toContainText('Trial result: 30; Alex; true');
   });
 
   await check('a temporary compilation error keeps the previous trial values for recovery', async () => {
     await editor.fill(trialSource + '\n\n<panel>');
-    await expect(page.locator('.status-chip')).toContainText('编译失败');
-    await expect(preview.getByRole('heading', { name: '预览已停用' })).toBeVisible();
-    await edit(trialSource + '\n\n语法已恢复。');
-    await expect(preview.getByRole('slider', { name: '试算人数', exact: true })).toHaveValue('10');
-    await expect(preview.getByRole('textbox', { name: '试算称呼', exact: true })).toHaveValue('林同学');
+    await expect(page.locator('.status-chip')).toContainText('Compile failed');
+    await expect(preview.getByRole('heading', { name: 'Preview disabled' })).toBeVisible();
+    await edit(trialSource + '\n\nSyntax recovered.');
+    await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('10');
+    await expect(preview.getByRole('textbox', { name: 'Trial name', exact: true })).toHaveValue('Alex');
   });
 
   await check('changed initial values and tighter constraints reset incompatible trial values', async () => {
     await edit(trialSource.replace('max="10"', 'max="5"'));
-    await expect(preview.getByRole('slider', { name: '试算人数', exact: true })).toHaveValue('2');
-    await maxSlider('试算人数');
+    await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');
+    await maxSlider('Trial count');
     await edit(trialSource.replace('initial="2"', 'initial="3"'));
-    await expect(preview.getByRole('slider', { name: '试算人数', exact: true })).toHaveValue('3');
+    await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('3');
   });
 
   await check('opting out resets values on editing and rerun restores current document defaults', async () => {
-    await page.getByRole('checkbox', { name: '保留试算状态', exact: true }).uncheck();
-    await maxSlider('试算人数');
+    await page.getByRole('checkbox', { name: 'Keep trial state', exact: true }).uncheck();
+    await maxSlider('Trial count');
     await edit(trialSource);
-    await expect(preview.getByRole('slider', { name: '试算人数', exact: true })).toHaveValue('2');
-    await page.getByRole('checkbox', { name: '保留试算状态', exact: true }).check();
-    await maxSlider('试算人数');
-    await page.getByRole('button', { name: '重新运行', exact: true }).click();
-    await expect(preview.getByRole('slider', { name: '试算人数', exact: true })).toHaveValue('2');
+    await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');
+    await page.getByRole('checkbox', { name: 'Keep trial state', exact: true }).check();
+    await maxSlider('Trial count');
+    await page.getByRole('button', { name: 'Run again', exact: true }).click();
+    await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');
   });
 
   await check('importing identical source starts a fresh trial session', async () => {
     await edit(trialSource);
-    await maxSlider('试算人数');
+    await maxSlider('Trial count');
     const identicalSource = await editor.inputValue();
     await page.locator('input[type="file"]').setInputFiles({
       name: 'trial.reactive.md',
@@ -245,23 +245,24 @@ $$ y = x $$
       buffer: Buffer.from(identicalSource),
     });
     await expect(editor).toHaveValue(identicalSource);
-    await expect(preview.getByRole('slider', { name: '试算人数', exact: true })).toHaveValue('2');
+    await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');
   });
 
   await check('reload and switching examples keep trial sessions isolated', async () => {
-    await maxSlider('试算人数');
+    await maxSlider('Trial count');
     await page.reload();
-    await expect(preview.getByRole('slider', { name: '试算人数', exact: true })).toHaveValue('2');
-    await maxSlider('试算人数');
-    await page.getByLabel('示例', { exact: true }).selectOption('counter');
-    await page.getByRole('button', { name: '恢复示例', exact: true }).click();
+    await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');
+    await maxSlider('Trial count');
+    await page.getByLabel('Example', { exact: true }).selectOption('counter');
+    await page.getByRole('button', { name: 'Restore example', exact: true }).click();
     await edit(trialSource);
-    await expect(preview.getByRole('slider', { name: '试算人数', exact: true })).toHaveValue('2');
+    await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');
   });
 
   await check('guide navigation uses library-generated anchors', async () => {
-    await page.getByRole('button', { name: '使用指南', exact: true }).click();
+    await page.getByRole('button', { name: 'User Guide', exact: true }).click();
     const guide = page.locator('.guide-paper .local-document');
+    await expect(guide.getByRole('heading', { name: 'Reactive MD beginner guide', level: 1 })).toBeVisible();
     const broken = await guide.evaluate(article => [...article.querySelectorAll('a[href^="#"]')].flatMap(link => {
       const id = decodeURIComponent(link.getAttribute('href').slice(1));
       const target = document.getElementById(id);
@@ -272,12 +273,12 @@ $$ y = x $$
 
   await page.goto(baseURL + '/embed.html');
   await check('identical embedded documents use separate IDs and target their own headings', async () => {
-    const first = page.getByRole('region', { name: '实例 A', exact: true });
-    const second = page.getByRole('region', { name: '实例 B', exact: true });
+    const first = page.getByRole('region', { name: 'Instance A', exact: true });
+    const second = page.getByRole('region', { name: 'Instance B', exact: true });
     for (const region of [first, second]) {
-      const heading = region.getByRole('heading', { name: '本地参数', level: 2, exact: true });
+      const heading = region.getByRole('heading', { name: 'Local parameters', level: 2, exact: true });
       const id = await heading.getAttribute('id');
-      const link = region.getByRole('link', { name: '跳到本地参数', exact: true });
+      const link = region.getByRole('link', { name: 'Jump to local parameters', exact: true });
       expect(decodeURIComponent((await link.getAttribute('href')).slice(1))).toBe(id);
       await link.click();
       expect(decodeURIComponent(new URL(page.url()).hash.slice(1))).toBe(id);

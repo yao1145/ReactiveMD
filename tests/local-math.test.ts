@@ -68,7 +68,7 @@ P\left(1+\frac{r}{1200}\right)^{12x}
       expect((error as LatexError).code).toBe('latex-unsupported');
       expect((error as LatexError).offset).toBe(4);
     }
-    expect(() => compileLatex('x = 2')).toThrow(/显式/);
+    expect(() => compileLatex('x = 2')).toThrow(/explicit/);
     expect(() => compileLatex('y = \\ln x').evaluate(0, {})).toThrow(LatexError);
     expect(() => compileLatex('y = 1/x').evaluate(0, {})).toThrow(LatexError);
     expect(() => compileLatex('y = \\sqrt{x}').evaluate(-1, {})).toThrow(LatexError);

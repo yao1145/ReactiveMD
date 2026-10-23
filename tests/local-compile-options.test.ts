@@ -12,7 +12,7 @@ describe('per-call syntax-node budgets', () => {
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toEqual([expect.objectContaining({
       code: 'local.budget',
-      message: '语法节点超过 1 个上限。',
+      message: 'Syntax nodes exceed the limit of 1.',
       line: 1,
       column: 1,
       range: { start: 0, end: 5 },
@@ -27,7 +27,7 @@ describe('per-call syntax-node budgets', () => {
     const defaultResult = compileLocal(source);
     expect(defaultResult.ok).toBe(false);
     expect(defaultResult.diagnostics).toContainEqual(expect.objectContaining({
-      code: 'local.budget', message: '语法节点超过 10000 个上限。',
+      code: 'local.budget', message: 'Syntax nodes exceed the limit of 10000.',
     }));
     expect(compileLocal('hello').ok).toBe(true);
   });
@@ -78,7 +78,7 @@ describe('per-call syntax-node budgets', () => {
     const result = compileLocal('x'.repeat(1_000_001), options);
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
-      code: 'local.budget', message: '文档超过 1000000 字符上限。',
+      code: 'local.budget', message: 'Document exceeds the 1000000-character limit.',
     }));
   });
 });

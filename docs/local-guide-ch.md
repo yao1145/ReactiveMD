@@ -2,7 +2,7 @@
 
 这份指南面向会写 Markdown、见过一点 HTML、但没有接触过 Reactive MD 的读者。读完之后，你应该能独立写出带输入控件、实时计算、条件内容、图表和图解的本地交互文档。
 
-本文讲的是 `local-draft-1` 本地交互语法。完整规则见 [本地交互语法规范](local-interaction-syntax.md)，可以直接运行的完整文档见 [示例目录](../examples/local/README.md)。更完整的组件和表达式细节以规范为准。包版本、语法修订和迁移规则见 [版本与兼容性](compatibility.md)。
+本文讲的是 `local-draft-1` 本地交互语法。完整规则见 [本地交互语法规范](local-interaction-syntax-ch.md)，可以直接运行的完整文档见 [示例目录](../examples/local/README.md)。更完整的组件和表达式细节以规范为准。包版本、语法修订和迁移规则见 [版本与兼容性](compatibility-ch.md)。
 
 ## 目录
 
@@ -921,8 +921,8 @@ Playground 的左侧编辑器和右侧诊断区会同时定位问题。未知标
 ## 13. 下一步
 
 - 想先看成品：打开 [示例目录](../examples/local/README.md)，从计数器、方案计算器和交互图解开始。
-- 想了解全部组件和边界：阅读 [本地交互语法规范](local-interaction-syntax.md)。
-- 想嵌入自己的 React 应用：阅读 [本地模式集成](local-integration.md)。
+- 想了解全部组件和边界：阅读 [本地交互语法规范](local-interaction-syntax-ch.md)。
+- 想嵌入自己的 React 应用：阅读 [本地模式集成](local-integration-ch.md)。
 - 想看错误示例：打开 [diagnostics.reactive.md](../examples/local/diagnostics.reactive.md)，对照诊断理解常见问题。
 - 想启动 Playground：在仓库根目录执行 `npm run dev`，或访问线上演示 [yaozi.raricy.com](https://yaozi.raricy.com/)。
 

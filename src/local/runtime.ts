@@ -98,34 +98,34 @@ function invalid(message: string): ValidationResult {
  */
 function validateStringControl(node: LocalNode, value: string): ValidationResult {
   if (node.name === 'date') {
-    if (!isValidDate(value)) return invalid('日期必须是有效的 YYYY-MM-DD，或空字符串。');
+    if (!isValidDate(value)) return invalid('Date must be a valid YYYY-MM-DD or an empty string.');
     if (value === '' && staticBoolean(node, 'required') === true) {
-      return invalid('该日期为必填项。');
+      return invalid('This date is required.');
     }
     const min = rawAttr(node, 'min');
     const max = rawAttr(node, 'max');
-    if (value !== '' && min && value < min) return invalid(`日期不能早于 ${min}。`);
-    if (value !== '' && max && value > max) return invalid(`日期不能晚于 ${max}。`);
+    if (value !== '' && min && value < min) return invalid(`Date cannot be earlier than ${min}.`);
+    if (value !== '' && max && value > max) return invalid(`Date cannot be later than ${max}.`);
     return { ok: true, value };
   }
   if (node.name === 'input' || node.name === 'textarea') {
     const length = codePointLength(value);
     if (value === '' && staticBoolean(node, 'required') === true) {
-      return invalid('该字段为必填项。');
+      return invalid('This field is required.');
     }
     const minLength = staticNumber(node, 'min-length');
     const maxLength = staticNumber(node, 'max-length');
     if (minLength !== undefined && minLength > 0 && value !== '' && length < minLength) {
-      return invalid(`至少需要 ${minLength} 个字符。`);
+      return invalid(`At least ${minLength} characters.`);
     }
     if (maxLength !== undefined && length > maxLength) {
-      return invalid(`最多允许 ${maxLength} 个字符。`);
+      return invalid(`At most ${maxLength} characters.`);
     }
     if (node.name === 'input' && rawAttr(node, 'type') === 'email' && value !== '') {
       if (value.length > MAX_LOCAL_EMAIL_LENGTH) {
-        return invalid(`邮箱地址不能超过 ${MAX_LOCAL_EMAIL_LENGTH} 个字符。`);
+        return invalid(`Email address cannot exceed ${MAX_LOCAL_EMAIL_LENGTH} characters.`);
       }
-      if (!isLocalEmail(value)) return invalid('请输入有效的邮箱地址。');
+      if (!isLocalEmail(value)) return invalid('Enter a valid email address.');
     }
   }
   return { ok: true, value };
@@ -135,45 +135,45 @@ function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalVa
   switch (binding.type) {
     case 'number': {
       if (typeof value !== 'number' || !Number.isFinite(value)) {
-        return invalid(`参数“${binding.name}”需要有限数字。`);
+        return invalid(`Parameter "${binding.name}" requires a finite number.`);
       }
       if (binding.min !== undefined && value < binding.min) {
-        return invalid(`参数“${binding.name}”不能小于 ${binding.min}。`);
+        return invalid(`Parameter "${binding.name}" must be at least ${binding.min}.`);
       }
       if (binding.max !== undefined && value > binding.max) {
-        return invalid(`参数“${binding.name}”不能大于 ${binding.max}。`);
+        return invalid(`Parameter "${binding.name}" must be at most ${binding.max}.`);
       }
       const step = binding.step ?? 1;
       const base = binding.min ?? 0;
       if (step > 0 && !onStep(value, base, step)) {
-        return invalid(`参数“${binding.name}”必须落在步长 ${step} 上（以 ${base} 为基点）。`);
+        return invalid(`Parameter "${binding.name}" must be a multiple of step ${step} (base ${base}).`);
       }
       return { ok: true, value };
     }
     case 'boolean':
-      return typeof value === 'boolean' ? { ok: true, value } : invalid(`参数“${binding.name}”需要布尔值。`);
+      return typeof value === 'boolean' ? { ok: true, value } : invalid(`Parameter "${binding.name}" requires a boolean.`);
     case 'string': {
-      if (typeof value !== 'string') return invalid(`参数“${binding.name}”需要字符串。`);
+      if (typeof value !== 'string') return invalid(`Parameter "${binding.name}" requires a string.`);
       const budget = localValueBudgetError(value);
-      if (budget) return invalid(`参数“${binding.name}”${budget}`);
+      if (budget) return invalid(`Parameter "${binding.name}": ${budget}`);
       for (const node of nodes) {
         const result = validateStringControl(node, value);
         if (!result.ok) return result;
       }
       if (binding.options?.length && !binding.options.includes(value)) {
-        return invalid(`值“${value}”不在可用选项中：${binding.options.join('、')}。`);
+        return invalid(`Value "${value}" is not among the options: ${binding.options.join(', ')}.`);
       }
       return { ok: true, value };
     }
     case 'array': {
-      if (!Array.isArray(value)) return invalid(`参数“${binding.name}”需要字符串数组。`);
+      if (!Array.isArray(value)) return invalid(`Parameter "${binding.name}" requires an array of strings.`);
       const budget = localValueBudgetError(value);
-      if (budget) return invalid(`参数“${binding.name}”${budget}`);
+      if (budget) return invalid(`Parameter "${binding.name}": ${budget}`);
       const chosen = new Set<string>();
       for (const entry of value) {
-        if (typeof entry !== 'string') return invalid(`参数“${binding.name}”的成员必须是字符串。`);
+        if (typeof entry !== 'string') return invalid(`Parameter "${binding.name}" members must be strings.`);
         if (binding.options && !binding.options.includes(entry)) {
-          return invalid(`清单条目“${entry}”不存在。`);
+          return invalid(`Checklist item "${entry}" does not exist.`);
         }
         chosen.add(entry);
       }
@@ -185,12 +185,12 @@ function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalVa
     case 'null':
       return { ok: true, value };
   }
-  return invalid(`参数“${binding.name}”的值类型不受支持。`);
+  return invalid(`Parameter "${binding.name}" has an unsupported value type.`);
 }
 
 export function createLocalRuntime(document: LocalDocument): LocalRuntime {
   if (!document || document.syntax !== 'local') {
-    throw new Error('createLocalRuntime 需要本地交互文档。');
+    throw new Error('createLocalRuntime requires a local interaction document.');
   }
 
   const nodeIndex = new Map<string, LocalNode>();
@@ -208,7 +208,7 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
   for (const [key, binding] of Object.entries(document.bindings)) {
     const budget = localValueBudgetError(binding.initial);
     if (budget) {
-      throw new LocalExpressionError('expression-budget', `参数“${key}”${budget}`, 0);
+      throw new LocalExpressionError('expression-budget', `Parameter "${key}": ${budget}`, 0);
     }
     initial[key] = cloneValue(binding.initial);
     const nodes: LocalNode[] = [];
@@ -228,7 +228,7 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
   const expressions = new Map<string, LocalExpression>();
 
   const ensure = (): void => {
-    if (disposed) throw new Error('本地交互运行时已销毁。');
+    if (disposed) throw new Error('The local interaction runtime has been disposed.');
   };
 
   const commit = (next: Record<string, LocalValue>): void => {
@@ -281,12 +281,12 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       ensure();
       const canonical = nodeIndex.get(node.id);
       if (!canonical) {
-        return [diagnosticFor(document, node, 'local.runtime.binding', '该组件没有可写入的绑定状态。')];
+        return [diagnosticFor(document, node, 'local.runtime.binding', 'This component has no writable binding state.')];
       }
       const key = localKey(canonical);
       const binding = Object.hasOwn(document.bindings, key) ? document.bindings[key] : undefined;
       if (!binding) {
-        return [diagnosticFor(document, canonical, 'local.runtime.binding', '该组件没有可写入的绑定状态。')];
+        return [diagnosticFor(document, canonical, 'local.runtime.binding', 'This component has no writable binding state.')];
       }
       const result = validateValue(binding, controls.get(key) ?? [], value);
       if (!result.ok) {
@@ -320,7 +320,7 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
         if (!(controls.get(key) ?? []).some((node) => ids.has(node.id))) continue;
         const budget = localValueBudgetError(binding.initial);
         if (budget) {
-          throw new LocalExpressionError('expression-budget', `参数“${key}”${budget}`, 0);
+          throw new LocalExpressionError('expression-budget', `Parameter "${key}": ${budget}`, 0);
         }
         next[key] = cloneValue(binding.initial);
       }

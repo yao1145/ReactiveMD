@@ -1,6 +1,6 @@
 # Reactive MD 本地交互语法规范
 
-语法标识：`local-draft-1`，2026-10-22。第一次接触这套语法，建议先读 [新用户入门指南](local-guide.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](compatibility.md)。完整示例见 [Demo 索引](../examples/local/README.md)。
+语法标识：`local-draft-1`，2026-10-22。第一次接触这套语法，建议先读 [新用户入门指南](local-guide-ch.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration-ch.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](compatibility-ch.md)。完整示例见 [Demo 索引](../examples/local/README.md)。
 
 ## 1. 定位与范围
 
@@ -227,7 +227,7 @@ tab 未写 value 时，按源码顺序生成 `tab-1`、`tab-2` 等；同组 valu
 
 if 的 when 为假时不显示内容，内部参数仍按第 4 节初始化。未知变量或类型错误在隐藏分支中仍是编译错误。
 
-基础排版使用 Markdown；图片用 `![说明](路径)`，链接用 `[文字](地址)`，分隔线用 `---`。图片需由宿主通过 URL 策略明确允许后才加载，默认不产生图片请求，集成方式见[图片与链接策略](local-integration.md#图片与链接策略)。本草案不提供 row、stack、spacer、icon、image、link-button 等对应的作者标签，也不开放 class/style。
+基础排版使用 Markdown；图片用 `![说明](路径)`，链接用 `[文字](地址)`，分隔线用 `---`。图片需由宿主通过 URL 策略明确允许后才加载，默认不产生图片请求，集成方式见[图片与链接策略](local-integration-ch.md#图片与链接策略)。本草案不提供 row、stack、spacer、icon、image、link-button 等对应的作者标签，也不开放 class/style。
 
 ## 8. 可勾选清单
 

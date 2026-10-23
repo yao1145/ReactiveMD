@@ -186,15 +186,15 @@ function hasComponent(node: LocalNode): boolean {
 function typeName(kind: LocalValueKind): string {
   switch (kind) {
     case 'string':
-      return '字符串';
+      return 'string';
     case 'number':
-      return '数字';
+      return 'number';
     case 'boolean':
-      return '布尔值';
+      return 'boolean';
     case 'null':
-      return '空值';
+      return 'null';
     case 'array':
-      return '数组';
+      return 'array';
   }
 }
 
@@ -284,7 +284,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   try {
     parsed = parseLocal(source, options);
   } catch (error) {
-    report('local.parse', `无法解析文档：${error instanceof Error ? error.message : String(error)}`, 0);
+    report('local.parse', `Cannot parse document: ${error instanceof Error ? error.message : String(error)}`, 0);
     return { ok: false, diagnostics };
   }
   diagnostics.push(...parsed.diagnostics);
@@ -295,7 +295,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   for (const code of collectLegacyFences(parsed.nodes)) {
     report(
       'local.legacy',
-      '旧版 reactive-md 配置围栏（state/data/computed/actions 等）不属于本地交互语法；请在宿主中显式选择旧版模式。',
+      'Legacy reactive-md configuration fences (state/data/computed/actions, etc.) are not part of the local interaction syntax; select legacy mode explicitly in the host.',
       code.range.start,
       code.range.end,
     );
@@ -377,7 +377,7 @@ function collectEntries(nodes: LocalNode[], parent: Entry | null, out: Entry[], 
         const suggestion = node.name.length <= MAX_LOCAL_NAME_LENGTH ? suggestComponent(node.name) : undefined;
         state.report(
           'local.component.unknown',
-          `未知组件 <${node.name}>。${suggestion ? `是否想写 <${suggestion}>？` : '当前模式只接受本地交互语法组件。'}`,
+          `Unknown component <${node.name}>. ${suggestion ? `Did you mean <${suggestion}>?` : 'This mode only accepts local interaction components.'}`,
           node.range.start,
           node.range.end,
         );
@@ -423,7 +423,7 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
       const suggestion = name.length <= MAX_LOCAL_NAME_LENGTH ? suggestAttribute(entry.schema, name) : undefined;
       state.report(
         'local.attribute.unknown',
-        `组件 <${entry.name}> 不支持属性 ${name}。${suggestion ? `是否想写 ${suggestion}？` : ''}`,
+        `Component <${entry.name}> does not support attribute ${name}.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
         offset,
         offset + name.length,
       );
@@ -433,7 +433,7 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
     if (prop.kind === 'string' && raw.length > MAX_LOCAL_STRING_LENGTH) {
       state.report(
         'local.budget.attribute',
-        `组件 <${entry.name}> 的属性 ${name} 超过 ${MAX_LOCAL_STRING_LENGTH} 字符上限。`,
+        `Attribute ${name} on component <${entry.name}> exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`,
         offset,
         offset + name.length,
       );
@@ -446,7 +446,7 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
     if (prop.required && !Object.hasOwn(attrs, name)) {
       state.report(
         'local.attribute.required',
-        `组件 <${entry.name}> 缺少必需属性 ${name}。`,
+        `Component <${entry.name}> is missing required attribute ${name}.`,
         entry.node.range.start,
         entry.node.range.end,
       );
@@ -454,9 +454,9 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
   }
   if (entry.schema.label === 'required') {
     if (!Object.hasOwn(attrs, 'label')) {
-      state.report('local.label.required', `组件 <${entry.name}> 需要 label。`, entry.node.range.start, entry.node.range.end);
+      state.report('local.label.required', `Component <${entry.name}> requires a label.`, entry.node.range.start, entry.node.range.end);
     } else if (!String(attrs.label.raw).trim()) {
-      state.report('local.label.required', `组件 <${entry.name}> 的 label 不能为空。`, attrs.label.offset);
+      state.report('local.label.required', `Component <${entry.name}> label cannot be empty.`, attrs.label.offset);
     }
   }
   return attrs;
@@ -475,7 +475,7 @@ function validatePropValue(
       if (scanned.segments.length || scanned.unterminated.length) {
         state.report(
           'local.attribute.static',
-          `属性 ${name} 是静态属性，不能包含插值。`,
+          `Attribute ${name} is static and cannot contain interpolations.`,
           info.offset,
           info.offset + info.raw.length,
         );
@@ -492,7 +492,7 @@ function validatePropValue(
       info.expression = full.expression;
       info.expressionOffset = info.offset + full.start;
       if (!full.expression) {
-        state.report('local.expression.empty', `属性 ${name} 的插值不能为空。`, info.expressionOffset);
+        state.report('local.expression.empty', `Attribute ${name} interpolation cannot be empty.`, info.expressionOffset);
       }
       return;
     }
@@ -500,23 +500,23 @@ function validatePropValue(
     if (value === null) {
       state.report(
         'local.attribute.type',
-        `属性 ${name} 需要数字${prop.dynamic ? '或完整数字插值' : ''}，得到“${info.raw}”。`,
+        `Attribute ${name} requires a number${prop.dynamic ? ' or a full number interpolation' : ''}, got "${info.raw}".`,
         info.offset,
         info.offset + info.raw.length,
       );
       return;
     }
     if (prop.integer && !Number.isInteger(value)) {
-      state.report('local.attribute.type', `属性 ${name} 需要整数。`, info.offset);
+      state.report('local.attribute.type', `Attribute ${name} requires an integer.`, info.offset);
     }
     if (prop.positive && !(value > 0)) {
-      state.report('local.attribute.type', `属性 ${name} 需要正数。`, info.offset);
+      state.report('local.attribute.type', `Attribute ${name} requires a positive number.`, info.offset);
     }
     if (prop.min !== undefined && value < prop.min) {
-      state.report('local.attribute.range', `属性 ${name} 不能小于 ${prop.min}。`, info.offset);
+      state.report('local.attribute.range', `Attribute ${name} must be at least ${prop.min}.`, info.offset);
     }
     if (prop.max !== undefined && value > prop.max) {
-      state.report('local.attribute.range', `属性 ${name} 不能大于 ${prop.max}。`, info.offset);
+      state.report('local.attribute.range', `Attribute ${name} must be at most ${prop.max}.`, info.offset);
     }
     info.value = value;
     return;
@@ -529,7 +529,7 @@ function validatePropValue(
       info.expression = full.expression;
       info.expressionOffset = info.offset + full.start;
       if (!full.expression) {
-        state.report('local.expression.empty', `属性 ${name} 的插值不能为空。`, info.expressionOffset);
+        state.report('local.expression.empty', `Attribute ${name} interpolation cannot be empty.`, info.expressionOffset);
       }
       return;
     }
@@ -539,7 +539,7 @@ function validatePropValue(
     }
     state.report(
       'local.attribute.type',
-      `属性 ${name} 需要布尔值 true 或 false${prop.dynamic ? '，或完整布尔插值' : ''}。`,
+      `Attribute ${name} requires true or false${prop.dynamic ? ', or a full boolean interpolation' : ''}.`,
       info.offset,
       info.offset + info.raw.length,
     );
@@ -553,7 +553,7 @@ function validatePropValue(
     info.expression = full.expression;
     info.expressionOffset = info.offset + full.start;
     if (!full.expression) {
-      state.report('local.expression.empty', `属性 ${name} 的插值不能为空。`, info.expressionOffset);
+      state.report('local.expression.empty', `Attribute ${name} interpolation cannot be empty.`, info.expressionOffset);
     }
     return;
   }
@@ -561,7 +561,7 @@ function validatePropValue(
   if (!values.includes(info.raw)) {
     state.report(
       'local.attribute.type',
-      `属性 ${name} 需要 ${values.join(' / ')} 之一，得到“${info.raw}”。`,
+      `Attribute ${name} must be one of ${values.join(' / ')}, got "${info.raw}".`,
       info.offset,
       info.offset + info.raw.length,
     );
@@ -586,10 +586,10 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
     const max = numberValue(entry, attrs, 'max');
     const step = numberValue(entry, attrs, 'step');
     if (min !== undefined && max !== undefined && min > max) {
-      report('local.constraint', `组件 <${entry.name}> 的 min 不能大于 max。`, attrs.min?.offset ?? entry.node.range.start);
+      report('local.constraint', `Component <${entry.name}> min cannot exceed max.`, attrs.min?.offset ?? entry.node.range.start);
     }
     if (step !== undefined && !(step > 0)) {
-      report('local.constraint', `组件 <${entry.name}> 的 step 必须大于 0。`, attrs.step?.offset ?? entry.node.range.start);
+      report('local.constraint', `Component <${entry.name}> step must be greater than 0.`, attrs.step?.offset ?? entry.node.range.start);
     }
   }
 
@@ -597,7 +597,7 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
     const minimum = numberValue(entry, attrs, 'min-length') ?? 0;
     const maximum = numberValue(entry, attrs, 'max-length');
     if (maximum !== undefined && maximum < minimum) {
-      report('local.constraint', 'max-length 不能小于 min-length。', attrs['max-length']?.offset ?? entry.node.range.start);
+      report('local.constraint', 'max-length cannot be less than min-length.', attrs['max-length']?.offset ?? entry.node.range.start);
     }
   }
 
@@ -605,13 +605,13 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
     const min = typeof attrs.min?.value === 'string' ? attrs.min.value : undefined;
     const max = typeof attrs.max?.value === 'string' ? attrs.max.value : undefined;
     if (min !== undefined && !isValidDate(min)) {
-      report('local.attribute.type', `日期下限 ${min} 不是有效的 YYYY-MM-DD。`, attrs.min?.offset ?? entry.node.range.start);
+      report('local.attribute.type', `Date lower bound ${min} is not a valid YYYY-MM-DD.`, attrs.min?.offset ?? entry.node.range.start);
     }
     if (max !== undefined && !isValidDate(max)) {
-      report('local.attribute.type', `日期上限 ${max} 不是有效的 YYYY-MM-DD。`, attrs.max?.offset ?? entry.node.range.start);
+      report('local.attribute.type', `Date upper bound ${max} is not a valid YYYY-MM-DD.`, attrs.max?.offset ?? entry.node.range.start);
     }
     if (min && max && min > max) {
-      report('local.constraint', '日期 min 不能晚于 max。', attrs.min?.offset ?? entry.node.range.start);
+      report('local.constraint', 'Date min cannot be later than max.', attrs.min?.offset ?? entry.node.range.start);
     }
   }
 
@@ -622,7 +622,7 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
       if (value.value < 0 || value.value > max) {
         report(
           'local.constraint',
-          `progress 的 value 必须在 0 到 ${max} 之间，得到 ${value.value}。`,
+          `progress value must be between 0 and ${max}, got ${value.value}.`,
           value.offset,
         );
       }
@@ -633,14 +633,14 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
     const min = numberValue(entry, attrs, 'min');
     const max = numberValue(entry, attrs, 'max');
     if (min !== undefined && max !== undefined && !(min < max)) {
-      report('local.constraint', 'plot 的 min 必须小于 max。', attrs.min?.offset ?? entry.node.range.start);
+      report('local.constraint', 'plot min must be less than max.', attrs.min?.offset ?? entry.node.range.start);
     }
   }
 
   if (entry.name === 'timer') {
     const duration = numberValue(entry, attrs, 'duration') ?? 60;
     if (!Number.isInteger(duration) || duration <= 0) {
-      report('local.constraint', 'timer 的 duration 必须是正整数秒。', attrs.duration?.offset ?? entry.node.range.start);
+      report('local.constraint', 'timer duration must be a positive whole number of seconds.', attrs.duration?.offset ?? entry.node.range.start);
     }
   }
 }
@@ -671,7 +671,7 @@ function validateChildren(entry: Entry, state: CompileState): void {
     if (!entry.parent || !entry.schema.parent.includes(entry.parent.name)) {
       report(
         'local.structure.parent',
-        `<${entry.name}> 只能直接出现在 ${entry.schema.parent.map((name) => `<${name}>`).join(' 或 ')} 中。`,
+        `<${entry.name}> can only appear directly inside ${entry.schema.parent.map((name) => `<${name}>`).join(' or ')}.`,
         entry.node.range.start,
         entry.node.range.end,
       );
@@ -681,13 +681,13 @@ function validateChildren(entry: Entry, state: CompileState): void {
   switch (rule) {
     case 'none':
       if (kids.length) {
-        report('local.structure.children', `<${entry.name}> 不接受正文。`, kids[0].range.start, kids[0].range.end);
+        report('local.structure.children', `<${entry.name}> does not accept body content.`, kids[0].range.start, kids[0].range.end);
       }
       break;
     case 'inline':
       for (const child of kids) {
         if (hasComponent(child)) {
-          report('local.structure.children', `<${entry.name}> 的正文不能包含其他交互组件。`, child.range.start, child.range.end);
+          report('local.structure.children', `The body of <${entry.name}> cannot contain other interactive components.`, child.range.start, child.range.end);
         }
       }
       break;
@@ -706,13 +706,13 @@ function validateChildren(entry: Entry, state: CompileState): void {
       const children = componentChildren(entry);
       const allowed = children.filter((child) => child.name === 'disclosure');
       if (!allowed.length) {
-        report('local.structure.children', `<accordion> 需要至少一个 <disclosure>。`, entry.node.range.start, entry.node.range.end);
+        report('local.structure.children', '<accordion> requires at least one <disclosure>.', entry.node.range.start, entry.node.range.end);
       }
       if (allowed.length !== children.length) {
-        for (const child of children) if (child.name !== 'disclosure') report('local.structure.children', `<accordion> 只能包含 <disclosure>。`, child.node.range.start, child.node.range.end);
+        for (const child of children) if (child.name !== 'disclosure') report('local.structure.children', '<accordion> can only contain <disclosure>.', child.node.range.start, child.node.range.end);
       }
       if (kids.some((kid) => kid.type !== 'component')) {
-        report('local.structure.children', '<accordion> 只能包含 <disclosure>。', entry.node.range.start, entry.node.range.end);
+        report('local.structure.children', '<accordion> can only contain <disclosure>.', entry.node.range.start, entry.node.range.end);
       }
       break;
     }
@@ -720,13 +720,13 @@ function validateChildren(entry: Entry, state: CompileState): void {
       const children = componentChildren(entry);
       const allowed = children.filter((child) => child.name === 'card');
       if (!allowed.length) {
-        report('local.structure.children', '<grid> 需要至少一个 <card>。', entry.node.range.start, entry.node.range.end);
+        report('local.structure.children', '<grid> requires at least one <card>.', entry.node.range.start, entry.node.range.end);
       }
       if (allowed.length !== children.length) {
-        for (const child of children) if (child.name !== 'card') report('local.structure.children', '<grid> 的直接子项只能是 <card>。', child.node.range.start, child.node.range.end);
+        for (const child of children) if (child.name !== 'card') report('local.structure.children', 'Direct children of <grid> must be <card>.', child.node.range.start, child.node.range.end);
       }
       if (kids.some((kid) => kid.type !== 'component')) {
-        report('local.structure.children', '<grid> 的直接子项只能是 <card>。', entry.node.range.start, entry.node.range.end);
+        report('local.structure.children', 'Direct children of <grid> must be <card>.', entry.node.range.start, entry.node.range.end);
       }
       break;
     }
@@ -738,7 +738,7 @@ function validateChildren(entry: Entry, state: CompileState): void {
       if (tables.length !== 1 || kids.length !== 1) {
         report(
           'local.structure.children',
-          `<${entry.name}> 的正文必须正好是一张 Markdown 表格。`,
+          `The body of <${entry.name}> must be exactly one Markdown table.`,
           entry.node.range.start,
           entry.node.range.end,
         );
@@ -750,11 +750,11 @@ function validateChildren(entry: Entry, state: CompileState): void {
     case 'plot': {
       const mathNodes = kids.filter((kid) => kid.type === 'math');
       if (!mathNodes.length) {
-        report('local.structure.children', '<plot> 需要至少一个 $$...$$ 公式块。', entry.node.range.start, entry.node.range.end);
+        report('local.structure.children', '<plot> requires at least one $$...$$ formula block.', entry.node.range.start, entry.node.range.end);
       }
       for (const kid of kids) {
         if (kid.type !== 'math') {
-          report('local.structure.children', '<plot> 的正文只能包含空行和 $$...$$ 公式块。', kid.range.start, kid.range.end);
+          report('local.structure.children', 'The body of <plot> can only contain blank lines and $$...$$ formula blocks.', kid.range.start, kid.range.end);
         }
       }
       break;
@@ -768,7 +768,7 @@ function validateNodeContent(entry: Entry, state: CompileState): void {
       if (node.type === 'component') {
         state.report(
           'local.structure.children',
-          '<node> 的说明不能包含交互组件。',
+          'The description of <node> cannot contain interactive components.',
           node.range.start,
           node.range.end,
         );
@@ -786,33 +786,33 @@ function validateOptions(entry: Entry, state: CompileState, attrs: AttrMap): voi
   if (!options.length) {
     state.report(
       'local.structure.children',
-      `<${entry.name}> 需要至少一个 <option value="...">。`,
+      `<${entry.name}> requires at least one <option value="...">.`,
       entry.node.range.start,
       entry.node.range.end,
     );
   }
   for (const child of children) {
     if (child.name !== 'option') {
-      state.report('local.structure.children', `<${entry.name}> 只能包含 <option>。`, child.node.range.start, child.node.range.end);
+      state.report('local.structure.children', `<${entry.name}> can only contain <option>.`, child.node.range.start, child.node.range.end);
     }
   }
   if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', `<${entry.name}> 只能包含 <option>。`, entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', `<${entry.name}> can only contain <option>.`, entry.node.range.start, entry.node.range.end);
   }
   const values: string[] = [];
   for (const option of options) {
     const optionAttrs = state.attrs.get(option.node.id) ?? {};
     const value = typeof optionAttrs.value?.value === 'string' ? optionAttrs.value.value : '';
     if (!value) {
-      state.report('local.option.value', '<option> 需要非空的 value。', option.node.range.start, option.node.range.end);
+      state.report('local.option.value', '<option> requires a non-empty value.', option.node.range.start, option.node.range.end);
       continue;
     }
     if (values.includes(value)) {
-      state.report('local.option.value', `<${entry.name}> 中的 option value 必须唯一，重复值“${value}”。`, option.node.range.start, option.node.range.end);
+      state.report('local.option.value', `Option values in <${entry.name}> must be unique; duplicate value "${value}".`, option.node.range.start, option.node.range.end);
       continue;
     }
     if ((option.node.children ?? []).some(hasComponent)) {
-      state.report('local.structure.children', '<option> 的正文不能包含交互组件。', option.node.range.start, option.node.range.end);
+      state.report('local.structure.children', 'The body of <option> cannot contain interactive components.', option.node.range.start, option.node.range.end);
     }
     values.push(value);
   }
@@ -823,15 +823,15 @@ function validateTabs(entry: Entry, state: CompileState): void {
   const children = componentChildren(entry);
   const tabs = children.filter((child) => child.name === 'tab');
   if (!tabs.length) {
-    state.report('local.structure.children', '<tabs> 需要至少一个 <tab>。', entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', '<tabs> requires at least one <tab>.', entry.node.range.start, entry.node.range.end);
   }
   for (const child of children) {
     if (child.name !== 'tab') {
-      state.report('local.structure.children', '<tabs> 只能包含 <tab>。', child.node.range.start, child.node.range.end);
+      state.report('local.structure.children', '<tabs> can only contain <tab>.', child.node.range.start, child.node.range.end);
     }
   }
   if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', '<tabs> 只能包含 <tab>。', entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', '<tabs> can only contain <tab>.', entry.node.range.start, entry.node.range.end);
   }
   const values: string[] = [];
   tabs.forEach((tab, index) => {
@@ -839,7 +839,7 @@ function validateTabs(entry: Entry, state: CompileState): void {
     const rawValue = typeof tabAttrs.value?.value === 'string' ? tabAttrs.value.value.trim() : '';
     const value = rawValue || `tab-${index + 1}`;
     if (values.includes(value)) {
-      state.report('local.tab.value', `<tabs> 中的 tab value 必须唯一，重复值“${value}”。`, tab.node.range.start, tab.node.range.end);
+      state.report('local.tab.value', `Tab values in <tabs> must be unique; duplicate value "${value}".`, tab.node.range.start, tab.node.range.end);
       return;
     }
     values.push(value);
@@ -852,15 +852,15 @@ function validateDiagram(entry: Entry, state: CompileState): void {
   const nodes = children.filter((child) => child.name === 'node');
   const edges = children.filter((child) => child.name === 'edge');
   if (!nodes.length) {
-    state.report('local.diagram.node', '<diagram> 需要至少一个 <node>。', entry.node.range.start, entry.node.range.end);
+    state.report('local.diagram.node', '<diagram> requires at least one <node>.', entry.node.range.start, entry.node.range.end);
   }
   for (const child of children) {
     if (child.name !== 'node' && child.name !== 'edge') {
-      state.report('local.structure.children', '<diagram> 只能包含 <node> 和 <edge>。', child.node.range.start, child.node.range.end);
+      state.report('local.structure.children', '<diagram> can only contain <node> and <edge>.', child.node.range.start, child.node.range.end);
     }
   }
   if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', '<diagram> 只能包含 <node> 和 <edge>。', entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', '<diagram> can only contain <node> and <edge>.', entry.node.range.start, entry.node.range.end);
   }
 
   const ids: string[] = [];
@@ -869,10 +869,10 @@ function validateDiagram(entry: Entry, state: CompileState): void {
     const id = typeof nodeAttrs.id?.value === 'string' ? nodeAttrs.id.value : '';
     if (!id) continue;
     if (!/^[A-Za-z_][A-Za-z0-9_-]*$/.test(id)) {
-      state.report('local.diagram.node', `节点 ID“${id}”只能包含字母、数字、下划线和连字符，且不能以数字开头。`, node.node.range.start, node.node.range.end);
+      state.report('local.diagram.node', `Node ID "${id}" may only contain letters, digits, underscores and hyphens, and cannot start with a digit.`, node.node.range.start, node.node.range.end);
     }
     if (ids.includes(id)) {
-      state.report('local.diagram.node', `节点 ID“${id}”重复。`, node.node.range.start, node.node.range.end);
+      state.report('local.diagram.node', `Duplicate node ID "${id}".`, node.node.range.start, node.node.range.end);
       continue;
     }
     ids.push(id);
@@ -886,14 +886,14 @@ function validateDiagram(entry: Entry, state: CompileState): void {
     const to = typeof edgeAttrs.to?.value === 'string' ? edgeAttrs.to.value : '';
     const label = typeof edgeAttrs.label?.value === 'string' ? edgeAttrs.label.value : '';
     if (from && !ids.includes(from)) {
-      state.report('local.diagram.edge', `edge 的 from 指向不存在的节点“${from}”。`, edge.node.range.start, edge.node.range.end);
+      state.report('local.diagram.edge', `Edge from references unknown node "${from}".`, edge.node.range.start, edge.node.range.end);
     }
     if (to && !ids.includes(to)) {
-      state.report('local.diagram.edge', `edge 的 to 指向不存在的节点“${to}”。`, edge.node.range.start, edge.node.range.end);
+      state.report('local.diagram.edge', `Edge to references unknown node "${to}".`, edge.node.range.start, edge.node.range.end);
     }
     const key = `${from}\u0000${to}\u0000${label}`;
     if (seen.has(key)) {
-      state.report('local.diagram.edge', `重复的 edge：${from} → ${to}${label ? `（${label}）` : ''}。`, edge.node.range.start, edge.node.range.end);
+      state.report('local.diagram.edge', `Duplicate edge: ${from} → ${to}${label ? ` (${label})` : ''}.`, edge.node.range.start, edge.node.range.end);
     }
     seen.add(key);
   }
@@ -907,7 +907,7 @@ function validateChecklist(entry: Entry, state: CompileState): ChecklistInfo {
   if (kids.length !== 1 || lists.length !== 1) {
     state.report(
       'local.checklist.body',
-      '<checklist> 的正文必须正好是一层 Markdown 任务列表。',
+      'The body of <checklist> must be exactly one single-level Markdown task list.',
       entry.node.range.start,
       entry.node.range.end,
     );
@@ -921,26 +921,26 @@ function validateChecklist(entry: Entry, state: CompileState): ChecklistInfo {
   }
   const items = list.children ?? [];
   if (!items.length) {
-    state.report('local.checklist.body', '<checklist> 需要至少一个任务列表项。', list.range.start, list.range.end);
+    state.report('local.checklist.body', '<checklist> requires at least one task list item.', list.range.start, list.range.end);
   }
   if (items.length > MAX_LOCAL_ARRAY_LENGTH) {
     state.report(
       'local.budget.array',
-      `<checklist> 条目超过 ${MAX_LOCAL_ARRAY_LENGTH} 个上限。`,
+      `<checklist> items exceed the limit of ${MAX_LOCAL_ARRAY_LENGTH}.`,
       list.range.start,
       list.range.end,
     );
   }
   items.slice(0, MAX_LOCAL_ARRAY_LENGTH).forEach((item, index) => {
     if (item.type !== 'listItem' || item.checked === null || item.checked === undefined) {
-      state.report('local.checklist.body', '<checklist> 只能包含任务列表项（- [ ] / - [x]）。', item.range.start, item.range.end);
+      state.report('local.checklist.body', '<checklist> can only contain task list items (- [ ] / - [x]).', item.range.start, item.range.end);
       return;
     }
     if ((item.children ?? []).some((child) => child.type === 'list')) {
-      state.report('local.checklist.body', '<checklist> 不支持嵌套列表。', item.range.start, item.range.end);
+      state.report('local.checklist.body', '<checklist> does not support nested lists.', item.range.start, item.range.end);
     }
     if (hasComponent(item)) {
-      state.report('local.checklist.body', '<checklist> 条目不能包含交互组件。', item.range.start, item.range.end);
+      state.report('local.checklist.body', '<checklist> items cannot contain interactive components.', item.range.start, item.range.end);
     }
     const id = `item-${index + 1}`;
     ids.push(id);
@@ -978,21 +978,21 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
       if (rawBind.length > MAX_LOCAL_NAME_LENGTH) {
         state.report(
           'local.budget.identifier',
-          `参数名超过 ${MAX_LOCAL_NAME_LENGTH} 字符上限。`,
+          `Parameter name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`,
           attrs.bind.offset ?? entry.node.range.start,
         );
         key = `@${entry.node.id}`;
       } else if (!IDENTIFIER.test(rawBind)) {
         state.report(
           'local.binding.name',
-          `参数名“${rawBind}”必须匹配 [A-Za-z_][A-Za-z0-9_]*。`,
+          `Parameter name "${rawBind}" must match [A-Za-z_][A-Za-z0-9_]*.`,
           attrs.bind.offset ?? entry.node.range.start,
         );
         key = `@${entry.node.id}`;
       } else if (RESERVED_NAMES.has(rawBind) || EXTRA_RESERVED.has(rawBind)) {
         state.report(
           'local.binding.reserved',
-          `参数名“${rawBind}”是保留名称，请换一个名字。`,
+          `Parameter name "${rawBind}" is reserved; choose another name.`,
           attrs.bind.offset ?? entry.node.range.start,
         );
         key = `@${entry.node.id}`;
@@ -1048,7 +1048,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
     if (memberFamily !== family) {
       state.report(
         'local.binding.type',
-        `参数“${group.key}”已由 <${first.entry.name}> 声明为${typeName(bindingSchema.kind)}，不能同时绑定 <${member.entry.name}>。`,
+        `Parameter "${group.key}" is already declared as ${typeName(bindingSchema.kind)} by <${first.entry.name}> and cannot also bind <${member.entry.name}>.`,
         member.entry.node.range.start,
         member.entry.node.range.end,
       );
@@ -1059,7 +1059,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
     for (const member of group.members.slice(1)) {
       state.report(
         'local.binding.exclusive',
-        `<${first.entry.name}> 的参数“${group.key}”只能由一个组件拥有，不能与 <${member.entry.name}> 共享。`,
+        `Parameter "${group.key}" of <${first.entry.name}> can only be owned by one component and cannot be shared with <${member.entry.name}>.`,
         member.entry.node.range.start,
         member.entry.node.range.end,
       );
@@ -1079,7 +1079,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
       ) {
         state.report(
           'local.binding.constraint',
-          `参数“${group.key}”的数值范围与步长必须一致：<${first.entry.name}> 为 ${describeConstraints(constraints)}，<${member.entry.name}> 为 ${describeConstraints(other)}。`,
+          `Parameter "${group.key}" must use the same numeric range and step: <${first.entry.name}> has ${describeConstraints(constraints)}, <${member.entry.name}> has ${describeConstraints(other)}.`,
           member.entry.node.range.start,
           member.entry.node.range.end,
         );
@@ -1093,7 +1093,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
       if (other.join('\u0000') !== options.join('\u0000')) {
         state.report(
           'local.binding.option',
-          `参数“${group.key}”的选项集合与顺序必须一致。`,
+          `Parameter "${group.key}" must use the same option set in the same order.`,
           member.entry.node.range.start,
           member.entry.node.range.end,
         );
@@ -1115,7 +1115,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
         }
         state.report(
           'local.initial.duplicate',
-          `参数“${group.key}”出现多个显式 initial（共 ${explicit.length} 处${peers.length ? `；另见第 ${peers.join('、')} 行` : ''}）。`,
+          `Parameter "${group.key}" has multiple explicit initial values (${explicit.length} in total${peers.length ? `; see also line ${peers.join(', ')}` : ''}).`,
           explicit[index].attrs.initial.offset,
         );
       }
@@ -1181,31 +1181,31 @@ function validateStaticInitial(group: Group, initial: LocalValue, state: Compile
       if (length < minLength) {
         state.report(
           'local.initial.length',
-          `参数“${group.key}”的初值长度 ${length} 小于 <${entry.name}> 要求的最小长度 ${minLength}。`,
+          `Initial value of parameter "${group.key}" has length ${length}, below the minimum length ${minLength} required by <${entry.name}>.`,
           offset,
         );
       }
       if (maxLength !== undefined && length > maxLength) {
         state.report(
           'local.initial.length',
-          `参数“${group.key}”的初值长度 ${length} 超过 <${entry.name}> 允许的最大长度 ${maxLength}。`,
+          `Initial value of parameter "${group.key}" has length ${length}, exceeding the maximum length ${maxLength} allowed by <${entry.name}>.`,
           offset,
         );
       }
       if (entry.name === 'input') {
         const type = typeof attrs.type?.value === 'string' ? attrs.type.value : 'text';
         if (type === 'email' && !isLocalEmail(initial)) {
-          state.report('local.initial.email', `参数“${group.key}”的初值不是有效邮箱地址。`, offset);
+          state.report('local.initial.email', `Initial value of parameter "${group.key}" is not a valid email address.`, offset);
         }
       }
     } else if (entry.name === 'date' && isValidDate(initial)) {
       const min = typeof attrs.min?.value === 'string' && isValidDate(attrs.min.value) ? attrs.min.value : undefined;
       const max = typeof attrs.max?.value === 'string' && isValidDate(attrs.max.value) ? attrs.max.value : undefined;
       if (min && initial < min) {
-        state.report('local.initial.range', `参数“${group.key}”的初值 ${initial} 早于 <date> 的最小日期 ${min}。`, offset);
+        state.report('local.initial.range', `Initial value ${initial} of parameter "${group.key}" is earlier than the minimum date ${min} of <date>.`, offset);
       }
       if (max && initial > max) {
-        state.report('local.initial.range', `参数“${group.key}”的初值 ${initial} 晚于 <date> 的最大日期 ${max}。`, offset);
+        state.report('local.initial.range', `Initial value ${initial} of parameter "${group.key}" is later than the maximum date ${max} of <date>.`, offset);
       }
     }
   }
@@ -1238,15 +1238,15 @@ function memberInitial(
   if (family === 'number' && typeof info.value === 'number') return info.value;
   if (family === 'boolean' && typeof info.value === 'boolean') return info.value;
   if (family === 'number' || family === 'boolean') {
-    state.report('local.initial.type', `参数“${entry.node.id}”的初值类型不正确。`, info.offset);
+    state.report('local.initial.type', `Initial value of parameter "${entry.node.id}" has the wrong type.`, info.offset);
     return family === 'number' ? 0 : false;
   }
   const value = typeof info.value === 'string' ? info.value : String(info.value ?? '');
   if (family === 'date' && !isValidDate(value)) {
-    state.report('local.initial.date', `日期初值“${value}”不是有效的 YYYY-MM-DD。`, info.offset);
+    state.report('local.initial.date', `Initial date "${value}" is not a valid YYYY-MM-DD.`, info.offset);
   }
   if (family === 'choice' && options.length && !options.includes(value)) {
-    state.report('local.initial.option', `参数初值“${value}”不是可用选项：${options.join('、')}。`, info.offset);
+    state.report('local.initial.option', `Initial value "${value}" is not an available option: ${options.join(', ')}.`, info.offset);
   }
   return value;
 }
@@ -1283,7 +1283,7 @@ function defaultInitial(
       if (value === null) {
         state.report(
           'local.initial.range',
-          `参数“${entry.node.id}”在范围 [${local.min ?? '-∞'}, ${local.max ?? '∞'}] 内没有可用的步长值。`,
+          `Parameter "${entry.node.id}" has no valid step value within range [${local.min ?? '-∞'}, ${local.max ?? '∞'}].`,
           entry.node.range.start,
           entry.node.range.end,
         );
@@ -1294,7 +1294,7 @@ function defaultInitial(
   }
   state.report(
     'local.initial',
-    `无法为 <${entry.name}> 参数“${entry.node.id}”推导默认初值。`,
+    `Cannot derive a default initial value for <${entry.name}> parameter "${entry.node.id}".`,
     entry.node.range.start,
     entry.node.range.end,
   );
@@ -1313,21 +1313,21 @@ function validateInitialValue(
   const key = group.key;
   if (family === 'number') {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      state.report('local.initial.type', `参数“${key}”的初值必须是有限数字。`, first.entry.node.range.start);
+      state.report('local.initial.type', `Initial value of parameter "${key}" must be a finite number.`, first.entry.node.range.start);
       return;
     }
     const local = constraints ?? numericConstraints(first.entry, first.attrs, family);
     if (local.min !== undefined && value < local.min) {
       state.report(
         'local.initial.range',
-        `参数“${key}”的初值 ${value} 小于允许的最小值 ${local.min}。`,
+        `Initial value ${value} of parameter "${key}" is below the minimum ${local.min}.`,
         first.attrs.initial?.offset ?? first.entry.node.range.start,
       );
     }
     if (local.max !== undefined && value > local.max) {
       state.report(
         'local.initial.range',
-        `参数“${key}”的初值 ${value} 超出允许的最大值 ${local.max}。`,
+        `Initial value ${value} of parameter "${key}" exceeds the maximum ${local.max}.`,
         first.attrs.initial?.offset ?? first.entry.node.range.start,
       );
     }
@@ -1335,19 +1335,19 @@ function validateInitialValue(
     if (value >= (local.min ?? Number.NEGATIVE_INFINITY) && value <= (local.max ?? Number.POSITIVE_INFINITY) && !onStep(value, base, local.step)) {
       state.report(
         'local.initial.step',
-        `参数“${key}”的初值 ${value} 不在步长 ${local.step} 上（以 ${local.min ?? 0} 为基点）。`,
+        `Initial value ${value} of parameter "${key}" is not on step ${local.step} (based at ${local.min ?? 0}).`,
         first.attrs.initial?.offset ?? first.entry.node.range.start,
       );
     }
     return;
   }
   if (family === 'boolean' && typeof value !== 'boolean') {
-    state.report('local.initial.type', `参数“${key}”的初值必须是布尔值。`, first.entry.node.range.start);
+    state.report('local.initial.type', `Initial value of parameter "${key}" must be a boolean.`, first.entry.node.range.start);
   }
   if ((family === 'choice' || family === 'tabs' || family === 'diagram') && options.length && !options.includes(String(value))) {
     state.report(
       family === 'diagram' ? 'local.initial.option' : 'local.initial.option',
-      `参数“${key}”的初值“${String(value)}”不在可用值 ${options.join('、')} 中。`,
+      `Initial value "${String(value)}" of parameter "${key}" is not among the available values ${options.join(', ')}.`,
       first.attrs.initial?.offset ?? first.entry.node.range.start,
     );
   }
@@ -1365,14 +1365,14 @@ function validateExpressions(state: CompileState): void {
     if (error instanceof LocalExpressionError) {
       state.report(
         `local.expression.${error.code || 'invalid'}`,
-        `表达式错误：${error.message}`,
+        `Expression error: ${error.message}`,
         base + (Number.isFinite(error.offset) ? error.offset : 0),
       );
       return;
     }
     state.report(
       'local.expression.invalid',
-      `表达式错误：${error instanceof Error ? error.message : String(error)}`,
+      `Expression error: ${error instanceof Error ? error.message : String(error)}`,
       base,
     );
   };
@@ -1383,7 +1383,7 @@ function validateExpressions(state: CompileState): void {
     expected: 'text' | 'number' | 'boolean' | 'string',
   ): LocalValueKind | null => {
     if (!expression.trim()) {
-      state.report('local.expression.empty', '插值表达式不能为空。', base);
+      state.report('local.expression.empty', 'Interpolation expression cannot be empty.', base);
       return null;
     }
     let compiled: LocalExpression | null = null;
@@ -1400,7 +1400,7 @@ function validateExpressions(state: CompileState): void {
         const suggestion = suggestName(dependency, names);
         state.report(
           'local.binding.unknown',
-          `引用未声明的参数 ${dependency}。${suggestion ? `是否想写 ${suggestion}？` : ''}`,
+          `Reference to undeclared parameter ${dependency}.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
           base + Math.max(0, expression.indexOf(dependency)),
         );
         missing = true;
@@ -1415,13 +1415,13 @@ function validateExpressions(state: CompileState): void {
       return null;
     }
     if (expected === 'number' && kind !== 'number') {
-      state.report('local.type', `这里需要数字，表达式结果是${typeName(kind)}。`, base);
+      state.report('local.type', `Expected a number here, but the expression evaluates to ${typeName(kind)}.`, base);
     } else if (expected === 'boolean' && kind !== 'boolean') {
-      state.report('local.type', `这里需要布尔值，表达式结果是${typeName(kind)}。`, base);
+      state.report('local.type', `Expected a boolean here, but the expression evaluates to ${typeName(kind)}.`, base);
     } else if (expected === 'string' && kind !== 'string') {
-      state.report('local.type', `这里需要字符串，表达式结果是${typeName(kind)}。`, base);
+      state.report('local.type', `Expected a string here, but the expression evaluates to ${typeName(kind)}.`, base);
     } else if (expected === 'text' && kind === 'array') {
-      state.report('local.type', '数组不能直接显示，请先用 len 等函数转换。', base);
+      state.report('local.type', 'Arrays cannot be displayed directly; convert them first with a function such as len.', base);
     }
     return kind;
   };
@@ -1448,7 +1448,7 @@ function validateExpressions(state: CompileState): void {
       if (prop.kind === 'string') {
         const scanned = scanInterpolations(info.raw);
         for (const offset of scanned.unterminated) {
-          state.report('local.interpolation', '插值缺少 }}。', info.offset + offset);
+          state.report('local.interpolation', 'Interpolation is missing }}.', info.offset + offset);
         }
         for (const segment of scanned.segments) {
           validate(segment.expression, info.offset + segment.start, 'text');
@@ -1469,7 +1469,7 @@ function validateExpressions(state: CompileState): void {
       if (when && !when.dynamic) {
         state.report(
           'local.attribute.interpolation',
-          'if 的 when 必须写成完整布尔插值，例如 when="{{ seats >= 5 }}"。',
+          'The when attribute of if must be a full boolean interpolation, e.g. when="{{ seats >= 5 }}".',
           when.offset,
         );
       }
@@ -1527,7 +1527,7 @@ function validatePlots(state: CompileState): void {
     if (mathNodes.length > MAX_LOCAL_PLOT_CURVES) {
       state.report(
         'local.budget.plot.curves',
-        `<plot> 最多支持 ${MAX_LOCAL_PLOT_CURVES} 条曲线，当前有 ${mathNodes.length} 条。`,
+        `<plot> supports at most ${MAX_LOCAL_PLOT_CURVES} curves, but has ${mathNodes.length}.`,
         entry.node.range.start,
         entry.node.range.end,
       );
@@ -1537,7 +1537,7 @@ function validatePlots(state: CompileState): void {
     if (!pointsBudgetExceeded && nextTotal > MAX_LOCAL_PLOT_POINTS) {
       state.report(
         'local.budget.plot.points',
-        `文档中的绘图采样点总数超过 ${MAX_LOCAL_PLOT_POINTS} 上限。`,
+        `The document's total plot sample count exceeds the limit of ${MAX_LOCAL_PLOT_POINTS}.`,
         entry.node.range.start,
         entry.node.range.end,
       );
@@ -1552,7 +1552,7 @@ function validatePlots(state: CompileState): void {
       if (!/^y\s*=/u.test(recipe)) {
         state.report(
           'local.math.formula',
-          '<plot> 的每个公式必须显式写成 y = 表达式。',
+          '<plot> formulas must be written explicitly as y = expression.',
           node.range.start,
           node.range.end,
         );
@@ -1564,7 +1564,7 @@ function validatePlots(state: CompileState): void {
       } catch (error) {
         state.report(
           'local.math',
-          `无法计算绘图公式：${error instanceof Error ? error.message : String(error)}`,
+          `Cannot compute plot formula: ${error instanceof Error ? error.message : String(error)}`,
           node.range.start,
           node.range.end,
         );
@@ -1575,14 +1575,14 @@ function validatePlots(state: CompileState): void {
         if (!Object.hasOwn(env, dependency)) {
           state.report(
             'local.math.binding',
-            `绘图公式引用了未声明的参数“${dependency}”。`,
+            `Plot formula references undeclared parameter "${dependency}".`,
             node.range.start,
             node.range.end,
           );
         } else if (env[dependency] !== 'number') {
           state.report(
             'local.math.binding',
-            `绘图参数“${dependency}”必须是数字，当前是${typeName(env[dependency])}。`,
+            `Plot parameter "${dependency}" must be a number, but is ${typeName(env[dependency])}.`,
             node.range.start,
             node.range.end,
           );
@@ -1604,29 +1604,29 @@ interface TableShape {
 function tableShape(table: LocalNode, state: CompileState, component: Entry): TableShape | null {
   const rows = (table.children ?? []).filter((node) => node.type === 'tableRow');
   if (!rows.length) {
-    state.report('local.table.header', `<${component.name}> 的表格缺少表头。`, table.range.start, table.range.end);
+    state.report('local.table.header', `The table for <${component.name}> is missing a header.`, table.range.start, table.range.end);
     return null;
   }
   const header = rows[0].children ?? [];
   const names: string[] = [];
   for (const cell of header) {
     if (hasInterpolation(cell)) {
-      state.report('local.table.header', '表头不能包含插值。', cell.range.start, cell.range.end);
+      state.report('local.table.header', 'Table headers cannot contain interpolations.', cell.range.start, cell.range.end);
       return null;
     }
     const text = plainText(cell).trim();
     if (!text) {
-      state.report('local.table.header', '表头不能为空。', cell.range.start, cell.range.end);
+      state.report('local.table.header', 'Table headers cannot be empty.', cell.range.start, cell.range.end);
       return null;
     }
     if (names.includes(text)) {
-      state.report('local.table.header', `表头“${text}”重复。`, cell.range.start, cell.range.end);
+      state.report('local.table.header', `Duplicate table header "${text}".`, cell.range.start, cell.range.end);
       return null;
     }
     names.push(text);
   }
   if (!names.length) {
-    state.report('local.table.header', '表头不能为空。', table.range.start, table.range.end);
+    state.report('local.table.header', 'Table headers cannot be empty.', table.range.start, table.range.end);
     return null;
   }
   const dataRows: LocalNode[][] = [];
@@ -1635,7 +1635,7 @@ function tableShape(table: LocalNode, state: CompileState, component: Entry): Ta
     if (cells.length !== names.length) {
       state.report(
         'local.table.row',
-        `表格行列数不一致：表头有 ${names.length} 列，此行有 ${cells.length} 列。`,
+        `Table row has a different column count: header has ${names.length} columns, this row has ${cells.length}.`,
         row.range.start,
         row.range.end,
       );
@@ -1676,7 +1676,7 @@ function requireNumericColumn(
       if (kind !== undefined && kind !== null && kind !== 'number') {
         state.report(
           'local.chart.numeric',
-          `${component.name === 'timeline' ? '时间轴' : '图表'}的“${name}”列第 ${rowIndex + 1} 行需要数字，表达式结果是${typeName(kind)}。`,
+          `${component.name === 'timeline' ? 'Timeline' : 'Chart'} column "${name}" requires a number in row ${rowIndex + 1}, but the expression evaluates to ${typeName(kind)}.`,
           cell.range.start,
           cell.range.end,
         );
@@ -1686,7 +1686,7 @@ function requireNumericColumn(
     if (!cellNumeric(cell, state)) {
       state.report(
         'local.chart.numeric',
-        `${component.name === 'timeline' ? '时间轴' : '图表'}的“${name}”列第 ${rowIndex + 1} 行需要纯数字，得到“${plainText(cell).trim() || '空值'}”。`,
+        `${component.name === 'timeline' ? 'Timeline' : 'Chart'} column "${name}" requires a plain number in row ${rowIndex + 1}, got "${plainText(cell).trim() || 'empty'}".`,
         cell.range.start,
         cell.range.end,
       );
@@ -1721,23 +1721,23 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
   const header = shape.header;
   for (const name of header) {
     if (name.includes(',')) {
-      state.report('local.chart.column', `图表列名不能包含逗号：“${name}”。`, entry.node.range.start, entry.node.range.end);
+      state.report('local.chart.column', `Chart column names cannot contain commas: "${name}".`, entry.node.range.start, entry.node.range.end);
     }
   }
   const xName = typeof attrs.x?.value === 'string' ? attrs.x.value.trim() : '';
   const yRaw = typeof attrs.y?.value === 'string' ? attrs.y.value.trim() : '';
   if (xName && columnIndex(header, xName) < 0) {
-    state.report('local.chart.column', `图表的 x 列“${xName}”不存在。`, attrs.x?.offset ?? entry.node.range.start);
+    state.report('local.chart.column', `Chart x column "${xName}" does not exist.`, attrs.x?.offset ?? entry.node.range.start);
   }
   let yNames: string[] = [];
   if (yRaw) {
     yNames = yRaw.split(',').map((name) => name.trim()).filter(Boolean);
     if (!yNames.length) {
-      state.report('local.chart.column', '图表的 y 需要列名。', attrs.y?.offset ?? entry.node.range.start);
+      state.report('local.chart.column', 'Chart y requires a column name.', attrs.y?.offset ?? entry.node.range.start);
     }
     for (const name of yNames) {
       if (columnIndex(header, name) < 0) {
-        state.report('local.chart.column', `图表的 y 列“${name}”不存在。`, attrs.y?.offset ?? entry.node.range.start);
+        state.report('local.chart.column', `Chart y column "${name}" does not exist.`, attrs.y?.offset ?? entry.node.range.start);
       }
     }
   }
@@ -1749,12 +1749,12 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
       ? yNames.map((name) => columnIndex(header, name)).filter((index) => index >= 0)
       : header.map((_, index) => index).filter((index) => index !== xColumn);
     if (!numeric.length) {
-      state.report('local.chart.column', '图表需要至少一个数值列。', entry.node.range.start, entry.node.range.end);
+      state.report('local.chart.column', 'Chart requires at least one numeric column.', entry.node.range.start, entry.node.range.end);
     }
   } else if (kind === 'scatter') {
     const xColumn = xName ? columnIndex(header, xName) : 0;
     if (xColumn < 0) {
-      state.report('local.chart.column', `散点图的 x 列“${xName}”不存在。`, entry.node.range.start);
+      state.report('local.chart.column', `Scatter chart x column "${xName}" does not exist.`, entry.node.range.start);
     } else {
       requireNumericColumn(shape, xColumn, state, entry, 'x');
     }
@@ -1762,20 +1762,20 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
       ? yNames.map((name) => columnIndex(header, name)).filter((index) => index >= 0)
       : header.map((_, index) => index).filter((index) => index !== xColumn);
     if (!numeric.length) {
-      state.report('local.chart.column', '散点图需要至少一个数值列。', entry.node.range.start, entry.node.range.end);
+      state.report('local.chart.column', 'Scatter chart requires at least one numeric column.', entry.node.range.start, entry.node.range.end);
     }
   } else if (kind === 'donut') {
     if (header.length < 2) {
-      state.report('local.chart.column', '环形图需要标签列和数值列。', entry.node.range.start, entry.node.range.end);
+      state.report('local.chart.column', 'Donut chart requires a label column and a value column.', entry.node.range.start, entry.node.range.end);
       return;
     }
     if (yNames.length === 1) {
       const index = columnIndex(header, yNames[0]);
       if (index >= 0) numeric = [index];
     } else if (yNames.length > 1) {
-      state.report('local.chart.column', '环形图的 y 只能指定一个数值列。', attrs.y?.offset ?? entry.node.range.start);
+      state.report('local.chart.column', 'Donut chart y can only specify one numeric column.', attrs.y?.offset ?? entry.node.range.start);
     } else if (header.length > 2) {
-      state.report('local.chart.column', '多于两列的环形图必须用 y 指定唯一数值列。', entry.node.range.start, entry.node.range.end);
+      state.report('local.chart.column', 'A donut chart with more than two columns must use y to specify the single numeric column.', entry.node.range.start, entry.node.range.end);
     } else {
       numeric = [1];
     }
@@ -1794,7 +1794,7 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
         if (value !== null && value < 0) {
           state.report(
             'local.chart.negative',
-            `环形图数值不能为负，第 ${rowIndex + 1} 行为 ${value}。`,
+            `Donut chart values cannot be negative; row ${rowIndex + 1} is ${value}.`,
             cell.range.start,
             cell.range.end,
           );
@@ -1805,28 +1805,28 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
 }
 
 function validateTimeline(entry: Entry, shape: TableShape, state: CompileState): void {
-  const required = ['事项', '开始', '时长'];
+  const required = ['Task', 'Start', 'Duration'];
   for (const name of required) {
     if (!shape.header.includes(name)) {
       state.report(
         'local.timeline.header',
-        `时间轴缺少固定列“${name}”，需要 事项、开始、时长，可选 说明。`,
+        `Timeline is missing required column "${name}"; expected Task, Start and Duration, with optional Notes.`,
         entry.node.range.start,
         entry.node.range.end,
       );
     }
   }
   for (const name of shape.header) {
-    if (!required.includes(name) && name !== '说明') {
-      state.report('local.timeline.header', `时间轴不支持列“${name}”。`, entry.node.range.start, entry.node.range.end);
+    if (!required.includes(name) && name !== 'Notes') {
+      state.report('local.timeline.header', `Timeline does not support column "${name}".`, entry.node.range.start, entry.node.range.end);
     }
   }
-  for (const name of ['开始', '时长']) {
+  for (const name of ['Start', 'Duration']) {
     const column = columnIndex(shape.header, name);
     if (column >= 0) requireNumericColumn(shape, column, state, entry, name);
   }
-  const startColumn = columnIndex(shape.header, '开始');
-  const durationColumn = columnIndex(shape.header, '时长');
+  const startColumn = columnIndex(shape.header, 'Start');
+  const durationColumn = columnIndex(shape.header, 'Duration');
   shape.rows.forEach((row, rowIndex) => {
     for (const column of [startColumn, durationColumn]) {
       if (column < 0) continue;
@@ -1837,7 +1837,7 @@ function validateTimeline(entry: Entry, shape: TableShape, state: CompileState):
       if (value !== null && value < 0) {
         state.report(
           'local.timeline.value',
-          `时间轴的“${shape.header[column]}”第 ${rowIndex + 1} 行不能为负。`,
+          `Timeline column "${shape.header[column]}" cannot be negative in row ${rowIndex + 1}.`,
           cell.range.start,
           cell.range.end,
         );

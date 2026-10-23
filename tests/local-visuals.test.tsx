@@ -83,7 +83,7 @@ function renderNodes(runtime: LocalRuntime) {
           if (value === null) return '';
           return Array.isArray(value) ? '' : String(value);
         } catch {
-          return '无法计算';
+          return 'Cannot compute';
         }
       }
       if (child.children) return renderNodes(runtime)(child.children);
@@ -113,13 +113,13 @@ it('renders a searchable, sortable table with page-size pagination', () => {
   ]);
 
   const html = mount(visual, runtime);
-  expect(html).toContain('搜索组件目录');
-  expect(markup(html)).toContain('第 1 / 2 页 · 共 8 行');
+  expect(html).toContain('Search 组件目录');
+  expect(markup(html)).toContain('Page 1 of 2 · 8 rows');
   expect(html).toContain('slider');
   expect(html).toContain('chart');
   expect(html).not.toContain('checklist');
   expect(html).toContain('aria-sort="none"');
-  expect(html).not.toContain('查看数据表'); // the enhanced table is the whole visual, not a fallback
+  expect(html).not.toContain('View data table'); // the enhanced table is the whole visual, not a fallback
 });
 
 it('renders bar charts with series legend and keyboard marks', () => {
@@ -137,9 +137,9 @@ it('renders bar charts with series legend and keyboard marks', () => {
   expect(html).toContain('费用与预算');
   expect(html).toContain('实际');
   expect(html).toContain('预算');
-  expect(html).toContain('聚焦或指向图形');
+  expect(html).toContain('Focus or point at a mark; use arrow keys to change the readout');
   expect(html).toContain('data-chart-mark');
-  expect(html).not.toContain('查看数据表');
+  expect(html).not.toContain('View data table');
 });
 
 it('shows the donut empty state when every value is zero', () => {
@@ -152,7 +152,7 @@ it('shows the donut empty state when every value is zero', () => {
     ),
   ]);
 
-  expect(mount(visual, runtime)).toContain('暂无占比');
+  expect(mount(visual, runtime)).toContain('No share to display');
 });
 
 it('sorts timeline items by start time and shows the configured unit', () => {
@@ -160,10 +160,10 @@ it('sorts timeline items by start time and shows the configured unit', () => {
   const visual = component('timeline', { title: '计划', unit: 'min' }, [
     table(
       row(
-        cell(text('事项')),
-        cell(text('开始')),
-        cell(text('时长')),
-        cell(text('说明')),
+        cell(text('Task')),
+        cell(text('Start')),
+        cell(text('Duration')),
+        cell(text('Notes')),
       ),
       row(cell(text('后段')), cell(text('30')), cell(text('10')), cell(text('后段说明'))),
       row(cell(text('前段')), cell(text('0')), cell(text('20')), cell(text('前段说明'))),
@@ -172,9 +172,9 @@ it('sorts timeline items by start time and shows the configured unit', () => {
 
   const html = mount(visual, runtime);
   expect(markup(html).indexOf('前段')).toBeLessThan(markup(html).indexOf('后段'));
-  expect(markup(html)).toContain('开始 0 min');
-  expect(markup(html)).toContain('结束 20 min');
-  expect(html).toContain('聚焦或指向事项查看说明。');
+  expect(markup(html)).toContain('Started 0 min');
+  expect(markup(html)).toContain('Ended 20 min');
+  expect(html).toContain('Focus or point at an item to view its notes.');
 });
 
 it('reads diagram selection from the runtime and shows the selected node detail', () => {
@@ -215,11 +215,11 @@ it('reserves layer spacing for edge labels and paints labels above node cards', 
   expect(html.indexOf('local-visual-edge-label-group')).toBeGreaterThan(
     html.lastIndexOf('data-diagram-node'),
   );
-  expect(html).not.toContain('查看节点与连线');
+  expect(html).not.toContain('View nodes and edges');
   expect(html).toContain('aria-describedby="local-diagram-description-');
   expect(html).toContain('local-visual-sr-only');
-  expect(html).toContain('输入 → 计算（参数变化）');
-  expect(html).toContain('计算 → 显示（更新结果）');
+  expect(html).toContain('输入 → 计算 (参数变化)');
+  expect(html).toContain('计算 → 显示 (更新结果)');
 });
 
 it('wraps long diagram edge labels and keeps their full description accessible', () => {
@@ -249,7 +249,7 @@ it('renders plots with a lightweight curve legend and no endpoint readout', () =
   expect(html).toContain('local-visual-plot-formula');
   expect(html).toContain('<math');
   expect(html).toContain('y = x^2');
-  expect(html).not.toContain('终点 x = ');
+  expect(html).not.toContain('Endpoint x = ');
   expect(html).not.toContain('local-visual-endpoint');
-  expect(html).not.toContain('查看数据表');
+  expect(html).not.toContain('View data table');
 });

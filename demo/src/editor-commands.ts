@@ -220,15 +220,15 @@ function toggleInlineMarker(
 }
 
 export function formatBold(value: string, selection: EditorSelection): EditorEdit {
-  return toggleInlineMarker(value, selection, '**', '粗体文字');
+  return toggleInlineMarker(value, selection, '**', 'bold text');
 }
 
 export function formatItalic(value: string, selection: EditorSelection): EditorEdit {
-  return toggleInlineMarker(value, selection, '*', '斜体文字');
+  return toggleInlineMarker(value, selection, '*', 'italic text');
 }
 
 export function formatStrike(value: string, selection: EditorSelection): EditorEdit {
-  return toggleInlineMarker(value, selection, '~~', '删除线文字');
+  return toggleInlineMarker(value, selection, '~~', 'strikethrough text');
 }
 
 function longestBacktickRun(text: string): number {
@@ -277,10 +277,10 @@ export function formatInlineCode(value: string, rawSelection: EditorSelection): 
   const selected = value.slice(start, end);
 
   if (start === end) {
-    const insertion = '`代码`';
+    const insertion = '`code`';
     return {
       value: value.slice(0, start) + insertion + value.slice(end),
-      selection: { start: start + 1, end: start + 1 + '代码'.length },
+      selection: { start: start + 1, end: start + 1 + 'code'.length },
     };
   }
 
@@ -508,7 +508,7 @@ export function insertLink(value: string, rawSelection: EditorSelection): Editor
     };
   }
 
-  const label = '链接文字';
+  const label = 'link text';
   const insertion = `[${label}](${url})`;
   return {
     value: value.slice(0, start) + insertion + value.slice(end),
@@ -531,7 +531,7 @@ export function insertImage(value: string, rawSelection: EditorSelection): Edito
     };
   }
 
-  const alt = '示意图';
+  const alt = 'example image';
   const insertion = `![${alt}](${url})`;
   return {
     value: value.slice(0, start) + insertion + value.slice(end),
@@ -542,7 +542,7 @@ export function insertImage(value: string, rawSelection: EditorSelection): Edito
 export function insertCodeBlock(value: string, rawSelection: EditorSelection): EditorEdit {
   const selection = normalizeSelection(value, rawSelection);
   const selected = value.slice(selection.start, selection.end);
-  const body = selected.length > 0 ? selected : '在这里写代码';
+  const body = selected.length > 0 ? selected : 'Write code here';
   const fence = '`'.repeat(Math.max(3, longestBacktickRun(body) + 1));
   const opening = `${fence}text\n`;
   const insertion = `${opening}${body}\n${fence}`;
@@ -553,10 +553,10 @@ export function insertCodeBlock(value: string, rawSelection: EditorSelection): E
 }
 
 const TABLE = [
-  '| 列 1 | 列 2 | 列 3 |',
+  '| Column 1 | Column 2 | Column 3 |',
   '| --- | --- | --- |',
-  '| 示例 1 | 示例 2 | 示例 3 |',
-  '| 示例 4 | 示例 5 | 示例 6 |',
+  '| Example 1 | Example 2 | Example 3 |',
+  '| Example 4 | Example 5 | Example 6 |',
 ].join('\n');
 
 function blockPadding(
@@ -599,10 +599,10 @@ function insertBlock(
 
 export function insertTable(value: string, rawSelection: EditorSelection): EditorEdit {
   const selection = normalizeSelection(value, rawSelection);
-  const cellOffset = TABLE.indexOf('示例 1');
+  const cellOffset = TABLE.indexOf('Example 1');
   return insertBlock(value, selection, TABLE, {
     start: cellOffset,
-    end: cellOffset + '示例 1'.length,
+    end: cellOffset + 'Example 1'.length,
   });
 }
 

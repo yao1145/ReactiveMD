@@ -11,18 +11,18 @@ export interface AuthorToolsProps {
 
 export function AuthorTools(props: AuthorToolsProps) {
   const file = useRef<HTMLInputElement>(null);
-  return <div className="author-tools" aria-label="文档工具">
+  return <div className="author-tools" aria-label="Document tools">
     <div className="author-tool-group">
       <button type="button" onClick={props.onTheme} aria-pressed={props.dark}>
-        {props.dark ? '浅色主题' : '深色主题'}
+        {props.dark ? 'Light theme' : 'Dark theme'}
       </button>
       <button type="button" onClick={props.onSimple} aria-pressed={props.simple}>
-        {props.simple ? '显示源码' : '简洁视图'}
+        {props.simple ? 'Show source' : 'Simple view'}
       </button>
     </div>
     <div className="author-tool-group">
-      <button type="button" onClick={() => file.current?.click()}>导入文档</button>
-      <button type="button" onClick={props.onExport}>导出文档</button>
+      <button type="button" onClick={() => file.current?.click()}>Import document</button>
+      <button type="button" onClick={props.onExport}>Export document</button>
       <input ref={file} type="file" accept=".md,.markdown,.reactive.md,text/markdown,text/plain" hidden onChange={async event => {
         const control = event.currentTarget;
         const selected = control.files?.[0];

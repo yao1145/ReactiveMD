@@ -3,14 +3,14 @@ import { createRoot } from 'react-dom/client';
 import { LocalReactiveDocument } from 'reactive-md/react';
 import 'reactive-md/styles.css';
 
-const source = `# 费用估算
+const source = `# Cost estimate
 
-<panel title="调整方案">
-<slider bind="people" label="人数" initial="2" min="1" max="20">
-<toggle bind="annual" label="年度付款">
+<panel title="Adjust the plan">
+<slider bind="people" label="People" initial="2" min="1" max="20">
+<toggle bind="annual" label="Annual billing">
 </panel>
 
-每月费用：**{{ people * (annual ? 80 : 100) }} 元**。`;
+Monthly cost: **{{ people * (annual ? 80 : 100) }} USD**.`;
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

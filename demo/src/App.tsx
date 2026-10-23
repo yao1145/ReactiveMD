@@ -18,7 +18,7 @@ import { EXAMPLES, DEFAULT_EXAMPLE_ID } from './examples';
 import { useLocalCompilation, type LocalCompiledDocument } from './use-local-compilation';
 import { PreviewStateSession } from './preview-state';
 import { useSourceHistory } from './use-source-history';
-import guideSource from '../../docs/local-guide.md?raw';
+import guideSource from '../../docs/local-guide-en.md?raw';
 
 type LocalRuntimeInstance = LocalRuntime;
 
@@ -31,7 +31,7 @@ const GUIDE_REPOSITORY = 'https://github.com/yao1145/ReactiveMD/blob/main';
 // to the repository so they still work when the guide is rendered in the demo.
 const GUIDE_SOURCE = guideSource
   .replace(/\]\(\.\.\/examples\/local\/([^)]+)\)/g, `](${GUIDE_REPOSITORY}/examples/local/$1)`)
-  .replace(/\]\((local-interaction-syntax|local-integration)\.md\)/g, `](${GUIDE_REPOSITORY}/docs/$1.md)`);
+  .replace(/\]\(([a-z0-9-]+-en\.md(?:#[^)]+)?)\)/g, `](${GUIDE_REPOSITORY}/docs/$1)`);
 
 function browserStorage(): Storage | undefined {
   try { return window.localStorage; } catch { return undefined; }
@@ -63,7 +63,7 @@ function download(name: string, text: string, type: string) {
 function unexpectedDiagnostic(error: unknown): Diagnostic {
   return {
     code: 'demo.unexpected',
-    message: `文档出现未预期错误：${error instanceof Error ? error.message : String(error)}`,
+    message: `Unexpected document error: ${error instanceof Error ? error.message : String(error)}`,
     severity: 'error',
     range: { start: 0, end: 0 },
     line: 1,
@@ -84,9 +84,11 @@ function dedupeDiagnostics(items: Diagnostic[]): Diagnostic[] {
 }
 
 function statusText(ok: boolean, count: number, duration: number, fallback: boolean): string {
-  if (!ok) return '编译失败';
-  const base = count ? `已编译 · ${count} 条诊断` : `已编译 · ${duration} ms`;
-  return fallback ? `${base} · 主线程` : base;
+  if (!ok) return 'Compile failed';
+  const base = count
+    ? `Compiled · ${count} diagnostic${count === 1 ? '' : 's'}`
+    : `Compiled · ${duration} ms`;
+  return fallback ? `${base} · main thread` : base;
 }
 
 interface DiagnosticListProps {
@@ -107,13 +109,13 @@ function DiagnosticList({ diagnostics, focusDiagnostic, emptyText }: DiagnosticL
             type="button"
             className="diagnostic-item"
             onClick={() => focusDiagnostic(diagnostic.range)}
-            title="在编辑器中定位"
+            title="Locate in editor"
           >
             <span className={`diag-severity diag-${diagnostic.severity === 'warning' ? 'warning' : 'error'}`}>
-              {diagnostic.severity === 'warning' ? '警告' : '错误'}
+              {diagnostic.severity === 'warning' ? 'Warning' : 'Error'}
             </span>
             <span className="diag-message">{diagnostic.message}</span>
-            <span className="diag-position">第 {diagnostic.line} 行 · 第 {diagnostic.column} 列</span>
+            <span className="diag-position">Line {diagnostic.line} · Column {diagnostic.column}</span>
           </button>
         </li>
       ))}
@@ -153,12 +155,12 @@ const LocalPreview = memo(function LocalPreview({ document, session, onDiagnosti
 
   if (initError) {
     return <div className="preview-error" role="alert">
-      <h3>无法启动文档</h3>
+      <h3>Could not start document</h3>
       <p>{initError}</p>
     </div>;
   }
   if (!instance || instance.document !== document) {
-    return <div className="preview-loading" role="status"><p>正在准备交互文档…</p></div>;
+    return <div className="preview-loading" role="status"><p>Preparing interactive document…</p></div>;
   }
   return <LocalDocumentView document={document} runtime={instance.runtime} onDiagnostics={onDiagnostics} />;
 });
@@ -174,16 +176,16 @@ function GuideView({ dark, onTheme, onBack }: GuideViewProps) {
     <main className="guide-view">
       <div className="guide-toolbar">
         <div>
-          <p className="eyebrow">阅读文档</p>
-          <h2>使用指南</h2>
-          <p>面向会写 Markdown 的读者：从第一份交互文档开始，逐步加入条件、图表与函数曲线。</p>
+          <p className="eyebrow">Documentation</p>
+          <h2>User Guide</h2>
+          <p>For readers who already write Markdown: start with your first interactive document, then add conditions, charts and function curves step by step.</p>
         </div>
         <div className="guide-actions">
           <button type="button" className="button button-secondary" onClick={onTheme}>
-            {dark ? '浅色主题' : '深色主题'}
+            {dark ? 'Light theme' : 'Dark theme'}
           </button>
           <button type="button" className="button button-secondary" onClick={onBack}>
-            返回 Playground
+            Back to Playground
           </button>
         </div>
       </div>
@@ -438,23 +440,24 @@ export default function App() {
     ? compilation.previewDocument
     : null;
   const statusLabel = compiling
-    ? (compilation.mode === 'fallback' ? '编译中… · 主线程' : '编译中…')
+    ? (compilation.mode === 'fallback' ? 'Compiling… · main thread' : 'Compiling…')
     : compiled
       ? statusText(compiled.ok, currentDiagnostics.length, compilation.duration, compilation.mode === 'fallback')
-      : '等待编译';
+      : 'Waiting to compile';
 
   return (
     <div className={`app-shell${simple ? ' is-simple' : ''}`}>
       <header className="masthead">
         <div className="masthead-lead">
-          <p className="eyebrow">本地交互文档实验室</p>
+          <p className="eyebrow">Local interactive document lab</p>
           <h1>Reactive MD</h1>
           <p className="masthead-intro">
-            在 Markdown 中放置输入控件，用 <code>bind</code> 命名参数，再用 <code>{'{{ 表达式 }}'}</code>{' '}
-            读取它们。调整输入，正文、表格、图表和曲线立即更新。
+            Place input controls in Markdown, name parameters with <code>bind</code>, then read them
+            with <code>{'{{ expressions }}'}</code>. Adjust an input and prose, tables, charts and
+            curves update instantly.
           </p>
         </div>
-        <nav className="view-switch" aria-label="页面切换">
+        <nav className="view-switch" aria-label="View switcher">
           <button
             type="button"
             aria-pressed={view === 'playground'}
@@ -467,7 +470,7 @@ export default function App() {
             aria-pressed={view === 'guide'}
             onClick={() => setView('guide')}
           >
-            使用指南
+            User Guide
           </button>
         </nav>
       </header>
@@ -482,7 +485,7 @@ export default function App() {
       <main className="workbench">
         <div className="workbench-bar">
           <div className="bar-group">
-            <label className="bar-label" htmlFor="example-select">示例</label>
+            <label className="bar-label" htmlFor="example-select">Example</label>
             <select
               id="example-select"
               className="bar-select"
@@ -495,7 +498,7 @@ export default function App() {
             </select>
           </div>
           <div className="bar-group bar-actions">
-            <label className="bar-label" title="编辑时保留兼容的命名参数；修改初值或约束后会重新校验。">
+            <label className="bar-label" title="Keep compatible named parameters while editing; values are revalidated when initial values or constraints change.">
               <input
                 type="checkbox"
                 checked={retainPreviewState}
@@ -505,13 +508,13 @@ export default function App() {
                   setRetainPreviewState(event.target.checked);
                 }}
               />{' '}
-              保留试算状态
+              Keep trial state
             </label>
             <button type="button" className="button button-secondary" onClick={restoreExample}>
-              恢复示例
+              Restore example
             </button>
             <button type="button" className="button button-secondary" onClick={resetInstance}>
-              重新运行
+              Run again
             </button>
           </div>
           <span className="example-hint" title={currentExample.hint}>{currentExample.hint}</span>
@@ -534,11 +537,11 @@ export default function App() {
         />
 
         <div className="workspace">
-          <section className="pane pane-editor" aria-label="源码编辑器">
+          <section className="pane pane-editor" aria-label="Source editor">
             <div className="pane-head">
               <div>
-                <h2>源码</h2>
-                <p className="pane-subtitle">Markdown、本地标签与表达式</p>
+                <h2>Source</h2>
+                <p className="pane-subtitle">Markdown, local tags and expressions</p>
               </div>
               <span className="syntax-tag">local-draft-1</span>
             </div>
@@ -554,7 +557,7 @@ export default function App() {
                 onExport={exportSource}
               />
 
-              <label className="sr-only" htmlFor="source-editor">Reactive MD 源码</label>
+              <label className="sr-only" htmlFor="source-editor">Reactive MD source</label>
               <div className="editor-shell">
                 <div className="editor-gutter" ref={gutterRef} aria-hidden="true">
                   {lines.map((_, index) => {
@@ -592,31 +595,34 @@ export default function App() {
             </div>
 
             <p className="editor-note" id="editor-note">
-              编辑会短暂合并后再按本地语法编译。
+              Edits are briefly coalesced, then compiled with the local syntax.
             </p>
             <p className="editor-note" id="preview-state-note">
-              开启保留后，编辑正文、标签和公式会沿用兼容的命名参数；修改初值或不再满足约束时恢复初值。
-              清单和计时器每次编译后重置。关闭保留后，下次编译使用初值；重新运行、切换或恢复示例、导入和刷新会清空试算。
+              With retention on, editing prose, tags and formulas keeps compatible named parameters;
+              values reset to initial when initial values change or constraints no longer hold.
+              Checklists and timers reset after every compile. With retention off, the next compile
+              starts from initial values; running again, switching or restoring examples, importing,
+              and refreshing clear the trial state.
             </p>
 
-            <section className="diagnostics-panel" aria-label="编译与运行诊断">
+            <section className="diagnostics-panel" aria-label="Compile and runtime diagnostics">
               <div className="diagnostics-head">
-                <h3>诊断</h3>
-                <span>{compiling ? '编译中' : currentDiagnostics.length ? `${currentDiagnostics.length} 条` : '无'}</span>
+                <h3>Diagnostics</h3>
+                <span>{compiling ? 'Compiling' : currentDiagnostics.length ? `${currentDiagnostics.length}` : 'None'}</span>
               </div>
               <DiagnosticList
                 diagnostics={currentDiagnostics}
                 focusDiagnostic={focusDiagnostic}
-                emptyText={compiling ? '正在编译最新源码…' : '当前源码没有编译或运行诊断。'}
+                emptyText={compiling ? 'Compiling the latest source…' : 'The current source has no compile or runtime diagnostics.'}
               />
             </section>
           </section>
 
-          <section className="pane pane-preview" aria-label="实时预览">
+          <section className="pane pane-preview" aria-label="Live preview">
             <div className="pane-head">
               <div>
-                <h2>预览</h2>
-                <p className="pane-subtitle">可以直接操作的本地文档</p>
+                <h2>Preview</h2>
+                <p className="pane-subtitle">A local document you can interact with directly</p>
               </div>
               <span className={`live-dot ${ready ? 'is-live' : ''}`} aria-hidden="true" />
             </div>
@@ -624,8 +630,8 @@ export default function App() {
             <div className="preview-stage" aria-busy={compiling}>
               {previewFailed && compiled ? (
                 <div className="preview-error" role="alert">
-                  <h3>预览已停用</h3>
-                  <p>请修正左侧标记的错误，编译成功后预览会自动恢复。</p>
+                  <h3>Preview disabled</h3>
+                  <p>Fix the errors marked on the left; the preview returns automatically once compilation succeeds.</p>
                   <DiagnosticList
                     diagnostics={compiled.diagnostics}
                     focusDiagnostic={focusDiagnostic}
@@ -639,12 +645,12 @@ export default function App() {
                   onDiagnostics={report}
                 />
               ) : (
-                <div className="preview-loading" role="status"><p>正在准备交互文档…</p></div>
+                <div className="preview-loading" role="status"><p>Preparing interactive document…</p></div>
               )}
               {compiling && previewDocument && !previewFailed ? (
                 <div className="preview-veil" role="status">
-                  <strong>正在编译最新源码</strong>
-                  <span>预览暂时保留上一次成功的结果，完成后会自动替换。</span>
+                  <strong>Compiling the latest source</strong>
+                  <span>The preview keeps the last successful result until the new one is ready.</span>
                 </div>
               ) : null}
             </div>
@@ -655,13 +661,14 @@ export default function App() {
 
       <footer className="app-footer">
         <p>
-          参数用 <code>bind</code> 命名，正文用 <code>{'{{ }}'}</code> 读取；图表使用 Markdown 表格，
-          函数曲线使用 LaTeX，不需要配置块、事件或服务调用。
+          Name parameters with <code>bind</code> and read them in prose with <code>{'{{ }}'}</code>;
+          charts use Markdown tables and function curves use LaTeX — no config blocks, events or
+          service calls required.
         </p>
         {view === 'guide' ? (
-          <p>指南内容与仓库 <code>docs/local-guide.md</code> 保持一致。</p>
+          <p>The guide content matches <code>docs/local-guide-en.md</code> in the repository.</p>
         ) : (
-          <p>试算只保存在本次编辑会话；浏览器保存各示例的源码，刷新或重新运行会回到初值。</p>
+          <p>Trial values live only in this editing session; the browser saves each example's source, and refreshing or running again returns to initial values.</p>
         )}
       </footer>
     </div>

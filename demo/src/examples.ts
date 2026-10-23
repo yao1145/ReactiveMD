@@ -20,18 +20,18 @@ export interface PlaygroundExample {
 
 /** All playground documents use the explicit local-draft-1 syntax. */
 export const EXAMPLES: PlaygroundExample[] = [
-  { id: 'comparison', title: '并排比较与布局', hint: '网格、标签页与折叠内容', source: comparisonSource },
-  { id: 'parameters', title: '表单与参数面板', hint: '实时参数、文本联动与条件清单', source: parametersSource },
-  { id: 'checklist', title: '清单与数据表格', hint: '清单、进度、搜索、排序和分页', source: checklistSource },
-  { id: 'charts', title: '图表与储蓄曲线', hint: '表格图表、环形占比与 LaTeX 绘图', source: chartsSource },
-  { id: 'diagram', title: '交互图解', hint: '节点选择与参数曲线', source: diagramSource },
-  { id: 'catalog', title: '本地组件目录', hint: '本地搜索、排序与分页', source: catalogSource },
-  { id: 'planning', title: '计划、计时和分账', hint: '时间轴、计时器和实时分账', source: planningSource },
-  { id: 'components', title: '内容与辅助组件', hint: '提示、选项、折叠和内容组织', source: componentsSource },
-  { id: 'pricing', title: '方案计算器', hint: '人数、年度折扣与实时合计', source: pricingSource },
-  { id: 'counter', title: '计数器', hint: '最小本地状态示例', source: counterSource },
-  { id: 'gallery', title: '常用组件画廊', hint: '输入、独立组件和原样代码', source: gallerySource },
-  { id: 'diagnostics', title: '诊断示例', hint: '故意写错的源码', source: diagnosticsSource },
+  { id: 'comparison', title: 'Side-by-side comparison and layout', hint: 'Grids, tabs and collapsible content', source: comparisonSource },
+  { id: 'parameters', title: 'Forms and parameter panels', hint: 'Live parameters, text binding and conditional checklists', source: parametersSource },
+  { id: 'checklist', title: 'Checklists and data tables', hint: 'Lists, progress, search, sorting and paging', source: checklistSource },
+  { id: 'charts', title: 'Charts and savings curves', hint: 'Table charts, donut shares and LaTeX plots', source: chartsSource },
+  { id: 'diagram', title: 'Interactive diagrams', hint: 'Node selection and parameter curves', source: diagramSource },
+  { id: 'catalog', title: 'Local component catalog', hint: 'Local search, sorting and paging', source: catalogSource },
+  { id: 'planning', title: 'Planning, timing and bill splitting', hint: 'Timelines, timers and live bill splitting', source: planningSource },
+  { id: 'components', title: 'Content and helper components', hint: 'Tooltips, choices, disclosures and content structure', source: componentsSource },
+  { id: 'pricing', title: 'Plan calculator', hint: 'Headcount, annual discount and live totals', source: pricingSource },
+  { id: 'counter', title: 'Counter', hint: 'Smallest local state example', source: counterSource },
+  { id: 'gallery', title: 'Common component gallery', hint: 'Inputs, standalone components and code as-is', source: gallerySource },
+  { id: 'diagnostics', title: 'Diagnostics example', hint: 'Intentionally broken source', source: diagnosticsSource },
 ];
 
 export const DEFAULT_EXAMPLE_ID = 'pricing';

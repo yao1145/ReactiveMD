@@ -1,51 +1,51 @@
-# 语言验收数据
+# Language conformance data
 
-[local-draft-1.json](local-draft-1.json) 是可复制的最小语义验收集，包含源码、编译结果、初始参数、状态写入和预期文本。数据随 npm 包分发，其他工具或实现可以读取同一份 JSON。
+[local-draft-1.json](local-draft-1.json) is a copyable minimal semantic conformance suite containing source documents, compilation results, initial parameters, state writes and expected text. The data is distributed with the npm package so other tools or implementations can read the same JSON.
 
-- `syntaxVersion` 对应核心导出的 `LOCAL_SYNTAX_VERSION`。
-- `ok` 是预期编译结果；`codes` 是去重后的预期诊断码集合，省略时应无诊断。编译成功时也可能包含降级警告。
-- `initial` 检查公开参数的初值；`bindingNames` 在出现时检查完整绑定名集合。
-- `actions` 按 `bind` 查找控件并提交 `value`；有 `codes` 时预期写入被拒绝，否则预期成功。
-- `text` 用更新后的状态求值，结果应等于 `expectedText`。
+- `syntaxVersion` matches the core export `LOCAL_SYNTAX_VERSION`.
+- `ok` is the expected compilation result; `codes` is the deduplicated set of expected diagnostic codes, and when omitted no diagnostics are expected. A successful compile can still contain degradation warnings.
+- `initial` checks the initial values of public parameters; `bindingNames`, when present, checks the complete set of binding names.
+- `actions` finds controls by `bind` and submits `value`; when `codes` is present the write is expected to be rejected, otherwise it is expected to succeed.
+- `text` is evaluated with the updated state and the result should equal `expectedText`.
 
-运行器见仓库中的 `tests/conformance.test.ts`，执行 `npm test` 即可检查。本集覆盖共享参数、隐藏初始化、写入约束、代码隔离和诊断；完整语法验收还包含其他语言测试及浏览器检查，规则见[语法规范](../../docs/local-interaction-syntax.md)。诊断码的跨版本约定见[兼容说明](../../docs/compatibility.md)。
+The runner lives at `tests/conformance.test.ts` in the repository; run `npm test` to check it. This suite covers shared parameters, hidden initialization, write constraints, code isolation and diagnostics; full syntax conformance also includes other language tests and browser checks, with rules in the [syntax specification](../../docs/local-interaction-syntax-en.md). See the [compatibility notes](../../docs/compatibility-en.md) for cross-version guarantees on diagnostic codes.
 
-## 组块协议验收
+## Component protocol conformance
 
-[component-protocol-1.json](component-protocol-1.json) 为[组块协议](../../docs/component-protocol.md)提供代表性用例，覆盖 `slider`、`tabs`、`plot` 以及未知组块的惰性降级。[JSON Schema](component-protocol-1.schema.json) 定义验收文件格式，可供其他实现的工具读取。这个 JSON 是测试输入和预期结果，组件提案的声明模板见[开发指南](../../docs/component-development.md)。
+[component-protocol-1.json](component-protocol-1.json) provides representative cases for the [component protocol](../../docs/component-protocol-en.md), covering `slider`, `tabs`, `plot` and lazy degradation of unknown components. The [JSON Schema](component-protocol-1.schema.json) defines the conformance file format so tools from other implementations can read it. This JSON is test input and expected results; see the [development guide](../../docs/component-development-en.md) for the declaration template of a component proposal.
 
 ```sh
 npm run test:components
 ```
 
-该命令运行组块协议用例和原有语言验收数据。新增组块应补充自己的用例、单元测试和受影响的渲染器检查；通过本集合只证明这些具体用例通过。
+That command runs the component protocol cases and the existing language conformance data. A new component should add its own cases, unit tests and affected renderer checks; passing this suite only proves these specific cases pass.
 
-### 文件与用例字段
+### File and case fields
 
-文件根对象包含 `protocolVersion`、`syntaxVersion` 和非空的 `cases`。当前分别为 `component-protocol-1` 和 `local-draft-1`。包版本另由 `package.json` 标识，不由这两个字段推断。
+The file root object contains `protocolVersion`, `syntaxVersion` and a non-empty `cases` array. Currently these are `component-protocol-1` and `local-draft-1`. The package version is identified separately by `package.json` and is not inferred from these two fields.
 
-| 字段 | 规则 |
+| Field | Rule |
 | --- | --- |
-| `id` | 必填，在文件内唯一；描述一个可观察的行为 |
-| `component` | 必填，标明主要验收的组块；源码可同时使用其他组块 |
-| `source` | 必填，原始文档源码 |
-| `ok` | 必填，预期编译是否成功 |
-| `codes` | 必填，编译诊断码的去重集合；无诊断时为 `[]`，忽略顺序、精确比较集合 |
-| `initial` | 可选，编译成功后的初始状态期望，按给定键部分匹配 |
-| `bindingNames` | 可选，完整公开绑定名集合；不包含匿名组块的内部状态键 |
-| `actions` | 可选，依次写入命名绑定；每项必填 `bind`、`value`、`codes`，可选 `expectedState` |
-| `reset` | 可选，写入完成后重置指定节点；必填 `component` 和 `expectedState`，`index` 默认为同名组件源码顺序中的第 0 个 |
-| `text`、`expectedText` | 可选，必须成对；在写入和重置后求值并精确比较结果 |
-| `htmlIncludes`、`htmlExcludes` | 可选，在最终状态做 React 静态渲染，逐项检查包含或不包含的片段 |
+| `id` | Required, unique within the file; describes one observable behavior |
+| `component` | Required, names the component primarily under test; the source may use other components too |
+| `source` | Required, the original document source |
+| `ok` | Required, whether compilation is expected to succeed |
+| `codes` | Required, the deduplicated set of compilation diagnostic codes; `[]` when there are none, order ignored, the set compared exactly |
+| `initial` | Optional, initial state expectations after successful compilation, partially matched by the given keys |
+| `bindingNames` | Optional, the complete set of public binding names; excludes internal state keys of anonymous components |
+| `actions` | Optional, writes to named bindings in order; each entry requires `bind`, `value`, `codes` and may include `expectedState` |
+| `reset` | Optional, resets the named node after the writes; requires `component` and `expectedState`, `index` defaults to the 0th in source order among components with that name |
+| `text`, `expectedText` | Optional, must be paired; evaluated after writes and reset with the result compared exactly |
+| `htmlIncludes`, `htmlExcludes` | Optional, performs React static rendering in the final state and checks each listed fragment is present or absent |
 
-`initial`、`expectedState` 的值使用语言现有的 `LocalValue`：字符串、有限数字、布尔值、`null` 或字符串数组。`actions[].codes` 是该次写入返回的诊断码集合，无诊断仍须写 `[]`；被拒绝的写入应保留上一次合法状态。运行器通过 `bind` 查找已编译的控件，调用 `runtime.set`，不模拟浏览器输入事件。
+`initial` and `expectedState` values use the language's existing `LocalValue`: a string, finite number, boolean, `null` or string array. `actions[].codes` is the set of diagnostic codes returned by that write; still write `[]` when there are none. A rejected write should keep the last valid state. The runner finds compiled controls by `bind` and calls `runtime.set`; it does not simulate browser input events.
 
-执行顺序固定为：校验数据格式及唯一 ID，编译并比较诊断，检查初始状态及公开绑定名，依序写入，再重置，最后检查文本和可选渲染结果。创建的运行时均在结束时销毁。`ok: false` 的用例只允许编译期字段，不能附加状态、动作或渲染期望；未知字段、缺失字段和不合法值应当让验收失败。
+Execution order is fixed: validate the data format and unique IDs, compile and compare diagnostics, check the initial state and public binding names, perform writes in order, then reset, and finally check text and optional rendering results. Every created runtime is disposed at the end. Cases with `ok: false` may only use compile-time fields and cannot add state, action or rendering expectations; unknown fields, missing fields and invalid values should fail conformance.
 
-`reset` 调用当前实例的 `runtime.reset(node)`，节点按组块名和索引查找；验收文件不保存 `node.id`。这项检查验证运行时重置语义，点击重置按钮仍需渲染器或浏览器检查。
+`reset` calls `runtime.reset(node)` on the current instance; nodes are found by component name and index, and the conformance file does not store `node.id`. This check verifies runtime reset semantics; clicking a reset button still needs a renderer or browser check.
 
-### 可移植范围
+### Portable scope
 
-编译结果、诊断集合、状态变化和表达式文本是可移植的语义期望。HTML 片段只检查本仓库的 React 参考渲染器；其他渲染器应验证同等用户行为，无需生成相同 DOM 或 CSS 类名。
+Compilation results, diagnostic sets, state changes and expression text are portable semantic expectations. HTML fragments only check this repository's React reference renderer; other renderers should verify equivalent user behavior and need not generate the same DOM or CSS class names.
 
-这些用例不会证明真实键盘操作、焦点移动、中文输入法、375px 布局、计时器暂停或销毁后的计时清理。涉及这些行为的贡献仍需提交相应浏览器证据，检查方法见[开发指南](../../docs/component-development.md)。诊断码的跨版本稳定性继续遵守[兼容说明](../../docs/compatibility.md)。
+These cases do not prove real keyboard operation, focus movement, Chinese input methods, 375px layout, timer pause, or timer cleanup after disposal. Contributions involving those behaviors still need corresponding browser evidence; see the [development guide](../../docs/component-development-en.md) for verification methods. Cross-version stability of diagnostic codes continues to follow the [compatibility notes](../../docs/compatibility-en.md).

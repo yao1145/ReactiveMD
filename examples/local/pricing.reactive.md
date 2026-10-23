@@ -1,20 +1,20 @@
-# 方案计算器
+# Plan calculator
 
-调整人数和付款方式，比较每月平均费用。每人每月 100 元，年度付款享受八折。
+Adjust the headcount and billing cycle to compare the average monthly cost. Each person costs 100 USD per month, and annual billing takes 20% off.
 
-<panel title="你的方案">
-<slider bind="seats" label="人数" initial="2" min="1" max="20">
-<toggle bind="annual" label="年度付款">
+<panel title="Your plan">
+<slider bind="seats" label="People" initial="2" min="1" max="20">
+<toggle bind="annual" label="Annual billing">
 </panel>
 
-当前人数：**{{ seats }}**。
+Current headcount: **{{ seats }}**.
 
-每人每月：**{{ annual ? 80 : 100 }} 元**。
+Per person per month: **{{ annual ? 80 : 100 }} USD**.
 
-每月合计：**{{ seats * (annual ? 80 : 100) }} 元**。
+Monthly total: **{{ seats * (annual ? 80 : 100) }} USD**.
 
 <if when="{{ seats >= 5 }}">
-<alert title="团队方案">
-你选择了至少 5 人，可以继续切换付款方式比较费用。
+<alert title="Team plan">
+You selected at least 5 people. Switch the billing cycle to compare costs.
 </alert>
 </if>

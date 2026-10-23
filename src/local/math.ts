@@ -122,7 +122,7 @@ function lex(source: string): Token[] {
 
   const push = (kind: TokenKind, value: string, offset: number) => {
     if (tokens.length >= MAX_TOKENS) {
-      throw new LatexError('latex-budget', '数学输入包含过多记号。', offset);
+      throw new LatexError('latex-budget', 'Math input contains too many tokens.', offset);
     }
     tokens.push({ kind, value, offset });
   };
@@ -142,7 +142,7 @@ function lex(source: string): Token[] {
 
     if (ch === '\\') {
       if (i + 1 >= source.length) {
-        throw new LatexError('latex-syntax', '数学公式以孤立的反斜杠结尾。', i);
+        throw new LatexError('latex-syntax', 'Formula ends with a lone backslash.', i);
       }
       const next = source[i + 1];
       if (next === '\\') {
@@ -255,22 +255,22 @@ class LatexParser {
 
   parseDocument(): Ast {
     if (this.peek().kind === 'eof') {
-      throw new LatexError('latex-empty', '数学公式为空。', 0);
+      throw new LatexError('latex-empty', 'Formula is empty.', 0);
     }
     // Plot formulas are written as "y = expression"; y is an output marker.
     if (this.atLetter('y') && this.atPunctAt(1, '=')) {
       this.pos += 2;
     }
     if (this.peek().kind === 'eof') {
-      throw new LatexError('latex-empty', 'y 之后缺少表达式。', this.peek().offset);
+      throw new LatexError('latex-empty', 'Missing expression after y.', this.peek().offset);
     }
     const expression = this.parseAdditive(0);
     const rest = this.peek();
     if (rest.kind !== 'eof') {
       if (isRelationToken(rest) || (rest.kind === 'punct' && rest.value === '=')) {
-        throw new LatexError('latex-relation', '绘图只支持显式 y = f(x)，不支持其他方程。', rest.offset);
+        throw new LatexError('latex-relation', 'Plots support only explicit y = f(x) equations.', rest.offset);
       }
-      throw new LatexError('latex-syntax', `无法解析的记号 "${this.raw(rest)}"。`, rest.offset);
+      throw new LatexError('latex-syntax', `Unexpected token "${this.raw(rest)}".`, rest.offset);
     }
     return expression;
   }
@@ -310,13 +310,13 @@ class LatexParser {
   private expectPunct(value: string): Token {
     const token = this.peek();
     if (token.kind !== 'punct' || token.value !== value) {
-      throw new LatexError('latex-syntax', `缺少 "${value}"。`, token.offset);
+      throw new LatexError('latex-syntax', `Missing "${value}".`, token.offset);
     }
     return this.take();
   }
 
   private raw(token: Token): string {
-    if (token.kind === 'eof') return '结尾';
+    if (token.kind === 'eof') return 'end of input';
     if (token.kind === 'command') return `\\${token.value}`;
     return this.source.slice(token.offset, token.offset + Math.max(1, token.value.length));
   }
@@ -324,10 +324,10 @@ class LatexParser {
   private make<T extends Ast>(node: T, offset: number, depth: number): T {
     this.nodes += 1;
     if (this.nodes > MAX_NODES) {
-      throw new LatexError('latex-budget', '数学公式过于复杂。', offset);
+      throw new LatexError('latex-budget', 'Formula is too complex.', offset);
     }
     if (depth > MAX_DEPTH) {
-      throw new LatexError('latex-budget', '数学公式嵌套过深。', offset);
+      throw new LatexError('latex-budget', 'Formula is nested too deeply.', offset);
     }
     return node;
   }
@@ -420,7 +420,7 @@ class LatexParser {
       this.take();
       const value = Number(token.value);
       if (!Number.isFinite(value)) {
-        throw new LatexError('latex-number', `数字 "${token.value}" 不是有限数。`, token.offset);
+        throw new LatexError('latex-number', `Number "${token.value}" is not finite.`, token.offset);
       }
       return this.make({ kind: 'number', value, offset: token.offset }, token.offset, depth);
     }
@@ -435,7 +435,7 @@ class LatexParser {
       if (token.value === '{') return this.parseBraceGroup(depth);
       if (token.value === '[') return this.parseBracketGroup(depth);
       if (token.value === '|') return this.parsePlainAbs(depth, token.offset);
-      throw new LatexError('latex-syntax', `无法从 "${token.value}" 开始表达式。`, token.offset);
+      throw new LatexError('latex-syntax', `Cannot start an expression with "${token.value}".`, token.offset);
     }
 
     if (token.kind === 'command') {
@@ -479,28 +479,28 @@ class LatexParser {
         this.take();
         const group = this.readRawGroup();
         if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(group.raw)) {
-          throw new LatexError('latex-name', '\\mathrm 中必须是合法参数名。', group.offset);
+          throw new LatexError('latex-name', '\\mathrm requires a valid parameter name.', group.offset);
         }
         return this.variable(group.raw, token.offset, depth);
       }
       if (name === 'begin') return this.parseCases(depth);
       if (name === 'lvert' || name === 'vert') return this.parseCommandAbs(depth, token.offset);
       if (name === 'right') {
-        throw new LatexError('latex-syntax', '\\right 缺少对应的 \\left。', token.offset);
+        throw new LatexError('latex-syntax', '\\right has no matching \\left.', token.offset);
       }
       if (name === 'text') {
-        throw new LatexError('latex-unsupported', '\\text 只能用作分段函数的 otherwise 条件。', token.offset);
+        throw new LatexError('latex-unsupported', '\\text is only allowed as the otherwise condition of a piecewise function.', token.offset);
       }
-      throw new LatexError('latex-unsupported', `不支持计算的命令 \\${name}。`, token.offset);
+      throw new LatexError('latex-unsupported', `Command \\${name} is not supported for computation.`, token.offset);
     }
 
-    throw new LatexError('latex-syntax', '表达式不完整。', token.offset);
+    throw new LatexError('latex-syntax', 'Expression is incomplete.', token.offset);
   }
 
   private parseArgument(depth: number): Ast {
     if (this.atPunct('{')) return this.parseBraceGroup(depth + 1);
     if (this.peek().kind === 'eof') {
-      throw new LatexError('latex-syntax', '命令缺少参数。', this.peek().offset);
+      throw new LatexError('latex-syntax', 'Command is missing an argument.', this.peek().offset);
     }
     return this.parseUnary(depth + 1, false);
   }
@@ -508,7 +508,7 @@ class LatexParser {
   private parseParenthesized(depth: number): Ast {
     const open = this.expectPunct('(');
     if (this.atPunct(')')) {
-      throw new LatexError('latex-syntax', '括号内缺少表达式。', open.offset);
+      throw new LatexError('latex-syntax', 'Missing expression inside parentheses.', open.offset);
     }
     const value = this.parseAdditive(depth + 1);
     this.expectPunct(')');
@@ -518,7 +518,7 @@ class LatexParser {
   private parseBraceGroup(depth: number): Ast {
     const open = this.expectPunct('{');
     if (this.atPunct('}')) {
-      throw new LatexError('latex-syntax', '花括号内缺少表达式。', open.offset);
+      throw new LatexError('latex-syntax', 'Missing expression inside braces.', open.offset);
     }
     const value = this.parseAdditive(depth + 1);
     this.expectPunct('}');
@@ -528,7 +528,7 @@ class LatexParser {
   private parseBracketGroup(depth: number): Ast {
     const open = this.expectPunct('[');
     if (this.atPunct(']')) {
-      throw new LatexError('latex-syntax', '方括号内缺少表达式。', open.offset);
+      throw new LatexError('latex-syntax', 'Missing expression inside brackets.', open.offset);
     }
     const value = this.parseAdditive(depth + 1);
     this.expectPunct(']');
@@ -538,7 +538,7 @@ class LatexParser {
   private parsePlainAbs(depth: number, offset: number): Ast {
     this.take();
     if (this.atPunct('|')) {
-      throw new LatexError('latex-syntax', '绝对值缺少内容。', offset);
+      throw new LatexError('latex-syntax', 'Absolute value is missing its contents.', offset);
     }
     const value = this.parseAdditive(depth + 1);
     if (this.atPunct('|')) {
@@ -546,7 +546,7 @@ class LatexParser {
     } else if (this.atCommand('rvert')) {
       this.take();
     } else {
-      throw new LatexError('latex-syntax', '绝对值竖线没有配对。', offset);
+      throw new LatexError('latex-syntax', 'Unpaired absolute value bar.', offset);
     }
     return this.make({ kind: 'abs', value, offset }, offset, depth);
   }
@@ -554,13 +554,13 @@ class LatexParser {
   private parseCommandAbs(depth: number, offset: number): Ast {
     this.take();
     if (this.atCommand('rvert') || this.atCommand('vert') || this.atPunct('|')) {
-      throw new LatexError('latex-syntax', '绝对值缺少内容。', offset);
+      throw new LatexError('latex-syntax', 'Absolute value is missing its contents.', offset);
     }
     const value = this.parseAdditive(depth + 1);
     if (this.atCommand('rvert') || this.atCommand('vert') || this.atPunct('|')) {
       this.take();
     } else {
-      throw new LatexError('latex-syntax', '绝对值竖线没有配对。', offset);
+      throw new LatexError('latex-syntax', 'Unpaired absolute value bar.', offset);
     }
     return this.make({ kind: 'abs', value, offset }, offset, depth);
   }
@@ -570,12 +570,12 @@ class LatexParser {
     const open = this.readDelimiter();
     const value = this.parseAdditive(depth + 1);
     if (!this.atCommand('right')) {
-      throw new LatexError('latex-syntax', '\\left 缺少对应的 \\right。', leftToken.offset);
+      throw new LatexError('latex-syntax', '\\left has no matching \\right.', leftToken.offset);
     }
     this.take();
     const close = this.readDelimiter();
     if (open === '|' && close !== '|') {
-      throw new LatexError('latex-syntax', '绝对值竖线没有配对。', leftToken.offset);
+      throw new LatexError('latex-syntax', 'Unpaired absolute value bar.', leftToken.offset);
     }
     if (open === '|') {
       return this.make({ kind: 'abs', value, offset: leftToken.offset }, leftToken.offset, depth);
@@ -604,12 +604,12 @@ class LatexParser {
             : 'Vert';
       }
     }
-    throw new LatexError('latex-syntax', '\\left/\\right 后缺少定界符。', token.offset);
+    throw new LatexError('latex-syntax', 'Missing delimiter after \\left/\\right.', token.offset);
   }
 
   private variable(name: string, offset: number, depth: number): Ast {
     if (name === 'y') {
-      throw new LatexError('latex-name', 'y 是绘图输出标记，不能出现在表达式中。', offset);
+      throw new LatexError('latex-name', 'y is the plot output marker and cannot appear in the expression.', offset);
     }
     if (name === 'e' || name === 'pi') {
       return this.make({ kind: 'constant', value: name as 'e' | 'pi', offset }, offset, depth);
@@ -635,7 +635,7 @@ class LatexParser {
     if ((name === 'min' || name === 'max') && this.atPunct('(')) {
       this.take();
       if (this.atPunct(')')) {
-        throw new LatexError('latex-syntax', `\\${name} 至少需要一个参数。`, offset);
+        throw new LatexError('latex-syntax', `\\${name} requires at least one argument.`, offset);
       }
       args.push(this.parseAdditive(depth + 1));
       while (this.atPunct(',')) {
@@ -664,13 +664,13 @@ class LatexParser {
     const begin = this.take();
     const environment = this.readRawGroup();
     if (environment.raw.trim() !== 'cases') {
-      throw new LatexError('latex-unsupported', `不支持的环境 "${environment.raw.trim()}"。`, environment.offset);
+      throw new LatexError('latex-unsupported', `Environment "${environment.raw.trim()}" is not supported.`, environment.offset);
     }
 
     const branches: CaseBranch[] = [];
     while (!this.atCommand('end')) {
       if (this.peek().kind === 'eof') {
-        throw new LatexError('latex-syntax', 'cases 环境缺少 \\end{cases}。', begin.offset);
+        throw new LatexError('latex-syntax', 'cases environment is missing \\end{cases}.', begin.offset);
       }
       if (this.atCommand('newline')) {
         this.take();
@@ -693,16 +693,16 @@ class LatexParser {
       }
       if (this.atCommand('end')) break;
       const token = this.peek();
-      throw new LatexError('latex-syntax', `cases 分支后出现无法解析的 "${this.raw(token)}"。`, token.offset);
+      throw new LatexError('latex-syntax', `Unexpected "${this.raw(token)}" after a cases branch.`, token.offset);
     }
 
     const end = this.take();
     const closing = this.readRawGroup();
     if (closing.raw.trim() !== 'cases') {
-      throw new LatexError('latex-syntax', '\\begin{cases} 需要用 \\end{cases} 结束。', end.offset);
+      throw new LatexError('latex-syntax', '\\begin{cases} must be closed with \\end{cases}.', end.offset);
     }
     if (branches.length === 0) {
-      throw new LatexError('latex-syntax', 'cases 环境没有分支。', begin.offset);
+      throw new LatexError('latex-syntax', 'cases environment has no branches.', begin.offset);
     }
     return this.make({ kind: 'cases', branches, offset: begin.offset }, begin.offset, depth);
   }
@@ -712,7 +712,7 @@ class LatexParser {
       const token = this.take();
       const group = this.readRawGroup();
       if (group.raw.trim() !== 'otherwise') {
-        throw new LatexError('latex-unsupported', `不支持的分段条件文本 "${group.raw.trim()}"。`, token.offset);
+        throw new LatexError('latex-unsupported', `Unsupported piecewise condition text "${group.raw.trim()}".`, token.offset);
       }
       return null;
     }
@@ -721,7 +721,7 @@ class LatexParser {
     const token = this.peek();
     const op = isRelationToken(token);
     if (!op) {
-      throw new LatexError('latex-syntax', '分段条件需要一次比较。', token.offset);
+      throw new LatexError('latex-syntax', 'Piecewise condition requires one comparison.', token.offset);
     }
     this.take();
     const right = this.parseAdditive(depth + 1);
@@ -743,7 +743,7 @@ class LatexParser {
       }
     }
     if (index >= this.tokens.length || this.tokens[index].kind === 'eof') {
-      throw new LatexError('latex-syntax', '花括号没有闭合。', open.offset);
+      throw new LatexError('latex-syntax', 'Unclosed brace.', open.offset);
     }
     const close = this.tokens[index];
     this.pos = index + 1;
@@ -807,7 +807,7 @@ function fail(code: string, message: string, offset: number): never {
 }
 
 function finite(value: number, offset: number): number {
-  if (!Number.isFinite(value)) fail('latex-number', '计算结果不是有限数。', offset);
+  if (!Number.isFinite(value)) fail('latex-number', 'Result is not finite.', offset);
   return value;
 }
 
@@ -815,20 +815,20 @@ function readVariable(name: string, state: Evaluation, offset: number): number {
   if (name === 'x') return state.x;
   const value = state.env[name];
   if (value === undefined && !Object.prototype.hasOwnProperty.call(state.env, name)) {
-    fail('latex-variable', `未声明的参数 "${name}"。`, offset);
+    fail('latex-variable', `Parameter "${name}" is not declared.`, offset);
   }
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    fail('latex-type', `参数 "${name}" 必须是有限数字。`, offset);
+    fail('latex-type', `Parameter "${name}" must be a finite number.`, offset);
   }
   return value;
 }
 
 function power(base: number, exponent: number, offset: number): number {
   if (base === 0 && exponent < 0) {
-    fail('latex-divide-by-zero', '零的负数次幂没有定义。', offset);
+    fail('latex-divide-by-zero', 'Negative powers of zero are undefined.', offset);
   }
   if (base < 0 && !Number.isInteger(exponent)) {
-    fail('latex-domain', '负数底数的非整数次幂不是实数。', offset);
+    fail('latex-domain', 'A negative base with a non-integer exponent is not real.', offset);
   }
   return finite(Math.pow(base, exponent), offset);
 }
@@ -836,11 +836,11 @@ function power(base: number, exponent: number, offset: number): number {
 function root(value: number, index: number | null, offset: number): number {
   const degree = index ?? 2;
   if (!Number.isFinite(degree) || degree <= 0) {
-    fail('latex-domain', '根指数必须是正数。', offset);
+    fail('latex-domain', 'Root index must be positive.', offset);
   }
   if (value < 0) {
     if (!Number.isInteger(degree) || degree % 2 === 0) {
-      fail('latex-domain', '负数没有实数的偶数次根。', offset);
+      fail('latex-domain', 'A negative number has no real even root.', offset);
     }
     const result = degree === 3 ? -Math.cbrt(-value) : -Math.pow(-value, 1 / degree);
     return finite(result, offset);
@@ -871,28 +871,28 @@ function evaluateCall(node: Extract<Ast, { kind: 'call' }>, state: Evaluation): 
     case 'cos': value = Math.cos(args[0]); break;
     case 'tan':
       if (Math.abs(Math.cos(args[0])) < 1e-15) {
-        fail('latex-domain', 'tan 在该点没有定义。', node.offset);
+        fail('latex-domain', 'tan is undefined at this point.', node.offset);
       }
       value = Math.tan(args[0]);
       break;
     case 'arcsin':
-      if (args[0] < -1 || args[0] > 1) fail('latex-domain', 'arcsin 的参数必须在 [-1, 1] 内。', node.offset);
+      if (args[0] < -1 || args[0] > 1) fail('latex-domain', 'arcsin argument must be in [-1, 1].', node.offset);
       value = Math.asin(args[0]);
       break;
     case 'arccos':
-      if (args[0] < -1 || args[0] > 1) fail('latex-domain', 'arccos 的参数必须在 [-1, 1] 内。', node.offset);
+      if (args[0] < -1 || args[0] > 1) fail('latex-domain', 'arccos argument must be in [-1, 1].', node.offset);
       value = Math.acos(args[0]);
       break;
     case 'arctan': value = Math.atan(args[0]); break;
     case 'exp': value = Math.exp(args[0]); break;
     case 'ln':
-      if (args[0] <= 0) fail('latex-domain', 'ln 的参数必须大于零。', node.offset);
+      if (args[0] <= 0) fail('latex-domain', 'ln argument must be positive.', node.offset);
       value = Math.log(args[0]);
       break;
     case 'log': {
       const base = node.base ? evaluateAst(node.base, state) : 10;
-      if (base <= 0 || base === 1) fail('latex-domain', '对数的底数必须大于零且不等于 1。', node.offset);
-      if (args[0] <= 0) fail('latex-domain', '对数的参数必须大于零。', node.offset);
+      if (base <= 0 || base === 1) fail('latex-domain', 'Logarithm base must be positive and not equal to 1.', node.offset);
+      if (args[0] <= 0) fail('latex-domain', 'Logarithm argument must be positive.', node.offset);
       value = Math.log(args[0]) / Math.log(base);
       break;
     }
@@ -906,7 +906,7 @@ function evaluateCall(node: Extract<Ast, { kind: 'call' }>, state: Evaluation): 
       value = root(args[0], node.base ? evaluateAst(node.base, state) : null, node.offset);
       break;
     default:
-      fail('latex-unsupported', '不支持的函数。', node.offset);
+      fail('latex-unsupported', 'Unsupported function.', node.offset);
   }
 
   if (node.power) {
@@ -921,10 +921,10 @@ function evaluateAst(node: Ast, state: Evaluation): number {
   state.depth += 1;
   try {
     if (state.steps > state.limit) {
-      fail('latex-budget', '数学计算超过执行预算。', offset);
+      fail('latex-budget', 'Math evaluation exceeded its budget.', offset);
     }
     if (state.depth > MAX_EVAL_DEPTH) {
-      fail('latex-budget', '数学计算嵌套过深。', offset);
+      fail('latex-budget', 'Math evaluation is nested too deeply.', offset);
     }
 
     switch (node.kind) {
@@ -946,7 +946,7 @@ function evaluateAst(node: Ast, state: Evaluation): number {
         case '-': return finite(left - right, node.offset);
         case '*': return finite(left * right, node.offset);
         case '/':
-          if (right === 0) fail('latex-divide-by-zero', '除数为零。', node.offset);
+          if (right === 0) fail('latex-divide-by-zero', 'Division by zero.', node.offset);
           return finite(left / right, node.offset);
         case '^': return power(left, right, node.offset);
       }
@@ -962,10 +962,10 @@ function evaluateAst(node: Ast, state: Evaluation): number {
           return evaluateAst(branch.value, state);
         }
       }
-      fail('latex-undefined', '没有命中的分段分支。', node.offset);
+      fail('latex-undefined', 'No piecewise branch matched.', node.offset);
     }
   }
-  fail('latex-unsupported', '无法计算的数学结构。', offset);
+  fail('latex-unsupported', 'Cannot compute this math structure.', offset);
   } finally {
     state.depth -= 1;
   }
@@ -979,10 +979,10 @@ const cache = new Map<string, LatexExpression>();
 
 export function compileLatex(source: string): LatexExpression {
   if (typeof source !== 'string') {
-    throw new LatexError('latex-syntax', '数学源码必须是字符串。', 0);
+    throw new LatexError('latex-syntax', 'Math source must be a string.', 0);
   }
   if (source.length > MAX_SOURCE) {
-    throw new LatexError('latex-budget', '数学公式超过长度上限。', MAX_SOURCE);
+    throw new LatexError('latex-budget', 'Formula exceeds the length limit.', MAX_SOURCE);
   }
 
   const cached = cache.get(source);
@@ -998,7 +998,7 @@ export function compileLatex(source: string): LatexExpression {
     dependencies,
     evaluate(x: number, env: Record<string, LocalValue>, budget?: LatexEvaluationBudget): number {
       if (typeof x !== 'number' || !Number.isFinite(x)) {
-        throw new LatexError('latex-variable', '绘图自变量 x 必须是有限数字。', 0);
+        throw new LatexError('latex-variable', 'Plot input x must be a finite number.', 0);
       }
       const state: Evaluation = {
         x,
@@ -1101,13 +1101,13 @@ export function samplePlot(
   sharedBudget?: LatexEvaluationBudget,
 ): PlotSample {
   if (!Number.isFinite(min) || !Number.isFinite(max)) {
-    throw new LatexError('latex-plot-range', '绘图的 min/max 必须是有限数字。', 0);
+    throw new LatexError('latex-plot-range', 'Plot min/max must be finite numbers.', 0);
   }
   if (!(min < max)) {
-    throw new LatexError('latex-plot-range', '绘图的 min 必须小于 max。', 0);
+    throw new LatexError('latex-plot-range', 'Plot min must be less than max.', 0);
   }
   if (!Number.isInteger(samples) || samples < 2 || samples > MAX_SAMPLES) {
-    throw new LatexError('latex-plot-samples', `采样数必须是 2 到 ${MAX_SAMPLES} 之间的整数。`, 0);
+    throw new LatexError('latex-plot-samples', `Sample count must be an integer between 2 and ${MAX_SAMPLES}.`, 0);
   }
 
   // Each curve keeps its own hard budget, while an optional caller-provided

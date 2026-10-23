@@ -1,45 +1,64 @@
 # Reactive MD
 
-[English](README.en.md)
+[English](README-en.md) · [中文](README-ch.md)
 
-用 Markdown 写本地交互文档。放入输入控件，用 `bind` 命名参数，用 `{{ 表达式 }}` 连接文字、公式、图表和图解。文档作者无需编写 JavaScript 或 CSS。
+Write local interactive documents in Markdown. Add input controls, name parameters with `bind`, and connect prose, formulas, charts and diagrams with `{{ expressions }}`. Document authors do not write JavaScript or CSS.
 
-本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。当前为 `0.3.1` 预览版，语法修订 `local-draft-1`。
+Local mode uses HTML-style tags, with parameters and table data written directly in the prose; LaTeX formulas can drive function plots. The TypeScript core and the React renderer can be integrated independently. The current preview is `0.3.1` with syntax revision `local-draft-1`. See [README-ch.md](README-ch.md) for the Chinese overview.
 
-## 从这里开始
+## Start here
 
-- [新用户入门指南](docs/local-guide.md)：从 Markdown 过渡到交互文档，含完整练习与错误速查。
-- [本地交互语法规范](docs/local-interaction-syntax.md) · [12 份 Demo](examples/local/README.md)：33 个组件名、标签、就地参数与 LaTeX 绘图。
-- [本地模式集成](docs/local-integration.md)：`compileLocal`、状态运行时、React 嵌入、URL 策略与样式作用域。
-- [独立接入示例](examples/integration/README.md)：可复制到仓库外运行的 Node 核心和 React 页面。
-- [版本与兼容性](docs/compatibility.md)：0.x 规则、迁移、诊断契约和平台范围。
-- [组块协议](docs/component-protocol.md) · [组块开发指南](docs/component-development.md)：新增组件的声明、行为契约和兼容性验收。
-- [Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。
+- [Beginner guide](docs/local-guide-en.md): move from Markdown to interactive documents, with a complete exercise and an error quick reference.
+- [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [12 examples](examples/local/README.md): 33 component names, tags, in-place parameters and LaTeX plots.
+- [Local mode integration](docs/local-integration-en.md): `compileLocal`, the state runtime, React embedding, URL policy and style scoping.
+- [Standalone integration examples](examples/integration/README.md): Node core and React pages you can copy and run outside the repository.
+- [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
+- [Component protocol](docs/component-protocol-en.md) · [Component development guide](docs/component-development-en.md): declarations, behavior contracts and compatibility acceptance for new components.
+- [Demo notes](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md).
 
-## 写一份文档
+## Write a document
 
 ```markdown
-<panel title="费用估算">
-<slider bind="people" label="人数" initial="2" min="1" max="20">
-<toggle bind="annual" label="年度付款">
+<panel title="Cost estimate">
+<slider bind="people" label="People" initial="2" min="1" max="20">
+<toggle bind="annual" label="Annual billing">
 </panel>
 
-每月费用：**{{ people * (annual ? 80 : 100) }} 元**。
+Monthly cost: **{{ people * (annual ? 80 : 100) }} USD**.
 ```
 
-输入立即更新结果，面板自带“恢复默认”。独立使用的计数器只需一行 `<counter label="人数">`。
+Inputs update the result immediately, and the panel includes a restore-defaults action. A standalone counter is a single line: `<counter label="People">`.
 
-## 安装
+## Install
 
-需要 Node.js 22.12 或更新版本，包提供 ESM 入口：
+Reactive MD requires Node.js 22.12 or newer and ships only ESM entries:
 
 ```sh
 npm install reactive-md@0.3.1
 ```
 
-`reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。
+The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`.
 
-React 入口需要 React 19：
+The core `reactive-md` entry does not depend on React:
+
+```js
+import { compileLocal, createLocalRuntime } from 'reactive-md';
+
+const result = compileLocal('<number bind="n" label="Count" initial="2">');
+if (result.ok) {
+  const runtime = createLocalRuntime(result.document);
+  try { console.log(runtime.text('Total: {{ n * 100 }}')); }
+  finally { runtime.dispose(); }
+}
+```
+
+See [Local mode integration](docs/local-integration-en.md) for the full compile and runtime APIs, host URL policy, lifecycle and style overrides.
+
+0.x minor releases may contain breaking changes. Before upgrading, read the [changelog](CHANGELOG.md) and [compatibility rules](docs/compatibility-en.md), and keep the original `.reactive.md` sources.
+
+## Use with React
+
+The React entry requires React 19:
 
 ```sh
 npm install react@19 react-dom@19
@@ -54,36 +73,51 @@ export function Article({ source }: { source: string }) {
 }
 ```
 
-`reactive-md` 核心入口不依赖 React。完整的编译与运行时 API、宿主 URL 策略、生命周期和样式覆盖见[本地模式集成](docs/local-integration.md)。
+`LocalReactiveDocument` compiles and manages the runtime for you. To control compilation, lifecycle or URL policy yourself, use `LocalDocumentView` as described in [Local mode integration](docs/local-integration-en.md).
 
-0.x 次版本可能包含破坏性变更。升级前阅读[变更记录](CHANGELOG.md)与[兼容规则](docs/compatibility.md)，并保存原始 `.reactive.md` 源码。
-
-## 体验 Demo
+## Try the demo
 
 ```sh
 npm ci
 npm run dev
 ```
 
-该命令先构建语言包，再启动独立的 `demo/` 应用，地址为 `http://127.0.0.1:5173`。`/embed.html` 展示嵌入方式。Demo 的页面、编辑器、演示服务、资产和浏览器检查均在 `demo/`，通过语言包的公开入口集成。
+The command builds the language package first, then starts the standalone `demo/` app at `http://127.0.0.1:5173`. `/embed.html` demonstrates the embedding approach. The demo pages, editor, demo server, assets and browser checks all live in `demo/` and integrate through the package's public entries.
+
+## Repository layout
 
 ```text
-src/           本地语法编译、表达式、运行时和 React 渲染器
-examples/      可复制的本地交互示例，与 demo 应用无关
-docs/          本地语法规范、集成与发布文档
-tests/         语言与渲染器测试
-demo/          独立的 Playground 应用
+src/           Local syntax compilation, expressions, runtime and React renderer
+examples/      Copyable local interactive examples, independent of the demo app
+docs/          Local syntax specification, integration and release documentation
+tests/         Language and renderer tests
+demo/          Standalone Playground app
 ```
 
-更多开发与测试命令见[贡献指南](CONTRIBUTING.md)。
+## Documentation
 
-## 贡献与安全
+- [Beginner guide](docs/local-guide-en.md) and [local interaction syntax specification](docs/local-interaction-syntax-en.md).
+- [Local mode integration](docs/local-integration-en.md): core and React API, URL policy, lifecycle, styling and version pinning.
+- [12 examples](examples/local/README.md) and [standalone integrations](examples/integration/README.md).
+- [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, diagnostics and supported platforms.
+- [Component protocol](docs/component-protocol-en.md) and [component development guide](docs/component-development-en.md): contribution contracts, a proposal template and acceptance cases.
+- [Performance measurements](docs/performance-en.md) and [release checklist](docs/releasing-en.md).
 
-- [贡献指南](CONTRIBUTING.md)：环境、检查命令和改动要求。
-- [安全策略](SECURITY.md)：威胁边界、资源上限、宿主责任和漏洞报告渠道。
-- [变更记录](CHANGELOG.md)。
-- [发布清单](docs/releasing.md)：维护者的包名、notice、tarball 和人工发布流程。
+See the [contributing guide](CONTRIBUTING.md) for development and test commands.
 
-## 许可证
+## Support and status
+
+- Node 22.12, Node 24 and Playwright Chromium pass CI; Microsoft Edge is verified locally. Static SSR is covered by the packed check. Firefox, WebKit and SSR hydration remain unverified.
+- 0.x minor releases may contain breaking changes. Persist the original `.reactive.md` source, not the runtime AST or in-memory state.
+- The project maintains the latest 0.x preview. Security fixes may ship in minor releases.
+
+## Contributing and security
+
+- [Contributing guide](CONTRIBUTING.md): environment, check commands and change requirements.
+- [Security policy](SECURITY.md): threat boundary, resource limits, host responsibilities and vulnerability reporting.
+- [Changelog](CHANGELOG.md).
+- [Release checklist](docs/releasing-en.md): package name, notices, tarball and the manual release flow for maintainers.
+
+## License
 
 [MIT](LICENSE)

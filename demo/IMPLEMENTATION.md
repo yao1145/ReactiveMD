@@ -1,33 +1,33 @@
-# 实现与验证记录
+# Implementation and verification notes
 
-## 本地交互模式（2026-10-22）
+## Local interaction mode (2026-10-22)
 
-Playground 已切换到 `local-draft-1`，直接加载 `examples/local/` 中的 12 份文档。11 份正常示例可运行，诊断示例故意报错并停用交互。作者语法见 [本地交互规范](../docs/local-interaction-syntax.md)，公开入口见 [集成说明](../docs/local-integration.md)。
+The Playground has switched to `local-draft-1` and loads the 12 documents in `examples/local/` directly. Eleven normal examples run, while the diagnostics example fails on purpose and disables interaction. For the authoring syntax see the [local interaction specification](../docs/local-interaction-syntax-en.md); for the public entry points see the [integration guide](../docs/local-integration-en.md).
 
-| 模块 | 实现 |
+| Module | Implementation |
 | --- | --- |
-| 标签与 Markdown | `src/local/parser.ts`：代码和数学区域隔离、嵌套容器、属性、表格转义与原始源码位置 |
-| 表达式 | `src/local/expression.ts`：严格类型、短路求值、内置函数、插值与执行预算 |
-| 编译和状态 | `src/local/schema.ts`、`compiler.ts`、`runtime.ts`：33 个组件、前向与共享绑定、初值约束、局部错误、原子重置 |
-| LaTeX | `src/local/math.ts`、`math-view.tsx`：实函数解析、分段函数、总执行预算、断点细分、原生 MathML 排版 |
-| React | `src/local/LocalDocumentView.tsx`：输入草稿、中文组合输入、隐藏状态、计时暂停、错误恢复与多实例 DOM ID |
-| 可视化 | `src/local/visuals.tsx`：表格、五类统计图、函数曲线、时间轴、自动布局图解与键盘读数 |
+| Tags and Markdown | `src/local/parser.ts`: isolates code and math regions, nested containers, attributes, table escapes and original source positions |
+| Expressions | `src/local/expression.ts`: strict types, short-circuit evaluation, built-in functions, interpolation and execution budgets |
+| Compilation and state | `src/local/schema.ts`, `compiler.ts`, `runtime.ts`: 33 components, forward and shared bindings, initial-value constraints, local errors and atomic resets |
+| LaTeX | `src/local/math.ts`, `math-view.tsx`: real-function parsing, piecewise functions, global execution budget, discontinuity subdivision and native MathML typesetting |
+| React | `src/local/LocalDocumentView.tsx`: input drafts, IME composition input, hidden state, timer pausing, error recovery and unique DOM IDs across instances |
+| Visualization | `src/local/visuals.tsx`: tables, five chart types, function curves, timeline, auto-layout diagrams and keyboard readouts |
 
-主代理通过 `claude-code-subagent` 并行委派 7 个实现任务，分别负责解析、表达式、数学、编译运行时、基础组件、可视化和 Playground 集成。主代理审查实际代码，修正整合问题，并执行全部测试与浏览器检查。任务和会话记录保留在忽略目录 `.tasks/local-syntax/`。
+The main agent delegated seven implementation tasks in parallel through `claude-code-subagent`, covering parsing, expressions, math, compile runtime, base components, visualization and Playground integration. The main agent reviewed the actual code, fixed integration issues and ran all tests and browser checks. Task and session records are kept in the ignored directory `.tasks/local-syntax/`.
 
-本轮实际通过：
+This round passed:
 
-- `npm test`：16 个测试文件，201 项测试。
-- `npm run build:demo`：核心类型检查、语言包和 Playground 构建。
-- `npm run test:demo`：15 项公开包和示例测试。
-- `npm run test:package`：核心无 React 运行时依赖、公开入口、全部示例及应用样式边界。
-- `npm run test:docs`：文档链接与导航锚点。
-- `demo/scripts/verify-local-browser.mjs`：Edge 下 38 项检查，包括 12 份示例、输入草稿、中文组合输入、隐藏清单、条件计算错误恢复、计时暂停、表格排序分页、375px 布局，以及 StrictMode 双实例的独立状态和唯一 DOM ID。运行时异常与意外外部请求均为 0。
+- `npm test`: 16 test files, 201 tests.
+- `npm run build:demo`: core type checks, language package and Playground build.
+- `npm run test:demo`: 15 public package and example tests.
+- `npm run test:package`: core has no React runtime dependency, public entries, all examples and app style boundaries.
+- `npm run test:docs`: documentation links and navigation anchors.
+- `demo/scripts/verify-local-browser.mjs`: 38 checks in Edge, including 12 examples, input drafts, IME composition input, hidden checklist, recovery from conditional evaluation errors, timer pause, table sorting and paging, 375px layout, and independent state and unique DOM IDs for two StrictMode instances. Runtime exceptions and unexpected external requests were both 0.
 
-浏览器报告在 `demo/artifacts/local-browser-results.json`，截图以 `local-` 开头。检查时用 `DEMO_URL` 指向本轮启动的本地测试服务。构建保留了一条大分块体积提示，未做按需拆包。
+The browser report is in `demo/artifacts/local-browser-results.json`, and screenshots start with `local-`. The checks pointed `DEMO_URL` at the local test server started for this round. The build kept one large-chunk size warning; no on-demand chunk splitting was done.
 
-## 云服务器部署（2026-10-22）
+## Cloud server deployment (2026-10-22)
 
-本地模式已替换 [线上 Demo](https://yaozi.raricy.com/)。服务器通过 `ssh rocky2-ts` 访问，站点目录为 `/opt/reactive-md`，`site` 软链接指向 `releases/20261022-1400-local-draft-1`。旧版 `releases/20261021-235541` 保留，可用原子软链接切换回滚。此次沿用原有 Caddy、证书与容器配置。
+Local mode replaced the [live demo](https://yaozi.raricy.com/). The server is accessed through `ssh rocky2-ts`; the site directory is `/opt/reactive-md`, and the `site` symlink points to `releases/20261022-1400-local-draft-1`. The previous release `releases/20261021-235541` is kept, so an atomic symlink switch can roll back. The existing Caddy, certificate and container configuration was reused.
 
-上传包、入口及全部新资产的 SHA256 校验通过。服务器 IPv6 HTTPS 返回新版本；通过临时 SSH 隧道，以真实域名和正常证书校验运行的 38 项线上浏览器检查全部通过。当前客户端公网直连超时，因此该检查不代表当前网络的公网直连已恢复。报告保存在本地 `demo/artifacts/deployed-browser-results.json`，发布记录在 `.tasks/deploy/`。
+SHA256 checks passed for the upload package, entry points and all new assets. IPv6 HTTPS on the server returned the new version; through a temporary SSH tunnel, all 38 live browser checks passed with the real domain and normal certificate validation. The current client's direct public connection times out, so this check does not mean direct public access from the current network has recovered. The report is saved in the local `demo/artifacts/deployed-browser-results.json`, and the release record is in `.tasks/deploy/`.

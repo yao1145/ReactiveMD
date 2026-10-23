@@ -64,7 +64,7 @@ const LocalViewContext = createContext<LocalViewContext | null>(null);
 
 function useLocal(): LocalViewContext {
   const value = useContext(LocalViewContext);
-  if (!value) throw new Error('LocalViewContext 未初始化');
+  if (!value) throw new Error('LocalViewContext is not initialized');
   return value;
 }
 
@@ -107,10 +107,10 @@ function textAttr(runtime: LocalRuntime, node: LocalNode, name: string, fallback
   if (raw === undefined) return fallback;
   const full = FULL_EXPRESSION.exec(raw);
   try {
-    if (full) return scalarText(runtime.evaluate(full[1])) ?? '无法计算';
+    if (full) return scalarText(runtime.evaluate(full[1])) ?? 'Cannot compute';
     return runtime.text(raw);
   } catch {
-    return '无法计算';
+    return 'Cannot compute';
   }
 }
 
@@ -179,14 +179,14 @@ function useWriter(node: LocalNode) {
       try {
         const diagnostics = runtime.set(node, value);
         if (diagnostics.length) {
-          setError(diagnostics.map((item) => item.message).join('；'));
+          setError(diagnostics.map((item) => item.message).join('; '));
           report(diagnostics);
           return false;
         }
         setError(null);
         return true;
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : '无法写入');
+        setError(cause instanceof Error ? cause.message : 'Cannot write');
         return false;
       }
     },
@@ -223,7 +223,7 @@ function useResetToken(runtime: LocalRuntime, node: LocalNode, onReset: () => vo
 
 /* ---------------------------------------------------------------- display */
 
-function LocalError({ message = '无法计算' }: { message?: string }) {
+function LocalError({ message = 'Cannot compute' }: { message?: string }) {
   return (
     <span className="local-error" role="alert">
       {message}
@@ -340,7 +340,7 @@ function renderFallback(env: RenderEnv, node: LocalNode, key: string, block: boo
     <span
       key={key}
       className={block ? 'local-fallback local-fallback-block' : 'local-fallback local-fallback-inline'}
-      title="未支持的语法，已按源码原样显示"
+      title="Unsupported syntax shown as source"
       data-local-fallback=""
     >
       {fallbackSource(env, node)}
@@ -453,7 +453,7 @@ function renderNode(
               checked={node.checked === true}
               readOnly
               tabIndex={-1}
-              aria-label={node.checked ? '已完成' : '未完成'}
+              aria-label={node.checked ? 'Completed' : 'Not completed'}
             />
           ) : null}
           {renderNodes(env,node.children, visible)}
@@ -465,7 +465,7 @@ function renderNode(
       const allowedHref = safeUrl(node.url, 'link', env.urlPolicy);
       if (!allowedHref) {
         return (
-          <span className="md-link-rejected" key={key} title="已拒绝不安全的链接地址">
+          <span className="md-link-rejected" key={key} title="Unsafe link URL rejected">
             {renderNodes(env,node.children, visible, false)}
           </span>
         );
@@ -490,7 +490,7 @@ function renderNode(
       if (!src) {
         return (
           <span className="md-image-rejected" key={key}>
-            [已拒绝不安全的图片{node.alt ? `：${node.alt}` : ''}]
+            [Unsafe image rejected{node.alt ? `: ${node.alt}` : ''}]
           </span>
         );
       }
@@ -547,7 +547,7 @@ function renderNode(
     case 'interpolation': {
       try {
         const text = scalarText(env.runtime.evaluate(node.value ?? ''));
-        if (text === null) throw new Error('无法显示数组');
+        if (text === null) throw new Error('Cannot display an array');
         return (
           <span className="local-interpolation" key={key}>
             {text}
@@ -638,7 +638,7 @@ function renderComponent(node: LocalNode, visible: boolean): ReactNode {
   }
   const View = COMPONENTS[name];
   if (!View) {
-    return <span className="component-error">未知组件“{name || '（缺少名称）'}”</span>;
+    return <span className="component-error">Unknown component "{name || '(missing name)'}"</span>;
   }
   return <View node={node} visible={visible} />;
 }
@@ -675,19 +675,19 @@ function textProblem(
     email?: boolean;
   },
 ): string | null {
-  if (options.required && value.length === 0) return '请填写此字段';
+  if (options.required && value.length === 0) return 'This field is required';
   // Check the shared hard limit before the linear email shape check, so a huge
   // draft never reaches format validation.
   if (value.length > MAX_LOCAL_STRING_LENGTH) {
-    return `最多允许 ${MAX_LOCAL_STRING_LENGTH} 个字符`;
+    return `At most ${MAX_LOCAL_STRING_LENGTH} characters`;
   }
-  if (options.email && value !== '' && !isLocalEmail(value)) return '请输入有效的邮箱地址';
+  if (options.email && value !== '' && !isLocalEmail(value)) return 'Enter a valid email address';
   const length = value.length;
   if (options.minLength !== undefined && options.minLength > 0 && value !== '' && length < options.minLength) {
-    return `至少需要 ${options.minLength} 个字符`;
+    return `At least ${options.minLength} characters`;
   }
   if (options.maxLength !== undefined && options.maxLength >= 0 && length > options.maxLength) {
-    return `最多允许 ${options.maxLength} 个字符`;
+    return `At most ${options.maxLength} characters`;
   }
   return null;
 }
@@ -696,7 +696,7 @@ function InputView({ node }: LocalComponentProps) {
   const domId = useId();
   const { runtime } = useLocal();
   const { write, error, setError } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', node.name ?? '输入');
+  const label = textAttr(runtime, node, 'label', node.name ?? 'Input');
   const placeholder = textAttr(runtime, node, 'placeholder', '');
   const typeRaw = rawAttr(node, 'type') ?? 'text';
   const email = typeRaw === 'email';
@@ -781,7 +781,7 @@ function InputView({ node }: LocalComponentProps) {
           if (problemFor(value) === null) write(value);
         }}
       />
-      <FieldError message={disabledInvalid ? '无法计算' : (draftError ?? error)} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : (draftError ?? error)} />
     </div>
   );
 }
@@ -790,7 +790,7 @@ function TextareaView({ node }: LocalComponentProps) {
   const domId = useId();
   const { runtime } = useLocal();
   const { write, error, setError } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '文本');
+  const label = textAttr(runtime, node, 'label', 'Text');
   const placeholder = textAttr(runtime, node, 'placeholder', '');
   const rows = Math.min(40, Math.max(1, Math.floor(numberAttr(runtime, node, 'rows', 4))));
   const required = boolAttr(runtime, node, 'required', false);
@@ -874,7 +874,7 @@ function TextareaView({ node }: LocalComponentProps) {
           if (problemFor(value) === null) write(value);
         }}
       />
-      <FieldError message={disabledInvalid ? '无法计算' : (draftError ?? error)} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : (draftError ?? error)} />
     </div>
   );
 }
@@ -900,14 +900,14 @@ function numberProblem(
   step: number,
 ): string | null {
   const tolerance = 1e-9 * Math.max(1, Math.abs(value));
-  if (min !== undefined && value < min - tolerance) return `不能小于 ${min}`;
-  if (max !== undefined && value > max + tolerance) return `不能大于 ${max}`;
-  if (!Number.isFinite(step) || step <= 0) return '步长必须大于 0';
+  if (min !== undefined && value < min - tolerance) return `Must be at least ${min}`;
+  if (max !== undefined && value > max + tolerance) return `Must be at most ${max}`;
+  if (!Number.isFinite(step) || step <= 0) return 'Step must be greater than 0';
   const base = min ?? 0;
   const quotient = (value - base) / step;
   const nearest = Math.round(quotient);
   if (Math.abs(quotient - nearest) > 1e-9 * Math.max(1, Math.abs(quotient))) {
-    return `需要按步长 ${step} 取值`;
+    return `Must be a multiple of ${step}`;
   }
   return null;
 }
@@ -916,7 +916,7 @@ function NumberView({ node }: LocalComponentProps) {
   const domId = useId();
   const { runtime } = useLocal();
   const { write, error, setError } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '数字');
+  const label = textAttr(runtime, node, 'label', 'Number');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const minPresent = rawAttr(node, 'min') !== undefined;
   const maxPresent = rawAttr(node, 'max') !== undefined;
@@ -953,7 +953,7 @@ function NumberView({ node }: LocalComponentProps) {
   const commitText = (text: string, reportProblem: boolean): boolean => {
     const parsed = parseNumberDraft(text);
     if (parsed.kind !== 'valid') {
-      if (reportProblem) setDraftError('请输入有效数字');
+      if (reportProblem) setDraftError('Enter a valid number');
       return false;
     }
     const problem = numberProblem(parsed.value, min, max, step);
@@ -1000,13 +1000,13 @@ function NumberView({ node }: LocalComponentProps) {
       />
       {min !== undefined || max !== undefined || step !== undefined ? (
         <span className="md-hint">
-          {min !== undefined ? `最小 ${min}` : ''}
+          {min !== undefined ? `Min ${min}` : ''}
           {min !== undefined && max !== undefined ? ' · ' : ''}
-          {max !== undefined ? `最大 ${max}` : ''}
-          {step !== undefined ? ` · 步长 ${step}` : ''}
+          {max !== undefined ? `Max ${max}` : ''}
+          {step !== undefined ? ` · Step ${step}` : ''}
         </span>
       ) : null}
-      <FieldError message={disabledInvalid ? '无法计算' : (draftError ?? error)} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : (draftError ?? error)} />
     </div>
   );
 }
@@ -1015,7 +1015,7 @@ function SliderView({ node }: LocalComponentProps) {
   const domId = useId();
   const { runtime } = useLocal();
   const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '滑块');
+  const label = textAttr(runtime, node, 'label', 'Slider');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const min = numberAttr(runtime, node, 'min', 0);
   const max = numberAttr(runtime, node, 'max', 100);
@@ -1042,7 +1042,7 @@ function SliderView({ node }: LocalComponentProps) {
         disabled={disabled}
         onChange={(event: ChangeEvent<HTMLInputElement>) => write(Number(event.target.value))}
       />
-      <FieldError message={disabledInvalid ? '无法计算' : error} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : error} />
     </div>
   );
 }
@@ -1051,7 +1051,7 @@ function ToggleView({ node }: LocalComponentProps) {
   const domId = useId();
   const { runtime } = useLocal();
   const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '开关');
+  const label = textAttr(runtime, node, 'label', 'Toggle');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const checked = currentValue(runtime, node) === true;
 
@@ -1067,7 +1067,7 @@ function ToggleView({ node }: LocalComponentProps) {
         />
         <span>{label}</span>
       </label>
-      <FieldError message={disabledInvalid ? '无法计算' : error} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : error} />
     </div>
   );
 }
@@ -1076,7 +1076,7 @@ function CheckboxView({ node }: LocalComponentProps) {
   const domId = useId();
   const { runtime } = useLocal();
   const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '勾选');
+  const label = textAttr(runtime, node, 'label', 'Checkbox');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const checked = currentValue(runtime, node) === true;
 
@@ -1092,7 +1092,7 @@ function CheckboxView({ node }: LocalComponentProps) {
         />
         <span>{label}</span>
       </label>
-      <FieldError message={disabledInvalid ? '无法计算' : error} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : error} />
     </div>
   );
 }
@@ -1101,7 +1101,7 @@ function DateView({ node }: LocalComponentProps) {
   const domId = useId();
   const { runtime } = useLocal();
   const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '日期');
+  const label = textAttr(runtime, node, 'label', 'Date');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const required = boolAttr(runtime, node, 'required', false);
   const min = textAttr(runtime, node, 'min', '');
@@ -1109,7 +1109,7 @@ function DateView({ node }: LocalComponentProps) {
   const stored = currentValue(runtime, node);
   const value = typeof stored === 'string' ? stored : '';
   const [touched, setTouched] = useState(false);
-  const problem = touched && required && value === '' ? '请选择日期' : null;
+  const problem = touched && required && value === '' ? 'Select a date' : null;
 
   return (
     <div className="md-control local-date">
@@ -1132,7 +1132,7 @@ function DateView({ node }: LocalComponentProps) {
           write(event.target.value);
         }}
       />
-      <FieldError message={disabledInvalid ? '无法计算' : (problem ?? error)} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : (problem ?? error)} />
     </div>
   );
 }
@@ -1165,7 +1165,7 @@ function inlinePlainText(runtime: LocalRuntime, nodes: LocalNode[] | undefined):
       try {
         text += scalarText(runtime.evaluate(node.value ?? '')) ?? '';
       } catch {
-        text += '无法计算';
+        text += 'Cannot compute';
       }
     } else if (node.type === 'break') {
       text += ' ';
@@ -1188,7 +1188,7 @@ function SelectView({ node }: LocalComponentProps) {
   const domId = useId();
   const { runtime } = useLocal();
   const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '选择');
+  const label = textAttr(runtime, node, 'label', 'Select');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const options = readOptions(node);
   const stored = currentValue(runtime, node);
@@ -1197,7 +1197,7 @@ function SelectView({ node }: LocalComponentProps) {
     ? current
     : options[0]?.value ?? '';
 
-  if (options.length === 0) return <LocalError message="缺少选项" />;
+  if (options.length === 0) return <LocalError message="Missing options" />;
 
   return (
     <div className="md-control md-select local-select">
@@ -1217,7 +1217,7 @@ function SelectView({ node }: LocalComponentProps) {
           </option>
         ))}
       </select>
-      <FieldError message={disabledInvalid ? '无法计算' : error} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : error} />
     </div>
   );
 }
@@ -1227,7 +1227,7 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
   const local = useLocal();
   const { runtime } = local;
   const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '选项');
+  const label = textAttr(runtime, node, 'label', 'Options');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const options = readOptions(node);
   const stored = currentValue(runtime, node);
@@ -1236,7 +1236,7 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
   const activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  if (options.length === 0) return <LocalError message="缺少选项" />;
+  if (options.length === 0) return <LocalError message="Missing options" />;
 
   const choose = (index: number) => {
     const option = options[index];
@@ -1289,7 +1289,7 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
           );
         })}
       </div>
-      <FieldError message={disabledInvalid ? '无法计算' : error} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : error} />
     </div>
   );
 }
@@ -1299,14 +1299,14 @@ function RadioGroupView({ node, visible }: LocalComponentProps) {
   const local = useLocal();
   const { runtime } = local;
   const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '选项');
+  const label = textAttr(runtime, node, 'label', 'Options');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const options = readOptions(node);
   const stored = currentValue(runtime, node);
   const current = typeof stored === 'string' ? stored : '';
   const name = domId;
 
-  if (options.length === 0) return <LocalError message="缺少选项" />;
+  if (options.length === 0) return <LocalError message="Missing options" />;
 
   return (
     <fieldset className="md-control local-radio-group" disabled={disabled}>
@@ -1323,7 +1323,7 @@ function RadioGroupView({ node, visible }: LocalComponentProps) {
           <span>{renderInlineNodes(local, option.node.children, visible)}</span>
         </label>
       ))}
-      <FieldError message={disabledInvalid ? '无法计算' : error} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : error} />
     </fieldset>
   );
 }
@@ -1347,7 +1347,7 @@ function ChecklistView({ node, visible }: LocalComponentProps) {
   const local = useLocal();
   const { runtime } = local;
   const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '清单');
+  const label = textAttr(runtime, node, 'label', 'Checklist');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const items = readChecklistItems(node);
   const stored = currentValue(runtime, node);
@@ -1355,7 +1355,7 @@ function ChecklistView({ node, visible }: LocalComponentProps) {
     ? stored.filter((value): value is string => typeof value === 'string')
     : [];
 
-  if (items.length === 0) return <LocalError message="清单需要任务列表" />;
+  if (items.length === 0) return <LocalError message="Checklist requires a task list" />;
 
   const toggle = (id: string, checked: boolean) => {
     const chosen = new Set(selected);
@@ -1380,7 +1380,7 @@ function ChecklistView({ node, visible }: LocalComponentProps) {
           </label>
         </div>
       ))}
-      <FieldError message={disabledInvalid ? '无法计算' : error} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : error} />
     </fieldset>
   );
 }
@@ -1391,14 +1391,14 @@ function formatSeconds(seconds: number): string {
   const safe = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(safe / 60);
   const rest = safe % 60;
-  if (minutes === 0) return `${rest} 秒`;
+  if (minutes === 0) return `${rest} seconds`;
   return `${minutes}:${String(rest).padStart(2, '0')}`;
 }
 
 function CounterView({ node }: LocalComponentProps) {
   const { runtime } = useLocal();
   const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '计数');
+  const label = textAttr(runtime, node, 'label', 'Counter');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const min = numberAttr(runtime, node, 'min', 0);
   const maxPresent = rawAttr(node, 'max') !== undefined;
@@ -1431,7 +1431,7 @@ function CounterView({ node }: LocalComponentProps) {
         <button
           type="button"
           className="md-button md-button-secondary local-counter-button"
-          aria-label={`${label} 减少`}
+          aria-label={`${label} decrease`}
           disabled={disabled || !canDecrease}
           onClick={() => change(-1)}
         >
@@ -1443,7 +1443,7 @@ function CounterView({ node }: LocalComponentProps) {
         <button
           type="button"
           className="md-button md-button-secondary local-counter-button"
-          aria-label={`${label} 增加`}
+          aria-label={`${label} increase`}
           disabled={disabled || !canIncrease}
           onClick={() => change(1)}
         >
@@ -1455,17 +1455,17 @@ function CounterView({ node }: LocalComponentProps) {
           disabled={disabled}
           onClick={reset}
         >
-          恢复初值
+          Reset
         </button>
       </div>
-      <FieldError message={disabledInvalid ? '无法计算' : error} />
+      <FieldError message={disabledInvalid ? 'Cannot compute' : error} />
     </div>
   );
 }
 
 function TimerView({ node, visible }: LocalComponentProps) {
   const { runtime } = useLocal();
-  const label = textAttr(runtime, node, 'label', '计时器');
+  const label = textAttr(runtime, node, 'label', 'Timer');
   const durationRaw = numberAttr(runtime, node, 'duration', 60);
   const duration = Math.floor(durationRaw);
   const stored = currentValue(runtime, node);
@@ -1485,7 +1485,7 @@ function TimerView({ node, visible }: LocalComponentProps) {
       try {
         const diagnostics = runtime.set(node, seconds);
         if (diagnostics.length) {
-          setError(diagnostics.map((item) => item.message).join('；'));
+          setError(diagnostics.map((item) => item.message).join('; '));
         }
       } catch {
         /* A disposed runtime cannot accept more ticks. */
@@ -1525,7 +1525,7 @@ function TimerView({ node, visible }: LocalComponentProps) {
   });
 
   if (!Number.isFinite(durationRaw) || duration <= 0) {
-    return <LocalError message="计时时长必须是大于 0 的秒数" />;
+    return <LocalError message="Timer duration must be a positive number of seconds" />;
   }
 
   const start = () => {
@@ -1565,7 +1565,7 @@ function TimerView({ node, visible }: LocalComponentProps) {
     <div className="local-timer" role="group" aria-label={label}>
       <div className="local-timer-head">
         <span className="md-label">{label}</span>
-        <span className="local-timer-value" role="timer" aria-label={`剩余 ${remaining} 秒`}>
+        <span className="local-timer-value" role="timer" aria-label={`${remaining} seconds remaining`}>
           {formatSeconds(remaining)}
         </span>
       </div>
@@ -1576,7 +1576,7 @@ function TimerView({ node, visible }: LocalComponentProps) {
           onClick={start}
           disabled={running}
         >
-          开始
+          Start
         </button>
         <button
           type="button"
@@ -1584,14 +1584,14 @@ function TimerView({ node, visible }: LocalComponentProps) {
           onClick={pause}
           disabled={!running}
         >
-          暂停
+          Pause
         </button>
         <button type="button" className="md-button md-button-quiet" onClick={reset}>
-          重置
+          Reset
         </button>
       </div>
       <span className="local-timer-status" role="status" aria-live="polite">
-        {completed ? '计时完成' : running ? '计时中' : '已暂停'}
+        {completed ? 'Completed' : running ? 'Running' : 'Paused'}
       </span>
       <FieldError message={error} />
     </div>
@@ -1600,12 +1600,12 @@ function TimerView({ node, visible }: LocalComponentProps) {
 
 function ProgressView({ node }: LocalComponentProps) {
   const { runtime } = useLocal();
-  const label = textAttr(runtime, node, 'label', '进度');
+  const label = textAttr(runtime, node, 'label', 'Progress');
   const max = numberAttr(runtime, node, 'max', 100);
   const read = readAttr(runtime, node, 'value');
 
   if (!Number.isFinite(max) || max <= 0) {
-    return <LocalError message="进度上限必须是正数" />;
+    return <LocalError message="Progress maximum must be positive" />;
   }
   if (!read.present || !read.ok) return <LocalError />;
   const raw = read.value;
@@ -1616,7 +1616,7 @@ function ProgressView({ node }: LocalComponentProps) {
       : Number.NaN;
   if (!Number.isFinite(numeric)) return <LocalError />;
   if (numeric < 0 || numeric > max) {
-    return <LocalError message={`进度值需要在 0 到 ${max} 之间`} />;
+    return <LocalError message={`Progress value must be between 0 and ${max}`} />;
   }
   const percent = (numeric / max) * 100;
 
@@ -1629,7 +1629,7 @@ function ProgressView({ node }: LocalComponentProps) {
       <div
         className="local-progress-track"
         role="progressbar"
-        aria-label={label || '进度'}
+        aria-label={label || 'Progress'}
         aria-valuemin={0}
         aria-valuemax={max}
         aria-valuenow={numeric}
@@ -1653,12 +1653,12 @@ function PanelView({ node, visible }: LocalComponentProps) {
       runtime.reset(node);
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : '无法恢复默认');
+      setError(cause instanceof Error ? cause.message : 'Cannot reset');
     }
   };
 
   return (
-    <section className="local-panel" aria-label={title || '参数面板'}>
+    <section className="local-panel" aria-label={title || 'Parameter panel'}>
       {title || resettable ? (
         <div className="local-panel-head">
           {title ? <h3 className="local-panel-title">{title}</h3> : <span />}
@@ -1667,9 +1667,9 @@ function PanelView({ node, visible }: LocalComponentProps) {
               type="button"
               className="md-button md-button-quiet local-panel-reset"
               onClick={reset}
-              aria-label={title ? `${title} 恢复默认` : '恢复默认'}
+              aria-label={title ? `Reset ${title}` : 'Reset'}
             >
-              恢复默认
+              Reset
             </button>
           ) : null}
         </div>
@@ -1732,7 +1732,7 @@ function TabsView({ node, visible }: LocalComponentProps) {
     setSelected(values.includes(initial) ? initial : values[0] ?? '');
   });
 
-  if (tabs.length === 0) return <LocalError message="标签页至少需要一个 tab" />;
+  if (tabs.length === 0) return <LocalError message="Tabs requires at least one tab" />;
 
   const current = bound
     ? values.includes(boundValue) ? boundValue : values[0]
@@ -1759,9 +1759,9 @@ function TabsView({ node, visible }: LocalComponentProps) {
   };
 
   return (
-    <section className="local-tabs" aria-label={label || '选项卡'}>
+    <section className="local-tabs" aria-label={label || 'Tabs'}>
       {label ? <div className="local-tabs-label">{label}</div> : null}
-      <div className="local-tablist" role="tablist" aria-label={label || '选项卡'} onKeyDown={onKeyDown}>
+      <div className="local-tablist" role="tablist" aria-label={label || 'Tabs'} onKeyDown={onKeyDown}>
         {tabs.map((tab, index) => {
           const value = values[index];
           const active = value === current;
@@ -1814,7 +1814,7 @@ function AccordionView({ node, visible }: LocalComponentProps) {
   const { runtime, render } = useLocal();
   const label = textAttr(runtime, node, 'label', '');
   return (
-    <div className="local-accordion" role="group" aria-label={label || '折叠面板'}>
+    <div className="local-accordion" role="group" aria-label={label || 'Accordion'}>
       {label ? <div className="local-accordion-label">{label}</div> : null}
       {render(node.children ?? [], visible)}
     </div>
@@ -1824,7 +1824,7 @@ function AccordionView({ node, visible }: LocalComponentProps) {
 function DisclosureView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const { runtime, render } = useLocal();
-  const label = textAttr(runtime, node, 'label', '折叠内容');
+  const label = textAttr(runtime, node, 'label', 'Details');
   const initialOpen = boolAttr(runtime, node, 'open', false);
   const [open, setOpen] = useState(initialOpen);
 
@@ -1895,7 +1895,7 @@ function IfView({ node, visible }: LocalComponentProps) {
         ref={container}
         className="local-if md-if"
         role="group"
-        aria-label="条件内容"
+        aria-label="Conditional content"
         tabIndex={-1}
         hidden={!when}
         aria-hidden={!when}
@@ -1946,7 +1946,7 @@ function TooltipView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const local = useLocal();
   const { runtime } = local;
-  const text = textAttr(runtime, node, 'text', '提示');
+  const text = textAttr(runtime, node, 'text', 'Tooltip');
   const [open, setOpen] = useState(false);
   const bubbleId = `${domId}-tooltip`;
   return (
@@ -2061,7 +2061,7 @@ export function LocalDocumentView({
   );
 
   return (
-    <article className="md-document local-document" aria-label="交互文档">
+    <article className="md-document local-document" aria-label="Interactive document">
       {render(document.nodes, true)}
     </article>
   );
@@ -2121,13 +2121,13 @@ export function LocalReactiveDocument({
     return (
       <div className="md-document local-document local-inactive" role="alert">
         <p className="local-inactive-title">
-          {result.ok ? '交互初始化失败，预览已停用。' : '文档包含语法错误，交互预览已停用。'}
+          {result.ok ? 'Interactive initialization failed; preview is disabled.' : 'The document contains syntax errors; interactive preview is disabled.'}
         </p>
         {result.diagnostics.length ? (
           <ul className="local-inactive-list">
             {result.diagnostics.map((diagnostic, index) => (
               <li key={`${diagnostic.code}-${index}`}>
-                {diagnostic.message}（第 {diagnostic.line} 行，第 {diagnostic.column} 列）
+                {diagnostic.message} (line {diagnostic.line}, column {diagnostic.column})
               </li>
             ))}
           </ul>

@@ -2,15 +2,15 @@
 
 协议修订 `component-protocol-1` · 适用语法 `local-draft-1` · 当前包版本 `0.3.1`（预览）
 
-Reactive MD 的组块就是语言中的组件。本协议规定组块在贡献、实现和验收中的共同契约，连接作者语法、编译器、运行时、React 参考适配器和机器验收数据。作者写文档时以[本地交互语法规范](local-interaction-syntax.md)为准；宿主接入以[本地模式集成](local-integration.md)为准；本文供贡献者、评审和测试使用。
+Reactive MD 的组块就是语言中的组件。本协议规定组块在贡献、实现和验收中的共同契约，连接作者语法、编译器、运行时、React 参考适配器和机器验收数据。作者写文档时以[本地交互语法规范](local-interaction-syntax-ch.md)为准；宿主接入以[本地模式集成](local-integration-ch.md)为准；本文供贡献者、评审和测试使用。
 
 | 想了解 | 阅读 |
 | --- | --- |
-| 怎么写文档 | [新用户入门指南](local-guide.md)、[语法规范](local-interaction-syntax.md) |
-| 怎么新增或修改组块 | [组块开发指南](component-development.md)、本文第 12、13 节 |
+| 怎么写文档 | [新用户入门指南](local-guide-ch.md)、[语法规范](local-interaction-syntax-ch.md) |
+| 怎么新增或修改组块 | [组块开发指南](component-development-ch.md)、本文第 12、13 节 |
 | 怎么运行验收 | [语言验收数据](../examples/conformance/README.md)、本文第 11 节 |
-| 版本和迁移规则 | [版本与兼容性](compatibility.md) |
-| 安全边界 | [安全策略](../SECURITY.md) |
+| 版本和迁移规则 | [版本与兼容性](compatibility-ch.md) |
+| 安全边界 | [安全策略](../SECURITY-ch.md) |
 
 ## 1. 状态、术语与约束力
 
@@ -30,10 +30,10 @@ Reactive MD 同时维护三个独立版本轴：
 
 本协议复述现有行为时，以下文件是权威来源：
 
-- 作者语法：[本地交互语法规范](local-interaction-syntax.md)。
-- 核心与 React API：[本地模式集成](local-integration.md)。
-- 安全边界与宿主责任：[安全策略](../SECURITY.md)。
-- 版本、诊断契约与平台范围：[版本与兼容性](compatibility.md)。
+- 作者语法：[本地交互语法规范](local-interaction-syntax-ch.md)。
+- 核心与 React API：[本地模式集成](local-integration-ch.md)。
+- 安全边界与宿主责任：[安全策略](../SECURITY-ch.md)。
+- 版本、诊断契约与平台范围：[版本与兼容性](compatibility-ch.md)。
 - 实现代码：`src/local/` 下的解析器、声明表、编译器、运行时和渲染器。
 
 本协议不复制完整属性表。属性默认值、允许值和静态/动态标记以 `src/local/schema.ts` 和语法规范为准。
@@ -77,7 +77,7 @@ Reactive MD 同时维护三个独立版本轴：
 | 反馈 | `alert`、`badge`、`tooltip` | 提示和行内说明 |
 | 数据与可视化 | `table`、`chart`、`plot`、`timeline`、`diagram`、`node`、`edge` | 表格、图表、函数曲线、时间轴和图解 |
 
-`option`、`tab`、`disclosure`、`node`、`edge` 是结构子项，只在指定父组块内出现。完整名称和用途见[语法规范第 12 节](local-interaction-syntax.md#12-组件速查与语法裁剪)。
+`option`、`tab`、`disclosure`、`node`、`edge` 是结构子项，只在指定父组块内出现。完整名称和用途见[语法规范第 12 节](local-interaction-syntax-ch.md#12-组件速查与语法裁剪)。
 
 ### CP-MODEL-02 三种形态（现有）
 
@@ -584,7 +584,7 @@ $$ y = x^2 $$
 
 ### CP-ACCEPT-05 命令门槛与豁免（要求）
 
-协议样例门槛使用 `npm run test:components`，运行 `examples/conformance/component-protocol-1.json` 和语言 conformance；它不替代完整测试、构建、文档检查或人工浏览器检查。完整检查命令见[贡献指南](../CONTRIBUTING.md)和[组块开发指南](component-development.md)。
+协议样例门槛使用 `npm run test:components`，运行 `examples/conformance/component-protocol-1.json` 和语言 conformance；它不替代完整测试、构建、文档检查或人工浏览器检查。完整检查命令见[贡献指南](../CONTRIBUTING-ch.md)和[组块开发指南](component-development-ch.md)。
 
 只有 SHOULD 条款可以豁免；豁免必须在提案中记录理由、替代证据和影响范围。MUST 条款不能豁免，只能通过协议修订改变。
 
@@ -604,7 +604,7 @@ $$ y = x^2 $$
 | 预算 | `src/local/limits.ts` | 共享资源上限 |
 | 版本 | `src/local/version.ts`、`package.json` | 语法修订和包版本 |
 | 验收 | `tests/`、`examples/conformance/` | 语言测试和机器验收数据 |
-| 文档 | `docs/`、`README.md`、`CONTRIBUTING.md`、`SECURITY.md` | 语法、集成、兼容、安全和贡献规则 |
+| 文档 | `docs/`、`README.md`、`CONTRIBUTING-ch.md`、`SECURITY-ch.md` | 语法、集成、兼容、安全和贡献规则 |
 
 ### CP-IMPL-02 当前覆盖范围（现有 / 边界）
 
@@ -623,7 +623,7 @@ $$ y = x^2 $$
 
 ## 13. 新组块提案模板
 
-以下表格供评审使用。完整流程、可复制提案模板和检查命令见[组块开发指南](component-development.md)。
+以下表格供评审使用。完整流程、可复制提案模板和检查命令见[组块开发指南](component-development-ch.md)。
 
 ### 13.1 基本信息
 
