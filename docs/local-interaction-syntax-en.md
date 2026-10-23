@@ -213,7 +213,7 @@ option.value is a non-empty, static, unique string; the body is the option's inl
 | Container | Attributes | Body and default behavior |
 | --- | --- | --- |
 | card | optional title | Regular Markdown; a content card |
-| grid | columns=2 (integer 1–4) | Direct children are card; automatically single column on narrow screens |
+| grid | columns=2 (integer 1–4, maximum column count) | Direct children are card; fewer columns in narrow containers, including nested grids and embedded documents |
 | tabs | optional label, bind, initial | One or more tab, first selected by default |
 | tab | label required, optional value | Regular Markdown |
 | accordion | optional label | One or more disclosure |

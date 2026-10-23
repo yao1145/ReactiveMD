@@ -1,35 +1,27 @@
 import type { Language } from './i18n';
-import comparisonSource from '../../examples/local/comparison.reactive.md?raw';
-import parametersSource from '../../examples/local/parameters.reactive.md?raw';
-import checklistSource from '../../examples/local/checklist.reactive.md?raw';
-import chartsSource from '../../examples/local/charts.reactive.md?raw';
-import diagramSource from '../../examples/local/diagram.reactive.md?raw';
-import catalogSource from '../../examples/local/catalog.reactive.md?raw';
-import planningSource from '../../examples/local/planning.reactive.md?raw';
-import componentsSource from '../../examples/local/components.reactive.md?raw';
+import functionsSource from '../../examples/local/showcase/functions.reactive.md?raw';
+import formsSource from '../../examples/local/showcase/forms.reactive.md?raw';
+import statisticsSource from '../../examples/local/showcase/statistics.reactive.md?raw';
+import layoutSource from '../../examples/local/showcase/layout.reactive.md?raw';
+import flowSource from '../../examples/local/showcase/flow.reactive.md?raw';
+import tasksSource from '../../examples/local/showcase/tasks.reactive.md?raw';
 import pricingSource from '../../examples/local/pricing.reactive.md?raw';
-import counterSource from '../../examples/local/counter.reactive.md?raw';
 import gallerySource from '../../examples/local/gallery.reactive.md?raw';
 import diagnosticsSource from '../../examples/local/diagnostics.reactive.md?raw';
-import comparisonZhSource from '../../examples/local/zh/comparison.reactive.md?raw';
-import parametersZhSource from '../../examples/local/zh/parameters.reactive.md?raw';
-import checklistZhSource from '../../examples/local/zh/checklist.reactive.md?raw';
-import chartsZhSource from '../../examples/local/zh/charts.reactive.md?raw';
-import diagramZhSource from '../../examples/local/zh/diagram.reactive.md?raw';
-import catalogZhSource from '../../examples/local/zh/catalog.reactive.md?raw';
-import planningZhSource from '../../examples/local/zh/planning.reactive.md?raw';
-import componentsZhSource from '../../examples/local/zh/components.reactive.md?raw';
+import functionsZhSource from '../../examples/local/showcase/zh/functions.reactive.md?raw';
+import formsZhSource from '../../examples/local/showcase/zh/forms.reactive.md?raw';
+import statisticsZhSource from '../../examples/local/showcase/zh/statistics.reactive.md?raw';
+import layoutZhSource from '../../examples/local/showcase/zh/layout.reactive.md?raw';
+import flowZhSource from '../../examples/local/showcase/zh/flow.reactive.md?raw';
+import tasksZhSource from '../../examples/local/showcase/zh/tasks.reactive.md?raw';
 import pricingZhSource from '../../examples/local/zh/pricing.reactive.md?raw';
-import counterZhSource from '../../examples/local/zh/counter.reactive.md?raw';
 import galleryZhSource from '../../examples/local/zh/gallery.reactive.md?raw';
 import diagnosticsZhSource from '../../examples/local/zh/diagnostics.reactive.md?raw';
 
-/**
- * One playground document in both languages. `title`, `hint` and `source`
- * stay English so existing consumers and tests keep working unchanged.
- */
+/** One standalone document, its navigation section and both translations. */
 export interface PlaygroundExample {
   id: string;
+  section: 'quickstart' | 'feature' | 'reference' | 'debug';
   title: string;
   hint: string;
   source: string;
@@ -41,6 +33,7 @@ export interface PlaygroundExample {
 /** The subset of an example that follows the active demo language. */
 export interface LocalizedExample {
   id: string;
+  section: PlaygroundExample['section'];
   title: string;
   hint: string;
   source: string;
@@ -49,110 +42,74 @@ export interface LocalizedExample {
 /** All playground documents use the explicit local-draft-1 syntax. */
 export const EXAMPLES: PlaygroundExample[] = [
   {
-    id: 'comparison',
-    title: 'Side-by-side comparison and layout',
-    hint: 'Grids, tabs and collapsible content',
-    source: comparisonSource,
-    titleZh: '并排比较与布局',
-    hintZh: '网格、标签页与折叠内容',
-    sourceZh: comparisonZhSource,
-  },
-  {
-    id: 'parameters',
-    title: 'Forms and parameter panels',
-    hint: 'Live parameters, text binding and conditional checklists',
-    source: parametersSource,
-    titleZh: '表单与参数面板',
-    hintZh: '实时参数、文本联动与条件清单',
-    sourceZh: parametersZhSource,
-  },
-  {
-    id: 'checklist',
-    title: 'Checklists and data tables',
-    hint: 'Lists, progress, search, sorting and paging',
-    source: checklistSource,
-    titleZh: '清单与数据表格',
-    hintZh: '清单、进度、搜索、排序和分页',
-    sourceZh: checklistZhSource,
-  },
-  {
-    id: 'charts',
-    title: 'Charts and savings curves',
-    hint: 'Table charts, donut shares and LaTeX plots',
-    source: chartsSource,
-    titleZh: '图表与储蓄曲线',
-    hintZh: '表格图表、环形占比与 LaTeX 绘图',
-    sourceZh: chartsZhSource,
-  },
-  {
-    id: 'diagram',
-    title: 'Interactive diagrams',
-    hint: 'Node selection and parameter curves',
-    source: diagramSource,
-    titleZh: '交互图解',
-    hintZh: '节点选择与参数曲线',
-    sourceZh: diagramZhSource,
-  },
-  {
-    id: 'catalog',
-    title: 'Local component catalog',
-    hint: 'Local search, sorting and paging',
-    source: catalogSource,
-    titleZh: '本地组件目录',
-    hintZh: '本地搜索、排序与分页',
-    sourceZh: catalogZhSource,
-  },
-  {
-    id: 'planning',
-    title: 'Planning, timing and bill splitting',
-    hint: 'Timelines, timers and live bill splitting',
-    source: planningSource,
-    titleZh: '计划、计时和分账',
-    hintZh: '时间轴、计时器和实时分账',
-    sourceZh: planningZhSource,
-  },
-  {
-    id: 'components',
-    title: 'Content and helper components',
-    hint: 'Tooltips, choices, disclosures and content structure',
-    source: componentsSource,
-    titleZh: '内容与辅助组件',
-    hintZh: '提示、选项、折叠和内容组织',
-    sourceZh: componentsZhSource,
-  },
-  {
     id: 'pricing',
-    title: 'Plan calculator',
-    hint: 'Headcount, annual discount and live totals',
+    section: 'quickstart',
+    title: 'Quick start',
+    hint: 'Change the headcount, then compare annual billing.',
     source: pricingSource,
-    titleZh: '方案计算器',
-    hintZh: '人数、年度折扣与实时合计',
+    titleZh: '快速体验',
+    hintZh: '调整人数，再切换年度付费，看看合计如何变化。',
     sourceZh: pricingZhSource,
   },
   {
-    id: 'counter',
-    title: 'Counter',
-    hint: 'Smallest local state example',
-    source: counterSource,
-    titleZh: '计数器',
-    hintZh: '最小本地状态示例',
-    sourceZh: counterZhSource,
+    id: 'functions', section: 'feature',
+    title: 'Functions & formulas', titleZh: '函数与公式',
+    hint: 'Shape a wave, compare curves and explore savings growth.',
+    hintZh: '调整波形、比较曲线，再探索储蓄增长。',
+    source: functionsSource, sourceZh: functionsZhSource,
+  },
+  {
+    id: 'forms', section: 'feature',
+    title: 'Forms & bindings', titleZh: '表单与联动',
+    hint: 'Build a workshop plan and watch its summary update.',
+    hintZh: '填写活动配置，观察方案摘要与费用同步更新。',
+    source: formsSource, sourceZh: formsZhSource,
+  },
+  {
+    id: 'statistics', section: 'feature',
+    title: 'Data & charts', titleZh: '数据与统计图表',
+    hint: 'Read one budget through totals, tables and charts.',
+    hintZh: '用合计、明细表和图表观察同一份预算。',
+    source: statisticsSource, sourceZh: statisticsZhSource,
+  },
+  {
+    id: 'layout', section: 'feature',
+    title: 'Content & layout', titleZh: '内容与布局',
+    hint: 'Compare cards, switch reading roles and open the details.',
+    hintZh: '比较卡片、切换阅读角色，再展开补充细节。',
+    source: layoutSource, sourceZh: layoutZhSource,
+  },
+  {
+    id: 'flow', section: 'feature',
+    title: 'Diagrams & flow', titleZh: '图解与流程',
+    hint: 'Follow a value from input through computation to display.',
+    hintZh: '跟随一个数值，从输入走到计算和显示。',
+    source: flowSource, sourceZh: flowZhSource,
+  },
+  {
+    id: 'tasks', section: 'feature',
+    title: 'Checklists & timing', titleZh: '清单与计时',
+    hint: 'Prepare a workshop, track progress and time a focus session.',
+    hintZh: '准备活动、跟踪进度，并为专注环节计时。',
+    source: tasksSource, sourceZh: tasksZhSource,
   },
   {
     id: 'gallery',
-    title: 'Common component gallery',
+    section: 'reference',
+    title: 'Component reference',
     hint: 'Inputs, standalone components and code as-is',
     source: gallerySource,
-    titleZh: '常用组件画廊',
+    titleZh: '组件查阅',
     hintZh: '输入、独立组件和原样代码',
     sourceZh: galleryZhSource,
   },
   {
     id: 'diagnostics',
-    title: 'Diagnostics example',
+    section: 'debug',
+    title: 'Errors & debugging',
     hint: 'Intentionally broken source',
     source: diagnosticsSource,
-    titleZh: '诊断示例',
+    titleZh: '错误与调试',
     hintZh: '故意写错的源码',
     sourceZh: diagnosticsZhSource,
   },
@@ -163,8 +120,8 @@ export const DEFAULT_EXAMPLE_ID = 'pricing';
 /** Resolve an example's title, hint and source for the active language. */
 export function localizedExample(example: PlaygroundExample, language: Language): LocalizedExample {
   return language === 'zh'
-    ? { id: example.id, title: example.titleZh, hint: example.hintZh, source: example.sourceZh }
-    : { id: example.id, title: example.title, hint: example.hint, source: example.source };
+    ? { id: example.id, section: example.section, title: example.titleZh, hint: example.hintZh, source: example.sourceZh }
+    : { id: example.id, section: example.section, title: example.title, hint: example.hint, source: example.source };
 }
 
 /** Every example resolved for the active language, in catalog order. */

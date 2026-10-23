@@ -53,6 +53,17 @@
   color: var(--surface);
 }
 
+.author-tools .source-toggle.is-primary {
+  color: var(--surface);
+  background: var(--blue);
+  border-color: var(--blue);
+}
+
+.author-tools .source-toggle.is-primary:hover {
+  background: var(--blue-deep);
+  border-color: var(--blue-deep);
+}
+
 .author-tools button:focus-visible {
   outline: var(--focus-outline);
   outline-offset: 2px;
@@ -67,6 +78,88 @@
   display: none;
 }
 
+.app-shell.is-simple .edit-only {
+  display: none;
+}
+
+.app-shell.is-simple .pane-preview {
+  padding: clamp(20px, 4vw, 48px);
+}
+
+.app-shell.is-simple .pane-preview .pane-head {
+  display: none;
+}
+
+.app-shell.is-simple .preview-stage {
+  max-width: 1080px;
+  margin-inline: auto;
+}
+
+.app-shell.is-simple .preview-stage .local-document {
+  max-width: none;
+}
+
+.app-shell.is-simple .local-document > p {
+  max-width: 75ch;
+}
+
+/* Untitled cards group controls and results in the source. Keep their
+   presentation open; titled content cards retain their normal treatment. */
+.app-shell.is-simple .local-document > .local-grid > .local-card:not(:has(> .md-card-title)) {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.showcase-nav {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.showcase-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.showcase-nav .showcase-menu-toggle {
+  display: none;
+}
+
+.showcase-nav button {
+  flex: 1 1 auto;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  background: transparent;
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.showcase-nav button:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.showcase-nav button[aria-pressed="true"] {
+  color: var(--ink);
+  border-color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 10%, var(--surface));
+  box-shadow: inset 0 -2px 0 var(--blue);
+}
+
+.showcase-nav button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.author-tools button {
+  min-height: 44px;
+}
+
 .app-shell.is-simple .workspace {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -76,7 +169,8 @@
 }
 
 .example-hint {
-  color: var(--ink-muted);
+  flex: 1 1 260px;
+  color: var(--ink-soft);
   font-size: var(--text-xs);
   line-height: var(--leading-snug);
 }
@@ -95,6 +189,51 @@
   }
 
   .example-hint {
+    flex-basis: 100%;
+    font-size: var(--text-sm);
+  }
+
+  .showcase-nav {
+    padding: var(--space-3);
+  }
+
+  .showcase-links {
     display: none;
+  }
+
+  .showcase-links.is-open {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 8px;
+  }
+
+  .showcase-links button:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .showcase-nav .showcase-menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    border-color: var(--line);
+  }
+
+  .showcase-menu-toggle > span {
+    color: var(--ink-soft);
+    font-size: var(--text-xs);
+  }
+
+  .showcase-nav button {
+    text-align: left;
+  }
+
+  .app-shell.is-simple .author-tool-group:last-child {
+    display: none;
+  }
+
+  .app-shell.is-simple .pane-preview {
+    padding: var(--space-4);
   }
 }

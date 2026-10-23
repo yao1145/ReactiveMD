@@ -42,6 +42,7 @@ const startDevBold = async (editor) => {
 
 try {
   await page.goto(baseURL);
+  await page.getByRole('button', { name: 'Show source', exact: true }).click();
   const toolbar = page.locator('.editor-toolbar');
   await expect(toolbar).toBeVisible();
   const editor = page.locator('#source-editor');
@@ -231,6 +232,7 @@ try {
   const tablet = await browser.newPage({ viewport: { width: 1024, height: 900 } });
   tablet.setDefaultTimeout(10000);
   await tablet.goto(baseURL);
+  await tablet.getByRole('button', { name: 'Show source', exact: true }).click();
   const tabletToolbar = tablet.locator('.editor-toolbar');
   await expect(tabletToolbar).toBeVisible();
   expectSameIds(
@@ -274,6 +276,7 @@ try {
     if (response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`);
   });
   await mobile.goto(baseURL);
+  await mobile.getByRole('button', { name: 'Show source', exact: true }).click();
   const mobileToolbar = mobile.locator('.editor-toolbar');
   await expect(mobileToolbar).toBeVisible();
   const mobileOverflow = await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
@@ -380,6 +383,7 @@ try {
   chinese.setDefaultTimeout(10000);
   chinese.on('pageerror', (error) => chineseErrors.push(error.message));
   await chinese.goto(baseURL);
+  await chinese.getByRole('button', { name: 'Show source', exact: true }).click();
   await chinese.getByRole('button', { name: 'Switch to Chinese', exact: true }).click();
   const chineseToolbar = chinese.getByRole('toolbar', { name: '文档编辑工具栏', exact: true });
   await expect(chineseToolbar).toBeVisible();

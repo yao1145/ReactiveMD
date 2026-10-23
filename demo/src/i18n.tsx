@@ -17,6 +17,13 @@ export interface DemoCopy {
   /** Value written to `document.documentElement.lang`. */
   htmlLang: 'en' | 'zh-CN';
   documentTitle: string;
+  showcase: {
+    intro: string;
+    navigation: string;
+    reference: string;
+    more: string;
+    footer: string;
+  };
   languageToggle: {
     /** Visible short label: the language the button switches to. */
     label: string;
@@ -122,6 +129,13 @@ export interface DemoCopy {
 const ENGLISH: DemoCopy = {
   htmlLang: 'en',
   documentTitle: 'Reactive MD · Interactive Document Lab',
+  showcase: {
+    intro: 'Explore what an interactive document can do. Choose a feature, try a change, then open the source.',
+    navigation: 'Explore features',
+    reference: 'Reference',
+    more: 'Components & debugging',
+    footer: 'Try the controls in each document. Open the source to explore or change how it works.',
+  },
   languageToggle: {
     label: '中',
     labelLang: 'zh-CN',
@@ -161,7 +175,7 @@ const ENGLISH: DemoCopy = {
     lightTheme: 'Light theme',
     darkTheme: 'Dark theme',
     showSource: 'Show source',
-    simpleView: 'Simple view',
+    simpleView: 'Presentation mode',
     importDocument: 'Import document',
     exportDocument: 'Export document',
   },
@@ -236,6 +250,13 @@ const ENGLISH: DemoCopy = {
 const CHINESE: DemoCopy = {
   htmlLang: 'zh-CN',
   documentTitle: 'Reactive MD · 交互文档实验室',
+  showcase: {
+    intro: '按功能探索交互文档。选一个主题，动手调整，再展开源码看看写法。',
+    navigation: '探索功能',
+    reference: '查阅',
+    more: '组件与调试',
+    footer: '直接操作文档中的控件；展开源码，可以查看或修改它的写法。',
+  },
   languageToggle: {
     label: 'EN',
     labelLang: 'en',
@@ -272,7 +293,7 @@ const CHINESE: DemoCopy = {
     lightTheme: '浅色主题',
     darkTheme: '深色主题',
     showSource: '显示源码',
-    simpleView: '简洁视图',
+    simpleView: '演示模式',
     importDocument: '导入文档',
     exportDocument: '导出文档',
   },

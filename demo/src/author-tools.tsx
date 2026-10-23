@@ -18,7 +18,7 @@ export function AuthorTools(props: AuthorToolsProps) {
       <button type="button" onClick={props.onTheme} aria-pressed={props.dark}>
         {props.dark ? copy.lightTheme : copy.darkTheme}
       </button>
-      <button type="button" onClick={props.onSimple} aria-pressed={props.simple}>
+      <button type="button" className={props.simple ? 'source-toggle is-primary' : 'source-toggle'} onClick={props.onSimple} aria-expanded={!props.simple} aria-controls="source-pane">
         {props.simple ? copy.showSource : copy.simpleView}
       </button>
     </div>

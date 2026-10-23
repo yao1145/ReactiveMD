@@ -265,7 +265,8 @@ export default function App() {
   const [selectedExample, setSelectedExample] = useState(initialExampleId);
   const [source, setSource] = useState(() => savedSource(initialExampleId(), language));
   const [dark, setDark] = useState(() => savedItem('reactive-md:theme') === 'dark');
-  const [simple, setSimple] = useState(false);
+  const [simple, setSimple] = useState(() => EXAMPLES.find((item) => item.id === selectedExample)?.section !== 'debug');
+  const [featureMenuOpen, setFeatureMenuOpen] = useState(false);
   const [instanceKey, setInstanceKey] = useState(0);
   const [retainPreviewState, setRetainPreviewState] = useState(true);
   const [previewSession, setPreviewSession] = useState(() => new PreviewStateSession());
@@ -274,6 +275,7 @@ export default function App() {
 
   const copy = COPY[language];
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const featureMenuRef = useRef<HTMLButtonElement>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
   const pendingSourceWrite = useRef<{
     exampleId: string;
@@ -440,6 +442,8 @@ export default function App() {
   const loadExample = useCallback((exampleId: string) => {
     const example = EXAMPLES.find((item) => item.id === exampleId);
     if (!example) return;
+    setFeatureMenuOpen(false);
+    if (example.section === 'debug') setSimple(false);
     flushSourceWrite();
     const next = savedSource(example.id, language);
     setSelectedExample(example.id);
@@ -561,8 +565,7 @@ export default function App() {
             <p className="eyebrow">{copy.masthead.eyebrow}</p>
             <h1>Reactive MD</h1>
             <p className="masthead-intro">
-              {copy.masthead.introBefore}<code>bind</code>{copy.masthead.introBetween}
-              <code>{copy.masthead.expression}</code>{copy.masthead.introAfter}
+              {copy.showcase.intro}
             </p>
           </div>
           <nav className="view-switch" aria-label={copy.masthead.viewSwitcher}>
@@ -603,22 +606,54 @@ export default function App() {
           />
         ) : (
         <main className="workbench">
+          <nav className="showcase-nav" aria-label={copy.showcase.navigation}>
+            <button
+              type="button"
+              className="showcase-menu-toggle"
+              ref={featureMenuRef}
+              aria-expanded={featureMenuOpen}
+              aria-controls="showcase-links"
+              onClick={() => setFeatureMenuOpen((value) => !value)}
+            >
+              <strong>{currentExample.title}</strong>
+              <span>{copy.showcase.navigation} <span aria-hidden="true">⌄</span></span>
+            </button>
+            <div id="showcase-links" className={`showcase-links${featureMenuOpen ? ' is-open' : ''}`}>
+            {exampleOptions.filter((example) => example.section === 'quickstart' || example.section === 'feature').map((example) => (
+              <button
+                type="button"
+                key={example.id}
+                data-example-id={example.id}
+                aria-pressed={selectedExample === example.id}
+                title={example.hint}
+                onClick={() => {
+                  if (selectedExample !== example.id) loadExample(example.id);
+                  setFeatureMenuOpen(false);
+                  if (featureMenuOpen) featureMenuRef.current?.focus();
+                }}
+              >
+                {example.title}
+              </button>
+            ))}
+            </div>
+          </nav>
           <div className="workbench-bar">
             <div className="bar-group">
-              <label className="bar-label" htmlFor="example-select">{copy.workbench.example}</label>
+              <label className="bar-label" htmlFor="example-select">{copy.showcase.reference}</label>
               <select
                 id="example-select"
                 className="bar-select"
-                value={selectedExample}
+                value={currentExample.section === 'reference' || currentExample.section === 'debug' ? selectedExample : ''}
                 onChange={(event: ChangeEvent<HTMLSelectElement>) => loadExample(event.target.value)}
               >
-                {exampleOptions.map((example) => (
+                <option value="" disabled>{copy.showcase.more}</option>
+                {exampleOptions.filter((example) => example.section === 'reference' || example.section === 'debug').map((example) => (
                   <option key={example.id} value={example.id}>{example.title}</option>
                 ))}
               </select>
             </div>
             <div className="bar-group bar-actions">
-              <label className="bar-label" title={copy.workbench.keepTrialStateTitle}>
+              <label className="bar-label edit-only" title={copy.workbench.keepTrialStateTitle}>
                 <input
                   type="checkbox"
                   checked={retainPreviewState}
@@ -657,7 +692,7 @@ export default function App() {
           />
 
           <div className="workspace">
-            <section className="pane pane-editor" aria-label={copy.editor.region}>
+            <section id="source-pane" className="pane pane-editor" aria-label={copy.editor.region}>
               <div className="pane-head">
                 <div>
                   <h2>{copy.editor.heading}</h2>
@@ -784,17 +819,17 @@ export default function App() {
         )}
 
         <footer className="app-footer">
-          <p>
+          {view === 'playground' && simple ? <p>{copy.showcase.footer}</p> : <p>
             {copy.footer.bindBefore}<code>bind</code>{copy.footer.bindBetween}
             <code>{copy.footer.expression}</code>{copy.footer.afterExpression}
-          </p>
+          </p>}
           {view === 'guide' ? (
             <p>
               {copy.footer.guideBefore}<code>{copy.guide.documentFile}</code>{copy.footer.guideAfter}
             </p>
-          ) : (
+          ) : !simple ? (
             <p>{copy.footer.trial}</p>
-          )}
+          ) : null}
         </footer>
       </div>
     </LanguageProvider>

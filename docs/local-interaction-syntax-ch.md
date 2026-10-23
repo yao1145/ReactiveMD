@@ -213,7 +213,7 @@ option.value 为非空、静态、唯一字符串；正文是选项的行内文�
 | 容器 | 属性 | 正文与默认行为 |
 | --- | --- | --- |
 | card | 可选 title | 普通 Markdown；一块内容卡片 |
-| grid | columns=2（整数 1–4） | 直接子项为 card；窄屏自动单列 |
+| grid | columns=2（整数 1–4，表示最大列数） | 直接子项为 card；按容器可用宽度减少列数，适用于嵌套网格和嵌入文档 |
 | tabs | 可选 label、bind、initial | 一个或多个 tab，默认选第一项 |
 | tab | label 必填，可选 value | 普通 Markdown |
 | accordion | 可选 label | 一个或多个 disclosure |

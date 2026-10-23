@@ -9,7 +9,7 @@ Local mode uses HTML-style tags, with parameters and table data written directly
 ## Start here
 
 - [Beginner guide](docs/local-guide-en.md): move from Markdown to interactive documents, with a complete exercise and an error quick reference.
-- [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [12 examples](examples/local/README.md): 33 component names, tags, in-place parameters and LaTeX plots.
+- [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [Feature tours and examples](examples/local/README.md): 33 component names, tags, in-place parameters and LaTeX plots.
 - [Local mode integration](docs/local-integration-en.md): `compileLocal`, the state runtime, React embedding, URL policy and style scoping.
 - [Standalone integration examples](examples/integration/README.md): Node core and React pages you can copy and run outside the repository.
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
@@ -98,7 +98,7 @@ demo/          Standalone Playground app
 
 - [Beginner guide](docs/local-guide-en.md) and [local interaction syntax specification](docs/local-interaction-syntax-en.md).
 - [Local mode integration](docs/local-integration-en.md): core and React API, URL policy, lifecycle, styling and version pinning.
-- [12 examples](examples/local/README.md) and [standalone integrations](examples/integration/README.md).
+- [Feature tours and examples](examples/local/README.md) and [standalone integrations](examples/integration/README.md).
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, diagnostics and supported platforms.
 - [Component protocol](docs/component-protocol-en.md) and [component development guide](docs/component-development-en.md): contribution contracts, a proposal template and acceptance cases.
 - [Performance measurements](docs/performance-en.md) and [release checklist](docs/releasing-en.md).

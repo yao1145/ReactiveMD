@@ -43,6 +43,7 @@ Trial result: {{ count * 2 }}; {{ name }}; {{ annual }}.`;
 
 try {
   await page.goto(baseURL);
+  await page.getByRole('button', { name: 'Show source', exact: true }).click();
   await expect(page.locator('.status-chip')).toContainText('Compiled');
 
   await check('peer block titles share a scale and nested content stays readable on desktop and mobile', async () => {
@@ -251,9 +252,10 @@ Collapsed body copy.
   await check('reload and switching examples keep trial sessions isolated', async () => {
     await maxSlider('Trial count');
     await page.reload();
+    await page.getByRole('button', { name: 'Show source', exact: true }).click();
     await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');
     await maxSlider('Trial count');
-    await page.getByLabel('Example', { exact: true }).selectOption('counter');
+    await page.locator('[data-example-id="forms"]').click();
     await page.getByRole('button', { name: 'Restore example', exact: true }).click();
     await edit(trialSource);
     await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');

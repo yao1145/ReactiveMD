@@ -1,6 +1,12 @@
 # Reactive MD Playground
 
-The Playground uses the [local interaction syntax](../docs/local-interaction-syntax-en.md) and ships with [12 complete examples](../examples/local/README.md). If you are new to the syntax, start with the [getting-started guide](../docs/local-guide-en.md). Edit Markdown on the left; inputs, computed results and visualizations appear on the right. Compile errors are listed in the diagnostics panel by source position. The editor toolbar offers common Markdown formatting plus a menu for inserting native components such as sliders, panels, charts and diagrams, grouped and searchable.
+The Playground opens with a short calculator and six [feature tours](../examples/local/showcase/README.md): functions, forms, data and charts, layout, diagrams, and checklists and timing. Each tour follows one example from a suggested change to the visible result, with key source snippets at the end. English and Chinese versions are available throughout.
+
+Presentation mode shows the document at full width. Choose "Show source" to edit Markdown beside its live preview, or "Presentation mode" to return without resetting the current controls. The reference menu contains the component gallery and an intentionally broken diagnostics example; choosing diagnostics opens the editor. If you are new to the syntax, start with the [getting-started guide](../docs/local-guide-en.md).
+
+On phones, open the feature menu to choose a tour. It closes after selection to leave room for the document; import and export tools appear when source editing is open.
+
+Compile errors are listed by source position. The editor toolbar has common Markdown formatting and a searchable menu for inserting native components.
 
 The "User Guide" view at the top of the page renders `docs/local-guide-en.md` directly, covering everything from your first interactive document to charts, function curves and a quick error reference. Documentation links in the guide point to the repository, and table-of-contents anchors jump within the page.
 
@@ -27,9 +33,20 @@ Open `http://127.0.0.1:5173`. The embed example is at `/embed.html` and shows tw
 
 ## Examples
 
-Start with the counter and cost estimate, then try the parameter panel, checkable checklist, local catalog search, charts, LaTeX function curves, interactive diagram and timer. The diagnostics example contains deliberate errors: the preview should disable interaction and show diagnostics.
+Start with Quick start, then choose a feature in the navigation:
 
-Example sources live in `examples/local/` at the repository root, with Chinese versions in `examples/local/zh/`. The Playground uses the library through `compileLocal`, `createLocalRuntime` and the `reactive-md/react` renderer entry, without importing language internals directly. Controls declare parameters in the body, and table data is written directly in Markdown.
+| Tour | What to try |
+| --- | --- |
+| Functions & formulas | Flatten a sine wave, compare curves, then explore piecewise functions and savings growth |
+| Forms & bindings | Configure a workshop and watch its summary, estimate and preparation notes change |
+| Data & charts | Change an expense and compare the shared totals, table, bar chart, donut and scatter plot |
+| Content & layout | Switch reading roles and explore cards, tabs, tooltips and disclosures |
+| Diagrams & flow | Follow a headcount from input to calculation and displayed result |
+| Checklists & timing | Prepare a workshop, track completion, count attendees and run a timer |
+
+Feature sources live in `examples/local/showcase/`, with Chinese versions in its `zh/` directory. Quick start, component reference and diagnostics use the corresponding files in `examples/local/` and `examples/local/zh/`. The original standalone examples remain available through the [example catalog](../examples/local/README.md).
+
+The Playground uses the library through `compileLocal`, `createLocalRuntime` and the `reactive-md/react` renderer entry. Controls declare parameters in the body, and table data is written in Markdown. Table search and sorting affect that table; charts continue to show the full data.
 
 ## Development and checks
 
@@ -43,6 +60,8 @@ From the repository root:
 | `npm test` | Language, runtime and renderer tests |
 | `npm run test:demo` | Build the library and check the Playground examples |
 | `npm run test:browser` | Browser interaction checks for the new syntax |
+| `npm run test:showcase --workspace=@reactive-md/demo` | Feature-tour interactions and phone, tablet and desktop layouts in both languages |
+| `npm run test:grid-layout --workspace=@reactive-md/demo` | Nested grids and 1–4 columns across narrow panes and embedded containers |
 | `npm run test:toolbar` | Editor toolbar and native component insertion checks |
 | `npm run test:docs` | Local documentation links and navigation anchors |
 | `npm run test:package` | Public package entries, examples and style boundaries; build first |

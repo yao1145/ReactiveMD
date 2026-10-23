@@ -18,6 +18,7 @@ const preview = page.locator('.preview-stage');
 async function check(name, run) { await run(); checks.push(name); console.log('PASS ' + name); }
 try {
   await page.goto(baseURL);
+  await page.getByRole('button', { name: 'Show source', exact: true }).click();
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await check('editing keeps the last preview while compilation is pending', async () => {
     await fillSource('# Compiled document\n\nOld preview.');
@@ -39,16 +40,17 @@ try {
   });
   await check('switching examples discards old work and flushes each source separately', async () => {
     await fillSource(article(300) + '\n\nSaved pricing edit.');
-    await page.getByLabel('Example', { exact: true }).selectOption('counter');
+    await page.locator('[data-example-id="forms"]').click();
     await page.getByRole('button', { name: 'Restore example', exact: true }).click();
     await expect(page.locator('.status-chip')).toContainText('Compiled');
     await expect(preview).not.toContainText('Saved pricing edit.');
     await fillSource('# Counter edit\n\nSaved counter edit.');
-    await page.getByLabel('Example', { exact: true }).selectOption('pricing');
+    await page.locator('[data-example-id="pricing"]').click();
     await expect(editor).toHaveValue(article(300) + '\n\nSaved pricing edit.');
-    await page.getByLabel('Example', { exact: true }).selectOption('counter');
+    await page.locator('[data-example-id="forms"]').click();
     await expect(editor).toHaveValue('# Counter edit\n\nSaved counter edit.');
     await page.reload();
+    await page.getByRole('button', { name: 'Show source', exact: true }).click();
     await expect(editor).toHaveValue('# Counter edit\n\nSaved counter edit.');
     await expect(preview).toContainText('Saved counter edit.');
   });
@@ -58,6 +60,7 @@ try {
     await fallback.addInitScript(() => { window.Worker = undefined; });
     try {
       await fallback.goto(baseURL);
+      await fallback.getByRole('button', { name: 'Show source', exact: true }).click();
       await expect(fallback.locator('.status-chip')).toContainText('Compiled');
       await fallback.locator('#source-editor').fill('# Fallback\n\nWorking without Worker.', { force: true });
       await expect(fallback.locator('.preview-stage')).toContainText('Working without Worker.');

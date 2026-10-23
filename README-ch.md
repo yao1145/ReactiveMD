@@ -9,7 +9,7 @@
 ## 从这里开始
 
 - [新用户入门指南](docs/local-guide-ch.md)：从 Markdown 过渡到交互文档，含完整练习与错误速查。
-- [本地交互语法规范](docs/local-interaction-syntax-ch.md) · [12 份 Demo](examples/local/README.md)：33 个组件名、标签、就地参数与 LaTeX 绘图。
+- [本地交互语法规范](docs/local-interaction-syntax-ch.md) · [功能演示与示例](examples/local/README.md)：33 个组件名、标签、就地参数与 LaTeX 绘图。
 - [本地模式集成](docs/local-integration-ch.md)：`compileLocal`、状态运行时、React 嵌入、URL 策略与样式作用域。
 - [独立接入示例](examples/integration/README.md)：可复制到仓库外运行的 Node 核心和 React 页面。
 - [版本与兼容性](docs/compatibility-ch.md)：0.x 规则、迁移、诊断契约和平台范围。

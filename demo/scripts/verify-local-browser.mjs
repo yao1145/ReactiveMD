@@ -27,8 +27,17 @@ async function check(name, run) {
 }
 
 async function pick(id) {
-  await page.getByLabel('Example', { exact: true }).selectOption(id);
-  await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+  if (id === 'pricing') {
+    await page.locator('[data-example-id="pricing"]').click();
+    await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+  } else if (id === 'gallery' || id === 'diagnostics') {
+    await page.getByLabel('Reference', { exact: true }).selectOption(id);
+    await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+  } else {
+    // Retain the original component regressions alongside the new feature tours.
+    const source = await readFile(new URL(`../../examples/local/${id}.reactive.md`, import.meta.url), 'utf8');
+    await page.locator('#source-editor').fill(source);
+  }
   if (id === 'diagnostics') {
     await expect(status()).toContainText('Compile failed');
   } else {
@@ -39,7 +48,8 @@ async function pick(id) {
 
 try {
   await page.goto(baseURL);
-  await expect(page.getByLabel('Example', { exact: true })).toHaveValue('pricing');
+  await expect(page.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Show source', exact: true }).click();
   await expect(page.getByRole('slider', { name: 'People', exact: true })).toBeVisible();
   await check('library styles preserve host elements with common class names', async () => {
     // A separate document excludes the playground's own diagnostic styles.
@@ -78,8 +88,9 @@ try {
       expect(differences).toEqual([]);
     } finally { await styleProbe.close(); }
   });
-  await check('example picker exposes all twelve local documents', async () => {
-    await expect(page.getByLabel('Example', { exact: true }).locator('option')).toHaveCount(12);
+  await check('feature navigation separates seven tours from reference and debugging', async () => {
+    await expect(page.locator('[data-example-id]')).toHaveCount(7);
+    await expect(page.getByLabel('Reference', { exact: true }).locator('option')).toHaveCount(3);
   });
 
   await check('default pricing example starts at 200 USD', async () => {
@@ -104,12 +115,13 @@ try {
 
   await check('reload resets interaction state and keeps the selected source', async () => {
     await page.reload();
-    await expect(page.getByLabel('Example', { exact: true })).toHaveValue('pricing');
+    await expect(page.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(paragraph('Monthly total:')).toContainText('200');
     await expect(page.getByRole('slider', { name: 'People', exact: true })).toHaveValue('2');
   });
 
   await check('source editing compiles local controls and expressions immediately', async () => {
+    await page.getByRole('button', { name: 'Show source', exact: true }).click();
     const editor = page.locator('#source-editor');
     await editor.fill('<slider bind="n" label="Test value" initial="4" min="0" max="10">\n\nCurrent value: **{{ n * 2 }}**.');
     const slider = page.getByRole('slider', { name: 'Test value', exact: true });
@@ -296,7 +308,7 @@ try {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await page.getByRole('button', { name: 'Light theme', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    await page.getByRole('button', { name: 'Simple view', exact: true }).click();
+    await page.getByRole('button', { name: 'Presentation mode', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Source editor', exact: true })).toBeHidden();
     await expect(preview()).toBeVisible();
     await page.getByRole('button', { name: 'Show source', exact: true }).click();
@@ -458,11 +470,11 @@ Independent calculation: {{ n + 2 }}.`);
       });
 
       await localized.goto(baseURL);
+      await localized.getByRole('button', { name: 'Show source', exact: true }).click();
       await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
       await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
-      await expect(localized.getByLabel('Example', { exact: true })).toHaveValue('pricing');
-      await expect(localized.getByLabel('Example', { exact: true }).locator('option:checked'))
-        .toHaveText('Plan calculator');
+      await expect(localized.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
+      await expect(localized.locator('[data-example-id="pricing"]')).toHaveText('Quick start');
       await expect(localized.locator('#source-editor')).toHaveValue(/# Plan calculator/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: 'Plan calculator', level: 1 }))
         .toBeVisible();
@@ -470,9 +482,8 @@ Independent calculation: {{ n + 2 }}.`);
       await localized.getByTestId('language-toggle').click();
       await expect(localized.locator('html')).toHaveAttribute('lang', 'zh-CN');
       await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
-      await expect(localized.getByLabel('示例', { exact: true })).toHaveValue('pricing');
-      await expect(localized.getByLabel('示例', { exact: true }).locator('option:checked'))
-        .toHaveText('方案计算器');
+      await expect(localized.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
+      await expect(localized.locator('[data-example-id="pricing"]')).toHaveText('快速体验');
       await expect(localized.locator('#source-editor')).toHaveValue(/# 方案计算器/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: '方案计算器', level: 1 }))
         .toBeVisible();
@@ -490,9 +501,10 @@ Independent calculation: {{ n + 2 }}.`);
       await expect(localized.getByRole('toolbar', { name: '文档编辑工具栏', exact: true })).toBeVisible();
 
       await localized.reload();
+      await localized.getByRole('button', { name: '显示源码', exact: true }).click();
       await expect(localized.locator('html')).toHaveAttribute('lang', 'zh-CN');
       await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
-      await expect(localized.getByLabel('示例', { exact: true })).toHaveValue('pricing');
+      await expect(localized.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
       await expect(localized.locator('#source-editor')).toHaveValue(/# 方案计算器/);
       await expect(localized.getByRole('button', { name: '切换到英文', exact: true })).toBeVisible();
       await expect(localized.getByRole('button', { name: '你的方案 恢复默认', exact: true })).toBeVisible();
@@ -500,9 +512,8 @@ Independent calculation: {{ n + 2 }}.`);
       await localized.getByRole('button', { name: '切换到英文', exact: true }).click();
       await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
       await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
-      await expect(localized.getByLabel('Example', { exact: true })).toHaveValue('pricing');
-      await expect(localized.getByLabel('Example', { exact: true }).locator('option:checked'))
-        .toHaveText('Plan calculator');
+      await expect(localized.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
+      await expect(localized.locator('[data-example-id="pricing"]')).toHaveText('Quick start');
       await expect(localized.locator('#source-editor')).toHaveValue(/# Plan calculator/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: 'Plan calculator', level: 1 }))
         .toBeVisible();

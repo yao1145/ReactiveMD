@@ -1,14 +1,14 @@
 # Local interaction syntax demo
 
-These files are the complete authoring examples for `local-draft-1` and correspond to the [local interaction syntax specification](../../docs/local-interaction-syntax-en.md). If you are new to the syntax, read the [new user guide](../../docs/local-guide-en.md) first. The Playground loads this directory directly, or [zh/](zh/) when the demo is in Chinese; hosts compile and render it through the [local mode API](../../docs/local-integration-en.md).
+These are standalone authoring examples for `local-draft-1`, described in the [local interaction syntax specification](../../docs/local-interaction-syntax-en.md). The Playground starts with a [quick calculator](pricing.reactive.md), followed by six focused [feature tours](showcase/README.md). Component reference and diagnostics have their own auxiliary menu. Hosts can compile and render every document through the [local mode API](../../docs/local-integration-en.md).
 
-This directory contains eleven working examples and one intentionally broken diagnostics example. Each file is used on its own and shares no parameters. None of the working examples use YAML configuration, named actions, event handlers or external calls. Chinese versions of all twelve documents live in [zh/](zh/).
+The original eleven working examples and one intentionally broken diagnostics document remain in this directory, with Chinese versions in [zh/](zh/). The six new feature tours live in [showcase/](showcase/README.md), with Chinese sources in [showcase/zh/](showcase/zh/). Each file runs independently. Controls, expressions and visualizations use local state.
 
 ## Start with the short examples
 
-We suggest reading the [counter](counter.reactive.md), [plan calculator](pricing.reactive.md) and [interactive diagram](diagram.reactive.md) first, then the longer charts and parameter panels. Everyday writing uses only a few of these components.
+Start with the [plan calculator](pricing.reactive.md), then choose a [feature tour](showcase/README.md). For the smallest possible state example, read the original [counter](counter.reactive.md). If you are new to the syntax, read the [new user guide](../../docs/local-guide-en.md).
 
-## Full catalog
+## Original standalone catalog
 
 | File | Contents |
 | --- | --- |
