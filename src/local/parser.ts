@@ -2,8 +2,9 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import type { Diagnostic } from './types';
-import type { LocalCompileOptions, LocalNode } from './types';
+import type { LocalCompileOptions, LocalNode, SourceRange } from './types';
 import { suggestComponent } from './schema';
+import { isLocalThemeName } from './theme';
 import {
   DEFAULT_MAX_LOCAL_SYNTAX_NODES,
   MAX_LOCAL_DOCUMENT_LENGTH,
@@ -29,6 +30,14 @@ const markdown = unified().use(remarkParse).use(remarkGfm);
 interface Token { start: number; end: number; block?: boolean; node: LocalNode }
 interface RegionResult { tokens: Token[]; end: number; contentEnd: number; indent: number }
 interface ShieldRange { start: number; end: number; block: boolean }
+export interface ParsedLocal {
+  nodes: LocalNode[];
+  diagnostics: Diagnostic[];
+  /** Declared theme name, when the leading declaration is valid. */
+  theme?: string;
+  /** Source range of the first leading theme declaration, valid or not. */
+  themeRange?: SourceRange;
+}
 
 class LocalBudgetError extends Error {
   constructor(
@@ -61,7 +70,7 @@ function syntaxNodeLimit(options: LocalCompileOptions | undefined): number | str
 }
 
 /** A lexical pass shields code before recognizing local tags, interpolation and math. */
-export function parseLocal(source: string, options?: LocalCompileOptions): { nodes: LocalNode[]; diagnostics: Diagnostic[] } {
+export function parseLocal(source: string, options?: LocalCompileOptions): ParsedLocal {
   const diagnostics: Diagnostic[] = [];
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     return { nodes: [], diagnostics: [{
@@ -87,6 +96,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): { nod
   const reservedMarkers = new Set(source.match(new RegExp(MARK_OPEN + '[0-9]+' + MARK_CLOSE, 'g')) ?? []);
   const codeRanges: { start: number; end: number }[] = [];
   const footnoteRanges: ShieldRange[] = [];
+  const sourceBomOffset = source.charCodeAt(0) === 0xfeff ? 1 : 0;
   /**
    * The first Markdown pass decides what is literal code and what is a real
    * footnote. Both are opaque to the local lexical pass: code was already
@@ -95,18 +105,18 @@ export function parseLocal(source: string, options?: LocalCompileOptions): { nod
    */
   const findShielded = (raw: any): void => {
     if (raw.type === 'code') {
-      codeRanges.push({ start: raw.position.start.offset, end: raw.position.end.offset });
+      codeRanges.push({ start: raw.position.start.offset + sourceBomOffset, end: raw.position.end.offset + sourceBomOffset });
     } else if (raw.type === 'footnoteReference' || raw.type === 'footnoteDefinition') {
       const start = raw.position?.start?.offset;
       const end = raw.position?.end?.offset;
       if (Number.isInteger(start) && Number.isInteger(end) && end > start) {
-        footnoteRanges.push({ start, end, block: raw.type === 'footnoteDefinition' });
+        footnoteRanges.push({ start: start + sourceBomOffset, end: end + sourceBomOffset, block: raw.type === 'footnoteDefinition' });
       }
     }
     for (const child of raw.children ?? []) findShielded(child);
   };
   try {
-    findShielded(markdown.parse(source));
+    findShielded(markdown.parse(source.slice(sourceBomOffset)));
   } catch {
     error('local.parse', 'Cannot parse the Markdown document.', 0);
     return { nodes: [], diagnostics };
@@ -182,6 +192,105 @@ export function parseLocal(source: string, options?: LocalCompileOptions): { nod
   function warning(code: string, message: string, start: number, end = start + 1) {
     diagnostic(code, message, 'warning', start, end);
   }
+
+  /* ---------------------------------------------------------- theme header */
+
+  /**
+   * Theme declarations are document metadata. Only a leading, standalone
+   * `<theme name="...">` is consumed; it is replaced with a dropped comment
+   * token so every remaining source offset, line and column stays original.
+   * Malformed, repeated, late and nested declarations warn but never stop the
+   * body from compiling, and theme never enters the component schema.
+   */
+  let theme: string | undefined;
+  let themeRange: SourceRange | undefined;
+  let themeHeaders = 0;
+  let headerCursor = 0;
+
+  interface ThemeTag { start: number; end: number; rest: string; closing: boolean; selfClosing: boolean; unclosed: boolean }
+
+  /** Cheap pre-check so ordinary `<` characters never pay for a tag scan. */
+  function isThemeTagAt(index: number): boolean {
+    const closing = source.startsWith('</theme', index);
+    const opening = !closing && source.startsWith('<theme', index);
+    if (!closing && !opening) return false;
+    const boundary = source[index + (closing ? 7 : 6)];
+    return boundary !== undefined && (boundary === '>' || boundary === '/' || /\s/.test(boundary));
+  }
+
+  function themeTagAt(start: number, limit: number): ThemeTag | null {
+    const match = /^<(\/?)theme(?=[\s/>])/.exec(source.slice(start, limit));
+    if (!match) return null;
+    const nameEnd = start + match[0].length;
+    // Metadata occupies one source line. A missing bracket must never borrow
+    // the next component's closing bracket and consume that component.
+    const newline = source.indexOf('\n', nameEnd);
+    const lineEnd = newline < 0 ? limit : Math.min(limit, newline);
+    let quote = '';
+    let index = nameEnd;
+    for (; index < lineEnd; index += 1) {
+      const character = source[index];
+      if (quote) { if (character === quote) quote = ''; }
+      else if (character === '"' || character === "'") quote = character;
+      else if (character === '>') break;
+    }
+    const closing = Boolean(match[1]);
+    if (index >= lineEnd) {
+      // An unclosed declaration only claims its own line so the following
+      // controls survive the malformed metadata.
+      const stop = lineEnd;
+      return { start, end: stop, rest: source.slice(nameEnd, stop), closing, selfClosing: false, unclosed: true };
+    }
+    const rest = source.slice(nameEnd, index);
+    return { start, end: index + 1, rest, closing, selfClosing: /\/\s*$/.test(rest), unclosed: false };
+  }
+
+  /** Whitespace, BOM and leading comments may precede the declaration. */
+  function skipThemePrefix(from: number, to: number): number {
+    let index = from;
+    while (index < to) {
+      const character = source[index];
+      if (character.charCodeAt(0) === 0xfeff || character === ' ' || character === '\t' || character === '\r' || character === '\n') {
+        index += 1;
+        continue;
+      }
+      if (source.startsWith('<!--', index)) {
+        const close = source.indexOf('-->', index + 4);
+        if (close < 0 || close + 3 > to) return -1;
+        index = close + 3;
+        continue;
+      }
+      break;
+    }
+    return index;
+  }
+
+  function standaloneTheme(tag: ThemeTag): boolean {
+    if (tag.unclosed) return false;
+    let index = tag.end;
+    while (index < source.length && (source[index] === ' ' || source[index] === '\t' || source[index] === '\r')) index += 1;
+    return index >= source.length || source[index] === '\n';
+  }
+
+  function themeNameFrom(rest: string): { name?: string; code?: string; message?: string } {
+    if (/\{\{|\}\}/.test(rest)) {
+      return { code: 'local.theme.expression', message: 'Theme names must be static text, not expressions.' };
+    }
+    const body = rest.replace(/\/\s*$/, '');
+    const match = /^\s*name\s*=\s*(?:"([^"]*)"|'([^']*)')\s*$/.exec(body);
+    if (!match) {
+      if (!/\bname\s*=/.test(body)) {
+        return { code: 'local.theme.name', message: 'A theme declaration requires a quoted name attribute.' };
+      }
+      return { code: 'local.theme.attribute', message: 'Theme declarations only accept a quoted name attribute.' };
+    }
+    const name = match[1] ?? match[2] ?? '';
+    if (!isLocalThemeName(name)) {
+      return { code: 'local.theme.name', message: `Theme name "${name}" must use lowercase letters, digits and single hyphens (maximum 64 characters).` };
+    }
+    return { name };
+  }
+
   function decode(value: string) {
     return value.replace(/&(quot|apos|amp|lt|gt);/g, (_, key: string) => ({ quot: '"', apos: "'", amp: '&', lt: '<', gt: '>' })[key]!);
   }
@@ -459,6 +568,43 @@ export function parseLocal(source: string, options?: LocalCompileOptions): { nod
         tokens.push({ start: i, end: finish, node: node(display ? 'math' : 'inlineMath', i, finish, { value }) }); i = finish; continue;
       }
       if (source[i] === '<') {
+        const metadata = isThemeTagAt(i) ? themeTagAt(i, end) : null;
+        if (metadata) {
+          const inHeader = parent === undefined && skipThemePrefix(headerCursor, i) === i;
+          if (inHeader) {
+            themeHeaders += 1;
+            if (themeHeaders === 1) themeRange = { start: metadata.start, end: metadata.end };
+            if (metadata.unclosed) {
+              warning('local.theme.malformed', 'Theme declaration is missing >.', i, metadata.end);
+            } else if (metadata.closing) {
+              warning('local.theme.malformed', 'A theme declaration cannot be a closing tag.', i, metadata.end);
+            } else if (!standaloneTheme(metadata)) {
+              warning('local.theme.malformed', 'A theme declaration must be on its own line before the document content.', i, metadata.end);
+            } else if (themeHeaders > 1) {
+              warning('local.theme.duplicate', 'Only one theme declaration is allowed before the document content; this declaration is ignored.', i, metadata.end);
+            } else {
+              const parsedTheme = themeNameFrom(metadata.rest);
+              if (parsedTheme.code) warning(parsedTheme.code, parsedTheme.message ?? 'Invalid theme declaration.', i, metadata.end);
+              else theme = parsedTheme.name;
+            }
+            headerCursor = metadata.end;
+            // A comment token is dropped by convert(), removing the metadata
+            // while every following source offset, line and column stays as is.
+            tokens.push({ start: i, end: metadata.end, block: true, node: node('comment', i, metadata.end) });
+            i = metadata.end;
+            continue;
+          }
+          const lateCode = parent === undefined ? 'local.theme.late' : 'local.theme.nested';
+          const lateMessage = parent === undefined
+            ? 'Theme declarations after document content are ignored.'
+            : 'Theme declarations inside document content are ignored.';
+          // Only the declaration tag itself is inert. Its surrounding content
+          // (including healthy controls) keeps compiling and stays interactive.
+          warning(lateCode, lateMessage, i, metadata.end);
+          tokens.push({ start: i, end: metadata.end, block: false, node: node('fallback', i, metadata.end, { value: source.slice(i, metadata.end) }) });
+          i = metadata.end;
+          continue;
+        }
         const scanned = scanTag(i, end);
         if (
           scanned && !scanned.closing && TAG_NAME.test(scanned.name)
@@ -523,6 +669,12 @@ export function parseLocal(source: string, options?: LocalCompileOptions): { nod
       return { lineStart, skip };
     }
     function append(text: string, from: number, linear: boolean) {
+      // Remove a file BOM before calculating generated marker indices. remark
+      // ignores it, while this mapping retains original source coordinates.
+      if (linear && from === 0 && text.charCodeAt(0) === 0xfeff) {
+        text = text.slice(1);
+        from += 1;
+      }
       if (linear && indent > 0) {
         for (let j = 0; j < text.length; j++) {
           const absolute = from + j;
@@ -595,7 +747,12 @@ export function parseLocal(source: string, options?: LocalCompileOptions): { nod
   }
   try {
     const result = region(0, source.length);
-    return { nodes: convert(0, source.length, result.tokens), diagnostics };
+    return {
+      nodes: convert(0, source.length, result.tokens),
+      diagnostics,
+      ...(theme !== undefined ? { theme } : {}),
+      ...(themeRange ? { themeRange } : {}),
+    };
   } catch (cause) {
     if (cause instanceof LocalBudgetError) {
       error(cause.code, cause.message, cause.start, cause.end);

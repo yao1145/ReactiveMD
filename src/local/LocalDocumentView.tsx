@@ -35,6 +35,12 @@ import { LocalVisual } from './visuals';
 import { createHeadingAnchors } from './heading-anchors';
 import { isLocalColor } from './colors';
 import {
+  DEFAULT_LOCAL_THEME,
+  resolveLocalTheme,
+  type LocalColorScheme,
+  type LocalThemeDefinition,
+} from './theme';
+import {
   LocalLocaleProvider,
   defaultLocalize,
   localize,
@@ -58,6 +64,13 @@ export interface LocalDocumentViewProps {
   urlPolicy?: LocalUrlPolicy;
   /** UI language for built-in labels and validation messages; defaults to English. */
   locale?: LocalLocale;
+  /**
+   * Trusted theme manifests. Their CSS is imported by the host separately; the
+   * renderer only resolves names to a root attribute and never loads CSS.
+   */
+  themes?: readonly LocalThemeDefinition[];
+  /** Document mode; `auto` follows the nearest host attribute or the OS. */
+  colorScheme?: LocalColorScheme;
 }
 
 export interface LocalReactiveDocumentProps {
@@ -66,6 +79,10 @@ export interface LocalReactiveDocumentProps {
   urlPolicy?: LocalUrlPolicy;
   /** UI language for built-in labels and validation messages; defaults to English. */
   locale?: LocalLocale;
+  /** Trusted theme manifests; their CSS stays host-owned. */
+  themes?: readonly LocalThemeDefinition[];
+  /** Document mode; `auto` follows the nearest host attribute or the OS. */
+  colorScheme?: LocalColorScheme;
 }
 
 /* --------------------------------------------------------------- contexts */
@@ -216,6 +233,165 @@ function accentStyle(color: string | undefined): CSSProperties | undefined {
     '--local-accent-soft': `color-mix(in srgb, ${color} 14%, var(--surface))`,
     '--local-accent-strong': color,
   } as CSSProperties;
+}
+
+/* ---------------------------------------------------------------- theming */
+
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+type ResolvedColorScheme = 'light' | 'dark';
+
+/**
+ * Stable content signature for the host manifest. Hosts frequently construct
+ * a fresh array on every render; resolving by content keeps the theme memo
+ * (and its diagnostics effect) from firing again for an identical manifest.
+ */
+function themesSignature(themes?: readonly LocalThemeDefinition[]): string {
+  if (!Array.isArray(themes) || themes.length === 0) return '';
+  try {
+    return themes
+      .map((theme) => {
+        if (!theme || typeof theme !== 'object') return '';
+        const schemes = Array.isArray(theme.colorSchemes)
+          ? theme.colorSchemes.join('\u0001')
+          : '';
+        return `${theme.name}\u0000${theme.protocol}\u0000${schemes}`;
+      })
+      .join('\u0002');
+  } catch {
+    return '';
+  }
+}
+
+function diagnosticsSignature(diagnostics: Diagnostic[]): string {
+  return diagnostics
+    .map((item) => `${item.code}\u0000${item.range.start}\u0000${item.range.end}\u0000${item.message}`)
+    .join('\u0001');
+}
+
+/** Merge diagnostic groups without reporting the same warning twice. */
+function composeDiagnostics(...groups: Diagnostic[][]): Diagnostic[] {
+  const seen = new Set<string>();
+  const merged: Diagnostic[] = [];
+  for (const group of groups) {
+    for (const item of group) {
+      const key = `${item.code}\u0000${item.range.start}\u0000${item.range.end}\u0000${item.message}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(item);
+    }
+  }
+  return merged;
+}
+
+function explicitColorScheme(value: string | null | undefined): ResolvedColorScheme | null {
+  return value === 'light' || value === 'dark' ? value : null;
+}
+
+/**
+ * Nearest host preference. The renderer owns `data-color-scheme` on the root,
+ * so only the legacy `data-theme` attribute is read from the root itself; a
+ * host script that still toggles that attribute keeps working.
+ */
+function hostColorScheme(root: HTMLElement): ResolvedColorScheme | null {
+  const own = explicitColorScheme(root.getAttribute('data-theme'));
+  if (own) return own;
+  let element: Element | null = root.parentElement;
+  while (element) {
+    const scheme =
+      explicitColorScheme(element.getAttribute('data-color-scheme')) ??
+      explicitColorScheme(element.getAttribute('data-theme'));
+    if (scheme) return scheme;
+    element = element.parentElement;
+  }
+  return null;
+}
+
+function systemColorScheme(): ResolvedColorScheme | null {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
+  try {
+    return window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light';
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the effective mode for one document instance. Server rendering and
+ * the hydration pass always start light so markup matches; the client effect
+ * then follows the nearest host attribute and the OS, observing both.
+ */
+function useResolvedColorScheme(
+  rootRef: RefObject<HTMLElement | null>,
+  requested: LocalColorScheme,
+): ResolvedColorScheme {
+  const explicit = explicitColorScheme(requested);
+  const [resolved, setResolved] = useState<ResolvedColorScheme>('light');
+
+  useEffect(() => {
+    if (explicit) {
+      setResolved(explicit);
+      return;
+    }
+    const root = rootRef.current;
+    if (!root || typeof window === 'undefined') {
+      setResolved('light');
+      return;
+    }
+    const update = () => setResolved(hostColorScheme(root) ?? systemColorScheme() ?? 'light');
+    update();
+
+    let observers: MutationObserver[] = [];
+    if (typeof MutationObserver === 'function') {
+      try {
+        const watch = (target: Element, filter: string[]) => {
+          const observer = new MutationObserver(update);
+          observer.observe(target, { attributes: true, attributeFilter: filter });
+          observers.push(observer);
+        };
+        // A host script may still toggle the legacy attribute on the document
+        // element itself; the renderer-owned data-color-scheme is not observed
+        // there so its own writes never re-enter the resolver.
+        watch(root, ['data-theme']);
+        let element: Element | null = root.parentElement;
+        while (element) {
+          watch(element, ['data-color-scheme', 'data-theme']);
+          element = element.parentElement;
+        }
+      } catch {
+        for (const observer of observers) observer.disconnect();
+        observers = [];
+      }
+    }
+
+    const onMediaChange = () => update();
+    let query: MediaQueryList | null = null;
+    if (typeof window.matchMedia === 'function') {
+      try {
+        query = window.matchMedia(DARK_QUERY);
+        if (typeof query.addEventListener === 'function') {
+          query.addEventListener('change', onMediaChange);
+        } else if (typeof query.addListener === 'function') {
+          query.addListener(onMediaChange);
+        }
+      } catch {
+        query = null;
+      }
+    }
+
+    return () => {
+      for (const observer of observers) observer.disconnect();
+      if (!query) return;
+      if (typeof query.removeEventListener === 'function') {
+        query.removeEventListener('change', onMediaChange);
+      } else if (typeof query.removeListener === 'function') {
+        query.removeListener(onMediaChange);
+      }
+    };
+  }, [explicit, rootRef]);
+
+  // Explicit props apply during server rendering too; `auto` starts light.
+  return explicit ?? resolved;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -3078,6 +3254,8 @@ export function LocalDocumentView({
   onDiagnostics,
   urlPolicy,
   locale = 'en',
+  themes,
+  colorScheme = 'auto',
 }: LocalDocumentViewProps) {
   const instanceId = useId();
   const t = useMemo<Localize>(
@@ -3094,6 +3272,31 @@ export function LocalDocumentView({
   const report = useCallback((diagnostics: Diagnostic[]) => {
     reportRef.current?.(diagnostics);
   }, []);
+
+  // Theme resolution only depends on manifest content, so a host array with
+  // identical entries never restarts the reporting effect.
+  const themesKey = themesSignature(themes);
+  const theme = useMemo(() => {
+    try {
+      return resolveLocalTheme(document.theme, themes, document.themeRange, document.source);
+    } catch {
+      // Malformed host input resolves to the built-in theme, never a crash.
+      return { name: DEFAULT_LOCAL_THEME.name, diagnostics: [] as Diagnostic[] };
+    }
+  }, [document.theme, document.themeRange?.start, document.themeRange?.end, document.source, themesKey]);
+
+  const resolvedScheme = useResolvedColorScheme(rootRef, colorScheme);
+
+  // Theme warnings are the only diagnostics this component owns. They are
+  // reported once per distinct resolution and cleared when it becomes valid.
+  const themeReport = useRef('');
+  useEffect(() => {
+    const signature = diagnosticsSignature(theme.diagnostics);
+    if (signature === themeReport.current) return;
+    const hadPrevious = themeReport.current !== '';
+    themeReport.current = signature;
+    if (theme.diagnostics.length > 0 || hadPrevious) report(theme.diagnostics);
+  }, [theme, report]);
 
   const subscribe = useCallback(
     (listener: () => void) => {
@@ -3131,6 +3334,9 @@ export function LocalDocumentView({
       <article
         ref={rootRef}
         className="md-document local-document"
+        data-rmd-theme={theme.name}
+        data-color-scheme={resolvedScheme}
+        style={{ colorScheme: resolvedScheme }}
         aria-label={t('Interactive document', '交互文档')}
       >
         {render(document.nodes, true)}
@@ -3144,6 +3350,8 @@ export function LocalReactiveDocument({
   onDiagnostics,
   urlPolicy,
   locale = 'en',
+  themes,
+  colorScheme = 'auto',
 }: LocalReactiveDocumentProps) {
   const result = useMemo(() => compileLocal(source), [source]);
   const runtime = useMemo(() => {
@@ -3161,16 +3369,50 @@ export function LocalReactiveDocument({
   currentRuntime.current = runtime;
   const mounted = useRef(0);
 
+  // Theme/color-mode props never feed the runtime memo above, so changing them
+  // re-renders the document without recreating state.
+  const themesKey = themesSignature(themes);
+  const themeDiagnostics = useMemo(() => {
+    if (!result.ok) return [] as Diagnostic[];
+    try {
+      return resolveLocalTheme(
+        result.document.theme,
+        themes,
+        result.document.themeRange,
+        result.document.source,
+      ).diagnostics;
+    } catch {
+      return [] as Diagnostic[];
+    }
+  }, [result, themesKey]);
+
+  // Host callbacks see compile and theme diagnostics together; runtime write
+  // diagnostics from the view are appended rather than replacing them.
+  const lastReport = useRef<string | null>(null);
+  const emit = useCallback((diagnostics: Diagnostic[]) => {
+    const signature = diagnosticsSignature(diagnostics);
+    if (signature === lastReport.current) return;
+    lastReport.current = signature;
+    reportRef.current?.(diagnostics);
+  }, []);
+
+  useEffect(() => {
+    emit(composeDiagnostics(result.diagnostics, themeDiagnostics));
+  }, [result, themeDiagnostics, emit]);
+
+  const handleViewDiagnostics = useCallback(
+    (diagnostics: Diagnostic[]) => {
+      emit(composeDiagnostics(result.diagnostics, themeDiagnostics, diagnostics));
+    },
+    [result, themeDiagnostics, emit],
+  );
+
   useEffect(() => {
     mounted.current += 1;
     return () => {
       mounted.current -= 1;
     };
   }, []);
-
-  useEffect(() => {
-    reportRef.current?.(result.diagnostics);
-  }, [result]);
 
   useEffect(() => {
     const owned = runtime;
@@ -3229,9 +3471,11 @@ export function LocalReactiveDocument({
       key={source}
       document={result.document}
       runtime={runtime}
-      onDiagnostics={onDiagnostics}
+      onDiagnostics={handleViewDiagnostics}
       urlPolicy={urlPolicy}
       locale={locale}
+      themes={themes}
+      colorScheme={colorScheme}
     />
   );
 }

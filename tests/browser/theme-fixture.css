@@ -1,0 +1,16 @@
+/* Fixtures cover scope and inheritance using synthetic token values only. */
+body { margin: 16px; }
+#root { display: grid; gap: 24px; }
+[data-rmd-theme="test-a"][data-color-scheme="light"] {
+  --accent: rgb(140 30 70);
+  --surface: rgb(255 250 240);
+  --chart-1: rgb(170 40 80);
+  --radius-card: 19px;
+}
+[data-rmd-theme="test-a"][data-color-scheme="dark"] {
+  --accent: rgb(250 170 200);
+  --surface: rgb(40 25 35);
+  --chart-1: rgb(240 120 170);
+  --radius-card: 19px;
+}
+[data-rmd-theme="test-b"][data-color-scheme="light"] { --accent: rgb(20 90 40); }

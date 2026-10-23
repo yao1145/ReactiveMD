@@ -14,15 +14,16 @@ Components are the building blocks of the Reactive MD language. This protocol de
 
 ## 1. Status, terminology and normative force
 
-### CP-SCOPE-01 Three versions (existing)
+### CP-SCOPE-01 Version axes (existing)
 
-Reactive MD maintains three independent version axes at the same time:
+Reactive MD maintains the following independent version axes:
 
 | Version axis | Current value | Determines |
 | --- | --- | --- |
 | Package version | `0.4.0` | npm release, core and React entries, upgrade compatibility rules |
 | Syntax revision | `local-draft-2` | Tags, attributes and expressions authors can write |
 | Protocol revision | `component-protocol-1` | Component contribution requirements, acceptance gates and machine data semantics |
+| Theme protocol | `reactive-md-theme-1` | Theme registration, style variables, color schemes and theme acceptance |
 
 The protocol revision is independent of the package version and syntax version. One package version accepts only one syntax revision. A protocol revision may raise contribution and acceptance requirements without changing author syntax; a syntax revision change does not automatically require a protocol revision.
 
@@ -359,11 +360,11 @@ The machine conformance data of this protocol does not cover browser behavior su
 
 ### CP-STYLE-01 Global styles and themes (existing)
 
-`reactive-md/styles.css` is a global stylesheet, not isolated through Shadow DOM or CSS Modules. The host imports it explicitly once. Theme variables are declared on `.md-document` and `.reactive-md-theme`; the dark theme is triggered by `data-theme="dark"` on an ancestor or on the document node itself. The reference adapter does not read `prefers-color-scheme` and does not provide a theme toggle button.
+`reactive-md/styles.css` is a global stylesheet, not isolated through Shadow DOM or CSS Modules. The host imports it explicitly once. Theme variables are declared on `.md-document` and `.reactive-md-theme`. Document selection, registration and color schemes follow the [theme protocol](theme-protocol-en.md). `colorScheme="auto"` reads the nearest explicit ancestor preference or the system, retaining support for `data-theme="dark|light"`.
 
 ### CP-STYLE-02 Style hooks are not an API (existing)
 
-`.md-*` and `.local-*` class names are current style hooks and may change with style refactoring in 0.x. Stable integration uses CSS variables and container-level overrides. Neither React component accepts `className` or `style`; authors cannot write class or style either. New components use existing prefixes and theme variables and do not add author-visible style entry points.
+Prefer public CSS variables for themes. Component outer `.md-*` and `.local-*` classes and semantic state attributes are styling interfaces under the theme protocol; internal node ordering is not an extension API. Neither React component accepts `className` or `style`; authors cannot write class or style either. New components use existing prefixes and shared variables and work with the built-in default theme in both modes.
 
 ### CP-STYLE-03 Styling requirements for new components (required)
 

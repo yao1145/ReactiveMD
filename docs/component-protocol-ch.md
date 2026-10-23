@@ -14,15 +14,16 @@ Reactive MD 的组块就是语言中的组件。本协议规定组块在贡献�
 
 ## 1. 状态、术语与约束力
 
-### CP-SCOPE-01 三个版本（现有）
+### CP-SCOPE-01 版本轴（现有）
 
-Reactive MD 同时维护三个独立版本轴：
+Reactive MD 分别维护以下版本轴：
 
 | 版本轴 | 当前值 | 决定什么 |
 | --- | --- | --- |
 | 包版本 | `0.4.0` | npm 发布、核心与 React 入口、升级兼容规则 |
 | 语法修订 | `local-draft-2` | 作者可以写出的标签、属性和表达式 |
 | 协议修订 | `component-protocol-1` | 组块贡献要求、验收门槛和机器数据语义 |
+| 主题协议 | `reactive-md-theme-1` | 主题登记、样式变量、深浅模式与主题验收 |
 
 协议修订独立于包版本和语法版本。一个包版本只接受一个语法修订。协议修订可以在不改变作者语法的前提下提高贡献和验收要求；语法修订变化也不必自动提升协议修订。
 
@@ -359,11 +360,11 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-STYLE-01 全局样式与主题（现有）
 
-`reactive-md/styles.css` 是全局样式表，不通过 Shadow DOM 或 CSS Modules 隔离。宿主显式引入一次。主题变量声明在 `.md-document` 和 `.reactive-md-theme` 上；深色主题由祖先或文档节点上的 `data-theme="dark"` 触发。参考适配器不读取 `prefers-color-scheme`，也不提供主题切换按钮。
+`reactive-md/styles.css` 是全局样式表，不通过 Shadow DOM 或 CSS Modules 隔离。宿主显式引入一次。主题变量声明在 `.md-document` 和 `.reactive-md-theme` 上。文档级主题选择、登记与深浅模式遵从[主题协议](theme-protocol-ch.md)；`colorScheme="auto"` 读取最近祖先的显式模式或系统偏好，兼容 `data-theme="dark|light"`。
 
 ### CP-STYLE-02 样式钩子不是 API（现有）
 
-`.md-*` 和 `.local-*` 类名是当前样式钩子，0.x 中可能随样式重构调整。稳定接入使用 CSS 变量和容器级覆盖。两个 React 组件都不接受 `className` 或 `style`；作者也不能写 class 或 style。新组块使用现有前缀和主题变量，不新增作者可见的样式入口。
+主题优先使用公共 CSS 变量；组件外层 `.md-*`、`.local-*` 类和语义状态属性按主题协议作为样式接口。内部节点排列不属于扩展接口。两个 React 组件都不接受 `className` 或 `style`；作者也不能写 class 或 style。新组块使用现有前缀和主题变量，并在内置默认主题与两种模式下可用。
 
 ### CP-STYLE-03 新组块的样式要求（要求）
 

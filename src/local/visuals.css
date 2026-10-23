@@ -248,7 +248,7 @@ table.local-visual-table {
 
 .local-visual-sort-button:hover,
 .local-visual-sort-button.is-sorted {
-  color: var(--blue);
+  color: var(--accent);
 }
 
 .local-visual-sort-button:focus-visible {

@@ -4,6 +4,7 @@ import { compileExpression, LocalExpressionError, RESERVED_NAMES, type LocalExpr
 import { createHeadingAnchors } from './heading-anchors';
 import { compileLatex } from './math';
 import { parseLocal } from './parser';
+import { DEFAULT_LOCAL_THEME } from './theme';
 import {
   isLocalEmail,
   MAX_LOCAL_DOCUMENT_LENGTH,
@@ -357,6 +358,8 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
     nodes: parsed.nodes,
     initialState,
     bindings,
+    theme: parsed.theme ?? DEFAULT_LOCAL_THEME.name,
+    ...(parsed.themeRange ? { themeRange: parsed.themeRange } : {}),
     ...(bindingSlots ? { bindingSlots } : {}),
   };
   return { ok: true, document, diagnostics };

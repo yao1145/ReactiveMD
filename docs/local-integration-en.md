@@ -47,6 +47,8 @@ export function Article() {
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | Both | Receives compile diagnostics and runtime diagnostics when control writes are rejected |
 | `urlPolicy` | `(url: string, kind: 'image' \| 'link') => boolean` | Both | Decides whether to allow an image or link after protocol checks |
 | `locale` | `'en' \| 'zh'` | Both | Language for built-in labels and controls; defaults to `'en'`. Compiler and runtime diagnostic messages remain English |
+| `themes` | `readonly LocalThemeDefinition[]` | Both | Host registrations; CSS loads separately; built-in `default` is always available |
+| `colorScheme` | `'light' \| 'dark' \| 'auto'` | Both | Defaults to `auto`, following the nearest explicit ancestor preference or the system |
 
 Neither component has `className`, `style` or slot props. `LocalReactiveDocument` renders `<article class="md-document local-document">`; `LocalDocumentView` uses the same document container. See below for style overrides.
 
@@ -192,9 +194,10 @@ The policy receives the raw URL with leading and trailing whitespace removed, an
 
 - Style selectors are mainly `.md-document`, `.local-document` and `.md-*`, `.local-*` class names. The document root rendered by components is `.md-document.local-document`.
 - Theme variables are declared on `.md-document` and `.reactive-md-theme`, including `--ink`, `--surface`, `--line`, `--blue`, `--teal`, `--danger`, `--radius-*` and font variables. Override them after the library styles with rules such as `.my-article .md-document { --blue: #245c98; }`; the document root carries default values, so setting variables only on an ancestor container will not override same-name values on the root.
-- The dark theme is triggered by an explicit `data-theme="dark"` ancestor or the document node itself; components do not read `prefers-color-scheme` and do not provide a theme toggle button.
+- Documents may start with `<theme name="default">`; omission selects `default`. Register custom themes through `themes`; see the [theme protocol](theme-protocol-en.md).
+- `colorScheme` forces light or dark mode. The default `auto` reads the nearest ancestor's `data-color-scheme` or legacy `data-theme`, then the system preference. Each document exposes independent `data-rmd-theme` and resolved `data-color-scheme` attributes.
 - Documents default to `max-width: 720px` and are horizontally centered. To fill the host container, override the width and margins of `.md-document` within your own scope.
-- `.md-*` and `.local-*` class names are current style hooks and may change with style refactoring in 0.x. For stable integration, prefer CSS variables and container-level overrides; do not treat internal class names as an API.
+- Prefer public variables for theme styling. Component outer `.md-*` and `.local-*` classes and semantic state attributes are theme hooks; internal node ordering is not an extension API. See the theme protocol for compatibility requirements.
 - Neither React component accepts `className` or `style`. For local overrides, scope them with the host's own wrapper element.
 
 ## Resource limits

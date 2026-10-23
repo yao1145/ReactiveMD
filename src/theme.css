@@ -7,6 +7,7 @@
   /* Surfaces */
   --paper: #f5f7fb;
   --surface: #ffffff;
+  --document-bg: var(--surface);
   --surface-subtle: #f8faff;
   --surface-hover: color-mix(in srgb, var(--ink) 5%, var(--surface));
   --surface-active: color-mix(in srgb, var(--ink) 8%, var(--surface));
@@ -20,11 +21,17 @@
   --line: #dce3ef;
   --line-strong: #c9d4e8;
 
-  /* Accent */
+  /* Accent. The --blue* values stay public for backwards compatibility;
+     components consume the semantic aliases so a trusted theme only has to
+     override one family. Custom CSS may also set the aliases directly. */
   --blue: #365cf5;
   --blue-deep: #2748d8;
   --blue-soft: #eef2ff;
   --blue-line: #d7e0f1;
+  --accent: var(--blue);
+  --accent-hover: var(--blue-deep);
+  --accent-soft: var(--blue-soft);
+  --accent-line: var(--blue-line);
   --info: var(--blue);
   --info-soft: var(--blue-soft);
 
@@ -42,7 +49,7 @@
   --neutral-soft: #eef2fa;
 
   /* Focus */
-  --focus: var(--blue);
+  --focus: var(--accent);
   --focus-outline: 2px solid var(--focus);
   --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
 
@@ -123,10 +130,14 @@
     monospace;
 }
 
-[data-theme="dark"] .reactive-md-theme,
-[data-theme="dark"] .md-document,
-.reactive-md-theme[data-theme="dark"],
-.md-document[data-theme="dark"] {
+/* Legacy hosts and renderer-resolved modes share the same dark defaults.
+   A resolved light document opts out of ancestor dark rules. Low specificity
+   lets a scoped theme override tokens after this stylesheet. */
+:where([data-theme="dark"] .reactive-md-theme,
+       [data-theme="dark"] .md-document,
+       .reactive-md-theme[data-theme="dark"],
+       .md-document[data-theme="dark"]):not([data-color-scheme="light"]),
+:where(.reactive-md-theme, .md-document)[data-color-scheme="dark"] {
   color-scheme: dark;
 
   --paper: #111827;

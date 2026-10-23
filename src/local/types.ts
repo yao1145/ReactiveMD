@@ -48,6 +48,14 @@ export interface LocalDocument {
   initialState: Record<string, LocalValue>;
   bindings: Record<string, LocalBinding>;
   /**
+   * Selected theme name. Themes are document metadata, not components: the
+   * compiler always supplies the built-in `default` when no declaration is
+   * present, and the renderer resolves the name against host-supplied CSS.
+   */
+  theme?: string;
+  /** Original source range of the leading `<theme ...>` declaration. */
+  themeRange?: SourceRange;
+  /**
    * Canonical node id -> slot -> binding key for multi-slot components such as
    * `range-slider` (`start`/`end`) and `coordinate` (`x`/`y`). Renderers use
    * runtime `get`/`set`/`setMany` with slot names instead of reading this map.

@@ -2,13 +2,22 @@ import assert from 'node:assert/strict';
 import { statSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { compileLocal, createLocalRuntime } from 'reactive-md';
+import { compileLocal, createLocalRuntime, LOCAL_THEME_PROTOCOL, resolveLocalTheme } from 'reactive-md';
 
 // Exercise the built public options API, including preservation of defaults.
 assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: 1 } }).ok, false);
 assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: 2 } }).ok, true);
 assert.equal(compileLocal('hello').ok, true);
 assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: Infinity } }).diagnostics[0]?.code, 'local.options.invalid');
+
+// Public built exports include document metadata and host-side registration.
+const themed = compileLocal('<theme name="package-test">\n\n# Theme');
+assert.equal(themed.ok, true);
+assert.equal(themed.document.theme, 'package-test');
+assert.equal(compileLocal('# Default').document.theme, 'default');
+const themeDefinition = { name: 'package-test', protocol: LOCAL_THEME_PROTOCOL, colorSchemes: ['light', 'dark'] };
+assert.deepEqual(resolveLocalTheme('package-test', [themeDefinition]), { name: 'package-test', diagnostics: [] });
+assert.equal(resolveLocalTheme('package-test', []).name, 'default');
 
 // This import and compilation run in Node without DOM or React rendering.
 for (const name of (await readdir('examples/local')).filter(name => name.endsWith('.reactive.md'))) {
@@ -99,4 +108,11 @@ assert.ok(!Object.keys(pkg.dependencies ?? {}).some(name => /react|vite|playwrig
 const renderer = await import('reactive-md/react');
 assert.equal(typeof renderer.LocalReactiveDocument, 'function');
 assert.equal(typeof renderer.LocalDocumentView, 'function');
+const { createElement } = await import('react');
+const { renderToStaticMarkup } = await import('react-dom/server');
+const themeHtml = renderToStaticMarkup(createElement(renderer.LocalReactiveDocument, {
+  source: themed.document.source, themes: [themeDefinition], colorScheme: 'dark',
+}));
+assert.ok(themeHtml.includes('data-rmd-theme="package-test"'));
+assert.ok(themeHtml.includes('data-color-scheme="dark"'));
 console.log('PASS public package imports, local language fixtures, core type boundaries and React entry boundaries');

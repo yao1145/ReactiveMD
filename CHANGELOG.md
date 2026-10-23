@@ -4,6 +4,8 @@ This file records user-visible changes. The project is in a 0.x preview; version
 
 ## Unreleased
 
+- Add leading `<theme name="…">` declarations, host theme registration and the `reactive-md-theme-1` protocol. Both React components support independent color schemes and system preferences; `default` preserves the existing design. See the [theme protocol](docs/theme-protocol-en.md).
+
 ### 0.4.0 development preview (local-draft-2)
 
 - Add document jumps/anchors, text/section color, multiple selection, interval and coordinate inputs, practice questions and guided steps.

@@ -12,6 +12,8 @@ This draft does not include external service calls, form submission, asynchronou
 
 By default a document only keeps in-memory state for the current instance. Reopening starts from initial values; persistence is not part of the author syntax. There is no need to declare a language version, import components or write YAML. Hosts should explicitly select draft parsing mode and must not guess by mixing old and new syntax.
 
+Documents may select a theme with `<theme name="default">` before the body; omission uses `default`. This is static metadata, not a component. Custom themes must be registered by the host and support both color schemes; see the [theme protocol](theme-protocol-en.md).
+
 ## 2. Your first document
 
 ```markdown

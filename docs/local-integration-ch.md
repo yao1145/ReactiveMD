@@ -47,6 +47,8 @@ export function Article() {
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | 两者 | 接收编译诊断和控件写入被拒绝时的运行时诊断 |
 | `urlPolicy` | `(url: string, kind: 'image' \| 'link') => boolean` | 两者 | 在协议检查之后决定是否放行图片或链接 |
 | `locale` | `'en' \| 'zh'` | 两者 | 内置控件和标签的语言，默认 `'en'`；编译与运行时诊断消息仍为英文 |
+| `themes` | `readonly LocalThemeDefinition[]` | 两者 | 宿主登记的主题；CSS 单独加载，内置 `default` 始终可用 |
+| `colorScheme` | `'light' \| 'dark' \| 'auto'` | 两者 | 默认 `auto`，跟随最近祖先的显式模式或系统偏好 |
 
 两个组件都没有 `className`、`style` 或插槽属性。`LocalReactiveDocument` 渲染 `<article class="md-document local-document">`；`LocalDocumentView` 使用同样的文档容器。样式覆盖见下文。
 
@@ -192,9 +194,10 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 - 样式选择器以 `.md-document`、`.local-document` 和 `.md-*`、`.local-*` 类名为主。组件渲染的文档根节点是 `.md-document.local-document`。
 - 主题变量声明在 `.md-document` 和 `.reactive-md-theme` 上，包括 `--ink`、`--surface`、`--line`、`--blue`、`--teal`、`--danger`、`--radius-*` 和字体变量。在库样式之后用 `.my-article .md-document { --blue: #245c98; }` 等规则覆盖；文档根节点自带默认值，只在祖先容器上设置变量不会覆盖根节点上的同名值。
-- 深色主题由显式的 `data-theme="dark"` 祖先或文档节点自身触发；组件不读取 `prefers-color-scheme`，也不提供主题切换按钮。
+- 文档开头可写 `<theme name="default">`，省略时选择 `default`。自定义主题通过 `themes` 登记；完整要求见[主题协议](theme-protocol-ch.md)。
+- `colorScheme` 可强制深浅模式；默认 `auto` 跟随最近祖先的 `data-color-scheme` 或兼容的 `data-theme`，再跟随系统偏好。文档根节点输出独立的 `data-rmd-theme` 和已解析的 `data-color-scheme`。
 - 文档默认 `max-width: 720px` 且水平居中。需要铺满宿主容器时，在自己的作用域内覆盖 `.md-document` 的宽度和边距。
-- `.md-*` 和 `.local-*` 类名是当前样式钩子，0.x 中可能随样式重构调整。稳定接入优先使用 CSS 变量和容器级覆盖，不要把内部类名当作 API。
+- 主题优先覆盖公共变量；组件外层 `.md-*`、`.local-*` 类和语义状态属性可用于主题样式。内部节点排列不属于扩展接口；兼容要求见主题协议。
 - 两个 React 组件都不接受 `className` 或 `style`。需要局部覆盖时，用宿主自己的包裹元素限定作用域。
 
 ## 资源限制

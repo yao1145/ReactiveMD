@@ -4,6 +4,8 @@
 
 ## 未发布
 
+- 增加文档开头的 `<theme name="…">` 声明、宿主主题登记和 `reactive-md-theme-1` 主题协议。两个 React 组件支持独立深浅模式和系统偏好；现有外观保留为 `default`。见[主题协议](docs/theme-protocol-ch.md)。
+
 ### 0.4.0 开发预览（local-draft-2）
 
 - 新增文档跳转与锚点、正文颜色、多选、区间与二维坐标输入、练习题及分步阅读。
