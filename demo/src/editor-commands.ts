@@ -731,3 +731,174 @@ export function insertTemplate(
     selection: target,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Current format state                                                */
+/* ------------------------------------------------------------------ */
+
+export type EditorListType = 'bullet' | 'ordered' | 'task';
+
+export interface EditorFormatState {
+  headingLevel: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  bold: boolean;
+  italic: boolean;
+  strike: boolean;
+  inlineCode: boolean;
+  list: EditorListType | null;
+  quote: boolean;
+}
+
+type InlineMarkerKind = 'bold' | 'italic' | 'strike' | 'inlineCode';
+
+interface MarkerRun {
+  start: number;
+  end: number;
+  length: number;
+}
+
+/** Maximal runs of a single marker character, e.g. the `**` in `**bold**`. */
+function markerRuns(text: string, char: string): MarkerRun[] {
+  const runs: MarkerRun[] = [];
+  let index = 0;
+  while (index < text.length) {
+    if (text[index] !== char) {
+      index += 1;
+      continue;
+    }
+    const start = index;
+    while (text[index] === char) index += 1;
+    runs.push({ start, end: index, length: index - start });
+  }
+  return runs;
+}
+
+/**
+ * Delimiters that can open or close the given inline format. A run of two
+ * asterisks is bold, a single asterisk is italic, and an odd run such as
+ * `***` carries both. Backtick spans close with a run of equal length.
+ */
+function inlineDelimiters(text: string, kind: InlineMarkerKind): MarkerRun[] {
+  if (kind === 'inlineCode') return markerRuns(text, '`');
+  const runs = markerRuns(text, kind === 'strike' ? '~' : '*');
+  if (kind === 'italic') return runs.filter((run) => run.length % 2 === 1);
+  return runs.filter((run) => run.length >= 2);
+}
+
+function selectionIsWrappedBy(start: number, end: number, delimiters: MarkerRun[]): boolean {
+  if (start >= end) return false;
+  return delimiters.some(
+    (open) =>
+      open.start === start &&
+      delimiters.some(
+        (close) => close.end === end && close.length === open.length && close.start >= open.end,
+      ),
+  );
+}
+
+function selectionIsSurroundedBy(start: number, end: number, delimiters: MarkerRun[]): boolean {
+  if (start >= end) return false;
+  return delimiters.some(
+    (open) =>
+      open.end === start &&
+      delimiters.some(
+        (close) => close.start === end && close.length === open.length && close.start >= open.end,
+      ),
+  );
+}
+
+/** True when the caret sits between an opening and a closing delimiter of equal length. */
+function caretIsInsideMarkers(caret: number, delimiters: MarkerRun[]): boolean {
+  let index = 0;
+  while (index < delimiters.length) {
+    const open = delimiters[index] as MarkerRun;
+    let candidate = index + 1;
+    while (
+      candidate < delimiters.length &&
+      (delimiters[candidate] as MarkerRun).length !== open.length
+    ) {
+      candidate += 1;
+    }
+    const close = delimiters[candidate];
+    if (!close) {
+      index += 1;
+      continue;
+    }
+    if (caret >= open.end && caret <= close.start) return true;
+    index = candidate + 1;
+  }
+  return false;
+}
+
+function readInlineMarker(
+  value: string,
+  selection: EditorSelection,
+  line: LineInfo,
+  kind: InlineMarkerKind,
+): boolean {
+  if (selection.start !== selection.end) {
+    const delimiters = inlineDelimiters(value, kind);
+    return (
+      selectionIsWrappedBy(selection.start, selection.end, delimiters) ||
+      selectionIsSurroundedBy(selection.start, selection.end, delimiters)
+    );
+  }
+  const caret = Math.min(Math.max(selection.start - line.start, 0), line.text.length);
+  const delimiters = inlineDelimiters(line.text, kind).filter(
+    (run) => run.start >= lineContentStart(line.text),
+  );
+  return caretIsInsideMarkers(caret, delimiters);
+}
+
+/**
+ * Index where the inline content of a line begins, after any combination of
+ * quote and list markers. Keeps a `*` bullet from being read as emphasis.
+ */
+function lineContentStart(text: string): number {
+  let index = 0;
+  for (;;) {
+    const rest = text.slice(index);
+    const match =
+      matchPrefix(rest, TASK_PREFIX) ??
+      matchPrefix(rest, BULLET_PREFIX) ??
+      matchPrefix(rest, ORDERED_PREFIX) ??
+      matchPrefix(rest, QUOTE_PREFIX);
+    if (!match) return index;
+    index += match.prefixLength;
+  }
+}
+
+function readLineListType(text: string): EditorListType | null {
+  // The task prefix also matches the bullet prefix, so it has to win.
+  if (matchPrefix(text, TASK_PREFIX)) return 'task';
+  if (matchPrefix(text, BULLET_PREFIX)) return 'bullet';
+  if (matchPrefix(text, ORDERED_PREFIX)) return 'ordered';
+  return null;
+}
+
+/**
+ * Reads the formatting that applies at the selection without changing the
+ * document. Line-level state comes from the line holding `selection.start`;
+ * inline state comes from markers around or enclosing the selection (or
+ * around the caret when the selection is collapsed).
+ */
+export function readFormatState(
+  value: string,
+  rawSelection: EditorSelection,
+): EditorFormatState {
+  const selection = normalizeSelection(value, rawSelection);
+  const line = collectLines(value, { start: selection.start, end: selection.start })[0] as LineInfo;
+  const lineText = line.text;
+
+  const heading = HEADING_PREFIX.exec(lineText);
+  const headingLevel = (heading ? heading[1].length : 0) as EditorFormatState['headingLevel'];
+
+  return {
+    headingLevel,
+    bold: readInlineMarker(value, selection, line, 'bold'),
+    italic: readInlineMarker(value, selection, line, 'italic'),
+    strike: readInlineMarker(value, selection, line, 'strike'),
+    inlineCode: readInlineMarker(value, selection, line, 'inlineCode'),
+    list: readLineListType(lineText),
+    quote: matchPrefix(lineText, QUOTE_PREFIX) !== null,
+  };
+}

@@ -18,6 +18,7 @@ import {
   insertTemplate,
   insertText,
   outdentSelection,
+  readFormatState,
 } from '../src/editor-commands';
 
 describe('inline markers', () => {
@@ -538,5 +539,124 @@ describe('out-of-range selections', () => {
     const edit = indentSelection('', { start: -1, end: 1 });
     expect(edit.value).toBe('  ');
     expect(edit.selection).toEqual({ start: 2, end: 2 });
+  });
+});
+
+describe('readFormatState', () => {
+  it('reads the heading level of the caret line', () => {
+    expect(readFormatState('## title', { start: 5, end: 5 }).headingLevel).toBe(2);
+    expect(readFormatState('# title', { start: 0, end: 0 }).headingLevel).toBe(1);
+    expect(readFormatState('#### deep', { start: 9, end: 9 }).headingLevel).toBe(4);
+    expect(readFormatState('title\n## second', { start: 9, end: 9 }).headingLevel).toBe(2);
+  });
+
+  it('reports a paragraph as level 0, including lines without a space after the hashes', () => {
+    expect(readFormatState('plain text', { start: 3, end: 3 }).headingLevel).toBe(0);
+    expect(readFormatState('#nospace', { start: 2, end: 2 }).headingLevel).toBe(0);
+    expect(readFormatState('> ## quoted', { start: 6, end: 6 }).headingLevel).toBe(0);
+  });
+
+  it('detects bullet, ordered and task list lines', () => {
+    expect(readFormatState('- item', { start: 4, end: 4 }).list).toBe('bullet');
+    expect(readFormatState('  * item', { start: 5, end: 5 }).list).toBe('bullet');
+    expect(readFormatState('1. item', { start: 4, end: 4 }).list).toBe('ordered');
+    expect(readFormatState('12) item', { start: 5, end: 5 }).list).toBe('ordered');
+    expect(readFormatState('- [ ] todo', { start: 7, end: 7 }).list).toBe('task');
+    expect(readFormatState('  - [x] done', { start: 9, end: 9 }).list).toBe('task');
+  });
+
+  it('returns a null list for plain and quoted lines', () => {
+    expect(readFormatState('plain text', { start: 0, end: 0 }).list).toBeNull();
+    expect(readFormatState('> quoted', { start: 4, end: 4 }).list).toBeNull();
+    expect(readFormatState('', { start: 0, end: 0 }).list).toBeNull();
+  });
+
+  it('detects quotes', () => {
+    expect(readFormatState('> quoted', { start: 4, end: 4 }).quote).toBe(true);
+    expect(readFormatState('  > spaced quote', { start: 8, end: 8 }).quote).toBe(true);
+    expect(readFormatState('plain text', { start: 2, end: 2 }).quote).toBe(false);
+  });
+
+  it('detects bold inside, around and wrapping the selection', () => {
+    expect(readFormatState('**bold**', { start: 2, end: 6 }).bold).toBe(true);
+    expect(readFormatState('say **bold** now', { start: 6, end: 10 }).bold).toBe(true);
+    expect(readFormatState('**bold**', { start: 0, end: 8 }).bold).toBe(true);
+    expect(readFormatState('***both***', { start: 3, end: 7 }).bold).toBe(true);
+    expect(readFormatState('plain text', { start: 0, end: 5 }).bold).toBe(false);
+    expect(readFormatState('**bold**', { start: 0, end: 2 }).bold).toBe(false);
+
+    const wrapped = '**line one\nline two**';
+    expect(readFormatState(wrapped, { start: 0, end: wrapped.length }).bold).toBe(true);
+  });
+
+  it('detects italic but does not confuse bold markers with italic ones', () => {
+    expect(readFormatState('*italic*', { start: 1, end: 7 }).italic).toBe(true);
+    expect(readFormatState('*italic*', { start: 0, end: 8 }).italic).toBe(true);
+    expect(readFormatState('say *italic* now', { start: 5, end: 11 }).italic).toBe(true);
+    expect(readFormatState('***both***', { start: 3, end: 7 }).italic).toBe(true);
+
+    expect(readFormatState('**bold**', { start: 2, end: 6 }).italic).toBe(false);
+    expect(readFormatState('**bold**', { start: 0, end: 8 }).italic).toBe(false);
+    expect(readFormatState('plain text', { start: 0, end: 5 }).italic).toBe(false);
+  });
+
+  it('does not treat an asterisk bullet prefix as an italic marker', () => {
+    expect(readFormatState('* *one* and *two*', { start: 4, end: 4 }).italic).toBe(true);
+    expect(readFormatState('* *one* and *two*', { start: 15, end: 15 }).italic).toBe(true);
+    expect(readFormatState('* plain item', { start: 8, end: 8 }).italic).toBe(false);
+    expect(readFormatState('- *italic*', { start: 5, end: 5 }).italic).toBe(true);
+  });
+
+  it('detects strike text', () => {
+    expect(readFormatState('~~gone~~', { start: 2, end: 6 }).strike).toBe(true);
+    expect(readFormatState('~~gone~~', { start: 0, end: 8 }).strike).toBe(true);
+    expect(readFormatState('say ~~gone~~ now', { start: 6, end: 10 }).strike).toBe(true);
+    expect(readFormatState('plain text', { start: 0, end: 5 }).strike).toBe(false);
+    expect(readFormatState('~single~', { start: 1, end: 7 }).strike).toBe(false);
+  });
+
+  it('detects inline code, including longer backtick runs', () => {
+    expect(readFormatState('`code`', { start: 1, end: 5 }).inlineCode).toBe(true);
+    expect(readFormatState('`code`', { start: 0, end: 6 }).inlineCode).toBe(true);
+    expect(readFormatState('call `code` now', { start: 6, end: 10 }).inlineCode).toBe(true);
+    expect(readFormatState('``a ` b``', { start: 2, end: 7 }).inlineCode).toBe(true);
+    expect(readFormatState('plain text', { start: 0, end: 5 }).inlineCode).toBe(false);
+  });
+
+  it('detects markers around a collapsed caret on the current line', () => {
+    expect(readFormatState('a **bold** b', { start: 5, end: 5 }).bold).toBe(true);
+    expect(readFormatState('**bold**', { start: 3, end: 3 }).bold).toBe(true);
+    expect(readFormatState('a *italic* b', { start: 5, end: 5 }).italic).toBe(true);
+    expect(readFormatState('a ~~gone~~ b', { start: 6, end: 6 }).strike).toBe(true);
+    expect(readFormatState('a `code` b', { start: 4, end: 4 }).inlineCode).toBe(true);
+  });
+
+  it('reports collapsed carets outside the markers as unformatted', () => {
+    expect(readFormatState('**bold**', { start: 0, end: 0 }).bold).toBe(false);
+    expect(readFormatState('**bold**', { start: 8, end: 8 }).bold).toBe(false);
+    expect(readFormatState('*italic*', { start: 8, end: 8 }).italic).toBe(false);
+    expect(readFormatState('a **bold** b', { start: 11, end: 11 }).bold).toBe(false);
+  });
+
+  it('keeps line-level and inline flags independent', () => {
+    const task = readFormatState('## Tasks\n- [ ] **call** mom', { start: 20, end: 20 });
+    expect(task.headingLevel).toBe(0);
+    expect(task.list).toBe('task');
+    expect(task.bold).toBe(true);
+    expect(task.italic).toBe(false);
+    expect(task.quote).toBe(false);
+
+    const quoted = readFormatState('> quote', { start: 3, end: 3 });
+    expect(quoted.quote).toBe(true);
+    expect(quoted.list).toBeNull();
+    expect(quoted.bold).toBe(false);
+  });
+
+  it('clamps and normalizes the selection before reading', () => {
+    const beyond = readFormatState('## title', { start: 99, end: -5 });
+    expect(beyond.headingLevel).toBe(2);
+
+    const whole = readFormatState('**bold**', { start: 8, end: 0 });
+    expect(whole.bold).toBe(true);
   });
 });

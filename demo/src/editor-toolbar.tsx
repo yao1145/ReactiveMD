@@ -1,16 +1,22 @@
 /**
- * Floating editor toolbar for the Reactive MD playground.
+ * Editor toolbar for the Reactive MD playground.
  *
  * The toolbar only reads the textarea and hands pure `EditorEdit` results back
  * to the parent. The parent owns history, focus restoration and compilation.
+ * Format state is derived from the current selection so the toolbar reflects
+ * the block and inline formatting under the caret.
  */
 
 import {
+  useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactElement,
   type ReactNode,
@@ -35,7 +41,9 @@ import {
   insertDivider,
   insertText,
   insertTemplate,
+  readFormatState,
   type EditorEdit,
+  type EditorFormatState,
 } from './editor-commands';
 import {
   NATIVE_COMPONENT_GROUPS,
@@ -55,8 +63,10 @@ export interface EditorToolbarProps {
 }
 
 type TextSelection = { start: number; end: number };
-type MenuId = 'emoji' | 'heading' | 'native';
+type MenuId = 'emoji' | 'heading' | 'insert' | 'list' | 'more' | 'native';
+type MenuEdge = 'first' | 'last';
 type HeadingLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+type SimpleCommand = (value: string, selection: TextSelection) => EditorEdit;
 type IconName =
   | 'smile'
   | 'link'
@@ -69,6 +79,7 @@ type IconName =
   | 'divider'
   | 'codeBlock'
   | 'inlineCode'
+  | 'strike'
   | 'image'
   | 'table'
   | 'undo'
@@ -77,7 +88,9 @@ type IconName =
   | 'chevron'
   | 'sparkle'
   | 'search'
-  | 'plus';
+  | 'plus'
+  | 'more'
+  | 'close';
 
 const EMOJIS = [
   '😀', '😄', '😁', '😊', '🙂', '😉', '😍', '🤔',
@@ -96,6 +109,63 @@ const HEADING_ITEMS: readonly { level: HeadingLevel; label: string; sample: stri
   { level: 5, label: '标题 5', sample: 'H5' },
   { level: 6, label: '标题 6', sample: 'H6' },
 ];
+
+interface ListOption {
+  type: 'bullet' | 'ordered' | 'task';
+  label: string;
+  icon: IconName;
+  command: SimpleCommand;
+}
+
+const LIST_OPTIONS: readonly ListOption[] = [
+  { type: 'bullet', label: '无序列表', icon: 'bulletList', command: formatBulletList },
+  { type: 'ordered', label: '有序列表', icon: 'orderedList', command: formatOrderedList },
+  { type: 'task', label: '任务列表', icon: 'taskList', command: formatTaskList },
+];
+
+const LIST_ACTIONS: readonly { label: string; icon: IconName; command: SimpleCommand }[] = [
+  { label: '减少缩进', icon: 'outdent', command: outdentSelection },
+  { label: '增加缩进', icon: 'indent', command: indentSelection },
+];
+
+interface InsertItem {
+  label: string;
+  icon: IconName;
+  command: SimpleCommand;
+}
+
+const INSERT_ITEMS: readonly InsertItem[] = [
+  { label: '图片', icon: 'image', command: insertImage },
+  { label: '表格', icon: 'table', command: insertTable },
+  { label: '分隔线', icon: 'divider', command: insertDivider },
+  { label: '代码块', icon: 'codeBlock', command: insertCodeBlock },
+  { label: '行内代码', icon: 'inlineCode', command: formatInlineCode },
+  { label: '删除线', icon: 'strike', command: formatStrike },
+  { label: '引用', icon: 'quote', command: formatQuote },
+];
+
+const LIST_TYPE_LABELS: Record<ListOption['type'], string> = {
+  bullet: '无序列表',
+  ordered: '有序列表',
+  task: '任务列表',
+};
+
+const MOBILE_MENU_WIDTHS: Partial<Record<MenuId, number>> = {
+  heading: 200,
+  list: 208,
+  insert: 216,
+  more: 188,
+};
+
+const INITIAL_FORMAT_STATE: EditorFormatState = {
+  headingLevel: 0,
+  bold: false,
+  italic: false,
+  strike: false,
+  inlineCode: false,
+  list: null,
+  quote: false,
+};
 
 const ICONS: Record<IconName, ReactNode> = {
   smile: (
@@ -200,6 +270,12 @@ const ICONS: Record<IconName, ReactNode> = {
       <path d="M13.6 6.5l-3.2 11" opacity=".45" />
     </>
   ),
+  strike: (
+    <>
+      <path d="M4 12h16" />
+      <path d="M16.7 7.4c-.7-1.2-2-1.9-3.7-1.9-2.3 0-3.9 1.1-3.9 2.8 0 1.5 1.1 2.3 3.7 3 2.8.8 4.2 1.7 4.2 3.5 0 2-1.7 3.2-4.3 3.2-2.1 0-3.6-.8-4.3-2.2" />
+    </>
+  ),
   image: (
     <>
       <rect x="3" y="4.5" width="18" height="15" rx="2.4" />
@@ -245,6 +321,14 @@ const ICONS: Record<IconName, ReactNode> = {
     </>
   ),
   plus: <path d="M12 5.2v13.6M5.2 12h13.6" />,
+  more: (
+    <>
+      <circle cx="5.5" cy="12" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="18.5" cy="12" r="1.1" fill="currentColor" stroke="none" />
+    </>
+  ),
+  close: <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />,
 };
 
 function Icon({ name, className }: { name: IconName; className?: string }) {
@@ -272,7 +356,10 @@ function keepEditorFocus(event: ReactMouseEvent<HTMLButtonElement>): void {
 }
 
 interface ToolbarButtonProps {
+  toolbarId: string;
   label: string;
+  tabStop: boolean;
+  onFocus(): void;
   onClick(): void;
   children: ReactNode;
   className?: string;
@@ -280,10 +367,16 @@ interface ToolbarButtonProps {
   expanded?: boolean;
   popup?: 'menu' | 'dialog';
   controls?: string;
+  pressed?: boolean;
+  active?: boolean;
+  onKeyDown?(event: ReactKeyboardEvent<HTMLButtonElement>): void;
 }
 
 function ToolbarButton({
+  toolbarId,
   label,
+  tabStop,
+  onFocus,
   onClick,
   children,
   className,
@@ -291,19 +384,31 @@ function ToolbarButton({
   expanded,
   popup,
   controls,
+  pressed,
+  active,
+  onKeyDown,
 }: ToolbarButtonProps) {
   return (
     <button
       type="button"
-      className={className ? `editor-toolbar-button ${className}` : 'editor-toolbar-button'}
+      data-toolbar-item="true"
+      data-toolbar-id={toolbarId}
+      data-tooltip={label}
+      className={
+        `editor-toolbar-button${className ? ` ${className}` : ''}` +
+        (active ? ' is-active' : '')
+      }
       aria-label={label}
-      title={label}
+      aria-pressed={pressed}
       aria-expanded={expanded}
       aria-haspopup={popup}
       aria-controls={controls}
       disabled={disabled}
-      onMouseDown={keepEditorFocus}
+      tabIndex={tabStop ? 0 : -1}
+      onFocus={onFocus}
+      onMouseDown={popup ? undefined : keepEditorFocus}
       onClick={onClick}
+      onKeyDown={onKeyDown}
     >
       {children}
     </button>
@@ -327,6 +432,105 @@ function matchesQuery(component: NativeComponentDefinition, term: string): boole
   );
 }
 
+function sameFormatState(a: EditorFormatState, b: EditorFormatState): boolean {
+  return (
+    a.headingLevel === b.headingLevel &&
+    a.bold === b.bold &&
+    a.italic === b.italic &&
+    a.strike === b.strike &&
+    a.inlineCode === b.inlineCode &&
+    a.list === b.list &&
+    a.quote === b.quote
+  );
+}
+
+function getToolbarButtons(container: HTMLElement | null): HTMLButtonElement[] {
+  if (!container) return [];
+  return Array.from(
+    container.querySelectorAll<HTMLButtonElement>('[data-toolbar-item]'),
+  ).filter((button) => !button.disabled && button.getClientRects().length > 0);
+}
+
+function getMenuItems(container: HTMLElement | null): HTMLButtonElement[] {
+  if (!container) return [];
+  return Array.from(
+    container.querySelectorAll<HTMLButtonElement>(
+      '[role="menuitem"], [role="menuitemradio"]',
+    ),
+  ).filter((item) => !item.disabled && item.getClientRects().length > 0);
+}
+
+function moveMenuFocus(
+  event: ReactKeyboardEvent<HTMLElement>,
+  container: HTMLElement | null,
+): void {
+  const items = getMenuItems(container);
+  if (items.length === 0) return;
+  const active = document.activeElement as HTMLButtonElement | null;
+  const index = active ? items.indexOf(active) : -1;
+  let next = index;
+
+  switch (event.key) {
+    case 'ArrowDown':
+      next = index < 0 ? 0 : (index + 1) % items.length;
+      break;
+    case 'ArrowUp':
+      next = index < 0 ? items.length - 1 : (index - 1 + items.length) % items.length;
+      break;
+    case 'Home':
+      next = 0;
+      break;
+    case 'End':
+      next = items.length - 1;
+      break;
+    default:
+      return;
+  }
+
+  event.preventDefault();
+  items[next]?.focus();
+}
+
+function moveEmojiFocus(
+  event: ReactKeyboardEvent<HTMLElement>,
+  grid: HTMLElement | null,
+): void {
+  if (!grid) return;
+  const cells = Array.from(grid.querySelectorAll<HTMLButtonElement>('.editor-toolbar-emoji'));
+  if (cells.length === 0) return;
+  const active = document.activeElement as HTMLButtonElement | null;
+  const index = active ? cells.indexOf(active) : -1;
+  if (index < 0) return;
+  const columns = 8;
+  let next = index;
+
+  switch (event.key) {
+    case 'ArrowRight':
+      next = Math.min(index + 1, cells.length - 1);
+      break;
+    case 'ArrowLeft':
+      next = Math.max(index - 1, 0);
+      break;
+    case 'ArrowDown':
+      next = Math.min(index + columns, cells.length - 1);
+      break;
+    case 'ArrowUp':
+      next = Math.max(index - columns, 0);
+      break;
+    case 'Home':
+      next = 0;
+      break;
+    case 'End':
+      next = cells.length - 1;
+      break;
+    default:
+      return;
+  }
+
+  event.preventDefault();
+  cells[next]?.focus();
+}
+
 export function EditorToolbar({
   editorRef,
   onEdit,
@@ -337,12 +541,22 @@ export function EditorToolbar({
   onExport,
 }: EditorToolbarProps): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuPanelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const emojiGridRef = useRef<HTMLDivElement>(null);
+  const pendingMenuFocus = useRef<MenuEdge | null>(null);
+  const formatFrame = useRef<number | null>(null);
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
+  const [tabStopId, setTabStopId] = useState('heading');
   const [query, setQuery] = useState('');
+  const [formatState, setFormatState] = useState<EditorFormatState>(INITIAL_FORMAT_STATE);
+  const [menuPlacement, setMenuPlacement] = useState<CSSProperties | null>(null);
   const idPrefix = useId();
   const emojiMenuId = `${idPrefix}-emoji-menu`;
   const headingMenuId = `${idPrefix}-heading-menu`;
+  const listMenuId = `${idPrefix}-list-menu`;
+  const insertMenuId = `${idPrefix}-insert-menu`;
+  const moreMenuId = `${idPrefix}-more-menu`;
   const nativeMenuId = `${idPrefix}-native-menu`;
 
   const filteredGroups = useMemo(() => {
@@ -354,6 +568,109 @@ export function EditorToolbar({
       ),
     })).filter((entry) => entry.components.length > 0);
   }, [query]);
+
+  const syncFormatState = useCallback(() => {
+    const element = editorRef.current;
+    if (!element) {
+      setFormatState(INITIAL_FORMAT_STATE);
+      return;
+    }
+    const next = readFormatState(element.value, {
+      start: element.selectionStart,
+      end: element.selectionEnd,
+    });
+    setFormatState((current) => (sameFormatState(current, next) ? current : next));
+  }, [editorRef]);
+
+  const queueFormatSync = useCallback(() => {
+    if (formatFrame.current !== null) window.cancelAnimationFrame(formatFrame.current);
+    formatFrame.current = window.requestAnimationFrame(() => {
+      formatFrame.current = null;
+      syncFormatState();
+    });
+  }, [syncFormatState]);
+
+  useEffect(() => {
+    const element = editorRef.current;
+    if (!element) return;
+    const handleChange = () => syncFormatState();
+    const events = ['select', 'keyup', 'click', 'input', 'focus'] as const;
+    for (const type of events) element.addEventListener(type, handleChange);
+    const handleSelectionChange = () => {
+      if (document.activeElement === element) syncFormatState();
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
+    syncFormatState();
+    return () => {
+      for (const type of events) element.removeEventListener(type, handleChange);
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, [editorRef, syncFormatState]);
+
+  useEffect(() => {
+    return () => {
+      if (formatFrame.current !== null) window.cancelAnimationFrame(formatFrame.current);
+    };
+  }, []);
+
+  const getMenuTrigger = useCallback((menu: MenuId): HTMLButtonElement | null => {
+    const id = menu === 'emoji' ? 'insert' : menu === 'native' ? 'components' : menu;
+    return rootRef.current?.querySelector<HTMLButtonElement>(`[data-toolbar-id="${id}"]`) ?? null;
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!openMenu || openMenu === 'native' || openMenu === 'emoji') {
+      setMenuPlacement(null);
+      return;
+    }
+
+    const media = window.matchMedia('(max-width: 640px)');
+    const update = () => {
+      if (!media.matches) {
+        setMenuPlacement(null);
+        return;
+      }
+      const trigger = getMenuTrigger(openMenu);
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const width = MOBILE_MENU_WIDTHS[openMenu] ?? 216;
+      const gutter = 8;
+      const gap = 6;
+      const spaceAbove = rect.top - gap - gutter;
+      const spaceBelow = window.innerHeight - rect.bottom - gap - gutter;
+      const style: CSSProperties = {};
+      if (spaceAbove >= spaceBelow) {
+        style.bottom = window.innerHeight - rect.top + gap;
+        style.top = 'auto';
+        style.maxHeight = Math.max(80, spaceAbove);
+      } else {
+        style.top = rect.bottom + gap;
+        style.bottom = 'auto';
+        style.maxHeight = Math.max(80, spaceBelow);
+      }
+      if (openMenu === 'heading' || openMenu === 'list') {
+        style.left = Math.min(Math.max(gutter, rect.left), window.innerWidth - gutter - width);
+        style.right = 'auto';
+      } else {
+        style.right = Math.min(
+          Math.max(gutter, window.innerWidth - rect.right),
+          window.innerWidth - gutter - width,
+        );
+        style.left = 'auto';
+      }
+      setMenuPlacement(style);
+    };
+
+    update();
+    media.addEventListener('change', update);
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      media.removeEventListener('change', update);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [openMenu, getMenuTrigger]);
 
   useEffect(() => {
     if (!openMenu) return;
@@ -367,8 +684,9 @@ export function EditorToolbar({
       if (event.key !== 'Escape') return;
       event.preventDefault();
       event.stopPropagation();
+      const menu = openMenu;
       setOpenMenu(null);
-      editorRef.current?.focus();
+      getMenuTrigger(menu)?.focus();
     };
 
     document.addEventListener('pointerdown', handlePointerDown, true);
@@ -377,51 +695,85 @@ export function EditorToolbar({
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [openMenu, editorRef]);
+  }, [openMenu, getMenuTrigger]);
 
   useEffect(() => {
-    if (openMenu !== 'native') return;
-    searchRef.current?.focus();
+    if (!openMenu) return;
+    const edge = pendingMenuFocus.current;
+    pendingMenuFocus.current = null;
+    const frame = window.requestAnimationFrame(() => {
+      const panel = menuPanelRef.current;
+      if (edge) {
+        const items = getMenuItems(panel);
+        (edge === 'first' ? items[0] : items[items.length - 1])?.focus();
+      } else if (openMenu === 'native') {
+        searchRef.current?.focus();
+      } else if (openMenu === 'emoji') {
+        getMenuItems(panel)[0]?.focus();
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [openMenu]);
 
-  const toggleMenu = (menu: MenuId) => {
-    setOpenMenu((current) => (current === menu ? null : menu));
-    setQuery('');
-  };
+  const syncTabStop = useCallback(() => {
+    const items = getToolbarButtons(rootRef.current);
+    if (items.length === 0) return;
+    setTabStopId((current) => {
+      if (items.some((item) => item.dataset.toolbarId === current)) return current;
+      return items[0]?.dataset.toolbarId ?? 'heading';
+    });
+  }, []);
 
-  const applySimple = (command: (value: string, selection: TextSelection) => EditorEdit) => {
+  useEffect(() => {
+    syncTabStop();
+    window.addEventListener('resize', syncTabStop);
+    return () => window.removeEventListener('resize', syncTabStop);
+  }, [syncTabStop]);
+
+  useEffect(() => {
+    syncTabStop();
+  }, [openMenu, canUndo, canRedo, syncTabStop]);
+
+  const commitEdit = useCallback(
+    (edit: EditorEdit) => {
+      setOpenMenu(null);
+      onEdit(edit);
+      queueFormatSync();
+    },
+    [onEdit, queueFormatSync],
+  );
+
+  const applySimple = (command: SimpleCommand) => {
     const { value, selection } = readEditor(editorRef);
-    onEdit(command(value, selection));
-    setOpenMenu(null);
+    commitEdit(command(value, selection));
   };
 
   const applyHeading = (level: HeadingLevel) => {
     const { value, selection } = readEditor(editorRef);
-    onEdit(formatHeading(value, selection, level));
-    setOpenMenu(null);
+    commitEdit(formatHeading(value, selection, level));
   };
 
   const applyEmoji = (emoji: string) => {
     const { value, selection } = readEditor(editorRef);
-    onEdit(insertText(value, selection, emoji));
-    setOpenMenu(null);
+    commitEdit(insertText(value, selection, emoji));
   };
 
   const applyNativeComponent = (component: NativeComponentDefinition) => {
     const { value, selection, selectedText } = readEditor(editorRef);
     const snippet = renderNativeSnippet(component, value, selectedText);
-    onEdit(insertTemplate(value, selection, snippet, { block: !component.inline }));
-    setOpenMenu(null);
+    commitEdit(insertTemplate(value, selection, snippet, { block: !component.inline }));
   };
 
   const handleUndo = () => {
     setOpenMenu(null);
     onUndo();
+    queueFormatSync();
   };
 
   const handleRedo = () => {
     setOpenMenu(null);
     onRedo();
+    queueFormatSync();
   };
 
   const handleExport = () => {
@@ -429,222 +781,530 @@ export function EditorToolbar({
     onExport();
   };
 
+  const toggleMenu = (menu: MenuId) => {
+    setOpenMenu((current) => (current === menu ? null : menu));
+    if (menu === 'native') setQuery('');
+  };
+
+  const openMenuFromKeyboard = (
+    menu: MenuId,
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    edge: MenuEdge,
+  ) => {
+    event.preventDefault();
+    if (menu === 'native') setQuery('');
+    if (openMenu === menu) {
+      const items = getMenuItems(menuPanelRef.current);
+      (edge === 'first' ? items[0] : items[items.length - 1])?.focus();
+      return;
+    }
+    pendingMenuFocus.current = edge;
+    setOpenMenu(menu);
+  };
+
+  const handleTriggerKeyDown = (
+    menu: MenuId,
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+  ) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    openMenuFromKeyboard(menu, event, event.key === 'ArrowDown' ? 'first' : 'last');
+  };
+
+  const handleToolbarKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest<HTMLButtonElement>('[data-toolbar-item]');
+    if (!button || button !== target) return;
+
+    const items = getToolbarButtons(rootRef.current);
+    const index = items.indexOf(button);
+    if (index < 0) return;
+
+    let next = index;
+    switch (event.key) {
+      case 'ArrowLeft':
+        next = (index - 1 + items.length) % items.length;
+        break;
+      case 'ArrowRight':
+        next = (index + 1) % items.length;
+        break;
+      case 'Home':
+        next = 0;
+        break;
+      case 'End':
+        next = items.length - 1;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    if (openMenu) setOpenMenu(null);
+    items[next]?.focus();
+  };
+
+  const closeNativePicker = () => {
+    setOpenMenu(null);
+    getMenuTrigger('native')?.focus();
+  };
+
+  const headingLabel =
+    HEADING_ITEMS.find((item) => item.level === formatState.headingLevel)?.label ?? '正文';
+  const headingLabelText = `标题级别：${headingLabel}`;
+  const currentListLabel = formatState.list ? LIST_TYPE_LABELS[formatState.list] : null;
+  const listLabel = currentListLabel ? `列表：${currentListLabel}` : '列表';
+  const listIcon: IconName =
+    formatState.list === 'ordered'
+      ? 'orderedList'
+      : formatState.list === 'task'
+        ? 'taskList'
+        : 'bulletList';
+
   return (
-    <div className="editor-toolbar" role="toolbar" aria-label="文档编辑工具栏" ref={rootRef}>
-      <ToolbarButton
-        label="插入表情"
-        popup="menu"
-        expanded={openMenu === 'emoji'}
-        controls={emojiMenuId}
-        onClick={() => toggleMenu('emoji')}
-      >
-        <Icon name="smile" />
-      </ToolbarButton>
-      {openMenu === 'emoji' ? (
-        <div
-          id={emojiMenuId}
-          className="editor-toolbar-popover editor-toolbar-emoji-menu"
-          role="menu"
-          aria-label="插入表情"
+    <div
+      className={`editor-toolbar${openMenu ? ' is-menu-open' : ''}`}
+      role="toolbar"
+      aria-label="文档编辑工具栏"
+      aria-orientation="horizontal"
+      ref={rootRef}
+      onKeyDown={handleToolbarKeyDown}
+    >
+      <div className="editor-toolbar-slot">
+        <ToolbarButton
+          toolbarId="heading"
+          label={headingLabelText}
+          className="editor-toolbar-heading-trigger"
+          active={formatState.headingLevel > 0}
+          tabStop={tabStopId === 'heading'}
+          onFocus={() => setTabStopId('heading')}
+          popup="menu"
+          expanded={openMenu === 'heading'}
+          controls={headingMenuId}
+          onClick={() => toggleMenu('heading')}
+          onKeyDown={(event) => handleTriggerKeyDown('heading', event)}
         >
-          <div className="editor-toolbar-emoji-grid">
-            {EMOJIS.map((emoji) => (
+          <span className="editor-toolbar-heading-label">{headingLabel}</span>
+          <Icon name="chevron" className="editor-toolbar-chevron" />
+        </ToolbarButton>
+        {openMenu === 'heading' ? (
+          <div
+            id={headingMenuId}
+            ref={menuPanelRef}
+            className="editor-toolbar-popover editor-toolbar-heading-menu"
+            role="menu"
+            aria-label="标题级别"
+            style={menuPlacement ?? undefined}
+            onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
+          >
+            {HEADING_ITEMS.map((item) => (
               <button
-                key={emoji}
+                key={item.level}
                 type="button"
-                role="menuitem"
-                className="editor-toolbar-emoji"
-                title={`插入 ${emoji}`}
-                aria-label={`插入表情 ${emoji}`}
+                role="menuitemradio"
+                aria-checked={formatState.headingLevel === item.level}
+                tabIndex={-1}
+                className="editor-toolbar-menu-item editor-toolbar-heading-item"
                 onMouseDown={keepEditorFocus}
-                onClick={() => applyEmoji(emoji)}
+                onClick={() => applyHeading(item.level)}
               >
-                {emoji}
+                <span
+                  className={`editor-toolbar-heading-sample is-level-${item.level}`}
+                  aria-hidden="true"
+                >
+                  {item.sample}
+                </span>
+                <span>{item.label}</span>
               </button>
             ))}
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <ToolbarButton
-        label="标题"
-        className="editor-toolbar-heading-trigger"
-        popup="menu"
-        expanded={openMenu === 'heading'}
-        controls={headingMenuId}
-        onClick={() => toggleMenu('heading')}
+        toolbarId="bold"
+        label="加粗"
+        tabStop={tabStopId === 'bold'}
+        onFocus={() => setTabStopId('bold')}
+        onClick={() => applySimple(formatBold)}
+        pressed={formatState.bold}
+        active={formatState.bold}
       >
-        <span className="editor-toolbar-glyph is-heading" aria-hidden="true">H</span>
-        <Icon name="chevron" className="editor-toolbar-chevron" />
-      </ToolbarButton>
-      {openMenu === 'heading' ? (
-        <div
-          id={headingMenuId}
-          className="editor-toolbar-popover editor-toolbar-heading-menu"
-          role="menu"
-          aria-label="选择标题级别"
-        >
-          {HEADING_ITEMS.map((item) => (
-            <button
-              key={item.level}
-              type="button"
-              role="menuitem"
-              className="editor-toolbar-heading-item"
-              title={item.label}
-              onMouseDown={keepEditorFocus}
-              onClick={() => applyHeading(item.level)}
-            >
-              <span
-                className={`editor-toolbar-heading-sample is-level-${item.level}`}
-                aria-hidden="true"
-              >
-                {item.sample}
-              </span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <ToolbarButton label="加粗" onClick={() => applySimple(formatBold)}>
         <span className="editor-toolbar-glyph is-bold" aria-hidden="true">B</span>
       </ToolbarButton>
-      <ToolbarButton label="斜体" onClick={() => applySimple(formatItalic)}>
+      <ToolbarButton
+        toolbarId="italic"
+        label="斜体"
+        tabStop={tabStopId === 'italic'}
+        onFocus={() => setTabStopId('italic')}
+        onClick={() => applySimple(formatItalic)}
+        pressed={formatState.italic}
+        active={formatState.italic}
+      >
         <span className="editor-toolbar-glyph is-italic" aria-hidden="true">I</span>
       </ToolbarButton>
-      <ToolbarButton label="删除线" onClick={() => applySimple(formatStrike)}>
-        <span className="editor-toolbar-glyph is-strike" aria-hidden="true">S</span>
-      </ToolbarButton>
-      <ToolbarButton label="插入链接" onClick={() => applySimple(insertLink)}>
+
+      <div className="editor-toolbar-slot">
+        <ToolbarButton
+          toolbarId="list"
+          label={listLabel}
+          className="editor-toolbar-list-trigger"
+          tabStop={tabStopId === 'list'}
+          onFocus={() => setTabStopId('list')}
+          popup="menu"
+          expanded={openMenu === 'list'}
+          controls={listMenuId}
+          active={formatState.list !== null}
+          onClick={() => toggleMenu('list')}
+          onKeyDown={(event) => handleTriggerKeyDown('list', event)}
+        >
+          <Icon name={listIcon} />
+          <Icon name="chevron" className="editor-toolbar-chevron" />
+        </ToolbarButton>
+        {openMenu === 'list' ? (
+          <div
+            id={listMenuId}
+            ref={menuPanelRef}
+            className="editor-toolbar-popover editor-toolbar-list-menu"
+            role="menu"
+            aria-label="列表"
+            style={menuPlacement ?? undefined}
+            onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
+          >
+            {LIST_OPTIONS.map((item) => (
+              <button
+                key={item.type}
+                type="button"
+                role="menuitemradio"
+                aria-checked={formatState.list === item.type}
+                tabIndex={-1}
+                className="editor-toolbar-menu-item editor-toolbar-list-item"
+                onMouseDown={keepEditorFocus}
+                onClick={() => applySimple(item.command)}
+              >
+                <Icon name={item.icon} className="editor-toolbar-menu-icon" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+            <div className="editor-toolbar-menu-divider" role="separator" />
+            {LIST_ACTIONS.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                className="editor-toolbar-menu-item editor-toolbar-list-item"
+                onMouseDown={keepEditorFocus}
+                onClick={() => applySimple(item.command)}
+              >
+                <Icon name={item.icon} className="editor-toolbar-menu-icon" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <ToolbarButton
+        toolbarId="link"
+        label="插入链接"
+        className="editor-toolbar-desktop-only"
+        tabStop={tabStopId === 'link'}
+        onFocus={() => setTabStopId('link')}
+        onClick={() => applySimple(insertLink)}
+      >
         <Icon name="link" />
       </ToolbarButton>
 
-      <span className="editor-toolbar-separator" role="separator" aria-orientation="vertical" />
-
-      <ToolbarButton label="无序列表" onClick={() => applySimple(formatBulletList)}>
-        <Icon name="bulletList" />
-      </ToolbarButton>
-      <ToolbarButton label="有序列表" onClick={() => applySimple(formatOrderedList)}>
-        <Icon name="orderedList" />
-      </ToolbarButton>
-      <ToolbarButton label="任务列表" onClick={() => applySimple(formatTaskList)}>
-        <Icon name="taskList" />
-      </ToolbarButton>
-      <ToolbarButton label="减少缩进" onClick={() => applySimple(outdentSelection)}>
-        <Icon name="outdent" />
-      </ToolbarButton>
-      <ToolbarButton label="增加缩进" onClick={() => applySimple(indentSelection)}>
-        <Icon name="indent" />
-      </ToolbarButton>
-      <ToolbarButton label="引用" onClick={() => applySimple(formatQuote)}>
-        <Icon name="quote" />
-      </ToolbarButton>
-      <ToolbarButton label="分隔线" onClick={() => applySimple(insertDivider)}>
-        <Icon name="divider" />
-      </ToolbarButton>
-      <ToolbarButton label="代码块" onClick={() => applySimple(insertCodeBlock)}>
-        <Icon name="codeBlock" />
-      </ToolbarButton>
-      <ToolbarButton label="行内代码" onClick={() => applySimple(formatInlineCode)}>
-        <Icon name="inlineCode" />
-      </ToolbarButton>
-      <ToolbarButton label="插入图片" onClick={() => applySimple(insertImage)}>
-        <Icon name="image" />
-      </ToolbarButton>
-      <ToolbarButton label="插入表格" onClick={() => applySimple(insertTable)}>
-        <Icon name="table" />
-      </ToolbarButton>
-
-      <span className="editor-toolbar-separator" role="separator" aria-orientation="vertical" />
-
-      <ToolbarButton
-        label="插入原生组件"
-        className="editor-toolbar-components-trigger"
-        popup="dialog"
-        expanded={openMenu === 'native'}
-        controls={nativeMenuId}
-        onClick={() => toggleMenu('native')}
-      >
-        <Icon name="sparkle" />
-        <span className="editor-toolbar-components-label">组件</span>
-      </ToolbarButton>
-      {openMenu === 'native' ? (
-        <div
-          id={nativeMenuId}
-          className="editor-toolbar-popover editor-toolbar-native-menu"
-          role="dialog"
-          aria-label="插入原生组件"
+      <div className="editor-toolbar-slot">
+        <ToolbarButton
+          toolbarId="insert"
+          label="插入"
+          className="editor-toolbar-insert-trigger"
+          tabStop={tabStopId === 'insert'}
+          onFocus={() => setTabStopId('insert')}
+          popup="menu"
+          expanded={openMenu === 'insert' || openMenu === 'emoji'}
+          controls={openMenu === 'emoji' ? emojiMenuId : insertMenuId}
+          onClick={() => toggleMenu('insert')}
+          onKeyDown={(event) => handleTriggerKeyDown('insert', event)}
         >
-          <div className="editor-toolbar-search">
-            <Icon name="search" className="editor-toolbar-search-icon" />
-            <input
-              ref={searchRef}
-              type="search"
-              className="editor-toolbar-search-input"
-              value={query}
-              placeholder="搜索组件、说明或关键词"
-              aria-label="搜索原生组件"
-              autoComplete="off"
-              spellCheck={false}
-              onChange={(event) => setQuery(event.target.value)}
-            />
+          <Icon name="plus" />
+          <span className="editor-toolbar-insert-label">插入</span>
+          <Icon name="chevron" className="editor-toolbar-chevron" />
+        </ToolbarButton>
+        {openMenu === 'insert' ? (
+          <div
+            id={insertMenuId}
+            ref={menuPanelRef}
+            className="editor-toolbar-popover editor-toolbar-insert-menu"
+            role="menu"
+            aria-label="插入内容"
+            style={menuPlacement ?? undefined}
+            onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
+          >
+            {INSERT_ITEMS.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                className="editor-toolbar-menu-item editor-toolbar-insert-item"
+                onMouseDown={keepEditorFocus}
+                onClick={() => applySimple(item.command)}
+              >
+                <Icon name={item.icon} className="editor-toolbar-menu-icon" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              className="editor-toolbar-menu-item editor-toolbar-insert-item"
+              onMouseDown={keepEditorFocus}
+              onClick={() => setOpenMenu('emoji')}
+            >
+              <Icon name="smile" className="editor-toolbar-menu-icon" />
+              <span>表情</span>
+            </button>
           </div>
-          <div className="editor-toolbar-native-scroll" role="menu" aria-label="原生组件列表">
-            {filteredGroups.length === 0 ? (
-              <p className="editor-toolbar-menu-empty">没有匹配的组件</p>
-            ) : (
-              filteredGroups.map(({ group, components }) => (
-                <div
-                  key={group.id}
-                  className="editor-toolbar-native-group"
-                  role="group"
-                  aria-label={group.label}
+        ) : null}
+        {openMenu === 'emoji' ? (
+          <div
+            id={emojiMenuId}
+            ref={menuPanelRef}
+            className="editor-toolbar-popover editor-toolbar-emoji-menu"
+            role="menu"
+            aria-label="插入表情"
+            onKeyDown={(event) => moveEmojiFocus(event, emojiGridRef.current)}
+          >
+            <div className="editor-toolbar-emoji-grid" ref={emojiGridRef}>
+              {EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  role="menuitem"
+                  tabIndex={-1}
+                  className="editor-toolbar-emoji"
+                  aria-label={`插入表情 ${emoji}`}
+                  onMouseDown={keepEditorFocus}
+                  onClick={() => applyEmoji(emoji)}
                 >
-                  <div className="editor-toolbar-native-group-title" aria-hidden="true">
-                    {group.label}
-                  </div>
-                  {components.map((component) => (
-                    <button
-                      key={component.id}
-                      type="button"
-                      role="menuitem"
-                      className="editor-toolbar-native-item"
-                      title={`插入${component.label}`}
-                      onMouseDown={keepEditorFocus}
-                      onClick={() => applyNativeComponent(component)}
-                    >
-                      <span className="editor-toolbar-native-copy">
-                        <span className="editor-toolbar-native-label">
-                          {component.label}
-                          {component.inline ? (
-                            <span className="editor-toolbar-native-badge">行内</span>
-                          ) : null}
-                        </span>
-                        <span className="editor-toolbar-native-description">
-                          {component.description}
-                        </span>
-                      </span>
-                      <Icon name="plus" className="editor-toolbar-native-add" />
-                    </button>
-                  ))}
-                </div>
-              ))
-            )}
+                  {emoji}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
+
+      <div className="editor-toolbar-slot editor-toolbar-slot-native">
+        <ToolbarButton
+          toolbarId="components"
+          label="插入原生组件"
+          className="editor-toolbar-components-trigger"
+          tabStop={tabStopId === 'components'}
+          onFocus={() => setTabStopId('components')}
+          popup="dialog"
+          expanded={openMenu === 'native'}
+          controls={nativeMenuId}
+          onClick={() => toggleMenu('native')}
+          onKeyDown={(event) => handleTriggerKeyDown('native', event)}
+        >
+          <Icon name="sparkle" />
+          <span className="editor-toolbar-components-label">插入组件</span>
+        </ToolbarButton>
+        {openMenu === 'native' ? (
+          <div
+            id={nativeMenuId}
+            ref={menuPanelRef}
+            className="editor-toolbar-popover editor-toolbar-native-menu"
+            role="dialog"
+            aria-label="插入原生组件"
+            onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
+          >
+            <div className="editor-toolbar-native-head">
+              <span className="editor-toolbar-native-title">插入组件</span>
+              <button
+                type="button"
+                className="editor-toolbar-close"
+                aria-label="关闭组件面板"
+                onMouseDown={keepEditorFocus}
+                onClick={closeNativePicker}
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+            <div className="editor-toolbar-search">
+              <Icon name="search" className="editor-toolbar-search-icon" />
+              <input
+                ref={searchRef}
+                type="search"
+                className="editor-toolbar-search-input"
+                value={query}
+                placeholder="搜索组件、说明或关键词"
+                aria-label="搜索原生组件"
+                autoComplete="off"
+                spellCheck={false}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+            <div className="editor-toolbar-native-scroll" role="menu" aria-label="原生组件列表">
+              {filteredGroups.length === 0 ? (
+                <p className="editor-toolbar-menu-empty">没有匹配的组件</p>
+              ) : (
+                filteredGroups.map(({ group, components }) => (
+                  <div
+                    key={group.id}
+                    className="editor-toolbar-native-group"
+                    role="group"
+                    aria-label={group.label}
+                  >
+                    <div className="editor-toolbar-native-group-title" aria-hidden="true">
+                      {group.label}
+                    </div>
+                    {components.map((component) => (
+                      <button
+                        key={component.id}
+                        type="button"
+                        role="menuitem"
+                        tabIndex={-1}
+                        className="editor-toolbar-native-item"
+                        onMouseDown={keepEditorFocus}
+                        onClick={() => applyNativeComponent(component)}
+                      >
+                        <span className="editor-toolbar-native-copy">
+                          <span className="editor-toolbar-native-label">
+                            {component.label}
+                            {component.inline ? (
+                              <span className="editor-toolbar-native-badge">行内</span>
+                            ) : null}
+                          </span>
+                          <span className="editor-toolbar-native-description">
+                            {component.description}
+                          </span>
+                        </span>
+                        <Icon name="plus" className="editor-toolbar-native-add" />
+                      </button>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       <div className="editor-toolbar-history" role="group" aria-label="历史与导出">
-        <span className="editor-toolbar-separator" role="separator" aria-orientation="vertical" />
-        <ToolbarButton label="撤销" disabled={!canUndo} onClick={handleUndo}>
+        <ToolbarButton
+          toolbarId="undo"
+          label="撤销"
+          className="editor-toolbar-desktop-only"
+          tabStop={tabStopId === 'undo'}
+          onFocus={() => setTabStopId('undo')}
+          disabled={!canUndo}
+          onClick={handleUndo}
+        >
           <Icon name="undo" />
         </ToolbarButton>
-        <ToolbarButton label="重做" disabled={!canRedo} onClick={handleRedo}>
+        <ToolbarButton
+          toolbarId="redo"
+          label="重做"
+          className="editor-toolbar-desktop-only"
+          tabStop={tabStopId === 'redo'}
+          onFocus={() => setTabStopId('redo')}
+          disabled={!canRedo}
+          onClick={handleRedo}
+        >
           <Icon name="redo" />
         </ToolbarButton>
-        <ToolbarButton label="下载文档" onClick={handleExport}>
+        <ToolbarButton
+          toolbarId="download"
+          label="下载文档"
+          className="editor-toolbar-desktop-only"
+          tabStop={tabStopId === 'download'}
+          onFocus={() => setTabStopId('download')}
+          onClick={handleExport}
+        >
           <Icon name="download" />
         </ToolbarButton>
+
+        <div className="editor-toolbar-slot editor-toolbar-mobile-only">
+          <ToolbarButton
+            toolbarId="more"
+            label="更多"
+            className="editor-toolbar-more-trigger"
+            tabStop={tabStopId === 'more'}
+            onFocus={() => setTabStopId('more')}
+            popup="menu"
+            expanded={openMenu === 'more'}
+            controls={moreMenuId}
+            onClick={() => toggleMenu('more')}
+            onKeyDown={(event) => handleTriggerKeyDown('more', event)}
+          >
+            <Icon name="more" />
+          </ToolbarButton>
+          {openMenu === 'more' ? (
+            <div
+              id={moreMenuId}
+              ref={menuPanelRef}
+              className="editor-toolbar-popover editor-toolbar-more-menu"
+              role="menu"
+              aria-label="更多操作"
+              style={menuPlacement ?? undefined}
+              onKeyDown={(event) => moveMenuFocus(event, menuPanelRef.current)}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                className="editor-toolbar-menu-item editor-toolbar-more-item"
+                onMouseDown={keepEditorFocus}
+                onClick={() => applySimple(insertLink)}
+              >
+                <Icon name="link" className="editor-toolbar-menu-icon" />
+                <span>链接</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                className="editor-toolbar-menu-item editor-toolbar-more-item"
+                disabled={!canUndo}
+                onMouseDown={keepEditorFocus}
+                onClick={handleUndo}
+              >
+                <Icon name="undo" className="editor-toolbar-menu-icon" />
+                <span>撤销</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                className="editor-toolbar-menu-item editor-toolbar-more-item"
+                disabled={!canRedo}
+                onMouseDown={keepEditorFocus}
+                onClick={handleRedo}
+              >
+                <Icon name="redo" className="editor-toolbar-menu-icon" />
+                <span>重做</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                className="editor-toolbar-menu-item editor-toolbar-more-item"
+                onMouseDown={keepEditorFocus}
+                onClick={handleExport}
+              >
+                <Icon name="download" className="editor-toolbar-menu-icon" />
+                <span>下载文档</span>
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

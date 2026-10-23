@@ -507,50 +507,52 @@ export default function App() {
               <span className="syntax-tag">local-draft-1</span>
             </div>
 
-            <EditorToolbar
-              editorRef={editorRef}
-              onEdit={applyEdit}
-              onUndo={undoEdit}
-              onRedo={redoEdit}
-              canUndo={canUndo}
-              canRedo={canRedo}
-              onExport={exportSource}
-            />
-
-            <label className="sr-only" htmlFor="source-editor">Reactive MD 源码</label>
-            <div className="editor-shell">
-              <div className="editor-gutter" ref={gutterRef} aria-hidden="true">
-                {lines.map((_, index) => {
-                  const lineNumber = index + 1;
-                  return (
-                    <span
-                      key={lineNumber}
-                      className={`gutter-line ${activeLine === lineNumber ? 'is-active' : ''} ${
-                        diagnosticLines.has(lineNumber) ? 'is-diagnostic' : ''
-                      }`}
-                    >
-                      {lineNumber}
-                    </span>
-                  );
-                })}
-              </div>
-              <textarea
-                id="source-editor"
-                ref={editorRef}
-                className="editor-input"
-                value={source}
-                wrap="off"
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                aria-describedby="editor-note"
-                onScroll={onEditorScroll}
-                onChange={onSourceChange}
-                onKeyDown={onEditorKeyDown}
-                onSelect={(event) => updateActiveLine(event.currentTarget)}
-                onKeyUp={(event) => updateActiveLine(event.currentTarget)}
-                onClick={(event) => updateActiveLine(event.currentTarget)}
+            <div className="editor-frame">
+              <EditorToolbar
+                editorRef={editorRef}
+                onEdit={applyEdit}
+                onUndo={undoEdit}
+                onRedo={redoEdit}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onExport={exportSource}
               />
+
+              <label className="sr-only" htmlFor="source-editor">Reactive MD 源码</label>
+              <div className="editor-shell">
+                <div className="editor-gutter" ref={gutterRef} aria-hidden="true">
+                  {lines.map((_, index) => {
+                    const lineNumber = index + 1;
+                    return (
+                      <span
+                        key={lineNumber}
+                        className={`gutter-line ${activeLine === lineNumber ? 'is-active' : ''} ${
+                          diagnosticLines.has(lineNumber) ? 'is-diagnostic' : ''
+                        }`}
+                      >
+                        {lineNumber}
+                      </span>
+                    );
+                  })}
+                </div>
+                <textarea
+                  id="source-editor"
+                  ref={editorRef}
+                  className="editor-input"
+                  value={source}
+                  wrap="off"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  aria-describedby="editor-note"
+                  onScroll={onEditorScroll}
+                  onChange={onSourceChange}
+                  onKeyDown={onEditorKeyDown}
+                  onSelect={(event) => updateActiveLine(event.currentTarget)}
+                  onKeyUp={(event) => updateActiveLine(event.currentTarget)}
+                  onClick={(event) => updateActiveLine(event.currentTarget)}
+                />
+              </div>
             </div>
 
             <p className="editor-note" id="editor-note">
