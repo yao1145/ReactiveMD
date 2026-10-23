@@ -1,5 +1,9 @@
 # Reactive MD Playground
 
+> **Reactive MD** is a Markdown dialect for local, interactive documents. Authors add HTML-style input controls, name parameters with `bind`, and connect prose, formulas, charts and diagrams with `{{ expressions }}` — no JavaScript or CSS required. Change any input and every bound value, formula, chart and diagram updates instantly, turning a static article into something readers can explore first-hand. Everything compiles and runs in the browser, so a document is one portable source file, and the TypeScript core and React renderer can be embedded in any app.
+
+> **Reactive MD** 是一门用于编写本地交互文档的 Markdown 扩展语言。作者只需放入 HTML 风格的输入控件、用 `bind` 命名参数，再用 `{{ 表达式 }}` 把文字、公式、图表和图解连接起来，无需编写 JavaScript 或 CSS。读者改动任意输入，所有绑定的数值、公式、图表和图解都会立即更新，静态文章由此变成可以亲手探索的交互页面。编译与运行都在浏览器本地完成，一份文档就是一个可随处分享的源文件；TypeScript 核心与 React 渲染器也可独立嵌入任意应用。
+
 The Playground opens with a short calculator and six [feature tours](../examples/local/showcase/README.md): functions, forms, data and charts, layout, diagrams, and checklists and timing. Each tour follows one example from a suggested change to the visible result, with key source snippets at the end. English and Chinese versions are available throughout.
 
 Presentation mode shows the document at full width. Choose "Show source" to edit Markdown beside its live preview, or "Presentation mode" to return without resetting the current controls. The reference menu contains the component gallery and an intentionally broken diagnostics example; choosing diagnostics opens the editor. If you are new to the syntax, start with the [getting-started guide](../docs/local-guide-en.md).
