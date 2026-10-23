@@ -895,6 +895,7 @@ textarea {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
+  color: var(--ink);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-snug);
