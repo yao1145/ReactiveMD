@@ -1,4 +1,4 @@
-import type { LocalDocument, LocalNode } from './types';
+import type { LocalDocument, LocalNode, LocalRuntime } from './types';
 import { localKey } from './types';
 import { compileExpression, templateDependencies } from './expression';
 import { compileLatex } from './math';
@@ -32,6 +32,34 @@ const VISUAL_NODE_NAMES: ReadonlySet<string> = new Set([
 ]);
 
 const dependencyIndexCache = new WeakMap<LocalDocument, DependencyIndex>();
+
+const subtreeResetCache = new WeakMap<LocalRuntime, {
+  revision: number;
+  tokens: ReadonlyMap<string, number>;
+}>();
+
+/**
+ * Memo boundaries must observe resets anywhere below them. Keep these sums
+ * separate from runtime.resetToken: a descendant reset must not reset the
+ * ancestor's own UI state. One traversal per revision also keeps nested block
+ * rendering from repeatedly walking the same subtrees.
+ */
+export function collectSubtreeResetTokens(runtime: LocalRuntime): ReadonlyMap<string, number> {
+  const revision = runtime.snapshot().revision;
+  const cached = subtreeResetCache.get(runtime);
+  if (cached?.revision === revision) return cached.tokens;
+
+  const tokens = new Map<string, number>();
+  const visit = (node: LocalNode): number => {
+    let token = runtime.resetToken(node);
+    for (const child of node.children ?? []) token += visit(child);
+    tokens.set(node.id, token);
+    return token;
+  };
+  for (const node of runtime.document.nodes) visit(node);
+  subtreeResetCache.set(runtime, { revision, tokens });
+  return tokens;
+}
 
 function addAll(target: Set<string>, values: readonly string[]): void {
   for (const value of values) target.add(value);

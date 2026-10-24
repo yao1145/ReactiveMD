@@ -30,6 +30,7 @@ import type {
 import type { LocalRenderContext } from './render-types';
 import {
   collectNodeDependencies,
+  collectSubtreeResetTokens,
   EMPTY_DEPENDENCY_INDEX,
   type DependencyIndex,
   type NodeDependencies,
@@ -655,21 +656,19 @@ function renderNodes(
   // Read the snapshot once per call; an unreadable snapshot makes every block
   // in this batch a wildcard, exactly like an undecidable dependency entry.
   let currentState: Readonly<Record<string, LocalValue>> | null = null;
+  let resetTokens: ReadonlyMap<string, number> | null = null;
   try {
     currentState = env.runtime.snapshot().state;
+    resetTokens = collectSubtreeResetTokens(env.runtime);
   } catch {
     currentState = null;
   }
   const state = currentState;
   return nodes.map((node, index) => {
     const deps: NodeDependencies | undefined = env.dependencies.get(node.id);
-    const depValues = deps == null || state === null ? null : deps.map((key) => state[key]);
-    let resetToken = 0;
-    try {
-      resetToken = env.runtime.resetToken(node);
-    } catch {
-      resetToken = 0;
-    }
+    const depValues = deps == null || state === null || resetTokens === null
+      ? null : deps.map((key) => state[key]);
+    const resetToken = resetTokens?.get(node.id) ?? 0;
     return (
       <LocalBlock
         key={node.id || `${node.type}-${index}`}

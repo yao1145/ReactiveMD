@@ -158,6 +158,7 @@ function buildSource(): string {
     '</checklist>',
     '<counter bind="clicks" label="{{ m }}" initial="0" min="0" max="99">',
     '</panel>',
+    '<card>',
     '<panel title="Extras" reset="true">',
     '<accordion label="More">',
     '<disclosure label="Extra settings" open>',
@@ -165,6 +166,7 @@ function buildSource(): string {
     '</disclosure>',
     '</accordion>',
     '</panel>',
+    '</card>',
     '<slider bind="p" label="Plot only" initial="1" min="0" max="10">',
   ].join('\n');
 
@@ -650,6 +652,9 @@ async function run(): Promise<VerifyResult> {
       if (after !== before + 1) throw new Error(`step ${step}: extras reset did not commit once`);
       operations.push({ kind: 'reset', step, nodeId: extrasPanel.id, revisionAfter: after });
       await nextFrame();
+      if (containerA.querySelector('.local-disclosure-trigger')?.getAttribute('aria-expanded') !== 'true') {
+        throw new Error(`step ${step}: nested panel reset did not reopen the disclosure`);
+      }
       continue;
     }
     if (RESET_STEPS.has(step)) {

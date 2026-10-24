@@ -3,9 +3,11 @@ import { compileLocal } from '../src/local/compiler';
 import {
   EMPTY_DEPENDENCY_INDEX,
   collectNodeDependencies,
+  collectSubtreeResetTokens,
   type NodeDependencies,
 } from '../src/local/dependencies';
 import { LocalExpressionError, templateDependencies } from '../src/local/expression';
+import { createLocalRuntime } from '../src/local/runtime';
 import type { LocalDocument, LocalNode } from '../src/local/types';
 
 function compile(source: string): LocalDocument {
@@ -41,6 +43,39 @@ function depsOf(document: LocalDocument, node: LocalNode): NodeDependencies {
 function makeNode(id: string, type: string, extra: Partial<LocalNode> = {}): LocalNode {
   return { id, type, range: { start: 0, end: 0 }, ...extra };
 }
+
+describe('subtree reset invalidation', () => {
+  it('invalidates memo ancestors without resetting their own UI or siblings', () => {
+    const document = compile([
+      '<card>',
+      '<panel title="Inner" reset="true">',
+      '<accordion><disclosure label="Details" open="true">Hello</disclosure></accordion>',
+      '</panel>',
+      '</card>',
+      '<counter bind="other" label="Other">',
+    ].join('\n'));
+    const runtime = createLocalRuntime(document);
+    try {
+      const card = findComponent(document, 'card');
+      const panel = findComponent(document, 'panel');
+      const disclosure = findComponent(document, 'disclosure');
+      const other = findComponent(document, 'counter');
+      const before = collectSubtreeResetTokens(runtime);
+      expect(collectSubtreeResetTokens(runtime)).toBe(before);
+      runtime.reset(panel);
+      const after = collectSubtreeResetTokens(runtime);
+      expect(after.get(card.id)).toBeGreaterThan(before.get(card.id)!);
+      expect(after.get(disclosure.id)).toBeGreaterThan(before.get(disclosure.id)!);
+      expect(after.get(other.id)).toBe(before.get(other.id));
+      expect(runtime.resetToken(card)).toBe(0);
+      expect(runtime.resetToken(disclosure)).toBe(1);
+      expect(runtime.set(other, 1)).toEqual([]);
+      expect(collectSubtreeResetTokens(runtime)).toEqual(after);
+    } finally {
+      runtime.dispose();
+    }
+  });
+});
 
 describe('collectNodeDependencies', () => {
   it('reports an empty set for static text', () => {
