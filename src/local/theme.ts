@@ -1,4 +1,5 @@
 import type { Diagnostic, SourceRange } from './types';
+import { diagnosticEnglish, localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
 
 /**
  * Versioned theme contract. A host registers CSS for a theme name and declares
@@ -66,13 +67,22 @@ function positionOf(source: string | undefined, start: number): { line: number; 
 
 function themeDiagnostic(
   code: string,
-  message: string,
+  detail: LocalDiagnosticDetails,
   range: SourceRange | undefined,
   source: string | undefined,
 ): Diagnostic {
   const safe = clampRange(range, source);
   const { line, column } = positionOf(source, safe.start);
-  return { code, message, severity: 'warning', range: safe, line, column };
+  return {
+    code,
+    message: diagnosticEnglish(detail),
+    severity: 'warning',
+    range: safe,
+    line,
+    column,
+    messageKey: detail.key,
+    ...(detail.params ? { params: detail.params } : {}),
+  };
 }
 
 /**
@@ -90,9 +100,9 @@ export function resolveLocalTheme(
   range?: SourceRange,
   source?: string,
 ): LocalThemeResolution {
-  const fallback = (code: string, message: string): LocalThemeResolution => ({
+  const fallback = (code: string, detail: LocalDiagnosticDetails): LocalThemeResolution => ({
     name: DEFAULT_LOCAL_THEME.name,
-    diagnostics: [themeDiagnostic(code, message, range, source)],
+    diagnostics: [themeDiagnostic(code, detail, range, source)],
   });
 
   const candidate: unknown = requested;
@@ -103,7 +113,7 @@ export function resolveLocalTheme(
   if (!isLocalThemeName(candidate)) {
     return fallback(
       'local.theme.name',
-      `Theme name "${String(candidate)}" must use lowercase letters, digits and single hyphens (maximum ${MAX_THEME_NAME_LENGTH} characters).`,
+      localDiagnosticDetails('local.theme.name', { name: String(candidate), limit: MAX_THEME_NAME_LENGTH }),
     );
   }
   const name = candidate;
@@ -114,7 +124,7 @@ export function resolveLocalTheme(
   if (!Array.isArray(themes)) {
     return fallback(
       'local.theme.missing',
-      `Theme "${name}" is not registered by the host; using the default theme.`,
+      localDiagnosticDetails('local.theme.missing', { name }),
     );
   }
 
@@ -131,45 +141,45 @@ export function resolveLocalTheme(
   } catch {
     return fallback(
       'local.theme.manifest',
-      `The host theme registry could not be read; using the default theme.`,
+      localDiagnosticDetails('local.theme.manifest.unreadable'),
     );
   }
 
   if (matches === 0) {
     return fallback(
       'local.theme.missing',
-      `Theme "${name}" is not registered by the host; using the default theme.`,
+      localDiagnosticDetails('local.theme.missing', { name }),
     );
   }
   if (matches > 1) {
     return fallback(
       'local.theme.duplicate',
-      `Theme "${name}" is registered more than once; using the default theme.`,
+      localDiagnosticDetails('local.theme.duplicate', { name }),
     );
   }
 
   try {
     const entry = selected as Partial<LocalThemeDefinition> | null;
     if (!entry || typeof entry !== 'object') {
-      return fallback('local.theme.manifest', `The selected theme "${name}" is not a valid definition; using the default theme.`);
+      return fallback('local.theme.manifest', localDiagnosticDetails('local.theme.manifest.definition', { name }));
     }
     if (entry.protocol !== LOCAL_THEME_PROTOCOL) {
       return fallback(
         'local.theme.protocol',
-        `Theme "${name}" does not support the ${LOCAL_THEME_PROTOCOL} protocol; using the default theme.`,
+        localDiagnosticDetails('local.theme.protocol', { name, protocol: LOCAL_THEME_PROTOCOL }),
       );
     }
     const schemes = (entry as { colorSchemes?: unknown }).colorSchemes;
     if (!Array.isArray(schemes) || !schemes.includes('light') || !schemes.includes('dark')) {
       return fallback(
         'local.theme.modes',
-        `Theme "${name}" must supply both light and dark color schemes; using the default theme.`,
+        localDiagnosticDetails('local.theme.modes', { name }),
       );
     }
   } catch {
     return fallback(
       'local.theme.manifest',
-      `The selected theme "${name}" could not be read; using the default theme.`,
+      localDiagnosticDetails('local.theme.manifest.selected', { name }),
     );
   }
 

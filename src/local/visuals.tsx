@@ -13,6 +13,7 @@ import {
   MAX_LOCAL_PLOT_STEPS,
 } from './limits';
 import { compileLatex, LatexError, samplePlot, type LatexEvaluationBudget } from './math';
+import { formatLocalDiagnostic } from './diagnostics';
 import { LatexView } from './math-view';
 import type { LocalNode, LocalRuntime, LocalValue } from './types';
 import type { LocalVisualProps } from './render-types';
@@ -629,7 +630,7 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
     try {
       const diagnostics = runtime.set(node, value);
       if (diagnostics.length > 0) {
-        setSelectionError(diagnostics.map((diagnostic) => diagnostic.message).join('; '));
+        setSelectionError(diagnostics.map((diagnostic) => t(formatLocalDiagnostic(diagnostic, 'en'), formatLocalDiagnostic(diagnostic, 'zh'))).join('; '));
       }
     } catch (cause) {
       setSelectionError(errorMessage(cause));
@@ -931,7 +932,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
     try {
       const diagnostics = runtime.set(node, value);
       if (diagnostics.length > 0) {
-        setSelectionError(diagnostics.map((diagnostic) => diagnostic.message).join('; '));
+        setSelectionError(diagnostics.map((diagnostic) => t(formatLocalDiagnostic(diagnostic, 'en'), formatLocalDiagnostic(diagnostic, 'zh'))).join('; '));
       }
     } catch (cause) {
       setSelectionError(errorMessage(cause));
@@ -3092,7 +3093,7 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
     try {
       const diagnostics = runtime.set(node, id);
       if (diagnostics.length > 0) {
-        setWriteError(diagnostics.map((diagnostic) => diagnostic.message).join('; '));
+        setWriteError(diagnostics.map((diagnostic) => t(formatLocalDiagnostic(diagnostic, 'en'), formatLocalDiagnostic(diagnostic, 'zh'))).join('; '));
       }
     } catch (cause) {
       setWriteError(errorMessage(cause));

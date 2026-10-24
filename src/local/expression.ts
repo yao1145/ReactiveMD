@@ -3,6 +3,8 @@ import {
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
 } from './limits';
+import { diagnosticEnglish, localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
+import { countLocalCodePoints } from './text-length';
 import type { LocalValue, LocalValueKind } from './types';
 
 /**
@@ -56,47 +58,58 @@ export const RESERVED_NAMES = new Set<string>([
   ...FORBIDDEN_NAMES,
 ]);
 
+/** Expression source, in UTF-16 code units, per expression. */
 const MAX_EXPRESSION_LENGTH = 4000;
+/** Cumulative AST constructions and final AST depth, per expression. */
 const MAX_AST_NODES = 2000;
 const MAX_PARSE_DEPTH = 100;
 const MAX_AST_DEPTH = 200;
+/** AST node visits and call depth, per evaluation; short-circuited branches are not visited. */
 const MAX_EVAL_STEPS = 10000;
 const MAX_EVAL_DEPTH = 250;
-/** Shared budgets. `MAX_STRING_LENGTH` also caps concatenation results. */
+/** Shared value budgets. `MAX_STRING_LENGTH` also caps concatenation results (UTF-16). */
 const MAX_STRING_LENGTH = MAX_LOCAL_STRING_LENGTH;
 const MAX_ARRAY_LENGTH = MAX_LOCAL_ARRAY_LENGTH;
 const MAX_TEMPLATE_LENGTH = MAX_LOCAL_STRING_LENGTH;
+/** Compiled-expression cache entries per runtime instance. */
 const CACHE_LIMIT = 500;
 
 /**
  * Allocation-free budget check for a value stored in the runtime or read from
- * an expression environment. Returns a short reason, or null when the value
- * fits. String lengths are UTF-16 code units, matching the existing
- * concatenation budget; `len()` keeps counting code points.
+ * an expression environment. Returns structured metadata, or null when the
+ * value fits. These are defensive resource budgets: string lengths are UTF-16
+ * code units (matching allocation cost), while author-visible text constraints
+ * use `countLocalCodePoints`. `len()` keeps counting code points.
  */
-export function localValueBudgetError(value: LocalValue): string | null {
+export function localValueBudgetIssue(value: LocalValue): LocalDiagnosticDetails | null {
   if (typeof value === 'string') {
     return value.length > MAX_LOCAL_STRING_LENGTH
-      ? `String exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`
+      ? localDiagnosticDetails('local.budget.value.string', { limit: MAX_LOCAL_STRING_LENGTH })
       : null;
   }
   if (Array.isArray(value)) {
     if (value.length > MAX_LOCAL_ARRAY_LENGTH) {
-      return `Array exceeds the ${MAX_LOCAL_ARRAY_LENGTH}-item limit.`;
+      return localDiagnosticDetails('local.budget.value.array', { limit: MAX_LOCAL_ARRAY_LENGTH });
     }
     let characters = 0;
     for (const item of value) {
       if (typeof item !== 'string') continue;
       if (item.length > MAX_LOCAL_STRING_LENGTH) {
-        return `Array member exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`;
+        return localDiagnosticDetails('local.budget.value.array-member', { limit: MAX_LOCAL_STRING_LENGTH });
       }
       characters += item.length;
       if (characters > MAX_LOCAL_VALUE_CHARACTERS) {
-        return `Array contents exceed the ${MAX_LOCAL_VALUE_CHARACTERS}-character limit.`;
+        return localDiagnosticDetails('local.budget.value.array-contents', { limit: MAX_LOCAL_VALUE_CHARACTERS });
       }
     }
   }
   return null;
+}
+
+/** English message form kept for existing callers and error construction. */
+export function localValueBudgetError(value: LocalValue): string | null {
+  const issue = localValueBudgetIssue(value);
+  return issue ? diagnosticEnglish(issue) : null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -948,7 +961,7 @@ function evalNode(
         }
         case 'len': {
           const value = args[0];
-          if (typeof value === 'string') return Array.from(value).length;
+          if (typeof value === 'string') return countLocalCodePoints(value);
           if (Array.isArray(value)) return value.length;
           fail('Function len requires a string or array.', ast.start, 'expression-type');
         }

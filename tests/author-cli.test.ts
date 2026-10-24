@@ -60,4 +60,50 @@ describe('published author lint command', () => {
     ]);
     expect(run(['--help']).status).toBe(0);
   });
+
+  it('localizes diagnostic messages without changing code, severity or position', () => {
+    const source = '{{ absent }}';
+    const en = JSON.parse(run(['lint', '--json', '-'], source).stdout)[0].diagnostics[0];
+    const zh = JSON.parse(run(['lint', '--json', '--locale', 'zh', '-'], source).stdout)[0].diagnostics[0];
+    expect(en.message).toContain('undeclared parameter');
+    expect(zh.message).toContain('未声明');
+    expect(zh.code).toBe(en.code);
+    expect(zh.severity).toBe(en.severity);
+    expect(zh.line).toBe(en.line);
+    expect(zh.column).toBe(en.column);
+    expect(zh.range).toEqual(en.range);
+  });
+
+  it('prints text diagnostics in the selected language', () => {
+    const zh = run(['lint', '--locale', 'zh', '-'], '```reactive-md\nstate: {}\n```');
+    expect(zh.status).toBe(1);
+    expect(zh.stdout).toMatch(/旧版|reactive-md/);
+    expect(zh.stdout).toMatch(/error/);
+  });
+
+  it('rejects an invalid or missing --locale with exit 2', () => {
+    expect(run(['lint', '--locale', 'fr', '-'], '# Hello').status).toBe(2);
+    expect(run(['lint', '--locale'], '# Hello').status).toBe(2);
+    expect(run(['lint', '--locale=fr', '-'], '# Hello').status).toBe(2);
+  });
+
+  it('localizes usage and IO diagnostics', () => {
+    const usage = run(['lint', '--locale', 'zh', '--bogus'], '# Hello');
+    expect(usage.status).toBe(2);
+    expect(usage.stderr).toContain('未知选项');
+
+    const io = run(['lint', '--locale', 'zh', '--json', join(directory, 'missing.md')]);
+    expect(io.status).toBe(2);
+    expect(JSON.parse(io.stdout)[0].diagnostics[0]).toMatchObject({ code: 'cli.io' });
+    expect(JSON.parse(io.stdout)[0].diagnostics[0].message).toContain('无法读取输入');
+    expect(JSON.parse(io.stdout)[0].diagnostics[0].message).not.toMatch(/no such file|permission denied/i);
+  });
+
+  it('keeps paths after -- literal, including a file named --locale', () => {
+    const literal = join(directory, '--locale');
+    writeFileSync(literal, '# Hello');
+    const result = run(['lint', '--json', '--', literal]);
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)[0].file).toBe(literal);
+  });
 });

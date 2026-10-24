@@ -17,10 +17,13 @@ The package provides `reactive-md lint`. Pass one or more document paths, or `-`
 ```sh
 reactive-md lint "my document.reactive.md" other.reactive.md
 reactive-md lint --json --warnings-as-errors document.reactive.md
+reactive-md lint --locale zh document.reactive.md
 cat document.reactive.md | reactive-md lint -
 ```
 
 Text output includes the file, line, column, severity and diagnostic code. JSON output is an array of `{ file, ok, diagnostics }` reports. Diagnostics use the compiler's original UTF-16 source ranges and one-based line/column positions. The command reads documents without changing them.
+
+`--locale en|zh` selects diagnostic messages and defaults to English. Codes, severity and locations stay identical across languages. See [Diagnostics and counting rules](diagnostics-counting-en.md) for the compatibility contract and budget units.
 
 | Exit code | Meaning |
 | --- | --- |

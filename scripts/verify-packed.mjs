@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
+import { moduleSpecifiers } from './module-specifiers.mjs';
 
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 const projectPkg = JSON.parse(await readFile(path.join(projectRoot, 'package.json'), 'utf8'));
@@ -232,6 +233,12 @@ try {
   const lint = await run('packed lint command', process.execPath,
     [path.join(installedCore, installedPkg.bin['reactive-md']), 'lint', '--json', lintFixture], coreConsumer);
   assert.deepEqual(JSON.parse(lint.stdout), [{ file: lintFixture, ok: true, diagnostics: [] }]);
+  await writeFile(lintFixture, '<future>literal fallback</future>');
+  const chineseLint = await run('packed localized lint', process.execPath,
+    [path.join(installedCore, installedPkg.bin['reactive-md']), 'lint', '--locale', 'zh', '--json', lintFixture], coreConsumer);
+  const localizedReport = JSON.parse(chineseLint.stdout)[0];
+  assert.equal(localizedReport.diagnostics[0].code, 'local.component.unknown');
+  assert.match(localizedReport.diagnostics[0].message, /[\u3400-\u9fff]/u);
   const coreTypesTarget = installedPkg.exports?.['.']?.types;
   assert.ok(
     coreTypesTarget && existsSync(path.resolve(installedCore, coreTypesTarget)),
@@ -249,10 +256,7 @@ try {
   for (const file of (await readdir(path.join(installedCore, 'dist-library')))
     .filter(name => name.endsWith('.js') && name !== 'reactive-md-react.js')) {
     const source = await readFile(path.join(installedCore, 'dist-library', file), 'utf8');
-    const imports = [
-      ...[...source.matchAll(/\b(?:from|import)\s*['"]([^'"]+)['"]/g)].map(match => match[1]),
-      ...[...source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g)].map(match => match[1]),
-    ];
+    const imports = moduleSpecifiers(source);
     for (const specifier of imports) {
       assert.ok(specifier.startsWith('.'), `${file} imports ${specifier}; the core tarball must be self-contained`);
     }
@@ -261,7 +265,7 @@ try {
   await writeFile(
     path.join(coreConsumer, 'core-api.mjs'),
     `import assert from 'node:assert/strict';
-import { compileLocal, createLocalRuntime, LOCAL_SYNTAX_VERSION, analyzeLocalSource, completeLocalSource, renameLocalBinding, formatLocalSource } from 'reactive-md';
+import { compileLocal, createLocalRuntime, LOCAL_SYNTAX_VERSION, analyzeLocalSource, completeLocalSource, renameLocalBinding, formatLocalSource, countLocalCodePoints, formatLocalDiagnostic, LOCAL_DIAGNOSTIC_CODES } from 'reactive-md';
 
 assert.equal(typeof compileLocal, 'function', 'compileLocal must be exported from the core tarball');
 assert.equal(typeof createLocalRuntime, 'function', 'createLocalRuntime must be exported from the core tarball');
@@ -277,6 +281,10 @@ assert.equal(analyzeLocalSource(source).bindings[0].name, 'n');
 assert.ok(completeLocalSource('<sli', 4).some(item => item.label === 'slider'));
 assert.match(renameLocalBinding(source, 'n', 'count').source, /count/);
 assert.ok(compileLocal(formatLocalSource(source)).ok);
+assert.equal(countLocalCodePoints('😀'), 1);
+const diagnostic = compileLocal('{{ missing }}').diagnostics[0];
+assert.ok(LOCAL_DIAGNOSTIC_CODES.includes(diagnostic.code));
+assert.notEqual(formatLocalDiagnostic(diagnostic, 'zh'), diagnostic.message);
 console.log('PASS core API without React');
 `,
   );

@@ -4,6 +4,9 @@
 
 ## 未发布
 
+- 增加统一的中英文诊断模板，同一 minor 系列内保持现有诊断码含义稳定。Playground、React 渲染器与 `lint --locale en|zh` 按语言显示诊断，保留机器字段。
+- 文本控件长度约束改为按 Unicode 码点计数，与字符串 `len()` 一致；源码定位和资源预算继续使用 UTF-16。原先因 emoji 占用两个代码单元而被拒绝的值，现在可满足对应码点上限。详见[诊断与计数规则](docs/diagnostics-counting-ch.md)。
+
 - 增加文档开头的 `<theme name="…">` 声明、宿主主题登记和 `reactive-md-theme-1` 主题协议。两个 React 组件支持独立深浅模式和系统偏好；现有外观保留为 `default`。见[主题协议](docs/theme-protocol-ch.md)。
 
 ### 0.4.0 开发预览（local-draft-2）

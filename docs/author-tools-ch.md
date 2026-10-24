@@ -17,10 +17,13 @@ npm run lint -- examples/local/planning.reactive.md
 ```sh
 reactive-md lint "my document.reactive.md" other.reactive.md
 reactive-md lint --json --warnings-as-errors document.reactive.md
+reactive-md lint --locale zh document.reactive.md
 cat document.reactive.md | reactive-md lint -
 ```
 
 文本输出包含文件、行、列、严重程度和诊断代码。JSON 输出为 `{ file, ok, diagnostics }` 报告数组。诊断沿用编译器的 UTF-16 源码范围，行列从 1 开始。检查过程保留原文件。
+
+`--locale en|zh` 选择诊断消息语言，默认英文。切换语言保留诊断码、严重程度和位置。兼容契约与预算单位见[诊断与计数规则](diagnostics-counting-ch.md)。
 
 | 退出码 | 含义 |
 | --- | --- |

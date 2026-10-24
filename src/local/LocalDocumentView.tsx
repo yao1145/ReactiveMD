@@ -30,6 +30,8 @@ import type { LocalRenderContext } from './render-types';
 import { compileLocal } from './compiler';
 import { createLocalRuntime } from './runtime';
 import { MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
+import { formatLocalDiagnostic } from './diagnostics';
+import { countLocalCodePoints } from './text-length';
 import { LatexView } from './math-view';
 import { LocalVisual } from './visuals';
 import { createHeadingAnchors } from './heading-anchors';
@@ -45,6 +47,7 @@ import {
   defaultLocalize,
   localize,
   useLocalize,
+  useLocalLocale,
   type LocalLocale,
   type Localize,
 } from './i18n';
@@ -437,6 +440,7 @@ function numericRange(
 
 function useWriter(node: LocalNode) {
   const { runtime, report } = useLocal();
+  const locale = useLocalLocale();
   const t = useLocalize();
   const [error, setError] = useState<string | null>(null);
   const write = useCallback(
@@ -444,7 +448,9 @@ function useWriter(node: LocalNode) {
       try {
         const diagnostics = runtime.set(node, value, slot);
         if (diagnostics.length) {
-          setError(diagnostics.map((item) => item.message).join('; '));
+          // Keep structured diagnostics for host callbacks; only the visible
+          // field error is localized for the current renderer locale.
+          setError(diagnostics.map((item) => formatLocalDiagnostic(item, locale)).join('; '));
           report(diagnostics);
           return false;
         }
@@ -455,7 +461,7 @@ function useWriter(node: LocalNode) {
         return false;
       }
     },
-    [node, report, runtime, t],
+    [locale, node, report, runtime, t],
   );
   /** Multi-slot writes validate every value before committing one revision. */
   const writeMany = useCallback(
@@ -463,7 +469,7 @@ function useWriter(node: LocalNode) {
       try {
         const diagnostics = runtime.setMany(node, values);
         if (diagnostics.length) {
-          setError(diagnostics.map((item) => item.message).join('; '));
+          setError(diagnostics.map((item) => formatLocalDiagnostic(item, locale)).join('; '));
           report(diagnostics);
           return false;
         }
@@ -474,7 +480,7 @@ function useWriter(node: LocalNode) {
         return false;
       }
     },
-    [node, report, runtime, t],
+    [locale, node, report, runtime, t],
   );
   return { write, writeMany, error, setError };
 }
@@ -968,7 +974,12 @@ function FieldError({ message }: { message: string | null }) {
   );
 }
 
-function textProblem(
+/**
+ * Author-facing length validation. The defensive resource limit stays in
+ * UTF-16 units (`value.length`), but `min-length`/`max-length` are code-point
+ * counts, matching `len()` and the runtime write validator.
+ */
+export function textProblem(
   value: string,
   options: {
     required: boolean;
@@ -990,7 +1001,7 @@ function textProblem(
   if (options.email && value !== '' && !isLocalEmail(value)) {
     return t('Enter a valid email address', '请输入有效的邮箱地址');
   }
-  const length = value.length;
+  const length = countLocalCodePoints(value);
   if (options.minLength !== undefined && options.minLength > 0 && value !== '' && length < options.minLength) {
     return t(`At least ${options.minLength} characters`, `至少需要 ${options.minLength} 个字符`);
   }
@@ -1045,6 +1056,9 @@ function InputView({ node }: LocalComponentProps) {
     setError(null);
   });
 
+  // Native minLength/maxLength count UTF-16 units and would reject a single
+  // astral code point at max-length="1"; textProblem validates code points on
+  // every change instead.
   const problemFor = (value: string) =>
     textProblem(value, { required, minLength, maxLength, email }, t);
 
@@ -1061,8 +1075,6 @@ function InputView({ node }: LocalComponentProps) {
         placeholder={placeholder || undefined}
         disabled={disabled}
         required={required}
-        minLength={minLength}
-        maxLength={maxLength}
         aria-invalid={draftError || error ? true : undefined}
         onFocus={() => setFocused(true)}
         onBlur={() => {
@@ -1139,6 +1151,8 @@ function TextareaView({ node }: LocalComponentProps) {
     setError(null);
   });
 
+  // Code-point limits are enforced by textProblem, not the native UTF-16
+  // minLength/maxLength attributes.
   const problemFor = (value: string) =>
     textProblem(value, { required, minLength, maxLength }, t);
 
@@ -1155,8 +1169,6 @@ function TextareaView({ node }: LocalComponentProps) {
         placeholder={placeholder || undefined}
         disabled={disabled}
         required={required}
-        minLength={minLength}
-        maxLength={maxLength}
         aria-invalid={draftError || error ? true : undefined}
         onFocus={() => setFocused(true)}
         onBlur={() => {
@@ -1808,6 +1820,7 @@ function CounterView({ node }: LocalComponentProps) {
 
 function TimerView({ node, visible }: LocalComponentProps) {
   const { runtime } = useLocal();
+  const locale = useLocalLocale();
   const t = useLocalize();
   const label = textAttr(runtime, node, 'label', t('Timer', '计时器'), t);
   const durationRaw = numberAttr(runtime, node, 'duration', 60);
@@ -1829,13 +1842,13 @@ function TimerView({ node, visible }: LocalComponentProps) {
       try {
         const diagnostics = runtime.set(node, seconds);
         if (diagnostics.length) {
-          setError(diagnostics.map((item) => item.message).join('; '));
+          setError(diagnostics.map((item) => formatLocalDiagnostic(item, locale)).join('; '));
         }
       } catch {
         /* A disposed runtime cannot accept more ticks. */
       }
     },
-    [node, runtime],
+    [locale, node, runtime],
   );
 
   useEffect(() => {
@@ -3452,7 +3465,7 @@ export function LocalReactiveDocument({
           <ul className="local-inactive-list">
             {result.diagnostics.map((diagnostic, index) => (
               <li key={`${diagnostic.code}-${index}`}>
-                {diagnostic.message}
+                {formatLocalDiagnostic(diagnostic, locale)}
                 {localize(
                   locale,
                   ` (line ${diagnostic.line}, column ${diagnostic.column})`,

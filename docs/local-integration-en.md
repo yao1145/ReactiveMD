@@ -46,7 +46,7 @@ export function Article() {
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | Created by the host, which is responsible for disposal |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | Both | Receives compile diagnostics and runtime diagnostics when control writes are rejected |
 | `urlPolicy` | `(url: string, kind: 'image' \| 'link') => boolean` | Both | Decides whether to allow an image or link after protocol checks |
-| `locale` | `'en' \| 'zh'` | Both | Language for built-in labels and controls; defaults to `'en'`. Compiler and runtime diagnostic messages remain English |
+| `locale` | `'en' \| 'zh'` | Both | Language for built-in labels, controls and displayed diagnostics; defaults to `'en'`. Callbacks keep structured diagnostics |
 | `themes` | `readonly LocalThemeDefinition[]` | Both | Host registrations; CSS loads separately; built-in `default` is always available |
 | `colorScheme` | `'light' \| 'dark' \| 'auto'` | Both | Defaults to `auto`, following the nearest explicit ancestor preference or the system |
 

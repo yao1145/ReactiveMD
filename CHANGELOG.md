@@ -4,6 +4,9 @@ This file records user-visible changes. The project is in a 0.x preview; version
 
 ## Unreleased
 
+- Add a shared English/Chinese diagnostic catalogue and stable code meanings within a minor series. The Playground, React renderer and `lint --locale en|zh` localize displayed diagnostics while preserving machine fields.
+- Make text-control length constraints count Unicode code points, matching string `len()`. Source positions and resource budgets keep UTF-16 units. Existing emoji values may now satisfy limits that previously rejected them. See [Diagnostics and counting rules](docs/diagnostics-counting-en.md).
+
 - Add leading `<theme name="…">` declarations, host theme registration and the `reactive-md-theme-1` protocol. Both React components support independent color schemes and system preferences; `default` preserves the existing design. See the [theme protocol](docs/theme-protocol-en.md).
 
 ### 0.4.0 development preview (local-draft-2)

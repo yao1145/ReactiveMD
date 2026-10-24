@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
   type UIEvent,
 } from 'react';
-import type { Diagnostic, LocalRuntime, SourceRange } from 'reactive-md';
+import { formatLocalDiagnostic, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
 import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
 import { AuthorTools } from './author-tools';
 import type { EditorEdit, EditorSelection } from './editor-commands';
@@ -159,6 +159,7 @@ interface DiagnosticListProps {
 
 function DiagnosticList({ diagnostics, focusDiagnostic, emptyText }: DiagnosticListProps) {
   const copy = useCopy().editor;
+  const language = useLanguage();
   if (diagnostics.length === 0) {
     return emptyText ? <p className="diagnostic-empty">{emptyText}</p> : null;
   }
@@ -175,7 +176,7 @@ function DiagnosticList({ diagnostics, focusDiagnostic, emptyText }: DiagnosticL
             <span className={`diag-severity diag-${diagnostic.severity === 'warning' ? 'warning' : 'error'}`}>
               {diagnostic.severity === 'warning' ? copy.warning : copy.error}
             </span>
-            <span className="diag-message">{diagnostic.message}</span>
+            <span className="diag-message">{formatLocalDiagnostic(diagnostic, language)}</span>
             <span className="diag-position">{copy.position(diagnostic.line, diagnostic.column)}</span>
           </button>
         </li>

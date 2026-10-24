@@ -46,7 +46,7 @@ export function Article() {
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | 宿主创建并负责销毁 |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | 两者 | 接收编译诊断和控件写入被拒绝时的运行时诊断 |
 | `urlPolicy` | `(url: string, kind: 'image' \| 'link') => boolean` | 两者 | 在协议检查之后决定是否放行图片或链接 |
-| `locale` | `'en' \| 'zh'` | 两者 | 内置控件和标签的语言，默认 `'en'`；编译与运行时诊断消息仍为英文 |
+| `locale` | `'en' \| 'zh'` | 两者 | 内置控件、标签和诊断显示的语言，默认 `'en'`；回调保留原始结构化诊断 |
 | `themes` | `readonly LocalThemeDefinition[]` | 两者 | 宿主登记的主题；CSS 单独加载，内置 `default` 始终可用 |
 | `colorScheme` | `'light' \| 'dark' \| 'auto'` | 两者 | 默认 `auto`，跟随最近祖先的显式模式或系统偏好 |
 

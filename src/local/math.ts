@@ -84,14 +84,20 @@ interface Token {
   offset: number;
 }
 
+/** LaTeX source, in UTF-16 code units, per formula. */
 const MAX_SOURCE = 50_000;
+/** Tokens and AST nodes created while parsing one formula. */
 const MAX_TOKENS = 20_000;
 const MAX_NODES = 5_000;
+/** Parser call depth for one formula. */
 const MAX_DEPTH = 120;
+/** Node visits (default per evaluation; a caller may supply a shared budget) and evaluation depth. */
 const MAX_EVAL_STEPS = 20_000;
 const MAX_EVAL_DEPTH = 1_000;
+/** Sample points per curve, including endpoints. */
 const MAX_SAMPLES = 2_000;
 const MAX_REFINE_DEPTH = 5;
+/** Minimum node-visit allowance for one curve sampling call. */
 const MIN_PLOT_STEPS = 1_000_000;
 
 const SKIPPED_COMMANDS = new Set([

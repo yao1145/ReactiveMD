@@ -4,6 +4,8 @@ Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with 
 
 ## 1. Positioning and scope
 
+See [Diagnostics and counting rules](diagnostics-counting-en.md) for source positions, text lengths and resource units. String `len()` and text-control length constraints count Unicode code points.
+
 Reactive MD is for local interactive documents: authors write Markdown and place input controls; when readers adjust parameters, related text, formulas, charts and diagrams update immediately.
 
 The base language requires only two connection rules: `bind` names an input, and `{{ expression }}` reads it elsewhere. Components handle their own selection, expansion, search, sorting, timing and reset.
