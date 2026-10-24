@@ -1,6 +1,9 @@
 import type { Diagnostic } from './types';
 import { isLocalColor } from './colors';
 import { localDateTimestamp } from './dates';
+
+import { localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
+import { countLocalCodePoints } from './text-length';
 import { compileExpression, LocalExpressionError, RESERVED_NAMES, type LocalExpression } from './expression';
 import {
   resolveComputationGraph,
@@ -235,7 +238,13 @@ interface CompileState {
   source: string;
   lineStarts: number[];
   nodes: LocalNode[];
-  report: (code: string, message: string, start: number, end?: number) => void;
+  report: (
+    code: string,
+    message: string,
+    start: number,
+    end?: number,
+    details?: LocalDiagnosticDetails,
+  ) => void;
   entries: Entry[];
   attrs: Map<string, AttrMap>;
   options: Map<string, string[]>;
@@ -262,7 +271,13 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   for (let index = 0; index < source.length; index += 1) {
     if (source[index] === '\n') lineStarts.push(index + 1);
   }
-  const report = (code: string, message: string, start: number, end = start + 1) => {
+  const report = (
+    code: string,
+    message: string,
+    start: number,
+    end = start + 1,
+    details?: LocalDiagnosticDetails,
+  ) => {
     if (diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) {
       // Parser warnings can fill the budget first; a real error still needs to
       // be visible, so replace the newest disposable warning.
@@ -280,6 +295,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
       if (lineStarts[middle] <= safeStart) low = middle;
       else high = middle - 1;
     }
+    const bounded = localDiagnosticDetails(details?.key ?? code, details?.params);
     diagnostics.push({
       code,
       message: message.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
@@ -289,6 +305,8 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
       range: { start: safeStart, end: safeEnd },
       line: low + 1,
       column: safeStart - lineStarts[low] + 1,
+      messageKey: bounded.key,
+      ...(bounded.params ? { params: bounded.params } : {}),
     });
   };
 
@@ -296,7 +314,10 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   try {
     parsed = parseLocal(source, options);
   } catch (error) {
-    report('local.parse', `Cannot parse document: ${error instanceof Error ? error.message : String(error)}`, 0);
+    report('local.parse', `Cannot parse document: ${error instanceof Error ? error.message : String(error)}`, 0, undefined, {
+      key: 'local.parse.document',
+      params: { detail: error instanceof Error ? error.message : String(error) },
+    });
     return { ok: false, diagnostics };
   }
   diagnostics.push(...parsed.diagnostics);
@@ -310,6 +331,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
       'Legacy reactive-md configuration fences (state/data/computed/actions, etc.) are not part of the local interaction syntax; select legacy mode explicitly in the host.',
       code.range.start,
       code.range.end,
+      { key: 'local.legacy' },
     );
   }
 
@@ -411,6 +433,10 @@ function collectEntries(nodes: LocalNode[], parent: Entry | null, out: Entry[], 
           `Unknown component <${node.name}>. ${suggestion ? `Did you mean <${suggestion}>?` : 'This mode only accepts local interaction components.'}`,
           node.range.start,
           node.range.end,
+          {
+            key: suggestion ? 'local.component.unknown.suggestion' : 'local.component.unknown',
+            params: suggestion ? { name: node.name, suggestion } : { name: node.name },
+          },
         );
       }
     }
@@ -457,6 +483,10 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
         `Component <${entry.name}> does not support attribute ${name}.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
         offset,
         offset + name.length,
+        {
+          key: suggestion ? 'local.attribute.unknown.suggestion' : 'local.attribute.unknown',
+          params: suggestion ? { component: entry.name, name, suggestion } : { component: entry.name, name },
+        },
       );
       continue;
     }
@@ -467,6 +497,7 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
         `Attribute ${name} on component <${entry.name}> exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`,
         offset,
         offset + name.length,
+        { key: 'local.budget.attribute', params: { name, component: entry.name, limit: MAX_LOCAL_STRING_LENGTH } },
       );
       info.raw = raw.slice(0, MAX_LOCAL_STRING_LENGTH);
     }
@@ -479,6 +510,7 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
           `Attribute ${name} on component <${entry.name}> must be a standard CSS named color or #RGB/#RRGGBB, got "${info.raw}".`,
           offset,
           offset + name.length,
+          { key: 'local.attribute.color', params: { name, component: entry.name, value: info.raw } },
         );
       }
     }
@@ -491,14 +523,15 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
         `Component <${entry.name}> is missing required attribute ${name}.`,
         entry.node.range.start,
         entry.node.range.end,
+        { key: 'local.attribute.required', params: { component: entry.name, name } },
       );
     }
   }
   if (entry.schema.label === 'required') {
     if (!Object.hasOwn(attrs, 'label')) {
-      state.report('local.label.required', `Component <${entry.name}> requires a label.`, entry.node.range.start, entry.node.range.end);
+      state.report('local.label.required', `Component <${entry.name}> requires a label.`, entry.node.range.start, entry.node.range.end, { key: 'local.label.required.missing', params: { component: entry.name } });
     } else if (!String(attrs.label.raw).trim()) {
-      state.report('local.label.required', `Component <${entry.name}> label cannot be empty.`, attrs.label.offset);
+      state.report('local.label.required', `Component <${entry.name}> label cannot be empty.`, attrs.label.offset, undefined, { key: 'local.label.required.empty', params: { component: entry.name } });
     }
   }
   return attrs;
@@ -520,6 +553,7 @@ function validatePropValue(
           `Attribute ${name} is static and cannot contain interpolations.`,
           info.offset,
           info.offset + info.raw.length,
+          { key: 'local.attribute.static', params: { name } },
         );
       }
     }
@@ -534,7 +568,7 @@ function validatePropValue(
       info.expression = full.expression;
       info.expressionOffset = info.offset + full.start;
       if (!full.expression) {
-        state.report('local.expression.empty', `Attribute ${name} interpolation cannot be empty.`, info.expressionOffset);
+        state.report('local.expression.empty', `Attribute ${name} interpolation cannot be empty.`, info.expressionOffset, undefined, { key: 'local.expression.empty.attribute', params: { name } });
       }
       return;
     }
@@ -545,20 +579,21 @@ function validatePropValue(
         `Attribute ${name} requires a number${prop.dynamic ? ' or a full number interpolation' : ''}, got "${info.raw}".`,
         info.offset,
         info.offset + info.raw.length,
+        { key: prop.dynamic ? 'local.attribute.type.number-interpolation' : 'local.attribute.type.number', params: { name, value: info.raw } },
       );
       return;
     }
     if (prop.integer && !Number.isInteger(value)) {
-      state.report('local.attribute.type', `Attribute ${name} requires an integer.`, info.offset);
+      state.report('local.attribute.type', `Attribute ${name} requires an integer.`, info.offset, undefined, { key: 'local.attribute.type.integer', params: { name } });
     }
     if (prop.positive && !(value > 0)) {
-      state.report('local.attribute.type', `Attribute ${name} requires a positive number.`, info.offset);
+      state.report('local.attribute.type', `Attribute ${name} requires a positive number.`, info.offset, undefined, { key: 'local.attribute.type.positive', params: { name } });
     }
     if (prop.min !== undefined && value < prop.min) {
-      state.report('local.attribute.range', `Attribute ${name} must be at least ${prop.min}.`, info.offset);
+      state.report('local.attribute.range', `Attribute ${name} must be at least ${prop.min}.`, info.offset, undefined, { key: 'local.attribute.range.min', params: { name, min: prop.min } });
     }
     if (prop.max !== undefined && value > prop.max) {
-      state.report('local.attribute.range', `Attribute ${name} must be at most ${prop.max}.`, info.offset);
+      state.report('local.attribute.range', `Attribute ${name} must be at most ${prop.max}.`, info.offset, undefined, { key: 'local.attribute.range.max', params: { name, max: prop.max } });
     }
     info.value = value;
     return;
@@ -571,7 +606,7 @@ function validatePropValue(
       info.expression = full.expression;
       info.expressionOffset = info.offset + full.start;
       if (!full.expression) {
-        state.report('local.expression.empty', `Attribute ${name} interpolation cannot be empty.`, info.expressionOffset);
+        state.report('local.expression.empty', `Attribute ${name} interpolation cannot be empty.`, info.expressionOffset, undefined, { key: 'local.expression.empty.attribute', params: { name } });
       }
       return;
     }
@@ -584,6 +619,7 @@ function validatePropValue(
       `Attribute ${name} requires true or false${prop.dynamic ? ', or a full boolean interpolation' : ''}.`,
       info.offset,
       info.offset + info.raw.length,
+      { key: prop.dynamic ? 'local.attribute.type.boolean-interpolation' : 'local.attribute.type.boolean', params: { name } },
     );
     return;
   }
@@ -595,7 +631,7 @@ function validatePropValue(
     info.expression = full.expression;
     info.expressionOffset = info.offset + full.start;
     if (!full.expression) {
-      state.report('local.expression.empty', `Attribute ${name} interpolation cannot be empty.`, info.expressionOffset);
+      state.report('local.expression.empty', `Attribute ${name} interpolation cannot be empty.`, info.expressionOffset, undefined, { key: 'local.expression.empty.attribute', params: { name } });
     }
     return;
   }
@@ -606,6 +642,7 @@ function validatePropValue(
       `Attribute ${name} must be one of ${values.join(' / ')}, got "${info.raw}".`,
       info.offset,
       info.offset + info.raw.length,
+      { key: 'local.attribute.type.enum', params: { name, values: values.join(' / '), value: info.raw } },
     );
     return;
   }
@@ -628,10 +665,10 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
     const max = numberValue(entry, attrs, 'max');
     const step = numberValue(entry, attrs, 'step');
     if (min !== undefined && max !== undefined && min > max) {
-      report('local.constraint', `Component <${entry.name}> min cannot exceed max.`, attrs.min?.offset ?? entry.node.range.start);
+      report('local.constraint', `Component <${entry.name}> min cannot exceed max.`, attrs.min?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.number-min-max', params: { component: entry.name } });
     }
     if (step !== undefined && !(step > 0)) {
-      report('local.constraint', `Component <${entry.name}> step must be greater than 0.`, attrs.step?.offset ?? entry.node.range.start);
+      report('local.constraint', `Component <${entry.name}> step must be greater than 0.`, attrs.step?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.number-step', params: { component: entry.name } });
     }
   }
 
@@ -639,7 +676,7 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
     const minimum = numberValue(entry, attrs, 'min-length') ?? 0;
     const maximum = numberValue(entry, attrs, 'max-length');
     if (maximum !== undefined && maximum < minimum) {
-      report('local.constraint', 'max-length cannot be less than min-length.', attrs['max-length']?.offset ?? entry.node.range.start);
+      report('local.constraint', 'max-length cannot be less than min-length.', attrs['max-length']?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.length-order' });
     }
   }
 
@@ -647,13 +684,13 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
     const min = typeof attrs.min?.value === 'string' ? attrs.min.value : undefined;
     const max = typeof attrs.max?.value === 'string' ? attrs.max.value : undefined;
     if (min !== undefined && !isValidDate(min)) {
-      report('local.attribute.type', `Date lower bound ${min} is not a valid YYYY-MM-DD.`, attrs.min?.offset ?? entry.node.range.start);
+      report('local.attribute.type', `Date lower bound ${min} is not a valid YYYY-MM-DD.`, attrs.min?.offset ?? entry.node.range.start, undefined, { key: 'local.attribute.type.date-lower', params: { value: min } });
     }
     if (max !== undefined && !isValidDate(max)) {
-      report('local.attribute.type', `Date upper bound ${max} is not a valid YYYY-MM-DD.`, attrs.max?.offset ?? entry.node.range.start);
+      report('local.attribute.type', `Date upper bound ${max} is not a valid YYYY-MM-DD.`, attrs.max?.offset ?? entry.node.range.start, undefined, { key: 'local.attribute.type.date-upper', params: { value: max } });
     }
     if (min && max && min > max) {
-      report('local.constraint', 'Date min cannot be later than max.', attrs.min?.offset ?? entry.node.range.start);
+      report('local.constraint', 'Date min cannot be later than max.', attrs.min?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.date-order' });
     }
   }
 
@@ -666,6 +703,8 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
           'local.constraint',
           `progress value must be between 0 and ${max}, got ${value.value}.`,
           value.offset,
+          undefined,
+          { key: 'local.constraint.progress-range', params: { max, value: value.value } },
         );
       }
     }
@@ -675,14 +714,14 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
     const min = numberValue(entry, attrs, 'min');
     const max = numberValue(entry, attrs, 'max');
     if (min !== undefined && max !== undefined && !(min < max)) {
-      report('local.constraint', 'plot min must be less than max.', attrs.min?.offset ?? entry.node.range.start);
+      report('local.constraint', 'plot min must be less than max.', attrs.min?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.plot-range' });
     }
   }
 
   if (entry.name === 'timer') {
     const duration = numberValue(entry, attrs, 'duration') ?? 60;
     if (!Number.isInteger(duration) || duration <= 0) {
-      report('local.constraint', 'timer duration must be a positive whole number of seconds.', attrs.duration?.offset ?? entry.node.range.start);
+      report('local.constraint', 'timer duration must be a positive whole number of seconds.', attrs.duration?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.timer-duration' });
     }
   }
 
@@ -691,10 +730,10 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
     const max = numberValue(entry, attrs, 'max') ?? 100;
     const step = numberValue(entry, attrs, 'step') ?? 1;
     if (!(min <= max)) {
-      report('local.constraint', 'range-slider min cannot exceed max.', attrs.min?.offset ?? entry.node.range.start);
+      report('local.constraint', 'range-slider min cannot exceed max.', attrs.min?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.range-slider-min-max' });
     }
     if (!(step > 0) || !Number.isFinite(step)) {
-      report('local.constraint', 'range-slider step must be a finite positive number.', attrs.step?.offset ?? entry.node.range.start);
+      report('local.constraint', 'range-slider step must be a finite positive number.', attrs.step?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.range-slider-step' });
     }
   }
 
@@ -703,19 +742,19 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
       const min = numberValue(entry, attrs, `${axis}-min`) ?? -5;
       const max = numberValue(entry, attrs, `${axis}-max`) ?? 5;
       if (!(min <= max)) {
-        report('local.constraint', `coordinate ${axis}-min cannot exceed ${axis}-max.`, attrs[`${axis}-min`]?.offset ?? entry.node.range.start);
+        report('local.constraint', `coordinate ${axis}-min cannot exceed ${axis}-max.`, attrs[`${axis}-min`]?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.coordinate-axis', params: { axis } });
       }
     }
     const step = numberValue(entry, attrs, 'step') ?? 1;
     if (!(step > 0) || !Number.isFinite(step)) {
-      report('local.constraint', 'coordinate step must be a finite positive number.', attrs.step?.offset ?? entry.node.range.start);
+      report('local.constraint', 'coordinate step must be a finite positive number.', attrs.step?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.coordinate-step' });
     }
   }
 
   if (entry.name === 'multi-select') {
     const maxSelected = numberValue(entry, attrs, 'max-selected');
     if (maxSelected !== undefined && (!Number.isInteger(maxSelected) || maxSelected < 0)) {
-      report('local.constraint', 'multi-select max-selected must be a nonnegative whole number.', attrs['max-selected']?.offset ?? entry.node.range.start);
+      report('local.constraint', 'multi-select max-selected must be a nonnegative whole number.', attrs['max-selected']?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.multi-select' });
     }
   }
 
@@ -727,6 +766,8 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
             'local.selection.key',
             `<${entry.name}> ${name} requires a key attribute naming the selection column.`,
             attrs[name].offset,
+            undefined,
+            { key: 'local.selection.key.required', params: { component: entry.name, name } },
           );
         }
       }
@@ -763,6 +804,7 @@ function validateChildren(entry: Entry, state: CompileState): void {
         `<${entry.name}> can only appear directly inside ${entry.schema.parent.map((name) => `<${name}>`).join(' or ')}.`,
         entry.node.range.start,
         entry.node.range.end,
+        { key: 'local.structure.parent', params: { name: entry.name, parents: entry.schema.parent.map((name) => `<${name}>`).join(' / ') } },
       );
     }
   }
@@ -770,7 +812,7 @@ function validateChildren(entry: Entry, state: CompileState): void {
   switch (rule) {
     case 'none':
       if (kids.length) {
-        report('local.structure.children', `<${entry.name}> does not accept body content.`, kids[0].range.start, kids[0].range.end);
+        report('local.structure.children', `<${entry.name}> does not accept body content.`, kids[0].range.start, kids[0].range.end, { key: 'local.structure.no-body', params: { name: entry.name } });
       }
       break;
     case 'inline':
@@ -779,12 +821,12 @@ function validateChildren(entry: Entry, state: CompileState): void {
         const isInline = (node: LocalNode): boolean => inlineTypes.has(node.type) && (node.children ?? []).every(isInline);
         const body = kids.length === 1 && kids[0].type === 'paragraph' ? kids[0].children ?? [] : kids;
         if (!body.every(isInline)) {
-          report('local.structure.children', `<${entry.name}> only accepts inline Markdown.`, entry.node.range.start, entry.node.range.end);
+          report('local.structure.children', `<${entry.name}> only accepts inline Markdown.`, entry.node.range.start, entry.node.range.end, { key: 'local.structure.inline-only', params: { name: entry.name } });
         }
       }
       for (const child of kids) {
         if (hasComponent(child)) {
-          report('local.structure.children', `The body of <${entry.name}> cannot contain other interactive components.`, child.range.start, child.range.end);
+          report('local.structure.children', `The body of <${entry.name}> cannot contain other interactive components.`, child.range.start, child.range.end, { key: 'local.structure.no-nested-components', params: { name: entry.name } });
         }
       }
       break;
@@ -803,13 +845,13 @@ function validateChildren(entry: Entry, state: CompileState): void {
       const children = componentChildren(entry);
       const allowed = children.filter((child) => child.name === 'disclosure');
       if (!allowed.length) {
-        report('local.structure.children', '<accordion> requires at least one <disclosure>.', entry.node.range.start, entry.node.range.end);
+        report('local.structure.children', '<accordion> requires at least one <disclosure>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.accordion.needs-disclosure' });
       }
       if (allowed.length !== children.length) {
-        for (const child of children) if (child.name !== 'disclosure') report('local.structure.children', '<accordion> can only contain <disclosure>.', child.node.range.start, child.node.range.end);
+        for (const child of children) if (child.name !== 'disclosure') report('local.structure.children', '<accordion> can only contain <disclosure>.', child.node.range.start, child.node.range.end, { key: 'local.structure.accordion.only-disclosure' });
       }
       if (kids.some((kid) => kid.type !== 'component')) {
-        report('local.structure.children', '<accordion> can only contain <disclosure>.', entry.node.range.start, entry.node.range.end);
+        report('local.structure.children', '<accordion> can only contain <disclosure>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.accordion.only-disclosure' });
       }
       break;
     }
@@ -817,13 +859,13 @@ function validateChildren(entry: Entry, state: CompileState): void {
       const children = componentChildren(entry);
       const allowed = children.filter((child) => child.name === 'card');
       if (!allowed.length) {
-        report('local.structure.children', '<grid> requires at least one <card>.', entry.node.range.start, entry.node.range.end);
+        report('local.structure.children', '<grid> requires at least one <card>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.grid.needs-card' });
       }
       if (allowed.length !== children.length) {
-        for (const child of children) if (child.name !== 'card') report('local.structure.children', 'Direct children of <grid> must be <card>.', child.node.range.start, child.node.range.end);
+        for (const child of children) if (child.name !== 'card') report('local.structure.children', 'Direct children of <grid> must be <card>.', child.node.range.start, child.node.range.end, { key: 'local.structure.grid.only-card' });
       }
       if (kids.some((kid) => kid.type !== 'component')) {
-        report('local.structure.children', 'Direct children of <grid> must be <card>.', entry.node.range.start, entry.node.range.end);
+        report('local.structure.children', 'Direct children of <grid> must be <card>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.grid.only-card' });
       }
       break;
     }
@@ -838,6 +880,7 @@ function validateChildren(entry: Entry, state: CompileState): void {
           `The body of <${entry.name}> must be exactly one Markdown table.`,
           entry.node.range.start,
           entry.node.range.end,
+          { key: 'local.structure.table.single', params: { name: entry.name } },
         );
       }
       if (tables.length) state.tables.set(entry.node.id, tables[0]);
@@ -847,11 +890,11 @@ function validateChildren(entry: Entry, state: CompileState): void {
     case 'plot': {
       const mathNodes = kids.filter((kid) => kid.type === 'math');
       if (!mathNodes.length) {
-        report('local.structure.children', '<plot> requires at least one $$...$$ formula block.', entry.node.range.start, entry.node.range.end);
+        report('local.structure.children', '<plot> requires at least one $$...$$ formula block.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.plot.needs-formula' });
       }
       for (const kid of kids) {
         if (kid.type !== 'math') {
-          report('local.structure.children', 'The body of <plot> can only contain blank lines and $$...$$ formula blocks.', kid.range.start, kid.range.end);
+          report('local.structure.children', 'The body of <plot> can only contain blank lines and $$...$$ formula blocks.', kid.range.start, kid.range.end, { key: 'local.structure.plot.only-formulas' });
         }
       }
       break;
@@ -898,6 +941,7 @@ function validateNodeContent(entry: Entry, state: CompileState): void {
           'The description of <node> cannot contain interactive components.',
           node.range.start,
           node.range.end,
+          { key: 'local.structure.node.no-components' },
         );
         continue;
       }
@@ -916,15 +960,16 @@ function validateOptions(entry: Entry, state: CompileState, attrs: AttrMap): voi
       `<${entry.name}> requires at least one <option value="...">.`,
       entry.node.range.start,
       entry.node.range.end,
+      { key: 'local.structure.options.needed', params: { name: entry.name } },
     );
   }
   for (const child of children) {
     if (child.name !== 'option') {
-      state.report('local.structure.children', `<${entry.name}> can only contain <option>.`, child.node.range.start, child.node.range.end);
+      state.report('local.structure.children', `<${entry.name}> can only contain <option>.`, child.node.range.start, child.node.range.end, { key: 'local.structure.options.only', params: { name: entry.name } });
     }
   }
   if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', `<${entry.name}> can only contain <option>.`, entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', `<${entry.name}> can only contain <option>.`, entry.node.range.start, entry.node.range.end, { key: 'local.structure.options.only', params: { name: entry.name } });
   }
   if (options.length > MAX_LOCAL_ARRAY_LENGTH) {
     state.report(
@@ -932,6 +977,7 @@ function validateOptions(entry: Entry, state: CompileState, attrs: AttrMap): voi
       `<${entry.name}> options exceed the limit of ${MAX_LOCAL_ARRAY_LENGTH}.`,
       entry.node.range.start,
       entry.node.range.end,
+      { key: 'local.budget.array.options', params: { name: entry.name, limit: MAX_LOCAL_ARRAY_LENGTH } },
     );
   }
   const values: string[] = [];
@@ -939,7 +985,7 @@ function validateOptions(entry: Entry, state: CompileState, attrs: AttrMap): voi
     const optionAttrs = state.attrs.get(option.node.id) ?? {};
     const value = typeof optionAttrs.value?.value === 'string' ? optionAttrs.value.value : '';
     if (!value) {
-      state.report('local.option.value', '<option> requires a non-empty value.', option.node.range.start, option.node.range.end);
+      state.report('local.option.value', '<option> requires a non-empty value.', option.node.range.start, option.node.range.end, { key: 'local.option.value.required' });
       continue;
     }
     if (entry.name === 'multi-select' && value.includes(',')) {
@@ -948,15 +994,16 @@ function validateOptions(entry: Entry, state: CompileState, attrs: AttrMap): voi
         `<multi-select> option values cannot contain commas: "${value}".`,
         option.node.range.start,
         option.node.range.end,
+        { key: 'local.option.value.comma', params: { value } },
       );
       continue;
     }
     if (values.includes(value)) {
-      state.report('local.option.value', `Option values in <${entry.name}> must be unique; duplicate value "${value}".`, option.node.range.start, option.node.range.end);
+      state.report('local.option.value', `Option values in <${entry.name}> must be unique; duplicate value "${value}".`, option.node.range.start, option.node.range.end, { key: 'local.option.value.duplicate', params: { name: entry.name, value } });
       continue;
     }
     if ((option.node.children ?? []).some(hasComponent)) {
-      state.report('local.structure.children', 'The body of <option> cannot contain interactive components.', option.node.range.start, option.node.range.end);
+      state.report('local.structure.children', 'The body of <option> cannot contain interactive components.', option.node.range.start, option.node.range.end, { key: 'local.structure.option.no-components' });
     }
     values.push(value);
   }
@@ -967,15 +1014,15 @@ function validateTabs(entry: Entry, state: CompileState): void {
   const children = componentChildren(entry);
   const tabs = children.filter((child) => child.name === 'tab');
   if (!tabs.length) {
-    state.report('local.structure.children', '<tabs> requires at least one <tab>.', entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', '<tabs> requires at least one <tab>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.tabs.needs-tab' });
   }
   for (const child of children) {
     if (child.name !== 'tab') {
-      state.report('local.structure.children', '<tabs> can only contain <tab>.', child.node.range.start, child.node.range.end);
+      state.report('local.structure.children', '<tabs> can only contain <tab>.', child.node.range.start, child.node.range.end, { key: 'local.structure.tabs.only-tab' });
     }
   }
   if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', '<tabs> can only contain <tab>.', entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', '<tabs> can only contain <tab>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.tabs.only-tab' });
   }
   const values: string[] = [];
   tabs.forEach((tab, index) => {
@@ -983,7 +1030,7 @@ function validateTabs(entry: Entry, state: CompileState): void {
     const rawValue = typeof tabAttrs.value?.value === 'string' ? tabAttrs.value.value.trim() : '';
     const value = rawValue || `tab-${index + 1}`;
     if (values.includes(value)) {
-      state.report('local.tab.value', `Tab values in <tabs> must be unique; duplicate value "${value}".`, tab.node.range.start, tab.node.range.end);
+      state.report('local.tab.value', `Tab values in <tabs> must be unique; duplicate value "${value}".`, tab.node.range.start, tab.node.range.end, { key: 'local.tab.value.duplicate', params: { value } });
       return;
     }
     values.push(value);
@@ -995,15 +1042,15 @@ function validateSteps(entry: Entry, state: CompileState): void {
   const children = componentChildren(entry);
   const steps = children.filter((child) => child.name === 'step');
   if (!steps.length) {
-    state.report('local.structure.children', '<steps> requires at least one <step>.', entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', '<steps> requires at least one <step>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.steps.needs-step' });
   }
   for (const child of children) {
     if (child.name !== 'step') {
-      state.report('local.structure.children', '<steps> can only contain <step>.', child.node.range.start, child.node.range.end);
+      state.report('local.structure.children', '<steps> can only contain <step>.', child.node.range.start, child.node.range.end, { key: 'local.structure.steps.only-step' });
     }
   }
   if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', '<steps> can only contain <step>.', entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', '<steps> can only contain <step>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.steps.only-step' });
   }
   const values: string[] = [];
   steps.forEach((step, index) => {
@@ -1011,7 +1058,7 @@ function validateSteps(entry: Entry, state: CompileState): void {
     const rawValue = typeof stepAttrs.value?.value === 'string' ? stepAttrs.value.value.trim() : '';
     const value = rawValue || `step-${index + 1}`;
     if (values.includes(value)) {
-      state.report('local.step.value', `Step values in <steps> must be unique; duplicate value "${value}".`, step.node.range.start, step.node.range.end);
+      state.report('local.step.value', `Step values in <steps> must be unique; duplicate value "${value}".`, step.node.range.start, step.node.range.end, { key: 'local.step.value.duplicate', params: { value } });
       return;
     }
     values.push(value);
@@ -1023,7 +1070,7 @@ function validateQuiz(entry: Entry, state: CompileState, attrs: AttrMap): void {
   const type = typeof attrs.type?.value === 'string' ? attrs.type.value : 'choice';
   const answer = typeof attrs.answer?.value === 'string' ? attrs.answer.value : '';
   if (!answer.trim()) {
-    state.report('local.quiz.answer', '<quiz> requires a non-empty answer.', attrs.answer?.offset ?? entry.node.range.start);
+    state.report('local.quiz.answer', '<quiz> requires a non-empty answer.', attrs.answer?.offset ?? entry.node.range.start, undefined, { key: 'local.quiz.answer.required' });
   }
   if (type === 'number') {
     if (meaningful(entry.node.children).length) {
@@ -1032,14 +1079,15 @@ function validateQuiz(entry: Entry, state: CompileState, attrs: AttrMap): void {
         'A numeric <quiz> cannot have body content; use type="choice" for option-based quizzes.',
         entry.node.range.start,
         entry.node.range.end,
+        { key: 'local.structure.quiz.numeric-no-body' },
       );
     }
     if (answer.trim() && parseNumberText(answer) === null) {
-      state.report('local.quiz.answer', 'A numeric <quiz> answer must be a finite number.', attrs.answer?.offset ?? entry.node.range.start);
+      state.report('local.quiz.answer', 'A numeric <quiz> answer must be a finite number.', attrs.answer?.offset ?? entry.node.range.start, undefined, { key: 'local.quiz.answer.numeric' });
     }
     const tolerance = numberValue(entry, attrs, 'tolerance');
     if (tolerance !== undefined && (!Number.isFinite(tolerance) || tolerance < 0)) {
-      state.report('local.constraint', '<quiz> tolerance must be a nonnegative finite number.', attrs.tolerance?.offset ?? entry.node.range.start);
+      state.report('local.constraint', '<quiz> tolerance must be a nonnegative finite number.', attrs.tolerance?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.quiz-tolerance' });
     }
     return;
   }
@@ -1050,6 +1098,8 @@ function validateQuiz(entry: Entry, state: CompileState, attrs: AttrMap): void {
       'local.quiz.answer',
       `<quiz> answer "${answer}" is not one of the option values: ${options.join(', ')}.`,
       attrs.answer?.offset ?? entry.node.range.start,
+      undefined,
+      { key: 'local.quiz.answer.not-option', params: { answer, options: options.join(', ') } },
     );
   }
 }
@@ -1059,15 +1109,15 @@ function validateDiagram(entry: Entry, state: CompileState): void {
   const nodes = children.filter((child) => child.name === 'node');
   const edges = children.filter((child) => child.name === 'edge');
   if (!nodes.length) {
-    state.report('local.diagram.node', '<diagram> requires at least one <node>.', entry.node.range.start, entry.node.range.end);
+    state.report('local.diagram.node', '<diagram> requires at least one <node>.', entry.node.range.start, entry.node.range.end, { key: 'local.diagram.node.required' });
   }
   for (const child of children) {
     if (child.name !== 'node' && child.name !== 'edge') {
-      state.report('local.structure.children', '<diagram> can only contain <node> and <edge>.', child.node.range.start, child.node.range.end);
+      state.report('local.structure.children', '<diagram> can only contain <node> and <edge>.', child.node.range.start, child.node.range.end, { key: 'local.structure.diagram.only' });
     }
   }
   if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', '<diagram> can only contain <node> and <edge>.', entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', '<diagram> can only contain <node> and <edge>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.diagram.only' });
   }
 
   const ids: string[] = [];
@@ -1076,10 +1126,10 @@ function validateDiagram(entry: Entry, state: CompileState): void {
     const id = typeof nodeAttrs.id?.value === 'string' ? nodeAttrs.id.value : '';
     if (!id) continue;
     if (!/^[A-Za-z_][A-Za-z0-9_-]*$/.test(id)) {
-      state.report('local.diagram.node', `Node ID "${id}" may only contain letters, digits, underscores and hyphens, and cannot start with a digit.`, node.node.range.start, node.node.range.end);
+      state.report('local.diagram.node', `Node ID "${id}" may only contain letters, digits, underscores and hyphens, and cannot start with a digit.`, node.node.range.start, node.node.range.end, { key: 'local.diagram.node.invalid', params: { id } });
     }
     if (ids.includes(id)) {
-      state.report('local.diagram.node', `Duplicate node ID "${id}".`, node.node.range.start, node.node.range.end);
+      state.report('local.diagram.node', `Duplicate node ID "${id}".`, node.node.range.start, node.node.range.end, { key: 'local.diagram.node.duplicate', params: { id } });
       continue;
     }
     ids.push(id);
@@ -1093,14 +1143,14 @@ function validateDiagram(entry: Entry, state: CompileState): void {
     const to = typeof edgeAttrs.to?.value === 'string' ? edgeAttrs.to.value : '';
     const label = typeof edgeAttrs.label?.value === 'string' ? edgeAttrs.label.value : '';
     if (from && !ids.includes(from)) {
-      state.report('local.diagram.edge', `Edge from references unknown node "${from}".`, edge.node.range.start, edge.node.range.end);
+      state.report('local.diagram.edge', `Edge from references unknown node "${from}".`, edge.node.range.start, edge.node.range.end, { key: 'local.diagram.edge.from', params: { id: from } });
     }
     if (to && !ids.includes(to)) {
-      state.report('local.diagram.edge', `Edge to references unknown node "${to}".`, edge.node.range.start, edge.node.range.end);
+      state.report('local.diagram.edge', `Edge to references unknown node "${to}".`, edge.node.range.start, edge.node.range.end, { key: 'local.diagram.edge.to', params: { id: to } });
     }
     const key = `${from}\u0000${to}\u0000${label}`;
     if (seen.has(key)) {
-      state.report('local.diagram.edge', `Duplicate edge: ${from} → ${to}${label ? ` (${label})` : ''}.`, edge.node.range.start, edge.node.range.end);
+      state.report('local.diagram.edge', `Duplicate edge: ${from} → ${to}${label ? ` (${label})` : ''}.`, edge.node.range.start, edge.node.range.end, { key: 'local.diagram.edge.duplicate', params: { from, to, label: label ? ` (${label})` : '' } });
     }
     seen.add(key);
   }
@@ -1117,6 +1167,7 @@ function validateChecklist(entry: Entry, state: CompileState): ChecklistInfo {
       'The body of <checklist> must be exactly one single-level Markdown task list.',
       entry.node.range.start,
       entry.node.range.end,
+      { key: 'local.checklist.body.single' },
     );
   }
   const list = lists[0];
@@ -1128,7 +1179,7 @@ function validateChecklist(entry: Entry, state: CompileState): ChecklistInfo {
   }
   const items = list.children ?? [];
   if (!items.length) {
-    state.report('local.checklist.body', '<checklist> requires at least one task list item.', list.range.start, list.range.end);
+    state.report('local.checklist.body', '<checklist> requires at least one task list item.', list.range.start, list.range.end, { key: 'local.checklist.body.item-required' });
   }
   if (items.length > MAX_LOCAL_ARRAY_LENGTH) {
     state.report(
@@ -1136,18 +1187,19 @@ function validateChecklist(entry: Entry, state: CompileState): ChecklistInfo {
       `<checklist> items exceed the limit of ${MAX_LOCAL_ARRAY_LENGTH}.`,
       list.range.start,
       list.range.end,
+      { key: 'local.checklist.body.items-limit', params: { limit: MAX_LOCAL_ARRAY_LENGTH } },
     );
   }
   items.slice(0, MAX_LOCAL_ARRAY_LENGTH).forEach((item, index) => {
     if (item.type !== 'listItem' || item.checked === null || item.checked === undefined) {
-      state.report('local.checklist.body', '<checklist> can only contain task list items (- [ ] / - [x]).', item.range.start, item.range.end);
+      state.report('local.checklist.body', '<checklist> can only contain task list items (- [ ] / - [x]).', item.range.start, item.range.end, { key: 'local.checklist.body.task-only' });
       return;
     }
     if ((item.children ?? []).some((child) => child.type === 'list')) {
-      state.report('local.checklist.body', '<checklist> does not support nested lists.', item.range.start, item.range.end);
+      state.report('local.checklist.body', '<checklist> does not support nested lists.', item.range.start, item.range.end, { key: 'local.checklist.body.no-nested' });
     }
     if (hasComponent(item)) {
-      state.report('local.checklist.body', '<checklist> items cannot contain interactive components.', item.range.start, item.range.end);
+      state.report('local.checklist.body', '<checklist> items cannot contain interactive components.', item.range.start, item.range.end, { key: 'local.checklist.body.no-components' });
     }
     const id = `item-${index + 1}`;
     ids.push(id);
@@ -1190,6 +1242,8 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
           'local.budget.identifier',
           `Parameter name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`,
           attrs.bind.offset ?? entry.node.range.start,
+          undefined,
+          { key: 'local.budget.identifier', params: { limit: MAX_LOCAL_NAME_LENGTH } },
         );
         key = `@${entry.node.id}`;
       } else if (!IDENTIFIER.test(rawBind)) {
@@ -1197,6 +1251,8 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
           'local.binding.name',
           `Parameter name "${rawBind}" must match [A-Za-z_][A-Za-z0-9_]*.`,
           attrs.bind.offset ?? entry.node.range.start,
+          undefined,
+          { key: 'local.binding.name', params: { name: rawBind } },
         );
         key = `@${entry.node.id}`;
       } else if (RESERVED_NAMES.has(rawBind) || EXTRA_RESERVED.has(rawBind)) {
@@ -1204,6 +1260,8 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
           'local.binding.reserved',
           `Parameter name "${rawBind}" is reserved; choose another name.`,
           attrs.bind.offset ?? entry.node.range.start,
+          undefined,
+          { key: 'local.binding.reserved', params: { name: rawBind } },
         );
         key = `@${entry.node.id}`;
       }
@@ -1262,6 +1320,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
         `Parameter "${group.key}" is already declared as ${typeName(bindingSchema.kind)} by <${first.entry.name}> and cannot also bind <${member.entry.name}>.`,
         member.entry.node.range.start,
         member.entry.node.range.end,
+        { key: 'local.binding.type', params: { key: group.key, kind: typeName(bindingSchema.kind), first: first.entry.name, second: member.entry.name } },
       );
     }
   }
@@ -1273,6 +1332,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
         `Parameter "${group.key}" of <${first.entry.name}> can only be owned by one component and cannot be shared with <${member.entry.name}>.`,
         member.entry.node.range.start,
         member.entry.node.range.end,
+        { key: 'local.binding.exclusive', params: { key: group.key, first: first.entry.name, second: member.entry.name } },
       );
     }
   }
@@ -1293,6 +1353,16 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
           `Parameter "${group.key}" must use the same numeric range and step: <${first.entry.name}> has ${describeConstraints(constraints)}, <${member.entry.name}> has ${describeConstraints(other)}.`,
           member.entry.node.range.start,
           member.entry.node.range.end,
+          {
+            key: 'local.binding.constraint',
+            params: {
+              key: group.key,
+              first: first.entry.name,
+              second: member.entry.name,
+              firstConstraints: describeConstraints(constraints),
+              secondConstraints: describeConstraints(other),
+            },
+          },
         );
       }
     }
@@ -1307,6 +1377,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
           `Parameter "${group.key}" must use the same option set in the same order.`,
           member.entry.node.range.start,
           member.entry.node.range.end,
+          { key: 'local.binding.option', params: { key: group.key } },
         );
       }
     }
@@ -1328,6 +1399,10 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
         'local.initial.duplicate',
         `Parameter "${group.key}" has multiple explicit initial values (${explicit.length} in total${peers.length ? `; see also line ${peers.join(', ')}` : ''}).`,
         explicit[index].attrs.initial.offset,
+        undefined,
+        peers.length
+          ? { key: 'local.initial.duplicate-peers', params: { key: group.key, count: explicit.length, lines: peers.join(', ') } }
+          : { key: 'local.initial.duplicate', params: { key: group.key, count: explicit.length } },
       );
     }
   }
@@ -1389,7 +1464,7 @@ function validateStaticInitial(group: Group, initial: LocalValue, state: Compile
   if (typeof initial !== 'string' || initial === '') return;
   const first = group.members[0];
   const offset = first.attrs.initial?.offset ?? first.entry.node.range.start;
-  const length = initial.length;
+  const length = countLocalCodePoints(initial);
   for (const member of group.members) {
     const { entry, attrs } = member;
     if (entry.name === 'input' || entry.name === 'textarea') {
@@ -1400,6 +1475,8 @@ function validateStaticInitial(group: Group, initial: LocalValue, state: Compile
           'local.initial.length',
           `Initial value of parameter "${group.key}" has length ${length}, below the minimum length ${minLength} required by <${entry.name}>.`,
           offset,
+          undefined,
+          { key: 'local.initial.length.min', params: { key: group.key, length, min: minLength, name: entry.name } },
         );
       }
       if (maxLength !== undefined && length > maxLength) {
@@ -1407,22 +1484,24 @@ function validateStaticInitial(group: Group, initial: LocalValue, state: Compile
           'local.initial.length',
           `Initial value of parameter "${group.key}" has length ${length}, exceeding the maximum length ${maxLength} allowed by <${entry.name}>.`,
           offset,
+          undefined,
+          { key: 'local.initial.length.max', params: { key: group.key, length, max: maxLength, name: entry.name } },
         );
       }
       if (entry.name === 'input') {
         const type = typeof attrs.type?.value === 'string' ? attrs.type.value : 'text';
         if (type === 'email' && !isLocalEmail(initial)) {
-          state.report('local.initial.email', `Initial value of parameter "${group.key}" is not a valid email address.`, offset);
+          state.report('local.initial.email', `Initial value of parameter "${group.key}" is not a valid email address.`, offset, undefined, { key: 'local.initial.email', params: { key: group.key } });
         }
       }
     } else if (entry.name === 'date' && isValidDate(initial)) {
       const min = typeof attrs.min?.value === 'string' && isValidDate(attrs.min.value) ? attrs.min.value : undefined;
       const max = typeof attrs.max?.value === 'string' && isValidDate(attrs.max.value) ? attrs.max.value : undefined;
       if (min && initial < min) {
-        state.report('local.initial.range', `Initial value ${initial} of parameter "${group.key}" is earlier than the minimum date ${min} of <date>.`, offset);
+        state.report('local.initial.range', `Initial value ${initial} of parameter "${group.key}" is earlier than the minimum date ${min} of <date>.`, offset, undefined, { key: 'local.initial.date.min', params: { key: group.key, value: initial, min } });
       }
       if (max && initial > max) {
-        state.report('local.initial.range', `Initial value ${initial} of parameter "${group.key}" is later than the maximum date ${max} of <date>.`, offset);
+        state.report('local.initial.range', `Initial value ${initial} of parameter "${group.key}" is later than the maximum date ${max} of <date>.`, offset, undefined, { key: 'local.initial.date.max', params: { key: group.key, value: initial, max } });
       }
     }
   }
@@ -1465,6 +1544,8 @@ function multiSelectInitial(
         'local.initial.option',
         `Initial value "${part}" of parameter "${member.entry.node.id}" is not an option of <multi-select>.`,
         info.offset,
+        undefined,
+        { key: 'local.initial.option.multi-select', params: { key: member.entry.node.id, value: part } },
       );
       continue;
     }
@@ -1475,6 +1556,8 @@ function multiSelectInitial(
       'local.initial.range',
       `Initial values of <multi-select> exceed max-selected ${maxSelected}.`,
       info.offset,
+      undefined,
+      { key: 'local.initial.multi-select', params: { max: maxSelected } },
     );
   }
   return options.filter((value) => chosen.includes(value));
@@ -1492,15 +1575,15 @@ function memberInitial(
   if (family === 'number' && typeof info.value === 'number') return info.value;
   if (family === 'boolean' && typeof info.value === 'boolean') return info.value;
   if (family === 'number' || family === 'boolean') {
-    state.report('local.initial.type', `Initial value of parameter "${entry.node.id}" has the wrong type.`, info.offset);
+    state.report('local.initial.type', `Initial value of parameter "${entry.node.id}" has the wrong type.`, info.offset, undefined, { key: 'local.initial.type', params: { name: entry.node.id } });
     return family === 'number' ? 0 : false;
   }
   const value = typeof info.value === 'string' ? info.value : String(info.value ?? '');
   if (family === 'date' && !isValidDate(value)) {
-    state.report('local.initial.date', `Initial date "${value}" is not a valid YYYY-MM-DD.`, info.offset);
+    state.report('local.initial.date', `Initial date "${value}" is not a valid YYYY-MM-DD.`, info.offset, undefined, { key: 'local.initial.date', params: { value } });
   }
   if (family === 'choice' && options.length && !options.includes(value)) {
-    state.report('local.initial.option', `Initial value "${value}" is not an available option: ${options.join(', ')}.`, info.offset);
+    state.report('local.initial.option', `Initial value "${value}" is not an available option: ${options.join(', ')}.`, info.offset, undefined, { key: 'local.initial.value.option', params: { value, options: options.join(', ') } });
   }
   return value;
 }
@@ -1545,6 +1628,7 @@ function defaultInitial(
           `Parameter "${entry.node.id}" has no valid step value within range [${local.min ?? '-∞'}, ${local.max ?? '∞'}].`,
           entry.node.range.start,
           entry.node.range.end,
+          { key: 'local.initial.no-step', params: { key: entry.node.id, min: local.min ?? '-∞', max: local.max ?? '∞' } },
         );
         return 0;
       }
@@ -1556,6 +1640,7 @@ function defaultInitial(
     `Cannot derive a default initial value for <${entry.name}> parameter "${entry.node.id}".`,
     entry.node.range.start,
     entry.node.range.end,
+    { key: 'local.initial.cannot-derive', params: { name: entry.name, key: entry.node.id } },
   );
   return '';
 }
@@ -1572,7 +1657,7 @@ function validateInitialValue(
   const key = group.key;
   if (family === 'number') {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      state.report('local.initial.type', `Initial value of parameter "${key}" must be a finite number.`, first.entry.node.range.start);
+      state.report('local.initial.type', `Initial value of parameter "${key}" must be a finite number.`, first.entry.node.range.start, undefined, { key: 'local.initial.type.number', params: { key } });
       return;
     }
     const local = constraints ?? numericConstraints(first.entry, first.attrs, family);
@@ -1581,6 +1666,8 @@ function validateInitialValue(
         'local.initial.range',
         `Initial value ${value} of parameter "${key}" is below the minimum ${local.min}.`,
         first.attrs.initial?.offset ?? first.entry.node.range.start,
+        undefined,
+        { key: 'local.initial.range.min', params: { value, key, min: local.min } },
       );
     }
     if (local.max !== undefined && value > local.max) {
@@ -1588,6 +1675,8 @@ function validateInitialValue(
         'local.initial.range',
         `Initial value ${value} of parameter "${key}" exceeds the maximum ${local.max}.`,
         first.attrs.initial?.offset ?? first.entry.node.range.start,
+        undefined,
+        { key: 'local.initial.range.max', params: { value, key, max: local.max } },
       );
     }
     const base = local.min ?? 0;
@@ -1596,18 +1685,22 @@ function validateInitialValue(
         'local.initial.step',
         `Initial value ${value} of parameter "${key}" is not on step ${local.step} (based at ${local.min ?? 0}).`,
         first.attrs.initial?.offset ?? first.entry.node.range.start,
+        undefined,
+        { key: 'local.initial.range.step', params: { value, key, step: local.step, base: local.min ?? 0 } },
       );
     }
     return;
   }
   if (family === 'boolean' && typeof value !== 'boolean') {
-    state.report('local.initial.type', `Initial value of parameter "${key}" must be a boolean.`, first.entry.node.range.start);
+    state.report('local.initial.type', `Initial value of parameter "${key}" must be a boolean.`, first.entry.node.range.start, undefined, { key: 'local.initial.type.boolean', params: { key } });
   }
   if ((family === 'choice' || family === 'tabs' || family === 'steps' || family === 'diagram' || family === 'selection') && options.length && !options.includes(String(value))) {
     state.report(
       family === 'diagram' ? 'local.initial.option' : 'local.initial.option',
       `Initial value "${String(value)}" of parameter "${key}" is not among the available values ${options.join(', ')}.`,
       first.attrs.initial?.offset ?? first.entry.node.range.start,
+      undefined,
+      { key: 'local.initial.value.options', params: { value: String(value), key, options: options.join(', ') } },
     );
   }
 }
@@ -1636,18 +1729,24 @@ function resolveSlotBindings(state: CompileState, bindings: Record<string, Local
             'local.budget.identifier',
             `Parameter name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`,
             bindInfo.offset ?? entry.node.range.start,
+            undefined,
+            { key: 'local.budget.identifier', params: { limit: MAX_LOCAL_NAME_LENGTH } },
           );
         } else if (!IDENTIFIER.test(raw)) {
           state.report(
             'local.binding.name',
             `Parameter name "${raw}" must match [A-Za-z_][A-Za-z0-9_]*.`,
             bindInfo.offset ?? entry.node.range.start,
+            undefined,
+            { key: 'local.binding.name', params: { name: raw } },
           );
         } else if (RESERVED_NAMES.has(raw) || EXTRA_RESERVED.has(raw)) {
           state.report(
             'local.binding.reserved',
             `Parameter name "${raw}" is reserved; choose another name.`,
             bindInfo.offset ?? entry.node.range.start,
+            undefined,
+            { key: 'local.binding.reserved', params: { name: raw } },
           );
         } else {
           publicKey = raw;
@@ -1659,6 +1758,8 @@ function resolveSlotBindings(state: CompileState, bindings: Record<string, Local
           'local.binding.exclusive',
           `Parameter "${publicKey}" of the ${slot.name} slot of <${entry.name}> is exclusive and cannot be shared with another control.`,
           bindInfo?.offset ?? entry.node.range.start,
+          undefined,
+          { key: 'local.binding.exclusive.slot', params: { key: publicKey, slot: slot.name, name: entry.name } },
         );
         key = `@${entry.node.id}:${slot.name}`;
       }
@@ -1690,6 +1791,7 @@ function resolveSlotBindings(state: CompileState, bindings: Record<string, Local
           `<range-slider> start ${start} cannot be greater than end ${end}.`,
           entry.node.range.start,
           entry.node.range.end,
+          { key: 'local.initial.range-slider', params: { start, end } },
         );
       }
     }
@@ -1724,13 +1826,13 @@ function slotInitial(
   if (info && typeof info.value === 'number') {
     const value = info.value;
     if (constraints.min !== undefined && value < constraints.min) {
-      state.report('local.initial.range', `Initial value ${value} of <${entry.name}> ${slot.initial} is below the minimum ${constraints.min}.`, info.offset);
+      state.report('local.initial.range', `Initial value ${value} of <${entry.name}> ${slot.initial} is below the minimum ${constraints.min}.`, info.offset, undefined, { key: 'local.initial.slot.min', params: { value, name: entry.name, slot: slot.initial, min: constraints.min } });
     }
     if (constraints.max !== undefined && value > constraints.max) {
-      state.report('local.initial.range', `Initial value ${value} of <${entry.name}> ${slot.initial} exceeds the maximum ${constraints.max}.`, info.offset);
+      state.report('local.initial.range', `Initial value ${value} of <${entry.name}> ${slot.initial} exceeds the maximum ${constraints.max}.`, info.offset, undefined, { key: 'local.initial.slot.max', params: { value, name: entry.name, slot: slot.initial, max: constraints.max } });
     }
     if (!onStep(value, base, constraints.step)) {
-      state.report('local.initial.step', `Initial value ${value} of <${entry.name}> ${slot.initial} is not on step ${constraints.step} (based at ${base}).`, info.offset);
+      state.report('local.initial.step', `Initial value ${value} of <${entry.name}> ${slot.initial} is not on step ${constraints.step} (based at ${base}).`, info.offset, undefined, { key: 'local.initial.slot.step', params: { value, name: entry.name, slot: slot.initial, step: constraints.step, base } });
     }
     return value;
   }
@@ -1902,6 +2004,11 @@ function validateExpressions(state: CompileState): void {
         `local.expression.${error.code || 'invalid'}`,
         `Expression error: ${error.message}`,
         base + (Number.isFinite(error.offset) ? error.offset : 0),
+        undefined,
+        { key: 'local.expression.error', params: {
+          detail: error.message, code: error.code || 'invalid',
+          near: state.source.slice(Math.max(base, base + error.offset - 16), base + error.offset + 24),
+        } },
       );
       return;
     }
@@ -1909,6 +2016,8 @@ function validateExpressions(state: CompileState): void {
       'local.expression.invalid',
       `Expression error: ${error instanceof Error ? error.message : String(error)}`,
       base,
+      undefined,
+      { key: 'local.expression.error', params: { detail: error instanceof Error ? error.message : String(error), code: 'invalid' } },
     );
   };
 
@@ -1918,7 +2027,7 @@ function validateExpressions(state: CompileState): void {
     expected: 'text' | 'number' | 'boolean' | 'string',
   ): LocalValueKind | null => {
     if (!expression.trim()) {
-      state.report('local.expression.empty', 'Interpolation expression cannot be empty.', base);
+      state.report('local.expression.empty', 'Interpolation expression cannot be empty.', base, undefined, { key: 'local.expression.empty' });
       return null;
     }
     let compiled: LocalExpression | null = null;
@@ -1937,6 +2046,10 @@ function validateExpressions(state: CompileState): void {
           'local.binding.unknown',
           `Reference to undeclared parameter ${dependency}.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
           base + Math.max(0, expression.indexOf(dependency)),
+          undefined,
+          suggestion
+            ? { key: 'local.binding.unknown.suggestion', params: { name: dependency, suggestion } }
+            : { key: 'local.binding.unknown', params: { name: dependency } },
         );
         missing = true;
       }
@@ -1950,13 +2063,13 @@ function validateExpressions(state: CompileState): void {
       return null;
     }
     if (expected === 'number' && kind !== 'number') {
-      state.report('local.type', `Expected a number here, but the expression evaluates to ${typeName(kind)}.`, base);
+      state.report('local.type', `Expected a number here, but the expression evaluates to ${typeName(kind)}.`, base, undefined, { key: 'local.type.number', params: { kind: typeName(kind) } });
     } else if (expected === 'boolean' && kind !== 'boolean') {
-      state.report('local.type', `Expected a boolean here, but the expression evaluates to ${typeName(kind)}.`, base);
+      state.report('local.type', `Expected a boolean here, but the expression evaluates to ${typeName(kind)}.`, base, undefined, { key: 'local.type.boolean', params: { kind: typeName(kind) } });
     } else if (expected === 'string' && kind !== 'string') {
-      state.report('local.type', `Expected a string here, but the expression evaluates to ${typeName(kind)}.`, base);
+      state.report('local.type', `Expected a string here, but the expression evaluates to ${typeName(kind)}.`, base, undefined, { key: 'local.type.string', params: { kind: typeName(kind) } });
     } else if (expected === 'text' && (kind === 'array' || kind === 'number-array')) {
-      state.report('local.type', 'Arrays cannot be displayed directly; convert them first with a function such as len.', base);
+      state.report('local.type', 'Arrays cannot be displayed directly; convert them first with a function such as len.', base, undefined, { key: 'local.type.array' });
     }
     return kind;
   };
@@ -1991,7 +2104,7 @@ function validateExpressions(state: CompileState): void {
       if (prop.kind === 'string') {
         const scanned = scanInterpolations(info.raw);
         for (const offset of scanned.unterminated) {
-          state.report('local.interpolation', 'Interpolation is missing }}.', info.offset + offset);
+          state.report('local.interpolation', 'Interpolation is missing }}.', info.offset + offset, undefined, { key: 'local.interpolation.unclosed' });
         }
         for (const segment of scanned.segments) {
           validate(segment.expression, info.offset + segment.start, 'text');
@@ -2014,6 +2127,8 @@ function validateExpressions(state: CompileState): void {
           'local.attribute.interpolation',
           'The when attribute of if must be a full boolean interpolation, e.g. when="{{ seats >= 5 }}".',
           when.offset,
+          undefined,
+          { key: 'local.attribute.interpolation' },
         );
       }
     }
@@ -2062,11 +2177,13 @@ function validateNavigation(
         'local.anchor.id',
         `Anchor id "${id}" must match [A-Za-z_][A-Za-z0-9_-]*.`,
         info.offset,
+        undefined,
+        { key: 'local.anchor.id', params: { id } },
       );
       continue;
     }
     if (explicit.has(id)) {
-      state.report('local.anchor.duplicate', `Duplicate anchor id "${id}".`, info.offset);
+      state.report('local.anchor.duplicate', `Duplicate anchor id "${id}".`, info.offset, undefined, { key: 'local.anchor.duplicate', params: { id } });
     } else {
       explicit.add(id);
     }
@@ -2075,6 +2192,8 @@ function validateNavigation(
         'local.anchor.duplicate',
         `Anchor id "${id}" collides with an automatic heading target.`,
         info.offset,
+        undefined,
+        { key: 'local.anchor.heading-collision', params: { id } },
       );
     }
   }
@@ -2086,7 +2205,7 @@ function validateNavigation(
     if (!info) continue;
     const to = typeof info.value === 'string' ? info.value : '';
     if (!to) {
-      state.report('local.jump.target', '<jump> target cannot be empty.', info.offset);
+      state.report('local.jump.target', '<jump> target cannot be empty.', info.offset, undefined, { key: 'local.jump.empty' });
       continue;
     }
     if (to.startsWith('#') || /\s/.test(to)) {
@@ -2094,6 +2213,8 @@ function validateNavigation(
         'local.jump.target',
         `<jump> target "${to}" must be a bare heading slug or anchor id without "#" or whitespace.`,
         info.offset,
+        undefined,
+        { key: 'local.jump.bad-target', params: { target: to } },
       );
       continue;
     }
@@ -2102,6 +2223,8 @@ function validateNavigation(
         'local.jump.target',
         `<jump> target "${to}" does not resolve to a heading or explicit anchor in this document.`,
         info.offset,
+        undefined,
+        { key: 'local.jump.unresolved', params: { target: to } },
       );
     }
   }
@@ -2497,6 +2620,7 @@ function validatePlots(state: CompileState): void {
         `<plot> supports at most ${MAX_LOCAL_PLOT_CURVES} curves, but has ${mathNodes.length}.`,
         entry.node.range.start,
         entry.node.range.end,
+        { key: 'local.budget.plot.curves', params: { limit: MAX_LOCAL_PLOT_CURVES, count: mathNodes.length } },
       );
     }
     const requested = mathNodes.length * samples;
@@ -2507,6 +2631,7 @@ function validatePlots(state: CompileState): void {
         `The document's total plot sample count exceeds the limit of ${MAX_LOCAL_PLOT_POINTS}.`,
         entry.node.range.start,
         entry.node.range.end,
+        { key: 'local.budget.plot.points', params: { limit: MAX_LOCAL_PLOT_POINTS } },
       );
       pointsBudgetExceeded = true;
     }
@@ -2522,6 +2647,7 @@ function validatePlots(state: CompileState): void {
           '<plot> formulas must be written explicitly as y = expression.',
           node.range.start,
           node.range.end,
+          { key: 'local.math.formula.shape' },
         );
         continue;
       }
@@ -2534,6 +2660,16 @@ function validatePlots(state: CompileState): void {
           `Cannot compute plot formula: ${error instanceof Error ? error.message : String(error)}`,
           node.range.start,
           node.range.end,
+          {
+            key: 'local.math.compute',
+            params: {
+              detail: error instanceof Error ? error.message : String(error),
+              code: error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+                ? error.code
+                : 'latex-syntax',
+              near: recipe.slice(0, 120),
+            },
+          },
         );
       }
       if (!compiled) continue;
@@ -2545,6 +2681,7 @@ function validatePlots(state: CompileState): void {
             `Plot formula references undeclared parameter "${dependency}".`,
             node.range.start,
             node.range.end,
+            { key: 'local.math.binding.unknown', params: { name: dependency } },
           );
         } else if (env[dependency] !== 'number') {
           state.report(
@@ -2552,6 +2689,7 @@ function validatePlots(state: CompileState): void {
             `Plot parameter "${dependency}" must be a number, but is ${typeName(env[dependency])}.`,
             node.range.start,
             node.range.end,
+            { key: 'local.math.binding.type', params: { name: dependency, kind: typeName(env[dependency]) } },
           );
         }
       }
@@ -2571,29 +2709,29 @@ interface TableShape {
 function tableShape(table: LocalNode, state: CompileState, component: Entry): TableShape | null {
   const rows = (table.children ?? []).filter((node) => node.type === 'tableRow');
   if (!rows.length) {
-    state.report('local.table.header', `The table for <${component.name}> is missing a header.`, table.range.start, table.range.end);
+    state.report('local.table.header', `The table for <${component.name}> is missing a header.`, table.range.start, table.range.end, { key: 'local.table.header.missing', params: { name: component.name } });
     return null;
   }
   const header = rows[0].children ?? [];
   const names: string[] = [];
   for (const cell of header) {
     if (hasInterpolation(cell)) {
-      state.report('local.table.header', 'Table headers cannot contain interpolations.', cell.range.start, cell.range.end);
+      state.report('local.table.header', 'Table headers cannot contain interpolations.', cell.range.start, cell.range.end, { key: 'local.table.header.interpolation' });
       return null;
     }
     const text = plainText(cell).trim();
     if (!text) {
-      state.report('local.table.header', 'Table headers cannot be empty.', cell.range.start, cell.range.end);
+      state.report('local.table.header', 'Table headers cannot be empty.', cell.range.start, cell.range.end, { key: 'local.table.header.empty' });
       return null;
     }
     if (names.includes(text)) {
-      state.report('local.table.header', `Duplicate table header "${text}".`, cell.range.start, cell.range.end);
+      state.report('local.table.header', `Duplicate table header "${text}".`, cell.range.start, cell.range.end, { key: 'local.table.header.duplicate', params: { name: text } });
       return null;
     }
     names.push(text);
   }
   if (!names.length) {
-    state.report('local.table.header', 'Table headers cannot be empty.', table.range.start, table.range.end);
+    state.report('local.table.header', 'Table headers cannot be empty.', table.range.start, table.range.end, { key: 'local.table.header.empty' });
     return null;
   }
   const dataRows: LocalNode[][] = [];
@@ -2605,6 +2743,7 @@ function tableShape(table: LocalNode, state: CompileState, component: Entry): Ta
         `Table row has a different column count: header has ${names.length} columns, this row has ${cells.length}.`,
         row.range.start,
         row.range.end,
+        { key: 'local.table.row.mismatch', params: { header: names.length, row: cells.length } },
       );
       continue;
     }
@@ -2646,6 +2785,10 @@ function requireNumericColumn(
           `${component.name === 'timeline' ? 'Timeline' : 'Chart'} column "${name}" requires a number in row ${rowIndex + 1}, but the expression evaluates to ${typeName(kind)}.`,
           cell.range.start,
           cell.range.end,
+          {
+            key: component.name === 'timeline' ? 'local.timeline.numeric.expression' : 'local.chart.numeric.expression',
+            params: { name, row: rowIndex + 1, kind: typeName(kind) },
+          },
         );
       }
       return;
@@ -2656,6 +2799,10 @@ function requireNumericColumn(
         `${component.name === 'timeline' ? 'Timeline' : 'Chart'} column "${name}" requires a plain number in row ${rowIndex + 1}, got "${plainText(cell).trim() || 'empty'}".`,
         cell.range.start,
         cell.range.end,
+        {
+          key: component.name === 'timeline' ? 'local.timeline.numeric.plain' : 'local.chart.numeric.plain',
+          params: { name, row: rowIndex + 1, value: plainText(cell).trim() || 'empty' },
+        },
       );
     }
   });
@@ -2701,7 +2848,7 @@ function computeSelections(state: CompileState): void {
     if (!keyInfo) continue;
     const keyName = typeof keyInfo.value === 'string' ? keyInfo.value.trim() : '';
     if (!keyName) {
-      state.report('local.selection.key', `<${entry.name}> key cannot be empty.`, keyInfo.offset);
+      state.report('local.selection.key', `<${entry.name}> key cannot be empty.`, keyInfo.offset, undefined, { key: 'local.selection.key.empty', params: { component: entry.name } });
       state.selections.set(entry.node.id, ['']);
       continue;
     }
@@ -2716,6 +2863,8 @@ function computeSelections(state: CompileState): void {
         'local.selection.key',
         `<${entry.name}> key column "${keyName}" does not exist in its table.`,
         keyInfo.offset,
+        undefined,
+        { key: 'local.selection.key.missing-column', params: { component: entry.name, name: keyName } },
       );
       state.selections.set(entry.node.id, ['']);
       continue;
@@ -2731,6 +2880,7 @@ function computeSelections(state: CompileState): void {
           `<${entry.name}> key column "${keyName}" must contain static text; row ${rowIndex + 1} contains an interpolation.`,
           cell.range.start,
           cell.range.end,
+          { key: 'local.selection.key.interpolation', params: { component: entry.name, name: keyName, row: rowIndex + 1 } },
         );
         return;
       }
@@ -2741,6 +2891,7 @@ function computeSelections(state: CompileState): void {
           `<${entry.name}> key column "${keyName}" cannot be empty in row ${rowIndex + 1}.`,
           cell.range.start,
           cell.range.end,
+          { key: 'local.selection.key.empty-cell', params: { component: entry.name, name: keyName, row: rowIndex + 1 } },
         );
         return;
       }
@@ -2750,6 +2901,7 @@ function computeSelections(state: CompileState): void {
           `<${entry.name}> key column "${keyName}" must be unique; duplicate value "${text}".`,
           cell.range.start,
           cell.range.end,
+          { key: 'local.selection.key.duplicate', params: { component: entry.name, name: keyName, value: text } },
         );
         return;
       }
@@ -2763,6 +2915,8 @@ function computeSelections(state: CompileState): void {
         'local.initial.option',
         `Initial selection "${initial.value}" of <${entry.name}> is not a value of key column "${keyName}".`,
         initial.offset,
+        undefined,
+        { key: 'local.selection.key.initial', params: { value: initial.value, component: entry.name, name: keyName } },
       );
     }
   }
@@ -2774,23 +2928,23 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
   const header = shape.header;
   for (const name of header) {
     if (name.includes(',')) {
-      state.report('local.chart.column', `Chart column names cannot contain commas: "${name}".`, entry.node.range.start, entry.node.range.end);
+      state.report('local.chart.column', `Chart column names cannot contain commas: "${name}".`, entry.node.range.start, entry.node.range.end, { key: 'local.chart.column.comma', params: { name } });
     }
   }
   const xName = typeof attrs.x?.value === 'string' ? attrs.x.value.trim() : '';
   const yRaw = typeof attrs.y?.value === 'string' ? attrs.y.value.trim() : '';
   if (xName && columnIndex(header, xName) < 0) {
-    state.report('local.chart.column', `Chart x column "${xName}" does not exist.`, attrs.x?.offset ?? entry.node.range.start);
+    state.report('local.chart.column', `Chart x column "${xName}" does not exist.`, attrs.x?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.x-missing', params: { name: xName } });
   }
   let yNames: string[] = [];
   if (yRaw) {
     yNames = yRaw.split(',').map((name) => name.trim()).filter(Boolean);
     if (!yNames.length) {
-      state.report('local.chart.column', 'Chart y requires a column name.', attrs.y?.offset ?? entry.node.range.start);
+      state.report('local.chart.column', 'Chart y requires a column name.', attrs.y?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.y-required' });
     }
     for (const name of yNames) {
       if (columnIndex(header, name) < 0) {
-        state.report('local.chart.column', `Chart y column "${name}" does not exist.`, attrs.y?.offset ?? entry.node.range.start);
+        state.report('local.chart.column', `Chart y column "${name}" does not exist.`, attrs.y?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.y-missing', params: { name } });
       }
     }
   }
@@ -2802,12 +2956,12 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
       ? yNames.map((name) => columnIndex(header, name)).filter((index) => index >= 0)
       : header.map((_, index) => index).filter((index) => index !== xColumn);
     if (!numeric.length) {
-      state.report('local.chart.column', 'Chart requires at least one numeric column.', entry.node.range.start, entry.node.range.end);
+      state.report('local.chart.column', 'Chart requires at least one numeric column.', entry.node.range.start, entry.node.range.end, { key: 'local.chart.column.needs-numeric' });
     }
   } else if (kind === 'scatter') {
     const xColumn = xName ? columnIndex(header, xName) : 0;
     if (xColumn < 0) {
-      state.report('local.chart.column', `Scatter chart x column "${xName}" does not exist.`, entry.node.range.start);
+      state.report('local.chart.column', `Scatter chart x column "${xName}" does not exist.`, entry.node.range.start, undefined, { key: 'local.chart.column.scatter-x-missing', params: { name: xName } });
     } else {
       requireNumericColumn(shape, xColumn, state, entry, 'x');
     }
@@ -2815,20 +2969,20 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
       ? yNames.map((name) => columnIndex(header, name)).filter((index) => index >= 0)
       : header.map((_, index) => index).filter((index) => index !== xColumn);
     if (!numeric.length) {
-      state.report('local.chart.column', 'Scatter chart requires at least one numeric column.', entry.node.range.start, entry.node.range.end);
+      state.report('local.chart.column', 'Scatter chart requires at least one numeric column.', entry.node.range.start, entry.node.range.end, { key: 'local.chart.column.scatter-needs-numeric' });
     }
   } else if (kind === 'donut') {
     if (header.length < 2) {
-      state.report('local.chart.column', 'Donut chart requires a label column and a value column.', entry.node.range.start, entry.node.range.end);
+      state.report('local.chart.column', 'Donut chart requires a label column and a value column.', entry.node.range.start, entry.node.range.end, { key: 'local.chart.column.donut-columns' });
       return;
     }
     if (yNames.length === 1) {
       const index = columnIndex(header, yNames[0]);
       if (index >= 0) numeric = [index];
     } else if (yNames.length > 1) {
-      state.report('local.chart.column', 'Donut chart y can only specify one numeric column.', attrs.y?.offset ?? entry.node.range.start);
+      state.report('local.chart.column', 'Donut chart y can only specify one numeric column.', attrs.y?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.donut-y' });
     } else if (header.length > 2) {
-      state.report('local.chart.column', 'A donut chart with more than two columns must use y to specify the single numeric column.', entry.node.range.start, entry.node.range.end);
+      state.report('local.chart.column', 'A donut chart with more than two columns must use y to specify the single numeric column.', entry.node.range.start, entry.node.range.end, { key: 'local.chart.column.donut-need-y' });
     } else {
       numeric = [1];
     }
@@ -2850,6 +3004,7 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
             `Donut chart values cannot be negative; row ${rowIndex + 1} is ${value}.`,
             cell.range.start,
             cell.range.end,
+            { key: 'local.chart.negative', params: { row: rowIndex + 1, value } },
           );
         }
       });
@@ -2871,13 +3026,14 @@ function validateTimeline(entry: Entry, shape: TableShape, state: CompileState):
       'Timeline requires either Task, Start and Duration columns or 事项, 开始 and 时长 columns, with optional Notes or 说明.',
       entry.node.range.start,
       entry.node.range.end,
+      { key: 'local.timeline.header.missing' },
     );
     return;
   }
   const allowed = new Set(Object.values(headers));
   for (const name of shape.header) {
     if (!allowed.has(name)) {
-      state.report('local.timeline.header', `Timeline does not support column "${name}".`, entry.node.range.start, entry.node.range.end);
+      state.report('local.timeline.header', `Timeline does not support column "${name}".`, entry.node.range.start, entry.node.range.end, { key: 'local.timeline.header.column', params: { name } });
     }
   }
   for (const name of [headers.start, headers.duration]) {
@@ -2899,6 +3055,7 @@ function validateTimeline(entry: Entry, shape: TableShape, state: CompileState):
           `Timeline column "${shape.header[column]}" cannot be negative in row ${rowIndex + 1}.`,
           cell.range.start,
           cell.range.end,
+          { key: 'local.timeline.value.negative', params: { name: shape.header[column], row: rowIndex + 1 } },
         );
       }
     }

@@ -12,6 +12,7 @@ Local mode uses HTML-style tags, with parameters and table data written directly
 - [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [Feature tours and examples](examples/local/README.md): 43 component names, tags, in-place parameters and LaTeX plots.
 - [Local mode integration](docs/local-integration-en.md): `compileLocal`, the state runtime, React embedding, URL policy and style scoping.
 - [Theme protocol](docs/theme-protocol-en.md): document theme selection, custom CSS and light/dark modes.
+- [Author tools](docs/author-tools-en.md): source highlighting, completion, binding navigation, rename, formatting and command-line lint.
 - [Standalone integration examples](examples/integration/README.md): Node core and React pages you can copy and run outside the repository.
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
 - [Component protocol](docs/component-protocol-en.md) · [Component development guide](docs/component-development-en.md): declarations, behavior contracts and compatibility acceptance for new components.

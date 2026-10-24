@@ -4,10 +4,14 @@ import {
   compileExpression,
   interpolate,
   localValueBudgetError,
+  localValueBudgetIssue,
   LocalExpressionError,
   type LocalExpression,
 } from './expression';
 import { evaluateComputations, orderComputations } from './computations';
+
+import { diagnosticEnglish, localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
+import { countLocalCodePoints } from './text-length';
 import { isLocalEmail, MAX_LOCAL_EMAIL_LENGTH } from './limits';
 import {
   boundLocalDiagnosticMessage,
@@ -55,9 +59,10 @@ function freezeState(state: Record<string, LocalValue>): Readonly<Record<string,
   return Object.freeze(state);
 }
 
-function diagnosticFor(document: LocalDocument, node: LocalNode, code: string, message: string): Diagnostic {
+function diagnosticFor(document: LocalDocument, node: LocalNode, code: string, detail: LocalDiagnosticDetails): Diagnostic {
   const start = Math.max(0, Math.min(document.source.length, node.range.start));
   const prefix = document.source.slice(0, start).split('\n');
+  const message = diagnosticEnglish(detail);
   return {
     code,
     message,
@@ -65,6 +70,8 @@ function diagnosticFor(document: LocalDocument, node: LocalNode, code: string, m
     range: { start, end: Math.max(start + 1, Math.min(document.source.length, node.range.end)) },
     line: prefix.length,
     column: (prefix.at(-1) ?? '').length + 1,
+    messageKey: detail.key,
+    ...(detail.params ? { params: detail.params } : {}),
   };
 }
 
@@ -87,13 +94,13 @@ function staticNumber(node: LocalNode, name: string): number | undefined {
 }
 
 function codePointLength(value: string): number {
-  return value.length;
+  return countLocalCodePoints(value);
 }
 
-type ValidationResult = { ok: true; value: LocalValue; message?: undefined } | { ok: false; message: string };
+type ValidationResult = { ok: true; value: LocalValue; detail?: undefined } | { ok: false; detail: LocalDiagnosticDetails };
 
-function invalid(message: string): ValidationResult {
-  return { ok: false, message };
+function invalid(key: string, params?: Record<string, unknown>): ValidationResult {
+  return { ok: false, detail: localDiagnosticDetails(key, params) };
 }
 
 /**
@@ -104,34 +111,34 @@ function invalid(message: string): ValidationResult {
  */
 function validateStringControl(node: LocalNode, value: string): ValidationResult {
   if (node.name === 'date') {
-    if (!isValidDate(value)) return invalid('Date must be a valid YYYY-MM-DD or an empty string.');
+    if (!isValidDate(value)) return invalid('local.runtime.value.date-invalid');
     if (value === '' && staticBoolean(node, 'required') === true) {
-      return invalid('This date is required.');
+      return invalid('local.runtime.value.date-required');
     }
     const min = rawAttr(node, 'min');
     const max = rawAttr(node, 'max');
-    if (value !== '' && min && value < min) return invalid(`Date cannot be earlier than ${min}.`);
-    if (value !== '' && max && value > max) return invalid(`Date cannot be later than ${max}.`);
+    if (value !== '' && min && value < min) return invalid('local.runtime.value.date-earlier', { min });
+    if (value !== '' && max && value > max) return invalid('local.runtime.value.date-later', { max });
     return { ok: true, value };
   }
   if (node.name === 'input' || node.name === 'textarea') {
     const length = codePointLength(value);
     if (value === '' && staticBoolean(node, 'required') === true) {
-      return invalid('This field is required.');
+      return invalid('local.runtime.value.field-required');
     }
     const minLength = staticNumber(node, 'min-length');
     const maxLength = staticNumber(node, 'max-length');
     if (minLength !== undefined && minLength > 0 && value !== '' && length < minLength) {
-      return invalid(`At least ${minLength} characters.`);
+      return invalid('local.runtime.value.min-length', { min: minLength });
     }
     if (maxLength !== undefined && length > maxLength) {
-      return invalid(`At most ${maxLength} characters.`);
+      return invalid('local.runtime.value.max-length', { max: maxLength });
     }
     if (node.name === 'input' && rawAttr(node, 'type') === 'email' && value !== '') {
       if (value.length > MAX_LOCAL_EMAIL_LENGTH) {
-        return invalid(`Email address cannot exceed ${MAX_LOCAL_EMAIL_LENGTH} characters.`);
+        return invalid('local.runtime.value.email-length', { limit: MAX_LOCAL_EMAIL_LENGTH });
       }
-      if (!isLocalEmail(value)) return invalid('Enter a valid email address.');
+      if (!isLocalEmail(value)) return invalid('local.runtime.value.email-invalid');
     }
   }
   return { ok: true, value };
@@ -141,45 +148,49 @@ function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalVa
   switch (binding.type) {
     case 'number': {
       if (typeof value !== 'number' || !Number.isFinite(value)) {
-        return invalid(`Parameter "${binding.name}" requires a finite number.`);
+        return invalid('local.runtime.value.finite-number', { name: binding.name });
       }
       if (binding.min !== undefined && value < binding.min) {
-        return invalid(`Parameter "${binding.name}" must be at least ${binding.min}.`);
+        return invalid('local.runtime.value.min', { name: binding.name, min: binding.min });
       }
       if (binding.max !== undefined && value > binding.max) {
-        return invalid(`Parameter "${binding.name}" must be at most ${binding.max}.`);
+        return invalid('local.runtime.value.max', { name: binding.name, max: binding.max });
       }
       const step = binding.step ?? 1;
       const base = binding.min ?? 0;
       if (step > 0 && !onStep(value, base, step)) {
-        return invalid(`Parameter "${binding.name}" must be a multiple of step ${step} (base ${base}).`);
+        return invalid('local.runtime.value.step', { name: binding.name, step, base });
       }
       return { ok: true, value };
     }
     case 'boolean':
-      return typeof value === 'boolean' ? { ok: true, value } : invalid(`Parameter "${binding.name}" requires a boolean.`);
+      return typeof value === 'boolean' ? { ok: true, value } : invalid('local.runtime.value.boolean', { name: binding.name });
     case 'string': {
-      if (typeof value !== 'string') return invalid(`Parameter "${binding.name}" requires a string.`);
-      const budget = localValueBudgetError(value);
-      if (budget) return invalid(`Parameter "${binding.name}": ${budget}`);
+      if (typeof value !== 'string') return invalid('local.runtime.value.string', { name: binding.name });
+      const budget = localValueBudgetIssue(value);
+      if (budget) {
+        return invalid('local.runtime.value.budget', { name: binding.name, detail: diagnosticEnglish(budget), detailKey: budget.key, ...budget.params });
+      }
       for (const node of nodes) {
         const result = validateStringControl(node, value);
         if (!result.ok) return result;
       }
       if (binding.options?.length && !binding.options.includes(value)) {
-        return invalid(`Value "${value}" is not among the options: ${binding.options.join(', ')}.`);
+        return invalid('local.runtime.value.option', { value, options: binding.options.join(', ') });
       }
       return { ok: true, value };
     }
     case 'array': {
-      if (!Array.isArray(value)) return invalid(`Parameter "${binding.name}" requires an array of strings.`);
-      const budget = localValueBudgetError(value);
-      if (budget) return invalid(`Parameter "${binding.name}": ${budget}`);
+      if (!Array.isArray(value)) return invalid('local.runtime.value.array', { name: binding.name });
+      const budget = localValueBudgetIssue(value);
+      if (budget) {
+        return invalid('local.runtime.value.budget', { name: binding.name, detail: diagnosticEnglish(budget), detailKey: budget.key, ...budget.params });
+      }
       const chosen = new Set<string>();
       for (const entry of value) {
-        if (typeof entry !== 'string') return invalid(`Parameter "${binding.name}" members must be strings.`);
+        if (typeof entry !== 'string') return invalid('local.runtime.value.array-members', { name: binding.name });
         if (binding.options && !binding.options.includes(entry)) {
-          return invalid(`Checklist item "${entry}" does not exist.`);
+          return invalid('local.runtime.value.checklist-option', { value: entry });
         }
         chosen.add(entry);
       }
@@ -187,14 +198,14 @@ function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalVa
         ? binding.options.filter((id) => chosen.has(id))
         : [...chosen];
       if (binding.maxItems !== undefined && ordered.length > binding.maxItems) {
-        return invalid(`Parameter "${binding.name}" allows at most ${binding.maxItems} selected values.`);
+        return invalid('local.runtime.value.max-items', { name: binding.name, max: binding.maxItems });
       }
       return { ok: true, value: ordered };
     }
     case 'null':
       return { ok: true, value };
   }
-  return invalid(`Parameter "${binding.name}" has an unsupported value type.`);
+  return invalid('local.runtime.value.unsupported-type', { name: binding.name });
 }
 
 export function createLocalRuntime(document: LocalDocument): LocalRuntime {
@@ -215,9 +226,9 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
   /** Registered controls per binding; caller-supplied node metadata is ignored. */
   const controls = new Map<string, LocalNode[]>();
   for (const [key, binding] of Object.entries(document.bindings)) {
-    const budget = localValueBudgetError(binding.initial);
+    const budget = localValueBudgetIssue(binding.initial);
     if (budget) {
-      throw new LocalExpressionError('expression-budget', `Parameter "${key}": ${budget}`, 0);
+      throw new LocalExpressionError('expression-budget', `Parameter "${key}": ${diagnosticEnglish(budget)}`, 0);
     }
     initial[key] = cloneValue(binding.initial);
     const nodes: LocalNode[] = [];
@@ -235,14 +246,12 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
   }
 
   /** Reject a range whose start would cross its end before any commit. */
-  const slotRelationError = (nodeId: string, next: Record<string, LocalValue>): string | null => {
+  const slotRelationError = (nodeId: string, next: Record<string, LocalValue>): boolean => {
     const slots = slotKeys.get(nodeId);
-    if (!slots?.start || !slots?.end) return null;
+    if (!slots?.start || !slots?.end) return false;
     const start = next[slots.start];
     const end = next[slots.end];
-    return typeof start === 'number' && typeof end === 'number' && start > end
-      ? 'The range start cannot be greater than its end.'
-      : null;
+    return typeof start === 'number' && typeof end === 'number' && start > end;
   };
 
   /* --------------------------------------------------------- computations */
@@ -518,35 +527,35 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       ensure();
       const canonical = nodeIndex.get(node.id);
       if (!canonical) {
-        return [diagnosticFor(document, node, 'local.runtime.binding', 'This component has no writable binding state.')];
+        return [diagnosticFor(document, node, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
       }
       const slots = slotKeys.get(canonical.id);
       let key: string | undefined;
       if (slot === undefined) {
         if (slots) {
-          return [diagnosticFor(document, canonical, 'local.runtime.binding', 'This multi-slot component requires a slot such as start/end or x/y.')];
+          return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.needs-slot'))];
         }
         key = localKey(canonical);
       } else {
         key = slots?.[slot];
         if (!key) {
-          return [diagnosticFor(document, canonical, 'local.runtime.binding', `This component has no writable slot "${slot}".`)];
+          return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.unknown-slot', { slot }))];
         }
       }
       const binding = Object.hasOwn(document.bindings, key) ? document.bindings[key] : undefined;
       if (!binding) {
-        return [diagnosticFor(document, canonical, 'local.runtime.binding', 'This component has no writable binding state.')];
+        return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
       }
       const result = validateValue(binding, controls.get(key) ?? [], value);
       if (!result.ok) {
-        return [diagnosticFor(document, canonical, 'local.runtime.value', result.message)];
+        return [diagnosticFor(document, canonical, 'local.runtime.value', result.detail)];
       }
       const nextValue = cloneValue(result.value);
       if (valuesEqual(state[key], nextValue)) return [];
       const next = { ...state, [key]: nextValue };
       const crossing = slotRelationError(canonical.id, next);
       if (crossing) {
-        return [diagnosticFor(document, canonical, 'local.runtime.value', crossing)];
+        return [diagnosticFor(document, canonical, 'local.runtime.value', localDiagnosticDetails('local.runtime.value.range-order'))];
       }
       commit(next);
       return [];
@@ -556,11 +565,11 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       ensure();
       const canonical = nodeIndex.get(node.id);
       if (!canonical) {
-        return [diagnosticFor(document, node, 'local.runtime.binding', 'This component has no writable binding state.')];
+        return [diagnosticFor(document, node, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
       }
       const slots = slotKeys.get(canonical.id);
       if (!slots) {
-        return [diagnosticFor(document, canonical, 'local.runtime.binding', 'This component does not support multiple slots.')];
+        return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-multi-slot'))];
       }
       const entries = Object.entries(values);
       if (!entries.length) return [];
@@ -568,17 +577,17 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       for (const [slot, value] of entries) {
         const key = slots[slot];
         if (!key || !Object.hasOwn(document.bindings, key)) {
-          return [diagnosticFor(document, canonical, 'local.runtime.binding', `This component has no writable slot "${slot}".`)];
+          return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.unknown-slot', { slot }))];
         }
         const result = validateValue(document.bindings[key], controls.get(key) ?? [], value);
         if (!result.ok) {
-          return [diagnosticFor(document, canonical, 'local.runtime.value', result.message)];
+          return [diagnosticFor(document, canonical, 'local.runtime.value', result.detail)];
         }
         next[key] = cloneValue(result.value);
       }
       const crossing = slotRelationError(canonical.id, next);
       if (crossing) {
-        return [diagnosticFor(document, canonical, 'local.runtime.value', crossing)];
+        return [diagnosticFor(document, canonical, 'local.runtime.value', localDiagnosticDetails('local.runtime.value.range-order'))];
       }
       if (entries.every(([slot, value]) => valuesEqual(state[slots[slot]], value))) return [];
       commit(next);
@@ -615,9 +624,9 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       const next: Record<string, LocalValue> = { ...state };
       for (const [key, binding] of Object.entries(document.bindings)) {
         if (!(controls.get(key) ?? []).some((node) => ids.has(node.id))) continue;
-        const budget = localValueBudgetError(binding.initial);
+        const budget = localValueBudgetIssue(binding.initial);
         if (budget) {
-          throw new LocalExpressionError('expression-budget', `Parameter "${key}": ${budget}`, 0);
+          throw new LocalExpressionError('expression-budget', `Parameter "${key}": ${diagnosticEnglish(budget)}`, 0);
         }
         next[key] = cloneValue(binding.initial);
       }

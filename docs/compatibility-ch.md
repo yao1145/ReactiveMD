@@ -49,11 +49,13 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 `Diagnostic` 包含 `code`、`message`、`severity`、`range`、`line` 和 `column`。
 
-- `line` 和 `column` 从 1 开始；`range.start` 和 `range.end` 是当前源码字符串中的索引。
+- `line` 和 `column` 从 1 开始；列和 `range` 均按原始源码的 UTF-16 代码单元计数，范围为半开区间。
 - `line`、`column` 和 `range` 可以用于程序定位和编辑器跳转。
-- `code` 是字符串标识，例如 `local.type`、`expression-type`、`latex-plot-range`。在一个固定的包版本内可以按它做粗分类；0.x 不承诺跨版本稳定，次版本可能调整 code。
-- `message` 是中文显示文本，可能随时改写。不要解析 message，也不要按完整文本做业务判断。
+- `code` 是字符串标识，例如 `local.type`、`expression-type`、`latex-plot-range`。同一 0.x minor 系列内，现有诊断码的含义保持稳定；可以新增码，删除、改名或改变含义须在新 minor 版本中说明迁移。
+- `message` 是默认英文显示文本，使用 `formatLocalDiagnostic(diagnostic, 'zh')` 可取得中文。文案可以改进；不要解析 message 或按完整文本做业务判断。语言切换保留机器字段。
 - `severity` 为 `warning` 或 `error`。结构完整的未知标签和脚注保留源码并给出降级警告，编译仍可成功；编译错误会让 `result.ok` 为 `false` 并停用预览。运行时局部错误只影响对应内容。
+
+完整规则和资源单位见[诊断与计数规则](diagnostics-counting-ch.md)。
 
 ## 平台与运行环境
 

@@ -1,0 +1,522 @@
+/* Syntax highlighting, completion and binding tools for the source pane.
+   The highlight layer copies the textarea's text metrics exactly and is kept
+   behind the real input, so selection, caret and IME composition stay native. */
+
+.editor-input-wrap {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.editor-input-wrap > .editor-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  flex: none;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--blue);
+}
+
+.editor-input-wrap > .editor-input::selection {
+  background: color-mix(in srgb, var(--blue) 30%, transparent);
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.author-highlight {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 100%;
+  padding: var(--space-3) var(--space-4);
+  overflow: hidden;
+  color: var(--code-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Token styling changes colour only: weight, italics and letter spacing would
+   alter glyph widths and break the character-for-character alignment with the
+   textarea's wrapping. */
+.author-token-tag {
+  color: color-mix(in srgb, var(--blue) 82%, var(--code-ink));
+}
+
+.author-token-attribute {
+  color: color-mix(in srgb, var(--teal) 72%, var(--code-ink));
+}
+
+.author-token-string {
+  color: color-mix(in srgb, var(--success) 78%, var(--code-ink));
+}
+
+.author-token-expression {
+  color: color-mix(in srgb, var(--warning) 74%, var(--code-ink));
+}
+
+.author-token-binding {
+  color: color-mix(in srgb, var(--blue-deep) 70%, var(--code-ink));
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--blue) 40%, transparent);
+  text-underline-offset: 2px;
+}
+
+.author-token-markdown {
+  color: color-mix(in srgb, var(--code-ink) 78%, var(--code-bg));
+}
+
+.author-token-math {
+  color: color-mix(in srgb, var(--warning) 60%, var(--code-ink));
+}
+
+.author-token-code {
+  color: color-mix(in srgb, var(--code-ink) 62%, var(--code-bg));
+}
+
+.author-token-comment {
+  color: color-mix(in srgb, var(--code-ink) 52%, var(--code-bg));
+}
+
+/* While an IME composition is active the native text (and its underline) must
+   be visible, so the highlight layer steps aside until composition ends. */
+.editor-shell.is-composing .author-highlight {
+  visibility: hidden;
+}
+
+.editor-shell.is-composing .editor-input-wrap > .editor-input {
+  color: var(--code-ink);
+  -webkit-text-fill-color: currentColor;
+}
+
+/* Mirror the source pane's narrow-screen text metrics so the highlight layer
+   keeps wrapping character-for-character with the textarea and mirror. */
+@media (max-width: 620px) {
+  .author-highlight {
+    padding: var(--space-3);
+    font-size: var(--text-xs);
+  }
+}
+
+/* Authoring panel */
+
+.source-authoring {
+  position: relative;
+  margin-top: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.authoring-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--line);
+}
+
+.authoring-title {
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.authoring-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.authoring-button {
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.authoring-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--line-strong);
+}
+
+.authoring-button:active:not(:disabled) {
+  background: var(--surface-active);
+}
+
+.authoring-button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.authoring-button:disabled {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+.authoring-button.authoring-primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: var(--surface);
+}
+
+.authoring-button.authoring-primary:hover:not(:disabled) {
+  background: var(--blue-deep);
+  border-color: var(--blue-deep);
+}
+
+.authoring-body {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.authoring-caret {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+.authoring-caret-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+}
+
+.authoring-caret-value > strong {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.authoring-type {
+  padding: 1px var(--space-2);
+  background: var(--neutral-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+.authoring-label {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.authoring-muted,
+.authoring-empty {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+.authoring-row {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.authoring-binding-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  max-height: 108px;
+  overflow: auto;
+}
+
+.authoring-binding-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  overflow-wrap: anywhere;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.authoring-binding-chip:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.authoring-binding-chip[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--blue) 12%, var(--surface));
+  border-color: var(--blue);
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--blue);
+}
+
+.authoring-binding-chip:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.authoring-binding-count {
+  color: var(--ink-muted);
+  font-size: 10px;
+}
+
+.authoring-locations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.authoring-location {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.authoring-location:hover {
+  background: var(--surface-hover);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.authoring-location:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.authoring-location.is-declaration {
+  border-left: 2px solid var(--blue);
+}
+
+.authoring-location.is-reference {
+  border-left: 2px solid var(--success);
+}
+
+.authoring-location-position {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.authoring-rename {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
+.authoring-rename-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.authoring-rename-input {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.authoring-rename-input:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
+}
+
+.authoring-rename-input:disabled {
+  opacity: var(--disabled-opacity);
+}
+
+.authoring-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.authoring-hint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.authoring-status {
+  margin: 0;
+  color: var(--success);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+/* Completion list */
+
+.authoring-completion {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.authoring-completion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.authoring-completion-count {
+  color: var(--ink-muted);
+  font-weight: var(--weight-regular);
+}
+
+.authoring-completion-list {
+  max-height: 220px;
+  overflow: auto;
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.authoring-completion-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 2px var(--space-2);
+  width: 100%;
+  min-height: var(--control-height-sm);
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.authoring-completion-item:hover,
+.authoring-completion-item.is-active {
+  background: color-mix(in srgb, var(--blue) 10%, var(--surface));
+  border-color: var(--blue-line);
+}
+
+.authoring-completion-item:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
+}
+
+.authoring-kind {
+  padding: 1px var(--space-1);
+  background: var(--neutral-soft);
+  border-radius: var(--radius-control);
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.authoring-kind.is-tag {
+  color: var(--blue-deep);
+}
+
+.authoring-kind.is-attribute {
+  color: var(--teal);
+}
+
+.authoring-kind.is-binding {
+  color: var(--warning);
+}
+
+.authoring-completion-label {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.authoring-completion-detail {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .authoring-bar,
+  .authoring-body {
+    padding: var(--space-2);
+  }
+
+  .authoring-button,
+  .authoring-binding-chip,
+  .authoring-location,
+  .authoring-rename-input,
+  .authoring-completion-item {
+    min-height: var(--control-height-lg);
+  }
+
+  .authoring-rename-input {
+    flex-basis: 100%;
+  }
+
+  .authoring-completion-list {
+    max-height: 180px;
+  }
+}

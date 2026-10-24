@@ -1,4 +1,7 @@
 export interface SourceRange { start: number; end: number }
+/** A scalar, JSON/structured-clone-safe diagnostic template parameter. */
+export type LocalDiagnosticParam = string | number | boolean | null;
+export type LocalDiagnosticParams = Readonly<Record<string, LocalDiagnosticParam>>;
 export interface Diagnostic {
   code: string;
   message: string;
@@ -6,6 +9,13 @@ export interface Diagnostic {
   range: SourceRange;
   line: number;
   column: number;
+  /**
+   * Stable template key for a built-in message. Omitted for host-owned
+   * diagnostics, whose `message` is preserved verbatim by display code.
+   */
+  messageKey?: string;
+  /** Bounded scalar parameters for `messageKey`. */
+  params?: LocalDiagnosticParams;
 }
 export type LocalValue = string | number | boolean | null | string[] | number[];
 /** `array` retains its existing meaning: a homogeneous string array. */
