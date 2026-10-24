@@ -61,7 +61,9 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | Microsoft Edge（Chromium 内核） | 已完成本地浏览器验证 |
 | Playwright Chromium | Linux CI 浏览器检查通过 |
 | Firefox、Safari/WebKit | 未验证，不作支持声明 |
-| SSR | `react-dom/server` 静态渲染由发布前的 packed 检查覆盖；水合未验证，使用前需自行检查 |
+| 可分享状态格式 | `reactive-md-state/v1`：公开参数、语法版本与源码摘要；见[可分享文档](shareable-export-ch.md) |
+| 单文件 HTML 格式 | `reactive-md-html/v1`：交互或静态导出；仅交互模式内嵌独立运行时 |
+| SSR | `react-dom/server` 静态渲染由 packed 检查覆盖。单文件导出的静态首屏水合已在 Playwright Chromium/Edge 验证；通用 SSR 水合未验证，使用前需自行检查 |
 
 Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `createLocalRuntime`，不需要 DOM。React 渲染要求浏览器环境或宿主自行处理服务端输出。
 

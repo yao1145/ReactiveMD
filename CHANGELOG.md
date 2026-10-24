@@ -5,6 +5,7 @@ This file records user-visible changes. The project is in a 0.x preview; version
 ## Unreleased
 
 - Add leading `<theme name="…">` declarations, host theme registration and the `reactive-md-theme-1` protocol. Both React components support independent color schemes and system preferences; `default` preserves the existing design. See the [theme protocol](docs/theme-protocol-en.md).
+- Add shareable single-file HTML export: the `reactive-md build` and `reactive-md lint` CLI, interactive and static modes, static-first hydration, printable current values, versioned `reactive-md-state/v1` files, verified local raster inlining, the standalone `ReactiveMD.mount`/`mountAll` IIFE and `<reactive-md-doc>`. See [Shareable documents and static export](docs/shareable-export-en.md).
 
 ### 0.4.0 development preview (local-draft-2)
 

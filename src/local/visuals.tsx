@@ -15,7 +15,7 @@ import {
 import { compileLatex, LatexError, samplePlot, type LatexEvaluationBudget } from './math';
 import { LatexView } from './math-view';
 import type { LocalNode, LocalRuntime, LocalValue } from './types';
-import type { LocalVisualProps } from './render-types';
+import type { LocalRenderMode, LocalVisualProps } from './render-types';
 import {
   defaultLocalize,
   useLocalLocale,
@@ -540,17 +540,44 @@ function ChartLegend({
   hidden,
   onToggle,
   label,
+  mode,
 }: {
   items: LegendItem[];
   hidden: Set<number>;
   onToggle: (index: number) => void;
   label: string;
+  mode: LocalRenderMode;
 }) {
   const t = useLocalize();
+  const interactive = mode !== 'static';
   return (
-    <div className="local-visual-legend" role="group" aria-label={label}>
+    <div
+      className={`local-visual-legend${interactive ? '' : ' local-static-legend'}`}
+      role="group"
+      aria-label={interactive ? label : t('Legend', '图例')}
+    >
       {items.map((item, index) => {
         const off = hidden.has(index);
+        if (!interactive) {
+          // Static exports keep the color key as plain text: no toggle button
+          // and no pressed state that would promise interaction.
+          return (
+            <span
+              key={`${item.name}-${index}`}
+              className="local-visual-legend-item local-static-legend-item"
+            >
+              <span
+                className="local-visual-swatch"
+                style={{ backgroundColor: item.color }}
+                aria-hidden="true"
+              />
+              <span className="local-visual-legend-text">
+                {item.name}
+                {item.detail ? t(` (${item.detail})`, `（${item.detail}）`) : ''}
+              </span>
+            </span>
+          );
+        }
         return (
           <button
             key={`${item.name}-${index}`}
@@ -586,7 +613,9 @@ interface SortState {
   direction: 'asc' | 'desc';
 }
 
-function TableView({ node, runtime, render }: LocalVisualProps) {
+type ResolvedLocalVisualProps = LocalVisualProps & { mode: LocalRenderMode };
+
+function TableView({ node, runtime, render, mode }: ResolvedLocalVisualProps) {
   const t = useLocalize();
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortState | null>(null);
@@ -678,6 +707,77 @@ function TableView({ node, runtime, render }: LocalVisualProps) {
     if (!sort || sort.column !== column) return '';
     return sort.direction === 'asc' ? t(' (ascending)', '（升序）') : t(' (descending)', '（降序）');
   };
+
+  if (mode === 'static') {
+    /* Static exports show the whole table in source order: no search, sort,
+       selection or pagination controls, but the bound row selection remains
+       visible as a row marker. */
+    return (
+      <VisualFrame
+        className="local-visual-table-block local-static-table-block"
+        label={label}
+      >
+        <div className="local-visual-table-scroll local-static-table-scroll">
+          <table className="local-visual-table local-static-table">
+            <caption className="local-visual-sr-only">{label}</caption>
+            <thead>
+              <tr>
+                {table.header.map((cell, index) => (
+                  <th
+                    key={`head-${index}`}
+                    scope="col"
+                    className={numericColumns[index] ? 'is-numeric' : undefined}
+                  >
+                    {cellText(cell, t)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {table.rows.map((row) => {
+                const rowKey = selectable ? rowSelectionKey(keyIndex, row, t) : '';
+                const selected = selectable && rowKey !== '' && rowKey === selectedKey;
+                return (
+                  <tr
+                    key={`row-${row.index}`}
+                    className={
+                      selected ? 'is-selected local-static-selected' : undefined
+                    }
+                  >
+                    {table.header.map((_cell, column) => {
+                      const cell = row.cells[column];
+                      return (
+                        <td
+                          key={`cell-${row.index}-${column}`}
+                          className={numericColumns[column] ? 'is-numeric' : undefined}
+                        >
+                          {selected && column === 0 ? (
+                            <span className="local-visual-sr-only">
+                              {t('Selected row', '已选择行')}
+                            </span>
+                          ) : null}
+                          {cell?.error ? (
+                            <span className="local-visual-cell-error" title={cell.error}>
+                              {t('Cannot compute', '无法计算')}
+                            </span>
+                          ) : (
+                            render(cell?.children ?? [])
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {table.rows.length === 0 ? (
+          <VisualMessage message={t('No rows to display', '没有可显示的行')} />
+        ) : null}
+      </VisualFrame>
+    );
+  }
 
   return (
     <VisualFrame className="local-visual-table-block" label={label}>
@@ -883,8 +983,9 @@ function donutPath(
   ].join(' ');
 }
 
-function ChartView({ node, runtime }: LocalVisualProps) {
+function ChartView({ node, runtime, mode }: ResolvedLocalVisualProps) {
   const t = useLocalize();
+  const staticMode = mode === 'static';
   const [hiddenSeries, setHiddenSeries] = useState<Set<number>>(new Set());
   const [hiddenSlices, setHiddenSlices] = useState<Set<number>>(new Set());
   const [active, setActive] = useState<ChartPoint | null>(null);
@@ -1106,7 +1207,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
     const values = rows.map((row) => row.values[0]);
     const positive = values.map((value) => (value !== null && value >= 0 ? value : 0));
     const visibleTotal = positive.reduce(
-      (sum, value, index) => (hiddenSlices.has(index) ? sum : sum + value),
+      (sum, value, index) => (!staticMode && hiddenSlices.has(index) ? sum : sum + value),
       0,
     );
     const sliceLegend: LegendItem[] = rows.map((row, index) => ({
@@ -1126,6 +1227,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
             hidden={hiddenSlices}
             onToggle={toggleSlice}
             label={t('Legend', '图例')}
+            mode={mode}
           />
         </VisualFrame>
       );
@@ -1148,7 +1250,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
       rowKey: string;
     }[] = [];
     rows.forEach((row, index) => {
-      if (hiddenSlices.has(index)) return;
+      if (!staticMode && hiddenSlices.has(index)) return;
       const value = positive[index];
       if (value <= 0) return;
       const sweep = (value / visibleTotal) * Math.PI * 2;
@@ -1176,10 +1278,17 @@ function ChartView({ node, runtime }: LocalVisualProps) {
       : t('Focus a slice or legend to view values', '聚焦扇区或图例查看数值');
 
     return (
-      <VisualFrame className="local-visual-chart local-visual-chart-donut" label={title}>
-        <div className="local-visual-readout" id={readoutId} aria-live="polite">
-          {readout}
-        </div>
+      <VisualFrame
+        className={`local-visual-chart local-visual-chart-donut${
+          staticMode ? ' local-static-chart' : ''
+        }`}
+        label={title}
+      >
+        {staticMode ? null : (
+          <div className="local-visual-readout" id={readoutId} aria-live="polite">
+            {readout}
+          </div>
+        )}
         <div className="local-visual-svg-wrap">
           <svg
             className="local-visual-svg"
@@ -1189,7 +1298,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
               `${title}, donut chart, ${rows.length} items`,
               `${title}，环形图，共 ${rows.length} 项`,
             )}
-            aria-describedby={readoutId}
+            aria-describedby={staticMode ? undefined : readoutId}
           >
             <g className="local-visual-donut-center" aria-hidden="true">
               <text x={cx} y={cy - 2} textAnchor="middle" className="local-visual-donut-total">
@@ -1213,34 +1322,36 @@ function ChartView({ node, runtime }: LocalVisualProps) {
                 selectable,
                 selected,
               };
-              const markProps = {
-                'data-chart-mark': '',
-                ...(selectable ? { 'data-chart-selectable': '' } : {}),
-                tabIndex: 0,
-                role: selectable ? ('button' as const) : ('img' as const),
-                ...(selectable ? { 'aria-pressed': selected } : {}),
-                'aria-label': t(
-                  `${slice.label}: ${formatNumber(slice.value)}`,
-                  `${slice.label}：${formatNumber(slice.value)}`,
-                ),
-                onFocus: () => setActive(point),
-                onBlur: () => setActive(null),
-                onPointerEnter: () => setActive(point),
-                onPointerLeave: () => setActive(null),
-                onClick: selectable ? () => writeSelection(slice.rowKey) : undefined,
-                onKeyDown: (event: ReactKeyboardEvent<SVGElement>) => {
-                  if (selectable && activationKey(event)) {
-                    event.preventDefault();
-                    writeSelection(slice.rowKey);
-                    return;
-                  }
-                  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-                    focusNeighbor(event, '[data-chart-mark]', 1);
-                  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-                    focusNeighbor(event, '[data-chart-mark]', -1);
-                  }
-                },
-              };
+              const markProps = staticMode
+                ? {}
+                : {
+                    'data-chart-mark': '',
+                    ...(selectable ? { 'data-chart-selectable': '' } : {}),
+                    tabIndex: 0,
+                    role: selectable ? ('button' as const) : ('img' as const),
+                    ...(selectable ? { 'aria-pressed': selected } : {}),
+                    'aria-label': t(
+                      `${slice.label}: ${formatNumber(slice.value)}`,
+                      `${slice.label}：${formatNumber(slice.value)}`,
+                    ),
+                    onFocus: () => setActive(point),
+                    onBlur: () => setActive(null),
+                    onPointerEnter: () => setActive(point),
+                    onPointerLeave: () => setActive(null),
+                    onClick: selectable ? () => writeSelection(slice.rowKey) : undefined,
+                    onKeyDown: (event: ReactKeyboardEvent<SVGElement>) => {
+                      if (selectable && activationKey(event)) {
+                        event.preventDefault();
+                        writeSelection(slice.rowKey);
+                        return;
+                      }
+                      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                        focusNeighbor(event, '[data-chart-mark]', 1);
+                      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                        focusNeighbor(event, '[data-chart-mark]', -1);
+                      }
+                    },
+                  };
               const sliceClass = `local-visual-donut-slice${selected ? ' is-selected' : ''}`;
               if (slice.end - slice.start >= Math.PI * 2 - 1e-6) {
                 return (
@@ -1288,6 +1399,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           hidden={hiddenSlices}
           onToggle={toggleSlice}
           label={t('Legend, toggle slices', '图例，可开关扇区')}
+          mode={mode}
         />
         {selectionError ? <VisualMessage message={selectionError} kind="alert" /> : null}
         <Notes notes={notes} />
@@ -1299,7 +1411,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
 
   const visiblePositions = seriesNames
     .map((_name, position) => position)
-    .filter((position) => !hiddenSeries.has(position));
+    .filter((position) => staticMode || !hiddenSeries.has(position));
 
   if (visiblePositions.length === 0) {
     return (
@@ -1310,6 +1422,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           hidden={hiddenSeries}
           onToggle={toggleSeries}
           label={t('Legend, toggle series', '图例，可开关系列')}
+          mode={mode}
         />
       </VisualFrame>
     );
@@ -1348,6 +1461,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           hidden={hiddenSeries}
           onToggle={toggleSeries}
           label={t('Legend, toggle series', '图例，可开关系列')}
+          mode={mode}
         />
       </VisualFrame>
     );
@@ -1362,6 +1476,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
           hidden={hiddenSeries}
           onToggle={toggleSeries}
           label={t('Legend, toggle series', '图例，可开关系列')}
+          mode={mode}
         />
       </VisualFrame>
     );
@@ -1419,44 +1534,48 @@ function ChartView({ node, runtime }: LocalVisualProps) {
       ? plotLeft + ((tick - xDomain.min) / (xDomain.max - xDomain.min)) * plotWidth
       : categoryX(tick);
 
-  const activeGuide = active && !xDomain ? null : active ? (
-    <line
-      className="local-visual-guide"
-      x1={Math.max(plotLeft, Math.min(plotRight, active.x))}
-      x2={Math.max(plotLeft, Math.min(plotRight, active.x))}
-      y1={plotTop}
-      y2={plotBottom}
-    />
-  ) : null;
+  const activeGuide =
+    staticMode || !active ? null : !xDomain ? null : (
+      <line
+        className="local-visual-guide"
+        x1={Math.max(plotLeft, Math.min(plotRight, active.x))}
+        x2={Math.max(plotLeft, Math.min(plotRight, active.x))}
+        y1={plotTop}
+        y2={plotBottom}
+      />
+    );
 
-  const markProps = (point: ChartPoint) => ({
-    'data-chart-mark': '',
-    ...(point.selectable ? { 'data-chart-selectable': '' } : {}),
-    tabIndex: 0,
-    role: point.selectable ? ('button' as const) : ('img' as const),
-    ...(point.selectable ? { 'aria-pressed': point.selected } : {}),
-    'aria-label': t(
-      `${point.series}, ${point.label}${point.selectable && point.rowKey !== point.label ? `, ${point.rowKey}` : ''}: ${formatNumber(point.value)}`,
-      `${point.series}，${point.label}${point.selectable && point.rowKey !== point.label ? `，${point.rowKey}` : ''}：${formatNumber(point.value)}`,
-    ),
-    onFocus: () => setActive(point),
-    onBlur: () => setActive(null),
-    onPointerEnter: () => setActive(point),
-    onPointerLeave: () => setActive(null),
-    onClick: point.selectable ? () => writeSelection(point.rowKey) : undefined,
-    onKeyDown: (event: ReactKeyboardEvent<SVGElement>) => {
-      if (point.selectable && activationKey(event)) {
-        event.preventDefault();
-        writeSelection(point.rowKey);
-        return;
-      }
-      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-        focusNeighbor(event, '[data-chart-mark]', 1);
-      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-        focusNeighbor(event, '[data-chart-mark]', -1);
-      }
-    },
-  });
+  const markProps = (point: ChartPoint) =>
+    staticMode
+      ? {}
+      : {
+          'data-chart-mark': '',
+          ...(point.selectable ? { 'data-chart-selectable': '' } : {}),
+          tabIndex: 0,
+          role: point.selectable ? ('button' as const) : ('img' as const),
+          ...(point.selectable ? { 'aria-pressed': point.selected } : {}),
+          'aria-label': t(
+            `${point.series}, ${point.label}${point.selectable && point.rowKey !== point.label ? `, ${point.rowKey}` : ''}: ${formatNumber(point.value)}`,
+            `${point.series}，${point.label}${point.selectable && point.rowKey !== point.label ? `，${point.rowKey}` : ''}：${formatNumber(point.value)}`,
+          ),
+          onFocus: () => setActive(point),
+          onBlur: () => setActive(null),
+          onPointerEnter: () => setActive(point),
+          onPointerLeave: () => setActive(null),
+          onClick: point.selectable ? () => writeSelection(point.rowKey) : undefined,
+          onKeyDown: (event: ReactKeyboardEvent<SVGElement>) => {
+            if (point.selectable && activationKey(event)) {
+              event.preventDefault();
+              writeSelection(point.rowKey);
+              return;
+            }
+            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+              focusNeighbor(event, '[data-chart-mark]', 1);
+            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+              focusNeighbor(event, '[data-chart-mark]', -1);
+            }
+          },
+        };
 
   const makePoint = (
     position: number,
@@ -1673,17 +1792,24 @@ function ChartView({ node, runtime }: LocalVisualProps) {
   );
 
   return (
-    <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
-      <div className="local-visual-readout" id={readoutId} aria-live="polite">
-        {readout}
-      </div>
+    <VisualFrame
+      className={`local-visual-chart local-visual-chart-${kind}${
+        staticMode ? ' local-static-chart' : ''
+      }`}
+      label={title}
+    >
+      {staticMode ? null : (
+        <div className="local-visual-readout" id={readoutId} aria-live="polite">
+          {readout}
+        </div>
+      )}
       <div className="local-visual-svg-wrap">
         <svg
           className="local-visual-svg"
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           role="group"
           aria-label={ariaLabel}
-          aria-describedby={readoutId}
+          aria-describedby={staticMode ? undefined : readoutId}
         >
           {yTicks.map((tick) => (
             <g key={`y-${tick}`}>
@@ -1778,6 +1904,7 @@ function ChartView({ node, runtime }: LocalVisualProps) {
         hidden={hiddenSeries}
         onToggle={toggleSeries}
         label={t('Legend, toggle series', '图例，可开关系列')}
+        mode={mode}
       />
       {selectionError ? <VisualMessage message={selectionError} kind="alert" /> : null}
       <Notes notes={notes} />
@@ -1971,9 +2098,10 @@ function plotSegments(
   return segments;
 }
 
-function PlotView({ node, runtime }: LocalVisualProps) {
+function PlotView({ node, runtime, mode }: ResolvedLocalVisualProps) {
   const t = useLocalize();
   const locale = useLocalLocale();
+  const staticMode = mode === 'static';
   const [activeX, setActiveX] = useState<number | null>(null);
   const reset = runtime.resetToken(node);
   useEffect(() => {
@@ -2173,7 +2301,7 @@ function PlotView({ node, runtime }: LocalVisualProps) {
     setActiveX(clampX(next));
   };
 
-  const readX = activeX === null ? null : clampX(activeX);
+  const readX = staticMode || activeX === null ? null : clampX(activeX);
   const readout =
     readX === null
       ? t(
@@ -2215,9 +2343,11 @@ function PlotView({ node, runtime }: LocalVisualProps) {
 
   return (
     <VisualFrame className="local-visual-plot" label={label}>
-      <div className="local-visual-readout" id={readoutId} aria-live="polite">
-        {readout}
-      </div>
+      {staticMode ? null : (
+        <div className="local-visual-readout" id={readoutId} aria-live="polite">
+          {readout}
+        </div>
+      )}
       <div className="local-visual-svg-wrap">
         <svg
           className="local-visual-svg"
@@ -2227,13 +2357,13 @@ function PlotView({ node, runtime }: LocalVisualProps) {
             `${label}, range ${formatNumber(min)} to ${formatNumber(max)}, ${samples} samples`,
             `${label}，区间 ${formatNumber(min)} 到 ${formatNumber(max)}，${samples} 个采样点`,
           )}
-          aria-describedby={readoutId}
-          tabIndex={0}
-          onPointerMove={handlePointerMove}
-          onPointerLeave={() => setActiveX(null)}
-          onFocus={() => setActiveX((current) => current ?? (min + max) / 2)}
-          onBlur={() => setActiveX(null)}
-          onKeyDown={handleKeyDown}
+          aria-describedby={staticMode ? undefined : readoutId}
+          tabIndex={staticMode ? undefined : 0}
+          onPointerMove={staticMode ? undefined : handlePointerMove}
+          onPointerLeave={staticMode ? undefined : () => setActiveX(null)}
+          onFocus={staticMode ? undefined : () => setActiveX((current) => current ?? (min + max) / 2)}
+          onBlur={staticMode ? undefined : () => setActiveX(null)}
+          onKeyDown={staticMode ? undefined : handleKeyDown}
         >
           {yTicks.map((tick) => (
             <g key={`y-${tick}`}>
@@ -2394,8 +2524,9 @@ function timelineHeaderSet(header: string[]): TimelineHeaderSet | null {
   return null;
 }
 
-function TimelineView({ node, runtime, render }: LocalVisualProps) {
+function TimelineView({ node, runtime, render, mode }: ResolvedLocalVisualProps) {
   const t = useLocalize();
+  const interactive = mode !== 'static';
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const reset = runtime.resetToken(node);
   useEffect(() => {
@@ -2494,7 +2625,10 @@ function TimelineView({ node, runtime, render }: LocalVisualProps) {
   const active = ordered.find((item) => item.key === activeKey) ?? null;
 
   return (
-    <VisualFrame className="local-visual-timeline" label={title}>
+    <VisualFrame
+      className={`local-visual-timeline${interactive ? '' : ' local-static-timeline'}`}
+      label={title}
+    >
       <div className="local-visual-timeline-axis" aria-hidden="true">
         {ticks.map((tick, index) => {
           const percent = (tick / span) * 100;
@@ -2521,29 +2655,45 @@ function TimelineView({ node, runtime, render }: LocalVisualProps) {
             <li
               key={item.key}
               className={`local-visual-timeline-item${
-                activeKey === item.key ? ' is-active' : ''
-              }`}
-              tabIndex={0}
-              aria-label={t(
-                `${item.title}, started ${timeText(item.start)}, ended ${timeText(
-                  end,
-                )}, duration ${timeText(item.duration)}${item.description.length > 0 ? ', with notes' : ''}`,
-                `${item.title}，开始 ${timeText(item.start)}，结束 ${timeText(
-                  end,
-                )}，时长 ${timeText(item.duration)}${item.description.length > 0 ? '，有说明' : ''}`,
-              )}
-              onFocus={() => setActiveKey(item.key)}
-              onBlur={() => setActiveKey((current) => (current === item.key ? null : current))}
-              onPointerEnter={() => setActiveKey(item.key)}
-              onPointerLeave={() =>
-                setActiveKey((current) => (current === item.key ? null : current))
+                interactive && activeKey === item.key ? ' is-active' : ''
+              }${interactive ? '' : ' local-static-timeline-item'}`}
+              tabIndex={interactive ? 0 : undefined}
+              aria-label={
+                interactive
+                  ? t(
+                      `${item.title}, started ${timeText(item.start)}, ended ${timeText(
+                        end,
+                      )}, duration ${timeText(item.duration)}${item.description.length > 0 ? ', with notes' : ''}`,
+                      `${item.title}，开始 ${timeText(item.start)}，结束 ${timeText(
+                        end,
+                      )}，时长 ${timeText(item.duration)}${item.description.length > 0 ? '，有说明' : ''}`,
+                    )
+                  : undefined
               }
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  event.preventDefault();
-                  setActiveKey(null);
-                }
-              }}
+              onFocus={interactive ? () => setActiveKey(item.key) : undefined}
+              onBlur={
+                interactive
+                  ? () =>
+                      setActiveKey((current) => (current === item.key ? null : current))
+                  : undefined
+              }
+              onPointerEnter={interactive ? () => setActiveKey(item.key) : undefined}
+              onPointerLeave={
+                interactive
+                  ? () =>
+                      setActiveKey((current) => (current === item.key ? null : current))
+                  : undefined
+              }
+              onKeyDown={
+                interactive
+                  ? (event: ReactKeyboardEvent<HTMLLIElement>) => {
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        setActiveKey(null);
+                      }
+                    }
+                  : undefined
+              }
             >
               <div className="local-visual-timeline-head">
                 <span className="local-visual-timeline-title">
@@ -2569,26 +2719,33 @@ function TimelineView({ node, runtime, render }: LocalVisualProps) {
                   }}
                 />
               </div>
+              {interactive || item.description.length === 0 ? null : (
+                <div className="local-visual-timeline-detail local-static-timeline-detail">
+                  {render(item.description)}
+                </div>
+              )}
             </li>
           );
         })}
       </ol>
-      <div className="local-visual-timeline-detail" aria-live="polite">
-        {active ? (
-          <>
-            <strong>{active.title}</strong>
-            {active.description.length > 0 ? (
-              render(active.description)
-            ) : (
-              <span>{t('No notes.', '没有说明。')}</span>
-            )}
-          </>
-        ) : (
-          <span>
-            {t('Focus or point at an item to view its notes.', '聚焦或指向事项查看说明。')}
-          </span>
-        )}
-      </div>
+      {interactive ? (
+        <div className="local-visual-timeline-detail" aria-live="polite">
+          {active ? (
+            <>
+              <strong>{active.title}</strong>
+              {active.description.length > 0 ? (
+                render(active.description)
+              ) : (
+                <span>{t('No notes.', '没有说明。')}</span>
+              )}
+            </>
+          ) : (
+            <span>
+              {t('Focus or point at an item to view its notes.', '聚焦或指向事项查看说明。')}
+            </span>
+          )}
+        </div>
+      ) : null}
       <Notes notes={notes} />
     </VisualFrame>
   );
@@ -2995,8 +3152,9 @@ function edgeGeometry(
   };
 }
 
-function DiagramView({ node, runtime, render }: LocalVisualProps) {
+function DiagramView({ node, runtime, render, mode }: ResolvedLocalVisualProps) {
   const t = useLocalize();
+  const interactive = mode !== 'static';
   const [localSelected, setLocalSelected] = useState<string | null>(null);
   const [writeError, setWriteError] = useState<string | null>(null);
   const reset = runtime.resetToken(node);
@@ -3085,6 +3243,12 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
         ? localSelected
         : fallbackId;
   const selectedNode = nodes.find((entry) => entry.id === selectedId) ?? nodes[0];
+  const staticSelectedId =
+    runtimeSelected && ids.has(runtimeSelected)
+      ? runtimeSelected
+      : initialAttr && ids.has(initialAttr)
+        ? initialAttr
+        : null;
 
   const select = (id: string) => {
     setLocalSelected(id);
@@ -3152,13 +3316,23 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
   }
 
   return (
-    <VisualFrame className="local-visual-diagram" label={title}>
+    <VisualFrame
+      className={`local-visual-diagram${interactive ? '' : ' local-static-diagram'}`}
+      label={title}
+    >
       <div className="local-visual-svg-wrap">
         <svg
           className="local-visual-svg local-visual-diagram-svg"
           viewBox={`0 0 ${layout.width} ${layout.height}`}
           role="group"
-          aria-label={`${title}, with ${nodes.length} nodes and ${edges.length} edges; press Tab to focus a node and Enter to select`}
+          aria-label={
+            interactive
+              ? `${title}, with ${nodes.length} nodes and ${edges.length} edges; press Tab to focus a node and Enter to select`
+              : t(
+                  `${title}, with ${nodes.length} nodes and ${edges.length} edges`,
+                  `${title}，共 ${nodes.length} 个节点、${edges.length} 条连线`,
+                )
+          }
           aria-describedby={descriptionId}
         >
           <defs>
@@ -3178,7 +3352,9 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
           {nodes.map((entry) => {
             const position = layout.positions.get(entry.id);
             if (!position) return null;
-            const selected = entry.id === selectedId;
+            const selected = interactive
+              ? entry.id === selectedId
+              : staticSelectedId !== null && entry.id === staticSelectedId;
             const lines = wrapLabel(entry.label, 8, 2);
             return (
               <g
@@ -3186,25 +3362,29 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
                 className={`local-visual-node local-visual-node-${entry.tone}${
                   selected ? ' is-selected' : ''
                 }`}
-                data-diagram-node=""
+                data-diagram-node={interactive ? '' : undefined}
                 transform={`translate(${position.x} ${position.y})`}
-                role="button"
-                tabIndex={0}
-                aria-pressed={selected}
-                aria-label={entry.label}
-                onClick={() => select(entry.id)}
-                onKeyDown={(event) => {
-                  if (activationKey(event)) {
-                    event.preventDefault();
-                    select(entry.id);
-                    return;
-                  }
-                  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-                    focusNeighbor(event, '[data-diagram-node]', 1);
-                  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-                    focusNeighbor(event, '[data-diagram-node]', -1);
-                  }
-                }}
+                role={interactive ? 'button' : undefined}
+                tabIndex={interactive ? 0 : undefined}
+                aria-pressed={interactive ? selected : undefined}
+                aria-label={interactive ? entry.label : undefined}
+                onClick={interactive ? () => select(entry.id) : undefined}
+                onKeyDown={
+                  interactive
+                    ? (event: ReactKeyboardEvent<SVGElement>) => {
+                        if (activationKey(event)) {
+                          event.preventDefault();
+                          select(entry.id);
+                          return;
+                        }
+                        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                          focusNeighbor(event, '[data-diagram-node]', 1);
+                        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                          focusNeighbor(event, '[data-diagram-node]', -1);
+                        }
+                      }
+                    : undefined
+                }
               >
                 <title>{entry.label}</title>
                 <rect
@@ -3232,20 +3412,39 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
           {edgeLabels}
         </svg>
       </div>
-      <div className="local-visual-diagram-detail" aria-live="polite">
-        {selectedNode ? (
-          <>
-            <strong>{selectedNode.label}</strong>
-            {selectedNode.children.length > 0 ? (
-              render(selectedNode.children)
-            ) : (
-              <span>{t('This node has no description.', '此节点没有说明。')}</span>
-            )}
-          </>
-        ) : (
-          <span>{t('Click a node, or focus it with Tab and press Enter, to view its description.', '点击节点，或用 Tab 聚焦后按 Enter 查看说明。')}</span>
-        )}
-      </div>
+      {interactive ? (
+        <div className="local-visual-diagram-detail" aria-live="polite">
+          {selectedNode ? (
+            <>
+              <strong>{selectedNode.label}</strong>
+              {selectedNode.children.length > 0 ? (
+                render(selectedNode.children)
+              ) : (
+                <span>{t('This node has no description.', '此节点没有说明。')}</span>
+              )}
+            </>
+          ) : (
+            <span>{t('Click a node, or focus it with Tab and press Enter, to view its description.', '点击节点，或用 Tab 聚焦后按 Enter 查看说明。')}</span>
+          )}
+        </div>
+      ) : (
+        <div className="local-visual-diagram-detail local-static-diagram-detail">
+          <dl className="local-static-diagram-nodes">
+            {nodes.map((entry) => (
+              <div key={`static-node-${entry.id}`} className="local-static-diagram-node">
+                <dt>{entry.label}</dt>
+                <dd>
+                  {entry.children.length > 0 ? (
+                    render(entry.children)
+                  ) : (
+                    <span>{t('This node has no description.', '此节点没有说明。')}</span>
+                  )}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
       <ul id={descriptionId} className="local-visual-sr-only" aria-label={t('Nodes and edges', '节点与连线')}>
         {nodes.map((entry) => (
           <li key={`description-node-${entry.id}`}>{entry.label}</li>
@@ -3272,17 +3471,18 @@ function DiagramView({ node, runtime, render }: LocalVisualProps) {
 /* ------------------------------------------------------------------ */
 
 export function LocalVisual(props: LocalVisualProps): ReactNode {
-  switch (props.node.name) {
+  const resolved = { ...props, mode: props.mode ?? 'interactive' };
+  switch (resolved.node.name) {
     case 'table':
-      return <TableView {...props} />;
+      return <TableView {...resolved} />;
     case 'chart':
-      return <ChartView {...props} />;
+      return <ChartView {...resolved} />;
     case 'plot':
-      return <PlotView {...props} />;
+      return <PlotView {...resolved} />;
     case 'timeline':
-      return <TimelineView {...props} />;
+      return <TimelineView {...resolved} />;
     case 'diagram':
-      return <DiagramView {...props} />;
+      return <DiagramView {...resolved} />;
     default:
       return null;
   }

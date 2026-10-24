@@ -24,6 +24,7 @@ The guarantees below are covered by compiler, runtime and renderer tests; capabi
 - Images load only when the host passes `urlPolicy` and the policy returns `true`. Images with a protocol still have that protocol checked first: only `http:` and `https:` are allowed. Relative addresses are decided by the policy. Addresses such as `javascript:` or dangerous `data:` URLs are rejected even if the policy allows them.
 - Links allow relative addresses and `http:`, `https:`, `mailto:` and `tel:` by default; external HTTP links open in a new tab with `noopener noreferrer`. Dangerous protocols are always rejected.
 - If the policy throws, the address is rejected. Images that are allowed to load use `referrerPolicy="no-referrer"`; same-origin images may still carry cookies, so image allowlists should avoid business APIs.
+- A trusted `imageResolver` runs only after the image URL passes protocol checks and `urlPolicy`. It maps an accepted URL to host-controlled output; exported files use only verified `data:image/png|jpeg|gif|webp;base64` values, and links never reach it.
 - `urlPolicy` is a URL allowlist, not server-side authorization. The host still needs to configure CSP, network egress, an image proxy or a sandboxed iframe (when authors are fully untrusted).
 
 ### Resource limits
@@ -55,13 +56,21 @@ Hosts can adjust the syntax node budget for a single compilation with `compileLo
 - `snapshot()` returns a stable frozen snapshot, including frozen arrays; `get()` and `evaluate()` return array copies. State updates are committed through validated `set()` calls.
 - `disabled` and `if` are display states only, not permission control. Business permissions and value validation must be enforced by the host when submitting to the server.
 
+### Shareable HTML export
+
+- `reactive-md-state/v1` stores only public binding names and serializable values. It excludes `@` internal bindings, revisions, node IDs, AST data, UI state and timers. Source digest, syntax, parameter set and every value are validated before import; unknown or conflicting keys reject the whole file.
+- Interactive HTML embeds a fixed standalone runtime and a CSP with no network connections, frames, objects, base injection or form submission. Only inline styles/runtime and `data:` images are allowed. JSON, source, titles and notices are escaped for their HTML/script context.
+- The CLI inlines only relative raster files that resolve inside the document directory or an explicit asset root. It rejects remote images, URL schemes, absolute paths, traversal, symlink escapes, SVG, forged formats and oversized assets. The demo export dialog disables HTML export when images are present.
+- Static HTML contains no runtime script or auto-mount payload. Static-first hydration is covered only in the single-file Chromium/Edge path; it is not a general hydration or sandboxing guarantee. Use a sandboxed iframe for fully untrusted authors.
+- Exporting current parameters is an explicit host/reader action. Treat the generated state file and HTML as potentially sensitive; choose initial values unless current values are intentionally meant to be shared.
+
 ## Host responsibilities
 
 - Decide who may write, submit and share documents; limit request size, concurrency and execution time for untrusted authors. Compiling a 1,000,000-character document is still real CPU work.
 - Configure `urlPolicy` for images and links; maintain CSP, network egress control and image allowlists.
 - Revalidate form values, permissions and business constraints on the server; do not trust `disabled`, conditional visibility or client state inside the document.
 - When persistence is needed, store the original `.reactive.md` source securely; runtime state and `LocalDocument` should not be treated as a persistence format.
-- Before statically rendering untrusted documents on the server, assess the resource limits of the rendering process. Hydration behavior is unverified and should not be used as a security boundary.
+- Before statically rendering untrusted documents on the server, assess the resource limits of the rendering process. General SSR hydration remains unverified; only the single-file static-first path has Chromium/Edge coverage. Hydration is not a security boundary.
 - Report vulnerabilities in third-party dependencies upstream as well; this package is responsible only for its own integration code.
 
 ## Reporting vulnerabilities

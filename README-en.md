@@ -11,6 +11,7 @@ Local mode uses HTML-style tags, with parameters and table data written directly
 - [Beginner guide](docs/local-guide-en.md): move from Markdown to interactive documents, with a complete exercise and an error quick reference.
 - [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [Feature tours and examples](examples/local/README.md): 43 component names, tags, in-place parameters and LaTeX plots.
 - [Local mode integration](docs/local-integration-en.md): `compileLocal`, the state runtime, React embedding, URL policy and style scoping.
+- [Shareable documents and static export](docs/shareable-export-en.md): single-file interactive HTML, static output, versioned state files, assets, the CLI and the standalone browser API.
 - [Theme protocol](docs/theme-protocol-en.md): document theme selection, custom CSS and light/dark modes.
 - [Standalone integration examples](examples/integration/README.md): Node core and React pages you can copy and run outside the repository.
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
@@ -78,6 +79,20 @@ export function Article({ source }: { source: string }) {
 
 `LocalReactiveDocument` compiles and manages the runtime for you. To control compilation, lifecycle or URL policy yourself, use `LocalDocumentView` as described in [Local mode integration](docs/local-integration-en.md).
 
+## Share documents
+
+Build a self-contained HTML file that readers can open offline, or a script-free static snapshot:
+
+```sh
+npm run build
+npx reactive-md build examples/local/counter.reactive.md -o counter.html
+npx reactive-md build examples/local/counter.reactive.md -o counter-static.html --mode static
+```
+
+The interactive file embeds the original source, React 19, the runtime, styles and any verified local images. It hydrates a static first screen, so it remains readable with JavaScript disabled. Use `--state-file doc.state.json` to export a saved `reactive-md-state/v1` baseline; without it, the author initial values are used and become the reader's reset baseline. The demo export dialog can save the current preview parameters as such a file.
+
+See [Shareable documents and static export](docs/shareable-export-en.md) for image limits, CSP/security, printing, exit codes, `ReactiveMD.mount`/`mountAll` and `<reactive-md-doc>`.
+
 ## Try the demo
 
 ```sh
@@ -101,6 +116,7 @@ demo/          Standalone Playground app
 
 - [Beginner guide](docs/local-guide-en.md) and [local interaction syntax specification](docs/local-interaction-syntax-en.md).
 - [Local mode integration](docs/local-integration-en.md): core and React API, URL policy, lifecycle, styling and version pinning.
+- [Shareable documents and static export](docs/shareable-export-en.md): CLI build/lint, state files, local image inlining, printing and the standalone browser runtime.
 - [Feature tours and examples](examples/local/README.md) and [standalone integrations](examples/integration/README.md).
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, diagnostics and supported platforms.
 - [Component protocol](docs/component-protocol-en.md) and [component development guide](docs/component-development-en.md): contribution contracts, a proposal template and acceptance cases.
@@ -110,7 +126,7 @@ See the [contributing guide](CONTRIBUTING.md) for development and test commands.
 
 ## Support and status
 
-- Node 22.12, Node 24 and Playwright Chromium pass CI; Microsoft Edge is verified locally. Static SSR is covered by the packed check. Firefox, WebKit and SSR hydration remain unverified.
+- Node 22.12, Node 24 and Playwright Chromium pass CI; Microsoft Edge is verified locally. Static SSR is covered by the packed check; the single-file export's static-first hydration is covered by `npm run test:shareable`. General SSR hydration outside that path, Firefox and WebKit remain unverified.
 - 0.x minor releases may contain breaking changes. Persist the original `.reactive.md` source, not the runtime AST or in-memory state.
 - The project maintains the latest 0.x preview. Security fixes may ship in minor releases.
 

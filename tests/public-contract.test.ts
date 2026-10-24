@@ -14,8 +14,12 @@ it('loads the core entry without touching React', async () => {
   try {
     const core = await import('../src/index');
     expect(core.LOCAL_SYNTAX_VERSION).toBe('local-draft-2');
+    expect(core.LOCAL_STATE_FORMAT).toBe('reactive-md-state/v1');
+    expect(core.SHAREABLE_HTML_FORMAT).toBe('reactive-md-html/v1');
     expect(typeof core.compileLocal).toBe('function');
     expect(typeof core.createLocalRuntime).toBe('function');
+    expect(typeof core.createLocalStateFile).toBe('function');
+    expect(typeof core.createShareableHtml).toBe('function');
   } finally {
     vi.doUnmock('react');
     vi.resetModules();

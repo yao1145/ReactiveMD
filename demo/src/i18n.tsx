@@ -68,6 +68,51 @@ export interface DemoCopy {
     importDocument: string;
     exportDocument: string;
   };
+  exportDialog: {
+    title: string;
+    description: string;
+    close: string;
+    formatLegend: string;
+    interactive: string;
+    interactiveHint: string;
+    static: string;
+    staticHint: string;
+    stateLegend: string;
+    authorInitial: string;
+    authorInitialHint: string;
+    currentPreview: string;
+    currentPreviewHint: string;
+    currentUnavailable: string;
+    summaryLegend: string;
+    summaryParameters: string;
+    summaryImages: string;
+    changed: (changed: number, total: number) => string;
+    unchanged: (total: number) => string;
+    noParameters: string;
+    noCurrent: string;
+    imageNone: string;
+    imageBlocked: (count: number) => string;
+    imageCommandBefore: string;
+    imageCommand: string;
+    output: (mode: string, state: string) => string;
+    outputInteractive: string;
+    outputStatic: string;
+    outputInitial: string;
+    outputCurrent: string;
+    compilePending: string;
+    compileFailed: (message: string) => string;
+    compileUnavailable: string;
+    assetsLoading: string;
+    assetsFailed: (message: string) => string;
+    buildFailed: (message: string) => string;
+    exportHtml: string;
+    exportMarkdown: string;
+    exportState: string;
+    exportStateHint: string;
+    exportStateUnavailable: string;
+    preparing: string;
+    cancel: string;
+  };
   editor: {
     region: string;
     heading: string;
@@ -177,7 +222,62 @@ const ENGLISH: DemoCopy = {
     showSource: 'Show source',
     simpleView: 'Presentation mode',
     importDocument: 'Import document',
-    exportDocument: 'Export document',
+    exportDocument: 'Export document…',
+  },
+  exportDialog: {
+    title: 'Export document',
+    description:
+      'Download the Markdown source, or create a self-contained HTML file that readers can open offline.',
+    close: 'Close export dialog',
+    formatLegend: 'HTML output',
+    interactive: 'Interactive HTML',
+    interactiveHint:
+      'One self-contained file with the embedded runtime. Readers can use the controls, and the exported values are already applied.',
+    static: 'Static HTML',
+    staticHint: 'A read-only snapshot without a runtime or scripts, suitable for printing and archiving.',
+    stateLegend: 'Starting values',
+    authorInitial: 'Author initial values',
+    authorInitialHint:
+      'Use the defaults declared in the document. Every open and reset starts from the same values.',
+    currentPreview: 'Current preview state',
+    currentPreviewHint: 'Use the values currently shown in the preview as the exported starting point.',
+    currentUnavailable:
+      'The current preview state is unavailable because no matching document is running.',
+    summaryLegend: 'Export summary',
+    summaryParameters: 'Parameters',
+    summaryImages: 'Images',
+    changed: (changed, total) =>
+      `${changed} of ${total} public parameter${total === 1 ? '' : 's'} differ from the author initial values.`,
+    unchanged: (total) =>
+      `All ${total} public parameter${total === 1 ? '' : 's'} match the author initial values.`,
+    noParameters: 'This document has no public parameters.',
+    noCurrent: 'The current preview state cannot be compared or exported right now.',
+    imageNone: 'No images: the HTML file will be completely self-contained.',
+    imageBlocked: (count) =>
+      `${count} image${count === 1 ? '' : 's'} found. The browser demo cannot inline images, so HTML export is disabled to avoid a broken file.`,
+    imageCommandBefore: 'Use the CLI to inline local assets:',
+    imageCommand: 'reactive-md build document.reactive.md --assets inline',
+    output: (mode, state) => `Will export ${mode} using ${state}.`,
+    outputInteractive: 'interactive HTML',
+    outputStatic: 'static HTML',
+    outputInitial: 'the author initial values',
+    outputCurrent: 'the current preview state',
+    compilePending: 'Waiting for the current source to finish compiling…',
+    compileFailed: (message) => `HTML export is unavailable until the source compiles: ${message}`,
+    compileUnavailable:
+      'HTML export is unavailable because the current source has not compiled yet.',
+    assetsLoading: 'Checking the generated export assets…',
+    assetsFailed: (message) =>
+      `The generated export assets are missing or unreadable: ${message}. Run npm run build before exporting.`,
+    buildFailed: (message) => `Could not render the HTML file: ${message}`,
+    exportHtml: 'Export HTML',
+    exportMarkdown: 'Download Markdown',
+    exportState: 'Save current state',
+    exportStateHint:
+      'Download the current preview parameters as a reactive-md-state/v1 file for a CLI build.',
+    exportStateUnavailable: 'Open a running preview to save its current parameters.',
+    preparing: 'Rendering HTML…',
+    cancel: 'Cancel',
   },
   editor: {
     region: 'Source editor',
@@ -295,7 +395,54 @@ const CHINESE: DemoCopy = {
     showSource: '显示源码',
     simpleView: '演示模式',
     importDocument: '导入文档',
-    exportDocument: '导出文档',
+    exportDocument: '导出文档…',
+  },
+  exportDialog: {
+    title: '导出文档',
+    description: '下载 Markdown 源码，或生成一份读者可离线打开的自包含 HTML 文件。',
+    close: '关闭导出对话框',
+    formatLegend: 'HTML 输出',
+    interactive: '交互式 HTML',
+    interactiveHint: '单文件内嵌运行时。读者可以使用控件，打开时已经应用导出的参数值。',
+    static: '静态 HTML',
+    staticHint: '只读快照，不包含运行时和脚本，适合打印和归档。',
+    stateLegend: '起始值',
+    authorInitial: '作者初值',
+    authorInitialHint: '使用文档声明的默认值。每次打开和重置都从相同的值开始。',
+    currentPreview: '当前预览状态',
+    currentPreviewHint: '把预览中当前显示的值作为导出起始值。',
+    currentUnavailable: '当前没有正在运行且匹配的文档，无法使用预览状态。',
+    summaryLegend: '导出摘要',
+    summaryParameters: '参数',
+    summaryImages: '图片',
+    changed: (changed, total) => `${total} 个公开参数中有 ${changed} 个与作者初值不同。`,
+    unchanged: (total) => `全部 ${total} 个公开参数都与作者初值相同。`,
+    noParameters: '这份文档没有公开参数。',
+    noCurrent: '当前预览状态暂时无法比较或导出。',
+    imageNone: '没有图片：HTML 文件完全自包含。',
+    imageBlocked: (count) =>
+      `发现 ${count} 张图片。浏览器演示无法内联图片，因此已停用 HTML 导出，以免生成损坏的文件。`,
+    imageCommandBefore: '请使用 CLI 内联本地资源：',
+    imageCommand: 'reactive-md build document.reactive.md --assets inline',
+    output: (mode, state) => `将导出${mode}，起始值使用${state}。`,
+    outputInteractive: '交互式 HTML',
+    outputStatic: '静态 HTML',
+    outputInitial: '作者初值',
+    outputCurrent: '当前预览状态',
+    compilePending: '正在等待当前源码编译完成…',
+    compileFailed: (message) => `源码编译通过前无法导出 HTML：${message}`,
+    compileUnavailable: '当前源码尚未编译完成，暂时无法导出 HTML。',
+    assetsLoading: '正在检查生成的导出资源…',
+    assetsFailed: (message) =>
+      `生成的导出资源缺失或无法读取：${message}。请先运行 npm run build 再导出。`,
+    buildFailed: (message) => `无法渲染 HTML 文件：${message}`,
+    exportHtml: '导出 HTML',
+    exportMarkdown: '下载 Markdown',
+    exportState: '保存当前状态',
+    exportStateHint: '把当前预览参数下载为 reactive-md-state/v1 文件，供 CLI 构建使用。',
+    exportStateUnavailable: '请先打开正在运行的预览，再保存当前参数。',
+    preparing: '正在渲染 HTML…',
+    cancel: '取消',
   },
   editor: {
     region: '源码编辑器',

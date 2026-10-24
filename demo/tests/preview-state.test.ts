@@ -223,4 +223,54 @@ describe('Playground preview state session', () => {
     expect(JSON.stringify(document)).toBe(before);
     afterEdit.release();
   });
+
+  it('exposes current export state only while the exact source is active', () => {
+    const session = new PreviewStateSession();
+    const first = compile(number);
+    expect(session.currentState(first)).toBeNull();
+
+    const active = session.open(first);
+    const initial = session.currentState(first);
+    expect(initial).not.toBeNull();
+    expect(initial?.amount).toBe(2);
+
+    active.runtime.set(control(first, 'amount'), 9);
+    expect(session.currentState(first)?.amount).toBe(9);
+
+    const other = compile(`# Another document\n\n${number}`);
+    expect(session.currentState(other)).toBeNull();
+
+    active.release();
+    expect(session.currentState(first)).toBeNull();
+    expect(session.currentState(other)).toBeNull();
+  });
+
+  it('retains values for compatible recompiles without exposing a stale source', () => {
+    const session = new PreviewStateSession();
+    const first = compile(number);
+    const active = session.open(first);
+    active.runtime.set(control(first, 'amount'), 14);
+    active.release();
+
+    const nextSource = `# Compatible revision\n\n${number}`;
+    const next = compile(nextSource);
+    const reopened = session.open(next);
+    expect(reopened.runtime.snapshot().state.amount).toBe(14);
+    expect(session.currentState(next)?.amount).toBe(14);
+    // The retained snapshot is still available for compatible recompiles, but
+    // it is reported only for the source that is currently running.
+    expect(session.currentState(first)).toBeNull();
+    expect(session.currentState(compile(nextSource))?.amount).toBe(14);
+
+    const replacement = compile(number.replace('initial="2"', 'initial="5"'));
+    const switched = session.open(replacement);
+    expect(switched.runtime.snapshot().state.amount).toBe(5);
+    expect(session.currentState(replacement)?.amount).toBe(5);
+    expect(session.currentState(next)).toBeNull();
+    expect(session.currentState(first)).toBeNull();
+
+    switched.release();
+    reopened.release();
+    expect(session.currentState(replacement)).toBeNull();
+  });
 });

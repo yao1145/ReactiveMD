@@ -26,7 +26,7 @@ import type {
   LocalSnapshot,
   LocalValue,
 } from './types';
-import type { LocalRenderContext } from './render-types';
+import type { LocalRenderContext, LocalRenderMode } from './render-types';
 import { compileLocal } from './compiler';
 import { createLocalRuntime } from './runtime';
 import { MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
@@ -57,6 +57,14 @@ import {
  */
 export type LocalUrlPolicy = (url: string, kind: 'image' | 'link') => boolean;
 
+/**
+ * Trusted host mapping applied to an image URL that already passed the
+ * protocol check and the host URL policy. It commonly turns a fetchable image
+ * into a self-contained `data:` URL for export. Returning anything other than
+ * a non-empty string rejects the image; links never reach this callback.
+ */
+export type LocalImageResolver = (url: string) => string | null;
+
 export interface LocalDocumentViewProps {
   document: LocalDocument;
   runtime: LocalRuntime;
@@ -71,6 +79,19 @@ export interface LocalDocumentViewProps {
   themes?: readonly LocalThemeDefinition[];
   /** Document mode; `auto` follows the nearest host attribute or the OS. */
   colorScheme?: LocalColorScheme;
+  /**
+   * `interactive` (default) renders form controls; `static` renders read-only
+   * values suitable for export while still evaluating the runtime.
+   */
+  mode?: LocalRenderMode;
+  /**
+   * Render static controls for the first pass, then switch to `mode` after
+   * mount. The first client render matches static server markup during
+   * hydration, and JavaScript-disabled readers keep the static document.
+   */
+  staticFirst?: boolean;
+  /** Trusted image URL mapping; only called after the image URL passed validation. */
+  imageResolver?: LocalImageResolver;
 }
 
 export interface LocalReactiveDocumentProps {
@@ -83,6 +104,12 @@ export interface LocalReactiveDocumentProps {
   themes?: readonly LocalThemeDefinition[];
   /** Document mode; `auto` follows the nearest host attribute or the OS. */
   colorScheme?: LocalColorScheme;
+  /** Rendering mode forwarded to `LocalDocumentView`; defaults to `interactive`. */
+  mode?: LocalRenderMode;
+  /** Static-first hydration behavior forwarded to `LocalDocumentView`. */
+  staticFirst?: boolean;
+  /** Trusted image URL mapping forwarded to `LocalDocumentView`. */
+  imageResolver?: LocalImageResolver;
 }
 
 /* --------------------------------------------------------------- contexts */
@@ -90,6 +117,7 @@ export interface LocalReactiveDocumentProps {
 interface LocalViewContext extends LocalRenderContext {
   report: (diagnostics: Diagnostic[]) => void;
   urlPolicy?: LocalUrlPolicy;
+  imageResolver?: LocalImageResolver;
   anchors: ReturnType<typeof createHeadingAnchors>;
   /** The document root; jump navigation stays scoped to this instance. */
   rootRef: RefObject<HTMLElement | null>;
@@ -209,6 +237,63 @@ function currentValue(runtime: LocalRuntime, node: LocalNode): LocalValue {
 
 function displayValue(value: LocalValue): string {
   return scalarText(value) ?? '';
+}
+
+/* ----------------------------------------------------------- static values */
+
+const EMPTY_STATIC_VALUE = '—';
+
+/** Empty or whitespace-only stored values read as an em dash in static mode. */
+function staticText(value: string): string {
+  return value.trim() === '' ? EMPTY_STATIC_VALUE : value;
+}
+
+interface StaticValueProps {
+  label: string;
+  value: ReactNode;
+  hint?: ReactNode;
+  className?: string;
+  multiline?: boolean;
+}
+
+/** Read-only label/value summary shared by static controls. */
+function StaticValue({ label, value, hint, className = '', multiline = false }: StaticValueProps) {
+  return (
+    <div className={`md-control local-static-control ${className}`.trim()}>
+      <span className="md-label">{label}</span>
+      <span
+        className={`local-static-value${multiline ? ' local-static-multiline' : ''}`}
+        data-local-static-value=""
+      >
+        {value}
+      </span>
+      {hint ? <span className="md-hint">{hint}</span> : null}
+    </div>
+  );
+}
+
+/**
+ * Screen-reader hidden value used by interactive markup so Ctrl+P prints the
+ * current runtime state without JavaScript. Print styles hide the form
+ * controls and reveal this node.
+ */
+function PrintValue({ value, block = false }: { value: ReactNode; block?: boolean }) {
+  if (block) {
+    return (
+      <div
+        className="local-print-value local-print-block"
+        aria-hidden="true"
+        data-local-print-value=""
+      >
+        {value}
+      </div>
+    );
+  }
+  return (
+    <span className="local-print-value" aria-hidden="true" data-local-print-value="">
+      {value}
+    </span>
+  );
 }
 
 /* ------------------------------------------------------------------ color */
@@ -593,8 +678,10 @@ function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5'
 interface RenderEnv {
   runtime: LocalRuntime;
   urlPolicy?: LocalUrlPolicy;
+  imageResolver?: LocalImageResolver;
   anchors: ReturnType<typeof createHeadingAnchors>;
   t: Localize;
+  mode: LocalRenderMode;
 }
 
 function renderNodes(
@@ -733,18 +820,32 @@ function renderNode(
       return (
         <li key={key} className={task ? 'md-list-item md-task-item' : 'md-list-item'}>
           {task ? (
-            <input
-              type="checkbox"
-              className="md-task-checkbox"
-              checked={node.checked === true}
-              readOnly
-              tabIndex={-1}
-              aria-label={
-                node.checked
-                  ? env.t('Completed', '已完成')
-                  : env.t('Not completed', '未完成')
-              }
-            />
+            env.mode === 'static' ? (
+              <span
+                className="md-task-marker"
+                role="img"
+                aria-label={
+                  node.checked
+                    ? env.t('Completed', '已完成')
+                    : env.t('Not completed', '未完成')
+                }
+              >
+                {node.checked ? '✓' : '☐'}
+              </span>
+            ) : (
+              <input
+                type="checkbox"
+                className="md-task-checkbox"
+                checked={node.checked === true}
+                readOnly
+                tabIndex={-1}
+                aria-label={
+                  node.checked
+                    ? env.t('Completed', '已完成')
+                    : env.t('Not completed', '未完成')
+                }
+              />
+            )
           ) : null}
           {renderNodes(env,node.children, visible)}
         </li>
@@ -780,7 +881,19 @@ function renderNode(
     }
 
     case 'image': {
-      const src = safeUrl(node.url, 'image', env.urlPolicy);
+      const accepted = safeUrl(node.url, 'image', env.urlPolicy);
+      let src = accepted;
+      // The host resolver is a post-validation mapping only. A thrown error,
+      // a non-string or an empty result rejects the image instead of falling
+      // back to an unchecked URL.
+      if (accepted && env.imageResolver) {
+        try {
+          const mapped = env.imageResolver(accepted);
+          src = typeof mapped === 'string' && mapped.trim() !== '' ? mapped : null;
+        } catch {
+          src = null;
+        }
+      }
       if (!src) {
         const rejected = env.t('Unsafe image rejected', '已拒绝不安全的图片');
         const alt = node.alt ? env.t(`: ${node.alt}`, `：${node.alt}`) : '';
@@ -946,13 +1059,14 @@ function renderComponent(node: LocalNode, visible: boolean, t: Localize): ReactN
 }
 
 function VisualView({ node, visible }: LocalComponentProps) {
-  const { runtime, render } = useLocal();
+  const { runtime, render, mode } = useLocal();
   return (
     <LocalVisual
       node={node}
       runtime={runtime}
       render={render}
       visible={visible}
+      mode={mode}
     />
   );
 }
@@ -1002,7 +1116,7 @@ function textProblem(
 
 function InputView({ node }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', node.name ?? t('Input', '输入'), t);
@@ -1044,6 +1158,16 @@ function InputView({ node }: LocalComponentProps) {
     setDraftError(null);
     setError(null);
   });
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className={`local-input${email ? ' local-input-email' : ''}`}
+        label={label}
+        value={staticText(display)}
+      />
+    );
+  }
 
   const problemFor = (value: string) =>
     textProblem(value, { required, minLength, maxLength, email }, t);
@@ -1090,6 +1214,7 @@ function InputView({ node }: LocalComponentProps) {
           if (problemFor(value) === null) write(value);
         }}
       />
+      <PrintValue value={staticText(display)} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : (draftError ?? error)} />
     </div>
   );
@@ -1097,7 +1222,7 @@ function InputView({ node }: LocalComponentProps) {
 
 function TextareaView({ node }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Text', '文本'), t);
@@ -1138,6 +1263,17 @@ function TextareaView({ node }: LocalComponentProps) {
     setDraftError(null);
     setError(null);
   });
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className="local-textarea"
+        label={label}
+        value={staticText(display)}
+        multiline
+      />
+    );
+  }
 
   const problemFor = (value: string) =>
     textProblem(value, { required, minLength, maxLength }, t);
@@ -1184,6 +1320,7 @@ function TextareaView({ node }: LocalComponentProps) {
           if (problemFor(value) === null) write(value);
         }}
       />
+      <PrintValue value={staticText(display)} block />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : (draftError ?? error)} />
     </div>
   );
@@ -1231,7 +1368,7 @@ function numberProblem(
 
 function NumberView({ node }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Number', '数字'), t);
@@ -1267,6 +1404,26 @@ function NumberView({ node }: LocalComponentProps) {
     setDraftError(null);
     setError(null);
   });
+
+  const hint = (
+    <>
+      {min !== undefined ? t(`Min ${min}`, `最小 ${min}`) : ''}
+      {min !== undefined && max !== undefined ? ' · ' : ''}
+      {max !== undefined ? t(`Max ${max}`, `最大 ${max}`) : ''}
+      {step !== undefined ? t(` · Step ${step}`, ` · 步长 ${step}`) : ''}
+    </>
+  );
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className="local-number"
+        label={label}
+        value={staticText(display)}
+        hint={hint}
+      />
+    );
+  }
 
   const commitText = (text: string, reportProblem: boolean): boolean => {
     const parsed = parseNumberDraft(text);
@@ -1316,13 +1473,9 @@ function NumberView({ node }: LocalComponentProps) {
           commitText(event.currentTarget.value, touched);
         }}
       />
+      <PrintValue value={staticText(display)} />
       {min !== undefined || max !== undefined || step !== undefined ? (
-        <span className="md-hint">
-          {min !== undefined ? t(`Min ${min}`, `最小 ${min}`) : ''}
-          {min !== undefined && max !== undefined ? ' · ' : ''}
-          {max !== undefined ? t(`Max ${max}`, `最大 ${max}`) : ''}
-          {step !== undefined ? t(` · Step ${step}`, ` · 步长 ${step}`) : ''}
-        </span>
+        <span className="md-hint">{hint}</span>
       ) : null}
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : (draftError ?? error)} />
     </div>
@@ -1331,7 +1484,7 @@ function NumberView({ node }: LocalComponentProps) {
 
 function SliderView({ node }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Slider', '滑块'), t);
@@ -1342,6 +1495,16 @@ function SliderView({ node }: LocalComponentProps) {
   const stored = currentValue(runtime, node);
   const rawValue = typeof stored === 'number' && Number.isFinite(stored) ? stored : min;
   const value = Math.min(max, Math.max(min, rawValue));
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className="md-slider local-slider"
+        label={label}
+        value={String(value)}
+      />
+    );
+  }
 
   return (
     <div className="md-control md-slider local-slider" style={accentStyle(localColor(node))}>
@@ -1361,6 +1524,7 @@ function SliderView({ node }: LocalComponentProps) {
         disabled={disabled}
         onChange={(event: ChangeEvent<HTMLInputElement>) => write(Number(event.target.value))}
       />
+      <PrintValue value={String(value)} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </div>
   );
@@ -1368,12 +1532,17 @@ function SliderView({ node }: LocalComponentProps) {
 
 function ToggleView({ node }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Toggle', '开关'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const checked = currentValue(runtime, node) === true;
+  const stateLabel = checked ? t('On', '开') : t('Off', '关');
+
+  if (mode === 'static') {
+    return <StaticValue className="md-toggle local-toggle" label={label} value={stateLabel} />;
+  }
 
   return (
     <div className="md-control md-toggle local-toggle" style={accentStyle(localColor(node))}>
@@ -1387,6 +1556,7 @@ function ToggleView({ node }: LocalComponentProps) {
         />
         <span>{label}</span>
       </label>
+      <PrintValue value={stateLabel} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </div>
   );
@@ -1394,12 +1564,17 @@ function ToggleView({ node }: LocalComponentProps) {
 
 function CheckboxView({ node }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Checkbox', '勾选'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const checked = currentValue(runtime, node) === true;
+  const stateLabel = checked ? t('Checked', '已勾选') : t('Unchecked', '未勾选');
+
+  if (mode === 'static') {
+    return <StaticValue className="local-checkbox" label={label} value={stateLabel} />;
+  }
 
   return (
     <div className="md-control local-checkbox" style={accentStyle(localColor(node))}>
@@ -1413,6 +1588,7 @@ function CheckboxView({ node }: LocalComponentProps) {
         />
         <span>{label}</span>
       </label>
+      <PrintValue value={stateLabel} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </div>
   );
@@ -1420,7 +1596,7 @@ function CheckboxView({ node }: LocalComponentProps) {
 
 function DateView({ node }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Date', '日期'), t);
@@ -1432,6 +1608,10 @@ function DateView({ node }: LocalComponentProps) {
   const value = typeof stored === 'string' ? stored : '';
   const [touched, setTouched] = useState(false);
   const problem = touched && required && value === '' ? t('Select a date', '请选择日期') : null;
+
+  if (mode === 'static') {
+    return <StaticValue className="local-date" label={label} value={staticText(value)} />;
+  }
 
   return (
     <div className="md-control local-date">
@@ -1454,6 +1634,7 @@ function DateView({ node }: LocalComponentProps) {
           write(event.target.value);
         }}
       />
+      <PrintValue value={staticText(value)} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : (problem ?? error)} />
     </div>
   );
@@ -1512,7 +1693,7 @@ function OptionView() {
 
 function SelectView({ node }: LocalComponentProps) {
   const domId = useId();
-  const { runtime } = useLocal();
+  const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Select', '选择'), t);
@@ -1523,8 +1704,20 @@ function SelectView({ node }: LocalComponentProps) {
   const active = options.some((option) => option.value === current)
     ? current
     : options[0]?.value ?? '';
+  const activeOption = options.find((option) => option.value === active);
+  const activeLabel = activeOption ? optionLabel(runtime, activeOption.node, t) || active : '';
 
   if (options.length === 0) return <LocalError message={t('Missing options', '缺少选项')} />;
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className="md-select local-select"
+        label={label}
+        value={staticText(activeLabel)}
+      />
+    );
+  }
 
   return (
     <div className="md-control md-select local-select" style={accentStyle(localColor(node))}>
@@ -1544,6 +1737,7 @@ function SelectView({ node }: LocalComponentProps) {
           </option>
         ))}
       </select>
+      <PrintValue value={staticText(activeLabel)} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </div>
   );
@@ -1552,7 +1746,7 @@ function SelectView({ node }: LocalComponentProps) {
 function ChoicesView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const local = useLocal();
-  const { runtime } = local;
+  const { runtime, mode } = local;
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Options', '选项'), t);
@@ -1562,9 +1756,21 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
   const current = typeof stored === 'string' ? stored : '';
   const selectedIndex = options.findIndex((option) => option.value === current);
   const activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : undefined;
+  const selectedLabel = selectedOption ? optionLabel(runtime, selectedOption.node, t) : '';
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
   if (options.length === 0) return <LocalError message={t('Missing options', '缺少选项')} />;
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className="local-choices"
+        label={label}
+        value={staticText(selectedLabel)}
+      />
+    );
+  }
 
   const choose = (index: number) => {
     const option = options[index];
@@ -1617,6 +1823,7 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
           );
         })}
       </div>
+      <PrintValue value={staticText(selectedLabel)} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </div>
   );
@@ -1625,7 +1832,7 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
 function RadioGroupView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const local = useLocal();
-  const { runtime } = local;
+  const { runtime, mode } = local;
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Options', '选项'), t);
@@ -1634,8 +1841,20 @@ function RadioGroupView({ node, visible }: LocalComponentProps) {
   const stored = currentValue(runtime, node);
   const current = typeof stored === 'string' ? stored : '';
   const name = domId;
+  const selectedOption = options.find((option) => option.value === current);
+  const selectedLabel = selectedOption ? optionLabel(runtime, selectedOption.node, t) : '';
 
   if (options.length === 0) return <LocalError message={t('Missing options', '缺少选项')} />;
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className="local-radio-group"
+        label={label}
+        value={staticText(selectedLabel)}
+      />
+    );
+  }
 
   return (
     <fieldset className="md-control local-radio-group" style={accentStyle(localColor(node))} disabled={disabled}>
@@ -1652,6 +1871,7 @@ function RadioGroupView({ node, visible }: LocalComponentProps) {
           <span>{renderInlineNodes(local, option.node.children, visible)}</span>
         </label>
       ))}
+      <PrintValue value={staticText(selectedLabel)} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </fieldset>
   );
@@ -1674,7 +1894,7 @@ function readChecklistItems(node: LocalNode): ChecklistItem[] {
 function ChecklistView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const local = useLocal();
-  const { runtime } = local;
+  const { runtime, mode } = local;
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Checklist', '清单'), t);
@@ -1687,6 +1907,34 @@ function ChecklistView({ node, visible }: LocalComponentProps) {
 
   if (items.length === 0) {
     return <LocalError message={t('Checklist requires a task list', '清单需要任务列表')} />;
+  }
+
+  const stateFor = (checked: boolean) => (checked ? t('Checked', '已勾选') : t('Unchecked', '未勾选'));
+
+  if (mode === 'static') {
+    return (
+      <div
+        className="local-checklist local-static-checklist"
+        style={accentStyle(localColor(node))}
+        role="group"
+        aria-label={label}
+      >
+        <span className="md-label">{label}</span>
+        <ul className="local-static-list">
+          {items.map((item) => {
+            const checked = selected.includes(item.id);
+            return (
+              <li key={item.id} className="local-static-list-item">
+                <span className="local-static-state">{stateFor(checked)}</span>
+                <span className={`local-static-item${checked ? ' is-checked' : ''}`}>
+                  {renderInlineNodes(local, item.node.children, visible)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
   }
 
   const toggle = (id: string, checked: boolean) => {
@@ -1722,6 +1970,24 @@ function ChecklistView({ node, visible }: LocalComponentProps) {
           </div>
         );
       })}
+      <PrintValue
+        block
+        value={
+          <ul className="local-static-list">
+            {items.map((item) => {
+              const checked = selected.includes(item.id);
+              return (
+                <li key={item.id} className="local-static-list-item">
+                  <span className="local-static-state">{stateFor(checked)}</span>
+                  <span className={`local-static-item${checked ? ' is-checked' : ''}`}>
+                    {inlinePlainText(runtime, item.node.children, t)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        }
+      />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </fieldset>
   );
@@ -1738,7 +2004,7 @@ function formatSeconds(seconds: number, t: Localize = defaultLocalize): string {
 }
 
 function CounterView({ node }: LocalComponentProps) {
-  const { runtime } = useLocal();
+  const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Counter', '计数'), t);
@@ -1753,6 +2019,10 @@ function CounterView({ node }: LocalComponentProps) {
   const tolerance = 1e-9 * Math.max(1, Math.abs(value));
   const canDecrease = value - safeStep >= min - tolerance;
   const canIncrease = max === undefined || value + safeStep <= max + tolerance;
+
+  if (mode === 'static') {
+    return <StaticValue className="local-counter" label={label} value={String(value)} />;
+  }
 
   const change = (direction: 1 | -1) => {
     const next = Number((value + direction * safeStep).toFixed(12));
@@ -1801,13 +2071,14 @@ function CounterView({ node }: LocalComponentProps) {
           {t('Reset', '恢复初值')}
         </button>
       </div>
+      <PrintValue value={String(value)} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </div>
   );
 }
 
 function TimerView({ node, visible }: LocalComponentProps) {
-  const { runtime } = useLocal();
+  const { runtime, mode } = useLocal();
   const t = useLocalize();
   const label = textAttr(runtime, node, 'label', t('Timer', '计时器'), t);
   const durationRaw = numberAttr(runtime, node, 'duration', 60);
@@ -1875,6 +2146,16 @@ function TimerView({ node, visible }: LocalComponentProps) {
           'Timer duration must be a positive number of seconds',
           '计时时长必须是大于 0 的秒数',
         )}
+      />
+    );
+  }
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className="local-timer"
+        label={label}
+        value={formatSeconds(remaining, t)}
       />
     );
   }
@@ -1952,6 +2233,7 @@ function TimerView({ node, visible }: LocalComponentProps) {
             ? t('Running', '计时中')
             : t('Paused', '已暂停')}
       </span>
+      <PrintValue value={formatSeconds(remaining, t)} />
       <FieldError message={error} />
     </div>
   );
@@ -2014,10 +2296,11 @@ function ProgressView({ node }: LocalComponentProps) {
 /* ---------------------------------------------------------------- layout */
 
 function PanelView({ node, visible }: LocalComponentProps) {
-  const { runtime, render } = useLocal();
+  const { runtime, render, mode } = useLocal();
   const t = useLocalize();
   const title = textAttr(runtime, node, 'title', '', t);
   const resettable = boolAttr(runtime, node, 'reset', true);
+  const showReset = resettable && mode !== 'static';
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
@@ -2031,10 +2314,10 @@ function PanelView({ node, visible }: LocalComponentProps) {
 
   return (
     <section className="local-panel" aria-label={title || t('Parameter panel', '参数面板')}>
-      {title || resettable ? (
+      {title || showReset ? (
         <div className="local-panel-head">
           {title ? <h3 className="local-panel-title">{title}</h3> : <span />}
-          {resettable ? (
+          {showReset ? (
             <button
               type="button"
               className="md-button md-button-quiet local-panel-reset"
@@ -2086,7 +2369,7 @@ function EdgeView() {
 
 function TabsView({ node, visible }: LocalComponentProps) {
   const domId = useId();
-  const { runtime, render } = useLocal();
+  const { runtime, render, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', '', t);
@@ -2108,6 +2391,23 @@ function TabsView({ node, visible }: LocalComponentProps) {
 
   if (tabs.length === 0) {
     return <LocalError message={t('Tabs requires at least one tab', '标签页至少需要一个 tab')} />;
+  }
+
+  // Static tabs render every panel under its own label. This keeps all content
+  // available to the reader/export instead of silently dropping inactive tabs;
+  // no tab buttons or tablist semantics remain.
+  if (mode === 'static') {
+    return (
+      <section className="local-tabs local-static-tabs" aria-label={label || t('Tabs', '选项卡')}>
+        {label ? <div className="local-tabs-label">{label}</div> : null}
+        {tabs.map((tab, index) => (
+          <section className="local-static-tab" key={tab.id}>
+            <h4 className="local-static-tab-label">{labels[index]}</h4>
+            <div className="local-static-tab-body">{render(tab.children ?? [], visible)}</div>
+          </section>
+        ))}
+      </section>
+    );
   }
 
   const current = bound
@@ -2182,6 +2482,7 @@ function TabsView({ node, visible }: LocalComponentProps) {
             tabIndex={0}
             hidden={!active}
           >
+            <PrintValue block value={labels[index]} />
             {render(tab.children ?? [], visible && active)}
           </div>
         );
@@ -2205,7 +2506,7 @@ function AccordionView({ node, visible }: LocalComponentProps) {
 
 function DisclosureView({ node, visible }: LocalComponentProps) {
   const domId = useId();
-  const { runtime, render } = useLocal();
+  const { runtime, render, mode } = useLocal();
   const t = useLocalize();
   const label = textAttr(runtime, node, 'label', t('Details', '折叠内容'), t);
   const initialOpen = boolAttr(runtime, node, 'open', false);
@@ -2214,6 +2515,17 @@ function DisclosureView({ node, visible }: LocalComponentProps) {
   useResetToken(runtime, node, () => {
     setOpen(initialOpen);
   });
+
+  // Static disclosures always expose their content; the trigger button and
+  // open/closed state are interaction-only.
+  if (mode === 'static') {
+    return (
+      <section className="local-disclosure local-static-disclosure">
+        <h3 className="local-disclosure-heading">{label}</h3>
+        <div className="local-disclosure-panel">{render(node.children ?? [], visible)}</div>
+      </section>
+    );
+  }
 
   const triggerId = `${domId}-disclosure-trigger`;
   const panelId = `${domId}-disclosure-panel`;
@@ -2234,6 +2546,7 @@ function DisclosureView({ node, visible }: LocalComponentProps) {
           </span>
           <span>{label}</span>
         </button>
+        <PrintValue value={label} />
       </h3>
       <div
         id={panelId}
@@ -2334,11 +2647,25 @@ function BadgeView({ node, visible }: LocalComponentProps) {
 function TooltipView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const local = useLocal();
-  const { runtime } = local;
+  const { runtime, mode } = local;
   const t = useLocalize();
   const text = textAttr(runtime, node, 'text', t('Tooltip', '提示'), t);
   const [open, setOpen] = useState(false);
   const bubbleId = `${domId}-tooltip`;
+
+  if (mode === 'static') {
+    return (
+      <span className="local-tooltip local-static-tooltip">
+        <span className="local-tooltip-trigger">
+          {renderInlineNodes(local, node.children, visible)}
+        </span>
+        <span className="local-tooltip-bubble is-visible" role="note">
+          {text}
+        </span>
+      </span>
+    );
+  }
+
   return (
     <span
       className="local-tooltip"
@@ -2367,6 +2694,7 @@ function TooltipView({ node, visible }: LocalComponentProps) {
       >
         {text}
       </span>
+      <PrintValue value={text} />
     </span>
   );
 }
@@ -2376,7 +2704,7 @@ function TooltipView({ node, visible }: LocalComponentProps) {
 function JumpView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const local = useLocal();
-  const { anchors, rootRef, runtime, urlPolicy } = local;
+  const { anchors, rootRef, runtime, urlPolicy, mode } = local;
   const t = useLocalize();
   const feedbackId = `${domId}-jump-feedback`;
   const [message, setMessage] = useState<string | null>(null);
@@ -2396,6 +2724,28 @@ function JumpView({ node, visible }: LocalComponentProps) {
   }
 
   useResetToken(runtime, node, () => setMessage(null));
+
+  // Static jumps keep native fragment navigation where the host policy allows
+  // it; blocked or missing targets degrade to plain inline text with no
+  // handler, no fake href and no button appearance.
+  if (mode === 'static') {
+    if (allowed && target) {
+      return (
+        <a
+          href={`#${target}`}
+          className="local-jump local-jump-link local-jump-static"
+          style={accentStyle(color)}
+        >
+          {renderInlineNodes(local, node.children, visible)}
+        </a>
+      );
+    }
+    return (
+      <span className="local-jump local-jump-static-blocked" style={accentStyle(color)}>
+        {renderInlineNodes(local, node.children, visible)}
+      </span>
+    );
+  }
 
   const onJump = (event: ReactMouseEvent<HTMLAnchorElement>) => {
     if (!allowed || !target) {
@@ -2516,7 +2866,7 @@ function SectionView({ node, visible }: LocalComponentProps) {
 function MultiSelectView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const local = useLocal();
-  const { runtime } = local;
+  const { runtime, mode } = local;
   const t = useLocalize();
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Multi select', '多选'), t);
@@ -2526,6 +2876,9 @@ function MultiSelectView({ node, visible }: LocalComponentProps) {
   const selected = Array.isArray(stored)
     ? stored.filter((value): value is string => typeof value === 'string')
     : [];
+  const selectedLabels = options
+    .filter((option) => selected.includes(option.value))
+    .map((option) => optionLabel(runtime, option.node, t) || option.value);
   const maxRaw = numberAttr(runtime, node, 'max-selected', options.length);
   const max = Number.isFinite(maxRaw) ? Math.max(0, Math.floor(maxRaw)) : options.length;
   const [query, setQuery] = useState('');
@@ -2536,6 +2889,16 @@ function MultiSelectView({ node, visible }: LocalComponentProps) {
 
   if (options.length === 0) {
     return <LocalError message={t('Missing options', '缺少选项')} />;
+  }
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className="local-multi-select"
+        label={label}
+        value={staticText(selectedLabels.join(', '))}
+      />
+    );
   }
 
   const chosen = new Set(selected);
@@ -2616,6 +2979,7 @@ function MultiSelectView({ node, visible }: LocalComponentProps) {
       <span className="local-multi-count" role="status" aria-live="polite">
         {t(`${selected.length} of ${max} selected`, `已选 ${selected.length}/${max}`)}
       </span>
+      <PrintValue value={staticText(selectedLabels.join(', '))} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </fieldset>
   );
@@ -2623,7 +2987,7 @@ function MultiSelectView({ node, visible }: LocalComponentProps) {
 
 function RangeSliderView({ node }: LocalComponentProps) {
   const local = useLocal();
-  const { runtime } = local;
+  const { runtime, mode } = local;
   const t = useLocalize();
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Range', '范围'), t);
@@ -2640,6 +3004,20 @@ function RangeSliderView({ node }: LocalComponentProps) {
     setCrossing(null);
     setError(null);
   });
+
+  const startName = t('Start', '起点');
+  const endName = t('End', '终点');
+  const rangeSummary = `${startName}: ${start} · ${endName}: ${end}`;
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className="local-range-slider"
+        label={label}
+        value={rangeSummary}
+      />
+    );
+  }
 
   const commit = (slot: 'start' | 'end', raw: number) => {
     const value = snapToStep(clamp(raw, min, max), min, max, step);
@@ -2701,6 +3079,7 @@ function RangeSliderView({ node }: LocalComponentProps) {
           {end}
         </span>
       </div>
+      <PrintValue value={rangeSummary} />
       <FieldError
         message={disabledInvalid ? t('Cannot compute', '无法计算') : (crossing ?? error)}
       />
@@ -2786,7 +3165,7 @@ function NumberDraftField({
 function CoordinateView({ node }: LocalComponentProps) {
   const domId = useId();
   const local = useLocal();
-  const { runtime } = local;
+  const { runtime, mode } = local;
   const t = useLocalize();
   const { write, writeMany, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Coordinate', '坐标'), t);
@@ -2810,6 +3189,19 @@ function CoordinateView({ node }: LocalComponentProps) {
   const padRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   useResetToken(runtime, node, () => setError(null));
+
+  const coordinateSummary = `X: ${x} · Y: ${y}`;
+
+  if (mode === 'static') {
+    return (
+      <StaticValue
+        className="local-coordinate"
+        label={label}
+        value={coordinateSummary}
+      />
+    );
+  }
+
   const xPercent =
     xRange.max > xRange.min ? ((x - xRange.min) / (xRange.max - xRange.min)) * 100 : 0;
   const yPercent =
@@ -2957,6 +3349,7 @@ function CoordinateView({ node }: LocalComponentProps) {
           onCommit={(value) => write(value, 'y')}
         />
       </div>
+      <PrintValue value={coordinateSummary} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </div>
   );
@@ -2969,7 +3362,7 @@ type QuizResult = 'correct' | 'incorrect' | 'incomplete';
 function QuizView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const local = useLocal();
-  const { runtime } = local;
+  const { runtime, mode } = local;
   const t = useLocalize();
   const label = textAttr(runtime, node, 'label', t('Quiz', '测验'), t);
   const type = rawAttr(node, 'type') === 'number' ? 'number' : 'choice';
@@ -2994,6 +3387,30 @@ function QuizView({ node, visible }: LocalComponentProps) {
   }
   if (type === 'choice' && options.length === 0) {
     return <LocalError message={t('Missing options', '缺少选项')} />;
+  }
+
+  const optionLabels = options.map((option) => optionLabel(runtime, option.node, t) || option.value);
+
+  // Static quizzes expose the prompt and options as readable text. Answers,
+  // checking actions and explanations only exist after interaction, so none of
+  // the action controls are rendered.
+  if (mode === 'static') {
+    return (
+      <div className="local-quiz local-static-quiz" role="group" aria-label={label}>
+        <span className="md-label">{label}</span>
+        {type === 'choice' ? (
+          <ul className="local-static-list local-static-quiz-options">
+            {options.map((option) => (
+              <li key={option.node.id} className="local-static-list-item">
+                {renderInlineNodes(local, option.node.children, visible)}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <span className="local-static-value">{t('Numeric answer', '数字作答')}</span>
+        )}
+      </div>
+    );
   }
 
   const check = () => {
@@ -3101,6 +3518,14 @@ function QuizView({ node, visible }: LocalComponentProps) {
       {result !== null && explanation ? (
         <div className="local-quiz-explanation">{explanation}</div>
       ) : null}
+      <PrintValue
+        block
+        value={
+          type === 'choice'
+            ? `${feedback ? `${feedback} · ` : ''}${optionLabels.join(' · ')}`
+            : feedback || t('No answer yet', '尚未作答')
+        }
+      />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : null} />
     </div>
   );
@@ -3110,7 +3535,7 @@ function QuizView({ node, visible }: LocalComponentProps) {
 
 function StepsView({ node, visible }: LocalComponentProps) {
   const domId = useId();
-  const { runtime, render } = useLocal();
+  const { runtime, render, mode } = useLocal();
   const t = useLocalize();
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', '', t);
@@ -3144,6 +3569,25 @@ function StepsView({ node, visible }: LocalComponentProps) {
 
   if (steps.length === 0) {
     return <LocalError message={t('Steps requires at least one step', '步骤至少需要一个 step')} />;
+  }
+
+  // Static steps show the current step and its position; navigation controls
+  // are interaction-only and have no read-only equivalent.
+  if (mode === 'static') {
+    const active = steps[activeIndex];
+    return (
+      <section className="local-steps local-static-steps" aria-label={label || t('Steps', '步骤')}>
+        {label ? <div className="local-steps-label">{label}</div> : null}
+        <div className="local-steps-nav local-static-steps-nav">
+          <span className="local-steps-status" role="status" aria-live="polite">
+            {t(`Step ${activeIndex + 1} of ${steps.length}`, `第 ${activeIndex + 1} 步，共 ${steps.length} 步`)}
+          </span>
+        </div>
+        <div className="local-steps-panel" role="group" aria-label={labels[activeIndex]}>
+          {render(active.children ?? [], visible)}
+        </div>
+      </section>
+    );
   }
 
   const go = (index: number) => {
@@ -3256,7 +3700,17 @@ export function LocalDocumentView({
   locale = 'en',
   themes,
   colorScheme = 'auto',
+  mode = 'interactive',
+  staticFirst = false,
+  imageResolver,
 }: LocalDocumentViewProps) {
+  const [staticFirstSettled, setStaticFirstSettled] = useState(!staticFirst);
+  useEffect(() => {
+    if (staticFirst) setStaticFirstSettled(true);
+  }, [staticFirst]);
+  const renderedMode: LocalRenderMode = mode === 'interactive' && staticFirst && !staticFirstSettled
+    ? 'static'
+    : mode;
   const instanceId = useId();
   const t = useMemo<Localize>(
     () => (en: string, zh: string) => localize(locale, en, zh),
@@ -3320,10 +3774,10 @@ export function LocalDocumentView({
   // current snapshot through runtime.get during the resulting render.
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  const env: RenderEnv = { runtime, urlPolicy, anchors, t };
+  const env: RenderEnv = { runtime, urlPolicy, imageResolver, anchors, t, mode: renderedMode };
   const render = (nodes?: LocalNode[], visible = true): ReactNode => (
     <LocalViewContext.Provider
-      value={{ runtime, render, visible, report, urlPolicy, anchors, rootRef, t }}
+      value={{ runtime, render, visible, mode: renderedMode, report, urlPolicy, imageResolver, anchors, rootRef, t }}
     >
       {renderNodes(env, nodes ?? [], visible)}
     </LocalViewContext.Provider>
@@ -3333,11 +3787,16 @@ export function LocalDocumentView({
     <LocalLocaleProvider locale={locale}>
       <article
         ref={rootRef}
-        className="md-document local-document"
+        className={`md-document local-document${renderedMode === 'static' ? ' local-static' : ''}`}
         data-rmd-theme={theme.name}
         data-color-scheme={resolvedScheme}
+        data-render-mode={renderedMode}
         style={{ colorScheme: resolvedScheme }}
-        aria-label={t('Interactive document', '交互文档')}
+        aria-label={
+          renderedMode === 'static'
+            ? t('Static document', '静态文档')
+            : t('Interactive document', '交互文档')
+        }
       >
         {render(document.nodes, true)}
       </article>
@@ -3352,6 +3811,9 @@ export function LocalReactiveDocument({
   locale = 'en',
   themes,
   colorScheme = 'auto',
+  mode = 'interactive',
+  staticFirst = false,
+  imageResolver,
 }: LocalReactiveDocumentProps) {
   const result = useMemo(() => compileLocal(source), [source]);
   const runtime = useMemo(() => {
@@ -3434,7 +3896,11 @@ export function LocalReactiveDocument({
 
   if (!result.ok || !runtime) {
     return (
-      <div className="md-document local-document local-inactive" role="alert">
+      <div
+        className={`md-document local-document local-inactive${mode === 'static' ? ' local-static' : ''}`}
+        data-render-mode={mode}
+        role="alert"
+      >
         <p className="local-inactive-title">
           {result.ok
             ? localize(
@@ -3476,6 +3942,9 @@ export function LocalReactiveDocument({
       locale={locale}
       themes={themes}
       colorScheme={colorScheme}
+      mode={mode}
+      staticFirst={staticFirst}
+      imageResolver={imageResolver}
     />
   );
 }

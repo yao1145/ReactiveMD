@@ -7,3 +7,18 @@ export type { LocalLocale } from './locale';
 export { LOCAL_THEME_PROTOCOL, DEFAULT_LOCAL_THEME, resolveLocalTheme, isLocalThemeName } from './theme';
 export type { LocalColorScheme, LocalThemeDefinition, LocalThemeResolution } from './theme';
 export type { Diagnostic, SourceRange, LocalValue, LocalValueKind, LocalNode, LocalBinding, LocalDocument, LocalCompileLimits, LocalCompileOptions, LocalCompileResult, LocalRuntime, LocalSnapshot } from './types';
+export {
+  LOCAL_STATE_FORMAT,
+  localSourceDigest,
+  createLocalStateFile,
+  parseLocalState,
+  resolveLocalState,
+  applyLocalState,
+  serializeLocalState,
+} from './state';
+export type {
+  LocalStateGenerator,
+  LocalStateFile,
+  LocalStateParseResult,
+  LocalStateResolution,
+} from './state';

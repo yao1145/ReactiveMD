@@ -755,3 +755,286 @@ table.local-visual-table {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Static rendering: the same visual grammar without interactive affordances.
+   These class names are local-static-* so they never collide with a host's
+   generic `.local-static` root rules. */
+
+.local-static-table tbody tr.is-selected td {
+  background: var(--surface-subtle);
+}
+
+.local-static-table tbody tr.is-selected td:first-child {
+  box-shadow: inset 3px 0 var(--focus);
+}
+
+.local-static-legend-item {
+  cursor: default;
+}
+
+.local-static-legend-item:hover {
+  background: none;
+}
+
+.local-static-chart .local-visual-hit {
+  pointer-events: none;
+  cursor: default;
+}
+
+.local-static-diagram .local-visual-node {
+  cursor: default;
+}
+
+.local-static-diagram .local-visual-node:focus-visible .local-visual-node-shape {
+  filter: none;
+}
+
+.local-static-timeline-item {
+  cursor: default;
+}
+
+.local-static-timeline-detail {
+  min-height: 0;
+  margin-top: var(--space-2);
+}
+
+.local-static-diagram-detail {
+  min-height: 0;
+}
+
+.local-static-diagram-nodes {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.local-static-diagram-node {
+  margin: 0;
+}
+
+.local-static-diagram-node + .local-static-diagram-node {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.local-static-diagram-nodes dt {
+  margin: 0 0 var(--space-1);
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+.local-static-diagram-nodes dd {
+  margin: 0;
+}
+
+.local-static-diagram-nodes dd p {
+  margin: 0;
+}
+
+/* Print: this is a supplement to the document's generic print stylesheet.
+   Scope everything to .local-visual so host pages keep their own rules. */
+@media print {
+  .local-visual {
+    max-width: 100%;
+    margin: 12pt 0;
+    padding: 0;
+    color: #111;
+    background: #fff;
+    border-color: #b8c0cc;
+    border-radius: 0;
+    box-shadow: none;
+    overflow-wrap: anywhere;
+  }
+
+  .local-visual-title {
+    color: #111;
+  }
+
+  /* Wide tables may break across pages; the header repeats because the
+     native table structure is preserved. */
+  .local-visual-table-scroll {
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  .local-visual-table {
+    width: 100%;
+    max-width: 100%;
+    font-size: 9pt;
+  }
+
+  .local-visual-table thead {
+    display: table-header-group;
+  }
+
+  .local-visual-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .local-visual-table th,
+  .local-visual-table td {
+    padding: 3pt 4pt;
+    overflow-wrap: anywhere;
+  }
+
+  .local-visual-table th {
+    color: #111;
+    background: #eef1f6;
+    border-color: #b8c0cc;
+    white-space: normal;
+  }
+
+  .local-visual-table td {
+    border-color: #d3d8e0;
+  }
+
+  .local-visual-table tbody tr.is-selected td {
+    background: #eef1f6;
+  }
+
+  .local-visual-table th:first-child {
+    background: #eef1f6;
+  }
+
+  .local-visual-table td:first-child {
+    background: #fff;
+  }
+
+  .local-visual-table th:first-child,
+  .local-visual-table td:first-child {
+    position: static;
+  }
+
+  .local-visual-timeline-track {
+    background: #e9edf2;
+  }
+
+  .local-visual-timeline-detail,
+  .local-visual-diagram-detail {
+    color: #333;
+    background: #f5f6f8;
+  }
+
+  .local-visual-svg-wrap {
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  .local-visual-svg {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .local-visual-chart,
+  .local-visual-plot {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .local-visual-chart .local-visual-svg-wrap,
+  .local-visual-plot .local-visual-svg-wrap,
+  .local-visual-diagram .local-visual-svg-wrap {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .local-static-timeline-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Persistent affordances that only work on screen. Their visible labels
+     (sortable headers, legends) stay in the printed page as plain text. */
+  .local-visual-search,
+  .local-visual-pagination,
+  .local-visual-select-column,
+  .local-visual-select-cell,
+  .local-visual-select-button,
+  .local-visual-readout {
+    display: none !important;
+  }
+
+  .local-visual-sort-button,
+  .local-visual-legend-item {
+    padding: 0;
+    background: none;
+    border: 0;
+    cursor: default;
+  }
+
+  .local-visual-title,
+  .local-visual-timeline-title,
+  .local-visual-legend-text,
+  .local-visual-diagram-detail > strong,
+  .local-static-diagram-nodes dt {
+    color: #111;
+  }
+
+  .local-visual-message,
+  .local-visual-notes,
+  .local-visual-legend-item,
+  .local-visual-timeline-times,
+  .local-visual-timeline-detail,
+  .local-visual-diagram-detail,
+  .local-static-diagram-nodes dd {
+    color: #333;
+  }
+
+  .local-visual-alert,
+  .local-visual-cell-error {
+    color: #8a1f30;
+  }
+
+  .local-visual-axis-label,
+  .local-visual-donut-caption {
+    fill: #333;
+  }
+
+  .local-visual-axis-title,
+  .local-visual-donut-total,
+  .local-visual-node-text {
+    fill: #111;
+  }
+
+  .local-visual-grid-line {
+    stroke: #d5d9e0;
+  }
+
+  .local-visual-axis-line,
+  .local-visual-tick,
+  .local-visual-zero-line {
+    stroke: #666;
+  }
+
+  .local-visual-edge-label {
+    fill: #333;
+    stroke: #fff;
+  }
+
+  .local-visual .local-visual-node-shape {
+    fill: #fff;
+    stroke: #555;
+  }
+
+  .local-visual-edge path {
+    stroke: #666 !important;
+  }
+
+  .local-visual-diagram-svg marker path {
+    fill: #666 !important;
+  }
+
+  .local-visual-swatch,
+  .local-visual-bar,
+  .local-visual-point,
+  .local-visual-donut-slice,
+  .local-visual-line,
+  .local-visual-area,
+  .local-visual-plot-line,
+  .local-visual-timeline-bar {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

@@ -5,6 +5,7 @@
 ## 未发布
 
 - 增加文档开头的 `<theme name="…">` 声明、宿主主题登记和 `reactive-md-theme-1` 主题协议。两个 React 组件支持独立深浅模式和系统偏好；现有外观保留为 `default`。见[主题协议](docs/theme-protocol-ch.md)。
+- 新增可分享单文件 HTML 导出：`reactive-md build`/`lint` CLI、交互与静态模式、静态首屏水合、可打印的当前值、版本化 `reactive-md-state/v1` 状态文件、经过校验的本地位图内联、standalone `ReactiveMD.mount`/`mountAll` IIFE 和 `<reactive-md-doc>`。见[可分享文档与静态导出](docs/shareable-export-ch.md)。
 
 ### 0.4.0 开发预览（local-draft-2）
 

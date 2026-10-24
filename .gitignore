@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-library/
+dist-standalone/
 .tasks/
 artifacts/
 *.log

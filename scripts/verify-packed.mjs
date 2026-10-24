@@ -173,6 +173,9 @@ try {
     'dist-library/reactive-md.css',
     'dist-library/types/index.d.ts',
     'dist-library/types/react/index.d.ts',
+    'dist-standalone/reactive-md-standalone.js',
+    'dist-standalone/reactive-md-standalone.css',
+    'bin/reactive-md.mjs',
   ].filter(file => !existsSync(path.join(projectRoot, file)));
   assert.deepEqual(missingBuild, [], `dist-library is incomplete (${missingBuild.join(', ')}); run npm run build first.`);
 
@@ -192,8 +195,14 @@ try {
     'dist-library/reactive-md.css',
     'dist-library/types/index.d.ts',
     'dist-library/types/react/index.d.ts',
+    'dist-standalone/reactive-md-standalone.js',
+    'dist-standalone/reactive-md-standalone.css',
+    'bin/reactive-md.mjs',
+    'cli/main.mjs',
     'docs/local-integration-en.md',
     'docs/local-integration-ch.md',
+    'docs/shareable-export-en.md',
+    'docs/shareable-export-ch.md',
     'examples/local/counter.reactive.md',
     'examples/conformance/local-draft-2.json',
     'examples/integration/core/index.mjs',
@@ -223,6 +232,7 @@ try {
   assert.deepEqual(Object.keys(installedPkg.dependencies ?? {}), [], 'Installed core package must have no registry dependencies');
   assert.equal(exportTarget(installedPkg, '.'), './dist-library/reactive-md.js');
   assert.equal(exportTarget(installedPkg, './react'), './dist-library/reactive-md-react.js');
+  assert.deepEqual(installedPkg.bin, { 'reactive-md': './bin/reactive-md.mjs' }, 'Installed package must expose the reactive-md CLI');
   const coreTypesTarget = installedPkg.exports?.['.']?.types;
   assert.ok(
     coreTypesTarget && existsSync(path.resolve(installedCore, coreTypesTarget)),
@@ -268,6 +278,12 @@ console.log('PASS core API without React');
   );
   await run('core API fixture', process.execPath, [path.join(coreConsumer, 'core-api.mjs')], coreConsumer);
   await run('standalone Node example', process.execPath, [path.join(installedCore, 'examples/integration/core/index.mjs')], coreConsumer);
+  await run(
+    'packed CLI lint without React',
+    process.execPath,
+    [path.join(installedCore, 'bin/reactive-md.mjs'), 'lint', path.join(installedCore, 'examples/local/counter.reactive.md')],
+    coreConsumer,
+  );
 
   await writeFile(
     path.join(coreConsumer, 'core-types.ts'),
@@ -365,6 +381,29 @@ console.log('PASS React subpath and SSR');
 `,
   );
   await run('React SSR fixture', process.execPath, [path.join(reactConsumer, 'react-ssr.mjs')], reactConsumer);
+
+  const packedDocument = path.join(reactConsumer, 'packed.reactive.md');
+  await writeFile(packedDocument, '# Packed CLI\n\n<input bind="name" label="Name" initial="Ada">\n\nHello {{ name }}.\n');
+  const packedInteractive = path.join(reactConsumer, 'packed.html');
+  const packedStatic = path.join(reactConsumer, 'packed-static.html');
+  await run(
+    'packed CLI interactive build',
+    process.execPath,
+    [path.join(reactInstalled, 'bin/reactive-md.mjs'), 'build', packedDocument, '-o', packedInteractive],
+    reactConsumer,
+  );
+  await run(
+    'packed CLI static build',
+    process.execPath,
+    [path.join(reactInstalled, 'bin/reactive-md.mjs'), 'build', packedDocument, '-o', packedStatic, '--mode', 'static'],
+    reactConsumer,
+  );
+  const packedInteractiveHtml = await readFile(packedInteractive, 'utf8');
+  const packedStaticHtml = await readFile(packedStatic, 'utf8');
+  assert.ok(packedInteractiveHtml.includes('application/reactive-md+json'), 'Packed interactive HTML needs the auto-mount payload');
+  assert.ok(packedInteractiveHtml.includes('data-reactive-md-auto'), 'Packed interactive HTML needs the auto-mount script');
+  assert.ok(!packedStaticHtml.includes('<script'), 'Packed static HTML must not contain a runtime script');
+  assert.ok(packedStaticHtml.includes('Hello'), 'Packed static HTML must render document content');
 
   await writeFile(path.join(reactConsumer, 'react-types.tsx'), `import { createElement } from 'react';
 import { compileLocal, createLocalRuntime } from 'reactive-md';

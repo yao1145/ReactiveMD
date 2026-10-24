@@ -1268,6 +1268,126 @@
   outline-offset: 2px;
 }
 
+/* ---------------------------------------------------------- static values */
+
+/* Static documents reuse the control labels and layout but replace every
+   editable widget with a read-only summary value. */
+.local-document .local-static-control {
+  margin: var(--space-3) 0;
+}
+
+.local-document .local-static-value {
+  display: block;
+  max-width: 100%;
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+
+.local-document .local-static-multiline {
+  white-space: pre-wrap;
+}
+
+.local-document .local-static-list {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.2em;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+
+.local-document .local-static-list-item {
+  margin: var(--space-1) 0;
+}
+
+.local-document .local-static-state {
+  display: inline-block;
+  margin-inline-end: var(--space-2);
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.local-document .local-static-item.is-checked {
+  color: var(--ink-muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.local-document .local-static-check {
+  margin-inline-end: var(--space-1);
+  color: var(--accent-hover);
+  font-family: var(--font-mono);
+}
+
+.local-document .local-static-tab {
+  margin: var(--space-3) 0;
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.local-document .local-static-tab-label {
+  margin: 0 0 var(--space-1);
+  color: var(--ink);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+}
+
+.local-document .local-static-tab-body > :first-child {
+  margin-top: 0;
+}
+
+.local-document .local-static-tab-body > :last-child {
+  margin-bottom: 0;
+}
+
+.local-document .local-static-quiz-options {
+  padding-left: 1.4em;
+}
+
+.local-document .local-static-tooltip .local-tooltip-trigger {
+  cursor: auto;
+  text-decoration: none;
+}
+
+.local-document .local-static-tooltip .local-tooltip-bubble {
+  position: static;
+  display: inline;
+  max-width: none;
+  margin-inline-start: 0.35em;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink-soft);
+  font-size: inherit;
+  opacity: 1;
+  transform: none;
+}
+
+.local-document .local-jump-static-blocked {
+  color: var(--ink-soft);
+  cursor: default;
+}
+
+.local-document .md-task-marker {
+  display: inline-block;
+  min-width: 1.2em;
+  margin-inline-end: var(--space-1);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+}
+
+/* Print-only values stay out of the screen layout; print.css reveals them
+   when the interactive widgets are hidden for paper output. */
+.local-document .local-print-value {
+  display: none;
+}
+
 /* --------------------------------------------------------------- responsive */
 
 @media (max-width: 620px) {

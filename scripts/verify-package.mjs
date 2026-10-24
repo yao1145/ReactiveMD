@@ -2,7 +2,16 @@ import assert from 'node:assert/strict';
 import { statSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { compileLocal, createLocalRuntime, LOCAL_THEME_PROTOCOL, resolveLocalTheme } from 'reactive-md';
+import {
+  LOCAL_STATE_FORMAT,
+  LOCAL_THEME_PROTOCOL,
+  SHAREABLE_HTML_FORMAT,
+  compileLocal,
+  createLocalRuntime,
+  createLocalStateFile,
+  createShareableHtml,
+  resolveLocalTheme,
+} from 'reactive-md';
 
 // Exercise the built public options API, including preservation of defaults.
 assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: 1 } }).ok, false);
@@ -18,6 +27,24 @@ assert.equal(compileLocal('# Default').document.theme, 'default');
 const themeDefinition = { name: 'package-test', protocol: LOCAL_THEME_PROTOCOL, colorSchemes: ['light', 'dark'] };
 assert.deepEqual(resolveLocalTheme('package-test', [themeDefinition]), { name: 'package-test', diagnostics: [] });
 assert.equal(resolveLocalTheme('package-test', []).name, 'default');
+assert.equal(LOCAL_STATE_FORMAT, 'reactive-md-state/v1');
+assert.equal(SHAREABLE_HTML_FORMAT, 'reactive-md-html/v1');
+const stateRuntime = createLocalRuntime(themed.document);
+const stateFile = createLocalStateFile(themed.document, stateRuntime.snapshot().state, {
+  name: 'package-test', version: '1',
+});
+stateRuntime.dispose();
+const shell = createShareableHtml({
+  title: themed.document.source,
+  source: themed.document.source,
+  state: stateFile,
+  staticMarkup: '<article class="md-document">static</article>',
+  css: '.md-document{}',
+  mode: 'static',
+});
+assert.ok(shell.startsWith('<!doctype html>'));
+assert.ok(shell.includes('reactive-md-html/v1'));
+assert.ok(!shell.includes('<script'));
 
 // This import and compilation run in Node without DOM or React rendering.
 for (const name of (await readdir('examples/local')).filter(name => name.endsWith('.reactive.md'))) {
@@ -103,6 +130,10 @@ const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 assert.equal(pkg.private, undefined, 'package.json must not be private');
 assert.equal(pkg.type, 'module', 'package.json must declare ESM via type: module');
 assert.equal(pkg.license, 'MIT', 'package.json must declare the MIT license');
+assert.deepEqual(pkg.bin, { 'reactive-md': './bin/reactive-md.mjs' }, 'package.json must publish the reactive-md CLI');
+for (const required of ['dist-standalone', 'bin', 'cli']) {
+  assert.ok(pkg.files.includes(required), `package.json files must include ${required}`);
+}
 assert.deepEqual(Object.keys(pkg.dependencies ?? {}), [], 'Core must not require registry dependencies; bundled packages belong in devDependencies');
 assert.ok(!Object.keys(pkg.dependencies ?? {}).some(name => /react|vite|playwright/.test(name)), 'Core must not require UI or demo packages');
 const renderer = await import('reactive-md/react');
@@ -115,4 +146,10 @@ const themeHtml = renderToStaticMarkup(createElement(renderer.LocalReactiveDocum
 }));
 assert.ok(themeHtml.includes('data-rmd-theme="package-test"'));
 assert.ok(themeHtml.includes('data-color-scheme="dark"'));
+const staticHtml = renderToStaticMarkup(createElement(renderer.LocalReactiveDocument, {
+  source: '<input bind="name" label="Name" initial="Ada">', mode: 'static',
+}));
+assert.ok(staticHtml.includes('data-render-mode="static"'));
+assert.ok(staticHtml.includes('Ada'));
+assert.ok(!staticHtml.includes('<input'));
 console.log('PASS public package imports, local language fixtures, core type boundaries and React entry boundaries');

@@ -94,6 +94,11 @@ jobs:
           curl --fail --silent "$DEMO_URL" > /dev/null
 
           npm run test:browser
+      - name: Shareable export checks
+        env:
+          PLAYWRIGHT_CHANNEL: chromium
+          SHAREABLE_RESULTS: demo/artifacts/shareable-results.json
+        run: npm run test:shareable
       - name: Upload browser artifacts
         if: always()
         uses: actions/upload-artifact@v7

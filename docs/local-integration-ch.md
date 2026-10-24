@@ -10,7 +10,7 @@
 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` | React 19 |
 | `reactive-md/styles.css` | 组件、主题和文档样式 | 由宿主显式引入 |
 
-包只提供 ESM。Node.js 22.12+ 可用于开发和 Node 端编译、运行。Edge 已完成本地交互验证，静态 SSR 已通过独立安装检查；完整矩阵见[版本与兼容性](compatibility-ch.md)。可复制的项目见[独立接入示例](../examples/integration/README.md)。
+包只提供 ESM。Node.js 22.12+ 可用于开发和 Node 端编译、运行。Edge 已完成本地交互验证，静态 SSR 已通过独立安装检查；完整矩阵见[版本与兼容性](compatibility-ch.md)。可复制的项目见[独立接入示例](../examples/integration/README.md)。单文件 HTML、状态文件与独立浏览器运行时见[可分享文档与静态导出](shareable-export-ch.md)。
 
 ## React
 

@@ -1,0 +1,284 @@
+/* Print styles for local documents. Imported last by styles.css.
+   Interactive documents keep their form controls on screen, but the print
+   output must show the current runtime values as static text without relying
+   on JavaScript. Each control therefore emits a .local-print-value node that
+   is hidden on screen (local.css) and revealed here while the widget is
+   hidden. Static documents already contain only read-only summaries. */
+
+/* A4/Letter independent margins: the printer owns the paper size. */
+@page {
+  margin: 18mm 16mm;
+}
+
+@media print {
+  .md-document,
+  .md-document[data-color-scheme],
+  .md-document[data-theme] {
+    /* Force the light token set even when the screen resolution is dark or a
+       host theme supplies dark values. Keep code blocks light to avoid large
+       ink-heavy areas. */
+    color-scheme: light !important;
+    --surface: #ffffff !important;
+    --document-bg: #ffffff !important;
+    --surface-subtle: #f8faff !important;
+    --surface-hover: #f8faff !important;
+    --surface-active: #f2f5fb !important;
+    --ink: #17233d !important;
+    --ink-soft: #45536f !important;
+    --ink-muted: #6b7893 !important;
+    --line: #dce3ef !important;
+    --line-strong: #c9d4e8 !important;
+    --accent: #365cf5 !important;
+    --accent-hover: #2748d8 !important;
+    --accent-soft: #eef2ff !important;
+    --accent-line: #d7e0f1 !important;
+    --info: #365cf5 !important;
+    --info-soft: #eef2ff !important;
+    --success: #167875 !important;
+    --success-soft: #e8f6f2 !important;
+    --success-line: #bfe3d8 !important;
+    --warning: #8a5a10 !important;
+    --warning-soft: #fff6e5 !important;
+    --warning-line: #f0dcae !important;
+    --danger: #a2273a !important;
+    --danger-soft: #fff5f6 !important;
+    --danger-line: #f0cdd3 !important;
+    --neutral-soft: #eef2fa !important;
+    --chart-grid: #dce3ef !important;
+    --chart-axis: #6b7893 !important;
+    --chart-1: #2563eb !important;
+    --chart-2: #d93a5c !important;
+    --chart-3: #0f8f83 !important;
+    --chart-4: #c57a12 !important;
+    --chart-5: #7b5bd6 !important;
+    --chart-6: #1d8aa8 !important;
+    --chart-7: #5f8f1f !important;
+    --chart-8: #c2417f !important;
+    --code-bg: #f5f7fb !important;
+    --code-bg-deep: #eef2fa !important;
+    --code-ink: #17233d !important;
+
+    max-width: none;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+    color: var(--ink) !important;
+    font-size: 12pt;
+    line-height: 1.55;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Remove document chrome that only makes sense on screen. */
+  .md-document button {
+    display: none !important;
+  }
+
+  /* Visual sortable headers and legends are action buttons on screen but
+     carry essential labels. Print them as plain text. */
+  .md-document :is(.local-visual-sort-button, .local-visual-legend-item) {
+    display: inline !important;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: default;
+  }
+
+  .md-document :is(input, select, textarea):not(.md-task-checkbox) {
+    display: none !important;
+  }
+
+  .md-document .md-task-checkbox {
+    accent-color: #17233d;
+  }
+
+  /* Reveal the pre-rendered current values. */
+  .md-document .local-print-value {
+    display: inline !important;
+    margin-inline-start: 0.35em;
+    color: var(--ink) !important;
+    font-size: inherit;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .md-document .local-print-value.local-print-block {
+    display: block !important;
+    margin: 0.35em 0 0;
+  }
+
+  /* Avoid duplicating values that remain visible around a hidden widget. */
+  .md-document .local-slider .md-slider-value,
+  .md-document .local-range-row,
+  .md-document .local-counter-row,
+  .md-document .local-timer-controls,
+  .md-document .local-timer-value,
+  .md-document .local-coordinate-pad,
+  .md-document .local-coordinate-fields,
+  .md-document .local-coordinate .local-hint,
+  .md-document .local-multi-toolbar,
+  .md-document .local-multi-list,
+  .md-document .local-multi-count,
+  .md-document .local-choice-list,
+  .md-document .local-tablist,
+  .md-document .local-radiogroup .local-radio-option,
+  .md-document .local-radio-group .local-radio-option,
+  .md-document .local-quiz-options .local-radio-option,
+  .md-document .local-checklist .local-checklist-item,
+  .md-document .local-disclosure-trigger,
+  .md-document .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble {
+    display: none !important;
+  }
+
+  /* Static summaries remain readable in print as well. */
+  .md-document .local-static-tooltip .local-tooltip-bubble {
+    position: static;
+    display: inline !important;
+    max-width: none;
+    margin-inline-start: 0.35em;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ink-soft);
+    opacity: 1;
+    transform: none;
+  }
+
+  .md-document .local-static-value,
+  .md-document .local-static-list,
+  .md-document .local-static-item {
+    color: var(--ink) !important;
+  }
+
+  .md-document .local-static-state {
+    color: var(--ink-muted) !important;
+  }
+
+  .md-document .local-static-tab {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Cards and media should not break across sheets where practical. */
+  .md-document :is(.md-card, .local-panel, .local-checklist, .local-timer,
+    .local-quiz, .local-multi-select, .local-alert, .local-progress,
+    .local-coordinate, .local-counter, .local-tooltip) {
+    background: #ffffff !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .md-document .md-image {
+    max-width: 100% !important;
+    height: auto !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .md-document :is(svg, canvas, .local-visual, .local-visual-figure) {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Headings stay with the content that follows them. */
+  .md-document :is(h1, h2, h3, h4, h5, h6, .local-panel-title, .md-card-title,
+    .local-tabs-label, .local-accordion-label, .local-disclosure-heading,
+    .local-steps-label, .local-static-tab-label) {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .md-document :is(h1, h2, h3, h4, h5, h6) {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Long code and URLs wrap instead of being clipped at the page edge. */
+  .md-document .md-code {
+    max-width: 100%;
+    overflow: visible !important;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    break-inside: auto;
+  }
+
+  .md-document .md-code code {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .md-document a {
+    color: #1d4ed8 !important;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    overflow-wrap: anywhere;
+  }
+
+  /* Button-shaped jumps become ordinary underlined links on paper. */
+  .md-document .local-jump-button {
+    display: inline;
+    min-height: 0;
+    padding: 0;
+    background: transparent !important;
+    border: 0;
+    border-radius: 0;
+    color: #1d4ed8 !important;
+    font-size: inherit;
+    font-weight: inherit;
+    text-align: inherit;
+    text-decoration: underline;
+  }
+
+  /* Tables may span pages, with the header repeated on each sheet. */
+  .md-document .md-table-scroll {
+    overflow: visible !important;
+  }
+
+  .md-document .md-table {
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+  }
+
+  .md-document .md-table thead {
+    display: table-header-group;
+  }
+
+  .md-document .md-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .md-document .md-table th,
+  .md-document .md-table td {
+    border-color: #c9d4e8 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .md-document .md-table th {
+    background: #f5f7fb !important;
+  }
+
+  /* Keep blockquotes and list markers visible without heavy backgrounds. */
+  .md-document blockquote {
+    background: transparent !important;
+    border-left-color: #c9d4e8 !important;
+  }
+
+  .md-document .md-inline-code,
+  .md-document .md-raw-html {
+    background: #f5f7fb !important;
+    border: 1px solid #dce3ef;
+  }
+
+  .md-document .field-error {
+    display: none !important;
+  }
+}

@@ -14,6 +14,8 @@ Compile errors are listed by source position. The editor toolbar has common Mark
 
 The "User Guide" view at the top of the page renders `docs/local-guide-en.md` directly, covering everything from your first interactive document to charts, function curves and a quick error reference. Documentation links in the guide point to the repository, and table-of-contents anchors jump within the page.
 
+The export dialog downloads Markdown, interactive HTML or static HTML. It defaults to the author initial values and can use the current preview parameters as the exported reset baseline; the dialog shows how many public parameters changed. Documents with images are not exported as HTML from the browser because the demo has no asset root: use `reactive-md build doc.reactive.md -o doc.html --assets inline` so local images can be verified and inlined. "Save current state" downloads a `reactive-md-state/v1` file for a later CLI build. See [Shareable documents and static export](../docs/shareable-export-en.md).
+
 The masthead has a language toggle: `中` switches the whole demo to Chinese and `EN` switches back. English is the default. The choice is saved in the browser, each language keeps its own example drafts and guide (`docs/local-guide-ch.md` for Chinese), and the Playground preview is rendered with the matching locale.
 
 While you edit, consecutive keystrokes are coalesced and compiled on a background thread; the previous preview stays visible while waiting. The preview updates once the current source compiles successfully and shows diagnostics when it fails. For implementation details and how to re-measure, see [performance measurement](../docs/performance-en.md#playground-live-editing).

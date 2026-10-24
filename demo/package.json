@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run --config vitest.config.ts",
-    "test:browser": "node scripts/verify-grid-layout.mjs && node scripts/verify-showcase.mjs && node scripts/verify-local-browser.mjs && node scripts/verify-document-usability.mjs",
+    "test:browser": "node scripts/verify-grid-layout.mjs && node scripts/verify-showcase.mjs && node scripts/verify-local-browser.mjs && node scripts/verify-document-usability.mjs && node scripts/verify-export.mjs",
     "test:v2": "node scripts/verify-v2.mjs",
     "test:grid-layout": "node scripts/verify-grid-layout.mjs",
     "test:showcase": "node scripts/verify-showcase.mjs",

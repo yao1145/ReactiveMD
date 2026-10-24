@@ -10,7 +10,7 @@ Local interaction mode uses HTML-style tags, in-place parameters and `{{ express
 | `reactive-md/react` | `LocalReactiveDocument`, `LocalDocumentView` | React 19 |
 | `reactive-md/styles.css` | Component, theme and document styles | Explicitly imported by the host |
 
-The package ships ESM only. Node.js 22.12+ can be used for development and Node-side compilation and runtime. Edge has completed local interaction verification, and static SSR has passed the standalone installation check; see [Versions and compatibility](compatibility-en.md) for the full matrix. Copyable projects are in [Standalone integration examples](../examples/integration/README.md).
+The package ships ESM only. Node.js 22.12+ can be used for development and Node-side compilation and runtime. Edge has completed local interaction verification, and static SSR has passed the standalone installation check; see [Versions and compatibility](compatibility-en.md) for the full matrix. Copyable projects are in [Standalone integration examples](../examples/integration/README.md). For single-file HTML, state files and the standalone browser runtime, see [Shareable documents and static export](shareable-export-en.md).
 
 ## React
 

@@ -11,6 +11,7 @@
 - [新用户入门指南](docs/local-guide-ch.md)：从 Markdown 过渡到交互文档，含完整练习与错误速查。
 - [本地交互语法规范](docs/local-interaction-syntax-ch.md) · [功能演示与示例](examples/local/README.md)：43 个组件名、标签、就地参数与 LaTeX 绘图。
 - [本地模式集成](docs/local-integration-ch.md)：`compileLocal`、状态运行时、React 嵌入、URL 策略与样式作用域。
+- [可分享文档与静态导出](docs/shareable-export-ch.md)：单文件交互 HTML、静态输出、版本化状态文件、图片资源、CLI 与独立浏览器 API。
 - [主题协议](docs/theme-protocol-ch.md)：文档主题选择、自定义 CSS 与深浅模式。
 - [独立接入示例](examples/integration/README.md)：可复制到仓库外运行的 Node 核心和 React 页面。
 - [版本与兼容性](docs/compatibility-ch.md)：0.x 规则、迁移、诊断契约和平台范围。
@@ -60,6 +61,20 @@ export function Article({ source }: { source: string }) {
 `reactive-md` 核心入口不依赖 React。完整的编译与运行时 API、宿主 URL 策略、生命周期和样式覆盖见[本地模式集成](docs/local-integration-ch.md)。
 
 0.x 次版本可能包含破坏性变更。升级前阅读[变更记录](CHANGELOG-ch.md)与[兼容规则](docs/compatibility-ch.md)，并保存原始 `.reactive.md` 源码。
+
+## 分享文档
+
+构建读者可以离线打开的单个 HTML 文件，或不含脚本的静态快照：
+
+```sh
+npm run build
+npx reactive-md build examples/local/counter.reactive.md -o counter.html
+npx reactive-md build examples/local/counter.reactive.md -o counter-static.html --mode static
+```
+
+交互文件内嵌原始源码、React 19、运行时、样式以及经过校验的本地图片。它先渲染静态首屏，因此禁用 JavaScript 时仍可阅读。使用 `--state-file doc.state.json` 导出已保存的 `reactive-md-state/v1` 基线；省略时使用作者初值，并把它作为读者的重置基线。Demo 导出对话框可以把当前预览参数保存成此类状态文件。
+
+图片上限、CSP/安全、打印、退出码、`ReactiveMD.mount`/`mountAll` 与 `<reactive-md-doc>` 见[可分享文档与静态导出](docs/shareable-export-ch.md)。单文件静态首屏水合已在 Playwright Chromium 和本地 Edge 验证；Firefox、Safari/WebKit 与通用 SSR 水合仍未验证。
 
 ## 体验 Demo
 

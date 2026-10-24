@@ -14,6 +14,7 @@ import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
 import { AuthorTools } from './author-tools';
 import type { EditorEdit, EditorSelection } from './editor-commands';
 import { EditorToolbar } from './editor-toolbar';
+import { ExportDialog } from './export-dialog';
 import {
   DEFAULT_EXAMPLE_ID,
   EXAMPLES,
@@ -273,6 +274,7 @@ export default function App() {
   const [instanceKey, setInstanceKey] = useState(0);
   const [retainPreviewState, setRetainPreviewState] = useState(true);
   const [previewSession, setPreviewSession] = useState(() => new PreviewStateSession());
+  const [exportOpen, setExportOpen] = useState(false);
   const [runtimeDiagnostics, setRuntimeDiagnostics] = useState<Diagnostic[]>([]);
   const [activeLine, setActiveLine] = useState(1);
 
@@ -416,6 +418,9 @@ export default function App() {
   const exportSource = useCallback(() => {
     download(`${selectedExample}.reactive.md`, source, 'text/markdown;charset=utf-8');
   }, [selectedExample, source]);
+
+  const openExportDialog = useCallback(() => setExportOpen(true), []);
+  const closeExportDialog = useCallback(() => setExportOpen(false), []);
 
   const onSourceChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
     const element = event.currentTarget;
@@ -562,6 +567,11 @@ export default function App() {
   const previewDocument = compilation.previewDocument && previewSession.canPreview(compilation.previewDocument, source)
     ? compilation.previewDocument
     : null;
+  const exportDocument = compiled && compiled.ok ? compiled.document : null;
+  const exportCurrentState = exportDocument ? previewSession.currentState(exportDocument) : null;
+  const exportCompileError = compiled && !compiled.ok
+    ? (compiled.diagnostics[0]?.message ?? null)
+    : null;
   const statusLabel = compiling
     ? (compilation.mode === 'fallback' ? copy.status.compilingMainThread : copy.status.compiling)
     : compiled
@@ -705,7 +715,7 @@ export default function App() {
             onTheme={() => setDark((value) => !value)}
             onSimple={() => setSimple((value) => !value)}
             onImport={importSource}
-            onExport={exportSource}
+            onExport={openExportDialog}
           />
 
           <div className="workspace">
@@ -726,7 +736,7 @@ export default function App() {
                   onRedo={redoEdit}
                   canUndo={canUndo}
                   canRedo={canRedo}
-                  onExport={exportSource}
+                  onExport={openExportDialog}
                 />
 
                 <label className="sr-only" htmlFor="source-editor">{copy.editor.sourceLabel}</label>
@@ -862,6 +872,19 @@ export default function App() {
             <p>{copy.footer.trial}</p>
           ) : null}
         </footer>
+
+        <ExportDialog
+          open={exportOpen}
+          source={source}
+          baseName={selectedExample}
+          document={exportDocument}
+          currentState={exportCurrentState}
+          pending={compiling}
+          compileError={exportCompileError}
+          dark={dark}
+          onClose={closeExportDialog}
+          onDownloadMarkdown={exportSource}
+        />
       </div>
     </LanguageProvider>
   );

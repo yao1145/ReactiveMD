@@ -61,7 +61,9 @@ Persist the original `.reactive.md` source. Do not persist `LocalDocument`, `Loc
 | Microsoft Edge (Chromium-based) | Local browser verification completed |
 | Playwright Chromium | Linux CI browser checks pass |
 | Firefox, Safari/WebKit | Unverified; no support claim |
-| SSR | `react-dom/server` static rendering is covered by the pre-release packed check; hydration is unverified and should be checked before use |
+| Shareable state format | `reactive-md-state/v1`: public parameter values with a syntax version and source digest; see [Shareable documents](shareable-export-en.md) |
+| Single-file HTML format | `reactive-md-html/v1`: interactive or static export, with an inline standalone runtime only in interactive mode |
+| SSR | `react-dom/server` static rendering is covered by the packed check. Static-first hydration of the single-file export is covered in Playwright Chromium/Edge; general SSR hydration is unverified and should be checked before use |
 
 Node-side consumption means importing `reactive-md` in Node and calling `compileLocal` and `createLocalRuntime` without a DOM. React rendering requires a browser environment, or the host must handle server output itself.
 

@@ -15,6 +15,13 @@ interface RetainedBinding {
 interface SavedPreview {
   bindings: Map<string, RetainedBinding>;
   state: Readonly<Record<string, LocalValue>>;
+  /** Source of the document this snapshot was captured from. */
+  source: string;
+}
+
+interface ActivePreview {
+  token: object;
+  source: string;
 }
 
 function retainableBindings(document: LocalDocument): Map<string, RetainedBinding> {
@@ -52,7 +59,7 @@ function retainableBindings(document: LocalDocument): Map<string, RetainedBindin
 /** A single Playground trial session. It never writes to browser storage. */
 export class PreviewStateSession {
   private saved: SavedPreview | null = null;
-  private active: object | null = null;
+  private active: ActivePreview | null = null;
 
   constructor(private retention = true) {}
 
@@ -64,6 +71,17 @@ export class PreviewStateSession {
     // A worker may still expose the previous example/import while compiling a
     // new one. A fresh session starts only from the current editor source.
     return this.saved !== null || document.source === source;
+  }
+
+  /**
+   * Snapshot for export. It is only exposed while a runtime is active for the
+   * exact same source, so an older retained session can never leak values from
+   * a different document into a new export.
+   */
+  currentState(document: LocalDocument): Readonly<Record<string, LocalValue>> | null {
+    if (!this.active || !this.saved) return null;
+    if (this.active.source !== document.source || this.saved.source !== document.source) return null;
+    return this.saved.state;
   }
 
   open(document: LocalDocument) {
@@ -80,9 +98,11 @@ export class PreviewStateSession {
       }
     }
     const token = {};
-    this.active = token;
+    this.active = { token, source: document.source };
     const capture = () => {
-      if (this.active === token) this.saved = { bindings, state: runtime.snapshot().state };
+      if (this.active?.token === token) {
+        this.saved = { bindings, state: runtime.snapshot().state, source: document.source };
+      }
     };
     capture();
     const unsubscribe = runtime.subscribe(capture);
@@ -94,7 +114,7 @@ export class PreviewStateSession {
         released = true;
         capture();
         unsubscribe();
-        if (this.active === token) this.active = null;
+        if (this.active?.token === token) this.active = null;
         runtime.dispose();
       },
     };
