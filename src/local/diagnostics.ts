@@ -80,6 +80,16 @@ export function localDiagnosticDetails(
 }
 
 export const LOCAL_DIAGNOSTIC_MESSAGES = {
+  'local.version.unsupported': { en: 'This reader accepts {supported}; migrate {declared} or use a compatible reader.', zh: '此阅读器支持 {supported}；请迁移 {declared} 或使用兼容的阅读器。' },
+  'local.version.malformed': { en: 'Use <!-- reactive-md: local-draft-2 --> on one line.', zh: '请在单独一行使用 <!-- reactive-md: local-draft-2 -->。' },
+  'local.version.duplicate': { en: 'Only one source syntax declaration is allowed.', zh: '源码只能声明一次语法版本。' },
+  'local.version.placement': { en: 'The syntax declaration must be on its own line before the theme and document body.', zh: '语法版本声明必须独占一行，位于主题声明和正文之前。' },
+  'local.upgrade.from-version': { en: 'Cannot migrate from {from}: {detail}.', zh: '无法从 {from} 迁移：{detail}。' },
+  'local.upgrade.reserved-binding': { en: 'Binding {name} becomes reserved in local-draft-2; rename it with a compatible old editor before migration.', zh: '绑定 {name} 在 local-draft-2 中成为保留名；迁移前请用兼容旧版本的编辑器重命名。' },
+  'local.upgrade.tag': { en: 'Tag {name} was inert in local-draft-1 and becomes active in local-draft-2; preserve it as literal code before migration.', zh: '标签 {name} 在 local-draft-1 中不执行，在 local-draft-2 中会激活；迁移前请将其保留为代码原文。' },
+  'local.upgrade.text-length': { en: 'Text length constraints change from UTF-16 units to Unicode code points; explicitly accept this semantic change before migration.', zh: '文本长度约束从 UTF-16 单元改为 Unicode 码点计数；迁移前须明确接受这一语义变化。' },
+  'local.upgrade.expression': { en: 'This expression uses array syntax or a function introduced in local-draft-2; it is outside automatic draft-1 migration.', zh: '此表达式使用了 local-draft-2 新增的数组语法或函数，不属于 draft-1 自动迁移范围。' },
+  'local.upgrade.version-missing': { en: 'The source has no syntax declaration; migration will pin {version}.', zh: '源码尚未声明语法版本；迁移将固定为 {version}。' },
   'parse.sourceType': {
     en: 'Document source must be a string.',
     zh: '文档源必须是字符串。',
@@ -1260,6 +1270,9 @@ export const LOCAL_LATEX_ERROR_CODES = [
 export type LocalLatexErrorCode = (typeof LOCAL_LATEX_ERROR_CODES)[number];
 
 const LOCAL_STATIC_DIAGNOSTIC_CODES: readonly string[] = [
+  'local.version.unsupported', 'local.version.malformed', 'local.version.duplicate', 'local.version.placement',
+  'local.upgrade.from-version', 'local.upgrade.reserved-binding', 'local.upgrade.tag', 'local.upgrade.text-length',
+  'local.upgrade.expression', 'local.upgrade.version-missing',
   ...LOCAL_PARSER_CODES,
   ...LOCAL_COMPILER_CODES,
   ...LOCAL_RUNTIME_CODES,

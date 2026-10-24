@@ -58,6 +58,7 @@ const MAX_NAME_LENGTH = 128;
 const INACTIVE_NODE_TYPES = new Set(['code', 'inlineCode', 'math', 'inlineMath', 'fallback', 'comment']);
 /** Parse-level failures leave parts of the document opaque, so renaming is unsafe. */
 const UNSAFE_RENAME_CODES = new Set([
+  'local.version.unsupported', 'local.version.malformed', 'local.version.duplicate', 'local.version.placement',
   'local.parse',
   'local.interpolation',
   'local.tag.unclosed',

@@ -1,0 +1,50 @@
+{
+  "syntaxVersion": "local-draft-1",
+  "cases": [
+    {
+      "name": "shared numeric binding has one initial value and updates prose",
+      "source": "<number bind=\"n\" label=\"Count\" initial=\"2\" min=\"0\" max=\"10\">\n<slider bind=\"n\" label=\"Shared count\" min=\"0\" max=\"10\">\n\nTotal: {{ n * 2 }}",
+      "ok": true,
+      "initial": { "n": 2 },
+      "actions": [{ "bind": "n", "value": 5 }],
+      "text": "Total: {{ n * 2 }}",
+      "expectedText": "Total: 10"
+    },
+    {
+      "name": "hidden controls initialize their bindings",
+      "source": "<toggle bind=\"show\" label=\"Show\">\n<if when=\"{{ show }}\">\n<number bind=\"n\" label=\"Hidden count\" initial=\"4\">\n</if>\n\n{{ n * 2 }}",
+      "ok": true,
+      "initial": { "show": false, "n": 4 },
+      "text": "{{ n * 2 }}",
+      "expectedText": "8"
+    },
+    {
+      "name": "invalid state writes keep the last valid value",
+      "source": "<number bind=\"n\" label=\"Count\" initial=\"4\" min=\"0\" max=\"10\">",
+      "ok": true,
+      "initial": { "n": 4 },
+      "actions": [{ "bind": "n", "value": 11, "codes": ["local.runtime.value"] }],
+      "text": "{{ n }}",
+      "expectedText": "4"
+    },
+    {
+      "name": "code fences keep controls and interpolation literal",
+      "source": "```markdown\n<counter bind=\"n\" label=\"Literal\">\n{{ missing }}\n```",
+      "ok": true,
+      "bindingNames": []
+    },
+    {
+      "name": "unknown components preserve source with a warning",
+      "source": "<slidr label=\"Typo\">\n</slidr>",
+      "ok": true,
+      "bindingNames": [],
+      "codes": ["local.component.unknown"]
+    },
+    {
+      "name": "unbound expression names produce a compiler diagnostic",
+      "source": "Total: {{ missing * 2 }}",
+      "ok": false,
+      "codes": ["local.binding.unknown"]
+    }
+  ]
+}

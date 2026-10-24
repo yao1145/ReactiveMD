@@ -1,6 +1,6 @@
 # 本地交互文档集成
 
-本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](local-guide-ch.md) 和 [语法规范](local-interaction-syntax-ch.md)，完整文档见[示例索引](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
+本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](local-guide-ch.md) 和 [语法规范](local-interaction-syntax-ch.md)，完整文档见[示例索引](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。可选修订指令、升级检查与 `migrateLocalSource` 见[源码修订与迁移](source-versioning-ch.md)，升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
 
 ## 运行环境与入口
 
@@ -95,7 +95,7 @@ if (result.ok) {
 - 成功：`{ ok: true; document: LocalDocument; diagnostics: Diagnostic[] }`
 - 失败：`{ ok: false; diagnostics: Diagnostic[] }`
 
-语法问题通过诊断返回；当前构建只接受 `local-draft-2`。源码上限为 1,000,000 字符。`document` 是当前运行时对象，不应当作持久化格式。
+语法问题通过诊断返回；当前构建只接受 `local-draft-2`。显式旧修订指令会以 `local.version.*` 诊断拒绝；无指令源码保持当前修订的行为。源码上限为 1,000,000 字符。`document` 是当前运行时对象，不应当作持久化格式。
 
 宿主可以为单次编译设置语法节点预算：
 
@@ -113,6 +113,28 @@ const result = compileLocal(source, options);
 预算统计解析过程中累计创建的 `LocalNode`，包括 Markdown 文本、段落、列表、表格、插值、组件及部分中间节点，可能大于最终语法树的节点数。设置只影响本次编译，选项对象保持原样，数组等其他资源上限保持独立。该预算由宿主传入，文档内容不能自行提高。
 
 需要在 React 中使用自定义预算时，先调用 `compileLocal`，再把编译文档和运行时交给 `LocalDocumentView`。`LocalReactiveDocument` 和 Playground 的编译线程使用默认预算。提高节点预算后，宿主应结合实际文档测量内存和预览渲染耗时。
+
+### 版本查看与迁移
+
+三个纯函数在不创建运行时的情况下检查和迁移源码，均从 `reactive-md` 导出：
+
+```ts
+import {
+  checkLocalUpgrade,
+  inspectLocalSourceVersion,
+  migrateLocalSource,
+} from 'reactive-md';
+
+const info = inspectLocalSourceVersion(source);
+const check = checkLocalUpgrade(source, { fromVersion: 'local-draft-1' });
+const migrated = migrateLocalSource(source, { fromVersion: 'local-draft-1' });
+```
+
+`inspectLocalSourceVersion` 返回声明修订、用于判定的修订、当前编译器是否支持、指令位置和版本诊断。`checkLocalUpgrade` 返回 `ok`、`fromVersion`、`toVersion`、`needsMigration` 和诊断。`migrateLocalSource` 在此基础上增加 `source`、`changed` 和准确的 `edits`。
+
+`LocalUpgradeOptions` 提供 `fromVersion` 和 `allowSemanticChanges`。无版本声明的历史文档需要 `fromVersion: 'local-draft-1'`。显式 `fromVersion` 与声明不一致时被拒绝。迁移源只接受 `local-draft-1` 和 `local-draft-2`。
+
+迁移只改元数据指令，保留正文原始字节、BOM 和 CRLF，并且幂等。生成结果前会阻止保留绑定、新增可识别标签、编译错误和文本控件长度语义变化。完整检查与 CLI 见[源码修订与迁移](source-versioning-ch.md)。
 
 ### `createLocalRuntime(document: LocalDocument)`
 
@@ -253,9 +275,10 @@ scheduler.schedule(source);
 - `compileLatex(source: string)`：返回带 `source`、`dependencies` 和 `evaluate(x, env, budget?)` 的对象；失败抛出带 `code`、`offset` 的错误。
 - `samplePlot(expression, env, min, max, samples = 200, sharedBudget?)`：返回 `{ points: { x: number; y: number | null }[]; endpoint: number | null }`；范围、采样数或预算无效时抛出。
 - 状态文件：`exportLocalState`、`importLocalState`、`createLocalStateFile`、`parseLocalState`、`resolveLocalState`、`applyLocalState` 和 `serializeLocalState`；`LOCAL_STATE_FORMAT` 为 `'reactive-md-state/v1'`。
+- 源码修订：`inspectLocalSourceVersion`、`checkLocalUpgrade` 和 `migrateLocalSource`；`LocalUpgradeOptions` 配置源修订和语义变化许可。
 - 参数保留：`planLocalStateRetention` 和 `applyLocalStateRetention`。
 - 后台编译：`LocalCompileScheduler`、`LOCAL_COMPILE_DELAY_MS` 和 `startLocalCompileWorker`。
-- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalComputation`、`LocalValidation`、`LocalDocument`、`LocalCompileLimits`、`LocalCompileOptions`、`LocalCompileResult`、`LocalRuntime`、`LocalSnapshot`、`LocalStateFile`、`LocalStateGenerator`、`LocalStateParseResult`、`LocalStateResolution`、`LocalRetainedState`、`LocalStateRetentionReason`、`LocalStateRetentionDrop`、`LocalStateRetentionInput`、`LocalStateRetentionResult`、`LocalCompileWorker`、`LocalCompileWorkerScope`、`LocalCompileRequest`、`LocalCompileResponse`、`LocalCompileOutcome`、`LocalCompileMode`、`LocalCompileSchedulerOptions`。
+- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalComputation`、`LocalValidation`、`LocalDocument`、`LocalCompileLimits`、`LocalCompileOptions`、`LocalCompileResult`、`LocalUpgradeOptions`、`LocalRuntime`、`LocalSnapshot`、`LocalStateFile`、`LocalStateGenerator`、`LocalStateParseResult`、`LocalStateResolution`、`LocalRetainedState`、`LocalStateRetentionReason`、`LocalStateRetentionDrop`、`LocalStateRetentionInput`、`LocalStateRetentionResult`、`LocalCompileWorker`、`LocalCompileWorkerScope`、`LocalCompileRequest`、`LocalCompileResponse`、`LocalCompileOutcome`、`LocalCompileMode`、`LocalCompileSchedulerOptions`。
 
 `compileExpression`、`compileLatex` 和 `samplePlot` 是较低层的工具，稳定级别与核心 API 相同；通常只需要 `compileLocal` 和 `createLocalRuntime`。
 

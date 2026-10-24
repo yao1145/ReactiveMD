@@ -17,6 +17,9 @@
 - 新增不可见、只读的 `<computed>` 与 `<const>` 声明，支持依赖排序、类型推断、循环检测和各运行时独立的计算缓存。正文、条件、公式与图表可共享中间结果。
 - 新增数字、百分比、科学计数法与货币格式化，常用字符串函数及 UTC 日期比较、日期差。默认值、舍入、空值和地区规则见[复用计算与格式化数值](docs/computations-formatting-ch.md)。新函数名成为保留字；使用本开发版本前需重命名同名旧绑定。
 
+- 新增可选的 `<!-- reactive-md: local-draft-2 -->` 源码修订指令。显式旧修订、未知、格式错误、重复或位置错误的声明会以 `local.version.*` 诊断拒绝，不创建运行时；无指令源码保持当前修订行为。早于该指令的读者会忽略它。见[源码修订与迁移](docs/source-versioning-ch.md)。
+- 新增 `inspectLocalSourceVersion`、`checkLocalUpgrade`、`migrateLocalSource`，以及带 `--from`、`--check`、`--json`、`-o/--output`、`--accept-semantic-changes` 和 `--locale` 的 `reactive-md migrate`。迁移只改指令，保留正文原始字节、BOM 和 CRLF，幂等；阻止保留绑定、新增可识别标签、编译错误和文本长度语义变化，且从不改写状态文件。
+
 - 增加统一的中英文诊断模板，同一 minor 系列内保持现有诊断码含义稳定。Playground、React 渲染器与 `lint --locale en|zh` 按语言显示诊断，保留机器字段。
 - 文本控件长度约束改为按 Unicode 码点计数，与字符串 `len()` 一致；源码定位和资源预算继续使用 UTF-16。原先因 emoji 占用两个代码单元而被拒绝的值，现在可满足对应码点上限。详见[诊断与计数规则](docs/diagnostics-counting-ch.md)。
 

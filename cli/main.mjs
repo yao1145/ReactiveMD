@@ -3,6 +3,7 @@ import { runBuild } from './build.mjs';
 import { EXIT, usageError } from './errors.mjs';
 import { buildHelp, mainHelp } from './help.mjs';
 import { runLint } from './lint.mjs';
+import { runMigrate } from './migrate.mjs';
 import { readPackageInfo } from './package.mjs';
 
 /**
@@ -44,6 +45,10 @@ export async function runCli(argv, context) {
 
   if (command === 'lint') {
     return runLint(argv, context);
+  }
+
+  if (command === 'migrate') {
+    return runMigrate(rest, context);
   }
 
   throw usageError(`Unknown command "${command}". Run "reactive-md --help" for usage.`);

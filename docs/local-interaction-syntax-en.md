@@ -1,6 +1,6 @@
 # Reactive MD local interaction syntax specification
 
-Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with the syntax, read the [beginner guide](local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](local-integration-en.md). See [Versions and compatibility](compatibility-en.md) for package version relationships, 0.x compatibility rules and migration, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade from `0.3.1` / `local-draft-1`. Complete examples are in the [example index](../examples/local/README.md).
+Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with the syntax, read the [beginner guide](local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](local-integration-en.md). See [Versions and compatibility](compatibility-en.md) for package version relationships, 0.x compatibility rules and migration, [Source revisions and migration](source-versioning-en.md) for the optional revision directive and `reactive-md migrate`, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade from `0.3.1` / `local-draft-1`. Complete examples are in the [example index](../examples/local/README.md).
 
 ## 1. Positioning and scope
 
@@ -16,7 +16,7 @@ The base language requires only two connection rules: `bind` names an input, and
 
 This draft does not include external service calls, form submission, asynchronous resources, named actions, event handlers, programmable collection edits, general loop templates or arbitrary scripts. Legacy `state/data/computed/actions` configuration blocks are not part of the new syntax. Expressions can produce string or numeric arrays; checklist and multi-select components produce string arrays. Tables can use prose Markdown or bounded local row generation through `data-table`.
 
-By default a document only keeps in-memory state for the current instance. Reopening starts from initial values; persistence is not part of the author syntax. There is no need to declare a language version, import components or write YAML. Hosts should explicitly select draft parsing mode and must not guess by mixing old and new syntax.
+By default a document only keeps in-memory state for the current instance. Reopening starts from initial values; persistence is not part of the author syntax. No language version declaration, component import or YAML is required. A document may optionally declare its revision with one `<!-- reactive-md: local-draft-2 -->` line in the prologue, before the theme and body; unversioned documents use the current revision. See [Source revisions and migration](source-versioning-en.md). Hosts should explicitly select draft parsing mode and must not guess by mixing old and new syntax.
 
 Documents may select a theme with `<theme name="default">` before the body; omission uses `default`. This is static metadata, not a component. Custom themes must be registered by the host and support both color schemes; see the [theme protocol](theme-protocol-en.md).
 
@@ -94,7 +94,7 @@ Unknown components, unknown attributes, wrong positions or wrong attribute types
 
 ### 3.4 Code, math and escaping
 
-Tags, interpolations and formula markers inside inline code and code fences are displayed verbatim. Markdown comments `<!-- ... -->` produce no components or variables.
+Tags, interpolations and formula markers inside inline code and code fences are displayed verbatim. The source revision directive in the prologue is the recognized version comment; other Markdown comments `<!-- ... -->` produce no components or variables.
 
 Use `\{{` in prose to display a literal `{{`, and `\<slider>` or inline code to show a tag example. These backslash escapes belong only to the Markdown context and do not apply to LaTeX sources.
 

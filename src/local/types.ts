@@ -1,4 +1,6 @@
 export interface SourceRange { start: number; end: number }
+/** A source-level syntax declaration; offsets use original UTF-16 units. */
+export interface LocalVersionDeclaration { version: string; range: SourceRange }
 /** A scalar, JSON/structured-clone-safe diagnostic template parameter. */
 export type LocalDiagnosticParam = string | number | boolean | null;
 export type LocalDiagnosticParams = Readonly<Record<string, LocalDiagnosticParam>>;
@@ -87,6 +89,9 @@ export interface LocalValidation {
 export interface LocalDocument {
   syntax: 'local';
   source: string;
+  /** Effective syntax revision; absent on older hand-built runtime documents. */
+  syntaxVersion?: 'local-draft-2';
+  versionDeclaration?: LocalVersionDeclaration;
   nodes: LocalNode[];
   initialState: Record<string, LocalValue>;
   bindings: Record<string, LocalBinding>;

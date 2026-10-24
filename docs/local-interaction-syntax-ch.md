@@ -2,7 +2,7 @@
 
 本次新增的跳转、正文颜色、多选、区间、坐标、练习题、分步阅读和选择联动，见[新增组块与迁移](local-components-v2-ch.md)。
 
-语法标识：`local-draft-2`，2026-10-23。第一次接触这套语法，建议先读 [新用户入门指南](local-guide-ch.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration-ch.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](compatibility-ch.md)，从 `0.3.1` / `local-draft-1` 升级见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。完整示例见 [示例索引](../examples/local/README.md)。
+语法标识：`local-draft-2`，2026-10-23。第一次接触这套语法，建议先读 [新用户入门指南](local-guide-ch.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration-ch.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](compatibility-ch.md)，可选修订指令与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，从 `0.3.1` / `local-draft-1` 升级见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。完整示例见 [示例索引](../examples/local/README.md)。
 
 ## 1. 定位与范围
 
@@ -18,7 +18,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 
 本草案不包含外部服务调用、提交表单、异步资源、命名动作、事件处理器、可编程集合增删、通用循环模板或任意脚本。旧版 `state/data/computed/actions` 配置块不属于新语法。表达式可以产生字符串或数字数组，清单与多选组件继续产生字符串数组。表格可直接写为 Markdown，也可通过带预算的 `data-table` 从本地值生成行。
 
-文档默认只保存当前实例的内存状态。重新打开从初值开始；持久化不属于作者语法。无需声明语言版本、导入组件或编写 YAML。宿主应明确选择草案解析模式，不能把旧语法与新语法混合猜测解析。
+文档默认只保存当前实例的内存状态。重新打开从初值开始；持久化不属于作者语法。无需声明语言版本、导入组件或编写 YAML。文档可以在前导区、主题和正文之前用一行 `<!-- reactive-md: local-draft-2 -->` 可选地声明修订；无指令文档使用当前修订。见[源码修订与迁移](source-versioning-ch.md)。宿主应明确选择草案解析模式，不能把旧语法与新语法混合猜测解析。
 
 文档可在正文前用 `<theme name="default">` 选择整份文档的主题，省略时为 `default`。这是静态元数据声明，不是组件；自定义主题须由宿主登记并同时支持深浅模式，见[主题协议](theme-protocol-ch.md)。
 
@@ -96,7 +96,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 
 ### 3.4 代码、公式与转义
 
-行内代码和代码围栏内的标签、插值、公式标记全部按原文显示。Markdown 注释 `<!-- ... -->` 不产生组件或变量。
+行内代码和代码围栏内的标签、插值、公式标记全部按原文显示。前导区中的源码修订指令是会被识别的版本注释；其他 Markdown 注释 `<!-- ... -->` 不产生组件或变量。
 
 正文用 `\{{` 显示字面量 `{{`，用 `\<slider>` 或行内代码显示标签示例。反斜杠的这类转义只属于 Markdown 上下文，不应用到 LaTeX 源码。
 

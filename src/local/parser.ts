@@ -2,7 +2,8 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import type { Diagnostic } from './types';
-import type { LocalCompileOptions, LocalNode, SourceRange } from './types';
+import type { LocalCompileOptions, LocalNode, LocalVersionDeclaration, SourceRange } from './types';
+import { LOCAL_SYNTAX_VERSION } from './version';
 import { localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
 import { localComponentNames, suggestComponent } from './schema';
 import { isLocalThemeName } from './theme';
@@ -38,6 +39,7 @@ interface ShieldRange { start: number; end: number; block: boolean }
 export interface ParsedLocal {
   nodes: LocalNode[];
   diagnostics: Diagnostic[];
+  versionDeclaration?: LocalVersionDeclaration;
   /** Declared theme name, when the leading declaration is valid. */
   theme?: string;
   /** Source range of the first leading theme declaration, valid or not. */
@@ -242,6 +244,8 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   let themeRange: SourceRange | undefined;
   let themeHeaders = 0;
   let headerCursor = 0;
+  let versionDeclaration: LocalVersionDeclaration | undefined;
+  let versionHeaders = 0;
 
   interface ThemeTag { start: number; end: number; rest: string; closing: boolean; selfClosing: boolean; unclosed: boolean }
 
@@ -595,6 +599,29 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       if (shield !== null) { i = shield; continue; }
       if (source.startsWith('<!--', i)) {
         const close = source.indexOf('-->', i + 4), stop = close < 0 ? end : Math.min(end, close + 3);
+        const comment = source.slice(i, stop);
+        if (/^<!--\s*reactive-md(?=[\s:]|-->|$)/i.test(comment)) {
+          versionHeaders += 1;
+          const lineStart = source.lastIndexOf('\n', i - 1) + 1;
+          const nextLine = source.indexOf('\n', stop);
+          const standalone = /^\s*$/.test(source.slice(lineStart, i))
+            && /^\s*$/.test(source.slice(stop, nextLine < 0 ? source.length : nextLine));
+          const match = /^<!--[ \t]*reactive-md:[ \t]*(local-draft-[1-9][0-9]*)[ \t]*-->$/.exec(comment);
+          if (versionHeaders > 1) {
+            error('local.version.duplicate', 'Only one source syntax declaration is allowed.', i, stop);
+          } else if (!match || close < 0 || /[\r\n]/.test(comment)) {
+            error('local.version.malformed', 'Use <!-- reactive-md: local-draft-2 --> on one line.', i, stop);
+          } else {
+            versionDeclaration = { version: match[1], range: { start: i, end: stop } };
+            if (parent !== undefined || !standalone || skipThemePrefix(0, i) !== i) {
+              error('local.version.placement', 'The syntax declaration must be on its own line before the theme and document body.', i, stop);
+            } else if (match[1] !== LOCAL_SYNTAX_VERSION) {
+              error('local.version.unsupported', `This reader accepts ${LOCAL_SYNTAX_VERSION}; migrate ${match[1]} or use a compatible reader.`, i, stop, {
+                key: 'local.version.unsupported', params: { declared: match[1], supported: LOCAL_SYNTAX_VERSION },
+              });
+            }
+          }
+        }
         tokens.push({ start: i, end: stop, node: node('comment', i, stop) }); i = stop; continue;
       }
       if (source.startsWith('{{', i)) {
@@ -813,6 +840,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     return {
       nodes: convert(0, source.length, result.tokens),
       diagnostics,
+      ...(versionDeclaration ? { versionDeclaration } : {}),
       ...(theme !== undefined ? { theme } : {}),
       ...(themeRange ? { themeRange } : {}),
     };

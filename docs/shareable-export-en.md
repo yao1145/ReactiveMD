@@ -1,6 +1,6 @@
 # Shareable documents and static export
 
-This guide covers the single-file HTML exporter introduced with `local-draft-2`. It complements [Local mode integration](local-integration-en.md), the [syntax reference](local-interaction-syntax-en.md) and the [0.4.0 development preview notes](release-0.4.0-en.md).
+This guide covers the single-file HTML exporter introduced with `local-draft-2`. It complements [Local mode integration](local-integration-en.md), the [syntax reference](local-interaction-syntax-en.md), [Source revisions and migration](source-versioning-en.md) and the [0.4.0 development preview notes](release-0.4.0-en.md).
 
 ## Output modes
 
@@ -14,7 +14,7 @@ Both modes use the same renderer as the React integration, so conditional conten
 
 ## CLI
 
-The package exposes the `reactive-md` command. HTML builds require React 19 and React DOM in the project that installs the package; `lint` does not.
+The package exposes the `reactive-md` command. HTML builds require React 19 and React DOM in the project that installs the package; `lint` and `migrate` do not.
 
 ```sh
 reactive-md build doc.reactive.md -o doc.html
@@ -49,7 +49,20 @@ Exit codes are separate so build automation can distinguish failures:
 | `4` | Input/output file failure |
 | `5` | Asset or security-policy failure |
 
-The CLI does not use a current preview implicitly. `--state-file` is the only way to select a non-initial baseline. `format` and `migrate` are not part of this development build.
+The CLI does not use a current preview implicitly. `--state-file` is the only way to select a non-initial baseline. `format` is not part of this development build.
+
+## Migrating source
+
+`reactive-md migrate` moves one source revision declaration to `local-draft-2`:
+
+```sh
+reactive-md migrate old.reactive.md --from local-draft-1 -o new.reactive.md
+reactive-md migrate old.reactive.md --check --json
+```
+
+By default it prints the migrated source to standard output. `-o` creates a new file with exclusive creation and refuses any existing path, including the input. `--check` never writes. `--json` prints a structured report and nothing else. `--accept-semantic-changes` allows the text-control length change and reports warnings; `--locale en|zh` selects the display language.
+
+A migration exits `1` when blocked and `0` on success. `--check` exits `1` when changes are needed or blocked, and `0` when the source is current. Usage and I/O errors exit `2`. The command does not overwrite in place and has no batch or `--write` mode. See [Source revisions and migration](source-versioning-en.md) for the checks, preserved bytes and state-digest consequences.
 
 ## Starting values and state files
 
@@ -187,8 +200,8 @@ Sizes vary slightly with the minifier and React patch release. The alarm is inte
 
 ## Current scope
 
-Included: CLI `build`/`lint`, interactive and static HTML, state files, local raster inlining, print output, standalone mount APIs, auto-mount, and the Web Component.
+Included: CLI `build`/`lint`/`migrate`, interactive and static HTML, state files, local raster inlining, print output, standalone mount APIs, auto-mount, and the Web Component.
 
-Not included in this development build: `format`/`migrate`, UMD, remote image fetching, SVG inlining, framework plugins (Vite, Astro, Docusaurus, Next.js), Shadow DOM, and general SSR hydration guarantees outside the single-file export path.
+Not included in this development build: `format`, UMD, remote image fetching, SVG inlining, framework plugins (Vite, Astro, Docusaurus, Next.js), Shadow DOM, and general SSR hydration guarantees outside the single-file export path.
 
 Single-file static-first hydration is exercised in Playwright Chromium; local verification uses Edge. Firefox, Safari/WebKit and general server-side hydration remain unverified and are not claimed as supported.

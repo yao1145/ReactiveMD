@@ -1,0 +1,72 @@
+{
+  "tag": "v0.3.1",
+  "commit": "bdfc98bd914058df5093a1c02123ad11a9ebe207",
+  "syntaxVersion": "local-draft-1",
+  "files": [
+    {
+      "file": "local-draft-1.json",
+      "sourcePath": "examples/conformance/local-draft-1.json",
+      "sha256": "7d736ebf325f2a9c392cb44fd6edd85db2b4cff91bf8999fc8f431f9f61e55eb"
+    },
+    {
+      "file": "catalog.reactive.md",
+      "sourcePath": "examples/local/catalog.reactive.md",
+      "sha256": "bfb6d8d29f695cb2139676f47892613003b01278e9987b145723d8150ed70b38"
+    },
+    {
+      "file": "charts.reactive.md",
+      "sourcePath": "examples/local/charts.reactive.md",
+      "sha256": "16f6711e3bab7b7dfe9f4ad10364b7bafca28109d7869693a331bd2f93579254"
+    },
+    {
+      "file": "checklist.reactive.md",
+      "sourcePath": "examples/local/checklist.reactive.md",
+      "sha256": "8f88f50c652d58e6410eab1a50885eb356219b0efe28f67e1a1fd605c12dba2c"
+    },
+    {
+      "file": "comparison.reactive.md",
+      "sourcePath": "examples/local/comparison.reactive.md",
+      "sha256": "a625b2b7ef1123e5a59528de3a3fd6aed87d46e5a6e55e2a5b6691644e351deb"
+    },
+    {
+      "file": "components.reactive.md",
+      "sourcePath": "examples/local/components.reactive.md",
+      "sha256": "b9f2e3fdc0752f8d85afafb87513eadf22fa64c3a2e504ec6ef104c310cf64a9"
+    },
+    {
+      "file": "counter.reactive.md",
+      "sourcePath": "examples/local/counter.reactive.md",
+      "sha256": "659955e5a3b42b8dacca4c6da9447bf6bfcb25e651496481c4855976f36b4820"
+    },
+    {
+      "file": "diagnostics.reactive.md",
+      "sourcePath": "examples/local/diagnostics.reactive.md",
+      "sha256": "315a65a5df2a1968cce320b1f1c096e2994c5c36a1bfd6f7bbb5ef5bec1903c5"
+    },
+    {
+      "file": "diagram.reactive.md",
+      "sourcePath": "examples/local/diagram.reactive.md",
+      "sha256": "7f356517d2ce13b740c46a917dac51f74471eb6e128d367f953c129958036635"
+    },
+    {
+      "file": "gallery.reactive.md",
+      "sourcePath": "examples/local/gallery.reactive.md",
+      "sha256": "33d854dcff496bd85454eb5fbb52f71ac2e906ef9cdedbca5abbf74d426aef5f"
+    },
+    {
+      "file": "parameters.reactive.md",
+      "sourcePath": "examples/local/parameters.reactive.md",
+      "sha256": "676cd75a58cfade9e265cefce204d1fd877cfcc3071d5c0b1b368eae0b0285e1"
+    },
+    {
+      "file": "planning.reactive.md",
+      "sourcePath": "examples/local/planning.reactive.md",
+      "sha256": "9c101147d8f0d61adbe12f422c6e2c8e141cfb8274922055cf5ebdaada329b0a"
+    },
+    {
+      "file": "pricing.reactive.md",
+      "sourcePath": "examples/local/pricing.reactive.md",
+      "sha256": "79746029d23a32b1eeeeffadb36aa82807fdaa7ce7808e57f3038d5616d595eb"
+    }
+  ]
+}

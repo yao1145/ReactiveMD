@@ -1,6 +1,6 @@
 # Local mode integration
 
-Local interaction mode uses HTML-style tags, in-place parameters and `{{ expressions }}`. Author rules are in the [beginner guide](local-guide-en.md) and the [syntax specification](local-interaction-syntax-en.md); complete documents are in the [example index](../examples/local/README.md). Hosts explicitly select this mode through the `Local` APIs. See [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist.
+Local interaction mode uses HTML-style tags, in-place parameters and `{{ expressions }}`. Author rules are in the [beginner guide](local-guide-en.md) and the [syntax specification](local-interaction-syntax-en.md); complete documents are in the [example index](../examples/local/README.md). Hosts explicitly select this mode through the `Local` APIs. See [Source revisions and migration](source-versioning-en.md) for the optional revision directive, upgrade checks and `migrateLocalSource`, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist.
 
 ## Runtime and entries
 
@@ -95,7 +95,7 @@ if (result.ok) {
 - Success: `{ ok: true; document: LocalDocument; diagnostics: Diagnostic[] }`
 - Failure: `{ ok: false; diagnostics: Diagnostic[] }`
 
-Syntax problems are returned through diagnostics; the current build accepts only `local-draft-2`. The source limit is 1,000,000 characters. `document` is a current runtime object and should not be treated as a persistence format.
+Syntax problems are returned through diagnostics; the current build accepts only `local-draft-2`. An explicit older revision directive is rejected with a `local.version.*` diagnostic; an unversioned source keeps current-revision behavior. The source limit is 1,000,000 characters. `document` is a current runtime object and should not be treated as a persistence format.
 
 Hosts can set the syntax node budget for a single compilation:
 
@@ -113,6 +113,28 @@ const result = compileLocal(source, options);
 The budget counts `LocalNode` instances created cumulatively during parsing, including Markdown text, paragraphs, lists, tables, interpolations, components and some intermediate nodes, so it may exceed the final syntax tree node count. The setting affects only this compilation, leaves the options object untouched, and keeps other resource limits such as arrays independent. The budget comes from the host; document content cannot raise it on its own.
 
 To use a custom budget in React, call `compileLocal` first and pass the compiled document and runtime to `LocalDocumentView`. `LocalReactiveDocument` and the Playground compilation thread use the default budget. After raising the node budget, hosts should measure memory and preview rendering time with their actual documents.
+
+### Version inspection and migration
+
+Three pure functions inspect and migrate source without creating a runtime. They are exported from `reactive-md`:
+
+```ts
+import {
+  checkLocalUpgrade,
+  inspectLocalSourceVersion,
+  migrateLocalSource,
+} from 'reactive-md';
+
+const info = inspectLocalSourceVersion(source);
+const check = checkLocalUpgrade(source, { fromVersion: 'local-draft-1' });
+const migrated = migrateLocalSource(source, { fromVersion: 'local-draft-1' });
+```
+
+`inspectLocalSourceVersion` reports the declared and effective revision, whether this compiler supports it, the directive range and version diagnostics. `checkLocalUpgrade` reports `ok`, `fromVersion`, `toVersion`, `needsMigration` and diagnostics. `migrateLocalSource` adds `source`, `changed` and precise `edits`.
+
+`LocalUpgradeOptions` supplies `fromVersion` and `allowSemanticChanges`. An unversioned historical document needs `fromVersion: 'local-draft-1'`. An explicit `fromVersion` that disagrees with the declaration is rejected. Only `local-draft-1` and `local-draft-2` are accepted migration sources.
+
+Migration changes only the metadata directive, preserves body bytes, BOM and CRLF, and is idempotent. It blocks reserved bindings, newly recognized tags, compile errors and text-control length changes before producing output. See [Source revisions and migration](source-versioning-en.md) for the exact checks and the CLI.
 
 ### `createLocalRuntime(document: LocalDocument)`
 
@@ -253,9 +275,10 @@ scheduler.schedule(source);
 - `compileLatex(source: string)`: returns an object with `source`, `dependencies` and `evaluate(x, env, budget?)`; throws an error with `code` and `offset` on failure.
 - `samplePlot(expression, env, min, max, samples = 200, sharedBudget?)`: returns `{ points: { x: number; y: number | null }[]; endpoint: number | null }`; throws when the range, sample count or budget is invalid.
 - State files: `exportLocalState`, `importLocalState`, `createLocalStateFile`, `parseLocalState`, `resolveLocalState`, `applyLocalState` and `serializeLocalState`; `LOCAL_STATE_FORMAT` is `'reactive-md-state/v1'`.
+- Source revisions: `inspectLocalSourceVersion`, `checkLocalUpgrade` and `migrateLocalSource`; `LocalUpgradeOptions` configures the source revision and semantic-change allowance.
 - Retention: `planLocalStateRetention` and `applyLocalStateRetention`.
 - Background compilation: `LocalCompileScheduler`, `LOCAL_COMPILE_DELAY_MS` and `startLocalCompileWorker`.
-- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalComputation`, `LocalValidation`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
+- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalComputation`, `LocalValidation`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalUpgradeOptions`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
 
 `compileExpression`, `compileLatex` and `samplePlot` are lower-level utilities with the same stability level as the core API; usually only `compileLocal` and `createLocalRuntime` are needed.
 

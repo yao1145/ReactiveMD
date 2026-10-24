@@ -282,6 +282,7 @@ import {
   applyLocalStateRetention,
   compileLocal,
   analyzeLocalSource, completeLocalSource, renameLocalBinding, formatLocalSource,
+  inspectLocalSourceVersion, checkLocalUpgrade, migrateLocalSource,
   countLocalCodePoints, formatLocalDiagnostic, LOCAL_DIAGNOSTIC_CODES,
   createLocalRuntime,
   exportLocalState,
@@ -303,6 +304,14 @@ assert.equal(typeof LocalCompileScheduler, 'function', 'LocalCompileScheduler mu
 assert.equal(typeof startLocalCompileWorker, 'function', 'startLocalCompileWorker must be exported from the core tarball');
 assert.equal(LOCAL_COMPILE_DELAY_MS, 150);
 assert.equal(LOCAL_SYNTAX_VERSION, 'local-draft-2');
+const oldSource = '<!-- reactive-md: local-draft-1 -->\\n# Historical source';
+assert.equal(compileLocal(oldSource).ok, false);
+assert.equal(inspectLocalSourceVersion(oldSource).supported, false);
+assert.equal(checkLocalUpgrade(oldSource).ok, true);
+const migratedSource = migrateLocalSource(oldSource);
+assert.equal(migratedSource.ok, true);
+assert.equal(compileLocal(migratedSource.source).ok, true);
+assert.equal(migrateLocalSource(migratedSource.source).changed, false);
 
 const result = compileLocal('# Packed core');
 assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
@@ -322,6 +331,16 @@ console.log('PASS core API without React');
 `,
   );
   await run('core API fixture', process.execPath, [path.join(coreConsumer, 'core-api.mjs')], coreConsumer);
+  const historicalInput = path.join(coreConsumer, 'historical.reactive.md');
+  const migratedOutput = path.join(coreConsumer, 'migrated.reactive.md');
+  const historicalText = '<!-- reactive-md: local-draft-1 -->\n# Packed historical document\n';
+  await writeFile(historicalInput, historicalText, 'utf8');
+  await run('packed migration without React', process.execPath,
+    [path.join(installedCore, 'bin/reactive-md.mjs'), 'migrate', historicalInput, '-o', migratedOutput], coreConsumer);
+  assert.equal(await readFile(historicalInput, 'utf8'), historicalText);
+  assert.equal(await readFile(migratedOutput, 'utf8'), historicalText.replace('local-draft-1', 'local-draft-2'));
+  await run('packed upgrade check', process.execPath,
+    [path.join(installedCore, 'bin/reactive-md.mjs'), 'migrate', '--check', migratedOutput], coreConsumer);
   await run('standalone Node example', process.execPath, [path.join(installedCore, 'examples/integration/core/index.mjs')], coreConsumer);
 
   /* --------------------------------------- combined capabilities, core only */

@@ -12,6 +12,7 @@ import { evaluateComputations, orderComputations } from './computations';
 
 import { diagnosticEnglish, localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
 import { countLocalCodePoints } from './text-length';
+import { LOCAL_SYNTAX_VERSION } from './version';
 import { isLocalEmail, MAX_LOCAL_EMAIL_LENGTH } from './limits';
 import {
   boundLocalDiagnosticMessage,
@@ -226,6 +227,10 @@ function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalVa
 export function createLocalRuntime(document: LocalDocument): LocalRuntime {
   if (!document || document.syntax !== 'local') {
     throw new Error('createLocalRuntime requires a local interaction document.');
+  }
+  if ((document.syntaxVersion !== undefined && document.syntaxVersion !== LOCAL_SYNTAX_VERSION)
+    || (document.versionDeclaration && document.versionDeclaration.version !== LOCAL_SYNTAX_VERSION)) {
+    throw new Error(`createLocalRuntime requires ${LOCAL_SYNTAX_VERSION}; migrate the source before constructing a runtime.`);
   }
 
   const nodeIndex = new Map<string, LocalNode>();

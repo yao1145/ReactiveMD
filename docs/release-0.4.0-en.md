@@ -2,19 +2,20 @@
 
 Status: unreleased development preview. Package version `0.4.0`, syntax revision `local-draft-2`, component protocol `component-protocol-1`, theme protocol `reactive-md-theme-1`.
 
-This page summarizes what the preview contains, what changes for existing documents and hosts, and how to move from `0.3.1` / `local-draft-1`. Detailed rules remain in the linked reference pages; this page is the upgrade checklist.
+This page summarizes what the preview contains, what changes for existing documents and hosts, and how to move from `0.3.1` / `local-draft-1`. Detailed rules remain in the linked reference pages; this page is the upgrade checklist. Explicit revision declarations and the migration tools are specified in [Source revisions and migration](source-versioning-en.md).
 
 ## Who should upgrade
 
 - Authors who need named calculations, formatting, validation, collections, new input types, themes or offline HTML export.
 - Hosts that can adopt `local-draft-2` and update exhaustive `LocalValueKind` checks, runtime adapters and state handling.
-- Projects that pin `0.3.1` and only need `local-draft-1` can stay there. The build accepts one syntax revision and has no separate `local-draft-1` mode; supported old source is read under `local-draft-2` rules.
+- Projects that pin `0.3.1` and only need `local-draft-1` can stay there. The build accepts one syntax revision and has no separate `local-draft-1` mode; unversioned source in supported old forms is read under `local-draft-2` rules, while an explicit `local-draft-1` declaration must be migrated first.
 
 ## What the preview contains
 
 | Area | Included |
 | --- | --- |
 | Syntax | Ten `local-draft-2` components: `jump`, `anchor`, `text`, `section`, `multi-select`, `range-slider`, `coordinate`, `quiz`, `steps`, `step` |
+| Source revisions | Optional `local-draft-2` directive, version inspection and upgrade checks, and single-source metadata migration |
 | Calculations | Top-level `<const>` and `<computed>` declarations with dependency ordering, inferred types, cycle detection and per-runtime caching |
 | Expressions | String and numeric array literals, indexing, `sum`/`average`/`minOf`/`maxOf`, number/percent/scientific/currency formatting, text functions and UTC date comparison/differences |
 | Validation and data | Advisory `<validation>` rules, `runtime.validate()`, dynamic `alert`/`badge` tones, `<data-table>`/`<column>` row generation with stable keys |
@@ -29,7 +30,7 @@ The runnable examples are in the [example index](../examples/local/README.md), i
 
 ## Upgrade from 0.3.1 / local-draft-1
 
-Previously supported `local-draft-1` source keeps its supported forms. The changes below still require a source and host review.
+Unversioned source in previously supported `local-draft-1` forms keeps its supported forms. The changes below still require a source and host review.
 
 ### Newly reserved identifiers
 
@@ -47,6 +48,12 @@ Source that used one of these names as literal prose, or as an inert unknown-tag
 
 The leading `<theme name="…">` declaration is document metadata, not a component. It joins the same placement rule: one declaration before the body.
 
+### Version declarations and migration
+
+A source may declare `<!-- reactive-md: local-draft-2 -->` in its prologue. Unversioned source keeps current-revision behavior. An explicit `local-draft-1` or unknown revision is rejected with a `local.version.*` diagnostic and creates no runtime; declaring an old revision does not select an old parser.
+
+`reactive-md migrate` or the pure core `migrateLocalSource` moves one source to `local-draft-2`. Migration replaces or adds only the metadata comment and preserves body bytes, BOM and CRLF. It blocks newly reserved bindings, newly recognized tags, current compile errors and text-control length changes before writing output. It does not rename identifiers or activate formerly inert tags. Completed checklist styling is a compatibility exception and does not block migration. Because migration changes the source digest, export fresh state files afterwards. Readers built before this declaration, including `0.3.1`, treat it as an ordinary comment and do not enforce the check, so migrate old documents first.
+
 ### Behaviour changes
 
 - Completed checklist items are now struck through and muted, including `[x]` items in the initial state.
@@ -62,13 +69,14 @@ The leading `<theme name="…">` declaration is document metadata, not a compone
 ## Upgrade checklist
 
 1. Pin `0.4.0`, keep the original `.reactive.md` sources and record `LOCAL_SYNTAX_VERSION`.
-2. Search prose and examples for the 15 newly recognized tag names outside code regions; escape them or move them into code.
-3. Search `bind`, `bind-start`, `bind-end`, `bind-x` and `bind-y` values for the 17 newly reserved identifiers; rename the bindings and their references. The core `renameLocalBinding` helper and the editor rename action update declarations, expression references and plot parameters together.
-4. Recompile every document and fix new placement or structure diagnostics, especially top-level `computed`/`const`, `validation`, `data-table`/`column`, `steps`/`step` and `quiz`.
-5. Update hosts for `number-array`, `validate()`, slot APIs and snapshots that include calculated values.
-6. Recheck state import/export, retention and any HTML export inside the host.
-7. Check the visible changes: checklist completion styling, table/chart selection and theme CSS.
-8. Run the [release verification gate](../CONTRIBUTING.md) and your own document and browser checks.
+2. Run `reactive-md migrate <file> --check` or `migrateLocalSource` on each source. Unversioned historical documents need `--from local-draft-1`; resolve every reported blocker before writing output.
+3. Search prose and examples for the 15 newly recognized tag names outside code regions; escape them or move them into code.
+4. Search `bind`, `bind-start`, `bind-end`, `bind-x` and `bind-y` values for the 17 newly reserved identifiers; rename the bindings and their references. The core `renameLocalBinding` helper and the editor rename action update declarations, expression references and plot parameters together.
+5. Recompile every document and fix new placement or structure diagnostics, especially top-level `computed`/`const`, `validation`, `data-table`/`column`, `steps`/`step` and `quiz`.
+6. Update hosts for `number-array`, `validate()`, slot APIs and snapshots that include calculated values.
+7. Recheck state import/export, retention and any HTML export inside the host. Migration changes the source digest; export fresh state files.
+8. Check the visible changes: checklist completion styling, table/chart selection and theme CSS.
+9. Run the [release verification gate](../CONTRIBUTING.md) and your own document and browser checks.
 
 ## Verification scope
 
@@ -76,4 +84,4 @@ The development build targets Node.js 22.12 and Node 24, and uses Playwright Chr
 
 Static SSR is covered by the packed check. Single-file export static-first hydration is exercised in Playwright Chromium and local Edge. General SSR hydration outside that path, Firefox and Safari/WebKit are unverified and are not claimed as supported.
 
-Use [Versions and compatibility](compatibility-en.md) for the version rules and diagnostics contract, [Shareable documents and static export](shareable-export-en.md) for the HTML and state formats, and [local-draft-2 components and migration](local-components-v2-en.md) for the component additions.
+Use [Versions and compatibility](compatibility-en.md) for the version rules and diagnostics contract, [Source revisions and migration](source-versioning-en.md) for the directive and migration tools, [Shareable documents and static export](shareable-export-en.md) for the HTML and state formats, and [local-draft-2 components and migration](local-components-v2-en.md) for the component additions.

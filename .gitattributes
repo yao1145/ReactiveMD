@@ -1,0 +1,2 @@
+# Historical source digests must survive Windows checkouts unchanged.
+examples/conformance/history/** text eol=lf

@@ -10,6 +10,8 @@
 
 The runner lives at `tests/conformance.test.ts` in the repository; run `npm test` to check it. This suite covers shared parameters, hidden initialization, write constraints, code isolation, diagnostics, multi-slot controls, multiple selection, generated-table selection and a computed-value aggregate recalculation. It does not cover validation hints, generated table rendering, HTML export, author tooling or browser behavior; those have dedicated tests and the release gate. Full syntax conformance also includes other language tests and browser checks, with rules in the [syntax specification](../../docs/local-interaction-syntax-en.md). See the [compatibility notes](../../docs/compatibility-en.md) for cross-version guarantees on diagnostic codes.
 
+The conformance sources are unversioned and use the current `local-draft-2` revision. The optional prologue version declaration is compile metadata and does not change these semantic cases. Version rejection and migration behavior have dedicated tests and historical fixtures. See [Source revisions and migration](../../docs/source-versioning-en.md).
+
 ## Component protocol conformance
 
 [component-protocol-1.json](component-protocol-1.json) provides representative cases for the [component protocol](../../docs/component-protocol-en.md), covering `slider`, `tabs`, `plot` and lazy degradation of unknown components. The [JSON Schema](component-protocol-1.schema.json) defines the conformance file format so tools from other implementations can read it. This JSON is test input and expected results; see the [development guide](../../docs/component-development-en.md) for the declaration template of a component proposal.

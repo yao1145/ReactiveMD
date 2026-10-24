@@ -12,20 +12,24 @@ export function mainHelp(version) {
 Usage:
   reactive-md build <doc.reactive.md> -o <doc.html> [options]
   reactive-md lint [--json] [--warnings-as-errors] [--locale en|zh] <file... | ->
+  reactive-md migrate <file | -> [options]
   reactive-md build --help
   reactive-md lint --help
+  reactive-md migrate --help
   reactive-md --version
 
 Commands:
-  build   Compile one local document into a single, self-contained HTML file.
-  lint    Compile documents and report diagnostics.
+  build    Compile one local document into a single, self-contained HTML file.
+  lint     Compile documents and report diagnostics.
+  migrate  Migrate a document's syntax revision metadata.
 
-Run "reactive-md build --help" or "reactive-md lint --help" for the options and
-the document diagnostic format. "format" and "migrate" are not part of this
-release.
+Run "reactive-md build --help", "reactive-md lint --help" or
+"reactive-md migrate --help" for the options and the document diagnostic
+format. "format" is not part of this release.
 
 Build ${EXIT_CODES.toLowerCase()}
 Lint exit codes: 0 clean, 1 diagnostics, 2 usage or file-read error.
+Migrate exit codes: 0 success, 1 migration needed or blocked, 2 usage or I/O error.
 `;
 }
 
@@ -68,4 +72,67 @@ From a source checkout, run "npm run build" before building documents.
 
 ${EXIT_CODES}
 `;
+}
+
+const MIGRATE_HELP = {
+  en: `Usage: reactive-md migrate <file | -> [options]
+
+Migrate a document's syntax revision metadata. By default the migrated source
+is written to stdout and the input file is left unchanged. Use - for stdin.
+
+Options:
+      --from <local-draft-1|local-draft-2>
+                                   Source revision to migrate from (default: the
+                                   declared revision, or the current revision
+                                   when none is declared). Unversioned
+                                   historical documents require --from
+                                   local-draft-1.
+      --check                      Report whether migration is needed or
+                                   blocked, without writing output.
+      --json                       Print one structured JSON report. The
+                                   migrated source appears only as a JSON field.
+  -o, --output <file>              Write the migrated source to a new file.
+                                   Existing files, including the input, are
+                                   refused.
+      --accept-semantic-changes    Allow migrations that change reader
+                                   semantics, and report a warning.
+      --locale <en|zh>             Message language (default en).
+  -h, --help                       Show this help.
+
+Migration replaces only the metadata comment. It preserves the body, BOM and
+line endings and is idempotent. A blocked migration leaves the source
+unchanged. Migration never rewrites state files; export fresh state after a
+source digest change.
+
+Exit codes: 0 success, 1 migration needed or blocked, 2 usage or I/O error.
+`,
+  zh: `用法：reactive-md migrate <文件 | -> [选项]
+
+迁移文档的语法修订版本元数据。默认将迁移后的源文本写到标准输出，不修改输入
+文件。用 - 读取标准输入。
+
+选项：
+      --from <local-draft-1|local-draft-2>
+                                   迁移的起始修订版本（默认取文档声明的版本；
+                                   未声明时取当前版本）。未声明的历史文档必须
+                                   指定 --from local-draft-1。
+      --check                      只报告是否需要迁移或被阻止，不写输出。
+      --json                       输出一个结构化 JSON 报告。迁移后的源文本
+                                   只作为 JSON 字段出现。
+  -o, --output <文件>              将迁移后的源文本写入新文件。已存在的文件
+                                   （包括输入文件）一律拒绝。
+      --accept-semantic-changes    允许会改变读者语义的迁移，并给出警告。
+      --locale <en|zh>             消息语言（默认 en）。
+  -h, --help                       显示此帮助。
+
+迁移只替换元数据注释，保留正文、BOM 和换行符，并且幂等。迁移被阻止时源文本
+保持不变。迁移不改写状态文件；源摘要变化后请重新导出状态。
+
+退出码：0 成功，1 需要迁移或被阻止，2 用法或 I/O 错误。
+`,
+};
+
+/** @param {'en'|'zh'} [locale] */
+export function migrateHelp(locale = 'en') {
+  return MIGRATE_HELP[locale === 'zh' ? 'zh' : 'en'];
 }

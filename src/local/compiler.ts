@@ -13,6 +13,7 @@ import {
 import { createHeadingAnchors } from './heading-anchors';
 import { compileLatex } from './math';
 import { parseLocal } from './parser';
+import { LOCAL_SYNTAX_VERSION } from './version';
 import { DEFAULT_LOCAL_THEME } from './theme';
 import {
   isLocalEmail,
@@ -322,6 +323,11 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
     return { ok: false, diagnostics };
   }
   diagnostics.push(...parsed.diagnostics);
+  // Never evaluate const declarations or construct an executable document
+  // after an explicit syntax-version mismatch or malformed version header.
+  if (diagnostics.some(item => item.severity === 'error' && item.code.startsWith('local.version.'))) {
+    return { ok: false, diagnostics: diagnostics.filter(item => item.code.startsWith('local.version.')) };
+  }
 
   // A fenced `reactive-md` block keeps the legacy configuration language name
   // (state/actions/data/computed). Ordinary markdown/text code fences stay
@@ -390,6 +396,8 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   const document: LocalDocument = {
     syntax: 'local',
     source,
+    syntaxVersion: LOCAL_SYNTAX_VERSION,
+    ...(parsed.versionDeclaration ? { versionDeclaration: parsed.versionDeclaration } : {}),
     nodes: stripComputationNodes(parsed.nodes),
     initialState,
     bindings,
