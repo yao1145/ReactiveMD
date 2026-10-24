@@ -28,6 +28,19 @@ const LOCALITY_WRITES = [
   { bind: 'm', label: 'locality:1-section', referencingSections: 1 },
   { bind: 'z', label: 'locality:unreferenced', referencingSections: 0 },
 ] as const;
+const VISUAL_TABLES = 10;
+const VISUAL_TABLE_ROWS = 4;
+const VISUAL_WRITES = [
+  { bind: 'v', label: 'visuals:10-tables', referencingTables: VISUAL_TABLES },
+  { bind: 'm', label: 'visuals:1-table', referencingTables: 1 },
+  { bind: 'u', label: 'visuals:unreferenced', referencingTables: 0 },
+] as const;
+const VISUAL_CHARTS = 4;
+const CHART_WRITES = [
+  { bind: 'c', label: 'charts:4-charts', referencingCharts: VISUAL_CHARTS },
+  { bind: 'm', label: 'charts:1-chart', referencingCharts: 1 },
+  { bind: 'u', label: 'charts:unreferenced', referencingCharts: 0 },
+] as const;
 
 interface MountedSample {
   totalMs: number;
@@ -48,6 +61,11 @@ interface StageBenchResult {
     plotsPerSample: number;
     iterations: number;
     localityFootprint: { bind: string; label: string; referencingSections: number }[];
+    visualTables: number;
+    visualTableRows: number;
+    visualFootprint: { bind: string; label: string; referencingTables: number }[];
+    visualCharts: number;
+    chartFootprint: { bind: string; label: string; referencingCharts: number }[];
   };
   compileMs: number[];
   updateMsPerWrite: number[];
@@ -55,6 +73,14 @@ interface StageBenchResult {
   render: { samples: MountedSample[]; documentCharacters: number };
   interaction: { samples: MountedSample[]; documentCharacters: number };
   locality: {
+    documentCharacters: number;
+    streams: { label: string; samples: MountedSample[] }[];
+  };
+  visuals: {
+    documentCharacters: number;
+    streams: { label: string; samples: MountedSample[] }[];
+  };
+  charts: {
     documentCharacters: number;
     streams: { label: string; samples: MountedSample[] }[];
   };
@@ -94,6 +120,41 @@ function localitySource(sections: number): string {
       `## Section ${index + 1}\n\nA local document with **Markdown**, a computed value {{ n * ${index + 1} }}${index === sections - 1 ? ', an isolated value {{ m }}' : ''}, and ordinary explanatory text.\n\n- Read the value\n- Adjust the parameter\n`,
   ).join('\n');
   return `${sliders}\n\n# Stage benchmark\n\n${body}`;
+}
+
+function visualsSource(): string {
+  const sliders = [
+    '<slider bind="v" label="Volume" initial="2" min="0" max="100">',
+    '<slider bind="m" label="Isolated" initial="2" min="0" max="100">',
+    '<slider bind="u" label="Unused" initial="2" min="0" max="100">',
+  ].join('\n');
+  const tables = Array.from({ length: VISUAL_TABLES }, (_, index) => {
+    const rows = Array.from(
+      { length: VISUAL_TABLE_ROWS },
+      (_, row) =>
+        `| Item ${index + 1}.${row + 1} | {{ v * ${index + 1} + ${row} }} | ${row % 2 === 0 ? 'steady' : 'moving'} |`,
+    );
+    if (index === VISUAL_TABLES - 1) rows.push('| Isolated | {{ m }} | single |');
+    return `<table label="Metrics ${index + 1}">\n| Name | Value | State |\n| --- | ---: | --- |\n${rows.join('\n')}\n</table>`;
+  }).join('\n\n');
+  return `${sliders}\n\n# Visual benchmark\n\n${tables}\n`;
+}
+
+function chartsSource(): string {
+  const sliders = [
+    '<slider bind="c" label="Coefficient" initial="2" min="0" max="100">',
+    '<slider bind="m" label="Isolated" initial="2" min="0" max="100">',
+    '<slider bind="u" label="Unused" initial="2" min="0" max="100">',
+  ].join('\n');
+  const charts = Array.from({ length: VISUAL_CHARTS }, (_, index) => {
+    const rows = Array.from(
+      { length: 4 },
+      (_, row) => `| Item ${index + 1}.${row + 1} | {{ c * ${index + 1} + ${row} }} |`,
+    );
+    if (index === VISUAL_CHARTS - 1) rows.push('| Isolated | {{ m }} |');
+    return `<chart kind="bar" title="Chart ${index + 1}" y-label="Value">\n| Item | Value |\n| --- | ---: |\n${rows.join('\n')}\n</chart>`;
+  }).join('\n\n');
+  return `${sliders}\n\n# Chart benchmark\n\n${charts}\n`;
 }
 
 function compileDocument(source: string): LocalDocument {
@@ -266,13 +327,14 @@ async function measureMounted(
   }
 }
 
-async function measureLocality(
+async function measureStreams(
   doc: LocalDocument,
+  writes: readonly { bind: string; label: string }[],
   iterations: number,
 ): Promise<{ label: string; samples: MountedSample[] }[]> {
   const runtime = createLocalRuntime(doc);
   const { host, root } = fillStageHost();
-  const streams = LOCALITY_WRITES.map((entry) => ({
+  const streams = writes.map((entry) => ({
     label: entry.label,
     update: makeUpdater(host, runtime, sliderByBind(doc, entry.bind)),
     samples: [] as MountedSample[],
@@ -313,7 +375,13 @@ async function run(iterations: number): Promise<StageBenchResult> {
   const renderSamples = await measureMounted(textDocument, iterations);
   const interactionSamples = await measureMounted(plotDocument, iterations);
   const localityDocument = compileDocument(localityCode);
-  const localityStreams = await measureLocality(localityDocument, iterations);
+  const localityStreams = await measureStreams(localityDocument, LOCALITY_WRITES, iterations);
+  const visualsCode = visualsSource();
+  const visualsDocument = compileDocument(visualsCode);
+  const visualsStreams = await measureStreams(visualsDocument, VISUAL_WRITES, iterations);
+  const chartsCode = chartsSource();
+  const chartsDocument = compileDocument(chartsCode);
+  const chartsStreams = await measureStreams(chartsDocument, CHART_WRITES, iterations);
   return {
     config: {
       sections: SECTIONS,
@@ -330,6 +398,19 @@ async function run(iterations: number): Promise<StageBenchResult> {
         label: entry.label,
         referencingSections: entry.referencingSections,
       })),
+      visualTables: VISUAL_TABLES,
+      visualTableRows: VISUAL_TABLE_ROWS,
+      visualFootprint: VISUAL_WRITES.map((entry) => ({
+        bind: entry.bind,
+        label: entry.label,
+        referencingTables: entry.referencingTables,
+      })),
+      visualCharts: VISUAL_CHARTS,
+      chartFootprint: CHART_WRITES.map((entry) => ({
+        bind: entry.bind,
+        label: entry.label,
+        referencingCharts: entry.referencingCharts,
+      })),
     },
     compileMs,
     updateMsPerWrite,
@@ -342,6 +423,14 @@ async function run(iterations: number): Promise<StageBenchResult> {
     locality: {
       documentCharacters: localityCode.length,
       streams: localityStreams,
+    },
+    visuals: {
+      documentCharacters: visualsCode.length,
+      streams: visualsStreams,
+    },
+    charts: {
+      documentCharacters: chartsCode.length,
+      streams: chartsStreams,
     },
   };
 }

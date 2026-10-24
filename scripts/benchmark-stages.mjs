@@ -104,6 +104,24 @@ try {
     runtimeWrite: summarize(stream.samples.map((sample) => sample.writeMs)),
     documentCharacters: raw.locality.documentCharacters,
   }));
+  const visualsResults = raw.visuals.streams.map((stream) => ({
+    name: stream.label,
+    ...summarize(stream.samples.map((sample) => sample.reactMs + sample.layoutMs)),
+    unit: 'one update',
+    reactCommit: summarize(stream.samples.map((sample) => sample.reactMs)),
+    forcedLayout: summarize(stream.samples.map((sample) => sample.layoutMs)),
+    runtimeWrite: summarize(stream.samples.map((sample) => sample.writeMs)),
+    documentCharacters: raw.visuals.documentCharacters,
+  }));
+  const chartsResults = raw.charts.streams.map((stream) => ({
+    name: stream.label,
+    ...summarize(stream.samples.map((sample) => sample.reactMs + sample.layoutMs)),
+    unit: 'one update',
+    reactCommit: summarize(stream.samples.map((sample) => sample.reactMs)),
+    forcedLayout: summarize(stream.samples.map((sample) => sample.layoutMs)),
+    runtimeWrite: summarize(stream.samples.map((sample) => sample.writeMs)),
+    documentCharacters: raw.charts.documentCharacters,
+  }));
 
   const results = [
     {
@@ -147,6 +165,8 @@ try {
       plotSampling: 'included',
     },
     ...localityResults,
+    ...visualsResults,
+    ...chartsResults,
   ];
 
   const { version } = JSON.parse(
@@ -165,7 +185,7 @@ try {
       wallMs,
     },
     methodology:
-      'Five warmups per case in headless Chromium against a Vite dev server. compile = compileLocal on a 100-section interactive article (3-curve plot included). update = runtime.set with one no-op subscriber, no React, amortized over 1000 writes. plot = compileLatex + samplePlot for 3 curves x 200 points, amortized over 20 plots. render:final = slider write -> React re-render -> DOM commit -> forced getBoundingClientRect() style/layout on the plot-free 100-section article; its median excludes the runtime write, which is reported separately, and plot sampling is excluded. interaction = the same write on the article version containing the 3-curve plot, so React work includes plot sampling, SVG path generation and DOM updates. locality = one plot-free 100-section article mounted once; three sliders are written in forward and reverse passes (five warmups per pass, samples merged) so drift cancels: a value referenced by every section, a value referenced by exactly one section, and a value referenced by no other node; it isolates how much update cost lies outside the dependency footprint of the written value. Paint/presentation after layout is not included. Observations under load, not cross-machine thresholds.',
+      'Five warmups per case in headless Chromium against a Vite dev server. compile = compileLocal on a 100-section interactive article (3-curve plot included). update = runtime.set with one no-op subscriber, no React, amortized over 1000 writes. plot = compileLatex + samplePlot for 3 curves x 200 points, amortized over 20 plots. render:final = slider write -> React re-render -> DOM commit -> forced getBoundingClientRect() style/layout on the plot-free 100-section article; its median excludes the runtime write, which is reported separately, and plot sampling is excluded. interaction = the same write on the article version containing the 3-curve plot, so React work includes plot sampling, SVG path generation and DOM updates. locality = one plot-free 100-section article mounted once; three sliders are written in forward and reverse passes (five warmups per pass, samples merged) so drift cancels: a value referenced by every section, a value referenced by exactly one section, and a value referenced by no other node; it isolates how much update cost lies outside the dependency footprint of the written value. visuals = one article made of 10 interpolated tables mounted once; three sliders are written in forward and reverse passes: a value referenced by every table, one referenced by exactly one table, and one referenced by none; it measures how much per-write cost table rendering adds and how much of that cost is independent of the written value. charts = the same footprint comparison on an article made of 4 interpolated bar charts. Paint/presentation after layout is not included. Observations under load, not cross-machine thresholds.',
     config: raw.config,
     results,
   };
