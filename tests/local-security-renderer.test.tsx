@@ -54,6 +54,7 @@ function createRuntime(initial: Record<string, LocalValue> = {}): LocalRuntime {
     setParameter: () => [],
     setParameters: () => [],
     evaluate: () => null,
+    validate: () => [],
     text: (template) => template,
     reset: () => {},
     resetToken: () => 0,

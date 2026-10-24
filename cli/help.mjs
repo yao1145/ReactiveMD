@@ -11,7 +11,7 @@ export function mainHelp(version) {
 
 Usage:
   reactive-md build <doc.reactive.md> -o <doc.html> [options]
-  reactive-md lint <files-or-dirs-or-globs...> [options]
+  reactive-md lint [--json] [--warnings-as-errors] [--locale en|zh] <file... | ->
   reactive-md build --help
   reactive-md lint --help
   reactive-md --version
@@ -24,7 +24,8 @@ Run "reactive-md build --help" or "reactive-md lint --help" for the options and
 the document diagnostic format. "format" and "migrate" are not part of this
 release.
 
-${EXIT_CODES}
+Build ${EXIT_CODES.toLowerCase()}
+Lint exit codes: 0 clean, 1 diagnostics, 2 usage or file-read error.
 `;
 }
 
@@ -64,29 +65,6 @@ Options:
 Interactive HTML requires React 19 and react-dom, plus the prebuilt
 dist-standalone IIFE. Every build requires the prebuilt dist-library artifacts.
 From a source checkout, run "npm run build" before building documents.
-
-${EXIT_CODES}
-`;
-}
-
-export function lintHelp() {
-  return `Usage: reactive-md lint <files-or-dirs-or-globs...> [options]
-
-Compile each input and report diagnostics. Inputs may be files, directories or
-simple glob patterns using "*", "?" and "**". Directories are searched
-recursively for *.reactive.md. The directories node_modules, .git, dist and
-dist-library are skipped. Inputs are deduplicated and sorted.
-
-Options:
-      --json     Print a deterministic JSON report to stdout:
-                 {"version":1,"files":[{"file","ok","diagnostics":[...]}]}
-      --strict   Treat warnings as errors.
-  -h, --help     Show this help.
-
-Text diagnostics are written to stdout, one per line:
-  relative-path:line:column severity code message
-
-"format" and "migrate" are not part of this release.
 
 ${EXIT_CODES}
 `;

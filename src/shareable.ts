@@ -112,7 +112,7 @@ export function serializeForScript(value: unknown): string {
 }
 
 function cloneValue(value: LocalValue): LocalValue {
-  return Array.isArray(value) ? [...value] : value;
+  return Array.isArray(value) ? value.slice() : value;
 }
 
 function embeddedImages(images: Readonly<Record<string, string>> | undefined): Record<string, string> | undefined {

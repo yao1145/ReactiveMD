@@ -1,3 +1,12 @@
+<const name="monthsPerYear" value="{{ 12 }}">
+<computed name="monthlyRate" value="{{ r / (100 * monthsPerYear) }}">
+<computed name="growthFactor" value="{{ pow(1 + monthlyRate, monthsPerYear * t) }}">
+<computed name="endingBalance" value="{{ monthlyRate == 0 ? P + monthsPerYear * m * t : P * growthFactor + m * (growthFactor - 1) / monthlyRate }}">
+<computed name="deposits" value="{{ P + monthsPerYear * m * t }}">
+<computed name="distance" value="{{ sqrt(px * px + py * py) }}">
+<computed name="waveHeight" value="{{ a * sin(f * px) }}">
+<computed name="insideInterval" value="{{ px >= low && px <= high }}">
+
 # 用参数改变函数
 
 先把振幅拖到 0，观察波形变成直线；再恢复振幅、提高频率，看看同一区间能容纳多少个波峰。
@@ -59,12 +68,12 @@ $$
 $$
 y = \begin{cases}
 P + 12mx, & r = 0 \\
-P\left(1+\frac{r}{1200}\right)^{12x} + m\frac{\left(1+\frac{r}{1200}\right)^{12x}-1}{r/1200}, & r \ne 0
+P\left(1+\mathrm{monthlyRate}\right)^{12x} + m\frac{\left(1+\mathrm{monthlyRate}\right)^{12x}-1}{\mathrm{monthlyRate}}, & r \ne 0
 \end{cases}
 $$
 </plot>
 
-将指针移到曲线末端，读取第 **{{ t }}** 年的期末金额。
+第 **{{ t }}** 年的期末金额：**{{ formatCurrency(endingBalance, 'CNY', 2, 'zh-CN') }}**，其中存入本金 **{{ formatCurrency(deposits, 'CNY', 2, 'zh-CN') }}**、利息 **{{ formatCurrency(endingBalance - deposits, 'CNY', 2, 'zh-CN') }}**。年利率为 **{{ formatPercent(r / 100, 1, 'zh-CN') }}**。曲线和期末计算共用月利率，零利率时直接累计存款。
 </tab>
 </tabs>
 
@@ -79,9 +88,11 @@ $$
 
 <coordinate label="点的位置" bind-x="px" bind-y="py" initial-x="1" initial-y="2" x-min="-5" x-max="5" y-min="-5" y-max="5" color="#2563eb">
 
-坐标：**({{ px }}, {{ py }})**，距原点 **{{ round(sqrt(px * px + py * py) * 100) / 100 }}**。
+坐标：**({{ px }}, {{ py }})**，距原点 **{{ formatNumber(distance, 2, 'zh-CN') }}**。
 
-{{ px >= low && px <= high ? '横坐标位于观察区间内。' : '横坐标位于观察区间外。' }} 波形在这一横坐标处的高度为 **{{ round(a * sin(f * px) * 100) / 100 }}**。
+{{ insideInterval ? '横坐标位于观察区间内。' : '横坐标位于观察区间外。' }} 波形在这一横坐标处的高度为 **{{ formatNumber(waveHeight, 2, 'zh-CN') }}**。
+
+用科学计数法读取同一高度：**{{ formatScientific(waveHeight, 2, 'zh-CN') }}**，便于比较接近零的数值。
 
 <quiz type="number" label="点 (3, 4) 到原点的距离是多少？" answer="5" tolerance="0.01" explanation="3² + 4² 的平方根是 5，可以把坐标点拖到 (3, 4) 验证。">
 </quiz>
@@ -95,6 +106,10 @@ $$
 ```markdown
 <slider bind="a" label="振幅" initial="1" min="0" max="3" step="0.5">
 <slider bind="f" label="频率" initial="1" min="0.5" max="3" step="0.5">
+<coordinate label="点的位置" bind-x="px" bind-y="py" initial-x="1" initial-y="2" x-min="-5" x-max="5" y-min="-5" y-max="5">
+<computed name="waveHeight" value="{{ a * sin(f * px) }}">
+高度: {{ formatNumber(waveHeight, 2) }} · {{ formatScientific(waveHeight, 2) }}
+
 <plot min="0" max="12.56" label="正弦波">
 $$ y = a\sin(fx) $$
 </plot>

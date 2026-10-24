@@ -1,4 +1,8 @@
 import type { LocalValue, LocalValueKind } from './types';
+import {
+  DEFAULT_LOCAL_DATA_TABLE_ROWS,
+  MAX_LOCAL_DATA_TABLE_ROWS,
+} from './limits';
 
 /**
  * Static description of the `local-draft-1` component set. The compiler reads
@@ -20,7 +24,8 @@ export type LocalChildRule =
   | 'plot'
   | 'content'
   | 'steps'
-  | 'quiz';
+  | 'quiz'
+  | 'columns';
 
 export type LocalPropKind = 'string' | 'number' | 'boolean' | 'enum';
 
@@ -123,6 +128,7 @@ const initialNumber: LocalPropSchema = { kind: 'number', static: true };
 const initialBoolean: LocalPropSchema = { kind: 'boolean', static: true };
 const disabled: LocalPropSchema = { kind: 'boolean', dynamic: true, default: false };
 const label: LocalPropSchema = { kind: 'string' };
+const staticLabel: LocalPropSchema = { kind: 'string', static: true };
 const optionalLabel: LocalPropSchema = { kind: 'string' };
 const optionalTitle: LocalPropSchema = { kind: 'string' };
 const color = (): LocalPropSchema => ({ kind: 'string', static: true, color: true });
@@ -568,7 +574,7 @@ const components: LocalComponentSchema[] = [
     label: 'none',
     props: {
       title: optionalTitle,
-      tone: { kind: 'enum', static: true, values: ['info', 'success', 'warning'], default: 'info' },
+      tone: { kind: 'enum', dynamic: true, values: ['info', 'success', 'warning'], default: 'info' },
     },
   },
   {
@@ -577,7 +583,7 @@ const components: LocalComponentSchema[] = [
     childRule: 'inline',
     label: 'none',
     props: {
-      tone: { kind: 'enum', static: true, values: ['neutral', 'success', 'warning'], default: 'neutral' },
+      tone: { kind: 'enum', dynamic: true, values: ['neutral', 'success', 'warning'], default: 'neutral' },
       color: color(),
     },
   },
@@ -591,7 +597,83 @@ const components: LocalComponentSchema[] = [
     },
   },
 
+  /* Document declarations ------------------------------------------- */
+  /**
+   * `<computed>` and `<const>` are read-only document metadata, not rendered
+   * controls. They reuse the binding identifier rules and have no state; the
+   * compiler removes their nodes from the published tree.
+   */
+  {
+    name: 'computed',
+    form: 'leaf',
+    childRule: 'none',
+    label: 'none',
+    props: {
+      name: { kind: 'string', static: true, required: true },
+      value: { kind: 'string', required: true },
+    },
+  },
+  {
+    name: 'const',
+    form: 'leaf',
+    childRule: 'none',
+    label: 'none',
+    props: {
+      name: { kind: 'string', static: true, required: true },
+      value: { kind: 'string', required: true },
+    },
+  },
+  /**
+   * `<validation>` is advisory document metadata. The tag has no body, owns no
+   * binding and stays in the tree so the renderer can place its hint; the
+   * compiler publishes the rule through `LocalDocument.validations`.
+   */
+  {
+    name: 'validation',
+    form: 'leaf',
+    childRule: 'none',
+    label: 'none',
+    props: {
+      when: { kind: 'boolean', dynamic: true, required: true },
+      message: { kind: 'string', required: true },
+      fields: { kind: 'string', static: true, required: true },
+    },
+  },
+
   /* Data and visuals ------------------------------------------------ */
+  /**
+   * `<data-table>` generates rows from an array expression. The row locals
+   * `item`/`index` exist only inside `column.value`; labels stay static text and
+   * the renderer evaluates the three expressions with their own scope.
+   */
+  {
+    name: 'data-table',
+    form: 'container',
+    childRule: 'columns',
+    label: 'required',
+    props: {
+      label: staticLabel,
+      rows: { kind: 'string', required: true },
+      key: { kind: 'string', required: true },
+      'max-rows': numberProp({
+        integer: true,
+        positive: true,
+        max: MAX_LOCAL_DATA_TABLE_ROWS,
+        default: DEFAULT_LOCAL_DATA_TABLE_ROWS,
+      }),
+    },
+  },
+  {
+    name: 'column',
+    form: 'leaf',
+    childRule: 'none',
+    label: 'none',
+    parent: ['data-table'],
+    props: {
+      label: { kind: 'string', static: true, required: true },
+      value: { kind: 'string', required: true },
+    },
+  },
   {
     name: 'table',
     form: 'container',

@@ -1,82 +1,177 @@
-import { compareDiagnostics, compareText, diagnosticToJson, displayPath, formatDiagnostic } from './document.mjs';
-import { CliError, EXIT, errorText } from './errors.mjs';
-import { readTextFile } from './fs-utils.mjs';
-import { expandLintInputs } from './glob.mjs';
+import { readFile, stat } from 'node:fs/promises';
 import { loadCore } from './package.mjs';
+import { expandLintInputs } from './glob.mjs';
 
-/**
- * `reactive-md lint`
- * @param {{inputs: string[], json: boolean, strict: boolean}} options
- * @param {{packageRoot: string, stdout: NodeJS.WritableStream, stderr: NodeJS.WritableStream}} context
- */
-export async function runLint(options, context) {
-  const { packageRoot, stdout } = context;
-  const files = await expandLintInputs(options.inputs);
-  const core = await loadCore(packageRoot, ['compileLocal']);
+const HELP = {
+  en: `Usage: reactive-md lint [--json] [--warnings-as-errors] [--locale en|zh] <file... | ->
 
-  /** @type {{file: string, display: string, ok: boolean, diagnostics: any[]}[]} */
-  const entries = [];
-  let hasError = false;
-  let hasWarning = false;
+Check ReactiveMD documents with the language compiler. Use - for stdin.
+Options: --json               Print an array of file reports
+         --warnings-as-errors, --strict  Fail on warnings as well as errors
+         --locale en|zh       Language for messages (default: en)
+         --                   Treat remaining arguments as file paths
+         --help, -h           Show this help
+Exit codes: 0 clean, 1 diagnostics, 2 usage or file-read error.
+`,
+  zh: `用法：reactive-md lint [--json] [--warnings-as-errors] [--locale en|zh] <文件... | ->
 
-  for (const file of files) {
-    const label = displayPath(file);
-    const source = await readTextFile(file, {
-      label: 'Cannot read document',
-      exitCode: EXIT.IO,
-    });
+使用语言编译器检查 ReactiveMD 文档。用 - 读取标准输入。
+选项：--json               输出文件报告数组
+      --warnings-as-errors, --strict  警告也视为失败
+      --locale en|zh       诊断消息语言（默认 en）
+      --                   其后的参数都按文件路径处理
+      --help, -h           显示此帮助
+退出码：0 无问题，1 有诊断，2 用法或读取失败。
+`,
+};
 
-    let compiled;
-    try {
-      compiled = core.compileLocal(source);
-    } catch (error) {
-      throw new CliError(
-        `The compiler failed on "${label}": ${errorText(error)}`,
-        EXIT.DOCUMENT,
-        { cause: error },
-      );
+const MESSAGES = {
+  unknownOption: {
+    en: (arg, help) => `Unknown option: ${arg}\n${help}`,
+    zh: (arg, help) => `未知选项：${arg}\n${help}`,
+  },
+  supplyFiles: {
+    en: (_value, help) => `Supply files or one stdin argument (-).\n${help}`,
+    zh: (_value, help) => `请提供文件或一个标准输入参数（-）。\n${help}`,
+  },
+  invalidLocale: {
+    en: (value, help) => `Invalid --locale value: ${value}. Use en or zh.\n${help}`,
+    zh: (value, help) => `--locale 的值无效：${value}。请使用 en 或 zh。\n${help}`,
+  },
+  readFailed: {
+    en: (detail) => `Cannot read input: ${detail}`,
+    zh: (detail) => `无法读取输入：${detail}`,
+  },
+};
+
+function message(kind, locale, value, help) {
+  return MESSAGES[kind][locale === 'zh' ? 'zh' : 'en'](value, help);
+}
+
+/** Extract --locale before validation so usage errors use the requested language. */
+function extractLocale(args) {
+  let locale = 'en';
+  let invalid;
+  const rest = [];
+  let pathsOnly = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (!pathsOnly && arg === '--') {
+      pathsOnly = true;
+      rest.push(arg);
+      continue;
     }
-    if (!compiled || typeof compiled !== 'object' || !Array.isArray(compiled.diagnostics)) {
-      throw new CliError(
-        `The core build returned an invalid compile result for "${label}". Run "npm run build" again.`,
-        EXIT.DOCUMENT,
-      );
-    }
-
-    const diagnostics = compiled.diagnostics.slice().sort(compareDiagnostics);
-    const errors = diagnostics.filter((diagnostic) => diagnostic?.severity === 'error');
-    const warnings = diagnostics.filter((diagnostic) => diagnostic?.severity === 'warning');
-    const compileFailed = compiled.ok !== true;
-    if (compileFailed || errors.length > 0) hasError = true;
-    if (warnings.length > 0) hasWarning = true;
-    const ok = !compileFailed
-      && errors.length === 0
-      && (!options.strict || warnings.length === 0);
-
-    entries.push({ file, display: label, ok, diagnostics });
-  }
-
-  entries.sort((a, b) => compareText(a.display, b.display));
-
-  if (options.json) {
-    const report = {
-      version: 1,
-      files: entries.map((entry) => ({
-        file: entry.display,
-        ok: entry.ok,
-        diagnostics: entry.diagnostics.map(diagnosticToJson),
-      })),
-    };
-    stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-  } else {
-    for (const entry of entries) {
-      for (const diagnostic of entry.diagnostics) {
-        stdout.write(`${formatDiagnostic(entry.display, diagnostic)}\n`);
+    if (!pathsOnly && arg === '--locale') {
+      const value = args[index + 1];
+      if (value !== 'en' && value !== 'zh') {
+        invalid = value === undefined ? '' : value;
+        break;
       }
+      locale = value;
+      index += 1;
+      continue;
     }
+    if (!pathsOnly && arg.startsWith('--locale=')) {
+      const value = arg.slice('--locale='.length);
+      if (value !== 'en' && value !== 'zh') {
+        invalid = value;
+        break;
+      }
+      locale = value;
+      continue;
+    }
+    rest.push(arg);
+  }
+  return { locale, invalid, args: rest };
+}
+
+export async function runLint(rawArgs, context) {
+  const { stdout, stderr } = context;
+  const { locale, invalid, args } = extractLocale(rawArgs);
+  const help = HELP[locale === 'zh' ? 'zh' : 'en'];
+  if (invalid !== undefined) {
+    stderr.write(message('invalidLocale', locale, invalid, help));
+    return 2;
+  }
+  if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
+    stdout.write(help);
+    return 0;
+  }
+  if (args.shift() !== 'lint') {
+    stderr.write(help);
+    return 2;
+  }
+  let json = false;
+  let strict = false;
+  let pathsOnly = false;
+  const files = [];
+  for (const arg of args) {
+    if (!pathsOnly && arg === '--') { pathsOnly = true; continue; }
+    if (!pathsOnly && arg === '--json') { json = true; continue; }
+    if (!pathsOnly && (arg === '--warnings-as-errors' || arg === '--strict')) { strict = true; continue; }
+    if (!pathsOnly && ['--help', '-h'].includes(arg)) { stdout.write(help); return 0; }
+    if (!pathsOnly && arg.startsWith('-') && arg !== '-') {
+      stderr.write(message('unknownOption', locale, arg, help));
+      return 2;
+    }
+    files.push(arg);
+  }
+  if (!files.length || files.filter(file => file === '-').length > 1) {
+    stderr.write(message('supplyFiles', locale, '', help));
+    return 2;
   }
 
-  if (hasError) return EXIT.DOCUMENT;
-  if (options.strict && hasWarning) return EXIT.DOCUMENT;
-  return EXIT.OK;
+  const { compileLocal, formatLocalDiagnostic } = await loadCore(context.packageRoot, ['compileLocal', 'formatLocalDiagnostic']);
+  const localizeDiagnostic = (diagnostic) => ({
+    ...diagnostic,
+    message: formatLocalDiagnostic(diagnostic, locale),
+  });
+  const reports = [];
+  let exitCode = 0;
+  const expanded = [];
+  for (const file of files) {
+    if (file !== '-' && (/[*?]/.test(file) || (await stat(file).catch(() => null))?.isDirectory())) expanded.push(...await expandLintInputs([file]));
+    else expanded.push(file);
+  }
+  for (const file of expanded) {
+    const name = file === '-' ? '<stdin>' : file;
+    try {
+      const source = file === '-' ? await readStdin() : await readFile(file, 'utf8');
+      const result = compileLocal(source);
+      const ok = result.ok && (!strict || !result.diagnostics.length);
+      reports.push({ file: name, ok, diagnostics: result.diagnostics.map(localizeDiagnostic) });
+      if (!ok) exitCode = Math.max(exitCode, 1);
+    } catch (error) {
+      exitCode = 2;
+      // The file is already in the report. Keep the OS code as data in Chinese
+      // output instead of embedding an English operating-system sentence.
+      const detail = locale === 'zh'
+        ? (typeof error?.code === 'string' ? error.code : '读取失败')
+        : (error instanceof Error ? error.message : String(error));
+      reports.push({ file: name, ok: false, diagnostics: [{
+        code: 'cli.io', message: message('readFailed', locale, detail),
+        severity: 'error', range: { start: 0, end: 0 }, line: 1, column: 1,
+      }] });
+    }
+  }
+  if (json) {
+    stdout.write(`${JSON.stringify(reports, null, 2)}\n`);
+  } else {
+    for (const report of reports) {
+      for (const item of report.diagnostics) {
+        // Escape control characters so paths and messages remain one terminal line.
+        const clean = value => String(value).replace(/[\x00-\x1f\x7f-\x9f]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
+        stdout.write(`${clean(report.file)}:${item.line}:${item.column}: ${item.severity} ${clean(item.code)} ${clean(item.message)}\n`);
+      }
+      if (!report.diagnostics.length) stdout.write(`${JSON.stringify(report.file)}: OK\n`);
+    }
+  }
+  return exitCode;
+}
+
+async function readStdin() {
+  process.stdin.setEncoding('utf8');
+  let source = '';
+  for await (const chunk of process.stdin) source += chunk;
+  return source;
 }

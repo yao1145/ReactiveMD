@@ -1,7 +1,7 @@
-import { parseBuildArgs, parseLintArgs } from './args.mjs';
+import { parseBuildArgs } from './args.mjs';
 import { runBuild } from './build.mjs';
 import { EXIT, usageError } from './errors.mjs';
-import { buildHelp, lintHelp, mainHelp } from './help.mjs';
+import { buildHelp, mainHelp } from './help.mjs';
 import { runLint } from './lint.mjs';
 import { readPackageInfo } from './package.mjs';
 
@@ -43,12 +43,7 @@ export async function runCli(argv, context) {
   }
 
   if (command === 'lint') {
-    const options = parseLintArgs(rest);
-    if (options.help) {
-      context.stdout.write(lintHelp());
-      return EXIT.OK;
-    }
-    return runLint(options, context);
+    return runLint(argv, context);
   }
 
   throw usageError(`Unknown command "${command}". Run "reactive-md --help" for usage.`);

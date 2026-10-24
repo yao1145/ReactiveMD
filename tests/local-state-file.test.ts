@@ -51,6 +51,23 @@ function jsonClone(file: LocalStateFile): Record<string, unknown> {
 }
 
 describe('local state file round trip', () => {
+  it('exports writable parameters from snapshots containing computed collections', () => {
+    const document = compile([
+      '<computed name="double" value="{{ count * 2 }}">',
+      '<const name="values" value="{{ [1, 2, 3] }}">',
+      '<counter bind="count" label="Count" initial="2">',
+    ].join('\n'));
+    const runtime = createLocalRuntime(document);
+    try {
+      expect(runtime.snapshot().state).toMatchObject({ double: 4, values: [1, 2, 3] });
+      const file = createLocalStateFile(document, runtime.snapshot().state);
+      expect(file.parameters).toEqual({ count: 2 });
+      expect(resolveLocalState(document, file).ok).toBe(true);
+    } finally {
+      runtime.dispose();
+    }
+  });
+
   it.each([
     '<input bind="value" label="Name" required="true">',
     '<textarea bind="value" label="Notes" required="true">',

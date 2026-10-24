@@ -2,7 +2,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compiler';
 import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView, LocalReactiveDocument } from '../src/local/LocalDocumentView';
+import { LocalDocumentView, LocalReactiveDocument, textProblem } from '../src/local/LocalDocumentView';
+import { countLocalCodePoints, formatLocalDiagnostic } from '../src/local';
 import type { LocalLocale } from '../src/local/i18n';
 
 function mount(source: string, locale?: LocalLocale): { html: string; text: string } {
@@ -141,8 +142,68 @@ describe('LocalReactiveDocument locale', () => {
   });
 });
 
-describe('timeline headers', () => {
-  it('compiles and renders Chinese headers with Chinese labels', () => {
+describe('diagnostic localization in the renderer', () => {
+  it('formats the same diagnostic in both languages without changing its structure', () => {
+    const result = compileLocal('{{ absent }}');
+    expect(result.ok).toBe(false);
+    const diagnostic = result.diagnostics[0];
+    const en = formatLocalDiagnostic(diagnostic, 'en');
+    const zh = formatLocalDiagnostic(diagnostic, 'zh');
+    expect(en).toContain('undeclared parameter');
+    expect(zh).toContain('未声明');
+    expect(zh).not.toBe(en);
+    expect(diagnostic.code).toBe('local.binding.unknown');
+    expect(diagnostic.severity).toBe('error');
+    expect(diagnostic.range.start).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps the default English message for unknown host diagnostics', () => {
+    const hostDiagnostic = {
+      code: 'host.custom',
+      message: 'Host-owned message',
+      severity: 'warning' as const,
+      range: { start: 0, end: 0 },
+      line: 1,
+      column: 1,
+    };
+    expect(formatLocalDiagnostic(hostDiagnostic)).toBe('Host-owned message');
+    expect(formatLocalDiagnostic(hostDiagnostic, 'zh')).toBe('Host-owned message');
+  });
+
+  it('localizes the compile-error list of LocalReactiveDocument', () => {
+    const source = '{{ absent }}';
+    const enHtml = renderToStaticMarkup(<LocalReactiveDocument source={source} />);
+    const zhHtml = renderToStaticMarkup(<LocalReactiveDocument source={source} locale="zh" />);
+    expect(enHtml).toContain('undeclared parameter');
+    expect(zhHtml).toContain('未声明');
+    expect(zhHtml).toContain('（第 ');
+  });
+
+  it('uses code points for text-control min/max lengths', () => {
+    expect(countLocalCodePoints('😀')).toBe(1);
+    expect(countLocalCodePoints('中文')).toBe(2);
+    expect(countLocalCodePoints('é')).toBe(2);
+    expect(countLocalCodePoints('👩‍💻')).toBe(3);
+    expect(countLocalCodePoints('\ud800')).toBe(1);
+
+    expect(textProblem('😀', { required: false, maxLength: 1, minLength: 1 })).toBeNull();
+    expect(textProblem('😀', { required: false, maxLength: 1 }, (en, zh) => zh)).toBeNull();
+    expect(textProblem('😀😀', { required: false, maxLength: 1 })).toContain('At most 1');
+    expect(textProblem('中文', { required: false, maxLength: 2, minLength: 2 })).toBeNull();
+    expect(textProblem('é', { required: false, maxLength: 1 })).toContain('At most 1');
+    // The defensive resource limit remains UTF-16 based and is not replaced by
+    // the author-facing code-point limit.
+    expect(textProblem('a'.repeat(100_001), { required: false })).toContain('100000');
+  });
+
+  it('accepts an astral initial value at max-length="1"', () => {
+    const { html } = mount('<input bind="name" label="Name" max-length="1" initial="😀">');
+    expect(html).toContain('value="😀"');
+    expect(html).not.toContain('field-error');
+  });
+});
+
+describe('timeline headers', () => {  it('compiles and renders Chinese headers with Chinese labels', () => {
     const result = compileLocal(zhTimeline);
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
     const runtime = createLocalRuntime(result.document);

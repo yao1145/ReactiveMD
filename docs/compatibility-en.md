@@ -24,6 +24,10 @@ One package version corresponds to exactly one syntax revision. Before upgrading
 
 ## Breaking changes and migration
 
+The same development build adds [constraints and collections](constraints-collections-en.md): `LocalRuntime.validate()`, serializable `LocalValidation` rules, numeric arrays and generated tables. Hosts implementing a runtime adapter need the new `validate()` method; exhaustive value-kind checks need `number-array`. Rename bindings colliding with `sum`, `average`, `minOf` or `maxOf`.
+
+The unreleased `0.4.0` build adds [named calculations and formatting functions](computations-formatting-en.md). `computed`/`const` use the existing local tag syntax. The new built-in function names become reserved; rename colliding input bindings and their references before using this build. `document.bindings` and `initialState` still contain writable controls; snapshots also expose successful calculated values.
+
 Author-visible syntax changes establish a new syntax revision, such as `local-draft-2`, and raise the minor version and update `LOCAL_SYNTAX_VERSION`. Changes to the core or React API are also recorded in the changelog. The project does not rewrite sources automatically; after upgrading, authors or hosts migrate according to the record.
 
 Legacy configuration syntax is not part of `local-draft-2`. Common replacements:
@@ -45,11 +49,13 @@ Persist the original `.reactive.md` source. Do not persist `LocalDocument`, `Loc
 
 `Diagnostic` contains `code`, `message`, `severity`, `range`, `line` and `column`.
 
-- `line` and `column` start at 1; `range.start` and `range.end` are indexes into the current source string.
+- Lines and columns are one-based. Columns and half-open ranges count UTF-16 code units in the original source.
 - `line`, `column` and `range` can be used for programmatic location and editor jumps.
-- `code` is a string identifier, such as `local.type`, `expression-type` or `latex-plot-range`. Within a fixed package version it can be used for coarse classification; 0.x does not promise stability across versions, and minor versions may adjust codes.
-- `message` is display text and may change at any time. Do not parse `message` or make business decisions based on its full text.
+- `code` is a string identifier, such as `local.type`, `expression-type` or `latex-plot-range`. Existing codes keep their meaning within one 0.x minor series. New codes may be added; removal, renaming or a change of meaning requires a new minor version and migration notes.
+- `message` contains default English display text. Use `formatLocalDiagnostic(diagnostic, 'zh')` for Chinese. Wording may improve; do not parse messages or make business decisions based on their complete text. Language changes preserve machine fields.
 - `severity` is `warning` or `error`. Structurally complete unknown tags and footnotes keep their source and produce fallback warnings, and compilation can still succeed; compile errors make `result.ok` `false` and disable the preview. Runtime local errors affect only the corresponding content.
+
+See [Diagnostics and counting rules](diagnostics-counting-en.md) for units and resource-budget scopes.
 
 ## Platforms and runtimes
 

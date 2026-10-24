@@ -1,6 +1,10 @@
+<const name="workshopDay" value="{{ '2026-11-01' }}">
+<computed name="readingPhase" value="{{ readingDate == '' ? 'undated' : dateCompare(readingDate, workshopDay) < 0 ? 'before' : dateCompare(readingDate, workshopDay) == 0 ? 'during' : 'after' }}">
+<computed name="daysUntil" value="{{ readingDate == '' ? null : dateDiff(workshopDay, readingDate) }}">
+
 # A workshop guide at every reading depth
 
-Compare the two cards, switch reading roles, then expand a question. Each layout helps a reader find the right level of detail.
+Compare the cards, then move the reading date to workshop day or later and watch the guidance change. Switch reading roles and expand a question to find the detail you need.
 
 <anchor id="reading-start">
 
@@ -9,6 +13,19 @@ Find the level of detail you need. <text color="#a2273a">**Keep important remind
 </section>
 
 <jump to="reading-details" appearance="button" color="#2563eb">Jump to the questions</jump>
+
+<panel title="Reading date">
+<date bind="readingDate" label="When are you reading?" initial="2026-10-24">
+</panel>
+
+<badge tone="{{ readingPhase == 'before' ? 'neutral' : readingPhase == 'undated' ? 'warning' : 'success' }}">{{ readingPhase == 'before' ? 'Before: prepare' : readingPhase == 'during' ? 'Workshop day: explore' : readingPhase == 'after' ? 'After: reflect' : 'Choose a reading date' }}</badge>
+
+<if when="{{ readingPhase == 'before' }}">
+The workshop is on **{{ workshopDay }}**, with **{{ daysUntil }}** days to prepare. Start with the preparation card.
+</if>
+<if when="{{ readingPhase == 'after' }}">
+The workshop was **{{ daysUntil == null ? 0 : -daysUntil }}** days ago. Revisit a useful exploration and share it with a partner.
+</if>
 
 <grid>
 <card title="Before the workshop">
@@ -67,9 +84,12 @@ Cards compare related ideas, tabs separate reading contexts, and disclosures kee
 <disclosure label="Show the key source">
 
 ```markdown
+<const name="workshopDay" value="{{ '2026-11-01' }}">
+<date bind="readingDate" label="Reading date" initial="2026-10-24">
+<computed name="daysUntil" value="{{ readingDate == '' ? null : dateDiff(workshopDay, readingDate) }}">
 <grid>
-<card title="Before">Prepare a document.</card>
-<card title="During">Explore one question.</card>
+<card title="Workshop date">{{ workshopDay }}</card>
+<card title="Days until workshop">{{ daysUntil }}</card>
 </grid>
 <accordion>
 <disclosure label="Read more">Supporting detail goes here.</disclosure>

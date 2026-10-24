@@ -24,6 +24,10 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 ## 破坏性变更与迁移
 
+同一开发版本新增[条件、校验与本地集合](constraints-collections-ch.md)：`LocalRuntime.validate()`、可序列化的 `LocalValidation` 规则、数字数组及生成表格。自行实现运行时适配器的宿主需补充 `validate()`，值类型穷举需加入 `number-array`；与 `sum`、`average`、`minOf`、`maxOf` 同名的旧绑定应重命名。
+
+未发布的 `0.4.0` 开发版本增加[命名计算与格式化函数](computations-formatting-ch.md)。`computed`/`const` 使用现有本地标签形式；新函数名成为保留字，使用本版本前需重命名冲突的输入绑定并同步修改引用。`document.bindings` 和 `initialState` 继续只包含可写控件，快照同时提供成功求值的计算结果。
+
 作者可见的语法变化会建立新的语法修订，例如本次的 `local-draft-2`，并提升次版本、更新 `LOCAL_SYNTAX_VERSION`。核心或 React API 的变化也会记录在变更记录中。项目不自动改写源码；升级后由作者或宿主按记录迁移。
 
 旧版配置语法不属于 `local-draft-2`。常见替换如下：
@@ -45,11 +49,13 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 `Diagnostic` 包含 `code`、`message`、`severity`、`range`、`line` 和 `column`。
 
-- `line` 和 `column` 从 1 开始；`range.start` 和 `range.end` 是当前源码字符串中的索引。
+- `line` 和 `column` 从 1 开始；列和 `range` 均按原始源码的 UTF-16 代码单元计数，范围为半开区间。
 - `line`、`column` 和 `range` 可以用于程序定位和编辑器跳转。
-- `code` 是字符串标识，例如 `local.type`、`expression-type`、`latex-plot-range`。在一个固定的包版本内可以按它做粗分类；0.x 不承诺跨版本稳定，次版本可能调整 code。
-- `message` 是中文显示文本，可能随时改写。不要解析 message，也不要按完整文本做业务判断。
+- `code` 是字符串标识，例如 `local.type`、`expression-type`、`latex-plot-range`。同一 0.x minor 系列内，现有诊断码的含义保持稳定；可以新增码，删除、改名或改变含义须在新 minor 版本中说明迁移。
+- `message` 是默认英文显示文本，使用 `formatLocalDiagnostic(diagnostic, 'zh')` 可取得中文。文案可以改进；不要解析 message 或按完整文本做业务判断。语言切换保留机器字段。
 - `severity` 为 `warning` 或 `error`。结构完整的未知标签和脚注保留源码并给出降级警告，编译仍可成功；编译错误会让 `result.ok` 为 `false` 并停用预览。运行时局部错误只影响对应内容。
+
+完整规则和资源单位见[诊断与计数规则](diagnostics-counting-ch.md)。
 
 ## 平台与运行环境
 

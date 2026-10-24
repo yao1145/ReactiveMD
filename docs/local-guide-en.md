@@ -6,6 +6,8 @@ This document covers the `local-draft-2` local interaction syntax. See the [loca
 
 ## Table of contents
 
+For reusable intermediate results and formatted output, see [Reusing calculations and formatting values](computations-formatting-en.md), with a complete invoice example.
+
 - [1. Build intuition first](#1-build-intuition-first)
 - [2. Five minutes: your first interactive document](#2-five-minutes-your-first-interactive-document)
 - [3. How to write tags](#3-how-to-write-tags)
@@ -438,6 +440,8 @@ Billing: {{ annual ? 'Annual' : 'Monthly' }}
 Conditional expressions can nest, but do not go too deep. When readability suffers, split part of the content into an `if` container.
 
 ### 6.3 Functions
+
+For array indexing and numeric aggregates, cross-field hints and generated local tables, see [Constraints and collections](constraints-collections-en.md). Its workshop example shows how to keep related fields consistent while editing.
 
 | Function | Purpose |
 | --- | --- |

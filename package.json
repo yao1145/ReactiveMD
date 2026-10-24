@@ -39,6 +39,7 @@
     "preview": "npm run preview --workspace=@reactive-md/demo",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
+    "lint": "node bin/reactive-md.mjs lint",
     "test:components": "vitest run --config vitest.config.ts tests/component-protocol.test.ts tests/conformance.test.ts",
     "test:demo": "npm run build:lib && npm run test --workspace=@reactive-md/demo",
     "test:browser": "npm run test:browser --workspace=@reactive-md/demo",
@@ -48,6 +49,8 @@
     "test:packed": "node scripts/verify-packed.mjs",
     "test:docs": "node scripts/verify-docs.mjs",
     "test:theme-browser": "node scripts/verify-theme-browser.mjs",
+    "test:computations-browser": "node scripts/verify-computations-browser.mjs",
+    "test:constraints-browser": "node scripts/verify-constraints-browser.mjs",
     "benchmark": "node scripts/benchmark.mjs",
     "notices": "node scripts/generate-notices.mjs",
     "prepack": "npm run build && npm run notices"

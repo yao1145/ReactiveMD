@@ -46,7 +46,7 @@ export function Article() {
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | Created by the host, which is responsible for disposal |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | Both | Receives compile diagnostics and runtime diagnostics when control writes are rejected |
 | `urlPolicy` | `(url: string, kind: 'image' \| 'link') => boolean` | Both | Decides whether to allow an image or link after protocol checks |
-| `locale` | `'en' \| 'zh'` | Both | Language for built-in labels and controls; defaults to `'en'`. Compiler and runtime diagnostic messages remain English |
+| `locale` | `'en' \| 'zh'` | Both | Language for built-in labels, controls and displayed diagnostics; defaults to `'en'`. Callbacks keep structured diagnostics |
 | `themes` | `readonly LocalThemeDefinition[]` | Both | Host registrations; CSS loads separately; built-in `default` is always available |
 | `colorScheme` | `'light' \| 'dark' \| 'auto'` | Both | Defaults to `auto`, following the nearest explicit ancestor preference or the system |
 
@@ -114,9 +114,13 @@ To use a custom budget in React, call `compileLocal` first and pass the compiled
 
 ### `createLocalRuntime(document: LocalDocument)`
 
+Named read-only values are described by `LocalComputation` in the optional `document.computations` record. `bindings` and `initialState` remain writable controls; `snapshot().state` also includes successful calculated values for its revision. Read a named value with `evaluate(name)` to preserve expression errors; failed values are absent from snapshots. See [calculation and error semantics](computations-formatting-en.md).
+
 Creates an independent in-memory runtime for a compiled document. Throws if `document` is not a local mode document, if initial values exceed budgets, or if the structure is invalid. Each instance has independent state; the runtime never stores or transmits state by itself.
 
 ### `LocalRuntime`
+
+`validate(): Diagnostic[]` reads advisory cross-field failures for the current revision. It preserves editability and returns copies of cached diagnostics. `document.validations?: LocalValidation[]` holds the serializable rule declarations. Numeric collections add `number[]` to `LocalValue` and `number-array` to `LocalValueKind`; existing writable selection controls keep string arrays. See [constraints and collections](constraints-collections-en.md).
 
 | Member | Parameters | Returns | Behavior |
 | --- | --- | --- | --- |

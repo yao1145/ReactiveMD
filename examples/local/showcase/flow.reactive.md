@@ -1,3 +1,6 @@
+<const name="rate" value="{{ 80 }}">
+<computed name="total" value="{{ people * rate }}">
+
 # Follow a value through a document
 
 Change the headcount, then select Input, Compute and Display in the diagram. Follow the same value from the control to the final explanation.
@@ -10,11 +13,11 @@ Change the headcount, then select Input, Compute and Display in the diagram. Fol
 <node id="input" label="Input: {{ people }}">
 The slider names its value people. Its current value is **{{ people }}**.
 </node>
-<node id="compute" label="Compute: {{ people }} × 80">
-Each participant costs 80, so the total is **{{ people }} × 80 = {{ people * 80 }}**.
+<node id="compute" label="Compute: {{ people }} × {{ rate }}">
+Each participant costs 80, so the total is **{{ people }} × {{ rate }} = {{ total }}**.
 </node>
-<node id="view" label="Display: {{ people * 80 }}">
-The prose reads the result directly: the workshop costs **{{ people * 80 }}**.
+<node id="view" label="Display: {{ total }}">
+The prose reads the read-only total: the workshop costs **{{ formatCurrency(total, 'USD', 2, 'en-US') }}**. The calculation node and explanations share this result.
 </node>
 <edge from="input" to="compute" label="Value changes">
 <edge from="compute" to="view" label="Result updates">
@@ -26,10 +29,10 @@ You are exploring: **{{ selected == 'input' ? 'Input' : selected == 'compute' ? 
 <alert title="Start with what readers can change">Try 6 people, then select Compute to follow the calculation.</alert>
 </if>
 <if when="{{ selected == 'compute' }}">
-<alert title="Make the relationship visible">The expression people * 80 gives **{{ people * 80 }}**.</alert>
+<alert title="Make the relationship visible">The named calculation total = people * rate gives **{{ total }}**.</alert>
 </if>
 <if when="{{ selected == 'view' }}">
-<alert tone="success" title="The document now explains the result">For {{ people }} people, the total is **{{ people * 80 }}**.</alert>
+<alert tone="success" title="The document now explains the result">For {{ people }} people, the total is **{{ total }}**.</alert>
 </if>
 
 ## Explore with the keyboard
@@ -43,7 +46,7 @@ Tab to a diagram node, move focus with the arrow keys, then press Enter or Space
 Start at the Input node: the current headcount is **{{ people }}**.
 </step>
 <step label="Check the calculation" value="calculate">
-Select Compute. Each participant costs 80, giving **{{ people }} × 80 = {{ people * 80 }}**.
+Select Compute. Each participant costs 80, giving **{{ people }} × {{ rate }} = {{ total }}**.
 </step>
 <step label="Explain the result" value="practice">
 Select Display and explain why the total changes when headcount changes.
@@ -66,10 +69,15 @@ Current step: **{{ lesson }}**. After explaining the result to a partner, count 
 <disclosure label="Show the key source">
 
 ```markdown
+<const name="rate" value="{{ 80 }}">
+<computed name="total" value="{{ people * rate }}">
+<slider bind="people" label="Headcount" initial="4" min="1" max="12">
 <diagram bind="selected" initial="input" label="A short flow">
-<node id="input" label="Input">Read a parameter.</node>
-<node id="view" label="Display">Explain the result.</node>
-<edge from="input" to="view">
+<node id="input" label="Input: {{ people }}">Read headcount.</node>
+<node id="compute" label="Compute: {{ total }}">{{ people }} × {{ rate }} = {{ total }}</node>
+<node id="view" label="Display: {{ total }}">{{ formatCurrency(total, 'USD', 2, 'en-US') }}</node>
+<edge from="input" to="compute">
+<edge from="compute" to="view">
 </diagram>
 Selected node: {{ selected }}
 ```

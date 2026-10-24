@@ -13,6 +13,7 @@
 - [本地模式集成](docs/local-integration-ch.md)：`compileLocal`、状态运行时、React 嵌入、URL 策略与样式作用域。
 - [可分享文档与静态导出](docs/shareable-export-ch.md)：单文件交互 HTML、静态输出、版本化状态文件、图片资源、CLI 与独立浏览器 API。
 - [主题协议](docs/theme-protocol-ch.md)：文档主题选择、自定义 CSS 与深浅模式。
+- [作者工具](docs/author-tools-ch.md)：源码高亮、补全、绑定定位、重命名、格式化与命令行检查。
 - [独立接入示例](examples/integration/README.md)：可复制到仓库外运行的 Node 核心和 React 页面。
 - [版本与兼容性](docs/compatibility-ch.md)：0.x 规则、迁移、诊断契约和平台范围。
 - [组块协议](docs/component-protocol-ch.md) · [组块开发指南](docs/component-development-ch.md)：新增组件的声明、行为契约和兼容性验收。

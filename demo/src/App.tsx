@@ -9,12 +9,18 @@ import {
   type KeyboardEvent,
   type UIEvent,
 } from 'react';
-import type { Diagnostic, LocalRuntime, SourceRange } from 'reactive-md';
+import { formatLocalDiagnostic, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
 import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
 import { AuthorTools } from './author-tools';
 import type { EditorEdit, EditorSelection } from './editor-commands';
 import { EditorToolbar } from './editor-toolbar';
 import { ExportDialog } from './export-dialog';
+import {
+  AuthorHighlight,
+  AuthoringPanel,
+  useAuthorAnalysis,
+} from './source-authoring';
+import './source-authoring.css';
 import {
   DEFAULT_EXAMPLE_ID,
   EXAMPLES,
@@ -154,6 +160,7 @@ interface DiagnosticListProps {
 
 function DiagnosticList({ diagnostics, focusDiagnostic, emptyText }: DiagnosticListProps) {
   const copy = useCopy().editor;
+  const language = useLanguage();
   if (diagnostics.length === 0) {
     return emptyText ? <p className="diagnostic-empty">{emptyText}</p> : null;
   }
@@ -170,7 +177,7 @@ function DiagnosticList({ diagnostics, focusDiagnostic, emptyText }: DiagnosticL
             <span className={`diag-severity diag-${diagnostic.severity === 'warning' ? 'warning' : 'error'}`}>
               {diagnostic.severity === 'warning' ? copy.warning : copy.error}
             </span>
-            <span className="diag-message">{diagnostic.message}</span>
+            <span className="diag-message">{formatLocalDiagnostic(diagnostic, language)}</span>
             <span className="diag-position">{copy.position(diagnostic.line, diagnostic.column)}</span>
           </button>
         </li>
@@ -277,6 +284,7 @@ export default function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [runtimeDiagnostics, setRuntimeDiagnostics] = useState<Diagnostic[]>([]);
   const [activeLine, setActiveLine] = useState(1);
+  const [composing, setComposing] = useState(false);
 
   const copy = COPY[language];
   const editorRef = useRef<HTMLTextAreaElement>(null);
@@ -303,6 +311,8 @@ export default function App() {
   } = useSourceHistory(source);
 
   const compilation = useLocalCompilation(source);
+  // Analysis depends on the source only, so caret moves never redo this work.
+  const authorAnalysis = useAuthorAnalysis(source);
 
   const currentExample = localizedExample(
     EXAMPLES.find((item) => item.id === selectedExample) ?? DEFAULT_EXAMPLE,
@@ -740,7 +750,7 @@ export default function App() {
                 />
 
                 <label className="sr-only" htmlFor="source-editor">{copy.editor.sourceLabel}</label>
-                <div className="editor-shell">
+                <div className={`editor-shell${composing ? ' is-composing' : ''}`}>
                   <div className="editor-gutter" ref={gutterRef} aria-hidden="true">
                     {lines.map((_, index) => {
                       const lineNumber = index + 1;
@@ -759,23 +769,33 @@ export default function App() {
                       );
                     })}
                   </div>
-                  <textarea
-                    id="source-editor"
-                    ref={editorRef}
-                    className="editor-input"
-                    value={source}
-                    wrap="soft"
-                    spellCheck={false}
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    aria-describedby="editor-note"
-                    onScroll={onEditorScroll}
-                    onChange={onSourceChange}
-                    onKeyDown={onEditorKeyDown}
-                    onSelect={(event) => updateActiveLine(event.currentTarget)}
-                    onKeyUp={(event) => updateActiveLine(event.currentTarget)}
-                    onClick={(event) => updateActiveLine(event.currentTarget)}
-                  />
+                  <div className="editor-input-wrap">
+                    <AuthorHighlight
+                      source={source}
+                      tokens={authorAnalysis.tokens}
+                      width={gutterMetrics.width}
+                      editorRef={editorRef}
+                    />
+                    <textarea
+                      id="source-editor"
+                      ref={editorRef}
+                      className="editor-input"
+                      value={source}
+                      wrap="soft"
+                      spellCheck={false}
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      aria-describedby="editor-note"
+                      onScroll={onEditorScroll}
+                      onChange={onSourceChange}
+                      onKeyDown={onEditorKeyDown}
+                      onCompositionStart={() => setComposing(true)}
+                      onCompositionEnd={() => setComposing(false)}
+                      onSelect={(event) => updateActiveLine(event.currentTarget)}
+                      onKeyUp={(event) => updateActiveLine(event.currentTarget)}
+                      onClick={(event) => updateActiveLine(event.currentTarget)}
+                    />
+                  </div>
                   <div
                     className="editor-mirror"
                     ref={mirrorRef}
@@ -789,6 +809,15 @@ export default function App() {
                   </div>
                 </div>
               </div>
+
+              <AuthoringPanel
+                source={source}
+                analysis={authorAnalysis}
+                bindingDocument={compiled && compiled.ok ? compiled.document : null}
+                editorRef={editorRef}
+                onEdit={applyEdit}
+                onLocate={focusDiagnostic}
+              />
 
               <p className="editor-note" id="editor-note">
                 {copy.editor.note}

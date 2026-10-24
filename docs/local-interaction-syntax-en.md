@@ -4,11 +4,17 @@ Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with 
 
 ## 1. Positioning and scope
 
+The unreleased development build adds invisible `computed`/`const` declarations and number, string and date functions. See [Reusing calculations and formatting values](computations-formatting-en.md) for declaration syntax, dependency and error rules, function signatures and deterministic defaults.
+
+For cross-field validation, conditional tones, arrays and bounded table-row generation, see [Constraints and collections](constraints-collections-en.md).
+
+See [Diagnostics and counting rules](diagnostics-counting-en.md) for source positions, text lengths and resource units. String `len()` and text-control length constraints count Unicode code points.
+
 Reactive MD is for local interactive documents: authors write Markdown and place input controls; when readers adjust parameters, related text, formulas, charts and diagrams update immediately.
 
 The base language requires only two connection rules: `bind` names an input, and `{{ expression }}` reads it elsewhere. Components handle their own selection, expansion, search, sorting, timing and reset.
 
-This draft does not include external service calls, form submission, asynchronous resources, named actions, event handlers, programmable collection edits, loop templates or arbitrary scripts. Legacy `state/data/computed/actions` configuration blocks are not part of the new syntax. Arrays are produced by checklist and multi-select components, and table data is written directly in the prose.
+This draft does not include external service calls, form submission, asynchronous resources, named actions, event handlers, programmable collection edits, general loop templates or arbitrary scripts. Legacy `state/data/computed/actions` configuration blocks are not part of the new syntax. Expressions can produce string or numeric arrays; checklist and multi-select components produce string arrays. Tables can use prose Markdown or bounded local row generation through `data-table`.
 
 By default a document only keeps in-memory state for the current instance. Reopening starts from initial values; persistence is not part of the author syntax. There is no need to declare a language version, import components or write YAML. Hosts should explicitly select draft parsing mode and must not guess by mixing old and new syntax.
 
@@ -160,6 +166,10 @@ Interpolation can appear in paragraphs, headings, emphasis, lists, plain table c
 | Conditional | `condition ? trueValue : falseValue` |
 | Math functions | abs, sqrt, floor, ceil, round, min, max, pow, sin, cos, tan, asin, acos, atan, exp, log |
 | Common functions | len, contains, clamp |
+| Formatting | formatNumber, formatPercent, formatScientific, formatCurrency |
+| Strings | trim, lower, upper, startsWith, endsWith, replace, slice |
+| Dates | dateCompare, dateDiff |
+| Array aggregates | sum, average, minOf, maxOf |
 | Constants | pi, e |
 
 Precedence runs from function calls/parentheses, unary operators, multiplication/division/remainder, addition/subtraction, relational comparison, equality comparison, logical AND, logical OR, to conditional expressions; conditional expressions are right-associative and other binary operators are left-associative. Logic and conditional expressions short-circuit.

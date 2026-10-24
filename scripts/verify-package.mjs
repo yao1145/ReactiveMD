@@ -10,6 +10,9 @@ import {
   LocalCompileScheduler,
   applyLocalStateRetention,
   compileLocal,
+  countLocalCodePoints,
+  formatLocalDiagnostic,
+  LOCAL_DIAGNOSTIC_CODES,
   createLocalRuntime,
   createLocalStateFile,
   createShareableHtml,
@@ -19,6 +22,29 @@ import {
   resolveLocalTheme,
   startLocalCompileWorker,
 } from 'reactive-md';
+import { spawnSync } from 'node:child_process';
+import { moduleSpecifiers } from './module-specifiers.mjs';
+
+// Diagnostic prose must not be mistaken for an external module dependency.
+assert.deepEqual(moduleSpecifiers(`
+import './static.js';
+const message = 'from "not-a-package"';
+export type Example = import('./types.js').Example;
+export { value } from './export.js';
+import('./dynamic.js');
+`, 'fixture.ts'), ['./static.js', './types.js', './export.js', './dynamic.js']);
+
+// Exercise the installed command entry through Node on every supported platform.
+const cli = spawnSync(process.execPath, [fileURLToPath(new URL('../bin/reactive-md.mjs', import.meta.url)), 'lint', '--json', '-'], {
+  input: '<number bind="n" label="Count">\n\n{{ n }}', encoding: 'utf8', windowsHide: true,
+});
+assert.equal(cli.status, 0, cli.stderr);
+assert.deepEqual(JSON.parse(cli.stdout), [{ file: '<stdin>', ok: true, diagnostics: [] }]);
+assert.equal(countLocalCodePoints('😀'), 1);
+const diagnostic = compileLocal('{{ missing }}').diagnostics[0];
+assert.ok(LOCAL_DIAGNOSTIC_CODES.includes(diagnostic.code));
+assert.match(formatLocalDiagnostic(diagnostic, 'zh'), /[\u3400-\u9fff]/u);
+assert.equal(formatLocalDiagnostic(diagnostic), diagnostic.message);
 
 // Exercise the built public options API, including preservation of defaults.
 assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: 1 } }).ok, false);
@@ -114,7 +140,7 @@ async function inspectCoreModule(url) {
   if (visited.has(url.href)) return;
   visited.add(url.href);
   const source = await readFile(fileURLToPath(url), 'utf8');
-  const imports = [...source.matchAll(/from\s*['"]([^'"]+)['"]/g)].map(match => match[1]);
+  const imports = moduleSpecifiers(source);
   for (const specifier of imports) {
     assert.ok(specifier.startsWith('.'), `Core bundle must include its dependency ${specifier}`);
     await inspectCoreModule(new URL(specifier, url));
@@ -128,10 +154,7 @@ async function inspectCoreDeclaration(url) {
   if (declared.has(url.href)) return;
   declared.add(url.href);
   const source = await readFile(fileURLToPath(url), 'utf8');
-  const specifiers = [
-    ...[...source.matchAll(/\bfrom\s*['"]([^'"]+)['"]/g)].map(match => match[1]),
-    ...[...source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g)].map(match => match[1]),
-  ];
+  const specifiers = moduleSpecifiers(source, 'module.d.ts');
   for (const specifier of specifiers) {
     assert.ok(specifier.startsWith('.'), `Core types must not depend on ${specifier} (in ${fileURLToPath(url)})`);
     const candidates = [

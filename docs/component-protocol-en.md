@@ -142,10 +142,10 @@ Attributes declared static must not contain interpolation. Dynamic attributes ma
 
 ```markdown
 <slider bind="people" label="People" initial="2" min="1" max="20">
-<number bind="lower" label="Lower bound" initial="-2">
-<number bind="upper" label="Upper bound" initial="2">
+<number bind="lowerBound" label="Lower bound" initial="-2">
+<number bind="upperBound" label="Upper bound" initial="2">
 <if when="{{ people >= 5 }}">
-<plot min="{{ lower }}" max="{{ upper }}">
+<plot min="{{ lowerBound }}" max="{{ upperBound }}">
 $$ y = x^2 $$
 </plot>
 </if>
@@ -340,9 +340,9 @@ When a control write is rejected, a `local.runtime.value` or `local.runtime.bind
 
 A false condition, inactive tab or closed disclosure affects display only, not compilation. Undeclared variables, type errors, structure errors and budget overruns in hidden branches are still compile errors. At runtime, hiding preserves state and pauses timers; it does not skip validation.
 
-### CP-DIAG-06 Diagnostic code stability (boundary)
+### CP-DIAG-06 Diagnostic code stability (contract)
 
-In 0.x, diagnostic `code` is not promised to be stable across package versions, and `message` is not promised stable. Within a fixed package version, `code` can be used for coarse classification; machine conformance data compares `codes` exactly within the package version that generated it. New components must not make tests depend on message text.
+Existing diagnostic codes keep their meaning within one 0.x minor series; new codes may be added. Removal, renaming or a change of meaning requires a new minor version and migration notes. Messages are localized display text. Tests and machine conformance use codes and structured fields. See [Diagnostics and counting rules](diagnostics-counting-en.md) for units and budget scopes.
 
 ## 6. Accessibility, themes and styling
 
@@ -435,7 +435,7 @@ All images are rejected by default, including relative paths; they load only whe
 | Curve sample points requested by the whole document | 20,000 |
 | Shared computation steps for plotting | 2,000,000 |
 
-Writes over a limit are rejected and the runtime keeps the last valid state; compile-time overruns return diagnostics. Expressions and math evaluation have additional length, node, depth and token budgets. Budgets limit the work for a single document and do not replace host control over request size, concurrency and timeouts. Hidden regions still count toward plotting budgets.
+Here, characters means UTF-16 code units. Text-control `min-length` / `max-length` and string `len()` count Unicode code points. Writes over a limit are rejected and the runtime keeps the last valid state; compile-time overruns return diagnostics. Expressions and math evaluation have additional length, node, depth and token budgets. See [Diagnostics and counting rules](diagnostics-counting-en.md) for all units and scopes. Hidden regions count toward plotting budgets. Hosts still control request size, concurrency and timeouts.
 
 ### CP-SEC-04 Host responsibilities (existing)
 

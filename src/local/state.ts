@@ -206,7 +206,7 @@ function readMaxLength(options?: { maxLength?: number }): number {
 
 /**
  * Capture every public binding from a runtime state. Internal `@...` binding
- * keys are intentionally ignored so a full runtime snapshot can be passed in;
+ * keys and declared read-only values are ignored so a full snapshot can be passed in;
  * unknown keys, missing public keys and non-serializable values are rejected.
  */
 export function createLocalStateFile(
@@ -228,6 +228,7 @@ export function createLocalStateFile(
   const captured = new Map<string, LocalValue>();
 
   for (const key of Object.keys(state)) {
+    if (Object.hasOwn(document.computations ?? {}, key)) continue;
     if (key.startsWith('@')) {
       if (!Object.hasOwn(document.bindings, key)) {
         throw new Error(`Cannot persist parameter "${key}": it is not a binding of this document.`);

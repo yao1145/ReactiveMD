@@ -1,8 +1,34 @@
 import {
+  averageNumberArray,
+  maxNumberArray,
+  minNumberArray,
+  sumNumberArray,
+} from './collection-functions';
+import {
+  compareDates,
+  diffDates,
+  endsWithText,
+  lowerText,
+  replaceLiteral,
+  sliceCodePoints,
+  startsWithText,
+  trimText,
+  upperText,
+} from './data-functions';
+import {
+  LocalFunctionError,
+  formatCurrency,
+  formatNumber,
+  formatPercent,
+  formatScientific,
+} from './formatting';
+import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
 } from './limits';
+import { diagnosticEnglish, localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
+import { countLocalCodePoints } from './text-length';
 import type { LocalValue, LocalValueKind } from './types';
 
 /**
@@ -37,6 +63,10 @@ const BUILTIN_FUNCTIONS = [
   'abs', 'sqrt', 'floor', 'ceil', 'round', 'min', 'max', 'pow',
   'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'exp', 'log',
   'len', 'contains', 'clamp',
+  'sum', 'average', 'minOf', 'maxOf',
+  'formatNumber', 'formatPercent', 'formatScientific', 'formatCurrency',
+  'trim', 'lower', 'upper', 'startsWith', 'endsWith', 'replace', 'slice',
+  'dateCompare', 'dateDiff',
 ] as const;
 type BuiltinName = (typeof BUILTIN_FUNCTIONS)[number];
 const BUILTIN_SET: ReadonlySet<string> = new Set(BUILTIN_FUNCTIONS);
@@ -47,7 +77,7 @@ const CONSTANTS: ReadonlyMap<string, number> = new Map([
 ]);
 
 const FORBIDDEN_NAMES: ReadonlySet<string> = new Set(['__proto__', 'prototype', 'constructor']);
-const VALID_KINDS: ReadonlySet<string> = new Set(['string', 'number', 'boolean', 'null', 'array']);
+const VALID_KINDS: ReadonlySet<string> = new Set(['string', 'number', 'boolean', 'null', 'array', 'number-array']);
 
 /** Names that cannot be used as a document binding. */
 export const RESERVED_NAMES = new Set<string>([
@@ -56,47 +86,120 @@ export const RESERVED_NAMES = new Set<string>([
   ...FORBIDDEN_NAMES,
 ]);
 
+/** Expression source, in UTF-16 code units, per expression. */
 const MAX_EXPRESSION_LENGTH = 4000;
+/** Cumulative AST constructions and final AST depth, per expression. */
 const MAX_AST_NODES = 2000;
 const MAX_PARSE_DEPTH = 100;
 const MAX_AST_DEPTH = 200;
+/** AST node visits and call depth, per evaluation; short-circuited branches are not visited. */
 const MAX_EVAL_STEPS = 10000;
 const MAX_EVAL_DEPTH = 250;
-/** Shared budgets. `MAX_STRING_LENGTH` also caps concatenation results. */
+/** Shared value budgets. `MAX_STRING_LENGTH` also caps concatenation results (UTF-16). */
 const MAX_STRING_LENGTH = MAX_LOCAL_STRING_LENGTH;
-const MAX_ARRAY_LENGTH = MAX_LOCAL_ARRAY_LENGTH;
 const MAX_TEMPLATE_LENGTH = MAX_LOCAL_STRING_LENGTH;
+/** Compiled-expression cache entries per runtime instance. */
 const CACHE_LIMIT = 500;
 
+interface ArrayValueProblem extends LocalDiagnosticDetails {
+  code: 'expression-budget' | 'expression-value';
+  message: string;
+}
+
 /**
- * Allocation-free budget check for a value stored in the runtime or read from
- * an expression environment. Returns a short reason, or null when the value
- * fits. String lengths are UTF-16 code units, matching the existing
- * concatenation budget; `len()` keeps counting code points.
+ * Validate the shared array shape: `array` stays a string array, while
+ * `number-array` holds finite numbers only. Mixed, nested, boolean and null
+ * members are rejected. String arrays keep the per-member and total character
+ * budgets; numeric arrays only need finite members.
  */
-export function localValueBudgetError(value: LocalValue): string | null {
-  if (typeof value === 'string') {
-    return value.length > MAX_LOCAL_STRING_LENGTH
-      ? `String exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`
-      : null;
+function arrayValueProblem(value: readonly unknown[]): ArrayValueProblem | null {
+  if (value.length > MAX_LOCAL_ARRAY_LENGTH) {
+    return {
+      code: 'expression-budget',
+      ...localDiagnosticDetails('local.budget.value.array', { limit: MAX_LOCAL_ARRAY_LENGTH }),
+      message: `Array exceeds the ${MAX_LOCAL_ARRAY_LENGTH}-item limit.`,
+    };
   }
-  if (Array.isArray(value)) {
-    if (value.length > MAX_LOCAL_ARRAY_LENGTH) {
-      return `Array exceeds the ${MAX_LOCAL_ARRAY_LENGTH}-item limit.`;
-    }
-    let characters = 0;
-    for (const item of value) {
-      if (typeof item !== 'string') continue;
+  let kind: 'string' | 'number' | null = null;
+  let characters = 0;
+  for (const item of value) {
+    if (typeof item === 'string') {
+      if (kind === 'number') {
+        return {
+          code: 'expression-value',
+          key: 'error.array.homogeneous',
+          message: 'Array elements must all be strings or all be numbers.',
+        };
+      }
+      kind = 'string';
       if (item.length > MAX_LOCAL_STRING_LENGTH) {
-        return `Array member exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`;
+        return {
+          code: 'expression-budget',
+          ...localDiagnosticDetails('local.budget.value.array-member', { limit: MAX_LOCAL_STRING_LENGTH }),
+          message: `Array member exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`,
+        };
       }
       characters += item.length;
       if (characters > MAX_LOCAL_VALUE_CHARACTERS) {
-        return `Array contents exceed the ${MAX_LOCAL_VALUE_CHARACTERS}-character limit.`;
+        return {
+          code: 'expression-budget',
+          ...localDiagnosticDetails('local.budget.value.array-contents', { limit: MAX_LOCAL_VALUE_CHARACTERS }),
+          message: `Array contents exceed the ${MAX_LOCAL_VALUE_CHARACTERS}-character limit.`,
+        };
       }
+      continue;
     }
+    if (typeof item === 'number') {
+      if (kind === 'string') {
+        return {
+          code: 'expression-value',
+          key: 'error.array.homogeneous',
+          message: 'Array elements must all be strings or all be numbers.',
+        };
+      }
+      kind = 'number';
+      if (!Number.isFinite(item)) {
+        return {
+          code: 'expression-value',
+          key: 'error.array.finite',
+          message: 'Array members must be finite numbers.',
+        };
+      }
+      continue;
+    }
+    return {
+      code: 'expression-value',
+      key: 'error.array.members',
+      message: 'Array members must be strings or finite numbers.',
+    };
   }
   return null;
+}
+
+/**
+ * Allocation-free budget check for a value stored in the runtime or read from
+ * an expression environment. Returns structured metadata, or null when the
+ * value fits. These are defensive resource budgets: string lengths are UTF-16
+ * code units (matching allocation cost), while author-visible text constraints
+ * use `countLocalCodePoints`. `len()` keeps counting code points.
+ */
+export function localValueBudgetIssue(value: LocalValue): LocalDiagnosticDetails | null {
+  if (typeof value === 'string') {
+    return value.length > MAX_LOCAL_STRING_LENGTH
+      ? localDiagnosticDetails('local.budget.value.string', { limit: MAX_LOCAL_STRING_LENGTH })
+      : null;
+  }
+  if (Array.isArray(value)) {
+    const problem = arrayValueProblem(value);
+    return problem ? localDiagnosticDetails(problem.key, problem.params) : null;
+  }
+  return null;
+}
+
+/** English message form kept for existing callers and error construction. */
+export function localValueBudgetError(value: LocalValue): string | null {
+  const issue = localValueBudgetIssue(value);
+  return issue ? diagnosticEnglish(issue) : null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -201,7 +304,7 @@ function lex(source: string): Token[] {
       i += 2;
       continue;
     }
-    if ('+-*/%()!<>?:,'.includes(char)) {
+    if ('+-*/%()!<>?:,[]'.includes(char)) {
       tokens.push({ kind: 'punct', value: char, start: i });
       i += 1;
       continue;
@@ -233,6 +336,8 @@ type Ast =
   | { kind: 'unary'; operator: '-' | '+' | '!'; operand: Ast; start: number }
   | { kind: 'binary'; operator: BinaryOperator; left: Ast; right: Ast; start: number }
   | { kind: 'conditional'; test: Ast; consequent: Ast; alternate: Ast; start: number }
+  | { kind: 'array'; elements: Ast[]; start: number }
+  | { kind: 'index'; target: Ast; index: Ast; start: number }
   | { kind: 'call'; name: BuiltinName; args: Ast[]; start: number };
 
 const ARITY: Readonly<Record<BuiltinName, readonly [number, number]>> = {
@@ -241,6 +346,12 @@ const ARITY: Readonly<Record<BuiltinName, readonly [number, number]>> = {
   pow: [2, 2], sin: [1, 1], cos: [1, 1], tan: [1, 1],
   asin: [1, 1], acos: [1, 1], atan: [1, 1], exp: [1, 1], log: [1, 1],
   len: [1, 1], contains: [2, 2], clamp: [3, 3],
+  sum: [1, 1], average: [1, 1], minOf: [1, 1], maxOf: [1, 1],
+  formatNumber: [1, 4], formatPercent: [1, 3], formatScientific: [1, 3],
+  formatCurrency: [1, 4],
+  trim: [1, 1], lower: [1, 1], upper: [1, 1], startsWith: [2, 2],
+  endsWith: [2, 2], replace: [3, 3], slice: [2, 3],
+  dateCompare: [2, 2], dateDiff: [2, 3],
 };
 
 function astDepth(ast: Ast): number {
@@ -264,6 +375,13 @@ function astDepth(ast: Ast): number {
         break;
       case 'call':
         for (const arg of node.args) stack.push({ node: arg, depth: depth + 1 });
+        break;
+      case 'array':
+        for (const element of node.elements) stack.push({ node: element, depth: depth + 1 });
+        break;
+      case 'index':
+        stack.push({ node: node.target, depth: depth + 1 });
+        stack.push({ node: node.index, depth: depth + 1 });
         break;
       case 'literal':
       case 'reference':
@@ -433,6 +551,18 @@ class Parser {
   }
 
   private parsePrimary(depth: number): Ast {
+    let base = this.parseAtom(depth);
+    while (this.isPunct('[')) {
+      const start = base.start;
+      this.next();
+      const index = this.parseConditional(depth + 1);
+      this.expect(']');
+      base = this.node({ kind: 'index', target: base, index, start }, depth, start);
+    }
+    return base;
+  }
+
+  private parseAtom(depth: number): Ast {
     const token = this.peek();
     if (token.kind === 'number') {
       this.next();
@@ -498,6 +628,19 @@ class Parser {
       this.expect(')');
       return inner;
     }
+    if (token.kind === 'punct' && token.value === '[') {
+      this.next();
+      const elements: Ast[] = [];
+      if (!this.isPunct(']')) {
+        elements.push(this.parseConditional(depth + 1));
+        while (this.isPunct(',')) {
+          this.next();
+          elements.push(this.parseConditional(depth + 1));
+        }
+      }
+      this.expect(']');
+      return this.node({ kind: 'array', elements, start: token.start }, depth, token.start);
+    }
     throw new LocalExpressionError('expression-syntax', 'Expected an expression.', token.start);
   }
 }
@@ -513,6 +656,7 @@ function kindName(kind: LocalValueKind): string {
     case 'boolean': return 'boolean';
     case 'null': return 'null';
     case 'array': return 'array';
+    case 'number-array': return 'number array';
   }
 }
 
@@ -607,10 +751,44 @@ function inferAst(ast: Ast, env: Record<string, LocalValueKind>): LocalValueKind
       }
       break;
     }
+    case 'array': {
+      if (ast.elements.length === 0) return 'number-array';
+      let elementKind: LocalValueKind | null = null;
+      for (const element of ast.elements) {
+        const kind = inferAst(element, env);
+        if (kind !== 'string' && kind !== 'number') {
+          return typeError(
+            `Array literals require string or number elements, got ${kindName(kind)}.`,
+            element.start,
+          );
+        }
+        if (elementKind === null) elementKind = kind;
+        else if (elementKind !== kind) {
+          return typeError(
+            `Array literals require elements of one type, got ${kindName(elementKind)} and ${kindName(kind)}.`,
+            element.start,
+          );
+        }
+      }
+      return elementKind === 'string' ? 'array' : 'number-array';
+    }
+    case 'index': {
+      const target = inferAst(ast.target, env);
+      requireKind(inferAst(ast.index, env), 'number', ast.start, 'Array index must be a number');
+      if (target === 'array') return 'string';
+      if (target === 'number-array') return 'number';
+      return typeError(`Index access requires an array, got ${kindName(target)}.`, ast.start);
+    }
     case 'conditional': {
       requireKind(inferAst(ast.test, env), 'boolean', ast.start, 'Conditional test must be a boolean');
       const consequent = inferAst(ast.consequent, env);
       const alternate = inferAst(ast.alternate, env);
+      // A direct empty literal can adopt a string-array sibling's element
+      // kind, while [] on its own retains the numeric-array default.
+      if (
+        (consequent === 'array' && ast.alternate.kind === 'array' && ast.alternate.elements.length === 0)
+        || (alternate === 'array' && ast.consequent.kind === 'array' && ast.consequent.elements.length === 0)
+      ) return 'array';
       const unified = unifyKinds(consequent, alternate);
       if (unified === null) {
         return typeError(
@@ -645,16 +823,92 @@ function inferAst(ast: Ast, env: Record<string, LocalValueKind>): LocalValueKind
           for (const arg of args) requireKind(arg, 'number', ast.start, `Function ${ast.name} requires a number`);
           return 'number';
         case 'len':
-          if (args[0] !== 'string' && args[0] !== 'array') {
+          if (args[0] !== 'string' && args[0] !== 'array' && args[0] !== 'number-array') {
             typeError(`Function len requires a string or array, got ${kindName(args[0])}.`, ast.start);
           }
           return 'number';
         case 'contains':
-          if (args[0] !== 'string' && args[0] !== 'array') {
-            typeError(`Function contains requires a string or array, got ${kindName(args[0])}.`, ast.start);
+          if (args[0] === 'number-array') {
+            requireKind(args[1], 'number', ast.start, 'Function contains requires a numeric member');
+            return 'boolean';
           }
-          requireKind(args[1], 'string', ast.start, 'Function contains requires a string member');
+          if (args[0] === 'string' || args[0] === 'array') {
+            requireKind(args[1], 'string', ast.start, 'Function contains requires a string member');
+            return 'boolean';
+          }
+          typeError(`Function contains requires a string or array, got ${kindName(args[0])}.`, ast.start);
+          break;
+        case 'sum':
+        case 'average':
+        case 'minOf':
+        case 'maxOf':
+          requireKind(args[0], 'number-array', ast.start, `Function ${ast.name} requires a numeric array`);
+          return 'number';
+        case 'formatNumber':
+        case 'formatPercent':
+        case 'formatScientific': {
+          if (args[0] !== 'number' && args[0] !== 'null') {
+            typeError(`Function ${ast.name} requires a number or null, got ${kindName(args[0])}.`, ast.start);
+          }
+          if (args[1] !== undefined) {
+            requireKind(args[1], 'number', ast.start, `Function ${ast.name} requires numeric fraction digits`);
+          }
+          if (args[2] !== undefined) {
+            requireKind(args[2], 'string', ast.start, `Function ${ast.name} requires a string locale`);
+          }
+          if (ast.name === 'formatNumber' && args[3] !== undefined) {
+            requireKind(args[3], 'boolean', ast.start, 'Function formatNumber requires a boolean grouping flag');
+          }
+          return 'string';
+        }
+        case 'formatCurrency': {
+          if (args[0] !== 'number' && args[0] !== 'null') {
+            typeError(`Function formatCurrency requires a number or null, got ${kindName(args[0])}.`, ast.start);
+          }
+          if (args[1] !== undefined) {
+            requireKind(args[1], 'string', ast.start, 'Function formatCurrency requires a string currency code');
+          }
+          if (args[2] !== undefined) {
+            requireKind(args[2], 'number', ast.start, 'Function formatCurrency requires numeric fraction digits');
+          }
+          if (args[3] !== undefined) {
+            requireKind(args[3], 'string', ast.start, 'Function formatCurrency requires a string locale');
+          }
+          return 'string';
+        }
+        case 'trim':
+        case 'lower':
+        case 'upper':
+          requireKind(args[0], 'string', ast.start, `Function ${ast.name} requires a string`);
+          return 'string';
+        case 'startsWith':
+        case 'endsWith':
+          requireKind(args[0], 'string', ast.start, `Function ${ast.name} requires a string`);
+          requireKind(args[1], 'string', ast.start, `Function ${ast.name} requires a string search value`);
           return 'boolean';
+        case 'replace':
+          requireKind(args[0], 'string', ast.start, 'Function replace requires a string');
+          requireKind(args[1], 'string', ast.start, 'Function replace requires a string search value');
+          requireKind(args[2], 'string', ast.start, 'Function replace requires a string replacement');
+          return 'string';
+        case 'slice':
+          requireKind(args[0], 'string', ast.start, 'Function slice requires a string');
+          requireKind(args[1], 'number', ast.start, 'Function slice requires a numeric start index');
+          if (args[2] !== undefined) {
+            requireKind(args[2], 'number', ast.start, 'Function slice requires a numeric end index');
+          }
+          return 'string';
+        case 'dateCompare':
+          requireKind(args[0], 'string', ast.start, 'Function dateCompare requires a date string');
+          requireKind(args[1], 'string', ast.start, 'Function dateCompare requires a date string');
+          return 'number';
+        case 'dateDiff':
+          requireKind(args[0], 'string', ast.start, 'Function dateDiff requires a date string');
+          requireKind(args[1], 'string', ast.start, 'Function dateDiff requires a date string');
+          if (args[2] !== undefined) {
+            requireKind(args[2], 'string', ast.start, 'Function dateDiff requires a string unit');
+          }
+          return 'number';
       }
       break;
     }
@@ -697,19 +951,11 @@ function checkValue(value: unknown, name: string, offset: number): LocalValue {
     return value;
   }
   if (Array.isArray(value)) {
-    if (value.length > MAX_ARRAY_LENGTH) {
-      throw new LocalExpressionError('expression-budget', `Variable "${name}" array exceeds the length limit.`, offset);
+    const problem = arrayValueProblem(value);
+    if (problem) {
+      throw new LocalExpressionError(problem.code, `Variable "${name}": ${problem.message}`, offset);
     }
-    for (const item of value) {
-      if (typeof item !== 'string') {
-        throw new LocalExpressionError('expression-value', `Variable "${name}" array elements must be strings.`, offset);
-      }
-    }
-    const budget = localValueBudgetError(value as string[]);
-    if (budget) {
-      throw new LocalExpressionError('expression-budget', `Variable "${name}": ${budget}`, offset);
-    }
-    return value as string[];
+    return value as LocalValue;
   }
   throw new LocalExpressionError('expression-value', `Variable "${name}" has an invalid value type.`, offset);
 }
@@ -737,6 +983,39 @@ function requireBoolean(value: LocalValue, offset: number, message = 'Expected a
 function requireString(value: LocalValue, offset: number, message = 'Expected a string'): string {
   if (typeof value !== 'string') fail(`${message}.`, offset, 'expression-type');
   return value;
+}
+
+/** Numeric aggregates accept only homogeneous, finite numeric arrays. */
+function requireNumberArray(value: LocalValue, offset: number, message: string): number[] {
+  if (!Array.isArray(value)) fail(`${message}.`, offset, 'expression-type');
+  for (const item of value) {
+    if (typeof item !== 'number' || !Number.isFinite(item)) {
+      fail(`${message}.`, offset, 'expression-type');
+    }
+  }
+  return value as number[];
+}
+
+/** Array-literal results share the environment array shape rules. */
+function arrayLiteralValue(elements: LocalValue[], offset: number): LocalValue {
+  const problem = arrayValueProblem(elements);
+  if (problem) fail(problem.message, offset, problem.code);
+  return elements as string[] | number[];
+}
+
+/**
+ * Run a formatting or data helper and translate its failure into an expression
+ * error at the call site. The helpers do not know source offsets.
+ */
+function runLocalFunction<T>(offset: number, run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof LocalFunctionError) {
+      throw new LocalExpressionError(error.code, error.message, offset);
+    }
+    throw error;
+  }
 }
 
 function finiteResult(value: number, offset: number): number {
@@ -885,6 +1164,29 @@ function evalNode(
       );
       return evalNode(test ? ast.consequent : ast.alternate, env, budget, depth + 1);
     }
+    case 'array': {
+      const elements: LocalValue[] = [];
+      for (const element of ast.elements) {
+        elements.push(evalNode(element, env, budget, depth + 1));
+      }
+      return arrayLiteralValue(elements, ast.start);
+    }
+    case 'index': {
+      const target = evalNode(ast.target, env, budget, depth + 1);
+      const index = requireNumber(
+        evalNode(ast.index, env, budget, depth + 1),
+        ast.start,
+        'Array index must be a number',
+      );
+      if (!Number.isSafeInteger(index)) {
+        fail('Array index must be a finite integer.', ast.start, 'expression-index');
+      }
+      if (!Array.isArray(target)) {
+        fail('Index access requires an array.', ast.start, 'expression-type');
+      }
+      if (index < 0 || index >= target.length) return null;
+      return target[index];
+    }
     case 'call': {
       const args = ast.args.map((arg) => evalNode(arg, env, budget, depth + 1));
       switch (ast.name) {
@@ -948,16 +1250,156 @@ function evalNode(
         }
         case 'len': {
           const value = args[0];
-          if (typeof value === 'string') return Array.from(value).length;
+          if (typeof value === 'string') return countLocalCodePoints(value);
           if (Array.isArray(value)) return value.length;
           fail('Function len requires a string or array.', ast.start, 'expression-type');
         }
         case 'contains': {
           const haystack = args[0];
-          const needle = requireString(args[1], ast.start, 'Function contains requires a string member');
-          if (typeof haystack === 'string') return haystack.includes(needle);
-          if (Array.isArray(haystack)) return haystack.includes(needle);
+          const needle = args[1];
+          if (typeof haystack === 'string') {
+            return haystack.includes(
+              requireString(needle, ast.start, 'Function contains requires a string member'),
+            );
+          }
+          if (Array.isArray(haystack)) {
+            if (typeof needle === 'string') {
+              for (const item of haystack) {
+                if (typeof item !== 'string') {
+                  fail('Function contains requires a string member for a string array.', ast.start, 'expression-type');
+                }
+              }
+              return (haystack as string[]).includes(needle);
+            }
+            if (typeof needle === 'number' && Number.isFinite(needle)) {
+              for (const item of haystack) {
+                if (typeof item !== 'number') {
+                  fail('Function contains requires a numeric member for a numeric array.', ast.start, 'expression-type');
+                }
+              }
+              return (haystack as number[]).includes(needle);
+            }
+            fail('Function contains requires a string or numeric member.', ast.start, 'expression-type');
+          }
           fail('Function contains requires a string or array.', ast.start, 'expression-type');
+        }
+        case 'sum': {
+          const values = requireNumberArray(args[0], ast.start, 'Function sum requires a numeric array');
+          return runLocalFunction(ast.start, () => sumNumberArray(values));
+        }
+        case 'average': {
+          const values = requireNumberArray(args[0], ast.start, 'Function average requires a numeric array');
+          return runLocalFunction(ast.start, () => averageNumberArray(values));
+        }
+        case 'minOf': {
+          const values = requireNumberArray(args[0], ast.start, 'Function minOf requires a numeric array');
+          return runLocalFunction(ast.start, () => minNumberArray(values));
+        }
+        case 'maxOf': {
+          const values = requireNumberArray(args[0], ast.start, 'Function maxOf requires a numeric array');
+          return runLocalFunction(ast.start, () => maxNumberArray(values));
+        }
+        case 'formatNumber': {
+          const value = args[0] === null
+            ? null
+            : requireNumber(args[0], ast.start, 'Function formatNumber requires a number or null');
+          const digits = args[1] === undefined
+            ? 2
+            : requireNumber(args[1], ast.start, 'Function formatNumber requires numeric fraction digits');
+          const locale = args[2] === undefined
+            ? 'en-US'
+            : requireString(args[2], ast.start, 'Function formatNumber requires a string locale');
+          const grouping = args[3] === undefined
+            ? true
+            : requireBoolean(args[3], ast.start, 'Function formatNumber requires a boolean grouping flag');
+          return runLocalFunction(ast.start, () => formatNumber(value, digits, locale, grouping));
+        }
+        case 'formatPercent': {
+          const value = args[0] === null
+            ? null
+            : requireNumber(args[0], ast.start, 'Function formatPercent requires a number or null');
+          const digits = args[1] === undefined
+            ? 0
+            : requireNumber(args[1], ast.start, 'Function formatPercent requires numeric fraction digits');
+          const locale = args[2] === undefined
+            ? 'en-US'
+            : requireString(args[2], ast.start, 'Function formatPercent requires a string locale');
+          return runLocalFunction(ast.start, () => formatPercent(value, digits, locale));
+        }
+        case 'formatScientific': {
+          const value = args[0] === null
+            ? null
+            : requireNumber(args[0], ast.start, 'Function formatScientific requires a number or null');
+          const digits = args[1] === undefined
+            ? 2
+            : requireNumber(args[1], ast.start, 'Function formatScientific requires numeric fraction digits');
+          const locale = args[2] === undefined
+            ? 'en-US'
+            : requireString(args[2], ast.start, 'Function formatScientific requires a string locale');
+          return runLocalFunction(ast.start, () => formatScientific(value, digits, locale));
+        }
+        case 'formatCurrency': {
+          const value = args[0] === null
+            ? null
+            : requireNumber(args[0], ast.start, 'Function formatCurrency requires a number or null');
+          const currency = args[1] === undefined
+            ? 'USD'
+            : requireString(args[1], ast.start, 'Function formatCurrency requires a string currency code');
+          const digits = args[2] === undefined
+            ? 2
+            : requireNumber(args[2], ast.start, 'Function formatCurrency requires numeric fraction digits');
+          const locale = args[3] === undefined
+            ? 'en-US'
+            : requireString(args[3], ast.start, 'Function formatCurrency requires a string locale');
+          return runLocalFunction(ast.start, () => formatCurrency(value, currency, digits, locale));
+        }
+        case 'trim':
+          return runLocalFunction(ast.start, () =>
+            trimText(requireString(args[0], ast.start, 'Function trim requires a string')));
+        case 'lower':
+          return runLocalFunction(ast.start, () =>
+            lowerText(requireString(args[0], ast.start, 'Function lower requires a string')));
+        case 'upper':
+          return runLocalFunction(ast.start, () =>
+            upperText(requireString(args[0], ast.start, 'Function upper requires a string')));
+        case 'startsWith':
+          return runLocalFunction(ast.start, () =>
+            startsWithText(
+              requireString(args[0], ast.start, 'Function startsWith requires a string'),
+              requireString(args[1], ast.start, 'Function startsWith requires a string search value'),
+            ));
+        case 'endsWith':
+          return runLocalFunction(ast.start, () =>
+            endsWithText(
+              requireString(args[0], ast.start, 'Function endsWith requires a string'),
+              requireString(args[1], ast.start, 'Function endsWith requires a string search value'),
+            ));
+        case 'replace': {
+          const text = requireString(args[0], ast.start, 'Function replace requires a string');
+          const search = requireString(args[1], ast.start, 'Function replace requires a string search value');
+          const replacement = requireString(args[2], ast.start, 'Function replace requires a string replacement');
+          return runLocalFunction(ast.start, () => replaceLiteral(text, search, replacement));
+        }
+        case 'slice': {
+          const text = requireString(args[0], ast.start, 'Function slice requires a string');
+          const start = requireNumber(args[1], ast.start, 'Function slice requires a numeric start index');
+          const end = args[2] === undefined
+            ? undefined
+            : requireNumber(args[2], ast.start, 'Function slice requires a numeric end index');
+          return runLocalFunction(ast.start, () => sliceCodePoints(text, start, end));
+        }
+        case 'dateCompare': {
+          const left = requireString(args[0], ast.start, 'Function dateCompare requires a date string');
+          const right = requireString(args[1], ast.start, 'Function dateCompare requires a date string');
+          return runLocalFunction(ast.start, () => compareDates(left, right));
+        }
+        case 'dateDiff': {
+          const left = requireString(args[0], ast.start, 'Function dateDiff requires a date string');
+          const right = requireString(args[1], ast.start, 'Function dateDiff requires a date string');
+          const unit = args[2] === undefined
+            ? 'days'
+            : requireString(args[2], ast.start, 'Function dateDiff requires a string unit');
+          return runLocalFunction(ast.start, () => diffDates(left, right, unit));
         }
       }
       break;

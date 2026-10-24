@@ -27,6 +27,8 @@ npm run test:demo
 | --- | --- |
 | `npm run build` | Type checking and the language package build |
 | `npm test` | Compiler, expression, LaTeX, runtime and renderer tests |
+| `npm run lint -- <file>` | Author diagnostics for one or more documents; requires a prior build |
+| `npm run test:diagnostics --workspace=@reactive-md/demo` | Browser checks for diagnostic localization, source jumps and Unicode text constraints; requires a running demo |
 | `npm run test:components` | Representative cases for the component protocol and existing language acceptance data; new components still need their own targeted tests |
 | `npm run test:package` | Public entries, example compilation and style boundaries; requires a prior build |
 | `npm run test:packed` | Standalone offline install of the real tarball, strict type checking for core and React, CSS exports and static SSR |

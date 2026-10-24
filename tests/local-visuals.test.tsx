@@ -55,6 +55,7 @@ function createRuntime(initial: Record<string, LocalValue> = {}): LocalRuntime {
       return [];
     },
     evaluate,
+    validate: () => [],
     setMany: () => [],
     parameterNames: () => [],
     getParameter: () => undefined,

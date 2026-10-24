@@ -1,3 +1,12 @@
+<const name="monthsPerYear" value="{{ 12 }}">
+<computed name="monthlyRate" value="{{ r / (100 * monthsPerYear) }}">
+<computed name="growthFactor" value="{{ pow(1 + monthlyRate, monthsPerYear * t) }}">
+<computed name="endingBalance" value="{{ monthlyRate == 0 ? P + monthsPerYear * m * t : P * growthFactor + m * (growthFactor - 1) / monthlyRate }}">
+<computed name="deposits" value="{{ P + monthsPerYear * m * t }}">
+<computed name="distance" value="{{ sqrt(px * px + py * py) }}">
+<computed name="waveHeight" value="{{ a * sin(f * px) }}">
+<computed name="insideInterval" value="{{ px >= low && px <= high }}">
+
 # Functions you can shape
 
 Drag Amplitude to 0: the wave becomes a flat line. Restore it, then increase Frequency to fit more waves into the same interval.
@@ -59,12 +68,12 @@ Monthly deposits and monthly compounding turn a formula into a small planning to
 $$
 y = \begin{cases}
 P + 12mx, & r = 0 \\
-P\left(1+\frac{r}{1200}\right)^{12x} + m\frac{\left(1+\frac{r}{1200}\right)^{12x}-1}{r/1200}, & r \ne 0
+P\left(1+\mathrm{monthlyRate}\right)^{12x} + m\frac{\left(1+\mathrm{monthlyRate}\right)^{12x}-1}{\mathrm{monthlyRate}}, & r \ne 0
 \end{cases}
 $$
 </plot>
 
-Read the curve at year **{{ t }}** to inspect the ending balance.
+At year **{{ t }}**, the ending balance is **{{ formatCurrency(endingBalance, 'USD', 2, 'en-US') }}**: deposits of **{{ formatCurrency(deposits, 'USD', 2, 'en-US') }}** and interest of **{{ formatCurrency(endingBalance - deposits, 'USD', 2, 'en-US') }}**. The annual rate is **{{ formatPercent(r / 100, 1, 'en-US') }}**. The curve and ending balance share the monthly rate; at zero rate they count deposits directly.
 </tab>
 </tabs>
 
@@ -79,9 +88,11 @@ Interval: **{{ low }}–{{ high }}**. Width: **{{ high - low }}**.
 
 <coordinate label="Point position" bind-x="px" bind-y="py" initial-x="1" initial-y="2" x-min="-5" x-max="5" y-min="-5" y-max="5" color="#2563eb">
 
-Point: **({{ px }}, {{ py }})**. Distance from the origin: **{{ round(sqrt(px * px + py * py) * 100) / 100 }}**.
+Point: **({{ px }}, {{ py }})**. Distance from the origin: **{{ formatNumber(distance, 2, 'en-US') }}**.
 
-{{ px >= low && px <= high ? 'The point lies inside the horizontal interval.' : 'The point lies outside the horizontal interval.' }} Wave height at this x: **{{ round(a * sin(f * px) * 100) / 100 }}**.
+{{ insideInterval ? 'The point lies inside the horizontal interval.' : 'The point lies outside the horizontal interval.' }} Wave height at this x: **{{ formatNumber(waveHeight, 2, 'en-US') }}**.
+
+The same height in scientific notation is **{{ formatScientific(waveHeight, 2, 'en-US') }}**, useful when comparing values near zero.
 
 <quiz type="number" label="How far is (3, 4) from the origin?" answer="5" tolerance="0.01" explanation="The square root of 3² + 4² is 5. Try placing the point at (3, 4).">
 </quiz>
@@ -95,6 +106,10 @@ Point: **({{ px }}, {{ py }})**. Distance from the origin: **{{ round(sqrt(px * 
 ```markdown
 <slider bind="a" label="Amplitude" initial="1" min="0" max="3" step="0.5">
 <slider bind="f" label="Frequency" initial="1" min="0.5" max="3" step="0.5">
+<coordinate label="Point position" bind-x="px" bind-y="py" initial-x="1" initial-y="2" x-min="-5" x-max="5" y-min="-5" y-max="5">
+<computed name="waveHeight" value="{{ a * sin(f * px) }}">
+Height: {{ formatNumber(waveHeight, 2) }} · {{ formatScientific(waveHeight, 2) }}
+
 <plot min="0" max="12.56" label="Sine wave">
 $$ y = a\sin(fx) $$
 </plot>

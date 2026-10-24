@@ -46,7 +46,7 @@ export function Article() {
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | 宿主创建并负责销毁 |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | 两者 | 接收编译诊断和控件写入被拒绝时的运行时诊断 |
 | `urlPolicy` | `(url: string, kind: 'image' \| 'link') => boolean` | 两者 | 在协议检查之后决定是否放行图片或链接 |
-| `locale` | `'en' \| 'zh'` | 两者 | 内置控件和标签的语言，默认 `'en'`；编译与运行时诊断消息仍为英文 |
+| `locale` | `'en' \| 'zh'` | 两者 | 内置控件、标签和诊断显示的语言，默认 `'en'`；回调保留原始结构化诊断 |
 | `themes` | `readonly LocalThemeDefinition[]` | 两者 | 宿主登记的主题；CSS 单独加载，内置 `default` 始终可用 |
 | `colorScheme` | `'light' \| 'dark' \| 'auto'` | 两者 | 默认 `auto`，跟随最近祖先的显式模式或系统偏好 |
 
@@ -114,9 +114,13 @@ const result = compileLocal(source, options);
 
 ### `createLocalRuntime(document: LocalDocument)`
 
+只读命名值在可选的 `document.computations` 记录中用 `LocalComputation` 描述。`bindings` 和 `initialState` 继续只包含可写控件；`snapshot().state` 还包含该修订成功求值的计算结果。需要保留表达式错误语义时用 `evaluate(name)` 读取，失败值不会出现在快照里。见[计算与错误规则](computations-formatting-ch.md)。
+
 为已编译文档创建独立的内存运行时。`document` 不是本地模式文档、初值超出预算或结构无效时会抛出错误。每个实例拥有独立状态；运行时本身不会保存或发送状态。
 
 ### `LocalRuntime`
+
+`validate(): Diagnostic[]` 读取当前修订的跨字段失败提示，保留字段可编辑性，并返回缓存诊断的副本。`document.validations?: LocalValidation[]` 保存可序列化规则。数字集合为 `LocalValue` 增加 `number[]`、为 `LocalValueKind` 增加 `number-array`，原有可写选择控件继续使用字符串数组。见[条件、校验与本地集合](constraints-collections-ch.md)。
 
 | 成员 | 参数 | 返回 | 行为 |
 | --- | --- | --- | --- |

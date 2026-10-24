@@ -1,4 +1,7 @@
 export interface SourceRange { start: number; end: number }
+/** A scalar, JSON/structured-clone-safe diagnostic template parameter. */
+export type LocalDiagnosticParam = string | number | boolean | null;
+export type LocalDiagnosticParams = Readonly<Record<string, LocalDiagnosticParam>>;
 export interface Diagnostic {
   code: string;
   message: string;
@@ -6,9 +9,17 @@ export interface Diagnostic {
   range: SourceRange;
   line: number;
   column: number;
+  /**
+   * Stable template key for a built-in message. Omitted for host-owned
+   * diagnostics, whose `message` is preserved verbatim by display code.
+   */
+  messageKey?: string;
+  /** Bounded scalar parameters for `messageKey`. */
+  params?: LocalDiagnosticParams;
 }
-export type LocalValue = string | number | boolean | null | string[];
-export type LocalValueKind = 'string' | 'number' | 'boolean' | 'null' | 'array';
+export type LocalValue = string | number | boolean | null | string[] | number[];
+/** `array` retains its existing meaning: a homogeneous string array. */
+export type LocalValueKind = 'string' | 'number' | 'boolean' | 'null' | 'array' | 'number-array';
 /** Markdown nodes retain their original source ranges; component attributes remain raw decoded strings. */
 export interface LocalNode {
   type: string;
@@ -28,6 +39,29 @@ export interface LocalNode {
   lang?: string;
   align?: ('left' | 'center' | 'right' | null)[];
 }
+/**
+ * One read-only document value declared by a top-level `<computed>` or
+ * `<const>` tag. The record is plain, serializable metadata: the declaring
+ * node is not part of the rendered tree and owns no writable binding.
+ */
+export interface LocalComputation {
+  name: string;
+  kind: 'computed' | 'const';
+  /** Expression source between `{{` and `}}`, trimmed. */
+  source: string;
+  /** Names read by the expression, in first-use order. */
+  dependencies: string[];
+  type: LocalValueKind;
+  /** Canonical id of the declaration node, retained for host diagnostics. */
+  nodeId: string;
+  /** Source range of the declaration tag. */
+  range: SourceRange;
+  /**
+   * Statically evaluated value. Present only for `const`, whose expression
+   * cannot depend on controls or computed values.
+   */
+  value?: LocalValue;
+}
 export interface LocalBinding {
   name: string;
   nodeIds: string[];
@@ -40,6 +74,15 @@ export interface LocalBinding {
   /** Upper bound for array selections such as `multi-select`. */
   maxItems?: number;
   owner?: string;
+}
+/** Advisory cross-field rule; an invalid rule keeps its fields editable. */
+export interface LocalValidation {
+  nodeId: string;
+  expression: string;
+  dependencies: string[];
+  message: string;
+  fields: string[];
+  range: SourceRange;
 }
 export interface LocalDocument {
   syntax: 'local';
@@ -61,6 +104,14 @@ export interface LocalDocument {
    * runtime `get`/`set`/`setMany` with slot names instead of reading this map.
    */
   bindingSlots?: Record<string, Record<string, string>>;
+  /**
+   * Read-only values declared with top-level `<computed>` / `<const>` tags,
+   * keyed by name. These are document metadata, not components: declaration
+   * nodes are removed from `nodes` before publication and never own bindings.
+   */
+  computations?: Record<string, LocalComputation>;
+  /** Cross-field constraints in source order; evaluated against each revision. */
+  validations?: LocalValidation[];
 }
 /** Host-owned budgets for a single compilation. */
 export interface LocalCompileLimits {
@@ -92,6 +143,8 @@ export interface LocalRuntime {
   /** Validate and atomically write one or more public parameters. */
   setParameters(values: Readonly<Record<string, LocalValue>>): Diagnostic[];
   evaluate(expression: string): LocalValue;
+  /** Current advisory constraint failures; never changes or rejects field state. */
+  validate(): Diagnostic[];
   text(template: string): string;
   reset(node: LocalNode): void;
   resetToken(node: LocalNode): number;

@@ -1,3 +1,8 @@
+<const name="preparationCount" value="{{ 3 }}">
+<computed name="readyCount" value="{{ len(done) }}">
+<computed name="completion" value="{{ readyCount / preparationCount }}">
+<computed name="readyToShare" value="{{ readyCount == preparationCount }}">
+
 # Run a focused workshop
 
 Check off the preparation steps, count the participants and start a short focus timer. This page keeps the plan, progress and timing together.
@@ -9,11 +14,18 @@ Check off the preparation steps, count the participants and start a short focus 
 - [ ] Explain the result to a partner
 </checklist>
 
-Ready: **{{ len(done) }} / 3**.
+Ready: **{{ readyCount }} / {{ preparationCount }}**. Checking an item adds its reflection prompt below.
 
-<progress color="#167875" label="Preparation progress" value="{{ len(done) / 3 * 100 }}">
+<progress color="#167875" label="Preparation progress" value="{{ completion * 100 }}">
 
-<if when="{{ len(done) == 3 }}">
+<badge tone="{{ readyToShare ? 'success' : 'neutral' }}">{{ formatPercent(completion, 0, 'en-US') }} complete</badge>
+
+<data-table label="Completed preparation" rows="{{ done }}" key="{{ item }}" max-rows="3">
+<column label="Task" value="{{ item == 'item-1' ? 'Choose a question' : item == 'item-2' ? 'Adjust a parameter' : 'Explain to a partner' }}">
+<column label="Reflection" value="{{ item == 'item-1' ? 'What do we want to learn?' : item == 'item-2' ? 'What changed?' : 'How can we explain it?' }}">
+</data-table>
+
+<if when="{{ readyToShare }}">
 <alert tone="success" title="Ready to share">Everyone has a question, a working example and a result to discuss.</alert>
 </if>
 </panel>
@@ -64,7 +76,13 @@ Checked tasks are crossed out. Hide and reopen this list to see that your comple
 - [x] Choose a question
 - [ ] Explore a result
 </checklist>
-<progress label="Progress" value="{{ len(done) / 2 * 100 }}">
+<computed name="completion" value="{{ len(done) / 2 }}">
+<progress label="Progress" value="{{ completion * 100 }}">
+{{ formatPercent(completion, 0) }}
+
+<data-table label="Completed tasks" rows="{{ done }}" key="{{ item }}" max-rows="2">
+<column label="Task" value="{{ item == 'item-1' ? 'Choose a question' : 'Explore a result' }}">
+</data-table>
 ```
 
 </disclosure>

@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
+import { moduleSpecifiers } from './module-specifiers.mjs';
 
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 const projectPkg = JSON.parse(await readFile(path.join(projectRoot, 'package.json'), 'utf8'));
@@ -176,6 +177,8 @@ try {
     'dist-standalone/reactive-md-standalone.js',
     'dist-standalone/reactive-md-standalone.css',
     'bin/reactive-md.mjs',
+    'docs/author-tools-en.md',
+    'docs/author-tools-ch.md',
   ].filter(file => !existsSync(path.join(projectRoot, file)));
   assert.deepEqual(missingBuild, [], `dist-library is incomplete (${missingBuild.join(', ')}); run npm run build first.`);
 
@@ -232,7 +235,18 @@ try {
   assert.deepEqual(Object.keys(installedPkg.dependencies ?? {}), [], 'Installed core package must have no registry dependencies');
   assert.equal(exportTarget(installedPkg, '.'), './dist-library/reactive-md.js');
   assert.equal(exportTarget(installedPkg, './react'), './dist-library/reactive-md-react.js');
-  assert.deepEqual(installedPkg.bin, { 'reactive-md': './bin/reactive-md.mjs' }, 'Installed package must expose the reactive-md CLI');
+  assert.equal(installedPkg.bin?.['reactive-md']?.replace(/^\.\//, ''), 'bin/reactive-md.mjs');
+  const lintFixture = path.join(coreConsumer, 'lint document.reactive.md');
+  await writeFile(lintFixture, '<number bind="n" label="Count">\n\n{{ n }}');
+  const lint = await run('packed lint command', process.execPath,
+    [path.join(installedCore, installedPkg.bin['reactive-md']), 'lint', '--json', lintFixture], coreConsumer);
+  assert.deepEqual(JSON.parse(lint.stdout), [{ file: lintFixture, ok: true, diagnostics: [] }]);
+  await writeFile(lintFixture, '<future>literal fallback</future>');
+  const chineseLint = await run('packed localized lint', process.execPath,
+    [path.join(installedCore, installedPkg.bin['reactive-md']), 'lint', '--locale', 'zh', '--json', lintFixture], coreConsumer);
+  const localizedReport = JSON.parse(chineseLint.stdout)[0];
+  assert.equal(localizedReport.diagnostics[0].code, 'local.component.unknown');
+  assert.match(localizedReport.diagnostics[0].message, /[\u3400-\u9fff]/u);
   const coreTypesTarget = installedPkg.exports?.['.']?.types;
   assert.ok(
     coreTypesTarget && existsSync(path.resolve(installedCore, coreTypesTarget)),
@@ -250,10 +264,7 @@ try {
   for (const file of (await readdir(path.join(installedCore, 'dist-library')))
     .filter(name => name.endsWith('.js') && name !== 'reactive-md-react.js')) {
     const source = await readFile(path.join(installedCore, 'dist-library', file), 'utf8');
-    const imports = [
-      ...[...source.matchAll(/\b(?:from|import)\s*['"]([^'"]+)['"]/g)].map(match => match[1]),
-      ...[...source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g)].map(match => match[1]),
-    ];
+    const imports = moduleSpecifiers(source);
     for (const specifier of imports) {
       assert.ok(specifier.startsWith('.'), `${file} imports ${specifier}; the core tarball must be self-contained`);
     }
@@ -265,6 +276,8 @@ try {
 import {
   applyLocalStateRetention,
   compileLocal,
+  analyzeLocalSource, completeLocalSource, renameLocalBinding, formatLocalSource,
+  countLocalCodePoints, formatLocalDiagnostic, LOCAL_DIAGNOSTIC_CODES,
   createLocalRuntime,
   exportLocalState,
   importLocalState,
@@ -291,6 +304,15 @@ assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
 const runtime = createLocalRuntime(result.document);
 assert.equal(runtime.snapshot().revision, 0);
 runtime.dispose();
+const source = '<number  bind="n"   label="Count">\\n\\n{{ n }}';
+assert.equal(analyzeLocalSource(source).bindings[0].name, 'n');
+assert.ok(completeLocalSource('<sli', 4).some(item => item.label === 'slider'));
+assert.match(renameLocalBinding(source, 'n', 'count').source, /count/);
+assert.ok(compileLocal(formatLocalSource(source)).ok);
+assert.equal(countLocalCodePoints('😀'), 1);
+const diagnostic = compileLocal('{{ missing }}').diagnostics[0];
+assert.ok(LOCAL_DIAGNOSTIC_CODES.includes(diagnostic.code));
+assert.notEqual(formatLocalDiagnostic(diagnostic, 'zh'), diagnostic.message);
 console.log('PASS core API without React');
 `,
   );

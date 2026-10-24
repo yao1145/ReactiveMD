@@ -1388,6 +1388,42 @@
   display: none;
 }
 
+/* ------------------------------------------------ validation and tables */
+
+/* The hint keeps its id in every state; an empty hint reserves no space. */
+.local-document .local-validation-hint {
+  display: block;
+  margin: 0.35em 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.local-document .local-validation-hint:empty {
+  display: none;
+}
+
+.local-document .local-tone-error {
+  margin: 0 0.35em 0.35em 0;
+}
+
+.local-data-table-scroll {
+  max-width: 100%;
+}
+
+.local-document .local-data-table {
+  min-width: 100%;
+}
+
+.local-document .local-data-table-empty {
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+.local-document .local-data-table-cell-error {
+  font-size: var(--text-xs);
+}
+
 /* --------------------------------------------------------------- responsive */
 
 @media (max-width: 620px) {

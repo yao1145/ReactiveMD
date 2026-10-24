@@ -142,10 +142,10 @@ Reactive MD 分别维护以下版本轴：
 
 ```markdown
 <slider bind="people" label="人数" initial="2" min="1" max="20">
-<number bind="lower" label="下限" initial="-2">
-<number bind="upper" label="上限" initial="2">
+<number bind="lowerBound" label="下限" initial="-2">
+<number bind="upperBound" label="上限" initial="2">
 <if when="{{ people >= 5 }}">
-<plot min="{{ lower }}" max="{{ upper }}">
+<plot min="{{ lowerBound }}" max="{{ upperBound }}">
 $$ y = x^2 $$
 </plot>
 </if>
@@ -340,9 +340,9 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 条件为假、标签页未激活或折叠面板关闭只影响显示，不影响编译。隐藏分支中的未声明变量、类型错误、结构错误和预算超限仍是编译错误。运行时隐藏只保留状态和暂停计时，不跳过校验。
 
-### CP-DIAG-06 诊断码稳定性（边界）
+### CP-DIAG-06 诊断码稳定性（契约）
 
-在 0.x 中，诊断 `code` 不承诺跨包版本稳定，`message` 不承诺稳定。固定包版本内可以按 `code` 做粗分类；机器验收数据在生成它的包版本内精确比对 `codes`。新组块不得让测试依赖 message 文本。
+同一 0.x minor 系列内，现有诊断 `code` 的含义保持稳定；允许新增码。删除、改名或改变含义须在新 minor 版本中说明迁移。`message` 是可本地化的显示文案，测试和机器验收按 `code` 与结构化字段判断。计数单位与预算作用域见[诊断与计数规则](diagnostics-counting-ch.md)。
 
 ## 6. 可访问性、主题与样式
 
@@ -435,7 +435,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 | 整篇文档请求的曲线采样点 | 20,000 |
 | 绘图共享计算步数 | 2,000,000 |
 
-超限写入被拒绝，运行时保持上一次合法状态；编译期超限返回诊断。表达式和数学计算另有长度、节点、深度和记号预算。预算限制单个文档的工作量，不替代宿主对请求大小、并发和超时的控制。隐藏区域仍计入绘图预算。
+表中的“字符”均指 UTF-16 代码单元；文本控件的 `min-length` / `max-length` 与字符串 `len()` 按 Unicode 码点计数。超限写入被拒绝，运行时保持上一次合法状态；编译期超限返回诊断。表达式和数学计算另有长度、节点、深度和记号预算，完整单位与累计范围见[诊断与计数规则](diagnostics-counting-ch.md)。隐藏区域仍计入绘图预算。宿主仍需控制请求大小、并发与超时。
 
 ### CP-SEC-04 宿主责任（现有）
 

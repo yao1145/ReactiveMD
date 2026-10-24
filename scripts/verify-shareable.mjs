@@ -304,11 +304,10 @@ async function securityChecks(temp) {
   const badDoc = path.join(temp, 'bad.reactive.md');
   await writeFile(badDoc, '<slider bind="n">\n', 'utf8');
   const lint = run(['lint', badDoc, '--json']);
-  assertExit(lint, 3, 'lint invalid document');
+  assertExit(lint, 1, 'lint invalid document');
   const report = JSON.parse(lint.stdout);
-  assert.equal(report.version, 1);
-  assert.equal(report.files[0].ok, false);
-  assert.ok(report.files[0].diagnostics.length > 0);
+  assert.equal(report[0].ok, false);
+  assert.ok(report[0].diagnostics.length > 0);
 }
 
 async function sizeBaseline() {
