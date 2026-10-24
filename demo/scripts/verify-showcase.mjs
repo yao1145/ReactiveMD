@@ -33,6 +33,8 @@ try {
       await page.getByRole('button', { name: t('Restore example', '恢复示例'), exact: true }).click();
       await expect(page.locator('.status-chip')).toContainText(t('Compiled', '已编译'));
       await expect(preview.locator('.local-document')).toBeVisible();
+      await expect(preview.locator('.local-error')).toHaveCount(0);
+      await expect(preview.locator('[data-local-validation="failed"]')).toHaveCount(0);
     };
     const slider = async (name, key) => {
       const control = preview.getByRole('slider', { name, exact: true });
@@ -61,12 +63,47 @@ try {
         await preview.getByRole('tab', { name: t('Piecewise function', '分段函数'), exact: true }).click();
         await expect(preview.getByText(t('Linear meets quadratic', '直线与抛物线衔接'), { exact: true })).toBeVisible();
         await preview.getByRole('tab', { name: t('Savings application', '应用：储蓄增长'), exact: true }).click();
+        const savings = preview.getByRole('tabpanel', { name: t('Savings application', '应用：储蓄增长'), exact: true });
+        await expect(savings).toContainText('232,643.24');
         await slider(t('Annual rate (%)', '年利率（%）'), 'Home');
+        await expect(savings).toContainText('130,000.00');
+        await expect(savings).toContainText(t('$0.00', '¥0.00'));
         await expect(preview.locator('.local-error')).toHaveCount(0);
         await page.screenshot({ path: `artifacts/showcase-${language}-functions.png`, fullPage: true });
       });
 
       await pick('forms');
+      await check(`${language}: cross-field hints recover, tones follow spending and subjects generate rows`, async () => {
+        const limit = preview.getByRole('textbox', { name: t('Spending limit', '费用上限'), exact: true });
+        const deadline = preview.getByLabel(t('Registration deadline', '报名截止日期'), { exact: true });
+        const failed = preview.locator('[data-local-validation="failed"]');
+        await limit.fill('300'); await limit.blur();
+        await expect(failed).toHaveCount(1);
+        await expect(limit).toHaveAttribute('aria-invalid', 'true');
+        await expect(preview.locator('.md-badge-warning')).toContainText('300.00');
+        await deadline.fill('2026-11-02'); await deadline.blur();
+        await expect(failed).toHaveCount(2);
+        await expect(deadline).toHaveAttribute('aria-invalid', 'true');
+        await deadline.fill('2026-10-25'); await deadline.blur();
+        await limit.fill('500'); await limit.blur();
+        await expect(failed).toHaveCount(0);
+        await expect(limit).not.toHaveAttribute('aria-invalid', 'true');
+        await expect(preview.locator('.md-badge-success')).toContainText('500.00');
+        const table = preview.getByRole('table', { name: t('Subject preparation', '主题准备清单'), exact: true });
+        await expect(table.locator('.local-data-table-empty')).toBeVisible();
+        const subjects = preview.locator('.local-multi-select');
+        await subjects.getByRole('checkbox', { name: t('Mathematics', '数学'), exact: true }).check();
+        await subjects.getByRole('checkbox', { name: t('Chemistry', '化学'), exact: true }).check();
+        await expect(table.locator('tbody tr')).toHaveCount(2);
+        await expect(table).toContainText(t('Prepare materials and instructions', '准备材料与操作说明'));
+        await preview.getByRole('checkbox', { name: t('Include a written step-by-step guide', '提供书面步骤说明'), exact: true }).check();
+        await expect(table).toContainText(t('Written steps included', '附书面步骤'));
+        await subjects.getByRole('checkbox', { name: t('Mathematics', '数学'), exact: true }).uncheck();
+        await expect(table.locator('tbody tr')).toHaveCount(1);
+        await expect(table).toContainText(t('Chemistry', '化学'));
+        await page.screenshot({ path: `artifacts/showcase-${language}-forms.png`, fullPage: true });
+      });
+
       await check(`${language}: a complete form change updates name, conditional notes and estimate`, async () => {
         await preview.getByRole('textbox', { name: t('Organizer', '组织者'), exact: true }).fill('Lin');
         await preview.getByRole('radio', { name: t('Online', '线上'), exact: true }).check();
@@ -103,6 +140,8 @@ try {
         await visual.fill('310'); await visual.blur();
         await expect(total).toContainText('700');
         await expect(preview.getByText(t('Over budget', '费用已超出预算'), { exact: true })).toBeVisible();
+        await expect(preview.locator('.md-badge-warning')).toContainText('101.4%');
+        await expect(preview).toContainText(t('Average item $175.00', '每项平均 ¥175.00'));
       });
       await check(`${language}: table search, numeric sorting and paging keep their scope`, async () => {
         const table = preview.getByRole('table', { name: t('Expense details', '费用明细'), exact: true });
@@ -124,6 +163,16 @@ try {
       });
 
       await pick('layout');
+      await check(`${language}: reading guidance changes before, on and after workshop day`, async () => {
+        const date = preview.getByLabel(t('When are you reading?', '你在哪天阅读？'), { exact: true });
+        await expect(preview.locator('.local-badge').first()).toHaveText(t('Before: prepare', '活动前：准备'));
+        await date.fill('2026-11-01'); await date.blur();
+        await expect(preview.locator('.local-badge').first()).toHaveText(t('Workshop day: explore', '活动当天：动手探索'));
+        await date.fill('2026-11-03'); await date.blur();
+        await expect(preview.locator('.local-badge').first()).toHaveText(t('After: reflect', '活动后：回顾'));
+        await expect(preview).toContainText(t('The workshop was 2 days ago.', '活动已过去 2 天。'));
+        await expect(preview.locator('.local-error')).toHaveCount(0);
+      });
       await check(`${language}: reading roles, keyboard tabs and disclosures reveal useful content`, async () => {
         const role = preview.getByRole('tab', { name: t('Participant', '参与者'), exact: true });
         await role.focus(); await role.press('ArrowRight');
@@ -153,6 +202,9 @@ try {
         const checkboxes = preview.getByRole('checkbox');
         await checkboxes.nth(1).check(); await checkboxes.nth(2).check();
         await expect(preview.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
+        const completed = preview.getByRole('table', { name: t('Completed preparation', '已完成的准备'), exact: true });
+        await expect(completed.locator('tbody tr')).toHaveCount(3);
+        await expect(preview.locator('.md-badge-success')).toContainText('100%');
         await expect(preview.getByText(t('Ready to share', '可以开始分享了'), { exact: true })).toBeVisible();
         await preview.locator('.local-counter').getByRole('button').nth(1).click();
         await expect(preview.locator('.local-counter-value')).toHaveText('1');
@@ -163,6 +215,7 @@ try {
         const timer = await preview.locator('.local-timer-value').textContent();
         await preview.getByRole('button', { name: t('Reset Workshop readiness', '活动准备进度 恢复默认'), exact: true }).click();
         await expect(preview.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '33.33333333333333');
+        await expect(completed.locator('tbody tr')).toHaveCount(1);
         await expect(preview.locator('.local-counter-value')).toHaveText(count);
         await expect(preview.locator('.local-timer-value')).toHaveText(timer);
       });
@@ -178,6 +231,17 @@ try {
             }
             expect(await fits(), `${language} ${id} presentation at ${width}`).toBe(true);
             expect(await gridOverflows(preview), `${language} ${id} presentation grids at ${width}`).toEqual([]);
+            if (width === 375 && id === 'forms') {
+              const subjects = preview.locator('.local-multi-select');
+              await subjects.getByRole('checkbox', { name: t('Chemistry', '化学'), exact: true }).check();
+              await expect(preview.getByRole('table', { name: t('Subject preparation', '主题准备清单'), exact: true })).toContainText(t('Chemistry', '化学'));
+              const limit = preview.getByRole('textbox', { name: t('Spending limit', '费用上限'), exact: true });
+              await limit.fill('300'); await limit.blur();
+              await expect(limit).toHaveAttribute('aria-invalid', 'true');
+              expect(await fits(), `${language} populated table and hint at ${width}`).toBe(true);
+              await page.screenshot({ path: `artifacts/showcase-${language}-forms-mobile.png`, fullPage: true });
+              await limit.fill('500'); await limit.blur();
+            }
             await page.getByRole('button', { name: t('Show source', '显示源码'), exact: true }).click();
             expect(await fits(), `${language} ${id} editing at ${width}`).toBe(true);
             expect(await gridOverflows(preview), `${language} ${id} editing grids at ${width}`).toEqual([]);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileLatex, compileLocal, createLocalRuntime } from 'reactive-md';
+import { compileLatex, compileLocal, createLocalRuntime, type LocalValue } from 'reactive-md';
 import { EXAMPLES, DEFAULT_EXAMPLE_ID, localizedExample, localizedExamples } from '../src/examples';
 
 function exampleSource(id: string) {
@@ -43,6 +43,8 @@ describe('playground local documents consumed through the public package', () =>
       const snapshot = runtime.snapshot();
       expect(snapshot.revision).toBe(0);
       expect(snapshot.state).toBeTypeOf('object');
+      expect(runtime.validate()).toEqual([]);
+      for (const name of Object.keys(result.document.computations ?? {})) expect(() => runtime.evaluate(name)).not.toThrow();
       runtime.dispose();
     });
   }
@@ -151,19 +153,36 @@ describe('localized playground examples', () => {
       const snapshot = runtime.snapshot();
       expect(snapshot.revision).toBe(0);
       expect(snapshot.state).toBeTypeOf('object');
+      expect(runtime.validate()).toEqual([]);
+      for (const name of Object.keys(result.document.computations ?? {})) expect(() => runtime.evaluate(name)).not.toThrow();
       runtime.dispose();
     });
   }
 });
 
 describe.each(['en', 'zh'] as const)('%s feature tour outcomes', (language) => {
+  it('keeps the expandable key source runnable as a small standalone example', () => {
+    for (const example of EXAMPLES.filter(example => example.section === 'feature')) {
+      const source = localizedExample(example, language).source.match(/```markdown\n([\s\S]*?)\n```/)?.[1];
+      expect(source, example.id).toBeTruthy();
+      const result = compileLocal(source!);
+      expect(result.diagnostics, example.id).toEqual([]);
+      if (!result.ok) throw new Error(example.id);
+      const runtime = createLocalRuntime(result.document);
+      try {
+        expect(runtime.validate(), example.id).toEqual([]);
+        for (const name of Object.keys(result.document.computations ?? {})) expect(() => runtime.evaluate(name), example.id).not.toThrow();
+      } finally { runtime.dispose(); }
+    }
+  });
+
   function start(id: string) {
     const source = localizedExample(EXAMPLES.find((example) => example.id === id)!, language).source;
     const result = compileLocal(source);
     if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
     const runtime = createLocalRuntime(result.document);
     const nodes = flatten(result.document.nodes);
-    return { source, runtime, nodes, set: (bind: string, value: string | number | boolean) => {
+    return { source, runtime, nodes, set: (bind: string, value: LocalValue) => {
       expect(runtime.set(nodes.find((node) => node.attrs?.bind === bind)!, value)).toEqual([]);
     } };
   }
@@ -171,7 +190,7 @@ describe.each(['en', 'zh'] as const)('%s feature tour outcomes', (language) => {
   it('matches the workshop estimate and reset described in the instructions', () => {
     const { runtime, nodes, set } = start('forms');
     try {
-      const cost = "seats * ((format == 'onsite' ? 80 : 60) + (equipment ? 20 : 0))";
+      const cost = 'total';
       expect(runtime.evaluate(cost)).toBe(320);
       set('format', 'online'); set('seats', 6); set('equipment', true); set('name', 'Lin');
       expect(runtime.evaluate(cost)).toBe(480);
@@ -185,7 +204,7 @@ describe.each(['en', 'zh'] as const)('%s feature tour outcomes', (language) => {
   it('uses the same budget parameters for each chart and reaches the documented threshold', () => {
     const { runtime, nodes, set } = start('statistics');
     try {
-      const sum = 'content + visual + interaction + testing';
+      const sum = 'total';
       expect(runtime.evaluate(sum)).toBe(620);
       set('visual', 300);
       expect(runtime.evaluate(sum)).toBe(690);
@@ -193,6 +212,10 @@ describe.each(['en', 'zh'] as const)('%s feature tour outcomes', (language) => {
       set('visual', 310);
       expect(runtime.evaluate(sum)).toBe(700);
       expect(runtime.evaluate(`${sum} > 690`)).toBe(true);
+      expect(runtime.evaluate('expenses[1]')).toBe(310);
+      expect(runtime.evaluate('average(expenses)')).toBe(175);
+      expect(runtime.evaluate('minOf(expenses)')).toBe(90);
+      expect(runtime.evaluate('maxOf(expenses)')).toBe(310);
       expect(nodes.filter((node) => node.name === 'chart')).toHaveLength(3);
       expect(nodes.filter((node) => node.name === 'table')).toHaveLength(1);
     } finally { runtime.dispose(); }
@@ -202,22 +225,91 @@ describe.each(['en', 'zh'] as const)('%s feature tour outcomes', (language) => {
     const { runtime, set } = start('flow');
     try {
       set('people', 6); set('selected', 'compute');
-      expect(runtime.evaluate('people * 80')).toBe(480);
-      expect(runtime.text('{{ selected }}: {{ people }} × 80 = {{ people * 80 }}')).toBe('compute: 6 × 80 = 480');
+      expect(runtime.evaluate('total')).toBe(480);
+      expect(runtime.text('{{ selected }}: {{ people }} × {{ rate }} = {{ total }}')).toBe('compute: 6 × 80 = 480');
+      expect(runtime.document.bindings.rate).toBeUndefined();
+      expect(runtime.document.bindings.total).toBeUndefined();
     } finally { runtime.dispose(); }
   });
 
   it('calculates the displayed curves, including the zero-rate savings branch', () => {
-    const { source, runtime } = start('functions');
+    const { source, runtime, set } = start('functions');
     try {
       const plots = [...source.matchAll(/<plot[^>]*>([\s\S]*?)<\/plot>/g)];
       const formulas = plots.flatMap((plot) => [...plot[1].matchAll(/\$\$([\s\S]*?)\$\$/g)].map((match) => compileLatex(match[1])));
-      const env = { a: 2, f: 1, P: 10000, m: 500, r: 0, t: 20 };
+      set('a', 2); set('r', 0);
+      const env = runtime.snapshot().state as Record<string, number>;
       expect(formulas[0].evaluate(Math.PI / 2, env)).toBeCloseTo(2);
       expect(formulas[3].evaluate(-2, env)).toBe(-4);
       expect(formulas[3].evaluate(2, env)).toBe(8);
       expect(formulas[4].evaluate(20, env)).toBe(130000);
-      expect(formulas[4].evaluate(20, { ...env, r: 5 })).toBeCloseTo(232643.24, 2);
+      expect(runtime.evaluate('endingBalance')).toBe(130000);
+      expect(runtime.evaluate('endingBalance - deposits')).toBe(0);
+      set('r', 5);
+      expect(formulas[4].evaluate(20, runtime.snapshot().state as Record<string, number>)).toBeCloseTo(232643.24, 2);
+      expect(runtime.evaluate('endingBalance')).toBeCloseTo(232643.24, 2);
+      const locale = language === 'zh' ? 'zh-CN' : 'en-US';
+      expect(runtime.evaluate(`formatNumber(distance, 2, '${locale}')`)).toBe('2.24');
+      expect(runtime.evaluate(`formatScientific(waveHeight, 2, '${locale}')`)).toBe('1.68E0');
     } finally { runtime.dispose(); }
+  });
+
+  it('keeps inconsistent workshop plans editable and clears their hints after correction', () => {
+    const { runtime, set } = start('forms');
+    try {
+      set('name', '  Lin  ');
+      expect(runtime.evaluate('organizer')).toBe('Lin');
+      set('name', '   ');
+      expect(runtime.evaluate('organizer')).toBe(language === 'zh' ? '你的小组' : 'Your group');
+      expect(runtime.evaluate('registrationGap')).toBe(7);
+      set('deadline', '2026-11-02'); set('budget', 300);
+      expect(runtime.validate().map(diagnostic => diagnostic.code)).toEqual(['local.validation.failed', 'local.validation.failed']);
+      expect(runtime.evaluate('registrationGap')).toBeNull();
+      expect(runtime.evaluate('budget')).toBe(300);
+      set('deadline', '2026-11-01'); set('budget', 320);
+      expect(runtime.validate()).toEqual([]);
+      expect(runtime.evaluate('registrationGap')).toBe(0);
+      set('date', '');
+      expect(runtime.validate()).toHaveLength(1);
+    } finally { runtime.dispose(); }
+  });
+
+  it('changes reading guidance across calendar dates without consulting the system clock', () => {
+    const { runtime, set } = start('layout');
+    try {
+      expect(runtime.evaluate('daysUntil')).toBe(8);
+      expect(runtime.evaluate('readingPhase')).toBe('before');
+      set('readingDate', '2026-11-01');
+      expect(runtime.evaluate('readingPhase')).toBe('during');
+      expect(runtime.evaluate('daysUntil')).toBe(0);
+      set('readingDate', '2026-11-03');
+      expect(runtime.evaluate('readingPhase')).toBe('after');
+      expect(runtime.evaluate('daysUntil')).toBe(-2);
+      set('readingDate', '');
+      expect(runtime.evaluate('readingPhase')).toBe('undated');
+      expect(runtime.evaluate('daysUntil')).toBeNull();
+    } finally { runtime.dispose(); }
+  });
+
+  it('uses bounded, identity-keyed selections for preparation and reflection rows', () => {
+    for (const [id, binding, values, limit] of [
+      ['forms', 'subjects', ['math', 'chemistry'], '2'],
+      ['tasks', 'done', ['item-1', 'item-2', 'item-3'], '3'],
+    ] as const) {
+      const { runtime, nodes, set } = start(id);
+      try {
+        const table = nodes.find(node => node.name === 'data-table')!;
+        expect(table.attrs).toMatchObject({ rows: `{{ ${binding} }}`, key: '{{ item }}', 'max-rows': limit });
+        set(binding, [...values]);
+        expect(runtime.evaluate(binding)).toEqual(values);
+        expect(runtime.evaluate(`${binding}[0]`)).toBe(values[0]);
+        if (id === 'tasks') {
+          expect(runtime.evaluate('readyToShare')).toBe(true);
+          expect(runtime.evaluate('formatPercent(completion, 0)')).toBe('100%');
+        }
+        set(binding, []);
+        expect(runtime.evaluate(`${binding}[0]`)).toBeNull();
+      } finally { runtime.dispose(); }
+    }
   });
 });

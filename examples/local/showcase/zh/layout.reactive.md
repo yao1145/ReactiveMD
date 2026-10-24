@@ -1,6 +1,10 @@
+<const name="workshopDay" value="{{ '2026-11-01' }}">
+<computed name="readingPhase" value="{{ readingDate == '' ? 'undated' : dateCompare(readingDate, workshopDay) < 0 ? 'before' : dateCompare(readingDate, workshopDay) == 0 ? 'during' : 'after' }}">
+<computed name="daysUntil" value="{{ readingDate == '' ? null : dateDiff(workshopDay, readingDate) }}">
+
 # 让一份活动指南更好读
 
-先并排比较两张卡片，再切换阅读角色、展开常见问题，体验同一份内容如何适应不同的阅读需要。
+先并排比较两张卡片，再将阅读日期改到活动当天或之后，观察提示变化。切换阅读角色、展开常见问题，找到需要的内容。
 
 <anchor id="reading-start">
 
@@ -9,6 +13,19 @@
 </section>
 
 <jump to="reading-details" appearance="button" color="#2563eb">跳到常见问题</jump>
+
+<panel title="阅读时间">
+<date bind="readingDate" label="你在哪天阅读？" initial="2026-10-24">
+</panel>
+
+<badge tone="{{ readingPhase == 'before' ? 'neutral' : readingPhase == 'undated' ? 'warning' : 'success' }}">{{ readingPhase == 'before' ? '活动前：准备' : readingPhase == 'during' ? '活动当天：动手探索' : readingPhase == 'after' ? '活动后：回顾' : '选择阅读日期' }}</badge>
+
+<if when="{{ readingPhase == 'before' }}">
+距离 **{{ workshopDay }}** 的活动还有 **{{ daysUntil }}** 天，先从准备卡片开始。
+</if>
+<if when="{{ readingPhase == 'after' }}">
+活动已过去 **{{ daysUntil == null ? 0 : -daysUntil }}** 天。回顾一次有效的探索，并向同伴分享。
+</if>
 
 <grid>
 <card title="活动之前">
@@ -67,9 +84,12 @@
 <disclosure label="展开关键源码">
 
 ```markdown
+<const name="workshopDay" value="{{ '2026-11-01' }}">
+<date bind="readingDate" label="阅读日期" initial="2026-10-24">
+<computed name="daysUntil" value="{{ readingDate == '' ? null : dateDiff(workshopDay, readingDate) }}">
 <grid>
-<card title="活动之前">准备一份文档。</card>
-<card title="活动之中">探索一个问题。</card>
+<card title="活动日期">{{ workshopDay }}</card>
+<card title="相隔天数">{{ daysUntil }}</card>
 </grid>
 <accordion>
 <disclosure label="阅读更多">在这里补充细节。</disclosure>
