@@ -51,6 +51,34 @@ function jsonClone(file: LocalStateFile): Record<string, unknown> {
 }
 
 describe('local state file round trip', () => {
+  it.each([
+    '<input bind="value" label="Name" required="true">',
+    '<textarea bind="value" label="Notes" required="true">',
+    '<date bind="value" label="Date" required="true">',
+  ])('preserves an empty required author default: %s', (source) => {
+    const document = compile(`${source}\n<counter bind="count" label="Count">`);
+    const file = createLocalStateFile(document, { ...document.initialState, count: 2 });
+    const resolved = resolveLocalState(document, file);
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
+    expect(resolved.state).toEqual({ count: 2, value: '' });
+
+    const runtime = createLocalRuntime(document);
+    try {
+      expect(applyLocalState(runtime, file)).toEqual([]);
+      expect(runtime.getParameters()).toEqual({ count: 2, value: '' });
+      // Actual writes still enforce required validation.
+      const value = find(document, source.startsWith('<date') ? 'date'
+        : source.startsWith('<textarea') ? 'textarea' : 'input');
+      const filled = source.startsWith('<date') ? '2026-10-24' : 'Ada';
+      expect(runtime.set(value, filled)).toEqual([]);
+      expect(applyLocalState(runtime, file).length).toBeGreaterThan(0);
+      expect(runtime.get(value)).toBe(filled);
+    } finally {
+      runtime.dispose();
+    }
+  });
+
   it('exports public bindings only and round trips initial and mutated state', () => {
     const document = compile(SOURCE);
     const initialFile = createLocalStateFile(document, document.initialState);

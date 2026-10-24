@@ -497,6 +497,10 @@ function writeValues(
       ));
       continue;
     }
+    // The compiler allows an empty required field as an author default.
+    // Preserve values already present in the runtime without treating state
+    // restoration as a new user write that must satisfy required validation.
+    if (Object.is(runtime.get(plan.node), values[plan.key])) continue;
     diagnostics.push(...runtime.set(plan.node, values[plan.key]));
   }
 

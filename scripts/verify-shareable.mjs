@@ -352,6 +352,18 @@ try {
   assertExit(run(['build', document, '-o', shared, '--state-file', stateFile]), 0, 'state build');
   assertExit(run(['build', document, '-o', omit, '--assets', 'omit']), 0, 'omit build');
 
+  const requiredDocument = path.join(temp, 'required.reactive.md');
+  await writeFile(requiredDocument, [
+    '<input bind="name" label="Name" required="true">',
+    '<textarea bind="notes" label="Notes" required="true">',
+    '<date bind="date" label="Date" required="true">',
+  ].join('\n'), 'utf8');
+  for (const mode of ['interactive', 'static']) {
+    assertExit(run([
+      'build', requiredDocument, '-o', path.join(temp, `required-${mode}.html`), '--mode', mode,
+    ]), 0, `empty required defaults (${mode})`);
+  }
+
   const interactiveHtml = await readFile(interactive, 'utf8');
   const staticHtml = await readFile(staticFile, 'utf8');
   const omitHtml = await readFile(omit, 'utf8');
