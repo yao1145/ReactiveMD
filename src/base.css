@@ -334,6 +334,15 @@ input.md-text-input,
   padding-bottom: 0;
 }
 
+/* iOS Safari's native date appearance can size beyond the field's width.
+   Let the styled border box shrink while retaining the native date picker. */
+input.md-text-input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: min(100%, 420px);
+}
+
 textarea.md-text-input {
   min-height: var(--control-height);
   padding-top: var(--control-padding-y);

@@ -49,6 +49,7 @@
     "test:packed": "node scripts/verify-packed.mjs",
     "test:docs": "node scripts/verify-docs.mjs",
     "test:theme-browser": "node scripts/verify-theme-browser.mjs",
+    "test:date-browser": "node scripts/verify-date-input-browser.mjs",
     "test:computations-browser": "node scripts/verify-computations-browser.mjs",
     "test:constraints-browser": "node scripts/verify-constraints-browser.mjs",
     "verify:memo": "node scripts/verify-memo-browser.mjs",
