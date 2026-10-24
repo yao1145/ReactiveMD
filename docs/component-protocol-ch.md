@@ -142,10 +142,10 @@ Reactive MD 分别维护以下版本轴：
 
 ```markdown
 <slider bind="people" label="人数" initial="2" min="1" max="20">
-<number bind="lower" label="下限" initial="-2">
-<number bind="upper" label="上限" initial="2">
+<number bind="lowerBound" label="下限" initial="-2">
+<number bind="upperBound" label="上限" initial="2">
 <if when="{{ people >= 5 }}">
-<plot min="{{ lower }}" max="{{ upper }}">
+<plot min="{{ lowerBound }}" max="{{ upperBound }}">
 $$ y = x^2 $$
 </plot>
 </if>

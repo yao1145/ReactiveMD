@@ -1,4 +1,5 @@
 import type { Diagnostic } from './types';
+import { localDateTimestamp } from './dates';
 import {
   compileExpression,
   interpolate,
@@ -6,10 +7,10 @@ import {
   LocalExpressionError,
   type LocalExpression,
 } from './expression';
+import { evaluateComputations, orderComputations } from './computations';
 import { isLocalEmail, MAX_LOCAL_EMAIL_LENGTH } from './limits';
 import { localKey, type LocalBinding, type LocalDocument, type LocalNode, type LocalRuntime, type LocalSnapshot, type LocalValue } from './types';
 
-const DATE_TEXT = /^(\d{4})-(\d{2})-(\d{2})$/;
 const EPSILON = 1e-9;
 const RUNTIME_EXPRESSION_CACHE_LIMIT = 200;
 
@@ -26,15 +27,7 @@ function valuesEqual(a: LocalValue | undefined, b: LocalValue | undefined): bool
 }
 
 function isValidDate(value: string): boolean {
-  if (value === '') return true;
-  const match = DATE_TEXT.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  return value === '' || localDateTimestamp(value) !== null;
 }
 
 function onStep(value: number, base: number, step: number): boolean {
@@ -239,9 +232,74 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       : null;
   };
 
+  /* --------------------------------------------------------- computations */
+
+  /**
+   * Read-only values are metadata, not controls. Both caches are internal:
+   * `initialState` and `bindings` remain controls-only, while `snapshot().state`
+   * publishes values that succeeded in the current revision.
+   */
+  const computationMetadata = document.computations ?? {};
+  const computationNames = Object.keys(computationMetadata);
+  const computationExpressions = new Map<string, LocalExpression>();
+  for (const [name, meta] of Object.entries(computationMetadata)) {
+    try {
+      computationExpressions.set(name, compileExpression(meta.source));
+    } catch {
+      // A hand-built document can carry an invalid expression. The runtime
+      // reports it through the same lazy-error channel as a domain failure.
+    }
+  }
+  const { order: computationOrder, cyclic: cyclicComputations } = orderComputations(computationMetadata);
+  const constValues: Record<string, LocalValue> = {};
+  const constErrors = new Map<string, LocalExpressionError>();
+  const normalizeComputationError = (error: unknown): LocalExpressionError =>
+    error instanceof LocalExpressionError
+      ? error
+      : new LocalExpressionError('expression-eval', error instanceof Error ? error.message : String(error), 0);
+  for (const name of computationOrder) {
+    const meta = computationMetadata[name];
+    if (!meta || meta.kind !== 'const') continue;
+    if (Object.hasOwn(meta, 'value')) {
+      const value = meta.value as LocalValue;
+      const budget = localValueBudgetError(value);
+      if (budget) {
+        constErrors.set(name, new LocalExpressionError('expression-budget', `Constant "${name}": ${budget}`, 0));
+        continue;
+      }
+      constValues[name] = cloneValue(value);
+      continue;
+    }
+    const compiled = computationExpressions.get(name);
+    if (!compiled) {
+      constErrors.set(name, new LocalExpressionError('expression-eval', `Constant "${name}" cannot be evaluated.`, 0));
+      continue;
+    }
+    try {
+      const value = compiled.evaluate({ ...constValues });
+      const budget = localValueBudgetError(value);
+      if (budget) {
+        constErrors.set(name, new LocalExpressionError('expression-budget', `Constant "${name}": ${budget}`, 0));
+        continue;
+      }
+      constValues[name] = cloneValue(value);
+    } catch (error) {
+      constErrors.set(name, normalizeComputationError(error));
+    }
+  }
+  const cycleErrors = new Map<string, LocalExpressionError>();
+  for (const name of cyclicComputations) {
+    cycleErrors.set(name, new LocalExpressionError('expression-cycle', `Computation "${name}" is part of a dependency cycle.`, 0));
+  }
+
   let state: Record<string, LocalValue> = initial;
   let revision = 0;
-  let snapshot: LocalSnapshot = { revision, state: freezeState({ ...state }) };
+  let computationValues: Record<string, LocalValue> = {};
+  let computationErrors = new Map<string, LocalExpressionError>();
+  /** Controls plus the current revision's readable computation values. */
+  let evaluationEnv: Record<string, LocalValue> = {};
+  let snapshotState: Record<string, LocalValue> = {};
+  let snapshot: LocalSnapshot = { revision: 0, state: freezeState({}) };
   let disposed = false;
   const listeners = new Set<() => void>();
   const tokens = new Map<string, number>();
@@ -251,12 +309,70 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     if (disposed) throw new Error('The local interaction runtime has been disposed.');
   };
 
+  /**
+   * Recompute the read-only layer for the current controls. Constants are not
+   * re-evaluated: their static values were resolved once above. Failed values
+   * are exposed through throwing getters in the evaluation environment, so an
+   * unrelated expression or a short-circuited branch never observes an error,
+   * while a real read propagates the original `LocalExpressionError`.
+   */
+  const refreshComputations = (): void => {
+    if (computationNames.length === 0) {
+      computationValues = {};
+      computationErrors = new Map();
+    } else {
+      const evaluated = evaluateComputations(
+        computationMetadata,
+        computationOrder,
+        computationExpressions,
+        state,
+        constValues,
+      );
+      computationValues = evaluated.values;
+      computationErrors = evaluated.errors;
+      for (const [name, error] of constErrors) {
+        if (!Object.hasOwn(computationValues, name)) computationErrors.set(name, error);
+      }
+      for (const [name, error] of cycleErrors) {
+        if (!Object.hasOwn(computationValues, name)) computationErrors.set(name, error);
+      }
+    }
+
+    const environment: Record<string, LocalValue> = {};
+    for (const [key, value] of Object.entries(state)) environment[key] = value;
+    for (const [key, value] of Object.entries(computationValues)) environment[key] = value;
+    for (const [key, error] of computationErrors) {
+      if (Object.hasOwn(computationValues, key)) continue;
+      Object.defineProperty(environment, key, {
+        enumerable: true,
+        configurable: true,
+        get() {
+          throw error;
+        },
+      });
+    }
+    evaluationEnv = environment;
+
+    const merged: Record<string, LocalValue> = {};
+    for (const [key, value] of Object.entries(state)) merged[key] = value;
+    for (const [key, value] of Object.entries(computationValues)) merged[key] = value;
+    snapshotState = merged;
+  };
+
+  const publish = (): void => {
+    snapshot = { revision, state: freezeState(snapshotState) };
+  };
+
   const commit = (next: Record<string, LocalValue>): void => {
     state = next;
     revision += 1;
-    snapshot = { revision, state: freezeState({ ...next }) };
+    refreshComputations();
+    publish();
     for (const listener of listeners) listener();
   };
+
+  refreshComputations();
+  publish();
 
   const compile = (expression: string): LocalExpression => {
     let compiled = expressions.get(expression);
@@ -373,14 +489,14 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     evaluate(expression: string): LocalValue {
       ensure();
-      const value = compile(expression).evaluate({ ...state });
+      const value = compile(expression).evaluate(evaluationEnv);
       // Never hand out the array stored inside runtime state.
       return Array.isArray(value) ? [...value] : value;
     },
 
     text(template: string): string {
       ensure();
-      return interpolate(template, { ...state });
+      return interpolate(template, evaluationEnv);
     },
 
     reset(node: LocalNode): void {
@@ -420,6 +536,7 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       disposed = true;
       listeners.clear();
       expressions.clear();
+      computationExpressions.clear();
       tokens.clear();
     },
   };

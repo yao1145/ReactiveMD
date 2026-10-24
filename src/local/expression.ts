@@ -1,4 +1,22 @@
 import {
+  compareDates,
+  diffDates,
+  endsWithText,
+  lowerText,
+  replaceLiteral,
+  sliceCodePoints,
+  startsWithText,
+  trimText,
+  upperText,
+} from './data-functions';
+import {
+  LocalFunctionError,
+  formatCurrency,
+  formatNumber,
+  formatPercent,
+  formatScientific,
+} from './formatting';
+import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
@@ -37,6 +55,9 @@ const BUILTIN_FUNCTIONS = [
   'abs', 'sqrt', 'floor', 'ceil', 'round', 'min', 'max', 'pow',
   'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'exp', 'log',
   'len', 'contains', 'clamp',
+  'formatNumber', 'formatPercent', 'formatScientific', 'formatCurrency',
+  'trim', 'lower', 'upper', 'startsWith', 'endsWith', 'replace', 'slice',
+  'dateCompare', 'dateDiff',
 ] as const;
 type BuiltinName = (typeof BUILTIN_FUNCTIONS)[number];
 const BUILTIN_SET: ReadonlySet<string> = new Set(BUILTIN_FUNCTIONS);
@@ -241,6 +262,11 @@ const ARITY: Readonly<Record<BuiltinName, readonly [number, number]>> = {
   pow: [2, 2], sin: [1, 1], cos: [1, 1], tan: [1, 1],
   asin: [1, 1], acos: [1, 1], atan: [1, 1], exp: [1, 1], log: [1, 1],
   len: [1, 1], contains: [2, 2], clamp: [3, 3],
+  formatNumber: [1, 4], formatPercent: [1, 3], formatScientific: [1, 3],
+  formatCurrency: [1, 4],
+  trim: [1, 1], lower: [1, 1], upper: [1, 1], startsWith: [2, 2],
+  endsWith: [2, 2], replace: [3, 3], slice: [2, 3],
+  dateCompare: [2, 2], dateDiff: [2, 3],
 };
 
 function astDepth(ast: Ast): number {
@@ -655,6 +681,71 @@ function inferAst(ast: Ast, env: Record<string, LocalValueKind>): LocalValueKind
           }
           requireKind(args[1], 'string', ast.start, 'Function contains requires a string member');
           return 'boolean';
+        case 'formatNumber':
+        case 'formatPercent':
+        case 'formatScientific': {
+          if (args[0] !== 'number' && args[0] !== 'null') {
+            typeError(`Function ${ast.name} requires a number or null, got ${kindName(args[0])}.`, ast.start);
+          }
+          if (args[1] !== undefined) {
+            requireKind(args[1], 'number', ast.start, `Function ${ast.name} requires numeric fraction digits`);
+          }
+          if (args[2] !== undefined) {
+            requireKind(args[2], 'string', ast.start, `Function ${ast.name} requires a string locale`);
+          }
+          if (ast.name === 'formatNumber' && args[3] !== undefined) {
+            requireKind(args[3], 'boolean', ast.start, 'Function formatNumber requires a boolean grouping flag');
+          }
+          return 'string';
+        }
+        case 'formatCurrency': {
+          if (args[0] !== 'number' && args[0] !== 'null') {
+            typeError(`Function formatCurrency requires a number or null, got ${kindName(args[0])}.`, ast.start);
+          }
+          if (args[1] !== undefined) {
+            requireKind(args[1], 'string', ast.start, 'Function formatCurrency requires a string currency code');
+          }
+          if (args[2] !== undefined) {
+            requireKind(args[2], 'number', ast.start, 'Function formatCurrency requires numeric fraction digits');
+          }
+          if (args[3] !== undefined) {
+            requireKind(args[3], 'string', ast.start, 'Function formatCurrency requires a string locale');
+          }
+          return 'string';
+        }
+        case 'trim':
+        case 'lower':
+        case 'upper':
+          requireKind(args[0], 'string', ast.start, `Function ${ast.name} requires a string`);
+          return 'string';
+        case 'startsWith':
+        case 'endsWith':
+          requireKind(args[0], 'string', ast.start, `Function ${ast.name} requires a string`);
+          requireKind(args[1], 'string', ast.start, `Function ${ast.name} requires a string search value`);
+          return 'boolean';
+        case 'replace':
+          requireKind(args[0], 'string', ast.start, 'Function replace requires a string');
+          requireKind(args[1], 'string', ast.start, 'Function replace requires a string search value');
+          requireKind(args[2], 'string', ast.start, 'Function replace requires a string replacement');
+          return 'string';
+        case 'slice':
+          requireKind(args[0], 'string', ast.start, 'Function slice requires a string');
+          requireKind(args[1], 'number', ast.start, 'Function slice requires a numeric start index');
+          if (args[2] !== undefined) {
+            requireKind(args[2], 'number', ast.start, 'Function slice requires a numeric end index');
+          }
+          return 'string';
+        case 'dateCompare':
+          requireKind(args[0], 'string', ast.start, 'Function dateCompare requires a date string');
+          requireKind(args[1], 'string', ast.start, 'Function dateCompare requires a date string');
+          return 'number';
+        case 'dateDiff':
+          requireKind(args[0], 'string', ast.start, 'Function dateDiff requires a date string');
+          requireKind(args[1], 'string', ast.start, 'Function dateDiff requires a date string');
+          if (args[2] !== undefined) {
+            requireKind(args[2], 'string', ast.start, 'Function dateDiff requires a string unit');
+          }
+          return 'number';
       }
       break;
     }
@@ -737,6 +828,21 @@ function requireBoolean(value: LocalValue, offset: number, message = 'Expected a
 function requireString(value: LocalValue, offset: number, message = 'Expected a string'): string {
   if (typeof value !== 'string') fail(`${message}.`, offset, 'expression-type');
   return value;
+}
+
+/**
+ * Run a formatting or data helper and translate its failure into an expression
+ * error at the call site. The helpers do not know source offsets.
+ */
+function runLocalFunction<T>(offset: number, run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof LocalFunctionError) {
+      throw new LocalExpressionError(error.code, error.message, offset);
+    }
+    throw error;
+  }
 }
 
 function finiteResult(value: number, offset: number): number {
@@ -958,6 +1064,108 @@ function evalNode(
           if (typeof haystack === 'string') return haystack.includes(needle);
           if (Array.isArray(haystack)) return haystack.includes(needle);
           fail('Function contains requires a string or array.', ast.start, 'expression-type');
+        }
+        case 'formatNumber': {
+          const value = args[0] === null
+            ? null
+            : requireNumber(args[0], ast.start, 'Function formatNumber requires a number or null');
+          const digits = args[1] === undefined
+            ? 2
+            : requireNumber(args[1], ast.start, 'Function formatNumber requires numeric fraction digits');
+          const locale = args[2] === undefined
+            ? 'en-US'
+            : requireString(args[2], ast.start, 'Function formatNumber requires a string locale');
+          const grouping = args[3] === undefined
+            ? true
+            : requireBoolean(args[3], ast.start, 'Function formatNumber requires a boolean grouping flag');
+          return runLocalFunction(ast.start, () => formatNumber(value, digits, locale, grouping));
+        }
+        case 'formatPercent': {
+          const value = args[0] === null
+            ? null
+            : requireNumber(args[0], ast.start, 'Function formatPercent requires a number or null');
+          const digits = args[1] === undefined
+            ? 0
+            : requireNumber(args[1], ast.start, 'Function formatPercent requires numeric fraction digits');
+          const locale = args[2] === undefined
+            ? 'en-US'
+            : requireString(args[2], ast.start, 'Function formatPercent requires a string locale');
+          return runLocalFunction(ast.start, () => formatPercent(value, digits, locale));
+        }
+        case 'formatScientific': {
+          const value = args[0] === null
+            ? null
+            : requireNumber(args[0], ast.start, 'Function formatScientific requires a number or null');
+          const digits = args[1] === undefined
+            ? 2
+            : requireNumber(args[1], ast.start, 'Function formatScientific requires numeric fraction digits');
+          const locale = args[2] === undefined
+            ? 'en-US'
+            : requireString(args[2], ast.start, 'Function formatScientific requires a string locale');
+          return runLocalFunction(ast.start, () => formatScientific(value, digits, locale));
+        }
+        case 'formatCurrency': {
+          const value = args[0] === null
+            ? null
+            : requireNumber(args[0], ast.start, 'Function formatCurrency requires a number or null');
+          const currency = args[1] === undefined
+            ? 'USD'
+            : requireString(args[1], ast.start, 'Function formatCurrency requires a string currency code');
+          const digits = args[2] === undefined
+            ? 2
+            : requireNumber(args[2], ast.start, 'Function formatCurrency requires numeric fraction digits');
+          const locale = args[3] === undefined
+            ? 'en-US'
+            : requireString(args[3], ast.start, 'Function formatCurrency requires a string locale');
+          return runLocalFunction(ast.start, () => formatCurrency(value, currency, digits, locale));
+        }
+        case 'trim':
+          return runLocalFunction(ast.start, () =>
+            trimText(requireString(args[0], ast.start, 'Function trim requires a string')));
+        case 'lower':
+          return runLocalFunction(ast.start, () =>
+            lowerText(requireString(args[0], ast.start, 'Function lower requires a string')));
+        case 'upper':
+          return runLocalFunction(ast.start, () =>
+            upperText(requireString(args[0], ast.start, 'Function upper requires a string')));
+        case 'startsWith':
+          return runLocalFunction(ast.start, () =>
+            startsWithText(
+              requireString(args[0], ast.start, 'Function startsWith requires a string'),
+              requireString(args[1], ast.start, 'Function startsWith requires a string search value'),
+            ));
+        case 'endsWith':
+          return runLocalFunction(ast.start, () =>
+            endsWithText(
+              requireString(args[0], ast.start, 'Function endsWith requires a string'),
+              requireString(args[1], ast.start, 'Function endsWith requires a string search value'),
+            ));
+        case 'replace': {
+          const text = requireString(args[0], ast.start, 'Function replace requires a string');
+          const search = requireString(args[1], ast.start, 'Function replace requires a string search value');
+          const replacement = requireString(args[2], ast.start, 'Function replace requires a string replacement');
+          return runLocalFunction(ast.start, () => replaceLiteral(text, search, replacement));
+        }
+        case 'slice': {
+          const text = requireString(args[0], ast.start, 'Function slice requires a string');
+          const start = requireNumber(args[1], ast.start, 'Function slice requires a numeric start index');
+          const end = args[2] === undefined
+            ? undefined
+            : requireNumber(args[2], ast.start, 'Function slice requires a numeric end index');
+          return runLocalFunction(ast.start, () => sliceCodePoints(text, start, end));
+        }
+        case 'dateCompare': {
+          const left = requireString(args[0], ast.start, 'Function dateCompare requires a date string');
+          const right = requireString(args[1], ast.start, 'Function dateCompare requires a date string');
+          return runLocalFunction(ast.start, () => compareDates(left, right));
+        }
+        case 'dateDiff': {
+          const left = requireString(args[0], ast.start, 'Function dateDiff requires a date string');
+          const right = requireString(args[1], ast.start, 'Function dateDiff requires a date string');
+          const unit = args[2] === undefined
+            ? 'days'
+            : requireString(args[2], ast.start, 'Function dateDiff requires a string unit');
+          return runLocalFunction(ast.start, () => diffDates(left, right, unit));
         }
       }
       break;

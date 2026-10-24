@@ -1,6 +1,11 @@
 import type { Diagnostic } from './types';
 import { isLocalColor } from './colors';
+import { localDateTimestamp } from './dates';
 import { compileExpression, LocalExpressionError, RESERVED_NAMES, type LocalExpression } from './expression';
+import {
+  resolveComputationGraph,
+  type ComputationInput,
+} from './computations';
 import { createHeadingAnchors } from './heading-anchors';
 import { compileLatex } from './math';
 import { parseLocal } from './parser';
@@ -26,6 +31,7 @@ import type {
   LocalBinding,
   LocalCompileOptions,
   LocalCompileResult,
+  LocalComputation,
   LocalDocument,
   LocalNode,
   LocalValue,
@@ -38,7 +44,6 @@ import type {
 
 const NUMBER_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const DATE_TEXT = /^(\d{4})-(\d{2})-(\d{2})$/;
 const EPSILON = 1e-9;
 /** Longer names are rejected before suggestion/edit-distance work. */
 const MAX_LOCAL_NAME_LENGTH = 128;
@@ -58,19 +63,7 @@ function parseNumberText(raw: string): number | null {
 }
 
 function isValidDate(value: string): boolean {
-  if (value === '') return true;
-  const match = DATE_TEXT.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
+  return value === '' || localDateTimestamp(value) !== null;
 }
 
 function cloneValue(value: LocalValue): LocalValue {
@@ -245,6 +238,8 @@ interface CompileState {
   tableShapes: Map<string, TableShape | null>;
   bindingSlots: Record<string, Record<string, string>>;
   bindingKinds: Record<string, LocalValueKind>;
+  computationKinds: Record<string, LocalValueKind>;
+  computations: Record<string, LocalComputation>;
   expressionKinds: Map<string, LocalValueKind | null>;
 }
 
@@ -325,6 +320,8 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
     tableShapes: new Map(),
     bindingSlots: Object.create(null),
     bindingKinds: {},
+    computationKinds: {},
+    computations: {},
     expressionKinds: new Map(),
   };
 
@@ -339,6 +336,8 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   const bindings = resolveBindings(state);
   state.bindingKinds = bindingKinds(bindings);
 
+  resolveComputations(state);
+
   validateExpressions(state);
   validatePlots(state);
   validateTables(state);
@@ -352,15 +351,17 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   if (hasError) return { ok: false, diagnostics };
 
   const bindingSlots = slotMap(state);
+  const computationNames = Object.keys(state.computations);
   const document: LocalDocument = {
     syntax: 'local',
     source,
-    nodes: parsed.nodes,
+    nodes: stripComputationNodes(parsed.nodes),
     initialState,
     bindings,
     theme: parsed.theme ?? DEFAULT_LOCAL_THEME.name,
     ...(parsed.themeRange ? { themeRange: parsed.themeRange } : {}),
     ...(bindingSlots ? { bindingSlots } : {}),
+    ...(computationNames.length ? { computations: state.computations } : {}),
   };
   return { ok: true, document, diagnostics };
 }
@@ -1712,8 +1713,150 @@ function slotMap(state: CompileState): Record<string, Record<string, string>> | 
 
 
 
+/* ------------------------------------------------------------------ */
+/* Computations                                                        */
+/* ------------------------------------------------------------------ */
+
+/** A declaration must be its own top-level source line. */
+function standaloneDeclaration(state: CompileState, node: LocalNode): boolean {
+  const lineStart = state.source.lastIndexOf('\n', node.range.start - 1) + 1;
+  const newline = state.source.indexOf('\n', node.range.end);
+  const lineEnd = newline < 0 ? state.source.length : newline;
+  return (
+    state.source.slice(lineStart, node.range.start).trim() === ''
+    && state.source.slice(node.range.end, lineEnd).trim() === ''
+  );
+}
+
+/** Absolute offset of the expression inside the declaration's value attribute. */
+function declarationExpressionOffset(state: CompileState, entry: Entry, expressionStart: number): number {
+  const text = openingTag(state.source, entry.node.range.start, entry.node.range.end);
+  const match = /(?:^|[\s"'/])value\s*=\s*(["'])/.exec(text);
+  if (!match) return entry.node.range.start;
+  const valueStart = entry.node.range.start + match.index + match[0].length;
+  return Math.min(entry.node.range.end, valueStart + expressionStart);
+}
+
+/**
+ * Resolve top-level `<computed>` and `<const>` declarations into document
+ * metadata. Namespace checks happen here because both controls and slot
+ * bindings are already resolved; the graph walk and type inference live in
+ * `computations.ts`.
+ */
+function resolveComputations(state: CompileState): void {
+  const inputs: ComputationInput[] = [];
+  const declared = new Map<string, 'computed' | 'const'>();
+  const roots = new Set(state.nodes);
+  for (const entry of state.entries) {
+    if (entry.name !== 'computed' && entry.name !== 'const') continue;
+    const kind: 'computed' | 'const' = entry.name;
+    const node = entry.node;
+    if (!roots.has(node) || !standaloneDeclaration(state, node)) {
+      state.report(
+        'local.computation.placement',
+        `<${kind}> declarations must be standalone tags at the document top level.`,
+        node.range.start,
+        node.range.end,
+      );
+      continue;
+    }
+    const attrs = state.attrs.get(node.id) ?? {};
+    const nameInfo = attrs.name;
+    const rawName = typeof nameInfo?.value === 'string' ? nameInfo.value : '';
+    if (!nameInfo || !rawName) continue;
+    if (rawName.length > MAX_LOCAL_NAME_LENGTH) {
+      state.report(
+        'local.budget.identifier',
+        `Computation name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`,
+        nameInfo.offset,
+      );
+      continue;
+    }
+    if (!IDENTIFIER.test(rawName)) {
+      state.report(
+        'local.computation.name',
+        `Computation name "${rawName}" must match [A-Za-z_][A-Za-z0-9_]*.`,
+        nameInfo.offset,
+      );
+      continue;
+    }
+    if (RESERVED_NAMES.has(rawName) || EXTRA_RESERVED.has(rawName)) {
+      state.report(
+        'local.computation.reserved',
+        `Computation name "${rawName}" is reserved; choose another name.`,
+        nameInfo.offset,
+      );
+      continue;
+    }
+    if (Object.hasOwn(state.bindingKinds, rawName)) {
+      state.report(
+        'local.computation.duplicate',
+        `Computation name "${rawName}" conflicts with a control parameter of the same name.`,
+        nameInfo.offset,
+      );
+      continue;
+    }
+    if (declared.has(rawName)) {
+      state.report(
+        'local.computation.duplicate',
+        `Computation name "${rawName}" is declared more than once.`,
+        nameInfo.offset,
+      );
+      continue;
+    }
+    declared.set(rawName, kind);
+
+    const valueInfo = attrs.value;
+    if (!valueInfo) continue;
+    const full = fullInterpolation(valueInfo.raw);
+    if (!full) {
+      state.report(
+        'local.computation.value',
+        `The value of <${kind}> must be exactly one {{ expression }} interpolation.`,
+        valueInfo.offset,
+        valueInfo.offset + valueInfo.raw.length,
+      );
+      continue;
+    }
+    if (!full.expression) {
+      state.report('local.expression.empty', 'Interpolation expression cannot be empty.', valueInfo.offset);
+      continue;
+    }
+    inputs.push({
+      name: rawName,
+      kind,
+      source: full.expression,
+      expressionOffset: declarationExpressionOffset(state, entry, full.start),
+      nodeId: node.id,
+      range: { ...node.range },
+    });
+  }
+
+  const resolved = resolveComputationGraph(inputs, state.bindingKinds, state.report);
+  state.computations = resolved.computations;
+  state.computationKinds = resolved.kinds;
+}
+
+/** Environment used by ordinary expressions: writable parameters plus read-only computations. */
+function expressionEnv(state: CompileState): Record<string, LocalValueKind> {
+  return Object.keys(state.computationKinds).length
+    ? { ...state.bindingKinds, ...state.computationKinds }
+    : state.bindingKinds;
+}
+
+/** Declaration tags never reach the published tree; they are metadata only. */
+function stripComputationNodes(nodes: LocalNode[]): LocalNode[] {
+  const kept: LocalNode[] = [];
+  for (const node of nodes) {
+    if (node.type === 'component' && (node.name === 'computed' || node.name === 'const')) continue;
+    if (node.children) node.children = stripComputationNodes(node.children);
+    kept.push(node);
+  }
+  return kept;
+}
+
 function validateExpressions(state: CompileState): void {
-  const env = state.bindingKinds;
+  const env = expressionEnv(state);
   const names = Object.keys(env);
 
   const expressionError = (error: unknown, base: number): void => {
@@ -1796,6 +1939,9 @@ function validateExpressions(state: CompileState): void {
   walk(state.nodes);
 
   for (const entry of state.entries) {
+    // Declaration values are expressions, not text templates; they are
+    // validated by resolveComputations with their own dependency graph.
+    if (entry.name === 'computed' || entry.name === 'const') continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
     for (const [name, info] of Object.entries(attrs)) {
       const prop = entry.schema.props[name];
@@ -1844,6 +1990,7 @@ function validateNavigation(
 ): void {
   const document: LocalDocument = {
     syntax: 'local', source: state.source, nodes: state.nodes, initialState, bindings,
+    ...(Object.keys(state.computations).length ? { computations: state.computations } : {}),
   };
   const namespace = '__local_core_check__';
   // Ignore explicit anchors while assigning heading slugs so collisions are
@@ -1959,7 +2106,7 @@ function plotSamples(entry: Entry, attrs: AttrMap): number {
 }
 
 function validatePlots(state: CompileState): void {
-  const env = state.bindingKinds;
+  const env = expressionEnv(state);
   let totalPoints = 0;
   let pointsBudgetExceeded = false;
   for (const entry of state.entries) {

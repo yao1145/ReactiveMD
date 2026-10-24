@@ -114,6 +114,8 @@ To use a custom budget in React, call `compileLocal` first and pass the compiled
 
 ### `createLocalRuntime(document: LocalDocument)`
 
+Named read-only values are described by `LocalComputation` in the optional `document.computations` record. `bindings` and `initialState` remain writable controls; `snapshot().state` also includes successful calculated values for its revision. Read a named value with `evaluate(name)` to preserve expression errors; failed values are absent from snapshots. See [calculation and error semantics](computations-formatting-en.md).
+
 Creates an independent in-memory runtime for a compiled document. Throws if `document` is not a local mode document, if initial values exceed budgets, or if the structure is invalid. Each instance has independent state; there is no storage, network or cross-instance sharing.
 
 ### `LocalRuntime`

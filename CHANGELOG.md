@@ -4,6 +4,9 @@ This file records user-visible changes. The project is in a 0.x preview; version
 
 ## Unreleased
 
+- Add invisible, read-only `<computed>` and `<const>` declarations with dependency ordering, inferred types, cycle detection and per-runtime calculation caching. Prose, conditions, formulas and charts can share intermediate results.
+- Add number, percentage, scientific and currency formatting, common string functions and UTC date comparison/differences. Defaults, rounding, nulls and accepted regions are specified in [Reusing calculations and formatting values](docs/computations-formatting-en.md). New function names are reserved; rename any existing bindings with those names before using this development build.
+
 - Add leading `<theme name="…">` declarations, host theme registration and the `reactive-md-theme-1` protocol. Both React components support independent color schemes and system preferences; `default` preserves the existing design. See the [theme protocol](docs/theme-protocol-en.md).
 
 ### 0.4.0 development preview (local-draft-2)

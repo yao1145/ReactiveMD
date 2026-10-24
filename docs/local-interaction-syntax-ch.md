@@ -6,6 +6,8 @@
 
 ## 1. 定位与范围
 
+未发布开发版本新增不可见的 `computed`/`const` 声明与数字、字符串、日期函数。声明语法、依赖与错误规则、函数签名及固定默认值见[复用计算与格式化数值](computations-formatting-ch.md)。
+
 Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件，读者调整参数后，相关文字、公式、图表和图解立即更新。
 
 基础语言只需要掌握两条连接规则：`bind` 为输入命名，`{{ 表达式 }}` 在其他位置读取它。组件负责自己的选择、展开、搜索、排序、计时和重置。
@@ -162,6 +164,9 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 | 条件 | `条件 ? 真值 : 假值` |
 | 数学函数 | abs、sqrt、floor、ceil、round、min、max、pow、sin、cos、tan、asin、acos、atan、exp、log |
 | 常用函数 | len、contains、clamp |
+| 格式化 | formatNumber、formatPercent、formatScientific、formatCurrency |
+| 字符串 | trim、lower、upper、startsWith、endsWith、replace、slice |
+| 日期 | dateCompare、dateDiff |
 | 常量 | pi、e |
 
 优先级依次为函数/括号、一元运算、乘除余数、加减、大小比较、相等比较、逻辑与、逻辑或、条件表达式；条件表达式右结合，其余二元运算左结合。逻辑和条件表达式短路求值。

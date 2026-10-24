@@ -1,4 +1,5 @@
-import { compileExpression } from './expression';
+import { compileExpression, type LocalExpression } from './expression';
+import { evaluateComputations, orderComputations } from './computations';
 import type { LocalDocument, LocalNode, LocalValue } from './types';
 
 function headingText(nodes: LocalNode[] | undefined, initialState: Record<string, LocalValue>): string {
@@ -50,6 +51,18 @@ function explicitAnchorId(node: LocalNode): string | undefined {
  * navigation.
  */
 export function createHeadingAnchors(document: LocalDocument, namespace: string, includeExplicitAnchors = true) {
+  let initialState = document.initialState;
+  if (document.computations) {
+    const constants: Record<string, LocalValue> = {};
+    const expressions = new Map<string, LocalExpression>();
+    for (const [name, meta] of Object.entries(document.computations)) {
+      if (meta.kind === 'const' && Object.hasOwn(meta, 'value')) constants[name] = meta.value as LocalValue;
+      try { expressions.set(name, compileExpression(meta.source)); } catch { /* Invalid hand-built metadata stays absent. */ }
+    }
+    const { order } = orderComputations(document.computations);
+    const evaluated = evaluateComputations(document.computations, order, expressions, initialState, constants);
+    initialState = { ...initialState, ...evaluated.values };
+  }
   const ids = new Map<LocalNode, string>();
   const anchorIds = new Map<LocalNode, string>();
   const targets = new Map<string, string>();
@@ -71,7 +84,7 @@ export function createHeadingAnchors(document: LocalDocument, namespace: string,
   function visit(nodes: LocalNode[]) {
     for (const node of nodes) {
       if (node.type === 'heading') {
-        const base = headingSlug(headingText(node.children, document.initialState));
+        const base = headingSlug(headingText(node.children, initialState));
         ids.set(node, claim(base).id);
       } else if (includeExplicitAnchors) {
         const explicit = explicitAnchorId(node);

@@ -114,6 +114,8 @@ const result = compileLocal(source, options);
 
 ### `createLocalRuntime(document: LocalDocument)`
 
+只读命名值在可选的 `document.computations` 记录中用 `LocalComputation` 描述。`bindings` 和 `initialState` 继续只包含可写控件；`snapshot().state` 还包含该修订成功求值的计算结果。需要保留表达式错误语义时用 `evaluate(name)` 读取，失败值不会出现在快照里。见[计算与错误规则](computations-formatting-ch.md)。
+
 为已编译文档创建独立的内存运行时。`document` 不是本地模式文档、初值超出预算或结构无效时会抛出错误。每个实例拥有独立状态；没有存储、网络或跨实例共享。
 
 ### `LocalRuntime`

@@ -13,7 +13,7 @@ import {
   MAX_LOCAL_STRING_LENGTH,
 } from './limits';
 
-const VOID = new Set('input textarea number slider range-slider coordinate toggle checkbox date counter timer progress edge anchor'.split(' '));
+const VOID = new Set('input textarea number slider range-slider coordinate toggle checkbox date counter timer progress edge anchor computed const'.split(' '));
 const PAIRED = new Set('panel card grid tabs tab steps step accordion disclosure if alert badge tooltip select choices radio-group multi-select quiz checklist table chart plot timeline diagram node option jump text section'.split(' '));
 const INLINE = new Set(['badge', 'tooltip', 'jump', 'text']);
 const KNOWN = new Set([...VOID, ...PAIRED]);

@@ -6,6 +6,8 @@ The original eleven working examples and one intentionally broken diagnostics do
 
 ## Start with the short examples
 
+The [invoice recipe](recipes/invoice.reactive.md) ([中文](recipes/invoice-zh.reactive.md)) demonstrates shared calculations, constants, formatting and UTC date differences. The [calculation reference](../../docs/computations-formatting-en.md) explains its rules.
+
 Start with the [plan calculator](pricing.reactive.md), then choose a [feature tour](showcase/README.md). For the smallest possible state example, read the original [counter](counter.reactive.md). If you are new to the syntax, read the [new user guide](../../docs/local-guide-en.md).
 
 ## Original standalone catalog

@@ -142,10 +142,10 @@ Attributes declared static must not contain interpolation. Dynamic attributes ma
 
 ```markdown
 <slider bind="people" label="People" initial="2" min="1" max="20">
-<number bind="lower" label="Lower bound" initial="-2">
-<number bind="upper" label="Upper bound" initial="2">
+<number bind="lowerBound" label="Lower bound" initial="-2">
+<number bind="upperBound" label="Upper bound" initial="2">
 <if when="{{ people >= 5 }}">
-<plot min="{{ lower }}" max="{{ upper }}">
+<plot min="{{ lowerBound }}" max="{{ upperBound }}">
 $$ y = x^2 $$
 </plot>
 </if>

@@ -591,6 +591,33 @@ const components: LocalComponentSchema[] = [
     },
   },
 
+  /* Document declarations ------------------------------------------- */
+  /**
+   * `<computed>` and `<const>` are read-only document metadata, not rendered
+   * controls. They reuse the binding identifier rules and have no state; the
+   * compiler removes their nodes from the published tree.
+   */
+  {
+    name: 'computed',
+    form: 'leaf',
+    childRule: 'none',
+    label: 'none',
+    props: {
+      name: { kind: 'string', static: true, required: true },
+      value: { kind: 'string', required: true },
+    },
+  },
+  {
+    name: 'const',
+    form: 'leaf',
+    childRule: 'none',
+    label: 'none',
+    props: {
+      name: { kind: 'string', static: true, required: true },
+      value: { kind: 'string', required: true },
+    },
+  },
+
   /* Data and visuals ------------------------------------------------ */
   {
     name: 'table',

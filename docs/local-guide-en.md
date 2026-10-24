@@ -6,6 +6,8 @@ This document covers the `local-draft-2` local interaction syntax. See the [loca
 
 ## Table of contents
 
+For reusable intermediate results and formatted output, see [Reusing calculations and formatting values](computations-formatting-en.md), with a complete invoice example.
+
 - [1. Build intuition first](#1-build-intuition-first)
 - [2. Five minutes: your first interactive document](#2-five-minutes-your-first-interactive-document)
 - [3. How to write tags](#3-how-to-write-tags)

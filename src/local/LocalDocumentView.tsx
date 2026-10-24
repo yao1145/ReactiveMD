@@ -929,6 +929,8 @@ function renderTableCells(
 
 function renderComponent(node: LocalNode, visible: boolean, t: Localize): ReactNode {
   const name = node.name ?? '';
+  // Computed/const declarations are document metadata, not rendered controls.
+  if (name === 'computed' || name === 'const') return null;
   if (VISUAL_COMPONENTS.has(name)) {
     return <VisualView node={node} visible={visible} />;
   }

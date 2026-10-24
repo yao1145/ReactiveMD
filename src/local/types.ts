@@ -28,6 +28,29 @@ export interface LocalNode {
   lang?: string;
   align?: ('left' | 'center' | 'right' | null)[];
 }
+/**
+ * One read-only document value declared by a top-level `<computed>` or
+ * `<const>` tag. The record is plain, serializable metadata: the declaring
+ * node is not part of the rendered tree and owns no writable binding.
+ */
+export interface LocalComputation {
+  name: string;
+  kind: 'computed' | 'const';
+  /** Expression source between `{{` and `}}`, trimmed. */
+  source: string;
+  /** Names read by the expression, in first-use order. */
+  dependencies: string[];
+  type: LocalValueKind;
+  /** Canonical id of the declaration node, retained for host diagnostics. */
+  nodeId: string;
+  /** Source range of the declaration tag. */
+  range: SourceRange;
+  /**
+   * Statically evaluated value. Present only for `const`, whose expression
+   * cannot depend on controls or computed values.
+   */
+  value?: LocalValue;
+}
 export interface LocalBinding {
   name: string;
   nodeIds: string[];
@@ -61,6 +84,12 @@ export interface LocalDocument {
    * runtime `get`/`set`/`setMany` with slot names instead of reading this map.
    */
   bindingSlots?: Record<string, Record<string, string>>;
+  /**
+   * Read-only values declared with top-level `<computed>` / `<const>` tags,
+   * keyed by name. These are document metadata, not components: declaration
+   * nodes are removed from `nodes` before publication and never own bindings.
+   */
+  computations?: Record<string, LocalComputation>;
 }
 /** Host-owned budgets for a single compilation. */
 export interface LocalCompileLimits {
