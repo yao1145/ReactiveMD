@@ -73,7 +73,8 @@ async function main() {
 
     console.log(`source: ${result.sourceCharacters} characters, ${result.steps} steps`);
     console.log(
-      `operations: set=${result.operations.set} no-op=${result.operations.noop} ` +
+      `operations: set=${result.operations.set} (visual=${result.operations.visual} ` +
+        `selection=${result.operations.selection}) no-op=${result.operations.noop} ` +
         `reset=${result.operations.reset} locale=${result.operations.locale} tab=${result.operations.tab}`,
     );
     console.log(

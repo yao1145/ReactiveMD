@@ -9,7 +9,7 @@ import { LocalDocumentView } from 'reactive-md/react';
 import 'reactive-md/styles.css';
 
 const SECTIONS = 40;
-const STEPS = 300;
+const STEPS = 350;
 const LOCALE_TO_ZH_STEP = 150;
 const LOCALE_TO_EN_STEP = 290;
 const RESET_STEPS = new Set([60, 180, 270]);
@@ -20,13 +20,17 @@ const TAB_CLICKS: Record<number, { index: number; label: string }> = {
 };
 // One deliberately redundant write every 30 steps: set() must return [] and
 // must not advance the runtime revision.
-const NOOP_STEPS = new Set([25, 55, 85, 115, 145, 175, 205, 235, 265]);
+const NOOP_STEPS = new Set([25, 55, 85, 115, 145, 175, 205, 235, 265, 275, 325]);
 // The locale flip back to `en` is a full invalidation (the env object changes).
 // These writes then touch every binding once after that invalidation, so a
 // dependency that the memo analysis missed cannot hide behind the re-render
 // caused by flipping the locale near the end of the run.
 const SWEEP_STEP = 291;
-const SWEEP_BINDS = ['n', 'm', 'g', 'done', 'name', 'clicks', 'z', 'p'];
+const SWEEP_BINDS = [
+  'n', 'm', 'g', 'done', 'name', 'clicks', 'z', 'p',
+  'tableCost', 'chartCost', 'owner', 'caption', 'warn',
+  'tablePick', 'chartPick', 'diagramPick',
+];
 // One local-state interaction: close the disclosure, then reopen it through a
 // panel reset after the final locale flip. Its static content has no binding
 // dependencies, so only the reset token can make the memoized block re-render.
@@ -34,6 +38,35 @@ const DISCLOSURE_CLICK_STEP = 50;
 const EXTRAS_RESET_STEP = STEPS - 1;
 const TEXT_VALUES = ['Ada', 'Grace', 'Lin', 'Kai', 'Noa', 'Ruth', ''];
 const CHECKLIST_ITEMS = ['item-1', 'item-2', 'item-3'];
+// Key-column values of the table/chart views; these are the only legal values
+// for their public selection bindings (the compiler validates the options).
+const SELECTION_VALUES: Record<string, string[]> = {
+  tablePick: ['Alpha', 'Beta', 'Gamma'],
+  chartPick: ['Q1', 'Q2', 'Q3', 'Q4'],
+  diagramPick: ['input', 'compute', 'view'],
+};
+const VISUAL_ONLY_BINDS = new Set(['tableCost', 'chartCost', 'owner', 'caption', 'warn']);
+const SELECTION_BINDS = new Set(Object.keys(SELECTION_VALUES));
+// Explicit visual writes spread over the run, so each visual-only dependency
+// and each selection is exercised before the locale flips, not only by the
+// seeded random pool or the post-flip sweep.
+const VISUAL_WRITE_STEPS: Record<number, string> = {
+  10: 'tableCost',
+  35: 'owner',
+  70: 'tablePick',
+  80: 'chartCost',
+  95: 'caption',
+  100: 'diagramPick',
+  110: 'chartPick',
+  130: 'tableCost',
+  160: 'warn',
+  200: 'chartCost',
+  210: 'tablePick',
+  230: 'diagramPick',
+  250: 'caption',
+  260: 'chartPick',
+  280: 'owner',
+};
 
 type Locale = 'en' | 'zh';
 
@@ -80,7 +113,15 @@ interface LatencyResult {
 interface VerifyResult {
   sourceCharacters: number;
   steps: number;
-  operations: { set: number; noop: number; reset: number; locale: number; tab: number };
+  operations: {
+    set: number;
+    noop: number;
+    reset: number;
+    locale: number;
+    tab: number;
+    visual: number;
+    selection: number;
+  };
   finalLocale: Locale;
   finalRevision: number;
   stateA: Record<string, LocalValue>;
@@ -153,6 +194,53 @@ function buildSource(): string {
     '$$ y = x^2 / 20 + m $$',
     '$$ y = p\\sin x $$',
     '</plot>',
+    '',
+    '<panel title="Visual inputs" reset="true">',
+    '<slider bind="tableCost" label="Table cost" initial="4" min="0" max="20" step="1">',
+    '<slider bind="chartCost" label="Chart cost" initial="6" min="0" max="20" step="1">',
+    '<input bind="owner" label="Owner" placeholder="Owner">',
+    '<input bind="caption" label="Caption" placeholder="Caption">',
+    '<toggle bind="warn" label="Warning tone">',
+    '</panel>',
+    '',
+    '<table label="Cost table" bind="tablePick" key="Item" initial="Alpha">',
+    '| Item | Cost | Owner |',
+    '| --- | ---: | --- |',
+    '| Alpha | {{ tableCost }} | {{ owner }} |',
+    '| Beta | {{ tableCost * 2 }} | Static |',
+    "| Gamma | 40 | {{ owner == '' ? 'Unassigned' : owner }} |",
+    '</table>',
+    '',
+    '<chart kind="bar" title="Cost for {{ caption }}" bind="chartPick" key="Period" initial="Q2" x="Period" y="Cost" y-label="Cost">',
+    '| Period | Cost |',
+    '| --- | ---: |',
+    '| Q1 | {{ chartCost }} |',
+    '| Q2 | {{ chartCost + 2 }} |',
+    '| Q3 | 9 |',
+    '| Q4 | 3 |',
+    '</chart>',
+    '',
+    '<timeline title="Release plan" unit="minutes">',
+    '| Task | Start | Duration | Notes |',
+    '| --- | ---: | ---: | --- |',
+    '| Draft | 0 | 10 | Outline |',
+    '| Build | 10 | 20 | Implement |',
+    '| Review | 30 | 10 | Final pass |',
+    '</timeline>',
+    '',
+    '<diagram bind="diagramPick" initial="input" label="State flow">',
+    '<node id="input" label="Input" tone="{{ warn ? \'warning\' : \'neutral\' }}">',
+    'Parameters arrive from the controls.',
+    '</node>',
+    '<node id="compute" label="Compute">',
+    'Visual values are recalculated.',
+    '</node>',
+    '<node id="view" label="View">',
+    'Charts and tables update.',
+    '</node>',
+    '<edge from="input" to="compute" label="Change">',
+    '<edge from="compute" to="view" label="Render">',
+    '</diagram>',
     '',
     '<tabs label="Views">',
     '<tab label="Overview">',
@@ -257,6 +345,8 @@ function tabButtons(container: HTMLElement): HTMLButtonElement[] {
  * - removes every `id` (React useId derives ids per mounted tree);
  * - removes attributes that reference those ids (`for`, aria-* id references,
  *   fragment-only `href`), whose values necessarily differ between mounts;
+ * - collapses `url(#...)` shape references (SVG markers, clip paths) to
+ *   `url(#)`, because the referenced element ids are mount-local as well;
  * - sorts attributes inside each tag, because React appends an attribute that
  *   was removed and re-added during an update, while a fresh mount inserts it
  *   in JSX order. Attribute order is not observable in the rendered UI, and it
@@ -284,7 +374,10 @@ function normalizeMarkup(html: string): string {
         a.name < b.name ? -1 : a.name > b.name ? 1 : 0,
       );
       for (const attribute of attributes) element.removeAttribute(attribute.name);
-      for (const attribute of attributes) element.setAttribute(attribute.name, attribute.value);
+      for (const attribute of attributes) {
+        const value = attribute.value.replace(/url\(\s*#[^)]*\)/g, 'url(#)');
+        element.setAttribute(attribute.name, value);
+      }
     }
     for (const child of [...node.childNodes]) visit(child);
   };
@@ -355,6 +448,14 @@ async function run(): Promise<VerifyResult> {
   const nameNode = findComponent(documentA, 'input', 'name');
   const doneNode = findComponent(documentA, 'checklist', 'done');
   const clicksNode = findComponent(documentA, 'counter', 'clicks');
+  const tableCostNode = findComponent(documentA, 'slider', 'tableCost');
+  const chartCostNode = findComponent(documentA, 'slider', 'chartCost');
+  const ownerNode = findComponent(documentA, 'input', 'owner');
+  const captionNode = findComponent(documentA, 'input', 'caption');
+  const warnNode = findComponent(documentA, 'toggle', 'warn');
+  const tablePickNode = findComponent(documentA, 'table', 'tablePick');
+  const chartPickNode = findComponent(documentA, 'chart', 'chartPick');
+  const diagramPickNode = findComponent(documentA, 'diagram', 'diagramPick');
   const panelNode = findComponent(documentA, 'panel');
   const panels = allNodes(documentA.nodes).filter(
     (candidate) => candidate.type === 'component' && candidate.name === 'panel',
@@ -368,6 +469,8 @@ async function run(): Promise<VerifyResult> {
     z: { min: 0, max: 100 },
     p: { min: 0, max: 10 },
     clicks: { min: 0, max: 99 },
+    tableCost: { min: 0, max: 20 },
+    chartCost: { min: 0, max: 20 },
   };
   const nodeByBind: Record<string, LocalNode> = {
     n: nNode,
@@ -378,6 +481,14 @@ async function run(): Promise<VerifyResult> {
     name: nameNode,
     done: doneNode,
     clicks: clicksNode,
+    tableCost: tableCostNode,
+    chartCost: chartCostNode,
+    owner: ownerNode,
+    caption: captionNode,
+    warn: warnNode,
+    tablePick: tablePickNode,
+    chartPick: chartPickNode,
+    diagramPick: diagramPickNode,
   };
 
   let locale: Locale = 'en';
@@ -397,8 +508,29 @@ async function run(): Promise<VerifyResult> {
   renderA();
   await settle();
 
+  // Guard against a visual silently degrading to an error frame: the markup
+  // comparison alone cannot distinguish two identical error messages.
+  const visualSelectors: Array<[string, string]> = [
+    ['.local-visual-table', 'table'],
+    ['.local-visual-chart', 'chart'],
+    ['.local-visual-timeline', 'timeline'],
+    ['.local-visual-diagram', 'diagram'],
+  ];
+  for (const [selector, name] of visualSelectors) {
+    if (!containerA.querySelector(selector)) {
+      throw new Error(`test document did not render its ${name}`);
+    }
+  }
+  if (containerA.querySelector('.local-visual-alert')) {
+    throw new Error('a visual component rendered an error message instead of data');
+  }
+
   const random = mulberry32(0x5eed1234);
-  const writePool = ['n', 'n', 'n', 'm', 'm', 'z', 'z', 'p', 'g', 'name', 'done', 'clicks'];
+  const writePool = [
+    'n', 'n', 'm', 'z', 'z', 'p', 'g', 'name', 'done', 'clicks',
+    'tableCost', 'tableCost', 'chartCost', 'chartCost', 'owner', 'caption', 'warn',
+    'tablePick', 'chartPick', 'diagramPick',
+  ];
   const operations: Operation[] = [];
   const revision = () => runtimeA.snapshot().revision;
 
@@ -434,12 +566,20 @@ async function run(): Promise<VerifyResult> {
     return next;
   };
 
-  const randomText = (): string => {
-    const current = runtimeA.get(nameNode);
+  const randomText = (node: LocalNode): string => {
+    const current = runtimeA.get(node);
     let next = TEXT_VALUES[Math.floor(random() * TEXT_VALUES.length)];
     if (next === current) {
       next = TEXT_VALUES[(TEXT_VALUES.indexOf(next) + 1) % TEXT_VALUES.length];
     }
+    return next;
+  };
+
+  const randomSelection = (bind: string): string => {
+    const values = SELECTION_VALUES[bind];
+    const current = runtimeA.get(nodeByBind[bind]);
+    let next = values[Math.floor(random() * values.length)];
+    if (next === current) next = values[(values.indexOf(next) + 1) % values.length];
     return next;
   };
 
@@ -456,19 +596,32 @@ async function run(): Promise<VerifyResult> {
 
   const changedValue = (bind: string): LocalValue => {
     const current = runtimeA.get(nodeByBind[bind]);
-    if (bind === 'g') return current !== true;
-    if (bind === 'name') return current === 'Sweep' ? 'Sweep two' : 'Sweep';
+    if (bind === 'g' || bind === 'warn') return current !== true;
+    if (bind === 'name' || bind === 'owner' || bind === 'caption') {
+      return current === 'Sweep' ? 'Sweep two' : 'Sweep';
+    }
     if (bind === 'done') {
       return (current as string[]).includes('item-1')
         ? (current as string[]).filter((item) => item !== 'item-1')
         : [...(current as string[]), 'item-1'].sort();
     }
+    if (SELECTION_BINDS.has(bind)) {
+      const values = SELECTION_VALUES[bind];
+      const index = values.indexOf(String(current));
+      return values[(index + 1) % values.length];
+    }
     const value = typeof current === 'number' ? current : 0;
-    return bind === 'p' ? (value + 1) % 11 : bind === 'clicks' ? (value + 1) % 100 : (value + 1) % 101;
+    if (bind === 'p') return (value + 1) % 11;
+    if (bind === 'clicks') return (value + 1) % 100;
+    if (bind === 'tableCost' || bind === 'chartCost') return (value + 1) % 21;
+    return (value + 1) % 101;
   };
 
   let noopCursor = 0;
-  const noopBinds = ['n', 'm', 'z', 'g', 'name', 'done'];
+  const noopBinds = [
+    'n', 'm', 'z', 'g', 'name', 'done',
+    'tableCost', 'chartCost', 'owner', 'caption', 'warn', 'tablePick',
+  ];
 
   for (let step = 0; step < STEPS; step += 1) {
     if (step === LOCALE_TO_ZH_STEP || step === LOCALE_TO_EN_STEP) {
@@ -531,6 +684,12 @@ async function run(): Promise<VerifyResult> {
       await nextFrame();
       continue;
     }
+    if (VISUAL_WRITE_STEPS[step] !== undefined) {
+      const bind = VISUAL_WRITE_STEPS[step];
+      applySet(step, bind, changedValue(bind), false);
+      await nextFrame();
+      continue;
+    }
     if (NOOP_STEPS.has(step)) {
       const bind = noopBinds[noopCursor % noopBinds.length];
       noopCursor += 1;
@@ -541,12 +700,14 @@ async function run(): Promise<VerifyResult> {
 
     const bind = writePool[Math.floor(random() * writePool.length)];
     let value: LocalValue;
-    if (bind === 'g') {
-      value = runtimeA.get(gNode) !== true;
-    } else if (bind === 'name') {
-      value = randomText();
+    if (bind === 'g' || bind === 'warn') {
+      value = runtimeA.get(nodeByBind[bind]) !== true;
+    } else if (bind === 'name' || bind === 'owner' || bind === 'caption') {
+      value = randomText(nodeByBind[bind]);
     } else if (bind === 'done') {
       value = randomChecklist();
+    } else if (SELECTION_BINDS.has(bind)) {
+      value = randomSelection(bind);
     } else {
       value = randomNumeric(bind);
     }
@@ -632,12 +793,21 @@ async function run(): Promise<VerifyResult> {
   await nextFrame();
   const htmlB = normalizeMarkup(serializeView(containerB));
 
+  const setOperations = operations.filter(
+    (operation): operation is SetOperation => operation.kind === 'set',
+  );
   const counts = {
-    set: operations.filter((operation) => operation.kind === 'set' && !operation.noop).length,
-    noop: operations.filter((operation) => operation.kind === 'set' && operation.noop).length,
+    set: setOperations.filter((operation) => !operation.noop).length,
+    noop: setOperations.filter((operation) => operation.noop).length,
     reset: operations.filter((operation) => operation.kind === 'reset').length,
     locale: operations.filter((operation) => operation.kind === 'locale').length,
     tab: operations.filter((operation) => operation.kind === 'tab').length,
+    visual: setOperations.filter(
+      (operation) => !operation.noop && VISUAL_ONLY_BINDS.has(operation.bind),
+    ).length,
+    selection: setOperations.filter(
+      (operation) => !operation.noop && SELECTION_BINDS.has(operation.bind),
+    ).length,
   };
 
   return {
