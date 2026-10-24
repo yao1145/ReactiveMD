@@ -1,6 +1,6 @@
 # Reactive MD theme protocol
 
-Protocol revision: `reactive-md-theme-1`. This feature belongs to the unreleased workspace version. The built-in `default` preserves the existing appearance.
+Protocol revision: `reactive-md-theme-1`. This feature ships in `0.4.0`, the preview release on the `next` channel. The built-in `default` preserves the existing appearance.
 
 ## Selecting a theme
 

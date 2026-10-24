@@ -958,4 +958,4 @@ Playground 的左侧编辑器和右侧诊断区会同时定位问题。未知标
 大多数文章只需要 Markdown，加上两三个输入组件和一个展示组件。先把参数和正文连接起来，再按需要引入图表、图解和 LaTeX 曲线。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。本工作区版本尚未发布。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.4.0` 是 `next` 渠道的预览版。

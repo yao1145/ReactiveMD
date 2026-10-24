@@ -1,12 +1,13 @@
 # Versions and compatibility
 
-Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](local-integration-en.md) for the public API and style integration, and [0.4.0 development preview and migration](release-0.4.0-en.md) for this build's upgrade summary.
+Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](local-integration-en.md) for the public API and style integration, and [0.4.0 release and migration](release-0.4.0-en.md) for this release's upgrade summary.
 
 ## Version mapping
 
 | Item | Current value | Notes |
 | --- | --- | --- |
-| Package version | `0.4.0` | Unreleased; build this checkout |
+| Package version | `0.4.0` | Preview release, published on the `next` distribution channel |
+| Distribution tags | `next` → `0.4.0`; `latest` → `0.3.1` | `0.3.1` remains the stable channel until a separate promotion decision |
 | Syntax version | `local-draft-2` | `LOCAL_SYNTAX_VERSION`; the current build accepts only this revision |
 | Source revision directive | Optional `<!-- reactive-md: local-draft-2 -->` | One line in the document prologue; unversioned source keeps current-revision behavior |
 | Component protocol | `component-protocol-1` | Contribution and acceptance contract, see [Component protocol](component-protocol-en.md); not a runtime version selection parameter |
@@ -45,11 +46,11 @@ Regression data in [the historical corpus](../examples/conformance/history/v0.3.
 
 ## Breaking changes and migration
 
-The same development build adds [constraints and collections](constraints-collections-en.md): `LocalRuntime.validate()`, serializable `LocalValidation` rules, numeric arrays and generated tables. Hosts implementing a runtime adapter need the new `validate()` method; exhaustive value-kind checks need `number-array`. Rename bindings colliding with `sum`, `average`, `minOf` or `maxOf`.
+`0.4.0` adds [constraints and collections](constraints-collections-en.md): `LocalRuntime.validate()`, serializable `LocalValidation` rules, numeric arrays and generated tables. Hosts implementing a runtime adapter need the new `validate()` method; exhaustive value-kind checks need `number-array`. Rename bindings colliding with `sum`, `average`, `minOf` or `maxOf`.
 
-The unreleased `0.4.0` build adds [named calculations and formatting functions](computations-formatting-en.md). `computed`/`const` use the existing local tag syntax. The new built-in function names become reserved; rename colliding input bindings and their references before using this build. `document.bindings` and `initialState` still contain writable controls; snapshots also expose successful calculated values.
+`0.4.0` adds [named calculations and formatting functions](computations-formatting-en.md). `computed`/`const` use the existing local tag syntax. The new built-in function names become reserved; rename colliding input bindings and their references before using this release. `document.bindings` and `initialState` still contain writable controls; snapshots also expose successful calculated values.
 
-`0.4.0` establishes `local-draft-2`. Unversioned source that uses supported `local-draft-1` forms remains valid; an explicit `local-draft-1` declaration is rejected until migrated. The build now recognizes 15 additional tag names: the ten `local-draft-2` components plus `computed`, `const`, `validation`, `data-table` and `column`. Text that previously displayed as an unknown or literal tag now parses as a component or declaration; move literal examples into code spans or fences. The leading `<theme>` declaration is document metadata and is not counted as a component. See [0.4.0 development preview and migration](release-0.4.0-en.md) for the complete rename and upgrade checklist.
+`0.4.0` establishes `local-draft-2`. Unversioned source that uses supported `local-draft-1` forms remains valid; an explicit `local-draft-1` declaration is rejected until migrated. The build now recognizes 15 additional tag names: the ten `local-draft-2` components plus `computed`, `const`, `validation`, `data-table` and `column`. Text that previously displayed as an unknown or literal tag now parses as a component or declaration; move literal examples into code spans or fences. The leading `<theme>` declaration is document metadata and is not counted as a component. See [0.4.0 release and migration](release-0.4.0-en.md) for the complete rename and upgrade checklist.
 
 Author-visible syntax changes establish a new syntax revision, such as `local-draft-2`, and raise the minor version and update `LOCAL_SYNTAX_VERSION`. Changes to the core or React API are also recorded in the changelog. The project does not rewrite document bodies automatically. `reactive-md migrate` moves one source's metadata declaration and blocks body-level conflicts; after upgrading, authors or hosts complete any remaining source changes according to the record.
 
@@ -99,4 +100,4 @@ Node-side consumption means importing `reactive-md` in Node and calling `compile
 See the [syntax specification](local-interaction-syntax-en.md) for the language scope, and the [security policy](../SECURITY.md) for the security boundary and host responsibilities.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist. This checkout is unreleased.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. `0.4.0` is the preview release on `next`; `0.3.1` remains `latest`.

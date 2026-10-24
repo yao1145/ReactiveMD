@@ -2,7 +2,7 @@
 
 These directories use the package's public entry points and can be copied outside the repository. The commands below start from the current directory.
 
-This checkout targets the unreleased `0.4.0` development preview. First run `npm pack` in the repository, then copy the desired example directory outside the repository. In each command below, replace `/path/to/reactive-md-0.4.0.tgz` with the tarball's absolute path. The install uses the built package; React and Vite are installed from the example's own dependencies where needed.
+These examples target `0.4.0`, the preview release on the `next` channel. First run `npm pack` in the repository, then copy the desired example directory outside the repository. In each command below, replace `/path/to/reactive-md-0.4.0.tgz` with the tarball's absolute path. The install uses the built package; React and Vite are installed from the example's own dependencies where needed.
 
 ## Node core
 

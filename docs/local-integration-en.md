@@ -1,6 +1,6 @@
 # Local mode integration
 
-Local interaction mode uses HTML-style tags, in-place parameters and `{{ expressions }}`. Author rules are in the [beginner guide](local-guide-en.md) and the [syntax specification](local-interaction-syntax-en.md); complete documents are in the [example index](../examples/local/README.md). Hosts explicitly select this mode through the `Local` APIs. See [Source revisions and migration](source-versioning-en.md) for the optional revision directive, upgrade checks and `migrateLocalSource`, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist.
+Local interaction mode uses HTML-style tags, in-place parameters and `{{ expressions }}`. Author rules are in the [beginner guide](local-guide-en.md) and the [syntax specification](local-interaction-syntax-en.md); complete documents are in the [example index](../examples/local/README.md). Hosts explicitly select this mode through the `Local` APIs. See [Source revisions and migration](source-versioning-en.md) for the optional revision directive, upgrade checks and `migrateLocalSource`, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist.
 
 ## Runtime and entries
 
@@ -10,7 +10,7 @@ Local interaction mode uses HTML-style tags, in-place parameters and `{{ express
 | `reactive-md/react` | `LocalReactiveDocument`, `LocalDocumentView` | React 19 |
 | `reactive-md/styles.css` | Component, theme and document styles | Explicitly imported by the host |
 
-The package ships ESM only. Node.js 22.12+ can be used for development and Node-side compilation and runtime. Local browser verification uses Edge; static SSR is covered by the packed check; see [Versions and compatibility](compatibility-en.md) for the full matrix. Copyable projects are in [Standalone integration examples](../examples/integration/README.md). For single-file HTML, state files and the standalone browser runtime, see [Shareable documents and static export](shareable-export-en.md).
+The package ships ESM only. Node.js 22.12+ can be used for development and Node-side compilation and runtime. Local browser checks use Edge; static SSR is covered by the packed check; see [Versions and compatibility](compatibility-en.md) for the full matrix. Copyable projects are in [Standalone integration examples](../examples/integration/README.md). For single-file HTML, state files and the standalone browser runtime, see [Shareable documents and static export](shareable-export-en.md).
 
 ## React
 
@@ -360,4 +360,4 @@ These limits bound the work for a single document; they do not replace host cont
 Local mode does not provide automatic state persistence or network access, plugins or custom component registration, arbitrary HTML, author CSS, event handlers, external data APIs, form submission, Vue support, React 18 support or a CommonJS entry. State export and import are explicit host calls; the runtime never saves or sends state by itself. `LocalReactiveDocument` still starts from initial values when the source changes; use the retention helpers or supply your own runtime and document. Hosts should not treat these capabilities as configuration options.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist. This checkout is unreleased.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. `0.4.0` is the preview release on the `next` channel.

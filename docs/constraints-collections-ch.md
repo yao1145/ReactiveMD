@@ -1,6 +1,6 @@
 # 条件、校验与本地集合
 
-这些能力扩展尚未发布的 `0.4.0` 开发版本，使用 `local-draft-2`。[工作坊示例](../examples/local/recipes/workshop-zh.reactive.md)把人数预算、日期区间和已选主题表格放在同一份文档里，[命名计算](computations-formatting-ch.md)保存其中间结果。
+这些能力扩展使用 `local-draft-2` 的 `0.4.0`。[工作坊示例](../examples/local/recipes/workshop-zh.reactive.md)把人数预算、日期区间和已选主题表格放在同一份文档里，[命名计算](computations-formatting-ch.md)保存其中间结果。
 
 ## 跨字段校验
 
@@ -81,4 +81,4 @@
 
 `LocalDocument.validations` 保存可序列化的 `LocalValidation` 元数据，宿主可随时调用 `runtime.validate()`，调用不会修改状态。编译后的文档仍可用 `structuredClone` 传递给 Worker。对象生命周期和持久化规则见[集成说明](local-integration-ch.md)。
 
-新增聚合函数名 `sum`、`average`、`minOf`、`maxOf` 成为保留字，升级前需重命名冲突绑定及其引用。对 `LocalValueKind` 做穷举检查的宿主应加入 `number-array`；可写多选与清单控件仍只接受字符串。本地开发版本的发布需要另行授权。
+新增聚合函数名 `sum`、`average`、`minOf`、`maxOf` 成为保留字，升级前需重命名冲突绑定及其引用。对 `LocalValueKind` 做穷举检查的宿主应加入 `number-array`；可写多选与清单控件仍只接受字符串。预览版发布在 `next` 渠道。

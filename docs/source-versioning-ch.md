@@ -1,6 +1,6 @@
 # 源码修订与迁移
 
-本文说明 `0.4.0` 开发预览中的显式源码修订、编译器的处理方式，以及纯核心 API 与 CLI 迁移工具。语法规则见[语法规范](local-interaction-syntax-ch.md)，包版本与 API 兼容规则见[版本与兼容性](compatibility-ch.md)，组块升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
+本文说明 `0.4.0` 中的显式源码修订、编译器的处理方式，以及纯核心 API 与 CLI 迁移工具。语法规则见[语法规范](local-interaction-syntax-ch.md)，包版本与 API 兼容规则见[版本与兼容性](compatibility-ch.md)，组块升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。
 
 ## 声明修订
 
@@ -156,4 +156,4 @@ reactive-md migrate old.reactive.md --from local-draft-1 --accept-semantic-chang
 
 迁移处理声明的元数据变化，并检查正文能否跨越修订边界。它不是旧版读取器：不解释 YAML `state`/`data`/`computed`/`actions` 配置块、directive 或其他 draft 之前的语法，也不改写正文。在 `local-draft-2` 下已经无法编译的源码会保持阻止状态，直到作者修复报告的位置。
 
-`0.4.0` 包仍是尚未发布的开发预览。本页说明该预览中的工具，不宣布已发布版本。
+`0.4.0` 是 `next` 渠道的预览版。本页说明其中的迁移工具。

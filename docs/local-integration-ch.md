@@ -1,6 +1,6 @@
 # 本地交互文档集成
 
-本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](local-guide-ch.md) 和 [语法规范](local-interaction-syntax-ch.md)，完整文档见[示例索引](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。可选修订指令、升级检查与 `migrateLocalSource` 见[源码修订与迁移](source-versioning-ch.md)，升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
+本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](local-guide-ch.md) 和 [语法规范](local-interaction-syntax-ch.md)，完整文档见[示例索引](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。可选修订指令、升级检查与 `migrateLocalSource` 见[源码修订与迁移](source-versioning-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。
 
 ## 运行环境与入口
 
@@ -10,7 +10,7 @@
 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` | React 19 |
 | `reactive-md/styles.css` | 组件、主题和文档样式 | 由宿主显式引入 |
 
-包只提供 ESM。Node.js 22.12+ 可用于开发和 Node 端编译、运行。本地浏览器验证使用 Edge；静态 SSR 由 packed 检查覆盖；完整矩阵见[版本与兼容性](compatibility-ch.md)。可复制的项目见[独立接入示例](../examples/integration/README.md)。单文件 HTML、状态文件与独立浏览器运行时见[可分享文档与静态导出](shareable-export-ch.md)。
+包只提供 ESM。Node.js 22.12+ 可用于开发和 Node 端编译、运行。本地浏览器检查使用 Edge；静态 SSR 由 packed 检查覆盖；完整矩阵见[版本与兼容性](compatibility-ch.md)。可复制的项目见[独立接入示例](../examples/integration/README.md)。单文件 HTML、状态文件与独立浏览器运行时见[可分享文档与静态导出](shareable-export-ch.md)。
 
 ## React
 
@@ -360,4 +360,4 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 本地模式不提供自动状态持久化或网络访问，也不提供插件或自定义组件注册、任意 HTML、作者 CSS、事件处理器、外部数据接口、表单提交、Vue 支持、React 18 支持或 CommonJS 入口。状态导出与导入是宿主的显式调用；运行时本身不会保存或发送状态。`LocalReactiveDocument` 在源码变化时仍从初值开始；请使用参数保留工具，或自行提供运行时和文档。宿主不应把这些能力当作可配置项。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。本工作区版本尚未发布。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.4.0` 是 `next` 渠道的预览版。

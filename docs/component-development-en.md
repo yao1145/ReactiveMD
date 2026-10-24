@@ -2,7 +2,7 @@
 
 This guide is for contributors adding or changing components in Reactive MD. Components include input controls, containers, visualizations and structural children. The shared contract is in the [component protocol](component-protocol-en.md); the author syntax is in the [local interaction syntax specification](local-interaction-syntax-en.md).
 
-The current protocol is `component-protocol-1`, the applicable syntax is `local-draft-2`, and the current package version is the unreleased `0.4.0` development preview. These three versions represent the contribution contract, the author syntax and the npm release. Updating the protocol document does not automatically change the syntax or public API.
+The current protocol is `component-protocol-1`, the applicable syntax is `local-draft-2`, and the current package version is `0.4.0`, the preview release on the `next` channel. These three versions represent the contribution contract, the author syntax and the npm release. Updating the protocol document does not automatically change the syntax or public API.
 
 ## 1. What to submit
 
@@ -207,4 +207,4 @@ Browser checks must record the specific environment and actions. Check real keyb
 List the commands actually run and observations in the PR. State not run, failed and not applicable separately; do not treat checked boxes as verification evidence.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. `0.4.0` is the preview release on the `next` channel.

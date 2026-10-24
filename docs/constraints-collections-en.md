@@ -1,6 +1,6 @@
 # Constraints, conditional tones and local collections
 
-These additions extend the unreleased `0.4.0` development build of `local-draft-2`. The [workshop example](../examples/local/recipes/workshop.reactive.md) combines a participant budget, a date interval and a selected-subject table. [Named calculations](computations-formatting-en.md) hold its intermediate results.
+These additions extend `0.4.0`, which uses `local-draft-2`. The [workshop example](../examples/local/recipes/workshop.reactive.md) combines a participant budget, a date interval and a selected-subject table. [Named calculations](computations-formatting-en.md) hold its intermediate results.
 
 ## Cross-field validation
 
@@ -81,4 +81,4 @@ An empty array displays the headers and an empty-state message. Failure of the r
 
 `LocalDocument.validations` contains serializable `LocalValidation` metadata. Hosts can call `runtime.validate()` at any time without changing state. The compiled document remains transferable to a Worker with `structuredClone`. The [core integration guide](local-integration-en.md) describes its lifetime and persistence rules.
 
-The aggregate names `sum`, `average`, `minOf` and `maxOf` become reserved identifiers. Rename conflicting bindings and their references before using this development build. Hosts with exhaustive `LocalValueKind` checks should add `number-array`; writable multi-select and checklist controls still require strings. The package remains an unpublished development checkout until a separate release is authorized.
+The aggregate names `sum`, `average`, `minOf` and `maxOf` become reserved identifiers. Rename conflicting bindings and their references before using this release. Hosts with exhaustive `LocalValueKind` checks should add `number-array`; writable multi-select and checklist controls still require strings. The preview is published on the `next` channel.

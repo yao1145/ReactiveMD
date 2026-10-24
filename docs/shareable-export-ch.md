@@ -1,6 +1,6 @@
 # 可分享文档与静态导出
 
-本文说明 `local-draft-2` 新增的单文件 HTML 导出能力。编译与运行时接口见[本地模式集成](local-integration-ch.md)，语法见[交互语法规范](local-interaction-syntax-ch.md)，修订声明与迁移见[源码修订与迁移](source-versioning-ch.md)，升级说明见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
+本文说明 `local-draft-2` 新增的单文件 HTML 导出能力。编译与运行时接口见[本地模式集成](local-integration-ch.md)，语法见[交互语法规范](local-interaction-syntax-ch.md)，修订声明与迁移见[源码修订与迁移](source-versioning-ch.md)，升级说明见[0.4.0 发布与迁移](release-0.4.0-ch.md)。
 
 ## 两种产物
 
@@ -47,7 +47,7 @@ reactive-md lint "docs/**/*.reactive.md" --json --strict
 | `4` | 输入/输出文件错误 |
 | `5` | 资源或安全策略错误 |
 
-CLI 没有“当前预览”概念，只有 `--state-file` 可以选择非初值基线。本开发版本暂不提供 `format`。
+CLI 没有“当前预览”概念，只有 `--state-file` 可以选择非初值基线。本版本暂不提供 `format`。
 
 ## 迁移源码
 
@@ -200,6 +200,6 @@ IIFE 会注册一个 Light DOM 自定义元素。简单选项通过属性传递�
 
 已实现：CLI 的 `build`/`lint`/`migrate`、交互与静态 HTML、状态文件、本地位图内联、打印输出、standalone 挂载 API、自动挂载和 Web Component。
 
-本开发版本不包含：`format`、UMD、远程图片抓取、SVG 内联、框架插件（Vite、Astro、Docusaurus、Next.js）、Shadow DOM，以及单文件导出之外的通用 SSR 水合保证。
+本版本不包含：`format`、UMD、远程图片抓取、SVG 内联、框架插件（Vite、Astro、Docusaurus、Next.js）、Shadow DOM，以及单文件导出之外的通用 SSR 水合保证。
 
-单文件静态首屏水合已在 Playwright Chromium 中验证，本地验证使用 Edge。Firefox、Safari/WebKit 以及通用服务端水合尚未验证，不作支持声明。
+单文件静态首屏水合由 Playwright Chromium 和本地 Edge 检查覆盖。Firefox、Safari/WebKit 以及通用服务端水合尚未验证，不作支持声明。

@@ -1,6 +1,6 @@
 # Reusing calculations and formatting values
 
-These additions belong to the unreleased `0.4.0` development build of `local-draft-2`. See the [syntax specification](local-interaction-syntax-en.md), [integration API](local-integration-en.md) and [working example](../examples/local/recipes/invoice.reactive.md).
+These additions belong to `0.4.0`, which uses `local-draft-2`. See the [syntax specification](local-interaction-syntax-en.md), [integration API](local-integration-en.md) and [working example](../examples/local/recipes/invoice.reactive.md).
 
 ## Named values
 
@@ -84,4 +84,4 @@ Declaration diagnostics use `local.computation.*`: `placement`, `name`, `reserve
 
 ## Compatibility
 
-Existing expressions and `round(x)` keep their behavior. The new function names are reserved identifiers in this development build. Rename any pre-existing bindings with these names and update their references before upgrading. The [changelog](../CHANGELOG.md) lists this addition; the published package version is unchanged by editing this checkout.
+Existing expressions and `round(x)` keep their behavior. The new function names are reserved identifiers in this release. Rename any pre-existing bindings with these names and update their references before upgrading. The [changelog](../CHANGELOG.md) lists this addition.

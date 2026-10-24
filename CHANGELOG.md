@@ -2,9 +2,9 @@
 
 This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
 
-## 0.4.0 development preview (unreleased, local-draft-2)
+## 0.4.0 (2026-10-24, next channel)
 
-This checkout is an unreleased development preview. It upgrades from `0.3.1` / `local-draft-1`; see [0.4.0 development preview and migration](docs/release-0.4.0-en.md) for the complete upgrade checklist.
+`0.4.0` is a preview release published on the `next` distribution channel. It uses syntax revision `local-draft-2` and upgrades from `0.3.1` / `local-draft-1`; the package version, syntax revision, `component-protocol-1` component protocol and `reactive-md-theme-1` theme protocol are independent version axes. `0.3.1` remains the `latest` release. See [0.4.0 release and migration](docs/release-0.4.0-en.md) for the complete upgrade checklist.
 
 ### Added
 
@@ -15,7 +15,7 @@ This checkout is an unreleased development preview. It upgrades from `0.3.1` / `
 - Add homogeneous string/numeric array literals, array indexing, `sum`, `average`, `minOf` and `maxOf`, plus `<data-table>`/`<column>` for bounded local row generation with stable keys. See [constraints and collections](docs/constraints-collections-en.md). `LocalValueKind` gains `number-array`; aggregate names become reserved identifiers.
 
 - Add invisible, read-only `<computed>` and `<const>` declarations with dependency ordering, inferred types, cycle detection and per-runtime calculation caching. Prose, conditions, formulas and charts can share intermediate results.
-- Add number, percentage, scientific and currency formatting, common string functions and UTC date comparison/differences. Defaults, rounding, nulls and accepted regions are specified in [Reusing calculations and formatting values](docs/computations-formatting-en.md). New function names are reserved; rename any existing bindings with those names before using this development build.
+- Add number, percentage, scientific and currency formatting, common string functions and UTC date comparison/differences. Defaults, rounding, nulls and accepted regions are specified in [Reusing calculations and formatting values](docs/computations-formatting-en.md). New function names are reserved; rename any existing bindings with those names before upgrading to this release.
 
 - Add an optional `<!-- reactive-md: local-draft-2 -->` source revision directive. Explicit older, unknown, malformed, duplicate or misplaced revisions fail with `local.version.*` diagnostics and create no runtime; unversioned source keeps current-revision behavior. Readers built before the directive ignore it. See [Source revisions and migration](docs/source-versioning-en.md).
 - Add `inspectLocalSourceVersion`, `checkLocalUpgrade` and `migrateLocalSource`, plus `reactive-md migrate` with `--from`, `--check`, `--json`, `-o/--output`, `--accept-semantic-changes` and `--locale`. Migration changes only the directive, preserves body bytes, BOM and CRLF, is idempotent, blocks reserved bindings, newly recognized tags, compile errors and text-length semantic changes, and never rewrites state files.
@@ -34,7 +34,7 @@ This checkout is an unreleased development preview. It upgrades from `0.3.1` / `
 - Add document jumps/anchors, text/section color, multiple selection, interval and coordinate inputs, practice questions and guided steps.
 - Add checked-item strike-through, component accent colors and stable shared table/chart selection.
 - Extend runtime get/set with optional slots and add atomic setMany. New slot bindings are exclusive.
-- Add a bilingual feature tour and editor insertion templates. See [migration](docs/local-components-v2-en.md). No release has been published.
+- Add a bilingual feature tour and editor insertion templates. See [migration](docs/local-components-v2-en.md). The preview is published on the `next` channel.
 
 - The Playground adds a Chinese/English toggle that localizes the interface, examples, guide and built-in control labels, and saves the choice in the browser.
 - `LocalDocumentView` and `LocalReactiveDocument` accept `locale: 'en' | 'zh'` (default `'en'`) for built-in UI labels. Displayed compile and runtime diagnostics use the shared English/Chinese catalogue; callbacks still receive structured diagnostics with stable machine fields.

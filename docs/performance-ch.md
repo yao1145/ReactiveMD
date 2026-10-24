@@ -11,7 +11,7 @@ npm run benchmark
 
 ## 本地基线
 
-2026-10-22，Reactive MD 0.3.0，Node 22.17.0，Windows x64，Intel Core Ultra 5 125H。测量时机器上也有其他开发进程运行。该基线早于 0.4.0 开发预览；作为发布对比前应重新运行基准。
+2026-10-22，Reactive MD 0.3.0，Node 22.17.0，Windows x64，Intel Core Ultra 5 125H。测量时机器上也有其他开发进程运行。该基线早于 0.4.0 发布；作为发布对比前应重新运行基准。
 
 | 场景 | 中位数 | P95 |
 | --- | ---: | ---: |

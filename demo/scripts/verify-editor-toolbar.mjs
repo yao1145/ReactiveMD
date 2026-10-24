@@ -32,15 +32,134 @@ const expectSameIds = (actual, expected, label) => {
   }
 };
 
-const startDevBold = async (editor) => {
+// Passive instrumentation. It never dispatches or mutates anything; it only
+// records the editing events and the two values that can drift apart: the
+// textarea DOM and the React state that renders the source highlight.
+const installEditorProbe = async (target) => {
+  await target.addInitScript(() => {
+    const events = [];
+    window.__editorProbe = events;
+    const record = (event) => {
+      const element = event.target;
+      if (!(element instanceof HTMLTextAreaElement) || element.id !== 'source-editor') return;
+      const propsKey = Object.keys(element).find((key) => key.startsWith('__reactProps$'));
+      events.push({
+        type: event.type,
+        inputType: typeof event.inputType === 'string' ? event.inputType : null,
+        trusted: event.isTrusted === true,
+        dom: element.value,
+        react: propsKey ? element[propsKey]?.value ?? null : null,
+        start: element.selectionStart,
+        end: element.selectionEnd,
+        active: document.activeElement === element,
+        at: Math.round(performance.now()),
+      });
+      if (events.length > 200) events.shift();
+    };
+    for (const type of ['beforeinput', 'input', 'change', 'select', 'focus', 'blur']) {
+      document.addEventListener(type, record, true);
+    }
+  });
+};
+
+const readEditorState = (editor) => editor.evaluate((element) => {
+  const propsKey = Object.keys(element).find((key) => key.startsWith('__reactProps$'));
+  const highlight = document.querySelector('.author-highlight-content');
+  return {
+    dom: element.value,
+    react: propsKey ? element[propsKey]?.value ?? null : null,
+    highlight: highlight ? highlight.textContent : null,
+    start: element.selectionStart,
+    end: element.selectionEnd,
+    focused: document.activeElement === element,
+  };
+});
+
+const probeCount = (target) => target.evaluate(() => (window.__editorProbe ?? []).length);
+
+const probeSince = (target, index) =>
+  target.evaluate((from) => (window.__editorProbe ?? []).slice(from).slice(-8), index);
+
+const formatProbe = (events) => events.map((event) =>
+  `${event.type}${event.inputType ? `(${event.inputType})` : ''} trusted=${event.trusted}`
+  + ` dom=${JSON.stringify(String(event.dom).slice(0, 40))}`
+  + ` react=${event.react === null ? 'null' : JSON.stringify(String(event.react).slice(0, 40))}`
+  + ` sel=${event.start}-${event.end} active=${event.active} at=${event.at}`);
+
+const classifyEditorState = (state, expected, previous, events) => {
+  if (state.dom === expected && state.highlight === expected) {
+    return 'source and highlight match the expected text; inspect selection and the click path';
+  }
+  if (state.dom === expected && state.highlight !== expected) {
+    return 'the textarea holds the expected text but React state (highlight) never committed it';
+  }
+  if (state.dom !== expected && events.some((event) => event.dom === expected)) {
+    return 'the textarea briefly held the expected text, then a render overwrote it (controlled rollback)';
+  }
+  if (state.dom === previous && state.highlight === previous) {
+    return 'textarea and React state both hold the previous source; the edit is absent from both';
+  }
+  if (events.some((event) => event.dom === previous)) {
+    return 'the previous source was present after the fill and was later overwritten before the edit was read';
+  }
+  return 'textarea and highlight disagree with both the expected and previous source';
+};
+
+const describeEditorState = async (target, editor, label, from, expected, previous) => {
+  try {
+    const [state, events] = await Promise.all([
+      readEditorState(editor),
+      probeSince(target, from),
+    ]);
+    return [
+      `[${label}] ${classifyEditorState(state, expected, previous, events)}`,
+      `dom=${JSON.stringify(state.dom.slice(0, 80))}`,
+      `react=${state.react === null ? 'unavailable' : JSON.stringify(String(state.react).slice(0, 80))}`,
+      `highlight=${state.highlight === null ? 'missing' : JSON.stringify(state.highlight.slice(0, 80))}`,
+      `selection=${state.start}-${state.end} focused=${state.focused}`,
+      `events=${events.length ? formatProbe(events).join(' | ') : 'none'}`,
+    ].join('\n');
+  } catch (error) {
+    return `[${label}] diagnostics unavailable: ${error instanceof Error ? error.message : String(error)}`;
+  }
+};
+
+// The fill must reach both the textarea DOM and React before the toolbar reads
+// the selection. This waits for both to agree with the typed source and then
+// for the caret, so a later bold failure is never blamed on a lost fill.
+const waitForEditorSource = async (target, editor, expected, previous, label, from) => {
+  try {
+    await expect.poll(async () => {
+      const state = await readEditorState(editor);
+      return { dom: state.dom, highlight: state.highlight };
+    }, { timeout: 10000 }).toEqual({ dom: expected, highlight: expected });
+  } catch (error) {
+    throw new Error(`${error.message}\n${await describeEditorState(target, editor, label, from, expected, previous)}`);
+  }
+};
+
+const startDevBold = async (target, editor) => {
+  const previous = await editor.inputValue();
+  const from = await probeCount(target);
   await editor.fill('# Test\n\nBody');
+  await waitForEditorSource(target, editor, '# Test\n\nBody', previous, 'fill before bold', from);
   await editor.evaluate((element) => {
     element.focus();
     element.setSelectionRange(8, 12);
   });
+  try {
+    await expect.poll(async () => {
+      const state = await readEditorState(editor);
+      return { start: state.start, end: state.end, focused: state.focused };
+    }, { timeout: 10000 }).toEqual({ start: 8, end: 12, focused: true });
+  } catch (error) {
+    throw new Error(`${error.message}\n${await describeEditorState(target, editor, 'selection before bold', from, '# Test\n\nBody', previous)}`);
+  }
+  return from;
 };
 
 try {
+  await installEditorProbe(page);
   await page.goto(baseURL);
   await page.getByRole('button', { name: 'Show source', exact: true }).click();
   const toolbar = page.locator('.editor-toolbar');
@@ -79,16 +198,23 @@ try {
   }
   console.log('PASS toolbar and source share one frame');
 
-  await startDevBold(editor);
+  const boldFrom = await startDevBold(page, editor);
   await boldButton.click();
-  await expect.poll(() => editor.inputValue()).toBe('# Test\n\n**Body**');
+  try {
+    await expect.poll(() => editor.inputValue()).toBe('# Test\n\n**Body**');
+  } catch (error) {
+    throw new Error(`${error.message}\n${await describeEditorState(page, editor, 'first bold', boldFrom, '# Test\n\n**Body**', '# Test\n\nBody')}`);
+  }
   const boldSelection = await editor.evaluate((element) => ({
     start: element.selectionStart,
     end: element.selectionEnd,
     focused: document.activeElement === element,
   }));
   if (boldSelection.start !== 10 || boldSelection.end !== 14 || !boldSelection.focused) {
-    throw new Error(`Bold selection was not restored: ${JSON.stringify(boldSelection)}`);
+    throw new Error(
+      `Bold selection was not restored: ${JSON.stringify(boldSelection)}\n`
+      + await describeEditorState(page, editor, 'bold selection', boldFrom, '# Test\n\n**Body**', '# Test\n\nBody'),
+    );
   }
   await expect(boldButton).toHaveAttribute('aria-pressed', 'true');
   const tooltip = await boldButton.getAttribute('data-tooltip');

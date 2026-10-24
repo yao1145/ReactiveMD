@@ -4,7 +4,7 @@
 
 用 Markdown 写本地交互文档。放入输入控件，用 `bind` 命名参数，用 `{{ 表达式 }}` 连接文字、公式、图表和图解。文档作者无需编写 JavaScript 或 CSS。
 
-本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。当前工作区为尚未发布的 `0.4.0` 开发预览版，语法修订 `local-draft-2`。
+本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。`0.4.0` 是发布在 `next` 渠道的预览版，语法修订为 `local-draft-2`。
 
 ## 从这里开始
 
@@ -17,7 +17,7 @@
 - [独立接入示例](examples/integration/README.md)：可复制到仓库外运行的 Node 核心和 React 页面。
 - [版本与兼容性](docs/compatibility-ch.md)：0.x 规则、迁移、诊断契约和平台范围。
 - [组块协议](docs/component-protocol-ch.md) · [组块开发指南](docs/component-development-ch.md)：新增组件的声明、行为契约和兼容性验收。
-- [0.4.0 开发预览与迁移](docs/release-0.4.0-ch.md)：本构建包含的能力，以及从 `0.3.1` / `local-draft-1` 升级的方法。
+- [0.4.0 发布与迁移](docs/release-0.4.0-ch.md)：本次发布包含的能力，以及从 `0.3.1` / `local-draft-1` 升级的方法。
 
 ## 写一份文档
 
@@ -32,17 +32,17 @@
 
 输入立即更新结果，面板自带“恢复默认”。独立使用的计数器只需一行 `<counter label="人数">`。
 
-当前工作区的 `0.4.0` 预览新增 `local-draft-2`、命名计算、校验、集合、主题和离线 HTML 导出；已发布的 0.3.1 仍使用 local-draft-1。见[0.4.0 开发预览与迁移](docs/release-0.4.0-ch.md)。
+`0.4.0` 新增 `local-draft-2`、命名计算、校验、集合、主题和离线 HTML 导出；仍为 `latest` 的 0.3.1 使用 `local-draft-1`。见[0.4.0 发布与迁移](docs/release-0.4.0-ch.md)。
 
 ## 安装
 
 需要 Node.js 22.12 或更新版本，包提供 ESM 入口：
 
 ```sh
-npm install reactive-md@0.3.1
+npm install reactive-md@next
 ```
 
-这会安装已发布的预览版。本页描述的 `0.4.0` 开发版由当前工作区构建；registry 上尚不提供 `reactive-md@0.4.0`。
+`next` 渠道当前指向 `0.4.0`；需要固定版本时使用 `npm install reactive-md@0.4.0`。`latest` 标签仍为 `0.3.1`，使用 `local-draft-1`，从 `0.3.x` 升级无需迁移。
 
 `reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。
 
@@ -77,7 +77,7 @@ npx reactive-md build examples/local/counter.reactive.md -o counter-static.html 
 
 交互文件内嵌原始源码、React 19、运行时、样式以及经过校验的本地图片。它先渲染静态首屏，因此禁用 JavaScript 时仍可阅读。使用 `--state-file doc.state.json` 导出已保存的 `reactive-md-state/v1` 基线；省略时使用作者初值，并把它作为读者的重置基线。Demo 导出对话框可以把当前预览参数保存成此类状态文件。
 
-图片上限、CSP/安全、打印、退出码、`ReactiveMD.mount`/`mountAll` 与 `<reactive-md-doc>` 见[可分享文档与静态导出](docs/shareable-export-ch.md)。单文件静态首屏水合已在 Playwright Chromium 和本地 Edge 验证；Firefox、Safari/WebKit 与通用 SSR 水合仍未验证。
+图片上限、CSP/安全、打印、退出码、`ReactiveMD.mount`/`mountAll` 与 `<reactive-md-doc>` 见[可分享文档与静态导出](docs/shareable-export-ch.md)。单文件导出的静态首屏水合由 Playwright Chromium 和本地 Edge 检查覆盖；Firefox、Safari/WebKit 与通用 SSR 水合仍未验证。
 
 ## 体验 Demo
 
@@ -104,7 +104,7 @@ demo/          独立的 Playground 应用
 - [本地模式集成](docs/local-integration-ch.md)：核心与 React API、URL 策略、生命周期、样式和版本固定。
 - [可分享文档与静态导出](docs/shareable-export-ch.md)：CLI build/lint、状态文件、本地图片内联、打印与独立浏览器运行时。
 - [功能演示与示例](examples/local/README.md)与[独立接入示例](examples/integration/README.md)。
-- [版本与兼容性](docs/compatibility-ch.md)与[0.4.0 开发预览与迁移](docs/release-0.4.0-ch.md)。
+- [版本与兼容性](docs/compatibility-ch.md)与[0.4.0 发布与迁移](docs/release-0.4.0-ch.md)。
 - [组块协议](docs/component-protocol-ch.md)与[组块开发指南](docs/component-development-ch.md)。
 - [性能说明](docs/performance-ch.md)与[发布清单](docs/releasing-ch.md)。
 

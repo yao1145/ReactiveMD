@@ -1,6 +1,6 @@
 # Implementation and verification notes
 
-## Current development build: 0.4.0 / local-draft-2
+## Current release: 0.4.0 / local-draft-2
 
 The current source combines read-only calculations, formatting, arrays and bounded data tables, advisory validation, author tools, portable parameter state, HTML export and dependency-aware rendering. The [syntax specification](../docs/local-interaction-syntax-en.md), [compatibility notes](../docs/compatibility-en.md) and [release checklist](../docs/releasing-en.md) describe the current contracts.
 

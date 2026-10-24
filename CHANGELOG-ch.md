@@ -2,9 +2,9 @@
 
 本文件记录用户可见变更。项目处于 0.x 预览阶段，版本与迁移规则见[版本与兼容性](docs/compatibility-ch.md)。
 
-## 0.4.0 开发预览（未发布，local-draft-2）
+## 0.4.0（2026-10-24，next 渠道）
 
-当前工作区是尚未发布的开发预览，从 `0.3.1` / `local-draft-1` 升级。完整升级清单见[0.4.0 开发预览与迁移](docs/release-0.4.0-ch.md)。
+`0.4.0` 是发布在 `next` 分发渠道的预览版，语法修订为 `local-draft-2`，从 `0.3.1` / `local-draft-1` 升级；包版本、语法修订、`component-protocol-1` 组块协议和 `reactive-md-theme-1` 主题协议是彼此独立的版本轴。`0.3.1` 仍为 `latest` 版本。完整升级清单见[0.4.0 发布与迁移](docs/release-0.4.0-ch.md)。
 
 ### 新增
 
@@ -15,7 +15,7 @@
 - 新增同类型字符串/数字数组字面量、数组索引、`sum`、`average`、`minOf`、`maxOf`，以及带稳定行键和数量预算的 `<data-table>`/`<column>`。见[条件、校验与本地集合](docs/constraints-collections-ch.md)。`LocalValueKind` 增加 `number-array`，新增聚合函数名成为保留字。
 
 - 新增不可见、只读的 `<computed>` 与 `<const>` 声明，支持依赖排序、类型推断、循环检测和各运行时独立的计算缓存。正文、条件、公式与图表可共享中间结果。
-- 新增数字、百分比、科学计数法与货币格式化，常用字符串函数及 UTC 日期比较、日期差。默认值、舍入、空值和地区规则见[复用计算与格式化数值](docs/computations-formatting-ch.md)。新函数名成为保留字；使用本开发版本前需重命名同名旧绑定。
+- 新增数字、百分比、科学计数法与货币格式化，常用字符串函数及 UTC 日期比较、日期差。默认值、舍入、空值和地区规则见[复用计算与格式化数值](docs/computations-formatting-ch.md)。新函数名成为保留字；升级到本版本前需重命名同名旧绑定。
 
 - 新增可选的 `<!-- reactive-md: local-draft-2 -->` 源码修订指令。显式旧修订、未知、格式错误、重复或位置错误的声明会以 `local.version.*` 诊断拒绝，不创建运行时；无指令源码保持当前修订行为。早于该指令的读者会忽略它。见[源码修订与迁移](docs/source-versioning-ch.md)。
 - 新增 `inspectLocalSourceVersion`、`checkLocalUpgrade`、`migrateLocalSource`，以及带 `--from`、`--check`、`--json`、`-o/--output`、`--accept-semantic-changes` 和 `--locale` 的 `reactive-md migrate`。迁移只改指令，保留正文原始字节、BOM 和 CRLF，幂等；阻止保留绑定、新增可识别标签、编译错误和文本长度语义变化，且从不改写状态文件。
@@ -34,7 +34,7 @@
 - 新增文档跳转与锚点、正文颜色、多选、区间与二维坐标输入、练习题及分步阅读。
 - 清单勾选后划线，新增组件主色及表格/图表稳定标识的共享选择。
 - runtime.get/set 支持可选槽位，新增原子 setMany；新增槽位绑定为独占。
-- 新增双语功能馆及编辑器插入模板。见[迁移说明](docs/local-components-v2-ch.md)。本版本尚未发布。
+- 新增双语功能馆及编辑器插入模板。见[迁移说明](docs/local-components-v2-ch.md)。预览版发布在 `next` 渠道。
 
 - Playground 新增中英文切换，界面、示例、指南和内置控件文案会同步切换，选择保存在浏览器中。
 - `LocalDocumentView` 和 `LocalReactiveDocument` 支持 `locale: 'en' | 'zh'`（默认 `'en'`），用于内置 UI 文案。显示用编译与运行时诊断通过中英文共享目录本地化，回调仍收到带稳定机器字段的结构化诊断。

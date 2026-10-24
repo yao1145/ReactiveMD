@@ -1,6 +1,6 @@
 # Source revisions and migration
 
-This page covers explicit source revisions, how the compiler treats them, and the pure core and CLI migration tools in the `0.4.0` development preview. Syntax rules are in the [syntax specification](local-interaction-syntax-en.md); package and API compatibility rules are in [Versions and compatibility](compatibility-en.md); the component upgrade checklist is in [0.4.0 development preview and migration](release-0.4.0-en.md).
+This page covers explicit source revisions, how the compiler treats them, and the pure core and CLI migration tools in `0.4.0`. Syntax rules are in the [syntax specification](local-interaction-syntax-en.md); package and API compatibility rules are in [Versions and compatibility](compatibility-en.md); the component upgrade checklist is in [0.4.0 release and migration](release-0.4.0-en.md).
 
 ## Declaring a revision
 
@@ -156,4 +156,4 @@ The command migrates one source at a time. This build has no `--write` mode, no 
 
 Migration handles the declared metadata change and checks whether the body can cross the revision boundary. It is not a legacy reader: it does not interpret YAML `state`/`data`/`computed`/`actions` blocks, directives or other pre-draft syntax, and it does not rewrite the body. Source that already fails to compile under `local-draft-2` stays blocked until the author fixes the reported positions.
 
-The `0.4.0` package remains an unreleased development preview. This page documents the tools in that preview; it does not announce a published release.
+`0.4.0` is the preview release on the `next` channel. This page documents its migration tools.

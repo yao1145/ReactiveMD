@@ -2,7 +2,7 @@
 
 [中文](author-tools-ch.md)
 
-These tools are included in the unreleased 0.4.0 checkout. Build the package before using them locally:
+These tools are included in the `0.4.0` source tree. Build the package before using them locally:
 
 ```sh
 npm ci

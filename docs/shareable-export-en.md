@@ -1,6 +1,6 @@
 # Shareable documents and static export
 
-This guide covers the single-file HTML exporter introduced with `local-draft-2`. It complements [Local mode integration](local-integration-en.md), the [syntax reference](local-interaction-syntax-en.md), [Source revisions and migration](source-versioning-en.md) and the [0.4.0 development preview notes](release-0.4.0-en.md).
+This guide covers the single-file HTML exporter introduced with `local-draft-2`. It complements [Local mode integration](local-integration-en.md), the [syntax reference](local-interaction-syntax-en.md), [Source revisions and migration](source-versioning-en.md) and the [0.4.0 release notes](release-0.4.0-en.md).
 
 ## Output modes
 
@@ -49,7 +49,7 @@ Exit codes are separate so build automation can distinguish failures:
 | `4` | Input/output file failure |
 | `5` | Asset or security-policy failure |
 
-The CLI does not use a current preview implicitly. `--state-file` is the only way to select a non-initial baseline. `format` is not part of this development build.
+The CLI does not use a current preview implicitly. `--state-file` is the only way to select a non-initial baseline. `format` is not part of this release.
 
 ## Migrating source
 
@@ -176,7 +176,7 @@ The IIFE registers a light-DOM custom element. Simple options are attributes; co
 - `src` uses `fetch` with cancellation; an explicit source avoids network access.
 - Disconnecting aborts fetches, removes subscriptions and the React root, and disposes the runtime. Two elements with the same source have independent state.
 
-The element uses Light DOM so the existing document CSS, heading anchors and print styles apply. Shadow DOM is intentionally out of scope for this development build.
+The element uses Light DOM so the existing document CSS, heading anchors and print styles apply. Shadow DOM is intentionally out of scope for this release.
 
 ## Security boundaries
 
@@ -202,6 +202,6 @@ Sizes vary slightly with the minifier and React patch release. The alarm is inte
 
 Included: CLI `build`/`lint`/`migrate`, interactive and static HTML, state files, local raster inlining, print output, standalone mount APIs, auto-mount, and the Web Component.
 
-Not included in this development build: `format`, UMD, remote image fetching, SVG inlining, framework plugins (Vite, Astro, Docusaurus, Next.js), Shadow DOM, and general SSR hydration guarantees outside the single-file export path.
+Not included in this release: `format`, UMD, remote image fetching, SVG inlining, framework plugins (Vite, Astro, Docusaurus, Next.js), Shadow DOM, and general SSR hydration guarantees outside the single-file export path.
 
-Single-file static-first hydration is exercised in Playwright Chromium; local verification uses Edge. Firefox, Safari/WebKit and general server-side hydration remain unverified and are not claimed as supported.
+Single-file static-first hydration is covered by the Playwright Chromium checks and local Edge checks. Firefox, Safari/WebKit and general server-side hydration remain unverified and are not claimed as supported.

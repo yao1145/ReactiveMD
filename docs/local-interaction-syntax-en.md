@@ -1,10 +1,10 @@
 # Reactive MD local interaction syntax specification
 
-Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with the syntax, read the [beginner guide](local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](local-integration-en.md). See [Versions and compatibility](compatibility-en.md) for package version relationships, 0.x compatibility rules and migration, [Source revisions and migration](source-versioning-en.md) for the optional revision directive and `reactive-md migrate`, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade from `0.3.1` / `local-draft-1`. Complete examples are in the [example index](../examples/local/README.md).
+Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with the syntax, read the [beginner guide](local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](local-integration-en.md). See [Versions and compatibility](compatibility-en.md) for package version relationships, 0.x compatibility rules and migration, [Source revisions and migration](source-versioning-en.md) for the optional revision directive and `reactive-md migrate`, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade from `0.3.1` / `local-draft-1`. Complete examples are in the [example index](../examples/local/README.md).
 
 ## 1. Positioning and scope
 
-The unreleased development build adds invisible `computed`/`const` declarations and number, string and date functions. See [Reusing calculations and formatting values](computations-formatting-en.md) for declaration syntax, dependency and error rules, function signatures and deterministic defaults.
+`0.4.0` adds invisible `computed`/`const` declarations and number, string and date functions. See [Reusing calculations and formatting values](computations-formatting-en.md) for declaration syntax, dependency and error rules, function signatures and deterministic defaults.
 
 For cross-field validation, conditional tones, arrays and bounded table-row generation, see [Constraints and collections](constraints-collections-en.md).
 
@@ -480,4 +480,4 @@ Implementation acceptance must cover:
 These rules cover compiler, runtime and browser acceptance. See the [example index](../examples/local/README.md) for example mappings and expected observations, and the [language conformance data](../examples/conformance/README.md) for the machine-readable minimum acceptance set. Actual repository check records stay in the repository and are not part of the package.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist. This checkout is unreleased.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. `0.4.0` is the preview release on the `next` channel.

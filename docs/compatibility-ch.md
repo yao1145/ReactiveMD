@@ -1,12 +1,13 @@
 # 版本与兼容性
 
-Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。显式修订声明、迁移 API 与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，公开 API 与样式接入见[本地模式集成](local-integration-ch.md)，本次构建的升级摘要见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
+Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。显式修订声明、迁移 API 与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，公开 API 与样式接入见[本地模式集成](local-integration-ch.md)，本次发布的升级摘要见[0.4.0 发布与迁移](release-0.4.0-ch.md)。
 
 ## 版本对应
 
 | 项目 | 当前值 | 说明 |
 | --- | --- | --- |
-| 包版本 | `0.4.0` | 尚未发布；使用当前工作区构建 |
+| 包版本 | `0.4.0` | 预览版，发布在 `next` 分发渠道 |
+| 分发标签 | `next` → `0.4.0`；`latest` → `0.3.1` | `0.3.1` 保持稳定通道，直到另行决定提升 |
 | 语法版本 | `local-draft-2` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
 | 源码修订指令 | 可选 `<!-- reactive-md: local-draft-2 -->` | 文档前导区中的一行；无指令源码继续按当前修订解析 |
 | 组块协议 | `component-protocol-1` | 贡献与验收契约，见[组块协议](component-protocol-ch.md)；不是运行时版本选择参数 |
@@ -45,11 +46,11 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 ## 破坏性变更与迁移
 
-同一开发版本新增[条件、校验与本地集合](constraints-collections-ch.md)：`LocalRuntime.validate()`、可序列化的 `LocalValidation` 规则、数字数组及生成表格。自行实现运行时适配器的宿主需补充 `validate()`，值类型穷举需加入 `number-array`；与 `sum`、`average`、`minOf`、`maxOf` 同名的旧绑定应重命名。
+`0.4.0` 新增[条件、校验与本地集合](constraints-collections-ch.md)：`LocalRuntime.validate()`、可序列化的 `LocalValidation` 规则、数字数组及生成表格。自行实现运行时适配器的宿主需补充 `validate()`，值类型穷举需加入 `number-array`；与 `sum`、`average`、`minOf`、`maxOf` 同名的旧绑定应重命名。
 
-未发布的 `0.4.0` 开发版本增加[命名计算与格式化函数](computations-formatting-ch.md)。`computed`/`const` 使用现有本地标签形式；新函数名成为保留字，使用本版本前需重命名冲突的输入绑定并同步修改引用。`document.bindings` 和 `initialState` 继续只包含可写控件，快照同时提供成功求值的计算结果。
+`0.4.0` 新增[命名计算与格式化函数](computations-formatting-ch.md)。`computed`/`const` 使用现有本地标签形式；新函数名成为保留字，使用本版本前需重命名冲突的输入绑定并同步修改引用。`document.bindings` 和 `initialState` 继续只包含可写控件，快照同时提供成功求值的计算结果。
 
-`0.4.0` 建立 `local-draft-2`。使用受支持 `local-draft-1` 写法的无指令源码继续有效；显式 `local-draft-1` 声明在迁移前会被拒绝。构建新增识别 15 个标签名：十个 `local-draft-2` 组块，以及 `computed`、`const`、`validation`、`data-table`、`column`。以前作为未知标签或普通文字显示的内容现在会解析为组块或声明；字面示例应移入行内代码或代码围栏。开头的 `<theme>` 声明是文档元数据，不计入组块。完整的重命名与升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
+`0.4.0` 建立 `local-draft-2`。使用受支持 `local-draft-1` 写法的无指令源码继续有效；显式 `local-draft-1` 声明在迁移前会被拒绝。构建新增识别 15 个标签名：十个 `local-draft-2` 组块，以及 `computed`、`const`、`validation`、`data-table`、`column`。以前作为未知标签或普通文字显示的内容现在会解析为组块或声明；字面示例应移入行内代码或代码围栏。开头的 `<theme>` 声明是文档元数据，不计入组块。完整的重命名与升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。
 
 作者可见的语法变化会建立新的语法修订，例如本次的 `local-draft-2`，并提升次版本、更新 `LOCAL_SYNTAX_VERSION`。核心或 React API 的变化也会记录在变更记录中。项目不自动改写文档正文。`reactive-md migrate` 迁移单份源码的元数据声明，并阻止正文级冲突；升级后由作者或宿主按记录完成其余源码修改。
 
@@ -99,4 +100,4 @@ Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `c
 语言范围见[语法规范](local-interaction-syntax-ch.md)，安全边界与宿主责任见[安全策略](../SECURITY-ch.md)。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。本工作区版本尚未发布。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.4.0` 是 `next` 渠道的预览版，`0.3.1` 仍为 `latest`。

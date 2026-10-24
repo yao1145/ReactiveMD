@@ -1,6 +1,6 @@
 # 复用计算与格式化数值
 
-这些能力属于尚未发布的 `0.4.0` 开发版本，使用 `local-draft-2`。完整语法见[语法规范](local-interaction-syntax-ch.md)，宿主接口见[集成说明](local-integration-ch.md)，可运行文档见[账单示例](../examples/local/recipes/invoice-zh.reactive.md)。
+这些能力属于使用 `local-draft-2` 的 `0.4.0`。完整语法见[语法规范](local-interaction-syntax-ch.md)，宿主接口见[集成说明](local-integration-ch.md)，可运行文档见[账单示例](../examples/local/recipes/invoice-zh.reactive.md)。
 
 ## 命名值
 
@@ -84,4 +84,4 @@ null 格式化为空字符串，其余参数严格检查类型，不把字符串
 
 ## 兼容性
 
-现有表达式和 `round(x)` 保持原有行为。新增函数名称成为本开发版本的保留标识符；升级前应重命名使用这些名称的旧绑定，并同步修改引用。[变更记录](../CHANGELOG-ch.md)记载了此次扩展；修改本地工作树不会发布新的包版本。
+现有表达式和 `round(x)` 保持原有行为。新增函数名称成为本版本的保留标识符；升级前应重命名使用这些名称的旧绑定，并同步修改引用。[变更记录](../CHANGELOG-ch.md)记载了此次扩展。

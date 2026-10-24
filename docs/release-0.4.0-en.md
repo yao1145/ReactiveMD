@@ -1,16 +1,18 @@
-# 0.4.0 development preview and migration
+# 0.4.0 preview and migration
 
-Status: unreleased development preview. Package version `0.4.0`, syntax revision `local-draft-2`, component protocol `component-protocol-1`, theme protocol `reactive-md-theme-1`.
+Status: preview release on the `next` distribution channel. Package version `0.4.0`, syntax revision `local-draft-2`, component protocol `component-protocol-1`, theme protocol `reactive-md-theme-1`. These are separate version axes; `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1` are not package versions.
 
-This page summarizes what the preview contains, what changes for existing documents and hosts, and how to move from `0.3.1` / `local-draft-1`. Detailed rules remain in the linked reference pages; this page is the upgrade checklist. Explicit revision declarations and the migration tools are specified in [Source revisions and migration](source-versioning-en.md).
+Install the preview with `npm install reactive-md@next`, or pin it with `npm install reactive-md@0.4.0`. `0.3.1` remains the `latest` release.
+
+This page summarizes what 0.4.0 contains, what changes for existing documents and hosts, and how to move from `0.3.1` / `local-draft-1`. Detailed rules remain in the linked reference pages; this page is the upgrade checklist. Explicit revision declarations and the migration tools are specified in [Source revisions and migration](source-versioning-en.md).
 
 ## Who should upgrade
 
 - Authors who need named calculations, formatting, validation, collections, new input types, themes or offline HTML export.
 - Hosts that can adopt `local-draft-2` and update exhaustive `LocalValueKind` checks, runtime adapters and state handling.
-- Projects that pin `0.3.1` and only need `local-draft-1` can stay there. The build accepts one syntax revision and has no separate `local-draft-1` mode; unversioned source in supported old forms is read under `local-draft-2` rules, while an explicit `local-draft-1` declaration must be migrated first.
+- Projects that pin `0.3.1` and only need `local-draft-1` can stay there; it remains the `latest` release. The build accepts one syntax revision and has no separate `local-draft-1` mode; unversioned source in supported old forms is read under `local-draft-2` rules, while an explicit `local-draft-1` declaration must be migrated first.
 
-## What the preview contains
+## What 0.4.0 contains
 
 | Area | Included |
 | --- | --- |
@@ -68,7 +70,7 @@ A source may declare `<!-- reactive-md: local-draft-2 -->` in its prologue. Unve
 
 ## Upgrade checklist
 
-1. Pin `0.4.0`, keep the original `.reactive.md` sources and record `LOCAL_SYNTAX_VERSION`.
+1. Install `0.4.0` from `next` or pin `0.4.0`, keep the original `.reactive.md` sources and record `LOCAL_SYNTAX_VERSION`.
 2. Run `reactive-md migrate <file> --check` or `migrateLocalSource` on each source. Unversioned historical documents need `--from local-draft-1`; resolve every reported blocker before writing output.
 3. Search prose and examples for the 15 newly recognized tag names outside code regions; escape them or move them into code.
 4. Search `bind`, `bind-start`, `bind-end`, `bind-x` and `bind-y` values for the 17 newly reserved identifiers; rename the bindings and their references. The core `renameLocalBinding` helper and the editor rename action update declarations, expression references and plot parameters together.
@@ -80,8 +82,8 @@ A source may declare `<!-- reactive-md: local-draft-2 -->` in its prologue. Unve
 
 ## Verification scope
 
-The development build targets Node.js 22.12 and Node 24, and uses Playwright Chromium in CI plus local Microsoft Edge checks. `npm run verify:release` is the complete release gate: it covers core and demo tests, types, package and documentation checks, packed consumption outside the repository, and the browser checks for calculations, collections, authoring, state restoration, HTML export and rendering equivalence. Individual commands remain in the [contributing guide](../CONTRIBUTING.md).
+The `0.4.0` build targets Node.js 22.12 and Node 24; its CI gate uses Playwright Chromium and local checks use Microsoft Edge. `npm run verify:release` is the complete release gate: it covers core and demo tests, types, package and documentation checks, packed consumption outside the repository, and the browser checks for calculations, collections, authoring, state restoration, HTML export and rendering equivalence. Individual commands remain in the [contributing guide](../CONTRIBUTING.md).
 
-Static SSR is covered by the packed check. Single-file export static-first hydration is exercised in Playwright Chromium and local Edge. General SSR hydration outside that path, Firefox and Safari/WebKit are unverified and are not claimed as supported.
+Static SSR is covered by the packed check. Single-file export static-first hydration is covered by the Playwright Chromium and local Edge checks. General SSR hydration outside that path, Firefox and Safari/WebKit are unverified and are not claimed as supported.
 
 Use [Versions and compatibility](compatibility-en.md) for the version rules and diagnostics contract, [Source revisions and migration](source-versioning-en.md) for the directive and migration tools, [Shareable documents and static export](shareable-export-en.md) for the HTML and state formats, and [local-draft-2 components and migration](local-components-v2-en.md) for the component additions.

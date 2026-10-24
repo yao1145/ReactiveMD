@@ -1,6 +1,6 @@
 # 新增组块与迁移：local-draft-2
 
-本工作区的 `0.4.0` 是尚未发布的开发版本，语法修订为 `local-draft-2`。本页是[本地交互语法规范](local-interaction-syntax-ch.md)的补充。贡献与验收继续使用 `component-protocol-1`，机器格式保持不变。
+本页说明 `0.4.0` 的新增组块与 `local-draft-2` 语法。它是[本地交互语法规范](local-interaction-syntax-ch.md)的补充。贡献与验收继续使用 `component-protocol-1`，机器格式保持不变。
 
 ## 跳转与正文颜色
 
@@ -124,9 +124,9 @@ key 指定静态标识列，值必须非空、唯一且没有插值。提供 key
 
 ## 兼容、迁移与验收
 
-local-draft-1 中已支持的写法继续有效。本扩展引入 10 个新组块名：jump、anchor、text、section、multi-select、range-slider、coordinate、quiz、steps、step。同一开发版本还增加声明标签 computed、const、validation 和结构标签 data-table、column，`local-draft-2` 的完整集合为 48 个标签名；开头的 `<theme>` 声明是元数据，不计入组块。新名称以前会作为未知源码惰性显示，现在开始解释其中的受支持内容；若原文用于演示标签，放进代码围栏或行内代码。checklist 的完成样式是可见变化。
+local-draft-1 中已支持的写法继续有效。本扩展引入 10 个新组块名：jump、anchor、text、section、multi-select、range-slider、coordinate、quiz、steps、step。同一版本还增加声明标签 computed、const、validation 和结构标签 data-table、column，`local-draft-2` 的完整集合为 48 个标签名；开头的 `<theme>` 声明是元数据，不计入组块。新名称以前会作为未知源码惰性显示，现在开始解释其中的受支持内容；若原文用于演示标签，放进代码围栏或行内代码。checklist 的完成样式是可见变化。
 
-机器验收沿用 component-protocol-1 的格式，syntaxVersion 更新为 local-draft-2；旧 local-draft-1.json 留作历史数据，新构建运行 local-draft-2.json。新组件另有核心、渲染和可视化用例。错误仍使用带源码位置的 Diagnostic，未知标签、脚注、安全与资源预算保持已有契约。同一开发版本还新增表达式函数保留名；完整重命名清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
+机器验收沿用 component-protocol-1 的格式，syntaxVersion 更新为 local-draft-2；旧 local-draft-1.json 留作历史数据，新构建运行 local-draft-2.json。新组件另有核心、渲染和可视化用例。错误仍使用带源码位置的 Diagnostic，未知标签、脚注、安全与资源预算保持已有契约。同一版本还新增表达式函数保留名；完整重命名清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。
 
 | 协议条款 | 实现与证据入口 |
 | --- | --- |

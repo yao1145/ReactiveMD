@@ -2,11 +2,11 @@
 
 本次新增的跳转、正文颜色、多选、区间、坐标、练习题、分步阅读和选择联动，见[新增组块与迁移](local-components-v2-ch.md)。
 
-语法标识：`local-draft-2`，2026-10-23。第一次接触这套语法，建议先读 [新用户入门指南](local-guide-ch.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration-ch.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](compatibility-ch.md)，可选修订指令与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，从 `0.3.1` / `local-draft-1` 升级见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。完整示例见 [示例索引](../examples/local/README.md)。
+语法标识：`local-draft-2`，2026-10-23。第一次接触这套语法，建议先读 [新用户入门指南](local-guide-ch.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](local-integration-ch.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](compatibility-ch.md)，可选修订指令与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，从 `0.3.1` / `local-draft-1` 升级见[0.4.0 发布与迁移](release-0.4.0-ch.md)。完整示例见 [示例索引](../examples/local/README.md)。
 
 ## 1. 定位与范围
 
-未发布开发版本新增不可见的 `computed`/`const` 声明与数字、字符串、日期函数。声明语法、依赖与错误规则、函数签名及固定默认值见[复用计算与格式化数值](computations-formatting-ch.md)。
+`0.4.0` 新增不可见的 `computed`/`const` 声明与数字、字符串、日期函数。声明语法、依赖与错误规则、函数签名及固定默认值见[复用计算与格式化数值](computations-formatting-ch.md)。
 
 跨字段校验、条件样式、数组与有限表格行生成见[条件、校验与本地集合](constraints-collections-ch.md)。
 
@@ -482,4 +482,4 @@ node.id 为当前图解内唯一的 `[A-Za-z_][A-Za-z0-9_-]*`。edge 必填 from
 这些规则用于编译器、运行时和浏览器验收。示例映射及预期观察点见[示例索引](../examples/local/README.md)，机器可读的最小验收集见[语言验收数据](../examples/conformance/README.md)。实际仓库检查记录保留在仓库内，不属于发布包。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。本工作区版本尚未发布。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.4.0` 是 `next` 渠道的预览版。

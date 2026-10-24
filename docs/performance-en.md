@@ -11,7 +11,7 @@ The script warms up 3 times and measures 20 times per scenario, reporting the me
 
 ## Local baseline
 
-2026-10-22, Reactive MD 0.3.0, Node 22.17.0, Windows x64, Intel Core Ultra 5 125H. Other development processes were running on the machine during measurement. This baseline predates the 0.4.0 development preview; re-run the benchmark before using it as a release comparison.
+2026-10-22, Reactive MD 0.3.0, Node 22.17.0, Windows x64, Intel Core Ultra 5 125H. Other development processes were running on the machine during measurement. This baseline predates the 0.4.0 release; re-run the benchmark before using it as a release comparison.
 
 | Scenario | Median | P95 |
 | --- | ---: | ---: |

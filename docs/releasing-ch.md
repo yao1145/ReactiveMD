@@ -1,6 +1,6 @@
 # 发布清单
 
-本文件是维护者的手动发布流程。当前工作区目标是尚未发布的 `0.4.0` 开发预览版。版本规则见[版本与兼容性](compatibility-ch.md)，面向使用者的升级说明见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
+本文件是维护者的手动发布流程。本清单覆盖发布在 `next` 渠道的 `0.4.0` 预览版；`0.3.1` 保持 `latest`，直到另行决定提升。版本规则见[版本与兼容性](compatibility-ch.md)，面向使用者的升级说明见[0.4.0 发布与迁移](release-0.4.0-ch.md)。
 
 ## 发布前确认
 
@@ -77,9 +77,9 @@ import 'reactive-md/styles.css';
 
 发布说明面向使用者，至少包含：
 
-- 包版本、`LOCAL_SYNTAX_VERSION` 与组块协议修订；这些不是同一个版本号。
-- 安装方式：`npm install reactive-md@<version>`，并提供可下载 tarball 作为离线安装选项。
-- 用户可见变化、破坏性变更和迁移步骤；直接链接[变更记录](../CHANGELOG-ch.md)，本轮同时链接[0.4.0 开发预览说明](release-0.4.0-ch.md)。
+- 包版本、`LOCAL_SYNTAX_VERSION`、组块协议修订与主题协议修订；这些不是同一个版本号。
+- 安装方式：`npm install reactive-md@next`，或使用 `npm install reactive-md@<version>` 固定版本；并提供可下载 tarball 作为离线安装选项。
+- 用户可见变化、破坏性变更和迁移步骤；直接链接[变更记录](../CHANGELOG-ch.md)，本轮同时链接[0.4.0 发布说明](release-0.4.0-ch.md)。
 - 已验证的平台，以及未验证的浏览器、通用 SSR 水合等范围。
 - 已知限制和安全说明链接 [SECURITY-ch.md](../SECURITY-ch.md)。
 
@@ -94,7 +94,7 @@ import 'reactive-md/styles.css';
 5. 核对安装包的 SHA256 与 `artifacts/release-package/package-verification.json` 一致，并记录到发布说明或内部发布记录。
 6. 合并发布提交，等待 `main` 上的 CI 全部通过。
 7. 手动创建并推送 tag，例如 `v0.4.0`。不要在自动发布工作流中保存 npm token。
-8. 在维护者本机完成 npm 登录和双因素认证后，手动发布已经验证的开发预览安装包：`npm publish artifacts/release-package/reactive-md-0.4.0.tgz --access public --tag next`。开发预览使用 `next` 分发标签；是否更新稳定版的 `latest` 标签另行决定。
+8. 在维护者本机完成 npm 登录和双因素认证后，手动发布已经验证的预览版安装包：`npm publish artifacts/release-package/reactive-md-0.4.0.tgz --access public --tag next`。预览版使用 `next` 分发标签；是否更新稳定版的 `latest` 标签另行决定。
 9. 在 npm 和 GitHub Releases 上核对包内容、版本、README、许可与发布说明；从公开 registry 重新安装一次。
 10. 从 registry 验证 README 中的安装命令可用，核对 registry 的完整性摘要与发布 tarball 一致。
 
