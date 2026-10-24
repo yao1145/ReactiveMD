@@ -68,6 +68,15 @@ export interface LocalDocument {
    * the serialized form.
    */
   dependencies?: Readonly<Record<string, readonly string[] | null>>;
+  /**
+   * Node id -> table structure for `<table>`, `<chart>` and `<timeline>`
+   * contents, produced by the compiler. Header cells are plain text and data
+   * rows list the ids of their cell nodes. Frozen and serializable: it holds no
+   * node references. Internal shape; readers should tolerate its absence.
+   */
+  tableShapes?: Readonly<
+    Record<string, { readonly header: readonly string[]; readonly rowIds: readonly (readonly string[])[] }>
+  >;
 }
 /** Host-owned budgets for a single compilation. */
 export interface LocalCompileLimits {

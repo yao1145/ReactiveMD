@@ -17,8 +17,15 @@ export type DependencyIndex = ReadonlyMap<string, NodeDependencies>;
 export const EMPTY_DEPENDENCY_INDEX: DependencyIndex = new Map();
 
 /**
- * Visual components evaluate their content through plot/table paths that this
- * static analysis does not cover, so they stay conservative (undecidable).
+ * Visual components whose runtime reads are covered by attribute templates,
+ * their descendant subtree, and (where applicable) their own selection binding.
+ *
+ * Audited reads (visuals.tsx): tables, charts, timelines and diagrams evaluate
+ * descendant interpolations/math through their own render paths, read their own
+ * attribute templates, and never evaluate an arbitrary binding name. Plots copy
+ * the whole snapshot into an environment, but only the variables named by the
+ * descendant formulas are ever read from it. The remaining runtime read is the
+ * node's own selection binding (`runtime.get`), which is enumerated below.
  */
 const VISUAL_NODE_NAMES: ReadonlySet<string> = new Set([
   'table', 'chart', 'plot', 'timeline', 'diagram',
@@ -80,9 +87,30 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
           undecidable = true;
         }
       } else if (node.name !== undefined) {
-        if (VISUAL_NODE_NAMES.has(node.name)) {
-          undecidable = true;
-        } else {
+        if (node.name === 'table' || node.name === 'chart') {
+          // Selection reads `runtime.get(node)` only when a key column is
+          // declared. The compiler registers the binding (named or anonymous)
+          // for exactly those nodes, so the key is a real state read here.
+          if ((node.attrs?.key ?? '').trim() !== '') dependencies.add(localKey(node));
+        } else if (node.name === 'diagram') {
+          // DiagramView always reads its selection binding, including the
+          // compiler-generated anonymous key used when no bind is declared.
+          dependencies.add(localKey(node));
+        } else if (node.name === 'plot') {
+          // PlotView also accepts direct inline-math curves (only constructible
+          // by hand). Only formulas it samples, `y = ...`, read the environment;
+          // a formula that cannot compile is reported and reads nothing.
+          for (const child of node.children ?? []) {
+            if (child.type !== 'inlineMath') continue;
+            const source = (child.value ?? '').trim();
+            if (!/^y\s*=/u.test(source)) continue;
+            try {
+              addAll(dependencies, compileLatex(source).dependencies);
+            } catch {
+              // PlotView shows the same formula failure without reading state.
+            }
+          }
+        } else if (!VISUAL_NODE_NAMES.has(node.name)) {
           // Controls display their own value, so they depend on it. Multi-slot
           // components register one independent key per slot.
           dependencies.add(localKey(node));

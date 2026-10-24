@@ -95,13 +95,113 @@ describe('collectNodeDependencies', () => {
     expect(depsOf(document, find(document, 'math'))).toEqual(['a']);
   });
 
-  it('treats visual components as undecidable but still indexes their children', () => {
+  it('reads only the variables named by plot formulas', () => {
     const document = compile(
-      '<slider bind="a" label="振幅" initial="1" min="0" max="5">\n\n<plot min="-10" max="10">\n$$ y = a \\sin x $$\n</plot>',
+      '<slider bind="a" label="振幅" initial="1" min="0" max="5">\n\n' +
+        '<slider bind="unused" label="未用" initial="1" min="0" max="5">\n\n' +
+        '<plot min="-10" max="10">\n$$ y = a \\sin x $$\n</plot>',
     );
     const plot = findComponent(document, 'plot');
-    expect(depsOf(document, plot)).toBeNull();
+    expect(depsOf(document, plot)).toEqual(['a']);
     expect(depsOf(document, find(document, 'math'))).toEqual(['a']);
+  });
+
+  it('reads descendant cell interpolations of tables and charts', () => {
+    const document = compile(
+      '<slider bind="n" label="数量" initial="2" min="0" max="10">\n\n' +
+        '<table label="数据">\n| 名称 | 数值 |\n| --- | --- |\n| A | {{ n * 2 }} |\n</table>',
+    );
+    expect(depsOf(document, findComponent(document, 'table'))).toEqual(['n']);
+  });
+
+  it('adds the selection binding of tables and charts that declare a key', () => {
+    const document = compile(
+      [
+        '<table label="T" key="id" bind="sel">',
+        '| id | name |',
+        '| --- | --- |',
+        '| a | Alpha |',
+        '</table>',
+        '',
+        '<chart key="id" bind="sel">',
+        '| id | value |',
+        '| --- | --- |',
+        '| a | 1 |',
+        '</chart>',
+      ].join('\n'),
+    );
+    expect(depsOf(document, findComponent(document, 'table'))).toEqual(['sel']);
+    expect(depsOf(document, findComponent(document, 'chart'))).toEqual(['sel']);
+  });
+
+  it('reads the compiler-generated selection key of a key-only table', () => {
+    const document = compile(
+      '<table label="T" key="id">\n| id | name |\n| --- | --- |\n| a | Alpha |\n</table>',
+    );
+    const table = findComponent(document, 'table');
+    expect(document.bindings[`@${table.id}`]).toBeDefined();
+    expect(depsOf(document, table)).toEqual([`@${table.id}`]);
+  });
+
+  it('reads diagram node/edge attributes, descriptions and its selection binding', () => {
+    const document = compile(
+      [
+        '<input bind="tone" label="语气">',
+        '',
+        '<input bind="note" label="说明">',
+        '',
+        '<diagram label="流程" bind="choice">',
+        '<node id="a" label="{{ note }}" tone="{{ tone }}">描述 {{ note }}</node>',
+        '<node id="b" label="B" tone="{{ tone }}"></node>',
+        '<edge from="a" to="b" label="{{ note }}">',
+        '</diagram>',
+      ].join('\n'),
+    );
+    // Descendant <node>/<edge> components contribute their own anonymous
+    // `@id` placeholders (no binding is registered for them); keep the state
+    // keys separate here.
+    const dependencies = depsOf(document, findComponent(document, 'diagram'));
+    expect(dependencies?.filter((key) => !key.startsWith('@'))).toEqual([
+      'choice',
+      'note',
+      'tone',
+    ]);
+  });
+
+  it('reports no dependencies for a static timeline', () => {
+    const document = compile(
+      '<timeline title="计划">\n| Task | Start | Duration |\n| --- | --- | --- |\n| 设计 | 1 | 2 |\n</timeline>',
+    );
+    expect(depsOf(document, findComponent(document, 'timeline'))).toEqual([]);
+  });
+
+  it('keeps a visual undecidable when a descendant cannot be analyzed', () => {
+    const document: LocalDocument = {
+      syntax: 'local',
+      source: '',
+      nodes: [
+        makeNode('table-1', 'component', {
+          name: 'table',
+          attrs: { key: 'id', bind: 'sel' },
+          children: [
+            makeNode('table-2', 'table', {
+              children: [
+                makeNode('row-1', 'tableRow', {
+                  children: [
+                    makeNode('cell-1', 'tableCell', {
+                      children: [makeNode('interp-1', 'interpolation', { value: '1 +' })],
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+      initialState: {},
+      bindings: {},
+    };
+    expect(collectNodeDependencies(document).get('table-1')).toBeNull();
   });
 
   it('unions own keys and nested subtree dependencies in first-occurrence order', () => {
@@ -210,6 +310,106 @@ describe('compiler-persisted dependency index', () => {
     delete (fresh as { dependencies?: unknown }).dependencies;
     const index = collectNodeDependencies(fresh);
     expect(index.size).toBe(all(fresh.nodes).length);
+  });
+});
+
+describe('compiler-persisted table shapes', () => {
+  function bodyTable(visual: LocalNode): LocalNode {
+    const table = (visual.children ?? []).find((child) => child.type === 'table');
+    if (!table) throw new Error('Missing table body.');
+    return table;
+  }
+
+  const source = [
+    '<table label="Prices">',
+    '| Name | Price |',
+    '| --- | --- |',
+    '| Alpha | 1 |',
+    '| Beta | 2 |',
+    '</table>',
+    '',
+    '<chart title="Sales">',
+    '| Name | Value |',
+    '| --- | --- |',
+    '| Gamma | 3 |',
+    '</chart>',
+    '',
+    '<timeline title="Plan">',
+    '| Task | Start | Duration |',
+    '| --- | --- | --- |',
+    '| Design | 0 | 2 |',
+    '</timeline>',
+  ].join('\n');
+
+  it('persists frozen header names and cell ids for table, chart and timeline', () => {
+    const document = compile(source);
+    const shapes = document.tableShapes;
+    expect(shapes).toBeDefined();
+    expect(Object.isFrozen(shapes)).toBe(true);
+
+    const table = findComponent(document, 'table');
+    const chart = findComponent(document, 'chart');
+    const timeline = findComponent(document, 'timeline');
+    expect(Object.keys(shapes!)).toEqual([table.id, chart.id, timeline.id]);
+
+    const samples: [LocalNode, string, number][] = [
+      [table, 'Name', 2],
+      [chart, 'Name', 1],
+      [timeline, 'Task', 1],
+    ];
+    for (const [visual, firstHeader, rowCount] of samples) {
+      const shape = shapes?.[visual.id];
+      expect(shape).toBeDefined();
+      expect(Object.isFrozen(shape)).toBe(true);
+      expect(Object.isFrozen(shape?.header)).toBe(true);
+      expect(Object.isFrozen(shape?.rowIds)).toBe(true);
+      expect(shape?.header[0]).toBe(firstHeader);
+      expect(shape?.rowIds).toHaveLength(rowCount);
+
+      const rows = (bodyTable(visual).children ?? []).filter((row) => row.type === 'tableRow');
+      expect(shape?.header).toEqual(
+        (rows[0].children ?? []).map((cell) => (cell.children ?? []).map((part) => part.value ?? '').join('')),
+      );
+      expect(shape?.rowIds).toEqual(
+        rows.slice(1).map((row) => (row.children ?? []).map((cell) => cell.id)),
+      );
+      for (const row of shape?.rowIds ?? []) {
+        expect(Object.isFrozen(row)).toBe(true);
+      }
+    }
+
+    const cellIds = new Set(
+      all(document.nodes).filter((node) => node.type === 'tableCell').map((node) => node.id),
+    );
+    for (const shape of Object.values(shapes!)) {
+      for (const row of shape.rowIds) {
+        for (const id of row) {
+          expect(typeof id).toBe('string');
+          expect(cellIds.has(id)).toBe(true);
+        }
+      }
+    }
+    expect(() => JSON.stringify(shapes)).not.toThrow();
+  });
+
+  it('omits the field when a document has no table-backed visual', () => {
+    expect(compile('文本。').tableShapes).toBeUndefined();
+  });
+
+  it('keeps hand-built documents usable without the field', () => {
+    const document: LocalDocument = {
+      syntax: 'local',
+      source: '',
+      nodes: [
+        makeNode('para-1', 'paragraph', {
+          children: [makeNode('interp-1', 'interpolation', { value: 'total' })],
+        }),
+      ],
+      initialState: { total: 1 },
+      bindings: {},
+    };
+    expect(document.tableShapes).toBeUndefined();
+    expect(collectNodeDependencies(document).get('para-1')).toEqual(['total']);
   });
 });
 
