@@ -61,6 +61,13 @@ export interface LocalDocument {
    * runtime `get`/`set`/`setMany` with slot names instead of reading this map.
    */
   bindingSlots?: Record<string, Record<string, string>>;
+  /**
+   * Node id -> subtree binding dependencies, produced by the compiler. `null`
+   * marks subtrees whose reads cannot be decided statically. Internal shape:
+   * consumers should read it through the package runtime rather than depend on
+   * the serialized form.
+   */
+  dependencies?: Readonly<Record<string, readonly string[] | null>>;
 }
 /** Host-owned budgets for a single compilation. */
 export interface LocalCompileLimits {

@@ -1,5 +1,6 @@
 import type { Diagnostic } from './types';
 import { isLocalColor } from './colors';
+import { attachNodeDependencies } from './dependencies';
 import { compileExpression, LocalExpressionError, RESERVED_NAMES, type LocalExpression } from './expression';
 import { createHeadingAnchors } from './heading-anchors';
 import { compileLatex } from './math';
@@ -362,6 +363,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
     ...(parsed.themeRange ? { themeRange: parsed.themeRange } : {}),
     ...(bindingSlots ? { bindingSlots } : {}),
   };
+  attachNodeDependencies(document);
   return { ok: true, document, diagnostics };
 }
 

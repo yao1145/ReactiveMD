@@ -170,6 +170,49 @@ describe('collectNodeDependencies', () => {
   });
 });
 
+describe('compiler-persisted dependency index', () => {
+  it('attaches a frozen index to compiled documents', () => {
+    const document = compile(
+      '<slider bind="n" label="数值" initial="1" min="0" max="5">\n\n值 {{ n * 2 }}',
+    );
+    expect(document.dependencies).toBeDefined();
+    expect(Object.isFrozen(document.dependencies)).toBe(true);
+
+    const slider = findComponent(document, 'slider');
+    const interpolation = find(document, 'interpolation');
+    expect(document.dependencies?.[slider.id]).toEqual(['n']);
+    expect(document.dependencies?.[interpolation.id]).toEqual(['n']);
+    expect(Object.isFrozen(document.dependencies?.[slider.id])).toBe(true);
+    expect(collectNodeDependencies(document).get(interpolation.id)).toEqual(['n']);
+  });
+
+  it('reads persisted entries instead of re-analyzing the nodes', () => {
+    const document: LocalDocument = {
+      syntax: 'local',
+      source: '',
+      nodes: [
+        makeNode('para-1', 'paragraph', {
+          children: [makeNode('interp-1', 'interpolation', { value: 'missing +' })],
+        }),
+      ],
+      initialState: {},
+      bindings: {},
+      dependencies: { 'para-1': ['kept'], 'interp-1': ['kept'] },
+    };
+    const index = collectNodeDependencies(document);
+    expect(index.get('para-1')).toEqual(['kept']);
+    expect(index.get('interp-1')).toEqual(['kept']);
+  });
+
+  it('falls back to analysis when no index is persisted', () => {
+    const document = compile('文本。');
+    const fresh: LocalDocument = { ...document };
+    delete (fresh as { dependencies?: unknown }).dependencies;
+    const index = collectNodeDependencies(fresh);
+    expect(index.size).toBe(all(fresh.nodes).length);
+  });
+});
+
 describe('templateDependencies', () => {
   it('unions template expressions in first-occurrence order', () => {
     expect(templateDependencies('{{ a }} 与 {{ b + a }}，共 {{ len(rows) }} 行')).toEqual(['a', 'b', 'rows']);

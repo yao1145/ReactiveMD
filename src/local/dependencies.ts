@@ -39,6 +39,13 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
   const cached = dependencyIndexCache.get(document);
   if (cached !== undefined) return cached;
 
+  const persisted = document.dependencies;
+  if (persisted !== undefined) {
+    const stored = new Map<string, NodeDependencies>(Object.entries(persisted));
+    dependencyIndexCache.set(document, stored);
+    return stored;
+  }
+
   const index = new Map<string, NodeDependencies>();
 
   const visit = (node: LocalNode): NodeDependencies => {
@@ -102,4 +109,19 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
   for (const node of document.nodes) visit(node);
   dependencyIndexCache.set(document, index);
   return index;
+}
+
+/**
+ * Persists the dependency index on the document so compiled documents carry
+ * the analysis as data. Documents built by hand keep working: the renderer
+ * falls back to running the same analysis on first use.
+ */
+export function attachNodeDependencies(document: LocalDocument): void {
+  if (document.dependencies !== undefined) return;
+  const index = collectNodeDependencies(document);
+  const record: Record<string, NodeDependencies> = Object.create(null);
+  for (const [id, dependencies] of index) {
+    record[id] = dependencies === null ? null : Object.freeze([...dependencies]);
+  }
+  document.dependencies = Object.freeze(record);
 }
