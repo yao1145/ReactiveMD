@@ -163,7 +163,7 @@ describe('localized playground examples', () => {
 describe.each(['en', 'zh'] as const)('%s feature tour outcomes', (language) => {
   it('keeps the expandable key source runnable as a small standalone example', () => {
     for (const example of EXAMPLES.filter(example => example.section === 'feature')) {
-      const source = localizedExample(example, language).source.match(/```markdown\n([\s\S]*?)\n```/)?.[1];
+      const source = localizedExample(example, language).source.match(/```markdown\r?\n([\s\S]*?)\r?\n```/)?.[1];
       expect(source, example.id).toBeTruthy();
       const result = compileLocal(source!);
       expect(result.diagnostics, example.id).toEqual([]);

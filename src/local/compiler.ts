@@ -4,6 +4,7 @@ import { localDateTimestamp } from './dates';
 
 import { localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
 import { countLocalCodePoints } from './text-length';
+import { attachNodeDependencies } from './dependencies';
 import { compileExpression, LocalExpressionError, RESERVED_NAMES, type LocalExpression } from './expression';
 import {
   resolveComputationGraph,
@@ -398,6 +399,8 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
     ...(computationNames.length ? { computations: state.computations } : {}),
     ...(validations.length ? { validations } : {}),
   };
+  attachNodeDependencies(document);
+  attachTableShapes(document, state.tableShapes);
   return { ok: true, document, diagnostics };
 }
 
@@ -2833,6 +2836,30 @@ function tableShapeFor(entry: Entry, state: CompileState): TableShape | null {
   const shape = table ? tableShape(table, state, entry) : null;
   state.tableShapes.set(entry.node.id, shape);
   return shape;
+}
+
+/**
+ * Projects the compiler's table shapes onto the document as plain, frozen
+ * data. Only header text and cell node ids are kept, so the persisted form is
+ * serializable and never references nodes or forms cycles.
+ */
+function attachTableShapes(document: LocalDocument, shapes: Map<string, TableShape | null>): void {
+  if (shapes.size === 0) return;
+  const record: Record<
+    string,
+    { readonly header: readonly string[]; readonly rowIds: readonly (readonly string[])[] }
+  > = Object.create(null);
+  let count = 0;
+  for (const [id, shape] of shapes) {
+    if (!shape) continue;
+    record[id] = Object.freeze({
+      header: Object.freeze([...shape.header]),
+      rowIds: Object.freeze(shape.rows.map((row) => Object.freeze(row.map((cell) => cell.id)))),
+    });
+    count += 1;
+  }
+  if (count === 0) return;
+  document.tableShapes = Object.freeze(record);
 }
 
 /**

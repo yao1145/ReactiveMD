@@ -796,6 +796,22 @@ export const LOCAL_COMPONENT_NAMES: readonly string[] = Object.freeze(
   components.map((component) => component.name),
 );
 
+/**
+ * Frozen names grouped by tag shape. The parser derives its void, paired and
+ * inline tag sets from these lists, so `form` here is the single declarative
+ * source for accepted tag syntax.
+ */
+const namesByForm: Readonly<Record<LocalComponentForm, readonly string[]>> = Object.freeze({
+  leaf: Object.freeze(components.filter((component) => component.form === 'leaf').map((component) => component.name)),
+  inline: Object.freeze(components.filter((component) => component.form === 'inline').map((component) => component.name)),
+  container: Object.freeze(components.filter((component) => component.form === 'container').map((component) => component.name)),
+});
+
+/** Component names with the given tag shape, in declaration order. */
+export function localComponentNames(form: LocalComponentForm): readonly string[] {
+  return namesByForm[form];
+}
+
 export function getLocalComponent(name: string): LocalComponentSchema | undefined {
   return Object.hasOwn(LOCAL_COMPONENTS, name) ? LOCAL_COMPONENTS[name] : undefined;
 }

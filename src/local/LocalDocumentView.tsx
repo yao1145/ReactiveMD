@@ -2,6 +2,7 @@ import {
   Component,
   createContext,
   createElement,
+  memo,
   useCallback,
   useContext,
   useEffect,
@@ -27,6 +28,13 @@ import type {
   LocalValue,
 } from './types';
 import type { LocalRenderContext, LocalRenderMode } from './render-types';
+import {
+  collectNodeDependencies,
+  collectSubtreeResetTokens,
+  EMPTY_DEPENDENCY_INDEX,
+  type DependencyIndex,
+  type NodeDependencies,
+} from './dependencies';
 import { compileLocal } from './compiler';
 import { createLocalRuntime } from './runtime';
 import { MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
@@ -128,6 +136,8 @@ interface LocalViewContext extends LocalRenderContext {
   t: Localize;
   /** Cross-field hints and field associations for this document instance. */
   validation: LocalValidationState;
+  /** Views pass this object straight to renderInlineNodes, so it must match RenderEnv. */
+  dependencies: DependencyIndex;
 }
 
 const LocalViewContext = createContext<LocalViewContext | null>(null);
@@ -815,7 +825,7 @@ interface LocalComponentProps {
   visible: boolean;
 }
 
-const VISUAL_COMPONENTS = new Set(['table', 'chart', 'plot', 'timeline', 'diagram']);
+export const VISUAL_COMPONENTS = new Set(['table', 'chart', 'plot', 'timeline', 'diagram']);
 
 function safeUrl(
   raw: string | undefined,
@@ -860,7 +870,44 @@ interface RenderEnv {
   anchors: ReturnType<typeof createHeadingAnchors>;
   t: Localize;
   mode: LocalRenderMode;
+  /** Binding keys per node subtree; an empty index makes every block a wildcard. */
+  dependencies: DependencyIndex;
 }
+
+interface LocalBlockProps {
+  node: LocalNode;
+  index: number;
+  visible: boolean;
+  env: RenderEnv;
+  depValues: readonly LocalValue[] | null;
+  resetToken: number;
+}
+
+/**
+ * A block subtree re-renders only when the bindings it (or a descendant) reads
+ * changed. `null` depValues means the dependencies could not be decided, so the
+ * block keeps the pre-memoization behavior of re-rendering on every revision.
+ */
+function blockPropsEqual(previous: LocalBlockProps, next: LocalBlockProps): boolean {
+  if (
+    previous.node !== next.node ||
+    previous.visible !== next.visible ||
+    previous.resetToken !== next.resetToken ||
+    previous.env !== next.env
+  ) {
+    return false;
+  }
+  if (previous.depValues === null || next.depValues === null) return false;
+  if (previous.depValues.length !== next.depValues.length) return false;
+  for (let index = 0; index < previous.depValues.length; index += 1) {
+    if (!Object.is(previous.depValues[index], next.depValues[index])) return false;
+  }
+  return true;
+}
+
+const LocalBlock = memo(function LocalBlock({ node, index, visible, env }: LocalBlockProps) {
+  return renderNode(env, node, index, visible, true);
+}, blockPropsEqual);
 
 function renderNodes(
   env: RenderEnv,
@@ -869,7 +916,36 @@ function renderNodes(
   block = true,
 ): ReactNode {
   if (!nodes || nodes.length === 0) return null;
-  return nodes.map((node, index) => renderNode(env, node, index, visible, block));
+  // Inline content gets no boundary: it is recreated inside its owning block.
+  if (!block) return nodes.map((node, index) => renderNode(env, node, index, visible, false));
+  // Read the snapshot once per call; an unreadable snapshot makes every block
+  // in this batch a wildcard, exactly like an undecidable dependency entry.
+  let currentState: Readonly<Record<string, LocalValue>> | null = null;
+  let resetTokens: ReadonlyMap<string, number> | null = null;
+  try {
+    currentState = env.runtime.snapshot().state;
+    resetTokens = collectSubtreeResetTokens(env.runtime);
+  } catch {
+    currentState = null;
+  }
+  const state = currentState;
+  return nodes.map((node, index) => {
+    const deps: NodeDependencies | undefined = env.dependencies.get(node.id);
+    const depValues = deps == null || state === null || resetTokens === null
+      ? null : deps.map((key) => state[key]);
+    const resetToken = resetTokens?.get(node.id) ?? 0;
+    return (
+      <LocalBlock
+        key={node.id || `${node.type}-${index}`}
+        node={node}
+        index={index}
+        visible={visible}
+        env={env}
+        depValues={depValues}
+        resetToken={resetToken}
+      />
+    );
+  });
 }
 
 /**
@@ -3980,7 +4056,9 @@ function StepView() {
   return null;
 }
 
-const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNode> = {
+/* Exported for registry-coverage tests only; package entry points do not
+ * re-export these registries. */
+export const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNode> = {
   panel: PanelView,
   card: CardView,
   grid: GridView,
@@ -4053,6 +4131,15 @@ export function LocalDocumentView({
     () => createHeadingAnchors(document, `local-heading-${instanceId}`),
     [document, instanceId],
   );
+  // A failing collector degrades to the wildcard index, so the view stays
+  // correct (every block re-renders) instead of losing content.
+  const dependencyIndex = useMemo(() => {
+    try {
+      return collectNodeDependencies(document);
+    } catch {
+      return EMPTY_DEPENDENCY_INDEX;
+    }
+  }, [document]);
   const reportRef = useRef(onDiagnostics);
   reportRef.current = onDiagnostics;
   const rootRef = useRef<HTMLElement>(null);
@@ -4109,15 +4196,47 @@ export function LocalDocumentView({
 
   // Advisory rules are read after the subscription so the hints reflect the
   // revision that triggered this render. The runtime caches per revision.
-  const validation = createValidationState(document, runtime, instanceId, t);
+  let validationKey = '';
+  if (document.validations?.length) {
+    try { validationKey = diagnosticsSignature(runtime.validate()); }
+    catch { validationKey = 'unavailable'; }
+  }
+  const validation = useMemo(
+    () => createValidationState(document, runtime, instanceId, t),
+    [document, runtime, instanceId, t, validationKey],
+  );
 
-  const env: RenderEnv = { runtime, urlPolicy, imageResolver, anchors, t, mode: renderedMode };
-  const render = (nodes?: LocalNode[], visible = true): ReactNode => (
-    <LocalViewContext.Provider
-      value={{ runtime, render, visible, mode: renderedMode, report, urlPolicy, imageResolver, anchors, rootRef, t, validation }}
-    >
-      {renderNodes(env, nodes ?? [], visible)}
-    </LocalViewContext.Provider>
+  // Stable across revisions: each field comes from a prop, a memo, or the
+  // dependency index, so memoized blocks keep their previous output.
+  const env = useMemo<RenderEnv>(
+    () => ({ runtime, urlPolicy, imageResolver, anchors, t, mode: renderedMode, dependencies: dependencyIndex }),
+    [runtime, urlPolicy, imageResolver, anchors, t, renderedMode, dependencyIndex],
+  );
+
+  // Revision-independent deps keep this closure and the provider value stable
+  // so a revision never invalidates memoized blocks by context alone. `visible`
+  // is constant here: visibility travels through block props, not the context.
+  const render = useCallback(
+    (nodes?: LocalNode[], nextVisible = true): ReactNode =>
+      renderNodes(env, nodes ?? [], nextVisible),
+    [env],
+  );
+  const contextValue = useMemo<LocalViewContext>(
+    () => ({
+      runtime,
+      render,
+      visible: true,
+      mode: renderedMode,
+      imageResolver,
+      validation,
+      report,
+      urlPolicy,
+      anchors,
+      rootRef,
+      t,
+      dependencies: dependencyIndex,
+    }),
+    [runtime, render, report, urlPolicy, imageResolver, renderedMode, anchors, rootRef, t, validation, dependencyIndex],
   );
 
   return (
@@ -4135,7 +4254,9 @@ export function LocalDocumentView({
             : t('Interactive document', '交互文档')
         }
       >
-        {render(document.nodes, true)}
+        <LocalViewContext.Provider value={contextValue}>
+          {render(document.nodes, true)}
+        </LocalViewContext.Provider>
       </article>
     </LocalLocaleProvider>
   );

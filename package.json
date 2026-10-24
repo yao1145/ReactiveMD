@@ -51,7 +51,9 @@
     "test:theme-browser": "node scripts/verify-theme-browser.mjs",
     "test:computations-browser": "node scripts/verify-computations-browser.mjs",
     "test:constraints-browser": "node scripts/verify-constraints-browser.mjs",
+    "verify:memo": "node scripts/verify-memo-browser.mjs",
     "benchmark": "node scripts/benchmark.mjs",
+    "benchmark:stages": "node scripts/benchmark-stages.mjs",
     "notices": "node scripts/generate-notices.mjs",
     "prepack": "npm run build && npm run notices"
   },

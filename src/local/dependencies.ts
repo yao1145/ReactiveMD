@@ -1,0 +1,183 @@
+import type { LocalDocument, LocalNode, LocalRuntime } from './types';
+import { localKey } from './types';
+import { compileExpression, templateDependencies } from './expression';
+import { compileLatex } from './math';
+
+/**
+ * Binding keys a node subtree reads. `null` marks nodes whose reads cannot be
+ * decided statically; their memo boundary must re-render on every revision.
+ */
+export type NodeDependencies = readonly string[] | null;
+export type DependencyIndex = ReadonlyMap<string, NodeDependencies>;
+
+/**
+ * Wildcard index used when no analysis is available: a missing entry means the
+ * node reads cannot be decided, so it must re-render on every revision.
+ */
+export const EMPTY_DEPENDENCY_INDEX: DependencyIndex = new Map();
+
+/**
+ * Visual components whose runtime reads are covered by attribute templates,
+ * their descendant subtree, and (where applicable) their own selection binding.
+ *
+ * Audited reads (visuals.tsx): tables, charts, timelines and diagrams evaluate
+ * descendant interpolations/math through their own render paths, read their own
+ * attribute templates, and never evaluate an arbitrary binding name. Plots copy
+ * the whole snapshot into an environment, but only the variables named by the
+ * descendant formulas are ever read from it. The remaining runtime read is the
+ * node's own selection binding (`runtime.get`), which is enumerated below.
+ */
+const VISUAL_NODE_NAMES: ReadonlySet<string> = new Set([
+  'table', 'chart', 'plot', 'timeline', 'diagram',
+]);
+
+const dependencyIndexCache = new WeakMap<LocalDocument, DependencyIndex>();
+
+const subtreeResetCache = new WeakMap<LocalRuntime, {
+  revision: number;
+  tokens: ReadonlyMap<string, number>;
+}>();
+
+/**
+ * Memo boundaries must observe resets anywhere below them. Keep these sums
+ * separate from runtime.resetToken: a descendant reset must not reset the
+ * ancestor's own UI state. One traversal per revision also keeps nested block
+ * rendering from repeatedly walking the same subtrees.
+ */
+export function collectSubtreeResetTokens(runtime: LocalRuntime): ReadonlyMap<string, number> {
+  const revision = runtime.snapshot().revision;
+  const cached = subtreeResetCache.get(runtime);
+  if (cached?.revision === revision) return cached.tokens;
+
+  const tokens = new Map<string, number>();
+  const visit = (node: LocalNode): number => {
+    let token = runtime.resetToken(node);
+    for (const child of node.children ?? []) token += visit(child);
+    tokens.set(node.id, token);
+    return token;
+  };
+  for (const node of runtime.document.nodes) visit(node);
+  subtreeResetCache.set(runtime, { revision, tokens });
+  return tokens;
+}
+
+function addAll(target: Set<string>, values: readonly string[]): void {
+  for (const value of values) target.add(value);
+}
+
+/**
+ * Collects, for every node, the union of binding keys read by the node and its
+ * descendants. `null` marks a subtree whose reads cannot be decided statically
+ * (own analysis failure or any undecidable descendant).
+ */
+export function collectNodeDependencies(document: LocalDocument): DependencyIndex {
+  const cached = dependencyIndexCache.get(document);
+  if (cached !== undefined) return cached;
+
+  const persisted = document.dependencies;
+  if (persisted !== undefined) {
+    const stored = new Map<string, NodeDependencies>(Object.entries(persisted));
+    dependencyIndexCache.set(document, stored);
+    return stored;
+  }
+
+  const index = new Map<string, NodeDependencies>();
+
+  const visit = (node: LocalNode): NodeDependencies => {
+    const dependencies = new Set<string>();
+    let undecidable = false;
+
+    // Text interpolations are parsed into `interpolation` child nodes, so
+    // attributes are the remaining template site. Any malformed template makes
+    // the whole node undecidable.
+    if (node.attrs !== undefined) {
+      for (const value of Object.values(node.attrs)) {
+        try {
+          addAll(dependencies, templateDependencies(value));
+        } catch {
+          undecidable = true;
+          break;
+        }
+      }
+    }
+
+    if (!undecidable) {
+      if (node.type === 'interpolation') {
+        try {
+          addAll(dependencies, compileExpression(node.value ?? '').dependencies);
+        } catch {
+          undecidable = true;
+        }
+      } else if (node.type === 'math') {
+        try {
+          addAll(dependencies, compileLatex(node.value ?? '').dependencies);
+        } catch {
+          undecidable = true;
+        }
+      } else if (node.name !== undefined) {
+        if (node.name === 'table' || node.name === 'chart') {
+          // Selection reads `runtime.get(node)` only when a key column is
+          // declared. The compiler registers the binding (named or anonymous)
+          // for exactly those nodes, so the key is a real state read here.
+          if ((node.attrs?.key ?? '').trim() !== '') dependencies.add(localKey(node));
+        } else if (node.name === 'diagram') {
+          // DiagramView always reads its selection binding, including the
+          // compiler-generated anonymous key used when no bind is declared.
+          dependencies.add(localKey(node));
+        } else if (node.name === 'plot') {
+          // PlotView also accepts direct inline-math curves (only constructible
+          // by hand). Only formulas it samples, `y = ...`, read the environment;
+          // a formula that cannot compile is reported and reads nothing.
+          for (const child of node.children ?? []) {
+            if (child.type !== 'inlineMath') continue;
+            const source = (child.value ?? '').trim();
+            if (!/^y\s*=/u.test(source)) continue;
+            try {
+              addAll(dependencies, compileLatex(source).dependencies);
+            } catch {
+              // PlotView shows the same formula failure without reading state.
+            }
+          }
+        } else if (!VISUAL_NODE_NAMES.has(node.name)) {
+          // Controls display their own value, so they depend on it. Multi-slot
+          // components register one independent key per slot.
+          dependencies.add(localKey(node));
+          const slots = document.bindingSlots?.[node.id];
+          if (slots !== undefined) {
+            for (const key of Object.values(slots)) dependencies.add(key);
+          }
+        }
+      }
+    }
+
+    let descendantUndecidable = false;
+    for (const child of node.children ?? []) {
+      const childDependencies = visit(child);
+      if (childDependencies === null) descendantUndecidable = true;
+      else addAll(dependencies, childDependencies);
+    }
+
+    const entry = undecidable || descendantUndecidable ? null : [...dependencies];
+    index.set(node.id, entry);
+    return entry;
+  };
+
+  for (const node of document.nodes) visit(node);
+  dependencyIndexCache.set(document, index);
+  return index;
+}
+
+/**
+ * Persists the dependency index on the document so compiled documents carry
+ * the analysis as data. Documents built by hand keep working: the renderer
+ * falls back to running the same analysis on first use.
+ */
+export function attachNodeDependencies(document: LocalDocument): void {
+  if (document.dependencies !== undefined) return;
+  const index = collectNodeDependencies(document);
+  const record: Record<string, NodeDependencies> = Object.create(null);
+  for (const [id, dependencies] of index) {
+    record[id] = dependencies === null ? null : Object.freeze([...dependencies]);
+  }
+  document.dependencies = Object.freeze(record);
+}

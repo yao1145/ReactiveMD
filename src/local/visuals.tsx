@@ -1933,16 +1933,25 @@ interface PlotBudgetState {
   revision: number;
   requestedPoints: Map<string, number>;
   evaluation: LatexEvaluationBudget;
-  samples: Map<string, PlotSampleResult>;
 }
 
+const PLOT_SAMPLE_CACHE_LIMIT = 64;
+
 /**
- * Document-wide plot accounting. Keys are the runtime instance, so separate
- * documents never share limits. The snapshot revision starts a fresh budget:
- * state changes may alter plot expressions and must not inherit an exhausted
- * budget from the previous render.
+ * Document-wide plot accounting and sample storage. Keys are the runtime
+ * instance, so separate documents never share limits or samples.
+ *
+ * Samples live in a persistent cache keyed on the resolved inputs of every
+ * curve (formulas, range, locale, and the environment values each curve
+ * reads), so they survive unrelated environment writes and a plot only
+ * resamples when one of its actual dependencies changes.
+ *
+ * The per-revision budget tracks work only: the requested sample count and the
+ * shared evaluation budget restart on every snapshot revision because a cache
+ * miss must be charged in full, even when the write looks unrelated.
  */
 const documentPlotBudgets = new WeakMap<LocalRuntime, PlotBudgetState>();
+const documentPlotSamples = new WeakMap<LocalRuntime, Map<string, PlotSampleResult>>();
 
 function plotBudgetState(runtime: LocalRuntime, revision: number): PlotBudgetState {
   let budget = documentPlotBudgets.get(runtime);
@@ -1951,17 +1960,67 @@ function plotBudgetState(runtime: LocalRuntime, revision: number): PlotBudgetSta
       revision,
       requestedPoints: new Map(),
       evaluation: { steps: 0, limit: MAX_LOCAL_PLOT_STEPS },
-      samples: new Map(),
     };
     documentPlotBudgets.set(runtime, budget);
   }
   return budget;
 }
 
+function plotSampleCache(runtime: LocalRuntime): Map<string, PlotSampleResult> {
+  let samples = documentPlotSamples.get(runtime);
+  if (!samples) {
+    samples = new Map();
+    documentPlotSamples.set(runtime, samples);
+  }
+  return samples;
+}
+
+/** Stores one sample result, evicting the oldest entry once the cap is hit. */
+function cachePlotSample(
+  samples: Map<string, PlotSampleResult>,
+  cacheKey: string,
+  result: PlotSampleResult,
+): PlotSampleResult {
+  if (samples.size >= PLOT_SAMPLE_CACHE_LIMIT) {
+    const oldest = samples.keys().next().value;
+    if (oldest !== undefined) samples.delete(oldest);
+  }
+  samples.set(cacheKey, result);
+  return result;
+}
+
 /**
- * Samples every curve of one plot once per revision. Caching by node id keeps
- * pointer and keyboard readout updates from resampling, and makes StrictMode's
- * repeated render unable to charge the shared budget twice.
+ * Fingerprint of the environment values a plot actually reads. Dependencies
+ * already exclude `x`, so sampling stays reusable as long as every dependency
+ * keeps its resolved value. A formula that cannot be parsed, or fails to
+ * compile, salts its part with the revision instead of the environment, which
+ * disables cross-revision reuse for that plot only (safe fallback).
+ */
+function plotEnvironmentKey(
+  mathNodes: LocalNode[],
+  environment: Record<string, LocalValue>,
+  revision: number,
+): string {
+  return mathNodes
+    .map((child) => {
+      const match = /^y\s*=\s*([\s\S]+)$/.exec((child.value ?? '').trim());
+      if (!match) return `\u0003${revision}`;
+      try {
+        const expression = compileLatex(match[1].trim());
+        return JSON.stringify(expression.dependencies.map((name) => environment[name] ?? null));
+      } catch {
+        return `\u0003${revision}`;
+      }
+    })
+    .join('\u0001');
+}
+
+/**
+ * Samples every curve of one plot and stores the result (successes and
+ * failures) in the persistent, resolved-input-keyed cache. A hit returns
+ * immediately and charges no budget, which keeps pointer and keyboard readout
+ * updates from resampling and stops StrictMode's repeated render from charging
+ * the shared budget twice. A miss runs the full per-revision work accounting.
  */
 function sampleDocumentPlot(
   nodeId: string,
@@ -1975,14 +2034,15 @@ function sampleDocumentPlot(
   revision: number,
   t: Localize = defaultLocalize,
 ): PlotSampleResult {
-  const budget = plotBudgetState(runtime, revision);
-  const cached = budget.samples.get(cacheKey);
+  const sampleCache = plotSampleCache(runtime);
+  const cached = sampleCache.get(cacheKey);
   if (cached) return cached;
+
+  const budget = plotBudgetState(runtime, revision);
 
   const fail = (message: string): PlotSampleResult => {
     const result: PlotSampleResult = { ok: false, message };
-    budget.samples.set(cacheKey, result);
-    return result;
+    return cachePlotSample(sampleCache, cacheKey, result);
   };
 
   if (mathNodes.length > MAX_LOCAL_PLOT_CURVES) {
@@ -2051,8 +2111,7 @@ function sampleDocumentPlot(
   }
 
   const result: PlotSampleResult = { ok: true, curves, notes };
-  budget.samples.set(cacheKey, result);
-  return result;
+  return cachePlotSample(sampleCache, cacheKey, result);
 }
 
 function median(values: number[]): number {
@@ -2136,9 +2195,13 @@ function PlotView({ node, runtime, mode }: ResolvedLocalVisualProps) {
     .map((child) => `${child.id}\u0000${child.value ?? ''}`)
     .join('\u0001');
   const cacheKey = `${node.id}\u0000${min}\u0000${max}\u0000${samples}\u0000${locale}\u0000${mathKey}`;
+  const environmentKey = plotEnvironmentKey(mathNodes, environment, revision);
+  const sampleKey = `${cacheKey}\u0002${environmentKey}`;
 
-  // Sampling is cached per document revision, so moving the pointer across the
-  // plot or changing the keyboard readout never resamples every curve.
+  // Sampling is cached on the resolved inputs (formulas, range, locale, and the
+  // environment values each curve reads), so moving the pointer across the
+  // plot, changing the keyboard readout, or writing unrelated state never
+  // resamples every curve.
   const sampled = useMemo<PlotSampleResult>(
     () => {
       if (mathNodes.length === 0 || min === null || max === null || !(max > min)) {
@@ -2146,7 +2209,7 @@ function PlotView({ node, runtime, mode }: ResolvedLocalVisualProps) {
       }
       return sampleDocumentPlot(
         node.id,
-        cacheKey,
+        sampleKey,
         mathNodes,
         environment,
         min,
@@ -2157,7 +2220,7 @@ function PlotView({ node, runtime, mode }: ResolvedLocalVisualProps) {
         t,
       );
     },
-    [cacheKey, node.id, revision, runtime, t],
+    [cacheKey, environmentKey, node.id, runtime, t],
   );
 
   if (mathNodes.length === 0) {
