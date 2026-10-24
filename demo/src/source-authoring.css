@@ -47,6 +47,15 @@
   user-select: none;
 }
 
+/* The overlay follows the textarea with a transform rather than its own
+   scroll position, so scrolling runs on the compositor and stays in step with
+   the textarea's native scrolling. */
+.author-highlight-content {
+  will-change: transform;
+  contain: layout style paint;
+  transform: translate3d(0, 0, 0);
+}
+
 /* Token styling changes colour only: weight, italics and letter spacing would
    alter glyph widths and break the character-for-character alignment with the
    textarea's wrapping. */

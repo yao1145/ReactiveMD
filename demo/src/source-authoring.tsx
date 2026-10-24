@@ -12,7 +12,6 @@ import {
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -170,29 +169,76 @@ export const AuthorHighlight = memo(function AuthorHighlight({
   width,
   editorRef,
 }: AuthorHighlightProps) {
-  const layerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  useLayoutEffect(() => {
+  // The textarea scrolls natively, so the overlay has to follow it. Moving the
+  // highlight with a compositor transform (instead of its own scrollTop) keeps
+  // the two in the same frame: scrolling never repaints the highlighted text,
+  // and a short animation-frame follow catches scroll events that a browser
+  // coalesces or delays during momentum scrolling.
+  //
+  // This is a passive effect on purpose. The highlight renders before its
+  // sibling textarea, so on the first commit the editor ref is not attached
+  // yet; a layout effect would bail out and leave the overlay frozen until the
+  // next source change re-ran it. Passive effects flush after the whole commit,
+  // when the ref is always available.
+  useEffect(() => {
     const editor = editorRef.current;
-    const layer = layerRef.current;
-    if (!editor || !layer) return;
-    const sync = () => {
-      layer.scrollTop = editor.scrollTop;
-      layer.scrollLeft = editor.scrollLeft;
+    const content = contentRef.current;
+    if (!editor || !content) return;
+
+    let frame = 0;
+    let idleTimer = 0;
+    let lastTop = Number.NaN;
+    let lastLeft = Number.NaN;
+
+    const apply = () => {
+      const top = editor.scrollTop;
+      const left = editor.scrollLeft;
+      if (top === lastTop && left === lastLeft) return;
+      lastTop = top;
+      lastLeft = left;
+      content.style.transform = `translate3d(${-left}px, ${-top}px, 0)`;
     };
-    sync();
-    editor.addEventListener('scroll', sync, { passive: true });
-    return () => editor.removeEventListener('scroll', sync);
-  }, [editorRef, source]);
+
+    const follow = () => {
+      frame = 0;
+      apply();
+      if (idleTimer !== 0) frame = window.requestAnimationFrame(follow);
+    };
+
+    const wake = () => {
+      apply();
+      if (idleTimer !== 0) window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => {
+        idleTimer = 0;
+        if (frame !== 0) {
+          window.cancelAnimationFrame(frame);
+          frame = 0;
+        }
+      }, 1000);
+      if (frame === 0) frame = window.requestAnimationFrame(follow);
+    };
+
+    apply();
+    const events = ['scroll', 'wheel', 'touchstart', 'touchmove'] as const;
+    for (const type of events) editor.addEventListener(type, wake, { passive: true });
+    return () => {
+      for (const type of events) editor.removeEventListener(type, wake);
+      if (idleTimer !== 0) window.clearTimeout(idleTimer);
+      if (frame !== 0) window.cancelAnimationFrame(frame);
+    };
+  }, [editorRef]);
 
   return (
     <div
       className="author-highlight"
-      ref={layerRef}
       aria-hidden="true"
       style={width > 0 ? { width: `${width}px` } : undefined}
     >
-      {renderHighlight(source, tokens)}
+      <div className="author-highlight-content" ref={contentRef}>
+        {renderHighlight(source, tokens)}
+      </div>
     </div>
   );
 });

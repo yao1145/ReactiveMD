@@ -41,6 +41,35 @@ const horizontalOverflow = (target) =>
   target.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
 
 try {
+  // Regression: the highlight layer renders before its sibling textarea, so its
+  // scroll listener must still bind on the first commit. Scrolling before any
+  // source edit used to leave the code frozen while the gutter and caret moved.
+  const initial = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const initialSource = '# Long draft\n\n' + Array.from(
+    { length: 120 },
+    (_, index) => `Line ${index + 1} <bind name="v${index}" value="${index}" /> text text text`,
+  ).join('\n');
+  await initial.addInitScript((source) => {
+    localStorage.setItem('reactive-md:language', 'en');
+    localStorage.setItem('reactive-md:selection', 'pricing');
+    localStorage.setItem('reactive-md:local:source:pricing', source);
+  }, initialSource);
+  await initial.goto(baseURL);
+  await initial.getByRole('button', { name: 'Show source', exact: true }).click();
+  const initialEditor = initial.locator('#source-editor');
+  await expect(initialEditor).toBeVisible();
+  await initialEditor.hover();
+  await initial.mouse.wheel(0, 500);
+  await expect.poll(() => initial.evaluate(() => {
+    const textarea = document.querySelector('#source-editor');
+    const content = document.querySelector('.author-highlight-content');
+    const matrix = new DOMMatrix(getComputedStyle(content).transform);
+    return Math.round(textarea.scrollTop) > 0
+      && Math.round(textarea.scrollTop) === Math.round(-matrix.m42);
+  })).toBe(true);
+  await initial.close();
+  console.log('PASS highlight follows scrolling before the first edit');
+
   await page.goto(baseURL);
   await page.getByRole('button', { name: 'Show source', exact: true }).click();
 
@@ -100,18 +129,37 @@ try {
   }
   console.log('PASS highlight geometry and text metrics match the textarea');
 
-  await editor.evaluate((element) => {
-    element.scrollTop = 60;
-    element.dispatchEvent(new Event('scroll', { bubbles: true }));
-  });
-  const scroll = await page.evaluate(() => ({
-    editor: document.querySelector('#source-editor')?.scrollTop ?? -1,
-    layer: document.querySelector('.author-highlight')?.scrollTop ?? -2,
-  }));
-  if (scroll.editor !== scroll.layer) {
-    throw new Error(`Highlight scroll is not synced: ${JSON.stringify(scroll)}`);
-  }
-  console.log('PASS highlight scrolling follows the textarea');
+  // Long sources exercise real scrolling. The highlight must follow the
+  // textarea's native scroll position on its own: no synthetic scroll event,
+  // and the overlay moves through a transform rather than its own scrollTop.
+  await editor.fill(
+    Array.from({ length: 80 }, (_, index) => `Line ${index + 1} <bind name="value${index}" value="${index}" />`).join('\n'),
+  );
+  await expect(page.locator('.status-chip')).toContainText('Compiled');
+  await editor.evaluate((element) => { element.scrollTop = 400; });
+  await expect.poll(() => page.evaluate(() => {
+    const textarea = document.querySelector('#source-editor');
+    const content = document.querySelector('.author-highlight-content');
+    const matrix = new DOMMatrix(getComputedStyle(content).transform);
+    return {
+      editor: Math.round(textarea.scrollTop),
+      highlight: Math.round(-matrix.m42),
+    };
+  })).toEqual({ editor: 400, highlight: 400 });
+  await editor.hover();
+  await page.mouse.wheel(0, 240);
+  await expect.poll(() => page.evaluate(() => {
+    const textarea = document.querySelector('#source-editor');
+    const content = document.querySelector('.author-highlight-content');
+    const matrix = new DOMMatrix(getComputedStyle(content).transform);
+    return Math.round(textarea.scrollTop) > 400
+      && Math.round(textarea.scrollTop) === Math.round(-matrix.m42);
+  })).toBe(true);
+  console.log('PASS highlight scrolling follows native textarea scrolling');
+
+  await editor.fill(fixture);
+  await expect(page.locator('.status-chip')).toContainText('Compiled');
+  await editor.evaluate((element) => { element.scrollTop = 0; });
 
   await editor.evaluate((element) => element.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })));
   await expect(page.locator('.editor-shell')).toHaveClass(/is-composing/);

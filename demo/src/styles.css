@@ -326,7 +326,7 @@ textarea {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: clamp(390px, 56vh, 680px);
+  height: clamp(560px, 80vh, 960px);
   min-width: 0;
   container-name: editor-frame;
   container-type: inline-size;
@@ -1009,7 +1009,7 @@ textarea {
   }
 
   .editor-frame {
-    height: clamp(330px, 46vh, 520px);
+    height: clamp(460px, 70vh, 720px);
   }
 
   .preview-stage,
@@ -1097,7 +1097,7 @@ textarea {
   }
 
   .editor-frame {
-    height: 360px;
+    height: clamp(360px, 66vh, 560px);
   }
 
   .editor-gutter {
