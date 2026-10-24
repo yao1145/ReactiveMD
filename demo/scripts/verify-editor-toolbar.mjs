@@ -78,7 +78,7 @@ const readEditorState = (editor) => editor.evaluate((element) => {
 const probeCount = (target) => target.evaluate(() => (window.__editorProbe ?? []).length);
 
 const probeSince = (target, index) =>
-  target.evaluate((from) => (window.__editorProbe ?? []).slice(from).slice(-8), index);
+  target.evaluate((from) => (window.__editorProbe ?? []).slice(from).slice(-40), index);
 
 const formatProbe = (events) => events.map((event) =>
   `${event.type}${event.inputType ? `(${event.inputType})` : ''} trusted=${event.trusted}`
@@ -117,7 +117,7 @@ const describeEditorState = async (target, editor, label, from, expected, previo
       `react=${state.react === null ? 'unavailable' : JSON.stringify(String(state.react).slice(0, 80))}`,
       `highlight=${state.highlight === null ? 'missing' : JSON.stringify(state.highlight.slice(0, 80))}`,
       `selection=${state.start}-${state.end} focused=${state.focused}`,
-      `events=${events.length ? formatProbe(events).join(' | ') : 'none'}`,
+      `events=${events.length ? formatProbe(events.slice(-8)).join(' | ') : 'none'}`,
     ].join('\n');
   } catch (error) {
     return `[${label}] diagnostics unavailable: ${error instanceof Error ? error.message : String(error)}`;

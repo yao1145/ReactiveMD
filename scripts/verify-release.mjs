@@ -221,9 +221,9 @@ try {
     if (process.env.PLAYWRIGHT_CHANNEL) browserEnv.PLAYWRIGHT_CHANNEL = process.env.PLAYWRIGHT_CHANNEL;
     try {
       await runSequence('browser', [
+        ['Editor toolbar browser', ['run', 'test:toolbar'], demoRoot, browserEnv],
         ['Demo browser suite', ['run', 'test:browser'], demoRoot, browserEnv],
         ['New component browser suite', ['run', 'test:v2'], demoRoot, browserEnv],
-        ['Editor toolbar browser', ['run', 'test:toolbar'], demoRoot, browserEnv],
         ['Shareable export acceptance', ['run', 'test:shareable'], projectRoot, browserEnv],
         ['Computed values browser', ['run', 'test:computations-browser'], projectRoot, browserEnv],
         ['Constraints and collections browser', ['run', 'test:constraints-browser'], projectRoot, browserEnv],
