@@ -123,7 +123,14 @@ try {
   await check('source editing compiles local controls and expressions immediately', async () => {
     await page.getByRole('button', { name: 'Show source', exact: true }).click();
     const editor = page.locator('#source-editor');
-    await editor.fill('<slider bind="n" label="Test value" initial="4" min="0" max="10">\n\nCurrent value: **{{ n * 2 }}**.');
+    // Establish the focus handoff after opening the source pane before sending
+    // text through the browser input protocol. Assert both views of the edit.
+    await editor.focus();
+    await expect(editor).toBeFocused();
+    const source = '<slider bind="n" label="Test value" initial="4" min="0" max="10">\n\nCurrent value: **{{ n * 2 }}**.';
+    await editor.fill(source);
+    await expect(editor).toHaveValue(source);
+    await expect.poll(() => page.locator('.author-highlight-content').textContent()).toBe(source);
     const slider = page.getByRole('slider', { name: 'Test value', exact: true });
     await expect(slider).toHaveValue('4');
     await expect(paragraph('Current value:')).toContainText('8');

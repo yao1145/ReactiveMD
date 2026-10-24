@@ -6,6 +6,11 @@ This file records user-visible changes. The project is in a 0.x preview; version
 
 `0.4.0` is a preview release published on the `next` distribution channel. It uses syntax revision `local-draft-2` and upgrades from `0.3.1` / `local-draft-1`; the package version, syntax revision, `component-protocol-1` component protocol and `reactive-md-theme-1` theme protocol are independent version axes. `0.3.1` remains the `latest` release. See [0.4.0 release and migration](docs/release-0.4.0-en.md) for the complete upgrade checklist.
 
+### Fixed
+
+- Keep the Playground toolbar on one row in compact desktop layouts with wider system fonts.
+- Align source highlighting with the editor scroll position on first opening and give the source pane more vertical space.
+
 ### Added
 
 - Add source highlighting, completion, binding navigation, rename and formatting APIs, with corresponding Playground author tools.

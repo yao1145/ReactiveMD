@@ -237,6 +237,20 @@
     gap: 1px;
   }
 
+  .editor-toolbar-heading-trigger {
+    padding-inline: 5px;
+  }
+
+  .editor-toolbar-insert-trigger {
+    gap: 2px;
+    padding-inline: 4px;
+  }
+
+  .editor-toolbar-components-trigger {
+    gap: 3px;
+    padding-inline: 5px;
+  }
+
   .editor-toolbar-history > .editor-toolbar-desktop-only {
     display: none;
   }

@@ -141,6 +141,8 @@ const waitForEditorSource = async (target, editor, expected, previous, label, fr
 const startDevBold = async (target, editor) => {
   const previous = await editor.inputValue();
   const from = await probeCount(target);
+  await editor.focus();
+  await expect(editor).toBeFocused();
   await editor.fill('# Test\n\nBody');
   await waitForEditorSource(target, editor, '# Test\n\nBody', previous, 'fill before bold', from);
   await editor.evaluate((element) => {
@@ -374,6 +376,14 @@ try {
     ).size,
   );
   if (tabletRows !== 1) throw new Error(`Compact desktop toolbar wraps onto ${tabletRows} rows`);
+  // A wider system font must not push the history menu onto a second row.
+  const wideFont = await tablet.addStyleTag({ content: '.editor-toolbar { font-family: Verdana, sans-serif; }' });
+  const wideRows = await tabletToolbar.locator('[data-toolbar-id]').evaluateAll((elements) =>
+    new Set(elements.filter((element) => element.getClientRects().length > 0)
+      .map((element) => Math.round(element.getBoundingClientRect().top))).size,
+  );
+  if (wideRows !== 1) throw new Error(`Compact toolbar wraps with a wider font onto ${wideRows} rows`);
+  await wideFont.evaluate((element) => element.remove());
   const tabletHeading = tablet.locator('[data-toolbar-id="heading"]');
   await expect(tabletHeading.locator('.editor-toolbar-heading-label-full')).toHaveText('Heading 1');
   await expect(tabletHeading.locator('.editor-toolbar-heading-label-compact')).toBeHidden();
