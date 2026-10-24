@@ -6,8 +6,8 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 | 项目 | 当前值 | 说明 |
 | --- | --- | --- |
-| 包版本 | `0.4.0` | 预览版，发布在 `next` 分发渠道 |
-| 分发标签 | `next` → `0.4.0`；`latest` → `0.3.1` | `0.3.1` 保持稳定通道，直到另行决定提升 |
+| 包版本 | `0.4.0` | 0.x 预览版，同时提供于 `latest` 和 `next` 渠道 |
+| 分发标签 | `latest` → `0.4.0`；`next` → `0.4.0` | 默认安装使用 `latest` |
 | 语法版本 | `local-draft-2` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
 | 源码修订指令 | 可选 `<!-- reactive-md: local-draft-2 -->` | 文档前导区中的一行；无指令源码继续按当前修订解析 |
 | 组块协议 | `component-protocol-1` | 贡献与验收契约，见[组块协议](component-protocol-ch.md)；不是运行时版本选择参数 |
@@ -100,4 +100,4 @@ Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `c
 语言范围见[语法规范](local-interaction-syntax-ch.md)，安全边界与宿主责任见[安全策略](../SECURITY-ch.md)。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.4.0` 是 `next` 渠道的预览版，`0.3.1` 仍为 `latest`。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.4.0` 同时提供于 `latest` 和 `next` 渠道。

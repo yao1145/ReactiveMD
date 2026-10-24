@@ -4,7 +4,7 @@
 
 ## 0.4.0（2026-10-24，next 渠道）
 
-`0.4.0` 是发布在 `next` 分发渠道的预览版，语法修订为 `local-draft-2`，从 `0.3.1` / `local-draft-1` 升级；包版本、语法修订、`component-protocol-1` 组块协议和 `reactive-md-theme-1` 主题协议是彼此独立的版本轴。`0.3.1` 仍为 `latest` 版本。完整升级清单见[0.4.0 发布与迁移](docs/release-0.4.0-ch.md)。
+`0.4.0` 是同时提供于 `latest` 和 `next` 渠道的 0.x 预览版，语法修订为 `local-draft-2`，从 `0.3.1` / `local-draft-1` 升级；包版本、语法修订、`component-protocol-1` 组块协议和 `reactive-md-theme-1` 主题协议是彼此独立的版本轴。完整升级清单见[0.4.0 发布与迁移](docs/release-0.4.0-ch.md)。
 
 ### 修复
 

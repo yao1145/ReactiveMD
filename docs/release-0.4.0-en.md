@@ -1,8 +1,8 @@
 # 0.4.0 preview and migration
 
-Status: preview release on the `next` distribution channel. Package version `0.4.0`, syntax revision `local-draft-2`, component protocol `component-protocol-1`, theme protocol `reactive-md-theme-1`. These are separate version axes; `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1` are not package versions.
+Status: 0.x preview available on both `latest` and `next`. Package version `0.4.0`, syntax revision `local-draft-2`, component protocol `component-protocol-1`, theme protocol `reactive-md-theme-1`. These are separate version axes; `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1` are not package versions.
 
-Install the preview with `npm install reactive-md@next`, or pin it with `npm install reactive-md@0.4.0`. `0.3.1` remains the `latest` release.
+Install with `npm install reactive-md`, or pin it with `npm install reactive-md@0.4.0`. Both `latest` and `next` resolve to `0.4.0`.
 
 This page summarizes what 0.4.0 contains, what changes for existing documents and hosts, and how to move from `0.3.1` / `local-draft-1`. Detailed rules remain in the linked reference pages; this page is the upgrade checklist. Explicit revision declarations and the migration tools are specified in [Source revisions and migration](source-versioning-en.md).
 
@@ -10,7 +10,7 @@ This page summarizes what 0.4.0 contains, what changes for existing documents an
 
 - Authors who need named calculations, formatting, validation, collections, new input types, themes or offline HTML export.
 - Hosts that can adopt `local-draft-2` and update exhaustive `LocalValueKind` checks, runtime adapters and state handling.
-- Projects that pin `0.3.1` and only need `local-draft-1` can stay there; it remains the `latest` release. The build accepts one syntax revision and has no separate `local-draft-1` mode; unversioned source in supported old forms is read under `local-draft-2` rules, while an explicit `local-draft-1` declaration must be migrated first.
+- Projects that pin `0.3.1` and only need `local-draft-1` can stay on that pinned version. The build accepts one syntax revision and has no separate `local-draft-1` mode; unversioned source in supported old forms is read under `local-draft-2` rules, while an explicit `local-draft-1` declaration must be migrated first.
 
 ## What 0.4.0 contains
 
@@ -70,7 +70,7 @@ A source may declare `<!-- reactive-md: local-draft-2 -->` in its prologue. Unve
 
 ## Upgrade checklist
 
-1. Install `0.4.0` from `next` or pin `0.4.0`, keep the original `.reactive.md` sources and record `LOCAL_SYNTAX_VERSION`.
+1. Install `0.4.0` with `npm install reactive-md` or pin `0.4.0`, keep the original `.reactive.md` sources and record `LOCAL_SYNTAX_VERSION`.
 2. Run `reactive-md migrate <file> --check` or `migrateLocalSource` on each source. Unversioned historical documents need `--from local-draft-1`; resolve every reported blocker before writing output.
 3. Search prose and examples for the 15 newly recognized tag names outside code regions; escape them or move them into code.
 4. Search `bind`, `bind-start`, `bind-end`, `bind-x` and `bind-y` values for the 17 newly reserved identifiers; rename the bindings and their references. The core `renameLocalBinding` helper and the editor rename action update declarations, expression references and plot parameters together.

@@ -4,7 +4,7 @@
 
 用 Markdown 写本地交互文档。放入输入控件，用 `bind` 命名参数，用 `{{ 表达式 }}` 连接文字、公式、图表和图解。文档作者无需编写 JavaScript 或 CSS。
 
-本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。`0.4.0` 是发布在 `next` 渠道的预览版，语法修订为 `local-draft-2`。
+本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。`0.4.0` 是当前的 0.x 预览版，同时提供于 `latest` 和 `next` 渠道，语法修订为 `local-draft-2`。
 
 ## 从这里开始
 
@@ -32,17 +32,17 @@
 
 输入立即更新结果，面板自带“恢复默认”。独立使用的计数器只需一行 `<counter label="人数">`。
 
-`0.4.0` 新增 `local-draft-2`、命名计算、校验、集合、主题和离线 HTML 导出；仍为 `latest` 的 0.3.1 使用 `local-draft-1`。见[0.4.0 发布与迁移](docs/release-0.4.0-ch.md)。
+`0.4.0` 新增 `local-draft-2`、命名计算、校验、集合、主题和离线 HTML 导出；旧版 `0.3.1` 使用 `local-draft-1`。见[0.4.0 发布与迁移](docs/release-0.4.0-ch.md)。
 
 ## 安装
 
 需要 Node.js 22.12 或更新版本，包提供 ESM 入口：
 
 ```sh
-npm install reactive-md@next
+npm install reactive-md
 ```
 
-`next` 渠道当前指向 `0.4.0`；需要固定版本时使用 `npm install reactive-md@0.4.0`。`latest` 标签仍为 `0.3.1`，使用 `local-draft-1`，从 `0.3.x` 升级无需迁移。
+`latest` 和 `next` 当前均指向 `0.4.0`；需要固定版本时使用 `npm install reactive-md@0.4.0`。从 `0.3.1` / `local-draft-1` 升级前请阅读迁移说明。
 
 `reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。
 

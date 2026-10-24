@@ -1,6 +1,6 @@
 # Release checklist
 
-This file is the maintainers' manual release process. This checklist covers the `0.4.0` preview release on the `next` channel; `0.3.1` remains `latest` until a separate promotion decision. See [Versions and compatibility](compatibility-en.md) for version rules and [0.4.0 release and migration](release-0.4.0-en.md) for the user-facing upgrade summary.
+This file is the maintainers' manual release process. This checklist covers the `0.4.0` preview release, now available on both `latest` and `next`. See [Versions and compatibility](compatibility-en.md) for version rules and [0.4.0 release and migration](release-0.4.0-en.md) for the user-facing upgrade summary.
 
 ## Before release
 
@@ -94,7 +94,7 @@ Do not write results for checks that have not run, and do not present the existe
 5. Compare the archive's SHA256 with `artifacts/release-package/package-verification.json` and record it in the release notes or an internal release record.
 6. Merge the release commit and wait for all CI on `main` to pass.
 7. Create and push the tag manually, for example `v0.4.0`. Do not store npm tokens in an automated release workflow.
-8. After signing in to npm and completing two-factor authentication on the maintainer's machine, publish the verified preview tarball manually: `npm publish artifacts/release-package/reactive-md-0.4.0.tgz --access public --tag next`. The preview uses the `next` distribution tag; changing the stable `latest` tag is a separate release decision.
+8. After signing in to npm and completing two-factor authentication on the maintainer's machine, publish the verified preview tarball manually: `npm publish artifacts/release-package/reactive-md-0.4.0.tgz --access public --tag next`. Preview releases start on `next`. Promote a verified version only after the maintainer decides: `npm dist-tag add reactive-md@<version> latest`. The `0.4.0` promotion is complete; `latest` and `next` both point to it.
 9. Verify the package contents, version, README, license and release notes on npm and GitHub Releases; reinstall once from the public registry.
 10. Verify that the install command in the README works from the registry, and that the registry integrity digest matches the released tarball.
 

@@ -1,8 +1,8 @@
 # 0.4.0 预览与迁移
 
-状态：发布在 `next` 分发渠道的预览版。包版本 `0.4.0`，语法修订 `local-draft-2`，组块协议 `component-protocol-1`，主题协议 `reactive-md-theme-1`。这些是彼此独立的版本轴；`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 都不是包版本。
+状态：同时提供于 `latest` 和 `next` 渠道的 0.x 预览版。包版本 `0.4.0`，语法修订 `local-draft-2`，组块协议 `component-protocol-1`，主题协议 `reactive-md-theme-1`。这些是彼此独立的版本轴；`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 都不是包版本。
 
-使用 `npm install reactive-md@next` 安装预览版，或用 `npm install reactive-md@0.4.0` 固定版本。`0.3.1` 仍为 `latest` 版本。
+使用 `npm install reactive-md` 安装，或用 `npm install reactive-md@0.4.0` 固定版本。`latest` 和 `next` 均指向 `0.4.0`。
 
 本文汇总 0.4.0 包含的能力、对现有文档和宿主的变化，以及从 `0.3.1` / `local-draft-1` 升级的步骤。具体规则仍以链接的参考页为准；本页是升级清单。显式修订声明和迁移工具见[源码修订与迁移](source-versioning-ch.md)。
 
@@ -10,7 +10,7 @@
 
 - 需要命名计算、格式化、校验、集合、新输入类型、主题或离线 HTML 导出的作者。
 - 可以把宿主更新到 `local-draft-2`，并愿意补充 `LocalValueKind` 穷举、运行时适配器和状态处理的宿主。
-- 固定使用 `0.3.1`、只需要 `local-draft-1` 的项目可以继续留在旧版本；它仍为 `latest`。当前构建只接受一个语法修订，不提供独立的 `local-draft-1` 模式；使用受支持旧写法的无指令源码按 `local-draft-2` 规则读取，显式 `local-draft-1` 声明必须先迁移。
+- 固定使用 `0.3.1`、只需要 `local-draft-1` 的项目可以继续固定使用该版本。当前构建只接受一个语法修订，不提供独立的 `local-draft-1` 模式；使用受支持旧写法的无指令源码按 `local-draft-2` 规则读取，显式 `local-draft-1` 声明必须先迁移。
 
 ## 0.4.0 包含的能力
 
@@ -70,7 +70,7 @@
 
 ## 升级清单
 
-1. 从 `next` 安装 `0.4.0` 或固定 `0.4.0`，保存原始 `.reactive.md` 源码，并记录 `LOCAL_SYNTAX_VERSION`。
+1. 使用 `npm install reactive-md` 安装 `0.4.0` 或固定 `0.4.0`，保存原始 `.reactive.md` 源码，并记录 `LOCAL_SYNTAX_VERSION`。
 2. 对每份源码运行 `reactive-md migrate <file> --check` 或 `migrateLocalSource`。无版本声明的历史文档要加 `--from local-draft-1`；写出结果前处理全部阻止项。
 3. 在代码区域之外搜索 15 个新增可识别标签名，按需要转义或放进代码。
 4. 搜索 `bind`、`bind-start`、`bind-end`、`bind-x`、`bind-y` 的值，确认没有 17 个新增保留标识符；如有则重命名绑定和引用。核心入口的 `renameLocalBinding` 和编辑器重命名会同时更新声明、表达式引用与绘图参数。
