@@ -179,6 +179,34 @@
       ],
       "text": "{{ project }}",
       "expectedText": "Content"
+    },
+    {
+      "name": "computed-values-recalculate-from-controls-and-arrays",
+      "source": "<computed name=\"costs\" value=\"{{ [seats * 80, materials ? seats * 20 : 0] }}\">\n<computed name=\"total\" value=\"{{ sum(costs) }}\">\n\n<number bind=\"seats\" label=\"Seats\" initial=\"4\" min=\"1\" max=\"20\">\n<toggle bind=\"materials\" label=\"Materials\">\n\nTotal: {{ total }}.",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "seats": 4,
+        "materials": false
+      },
+      "bindingNames": [
+        "materials",
+        "seats"
+      ],
+      "actions": [
+        {
+          "bind": "materials",
+          "value": true,
+          "codes": []
+        },
+        {
+          "bind": "seats",
+          "value": 6,
+          "codes": []
+        }
+      ],
+      "text": "Total: {{ total }}.",
+      "expectedText": "Total: 600."
     }
   ]
 }

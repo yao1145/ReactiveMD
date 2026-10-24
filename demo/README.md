@@ -6,7 +6,7 @@
 
 The Playground opens with a short calculator and six [feature tours](../examples/local/showcase/README.md): functions, forms, data and charts, layout, diagrams, and checklists and timing. Each tour follows one example from a suggested change to the visible result, with key source snippets at the end. English and Chinese versions are available throughout.
 
-Presentation mode shows the document at full width. Choose "Show source" to edit Markdown beside its live preview, or "Presentation mode" to return without resetting the current controls. All 43 components are distributed across the six scenarios. The auxiliary menu opens an intentionally broken diagnostics example in the editor. If you are new to the syntax, start with the [getting-started guide](../docs/local-guide-en.md).
+Presentation mode shows the document at full width. Choose "Show source" to edit Markdown beside its live preview, or "Presentation mode" to return without resetting the current controls. The six scenarios demonstrate controls, declarations, validation and collections together. The auxiliary menu opens an intentionally broken diagnostics example in the editor. If you are new to the syntax, start with the [getting-started guide](../docs/local-guide-en.md).
 
 On phones, open the feature menu to choose a tour. It closes after selection to leave room for the document; import and export tools appear when source editing is open.
 
@@ -22,7 +22,7 @@ While you edit, consecutive keystrokes are coalesced and compiled on a backgroun
 
 "Keep trial state" is on by default. When you edit prose, control labels or formulas, parameter values with the same name and type that still satisfy the new constraints are kept; they are also restored after a temporary compile error is fixed. Changing `initial` or an effective default uses the new initial value. With the option off, the next compile starts from initial values.
 
-Trial values live only in the current editing session. Running again, restoring an example, switching examples, importing a document or refreshing the page resets them; anonymous controls, checklists, timers and the new multi-slot inputs reset after every recompile. The `LocalReactiveDocument` library component still creates a fresh document instance whenever the source changes.
+Trial values live only in the current editing session. Running again, restoring an example, switching examples, importing a document or refreshing the page resets them. Anonymous controls, positional checklists and timers reset after every recompile; compatible named slots can be retained. The `LocalReactiveDocument` library component creates a fresh document instance whenever the source changes.
 
 Live demo: [yaozi.raricy.com](https://yaozi.raricy.com/).
 
@@ -60,6 +60,7 @@ From the repository root:
 
 | Command | Purpose |
 | --- | --- |
+| `npm run verify:release` | Complete release gate, including the actual tarball, outside-repository consumers and browser checks; manages its own preview server |
 | `npm run build` | Language package and type declarations, output to `dist-library/` |
 | `npm run build:demo` | Build the language package and app, output to `demo/dist/` |
 | `npm run dev:lib` | Watch and rebuild the language package |

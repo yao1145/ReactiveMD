@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const cli = path.join(root, 'bin', 'reactive-md.mjs');
@@ -127,9 +127,11 @@ async function browserChecks(temp) {
     await check('interactive file:// hydrates without console errors', async () => {
       await page.goto(fileUrl(interactive));
       await page.locator('input').first().waitFor({ timeout: 15000 });
-      assert.equal(await page.locator('.local-document').getAttribute('data-render-mode'), 'interactive');
+      await expect(page.locator('.local-document')).toHaveAttribute('data-render-mode', 'interactive');
       assert.equal(await page.locator('.local-slider .md-slider-value').innerText(), '2');
-      assert.equal(await page.locator('img.md-image').evaluate((image) => image.complete && image.naturalWidth > 0), true);
+      const image = page.locator('img.md-image');
+      await image.scrollIntoViewIfNeeded();
+      await expect.poll(() => image.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
     });
 
     await check('runtime updates expressions and conditional content', async () => {
@@ -139,7 +141,7 @@ async function browserChecks(temp) {
       await page.getByText('The group is large enough.', { exact: true }).waitFor();
       assert.match(await page.locator('.local-document').innerText(), /20 people/);
       await page.getByRole('button', { name: 'Reset Settings', exact: true }).click();
-      assert.equal(await page.locator('.local-slider .md-slider-value').innerText(), '2');
+      await expect(page.locator('.local-slider .md-slider-value')).toHaveText('2');
     });
 
     await check('refresh restores the exported baseline', async () => {
@@ -178,7 +180,7 @@ async function browserChecks(temp) {
       await slider.focus();
       await slider.press('End');
       await page.getByRole('button', { name: 'Reset Settings', exact: true }).click();
-      assert.equal(await page.locator('.local-slider .md-slider-value').innerText(), '7');
+      await expect(page.locator('.local-slider .md-slider-value')).toHaveText('7');
       await page.reload();
       await page.locator('input').first().waitFor();
       assert.equal(await page.getByRole('textbox', { name: 'Name', exact: true }).inputValue(), 'Grace');

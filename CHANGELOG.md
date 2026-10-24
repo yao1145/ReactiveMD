@@ -2,8 +2,15 @@
 
 This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
 
-## Unreleased
+## 0.4.0 development preview (unreleased, local-draft-2)
 
+This checkout is an unreleased development preview. It upgrades from `0.3.1` / `local-draft-1`; see [0.4.0 development preview and migration](docs/release-0.4.0-en.md) for the complete upgrade checklist.
+
+### Added
+
+- Add source highlighting, completion, binding navigation, rename and formatting APIs, with corresponding Playground author tools.
+- Add dependency-aware rendering with browser equivalence checks for updates, resets, visual selections and locale changes.
+- Add `npm run verify:release` and matching CI shards, including combined-feature documents and actual tarball consumers outside the repository. Retain the verified archive with SHA256 and npm integrity records.
 - Add advisory cross-field `<validation>` rules with associated accessible hints and `runtime.validate()`. `alert` and `badge` accept conditional values from their existing tone enums.
 - Add homogeneous string/numeric array literals, array indexing, `sum`, `average`, `minOf` and `maxOf`, plus `<data-table>`/`<column>` for bounded local row generation with stable keys. See [constraints and collections](docs/constraints-collections-en.md). `LocalValueKind` gains `number-array`; aggregate names become reserved identifiers.
 
@@ -19,7 +26,7 @@ This file records user-visible changes. The project is in a 0.x preview; version
 - Add retention helpers for source changes: `planLocalStateRetention` and `applyLocalStateRetention` keep only public parameters whose type and initial definition are unchanged and whose bindings are safely retainable; anonymous `@` bindings, timers and positional checklists are dropped, and rejected values are reported with a reason.
 - Add an optional background compile adapter: `LocalCompileScheduler` with a 150 ms debounce, one in-flight job plus the latest source, a permanent main-thread `compileLocal` fallback, and `startLocalCompileWorker`; fallback failures use the `local.worker.compile` diagnostic code.
 
-### 0.4.0 development preview (local-draft-2)
+### local-draft-2 components
 
 - Add document jumps/anchors, text/section color, multiple selection, interval and coordinate inputs, practice questions and guided steps.
 - Add checked-item strike-through, component accent colors and stable shared table/chart selection.
@@ -27,7 +34,7 @@ This file records user-visible changes. The project is in a 0.x preview; version
 - Add a bilingual feature tour and editor insertion templates. See [migration](docs/local-components-v2-en.md). No release has been published.
 
 - The Playground adds a Chinese/English toggle that localizes the interface, examples, guide and built-in control labels, and saves the choice in the browser.
-- `LocalDocumentView` and `LocalReactiveDocument` accept `locale: 'en' | 'zh'` (default `'en'`) for built-in UI labels; compiler and runtime diagnostic messages remain English.
+- `LocalDocumentView` and `LocalReactiveDocument` accept `locale: 'en' | 'zh'` (default `'en'`) for built-in UI labels. Displayed compile and runtime diagnostics use the shared English/Chinese catalogue; callbacks still receive structured diagnostics with stable machine fields.
 - `timeline` accepts either the English columns `Task`, `Start`, `Duration` and optional `Notes` or the Chinese columns `事项`, `开始`, `时长` and optional `说明`.
 
 ## 0.3.1 (2026-10-23)

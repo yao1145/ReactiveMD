@@ -124,9 +124,9 @@ key 指定静态标识列，值必须非空、唯一且没有插值。提供 key
 
 ## 兼容、迁移与验收
 
-local-draft-1 中已支持的写法继续有效。新增组块名共 10 个，总计 43 个：jump、anchor、text、section、multi-select、range-slider、coordinate、quiz、steps、step。新名称以前会作为未知源码惰性显示，现在开始解释其中的受支持内容；若原文用于演示标签，放进代码围栏或行内代码。checklist 的完成样式是可见变化。
+local-draft-1 中已支持的写法继续有效。本扩展引入 10 个新组块名：jump、anchor、text、section、multi-select、range-slider、coordinate、quiz、steps、step。同一开发版本还增加声明标签 computed、const、validation 和结构标签 data-table、column，`local-draft-2` 的完整集合为 48 个标签名；开头的 `<theme>` 声明是元数据，不计入组块。新名称以前会作为未知源码惰性显示，现在开始解释其中的受支持内容；若原文用于演示标签，放进代码围栏或行内代码。checklist 的完成样式是可见变化。
 
-机器验收沿用 component-protocol-1 的格式，syntaxVersion 更新为 local-draft-2；旧 local-draft-1.json 留作历史数据，新构建运行 local-draft-2.json。新组件另有核心、渲染和可视化用例。错误仍使用带源码位置的 Diagnostic，未知标签、脚注、安全与资源预算保持已有契约。
+机器验收沿用 component-protocol-1 的格式，syntaxVersion 更新为 local-draft-2；旧 local-draft-1.json 留作历史数据，新构建运行 local-draft-2.json。新组件另有核心、渲染和可视化用例。错误仍使用带源码位置的 Diagnostic，未知标签、脚注、安全与资源预算保持已有契约。同一开发版本还新增表达式函数保留名；完整重命名清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
 
 | 协议条款 | 实现与证据入口 |
 | --- | --- |
@@ -135,4 +135,4 @@ local-draft-1 中已支持的写法继续有效。新增组块名共 10 个，�
 | CP-A11Y、CP-STYLE | LocalDocumentView、visuals 及相应样式；SSR 与浏览器检查 |
 | CP-CORE、CP-COMPAT、CP-ACCEPT | 独立 core/React 构建、机器验收、打包和本页迁移说明 |
 
-双语可运行示例分布在原有[六个场景](../examples/local/showcase/README.md)：函数场景包含区间、坐标与数值题；表单场景包含多选；统计场景包含表格与图表选择联动；布局场景包含跳转与正文颜色；流程场景包含分步阅读与选择题；清单场景包含待办与计时。自动检查命令为 `npm test`、`npm run test:components`、`npm run build:demo`、`npm run test:docs`、`npm run test:package`。浏览器检查见 Demo 的 `verify-v2.mjs`；实际执行结果在验收后写入 Demo 实现记录。
+双语可运行示例分布在[六个场景](../examples/local/showcase/README.md)：函数场景包含区间、坐标与数值题；表单场景包含多选；统计场景包含表格与图表选择联动；布局场景包含跳转与正文颜色；流程场景包含分步阅读与选择题；清单场景包含待办与计时。自动检查命令为 `npm test`、`npm run test:components`、`npm run build:demo`、`npm run test:docs`；浏览器检查和完整发布门禁使用 `npm run verify:release`，见[贡献指南](../CONTRIBUTING-ch.md)。实际结果以该门禁的执行记录为准，不要沿用旧脚本名。

@@ -1,6 +1,6 @@
 # Reactive MD local interaction syntax specification
 
-Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with the syntax, read the [beginner guide](local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](local-integration-en.md). See [Versions and compatibility](compatibility-en.md) for package version relationships, 0.x compatibility rules and migration. Complete examples are in the [example index](../examples/local/README.md).
+Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with the syntax, read the [beginner guide](local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](local-integration-en.md). See [Versions and compatibility](compatibility-en.md) for package version relationships, 0.x compatibility rules and migration, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade from `0.3.1` / `local-draft-1`. Complete examples are in the [example index](../examples/local/README.md).
 
 ## 1. Positioning and scope
 
@@ -54,7 +54,7 @@ The inline components `badge`, `tooltip`, `jump` and `text` can be embedded in s
 | Void component | `<slider bind="a" label="Amplitude">` | No end tag; a trailing `/>` is also accepted |
 | Container with content | `<card title="Notes">` and `</card>` | Must be explicitly closed; nesting is allowed |
 
-Void components are fixed to `input`, `textarea`, `number`, `slider`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress` and `edge`. Every other component listed in this draft uses paired tags. `textarea` text is set through `initial`, so it is a void component.
+Void components are fixed to `input`, `textarea`, `number`, `slider`, `range-slider`, `coordinate`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `anchor` and `edge`. The declaration tags `computed`, `const` and `validation`, and the structural `column`, also have no body. Every other component listed in this draft uses paired tags. `textarea` text is set through `initial`, so it is a void component.
 
 For example:
 
@@ -88,7 +88,7 @@ Omitted boolean attributes use the component default rather than always assuming
 
 `&quot;`, `&apos;`, `&amp;`, `&lt;` and `&gt;` in attribute values decode to the corresponding characters; backslashes are not used to escape attribute quotes. Dynamic values for numeric and boolean attributes must be one complete interpolation and keep the original type; text attributes may contain multiple interpolations.
 
-`bind`, `initial`, `id`, `value` (option identifier), `from`, `to`, `kind`, field mappings and layout enums are static attributes. Input `min/max/step` are static constraints too; plot `min/max` may be dynamic to support adjusting the observed range.
+`bind`, `initial`, `name`, `id`, `value` (option identifier), `to`, `from`, `answer`, `kind`, field mappings and layout enums are static attributes. Input `min/max/step` are static constraints too; plot `min/max` may be dynamic to support adjusting the observed range. The `rows` attribute of `textarea` is a static row count, while `data-table.rows` is a required expression; do not confuse the two.
 
 Unknown components, unknown attributes, wrong positions or wrong attribute types all produce source diagnostics. Registered tags are not executed as arbitrary HTML; authors cannot use `script`, `style`, `onclick` or other script entry points.
 
@@ -115,12 +115,17 @@ The parser identifies code, math regions and tag boundaries first, then interpre
 | counter | Number | The valid step value within range closest to 0 |
 | toggle, checkbox | Boolean | false |
 | select, choices, radio-group | Option string | value of the first option |
+| multi-select | String array of selected option values | Empty array |
+| range-slider | Two numbers, `start` / `end` slots | start=min; end=the largest valid step not exceeding max |
+| coordinate | Two numbers, `x` / `y` slots | The valid step value on each axis closest to 0 |
+| table, chart with `key` | Stable row key string | Empty string (unselected) |
 | tabs | Page string | value of the first tab |
+| steps | Step string | value of the first step |
 | diagram | Node ID string | id of the first node |
 | checklist | String array of selected item IDs | Determined by the task list check marks |
 | timer | Remaining seconds | duration, default 60 |
 
-Scalar components use `initial` to override the default. `timer` uses `duration` and `checklist` uses the check marks in its body; neither accepts `initial`. Dates use real, valid `YYYY-MM-DD`; an empty string means not yet selected.
+Scalar components use `initial` to override the default. `range-slider` and `coordinate` use `initial-start`/`initial-end` and `initial-x`/`initial-y` for their slots; `multi-select` accepts a comma-separated `initial` list of static option values. `timer` uses `duration` and `checklist` uses the check marks in its body; neither accepts `initial`. A `table` or `chart` selection accepts `initial` only together with `key`. Dates use real, valid `YYYY-MM-DD`; an empty string means not yet selected.
 
 `bind` may be omitted. Unnamed components have independent internal state and do not derive a variable name from the tag. A control's `label` is required and may use dynamic text; it is also the control's accessible name.
 
@@ -130,7 +135,7 @@ The compiler collects bindings across the whole document before rendering, inclu
 
 Number, text or boolean inputs of the same kind may bind the same variable and stay in sync; types must match, and numeric ranges and steps must be identical. When `select/choices/radio-group` share a variable, the value set and order must also be identical. Label text may differ.
 
-A variable may have at most one explicit `initial`. Without an explicit initial value, the default of the first control in the source is used, and all associated constraints are validated. Later controls omitting `initial` share the existing initial value. The public state of `timer/checklist/tabs/diagram` is owned by exactly one component and does not accept a second same-name owner or writes from other controls.
+A variable may have at most one explicit `initial`. Without an explicit initial value, the default of the first control in the source is used, and all associated constraints are validated. Later controls omitting `initial` share the existing initial value. The public state of `timer/checklist/tabs/diagram/multi-select/steps` is owned by exactly one component and does not accept a second same-name owner or writes from other controls. Each numeric slot of `range-slider` and `coordinate` is exclusive too. A `table` and a `chart` may share a selection binding only when their ordered `key` sets are identical.
 
 Referencing an undeclared variable is an immediate error and does not silently create an empty value. Component initial values are document initialization data; showing a hidden control again does not initialize it again.
 
@@ -186,7 +191,7 @@ Pipes in GFM tables must be written `\|`, for example logical OR as `\|\|`. Tabl
 
 Division by zero, domain errors, non-finite results and type errors are shown near the corresponding content. When the parameter itself is valid, the user's new input is kept, and other independent content keeps updating; the error result shows "Unable to compute" instead of reusing an old number as a new result.
 
-The base syntax does not introduce named computed values. Write short calculations in place; express long mathematical relationships with formulas and curves instead of duplicating them in YAML and prose.
+This build adds named read-only values through top-level `computed` and `const` declarations. Short calculations can still be written in place; use declarations for intermediate results shared by prose, conditions, formulas and charts. See [Reusing calculations and formatting values](computations-formatting-en.md) for dependency, error and caching rules.
 
 ## 6. Inputs and parameter panels
 
@@ -198,10 +203,14 @@ All input components support `label`, optional `bind`, optional scalar `initial`
 | textarea | placeholder; rows=4; required=false; min-length=0; optional max-length |
 | number | optional min/max; step=1 |
 | slider | min=0; max=100; step=1 |
+| range-slider | bind-start/bind-end and initial-start/initial-end; min=0; max=100; step=1; optional color |
+| coordinate | bind-x/bind-y and initial-x/initial-y; x-min/y-min=-5; x-max/y-max=5; step=1; optional color |
 | counter | min=0; optional max; step=1 |
-| toggle, checkbox | None |
+| toggle, checkbox | Optional color |
 | date | optional min/max dates; required=false |
-| select, choices, radio-group | Body is one or more options |
+| select, choices, radio-group, multi-select | Body is one or more options; multi-select adds max-selected and uses a string-array value |
+
+`range-slider` and `coordinate` expose independent number slots. Omit a slot's `bind-start`/`bind-end` or `bind-x`/`bind-y` to keep that slot internal; provide at most one explicit initial per slot. Crossing endpoints is rejected, not silently swapped. `multi-select` requires `label`, accepts `max-selected`, and normalizes writes to source order. These components also accept an optional `color`. See [local-draft-2 components and migration](local-components-v2-en.md) for the complete rules.
 
 Selector example:
 
@@ -238,6 +247,20 @@ option.value is a non-empty, static, unique string; the body is the option's inl
 When tab has no value, `tab-1`, `tab-2` and so on are generated in source order; values in the same group must be unique. Without bind, tabs do not name page state; with bind, the current value is exposed publicly. Switching tabs preserves child content state and pauses hidden timers. The initial `open` state inside accordion is restored on reset.
 
 When if's when is false, content is not displayed, but internal parameters are still initialized according to section 4. Unknown variables or type errors in hidden branches are still compile errors.
+
+### 7.1 Navigation, color and guided reading
+
+| Container or inline tag | Attributes | Body and default behavior |
+| --- | --- | --- |
+| jump | to required; appearance=link/button, default link; optional color | Inline Markdown; scrolls to a heading slug or explicit anchor |
+| anchor | id required and unique | No body; marks an explicit jump target |
+| text | color required | Inline Markdown and interpolation; sets foreground color |
+| section | color required | Block Markdown; sets inherited foreground color without a border or background |
+| quiz | type=choice/number, default choice; label and answer required; optional explanation and tolerance | Choice quizzes contain options; numeric quizzes have an empty body. No public bind |
+| steps | optional label, bind and initial; exclusive string binding | One or more step children; first step selected by default |
+| step | label required; optional value | Markdown body; omitted values become step-1, step-2 and so on |
+
+`jump.to` and `anchor.id` match heading slugs or explicit IDs. Duplicate anchors, heading collisions and missing targets are compile errors. `quiz` answers are supplied in source for self-study; drafts and feedback stay inside the component and panel reset clears them. `steps` keeps inactive step content initialized and preserves its state; hidden timers pause. See [local-draft-2 components and migration](local-components-v2-en.md) for color validation and slot details.
 
 Base layout uses Markdown; images use `![description](path)`, links use `[text](address)`, and horizontal rules use `---`. Images load only after the host explicitly allows them through a URL policy; by default no image requests are made. See [Image and link policy](local-integration-en.md#image-and-link-policy) for integration. This draft does not provide author tags for row, stack, spacer, icon, image or link-button, and does not expose class/style.
 
@@ -282,7 +305,7 @@ There is no need to declare a YAML array first, and remote URLs, data attributes
 </table>
 ```
 
-table supports optional label, searchable=true, sortable=true and page-size=10 (positive integer). It provides a search box, sortable headers and paging by default; paging controls are hidden when there is only one page.
+table supports optional label, searchable=true, sortable=true and page-size=10 (positive integer). It provides a search box, sortable headers and paging by default; paging controls are hidden when there is only one page. With `key` naming a static, nonempty, unique identifier column, `bind` and `initial` can expose the selected row as a stable string; without `key`, selection stays inside the renderer.
 
 Search is a case-insensitive substring match over the displayed text of all columns, trimming whitespace from the query; sorting uses the full column type, numerically for numeric columns and by Unicode code point order for text otherwise, preserving the original order of equal rows. Clicking a header cycles ascending, descending and source order. Search or sort changes return to the first page, and reactive data changes clamp the current page to the valid range. No matches shows "No matching results". These interactions affect only the table.
 
@@ -307,7 +330,7 @@ chart.kind defaults to bar and supports bar, line, area, scatter and donut. Supp
 
 line/area determine the horizontal axis as numeric or categorical from the full column type and connect in source order. donut values must be non-negative, and a zero total shows "No share to display". Series names become legends automatically; pointer and keyboard readouts are provided by default without event logic.
 
-Numeric columns update with parameters. Calculation errors display in the corresponding chart and are not replaced with 0. This base version does not expose chart selection as public state.
+Numeric columns update with parameters. Calculation errors display in the corresponding chart and are not replaced with 0. With `key`, a chart can expose selection through `bind`, using the same stable row-key rules as `table`; a table and chart may share that binding only when their ordered keys match.
 
 ### 9.4 Timelines
 
@@ -407,14 +430,16 @@ Nodes are clickable and keyboard-selectable by default, and the selected notes a
 
 | Purpose | Draft components |
 | --- | --- |
-| Parameter input | input, textarea, number, slider, toggle, checkbox, date, select, choices, radio-group, option |
+| Parameter input | input, textarea, number, slider, range-slider, coordinate, toggle, checkbox, date, select, choices, radio-group, multi-select, option |
 | Built-in actions | counter, timer, checklist, progress |
 | Content organization | panel, card, grid, tabs, tab, accordion, disclosure, if |
+| Navigation and prose | jump, anchor, text, section |
+| Assessment and reading | quiz, steps, step |
 | Hints | alert, badge, tooltip |
+| Declarations and generated data | computed, const, validation, data-table, column |
 | Visualization | table, chart, plot, timeline, diagram, node, edge |
-| New components | jump, anchor, text, section, multi-select, range-slider, coordinate, quiz, steps, step |
 
-43 component names in total, of which option, tab, disclosure, node, edge and step are structural children of parent components. Most articles only need Markdown and two or three input/display components. Plain amounts can be written directly as `{{ total }} USD`; currency formatting and statistic cards are not entry-level requirements.
+48 tag names in total. `option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children of parent components. `computed`, `const` and `validation` are document declarations; they are parsed as tags but are not rendered controls. The leading `<theme>` declaration is metadata and is not counted here. Most articles only need Markdown and two or three input/display components. Plain amounts can be written directly as `{{ total }} USD`; currency formatting and statistic cards are not entry-level requirements.
 
 This draft does not accept legacy tags such as form, submit, button, each, list, spinner, stat or value, nor set/reset action attributes or on-* event attributes. The panel reset is a fixed boolean option, not a programmable action.
 
@@ -434,6 +459,9 @@ Diagnostics include severity, category, a short explanation, source line/column 
 | Constraint | slider initial value exceeds max | Valid range and current value |
 | Table | numeric column contains "20 USD" | Column name, row number and that a number is required |
 | Diagram | edge points to a nonexistent node | The missing node ID |
+| Declaration | computed inside a container or a duplicate name | Top-level placement, the conflicting name or control |
+| Data table | data-table without a column, or a duplicated key | Required column and unique stable key |
+| Validation | fields names a read-only declaration | Writable public binding names |
 | Math | integral or missing parameter in a plot | The math fragment and supported scope |
 
 Implementation acceptance must cover:
@@ -449,7 +477,7 @@ Implementation acceptance must cover:
 9. Chinese IME input, keyboard operation, accessible names and 375px narrow screens work.
 10. Document instances are independent, disposal cleans up, and no unintended network actions occur; complex or excessive math input can be halted by the execution budget.
 
-These rules cover compiler, runtime and browser acceptance. See the [example index](../examples/local/README.md) for example mappings and expected observations, the [language conformance data](../examples/conformance/README.md) for the machine-readable minimum acceptance set, and the [repository implementation notes](https://github.com/yao1145/ReactiveMD/blob/main/demo/IMPLEMENTATION.md) for actual check records.
+These rules cover compiler, runtime and browser acceptance. See the [example index](../examples/local/README.md) for example mappings and expected observations, and the [language conformance data](../examples/conformance/README.md) for the machine-readable minimum acceptance set. Actual repository check records stay in the repository and are not part of the package.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist. This checkout is unreleased.

@@ -134,7 +134,7 @@ They remain interactive; they just have no public variable. This suits standalon
 
 Void components are fixed to:
 
-`input`, `textarea`, `number`, `slider`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `edge`.
+`input`, `textarea`, `number`, `slider`, `range-slider`, `coordinate`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `anchor`, `edge`. The declaration tags `computed`, `const` and `validation`, and the structural `column`, also have no body.
 
 All other components use paired tags. In particular, `textarea` text is set through `initial`, so it has no body; do not write `<textarea>content</textarea>`.
 
@@ -261,7 +261,12 @@ Parameter types are determined by the component, not guessed from input text.
 | `counter` | Number | The valid step value within range closest to 0 |
 | `toggle`, `checkbox` | Boolean | `false` |
 | `select`, `choices`, `radio-group` | Option string | value of the first option |
+| `multi-select` | String array of selected option values | Empty array |
+| `range-slider` | Two numbers, `start` / `end` | start=min; end=the largest valid step within max |
+| `coordinate` | Two numbers, `x` / `y` | The valid step closest to 0 on each axis |
+| `table`, `chart` with `key` | Stable row key string | Empty string (unselected) |
 | `tabs` | Page string | value of the first tab |
+| `steps` | Step string | value of the first step |
 | `diagram` | Node ID string | id of the first node |
 | `checklist` | String array of checked item IDs | Determined by the task list check marks |
 | `timer` | Remaining seconds | `duration`, default 60 |
@@ -291,7 +296,7 @@ Notes:
 - The numeric range and step must match on both controls.
 - Different families such as text, number, boolean, date and choice cannot share a variable.
 - When selectors share a variable, option values and order must be identical.
-- The public state of `timer`, `checklist`, `tabs` and `diagram` can be owned by only one component and cannot be shared.
+- The public state of `timer`, `checklist`, `tabs`, `diagram`, `multi-select` and `steps` can be owned by only one component and cannot be shared. Slots of `range-slider` and `coordinate` are exclusive too; a table and chart may share a selection binding only when their ordered `key` values match.
 
 ### 4.5 Components without bind
 
@@ -586,6 +591,8 @@ Hover over <tooltip text="When input changes, related content updates automatica
 
 `alert` tone can be `info`, `success` or `warning`. `badge` tone can be `neutral`, `success` or `warning`. `badge` and `tooltip` are inline components and can sit inside sentences.
 
+The preview also adds `jump`, `anchor`, `text` and `section` for jumps and bounded prose color, `multi-select`, `range-slider` and `coordinate` for input, `quiz`, `steps` and `step` for practice and guided reading, `computed`/`const` for named values, `validation` for cross-field hints, and `data-table`/`column` for generated rows. The [extension reference](local-components-v2-en.md), [calculation reference](computations-formatting-en.md) and [constraints reference](constraints-collections-en.md) cover their rules.
+
 ## 8. Checklists, progress, timers and timelines
 
 ### 8.1 Checklists
@@ -834,6 +841,9 @@ Notes:
 | `edge` points to a nonexistent node | Typo in the `to` id | Use consistent node ids |
 | Plot says integrals are unsupported | Formula outside the first version's computable scope | Use a supported function, or display it without plotting |
 | `\|\|` in a table errors | GFM tables treat pipes as column separators | Write `\|\|` |
+| A binding such as `sum` is rejected | The name is a new reserved function | Rename the binding and its references |
+| Two anchors or a jump target conflict | Duplicate explicit ID or a heading collision | Use a unique `anchor.id` and a matching `jump.to` |
+| Generated table reports a missing column | `data-table` needs at least one `column` | Add a `column` with a static label and value expression |
 | Tags display as text | Inside a code fence or after a backslash escape | This is expected verbatim display |
 | `textarea` body has no effect | `textarea` is a void component | Set text with `initial="..."` |
 | Paired component written as `/>` | `<card ... />` does not close automatically | Use a start tag plus an end tag |
@@ -934,15 +944,18 @@ This document covers:
 
 | Purpose | Components |
 | --- | --- |
-| Parameter input | `input`, `textarea`, `number`, `slider`, `toggle`, `checkbox`, `date`, `select`, `choices`, `radio-group`, `option` |
+| Parameter input | `input`, `textarea`, `number`, `slider`, `range-slider`, `coordinate`, `toggle`, `checkbox`, `date`, `select`, `choices`, `radio-group`, `multi-select`, `option` |
 | Built-in actions | `counter`, `timer`, `checklist`, `progress` |
 | Content organization | `panel`, `card`, `grid`, `tabs`, `tab`, `accordion`, `disclosure`, `if` |
+| Navigation and prose | `jump`, `anchor`, `text`, `section` |
+| Assessment and reading | `quiz`, `steps`, `step` |
 | Hints | `alert`, `badge`, `tooltip` |
+| Declarations and generated data | `computed`, `const`, `validation`, `data-table`, `column` |
 | Visualization | `table`, `chart`, `plot`, `timeline`, `diagram`, `node`, `edge` |
 
-`option`, `tab`, `disclosure`, `node` and `edge` are structural children of parent components and cannot be placed anywhere on their own.
+`option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children of parent components and cannot be placed anywhere on their own. `computed`, `const` and `validation` are document declarations, not visible controls.
 
 Most articles only need Markdown plus two or three input components and one display component. Connect parameters to prose first, then add charts, diagrams and LaTeX curves as needed.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist. This checkout is unreleased.

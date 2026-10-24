@@ -1,6 +1,6 @@
 # Versions and compatibility
 
-Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Local mode integration](local-integration-en.md) for the public API and style integration.
+Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Local mode integration](local-integration-en.md) for the public API and style integration, and [0.4.0 development preview and migration](release-0.4.0-en.md) for this build's upgrade summary.
 
 ## Version mapping
 
@@ -28,6 +28,8 @@ The same development build adds [constraints and collections](constraints-collec
 
 The unreleased `0.4.0` build adds [named calculations and formatting functions](computations-formatting-en.md). `computed`/`const` use the existing local tag syntax. The new built-in function names become reserved; rename colliding input bindings and their references before using this build. `document.bindings` and `initialState` still contain writable controls; snapshots also expose successful calculated values.
 
+`0.4.0` establishes `local-draft-2`. Supported `local-draft-1` source remains valid, but the build now recognizes 15 additional tag names: the ten `local-draft-2` components plus `computed`, `const`, `validation`, `data-table` and `column`. Text that previously displayed as an unknown or literal tag now parses as a component or declaration; move literal examples into code spans or fences. The leading `<theme>` declaration is document metadata and is not counted as a component. See [0.4.0 development preview and migration](release-0.4.0-en.md) for the complete rename and upgrade checklist.
+
 Author-visible syntax changes establish a new syntax revision, such as `local-draft-2`, and raise the minor version and update `LOCAL_SYNTAX_VERSION`. Changes to the core or React API are also recorded in the changelog. The project does not rewrite sources automatically; after upgrading, authors or hosts migrate according to the record.
 
 Legacy configuration syntax is not part of `local-draft-2`. Common replacements:
@@ -39,11 +41,11 @@ Legacy configuration syntax is not part of `local-draft-2`. Common replacements:
 | YAML `computed:` | `{{ expression }}` in the prose |
 | `actions:`, button actions, `on-*` events | No equivalent entry point; use component built-in interactions and panel reset |
 | `data:` or external API data | Markdown tables written directly in the prose; parameters are declared by controls |
-| Persisted runtime state | The host saves the original source; document runtime state lives only in the current instance's memory |
+| Persisted runtime state | The host saves the original source. Public parameters may additionally be exported as a validated `reactive-md-state/v1` file; it is tied to the source digest, syntax revision and exact public parameter set and is not a document format. |
 
 ## What to persist
 
-Persist the original `.reactive.md` source. Do not persist `LocalDocument`, `LocalNode`, `node.id`, `initialState`, `LocalSnapshot` or runtime parameter state: they belong to the current runtime object and their structure and field meanings are not guaranteed across versions. `node.id` is regenerated when the source changes. Diagnostic line numbers, columns and offsets locate the current source and are not stable persistence identifiers.
+Persist the original `.reactive.md` source. A `reactive-md-state/v1` file may preserve public parameter values for the same source and syntax revision; it is rejected when the digest, revision or parameter set differs. Do not persist `LocalDocument`, `LocalNode`, `node.id`, `initialState`, `LocalSnapshot` or internal `@` runtime keys: they belong to the current runtime object and their structure and field meanings are not guaranteed across versions. `node.id` is regenerated when the source changes. Diagnostic line numbers, columns and offsets locate the current source and are not stable persistence identifiers.
 
 ## Diagnostics contract
 
@@ -61,11 +63,11 @@ See [Diagnostics and counting rules](diagnostics-counting-en.md) for units and r
 
 | Environment | Current status |
 | --- | --- |
-| Node.js 22.12+ | Minimum for development and Node-side consumption; both 22.12 and 24 pass CI |
+| Node.js 22.12+ | Minimum for development and Node-side consumption; CI targets both 22.12 and 24 |
 | ESM | The only module format; no CommonJS entry |
 | React 19 | Required by `reactive-md/react`; the core entry does not depend on React |
-| Microsoft Edge (Chromium-based) | Local browser verification completed |
-| Playwright Chromium | Linux CI browser checks pass |
+| Microsoft Edge (Chromium-based) | Local browser verification has used Edge |
+| Playwright Chromium | Linux CI browser target |
 | Firefox, Safari/WebKit | Unverified; no support claim |
 | Shareable state format | `reactive-md-state/v1`: public parameter values with a syntax version and source digest; see [Shareable documents](shareable-export-en.md) |
 | Single-file HTML format | `reactive-md-html/v1`: interactive or static export, with an inline standalone runtime only in interactive mode |
@@ -76,4 +78,4 @@ Node-side consumption means importing `reactive-md` in Node and calling `compile
 See the [syntax specification](local-interaction-syntax-en.md) for the language scope, and the [security policy](../SECURITY.md) for the security boundary and host responsibilities.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist. This checkout is unreleased.

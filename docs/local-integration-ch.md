@@ -1,6 +1,6 @@
 # 本地交互文档集成
 
-本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](local-guide-ch.md) 和 [语法规范](local-interaction-syntax-ch.md)，完整文档见 [12 份示例](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。
+本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](local-guide-ch.md) 和 [语法规范](local-interaction-syntax-ch.md)，完整文档见[示例索引](../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
 
 ## 运行环境与入口
 
@@ -10,7 +10,7 @@
 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` | React 19 |
 | `reactive-md/styles.css` | 组件、主题和文档样式 | 由宿主显式引入 |
 
-包只提供 ESM。Node.js 22.12+ 可用于开发和 Node 端编译、运行。Edge 已完成本地交互验证，静态 SSR 已通过独立安装检查；完整矩阵见[版本与兼容性](compatibility-ch.md)。可复制的项目见[独立接入示例](../examples/integration/README.md)。单文件 HTML、状态文件与独立浏览器运行时见[可分享文档与静态导出](shareable-export-ch.md)。
+包只提供 ESM。Node.js 22.12+ 可用于开发和 Node 端编译、运行。本地浏览器验证使用 Edge；静态 SSR 由 packed 检查覆盖；完整矩阵见[版本与兼容性](compatibility-ch.md)。可复制的项目见[独立接入示例](../examples/integration/README.md)。单文件 HTML、状态文件与独立浏览器运行时见[可分享文档与静态导出](shareable-export-ch.md)。
 
 ## React
 
@@ -53,6 +53,8 @@ export function Article() {
 两个组件都没有 `className`、`style` 或插槽属性。`LocalReactiveDocument` 渲染 `<article class="md-document local-document">`；`LocalDocumentView` 使用同样的文档容器。样式覆盖见下文。
 
 每个组件实例独立管理内存状态。修改源码会重新编译并从初值开始；销毁实例会清理订阅和计时器。需要在源码变化时保留值时，使用保留工具或自行管理运行时，见[源码变化时保留参数](#源码变化时保留参数)。文档中的面板重置其内部参数、输入草稿和组件状态，同名参数在面板外的显示也会同步更新。
+
+宿主 React 根与 standalone IIFE 共存于同一页面时，为宿主根设置独立的 `identifierPrefix`，例如 `createRoot(container, { identifierPrefix: 'host-' })`。两个 bundle 各自拥有 React 实例，默认 `useId` 计数可能重叠。独立的服务端渲染根也应在服务端和客户端使用相同且互不重复的前缀。
 
 编译失败时组件渲染停用提示和诊断列表，`onDiagnostics` 也会收到诊断。运行中的局部计算错误在对应内容附近显示，其余内容继续更新。
 
@@ -126,8 +128,10 @@ const result = compileLocal(source, options);
 | --- | --- | --- | --- |
 | `document` | — | `LocalDocument` | 创建时使用的编译结果 |
 | `snapshot()` | — | `{ revision: number; state: Readonly<Record<string, LocalValue>> }` | 状态未变时返回同一快照对象；状态冻结 |
-| `get(node)` | `LocalNode` | `LocalValue` | 读取该控件绑定的值；无绑定或未知节点返回 `null`；数组为副本 |
-| `set(node, value)` | `LocalNode`, `LocalValue` | `Diagnostic[]` | 校验所有共享控件；成功返回空数组并提交一次；失败不增加 revision |
+| `get(node, slot?)` | `LocalNode`、可选槽位 | `LocalValue` | 读取该控件绑定的值；`slot` 选择 `start`/`end` 或 `x`/`y`；无绑定或未知节点返回 `null`；数组为副本 |
+| `set(node, value, slot?)` | `LocalNode`、`LocalValue`、可选槽位 | `Diagnostic[]` | 校验所有共享控件；成功返回空数组并提交一次；失败不增加 revision |
+| `setMany(node, values)` | `LocalNode`、槽位值对象 | `Diagnostic[]` | 原子写入同一多槽控件的多个槽位；非法批次保持状态与 revision 不变 |
+| `validate()` | — | `Diagnostic[]` | 返回当前跨字段校验失败的副本；不改变状态，也不拒绝字段编辑 |
 | `parameterNames()` | — | `readonly string[]` | 排序后的公开绑定名；不含 `@` 内部绑定 |
 | `getParameter(name)` | `string` | `LocalValue \| undefined` | 公开绑定的值；未知或内部名称返回 `undefined`；数组为副本 |
 | `getParameters()` | — | `Readonly<Record<string, LocalValue>>` | 只含公开参数的冻结快照；永不含内部 `@` 键 |
@@ -251,13 +255,13 @@ scheduler.schedule(source);
 - 状态文件：`exportLocalState`、`importLocalState`、`createLocalStateFile`、`parseLocalState`、`resolveLocalState`、`applyLocalState` 和 `serializeLocalState`；`LOCAL_STATE_FORMAT` 为 `'reactive-md-state/v1'`。
 - 参数保留：`planLocalStateRetention` 和 `applyLocalStateRetention`。
 - 后台编译：`LocalCompileScheduler`、`LOCAL_COMPILE_DELAY_MS` 和 `startLocalCompileWorker`。
-- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalDocument`、`LocalCompileLimits`、`LocalCompileOptions`、`LocalCompileResult`、`LocalRuntime`、`LocalSnapshot`、`LocalStateFile`、`LocalStateGenerator`、`LocalStateParseResult`、`LocalStateResolution`、`LocalRetainedState`、`LocalStateRetentionReason`、`LocalStateRetentionDrop`、`LocalStateRetentionInput`、`LocalStateRetentionResult`、`LocalCompileWorker`、`LocalCompileWorkerScope`、`LocalCompileRequest`、`LocalCompileResponse`、`LocalCompileOutcome`、`LocalCompileMode`、`LocalCompileSchedulerOptions`。
+- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalComputation`、`LocalValidation`、`LocalDocument`、`LocalCompileLimits`、`LocalCompileOptions`、`LocalCompileResult`、`LocalRuntime`、`LocalSnapshot`、`LocalStateFile`、`LocalStateGenerator`、`LocalStateParseResult`、`LocalStateResolution`、`LocalRetainedState`、`LocalStateRetentionReason`、`LocalStateRetentionDrop`、`LocalStateRetentionInput`、`LocalStateRetentionResult`、`LocalCompileWorker`、`LocalCompileWorkerScope`、`LocalCompileRequest`、`LocalCompileResponse`、`LocalCompileOutcome`、`LocalCompileMode`、`LocalCompileSchedulerOptions`。
 
 `compileExpression`、`compileLatex` 和 `samplePlot` 是较低层的工具，稳定级别与核心 API 相同；通常只需要 `compileLocal` 和 `createLocalRuntime`。
 
 ## 诊断
 
-`Diagnostic` 的字段与稳定级别见[版本与兼容性](compatibility-ch.md)中的诊断契约。要点：`line`、`column` 和 `range` 用于程序定位；`code` 可用于当前版本的粗分类，但 0.x 不承诺跨版本稳定；`message` 是中文显示文本，不要解析。
+`Diagnostic` 的字段与稳定级别见[版本与兼容性](compatibility-ch.md)中的诊断契约。要点：`line`、`column` 和 `range` 用于程序定位；`code` 可用于当前版本的粗分类，但 0.x 不承诺跨版本稳定；`message` 是默认英文显示文本，不要解析。渲染器和 CLI 可通过共享诊断目录显示中文，回调仍收到结构化字段。
 
 `onDiagnostics` 会在编译结果变化时收到编译诊断，也会收到控件写入被拒绝时的运行时诊断。编译错误文档不激活交互；运行时局部错误只替换对应内容。
 
@@ -317,7 +321,7 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 单个文档源码最多 1,000,000 字符。诊断最多 100 条，单条消息最多 2,000 字符。
 
-每个绘图组件最多 16 条曲线，整篇文档最多请求 20,000 个曲线采样点，包括隐藏区域。绘图计算还受 2,000,000 步的共享执行预算限制。超限文档会收到诊断；表达式和数学渲染也有各自的深度与记号预算。
+每个绘图组件最多 16 条曲线，整篇文档最多请求 20,000 个曲线采样点，包括隐藏区域。绘图计算还受 2,000,000 步的共享执行预算限制。每份文档最多 100 条校验规则。`data-table` 的生成行、列数和文本有单表及整篇文档预算，见[条件、校验与本地集合](constraints-collections-ch.md)。超限文档会收到诊断；表达式和数学渲染也有各自的深度与记号预算。
 
 这些上限限制单个文档的工作量，不替代宿主对请求大小、并发和执行时间的控制。完整威胁边界见[安全策略](../SECURITY-ch.md)。
 
@@ -333,4 +337,4 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 本地模式不提供自动状态持久化或网络访问，也不提供插件或自定义组件注册、任意 HTML、作者 CSS、事件处理器、外部数据接口、表单提交、Vue 支持、React 18 支持或 CommonJS 入口。状态导出与导入是宿主的显式调用；运行时本身不会保存或发送状态。`LocalReactiveDocument` 在源码变化时仍从初值开始；请使用参数保留工具，或自行提供运行时和文档。宿主不应把这些能力当作可配置项。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。本工作区版本尚未发布。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。本工作区版本尚未发布。

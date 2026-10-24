@@ -66,6 +66,12 @@ Length limits include the boundary value; larger inputs are rejected. Independen
 | Plot curves | 16 curves | Each `<plot>` |
 | Samples per curve | 2 to 2,000 points | Each sampling request, including endpoints |
 | Document sample points | 20,000 points | Sum of curve counts times requested samples, including hidden regions |
+| Validation rules | 100 rules per document | Includes rules in hidden regions |
+| Generated rows per `<data-table>` | 1,000 maximum, 100 default | Declared `max-rows` for one table |
+| Columns per `<data-table>` | 20 columns | One table |
+| Document generated rows | 2,000 rows | Sum of declared `max-rows` over every `data-table`, including hidden tables |
+| Document generated cells | 10,000 cells | Sum of declared rows times columns over every `data-table` |
+| Generated table text | 100,000 UTF-16 code units | Header, cell, empty/error text and encoded row keys for one table |
 | Per-curve computation | `max(1,000,000, samples × 1024)` node visits | One `samplePlot`, including extra discontinuity checks |
 | Document plot computation | 2,000,000 node visits | All plot sampling in one runtime revision; a new revision resets it |
 

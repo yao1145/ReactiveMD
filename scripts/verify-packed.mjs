@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -12,6 +13,10 @@ import { moduleSpecifiers } from './module-specifiers.mjs';
 
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 const projectPkg = JSON.parse(await readFile(path.join(projectRoot, 'package.json'), 'utf8'));
+const releaseFixturePath = path.join(projectRoot, 'tests', 'browser', 'release-document.reactive.md');
+const releaseBaselinePath = path.join(projectRoot, 'tests', 'browser', 'release-baseline.json');
+const releaseSource = await readFile(releaseFixturePath, 'utf8');
+const releaseBaseline = JSON.parse(await readFile(releaseBaselinePath, 'utf8'));
 const require = createRequire(import.meta.url);
 
 // Run npm through its JS entry point with the current Node binary: spawning
@@ -318,6 +323,97 @@ console.log('PASS core API without React');
   );
   await run('core API fixture', process.execPath, [path.join(coreConsumer, 'core-api.mjs')], coreConsumer);
   await run('standalone Node example', process.execPath, [path.join(installedCore, 'examples/integration/core/index.mjs')], coreConsumer);
+
+  /* --------------------------------------- combined capabilities, core only */
+  await writeFile(
+    path.join(coreConsumer, 'release-core.mjs'),
+    `import assert from 'node:assert/strict';
+import { writeFileSync } from 'node:fs';
+import {
+  analyzeLocalSource,
+  applyLocalStateRetention,
+  compileLocal,
+  createLocalRuntime,
+  createLocalStateFile,
+  exportLocalState,
+  importLocalState,
+  planLocalStateRetention,
+  renameLocalBinding,
+  serializeLocalState,
+} from 'reactive-md';
+
+const source = ${JSON.stringify(releaseSource)};
+const baseline = ${JSON.stringify(releaseBaseline)};
+
+const compiled = compileLocal(source);
+assert.equal(compiled.ok, true, JSON.stringify(compiled.diagnostics));
+const runtime = createLocalRuntime(compiled.document);
+try {
+  assert.equal(runtime.evaluate('total'), 25);
+  assert.equal(runtime.evaluate('mode')[0], 'standard');
+  assert.deepEqual(runtime.setParameters(baseline), []);
+  assert.equal(runtime.evaluate('total'), 75);
+  assert.equal(runtime.evaluate('mode')[0], 'priority');
+  assert.equal(runtime.evaluate('subjectCount'), 2);
+  assert.deepEqual(runtime.validate(), []);
+
+  const exported = exportLocalState(runtime, { name: 'packed-release', version: '1' });
+  assert.deepEqual(exported.parameters, baseline);
+  const serialized = serializeLocalState(exported);
+  assert.ok(!serialized.includes('"@'));
+  writeFileSync('release-combo.state.json', serialized);
+
+  assert.deepEqual(runtime.setParameters({ quantity: 2, owner: 'Ada', subjects: [] }), []);
+  assert.deepEqual(importLocalState(runtime, serialized), []);
+  assert.deepEqual(runtime.getParameters(), baseline);
+  const revised = compileLocal(source + '\\n\\nRevised prose keeps this session.');
+  assert.equal(revised.ok, true);
+  const retention = planLocalStateRetention({
+    previous: compiled.document,
+    state: runtime.snapshot().state,
+    next: revised.document,
+  });
+  assert.deepEqual([...retention.retained].sort(), ['owner', 'quantity', 'subjects']);
+  const next = createLocalRuntime(revised.document);
+  try {
+    assert.deepEqual(applyLocalStateRetention(next, retention).diagnostics, []);
+    assert.deepEqual(next.getParameters(), baseline);
+  } finally { next.dispose(); }
+
+  assert.deepEqual(runtime.setParameter('quantity', 10), []);
+  assert.equal(runtime.evaluate('total'), 125);
+  assert.deepEqual(runtime.validate().map(item => item.message), ['Total $125.00 exceeds the limit.']);
+} finally { runtime.dispose(); }
+
+const renamed = renameLocalBinding(source, 'quantity', 'seats');
+assert.ok(renamed.edits.length > 0);
+assert.ok(renamed.source.includes('<number bind="seats"'));
+assert.ok(renamed.source.includes('{{ seats * unitPrice }}'));
+assert.ok(renamed.source.includes('fields="seats"'));
+assert.ok(renamed.source.includes('quantity stays literal here'));
+assert.ok(analyzeLocalSource(renamed.source).bindings.find(item => item.name === 'seats').references.length > 1);
+const renamedDocument = compileLocal(renamed.source);
+assert.equal(renamedDocument.ok, true, JSON.stringify(renamedDocument.diagnostics));
+const renamedRuntime = createLocalRuntime(renamedDocument.document);
+try {
+  assert.deepEqual(renamedRuntime.setParameters({ owner: baseline.owner, subjects: baseline.subjects, seats: 10 }), []);
+  assert.equal(renamedRuntime.evaluate('total'), 125);
+  assert.deepEqual(renamedRuntime.validate().map(item => item.message), ['Total $125.00 exceeds the limit.']);
+} finally { renamedRuntime.dispose(); }
+
+const changed = compileLocal(source.replace('initial="2"', 'initial="3"'));
+const changedRetention = planLocalStateRetention({
+  previous: compiled.document,
+  state: { ...baseline },
+  next: changed.document,
+});
+assert.deepEqual([...changedRetention.retained].sort(), ['owner', 'subjects']);
+assert.ok(changedRetention.dropped.some(item => item.name === 'quantity' && item.reason === 'initial'));
+console.log('PASS combined declarations, collections, validation, authoring and state without React');
+`,
+  );
+  await run('combined core fixture', process.execPath, [path.join(coreConsumer, 'release-core.mjs')], coreConsumer);
+  const releaseStateText = await readFile(path.join(coreConsumer, 'release-combo.state.json'), 'utf8');
   await run(
     'packed CLI lint without React',
     process.execPath,
@@ -465,6 +561,100 @@ console.log('PASS React subpath and SSR');
   assert.ok(!packedStaticHtml.includes('<script'), 'Packed static HTML must not contain a runtime script');
   assert.ok(packedStaticHtml.includes('Hello'), 'Packed static HTML must render document content');
 
+  /* --------------------------------- combined capabilities, installed package */
+  const releaseDocument = path.join(reactConsumer, 'release.reactive.md');
+  const releaseStatePath = path.join(reactConsumer, 'release.state.json');
+  const releaseInteractive = path.join(reactConsumer, 'release-interactive.html');
+  const releaseStatic = path.join(reactConsumer, 'release-static.html');
+  const releaseInitial = path.join(reactConsumer, 'release-initial.html');
+  await writeFile(releaseDocument, releaseSource, 'utf8');
+  await writeFile(releaseStatePath, releaseStateText, 'utf8');
+
+  await run(
+    'packed combined interactive build',
+    process.execPath,
+    [path.join(reactInstalled, 'bin/reactive-md.mjs'), 'build', releaseDocument, '-o', releaseInteractive, '--state-file', releaseStatePath],
+    reactConsumer,
+  );
+  await run(
+    'packed combined static build',
+    process.execPath,
+    [path.join(reactInstalled, 'bin/reactive-md.mjs'), 'build', releaseDocument, '-o', releaseStatic, '--state-file', releaseStatePath, '--mode', 'static'],
+    reactConsumer,
+  );
+  await run(
+    'packed combined default build',
+    process.execPath,
+    [path.join(reactInstalled, 'bin/reactive-md.mjs'), 'build', releaseDocument, '-o', releaseInitial],
+    reactConsumer,
+  );
+
+  const releaseInteractiveHtml = await readFile(releaseInteractive, 'utf8');
+  const releaseStaticHtml = await readFile(releaseStatic, 'utf8');
+  const releaseInitialHtml = await readFile(releaseInitial, 'utf8');
+  const releasePayloadMatch = releaseInteractiveHtml.match(
+    /<script type="application\/reactive-md\+json"[^>]*>([\s\S]*?)<\/script>/,
+  );
+  assert.ok(releasePayloadMatch, 'Packed combined HTML needs the auto-mount payload');
+  const releasePayload = JSON.parse(releasePayloadMatch[1]);
+  assert.equal(releasePayload.source, releaseSource, 'Packed payload must carry the combined document source');
+  assert.deepEqual(releasePayload.state.parameters, releaseBaseline, 'Packed payload must carry public state only');
+  assert.ok(!Object.keys(releasePayload.state.parameters).some(name => name.startsWith('@')));
+  for (const [label, html] of [['interactive', releaseInteractiveHtml], ['static', releaseStaticHtml]]) {
+    assert.ok(html.includes('$75.00'), `Packed ${label} HTML must render the state baseline`);
+    assert.ok(html.includes('Physics') && html.includes('Chemistry'), `Packed ${label} HTML must render collection labels`);
+    assert.ok(html.includes('>physics<') && html.includes('>chemistry<'), `Packed ${label} HTML must render collection rows`);
+    assert.match(html, /data-local-validation="passed"/, `Packed ${label} HTML must render successful baseline validation`);
+    assert.doesNotMatch(html, /data-local-validation="(?:failed|error)"/);
+  }
+  assert.ok(!/<script\b/.test(releaseStaticHtml), 'Packed static HTML must not contain a runtime script');
+  assert.ok(releaseInitialHtml.includes('$25.00'), 'Packed default HTML must use author defaults');
+
+  await writeFile(
+    path.join(reactConsumer, 'release-ssr.mjs'),
+    `import assert from 'node:assert/strict';
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
+import {
+  compileLocal,
+  createLocalRuntime,
+  createLocalStateFile,
+  resolveLocalStateBaseline,
+} from 'reactive-md';
+import { LocalDocumentView } from 'reactive-md/react';
+
+const source = ${JSON.stringify(releaseSource)};
+const baseline = ${JSON.stringify(releaseBaseline)};
+const compiled = compileLocal(source);
+assert.equal(compiled.ok, true, JSON.stringify(compiled.diagnostics));
+const state = createLocalStateFile(compiled.document, baseline, { name: 'packed-release', version: '1' });
+const resolved = resolveLocalStateBaseline(compiled.document, state);
+assert.equal(resolved.ok, true, JSON.stringify(resolved.diagnostics));
+const runtime = createLocalRuntime(resolved.baseline.document);
+try {
+  const html = renderToString(createElement(LocalDocumentView, {
+    document: resolved.baseline.document,
+    runtime,
+  }));
+  assert.ok(html.includes('$75.00'), 'Packed React view must render the state baseline');
+  assert.ok(html.includes('aria-label="Release subjects"'), 'Packed React view must render the collection table');
+  assert.ok(html.includes('physics') && html.includes('chemistry'));
+  assert.ok(!html.includes('exceeds the limit'));
+  assert.ok(!html.includes('local-fallback'));
+  const staticHtml = renderToString(createElement(LocalDocumentView, {
+    document: resolved.baseline.document,
+    runtime,
+    mode: 'static',
+  }));
+  assert.ok(!staticHtml.includes('<input'));
+  assert.ok(staticHtml.includes('$75.00'));
+  assert.ok(staticHtml.includes('physics'));
+} finally { runtime.dispose(); }
+console.log('PASS packed React combination view');
+`,
+  );
+  await run('packed combined React fixture', process.execPath, [path.join(reactConsumer, 'release-ssr.mjs')], reactConsumer);
+
   await writeFile(path.join(reactConsumer, 'react-types.tsx'), `import { createElement } from 'react';
 import { compileLocal, createLocalRuntime } from 'reactive-md';
 import { LocalDocumentView, LocalReactiveDocument, type LocalUrlPolicy } from 'reactive-md/react';
@@ -495,7 +685,24 @@ void view;
   const viteCli = path.join(path.dirname(require.resolve('vite/package.json')), 'bin', 'vite.js');
   await run('standalone React example build', process.execPath, [viteCli, 'build'], reactConsumer);
 
+  // Retain the exact archive exercised above, so release preparation produces
+  // an installable candidate with a digest instead of discarding its evidence.
+  const candidateDirectory = path.join(projectRoot, 'artifacts', 'release-package');
+  await mkdir(candidateDirectory, { recursive: true });
+  const candidateName = path.basename(core.entry.filename);
+  await copyFile(core.tarball, path.join(candidateDirectory, candidateName));
+  const candidateBytes = await readFile(core.tarball);
+  await writeFile(path.join(candidateDirectory, 'package-verification.json'), JSON.stringify({
+    name: core.entry.name,
+    version: core.entry.version,
+    filename: candidateName,
+    sha256: createHash('sha256').update(candidateBytes).digest('hex'),
+    integrity: core.entry.integrity,
+    verifiedAt: new Date().toISOString(),
+    checks: ['offline core and React install', 'strict types', 'combined capabilities', 'CLI static and interactive HTML', 'SSR', 'standalone integration example'],
+  }, null, 2), 'utf8');
   console.log(`PASS packed tarball installs offline, isolated core and React types compile, SSR and standalone examples work, and ${documentationLinks} packaged documentation links resolve`);
+  console.log(`Verified release candidate: ${path.relative(projectRoot, path.join(candidateDirectory, candidateName))}`);
 } finally {
   if (tempRoot) {
     assert.equal(path.dirname(path.resolve(tempRoot)), path.resolve(os.tmpdir()), 'Cleanup must remain directly inside the temporary directory');

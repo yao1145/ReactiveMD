@@ -9,7 +9,7 @@
 ## 从这里开始
 
 - [新用户入门指南](docs/local-guide-ch.md)：从 Markdown 过渡到交互文档，含完整练习与错误速查。
-- [本地交互语法规范](docs/local-interaction-syntax-ch.md) · [功能演示与示例](examples/local/README.md)：43 个组件名、标签、就地参数与 LaTeX 绘图。
+- [本地交互语法规范](docs/local-interaction-syntax-ch.md) · [功能演示与示例](examples/local/README.md)：48 个标签名、标签、就地参数与 LaTeX 绘图。
 - [本地模式集成](docs/local-integration-ch.md)：`compileLocal`、状态运行时、React 嵌入、URL 策略与样式作用域。
 - [可分享文档与静态导出](docs/shareable-export-ch.md)：单文件交互 HTML、静态输出、版本化状态文件、图片资源、CLI 与独立浏览器 API。
 - [主题协议](docs/theme-protocol-ch.md)：文档主题选择、自定义 CSS 与深浅模式。
@@ -17,7 +17,7 @@
 - [独立接入示例](examples/integration/README.md)：可复制到仓库外运行的 Node 核心和 React 页面。
 - [版本与兼容性](docs/compatibility-ch.md)：0.x 规则、迁移、诊断契约和平台范围。
 - [组块协议](docs/component-protocol-ch.md) · [组块开发指南](docs/component-development-ch.md)：新增组件的声明、行为契约和兼容性验收。
-- [Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。
+- [0.4.0 开发预览与迁移](docs/release-0.4.0-ch.md)：本构建包含的能力，以及从 `0.3.1` / `local-draft-1` 升级的方法。
 
 ## 写一份文档
 
@@ -32,7 +32,7 @@
 
 输入立即更新结果，面板自带“恢复默认”。独立使用的计数器只需一行 `<counter label="人数">`。
 
-新增组块需要使用当前工作区构建；已发布的 0.3.1 仍使用 local-draft-1。见[新增组块与迁移](docs/local-components-v2-ch.md)。
+当前工作区的 `0.4.0` 预览新增 `local-draft-2`、命名计算、校验、集合、主题和离线 HTML 导出；已发布的 0.3.1 仍使用 local-draft-1。见[0.4.0 开发预览与迁移](docs/release-0.4.0-ch.md)。
 
 ## 安装
 
@@ -41,6 +41,8 @@
 ```sh
 npm install reactive-md@0.3.1
 ```
+
+这会安装已发布的预览版。本页描述的 `0.4.0` 开发版由当前工作区构建；registry 上尚不提供 `reactive-md@0.4.0`。
 
 `reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。
 
@@ -86,6 +88,8 @@ npm run dev
 
 该命令先构建语言包，再启动独立的 `demo/` 应用，地址为 `http://127.0.0.1:5173`。`/embed.html` 展示嵌入方式。页面顶部的语言按钮可以在中文和英文之间切换，选择会保存在浏览器中。Demo 的页面、编辑器、演示服务、资产和浏览器检查均在 `demo/`，通过语言包的公开入口集成。
 
+## 仓库结构
+
 ```text
 src/           本地语法编译、表达式、运行时和 React 渲染器
 examples/      可复制的本地交互示例，与 demo 应用无关
@@ -94,6 +98,16 @@ tests/         语言与渲染器测试
 demo/          独立的 Playground 应用
 ```
 
+## 文档
+
+- [新用户入门指南](docs/local-guide-ch.md)与[本地交互语法规范](docs/local-interaction-syntax-ch.md)。
+- [本地模式集成](docs/local-integration-ch.md)：核心与 React API、URL 策略、生命周期、样式和版本固定。
+- [可分享文档与静态导出](docs/shareable-export-ch.md)：CLI build/lint、状态文件、本地图片内联、打印与独立浏览器运行时。
+- [功能演示与示例](examples/local/README.md)与[独立接入示例](examples/integration/README.md)。
+- [版本与兼容性](docs/compatibility-ch.md)与[0.4.0 开发预览与迁移](docs/release-0.4.0-ch.md)。
+- [组块协议](docs/component-protocol-ch.md)与[组块开发指南](docs/component-development-ch.md)。
+- [性能说明](docs/performance-ch.md)与[发布清单](docs/releasing-ch.md)。
+
 更多开发与测试命令见[贡献指南](CONTRIBUTING-ch.md)。
 
 ## 贡献与安全
@@ -101,7 +115,7 @@ demo/          独立的 Playground 应用
 - [贡献指南](CONTRIBUTING-ch.md)：环境、检查命令和改动要求。
 - [安全策略](SECURITY-ch.md)：威胁边界、资源上限、宿主责任和漏洞报告渠道。
 - [变更记录](CHANGELOG-ch.md)。
-- [发布清单](docs/releasing-ch.md)：维护者的包名、notice、tarball 和人工发布流程。
+- [发布清单](docs/releasing-ch.md)：验证门禁、notice、tarball 和人工发布流程。
 
 ## 许可证
 

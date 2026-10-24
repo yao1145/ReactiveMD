@@ -8,7 +8,7 @@
 - `actions` finds controls by `bind` and submits `value`; when `codes` is present the write is expected to be rejected, otherwise it is expected to succeed.
 - `text` is evaluated with the updated state and the result should equal `expectedText`.
 
-The runner lives at `tests/conformance.test.ts` in the repository; run `npm test` to check it. This suite covers shared parameters, hidden initialization, write constraints, code isolation and diagnostics; full syntax conformance also includes other language tests and browser checks, with rules in the [syntax specification](../../docs/local-interaction-syntax-en.md). See the [compatibility notes](../../docs/compatibility-en.md) for cross-version guarantees on diagnostic codes.
+The runner lives at `tests/conformance.test.ts` in the repository; run `npm test` to check it. This suite covers shared parameters, hidden initialization, write constraints, code isolation, diagnostics, multi-slot controls, multiple selection, generated-table selection and a computed-value aggregate recalculation. It does not cover validation hints, generated table rendering, HTML export, author tooling or browser behavior; those have dedicated tests and the release gate. Full syntax conformance also includes other language tests and browser checks, with rules in the [syntax specification](../../docs/local-interaction-syntax-en.md). See the [compatibility notes](../../docs/compatibility-en.md) for cross-version guarantees on diagnostic codes.
 
 ## Component protocol conformance
 
@@ -38,7 +38,7 @@ The file root object contains `protocolVersion`, `syntaxVersion` and a non-empty
 | `text`, `expectedText` | Optional, must be paired; evaluated after writes and reset with the result compared exactly |
 | `htmlIncludes`, `htmlExcludes` | Optional, performs React static rendering in the final state and checks each listed fragment is present or absent |
 
-`initial` and `expectedState` values use the language's existing `LocalValue`: a string, finite number, boolean, `null` or string array. `actions[].codes` is the set of diagnostic codes returned by that write; still write `[]` when there are none. A rejected write should keep the last valid state. The runner finds compiled controls by `bind` and calls `runtime.set`; it does not simulate browser input events.
+`initial` and `expectedState` values use the language's existing `LocalValue`: a string, finite number, boolean, `null` or string array. Public writable controls do not produce numeric arrays; numeric arrays are available to expressions and computed values. `actions[].codes` is the set of diagnostic codes returned by that write; still write `[]` when there are none. A rejected write should keep the last valid state. The runner finds compiled controls by `bind` and calls `runtime.set`; it does not simulate browser input events.
 
 Execution order is fixed: validate the data format and unique IDs, compile and compare diagnostics, check the initial state and public binding names, perform writes in order, then reset, and finally check text and optional rendering results. Every created runtime is disposed at the end. Cases with `ok: false` may only use compile-time fields and cannot add state, action or rendering expectations; unknown fields, missing fields and invalid values should fail conformance.
 

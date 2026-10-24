@@ -60,7 +60,7 @@ Reactive MD 分别维护以下版本轴：
 
 ### CP-SCOPE-05 适用范围（边界）
 
-本协议适用于 `local-draft-2` 的 43 个组块名、它们的编译、运行时和参考渲染行为，以及向仓库提交新组块或修改现有组块的流程。
+本协议适用于 `local-draft-2` 的 48 个标签名、它们的编译、运行时和参考渲染行为，以及向仓库提交新组块或修改现有组块的流程。
 
 本文规定贡献与验收契约。作者教程和宿主 API 各有独立文档，HTML 可移植范围见 CP-CORE-03，扩展接口边界见 CP-CORE-05。
 
@@ -68,25 +68,27 @@ Reactive MD 分别维护以下版本轴：
 
 ### CP-MODEL-01 组块分类（现有）
 
-`local-draft-2` 固定 43 个组块名，分为以下类别：
+`local-draft-2` 固定 48 个标签名，分为以下类别：
 
 | 类别 | 组块 | 说明 |
 | --- | --- | --- |
-| 输入控件 | `input`、`textarea`、`number`、`slider`、`toggle`、`checkbox`、`date`、`select`、`choices`、`radio-group`、`option` | 读取读者输入并可选公开参数 |
+| 输入控件 | `input`、`textarea`、`number`、`slider`、`range-slider`、`coordinate`、`toggle`、`checkbox`、`date`、`select`、`choices`、`radio-group`、`multi-select`、`option` | 读取读者输入并可选公开参数 |
 | 自操作控件 | `counter`、`timer`、`checklist`、`progress` | 自带增减、计时、勾选或进度显示 |
-| 组织与结构 | `panel`、`card`、`grid`、`tabs`、`tab`、`accordion`、`disclosure`、`if` | 排版、切换、折叠和条件显示 |
-| 新增组块 | `jump`、`anchor`、`text`、`section`、`multi-select`、`range-slider`、`coordinate`、`quiz`、`steps`、`step` | 详细声明见扩展说明 |
-| 反馈 | `alert`、`badge`、`tooltip`、`jump`、`text` | 提示和行内说明 |
-| 数据与可视化 | `table`、`chart`、`plot`、`timeline`、`diagram`、`node`、`edge` | 表格、图表、函数曲线、时间轴和图解 |
+| 组织与结构 | `panel`、`card`、`grid`、`tabs`、`tab`、`steps`、`step`、`accordion`、`disclosure`、`if` | 排版、切换、折叠、分步阅读和条件显示 |
+| 跳转与正文 | `jump`、`anchor`、`text`、`section` | 跳转、显式锚点和受控前景色 |
+| 练习 | `quiz` | 选择或数字自测题；不公开绑定 |
+| 反馈 | `alert`、`badge`、`tooltip` | 提示和行内说明 |
+| 声明 | `computed`、`const`、`validation` | 按标签解析但不渲染为控件 |
+| 生成数据与可视化 | `data-table`、`column`、`table`、`chart`、`plot`、`timeline`、`diagram`、`node`、`edge` | 生成行、表格、图表、函数曲线、时间轴和图解 |
 
-`option`、`tab`、`disclosure`、`node`、`edge` 是结构子项，只在指定父组块内出现。完整名称和用途见[语法规范第 12 节](local-interaction-syntax-ch.md#12-组件速查与语法裁剪)。
+`option`、`tab`、`disclosure`、`node`、`edge`、`step`、`column` 是结构子项，只在指定父组块内出现。`computed`、`const` 是不可见声明；`validation` 在规则不满足时生成可访问的提示。开头的 `<theme>` 声明是文档元数据，不是组块。完整名称和用途见[语法规范第 12 节](local-interaction-syntax-ch.md#12-组件速查与语法裁剪)。
 
 ### CP-MODEL-02 三种形态（现有）
 
 | 形态 | 作者写法 | 当前组块 |
 | --- | --- | --- |
-| 无正文（leaf） | `<slider ...>`，不写结束标签；也接受 `<slider ... />` | `input`、`textarea`、`number`、`slider`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`edge`、`anchor`、`range-slider`、`coordinate` |
-| 行内（inline） | 成对标签，内容嵌入句子 | `badge`、`tooltip` |
+| 无正文（leaf） | `<slider ...>`，不写结束标签；也接受 `<slider ... />` | `input`、`textarea`、`number`、`slider`、`range-slider`、`coordinate`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`edge`、`anchor`、`computed`、`const`、`validation`、`column` |
+| 行内（inline） | 成对标签，内容嵌入句子 | `badge`、`tooltip`、`jump`、`text` |
 | 容器（container） | 成对标签，内部继续解析 Markdown 或子组块 | 其余组块 |
 
 无正文组块不得携带正文；容器必须显式闭合，不允许自动闭合或纠正错配标签。`textarea` 的文本通过 `initial` 设置，因此属于无正文组块。
@@ -114,7 +116,7 @@ Reactive MD 分别维护以下版本轴：
 
 ### CP-MODEL-04 名称集合（现有）
 
-`local-draft-2` 的 43 个名称是当前语法的完整集合。新增名称、删除名称或改变名称含义都属于作者可见变化，按第 10 节处理。实现可以在内部使用未公开的节点类型，但作者只能使用这里和语法规范列出的名称。
+`local-draft-2` 的 48 个名称是当前语法的完整集合。新增名称、删除名称或改变名称含义都属于作者可见变化，按第 10 节处理。实现可以在内部使用未公开的节点类型，但作者只能使用这里和语法规范列出的名称。
 
 ## 3. 名称、语法和属性
 
@@ -161,18 +163,21 @@ $$ y = x^2 $$
 
 | 子项规则 | 允许内容 | 当前组块 |
 | --- | --- | --- |
-| 无子项 | 不得有正文或子组块 | 无正文控件、`progress`、`edge` |
-| 行内内容 | 行内 Markdown，不得嵌套组件标签 | `option`、`badge`、`tooltip` |
-| 选项 | 一个或多个 `option` | `select`、`choices`、`radio-group` |
+| 无子项 | 不得有正文或子组块 | 无正文控件、`progress`、`edge`、`anchor`、`computed`、`const`、`validation`、`column` |
+| 行内内容 | 行内 Markdown，不得嵌套组件标签 | `option`、`badge`、`tooltip`、`jump`、`text` |
+| 选项 | 一个或多个 `option` | `select`、`choices`、`radio-group`、`multi-select`、`quiz`（选择题） |
 | 标签页 | 一个或多个 `tab` | `tabs` |
+| 步骤 | 一个或多个 `step` | `steps` |
 | 折叠项 | 一个或多个 `disclosure` | `accordion` |
 | 卡片 | 一个或多个 `card` | `grid` |
 | 图解 | 一个或多个 `node`，可选 `edge` | `diagram` |
 | 表格 | 正好一张 Markdown 表格 | `table`、`chart`、`timeline` |
+| 列 | 1 至 20 个 `column` 声明 | `data-table` |
 | 公式 | 一个或多个 `$$...$$` 公式块 | `plot` |
-| 普通内容 | Markdown 和组块，按组块附加规则 | `panel`、`card`、`tab`、`if`、`alert` |
+| 内容 | 任务列表或静态说明 | `checklist`、`node` |
+| 普通内容 | Markdown 和组块，按组块附加规则 | `panel`、`card`、`tab`、`step`、`if`、`alert`、`section` |
 
-`checklist` 的正文必须正好是一层 Markdown 任务列表；`node` 的说明可以包含文本插值，但不得包含交互组块。结构子项出现在错误父级、容器缺少必需子项或子项类型不符时，编译失败。
+`checklist` 的正文必须正好是一层 Markdown 任务列表；`node` 的说明可以包含文本插值，但不得包含交互组块。`choice` 类型的 `quiz` 接受 `option` 子项，`number` 类型的正文为空。结构子项出现在错误父级、容器缺少必需子项或子项类型不符时，编译失败。
 
 ### CP-SYNTAX-07 Markdown 上下文（现有）
 
@@ -233,13 +238,17 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 | --- | --- | --- |
 | `empty` | `input`、`textarea`、`date` | 空字符串 |
 | `false` | `toggle`、`checkbox` | `false` |
-| `min` | `slider` | `min`，默认范围 0 到 100 |
-| `nearest-zero` | `number`、`counter` | 范围内最接近 0 的合法步长值；等距时取较小值 |
+| `min` | `slider`；`range-slider.start` | `min`，默认范围 0 到 100 |
+| `max-step` | `range-slider.end` | 不超过 `max` 的最大合法步长值 |
+| `nearest-zero` | `number`、`counter`；`coordinate.x` 与 `coordinate.y` | 范围内最接近 0 的合法步长值；等距时取较小值 |
 | `first-option` | 选择器 | 第一个 option 的 value |
+| `empty-array` | `multi-select` | 空字符串数组 |
 | `first-tab` | `tabs` | 第一个标签页的 value |
+| `first-step` | `steps` | 第一个步骤的 value |
 | `first-node` | `diagram` | 第一个节点的 id |
 | `checked` | `checklist` | 任务列表中已勾选的条目 ID |
 | `duration` | `timer` | `duration`，默认 60 |
+| `none` | `table`、`chart` 选择 | 未选时为空字符串 |
 
 共享绑定没有显式初值时采用源码中首个组块的默认值，并校验所有成员的约束。
 
@@ -315,7 +324,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-DIAG-01 诊断契约（现有）
 
-`Diagnostic` 包含 `code`、`message`、`severity`、`range`、`line`、`column`。`line` 和 `column` 从 1 开始；`range` 是当前源码字符串中的索引。`code` 是字符串标识；`message` 是中文显示文本，调用方不得解析 message 或按完整文本做业务判断。
+`Diagnostic` 包含 `code`、`message`、`severity`、`range`、`line`、`column`。`line` 和 `column` 从 1 开始；`range` 是当前源码字符串中的索引。`code` 是字符串标识；`message` 是默认英文显示文本，调用方不得解析 message 或按完整文本做业务判断。
 
 ### CP-DIAG-02 编译结果与严重程度（现有）
 
@@ -400,7 +409,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-LIFE-04 SSR 与持久化范围（边界）
 
-静态 SSR 渲染由发布前的 packed 检查覆盖；水合未验证。文档状态只存在于当前实例内存中，没有 localStorage、Cookie、服务端写入或跨实例共享。持久化原始 `.reactive.md` 源码；不要持久化 `LocalDocument`、`LocalNode`、`node.id`、`LocalSnapshot` 或运行时参数状态，它们跨版本不保证结构。
+静态 SSR 渲染由发布前的 packed 检查覆盖。单文件导出的静态首屏水合由 Playwright Chromium 和本地 Edge 覆盖；该路径之外的通用 SSR 水合未验证。文档状态只存在于当前实例内存中，没有 localStorage、Cookie、服务端写入或跨实例共享。持久化原始 `.reactive.md` 源码；公开参数还可以导出为经过校验的 `reactive-md-state/v1` 文件。不要持久化 `LocalDocument`、`LocalNode`、`node.id`、`LocalSnapshot` 或内部运行时键，它们跨版本不保证结构。
 
 ## 8. 安全与资源预算
 
@@ -434,6 +443,12 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 | 每个绘图组块的曲线数 | 16 |
 | 整篇文档请求的曲线采样点 | 20,000 |
 | 绘图共享计算步数 | 2,000,000 |
+| 每份文档的校验规则 | 100 条，包含隐藏区域 |
+| 每张 `<data-table>` 声明的生成行 | 最多 1,000；默认 100 |
+| 每张 `<data-table>` 的列数 | 20 |
+| 整份文档的生成行预算 | 2,000 |
+| 整份文档的生成单元格预算 | 10,000 |
+| 生成表格文字 | 每张表 100,000 个 UTF-16 代码单元 |
 
 表中的“字符”均指 UTF-16 代码单元；文本控件的 `min-length` / `max-length` 与字符串 `len()` 按 Unicode 码点计数。超限写入被拒绝，运行时保持上一次合法状态；编译期超限返回诊断。表达式和数学计算另有长度、节点、深度和记号预算，完整单位与累计范围见[诊断与计数规则](diagnostics-counting-ch.md)。隐藏区域仍计入绘图预算。宿主仍需控制请求大小、并发与超时。
 
@@ -509,9 +524,9 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-COMPAT-04 名称治理（要求）
 
-- 新名称必须是小写 kebab-case，语义明确，避免与现有 43 个名称冲突。
+- 新名称必须是小写 kebab-case，语义明确，避免与现有 48 个名称冲突。
 - 不使用 `script`、`style`、`div`、`span`、`a` 等 HTML 名称，也不使用 `on-*`、`class`、`style` 作为作者属性。
-- 在 `component-protocol-1` 内，现有 43 个名称保留给现有语义；复用名称表示破坏性变更。
+- 在 `component-protocol-1` 内，现有 48 个名称保留给现有语义；复用名称表示破坏性变更。
 - 不提供隐式别名。别名需要单独名称、文档和验收证据。
 - 结构子项的名称和父级约束一并治理，不能只改父组块。
 
@@ -563,7 +578,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 `initial` 和 `reset.expectedState` 做部分匹配；`bindingNames` 检查完整公开绑定名集合；`text` 与 `expectedText` 必须成对。
 
-本修订的验收数据应当覆盖 `slider`、`tabs`、`plot` 的代表性用例和至少一个完整未知标签降级用例。它是代表性门槛，不是 43 个组块的全面认证。
+本修订的验收数据应当覆盖 `slider`、`tabs`、`plot` 的代表性用例和至少一个完整未知标签降级用例。它是代表性门槛，不是 48 个标签名的全面认证。
 
 ### CP-ACCEPT-03 组件级证据（要求）
 
@@ -587,7 +602,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 - 读屏名称和动态状态播报。
 - 深色主题、主题变量覆盖和样式隔离。
 
-当前已验证平台为 Microsoft Edge（Chromium 内核）；Linux CI 使用 Playwright Chromium。Firefox、Safari/WebKit 和 SSR 水合未验证。
+本地浏览器验证使用 Microsoft Edge（Chromium 内核）；Linux CI 使用 Playwright Chromium。Firefox、Safari/WebKit 和单文件导出之外的通用 SSR 水合未验证。
 
 ### CP-ACCEPT-05 命令门槛与豁免（要求）
 
@@ -615,7 +630,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-IMPL-02 当前覆盖范围（现有 / 边界）
 
-当前实现已覆盖解析、声明、编译、运行时、React 渲染、资源预算和发布检查。真实键盘、输入法、375px 和计时器暂停需要对应的浏览器自动检查或人工检查；SSR 水合未验证。`component-protocol-1` 的机器数据是代表性门槛，不是全部 43 个组块的认证。
+当前实现已覆盖解析、声明、编译、运行时、React 渲染、资源预算和发布检查。真实键盘、输入法、375px 和计时器暂停需要对应的浏览器自动检查或人工检查；单文件导出之外的通用 SSR 水合未验证。`component-protocol-1` 的机器数据是代表性门槛，不是全部 48 个标签名的认证。
 
 ### CP-IMPL-03 扩展接口（边界）
 
@@ -689,7 +704,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 | 修订 | 日期 | 说明 |
 | --- | --- | --- |
-| `component-protocol-1` | 2026-10-23 | 初版；最初适用于 `local-draft-1` 和包版本 `0.3.0`，定义组块贡献、验收和扩展边界。 |
+| `component-protocol-1` | 2026-10-23 | 初版；最初适用于 `local-draft-1` 和包版本 `0.3.0`，定义组块贡献、验收和扩展边界。现在适用于 `local-draft-2` 和尚未发布的 `0.4.0` 预览，MUST 条款和机器格式不变。 |
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。本工作区版本尚未发布。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。本工作区版本尚未发布。

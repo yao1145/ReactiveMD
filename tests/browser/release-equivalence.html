@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reactive MD release equivalence</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <main>
+      <section id="standalone-host" aria-label="Standalone runtime">
+        <div id="standalone"></div>
+      </section>
+      <section id="react-host" aria-label="React runtime">
+        <div id="react"></div>
+      </section>
+      <div id="imported" aria-label="Imported state"></div>
+    </main>
+    <script src="/dist-standalone/reactive-md-standalone.js"></script>
+    <script type="module" src="./release-equivalence.tsx"></script>
+  </body>
+</html>

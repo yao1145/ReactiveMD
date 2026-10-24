@@ -14,13 +14,7 @@ When adding or changing a component, define its behavior according to the [compo
 
 ```sh
 npm ci
-npm run build
-npm test
-npm run test:package
-npm run test:packed
-npm run test:docs
-npm run build:demo
-npm run test:demo
+npm run verify:release
 ```
 
 | Command | What it covers |
@@ -36,8 +30,11 @@ npm run test:demo
 | `npm run benchmark` | Node compile, runtime and plotting performance; the report is written to `artifacts/benchmark.json` |
 | `npm run test:docs` | Documentation relative links and heading anchors |
 | `npm run build:demo`, `npm run test:demo` | Demo build and example index |
+| `npm run verify:release` | Complete release gate: core and demo tests, types, notices, package and documentation checks, packed consumption outside the repository, and browser checks for calculations, collections, authoring, state restoration, HTML export and rendering equivalence. It manages the preview server lifecycle |
 
-Browser checks require the demo to be running and a local browser available. The default address is `http://127.0.0.1:5173`; set `DEMO_URL` to point at another address. Reports are written to `demo/artifacts/`. Local runs use Edge by default; CI uses Playwright Chromium on Linux (`PLAYWRIGHT_CHANNEL=chromium`).
+CI uses `npm run verify:release:node` and `npm run verify:release:browser` to split the same gate. Reports and step logs go to `artifacts/release-verification.json` and `artifacts/release-verification/`; the exact verified tarball and its SHA256 record go to `artifacts/release-package/`. A local browser must already be installed; the gate does not install one.
+
+Browser checks require the demo to be running and a local browser available. The complete gate manages those dependencies itself; when running individual browser scripts, the default address is `http://127.0.0.1:5173` and `DEMO_URL` can point at another address. Reports are written to `demo/artifacts/`. Local runs use Edge by default; CI uses Playwright Chromium on Linux (`PLAYWRIGHT_CHANNEL=chromium`).
 
 ```sh
 npm run dev

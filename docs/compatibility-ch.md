@@ -1,6 +1,6 @@
 # 版本与兼容性
 
-Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。公开 API 与样式接入见[本地模式集成](local-integration-ch.md)。
+Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。公开 API 与样式接入见[本地模式集成](local-integration-ch.md)，本次构建的升级摘要见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
 
 ## 版本对应
 
@@ -28,6 +28,8 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 未发布的 `0.4.0` 开发版本增加[命名计算与格式化函数](computations-formatting-ch.md)。`computed`/`const` 使用现有本地标签形式；新函数名成为保留字，使用本版本前需重命名冲突的输入绑定并同步修改引用。`document.bindings` 和 `initialState` 继续只包含可写控件，快照同时提供成功求值的计算结果。
 
+`0.4.0` 建立 `local-draft-2`。已支持的 `local-draft-1` 写法继续有效，但构建新增识别 15 个标签名：十个 `local-draft-2` 组块，以及 `computed`、`const`、`validation`、`data-table`、`column`。以前作为未知标签或普通文字显示的内容现在会解析为组块或声明；字面示例应移入行内代码或代码围栏。开头的 `<theme>` 声明是文档元数据，不计入组块。完整的重命名与升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。
+
 作者可见的语法变化会建立新的语法修订，例如本次的 `local-draft-2`，并提升次版本、更新 `LOCAL_SYNTAX_VERSION`。核心或 React API 的变化也会记录在变更记录中。项目不自动改写源码；升级后由作者或宿主按记录迁移。
 
 旧版配置语法不属于 `local-draft-2`。常见替换如下：
@@ -39,11 +41,11 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | YAML `computed:` | 正文中的 `{{ 表达式 }}` |
 | `actions:`、按钮动作、`on-*` 事件 | 没有等价入口；使用组件自带的交互和面板重置 |
 | `data:` 或外部接口数据 | 直接写在正文的 Markdown 表格；参数由控件声明 |
-| 持久化运行状态 | 由宿主保存原始源码；文档运行时状态只在当前实例内存中 |
+| 持久化运行状态 | 宿主保存原始源码；公开参数还可以导出为经过校验的 `reactive-md-state/v1` 文件。该文件绑定源码摘要、语法修订和完整公开参数集合，不是文档格式。 |
 
 ## 持久化什么
 
-持久化原始 `.reactive.md` 源码。不要持久化 `LocalDocument`、`LocalNode`、`node.id`、`initialState`、`LocalSnapshot` 或运行时的参数状态：它们属于当前运行时对象，跨版本不保证结构，也不保证字段含义。`node.id` 在源码变化后会重新生成。诊断中的行号、列号和偏移量用于定位当前源码，不是稳定的持久化标识。
+持久化原始 `.reactive.md` 源码。`reactive-md-state/v1` 文件可以为同一源码和语法修订保存公开参数值；摘要、修订或参数集合不一致时会拒绝整个文件。不要持久化 `LocalDocument`、`LocalNode`、`node.id`、`initialState`、`LocalSnapshot` 或内部 `@` 运行时键：它们属于当前运行时对象，跨版本不保证结构，也不保证字段含义。`node.id` 在源码变化后会重新生成。诊断中的行号、列号和偏移量用于定位当前源码，不是稳定的持久化标识。
 
 ## 诊断契约
 
@@ -61,11 +63,11 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 | 环境 | 当前状态 |
 | --- | --- |
-| Node.js 22.12+ | 开发和 Node 端消费的最低版本；22.12 与 24 均通过 CI |
+| Node.js 22.12+ | 开发和 Node 端消费的最低版本；CI 目标为 22.12 与 24 |
 | ESM | 唯一模块格式；不提供 CommonJS 入口 |
 | React 19 | `reactive-md/react` 的要求；核心入口不依赖 React |
-| Microsoft Edge（Chromium 内核） | 已完成本地浏览器验证 |
-| Playwright Chromium | Linux CI 浏览器检查通过 |
+| Microsoft Edge（Chromium 内核） | 本地浏览器验证使用 Edge |
+| Playwright Chromium | Linux CI 浏览器目标 |
 | Firefox、Safari/WebKit | 未验证，不作支持声明 |
 | 可分享状态格式 | `reactive-md-state/v1`：公开参数、语法版本与源码摘要；见[可分享文档](shareable-export-ch.md) |
 | 单文件 HTML 格式 | `reactive-md-html/v1`：交互或静态导出；仅交互模式内嵌独立运行时 |
@@ -76,4 +78,4 @@ Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `c
 语言范围见[语法规范](local-interaction-syntax-ch.md)，安全边界与宿主责任见[安全策略](../SECURITY-ch.md)。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。本工作区版本尚未发布。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。本工作区版本尚未发布。

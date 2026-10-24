@@ -29,7 +29,7 @@ Start with the [plan calculator](pricing.reactive.md), then choose a [feature to
 | [gallery.reactive.md](gallery.reactive.md) | Common inputs, standalone components and code shown as-is |
 | [diagnostics.reactive.md](diagnostics.reactive.md) | Intentionally broken diagnostics example |
 
-The Playground example index lives in the repository at [demo/src/examples.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/src/examples.ts).
+The Playground example index is maintained in the repository's demo application.
 
 ## Expected behavior of the working examples
 
@@ -67,6 +67,6 @@ In parameters, the conditional checklist sits outside the panel: its existing ch
 
 ## Check entry points
 
-`npm test` checks parsing, bindings, expressions, LaTeX, the runtime and examples; `npm run test:demo` checks the Playground index; after starting the app, `npm run test:browser` checks real interactions. `npm run test:docs` checks documentation links. See the [repository implementation notes](https://github.com/yao1145/ReactiveMD/blob/main/demo/IMPLEMENTATION.md) for actual run results.
+`npm test` checks parsing, bindings, expressions, LaTeX, the runtime and examples; `npm run test:demo` checks the Playground index; `npm run verify:release` runs the complete Node-side and browser gate, including real-tarball consumption and HTML export. See the [contributing guide](../../CONTRIBUTING.md) for individual commands.
 
-The [six scenarios](showcase/README.md) include all 43 component names: intervals, coordinates and numeric questions in Functions; input choices in Forms; linked selection in Data; jumps and prose colors in Layout; guided steps and choice questions in Flow; todos and timing in Checklists. The standalone gallery and interaction-tour sources remain available as authoring examples.
+The [six scenarios](showcase/README.md) include all 48 tag names: intervals, coordinates and numeric questions in Functions; input choices in Forms; linked selection in Data; jumps and prose colors in Layout; guided steps and choice questions in Flow; todos and timing in Checklists. The standalone gallery and interaction-tour sources remain available as authoring examples.

@@ -2,8 +2,15 @@
 
 本文件记录用户可见变更。项目处于 0.x 预览阶段，版本与迁移规则见[版本与兼容性](docs/compatibility-ch.md)。
 
-## 未发布
+## 0.4.0 开发预览（未发布，local-draft-2）
 
+当前工作区是尚未发布的开发预览，从 `0.3.1` / `local-draft-1` 升级。完整升级清单见[0.4.0 开发预览与迁移](docs/release-0.4.0-ch.md)。
+
+### 新增
+
+- 新增源码高亮、补全、绑定导航、重命名和格式化 API，以及对应的 Playground 作者工具。
+- 新增按依赖更新的渲染优化，浏览器等价检查覆盖参数更新、重置、可视化选择和语言切换。
+- 新增 `npm run verify:release` 与对应 CI 分片，覆盖组合文档和仓库外的真实 tarball 消费；保留经过验证的安装包、SHA256 与 npm integrity 记录。
 - 新增跨字段 `<validation>` 规则、关联的可访问提示及 `runtime.validate()`；`alert` 和 `badge` 支持按条件选择现有 `tone` 枚举。
 - 新增同类型字符串/数字数组字面量、数组索引、`sum`、`average`、`minOf`、`maxOf`，以及带稳定行键和数量预算的 `<data-table>`/`<column>`。见[条件、校验与本地集合](docs/constraints-collections-ch.md)。`LocalValueKind` 增加 `number-array`，新增聚合函数名成为保留字。
 
@@ -19,7 +26,7 @@
 - 新增源码变更时的参数保留工具：`planLocalStateRetention` 和 `applyLocalStateRetention` 仅保留类型与初始定义未变、绑定可安全保留的公开参数；匿名 `@` 绑定、计时器和位置清单会被丢弃，被拒绝的值会记录原因。
 - 新增可选的后台编译适配器：`LocalCompileScheduler` 提供 150 ms 防抖、一个进行中任务加最新源码、永久回退到主线程 `compileLocal`，并新增 `startLocalCompileWorker`；回退失败使用 `local.worker.compile` 诊断码。
 
-### 0.4.0 开发预览（local-draft-2）
+### local-draft-2 组块
 
 - 新增文档跳转与锚点、正文颜色、多选、区间与二维坐标输入、练习题及分步阅读。
 - 清单勾选后划线，新增组件主色及表格/图表稳定标识的共享选择。
@@ -27,7 +34,7 @@
 - 新增双语功能馆及编辑器插入模板。见[迁移说明](docs/local-components-v2-ch.md)。本版本尚未发布。
 
 - Playground 新增中英文切换，界面、示例、指南和内置控件文案会同步切换，选择保存在浏览器中。
-- `LocalDocumentView` 和 `LocalReactiveDocument` 支持 `locale: 'en' | 'zh'`（默认 `'en'`），用于内置 UI 文案；编译与运行时诊断消息仍为英文。
+- `LocalDocumentView` 和 `LocalReactiveDocument` 支持 `locale: 'en' | 'zh'`（默认 `'en'`），用于内置 UI 文案。显示用编译与运行时诊断通过中英文共享目录本地化，回调仍收到带稳定机器字段的结构化诊断。
 - `timeline` 同时接受英文列 `Task`、`Start`、`Duration`（可选 `Notes`）和中文列 `事项`、`开始`、`时长`（可选 `说明`）。
 
 ## 0.3.1（2026-10-23）

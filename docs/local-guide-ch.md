@@ -134,7 +134,7 @@ npm run dev
 
 无正文组件固定为：
 
-`input`、`textarea`、`number`、`slider`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`edge`。
+`input`、`textarea`、`number`、`slider`、`range-slider`、`coordinate`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`anchor`、`edge`。声明标签 `computed`、`const`、`validation` 以及结构子项 `column` 也没有正文。
 
 其余组件使用成对标签。特别提醒：`textarea` 的文本通过 `initial` 设置，所以它没有正文；不要写成 `<textarea>内容</textarea>`。
 
@@ -261,7 +261,12 @@ HTML 注释 `<!-- ... -->` 会被忽略，不产生组件或变量。原始 HTML
 | `counter` | 数字 | 范围内最接近 0 的合法步长值 |
 | `toggle`、`checkbox` | 布尔值 | `false` |
 | `select`、`choices`、`radio-group` | 选项字符串 | 第一个选项的 value |
+| `multi-select` | 已选选项 value 的字符串数组 | 空数组 |
+| `range-slider` | 两个数字，`start` / `end` | start=min；end=范围内不超过 max 的最大合法步长值 |
+| `coordinate` | 两个数字，`x` / `y` | 各轴最接近 0 的合法步长值 |
+| 带 `key` 的 `table`、`chart` | 稳定行标识字符串 | 空字符串（未选） |
 | `tabs` | 页面字符串 | 第一个 tab 的 value |
+| `steps` | 步骤字符串 | 第一步的 value |
 | `diagram` | 节点 ID 字符串 | 第一个节点的 id |
 | `checklist` | 已勾选条目 ID 的字符串数组 | 由任务列表的勾选标记决定 |
 | `timer` | 剩余秒数 | `duration`，默认 60 |
@@ -291,7 +296,7 @@ HTML 注释 `<!-- ... -->` 会被忽略，不产生组件或变量。原始 HTML
 - 两个控件的数值范围、步长必须一致。
 - 文本、数字、布尔、日期、选择等不同家族不能共用一个变量。
 - 选择器共享变量时，选项的 value 和顺序必须完全一致。
-- `timer`、`checklist`、`tabs`、`diagram` 的公开状态只能由一个组件拥有，不能共享。
+- `timer`、`checklist`、`tabs`、`diagram`、`multi-select`、`steps` 的公开状态只能由一个组件拥有，不能共享。`range-slider` 与 `coordinate` 的槽位也独占；表格和图表只有在有序 `key` 完全一致时才能共享选择绑定。
 
 ### 4.5 不写 bind 的组件
 
@@ -586,6 +591,8 @@ HTML 注释 `<!-- ... -->` 会被忽略，不产生组件或变量。原始 HTML
 
 `alert` 的 `tone` 可选 `info`、`success`、`warning`。`badge` 的 `tone` 可选 `neutral`、`success`、`warning`。`badge` 和 `tooltip` 是行内组件，可以嵌在句子里。
 
+本预览还增加 `jump`、`anchor`、`text`、`section` 用于跳转和受控正文颜色，`multi-select`、`range-slider`、`coordinate` 用于输入，`quiz`、`steps`、`step` 用于练习和分步阅读，`computed`/`const` 用于命名值，`validation` 用于跨字段提示，`data-table`/`column` 用于生成表格行。规则见[扩展说明](local-components-v2-ch.md)、[计算说明](computations-formatting-ch.md)和[集合说明](constraints-collections-ch.md)。
+
 ## 8. 清单、进度、计时与时间轴
 
 ### 8.1 可勾选清单
@@ -834,6 +841,9 @@ $$
 | `edge` 指向不存在的节点 | `to` 的 id 拼错 | 统一节点 id |
 | 绘图提示不支持积分 | 公式超出首版计算范围 | 换成支持的函数，或只排版不绘图 |
 | 表格里的 `\|\|` 出错 | GFM 表格把竖线当成列分隔 | 写成 `\|\|` |
+| `sum` 等绑定被拒绝 | 该名称是新增保留函数名 | 重命名绑定并同步修改引用 |
+| 两个 anchor 或跳转目标冲突 | 显式 ID 重复或与标题锚点冲突 | 使用唯一的 `anchor.id` 与匹配的 `jump.to` |
+| 生成表格提示缺少列 | `data-table` 至少需要一个 `column` | 添加带静态 label 和 value 表达式的 `column` |
 | 标签被当成文字显示 | 位于代码围栏或反斜杠转义后 | 这是正常的原文显示 |
 | `textarea` 正文不生效 | `textarea` 是无正文组件 | 用 `initial="..."` 设置文本 |
 | 成对组件写成 `/>` | `<card ... />` 不会自动闭合 | 改成开始标签加结束标签 |
@@ -934,15 +944,18 @@ Playground 的左侧编辑器和右侧诊断区会同时定位问题。未知标
 
 | 用途 | 组件 |
 | --- | --- |
-| 参数输入 | `input`、`textarea`、`number`、`slider`、`toggle`、`checkbox`、`date`、`select`、`choices`、`radio-group`、`option` |
+| 参数输入 | `input`、`textarea`、`number`、`slider`、`range-slider`、`coordinate`、`toggle`、`checkbox`、`date`、`select`、`choices`、`radio-group`、`multi-select`、`option` |
 | 自带操作 | `counter`、`timer`、`checklist`、`progress` |
 | 组织内容 | `panel`、`card`、`grid`、`tabs`、`tab`、`accordion`、`disclosure`、`if` |
+| 跳转与正文 | `jump`、`anchor`、`text`、`section` |
+| 练习与分步 | `quiz`、`steps`、`step` |
 | 提示 | `alert`、`badge`、`tooltip` |
+| 声明与生成数据 | `computed`、`const`、`validation`、`data-table`、`column` |
 | 可视化 | `table`、`chart`、`plot`、`timeline`、`diagram`、`node`、`edge` |
 
-其中 `option`、`tab`、`disclosure`、`node`、`edge` 是父组件的结构子项，不能单独放在任意位置。
+其中 `option`、`tab`、`disclosure`、`node`、`edge`、`step`、`column` 是父组件的结构子项，不能单独放在任意位置。`computed`、`const`、`validation` 是文档声明，不是可见控件。
 
 大多数文章只需要 Markdown，加上两三个输入组件和一个展示组件。先把参数和正文连接起来，再按需要引入图表、图解和 LaTeX 曲线。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。本工作区版本尚未发布。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 开发预览与迁移](release-0.4.0-ch.md)。本工作区版本尚未发布。

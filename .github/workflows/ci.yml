@@ -19,7 +19,7 @@ jobs:
   verify:
     name: Node ${{ matrix.node }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -35,18 +35,8 @@ jobs:
       - run: npm ci
       - name: Check third-party notices
         run: npm run notices && git diff --exit-code -- THIRD_PARTY_NOTICES.md
-      - run: npm run build
-      - run: npm test
-      - run: npm run test:package
-      - run: npm run test:packed
-      - run: npm run test:docs
-
-      # build:demo and test:demo each rebuild the library. Call the demo halves
-      # directly so the library from `npm run build` is built once.
-      - name: Build demo
-        run: npm run build --workspace=@reactive-md/demo
-      - name: Test demo
-        run: npm run test --workspace=@reactive-md/demo
+      - name: Run the Node release gate
+        run: npm run verify:release:node
       - name: Record core benchmark
         if: matrix.node == '24'
         run: npm run benchmark
@@ -57,11 +47,22 @@ jobs:
           name: core-benchmark-node-24
           path: artifacts/benchmark.json
           retention-days: 7
+      - name: Upload Node release verification
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-verification-node-${{ matrix.node }}
+          path: |
+            artifacts/release-verification.json
+            artifacts/release-verification/
+            artifacts/release-package/
+          if-no-files-found: ignore
+          retention-days: 7
 
   browser:
     name: Browser (Chromium)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -71,41 +72,20 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npm run build:demo
       - name: Install Playwright Chromium
         run: npm exec --workspace=@reactive-md/demo -- playwright install --with-deps chromium
-      - name: Run browser checks against the built demo
-        env:
-          DEMO_URL: http://127.0.0.1:4173
-          PLAYWRIGHT_CHANNEL: chromium
-        run: |
-          set -euo pipefail
-          npm run preview --workspace=@reactive-md/demo -- --port 4173 --strictPort > preview.log 2>&1 &
-          preview_pid=$!
-          cleanup() { kill "$preview_pid" 2>/dev/null || true; }
-          trap cleanup EXIT
-
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent "$DEMO_URL" > /dev/null; then
-              break
-            fi
-            sleep 1
-          done
-          curl --fail --silent "$DEMO_URL" > /dev/null
-
-          npm run test:browser
-      - name: Shareable export checks
+      - name: Run the browser release gate
         env:
           PLAYWRIGHT_CHANNEL: chromium
-          SHAREABLE_RESULTS: demo/artifacts/shareable-results.json
-        run: npm run test:shareable
+          SHAREABLE_RESULTS: artifacts/shareable-results.json
+        run: npm run verify:release:browser
       - name: Upload browser artifacts
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: demo-artifacts-node-24
+          name: release-verification-browser-node-24
           path: |
             demo/artifacts/
-            preview.log
+            artifacts/
           if-no-files-found: ignore
           retention-days: 7

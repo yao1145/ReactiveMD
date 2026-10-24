@@ -11,7 +11,7 @@ The script warms up 3 times and measures 20 times per scenario, reporting the me
 
 ## Local baseline
 
-2026-10-22, Reactive MD 0.3.0, Node 22.17.0, Windows x64, Intel Core Ultra 5 125H. Other development processes were running on the machine during measurement.
+2026-10-22, Reactive MD 0.3.0, Node 22.17.0, Windows x64, Intel Core Ultra 5 125H. Other development processes were running on the machine during measurement. This baseline predates the 0.4.0 development preview; re-run the benchmark before using it as a release comparison.
 
 | Scenario | Median | P95 |
 | --- | ---: | ---: |
@@ -30,6 +30,15 @@ These numbers measure compilation, evaluation and sampling in Node; they do not 
 Document source is limited to 1,000,000 UTF-16 code units, and plotting and expressions have separate computation budgets; see the [security policy](../SECURITY.md) for details. Resource limits bound the work, but the compile API remains synchronous. Editors can coalesce compilations triggered by consecutive input; when handling untrusted or large documents, compile in a host Worker or a separate process, with the host controlling concurrency and timeouts.
 
 The syntax node budget defaults to 10,000, and hosts can adjust it per call with `compileLocal(source, { limits: { maxSyntaxNodes: 50_000 } })`, see the [Core API](local-integration-en.md#core-api). After raising the budget, measure compilation, memory and final preview rendering costs together.
+
+## Rendering optimization contract
+
+The reference renderer uses dependency information produced by the compiler to skip subtrees that cannot read a changed parameter. This is an internal rendering optimization, not an author-visible feature or a new public API.
+
+- The public contract is semantic: state values, rendered text, diagnostics, accessibility attributes, static SSR output and interactive behavior remain the same as an unconditioned render. Only the amount of recomputation changes.
+- `document.dependencies` is a frozen, serializable internal map. It marks subtrees whose reads cannot be decided statically as `null`; those subtrees are rendered conservatively. Hosts and alternative renderers must not depend on its shape, and may ignore it.
+- Source changes, instance disposal, panel reset and visibility changes that can alter hidden state still update the affected subtrees. The optimization never suppresses a diagnostic or a validation hint.
+- `npm run verify:memo` compares the optimized renderer with the unconditioned baseline on the same documents and state revisions. `npm run verify:release` includes that check. A rendering optimization is acceptable only when both produce equivalent observable output.
 
 ## Playground live editing
 

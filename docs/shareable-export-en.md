@@ -1,6 +1,6 @@
 # Shareable documents and static export
 
-This guide covers the single-file HTML exporter introduced with `local-draft-2`. It complements [Local mode integration](local-integration-en.md) and the [syntax reference](local-interaction-syntax-en.md).
+This guide covers the single-file HTML exporter introduced with `local-draft-2`. It complements [Local mode integration](local-integration-en.md), the [syntax reference](local-interaction-syntax-en.md) and the [0.4.0 development preview notes](release-0.4.0-en.md).
 
 ## Output modes
 
@@ -14,7 +14,7 @@ Both modes use the same renderer as the React integration, so conditional conten
 
 ## CLI
 
-The published package exposes the `reactive-md` command. HTML builds require React 19 and React DOM in the project that installs the package; `lint` does not.
+The package exposes the `reactive-md` command. HTML builds require React 19 and React DOM in the project that installs the package; `lint` does not.
 
 ```sh
 reactive-md build doc.reactive.md -o doc.html
@@ -49,7 +49,7 @@ Exit codes are separate so build automation can distinguish failures:
 | `4` | Input/output file failure |
 | `5` | Asset or security-policy failure |
 
-The CLI does not use a current preview implicitly. `--state-file` is the only way to select a non-initial baseline. `format` and `migrate` are not part of this release.
+The CLI does not use a current preview implicitly. `--state-file` is the only way to select a non-initial baseline. `format` and `migrate` are not part of this development build.
 
 ## Starting values and state files
 
@@ -163,7 +163,7 @@ The IIFE registers a light-DOM custom element. Simple options are attributes; co
 - `src` uses `fetch` with cancellation; an explicit source avoids network access.
 - Disconnecting aborts fetches, removes subscriptions and the React root, and disposes the runtime. Two elements with the same source have independent state.
 
-The element uses Light DOM so the existing document CSS, heading anchors and print styles apply. Shadow DOM is intentionally out of scope for this release.
+The element uses Light DOM so the existing document CSS, heading anchors and print styles apply. Shadow DOM is intentionally out of scope for this development build.
 
 ## Security boundaries
 
@@ -189,6 +189,6 @@ Sizes vary slightly with the minifier and React patch release. The alarm is inte
 
 Included: CLI `build`/`lint`, interactive and static HTML, state files, local raster inlining, print output, standalone mount APIs, auto-mount, and the Web Component.
 
-Not included in this release: `format`/`migrate`, UMD, remote image fetching, SVG inlining, framework plugins (Vite, Astro, Docusaurus, Next.js), Shadow DOM, and general SSR hydration guarantees outside the single-file export path.
+Not included in this development build: `format`/`migrate`, UMD, remote image fetching, SVG inlining, framework plugins (Vite, Astro, Docusaurus, Next.js), Shadow DOM, and general SSR hydration guarantees outside the single-file export path.
 
-Single-file static-first hydration is exercised in Playwright Chromium; Edge is verified locally. Firefox, Safari/WebKit and general server-side hydration remain unverified and are not claimed as supported.
+Single-file static-first hydration is exercised in Playwright Chromium; local verification uses Edge. Firefox, Safari/WebKit and general server-side hydration remain unverified and are not claimed as supported.

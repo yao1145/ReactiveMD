@@ -9,7 +9,7 @@ Local mode uses HTML-style tags, with parameters and table data written directly
 ## Start here
 
 - [Beginner guide](docs/local-guide-en.md): move from Markdown to interactive documents, with a complete exercise and an error quick reference.
-- [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [Feature tours and examples](examples/local/README.md): 43 component names, tags, in-place parameters and LaTeX plots.
+- [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [Feature tours and examples](examples/local/README.md): 48 tag names, tags, in-place parameters and LaTeX plots.
 - [Local mode integration](docs/local-integration-en.md): `compileLocal`, the state runtime, React embedding, URL policy and style scoping.
 - [Shareable documents and static export](docs/shareable-export-en.md): single-file interactive HTML, static output, versioned state files, assets, the CLI and the standalone browser API.
 - [Theme protocol](docs/theme-protocol-en.md): document theme selection, custom CSS and light/dark modes.
@@ -17,7 +17,7 @@ Local mode uses HTML-style tags, with parameters and table data written directly
 - [Standalone integration examples](examples/integration/README.md): Node core and React pages you can copy and run outside the repository.
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
 - [Component protocol](docs/component-protocol-en.md) · [Component development guide](docs/component-development-en.md): declarations, behavior contracts and compatibility acceptance for new components.
-- [Demo notes](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md).
+- [0.4.0 development preview and migration](docs/release-0.4.0-en.md): what this build adds and how to upgrade from `0.3.1` / `local-draft-1`.
 
 ## Write a document
 
@@ -32,7 +32,7 @@ Monthly cost: **{{ people * (annual ? 80 : 100) }} USD**.
 
 Inputs update the result immediately, and the panel includes a restore-defaults action. A standalone counter is a single line: `<counter label="People">`.
 
-The new components in this checkout require a local build. The published 0.3.1 package uses local-draft-1. See [new components and migration](docs/local-components-v2-en.md).
+The 0.4.0 preview in this checkout adds `local-draft-2`, named calculations, validation, collections, themes and offline HTML export. The published 0.3.1 package uses local-draft-1. See [0.4.0 development preview and migration](docs/release-0.4.0-en.md).
 
 ## Install
 
@@ -41,6 +41,8 @@ Reactive MD requires Node.js 22.12 or newer and ships only ESM entries:
 ```sh
 npm install reactive-md@0.3.1
 ```
+
+This installs the published preview. The `0.4.0` development build described on this page is built from this checkout; do not expect `reactive-md@0.4.0` on the registry yet.
 
 The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`.
 
@@ -120,6 +122,7 @@ demo/          Standalone Playground app
 - [Shareable documents and static export](docs/shareable-export-en.md): CLI build/lint, state files, local image inlining, printing and the standalone browser runtime.
 - [Feature tours and examples](examples/local/README.md) and [standalone integrations](examples/integration/README.md).
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, diagnostics and supported platforms.
+- [0.4.0 development preview and migration](docs/release-0.4.0-en.md): the upgrade checklist for this build.
 - [Component protocol](docs/component-protocol-en.md) and [component development guide](docs/component-development-en.md): contribution contracts, a proposal template and acceptance cases.
 - [Performance measurements](docs/performance-en.md) and [release checklist](docs/releasing-en.md).
 
@@ -127,7 +130,7 @@ See the [contributing guide](CONTRIBUTING.md) for development and test commands.
 
 ## Support and status
 
-- Node 22.12, Node 24 and Playwright Chromium pass CI; Microsoft Edge is verified locally. Static SSR is covered by the packed check; the single-file export's static-first hydration is covered by `npm run test:shareable`. General SSR hydration outside that path, Firefox and WebKit remain unverified.
+- CI targets Node 22.12 and Node 24 with Playwright Chromium; local browser verification uses Microsoft Edge. Static SSR is covered by the packed check; the single-file export's static-first hydration is covered by `npm run test:shareable`. General SSR hydration outside that path, Firefox and WebKit remain unverified.
 - 0.x minor releases may contain breaking changes. Persist the original `.reactive.md` source, not the runtime AST or in-memory state.
 - The project maintains the latest 0.x preview. Security fixes may ship in minor releases.
 
@@ -136,7 +139,7 @@ See the [contributing guide](CONTRIBUTING.md) for development and test commands.
 - [Contributing guide](CONTRIBUTING.md): environment, check commands and change requirements.
 - [Security policy](SECURITY.md): threat boundary, resource limits, host responsibilities and vulnerability reporting.
 - [Changelog](CHANGELOG.md).
-- [Release checklist](docs/releasing-en.md): package name, notices, tarball and the manual release flow for maintainers.
+- [Release checklist](docs/releasing-en.md): the verification gate, notices, tarball and the manual release flow for maintainers.
 
 ## License
 

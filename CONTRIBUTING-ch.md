@@ -14,13 +14,7 @@ Reactive MD 是 `local-draft-2` 的 0.x 预览实现。贡献可以包括语法�
 
 ```sh
 npm ci
-npm run build
-npm test
-npm run test:package
-npm run test:packed
-npm run test:docs
-npm run build:demo
-npm run test:demo
+npm run verify:release
 ```
 
 | 命令 | 覆盖内容 |
@@ -34,8 +28,11 @@ npm run test:demo
 | `npm run benchmark` | Node 编译、运行时和绘图性能；报告写入 `artifacts/benchmark.json` |
 | `npm run test:docs` | 文档相对链接和标题锚点 |
 | `npm run build:demo`、`npm run test:demo` | Demo 构建与示例索引 |
+| `npm run verify:release` | 完整发布门禁：核心与 Demo 测试、类型、第三方声明、包与文档检查、仓库外真实 tarball 消费，以及计算、集合、作者工具、状态恢复、HTML 导出和渲染等价的浏览器检查。自行管理预览服务生命周期 |
 
-浏览器检查需要先启动 Demo，并准备本机浏览器。默认地址是 `http://127.0.0.1:5173`，可用 `DEMO_URL` 指向其他地址；报告写入 `demo/artifacts/`。本地默认使用 Edge，CI 在 Linux 上使用 Playwright 的 Chromium（`PLAYWRIGHT_CHANNEL=chromium`）。
+CI 通过 `npm run verify:release:node` 和 `npm run verify:release:browser` 分片运行同一门禁。汇总与逐步日志写入 `artifacts/release-verification.json` 和 `artifacts/release-verification/`；经过验证的原始 tarball 及 SHA256 记录保留在 `artifacts/release-package/`。本机需已安装浏览器，门禁不会自动安装。
+
+浏览器检查需要先启动 Demo，并准备本机浏览器。完整门禁会自行管理这些依赖；单独运行浏览器脚本时，默认地址是 `http://127.0.0.1:5173`，可用 `DEMO_URL` 指向其他地址。报告写入 `demo/artifacts/`。本地默认使用 Edge，CI 在 Linux 上使用 Playwright 的 Chromium（`PLAYWRIGHT_CHANNEL=chromium`）。
 
 ```sh
 npm run dev

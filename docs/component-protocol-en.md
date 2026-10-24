@@ -60,7 +60,7 @@ When a clause restating existing behavior conflicts with the syntax specificatio
 
 ### CP-SCOPE-05 Scope (boundary)
 
-This protocol applies to the 43 component names of `local-draft-2`, their compilation, runtime and reference rendering behavior, and the process for submitting new components or changing existing ones to the repository.
+This protocol applies to the 48 tag names of `local-draft-2`, their compilation, runtime and reference rendering behavior, and the process for submitting new components or changing existing ones to the repository.
 
 This document defines contribution and acceptance contracts. The author tutorial and host API have separate documents; see CP-CORE-03 for the portable HTML scope and CP-CORE-05 for extension interface boundaries.
 
@@ -68,24 +68,26 @@ This document defines contribution and acceptance contracts. The author tutorial
 
 ### CP-MODEL-01 Component classification (existing)
 
-`local-draft-2` fixes 43 component names in the following groups:
+`local-draft-2` fixes 48 tag names in the following groups:
 
 | Category | Components | Notes |
 | --- | --- | --- |
-| Input controls | `input`, `textarea`, `number`, `slider`, `toggle`, `checkbox`, `date`, `select`, `choices`, `radio-group`, `option` | Read reader input and optionally expose parameters |
+| Input controls | `input`, `textarea`, `number`, `slider`, `range-slider`, `coordinate`, `toggle`, `checkbox`, `date`, `select`, `choices`, `radio-group`, `multi-select`, `option` | Read reader input and optionally expose parameters |
 | Self-operating controls | `counter`, `timer`, `checklist`, `progress` | Provide increment/decrement, timing, checking or progress display |
-| Organization and structure | `panel`, `card`, `grid`, `tabs`, `tab`, `accordion`, `disclosure`, `if` | Layout, switching, collapsing and conditional display |
-| New components | `jump`, `anchor`, `text`, `section`, `multi-select`, `range-slider`, `coordinate`, `quiz`, `steps`, `step` | Declarations are in the extension reference |
-| Feedback | `alert`, `badge`, `tooltip`, `jump`, `text` | Alerts and inline explanations |
-| Data and visualization | `table`, `chart`, `plot`, `timeline`, `diagram`, `node`, `edge` | Tables, charts, function curves, timelines and diagrams |
+| Organization and structure | `panel`, `card`, `grid`, `tabs`, `tab`, `steps`, `step`, `accordion`, `disclosure`, `if` | Layout, switching, collapsing, guided reading and conditional display |
+| Navigation and prose | `jump`, `anchor`, `text`, `section` | Jumps, explicit anchors and bounded foreground colors |
+| Assessment | `quiz` | Choice or numeric self-study questions; no public binding |
+| Feedback | `alert`, `badge`, `tooltip` | Alerts and inline explanations |
+| Declarations | `computed`, `const`, `validation` | Parsed tags that are not rendered controls |
+| Generated data and visualization | `data-table`, `column`, `table`, `chart`, `plot`, `timeline`, `diagram`, `node`, `edge` | Generated rows, tables, charts, function curves, timelines and diagrams |
 
-`option`, `tab`, `disclosure`, `node` and `edge` are structural children that appear only inside their specified parent components. See [section 12 of the syntax specification](local-interaction-syntax-en.md#12-component-reference-and-syntax-scope) for the complete names and purposes.
+`option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children that appear only inside their specified parent components. `computed` and `const` are invisible declarations; `validation` produces accessible hints when its rule fails. The leading `<theme>` declaration is document metadata, not a component. See [section 12 of the syntax specification](local-interaction-syntax-en.md#12-component-reference-and-syntax-scope) for the complete names and purposes.
 
 ### CP-MODEL-02 Three shapes (existing)
 
 | Shape | Author form | Current components |
 | --- | --- | --- |
-| No body (leaf) | `<slider ...>`, no end tag; `<slider ... />` is also accepted | `input`, `textarea`, `number`, `slider`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `edge`, `anchor`, `range-slider`, `coordinate` |
+| No body (leaf) | `<slider ...>`, no end tag; `<slider ... />` is also accepted | `input`, `textarea`, `number`, `slider`, `range-slider`, `coordinate`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `edge`, `anchor`, `computed`, `const`, `validation`, `column` |
 | Inline | Paired tags with content embedded in a sentence | `badge`, `tooltip`, `jump`, `text` |
 | Container | Paired tags whose content continues to parse as Markdown or child components | The remaining components |
 
@@ -114,7 +116,7 @@ The current declaration table is `src/local/schema.ts`; the tag lexical sets are
 
 ### CP-MODEL-04 Name set (existing)
 
-The 43 names of `local-draft-2` are the complete set for the current syntax. Adding, removing or changing the meaning of a name is an author-visible change and is handled under section 10. Implementations may use undocumented node types internally, but authors can only use the names listed here and in the syntax specification.
+The 48 names of `local-draft-2` are the complete set for the current syntax. Adding, removing or changing the meaning of a name is an author-visible change and is handled under section 10. Implementations may use undocumented node types internally, but authors can only use the names listed here and in the syntax specification.
 
 ## 3. Names, syntax and attributes
 
@@ -161,18 +163,21 @@ Whether `label` is required, optional or not applicable is determined by the com
 
 | Child rule | Allowed content | Current components |
 | --- | --- | --- |
-| No children | No body or child components | Void controls, `progress`, `edge` |
-| Inline content | Inline Markdown, no nested component tags | `option`, `badge`, `tooltip` |
-| Options | One or more `option` | `select`, `choices`, `radio-group` |
+| No children | No body or child components | Void controls, `progress`, `edge`, `anchor`, `computed`, `const`, `validation`, `column` |
+| Inline content | Inline Markdown, no nested component tags | `option`, `badge`, `tooltip`, `jump`, `text` |
+| Options | One or more `option` | `select`, `choices`, `radio-group`, `multi-select`, `quiz` (choice) |
 | Tabs | One or more `tab` | `tabs` |
+| Steps | One or more `step` | `steps` |
 | Disclosures | One or more `disclosure` | `accordion` |
 | Cards | One or more `card` | `grid` |
 | Diagram | One or more `node`, optional `edge` | `diagram` |
 | Table | Exactly one Markdown table | `table`, `chart`, `timeline` |
+| Columns | One to 20 `column` declarations | `data-table` |
 | Formulas | One or more `$$...$$` formula blocks | `plot` |
-| General content | Markdown and components, with component-specific rules | `panel`, `card`, `tab`, `if`, `alert` |
+| Content | A task list or static notes | `checklist`, `node` |
+| General content | Markdown and components, with component-specific rules | `panel`, `card`, `tab`, `step`, `if`, `alert`, `section` |
 
-The `checklist` body must be exactly one level of Markdown task list; `node` notes may contain text interpolation but must not contain interactive components. Compilation fails when a structural child appears under the wrong parent, a container lacks a required child, or a child type does not match.
+The `checklist` body must be exactly one level of Markdown task list; `node` notes may contain text interpolation but must not contain interactive components. A `choice` quiz accepts `option` children and a `number` quiz has an empty body. Compilation fails when a structural child appears under the wrong parent, a container lacks a required child, or a child type does not match.
 
 ### CP-SYNTAX-07 Markdown context (existing)
 
@@ -233,13 +238,17 @@ Without an explicit `initial`, the default is generated according to the compone
 | --- | --- | --- |
 | `empty` | `input`, `textarea`, `date` | Empty string |
 | `false` | `toggle`, `checkbox` | `false` |
-| `min` | `slider` | `min`, default range 0 to 100 |
-| `nearest-zero` | `number`, `counter` | The valid step value within range closest to 0; the smaller value when equidistant |
+| `min` | `slider`; `range-slider.start` | `min`, default range 0 to 100 |
+| `max-step` | `range-slider.end` | The largest valid step not exceeding `max` |
+| `nearest-zero` | `number`, `counter`; `coordinate.x` and `coordinate.y` | The valid step value within range closest to 0; the smaller value when equidistant |
 | `first-option` | Selectors | value of the first option |
+| `empty-array` | `multi-select` | Empty string array |
 | `first-tab` | `tabs` | value of the first tab |
+| `first-step` | `steps` | value of the first step |
 | `first-node` | `diagram` | id of the first node |
 | `checked` | `checklist` | IDs of checked items in the task list |
 | `duration` | `timer` | `duration`, default 60 |
+| `none` | `table`, `chart` selection | Empty string when unselected |
 
 When a shared binding has no explicit initial value, the default of the first component in the source is used, and all members' constraints are validated.
 
@@ -400,7 +409,7 @@ Each `LocalReactiveDocument` instance creates an independent runtime and state. 
 
 ### CP-LIFE-04 SSR and persistence scope (boundary)
 
-Static SSR rendering is covered by the pre-release packed check; hydration is unverified. Document state exists only in the current instance's memory; there is no localStorage, cookie, server write or cross-instance sharing. Persist the original `.reactive.md` source; do not persist `LocalDocument`, `LocalNode`, `node.id`, `LocalSnapshot` or runtime parameter state, whose structure is not guaranteed across versions.
+Static SSR rendering is covered by the pre-release packed check. Single-file export static-first hydration is covered in Playwright Chromium and local Edge; general SSR hydration outside that path is unverified. Document state exists only in the current instance's memory; there is no localStorage, cookie, server write or cross-instance sharing. Persist the original `.reactive.md` source; public parameters may also be exported as a validated `reactive-md-state/v1` file. Do not persist `LocalDocument`, `LocalNode`, `node.id`, `LocalSnapshot` or internal runtime keys, whose structure is not guaranteed across versions.
 
 ## 8. Security and resource budgets
 
@@ -434,6 +443,12 @@ All images are rejected by default, including relative paths; they load only whe
 | Curves per plot component | 16 |
 | Curve sample points requested by the whole document | 20,000 |
 | Shared computation steps for plotting | 2,000,000 |
+| Validation rules per document | 100, including hidden regions |
+| Declared generated rows per `<data-table>` | 1,000 maximum; 100 default |
+| Columns per `<data-table>` | 20 |
+| Document generated row budget | 2,000 |
+| Document generated cell budget | 10,000 |
+| Generated table text | 100,000 UTF-16 code units per table |
 
 Here, characters means UTF-16 code units. Text-control `min-length` / `max-length` and string `len()` count Unicode code points. Writes over a limit are rejected and the runtime keeps the last valid state; compile-time overruns return diagnostics. Expressions and math evaluation have additional length, node, depth and token budgets. See [Diagnostics and counting rules](diagnostics-counting-en.md) for all units and scopes. Hidden regions count toward plotting budgets. Hosts still control request size, concurrency and timeouts.
 
@@ -509,9 +524,9 @@ Editorial changes do not raise the protocol revision. Protocol revisions can shi
 
 ### CP-COMPAT-04 Name governance (required)
 
-- New names must be lowercase kebab-case, semantically clear, and avoid conflicts with the existing 43 names.
+- New names must be lowercase kebab-case, semantically clear, and avoid conflicts with the existing 48 names.
 - Do not use HTML names such as `script`, `style`, `div`, `span` or `a`, and do not use `on-*`, `class` or `style` as author attributes.
-- Within `component-protocol-1`, the existing 43 names are reserved for existing semantics; reusing a name is a breaking change.
+- Within `component-protocol-1`, the existing 48 names are reserved for existing semantics; reusing a name is a breaking change.
 - No implicit aliases. An alias needs its own name, documentation and acceptance evidence.
 - Structural child names and parent constraints are governed together; do not change only the parent component.
 
@@ -563,7 +578,7 @@ The runner must:
 
 `initial` and `reset.expectedState` use partial matching; `bindingNames` checks the complete public binding name set; `text` and `expectedText` must appear in pairs.
 
-The conformance data of this revision should cover representative `slider`, `tabs` and `plot` cases and at least one complete unknown-tag fallback case. It is a representative gate, not full certification of the 43 components.
+The conformance data of this revision should cover representative `slider`, `tabs` and `plot` cases and at least one complete unknown-tag fallback case. It is a representative gate, not full certification of the 48 tag names.
 
 ### CP-ACCEPT-03 Component-level evidence (required)
 
@@ -587,7 +602,7 @@ Component contributions involving the following behavior must provide real brows
 - Screen reader names and dynamic state announcements.
 - Dark theme, theme variable overrides and style isolation.
 
-The currently verified platform is Microsoft Edge (Chromium-based); Linux CI uses Playwright Chromium. Firefox, Safari/WebKit and SSR hydration are unverified.
+Local browser verification has used Microsoft Edge (Chromium-based); Linux CI uses Playwright Chromium. Firefox, Safari/WebKit and general SSR hydration outside the single-file export are unverified.
 
 ### CP-ACCEPT-05 Command gate and exemptions (required)
 
@@ -615,7 +630,7 @@ Only SHOULD clauses can be exempted; exemptions must record the rationale, alter
 
 ### CP-IMPL-02 Current coverage (existing / boundary)
 
-The current implementation covers parsing, declarations, compilation, runtime, React rendering, resource budgets and release checks. Real keyboard input, IME, 375px layout and timer pause require corresponding automated browser checks or manual checks; SSR hydration is unverified. The machine data of `component-protocol-1` is a representative gate, not certification of all 43 components.
+The current implementation covers parsing, declarations, compilation, runtime, React rendering, resource budgets and release checks. Real keyboard input, IME, 375px layout and timer pause require corresponding automated browser checks or manual checks; general SSR hydration outside the single-file export is unverified. The machine data of `component-protocol-1` is a representative gate, not certification of all 48 tag names.
 
 ### CP-IMPL-03 Extension interfaces (boundary)
 
@@ -689,7 +704,7 @@ The tables below are for review. See the [component development guide](component
 
 | Revision | Date | Notes |
 | --- | --- | --- |
-| `component-protocol-1` | 2026-10-23 | Initial version; originally applied to `local-draft-1` and package version `0.3.0`, defining component contribution, acceptance and extension boundaries. |
+| `component-protocol-1` | 2026-10-23 | Initial version; originally applied to `local-draft-1` and package version `0.3.0`, defining component contribution, acceptance and extension boundaries. It now applies to `local-draft-2` and the unreleased `0.4.0` preview without changing its MUST clauses or machine format. |
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist. This checkout is unreleased.

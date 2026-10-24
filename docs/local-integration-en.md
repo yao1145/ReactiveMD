@@ -1,6 +1,6 @@
 # Local mode integration
 
-Local interaction mode uses HTML-style tags, in-place parameters and `{{ expressions }}`. Author rules are in the [beginner guide](local-guide-en.md) and the [syntax specification](local-interaction-syntax-en.md); complete documents are in the [12 examples](../examples/local/README.md). Hosts explicitly select this mode through the `Local` APIs.
+Local interaction mode uses HTML-style tags, in-place parameters and `{{ expressions }}`. Author rules are in the [beginner guide](local-guide-en.md) and the [syntax specification](local-interaction-syntax-en.md); complete documents are in the [example index](../examples/local/README.md). Hosts explicitly select this mode through the `Local` APIs. See [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist.
 
 ## Runtime and entries
 
@@ -10,7 +10,7 @@ Local interaction mode uses HTML-style tags, in-place parameters and `{{ express
 | `reactive-md/react` | `LocalReactiveDocument`, `LocalDocumentView` | React 19 |
 | `reactive-md/styles.css` | Component, theme and document styles | Explicitly imported by the host |
 
-The package ships ESM only. Node.js 22.12+ can be used for development and Node-side compilation and runtime. Edge has completed local interaction verification, and static SSR has passed the standalone installation check; see [Versions and compatibility](compatibility-en.md) for the full matrix. Copyable projects are in [Standalone integration examples](../examples/integration/README.md). For single-file HTML, state files and the standalone browser runtime, see [Shareable documents and static export](shareable-export-en.md).
+The package ships ESM only. Node.js 22.12+ can be used for development and Node-side compilation and runtime. Local browser verification uses Edge; static SSR is covered by the packed check; see [Versions and compatibility](compatibility-en.md) for the full matrix. Copyable projects are in [Standalone integration examples](../examples/integration/README.md). For single-file HTML, state files and the standalone browser runtime, see [Shareable documents and static export](shareable-export-en.md).
 
 ## React
 
@@ -53,6 +53,8 @@ export function Article() {
 Neither component has `className`, `style` or slot props. `LocalReactiveDocument` renders `<article class="md-document local-document">`; `LocalDocumentView` uses the same document container. See below for style overrides.
 
 Each component instance manages in-memory state independently. Changing the source recompiles and starts from initial values; disposing an instance clears subscriptions and timers. To carry values across a source change, use the retention helpers or manage the runtime yourself; see [Keeping values when source changes](#keeping-values-when-source-changes). A panel reset in the document restores its internal parameters, input drafts and component state, and displays of same-name parameters outside the panel update as well.
+
+When a host React root shares a page with the standalone IIFE, give the host root a distinct `identifierPrefix`, for example `createRoot(container, { identifierPrefix: 'host-' })`. The bundles own separate React instances, so their default `useId` counters can overlap. Independent server-rendered roots need matching unique prefixes on the server and client too.
 
 When compilation fails, the component renders a disabled notice and the diagnostics list, and `onDiagnostics` also receives the diagnostics. Local computation errors during runtime are displayed near the corresponding content while the rest keeps updating.
 
@@ -126,8 +128,10 @@ Creates an independent in-memory runtime for a compiled document. Throws if `doc
 | --- | --- | --- | --- |
 | `document` | — | `LocalDocument` | The compiled result used at creation |
 | `snapshot()` | — | `{ revision: number; state: Readonly<Record<string, LocalValue>> }` | Returns the same snapshot object when state is unchanged; state is frozen |
-| `get(node)` | `LocalNode` | `LocalValue` | Reads the value bound to the control; returns `null` for no binding or an unknown node; arrays are copies |
-| `set(node, value)` | `LocalNode`, `LocalValue` | `Diagnostic[]` | Validates all shared controls; returns an empty array and commits once on success; does not increment revision on failure |
+| `get(node, slot?)` | `LocalNode`, optional slot | `LocalValue` | Reads the value bound to the control; `slot` selects `start`/`end` or `x`/`y`; returns `null` for no binding or an unknown node; arrays are copies |
+| `set(node, value, slot?)` | `LocalNode`, `LocalValue`, optional slot | `Diagnostic[]` | Validates all shared controls; returns an empty array and commits once on success; does not increment revision on failure |
+| `setMany(node, values)` | `LocalNode`, slot values | `Diagnostic[]` | Atomically writes several slots of one multi-slot control; invalid batches leave state and revision unchanged |
+| `validate()` | — | `Diagnostic[]` | Returns copies of the current advisory validation failures; does not change or reject state |
 | `parameterNames()` | — | `readonly string[]` | Sorted public binding names; internal `@` bindings excluded |
 | `getParameter(name)` | `string` | `LocalValue \| undefined` | Value of a public binding; `undefined` for unknown or internal names; arrays are copies |
 | `getParameters()` | — | `Readonly<Record<string, LocalValue>>` | Frozen public-only snapshot; internal `@` keys are never included |
@@ -251,7 +255,7 @@ scheduler.schedule(source);
 - State files: `exportLocalState`, `importLocalState`, `createLocalStateFile`, `parseLocalState`, `resolveLocalState`, `applyLocalState` and `serializeLocalState`; `LOCAL_STATE_FORMAT` is `'reactive-md-state/v1'`.
 - Retention: `planLocalStateRetention` and `applyLocalStateRetention`.
 - Background compilation: `LocalCompileScheduler`, `LOCAL_COMPILE_DELAY_MS` and `startLocalCompileWorker`.
-- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
+- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalComputation`, `LocalValidation`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
 
 `compileExpression`, `compileLatex` and `samplePlot` are lower-level utilities with the same stability level as the core API; usually only `compileLocal` and `createLocalRuntime` are needed.
 
@@ -317,7 +321,7 @@ A single string is limited to 100,000 characters, an array to 10,000 items, and 
 
 A single document source is limited to 1,000,000 characters. There are at most 100 diagnostics, and a single message is at most 2,000 characters.
 
-Each plot component has at most 16 curves; the whole document requests at most 20,000 curve sample points, including hidden regions. Plotting computation is also limited by a shared execution budget of 2,000,000 steps. Documents over a limit receive diagnostics; expression and math rendering also have their own depth and token budgets.
+Each plot component has at most 16 curves; the whole document requests at most 20,000 curve sample points, including hidden regions. Plotting computation is also limited by a shared execution budget of 2,000,000 steps. A document has at most 100 validation rules. Generated `data-table` rows, columns and text have per-table and whole-document budgets described in [constraints and collections](constraints-collections-en.md). Documents over a limit receive diagnostics; expression and math rendering also have their own depth and token budgets.
 
 These limits bound the work for a single document; they do not replace host control over request size, concurrency and execution time. See the [security policy](../SECURITY.md) for the full threat boundary.
 
@@ -333,4 +337,4 @@ These limits bound the work for a single document; they do not replace host cont
 Local mode does not provide automatic state persistence or network access, plugins or custom component registration, arbitrary HTML, author CSS, event handlers, external data APIs, form submission, Vue support, React 18 support or a CommonJS entry. State export and import are explicit host calls; the runtime never saves or sends state by itself. `LocalReactiveDocument` still starts from initial values when the source changes; use the retention helpers or supply your own runtime and document. Hosts should not treat these capabilities as configuration options.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 development preview and migration](release-0.4.0-en.md) for the upgrade checklist. This checkout is unreleased.
