@@ -39,7 +39,9 @@ describe('compiler and parser budget boundaries', () => {
     expect(parsed.diagnostics.some((diagnostic) => diagnostic.code === 'local.tag.name')).toBe(true);
   });
 
-  it('rejects a document that exceeds the syntax-node budget instead of crashing', () => {
+  // This exercises the full default 10,000-node boundary. Allow slower CI
+  // runners to finish parsing; the assertions below enforce the safety limit.
+  it('rejects a document that exceeds the syntax-node budget instead of crashing', { timeout: 15_000 }, () => {
     const parsed = parseLocal('<badge>x</badge>\n\n'.repeat(10_001));
     expect(parsed.nodes).toEqual([]);
     expect(parsed.diagnostics.some((diagnostic) => diagnostic.code === 'local.budget')).toBe(true);

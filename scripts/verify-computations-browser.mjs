@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { createServer } from 'vite';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -45,7 +45,7 @@ try {
       const reset = page.getByRole('button', { name: /Restore defaults|Reset/ }).first();
       await reset.click();
       await document.getByText('Invoice: $25.00.', { exact: false }).waitFor();
-      assert.equal(await quantity.inputValue(), '2');
+      await expect(quantity).toHaveValue('2');
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
       assert.deepEqual(errors, []);
       await page.screenshot({ path: fileURLToPath(new URL(`../artifacts/computations-${options.locale}.png`, import.meta.url)), fullPage: true });
