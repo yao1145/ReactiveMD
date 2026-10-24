@@ -3,6 +3,7 @@ dist/
 dist-library/
 dist-standalone/
 .tasks/
+.qoder/
 artifacts/
 *.log
 .npm-cache/
