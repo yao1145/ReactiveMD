@@ -26,7 +26,8 @@
   },
   "type": "module",
   "workspaces": ["demo"],
-  "files": ["dist-library", "README.md", "README-en.md", "README-ch.md", "CONTRIBUTING.md", "CONTRIBUTING-ch.md", "CHANGELOG.md", "CHANGELOG-ch.md", "SECURITY.md", "SECURITY-ch.md", "THIRD_PARTY_NOTICES.md", "docs", "examples"],
+  "files": ["dist-library", "bin", "README.md", "README-en.md", "README-ch.md", "CONTRIBUTING.md", "CONTRIBUTING-ch.md", "CHANGELOG.md", "CHANGELOG-ch.md", "SECURITY.md", "SECURITY-ch.md", "THIRD_PARTY_NOTICES.md", "docs", "examples"],
+  "bin": { "reactive-md": "./bin/reactive-md.mjs" },
   "sideEffects": ["**/*.css"],
   "scripts": {
     "dev": "npm run build:lib && npm run dev --workspace=@reactive-md/demo",
@@ -37,6 +38,7 @@
     "preview": "npm run preview --workspace=@reactive-md/demo",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
+    "lint": "node bin/reactive-md.mjs lint",
     "test:components": "vitest run --config vitest.config.ts tests/component-protocol.test.ts tests/conformance.test.ts",
     "test:demo": "npm run build:lib && npm run test --workspace=@reactive-md/demo",
     "test:browser": "npm run test:browser --workspace=@reactive-md/demo",

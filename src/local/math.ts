@@ -1,4 +1,4 @@
-import type { LocalValue } from './types';
+import type { LocalValue, SourceRange } from './types';
 
 /**
  * Computable LaTeX for local plots.
@@ -788,6 +788,44 @@ function collectDependencies(node: Ast, out: Set<string>): void {
       }
       return;
   }
+}
+
+/** Internal authoring support: only AST variable nodes represent plot reads. */
+export function localLatexReferences(source: string): { name: string; range: SourceRange }[] {
+  // Apply the same source and syntax budgets as evaluation before traversing.
+  compileLatex(source);
+  const ast = new LatexParser(source, lex(source)).parseDocument();
+  const references: { name: string; range: SourceRange }[] = [];
+  const visit = (node: Ast): void => {
+    switch (node.kind) {
+      case 'variable': {
+        if (node.name === 'x' || node.name === 'y') return;
+        const start = node.offset;
+        let end = start + 1;
+        if (source.startsWith('\\mathrm', start)) end = source.indexOf('}', start) + 1;
+        else if (source[start] === '\\') end = start + 1 + node.name.length;
+        references.push({ name: node.name, range: { start, end } });
+        return;
+      }
+      case 'unary': visit(node.operand); return;
+      case 'binary': visit(node.left); visit(node.right); return;
+      case 'abs': visit(node.value); return;
+      case 'call':
+        if (node.base) visit(node.base);
+        if (node.power) visit(node.power);
+        node.args.forEach(visit);
+        return;
+      case 'cases':
+        for (const branch of node.branches) {
+          visit(branch.value);
+          if (branch.when) { visit(branch.when.left); visit(branch.when.right); }
+        }
+        return;
+      case 'number': case 'constant': return;
+    }
+  };
+  visit(ast);
+  return references.sort((a, b) => a.range.start - b.range.start);
 }
 
 /* ------------------------------------------------------------------ */

@@ -2,7 +2,15 @@ import assert from 'node:assert/strict';
 import { statSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { compileLocal, createLocalRuntime, LOCAL_THEME_PROTOCOL, resolveLocalTheme } from 'reactive-md';
+
+// Exercise the installed command entry through Node on every supported platform.
+const cli = spawnSync(process.execPath, [fileURLToPath(new URL('../bin/reactive-md.mjs', import.meta.url)), 'lint', '--json', '-'], {
+  input: '<number bind="n" label="Count">\n\n{{ n }}', encoding: 'utf8', windowsHide: true,
+});
+assert.equal(cli.status, 0, cli.stderr);
+assert.deepEqual(JSON.parse(cli.stdout), [{ file: '<stdin>', ok: true, diagnostics: [] }]);
 
 // Exercise the built public options API, including preservation of defaults.
 assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: 1 } }).ok, false);

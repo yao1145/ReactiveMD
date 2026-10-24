@@ -173,6 +173,9 @@ try {
     'dist-library/reactive-md.css',
     'dist-library/types/index.d.ts',
     'dist-library/types/react/index.d.ts',
+    'bin/reactive-md.mjs',
+    'docs/author-tools-en.md',
+    'docs/author-tools-ch.md',
   ].filter(file => !existsSync(path.join(projectRoot, file)));
   assert.deepEqual(missingBuild, [], `dist-library is incomplete (${missingBuild.join(', ')}); run npm run build first.`);
 
@@ -223,6 +226,12 @@ try {
   assert.deepEqual(Object.keys(installedPkg.dependencies ?? {}), [], 'Installed core package must have no registry dependencies');
   assert.equal(exportTarget(installedPkg, '.'), './dist-library/reactive-md.js');
   assert.equal(exportTarget(installedPkg, './react'), './dist-library/reactive-md-react.js');
+  assert.equal(installedPkg.bin?.['reactive-md']?.replace(/^\.\//, ''), 'bin/reactive-md.mjs');
+  const lintFixture = path.join(coreConsumer, 'lint document.reactive.md');
+  await writeFile(lintFixture, '<number bind="n" label="Count">\n\n{{ n }}');
+  const lint = await run('packed lint command', process.execPath,
+    [path.join(installedCore, installedPkg.bin['reactive-md']), 'lint', '--json', lintFixture], coreConsumer);
+  assert.deepEqual(JSON.parse(lint.stdout), [{ file: lintFixture, ok: true, diagnostics: [] }]);
   const coreTypesTarget = installedPkg.exports?.['.']?.types;
   assert.ok(
     coreTypesTarget && existsSync(path.resolve(installedCore, coreTypesTarget)),
@@ -252,7 +261,7 @@ try {
   await writeFile(
     path.join(coreConsumer, 'core-api.mjs'),
     `import assert from 'node:assert/strict';
-import { compileLocal, createLocalRuntime, LOCAL_SYNTAX_VERSION } from 'reactive-md';
+import { compileLocal, createLocalRuntime, LOCAL_SYNTAX_VERSION, analyzeLocalSource, completeLocalSource, renameLocalBinding, formatLocalSource } from 'reactive-md';
 
 assert.equal(typeof compileLocal, 'function', 'compileLocal must be exported from the core tarball');
 assert.equal(typeof createLocalRuntime, 'function', 'createLocalRuntime must be exported from the core tarball');
@@ -263,6 +272,11 @@ assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
 const runtime = createLocalRuntime(result.document);
 assert.equal(runtime.snapshot().revision, 0);
 runtime.dispose();
+const source = '<number  bind="n"   label="Count">\\n\\n{{ n }}';
+assert.equal(analyzeLocalSource(source).bindings[0].name, 'n');
+assert.ok(completeLocalSource('<sli', 4).some(item => item.label === 'slider'));
+assert.match(renameLocalBinding(source, 'n', 'count').source, /count/);
+assert.ok(compileLocal(formatLocalSource(source)).ok);
 console.log('PASS core API without React');
 `,
   );

@@ -1,3 +1,5 @@
+export { analyzeLocalSource, completeLocalSource, renameLocalBinding, formatLocalSource } from './authoring';
+export type { AuthorToken, AuthorBinding, AuthorAnalysis, AuthorCompletion, AuthorCompletionKind, AuthorRename } from './authoring';
 export { compileLocal } from './compiler';
 export { createLocalRuntime } from './runtime';
 export { compileExpression, LocalExpressionError } from './expression';
