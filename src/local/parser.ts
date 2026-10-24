@@ -3,7 +3,7 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import type { Diagnostic } from './types';
 import type { LocalCompileOptions, LocalNode, SourceRange } from './types';
-import { suggestComponent } from './schema';
+import { localComponentNames, suggestComponent } from './schema';
 import { isLocalThemeName } from './theme';
 import {
   DEFAULT_MAX_LOCAL_SYNTAX_NODES,
@@ -13,9 +13,11 @@ import {
   MAX_LOCAL_STRING_LENGTH,
 } from './limits';
 
-const VOID = new Set('input textarea number slider range-slider coordinate toggle checkbox date counter timer progress edge anchor'.split(' '));
-const PAIRED = new Set('panel card grid tabs tab steps step accordion disclosure if alert badge tooltip select choices radio-group multi-select quiz checklist table chart plot timeline diagram node option jump text section'.split(' '));
-const INLINE = new Set(['badge', 'tooltip', 'jump', 'text']);
+/* Tag shapes come from the component schema; tests/schema-shapes.test.ts
+ * pins the accepted syntax against the original literal lists. */
+const VOID = new Set(localComponentNames('leaf'));
+const PAIRED = new Set([...localComponentNames('container'), ...localComponentNames('inline')]);
+const INLINE = new Set(localComponentNames('inline'));
 const KNOWN = new Set([...VOID, ...PAIRED]);
 /** Private-use sentinels keep source tokens opaque while Markdown is parsed. */
 const MARK_OPEN = String.fromCharCode(0xe000);

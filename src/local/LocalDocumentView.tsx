@@ -561,7 +561,7 @@ interface LocalComponentProps {
   visible: boolean;
 }
 
-const VISUAL_COMPONENTS = new Set(['table', 'chart', 'plot', 'timeline', 'diagram']);
+export const VISUAL_COMPONENTS = new Set(['table', 'chart', 'plot', 'timeline', 'diagram']);
 
 function safeUrl(
   raw: string | undefined,
@@ -3282,7 +3282,9 @@ function StepView() {
   return null;
 }
 
-const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNode> = {
+/* Exported for registry-coverage tests only; package entry points do not
+ * re-export these registries. */
+export const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNode> = {
   panel: PanelView,
   card: CardView,
   grid: GridView,
