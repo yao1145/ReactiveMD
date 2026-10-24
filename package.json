@@ -45,7 +45,9 @@
     "test:packed": "node scripts/verify-packed.mjs",
     "test:docs": "node scripts/verify-docs.mjs",
     "test:theme-browser": "node scripts/verify-theme-browser.mjs",
+    "verify:memo": "node scripts/verify-memo-browser.mjs",
     "benchmark": "node scripts/benchmark.mjs",
+    "benchmark:stages": "node scripts/benchmark-stages.mjs",
     "notices": "node scripts/generate-notices.mjs",
     "prepack": "npm run build && npm run notices"
   },
