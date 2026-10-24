@@ -44,7 +44,11 @@ function onStep(value: number, base: number, step: number): boolean {
 
 function freezeState(state: Record<string, LocalValue>): Readonly<Record<string, LocalValue>> {
   for (const [key, value] of Object.entries(state)) {
-    if (Array.isArray(value)) state[key] = Object.freeze([...value]) as unknown as LocalValue;
+    // Already-frozen arrays keep their identity across commits, so dependency
+    // slices compare equal for bindings a write did not touch.
+    if (Array.isArray(value) && !Object.isFrozen(value)) {
+      state[key] = Object.freeze([...value]) as unknown as LocalValue;
+    }
   }
   return Object.freeze(state);
 }

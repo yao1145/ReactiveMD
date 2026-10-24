@@ -1171,3 +1171,20 @@ export function expressionValue(template: string, env: Record<string, LocalValue
   }
   return renderParts(parts, env);
 }
+
+/**
+ * Binding keys read by the `{{ }}` expressions of a template, deduplicated in
+ * first-occurrence order. Malformed templates or expressions throw; callers
+ * that only need a static scan treat a throw as undecidable.
+ */
+export function templateDependencies(template: string): string[] {
+  if (typeof template !== 'string') {
+    throw new LocalExpressionError('expression-interpolation', 'Interpolation template must be a string.', 0);
+  }
+  const dependencies = new Set<string>();
+  for (const part of splitTemplate(template)) {
+    if (part.kind !== 'expression') continue;
+    for (const name of compilePart(part).dependencies) dependencies.add(name);
+  }
+  return [...dependencies];
+}
