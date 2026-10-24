@@ -14,6 +14,8 @@ export {
   parseLocalState,
   resolveLocalState,
   applyLocalState,
+  exportLocalState,
+  importLocalState,
   serializeLocalState,
 } from './state';
 export type {
@@ -22,3 +24,26 @@ export type {
   LocalStateParseResult,
   LocalStateResolution,
 } from './state';
+export { planLocalStateRetention, applyLocalStateRetention } from './retention';
+export type {
+  LocalStateRetentionReason,
+  LocalStateRetentionDrop,
+  LocalStateRetentionInput,
+  LocalRetainedState,
+  LocalStateRetentionResult,
+} from './retention';
+export {
+  LOCAL_COMPILE_DELAY_MS,
+  LocalCompileScheduler,
+  compileFailureDiagnostic,
+  startLocalCompileWorker,
+} from './worker';
+export type {
+  LocalCompileRequest,
+  LocalCompileResponse,
+  LocalCompileWorker,
+  LocalCompileMode,
+  LocalCompileOutcome,
+  LocalCompileSchedulerOptions,
+  LocalCompileWorkerScope,
+} from './worker';

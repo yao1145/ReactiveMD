@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactive MD worker compilation</title>
+  </head>
+  <body>
+    <main>
+      <h1>Worker compilation</h1>
+      <p>Edit the source; compilation is debounced and runs in a module Worker, falling back to the main thread if needed.</p>
+      <textarea id="source" rows="12" cols="80" spellcheck="false"></textarea>
+      <p id="status">Starting...</p>
+      <pre id="diagnostics"></pre>
+      <pre id="preview"></pre>
+    </main>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

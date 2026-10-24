@@ -70,13 +70,26 @@ A state file has this versioned shape:
 }
 ```
 
-Only public, serializable binding values are stored. Internal bindings (names beginning with `@`), revisions, node IDs, AST data, timers, open panels and focus are never persisted.
+Only public, serializable binding values are stored. The file identifies the document through `sourceDigest` and the language revision through `syntax`. Internal bindings (names beginning with `@`), revisions, node IDs, AST data, timers, open panels and focus are never persisted; internal snapshot keys and IDs are implementation details, not a storage format.
 
 Resolution verifies the source digest, syntax revision, exact public parameter set and every value against the document's constraints. Unknown, missing or invalid parameters reject the file with a named diagnostic; a mismatched file is never partially applied. Slot controls such as `<range-slider>` are validated atomically.
 
 The selected state becomes the document's reset baseline. Opening, refreshing and the panel reset action therefore return to the exported values, not to a different hidden default.
 
-The demo's export dialog can download the current preview parameters as a state file for a later CLI build. Hosts can also use `createLocalStateFile` and `serializeLocalState` from `reactive-md`.
+Hosts can create and apply the same file without the CLI:
+
+```ts
+import { exportLocalState, importLocalState } from 'reactive-md';
+
+const file = exportLocalState(runtime, { name: 'example-host', version: '1.0.0' });
+const saved = JSON.stringify(file);
+
+const diagnostics = importLocalState(runtime, saved);
+```
+
+`exportLocalState` reads public parameters only. `importLocalState` validates the source digest, syntax, parameter set and constraints, then applies the values; a failed import leaves the runtime unchanged. Both are explicit host calls: the runtime still does not save or send state by itself. Use `resolveLocalState(document, input)` to validate without touching a live runtime.
+
+The demo's export dialog can download the current preview parameters as a state file for a later CLI build. The lower-level `createLocalStateFile`, `parseLocalState`, `applyLocalState` and `serializeLocalState` remain available from `reactive-md`.
 
 ## Images
 
@@ -156,7 +169,7 @@ The element uses Light DOM so the existing document CSS, heading anchors and pri
 
 - Core and React entry points keep React external. Only the standalone IIFE bundles React.
 - The core entry remains React-free.
-- State import accepts only public binding names and validated values.
+- State export and import use only public binding names and validated values.
 - Exported HTML does not persist a reader's changes.
 - The demo preview still blocks images unless a host policy is supplied; the demo export dialog disables HTML export when a document contains images because it has no asset root. Use the CLI for image-bearing documents.
 - The export format version is `reactive-md-html/v1`; inspect it in the generated meta tags.

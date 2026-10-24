@@ -262,10 +262,28 @@ try {
   await writeFile(
     path.join(coreConsumer, 'core-api.mjs'),
     `import assert from 'node:assert/strict';
-import { compileLocal, createLocalRuntime, LOCAL_SYNTAX_VERSION } from 'reactive-md';
+import {
+  applyLocalStateRetention,
+  compileLocal,
+  createLocalRuntime,
+  exportLocalState,
+  importLocalState,
+  LOCAL_COMPILE_DELAY_MS,
+  LOCAL_SYNTAX_VERSION,
+  LocalCompileScheduler,
+  planLocalStateRetention,
+  startLocalCompileWorker,
+} from 'reactive-md';
 
 assert.equal(typeof compileLocal, 'function', 'compileLocal must be exported from the core tarball');
 assert.equal(typeof createLocalRuntime, 'function', 'createLocalRuntime must be exported from the core tarball');
+assert.equal(typeof exportLocalState, 'function', 'exportLocalState must be exported from the core tarball');
+assert.equal(typeof importLocalState, 'function', 'importLocalState must be exported from the core tarball');
+assert.equal(typeof planLocalStateRetention, 'function', 'planLocalStateRetention must be exported from the core tarball');
+assert.equal(typeof applyLocalStateRetention, 'function', 'applyLocalStateRetention must be exported from the core tarball');
+assert.equal(typeof LocalCompileScheduler, 'function', 'LocalCompileScheduler must be exported from the core tarball');
+assert.equal(typeof startLocalCompileWorker, 'function', 'startLocalCompileWorker must be exported from the core tarball');
+assert.equal(LOCAL_COMPILE_DELAY_MS, 150);
 assert.equal(LOCAL_SYNTAX_VERSION, 'local-draft-2');
 
 const result = compileLocal('# Packed core');
@@ -288,11 +306,19 @@ console.log('PASS core API without React');
   await writeFile(
     path.join(coreConsumer, 'core-types.ts'),
     `import {
+  applyLocalStateRetention,
   compileLocal,
   createLocalRuntime,
+  exportLocalState,
+  importLocalState,
+  LOCAL_COMPILE_DELAY_MS,
   LOCAL_SYNTAX_VERSION,
+  LocalCompileScheduler,
+  planLocalStateRetention,
+  startLocalCompileWorker,
   type LocalCompileResult,
   type LocalRuntime,
+  type LocalStateFile,
 } from 'reactive-md';
 
 const result: LocalCompileResult = compileLocal('# Packed types');
@@ -300,9 +326,21 @@ if (!result.ok) {
   throw new Error(JSON.stringify(result.diagnostics));
 }
 const runtime: LocalRuntime = createLocalRuntime(result.document);
+const file: LocalStateFile = exportLocalState(runtime, { name: 'packed-types', version: '1' });
+const plan = planLocalStateRetention({
+  previous: runtime.document,
+  state: runtime.snapshot().state,
+  next: runtime.document,
+});
+applyLocalStateRetention(runtime, plan);
+importLocalState(runtime, file);
 runtime.dispose();
 const version: 'local-draft-2' = LOCAL_SYNTAX_VERSION;
+const delay: number = LOCAL_COMPILE_DELAY_MS;
 void version;
+void delay;
+void LocalCompileScheduler;
+void startLocalCompileWorker;
 `,
   );
   const tsPackage = require.resolve('typescript/package.json');

@@ -3,14 +3,21 @@ import { statSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import {
+  LOCAL_COMPILE_DELAY_MS,
   LOCAL_STATE_FORMAT,
   LOCAL_THEME_PROTOCOL,
   SHAREABLE_HTML_FORMAT,
+  LocalCompileScheduler,
+  applyLocalStateRetention,
   compileLocal,
   createLocalRuntime,
   createLocalStateFile,
   createShareableHtml,
+  exportLocalState,
+  importLocalState,
+  planLocalStateRetention,
   resolveLocalTheme,
+  startLocalCompileWorker,
 } from 'reactive-md';
 
 // Exercise the built public options API, including preservation of defaults.
@@ -45,6 +52,37 @@ const shell = createShareableHtml({
 assert.ok(shell.startsWith('<!doctype html>'));
 assert.ok(shell.includes('reactive-md-html/v1'));
 assert.ok(!shell.includes('<script'));
+
+// Name-based state and source-edit retention are available from the built core entry.
+const stateSource = '<number bind="count" label="Count" initial="2" min="0" max="10">';
+const stateDocument = compileLocal(stateSource);
+assert.equal(stateDocument.ok, true);
+const liveState = createLocalRuntime(stateDocument.document);
+assert.deepEqual(liveState.parameterNames(), ['count']);
+assert.equal(liveState.getParameter('count'), 2);
+assert.deepEqual(liveState.setParameters({ count: 4 }), []);
+const exported = exportLocalState(liveState, { name: 'package-test', version: '1' });
+assert.equal(exported.parameters.count, 4);
+assert.ok(!Object.keys(exported.parameters).some(name => name.startsWith('@')));
+liveState.setParameter('count', 1);
+assert.deepEqual(importLocalState(liveState, JSON.stringify(exported)), []);
+assert.equal(liveState.getParameter('count'), 4);
+const revised = compileLocal(`${stateSource}\n\nRevised prose`);
+assert.equal(revised.ok, true);
+const retention = planLocalStateRetention({
+  previous: stateDocument.document,
+  state: liveState.snapshot().state,
+  next: revised.document,
+});
+assert.deepEqual(retention.retained, ['count']);
+const nextState = createLocalRuntime(revised.document);
+assert.deepEqual(applyLocalStateRetention(nextState, retention).diagnostics, []);
+assert.equal(nextState.getParameter('count'), 4);
+nextState.dispose();
+liveState.dispose();
+assert.equal(LOCAL_COMPILE_DELAY_MS, 150);
+assert.equal(typeof LocalCompileScheduler, 'function');
+assert.equal(typeof startLocalCompileWorker, 'function');
 
 // This import and compilation run in Node without DOM or React rendering.
 for (const name of (await readdir('examples/local')).filter(name => name.endsWith('.reactive.md'))) {

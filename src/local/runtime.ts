@@ -62,6 +62,17 @@ function diagnosticFor(document: LocalDocument, node: LocalNode, code: string, m
   };
 }
 
+function parameterDiagnostic(code: string, message: string): Diagnostic {
+  return {
+    code,
+    message,
+    severity: 'error',
+    range: { start: 0, end: 0 },
+    line: 1,
+    column: 1,
+  };
+}
+
 function rawAttr(node: LocalNode, name: string): string | undefined {
   return node.attrs?.[name];
 }
@@ -228,6 +239,21 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     slotKeys.set(id, { ...slots });
   }
 
+  const publicNames = Object.freeze(
+    Object.keys(document.bindings).filter((key) => !key.startsWith('@')).sort(),
+  );
+
+  /** Public slot binding key -> ids of the components that own it. */
+  const publicSlotOwners = new Map<string, Set<string>>();
+  for (const [id, slots] of slotKeys) {
+    for (const key of Object.values(slots)) {
+      if (key.startsWith('@')) continue;
+      const owners = publicSlotOwners.get(key) ?? new Set<string>();
+      owners.add(id);
+      publicSlotOwners.set(key, owners);
+    }
+  }
+
   /** Reject a range whose start would cross its end before any commit. */
   const slotRelationError = (nodeId: string, next: Record<string, LocalValue>): string | null => {
     const slots = slotKeys.get(nodeId);
@@ -256,6 +282,66 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     revision += 1;
     snapshot = { revision, state: freezeState({ ...next }) };
     for (const listener of listeners) listener();
+  };
+
+  const valueDiagnostic = (binding: LocalBinding, message: string): Diagnostic => {
+    const node = (controls.get(binding.name) ?? [])[0]
+      ?? (binding.owner ? nodeIndex.get(binding.owner) : undefined)
+      ?? (binding.nodeIds[0] ? nodeIndex.get(binding.nodeIds[0]) : undefined);
+    return node
+      ? diagnosticFor(document, node, 'local.runtime.value', message)
+      : parameterDiagnostic('local.runtime.value', message);
+  };
+
+  const writeParameters = (values: Readonly<Record<string, LocalValue>>): Diagnostic[] => {
+    ensure();
+    const diagnostics: Diagnostic[] = [];
+    const normalized: Record<string, LocalValue> = {};
+    const keys = Object.keys(values).sort();
+    for (const key of keys) {
+      if (key === '__proto__') {
+        diagnostics.push(parameterDiagnostic('local.runtime.parameter', 'Parameter names cannot be "__proto__".'));
+        continue;
+      }
+      if (key.startsWith('@')) {
+        diagnostics.push(parameterDiagnostic('local.runtime.parameter', `Internal parameter "${key}" cannot be written by name.`));
+        continue;
+      }
+      if (!Object.hasOwn(document.bindings, key)) {
+        diagnostics.push(parameterDiagnostic('local.runtime.parameter', `Unknown parameter "${key}".`));
+        continue;
+      }
+      const binding = document.bindings[key];
+      const result = validateValue(binding, controls.get(key) ?? [], values[key]);
+      if (!result.ok) {
+        diagnostics.push(valueDiagnostic(binding, result.message));
+        continue;
+      }
+      normalized[key] = cloneValue(result.value);
+    }
+    if (diagnostics.length) return diagnostics;
+
+    const changed = keys.some((key) => !valuesEqual(state[key], normalized[key]));
+    if (!changed) return [];
+
+    const next: Record<string, LocalValue> = { ...state, ...normalized };
+    const affected = new Set<string>();
+    for (const key of keys) {
+      for (const nodeId of publicSlotOwners.get(key) ?? []) affected.add(nodeId);
+    }
+    for (const nodeId of [...affected].sort()) {
+      const crossing = slotRelationError(nodeId, next);
+      if (crossing) {
+        const node = nodeIndex.get(nodeId);
+        diagnostics.push(node
+          ? diagnosticFor(document, node, 'local.runtime.value', crossing)
+          : parameterDiagnostic('local.runtime.value', crossing));
+      }
+    }
+    if (diagnostics.length) return diagnostics;
+
+    commit(next);
+    return [];
   };
 
   const compile = (expression: string): LocalExpression => {
@@ -369,6 +455,42 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       if (entries.every(([slot, value]) => valuesEqual(state[slots[slot]], value))) return [];
       commit(next);
       return [];
+    },
+
+    parameterNames(): readonly string[] {
+      ensure();
+      return publicNames;
+    },
+
+    getParameter(name: string): LocalValue | undefined {
+      ensure();
+      if (name.startsWith('@') || !Object.hasOwn(document.bindings, name)) return undefined;
+      return Object.hasOwn(state, name) ? cloneValue(state[name]) : undefined;
+    },
+
+    getParameters(): Readonly<Record<string, LocalValue>> {
+      ensure();
+      const values: Record<string, LocalValue> = {};
+      for (const name of publicNames) {
+        const value = state[name];
+        values[name] = Array.isArray(value) ? Object.freeze([...value]) as unknown as LocalValue : value;
+      }
+      return Object.freeze(values);
+    },
+
+    setParameter(name: string, value: LocalValue): Diagnostic[] {
+      ensure();
+      const values: Record<string, LocalValue> = Object.create(null);
+      values[name] = value;
+      return writeParameters(values);
+    },
+
+    setParameters(values: Readonly<Record<string, LocalValue>>): Diagnostic[] {
+      ensure();
+      if (values === null || typeof values !== 'object' || Array.isArray(values)) {
+        throw new TypeError('setParameters requires an object of parameter values.');
+      }
+      return writeParameters(values);
     },
 
     evaluate(expression: string): LocalValue {

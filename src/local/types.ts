@@ -81,6 +81,16 @@ export interface LocalRuntime {
   set(node: LocalNode, value: LocalValue, slot?: string): Diagnostic[];
   /** Atomically write multiple slots of one multi-slot component. */
   setMany(node: LocalNode, values: Readonly<Record<string, LocalValue>>): Diagnostic[];
+  /** Sorted public binding names; internal @... bindings are excluded. */
+  parameterNames(): readonly string[];
+  /** Read a public parameter by binding name. Returns undefined for unknown/internal names. */
+  getParameter(name: string): LocalValue | undefined;
+  /** Snapshot of all public parameters; internal @... bindings are excluded. */
+  getParameters(): Readonly<Record<string, LocalValue>>;
+  /** Validate and atomically write one public parameter. */
+  setParameter(name: string, value: LocalValue): Diagnostic[];
+  /** Validate and atomically write one or more public parameters. */
+  setParameters(values: Readonly<Record<string, LocalValue>>): Diagnostic[];
   evaluate(expression: string): LocalValue;
   text(template: string): string;
   reset(node: LocalNode): void;

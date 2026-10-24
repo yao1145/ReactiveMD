@@ -6,6 +6,9 @@
 
 - 增加文档开头的 `<theme name="…">` 声明、宿主主题登记和 `reactive-md-theme-1` 主题协议。两个 React 组件支持独立深浅模式和系统偏好；现有外观保留为 `default`。见[主题协议](docs/theme-protocol-ch.md)。
 - 新增可分享单文件 HTML 导出：`reactive-md build`/`lint` CLI、交互与静态模式、静态首屏水合、可打印的当前值、版本化 `reactive-md-state/v1` 状态文件、经过校验的本地位图内联、standalone `ReactiveMD.mount`/`mountAll` IIFE 和 `<reactive-md-doc>`。见[可分享文档与静态导出](docs/shareable-export-ch.md)。
+- 新增宿主状态 API：`LocalRuntime` 可按名称访问公开参数（`parameterNames`、`getParameter`、`getParameters`、`setParameter`、`setParameters`），并提供 `exportLocalState`/`importLocalState` 读写 `reactive-md-state/v1` 状态文件。写入先统一校验再一次性提交，失败时不改变状态。
+- 新增源码变更时的参数保留工具：`planLocalStateRetention` 和 `applyLocalStateRetention` 仅保留类型与初始定义未变、绑定可安全保留的公开参数；匿名 `@` 绑定、计时器和位置清单会被丢弃，被拒绝的值会记录原因。
+- 新增可选的后台编译适配器：`LocalCompileScheduler` 提供 150 ms 防抖、一个进行中任务加最新源码、永久回退到主线程 `compileLocal`，并新增 `startLocalCompileWorker`；回退失败使用 `local.worker.compile` 诊断码。
 
 ### 0.4.0 开发预览（local-draft-2）
 

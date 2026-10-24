@@ -1,19 +1,13 @@
 import {
+  applyLocalStateRetention,
   createLocalRuntime,
-  type LocalBinding,
+  planLocalStateRetention,
   type LocalDocument,
-  type LocalNode,
   type LocalValue,
 } from 'reactive-md';
 
-interface RetainedBinding {
-  node: LocalNode;
-  type: LocalBinding['type'];
-  initialDefinition: string;
-}
-
 interface SavedPreview {
-  bindings: Map<string, RetainedBinding>;
+  document: LocalDocument;
   state: Readonly<Record<string, LocalValue>>;
   /** Source of the document this snapshot was captured from. */
   source: string;
@@ -22,38 +16,6 @@ interface SavedPreview {
 interface ActivePreview {
   token: object;
   source: string;
-}
-
-function retainableBindings(document: LocalDocument): Map<string, RetainedBinding> {
-  const nodeIndex = new Map<string, LocalNode>();
-  const collect = (nodes: LocalNode[]) => {
-    for (const node of nodes) {
-      nodeIndex.set(node.id, node);
-      if (node.children) collect(node.children);
-    }
-  };
-  collect(document.nodes);
-
-  const result = new Map<string, RetainedBinding>();
-  for (const [name, binding] of Object.entries(document.bindings)) {
-    const controls = binding.nodeIds.flatMap((id) => nodeIndex.get(id) ?? []);
-    // Checklist ids are positional, and a timer also owns running/paused UI
-    // state. Start both afresh rather than reinterpret an old trial value.
-    if (!controls.length || name.startsWith('@') || controls.some((node) => (
-      node.attrs?.bind !== name || node.name === 'timer' || node.name === 'checklist'
-    ))) continue;
-    const explicitInitials = controls.flatMap((node) => (
-      Object.hasOwn(node.attrs ?? {}, 'initial') ? [node.attrs!.initial] : []
-    )).sort();
-    result.set(name, {
-      node: controls[0],
-      type: binding.type,
-      // Include the explicit definition as well as the effective default, so
-      // adding/removing initial="0" still expresses an author-requested reset.
-      initialDefinition: JSON.stringify([binding.initial, explicitInitials]),
-    });
-  }
-  return result;
 }
 
 /** A single Playground trial session. It never writes to browser storage. */
@@ -86,22 +48,21 @@ export class PreviewStateSession {
 
   open(document: LocalDocument) {
     const runtime = createLocalRuntime(document);
-    const bindings = retainableBindings(document);
     if (this.retention && this.saved) {
-      for (const [name, target] of bindings) {
-        const previous = this.saved.bindings.get(name);
-        if (!previous || previous.type !== target.type || previous.initialDefinition !== target.initialDefinition) continue;
-        if (!Object.hasOwn(this.saved.state, name)) continue;
-        // set() applies every new/shared control constraint atomically. An
-        // invalid candidate leaves the new document's initial value in place.
-        runtime.set(target.node, this.saved.state[name]);
-      }
+      // plan/apply validate every value against the new document and write
+      // atomically, leaving the new initial values in place when a candidate
+      // is stale or no longer valid.
+      applyLocalStateRetention(runtime, planLocalStateRetention({
+        previous: this.saved.document,
+        state: this.saved.state,
+        next: document,
+      }));
     }
     const token = {};
     this.active = { token, source: document.source };
     const capture = () => {
       if (this.active?.token === token) {
-        this.saved = { bindings, state: runtime.snapshot().state, source: document.source };
+        this.saved = { document, state: runtime.snapshot().state, source: document.source };
       }
     };
     capture();

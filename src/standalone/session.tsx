@@ -7,12 +7,12 @@ import {
 import type { LocalLocale } from '../local/locale';
 import { createLocalRuntime } from '../local/runtime';
 import {
-  createLocalStateFile,
+  exportLocalState,
   type LocalStateFile,
   type LocalStateGenerator,
 } from '../local/state';
 import type { LocalColorScheme, LocalThemeDefinition } from '../local/theme';
-import type { Diagnostic, LocalDocument, LocalRuntime } from '../local/types';
+import type { Diagnostic, LocalRuntime } from '../local/types';
 import { diagnosticsFromError, errorText, ReactiveMDMountError, standaloneDiagnostic } from './diagnostics';
 import { REACTIVE_MD_DIAGNOSTICS_EVENT } from './events';
 import { parseMountPayload } from './payload';
@@ -80,11 +80,10 @@ export function isReactiveMDMounted(element: HTMLElement): boolean {
 }
 
 function captureState(
-  document: LocalDocument,
   runtime: LocalRuntime,
   generator: LocalStateGenerator,
 ): LocalStateFile {
-  return createLocalStateFile(document, runtime.snapshot().state, generator);
+  return exportLocalState(runtime, generator);
 }
 
 function safeInvoke(callback: (() => void) | undefined): void {
@@ -178,7 +177,7 @@ export function createStandaloneMount(
   const urlPolicy = options.urlPolicy ?? embeddedImages.urlPolicy;
   const imageResolver = options.imageResolver ?? embeddedImages.imageResolver;
 
-  const capture = (): LocalStateFile => captureState(prepared.document, runtime, generator);
+  const capture = (): LocalStateFile => captureState(runtime, generator);
 
   let initialState: LocalStateFile;
   try {

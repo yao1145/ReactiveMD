@@ -19,6 +19,12 @@ it('loads the core entry without touching React', async () => {
     expect(typeof core.compileLocal).toBe('function');
     expect(typeof core.createLocalRuntime).toBe('function');
     expect(typeof core.createLocalStateFile).toBe('function');
+    expect(typeof core.exportLocalState).toBe('function');
+    expect(typeof core.importLocalState).toBe('function');
+    expect(typeof core.planLocalStateRetention).toBe('function');
+    expect(typeof core.applyLocalStateRetention).toBe('function');
+    expect(typeof core.LocalCompileScheduler).toBe('function');
+    expect(typeof core.startLocalCompileWorker).toBe('function');
     expect(typeof core.createShareableHtml).toBe('function');
   } finally {
     vi.doUnmock('react');

@@ -1,4 +1,5 @@
-import type { Diagnostic, LocalCompileResult } from 'reactive-md';
+import { compileLocal } from './compiler';
+import type { Diagnostic, LocalCompileResult } from './types';
 
 /** Editors are coalesced for this long before a compile is dispatched. */
 export const LOCAL_COMPILE_DELAY_MS = 150;
@@ -13,15 +14,15 @@ export type LocalCompileResponse =
   | { id: number; ok: false; message: string };
 
 /**
- * The small surface the scheduler needs from a Worker. Keeping it structural
- * lets tests drive fake workers and keeps the React hook out of the scheduler.
+ * The small surface the scheduler needs from a Worker. Events stay untyped so
+ * the core declarations compile without the DOM library.
  */
 export interface LocalCompileWorker {
   postMessage(message: LocalCompileRequest): void;
   terminate(): void;
-  onmessage: ((event: MessageEvent<LocalCompileResponse>) => void) | null;
-  onerror: ((event: ErrorEvent) => void) | null;
-  onmessageerror: ((event: Event) => void) | null;
+  onmessage: ((event: any) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onmessageerror: ((event: any) => void) | null;
 }
 
 export type LocalCompileMode = 'worker' | 'fallback';
@@ -35,8 +36,8 @@ export interface LocalCompileOutcome {
 
 export interface LocalCompileSchedulerOptions {
   createWorker(): LocalCompileWorker;
-  /** Runs on the main thread only when the worker is unavailable or has failed. */
-  fallbackCompile(source: string): LocalCompileResult;
+  /** Defaults to compileLocal. Runs on the main thread only when the worker is unavailable or failed. */
+  fallbackCompile?(source: string): LocalCompileResult;
   onResult(outcome: LocalCompileOutcome): void;
   onPendingChange?(pending: boolean): void;
   onModeChange?(mode: LocalCompileMode, detail?: string): void;
@@ -57,7 +58,7 @@ function safeDuration(value: number): number {
 
 export function compileFailureDiagnostic(error: unknown): Diagnostic {
   return {
-    code: 'demo.compiler',
+    code: 'local.worker.compile',
     message: `Compilation failed: ${messageOf(error)}`,
     severity: 'error',
     range: { start: 0, end: 0 },
@@ -171,7 +172,8 @@ export class LocalCompileScheduler {
     const started = now();
     let result: LocalCompileResult;
     try {
-      result = this.options.fallbackCompile(source);
+      const fallbackCompile = this.options.fallbackCompile ?? compileLocal;
+      result = fallbackCompile(source);
     } catch (error) {
       result = { ok: false, diagnostics: [compileFailureDiagnostic(error)] };
     }
@@ -273,4 +275,43 @@ export class LocalCompileScheduler {
       this.timer = null;
     }
   }
+}
+
+export interface LocalCompileWorkerScope {
+  onmessage: ((event: any) => void) | null;
+  postMessage(message: LocalCompileResponse): void;
+}
+
+function postFailure(scope: LocalCompileWorkerScope, id: number, message: string): void {
+  try {
+    scope.postMessage({ id, ok: false, message });
+  } catch {
+    /* A scope that cannot receive the failure response is already broken. */
+  }
+}
+
+/** Install the worker-side compile handler on a DedicatedWorkerGlobalScope-like object. */
+export function startLocalCompileWorker(scope?: LocalCompileWorkerScope): void {
+  const target = scope === undefined ? (globalThis as unknown as LocalCompileWorkerScope) : scope;
+  if (!target || typeof target.postMessage !== 'function') {
+    throw new TypeError('startLocalCompileWorker requires a worker scope with postMessage');
+  }
+  target.onmessage = (event) => {
+    const request = event?.data;
+    if (!request || typeof request.id !== 'number' || typeof request.source !== 'string') return;
+
+    const started = now();
+    try {
+      const result = compileLocal(request.source);
+      const duration = safeDuration(now() - started);
+      try {
+        target.postMessage({ id: request.id, ok: true, result, duration });
+      } catch (error) {
+        // The result itself may not be cloneable; report the failure instead.
+        postFailure(target, request.id, `Could not return the compile result: ${messageOf(error)}`);
+      }
+    } catch (error) {
+      postFailure(target, request.id, messageOf(error));
+    }
+  };
 }

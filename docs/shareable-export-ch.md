@@ -68,13 +68,26 @@ CLI 没有“当前预览”概念，只有 `--state-file` 可以选择非初值
 }
 ```
 
-只保存公开、可序列化的绑定值。`@` 开头的内部绑定、revision、节点 ID、AST、计时器、展开状态和焦点都不会写入。
+只保存公开、可序列化的绑定值。文件通过 `sourceDigest` 标识文档，通过 `syntax` 记录语言修订。`@` 开头的内部绑定、revision、节点 ID、AST、计时器、展开状态和焦点都不会写入；内部快照键和 ID 属于实现细节，不是存储格式。
 
 恢复时按源码摘要、语法版本、参数集合和槽位约束逐项校验。未知、缺失或非法参数会报告具体名称并拒绝整个文件，不会部分应用。`range-slider` 等双槽组件按原子写入规则校验。
 
 选中的状态同时成为重置基线。因此打开、刷新和面板重置都会回到导出值，而不是另一个隐藏的默认值。
 
-Demo 导出对话框可以把当前预览参数下载为状态文件，供后续 CLI 构建使用。宿主也可以使用 `reactive-md` 中的 `createLocalStateFile` 和 `serializeLocalState`。
+宿主可以不经过 CLI 生成和应用同一格式：
+
+```ts
+import { exportLocalState, importLocalState } from 'reactive-md';
+
+const file = exportLocalState(runtime, { name: 'example-host', version: '1.0.0' });
+const saved = JSON.stringify(file);
+
+const diagnostics = importLocalState(runtime, saved);
+```
+
+`exportLocalState` 只读取公开参数。`importLocalState` 校验源码摘要、语法、参数集合和槽位约束后应用；导入失败时运行时状态不变。两者都是宿主显式调用，运行时本身仍不会保存或发送状态。只做校验、不改动运行中实例时使用 `resolveLocalState(document, input)`。
+
+Demo 导出对话框可以把当前预览参数下载为状态文件，供后续 CLI 构建使用。较低层的 `createLocalStateFile`、`parseLocalState`、`applyLocalState` 和 `serializeLocalState` 仍可从 `reactive-md` 使用。
 
 ## 图片
 
@@ -154,7 +167,7 @@ IIFE 会注册一个 Light DOM 自定义元素。简单选项通过属性传递�
 
 - 核心与 React 入口继续保持 React external；只有 standalone IIFE 打包 React。
 - 核心入口仍不加载 React。
-- 状态导入只接受公开绑定名和经过校验的值。
+- 状态导出与导入只使用公开绑定名和经过校验的值。
 - 读者修改不会持久化到导出文件。
 - Demo 预览仍按默认策略阻止图片；Demo 没有资源根，因此文档包含图片时会禁用 HTML 导出。含图文档请使用 CLI。
 - 导出格式版本为 `reactive-md-html/v1`，可从生成的 meta 标签检查。

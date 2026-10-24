@@ -1,14 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LocalCompileResult } from 'reactive-md';
 import {
   LOCAL_COMPILE_DELAY_MS,
   LocalCompileScheduler,
-  type LocalCompileMode,
-  type LocalCompileOutcome,
-  type LocalCompileRequest,
-  type LocalCompileResponse,
-  type LocalCompileWorker,
-} from '../src/local-compile-scheduler';
+} from 'reactive-md';
+import type {
+  LocalCompileMode,
+  LocalCompileOutcome,
+  LocalCompileRequest,
+  LocalCompileResponse,
+  LocalCompileResult,
+  LocalCompileWorker,
+} from 'reactive-md';
 
 function okResult(source: string): LocalCompileResult {
   return {
@@ -143,7 +145,7 @@ describe('LocalCompileScheduler', () => {
     expect(outcome.source).toBe('broken');
     expect(outcome.result.ok).toBe(false);
     if (outcome.result.ok) return;
-    expect(outcome.result.diagnostics[0].code).toBe('demo.compiler');
+    expect(outcome.result.diagnostics[0].code).toBe('local.worker.compile');
     expect(outcome.result.diagnostics[0].message).toContain('boom');
   });
 
@@ -268,7 +270,7 @@ describe('LocalCompileScheduler', () => {
     expect(outcome.source).toBe('throwing source');
     expect(outcome.result.ok).toBe(false);
     if (outcome.result.ok) return;
-    expect(outcome.result.diagnostics[0].code).toBe('demo.compiler');
+    expect(outcome.result.diagnostics[0].code).toBe('local.worker.compile');
     expect(outcome.result.diagnostics[0].message).toContain('fallback boom');
   });
 });

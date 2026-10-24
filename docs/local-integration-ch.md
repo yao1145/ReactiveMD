@@ -41,7 +41,7 @@ export function Article() {
 
 | 属性 | 类型 | 组件 | 说明 |
 | --- | --- | --- | --- |
-| `source` | `string` | `LocalReactiveDocument` | 源码变化时重新编译并创建新运行时；旧实例状态不保留 |
+| `source` | `string` | `LocalReactiveDocument` | 源码变化时重新编译并创建新运行时；旧实例状态不保留。见[源码变化时保留参数](#源码变化时保留参数) |
 | `document` | `LocalDocument` | `LocalDocumentView` | 已编译文档；由宿主编译一次 |
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | 宿主创建并负责销毁 |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | 两者 | 接收编译诊断和控件写入被拒绝时的运行时诊断 |
@@ -52,7 +52,7 @@ export function Article() {
 
 两个组件都没有 `className`、`style` 或插槽属性。`LocalReactiveDocument` 渲染 `<article class="md-document local-document">`；`LocalDocumentView` 使用同样的文档容器。样式覆盖见下文。
 
-每个组件实例独立管理内存状态。修改源码会重新编译；销毁实例会清理订阅和计时器。文档中的面板重置其内部参数、输入草稿和组件状态，同名参数在面板外的显示也会同步更新。
+每个组件实例独立管理内存状态。修改源码会重新编译并从初值开始；销毁实例会清理订阅和计时器。需要在源码变化时保留值时，使用保留工具或自行管理运行时，见[源码变化时保留参数](#源码变化时保留参数)。文档中的面板重置其内部参数、输入草稿和组件状态，同名参数在面板外的显示也会同步更新。
 
 编译失败时组件渲染停用提示和诊断列表，`onDiagnostics` 也会收到诊断。运行中的局部计算错误在对应内容附近显示，其余内容继续更新。
 
@@ -114,7 +114,7 @@ const result = compileLocal(source, options);
 
 ### `createLocalRuntime(document: LocalDocument)`
 
-为已编译文档创建独立的内存运行时。`document` 不是本地模式文档、初值超出预算或结构无效时会抛出错误。每个实例拥有独立状态；没有存储、网络或跨实例共享。
+为已编译文档创建独立的内存运行时。`document` 不是本地模式文档、初值超出预算或结构无效时会抛出错误。每个实例拥有独立状态；运行时本身不会保存或发送状态。
 
 ### `LocalRuntime`
 
@@ -124,6 +124,11 @@ const result = compileLocal(source, options);
 | `snapshot()` | — | `{ revision: number; state: Readonly<Record<string, LocalValue>> }` | 状态未变时返回同一快照对象；状态冻结 |
 | `get(node)` | `LocalNode` | `LocalValue` | 读取该控件绑定的值；无绑定或未知节点返回 `null`；数组为副本 |
 | `set(node, value)` | `LocalNode`, `LocalValue` | `Diagnostic[]` | 校验所有共享控件；成功返回空数组并提交一次；失败不增加 revision |
+| `parameterNames()` | — | `readonly string[]` | 排序后的公开绑定名；不含 `@` 内部绑定 |
+| `getParameter(name)` | `string` | `LocalValue \| undefined` | 公开绑定的值；未知或内部名称返回 `undefined`；数组为副本 |
+| `getParameters()` | — | `Readonly<Record<string, LocalValue>>` | 只含公开参数的冻结快照；永不含内部 `@` 键 |
+| `setParameter(name, value)` | `string`, `LocalValue` | `Diagnostic[]` | 校验共享该绑定的所有控件；成功只提交一次；失败时状态不变 |
+| `setParameters(values)` | `Readonly<Record<string, LocalValue>>` | `Diagnostic[]` | 校验每个公开值和多槽关系后全部提交或全部不提交；未知或内部名称返回 `local.runtime.parameter`；非法值返回 `local.runtime.value`；值未变化不增加 revision |
 | `evaluate(expression)` | `string` | `LocalValue` | 用当前状态求值；失败抛出 `LocalExpressionError`；数组为副本 |
 | `text(template)` | `string` | `string` | 渲染带 `{{ }}` 的文本；失败抛出错误 |
 | `reset(node)` | `LocalNode` | `void` | 一次恢复该节点子树内的参数和组件状态，只通知一次 |
@@ -133,6 +138,105 @@ const result = compileLocal(source, options);
 
 `set` 以文档中登记的控件为准，调用方传入的节点元数据不会放宽约束。`disabled` 与条件隐藏用于交互展示，宿主的业务权限和服务端数据校验仍由宿主执行。
 
+### 按名称读写参数
+
+按名称访问适用于自行保存参数值的宿主，例如表单或 URL。只能看到公开绑定：`parameterNames()` 返回排序后的名称；`getParameter(name)` 对未知或内部名称返回 `undefined`；`getParameters()` 返回只含公开参数的冻结记录。匿名 `@` 绑定不会出现，`getParameter` 返回的数组是副本。
+
+写入会校验共享该绑定的所有控件（包括多槽关系），成功后只提交一次。失败时返回诊断且状态不变；值未变化时不增加 revision。未知或内部名称返回 `local.runtime.parameter`，非法值返回 `local.runtime.value`。
+
+```ts
+const names = runtime.parameterNames();          // 例如 ['annual', 'people']
+const people = runtime.getParameter('people');   // 2
+
+runtime.setParameter('people', 7);
+const diagnostics = runtime.setParameters({ people: 8, annual: true });
+if (diagnostics.length) {
+  // 没有写入任何值。
+}
+```
+
+### 状态导出与导入
+
+`exportLocalState(runtime, generator?)` 把公开参数写入 `reactive-md-state/v1` 文件。文件在 `sourceDigest` 中记录文档身份，在 `syntax` 中记录语言修订，并可带生成器名称和版本。`snapshot().state` 中的匿名 `@` 绑定不会写入，因此原始快照不应作为长期协议保存。CLI 和独立浏览器运行时使用的格式见[可分享文档与静态导出](shareable-export-ch.md#起始参数与状态文件)。
+
+`importLocalState(runtime, input, options?)` 接受序列化 JSON 或已解析的文件。它解析载荷，校验源码摘要、语法修订和完整的公开参数集合，验证每个值后再应用；导入失败时返回诊断且运行时状态不变。`options.maxLength` 限制序列化载荷的字节数，默认 1 MiB。
+
+```ts
+import { exportLocalState, importLocalState } from 'reactive-md';
+
+const file = exportLocalState(runtime, { name: 'my-host', version: '1.0.0' });
+const saved = JSON.stringify(file);
+
+const diagnostics = importLocalState(runtime, saved);
+```
+
+较低层的 `createLocalStateFile`、`parseLocalState`、`resolveLocalState`、`applyLocalState` 和 `serializeLocalState` 仍然可用。只需校验、不改动运行中实例时使用 `resolveLocalState(document, input)`。
+
+### 源码变化时保留参数
+
+`LocalReactiveDocument` 在 `source` 变化时仍会按初值创建新运行时。自行管理运行时的宿主可以保留兼容的值：
+
+```ts
+import {
+  applyLocalStateRetention,
+  compileLocal,
+  createLocalRuntime,
+  planLocalStateRetention,
+} from 'reactive-md';
+
+const next = compileLocal(nextSource);
+if (!next.ok) throw new Error('先修复编译诊断');
+
+const plan = planLocalStateRetention({
+  previous: previousRuntime.document,
+  state: previousRuntime.snapshot().state,
+  next: next.document,
+});
+const runtime = createLocalRuntime(next.document);
+const { retained, dropped, diagnostics } = applyLocalStateRetention(runtime, plan);
+```
+
+`planLocalStateRetention` 返回可复用的值、保留的参数名称，以及带名称和原因的丢弃项。只有满足以下条件的参数才会保留：
+
+- 名称在两份文档中都是公开绑定；
+- 两个绑定都可安全保留：绑定拥有控件，每个控件都绑定到该名称，且各控件都不是计时器或清单；
+- 类型和初始定义未变，包括有效初值和所有显式 `initial` 属性值。
+
+匿名 `@` 绑定、已删除或改名的参数、计时器和位置清单会被丢弃。每个保留值都会按新文档的约束重新校验；被拒绝的值回退到新初值，并报告为 `invalid`。丢弃原因包括 `internal`、`unknown`、`unretainable`、`type`、`initial` 和 `invalid`。
+
+`applyLocalStateRetention` 先尝试一次原子写入，保持多槽关系一致；随后按参数逐个写入，避免一个过期值阻塞其余参数。`diagnostics` 描述被新文档拒绝的值。
+
+### 在 Worker 中后台编译
+
+Worker 由宿主提供：用你的打包工具创建 worker 入口，并保留 `compileLocal` 作为回退。可复制的浏览器示例见[独立接入示例](../examples/integration/README.md)。
+
+```ts
+// compile.worker.ts
+import { startLocalCompileWorker } from 'reactive-md';
+
+startLocalCompileWorker();
+```
+
+`startLocalCompileWorker()` 把处理器安装到当前 Worker 全局对象。仅在测试或包装其他消息宿主时显式传入 scope。
+
+```ts
+// main.ts
+import { LocalCompileScheduler } from 'reactive-md';
+
+const scheduler = new LocalCompileScheduler({
+  createWorker: () => new Worker(new URL('./compile.worker.ts', import.meta.url), { type: 'module' }),
+  onResult: ({ source, result, mode }) => render(source, result, mode),
+  onPendingChange: (pending) => showSpinner(pending),
+  onModeChange: (mode, detail) => console.log('compile mode', mode, detail),
+});
+
+scheduler.schedule(source);
+```
+
+`LocalCompileScheduler` 按 `LOCAL_COMPILE_DELAY_MS`（150 ms，可用 `delay` 覆盖）合并编辑，只保留一个进行中的任务和最新排队源码，并丢弃已被新编辑取代的结果。没有可用 Worker 或 Worker 出错后，它在主线程调用 `fallbackCompile`（默认 `compileLocal`）；Worker 失败后会永久切换到该回退，并通过 `onModeChange` 报告。Worker 抛出的错误或回退编译抛出的错误使用 `local.worker.compile` 诊断码。
+
+`onResult` 接收 `LocalCompileOutcome`（`source`、`result`、`duration`、`mode`），`onPendingChange` 报告是否仍有排队或进行中的任务，`dispose()` 停止计时器、终止 Worker，并阻止之后的回调。
+
 ### 其他核心导出
 
 - `LOCAL_SYNTAX_VERSION`：当前为字面量 `'local-draft-2'`。用它记录文档所用的语法修订。
@@ -140,7 +244,10 @@ const result = compileLocal(source, options);
 - `LocalExpressionError`：包含 `code` 和 `offset`。
 - `compileLatex(source: string)`：返回带 `source`、`dependencies` 和 `evaluate(x, env, budget?)` 的对象；失败抛出带 `code`、`offset` 的错误。
 - `samplePlot(expression, env, min, max, samples = 200, sharedBudget?)`：返回 `{ points: { x: number; y: number | null }[]; endpoint: number | null }`；范围、采样数或预算无效时抛出。
-- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalDocument`、`LocalCompileResult`、`LocalRuntime`、`LocalSnapshot`。
+- 状态文件：`exportLocalState`、`importLocalState`、`createLocalStateFile`、`parseLocalState`、`resolveLocalState`、`applyLocalState` 和 `serializeLocalState`；`LOCAL_STATE_FORMAT` 为 `'reactive-md-state/v1'`。
+- 参数保留：`planLocalStateRetention` 和 `applyLocalStateRetention`。
+- 后台编译：`LocalCompileScheduler`、`LOCAL_COMPILE_DELAY_MS` 和 `startLocalCompileWorker`。
+- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalDocument`、`LocalCompileLimits`、`LocalCompileOptions`、`LocalCompileResult`、`LocalRuntime`、`LocalSnapshot`、`LocalStateFile`、`LocalStateGenerator`、`LocalStateParseResult`、`LocalStateResolution`、`LocalRetainedState`、`LocalStateRetentionReason`、`LocalStateRetentionDrop`、`LocalStateRetentionInput`、`LocalStateRetentionResult`、`LocalCompileWorker`、`LocalCompileWorkerScope`、`LocalCompileRequest`、`LocalCompileResponse`、`LocalCompileOutcome`、`LocalCompileMode`、`LocalCompileSchedulerOptions`。
 
 `compileExpression`、`compileLatex` 和 `samplePlot` 是较低层的工具，稳定级别与核心 API 相同；通常只需要 `compileLocal` 和 `createLocalRuntime`。
 
@@ -156,7 +263,7 @@ const result = compileLocal(source, options);
 - 自行管理生命周期时，用 `<LocalDocumentView document={result.document} runtime={runtime} />` 渲染，并在卸载时调用 `runtime.dispose()`。
 - `subscribe()` 返回取消订阅函数。`dispose()` 会清空剩余订阅，之后调用其他运行时方法会抛出错误。
 - `snapshot()` 在状态变化前返回同一对象，可用于外部存储订阅。`reset(panelNode)` 对面板子树只提交一次，订阅者收到一次通知；面板内隐藏控件也在重置范围内。
-- 文档状态只保存在内存中。刷新、重新挂载或更换源码都从初值开始；没有持久化、localStorage、Cookie 或服务端写入。
+- 文档状态只保存在内存中；运行时不会写入存储、Cookie 或网络。刷新、重新挂载或更换源码都从初值开始。持久化是宿主的显式操作，使用 `exportLocalState` 和 `importLocalState`；[参数保留工具](#源码变化时保留参数)可以把兼容的值带入新运行时。
 - 隐藏区域保留参数、标签页和清单状态；隐藏区域中的计时器暂停，恢复显示后保持暂停，由读者再次启动。实例销毁后释放计时器和订阅。
 
 ## 图片与链接策略
@@ -219,7 +326,7 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 ## 不提供的功能
 
-本地模式不提供状态持久化、插件或自定义组件注册、任意 HTML、作者 CSS、事件处理器、网络请求、外部数据接口、表单提交、Vue 支持、React 18 支持或 CommonJS 入口。宿主不应把这些能力当作可配置项。
+本地模式不提供自动状态持久化或网络访问，也不提供插件或自定义组件注册、任意 HTML、作者 CSS、事件处理器、外部数据接口、表单提交、Vue 支持、React 18 支持或 CommonJS 入口。状态导出与导入是宿主的显式调用；运行时本身不会保存或发送状态。`LocalReactiveDocument` 在源码变化时仍从初值开始；请使用参数保留工具，或自行提供运行时和文档。宿主不应把这些能力当作可配置项。
 
 
 新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。本工作区版本尚未发布。

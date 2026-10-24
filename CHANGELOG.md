@@ -6,6 +6,9 @@ This file records user-visible changes. The project is in a 0.x preview; version
 
 - Add leading `<theme name="…">` declarations, host theme registration and the `reactive-md-theme-1` protocol. Both React components support independent color schemes and system preferences; `default` preserves the existing design. See the [theme protocol](docs/theme-protocol-en.md).
 - Add shareable single-file HTML export: the `reactive-md build` and `reactive-md lint` CLI, interactive and static modes, static-first hydration, printable current values, versioned `reactive-md-state/v1` files, verified local raster inlining, the standalone `ReactiveMD.mount`/`mountAll` IIFE and `<reactive-md-doc>`. See [Shareable documents and static export](docs/shareable-export-en.md).
+- Add host state APIs: name-based public parameter access on `LocalRuntime` (`parameterNames`, `getParameter`, `getParameters`, `setParameter`, `setParameters`) and `exportLocalState`/`importLocalState` for `reactive-md-state/v1` files. Writes validate before a single commit and leave state unchanged on failure.
+- Add retention helpers for source changes: `planLocalStateRetention` and `applyLocalStateRetention` keep only public parameters whose type and initial definition are unchanged and whose bindings are safely retainable; anonymous `@` bindings, timers and positional checklists are dropped, and rejected values are reported with a reason.
+- Add an optional background compile adapter: `LocalCompileScheduler` with a 150 ms debounce, one in-flight job plus the latest source, a permanent main-thread `compileLocal` fallback, and `startLocalCompileWorker`; fallback failures use the `local.worker.compile` diagnostic code.
 
 ### 0.4.0 development preview (local-draft-2)
 

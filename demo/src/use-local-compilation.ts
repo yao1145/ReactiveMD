@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { compileLocal } from 'reactive-md';
-import type { LocalCompileResult } from 'reactive-md';
-import {
-  LocalCompileScheduler,
-  type LocalCompileMode,
-  type LocalCompileWorker,
-} from './local-compile-scheduler';
+import { LocalCompileScheduler } from 'reactive-md';
+import type {
+  LocalCompileMode,
+  LocalCompileResult,
+  LocalCompileWorker,
+} from 'reactive-md';
 
 export type LocalCompiledDocument = Extract<LocalCompileResult, { ok: true }>['document'];
 
@@ -36,7 +35,7 @@ function createCompileWorker(): LocalCompileWorker {
   return new Worker(
     new URL('./local-compile-worker.ts', import.meta.url),
     { type: 'module' },
-  ) as unknown as LocalCompileWorker;
+  );
 }
 
 export function useLocalCompilation(source: string): LocalCompilation {
@@ -56,7 +55,6 @@ export function useLocalCompilation(source: string): LocalCompilation {
   useEffect(() => {
     const scheduler = new LocalCompileScheduler({
       createWorker: createCompileWorker,
-      fallbackCompile: compileLocal,
       onResult: (outcome) => {
         setState((previous) => {
           if (outcome.source !== sourceRef.current) return previous;

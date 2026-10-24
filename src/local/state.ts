@@ -537,8 +537,9 @@ function resolveInternal(
   document: LocalDocument,
   input: string | unknown,
   baseline?: Readonly<Record<string, LocalValue>>,
+  options?: { maxLength?: number },
 ): LocalStateResolution {
-  const parsed = parseLocalState(input);
+  const parsed = parseLocalState(input, options);
   if (!parsed.ok) return parsed;
 
   if (
@@ -637,9 +638,10 @@ function resolveInternal(
 export function resolveLocalState(
   document: LocalDocument,
   input: string | unknown,
+  options?: { maxLength?: number },
 ): LocalStateResolution {
   try {
-    return resolveInternal(document, input);
+    return resolveInternal(document, input, undefined, options);
   } catch (error) {
     return {
       ok: false,
@@ -657,10 +659,14 @@ export function resolveLocalState(
  * the baseline) and then write the normalized public values. Multi-slot
  * components are written atomically with `setMany`.
  */
-export function applyLocalState(runtime: LocalRuntime, file: LocalStateFile): Diagnostic[] {
+export function applyLocalState(
+  runtime: LocalRuntime,
+  file: LocalStateFile,
+  options?: { maxLength?: number },
+): Diagnostic[] {
   let resolution: LocalStateResolution;
   try {
-    resolution = resolveInternal(runtime.document, file, runtime.snapshot().state);
+    resolution = resolveInternal(runtime.document, file, runtime.snapshot().state, options);
   } catch (error) {
     return [diagnostic('local.state.invalid', `Cannot apply the local state: ${errorText(error)}`)];
   }
@@ -672,6 +678,36 @@ export function applyLocalState(runtime: LocalRuntime, file: LocalStateFile): Di
   } catch (error) {
     return [diagnostic('local.state.invalid', `Cannot apply the local state: ${errorText(error)}`)];
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Runtime integration                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Capture the live runtime's public parameters in the portable state format.
+ * The runtime snapshot may contain internal bindings; the state file never does.
+ */
+export function exportLocalState(
+  runtime: LocalRuntime,
+  generator?: LocalStateGenerator,
+): LocalStateFile {
+  return createLocalStateFile(runtime.document, runtime.getParameters(), generator);
+}
+
+/**
+ * Parse a serialized or already-parsed state payload and apply it to a live
+ * runtime. Returns diagnostics and never throws for malformed input; a failed
+ * import leaves the runtime state untouched.
+ */
+export function importLocalState(
+  runtime: LocalRuntime,
+  input: string | unknown,
+  options?: { maxLength?: number },
+): Diagnostic[] {
+  const parsed = parseLocalState(input, options);
+  if (!parsed.ok) return parsed.diagnostics;
+  return applyLocalState(runtime, parsed.file, options);
 }
 
 /* ------------------------------------------------------------------ */

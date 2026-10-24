@@ -41,7 +41,7 @@ export function Article() {
 
 | Prop | Type | Component | Notes |
 | --- | --- | --- | --- |
-| `source` | `string` | `LocalReactiveDocument` | Recompiles and creates a new runtime when the source changes; old instance state is not kept |
+| `source` | `string` | `LocalReactiveDocument` | Recompiles and creates a new runtime when the source changes; old instance state is not kept. See [Keeping values when source changes](#keeping-values-when-source-changes) |
 | `document` | `LocalDocument` | `LocalDocumentView` | Compiled document; compiled once by the host |
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | Created by the host, which is responsible for disposal |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | Both | Receives compile diagnostics and runtime diagnostics when control writes are rejected |
@@ -52,7 +52,7 @@ export function Article() {
 
 Neither component has `className`, `style` or slot props. `LocalReactiveDocument` renders `<article class="md-document local-document">`; `LocalDocumentView` uses the same document container. See below for style overrides.
 
-Each component instance manages in-memory state independently. Changing the source recompiles; disposing an instance clears subscriptions and timers. A panel reset in the document restores its internal parameters, input drafts and component state, and displays of same-name parameters outside the panel update as well.
+Each component instance manages in-memory state independently. Changing the source recompiles and starts from initial values; disposing an instance clears subscriptions and timers. To carry values across a source change, use the retention helpers or manage the runtime yourself; see [Keeping values when source changes](#keeping-values-when-source-changes). A panel reset in the document restores its internal parameters, input drafts and component state, and displays of same-name parameters outside the panel update as well.
 
 When compilation fails, the component renders a disabled notice and the diagnostics list, and `onDiagnostics` also receives the diagnostics. Local computation errors during runtime are displayed near the corresponding content while the rest keeps updating.
 
@@ -114,7 +114,7 @@ To use a custom budget in React, call `compileLocal` first and pass the compiled
 
 ### `createLocalRuntime(document: LocalDocument)`
 
-Creates an independent in-memory runtime for a compiled document. Throws if `document` is not a local mode document, if initial values exceed budgets, or if the structure is invalid. Each instance has independent state; there is no storage, network or cross-instance sharing.
+Creates an independent in-memory runtime for a compiled document. Throws if `document` is not a local mode document, if initial values exceed budgets, or if the structure is invalid. Each instance has independent state; the runtime never stores or transmits state by itself.
 
 ### `LocalRuntime`
 
@@ -124,6 +124,11 @@ Creates an independent in-memory runtime for a compiled document. Throws if `doc
 | `snapshot()` | — | `{ revision: number; state: Readonly<Record<string, LocalValue>> }` | Returns the same snapshot object when state is unchanged; state is frozen |
 | `get(node)` | `LocalNode` | `LocalValue` | Reads the value bound to the control; returns `null` for no binding or an unknown node; arrays are copies |
 | `set(node, value)` | `LocalNode`, `LocalValue` | `Diagnostic[]` | Validates all shared controls; returns an empty array and commits once on success; does not increment revision on failure |
+| `parameterNames()` | — | `readonly string[]` | Sorted public binding names; internal `@` bindings excluded |
+| `getParameter(name)` | `string` | `LocalValue \| undefined` | Value of a public binding; `undefined` for unknown or internal names; arrays are copies |
+| `getParameters()` | — | `Readonly<Record<string, LocalValue>>` | Frozen public-only snapshot; internal `@` keys are never included |
+| `setParameter(name, value)` | `string`, `LocalValue` | `Diagnostic[]` | Validates every control sharing the binding; commits once; state unchanged on failure |
+| `setParameters(values)` | `Readonly<Record<string, LocalValue>>` | `Diagnostic[]` | Validates every public value and multi-slot relation, then commits all or nothing; unknown or internal names return `local.runtime.parameter`; invalid values return `local.runtime.value`; unchanged values do not bump the revision |
 | `evaluate(expression)` | `string` | `LocalValue` | Evaluates with current state; throws `LocalExpressionError` on failure; arrays are copies |
 | `text(template)` | `string` | `string` | Renders text containing `{{ }}`; throws on failure |
 | `reset(node)` | `LocalNode` | `void` | Restores parameters and component state within the node's subtree in one commit, notifying once |
@@ -133,6 +138,105 @@ Creates an independent in-memory runtime for a compiled document. Throws if `doc
 
 `set` relies on the controls registered in the document; node metadata passed by the caller cannot loosen constraints. `disabled` and conditional hiding are for interactive display only; the host still enforces business permissions and server-side data validation.
 
+### Parameters by name
+
+Name-based access is for hosts that keep their own parameter values, such as a form or a URL. Only public bindings are visible: `parameterNames()` returns sorted names, `getParameter(name)` returns `undefined` for an unknown or internal name, and `getParameters()` returns a frozen public-only record. Anonymous `@` bindings never appear, and arrays returned by `getParameter` are copies.
+
+Writes validate every control sharing the binding, including multi-slot relations, and commit once. A failed call returns diagnostics and leaves the state unchanged; unchanged values do not increase the revision. Unknown or internal names return `local.runtime.parameter`; invalid values return `local.runtime.value`.
+
+```ts
+const names = runtime.parameterNames();          // e.g. ['annual', 'people']
+const people = runtime.getParameter('people');   // 2
+
+runtime.setParameter('people', 7);
+const diagnostics = runtime.setParameters({ people: 8, annual: true });
+if (diagnostics.length) {
+  // Nothing was written.
+}
+```
+
+### State export and import
+
+`exportLocalState(runtime, generator?)` writes the public parameters to a `reactive-md-state/v1` file. The file carries the document identity in `sourceDigest`, the language revision in `syntax`, and an optional generator name and version. Anonymous `@` bindings from `snapshot().state` are excluded, so a raw snapshot should not be stored as a long-term protocol. The [shareable export guide](shareable-export-en.md#starting-values-and-state-files) documents the format used by the CLI and standalone runtime.
+
+`importLocalState(runtime, input, options?)` accepts serialized JSON or an already parsed file. It parses the payload, checks the source digest, syntax revision and exact public parameter set, validates every value, and applies the result; a failed import returns diagnostics and leaves the runtime unchanged. `options.maxLength` limits the serialized payload in bytes and defaults to 1 MiB.
+
+```ts
+import { exportLocalState, importLocalState } from 'reactive-md';
+
+const file = exportLocalState(runtime, { name: 'my-host', version: '1.0.0' });
+const saved = JSON.stringify(file);
+
+const diagnostics = importLocalState(runtime, saved);
+```
+
+The lower-level `createLocalStateFile`, `parseLocalState`, `resolveLocalState`, `applyLocalState` and `serializeLocalState` remain available. Use `resolveLocalState(document, input)` for validation that does not touch a live runtime.
+
+### Keeping values when source changes
+
+`LocalReactiveDocument` still creates a new runtime from initial values when `source` changes. Hosts that manage the runtime themselves can carry compatible values over:
+
+```ts
+import {
+  applyLocalStateRetention,
+  compileLocal,
+  createLocalRuntime,
+  planLocalStateRetention,
+} from 'reactive-md';
+
+const next = compileLocal(nextSource);
+if (!next.ok) throw new Error('Fix the compile diagnostics first');
+
+const plan = planLocalStateRetention({
+  previous: previousRuntime.document,
+  state: previousRuntime.snapshot().state,
+  next: next.document,
+});
+const runtime = createLocalRuntime(next.document);
+const { retained, dropped, diagnostics } = applyLocalStateRetention(runtime, plan);
+```
+
+`planLocalStateRetention` returns the values to reuse, the retained parameter names, and dropped entries with a name and reason. A parameter is retained only when:
+
+- its name exists as a public binding in both documents;
+- both bindings are safely retainable: the binding has controls, every control is bound to the name, and no control is a timer or checklist;
+- its type and initial definition are unchanged, including the effective initial value and any explicit `initial` attribute values.
+
+Anonymous `@` bindings, removed or renamed parameters, timers and positional checklists are dropped. Each retained value is revalidated against the new document's constraints; a rejected value falls back to the new initial value and is reported as `invalid`. Drop reasons are `internal`, `unknown`, `unretainable`, `type`, `initial` and `invalid`.
+
+`applyLocalStateRetention` first tries one atomic write so multi-slot relations stay consistent, then falls back to writing parameters individually, so one stale value does not block the others. `diagnostics` describe values rejected by the new document.
+
+### Background compilation in a Worker
+
+Worker support is host-provided: create the worker entry with your bundler and keep `compileLocal` as the fallback. A copyable browser example is in [Standalone integration examples](../examples/integration/README.md).
+
+```ts
+// compile.worker.ts
+import { startLocalCompileWorker } from 'reactive-md';
+
+startLocalCompileWorker();
+```
+
+`startLocalCompileWorker()` installs the handler on the current worker global. Pass a scope explicitly only when testing or wrapping another message host.
+
+```ts
+// main.ts
+import { LocalCompileScheduler } from 'reactive-md';
+
+const scheduler = new LocalCompileScheduler({
+  createWorker: () => new Worker(new URL('./compile.worker.ts', import.meta.url), { type: 'module' }),
+  onResult: ({ source, result, mode }) => render(source, result, mode),
+  onPendingChange: (pending) => showSpinner(pending),
+  onModeChange: (mode, detail) => console.log('compile mode', mode, detail),
+});
+
+scheduler.schedule(source);
+```
+
+`LocalCompileScheduler` coalesces edits for `LOCAL_COMPILE_DELAY_MS` (150 ms; override with `delay`), keeps one compile in flight plus only the latest queued source, and discards results that a newer edit has superseded. When no worker is available, or after a worker error, it compiles on the main thread with `fallbackCompile`, which defaults to `compileLocal`; a worker failure switches permanently to this fallback and reports it through `onModeChange`. Failures thrown by the worker or during fallback compilation use the `local.worker.compile` diagnostic code.
+
+`onResult` receives `LocalCompileOutcome` (`source`, `result`, `duration`, `mode`), `onPendingChange` reports whether work is queued or in flight, and `dispose()` stops the timer, terminates the worker and suppresses later callbacks.
+
 ### Other core exports
 
 - `LOCAL_SYNTAX_VERSION`: currently the literal `'local-draft-2'`. Use it to record the syntax revision a document uses.
@@ -140,7 +244,10 @@ Creates an independent in-memory runtime for a compiled document. Throws if `doc
 - `LocalExpressionError`: contains `code` and `offset`.
 - `compileLatex(source: string)`: returns an object with `source`, `dependencies` and `evaluate(x, env, budget?)`; throws an error with `code` and `offset` on failure.
 - `samplePlot(expression, env, min, max, samples = 200, sharedBudget?)`: returns `{ points: { x: number; y: number | null }[]; endpoint: number | null }`; throws when the range, sample count or budget is invalid.
-- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalDocument`, `LocalCompileResult`, `LocalRuntime`, `LocalSnapshot`.
+- State files: `exportLocalState`, `importLocalState`, `createLocalStateFile`, `parseLocalState`, `resolveLocalState`, `applyLocalState` and `serializeLocalState`; `LOCAL_STATE_FORMAT` is `'reactive-md-state/v1'`.
+- Retention: `planLocalStateRetention` and `applyLocalStateRetention`.
+- Background compilation: `LocalCompileScheduler`, `LOCAL_COMPILE_DELAY_MS` and `startLocalCompileWorker`.
+- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
 
 `compileExpression`, `compileLatex` and `samplePlot` are lower-level utilities with the same stability level as the core API; usually only `compileLocal` and `createLocalRuntime` are needed.
 
@@ -156,7 +263,7 @@ The fields and stability levels of `Diagnostic` are described in the diagnostics
 - When managing the lifecycle yourself, render with `<LocalDocumentView document={result.document} runtime={runtime} />` and call `runtime.dispose()` on unmount.
 - `subscribe()` returns an unsubscribe function. `dispose()` clears remaining subscriptions; calling other runtime methods afterwards throws.
 - `snapshot()` returns the same object until state changes, which is useful for external store subscriptions. `reset(panelNode)` commits once for the panel subtree, and subscribers receive one notification; hidden controls inside the panel are also within reset scope.
-- Document state lives only in memory. Refreshing, remounting or replacing the source starts from initial values; there is no persistence, localStorage, cookie or server write.
+- Document state lives only in memory; the runtime never writes storage, cookies or the network. Refreshing, remounting or replacing the source starts from initial values. Persistence is an explicit host action through `exportLocalState` and `importLocalState`; the [retention helpers](#keeping-values-when-source-changes) can carry compatible values into a new runtime.
 - Hidden regions keep parameters, tab selection and checklist state; timers in hidden regions pause and stay paused when shown again until the reader starts them. Disposing an instance releases timers and subscriptions.
 
 ## Image and link policy
@@ -219,7 +326,7 @@ These limits bound the work for a single document; they do not replace host cont
 
 ## Features not provided
 
-Local mode does not provide state persistence, plugins or custom component registration, arbitrary HTML, author CSS, event handlers, network requests, external data APIs, form submission, Vue support, React 18 support or a CommonJS entry. Hosts should not treat these capabilities as configuration options.
+Local mode does not provide automatic state persistence or network access, plugins or custom component registration, arbitrary HTML, author CSS, event handlers, external data APIs, form submission, Vue support, React 18 support or a CommonJS entry. State export and import are explicit host calls; the runtime never saves or sends state by itself. `LocalReactiveDocument` still starts from initial values when the source changes; use the retention helpers or supply your own runtime and document. Hosts should not treat these capabilities as configuration options.
 
 
 See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state. This checkout is unreleased.
