@@ -120,6 +120,8 @@ const result = compileLocal(source, options);
 
 ### `LocalRuntime`
 
+`validate(): Diagnostic[]` 读取当前修订的跨字段失败提示，保留字段可编辑性，并返回缓存诊断的副本。`document.validations?: LocalValidation[]` 保存可序列化规则。数字集合为 `LocalValue` 增加 `number[]`、为 `LocalValueKind` 增加 `number-array`，原有可写选择控件继续使用字符串数组。见[条件、校验与本地集合](constraints-collections-ch.md)。
+
 | 成员 | 参数 | 返回 | 行为 |
 | --- | --- | --- | --- |
 | `document` | — | `LocalDocument` | 创建时使用的编译结果 |

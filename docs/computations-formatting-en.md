@@ -18,7 +18,7 @@ Eligible for bulk delivery.
 </if>
 ```
 
-`computed` and `const` are invisible, void declarations. Write each on its own line at document top level; `/>` is accepted too. Both require `name` and a complete `value="{{ expression }}"`. Their values use the existing expression types: number, string, boolean, null or string array. The compiler infers the type; there is no type annotation or implicit conversion.
+`computed` and `const` are invisible, void declarations. Write each on its own line at document top level; `/>` is accepted too. Both require `name` and a complete `value="{{ expression }}"`. Their values use the expression types: number, string, boolean, null, string array or numeric array. The compiler infers the type; there is no type annotation or implicit conversion. See [collections](constraints-collections-en.md) for array literals and aggregates.
 
 Names follow the same identifier and reserved-name rules as `bind`. Controls, multi-slot bindings and declarations share one namespace. A declaration cannot replace another declaration or a control. Declarations inside containers are compile errors. Code fences, inline code and comments remain literal or inert.
 

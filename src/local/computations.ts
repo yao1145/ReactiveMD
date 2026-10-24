@@ -283,7 +283,7 @@ export function resolveComputationGraph(
         failed.add(name);
         continue;
       }
-      constValues[name] = Array.isArray(value) ? [...value] : value;
+      constValues[name] = Array.isArray(value) ? value.slice() : value;
       constEnv[name] = constValues[name];
     } catch (error) {
       const normalized = normalizeError(error);

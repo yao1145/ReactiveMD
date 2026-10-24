@@ -8,11 +8,13 @@
 
 未发布开发版本新增不可见的 `computed`/`const` 声明与数字、字符串、日期函数。声明语法、依赖与错误规则、函数签名及固定默认值见[复用计算与格式化数值](computations-formatting-ch.md)。
 
+跨字段校验、条件样式、数组与有限表格行生成见[条件、校验与本地集合](constraints-collections-ch.md)。
+
 Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件，读者调整参数后，相关文字、公式、图表和图解立即更新。
 
 基础语言只需要掌握两条连接规则：`bind` 为输入命名，`{{ 表达式 }}` 在其他位置读取它。组件负责自己的选择、展开、搜索、排序、计时和重置。
 
-本草案不包含外部服务调用、提交表单、异步资源、命名动作、事件处理器、可编程集合增删、循环模板或任意脚本。旧版 `state/data/computed/actions` 配置块不属于新语法。数组由清单和多选组件产生，表格数据直接写在正文中。
+本草案不包含外部服务调用、提交表单、异步资源、命名动作、事件处理器、可编程集合增删、通用循环模板或任意脚本。旧版 `state/data/computed/actions` 配置块不属于新语法。表达式可以产生字符串或数字数组，清单与多选组件继续产生字符串数组。表格可直接写为 Markdown，也可通过带预算的 `data-table` 从本地值生成行。
 
 文档默认只保存当前实例的内存状态。重新打开从初值开始；持久化不属于作者语法。无需声明语言版本、导入组件或编写 YAML。宿主应明确选择草案解析模式，不能把旧语法与新语法混合猜测解析。
 
@@ -167,6 +169,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 | 格式化 | formatNumber、formatPercent、formatScientific、formatCurrency |
 | 字符串 | trim、lower、upper、startsWith、endsWith、replace、slice |
 | 日期 | dateCompare、dateDiff |
+| 数组聚合 | sum、average、minOf、maxOf |
 | 常量 | pi、e |
 
 优先级依次为函数/括号、一元运算、乘除余数、加减、大小比较、相等比较、逻辑与、逻辑或、条件表达式；条件表达式右结合，其余二元运算左结合。逻辑和条件表达式短路求值。

@@ -7,8 +7,9 @@ export interface Diagnostic {
   line: number;
   column: number;
 }
-export type LocalValue = string | number | boolean | null | string[];
-export type LocalValueKind = 'string' | 'number' | 'boolean' | 'null' | 'array';
+export type LocalValue = string | number | boolean | null | string[] | number[];
+/** `array` retains its existing meaning: a homogeneous string array. */
+export type LocalValueKind = 'string' | 'number' | 'boolean' | 'null' | 'array' | 'number-array';
 /** Markdown nodes retain their original source ranges; component attributes remain raw decoded strings. */
 export interface LocalNode {
   type: string;
@@ -64,6 +65,15 @@ export interface LocalBinding {
   maxItems?: number;
   owner?: string;
 }
+/** Advisory cross-field rule; an invalid rule keeps its fields editable. */
+export interface LocalValidation {
+  nodeId: string;
+  expression: string;
+  dependencies: string[];
+  message: string;
+  fields: string[];
+  range: SourceRange;
+}
 export interface LocalDocument {
   syntax: 'local';
   source: string;
@@ -90,6 +100,8 @@ export interface LocalDocument {
    * nodes are removed from `nodes` before publication and never own bindings.
    */
   computations?: Record<string, LocalComputation>;
+  /** Cross-field constraints in source order; evaluated against each revision. */
+  validations?: LocalValidation[];
 }
 /** Host-owned budgets for a single compilation. */
 export interface LocalCompileLimits {
@@ -111,6 +123,8 @@ export interface LocalRuntime {
   /** Atomically write multiple slots of one multi-slot component. */
   setMany(node: LocalNode, values: Readonly<Record<string, LocalValue>>): Diagnostic[];
   evaluate(expression: string): LocalValue;
+  /** Current advisory constraint failures; never changes or rejects field state. */
+  validate(): Diagnostic[];
   text(template: string): string;
   reset(node: LocalNode): void;
   resetToken(node: LocalNode): number;

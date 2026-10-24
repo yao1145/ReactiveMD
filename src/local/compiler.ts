@@ -12,6 +12,11 @@ import { parseLocal } from './parser';
 import { DEFAULT_LOCAL_THEME } from './theme';
 import {
   isLocalEmail,
+  DEFAULT_LOCAL_DATA_TABLE_ROWS,
+  MAX_LOCAL_DATA_DOCUMENT_CELLS,
+  MAX_LOCAL_DATA_DOCUMENT_ROWS,
+  MAX_LOCAL_DATA_TABLE_COLUMNS,
+  MAX_LOCAL_DATA_TABLE_ROWS,
   MAX_LOCAL_DOCUMENT_LENGTH,
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_DIAGNOSTICS,
@@ -19,6 +24,7 @@ import {
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
   MAX_LOCAL_STRING_LENGTH,
+  MAX_LOCAL_VALIDATIONS,
 } from './limits';
 import {
   getLocalComponent,
@@ -27,6 +33,7 @@ import {
   type LocalComponentSchema,
   type LocalPropSchema,
 } from './schema';
+import { parseValidationFields } from './validation';
 import type {
   LocalBinding,
   LocalCompileOptions,
@@ -34,6 +41,7 @@ import type {
   LocalComputation,
   LocalDocument,
   LocalNode,
+  LocalValidation,
   LocalValue,
   LocalValueKind,
 } from './types';
@@ -67,7 +75,7 @@ function isValidDate(value: string): boolean {
 }
 
 function cloneValue(value: LocalValue): LocalValue {
-  return Array.isArray(value) ? [...value] : value;
+  return Array.isArray(value) ? value.slice() : value;
 }
 
 function onStep(value: number, base: number, step: number): boolean {
@@ -191,6 +199,8 @@ function typeName(kind: LocalValueKind): string {
       return 'null';
     case 'array':
       return 'array';
+    case 'number-array':
+      return 'number-array';
   }
 }
 
@@ -339,6 +349,8 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   resolveComputations(state);
 
   validateExpressions(state);
+  validateDataTables(state);
+  const validations = validateValidations(state);
   validatePlots(state);
   validateTables(state);
 
@@ -362,6 +374,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
     ...(parsed.themeRange ? { themeRange: parsed.themeRange } : {}),
     ...(bindingSlots ? { bindingSlots } : {}),
     ...(computationNames.length ? { computations: state.computations } : {}),
+    ...(validations.length ? { validations } : {}),
   };
   return { ok: true, document, diagnostics };
 }
@@ -849,6 +862,30 @@ function validateChildren(entry: Entry, state: CompileState): void {
     case 'quiz':
       validateQuiz(entry, state, attrs);
       break;
+    case 'columns': {
+      const children = componentChildren(entry);
+      const columns = children.filter((child) => child.name === 'column');
+      if (!columns.length) {
+        report('local.structure.children', '<data-table> requires at least one <column>.', entry.node.range.start, entry.node.range.end);
+      }
+      if (columns.length > MAX_LOCAL_DATA_TABLE_COLUMNS) {
+        report(
+          'local.budget.data-table.columns',
+          `<data-table> supports at most ${MAX_LOCAL_DATA_TABLE_COLUMNS} columns, but has ${columns.length}.`,
+          entry.node.range.start,
+          entry.node.range.end,
+        );
+      }
+      for (const child of children) {
+        if (child.name !== 'column') {
+          report('local.structure.children', '<data-table> can only contain <column>.', child.node.range.start, child.node.range.end);
+        }
+      }
+      if (kids.some((kid) => kid.type !== 'component')) {
+        report('local.structure.children', '<data-table> can only contain <column>.', entry.node.range.start, entry.node.range.end);
+      }
+      break;
+    }
   }
 }
 
@@ -1918,7 +1955,7 @@ function validateExpressions(state: CompileState): void {
       state.report('local.type', `Expected a boolean here, but the expression evaluates to ${typeName(kind)}.`, base);
     } else if (expected === 'string' && kind !== 'string') {
       state.report('local.type', `Expected a string here, but the expression evaluates to ${typeName(kind)}.`, base);
-    } else if (expected === 'text' && kind === 'array') {
+    } else if (expected === 'text' && (kind === 'array' || kind === 'number-array')) {
       state.report('local.type', 'Arrays cannot be displayed directly; convert them first with a function such as len.', base);
     }
     return kind;
@@ -1946,6 +1983,11 @@ function validateExpressions(state: CompileState): void {
     for (const [name, info] of Object.entries(attrs)) {
       const prop = entry.schema.props[name];
       if (!prop || prop.static) continue;
+      // Row-scoped and rule attributes have their own environment and are
+      // validated by validateDataTables / validateValidations.
+      if (entry.name === 'data-table' && (name === 'rows' || name === 'key')) continue;
+      if (entry.name === 'column' && name === 'value') continue;
+      if (entry.name === 'validation' && name === 'when') continue;
       if (prop.kind === 'string') {
         const scanned = scanInterpolations(info.raw);
         for (const offset of scanned.unterminated) {
@@ -2066,6 +2108,341 @@ function validateNavigation(
 }
 
 const IDENTIFIER_ANCHOR = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+
+/* ------------------------------------------------------------------ */
+/* Cross-field rules and generated data tables                         */
+/* ------------------------------------------------------------------ */
+
+interface ScopedExpression {
+  compiled: LocalExpression;
+  /** Null when dependencies were missing or inference was not requested. */
+  kind: LocalValueKind | null;
+}
+
+function reportExpressionError(state: CompileState, error: unknown, base: number): void {
+  if (error instanceof LocalExpressionError) {
+    state.report(
+      `local.expression.${error.code || 'invalid'}`,
+      `Expression error: ${error.message}`,
+      base + (Number.isFinite(error.offset) ? error.offset : 0),
+    );
+    return;
+  }
+  state.report(
+    'local.expression.invalid',
+    `Expression error: ${error instanceof Error ? error.message : String(error)}`,
+    base,
+  );
+}
+
+/**
+ * Compile one expression against a caller-provided type environment. Used by
+ * the row scope of data tables and by validation rules; ordinary attributes
+ * keep using the document environment in validateExpressions.
+ */
+function validateScopedExpression(
+  state: CompileState,
+  expression: string,
+  base: number,
+  env: Record<string, LocalValueKind>,
+  infer: boolean,
+): ScopedExpression | null {
+  if (!expression.trim()) {
+    state.report('local.expression.empty', 'Interpolation expression cannot be empty.', base);
+    return null;
+  }
+  let compiled: LocalExpression;
+  try {
+    compiled = compileExpression(expression);
+  } catch (error) {
+    reportExpressionError(state, error, base);
+    return null;
+  }
+  const names = Object.keys(env);
+  let missing = false;
+  for (const dependency of compiled.dependencies) {
+    if (!Object.hasOwn(env, dependency)) {
+      const suggestion = suggestName(dependency, names);
+      state.report(
+        'local.binding.unknown',
+        `Reference to undeclared parameter ${dependency}.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
+        base + Math.max(0, expression.indexOf(dependency)),
+      );
+      missing = true;
+    }
+  }
+  if (missing || !infer) return { compiled, kind: null };
+  let kind: LocalValueKind;
+  try {
+    kind = compiled.inferType(env);
+  } catch (error) {
+    reportExpressionError(state, error, base);
+    return null;
+  }
+  return { compiled, kind };
+}
+
+/** Require a whole-value `{{ expression }}` attribute; returns its expression. */
+function fullExpressionAttribute(
+  info: AttrState | undefined,
+  code: string,
+  component: string,
+  attribute: string,
+  state: CompileState,
+): { expression: string; base: number } | null {
+  if (!info) return null;
+  const full = fullInterpolation(info.raw);
+  if (!full) {
+    state.report(
+      code,
+      `<${component}> ${attribute} must be exactly one {{ expression }} interpolation.`,
+      info.offset,
+      info.offset + info.raw.length,
+    );
+    return null;
+  }
+  if (!full.expression) {
+    state.report('local.expression.empty', 'Interpolation expression cannot be empty.', info.offset + full.start);
+    return null;
+  }
+  return { expression: full.expression, base: info.offset + full.start };
+}
+
+function dataTableMaxRows(attrs: AttrMap): number {
+  const info = attrs['max-rows'];
+  if (
+    info && !info.dynamic
+    && typeof info.value === 'number'
+    && Number.isInteger(info.value)
+    && info.value > 0
+    && info.value <= MAX_LOCAL_DATA_TABLE_ROWS
+  ) return info.value;
+  return DEFAULT_LOCAL_DATA_TABLE_ROWS;
+}
+
+/**
+ * Validate every `<data-table>` and sum document budgets. Rows use the
+ * ordinary global environment; `key` and `column.value` additionally see the
+ * immutable row locals `item`/`index`, which shadow same-named globals.
+ */
+function validateDataTables(state: CompileState): void {
+  const dataTables = state.entries.filter((entry) => entry.name === 'data-table');
+  if (!dataTables.length) return;
+  const env = expressionEnv(state);
+  let totalRows = 0;
+  let totalCells = 0;
+  let rowsBudgetReported = false;
+  let cellsBudgetReported = false;
+
+  for (const entry of dataTables) {
+    const attrs = state.attrs.get(entry.node.id) ?? {};
+    const columns = meaningful(entry.node.children)
+      .filter((child): child is LocalNode => child.type === 'component' && child.name === 'column');
+    const maxRows = dataTableMaxRows(attrs);
+    const columnCount = Math.min(columns.length, MAX_LOCAL_DATA_TABLE_COLUMNS);
+    totalRows += maxRows;
+    totalCells += maxRows * columnCount;
+    if (!rowsBudgetReported && totalRows > MAX_LOCAL_DATA_DOCUMENT_ROWS) {
+      rowsBudgetReported = true;
+      state.report(
+        'local.budget.data-table.rows',
+        `The document's generated row budget exceeds ${MAX_LOCAL_DATA_DOCUMENT_ROWS}; max-rows summed over every <data-table> must stay within it.`,
+        entry.node.range.start,
+        entry.node.range.end,
+      );
+    }
+    if (!cellsBudgetReported && totalCells > MAX_LOCAL_DATA_DOCUMENT_CELLS) {
+      cellsBudgetReported = true;
+      state.report(
+        'local.budget.data-table.cells',
+        `The document's generated cell budget exceeds ${MAX_LOCAL_DATA_DOCUMENT_CELLS}; max-rows multiplied by columns, summed over every <data-table>, must stay within it.`,
+        entry.node.range.start,
+        entry.node.range.end,
+      );
+    }
+
+    const rows = fullExpressionAttribute(attrs.rows, 'local.data-table.rows', 'data-table', 'rows', state);
+    let itemKind: LocalValueKind = 'string';
+    let rowsInferred = false;
+    if (rows) {
+      const result = validateScopedExpression(state, rows.expression, rows.base, env, true);
+      if (result?.kind === 'array') {
+        itemKind = 'string';
+        rowsInferred = true;
+      } else if (result?.kind === 'number-array') {
+        itemKind = 'number';
+        rowsInferred = true;
+      } else if (result && result.kind !== null) {
+        state.report(
+          'local.data-table.rows',
+          `<data-table> rows must evaluate to an array, but the expression evaluates to ${typeName(result.kind)}.`,
+          rows.base,
+        );
+      }
+    }
+
+    const rowEnv: Record<string, LocalValueKind> = { ...env, item: itemKind, index: 'number' };
+    const key = fullExpressionAttribute(attrs.key, 'local.data-table.key', 'data-table', 'key', state);
+    if (key) {
+      const result = validateScopedExpression(state, key.expression, key.base, rowEnv, rowsInferred);
+      if (result) {
+        const dependencies = result.compiled.dependencies;
+        if (!dependencies.includes('item')) {
+          state.report('local.data-table.key', '<data-table> key must depend on item.', key.base);
+        }
+        for (const dependency of dependencies) {
+          if (dependency === 'item') continue;
+          if (dependency === 'index') {
+            state.report('local.data-table.key', '<data-table> key cannot depend on index; use a stable item identifier.', key.base);
+          } else if (Object.hasOwn(env, dependency)) {
+            state.report(
+              'local.data-table.key',
+              `<data-table> key cannot depend on global parameter "${dependency}"; it must be derived from item only.`,
+              key.base,
+            );
+          }
+        }
+        if (result.kind !== null && result.kind !== 'string' && result.kind !== 'number') {
+          state.report(
+            'local.data-table.key',
+            `<data-table> key must evaluate to a string or number, got ${typeName(result.kind)}.`,
+            key.base,
+          );
+        }
+      }
+    }
+
+    for (const column of columns) {
+      const columnAttrs = state.attrs.get(column.id) ?? {};
+      const label = columnAttrs.label;
+      if (label && !String(label.value ?? '').trim()) {
+        state.report('local.data-table.column', '<column> label cannot be empty.', label.offset);
+      }
+      const value = fullExpressionAttribute(columnAttrs.value, 'local.data-table.value', 'column', 'value', state);
+      if (!value) continue;
+      const result = validateScopedExpression(state, value.expression, value.base, rowEnv, rowsInferred);
+      if (result && (result.kind === 'array' || result.kind === 'number-array')) {
+        state.report(
+          'local.data-table.value',
+          `<column> value must be a scalar string, number, boolean or null, got ${typeName(result.kind)}.`,
+          value.base,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Validate `<validation>` rules and build their source-ordered metadata. The
+ * tag itself stays in the tree so the renderer can place the hint; unlike
+ * `<computed>`, it is not stripped.
+ */
+function validateValidations(state: CompileState): LocalValidation[] {
+  const validations: LocalValidation[] = [];
+  let declarations = 0;
+  let budgetReported = false;
+  const writable = Object.keys(state.bindingKinds);
+  const env = expressionEnv(state);
+
+  for (const entry of state.entries) {
+    if (entry.name !== 'validation') continue;
+    declarations += 1;
+    const node = entry.node;
+    if (declarations > MAX_LOCAL_VALIDATIONS) {
+      if (!budgetReported) {
+        budgetReported = true;
+        state.report(
+          'local.validation.budget',
+          `The document declares more than ${MAX_LOCAL_VALIDATIONS} validation rules; rules in hidden regions count too.`,
+          node.range.start,
+          node.range.end,
+        );
+      }
+      continue;
+    }
+    if (entry.parent && (entry.parent.schema.form !== 'container' || entry.parent.name === 'data-table')) {
+      state.report(
+        'local.validation.placement',
+        '<validation> can appear in normal prose or a container, but not inside inline content or a data table.',
+        node.range.start,
+        node.range.end,
+      );
+    }
+
+    const attrs = state.attrs.get(node.id) ?? {};
+    let expression = '';
+    let dependencies: string[] = [];
+    const when = attrs.when;
+    if (when) {
+      const full = fullInterpolation(when.raw);
+      if (!full) {
+        state.report(
+          'local.validation.when',
+          '<validation> when must be exactly one {{ boolean }} interpolation.',
+          when.offset,
+          when.offset + when.raw.length,
+        );
+      } else if (full.expression) {
+        expression = full.expression;
+        const result = validateScopedExpression(state, expression, when.offset + full.start, env, true);
+        if (result) {
+          dependencies = [...result.compiled.dependencies];
+          if (result.kind !== null && result.kind !== 'boolean') {
+            state.report(
+              'local.type',
+              `Expected a boolean here, but the expression evaluates to ${typeName(result.kind)}.`,
+              when.offset + full.start,
+            );
+          }
+        }
+      }
+    }
+
+    const fieldsInfo = attrs.fields;
+    const fields = fieldsInfo ? parseValidationFields(fieldsInfo.raw) : [];
+    if (fieldsInfo && !fields.length) {
+      state.report(
+        'local.validation.fields',
+        '<validation> requires at least one field name.',
+        fieldsInfo.offset,
+        fieldsInfo.offset + fieldsInfo.raw.length,
+      );
+    }
+    const seen = new Set<string>();
+    for (const field of fields) {
+      if (seen.has(field)) {
+        state.report(
+          'local.validation.fields',
+          `Duplicate field "${field}" in <validation> fields.`,
+          fieldsInfo?.offset ?? node.range.start,
+        );
+        continue;
+      }
+      seen.add(field);
+      if (!Object.hasOwn(state.bindingKinds, field)) {
+        const suggestion = suggestName(field, writable);
+        state.report(
+          'local.validation.fields',
+          `Field "${field}" is not a public writable parameter.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
+          fieldsInfo?.offset ?? node.range.start,
+        );
+      }
+    }
+
+    // `message` is an ordinary text template: validateExpressions checks its
+    // interpolations. Rules without a usable `when` are already rejected.
+    if (!expression) continue;
+    validations.push({
+      nodeId: node.id,
+      expression,
+      dependencies,
+      message: typeof attrs.message?.value === 'string' ? attrs.message.value : '',
+      fields: [...seen],
+      range: { ...node.range },
+    });
+  }
+  return validations;
+}
 
 function suggestName(name: string, candidates: string[]): string | undefined {
   if (name.length > MAX_LOCAL_NAME_LENGTH) return undefined;

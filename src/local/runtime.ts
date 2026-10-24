@@ -9,13 +9,26 @@ import {
 } from './expression';
 import { evaluateComputations, orderComputations } from './computations';
 import { isLocalEmail, MAX_LOCAL_EMAIL_LENGTH } from './limits';
-import { localKey, type LocalBinding, type LocalDocument, type LocalNode, type LocalRuntime, type LocalSnapshot, type LocalValue } from './types';
+import {
+  boundLocalDiagnosticMessage,
+  isLocalValidation,
+  localLineStarts,
+  LOCAL_VALIDATION_EXPRESSION_CODE,
+  LOCAL_VALIDATION_FAILED_CODE,
+  LOCAL_VALIDATION_FALLBACK_MESSAGE,
+  validationDiagnostic,
+} from './validation';
+import { localKey, type LocalBinding, type LocalDocument, type LocalNode, type LocalRuntime, type LocalSnapshot, type LocalValidation, type LocalValue } from './types';
 
 const EPSILON = 1e-9;
 const RUNTIME_EXPRESSION_CACHE_LIMIT = 200;
 
 function cloneValue(value: LocalValue): LocalValue {
-  return Array.isArray(value) ? [...value] : value;
+  return Array.isArray(value) ? value.slice() : value;
+}
+
+function cloneDiagnostic(diagnostic: Diagnostic): Diagnostic {
+  return { ...diagnostic, range: { ...diagnostic.range } };
 }
 
 function valuesEqual(a: LocalValue | undefined, b: LocalValue | undefined): boolean {
@@ -292,6 +305,91 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     cycleErrors.set(name, new LocalExpressionError('expression-cycle', `Computation "${name}" is part of a dependency cycle.`, 0));
   }
 
+  /* --------------------------------------------------------- validations */
+
+  /**
+   * Advisory rules are metadata. Each rule is compiled once and evaluated
+   * independently, so a failure in one rule never hides another or blocks
+   * writes. `validate()` caches results per revision and returns clones.
+   */
+  const validationRules: { rule: LocalValidation; expression: LocalExpression | null; error: LocalExpressionError | null }[] = [];
+  if (Array.isArray(document.validations)) {
+    for (const rule of document.validations) {
+      if (!isLocalValidation(rule)) continue;
+      try {
+        validationRules.push({ rule, expression: compileExpression(rule.expression), error: null });
+      } catch (error) {
+        validationRules.push({ rule, expression: null, error: normalizeComputationError(error) });
+      }
+    }
+  }
+  const validationLineStarts = localLineStarts(typeof document.source === 'string' ? document.source : '');
+  let validationCache: { revision: number; diagnostics: readonly Diagnostic[] } | null = null;
+
+  const safeValidationMessage = (template: string): string => {
+    let value: string;
+    try {
+      value = interpolate(template, evaluationEnv);
+    } catch {
+      // A message may read the same failing value as its rule. Show a safe
+      // default instead of leaking a raw template or an error string.
+      value = LOCAL_VALIDATION_FALLBACK_MESSAGE;
+    }
+    return boundLocalDiagnosticMessage(value);
+  };
+
+  const evaluateValidations = (): Diagnostic[] => {
+    const diagnostics: Diagnostic[] = [];
+    const source = typeof document.source === 'string' ? document.source : '';
+    for (const item of validationRules) {
+      if (item.error) {
+        diagnostics.push(validationDiagnostic(
+          source,
+          validationLineStarts,
+          item.rule.range,
+          LOCAL_VALIDATION_EXPRESSION_CODE,
+          boundLocalDiagnosticMessage(`Validation expression is invalid: ${item.error.message}`),
+        ));
+        continue;
+      }
+      if (!item.expression) continue;
+      let value: LocalValue;
+      try {
+        value = item.expression.evaluate(evaluationEnv);
+      } catch (error) {
+        diagnostics.push(validationDiagnostic(
+          source,
+          validationLineStarts,
+          item.rule.range,
+          LOCAL_VALIDATION_EXPRESSION_CODE,
+          boundLocalDiagnosticMessage(
+            `Validation expression failed: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        ));
+        continue;
+      }
+      if (typeof value !== 'boolean') {
+        diagnostics.push(validationDiagnostic(
+          source,
+          validationLineStarts,
+          item.rule.range,
+          LOCAL_VALIDATION_EXPRESSION_CODE,
+          'Validation expression must evaluate to a boolean.',
+        ));
+        continue;
+      }
+      if (value) continue;
+      diagnostics.push(validationDiagnostic(
+        source,
+        validationLineStarts,
+        item.rule.range,
+        LOCAL_VALIDATION_FAILED_CODE,
+        safeValidationMessage(item.rule.message),
+      ));
+    }
+    return diagnostics;
+  };
+
   let state: Record<string, LocalValue> = initial;
   let revision = 0;
   let computationValues: Record<string, LocalValue> = {};
@@ -491,7 +589,17 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       ensure();
       const value = compile(expression).evaluate(evaluationEnv);
       // Never hand out the array stored inside runtime state.
-      return Array.isArray(value) ? [...value] : value;
+      return Array.isArray(value) ? value.slice() : value;
+    },
+
+    validate(): Diagnostic[] {
+      ensure();
+      if (validationCache && validationCache.revision === revision) {
+        return validationCache.diagnostics.map(cloneDiagnostic);
+      }
+      const diagnostics = evaluateValidations();
+      validationCache = { revision, diagnostics };
+      return diagnostics.map(cloneDiagnostic);
     },
 
     text(template: string): string {

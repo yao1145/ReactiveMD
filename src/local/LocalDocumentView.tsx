@@ -34,6 +34,7 @@ import { LatexView } from './math-view';
 import { LocalVisual } from './visuals';
 import { createHeadingAnchors } from './heading-anchors';
 import { isLocalColor } from './colors';
+import { DataTableView } from './data-table';
 import {
   DEFAULT_LOCAL_THEME,
   resolveLocalTheme,
@@ -94,6 +95,8 @@ interface LocalViewContext extends LocalRenderContext {
   /** The document root; jump navigation stays scoped to this instance. */
   rootRef: RefObject<HTMLElement | null>;
   t: Localize;
+  /** Cross-field hints and field associations for this document instance. */
+  validation: LocalValidationState;
 }
 
 const LocalViewContext = createContext<LocalViewContext | null>(null);
@@ -102,6 +105,141 @@ function useLocal(): LocalViewContext {
   const value = useContext(LocalViewContext);
   if (!value) throw new Error('LocalViewContext is not initialized');
   return value;
+}
+
+/* ------------------------------------------------------------- validations */
+
+const LOCAL_VALIDATION_FAILED_CODE = 'local.validation.failed';
+const LOCAL_VALIDATION_EXPRESSION_CODE = 'local.validation.expression';
+const VALIDATION_MESSAGE_BUDGET = 2_000;
+
+interface LocalValidationHint {
+  /** Per-document-instance id, kept stable for every rule state. */
+  id: string;
+  failed: boolean;
+  error: boolean;
+  message: string;
+}
+
+interface LocalValidationField {
+  describedBy?: string;
+  invalid: boolean;
+}
+
+interface LocalValidationState {
+  /** The hint for a rendered `<validation>` tag, matched by tag range. */
+  hintFor(node: LocalNode): LocalValidationHint | null;
+  /** Current failing hints attached to a bound control/slot group. */
+  fieldFor(node: LocalNode): LocalValidationField;
+}
+
+const NO_VALIDATION_FIELD: LocalValidationField = { invalid: false };
+
+const NO_VALIDATIONS: LocalValidationState = {
+  hintFor: () => null,
+  fieldFor: () => NO_VALIDATION_FIELD,
+};
+
+function validationRangeKey(range: { start: number; end: number }): string {
+  return `${range.start}:${range.end}`;
+}
+
+function boundedValidationText(message: string): string {
+  return message.length > VALIDATION_MESSAGE_BUDGET
+    ? `${message.slice(0, VALIDATION_MESSAGE_BUDGET - 1)}…`
+    : message;
+}
+
+/**
+ * Rules are advisory and identified by the range of their `<validation>` tag.
+ * A failed rule contributes one hint id to every bound control of its fields;
+ * hidden rules keep their association even though their hint is not announced.
+ */
+function createValidationState(
+  document: LocalDocument,
+  runtime: LocalRuntime,
+  instanceId: string,
+  t: Localize,
+): LocalValidationState {
+  const rules = Array.isArray(document.validations) ? document.validations : [];
+  if (rules.length === 0) return NO_VALIDATIONS;
+
+  let diagnostics: Diagnostic[] | null = null;
+  try {
+    // Hand-built runtimes may predate the advisory API; treat the absent or
+    // throwing call as an evaluation failure instead of silently passing.
+    if (typeof runtime.validate === 'function') diagnostics = runtime.validate();
+  } catch {
+    diagnostics = null;
+  }
+
+  const byRange = new Map<string, Diagnostic>();
+  for (const diagnostic of diagnostics ?? []) {
+    if (
+      diagnostic.code !== LOCAL_VALIDATION_FAILED_CODE
+      && diagnostic.code !== LOCAL_VALIDATION_EXPRESSION_CODE
+    ) {
+      continue;
+    }
+    byRange.set(validationRangeKey(diagnostic.range), diagnostic);
+  }
+
+  const hintsByNode = new Map<string, LocalValidationHint>();
+  const hintsByRange = new Map<string, LocalValidationHint>();
+  const fields = new Map<string, string[]>();
+  const errorMessage = t('This rule cannot be evaluated', '无法计算此规则');
+  const fallbackMessage = t('Validation failed.', '校验未通过。');
+
+  for (const [index, rule] of rules.entries()) {
+    const key = validationRangeKey(rule.range);
+    const diagnostic = byRange.get(key);
+    const error = diagnostics === null || diagnostic?.code === LOCAL_VALIDATION_EXPRESSION_CODE;
+    const failed = diagnostic?.code === LOCAL_VALIDATION_FAILED_CODE;
+    const message = failed
+      ? boundedValidationText(diagnostic?.message || rule.message || fallbackMessage)
+      : error
+        ? diagnostic?.message
+          ? `${errorMessage}: ${boundedValidationText(diagnostic.message)}`
+          : errorMessage
+        : '';
+    const hint: LocalValidationHint = {
+      id: `${instanceId}-validation-${index}`,
+      failed,
+      error,
+      message,
+    };
+    hintsByNode.set(rule.nodeId, hint);
+    hintsByRange.set(key, hint);
+    if (!failed && !error) continue;
+
+    for (const name of rule.fields ?? []) {
+      const binding = Object.hasOwn(document.bindings, name)
+        ? document.bindings[name]
+        : undefined;
+      if (!binding) continue;
+      for (const nodeId of binding.nodeIds ?? []) {
+        const current = fields.get(nodeId);
+        if (!current) fields.set(nodeId, [hint.id]);
+        else if (!current.includes(hint.id)) current.push(hint.id);
+      }
+    }
+  }
+
+  return {
+    hintFor(node: LocalNode): LocalValidationHint | null {
+      return hintsByRange.get(validationRangeKey(node.range)) ?? hintsByNode.get(node.id) ?? null;
+    },
+    fieldFor(node: LocalNode): LocalValidationField {
+      const ids = fields.get(node.id);
+      return ids && ids.length > 0
+        ? { describedBy: ids.join(' '), invalid: true }
+        : NO_VALIDATION_FIELD;
+    },
+  };
+}
+
+function useValidationField(node: LocalNode): LocalValidationField {
+  return useLocal().validation.fieldFor(node);
 }
 
 /* ------------------------------------------------------------- attributes */
@@ -177,6 +315,40 @@ function readBooleanAttr(
 function boolAttr(runtime: LocalRuntime, node: LocalNode, name: string, fallback = false): boolean {
   const read = readBooleanAttr(runtime, node, name, fallback);
   return read.ok ? read.value : fallback;
+}
+
+/**
+ * Controlled enum tones accept exactly one dynamic expression in addition to
+ * the original static literals. Anything outside the enum falls back to the
+ * default style; a dynamic failure is reported separately and never becomes a
+ * class, style or color value.
+ */
+function toneAttr<T extends string>(
+  runtime: LocalRuntime,
+  node: LocalNode,
+  name: string,
+  values: readonly T[],
+  fallback: T,
+): { tone: T; error: boolean } {
+  const raw = rawAttr(node, name);
+  if (raw === undefined) return { tone: fallback, error: false };
+  const full = FULL_EXPRESSION.exec(raw);
+  if (!full) {
+    const value = raw.trim();
+    return {
+      tone: (values as readonly string[]).includes(value) ? (value as T) : fallback,
+      error: false,
+    };
+  }
+  try {
+    const value = runtime.evaluate(full[1]);
+    if (typeof value === 'string' && (values as readonly string[]).includes(value)) {
+      return { tone: value as T, error: false };
+    }
+    return { tone: fallback, error: true };
+  } catch {
+    return { tone: fallback, error: true };
+  }
 }
 
 function runtimeRevision(runtime: LocalRuntime): number {
@@ -661,7 +833,7 @@ function renderNode(
   if (node.type === 'component') {
     return (
       <LocalErrorBoundary key={key} revision={runtimeRevision(env.runtime)}>
-        {renderComponent(node, visible, env.t)}
+        {renderComponent(node, visible, env.runtime, env.t)}
       </LocalErrorBoundary>
     );
   }
@@ -927,10 +1099,18 @@ function renderTableCells(
   });
 }
 
-function renderComponent(node: LocalNode, visible: boolean, t: Localize): ReactNode {
+function renderComponent(
+  node: LocalNode,
+  visible: boolean,
+  runtime: LocalRuntime,
+  t: Localize,
+): ReactNode {
   const name = node.name ?? '';
   // Computed/const declarations are document metadata, not rendered controls.
   if (name === 'computed' || name === 'const') return null;
+  if (name === 'data-table') {
+    return <DataTableView node={node} visible={visible} runtime={runtime} t={t} />;
+  }
   if (VISUAL_COMPONENTS.has(name)) {
     return <VisualView node={node} visible={visible} />;
   }
@@ -949,7 +1129,9 @@ function renderComponent(node: LocalNode, visible: boolean, t: Localize): ReactN
 
 function VisualView({ node, visible }: LocalComponentProps) {
   const { runtime, render } = useLocal();
-  return (
+  const t = useLocalize();
+  const validation = useValidationField(node);
+  const visual = (
     <LocalVisual
       node={node}
       runtime={runtime}
@@ -957,6 +1139,47 @@ function VisualView({ node, visible }: LocalComponentProps) {
       visible={visible}
     />
   );
+  // Keep the wrapper stable across valid/invalid revisions so visual selection
+  // state survives a rule changing. Untargeted visuals keep their existing DOM.
+  const targeted = runtime.document.validations?.some(rule => rule.fields.some(name => (
+    Object.hasOwn(runtime.document.bindings, name)
+    && runtime.document.bindings[name].nodeIds.includes(node.id)
+  )));
+  if (!targeted) return visual;
+  const label = textAttr(runtime, node, 'label', textAttr(runtime, node, 'title', t('Selection', '选择'), t), t);
+  return (
+    <div role="group" aria-label={label} aria-invalid={validation.invalid || undefined} aria-describedby={validation.describedBy}>
+      {visual}
+    </div>
+  );
+}
+
+/**
+ * One `<validation>` tag. The id exists in every state so field associations
+ * stay stable; only a visible failing rule announces itself. Hidden rules
+ * remain evaluated and associated through the runtime's document-wide pass.
+ */
+function ValidationView({ node, visible }: LocalComponentProps) {
+  const { validation } = useLocal();
+  const hint = validation.hintFor(node);
+  if (!hint) return null;
+  const failed = hint.failed || hint.error;
+  const announce = visible && failed;
+  return (
+    <span
+      id={hint.id}
+      className="local-validation-hint"
+      data-local-validation={hint.error ? 'error' : hint.failed ? 'failed' : 'passed'}
+      role={announce ? 'status' : undefined}
+      aria-live={announce ? 'polite' : undefined}
+    >
+      {failed ? hint.message : null}
+    </span>
+  );
+}
+
+function ColumnView() {
+  return null;
 }
 
 /* ----------------------------------------------------------------- inputs */
@@ -1013,6 +1236,7 @@ function InputView({ node }: LocalComponentProps) {
   const email = typeRaw === 'email';
   const required = boolAttr(runtime, node, 'required', false);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const minLengthRaw = rawAttr(node, 'min-length');
   const maxLengthRaw = rawAttr(node, 'max-length');
   const minLength = minLengthRaw !== undefined
@@ -1065,7 +1289,8 @@ function InputView({ node }: LocalComponentProps) {
         required={required}
         minLength={minLength}
         maxLength={maxLength}
-        aria-invalid={draftError || error ? true : undefined}
+        aria-invalid={draftError || error || validation.invalid ? true : undefined}
+        aria-describedby={validation.describedBy}
         onFocus={() => setFocused(true)}
         onBlur={() => {
           setFocused(false);
@@ -1107,6 +1332,7 @@ function TextareaView({ node }: LocalComponentProps) {
   const rows = Math.min(40, Math.max(1, Math.floor(numberAttr(runtime, node, 'rows', 4))));
   const required = boolAttr(runtime, node, 'required', false);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const minLengthRaw = rawAttr(node, 'min-length');
   const maxLengthRaw = rawAttr(node, 'max-length');
   const minLength = minLengthRaw !== undefined
@@ -1159,7 +1385,8 @@ function TextareaView({ node }: LocalComponentProps) {
         required={required}
         minLength={minLength}
         maxLength={maxLength}
-        aria-invalid={draftError || error ? true : undefined}
+        aria-invalid={draftError || error || validation.invalid ? true : undefined}
+        aria-describedby={validation.describedBy}
         onFocus={() => setFocused(true)}
         onBlur={() => {
           setFocused(false);
@@ -1238,6 +1465,7 @@ function NumberView({ node }: LocalComponentProps) {
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Number', '数字'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const minPresent = rawAttr(node, 'min') !== undefined;
   const maxPresent = rawAttr(node, 'max') !== undefined;
   const min = minPresent ? numberAttr(runtime, node, 'min', 0) : undefined;
@@ -1297,7 +1525,8 @@ function NumberView({ node }: LocalComponentProps) {
         inputMode="decimal"
         value={draft}
         disabled={disabled}
-        aria-invalid={draftError || error ? true : undefined}
+        aria-invalid={draftError || error || validation.invalid ? true : undefined}
+        aria-describedby={validation.describedBy}
         onFocus={() => setFocused(true)}
         onBlur={() => {
           setFocused(false);
@@ -1338,6 +1567,7 @@ function SliderView({ node }: LocalComponentProps) {
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Slider', '滑块'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const min = numberAttr(runtime, node, 'min', 0);
   const max = numberAttr(runtime, node, 'max', 100);
   const step = numberAttr(runtime, node, 'step', 1);
@@ -1361,6 +1591,8 @@ function SliderView({ node }: LocalComponentProps) {
         step={step}
         value={value}
         disabled={disabled}
+        aria-invalid={validation.invalid || undefined}
+        aria-describedby={validation.describedBy}
         onChange={(event: ChangeEvent<HTMLInputElement>) => write(Number(event.target.value))}
       />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
@@ -1375,6 +1607,7 @@ function ToggleView({ node }: LocalComponentProps) {
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Toggle', '开关'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const checked = currentValue(runtime, node) === true;
 
   return (
@@ -1385,6 +1618,8 @@ function ToggleView({ node }: LocalComponentProps) {
           type="checkbox"
           checked={checked}
           disabled={disabled}
+          aria-invalid={validation.invalid || undefined}
+          aria-describedby={validation.describedBy}
           onChange={(event: ChangeEvent<HTMLInputElement>) => write(event.target.checked)}
         />
         <span>{label}</span>
@@ -1401,6 +1636,7 @@ function CheckboxView({ node }: LocalComponentProps) {
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Checkbox', '勾选'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const checked = currentValue(runtime, node) === true;
 
   return (
@@ -1411,6 +1647,8 @@ function CheckboxView({ node }: LocalComponentProps) {
           type="checkbox"
           checked={checked}
           disabled={disabled}
+          aria-invalid={validation.invalid || undefined}
+          aria-describedby={validation.describedBy}
           onChange={(event: ChangeEvent<HTMLInputElement>) => write(event.target.checked)}
         />
         <span>{label}</span>
@@ -1427,6 +1665,7 @@ function DateView({ node }: LocalComponentProps) {
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Date', '日期'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const required = boolAttr(runtime, node, 'required', false);
   const min = textAttr(runtime, node, 'min', '', t);
   const max = textAttr(runtime, node, 'max', '', t);
@@ -1449,7 +1688,8 @@ function DateView({ node }: LocalComponentProps) {
         max={max || undefined}
         required={required}
         disabled={disabled}
-        aria-invalid={problem || error ? true : undefined}
+        aria-invalid={problem || error || validation.invalid ? true : undefined}
+        aria-describedby={validation.describedBy}
         onBlur={() => setTouched(true)}
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
           setTouched(true);
@@ -1519,6 +1759,7 @@ function SelectView({ node }: LocalComponentProps) {
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Select', '选择'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const options = readOptions(node);
   const stored = currentValue(runtime, node);
   const current = typeof stored === 'string' ? stored : '';
@@ -1538,6 +1779,8 @@ function SelectView({ node }: LocalComponentProps) {
         className="md-select-input"
         value={active}
         disabled={disabled}
+        aria-invalid={validation.invalid || undefined}
+        aria-describedby={validation.describedBy}
         onChange={(event: ChangeEvent<HTMLSelectElement>) => write(event.target.value)}
       >
         {options.map((option) => (
@@ -1559,6 +1802,7 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Options', '选项'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const options = readOptions(node);
   const stored = currentValue(runtime, node);
   const current = typeof stored === 'string' ? stored : '';
@@ -1596,6 +1840,8 @@ function ChoicesView({ node, visible }: LocalComponentProps) {
         role="radiogroup"
         aria-labelledby={`${domId}-choices-label`}
         aria-disabled={disabled || undefined}
+        aria-invalid={validation.invalid || undefined}
+        aria-describedby={validation.describedBy}
       >
         {options.map((option, index) => {
           const selected = option.value === current;
@@ -1632,6 +1878,7 @@ function RadioGroupView({ node, visible }: LocalComponentProps) {
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Options', '选项'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const options = readOptions(node);
   const stored = currentValue(runtime, node);
   const current = typeof stored === 'string' ? stored : '';
@@ -1640,7 +1887,13 @@ function RadioGroupView({ node, visible }: LocalComponentProps) {
   if (options.length === 0) return <LocalError message={t('Missing options', '缺少选项')} />;
 
   return (
-    <fieldset className="md-control local-radio-group" style={accentStyle(localColor(node))} disabled={disabled}>
+    <fieldset
+      className="md-control local-radio-group"
+      style={accentStyle(localColor(node))}
+      disabled={disabled}
+      aria-invalid={validation.invalid || undefined}
+      aria-describedby={validation.describedBy}
+    >
       <legend className="md-label">{label}</legend>
       {options.map((option) => (
         <label className="local-radio-option" key={option.node.id}>
@@ -1681,6 +1934,7 @@ function ChecklistView({ node, visible }: LocalComponentProps) {
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Checklist', '清单'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const items = readChecklistItems(node);
   const stored = currentValue(runtime, node);
   const selected = Array.isArray(stored)
@@ -1703,6 +1957,8 @@ function ChecklistView({ node, visible }: LocalComponentProps) {
       className="local-checklist"
       style={accentStyle(localColor(node))}
       disabled={disabled}
+      aria-invalid={validation.invalid || undefined}
+      aria-describedby={validation.describedBy}
     >
       <legend className="md-label">{label}</legend>
       {items.map((item) => {
@@ -1745,6 +2001,7 @@ function CounterView({ node }: LocalComponentProps) {
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Counter', '计数'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const min = numberAttr(runtime, node, 'min', 0);
   const maxPresent = rawAttr(node, 'max') !== undefined;
   const max = maxPresent ? numberAttr(runtime, node, 'max', 0) : undefined;
@@ -1770,7 +2027,13 @@ function CounterView({ node }: LocalComponentProps) {
   };
 
   return (
-    <div className="local-counter" role="group" aria-label={label}>
+    <div
+      className="local-counter"
+      role="group"
+      aria-label={label}
+      aria-invalid={validation.invalid || undefined}
+      aria-describedby={validation.describedBy}
+    >
       <span className="md-label">{label}</span>
       <div className="local-counter-row">
         <button
@@ -1812,6 +2075,7 @@ function TimerView({ node, visible }: LocalComponentProps) {
   const { runtime } = useLocal();
   const t = useLocalize();
   const label = textAttr(runtime, node, 'label', t('Timer', '计时器'), t);
+  const validation = useValidationField(node);
   const durationRaw = numberAttr(runtime, node, 'duration', 60);
   const duration = Math.floor(durationRaw);
   const stored = currentValue(runtime, node);
@@ -1915,7 +2179,13 @@ function TimerView({ node, visible }: LocalComponentProps) {
   };
 
   return (
-    <div className="local-timer" role="group" aria-label={label}>
+    <div
+      className="local-timer"
+      role="group"
+      aria-label={label}
+      aria-invalid={validation.invalid || undefined}
+      aria-describedby={validation.describedBy}
+    >
       <div className="local-timer-head">
         <span className="md-label">{label}</span>
         <span
@@ -2092,6 +2362,7 @@ function TabsView({ node, visible }: LocalComponentProps) {
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', '', t);
+  const validation = useValidationField(node);
   const tabs = (node.children ?? []).filter(
     (child) => child.type === 'component' && child.name === 'tab',
   );
@@ -2137,7 +2408,12 @@ function TabsView({ node, visible }: LocalComponentProps) {
   };
 
   return (
-    <section className="local-tabs" aria-label={label || t('Tabs', '选项卡')}>
+    <section
+      className="local-tabs"
+      aria-label={label || t('Tabs', '选项卡')}
+      aria-invalid={validation.invalid || undefined}
+      aria-describedby={validation.describedBy}
+    >
       {label ? <div className="local-tabs-label">{label}</div> : null}
       <div
         className="local-tablist"
@@ -2302,34 +2578,59 @@ function IfView({ node, visible }: LocalComponentProps) {
 
 /* --------------------------------------------------------------- feedback */
 
+function ToneProblem() {
+  const t = useLocalize();
+  return (
+    <span className="local-error local-tone-error" role="status">
+      {t('Invalid tone; using the default style', '色调无效，已使用默认样式')}
+    </span>
+  );
+}
+
 function AlertView({ node, visible }: LocalComponentProps) {
   const { runtime, render } = useLocal();
   const t = useLocalize();
   const title = textAttr(runtime, node, 'title', '', t);
-  const rawTone = rawAttr(node, 'tone') ?? 'info';
-  const tone = rawTone === 'success' || rawTone === 'warning' ? rawTone : 'info';
+  const { tone, error } = toneAttr(
+    runtime,
+    node,
+    'tone',
+    ['info', 'success', 'warning'] as const,
+    'info',
+  );
   const role = tone === 'warning' ? 'alert' : 'status';
   return (
-    <div className={`local-alert local-alert-${tone}`} role={role}>
-      {title ? <div className="local-alert-title">{title}</div> : null}
-      <div className="local-alert-body">{render(node.children ?? [], visible)}</div>
-    </div>
+    <>
+      {error ? <ToneProblem /> : null}
+      <div className={`local-alert local-alert-${tone}`} role={role}>
+        {title ? <div className="local-alert-title">{title}</div> : null}
+        <div className="local-alert-body">{render(node.children ?? [], visible)}</div>
+      </div>
+    </>
   );
 }
 
 function BadgeView({ node, visible }: LocalComponentProps) {
   const local = useLocal();
   const { runtime } = local;
-  const rawTone = rawAttr(node, 'tone') ?? 'neutral';
-  const tone = rawTone === 'success' || rawTone === 'warning' ? rawTone : 'neutral';
+  const { tone, error } = toneAttr(
+    runtime,
+    node,
+    'tone',
+    ['neutral', 'success', 'warning'] as const,
+    'neutral',
+  );
   const color = localColor(node);
   return (
-    <span
-      className={`md-badge md-badge-${tone} local-badge`}
-      style={color ? { color } : undefined}
-    >
-      {renderInlineNodes(local, node.children, visible)}
-    </span>
+    <>
+      {error ? <ToneProblem /> : null}
+      <span
+        className={`md-badge md-badge-${tone} local-badge`}
+        style={color ? { color } : undefined}
+      >
+        {renderInlineNodes(local, node.children, visible)}
+      </span>
+    </>
   );
 }
 
@@ -2523,6 +2824,7 @@ function MultiSelectView({ node, visible }: LocalComponentProps) {
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Multi select', '多选'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const options = readOptions(node);
   const stored = currentValue(runtime, node);
   const selected = Array.isArray(stored)
@@ -2572,6 +2874,8 @@ function MultiSelectView({ node, visible }: LocalComponentProps) {
       className="local-multi-select"
       style={accentStyle(localColor(node))}
       disabled={disabled}
+      aria-invalid={validation.invalid || undefined}
+      aria-describedby={validation.describedBy}
     >
       <legend className="md-label">{label}</legend>
       <div className="local-multi-toolbar">
@@ -2630,6 +2934,7 @@ function RangeSliderView({ node }: LocalComponentProps) {
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Range', '范围'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const { min, max, step } = numericRange(runtime, node, 'min', 'max', 0, 100, 1);
   const steps = Math.floor((max - min) / step + 1e-9);
   const defaultStart = min;
@@ -2663,6 +2968,8 @@ function RangeSliderView({ node }: LocalComponentProps) {
       style={accentStyle(localColor(node))}
       role="group"
       aria-label={label}
+      aria-invalid={validation.invalid || undefined}
+      aria-describedby={validation.describedBy}
     >
       <span className="md-label">{label}</span>
       <div className="local-range-row">
@@ -2793,6 +3100,7 @@ function CoordinateView({ node }: LocalComponentProps) {
   const { write, writeMany, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Coordinate', '坐标'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
+  const validation = useValidationField(node);
   const xRange = numericRange(runtime, node, 'x-min', 'x-max', -5, 5, 1);
   const yRange = numericRange(runtime, node, 'y-min', 'y-max', -5, 5, 1);
   const defaultX = snapToStep(0, xRange.min, xRange.max, xRange.step);
@@ -2881,6 +3189,8 @@ function CoordinateView({ node }: LocalComponentProps) {
       style={accentStyle(localColor(node))}
       role="group"
       aria-label={label}
+      aria-invalid={validation.invalid || undefined}
+      aria-describedby={validation.describedBy}
     >
       <span className="md-label">{label}</span>
       <div
@@ -3116,6 +3426,7 @@ function StepsView({ node, visible }: LocalComponentProps) {
   const t = useLocalize();
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', '', t);
+  const validation = useValidationField(node);
   const steps = (node.children ?? []).filter(
     (child) => child.type === 'component' && child.name === 'step',
   );
@@ -3156,7 +3467,12 @@ function StepsView({ node, visible }: LocalComponentProps) {
   };
 
   return (
-    <section className="local-steps" aria-label={label || t('Steps', '步骤')}>
+    <section
+      className="local-steps"
+      aria-label={label || t('Steps', '步骤')}
+      aria-invalid={validation.invalid || undefined}
+      aria-describedby={validation.describedBy}
+    >
       {label ? <div className="local-steps-label">{label}</div> : null}
       <div className="local-steps-nav">
         <button
@@ -3218,6 +3534,8 @@ const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNode> = {
   if: IfView,
   alert: AlertView,
   badge: BadgeView,
+  validation: ValidationView,
+  column: ColumnView,
   tooltip: TooltipView,
   input: InputView,
   textarea: TextareaView,
@@ -3322,10 +3640,14 @@ export function LocalDocumentView({
   // current snapshot through runtime.get during the resulting render.
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
+  // Advisory rules are read after the subscription so the hints reflect the
+  // revision that triggered this render. The runtime caches per revision.
+  const validation = createValidationState(document, runtime, instanceId, t);
+
   const env: RenderEnv = { runtime, urlPolicy, anchors, t };
   const render = (nodes?: LocalNode[], visible = true): ReactNode => (
     <LocalViewContext.Provider
-      value={{ runtime, render, visible, report, urlPolicy, anchors, rootRef, t }}
+      value={{ runtime, render, visible, report, urlPolicy, anchors, rootRef, t, validation }}
     >
       {renderNodes(env, nodes ?? [], visible)}
     </LocalViewContext.Provider>

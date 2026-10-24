@@ -24,6 +24,8 @@ One package version corresponds to exactly one syntax revision. Before upgrading
 
 ## Breaking changes and migration
 
+The same development build adds [constraints and collections](constraints-collections-en.md): `LocalRuntime.validate()`, serializable `LocalValidation` rules, numeric arrays and generated tables. Hosts implementing a runtime adapter need the new `validate()` method; exhaustive value-kind checks need `number-array`. Rename bindings colliding with `sum`, `average`, `minOf` or `maxOf`.
+
 The unreleased `0.4.0` build adds [named calculations and formatting functions](computations-formatting-en.md). `computed`/`const` use the existing local tag syntax. The new built-in function names become reserved; rename colliding input bindings and their references before using this build. `document.bindings` and `initialState` still contain writable controls; snapshots also expose successful calculated values.
 
 Author-visible syntax changes establish a new syntax revision, such as `local-draft-2`, and raise the minor version and update `LOCAL_SYNTAX_VERSION`. Changes to the core or React API are also recorded in the changelog. The project does not rewrite sources automatically; after upgrading, authors or hosts migrate according to the record.

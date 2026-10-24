@@ -4,6 +4,9 @@ This file records user-visible changes. The project is in a 0.x preview; version
 
 ## Unreleased
 
+- Add advisory cross-field `<validation>` rules with associated accessible hints and `runtime.validate()`. `alert` and `badge` accept conditional values from their existing tone enums.
+- Add homogeneous string/numeric array literals, array indexing, `sum`, `average`, `minOf` and `maxOf`, plus `<data-table>`/`<column>` for bounded local row generation with stable keys. See [constraints and collections](docs/constraints-collections-en.md). `LocalValueKind` gains `number-array`; aggregate names become reserved identifiers.
+
 - Add invisible, read-only `<computed>` and `<const>` declarations with dependency ordering, inferred types, cycle detection and per-runtime calculation caching. Prose, conditions, formulas and charts can share intermediate results.
 - Add number, percentage, scientific and currency formatting, common string functions and UTC date comparison/differences. Defaults, rounding, nulls and accepted regions are specified in [Reusing calculations and formatting values](docs/computations-formatting-en.md). New function names are reserved; rename any existing bindings with those names before using this development build.
 

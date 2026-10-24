@@ -441,6 +441,8 @@ Conditional expressions can nest, but do not go too deep. When readability suffe
 
 ### 6.3 Functions
 
+For array indexing and numeric aggregates, cross-field hints and generated local tables, see [Constraints and collections](constraints-collections-en.md). Its workshop example shows how to keep related fields consistent while editing.
+
 | Function | Purpose |
 | --- | --- |
 | `abs(x)` | Absolute value |

@@ -46,6 +46,7 @@
     "test:docs": "node scripts/verify-docs.mjs",
     "test:theme-browser": "node scripts/verify-theme-browser.mjs",
     "test:computations-browser": "node scripts/verify-computations-browser.mjs",
+    "test:constraints-browser": "node scripts/verify-constraints-browser.mjs",
     "benchmark": "node scripts/benchmark.mjs",
     "notices": "node scripts/generate-notices.mjs",
     "prepack": "npm run build && npm run notices"

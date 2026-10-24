@@ -120,6 +120,8 @@ Creates an independent in-memory runtime for a compiled document. Throws if `doc
 
 ### `LocalRuntime`
 
+`validate(): Diagnostic[]` reads advisory cross-field failures for the current revision. It preserves editability and returns copies of cached diagnostics. `document.validations?: LocalValidation[]` holds the serializable rule declarations. Numeric collections add `number[]` to `LocalValue` and `number-array` to `LocalValueKind`; existing writable selection controls keep string arrays. See [constraints and collections](constraints-collections-en.md).
+
 | Member | Parameters | Returns | Behavior |
 | --- | --- | --- | --- |
 | `document` | — | `LocalDocument` | The compiled result used at creation |

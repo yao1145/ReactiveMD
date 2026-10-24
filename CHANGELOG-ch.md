@@ -4,6 +4,9 @@
 
 ## 未发布
 
+- 新增跨字段 `<validation>` 规则、关联的可访问提示及 `runtime.validate()`；`alert` 和 `badge` 支持按条件选择现有 `tone` 枚举。
+- 新增同类型字符串/数字数组字面量、数组索引、`sum`、`average`、`minOf`、`maxOf`，以及带稳定行键和数量预算的 `<data-table>`/`<column>`。见[条件、校验与本地集合](docs/constraints-collections-ch.md)。`LocalValueKind` 增加 `number-array`，新增聚合函数名成为保留字。
+
 - 新增不可见、只读的 `<computed>` 与 `<const>` 声明，支持依赖排序、类型推断、循环检测和各运行时独立的计算缓存。正文、条件、公式与图表可共享中间结果。
 - 新增数字、百分比、科学计数法与货币格式化，常用字符串函数及 UTC 日期比较、日期差。默认值、舍入、空值和地区规则见[复用计算与格式化数值](docs/computations-formatting-ch.md)。新函数名成为保留字；使用本开发版本前需重命名同名旧绑定。
 

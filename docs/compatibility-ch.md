@@ -24,6 +24,8 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 ## 破坏性变更与迁移
 
+同一开发版本新增[条件、校验与本地集合](constraints-collections-ch.md)：`LocalRuntime.validate()`、可序列化的 `LocalValidation` 规则、数字数组及生成表格。自行实现运行时适配器的宿主需补充 `validate()`，值类型穷举需加入 `number-array`；与 `sum`、`average`、`minOf`、`maxOf` 同名的旧绑定应重命名。
+
 未发布的 `0.4.0` 开发版本增加[命名计算与格式化函数](computations-formatting-ch.md)。`computed`/`const` 使用现有本地标签形式；新函数名成为保留字，使用本版本前需重命名冲突的输入绑定并同步修改引用。`document.bindings` 和 `initialState` 继续只包含可写控件，快照同时提供成功求值的计算结果。
 
 作者可见的语法变化会建立新的语法修订，例如本次的 `local-draft-2`，并提升次版本、更新 `LOCAL_SYNTAX_VERSION`。核心或 React API 的变化也会记录在变更记录中。项目不自动改写源码；升级后由作者或宿主按记录迁移。
