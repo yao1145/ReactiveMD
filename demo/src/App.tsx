@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -385,7 +386,7 @@ export default function App() {
     setInstanceKey((key) => key + 1);
   }, [retainPreviewState]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const selection = pendingSelection.current;
     if (!selection) return;
     pendingSelection.current = null;
@@ -394,8 +395,11 @@ export default function App() {
     const length = editor.value.length;
     const start = Math.max(0, Math.min(selection.start, length));
     const end = Math.max(start, Math.min(selection.end, length));
-    editor.focus();
+    // Updating a controlled textarea temporarily moves its caret to the end.
+    // Restore the intended range before focusing, without scrolling the editor
+    // or its ancestors to that temporary caret.
     editor.setSelectionRange(start, end);
+    editor.focus({ preventScroll: true });
     setActiveLine(editor.value.slice(0, start).split('\n').length);
   }, [source]);
 
