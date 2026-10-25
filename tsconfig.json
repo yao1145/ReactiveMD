@@ -6,6 +6,7 @@
     "moduleResolution": "Bundler",
     "paths": {
       "reactive-md": ["./src/index.ts"],
+      "reactive-md/react": ["./src/react/index.ts"],
       "reactive-md/editor": ["./src/editor/index.ts"]
     },
     "jsx": "react-jsx",
