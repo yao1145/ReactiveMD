@@ -340,8 +340,11 @@ try {
 
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.locator('[data-editor-view-option="split"]').click();
+  await expect(page.locator('.editor-frame')).toHaveAttribute('data-editor-view', 'split');
   async function fixture(source) {
-    await page.locator('#source-editor').fill(source);
+    const sourceEditor = page.locator('#source-editor');
+    await sourceEditor.press('ControlOrMeta+A');
+    await sourceEditor.pressSequentially(source);
     // The previous preview can remain visible while the controlled input and
     // worker commit. Observe the source state before accepting compile status.
     try {

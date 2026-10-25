@@ -121,6 +121,8 @@ Collapsed body copy.
     const titleSelector = '.local-panel-title, .md-card-title, .local-tabs-label, .local-accordion-label, .local-disclosure-trigger, .local-alert-title, .local-visual-title';
     for (const width of [1280, 375]) {
       await page.setViewportSize({ width, height: 900 });
+      await page.locator(`[data-editor-view-option="${width < 600 ? 'preview' : 'split'}"]`).click();
+      await expect(article).toBeVisible();
       for (const theme of ['light', 'dark']) {
         await page.locator('html').evaluate((node, value) => node.setAttribute('data-theme', value), theme);
         const sizes = await article.locator(titleSelector).evaluateAll(nodes => nodes.map(node => {
@@ -149,6 +151,7 @@ Collapsed body copy.
     }
     await page.locator('html').evaluate(node => node.setAttribute('data-theme', 'light'));
     await page.setViewportSize({ width: 1280, height: 900 });
+    await page.locator('[data-editor-view-option="split"]').click();
   });
 
   await check('Markdown TOC resolves Chinese, encoded, formatted and duplicate headings', async () => {
