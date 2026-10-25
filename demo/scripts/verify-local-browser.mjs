@@ -324,6 +324,8 @@ try {
 
   await pick('pricing');
   await page.setViewportSize({ width: 375, height: 900 });
+  // Narrow editors expose one pane at a time; open the pane being exercised.
+  await page.locator('[data-editor-view-option="preview"]').click();
   await check('375px layout fits and keeps the pricing controls usable', async () => {
     expect(await fits()).toBe(true);
     const seats = page.getByRole('slider', { name: 'People', exact: true });
@@ -337,6 +339,7 @@ try {
   await page.screenshot({ path: 'artifacts/local-mobile.png', fullPage: true });
 
   await page.setViewportSize({ width: 1200, height: 900 });
+  await page.locator('[data-editor-view-option="split"]').click();
   async function fixture(source) {
     await page.locator('#source-editor').fill(source);
     // The previous preview can remain visible while the controlled input and

@@ -143,7 +143,10 @@ const startDevBold = async (target, editor) => {
   const from = await probeCount(target);
   await editor.focus();
   await expect(editor).toBeFocused();
-  await editor.fill('# Test\n\nBody');
+  // Exercise the actual keyboard path before testing selection and formatting.
+  // Chromium's bulk insertText fixture can be restored before React observes it.
+  await editor.press('ControlOrMeta+A');
+  await editor.pressSequentially('# Test\n\nBody');
   await waitForEditorSource(target, editor, '# Test\n\nBody', previous, 'fill before bold', from);
   await editor.evaluate((element) => {
     element.focus();
