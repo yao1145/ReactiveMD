@@ -156,7 +156,7 @@ function openDocument(key: string, text: string) {
 
 `readOnly` 保留源码显示、聚焦和选择，输入、工具栏、补全、重命名、格式化以及 ref 的 `undo`、`redo` 都不能改变值。
 
-`disabled` 同时阻止聚焦和指针交互。两种模式都不会自行改变值或历史。宿主不允许编辑源码时使用它们，例如展示只读预览期间。
+`disabled` 同时阻止聚焦和指针交互。两种模式均会禁用工具栏导出操作，不会自行改变值或历史。宿主不允许编辑源码时使用它们，例如展示只读预览期间。
 
 宿主从外部替换 `value` 或改变 `documentKey` 时，编辑器重置历史、选区和滚动位置；回传 `onChange` 收到的值会保留这些状态。未提供 `onExport` 时隐藏导出按钮。
 
@@ -187,7 +187,7 @@ const result = compileLocal(source);
 
 ## 工具栏与作者工具
 
-`toolbar={false}` 移除格式与插入工具栏，包括导出操作。`authoring={false}` 保留 textarea 和工具栏，但停用补全、绑定导航、重命名和格式化。两者默认启用。
+`toolbar={false}` 移除格式与插入工具栏，包括导出操作。`authoring={false}` 保留 textarea 和工具栏，但停用语法高亮、补全、绑定导航、重命名和格式化。两者默认启用。
 
 工具栏处理 Markdown 格式，插入列表、表格、链接、图片和内置组块模板，并提供撤销重做。格式化命令基于当前选区，通过 `onChange` 返回新源码。
 

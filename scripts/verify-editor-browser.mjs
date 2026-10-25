@@ -135,6 +135,17 @@ try {
     await setValue('a', SOURCE_A);
   });
 
+  await check('Tab indents selected lines without deleting their contents', async () => {
+    const value = 'first line\nsecond line';
+    await setValue('a', value);
+    await setCaret('a', 0, value.length);
+    await input('a').press('Tab');
+    await expect(input('a')).toHaveValue('  first line\n  second line');
+    await input('a').press('Control+z');
+    await expect(input('a')).toHaveValue(value);
+    await setValue('a', SOURCE_A);
+  });
+
   await check('external value replacement syncs text, highlight and host callback count', async () => {
     const before = await page.evaluate(() => window.editorHarness.changes('a'));
     const replacement = '# Replaced\n\nExternal text with <b>tag</b>.';

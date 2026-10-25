@@ -324,8 +324,9 @@ async function sizeBaseline() {
     cssGzip: gzipSync(css).byteLength,
   };
   console.log(`Standalone size: ${sizes.js} B (${sizes.jsGzip} B gzip), CSS ${sizes.css} B (${sizes.cssGzip} B gzip)`);
-  assert.ok(sizes.js <= 800 * 1024, `Standalone JS grew beyond the 800 KiB alarm: ${sizes.js}`);
-  assert.ok(sizes.jsGzip <= 240 * 1024, `Standalone JS gzip grew beyond the 240 KiB alarm: ${sizes.jsGzip}`);
+  // 0.5 includes the highlighter and its common language grammars offline.
+  assert.ok(sizes.js <= 1024 * 1024, `Standalone JS grew beyond the 1024 KiB alarm: ${sizes.js}`);
+  assert.ok(sizes.jsGzip <= 320 * 1024, `Standalone JS gzip grew beyond the 320 KiB alarm: ${sizes.jsGzip}`);
   assert.ok(sizes.css <= 80 * 1024, `Standalone CSS grew beyond the 80 KiB alarm: ${sizes.css}`);
   assert.ok(sizes.cssGzip <= 20 * 1024, `Standalone CSS gzip grew beyond the 20 KiB alarm: ${sizes.cssGzip}`);
   return sizes;

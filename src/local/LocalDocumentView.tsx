@@ -45,6 +45,8 @@ import { LocalVisual } from './visuals';
 import { createHeadingAnchors } from './heading-anchors';
 import { isLocalColor } from './colors';
 import { DataTableView } from './data-table';
+import { CodeBlockView } from './code-block';
+import { ZoomableImage } from './image-view';
 import {
   collectLocalFootnotes,
   footnoteLabelText,
@@ -873,6 +875,7 @@ function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5'
 
 interface RenderEnv {
   runtime: LocalRuntime;
+  rootRef: RefObject<HTMLElement | null>;
   urlPolicy?: LocalUrlPolicy;
   imageResolver?: LocalImageResolver;
   anchors: ReturnType<typeof createHeadingAnchors>;
@@ -1096,14 +1099,8 @@ function renderNode(
         </code>
       );
 
-    case 'code': {
-      const language = node.lang ? `language-${node.lang}` : undefined;
-      return (
-        <pre className="md-code" key={key}>
-          <code className={language}>{node.value ?? ''}</code>
-        </pre>
-      );
-    }
+    case 'code':
+      return <CodeBlockView key={key} value={node.value ?? ''} language={node.lang ?? undefined} mode={env.mode} />;
 
     case 'blockquote':
       return <blockquote key={key}>{renderNodes(env,node.children, visible)}</blockquote>;
@@ -1214,14 +1211,13 @@ function renderNode(
         );
       }
       return (
-        <img
+        <ZoomableImage
           key={key}
-          className="md-image"
           src={src}
           alt={node.alt ?? ''}
           title={node.title ?? undefined}
-          loading="lazy"
-          referrerPolicy="no-referrer"
+          mode={env.mode}
+          rootRef={env.rootRef}
         />
       );
     }
@@ -4382,6 +4378,7 @@ export function LocalDocumentView({
   const env = useMemo<RenderEnv>(
     () => ({
       runtime,
+      rootRef,
       urlPolicy,
       imageResolver,
       anchors,
@@ -4390,7 +4387,7 @@ export function LocalDocumentView({
       dependencies: dependencyIndex,
       footnotes,
     }),
-    [runtime, urlPolicy, imageResolver, anchors, t, renderedMode, dependencyIndex, footnotes],
+    [runtime, rootRef, urlPolicy, imageResolver, anchors, t, renderedMode, dependencyIndex, footnotes],
   );
 
   // Revision-independent deps keep this closure and the provider value stable

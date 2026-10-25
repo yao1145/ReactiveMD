@@ -25,10 +25,33 @@
     "node": ">=22.12.0"
   },
   "type": "module",
-  "workspaces": ["demo"],
-  "files": ["dist-library", "dist-standalone", "bin", "cli", "README.md", "README-en.md", "README-ch.md", "CONTRIBUTING.md", "CONTRIBUTING-ch.md", "CHANGELOG.md", "CHANGELOG-ch.md", "SECURITY.md", "SECURITY-ch.md", "THIRD_PARTY_NOTICES.md", "docs", "examples"],
-  "bin": { "reactive-md": "./bin/reactive-md.mjs" },
-  "sideEffects": ["**/*.css"],
+  "workspaces": [
+    "demo"
+  ],
+  "files": [
+    "dist-library",
+    "dist-standalone",
+    "bin",
+    "cli",
+    "README.md",
+    "README-en.md",
+    "README-ch.md",
+    "CONTRIBUTING.md",
+    "CONTRIBUTING-ch.md",
+    "CHANGELOG.md",
+    "CHANGELOG-ch.md",
+    "SECURITY.md",
+    "SECURITY-ch.md",
+    "THIRD_PARTY_NOTICES.md",
+    "docs",
+    "examples"
+  ],
+  "bin": {
+    "reactive-md": "./bin/reactive-md.mjs"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
   "scripts": {
     "dev": "npm run build:lib && npm run dev --workspace=@reactive-md/demo",
     "dev:lib": "vite build --config vite.lib.config.ts --watch",
@@ -52,6 +75,7 @@
     "test:date-browser": "node scripts/verify-date-input-browser.mjs",
     "test:editor-browser": "node scripts/verify-editor-browser.mjs",
     "test:markdown-browser": "node scripts/verify-markdown-browser.mjs",
+    "test:media-browser": "node scripts/verify-media-browser.mjs",
     "test:computations-browser": "node scripts/verify-computations-browser.mjs",
     "test:constraints-browser": "node scripts/verify-constraints-browser.mjs",
     "verify:memo": "node scripts/verify-memo-browser.mjs",
@@ -65,10 +89,19 @@
     "prepack": "npm run build && npm run notices"
   },
   "exports": {
-    ".": { "types": "./dist-library/types/index.d.ts", "import": "./dist-library/reactive-md.js" },
-    "./react": { "types": "./dist-library/types/react/index.d.ts", "import": "./dist-library/reactive-md-react.js" },
+    ".": {
+      "types": "./dist-library/types/index.d.ts",
+      "import": "./dist-library/reactive-md.js"
+    },
+    "./react": {
+      "types": "./dist-library/types/react/index.d.ts",
+      "import": "./dist-library/reactive-md-react.js"
+    },
     "./styles.css": "./dist-library/reactive-md.css",
-    "./editor": { "types": "./dist-library/types/editor/index.d.ts", "import": "./dist-library/reactive-md-editor.js" },
+    "./editor": {
+      "types": "./dist-library/types/editor/index.d.ts",
+      "import": "./dist-library/reactive-md-editor.js"
+    },
     "./editor/styles.css": "./dist-library/reactive-md-editor.css"
   },
   "peerDependencies": {
@@ -76,13 +109,18 @@
     "react-dom": "^19.0.0"
   },
   "peerDependenciesMeta": {
-    "react": { "optional": true },
-    "react-dom": { "optional": true }
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "lowlight": "3.3.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "remark-gfm": "4.0.1",

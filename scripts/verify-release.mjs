@@ -224,6 +224,7 @@ try {
         ['Editor toolbar browser', ['run', 'test:toolbar'], demoRoot, browserEnv],
         ['Published editor browser', ['run', 'test:editor-browser'], projectRoot, browserEnv],
         ['Markdown compatibility browser', ['run', 'test:markdown-browser'], projectRoot, browserEnv],
+        ['Code and image browser', ['run', 'test:media-browser'], projectRoot, browserEnv],
         ['Demo browser suite', ['run', 'test:browser'], demoRoot, browserEnv],
         ['New component browser suite', ['run', 'test:v2'], demoRoot, browserEnv],
         ['Shareable export acceptance', ['run', 'test:shareable'], projectRoot, browserEnv],

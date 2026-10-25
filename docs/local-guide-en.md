@@ -218,6 +218,10 @@ Tables of contents use ordinary Markdown links: `[Parameter description](#parame
 
 Indentation only affects readability: container content is dedented by the common indentation before parsing; indentation inside code fences is preserved. Plain prose is best left unindented.
 
+Code fences with a language name, such as `js`, `ts`, `python`, `json`, `bash`, `html` or `css`, receive syntax highlighting. The copy button copies the exact code, including whitespace. Unrecognized languages and blocks longer than 20,000 characters stay plain. Static rendering retains highlighting and omits copy controls; printing hides the code toolbar.
+
+Images approved by the host's `urlPolicy` open in a modal viewer on click, Enter or Space. Use the close button, Escape or the backdrop to return to the original image. Linked images keep their link destination. See [host integration](local-integration-en.md) for the image allowlist.
+
 ### 3.4 Key differences from HTML
 
 | HTML habit | Reactive MD approach |

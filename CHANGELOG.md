@@ -11,6 +11,7 @@ Compatible with 0.4.1. Syntax remains `local-draft-2`, with `component-protocol-
 - Add `reactive-md/editor`, a controlled React 19 source editor extracted from the Playground, with the independent style entry `reactive-md/editor/styles.css`. It provides highlighting, formatting and insertion tools, completion, binding navigation, rename, format, undo and redo, line numbers and scroll synchronization. Locale and theme are set per instance; `diagnostics` and `document` add gutter markers and binding value types. The host owns preview, persistence and export.
 - Support attribute-free `<b>`, `<i>`, `<u>`, `<s>`, `<mark>` and `<br>` formatting.
 - Render Markdown footnotes with rich definitions, numbering, repeated references and return links.
+- Highlight fenced code in common languages and copy its exact source with localized feedback. Approved images open in a keyboard-accessible modal viewer.
 
 ### Fixed
 

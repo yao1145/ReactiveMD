@@ -22,6 +22,7 @@ import type {
 import { EDITOR_CHROME_COPY } from './editor-i18n';
 import { EditorLocaleProvider } from './locale';
 import { EditorToolbar } from './editor-toolbar';
+import { indentSelection } from './editor-commands';
 import {
   AuthorHighlight,
   AuthoringPanel,
@@ -321,6 +322,10 @@ export const ReactiveMarkdownEditor = forwardRef<
     const element = event.currentTarget;
     const start = clampIndex(element.selectionStart, element.value.length);
     const end = clampIndex(element.selectionEnd, element.value.length);
+    if (start !== end) {
+      applyEdit(indentSelection(element.value, { start, end }));
+      return;
+    }
     const next = `${element.value.slice(0, start)}  ${element.value.slice(end)}`;
     const selection = { start: start + 2, end: start + 2 };
     recordHistory(next, selection, 'separate');

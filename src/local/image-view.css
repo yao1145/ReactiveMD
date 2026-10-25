@@ -1,0 +1,137 @@
+/* Markdown image zoom. Every selector stays inside a document root so the
+   published stylesheet never styles a host image, button or overlay. */
+
+.md-document img.md-image[data-zoomable="true"] {
+  cursor: zoom-in;
+}
+
+.md-document img.md-image[data-zoomable="true"]:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 3px;
+}
+
+/* The dialog is portalled into the document article, so it inherits that
+   document's theme tokens and sits in the top layer. */
+.md-document .md-image-zoom {
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: min(1100px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  overflow: visible;
+}
+
+.md-document .md-image-zoom::backdrop {
+  background: color-mix(in srgb, var(--code-bg) 78%, transparent);
+}
+
+.md-document .md-image-zoom-figure {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-md);
+  overflow: auto;
+}
+
+.md-document .md-image-zoom-full {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: clamp(8rem, calc(100vh - 9rem), 100vh);
+  max-height: clamp(8rem, calc(100dvh - 9rem), 100dvh);
+  object-fit: contain;
+  border-radius: var(--radius-control);
+}
+
+.md-document .md-image-zoom-caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 0 var(--space-2);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.md-document .md-image-zoom-title {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+}
+
+/* 44px square keeps the close target usable on touch screens. */
+.md-document .md-image-zoom-close {
+  position: absolute;
+  z-index: 1;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-md);
+  font: inherit;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.md-document .md-image-zoom-close:hover {
+  background: var(--surface-hover);
+}
+
+.md-document .md-image-zoom-close:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .md-document .md-image-zoom {
+    max-width: calc(100vw - 1rem);
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .md-document .md-image-zoom-figure {
+    max-height: calc(100vh - 1rem);
+    max-height: calc(100dvh - 1rem);
+    padding: var(--space-2);
+  }
+
+  .md-document .md-image-zoom-full {
+    max-height: clamp(8rem, calc(100vh - 8rem), 100vh);
+    max-height: clamp(8rem, calc(100dvh - 8rem), 100dvh);
+  }
+}
+
+@media print {
+  .md-document .md-image-zoom,
+  .md-document .md-image-zoom::backdrop {
+    display: none !important;
+  }
+}

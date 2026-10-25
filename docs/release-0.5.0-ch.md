@@ -24,6 +24,10 @@ npm install reactive-md@0.5.0
 
 这些新增能力扩展正文解析与文档渲染。语法修订、组块协议和主题协议保持不变。
 
+代码围栏支持 JavaScript、TypeScript、Python、JSON、Bash、HTML、CSS 等常见语言高亮。复制按钮保留原文，并显示成功或失败反馈。未知语言及超过 20,000 字符的代码块按纯文本显示。静态输出保留高亮；静态输出与打印不显示复制控件。
+
+通过宿主 URL 策略的图片可以点击放大，也可用 Enter 或空格打开；关闭按钮、Esc 和遮罩都能关闭预览，并恢复原图焦点。带链接的图片保留链接导航，静态输出保留普通图片。用法见[作者指南](local-guide-ch.md)与[图片策略](local-integration-ch.md#图片与链接策略)。
+
 ## 兼容性
 
 现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入继续有效，渲染器入口未变。为 `0.4.x` 编写的文档无需修改。本版本新增公开入口；只渲染文档的项目可以直接升级。

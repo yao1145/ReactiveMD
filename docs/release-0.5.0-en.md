@@ -24,6 +24,10 @@ Documents now preserve ordinary generic or comparison text and currency instead 
 
 These additions extend prose parsing and document rendering. The syntax revision, component protocol and theme protocol keep their current versions.
 
+Fenced code blocks highlight common languages, including JavaScript, TypeScript, Python, JSON, Bash, HTML and CSS. A copy button copies the original text with success or failure feedback. Unknown languages and blocks longer than 20,000 characters remain plain text. Static output keeps highlighting; copy controls are omitted from static output and printing.
+
+Images approved by the host URL policy open in a modal viewer. Enter or Space opens the image; the close button, Escape or the backdrop dismisses it and restores focus. Linked images keep their link navigation. Static output keeps ordinary images. See the [author guide](local-guide-en.md) and [host integration](local-integration-en.md) for usage.
+
 ## Compatibility
 
 Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports keep working, and the renderer entry is unchanged. Documents written for `0.4.x` need no edit. The release adds a public entry; projects that only render documents can upgrade without changes.

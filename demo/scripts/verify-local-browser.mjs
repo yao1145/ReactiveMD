@@ -339,6 +339,19 @@ try {
   await page.setViewportSize({ width: 1200, height: 900 });
   async function fixture(source) {
     await page.locator('#source-editor').fill(source);
+    // The previous preview can remain visible while the controlled input and
+    // worker commit. Observe the source state before accepting compile status.
+    try {
+      await expect(page.locator('#source-editor')).toHaveValue(source);
+      await expect.poll(() => page.locator('.author-highlight-content').textContent()).toBe(source);
+    } catch (error) {
+      const state = await page.evaluate(() => ({
+        value: document.querySelector('#source-editor')?.value,
+        highlight: document.querySelector('.author-highlight-content')?.textContent,
+        status: document.querySelector('.status-chip')?.textContent,
+      }));
+      throw new Error(`${error.message}\nSource fixture state: ${JSON.stringify(state)}`);
+    }
     await expect(status()).toContainText('Compiled');
     await expect(preview().locator('.local-document')).toBeVisible();
   }

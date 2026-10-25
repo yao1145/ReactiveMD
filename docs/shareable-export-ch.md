@@ -191,8 +191,10 @@ IIFE 会注册一个 Light DOM 自定义元素。简单选项通过属性传递�
 
 | 产物 | 当前基线 | 报警阈值 |
 | --- | --- | --- |
-| `reactive-md-standalone.js` | 约 625.5 kB（gzip 约 186 kB） | 800 KiB / gzip 240 KiB |
-| `reactive-md-standalone.css` | 约 59.7 kB（gzip 约 10.1 kB） | 80 KiB / gzip 20 KiB |
+| `reactive-md-standalone.js` | 约 925 kB（gzip 约 276 kB） | 1024 KiB / gzip 320 KiB |
+| `reactive-md-standalone.css` | 约 81.2 kB（gzip 约 13.5 kB） | 80 KiB / gzip 20 KiB |
+
+0.5 基线包含语法高亮器和常见语言语法，离线文件也能高亮。
 
 数值会随压缩器和 React 补丁版本小幅变化。阈值远高于正常波动，同时能捕获 React 或渲染器被重复打包的退化。完整 HTML 还包含源码、notices 和内联图片，因此会大于这个基线。
 

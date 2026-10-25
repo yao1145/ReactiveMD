@@ -1,5 +1,7 @@
 @import './theme.css';
 @import './base.css';
+@import './local/code-block.css';
+@import './local/image-view.css';
 @import './local/local.css';
 @import './local/visuals.css';
 @import './print.css';

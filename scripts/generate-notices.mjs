@@ -3,8 +3,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
-// Markdown is bundled by core; the standalone IIFE also bundles React/DOM.
-const roots = ['remark-gfm', 'remark-parse', 'unified', 'react', 'react-dom'];
+// Markdown is bundled by core; renderer code highlighting bundles lowlight.
+// The standalone IIFE also bundles React/DOM.
+const roots = ['remark-gfm', 'remark-parse', 'unified', 'lowlight', 'react', 'react-dom'];
 const visited = new Map();
 async function findPackage(name, from) {
   let current = from;
@@ -31,7 +32,7 @@ const packages = [...visited.values()].sort((a, b) => `${a.name}@${a.version}`.l
 const notice = [
   '# Third-party notices',
   '',
-  'Reactive MD bundles its Markdown dependencies. The standalone HTML runtime also bundles React, React DOM and scheduler. This file preserves license texts for those installed dependency trees, including supporting type packages. The library React entry uses host-provided React and React DOM peers.',
+  'Reactive MD bundles its Markdown and syntax-highlighting dependencies. The standalone HTML runtime also bundles React, React DOM and scheduler. This file preserves license texts for those installed dependency trees, including supporting type packages. The library React entry uses host-provided React and React DOM peers.',
   '',
   'Regenerate after dependency updates with `node scripts/generate-notices.mjs`.',
   '',

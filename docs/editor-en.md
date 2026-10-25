@@ -156,7 +156,7 @@ Each instance applies its own locale and theme. The editor does not change the d
 
 `readOnly` keeps the source visible, focusable and selectable. Typing, the toolbar, completion, rename, format and the ref `undo` and `redo` methods cannot change the value.
 
-`disabled` also blocks focus and pointer interaction. Neither mode changes the value or the history on its own. Use them when a host is not allowed to edit source, for example while a read-only preview is shown.
+`disabled` also blocks focus and pointer interaction. Both modes disable the toolbar export action. Neither mode changes the value or the history on its own. Use them when a host is not allowed to edit source, for example while a read-only preview is shown.
 
 Replacing `value` externally or changing `documentKey` resets history, selection and the editor's scroll position. Echoing a value received through `onChange` preserves them. The export button is hidden until `onExport` is provided.
 
@@ -187,7 +187,7 @@ Use `className` or `style` for margins and placement in a host layout. Internal 
 
 ## Toolbar and authoring tools
 
-`toolbar={false}` removes the formatting and insertion toolbar, including its export action. `authoring={false}` keeps the textarea and toolbar but disables completion, binding navigation, rename and format. Both default to enabled.
+`toolbar={false}` removes the formatting and insertion toolbar, including its export action. `authoring={false}` keeps the textarea and toolbar but disables syntax highlighting, completion, binding navigation, rename and format. Both default to enabled.
 
 The toolbar formats Markdown, inserts lists, tables, links, images and the built-in component templates, and exposes undo and redo. Formatting commands use the current selection and return the next source through `onChange`.
 

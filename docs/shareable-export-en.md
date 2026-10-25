@@ -193,8 +193,10 @@ The element uses Light DOM so the existing document CSS, heading anchors and pri
 
 | Artifact | Current baseline | Alarm |
 | --- | --- | --- |
-| `reactive-md-standalone.js` | ≈625.5 kB (≈186 kB gzip) | 800 KiB / 240 KiB gzip |
-| `reactive-md-standalone.css` | ≈59.7 kB (≈10.1 kB gzip) | 80 KiB / 20 KiB gzip |
+| `reactive-md-standalone.js` | ≈925 kB (≈276 kB gzip) | 1024 KiB / 320 KiB gzip |
+| `reactive-md-standalone.css` | ≈81.2 kB (≈13.5 kB gzip) | 80 KiB / 20 KiB gzip |
+
+The 0.5 baseline includes the syntax highlighter and common language grammars for offline use.
 
 Sizes vary slightly with the minifier and React patch release. The alarm is intentionally well above normal noise while catching a React or renderer duplication regression. The full generated HTML also contains the source, notices and inline images, so it is larger than this baseline.
 

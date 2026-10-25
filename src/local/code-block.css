@@ -1,0 +1,202 @@
+/* Fenced code blocks: striped toolbar, highlighted tokens and copy control.
+   Every selector stays inside .md-document so a host page keeps its own
+   styles. The dark code surface matches the existing .md-code block. */
+
+.md-document .md-code-block {
+  --md-code-token-comment: #93a4bd;
+  --md-code-token-keyword: #c7a4ff;
+  --md-code-token-string: #9fdb9a;
+  --md-code-token-number: #f2c879;
+  --md-code-token-title: #8fc7ff;
+  --md-code-token-attr: #ffb3c8;
+  --md-code-token-meta: #d2b4ff;
+  --md-code-token-addition: #8fe3c8;
+  --md-code-token-deletion: #ff9daa;
+
+  margin: var(--space-4) 0;
+  border: 1px solid color-mix(in srgb, var(--code-ink) 14%, var(--code-bg));
+  border-radius: var(--radius-card);
+  background-color: var(--code-bg);
+  color: var(--code-ink);
+  overflow: hidden;
+}
+
+.md-document .md-code-block-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-1) 0 var(--space-4);
+  border-bottom: 1px solid color-mix(in srgb, var(--code-ink) 12%, var(--code-bg-deep));
+  background-color: var(--code-bg-deep);
+}
+
+.md-document .md-code-block-language {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-right: auto;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--code-ink) 68%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+  line-height: var(--leading-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.md-document .md-code-block-feedback {
+  flex: none;
+  min-height: 1em;
+  color: color-mix(in srgb, var(--code-ink) 80%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.md-document .md-code-block-feedback[data-state='success'] {
+  color: var(--md-code-token-addition);
+}
+
+.md-document .md-code-block-feedback[data-state='error'] {
+  color: var(--md-code-token-deletion);
+}
+
+.md-document .md-code-block-copy {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-control);
+  background-color: transparent;
+  color: color-mix(in srgb, var(--code-ink) 80%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.md-document .md-code-block-copy:hover {
+  background-color: color-mix(in srgb, var(--code-ink) 12%, transparent);
+  color: var(--code-ink);
+}
+
+.md-document .md-code-block-copy:active {
+  background-color: color-mix(in srgb, var(--code-ink) 18%, transparent);
+}
+
+.md-document .md-code-block-copy:focus-visible {
+  outline: 2px solid var(--code-ink);
+  outline-offset: -2px;
+}
+
+/* The wrapper owns the card edge; the pre keeps its own scrolling surface. */
+.md-document .md-code-block > .md-code {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  color: var(--code-ink);
+  tab-size: 4;
+}
+
+/* Tokens */
+.md-document .md-code-block .hljs-comment,
+.md-document .md-code-block .hljs-quote {
+  color: var(--md-code-token-comment);
+  font-style: italic;
+}
+
+.md-document .md-code-block .hljs-keyword,
+.md-document .md-code-block .hljs-selector-tag,
+.md-document .md-code-block .hljs-literal,
+.md-document .md-code-block .hljs-doctag {
+  color: var(--md-code-token-keyword);
+}
+
+.md-document .md-code-block .hljs-string,
+.md-document .md-code-block .hljs-regexp,
+.md-document .md-code-block .hljs-char.escape_ {
+  color: var(--md-code-token-string);
+}
+
+.md-document .md-code-block .hljs-number,
+.md-document .md-code-block .hljs-symbol,
+.md-document .md-code-block .hljs-bullet,
+.md-document .md-code-block .hljs-link {
+  color: var(--md-code-token-number);
+}
+
+.md-document .md-code-block .hljs-title,
+.md-document .md-code-block .hljs-section,
+.md-document .md-code-block .hljs-selector-id,
+.md-document .md-code-block .hljs-selector-class,
+.md-document .md-code-block .hljs-name {
+  color: var(--md-code-token-title);
+}
+
+.md-document .md-code-block .hljs-attr,
+.md-document .md-code-block .hljs-attribute,
+.md-document .md-code-block .hljs-variable,
+.md-document .md-code-block .hljs-template-variable,
+.md-document .md-code-block .hljs-type,
+.md-document .md-code-block .hljs-params,
+.md-document .md-code-block .hljs-property {
+  color: var(--md-code-token-attr);
+}
+
+.md-document .md-code-block .hljs-built_in,
+.md-document .md-code-block .hljs-meta,
+.md-document .md-code-block .hljs-meta-keyword,
+.md-document .md-code-block .hljs-meta-string,
+.md-document .md-code-block .hljs-tag {
+  color: var(--md-code-token-meta);
+}
+
+.md-document .md-code-block .hljs-addition {
+  color: var(--md-code-token-addition);
+}
+
+.md-document .md-code-block .hljs-deletion {
+  color: var(--md-code-token-deletion);
+}
+
+.md-document .md-code-block .hljs-emphasis {
+  font-style: italic;
+}
+
+.md-document .md-code-block .hljs-strong {
+  font-weight: var(--weight-semibold);
+}
+
+/* Paper: no toolbar and one readable ink colour for every token. */
+@media print {
+  .md-document .md-code-block-toolbar {
+    display: none !important;
+  }
+
+  .md-document .md-code-block {
+    border-color: var(--line);
+    border-radius: var(--radius-control);
+  }
+
+  .md-document .md-code-block > .md-code {
+    max-width: 100%;
+    overflow: visible !important;
+  }
+
+  .md-document .md-code-block .hljs,
+  .md-document .md-code-block .hljs * {
+    background: transparent !important;
+    color: var(--code-ink) !important;
+    font-style: normal !important;
+    font-weight: inherit !important;
+  }
+}
