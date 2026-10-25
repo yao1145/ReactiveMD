@@ -92,6 +92,51 @@ try {
     await expect(toolbar('b').getByRole('button', { name: 'Bold', exact: true })).toBeVisible();
   });
 
+  await check('view switching is built into each editor frame and supports controlled and uncontrolled hosts', async () => {
+    const frame = root('a').locator('.editor-frame');
+    const bar = frame.locator(':scope > .editor-status-bar');
+    await expect(bar).toBeVisible();
+    await expect(frame).toHaveAttribute('data-editor-view', 'edit');
+    await bar.getByRole('button', { name: 'Split', exact: true }).click();
+    await expect(frame).toHaveAttribute('data-editor-view', 'split');
+    await expect(input('a')).toBeVisible();
+    await expect(root('a').locator('.editor-preview')).toBeVisible();
+    const slider = root('a').getByRole('slider', { name: 'Preview amount a' });
+    await slider.fill('7');
+    await bar.getByRole('button', { name: 'Preview', exact: true }).click();
+    await expect(input('a')).toBeHidden();
+    await expect(toolbar('a')).toBeHidden();
+    await expect(root('a').locator('.source-authoring')).toBeHidden();
+    await expect(root('b').locator('.editor-frame')).toHaveAttribute('data-editor-view', 'edit');
+    await bar.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(input('a')).toHaveValue(SOURCE_A);
+    await bar.getByRole('button', { name: 'Split', exact: true }).click();
+    await expect(slider).toHaveValue('7');
+    const positions = await frame.evaluate((element) => ({
+      frame: element.getBoundingClientRect().bottom,
+      workspace: element.querySelector('.editor-workspace').getBoundingClientRect().bottom,
+      bar: element.querySelector('.editor-status-bar').getBoundingClientRect(),
+    }));
+    assert.ok(Math.abs(positions.bar.top - positions.workspace) < 2, 'bar must sit directly under the editor workspace');
+    assert.ok(Math.abs(positions.bar.bottom - positions.frame) < 2, 'bar must sit inside the editor frame');
+    await page.setViewportSize({ width: 375, height: 900 });
+    await expect(bar.getByRole('button', { name: 'Split', exact: true })).toHaveCount(0);
+    await expect(frame).toHaveAttribute('data-editor-view', 'edit');
+    await expect(bar.getByRole('button', { name: 'Edit', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(input('a')).toHaveValue(SOURCE_A);
+    await page.setViewportSize({ width: 1280, height: 1000 });
+    await expect(frame).toHaveAttribute('data-editor-view', 'split');
+    await expect(slider).toHaveValue('7');
+    await page.evaluate(() => window.editorHarness.setViewMode('preview', 'a'));
+    const before = await page.evaluate(() => window.editorHarness.viewChanges('a').length);
+    await bar.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(frame).toHaveAttribute('data-editor-view', 'preview');
+    assert.equal(await page.evaluate(() => window.editorHarness.viewChanges('a').at(-1)), 'edit');
+    assert.equal(await page.evaluate(() => window.editorHarness.viewChanges('a').length), before + 1);
+    await page.evaluate(() => window.editorHarness.setViewMode(undefined, 'a'));
+    await bar.getByRole('button', { name: 'Edit', exact: true }).click();
+  });
+
   await check('real typing is controlled and undo/redo stay in one instance', async () => {
     const a = input('a');
     await a.click();
@@ -143,6 +188,21 @@ try {
     await expect(input('a')).toHaveValue('  first line\n  second line');
     await input('a').press('Control+z');
     await expect(input('a')).toHaveValue(value);
+    await setValue('a', SOURCE_A);
+  });
+
+  await check('Escape then Tab reaches the toolbar without changing source; typing cancels the escape', async () => {
+    await setCaret('a', SOURCE_A.length);
+    await input('a').press('Escape');
+    await input('a').press('Tab');
+    await expect(toolbar('a').locator('[tabindex="0"]')).toBeFocused();
+    await expect(input('a')).toHaveValue(SOURCE_A);
+    await setCaret('a', SOURCE_A.length);
+    await input('a').press('Escape');
+    await input('a').press('x');
+    await input('a').press('Tab');
+    await expect(input('a')).toBeFocused();
+    await expect(input('a')).toHaveValue(`${SOURCE_A}x  `);
     await setValue('a', SOURCE_A);
   });
 
@@ -319,6 +379,65 @@ try {
     const before = await page.evaluate(() => window.editorHarness.exports());
     await toolbar('a').locator('[data-toolbar-id="download"]').click();
     await expect.poll(() => page.evaluate(() => window.editorHarness.exports())).toBe(before + 1);
+  });
+
+  await check('light, dark and automatic themes cover source, syntax, toolbar and menus', async () => {
+    const sample = '# Heading\n\n<!-- Comment -->\n<slider bind="amount" label="Amount" min="0" max="10" />\n\n{{ amount }}\n\n`code` and $x$';
+    await setValue('a', sample);
+    const snapshot = () => root('a').evaluate((element) => {
+      const style = (selector) => getComputedStyle(element.querySelector(selector));
+      // Canvas normalizes CSS color-mix values as well as rgb/hex to sRGB.
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 1;
+      const ctx = canvas.getContext('2d');
+      const luminance = (color) => {
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, 1, 1);
+        const rgb = Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3).map((v) => {
+          const s = v / 255;
+          return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        });
+        return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
+      };
+      const contrast = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      const bg = luminance(style('.editor-shell').backgroundColor);
+      const gutter = style('.editor-gutter');
+      const sourceColors = [style('.author-highlight').color, style('.editor-input').caretColor,
+        ...Array.from(element.querySelectorAll('.author-highlight [class^="author-token-"]'), (token) => getComputedStyle(token).color)];
+      return {
+        bg,
+        toolbar: luminance(style('.editor-toolbar').backgroundColor),
+        sourceContrast: Math.min(...sourceColors.map((color) => contrast(luminance(color), bg))),
+        gutterContrast: contrast(luminance(gutter.color), luminance(gutter.backgroundColor)),
+      };
+    });
+    for (const theme of ['light', 'dark', 'auto']) {
+      for (const system of ['light', 'dark']) {
+        await page.emulateMedia({ colorScheme: system });
+        await page.evaluate((theme) => window.editorHarness.setTheme(theme, 'a'), theme);
+        await expect(root('a')).toHaveAttribute('data-editor-theme', theme);
+        const dark = (theme === 'auto' ? system : theme) === 'dark';
+        const colors = await snapshot();
+        assert.ok(dark ? colors.bg < 0.05 : colors.bg > 0.9, `${theme}/${system}: source background`);
+        assert.ok(dark ? colors.toolbar < 0.05 : colors.toolbar > 0.9, `${theme}/${system}: toolbar background`);
+        assert.ok(colors.sourceContrast >= 4.5, `${theme}/${system}: source contrast ${colors.sourceContrast}`);
+        assert.ok(colors.gutterContrast >= 4.5, `${theme}/${system}: gutter contrast ${colors.gutterContrast}`);
+        for (const [trigger, menu] of [['heading', '.editor-toolbar-heading-menu'], ['components', '.editor-toolbar-native-menu']]) {
+          await toolbar('a').locator(`[data-toolbar-id="${trigger}"]`).click();
+          const popup = root('a').locator(menu);
+          await expect(popup).toBeVisible();
+          const bg = await popup.evaluate((element) => getComputedStyle(element).backgroundColor);
+          assert.equal(bg, dark ? 'rgb(27, 27, 29)' : 'rgb(255, 255, 255)', `${theme}/${system}: ${menu}`);
+          await page.keyboard.press('Escape');
+        }
+        await expect(input('a')).toHaveValue(sample);
+        await expect(root('b')).toHaveAttribute('data-editor-theme', 'light');
+      }
+    }
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.evaluate(() => window.editorHarness.setTheme('light', 'a'));
+    await setValue('a', SOURCE_A);
   });
 
   await check('desktop and 375px layouts avoid horizontal overflow and page errors', async () => {

@@ -3,16 +3,16 @@
 
 .reactive-md-editor {
   .editor-toolbar {
-    --editor-toolbar-bg: #161d29;
-    --editor-toolbar-bg-deep: #101722;
-    --editor-toolbar-border: rgba(255, 255, 255, 0.08);
-    --editor-toolbar-line: rgba(255, 255, 255, 0.14);
-    --editor-toolbar-ink: #b9c3d2;
-    --editor-toolbar-ink-strong: #ffffff;
-    --editor-toolbar-muted: #8b99ad;
-    --editor-toolbar-hover: rgba(255, 255, 255, 0.08);
-    --editor-toolbar-focus: #7aa2ff;
-    --editor-toolbar-accent: #8fe3d4;
+    --editor-toolbar-bg: var(--surface-subtle);
+    --editor-toolbar-bg-deep: var(--surface);
+    --editor-toolbar-border: var(--line);
+    --editor-toolbar-line: var(--line-strong);
+    --editor-toolbar-ink: var(--ink-soft);
+    --editor-toolbar-ink-strong: var(--ink);
+    --editor-toolbar-muted: var(--ink-muted);
+    --editor-toolbar-hover: var(--surface-hover);
+    --editor-toolbar-focus: var(--focus);
+    --editor-toolbar-accent: var(--teal);
     position: relative;
     z-index: 20;
     display: flex;
@@ -23,9 +23,8 @@
     margin: 0;
     padding: 6px 8px;
     color: var(--editor-toolbar-ink);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 45%),
-      linear-gradient(180deg, var(--editor-toolbar-bg), var(--editor-toolbar-bg-deep));
+    background: var(--editor-toolbar-bg-deep);
+    background-image: linear-gradient(180deg, var(--editor-toolbar-bg), var(--editor-toolbar-bg-deep));
     border: 0;
     border-bottom: 1px solid var(--editor-toolbar-border);
     border-radius: calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 0;
@@ -86,18 +85,18 @@
 
   .editor-toolbar-button:active:not(:disabled) {
     transform: translateY(1px) scale(0.97);
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--surface-active);
   }
 
   .editor-toolbar-button[aria-expanded="true"] {
     color: var(--editor-toolbar-ink-strong);
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--surface-active);
   }
 
   .editor-toolbar-button.is-active {
-    color: #dbe7ff;
-    background: rgba(122, 162, 255, 0.16);
-    box-shadow: inset 0 0 0 1px rgba(122, 162, 255, 0.24);
+    color: var(--focus);
+    background: color-mix(in srgb, var(--focus) 12%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus) 24%, transparent);
   }
 
   .editor-toolbar-button:disabled {
@@ -196,10 +195,10 @@
     min-width: 94px;
     gap: 5px;
     padding: 0 10px 0 8px;
-    border: 1px solid rgba(122, 162, 255, 0.26);
+    border: 1px solid color-mix(in srgb, var(--focus) 26%, transparent);
     border-radius: 999px;
-    background: linear-gradient(135deg, rgba(74, 128, 255, 0.22), rgba(45, 212, 191, 0.15));
-    color: #d6e3ff;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--focus) 12%, transparent), color-mix(in srgb, var(--teal) 8%, transparent));
+    color: var(--focus);
     font-size: 12px;
     font-weight: 650;
     letter-spacing: 0.01em;
@@ -220,9 +219,9 @@
   }
 
   .editor-toolbar-components-trigger[aria-expanded="true"] {
-    border-color: rgba(143, 227, 212, 0.48);
-    background: linear-gradient(135deg, rgba(84, 139, 255, 0.34), rgba(45, 212, 191, 0.24));
-    color: #ffffff;
+    border-color: color-mix(in srgb, var(--teal) 48%, transparent);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--focus) 20%, transparent), color-mix(in srgb, var(--teal) 14%, transparent));
+    color: var(--ink);
   }
 
   .editor-toolbar-history {
@@ -276,11 +275,11 @@
       left: 50%;
       z-index: 90;
       padding: 4px 7px;
-      background: #0b111c;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: var(--surface);
+      border: 1px solid var(--line);
       border-radius: 6px;
-      box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.9);
-      color: #e6edf7;
+      box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--ink) 22%, transparent);
+      color: var(--ink);
       font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
       font-size: 11.5px;
       font-weight: 500;
@@ -331,15 +330,13 @@
     top: calc(100% + 6px);
     left: 0;
     z-index: 50;
-    color: #dbe4f0;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 40%),
-      linear-gradient(180deg, #151d2a, #101722 72%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
     border-radius: 12px;
     box-shadow:
-      0 24px 50px -20px rgba(0, 0, 0, 0.9),
-      0 8px 22px -12px rgba(0, 0, 0, 0.6),
+      0 24px 50px -20px color-mix(in srgb, var(--ink) 22%, transparent),
+      0 8px 22px -12px color-mix(in srgb, var(--ink) 12%, transparent),
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
     animation: editor-toolbar-pop-in 0.13s ease-out;
     transform-origin: top left;
@@ -381,7 +378,7 @@
     background: transparent;
     border: 0;
     border-radius: 7px;
-    color: #c8d3e2;
+    color: var(--ink-soft);
     font: inherit;
     font-size: 12.5px;
     text-align: left;
@@ -395,14 +392,14 @@
   }
 
   .editor-toolbar-menu-item[aria-checked="true"] {
-    color: #eef4ff;
-    background: rgba(84, 139, 255, 0.14);
+    color: var(--ink);
+    background: color-mix(in srgb, var(--focus) 12%, transparent);
   }
 
   .editor-toolbar-menu-item[aria-checked="true"]::after {
     content: "✓";
     margin-left: auto;
-    color: #9dbcff;
+    color: var(--focus);
     font-size: 12px;
     font-weight: 700;
   }
@@ -410,18 +407,18 @@
   .editor-toolbar-menu-icon {
     width: 16px;
     height: 16px;
-    color: #8fa2ba;
+    color: var(--ink-muted);
   }
 
   .editor-toolbar-menu-item[aria-checked="true"] .editor-toolbar-menu-icon,
   .editor-toolbar-menu-item:hover:not(:disabled) .editor-toolbar-menu-icon {
-    color: #b9cff6;
+    color: var(--focus);
   }
 
   .editor-toolbar-menu-divider {
     height: 1px;
     margin: 4px 6px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-hover);
   }
 
   .editor-toolbar-heading-item {
@@ -440,7 +437,7 @@
     flex: 0 0 26px;
     align-items: center;
     justify-content: center;
-    color: #93a4bb;
+    color: var(--ink-muted);
     font-family: Georgia, "Times New Roman", serif;
     font-size: 11px;
     font-weight: 700;
@@ -454,32 +451,32 @@
   }
 
   .editor-toolbar-heading-sample.is-level-1 {
-    color: #c9d9fa;
+    color: var(--ink);
     font-size: 15px;
   }
 
   .editor-toolbar-heading-sample.is-level-2 {
-    color: #c2d2f1;
+    color: var(--ink);
     font-size: 14px;
   }
 
   .editor-toolbar-heading-sample.is-level-3 {
-    color: #b8c8e4;
+    color: var(--ink-soft);
     font-size: 13px;
   }
 
   .editor-toolbar-heading-sample.is-level-4 {
-    color: #aebdd6;
+    color: var(--ink-soft);
     font-size: 12px;
   }
 
   .editor-toolbar-heading-sample.is-level-5 {
-    color: #a3b1c8;
+    color: var(--ink-muted);
     font-size: 11.5px;
   }
 
   .editor-toolbar-heading-sample.is-level-6 {
-    color: #98a6bb;
+    color: var(--ink-muted);
     font-size: 11px;
   }
 
@@ -543,7 +540,7 @@
   }
 
   .editor-toolbar-native-title {
-    color: #eef4ff;
+    color: var(--ink);
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.01em;
@@ -561,7 +558,7 @@
     background: transparent;
     border: 0;
     border-radius: 7px;
-    color: #9aa9bd;
+    color: var(--ink-muted);
     cursor: pointer;
     transition: background-color 0.12s ease, color 0.12s ease;
   }
@@ -578,22 +575,22 @@
     gap: 7px;
     margin-bottom: 6px;
     padding: 6px 9px;
-    background: rgba(255, 255, 255, 0.045);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: var(--surface-subtle);
+    border: 1px solid var(--line);
     border-radius: 8px;
     transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
   .editor-toolbar-search:focus-within {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(122, 162, 255, 0.65);
-    box-shadow: 0 0 0 2px rgba(84, 139, 255, 0.18);
+    background: var(--surface-active);
+    border-color: var(--focus);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 18%, transparent);
   }
 
   .editor-toolbar-search-icon {
     width: 15px;
     height: 15px;
-    color: #7f8fa6;
+    color: var(--ink-muted);
   }
 
   .editor-toolbar-search-input {
@@ -606,14 +603,14 @@
     background: transparent;
     border: 0;
     outline: none;
-    color: #e6edf7;
+    color: var(--ink);
     font: inherit;
     font-size: 12.5px;
     line-height: 1.4;
   }
 
   .editor-toolbar-search-input::placeholder {
-    color: #718096;
+    color: var(--ink-muted);
   }
 
   .editor-toolbar-search-input::-webkit-search-decoration,
@@ -630,7 +627,7 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+    scrollbar-color: var(--line-strong) transparent;
   }
 
   .editor-toolbar-native-scroll::-webkit-scrollbar {
@@ -642,12 +639,12 @@
   }
 
   .editor-toolbar-native-scroll::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.16);
+    background: var(--line-strong);
     border-radius: 999px;
   }
 
   .editor-toolbar-native-scroll::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.26);
+    background: var(--ink-muted);
   }
 
   .editor-toolbar-native-group {
@@ -657,12 +654,12 @@
   .editor-toolbar-native-group + .editor-toolbar-native-group {
     margin-top: 3px;
     padding-top: 6px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--line);
   }
 
   .editor-toolbar-native-group-title {
     margin: 2px 8px 5px;
-    color: #8595ac;
+    color: var(--ink-muted);
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.09em;
@@ -680,7 +677,7 @@
     background: transparent;
     border: 0;
     border-radius: 8px;
-    color: #c9d4e3;
+    color: var(--ink-soft);
     font: inherit;
     text-align: left;
     cursor: pointer;
@@ -699,7 +696,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #e5ecf7;
+    color: var(--ink);
     font-size: 13px;
     font-weight: 600;
     line-height: 1.35;
@@ -708,7 +705,7 @@
   .editor-toolbar-native-description {
     display: block;
     overflow: hidden;
-    color: #95a4b9;
+    color: var(--ink-muted);
     font-size: 12.5px;
     line-height: 1.5;
     text-overflow: ellipsis;
@@ -718,7 +715,7 @@
   .editor-toolbar-native-badge {
     flex: 0 0 auto;
     padding: 0 4px;
-    border: 1px solid rgba(143, 227, 212, 0.28);
+    border: 1px solid color-mix(in srgb, var(--teal) 28%, transparent);
     border-radius: 4px;
     color: var(--editor-toolbar-accent);
     font-size: 9px;
@@ -731,7 +728,7 @@
     flex: 0 0 auto;
     width: 14px;
     height: 14px;
-    color: #7f93ad;
+    color: var(--ink-muted);
     opacity: 0.35;
     transition: color 0.12s ease, opacity 0.12s ease;
   }
@@ -753,38 +750,38 @@
     }
 
     .editor-toolbar-button.is-active:hover:not(:disabled) {
-      color: #eef4ff;
-      background: rgba(122, 162, 255, 0.23);
+      color: var(--ink);
+      background: color-mix(in srgb, var(--focus) 18%, transparent);
     }
 
     .editor-toolbar-components-trigger:hover:not(:disabled) {
-      color: #ffffff;
-      background: linear-gradient(135deg, rgba(84, 139, 255, 0.32), rgba(45, 212, 191, 0.24));
-      border-color: rgba(122, 162, 255, 0.5);
+      color: var(--ink);
+      background: linear-gradient(135deg, color-mix(in srgb, var(--focus) 18%, transparent), color-mix(in srgb, var(--teal) 14%, transparent));
+      border-color: color-mix(in srgb, var(--focus) 50%, transparent);
     }
 
     .editor-toolbar-emoji:hover {
-      background: rgba(255, 255, 255, 0.09);
+      background: var(--line);
     }
 
     .editor-toolbar-menu-item:hover:not(:disabled) {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.08);
+      color: var(--ink);
+      background: var(--surface-hover);
     }
 
     .editor-toolbar-native-item:hover {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.08);
+      color: var(--ink);
+      background: var(--surface-hover);
     }
 
     .editor-toolbar-native-item:hover .editor-toolbar-native-add {
-      color: #93b6ff;
+      color: var(--focus);
       opacity: 1;
     }
 
     .editor-toolbar-close:hover {
-      color: #ffffff;
-      background: rgba(255, 255, 255, 0.08);
+      color: var(--ink);
+      background: var(--surface-hover);
     }
   }
 

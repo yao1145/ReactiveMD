@@ -74,11 +74,22 @@ describe('ReactiveMarkdownEditor public contract', () => {
         <ReactiveMarkdownEditor value="two" onChange={() => {}} theme="dark" authoring={false} />
       </>,
     );
-    const ids = [...html.matchAll(/id="(reactive-md-editor-[^"]+)"/g)].map((match) => match[1]);
+    const ids = [...html.matchAll(/<textarea\b[^>]*\bid="([^"]+)"/g)].map((match) => match[1]);
     expect(ids).toHaveLength(2);
     expect(new Set(ids).size).toBe(2);
     expect(html).toContain('data-editor-theme="light"');
     expect(html).toContain('data-editor-theme="dark"');
+  });
+
+  it('server-renders built-in view controls with host preview content', () => {
+    const html = render({ preview: <p>Preview content</p>, defaultViewMode: 'split', locale: 'zh' });
+    expect(html).toContain('data-editor-view="split"');
+    expect(html).toContain('Preview content');
+    expect(html).toContain('编辑器视图');
+    expect(html).toContain('并排');
+    const sourceOnly = render({ viewMode: 'preview' });
+    expect(sourceOnly).toContain('data-editor-view="edit"');
+    expect(sourceOnly).not.toContain('class="editor-view-modes"');
   });
 
   it('escapes source text instead of rendering it as HTML', () => {

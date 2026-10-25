@@ -12,6 +12,7 @@ import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
 import {
   ReactiveMarkdownEditor,
   type ReactiveMarkdownEditorHandle,
+  type EditorViewMode,
 } from 'reactive-md/editor';
 import { AuthorTools } from './author-tools';
 import { ExportDialog } from './export-dialog';
@@ -273,7 +274,9 @@ export default function App() {
   const [selectedExample, setSelectedExample] = useState(initialExampleId);
   const [source, setSource] = useState(() => savedSource(initialExampleId(), language));
   const [dark, setDark] = useState(() => savedItem('reactive-md:theme') === 'dark');
-  const [simple, setSimple] = useState(() => EXAMPLES.find((item) => item.id === selectedExample)?.section !== 'debug');
+  const [editorView, setEditorView] = useState<EditorViewMode>(() =>
+    EXAMPLES.find((item) => item.id === selectedExample)?.section === 'debug' ? 'split' : 'preview');
+  const simple = editorView === 'preview';
   const [featureMenuOpen, setFeatureMenuOpen] = useState(false);
   const [instanceKey, setInstanceKey] = useState(0);
   const [retainPreviewState, setRetainPreviewState] = useState(true);
@@ -393,7 +396,7 @@ export default function App() {
   const closeExportDialog = useCallback(() => setExportOpen(false), []);
 
   const focusDiagnostic = useCallback((range: SourceRange) => {
-    setSimple(false);
+    setEditorView((current) => current === 'preview' ? 'split' : current);
     window.requestAnimationFrame(() => {
       const editor = editorHandle.current?.getTextarea() ?? editorRef.current;
       if (!editor) return;
@@ -429,7 +432,7 @@ export default function App() {
     const example = EXAMPLES.find((item) => item.id === exampleId);
     if (!example) return;
     setFeatureMenuOpen(false);
-    if (example.section === 'debug') setSimple(false);
+    if (example.section === 'debug') setEditorView('split');
     flushSourceWrite();
     const next = savedSource(example.id, language);
     resetHtmlOptions();
@@ -478,7 +481,6 @@ export default function App() {
     [compiled, runtimeDiagnostics],
   );
 
-  const ready = compiled?.ok === true;
   const compiling = compilation.pending;
   const previewFailed = compiled !== null && !compiled.ok;
   const previewDocument = compilation.previewDocument && previewSession.canPreview(compilation.previewDocument, source)
@@ -503,7 +505,7 @@ export default function App() {
 
   return (
     <LanguageProvider language={language}>
-      <div className={`app-shell${simple ? ' is-simple' : ''}`}>
+      <div className={`app-shell${simple ? ' is-simple' : editorView === 'edit' ? ' is-edit' : ''}`}>
         <header className="masthead">
           <div className="masthead-lead">
             <p className="eyebrow">{copy.masthead.eyebrow}</p>
@@ -630,14 +632,14 @@ export default function App() {
             dark={dark}
             simple={simple}
             onTheme={() => setDark((value) => !value)}
-            onSimple={() => setSimple((value) => !value)}
+            onSimple={() => setEditorView((current) => current === 'preview' ? 'split' : 'preview')}
             onImport={importSource}
             onExport={openExportDialog}
           />
 
           <HtmlCompatibilityControls options={htmlOptions} onChange={changeHtmlOptions} />
 
-          <div className="workspace">
+          <div className="workspace has-editor">
             <section id="source-pane" className="pane pane-editor" aria-label={copy.editor.region}>
               <div className="pane-head">
                 <div>
@@ -661,6 +663,29 @@ export default function App() {
                 diagnostics={currentDiagnostics}
                 document={compiled && compiled.ok ? compiled.document : null}
                 onExport={openExportDialog}
+                viewMode={editorView}
+                onViewModeChange={setEditorView}
+                preview={<section className="pane-preview" aria-label={copy.preview.region}>
+                  <div className="preview-stage" aria-busy={compiling}>
+                    {previewFailed && compiled ? (
+                      <div className="preview-error" role="alert">
+                        <h3>{copy.preview.disabledTitle}</h3>
+                        <p>{copy.preview.disabledBody}</p>
+                        <DiagnosticList diagnostics={compiled.diagnostics} focusDiagnostic={focusDiagnostic} />
+                      </div>
+                    ) : previewDocument ? (
+                      <LocalPreview key={instanceKey} document={previewDocument} session={previewSession} onDiagnostics={report} />
+                    ) : (
+                      <div className="preview-loading" role="status"><p>{copy.preview.preparing}</p></div>
+                    )}
+                    {compiling && previewDocument && !previewFailed ? (
+                      <div className="preview-veil" role="status">
+                        <strong>{copy.preview.veilTitle}</strong>
+                        <span>{copy.preview.veilBody}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </section>}
                 authoring
                 toolbar
               />
@@ -693,43 +718,6 @@ export default function App() {
               </section>
             </section>
 
-            <section className="pane pane-preview" aria-label={copy.preview.region}>
-              <div className="pane-head">
-                <div>
-                  <h2>{copy.preview.heading}</h2>
-                  <p className="pane-subtitle">{copy.preview.subtitle}</p>
-                </div>
-                <span className={`live-dot ${ready ? 'is-live' : ''}`} aria-hidden="true" />
-              </div>
-
-              <div className="preview-stage" aria-busy={compiling}>
-                {previewFailed && compiled ? (
-                  <div className="preview-error" role="alert">
-                    <h3>{copy.preview.disabledTitle}</h3>
-                    <p>{copy.preview.disabledBody}</p>
-                    <DiagnosticList
-                      diagnostics={compiled.diagnostics}
-                      focusDiagnostic={focusDiagnostic}
-                    />
-                  </div>
-                ) : previewDocument ? (
-                  <LocalPreview
-                    key={instanceKey}
-                    document={previewDocument}
-                    session={previewSession}
-                    onDiagnostics={report}
-                  />
-                ) : (
-                  <div className="preview-loading" role="status"><p>{copy.preview.preparing}</p></div>
-                )}
-                {compiling && previewDocument && !previewFailed ? (
-                  <div className="preview-veil" role="status">
-                    <strong>{copy.preview.veilTitle}</strong>
-                    <span>{copy.preview.veilBody}</span>
-                  </div>
-                ) : null}
-              </div>
-            </section>
           </div>
         </main>
         )}

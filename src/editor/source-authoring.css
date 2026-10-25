@@ -20,7 +20,7 @@
     flex: none;
     color: transparent;
     -webkit-text-fill-color: transparent;
-    caret-color: var(--blue);
+    caret-color: var(--focus);
   }
 
   .editor-input-wrap > .editor-input::selection {
@@ -62,23 +62,23 @@
      would alter glyph widths and break the character-for-character alignment
      with the textarea's wrapping. */
   .author-token-tag {
-    color: color-mix(in srgb, var(--blue) 82%, var(--code-ink));
+    color: var(--code-tag);
   }
 
   .author-token-attribute {
-    color: color-mix(in srgb, var(--teal) 72%, var(--code-ink));
+    color: var(--code-attribute);
   }
 
   .author-token-string {
-    color: color-mix(in srgb, var(--success) 78%, var(--code-ink));
+    color: var(--code-string);
   }
 
   .author-token-expression {
-    color: color-mix(in srgb, var(--warning) 74%, var(--code-ink));
+    color: var(--code-expression);
   }
 
   .author-token-binding {
-    color: color-mix(in srgb, var(--blue-deep) 70%, var(--code-ink));
+    color: var(--code-binding);
     text-decoration: underline;
     text-decoration-color: color-mix(in srgb, var(--blue) 40%, transparent);
     text-underline-offset: 2px;
@@ -89,15 +89,15 @@
   }
 
   .author-token-math {
-    color: color-mix(in srgb, var(--warning) 60%, var(--code-ink));
+    color: var(--code-expression);
   }
 
   .author-token-code {
-    color: color-mix(in srgb, var(--code-ink) 62%, var(--code-bg));
+    color: var(--code-muted);
   }
 
   .author-token-comment {
-    color: color-mix(in srgb, var(--code-ink) 52%, var(--code-bg));
+    color: var(--code-muted);
   }
 
   /* While an IME composition is active the native text (and its underline)

@@ -1,6 +1,6 @@
 # React 源码编辑器
 
-`reactive-md/editor` 是用于 Reactive MD 源码的受控 React 19 编辑器，由 Playground 编辑器抽出。它提供源码高亮、格式与插入工具栏、补全、绑定导航、重命名与格式化、撤销重做、行号及滚动同步。源码文本由宿主保存，预览、持久化和导出也由宿主负责。
+`reactive-md/editor` 是用于 Reactive MD 源码的受控 React 19 编辑器，由 Playground 编辑器抽出。它提供源码高亮、格式与插入工具栏、补全、绑定导航、重命名与格式化、撤销重做、行号及滚动同步。编辑器内置字数底栏及编辑、并排、预览三种视图。宿主保存源码，并提供预览内容、持久化和导出。
 
 编辑器有独立样式表 `reactive-md/editor/styles.css`，与 `reactive-md/styles.css` 分开。只编辑源码的页面不会加载文档渲染样式。
 
@@ -96,6 +96,10 @@ export function SourceEditor() {
 | `onChange` | `(value: string) => void` | 必需 | 接收输入、工具栏命令及撤销重做后的新源码。 |
 | `locale` | `'en' \| 'zh'` | `'en'` | 该实例的内置文案语言，不改变源码内容。 |
 | `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | 在编辑器根节点设置 `data-editor-theme`。`auto` 跟随系统偏好。 |
+| `preview` | `ReactNode` | 无 | 在编辑器内部渲染的预览内容。提供后启用底栏三种视图切换。 |
+| `viewMode` | `EditorViewMode` | 无 | 受控视图：`'edit'`、`'split'` 或 `'preview'`。 |
+| `defaultViewMode` | `EditorViewMode` | `'edit'` | 非受控视图的初始模式。 |
+| `onViewModeChange` | `(mode: EditorViewMode) => void` | 无 | 用户点击底栏视图按钮时调用。 |
 | `id` | `string` | 自动生成 | textarea 的 id。实例用它关联内部标签和行号栏。 |
 | `className` | `string` | 无 | 加到 `.reactive-md-editor` 根节点。 |
 | `style` | `CSSProperties` | 无 | 根节点的内联样式。 |
@@ -112,6 +116,21 @@ export function SourceEditor() {
 | `authoring` | `boolean` | `true` | 启用补全、绑定导航、重命名和格式化工具。 |
 | `onExport` | `() => void` | 无 | 工具栏导出操作调用该回调，用于打开宿主导出对话框或自行写文件。 |
 | `textareaRef` | `RefObject<HTMLTextAreaElement \| null>` | 无 | 接收底层 textarea，供宿主的高级用法读取。 |
+
+## 编辑器内置视图
+
+底栏位于编辑器边框内，紧贴编辑区域下缘，显示 Unicode 字符数和视图按钮。提供 `preview` 后，编辑器管理编辑、并排和预览布局。容器宽度不超过 600px 时，仅显示编辑和预览选项；并排模式暂时显示为编辑模式，恢复宽屏后回到并排。
+
+```tsx
+<ReactiveMarkdownEditor
+  value={source}
+  onChange={setSource}
+  preview={<LocalDocumentView document={compiledDocument} />}
+  defaultViewMode="split"
+/>
+```
+
+切换视图会保留源码选区、撤销历史及预览组件的状态。需要从外部控制视图时，同时传入 `viewMode` 和 `onViewModeChange`。只编辑源码时可省略 `preview`，底栏保留字符数及键盘提示。在源码中按 Esc，再按 Tab 可聚焦工具栏。
 
 ## 受控值与历史
 

@@ -12,6 +12,7 @@ export type {
   EditorLocale,
   EditorSelection,
   EditorTheme,
+  EditorViewMode,
   ReactiveMarkdownEditorHandle,
   ReactiveMarkdownEditorProps,
 } from './types';

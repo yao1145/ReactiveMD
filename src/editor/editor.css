@@ -6,6 +6,7 @@
 
 @import './editor-toolbar.css';
 @import './source-authoring.css';
+@import './editor-view-bar.css';
 
 .reactive-md-editor {
   color-scheme: light;
@@ -41,10 +42,16 @@
   --focus-outline: 2px solid var(--focus);
   --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
 
-  /* Code surface. The editor stays a dark writing surface in both themes. */
-  --code-bg: #0f172a;
-  --code-bg-deep: #0b1220;
-  --code-ink: #dce6ff;
+  /* Source colours follow the editor theme independently of the host page. */
+  --code-bg: #ffffff;
+  --code-bg-deep: #f4f5f7;
+  --code-ink: #253247;
+  --code-muted: #667085;
+  --code-tag: #375d98;
+  --code-attribute: #126c68;
+  --code-string: #237346;
+  --code-expression: #8a5a10;
+  --code-binding: #6750a4;
 
   /* Type */
   --text-xs: 12.5px;
@@ -135,6 +142,16 @@
   --danger: #ffa0ae;
   --neutral-soft: #26262a;
 
+  --code-bg: #0f172a;
+  --code-bg-deep: #0b1220;
+  --code-ink: #dce6ff;
+  --code-muted: #94a3b8;
+  --code-tag: #a5bcff;
+  --code-attribute: #79d5cb;
+  --code-string: #a3d49c;
+  --code-expression: #f0c779;
+  --code-binding: #c5aff5;
+
   --focus: #a9bce3;
   --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
 }
@@ -164,6 +181,16 @@
     --warning: #f0b84f;
     --danger: #ffa0ae;
     --neutral-soft: #26262a;
+
+    --code-bg: #0f172a;
+    --code-bg-deep: #0b1220;
+    --code-ink: #dce6ff;
+    --code-muted: #94a3b8;
+    --code-tag: #a5bcff;
+    --code-attribute: #79d5cb;
+    --code-string: #a3d49c;
+    --code-expression: #f0c779;
+    --code-binding: #c5aff5;
 
     --focus: #a9bce3;
     --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
@@ -215,8 +242,50 @@
   min-height: 0;
   background: var(--code-bg);
   border: 0;
-  border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
+  border-radius: 0;
   overflow: hidden;
+}
+
+.reactive-md-editor .editor-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.reactive-md-editor .editor-workspace[data-view="split"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.reactive-md-editor .editor-workspace > [hidden],
+.reactive-md-editor .editor-frame[data-editor-view="preview"] > .editor-toolbar {
+  display: none;
+}
+
+.reactive-md-editor .editor-preview {
+  min-height: 0;
+  min-width: 0;
+  padding: var(--space-4);
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.reactive-md-editor .editor-workspace[data-view="split"] > .editor-preview {
+  border-left: 1px solid var(--line);
+}
+
+@container editor-frame (max-width: 600px) {
+  .reactive-md-editor .editor-workspace[data-view="split"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .reactive-md-editor .editor-workspace[data-view="split"] > .editor-preview {
+    display: none;
+  }
 }
 
 .reactive-md-editor .editor-gutter {
@@ -224,7 +293,7 @@
   padding: var(--space-3) 0;
   background: var(--code-bg-deep);
   border-right: 1px solid color-mix(in srgb, var(--code-ink) 10%, var(--code-bg-deep));
-  color: color-mix(in srgb, var(--code-ink) 48%, var(--code-bg-deep));
+  color: var(--code-muted);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
@@ -259,7 +328,7 @@
   border: 0;
   outline: none;
   color: var(--code-ink);
-  caret-color: var(--blue);
+  caret-color: var(--focus);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
@@ -289,7 +358,7 @@
 }
 
 .reactive-md-editor .editor-input::placeholder {
-  color: color-mix(in srgb, var(--code-ink) 40%, var(--code-bg));
+  color: var(--code-muted);
 }
 
 .reactive-md-editor .editor-input:disabled {
