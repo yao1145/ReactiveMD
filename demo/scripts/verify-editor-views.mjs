@@ -24,7 +24,8 @@ try {
     await mode('Edit').click();
     await expect(source).toBeVisible();
     await expect(preview).toBeHidden();
-    await source.fill('中文😀');
+    await source.press('ControlOrMeta+A');
+    await source.pressSequentially('中文😀');
     await expect(page.locator('.editor-status-count')).toHaveText('3 characters');
     await source.press('Control+End');
     await source.press('Tab');
