@@ -333,11 +333,11 @@ Compilation has exactly two outcomes:
 - Success: `ok: true`, with the document and diagnostics; diagnostics may contain warnings.
 - Failure: `ok: false`, with diagnostics only; the interactive preview is disabled.
 
-Structurally complete but unknown tags and footnotes produce warnings; incomplete structures, mismatched tags, unknown attributes or type errors on known components, binding errors, expression errors and budget overruns produce errors. Errors block successful compilation; warnings do not.
+Structurally complete but unknown tags produce warnings; incomplete component structures, mismatched tags, unknown attributes or type errors on known components, binding errors, expression errors and budget overruns produce errors. Errors block successful compilation; warnings do not. Normal footnotes produce no unsupported-syntax warning.
 
 ### CP-DIAG-03 Fallback isolation (existing)
 
-Structurally complete unknown tags are displayed as original source with a `local.component.unknown` warning. Controls, interpolations and formulas inside the fallback region are not executed, do not initialize bindings and cause no network actions. Footnote references and definitions are displayed verbatim with a `local.footnote.unsupported` warning. Other prose and interactions keep working.
+Structurally complete unknown tags are displayed as original source with a `local.component.unknown` warning. Controls, interpolations and formulas inside the fallback region are not executed, do not initialize bindings and cause no network actions. Footnotes support Markdown layout, numbering and return links; controls and interpolations inside definitions remain text and create no bindings. Other prose and interactions keep working.
 
 Unknown tags that cannot be reliably recovered and tag structure errors still block compilation; fallback cannot be used to bypass validation.
 

@@ -6,14 +6,14 @@ import { MAX_LOCAL_DIAGNOSTICS } from '../src/local/limits';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
 
-it('keeps a normal document interactive around unsupported tags and footnotes', () => {
+it('keeps a normal document interactive around unsupported tags and real footnotes', () => {
   const source = '# 正文\n\n<counter bind="count" label="数量" initial="2">\n\n' +
     '前文[^note]。\n\n<slidr label="拼错" />\n\n后文：{{ count }}。\n\n[^note]: 脚注内容';
   const result = compileLocal(source);
   expect(result.ok, JSON.stringify(result.diagnostics)).toBe(true);
   if (!result.ok) return;
   expect(result.diagnostics.map(item => item.code)).toContain('local.component.unknown');
-  expect(result.diagnostics.map(item => item.code)).toContain('local.footnote.unsupported');
+  expect(result.diagnostics.map(item => item.code)).not.toContain('local.footnote.unsupported');
   expect(result.diagnostics.every(item => item.severity === 'warning')).toBe(true);
   const runtime = createLocalRuntime(result.document);
   try {
@@ -23,7 +23,7 @@ it('keeps a normal document interactive around unsupported tags and footnotes', 
     expect(html).toContain('前文');
     expect(html).toContain('后文');
     expect(html).toContain('脚注内容');
-    expect(html).toContain('[^note]');
+    expect(html).not.toContain('[^note]');
     expect(html).toContain('&lt;slidr');
     expect(html).toContain('>5<');
   } finally {
@@ -65,7 +65,9 @@ it('keeps a footnote inside an indented card inert before lexical validation', (
   expect(result.ok, JSON.stringify(result.diagnostics)).toBe(true);
   if (!result.ok) return;
   expect(Object.keys(result.document.bindings)).toEqual([]);
-  expect(result.diagnostics.map(item => item.code)).toContain('local.footnote.unsupported');
+  expect(result.diagnostics.map(item => item.code)).not.toContain('local.footnote.unsupported');
+  expect(flatten(result.document.nodes).some(node => node.type === 'footnoteReference')).toBe(true);
+  expect(flatten(result.document.nodes).some(node => node.type === 'footnoteDefinition')).toBe(true);
 });
 
 it.each(['', '    '])('shields a footnote immediately inside a container with indentation %j', indent => {
@@ -74,5 +76,6 @@ it.each(['', '    '])('shields a footnote immediately inside a container with in
   expect(result.ok, JSON.stringify(result.diagnostics)).toBe(true);
   if (!result.ok) return;
   expect(Object.keys(result.document.bindings)).toEqual([]);
-  expect(result.diagnostics.map(item => item.code)).toContain('local.footnote.unsupported');
+  expect(result.diagnostics.map(item => item.code)).not.toContain('local.footnote.unsupported');
+  expect(flatten(result.document.nodes).some(node => node.type === 'footnoteDefinition')).toBe(true);
 });

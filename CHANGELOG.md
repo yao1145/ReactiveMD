@@ -2,6 +2,12 @@
 
 This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
 
+## Unreleased
+
+- Preserve ordinary generic/comparison text and currency without misreading them as component tags or formulas.
+- Support attribute-free `<b>`, `<i>`, `<u>`, `<s>`, `<mark>` and `<br>` formatting.
+- Render Markdown footnotes with rich definitions, numbering, repeated references and return links.
+
 ## 0.4.1 (2026-10-25)
 
 Compatible with 0.4.0; syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. See [0.4.1 release notes](docs/release-0.4.1-en.md).

@@ -7,6 +7,7 @@ import { LOCAL_SYNTAX_VERSION } from './version';
 import { localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
 import { localComponentNames, suggestComponent } from './schema';
 import { isLocalThemeName } from './theme';
+import { normalizeFootnoteIdentifier } from './footnotes';
 import {
   DEFAULT_MAX_LOCAL_SYNTAX_NODES,
   MAX_LOCAL_DOCUMENT_LENGTH,
@@ -26,16 +27,45 @@ const MARK_OPEN = String.fromCharCode(0xe000);
 const MARK_CLOSE = String.fromCharCode(0xe001);
 const TAG_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const ATTR_NAME = TAG_NAME;
+/** The only basic HTML names accepted, mapped to ordinary Markdown node types. */
+const HTML_INLINE: Readonly<Record<string, string>> = {
+  b: 'strong',
+  i: 'emphasis',
+  s: 'delete',
+  u: 'underline',
+  mark: 'mark',
+};
+const HTML_NAMES = new Set([...Object.keys(HTML_INLINE), 'br']);
 /** Names longer than this are rejected and never fed to suggestion search. */
 const MAX_LOCAL_NAME_LENGTH = 128;
 /** Displayed math source, in UTF-16 code units, per formula. */
 const MAX_DISPLAY_MATH_SOURCE = Math.min(50_000, MAX_LOCAL_STRING_LENGTH);
 /** Component nesting depth, counted per parse call chain. */
 const MAX_COMPONENT_DEPTH = 100;
+/** Footnote labels longer than this are treated as ordinary text. */
+const MAX_FOOTNOTE_LABEL_LENGTH = 1_000;
 const markdown = unified().use(remarkParse).use(remarkGfm);
 interface Token { start: number; end: number; block?: boolean; node: LocalNode }
 interface RegionResult { tokens: Token[]; end: number; contentEnd: number; indent: number }
-interface ShieldRange { start: number; end: number; block: boolean }
+/** Source range of one `[^label]:` definition block. */
+interface DefinitionRange { start: number; end: number }
+interface RegionOptions {
+  /** Footnote bodies keep controls, interpolations and math as literal text. */
+  footnote?: boolean;
+  /** Base indentation removed from continuation lines when converting. */
+  indent?: number;
+  /** Container bodies use container-aware code fence detection. */
+  container?: boolean;
+  /** Definition blocks visible to this region. */
+  definitions?: readonly DefinitionRange[];
+  stripBlockquote?: boolean;
+}
+interface ConvertOptions {
+  /** Show raw HTML as text instead of diagnosing it (footnote bodies). */
+  literalHtml?: boolean;
+  /** Strip the enclosing Markdown quote markers before dedenting a note. */
+  stripBlockquote?: boolean;
+}
 export interface ParsedLocal {
   nodes: LocalNode[];
   diagnostics: Diagnostic[];
@@ -111,22 +141,23 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   let markerSerial = 0;
   const reservedMarkers = new Set(source.match(new RegExp(MARK_OPEN + '[0-9]+' + MARK_CLOSE, 'g')) ?? []);
   const codeRanges: { start: number; end: number }[] = [];
-  const footnoteRanges: ShieldRange[] = [];
+  /** Root-level footnote definitions, located by the Markdown parser. */
+  const rootDefinitions: DefinitionRange[] = [];
   const sourceBomOffset = source.charCodeAt(0) === 0xfeff ? 1 : 0;
   /**
-   * The first Markdown pass decides what is literal code and what is a real
-   * footnote. Both are opaque to the local lexical pass: code was already
-   * shielded before, and footnote definitions must never initialize controls
-   * or interpolations that happen to appear inside them.
+   * The first Markdown pass decides what is literal code and where footnote
+   * definitions begin and end. Code stays opaque to the local lexical pass;
+   * definitions are re-parsed separately so their bodies can keep controls and
+   * interpolations inert while still formatting safe Markdown.
    */
   const findShielded = (raw: any): void => {
     if (raw.type === 'code') {
       codeRanges.push({ start: raw.position.start.offset + sourceBomOffset, end: raw.position.end.offset + sourceBomOffset });
-    } else if (raw.type === 'footnoteReference' || raw.type === 'footnoteDefinition') {
+    } else if (raw.type === 'footnoteDefinition') {
       const start = raw.position?.start?.offset;
       const end = raw.position?.end?.offset;
       if (Number.isInteger(start) && Number.isInteger(end) && end > start) {
-        footnoteRanges.push({ start: start + sourceBomOffset, end: end + sourceBomOffset, block: raw.type === 'footnoteDefinition' });
+        rootDefinitions.push({ start: start + sourceBomOffset, end: end + sourceBomOffset });
       }
     }
     for (const child of raw.children ?? []) findShielded(child);
@@ -137,17 +168,14 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     error('local.parse', 'Cannot parse the Markdown document.', 0, undefined, { key: 'local.parse.markdown' });
     return { nodes: [], diagnostics };
   }
-  // A definition may contain references; overlapping shields collapse into one
-  // fallback region so the raw source is emitted exactly once.
-  footnoteRanges.sort((a, b) => a.start - b.start || b.end - a.end);
-  const footnoteShields: ShieldRange[] = [];
-  for (const range of footnoteRanges) {
-    const last = footnoteShields[footnoteShields.length - 1];
+  rootDefinitions.sort((a, b) => a.start - b.start || b.end - a.end);
+  const rootDefinitionRanges: DefinitionRange[] = [];
+  for (const range of rootDefinitions) {
+    const last = rootDefinitionRanges[rootDefinitionRanges.length - 1];
     if (last && range.start < last.end) {
       if (range.end > last.end) last.end = range.end;
-      last.block = last.block || range.block;
     } else {
-      footnoteShields.push({ ...range });
+      rootDefinitionRanges.push({ ...range });
     }
   }
   const codeEndAt = (offset: number): number | null => {
@@ -389,25 +417,35 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   function tagAt(start: number, limit: number) {
     const match = /^<(\/?)([A-Za-z][A-Za-z0-9_-]*)(?=[\s/>])/.exec(source.slice(start, limit));
     if (!match) return null;
-    let quote = '', end = start + match[0].length;
-    for (; end < limit; end++) {
+    const head = start + match[0].length;
+    // A prose fragment such as `<y` must never borrow a `>` from a later
+    // line. Unknown names followed by whitespace are therefore line-bounded;
+    // known containers keep their documented multi-line attribute syntax.
+    let scanLimit = limit;
+    const boundary = source[head];
+    if ((boundary === ' ' || boundary === '\t' || boundary === '\n' || boundary === '\r')
+      && !KNOWN.has(match[2].toLowerCase()) && !beginsLine(start)) {
+      const newline = source.indexOf('\n', head);
+      if (newline >= 0) scanLimit = Math.min(limit, newline);
+    }
+    let quote = '', end = head;
+    for (; end < scanLimit; end++) {
       const c = source[end];
       if (quote) { if (c === quote) quote = ''; }
       else if (c === '"' || c === "'") quote = c;
       else if (c === '>') break;
     }
-    if (end >= limit) { error('local.tag.unclosed', `Tag ${match[2]} is missing >.`, start, limit, { key: 'local.tag.unclosed.open', params: { name: match[2] } }); return null; }
     const name = match[2];
+    if (end >= scanLimit) return { name, closing: !!match[1], self: false, start, end: scanLimit, attrs: {}, head, unclosed: true };
     if (name.length > MAX_LOCAL_NAME_LENGTH) {
       error('local.budget.name', `Tag name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`, start, start + 1 + name.length, { key: 'local.budget.name.tag', params: { limit: MAX_LOCAL_NAME_LENGTH } });
     }
-    const rest = source.slice(start + match[0].length, end);
+    const rest = source.slice(head, end);
     if (match[1]) {
       if (rest.trim()) error('local.tag.closing', `Closing tag </${name}> cannot have attributes.`, start, end + 1, { key: 'local.tag.closing', params: { name } });
-      return { name, closing: true, self: false, start, end: end + 1, attrs: {} };
+      return { name, closing: true, self: false, start, end: end + 1, attrs: {}, head, unclosed: false };
     }
-    if (!TAG_NAME.test(name)) error('local.tag.name', `Tag name ${name} must use lowercase kebab-case.`, start, start + 1 + name.length, { key: 'local.tag.name', params: { name } });
-    return { name, closing: false, self: /\/\s*$/.test(rest), start, end: end + 1, attrs: attributes(rest, start + match[0].length) };
+    return { name, closing: false, self: /\/\s*$/.test(rest), start, end: end + 1, attrs: KNOWN.has(name.toLowerCase()) ? attributes(rest, head) : {}, head, unclosed: false };
   }
   /**
    * Silent tag boundary reader used for unknown components. Their attributes
@@ -416,20 +454,110 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   function scanTag(start: number, limit: number) {
     const match = /^<(\/?)([A-Za-z][A-Za-z0-9_-]*)(?=[\s/>])/.exec(source.slice(start, limit));
     if (!match) return null;
-    let quote = '', end = start + match[0].length;
-    for (; end < limit; end++) {
+    const head = start + match[0].length;
+    let scanLimit = limit;
+    const boundary = source[head];
+    if ((boundary === ' ' || boundary === '\t' || boundary === '\n' || boundary === '\r')
+      && !KNOWN.has(match[2].toLowerCase()) && !beginsLine(start)) {
+      const newline = source.indexOf('\n', head);
+      if (newline >= 0) scanLimit = Math.min(limit, newline);
+    }
+    let quote = '', end = head;
+    for (; end < scanLimit; end++) {
       const c = source[end];
       if (quote) { if (c === quote) quote = ''; }
       else if (c === '"' || c === "'") quote = c;
       else if (c === '>') break;
     }
-    if (end >= limit) return null;
-    const rest = source.slice(start + match[0].length, end);
+    if (end >= scanLimit) return null;
+    const rest = source.slice(head, end);
     return { name: match[2], closing: !!match[1], self: !match[1] && /\/\s*$/.test(rest), end: end + 1 };
   }
   function beginsLine(offset: number): boolean {
     const lineStart = source.lastIndexOf('\n', offset - 1) + 1;
     return /^[ \t]*$/.test(source.slice(lineStart, offset));
+  }
+  /** Label and normalized identifier of `[^label]` at `start`, if present. */
+  function footnoteLabelAt(start: number, limit: number): { label: string; identifier: string; openEnd: number; closeEnd: number } | null {
+    if (source[start] !== '[' || source[start + 1] !== '^') return null;
+    let close = start + 2;
+    const stop = Math.min(limit, start + 2 + MAX_FOOTNOTE_LABEL_LENGTH);
+    for (; close < stop; close++) {
+      const character = source[close];
+      if (character === '\\' && /[!-/:-@\[\]\\^_`{|}~]/.test(source[close + 1] ?? '')) { close += 1; continue; }
+      if (character === ']') break;
+      if (character === '[' || character === '\n' || character === '\r') return null;
+    }
+    if (close >= stop || source[close] !== ']') return null;
+    const label = source.slice(start + 2, close);
+    if (!label.trim()) return null;
+    const identifier = normalizeFootnoteIdentifier(label);
+    return identifier ? { label, identifier, openEnd: start + 2, closeEnd: close + 1 } : null;
+  }
+  /** A definition marker `[^label]:` at `start`; positions are source offsets. */
+  function definitionLabelAt(start: number): { label: string; identifier: string; bodyStart: number } | null {
+    const found = footnoteLabelAt(start, source.length);
+    if (!found || source[found.closeEnd] !== ':') return null;
+    return { label: found.label, identifier: found.identifier, bodyStart: found.closeEnd + 1 };
+  }
+  /** Basic HTML tag shape (name only); attributes are rejected by `htmlTagValid`. */
+  function htmlTagAt(start: number, limit: number) {
+    const match = /^<(\/?)([A-Za-z][A-Za-z0-9]*)(?=[\s/>])/.exec(source.slice(start, Math.min(limit, start + 64)));
+    if (!match) return null;
+    const lower = match[2].toLowerCase();
+    if (!HTML_NAMES.has(lower)) return null;
+    // Accepted forms are attribute-free, so a tag never spans a line break.
+    const newline = source.indexOf('\n', start + match[0].length);
+    const scanLimit = newline >= 0 ? Math.min(limit, newline) : limit;
+    let quote = '', end = start + match[0].length;
+    for (; end < scanLimit; end++) {
+      const c = source[end];
+      if (quote) { if (c === quote) quote = ''; }
+      else if (c === '"' || c === "'") quote = c;
+      else if (c === '>') break;
+    }
+    if (end >= scanLimit) return null;
+    return { lower, closing: Boolean(match[1]), rest: source.slice(start + match[0].length, end), end: end + 1 };
+  }
+  /** Only attribute-free paired tags and attribute-free `br` variants are valid. */
+  function htmlTagValid(tag: { lower: string; closing: boolean; rest: string }): boolean {
+    if (tag.closing) return tag.rest.trim() === '';
+    if (tag.lower === 'br') return /^\s*\/?\s*$/.test(tag.rest);
+    return tag.rest.trim() === '';
+  }
+  /** Matching close of a paired basic HTML tag, nesting same-name tags. */
+  function htmlCloseEnd(start: number, name: string, limit: number, insideContainer: boolean): { start: number; end: number } | null {
+    let depth = 1;
+    for (let i = start; i < limit;) {
+      if (!insideContainer) {
+        const codeEnd = codeEndAt(i);
+        if (codeEnd !== null && codeEnd > i) { i = Math.min(codeEnd, limit); continue; }
+      }
+      const shield = protectedEnd(i, limit, insideContainer);
+      if (shield !== null) { i = shield; continue; }
+      if (source.startsWith('<!--', i)) {
+        const close = source.indexOf('-->', i + 4);
+        i = close < 0 || close + 3 > limit ? limit : close + 3;
+        continue;
+      }
+      if (source[i] === '<') {
+        const tag = htmlTagAt(i, limit);
+        if (tag) {
+          if (tag.lower === name && htmlTagValid(tag)) {
+            if (tag.closing) {
+              depth -= 1;
+              if (depth === 0) return { start: i, end: tag.end };
+            } else if (name !== 'br' && !/^\s*\/\s*$/.test(tag.rest)) {
+              depth += 1;
+            }
+          }
+          i = tag.end;
+          continue;
+        }
+      }
+      i++;
+    }
+    return null;
   }
   const ROOT_FENCE_LINE = /^ {0,3}$/;
   const CONTAINER_FENCE_LINE = /^[ \t]*$/;
@@ -539,18 +667,23 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     }
     return Number.isFinite(indent) ? indent : 0;
   }
-  function region(start: number, end: number, parent?: string, openStart = start, openEnd = start, depth = 0): RegionResult {
+  function region(start: number, end: number, parent?: string, openStart = start, openEnd = start, depth = 0, options: RegionOptions = {}): RegionResult {
     const tokens: Token[] = [];
     if (depth > MAX_COMPONENT_DEPTH) {
       error('local.budget', 'Component nesting exceeds the 100-level limit.', openStart, openEnd, { key: 'local.budget.nesting', params: { limit: MAX_COMPONENT_DEPTH } });
       return { tokens, end, contentEnd: start, indent: 0 };
     }
-    // Raw component tags can hide footnotes from the document's first Markdown
-    // pass. Inspect the dedented body before recognizing any executable tokens.
-    let regionFootnotes = footnoteShields;
+    const footnoteMode = options.footnote === true;
+    const insideContainer = options.container ?? parent !== undefined;
+    let contentIndent = options.indent ?? 0;
+    // Raw component tags can hide footnote definitions from the document's
+    // first Markdown pass. Re-scan each dedented body for definition ranges so
+    // a definition inside a container still becomes a real footnote node.
+    let regionDefinitions: readonly DefinitionRange[] = options.definitions ?? rootDefinitionRanges;
     if (parent) {
       const bodyEnd = unknownTagEnd(start, parent, end, true)?.start ?? end;
       const indent = commonIndent(start, bodyEnd);
+      contentIndent = indent;
       let text = '';
       const offsets: number[] = [];
       for (let i = start; i < bodyEnd;) {
@@ -563,44 +696,78 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         text += source[i++];
       }
       offsets.push(bodyEnd);
-      const found: ShieldRange[] = [];
+      const found: DefinitionRange[] = [];
       const visit = (raw: any): void => {
-        if (raw.type === 'footnoteReference' || raw.type === 'footnoteDefinition') {
-          found.push({ start: offsets[raw.position.start.offset], end: offsets[raw.position.end.offset], block: raw.type === 'footnoteDefinition' });
+        if (raw.type === 'footnoteDefinition') {
+          const from = offsets[raw.position.start.offset];
+          const to = offsets[raw.position.end.offset];
+          if (Number.isInteger(from) && Number.isInteger(to) && to > from) found.push({ start: from, end: to });
           return;
         }
         for (const child of raw.children ?? []) visit(child);
       };
       visit(markdown.parse(text));
-      regionFootnotes = [...footnoteShields.filter(range => range.start >= start && range.end <= bodyEnd), ...found]
+      regionDefinitions = found
+        .filter(range => range.start >= start && range.end <= bodyEnd)
         .sort((a, b) => a.start - b.start || b.end - a.end);
     }
-    let footnoteIndex = 0;
+    let definitionIndex = 0;
     for (let i = start; i < end;) {
-      if (parent === undefined) {
+      if (!insideContainer) {
         while (codeRanges[codeIndex]?.end <= i) codeIndex++;
         const code = codeRanges[codeIndex];
         if (code && code.start <= i) { i = code.end; continue; }
       }
-      // Footnotes are shielded at every depth: the first pass may recognize a
-      // definition inside a component even when the surrounding tag made the
-      // document an HTML block for Markdown parsing.
-      while (regionFootnotes[footnoteIndex]?.end <= i) footnoteIndex++;
-      const footnote = regionFootnotes[footnoteIndex];
-      if (footnote && footnote.start <= i) {
-        if (footnote.start === i) {
-          tokens.push({ start: i, end: footnote.end, block: footnote.block, node: node('fallback', i, footnote.end, { value: source.slice(i, footnote.end) }) });
-          warning('local.footnote.unsupported', 'Footnotes are not part of the local interaction syntax and are shown as source.', i, footnote.end, { key: 'local.footnote.unsupported' });
+      // Definitions are real Markdown blocks even when the surrounding
+      // component tag hides them from the document-wide Markdown pass.
+      while (regionDefinitions[definitionIndex]?.end <= i) definitionIndex++;
+      const definition = regionDefinitions[definitionIndex];
+      if (definition && definition.start === i) {
+        let labelStart = i;
+        let marker = definitionLabelAt(labelStart);
+        // Block positions may include up to three leading spaces before `[`.
+        while (!marker && labelStart - i < 4 && labelStart < definition.end
+          && (source[labelStart] === ' ' || source[labelStart] === '\t')) {
+          labelStart += 1;
+          marker = definitionLabelAt(labelStart);
         }
-        i = footnote.end;
-        continue;
+        if (marker && marker.bodyStart <= definition.end) {
+          const lineStart = source.lastIndexOf('\n', labelStart - 1) + 1;
+          const prefix = source.slice(lineStart, labelStart);
+          const quotePrefix = /^(?:[ \t]{0,3}>[ \t]?)+/.exec(prefix)?.[0] ?? '';
+          const definitionIndent = /^[ \t]*/.exec(prefix.slice(quotePrefix.length))![0].length;
+          const bodyIndent = definitionIndent + 4;
+          const body = region(marker.bodyStart, definition.end, undefined, marker.bodyStart, marker.bodyStart, depth + 1, {
+            footnote: true,
+            indent: bodyIndent,
+            container: insideContainer || definitionIndent > 0,
+            definitions: [],
+            stripBlockquote: quotePrefix.length > 0,
+          });
+          const children = convert(marker.bodyStart, definition.end, body.tokens, bodyIndent, { literalHtml: true, stripBlockquote: quotePrefix.length > 0 });
+          tokens.push({
+            start: definition.start,
+            end: definition.end,
+            block: true,
+            node: node('footnoteDefinition', definition.start, definition.end, {
+              identifier: marker.identifier,
+              label: marker.label,
+              children,
+            }),
+          });
+          i = definition.end;
+          definitionIndex += 1;
+          continue;
+        }
+        // A malformed definition keeps its source as ordinary Markdown text.
+        definitionIndex += 1;
       }
-      const shield = protectedEnd(i, end, parent !== undefined);
+      const shield = protectedEnd(i, end, insideContainer);
       if (shield !== null) { i = shield; continue; }
       if (source.startsWith('<!--', i)) {
         const close = source.indexOf('-->', i + 4), stop = close < 0 ? end : Math.min(end, close + 3);
         const comment = source.slice(i, stop);
-        if (/^<!--\s*reactive-md(?=[\s:]|-->|$)/i.test(comment)) {
+        if (!footnoteMode && /^<!--\s*reactive-md(?=[\s:]|-->|$)/i.test(comment)) {
           versionHeaders += 1;
           const lineStart = source.lastIndexOf('\n', i - 1) + 1;
           const nextLine = source.indexOf('\n', stop);
@@ -624,30 +791,117 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         }
         tokens.push({ start: i, end: stop, node: node('comment', i, stop) }); i = stop; continue;
       }
-      if (source.startsWith('{{', i)) {
+      if (!footnoteMode && source.startsWith('{{', i)) {
         const stop = interpolationEnd(i, end);
         if (stop < 0) { error('local.interpolation', 'Interpolation is missing }}.', i, end, { key: 'local.interpolation.unclosed' }); i += 2; continue; }
         tokens.push({ start: i, end: stop, node: node('interpolation', i, stop, { value: source.slice(i + 2, stop - 2).trim() }) }); i = stop; continue;
       }
-      if (source[i] === '$') {
+      if (!footnoteMode && source[i] === '$') {
         const display = source[i + 1] === '$', delimiter = display ? '$$' : '$';
-        let stop = i + delimiter.length;
-        for (; stop < end; stop++) {
-          if (source[stop] === '\\') { stop++; continue; }
-          if (!display && source[stop] === '\n') break;
-          if (source.startsWith(delimiter, stop)) break;
+        if (display) {
+          let stop = i + delimiter.length;
+          for (; stop < end; stop++) {
+            if (source[stop] === '\\') { stop++; continue; }
+            if (source.startsWith(delimiter, stop)) break;
+          }
+          if (stop >= end || !source.startsWith(delimiter, stop)) { error('local.math.unclosed', 'Formula is missing its closing delimiter.', i, undefined, { key: 'local.math.unclosed' }); i += delimiter.length; continue; }
+          let value = source.slice(i + delimiter.length, stop);
+          if (value.length > MAX_DISPLAY_MATH_SOURCE) {
+            error('local.budget.math', `Formula exceeds the ${MAX_DISPLAY_MATH_SOURCE}-character limit.`, i, stop + delimiter.length, { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } });
+            value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
+          }
+          const finish = stop + delimiter.length;
+          tokens.push({ start: i, end: finish, node: node('math', i, finish, { value }) }); i = finish; continue;
         }
-        if (stop >= end || !source.startsWith(delimiter, stop)) { error('local.math.unclosed', 'Formula is missing its closing delimiter.', i, undefined, { key: 'local.math.unclosed' }); i += delimiter.length; continue; }
-        let value = source.slice(i + delimiter.length, stop);
-        if (!display && (!value || /^\s|\s$/.test(value))) { error('local.math.whitespace', 'Inline math cannot start or end with whitespace.', i, stop + 1, { key: 'local.math.whitespace' }); }
+        // A single dollar only opens inline math at an explainable boundary.
+        // Currency such as `$5 and $10` stays literal: the closer must not be
+        // immediately followed by a digit, and the content may not touch
+        // whitespace. The first `$` that fails this boundary ends the current
+        // match, so a later, well-formed formula is still recognized on its own.
+        let stop = i + 1;
+        let close = -1;
+        for (; stop < end; stop++) {
+          const character = source[stop];
+          if (character === '\\') { stop++; continue; }
+          if (character === '\n') break;
+          if (character !== '$') continue;
+          const value = source.slice(i + 1, stop);
+          const after = source[stop + 1];
+          if (!value || /^\s/.test(value) || /\s$/.test(value)) break;
+          if (after !== undefined && after >= '0' && after <= '9') break;
+          close = stop;
+          break;
+        }
+        if (close < 0) { i += 1; continue; }
+        let value = source.slice(i + 1, close);
         if (value.length > MAX_DISPLAY_MATH_SOURCE) {
-          error('local.budget.math', `Formula exceeds the ${MAX_DISPLAY_MATH_SOURCE}-character limit.`, i, stop + delimiter.length, { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } });
+          error('local.budget.math', `Formula exceeds the ${MAX_DISPLAY_MATH_SOURCE}-character limit.`, i, close + 1, { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } });
           value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
         }
-        const finish = stop + delimiter.length;
-        tokens.push({ start: i, end: finish, node: node(display ? 'math' : 'inlineMath', i, finish, { value }) }); i = finish; continue;
+        const finish = close + 1;
+        tokens.push({ start: i, end: finish, node: node('inlineMath', i, finish, { value }) }); i = finish; continue;
+      }
+      if (source[i] === '[') {
+        const reference = footnoteLabelAt(i, end);
+        // `[^label]:` only opens a definition at the start of a line; anywhere
+        // else it is an ordinary footnote call followed by a colon.
+        if (reference && (source[reference.closeEnd] !== ':' || !beginsLine(i))) {
+          tokens.push({
+            start: i,
+            end: reference.closeEnd,
+            node: node('footnoteReference', i, reference.closeEnd, {
+              identifier: reference.identifier,
+              label: reference.label,
+            }),
+          });
+          i = reference.closeEnd;
+          continue;
+        }
       }
       if (source[i] === '<') {
+        const html = htmlTagAt(i, end);
+        if (html) {
+          if (!htmlTagValid(html)) {
+            const stop = !html.closing && html.lower !== 'br'
+              ? (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? html.end)
+              : html.end;
+            warning('local.html', 'HTML attributes are not supported; the tag is shown as source.', i, stop, { key: 'local.html' });
+            tokens.push({ start: i, end: stop, block: false, node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
+            i = stop;
+            continue;
+          }
+          if (html.closing) {
+            // A stray closing tag is inert source, never a structural error.
+            tokens.push({ start: i, end: html.end, block: false, node: node('fallback', i, html.end, { value: source.slice(i, html.end) }) });
+            i = html.end;
+            continue;
+          }
+          if (html.lower === 'br') {
+            tokens.push({ start: i, end: html.end, node: node('break', i, html.end) });
+            i = html.end;
+            continue;
+          }
+          const close = htmlCloseEnd(html.end, html.lower, end, insideContainer);
+          if (!close) {
+            // An unclosed formatting tag in running text stays literal prose.
+            tokens.push({ start: i, end: html.end, block: false, node: node('text', i, html.end, { value: source.slice(i, html.end) }) });
+            i = html.end;
+            continue;
+          }
+          const body = region(html.end, close.start, undefined, i, html.end, depth + 1, {
+            footnote: footnoteMode,
+            indent: contentIndent,
+            container: insideContainer,
+            definitions: [],
+            stripBlockquote: options.stripBlockquote,
+          });
+          const children = convert(html.end, close.start, body.tokens, contentIndent, { literalHtml: footnoteMode, stripBlockquote: options.stripBlockquote });
+          const inline = children.length === 1 && children[0].type === 'paragraph' ? children[0].children ?? [] : children;
+          tokens.push({ start: i, end: close.end, node: node(HTML_INLINE[html.lower], i, close.end, { children: inline }) });
+          i = close.end;
+          continue;
+        }
+        if (footnoteMode) { i += 1; continue; }
         const metadata = isThemeTagAt(i) ? themeTagAt(i, end) : null;
         if (metadata) {
           const inHeader = parent === undefined && skipThemePrefix(headerCursor, i) === i;
@@ -693,9 +947,17 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           scanned && !scanned.closing && TAG_NAME.test(scanned.name)
           && scanned.name.length <= MAX_LOCAL_NAME_LENGTH && !KNOWN.has(scanned.name)
         ) {
-          const stop = scanned.self ? scanned.end : (unknownTagEnd(scanned.end, scanned.name, end, parent !== undefined)?.end ?? null);
+          const stop = scanned.self ? scanned.end : (unknownTagEnd(scanned.end, scanned.name, end, insideContainer)?.end ?? null);
           if (stop === null) {
-            // An unknown tag without a reliable same-name boundary stays fatal.
+            if (!beginsLine(i)) {
+              // A lone `<name>` inside running prose is ordinary text, not a
+              // malformed component that should fail the whole document.
+              tokens.push({ start: i, end: scanned.end, block: false, node: node('text', i, scanned.end, { value: source.slice(i, scanned.end) }) });
+              i = scanned.end;
+              continue;
+            }
+            // A line-leading unknown tag without a reliable same-name boundary
+            // stays fatal.
             error('local.tag.unclosed', `<${scanned.name}> is missing </${scanned.name}>.`, i, scanned.end, { key: 'local.tag.unclosed.pair', params: { name: scanned.name } });
             i = scanned.end;
             continue;
@@ -722,6 +984,26 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         }
         const tag = tagAt(i, end);
         if (tag) {
+          if (tag.unclosed) {
+            if (!KNOWN.has(tag.name.toLowerCase()) && !beginsLine(i)) {
+              // `<y` in `x<y` and similar prose fragments are literal text.
+              tokens.push({ start: i, end: tag.head, block: false, node: node('text', i, tag.head, { value: source.slice(i, tag.head) }) });
+              i = tag.head;
+              continue;
+            }
+            error('local.tag.unclosed', `Tag ${tag.name} is missing >.`, i, end, { key: 'local.tag.unclosed.open', params: { name: tag.name } });
+            i = end;
+            continue;
+          }
+          if (!TAG_NAME.test(tag.name) && !KNOWN.has(tag.name.toLowerCase())) {
+            // Uppercase prose such as `Array<T>` never reaches remark as HTML.
+            tokens.push({ start: i, end: tag.end, block: false, node: node('text', i, tag.end, { value: source.slice(i, tag.end) }) });
+            i = tag.end;
+            continue;
+          }
+          if (!TAG_NAME.test(tag.name)) {
+            error('local.tag.name', `Tag name ${tag.name} must use lowercase kebab-case.`, i, i + 1 + tag.name.length, { key: 'local.tag.name', params: { name: tag.name } });
+          }
           if (tag.closing) {
             if (tag.name === parent) return { tokens, end: tag.end, contentEnd: i, indent: commonIndent(start, i) };
             error('local.tag.mismatch', `Closing tag </${tag.name}> does not match ${parent ? `<${parent}>` : 'the document root'}.`, i, tag.end, {
@@ -743,7 +1025,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     if (parent) error('local.tag.unclosed', `<${parent}> is missing </${parent}>.`, openStart, Math.min(source.length, Math.max(openEnd, openStart + 1)), { key: 'local.tag.unclosed.pair', params: { name: parent } });
     return { tokens, end, contentEnd: end, indent: parent ? commonIndent(start, end) : 0 };
   }
-  function convert(start: number, end: number, tokens: Token[], indent = 0): LocalNode[] {
+  function convert(start: number, end: number, tokens: Token[], indent = 0, options: ConvertOptions = {}): LocalNode[] {
     let masked = '', cursor = start;
     const offsets: number[] = [];
     const markers = new Map<number, { marker: string; end: number; node: LocalNode }>();
@@ -752,8 +1034,9 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       const lineStart = source.lastIndexOf('\n', absolute - 1) + 1;
       let skip = skipCache.get(lineStart);
       if (skip === undefined) {
-        skip = 0;
-        while (skip < indent && (source[lineStart + skip] === ' ' || source[lineStart + skip] === '\t')) skip++;
+        skip = options.stripBlockquote ? (/^(?:[ \t]{0,3}>[ \t]?)+/.exec(source.slice(lineStart))?.[0].length ?? 0) : 0;
+        let indentation = 0;
+        while (indentation < indent && (source[lineStart + skip] === ' ' || source[lineStart + skip] === '\t')) { skip++; indentation++; }
         skipCache.set(lineStart, skip);
       }
       return { lineStart, skip };
@@ -813,17 +1096,29 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       if (raw.type === 'text') {
         return raw.value ? [node('text', from, to, { value: raw.value })] : [];
       }
-      // Footnotes reached here were parsed from dedented container content, so
-      // they were not shielded by the first pass. Keep their original source
-      // and never walk their children.
+      // Footnote nodes normally arrive through lexical tokens. This branch only
+      // covers a remark-parsed node (hand-built Markdown fragments); it keeps
+      // the original identifier/label instead of degrading to source text.
       if (raw.type === 'footnoteReference' || raw.type === 'footnoteDefinition') {
-        warning('local.footnote.unsupported', 'Footnotes are not part of the local interaction syntax and are shown as source.', from, to, { key: 'local.footnote.unsupported' });
-        return [node('fallback', from, to, { value: source.slice(from, to) })];
+        const label = typeof raw.label === 'string' && raw.label ? raw.label : String(raw.identifier ?? '');
+        const identifier = normalizeFootnoteIdentifier(String(raw.identifier ?? label));
+        if (raw.type === 'footnoteDefinition') {
+          const definitionChildren = raw.children?.flatMap(transform);
+          return [node('footnoteDefinition', from, to, { identifier, label, children: definitionChildren ?? [] })];
+        }
+        return [node('footnoteReference', from, to, { identifier, label })];
       }
       const children = raw.children?.flatMap(transform);
-      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || (children[0].type === 'component' && !INLINE.has(children[0].name!)))) return children;
+      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || (children[0].type === 'component' && !INLINE.has(children[0].name!)))) return children;
       if (raw.type === 'paragraph' && !children?.length) return [];
       if (raw.type === 'html') {
+        if (options.literalHtml) {
+          // Footnote bodies show controls, interpolation and stray HTML as text,
+          // so a malformed tag can never fail the surrounding document.
+          return typeof raw.value === 'string' && raw.value
+            ? [node('text', from, to, { value: raw.value })]
+            : [];
+        }
         error('local.html', 'Raw HTML is not part of the local interaction syntax.', from, to, { key: 'local.html' });
         return [];
       }
@@ -835,10 +1130,40 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     }
     return tree.children.flatMap(transform);
   }
+  /**
+   * Undefined references stay visible as their original source. Definitions
+   * are first-class nodes, so resolution happens once the whole tree (including
+   * container bodies) exists; the first definition of an identifier wins for
+   * the renderer, which receives every definition node unchanged.
+   */
+  function resolveFootnoteReferences(nodes: LocalNode[]): void {
+    const defined = new Set<string>();
+    const collect = (list: LocalNode[]): void => {
+      for (const item of list) {
+        if (item.type === 'footnoteDefinition' && item.identifier) defined.add(item.identifier);
+        if (item.children) collect(item.children);
+      }
+    };
+    collect(nodes);
+    const resolve = (list: LocalNode[]): void => {
+      for (const item of list) {
+        if (item.type === 'footnoteReference' && (!item.identifier || !defined.has(item.identifier))) {
+          item.type = 'text';
+          item.value = source.slice(item.range.start, item.range.end);
+          delete item.identifier;
+          delete item.label;
+        }
+        if (item.children) resolve(item.children);
+      }
+    };
+    resolve(nodes);
+  }
   try {
     const result = region(0, source.length);
+    const nodes = convert(0, source.length, result.tokens);
+    resolveFootnoteReferences(nodes);
     return {
-      nodes: convert(0, source.length, result.tokens),
+      nodes,
       diagnostics,
       ...(versionDeclaration ? { versionDeclaration } : {}),
       ...(theme !== undefined ? { theme } : {}),

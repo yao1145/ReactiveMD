@@ -89,42 +89,45 @@ describe('unknown components become inert fallback text', () => {
   });
 });
 
-describe('footnotes become inert fallback text', () => {
-  it('preserves references and definitions with exact offsets and warnings', () => {
+describe('footnotes compile as first-class Markdown nodes', () => {
+  it('keeps references and definitions with exact offsets and inert bodies', () => {
     const source = '正文[^note]后文\n\n[^note]: 定义中的 <input bind="hidden" label="隐藏"> 与 {{ hidden }}\n';
     const { document, diagnostics } = compiled(source);
-    const fallbacks = flatten(document.nodes).filter(node => node.type === 'fallback');
+    const all = flatten(document.nodes);
 
-    expect(fallbacks).toHaveLength(2);
-    const reference = fallbacks.find(node => node.value === '[^note]')!;
-    const definition = fallbacks.find(node => node.value?.startsWith('[^note]:'))!;
+    const reference = all.find(node => node.type === 'footnoteReference')!;
+    expect(reference.identifier).toBe('note');
+    expect(reference.label).toBe('note');
+    expect(reference.children).toBeUndefined();
     expect(reference.range.start).toBe(source.indexOf('[^note]'));
-    expect(reference.value).toBe(source.slice(reference.range.start, reference.range.end));
+    expect(source.slice(reference.range.start, reference.range.end)).toBe('[^note]');
+
+    const definition = all.find(node => node.type === 'footnoteDefinition')!;
+    expect(definition.identifier).toBe('note');
     expect(definition.range.start).toBe(source.indexOf('[^note]:'));
-    expect(definition.value).toBe(source.slice(definition.range.start, definition.range.end));
+    expect(source.slice(definition.range.start, definition.range.end)).toBe(source.slice(source.indexOf('[^note]:')).trimEnd());
 
-    const warnings = diagnostics.filter(diagnostic => diagnostic.code === 'local.footnote.unsupported');
-    expect(warnings).toHaveLength(2);
-    expect(warnings.every(diagnostic => diagnostic.severity === 'warning')).toBe(true);
-
+    // Controls and interpolations inside a definition stay inert text.
+    expect(diagnostics.map(diagnostic => diagnostic.code)).not.toContain('local.footnote.unsupported');
+    expect(diagnostics).toEqual([]);
     expect(document.bindings.hidden).toBeUndefined();
-    expect(flatten(document.nodes).some(node => node.type === 'interpolation')).toBe(false);
+    expect(all.some(node => node.type === 'interpolation' || node.type === 'component')).toBe(false);
   });
 
-  it('does not warn for footnote syntax inside inline or fenced code', () => {
+  it('does not treat footnote syntax inside inline or fenced code as footnotes', () => {
     const source = '`[^1]` 与 `[^1]: 代码定义`\n\n```md\n[^1]\n[^1]: 代码定义\n```\n\n真实[^1]\n\n[^1]: 真实定义';
     const parsed = parseLocal(source);
-    const warnings = parsed.diagnostics.filter(diagnostic => diagnostic.code === 'local.footnote.unsupported');
-    expect(warnings).toHaveLength(2);
-    const fallbacks = flatten(parsed.nodes).filter(node => node.type === 'fallback');
-    expect(fallbacks.every(node => !node.value?.includes('```'))).toBe(true);
+    const all = flatten(parsed.nodes);
+    expect(all.filter(node => node.type === 'footnoteReference')).toHaveLength(1);
+    expect(all.filter(node => node.type === 'footnoteDefinition')).toHaveLength(1);
+    expect(all.some(node => node.type === 'fallback')).toBe(false);
     expect(flatten(parsed.nodes).some(node => node.type === 'code')).toBe(true);
   });
 
   it('never executes malformed controls or expressions inside a definition', () => {
     const result = compileLocal('[^bad]: <slider onClick="x"> 与 {{ 1 + }}');
     expect(result.ok).toBe(true);
-    expect(result.diagnostics.map(diagnostic => diagnostic.code)).toEqual(['local.footnote.unsupported']);
+    expect(result.diagnostics).toEqual([]);
     expect(result.ok && result.document.initialState).toEqual({});
   });
 
@@ -132,6 +135,7 @@ describe('footnotes become inert fallback text', () => {
     const parsed = parseLocal('这里[^missing]没有定义');
     expect(parsed.diagnostics).toEqual([]);
     expect(flatten(parsed.nodes).some(node => node.type === 'fallback')).toBe(false);
+    expect(flatten(parsed.nodes).some(node => node.type === 'footnoteReference')).toBe(false);
     expect(flatten(parsed.nodes).filter(node => node.type === 'text').map(node => node.value).join('')).toContain('[^missing]');
   });
 });

@@ -46,6 +46,12 @@ import { createHeadingAnchors } from './heading-anchors';
 import { isLocalColor } from './colors';
 import { DataTableView } from './data-table';
 import {
+  collectLocalFootnotes,
+  footnoteLabelText,
+  type LocalFootnoteEntry,
+  type LocalFootnoteIndex,
+} from './footnotes';
+import {
   DEFAULT_LOCAL_THEME,
   resolveLocalTheme,
   type LocalColorScheme,
@@ -138,6 +144,8 @@ interface LocalViewContext extends LocalRenderContext {
   validation: LocalValidationState;
   /** Views pass this object straight to renderInlineNodes, so it must match RenderEnv. */
   dependencies: DependencyIndex;
+  /** Whole-document footnote index, shared with the render environment. */
+  footnotes: LocalFootnoteIndex;
 }
 
 const LocalViewContext = createContext<LocalViewContext | null>(null);
@@ -872,6 +880,8 @@ interface RenderEnv {
   mode: LocalRenderMode;
   /** Binding keys per node subtree; an empty index makes every block a wildcard. */
   dependencies: DependencyIndex;
+  /** Whole-document footnote numbering and reference ids for this instance. */
+  footnotes: LocalFootnoteIndex;
 }
 
 interface LocalBlockProps {
@@ -990,6 +1000,44 @@ function renderInlineNodes(env: RenderEnv, nodes: LocalNode[] | undefined, visib
   });
 }
 
+/**
+ * A footnote reference renders as its number in a superscript link. Hrefs use
+ * the id generated while collecting footnotes, so URL policy and heading
+ * anchor resolution never rewrite an internal target. Without a definition the
+ * original source form stays visible instead of becoming a dead link.
+ */
+function renderFootnoteReference(env: RenderEnv, node: LocalNode, key: string): ReactNode {
+  const site = env.footnotes.siteFor(node);
+  if (!site || !site.entry) {
+    const label = site?.label || footnoteLabelText(node) || '?';
+    return (
+      <span
+        key={key}
+        className="local-footnote-missing"
+        title={env.t('Undefined footnote', '未定义的脚注')}
+        data-local-footnote-missing=""
+      >
+        {`[^${label}]`}
+      </span>
+    );
+  }
+  const entry = site.entry;
+  return (
+    <sup key={key} className="local-footnote-ref">
+      <a
+        id={site.id}
+        href={`#${entry.id}`}
+        className="local-footnote-ref-link"
+        role="doc-noteref"
+        data-local-footnote-number={entry.number}
+        aria-label={env.t(`Footnote ${entry.number}`, `脚注 ${entry.number}`)}
+      >
+        {entry.number}
+      </a>
+    </sup>
+  );
+}
+
 function renderNode(
   env: RenderEnv,
   node: LocalNode,
@@ -1032,6 +1080,14 @@ function renderNode(
 
     case 'delete':
       return <del key={key}>{renderNodes(env,node.children, visible, false)}</del>;
+
+    // Basic HTML formatting is rebuilt as plain React tags. No raw HTML and no
+    // attributes from the source reach the DOM.
+    case 'underline':
+      return <u key={key}>{renderNodes(env,node.children, visible, false)}</u>;
+
+    case 'mark':
+      return <mark key={key}>{renderNodes(env,node.children, visible, false)}</mark>;
 
     case 'inlineCode':
       return (
@@ -1246,14 +1302,14 @@ function renderNode(
     case 'fallback':
       return renderFallback(env, node, key, block);
 
-    // The parser turns unsupported footnotes into `fallback` nodes. These
-    // branches only see a raw Markdown footnote AST (older trees or a partial
-    // parse) and keep it visible instead of silently dropping it.
+    // Footnotes are collected at the document level: references show a
+    // numbered superscript, and definitions render once in the endnotes
+    // section instead of at their source position.
     case 'footnoteReference':
-      return renderFallback(env, node, key, false);
+      return renderFootnoteReference(env, node, key);
 
     case 'footnoteDefinition':
-      return renderFallback(env, node, key, block);
+      return null;
 
     case 'comment':
     case 'definition':
@@ -4134,6 +4190,82 @@ export const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNod
   step: StepView,
 };
 
+/* --------------------------------------------------------------- endnotes */
+
+function footnoteBody(env: RenderEnv, entry: LocalFootnoteEntry): ReactNode {
+  const children = entry.definition.children;
+  if (children && children.length > 0) return renderNodes(env, children, true);
+  // Older or hand-built definitions may only carry their text in `value`.
+  if (typeof entry.definition.value === 'string' && entry.definition.value !== '') {
+    return <p>{entry.definition.value}</p>;
+  }
+  return null;
+}
+
+/**
+ * One document-wide endnote list. Each item keeps every backlink for its
+ * references so readers can return to any occurrence, not just the first.
+ */
+function EndnotesView({
+  entries,
+  env,
+  t,
+  titleId,
+}: {
+  entries: readonly LocalFootnoteEntry[];
+  env: RenderEnv;
+  t: Localize;
+  titleId: string;
+}) {
+  return (
+    <section
+      className="local-footnotes"
+      role="doc-endnotes"
+      aria-labelledby={titleId}
+      data-local-footnotes=""
+    >
+      <h2 id={titleId} className="local-footnotes-title">
+        {t('Footnotes', '脚注')}
+      </h2>
+      <ol className="local-footnotes-list">
+        {entries.map((entry) => {
+          const multiple = entry.references.length > 1;
+          return (
+            <li
+              key={entry.id}
+              id={entry.id}
+              className="local-footnote"
+              data-local-footnote-number={entry.number}
+            >
+              <div className="local-footnote-body">{footnoteBody(env, entry)}</div>
+              <span className="local-footnote-backlinks">
+                {entry.references.map((reference, index) => (
+                  <a
+                    key={reference.id}
+                    href={`#${reference.id}`}
+                    className="local-footnote-backlink"
+                    role="doc-backlink"
+                    aria-label={
+                      multiple
+                        ? t(
+                            `Back to reference ${entry.number} (${index + 1} of ${entry.references.length})`,
+                            `返回脚注 ${entry.number} 的第 ${index + 1} 处引用`,
+                          )
+                        : t(`Back to reference ${entry.number}`, `返回脚注 ${entry.number}`)
+                    }
+                  >
+                    {'↩'}
+                  </a>
+                ))}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
 /* ---------------------------------------------------------------- document */
 
 export function LocalDocumentView({
@@ -4162,6 +4294,12 @@ export function LocalDocumentView({
   );
   const anchors = useMemo(
     () => createHeadingAnchors(document, `local-heading-${instanceId}`),
+    [document, instanceId],
+  );
+  // Numbering and ids are instance-scoped: two documents on one page never
+  // share footnote targets, and every reference keeps a stable id.
+  const footnotes = useMemo(
+    () => collectLocalFootnotes(document, instanceId),
     [document, instanceId],
   );
   // A failing collector degrades to the wildcard index, so the view stays
@@ -4242,8 +4380,17 @@ export function LocalDocumentView({
   // Stable across revisions: each field comes from a prop, a memo, or the
   // dependency index, so memoized blocks keep their previous output.
   const env = useMemo<RenderEnv>(
-    () => ({ runtime, urlPolicy, imageResolver, anchors, t, mode: renderedMode, dependencies: dependencyIndex }),
-    [runtime, urlPolicy, imageResolver, anchors, t, renderedMode, dependencyIndex],
+    () => ({
+      runtime,
+      urlPolicy,
+      imageResolver,
+      anchors,
+      t,
+      mode: renderedMode,
+      dependencies: dependencyIndex,
+      footnotes,
+    }),
+    [runtime, urlPolicy, imageResolver, anchors, t, renderedMode, dependencyIndex, footnotes],
   );
 
   // Revision-independent deps keep this closure and the provider value stable
@@ -4268,8 +4415,9 @@ export function LocalDocumentView({
       rootRef,
       t,
       dependencies: dependencyIndex,
+      footnotes,
     }),
-    [runtime, render, report, urlPolicy, imageResolver, renderedMode, anchors, rootRef, t, validation, dependencyIndex],
+    [runtime, render, report, urlPolicy, imageResolver, renderedMode, anchors, rootRef, t, validation, dependencyIndex, footnotes],
   );
 
   return (
@@ -4289,6 +4437,14 @@ export function LocalDocumentView({
       >
         <LocalViewContext.Provider value={contextValue}>
           {render(document.nodes, true)}
+          {footnotes.entries.length > 0 ? (
+            <EndnotesView
+              entries={footnotes.entries}
+              env={env}
+              t={t}
+              titleId={`${instanceId}-footnotes-title`}
+            />
+          ) : null}
         </LocalViewContext.Provider>
       </article>
     </LocalLocaleProvider>

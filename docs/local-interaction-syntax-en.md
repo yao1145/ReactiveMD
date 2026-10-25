@@ -94,6 +94,12 @@ Unknown components, unknown attributes, wrong positions or wrong attribute types
 
 ### 3.4 Code, math and escaping
 
+Prose such as `Array<T>`, `Map<string, number>`, `x<y` and currency `$5` or `$10` stays text. Complete formulas still use `$...$` or `$$...$$`; an unmatched single dollar sign stays literal.
+
+Attribute-free `<b>...</b>`, `<i>...</i>`, `<u>...</u>`, `<s>...</s>`, `<mark>...</mark>` and `<br>` / `<br/>` produce bold, italic, underline, strikethrough, highlight and hard-break nodes. These are prose formatting, not interaction components. Ordinary single newlines remain Markdown soft breaks.
+
+Reference a footnote with `[^note]` and define it with `[^note]: Note text`. Continuation paragraphs, lists and code blocks use Markdown indentation. Definitions support Markdown and the basic HTML above. Notes appear at the end in first-reference order; repeated references share a number and each has a return link. Identifiers are case-insensitive and the first duplicate definition wins. Undefined references stay literal; unused definitions stay hidden. Controls and interpolations inside notes remain text and create no bindings or executable expressions.
+
 Tags, interpolations and formula markers inside inline code and code fences are displayed verbatim. The source revision directive in the prologue is the recognized version comment; other Markdown comments `<!-- ... -->` produce no components or variables.
 
 Use `\{{` in prose to display a literal `{{`, and `\<slider>` or inline code to show a tag example. These backslash escapes belong only to the Markdown context and do not apply to LaTeX sources.
@@ -445,13 +451,12 @@ This draft does not accept legacy tags such as form, submit, button, each, list,
 
 ## 13. Diagnostics and acceptance rules
 
-Diagnostics include severity, category, a short explanation, source line/column and a fix suggestion. A structurally complete unknown tag region is displayed from escaped original source with a `local.component.unknown` warning; footnote references and definitions keep their source with a `local.footnote.unsupported` warning. Controls and interpolations inside these regions are not executed, while other prose and interactions keep working. Tag structures that cannot be reliably recovered, attribute or expression errors on known components, binding errors and resource budget problems still block compilation. Runtime local computation errors are isolated as described in section 5.
+Diagnostics include severity, category, a short explanation, source line/column and a fix suggestion. A structurally complete unknown tag region is displayed from escaped original source with a `local.component.unknown` warning; its controls and interpolations are not executed. Normal footnotes produce no unsupported-syntax warning. Other prose and interactions keep working. Component tag structures that cannot be reliably recovered, attribute or expression errors on known components, binding errors and resource budget problems still block compilation. Runtime local computation errors are isolated as described in section 5.
 
 | Category | Example | What it should explain |
 | --- | --- | --- |
 | Tag structure | card unclosed, wrong nesting | The required end tag and start position |
 | Unknown tag warning | slidr | Unknown name, spelling suggestion and local source fallback |
-| Footnote warning | `[^note]` and footnote definition | Source preserved; footnote layout not yet supported |
 | Invalid syntax | on-click, actions configuration block | Attribute or legacy syntax not in the current mode |
 | Binding | references seats but only seat is declared | The missing parameter and candidate names |
 | Initial value | initial written twice for a same-name parameter | Both conflict positions |

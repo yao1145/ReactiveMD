@@ -828,7 +828,7 @@ function validateChildren(entry: Entry, state: CompileState): void {
       break;
     case 'inline':
       if (entry.name === 'text' || entry.name === 'jump') {
-        const inlineTypes = new Set(['text', 'emphasis', 'strong', 'delete', 'link', 'image', 'inlineCode', 'inlineMath', 'interpolation', 'break', 'comment', 'fallback']);
+        const inlineTypes = new Set(['text', 'emphasis', 'strong', 'delete', 'underline', 'mark', 'link', 'image', 'inlineCode', 'inlineMath', 'interpolation', 'break', 'comment', 'fallback', 'footnoteReference']);
         const isInline = (node: LocalNode): boolean => inlineTypes.has(node.type) && (node.children ?? []).every(isInline);
         const body = kids.length === 1 && kids[0].type === 'paragraph' ? kids[0].children ?? [] : kids;
         if (!body.every(isInline)) {

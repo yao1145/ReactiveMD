@@ -77,7 +77,7 @@ Persist the original `.reactive.md` source. A `reactive-md-state/v1` file may pr
 - `line`, `column` and `range` can be used for programmatic location and editor jumps.
 - `code` is a string identifier, such as `local.type`, `expression-type` or `latex-plot-range`. Existing codes keep their meaning within one 0.x minor series. New codes may be added; removal, renaming or a change of meaning requires a new minor version and migration notes.
 - `message` contains default English display text. Use `formatLocalDiagnostic(diagnostic, 'zh')` for Chinese. Wording may improve; do not parse messages or make business decisions based on their complete text. Language changes preserve machine fields.
-- `severity` is `warning` or `error`. Structurally complete unknown tags and footnotes keep their source and produce fallback warnings, and compilation can still succeed; compile errors make `result.ok` `false` and disable the preview. Runtime local errors affect only the corresponding content.
+- `severity` is `warning` or `error`. Structurally complete unknown tags keep their source and produce fallback warnings, and compilation can still succeed; footnotes render normally. Compile errors make `result.ok` `false` and disable the preview. Runtime local errors affect only the corresponding content.
 
 See [Diagnostics and counting rules](diagnostics-counting-en.md) for units and resource-budget scopes.
 

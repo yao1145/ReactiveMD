@@ -55,7 +55,7 @@ export interface AuthorRename {
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /** Mirrors the compiler's repeated-name guard. */
 const MAX_NAME_LENGTH = 128;
-const INACTIVE_NODE_TYPES = new Set(['code', 'inlineCode', 'math', 'inlineMath', 'fallback', 'comment']);
+const INACTIVE_NODE_TYPES = new Set(['code', 'inlineCode', 'math', 'inlineMath', 'fallback', 'comment', 'footnoteDefinition']);
 /** Parse-level failures leave parts of the document opaque, so renaming is unsafe. */
 const UNSAFE_RENAME_CODES = new Set([
   'local.version.unsupported', 'local.version.malformed', 'local.version.duplicate', 'local.version.placement',

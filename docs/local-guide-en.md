@@ -53,7 +53,7 @@ You can think of Reactive MD as Markdown prose plus a small fixed set of HTML-st
 | --- | --- |
 | Markdown headings, paragraphs, lists, quotes, links, images | Used as-is |
 | Markdown tables | Used as-is; you can also put them in `<table>` for search and sorting |
-| HTML tags | Use only the component tags listed in the docs, such as `<slider>`, `<card>` |
+| HTML tags | Use component tags and attribute-free `<b>`, `<i>`, `<u>`, `<s>`, `<mark>` and `<br>` |
 | HTML attributes | Write `label="People"`, lowercase attribute names, quoted values |
 | JavaScript variables | Name controls with `bind="people"` |
 | Template strings `${...}` | Read and compute with `{{ people * 100 }}` |
@@ -208,9 +208,11 @@ Current value: {{ example }}.
 ```
 ````
 
-HTML comments `<!-- ... -->` are ignored and produce no components or variables. Raw HTML is not executed as web elements; organize content with Markdown or the matching components. Structurally complete unknown tags are kept as source text with a warning, and their inner tags and interpolations are displayed verbatim as well. `style`, event attributes and similar on known components are still compile errors.
+HTML comments `<!-- ... -->` are ignored and produce no components or variables. Prose supports attribute-free `<b>bold</b>`, `<i>italic</i>`, `<u>underline</u>`, `<s>strikethrough</s>`, `<mark>highlight</mark>` and `<br>` (also `<br/>`), including nested formatting. Use Markdown or the matching components for other content. Structurally complete unknown tags are kept as source text with a warning, including their inner tags and interpolations. Event and `style` attributes gain no execution capability.
 
-Footnotes currently preserve the reference marker and definition source and produce a `local.footnote.unsupported` warning. Tags and interpolations inside footnote content are displayed verbatim.
+Generics such as `Array<T>`, comparisons such as `x<y` and currency such as `$5` and `$10` can appear directly in prose. Formulas still use `$x^2$`, `$5$` or `$$...$$`. A single newline remains a Markdown soft break; use two trailing spaces or `<br>` for a hard break.
+
+Use `text[^note]` to reference a footnote and `[^note]: Note text` in a separate paragraph to define it. Definitions support Markdown, the basic HTML above, and indented continuation paragraphs, lists and code blocks. Notes appear at the end in first-reference order. Repeated references share a number, with return links to each occurrence. Definitions may precede references or appear inside containers. Undefined references stay literal, and unused definitions stay hidden. Control tags and `{{ interpolations }}` inside definitions remain text and create no bindings.
 
 Tables of contents use ordinary Markdown links: `[Parameter description](#parameter-description)` corresponds to `## Parameter description`. English headings are named in lowercase with hyphens, for example `## Hello World` corresponds to `#hello-world`; duplicate headings get `-1`, `-2` appended. Dynamic text in headings generates anchors from initial parameter values, so the table of contents keeps pointing at the same heading after parameters change. The renderer isolates anchors for different documents on the same page, so no prefix is needed in the source.
 
@@ -836,7 +838,7 @@ Notes:
 | `if` condition type error | `when="{{ seats }}"` yields a number | Change to `when="{{ seats >= 5 }}"` |
 | `on-click` is not part of the component | Attempting an event handler | Remove the event attribute and use component interactions |
 | HTML tags display as source or report structure errors | Unknown tag or missing end tag | Use Markdown or the matching component, and check closing |
-| Footnote displays as source with a warning | Footnote layout not yet supported | Turn it into prose notes for now |
+| Footnote reference stays literal | No matching definition | Check the identifiers in `[^note]` and `[^note]: Note text` |
 | Chart shows a "20 USD" error | Text mixed into a numeric column | Write only the number and put the unit in the header |
 | `edge` points to a nonexistent node | Typo in the `to` id | Use consistent node ids |
 | Plot says integrals are unsupported | Formula outside the first version's computable scope | Use a supported function, or display it without plotting |
@@ -852,7 +854,7 @@ Notes:
 
 Diagnostics give the source location, severity, category and a short explanation; common categories include tag structure, unknown syntax, bindings, initial values, types, constraints, tables, diagrams and math problems.
 
-The Playground's left editor and right diagnostics panel locate problems together. Fallback warnings for unknown tags and footnotes preserve the source while other content and interactions keep working; controls inside unknown regions do not create bindings. Unclosed tags, invalid attributes on known components, expression or binding errors and resource limits still block compilation and disable interaction. Runtime local computation errors affect only the corresponding content, and other parts keep updating.
+The Playground's left editor and right diagnostics panel locate problems together. Fallback warnings for unknown tags preserve the source while other content and interactions keep working; controls inside unknown regions do not create bindings. Unclosed component tags, invalid attributes on known components, expression or binding errors and resource limits still block compilation and disable interaction. Runtime local computation errors affect only the corresponding content, and other parts keep updating.
 
 When debugging, fix the first error. Later errors are sometimes only knock-on effects of the first one.
 

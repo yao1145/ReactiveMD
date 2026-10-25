@@ -93,6 +93,101 @@
   background: color-mix(in srgb, var(--warning) 6%, var(--surface));
 }
 
+/* -------------------------------------------------------------- footnotes */
+
+/* Superscript reference links sit inline and keep the line height unchanged
+   on phone widths; the generated ids stay instance-scoped. */
+.local-document .local-footnote-ref {
+  font-size: 0.75em;
+  line-height: 1;
+  vertical-align: super;
+}
+
+.local-document .local-footnote-ref-link {
+  padding: 0 0.12em;
+  border-radius: 3px;
+  color: var(--local-accent-strong, var(--ink-soft));
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+.local-document .local-footnote-ref-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.local-document .local-footnote-ref-link:focus-visible,
+.local-document .local-footnote-backlink:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.local-document .local-footnote-missing {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.local-document .local-footnotes {
+  margin-top: 2em;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.local-document .local-footnotes-title {
+  margin: 0 0 var(--space-2);
+  color: var(--ink);
+  font-size: var(--text-block-subtitle);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+}
+
+.local-document .local-footnotes-list {
+  margin: 0;
+  padding-inline-start: 1.6em;
+}
+
+.local-document .local-footnote {
+  margin: var(--space-2) 0;
+  overflow-wrap: anywhere;
+  scroll-margin-top: var(--space-5);
+}
+
+.local-document .local-footnote-body > :first-child {
+  margin-top: 0;
+}
+
+.local-document .local-footnote-body > :last-child {
+  margin-bottom: 0;
+}
+
+.local-document .local-footnote-backlinks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-1);
+  margin-inline-start: var(--space-1);
+}
+
+.local-document .local-footnote-backlink {
+  color: var(--local-accent-strong, var(--ink-soft));
+  text-decoration: none;
+}
+
+.local-document .local-footnote-backlink:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* A fragment jump marks the destination without relying on script state. */
+.local-document .local-footnote:target,
+.local-document .local-footnote-ref-link:target {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--local-accent, var(--ink)) 12%, transparent);
+}
+
 /* ---------------------------------------------------------- inactive state */
 
 .local-document.local-inactive {

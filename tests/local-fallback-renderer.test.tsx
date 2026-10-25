@@ -90,11 +90,12 @@ describe('fallback source rendering', () => {
     expectInert(pieces);
   });
 
-  it('keeps footnote references and definitions visible without duplicating them', () => {
+  it('renders footnotes in the endnotes section and keeps only unknown tags as source', () => {
     const { html, text } = mount(
       '前文[^note] 后文。\n\n' +
         '[^note]: 脚注定义 {{ 1 + 1 }} <b>原样</b>\n\n' +
-        '<toggle label="开关">\n',
+        '<toggle label="开关">\n\n' +
+        '<mystery-widget data-x="1">\n内部源码\n</mystery-widget>\n',
     );
 
     expect(text).toContain('前文');
@@ -102,16 +103,25 @@ describe('fallback source rendering', () => {
     expect(html).toContain('md-toggle');
     expect(html).toContain('开关');
 
+    // Footnotes are no longer fallback source: the reference is a numbered
+    // superscript and the definition renders once in the endnotes list.
+    expect(html).toContain('role="doc-noteref"');
+    expect(html).toContain('role="doc-endnotes"');
+    expect(html).toContain('role="doc-backlink"');
+    expect(html).toMatch(/<sup[^>]*class="local-footnote-ref"/);
+    expect((html.match(/class="local-footnote"/g) ?? []).length).toBe(1);
+    expect(plain(html)).toContain('脚注定义');
+    expect(plain(html)).toContain('{{ 1 + 1 }}');
+    expect(plain(html)).toContain('原样');
+    expect(html).not.toContain('[^note]');
+
     const pieces = fallbackMarkup(html);
     expect(pieces.length).toBeGreaterThan(0);
     const source = pieces.join('\n');
-    expect(source).toContain('[^note]');
-    expect(source).toContain('脚注定义 {{ 1 + 1 }} &lt;b&gt;原样&lt;/b&gt;');
-    expect(source).not.toContain('<b>');
-    // One inline reference plus the definition prefix; nothing is shown twice.
-    expect((html.match(/\[\^note\]/g) ?? []).length).toBe(2);
-    expect((html.match(/脚注定义/g) ?? []).length).toBe(1);
-    expect(html).toContain('local-fallback-inline');
+    expect(source).toContain('mystery-widget');
+    expect(source).toContain('data-x=');
+    expect(source).toContain('内部源码');
+    expect(source).toContain('&lt;/mystery-widget&gt;');
     expectInert(pieces);
   });
 

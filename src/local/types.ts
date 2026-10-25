@@ -40,6 +40,13 @@ export interface LocalNode {
   alt?: string;
   lang?: string;
   align?: ('left' | 'center' | 'right' | null)[];
+  /**
+   * Normalized footnote identifier shared by `footnoteReference` and
+   * `footnoteDefinition` nodes (whitespace collapsed, lowercased).
+   */
+  identifier?: string;
+  /** Original footnote label as written, preserved for display. */
+  label?: string;
 }
 /**
  * One read-only document value declared by a top-level `<computed>` or
