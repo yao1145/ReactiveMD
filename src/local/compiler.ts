@@ -47,6 +47,8 @@ import type {
   LocalCompileResult,
   LocalComputation,
   LocalDocument,
+  LocalHostComponentSchema,
+  LocalHostPropSchema,
   LocalNode,
   LocalValidation,
   LocalValue,
@@ -242,6 +244,7 @@ interface CompileState {
   source: string;
   lineStarts: number[];
   nodes: LocalNode[];
+  diagnostics: Diagnostic[];
   report: (
     code: string,
     message: string,
@@ -411,6 +414,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
     source,
     lineStarts,
     nodes: parsed.nodes,
+    diagnostics,
     report,
     entries: [],
     attrs: new Map(),
@@ -451,6 +455,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   const initialState: Record<string, LocalValue> = {};
   for (const [key, binding] of Object.entries(bindings)) initialState[key] = cloneValue(binding.initial);
   validateNavigation(state, bindings, initialState);
+  validateHostComponents(parsed.nodes, optionCheck.hostByName, state);
 
   diagnostics.sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
   const hasError = diagnostics.some((diagnostic) => diagnostic.severity === 'error');
@@ -538,12 +543,12 @@ function openingTag(source: string, start: number, end: number): string {
   return source.slice(start, index);
 }
 
-function attributeOffset(state: CompileState, entry: Entry, name: string): number {
-  if (name.length > MAX_LOCAL_NAME_LENGTH) return entry.node.range.start;
-  const text = openingTag(state.source, entry.node.range.start, entry.node.range.end);
+function attributeOffset(state: CompileState, node: LocalNode, name: string): number {
+  if (name.length > MAX_LOCAL_NAME_LENGTH) return node.range.start;
+  const text = openingTag(state.source, node.range.start, node.range.end);
   const pattern = new RegExp(`(?:^|[\\s"'/])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|=|/|>)`);
   const match = pattern.exec(text);
-  return match ? entry.node.range.start + match.index + (match[0].length - name.length) : entry.node.range.start;
+  return match ? node.range.start + match.index + (match[0].length - name.length) : node.range.start;
 }
 
 function validateAttributes(entry: Entry, state: CompileState): AttrMap {
@@ -551,7 +556,7 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
   const rawAttrs = entry.node.attrs ?? {};
   for (const [name, raw] of Object.entries(rawAttrs)) {
     const prop = entry.schema.props[name];
-    const offset = attributeOffset(state, entry, name);
+    const offset = attributeOffset(state, entry.node, name);
     if (!prop) {
       const suggestion = name.length <= MAX_LOCAL_NAME_LENGTH ? suggestAttribute(entry.schema, name) : undefined;
       state.report(
@@ -3160,6 +3165,200 @@ function validateTimeline(entry: Entry, shape: TableShape, state: CompileState):
       }
     }
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Host components                                                     */
+/* ------------------------------------------------------------------ */
+
+/** Host schemas are validated before parsing; an unmatched node only warns. */
+function reportWarning(
+  state: CompileState,
+  code: string,
+  message: string,
+  start: number,
+  end = start + 1,
+  details?: LocalDiagnosticDetails,
+): void {
+  if (state.diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) return;
+  const safeStart = Math.max(0, Math.min(state.source.length, start));
+  const safeEnd = Math.max(safeStart, Math.min(state.source.length, Math.max(safeStart, end)));
+  let low = 0;
+  let high = state.lineStarts.length - 1;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (state.lineStarts[middle] <= safeStart) low = middle;
+    else high = middle - 1;
+  }
+  const bounded = localDiagnosticDetails(details?.key ?? code, details?.params);
+  state.diagnostics.push({
+    code,
+    message: message.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
+      ? `${message.slice(0, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
+      : message,
+    severity: 'warning',
+    range: { start: safeStart, end: safeEnd },
+    line: low + 1,
+    column: safeStart - state.lineStarts[low] + 1,
+    messageKey: bounded.key,
+    ...(bounded.params ? { params: bounded.params } : {}),
+  });
+}
+
+/**
+ * Validate host-defined leaf tags in place. They already count as parser syntax
+ * nodes but never enter `state.entries`: they own no bindings, children or
+ * runtime state, so only their literal attributes are checked here.
+ */
+function validateHostComponents(
+  nodes: LocalNode[],
+  hostByName: ReadonlyMap<string, LocalHostComponentSchema>,
+  state: CompileState,
+): void {
+  for (const node of nodes) {
+    if (node.type === 'hostComponent') {
+      const schema = node.name ? hostByName.get(node.name) : undefined;
+      if (!schema) {
+        // The parser only creates these from the same option; an unmatched node
+        // means a mismatch between parser and compile options.
+        const name = node.name ?? '';
+        reportWarning(
+          state,
+          'local.component.unknown',
+          `Unknown component <${name}>. This mode only accepts local interaction components.`,
+          node.range.start,
+          node.range.end,
+          { key: 'local.component.unknown', params: { name } },
+        );
+      } else {
+        validateHostAttributes(node, schema, state);
+      }
+    }
+    if (node.children) validateHostComponents(node.children, hostByName, state);
+  }
+}
+
+function validateHostAttributes(
+  node: LocalNode,
+  schema: LocalHostComponentSchema,
+  state: CompileState,
+): void {
+  const component = schema.name;
+  const rawAttrs = node.attrs ?? {};
+  for (const [name, raw] of Object.entries(rawAttrs)) {
+    const prop = schema.props[name];
+    const offset = attributeOffset(state, node, name);
+    if (!prop) {
+      state.report(
+        'local.host.attribute',
+        `Component <${component}> does not support attribute ${name}.`,
+        offset,
+        offset + name.length,
+        { key: 'local.host.attribute.unknown', params: { component, name } },
+      );
+      continue;
+    }
+    validateHostPropValue(name, prop, raw, offset, state);
+  }
+  for (const [name, prop] of Object.entries(schema.props)) {
+    if (prop.required && !Object.hasOwn(rawAttrs, name)) {
+      state.report(
+        'local.host.attribute',
+        `Component <${component}> is missing required attribute ${name}.`,
+        node.range.start,
+        node.range.end,
+        { key: 'local.host.attribute.required', params: { component, name } },
+      );
+    }
+  }
+}
+
+function validateHostPropValue(
+  name: string,
+  prop: LocalHostPropSchema,
+  raw: string,
+  offset: number,
+  state: CompileState,
+): void {
+  if (prop.static) {
+    const scanned = scanInterpolations(raw);
+    if (scanned.segments.length || scanned.unterminated.length) {
+      state.report(
+        'local.host.attribute',
+        `Attribute ${name} is static and cannot contain interpolations.`,
+        offset,
+        offset + raw.length,
+        { key: 'local.host.attribute.static', params: { name } },
+      );
+      return;
+    }
+  }
+
+  if (prop.kind === 'string') {
+    if (prop.pattern) {
+      const scanned = scanInterpolations(raw);
+      // An allowed interpolation makes the literal pattern inapplicable.
+      if (!scanned.segments.length && !scanned.unterminated.length) {
+        let accepted = true;
+        try {
+          accepted = new RegExp(prop.pattern).test(raw);
+        } catch {
+          // Options validation rejects invalid patterns; do not crash if a
+          // schema bypassed it.
+        }
+        if (!accepted) {
+          state.report(
+            'local.host.attribute',
+            `Attribute ${name} must match pattern ${prop.pattern}.`,
+            offset,
+            offset + raw.length,
+            { key: 'local.host.attribute.pattern', params: { name, pattern: prop.pattern } },
+          );
+        }
+      }
+    }
+    return;
+  }
+
+  // Dynamic kinds accept exactly one full interpolation unless declared static.
+  if (!prop.static && fullInterpolation(raw)) return;
+
+  if (prop.kind === 'number') {
+    if (parseNumberText(raw) === null) {
+      state.report(
+        'local.host.attribute',
+        `Attribute ${name} requires a number, got "${raw}".`,
+        offset,
+        offset + raw.length,
+        { key: 'local.host.attribute.type', params: { name, value: raw, kind: 'number' } },
+      );
+    }
+    return;
+  }
+
+  if (prop.kind === 'boolean') {
+    if (raw !== 'true' && raw !== 'false') {
+      state.report(
+        'local.host.attribute',
+        `Attribute ${name} requires a boolean, got "${raw}".`,
+        offset,
+        offset + raw.length,
+        { key: 'local.host.attribute.type', params: { name, value: raw, kind: 'boolean' } },
+      );
+    }
+    return;
+  }
+
+  const values = prop.enum ?? [];
+  if (!values.includes(raw)) {
+    state.report(
+      'local.host.attribute',
+      `Attribute ${name} must be one of ${values.join(' / ')}, got "${raw}".`,
+      offset,
+      offset + raw.length,
+      { key: 'local.host.attribute.enum', params: { name, values: values.join(' / '), value: raw } },
+    );
+  }
 }
 
 /* ------------------------------------------------------------------ */

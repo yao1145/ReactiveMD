@@ -8,7 +8,10 @@ export const LOCAL_COMPILE_DELAY_MS = 150;
 export interface LocalCompileRequest {
   id: number;
   source: string;
-  /** Capability flags and limits granted for this compile. */
+  /**
+   * Capability flags, limits and host component schemas for this compile.
+   * `hostComponents` selects the host leaf tags the parser may build.
+   */
   options?: LocalCompileOptions;
 }
 
@@ -54,16 +57,49 @@ export interface LocalCompileSchedulerOptions {
 
 interface CompileJob {
   source: string;
-  /** Copied at schedule time so later caller mutation cannot change permissions. */
+  /** Copied at schedule time so later caller mutation cannot change permissions or host schemas. */
   options?: LocalCompileOptions;
   /** Canonical options signature used to detect options-only edits. */
   optionsKey: string;
 }
 
 /**
- * Copy the option values that affect routing and budgets. Invalid values are
- * preserved so the compiler can report them; known keys are snapshotted so a
- * caller mutating its object after `schedule` cannot widen an in-flight compile.
+ * Clone host component schemas so a caller mutating its option object after
+ * `schedule` cannot change an in-flight compile. Obviously invalid shapes pass
+ * through unchanged for `readLocalCompileOptions` to report.
+ */
+function snapshotHostComponents(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+    const source = entry as Record<string, unknown>;
+    const clone: Record<string, unknown> = { ...source };
+    const props = source.props;
+    if (!props || typeof props !== 'object' || Array.isArray(props)) {
+      clone.props = props;
+      return clone;
+    }
+    const propsCopy: Record<string, unknown> = {};
+    for (const [name, prop] of Object.entries(props as Record<string, unknown>)) {
+      if (!prop || typeof prop !== 'object' || Array.isArray(prop)) {
+        propsCopy[name] = prop;
+        continue;
+      }
+      const propSource = prop as Record<string, unknown>;
+      const propCopy: Record<string, unknown> = { ...propSource };
+      if (Array.isArray(propSource.enum)) propCopy.enum = [...propSource.enum];
+      propsCopy[name] = propCopy;
+    }
+    clone.props = propsCopy;
+    return clone;
+  });
+}
+
+/**
+ * Copy the option values that affect routing, budgets and host components.
+ * Invalid values are preserved so the compiler can report them; known keys are
+ * snapshotted so a caller mutating its object after `schedule` cannot widen an
+ * in-flight compile.
  */
 function snapshotCompileOptions(options: LocalCompileOptions | undefined): LocalCompileOptions | undefined {
   if (options === undefined) return undefined;
@@ -81,6 +117,9 @@ function snapshotCompileOptions(options: LocalCompileOptions | undefined): Local
       } else {
         copy.limits = limits;
       }
+    }
+    if (Object.hasOwn(source, 'hostComponents')) {
+      copy.hostComponents = snapshotHostComponents(source.hostComponents);
     }
     return copy as unknown as LocalCompileOptions;
   } catch {

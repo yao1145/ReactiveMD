@@ -17,3 +17,20 @@ export interface LocalVisualProps extends Omit<LocalRenderContext, 'mode'> {
   /** Defaults to interactive so hand-built visual fixtures stay compatible. */
   mode?: LocalRenderMode;
 }
+
+/**
+ * JSON-safe host data indexed by `${kind}:${ref}` for `hostComponent` nodes.
+ * It is read only by the client renderer and never enters the worker.
+ */
+export type LocalHostData = Readonly<Record<string, unknown>>;
+
+/**
+ * Client-only renderer for `hostComponent` nodes. Receiving `unknown` keeps the
+ * contract loose; a synchronous throw falls back to the inert placeholder, so
+ * a bad renderer never blanks the whole document.
+ */
+export type LocalHostRenderer = (
+  node: LocalNode,
+  data: unknown,
+  ctx: LocalRenderContext,
+) => ReactNode;

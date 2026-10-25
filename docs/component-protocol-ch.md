@@ -1,6 +1,6 @@
 # Reactive MD 组块协议
 
-协议修订 `component-protocol-1` · 适用语法 `local-draft-2` · 当前包版本 `0.4.0`（预览）
+协议修订 `component-protocol-2` · 适用语法 `local-draft-2` · 当前包版本 `0.4.0`（预览）
 
 Reactive MD 的组块就是语言中的组件。本协议规定组块在贡献、实现和验收中的共同契约，连接作者语法、编译器、运行时、React 参考适配器和机器验收数据。作者写文档时以[本地交互语法规范](local-interaction-syntax-ch.md)为准；宿主接入以[本地模式集成](local-integration-ch.md)为准；本文供贡献者、评审和测试使用。
 
@@ -22,7 +22,7 @@ Reactive MD 分别维护以下版本轴：
 | --- | --- | --- |
 | 包版本 | `0.4.0` | npm 发布、核心与 React 入口、升级兼容规则 |
 | 语法修订 | `local-draft-2` | 作者可以写出的标签、属性和表达式 |
-| 协议修订 | `component-protocol-1` | 组块贡献要求、验收门槛和机器数据语义 |
+| 协议修订 | `component-protocol-2` | 组块贡献要求、验收门槛和机器数据语义 |
 | 主题协议 | `reactive-md-theme-1` | 主题登记、样式变量、深浅模式与主题验收 |
 
 协议修订独立于包版本和语法版本。一个包版本只接受一个语法修订。协议修订可以在不改变作者语法的前提下提高贡献和验收要求；语法修订变化也不必自动提升协议修订。
@@ -458,7 +458,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-SEC-05 扩展信任边界（边界）
 
-本语言不为可信宿主扩展代码提供沙箱。若宿主自行注册或包装组块，安全边界由宿主负责，不能把作者文档中的 `disabled`、条件显示或客户端状态当作权限控制。当前修订不提供公开的运行时注册接口；未来 SDK 需要单独定义信任模型。
+本语言不为可信宿主扩展代码提供沙箱。若宿主自行注册或包装组块，安全边界由宿主负责，不能把作者文档中的 `disabled`、条件显示或客户端状态当作权限控制。`hostComponents` 选项只为单次编译登记纯 schema 数据，不携带可执行代码。宿主 renderer 是文档沙箱之外的可信宿主代码，安全边界仍由宿主负责；更完整的 SDK 需要单独定义信任模型。
 
 ## 9. 核心与渲染器分离
 
@@ -493,7 +493,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-CORE-05 扩展接口边界（边界）
 
-当前修订没有运行时可装载的组块 JSON、`registerComponent` API 或作者插件入口。`LOCAL_COMPONENTS` 是内部冻结表，公共入口不导出注册器。未来 SDK 若提供运行时注册，需要新的协议修订，并明确信任模型、版本协商、预算和验收方式。
+当前修订没有运行时可装载的组块实现、`registerComponent` API、全局注册器或作者插件入口。`LOCAL_COMPONENTS` 是内部冻结表。`hostComponents` 选项（第 14 节）只为单次编译接受纯 schema 数据；组块实现留在宿主代码中，绝不从文档内容装载。未来 SDK 若提供通用注册接口，需要新的协议修订，并明确信任模型、版本协商、预算和验收方式。
 
 ## 10. 兼容、名称治理、修订和迁移
 
@@ -563,7 +563,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-ACCEPT-02 机器验收数据（要求）
 
-机器验收集的根对象只包含 `protocolVersion`、`syntaxVersion` 和非空 `cases`。前两者固定为 `component-protocol-1` 和 `local-draft-2`；包版本由 `package.json` 标识，不从这两个字段推断。
+机器验收集的根对象只包含 `protocolVersion`、`syntaxVersion` 和非空 `cases`。现有作者组块集把前两者固定为 `component-protocol-1` 和 `local-draft-2`，并作为第 14 节所述的 v1 冻结基线；包版本由 `package.json` 标识，不从这两个字段推断。
 
 每个 case 至少包含唯一字符串 `id`、组块名 `component`、源码 `source`、布尔 `ok` 和去重诊断码集合 `codes`。可选字段 `initial`、`bindingNames`、`actions`、`reset`、`text`、`expectedText`、`htmlIncludes`、`htmlExcludes` 按[语言验收数据说明](../examples/conformance/README.md)和仓库附带的 JSON Schema 使用。完整格式以该说明和 Schema 为准，本协议只规定语义门槛。
 
@@ -578,7 +578,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 `initial` 和 `reset.expectedState` 做部分匹配；`bindingNames` 检查完整公开绑定名集合；`text` 与 `expectedText` 必须成对。
 
-本修订的验收数据应当覆盖 `slider`、`tabs`、`plot` 的代表性用例和至少一个完整未知标签降级用例。它是代表性门槛，不是 48 个标签名的全面认证。
+冻结的作者组块集覆盖 `slider`、`tabs`、`plot` 的代表性用例和至少一个完整未知标签降级用例。它仍是代表性门槛，不是 48 个标签名的全面认证；宿主组块没有可移植机器用例。
 
 ### CP-ACCEPT-03 组件级证据（要求）
 
@@ -634,7 +634,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-IMPL-03 扩展接口（边界）
 
-未来若提供 SDK，需要单独定义：
+除第 14 节的编译期 schema 和 React renderer 扩展轴外，更完整的 SDK 还需要单独定义：
 
 - 组块声明的机器格式和版本协商。
 - 宿主注册 API 的信任模型和沙箱边界。
@@ -652,7 +652,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 | 项目 | 填写内容 |
 | --- | --- |
 | 组块名 | `<name>`（小写 kebab-case） |
-| 协议修订 | `component-protocol-1` |
+| 协议修订 | `component-protocol-2` |
 | 用途 | 解决什么问题，读者如何使用 |
 | 非目标 | 本组块不承担的能力 |
 | 版本影响 | 包版本、语法修订、协议修订 |
@@ -700,10 +700,47 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 | CP-COMPAT-01 至 05 | 兼容说明、迁移示例 | 通过/待补 |
 | CP-ACCEPT-01 至 05 | 验收矩阵和命令结果 | 通过/待补 |
 
-## 14. 修订记录
+## 14. 宿主组件扩展轴
+
+### CP-HOST-01 宿主组件是可选扩展（现有）
+
+`compileLocal(source, { hostComponents })` 为编译器增加一条宿主拥有的扩展轴。不传 `hostComponents` 时，作者行为不变：48 个作者标签名照常解析，集合之外的标签仍是未知标签，并按 CP-DIAG-03 降级为原文。该选项只改变本次调用识别的标签名，不增加作者语法。语法修订仍为 `local-draft-2`，协议修订变为 `component-protocol-2`。
+
+### CP-HOST-02 宿主 Schema 是普通数据（要求）
+
+`LocalHostComponentSchema` 是宿主提供的普通、可结构化克隆的数据，不含函数、类实例或运行时句柄。
+
+| 字段 | 内容 |
+| --- | --- |
+| `name` | 小写 kebab-case，在集合内唯一，不能是 48 个作者标签名或主题声明名 `theme` |
+| `form` | `'leaf'`；宿主组块没有正文 |
+| `props` | 宿主属性表；属性名使用小写 kebab-case |
+
+每次编译最多接受 32 个宿主组块 Schema。每个属性声明 `kind`（`string`、`number`、`boolean` 或 `enum`）、`required`、`static`、`enum` 和 `pattern`。`enum` 用于 `enum` 属性，`pattern` 用于 `string` 属性。非法 Schema 以 `local.options.invalid` 诊断拒绝；编译失败，该集合不会部分生效。
+
+### CP-HOST-03 宿主组块不是作者语法（边界）
+
+宿主组块不属于 `local-draft-2`，不能当作可移植的作者语法。使用它们的文档只有在登记了相同名称和兼容 Schema 的宿主中才能渲染；普通读者会把每个名称当作未知组块，按 CP-DIAG-03 的既有降级处理。作者不能假定宿主组块一定存在，面向可移植的文档不应使用它们。
+
+### CP-HOST-04 属性校验与预算（要求）
+
+编译器按登记的 Schema 校验每个宿主属性：必填属性必须存在，`enum` 值必须属于声明的集合，`pattern` 必须匹配字面字符串值，字面值必须符合声明的 `kind`，声明为 `static` 的属性拒绝 `{{ ... }}`。非静态属性可以用一个完整插值代替字面值。校验失败在属性位置产生 `local.host.attribute` 诊断。
+
+合法宿主节点在既有语法节点预算中只计为一个语法节点；属性、props 和 leaf 形态不增加更多节点，也不改变其他预算的计算。
+
+### CP-HOST-05 React 分发与宿主数据（要求）
+
+React 视图把 `hostComponent` 节点分发给 `hostRenderer(node, data, ctx)`。`data` 从 `hostData` 读取，后者是 JSON 安全的宿主数据，按节点属性中的 `${kind}:${ref}` 索引。这两个 props 都留在宿主/React 一侧：渲染函数不进入 worker，`hostData` 也不进入 worker，因为编译只需要 Schema。
+
+缺少渲染器、缺少 `${kind}:${ref}` 键或渲染器抛出异常时，显示可见的诊断占位，不得让异常冒出文档或使其余内容变空白。`mode === 'static'` 走同一分发路径，因此宿主未提供渲染器或数据时，静态渲染显示相同的占位。
+
+可移植的机器用例仍是 `examples/conformance/component-protocol-1.json`，它作为 48 个作者组块的基线保持冻结。宿主组块不提供可移植验收用例，因为渲染由宿主拥有，普通读者只能看到未知组块降级。
+
+## 15. 修订记录
 
 | 修订 | 日期 | 说明 |
 | --- | --- | --- |
+| `component-protocol-2` | 2026-10-25 | 新增宿主组件扩展轴；作者语法仍为 `local-draft-2`。 |
 | `component-protocol-1` | 2026-10-23 | 初版；最初适用于 `local-draft-1` 和包版本 `0.3.0`，定义组块贡献、验收和扩展边界。现在适用于 `local-draft-2` 和 `0.4.0` 预览版，MUST 条款和机器格式不变。 |
 
 

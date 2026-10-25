@@ -222,6 +222,13 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     }] };
   }
   const maxSyntaxNodes = optionCheck.maxSyntaxNodes;
+  // Captured separately so per-parse closures keep the narrowed option shape.
+  const hostByName = optionCheck.hostByName;
+  // Host names join the accepted tag set for this parse only. Without host
+  // schemas this is the module-level set, so behavior is unchanged.
+  const known = optionCheck.hostComponents.length
+    ? new Set([...KNOWN, ...optionCheck.hostComponents.map((component) => component.name)])
+    : KNOWN;
   const lineStarts = [0];
   for (let index = 0; index < source.length; index += 1) {
     if (source[index] === '\n') lineStarts.push(index + 1);
@@ -514,7 +521,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     let scanLimit = limit;
     const boundary = source[head];
     if ((boundary === ' ' || boundary === '\t' || boundary === '\n' || boundary === '\r')
-      && !KNOWN.has(match[2].toLowerCase()) && !beginsLine(start)) {
+      && !known.has(match[2].toLowerCase()) && !beginsLine(start)) {
       const newline = source.indexOf('\n', head);
       if (newline >= 0) scanLimit = Math.min(limit, newline);
     }
@@ -535,7 +542,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       if (rest.trim()) error('local.tag.closing', `Closing tag </${name}> cannot have attributes.`, start, end + 1, { key: 'local.tag.closing', params: { name } });
       return { name, closing: true, self: false, start, end: end + 1, attrs: {}, head, unclosed: false };
     }
-    return { name, closing: false, self: /\/\s*$/.test(rest), start, end: end + 1, attrs: KNOWN.has(name.toLowerCase()) ? attributes(rest, head) : {}, head, unclosed: false };
+    return { name, closing: false, self: /\/\s*$/.test(rest), start, end: end + 1, attrs: known.has(name.toLowerCase()) ? attributes(rest, head) : {}, head, unclosed: false };
   }
   /**
    * Silent tag boundary reader used for unknown components. Their attributes
@@ -548,7 +555,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     let scanLimit = limit;
     const boundary = source[head];
     if ((boundary === ' ' || boundary === '\t' || boundary === '\n' || boundary === '\r')
-      && !KNOWN.has(match[2].toLowerCase()) && !beginsLine(start)) {
+      && !known.has(match[2].toLowerCase()) && !beginsLine(start)) {
       const newline = source.indexOf('\n', head);
       if (newline >= 0) scanLimit = Math.min(limit, newline);
     }
@@ -1249,7 +1256,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         const scanned = scanTag(i, end);
         if (
           scanned && !scanned.closing && TAG_NAME.test(scanned.name)
-          && scanned.name.length <= MAX_LOCAL_NAME_LENGTH && !KNOWN.has(scanned.name)
+          && scanned.name.length <= MAX_LOCAL_NAME_LENGTH && !known.has(scanned.name)
         ) {
           const stop = scanned.self ? scanned.end : (unknownTagEnd(scanned.end, scanned.name, end, insideContainer)?.end ?? null);
           if (stop === null) {
@@ -1289,7 +1296,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         const tag = tagAt(i, end);
         if (tag) {
           if (tag.unclosed) {
-            if (!KNOWN.has(tag.name.toLowerCase()) && !beginsLine(i)) {
+            if (!known.has(tag.name.toLowerCase()) && !beginsLine(i)) {
               // `<y` in `x<y` and similar prose fragments are literal text.
               tokens.push({ start: i, end: tag.head, block: false, node: node('text', i, tag.head, { value: source.slice(i, tag.head) }) });
               i = tag.head;
@@ -1299,7 +1306,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
             i = end;
             continue;
           }
-          if (!TAG_NAME.test(tag.name) && !KNOWN.has(tag.name.toLowerCase())) {
+          if (!TAG_NAME.test(tag.name) && !known.has(tag.name.toLowerCase())) {
             // Uppercase prose such as `Array<T>` never reaches remark as HTML.
             tokens.push({ start: i, end: tag.end, block: false, node: node('text', i, tag.end, { value: source.slice(i, tag.end) }) });
             i = tag.end;
@@ -1315,9 +1322,12 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
               params: parent ? { name: tag.name, parent } : { name: tag.name },
             }); i = tag.end; continue;
           }
-          const empty = VOID.has(tag.name) || tag.self;
+          // Host components are leaves by schema: a tag with no slash is still
+          // complete, and only a `hostComponent` node is emitted.
+          const isHost = hostByName.has(tag.name);
+          const empty = isHost || VOID.has(tag.name) || tag.self;
           if (tag.self && PAIRED.has(tag.name)) error('local.tag.shape', `<${tag.name}> requires a closing tag.`, i, tag.end, { key: 'local.tag.shape', params: { name: tag.name } });
-          if (empty) { tokens.push({ start: i, end: tag.end, node: node('component', i, tag.end, { name: tag.name, attrs: tag.attrs, children: [] }) }); i = tag.end; continue; }
+          if (empty) { tokens.push({ start: i, end: tag.end, ...(isHost ? { block: beginsLine(i) } : {}), node: node(isHost ? 'hostComponent' : 'component', i, tag.end, { name: tag.name, attrs: tag.attrs, children: [] }) }); i = tag.end; continue; }
           const nested = region(tag.end, end, tag.name, i, tag.end, depth + 1);
           const children = convert(tag.end, nested.contentEnd, nested.tokens, INLINE.has(tag.name) ? 0 : nested.indent);
           const component = node('component', i, nested.end, { name: tag.name, attrs: tag.attrs, children: INLINE.has(tag.name) && children.length === 1 && children[0].type === 'paragraph' ? children[0].children ?? [] : children });
@@ -1368,7 +1378,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       append(source.slice(cursor, token.start), cursor, true);
       let marker: string;
       do { marker = MARK_OPEN + markerSerial++ + MARK_CLOSE; } while (reservedMarkers.has(marker));
-      const block = token.block ?? (token.node.type === 'math' || (token.node.type === 'component' && !INLINE.has(token.node.name!)));
+      const block = token.block ?? (token.node.type === 'math' || ((token.node.type === 'component' || token.node.type === 'hostComponent') && !INLINE.has(token.node.name!)));
       if (block) append('\n\n', token.start, false);
       const markerStart = masked.length;
       // A generated Markdown image has its own source range. Restore only this
@@ -1413,7 +1423,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         return [node('footnoteReference', from, to, { identifier, label })];
       }
       const children = raw.children?.flatMap(transform);
-      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || BLOCK_HTML_RESULTS.has(children[0].type) || (children[0].type === 'component' && !INLINE.has(children[0].name!)))) return children;
+      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || BLOCK_HTML_RESULTS.has(children[0].type) || ((children[0].type === 'component' || children[0].type === 'hostComponent') && !INLINE.has(children[0].name!)))) return children;
       if (raw.type === 'paragraph' && !children?.length) return [];
       if (raw.type === 'html') {
         if (options.literalHtml) {

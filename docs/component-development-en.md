@@ -2,7 +2,7 @@
 
 This guide is for contributors adding or changing components in Reactive MD. Components include input controls, containers, visualizations and structural children. The shared contract is in the [component protocol](component-protocol-en.md); the author syntax is in the [local interaction syntax specification](local-interaction-syntax-en.md).
 
-The current protocol is `component-protocol-1`, the applicable syntax is `local-draft-2`, and the current package version is `0.4.0`, the preview release on the `next` channel. These three versions represent the contribution contract, the author syntax and the npm release. Updating the protocol document does not automatically change the syntax or public API.
+The current protocol is `component-protocol-2`, the applicable syntax is `local-draft-2`, and the current package version is `0.4.0`, the preview release on the `next` channel. These three versions represent the contribution contract, the author syntax and the npm release. Updating the protocol document does not automatically change the syntax or public API.
 
 ## 1. What to submit
 
@@ -121,7 +121,7 @@ Copy the following into an issue, a PR description or a standalone design docume
 | --- | --- |
 | Package version | Current value, target value and rationale |
 | Syntax revision | Current value, target value and migration impact |
-| Protocol revision | component-protocol-1, or describe the new revision |
+| Protocol revision | component-protocol-2, or describe the new revision |
 | Name | Lowercase kebab-case; conflict check and maintainer decision |
 | Shape | leaf / inline / container |
 | Parent, direct children | Allowed scope, count, nesting and whitespace rules |

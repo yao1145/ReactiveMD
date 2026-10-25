@@ -1,6 +1,6 @@
 # Reactive MD component protocol
 
-Protocol revision `component-protocol-1` · applicable syntax `local-draft-2` · current package version `0.4.0` (preview)
+Protocol revision `component-protocol-2` · applicable syntax `local-draft-2` · current package version `0.4.0` (preview)
 
 Components are the building blocks of the Reactive MD language. This protocol defines the shared contract for contribution, implementation and acceptance, connecting author syntax, the compiler, the runtime, the React reference adapter and machine conformance data. Authors writing documents follow the [local interaction syntax specification](local-interaction-syntax-en.md); hosts integrating follow [local mode integration](local-integration-en.md); this document is for contributors, reviewers and tests.
 
@@ -22,7 +22,7 @@ Reactive MD maintains the following independent version axes:
 | --- | --- | --- |
 | Package version | `0.4.0` | npm release, core and React entries, upgrade compatibility rules |
 | Syntax revision | `local-draft-2` | Tags, attributes and expressions authors can write |
-| Protocol revision | `component-protocol-1` | Component contribution requirements, acceptance gates and machine data semantics |
+| Protocol revision | `component-protocol-2` | Component contribution requirements, acceptance gates and machine data semantics |
 | Theme protocol | `reactive-md-theme-1` | Theme registration, style variables, color schemes and theme acceptance |
 
 The protocol revision is independent of the package version and syntax version. One package version accepts only one syntax revision. A protocol revision may raise contribution and acceptance requirements without changing author syntax; a syntax revision change does not automatically require a protocol revision.
@@ -458,7 +458,7 @@ The host decides who may write, submit and share documents; limits request size,
 
 ### CP-SEC-05 Extension trust boundary (boundary)
 
-This language does not provide a sandbox for trusted host extension code. If the host registers or wraps components itself, the host is responsible for the security boundary; `disabled`, conditional visibility or client state in author documents must not be treated as permission control. This revision does not provide a public runtime registration interface; a future SDK would need a separately defined trust model.
+This language does not provide a sandbox for trusted host extension code. If the host registers or wraps components itself, the host is responsible for the security boundary; `disabled`, conditional visibility or client state in author documents must not be treated as permission control. The `hostComponents` option registers plain schema data for one compilation only and carries no executable code. A host renderer is trusted host code outside the document sandbox, so the host remains responsible for its security boundary; a fuller SDK would need a separately defined trust model.
 
 ## 9. Core and renderer separation
 
@@ -493,7 +493,7 @@ Adding only a `schema.ts` entry does not automatically provide parsing, validati
 
 ### CP-CORE-05 Extension interface boundary (boundary)
 
-This revision has no runtime-loadable component JSON, `registerComponent` API or author plugin entry point. `LOCAL_COMPONENTS` is an internal frozen table, and public entries do not export a registrar. If a future SDK provides runtime registration, it needs a new protocol revision that defines the trust model, version negotiation, budgets and acceptance methods.
+This revision has no runtime-loadable component implementation, `registerComponent` API, global registrar or author plugin entry point. `LOCAL_COMPONENTS` is an internal frozen table. The `hostComponents` option (section 14) accepts plain schema data for a single compile; component implementations stay in host code and are never loaded from document content. A future SDK that provides a general registration interface needs a new protocol revision that defines the trust model, version negotiation, budgets and acceptance methods.
 
 ## 10. Compatibility, name governance, revisions and migration
 
@@ -563,7 +563,7 @@ Persist only the original `.reactive.md` source and the syntax revision used. `L
 
 ### CP-ACCEPT-02 Machine conformance data (required)
 
-The root object of a machine conformance set contains only `protocolVersion`, `syntaxVersion` and a non-empty `cases` array. The first two are fixed to `component-protocol-1` and `local-draft-2`; the package version is identified by `package.json` and is not inferred from these fields.
+The root object of a machine conformance set contains only `protocolVersion`, `syntaxVersion` and a non-empty `cases` array. The current author-component set fixes them to `component-protocol-1` and `local-draft-2`; it remains the frozen v1 baseline described in section 14. The package version is identified by `package.json` and is not inferred from these fields.
 
 Each case contains at least a unique string `id`, component name `component`, source `source`, boolean `ok` and a deduplicated diagnostic code set `codes`. Optional fields `initial`, `bindingNames`, `actions`, `reset`, `text`, `expectedText`, `htmlIncludes` and `htmlExcludes` follow the [language conformance data notes](../examples/conformance/README.md) and the JSON Schema shipped with the repository. The full format follows that document and the Schema; this protocol defines only the semantic gates.
 
@@ -578,7 +578,7 @@ The runner must:
 
 `initial` and `reset.expectedState` use partial matching; `bindingNames` checks the complete public binding name set; `text` and `expectedText` must appear in pairs.
 
-The conformance data of this revision should cover representative `slider`, `tabs` and `plot` cases and at least one complete unknown-tag fallback case. It is a representative gate, not full certification of the 48 tag names.
+The frozen author-component set covers representative `slider`, `tabs` and `plot` cases and at least one complete unknown-tag fallback case. It remains a representative gate, not full certification of the 48 tag names; host components have no portable machine cases.
 
 ### CP-ACCEPT-03 Component-level evidence (required)
 
@@ -634,7 +634,7 @@ The current implementation covers parsing, declarations, compilation, runtime, R
 
 ### CP-IMPL-03 Extension interfaces (boundary)
 
-If an SDK is provided in the future, it needs a separately defined:
+Beyond the compile-time schema and React renderer axis in section 14, a fuller SDK would need separately defined:
 
 - Machine format and version negotiation for component declarations.
 - Trust model and sandbox boundary for the host registration API.
@@ -652,7 +652,7 @@ The tables below are for review. See the [component development guide](component
 | Item | Content |
 | --- | --- |
 | Component name | `<name>` (lowercase kebab-case) |
-| Protocol revision | `component-protocol-1` |
+| Protocol revision | `component-protocol-2` |
 | Purpose | What problem it solves and how readers use it |
 | Non-goals | Capabilities this component does not take on |
 | Version impact | Package version, syntax revision, protocol revision |
@@ -700,10 +700,47 @@ The tables below are for review. See the [component development guide](component
 | CP-COMPAT-01 to 05 | Compatibility notes, migration examples | Pass/outstanding |
 | CP-ACCEPT-01 to 05 | Acceptance matrix and command results | Pass/outstanding |
 
-## 14. Revision history
+## 14. Host component extension axis
+
+### CP-HOST-01 Host components are opt-in (existing)
+
+`compileLocal(source, { hostComponents })` adds a host-owned extension axis to the compiler. Without the `hostComponents` option, author behavior is unchanged: the 48 author tag names parse as before, and a tag outside that set remains unknown and falls back to source under CP-DIAG-03. The option changes only which tag names the compiler recognizes for that call; it does not add author syntax. The syntax revision remains `local-draft-2`; the protocol revision becomes `component-protocol-2`.
+
+### CP-HOST-02 Host schemas are plain data (required)
+
+`LocalHostComponentSchema` is plain, structured-clone-safe data supplied by the host. It contains no functions, class instances or runtime handles.
+
+| Field | Content |
+| --- | --- |
+| `name` | Lowercase kebab-case, unique within the set, not one of the 48 author tag names or the theme declaration name |
+| `form` | `'leaf'`; host components have no body |
+| `props` | A table of host properties; property names use lowercase kebab-case |
+
+One compilation accepts at most 32 host component schemas. Each property declares `kind` (`string`, `number`, `boolean` or `enum`), `required`, `static`, `enum` and `pattern`. `enum` applies to `enum` properties, and `pattern` applies to `string` properties. Invalid schemas are rejected with a `local.options.invalid` diagnostic; compilation fails and no host component from that set is partially registered.
+
+### CP-HOST-03 Host components are not author syntax (boundary)
+
+Host components are not part of `local-draft-2` and cannot be used as portable author syntax. A document that uses them is portable only with a host that registers the same names and compatible schemas; a plain reader treats each name as an unknown component and applies the existing fallback in CP-DIAG-03. Authors cannot rely on host components being present, so documents intended to be portable must not use them.
+
+### CP-HOST-04 Attribute validation and budget (required)
+
+The compiler validates every host attribute against the registered schema: required properties must be present, `enum` values must belong to the declared set, `pattern` must match literal string values, literal values must match the declared `kind`, and a property declared `static` rejects `{{ ... }}`. A non-static property may use exactly one full interpolation in place of a literal. Failures produce a `local.host.attribute` diagnostic at the attribute location.
+
+A valid host node counts as exactly one syntax node in the existing syntax-node budget; its attributes, props and leaf form add no further nodes and do not change other budget accounting.
+
+### CP-HOST-05 React dispatch and host-owned data (required)
+
+The React view dispatches a `hostComponent` node to `hostRenderer(node, data, ctx)`. `data` is read from `hostData`, JSON-safe host data indexed by `${kind}:${ref}` from the node attributes. Both props stay on the host/React side: the renderer function never enters a worker, and `hostData` never enters the worker either, because compilation needs only the schemas.
+
+A missing renderer, a missing `${kind}:${ref}` key or a renderer that throws renders a visible diagnostic placeholder. It must not throw out of the document or blank the rest of the content. `mode === 'static'` goes through the same dispatch, so static rendering shows the same placeholder when the host has not supplied a renderer or data.
+
+Portable machine cases remain `examples/conformance/component-protocol-1.json`, frozen as the baseline for the 48 author components. Host components get no portable conformance cases, because rendering is host-owned and a plain reader only sees the unknown-component fallback.
+
+## 15. Revision history
 
 | Revision | Date | Notes |
 | --- | --- | --- |
+| `component-protocol-2` | 2026-10-25 | Added the host component extension axis; author syntax remains `local-draft-2`. |
 | `component-protocol-1` | 2026-10-23 | Initial version; originally applied to `local-draft-1` and package version `0.3.0`, defining component contribution, acceptance and extension boundaries. It now applies to `local-draft-2` and the `0.4.0` preview release without changing its MUST clauses or machine format. |
 
 

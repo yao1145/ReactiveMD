@@ -10,7 +10,7 @@ Reactive MD is currently a 0.x preview. This page covers package versions, synta
 | Distribution tags | `latest` → `0.4.0`; `next` → `0.5.1` (preview target) | Default installs use `latest` |
 | Syntax version | `local-draft-2` | `LOCAL_SYNTAX_VERSION`; the current build accepts only this revision |
 | Source revision directive | Optional `<!-- reactive-md: local-draft-2 -->` | One line in the document prologue; unversioned source keeps current-revision behavior |
-| Component protocol | `component-protocol-1` | Contribution and acceptance contract, see [Component protocol](component-protocol-en.md); not a runtime version selection parameter |
+| Component protocol | `component-protocol-2` | Contribution and acceptance contract, see [Component protocol](component-protocol-en.md); not a runtime version selection parameter |
 | Core entry | `reactive-md` | Compilation, expressions and runtime, without loading React |
 | React entry | `reactive-md/react` | `LocalReactiveDocument`, `LocalDocumentView` |
 | Editor entry | `reactive-md/editor` | `ReactiveMarkdownEditor` and its types; requires React 19 |

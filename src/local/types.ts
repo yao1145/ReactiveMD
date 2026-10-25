@@ -182,8 +182,27 @@ export interface LocalHtmlPolicy {
   readonly enableExtendedHtml: boolean;
 }
 
+export type LocalHostPropKind = 'string' | 'number' | 'boolean' | 'enum';
+export interface LocalHostPropSchema {
+  readonly kind: LocalHostPropKind;
+  readonly required?: boolean;
+  /** Reject `{{ ... }}` in this property. */
+  readonly static?: boolean;
+  /** Allowed literals for kind 'enum'; required and non-empty for enums. */
+  readonly enum?: readonly string[];
+  /** RegExp source applied to literal string values. */
+  readonly pattern?: string;
+}
+export interface LocalHostComponentSchema {
+  readonly name: string;
+  readonly form: 'leaf';
+  readonly props: Readonly<Record<string, LocalHostPropSchema>>;
+}
+
 export interface LocalCompileOptions extends LocalHtmlOptions {
   readonly limits?: LocalCompileLimits;
+  /** Host-defined leaf components recognized alongside the built-in schema. */
+  readonly hostComponents?: readonly LocalHostComponentSchema[];
 }
 export type LocalCompileResult = { ok: true; document: LocalDocument; diagnostics: Diagnostic[] } | { ok: false; diagnostics: Diagnostic[] };
 export interface LocalSnapshot { revision: number; state: Readonly<Record<string, LocalValue>> }

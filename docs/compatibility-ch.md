@@ -10,7 +10,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | 分发标签 | `latest` → `0.4.0`；`next` → `0.5.1`（预览目标） | 默认安装使用 `latest` |
 | 语法版本 | `local-draft-2` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
 | 源码修订指令 | 可选 `<!-- reactive-md: local-draft-2 -->` | 文档前导区中的一行；无指令源码继续按当前修订解析 |
-| 组块协议 | `component-protocol-1` | 贡献与验收契约，见[组块协议](component-protocol-ch.md)；不是运行时版本选择参数 |
+| 组块协议 | `component-protocol-2` | 贡献与验收契约，见[组块协议](component-protocol-ch.md)；不是运行时版本选择参数 |
 | 核心入口 | `reactive-md` | 编译、表达式与运行时，不加载 React |
 | React 入口 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` |
 | 编辑器入口 | `reactive-md/editor` | `ReactiveMarkdownEditor` 及其类型；需要 React 19 |

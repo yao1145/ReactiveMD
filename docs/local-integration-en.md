@@ -44,7 +44,7 @@ export function Article() {
 | Prop | Type | Component | Notes |
 | --- | --- | --- | --- |
 | `source` | `string` | `LocalReactiveDocument` | Recompiles and creates a new runtime when the source changes; old instance state is not kept. See [Keeping values when source changes](#keeping-values-when-source-changes) |
-| `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | Per-compilation limits and HTML capability flags; omitted options use the default ReactiveMD path |
+| `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | Per-compilation limits, HTML capability flags and host component schemas; omitted options use the default ReactiveMD path |
 | `document` | `LocalDocument` | `LocalDocumentView` | Compiled document; compiled once by the host |
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | Created by the host, which is responsible for disposal |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | Both | Receives compile diagnostics and runtime diagnostics when control writes are rejected |
@@ -52,6 +52,8 @@ export function Article() {
 | `locale` | `'en' \| 'zh'` | Both | Language for built-in labels, controls and displayed diagnostics; defaults to `'en'`. Callbacks keep structured diagnostics |
 | `themes` | `readonly LocalThemeDefinition[]` | Both | Host registrations; CSS loads separately; built-in `default` is always available |
 | `colorScheme` | `'light' \| 'dark' \| 'auto'` | Both | Defaults to `auto`, following the nearest explicit ancestor preference or the system |
+| `hostData` | `Readonly<Record<string, unknown>>` | Both | JSON-safe host data keyed `${kind}:${ref}` for `hostComponent` nodes; never enters the worker |
+| `hostRenderer` | `LocalHostRenderer` | Both | Client-only renderer for `hostComponent` nodes; a missing renderer or data renders a visible placeholder |
 
 Neither component has `className`, `style` or slot props. `LocalReactiveDocument` renders `<article class="md-document local-document">`; `LocalDocumentView` uses the same document container. See below for style overrides.
 
@@ -116,6 +118,28 @@ const result = compileLocal(source, options);
 The budget counts `LocalNode` instances created cumulatively during parsing, including Markdown text, paragraphs, lists, tables, interpolations, components and some intermediate nodes, so it may exceed the final syntax tree node count. The setting affects only this compilation, leaves the options object untouched, and keeps other resource limits such as arrays independent. The budget comes from the host; document content cannot raise it on its own.
 
 To use a custom budget in React, call `compileLocal` first and pass the compiled document and runtime to `LocalDocumentView`. `LocalReactiveDocument` and the Playground compilation thread use the default budget. After raising the node budget, hosts should measure memory and preview rendering time with their actual documents.
+
+### Host components
+
+A host can register leaf tags for one compilation without changing the `local-draft-2` syntax revision:
+
+```ts
+import { compileLocal, type LocalHostComponentSchema } from 'reactive-md';
+
+const hostComponents: LocalHostComponentSchema[] = [
+  {
+    name: 'host-weather',
+    form: 'leaf',
+    props: {
+      kind: { kind: 'enum', required: true, enum: ['weather'] },
+      ref: { kind: 'string', required: true, pattern: '^[a-z-]+$' },
+    },
+  },
+];
+const result = compileLocal(source, { hostComponents });
+```
+
+Without `hostComponents`, those tags remain unknown and fall back to source. Names must be unique lowercase kebab-case and cannot reuse one of the 48 author tag names; at most 32 schemas are accepted. An invalid schema returns `local.options.invalid`, and an invalid authored attribute returns `local.host.attribute`. A valid host node counts as one syntax node. Pass `hostData`, keyed `${kind}:${ref}`, and `hostRenderer` to `LocalDocumentView`; neither enters the worker. A missing renderer, missing data or a throwing renderer renders a visible placeholder instead of failing the document. `mode="static"` uses the same dispatch and passes `ctx.mode` to the renderer.
 
 ### Version inspection and migration
 
@@ -281,7 +305,7 @@ scheduler.schedule(source);
 - Source revisions: `inspectLocalSourceVersion`, `checkLocalUpgrade` and `migrateLocalSource`; `LocalUpgradeOptions` configures the source revision and semantic-change allowance.
 - Retention: `planLocalStateRetention` and `applyLocalStateRetention`.
 - Background compilation: `LocalCompileScheduler`, `LOCAL_COMPILE_DELAY_MS` and `startLocalCompileWorker`.
-- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalComputation`, `LocalValidation`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalUpgradeOptions`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
+- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalComputation`, `LocalValidation`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalHostPropKind`, `LocalHostPropSchema`, `LocalHostComponentSchema`, `LocalUpgradeOptions`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
 
 `compileExpression`, `compileLatex` and `samplePlot` are lower-level utilities with the same stability level as the core API; usually only `compileLocal` and `createLocalRuntime` are needed.
 

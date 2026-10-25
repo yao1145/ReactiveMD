@@ -126,6 +126,10 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Compile option limits.maxSyntaxNodes must be a positive safe integer.',
     zh: '编译选项 limits.maxSyntaxNodes 必须是正安全整数。',
   },
+  'options.hostComponents': {
+    en: 'Compile option hostComponents is invalid: {detail}',
+    zh: '编译选项 hostComponents 无效：{detail}',
+  },
 
   'theme.expression': {
     en: 'Theme names must be static text, not expressions.',
@@ -321,6 +325,30 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
   'attribute.static': {
     en: 'Attribute {name} is static and cannot contain interpolations.',
     zh: '属性 {name} 是静态的，不能包含插值。',
+  },
+  'host.attributeUnknown': {
+    en: 'Component <{component}> does not support attribute {name}.',
+    zh: '组件 <{component}> 不支持属性 {name}。',
+  },
+  'host.attributeRequired': {
+    en: 'Component <{component}> is missing required attribute {name}.',
+    zh: '组件 <{component}> 缺少必需属性 {name}。',
+  },
+  'host.attributeStatic': {
+    en: 'Attribute {name} is static and cannot contain interpolations.',
+    zh: '属性 {name} 是静态的，不能包含插值。',
+  },
+  'host.attributeType': {
+    en: 'Attribute {name} requires a {kind}, got "{value}".',
+    zh: '属性 {name} 需要 {kind}，当前为“{value}”。',
+  },
+  'host.attributeEnum': {
+    en: 'Attribute {name} must be one of {values}, got "{value}".',
+    zh: '属性 {name} 必须是 {values} 之一，当前为“{value}”。',
+  },
+  'host.attributePattern': {
+    en: 'Attribute {name} must match pattern {pattern}.',
+    zh: '属性 {name} 必须匹配模式 {pattern}。',
   },
   'expression.emptyAttribute': {
     en: 'Attribute {name} interpolation cannot be empty.',
@@ -1174,6 +1202,7 @@ const LOCAL_COMPILER_CODES = [
   'local.parse',
   'local.legacy',
   'local.component.unknown',
+  'local.host.attribute',
   'local.attribute.unknown',
   'local.budget.attribute',
   'local.attribute.color',
@@ -1326,6 +1355,7 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.options.invalid.object': 'options.notObject',
   'local.options.invalid.limits': 'options.limitsNotObject',
   'local.options.invalid.max-syntax-nodes': 'options.maxSyntaxNodes',
+  'local.options.invalid.host-components': 'options.hostComponents',
   'local.budget.document': 'budget.document',
   'local.budget.nodes': 'budget.syntaxNodes',
   'local.budget.nesting': 'budget.nesting',
@@ -1396,6 +1426,12 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.attribute.color': 'attribute.color',
   'local.attribute.required': 'attribute.required',
   'local.attribute.static': 'attribute.static',
+  'local.host.attribute.unknown': 'host.attributeUnknown',
+  'local.host.attribute.required': 'host.attributeRequired',
+  'local.host.attribute.static': 'host.attributeStatic',
+  'local.host.attribute.type': 'host.attributeType',
+  'local.host.attribute.enum': 'host.attributeEnum',
+  'local.host.attribute.pattern': 'host.attributePattern',
   'local.attribute.type.number': 'attribute.numberInvalid',
   'local.attribute.type.number-interpolation': 'attribute.numberInterpolationInvalid',
   'local.attribute.type.integer': 'attribute.integer',

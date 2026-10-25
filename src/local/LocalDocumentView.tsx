@@ -2,6 +2,7 @@ import {
   Component,
   createContext,
   createElement,
+  Fragment,
   memo,
   useCallback,
   useContext,
@@ -28,7 +29,12 @@ import type {
   LocalSnapshot,
   LocalValue,
 } from './types';
-import type { LocalRenderContext, LocalRenderMode } from './render-types';
+import type {
+  LocalHostData,
+  LocalHostRenderer,
+  LocalRenderContext,
+  LocalRenderMode,
+} from './render-types';
 import {
   collectNodeDependencies,
   collectSubtreeResetTokens,
@@ -115,6 +121,10 @@ export interface LocalDocumentViewProps {
   staticFirst?: boolean;
   /** Trusted image URL mapping; only called after the image URL passed validation. */
   imageResolver?: LocalImageResolver;
+  /** JSON-safe host data keyed by `${kind}:${ref}`; never enters the worker. */
+  hostData?: LocalHostData;
+  /** Client-only renderer for hostComponent nodes; never enters the worker. */
+  hostRenderer?: LocalHostRenderer;
 }
 
 export interface LocalReactiveDocumentProps {
@@ -133,6 +143,10 @@ export interface LocalReactiveDocumentProps {
   staticFirst?: boolean;
   /** Trusted image URL mapping forwarded to `LocalDocumentView`. */
   imageResolver?: LocalImageResolver;
+  /** JSON-safe host data keyed by `${kind}:${ref}`; never enters the worker. */
+  hostData?: LocalHostData;
+  /** Client-only renderer for hostComponent nodes; never enters the worker. */
+  hostRenderer?: LocalHostRenderer;
   /**
    * Host-owned compile options. HTML capability flags select the temporary
    * whole-document native branch; the component recompiles when a flag or the
@@ -887,6 +901,9 @@ interface RenderEnv {
   rootRef: RefObject<HTMLElement | null>;
   urlPolicy?: LocalUrlPolicy;
   imageResolver?: LocalImageResolver;
+  /** Client-only host payload and renderer; both stay out of the worker. */
+  hostData?: LocalHostData;
+  hostRenderer?: LocalHostRenderer;
   anchors: ReturnType<typeof createHeadingAnchors>;
   t: Localize;
   mode: LocalRenderMode;
@@ -1083,6 +1100,54 @@ function renderFootnoteReference(env: RenderEnv, node: LocalNode, key: string): 
       </a>
     </sup>
   );
+}
+
+/**
+ * A host component renders entirely on the client. The placeholder is the
+ * diagnostic surface: a missing renderer, missing data and a synchronous
+ * renderer failure all stay visible without reporting through `onDiagnostics`.
+ */
+function renderHostComponent(
+  env: RenderEnv,
+  node: LocalNode,
+  key: string,
+  visible: boolean,
+): ReactNode {
+  const name = node.name ?? '';
+  const unavailable = (reason: 'renderer' | 'data' | 'error'): ReactNode => (
+    <span
+      key={key}
+      className="local-host-component local-host-unavailable"
+      data-local-host-component={name}
+      data-local-host-reason={reason}
+      role="note"
+    >
+      {env.t(`Host component <${name}> is unavailable here.`, `宿主组件 <${name}> 在此不可用。`)}
+    </span>
+  );
+
+  const kind = node.attrs?.kind?.trim() ?? '';
+  const ref = node.attrs?.ref?.trim() ?? '';
+  const dataKey = kind !== '' && ref !== '' ? `${kind}:${ref}` : null;
+  const renderer = env.hostRenderer;
+  if (!renderer) return unavailable('renderer');
+  // `undefined` alone means missing: null, false and 0 are valid host data.
+  if (dataKey === null) return unavailable('data');
+  const data = env.hostData?.[dataKey];
+  if (data === undefined) return unavailable('data');
+
+  const ctx: LocalRenderContext = {
+    runtime: env.runtime,
+    render: (nodes, nextVisible = true) => renderNodes(env, nodes ?? [], nextVisible),
+    visible,
+    mode: env.mode,
+  };
+  try {
+    // A Fragment keeps the outer list key stable around the renderer output.
+    return createElement(Fragment, { key }, renderer(node, data, ctx));
+  } catch {
+    return unavailable('error');
+  }
 }
 
 function renderNode(
@@ -1380,6 +1445,9 @@ function renderNode(
     case 'comment':
     case 'definition':
       return null;
+
+    case 'hostComponent':
+      return renderHostComponent(env, node, key, visible);
 
     default:
       if (node.children && node.children.length) {
@@ -4449,6 +4517,8 @@ function LocalDocumentViewLocal({
   mode = 'interactive',
   staticFirst = false,
   imageResolver,
+  hostData,
+  hostRenderer,
 }: LocalDocumentViewProps) {
   const [staticFirstSettled, setStaticFirstSettled] = useState(!staticFirst);
   useEffect(() => {
@@ -4555,13 +4625,15 @@ function LocalDocumentViewLocal({
       rootRef,
       urlPolicy,
       imageResolver,
+      hostData,
+      hostRenderer,
       anchors,
       t,
       mode: renderedMode,
       dependencies: dependencyIndex,
       footnotes,
     }),
-    [runtime, rootRef, urlPolicy, imageResolver, anchors, t, renderedMode, dependencyIndex, footnotes],
+    [runtime, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, anchors, t, renderedMode, dependencyIndex, footnotes],
   );
 
   // Revision-independent deps keep this closure and the provider value stable
@@ -4632,6 +4704,8 @@ export function LocalReactiveDocument({
   mode = 'interactive',
   staticFirst = false,
   imageResolver,
+  hostData,
+  hostRenderer,
   compileOptions,
 }: LocalReactiveDocumentProps) {
   const optionsKey = localCompileOptionsKey(compileOptions);
@@ -4765,6 +4839,8 @@ export function LocalReactiveDocument({
       mode={mode}
       staticFirst={staticFirst}
       imageResolver={imageResolver}
+      hostData={hostData}
+      hostRenderer={hostRenderer}
     />
   );
 }

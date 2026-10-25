@@ -14,7 +14,7 @@ The conformance sources are unversioned and use the current `local-draft-2` revi
 
 ## Component protocol conformance
 
-[component-protocol-1.json](component-protocol-1.json) provides representative cases for the [component protocol](../../docs/component-protocol-en.md), covering `slider`, `tabs`, `plot` and lazy degradation of unknown components. The [JSON Schema](component-protocol-1.schema.json) defines the conformance file format so tools from other implementations can read it. This JSON is test input and expected results; see the [development guide](../../docs/component-development-en.md) for the declaration template of a component proposal.
+[component-protocol-1.json](component-protocol-1.json) provides representative cases for the [component protocol](../../docs/component-protocol-en.md), covering `slider`, `tabs`, `plot` and lazy degradation of unknown components. The existing `component-protocol-1.json` remains the frozen author-component baseline now that the protocol revision is `component-protocol-2`. The [JSON Schema](component-protocol-1.schema.json) defines the conformance file format so tools from other implementations can read it. This JSON is test input and expected results; see the [development guide](../../docs/component-development-en.md) for the declaration template of a component proposal.
 
 ```sh
 npm run test:components

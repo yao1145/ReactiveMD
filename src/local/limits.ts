@@ -42,6 +42,14 @@ export const DEFAULT_LOCAL_DATA_TABLE_ROWS = 100;
 export const MAX_LOCAL_DATA_TABLE_COLUMNS = 20;
 export const MAX_LOCAL_DATA_DOCUMENT_ROWS = 2_000;
 export const MAX_LOCAL_DATA_DOCUMENT_CELLS = 10_000;
+/** Host component schemas accepted in one compilation. */
+export const MAX_LOCAL_HOST_COMPONENTS = 32;
+/** Host component and property name length, in UTF-16 code units. */
+export const MAX_LOCAL_HOST_NAME_LENGTH = 128;
+/** Host property RegExp source length, in UTF-16 code units. */
+export const MAX_LOCAL_HOST_PATTERN_LENGTH = 512;
+/** Allowed literals in one host enum property. */
+export const MAX_LOCAL_HOST_ENUM_VALUES = 64;
 
 /** Linear validation; the final dot must have text on both sides in the domain. */
 export function isLocalEmail(value: string): boolean {

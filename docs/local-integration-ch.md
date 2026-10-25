@@ -44,7 +44,7 @@ export function Article() {
 | 属性 | 类型 | 组件 | 说明 |
 | --- | --- | --- | --- |
 | `source` | `string` | `LocalReactiveDocument` | 源码变化时重新编译并创建新运行时；旧实例状态不保留。见[源码变化时保留参数](#源码变化时保留参数) |
-| `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | 单次编译预算和 HTML 能力开关；省略时使用默认 ReactiveMD 模式 |
+| `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | 单次编译预算、HTML 能力开关和宿主组件 schema；省略时使用默认 ReactiveMD 模式 |
 | `document` | `LocalDocument` | `LocalDocumentView` | 已编译文档；由宿主编译一次 |
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | 宿主创建并负责销毁 |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | 两者 | 接收编译诊断和控件写入被拒绝时的运行时诊断 |
@@ -52,6 +52,8 @@ export function Article() {
 | `locale` | `'en' \| 'zh'` | 两者 | 内置控件、标签和诊断显示的语言，默认 `'en'`；回调保留原始结构化诊断 |
 | `themes` | `readonly LocalThemeDefinition[]` | 两者 | 宿主登记的主题；CSS 单独加载，内置 `default` 始终可用 |
 | `colorScheme` | `'light' \| 'dark' \| 'auto'` | 两者 | 默认 `auto`，跟随最近祖先的显式模式或系统偏好 |
+| `hostData` | `Readonly<Record<string, unknown>>` | 两者 | 按 `${kind}:${ref}` 索引的 JSON 安全宿主数据，用于 `hostComponent` 节点；不进入 worker |
+| `hostRenderer` | `LocalHostRenderer` | 两者 | `hostComponent` 的客户端渲染函数；缺少 renderer 或数据时显示占位 |
 
 两个组件都没有 `className`、`style` 或插槽属性。`LocalReactiveDocument` 渲染 `<article class="md-document local-document">`；`LocalDocumentView` 使用同样的文档容器。样式覆盖见下文。
 
@@ -116,6 +118,28 @@ const result = compileLocal(source, options);
 预算统计解析过程中累计创建的 `LocalNode`，包括 Markdown 文本、段落、列表、表格、插值、组件及部分中间节点，可能大于最终语法树的节点数。设置只影响本次编译，选项对象保持原样，数组等其他资源上限保持独立。该预算由宿主传入，文档内容不能自行提高。
 
 需要在 React 中使用自定义预算时，先调用 `compileLocal`，再把编译文档和运行时交给 `LocalDocumentView`。`LocalReactiveDocument` 和 Playground 的编译线程使用默认预算。提高节点预算后，宿主应结合实际文档测量内存和预览渲染耗时。
+
+### 宿主组件
+
+宿主可以为单次编译登记叶子标签，不改变 `local-draft-2` 语法修订：
+
+```ts
+import { compileLocal, type LocalHostComponentSchema } from 'reactive-md';
+
+const hostComponents: LocalHostComponentSchema[] = [
+  {
+    name: 'host-weather',
+    form: 'leaf',
+    props: {
+      kind: { kind: 'enum', required: true, enum: ['weather'] },
+      ref: { kind: 'string', required: true, pattern: '^[a-z-]+$' },
+    },
+  },
+];
+const result = compileLocal(source, { hostComponents });
+```
+
+不传 `hostComponents` 时，这些标签仍是未知标签并按原文降级。名称必须是唯一的小写 kebab-case，且不得复用 48 个作者标签名；一次最多接受 32 个 schema。schema 不合法返回 `local.options.invalid`，作者写出的属性不合法返回 `local.host.attribute`。一个合法宿主节点计为一个语法节点。把 `hostData`（按 `${kind}:${ref}` 索引）和 `hostRenderer` 传给 `LocalDocumentView`；两者都不进入 worker。缺少 renderer、缺少数据或 renderer 抛错时显示可见占位，不会让整个文档失败。`mode="static"` 走同一分派，并把 `ctx.mode` 传给 renderer。
 
 ### 版本查看与迁移
 
@@ -281,7 +305,7 @@ scheduler.schedule(source);
 - 源码修订：`inspectLocalSourceVersion`、`checkLocalUpgrade` 和 `migrateLocalSource`；`LocalUpgradeOptions` 配置源修订和语义变化许可。
 - 参数保留：`planLocalStateRetention` 和 `applyLocalStateRetention`。
 - 后台编译：`LocalCompileScheduler`、`LOCAL_COMPILE_DELAY_MS` 和 `startLocalCompileWorker`。
-- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalComputation`、`LocalValidation`、`LocalDocument`、`LocalCompileLimits`、`LocalCompileOptions`、`LocalCompileResult`、`LocalUpgradeOptions`、`LocalRuntime`、`LocalSnapshot`、`LocalStateFile`、`LocalStateGenerator`、`LocalStateParseResult`、`LocalStateResolution`、`LocalRetainedState`、`LocalStateRetentionReason`、`LocalStateRetentionDrop`、`LocalStateRetentionInput`、`LocalStateRetentionResult`、`LocalCompileWorker`、`LocalCompileWorkerScope`、`LocalCompileRequest`、`LocalCompileResponse`、`LocalCompileOutcome`、`LocalCompileMode`、`LocalCompileSchedulerOptions`。
+- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalComputation`、`LocalValidation`、`LocalDocument`、`LocalCompileLimits`、`LocalCompileOptions`、`LocalCompileResult`、`LocalHostPropKind`、`LocalHostPropSchema`、`LocalHostComponentSchema`、`LocalUpgradeOptions`、`LocalRuntime`、`LocalSnapshot`、`LocalStateFile`、`LocalStateGenerator`、`LocalStateParseResult`、`LocalStateResolution`、`LocalRetainedState`、`LocalStateRetentionReason`、`LocalStateRetentionDrop`、`LocalStateRetentionInput`、`LocalStateRetentionResult`、`LocalCompileWorker`、`LocalCompileWorkerScope`、`LocalCompileRequest`、`LocalCompileResponse`、`LocalCompileOutcome`、`LocalCompileMode`、`LocalCompileSchedulerOptions`。
 
 `compileExpression`、`compileLatex` 和 `samplePlot` 是较低层的工具，稳定级别与核心 API 相同；通常只需要 `compileLocal` 和 `createLocalRuntime`。
 
