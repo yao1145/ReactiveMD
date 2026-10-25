@@ -1,24 +1,35 @@
 /* Local visuals: table, chart, plot, timeline and diagram.
    Colors, type, spacing, radii, focus states and motion come from theme.css.
    No component-local color values are defined here, so light/dark tokens and
-   the shared chart palette apply automatically. */
+   the shared chart palette apply automatically.
+
+   Visuals sit directly on the document surface: no card background, border or
+   shadow. Sections are separated by rhythm and by internal rules only, so a
+   page of blocks reads as one document instead of a stack of boxes. */
 
 .local-visual {
   display: block;
   min-width: 0;
   max-width: 100%;
-  margin: var(--space-4) 0;
-  padding: var(--space-3) var(--space-4);
+  margin: var(--space-5) 0;
+  padding: 0;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   overflow-wrap: anywhere;
 }
 
+/* Titles share the block scale defined in local.css. Nested visuals step down
+   one level instead of repeating the top-level size. */
 .local-visual-title {
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-3);
   color: var(--ink);
+}
+
+.local-visual .local-visual .local-visual-title {
+  font-size: var(--text-block-subtitle);
+  line-height: var(--leading-snug);
 }
 
 .local-visual-sr-only {
@@ -62,21 +73,29 @@
   display: flex;
   gap: var(--space-2);
   align-items: center;
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-3);
   color: var(--ink-muted);
   font-size: var(--text-xs);
 }
 
+/* The search field matches the pill-shaped bubble controls: a fully rounded
+   outline with roomy horizontal padding, while it still spans the rows it
+   sits above. */
 .local-visual-search input {
   flex: 1;
   min-width: 0;
   min-height: var(--control-height-sm);
-  padding: var(--space-1) var(--control-padding-x);
+  padding: var(--space-1) 17px;
   color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-control);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
   font: inherit;
+  transition: border-color var(--motion-base) var(--ease-standard);
+}
+
+.local-visual-search input:hover {
+  border-color: var(--line-strong);
 }
 
 .local-visual-search input:focus-visible {
@@ -90,8 +109,11 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Auto layout shares extra space between data columns; selection stays narrow. */
 table.local-visual-table {
   width: 100%;
+  max-width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
   font-size: var(--text-sm);
   line-height: var(--leading-snug);
@@ -104,7 +126,7 @@ table.local-visual-table {
 
 .local-visual-table th,
 .local-visual-table td {
-  padding: var(--space-2);
+  padding: var(--space-2) 24px;
   text-align: left;
   vertical-align: middle;
   border-bottom: 1px solid var(--line);
@@ -112,9 +134,11 @@ table.local-visual-table {
 
 .local-visual-table th {
   color: var(--ink-soft);
-  background: var(--surface-subtle);
+  background: transparent;
   font-weight: var(--weight-semibold);
   white-space: nowrap;
+  border-bottom-color: var(--line-strong);
+  transition: color var(--motion-base) var(--ease-standard);
 }
 
 .local-visual-table tbody tr:last-child td {
@@ -126,6 +150,8 @@ table.local-visual-table {
   margin: 0;
 }
 
+/* The sticky first column needs an opaque fill so scrolled cells do not show
+   through it. It stays on the document surface rather than a second card. */
 .local-visual-table th:first-child,
 .local-visual-table td:first-child {
   position: sticky;
@@ -134,7 +160,7 @@ table.local-visual-table {
 }
 
 .local-visual-table th:first-child {
-  background: var(--surface-subtle);
+  background: var(--surface);
 }
 
 .local-visual-table td:first-child {
@@ -142,18 +168,20 @@ table.local-visual-table {
 }
 
 .local-visual-table tbody tr:hover td {
-  background: var(--surface-hover);
+  background: color-mix(in srgb, var(--ink) 4%, var(--surface));
 }
 
-/* Opt-in row selection: an extra leading column with a real button. The
-   filled glyph and inset bar keep the selected row identifiable without
-   relying on color alone. */
-.local-visual-select-column {
-  width: 1%;
+/* Opt-in row selection: an extra leading column with a real button. A custom
+   circular check keeps the selected row identifiable without relying on color
+   alone. The neutral control tokens leave the accent for focus and links. The
+   column holds a single button, so it stays narrow next to the data columns. */
+.local-visual-table th.local-visual-select-column,
+.local-visual-table td.local-visual-select-cell {
+  width: 1px;
+  padding-inline: var(--space-2);
 }
 
 .local-visual-select-cell {
-  width: 1%;
   text-align: center;
   white-space: nowrap;
 }
@@ -163,6 +191,8 @@ table.local-visual-table {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
   min-width: var(--control-height-sm);
   min-height: var(--control-height-sm);
   padding: 0;
@@ -178,10 +208,13 @@ table.local-visual-table {
 
 .local-visual-select-button::before {
   content: '';
-  width: 14px;
-  height: 14px;
-  border: 1px solid currentColor;
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  border: 1.5px solid var(--line-strong);
   border-radius: 50%;
+  transition: border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard);
 }
 
 .local-visual-select-button > span {
@@ -193,17 +226,31 @@ table.local-visual-table {
   background: transparent;
 }
 
-.local-visual-select-button.is-selected {
-  color: var(--focus);
+.local-visual-select-button:hover::before {
+  border-color: var(--ink-soft);
 }
 
+.local-visual-select-button.is-selected {
+  color: var(--ink);
+}
+
+.local-visual-select-button.is-selected::before {
+  background: var(--control-selected, var(--ink));
+  border-color: var(--control-selected, var(--ink));
+}
+
+/* A tick drawn from two borders, optically centred inside the circle. */
 .local-visual-select-button.is-selected::after {
   content: '';
   position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
+  inset: 0;
+  width: 4px;
+  height: 8px;
+  margin: auto;
+  border: solid var(--control-selected-ink, var(--surface));
+  border-width: 0 1.5px 1.5px 0;
+  border-radius: 0 0 1px;
+  transform: translateY(-1px) rotate(45deg);
 }
 
 .local-visual-select-button:focus-visible {
@@ -212,21 +259,24 @@ table.local-visual-table {
 }
 
 .local-visual-table tbody tr.is-selected td {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
 }
 
 .local-visual-table tbody tr.is-selected td:first-child {
-  box-shadow: inset 3px 0 var(--focus);
+  box-shadow: inset 2px 0 var(--accent);
 }
 
 /* Numeric columns: right-aligned, tabular figures and a right-aligned sort
    control. The button itself keeps its full text and aria-sort state. */
 .local-visual-table th.is-numeric,
 .local-visual-table td.is-numeric {
+  white-space: nowrap;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
+/* Sort and pagination read as neutral text actions with a quiet underline,
+   not as a row of small framed buttons. */
 .local-visual-sort-button {
   display: inline-flex;
   gap: var(--space-1);
@@ -246,9 +296,23 @@ table.local-visual-table {
   text-align: right;
 }
 
+.local-visual-sort-marker {
+  align-self: center;
+  font-size: 0.7em;
+  line-height: 1;
+}
+
 .local-visual-sort-button:hover,
 .local-visual-sort-button.is-sorted {
-  color: var(--accent);
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.local-visual-sort-button.is-sorted {
+  text-decoration-color: var(--ink-soft);
 }
 
 .local-visual-sort-button:focus-visible {
@@ -263,28 +327,35 @@ table.local-visual-table {
   gap: var(--space-2);
   align-items: center;
   justify-content: space-between;
-  margin-top: var(--space-2);
+  margin-top: var(--space-3);
   color: var(--ink-muted);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
 
 .local-visual-pagination button {
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) 0;
   color: var(--ink-soft);
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
+  background: none;
+  border: 0;
   border-radius: var(--radius-control);
   font: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   cursor: pointer;
+  transition: color var(--motion-base) var(--ease-standard);
 }
 
 .local-visual-pagination button:not(:disabled):hover {
-  background: var(--surface-hover);
+  color: var(--ink);
+  text-decoration-color: currentColor;
 }
 
 .local-visual-pagination button:disabled {
   opacity: var(--disabled-opacity);
+  text-decoration-color: transparent;
   cursor: default;
 }
 
@@ -297,7 +368,7 @@ table.local-visual-table {
 
 .local-visual-readout {
   min-height: 1.5em;
-  margin: var(--space-1) 0;
+  margin: var(--space-2) 0;
   color: var(--ink-muted);
   font-size: var(--text-xs);
   line-height: var(--leading-snug);
@@ -331,12 +402,14 @@ table.local-visual-table {
 .local-visual-grid-line {
   stroke: var(--chart-grid);
   stroke-width: 1;
+  opacity: 0.55;
 }
 
 .local-visual-zero-line {
   stroke: var(--line-strong);
-  stroke-width: 1.2;
-  stroke-dasharray: 5 4;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.8;
 }
 
 .local-visual-axis-line,
@@ -369,7 +442,7 @@ table.local-visual-table {
 .local-visual-bar,
 .local-visual-point,
 .local-visual-donut-slice {
-  transition: opacity var(--motion-fast) var(--ease-standard);
+  transition: opacity var(--motion-base) var(--ease-standard);
 }
 
 /* Selection is a persistent state, distinct from the transient readout. The
@@ -378,13 +451,13 @@ table.local-visual-table {
 .local-visual-bar.is-selected,
 .local-visual-point.is-selected,
 .local-visual-donut-slice.is-selected {
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--focus) 75%, transparent));
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--focus) 55%, transparent));
 }
 
 .local-visual-bar.is-selected,
 .local-visual-point.is-selected {
   stroke: var(--focus);
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 
 .local-visual-hit {
@@ -403,16 +476,49 @@ table.local-visual-table {
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--focus) 65%, transparent));
 }
 
+/* Donut: a centred ring rendered at about 184px across in a 340px-wide box.
+   Its dedicated 340x240 viewBox leaves the wide cartesian charts untouched and
+   keeps the centre total and caption readable inside the ring. */
+.local-visual-chart-donut .local-visual-svg-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.local-visual-chart-donut .local-visual-svg {
+  max-width: 340px;
+}
+
+.local-visual-chart-donut .local-visual-legend {
+  justify-content: center;
+}
+
+/* The clear ring keeps each slice comfortably clickable: an invisible stroke
+   widens the painted hit area without changing the rendered geometry. The
+   full-circle single-slice case keeps its own visible ring stroke. */
+.local-visual-chart-donut path.local-visual-donut-slice {
+  stroke: transparent;
+  stroke-width: 8px;
+  stroke-linejoin: round;
+}
+
+/* A surface halo keeps the centre label legible over the ring edge when a long
+   total or caption reaches past the hole. */
 .local-visual-donut-total {
   fill: var(--ink);
   font-size: var(--text-xl);
   font-weight: var(--weight-bold);
   font-variant-numeric: tabular-nums;
+  stroke: var(--surface);
+  stroke-width: 2.5px;
+  paint-order: stroke;
 }
 
 .local-visual-donut-caption {
   fill: var(--chart-axis);
   font-size: var(--text-xs);
+  stroke: var(--surface);
+  stroke-width: 2.5px;
+  paint-order: stroke;
 }
 
 .local-visual-active-point {
@@ -430,14 +536,14 @@ table.local-visual-table {
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-3);
   align-items: center;
-  margin: var(--space-2) 0 var(--space-1);
+  margin: var(--space-3) 0 var(--space-1);
 }
 
 .local-visual-legend-item {
   display: inline-flex;
   gap: var(--space-1);
   align-items: center;
-  padding: var(--space-1);
+  padding: 2px var(--space-1);
   color: var(--ink-soft);
   background: none;
   border: 1px solid transparent;
@@ -445,13 +551,21 @@ table.local-visual-table {
   font: inherit;
   font-size: var(--text-xs);
   cursor: pointer;
+  transition: background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-base) var(--ease-standard),
+    opacity var(--motion-base) var(--ease-standard);
 }
 
 .local-visual-legend-item:hover {
+  color: var(--ink);
   background: var(--surface-subtle);
 }
 
 .local-visual-legend-item.is-off {
+  opacity: var(--disabled-opacity);
+}
+
+.local-visual-legend-item.is-off .local-visual-swatch {
   opacity: var(--disabled-opacity);
 }
 
@@ -469,7 +583,7 @@ table.local-visual-table {
   flex: none;
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
 .local-visual-plot-legend {
@@ -504,7 +618,7 @@ table.local-visual-table {
   max-width: 100%;
   overflow-x: auto;
   padding: var(--space-1) 0;
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   line-height: var(--leading-normal);
 }
 
@@ -545,15 +659,17 @@ table.local-visual-table {
 }
 
 .local-visual-timeline-item {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
+  padding: var(--space-2);
+  margin-inline: calc(-1 * var(--space-2));
+  border: 0;
+  border-radius: var(--radius-control);
   outline: none;
+  transition: background-color var(--motion-base) var(--ease-standard);
 }
 
 .local-visual-timeline-item.is-active {
-  border-color: var(--focus);
-  box-shadow: inset 0 0 0 1px var(--focus);
+  background: var(--surface-subtle);
+  box-shadow: none;
 }
 
 .local-visual-timeline-item:focus-visible {
@@ -587,7 +703,7 @@ table.local-visual-table {
   height: 10px;
   margin-top: var(--space-2);
   overflow: hidden;
-  background: var(--surface-subtle);
+  background: var(--surface-active);
   border-radius: var(--radius-pill);
 }
 
@@ -603,13 +719,16 @@ table.local-visual-table {
   width: 2px;
 }
 
+/* Panels sit under the visual as plain text separated by a hairline, not as
+   another filled card. */
 .local-visual-timeline-detail {
   min-height: 2.2em;
-  margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-2) 0 0;
   color: var(--ink-soft);
-  background: var(--surface-subtle);
-  border-radius: var(--radius-card);
+  background: transparent;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
 }
@@ -659,29 +778,29 @@ table.local-visual-table {
 .local-visual-node-shape {
   fill: var(--surface);
   stroke: var(--line-strong);
-  stroke-width: 2;
-  transition: stroke var(--motion-fast) var(--ease-standard);
+  stroke-width: 1.5;
+  transition: stroke var(--motion-base) var(--ease-standard);
 }
 
 .local-visual-node:hover .local-visual-node-shape {
-  stroke: var(--focus);
+  stroke: var(--ink-soft);
 }
 
 .local-visual-node-success .local-visual-node-shape {
   stroke: var(--success);
-  stroke-width: 2.4;
+  stroke-width: 1.8;
 }
 
 .local-visual-node-warning .local-visual-node-shape {
   stroke: var(--warning);
-  stroke-width: 2.4;
+  stroke-width: 1.8;
 }
 
 .local-visual-node.is-selected .local-visual-node-shape,
 .local-visual-node:focus-visible .local-visual-node-shape {
   stroke: var(--focus);
-  stroke-width: 3;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--focus) 35%, transparent));
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--focus) 30%, transparent));
 }
 
 .local-visual-node-text {
@@ -693,11 +812,12 @@ table.local-visual-table {
 
 .local-visual-diagram-detail {
   min-height: 2.4em;
-  margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-2) 0 0;
   color: var(--ink-soft);
-  background: var(--surface-subtle);
-  border-radius: var(--radius-card);
+  background: transparent;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
 }
@@ -712,15 +832,47 @@ table.local-visual-table {
   margin: 0;
 }
 
+/* Body formulas and plot formulas share the document's body size. */
+.local-math {
+  color: var(--formula-ink, var(--ink));
+  font-size: var(--text-md);
+}
+
+/* MathML cells must retain their intrinsic width before the formula is fitted.
+   Otherwise a narrow inline table paints long expressions over its conditions. */
+.local-math mtable {
+  width: max-content;
+  min-width: max-content;
+}
+
+.local-math mtd {
+  text-align: left;
+}
+
+/* Inline math keeps its intrinsic width; inline-size containment here would
+   collapse it to the containing block. */
+.local-math-inline {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* `safe center` centres wide formulas but falls back to the start edge when
+   one overflows, so both ends stay reachable by scrolling. */
+.local-math-display {
+  display: flex;
+  justify-content: safe center;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.15em;
+}
+
+.local-math-display > .local-math {
+  flex: none;
+  max-width: none;
+}
+
 @media (max-width: 480px) {
-  .local-visual {
-    padding: var(--space-2) var(--space-3);
-  }
-
-  .local-visual-title {
-    font-size: var(--text-xs);
-  }
-
   .local-visual-search {
     flex-direction: column;
     align-items: stretch;
@@ -736,6 +888,16 @@ table.local-visual-table {
   .local-visual-pagination {
     gap: var(--space-1);
     font-size: var(--text-xs);
+  }
+
+  /* The narrow column scales the SVG down; raise the text sizes so the centre
+     total and caption stay legible at that scale. */
+  .local-visual-donut-total {
+    font-size: calc(var(--text-xl) * 1.1);
+  }
+
+  .local-visual-donut-caption {
+    font-size: var(--text-sm);
   }
 
   .local-visual-timeline-times {
@@ -761,11 +923,11 @@ table.local-visual-table {
    generic `.local-static` root rules. */
 
 .local-static-table tbody tr.is-selected td {
-  background: var(--surface-subtle);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
 }
 
 .local-static-table tbody tr.is-selected td:first-child {
-  box-shadow: inset 3px 0 var(--focus);
+  box-shadow: inset 2px 0 var(--accent);
 }
 
 .local-static-legend-item {
@@ -850,6 +1012,10 @@ table.local-visual-table {
     color: #111;
   }
 
+  .local-math {
+    color: #111;
+  }
+
   /* Wide tables may break across pages; the header repeats because the
      native table structure is preserved. */
   .local-visual-table-scroll {
@@ -913,7 +1079,8 @@ table.local-visual-table {
   .local-visual-timeline-detail,
   .local-visual-diagram-detail {
     color: #333;
-    background: #f5f6f8;
+    background: transparent;
+    border-top-color: #b8c0cc;
   }
 
   .local-visual-svg-wrap {
@@ -996,6 +1163,11 @@ table.local-visual-table {
   .local-visual-donut-total,
   .local-visual-node-text {
     fill: #111;
+  }
+
+  .local-visual-donut-total,
+  .local-visual-donut-caption {
+    stroke: #fff;
   }
 
   .local-visual-grid-line {

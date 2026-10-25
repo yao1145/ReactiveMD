@@ -141,7 +141,7 @@ Collapsed body copy.
         expect(new Set(bodySizes)).toEqual(new Set(['16px']));
         await expect(article.locator('.local-tab')).toHaveCSS('font-size', '14px');
         await expect(article.locator('.md-label')).toHaveCSS('font-size', '14px');
-        await expect(article.locator('.md-slider-value')).toHaveCSS('font-size', '12.5px');
+        await expect(article.locator('.md-slider-value')).toHaveCSS('font-size', '16px');
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
         await mkdir('artifacts', { recursive: true });
         await article.screenshot({ path: `artifacts/block-typography-${width}-${theme}.png` });

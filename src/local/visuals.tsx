@@ -705,8 +705,8 @@ function TableView({ node, runtime, render, mode }: ResolvedLocalVisualProps) {
   };
 
   const sortMarker = (column: number) => {
-    if (!sort || sort.column !== column) return '';
-    return sort.direction === 'asc' ? t(' (ascending)', '（升序）') : t(' (descending)', '（降序）');
+    if (!sort || sort.column !== column) return null;
+    return <span className="local-visual-sort-marker" aria-hidden="true">{sort.direction === 'asc' ? '▲' : '▼'}</span>;
   };
 
   if (mode === 'static') {
@@ -1234,10 +1234,13 @@ function ChartView({ node, runtime, mode }: ResolvedLocalVisualProps) {
       );
     }
 
-    const cx = CHART_WIDTH / 2;
-    const cy = 140;
-    const outer = 98;
-    const inner = 58;
+    /* Donut geometry: a 184px ring inside a 340x240 box, which at the 340px
+       cap renders one unit as one pixel. The wide cartesian viewBox stays as
+       it is, and the 124px hole holds the centre total and caption. */
+    const cx = 170;
+    const cy = 120;
+    const outer = 92;
+    const inner = 62;
     let angle = -Math.PI / 2;
     const slices: {
       key: string;
@@ -1293,7 +1296,7 @@ function ChartView({ node, runtime, mode }: ResolvedLocalVisualProps) {
         <div className="local-visual-svg-wrap">
           <svg
             className="local-visual-svg"
-            viewBox={`0 0 ${CHART_WIDTH} 290`}
+            viewBox="0 0 340 240"
             role="group"
             aria-label={t(
               `${title}, donut chart, ${rows.length} items`,
@@ -1614,6 +1617,10 @@ function ChartView({ node, runtime, mode }: ResolvedLocalVisualProps) {
           visibleIndex * barWidth;
         const height = Math.max(1, Math.abs(yOf(value) - zeroY));
         const y = value >= 0 ? zeroY - height : zeroY;
+        const width = Math.max(1.5, barWidth - 1);
+        /* 4px is the visual target; clamp so narrow or short bars (and bars
+           below the zero line) keep their real geometry instead of collapsing. */
+        const radius = Math.min(4, width / 2, height / 2);
         const point = makePoint(position, row, value, x + barWidth / 2, y + height / 2);
         barMarks.push(
           <rect
@@ -1621,9 +1628,9 @@ function ChartView({ node, runtime, mode }: ResolvedLocalVisualProps) {
             className={`local-visual-bar${point.selected ? ' is-selected' : ''}`}
             x={x}
             y={y}
-            width={Math.max(1.5, barWidth - 1)}
+            width={width}
             height={height}
-            rx={2}
+            rx={radius}
             style={{ fill: SERIES_COLORS[position % SERIES_COLORS.length] }}
             {...markProps(point)}
           >

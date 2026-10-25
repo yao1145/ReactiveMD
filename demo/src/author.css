@@ -4,7 +4,7 @@
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-4);
   padding: var(--space-2) var(--space-4);
-  background: var(--surface);
+  background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
 
@@ -15,11 +15,11 @@
 }
 
 .author-tools button {
-  min-height: var(--control-height-sm);
-  padding: 0 var(--space-3);
+  min-height: var(--control-height);
+  padding: 0 var(--control-inset-x);
   background: transparent;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  border-radius: var(--radius-field);
   color: var(--ink-soft);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
@@ -42,26 +42,26 @@
 }
 
 .author-tools button[aria-pressed="true"] {
-  background: var(--blue);
-  border-color: var(--blue);
-  color: var(--surface);
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
 }
 
 .author-tools button[aria-pressed="true"]:hover {
-  background: var(--blue-deep);
-  border-color: var(--blue-deep);
-  color: var(--surface);
+  background: var(--surface-hover);
+  border-color: var(--line-strong);
+  color: var(--ink);
 }
 
 .author-tools .source-toggle.is-primary {
-  color: var(--surface);
-  background: var(--blue);
-  border-color: var(--blue);
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line);
 }
 
 .author-tools .source-toggle.is-primary:hover {
-  background: var(--blue-deep);
-  border-color: var(--blue-deep);
+  background: var(--surface-hover);
+  border-color: var(--line-strong);
 }
 
 .author-tools button:focus-visible {
@@ -114,7 +114,7 @@
 .showcase-nav {
   padding: var(--space-4);
   border-bottom: 1px solid var(--line);
-  background: var(--surface);
+  background: var(--paper);
 }
 
 .showcase-links {
@@ -132,11 +132,14 @@
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border-radius: 0;
   color: var(--ink-soft);
   background: transparent;
   font-weight: var(--weight-medium);
   cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
 }
 
 .showcase-nav button:hover {
@@ -146,9 +149,9 @@
 
 .showcase-nav button[aria-pressed="true"] {
   color: var(--ink);
-  border-color: var(--blue);
-  background: color-mix(in srgb, var(--blue) 10%, var(--surface));
-  box-shadow: inset 0 -2px 0 var(--blue);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: inset 0 -2px 0 var(--ink);
 }
 
 .showcase-nav button:focus-visible {
@@ -157,7 +160,7 @@
 }
 
 .author-tools button {
-  min-height: 44px;
+  min-height: var(--control-height-lg);
 }
 
 .app-shell.is-simple .workspace {
@@ -530,7 +533,7 @@
 }
 
 .export-dialog-actions .button {
-  min-height: var(--control-height-sm);
+  min-height: var(--control-height);
 }
 
 @media (max-width: 600px) {

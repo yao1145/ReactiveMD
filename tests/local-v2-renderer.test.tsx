@@ -292,7 +292,11 @@ describe('coordinate', () => {
     expect(html).toContain('aria-label="Point drag area"');
     expect(html).toContain('tabindex="0"');
     expect(html).toContain('local-coordinate-dot');
-    expect(html).toContain('style="left:75%;top:75%"');
+    expect(html).toMatch(/class="local-coordinate-dot" cx="280" cy="280"/);
+    expect(html).toContain('local-coordinate-grid');
+    expect(html).toContain('local-coordinate-projection');
+    expect(html).toContain('(1, -0.5)');
+    expect(html).toContain('Draggable coordinate plane');
     expect(html).toMatch(/<label[^>]*for="[^"]*coordinate-x"[^>]*>Point X<\/label>/);
     expect(html).toMatch(/<label[^>]*for="[^"]*coordinate-y"[^>]*>Point Y<\/label>/);
     expect(html).toMatch(/id="[^"]*coordinate-x"[^>]*value="1"/);

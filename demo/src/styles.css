@@ -90,8 +90,9 @@ textarea {
 .workbench {
   margin-top: var(--space-5);
   background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--line) 75%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--line) 65%, var(--surface));
   border-radius: var(--radius-panel);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--ink) 4%, transparent);
   overflow: hidden;
 }
 
@@ -101,7 +102,7 @@ textarea {
   align-items: center;
   gap: var(--space-2) var(--space-3);
   padding: var(--space-2) var(--space-4);
-  background: var(--surface);
+  background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
 
@@ -122,11 +123,11 @@ textarea {
 .bar-select {
   max-width: 210px;
   min-width: 120px;
-  height: var(--control-height-sm);
-  padding: 0 26px 0 var(--control-padding-x);
+  height: var(--control-height);
+  padding: 0 34px 0 var(--control-inset-x);
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   color: var(--ink);
   font-size: var(--text-sm);
   line-height: var(--leading-snug);
@@ -191,10 +192,10 @@ textarea {
   justify-content: center;
   gap: var(--space-1);
   min-height: var(--control-height);
-  padding: 0 var(--space-4);
+  padding: 0 var(--control-inset-x);
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-field);
   color: var(--ink);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
@@ -207,14 +208,14 @@ textarea {
 }
 
 .bar-actions .button {
-  min-height: var(--control-height-sm);
-  padding: 0 var(--control-padding-x);
+  min-height: var(--control-height);
+  padding: 0 var(--control-inset-x);
 }
 
 .button-primary {
   background: var(--blue);
   border-color: var(--blue);
-  color: var(--surface);
+  color: var(--accent-ink);
 }
 
 .button-quiet {
@@ -281,7 +282,7 @@ textarea {
 }
 
 .pane-preview {
-  background: var(--surface);
+  background: var(--paper);
 }
 
 .pane-head {
@@ -548,7 +549,7 @@ textarea {
   padding: 0;
   background: none;
   border: 0;
-  color: var(--blue-deep);
+  color: var(--accent-text, var(--blue-deep));
   font-size: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -574,6 +575,19 @@ textarea {
 .preview-stage {
   position: relative;
   min-height: 420px;
+  padding: clamp(16px, 2.5vw, 32px);
+  background: var(--document-bg);
+  border-radius: var(--radius-control);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+.preview-stage > .local-document {
+  animation: document-enter var(--motion-base) var(--ease-standard);
+}
+
+@keyframes document-enter {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
 }
 
 .preview-inert {
@@ -748,26 +762,27 @@ textarea {
 .view-switch {
   display: flex;
   flex-shrink: 0;
-  gap: 2px;
-  padding: 2px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+  gap: var(--space-2);
+  padding: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--line);
 }
 
 .view-switch button {
-  min-height: 28px;
+  min-height: var(--control-height-lg);
   padding: 0 var(--space-3);
   background: transparent;
   border: 0;
-  border-radius: var(--radius-pill);
+  border-radius: 0;
+  box-shadow: inset 0 -2px 0 transparent;
   color: var(--ink-muted);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
 }
 
 .view-switch button:hover {
@@ -776,13 +791,14 @@ textarea {
 }
 
 .view-switch button[aria-pressed="true"] {
-  background: var(--blue);
-  color: var(--surface);
+  background: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--ink);
 }
 
 .view-switch button[aria-pressed="true"]:hover {
-  background: var(--blue-deep);
-  color: var(--surface);
+  background: var(--surface-hover);
+  color: var(--ink);
 }
 
 .guide-view {
@@ -895,7 +911,7 @@ textarea {
 }
 
 .guide-paper .local-document a {
-  color: var(--blue-deep);
+  color: var(--accent-text, var(--blue-deep));
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -931,6 +947,7 @@ textarea {
 
 .guide-paper .local-document .md-table {
   width: 100%;
+  max-width: 100%;
   margin: var(--space-3) 0;
   border-collapse: collapse;
   font-size: var(--text-sm);

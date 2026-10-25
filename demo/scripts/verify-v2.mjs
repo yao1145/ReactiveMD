@@ -53,7 +53,7 @@ try {
       await expect(fields.first()).toHaveValue('2');
       const box=await pad.boundingBox();
       await page.mouse.move(box.x+box.width*.5,box.y+box.height*.5);
-      await page.mouse.down(); await page.mouse.move(box.x+box.width*.8,box.y+box.height*.2,{steps:6}); await page.mouse.up();
+      await page.mouse.down(); await page.mouse.move(box.x+box.width*.74,box.y+box.height*.26,{steps:6}); await page.mouse.up();
       await expect(fields.first()).toHaveValue('3'); await expect(fields.last()).toHaveValue('3');
     });
     await check(language+': numeric quiz tolerance and scoped reset work in the function scenario',async()=>{

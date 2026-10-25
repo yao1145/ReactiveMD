@@ -5,33 +5,36 @@
   color-scheme: light;
 
   /* Surfaces */
-  --paper: #f5f7fb;
+  --paper: #f4f4f2;
   --surface: #ffffff;
   --document-bg: var(--surface);
-  --surface-subtle: #f8faff;
+  --surface-subtle: #f7f7f5;
   --surface-hover: color-mix(in srgb, var(--ink) 5%, var(--surface));
   --surface-active: color-mix(in srgb, var(--ink) 8%, var(--surface));
 
   /* Text */
-  --ink: #17233d;
-  --ink-soft: #45536f;
-  --ink-muted: #6b7893;
+  --ink: #232323;
+  --ink-soft: #4f4f4d;
+  --ink-muted: #6f6f6c;
 
   /* Borders */
-  --line: #dce3ef;
-  --line-strong: #c9d4e8;
+  --line: #e4e3df;
+  --line-strong: #d0cfc9;
 
   /* Accent. The --blue* values stay public for backwards compatibility;
      components consume the semantic aliases so a trusted theme only has to
      override one family. Custom CSS may also set the aliases directly. */
-  --blue: #365cf5;
-  --blue-deep: #2748d8;
-  --blue-soft: #eef2ff;
-  --blue-line: #d7e0f1;
+  --blue: #3f5f8f;
+  --blue-deep: #33507a;
+  --blue-soft: #eef1f6;
+  --blue-line: #d8dfe9;
   --accent: var(--blue);
   --accent-hover: var(--blue-deep);
   --accent-soft: var(--blue-soft);
   --accent-line: var(--blue-line);
+  /* Text on an accent-filled control; --accent-text is the accent used as ink. */
+  --accent-ink: #ffffff;
+  --accent-text: var(--blue-deep);
   --info: var(--blue);
   --info-soft: var(--blue-soft);
 
@@ -46,7 +49,7 @@
   --danger: #a2273a;
   --danger-soft: #fff5f6;
   --danger-line: #f0cdd3;
-  --neutral-soft: #eef2fa;
+  --neutral-soft: #f1f0ed;
 
   /* Focus */
   --focus: var(--accent);
@@ -54,16 +57,21 @@
   --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
 
   /* Data series */
-  --chart-1: #2563eb;
-  --chart-2: #d93a5c;
-  --chart-3: #0f8f83;
-  --chart-4: #c57a12;
-  --chart-5: #7b5bd6;
-  --chart-6: #1d8aa8;
-  --chart-7: #5f8f1f;
-  --chart-8: #c2417f;
-  --chart-grid: var(--line);
+  --chart-1: #577b9f;
+  --chart-2: #b5777a;
+  --chart-3: #548b80;
+  --chart-4: #b08b52;
+  --chart-5: #8a7eab;
+  --chart-6: #548b9b;
+  --chart-7: #859858;
+  --chart-8: #ae7e97;
+  --chart-grid: color-mix(in srgb, var(--line) 65%, var(--surface));
   --chart-axis: var(--ink-muted);
+
+  --coordinate-surface: #f6f6f6;
+  --coordinate-grid: #d8e0eb;
+  --coordinate-axis: #64748b;
+  --coordinate-point: #2563eb;
 
   /* Code */
   --code-bg: #0f172a;
@@ -104,6 +112,10 @@
   --radius-card: 12px;
   --radius-panel: 14px;
   --radius-pill: 999px;
+  /* Fields and buttons close into pills; multiline fields keep a softer
+     corner so a tall textarea does not become a capsule. */
+  --radius-field: var(--radius-pill);
+  --radius-field-multiline: 22px;
   --radius-sm: var(--radius-control);
   --radius-md: var(--radius-card);
   --radius-lg: var(--radius-panel);
@@ -114,15 +126,26 @@
   --control-height-lg: 44px;
   --control-padding-x: 12px;
   --control-padding-y: 9px;
+  /* Wide comfortable inset for pill fields and buttons. */
+  --control-inset-x: 19px;
   --disabled-opacity: 0.45;
+  /* Selected controls stay neutral; the UI accent is reserved for focus,
+     hover accents and a small number of filled actions. */
+  --control-selected: #2e2e2c;
+  --control-selected-ink: #ffffff;
+  --control-track: #f1f1f1;
+  --control-thumb: #ffffff;
+
+  /* Formula ink follows the body ink in each mode. */
+  --formula-ink: #000000;
 
   /* Motion and elevation */
-  --motion-fast: 120ms;
-  --motion-base: 160ms;
-  --motion-slow: 240ms;
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --shadow-sm: 0 1px 2px rgb(23 35 61 / 6%);
-  --shadow-md: 0 6px 20px rgb(23 35 61 / 8%);
+  --motion-fast: 160ms;
+  --motion-base: 220ms;
+  --motion-slow: 300ms;
+  --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --shadow-sm: 0 1px 2px rgb(28 28 26 / 6%);
+  --shadow-md: 0 6px 20px rgb(28 28 26 / 9%);
 
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
@@ -140,21 +163,34 @@
 :where(.reactive-md-theme, .md-document)[data-color-scheme="dark"] {
   color-scheme: dark;
 
-  --paper: #111827;
-  --surface: #182236;
-  --surface-subtle: #1c2940;
+  --paper: #121212;
+  --surface: #1b1b1d;
+  --surface-subtle: #202022;
 
-  --ink: #e5edfc;
-  --ink-soft: #bbc8de;
-  --ink-muted: #9aaecb;
+  --ink: #ecebe7;
+  --ink-soft: #c3c1bb;
+  --ink-muted: #9b9993;
 
-  --line: #354560;
-  --line-strong: #50627d;
+  --line: #343436;
+  --line-strong: #4d4d4f;
 
-  --blue: #8ba6ff;
-  --blue-deep: #7191f5;
-  --blue-soft: #1c2b4a;
-  --blue-line: #334c7a;
+  /* The filled accent is deep enough for white --accent-ink; --accent-text
+     carries the lighter accent used as text on dark surfaces. */
+  --blue: #47679f;
+  --blue-deep: #5574ad;
+  --blue-soft: #232a35;
+  --blue-line: #37445a;
+  --accent-ink: #ffffff;
+  --accent-text: #a9bce3;
+
+  --control-selected: #e7e6e1;
+  --control-selected-ink: #1b1b1d;
+  --control-track: #3b3b39;
+  --control-thumb: #e8e7e2;
+
+  --formula-ink: #ffffff;
+
+  --focus: var(--accent-text);
 
   --teal: #68ccc2;
   --success-soft: #19312e;
@@ -165,21 +201,26 @@
   --danger: #ffa0ae;
   --danger-soft: #3a1b1f;
   --danger-line: #794853;
-  --neutral-soft: #22314b;
+  --neutral-soft: #26262a;
 
-  --chart-1: #7aa2ff;
-  --chart-2: #ff7a9c;
-  --chart-3: #4fd1c5;
-  --chart-4: #f6c26b;
-  --chart-5: #b8a1ff;
-  --chart-6: #67d4e8;
-  --chart-7: #b6e26a;
-  --chart-8: #ff8fc7;
+  --chart-1: #8faaca;
+  --chart-2: #c9969c;
+  --chart-3: #82b5a6;
+  --chart-4: #cfb079;
+  --chart-5: #a99bc6;
+  --chart-6: #87b7c4;
+  --chart-7: #b1be83;
+  --chart-8: #c89bb2;
+
+  --coordinate-surface: #202022;
+  --coordinate-grid: #394351;
+  --coordinate-axis: #a4b2c7;
+  --coordinate-point: #82aaff;
 
   --code-bg: #0b1220;
   --code-bg-deep: #090f1c;
   --code-ink: #dce6ff;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
-  --shadow-md: 0 6px 24px rgb(0 0 0 / 35%);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 45%);
+  --shadow-md: 0 6px 24px rgb(0 0 0 / 50%);
 }

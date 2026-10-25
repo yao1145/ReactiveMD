@@ -3601,16 +3601,26 @@ function CoordinateView({ node }: LocalComponentProps) {
     );
   }
 
-  const xPercent =
-    xRange.max > xRange.min ? ((x - xRange.min) / (xRange.max - xRange.min)) * 100 : 0;
-  const yPercent =
-    yRange.max > yRange.min ? ((y - yRange.min) / (yRange.max - yRange.min)) * 100 : 0;
+  const projectX = (value: number) => xRange.max > xRange.min
+    ? 40 + ((value - xRange.min) / (xRange.max - xRange.min)) * 320 : 200;
+  const projectY = (value: number) => yRange.max > yRange.min
+    ? 360 - ((value - yRange.min) / (yRange.max - yRange.min)) * 320 : 200;
+  const pointX = projectX(x);
+  const pointY = projectY(y);
+  const axisX = projectX(clamp(0, xRange.min, xRange.max));
+  const axisY = projectY(clamp(0, yRange.min, yRange.max));
+  const gridValues = (range: typeof xRange) => {
+    const stride = range.step * Math.max(1, Math.ceil((range.max - range.min) / (range.step * 10)));
+    const count = Math.min(11, Math.floor((range.max - range.min) / stride) + 1);
+    return Array.from({ length: count }, (_, index) => range.min + index * stride);
+  };
 
   const pointValue = (event: ReactPointerEvent<HTMLDivElement>) => {
     const rect = padRef.current?.getBoundingClientRect();
     if (!rect || rect.width === 0 || rect.height === 0) return null;
-    const ratioX = clamp((event.clientX - rect.left) / rect.width, 0, 1);
-    const ratioY = clamp((event.clientY - rect.top) / rect.height, 0, 1);
+    // The grid occupies the inner 80% of the SVG, leaving room for arrows and labels.
+    const ratioX = clamp(((event.clientX - rect.left) / rect.width - 0.1) / 0.8, 0, 1);
+    const ratioY = clamp(((event.clientY - rect.top) / rect.height - 0.1) / 0.8, 0, 1);
     return {
       x: snapToStep(
         xRange.min + ratioX * (xRange.max - xRange.min),
@@ -3674,6 +3684,7 @@ function CoordinateView({ node }: LocalComponentProps) {
       aria-describedby={validation.describedBy}
     >
       <span className="md-label">{label}</span>
+      <div className="local-coordinate-surface">
       <div
         ref={padRef}
         className="local-coordinate-pad"
@@ -3712,13 +3723,35 @@ function CoordinateView({ node }: LocalComponentProps) {
           dragging.current = false;
         }}
       >
-        <span className="local-coordinate-horizontal" aria-hidden="true" />
-        <span className="local-coordinate-vertical" aria-hidden="true" />
-        <span
-          className="local-coordinate-dot"
-          aria-hidden="true"
-          style={{ left: `${xPercent}%`, top: `${100 - yPercent}%` }}
-        />
+        <svg className="local-coordinate-svg" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
+          <defs>
+            <marker id={`${domId}-coordinate-arrow`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" viewBox="0 0 8 8">
+              <path className="local-coordinate-arrow" d="M1 1 L6 4 L1 7" />
+            </marker>
+          </defs>
+          <g className="local-coordinate-grid">
+            <rect x="40" y="40" width="320" height="320" />
+            {gridValues(xRange).map((value, index) => <line key={`x-${index}`} x1={projectX(value)} y1="40" x2={projectX(value)} y2="360" />)}
+            {gridValues(yRange).map((value, index) => <line key={`y-${index}`} x1="40" y1={projectY(value)} x2="360" y2={projectY(value)} />)}
+          </g>
+          <g className="local-coordinate-axes">
+            <line className="local-coordinate-horizontal" x1="26" y1={axisY} x2="372" y2={axisY} markerEnd={`url(#${domId}-coordinate-arrow)`} />
+            <line className="local-coordinate-vertical" x1={axisX} y1="374" x2={axisX} y2="24" markerEnd={`url(#${domId}-coordinate-arrow)`} />
+          </g>
+          <g className="local-coordinate-axis-label">
+            <text x="358" y={axisY - 14}>x</text>
+            <text x={axisX + 12} y="40">y</text>
+          </g>
+          <g className="local-coordinate-projection">
+            <line x1={pointX} y1={pointY} x2={pointX} y2={axisY} />
+            <line x1={pointX} y1={pointY} x2={axisX} y2={pointY} />
+          </g>
+          <circle className="local-coordinate-dot" cx={pointX} cy={pointY} r="10" />
+          <text className="local-coordinate-value" x={pointX} y={pointY > 330 ? pointY - 22 : pointY + 30}
+            textAnchor={pointX < 80 ? 'start' : pointX > 320 ? 'end' : 'middle'}>{`(${x}, ${y})`}</text>
+        </svg>
+      </div>
+      <span className="local-coordinate-caption">{t('Draggable coordinate plane', '可拖动的坐标平面')}</span>
       </div>
       <span className="md-hint local-hint">
         {t(
