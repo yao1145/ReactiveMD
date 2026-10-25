@@ -1,19 +1,19 @@
 # 发布清单
 
-本文件是维护者的手动发布流程。本清单覆盖 `0.4.1` 预览版，目前 `latest` 和 `next` 均指向该版本。版本规则见[版本与兼容性](compatibility-ch.md)，面向使用者的升级说明见[0.4.1 发布说明](release-0.4.1-ch.md)。
+本文件是维护者的手动发布流程。本清单覆盖 `0.5.0` 预览版，目标渠道为 `next`，`latest` 仍为 `0.4.0`。版本规则见[版本与兼容性](compatibility-ch.md)，面向使用者的说明见[0.5.0 发布说明](release-0.5.0-ch.md)。
 
 ## 发布前确认
 
 ### 包身份与元数据
 
-非 scope 名称 `reactive-md` 已由已发布的 `0.3.0`、`0.3.1` 建立，`reactive-md/react` 和 `reactive-md/styles.css` 子路径也随这些版本生效。不要把改名当作常规发布准备：改名会破坏导入、状态工具和文档。
+非 scope 名称 `reactive-md` 已由已发布的 `0.3.0`、`0.3.1` 建立，`reactive-md/react` 和 `reactive-md/styles.css` 子路径也随这些版本生效。`0.5.0` 新增 `reactive-md/editor` 和 `reactive-md/editor/styles.css`。不要把改名当作常规发布准备：改名会破坏导入、状态工具和文档。
 
 1. 除非维护者明确决定改用 scope，否则保持 `reactive-md`。scope 需要对应的 npm 账号或组织权限。
-2. 如果改名，同时更新 `package.json` 的 `name`、文档中的导入语句、tarball 文件名说明、示例和两个子路径，并在变更记录中按破坏性变更说明。
+2. 如果改名，同时更新 `package.json` 的 `name`、文档中的导入语句、tarball 文件名说明、示例和相关子路径，并在变更记录中按破坏性变更说明。
 3. 核对 `package.json` 的 `repository`、`homepage`、`bugs`、`license`、`engines` 等发布元数据；当前已设置，发布前确认 URL 和最低 Node 版本仍然正确，并确认 `private` 保持移除状态。
 4. 确认 `files` 覆盖发布所需内容。当前包含 `dist-library`、`dist-standalone`、`bin`、`cli`、README（`README.md`、`README-en.md`、`README-ch.md`）、中英文贡献指南、变更记录与安全策略、`THIRD_PARTY_NOTICES.md`、`docs` 和 `examples`；新增文档或 notice 时同步加入 `files`。
 
-包名和版本决定 tarball 名称。当前 `0.4.1` 的预期文件名是 `reactive-md-0.4.1.tgz`；改名或改版本后以 `npm pack` 的实际输出为准。
+包名和版本决定 tarball 名称。当前 `0.5.0` 的预期文件名是 `reactive-md-0.5.0.tgz`；改名或改版本后以 `npm pack` 的实际输出为准。
 
 ### 第三方 notice
 
@@ -35,7 +35,7 @@ npm ci
 npm run verify:release
 ```
 
-`verify:release` 运行 Node 端与浏览器检查，构建包，在仓库外安装真实 tarball，并验证多份能力组合后的文档行为；它自行管理预览服务和浏览器生命周期。CI 通过 `verify:release:node` 和 `verify:release:browser` 分片运行同一门禁。本机需已安装浏览器。
+`verify:release` 运行 Node 端与浏览器检查，构建包，在仓库外安装真实 tarball，并验证多份能力组合后的文档行为；它自行管理预览服务和浏览器生命周期。门禁同时覆盖编辑器入口、其样式表及同一页面的两个编辑器实例。CI 通过 `verify:release:node` 和 `verify:release:browser` 分片运行同一门禁。本机需已安装浏览器。
 
 packed 检查会在 `artifacts/release-package/` 保留经过验证的原始安装包，并在同目录的 `package-verification.json` 记录 SHA256 与 npm integrity。完整门禁通过后发布这一安装包；源码、包元数据或随包文档变化后重新验证。
 
@@ -51,7 +51,7 @@ npm pack
 mkdir /tmp/reactive-md-consumer
 cd /tmp/reactive-md-consumer
 npm init -y
-npm install /path/to/reactive-md-0.4.1.tgz
+npm install /path/to/reactive-md-0.5.0.tgz
 ```
 
 核心入口可在 Node 中直接检查：
@@ -71,7 +71,14 @@ import { LocalReactiveDocument } from 'reactive-md/react';
 import 'reactive-md/styles.css';
 ```
 
-静态 SSR 渲染由 packed 检查覆盖。单文件导出的静态首屏水合由 Playwright Chromium 和本地 Edge 浏览器检查覆盖；该路径之外的通用 SSR 水合尚未验证。安装验证还应确认 tarball 中的 `dist-library/types`、`dist-standalone`、`bin`、`cli`、`README.md`、`README-en.md`、`README-ch.md`、`CHANGELOG-ch.md`、`SECURITY-ch.md`、`THIRD_PARTY_NOTICES.md`、`docs` 和 `examples` 完整，并检查 `docs` 中没有指向未打包 `demo/`、`src/`、`tests/` 或 `.tasks/` 文件的本地链接。
+编辑器入口使用相同的 React peer 和独立样式表：
+
+```tsx
+import { ReactiveMarkdownEditor } from 'reactive-md/editor';
+import 'reactive-md/editor/styles.css';
+```
+
+静态 SSR 渲染由 packed 检查覆盖。编辑器入口在服务端渲染检查中导入，并在浏览器检查中运行。单文件导出的静态首屏水合由 Playwright Chromium 和本地 Edge 浏览器检查覆盖；该路径之外的通用 SSR 水合尚未验证。安装验证还应确认 tarball 中的 `dist-library/types`（包括编辑器入口和样式表）、`dist-standalone`、`bin`、`cli`、`README.md`、`README-en.md`、`README-ch.md`、`CHANGELOG-ch.md`、`SECURITY-ch.md`、`THIRD_PARTY_NOTICES.md`、`docs` 和 `examples` 完整，并检查 `docs` 中没有指向未打包 `demo/`、`src/`、`tests/` 或 `.tasks/` 文件的本地链接。
 
 ## 发布说明
 
@@ -79,7 +86,7 @@ import 'reactive-md/styles.css';
 
 - 包版本、`LOCAL_SYNTAX_VERSION`、组块协议修订与主题协议修订；这些不是同一个版本号。
 - 安装方式：`npm install reactive-md@next`，或使用 `npm install reactive-md@<version>` 固定版本；并提供可下载 tarball 作为离线安装选项。
-- 用户可见变化、破坏性变更和迁移步骤；直接链接[变更记录](../CHANGELOG-ch.md)，本轮同时链接[0.4.1 发布说明](release-0.4.1-ch.md)。
+- 用户可见变化、破坏性变更和迁移步骤；直接链接[变更记录](../CHANGELOG-ch.md)，本轮同时链接[0.5.0 发布说明](release-0.5.0-ch.md)。
 - 已验证的平台，以及未验证的浏览器、通用 SSR 水合等范围。
 - 已知限制和安全说明链接 [SECURITY-ch.md](../SECURITY-ch.md)。
 
@@ -89,12 +96,12 @@ import 'reactive-md/styles.css';
 
 1. 确认工作区干净，变更已审查；`npm ci` 从锁文件安装成功。
 2. 在 Node 22.12 和受支持的较新 LTS（当前为 24）上运行 `npm run verify:release`。这是维护者和 CI 共用的完整门禁，不要用一组自行挑选的命令代替。
-3. 确认版本号、`CHANGELOG-ch.md` 和发布说明一致。语法变化时更新 `LOCAL_SYNTAX_VERSION`；组块或主题协议修订仅在各自契约变化时更新，这些版本轴保持独立。
+3. 确认版本号、`CHANGELOG-ch.md` 和发布说明一致。`0.5.0` 新增编辑器入口，但 `LOCAL_SYNTAX_VERSION`、组块协议和主题协议修订不变。仅在某条版本轴自身的契约变化时更新它。
 4. 检查门禁保留的安装包，包括文件列表、大小和许可文件。手动重新运行 `npm pack` 会产生新候选包，需要单独完成安装验证。
 5. 核对安装包的 SHA256 与 `artifacts/release-package/package-verification.json` 一致，并记录到发布说明或内部发布记录。
 6. 合并发布提交，等待 `main` 上的 CI 全部通过。
-7. 手动创建并推送 tag，例如 `v0.4.1`。不要在自动发布工作流中保存 npm token。
-8. 在维护者本机完成 npm 登录和双因素认证后，手动发布已经验证的预览版安装包：`npm publish artifacts/release-package/reactive-md-0.4.1.tgz --access public --tag next`。预览版先发布到 `next`。维护者决定提升后，使用 `npm dist-tag add reactive-md@<version> latest` 更新默认版本。当前 `latest` 的兼容补丁版在发布验证后，同步更新这两个渠道。
+7. 手动创建并推送 tag，例如 `v0.5.0`。不要在自动发布工作流中保存 npm token。
+8. 在维护者本机完成 npm 登录和双因素认证后，手动发布已经验证的预览版安装包：`npm publish artifacts/release-package/reactive-md-0.5.0.tgz --access public --tag next`。预览版先发布到 `next`，本次 `latest` 保持 `0.4.0`。提升 `0.5.0` 需要单独决定：`npm dist-tag add reactive-md@0.5.0 latest`。
 9. 在 npm 和 GitHub Releases 上核对包内容、版本、README、许可与发布说明；从公开 registry 重新安装一次。
 10. 从 registry 验证 README 中的安装命令可用，核对 registry 的完整性摘要与发布 tarball 一致。
 

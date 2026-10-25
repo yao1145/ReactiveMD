@@ -2,26 +2,19 @@ import {
   memo,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ChangeEvent,
-  type KeyboardEvent,
-  type UIEvent,
 } from 'react';
 import { formatLocalDiagnostic, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
 import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
-import { AuthorTools } from './author-tools';
-import type { EditorEdit, EditorSelection } from './editor-commands';
-import { EditorToolbar } from './editor-toolbar';
-import { ExportDialog } from './export-dialog';
 import {
-  AuthorHighlight,
-  AuthoringPanel,
-  useAuthorAnalysis,
-} from './source-authoring';
-import './source-authoring.css';
+  ReactiveMarkdownEditor,
+  type ReactiveMarkdownEditorHandle,
+} from 'reactive-md/editor';
+import { AuthorTools } from './author-tools';
+import { ExportDialog } from './export-dialog';
 import {
   DEFAULT_EXAMPLE_ID,
   EXAMPLES,
@@ -41,9 +34,6 @@ import {
 } from './i18n';
 import { useLocalCompilation, type LocalCompiledDocument } from './use-local-compilation';
 import { PreviewStateSession } from './preview-state';
-import { useEditorHeight } from './use-editor-height';
-import { useGutterMetrics } from './use-gutter-metrics';
-import { useSourceHistory } from './use-source-history';
 import guideEnSource from '../../docs/local-guide-en.md?raw';
 import guideZhSource from '../../docs/local-guide-ch.md?raw';
 
@@ -284,37 +274,19 @@ export default function App() {
   const [previewSession, setPreviewSession] = useState(() => new PreviewStateSession());
   const [exportOpen, setExportOpen] = useState(false);
   const [runtimeDiagnostics, setRuntimeDiagnostics] = useState<Diagnostic[]>([]);
-  const [activeLine, setActiveLine] = useState(1);
-  const [composing, setComposing] = useState(false);
 
   const copy = COPY[language];
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const frameRef = useRef<HTMLDivElement>(null);
-  const mirrorRef = useRef<HTMLDivElement>(null);
+  const editorHandle = useRef<ReactiveMarkdownEditorHandle>(null);
   const featureMenuRef = useRef<HTMLButtonElement>(null);
-  const gutterRef = useRef<HTMLDivElement>(null);
   const pendingSourceWrite = useRef<{
     exampleId: string;
     source: string;
     language: Language;
   } | null>(null);
   const sourceWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingSelection = useRef<EditorSelection | null>(null);
-  const sourceVisible = view === 'playground' && !simple;
-  useEditorHeight(frameRef, sourceVisible, [language, view, simple, selectedExample]);
-  const {
-    canUndo,
-    canRedo,
-    record: recordHistory,
-    undo: undoHistory,
-    redo: redoHistory,
-    reset: resetHistory,
-  } = useSourceHistory(source);
 
   const compilation = useLocalCompilation(source);
-  // Analysis depends on the source only, so caret moves never redo this work.
-  const authorAnalysis = useAuthorAnalysis(source);
-
   const currentExample = localizedExample(
     EXAMPLES.find((item) => item.id === selectedExample) ?? DEFAULT_EXAMPLE,
     language,
@@ -386,48 +358,10 @@ export default function App() {
     setInstanceKey((key) => key + 1);
   }, [retainPreviewState]);
 
-  useLayoutEffect(() => {
-    const selection = pendingSelection.current;
-    if (!selection) return;
-    pendingSelection.current = null;
-    const editor = editorRef.current;
-    if (!editor) return;
-    const length = editor.value.length;
-    const start = Math.max(0, Math.min(selection.start, length));
-    const end = Math.max(start, Math.min(selection.end, length));
-    // Updating a controlled textarea temporarily moves its caret to the end.
-    // Restore the intended range before focusing, without scrolling the editor
-    // or its ancestors to that temporary caret.
-    editor.setSelectionRange(start, end);
-    editor.focus({ preventScroll: true });
-    setActiveLine(editor.value.slice(0, start).split('\n').length);
-  }, [source]);
-
-  const applyEdit = useCallback((edit: EditorEdit) => {
-    recordHistory(edit.value, edit.selection, 'separate');
-    pendingSelection.current = edit.selection;
-    replaceSource(edit.value);
-  }, [recordHistory, replaceSource]);
-
-  const undoEdit = useCallback(() => {
-    const entry = undoHistory();
-    if (!entry) return;
-    pendingSelection.current = entry.selection;
-    replaceSource(entry.value);
-  }, [replaceSource, undoHistory]);
-
-  const redoEdit = useCallback(() => {
-    const entry = redoHistory();
-    if (!entry) return;
-    pendingSelection.current = entry.selection;
-    replaceSource(entry.value);
-  }, [replaceSource, redoHistory]);
-
   const importSource = useCallback((next: string) => {
-    resetHistory(next);
     replaceSource(next);
     beginPreviewSession();
-  }, [resetHistory, replaceSource, beginPreviewSession]);
+  }, [replaceSource, beginPreviewSession]);
 
   const exportSource = useCallback(() => {
     download(`${selectedExample}.reactive.md`, source, 'text/markdown;charset=utf-8');
@@ -436,28 +370,25 @@ export default function App() {
   const openExportDialog = useCallback(() => setExportOpen(true), []);
   const closeExportDialog = useCallback(() => setExportOpen(false), []);
 
-  const onSourceChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
-    const element = event.currentTarget;
-    recordHistory(
-      element.value,
-      { start: element.selectionStart, end: element.selectionEnd },
-      'merge',
-    );
-    replaceSource(element.value);
-  }, [recordHistory, replaceSource]);
-
   const focusDiagnostic = useCallback((range: SourceRange) => {
     setSimple(false);
     window.requestAnimationFrame(() => {
-      const editor = editorRef.current;
+      const editor = editorHandle.current?.getTextarea() ?? editorRef.current;
       if (!editor) return;
+      const handle = editorHandle.current;
+      if (handle) handle.focus({ start: range.start, end: range.end });
+      else {
+        const length = editor.value.length;
+        editor.focus();
+        editor.setSelectionRange(
+          Math.max(0, Math.min(range.start, length)),
+          Math.max(0, Math.min(range.end, length)),
+        );
+      }
       const length = editor.value.length;
-      const start = Math.max(0, Math.min(range.start, length));
-      const end = Math.max(start, Math.min(range.end, length));
-      editor.focus();
-      editor.setSelectionRange(start, end);
+      const start = Math.max(0, Math.min(editor.selectionStart, length));
       const line = editor.value.slice(0, start).split('\n').length;
-      const gutter = gutterRef.current;
+      const gutter = editor.closest('.editor-frame')?.querySelector<HTMLElement>('.editor-gutter');
       const lineElement = gutter?.children[line - 1] as HTMLElement | undefined;
       if (gutter && lineElement) {
         const offset = lineElement.getBoundingClientRect().top
@@ -469,8 +400,6 @@ export default function App() {
         const lineHeight = Number.parseFloat(styles.lineHeight) || 22;
         editor.scrollTop = Math.max(0, (line - 1) * lineHeight - editor.clientHeight / 3);
       }
-      if (gutter) gutter.scrollTop = editor.scrollTop;
-      setActiveLine(line);
     });
   }, []);
 
@@ -483,20 +412,16 @@ export default function App() {
     const next = savedSource(example.id, language);
     setSelectedExample(example.id);
     setSource(next);
-    resetHistory(next);
     setRuntimeDiagnostics([]);
     beginPreviewSession();
     try { browserStorage()?.setItem(SELECTION_KEY, example.id); } catch { /* optional storage */ }
-    if (editorRef.current) editorRef.current.scrollTop = 0;
-    if (gutterRef.current) gutterRef.current.scrollTop = 0;
-  }, [flushSourceWrite, beginPreviewSession, resetHistory, language]);
+  }, [flushSourceWrite, beginPreviewSession, language]);
 
   const restoreExample = useCallback(() => {
-    resetHistory(currentExample.source);
     setSource(currentExample.source);
     setRuntimeDiagnostics([]);
     beginPreviewSession();
-  }, [currentExample.source, beginPreviewSession, resetHistory]);
+  }, [currentExample.source, beginPreviewSession]);
 
   const resetInstance = useCallback(() => {
     setRuntimeDiagnostics([]);
@@ -512,18 +437,13 @@ export default function App() {
     const next = savedSource(selectedExample, nextLanguage);
     setLanguage(nextLanguage);
     setSource(next);
-    resetHistory(next);
     setRuntimeDiagnostics([]);
     beginPreviewSession();
-    pendingSelection.current = null;
-    if (editorRef.current) editorRef.current.scrollTop = 0;
-    if (gutterRef.current) gutterRef.current.scrollTop = 0;
   }, [
     language,
     selectedExample,
     source,
     flushSourceWrite,
-    resetHistory,
     beginPreviewSession,
   ]);
 
@@ -531,49 +451,6 @@ export default function App() {
     () => compiled ? dedupeDiagnostics([...compiled.diagnostics, ...runtimeDiagnostics]) : [],
     [compiled, runtimeDiagnostics],
   );
-
-  const diagnosticLines = useMemo(
-    () => new Set(currentDiagnostics.map((item) => item.line)),
-    [currentDiagnostics],
-  );
-
-  const lines = useMemo(() => source.split('\n'), [source]);
-  const gutterMetrics = useGutterMetrics(lines, mirrorRef, editorRef);
-
-  const updateActiveLine = (element: HTMLTextAreaElement) => {
-    const line = element.value.slice(0, element.selectionStart).split('\n').length;
-    setActiveLine(line);
-  };
-
-  const onEditorScroll = (event: UIEvent<HTMLTextAreaElement>) => {
-    if (gutterRef.current) gutterRef.current.scrollTop = event.currentTarget.scrollTop;
-  };
-
-  const onEditorKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    const modifier = event.metaKey || event.ctrlKey;
-    const key = event.key.toLowerCase();
-    if (modifier && !event.altKey && key === 'z') {
-      event.preventDefault();
-      if (event.shiftKey) redoEdit();
-      else undoEdit();
-      return;
-    }
-    if (modifier && !event.altKey && key === 'y') {
-      event.preventDefault();
-      redoEdit();
-      return;
-    }
-    if (event.key !== 'Tab' || event.shiftKey) return;
-    event.preventDefault();
-    const element = event.currentTarget;
-    const start = element.selectionStart;
-    const end = element.selectionEnd;
-    const next = `${source.slice(0, start)}  ${source.slice(end)}`;
-    const selection = { start: start + 2, end: start + 2 };
-    recordHistory(next, selection, 'separate');
-    pendingSelection.current = selection;
-    replaceSource(next);
-  };
 
   const ready = compiled?.ok === true;
   const compiling = compilation.pending;
@@ -742,85 +619,22 @@ export default function App() {
                 <span className="syntax-tag">local-draft-2</span>
               </div>
 
-              <div className="editor-frame" ref={frameRef}>
-                <EditorToolbar
-                  editorRef={editorRef}
-                  onEdit={applyEdit}
-                  onUndo={undoEdit}
-                  onRedo={redoEdit}
-                  canUndo={canUndo}
-                  canRedo={canRedo}
-                  onExport={openExportDialog}
-                />
-
-                <label className="sr-only" htmlFor="source-editor">{copy.editor.sourceLabel}</label>
-                <div className={`editor-shell${composing ? ' is-composing' : ''}`}>
-                  <div className="editor-gutter" ref={gutterRef} aria-hidden="true">
-                    {lines.map((_, index) => {
-                      const lineNumber = index + 1;
-                      return (
-                        <span
-                          key={lineNumber}
-                          className={`gutter-line ${activeLine === lineNumber ? 'is-active' : ''} ${
-                            diagnosticLines.has(lineNumber) ? 'is-diagnostic' : ''
-                          }`}
-                          style={gutterMetrics.heights[index]
-                            ? { height: `${gutterMetrics.heights[index]}px` }
-                            : undefined}
-                        >
-                          {lineNumber}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  <div className="editor-input-wrap">
-                    <AuthorHighlight
-                      source={source}
-                      tokens={authorAnalysis.tokens}
-                      width={gutterMetrics.width}
-                      editorRef={editorRef}
-                    />
-                    <textarea
-                      id="source-editor"
-                      ref={editorRef}
-                      className="editor-input"
-                      value={source}
-                      wrap="soft"
-                      spellCheck={false}
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      aria-describedby="editor-note"
-                      onScroll={onEditorScroll}
-                      onChange={onSourceChange}
-                      onKeyDown={onEditorKeyDown}
-                      onCompositionStart={() => setComposing(true)}
-                      onCompositionEnd={() => setComposing(false)}
-                      onSelect={(event) => updateActiveLine(event.currentTarget)}
-                      onKeyUp={(event) => updateActiveLine(event.currentTarget)}
-                      onClick={(event) => updateActiveLine(event.currentTarget)}
-                    />
-                  </div>
-                  <div
-                    className="editor-mirror"
-                    ref={mirrorRef}
-                    aria-hidden="true"
-                    style={gutterMetrics.width ? { width: gutterMetrics.width } : undefined}
-                  >
-                    {lines.map((line, index) => (
-                      // CRLF sources leave a trailing \r that the textarea treats as the break.
-                      <div key={index}>{line.replace(/\r$/, '') || '\u200b'}</div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <AuthoringPanel
-                source={source}
-                analysis={authorAnalysis}
-                bindingDocument={compiled && compiled.ok ? compiled.document : null}
-                editorRef={editorRef}
-                onEdit={applyEdit}
-                onLocate={focusDiagnostic}
+              <ReactiveMarkdownEditor
+                ref={editorHandle}
+                id="source-editor"
+                textareaRef={editorRef}
+                value={source}
+                onChange={replaceSource}
+                locale={language}
+                theme={dark ? 'dark' : 'light'}
+                height="max(560px, 80vh)"
+                ariaLabel={copy.editor.sourceLabel}
+                documentKey={selectedExample}
+                diagnostics={currentDiagnostics}
+                document={compiled && compiled.ok ? compiled.document : null}
+                onExport={openExportDialog}
+                authoring
+                toolbar
               />
 
               <p className="editor-note" id="editor-note">

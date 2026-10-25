@@ -4,6 +4,10 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "reactive-md": ["./src/index.ts"],
+      "reactive-md/editor": ["./src/editor/index.ts"]
+    },
     "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
@@ -12,5 +16,5 @@
     "noEmit": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests", "vite.lib.config.ts", "vite.standalone.config.ts", "vitest.config.ts"]
+  "include": ["src", "tests", "vite.lib.config.ts", "vite.editor.config.ts", "vite.standalone.config.ts", "vitest.config.ts"]
 }

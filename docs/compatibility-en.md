@@ -1,19 +1,21 @@
 # Versions and compatibility
 
-Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](local-integration-en.md) for the public API and style integration, and [0.4.0 release and migration](release-0.4.0-en.md) for this release's upgrade summary.
+Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](local-integration-en.md) for the public API and style integration, [0.5.0 release notes](release-0.5.0-en.md) for the current preview, and [0.4.0 release and migration](release-0.4.0-en.md) for that minor series.
 
 ## Version mapping
 
 | Item | Current value | Notes |
 | --- | --- | --- |
-| Package version | `0.4.0` | 0.x preview, available on both `latest` and `next` |
-| Distribution tags | `latest` → `0.4.0`; `next` → `0.4.0` | Default installs use `latest` |
+| Package version | `0.5.0` | 0.x preview; 0.5.0 targets `next`, while `latest` remains `0.4.0` |
+| Distribution tags | `latest` → `0.4.0`; `next` → `0.5.0` (preview target) | Default installs use `latest` |
 | Syntax version | `local-draft-2` | `LOCAL_SYNTAX_VERSION`; the current build accepts only this revision |
 | Source revision directive | Optional `<!-- reactive-md: local-draft-2 -->` | One line in the document prologue; unversioned source keeps current-revision behavior |
 | Component protocol | `component-protocol-1` | Contribution and acceptance contract, see [Component protocol](component-protocol-en.md); not a runtime version selection parameter |
 | Core entry | `reactive-md` | Compilation, expressions and runtime, without loading React |
 | React entry | `reactive-md/react` | `LocalReactiveDocument`, `LocalDocumentView` |
-| Style entry | `reactive-md/styles.css` | One global stylesheet, explicitly imported by the host |
+| Editor entry | `reactive-md/editor` | `ReactiveMarkdownEditor` and its types; requires React 19 |
+| Renderer style entry | `reactive-md/styles.css` | Document and component styles, explicitly imported by the host |
+| Editor style entry | `reactive-md/editor/styles.css` | Independent editor styles, scoped to the editor root |
 
 One package version corresponds to exactly one syntax revision. Before upgrading the package, record the `LOCAL_SYNTAX_VERSION` your application uses. If document sources come from another syntax revision, keep rendering them with the old package version or rewrite them according to the migration notes below. `compileLocal(source, options?)` has no syntax version parameter; hosts can adjust the syntax node budget for a single compilation through `options.limits.maxSyntaxNodes`, see [Local mode integration](local-integration-en.md).
 
@@ -45,6 +47,8 @@ From `local-draft-1` to `local-draft-2`, this promise covers the common supporte
 Regression data in [the historical corpus](../examples/conformance/history/v0.3.1/provenance.json) preserves actual `v0.3.1` sources, their source commit and SHA256 digests. The regression suite checks the original conformance expectations, public values, rejected writes, initialization, resets and migration rendering. Internal IDs are excluded from comparisons.
 
 ## Breaking changes and migration
+
+`0.5.0` adds the `reactive-md/editor` entry and its independent stylesheet. It keeps `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports keep working, and documents written for 0.4.x need no migration. The editor requires React 19; see the [editor guide](editor-en.md) for its history and rendering boundaries.
 
 `0.4.0` adds [constraints and collections](constraints-collections-en.md): `LocalRuntime.validate()`, serializable `LocalValidation` rules, numeric arrays and generated tables. Hosts implementing a runtime adapter need the new `validate()` method; exhaustive value-kind checks need `number-array`. Rename bindings colliding with `sum`, `average`, `minOf` or `maxOf`.
 
@@ -87,17 +91,17 @@ See [Diagnostics and counting rules](diagnostics-counting-en.md) for units and r
 | --- | --- |
 | Node.js 22.12+ | Minimum for development and Node-side consumption; CI targets both 22.12 and 24 |
 | ESM | The only module format; no CommonJS entry |
-| React 19 | Required by `reactive-md/react`; the core entry does not depend on React |
+| React 19 | Required by `reactive-md/react` and `reactive-md/editor`; the core entry does not depend on React |
 | Microsoft Edge (Chromium-based) | Local browser verification has used Edge |
 | Playwright Chromium | Linux CI browser target |
 | Firefox, Safari/WebKit | Unverified; no support claim |
 | Shareable state format | `reactive-md-state/v1`: public parameter values with a syntax version and source digest; see [Shareable documents](shareable-export-en.md) |
 | Single-file HTML format | `reactive-md-html/v1`: interactive or static export, with an inline standalone runtime only in interactive mode |
-| SSR | `react-dom/server` static rendering is covered by the packed check. Static-first hydration of the single-file export is covered in Playwright Chromium/Edge; general SSR hydration is unverified and should be checked before use |
+| SSR | `react-dom/server` static rendering is covered by the packed check. The editor entry has no top-level DOM access and can be imported and rendered on the server; editing interactions run on the client. Static-first hydration of the single-file export is covered in Playwright Chromium/Edge; general SSR hydration is unverified and should be checked before use |
 
 Node-side consumption means importing `reactive-md` in Node and calling `compileLocal` and `createLocalRuntime` without a DOM. React rendering requires a browser environment, or the host must handle server output itself.
 
 See the [syntax specification](local-interaction-syntax-en.md) for the language scope, and the [security policy](../SECURITY.md) for the security boundary and host responsibilities.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. `0.4.0` is available on both `latest` and `next`.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. The 0.5.0 preview targets `next`; `latest` remains `0.4.0`.

@@ -1,6 +1,6 @@
 {
   "name": "reactive-md",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Author interactive local documents in Markdown, with expression-bound inputs, charts and diagrams.",
   "keywords": [
     "markdown",
@@ -34,7 +34,7 @@
     "dev:lib": "vite build --config vite.lib.config.ts --watch",
     "build": "npm run typecheck && npm run build:lib",
     "build:standalone": "vite build --config vite.standalone.config.ts",
-    "build:lib": "vite build --config vite.lib.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
+    "build:lib": "vite build --config vite.lib.config.ts && vite build --config vite.editor.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
     "build:demo": "npm run build && npm run build --workspace=@reactive-md/demo",
     "preview": "npm run preview --workspace=@reactive-md/demo",
     "typecheck": "tsc --noEmit",
@@ -50,6 +50,8 @@
     "test:docs": "node scripts/verify-docs.mjs",
     "test:theme-browser": "node scripts/verify-theme-browser.mjs",
     "test:date-browser": "node scripts/verify-date-input-browser.mjs",
+    "test:editor-browser": "node scripts/verify-editor-browser.mjs",
+    "test:markdown-browser": "node scripts/verify-markdown-browser.mjs",
     "test:computations-browser": "node scripts/verify-computations-browser.mjs",
     "test:constraints-browser": "node scripts/verify-constraints-browser.mjs",
     "verify:memo": "node scripts/verify-memo-browser.mjs",
@@ -65,7 +67,9 @@
   "exports": {
     ".": { "types": "./dist-library/types/index.d.ts", "import": "./dist-library/reactive-md.js" },
     "./react": { "types": "./dist-library/types/react/index.d.ts", "import": "./dist-library/reactive-md-react.js" },
-    "./styles.css": "./dist-library/reactive-md.css"
+    "./styles.css": "./dist-library/reactive-md.css",
+    "./editor": { "types": "./dist-library/types/editor/index.d.ts", "import": "./dist-library/reactive-md-editor.js" },
+    "./editor/styles.css": "./dist-library/reactive-md-editor.css"
   },
   "peerDependencies": {
     "react": "^19.0.0",

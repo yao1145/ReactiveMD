@@ -323,112 +323,9 @@ textarea {
 
 /* Editor */
 
-.editor-frame {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: clamp(560px, 80vh, 960px);
-  min-width: 0;
-  container-name: editor-frame;
-  container-type: inline-size;
-  background: var(--code-bg);
-  border: 1px solid color-mix(in srgb, var(--code-ink) 12%, var(--code-bg));
-  border-radius: var(--radius-card);
-  overflow: visible;
-  transition:
-    border-color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard);
-}
-
-.editor-frame:focus-within {
-  border-color: var(--focus);
-  box-shadow: var(--focus-ring);
-}
-
-.editor-shell {
-  position: relative;
-  display: flex;
-  flex: 1 1 auto;
-  height: auto;
-  min-height: 0;
-  background: var(--code-bg);
-  border: 0;
-  border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
-  overflow: hidden;
-}
-
-.editor-gutter {
-  flex: 0 0 var(--space-7);
-  padding: var(--space-3) 0;
-  background: var(--code-bg-deep);
-  border-right: 1px solid color-mix(in srgb, var(--code-ink) 10%, var(--code-bg-deep));
-  color: color-mix(in srgb, var(--code-ink) 48%, var(--code-bg-deep));
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  line-height: var(--leading-normal);
-  text-align: right;
-  overflow: hidden;
-  user-select: none;
-}
-
-.gutter-line {
-  display: block;
-  padding-right: var(--space-2);
-  border-left: 2px solid transparent;
-  white-space: nowrap;
-}
-
-.gutter-line.is-active {
-  background: color-mix(in srgb, var(--blue) 18%, transparent);
-  border-left-color: var(--blue);
-  color: var(--code-ink);
-}
-
-.gutter-line.is-diagnostic {
-  border-left-color: color-mix(in srgb, var(--danger) 80%, var(--code-ink));
-  color: color-mix(in srgb, var(--danger) 58%, var(--code-ink));
-}
-
-.editor-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: var(--space-3) var(--space-4);
-  background: transparent;
-  border: 0;
-  outline: none;
-  color: var(--code-ink);
-  caret-color: var(--blue);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  line-height: var(--leading-normal);
-  tab-size: 2;
-  resize: none;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-break: normal;
-  overflow: auto;
-}
-
-/* Hidden measurement mirror; must copy the editor's text metrics exactly. */
-.editor-mirror {
-  position: absolute;
-  top: 0;
-  left: 0;
-  visibility: hidden;
-  pointer-events: none;
-  padding: var(--space-3) var(--space-4);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  line-height: var(--leading-normal);
-  tab-size: 2;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-break: normal;
-}
-
-.editor-input::placeholder {
-  color: color-mix(in srgb, var(--code-ink) 40%, var(--code-bg));
-}
+/* The editor frame, gutter, highlight and toolbar styling lives in the
+   public editor package (reactive-md/editor/styles.css); the demo only owns
+   the surrounding pane and the note under the editor. */
 
 .editor-note {
   margin: var(--space-2) 0 0;
@@ -1025,10 +922,6 @@ textarea {
     border-bottom: 1px solid var(--line);
   }
 
-  .editor-frame {
-    height: clamp(460px, 70vh, 720px);
-  }
-
   .preview-stage,
   .preview-loading {
     min-height: 300px;
@@ -1111,21 +1004,6 @@ textarea {
 
   .pane-subtitle {
     display: none;
-  }
-
-  .editor-frame {
-    height: clamp(360px, 66vh, 560px);
-  }
-
-  .editor-gutter {
-    flex-basis: 40px;
-    font-size: var(--text-xs);
-  }
-
-  .editor-input,
-  .editor-mirror {
-    padding: var(--space-3);
-    font-size: var(--text-xs);
   }
 
   .md-document h1 {

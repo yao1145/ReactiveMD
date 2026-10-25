@@ -2,11 +2,19 @@
 
 本文件记录用户可见变更。项目处于 0.x 预览阶段，版本与迁移规则见[版本与兼容性](docs/compatibility-ch.md)。
 
-## 未发布
+## 0.5.0（2026-10-25，next 渠道）
 
-- 泛型、比较式和货币按普通正文显示，避免误识别为组件标签或公式。
+兼容 0.4.1。语法仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入保持不变，渲染器入口 API 不变。见[0.5.0 发布说明](docs/release-0.5.0-ch.md)。
+
+### 新增
+
+- 新增 `reactive-md/editor`，这是从 Playground 抽出的受控 React 19 源码编辑器，并提供独立样式入口 `reactive-md/editor/styles.css`。它包含高亮、格式与插入工具、补全、绑定导航、重命名、格式化、撤销重做、行号和滚动同步。语言与主题按实例设置；`diagnostics` 和 `document` 用于行号标记与绑定值类型。预览、持久化和导出由宿主负责。
 - 支持无属性的 `<b>`、`<i>`、`<u>`、`<s>`、`<mark>` 和 `<br>` 基础格式。
 - 脚注支持 Markdown 正文排版、编号、重复引用及返回链接。
+
+### 修复
+
+- 泛型、比较式和货币按普通正文显示，避免误识别为组件标签或公式。
 
 ## 0.4.1（2026-10-25）
 

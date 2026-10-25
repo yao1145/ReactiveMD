@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Editor acceptance fixture</title>
+  <style>
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: rgb(240, 241, 243);
+      color: rgb(1, 2, 3);
+      font-family: system-ui, sans-serif;
+    }
+    #host-sentinel { margin: 0 0 12px; color: rgb(1, 2, 3); }
+    .host-button {
+      min-height: 32px;
+      padding: 0 12px;
+      border: 2px solid rgb(1, 2, 3);
+      border-radius: 2px;
+      background: rgb(9, 9, 9);
+      color: rgb(250, 250, 250);
+      font: inherit;
+    }
+    .fixture-grid { display: flex; flex-direction: column; gap: 20px; }
+    .fixture-pane { min-width: 0; }
+    @media (min-width: 1000px) {
+      .fixture-grid { flex-direction: row; align-items: flex-start; }
+      .fixture-pane { flex: 1 1 0; }
+    }
+  </style>
+</head>
+<body>
+  <p id="host-sentinel">Host content</p>
+  <button type="button" class="host-button" id="host-button">Host action</button>
+  <div id="root"></div>
+  <script type="module" src="/tests/browser/editor-fixture.tsx"></script>
+</body>
+</html>

@@ -2,11 +2,19 @@
 
 This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
 
-## Unreleased
+## 0.5.0 (2026-10-25, next channel)
 
-- Preserve ordinary generic/comparison text and currency without misreading them as component tags or formulas.
+Compatible with 0.4.1. Syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports are unchanged, and the renderer entry keeps its API. See [0.5.0 release notes](docs/release-0.5.0-en.md).
+
+### Added
+
+- Add `reactive-md/editor`, a controlled React 19 source editor extracted from the Playground, with the independent style entry `reactive-md/editor/styles.css`. It provides highlighting, formatting and insertion tools, completion, binding navigation, rename, format, undo and redo, line numbers and scroll synchronization. Locale and theme are set per instance; `diagnostics` and `document` add gutter markers and binding value types. The host owns preview, persistence and export.
 - Support attribute-free `<b>`, `<i>`, `<u>`, `<s>`, `<mark>` and `<br>` formatting.
 - Render Markdown footnotes with rich definitions, numbering, repeated references and return links.
+
+### Fixed
+
+- Preserve ordinary generic/comparison text and currency without misreading them as component tags or formulas.
 
 ## 0.4.1 (2026-10-25)
 

@@ -202,6 +202,21 @@ assert.equal(typeof renderer.LocalReactiveDocument, 'function');
 assert.equal(typeof renderer.LocalDocumentView, 'function');
 const { createElement } = await import('react');
 const { renderToStaticMarkup } = await import('react-dom/server');
+const editor = await import('reactive-md/editor');
+assert.ok(editor.ReactiveMarkdownEditor, 'The editor subpath must export its React component');
+assert.equal(pkg.exports['./editor'].types, './dist-library/types/editor/index.d.ts');
+assert.equal(pkg.exports['./editor/styles.css'], './dist-library/reactive-md-editor.css');
+const editorCss = await readFile('dist-library/reactive-md-editor.css', 'utf8');
+assert.ok(editorCss.includes('.reactive-md-editor'), 'Editor styles must be scoped to the editor root');
+assert.ok(!css.includes('.reactive-md-editor'), 'Document CSS must remain independent of the editor');
+const editorHtml = renderToStaticMarkup(createElement(editor.ReactiveMarkdownEditor, {
+  value: '# Editor host\n\n<script>literal</script>', onChange() {}, locale: 'zh', theme: 'dark',
+}));
+assert.ok(editorHtml.includes('Editor host'), 'The editor must render without a browser');
+assert.ok(!editorHtml.includes('<script>literal</script>'), 'Editor source must stay escaped');
+for (const specifier of moduleSpecifiers(await readFile('dist-library/reactive-md-editor.js', 'utf8'))) {
+  assert.ok(specifier.startsWith('.') || ['react', 'react-dom', 'react/jsx-runtime', 'reactive-md'].includes(specifier), `Unexpected editor runtime dependency: ${specifier}`);
+}
 const themeHtml = renderToStaticMarkup(createElement(renderer.LocalReactiveDocument, {
   source: themed.document.source, themes: [themeDefinition], colorScheme: 'dark',
 }));

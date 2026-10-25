@@ -1,0 +1,311 @@
+/* Standalone stylesheet for the Reactive MD source editor.
+
+   Every selector is scoped to `.reactive-md-editor` or its descendants so the
+   package can be mounted inside any host page. The internal stylesheets use
+   native CSS nesting for the same reason. */
+
+@import './editor-toolbar.css';
+@import './source-authoring.css';
+
+.reactive-md-editor {
+  color-scheme: light;
+
+  /* Surfaces */
+  --surface: #ffffff;
+  --surface-subtle: #f7f7f5;
+  --surface-hover: color-mix(in srgb, var(--ink) 5%, var(--surface));
+  --surface-active: color-mix(in srgb, var(--ink) 8%, var(--surface));
+
+  /* Text */
+  --ink: #232323;
+  --ink-soft: #4f4f4d;
+  --ink-muted: #6f6f6c;
+
+  /* Borders */
+  --line: #e4e3df;
+  --line-strong: #d0cfc9;
+
+  /* Accent */
+  --blue: #3f5f8f;
+  --blue-deep: #33507a;
+  --blue-soft: #eef1f6;
+  --blue-line: #d8dfe9;
+  --teal: #167875;
+  --success: var(--teal);
+  --warning: #8a5a10;
+  --danger: #a2273a;
+  --neutral-soft: #f1f0ed;
+
+  /* Focus */
+  --focus: var(--blue);
+  --focus-outline: 2px solid var(--focus);
+  --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
+
+  /* Code surface. The editor stays a dark writing surface in both themes. */
+  --code-bg: #0f172a;
+  --code-bg-deep: #0b1220;
+  --code-ink: #dce6ff;
+
+  /* Type */
+  --text-xs: 12.5px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --leading-tight: 1.3;
+  --leading-snug: 1.5;
+  --leading-normal: 1.6;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Radius */
+  --radius-control: 6px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+  --radius-md: var(--radius-card);
+
+  /* Controls */
+  --control-height-sm: 32px;
+  --control-height-lg: 44px;
+  --control-inset-x: 19px;
+  --disabled-opacity: 0.45;
+
+  /* Motion */
+  --motion-fast: 160ms;
+  --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", "SFMono-Regular", "Menlo", "Liberation Mono",
+    monospace;
+
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.reactive-md-editor,
+.reactive-md-editor *,
+.reactive-md-editor *::before,
+.reactive-md-editor *::after {
+  box-sizing: border-box;
+}
+
+.reactive-md-editor button,
+.reactive-md-editor input,
+.reactive-md-editor textarea {
+  font: inherit;
+}
+
+.reactive-md-editor[data-editor-theme="dark"] {
+  color-scheme: dark;
+
+  --surface: #1b1b1d;
+  --surface-subtle: #202022;
+  --surface-hover: color-mix(in srgb, var(--ink) 8%, var(--surface));
+  --surface-active: color-mix(in srgb, var(--ink) 12%, var(--surface));
+
+  --ink: #ecebe7;
+  --ink-soft: #c3c1bb;
+  --ink-muted: #9b9993;
+
+  --line: #343436;
+  --line-strong: #4d4d4f;
+
+  --blue: #47679f;
+  --blue-deep: #5574ad;
+  --blue-soft: #232a35;
+  --blue-line: #37445a;
+  --teal: #68ccc2;
+  --success: var(--teal);
+  --warning: #f0b84f;
+  --danger: #ffa0ae;
+  --neutral-soft: #26262a;
+
+  --focus: #a9bce3;
+  --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  .reactive-md-editor[data-editor-theme="auto"] {
+    color-scheme: dark;
+
+    --surface: #1b1b1d;
+    --surface-subtle: #202022;
+    --surface-hover: color-mix(in srgb, var(--ink) 8%, var(--surface));
+    --surface-active: color-mix(in srgb, var(--ink) 12%, var(--surface));
+
+    --ink: #ecebe7;
+    --ink-soft: #c3c1bb;
+    --ink-muted: #9b9993;
+
+    --line: #343436;
+    --line-strong: #4d4d4f;
+
+    --blue: #47679f;
+    --blue-deep: #5574ad;
+    --blue-soft: #232a35;
+    --blue-line: #37445a;
+    --teal: #68ccc2;
+    --success: var(--teal);
+    --warning: #f0b84f;
+    --danger: #ffa0ae;
+    --neutral-soft: #26262a;
+
+    --focus: #a9bce3;
+    --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
+  }
+}
+
+.reactive-md-editor .reactive-md-editor-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Editor frame --------------------------------------------------------- */
+
+.reactive-md-editor .editor-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 560px;
+  min-height: 280px;
+  min-width: 0;
+  container-name: editor-frame;
+  container-type: inline-size;
+  background: var(--code-bg);
+  border: 1px solid color-mix(in srgb, var(--code-ink) 12%, var(--code-bg));
+  border-radius: var(--radius-card);
+  overflow: visible;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.reactive-md-editor .editor-frame:focus-within {
+  border-color: var(--focus);
+  box-shadow: var(--focus-ring);
+}
+
+.reactive-md-editor .editor-shell {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  background: var(--code-bg);
+  border: 0;
+  border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
+  overflow: hidden;
+}
+
+.reactive-md-editor .editor-gutter {
+  flex: 0 0 var(--space-7);
+  padding: var(--space-3) 0;
+  background: var(--code-bg-deep);
+  border-right: 1px solid color-mix(in srgb, var(--code-ink) 10%, var(--code-bg-deep));
+  color: color-mix(in srgb, var(--code-ink) 48%, var(--code-bg-deep));
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  text-align: right;
+  overflow: hidden;
+  user-select: none;
+}
+
+.reactive-md-editor .gutter-line {
+  display: block;
+  padding-right: var(--space-2);
+  border-left: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.reactive-md-editor .gutter-line.is-active {
+  background: color-mix(in srgb, var(--blue) 18%, transparent);
+  border-left-color: var(--blue);
+  color: var(--code-ink);
+}
+
+.reactive-md-editor .gutter-line.is-diagnostic {
+  border-left-color: color-mix(in srgb, var(--danger) 80%, var(--code-ink));
+  color: color-mix(in srgb, var(--danger) 58%, var(--code-ink));
+}
+
+.reactive-md-editor .editor-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--code-ink);
+  caret-color: var(--blue);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  tab-size: 2;
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  overflow: auto;
+}
+
+/* Hidden measurement mirror; must copy the editor's text metrics exactly. */
+.reactive-md-editor .editor-mirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.reactive-md-editor .editor-input::placeholder {
+  color: color-mix(in srgb, var(--code-ink) 40%, var(--code-bg));
+}
+
+.reactive-md-editor .editor-input:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+@media (max-width: 620px) {
+  .reactive-md-editor .editor-gutter {
+    flex-basis: 40px;
+    font-size: var(--text-xs);
+  }
+
+  .reactive-md-editor .editor-input,
+  .reactive-md-editor .editor-mirror {
+    padding: var(--space-3);
+    font-size: var(--text-xs);
+  }
+}

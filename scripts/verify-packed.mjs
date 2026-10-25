@@ -179,6 +179,9 @@ try {
     'dist-library/reactive-md.css',
     'dist-library/types/index.d.ts',
     'dist-library/types/react/index.d.ts',
+    'dist-library/reactive-md-editor.js',
+    'dist-library/reactive-md-editor.css',
+    'dist-library/types/editor/index.d.ts',
     'dist-standalone/reactive-md-standalone.js',
     'dist-standalone/reactive-md-standalone.css',
     'bin/reactive-md.mjs',
@@ -203,6 +206,9 @@ try {
     'dist-library/reactive-md.css',
     'dist-library/types/index.d.ts',
     'dist-library/types/react/index.d.ts',
+    'dist-library/reactive-md-editor.js',
+    'dist-library/reactive-md-editor.css',
+    'dist-library/types/editor/index.d.ts',
     'dist-standalone/reactive-md-standalone.js',
     'dist-standalone/reactive-md-standalone.css',
     'bin/reactive-md.mjs',
@@ -265,9 +271,9 @@ try {
   assert.ok(existsSync(cssPath), `CSS export ${cssTarget} does not exist in the installed package`);
   assert.ok((await stat(cssPath)).size > 0, 'CSS export is empty');
 
-  // The React entry is allowed to import react; the core entry graph must be self-contained.
+  // UI entries may import their React peers; the core graph stays self-contained.
   for (const file of (await readdir(path.join(installedCore, 'dist-library')))
-    .filter(name => name.endsWith('.js') && name !== 'reactive-md-react.js')) {
+    .filter(name => name.endsWith('.js') && !['reactive-md-react.js', 'reactive-md-editor.js'].includes(name))) {
     const source = await readFile(path.join(installedCore, 'dist-library', file), 'utf8');
     const imports = moduleSpecifiers(source);
     for (const specifier of imports) {
@@ -677,6 +683,21 @@ console.log('PASS packed React combination view');
   await writeFile(path.join(reactConsumer, 'react-types.tsx'), `import { createElement } from 'react';
 import { compileLocal, createLocalRuntime } from 'reactive-md';
 import { LocalDocumentView, LocalReactiveDocument, type LocalUrlPolicy } from 'reactive-md/react';
+import { createRef } from 'react';
+import { ReactiveMarkdownEditor, type ReactiveMarkdownEditorHandle, type ReactiveMarkdownEditorProps } from 'reactive-md/editor';
+
+const editorRef = createRef<ReactiveMarkdownEditorHandle>();
+const editorProps: ReactiveMarkdownEditorProps = {
+  value: '# Editable source', onChange(value) { void value; }, locale: 'zh', theme: 'dark',
+  height: 480, minHeight: '240px', documentKey: 'typed-editor', diagnostics: [],
+};
+const editor = createElement(ReactiveMarkdownEditor, { ...editorProps, ref: editorRef });
+editorRef.current?.selectRange({ start: 0, end: 3 });
+editorRef.current?.getTextarea();
+editorRef.current?.getSelection();
+editorRef.current?.undo();
+editorRef.current?.redo();
+void editor;
 
 const policy: LocalUrlPolicy = (_url, kind) => kind === 'link';
 const view = createElement(LocalReactiveDocument, { source: '# Typed host', urlPolicy: policy });
@@ -704,6 +725,34 @@ void view;
   const viteCli = path.join(path.dirname(require.resolve('vite/package.json')), 'bin', 'vite.js');
   await run('standalone React example build', process.execPath, [viteCli, 'build'], reactConsumer);
 
+  await writeFile(path.join(reactConsumer, 'editor-ssr.mjs'), `import assert from 'node:assert/strict';
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
+import { ReactiveMarkdownEditor } from 'reactive-md/editor';
+const html = renderToString(createElement(ReactiveMarkdownEditor, {
+  value: '# Packed editor\\n\\n<script>literal</script>', onChange() {}, locale: 'zh', theme: 'dark',
+}));
+assert.ok(html.includes('Packed editor'));
+assert.ok(html.includes('textarea'));
+assert.ok(!html.includes('<script>literal</script>'));
+console.log('PASS packed editor import and SSR');
+`);
+  await run('packed editor SSR', process.execPath, [path.join(reactConsumer, 'editor-ssr.mjs')], reactConsumer);
+  const editorCssTarget = exportTarget(installedPkg, './editor/styles.css');
+  assert.equal(editorCssTarget, './dist-library/reactive-md-editor.css');
+  assert.ok((await stat(path.resolve(installedCore, editorCssTarget))).size > 0);
+  await writeFile(path.join(reactConsumer, 'main.jsx'), `import React, { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { ReactiveMarkdownEditor } from 'reactive-md/editor';
+import 'reactive-md/editor/styles.css';
+function App() {
+  const [source, setSource] = useState('# Packed editor');
+  return <ReactiveMarkdownEditor value={source} onChange={setSource} locale="zh" />;
+}
+createRoot(document.getElementById('root')).render(<App />);
+`);
+  await run('standalone editor consumer build', process.execPath, [viteCli, 'build'], reactConsumer);
+
   // Retain the exact archive exercised above, so release preparation produces
   // an installable candidate with a digest instead of discarding its evidence.
   const candidateDirectory = path.join(projectRoot, 'artifacts', 'release-package');
@@ -718,7 +767,7 @@ void view;
     sha256: createHash('sha256').update(candidateBytes).digest('hex'),
     integrity: core.entry.integrity,
     verifiedAt: new Date().toISOString(),
-    checks: ['offline core and React install', 'strict types', 'combined capabilities', 'CLI static and interactive HTML', 'SSR', 'standalone integration example'],
+    checks: ['offline core and React install', 'strict core/React/editor types', 'combined capabilities', 'CLI static and interactive HTML', 'SSR including editor', 'standalone integration example', 'editor CSS and independent consumer build'],
   }, null, 2), 'utf8');
   console.log(`PASS packed tarball installs offline, isolated core and React types compile, SSR and standalone examples work, and ${documentationLinks} packaged documentation links resolve`);
   console.log(`Verified release candidate: ${path.relative(projectRoot, path.join(candidateDirectory, candidateName))}`);
