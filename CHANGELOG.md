@@ -2,6 +2,23 @@
 
 This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
 
+## 0.4.1 (2026-10-25)
+
+Compatible with 0.4.0; syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. See [0.4.1 release notes](docs/release-0.4.1-en.md).
+
+### Changed
+
+- Refine light/dark document surfaces, visual hierarchy, muted chart colors and control transitions.
+- Use rounded fields and buttons, custom slider tracks and circular selection controls. Slider `color` now colors the track.
+- Balance full-width table columns, show triangle sort indicators and enlarge donut charts.
+- Draw coordinate controls with a grid, arrow axes, dashed projections and a labeled draggable point. Keep keyboard and numeric input alternatives.
+- Let quiz inputs fill their container and vertically center quiz content.
+
+### Fixed
+
+- Render LaTeX at the document body size, with black/white ink and non-overlapping piecewise conditions.
+- Preserve source editor scroll after toolbar insertion and keep date inputs within narrow layouts.
+
 ## 0.4.0 (2026-10-24, next channel)
 
 `0.4.0` is a 0.x preview available on both `latest` and `next`. It uses syntax revision `local-draft-2` and upgrades from `0.3.1` / `local-draft-1`; the package version, syntax revision, `component-protocol-1` component protocol and `reactive-md-theme-1` theme protocol are independent version axes. See [0.4.0 release and migration](docs/release-0.4.0-en.md) for the complete upgrade checklist.

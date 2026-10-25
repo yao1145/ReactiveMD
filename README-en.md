@@ -4,7 +4,7 @@
 
 Write local interactive documents in Markdown. Add input controls, name parameters with `bind`, and connect prose, formulas, charts and diagrams with `{{ expressions }}`. Document authors do not write JavaScript or CSS.
 
-Local mode uses HTML-style tags, with parameters and table data written directly in the prose; LaTeX formulas can drive function plots. The TypeScript core and the React renderer can be integrated independently. `0.4.0` is the current 0.x preview on both `latest` and `next`, with syntax revision `local-draft-2`. See [README-ch.md](README-ch.md) for the Chinese overview.
+Local mode uses HTML-style tags, with parameters and table data written directly in the prose; LaTeX formulas can drive function plots. The TypeScript core and the React renderer can be integrated independently. `0.4.1` is the current 0.x preview on both `latest` and `next`, with syntax revision `local-draft-2`. See [README-ch.md](README-ch.md) for the Chinese overview.
 
 ## Start here
 
@@ -17,7 +17,8 @@ Local mode uses HTML-style tags, with parameters and table data written directly
 - [Standalone integration examples](examples/integration/README.md): Node core and React pages you can copy and run outside the repository.
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
 - [Component protocol](docs/component-protocol-en.md) · [Component development guide](docs/component-development-en.md): declarations, behavior contracts and compatibility acceptance for new components.
-- [0.4.0 release and migration](docs/release-0.4.0-en.md): what this release adds and how to upgrade from `0.3.1` / `local-draft-1`.
+- [0.4.1 release notes](docs/release-0.4.1-en.md): visual and interaction fixes, compatible with 0.4.0.
+- [0.4.0 release and migration](docs/release-0.4.0-en.md): what the minor series adds and how to upgrade from `0.3.1` / `local-draft-1`.
 
 ## Write a document
 
@@ -42,7 +43,7 @@ Reactive MD requires Node.js 22.12 or newer and ships only ESM entries:
 npm install reactive-md
 ```
 
-Both `latest` and `next` resolve to `0.4.0`; pin it with `npm install reactive-md@0.4.0`. Read the migration guide before upgrading from `0.3.1` / `local-draft-1`.
+Both `latest` and `next` resolve to `0.4.1`; pin it with `npm install reactive-md@0.4.1`. Read the migration guide before upgrading from `0.3.1` / `local-draft-1`.
 
 The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`.
 
@@ -132,7 +133,7 @@ See the [contributing guide](CONTRIBUTING.md) for development and test commands.
 
 - CI targets Node 22.12 and Node 24 with Playwright Chromium; local browser checks use Microsoft Edge. The packed check covers static SSR, and `npm run test:shareable` covers the single-file export's static-first hydration. General SSR hydration outside that path, Firefox and WebKit remain unverified.
 - 0.x minor releases may contain breaking changes. Persist the original `.reactive.md` source, not the runtime AST or in-memory state.
-- `0.4.0` is available on both `latest` and `next`. Security fixes may ship in minor releases.
+- `0.4.1` is available on both `latest` and `next`. Security fixes may ship in minor releases.
 
 ## Contributing and security
 

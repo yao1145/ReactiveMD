@@ -22,8 +22,8 @@ try {
     await expect.poll(() => page.evaluate(() => window.themeHarness.cleanDiagnosticCalls)).toBe(1);
     await expect(primary).toHaveAttribute('data-color-scheme', 'dark');
     await expect(page.locator('#forced-light article')).toHaveAttribute('data-color-scheme', 'light');
-    await expect(page.locator('#forced-light article')).toHaveCSS('color', 'rgb(23, 35, 61)');
-    await expect(primary).toHaveCSS('color', 'rgb(229, 237, 252)');
+    await expect(page.locator('#forced-light article')).toHaveCSS('color', 'rgb(35, 35, 35)');
+    await expect(primary).toHaveCSS('color', 'rgb(236, 235, 231)');
     await expect(primary).toHaveCSS('background-color', 'rgb(40, 25, 35)');
     await expect(page.locator('#forced-light article')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     await expect(page.locator('#other input[type="range"]')).toHaveCount(0);

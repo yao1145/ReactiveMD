@@ -1,6 +1,6 @@
 # 发布清单
 
-本文件是维护者的手动发布流程。本清单覆盖 `0.4.0` 预览版，目前 `latest` 和 `next` 均指向该版本。版本规则见[版本与兼容性](compatibility-ch.md)，面向使用者的升级说明见[0.4.0 发布与迁移](release-0.4.0-ch.md)。
+本文件是维护者的手动发布流程。本清单覆盖 `0.4.1` 预览版，目前 `latest` 和 `next` 均指向该版本。版本规则见[版本与兼容性](compatibility-ch.md)，面向使用者的升级说明见[0.4.1 发布说明](release-0.4.1-ch.md)。
 
 ## 发布前确认
 
@@ -13,7 +13,7 @@
 3. 核对 `package.json` 的 `repository`、`homepage`、`bugs`、`license`、`engines` 等发布元数据；当前已设置，发布前确认 URL 和最低 Node 版本仍然正确，并确认 `private` 保持移除状态。
 4. 确认 `files` 覆盖发布所需内容。当前包含 `dist-library`、`dist-standalone`、`bin`、`cli`、README（`README.md`、`README-en.md`、`README-ch.md`）、中英文贡献指南、变更记录与安全策略、`THIRD_PARTY_NOTICES.md`、`docs` 和 `examples`；新增文档或 notice 时同步加入 `files`。
 
-包名和版本决定 tarball 名称。当前 `0.4.0` 的预期文件名是 `reactive-md-0.4.0.tgz`；改名或改版本后以 `npm pack` 的实际输出为准。
+包名和版本决定 tarball 名称。当前 `0.4.1` 的预期文件名是 `reactive-md-0.4.1.tgz`；改名或改版本后以 `npm pack` 的实际输出为准。
 
 ### 第三方 notice
 
@@ -51,7 +51,7 @@ npm pack
 mkdir /tmp/reactive-md-consumer
 cd /tmp/reactive-md-consumer
 npm init -y
-npm install /path/to/reactive-md-0.4.0.tgz
+npm install /path/to/reactive-md-0.4.1.tgz
 ```
 
 核心入口可在 Node 中直接检查：
@@ -79,7 +79,7 @@ import 'reactive-md/styles.css';
 
 - 包版本、`LOCAL_SYNTAX_VERSION`、组块协议修订与主题协议修订；这些不是同一个版本号。
 - 安装方式：`npm install reactive-md@next`，或使用 `npm install reactive-md@<version>` 固定版本；并提供可下载 tarball 作为离线安装选项。
-- 用户可见变化、破坏性变更和迁移步骤；直接链接[变更记录](../CHANGELOG-ch.md)，本轮同时链接[0.4.0 发布说明](release-0.4.0-ch.md)。
+- 用户可见变化、破坏性变更和迁移步骤；直接链接[变更记录](../CHANGELOG-ch.md)，本轮同时链接[0.4.1 发布说明](release-0.4.1-ch.md)。
 - 已验证的平台，以及未验证的浏览器、通用 SSR 水合等范围。
 - 已知限制和安全说明链接 [SECURITY-ch.md](../SECURITY-ch.md)。
 
@@ -93,8 +93,8 @@ import 'reactive-md/styles.css';
 4. 检查门禁保留的安装包，包括文件列表、大小和许可文件。手动重新运行 `npm pack` 会产生新候选包，需要单独完成安装验证。
 5. 核对安装包的 SHA256 与 `artifacts/release-package/package-verification.json` 一致，并记录到发布说明或内部发布记录。
 6. 合并发布提交，等待 `main` 上的 CI 全部通过。
-7. 手动创建并推送 tag，例如 `v0.4.0`。不要在自动发布工作流中保存 npm token。
-8. 在维护者本机完成 npm 登录和双因素认证后，手动发布已经验证的预览版安装包：`npm publish artifacts/release-package/reactive-md-0.4.0.tgz --access public --tag next`。预览版先发布到 `next`。维护者决定提升后，使用 `npm dist-tag add reactive-md@<version> latest` 更新默认版本。本次 `0.4.0` 已完成提升，`latest` 和 `next` 均指向它。
+7. 手动创建并推送 tag，例如 `v0.4.1`。不要在自动发布工作流中保存 npm token。
+8. 在维护者本机完成 npm 登录和双因素认证后，手动发布已经验证的预览版安装包：`npm publish artifacts/release-package/reactive-md-0.4.1.tgz --access public --tag next`。预览版先发布到 `next`。维护者决定提升后，使用 `npm dist-tag add reactive-md@<version> latest` 更新默认版本。当前 `latest` 的兼容补丁版在发布验证后，同步更新这两个渠道。
 9. 在 npm 和 GitHub Releases 上核对包内容、版本、README、许可与发布说明；从公开 registry 重新安装一次。
 10. 从 registry 验证 README 中的安装命令可用，核对 registry 的完整性摘要与发布 tarball 一致。
 
