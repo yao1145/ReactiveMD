@@ -25,7 +25,7 @@ export function AuthorTools(props: AuthorToolsProps) {
     <div className="author-tool-group">
       <button type="button" onClick={() => file.current?.click()}>{copy.importDocument}</button>
       <button type="button" onClick={props.onExport}>{copy.exportDocument}</button>
-      <input ref={file} type="file" accept=".md,.markdown,.reactive.md,text/markdown,text/plain" hidden onChange={async event => {
+      <input ref={file} type="file" accept=".md,.markdown,.reactive.md,.html,.htm,text/markdown,text/plain,text/html" hidden onChange={async event => {
         const control = event.currentTarget;
         const selected = control.files?.[0];
         if (selected) props.onImport(await selected.text());

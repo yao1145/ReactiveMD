@@ -12,7 +12,7 @@ import {
   type LocalStateGenerator,
 } from '../local/state';
 import type { LocalColorScheme, LocalThemeDefinition } from '../local/theme';
-import type { Diagnostic, LocalRuntime } from '../local/types';
+import type { Diagnostic, LocalCompileOptions, LocalRuntime } from '../local/types';
 import { diagnosticsFromError, errorText, ReactiveMDMountError, standaloneDiagnostic } from './diagnostics';
 import { REACTIVE_MD_DIAGNOSTICS_EVENT } from './events';
 import { parseMountPayload } from './payload';
@@ -33,6 +33,11 @@ export interface ReactiveMDMountOptions {
   /** True when hydrating server-rendered static-first markup. */
   hydrate?: boolean;
   generator?: LocalStateGenerator;
+  /**
+   * Capability flags and limits used by the export. Only explicit host or
+   * payload values enable the native HTML route; source text and state never do.
+   */
+  compileOptions?: LocalCompileOptions;
 }
 
 export interface ReactiveMDHandle {
@@ -160,7 +165,12 @@ export function createStandaloneMount(
     );
   }
 
-  const prepared = prepareStandaloneDocument(options.source, options.state, hooks.theme);
+  const prepared = prepareStandaloneDocument(
+    options.source,
+    options.state,
+    hooks.theme,
+    options.compileOptions,
+  );
 
   let runtime: LocalRuntime;
   try {
@@ -399,6 +409,7 @@ export function mountAll(root?: ParentNode): ReactiveMDHandle[] {
         colorScheme: payload.colorScheme,
         hydrate: payload.hydrate,
         images: payload.images,
+        compileOptions: payload.compileOptions,
       }));
     } catch (error) {
       reportAutoDiagnostics(doc, target, diagnosticsFromError(error));

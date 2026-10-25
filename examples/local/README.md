@@ -4,6 +4,8 @@ These are standalone authoring examples for `local-draft-2`, described in the [l
 
 The original eleven working examples and one intentionally broken diagnostics document remain in this directory, with Chinese versions in [zh/](zh/). The six feature tours live in [showcase/](showcase/README.md), with Chinese sources in [showcase/zh/](showcase/zh/). Each file runs independently. Controls, expressions and visualizations use local state.
 
+The new [HTML compatibility example](html-compat.reactive.md) combines rich disclosures, Markdown and a bound counter. See the [temporary HTML routing policy](../../docs/html-compatibility-en.md) before enabling author CSS, JavaScript or extended HTML.
+
 ## Start with the short examples
 
 The [workshop recipe](recipes/workshop.reactive.md) ([中文](recipes/workshop-zh.reactive.md)) combines cross-field validation, conditional tones, numeric aggregates and generated table rows. See the [constraints and collections reference](../../docs/constraints-collections-en.md) for rules and budgets.

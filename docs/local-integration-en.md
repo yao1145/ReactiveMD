@@ -4,6 +4,8 @@ Local interaction mode uses HTML-style tags, in-place parameters and `{{ express
 
 ## Runtime and entries
 
+See [HTML compatibility](html-compatibility-en.md) for the next release's P0 HTML support and host capability options. The temporary routing policy sends the entire document to native HTML when author CSS, JavaScript or extended HTML is enabled. Markdown and ReactiveMD interpretation stop in that path.
+
 | Entry | Contents | Dependency |
 | --- | --- | --- |
 | `reactive-md` | `compileLocal`, `createLocalRuntime`, expression and math utilities | No React dependency |
@@ -42,6 +44,7 @@ export function Article() {
 | Prop | Type | Component | Notes |
 | --- | --- | --- | --- |
 | `source` | `string` | `LocalReactiveDocument` | Recompiles and creates a new runtime when the source changes; old instance state is not kept. See [Keeping values when source changes](#keeping-values-when-source-changes) |
+| `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | Per-compilation limits and HTML capability flags; omitted options use the default ReactiveMD path |
 | `document` | `LocalDocument` | `LocalDocumentView` | Compiled document; compiled once by the host |
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | Created by the host, which is responsible for disposal |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | Both | Receives compile diagnostics and runtime diagnostics when control writes are rejected |
@@ -357,7 +360,7 @@ These limits bound the work for a single document; they do not replace host cont
 
 ## Features not provided
 
-Local mode does not provide automatic state persistence or network access, plugins or custom component registration, arbitrary HTML, author CSS, event handlers, external data APIs, form submission, Vue support, React 18 support or a CommonJS entry. State export and import are explicit host calls; the runtime never saves or sends state by itself. `LocalReactiveDocument` still starts from initial values when the source changes; use the retention helpers or supply your own runtime and document. Hosts should not treat these capabilities as configuration options.
+The default ReactiveMD path supports P0 HTML. Host options for author CSS, JavaScript and extended HTML use the separate native HTML path described in [HTML compatibility](html-compatibility-en.md). Local mode still provides no automatic state persistence or unrestricted network access, plugins or custom component registration, external data APIs, Vue support, React 18 support or a CommonJS entry. State export and import are explicit host calls. `LocalReactiveDocument` starts from initial values when the source changes; use retention helpers or manage the runtime and document yourself.
 
 
 See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. `0.4.0` is the preview release on the `next` channel.

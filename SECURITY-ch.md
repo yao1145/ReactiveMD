@@ -12,8 +12,9 @@ Reactive MD 渲染作者编写的本地交互文档。文档是不可信输入�
 
 ### 文档内容
 
-- 作者不能执行脚本。`<script>`、原始 HTML、`on-*` 事件属性和作者 CSS 不属于 `local-draft-2`，会作为语法诊断或文本处理，不会作为 HTML 执行。
-- React 渲染器不调用 `dangerouslySetInnerHTML`，也不把文档内容写入 `innerHTML`。
+- 三个 HTML 能力开关全部关闭时，作者脚本、事件属性和 CSS 保持惰性。P0 HTML 重建为受控节点和 React 元素。见 [HTML 部分兼容与暂时性分流政策](docs/html-compatibility-ch.md)。
+- 开启 `enableCss`、`enableJavaScript` 或 `enableExtendedHtml` 中任意一个，整篇源码会在不带 `allow-same-origin` 的沙箱 iframe 中按原生 HTML 处理。其他开关继续约束作者源码；允许任意 JavaScript 后，脚本可以动态创建元素和样式，源码开关不构成运行时 DOM 权限。网络、表单和导航继续受 CSP 与沙箱限制。
+- 默认 React 渲染器不调用 `dangerouslySetInnerHTML`，也不把文档内容写入 `innerHTML`。原生 HTML 通过解析和过滤后的 iframe `srcdoc` 渲染，与宿主 DOM 分离。
 - 表达式使用自己的解析器和 AST 求值器，不使用 `eval`、`new Function`，不支持赋值、方法调用、属性访问、原型路径或导入。表达式只能读取文档声明的参数和内置函数。
 - LaTeX 通过受预算限制的解析器计算，并由原生 MathML 渲染；渲染器不执行宏、文件、网络或 HTML 入口。未知命令显示为文本。
 - 表达式、模板、表格和图表不会发起网络请求；图表数据必须写在文档里。
@@ -59,7 +60,7 @@ Reactive MD 渲染作者编写的本地交互文档。文档是不可信输入�
 ### 可分享 HTML 导出
 
 - `reactive-md-state/v1` 只保存公开绑定名和可序列化值，不保存 `@` 内部绑定、revision、节点 ID、AST、UI 状态或计时器。导入前会校验源码摘要、语法、参数集合和每个值；未知或冲突键会拒绝整个文件。
-- 交互式 HTML 内嵌固定版本的独立运行时，CSP 禁止网络连接、frame、object、base 注入和表单提交，只允许内联样式/运行时与 `data:` 图片。JSON、源码、标题和 notices 会按 HTML/脚本上下文转义。
+- 默认 ReactiveMD 交互导出内嵌固定版本的独立运行时，CSP 禁止网络连接、frame、object、base 注入和表单提交。原生 HTML 导出额外允许承载文档的沙箱 `srcdoc` frame，其内部 CSP 控制作者 CSS 与脚本。JSON、源码、标题和 notices 会按 HTML/脚本上下文转义。
 - CLI 只内联位于文档目录或显式资源根内的相对位图。它拒绝远程图片、URL scheme、绝对路径、路径穿越、符号链接逃逸、SVG、伪造格式和超限资源。Demo 导出对话框在包含图片时会禁用 HTML 导出。
 - 静态 HTML 不包含运行时脚本或自动挂载载荷。静态首屏水合目前只在单文件 Chromium/Edge 路径验证，不构成通用水合或沙箱保证。作者完全不可信时应使用 sandboxed iframe。
 - 导出当前参数是宿主/读者的显式动作。生成的状态文件和 HTML 可能包含敏感信息；除非确实要分享当前值，否则应选择作者初值。

@@ -2,6 +2,12 @@
 
 This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
 
+## Unreleased
+
+- Add P0 HTML compatibility to the default ReactiveMD rendering path, including rich disclosures, containers, headings, code, lists, links and images.
+- Add host-owned `enableCss`, `enableJavaScript` and `enableExtendedHtml` options, all off by default. Any enabled option routes the entire document to isolated native HTML. This temporary routing policy disables Markdown and ReactiveMD interpretation in that path; see [HTML compatibility](docs/html-compatibility-en.md).
+- Add localized Demo controls and preserve HTML mode in export. Static export disables author JavaScript.
+
 ## 0.5.0 (2026-10-25, next channel)
 
 Compatible with 0.4.1. Syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports are unchanged, and the renderer entry keeps its API. See [0.5.0 release notes](docs/release-0.5.0-en.md).

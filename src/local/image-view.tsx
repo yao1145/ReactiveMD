@@ -29,12 +29,15 @@ export function ZoomableImage({
   title,
   mode,
   rootRef,
+  imageProps,
 }: {
   src: string;
   alt: string;
   title?: string;
   mode: 'interactive' | 'static';
   rootRef: RefObject<HTMLElement | null>;
+  /** Validated source attributes for P0 HTML images; zoom behaviour is shared. */
+  imageProps?: Record<string, string | number | undefined>;
 }) {
   const t = useLocalize();
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -156,6 +159,7 @@ export function ZoomableImage({
     <img
       ref={imageRef}
       className="md-image"
+      {...imageProps}
       src={src}
       alt={alt}
       title={title}

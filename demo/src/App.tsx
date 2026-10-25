@@ -15,6 +15,12 @@ import {
 } from 'reactive-md/editor';
 import { AuthorTools } from './author-tools';
 import { ExportDialog } from './export-dialog';
+import { HtmlCompatibilityControls } from './html-compatibility';
+import {
+  freshHtmlOptions,
+  toCompileOptions,
+  type DemoHtmlOptions,
+} from './html-options';
 import {
   DEFAULT_EXAMPLE_ID,
   EXAMPLES,
@@ -274,6 +280,9 @@ export default function App() {
   const [previewSession, setPreviewSession] = useState(() => new PreviewStateSession());
   const [exportOpen, setExportOpen] = useState(false);
   const [runtimeDiagnostics, setRuntimeDiagnostics] = useState<Diagnostic[]>([]);
+  // Capabilities are session-only: they start disabled on every load and are
+  // reset whenever the document switches, never inferred from source or state.
+  const [htmlOptions, setHtmlOptions] = useState<DemoHtmlOptions>(freshHtmlOptions);
 
   const copy = COPY[language];
   const editorRef = useRef<HTMLTextAreaElement>(null);
@@ -286,7 +295,8 @@ export default function App() {
   } | null>(null);
   const sourceWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const compilation = useLocalCompilation(source);
+  const compileOptions = useMemo(() => toCompileOptions(htmlOptions), [htmlOptions]);
+  const compilation = useLocalCompilation(source, compileOptions);
   const currentExample = localizedExample(
     EXAMPLES.find((item) => item.id === selectedExample) ?? DEFAULT_EXAMPLE,
     language,
@@ -358,10 +368,22 @@ export default function App() {
     setInstanceKey((key) => key + 1);
   }, [retainPreviewState]);
 
+  const resetHtmlOptions = useCallback(() => setHtmlOptions(freshHtmlOptions()), []);
+
+  // A capability change is a whole-document route change. Clear trial state so
+  // values captured under the previous renderer can never be reused, and let
+  // the compilation hook drop the old preview before the new one is ready.
+  const changeHtmlOptions = useCallback((next: DemoHtmlOptions) => {
+    setHtmlOptions(next);
+    setRuntimeDiagnostics([]);
+    beginPreviewSession();
+  }, [beginPreviewSession]);
+
   const importSource = useCallback((next: string) => {
+    resetHtmlOptions();
     replaceSource(next);
     beginPreviewSession();
-  }, [replaceSource, beginPreviewSession]);
+  }, [replaceSource, resetHtmlOptions, beginPreviewSession]);
 
   const exportSource = useCallback(() => {
     download(`${selectedExample}.reactive.md`, source, 'text/markdown;charset=utf-8');
@@ -410,18 +432,20 @@ export default function App() {
     if (example.section === 'debug') setSimple(false);
     flushSourceWrite();
     const next = savedSource(example.id, language);
+    resetHtmlOptions();
     setSelectedExample(example.id);
     setSource(next);
     setRuntimeDiagnostics([]);
     beginPreviewSession();
     try { browserStorage()?.setItem(SELECTION_KEY, example.id); } catch { /* optional storage */ }
-  }, [flushSourceWrite, beginPreviewSession, language]);
+  }, [flushSourceWrite, resetHtmlOptions, beginPreviewSession, language]);
 
   const restoreExample = useCallback(() => {
+    resetHtmlOptions();
     setSource(currentExample.source);
     setRuntimeDiagnostics([]);
     beginPreviewSession();
-  }, [currentExample.source, beginPreviewSession]);
+  }, [resetHtmlOptions, currentExample.source, beginPreviewSession]);
 
   const resetInstance = useCallback(() => {
     setRuntimeDiagnostics([]);
@@ -435,6 +459,7 @@ export default function App() {
     pendingSourceWrite.current = { exampleId: selectedExample, source, language };
     flushSourceWrite();
     const next = savedSource(selectedExample, nextLanguage);
+    resetHtmlOptions();
     setLanguage(nextLanguage);
     setSource(next);
     setRuntimeDiagnostics([]);
@@ -444,6 +469,7 @@ export default function App() {
     selectedExample,
     source,
     flushSourceWrite,
+    resetHtmlOptions,
     beginPreviewSession,
   ]);
 
@@ -609,6 +635,8 @@ export default function App() {
             onExport={openExportDialog}
           />
 
+          <HtmlCompatibilityControls options={htmlOptions} onChange={changeHtmlOptions} />
+
           <div className="workspace">
             <section id="source-pane" className="pane pane-editor" aria-label={copy.editor.region}>
               <div className="pane-head">
@@ -728,6 +756,7 @@ export default function App() {
           currentState={exportCurrentState}
           pending={compiling}
           compileError={exportCompileError}
+          compileOptions={compileOptions}
           dark={dark}
           onClose={closeExportDialog}
           onDownloadMarkdown={exportSource}

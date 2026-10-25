@@ -2,11 +2,13 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   createLocalStateFile,
   serializeLocalState,
+  type LocalCompileOptions,
   type LocalDocument,
   type LocalStateFile,
   type LocalValue,
 } from 'reactive-md';
 import { useCopy, useLanguage } from './i18n';
+import { isHtmlOptionsActive } from './html-options';
 import {
   buildShareableHtml,
   countDocumentImages,
@@ -32,6 +34,8 @@ export interface ExportDialogProps {
   currentState: Readonly<Record<string, LocalValue>> | null;
   pending: boolean;
   compileError: string | null;
+  /** Granted native HTML capabilities; any enabled switch changes the route. */
+  compileOptions?: LocalCompileOptions;
   dark: boolean;
   onClose(): void;
   onDownloadMarkdown(): void;
@@ -54,18 +58,21 @@ export function ExportDialog({
   currentState,
   pending,
   compileError,
+  compileOptions,
   dark,
   onClose,
   onDownloadMarkdown,
 }: ExportDialogProps) {
   const copy = useCopy().exportDialog;
   const language = useLanguage();
+  const htmlMode = isHtmlOptionsActive(compileOptions);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const taskRef = useRef(0);
   const titleId = useId();
   const descriptionId = useId();
   const summaryId = useId();
+  const htmlModeNoteId = useId();
   const [mode, setMode] = useState<ShareableHtmlMode>('interactive');
   const [baseline, setBaseline] = useState<BaselineChoice>('initial');
   const [assetsState, setAssetsState] = useState<AssetsState>('loading');
@@ -161,7 +168,9 @@ export function ExportDialog({
       : null),
     [compiledDocument, currentState, publicNames],
   );
-  const effectiveBaseline: BaselineChoice = currentState && compiledDocument ? baseline : 'initial';
+  const effectiveBaseline: BaselineChoice = !htmlMode && currentState && compiledDocument
+    ? baseline
+    : 'initial';
   const compileProblem = compiledDocument
     ? null
     : pending
@@ -171,18 +180,26 @@ export function ExportDialog({
         : copy.compileUnavailable;
 
   let parameterSummary = copy.noParameters;
-  if (compiledDocument && publicNames.length > 0) {
+  if (htmlMode) {
+    parameterSummary = copy.htmlModeParameters;
+  } else if (compiledDocument && publicNames.length > 0) {
     parameterSummary = currentState
       ? differences === 0
         ? copy.unchanged(publicNames.length)
         : copy.changed(differences ?? 0, publicNames.length)
       : copy.noCurrent;
   }
-  const imageSummary = images === 0 ? copy.imageNone : copy.imageBlocked(images);
-  const outputSummary = copy.output(
-    mode === 'interactive' ? copy.outputInteractive : copy.outputStatic,
-    effectiveBaseline === 'current' ? copy.outputCurrent : copy.outputInitial,
-  );
+  const imageSummary = htmlMode
+    ? copy.htmlModeImages
+    : images === 0
+      ? copy.imageNone
+      : copy.imageBlocked(images);
+  const outputSummary = htmlMode
+    ? copy.outputHtmlMode(mode === 'interactive' ? copy.outputInteractive : copy.outputStatic)
+    : copy.output(
+      mode === 'interactive' ? copy.outputInteractive : copy.outputStatic,
+      effectiveBaseline === 'current' ? copy.outputCurrent : copy.outputInitial,
+    );
   const htmlDisabled = !compiledDocument
     || images > 0
     || assetsState !== 'ready'
@@ -208,6 +225,7 @@ export function ExportDialog({
         mode,
         locale: language,
         colorScheme,
+        compileOptions,
       });
       if (task !== taskRef.current) return;
       downloadText(`${baseName}.html`, result.html, 'text/html;charset=utf-8');
@@ -227,7 +245,7 @@ export function ExportDialog({
   };
 
   const handleState = () => {
-    if (!compiledDocument || !currentState || !packageVersion || busy) return;
+    if (htmlMode || !compiledDocument || !currentState || !packageVersion || busy) return;
     setBuildError(null);
     try {
       const file = createLocalStateFile(
@@ -276,6 +294,16 @@ export function ExportDialog({
       </header>
 
       <div className="export-dialog-body">
+        {htmlMode ? (
+          <p
+            id={htmlModeNoteId}
+            className="export-status export-mode-note"
+            role="note"
+          >
+            {copy.htmlModeNotice}
+          </p>
+        ) : null}
+
         <fieldset className="export-fieldset" disabled={busy}>
           <legend>{copy.formatLegend}</legend>
           <label className={`export-option${mode === 'interactive' ? ' is-selected' : ''}`}>
@@ -307,9 +335,13 @@ export function ExportDialog({
           </label>
         </fieldset>
 
-        <fieldset className="export-fieldset" disabled={busy}>
+        <fieldset
+          className="export-fieldset"
+          disabled={busy || htmlMode}
+          aria-describedby={htmlMode ? htmlModeNoteId : undefined}
+        >
           <legend>{copy.stateLegend}</legend>
-          <label className={`export-option${effectiveBaseline === 'initial' ? ' is-selected' : ''}`}>
+          <label className={`export-option${effectiveBaseline === 'initial' ? ' is-selected' : ''}${htmlMode ? ' is-disabled' : ''}`}>
             <input
               type="radio"
               name={`${titleId}-baseline`}
@@ -319,13 +351,15 @@ export function ExportDialog({
             />
             <span className="export-option-copy">
               <strong>{copy.authorInitial}</strong>
-              <span className="export-option-hint">{copy.authorInitialHint}</span>
+              <span className="export-option-hint">
+                {htmlMode ? copy.htmlModeStateNote : copy.authorInitialHint}
+              </span>
             </span>
           </label>
           <label
             className={
               `export-option${effectiveBaseline === 'current' ? ' is-selected' : ''}` +
-              (currentState ? '' : ' is-disabled')
+              (currentState && !htmlMode ? '' : ' is-disabled')
             }
           >
             <input
@@ -333,13 +367,15 @@ export function ExportDialog({
               name={`${titleId}-baseline`}
               value="current"
               checked={effectiveBaseline === 'current'}
-              disabled={!currentState}
+              disabled={!currentState || htmlMode}
               onChange={() => setBaseline('current')}
             />
             <span className="export-option-copy">
               <strong>{copy.currentPreview}</strong>
               <span className="export-option-hint">
-                {currentState ? copy.currentPreviewHint : copy.currentUnavailable}
+                {htmlMode
+                  ? copy.htmlModeStateNote
+                  : currentState ? copy.currentPreviewHint : copy.currentUnavailable}
               </span>
             </span>
           </label>
@@ -399,8 +435,12 @@ export function ExportDialog({
             type="button"
             className="button button-quiet export-state"
             onClick={handleState}
-            disabled={busy || !compiledDocument || !currentState || !packageVersion}
-            title={currentState ? copy.exportStateHint : copy.exportStateUnavailable}
+            disabled={busy || htmlMode || !compiledDocument || !currentState || !packageVersion}
+            title={
+              htmlMode
+                ? copy.exportStateHtmlMode
+                : currentState ? copy.exportStateHint : copy.exportStateUnavailable
+            }
           >
             {copy.exportState}
           </button>

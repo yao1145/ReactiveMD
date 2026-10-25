@@ -1,6 +1,6 @@
 import { compileLocal } from '../local/compiler';
 import { parseLocalState, type LocalStateFile } from '../local/state';
-import type { Diagnostic, LocalDocument } from '../local/types';
+import type { Diagnostic, LocalCompileOptions, LocalDocument } from '../local/types';
 import { resolveLocalStateBaseline } from '../shareable';
 import { ReactiveMDMountError, standaloneDiagnostic } from './diagnostics';
 
@@ -18,11 +18,15 @@ export interface PreparedStandaloneDocument {
  * `theme` is an optional host-only override (used by `<reactive-md-doc theme>`):
  * it replaces the document-level theme on a shallow, immutable clone so the
  * source, nodes, bindings, digest and validated state stay intact.
+ *
+ * `compileOptions` replays the capability flags and limits an export was
+ * created with; omitting them keeps the default ReactiveMD route.
  */
 export function prepareStandaloneDocument(
   source: string,
   state?: LocalStateFile | string,
   theme?: string,
+  compileOptions?: LocalCompileOptions,
 ): PreparedStandaloneDocument {
   if (typeof source !== 'string') {
     throw new ReactiveMDMountError(
@@ -31,7 +35,7 @@ export function prepareStandaloneDocument(
     );
   }
 
-  const compiled = compileLocal(source);
+  const compiled = compileLocal(source, compileOptions);
   if (!compiled.ok) {
     throw new ReactiveMDMountError(
       'Cannot mount a Reactive MD document: the source contains syntax errors.',

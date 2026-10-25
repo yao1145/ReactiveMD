@@ -21,6 +21,7 @@ import {
 } from 'react';
 import type {
   Diagnostic,
+  LocalCompileOptions,
   LocalDocument,
   LocalNode,
   LocalRuntime,
@@ -37,7 +38,9 @@ import {
 } from './dependencies';
 import { compileLocal } from './compiler';
 import { createLocalRuntime } from './runtime';
-import { MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
+import { DEFAULT_MAX_LOCAL_SYNTAX_NODES, MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
+import { localCompileOptionsKey } from './options';
+import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './html';
 import { formatLocalDiagnostic } from './diagnostics';
 import { countLocalCodePoints } from './text-length';
 import { LatexView } from './math-view';
@@ -130,6 +133,12 @@ export interface LocalReactiveDocumentProps {
   staticFirst?: boolean;
   /** Trusted image URL mapping forwarded to `LocalDocumentView`. */
   imageResolver?: LocalImageResolver;
+  /**
+   * Host-owned compile options. HTML capability flags select the temporary
+   * whole-document native branch; the component recompiles when a flag or the
+   * node budget changes, but not when an equal object is recreated.
+   */
+  compileOptions?: LocalCompileOptions;
 }
 
 /* --------------------------------------------------------------- contexts */
@@ -887,6 +896,41 @@ interface RenderEnv {
   footnotes: LocalFootnoteIndex;
 }
 
+const SAFE_HTML_ATTRIBUTE = /^(?:aria|data)-[a-z0-9_.:-]+$/;
+const HTML_IDREF_ATTRIBUTES = new Set(['aria-labelledby', 'aria-describedby', 'aria-controls', 'aria-owns', 'aria-details', 'aria-errormessage', 'aria-flowto', 'aria-activedescendant']);
+
+/**
+ * Whitelist of source attributes that may reach a rendered P0 element. IDs are
+ * always rewritten through this render instance's anchor namespace; source
+ * `class`, `style`, URL schemes and event hooks never pass through here.
+ */
+function safeHtmlProps(env: RenderEnv, node: LocalNode): Record<string, string> {
+  const attrs = node.attrs;
+  if (!attrs) return {};
+  const props: Record<string, string> = {};
+  const id = env.anchors.ids.get(node) ?? env.anchors.htmlIds.get(node);
+  if (id) props.id = id;
+  for (const [rawName, value] of Object.entries(attrs)) {
+    const name = rawName.toLowerCase();
+    if (name === 'id') continue;
+    if (name === 'title' || name === 'lang') {
+      props[name] = value;
+      continue;
+    }
+    if (name === 'dir') {
+      const direction = value.trim().toLowerCase();
+      if (direction === 'ltr' || direction === 'rtl' || direction === 'auto') props.dir = direction;
+      continue;
+    }
+    if (SAFE_HTML_ATTRIBUTE.test(name)) {
+      props[name] = HTML_IDREF_ATTRIBUTES.has(name)
+        ? value.trim().split(/\s+/).filter(Boolean).map(id => env.anchors.referenceId(id)).join(' ')
+        : value;
+    }
+  }
+  return props;
+}
+
 interface LocalBlockProps {
   node: LocalNode;
   index: number;
@@ -1065,59 +1109,82 @@ function renderNode(
     case 'heading':
       return createElement(
         headingTag(node.depth),
-        { key, id: env.anchors.ids.get(node) },
+        {
+          key,
+          // An explicit source id wins; otherwise the generated heading slug.
+          id: env.anchors.ids.get(node),
+          ...safeHtmlProps(env, node),
+        },
         renderNodes(env,node.children, visible, false),
       );
 
     case 'paragraph':
-      return <p key={key}>{renderNodes(env,node.children, visible, false)}</p>;
+      return <p key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</p>;
 
     case 'text':
       return <span key={key}>{node.value ?? ''}</span>;
 
     case 'emphasis':
-      return <em key={key}>{renderNodes(env,node.children, visible, false)}</em>;
+      return <em key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</em>;
 
     case 'strong':
-      return <strong key={key}>{renderNodes(env,node.children, visible, false)}</strong>;
+      return <strong key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</strong>;
 
     case 'delete':
-      return <del key={key}>{renderNodes(env,node.children, visible, false)}</del>;
+      return <del key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</del>;
 
     // Basic HTML formatting is rebuilt as plain React tags. No raw HTML and no
     // attributes from the source reach the DOM.
     case 'underline':
-      return <u key={key}>{renderNodes(env,node.children, visible, false)}</u>;
+      return <u key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</u>;
 
     case 'mark':
-      return <mark key={key}>{renderNodes(env,node.children, visible, false)}</mark>;
+      return <mark key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</mark>;
+
+    case 'sup':
+      return <sup key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</sup>;
+
+    case 'sub':
+      return <sub key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</sub>;
+
+    case 'span':
+      return <span key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</span>;
+
+    case 'div':
+      return <div key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible)}</div>;
+
+    case 'summary':
+      return <span key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</span>;
+
+    case 'details':
+      return <HtmlDetailsView key={key} node={node} visible={visible} />;
 
     case 'inlineCode':
       return (
-        <code className="md-inline-code" key={key}>
+        <code className="md-inline-code" key={key} {...safeHtmlProps(env, node)}>
           {node.value ?? ''}
         </code>
       );
 
     case 'code':
-      return <CodeBlockView key={key} value={node.value ?? ''} language={node.lang ?? undefined} mode={env.mode} />;
+      return <CodeBlockView key={key} value={node.value ?? ''} language={node.lang ?? undefined} mode={env.mode} htmlProps={safeHtmlProps(env, node)} />;
 
     case 'blockquote':
-      return <blockquote key={key}>{renderNodes(env,node.children, visible)}</blockquote>;
+      return <blockquote key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible)}</blockquote>;
 
     case 'break':
-      return <br key={key} />;
+      return <br key={key} {...safeHtmlProps(env, node)} />;
 
     case 'thematicBreak':
-      return <hr key={key} />;
+      return <hr key={key} {...safeHtmlProps(env, node)} />;
 
     case 'list':
       return node.ordered ? (
-        <ol key={key} start={node.start ?? 1} className="md-list">
+        <ol key={key} start={node.start ?? 1} className="md-list" {...safeHtmlProps(env, node)}>
           {renderNodes(env,node.children, visible)}
         </ol>
       ) : (
-        <ul key={key} className="md-list">
+        <ul key={key} className="md-list" {...safeHtmlProps(env, node)}>
           {renderNodes(env,node.children, visible)}
         </ul>
       );
@@ -1125,7 +1192,7 @@ function renderNode(
     case 'listItem': {
       const task = typeof node.checked === 'boolean';
       return (
-        <li key={key} className={task ? 'md-list-item md-task-item' : 'md-list-item'}>
+        <li key={key} className={task ? 'md-list-item md-task-item' : 'md-list-item'} {...safeHtmlProps(env, node)}>
           {task ? (
             env.mode === 'static' ? (
               <span
@@ -1164,6 +1231,7 @@ function renderNode(
       if (!allowedHref) {
         return (
           <span
+            {...safeHtmlProps(env, node)}
             className="md-link-rejected"
             key={key}
             title={env.t('Unsafe link URL rejected', '已拒绝不安全的链接地址')}
@@ -1177,6 +1245,7 @@ function renderNode(
       return (
         <a
           key={key}
+          {...safeHtmlProps(env, node)}
           href={href}
           title={node.title ?? undefined}
           target={external ? '_blank' : undefined}
@@ -1205,7 +1274,7 @@ function renderNode(
         const rejected = env.t('Unsafe image rejected', '已拒绝不安全的图片');
         const alt = node.alt ? env.t(`: ${node.alt}`, `：${node.alt}`) : '';
         return (
-          <span className="md-image-rejected" key={key}>
+          <span className="md-image-rejected" key={key} {...safeHtmlProps(env, node)}>
             [{rejected}{alt}]
           </span>
         );
@@ -1218,6 +1287,7 @@ function renderNode(
           title={node.title ?? undefined}
           mode={env.mode}
           rootRef={env.rootRef}
+          imageProps={node.attrs === undefined ? undefined : { ...safeHtmlProps(env, node), width: node.width, height: node.height }}
         />
       );
     }
@@ -2923,6 +2993,72 @@ function AccordionView({ node, visible }: LocalComponentProps) {
   );
 }
 
+/**
+ * P0 `<details>`/`<summary>`. It deliberately reuses the existing disclosure
+ * classes and accessibility pattern, but the summary body is rich inline
+ * content rather than a plain attribute. Static mode exposes every body;
+ * nested details recurse naturally.
+ */
+function HtmlDetailsView({ node, visible }: LocalComponentProps) {
+  const domId = useId();
+  const local = useLocal();
+  const { render, mode } = local;
+  const t = useLocalize();
+  const children = node.children ?? [];
+  const direct = children.find((child) => child.type === 'summary');
+  const wrappedIndex = children.findIndex((child) => child.type === 'paragraph'
+    && child.children?.length === 1 && child.children[0].type === 'summary');
+  const summary = direct ?? (wrappedIndex >= 0 ? children[wrappedIndex].children![0] : undefined);
+  const body = children.filter((child, index) => child !== summary && index !== wrappedIndex);
+  const summaryContent = summary
+    ? <span {...safeHtmlProps(local, summary)}>{renderInlineNodes(local, summary.children, visible)}</span>
+    : t('Details', '折叠内容');
+  // Boolean presence, not the literal value: `open="false"` is still open.
+  const initialOpen = node.attrs !== undefined && Object.hasOwn(node.attrs, 'open');
+  const [open, setOpen] = useState(initialOpen);
+  useResetToken(local.runtime, node, () => setOpen(initialOpen));
+
+  if (mode === 'static') {
+    return (
+      <section className="local-disclosure local-static-disclosure local-html-details" {...safeHtmlProps(local, node)}>
+        <h3 className="local-disclosure-heading">{summaryContent}</h3>
+        <div className="local-disclosure-panel">{render(body, visible)}</div>
+      </section>
+    );
+  }
+
+  const triggerId = `${domId}-html-details-trigger`;
+  const panelId = `${domId}-html-details-panel`;
+  return (
+    <div className="local-disclosure local-html-details" {...safeHtmlProps(local, node)}>
+      <h3 className="local-disclosure-heading">
+        <button
+          id={triggerId}
+          type="button"
+          className="local-disclosure-trigger"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <span className={`local-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
+            ▸
+          </span>
+          <span>{summaryContent}</span>
+        </button>
+      </h3>
+      <div
+        id={panelId}
+        className="local-disclosure-panel"
+        role="region"
+        aria-labelledby={triggerId}
+        hidden={!open}
+      >
+        {render(body, visible && open)}
+      </div>
+    </div>
+  );
+}
+
 function DisclosureView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const { runtime, render, mode } = useLocal();
@@ -4264,7 +4400,45 @@ function EndnotesView({
 
 /* ---------------------------------------------------------------- document */
 
-export function LocalDocumentView({
+function LocalDocumentViewHtml({ document, mode = 'interactive', staticFirst = false, locale = 'en', onDiagnostics }: LocalDocumentViewProps) {
+  const [settled, setSettled] = useState(!staticFirst);
+  useEffect(() => { if (staticFirst) setSettled(true); }, [staticFirst]);
+  const renderedMode = mode === 'interactive' && staticFirst && !settled ? 'static' : mode;
+  const enableCss = document.html?.enableCss === true;
+  const enableJavaScript = renderedMode === 'interactive' && document.html?.enableJavaScript === true;
+  const enableExtendedHtml = document.html?.enableExtendedHtml === true;
+  const policy = useMemo(() => ({ enableCss, enableJavaScript, enableExtendedHtml }), [enableCss, enableJavaScript, enableExtendedHtml]);
+  // Compilation already validated the host budget. A second pass applies the
+  // effective render policy (notably script-free static output) to the source.
+  const result = useMemo(() => sanitizeLocalHtmlDocument(document.source, policy,
+    Math.max(DEFAULT_MAX_LOCAL_SYNTAX_NODES, document.source.length * 2 + 10)), [document.source, policy]);
+  const report = useRef(onDiagnostics);
+  report.current = onDiagnostics;
+  useEffect(() => { report.current?.(result.diagnostics); }, [result]);
+  if (result.diagnostics.some(item => item.severity === 'error')) {
+    return <div className="md-document local-document local-inactive" role="alert">{localize(locale, 'HTML rendering failed.', 'HTML 渲染失败。')}</div>;
+  }
+  return <article className={`md-document local-document reactive-md-native-document${renderedMode === 'static' ? ' local-static' : ''}`} data-source-mode="html" data-render-mode={renderedMode}>
+    <iframe
+      key={`${Number(enableCss)}${Number(enableJavaScript)}${Number(enableExtendedHtml)}:${document.source}`}
+      className="reactive-md-native-frame"
+      title={localize(locale, 'HTML document', 'HTML 文档')}
+      sandbox={localHtmlSandbox(policy)}
+      referrerPolicy="no-referrer"
+      srcDoc={result.markup}
+      style={{ display: 'block', width: '100%', minHeight: '60vh', border: 0, background: '#fff', colorScheme: 'light' }}
+    />
+  </article>;
+}
+
+/** Keep the two render paths in separate components so mode changes obey hook ordering. */
+export function LocalDocumentView(props: LocalDocumentViewProps) {
+  return props.document.html
+    ? <LocalDocumentViewHtml {...props} />
+    : <LocalDocumentViewLocal {...props} />;
+}
+
+function LocalDocumentViewLocal({
   document,
   runtime,
   onDiagnostics,
@@ -4458,8 +4632,10 @@ export function LocalReactiveDocument({
   mode = 'interactive',
   staticFirst = false,
   imageResolver,
+  compileOptions,
 }: LocalReactiveDocumentProps) {
-  const result = useMemo(() => compileLocal(source), [source]);
+  const optionsKey = localCompileOptionsKey(compileOptions);
+  const result = useMemo(() => compileLocal(source, compileOptions), [source, optionsKey]);
   const runtime = useMemo(() => {
     if (!result.ok) return null;
     try {
@@ -4578,7 +4754,7 @@ export function LocalReactiveDocument({
 
   return (
     <LocalDocumentView
-      key={source}
+      key={`${optionsKey}:${source}`}
       document={result.document}
       runtime={runtime}
       onDiagnostics={handleViewDiagnostics}

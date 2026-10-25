@@ -1,10 +1,14 @@
+import { defaultTreeAdapter, parseFragment, serializeOuter } from 'parse5';
+import type { DefaultTreeAdapterTypes } from 'parse5';
+import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './local/html';
+import { readLocalCompileOptions } from './local/options';
 import {
   localSourceDigest,
   resolveLocalState,
   type LocalStateFile,
   type LocalStateGenerator,
 } from './local/state';
-import type { Diagnostic, LocalDocument, LocalValue } from './local/types';
+import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalHtmlPolicy, LocalValue } from './local/types';
 
 /** Version of the single-file HTML envelope, not of the document syntax. */
 export const SHAREABLE_HTML_FORMAT = 'reactive-md-html/v1' as const;
@@ -20,6 +24,8 @@ export interface ShareableMountPayload {
   locale: 'en' | 'zh';
   colorScheme: 'light' | 'dark' | 'auto';
   hydrate: boolean;
+  /** Capability flags and limits the document was compiled with. */
+  compileOptions?: LocalCompileOptions;
   /** Verified relative image URL -> inline raster data URL. */
   images?: Readonly<Record<string, string>>;
 }
@@ -46,6 +52,12 @@ export interface ShareableHtmlOptions {
   images?: Readonly<Record<string, string>>;
   notices?: string;
   targetId?: string;
+  /**
+   * Routing capabilities granted by the host and used to compile this exact
+   * document. Interactive exports replay them; static native exports are
+   * re-sanitized with author JavaScript forced off.
+   */
+  compileOptions?: LocalCompileOptions;
 }
 
 export interface LocalStateBaselineResult {
@@ -113,6 +125,112 @@ export function serializeForScript(value: unknown): string {
 
 function cloneValue(value: LocalValue): LocalValue {
   return Array.isArray(value) ? value.slice() : value;
+}
+
+/**
+ * Validate host compile options and emit only the values that affect routing
+ * and budgets. Unknown or inherited keys never reach the exported payload.
+ */
+function normalizeCompileOptions(input: LocalCompileOptions | undefined): LocalCompileOptions | undefined {
+  if (input === undefined) return undefined;
+  const check = readLocalCompileOptions(input);
+  if (!check.ok) {
+    throw new TypeError(`createShareableHtml received invalid compileOptions: ${check.message}`);
+  }
+  const normalized: LocalCompileOptions = {
+    enableCss: check.html.enableCss,
+    enableJavaScript: check.html.enableJavaScript,
+    enableExtendedHtml: check.html.enableExtendedHtml,
+  };
+  if (input.limits !== undefined && input.limits.maxSyntaxNodes !== undefined) {
+    return { ...normalized, limits: { maxSyntaxNodes: check.maxSyntaxNodes } };
+  }
+  return normalized;
+}
+
+/** Remove author/host scripts from the trusted static wrapper markup. */
+function stripScriptElements(parent: DefaultTreeAdapterTypes.ParentNode): void {
+  const next: DefaultTreeAdapterTypes.ChildNode[] = [];
+  for (const child of parent.childNodes) {
+    if (defaultTreeAdapter.isElementNode(child)) {
+      const tag = child.tagName.toLowerCase();
+      if (tag === 'script') continue;
+      if (tag === 'template') {
+        stripScriptElements(defaultTreeAdapter.getTemplateContent(child as DefaultTreeAdapterTypes.Template));
+      } else {
+        stripScriptElements(child);
+      }
+    }
+    next.push(child);
+  }
+  parent.childNodes = next;
+}
+
+/** Point every wrapper iframe at the re-sanitized static document. */
+function rewriteFrameSrcdoc(
+  parent: DefaultTreeAdapterTypes.ParentNode,
+  srcdoc: string,
+  sandbox: string,
+): boolean {
+  let found = false;
+  for (const child of parent.childNodes) {
+    if (!defaultTreeAdapter.isElementNode(child)) continue;
+    if (child.tagName.toLowerCase() === 'iframe') {
+      const attrs = child.attrs.filter((attribute) => {
+        const name = attribute.name.toLowerCase();
+        return name !== 'srcdoc' && name !== 'sandbox';
+      });
+      attrs.push({ name: 'srcdoc', value: srcdoc });
+      attrs.push({ name: 'sandbox', value: sandbox });
+      child.attrs = attrs;
+      found = true;
+    }
+    if (rewriteFrameSrcdoc(child, srcdoc, sandbox)) found = true;
+  }
+  return found;
+}
+
+function serializeFragment(fragment: DefaultTreeAdapterTypes.DocumentFragment): string {
+  let output = '';
+  for (const child of fragment.childNodes) output += serializeOuter(child, { scriptingEnabled: false });
+  return output;
+}
+
+/**
+ * Rebuild the native static wrapper around a document sanitized with author
+ * JavaScript disabled. A caller-supplied `staticMarkup` may have been rendered
+ * with scripts enabled, so its iframe bodies (and any scripts) are replaced
+ * instead of trusted. The generated iframe never gains same-origin or script
+ * capabilities in static mode.
+ */
+function nativeStaticExportMarkup(
+  staticMarkup: string,
+  documentMarkup: string,
+  sandbox: string,
+): string {
+  try {
+    const fragment = parseFragment(staticMarkup, { scriptingEnabled: false });
+    stripScriptElements(fragment);
+    if (rewriteFrameSrcdoc(fragment, documentMarkup, sandbox)) return serializeFragment(fragment);
+  } catch {
+    /* Fall through to the generated wrapper. */
+  }
+  return `<div class="reactive-md-native-document"><iframe class="reactive-md-native-frame" title="Reactive MD document" sandbox="${escapeHtml(sandbox, true)}" style="display:block;width:100%;min-height:60vh;border:0;background:#fff" srcdoc="${escapeHtml(documentMarkup, true)}"></iframe></div>`;
+}
+
+/** Outer envelope CSP; a native export needs to own exactly one srcdoc frame. */
+function envelopePolicy(interactive: boolean, nativePolicy?: LocalHtmlPolicy): string {
+  const extended = nativePolicy?.enableExtendedHtml === true;
+  // The enclosing policy is inherited by srcdoc. Keep its grants compatible
+  // with the inner document, which applies the precise author capabilities.
+  const frame = nativePolicy
+    ? `frame-src about:${extended ? ' data: blob: http: https:' : ''}`
+    : "frame-src 'none'";
+  const base = extended ? "base-uri 'self' http: https:" : "base-uri 'none'";
+  const form = extended ? 'form-action http: https:' : "form-action 'none'";
+  return interactive
+    ? `default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; connect-src 'none'; media-src 'none'; object-src 'none'; ${frame}; ${base}; ${form}`
+    : `default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; object-src 'none'; ${frame}; ${base}; ${form}`;
 }
 
 function embeddedImages(images: Readonly<Record<string, string>> | undefined): Record<string, string> | undefined {
@@ -213,6 +331,37 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
     throw new TypeError('Interactive HTML requires the standalone runtime script.');
   }
 
+  const compileOptions = normalizeCompileOptions(options.compileOptions);
+  const optionCheck = readLocalCompileOptions(compileOptions);
+  if (!optionCheck.ok) {
+    // normalizeCompileOptions already validated the same payload.
+    throw new TypeError(`createShareableHtml received invalid compileOptions: ${optionCheck.message}`);
+  }
+  const native = optionCheck.htmlActive;
+
+  let staticMarkup = options.staticMarkup;
+  if (native && (mode === 'static' || !optionCheck.html.enableJavaScript)) {
+    // Static native exports keep the native route but never run author code.
+    // Regenerate the frame from the grammar-sanitized source instead of
+    // trusting caller markup that may still contain enabled author scripts.
+    // Interactive exports without the JavaScript grant are rebuilt for the
+    // same reason before the runtime hydrates over them.
+    const staticPolicy: LocalHtmlPolicy = {
+      enableCss: optionCheck.html.enableCss,
+      enableJavaScript: false,
+      enableExtendedHtml: optionCheck.html.enableExtendedHtml,
+    };
+    const sanitized = sanitizeLocalHtmlDocument(options.source, staticPolicy, optionCheck.maxSyntaxNodes);
+    if (!sanitized.markup) {
+      throw new Error('The native HTML document could not be regenerated without author JavaScript.');
+    }
+    staticMarkup = nativeStaticExportMarkup(
+      options.staticMarkup,
+      sanitized.markup,
+      localHtmlSandbox(staticPolicy),
+    );
+  }
+
   const locale = options.locale === 'zh' ? 'zh' : 'en';
   const lang = locale === 'zh' ? 'zh-CN' : 'en';
   const colorScheme = options.colorScheme === 'light' || options.colorScheme === 'dark'
@@ -234,12 +383,11 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
     locale,
     colorScheme,
     hydrate: true,
+    ...(compileOptions === undefined ? {} : { compileOptions }),
     ...(images ? { images } : {}),
   };
 
-  const policy = interactive
-    ? "default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; font-src data:; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
-    : "default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'";
+  const policy = envelopePolicy(interactive, native ? optionCheck.html : undefined);
 
   const payloadScript = interactive
     ? `<script type="application/reactive-md+json" data-reactive-md-auto>${serializeForScript(payload)}</script>
@@ -267,7 +415,7 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
 <style>${escapeStyle(options.css)}${EXPORT_SHELL_CSS}</style>
 </head>
 <body class="reactive-md-export">
-<div id="${targetId}" class="reactive-md-export-root">${options.staticMarkup}</div>
+<div id="${targetId}" class="reactive-md-export-root">${staticMarkup}</div>
 ${payloadScript}
 ${notices}
 </body>

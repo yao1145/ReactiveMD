@@ -2,17 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { LocalCompileScheduler } from 'reactive-md';
 import type {
   LocalCompileMode,
+  LocalCompileOptions,
   LocalCompileResult,
   LocalCompileWorker,
 } from 'reactive-md';
+import { compileOptionsKey } from './html-options';
 
 export type LocalCompiledDocument = Extract<LocalCompileResult, { ok: true }>['document'];
 
 export interface LocalCompilation {
-  /** Compile result for the exact source currently in the editor, once it exists. */
+  /** Compile result for the exact source and routing options in use, once it exists. */
   result: LocalCompileResult | null;
   duration: number;
-  /** Last successful document, kept on screen while a newer compile runs. */
+  /** Last successful document for the same options, kept while a newer compile runs. */
   previewDocument: LocalCompiledDocument | null;
   pending: boolean;
   mode: LocalCompileMode;
@@ -22,9 +24,11 @@ export interface LocalCompilation {
 
 interface CompilationState {
   resultSource: string | null;
+  resultOptionsKey: string | null;
   result: LocalCompileResult | null;
   duration: number;
   previewDocument: LocalCompiledDocument | null;
+  previewOptionsKey: string | null;
   schedulerPending: boolean;
   mode: LocalCompileMode;
   failure: string | null;
@@ -38,32 +42,53 @@ function createCompileWorker(): LocalCompileWorker {
   );
 }
 
-export function useLocalCompilation(source: string): LocalCompilation {
+export function useLocalCompilation(
+  source: string,
+  options?: LocalCompileOptions,
+): LocalCompilation {
+  const optionsKey = compileOptionsKey(options);
   const [state, setState] = useState<CompilationState>(() => ({
     resultSource: null,
+    resultOptionsKey: null,
     result: null,
     duration: 0,
     previewDocument: null,
+    previewOptionsKey: null,
     schedulerPending: true,
     mode: 'worker',
     failure: null,
   }));
   const sourceRef = useRef(source);
   sourceRef.current = source;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+  const optionsKeyRef = useRef(optionsKey);
+  optionsKeyRef.current = optionsKey;
   const schedulerRef = useRef<LocalCompileScheduler | null>(null);
 
+  // The scheduler captures the routing options for each request. Rebuilding it
+  // when a permission primitive changes (rather than reusing it for the same
+  // source) means an older, more permissive result can never be delivered to
+  // the new route. The previous preview is discarded during render below.
   useEffect(() => {
+    const scheduledOptionsKey = optionsKey;
     const scheduler = new LocalCompileScheduler({
       createWorker: createCompileWorker,
       onResult: (outcome) => {
+        const outcomeOptionsKey = outcome.options === undefined
+          ? scheduledOptionsKey
+          : compileOptionsKey(outcome.options);
         setState((previous) => {
           if (outcome.source !== sourceRef.current) return previous;
+          if (outcomeOptionsKey !== optionsKeyRef.current) return previous;
           return {
             ...previous,
             resultSource: outcome.source,
+            resultOptionsKey: outcomeOptionsKey,
             result: outcome.result,
             duration: outcome.duration,
             previewDocument: outcome.result.ok ? outcome.result.document : previous.previewDocument,
+            previewOptionsKey: outcome.result.ok ? outcomeOptionsKey : previous.previewOptionsKey,
             mode: outcome.mode,
           };
         });
@@ -82,22 +107,26 @@ export function useLocalCompilation(source: string): LocalCompilation {
       },
     });
     schedulerRef.current = scheduler;
-    scheduler.schedule(sourceRef.current);
+    scheduler.schedule(sourceRef.current, optionsRef.current);
     return () => {
       schedulerRef.current = null;
       scheduler.dispose();
     };
-  }, []);
+  }, [optionsKey]);
 
   useEffect(() => {
-    schedulerRef.current?.schedule(source);
+    schedulerRef.current?.schedule(source, optionsRef.current);
   }, [source]);
 
-  const result = state.resultSource === source ? state.result : null;
+  const sameRoute = state.resultOptionsKey === optionsKey;
+  const result = state.resultSource === source && sameRoute ? state.result : null;
+  // A preview compiled under another capability set is never shown, even for
+  // the frame before the recompile completes.
+  const previewDocument = state.previewOptionsKey === optionsKey ? state.previewDocument : null;
   return {
     result,
     duration: result ? state.duration : 0,
-    previewDocument: state.previewDocument,
+    previewDocument,
     pending: state.schedulerPending || result === null,
     mode: state.mode,
     failure: state.failure,

@@ -12,8 +12,9 @@ The guarantees below are covered by compiler, runtime and renderer tests; capabi
 
 ### Document content
 
-- Authors cannot execute scripts. `<script>`, raw HTML, `on-*` event attributes and author CSS are not part of `local-draft-2`; they are treated as syntax diagnostics or text, never executed as HTML.
-- The React renderer does not call `dangerouslySetInnerHTML` and does not write document content into `innerHTML`.
+- With the three HTML capability options off, author scripts, event attributes and CSS remain inert. P0 HTML is rebuilt as typed nodes and React elements. See [HTML compatibility and the temporary routing policy](docs/html-compatibility-en.md).
+- Enabling `enableCss`, `enableJavaScript` or `enableExtendedHtml` routes the entire source to native HTML inside a sandboxed iframe without `allow-same-origin`. The other flags still constrain author source. Arbitrary enabled JavaScript can create DOM elements and styles dynamically; individual source flags are not runtime DOM permissions. CSP and sandbox restrictions continue to govern network access, forms and navigation.
+- The default React renderer does not call `dangerouslySetInnerHTML` or write document content into `innerHTML`. Native HTML uses a parsed and filtered iframe `srcdoc`, separate from the host DOM.
 - Expressions use their own parser and AST evaluator, with no `eval` or `new Function`, and no support for assignment, method calls, property access, prototype paths or imports. Expressions can only read parameters declared by the document and built-in functions.
 - LaTeX is evaluated by a budget-limited parser and rendered as native MathML; the renderer does not execute macros, files, network or HTML entry points. Unknown commands are displayed as text.
 - Expressions, templates, tables and charts do not make network requests; chart data must be written in the document.
@@ -59,7 +60,7 @@ Hosts can adjust the syntax node budget for a single compilation with `compileLo
 ### Shareable HTML export
 
 - `reactive-md-state/v1` stores only public binding names and serializable values. It excludes `@` internal bindings, revisions, node IDs, AST data, UI state and timers. Source digest, syntax, parameter set and every value are validated before import; unknown or conflicting keys reject the whole file.
-- Interactive HTML embeds a fixed standalone runtime and a CSP with no network connections, frames, objects, base injection or form submission. Only inline styles/runtime and `data:` images are allowed. JSON, source, titles and notices are escaped for their HTML/script context.
+- Default ReactiveMD interactive exports embed a fixed standalone runtime and a CSP with no network connections, frames, objects, base injection or form submission. Native HTML exports additionally permit the sandboxed `srcdoc` frame that holds the document; its own CSP governs author CSS and scripts. JSON, source, titles and notices are escaped for their HTML/script context.
 - The CLI inlines only relative raster files that resolve inside the document directory or an explicit asset root. It rejects remote images, URL schemes, absolute paths, traversal, symlink escapes, SVG, forged formats and oversized assets. The demo export dialog disables HTML export when images are present.
 - Static HTML contains no runtime script or auto-mount payload. Static-first hydration is covered only in the single-file Chromium/Edge path; it is not a general hydration or sandboxing guarantee. Use a sandboxed iframe for fully untrusted authors.
 - Exporting current parameters is an explicit host/reader action. Treat the generated state file and HTML as potentially sensitive; choose initial values unless current values are intentionally meant to be shared.

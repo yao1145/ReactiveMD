@@ -1,5 +1,6 @@
 import { compileLocal } from './compiler';
-import type { Diagnostic, LocalCompileResult } from './types';
+import { LOCAL_HTML_FLAGS, localCompileOptionsKey } from './options';
+import type { Diagnostic, LocalCompileOptions, LocalCompileResult } from './types';
 
 /** Editors are coalesced for this long before a compile is dispatched. */
 export const LOCAL_COMPILE_DELAY_MS = 150;
@@ -7,6 +8,8 @@ export const LOCAL_COMPILE_DELAY_MS = 150;
 export interface LocalCompileRequest {
   id: number;
   source: string;
+  /** Capability flags and limits granted for this compile. */
+  options?: LocalCompileOptions;
 }
 
 export type LocalCompileResponse =
@@ -32,16 +35,78 @@ export interface LocalCompileOutcome {
   result: LocalCompileResult;
   duration: number;
   mode: LocalCompileMode;
+  /** Snapshot of the options this result was compiled with, when supplied. */
+  options?: LocalCompileOptions;
 }
 
 export interface LocalCompileSchedulerOptions {
   createWorker(): LocalCompileWorker;
-  /** Defaults to compileLocal. Runs on the main thread only when the worker is unavailable or failed. */
-  fallbackCompile?(source: string): LocalCompileResult;
+  /**
+   * Defaults to compileLocal. Runs on the main thread only when the worker is
+   * unavailable or failed. One-argument callbacks remain supported.
+   */
+  fallbackCompile?(source: string, options?: LocalCompileOptions): LocalCompileResult;
   onResult(outcome: LocalCompileOutcome): void;
   onPendingChange?(pending: boolean): void;
   onModeChange?(mode: LocalCompileMode, detail?: string): void;
   delay?: number;
+}
+
+interface CompileJob {
+  source: string;
+  /** Copied at schedule time so later caller mutation cannot change permissions. */
+  options?: LocalCompileOptions;
+  /** Canonical options signature used to detect options-only edits. */
+  optionsKey: string;
+}
+
+/**
+ * Copy the option values that affect routing and budgets. Invalid values are
+ * preserved so the compiler can report them; known keys are snapshotted so a
+ * caller mutating its object after `schedule` cannot widen an in-flight compile.
+ */
+function snapshotCompileOptions(options: LocalCompileOptions | undefined): LocalCompileOptions | undefined {
+  if (options === undefined) return undefined;
+  try {
+    if (typeof options !== 'object' || options === null || Array.isArray(options)) return options;
+    const source = options as unknown as Record<string, unknown>;
+    const copy: Record<string, unknown> = {};
+    for (const flag of LOCAL_HTML_FLAGS) {
+      if (Object.hasOwn(source, flag)) copy[flag] = source[flag];
+    }
+    if (Object.hasOwn(source, 'limits')) {
+      const limits = source.limits;
+      if (limits && typeof limits === 'object' && !Array.isArray(limits) && Object.hasOwn(limits, 'maxSyntaxNodes')) {
+        copy.limits = { maxSyntaxNodes: (limits as Record<string, unknown>).maxSyntaxNodes };
+      } else {
+        copy.limits = limits;
+      }
+    }
+    return copy as unknown as LocalCompileOptions;
+  } catch {
+    // A hostile getter is reported by the compiler itself; keep the original.
+    return options;
+  }
+}
+
+function optionsKeyOf(options: LocalCompileOptions | undefined): string {
+  const key = localCompileOptionsKey(options);
+  if (key !== 'invalid') return key;
+  // Different invalid payloads must still invalidate an in-flight result.
+  try {
+    return `invalid:${JSON.stringify(options)}`;
+  } catch {
+    return 'invalid';
+  }
+}
+
+function createJob(source: string, options: LocalCompileOptions | undefined): CompileJob {
+  const snapshot = snapshotCompileOptions(options);
+  return { source, options: snapshot, optionsKey: optionsKeyOf(snapshot) };
+}
+
+function sameJob(left: CompileJob, right: CompileJob): boolean {
+  return left.source === right.source && left.optionsKey === right.optionsKey;
 }
 
 function messageOf(error: unknown): string {
@@ -76,8 +141,8 @@ export class LocalCompileScheduler {
   private readonly delay: number;
   private worker: LocalCompileWorker | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
-  private queuedSource: string | null = null;
-  private inFlight: { id: number; source: string } | null = null;
+  private queued: CompileJob | null = null;
+  private inFlight: { id: number; job: CompileJob } | null = null;
   private nextId = 1;
   private pending = false;
   private disposed = false;
@@ -105,10 +170,15 @@ export class LocalCompileScheduler {
     }
   }
 
-  /** Queue the newest source; the previous timer, if any, is replaced. */
-  schedule(source: string): void {
+  /**
+   * Queue the newest source and its compile options; the previous timer, if
+   * any, is replaced. Options are copied so a later mutation cannot change the
+   * permissions of an in-flight compile. An options-only edit still supersedes
+   * an older result for the same source.
+   */
+  schedule(source: string, options?: LocalCompileOptions): void {
     if (this.disposed) return;
-    this.queuedSource = source;
+    this.queued = createJob(source, options);
     this.clearTimer();
     this.timer = setTimeout(() => {
       this.timer = null;
@@ -122,7 +192,7 @@ export class LocalCompileScheduler {
     if (this.disposed) return;
     this.disposed = true;
     this.clearTimer();
-    this.queuedSource = null;
+    this.queued = null;
     this.inFlight = null;
     const worker = this.worker;
     this.worker = null;
@@ -141,64 +211,88 @@ export class LocalCompileScheduler {
 
   private drain(): void {
     if (this.disposed || this.timer !== null || this.inFlight !== null) return;
-    const source = this.queuedSource;
-    if (source === null) {
+    const job = this.queued;
+    if (job === null) {
       this.setPending(false);
       return;
     }
-    this.queuedSource = null;
-    this.compile(source);
+    this.queued = null;
+    this.compile(job);
   }
 
-  private compile(source: string): void {
+  private compile(job: CompileJob): void {
     const worker = this.worker;
     if (!worker) {
-      this.compileFallback(source);
+      this.compileFallback(job);
       return;
     }
     const id = this.nextId++;
-    this.inFlight = { id, source };
+    this.inFlight = { id, job };
     try {
-      worker.postMessage({ id, source });
+      worker.postMessage({
+        id,
+        source: job.source,
+        ...(job.options === undefined ? {} : { options: job.options }),
+      });
     } catch (error) {
       this.inFlight = null;
-      this.handleWorkerFailure(`Could not send the source to the compile worker: ${messageOf(error)}`);
-      this.compileFallback(source);
+      const detail = `Could not send the source to the compile worker: ${messageOf(error)}`;
+      const queued = this.queued;
+      if (queued !== null && !sameJob(queued, job)) {
+        // A newer source or permission set owns the next result; do not deliver
+        // this superseded job after it.
+        this.degrade(detail);
+        this.finishRun();
+        return;
+      }
+      if (queued !== null) {
+        this.queued = null;
+        this.clearTimer();
+      }
+      this.degrade(detail);
+      this.compileFallback(job);
     }
   }
 
-  private compileFallback(source: string): void {
+  private compileFallback(job: CompileJob): void {
     if (this.disposed) return;
     const started = now();
     let result: LocalCompileResult;
     try {
       const fallbackCompile = this.options.fallbackCompile ?? compileLocal;
-      result = fallbackCompile(source);
+      // Keep the historical one-argument call shape when no options were given.
+      result = job.options === undefined
+        ? fallbackCompile(job.source)
+        : fallbackCompile(job.source, job.options);
     } catch (error) {
       result = { ok: false, diagnostics: [compileFailureDiagnostic(error)] };
     }
     this.deliver({
-      source,
+      source: job.source,
       result,
       duration: safeDuration(now() - started),
       mode: 'fallback',
+      ...(job.options === undefined ? {} : { options: job.options }),
     });
     this.finishRun();
   }
 
   private receive(response: LocalCompileResponse): void {
     if (this.disposed) return;
-    const job = this.inFlight;
-    if (!job || !response || response.id !== job.id) return;
+    const inFlight = this.inFlight;
+    if (!inFlight || !response || response.id !== inFlight.id) return;
     this.inFlight = null;
+    const job = inFlight.job;
 
-    const queued = this.queuedSource;
-    if (queued !== null && queued !== job.source) {
-      // A newer source is waiting; drop this result instead of flashing backwards.
+    const queued = this.queued;
+    if (queued !== null && !sameJob(queued, job)) {
+      // A newer source or permission set is waiting; drop this result instead
+      // of flashing backwards.
     } else {
-      if (queued === job.source) {
-        // The queued edit compiles to the same source, so this result still counts.
-        this.queuedSource = null;
+      if (queued !== null) {
+        // The queued edit compiles to the same source and options, so this
+        // result still counts.
+        this.queued = null;
         this.clearTimer();
       }
       if (response.ok) {
@@ -207,6 +301,7 @@ export class LocalCompileScheduler {
           result: response.result,
           duration: safeDuration(response.duration),
           mode: 'worker',
+          ...(job.options === undefined ? {} : { options: job.options }),
         });
       } else {
         this.deliver({
@@ -214,6 +309,7 @@ export class LocalCompileScheduler {
           result: { ok: false, diagnostics: [compileFailureDiagnostic(response.message)] },
           duration: 0,
           mode: 'worker',
+          ...(job.options === undefined ? {} : { options: job.options }),
         });
       }
     }
@@ -223,14 +319,14 @@ export class LocalCompileScheduler {
   private handleWorkerFailure(detail: string): void {
     if (this.disposed) return;
     this.degrade(detail);
-    const job = this.inFlight;
+    const inFlight = this.inFlight;
     this.inFlight = null;
-    if (job && (this.queuedSource === null || this.queuedSource === job.source)) {
-      if (this.queuedSource === job.source) {
-        this.queuedSource = null;
+    if (inFlight && (this.queued === null || sameJob(this.queued, inFlight.job))) {
+      if (this.queued !== null) {
+        this.queued = null;
         this.clearTimer();
       }
-      this.compileFallback(job.source);
+      this.compileFallback(inFlight.job);
     }
     this.finishRun();
   }
@@ -255,7 +351,7 @@ export class LocalCompileScheduler {
     if (this.disposed) return;
     this.drain();
     if (this.disposed) return;
-    this.setPending(this.timer !== null || this.inFlight !== null || this.queuedSource !== null);
+    this.setPending(this.timer !== null || this.inFlight !== null || this.queued !== null);
   }
 
   private deliver(outcome: LocalCompileOutcome): void {
@@ -302,7 +398,9 @@ export function startLocalCompileWorker(scope?: LocalCompileWorkerScope): void {
 
     const started = now();
     try {
-      const result = compileLocal(request.source);
+      const result = request.options === undefined
+        ? compileLocal(request.source)
+        : compileLocal(request.source, request.options);
       const duration = safeDuration(now() - started);
       try {
         target.postMessage({ id: request.id, ok: true, result, duration });

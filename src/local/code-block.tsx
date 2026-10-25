@@ -226,11 +226,13 @@ export interface CodeBlockViewProps {
   value: string;
   language?: string;
   mode: 'interactive' | 'static';
+  /** Renderer-validated P0 HTML attributes, never raw source attributes. */
+  htmlProps?: Record<string, string>;
 }
 
 const SAFE_LANGUAGE_CLASS = /^[a-z0-9][a-z0-9+#._-]*$/;
 
-export function CodeBlockView({ value, language, mode }: CodeBlockViewProps): ReactElement {
+export function CodeBlockView({ value, language, mode, htmlProps }: CodeBlockViewProps): ReactElement {
   const t = useLocalize();
   const highlight = useMemo(() => highlightCode(value, language), [value, language]);
   const [feedback, setFeedback] = useState<CopyFeedbackState>({ value, state: 'idle' });
@@ -321,7 +323,7 @@ export function CodeBlockView({ value, language, mode }: CodeBlockViewProps): Re
           </>
         )}
       </div>
-      <pre className="md-code">
+      <pre className="md-code" {...htmlProps}>
         <code className={codeClass}>{highlight.nodes ?? value}</code>
       </pre>
     </div>

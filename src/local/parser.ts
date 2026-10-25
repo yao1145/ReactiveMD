@@ -1,6 +1,7 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
+import { parseFragment } from 'parse5';
 import type { Diagnostic } from './types';
 import type { LocalCompileOptions, LocalNode, LocalVersionDeclaration, SourceRange } from './types';
 import { LOCAL_SYNTAX_VERSION } from './version';
@@ -9,12 +10,12 @@ import { localComponentNames, suggestComponent } from './schema';
 import { isLocalThemeName } from './theme';
 import { normalizeFootnoteIdentifier } from './footnotes';
 import {
-  DEFAULT_MAX_LOCAL_SYNTAX_NODES,
   MAX_LOCAL_DOCUMENT_LENGTH,
   MAX_LOCAL_DIAGNOSTICS,
   MAX_LOCAL_DIAGNOSTIC_LENGTH,
   MAX_LOCAL_STRING_LENGTH,
 } from './limits';
+import { readLocalCompileOptions } from './options';
 
 /* Tag shapes come from the component schema; tests/schema-shapes.test.ts
  * pins the accepted syntax against the original literal lists. */
@@ -30,12 +31,121 @@ const ATTR_NAME = TAG_NAME;
 /** The only basic HTML names accepted, mapped to ordinary Markdown node types. */
 const HTML_INLINE: Readonly<Record<string, string>> = {
   b: 'strong',
+  strong: 'strong',
   i: 'emphasis',
+  em: 'emphasis',
   s: 'delete',
+  del: 'delete',
   u: 'underline',
   mark: 'mark',
+  sup: 'sup',
+  sub: 'sub',
 };
-const HTML_NAMES = new Set([...Object.keys(HTML_INLINE), 'br']);
+/** P0 native HTML accepted inline in Markdown documents. */
+const HTML_NAMES = new Set([
+  ...Object.keys(HTML_INLINE),
+  'br', 'hr', 'img',
+  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'div', 'span', 'details', 'summary', 'blockquote',
+  'code', 'pre', 'ul', 'ol', 'li', 'a',
+]);
+const HTML_VOID = new Set(['br', 'hr', 'img']);
+const HTML_BLOCK = new Set([
+  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'div', 'details', 'blockquote', 'pre', 'ul', 'ol', 'li',
+]);
+const BLOCK_HTML_RESULTS = new Set(['paragraph', 'heading', 'div', 'details', 'blockquote', 'code', 'list', 'listItem', 'thematicBreak']);
+const HTML_GLOBAL_ATTRIBUTES = new Set(['id', 'title', 'lang', 'dir']);
+const HTML_TAG_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
+  a: new Set(['href']),
+  img: new Set(['src', 'alt', 'width', 'height']),
+  ol: new Set(['start']),
+  details: new Set(['open']),
+};
+/**
+ * Decode character references with the same grammar the browser uses. Literal
+ * `<` is escaped first so tag-looking code stays text, while every named and
+ * numeric reference (including invalid code points) follows parse5's rules.
+ */
+function decodeHtmlEntities(value: string): string {
+  if (!value.includes('&')) return value;
+  try {
+    const fragment = parseFragment(value.replace(/</g, '&lt;'), { scriptingEnabled: false });
+    let text = '';
+    const walk = (node: any): void => {
+      if (node.nodeName === '#text') {
+        text += node.value;
+        return;
+      }
+      for (const child of node.childNodes ?? []) walk(child);
+      if (node.content?.childNodes) for (const child of node.content.childNodes) walk(child);
+    };
+    for (const child of fragment.childNodes) walk(child);
+    return text;
+  } catch {
+    return value;
+  }
+}
+interface HtmlAttributeValue {
+  name: string;
+  value: string;
+  start: number;
+  end: number;
+}
+interface HtmlAttributeScan {
+  attrs: Record<string, string>;
+  entries: HtmlAttributeValue[];
+  invalid: HtmlAttributeValue[];
+}
+/** Attribute values are raw decoded strings; the source is never executed. */
+function scanHtmlAttributes(raw: string, offset: number): HtmlAttributeScan {
+  const attrs: Record<string, string> = Object.create(null);
+  const entries: HtmlAttributeValue[] = [];
+  const invalid: HtmlAttributeValue[] = [];
+  let index = 0;
+  while (index < raw.length) {
+    while (index < raw.length && /\s/.test(raw[index])) index += 1;
+    if (index >= raw.length || raw[index] === '/') break;
+    const start = index;
+    const match = /^[A-Za-z_:][A-Za-z0-9_.:-]*/.exec(raw.slice(index));
+    if (!match) {
+      index += 1;
+      continue;
+    }
+    const name = match[0].toLowerCase();
+    index += match[0].length;
+    while (index < raw.length && /\s/.test(raw[index])) index += 1;
+    let value = 'true';
+    if (raw[index] === '=') {
+      index += 1;
+      while (index < raw.length && /\s/.test(raw[index])) index += 1;
+      const quote = raw[index];
+      if (quote === '"' || quote === "'") {
+        index += 1;
+        const end = raw.indexOf(quote, index);
+        if (end < 0) {
+          invalid.push({ name, value: '', start: offset + start, end: offset + raw.length });
+          break;
+        }
+        value = decodeHtmlEntities(raw.slice(index, end));
+        index = end + 1;
+      } else {
+        const begin = index;
+        while (index < raw.length && !/[\s>]/.test(raw[index])) index += 1;
+        value = decodeHtmlEntities(raw.slice(begin, index));
+      }
+    }
+    const entry = { name, value, start: offset + start, end: offset + index };
+    if (Object.hasOwn(attrs, name)) {
+      // HTML keeps the first occurrence; duplicates are inert.
+      entries.push(entry);
+      continue;
+    }
+    attrs[name] = value;
+    entries.push(entry);
+  }
+  return { attrs, entries, invalid };
+}
 /** Names longer than this are rejected and never fed to suggestion search. */
 const MAX_LOCAL_NAME_LENGTH = 128;
 /** Displayed math source, in UTF-16 code units, per formula. */
@@ -90,27 +200,6 @@ class LocalBudgetError extends Error {
   }
 }
 
-function syntaxNodeLimit(options: LocalCompileOptions | undefined): number | { message: string; key: string } {
-  if (options === undefined) return DEFAULT_MAX_LOCAL_SYNTAX_NODES;
-  if (typeof options !== 'object' || options === null || Array.isArray(options)) {
-    return { message: 'Compile options must be an object.', key: 'local.options.invalid.object' };
-  }
-  const limits = options.limits;
-  if (limits === undefined) return DEFAULT_MAX_LOCAL_SYNTAX_NODES;
-  if (typeof limits !== 'object' || limits === null || Array.isArray(limits)) {
-    return { message: 'Compile option limits must be an object.', key: 'local.options.invalid.limits' };
-  }
-  const value = limits.maxSyntaxNodes;
-  if (value === undefined) return DEFAULT_MAX_LOCAL_SYNTAX_NODES;
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
-    return {
-      message: 'Compile option limits.maxSyntaxNodes must be a positive safe integer.',
-      key: 'local.options.invalid.max-syntax-nodes',
-    };
-  }
-  return value;
-}
-
 /** A lexical pass shields code before recognizing local tags, interpolation and math. */
 export function parseLocal(source: string, options?: LocalCompileOptions): ParsedLocal {
   const diagnostics: Diagnostic[] = [];
@@ -125,13 +214,14 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       messageKey: details.key, ...(details.params ? { params: details.params } : {}),
     }] };
   }
-  const maxSyntaxNodes = syntaxNodeLimit(options);
-  if (typeof maxSyntaxNodes !== 'number') {
+  const optionCheck = readLocalCompileOptions(options);
+  if (!optionCheck.ok) {
     return { nodes: [], diagnostics: [{
-      code: 'local.options.invalid', message: maxSyntaxNodes.message, severity: 'error',
-      range: { start: 0, end: 0 }, line: 1, column: 1, messageKey: maxSyntaxNodes.key,
+      code: 'local.options.invalid', message: optionCheck.message, severity: 'error',
+      range: { start: 0, end: 0 }, line: 1, column: 1, messageKey: optionCheck.key,
     }] };
   }
+  const maxSyntaxNodes = optionCheck.maxSyntaxNodes;
   const lineStarts = [0];
   for (let index = 0; index < source.length; index += 1) {
     if (source[index] === '\n') lineStarts.push(index + 1);
@@ -500,30 +590,36 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     if (!found || source[found.closeEnd] !== ':') return null;
     return { label: found.label, identifier: found.identifier, bodyStart: found.closeEnd + 1 };
   }
-  /** Basic HTML tag shape (name only); attributes are rejected by `htmlTagValid`. */
+  /** Basic HTML tag shape (name only); attributes are validated by the caller. */
   function htmlTagAt(start: number, limit: number) {
     const match = /^<(\/?)([A-Za-z][A-Za-z0-9]*)(?=[\s/>])/.exec(source.slice(start, Math.min(limit, start + 64)));
     if (!match) return null;
     const lower = match[2].toLowerCase();
     if (!HTML_NAMES.has(lower)) return null;
-    // Accepted forms are attribute-free, so a tag never spans a line break.
-    const newline = source.indexOf('\n', start + match[0].length);
-    const scanLimit = newline >= 0 ? Math.min(limit, newline) : limit;
-    let quote = '', end = start + match[0].length;
-    for (; end < scanLimit; end++) {
+    const head = start + match[0].length;
+    let quote = '', end = head;
+    for (; end < limit; end++) {
       const c = source[end];
       if (quote) { if (c === quote) quote = ''; }
       else if (c === '"' || c === "'") quote = c;
       else if (c === '>') break;
     }
-    if (end >= scanLimit) return null;
-    return { lower, closing: Boolean(match[1]), rest: source.slice(start + match[0].length, end), end: end + 1 };
-  }
-  /** Only attribute-free paired tags and attribute-free `br` variants are valid. */
-  function htmlTagValid(tag: { lower: string; closing: boolean; rest: string }): boolean {
-    if (tag.closing) return tag.rest.trim() === '';
-    if (tag.lower === 'br') return /^\s*\/?\s*$/.test(tag.rest);
-    return tag.rest.trim() === '';
+    if (end >= limit) return null;
+    const rest = source.slice(head, end);
+    const closing = Boolean(match[1]);
+    const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head);
+    return {
+      lower,
+      closing,
+      self: !closing && /\/\s*$/.test(rest),
+      rest,
+      attrs: scan.attrs,
+      entries: scan.entries,
+      invalid: scan.invalid,
+      start,
+      head,
+      end: end + 1,
+    };
   }
   /** Matching close of a paired basic HTML tag, nesting same-name tags. */
   function htmlCloseEnd(start: number, name: string, limit: number, insideContainer: boolean): { start: number; end: number } | null {
@@ -543,13 +639,18 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       if (source[i] === '<') {
         const tag = htmlTagAt(i, limit);
         if (tag) {
-          if (tag.lower === name && htmlTagValid(tag)) {
+          if (tag.lower === name) {
             if (tag.closing) {
               depth -= 1;
               if (depth === 0) return { start: i, end: tag.end };
-            } else if (name !== 'br' && !/^\s*\/\s*$/.test(tag.rest)) {
+            } else if (!tag.self && !HTML_VOID.has(name)) {
               depth += 1;
             }
+          } else if (!tag.closing && (tag.lower === 'pre' || tag.lower === 'code') && !HTML_VOID.has(tag.lower)) {
+            // Raw code content is inert: tags inside it never change the
+            // nesting of the surrounding HTML container.
+            const inner = htmlCloseEnd(tag.end, tag.lower, limit, insideContainer);
+            if (inner) { i = inner.end; continue; }
           }
           i = tag.end;
           continue;
@@ -558,6 +659,188 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       i++;
     }
     return null;
+  }
+  /** P0 attribute policy. Any unsupported name or unsafe value degrades the whole tag to source. */
+  function selectHtmlAttributes(lower: string, tag: ReturnType<typeof htmlTagAt> & {}): { ok: true; attrs: Record<string, string> } | { ok: false; attr: string } {
+    if (!tag) return { ok: false, attr: '' };
+    const attrs: Record<string, string> = Object.create(null);
+    if (tag.invalid.length) return { ok: false, attr: tag.invalid[0].name };
+    for (const entry of tag.entries) {
+      const name = entry.name;
+      if (name === 'class' || name === 'style' || /^on[a-z]/.test(name)) return { ok: false, attr: name };
+      const global = HTML_GLOBAL_ATTRIBUTES.has(name);
+      const aria = /^aria-[a-z0-9_.-]+$/.test(name);
+      const data = /^data-[a-z0-9_.-]+$/.test(name);
+      const specific = HTML_TAG_ATTRIBUTES[lower]?.has(name) ?? false;
+      if (!global && !aria && !data && !specific) return { ok: false, attr: name };
+      if (name === 'dir' && !['ltr', 'rtl', 'auto'].includes(entry.value.trim().toLowerCase())) return { ok: false, attr: name };
+      if (name === 'id' && entry.value.trim() === '') return { ok: false, attr: name };
+      if (name === 'width' || name === 'height') {
+        if (!/^\d{1,6}$/.test(entry.value.trim())) return { ok: false, attr: name };
+      }
+      if (name === 'start' && !/^-?\d{1,9}$/.test(entry.value.trim())) return { ok: false, attr: name };
+      if ((name === 'href' || name === 'src')) {
+        const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(entry.value.trim().replace(/[\u0000- ]+/g, ''));
+        if (scheme) {
+          const kind = name === 'src' ? 'image' : 'link';
+          const allowed = kind === 'image'
+            ? scheme[1].toLowerCase() === 'http' || scheme[1].toLowerCase() === 'https'
+            : ['http', 'https', 'mailto', 'tel'].includes(scheme[1].toLowerCase());
+          if (!allowed) return { ok: false, attr: name };
+        }
+      }
+      attrs[name] = entry.value;
+    }
+    if (lower === 'details' && Object.hasOwn(attrs, 'open')) attrs.open = 'true';
+    return { ok: true, attrs };
+  }
+  /** Inline children of an HTML formatting element, unwrapping one paragraph. */
+  function inlineHtmlChildren(nodes: LocalNode[]): LocalNode[] {
+    return nodes.length === 1 && nodes[0].type === 'paragraph' ? nodes[0].children ?? [] : nodes;
+  }
+  function flattenParagraphs(nodes: LocalNode[]): LocalNode[] {
+    return nodes.flatMap((child) => (child.type === 'paragraph' ? child.children ?? [] : [child]));
+  }
+  interface HtmlNodeContext {
+    footnote: boolean;
+    container: boolean;
+    indent: number;
+    stripBlockquote: boolean;
+    depth: number;
+  }
+  /**
+   * Convert one P0 HTML element. Paired containers keep every Markdown,
+   * formula, interpolation and ReactiveMD token their body produced; `<code>`
+   * and `<pre>` stay raw and inert, and details/summary keep rich children.
+   */
+  function buildHtmlNode(
+    tag: { lower: string; start: number; head: number; end: number },
+    close: { start: number; end: number },
+    attrs: Record<string, string>,
+    context: HtmlNodeContext,
+  ): LocalNode {
+    const start = tag.start;
+    const end = close.end;
+    const bodyNodes = (): LocalNode[] => {
+      const body = region(tag.end, close.start, undefined, start, tag.end, context.depth + 1, {
+        footnote: context.footnote,
+        indent: context.indent,
+        container: context.container,
+        definitions: [],
+        stripBlockquote: context.stripBlockquote,
+      });
+      return convert(tag.end, close.start, body.tokens, context.indent, {
+        literalHtml: context.footnote,
+        stripBlockquote: context.stripBlockquote,
+      });
+    };
+    const inline = (): LocalNode[] => inlineHtmlChildren(bodyNodes());
+    const listItems = (nodes: LocalNode[]): LocalNode[] => {
+      const items: LocalNode[] = [];
+      for (const child of nodes) {
+        if (child.type === 'list') {
+          for (const item of child.children ?? []) if (item.type === 'listItem') items.push(item);
+          continue;
+        }
+        if (child.type === 'listItem') {
+          items.push(child);
+          continue;
+        }
+        if (child.type === 'comment' || (child.type === 'text' && !(child.value ?? '').trim())) continue;
+        items.push(node('listItem', child.range.start, child.range.end, {
+          children: child.type === 'paragraph' ? child.children ?? [] : [child],
+        }));
+      }
+      return items;
+    };
+
+    switch (tag.lower) {
+      case 'code': {
+        // Raw content: `{{ }}`, Markdown and tags stay literal; entities decode.
+        return node('inlineCode', start, end, { value: decodeHtmlEntities(source.slice(tag.end, close.start)) });
+      }
+      case 'pre': {
+        const raw = source.slice(tag.end, close.start);
+        const wrapped = /^<code(?:\s[^>]*)?>([\s\S]*)<\/code>$/.exec(raw);
+        return node('code', start, end, {
+          value: decodeHtmlEntities(wrapped ? wrapped[1] : raw),
+          attrs,
+        });
+      }
+      case 'summary':
+        return node('summary', start, end, { attrs, children: inline() });
+      case 'details': {
+        const children = bodyNodes();
+        let summary: LocalNode | null = null;
+        let index = children.findIndex((child) => child.type === 'summary');
+        if (index < 0) {
+          index = children.findIndex((child) => child.type === 'paragraph'
+            && child.children?.length === 1 && child.children[0].type === 'summary');
+          if (index >= 0) {
+            summary = children[index].children![0];
+            children.splice(index, 1);
+          }
+        } else {
+          summary = children[index];
+          children.splice(index, 1);
+        }
+        return node('details', start, end, {
+          attrs,
+          children: summary ? [summary, ...children] : children,
+        });
+      }
+      case 'p':
+        return node('paragraph', start, end, { attrs, children: flattenParagraphs(bodyNodes()) });
+      case 'h1': case 'h2': case 'h3': case 'h4': case 'h5': case 'h6':
+        return node('heading', start, end, {
+          depth: Number(tag.lower.slice(1)),
+          attrs,
+          children: flattenParagraphs(bodyNodes()),
+        });
+      case 'div':
+        return node('div', start, end, { attrs, children: bodyNodes() });
+      case 'blockquote':
+        return node('blockquote', start, end, { attrs, children: bodyNodes() });
+      case 'ul':
+      case 'ol': {
+        const ordered = tag.lower === 'ol';
+        const rawStart = attrs.start;
+        const startNumber = ordered && rawStart !== undefined ? Number(rawStart) : undefined;
+        return node('list', start, end, {
+          ordered,
+          ...(ordered && startNumber !== undefined && Number.isFinite(startNumber) ? { start: startNumber } : {}),
+          attrs,
+          children: listItems(bodyNodes()),
+        });
+      }
+      case 'li': {
+        const nodes = bodyNodes();
+        return node('listItem', start, end, {
+          attrs,
+          children: nodes.length === 1 && nodes[0].type === 'paragraph'
+            ? nodes[0].children ?? []
+            : nodes,
+        });
+      }
+      case 'a': {
+        if (attrs.href === undefined) {
+          return node('span', start, end, { attrs, children: inline() });
+        }
+        return node('link', start, end, {
+          url: attrs.href,
+          title: attrs.title ?? null,
+          attrs,
+          children: inline(),
+        });
+      }
+      case 'span':
+        return node('span', start, end, { attrs, children: inline() });
+      default:
+        return node(HTML_INLINE[tag.lower] ?? tag.lower, start, end, {
+          attrs,
+          children: inline(),
+        });
+    }
   }
   const ROOT_FENCE_LINE = /^ {0,3}$/;
   const CONTAINER_FENCE_LINE = /^[ \t]*$/;
@@ -861,43 +1144,64 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       if (source[i] === '<') {
         const html = htmlTagAt(i, end);
         if (html) {
-          if (!htmlTagValid(html)) {
-            const stop = !html.closing && html.lower !== 'br'
-              ? (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? html.end)
-              : html.end;
-            warning('local.html', 'HTML attributes are not supported; the tag is shown as source.', i, stop, { key: 'local.html' });
-            tokens.push({ start: i, end: stop, block: false, node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
-            i = stop;
-            continue;
-          }
           if (html.closing) {
             // A stray closing tag is inert source, never a structural error.
             tokens.push({ start: i, end: html.end, block: false, node: node('fallback', i, html.end, { value: source.slice(i, html.end) }) });
             i = html.end;
             continue;
           }
-          if (html.lower === 'br') {
-            tokens.push({ start: i, end: html.end, node: node('break', i, html.end) });
+          const selection = selectHtmlAttributes(html.lower, html);
+          if (!selection.ok) {
+            const stop = html.self || HTML_VOID.has(html.lower)
+              ? html.end
+              : (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? html.end);
+            warning('local.html', `HTML attribute ${selection.attr} is not supported; the tag is shown as source.`, i, stop, { key: 'local.html' });
+            tokens.push({ start: i, end: stop, block: false, node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
+            i = stop;
+            continue;
+          }
+          const attrs = selection.attrs;
+          if (HTML_VOID.has(html.lower)) {
+            if (html.lower === 'br') {
+              tokens.push({ start: i, end: html.end, node: node('break', i, html.end, { attrs }) });
+            } else if (html.lower === 'hr') {
+              const block = true;
+              tokens.push({ start: i, end: html.end, ...(block ? { block: true } : {}), node: node('thematicBreak', i, html.end, { attrs }) });
+            } else {
+              const width = attrs.width !== undefined ? Number(attrs.width) : undefined;
+              const height = attrs.height !== undefined ? Number(attrs.height) : undefined;
+              tokens.push({
+                start: i,
+                end: html.end,
+                node: node('image', i, html.end, {
+                  url: attrs.src,
+                  alt: attrs.alt ?? '',
+                  title: attrs.title ?? null,
+                  ...(width !== undefined ? { width } : {}),
+                  ...(height !== undefined ? { height } : {}),
+                  attrs,
+                }),
+              });
+            }
             i = html.end;
             continue;
           }
           const close = htmlCloseEnd(html.end, html.lower, end, insideContainer);
           if (!close) {
-            // An unclosed formatting tag in running text stays literal prose.
+            // An unclosed tag in running text stays literal prose.
             tokens.push({ start: i, end: html.end, block: false, node: node('text', i, html.end, { value: source.slice(i, html.end) }) });
             i = html.end;
             continue;
           }
-          const body = region(html.end, close.start, undefined, i, html.end, depth + 1, {
+          const block = HTML_BLOCK.has(html.lower);
+          const built = buildHtmlNode(html, close, attrs, {
             footnote: footnoteMode,
-            indent: contentIndent,
             container: insideContainer,
-            definitions: [],
-            stripBlockquote: options.stripBlockquote,
+            indent: contentIndent,
+            stripBlockquote: options.stripBlockquote === true,
+            depth,
           });
-          const children = convert(html.end, close.start, body.tokens, contentIndent, { literalHtml: footnoteMode, stripBlockquote: options.stripBlockquote });
-          const inline = children.length === 1 && children[0].type === 'paragraph' ? children[0].children ?? [] : children;
-          tokens.push({ start: i, end: close.end, node: node(HTML_INLINE[html.lower], i, close.end, { children: inline }) });
+          tokens.push({ start: i, end: close.end, ...(block ? { block: true } : {}), node: built });
           i = close.end;
           continue;
         }
@@ -1109,7 +1413,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         return [node('footnoteReference', from, to, { identifier, label })];
       }
       const children = raw.children?.flatMap(transform);
-      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || (children[0].type === 'component' && !INLINE.has(children[0].name!)))) return children;
+      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || BLOCK_HTML_RESULTS.has(children[0].type) || (children[0].type === 'component' && !INLINE.has(children[0].name!)))) return children;
       if (raw.type === 'paragraph' && !children?.length) return [];
       if (raw.type === 'html') {
         if (options.literalHtml) {

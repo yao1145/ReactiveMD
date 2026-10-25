@@ -96,7 +96,7 @@ Unknown components, unknown attributes, wrong positions or wrong attribute types
 
 Prose such as `Array<T>`, `Map<string, number>`, `x<y` and currency `$5` or `$10` stays text. Complete formulas still use `$...$` or `$$...$$`; an unmatched single dollar sign stays literal.
 
-Attribute-free `<b>...</b>`, `<i>...</i>`, `<u>...</u>`, `<s>...</s>`, `<mark>...</mark>` and `<br>` / `<br/>` produce bold, italic, underline, strikethrough, highlight and hard-break nodes. These are prose formatting, not interaction components. Ordinary single newlines remain Markdown soft breaks.
+The default path accepts the [P0 HTML subset](html-compatibility-en.md#p0-html-in-the-default-mode): text formatting, headings, containers, disclosures, quotations, code, lists, links and images. It produces controlled nodes and reuses the current theme and renderer. Ordinary single newlines remain Markdown soft breaks. Under the temporary routing policy, enabling author CSS, JavaScript or extended HTML sends the entire source to native HTML and stops Markdown and ReactiveMD interpretation.
 
 Reference a footnote with `[^note]` and define it with `[^note]: Note text`. Continuation paragraphs, lists and code blocks use Markdown indentation. Definitions support Markdown and the basic HTML above. Notes appear at the end in first-reference order; repeated references share a number and each has a return link. Identifiers are case-insensitive and the first duplicate definition wins. Undefined references stay literal; unused definitions stay hidden. Controls and interpolations inside notes remain text and create no bindings or executable expressions.
 

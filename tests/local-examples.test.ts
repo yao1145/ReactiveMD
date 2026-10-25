@@ -17,7 +17,7 @@ const documents = Object.fromEntries(
 
 const normalIds = [
   'comparison', 'parameters', 'checklist', 'charts', 'diagram', 'catalog',
-  'planning', 'components', 'pricing', 'counter', 'gallery',
+  'planning', 'components', 'pricing', 'counter', 'gallery', 'html-compat',
 ];
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap((node) => [node, ...flatten(node.children ?? [])]);
@@ -46,14 +46,15 @@ const expectedInitialState: Record<string, Record<string, LocalValue>> = {
   components: { preference: 'concise' },
   pricing: { seats: 2, annual: false },
   counter: { count: 0 },
+  'html-compat': { count: 2 },
   gallery: {
     name: 'Alex', quantity: 3, plan: 'pro', annual: false, express: true, budgetLevel: 50,
   },
 };
 
 describe('local-draft-2 examples', () => {
-  it('contains eleven runnable examples and one intentional diagnostic document', () => {
-    expect(Object.keys(documents)).toHaveLength(12);
+  it('contains twelve runnable examples and one intentional diagnostic document', () => {
+    expect(Object.keys(documents)).toHaveLength(13);
     expect(normalIds.every((id) => documents[id])).toBe(true);
     expect(documents.diagnostics).toBeTruthy();
   });

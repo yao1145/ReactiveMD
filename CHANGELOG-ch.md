@@ -2,6 +2,12 @@
 
 本文件记录用户可见变更。项目处于 0.x 预览阶段，版本与迁移规则见[版本与兼容性](docs/compatibility-ch.md)。
 
+## 未发布
+
+- 默认 ReactiveMD 渲染路径新增 P0 HTML 兼容，包含富文本折叠、容器、标题、代码、列表、链接和图片。
+- 新增宿主选项 `enableCss`、`enableJavaScript` 和 `enableExtendedHtml`，默认全部关闭。任意开启一个，整篇文档分流到隔离的原生 HTML 路径；该路径停止解析 Markdown 和 ReactiveMD。见 [HTML 部分兼容与暂时性分流政策](docs/html-compatibility-ch.md)。
+- Demo 新增中英文能力开关，导出保留 HTML 模式；静态导出禁用作者 JavaScript。
+
 ## 0.5.0（2026-10-25，next 渠道）
 
 兼容 0.4.1。语法仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入保持不变，渲染器入口 API 不变。见[0.5.0 发布说明](docs/release-0.5.0-ch.md)。

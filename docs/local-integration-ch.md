@@ -4,6 +4,8 @@
 
 ## 运行环境与入口
 
+下个发行版的 P0 HTML 和三个宿主能力开关见 [HTML 部分兼容](html-compatibility-ch.md)。本版采用暂时性分流政策：任意开启作者 CSS、JavaScript 或扩展 HTML，整篇文档即按原生 HTML 渲染，停止解析 Markdown 和 ReactiveMD。
+
 | 入口 | 内容 | 依赖 |
 | --- | --- | --- |
 | `reactive-md` | `compileLocal`、`createLocalRuntime`、表达式与数学工具 | 不依赖 React |
@@ -42,6 +44,7 @@ export function Article() {
 | 属性 | 类型 | 组件 | 说明 |
 | --- | --- | --- | --- |
 | `source` | `string` | `LocalReactiveDocument` | 源码变化时重新编译并创建新运行时；旧实例状态不保留。见[源码变化时保留参数](#源码变化时保留参数) |
+| `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | 单次编译预算和 HTML 能力开关；省略时使用默认 ReactiveMD 模式 |
 | `document` | `LocalDocument` | `LocalDocumentView` | 已编译文档；由宿主编译一次 |
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | 宿主创建并负责销毁 |
 | `onDiagnostics` | `(diagnostics: Diagnostic[]) => void` | 两者 | 接收编译诊断和控件写入被拒绝时的运行时诊断 |
@@ -357,7 +360,7 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 ## 不提供的功能
 
-本地模式不提供自动状态持久化或网络访问，也不提供插件或自定义组件注册、任意 HTML、作者 CSS、事件处理器、外部数据接口、表单提交、Vue 支持、React 18 支持或 CommonJS 入口。状态导出与导入是宿主的显式调用；运行时本身不会保存或发送状态。`LocalReactiveDocument` 在源码变化时仍从初值开始；请使用参数保留工具，或自行提供运行时和文档。宿主不应把这些能力当作可配置项。
+默认 ReactiveMD 路径支持 P0 HTML。作者 CSS、JavaScript 和扩展 HTML 的宿主开关使用独立的原生 HTML 路径，见 [HTML 部分兼容](html-compatibility-ch.md)。本地模式仍不提供自动状态持久化或不受限的网络访问、插件或自定义组件注册、外部数据接口、Vue 支持、React 18 支持或 CommonJS 入口。状态导出与导入是宿主的显式调用。`LocalReactiveDocument` 在源码变化时从初值开始；需要保留参数时使用保留工具，或自行管理运行时和文档。
 
 
 新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.4.0` 是 `next` 渠道的预览版。

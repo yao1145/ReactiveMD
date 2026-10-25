@@ -1,0 +1,24 @@
+# HTML 与 ReactiveMD
+
+<details open>
+<summary>展开查看<strong>交互示例</strong></summary>
+
+## 调整参数
+
+<counter bind="count" label="次数" initial="2">
+
+当前值：**{{ count }}**。HTML 上下标：H<sub>2</sub>O、x<sup>2</sup>。
+
+<details>
+<summary>补充说明</summary>
+
+折叠正文支持 Markdown、公式与 ReactiveMD 控件。
+
+</details>
+</details>
+
+<blockquote>默认模式使用现有渲染器和主题。</blockquote>
+
+<ol start="3"><li>支持 HTML 列表。</li><li>代码按原样显示。</li></ol>
+
+<pre><code>&lt;counter label="这里是代码"&gt; {{ count }}</code></pre>

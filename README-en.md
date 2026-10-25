@@ -11,6 +11,7 @@ Local mode uses HTML-style tags, with parameters and table data written directly
 - [Beginner guide](docs/local-guide-en.md): move from Markdown to interactive documents, with a complete exercise and an error quick reference.
 - [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [Feature tours and examples](examples/local/README.md): 48 tag names, tags, in-place parameters and LaTeX plots.
 - [Local mode integration](docs/local-integration-en.md): `compileLocal`, the state runtime, React embedding, URL policy and style scoping.
+- [HTML compatibility](docs/html-compatibility-en.md): P0 HTML and the next release's temporary routing policy for author CSS, JavaScript and extended HTML.
 - [Shareable documents and static export](docs/shareable-export-en.md): single-file interactive HTML, static output, versioned state files, assets, the CLI and the standalone browser API.
 - [Theme protocol](docs/theme-protocol-en.md): document theme selection, custom CSS and light/dark modes.
 - [Author tools](docs/author-tools-en.md): source highlighting, completion, binding navigation, rename, formatting and command-line lint.

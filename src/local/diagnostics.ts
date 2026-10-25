@@ -257,6 +257,26 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Raw HTML is not part of the local interaction syntax.',
     zh: '原始 HTML 不属于本地交互语法。',
   },
+  'html.extended': {
+    en: 'HTML element <{name}> requires enableExtendedHtml in this mode; it is shown as source.',
+    zh: '此模式下 HTML 元素 <{name}> 需要启用 enableExtendedHtml；已按源码显示。',
+  },
+  'html.attribute': {
+    en: 'HTML attribute {name} on <{tag}> is not supported; the element is shown as source.',
+    zh: '<{tag}> 上的 HTML 属性 {name} 不受支持；该元素已按源码显示。',
+  },
+  'html.unsafeUrl': {
+    en: 'Unsafe URL in attribute {name} was removed.',
+    zh: '属性 {name} 中的不安全 URL 已移除。',
+  },
+  'html.capability': {
+    en: 'Author {feature} was disabled by the compile options.',
+    zh: '编译选项已禁用作者提供的{feature}。',
+  },
+  'options.htmlFlag': {
+    en: 'Compile option {name} must be a boolean.',
+    zh: '编译选项 {name} 必须是布尔值。',
+  },
   'component.unknownSuggestion': {
     en: 'Unknown component <{name}>. Did you mean <{suggestion}>?',
     zh: '未知组件 <{name}>。是否想使用 <{suggestion}>？',
@@ -1211,6 +1231,10 @@ const LOCAL_COMPILER_CODES = [
   'local.chart.negative',
   'local.timeline.header',
   'local.timeline.value',
+  'local.html.extended',
+  'local.html.attribute',
+  'local.html.unsafe-url',
+  'local.html.capability',
 ] as const;
 
 const LOCAL_RUNTIME_CODES = ['local.runtime.binding', 'local.runtime.value'] as const;
@@ -1354,6 +1378,11 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.math.whitespace': 'math.whitespace',
   'local.footnote.unsupported': 'footnote.unsupported',
   'local.html': 'html.raw',
+  'local.html.extended': 'html.extended',
+  'local.html.attribute': 'html.attribute',
+  'local.html.unsafe-url': 'html.unsafeUrl',
+  'local.html.capability': 'html.capability',
+  'local.options.invalid.html-flag': 'options.htmlFlag',
   'local.component.unknown.suggestion': 'component.unknownSuggestion',
   'local.component.unknown': 'component.unknownPlain',
   'local.attribute.format': 'attribute.lowercase',

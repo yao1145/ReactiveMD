@@ -59,6 +59,20 @@ export interface DemoCopy {
     restoreExample: string;
     runAgain: string;
   };
+  htmlCompatibility: {
+    heading: string;
+    /** Short statement of the temporary whole-document routing policy. */
+    policy: string;
+    legend: string;
+    css: string;
+    cssHint: string;
+    javascript: string;
+    javascriptHint: string;
+    extendedHtml: string;
+    extendedHtmlHint: string;
+    modeReactive: string;
+    modeHtml: string;
+  };
   authorTools: {
     ariaLabel: string;
     lightTheme: string;
@@ -99,6 +113,12 @@ export interface DemoCopy {
     outputStatic: string;
     outputInitial: string;
     outputCurrent: string;
+    outputHtmlMode: (mode: string) => string;
+    htmlModeNotice: string;
+    htmlModeParameters: string;
+    htmlModeImages: string;
+    htmlModeStateNote: string;
+    exportStateHtmlMode: string;
     compilePending: string;
     compileFailed: (message: string) => string;
     compileUnavailable: string;
@@ -215,6 +235,20 @@ const ENGLISH: DemoCopy = {
     restoreExample: 'Restore example',
     runAgain: 'Run again',
   },
+  htmlCompatibility: {
+    heading: 'HTML compatibility',
+    policy:
+      'Temporary split-routing policy: enabling any capability below renders the entire source as native HTML. Markdown, formulas, {{ }} bindings, and ReactiveMD components are not interpreted in that mode.',
+    legend: 'Allowed capabilities',
+    css: 'CSS',
+    cssHint: 'Allow <style> blocks and style attributes.',
+    javascript: 'JavaScript',
+    javascriptHint: 'Allow <script> blocks and inline event handlers.',
+    extendedHtml: 'Extended HTML',
+    extendedHtmlHint: 'Allow elements and attributes beyond the safe HTML subset.',
+    modeReactive: 'Current mode: ReactiveMD + safe HTML',
+    modeHtml: 'Current mode: native HTML',
+  },
   authorTools: {
     ariaLabel: 'Document tools',
     lightTheme: 'Light theme',
@@ -262,6 +296,13 @@ const ENGLISH: DemoCopy = {
     outputStatic: 'static HTML',
     outputInitial: 'the author initial values',
     outputCurrent: 'the current preview state',
+    outputHtmlMode: (mode) => `Will export ${mode} in native HTML mode.`,
+    htmlModeNotice:
+      'Native HTML mode is active. The exported document keeps this routing; Markdown, formulas, and ReactiveMD bindings are not interpreted.',
+    htmlModeParameters: 'Native HTML mode: ReactiveMD parameters are not used.',
+    htmlModeImages: 'Native HTML mode: image references are not inspected or inlined by the demo.',
+    htmlModeStateNote: 'Starting values and state export do not apply in native HTML mode.',
+    exportStateHtmlMode: 'State export is unavailable in native HTML mode.',
     compilePending: 'Waiting for the current source to finish compiling…',
     compileFailed: (message) => `HTML export is unavailable until the source compiles: ${message}`,
     compileUnavailable:
@@ -388,6 +429,20 @@ const CHINESE: DemoCopy = {
     restoreExample: '恢复示例',
     runAgain: '重新运行',
   },
+  htmlCompatibility: {
+    heading: 'HTML 兼容控制',
+    policy:
+      '暂时性分流政策：启用下方任一能力后，整份源码按原生 HTML 渲染；该模式下不再解析 Markdown、公式、{{ }} 插值和 ReactiveMD 组件。',
+    legend: '允许的能力',
+    css: 'CSS',
+    cssHint: '允许 <style> 块和 style 属性。',
+    javascript: 'JavaScript',
+    javascriptHint: '允许 <script> 块和内联事件处理属性。',
+    extendedHtml: '扩展 HTML',
+    extendedHtmlHint: '允许安全 HTML 子集之外的元素与属性。',
+    modeReactive: '当前模式：ReactiveMD + 安全 HTML',
+    modeHtml: '当前模式：原生 HTML',
+  },
   authorTools: {
     ariaLabel: '文档工具',
     lightTheme: '浅色主题',
@@ -429,6 +484,13 @@ const CHINESE: DemoCopy = {
     outputStatic: '静态 HTML',
     outputInitial: '作者初值',
     outputCurrent: '当前预览状态',
+    outputHtmlMode: (mode) => `将以原生 HTML 模式导出${mode}。`,
+    htmlModeNotice:
+      '当前为原生 HTML 模式。导出文件沿用这一路由；不再解析 Markdown、公式和 ReactiveMD 绑定。',
+    htmlModeParameters: '原生 HTML 模式：不使用 ReactiveMD 参数。',
+    htmlModeImages: '原生 HTML 模式：演示不会检查或内联图片引用。',
+    htmlModeStateNote: '原生 HTML 模式下不适用起始值和状态导出。',
+    exportStateHtmlMode: '原生 HTML 模式下无法导出状态。',
     compilePending: '正在等待当前源码编译完成…',
     compileFailed: (message) => `源码编译通过前无法导出 HTML：${message}`,
     compileUnavailable: '当前源码尚未编译完成，暂时无法导出 HTML。',

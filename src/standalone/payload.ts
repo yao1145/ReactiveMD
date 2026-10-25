@@ -1,5 +1,6 @@
 import type { LocalStateFile } from '../local/state';
-import type { Diagnostic } from '../local/types';
+import { readLocalCompileOptions } from '../local/options';
+import type { Diagnostic, LocalCompileOptions } from '../local/types';
 import type { ShareableMountPayload } from '../shareable';
 import { errorText, standaloneDiagnostic } from './diagnostics';
 
@@ -53,6 +54,38 @@ function parseImages(value: unknown, fail: (code: string, message: string) => vo
 export type MountPayloadParseResult =
   | { ok: true; payload: ShareableMountPayload }
   | { ok: false; diagnostics: Diagnostic[] };
+
+/**
+ * Compile capabilities are host-granted, never inferred from the source text
+ * or from parameter state. Validate flags and limits with the shared reader and
+ * keep only the normalized values the compiler actually consumes.
+ */
+function parseCompileOptions(
+  value: unknown,
+  fail: (code: string, message: string) => void,
+): LocalCompileOptions | undefined {
+  if (value === undefined) return undefined;
+  const check = readLocalCompileOptions(value as LocalCompileOptions);
+  if (!check.ok) {
+    fail('standalone.payload.compile-options', `The payload compile options are invalid: ${check.message}`);
+    return undefined;
+  }
+  const normalized: {
+    enableCss: boolean;
+    enableJavaScript: boolean;
+    enableExtendedHtml: boolean;
+    limits?: { maxSyntaxNodes: number };
+  } = {
+    enableCss: check.html.enableCss,
+    enableJavaScript: check.html.enableJavaScript,
+    enableExtendedHtml: check.html.enableExtendedHtml,
+  };
+  const limits = (value as { limits?: unknown }).limits;
+  if (isPlainRecord(limits) && limits.maxSyntaxNodes !== undefined) {
+    normalized.limits = { maxSyntaxNodes: check.maxSyntaxNodes };
+  }
+  return normalized;
+}
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
@@ -113,6 +146,7 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
   if (!isPlainRecord(state)) {
     fail('standalone.payload.state', 'The payload state must be a JSON object.');
   }
+  const compileOptions = parseCompileOptions(value.compileOptions, fail);
   const images = parseImages(value.images, fail);
 
   if (diagnostics.length > 0) return { ok: false, diagnostics };
@@ -126,6 +160,7 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
     locale: locale as 'en' | 'zh',
     colorScheme: colorScheme as 'light' | 'dark' | 'auto',
     hydrate: hydrate as boolean,
+    ...(compileOptions === undefined ? {} : { compileOptions }),
     ...(images && Object.keys(images).length > 0 ? { images } : {}),
   };
   return { ok: true, payload };

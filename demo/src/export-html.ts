@@ -5,6 +5,7 @@ import {
   createShareableHtml,
   resolveLocalStateBaseline,
   type Diagnostic,
+  type LocalCompileOptions,
   type LocalDocument,
   type LocalNode,
   type LocalStateFile,
@@ -25,6 +26,8 @@ export interface ShareableHtmlBuildOptions {
   mode: ShareableHtmlMode;
   locale?: 'en' | 'zh';
   colorScheme?: ShareableColorScheme;
+  /** Routing options granted in the demo; the same policy must reach the export. */
+  compileOptions?: LocalCompileOptions;
   /** Optional override; otherwise the first heading supplies the title. */
   title?: string;
 }
@@ -278,7 +281,7 @@ export async function buildShareableHtml(
   const locale = options.locale === 'zh' ? 'zh' : 'en';
   const colorScheme: ShareableColorScheme = options.colorScheme ?? 'auto';
 
-  const compiled = compileLocal(source);
+  const compiled = compileLocal(source, options.compileOptions);
   if (!compiled.ok) {
     throw new ShareableHtmlBuildError('The document does not compile.', compiled.diagnostics);
   }
@@ -329,6 +332,7 @@ export async function buildShareableHtml(
     runtimeScript: mode === 'interactive' ? assets.runtimeScript : undefined,
     locale,
     colorScheme,
+    compileOptions: options.compileOptions,
     generator: { name: DEMO_GENERATOR_NAME, version: assets.packageVersion },
     assets: 'inline',
     imageCount,

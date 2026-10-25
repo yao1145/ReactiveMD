@@ -52,6 +52,23 @@ assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: 2 } }).ok, true);
 assert.equal(compileLocal('hello').ok, true);
 assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: Infinity } }).diagnostics[0]?.code, 'local.options.invalid');
 
+// HTML capabilities are host-owned and select one whole-document path.
+for (let mask = 1; mask < 8; mask++) {
+  const options = {
+    enableCss: Boolean(mask & 1),
+    enableJavaScript: Boolean(mask & 2),
+    enableExtendedHtml: Boolean(mask & 4),
+  };
+  const htmlDocument = compileLocal('<p>{{ native_literal }}</p><input value="native">', options);
+  assert.equal(htmlDocument.ok, true);
+  assert.deepEqual(htmlDocument.document.html, options);
+  assert.deepEqual(Object.keys(htmlDocument.document.bindings), []);
+}
+assert.equal(compileLocal('text', { enableCss: 'false' }).ok, false);
+const disclosure = compileLocal('<details open><summary>Read <strong>more</strong></summary>\n\n**Body**\n\n</details>');
+assert.equal(disclosure.ok, true);
+assert.deepEqual(disclosure.diagnostics, []);
+
 // Public built exports include document metadata and host-side registration.
 const themed = compileLocal('<theme name="package-test">\n\n# Theme');
 assert.equal(themed.ok, true);

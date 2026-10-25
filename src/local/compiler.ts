@@ -39,6 +39,8 @@ import {
   type LocalPropSchema,
 } from './schema';
 import { parseValidationFields } from './validation';
+import { readLocalCompileOptions, type LocalOptionCheck } from './options';
+import { sanitizeLocalHtmlDocument } from './html';
 import type {
   LocalBinding,
   LocalCompileOptions,
@@ -264,7 +266,70 @@ interface CompileState {
   expressionKinds: Map<string, LocalValueKind | null>;
 }
 
+/**
+ * Whole-document native HTML branch. The Markdown parser, components,
+ * expressions, computations and bindings are all bypassed; the source only
+ * becomes grammar-aware sanitized HTML for an isolated `srcdoc` iframe.
+ */
+function compileHtmlLocal(source: string, check: Extract<LocalOptionCheck, { ok: true }>): LocalCompileResult {
+  if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: typeof source === 'string' ? 'local.budget' : 'local.parse',
+        message: typeof source === 'string'
+          ? `Document exceeds the ${MAX_LOCAL_DOCUMENT_LENGTH}-character limit.`
+          : 'Document source must be a string.',
+        severity: 'error',
+        range: { start: 0, end: typeof source === 'string' && source.length ? 1 : 0 },
+        line: 1,
+        column: 1,
+        messageKey: typeof source === 'string' ? 'local.budget.document' : 'local.parse.source',
+        ...(typeof source === 'string' ? { params: { limit: MAX_LOCAL_DOCUMENT_LENGTH } } : {}),
+      }],
+    };
+  }
+
+  const sanitized = sanitizeLocalHtmlDocument(source, check.html, check.maxSyntaxNodes);
+  if (sanitized.diagnostics.some((item) => item.severity === 'error')) {
+    return { ok: false, diagnostics: sanitized.diagnostics };
+  }
+
+  const document: LocalDocument = {
+    syntax: 'local',
+    source,
+    syntaxVersion: LOCAL_SYNTAX_VERSION,
+    html: check.html,
+    nodes: [{
+      type: 'htmlDocument',
+      id: 'local-0',
+      range: { start: 0, end: source.length },
+      // Complete sanitized document, including the trusted head and CSP.
+      value: sanitized.markup,
+    }],
+    initialState: {},
+    bindings: {},
+  };
+  return { ok: true, document, diagnostics: sanitized.diagnostics };
+}
+
 export function compileLocal(source: string, options?: LocalCompileOptions): LocalCompileResult {
+  const optionCheck = readLocalCompileOptions(options);
+  if (!optionCheck.ok) {
+    return {
+      ok: false,
+      diagnostics: [{
+        code: 'local.options.invalid',
+        message: optionCheck.message,
+        severity: 'error',
+        range: { start: 0, end: 0 },
+        line: 1,
+        column: 1,
+        messageKey: optionCheck.key,
+      }],
+    };
+  }
+  if (optionCheck.htmlActive) return compileHtmlLocal(source, optionCheck);
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     return { ok: false, diagnostics: parseLocal(source, options).diagnostics };
   }

@@ -38,6 +38,10 @@ export interface LocalNode {
   url?: string;
   title?: string | null;
   alt?: string;
+  /** Rendered width of an HTML `<img>`, in CSS pixels. */
+  width?: number;
+  /** Rendered height of an HTML `<img>`, in CSS pixels. */
+  height?: number;
   lang?: string;
   align?: ('left' | 'center' | 'right' | null)[];
   /**
@@ -98,6 +102,13 @@ export interface LocalDocument {
   source: string;
   /** Effective syntax revision; absent on older hand-built runtime documents. */
   syntaxVersion?: 'local-draft-2';
+  /**
+   * Present only when at least one HTML capability flag was enabled. Its
+   * presence routes rendering to the isolated native-HTML branch; the
+   * original source is preserved and `nodes` carries one `htmlDocument` node
+   * whose `value` is the sanitized, complete iframe document.
+   */
+  html?: LocalHtmlPolicy;
   versionDeclaration?: LocalVersionDeclaration;
   nodes: LocalNode[];
   initialState: Record<string, LocalValue>;
@@ -146,7 +157,32 @@ export interface LocalCompileLimits {
   /** Positive safe integer; defaults to 10,000 cumulative LocalNode creations. */
   readonly maxSyntaxNodes?: number;
 }
-export interface LocalCompileOptions {
+/**
+ * Host-owned capability flags for the temporary whole-document HTML mode.
+ *
+ * All flags default to `false`. When every flag is false the existing
+ * Markdown/ReactiveMD pipeline runs unchanged. When any flag is true the whole
+ * source is interpreted as native HTML and rendered inside a sandboxed iframe;
+ * Markdown, interpolation, bindings, formulas and ReactiveMD components are not
+ * interpreted in that mode.
+ */
+export interface LocalHtmlOptions {
+  /** Allow authored CSS; external resources remain subject to the native CSP. */
+  readonly enableCss?: boolean;
+  /** Allow authored scripts and inline event handlers. */
+  readonly enableJavaScript?: boolean;
+  /** Allow HTML beyond the safe P0 subset (tables, forms, SVG/MathML, ...). */
+  readonly enableExtendedHtml?: boolean;
+}
+
+/** Effective, non-optional policy recorded on a compiled HTML-branch document. */
+export interface LocalHtmlPolicy {
+  readonly enableCss: boolean;
+  readonly enableJavaScript: boolean;
+  readonly enableExtendedHtml: boolean;
+}
+
+export interface LocalCompileOptions extends LocalHtmlOptions {
   readonly limits?: LocalCompileLimits;
 }
 export type LocalCompileResult = { ok: true; document: LocalDocument; diagnostics: Diagnostic[] } | { ok: false; diagnostics: Diagnostic[] };

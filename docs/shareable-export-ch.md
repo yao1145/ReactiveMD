@@ -4,6 +4,8 @@
 
 ## 两种产物
 
+默认 ReactiveMD 文档遵循下述导出规则。原生 HTML 文档的交互导出保留 `compileOptions` 和整篇 HTML 路径，静态导出禁用作者 JavaScript；这类文档没有 ReactiveMD 参数。编译开关、隔离和暂时性分流政策见 [HTML 部分兼容](html-compatibility-ch.md)。
+
 **交互式 HTML** 是一个自包含的 `.html` 文件。它内嵌原始源码、独立浏览器运行时、React 19、样式表和打印样式。读者通过 `file://` 打开即可交互，不需要 Node.js、React、reactive-md 包或网络连接。
 
 首次渲染是静态内容；内嵌运行时水合完成后再增强为控件。禁用 JavaScript 时，正文、当前值、表格、公式和图表仍然可读。读者刷新后回到导出基线，后续修改不会自动保存。

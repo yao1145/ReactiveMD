@@ -42,6 +42,22 @@ function explicitAnchorId(node: LocalNode): string | undefined {
 }
 
 /**
+ * A source-authored `id` (any P0 HTML node) normalised to a safe DOM id. The
+ * identifier stays inside this render instance's namespace, so two documents
+ * on one page can never collide or steal each other's fragments.
+ */
+function sourceHtmlId(node: LocalNode): string | undefined {
+  if (node.type === 'component') return undefined;
+  const id = node.attrs?.id;
+  if (typeof id !== 'string') return undefined;
+  const normalized = id
+    .trim()
+    .replace(/[\u0000- \u007f-\u009f]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return normalized === '' ? undefined : normalized;
+}
+
+/**
  * Heading slugs and explicit `<anchor>` ids share one per-render-instance
  * namespace. Author fragments (`#result`) resolve against either kind of
  * target, and `<jump to="result">` asks for the already-namespaced DOM id via
@@ -65,6 +81,8 @@ export function createHeadingAnchors(document: LocalDocument, namespace: string,
   }
   const ids = new Map<LocalNode, string>();
   const anchorIds = new Map<LocalNode, string>();
+  /** Scoped DOM ids for P0 HTML nodes that author an explicit `id`. */
+  const htmlIds = new Map<LocalNode, string>();
   const targets = new Map<string, string>();
   const nextSuffix = new Map<string, number>();
 
@@ -84,11 +102,16 @@ export function createHeadingAnchors(document: LocalDocument, namespace: string,
   function visit(nodes: LocalNode[]) {
     for (const node of nodes) {
       if (node.type === 'heading') {
-        const base = headingSlug(headingText(node.children, initialState));
+        const explicit = sourceHtmlId(node);
+        const base = explicit ?? headingSlug(headingText(node.children, initialState));
         ids.set(node, claim(base).id);
-      } else if (includeExplicitAnchors) {
-        const explicit = explicitAnchorId(node);
-        if (explicit) anchorIds.set(node, claim(explicit).id);
+      } else {
+        if (includeExplicitAnchors) {
+          const explicit = explicitAnchorId(node);
+          if (explicit) anchorIds.set(node, claim(explicit).id);
+        }
+        const sourceId = sourceHtmlId(node);
+        if (sourceId) htmlIds.set(node, claim(sourceId).id);
       }
       if (node.children) visit(node.children);
     }
@@ -109,9 +132,13 @@ export function createHeadingAnchors(document: LocalDocument, namespace: string,
   return {
     ids,
     anchorIds,
+    htmlIds,
     /** Namespaced DOM id for a static jump/anchor target slug, if it exists. */
     targetId(to: string): string | undefined {
       return lookup(to);
+    },
+    referenceId(to: string): string {
+      return lookup(to) ?? `${namespace}-${to}`;
     },
     resolve(href: string): string {
       if (!href.startsWith('#')) return href;
