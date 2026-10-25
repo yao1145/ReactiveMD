@@ -102,16 +102,37 @@ export interface EditorChromeCopy {
   /** Accessible name for the textarea when the host passes no ariaLabel. */
   sourceLabel: string;
   region: string;
+  previewRegion: string;
+  viewLabel: string;
+  count(value: string): string;
+  keyboardHint: string;
+  edit: string;
+  split: string;
+  preview: string;
 }
 
 export const EDITOR_CHROME_COPY: Record<EditorLocale, EditorChromeCopy> = {
   en: {
     sourceLabel: 'Reactive MD source',
     region: 'Source editor',
+    previewRegion: 'Document preview',
+    viewLabel: 'Editor view',
+    count: (value) => `${value} ${value === '1' ? 'character' : 'characters'}`,
+    keyboardHint: 'Press Esc, then Tab to reach the toolbar',
+    edit: 'Edit',
+    split: 'Split',
+    preview: 'Preview',
   },
   zh: {
     sourceLabel: 'Reactive MD 源码',
     region: '源码编辑器',
+    previewRegion: '文档预览',
+    viewLabel: '编辑器视图',
+    count: (value) => `${value} 字`,
+    keyboardHint: '按 Esc 再 Tab 可到工具条',
+    edit: '编辑',
+    split: '并排',
+    preview: '预览',
   },
 };
 

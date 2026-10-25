@@ -16,12 +16,14 @@ import {
 } from 'react';
 import type {
   EditorSelection,
+  EditorViewMode,
   ReactiveMarkdownEditorHandle,
   ReactiveMarkdownEditorProps,
 } from './types';
 import { EDITOR_CHROME_COPY } from './editor-i18n';
 import { EditorLocaleProvider } from './locale';
 import { EditorToolbar } from './editor-toolbar';
+import { EditorViewBar } from './editor-view-bar';
 import { indentSelection } from './editor-commands';
 import {
   AuthorHighlight,
@@ -72,6 +74,10 @@ export const ReactiveMarkdownEditor = forwardRef<
     onChange,
     locale = 'en',
     theme = 'auto',
+    preview,
+    viewMode,
+    defaultViewMode = 'edit',
+    onViewModeChange,
     id,
     className,
     style,
@@ -94,6 +100,29 @@ export const ReactiveMarkdownEditor = forwardRef<
   const generatedId = useId();
   const editorId = id ?? `reactive-md-editor-${generatedId.replace(/:/g, '')}`;
   const copy = EDITOR_CHROME_COPY[locale];
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const measure = () => setNarrow(frame.clientWidth <= 600);
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+  const [internalView, setInternalView] = useState<EditorViewMode>(defaultViewMode);
+  const hasPreview = preview !== undefined && preview !== null;
+  const requestedView = hasPreview ? viewMode ?? internalView : 'edit';
+  const currentView = narrow && requestedView === 'split' ? 'edit' : requestedView;
+  const changeView = (mode: EditorViewMode) => {
+    if (viewMode === undefined) setInternalView(mode);
+    onViewModeChange?.(mode);
+  };
 
   const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
@@ -103,6 +132,7 @@ export const ReactiveMarkdownEditor = forwardRef<
   const lastEmitted = useRef(value);
   const previousDocumentKey = useRef(documentKey);
   const composingRef = useRef(false);
+  const escapeNextTab = useRef(false);
   const currentValueRef = useRef(value);
   currentValueRef.current = value;
   const locked = readOnly || disabled;
@@ -303,6 +333,21 @@ export const ReactiveMarkdownEditor = forwardRef<
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (composingRef.current || event.nativeEvent.isComposing) return;
+    if (event.key === 'Escape') {
+      escapeNextTab.current = toolbar;
+      return;
+    }
+    const leaveForToolbar = escapeNextTab.current && event.key === 'Tab' && !event.shiftKey;
+    escapeNextTab.current = false;
+    if (leaveForToolbar) {
+      const target = editorRef.current?.closest('.reactive-md-editor')
+        ?.querySelector<HTMLButtonElement>('.editor-toolbar [tabindex="0"]:not(:disabled)');
+      if (target) {
+        event.preventDefault();
+        target.focus({ preventScroll: true });
+        return;
+      }
+    }
     if (lockedRef.current) return;
     const modifier = event.metaKey || event.ctrlKey;
     const key = event.key.toLowerCase();
@@ -333,6 +378,7 @@ export const ReactiveMarkdownEditor = forwardRef<
   };
 
   const handleCompositionStart = () => {
+    escapeNextTab.current = false;
     composingRef.current = true;
     setComposing(true);
   };
@@ -364,6 +410,8 @@ export const ReactiveMarkdownEditor = forwardRef<
       >
         <div
           className="editor-frame"
+          ref={frameRef}
+          data-editor-view={currentView}
           style={{ height: cssSize(height), minHeight: cssSize(minHeight) }}
         >
           {showToolbar ? (
@@ -381,79 +429,94 @@ export const ReactiveMarkdownEditor = forwardRef<
           ) : null}
 
           <label className="reactive-md-editor-sr-only" htmlFor={editorId}>{copy.sourceLabel}</label>
-          <div className={`editor-shell${composing ? ' is-composing' : ''}`}>
-            <div className="editor-gutter" ref={gutterRef} aria-hidden="true">
-              {lines.map((_, index) => {
-                const lineNumber = index + 1;
-                return (
-                  <span
-                    key={lineNumber}
-                    className={`gutter-line ${activeLine === lineNumber ? 'is-active' : ''} ${
-                      diagnosticLines.has(lineNumber) ? 'is-diagnostic' : ''
-                    }`}
-                    style={gutterMetrics.heights[index]
-                      ? { height: `${gutterMetrics.heights[index]}px` }
-                      : undefined}
-                  >
-                    {lineNumber}
-                  </span>
-                );
-              })}
+          <div className="editor-workspace" data-view={currentView}>
+            <div id={`${editorId}-source`} hidden={currentView === 'preview'} className={`editor-shell${composing ? ' is-composing' : ''}`}>
+              <div className="editor-gutter" ref={gutterRef} aria-hidden="true">
+                {lines.map((_, index) => {
+                  const lineNumber = index + 1;
+                  return (
+                    <span
+                      key={lineNumber}
+                      className={`gutter-line ${activeLine === lineNumber ? 'is-active' : ''} ${
+                        diagnosticLines.has(lineNumber) ? 'is-diagnostic' : ''
+                      }`}
+                      style={gutterMetrics.heights[index]
+                        ? { height: `${gutterMetrics.heights[index]}px` }
+                        : undefined}
+                    >
+                      {lineNumber}
+                    </span>
+                  );
+                })}
+              </div>
+              <div className="editor-input-wrap">
+                <AuthorHighlight
+                  source={value}
+                  tokens={analysis.tokens}
+                  width={gutterMetrics.width}
+                  editorRef={editorRef}
+                />
+                <textarea
+                  id={editorId}
+                  ref={setTextareaNode}
+                  className="editor-input"
+                  value={value}
+                  wrap="soft"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  placeholder={placeholder}
+                  aria-label={ariaLabel}
+                  readOnly={readOnly}
+                  disabled={disabled}
+                  onScroll={handleScroll}
+                  onChange={handleChange}
+                  onKeyDown={handleKeyDown}
+                  onBlur={() => { escapeNextTab.current = false; }}
+                  onCompositionStart={handleCompositionStart}
+                  onCompositionEnd={handleCompositionEnd}
+                  onSelect={(event) => readPosition(event.currentTarget)}
+                  onKeyUp={(event) => readPosition(event.currentTarget)}
+                  onClick={(event) => readPosition(event.currentTarget)}
+                />
+              </div>
+              <div
+                className="editor-mirror"
+                ref={mirrorRef}
+                aria-hidden="true"
+                style={gutterMetrics.width ? { width: gutterMetrics.width } : undefined}
+              >
+                {lines.map((line, index) => (
+                  // CRLF sources leave a trailing \r that the textarea treats as the break.
+                  <div key={index}>{line.replace(/\r$/, '') || '​'}</div>
+                ))}
+              </div>
             </div>
-            <div className="editor-input-wrap">
-              <AuthorHighlight
-                source={value}
-                tokens={analysis.tokens}
-                width={gutterMetrics.width}
-                editorRef={editorRef}
-              />
-              <textarea
-                id={editorId}
-                ref={setTextareaNode}
-                className="editor-input"
-                value={value}
-                wrap="soft"
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                placeholder={placeholder}
-                aria-label={ariaLabel}
-                readOnly={readOnly}
-                disabled={disabled}
-                onScroll={handleScroll}
-                onChange={handleChange}
-                onKeyDown={handleKeyDown}
-                onCompositionStart={handleCompositionStart}
-                onCompositionEnd={handleCompositionEnd}
-                onSelect={(event) => readPosition(event.currentTarget)}
-                onKeyUp={(event) => readPosition(event.currentTarget)}
-                onClick={(event) => readPosition(event.currentTarget)}
-              />
-            </div>
-            <div
-              className="editor-mirror"
-              ref={mirrorRef}
-              aria-hidden="true"
-              style={gutterMetrics.width ? { width: gutterMetrics.width } : undefined}
-            >
-              {lines.map((line, index) => (
-                // CRLF sources leave a trailing \r that the textarea treats as the break.
-                <div key={index}>{line.replace(/\r$/, '') || '​'}</div>
-              ))}
-            </div>
+            {hasPreview ? <div
+              id={`${editorId}-preview`}
+              className="editor-preview"
+              role="region"
+              aria-label={copy.previewRegion}
+              hidden={currentView === 'edit'}
+            >{preview}</div> : null}
           </div>
+          <EditorViewBar source={value} mode={currentView} onModeChange={changeView}
+            sourceId={`${editorId}-source`} previewId={`${editorId}-preview`}
+            hasPreview={hasPreview} allowSplit={!narrow} toolbar={toolbar && !locked} />
         </div>
 
         {authoring ? (
-          <AuthoringPanel
-            source={value}
-            analysis={analysis}
-            bindingDocument={compiledDocument}
-            editorRef={editorRef}
-            onEdit={applyEdit}
-            onLocate={locateRange}
-            disabled={locked}
-          />
+          <div hidden={currentView === 'preview'}>
+            <AuthoringPanel
+              source={value}
+              analysis={analysis}
+              bindingDocument={compiledDocument}
+              editorRef={editorRef}
+              onEdit={applyEdit}
+              onLocate={locateRange}
+              disabled={locked}
+            />
+          </div>
         ) : null}
       </div>
     </EditorLocaleProvider>

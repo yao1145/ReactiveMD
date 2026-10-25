@@ -271,6 +271,24 @@ textarea {
   grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
 }
 
+.workspace.has-editor {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.workspace.has-editor > .pane-editor {
+  border: 0;
+}
+
+.has-editor .editor-preview .preview-stage {
+  min-height: 0;
+  padding: 0;
+}
+
+.has-editor .editor-preview .pane-preview {
+  padding: 0;
+  background: transparent;
+}
+
 .pane {
   min-width: 0;
   padding: var(--space-4);

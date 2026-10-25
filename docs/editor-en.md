@@ -1,6 +1,6 @@
 # React source editor
 
-`reactive-md/editor` is a controlled React 19 editor for Reactive MD source. It comes from the Playground editor and provides source highlighting, a formatting and insertion toolbar, completion, binding navigation, rename and format commands, undo and redo, line numbers and scroll synchronization. The host keeps the source text and owns preview, persistence and export.
+`reactive-md/editor` is a controlled React 19 editor for Reactive MD source. It comes from the Playground editor and provides source highlighting, a formatting and insertion toolbar, completion, binding navigation, rename and format commands, undo and redo, line numbers and scroll synchronization. Its built-in status bar provides a character count and Edit, Split and Preview views. The host keeps the source text and supplies preview content, persistence and export.
 
 The editor has its own stylesheet at `reactive-md/editor/styles.css`. It is separate from `reactive-md/styles.css`, so a page that only edits source does not load document rendering styles.
 
@@ -96,6 +96,10 @@ The entry also exports `ReactiveMarkdownEditorProps`, `ReactiveMarkdownEditorHan
 | `onChange` | `(value: string) => void` | required | Receives the next source for typing, toolbar commands and undo or redo. |
 | `locale` | `'en' \| 'zh'` | `'en'` | Built-in labels for this instance. Source text is unchanged. |
 | `theme` | `'light' \| 'dark' \| 'auto'` | `'auto'` | Sets `data-editor-theme` on the editor root. `auto` follows the system preference. |
+| `preview` | `ReactNode` | none | Preview content rendered inside the editor. Enables the three view buttons. |
+| `viewMode` | `EditorViewMode` | none | Controlled view: `'edit'`, `'split'` or `'preview'`. |
+| `defaultViewMode` | `EditorViewMode` | `'edit'` | Initial mode for an uncontrolled instance. |
+| `onViewModeChange` | `(mode: EditorViewMode) => void` | none | Called when a view button is clicked. |
 | `id` | `string` | generated | Textarea id. The instance uses it for its internal labels and gutter. |
 | `className` | `string` | none | Added to the `.reactive-md-editor` root. |
 | `style` | `CSSProperties` | none | Inline styles for the root. |
@@ -112,6 +116,21 @@ The entry also exports `ReactiveMarkdownEditorProps`, `ReactiveMarkdownEditorHan
 | `authoring` | `boolean` | `true` | Enables completion, binding navigation, rename and format tools. |
 | `onExport` | `() => void` | none | Called by the toolbar export action. Use it to open your export dialog or write the file yourself. |
 | `textareaRef` | `RefObject<HTMLTextAreaElement \| null>` | none | Receives the underlying textarea for advanced host code. |
+
+## Built-in editor views
+
+The status bar sits inside the editor frame, directly below its editing area. It shows the Unicode character count and view buttons. Pass `preview` to enable Edit, Split and Preview. Containers up to 600px wide offer only Edit and Preview. Split temporarily displays Edit at that width and returns to Split when the container widens.
+
+```tsx
+<ReactiveMarkdownEditor
+  value={source}
+  onChange={setSource}
+  preview={<LocalDocumentView document={compiledDocument} />}
+  defaultViewMode="split"
+/>
+```
+
+Switching views preserves the source selection, undo history and preview component state. Pass both `viewMode` and `onViewModeChange` to control the mode from the host. Source-only instances retain the count and keyboard hint. Press Esc, then Tab in the source to focus the toolbar.
 
 ## Controlled value and history
 

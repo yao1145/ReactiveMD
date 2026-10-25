@@ -14,7 +14,8 @@
     "test:v2": "node scripts/verify-v2.mjs",
     "test:grid-layout": "node scripts/verify-grid-layout.mjs",
     "test:showcase": "node scripts/verify-showcase.mjs",
-    "test:toolbar": "node scripts/verify-editor-toolbar.mjs && node scripts/verify-editor-scroll.mjs"
+    "test:toolbar": "node scripts/verify-editor-toolbar.mjs && node scripts/verify-editor-scroll.mjs && node scripts/verify-editor-views.mjs",
+    "test:views": "node scripts/verify-editor-views.mjs"
   },
   "dependencies": {
     "reactive-md": "file:..",

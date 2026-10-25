@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   ReactiveMarkdownEditor,
   type ReactiveMarkdownEditorHandle,
+  type EditorViewMode,
 } from 'reactive-md/editor';
 import 'reactive-md/editor/styles.css';
 
@@ -28,7 +29,7 @@ const SOURCE_B = [
 
 type EditorId = 'a' | 'b';
 type Locale = 'en' | 'zh';
-type Theme = 'light' | 'dark';
+type Theme = 'light' | 'dark' | 'auto';
 
 function perEditor<T>(value: T): Record<EditorId, T> {
   return { a: value, b: value };
@@ -38,6 +39,8 @@ interface Harness {
   setValue(id: EditorId, value: string): void;
   setLocale(locale: Locale, target?: EditorId | 'both'): void;
   setTheme(theme: Theme, target?: EditorId | 'both'): void;
+  setViewMode(mode: EditorViewMode | undefined, target?: EditorId | 'both'): void;
+  viewChanges(id: EditorId): readonly EditorViewMode[];
   setReadOnly(readOnly: boolean, target?: EditorId | 'both'): void;
   setDisabled(disabled: boolean, target?: EditorId | 'both'): void;
   setDocumentKey(key: string): void;
@@ -64,6 +67,8 @@ function Fixture() {
   });
   const [locales, setLocales] = useState<Record<EditorId, Locale>>(perEditor('en'));
   const [themes, setThemes] = useState<Record<EditorId, Theme>>(perEditor('light'));
+  const [viewModes, setViewModes] = useState<Record<EditorId, EditorViewMode | undefined>>(perEditor(undefined));
+  const [viewChanges, setViewChanges] = useState<Record<EditorId, EditorViewMode[]>>({ a: [], b: [] });
   const [readOnly, setReadOnly] = useState<Record<EditorId, boolean>>(perEditor(false));
   const [disabled, setDisabled] = useState<Record<EditorId, boolean>>(perEditor(false));
   const [documentKey, setDocumentKey] = useState('document-a');
@@ -87,6 +92,8 @@ function Fixture() {
     setValue: (id, value) => setValues((current) => ({ ...current, [id]: value })),
     setLocale: apply<Locale>(setLocales),
     setTheme: apply<Theme>(setThemes),
+    setViewMode: apply<EditorViewMode | undefined>(setViewModes),
+    viewChanges: (id) => viewChanges[id],
     setReadOnly: apply<boolean>(setReadOnly),
     setDisabled: apply<boolean>(setDisabled),
     setDocumentKey,
@@ -112,6 +119,9 @@ function Fixture() {
       }}
       locale={locales[id]}
       theme={themes[id]}
+      viewMode={viewModes[id]}
+      onViewModeChange={(mode) => setViewChanges((current) => ({ ...current, [id]: [...current[id], mode] }))}
+      preview={<div><p>Preview {id}: {values[id]}</p><input type="range" aria-label={`Preview amount ${id}`} min="0" max="10" defaultValue="2" /></div>}
       height={380}
       readOnly={readOnly[id]}
       disabled={disabled[id]}

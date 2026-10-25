@@ -74,7 +74,9 @@
   cursor: not-allowed;
 }
 
-.app-shell.is-simple .pane-editor {
+.app-shell.is-simple .pane-editor > .pane-head,
+.app-shell.is-simple .editor-note,
+.app-shell.is-simple .diagnostics-panel {
   display: none;
 }
 

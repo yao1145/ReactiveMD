@@ -348,25 +348,41 @@ try {
   console.log('PASS menu arrow and End navigation');
 
   await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+  await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(toolbar).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  const sourceBeforeTheme = await editor.inputValue();
   await page.locator('.editor-frame').screenshot({ path: 'artifacts/editor-toolbar-desktop.png' });
   const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
   if (pageOverflow) throw new Error('Desktop page overflows horizontally');
 
   await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
+  await expect(editor).toHaveValue(sourceBeforeTheme);
   await page.locator('.editor-frame').screenshot({ path: 'artifacts/editor-toolbar-dark.png' });
-  console.log('PASS desktop screenshots and dark theme');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', { name: 'Show source', exact: true }).click();
+  await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
+  await page.getByRole('button', { name: 'Light theme', exact: true }).click();
+  await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(editor).toHaveValue(sourceBeforeTheme);
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  console.log('PASS desktop light/dark source surfaces, content preservation and saved preference');
 
   const tablet = await browser.newPage({ viewport: { width: 1024, height: 900 } });
   tablet.setDefaultTimeout(10000);
   await tablet.goto(baseURL);
   await tablet.getByRole('button', { name: 'Show source', exact: true }).click();
+  // Exercise the reusable editor's compact container layout on a wide page.
+  await tablet.addStyleTag({ content: '.reactive-md-editor { max-width: 480px; }' });
   const tabletToolbar = tablet.locator('.editor-toolbar');
   await expect(tabletToolbar).toBeVisible();
   expectSameIds(
     await visibleToolbarIds(tabletToolbar),
     ['heading', 'bold', 'italic', 'list', 'link', 'insert', 'components', 'more'],
-    'Compact desktop controls',
+    'Compact editor container controls',
   );
   const tabletRows = await tabletToolbar.locator('[data-toolbar-id]').evaluateAll((elements) =>
     new Set(
@@ -513,6 +529,12 @@ try {
   await expect(mobile.locator('.editor-toolbar-insert-menu')).toBeVisible();
   await mobile.keyboard.press('Escape');
   console.log('PASS mobile heading and insert menus stay inside the viewport');
+  await expect(mobile.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await mobile.locator('.editor-frame').screenshot({ path: 'artifacts/editor-toolbar-mobile-light.png' });
+  await mobile.getByRole('button', { name: 'Dark theme', exact: true }).click();
+  await expect(mobile.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
+  await mobile.locator('.editor-frame').screenshot({ path: 'artifacts/editor-toolbar-mobile-dark.png' });
+  console.log('PASS mobile light/dark source surfaces');
 
   const chinese = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const chineseErrors = [];
