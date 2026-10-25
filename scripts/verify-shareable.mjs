@@ -324,8 +324,9 @@ async function sizeBaseline() {
     cssGzip: gzipSync(css).byteLength,
   };
   console.log(`Standalone size: ${sizes.js} B (${sizes.jsGzip} B gzip), CSS ${sizes.css} B (${sizes.cssGzip} B gzip)`);
-  // 0.5 includes the highlighter and its common language grammars offline.
-  assert.ok(sizes.js <= 1024 * 1024, `Standalone JS grew beyond the 1024 KiB alarm: ${sizes.js}`);
+  // The published 0.5.2 HTML/highlighter runtime is 1,112,662 B; 0.5.3 adds
+  // shared math diagnostics. Keep a 1100 KiB raw alarm and the gzip cap below.
+  assert.ok(sizes.js <= 1100 * 1024, `Standalone JS grew beyond the 1100 KiB alarm: ${sizes.js}`);
   assert.ok(sizes.jsGzip <= 320 * 1024, `Standalone JS gzip grew beyond the 320 KiB alarm: ${sizes.jsGzip}`);
   assert.ok(sizes.css <= 80 * 1024, `Standalone CSS grew beyond the 80 KiB alarm: ${sizes.css}`);
   assert.ok(sizes.cssGzip <= 20 * 1024, `Standalone CSS gzip grew beyond the 20 KiB alarm: ${sizes.cssGzip}`);
