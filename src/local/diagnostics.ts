@@ -281,6 +281,10 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Compile option {name} must be a boolean.',
     zh: '编译选项 {name} 必须是布尔值。',
   },
+  'options.markdownBreaks': {
+    en: 'Compile option markdownBreaks must be a boolean.',
+    zh: '编译选项 markdownBreaks 必须为布尔值。',
+  },
   'component.unknownSuggestion': {
     en: 'Unknown component <{name}>. Did you mean <{suggestion}>?',
     zh: '未知组件 <{name}>。是否想使用 <{suggestion}>？',
@@ -838,6 +842,34 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Plot parameter "{name}" must be a number, but is {kind}.',
     zh: '绘图参数“{name}”必须是数字，但当前为 {kind}。',
   },
+  'math.displayUnsupportedCommand': {
+    en: 'Formula command \\{name} is not supported; it is displayed as literal text.',
+    zh: '公式命令 \\{name} 不受支持；已按原文显示。',
+  },
+  'math.displayUnsupportedEnvironment': {
+    en: 'Formula environment {name} is not supported; it is displayed as literal text.',
+    zh: '公式环境 {name} 不受支持；已按原文显示。',
+  },
+  'math.displayBudget': {
+    en: 'Formula exceeds a display resource limit ({limit}); it is displayed as literal text.',
+    zh: '公式超过显示资源上限（{limit}）；已按原文显示。',
+  },
+  'math.displayStrayEnd': {
+    en: 'Formula has an unmatched \\end; it is displayed as literal text.',
+    zh: '公式中存在未匹配的 \\end；已按原文显示。',
+  },
+  'math.displayEnvironmentUnclosed': {
+    en: 'Formula environment {name} is missing its closing brace; it is displayed as literal text.',
+    zh: '公式环境 {name} 缺少结束花括号；已按原文显示。',
+  },
+  'math.displayEnvironmentMissingName': {
+    en: 'Formula environment is missing its name; \\begin is displayed as literal text.',
+    zh: '公式环境缺少名称；\\begin 已按原文显示。',
+  },
+  'math.displaySyntax': {
+    en: 'Formula structure cannot be displayed and is shown as literal text.',
+    zh: '公式结构无法显示，已按原文显示。',
+  },
   'table.missingHeader': {
     en: 'The table for <{name}> is missing a header.',
     zh: '<{name}> 的表格缺少表头。',
@@ -1256,6 +1288,7 @@ const LOCAL_COMPILER_CODES = [
   'local.budget.plot.points',
   'local.math.formula',
   'local.math',
+  'local.math.display',
   'local.math.binding',
   'local.table.header',
   'local.table.row',
@@ -1417,6 +1450,7 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.html.unsafe-url': 'html.unsafeUrl',
   'local.html.capability': 'html.capability',
   'local.options.invalid.html-flag': 'options.htmlFlag',
+  'local.options.invalid.markdown-breaks': 'options.markdownBreaks',
   'local.component.unknown.suggestion': 'component.unknownSuggestion',
   'local.component.unknown': 'component.unknownPlain',
   'local.attribute.format': 'attribute.lowercase',
@@ -1562,6 +1596,13 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.math.compute': 'math.computeFailed',
   'local.math.binding.unknown': 'math.bindingUnknown',
   'local.math.binding.type': 'math.bindingType',
+  'local.math.display.unsupported-command': 'math.displayUnsupportedCommand',
+  'local.math.display.unsupported-environment': 'math.displayUnsupportedEnvironment',
+  'local.math.display.budget': 'math.displayBudget',
+  'local.math.display.stray-end': 'math.displayStrayEnd',
+  'local.math.display.environment-unclosed': 'math.displayEnvironmentUnclosed',
+  'local.math.display.environment-missing-name': 'math.displayEnvironmentMissingName',
+  'local.math.display.syntax': 'math.displaySyntax',
   'local.table.header.missing': 'table.missingHeader',
   'local.table.header.interpolation': 'table.headerInterpolation',
   'local.table.header.empty': 'table.headerEmpty',

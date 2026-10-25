@@ -4,7 +4,7 @@
 
 Write local interactive documents in Markdown. Add input controls, name parameters with `bind`, and connect prose, formulas, charts and diagrams with `{{ expressions }}`. Document authors do not write JavaScript or CSS.
 
-Local mode uses HTML-style tags, with parameters and table data written directly in the prose; LaTeX formulas can drive function plots. The TypeScript core and the React renderer can be integrated independently. `0.5.2` is the preview for the `next` channel and adds the host component extension axis; `latest` remains `0.4.0`. Syntax revision stays `local-draft-2`, and the component protocol is `component-protocol-2`. See [README-ch.md](README-ch.md) for the Chinese overview.
+Local mode uses HTML-style tags, with parameters and table data written directly in the prose; LaTeX formulas can drive function plots. The TypeScript core and the React renderer can be integrated independently. `0.5.3` is the preview for the `next` channel and adds host integration and authoring patches; `latest` remains `0.4.0`. Syntax revision stays `local-draft-2`, and the component protocol is `component-protocol-2`. See [README-ch.md](README-ch.md) for the Chinese overview.
 
 ## Start here
 
@@ -19,7 +19,7 @@ Local mode uses HTML-style tags, with parameters and table data written directly
 - [Standalone integration examples](examples/integration/README.md): Node core and React pages you can copy and run outside the repository.
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
 - [Component protocol](docs/component-protocol-en.md) · [Component development guide](docs/component-development-en.md): declarations, behavior contracts and compatibility acceptance for new components.
-- [0.5.2 release notes](docs/release-0.5.2-en.md): host components and `component-protocol-2`.
+- [0.5.3 release notes](docs/release-0.5.3-en.md): host integration and authoring patches.
 - [0.5.1 release notes](docs/release-0.5.1-en.md): editor views and themes, plus HTML compatibility.
 - [0.5.0 release notes](docs/release-0.5.0-en.md): the editor entry and document rendering fixes.
 - [0.4.1 release notes](docs/release-0.4.1-en.md): visual and interaction fixes, compatible with 0.4.0.
@@ -48,17 +48,17 @@ Reactive MD requires Node.js 22.12 or newer and ships only ESM entries:
 npm install reactive-md
 ```
 
-`latest` resolves to `0.4.0`. The 0.5.2 preview targets `next`:
+`latest` resolves to `0.4.0`. The 0.5.3 preview targets `next`:
 
 ```sh
 npm install reactive-md@next
 # or pin the preview
-npm install reactive-md@0.5.2
+npm install reactive-md@0.5.3
 ```
 
-Read the [0.5.2 release notes](docs/release-0.5.2-en.md) before using the preview, and the [migration guide](docs/release-0.4.0-en.md) before upgrading from `0.3.1` / `local-draft-1`.
+Read the [0.5.3 release notes](docs/release-0.5.3-en.md) before using the preview, and the [migration guide](docs/release-0.4.0-en.md) before upgrading from `0.3.1` / `local-draft-1`.
 
-The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`. The `reactive-md/editor` entry provides the source editor with its own stylesheet at `reactive-md/editor/styles.css`. Existing renderer and style imports are unchanged in 0.5.2.
+The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`. The `reactive-md/editor` entry provides the source editor with its own stylesheet at `reactive-md/editor/styles.css`. Existing renderer and style imports are unchanged in 0.5.3.
 
 The core `reactive-md` entry does not depend on React:
 
@@ -154,7 +154,7 @@ demo/          Standalone Playground app
 - [Feature tours and examples](examples/local/README.md) and [standalone integrations](examples/integration/README.md).
 - [React source editor](docs/editor-en.md): controlled editor for `.reactive.md` source, with its own stylesheet.
 - [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, diagnostics and supported platforms.
-- [0.5.2 release notes](docs/release-0.5.2-en.md): host components and `component-protocol-2`.
+- [0.5.3 release notes](docs/release-0.5.3-en.md): host integration and authoring patches.
 - [0.5.1 release notes](docs/release-0.5.1-en.md): editor views and themes, plus HTML compatibility.
 - [0.5.0 release notes](docs/release-0.5.0-en.md): the editor entry and document rendering fixes.
 - [0.4.0 release and migration](docs/release-0.4.0-en.md): the upgrade checklist for that minor series.
@@ -167,7 +167,7 @@ See the [contributing guide](CONTRIBUTING.md) for development and test commands.
 
 - CI targets Node 22.12 and Node 24 with Playwright Chromium; local browser checks use Microsoft Edge. The packed check covers static SSR, and `npm run test:shareable` covers the single-file export's static-first hydration. General SSR hydration outside that path, Firefox and WebKit remain unverified.
 - 0.x minor releases may contain breaking changes. Persist the original `.reactive.md` source, not the runtime AST or in-memory state.
-- `latest` is `0.4.0`; the `0.5.2` preview targets `next`. Security fixes may ship in minor releases.
+- `latest` is `0.4.0`; the `0.5.3` preview targets `next`. Security fixes may ship in minor releases.
 
 ## Contributing and security
 

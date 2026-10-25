@@ -12,6 +12,7 @@ import {
 } from './computations';
 import { createHeadingAnchors } from './heading-anchors';
 import { compileLatex } from './math';
+import { inspectLocalMathDisplay } from './math-display';
 import { parseLocal } from './parser';
 import { LOCAL_SYNTAX_VERSION } from './version';
 import { DEFAULT_LOCAL_THEME } from './theme';
@@ -457,6 +458,18 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   for (const [key, binding] of Object.entries(bindings)) initialState[key] = cloneValue(binding.initial);
   validateNavigation(state, bindings, initialState);
   validateHostComponents(parsed.nodes, optionCheck.hostByName, state);
+  const displayNodes = [...parsed.nodes];
+  while (displayNodes.length && diagnostics.length < MAX_LOCAL_DIAGNOSTICS) {
+    const node = displayNodes.pop()!;
+    if (node.type === 'math' || node.type === 'inlineMath') {
+      const base = node.range.start + (node.type === 'math' ? 2 : 1);
+      for (const issue of inspectLocalMathDisplay(node.value ?? '')) {
+        reportWarning(state, issue.code, issue.message, base + issue.start, base + issue.end, {
+          key: issue.messageKey, params: issue.params,
+        });
+      }
+    } else if (node.children) displayNodes.push(...node.children);
+  }
 
   diagnostics.sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
   const hasError = diagnostics.some((diagnostic) => diagnostic.severity === 'error');

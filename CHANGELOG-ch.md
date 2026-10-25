@@ -1,5 +1,16 @@
 # 变更记录
 
+## 0.5.3（2026-10-26，next 渠道）
+
+参见 [0.5.3 发布说明](docs/release-0.5.3-ch.md)。语法与协议修订保持不变。
+
+- 新增可选 `markdownBreaks`，贯通编译、渲染、worker 和缓存键，保留源码范围。
+- 拆出无样式 React 入口、屏幕 CSS 和可选打印 CSS，屏幕样式移除全局 `@page`。
+- 导出 `localCompileOptionsKey`、`LocalRenderContext`，新增无需 React 的 `reactive-md/authoring` 入口。
+- 分析、补全、重命名和格式化接受与预览一致的编译配置。
+- 数学显示因不支持的命令、环境或预算降级时，报告带源码范围的诊断。
+
+
 本文件记录用户可见变更。项目处于 0.x 预览阶段，版本与迁移规则见[版本与兼容性](docs/compatibility-ch.md)。
 
 ## 0.5.2（2026-10-26，next 渠道）

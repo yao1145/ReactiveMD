@@ -11,7 +11,7 @@
 
 import { NATIVE_COMPONENT_CATALOG_COPY } from './editor-i18n';
 import { EXTENDED_NATIVE_COMPONENTS } from './extended-native-components';
-import type { EditorLocale } from './types';
+import type { EditorLocale } from './command-types';
 
 export type NativeComponentGroupId = 'input' | 'action' | 'layout' | 'data' | 'hint';
 

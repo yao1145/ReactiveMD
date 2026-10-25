@@ -1,4 +1,4 @@
-/* Print styles for local documents. Imported last by styles.css.
+/* Optional print styles for local documents. Import after styles.css.
    Interactive documents keep their form controls on screen, but the print
    output must show the current runtime values as static text without relying
    on JavaScript. Each control therefore emits a .local-print-value node that

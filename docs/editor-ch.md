@@ -233,3 +233,5 @@ const result = compileLocal(source);
 ## 兼容性
 
 `0.5.0` 新增编辑器入口，`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 保持不变。只渲染文档的项目升级时无需修改导入或源码。编辑器是新增入口，没有旧 API 需要迁移。见[0.5.0 发布说明](release-0.5.0-ch.md)与[版本与兼容性](compatibility-ch.md)。
+
+ .5.3 新增接受编译配置的作者工具及显式屏幕、打印样式入口，见 [0.5.3 宿主集成](release-0.5.3-ch.md)。

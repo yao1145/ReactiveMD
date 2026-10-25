@@ -218,6 +218,9 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     }] };
   }
   const maxSyntaxNodes = optionCheck.maxSyntaxNodes;
+  // Soft breaks only become nodes when the host opts in; the source string is
+  // never normalized, so offsets keep pointing at the original code units.
+  const markdownBreaks = optionCheck.markdownBreaks;
   // Captured separately so per-parse closures keep the narrowed option shape.
   const hostByName = optionCheck.hostByName;
   // Host names join the accepted tag set for this parse only. Without host
@@ -1392,6 +1395,95 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         if (child.children) unescapeTablePipes(child.children);
       }
     }
+    /**
+     * Split one remark text node at source soft breaks when the host asked for
+     * `<br>`-style breaks. Only line endings that exist both in the parsed value
+     * and in the masked source are converted, so decoded entities and escaped
+     * text keep their literal newlines. The source string is never rewritten:
+     * every produced node keeps the offsets of the slice it came from.
+     */
+    function textNodes(raw: any, from: number, to: number): LocalNode[] {
+      const value: unknown = raw.value;
+      if (typeof value !== 'string' || !value) return [];
+      if (!markdownBreaks || !/[\r\n]/.test(value)) return [node('text', from, to, { value })];
+      const rawStart = raw.position?.start?.offset;
+      const rawEnd = raw.position?.end?.offset;
+      if (!Number.isInteger(rawStart) || !Number.isInteger(rawEnd)
+        || rawStart < 0 || rawEnd <= rawStart || rawEnd > masked.length) {
+        return [node('text', from, to, { value })];
+      }
+      /**
+       * The next line of a text node can be preceded by container syntax that
+       * the Markdown parser consumed (`>`, list indentation). Start the segment
+       * at its first value character when that character is found close by;
+       * otherwise keep the original offset instead of guessing.
+       */
+      const segmentSource = (after: number, first: string | undefined): number => {
+        if (first === undefined) return after;
+        let index = after;
+        for (let skipped = 0; index < source.length && skipped < 32; skipped += 1) {
+          const character = source[index];
+          if (character !== ' ' && character !== '\t' && character !== '>') break;
+          index += 1;
+        }
+        return index < source.length && source[index] === first ? index : after;
+      };
+      // Masked-source line endings, in order. CRLF counts as one break.
+      const newlines: { start: number; end: number; literal?: boolean }[] = [];
+      for (let index = rawStart; index < rawEnd; index += 1) {
+        // Escaped ampersands stay literal; character references can decode to
+        // newline characters without representing source soft breaks.
+        if (masked[index] === '\\' && /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/.test(masked[index + 1] ?? '')) {
+          index += 1;
+          continue;
+        }
+        if (masked[index] === '&') {
+          const entity = /^&(?:#(?:[xX][\da-fA-F]{1,6}|\d{1,7})|NewLine);/.exec(masked.slice(index, Math.min(rawEnd, index + 34)))?.[0];
+          if (entity) {
+            const decoded = entity === '&NewLine;' ? 10 : entity[2].toLowerCase() === 'x'
+              ? Number.parseInt(entity.slice(3, -1), 16) : Number.parseInt(entity.slice(2, -1), 10);
+            if (decoded === 10 || decoded === 13) newlines.push({ start: index, end: index + entity.length, literal: true });
+            index += entity.length - 1;
+            continue;
+          }
+        }
+        if (masked[index] === '\r') {
+          const end = index + 1 < rawEnd && masked[index + 1] === '\n' ? index + 2 : index + 1;
+          newlines.push({ start: index, end });
+          index = end - 1;
+        } else if (masked[index] === '\n') {
+          newlines.push({ start: index, end: index + 1 });
+        }
+      }
+      if (!newlines.length) return [node('text', from, to, { value })];
+      const result: LocalNode[] = [];
+      let segmentValue = 0;
+      let sourceStart = from;
+      let next = 0;
+      for (let index = 0; index < value.length; index += 1) {
+        const character = value[index];
+        if (character !== '\n' && character !== '\r') continue;
+        // Some parsers retain CRLF inside text values; treat it as one break.
+        const lineEnding = newlines[next];
+        if (lineEnding === undefined) break;
+        next += 1;
+        const valueEnd = !lineEnding.literal && character === '\r' && value[index + 1] === '\n' ? index + 2 : index + 1;
+        if (lineEnding.literal) continue;
+        const breakStart = offsets[lineEnding.start] ?? sourceStart;
+        const breakEnd = breakStart + (lineEnding.end - lineEnding.start);
+        if (index > segmentValue) {
+          result.push(node('text', sourceStart, breakStart, { value: value.slice(segmentValue, index) }));
+        }
+        result.push(node('break', breakStart, breakEnd));
+        segmentValue = valueEnd;
+        sourceStart = segmentSource(offsets[lineEnding.end] ?? breakEnd, value[valueEnd]);
+        index = valueEnd - 1;
+      }
+      if (segmentValue < value.length) {
+        result.push(node('text', sourceStart, to, { value: value.slice(segmentValue) }));
+      }
+      return result;
+    }
     function transform(raw: any): LocalNode[] {
       const from = offsets[raw.position?.start?.offset ?? 0] ?? start;
       const to = offsets[raw.position?.end?.offset ?? masked.length] ?? end;
@@ -1404,7 +1496,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         }
       }
       if (raw.type === 'text') {
-        return raw.value ? [node('text', from, to, { value: raw.value })] : [];
+        return textNodes(raw, from, to);
       }
       // Footnote nodes normally arrive through lexical tokens. This branch only
       // covers a remark-parsed node (hand-built Markdown fragments); it keeps

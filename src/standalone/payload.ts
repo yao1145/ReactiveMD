@@ -74,12 +74,16 @@ function parseCompileOptions(
     enableCss: boolean;
     enableJavaScript: boolean;
     enableExtendedHtml: boolean;
+    markdownBreaks?: boolean;
     limits?: { maxSyntaxNodes: number };
   } = {
     enableCss: check.html.enableCss,
     enableJavaScript: check.html.enableJavaScript,
     enableExtendedHtml: check.html.enableExtendedHtml,
   };
+  if (Object.hasOwn(value as object, 'markdownBreaks') && (value as LocalCompileOptions).markdownBreaks !== undefined) {
+    normalized.markdownBreaks = check.markdownBreaks;
+  }
   const limits = (value as { limits?: unknown }).limits;
   if (isPlainRecord(limits) && limits.maxSyntaxNodes !== undefined) {
     normalized.limits = { maxSyntaxNodes: check.maxSyntaxNodes };

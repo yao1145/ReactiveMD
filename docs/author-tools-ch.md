@@ -39,12 +39,12 @@ cat document.reactive.md | reactive-md lint -
 import {
   analyzeLocalSource, completeLocalSource,
   renameLocalBinding, formatLocalSource,
-} from 'reactive-md';
+} from 'reactive-md/authoring';
 
-const analysis = analyzeLocalSource(source);
-const suggestions = completeLocalSource(source, cursorOffset);
-const renamed = renameLocalBinding(source, 'people', 'attendees');
-const formatted = formatLocalSource(renamed.source);
+const analysis = analyzeLocalSource(source, compileOptions);
+const suggestions = completeLocalSource(source, cursorOffset, compileOptions);
+const renamed = renameLocalBinding(source, 'people', 'attendees', compileOptions);
+const formatted = formatLocalSource(renamed.source, compileOptions);
 ```
 
 分析结果包含按位置排序的高亮 token、绑定声明和引用范围，以及编译诊断。补全项包含 `label`、`kind`、`insertText` 和待替换的 `range`。应用编辑时，应使用生成这些范围的同一版本源码。
@@ -54,3 +54,9 @@ const formatted = formatLocalSource(renamed.source);
 ## Playground
 
 运行 `npm run dev`，选择“显示源码”。编辑器提供高亮、补全、绑定定位、重命名、格式化、诊断跳转与实时预览。通过补全按钮或 Ctrl+Space 打开建议列表，方向键选择，Enter 插入，Escape 关闭。重命名与格式化均可撤销、重做。
+
+## 宿主编辑器配置
+
+`reactive-md/authoring` 还导出 `LOCAL_COMPONENTS`、`getLocalComponent`、`getNativeComponentCatalog`、`renderNativeSnippet`、`insertTemplate` 及其类型，无需 React 或 CSS。将预览使用的 `LocalCompileOptions` 作为分析、补全、重命名和格式化的最后一个参数；省略时保持原有默认值。配置包括宿主 schema、HTML 模式、资源预算和 `markdownBreaks`。
+
+入口与样式接入方式见 [0.5.3 发布说明](release-0.5.3-ch.md)。

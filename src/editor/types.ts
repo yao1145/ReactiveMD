@@ -1,11 +1,10 @@
 import type { CSSProperties, ReactNode, RefObject } from 'react';
-import type { Diagnostic, LocalDocument, SourceRange } from '../local/types';
+import type { Diagnostic, LocalCompileOptions, LocalDocument, SourceRange } from '../local/types';
 
-export type EditorLocale = 'en' | 'zh';
+import type { EditorLocale, EditorSelection } from './command-types';
+export type { EditorLocale, EditorSelection, EditorEdit } from './command-types';
 export type EditorTheme = 'light' | 'dark' | 'auto';
 export type EditorViewMode = 'edit' | 'split' | 'preview';
-export interface EditorSelection { start: number; end: number }
-export interface EditorEdit { value: string; selection: EditorSelection }
 
 export interface ReactiveMarkdownEditorProps {
   value: string;
@@ -30,6 +29,8 @@ export interface ReactiveMarkdownEditorProps {
   /** Reset history, selection and scroll when switching source documents. */
   documentKey?: string | number;
   diagnostics?: readonly Diagnostic[];
+  /** Compile options used by the host preview; authoring analyses follow them. */
+  compileOptions?: LocalCompileOptions;
   /** Optional compiled document for the binding inspector's value types. */
   document?: LocalDocument | null;
   toolbar?: boolean;

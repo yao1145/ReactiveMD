@@ -293,6 +293,31 @@ describe('LocalCompileScheduler', () => {
     expect(outcome.result.diagnostics[0].code).toBe('local.worker.compile');
     expect(outcome.result.diagnostics[0].message).toContain('fallback boom');
   });
+
+  it('snapshots markdownBreaks and recompiles an options-only edit', () => {
+    const { worker, results, scheduler } = setup();
+    const options: { markdownBreaks: boolean } = { markdownBreaks: true };
+    scheduler.schedule('a\nb', options);
+    // Mutating the caller's object after schedule must not change the job.
+    options.markdownBreaks = false;
+    vi.advanceTimersByTime(LOCAL_COMPILE_DELAY_MS);
+    expect(worker.messages).toHaveLength(1);
+    expect(worker.messages[0].options).toEqual({ markdownBreaks: true });
+
+    const first = worker.messages[0];
+    scheduler.schedule('a\nb', { markdownBreaks: false });
+    vi.advanceTimersByTime(LOCAL_COMPILE_DELAY_MS);
+    expect(worker.messages).toHaveLength(1);
+
+    worker.receive({ id: first.id, ok: true, result: okResult('a\nb'), duration: 1 });
+    expect(results).toHaveLength(0);
+    expect(worker.messages).toHaveLength(2);
+    expect(worker.messages[1].options).toEqual({ markdownBreaks: false });
+
+    worker.receive({ id: worker.messages[1].id, ok: true, result: okResult('a\nb'), duration: 1 });
+    expect(results).toHaveLength(1);
+    expect(results[0].options).toEqual({ markdownBreaks: false });
+  });
 });
 
 interface FakeScope extends LocalCompileWorkerScope {
@@ -332,6 +357,23 @@ describe('startLocalCompileWorker', () => {
     expect(response.duration).toBeTypeOf('number');
     expect(Number.isFinite(response.duration)).toBe(true);
     expect(response.duration).toBeGreaterThanOrEqual(0);
+  });
+
+  it('compiles markdownBreaks in the worker and returns cloneable plain nodes', () => {
+    const scope = createScope();
+    startLocalCompileWorker(scope);
+
+    scope.onmessage!(requestEvent({ id: 21, source: 'a\nb', options: { markdownBreaks: true } }));
+    expect(scope.messages).toHaveLength(1);
+    const response = scope.messages[0];
+    expect(response.ok).toBe(true);
+    if (!response.ok) return;
+    expect(response.result.ok).toBe(true);
+    if (!response.result.ok) return;
+    const paragraph = response.result.document.nodes[0];
+    expect(paragraph.children?.map((node) => node.type)).toEqual(['text', 'break', 'text']);
+    expect(paragraph.children?.map((node) => node.value)).toEqual(['a', undefined, 'b']);
+    expect(structuredClone(response)).toEqual(response);
   });
 
   it('ignores malformed requests', () => {

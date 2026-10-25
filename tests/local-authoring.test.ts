@@ -6,14 +6,32 @@ import {
   formatLocalSource,
   renameLocalBinding,
 } from '../src/local';
-import type { AuthorAnalysis, SourceRange } from '../src/local';
+import type {
+  AuthorAnalysis,
+  LocalCompileOptions,
+  LocalHostComponentSchema,
+  SourceRange,
+} from '../src/local';
+import {
+  getNativeComponentCatalog,
+  insertTemplate,
+  renderNativeSnippet,
+} from '../src/authoring';
 
 function slices(source: string, ranges: SourceRange[]): string[] {
   return ranges.map((range) => source.slice(range.start, range.end));
 }
 
 function tokensOf(source: string, kind: string): string[] {
-  return analyzeLocalSource(source).tokens
+  return tokensOfWithOptions(source, kind);
+}
+
+function tokensOfWithOptions(
+  source: string,
+  kind: string,
+  options?: LocalCompileOptions,
+): string[] {
+  return analyzeLocalSource(source, options).tokens
     .filter((token) => token.kind === kind)
     .map((token) => source.slice(token.range.start, token.range.end));
 }
@@ -323,5 +341,67 @@ describe('formatLocalSource', () => {
   it('leaves documents with compile errors unchanged', () => {
     const broken = '<input label="A" bind="a"';
     expect(formatLocalSource(broken)).toBe(broken);
+  });
+});
+
+describe('compile options', () => {
+  const hostComponents: LocalHostComponentSchema[] = [
+    { name: 'widget', form: 'leaf', props: { title: { kind: 'string', required: true } } },
+  ];
+  const hostOptions: LocalCompileOptions = { hostComponents };
+
+  it('recognises host components in analysis and formatting', () => {
+    const source = '<widget   title = "A" >';
+    // Without the schema the line-leading tag is an incomplete unknown tag.
+    expect(compileLocal(source).diagnostics.some((diagnostic) => diagnostic.severity === 'error')).toBe(true);
+    expect(compileLocal(source, hostOptions).diagnostics).toEqual([]);
+
+    const analysis = analyzeLocalSource(source, hostOptions);
+    expect(analysis.diagnostics).toEqual([]);
+    expect(analysis.bindings).toEqual([]);
+    expect(tokensOfWithOptions(source, 'tag', hostOptions)).toEqual(['widget']);
+    expect(tokensOfWithOptions(source, 'attribute', hostOptions)).toEqual(['title']);
+    expect(tokensOfWithOptions(source, 'string', hostOptions)).toEqual(['A']);
+
+    expect(formatLocalSource(source)).toBe(source);
+    expect(formatLocalSource(source, hostOptions)).toBe('<widget title="A">');
+  });
+
+  it('reports syntax limits through the same diagnostics as compilation', () => {
+    const source = '<input bind="a" label="A">\n\n<input bind="b" label="B">';
+    const limits: LocalCompileOptions = { limits: { maxSyntaxNodes: 1 } };
+    const analysis = analyzeLocalSource(source, limits);
+    expect(analysis.diagnostics).toEqual(compileLocal(source, limits).diagnostics);
+    expect(analysis.diagnostics.some((diagnostic) => diagnostic.code === 'local.budget')).toBe(true);
+  });
+
+  it('treats HTML mode as opaque for analysis, completion, rename and formatting', () => {
+    const options: LocalCompileOptions = { enableExtendedHtml: true };
+    const source = '<div class="card">{{ nope }}</div>';
+    const analysis = analyzeLocalSource(source, options);
+    expect(analysis).toEqual({
+      tokens: [],
+      bindings: [],
+      diagnostics: compileLocal(source, options).diagnostics,
+    });
+    expect(completeLocalSource(source, source.indexOf('nope') + 2, options)).toEqual([]);
+    expect(() => renameLocalBinding(source, 'nope', 'other', options)).toThrow(/HTML mode/);
+
+    const spacedHtml = '<div   class = "card" >x</div>';
+    expect(formatLocalSource(spacedHtml, options)).toBe(spacedHtml);
+  });
+});
+
+describe('authoring entry', () => {
+  it('renders a catalog template and inserts it without React UI', () => {
+    const catalog = getNativeComponentCatalog('en');
+    const definition = catalog.components.find((component) => component.id === 'number');
+    expect(definition).toBeDefined();
+    const snippet = renderNativeSnippet(definition!, '');
+    expect(snippet).toContain('bind="quantity"');
+
+    const edit = insertTemplate('', { start: 0, end: 0 }, snippet, { block: true });
+    expect(edit.value).toContain('<number bind="quantity"');
+    expect(edit.selection.start).toBeGreaterThan(0);
   });
 });

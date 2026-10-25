@@ -650,6 +650,7 @@ export default function App() {
               </div>
 
               <ReactiveMarkdownEditor
+                compileOptions={compileOptions}
                 ref={editorHandle}
                 id="source-editor"
                 textareaRef={editorRef}

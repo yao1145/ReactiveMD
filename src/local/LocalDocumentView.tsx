@@ -149,8 +149,10 @@ export interface LocalReactiveDocumentProps {
   hostRenderer?: LocalHostRenderer;
   /**
    * Host-owned compile options. HTML capability flags select the temporary
-   * whole-document native branch; the component recompiles when a flag or the
-   * node budget changes, but not when an equal object is recreated.
+   * whole-document native branch; Markdown capability options such as
+   * `markdownBreaks` change the parsed tree. The component recompiles when a
+   * flag, the soft-break option or the node budget changes, but not when an
+   * equal object is recreated.
    */
   compileOptions?: LocalCompileOptions;
 }

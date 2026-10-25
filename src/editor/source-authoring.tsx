@@ -25,7 +25,7 @@ import {
   formatLocalSource,
   renameLocalBinding,
 } from 'reactive-md';
-import type { Diagnostic, LocalDocument, SourceRange } from 'reactive-md';
+import type { Diagnostic, LocalCompileOptions, LocalDocument, SourceRange } from 'reactive-md';
 import type { EditorEdit, EditorLocale, EditorSelection } from './types';
 import { useEditorLocale } from './locale';
 
@@ -119,11 +119,15 @@ function normalizeTokens(source: string, tokens: AuthorToken[]): AuthorToken[] {
  * Analyses the exact source; caret movement never retriggers this work.
  * `enabled` lets the editor skip the analysis when authoring tools are off.
  */
-export function useAuthorAnalysis(source: string, enabled = true): AuthorAnalysis {
+export function useAuthorAnalysis(
+  source: string,
+  enabled = true,
+  compileOptions?: LocalCompileOptions,
+): AuthorAnalysis {
   return useMemo(() => {
     if (!enabled) return EMPTY_ANALYSIS;
     try {
-      const result = analyzeLocalSource(source);
+      const result = analyzeLocalSource(source, compileOptions);
       return {
         tokens: normalizeTokens(source, result.tokens),
         bindings: result.bindings,
@@ -132,7 +136,7 @@ export function useAuthorAnalysis(source: string, enabled = true): AuthorAnalysi
     } catch {
       return EMPTY_ANALYSIS;
     }
-  }, [source, enabled]);
+  }, [source, enabled, compileOptions]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -497,6 +501,8 @@ export interface AuthoringPanelProps {
   analysis: AuthorAnalysis;
   /** Latest successful document, used for binding value types. */
   bindingDocument: LocalDocument | null;
+  /** Same compile options as the preview; analysis, completion, rename and format follow them. */
+  compileOptions?: LocalCompileOptions;
   editorRef: RefObject<HTMLTextAreaElement | null>;
   onEdit(edit: EditorEdit): void;
   onLocate(range: SourceRange): void;
@@ -508,6 +514,7 @@ export function AuthoringPanel({
   source,
   analysis,
   bindingDocument,
+  compileOptions,
   editorRef,
   onEdit,
   onLocate,
@@ -596,7 +603,7 @@ export function AuthoringPanel({
     const at = clamp(editor?.selectionStart ?? 0, 0, source.length);
     let items: AuthorCompletion[] = [];
     try {
-      items = completeLocalSource(source, at) ?? [];
+      items = completeLocalSource(source, at, compileOptions) ?? [];
     } catch {
       items = [];
     }
@@ -604,7 +611,7 @@ export function AuthoringPanel({
     setCompletionIndex(0);
     setCompletionOpen(true);
     setStatus(null);
-  }, [disabled, editorRef, source]);
+  }, [compileOptions, disabled, editorRef, source]);
 
   const applyCompletion = useCallback((item: AuthorCompletion) => {
     if (disabled) return;
@@ -693,7 +700,7 @@ export function AuthoringPanel({
     if (disabled) return;
     let formatted: string;
     try {
-      formatted = formatLocalSource(source);
+      formatted = formatLocalSource(source, compileOptions);
     } catch (error) {
       setStatus(copy.formatFailed(error instanceof Error ? error.message : String(error)));
       return;
@@ -725,7 +732,7 @@ export function AuthoringPanel({
       return;
     }
     try {
-      const result = renameLocalBinding(source, activeBinding.name, nextName);
+      const result = renameLocalBinding(source, activeBinding.name, nextName, compileOptions);
       const selection = readSelection(editorRef);
       onEdit({
         value: result.source,

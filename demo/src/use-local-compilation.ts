@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { LocalCompileScheduler } from 'reactive-md';
+import { LocalCompileScheduler, localCompileOptionsKey } from 'reactive-md';
 import type {
   LocalCompileMode,
   LocalCompileOptions,
   LocalCompileResult,
   LocalCompileWorker,
 } from 'reactive-md';
-import { compileOptionsKey } from './html-options';
 
 export type LocalCompiledDocument = Extract<LocalCompileResult, { ok: true }>['document'];
 
@@ -46,7 +45,7 @@ export function useLocalCompilation(
   source: string,
   options?: LocalCompileOptions,
 ): LocalCompilation {
-  const optionsKey = compileOptionsKey(options);
+  const optionsKey = localCompileOptionsKey(options);
   const [state, setState] = useState<CompilationState>(() => ({
     resultSource: null,
     resultOptionsKey: null,
@@ -77,7 +76,7 @@ export function useLocalCompilation(
       onResult: (outcome) => {
         const outcomeOptionsKey = outcome.options === undefined
           ? scheduledOptionsKey
-          : compileOptionsKey(outcome.options);
+          : localCompileOptionsKey(outcome.options);
         setState((previous) => {
           if (outcome.source !== sourceRef.current) return previous;
           if (outcomeOptionsKey !== optionsKeyRef.current) return previous;

@@ -270,16 +270,22 @@ try {
   assert.ok(!path.relative(installedCore, cssPath).startsWith('..'), 'styles.css export must stay inside the package');
   assert.ok(existsSync(cssPath), `CSS export ${cssTarget} does not exist in the installed package`);
   assert.ok((await stat(cssPath)).size > 0, 'CSS export is empty');
+  assert.ok(!(await readFile(cssPath, 'utf8')).includes('@page'), 'Installed screen styles must not set global page margins');
+  assert.match(await readFile(path.resolve(installedCore, exportTarget(installedPkg, './print.css')), 'utf8'), /@page/);
+  assert.equal(exportTarget(installedPkg, './screen.css'), cssTarget);
 
-  // UI entries may import their React peers; the core graph stays self-contained.
-  for (const file of (await readdir(path.join(installedCore, 'dist-library')))
-    .filter(name => name.endsWith('.js') && !['reactive-md-react.js', 'reactive-md-editor.js'].includes(name))) {
-    const source = await readFile(path.join(installedCore, 'dist-library', file), 'utf8');
-    const imports = moduleSpecifiers(source);
-    for (const specifier of imports) {
-      assert.ok(specifier.startsWith('.'), `${file} imports ${specifier}; the core tarball must be self-contained`);
+  // Follow public graphs: renderer chunks may be shared between React entries.
+  const checkedModules = new Set();
+  async function checkPureGraph(file) {
+    if (checkedModules.has(file)) return;
+    checkedModules.add(file);
+    for (const specifier of moduleSpecifiers(await readFile(file, 'utf8'))) {
+      assert.ok(specifier.startsWith('.') && !specifier.endsWith('.css'), `${file} imports ${specifier}; core and authoring must be self-contained`);
+      await checkPureGraph(path.resolve(path.dirname(file), specifier));
     }
   }
+  await checkPureGraph(path.resolve(installedCore, exportTarget(installedPkg, '.')));
+  await checkPureGraph(path.resolve(installedCore, exportTarget(installedPkg, './authoring')));
 
   await writeFile(
     path.join(coreConsumer, 'core-api.mjs'),
@@ -287,6 +293,7 @@ try {
 import {
   applyLocalStateRetention,
   compileLocal,
+  localCompileOptionsKey,
   analyzeLocalSource, completeLocalSource, renameLocalBinding, formatLocalSource,
   inspectLocalSourceVersion, checkLocalUpgrade, migrateLocalSource,
   countLocalCodePoints, formatLocalDiagnostic, LOCAL_DIAGNOSTIC_CODES,
@@ -299,6 +306,15 @@ import {
   planLocalStateRetention,
   startLocalCompileWorker,
 } from 'reactive-md';
+
+import * as authoring from 'reactive-md/authoring';
+assert.notEqual(localCompileOptionsKey(), localCompileOptionsKey({ markdownBreaks: true }));
+assert.equal(typeof authoring.insertTemplate, 'function');
+assert.equal(typeof authoring.getLocalComponent, 'function');
+assert.ok(authoring.NATIVE_COMPONENTS.length > 0);
+assert.equal(authoring.analyzeLocalSource('{{ literal }}', { enableCss: true }).diagnostics.length, 0);
+const brokenLines = compileLocal('first\\nsecond', { markdownBreaks: true });
+assert.equal(brokenLines.ok, true);
 
 assert.equal(typeof compileLocal, 'function', 'compileLocal must be exported from the core tarball');
 assert.equal(typeof createLocalRuntime, 'function', 'createLocalRuntime must be exported from the core tarball');
@@ -448,7 +464,14 @@ console.log('PASS combined declarations, collections, validation, authoring and 
 
   await writeFile(
     path.join(coreConsumer, 'core-types.ts'),
-    `import {
+    `import { localCompileOptionsKey } from 'reactive-md';
+import { getNativeComponentCatalog, renderNativeSnippet, insertTemplate, type EditorEdit, type LocalCompileOptions } from 'reactive-md/authoring';
+const authorOptions: LocalCompileOptions = { markdownBreaks: true };
+const signature: string = localCompileOptionsKey(authorOptions);
+const snippet = renderNativeSnippet(getNativeComponentCatalog().components[0], '');
+const edit: EditorEdit = insertTemplate('', { start: 0, end: 0 }, snippet);
+void signature; void edit;
+import {
   applyLocalStateRetention,
   compileLocal,
   createLocalRuntime,
@@ -551,6 +574,7 @@ void startLocalCompileWorker;
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
+import { LocalReactiveDocument as UnstyledReactiveDocument } from 'reactive-md/react/unstyled';
 
 assert.equal(typeof LocalReactiveDocument, 'function', 'LocalReactiveDocument must be exported by the React subpath');
 assert.equal(typeof LocalDocumentView, 'function', 'LocalDocumentView must be exported by the React subpath');
@@ -558,6 +582,9 @@ assert.equal(typeof LocalDocumentView, 'function', 'LocalDocumentView must be ex
 const html = renderToString(createElement(LocalReactiveDocument, { source: '# Packed SSR' }));
 assert.ok(html.length > 0, 'SSR must render markup');
 assert.ok(html.includes('Packed SSR'), 'SSR must render the Markdown source');
+const softBreakHtml = renderToString(createElement(UnstyledReactiveDocument, { source: 'first\\nsecond', compileOptions: { markdownBreaks: true } }));
+assert.ok(softBreakHtml.includes('first</span><br'));
+assert.ok(softBreakHtml.includes('<span>second</span>'));
 console.log('PASS React subpath and SSR');
 `,
   );
@@ -682,11 +709,15 @@ console.log('PASS packed React combination view');
 
   await writeFile(path.join(reactConsumer, 'react-types.tsx'), `import { createElement } from 'react';
 import { compileLocal, createLocalRuntime } from 'reactive-md';
-import { LocalDocumentView, LocalReactiveDocument, type LocalUrlPolicy } from 'reactive-md/react';
+import { LocalDocumentView, LocalReactiveDocument, type LocalUrlPolicy, type LocalRenderContext } from 'reactive-md/react';
+import { LocalDocumentView as UnstyledDocumentView } from 'reactive-md/react/unstyled';
 import { createRef } from 'react';
 import { ReactiveMarkdownEditor, type ReactiveMarkdownEditorHandle, type ReactiveMarkdownEditorProps } from 'reactive-md/editor';
 
 const editorRef = createRef<ReactiveMarkdownEditorHandle>();
+const renderContext = (ctx: LocalRenderContext) => ctx.render();
+void renderContext;
+void UnstyledDocumentView;
 const editorProps: ReactiveMarkdownEditorProps = {
   value: '# Editable source', onChange(value) { void value; }, locale: 'zh', theme: 'dark',
   height: 480, minHeight: '240px', documentKey: 'typed-editor', diagnostics: [],

@@ -8,7 +8,7 @@
  * overrides plus the group names for both languages.
  */
 
-import type { EditorLocale } from './types';
+import type { EditorLocale } from './command-types';
 
 export interface EditorCommandCopy {
   boldPlaceholder: string;

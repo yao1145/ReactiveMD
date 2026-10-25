@@ -1,5 +1,6 @@
 import { compileLocal } from './compiler';
 import { RESERVED_NAMES } from './expression';
+import { readLocalCompileOptions } from './options';
 import { parseLocal } from './parser';
 import { localLatexReferences } from './math';
 import {
@@ -8,7 +9,7 @@ import {
   type LocalComponentSchema,
   type LocalPropSchema,
 } from './schema';
-import type { Diagnostic, LocalNode, SourceRange } from './types';
+import type { Diagnostic, LocalCompileOptions, LocalNode, SourceRange } from './types';
 
 /**
  * DOM-free authoring services for the local interaction syntax.
@@ -18,6 +19,10 @@ import type { Diagnostic, LocalNode, SourceRange } from './types';
  * syntax is taken from `parseLocal`. Code, display math, comments, escaped
  * syntax, footnotes and unknown/fallback regions produce no binding reads or
  * formatting edits; computable plot parameters use the LaTeX AST.
+ *
+ * Every entry point accepts the same optional `LocalCompileOptions` as the
+ * preview compiler. Host components and syntax limits therefore shape analysis
+ * exactly as they shape rendering, and HTML mode is treated as opaque.
  */
 
 export interface AuthorToken {
@@ -89,14 +94,26 @@ function sortedRange(range: SourceRange): SourceRange {
   return { start: range.start, end: range.end };
 }
 
-function compileDiagnostics(source: string): Diagnostic[] {
+function compileDiagnostics(source: string, options?: LocalCompileOptions): Diagnostic[] {
   try {
-    return compileLocal(source).diagnostics;
+    return compileLocal(source, options).diagnostics;
   } catch {
     // A compiler defect must not make the editor unusable; the caller still
     // gets an empty analysis rather than a rejected promise/exception.
     return [];
   }
+}
+
+/**
+ * In HTML mode the whole document is opaque native HTML: local tags and
+ * interpolations are not interpreted, so authoring must not analyse, complete,
+ * rename or reformat them. Invalid options are also kept opaque; the compiler
+ * reports them through the normal diagnostic path.
+ */
+function authoringOptionMode(options: LocalCompileOptions | undefined): 'markdown' | 'html' | 'invalid' {
+  const check = readLocalCompileOptions(options);
+  if (!check.ok) return 'invalid';
+  return check.htmlActive ? 'html' : 'markdown';
 }
 
 /* ------------------------------------------------------------------ */
@@ -394,7 +411,7 @@ function commentRanges(source: string, nodes: LocalNode[]): SourceRange[] {
   const shields = collectInactive(nodes);
   const visit = (list: LocalNode[]): void => {
     for (const node of list) {
-      if (node.type === 'component') {
+      if (node.type === 'component' || node.type === 'hostComponent') {
         const tag = readTagAt(source, node.range.start);
         if (tag) shields.push({ start: tag.start, end: tag.end });
       }
@@ -420,7 +437,14 @@ function commentRanges(source: string, nodes: LocalNode[]): SourceRange[] {
   return result;
 }
 
-function buildAnalysisData(source: string, nodes: LocalNode[]): AnalysisData {
+function authoringProps(name: string, options?: LocalCompileOptions): Readonly<Record<string, LocalPropSchema>> | undefined {
+  const builtin = getLocalComponent(name);
+  if (builtin) return builtin.props;
+  const host = options?.hostComponents?.find(component => component.name === name);
+  return host ? Object.fromEntries(Object.entries(host.props).map(([key, prop]) => [key, { ...prop, values: prop.enum }])) : undefined;
+}
+
+function buildAnalysisData(source: string, nodes: LocalNode[], options?: LocalCompileOptions): AnalysisData {
   const tokens: AuthorToken[] = [];
   const declarations = new Map<string, SourceRange[]>();
   const references: IdentifierRange[] = [];
@@ -445,7 +469,7 @@ function buildAnalysisData(source: string, nodes: LocalNode[]): AnalysisData {
     for (const attribute of tag.attrs) {
       tokens.push({ kind: 'attribute', range: sortedRange(attribute.nameRange) });
       if (!attribute.valueRange) continue;
-      const prop = component?.props[attribute.name];
+      const prop = authoringProps(node.name ?? '', options)?.[attribute.name];
       const bindAttribute = component !== undefined
         && isBindAttribute(component, attribute.name)
         && !((node.name === 'table' || node.name === 'chart') && !hasKey);
@@ -498,7 +522,7 @@ function buildAnalysisData(source: string, nodes: LocalNode[]): AnalysisData {
 
   const walk = (list: LocalNode[], parent?: string): void => {
     for (const node of list) {
-      if (node.type === 'component' && node.name) visitComponent(node, parent);
+      if ((node.type === 'component' || node.type === 'hostComponent') && node.name) visitComponent(node, parent);
       else if (node.type === 'interpolation') {
         tokens.push({ kind: 'expression', range: sortedRange(node.range) });
         addReference(node.range.start + 2, Math.max(node.range.start + 2, node.range.end - 2));
@@ -555,13 +579,16 @@ function buildAnalysisData(source: string, nodes: LocalNode[]): AnalysisData {
 }
 
 /** Analyze active syntax, binding declarations/references and compile diagnostics. */
-export function analyzeLocalSource(source: string): AuthorAnalysis {
+export function analyzeLocalSource(source: string, options?: LocalCompileOptions): AuthorAnalysis {
   if (typeof source !== 'string') {
     return { tokens: [], bindings: [], diagnostics: [] };
   }
-  const parsed = parseLocal(source);
-  const data = buildAnalysisData(source, parsed.nodes);
-  return { tokens: data.tokens, bindings: data.bindings, diagnostics: compileDiagnostics(source) };
+  if (authoringOptionMode(options) !== 'markdown') {
+    return { tokens: [], bindings: [], diagnostics: compileDiagnostics(source, options) };
+  }
+  const parsed = parseLocal(source, options);
+  const data = buildAnalysisData(source, parsed.nodes, options);
+  return { tokens: data.tokens, bindings: data.bindings, diagnostics: compileDiagnostics(source, options) };
 }
 
 /* ------------------------------------------------------------------ */
@@ -817,11 +844,10 @@ function bindingCompletions(source: string, offset: number, context: RawInterpol
     }));
 }
 
-function valueCompletions(source: string, offset: number, prefix: TagPrefix): AuthorCompletion[] {
+function valueCompletions(source: string, offset: number, prefix: TagPrefix, options?: LocalCompileOptions): AuthorCompletion[] {
   const attribute = prefix.currentAttribute;
   if (!attribute) return [];
-  const component = getLocalComponent(prefix.name);
-  const prop: LocalPropSchema | undefined = component?.props[attribute.name];
+  const prop = authoringProps(prefix.name, options)?.[attribute.name];
   if (!prop || prop.kind !== 'enum' || !prop.values) return [];
   const valueStart = attribute.valueRange?.start ?? offset;
   const valuePrefix = source.slice(valueStart, offset);
@@ -836,10 +862,10 @@ function valueCompletions(source: string, offset: number, prefix: TagPrefix): Au
     }));
 }
 
-function attributeCompletions(source: string, offset: number, prefix: TagPrefix): AuthorCompletion[] {
+function attributeCompletions(source: string, offset: number, prefix: TagPrefix, options?: LocalCompileOptions): AuthorCompletion[] {
   if (prefix.closing || prefix.inValue || prefix.partialStart < 0) return [];
-  const component = getLocalComponent(prefix.name);
-  if (!component) return [];
+  const props = authoringProps(prefix.name, options);
+  if (!props) return [];
   const partial = source.slice(prefix.partialStart, offset);
   if (partial && !/^[A-Za-z0-9_-]*$/.test(partial)) return [];
   const present = new Set(
@@ -847,7 +873,7 @@ function attributeCompletions(source: string, offset: number, prefix: TagPrefix)
       .filter((attribute) => attribute.nameEnd < prefix.partialStart)
       .map((attribute) => attribute.name),
   );
-  return Object.entries(component.props)
+  return Object.entries(props)
     .filter(([name]) => !present.has(name) && name.startsWith(partial))
     .map(([name, prop]) => ({
       label: name,
@@ -858,7 +884,7 @@ function attributeCompletions(source: string, offset: number, prefix: TagPrefix)
     }));
 }
 
-function tagCompletions(source: string, offset: number): AuthorCompletion[] {
+function tagCompletions(source: string, offset: number, options?: LocalCompileOptions): AuthorCompletion[] {
   const windowStart = Math.max(0, offset - 256);
   const slice = source.slice(windowStart, offset);
   const match = /<\/?([A-Za-z][A-Za-z0-9-]*)?$/.exec(slice);
@@ -869,7 +895,7 @@ function tagCompletions(source: string, offset: number): AuthorCompletion[] {
   const nameStart = start + (closing ? 2 : 1);
   if (nameStart > offset) return [];
   const partial = match[1] ?? '';
-  return LOCAL_COMPONENT_NAMES
+  return [...LOCAL_COMPONENT_NAMES, ...(!closing ? options?.hostComponents?.map(component => component.name) ?? [] : [])]
     .filter((name) => name.startsWith(partial))
     .map((name) => ({
       label: name,
@@ -885,13 +911,18 @@ function tagCompletions(source: string, offset: number): AuthorCompletion[] {
  * `offset`. Replacement ranges cover an already-typed valid suffix so applying
  * a suggestion never duplicates letters. Inactive regions yield no results.
  */
-export function completeLocalSource(source: string, offset: number): AuthorCompletion[] {
+export function completeLocalSource(
+  source: string,
+  offset: number,
+  options?: LocalCompileOptions,
+): AuthorCompletion[] {
   if (typeof source !== 'string' || !Number.isFinite(offset)) return [];
+  if (authoringOptionMode(options) !== 'markdown') return [];
   const limit = Math.max(0, Math.min(source.length, Math.floor(offset)));
-  const parsed = parseLocal(source);
+  const parsed = parseLocal(source, options);
   const inactive = [...collectInactive(parsed.nodes), ...commentRanges(source, parsed.nodes)].sort((a, b) => a.start - b.start);
   if (rangeInside(inactive, limit) || (limit === source.length && inactive.some(range => range.end === limit && range.start < limit))) return [];
-  const data = buildAnalysisData(source, parsed.nodes);
+  const data = buildAnalysisData(source, parsed.nodes, options);
 
   const interpolation = interpolationContext(source, limit);
   if (interpolation) {
@@ -899,7 +930,7 @@ export function completeLocalSource(source: string, offset: number): AuthorCompl
     if (tagStart >= 0) {
       const prefix = readTagPrefix(source, tagStart, limit);
       if (prefix?.inValue && prefix.currentAttribute) {
-        const prop = getLocalComponent(prefix.name)?.props[prefix.currentAttribute.name];
+        const prop = authoringProps(prefix.name, options)?.[prefix.currentAttribute.name];
         if (prop?.static) return [];
       }
     }
@@ -909,13 +940,13 @@ export function completeLocalSource(source: string, offset: number): AuthorCompl
   const tagStart = findOpeningTagStart(source, limit, parsed.nodes);
   if (tagStart >= 0) {
     const prefix = readTagPrefix(source, tagStart, limit);
-    if (prefix?.inValue) return valueCompletions(source, limit, prefix);
+    if (prefix?.inValue) return valueCompletions(source, limit, prefix, options);
   }
-  const tags = tagCompletions(source, limit);
+  const tags = tagCompletions(source, limit, options);
   if (tags.length > 0) return tags;
   if (tagStart >= 0) {
     const prefix = readTagPrefix(source, tagStart, limit);
-    if (prefix) return attributeCompletions(source, limit, prefix);
+    if (prefix) return attributeCompletions(source, limit, prefix, options);
   }
   return [];
 }
@@ -941,15 +972,23 @@ function applyEdits(source: string, edits: { range: SourceRange; text: string }[
  * meaning. Invalid names, collisions and structural
  * parse failures are rejected.
  */
-export function renameLocalBinding(source: string, oldName: string, newName: string): AuthorRename {
+export function renameLocalBinding(
+  source: string,
+  oldName: string,
+  newName: string,
+  options?: LocalCompileOptions,
+): AuthorRename {
   if (typeof source !== 'string' || typeof oldName !== 'string' || typeof newName !== 'string') {
     throw new Error('Rename requires string arguments.');
+  }
+  if (authoringOptionMode(options) === 'html') {
+    throw new Error('Bindings cannot be renamed in HTML mode.');
   }
   if (!validBindingName(newName)) {
     throw new Error(`"${newName}" is not a valid binding name. Use [A-Za-z_][A-Za-z0-9_]* and avoid reserved names.`);
   }
-  const parsed = parseLocal(source);
-  const data = buildAnalysisData(source, parsed.nodes);
+  const parsed = parseLocal(source, options);
+  const data = buildAnalysisData(source, parsed.nodes, options);
   const binding = data.bindings.find((item) => item.name === oldName);
   if (!binding || binding.declarations.length === 0) {
     throw new Error(`Binding "${oldName}" is not declared in this document.`);
@@ -958,7 +997,7 @@ export function renameLocalBinding(source: string, oldName: string, newName: str
   if (data.bindings.some((item) => item.name === newName)) {
     throw new Error(`Binding "${newName}" already exists.`);
   }
-  const unsafe = compileDiagnostics(source).some(
+  const unsafe = compileDiagnostics(source, options).some(
     (diagnostic) => diagnostic.severity === 'error' && UNSAFE_RENAME_CODES.has(diagnostic.code),
   );
   if (unsafe) {
@@ -979,7 +1018,7 @@ export function renameLocalBinding(source: string, oldName: string, newName: str
     text: mathRanges.has(`${range.start}:${range.end}`) ? `\\mathrm{${newName}}` : newName,
   }));
   const renamed = applyEdits(source, edits);
-  if (compileLocal(source).ok && !compileLocal(renamed).ok) {
+  if (compileLocal(source, options).ok && !compileLocal(renamed, options).ok) {
     throw new Error('Rename could not preserve all binding references; the source was left unchanged.');
   }
   return { source: renamed, edits };
@@ -1010,21 +1049,22 @@ function formatOpeningTag(source: string, tag: RawTag): string {
  * Markdown, newlines, indentation, code, math and fallback regions are not
  * modified. Any compile error leaves the document unchanged.
  */
-export function formatLocalSource(source: string): string {
+export function formatLocalSource(source: string, options?: LocalCompileOptions): string {
   if (typeof source !== 'string') return source;
+  if (authoringOptionMode(options) !== 'markdown') return source;
   let compiled: ReturnType<typeof compileLocal>;
   try {
-    compiled = compileLocal(source);
+    compiled = compileLocal(source, options);
   } catch {
     return source;
   }
   if (compiled.diagnostics.some((diagnostic) => diagnostic.severity === 'error')) return source;
-  const parsed = parseLocal(source);
+  const parsed = parseLocal(source, options);
   const edits: { start: number; end: number; text: string }[] = [];
 
   const visit = (nodes: LocalNode[]): void => {
     for (const node of nodes) {
-      if (node.type === 'component' && node.name) {
+      if ((node.type === 'component' || node.type === 'hostComponent') && node.name) {
         const tag = readTagAt(source, node.range.start);
         if (tag && !tag.closing && !/[\r\n]/.test(source.slice(tag.start, tag.end))) {
           const text = formatOpeningTag(source, tag);

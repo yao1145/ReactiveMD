@@ -233,3 +233,5 @@ If the same page also renders a document preview, import `reactive-md/styles.css
 ## Compatibility
 
 `0.5.0` adds the editor entry and keeps `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`. Projects that only render documents can upgrade without changing imports or source. The editor is new, so it has no older API to migrate from. See the [0.5.0 release notes](release-0.5.0-en.md) and [Versions and compatibility](compatibility-en.md).
+
+ .5.3 adds compile-option-aware authoring and explicit screen/print styles. See [0.5.3 host integration](release-0.5.3-en.md).

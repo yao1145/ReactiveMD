@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.3 (2026-10-26, next channel)
+
+See [0.5.3 release notes](docs/release-0.5.3-en.md). Syntax and protocol revisions are unchanged.
+
+- Add opt-in `markdownBreaks` across compilation, rendering, workers and cache keys while preserving source ranges.
+- Add an unstyled React entry, screen CSS and optional print CSS; remove global `@page` from screen styles.
+- Export `localCompileOptionsKey` and `LocalRenderContext`, and add the React-free `reactive-md/authoring` entry.
+- Accept preview compile options in analysis, completion, rename and formatting.
+- Report source-ranged diagnostics when display math falls back for unsupported commands, environments or budgets.
+
+
 This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
 
 ## 0.5.2 (2026-10-26, next channel)

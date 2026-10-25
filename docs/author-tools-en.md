@@ -39,12 +39,12 @@ The core entry exposes DOM-independent functions:
 import {
   analyzeLocalSource, completeLocalSource,
   renameLocalBinding, formatLocalSource,
-} from 'reactive-md';
+} from 'reactive-md/authoring';
 
-const analysis = analyzeLocalSource(source);
-const suggestions = completeLocalSource(source, cursorOffset);
-const renamed = renameLocalBinding(source, 'people', 'attendees');
-const formatted = formatLocalSource(renamed.source);
+const analysis = analyzeLocalSource(source, compileOptions);
+const suggestions = completeLocalSource(source, cursorOffset, compileOptions);
+const renamed = renameLocalBinding(source, 'people', 'attendees', compileOptions);
+const formatted = formatLocalSource(renamed.source, compileOptions);
 ```
 
 Analysis returns ordered highlight tokens, bindings with declaration/reference ranges, and compiler diagnostics. Completions contain `label`, `kind`, `insertText` and the `range` to replace. Apply edits against the same source version that produced their ranges.
@@ -54,3 +54,9 @@ Rename updates active binding declarations, expression references and computed p
 ## Playground
 
 Run `npm run dev` and choose **Show source**. The source editor provides highlighting, completion, binding locations, rename, formatting, diagnostic navigation and a live preview. Use the completion button or Ctrl+Space, arrow keys and Enter to insert a suggestion, and Escape to close the list. Rename and formatting participate in editor undo/redo.
+
+## Host editor configuration
+
+The `reactive-md/authoring` entry also exports `LOCAL_COMPONENTS`, `getLocalComponent`, `getNativeComponentCatalog`, `renderNativeSnippet`, `insertTemplate` and their types. It loads without React or CSS. Pass the preview's `LocalCompileOptions` as the last argument to analysis, completion, rename and formatting; omitted options keep the existing defaults. This includes host schemas, HTML mode, resource limits and `markdownBreaks`.
+
+For full entry and stylesheet details, see the [0.5.3 release notes](release-0.5.3-en.md).

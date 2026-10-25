@@ -10,8 +10,9 @@ export interface LocalCompileRequest {
   id: number;
   source: string;
   /**
-   * Capability flags, limits and host component schemas for this compile.
-   * `hostComponents` selects the host leaf tags the parser may build.
+   * Capability flags, Markdown break handling, limits and host component
+   * schemas for this compile. `hostComponents` selects the host leaf tags the
+   * parser may build; `markdownBreaks` turns soft breaks into `break` nodes.
    */
   options?: LocalCompileOptions;
 }
@@ -115,6 +116,9 @@ function snapshotCompileOptions(options: LocalCompileOptions | undefined): Local
     const copy: Record<string, unknown> = {};
     for (const flag of LOCAL_HTML_FLAGS) {
       if (Object.hasOwn(source, flag)) copy[flag] = source[flag];
+    }
+    if (Object.hasOwn(source, 'markdownBreaks')) {
+      copy.markdownBreaks = source.markdownBreaks;
     }
     if (Object.hasOwn(source, 'limits')) {
       const limits = source.limits;

@@ -175,7 +175,7 @@ export async function runBuild(options, context) {
   const { urlPolicy, imageResolver } = createAssetPolicy(byUrl);
 
   /* ------------------------------------------------------------- build inputs */
-  const css = await readArtifactText(packageRoot, 'css');
+  const css = `${await readArtifactText(packageRoot, 'css')}\n${await readArtifactText(packageRoot, 'printCss')}`;
   let runtimeScript;
   if (options.mode === 'interactive') {
     runtimeScript = await readArtifactText(packageRoot, 'standalone');

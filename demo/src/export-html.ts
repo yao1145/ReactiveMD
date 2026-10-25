@@ -185,13 +185,14 @@ function loadBaseAssets(): Promise<BaseAssets> {
         import('../../dist-library/reactive-md.css?raw'),
         import('../../THIRD_PARTY_NOTICES.md?raw'),
         import('../../package.json?raw'),
+        import('../../dist-library/reactive-md-print.css?raw'),
       ])
-        .then(([css, notices, packageJson]) => {
+        .then(([css, notices, packageJson, printCss]) => {
           if (!css.default.trim()) {
             throw new ShareableAssetsError('The generated document stylesheet is empty.');
           }
           return {
-            css: css.default,
+            css: `${css.default}\n${printCss.default}`,
             notices: notices.default,
             packageVersion: readPackageVersion(packageJson.default),
           };

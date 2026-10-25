@@ -89,6 +89,7 @@ export const ReactiveMarkdownEditor = forwardRef<
     disabled = false,
     documentKey,
     diagnostics,
+    compileOptions,
     document: compiledDocument = null,
     toolbar = true,
     authoring = true,
@@ -183,7 +184,7 @@ export const ReactiveMarkdownEditor = forwardRef<
     resetEditorPosition();
   }, [documentKey, value, resetHistory, resetEditorPosition]);
 
-  const analysis = useAuthorAnalysis(value, authoring);
+  const analysis = useAuthorAnalysis(value, authoring, compileOptions);
 
   const lines = useMemo(() => value.split('\n'), [value]);
   const gutterMetrics = useGutterMetrics(lines, mirrorRef, editorRef);
@@ -511,6 +512,7 @@ export const ReactiveMarkdownEditor = forwardRef<
               source={value}
               analysis={analysis}
               bindingDocument={compiledDocument}
+              compileOptions={compileOptions}
               editorRef={editorRef}
               onEdit={applyEdit}
               onLocate={locateRange}

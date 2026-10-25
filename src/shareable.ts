@@ -141,6 +141,8 @@ function normalizeCompileOptions(input: LocalCompileOptions | undefined): LocalC
     enableCss: check.html.enableCss,
     enableJavaScript: check.html.enableJavaScript,
     enableExtendedHtml: check.html.enableExtendedHtml,
+    ...(Object.hasOwn(input, 'markdownBreaks') && input.markdownBreaks !== undefined
+      ? { markdownBreaks: check.markdownBreaks } : {}),
   };
   if (input.limits !== undefined && input.limits.maxSyntaxNodes !== undefined) {
     return { ...normalized, limits: { maxSyntaxNodes: check.maxSyntaxNodes } };

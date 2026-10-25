@@ -388,3 +388,5 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 
 新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.4.0` 是 `next` 渠道的预览版。
+
+ .5.3 新增接受编译配置的作者工具及显式屏幕、打印样式入口，见 [0.5.3 宿主集成](release-0.5.3-ch.md)。

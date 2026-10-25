@@ -201,6 +201,16 @@ export interface LocalHostComponentSchema {
 
 export interface LocalCompileOptions extends LocalHtmlOptions {
   readonly limits?: LocalCompileLimits;
+  /**
+   * Render ordinary Markdown soft line breaks as `<br>`.
+   *
+   * Defaults to `false`, which keeps the historical behavior where a soft
+   * break is ordinary collapsible whitespace. When `true`, each source soft
+   * break becomes a `break` node; explicit hard breaks, code, formulas and
+   * native HTML are left untouched. The source text is never rewritten, so
+   * every node keeps its original offsets.
+   */
+  readonly markdownBreaks?: boolean;
   /** Host-defined leaf components recognized alongside the built-in schema. */
   readonly hostComponents?: readonly LocalHostComponentSchema[];
 }

@@ -10,6 +10,7 @@ import {
   LocalCompileScheduler,
   applyLocalStateRetention,
   compileLocal,
+  localCompileOptionsKey,
   countLocalCodePoints,
   formatLocalDiagnostic,
   LOCAL_DIAGNOSTIC_CODES,
@@ -50,6 +51,7 @@ assert.equal(formatLocalDiagnostic(diagnostic), diagnostic.message);
 assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: 1 } }).ok, false);
 assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: 2 } }).ok, true);
 assert.equal(compileLocal('hello').ok, true);
+assert.notEqual(localCompileOptionsKey(), localCompileOptionsKey({ markdownBreaks: true }));
 assert.equal(compileLocal('hello', { limits: { maxSyntaxNodes: Infinity } }).diagnostics[0]?.code, 'local.options.invalid');
 
 // HTML capabilities are host-owned and select one whole-document path.
@@ -201,6 +203,13 @@ for (const file of await files('demo/src')) {
   assert.ok(imports.every(value => !value.startsWith('../') || value.endsWith('?raw')), `${file} reaches outside the demo`);
 }
 const css = await readFile('dist-library/reactive-md.css', 'utf8');
+assert.ok(!css.includes('@page'), 'Screen CSS must not set host page margins');
+assert.match(await readFile('dist-library/reactive-md-print.css', 'utf8'), /@page/);
+const unstyledRenderer = await import('reactive-md/react/unstyled');
+assert.equal(typeof unstyledRenderer.LocalDocumentView, 'function');
+const authoring = await import('reactive-md/authoring');
+assert.equal(typeof authoring.insertTemplate, 'function');
+assert.equal(typeof authoring.getLocalComponent, 'function');
 for (const selector of ['.app-shell', '.workbench', '.editor-input', '.observer', '.author-tools']) {
   assert.ok(!css.includes(selector), `Library includes demo selector ${selector}`);
 }

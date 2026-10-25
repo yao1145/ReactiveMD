@@ -10,9 +10,9 @@
  */
 
 import { EDITOR_COMMAND_COPY, type EditorCommandCopy } from './editor-i18n';
-import type { EditorEdit, EditorLocale, EditorSelection } from './types';
+import type { EditorEdit, EditorLocale, EditorSelection } from './command-types';
 
-export type { EditorEdit, EditorSelection } from './types';
+export type { EditorEdit, EditorSelection } from './command-types';
 
 export interface InsertTemplateOptions {
   block?: boolean;

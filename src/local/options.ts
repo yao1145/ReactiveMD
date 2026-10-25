@@ -29,6 +29,8 @@ export type LocalOptionCheck =
       html: LocalHtmlPolicy;
       /** True when at least one capability flag is enabled. */
       htmlActive: boolean;
+      /** Render ordinary Markdown soft line breaks as `break` nodes. */
+      markdownBreaks: boolean;
       /** Validated host component schemas; empty when the option is absent. */
       hostComponents: readonly LocalHostComponentSchema[];
       /** Host tag name lookup; names are already lowercase kebab-case. */
@@ -288,6 +290,7 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
       maxSyntaxNodes: DEFAULT_MAX_LOCAL_SYNTAX_NODES,
       html: { enableCss: false, enableJavaScript: false, enableExtendedHtml: false },
       htmlActive: false,
+      markdownBreaks: false,
       hostComponents: [],
       hostByName: new Map(),
     };
@@ -314,6 +317,22 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
       };
     }
     html[flag] = value;
+  }
+
+  let markdownBreaks = false;
+  if (Object.hasOwn(options, 'markdownBreaks')) {
+    const value = options.markdownBreaks;
+    // An explicit `undefined` is the same as omitting the optional flag.
+    if (value !== undefined) {
+      if (typeof value !== 'boolean') {
+        return {
+          ok: false,
+          message: 'Compile option markdownBreaks must be a boolean.',
+          key: 'local.options.invalid.markdown-breaks',
+        };
+      }
+      markdownBreaks = value;
+    }
   }
 
   const limits = options.limits;
@@ -343,6 +362,7 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
     maxSyntaxNodes,
     html,
     htmlActive: html.enableCss || html.enableJavaScript || html.enableExtendedHtml,
+    markdownBreaks,
     hostComponents: hosts.hostComponents,
     hostByName: hosts.hostByName,
   };
@@ -454,7 +474,7 @@ function hostComponentsSignature(value: unknown): string {
  * recompile on flag/limit changes and to keep worker races keyed by more than
  * the source text. Unknown keys are deliberately ignored.
  */
-export function localCompileOptionsKey(options: LocalCompileOptions | undefined): string {
+export function localCompileOptionsKey(options?: LocalCompileOptions): string {
   if (options === undefined) return 'default';
   if (!isRecord(options)) return 'invalid';
   const flags = LOCAL_HTML_FLAGS.map((flag) => {
@@ -492,5 +512,12 @@ export function localCompileOptionsKey(options: LocalCompileOptions | undefined)
       hostSignature = `:hosts=${unreadableIdentity(hostComponents)}`;
     }
   }
-  return `${flags}:${maxSyntaxNodes}${hostSignature}`;
+  const breaks = !Object.hasOwn(options, 'markdownBreaks') || options.markdownBreaks === undefined
+    ? '-'
+    : options.markdownBreaks === true
+      ? '1'
+      : options.markdownBreaks === false
+        ? '0'
+        : '!';
+  return `${flags}:${maxSyntaxNodes}:${breaks}${hostSignature}`;
 }

@@ -1,4 +1,5 @@
 import '../styles.css';
+import '../print.css';
 import './standalone.css';
 
 export { REACTIVE_MD_MOUNTED_ATTRIBUTE, isReactiveMDMounted, mount, mountAll } from './session';

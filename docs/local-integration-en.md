@@ -388,3 +388,5 @@ The default ReactiveMD path supports P0 HTML. Host options for author CSS, JavaS
 
 
 See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. `0.4.0` is the preview release on the `next` channel.
+
+ .5.3 adds compile-option-aware authoring and explicit screen/print styles. See [0.5.3 host integration](release-0.5.3-en.md).

@@ -11,6 +11,7 @@ export const ARTIFACTS = Object.freeze({
   core: { relative: 'dist-library/reactive-md.js', label: 'core build' },
   react: { relative: 'dist-library/reactive-md-react.js', label: 'React renderer build' },
   css: { relative: 'dist-library/reactive-md.css', label: 'stylesheet build' },
+  printCss: { relative: 'dist-library/reactive-md-print.css', label: 'print stylesheet build' },
   standalone: { relative: 'dist-standalone/reactive-md-standalone.js', label: 'standalone runtime build' },
 });
 
