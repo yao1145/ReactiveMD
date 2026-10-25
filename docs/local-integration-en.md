@@ -139,7 +139,7 @@ const hostComponents: LocalHostComponentSchema[] = [
 const result = compileLocal(source, { hostComponents });
 ```
 
-Without `hostComponents`, those tags remain unknown and fall back to source. Names must be unique lowercase kebab-case and cannot reuse one of the 48 author tag names; at most 32 schemas are accepted. An invalid schema returns `local.options.invalid`, and an invalid authored attribute returns `local.host.attribute`. A valid host node counts as one syntax node. Pass `hostData`, keyed `${kind}:${ref}`, and `hostRenderer` to `LocalDocumentView`; neither enters the worker. A missing renderer, missing data or a throwing renderer renders a visible placeholder instead of failing the document. `mode="static"` uses the same dispatch and passes `ctx.mode` to the renderer.
+Without `hostComponents`, those tags remain unknown and fall back to source. Names must be unique lowercase kebab-case and cannot reuse one of the 48 author tag names, a P0 HTML tag name or `theme`; at most 32 schemas are accepted. `pattern` accepts only a linear-time-safe regex subset (no backreferences, lookarounds, named groups, nested quantifiers or quantified alternation). An invalid schema returns `local.options.invalid`, and an invalid authored attribute returns `local.host.attribute`. A valid host node counts as one syntax node. Pass `hostData`, keyed `${kind}:${ref}`, and `hostRenderer` to `LocalDocumentView`; neither enters the worker. A missing renderer, missing data or a throwing renderer renders a visible placeholder instead of failing the document. `mode="static"` uses the same dispatch and passes `ctx.mode` to the renderer.
 
 ### Version inspection and migration
 

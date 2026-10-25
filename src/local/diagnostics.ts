@@ -350,6 +350,10 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Attribute {name} must match pattern {pattern}.',
     zh: '属性 {name} 必须匹配模式 {pattern}。',
   },
+  'host.attributeInterpolation': {
+    en: 'Attribute {name} must be a literal matching {pattern} or one full interpolation.',
+    zh: '属性 {name} 必须是匹配 {pattern} 的字面值，或一个完整插值。',
+  },
   'expression.emptyAttribute': {
     en: 'Attribute {name} interpolation cannot be empty.',
     zh: '属性 {name} 的插值不能为空。',
@@ -1432,6 +1436,7 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.host.attribute.type': 'host.attributeType',
   'local.host.attribute.enum': 'host.attributeEnum',
   'local.host.attribute.pattern': 'host.attributePattern',
+  'local.host.attribute.interpolation': 'host.attributeInterpolation',
   'local.attribute.type.number': 'attribute.numberInvalid',
   'local.attribute.type.number-interpolation': 'attribute.numberInterpolationInvalid',
   'local.attribute.type.integer': 'attribute.integer',

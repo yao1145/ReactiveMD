@@ -712,11 +712,11 @@ The tables below are for review. See the [component development guide](component
 
 | Field | Content |
 | --- | --- |
-| `name` | Lowercase kebab-case, unique within the set, not one of the 48 author tag names or the theme declaration name |
+| `name` | Lowercase kebab-case, unique within the set, not one of the 48 author tag names, a P0 HTML tag name or the theme declaration name |
 | `form` | `'leaf'`; host components have no body |
 | `props` | A table of host properties; property names use lowercase kebab-case |
 
-One compilation accepts at most 32 host component schemas. Each property declares `kind` (`string`, `number`, `boolean` or `enum`), `required`, `static`, `enum` and `pattern`. `enum` applies to `enum` properties, and `pattern` applies to `string` properties. Invalid schemas are rejected with a `local.options.invalid` diagnostic; compilation fails and no host component from that set is partially registered.
+One compilation accepts at most 32 host component schemas. Each property declares `kind` (`string`, `number`, `boolean` or `enum`), `required`, `static`, `enum` and `pattern`. `enum` applies to `enum` properties, and `pattern` applies to `string` properties. P0 HTML tag names are reserved because the parser handles them before component tags. `pattern` is restricted to a linear-time-safe subset: backreferences, lookarounds, named groups, nested quantifiers and quantified alternation are rejected. Invalid schemas are rejected with a `local.options.invalid` diagnostic; compilation fails and no host component from that set is partially registered.
 
 ### CP-HOST-03 Host components are not author syntax (boundary)
 
@@ -724,7 +724,7 @@ Host components are not part of `local-draft-2` and cannot be used as portable a
 
 ### CP-HOST-04 Attribute validation and budget (required)
 
-The compiler validates every host attribute against the registered schema: required properties must be present, `enum` values must belong to the declared set, `pattern` must match literal string values, literal values must match the declared `kind`, and a property declared `static` rejects `{{ ... }}`. A non-static property may use exactly one full interpolation in place of a literal. Failures produce a `local.host.attribute` diagnostic at the attribute location.
+The compiler validates every host attribute against the registered schema: required properties must be present, `enum` values must belong to the declared set, `pattern` must match literal string values, literal values must match the declared `kind`, and a property declared `static` rejects `{{ ... }}`. For a property with a `pattern`, a non-static value may be exactly one full interpolation in place of the literal; mixed literal text with interpolation is rejected. Other string properties may mix literals and interpolations. Failures produce a `local.host.attribute` diagnostic at the attribute location.
 
 A valid host node counts as exactly one syntax node in the existing syntax-node budget; its attributes, props and leaf form add no further nodes and do not change other budget accounting.
 

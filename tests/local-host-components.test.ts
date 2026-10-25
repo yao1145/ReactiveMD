@@ -1,16 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { compileLocal } from '../src/local/compiler';
-import { MAX_LOCAL_HOST_COMPONENTS } from '../src/local/limits';
+import { formatLocalDiagnostic } from '../src/local/diagnostics';
+import {
+  MAX_LOCAL_HOST_COMPONENTS,
+  MAX_LOCAL_STRING_LENGTH,
+} from '../src/local/limits';
+import { localCompileOptionsKey } from '../src/local/options';
 import {
   LOCAL_COMPILE_DELAY_MS,
   LocalCompileScheduler,
   startLocalCompileWorker,
+  type LocalCompileOutcome,
   type LocalCompileRequest,
   type LocalCompileResponse,
   type LocalCompileWorker,
   type LocalCompileWorkerScope,
 } from '../src/local/worker';
 import type {
+  LocalCompileOptions,
+  LocalCompileResult,
   LocalHostComponentSchema,
   LocalHostPropSchema,
   LocalNode,
@@ -120,6 +128,14 @@ describe('host component compilation', () => {
     expectFailureCode(result, 'local.options.invalid');
   });
 
+  it.each(['div', 'span', 'a', 'img', 'h1'])(
+    'rejects a host name that collides with a P0 HTML tag: %s',
+    (name) => {
+      const result = compileLocal('x', { hostComponents: [hostSchema(name)] });
+      expectFailureCode(result, 'local.options.invalid');
+    },
+  );
+
   it('rejects duplicate host names', () => {
     const result = compileLocal('x', {
       hostComponents: [hostSchema('host-widget'), hostSchema('host-widget')],
@@ -165,11 +181,76 @@ describe('host component compilation', () => {
     expectFailureCode(result, 'local.host.attribute');
   });
 
+  it.each([
+    ['mixed literal text', 'label="pre {{ 1 + 1 }} post"'],
+    ['an unterminated interpolation', 'label="{{ 1 + 1"'],
+    ['multiple interpolations', 'label="{{ 1 + 1 }}{{ 2 }}"'],
+  ])('rejects %s when a pattern is declared', (_name, attrs) => {
+    const result = widgetCompile(attrs, {
+      label: { kind: 'string', pattern: '^[a-z]+$' },
+    });
+    const failure = expectFailureCode(result, 'local.host.attribute');
+    expect(failure.diagnostics.some((item) => item.messageKey === 'local.host.attribute.interpolation')).toBe(true);
+  });
+
+  it('accepts one full interpolation in place of a pattern literal', () => {
+    const result = widgetCompile('label="{{ 1 + 1 }}"', {
+      label: { kind: 'string', pattern: '^[a-z]+$' },
+    });
+    expect(result.ok).toBe(true);
+  });
+
   it('rejects a string attribute that does not match its pattern', () => {
     const result = widgetCompile('code="ABC"', {
       code: { kind: 'string', pattern: '^[a-z]+$' },
     });
     expectFailureCode(result, 'local.host.attribute');
+  });
+
+  it.each(['^(a+)+$', '(a|aa)+$', '(a{1,1000}){1,1000}', '(?=a)b', '\\1'])(
+    'rejects a backtracking-prone pattern: %s',
+    (pattern) => {
+      const result = compileLocal('x', {
+        hostComponents: [hostSchema('host-widget', { value: { kind: 'string', pattern } })],
+      });
+      expectFailureCode(result, 'local.options.invalid');
+    },
+  );
+
+  it('accepts a linear-time-safe pattern', () => {
+    const result = widgetCompile('code="abc-123"', {
+      code: { kind: 'string', pattern: '^[a-z]+-\\d{3}$' },
+    });
+    expect(result.ok).toBe(true);
+    const grouped = widgetCompile('code="abab-123"', {
+      code: { kind: 'string', pattern: '^(ab)+-\\d{3}$' },
+    });
+    expect(grouped.ok).toBe(true);
+    const nonCapturing = widgetCompile('code="abcabc-123"', {
+      code: { kind: 'string', pattern: '^(?:abc)+-\\d{3}$' },
+    });
+    expect(nonCapturing.ok).toBe(true);
+  });
+
+  it('applies the shared string budget to host attributes before pattern work', () => {
+    const result = widgetCompile(`label="${'x'.repeat(MAX_LOCAL_STRING_LENGTH + 1)}"`, {
+      label: { kind: 'string' },
+    });
+    const failure = expectFailureCode(result, 'local.budget.attribute');
+    expect(failure.diagnostics[0].message).toContain(String(MAX_LOCAL_STRING_LENGTH));
+  });
+
+  it('carries the schema failure reason into formatted diagnostics', () => {
+    const result = compileLocal('x', {
+      hostComponents: [hostSchema('host-widget', { when: { kind: 'date' as never } })],
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const diagnostic = result.diagnostics[0];
+    expect(diagnostic.params?.detail).toContain('date');
+    const text = formatLocalDiagnostic(diagnostic, 'en');
+    expect(text).not.toContain('{detail}');
+    expect(text).toContain('date');
   });
 
   it('rejects a non-numeric value for a number attribute', () => {
@@ -288,6 +369,30 @@ class FakeWorker implements LocalCompileWorker {
   terminate(): void {
     this.terminated = true;
   }
+
+  receive(response: LocalCompileResponse): void {
+    this.onmessage?.({ data: response } as unknown as MessageEvent<LocalCompileResponse>);
+  }
+}
+
+function successResult(source: string): LocalCompileResult {
+  return {
+    ok: true,
+    document: { syntax: 'local', source, nodes: [], initialState: {}, bindings: {} },
+    diagnostics: [],
+  };
+}
+
+/** Metadata JSON.stringify cannot encode must not collapse two schemas to one key. */
+function bigIntSchema(required: boolean): LocalHostComponentSchema {
+  return {
+    name: 'host-widget',
+    form: 'leaf',
+    props: {
+      value: { kind: 'boolean', required },
+      extra: { kind: 'string', note: 1n } as unknown as LocalHostPropSchema,
+    },
+  };
 }
 
 describe('host components in the compile scheduler', () => {
@@ -312,6 +417,67 @@ describe('host components in the compile scheduler', () => {
 
       expect(worker.messages).toHaveLength(1);
       expect(worker.messages[0].options?.hostComponents).toEqual(hostComponents);
+    } finally {
+      scheduler.dispose();
+    }
+  });
+
+  it('distinguishes schemas that carry BigInt metadata', () => {
+    const first = localCompileOptionsKey({
+      hostComponents: [bigIntSchema(false)],
+    });
+    const second = localCompileOptionsKey({
+      hostComponents: [bigIntSchema(true)],
+    });
+    expect(first).not.toBe(second);
+  });
+
+  it('drops a stale result when schemas differ only past JSON.stringify', () => {
+    const worker = new FakeWorker();
+    const results: LocalCompileOutcome[] = [];
+    const scheduler = new LocalCompileScheduler({
+      createWorker: () => worker,
+      onResult: (outcome) => results.push(outcome),
+    });
+    const first = { hostComponents: [bigIntSchema(false)] } as unknown as LocalCompileOptions;
+    const second = { hostComponents: [bigIntSchema(true)] } as unknown as LocalCompileOptions;
+    try {
+      scheduler.schedule('same source', first);
+      vi.advanceTimersByTime(LOCAL_COMPILE_DELAY_MS);
+      expect(worker.messages).toHaveLength(1);
+
+      scheduler.schedule('same source', second);
+      vi.advanceTimersByTime(LOCAL_COMPILE_DELAY_MS);
+      // The first compile is still in flight and the second is queued.
+      expect(worker.messages).toHaveLength(1);
+
+      worker.receive({ id: worker.messages[0].id, ok: true, result: successResult('same source'), duration: 1 });
+      expect(results).toHaveLength(0);
+      expect(worker.messages).toHaveLength(2);
+
+      worker.receive({ id: worker.messages[1].id, ok: true, result: successResult('same source'), duration: 1 });
+      expect(results).toHaveLength(1);
+      expect(results[0].options?.hostComponents).toEqual(second.hostComponents);
+    } finally {
+      scheduler.dispose();
+    }
+  });
+
+  it('does not enumerate an oversized schema array while scheduling', () => {
+    const worker = new FakeWorker();
+    const scheduler = new LocalCompileScheduler({ createWorker: () => worker, onResult: () => {} });
+    let indexReads = 0;
+    const oversized = new Proxy(new Array<unknown>(MAX_LOCAL_HOST_COMPONENTS + 1), {
+      get(target, key, receiver) {
+        if (typeof key === 'string' && /^\d+$/.test(key)) indexReads += 1;
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    try {
+      scheduler.schedule('x', { hostComponents: oversized } as unknown as LocalCompileOptions);
+      vi.advanceTimersByTime(LOCAL_COMPILE_DELAY_MS);
+      expect(indexReads).toBe(0);
+      expect(worker.messages).toHaveLength(1);
     } finally {
       scheduler.dispose();
     }

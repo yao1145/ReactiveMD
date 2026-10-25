@@ -1,4 +1,5 @@
 import { compileLocal } from './compiler';
+import { MAX_LOCAL_HOST_COMPONENTS, MAX_LOCAL_HOST_ENUM_VALUES } from './limits';
 import { LOCAL_HTML_FLAGS, localCompileOptionsKey } from './options';
 import type { Diagnostic, LocalCompileOptions, LocalCompileResult } from './types';
 
@@ -70,6 +71,9 @@ interface CompileJob {
  */
 function snapshotHostComponents(value: unknown): unknown {
   if (!Array.isArray(value)) return value;
+  // The compiler rejects oversized arrays. Check before map() and replace the
+  // array with a bounded marker so the worker message never clones it.
+  if (value.length > MAX_LOCAL_HOST_COMPONENTS) return new Array<unknown>(MAX_LOCAL_HOST_COMPONENTS + 1);
   return value.map((entry) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
     const source = entry as Record<string, unknown>;
@@ -87,7 +91,9 @@ function snapshotHostComponents(value: unknown): unknown {
       }
       const propSource = prop as Record<string, unknown>;
       const propCopy: Record<string, unknown> = { ...propSource };
-      if (Array.isArray(propSource.enum)) propCopy.enum = [...propSource.enum];
+      if (Array.isArray(propSource.enum) && propSource.enum.length <= MAX_LOCAL_HOST_ENUM_VALUES) {
+        propCopy.enum = [...propSource.enum];
+      }
       propsCopy[name] = propCopy;
     }
     clone.props = propsCopy;
@@ -141,7 +147,9 @@ function optionsKeyOf(options: LocalCompileOptions | undefined): string {
 
 function createJob(source: string, options: LocalCompileOptions | undefined): CompileJob {
   const snapshot = snapshotCompileOptions(options);
-  return { source, options: snapshot, optionsKey: optionsKeyOf(snapshot) };
+  // Key the original options at schedule time: the snapshot intentionally
+  // bounds oversized host arrays, while the key must still distinguish them.
+  return { source, options: snapshot, optionsKey: optionsKeyOf(options) };
 }
 
 function sameJob(left: CompileJob, right: CompileJob): boolean {

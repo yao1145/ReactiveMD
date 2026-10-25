@@ -7,6 +7,7 @@ import type { LocalCompileOptions, LocalNode, LocalVersionDeclaration, SourceRan
 import { LOCAL_SYNTAX_VERSION } from './version';
 import { localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
 import { localComponentNames, suggestComponent } from './schema';
+import { LOCAL_HTML_NAMES } from './html-names';
 import { isLocalThemeName } from './theme';
 import { normalizeFootnoteIdentifier } from './footnotes';
 import {
@@ -42,13 +43,7 @@ const HTML_INLINE: Readonly<Record<string, string>> = {
   sub: 'sub',
 };
 /** P0 native HTML accepted inline in Markdown documents. */
-const HTML_NAMES = new Set([
-  ...Object.keys(HTML_INLINE),
-  'br', 'hr', 'img',
-  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'div', 'span', 'details', 'summary', 'blockquote',
-  'code', 'pre', 'ul', 'ol', 'li', 'a',
-]);
+const HTML_NAMES = LOCAL_HTML_NAMES;
 const HTML_VOID = new Set(['br', 'hr', 'img']);
 const HTML_BLOCK = new Set([
   'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -219,6 +214,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     return { nodes: [], diagnostics: [{
       code: 'local.options.invalid', message: optionCheck.message, severity: 'error',
       range: { start: 0, end: 0 }, line: 1, column: 1, messageKey: optionCheck.key,
+      ...(optionCheck.detail === undefined ? {} : { params: { detail: optionCheck.detail } }),
     }] };
   }
   const maxSyntaxNodes = optionCheck.maxSyntaxNodes;

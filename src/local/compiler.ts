@@ -329,6 +329,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
         line: 1,
         column: 1,
         messageKey: optionCheck.key,
+        ...(optionCheck.detail === undefined ? {} : { params: { detail: optionCheck.detail } }),
       }],
     };
   }
@@ -3258,6 +3259,16 @@ function validateHostAttributes(
       );
       continue;
     }
+    if (raw.length > MAX_LOCAL_STRING_LENGTH) {
+      state.report(
+        'local.budget.attribute',
+        `Attribute ${name} on component <${component}> exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`,
+        offset,
+        offset + name.length,
+        { key: 'local.budget.attribute', params: { name, component, limit: MAX_LOCAL_STRING_LENGTH } },
+      );
+      continue;
+    }
     validateHostPropValue(name, prop, raw, offset, state);
   }
   for (const [name, prop] of Object.entries(schema.props)) {
@@ -3271,6 +3282,12 @@ function validateHostAttributes(
       );
     }
   }
+}
+
+function singleFullInterpolation(value: string): boolean {
+  if (!fullInterpolation(value)) return false;
+  const scanned = scanInterpolations(value);
+  return scanned.segments.length === 1 && scanned.unterminated.length === 0;
 }
 
 function validateHostPropValue(
@@ -3295,33 +3312,45 @@ function validateHostPropValue(
   }
 
   if (prop.kind === 'string') {
+    const scanned = scanInterpolations(raw);
+    const interpolated = scanned.segments.length > 0 || scanned.unterminated.length > 0;
+    if (interpolated) {
+      // A pattern constrains literal shape, so only one full interpolation may
+      // replace the literal. Mixed text and unterminated braces are rejected.
+      if (prop.pattern && !singleFullInterpolation(raw)) {
+        state.report(
+          'local.host.attribute',
+          `Attribute ${name} must be a literal matching ${prop.pattern} or one full interpolation.`,
+          offset,
+          offset + raw.length,
+          { key: 'local.host.attribute.interpolation', params: { name, pattern: prop.pattern } },
+        );
+      }
+      return;
+    }
     if (prop.pattern) {
-      const scanned = scanInterpolations(raw);
-      // An allowed interpolation makes the literal pattern inapplicable.
-      if (!scanned.segments.length && !scanned.unterminated.length) {
-        let accepted = true;
-        try {
-          accepted = new RegExp(prop.pattern).test(raw);
-        } catch {
-          // Options validation rejects invalid patterns; do not crash if a
-          // schema bypassed it.
-        }
-        if (!accepted) {
-          state.report(
-            'local.host.attribute',
-            `Attribute ${name} must match pattern ${prop.pattern}.`,
-            offset,
-            offset + raw.length,
-            { key: 'local.host.attribute.pattern', params: { name, pattern: prop.pattern } },
-          );
-        }
+      let accepted = true;
+      try {
+        accepted = new RegExp(prop.pattern).test(raw);
+      } catch {
+        // Options validation rejects invalid patterns; do not crash if a
+        // schema bypassed it.
+      }
+      if (!accepted) {
+        state.report(
+          'local.host.attribute',
+          `Attribute ${name} must match pattern ${prop.pattern}.`,
+          offset,
+          offset + raw.length,
+          { key: 'local.host.attribute.pattern', params: { name, pattern: prop.pattern } },
+        );
       }
     }
     return;
   }
 
   // Dynamic kinds accept exactly one full interpolation unless declared static.
-  if (!prop.static && fullInterpolation(raw)) return;
+  if (!prop.static && singleFullInterpolation(raw)) return;
 
   if (prop.kind === 'number') {
     if (parseNumberText(raw) === null) {

@@ -712,11 +712,11 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 | 字段 | 内容 |
 | --- | --- |
-| `name` | 小写 kebab-case，在集合内唯一，不能是 48 个作者标签名或主题声明名 `theme` |
+| `name` | 小写 kebab-case，在集合内唯一，不能是 48 个作者标签名、P0 HTML 标签名或主题声明名 `theme` |
 | `form` | `'leaf'`；宿主组块没有正文 |
 | `props` | 宿主属性表；属性名使用小写 kebab-case |
 
-每次编译最多接受 32 个宿主组块 Schema。每个属性声明 `kind`（`string`、`number`、`boolean` 或 `enum`）、`required`、`static`、`enum` 和 `pattern`。`enum` 用于 `enum` 属性，`pattern` 用于 `string` 属性。非法 Schema 以 `local.options.invalid` 诊断拒绝；编译失败，该集合不会部分生效。
+每次编译最多接受 32 个宿主组块 Schema。每个属性声明 `kind`（`string`、`number`、`boolean` 或 `enum`）、`required`、`static`、`enum` 和 `pattern`。`enum` 用于 `enum` 属性，`pattern` 用于 `string` 属性。P0 HTML 标签名保留给解析器优先处理的 HTML，不得复用。`pattern` 限制在线性时间安全子集内：拒绝反向引用、环视、命名组、嵌套量词和被量词修饰的分支。非法 Schema 以 `local.options.invalid` 诊断拒绝；编译失败，该集合不会部分生效。
 
 ### CP-HOST-03 宿主组块不是作者语法（边界）
 
@@ -724,7 +724,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-HOST-04 属性校验与预算（要求）
 
-编译器按登记的 Schema 校验每个宿主属性：必填属性必须存在，`enum` 值必须属于声明的集合，`pattern` 必须匹配字面字符串值，字面值必须符合声明的 `kind`，声明为 `static` 的属性拒绝 `{{ ... }}`。非静态属性可以用一个完整插值代替字面值。校验失败在属性位置产生 `local.host.attribute` 诊断。
+编译器按登记的 Schema 校验每个宿主属性：必填属性必须存在，`enum` 值必须属于声明的集合，`pattern` 必须匹配字面字符串值，字面值必须符合声明的 `kind`，声明为 `static` 的属性拒绝 `{{ ... }}`。声明了 `pattern` 的属性，非静态值只能用恰好一个完整插值代替字面值；混合字面文本与插值会被拒绝。其他字符串属性可以混合字面文本和插值。校验失败在属性位置产生 `local.host.attribute` 诊断。
 
 合法宿主节点在既有语法节点预算中只计为一个语法节点；属性、props 和 leaf 形态不增加更多节点，也不改变其他预算的计算。
 

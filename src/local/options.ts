@@ -6,6 +6,7 @@ import {
   MAX_LOCAL_HOST_PATTERN_LENGTH,
 } from './limits';
 import { LOCAL_COMPONENT_NAMES } from './schema';
+import { LOCAL_HTML_NAMES } from './html-names';
 import type {
   LocalCompileOptions,
   LocalHostComponentSchema,
@@ -33,7 +34,7 @@ export type LocalOptionCheck =
       /** Host tag name lookup; names are already lowercase kebab-case. */
       hostByName: ReadonlyMap<string, LocalHostComponentSchema>;
     }
-  | { ok: false; message: string; key: string };
+  | { ok: false; message: string; key: string; detail?: string };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -49,10 +50,97 @@ type HostComponentCheck =
       hostComponents: readonly LocalHostComponentSchema[];
       hostByName: ReadonlyMap<string, LocalHostComponentSchema>;
     }
-  | { ok: false; message: string; key: string };
+  | { ok: false; message: string; key: string; detail: string };
 
-function invalidHost(message: string): { ok: false; message: string; key: string } {
-  return { ok: false, message, key: HOST_COMPONENTS_KEY };
+/**
+ * Reject regex constructs that can backtrack super-linearly on document-
+ * controlled input. The accepted subset has no backreferences, lookarounds or
+ * named groups, and never applies a quantifier to a group that contains a
+ * quantifier or alternation.
+ */
+function hostPatternQuantifier(source: string, index: number): { length: number } | null {
+  const char = source[index];
+  if (char === '*' || char === '+' || char === '?') {
+    return { length: source[index + 1] === '?' ? 2 : 1 };
+  }
+  if (char !== '{') return null;
+  const match = /^\{(\d+)(?:,(\d*))?\}/.exec(source.slice(index));
+  if (!match) return null;
+  return { length: match[0].length + (source[index + match[0].length] === '?' ? 1 : 0) };
+}
+
+function isSafeHostPattern(source: string): boolean {
+  const groups: { quantified: boolean; alternation: boolean }[] = [];
+  let escaped = false;
+  let inClass = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      const next = source[index + 1];
+      if (next !== undefined && next >= '1' && next <= '9') return false;
+      if (next === 'k' && source[index + 2] === '<') return false;
+      escaped = true;
+      continue;
+    }
+    if (inClass) {
+      if (char === ']') inClass = false;
+      continue;
+    }
+    if (char === '[') {
+      inClass = true;
+      continue;
+    }
+    if (char === '(') {
+      // Non-capturing groups stay in the subset; lookarounds, named groups
+      // and atomic groups do not.
+      if (source[index + 1] === '?') {
+        if (source[index + 2] !== ':') return false;
+        groups.push({ quantified: false, alternation: false });
+        index += 2;
+        continue;
+      }
+      groups.push({ quantified: false, alternation: false });
+      continue;
+    }
+    if (char === '|') {
+      const group = groups[groups.length - 1];
+      if (group) group.alternation = true;
+      continue;
+    }
+    if (char === ')') {
+      const group = groups.pop();
+      if (!group) return false;
+      const quantifier = hostPatternQuantifier(source, index + 1);
+      if (quantifier && (group.quantified || group.alternation)) return false;
+      const parent = groups[groups.length - 1];
+      if (parent) {
+        parent.quantified = parent.quantified || group.quantified || quantifier !== null;
+        parent.alternation = parent.alternation || group.alternation;
+      }
+      if (quantifier) index += quantifier.length;
+      continue;
+    }
+    const quantifier = hostPatternQuantifier(source, index);
+    if (quantifier) {
+      const group = groups[groups.length - 1];
+      if (group) group.quantified = true;
+      index += quantifier.length - 1;
+    }
+  }
+  return groups.length === 0 && !escaped && !inClass;
+}
+
+function invalidHost(detail: string): { ok: false; message: string; key: string; detail: string } {
+  return {
+    ok: false,
+    message: `Compile option hostComponents is invalid: ${detail}`,
+    key: HOST_COMPONENTS_KEY,
+    detail,
+  };
 }
 
 /**
@@ -64,16 +152,19 @@ function readLocalHostComponents(value: unknown): HostComponentCheck {
   const hostComponents: LocalHostComponentSchema[] = [];
   const hostByName = new Map<string, LocalHostComponentSchema>();
   if (value === undefined) return { ok: true, hostComponents, hostByName };
-  if (!Array.isArray(value)) return invalidHost('Compile option hostComponents must be an array.');
+  if (!Array.isArray(value)) return invalidHost('must be an array.');
   if (value.length > MAX_LOCAL_HOST_COMPONENTS) {
-    return invalidHost(`Compile option hostComponents accepts at most ${MAX_LOCAL_HOST_COMPONENTS} components.`);
+    return invalidHost(`accepts at most ${MAX_LOCAL_HOST_COMPONENTS} components.`);
   }
-  // Host names share the tag namespace with built-in components and theme.
-  const reserved = new Set(LOCAL_COMPONENT_NAMES.map((name) => name.toLowerCase()));
+  // Host names share the tag namespace with built-in components, P0 HTML tags
+  // and the theme declaration.
+  const reserved = new Set(
+    [...LOCAL_COMPONENT_NAMES, ...LOCAL_HTML_NAMES].map((name) => name.toLowerCase()),
+  );
   reserved.add('theme');
   for (let index = 0; index < value.length; index += 1) {
     const entry: unknown = value[index];
-    const lead = `Compile option hostComponents[${index}]`;
+    const lead = `hostComponents[${index}]`;
     if (!isRecord(entry)) return invalidHost(`${lead} must be an object.`);
     const name = entry.name;
     if (typeof name !== 'string') return invalidHost(`${lead} "name" must be a string.`);
@@ -82,7 +173,7 @@ function readLocalHostComponents(value: unknown): HostComponentCheck {
     }
     if (!HOST_NAME.test(name)) return invalidHost(`${lead} "name" ${name} must use lowercase kebab-case.`);
     if (reserved.has(name.toLowerCase())) {
-      return invalidHost(`${lead} "name" ${name} conflicts with a built-in component or theme.`);
+      return invalidHost(`${lead} "name" ${name} conflicts with a built-in component, HTML tag or theme.`);
     }
     if (hostByName.has(name.toLowerCase())) {
       return invalidHost(`${lead} "name" ${name} is declared more than once.`);
@@ -100,9 +191,7 @@ function readLocalHostComponents(value: unknown): HostComponentCheck {
       const kind = raw.kind;
       if (typeof kind !== 'string' || !HOST_PROP_KINDS.has(kind)) {
         const shown = typeof kind === 'string' ? `"${kind}"` : String(kind);
-        return invalidHost(
-          `Compile option hostComponents contains an invalid component: property "${propName}" has unsupported kind ${shown}.`,
-        );
+        return invalidHost(`property "${propName}" has unsupported kind ${shown}.`);
       }
       const prop: {
         kind: LocalHostPropKind;
@@ -170,6 +259,11 @@ function readLocalHostComponents(value: unknown): HostComponentCheck {
           new RegExp(pattern);
         } catch {
           return invalidHost(`${lead} property "${propName}" "pattern" is not a valid regular expression.`);
+        }
+        if (!isSafeHostPattern(pattern)) {
+          return invalidHost(
+            `${lead} property "${propName}" "pattern" uses unsupported regex syntax; nested quantifiers, quantified alternation, backreferences and lookarounds are rejected.`,
+          );
         }
         prop.pattern = pattern;
       }
@@ -254,18 +348,105 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
   };
 }
 
+/** Signature work bounds: host schemas are small, extra metadata may not be. */
+const MAX_SIGNATURE_ITEMS = 256;
+const MAX_SIGNATURE_NODES = 4096;
+const functionIdentities = new WeakMap<object, number>();
+const symbolIdentities = new Map<symbol, number>();
+const unreadableIdentities = new WeakMap<object, number>();
+let optionIdentitySerial = 0;
+
+function nextIdentity(): number {
+  optionIdentitySerial += 1;
+  return optionIdentitySerial;
+}
+
+/** Last-resort identity for values whose properties cannot be enumerated. */
+function unreadableIdentity(value: unknown): string {
+  if ((typeof value === 'object' && value !== null) || typeof value === 'function') {
+    const object = value as object;
+    let id = unreadableIdentities.get(object);
+    if (id === undefined) {
+      id = nextIdentity();
+      unreadableIdentities.set(object, id);
+    }
+    return `unreadable#${id}`;
+  }
+  return `unreadable:${typeof value}:${String(value)}`;
+}
+
 /**
- * Stable, order-independent shape used only for the host signature. Property
- * keys are sorted so reordering the same props does not force a recompile.
+ * Structural signature that cannot collide merely because a schema carries a
+ * BigInt or a cycle. Unbounded arrays and objects are sampled instead of fully
+ * enumerated. If enumeration itself fails, object identity keeps distinct
+ * configurations distinct.
  */
-function hostSignatureValue(value: unknown): unknown {
-  if (!isRecord(value)) return value;
-  const props = value.props;
-  return [
-    value.name,
-    value.form,
-    isRecord(props) ? Object.keys(props).sort().map((name) => [name, props[name]]) : props,
-  ];
+function hostComponentsSignature(value: unknown): string {
+  const stack: object[] = [];
+  let nodes = 0;
+  const encode = (input: unknown): string => {
+    nodes += 1;
+    if (nodes > MAX_SIGNATURE_NODES) throw new RangeError('signature budget');
+    switch (typeof input) {
+      case 'string': return `s${JSON.stringify(input)}`;
+      case 'number': return `n${Object.is(input, -0) ? '-0' : String(input)}`;
+      case 'boolean': return input ? 'b1' : 'b0';
+      case 'undefined': return 'u';
+      case 'bigint': return `g${input.toString()}`;
+      case 'symbol': {
+        let id = symbolIdentities.get(input);
+        if (id === undefined) {
+          id = nextIdentity();
+          symbolIdentities.set(input, id);
+        }
+        return `y${id}`;
+      }
+      case 'function': {
+        let id = functionIdentities.get(input);
+        if (id === undefined) {
+          id = nextIdentity();
+          functionIdentities.set(input, id);
+        }
+        return `f${id}`;
+      }
+      default: break;
+    }
+    if (input === null) return 'null';
+    const object = input as object;
+    const reference = stack.indexOf(object);
+    if (reference >= 0) return `r${reference}`;
+    stack.push(object);
+    try {
+      if (Array.isArray(object)) {
+        const sample = Math.min(object.length, 8);
+        if (object.length > MAX_SIGNATURE_ITEMS) {
+          let out = `a#${object.length}[`;
+          for (let index = 0; index < sample; index += 1) out += `${encode(object[index])},`;
+          return `${out}]`;
+        }
+        let out = `a${object.length}[`;
+        for (let index = 0; index < object.length; index += 1) out += `${encode(object[index])},`;
+        return `${out}]`;
+      }
+      const keys = Object.keys(object);
+      if (keys.length > MAX_SIGNATURE_ITEMS) {
+        let out = `o#${keys.length}{`;
+        for (const key of keys.slice(0, 8)) out += `${encode(key)},`;
+        return `${out}}`;
+      }
+      keys.sort();
+      let out = `o{`;
+      for (const key of keys) out += `${encode(key)}:${encode((object as Record<string, unknown>)[key])},`;
+      return `${out}}`;
+    } finally {
+      stack.pop();
+    }
+  };
+  try {
+    return encode(value);
+  } catch {
+    return unreadableIdentity(value);
+  }
 }
 
 /**
@@ -294,14 +475,21 @@ export function localCompileOptionsKey(options: LocalCompileOptions | undefined)
   }
   let hostSignature = '';
   if (Object.hasOwn(options, 'hostComponents') && options.hostComponents !== undefined) {
+    const hostComponents = options.hostComponents;
     try {
-      const hostComponents = options.hostComponents;
-      // A non-array value can never compile; keep one stable marker for it.
-      hostSignature = Array.isArray(hostComponents)
-        ? `:hosts=${JSON.stringify(hostComponents.map(hostSignatureValue))}`
-        : ':hosts=invalid';
+      if (Array.isArray(hostComponents)) {
+        // An empty array compiles exactly like an omitted option. Oversized
+        // arrays are rejected before compilation; never enumerate them here.
+        if (hostComponents.length > 0) {
+          hostSignature = hostComponents.length > MAX_LOCAL_HOST_COMPONENTS
+            ? `:hosts=oversize:${hostComponents.length}`
+            : `:hosts=${hostComponentsSignature(hostComponents)}`;
+        }
+      } else {
+        hostSignature = `:hosts=${hostComponentsSignature(hostComponents)}`;
+      }
     } catch {
-      hostSignature = ':hosts=invalid';
+      hostSignature = `:hosts=${unreadableIdentity(hostComponents)}`;
     }
   }
   return `${flags}:${maxSyntaxNodes}${hostSignature}`;

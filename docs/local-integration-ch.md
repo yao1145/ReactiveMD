@@ -139,7 +139,7 @@ const hostComponents: LocalHostComponentSchema[] = [
 const result = compileLocal(source, { hostComponents });
 ```
 
-不传 `hostComponents` 时，这些标签仍是未知标签并按原文降级。名称必须是唯一的小写 kebab-case，且不得复用 48 个作者标签名；一次最多接受 32 个 schema。schema 不合法返回 `local.options.invalid`，作者写出的属性不合法返回 `local.host.attribute`。一个合法宿主节点计为一个语法节点。把 `hostData`（按 `${kind}:${ref}` 索引）和 `hostRenderer` 传给 `LocalDocumentView`；两者都不进入 worker。缺少 renderer、缺少数据或 renderer 抛错时显示可见占位，不会让整个文档失败。`mode="static"` 走同一分派，并把 `ctx.mode` 传给 renderer。
+不传 `hostComponents` 时，这些标签仍是未知标签并按原文降级。名称必须是唯一的小写 kebab-case，且不得复用 48 个作者标签名、P0 HTML 标签名或 `theme`；一次最多接受 32 个 schema。`pattern` 只接受线性时间安全的正则子集（拒绝反向引用、环视、命名组、嵌套量词和被量词修饰的分支）。schema 不合法返回 `local.options.invalid`，作者写出的属性不合法返回 `local.host.attribute`。一个合法宿主节点计为一个语法节点。把 `hostData`（按 `${kind}:${ref}` 索引）和 `hostRenderer` 传给 `LocalDocumentView`；两者都不进入 worker。缺少 renderer、缺少数据或 renderer 抛错时显示可见占位，不会让整个文档失败。`mode="static"` 走同一分派，并把 `ctx.mode` 传给 renderer。
 
 ### 版本查看与迁移
 

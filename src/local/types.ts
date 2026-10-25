@@ -190,7 +190,7 @@ export interface LocalHostPropSchema {
   readonly static?: boolean;
   /** Allowed literals for kind 'enum'; required and non-empty for enums. */
   readonly enum?: readonly string[];
-  /** RegExp source applied to literal string values. */
+  /** RegExp source applied to literal string values; restricted to a linear-time-safe subset. */
   readonly pattern?: string;
 }
 export interface LocalHostComponentSchema {
