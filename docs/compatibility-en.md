@@ -1,13 +1,13 @@
 # Versions and compatibility
 
-Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](local-integration-en.md) for the public API and style integration, [0.5.0 release notes](release-0.5.0-en.md) for the current preview, and [0.4.0 release and migration](release-0.4.0-en.md) for that minor series.
+Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](local-integration-en.md) for the public API and style integration, [0.5.2 release notes](release-0.5.2-en.md) for the current preview, and [0.4.0 release and migration](release-0.4.0-en.md) for that minor series.
 
 ## Version mapping
 
 | Item | Current value | Notes |
 | --- | --- | --- |
-| Package version | `0.5.1` | 0.x preview; 0.5.1 targets `next`, while `latest` remains `0.4.0` |
-| Distribution tags | `latest` → `0.4.0`; `next` → `0.5.1` (preview target) | Default installs use `latest` |
+| Package version | `0.5.2` | 0.x preview; 0.5.2 targets `next`, while `latest` remains `0.4.0` |
+| Distribution tags | `latest` → `0.4.0`; `next` → `0.5.2` (preview target) | Default installs use `latest` |
 | Syntax version | `local-draft-2` | `LOCAL_SYNTAX_VERSION`; the current build accepts only this revision |
 | Source revision directive | Optional `<!-- reactive-md: local-draft-2 -->` | One line in the document prologue; unversioned source keeps current-revision behavior |
 | Component protocol | `component-protocol-2` | Contribution and acceptance contract, see [Component protocol](component-protocol-en.md); not a runtime version selection parameter |
@@ -49,6 +49,8 @@ Regression data in [the historical corpus](../examples/conformance/history/v0.3.
 ## Breaking changes and migration
 
 `0.5.0` added the `reactive-md/editor` entry and its independent stylesheet. `0.5.1` adds editor views, theme palettes and HTML compatibility. They keep `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports keep working, and documents written for 0.4.x need no migration. The editor requires React 19; see the [editor guide](editor-en.md) for its history and rendering boundaries.
+
+`0.5.2` adds the opt-in host component extension axis and raises the component protocol to `component-protocol-2`. The syntax revision and theme protocol remain unchanged, existing imports keep working, and documents written for 0.5.x need no migration. See the [0.5.2 release notes](release-0.5.2-en.md).
 
 `0.4.0` adds [constraints and collections](constraints-collections-en.md): `LocalRuntime.validate()`, serializable `LocalValidation` rules, numeric arrays and generated tables. Hosts implementing a runtime adapter need the new `validate()` method; exhaustive value-kind checks need `number-array`. Rename bindings colliding with `sum`, `average`, `minOf` or `maxOf`.
 
@@ -104,4 +106,4 @@ Node-side consumption means importing `reactive-md` in Node and calling `compile
 See the [syntax specification](local-interaction-syntax-en.md) for the language scope, and the [security policy](../SECURITY.md) for the security boundary and host responsibilities.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. The 0.5.1 preview targets `next`; `latest` remains `0.4.0`.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. The 0.5.2 preview targets `next`; `latest` remains `0.4.0`.

@@ -2,6 +2,24 @@
 
 This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
 
+## 0.5.2 (2026-10-26, next channel)
+
+Compatible with 0.5.1. Syntax remains `local-draft-2`, the component protocol is `component-protocol-2` and the theme protocol is `reactive-md-theme-1`. See [0.5.2 release notes](docs/release-0.5.2-en.md).
+
+### Added
+
+- Add an opt-in host component extension axis: `compileLocal(source, { hostComponents })` registers leaf tag schemas for one compilation. Registered tags become `hostComponent` nodes; invalid schemas return `local.options.invalid` and invalid attributes return `local.host.attribute`. A valid host node counts as one syntax node.
+- Add `hostData` and `hostRenderer` to `LocalDocumentView` and `LocalReactiveDocument`. Host data is keyed `${kind}:${ref}`; a missing renderer, missing data or throwing renderer renders a visible placeholder. `mode="static"` uses the same dispatch.
+- Export `LocalHostComponentSchema`, `LocalHostPropSchema` and `LocalHostPropKind`, and carry schemas through the compile worker without sending the renderer or host data.
+
+### Security
+
+- Restrict host `pattern` to a linear-time-safe regex subset, apply the shared string-length budget to host attributes, bound oversized schema arrays before scheduling, reject P0 HTML tag names as host names, and keep option signatures collision-free for BigInt or cyclic schema metadata.
+
+### Changed
+
+- Raise the component protocol to `component-protocol-2`. The syntax revision and the 48 author components are unchanged; the frozen `component-protocol-1.json` conformance baseline still applies to author components.
+
 ## 0.5.1 (2026-10-25, next channel)
 
 Compatible with 0.5.0. Syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. See [0.5.1 release notes](docs/release-0.5.1-en.md).

@@ -1,6 +1,6 @@
 # Reactive MD component protocol
 
-Protocol revision `component-protocol-2` · applicable syntax `local-draft-2` · current package version `0.4.0` (preview)
+Protocol revision `component-protocol-2` · applicable syntax `local-draft-2` · current package version `0.5.2` (preview)
 
 Components are the building blocks of the Reactive MD language. This protocol defines the shared contract for contribution, implementation and acceptance, connecting author syntax, the compiler, the runtime, the React reference adapter and machine conformance data. Authors writing documents follow the [local interaction syntax specification](local-interaction-syntax-en.md); hosts integrating follow [local mode integration](local-integration-en.md); this document is for contributors, reviewers and tests.
 
@@ -20,7 +20,7 @@ Reactive MD maintains the following independent version axes:
 
 | Version axis | Current value | Determines |
 | --- | --- | --- |
-| Package version | `0.4.0` | npm release, core and React entries, upgrade compatibility rules |
+| Package version | `0.5.2` | npm release, core and React entries, upgrade compatibility rules |
 | Syntax revision | `local-draft-2` | Tags, attributes and expressions authors can write |
 | Protocol revision | `component-protocol-2` | Component contribution requirements, acceptance gates and machine data semantics |
 | Theme protocol | `reactive-md-theme-1` | Theme registration, style variables, color schemes and theme acceptance |
@@ -744,4 +744,4 @@ Portable machine cases remain `examples/conformance/component-protocol-1.json`, 
 | `component-protocol-1` | 2026-10-23 | Initial version; originally applied to `local-draft-1` and package version `0.3.0`, defining component contribution, acceptance and extension boundaries. It now applies to `local-draft-2` and the `0.4.0` preview release without changing its MUST clauses or machine format. |
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. `0.4.0` is the preview release on the `next` channel.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. `0.5.2` is the preview release on the `next` channel.

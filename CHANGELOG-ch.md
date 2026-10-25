@@ -2,6 +2,24 @@
 
 本文件记录用户可见变更。项目处于 0.x 预览阶段，版本与迁移规则见[版本与兼容性](docs/compatibility-ch.md)。
 
+## 0.5.2（2026-10-26，next 渠道）
+
+兼容 0.5.1。语法仍为 `local-draft-2`，组块协议为 `component-protocol-2`，主题协议为 `reactive-md-theme-1`。见[0.5.2 发布说明](docs/release-0.5.2-ch.md)。
+
+### 新增
+
+- 新增可选的宿主组件扩展轴：`compileLocal(source, { hostComponents })` 为单次编译登记叶子标签 Schema。登记的标签生成 `hostComponent` 节点；非法 Schema 返回 `local.options.invalid`，非法属性返回 `local.host.attribute`。合法宿主节点计为一个语法节点。
+- `LocalDocumentView` 和 `LocalReactiveDocument` 新增 `hostData` 与 `hostRenderer`。宿主数据按 `${kind}:${ref}` 索引；缺少 renderer、缺少数据或 renderer 抛错时显示可见占位。`mode="static"` 走同一分派。
+- 导出 `LocalHostComponentSchema`、`LocalHostPropSchema` 和 `LocalHostPropKind`；Schema 随编译请求进入 worker，renderer 和宿主数据不进入。
+
+### 安全
+
+- 将宿主 `pattern` 限制在线性时间安全子集，宿主属性执行共享字符串长度预算，调度前限制超大 Schema 数组，拒绝 P0 HTML 标签名作为宿主名称，并保证带 BigInt 或循环元数据的选项签名不碰撞。
+
+### 变更
+
+- 组块协议提升到 `component-protocol-2`。语法修订和 48 个作者组块不变；冻结的 `component-protocol-1.json` 验收基线仍适用于作者组块。
+
 ## 0.5.1（2026-10-25，next 渠道）
 
 兼容 0.5.0。语法仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`。见[0.5.1 发布说明](docs/release-0.5.1-ch.md)。

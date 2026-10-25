@@ -1,6 +1,6 @@
 # Reactive MD 组块协议
 
-协议修订 `component-protocol-2` · 适用语法 `local-draft-2` · 当前包版本 `0.4.0`（预览）
+协议修订 `component-protocol-2` · 适用语法 `local-draft-2` · 当前包版本 `0.5.2`（预览）
 
 Reactive MD 的组块就是语言中的组件。本协议规定组块在贡献、实现和验收中的共同契约，连接作者语法、编译器、运行时、React 参考适配器和机器验收数据。作者写文档时以[本地交互语法规范](local-interaction-syntax-ch.md)为准；宿主接入以[本地模式集成](local-integration-ch.md)为准；本文供贡献者、评审和测试使用。
 
@@ -20,7 +20,7 @@ Reactive MD 分别维护以下版本轴：
 
 | 版本轴 | 当前值 | 决定什么 |
 | --- | --- | --- |
-| 包版本 | `0.4.0` | npm 发布、核心与 React 入口、升级兼容规则 |
+| 包版本 | `0.5.2` | npm 发布、核心与 React 入口、升级兼容规则 |
 | 语法修订 | `local-draft-2` | 作者可以写出的标签、属性和表达式 |
 | 协议修订 | `component-protocol-2` | 组块贡献要求、验收门槛和机器数据语义 |
 | 主题协议 | `reactive-md-theme-1` | 主题登记、样式变量、深浅模式与主题验收 |
@@ -744,4 +744,4 @@ React 视图把 `hostComponent` 节点分发给 `hostRenderer(node, data, ctx)`�
 | `component-protocol-1` | 2026-10-23 | 初版；最初适用于 `local-draft-1` 和包版本 `0.3.0`，定义组块贡献、验收和扩展边界。现在适用于 `local-draft-2` 和 `0.4.0` 预览版，MUST 条款和机器格式不变。 |
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.4.0` 是 `next` 渠道的预览版。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.5.2` 是 `next` 渠道的预览版。

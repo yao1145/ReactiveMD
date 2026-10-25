@@ -4,7 +4,7 @@
 
 用 Markdown 写本地交互文档。放入输入控件，用 `bind` 命名参数，用 `{{ 表达式 }}` 连接文字、公式、图表和图解。文档作者无需编写 JavaScript 或 CSS。
 
-本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。`0.5.1` 是面向 `next` 渠道的预览版，新增 `reactive-md/editor` 源码编辑器；`latest` 仍为 `0.4.0`。语法修订继续为 `local-draft-2`。
+本地模式采用 HTML 风格标签，参数和表格数据直接写在正文中，LaTeX 公式可用于函数绘图。TypeScript 核心和 React 渲染器可独立集成。`0.5.2` 是面向 `next` 渠道的预览版，新增宿主组件扩展轴；`latest` 仍为 `0.4.0`。语法修订继续为 `local-draft-2`，组块协议为 `component-protocol-2`。
 
 ## 从这里开始
 
@@ -19,6 +19,7 @@
 - [独立接入示例](examples/integration/README.md)：可复制到仓库外运行的 Node 核心和 React 页面。
 - [版本与兼容性](docs/compatibility-ch.md)：0.x 规则、迁移、诊断契约和平台范围。
 - [组块协议](docs/component-protocol-ch.md) · [组块开发指南](docs/component-development-ch.md)：新增组件的声明、行为契约和兼容性验收。
+- [0.5.2 发布说明](docs/release-0.5.2-ch.md)：宿主组件与 `component-protocol-2`。
 - [0.5.1 发布说明](docs/release-0.5.1-ch.md)：编辑器视图与主题，以及 HTML 兼容。
 - [0.5.0 发布说明](docs/release-0.5.0-ch.md)：编辑器入口与文档渲染修复。
 - [0.4.1 发布说明](docs/release-0.4.1-ch.md)：界面与交互修复，兼容 0.4.0。
@@ -47,17 +48,17 @@
 npm install reactive-md
 ```
 
-`latest` 当前为 `0.4.0`。0.5.1 预览版面向 `next` 渠道：
+`latest` 当前为 `0.4.0`。0.5.2 预览版面向 `next` 渠道：
 
 ```sh
 npm install reactive-md@next
 # 或固定预览版
-npm install reactive-md@0.5.1
+npm install reactive-md@0.5.2
 ```
 
-使用预览版前请阅读[0.5.1 发布说明](docs/release-0.5.1-ch.md)；从 `0.3.1` / `local-draft-1` 升级前请阅读[迁移说明](docs/release-0.4.0-ch.md)。
+使用预览版前请阅读[0.5.2 发布说明](docs/release-0.5.2-ch.md)；从 `0.3.1` / `local-draft-1` 升级前请阅读[迁移说明](docs/release-0.4.0-ch.md)。
 
-`reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。`reactive-md/editor` 提供源码编辑器，并使用独立样式 `reactive-md/editor/styles.css`。现有渲染器和样式导入在 0.5.1 中保持不变。
+`reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。`reactive-md/editor` 提供源码编辑器，并使用独立样式 `reactive-md/editor/styles.css`。现有渲染器和样式导入在 0.5.2 中保持不变。
 
 React 入口需要 React 19：
 
@@ -135,7 +136,7 @@ demo/          独立的 Playground 应用
 - [可分享文档与静态导出](docs/shareable-export-ch.md)：CLI build/lint、状态文件、本地图片内联、打印与独立浏览器运行时。
 - [功能演示与示例](examples/local/README.md)与[独立接入示例](examples/integration/README.md)。
 - [React 源码编辑器](docs/editor-ch.md)：编辑 `.reactive.md` 源码的受控组件，使用独立样式表。
-- [版本与兼容性](docs/compatibility-ch.md)、[0.5.1 发布说明](docs/release-0.5.1-ch.md)与[0.5.0 发布说明](docs/release-0.5.0-ch.md)。
+- [版本与兼容性](docs/compatibility-ch.md)、[0.5.2 发布说明](docs/release-0.5.2-ch.md)与[0.5.1 发布说明](docs/release-0.5.1-ch.md)。
 - [0.4.0 发布与迁移](docs/release-0.4.0-ch.md)。
 - [组块协议](docs/component-protocol-ch.md)与[组块开发指南](docs/component-development-ch.md)。
 - [性能说明](docs/performance-ch.md)与[发布清单](docs/releasing-ch.md)。

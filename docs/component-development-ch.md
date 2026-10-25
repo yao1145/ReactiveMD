@@ -2,7 +2,7 @@
 
 本指南面向为 Reactive MD 新增或修改组件的贡献者。组块包括输入控件、容器、可视化和结构子项。共同契约见[组块协议](component-protocol-ch.md)，作者写法见[本地交互语法规范](local-interaction-syntax-ch.md)。
 
-当前协议为 `component-protocol-2`，适用语法为 `local-draft-2`，当前包版本为 `0.4.0`，即发布在 `next` 渠道的预览版。这三个版本分别表示贡献契约、作者语法和 npm 发布。协议文档更新不自动改变语法或公开 API。
+当前协议为 `component-protocol-2`，适用语法为 `local-draft-2`，当前包版本为 `0.5.2`，即发布在 `next` 渠道的预览版。这三个版本分别表示贡献契约、作者语法和 npm 发布。协议文档更新不自动改变语法或公开 API。
 
 ## 1. 提交什么
 
@@ -207,4 +207,4 @@ $$ y = a \sin x $$
 在 PR 中列出实际运行的命令和观察结果。未运行、失败、不适用分别写明，不把清单勾选当成验证证据。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。`0.4.0` 是 `next` 渠道的预览版。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。`0.5.2` 是 `next` 渠道的预览版。

@@ -1,6 +1,6 @@
 {
   "name": "reactive-md",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Author interactive local documents in Markdown, with expression-bound inputs, charts and diagrams.",
   "keywords": [
     "markdown",
