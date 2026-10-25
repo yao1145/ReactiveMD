@@ -6,8 +6,8 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 | 项目 | 当前值 | 说明 |
 | --- | --- | --- |
-| 包版本 | `0.5.0` | 0.x 预览版；0.5.0 面向 `next`，`latest` 仍为 `0.4.0` |
-| 分发标签 | `latest` → `0.4.0`；`next` → `0.5.0`（预览目标） | 默认安装使用 `latest` |
+| 包版本 | `0.5.1` | 0.x 预览版；0.5.1 面向 `next`，`latest` 仍为 `0.4.0` |
+| 分发标签 | `latest` → `0.4.0`；`next` → `0.5.1`（预览目标） | 默认安装使用 `latest` |
 | 语法版本 | `local-draft-2` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
 | 源码修订指令 | 可选 `<!-- reactive-md: local-draft-2 -->` | 文档前导区中的一行；无指令源码继续按当前修订解析 |
 | 组块协议 | `component-protocol-1` | 贡献与验收契约，见[组块协议](component-protocol-ch.md)；不是运行时版本选择参数 |
@@ -48,7 +48,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 ## 破坏性变更与迁移
 
-`0.5.0` 新增 `reactive-md/editor` 入口及其独立样式表，`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 保持不变。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入继续有效，为 0.4.x 编写的文档无需迁移。编辑器需要 React 19；历史与渲染边界见[编辑器指南](editor-ch.md)。
+`0.5.0` 新增 `reactive-md/editor` 入口及其独立样式表；`0.5.1` 新增编辑器视图、主题配色和 HTML 兼容。`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 保持不变。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入继续有效，为 0.4.x 编写的文档无需迁移。编辑器需要 React 19；历史与渲染边界见[编辑器指南](editor-ch.md)。
 
 `0.4.0` 新增[条件、校验与本地集合](constraints-collections-ch.md)：`LocalRuntime.validate()`、可序列化的 `LocalValidation` 规则、数字数组及生成表格。自行实现运行时适配器的宿主需补充 `validate()`，值类型穷举需加入 `number-array`；与 `sum`、`average`、`minOf`、`maxOf` 同名的旧绑定应重命名。
 
@@ -104,4 +104,4 @@ Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `c
 语言范围见[语法规范](local-interaction-syntax-ch.md)，安全边界与宿主责任见[安全策略](../SECURITY-ch.md)。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。0.5.0 预览版面向 `next`，`latest` 仍为 `0.4.0`。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。0.5.1 预览版面向 `next`，`latest` 仍为 `0.4.0`。

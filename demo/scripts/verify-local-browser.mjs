@@ -316,10 +316,10 @@ try {
     await page.getByRole('button', { name: 'Light theme', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     await page.getByRole('button', { name: 'Presentation mode', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Source editor', exact: true })).toBeHidden();
+    await expect(page.locator('#source-editor')).toBeHidden();
     await expect(preview()).toBeVisible();
     await page.getByRole('button', { name: 'Show source', exact: true }).click();
-    await expect(page.getByRole('region', { name: 'Source editor', exact: true })).toBeVisible();
+    await expect(page.locator('#source-editor')).toBeVisible();
   });
 
   await pick('pricing');

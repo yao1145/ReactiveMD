@@ -2,11 +2,21 @@
 
 This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
 
-## Unreleased
+## 0.5.1 (2026-10-25, next channel)
+
+Compatible with 0.5.0. Syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. See [0.5.1 release notes](docs/release-0.5.1-en.md).
+
+### Added
 
 - Add P0 HTML compatibility to the default ReactiveMD rendering path, including rich disclosures, containers, headings, code, lists, links and images.
 - Add host-owned `enableCss`, `enableJavaScript` and `enableExtendedHtml` options, all off by default. Any enabled option routes the entire document to isolated native HTML. This temporary routing policy disables Markdown and ReactiveMD interpretation in that path; see [HTML compatibility](docs/html-compatibility-en.md).
 - Add localized Demo controls and preserve HTML mode in export. Static export disables author JavaScript.
+- Add a built-in editor status bar with Unicode character count, a keyboard hint and Edit, Split and Preview views. The host supplies preview content. View changes keep the source selection, undo history and preview state.
+- Narrow editor containers offer only Edit and Preview, and source-only editors keep the count and keyboard hint.
+
+### Changed
+
+- The editor source surface, gutter, syntax highlighting, toolbar and menus now follow the editor light, dark or automatic theme instead of staying on a fixed dark background.
 
 ## 0.5.0 (2026-10-25, next channel)
 

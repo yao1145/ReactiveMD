@@ -44,7 +44,7 @@ try {
     try {
       await page.goto(baseURL);
       await check(`${language}: opens in presentation mode with seven distinct feature entries`, async () => {
-        await expect(page.locator('.pane-editor')).toBeHidden();
+        await expect(page.locator('#source-editor')).toBeHidden();
         expect(await page.locator('[data-example-id]').evaluateAll((buttons) => buttons.map((button) => button.dataset.exampleId))).toEqual(ids);
         await expect(preview.getByRole('slider', { name: t('People', '人数'), exact: true })).toHaveValue('2');
       });
