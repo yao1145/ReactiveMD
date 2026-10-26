@@ -29,6 +29,30 @@ try {
     await expect(outer.locator('strong').filter({ hasText: 'Markdown' })).toBeVisible();
     await expect(page.locator('pre')).toContainText('<script>window.bad = true</script> {{ count }}');
 
+    await page.evaluate(() => window.setHtmlCase('<div align="center" data-proof="center">你好\n\n**Markdown** {{ count }}\n\n<counter bind="count" label="Aligned count" initial="2">\n\n<p align="right" data-proof="right">靠右</p>\n</div>\n\n<h2 align="justify" data-proof="justify">Justified heading</h2>'));
+    await expect(page.locator('iframe')).toHaveCount(0);
+    const centered = page.locator('[data-proof="center"]');
+    await expect(centered).toHaveCSS('text-align', /center$/);
+    await expect(centered).toContainText('你好');
+    await expect(centered.locator('strong')).toHaveText('Markdown');
+    await expect(page.locator('[data-proof="right"]')).toHaveCSS('text-align', /right$/);
+    await expect(page.locator('[data-proof="justify"]')).toHaveCSS('text-align', 'justify');
+    await centered.getByRole('button', { name: 'Aligned count increase', exact: true }).click();
+    await expect(centered).toContainText('Markdown 3');
+    // Verify actual text positioning as well as the alignment attribute.
+    const textCentered = await centered.evaluate(element => {
+      const range = document.createRange();
+      range.selectNodeContents(element.querySelector('p'));
+      const text = range.getBoundingClientRect();
+      const container = element.getBoundingClientRect();
+      return Math.abs((text.left + text.right) / 2 - (container.left + container.right) / 2) < 2;
+    });
+    assert.equal(textCentered, true);
+
+    await page.evaluate(() => window.setHtmlCase('<div align="center">你好</div><p align="right">Native alignment</p>', { enableJavaScript: true }));
+    await expect(page.frameLocator('iframe').first().locator('div')).toHaveCSS('text-align', /center$/);
+    await expect(page.frameLocator('iframe').first().locator('p')).toHaveCSS('text-align', /right$/);
+
     const source = `# Literal Markdown
 <p id="result">{{ unchanged }}</p>
 <style>p { color: rgb(201, 11, 21) }</style>
@@ -114,7 +138,7 @@ try {
     assert.deepEqual(errors, []);
     await page.screenshot({ path: `artifacts/html-compat/browser/${width}.png`, fullPage: true });
     await page.close();
-    console.log(`PASS ${width}px: P0 nesting, keyboard, bindings, 7 HTML option combinations, CSS classes, body events, isolated form/base, scoped IDs/IDREFs, image policy, frame isolation, mode reset and overflow`);
+    console.log(`PASS ${width}px: P0 nesting, block alignment and text position, keyboard, bindings, 7 HTML option combinations, CSS classes, body events, isolated form/base, scoped IDs/IDREFs, image policy, frame isolation, mode reset and overflow`);
   }
 } finally {
   await browser?.close();

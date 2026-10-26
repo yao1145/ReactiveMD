@@ -462,7 +462,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   while (displayNodes.length && diagnostics.length < MAX_LOCAL_DIAGNOSTICS) {
     const node = displayNodes.pop()!;
     if (node.type === 'math' || node.type === 'inlineMath') {
-      const base = node.range.start + (node.type === 'math' ? 2 : 1);
+      const base = node.range.start + (node.type === 'math' || source.startsWith('\\(', node.range.start) ? 2 : 1);
       for (const issue of inspectLocalMathDisplay(node.value ?? '')) {
         reportWarning(state, issue.code, issue.message, base + issue.start, base + issue.end, {
           key: issue.messageKey, params: issue.params,

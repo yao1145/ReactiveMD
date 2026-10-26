@@ -17,6 +17,19 @@ function output(source: string, flags: Partial<LocalHtmlPolicy>, limit = 10000) 
 }
 
 describe('native HTML capability boundaries', () => {
+  it('keeps validated block alignment without granting author CSS', () => {
+    const result = output('<div align=" CENTER ">你好</div><p align="right">Right</p><h2 align="justify">Title</h2>', { enableJavaScript: true });
+    expect(result.diagnostics).toEqual([]);
+    expect(attrs(elements(result.tree, 'div')[0]).align).toBe('center');
+    expect(attrs(elements(result.tree, 'p')[0]).align).toBe('right');
+    expect(attrs(elements(result.tree, 'h2')[0]).align).toBe('justify');
+  });
+
+  it('rejects invalid alignment values even when author CSS is allowed', () => {
+    const result = output('<div align="center;color:red">Text</div>', { enableCss: true });
+    expect(attrs(elements(result.tree, 'div')[0]).align).toBeUndefined();
+    expect(result.diagnostics.some(d => d.code === 'local.html.attribute')).toBe(true);
+  });
   it('preserves allowed whole-document attributes within the isolated document', () => {
     const result = output('<html lang="zh" dir="rtl"><head data-note="head"></head><body id="content" style="color:red" onload="window.ran=true"><p>Body</p></body></html>', { enableCss: true, enableJavaScript: true, enableExtendedHtml: true });
     expect(attrs(elements(result.tree, 'html')[0])).toMatchObject({ lang: 'zh', dir: 'rtl' });

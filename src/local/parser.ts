@@ -7,7 +7,7 @@ import type { LocalCompileOptions, LocalNode, LocalVersionDeclaration, SourceRan
 import { LOCAL_SYNTAX_VERSION } from './version';
 import { localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
 import { localComponentNames, suggestComponent } from './schema';
-import { LOCAL_HTML_NAMES } from './html-names';
+import { LOCAL_HTML_NAMES, LOCAL_HTML_ALIGN_ELEMENTS, localHtmlAlign } from './html-names';
 import { isLocalThemeName } from './theme';
 import { normalizeFootnoteIdentifier } from './footnotes';
 import {
@@ -237,6 +237,28 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   let markerSerial = 0;
   const reservedMarkers = new Set(source.match(new RegExp(MARK_OPEN + '[0-9]+' + MARK_CLOSE, 'g')) ?? []);
   const codeRanges: { start: number; end: number }[] = [];
+  const rootMathLiterals: SourceRange[] = [];
+  // Markdown destinations use backslashes to escape parentheses/brackets.
+  // Only labels are prose; a destination, title, or image is never TeX.
+  function mathLiteralRange(raw: any, map: (offset: number) => number): SourceRange | null {
+    const whole = raw.type === 'image' || raw.type === 'imageReference' || raw.type === 'definition';
+    if (!whole && raw.type !== 'link' && raw.type !== 'linkReference') return null;
+    const start = whole ? raw.position?.start?.offset
+      : raw.children?.at(-1)?.position?.end?.offset ?? raw.position?.start?.offset;
+    const end = raw.position?.end?.offset;
+    return Number.isInteger(start) && Number.isInteger(end) ? { start: map(start), end: map(end) } : null;
+  }
+  function inMathLiteral(ranges: readonly SourceRange[], offset: number): boolean {
+    let low = 0, high = ranges.length - 1;
+    while (low <= high) {
+      const middle = (low + high) >>> 1;
+      const range = ranges[middle];
+      if (offset < range.start) high = middle - 1;
+      else if (offset >= range.end) low = middle + 1;
+      else return true;
+    }
+    return false;
+  }
   /** Root-level footnote definitions, located by the Markdown parser. */
   const rootDefinitions: DefinitionRange[] = [];
   const sourceBomOffset = source.charCodeAt(0) === 0xfeff ? 1 : 0;
@@ -247,6 +269,8 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
    * interpolations inert while still formatting safe Markdown.
    */
   const findShielded = (raw: any): void => {
+    const literal = mathLiteralRange(raw, offset => offset + sourceBomOffset);
+    if (literal) rootMathLiterals.push(literal);
     if (raw.type === 'code') {
       codeRanges.push({ start: raw.position.start.offset + sourceBomOffset, end: raw.position.end.offset + sourceBomOffset });
     } else if (raw.type === 'footnoteDefinition') {
@@ -265,6 +289,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     return { nodes: [], diagnostics };
   }
   rootDefinitions.sort((a, b) => a.start - b.start || b.end - a.end);
+  rootMathLiterals.sort((a, b) => a.start - b.start);
   const rootDefinitionRanges: DefinitionRange[] = [];
   for (const range of rootDefinitions) {
     const last = rootDefinitionRanges[rootDefinitionRanges.length - 1];
@@ -673,6 +698,12 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     if (tag.invalid.length) return { ok: false, attr: tag.invalid[0].name };
     for (const entry of tag.entries) {
       const name = entry.name;
+      if (name === 'align' && LOCAL_HTML_ALIGN_ELEMENTS.has(lower)) {
+        const align = localHtmlAlign(entry.value);
+        if (!align) return { ok: false, attr: name };
+        attrs.align = align;
+        continue;
+      }
       if (name === 'class' || name === 'style' || /^on[a-z]/.test(name)) return { ok: false, attr: name };
       const global = HTML_GLOBAL_ATTRIBUTES.has(name);
       const aria = /^aria-[a-z0-9_.-]+$/.test(name);
@@ -969,6 +1000,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     // first Markdown pass. Re-scan each dedented body for definition ranges so
     // a definition inside a container still becomes a real footnote node.
     let regionDefinitions: readonly DefinitionRange[] = options.definitions ?? rootDefinitionRanges;
+    let mathLiterals: readonly SourceRange[] = rootMathLiterals;
     if (parent) {
       const bodyEnd = unknownTagEnd(start, parent, end, true)?.start ?? end;
       const indent = commonIndent(start, bodyEnd);
@@ -986,7 +1018,10 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       }
       offsets.push(bodyEnd);
       const found: DefinitionRange[] = [];
+      const literals: SourceRange[] = [];
       const visit = (raw: any): void => {
+        const literal = mathLiteralRange(raw, offset => offsets[offset]);
+        if (literal) literals.push(literal);
         if (raw.type === 'footnoteDefinition') {
           const from = offsets[raw.position.start.offset];
           const to = offsets[raw.position.end.offset];
@@ -996,9 +1031,21 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         for (const child of raw.children ?? []) visit(child);
       };
       visit(markdown.parse(text));
+      mathLiterals = literals.sort((a, b) => a.start - b.start);
       regionDefinitions = found
         .filter(range => range.start >= start && range.end <= bodyEnd)
         .sort((a, b) => a.start - b.start || b.end - a.end);
+    } else if (start > 0 && options.definitions !== undefined && !footnoteMode) {
+      // HTML bodies can be opaque to the root Markdown pass, just like
+      // component bodies. Discover destinations without changing note scope.
+      const literals: SourceRange[] = [];
+      const visit = (raw: any): void => {
+        const literal = mathLiteralRange(raw, offset => offset + start);
+        if (literal) literals.push(literal);
+        for (const child of raw.children ?? []) visit(child);
+      };
+      visit(markdown.parse(source.slice(start, end)));
+      mathLiterals = literals.sort((a, b) => a.start - b.start);
     }
     let definitionIndex = 0;
     for (let i = start; i < end;) {
@@ -1050,6 +1097,35 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         }
         // A malformed definition keeps its source as ordinary Markdown text.
         definitionIndex += 1;
+      }
+      // TeX-style delimiters precede Markdown backslash escapes. Code ranges,
+      // fences and inline-code spans are still shielded by the surrounding
+      // scan. Plot deliberately retains its $$...$$-only body grammar.
+      if (!footnoteMode && parent !== 'plot' && source[i] === '\\'
+        && (source[i + 1] === '(' || source[i + 1] === '[') && !inMathLiteral(mathLiterals, i)) {
+        const display = source[i + 1] === '[';
+        const closing = display ? ']' : ')';
+        let stop = i + 2;
+        while (stop < end) {
+          if (source[stop] === '\\') {
+            if (source[stop + 1] === closing && stop + 1 < end) break;
+            stop += 2;
+          } else stop++;
+        }
+        if (stop >= end) {
+          error('local.math.unclosed', 'Formula is missing its closing delimiter.', i, end, { key: 'local.math.unclosed' });
+          i = end;
+          continue;
+        }
+        const finish = stop + 2;
+        let value = source.slice(i + 2, stop);
+        if (value.length > MAX_DISPLAY_MATH_SOURCE) {
+          error('local.budget.math', `Formula exceeds the ${MAX_DISPLAY_MATH_SOURCE}-character limit.`, i, finish, { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } });
+          value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
+        }
+        tokens.push({ start: i, end: finish, node: node(display ? 'math' : 'inlineMath', i, finish, { value }) });
+        i = finish;
+        continue;
       }
       const shield = protectedEnd(i, end, insideContainer);
       if (shield !== null) { i = shield; continue; }

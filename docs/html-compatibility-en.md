@@ -71,6 +71,15 @@ Container bodies continue to parse Markdown, formulas, interpolation and Reactiv
 
 See the runnable [HTML and ReactiveMD example](../examples/local/html-compat.reactive.md).
 
+`div`, `p` and `h1` through `h6` accept a static `align` attribute with `left`, `center`, `right` or `justify`. Values ignore case and surrounding whitespace. For example:
+
+```html
+<div align="center">Hello</div>
+<p align="right">A right-aligned **Markdown** paragraph.</p>
+```
+
+Alignment works without enabling CSS or extended HTML. Markdown and bindings inside the container remain active, and nested elements can override the inherited alignment. The native HTML route accepts the same bounded values.
+
 Common attributes use an allowlist for document identifiers, titles, language, direction and accessibility. Author styles, event-handler attributes and unsupported elements in the default mode remain inert source or produce positioned diagnostics. Images still require explicit host approval. Code and unsupported regions execute no scripts.
 
 ## Extended HTML

@@ -11,6 +11,21 @@ if (!compiled.ok) throw new Error('fixture failed');
 const state = createLocalStateFile(compiled.document, {}, { name: 'test', version: '1' });
 
 describe('browser image HTML export', () => {
+  it.each(['static', 'interactive'] as const)('preserves aligned HTML containers around images in %s exports', async mode => {
+    const aligned = '# Aligned image\n\n<div align="center">你好\n\n![Photo](images/photo.png)\n</div>';
+    const result = compileLocal(aligned);
+    if (!result.ok) throw new Error('aligned fixture failed');
+    expect(result.diagnostics).toEqual([]);
+    const alignedState = createLocalStateFile(result.document, {}, { name: 'test', version: '1' });
+    const asset = await createImageAsset(new File([Uint8Array.from(atob(png), c => c.charCodeAt(0))], 'photo.png', { type: 'image/png' }), 'images/photo.png');
+    const output = await buildShareableHtml({ source: aligned, state: alignedState, mode, imageAssets: [asset] });
+    expect(/<div align="center">/.test(output.html)).toBe(true);
+    expect(output.imageCount).toBe(1);
+    const imageTags = output.html.match(/<img\b[^>]*>/g) ?? [];
+    expect(imageTags).toHaveLength(1);
+    expect(imageTags[0]).toContain(`src="${asset.dataUrl}"`);
+  });
+
   it('reports missing resources rather than exporting broken image references', async () => {
     await expect(buildShareableHtml({ source, state, mode: 'static' })).rejects.toThrow('images/photo.png');
   });

@@ -3,6 +3,7 @@ import type { DefaultTreeAdapterTypes } from 'parse5';
 import { localDiagnosticDetails } from './diagnostics';
 import { MAX_LOCAL_DIAGNOSTICS } from './limits';
 import type { Diagnostic, LocalHtmlPolicy } from './types';
+import { LOCAL_HTML_ALIGN_ELEMENTS, localHtmlAlign } from './html-names';
 
 type PElement = DefaultTreeAdapterTypes.Element;
 type PParent = DefaultTreeAdapterTypes.ParentNode;
@@ -374,6 +375,18 @@ function cleanAttributes(element: PElement, tag: string, html: boolean, state: S
     const name = attribute.name.toLowerCase();
     const fullName = attribute.prefix ? `${attribute.prefix}:${attribute.name}` : attribute.name;
     const range = attributeRange(element, attribute, state);
+
+    if (html && name === 'align' && LOCAL_HTML_ALIGN_ELEMENTS.has(tag)) {
+      const align = localHtmlAlign(attribute.value);
+      if (align) {
+        kept.push({ ...attribute, value: align });
+      } else {
+        warn(state, 'local.html.attribute', 'HTML attribute align requires left, center, right or justify.', range.start, range.end, {
+          key: 'local.html.attribute', params: { name: fullName, tag },
+        });
+      }
+      continue;
+    }
 
     if (isEventHandler(name)) {
       if (!state.policy.enableJavaScript) {

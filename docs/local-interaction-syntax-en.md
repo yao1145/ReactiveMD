@@ -346,7 +346,9 @@ timeline supports optional title and unit (display text, default "minutes"), and
 
 ### 10.1 Display and plotting
 
-Prose `$...$` is inline math and `$$...$$` is a display formula. Inline math pairs on the same line, its content cannot start or end with whitespace; use `\$` to display a literal dollar sign. Display formulas may span lines and can also be written as `$$ y = x^2 $$`. Unclosed math delimiters are errors. Standalone formulas are for layout and create no state or functions. Each `$$...$$` block inside a plot container defines one curve; the math content keeps normal LaTeX syntax and does not need `{{ }}`.
+Prose accepts `$...$` or `\(...\)` for inline math, and `$$...$$` or `\[...\]` for display formulas. Dollar-delimited inline math pairs on the same line and cannot start or end with whitespace; use `\$` for a literal dollar sign. Backslash-delimited formulas may contain whitespace and span lines. For example, write `\(\frac{a}{b}\)` in a sentence or `\[x^2 + 1\]` as a display formula. Unclosed math delimiters are errors. Code, comments and Markdown destinations keep these delimiters literal; escape the opening backslash or use code to show an example in prose.
+
+Standalone formulas are for layout and create no state or functions. Each `$$...$$` block inside a plot container defines one curve; the math content keeps normal LaTeX syntax and does not need `{{ }}`. Plot accepts only `$$...$$`, not `\(...\)` or `\[...\]`.
 
 ```markdown
 <slider bind="a" label="Amplitude" initial="1" min="0" max="5">

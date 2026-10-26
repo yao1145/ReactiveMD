@@ -10,3 +10,13 @@ export const LOCAL_HTML_NAMES: ReadonlySet<string> = new Set([
   'div', 'span', 'details', 'summary', 'blockquote',
   'code', 'pre', 'ul', 'ol', 'li', 'a',
 ]);
+
+/** Legacy text alignment accepted as a bounded HTML attribute, without CSS. */
+export const LOCAL_HTML_ALIGN_ELEMENTS: ReadonlySet<string> = new Set([
+  'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+]);
+
+export function localHtmlAlign(value: string): 'left' | 'center' | 'right' | 'justify' | null {
+  const align = value.trim().toLowerCase();
+  return align === 'left' || align === 'center' || align === 'right' || align === 'justify' ? align : null;
+}

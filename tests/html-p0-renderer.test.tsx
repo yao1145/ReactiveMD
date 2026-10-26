@@ -9,10 +9,10 @@ const elements = (node: any, tag: string): any[] => [
   ...(node.tagName === tag ? [node] : []), ...(node.childNodes ?? []).flatMap((child: any) => elements(child, tag)),
 ];
 const attrs = (node: any) => Object.fromEntries((node?.attrs ?? []).map((attr: any) => [attr.name, attr.value]));
-function render(source: string, urlPolicy?: LocalUrlPolicy) {
+function render(source: string, urlPolicy?: LocalUrlPolicy, allowWarnings = false) {
   const result = compileLocal(source);
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
-  expect(result.diagnostics).toEqual([]);
+  if (!allowWarnings) expect(result.diagnostics).toEqual([]);
   const runtime = createLocalRuntime(result.document);
   try {
     const markup = renderToStaticMarkup(<LocalDocumentView document={result.document} runtime={runtime} urlPolicy={urlPolicy} />);
@@ -21,6 +21,44 @@ function render(source: string, urlPolicy?: LocalUrlPolicy) {
 }
 
 describe('P0 HTML renderer', () => {
+  it.each(['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])('renders validated alignment on %s without switching the document route', tag => {
+    for (const align of ['left', 'center', 'right', 'justify']) {
+      const source = `<${tag} align=" ${align.toUpperCase()} ">你好 **Markdown**</${tag}>`;
+      const result = compileLocal(source);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.document.html).toBeUndefined();
+      expect(result.diagnostics).toEqual([]);
+      const { tree } = render(source);
+      const element = elements(tree, tag).find(node => attrs(node).align === align);
+      expect(element).toBeDefined();
+      expect(elements(element, 'strong')).toHaveLength(1);
+    }
+  });
+
+  it('keeps nested alignment and reactive content independent', () => {
+    const source = '<counter bind="count" label="Count" initial="2">\n\n<div align=center>你好 {{ count }}\n\n<p align=right>Inner</p>\n</div>';
+    const result = compileLocal(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.diagnostics).toEqual([]);
+    const runtime = createLocalRuntime(result.document);
+    try {
+      runtime.setParameter('count', 4);
+      const tree = parseFragment(renderToStaticMarkup(<LocalDocumentView document={result.document} runtime={runtime} />));
+      expect(elements(tree, 'div').filter(node => attrs(node).align === 'center')).toHaveLength(1);
+      expect(elements(tree, 'p').filter(node => attrs(node).align === 'right')).toHaveLength(1);
+      expect(runtime.text('你好 {{ count }}')).toBe('你好 4');
+    } finally { runtime.dispose(); }
+  });
+
+  it.each(['center;color:red', '{{ alignment }}', '', 'middle', 'url(javascript:alert(1))'])('keeps invalid alignment inert: %s', align => {
+    const result = compileLocal(`<div align="${align}">你好</div>`);
+    expect(result.ok).toBe(true);
+    expect(result.diagnostics.some(d => d.code === 'local.html')).toBe(true);
+    const { tree } = render(`<div align="${align}">你好</div>`, undefined, true);
+    expect(elements(tree, 'div').some(node => attrs(node).align !== undefined)).toBe(false);
+  });
   it('reuses headings, lists, quotes and safe scoped attributes', () => {
     const source = '<div id="section" lang="zh"><h1>Title</h1><h2>Subtitle</h2><p><strong title="&alpha; &amp;">Bold</strong> <em>Emphasis</em><del>Deleted</del><u>Underlined</u><mark>Marked</mark><br><sup>2</sup><sub>n</sub></p><hr><blockquote>Quote</blockquote><ol start="3"><li>First</li><li>Second</li></ol><ul><li>Item</li></ul></div>\n\n<a href="#section">Jump</a>';
     const { tree } = render(source);

@@ -17,6 +17,10 @@
 </details>
 </details>
 
+<div align="center">你好，**居中内容**。</div>
+
+<p align="right">右对齐段落。</p>
+
 <blockquote>默认模式使用现有渲染器和主题。</blockquote>
 
 <ol start="3"><li>支持 HTML 列表。</li><li>代码按原样显示。</li></ol>

@@ -27,6 +27,10 @@ try {
       await expect(document.locator('mark')).toHaveText('高亮');
       await expect(document.locator('br')).toHaveCount(1);
       await expect(document.locator('.local-fallback')).toHaveCount(0);
+      await expect(document.locator('math[display="inline"]')).toHaveCount(1);
+      await expect(document.locator('math[display="block"]')).toHaveCount(1);
+      await expect(document.locator('mfrac')).toBeVisible();
+      await expect(document.locator('math[display="inline"] annotation')).toHaveText('\\frac{a}{b}');
       await expect(document.locator('sup a')).toHaveCount(4);
       const notes = document.locator('[role="doc-endnotes"]');
       await expect(notes).toBeVisible();

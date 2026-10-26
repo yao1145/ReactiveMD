@@ -47,6 +47,7 @@ import { createLocalRuntime } from './runtime';
 import { DEFAULT_MAX_LOCAL_SYNTAX_NODES, MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
 import { localCompileOptionsKey } from './options';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './html';
+import { localHtmlAlign } from './html-names';
 import { formatLocalDiagnostic } from './diagnostics';
 import { countLocalCodePoints } from './text-length';
 import { LatexView } from './math-view';
@@ -932,6 +933,11 @@ function safeHtmlProps(env: RenderEnv, node: LocalNode): Record<string, string> 
   for (const [rawName, value] of Object.entries(attrs)) {
     const name = rawName.toLowerCase();
     if (name === 'id') continue;
+    if (name === 'align' && (node.type === 'div' || node.type === 'paragraph' || node.type === 'heading')) {
+      const align = localHtmlAlign(value);
+      if (align) props.align = align;
+      continue;
+    }
     if (name === 'title' || name === 'lang') {
       props[name] = value;
       continue;

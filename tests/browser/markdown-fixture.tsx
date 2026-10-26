@@ -19,6 +19,12 @@ Array<T>，Map<string, number>，比较 x<y 成立。售价 $5、$10，或 $5 an
 
 当前数量：{{ count }}。
 
+行内公式：\\(\\frac{a}{b}\\)。
+
+\\[
+x^2 + 1
+\\]
+
 [^other]: 第二个定义，先出现也按引用排序。
 
 [^detail]: **加粗内容**与<i>脚注斜体</i>，以及[普通链接](https://example.com)。

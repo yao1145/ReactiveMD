@@ -71,6 +71,15 @@ React 快捷组件通过 `compileOptions` 接收同样的设置：
 
 可运行示例见 [HTML 与 ReactiveMD](../examples/local/html-compat.reactive.md)。
 
+`div`、`p` 和 `h1` 至 `h6` 支持静态 `align` 属性，取值为 `left`、`center`、`right` 或 `justify`，忽略大小写和首尾空白。例如：
+
+```html
+<div align="center">你好</div>
+<p align="right">右对齐的 **Markdown** 段落。</p>
+```
+
+对齐不需要开启 CSS 或扩展 HTML，容器内的 Markdown 和绑定继续生效；嵌套元素可以设置自己的对齐。原生 HTML 路径同样接受这些限定值。
+
 通用属性按允许列表接收，支持文档标识、标题、语言、方向和可访问性属性。默认模式中的作者 `style`、事件处理属性及不支持的标签保持惰性源码或产生定位诊断。图片仍需宿主明确允许后才加载。代码与不支持区域不执行脚本。
 
 ## 扩展 HTML
