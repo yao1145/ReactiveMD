@@ -27,7 +27,7 @@
 }
 
 .md-document .md-image-zoom::backdrop {
-  background: color-mix(in srgb, var(--code-bg) 78%, transparent);
+  background: var(--image-zoom-backdrop);
 }
 
 .md-document .md-image-zoom-figure {

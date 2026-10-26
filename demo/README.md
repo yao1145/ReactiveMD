@@ -8,7 +8,11 @@ The Playground opens with a short calculator and six [feature tours](../examples
 
 Presentation mode shows the document at full width. Choose "Show source" to edit Markdown beside its live preview, or "Presentation mode" to return without resetting the current controls. The six scenarios demonstrate controls, declarations, validation and collections together. The auxiliary menu opens an intentionally broken diagnostics example in the editor. If you are new to the syntax, start with the [getting-started guide](../docs/local-guide-en.md).
 
-On phones, open the feature menu to choose a tour. It closes after selection to leave room for the document; import and export tools appear when source editing is open.
+Choose **Try examples** to explore the built-in tours, or **My documents** to create and reopen your own work. Name a document, edit it, and the Playground saves it automatically in this browser. Duplicate a document or an example to make an independent copy. Import creates a new personal document; export downloads its Markdown source or an HTML document. Personal documents keep their source when you switch the interface language.
+
+**体验示例**保留内置示例，**我的文档**用于新建、命名和重新打开自己的文档。编辑后自动保存在当前浏览器中；复制文档或示例会创建独立副本，导入文件会新建个人文档。导出可下载 Markdown 源码或 HTML 文档。切换界面语言时，个人文档的内容保持原样。
+
+The save indicator reports pending writes and storage failures. Browser storage belongs to this browser profile and site; export files to keep a portable backup. Theme, import and HTML compatibility settings are available through compact, expandable controls.
 
 Compile errors are listed by source position. The editor toolbar has common Markdown formatting and a searchable menu for inserting native components.
 
@@ -68,6 +72,8 @@ From the repository root:
 | `npm run test:demo` | Build the library and check the Playground examples |
 | `npm run test:browser` | Browser interaction checks for the new syntax |
 | `npm run test:showcase --workspace=@reactive-md/demo` | Feature-tour interactions and phone, tablet and desktop layouts in both languages |
+| `npm run test:documents --workspace=@reactive-md/demo` | Personal document workflows, storage failures, exports and guide code blocks in the browser |
+| `npm run test:browser:core` | Firefox and WebKit core workflows, run from the repository root after building the demo; manages its own server |
 | `npm run test:grid-layout --workspace=@reactive-md/demo` | Nested grids and 1–4 columns across narrow panes and embedded containers |
 | `npm run test:toolbar` | Editor toolbar and native component insertion checks |
 | `npm run test:docs` | Local documentation links and navigation anchors |

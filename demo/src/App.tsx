@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ChangeEvent,
 } from 'react';
 import { formatLocalDiagnostic, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
@@ -15,6 +16,15 @@ import {
   type EditorViewMode,
 } from 'reactive-md/editor';
 import { AuthorTools } from './author-tools';
+import {
+  DocumentLibrary,
+  LIBRARY_MODE_STORAGE_KEY,
+  documentFileStem,
+  uniqueDocumentName,
+  type LibraryDocument,
+  type LibraryMode,
+} from './document-library';
+import { DocumentLibraryBar, LibraryModeSwitch, LIBRARY_COPY } from './document-library-bar';
 import { ExportDialog } from './export-dialog';
 import { ImageAssetsPanel } from './image-assets-panel';
 import { createImageAsset, documentImageUrls, imagePolicy, ImageAssetError, MAX_IMAGE_BYTES, MAX_IMAGE_TOTAL_BYTES, validateImageManifest, type ImageAsset } from './image-assets';
@@ -116,6 +126,11 @@ function writeDraft(storage: Storage, language: Language, id: string, text: stri
   // for users who already have a saved source.
   if (language === 'en') storage.setItem(legacyDraftKey(id), text);
   storage.setItem(SELECTION_KEY, id);
+}
+
+// Remember which destination was open so a reload returns to the same work.
+function writeLibraryMode(mode: LibraryMode) {
+  try { browserStorage()?.setItem(LIBRARY_MODE_STORAGE_KEY, mode); } catch { /* optional storage */ }
 }
 
 function download(name: string, text: string, type: string) {
@@ -278,13 +293,30 @@ function GuideView({ dark, onTheme, onBack }: GuideViewProps) {
 export default function App() {
   const [view, setView] = useState<'playground' | 'guide'>('playground');
   const [language, setLanguage] = useState<Language>(initialLanguage);
-  const [selectedExample, setSelectedExample] = useState(initialExampleId);
-  const [source, setSource] = useState(() => savedSource(initialExampleId(), language));
+  const [library] = useState(() => new DocumentLibrary({ storage: browserStorage }));
+  const libraryState = useSyncExternalStore(library.subscribe, library.getSnapshot);
+  const [initial] = useState(() => {
+    const snapshot = library.getSnapshot();
+    const requestedExample = new URLSearchParams(window.location.search).get('example');
+    const reopenDocuments = !requestedExample
+      && savedItem(LIBRARY_MODE_STORAGE_KEY) === 'documents'
+      && snapshot.documents.length > 0;
+    const exampleId = initialExampleId();
+    const document = snapshot.documents.find((item) => item.id === snapshot.selectedId)
+      ?? snapshot.documents[0];
+    return {
+      mode: (reopenDocuments ? 'documents' : 'example') as LibraryMode,
+      exampleId,
+      source: reopenDocuments && document ? document.source : savedSource(exampleId, language),
+    };
+  });
+  const [libraryMode, setLibraryMode] = useState<LibraryMode>(initial.mode);
+  const [selectedExample, setSelectedExample] = useState(initial.exampleId);
+  const [source, setSource] = useState(initial.source);
   const [dark, setDark] = useState(() => savedItem('reactive-md:theme') === 'dark');
   const [editorView, setEditorView] = useState<EditorViewMode>(() =>
-    EXAMPLES.find((item) => item.id === selectedExample)?.section === 'debug' ? 'split' : 'preview');
+    initial.mode === 'documents' || EXAMPLES.find((item) => item.id === selectedExample)?.section === 'debug' ? 'split' : 'preview');
   const simple = editorView === 'preview';
-  const [featureMenuOpen, setFeatureMenuOpen] = useState(false);
   const [instanceKey, setInstanceKey] = useState(0);
   const [retainPreviewState, setRetainPreviewState] = useState(true);
   const [previewSession, setPreviewSession] = useState(() => new PreviewStateSession());
@@ -295,6 +327,7 @@ export default function App() {
   const [htmlOptions, setHtmlOptions] = useState<DemoHtmlOptions>(freshHtmlOptions);
 
   const copy = COPY[language];
+  const libraryCopy = LIBRARY_COPY[language];
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const editorHandle = useRef<ReactiveMarkdownEditorHandle>(null);
   const imageKey = `${language}:${selectedExample}`;
@@ -367,7 +400,7 @@ export default function App() {
     documentImages.replace(imageContext.current.assets.filter(a => a.url !== url));
     setImageError(null);
   }, [documentImages.replace]);
-  const featureMenuRef = useRef<HTMLButtonElement>(null);
+
   const pendingSourceWrite = useRef<{
     exampleId: string;
     source: string;
@@ -383,6 +416,14 @@ export default function App() {
   );
   const compiled = compilation.result;
   const exampleOptions = useMemo(() => localizedExamples(language), [language]);
+  const currentDocument = useMemo(() => {
+    const id = libraryState.selectedId;
+    if (!id) return null;
+    return libraryState.documents.find((item) => item.id === id) ?? null;
+  }, [libraryState.documents, libraryState.selectedId]);
+  const activeDocument = libraryMode === 'documents' ? currentDocument : null;
+  const documentKey = activeDocument ? `document:${activeDocument.id}` : `example:${selectedExample}`;
+  const exportBaseName = activeDocument ? documentFileStem(activeDocument.name) : selectedExample;
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light';
@@ -411,16 +452,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (libraryMode !== 'example') return;
     pendingSourceWrite.current = { exampleId: selectedExample, source, language };
     if (sourceWriteTimer.current !== null) clearTimeout(sourceWriteTimer.current);
     sourceWriteTimer.current = setTimeout(() => {
       sourceWriteTimer.current = null;
       flushSourceWrite();
     }, SOURCE_WRITE_DELAY);
-  }, [language, selectedExample, source, flushSourceWrite]);
+  }, [libraryMode, language, selectedExample, source, flushSourceWrite]);
 
   useEffect(() => {
-    const flush = () => flushSourceWrite();
+    // Leaving the page must keep both the example draft and the personal
+    // library up to date, whichever destination is open.
+    const flush = () => {
+      flushSourceWrite();
+      library.flush();
+    };
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') flush();
     };
@@ -429,9 +476,9 @@ export default function App() {
     return () => {
       window.removeEventListener('pagehide', flush);
       document.removeEventListener('visibilitychange', onVisibility);
-      flushSourceWrite();
+      flush();
     };
-  }, [flushSourceWrite]);
+  }, [flushSourceWrite, library]);
 
   const report = useCallback((diagnostics: Diagnostic[]) => {
     if (diagnostics.length === 0) return;
@@ -441,7 +488,11 @@ export default function App() {
   const replaceSource = useCallback((next: string) => {
     setSource(next);
     setRuntimeDiagnostics([]);
-  }, []);
+    if (libraryMode === 'documents') {
+      const id = library.getSnapshot().selectedId;
+      if (id) library.updateSource(id, next);
+    }
+  }, [library, libraryMode]);
 
   const beginPreviewSession = useCallback(() => {
     setPreviewSession(new PreviewStateSession(retainPreviewState));
@@ -459,16 +510,33 @@ export default function App() {
     beginPreviewSession();
   }, [beginPreviewSession]);
 
+  // Imports always become a new personal document. The current example or
+  // document is left untouched.
   const importSource = useCallback((next: string) => {
     imageTask.current += 1;
+    flushSourceWrite();
+    const documents = library.getSnapshot().documents;
+    const name = uniqueDocumentName(documents.map((item) => item.name), libraryCopy.importedName);
+    const document = library.createDocument({ name, source: next });
+    if (!document) return;
+    setEditorView('split');
+    setLibraryMode('documents');
+    writeLibraryMode('documents');
     resetHtmlOptions();
-    replaceSource(next);
+    setSource(document.source);
+    setRuntimeDiagnostics([]);
     beginPreviewSession();
-  }, [replaceSource, resetHtmlOptions, beginPreviewSession]);
+  }, [
+    flushSourceWrite,
+    library,
+    libraryCopy.importedName,
+    resetHtmlOptions,
+    beginPreviewSession,
+  ]);
 
   const exportSource = useCallback(() => {
-    download(`${selectedExample}.reactive.md`, source, 'text/markdown;charset=utf-8');
-  }, [selectedExample, source]);
+    download(`${exportBaseName}.reactive.md`, source, 'text/markdown;charset=utf-8');
+  }, [exportBaseName, source]);
 
   const openExportDialog = useCallback(() => setExportOpen(true), []);
   const closeExportDialog = useCallback(() => setExportOpen(false), []);
@@ -510,7 +578,6 @@ export default function App() {
     const example = EXAMPLES.find((item) => item.id === exampleId);
     if (!example) return;
     imageTask.current += 1;
-    setFeatureMenuOpen(false);
     if (example.section === 'debug') setEditorView('split');
     flushSourceWrite();
     const next = savedSource(example.id, language);
@@ -520,6 +587,7 @@ export default function App() {
     setRuntimeDiagnostics([]);
     beginPreviewSession();
     try { browserStorage()?.setItem(SELECTION_KEY, example.id); } catch { /* optional storage */ }
+    writeLibraryMode('example');
   }, [flushSourceWrite, resetHtmlOptions, beginPreviewSession, language]);
 
   const restoreExample = useCallback(() => {
@@ -535,11 +603,131 @@ export default function App() {
     beginPreviewSession();
   }, [beginPreviewSession]);
 
+  const showExamples = useCallback(() => {
+    if (libraryMode === 'example') return;
+    library.flush();
+    const next = savedSource(selectedExample, language);
+    setLibraryMode('example');
+    writeLibraryMode('example');
+    resetHtmlOptions();
+    setSource(next);
+    setRuntimeDiagnostics([]);
+    beginPreviewSession();
+    try { browserStorage()?.setItem(SELECTION_KEY, selectedExample); } catch { /* optional storage */ }
+  }, [
+    libraryMode,
+    library,
+    selectedExample,
+    language,
+    resetHtmlOptions,
+    beginPreviewSession,
+  ]);
+
+  const showDocuments = useCallback(() => {
+    if (libraryMode === 'documents') return;
+    flushSourceWrite();
+    const snapshot = library.getSnapshot();
+    let document: LibraryDocument | null = snapshot.documents.find((item) => item.id === snapshot.selectedId)
+      ?? snapshot.documents[0]
+      ?? null;
+    if (!document) {
+      document = library.createDocument({ name: libraryCopy.defaultName, source: '' });
+    }
+    if (!document) return;
+    const selected = library.select(document.id) ?? document;
+    setEditorView('split');
+    setLibraryMode('documents');
+    writeLibraryMode('documents');
+    resetHtmlOptions();
+    setSource(selected.source);
+    setRuntimeDiagnostics([]);
+    beginPreviewSession();
+  }, [
+    libraryMode,
+    flushSourceWrite,
+    library,
+    libraryCopy.defaultName,
+    resetHtmlOptions,
+    beginPreviewSession,
+  ]);
+
+  const openDocument = useCallback((id: string) => {
+    const document = library.select(id);
+    if (!document) return;
+    resetHtmlOptions();
+    setSource(document.source);
+    setRuntimeDiagnostics([]);
+    beginPreviewSession();
+  }, [library, resetHtmlOptions, beginPreviewSession]);
+
+  const createDocument = useCallback((name: string) => {
+    const document = library.createDocument({ name, source: '' });
+    if (!document) return;
+    setEditorView('split');
+    setLibraryMode('documents');
+    writeLibraryMode('documents');
+    resetHtmlOptions();
+    setSource(document.source);
+    setRuntimeDiagnostics([]);
+    beginPreviewSession();
+  }, [library, resetHtmlOptions, beginPreviewSession]);
+
+  const renameDocument = useCallback((id: string, name: string) => {
+    library.rename(id, name);
+  }, [library]);
+
+  const duplicateDocument = useCallback((id: string, name: string) => {
+    const document = library.duplicate(id, name);
+    if (!document) return;
+    resetHtmlOptions();
+    setSource(document.source);
+    setRuntimeDiagnostics([]);
+    beginPreviewSession();
+  }, [library, resetHtmlOptions, beginPreviewSession]);
+
+  // Copy the example exactly as it currently appears in the editor, including
+  // any unpublished edits in the draft.
+  const copyExampleToDocuments = useCallback(() => {
+    flushSourceWrite();
+    const documents = library.getSnapshot().documents;
+    const name = uniqueDocumentName(
+      documents.map((item) => item.name),
+      `${currentExample.title}${libraryCopy.copySuffix}`,
+    );
+    const document = library.createDocument({ name, source });
+    if (!document) return;
+    setEditorView('split');
+    setLibraryMode('documents');
+    writeLibraryMode('documents');
+    resetHtmlOptions();
+    setSource(document.source);
+    setRuntimeDiagnostics([]);
+    beginPreviewSession();
+  }, [
+    flushSourceWrite,
+    library,
+    currentExample.title,
+    libraryCopy.copySuffix,
+    source,
+    resetHtmlOptions,
+    beginPreviewSession,
+  ]);
+
+  const changeLibraryMode = useCallback((next: LibraryMode) => {
+    if (next === 'documents') showDocuments();
+    else showExamples();
+  }, [showDocuments, showExamples]);
+
   // Keep the example selected, but save the current draft under the old
   // language and load that example's draft (or default source) in the new one.
+  // Personal documents keep one source for both UI languages.
   const switchLanguage = useCallback(() => {
     imageTask.current += 1;
     const nextLanguage: Language = language === 'en' ? 'zh' : 'en';
+    if (libraryMode === 'documents') {
+      setLanguage(nextLanguage);
+      return;
+    }
     pendingSourceWrite.current = { exampleId: selectedExample, source, language };
     flushSourceWrite();
     const next = savedSource(selectedExample, nextLanguage);
@@ -550,6 +738,7 @@ export default function App() {
     beginPreviewSession();
   }, [
     language,
+    libraryMode,
     selectedExample,
     source,
     flushSourceWrite,
@@ -589,11 +778,7 @@ export default function App() {
       <div className={`app-shell${simple ? ' is-simple' : editorView === 'edit' ? ' is-edit' : ''}`}>
         <header className="masthead">
           <div className="masthead-lead">
-            <p className="eyebrow">{copy.masthead.eyebrow}</p>
             <h1>Reactive MD</h1>
-            <p className="masthead-intro">
-              {copy.showcase.intro}
-            </p>
           </div>
           <nav className="view-switch" aria-label={copy.masthead.viewSwitcher}>
             <button
@@ -633,73 +818,68 @@ export default function App() {
           />
         ) : (
         <main className="workbench">
-          <nav className="showcase-nav" aria-label={copy.showcase.navigation}>
-            <button
-              type="button"
-              className="showcase-menu-toggle"
-              ref={featureMenuRef}
-              aria-expanded={featureMenuOpen}
-              aria-controls="showcase-links"
-              onClick={() => setFeatureMenuOpen((value) => !value)}
-            >
-              <strong>{currentExample.title}</strong>
-              <span>{copy.showcase.navigation} <span aria-hidden="true">⌄</span></span>
-            </button>
-            <div id="showcase-links" className={`showcase-links${featureMenuOpen ? ' is-open' : ''}`}>
-            {exampleOptions.filter((example) => example.section === 'quickstart' || example.section === 'feature').map((example) => (
-              <button
-                type="button"
-                key={example.id}
-                data-example-id={example.id}
-                aria-pressed={selectedExample === example.id}
-                title={example.hint}
-                onClick={() => {
-                  if (selectedExample !== example.id) loadExample(example.id);
-                  setFeatureMenuOpen(false);
-                  if (featureMenuOpen) featureMenuRef.current?.focus();
-                }}
-              >
-                {example.title}
-              </button>
-            ))}
-            </div>
-          </nav>
-          <div className="workbench-bar">
-            <div className="bar-group">
-              <label className="bar-label" htmlFor="example-select">{copy.showcase.reference}</label>
-              <select
-                id="example-select"
-                className="bar-select"
-                value={currentExample.section === 'reference' || currentExample.section === 'debug' ? selectedExample : ''}
-                onChange={(event: ChangeEvent<HTMLSelectElement>) => loadExample(event.target.value)}
-              >
-                <option value="" disabled>{copy.showcase.more}</option>
-                {exampleOptions.filter((example) => example.section === 'reference' || example.section === 'debug').map((example) => (
-                  <option key={example.id} value={example.id}>{example.title}</option>
-                ))}
-              </select>
-            </div>
-            <div className="bar-group bar-actions">
-              <label className="bar-label edit-only" title={copy.workbench.keepTrialStateTitle}>
-                <input
-                  type="checkbox"
-                  checked={retainPreviewState}
-                  aria-describedby="preview-state-note"
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                    previewSession.setRetention(event.target.checked);
-                    setRetainPreviewState(event.target.checked);
+          <div className="workbench-bar library-workbench">
+            <LibraryModeSwitch mode={libraryMode} onChange={changeLibraryMode} />
+            {libraryMode === 'example' ? (
+              <>
+                <label className="bar-label" htmlFor="example-select">{copy.showcase.navigation}</label>
+                <select
+                  id="example-select"
+                  className="bar-select example-select"
+                  value={selectedExample}
+                  title={currentExample.hint}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                    if (event.target.value !== selectedExample) loadExample(event.target.value);
                   }}
-                />{' '}
-                {copy.workbench.keepTrialState}
-              </label>
-              <button type="button" className="button button-secondary" onClick={restoreExample}>
-                {copy.workbench.restoreExample}
-              </button>
-              <button type="button" className="button button-secondary" onClick={resetInstance}>
-                {copy.workbench.runAgain}
-              </button>
-            </div>
-            <span className="example-hint" title={currentExample.hint}>{currentExample.hint}</span>
+                >
+                  {exampleOptions.map((example) => (
+                    <option key={example.id} value={example.id}>{example.title}</option>
+                  ))}
+                </select>
+              </>
+            ) : (
+              <DocumentLibraryBar
+                documents={libraryState.documents}
+                selectedId={libraryState.selectedId}
+                saveStatus={libraryState.saveStatus}
+                problem={libraryState.problem}
+                onSelect={openDocument}
+                onCreate={createDocument}
+                onRename={renameDocument}
+                onDuplicate={duplicateDocument}
+                onRetry={() => library.retry()}
+              />
+            )}
+            <details className="workbench-options" key={documentKey}>
+              <summary>{libraryCopy.moreOptions}</summary>
+              <div className="workbench-options-body">
+                {libraryMode === 'example' ? (
+                  <button type="button" className="button button-secondary" onClick={copyExampleToDocuments}>
+                    {libraryCopy.copyExample}
+                  </button>
+                ) : null}
+                <label className="bar-label edit-only" title={copy.workbench.keepTrialStateTitle}>
+                  <input
+                    type="checkbox"
+                    checked={retainPreviewState}
+                    aria-describedby="preview-state-note"
+                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                      previewSession.setRetention(event.target.checked);
+                      setRetainPreviewState(event.target.checked);
+                    }}
+                  />{' '}
+                  {copy.workbench.keepTrialState}
+                </label>
+                {libraryMode === 'example' ? (
+                  <button type="button" className="button button-secondary" onClick={restoreExample}>
+                    {copy.workbench.restoreExample}
+                  </button>
+                ) : null}
+                <button type="button" className="button button-secondary" onClick={resetInstance}>
+                  {copy.workbench.runAgain}
+                </button>
+              </div>
+            </details>
             <span
               className={`status-chip ${compiling ? 'is-pending' : previewFailed ? 'is-error' : ''}`}
               role="status"
@@ -716,9 +896,9 @@ export default function App() {
             onSimple={() => setEditorView((current) => current === 'preview' ? 'split' : 'preview')}
             onImport={importSource}
             onExport={openExportDialog}
-          />
-
-          <HtmlCompatibilityControls options={htmlOptions} onChange={changeHtmlOptions} />
+          >
+            <HtmlCompatibilityControls options={htmlOptions} onChange={changeHtmlOptions} />
+          </AuthorTools>
 
           <ImageAssetsPanel assets={documentImages.assets}
             references={compiled?.ok ? documentImageUrls(compiled.document) : []}
@@ -753,7 +933,7 @@ export default function App() {
                 theme={dark ? 'dark' : 'light'}
                 height="max(560px, 80vh)"
                 ariaLabel={copy.editor.sourceLabel}
-                documentKey={selectedExample}
+                documentKey={documentKey}
                 diagnostics={currentDiagnostics}
                 document={compiled && compiled.ok ? compiled.document : null}
                 onExport={openExportDialog}
@@ -839,7 +1019,7 @@ export default function App() {
           onRemoveImage={removeImage}
           open={exportOpen}
           source={source}
-          baseName={selectedExample}
+          baseName={exportBaseName}
           document={exportDocument}
           currentState={exportCurrentState}
           pending={compiling}

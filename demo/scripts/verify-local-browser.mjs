@@ -28,10 +28,12 @@ async function check(name, run) {
 
 async function pick(id) {
   if (id === 'pricing') {
-    await page.locator('[data-example-id="pricing"]').click();
+    await page.locator('#example-select').selectOption('pricing');
+    await page.locator('.workbench-options').evaluate(node => { node.open = true; });
     await page.getByRole('button', { name: 'Restore example', exact: true }).click();
   } else if (id === 'diagnostics') {
-    await page.getByLabel('Reference', { exact: true }).selectOption(id);
+    await page.locator('#example-select').selectOption(id);
+    await page.locator('.workbench-options').evaluate(node => { node.open = true; });
     await page.getByRole('button', { name: 'Restore example', exact: true }).click();
   } else {
     // Retain the original component regressions alongside the new feature tours.
@@ -48,7 +50,7 @@ async function pick(id) {
 
 try {
   await page.goto(baseURL);
-  await expect(page.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#example-select')).toHaveValue('pricing');
   await page.getByRole('button', { name: 'Show source', exact: true }).click();
   await expect(page.getByRole('slider', { name: 'People', exact: true })).toBeVisible();
   await check('library styles preserve host elements with common class names', async () => {
@@ -89,8 +91,8 @@ try {
     } finally { await styleProbe.close(); }
   });
   await check('feature navigation separates seven tours from debugging', async () => {
-    await expect(page.locator('[data-example-id]')).toHaveCount(7);
-    await expect(page.getByLabel('Reference', { exact: true }).locator('option')).toHaveCount(2);
+    await expect(page.locator('#example-select option')).toHaveCount(8);
+    await expect(page.locator('#example-select option[value="diagnostics"]')).toHaveCount(1);
   });
 
   await check('default pricing example starts at 200 USD', async () => {
@@ -115,7 +117,7 @@ try {
 
   await check('reload resets interaction state and keeps the selected source', async () => {
     await page.reload();
-    await expect(page.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#example-select')).toHaveValue('pricing');
     await expect(paragraph('Monthly total:')).toContainText('200');
     await expect(page.getByRole('slider', { name: 'People', exact: true })).toHaveValue('2');
   });
@@ -343,8 +345,7 @@ try {
   await expect(page.locator('.editor-frame')).toHaveAttribute('data-editor-view', 'split');
   async function fixture(source) {
     const sourceEditor = page.locator('#source-editor');
-    await sourceEditor.press('ControlOrMeta+A');
-    await sourceEditor.pressSequentially(source);
+    await sourceEditor.fill(source);
     // The previous preview can remain visible while the controlled input and
     // worker commit. Observe the source state before accepting compile status.
     try {
@@ -499,8 +500,8 @@ Independent calculation: {{ n + 2 }}.`);
       await localized.getByRole('button', { name: 'Show source', exact: true }).click();
       await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
       await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
-      await expect(localized.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
-      await expect(localized.locator('[data-example-id="pricing"]')).toHaveText('Quick start');
+      await expect(localized.locator('#example-select')).toHaveValue('pricing');
+      await expect(localized.locator('#example-select option:checked')).toHaveText('Quick start');
       await expect(localized.locator('#source-editor')).toHaveValue(/# Plan calculator/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: 'Plan calculator', level: 1 }))
         .toBeVisible();
@@ -508,8 +509,8 @@ Independent calculation: {{ n + 2 }}.`);
       await localized.getByTestId('language-toggle').click();
       await expect(localized.locator('html')).toHaveAttribute('lang', 'zh-CN');
       await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
-      await expect(localized.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
-      await expect(localized.locator('[data-example-id="pricing"]')).toHaveText('快速体验');
+      await expect(localized.locator('#example-select')).toHaveValue('pricing');
+      await expect(localized.locator('#example-select option:checked')).toHaveText('快速体验');
       await expect(localized.locator('#source-editor')).toHaveValue(/# 方案计算器/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: '方案计算器', level: 1 }))
         .toBeVisible();
@@ -530,7 +531,7 @@ Independent calculation: {{ n + 2 }}.`);
       await localized.getByRole('button', { name: '显示源码', exact: true }).click();
       await expect(localized.locator('html')).toHaveAttribute('lang', 'zh-CN');
       await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
-      await expect(localized.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
+      await expect(localized.locator('#example-select')).toHaveValue('pricing');
       await expect(localized.locator('#source-editor')).toHaveValue(/# 方案计算器/);
       await expect(localized.getByRole('button', { name: '切换到英文', exact: true })).toBeVisible();
       await expect(localized.getByRole('button', { name: '你的方案 恢复默认', exact: true })).toBeVisible();
@@ -538,8 +539,8 @@ Independent calculation: {{ n + 2 }}.`);
       await localized.getByRole('button', { name: '切换到英文', exact: true }).click();
       await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
       await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
-      await expect(localized.locator('[data-example-id="pricing"]')).toHaveAttribute('aria-pressed', 'true');
-      await expect(localized.locator('[data-example-id="pricing"]')).toHaveText('Quick start');
+      await expect(localized.locator('#example-select')).toHaveValue('pricing');
+      await expect(localized.locator('#example-select option:checked')).toHaveText('Quick start');
       await expect(localized.locator('#source-editor')).toHaveValue(/# Plan calculator/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: 'Plan calculator', level: 1 }))
         .toBeVisible();

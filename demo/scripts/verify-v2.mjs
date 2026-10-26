@@ -18,7 +18,7 @@ try {
     const preview=page.locator('.preview-stage');
     const open=async id=>{
       await page.goto(baseURL+'/?example='+id);
-      await expect(page.locator('[data-example-id="'+id+'"]').first()).toHaveAttribute('aria-pressed','true');
+      await expect(page.locator('#example-select')).toHaveValue(id);
       await expect(preview.locator('.local-document')).toBeVisible();
     };
     await open('forms');

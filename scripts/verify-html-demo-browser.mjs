@@ -24,11 +24,15 @@ try {
         if (window === window.top) localStorage.setItem('reactive-md:language', language);
       }, language);
       await page.goto(baseURL);
+      await page.locator('.author-tools-menu > summary').click();
       const controls = page.locator('.html-compat');
       await expect(controls).toBeVisible();
       if (language === 'zh') await page.getByRole('button', { name: '深色主题', exact: true }).click();
       await expect(controls.locator('input[type=checkbox]')).toHaveCount(3);
       for (const input of await controls.locator('input').all()) await expect(input).not.toBeChecked();
+      await expect(controls).not.toHaveAttribute('open', '');
+      await controls.locator('summary').focus();
+      await controls.locator('summary').press('Enter');
       await page.getByRole('button', { name: language === 'zh' ? '显示源码' : 'Show source', exact: true }).click();
       const source = '<base href="https://forms.example.test/"><p id="proof">Native HTML</p><style>p{color:rgb(201,11,21)}</style><script>document.getElementById("proof").textContent="Author JS ran"</script><dl><dt>Term</dt><dd>Definition</dd></dl><form action="/submit"><label>Value<input name="value" value="accepted"></label><button>Submit</button></form>';
       await page.locator('#source-editor').fill(source);

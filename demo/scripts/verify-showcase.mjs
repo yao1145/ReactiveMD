@@ -26,11 +26,10 @@ try {
     });
     const preview = page.locator('.preview-stage');
     const pick = async (id) => {
-      if (!await page.locator(`[data-example-id="${id}"]`).isVisible()) {
-        await page.locator('.showcase-menu-toggle').click();
-      }
-      await page.locator(`[data-example-id="${id}"]`).click();
+      await page.locator('#example-select').selectOption(id);
+      await page.locator('.workbench-options').evaluate(node => { node.open = true; });
       await page.getByRole('button', { name: t('Restore example', '恢复示例'), exact: true }).click();
+      await page.locator('.workbench-options').evaluate(node => { node.open = false; });
       await expect(page.locator('.status-chip')).toContainText(t('Compiled', '已编译'));
       await expect(preview.locator('.local-document')).toBeVisible();
       await expect(preview.locator('.local-error')).toHaveCount(0);
@@ -45,7 +44,9 @@ try {
       await page.goto(baseURL);
       await check(`${language}: opens in presentation mode with seven distinct feature entries`, async () => {
         await expect(page.locator('#source-editor')).toBeHidden();
-        expect(await page.locator('[data-example-id]').evaluateAll((buttons) => buttons.map((button) => button.dataset.exampleId))).toEqual(ids);
+        const choices = await page.locator('#example-select option').evaluateAll(options => options.map(option => option.value));
+        expect(choices.filter(id => ids.includes(id))).toEqual(ids);
+        expect(choices).toContain('diagnostics');
         await expect(preview.getByRole('slider', { name: t('People', '人数'), exact: true })).toHaveValue('2');
       });
 
@@ -226,8 +227,7 @@ try {
           for (const id of ids) {
             await pick(id);
             if (width === 375) {
-              await expect(page.locator('.showcase-links')).toBeHidden();
-              await expect(page.locator('.showcase-menu-toggle')).toHaveAttribute('aria-expanded', 'false');
+              await expect(page.locator('#example-select')).toBeVisible();
             }
             expect(await fits(), `${language} ${id} presentation at ${width}`).toBe(true);
             expect(await gridOverflows(preview), `${language} ${id} presentation grids at ${width}`).toEqual([]);
