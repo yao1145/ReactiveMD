@@ -82,6 +82,7 @@ export function SourceEditor() {
 | --- | --- |
 | `focus(selection?)` | Focuses the textarea. Applies the optional selection. |
 | `selectRange(range)` | Selects a source range. Ranges use the same UTF-16 half-open offsets as compile diagnostics. |
+| `insertText(text)` | Replaces the current selection with text as one undoable edit, then places the caret after it. Read-only and disabled editors ignore the call. |
 | `getSelection()` | Returns the current selection. |
 | `getTextarea()` | Returns the underlying textarea, or `null` before mount. |
 | `undo()` / `redo()` | Moves through this instance's history and emits the resulting value through `onChange`. Both are no-ops at the ends of the history and while `readOnly` or `disabled` is set. |

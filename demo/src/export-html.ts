@@ -12,6 +12,7 @@ import {
   type LocalValue,
 } from 'reactive-md';
 import { LocalDocumentView, type LocalDocumentViewProps } from 'reactive-md/react';
+import { imagePolicy, resolveDocumentImages, validateImageManifest, type ImageAsset } from './image-assets';
 
 export const DEMO_GENERATOR_NAME = 'reactive-md-demo';
 export const FALLBACK_DOCUMENT_TITLE = 'Reactive MD document';
@@ -30,6 +31,7 @@ export interface ShareableHtmlBuildOptions {
   compileOptions?: LocalCompileOptions;
   /** Optional override; otherwise the first heading supplies the title. */
   title?: string;
+  imageAssets?: readonly ImageAsset[];
 }
 
 export interface ShareableHtmlBuildResult {
@@ -271,9 +273,7 @@ export function formatBuildError(error: unknown): string {
 
 /**
  * Compile the source, rebase the selected state as the document baseline, render
- * trusted static markup, and wrap it in the single-file envelope. The demo does
- * not inline images, so documents with image nodes are rejected instead of
- * producing a file that silently drops assets.
+ * trusted static markup, and wrap it with the verified document image manifest.
  */
 export async function buildShareableHtml(
   options: ShareableHtmlBuildOptions,
@@ -288,9 +288,10 @@ export async function buildShareableHtml(
   }
   const document = compiled.document;
   const imageCount = countDocumentImages(document);
-  if (imageCount > 0) {
+  const resolved = resolveDocumentImages(document, validateImageManifest(options.imageAssets ?? []));
+  if (resolved.missing.length > 0) {
     throw new ShareableHtmlBuildError(
-      `The browser demo cannot inline ${imageCount} image${imageCount === 1 ? '' : 's'}; use the CLI with --assets inline.`,
+      `Choose files for these image references before exporting: ${resolved.missing.join(', ')}`,
     );
   }
 
@@ -311,6 +312,7 @@ export async function buildShareableHtml(
     // `staticFirst` keeps the server markup identical to the interactive
     // hydration pass, so the single-file export shows a static first screen.
     const viewProps: LocalDocumentViewProps & { staticFirst?: boolean } = {
+      ...imagePolicy(resolved.images),
       document: baseline.baseline.document,
       runtime,
       mode,
@@ -337,6 +339,7 @@ export async function buildShareableHtml(
     generator: { name: DEMO_GENERATOR_NAME, version: assets.packageVersion },
     assets: 'inline',
     imageCount,
+    images: resolved.images,
     notices: assets.notices,
   });
 

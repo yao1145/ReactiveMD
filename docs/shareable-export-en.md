@@ -108,6 +108,18 @@ The demo's export dialog can download the current preview parameters as a state 
 
 ## Images
 
+### Browser
+
+Use **Document images** in the demo to select files, or paste an image into the source editor. Accepted files create a Markdown reference at the selection and appear in the resource list. The list shows each source URL, format, size and whether the document references it; files can be replaced or removed. Imports are checked as a batch: an invalid file leaves the source and manifest unchanged.
+
+PNG, JPEG, GIF and WebP are checked by content, declared MIME type and browser decoding. Limits are 8 MiB per image, 24 MiB total and 64 resources. SVG is unsupported. Resources are saved in IndexedDB for the current document and language; a storage warning means they remain available only for this page session.
+
+The export dialog lists missing image references and lets you choose a local file for each one, including a local replacement for a remote URL. It never fetches remote images. All references must be supplied before HTML export. Both interactive and static exports inline the referenced files; unused resources stay out of the export. Markdown and state downloads contain no image files.
+
+These browser resource controls apply to the ReactiveMD route, including P0 `<img>` elements. Native HTML routing keeps its separate image policy.
+
+### CLI
+
 Offline export defaults to `--assets inline`:
 
 - Only relative paths that resolve inside the document directory, or an explicit `--asset-root`, are read.
@@ -186,7 +198,7 @@ The element uses Light DOM so the existing document CSS, heading anchors and pri
 - The core entry remains React-free.
 - State export and import use only public binding names and validated values.
 - Exported HTML does not persist a reader's changes.
-- The demo preview still blocks images unless a host policy is supplied; the demo export dialog disables HTML export when a document contains images because it has no asset root. Use the CLI for image-bearing documents.
+- The demo previews and exports images supplied through its document resource list. Missing references block HTML export until files are selected.
 - The export format version is `reactive-md-html/v1`; inspect it in the generated meta tags.
 
 ## Bundle baseline

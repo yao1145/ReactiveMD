@@ -16,6 +16,10 @@ import {
 } from 'reactive-md/editor';
 import { AuthorTools } from './author-tools';
 import { ExportDialog } from './export-dialog';
+import { ImageAssetsPanel } from './image-assets-panel';
+import { createImageAsset, documentImageUrls, imagePolicy, ImageAssetError, MAX_IMAGE_BYTES, MAX_IMAGE_TOTAL_BYTES, validateImageManifest, type ImageAsset } from './image-assets';
+import { IMAGE_COPY } from './image-copy';
+import { useDocumentImages } from './use-document-images';
 import { HtmlCompatibilityControls } from './html-compatibility';
 import {
   freshHtmlOptions,
@@ -57,7 +61,7 @@ const GUIDE_REPOSITORY = 'https://github.com/yao1145/ReactiveMD/blob/main';
 // guide is rendered in the demo.
 function rewriteGuideLinks(source: string): string {
   return source
-    .replace(/\]\(\.\.\/examples\/local\/([^)]+)\)/g, `](${GUIDE_REPOSITORY}/examples/local/$1)`)
+    .replace(/\]\(\.\.\/examples\/([^)]+)\)/g, `](${GUIDE_REPOSITORY}/examples/$1)`)
     .replace(/\]\(([a-z0-9-]+-(?:en|ch)\.md(?:#[^)]+)?)\)/g, `](${GUIDE_REPOSITORY}/docs/$1)`);
 }
 
@@ -188,11 +192,13 @@ interface LocalPreviewProps {
   document: LocalCompiledDocument;
   session: PreviewStateSession;
   onDiagnostics: (diagnostics: Diagnostic[]) => void;
+  images: readonly ImageAsset[];
 }
 
-const LocalPreview = memo(function LocalPreview({ document, session, onDiagnostics }: LocalPreviewProps) {
+const LocalPreview = memo(function LocalPreview({ document, session, onDiagnostics, images }: LocalPreviewProps) {
   const language = useLanguage();
   const copy = useCopy();
+  const imageProps = useMemo(() => imagePolicy(Object.fromEntries(images.map(a => [a.url, a.dataUrl]))), [images]);
   const [instance, setInstance] = useState<{
     document: LocalCompiledDocument;
     runtime: LocalRuntimeInstance;
@@ -227,6 +233,7 @@ const LocalPreview = memo(function LocalPreview({ document, session, onDiagnosti
   }
   return (
     <LocalDocumentView
+      {...imageProps}
       document={document}
       runtime={instance.runtime}
       onDiagnostics={onDiagnostics}
@@ -290,6 +297,76 @@ export default function App() {
   const copy = COPY[language];
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const editorHandle = useRef<ReactiveMarkdownEditorHandle>(null);
+  const imageKey = `${language}:${selectedExample}`;
+  const documentImages = useDocumentImages(imageKey);
+  const imageContext = useRef({ key: imageKey, assets: documentImages.assets, ready: documentImages.ready });
+  imageContext.current = { key: imageKey, assets: documentImages.assets, ready: documentImages.ready };
+  const imageBusyRef = useRef(false);
+  const imageTask = useRef(0);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  useEffect(() => { setImageError(null); }, [imageKey]);
+
+  const addImages = useCallback(async (files: File[], target?: string) => {
+    if (imageBusyRef.current || !imageContext.current.ready) return;
+    const context = imageContext.current;
+    const task = ++imageTask.current;
+    const messages = IMAGE_COPY[language];
+    imageBusyRef.current = true;
+    setImageBusy(true);
+    setImageError(null);
+    try {
+      if (files.length > 64) throw new ImageAssetError('count');
+      const selected = target ? files.slice(0, 1) : files;
+      let total = context.assets.filter(a => a.url !== target).reduce((sum, a) => sum + a.size, 0);
+      for (const file of selected) {
+        if (file.size > MAX_IMAGE_BYTES) throw new ImageAssetError('size');
+        total += file.size;
+        if (total > MAX_IMAGE_TOTAL_BYTES) throw new ImageAssetError('total');
+      }
+      const added: ImageAsset[] = [];
+      for (const file of selected) {
+        // Validate before decoding, hashing or retaining any file data.
+        const asset = await createImageAsset(file, target ?? 'pending');
+        let decoded: ImageBitmap;
+        try { decoded = await createImageBitmap(file); }
+        catch { throw new Error('decode'); }
+        decoded.close();
+        if (!target) {
+          const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()));
+          const suffix = [...hash.subarray(0, 6)].map(b => b.toString(16).padStart(2, '0')).join('');
+          const name = file.name.replace(/\.[^.]+$/, '').slice(0, 60).replace(/[^a-zA-Z0-9_-]/g, '-') || 'image';
+          asset.url = `assets/${name}-${suffix}.${asset.mime === 'image/jpeg' ? 'jpg' : asset.mime.slice(6)}`;
+        }
+        added.push(asset);
+      }
+      if (imageContext.current.key !== context.key || imageTask.current !== task) return;
+      const merged = new Map(imageContext.current.assets.map(a => [a.url, a]));
+      for (const asset of added) merged.set(asset.url, asset);
+      const assets = validateImageManifest([...merged.values()]);
+      documentImages.replace(assets);
+      if (!target) {
+        const markdown = added.map(a => `![${a.name.replace(/[\[\]\\\r\n]/g, '')}](${a.url})`).join('\n\n');
+        setEditorView(view => view === 'preview' ? 'split' : view);
+        window.requestAnimationFrame(() => {
+          if (imageContext.current.key === context.key && imageTask.current === task) editorHandle.current?.insertText(`\n\n${markdown}\n\n`);
+        });
+      }
+    } catch (error) {
+      if (imageContext.current.key !== context.key || imageTask.current !== task) return;
+      const code = error instanceof ImageAssetError ? error.code : error instanceof Error && error.message === 'decode' ? 'decode' : 'read';
+      setImageError(messages.errors[code]);
+    } finally {
+      imageBusyRef.current = false;
+      setImageBusy(false);
+    }
+  }, [documentImages.replace, language]);
+
+  const removeImage = useCallback((url: string) => {
+    if (imageBusyRef.current) return;
+    documentImages.replace(imageContext.current.assets.filter(a => a.url !== url));
+    setImageError(null);
+  }, [documentImages.replace]);
   const featureMenuRef = useRef<HTMLButtonElement>(null);
   const pendingSourceWrite = useRef<{
     exampleId: string;
@@ -383,6 +460,7 @@ export default function App() {
   }, [beginPreviewSession]);
 
   const importSource = useCallback((next: string) => {
+    imageTask.current += 1;
     resetHtmlOptions();
     replaceSource(next);
     beginPreviewSession();
@@ -431,6 +509,7 @@ export default function App() {
   const loadExample = useCallback((exampleId: string) => {
     const example = EXAMPLES.find((item) => item.id === exampleId);
     if (!example) return;
+    imageTask.current += 1;
     setFeatureMenuOpen(false);
     if (example.section === 'debug') setEditorView('split');
     flushSourceWrite();
@@ -444,6 +523,7 @@ export default function App() {
   }, [flushSourceWrite, resetHtmlOptions, beginPreviewSession, language]);
 
   const restoreExample = useCallback(() => {
+    imageTask.current += 1;
     resetHtmlOptions();
     setSource(currentExample.source);
     setRuntimeDiagnostics([]);
@@ -458,6 +538,7 @@ export default function App() {
   // Keep the example selected, but save the current draft under the old
   // language and load that example's draft (or default source) in the new one.
   const switchLanguage = useCallback(() => {
+    imageTask.current += 1;
     const nextLanguage: Language = language === 'en' ? 'zh' : 'en';
     pendingSourceWrite.current = { exampleId: selectedExample, source, language };
     flushSourceWrite();
@@ -639,8 +720,20 @@ export default function App() {
 
           <HtmlCompatibilityControls options={htmlOptions} onChange={changeHtmlOptions} />
 
+          <ImageAssetsPanel assets={documentImages.assets}
+            references={compiled?.ok ? documentImageUrls(compiled.document) : []}
+            busy={imageBusy || !documentImages.ready} error={imageError} storageError={documentImages.storageError}
+            onFiles={addImages} onRemove={removeImage} />
+
           <div className="workspace has-editor">
-            <section id="source-pane" className="pane pane-editor" aria-label={copy.editor.region}>
+            <section id="source-pane" className="pane pane-editor" aria-label={copy.editor.region}
+              onPasteCapture={event => {
+                if (!(event.target instanceof HTMLTextAreaElement)) return;
+                const files = Array.from(event.clipboardData.files);
+                if (!files.length) return;
+                event.preventDefault();
+                void addImages(files);
+              }}>
               <div className="pane-head">
                 <div>
                   <h2>{copy.editor.heading}</h2>
@@ -675,7 +768,7 @@ export default function App() {
                         <DiagnosticList diagnostics={compiled.diagnostics} focusDiagnostic={focusDiagnostic} />
                       </div>
                     ) : previewDocument ? (
-                      <LocalPreview key={instanceKey} document={previewDocument} session={previewSession} onDiagnostics={report} />
+                      <LocalPreview key={instanceKey} document={previewDocument} session={previewSession} onDiagnostics={report} images={documentImages.assets} />
                     ) : (
                       <div className="preview-loading" role="status"><p>{copy.preview.preparing}</p></div>
                     )}
@@ -738,6 +831,12 @@ export default function App() {
         </footer>
 
         <ExportDialog
+          imageAssets={documentImages.assets}
+          imageBusy={imageBusy || !documentImages.ready}
+          imageError={imageError}
+          imageStorageError={documentImages.storageError}
+          onImageFiles={addImages}
+          onRemoveImage={removeImage}
           open={exportOpen}
           source={source}
           baseName={selectedExample}

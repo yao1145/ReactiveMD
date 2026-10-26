@@ -310,10 +310,20 @@ export const ReactiveMarkdownEditor = forwardRef<
       getTextarea() {
         return editorRef.current;
       },
+      insertText(text: string) {
+        const editor = editorRef.current;
+        if (!editor || lockedRef.current) return;
+        const value = currentValueRef.current;
+        const start = clampIndex(editor.selectionStart, value.length);
+        const end = clampIndex(editor.selectionEnd, value.length);
+        const next = value.slice(0, start) + text + value.slice(end);
+        const caret = start + text.length;
+        applyEdit({ value: next, selection: { start: caret, end: caret } });
+      },
       undo,
       redo,
     }),
-    [focusEditor, undo, redo],
+    [focusEditor, applyEdit, undo, redo],
   );
 
   const setTextareaNode = useCallback((node: HTMLTextAreaElement | null) => {

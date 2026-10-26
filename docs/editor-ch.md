@@ -82,6 +82,7 @@ export function SourceEditor() {
 | --- | --- |
 | `focus(selection?)` | 聚焦 textarea，可同时应用选区。 |
 | `selectRange(range)` | 选中一段源码。区间与编译诊断一样使用 UTF-16 半开区间偏移。 |
+| `insertText(text)` | 用文本替换当前选区，记录为一次可撤销编辑，并将光标放到插入内容之后。只读或禁用时不执行。 |
 | `getSelection()` | 返回当前选区。 |
 | `getTextarea()` | 返回底层 textarea；挂载前为 `null`。 |
 | `undo()` / `redo()` | 在该实例的历史中前后移动，并通过 `onChange` 发出结果值。到达历史两端或 `readOnly`、`disabled` 时不执行操作。 |

@@ -105,9 +105,6 @@ export interface DemoCopy {
     noParameters: string;
     noCurrent: string;
     imageNone: string;
-    imageBlocked: (count: number) => string;
-    imageCommandBefore: string;
-    imageCommand: string;
     output: (mode: string, state: string) => string;
     outputInteractive: string;
     outputStatic: string;
@@ -287,10 +284,6 @@ const ENGLISH: DemoCopy = {
     noParameters: 'This document has no public parameters.',
     noCurrent: 'The current preview state cannot be compared or exported right now.',
     imageNone: 'No images: the HTML file will be completely self-contained.',
-    imageBlocked: (count) =>
-      `${count} image${count === 1 ? '' : 's'} found. The browser demo cannot inline images, so HTML export is disabled to avoid a broken file.`,
-    imageCommandBefore: 'Use the CLI to inline local assets:',
-    imageCommand: 'reactive-md build document.reactive.md --assets inline',
     output: (mode, state) => `Will export ${mode} using ${state}.`,
     outputInteractive: 'interactive HTML',
     outputStatic: 'static HTML',
@@ -475,10 +468,6 @@ const CHINESE: DemoCopy = {
     noParameters: '这份文档没有公开参数。',
     noCurrent: '当前预览状态暂时无法比较或导出。',
     imageNone: '没有图片：HTML 文件完全自包含。',
-    imageBlocked: (count) =>
-      `发现 ${count} 张图片。浏览器演示无法内联图片，因此已停用 HTML 导出，以免生成损坏的文件。`,
-    imageCommandBefore: '请使用 CLI 内联本地资源：',
-    imageCommand: 'reactive-md build document.reactive.md --assets inline',
     output: (mode, state) => `将导出${mode}，起始值使用${state}。`,
     outputInteractive: '交互式 HTML',
     outputStatic: '静态 HTML',

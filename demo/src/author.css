@@ -568,3 +568,32 @@
     gap: 2px;
   }
 }
+
+/* Document image resources share the editor/export surface and theme tokens. */
+.image-assets {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--ink);
+  margin-block: var(--space-3);
+}
+.image-assets-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.image-assets-head h3 { margin: 0; font-size: var(--text-sm); }
+.image-assets-hint { color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.6; margin-block: 8px; }
+.image-assets-list { list-style: none; padding: 0; margin: 12px 0 0; max-height: 280px; overflow-y: auto; }
+.image-asset-row { display: flex; align-items: center; gap: 12px; padding-block: 8px; border-top: 1px solid var(--line); }
+.image-asset-row img, .image-asset-placeholder { flex: 0 0 48px; width: 48px; height: 48px; object-fit: contain; border-radius: 6px; background: var(--surface-soft); }
+.image-asset-placeholder { display: grid; place-items: center; }
+.image-asset-info { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.image-asset-info code { overflow-wrap: anywhere; font-size: 12px; }
+.image-asset-info span { color: var(--ink-soft); font-size: 12px; }
+.image-asset-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.image-assets .button { min-height: 44px; }
+.image-assets .export-status { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .image-asset-row { flex-wrap: wrap; }
+  .image-asset-info { min-width: calc(100% - 60px); }
+  .image-asset-actions { margin-left: 60px; }
+}

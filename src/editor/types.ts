@@ -44,6 +44,8 @@ export interface ReactiveMarkdownEditorHandle {
   selectRange(range: SourceRange): void;
   getSelection(): EditorSelection;
   getTextarea(): HTMLTextAreaElement | null;
+  /** Replace the current selection and record one undoable host edit. */
+  insertText(text: string): void;
   undo(): void;
   redo(): void;
 }

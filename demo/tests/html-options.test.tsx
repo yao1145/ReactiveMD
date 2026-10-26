@@ -145,6 +145,8 @@ describe('export dialog in native HTML mode', () => {
     const markup = renderToStaticMarkup(
       <LanguageProvider language="en">
         <ExportDialog
+          imageAssets={[]} imageBusy={false} imageError={null} imageStorageError={false}
+          onImageFiles={() => {}} onRemoveImage={() => {}}
           open
           source="<p>Hello</p>"
           baseName="native"
@@ -171,6 +173,8 @@ describe('export dialog in native HTML mode', () => {
     const markup = renderToStaticMarkup(
       <LanguageProvider language="en">
         <ExportDialog
+          imageAssets={[]} imageBusy={false} imageError={null} imageStorageError={false}
+          onImageFiles={() => {}} onRemoveImage={() => {}}
           open
           source="# Hello"
           baseName="safe"

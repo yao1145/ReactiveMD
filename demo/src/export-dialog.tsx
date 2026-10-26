@@ -9,9 +9,11 @@ import {
 } from 'reactive-md';
 import { useCopy, useLanguage } from './i18n';
 import { isHtmlOptionsActive } from './html-options';
+import { resolveDocumentImages, type ImageAsset } from './image-assets';
+import { IMAGE_COPY } from './image-copy';
+import { ImageAssetsPanel } from './image-assets-panel';
 import {
   buildShareableHtml,
-  countDocumentImages,
   countParameterDifferences,
   formatBuildError,
   prepareShareableHtmlAssets,
@@ -39,6 +41,12 @@ export interface ExportDialogProps {
   dark: boolean;
   onClose(): void;
   onDownloadMarkdown(): void;
+  imageAssets: readonly ImageAsset[];
+  imageBusy: boolean;
+  imageError: string | null;
+  imageStorageError: boolean;
+  onImageFiles(files: File[], target?: string): void;
+  onRemoveImage(url: string): void;
 }
 
 function downloadText(name: string, text: string, type: string): void {
@@ -62,6 +70,7 @@ export function ExportDialog({
   dark,
   onClose,
   onDownloadMarkdown,
+  imageAssets, imageBusy, imageError, imageStorageError, onImageFiles, onRemoveImage,
 }: ExportDialogProps) {
   const copy = useCopy().exportDialog;
   const language = useLanguage();
@@ -152,9 +161,9 @@ export function ExportDialog({
     if (!currentState && baseline === 'current') setBaseline('initial');
   }, [currentState, baseline]);
 
-  const images = useMemo(
-    () => (compiledDocument ? countDocumentImages(compiledDocument) : 0),
-    [compiledDocument],
+  const resolvedImages = useMemo(
+    () => compiledDocument ? resolveDocumentImages(compiledDocument, imageAssets) : { references: [], missing: [], images: {} },
+    [compiledDocument, imageAssets],
   );
   const publicNames = useMemo(
     () => (compiledDocument
@@ -191,9 +200,9 @@ export function ExportDialog({
   }
   const imageSummary = htmlMode
     ? copy.htmlModeImages
-    : images === 0
+    : resolvedImages.references.length === 0
       ? copy.imageNone
-      : copy.imageBlocked(images);
+      : IMAGE_COPY[language].summary(resolvedImages.references.length - resolvedImages.missing.length, resolvedImages.references.length);
   const outputSummary = htmlMode
     ? copy.outputHtmlMode(mode === 'interactive' ? copy.outputInteractive : copy.outputStatic)
     : copy.output(
@@ -201,7 +210,8 @@ export function ExportDialog({
       effectiveBaseline === 'current' ? copy.outputCurrent : copy.outputInitial,
     );
   const htmlDisabled = !compiledDocument
-    || images > 0
+    || resolvedImages.missing.length > 0
+    || imageBusy
     || assetsState !== 'ready'
     || packageVersion === null
     || busy;
@@ -226,6 +236,7 @@ export function ExportDialog({
         locale: language,
         colorScheme,
         compileOptions,
+        imageAssets,
       });
       if (task !== taskRef.current) return;
       downloadText(`${baseName}.html`, result.html, 'text/html;charset=utf-8');
@@ -396,11 +407,10 @@ export function ExportDialog({
           <p className="export-output">{outputSummary}</p>
         </section>
 
-        {images > 0 ? (
-          <div className="export-warning">
-            <p>{copy.imageCommandBefore}</p>
-            <code className="export-command">{copy.imageCommand}</code>
-          </div>
+        {!htmlMode && (resolvedImages.references.length > 0 || imageAssets.length > 0) ? (
+          <ImageAssetsPanel assets={imageAssets} references={resolvedImages.references}
+            busy={busy || imageBusy} error={imageError} storageError={imageStorageError}
+            onFiles={onImageFiles} onRemove={onRemoveImage} allowInsert={false} />
         ) : null}
 
         {compileProblem ? (
