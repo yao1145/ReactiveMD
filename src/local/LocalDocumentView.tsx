@@ -3302,7 +3302,36 @@ function TooltipView({ node, visible }: LocalComponentProps) {
   const t = useLocalize();
   const text = textAttr(runtime, node, 'text', t('Tooltip', '提示'), t);
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const bubbleRef = useRef<HTMLSpanElement>(null);
   const bubbleId = `${domId}-tooltip`;
+
+  useEffect(() => {
+    const bubble = bubbleRef.current;
+    const trigger = triggerRef.current;
+    if (!open || mode === 'static' || !bubble || !trigger) return;
+    const position = () => {
+      const rect = bubble.getBoundingClientRect();
+      const anchor = trigger.getBoundingClientRect();
+      const gap = Number.parseFloat(getComputedStyle(bubble).getPropertyValue('--space-2')) || 8;
+      const left = Math.max(8, Math.min(anchor.left, window.innerWidth - rect.width - 8));
+      const above = anchor.top - rect.height - gap;
+      const top = above >= 8 ? above : Math.max(8, Math.min(anchor.bottom + gap, window.innerHeight - rect.height - 8));
+      bubble.style.left = `${left}px`;
+      bubble.style.top = `${top}px`;
+    };
+    position();
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', position, { capture: true, passive: true });
+    const observer = new ResizeObserver(position);
+    observer.observe(trigger);
+    observer.observe(bubble);
+    return () => {
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', position, true);
+      observer.disconnect();
+    };
+  }, [open, text, mode]);
 
   if (mode === 'static') {
     return (
@@ -3325,6 +3354,7 @@ function TooltipView({ node, visible }: LocalComponentProps) {
     >
       <span
         className="local-tooltip-trigger"
+        ref={triggerRef}
         tabIndex={0}
         aria-describedby={bubbleId}
         onFocus={() => setOpen(true)}
@@ -3340,6 +3370,7 @@ function TooltipView({ node, visible }: LocalComponentProps) {
       </span>
       <span
         id={bubbleId}
+        ref={bubbleRef}
         role="tooltip"
         className={`local-tooltip-bubble${open ? ' is-visible' : ''}`}
       >

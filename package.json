@@ -68,6 +68,7 @@
     "test:browser": "npm run test:browser --workspace=@reactive-md/demo",
     "test:browser:core": "node scripts/verify-browser-core.mjs",
     "test:required-browser": "node scripts/verify-required-form-browser.mjs",
+    "test:tooltip-browser": "node scripts/verify-tooltip-browser.mjs",
     "test:shareable": "node scripts/verify-shareable.mjs",
     "test:toolbar": "npm run test:toolbar --workspace=@reactive-md/demo",
     "test:package": "node scripts/verify-package.mjs",

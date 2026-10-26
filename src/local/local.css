@@ -1062,16 +1062,23 @@
 }
 
 .local-tooltip-bubble {
-  position: absolute;
+  display: none;
+  position: fixed;
   left: 0;
-  bottom: calc(100% + var(--space-2));
+  top: 0;
   z-index: 20;
-  max-width: 280px;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 16px));
   padding: var(--space-2) var(--space-3);
-  background: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-control);
   box-shadow: var(--shadow-md);
-  color: var(--surface);
+  color: var(--ink);
+  writing-mode: horizontal-tb;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: start;
   font-size: var(--text-xs);
   line-height: var(--leading-snug);
   opacity: 0;
@@ -1082,6 +1089,7 @@
 }
 
 .local-tooltip-bubble.is-visible {
+  display: block;
   opacity: 1;
   transform: translateY(0);
 }
@@ -1620,6 +1628,7 @@
   margin-inline-start: 0.35em;
   padding: 0;
   background: transparent;
+  border: 0;
   box-shadow: none;
   color: var(--ink-soft);
   font-size: inherit;
@@ -1687,10 +1696,6 @@
 @media (max-width: 620px) {
   .local-grid {
     grid-template-columns: 1fr;
-  }
-
-  .local-tooltip-bubble {
-    max-width: 70vw;
   }
 
   .local-panel {
