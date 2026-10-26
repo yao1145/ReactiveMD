@@ -95,8 +95,9 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | ESM | 唯一模块格式；不提供 CommonJS 入口 |
 | React 19 | `reactive-md/react` 和 `reactive-md/editor` 的要求；核心入口不依赖 React |
 | Microsoft Edge（Chromium 内核） | 本地浏览器验证使用 Edge |
-| Playwright Chromium | Linux CI 浏览器目标 |
-| Firefox、Safari/WebKit | 未验证，不作支持声明 |
+| Playwright Chromium | Linux CI 的完整浏览器验证 |
+| Playwright Firefox、WebKit | 1280px、375px 核心流程，包含个人文档和交互 HTML 导出；纳入浏览器发布门禁与 CI |
+| Apple 设备上的 Safari | 实机测试与 Playwright WebKit 引擎验证分开进行 |
 | 可分享状态格式 | `reactive-md-state/v1`：公开参数、语法版本与源码摘要；见[可分享文档](shareable-export-ch.md) |
 | 单文件 HTML 格式 | `reactive-md-html/v1`：交互或静态导出；仅交互模式内嵌独立运行时 |
 | SSR | `react-dom/server` 静态渲染由 packed 检查覆盖。编辑器入口没有顶层 DOM 访问，可在服务端导入和渲染；编辑交互在客户端运行。单文件导出的静态首屏水合已在 Playwright Chromium/Edge 验证；通用 SSR 水合未验证，使用前需自行检查 |

@@ -95,8 +95,9 @@ See [Diagnostics and counting rules](diagnostics-counting-en.md) for units and r
 | ESM | The only module format; no CommonJS entry |
 | React 19 | Required by `reactive-md/react` and `reactive-md/editor`; the core entry does not depend on React |
 | Microsoft Edge (Chromium-based) | Local browser verification has used Edge |
-| Playwright Chromium | Linux CI browser target |
-| Firefox, Safari/WebKit | Unverified; no support claim |
+| Playwright Chromium | Full Linux CI browser suite |
+| Playwright Firefox and WebKit | Core workflows at 1280px and 375px, including personal documents and interactive HTML export; included in the browser release gate and CI |
+| Safari on Apple devices | Device testing remains separate from Playwright WebKit engine checks |
 | Shareable state format | `reactive-md-state/v1`: public parameter values with a syntax version and source digest; see [Shareable documents](shareable-export-en.md) |
 | Single-file HTML format | `reactive-md-html/v1`: interactive or static export, with an inline standalone runtime only in interactive mode |
 | SSR | `react-dom/server` static rendering is covered by the packed check. The editor entry has no top-level DOM access and can be imported and rendered on the server; editing interactions run on the client. Static-first hydration of the single-file export is covered in Playwright Chromium/Edge; general SSR hydration is unverified and should be checked before use |

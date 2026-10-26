@@ -233,6 +233,7 @@ try {
         ['Theme browser', ['run', 'test:theme-browser'], projectRoot, browserEnv],
         ['Dependency rendering equivalence', ['run', 'verify:memo'], projectRoot, browserEnv],
         ['Release combination browser', ['run', 'test:release-browser'], projectRoot, browserEnv],
+        ['Firefox and WebKit core workflows', ['run', 'test:browser:core'], projectRoot, browserEnv],
       ]);
     } finally {
       await closeDemoPreview();

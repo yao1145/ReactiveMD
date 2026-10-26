@@ -28,11 +28,16 @@ npm run verify:release
 | `npm run benchmark` | Node 编译、运行时和绘图性能；报告写入 `artifacts/benchmark.json` |
 | `npm run test:docs` | 文档相对链接和标题锚点 |
 | `npm run build:demo`、`npm run test:demo` | Demo 构建与示例索引 |
+| `npm run test:browser:core` | Firefox 与 WebKit 在 1280px、375px 下的核心流程；使用已构建 Demo，并自行管理预览服务 |
 | `npm run verify:release` | 完整发布门禁：核心与 Demo 测试、类型、第三方声明、包与文档检查、仓库外真实 tarball 消费，以及计算、集合、作者工具、状态恢复、HTML 导出和渲染等价的浏览器检查。自行管理预览服务生命周期 |
 
 CI 通过 `npm run verify:release:node` 和 `npm run verify:release:browser` 分片运行同一门禁。汇总与逐步日志写入 `artifacts/release-verification.json` 和 `artifacts/release-verification/`；经过验证的原始 tarball 及 SHA256 记录保留在 `artifacts/release-package/`。本机需已安装浏览器，门禁不会自动安装。
 
 浏览器检查需要先启动 Demo，并准备本机浏览器。完整门禁会自行管理这些依赖；单独运行浏览器脚本时，默认地址是 `http://127.0.0.1:5173`，可用 `DEMO_URL` 指向其他地址。报告写入 `demo/artifacts/`。本地默认使用 Edge，CI 在 Linux 上使用 Playwright 的 Chromium（`PLAYWRIGHT_CHANNEL=chromium`）。
+
+浏览器发布门禁保留 Chromium 完整验证，并增加 Playwright Firefox、WebKit 的核心流程。通过 `npm exec --workspace=@reactive-md/demo -- playwright install firefox webkit` 安装匹配的运行时；CI 使用 `--with-deps` 安装三个引擎。先运行 `npm run build:demo`，再运行 `npm run test:browser:core`；也可用 `node scripts/verify-browser-core.mjs --browser=webkit` 选择单个引擎，或用 `DEMO_URL` 复用已有服务。报告、截图与下载的 HTML 按引擎写入 `artifacts/browser-core/`。缺少浏览器或检查失败时，命令会失败。
+
+核心流程覆盖示例、控件与计算、条件、日期、表格、图表、图解、编辑与诊断、个人文档保存与副本、语言切换、指南代码块主题、键盘菜单，以及 Markdown 和交互 HTML 下载。导出的 HTML 从磁盘重新打开，在阻止外部请求的条件下验证交互。WebKit 引擎检查不等同于 Apple 设备上的 Safari 实机测试。
 
 ```sh
 npm run dev

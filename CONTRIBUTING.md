@@ -30,11 +30,16 @@ npm run verify:release
 | `npm run benchmark` | Node compile, runtime and plotting performance; the report is written to `artifacts/benchmark.json` |
 | `npm run test:docs` | Documentation relative links and heading anchors |
 | `npm run build:demo`, `npm run test:demo` | Demo build and example index |
+| `npm run test:browser:core` | Firefox and WebKit core workflows at 1280px and 375px; uses the built demo and manages its preview server |
 | `npm run verify:release` | Complete release gate: core and demo tests, types, notices, package and documentation checks, packed consumption outside the repository, and browser checks for calculations, collections, authoring, state restoration, HTML export and rendering equivalence. It manages the preview server lifecycle |
 
 CI uses `npm run verify:release:node` and `npm run verify:release:browser` to split the same gate. Reports and step logs go to `artifacts/release-verification.json` and `artifacts/release-verification/`; the exact verified tarball and its SHA256 record go to `artifacts/release-package/`. A local browser must already be installed; the gate does not install one.
 
 Browser checks require the demo to be running and a local browser available. The complete gate manages those dependencies itself; when running individual browser scripts, the default address is `http://127.0.0.1:5173` and `DEMO_URL` can point at another address. Reports are written to `demo/artifacts/`. Local runs use Edge by default; CI uses Playwright Chromium on Linux (`PLAYWRIGHT_CHANNEL=chromium`).
+
+The browser release gate keeps the full Chromium suite and adds core workflows in Playwright Firefox and WebKit. Install the matching runtimes with `npm exec --workspace=@reactive-md/demo -- playwright install firefox webkit` (CI installs all three engines with `--with-deps`). After `npm run build:demo`, run `npm run test:browser:core`, or select one engine with `node scripts/verify-browser-core.mjs --browser=webkit`. `DEMO_URL` can reuse an existing server. Reports, screenshots and downloaded HTML go to `artifacts/browser-core/`, grouped by engine. A missing browser or failed check makes the command fail.
+
+The core gate covers examples, controls and calculations, conditions, dates, tables, charts, diagrams, editing and diagnostics, personal document persistence and copies, language switching, guide code themes, keyboard menus, and Markdown/interactive HTML downloads. Exported HTML is reopened from disk and exercised with external requests blocked. WebKit engine checks do not substitute for testing Safari on an Apple device.
 
 ```sh
 npm run dev

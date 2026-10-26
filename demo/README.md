@@ -73,6 +73,7 @@ From the repository root:
 | `npm run test:browser` | Browser interaction checks for the new syntax |
 | `npm run test:showcase --workspace=@reactive-md/demo` | Feature-tour interactions and phone, tablet and desktop layouts in both languages |
 | `npm run test:documents --workspace=@reactive-md/demo` | Personal document workflows, storage failures, exports and guide code blocks in the browser |
+| `npm run test:browser:core` | Firefox and WebKit core workflows, run from the repository root after building the demo; manages its own server |
 | `npm run test:grid-layout --workspace=@reactive-md/demo` | Nested grids and 1–4 columns across narrow panes and embedded containers |
 | `npm run test:toolbar` | Editor toolbar and native component insertion checks |
 | `npm run test:docs` | Local documentation links and navigation anchors |

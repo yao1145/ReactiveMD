@@ -60,7 +60,7 @@ jobs:
           retention-days: 7
 
   browser:
-    name: Browser (Chromium)
+    name: Browser (Chromium full, Firefox and WebKit core)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -72,8 +72,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - name: Install Playwright Chromium
-        run: npm exec --workspace=@reactive-md/demo -- playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npm exec --workspace=@reactive-md/demo -- playwright install --with-deps chromium firefox webkit
       - name: Run the browser release gate
         env:
           PLAYWRIGHT_CHANNEL: chromium
