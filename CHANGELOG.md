@@ -2,7 +2,7 @@
 
 ## 0.5.3 (2026-10-26, next channel)
 
-See [0.5.3 release notes](docs/release-0.5.3-en.md). Syntax and protocol revisions are unchanged.
+See [0.5.3 release notes](docs/releases/release-0.5.3-en.md). Syntax and protocol revisions are unchanged.
 
 - Add opt-in `markdownBreaks` across compilation, rendering, workers and cache keys while preserving source ranges.
 - Add an unstyled React entry, screen CSS and optional print CSS; remove global `@page` from screen styles.
@@ -11,11 +11,11 @@ See [0.5.3 release notes](docs/release-0.5.3-en.md). Syntax and protocol revisio
 - Report source-ranged diagnostics when display math falls back for unsupported commands, environments or budgets.
 
 
-This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility-en.md).
+This file records user-visible changes. The project is in a 0.x preview; version and migration rules are in [Versions and compatibility](docs/compatibility/compatibility-en.md).
 
 ## 0.5.2 (2026-10-26, next channel)
 
-Compatible with 0.5.1. Syntax remains `local-draft-2`, the component protocol is `component-protocol-2` and the theme protocol is `reactive-md-theme-1`. See [0.5.2 release notes](docs/release-0.5.2-en.md).
+Compatible with 0.5.1. Syntax remains `local-draft-2`, the component protocol is `component-protocol-2` and the theme protocol is `reactive-md-theme-1`. See [0.5.2 release notes](docs/releases/release-0.5.2-en.md).
 
 ### Added
 
@@ -33,12 +33,12 @@ Compatible with 0.5.1. Syntax remains `local-draft-2`, the component protocol is
 
 ## 0.5.1 (2026-10-25, next channel)
 
-Compatible with 0.5.0. Syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. See [0.5.1 release notes](docs/release-0.5.1-en.md).
+Compatible with 0.5.0. Syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. See [0.5.1 release notes](docs/releases/release-0.5.1-en.md).
 
 ### Added
 
 - Add P0 HTML compatibility to the default ReactiveMD rendering path, including rich disclosures, containers, headings, code, lists, links and images.
-- Add host-owned `enableCss`, `enableJavaScript` and `enableExtendedHtml` options, all off by default. Any enabled option routes the entire document to isolated native HTML. This temporary routing policy disables Markdown and ReactiveMD interpretation in that path; see [HTML compatibility](docs/html-compatibility-en.md).
+- Add host-owned `enableCss`, `enableJavaScript` and `enableExtendedHtml` options, all off by default. Any enabled option routes the entire document to isolated native HTML. This temporary routing policy disables Markdown and ReactiveMD interpretation in that path; see [HTML compatibility](docs/reference/html-compatibility-en.md).
 - Add localized Demo controls and preserve HTML mode in export. Static export disables author JavaScript.
 - Add a built-in editor status bar with Unicode character count, a keyboard hint and Edit, Split and Preview views. The host supplies preview content. View changes keep the source selection, undo history and preview state.
 - Narrow editor containers offer only Edit and Preview, and source-only editors keep the count and keyboard hint.
@@ -49,7 +49,7 @@ Compatible with 0.5.0. Syntax remains `local-draft-2`, with `component-protocol-
 
 ## 0.5.0 (2026-10-25, next channel)
 
-Compatible with 0.4.1. Syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports are unchanged, and the renderer entry keeps its API. See [0.5.0 release notes](docs/release-0.5.0-en.md).
+Compatible with 0.4.1. Syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports are unchanged, and the renderer entry keeps its API. See [0.5.0 release notes](docs/releases/release-0.5.0-en.md).
 
 ### Added
 
@@ -64,7 +64,7 @@ Compatible with 0.4.1. Syntax remains `local-draft-2`, with `component-protocol-
 
 ## 0.4.1 (2026-10-25)
 
-Compatible with 0.4.0; syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. See [0.4.1 release notes](docs/release-0.4.1-en.md).
+Compatible with 0.4.0; syntax remains `local-draft-2`, with `component-protocol-1` and `reactive-md-theme-1`. See [0.4.1 release notes](docs/releases/release-0.4.1-en.md).
 
 ### Changed
 
@@ -81,7 +81,7 @@ Compatible with 0.4.0; syntax remains `local-draft-2`, with `component-protocol-
 
 ## 0.4.0 (2026-10-24, next channel)
 
-`0.4.0` is a 0.x preview available on both `latest` and `next`. It uses syntax revision `local-draft-2` and upgrades from `0.3.1` / `local-draft-1`; the package version, syntax revision, `component-protocol-1` component protocol and `reactive-md-theme-1` theme protocol are independent version axes. See [0.4.0 release and migration](docs/release-0.4.0-en.md) for the complete upgrade checklist.
+`0.4.0` is a 0.x preview available on both `latest` and `next`. It uses syntax revision `local-draft-2` and upgrades from `0.3.1` / `local-draft-1`; the package version, syntax revision, `component-protocol-1` component protocol and `reactive-md-theme-1` theme protocol are independent version axes. See [0.4.0 release and migration](docs/releases/release-0.4.0-en.md) for the complete upgrade checklist.
 
 ### Fixed
 
@@ -94,19 +94,19 @@ Compatible with 0.4.0; syntax remains `local-draft-2`, with `component-protocol-
 - Add dependency-aware rendering with browser equivalence checks for updates, resets, visual selections and locale changes.
 - Add `npm run verify:release` and matching CI shards, including combined-feature documents and actual tarball consumers outside the repository. Retain the verified archive with SHA256 and npm integrity records.
 - Add advisory cross-field `<validation>` rules with associated accessible hints and `runtime.validate()`. `alert` and `badge` accept conditional values from their existing tone enums.
-- Add homogeneous string/numeric array literals, array indexing, `sum`, `average`, `minOf` and `maxOf`, plus `<data-table>`/`<column>` for bounded local row generation with stable keys. See [constraints and collections](docs/constraints-collections-en.md). `LocalValueKind` gains `number-array`; aggregate names become reserved identifiers.
+- Add homogeneous string/numeric array literals, array indexing, `sum`, `average`, `minOf` and `maxOf`, plus `<data-table>`/`<column>` for bounded local row generation with stable keys. See [constraints and collections](docs/reference/constraints-collections-en.md). `LocalValueKind` gains `number-array`; aggregate names become reserved identifiers.
 
 - Add invisible, read-only `<computed>` and `<const>` declarations with dependency ordering, inferred types, cycle detection and per-runtime calculation caching. Prose, conditions, formulas and charts can share intermediate results.
-- Add number, percentage, scientific and currency formatting, common string functions and UTC date comparison/differences. Defaults, rounding, nulls and accepted regions are specified in [Reusing calculations and formatting values](docs/computations-formatting-en.md). New function names are reserved; rename any existing bindings with those names before upgrading to this release.
+- Add number, percentage, scientific and currency formatting, common string functions and UTC date comparison/differences. Defaults, rounding, nulls and accepted regions are specified in [Reusing calculations and formatting values](docs/reference/computations-formatting-en.md). New function names are reserved; rename any existing bindings with those names before upgrading to this release.
 
-- Add an optional `<!-- reactive-md: local-draft-2 -->` source revision directive. Explicit older, unknown, malformed, duplicate or misplaced revisions fail with `local.version.*` diagnostics and create no runtime; unversioned source keeps current-revision behavior. Readers built before the directive ignore it. See [Source revisions and migration](docs/source-versioning-en.md).
+- Add an optional `<!-- reactive-md: local-draft-2 -->` source revision directive. Explicit older, unknown, malformed, duplicate or misplaced revisions fail with `local.version.*` diagnostics and create no runtime; unversioned source keeps current-revision behavior. Readers built before the directive ignore it. See [Source revisions and migration](docs/compatibility/source-versioning-en.md).
 - Add `inspectLocalSourceVersion`, `checkLocalUpgrade` and `migrateLocalSource`, plus `reactive-md migrate` with `--from`, `--check`, `--json`, `-o/--output`, `--accept-semantic-changes` and `--locale`. Migration changes only the directive, preserves body bytes, BOM and CRLF, is idempotent, blocks reserved bindings, newly recognized tags, compile errors and text-length semantic changes, and never rewrites state files.
 
 - Add a shared English/Chinese diagnostic catalogue and stable code meanings within a minor series. The Playground, React renderer and `lint --locale en|zh` localize displayed diagnostics while preserving machine fields.
-- Make text-control length constraints count Unicode code points, matching string `len()`. Source positions and resource budgets keep UTF-16 units. Existing emoji values may now satisfy limits that previously rejected them. See [Diagnostics and counting rules](docs/diagnostics-counting-en.md).
+- Make text-control length constraints count Unicode code points, matching string `len()`. Source positions and resource budgets keep UTF-16 units. Existing emoji values may now satisfy limits that previously rejected them. See [Diagnostics and counting rules](docs/reference/diagnostics-counting-en.md).
 
-- Add leading `<theme name="…">` declarations, host theme registration and the `reactive-md-theme-1` protocol. Both React components support independent color schemes and system preferences; `default` preserves the existing design. See the [theme protocol](docs/theme-protocol-en.md).
-- Add shareable single-file HTML export: the `reactive-md build` and `reactive-md lint` CLI, interactive and static modes, static-first hydration, printable current values, versioned `reactive-md-state/v1` files, verified local raster inlining, the standalone `ReactiveMD.mount`/`mountAll` IIFE and `<reactive-md-doc>`. See [Shareable documents and static export](docs/shareable-export-en.md).
+- Add leading `<theme name="…">` declarations, host theme registration and the `reactive-md-theme-1` protocol. Both React components support independent color schemes and system preferences; `default` preserves the existing design. See the [theme protocol](docs/reference/theme-protocol-en.md).
+- Add shareable single-file HTML export: the `reactive-md build` and `reactive-md lint` CLI, interactive and static modes, static-first hydration, printable current values, versioned `reactive-md-state/v1` files, verified local raster inlining, the standalone `ReactiveMD.mount`/`mountAll` IIFE and `<reactive-md-doc>`. See [Shareable documents and static export](docs/integration/shareable-export-en.md).
 - Add host state APIs: name-based public parameter access on `LocalRuntime` (`parameterNames`, `getParameter`, `getParameters`, `setParameter`, `setParameters`) and `exportLocalState`/`importLocalState` for `reactive-md-state/v1` files. Writes validate before a single commit and leave state unchanged on failure.
 - Add retention helpers for source changes: `planLocalStateRetention` and `applyLocalStateRetention` keep only public parameters whose type and initial definition are unchanged and whose bindings are safely retainable; anonymous `@` bindings, timers and positional checklists are dropped, and rejected values are reported with a reason.
 - Add an optional background compile adapter: `LocalCompileScheduler` with a 150 ms debounce, one in-flight job plus the latest source, a permanent main-thread `compileLocal` fallback, and `startLocalCompileWorker`; fallback failures use the `local.worker.compile` diagnostic code.
@@ -116,7 +116,7 @@ Compatible with 0.4.0; syntax remains `local-draft-2`, with `component-protocol-
 - Add document jumps/anchors, text/section color, multiple selection, interval and coordinate inputs, practice questions and guided steps.
 - Add checked-item strike-through, component accent colors and stable shared table/chart selection.
 - Extend runtime get/set with optional slots and add atomic setMany. New slot bindings are exclusive.
-- Add a bilingual feature tour and editor insertion templates. See [migration](docs/local-components-v2-en.md). The preview is published on the `next` channel.
+- Add a bilingual feature tour and editor insertion templates. See [migration](docs/reference/local-components-v2-en.md). The preview is published on the `next` channel.
 
 - The Playground adds a Chinese/English toggle that localizes the interface, examples, guide and built-in control labels, and saves the choice in the browser.
 - `LocalDocumentView` and `LocalReactiveDocument` accept `locale: 'en' | 'zh'` (default `'en'`) for built-in UI labels. Displayed compile and runtime diagnostics use the shared English/Chinese catalogue; callbacks still receive structured diagnostics with stable machine fields.
@@ -155,7 +155,7 @@ The first public preview, with syntax revision `local-draft-1`. Install: `npm in
 ### Compatibility
 
 - First preview; there is no published npm version to upgrade from.
-- Legacy directives and YAML `state`/`data`/`computed`/`actions` and event attributes are not part of `local-draft-1`; see [Versions and compatibility](docs/compatibility-en.md) for migration.
+- Legacy directives and YAML `state`/`data`/`computed`/`actions` and event attributes are not part of `local-draft-1`; see [Versions and compatibility](docs/compatibility/compatibility-en.md) for migration.
 - Persist the original `.reactive.md` source; do not persist `LocalDocument`, node IDs or runtime state.
 - Diagnostic `line`, `column` and `range` can be used for programmatic location; `code` is not promised to be stable across versions in 0.x; `message` is display text and not guaranteed stable.
 

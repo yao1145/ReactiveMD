@@ -1,8 +1,8 @@
 # Contributing
 
-Reactive MD is a 0.x preview implementation of `local-draft-2`. Contributions can cover syntax, the compiler, the runtime, the React renderer, documentation, examples and the demo. Before starting, read [Versions and compatibility](docs/compatibility-en.md) and the [local interaction syntax specification](docs/local-interaction-syntax-en.md).
+Reactive MD is a 0.x preview implementation of `local-draft-2`. Contributions can cover syntax, the compiler, the runtime, the React renderer, documentation, examples and the demo. Before starting, read [Versions and compatibility](docs/compatibility/compatibility-en.md) and the [local interaction syntax specification](docs/reference/local-interaction-syntax-en.md).
 
-When adding or changing a component, define its behavior according to the [component protocol](docs/component-protocol-en.md), and use the [proposal template in the development guide](docs/component-development-en.md) to record declarations, compatibility and acceptance evidence. Components here include input controls, containers, visualizations and structural children.
+When adding or changing a component, define its behavior according to the [component protocol](docs/development/component-protocol-en.md), and use the [proposal template in the development guide](docs/development/component-development-en.md) to record declarations, compatibility and acceptance evidence. Components here include input controls, containers, visualizations and structural children.
 
 ## Environment
 
@@ -49,12 +49,12 @@ npm run test:browser
 
 After changing the language package, rerun `npm run build:lib`, or use `npm run dev:lib` to watch and rebuild.
 
-Performance measurement conditions and current baselines are in [Performance measurements](docs/performance-en.md); reusable inputs and expected results across implementations are in the [language conformance data](examples/conformance/README.md).
+Performance measurement conditions and current baselines are in [Performance measurements](docs/development/performance-en.md); reusable inputs and expected results across implementations are in the [language conformance data](examples/conformance/README.md).
 
 ## Change requirements
 
 - Keep changes focused. Add tests for behavior changes; update documentation and relevant examples for user-visible changes.
-- For breaking changes to syntax or the public API, first update [Versions and compatibility](docs/compatibility-en.md) and the [changelog](CHANGELOG.md), describing the old form, the new form and the migration path. Do not silently change author syntax without a syntax revision.
+- For breaking changes to syntax or the public API, first update [Versions and compatibility](docs/compatibility/compatibility-en.md) and the [changelog](CHANGELOG.md), describing the old form, the new form and the migration path. Do not silently change author syntax without a syntax revision.
 - New components or attributes must implement compile validation, runtime constraints, rendering, accessible names and resource boundaries together. Do not add display styling only.
 - A component proposal must state attribute and child-content declarations, state and lifecycle rules, diagnostics, resource budgets, compatibility classification and corresponding acceptance results; see the [protocol acceptance data](examples/conformance/README.md) for `slider`, `tabs` and `plot`. A protocol revision does not automatically change the package version, syntax revision or public API.
 - Resource limits are centralized in `src/local/limits.ts`; when adding unbounded input, loops, recursion or plotting computation, define a budget first.
@@ -66,4 +66,4 @@ Performance measurement conditions and current baselines are in [Performance mea
 
 - Describe the purpose, affected scope, verification commands and results in the PR. State any checks you did not run explicitly instead of presenting them as passed.
 - Do not open a public issue for security matters; follow the [security policy](SECURITY.md).
-- Releases are a manual maintainer process; see the [release checklist](docs/releasing-en.md). Contributors do not need npm credentials.
+- Releases are a manual maintainer process; see the [release checklist](docs/development/releasing-en.md). Contributors do not need npm credentials.

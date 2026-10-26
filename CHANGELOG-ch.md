@@ -2,7 +2,7 @@
 
 ## 0.5.3（2026-10-26，next 渠道）
 
-参见 [0.5.3 发布说明](docs/release-0.5.3-ch.md)。语法与协议修订保持不变。
+参见 [0.5.3 发布说明](docs/releases/release-0.5.3-ch.md)。语法与协议修订保持不变。
 
 - 新增可选 `markdownBreaks`，贯通编译、渲染、worker 和缓存键，保留源码范围。
 - 拆出无样式 React 入口、屏幕 CSS 和可选打印 CSS，屏幕样式移除全局 `@page`。
@@ -11,11 +11,11 @@
 - 数学显示因不支持的命令、环境或预算降级时，报告带源码范围的诊断。
 
 
-本文件记录用户可见变更。项目处于 0.x 预览阶段，版本与迁移规则见[版本与兼容性](docs/compatibility-ch.md)。
+本文件记录用户可见变更。项目处于 0.x 预览阶段，版本与迁移规则见[版本与兼容性](docs/compatibility/compatibility-ch.md)。
 
 ## 0.5.2（2026-10-26，next 渠道）
 
-兼容 0.5.1。语法仍为 `local-draft-2`，组块协议为 `component-protocol-2`，主题协议为 `reactive-md-theme-1`。见[0.5.2 发布说明](docs/release-0.5.2-ch.md)。
+兼容 0.5.1。语法仍为 `local-draft-2`，组块协议为 `component-protocol-2`，主题协议为 `reactive-md-theme-1`。见[0.5.2 发布说明](docs/releases/release-0.5.2-ch.md)。
 
 ### 新增
 
@@ -33,12 +33,12 @@
 
 ## 0.5.1（2026-10-25，next 渠道）
 
-兼容 0.5.0。语法仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`。见[0.5.1 发布说明](docs/release-0.5.1-ch.md)。
+兼容 0.5.0。语法仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`。见[0.5.1 发布说明](docs/releases/release-0.5.1-ch.md)。
 
 ### 新增
 
 - 默认 ReactiveMD 渲染路径新增 P0 HTML 兼容，包含富文本折叠、容器、标题、代码、列表、链接和图片。
-- 新增宿主选项 `enableCss`、`enableJavaScript` 和 `enableExtendedHtml`，默认全部关闭。任意开启一个，整篇文档分流到隔离的原生 HTML 路径；该路径停止解析 Markdown 和 ReactiveMD。见 [HTML 部分兼容与暂时性分流政策](docs/html-compatibility-ch.md)。
+- 新增宿主选项 `enableCss`、`enableJavaScript` 和 `enableExtendedHtml`，默认全部关闭。任意开启一个，整篇文档分流到隔离的原生 HTML 路径；该路径停止解析 Markdown 和 ReactiveMD。见 [HTML 部分兼容与暂时性分流政策](docs/reference/html-compatibility-ch.md)。
 - Demo 新增中英文能力开关，导出保留 HTML 模式；静态导出禁用作者 JavaScript。
 - 编辑器内置底栏，显示 Unicode 字数、键盘提示，并提供编辑、并排和预览三种视图。预览内容由宿主提供。切换视图会保留源码选区、撤销记录和预览状态。
 - 窄屏只提供编辑和预览；仅编辑源码时保留字数与键盘提示。
@@ -49,7 +49,7 @@
 
 ## 0.5.0（2026-10-25，next 渠道）
 
-兼容 0.4.1。语法仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入保持不变，渲染器入口 API 不变。见[0.5.0 发布说明](docs/release-0.5.0-ch.md)。
+兼容 0.4.1。语法仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入保持不变，渲染器入口 API 不变。见[0.5.0 发布说明](docs/releases/release-0.5.0-ch.md)。
 
 ### 新增
 
@@ -64,7 +64,7 @@
 
 ## 0.4.1（2026-10-25）
 
-兼容 0.4.0；语法仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`。见[0.4.1 发布说明](docs/release-0.4.1-ch.md)。
+兼容 0.4.0；语法仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`。见[0.4.1 发布说明](docs/releases/release-0.4.1-ch.md)。
 
 ### 调整
 
@@ -81,7 +81,7 @@
 
 ## 0.4.0（2026-10-24，next 渠道）
 
-`0.4.0` 是同时提供于 `latest` 和 `next` 渠道的 0.x 预览版，语法修订为 `local-draft-2`，从 `0.3.1` / `local-draft-1` 升级；包版本、语法修订、`component-protocol-1` 组块协议和 `reactive-md-theme-1` 主题协议是彼此独立的版本轴。完整升级清单见[0.4.0 发布与迁移](docs/release-0.4.0-ch.md)。
+`0.4.0` 是同时提供于 `latest` 和 `next` 渠道的 0.x 预览版，语法修订为 `local-draft-2`，从 `0.3.1` / `local-draft-1` 升级；包版本、语法修订、`component-protocol-1` 组块协议和 `reactive-md-theme-1` 主题协议是彼此独立的版本轴。完整升级清单见[0.4.0 发布与迁移](docs/releases/release-0.4.0-ch.md)。
 
 ### 修复
 
@@ -94,19 +94,19 @@
 - 新增按依赖更新的渲染优化，浏览器等价检查覆盖参数更新、重置、可视化选择和语言切换。
 - 新增 `npm run verify:release` 与对应 CI 分片，覆盖组合文档和仓库外的真实 tarball 消费；保留经过验证的安装包、SHA256 与 npm integrity 记录。
 - 新增跨字段 `<validation>` 规则、关联的可访问提示及 `runtime.validate()`；`alert` 和 `badge` 支持按条件选择现有 `tone` 枚举。
-- 新增同类型字符串/数字数组字面量、数组索引、`sum`、`average`、`minOf`、`maxOf`，以及带稳定行键和数量预算的 `<data-table>`/`<column>`。见[条件、校验与本地集合](docs/constraints-collections-ch.md)。`LocalValueKind` 增加 `number-array`，新增聚合函数名成为保留字。
+- 新增同类型字符串/数字数组字面量、数组索引、`sum`、`average`、`minOf`、`maxOf`，以及带稳定行键和数量预算的 `<data-table>`/`<column>`。见[条件、校验与本地集合](docs/reference/constraints-collections-ch.md)。`LocalValueKind` 增加 `number-array`，新增聚合函数名成为保留字。
 
 - 新增不可见、只读的 `<computed>` 与 `<const>` 声明，支持依赖排序、类型推断、循环检测和各运行时独立的计算缓存。正文、条件、公式与图表可共享中间结果。
-- 新增数字、百分比、科学计数法与货币格式化，常用字符串函数及 UTC 日期比较、日期差。默认值、舍入、空值和地区规则见[复用计算与格式化数值](docs/computations-formatting-ch.md)。新函数名成为保留字；升级到本版本前需重命名同名旧绑定。
+- 新增数字、百分比、科学计数法与货币格式化，常用字符串函数及 UTC 日期比较、日期差。默认值、舍入、空值和地区规则见[复用计算与格式化数值](docs/reference/computations-formatting-ch.md)。新函数名成为保留字；升级到本版本前需重命名同名旧绑定。
 
-- 新增可选的 `<!-- reactive-md: local-draft-2 -->` 源码修订指令。显式旧修订、未知、格式错误、重复或位置错误的声明会以 `local.version.*` 诊断拒绝，不创建运行时；无指令源码保持当前修订行为。早于该指令的读者会忽略它。见[源码修订与迁移](docs/source-versioning-ch.md)。
+- 新增可选的 `<!-- reactive-md: local-draft-2 -->` 源码修订指令。显式旧修订、未知、格式错误、重复或位置错误的声明会以 `local.version.*` 诊断拒绝，不创建运行时；无指令源码保持当前修订行为。早于该指令的读者会忽略它。见[源码修订与迁移](docs/compatibility/source-versioning-ch.md)。
 - 新增 `inspectLocalSourceVersion`、`checkLocalUpgrade`、`migrateLocalSource`，以及带 `--from`、`--check`、`--json`、`-o/--output`、`--accept-semantic-changes` 和 `--locale` 的 `reactive-md migrate`。迁移只改指令，保留正文原始字节、BOM 和 CRLF，幂等；阻止保留绑定、新增可识别标签、编译错误和文本长度语义变化，且从不改写状态文件。
 
 - 增加统一的中英文诊断模板，同一 minor 系列内保持现有诊断码含义稳定。Playground、React 渲染器与 `lint --locale en|zh` 按语言显示诊断，保留机器字段。
-- 文本控件长度约束改为按 Unicode 码点计数，与字符串 `len()` 一致；源码定位和资源预算继续使用 UTF-16。原先因 emoji 占用两个代码单元而被拒绝的值，现在可满足对应码点上限。详见[诊断与计数规则](docs/diagnostics-counting-ch.md)。
+- 文本控件长度约束改为按 Unicode 码点计数，与字符串 `len()` 一致；源码定位和资源预算继续使用 UTF-16。原先因 emoji 占用两个代码单元而被拒绝的值，现在可满足对应码点上限。详见[诊断与计数规则](docs/reference/diagnostics-counting-ch.md)。
 
-- 增加文档开头的 `<theme name="…">` 声明、宿主主题登记和 `reactive-md-theme-1` 主题协议。两个 React 组件支持独立深浅模式和系统偏好；现有外观保留为 `default`。见[主题协议](docs/theme-protocol-ch.md)。
-- 新增可分享单文件 HTML 导出：`reactive-md build`/`lint` CLI、交互与静态模式、静态首屏水合、可打印的当前值、版本化 `reactive-md-state/v1` 状态文件、经过校验的本地位图内联、standalone `ReactiveMD.mount`/`mountAll` IIFE 和 `<reactive-md-doc>`。见[可分享文档与静态导出](docs/shareable-export-ch.md)。
+- 增加文档开头的 `<theme name="…">` 声明、宿主主题登记和 `reactive-md-theme-1` 主题协议。两个 React 组件支持独立深浅模式和系统偏好；现有外观保留为 `default`。见[主题协议](docs/reference/theme-protocol-ch.md)。
+- 新增可分享单文件 HTML 导出：`reactive-md build`/`lint` CLI、交互与静态模式、静态首屏水合、可打印的当前值、版本化 `reactive-md-state/v1` 状态文件、经过校验的本地位图内联、standalone `ReactiveMD.mount`/`mountAll` IIFE 和 `<reactive-md-doc>`。见[可分享文档与静态导出](docs/integration/shareable-export-ch.md)。
 - 新增宿主状态 API：`LocalRuntime` 可按名称访问公开参数（`parameterNames`、`getParameter`、`getParameters`、`setParameter`、`setParameters`），并提供 `exportLocalState`/`importLocalState` 读写 `reactive-md-state/v1` 状态文件。写入先统一校验再一次性提交，失败时不改变状态。
 - 新增源码变更时的参数保留工具：`planLocalStateRetention` 和 `applyLocalStateRetention` 仅保留类型与初始定义未变、绑定可安全保留的公开参数；匿名 `@` 绑定、计时器和位置清单会被丢弃，被拒绝的值会记录原因。
 - 新增可选的后台编译适配器：`LocalCompileScheduler` 提供 150 ms 防抖、一个进行中任务加最新源码、永久回退到主线程 `compileLocal`，并新增 `startLocalCompileWorker`；回退失败使用 `local.worker.compile` 诊断码。
@@ -116,7 +116,7 @@
 - 新增文档跳转与锚点、正文颜色、多选、区间与二维坐标输入、练习题及分步阅读。
 - 清单勾选后划线，新增组件主色及表格/图表稳定标识的共享选择。
 - runtime.get/set 支持可选槽位，新增原子 setMany；新增槽位绑定为独占。
-- 新增双语功能馆及编辑器插入模板。见[迁移说明](docs/local-components-v2-ch.md)。预览版发布在 `next` 渠道。
+- 新增双语功能馆及编辑器插入模板。见[迁移说明](docs/reference/local-components-v2-ch.md)。预览版发布在 `next` 渠道。
 
 - Playground 新增中英文切换，界面、示例、指南和内置控件文案会同步切换，选择保存在浏览器中。
 - `LocalDocumentView` 和 `LocalReactiveDocument` 支持 `locale: 'en' | 'zh'`（默认 `'en'`），用于内置 UI 文案。显示用编译与运行时诊断通过中英文共享目录本地化，回调仍收到带稳定机器字段的结构化诊断。
@@ -155,7 +155,7 @@
 ### 兼容性
 
 - 首次预览，没有已发布的 npm 版本可供升级。
-- 旧版 directive、YAML `state`/`data`/`computed`/`actions` 和事件属性不属于 `local-draft-1`；迁移方式见[版本与兼容性](docs/compatibility-ch.md)。
+- 旧版 directive、YAML `state`/`data`/`computed`/`actions` 和事件属性不属于 `local-draft-1`；迁移方式见[版本与兼容性](docs/compatibility/compatibility-ch.md)。
 - 持久化原始 `.reactive.md` 源码，不持久化 `LocalDocument`、节点 ID 或运行时状态。
 - 诊断的 `line`、`column` 和 `range` 可用于程序定位；`code` 在 0.x 中不承诺跨版本稳定；`message` 是显示文本，不保证稳定。
 

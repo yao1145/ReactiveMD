@@ -5,8 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Reactive MD is a 0.x preview with a deliberately small scope. Read [compatibility.md](https://github.com/yao1145/ReactiveMD/blob/main/docs/compatibility-en.md) before proposing state persistence, plugins, arbitrary HTML, network services or other excluded capabilities.
-        For a new component, use the declaration in [the component development guide](https://github.com/yao1145/ReactiveMD/blob/main/docs/component-development-en.md) and describe how it follows [the component protocol](https://github.com/yao1145/ReactiveMD/blob/main/docs/component-protocol-en.md).
+        Reactive MD is a 0.x preview with a deliberately small scope. Read [compatibility.md](https://github.com/yao1145/ReactiveMD/blob/main/docs/compatibility/compatibility-en.md) before proposing state persistence, plugins, arbitrary HTML, network services or other excluded capabilities.
+        For a new component, use the declaration in [the component development guide](https://github.com/yao1145/ReactiveMD/blob/main/docs/development/component-development-en.md) and describe how it follows [the component protocol](https://github.com/yao1145/ReactiveMD/blob/main/docs/development/component-protocol-en.md).
   - type: textarea
     id: problem
     attributes:

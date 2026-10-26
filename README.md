@@ -8,22 +8,23 @@ Local mode uses HTML-style tags, with parameters and table data written directly
 
 ## Start here
 
-- [Beginner guide](docs/local-guide-en.md): move from Markdown to interactive documents, with a complete exercise and an error quick reference.
-- [Local interaction syntax specification](docs/local-interaction-syntax-en.md) · [Feature tours and examples](examples/local/README.md): 48 tag names, tags, in-place parameters and LaTeX plots.
-- [Local mode integration](docs/local-integration-en.md): `compileLocal`, the state runtime, React embedding, URL policy and style scoping.
-- [HTML compatibility](docs/html-compatibility-en.md): P0 HTML and the next release's temporary routing policy for author CSS, JavaScript and extended HTML.
-- [Shareable documents and static export](docs/shareable-export-en.md): single-file interactive HTML, static output, versioned state files, assets, the CLI and the standalone browser API.
-- [Theme protocol](docs/theme-protocol-en.md): document theme selection, custom CSS and light/dark modes.
-- [Author tools](docs/author-tools-en.md): source highlighting, completion, binding navigation, rename, formatting and command-line lint.
-- [React source editor](docs/editor-en.md): controlled editor, props, ref handle, diagnostics, locale, theme and history.
+- [Documentation index](docs/README.md): guides, references, integration, compatibility, development and releases.
+- [Beginner guide](docs/guides/local-guide-en.md): move from Markdown to interactive documents, with a complete exercise and an error quick reference.
+- [Local interaction syntax specification](docs/reference/local-interaction-syntax-en.md) · [Feature tours and examples](examples/local/README.md): 48 tag names, tags, in-place parameters and LaTeX plots.
+- [Local mode integration](docs/integration/local-integration-en.md): `compileLocal`, the state runtime, React embedding, URL policy and style scoping.
+- [HTML compatibility](docs/reference/html-compatibility-en.md): P0 HTML and the next release's temporary routing policy for author CSS, JavaScript and extended HTML.
+- [Shareable documents and static export](docs/integration/shareable-export-en.md): single-file interactive HTML, static output, versioned state files, assets, the CLI and the standalone browser API.
+- [Theme protocol](docs/reference/theme-protocol-en.md): document theme selection, custom CSS and light/dark modes.
+- [Author tools](docs/integration/author-tools-en.md): source highlighting, completion, binding navigation, rename, formatting and command-line lint.
+- [React source editor](docs/integration/editor-en.md): controlled editor, props, ref handle, diagnostics, locale, theme and history.
 - [Standalone integration examples](examples/integration/README.md): Node core and React pages you can copy and run outside the repository.
-- [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
-- [Component protocol](docs/component-protocol-en.md) · [Component development guide](docs/component-development-en.md): declarations, behavior contracts and compatibility acceptance for new components.
-- [0.5.3 release notes](docs/release-0.5.3-en.md): host integration and authoring patches.
-- [0.5.1 release notes](docs/release-0.5.1-en.md): editor views and themes, plus HTML compatibility.
-- [0.5.0 release notes](docs/release-0.5.0-en.md): the editor entry and document rendering fixes.
-- [0.4.1 release notes](docs/release-0.4.1-en.md): visual and interaction fixes, compatible with 0.4.0.
-- [0.4.0 release and migration](docs/release-0.4.0-en.md): what the minor series adds and how to upgrade from `0.3.1` / `local-draft-1`.
+- [Versions and compatibility](docs/compatibility/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
+- [Component protocol](docs/development/component-protocol-en.md) · [Component development guide](docs/development/component-development-en.md): declarations, behavior contracts and compatibility acceptance for new components.
+- [0.5.3 release notes](docs/releases/release-0.5.3-en.md): host integration and authoring patches.
+- [0.5.1 release notes](docs/releases/release-0.5.1-en.md): editor views and themes, plus HTML compatibility.
+- [0.5.0 release notes](docs/releases/release-0.5.0-en.md): the editor entry and document rendering fixes.
+- [0.4.1 release notes](docs/releases/release-0.4.1-en.md): visual and interaction fixes, compatible with 0.4.0.
+- [0.4.0 release and migration](docs/releases/release-0.4.0-en.md): what the minor series adds and how to upgrade from `0.3.1` / `local-draft-1`.
 
 ## Write a document
 
@@ -38,7 +39,7 @@ Monthly cost: **{{ people * (annual ? 80 : 100) }} USD**.
 
 Inputs update the result immediately, and the panel includes a restore-defaults action. A standalone counter is a single line: `<counter label="People">`.
 
-`0.4.0` adds `local-draft-2`, named calculations, validation, collections, themes and offline HTML export. The earlier `0.3.1` release uses `local-draft-1`. See [0.4.0 release and migration](docs/release-0.4.0-en.md).
+`0.4.0` adds `local-draft-2`, named calculations, validation, collections, themes and offline HTML export. The earlier `0.3.1` release uses `local-draft-1`. See [0.4.0 release and migration](docs/releases/release-0.4.0-en.md).
 
 ## Install
 
@@ -56,7 +57,7 @@ npm install reactive-md@next
 npm install reactive-md@0.5.3
 ```
 
-Read the [0.5.3 release notes](docs/release-0.5.3-en.md) before using the preview, and the [migration guide](docs/release-0.4.0-en.md) before upgrading from `0.3.1` / `local-draft-1`.
+Read the [0.5.3 release notes](docs/releases/release-0.5.3-en.md) before using the preview, and the [migration guide](docs/releases/release-0.4.0-en.md) before upgrading from `0.3.1` / `local-draft-1`.
 
 The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`. The `reactive-md/editor` entry provides the source editor with its own stylesheet at `reactive-md/editor/styles.css`. Existing renderer and style imports are unchanged in 0.5.3.
 
@@ -73,9 +74,9 @@ if (result.ok) {
 }
 ```
 
-See [Local mode integration](docs/local-integration-en.md) for the full compile and runtime APIs, host URL policy, lifecycle and style overrides.
+See [Local mode integration](docs/integration/local-integration-en.md) for the full compile and runtime APIs, host URL policy, lifecycle and style overrides.
 
-0.x minor releases may contain breaking changes. Before upgrading, read the [changelog](CHANGELOG.md) and [compatibility rules](docs/compatibility-en.md), and keep the original `.reactive.md` sources.
+0.x minor releases may contain breaking changes. Before upgrading, read the [changelog](CHANGELOG.md) and [compatibility rules](docs/compatibility/compatibility-en.md), and keep the original `.reactive.md` sources.
 
 ## Use with React
 
@@ -94,7 +95,7 @@ export function Article({ source }: { source: string }) {
 }
 ```
 
-`LocalReactiveDocument` compiles and manages the runtime for you. To control compilation, lifecycle or URL policy yourself, use `LocalDocumentView` as described in [Local mode integration](docs/local-integration-en.md).
+`LocalReactiveDocument` compiles and manages the runtime for you. To control compilation, lifecycle or URL policy yourself, use `LocalDocumentView` as described in [Local mode integration](docs/integration/local-integration-en.md).
 
 ## Edit source with React
 
@@ -111,7 +112,7 @@ export function Editor() {
 }
 ```
 
-The editor handles highlighting, formatting and insertion tools, completion, binding tools, undo and redo, and line numbers. It does not compile or render a preview; keep the source in your app and render it with `reactive-md/react`. See [React source editor](docs/editor-en.md) for the props, ref handle, diagnostics, themes, locales and history.
+The editor handles highlighting, formatting and insertion tools, completion, binding tools, undo and redo, and line numbers. It does not compile or render a preview; keep the source in your app and render it with `reactive-md/react`. See [React source editor](docs/integration/editor-en.md) for the props, ref handle, diagnostics, themes, locales and history.
 
 ## Share documents
 
@@ -125,7 +126,7 @@ npx reactive-md build examples/local/counter.reactive.md -o counter-static.html 
 
 The interactive file embeds the original source, React 19, the runtime, styles and any verified local images. It hydrates a static first screen, so it remains readable with JavaScript disabled. Use `--state-file doc.state.json` to export a saved `reactive-md-state/v1` baseline; without it, the author initial values are used and become the reader's reset baseline. The demo export dialog can save the current preview parameters as such a file.
 
-See [Shareable documents and static export](docs/shareable-export-en.md) for image limits, CSP/security, printing, exit codes, `ReactiveMD.mount`/`mountAll` and `<reactive-md-doc>`.
+See [Shareable documents and static export](docs/integration/shareable-export-en.md) for image limits, CSP/security, printing, exit codes, `ReactiveMD.mount`/`mountAll` and `<reactive-md-doc>`.
 
 ## Try the demo
 
@@ -148,18 +149,18 @@ demo/          Standalone Playground app
 
 ## Documentation
 
-- [Beginner guide](docs/local-guide-en.md) and [local interaction syntax specification](docs/local-interaction-syntax-en.md).
-- [Local mode integration](docs/local-integration-en.md): core and React API, URL policy, lifecycle, styling and version pinning.
-- [Shareable documents and static export](docs/shareable-export-en.md): CLI build/lint, state files, local image inlining, printing and the standalone browser runtime.
+- [Beginner guide](docs/guides/local-guide-en.md) and [local interaction syntax specification](docs/reference/local-interaction-syntax-en.md).
+- [Local mode integration](docs/integration/local-integration-en.md): core and React API, URL policy, lifecycle, styling and version pinning.
+- [Shareable documents and static export](docs/integration/shareable-export-en.md): CLI build/lint, state files, local image inlining, printing and the standalone browser runtime.
 - [Feature tours and examples](examples/local/README.md) and [standalone integrations](examples/integration/README.md).
-- [React source editor](docs/editor-en.md): controlled editor for `.reactive.md` source, with its own stylesheet.
-- [Versions and compatibility](docs/compatibility-en.md): 0.x rules, migration, diagnostics and supported platforms.
-- [0.5.3 release notes](docs/release-0.5.3-en.md): host integration and authoring patches.
-- [0.5.1 release notes](docs/release-0.5.1-en.md): editor views and themes, plus HTML compatibility.
-- [0.5.0 release notes](docs/release-0.5.0-en.md): the editor entry and document rendering fixes.
-- [0.4.0 release and migration](docs/release-0.4.0-en.md): the upgrade checklist for that minor series.
-- [Component protocol](docs/component-protocol-en.md) and [component development guide](docs/component-development-en.md): contribution contracts, a proposal template and acceptance cases.
-- [Performance measurements](docs/performance-en.md) and [release checklist](docs/releasing-en.md).
+- [React source editor](docs/integration/editor-en.md): controlled editor for `.reactive.md` source, with its own stylesheet.
+- [Versions and compatibility](docs/compatibility/compatibility-en.md): 0.x rules, migration, diagnostics and supported platforms.
+- [0.5.3 release notes](docs/releases/release-0.5.3-en.md): host integration and authoring patches.
+- [0.5.1 release notes](docs/releases/release-0.5.1-en.md): editor views and themes, plus HTML compatibility.
+- [0.5.0 release notes](docs/releases/release-0.5.0-en.md): the editor entry and document rendering fixes.
+- [0.4.0 release and migration](docs/releases/release-0.4.0-en.md): the upgrade checklist for that minor series.
+- [Component protocol](docs/development/component-protocol-en.md) and [component development guide](docs/development/component-development-en.md): contribution contracts, a proposal template and acceptance cases.
+- [Performance measurements](docs/development/performance-en.md) and [release checklist](docs/development/releasing-en.md).
 
 See the [contributing guide](CONTRIBUTING.md) for development and test commands.
 
@@ -174,7 +175,7 @@ See the [contributing guide](CONTRIBUTING.md) for development and test commands.
 - [Contributing guide](CONTRIBUTING.md): environment, check commands and change requirements.
 - [Security policy](SECURITY.md): threat boundary, resource limits, host responsibilities and vulnerability reporting.
 - [Changelog](CHANGELOG.md).
-- [Release checklist](docs/releasing-en.md): the verification gate, notices, tarball and the manual release flow for maintainers.
+- [Release checklist](docs/development/releasing-en.md): the verification gate, notices, tarball and the manual release flow for maintainers.
 
 ## License
 

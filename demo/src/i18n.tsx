@@ -222,7 +222,7 @@ const ENGLISH: DemoCopy = {
     lightTheme: 'Light theme',
     darkTheme: 'Dark theme',
     back: 'Back to Playground',
-    documentFile: 'docs/local-guide-en.md',
+    documentFile: 'docs/guides/local-guide-en.md',
   },
   workbench: {
     example: 'Example',
@@ -413,7 +413,7 @@ const CHINESE: DemoCopy = {
     lightTheme: '浅色主题',
     darkTheme: '深色主题',
     back: '返回 Playground',
-    documentFile: 'docs/local-guide-ch.md',
+    documentFile: 'docs/guides/local-guide-ch.md',
   },
   workbench: {
     example: '示例',

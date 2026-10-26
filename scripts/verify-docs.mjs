@@ -4,10 +4,19 @@ import { resolve, dirname } from 'node:path';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 
+async function documentationFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(entries.map(entry => {
+    const path = `${directory}/${entry.name}`;
+    return entry.isDirectory() ? documentationFiles(path) : entry.name.endsWith('.md') ? [path] : [];
+  }));
+  return files.flat();
+}
+
 const docs = ['README.md', 'README-en.md', 'README-ch.md', 'CONTRIBUTING.md', 'CONTRIBUTING-ch.md', 'SECURITY.md', 'SECURITY-ch.md', 'CHANGELOG.md', 'CHANGELOG-ch.md',
   '.github/pull_request_template.md',
   'demo/README.md', 'demo/IMPLEMENTATION.md', 'examples/local/README.md', 'examples/integration/README.md', 'examples/conformance/README.md',
-  ...(await readdir('docs')).filter(name => name.endsWith('.md')).map(name => `docs/${name}`)];
+  ...await documentationFiles('docs')];
 const parse = source => unified().use(remarkParse).parse(source);
 function visit(node, type) { return [...(node.type === type ? [node] : []), ...(node.children ?? []).flatMap(child => visit(child, type))]; }
 const text = node => node.value ?? (node.children ?? []).map(text).join('');

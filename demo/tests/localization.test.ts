@@ -63,8 +63,8 @@ describe('demo copy dictionaries', () => {
     expect(COPY.en.documentTitle).not.toBe(COPY.zh.documentTitle);
     expect(COPY.en.languageToggle.ariaLabel).toBe('Switch to Chinese');
     expect(COPY.zh.languageToggle.ariaLabel).toBe('切换到英文');
-    expect(COPY.en.guide.documentFile).toBe('docs/local-guide-en.md');
-    expect(COPY.zh.guide.documentFile).toBe('docs/local-guide-ch.md');
+    expect(COPY.en.guide.documentFile).toBe('docs/guides/local-guide-en.md');
+    expect(COPY.zh.guide.documentFile).toBe('docs/guides/local-guide-ch.md');
   });
 
   it('formats status and diagnostics text in both languages', () => {

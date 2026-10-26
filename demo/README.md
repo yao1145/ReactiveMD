@@ -6,7 +6,7 @@
 
 The Playground opens with a short calculator and six [feature tours](../examples/local/showcase/README.md): functions, forms, data and charts, layout, diagrams, and checklists and timing. Each tour follows one example from a suggested change to the visible result, with key source snippets at the end. English and Chinese versions are available throughout.
 
-Presentation mode shows the document at full width. Choose "Show source" to edit Markdown beside its live preview, or "Presentation mode" to return without resetting the current controls. The six scenarios demonstrate controls, declarations, validation and collections together. The auxiliary menu opens an intentionally broken diagnostics example in the editor. If you are new to the syntax, start with the [getting-started guide](../docs/local-guide-en.md).
+Presentation mode shows the document at full width. Choose "Show source" to edit Markdown beside its live preview, or "Presentation mode" to return without resetting the current controls. The six scenarios demonstrate controls, declarations, validation and collections together. The auxiliary menu opens an intentionally broken diagnostics example in the editor. If you are new to the syntax, start with the [getting-started guide](../docs/guides/local-guide-en.md).
 
 Choose **Try examples** to explore the built-in tours, or **My documents** to create and reopen your own work. Name a document, edit it, and the Playground saves it automatically in this browser. Duplicate a document or an example to make an independent copy. Import creates a new personal document; export downloads its Markdown source or an HTML document. Personal documents keep their source when you switch the interface language.
 
@@ -16,13 +16,13 @@ The save indicator reports pending writes and storage failures. Browser storage 
 
 Compile errors are listed by source position. The editor toolbar has common Markdown formatting and a searchable menu for inserting native components.
 
-The "User Guide" view at the top of the page renders `docs/local-guide-en.md` directly, covering everything from your first interactive document to charts, function curves and a quick error reference. Documentation links in the guide point to the repository, and table-of-contents anchors jump within the page.
+The "User Guide" view at the top of the page renders `docs/guides/local-guide-en.md` directly, covering everything from your first interactive document to charts, function curves and a quick error reference. Documentation links in the guide point to the repository, and table-of-contents anchors jump within the page.
 
-The export dialog downloads Markdown, interactive HTML or static HTML. It defaults to the author initial values and can use the current preview parameters as the exported reset baseline; the dialog shows how many public parameters changed. Choose images in the Document images panel, or paste them into the source editor. The demo validates PNG, JPEG, GIF and WebP contents and decodeability, with limits of 8 MiB per image, 24 MiB total and 64 resources. It saves the manifest with each language-specific draft in IndexedDB and embeds referenced images in both HTML modes. Missing references can be filled in the export dialog; incomplete image sets block HTML export. "Save current state" downloads a `reactive-md-state/v1` file for a later CLI build. See [Shareable documents and static export](../docs/shareable-export-en.md).
+The export dialog downloads Markdown, interactive HTML or static HTML. It defaults to the author initial values and can use the current preview parameters as the exported reset baseline; the dialog shows how many public parameters changed. Choose images in the Document images panel, or paste them into the source editor. The demo validates PNG, JPEG, GIF and WebP contents and decodeability, with limits of 8 MiB per image, 24 MiB total and 64 resources. It saves the manifest with each language-specific draft in IndexedDB and embeds referenced images in both HTML modes. Missing references can be filled in the export dialog; incomplete image sets block HTML export. "Save current state" downloads a `reactive-md-state/v1` file for a later CLI build. See [Shareable documents and static export](../docs/integration/shareable-export-en.md).
 
-The masthead has a language toggle: `中` switches the whole demo to Chinese and `EN` switches back. English is the default. The choice is saved in the browser, each language keeps its own example drafts and guide (`docs/local-guide-ch.md` for Chinese), and the Playground preview is rendered with the matching locale.
+The masthead has a language toggle: `中` switches the whole demo to Chinese and `EN` switches back. English is the default. The choice is saved in the browser, each language keeps its own example drafts and guide (`docs/guides/local-guide-ch.md` for Chinese), and the Playground preview is rendered with the matching locale.
 
-While you edit, consecutive keystrokes are coalesced and compiled on a background thread; the previous preview stays visible while waiting. The preview updates once the current source compiles successfully and shows diagnostics when it fails. For implementation details and how to re-measure, see [performance measurement](../docs/performance-en.md#playground-live-editing).
+While you edit, consecutive keystrokes are coalesced and compiled on a background thread; the previous preview stays visible while waiting. The preview updates once the current source compiles successfully and shows diagnostics when it fails. For implementation details and how to re-measure, see [performance measurement](../docs/development/performance-en.md#playground-live-editing).
 
 "Keep trial state" is on by default. When you edit prose, control labels or formulas, parameter values with the same name and type that still satisfy the new constraints are kept; they are also restored after a temporary compile error is fixed. Changing `initial` or an effective default uses the new initial value. With the option off, the next compile starts from initial values.
 
@@ -85,10 +85,10 @@ Browser checks require local Edge and a running server. They target `http://127.
 
 ## Integration
 
-Host applications use the public API described in [local mode integration](../docs/local-integration-en.md).
+Host applications use the public API described in [local mode integration](../docs/integration/local-integration-en.md).
 
 ## Local review of 0.4.0
 
-Run `npm run dev` from the repository root, then open [Functions & formulas](http://127.0.0.1:5173/?example=functions). This checkout uses local-draft-2 and has not been published. The six scenarios cover all components, including the new controls and linked table/chart selection, in English and Chinese. See the [syntax and migration reference](../docs/local-components-v2-en.md).
+Run `npm run dev` from the repository root, then open [Functions & formulas](http://127.0.0.1:5173/?example=functions). This checkout uses local-draft-2 and has not been published. The six scenarios cover all components, including the new controls and linked table/chart selection, in English and Chinese. See the [syntax and migration reference](../docs/reference/local-components-v2-en.md).
 
 Use `npm run test:v2 --workspace=@reactive-md/demo` against the running service for the new browser checks.

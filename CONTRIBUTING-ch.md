@@ -1,8 +1,8 @@
 # 贡献指南
 
-Reactive MD 是 `local-draft-2` 的 0.x 预览实现。贡献可以包括语法、编译器、运行时、React 渲染器、文档、示例和 Demo。开始前先读[版本与兼容性](docs/compatibility-ch.md)和[本地交互语法规范](docs/local-interaction-syntax-ch.md)。
+Reactive MD 是 `local-draft-2` 的 0.x 预览实现。贡献可以包括语法、编译器、运行时、React 渲染器、文档、示例和 Demo。开始前先读[版本与兼容性](docs/compatibility/compatibility-ch.md)和[本地交互语法规范](docs/reference/local-interaction-syntax-ch.md)。
 
-新增或修改组块时，按[组块协议](docs/component-protocol-ch.md)明确行为，使用[开发指南中的提案模板](docs/component-development-ch.md)记录声明、兼容性和验收证据。这里的组块包括控件、容器、可视化和结构子项。
+新增或修改组块时，按[组块协议](docs/development/component-protocol-ch.md)明确行为，使用[开发指南中的提案模板](docs/development/component-development-ch.md)记录声明、兼容性和验收证据。这里的组块包括控件、容器、可视化和结构子项。
 
 ## 环境
 
@@ -47,12 +47,12 @@ npm run test:browser
 
 修改语言包后重新运行 `npm run build:lib`，或使用 `npm run dev:lib` 监听重建。
 
-性能测量条件与当前基线见[性能说明](docs/performance-ch.md)，跨实现可复用的输入与预期结果见[语言验收数据](examples/conformance/README.md)。
+性能测量条件与当前基线见[性能说明](docs/development/performance-ch.md)，跨实现可复用的输入与预期结果见[语言验收数据](examples/conformance/README.md)。
 
 ## 改动要求
 
 - 保持改动聚焦。行为变化附带测试；用户可见变化更新文档和相关示例。
-- 语法或公开 API 的破坏性变化先更新[版本与兼容性](docs/compatibility-ch.md)和[变更记录](CHANGELOG-ch.md)，说明旧写法、新写法和迁移方式。不要在没有语法修订的情况下悄悄改变作者语法。
+- 语法或公开 API 的破坏性变化先更新[版本与兼容性](docs/compatibility/compatibility-ch.md)和[变更记录](CHANGELOG-ch.md)，说明旧写法、新写法和迁移方式。不要在没有语法修订的情况下悄悄改变作者语法。
 - 新组件或新属性必须同时实现编译校验、运行时约束、渲染、可访问名称和资源边界。不要只加展示样式。
 - 组块提案须给出属性与子内容声明、状态与生命周期规则、诊断、资源预算、兼容分类和对应验收结果；参考 `slider`、`tabs`、`plot` 的[协议验收数据](examples/conformance/README.md)。协议修订不自动改变包版本、语法修订或公开 API。
 - 资源上限集中在 `src/local/limits.ts`；新增无界输入、循环、递归或绘图计算时，先定义预算。
@@ -64,4 +64,4 @@ npm run test:browser
 
 - PR 说明写清目的、受影响范围和验证命令及结果。没有运行的检查要明确写出，不要写成已通过。
 - 涉及安全的问题不要开公开 issue，按[安全策略](SECURITY-ch.md)处理。
-- 发布是维护者的手工流程，见[发布清单](docs/releasing-ch.md)。贡献者不需要接触 npm 凭据。
+- 发布是维护者的手工流程，见[发布清单](docs/development/releasing-ch.md)。贡献者不需要接触 npm 凭据。

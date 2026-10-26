@@ -12,7 +12,7 @@ The guarantees below are covered by compiler, runtime and renderer tests; capabi
 
 ### Document content
 
-- With the three HTML capability options off, author scripts, event attributes and CSS remain inert. P0 HTML is rebuilt as typed nodes and React elements. See [HTML compatibility and the temporary routing policy](docs/html-compatibility-en.md).
+- With the three HTML capability options off, author scripts, event attributes and CSS remain inert. P0 HTML is rebuilt as typed nodes and React elements. See [HTML compatibility and the temporary routing policy](docs/reference/html-compatibility-en.md).
 - Enabling `enableCss`, `enableJavaScript` or `enableExtendedHtml` routes the entire source to native HTML inside a sandboxed iframe without `allow-same-origin`. The other flags still constrain author source. Arbitrary enabled JavaScript can create DOM elements and styles dynamically; individual source flags are not runtime DOM permissions. CSP and sandbox restrictions continue to govern network access, forms and navigation.
 - The default React renderer does not call `dangerouslySetInnerHTML` or write document content into `innerHTML`. Native HTML uses a parsed and filtered iframe `srcdoc`, separate from the host DOM.
 - Expressions use their own parser and AST evaluator, with no `eval` or `new Function`, and no support for assignment, method calls, property access, prototype paths or imports. Expressions can only read parameters declared by the document and built-in functions.

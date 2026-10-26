@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/yao1145/ReactiveMD/blob/main/SECURITY.md
     about: Read this before reporting a vulnerability. Do not open a public issue with exploit details.
   - name: Beginner guide and syntax reference
-    url: https://github.com/yao1145/ReactiveMD/blob/main/docs/local-guide-en.md
+    url: https://github.com/yao1145/ReactiveMD/blob/main/docs/guides/local-guide-en.md
     about: Learn the local-draft-1 syntax and check common diagnostics first.

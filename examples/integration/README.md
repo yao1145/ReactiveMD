@@ -44,4 +44,4 @@ The UI and scheduler wiring live in [worker/main.js](worker/main.js); the Worker
 
 To try an unpublished build, run `npm pack` in the repository root and replace `reactive-md@0.5.3` in the install commands with the absolute path to the generated `reactive-md-0.5.3.tgz`.
 
-From the source repository root, `npm run verify:release` runs the complete gate, including standalone offline installation from the packed tarball, strict type checking, combined-feature checks, React rendering and HTML export. Use `npm run test:packed` for the focused package check after building. See the [integration guide](../../docs/local-integration-en.md) for the API and host policies.
+From the source repository root, `npm run verify:release` runs the complete gate, including standalone offline installation from the packed tarball, strict type checking, combined-feature checks, React rendering and HTML export. Use `npm run test:packed` for the focused package check after building. See the [integration guide](../../docs/integration/local-integration-en.md) for the API and host policies.

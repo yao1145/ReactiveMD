@@ -185,8 +185,8 @@ try {
     'dist-standalone/reactive-md-standalone.js',
     'dist-standalone/reactive-md-standalone.css',
     'bin/reactive-md.mjs',
-    'docs/author-tools-en.md',
-    'docs/author-tools-ch.md',
+    'docs/integration/author-tools-en.md',
+    'docs/integration/author-tools-ch.md',
   ].filter(file => !existsSync(path.join(projectRoot, file)));
   assert.deepEqual(missingBuild, [], `dist-library is incomplete (${missingBuild.join(', ')}); run npm run build first.`);
 
@@ -213,10 +213,10 @@ try {
     'dist-standalone/reactive-md-standalone.css',
     'bin/reactive-md.mjs',
     'cli/main.mjs',
-    'docs/local-integration-en.md',
-    'docs/local-integration-ch.md',
-    'docs/shareable-export-en.md',
-    'docs/shareable-export-ch.md',
+    'docs/integration/local-integration-en.md',
+    'docs/integration/local-integration-ch.md',
+    'docs/integration/shareable-export-en.md',
+    'docs/integration/shareable-export-ch.md',
     'examples/local/counter.reactive.md',
     'examples/conformance/local-draft-2.json',
     'examples/integration/core/index.mjs',

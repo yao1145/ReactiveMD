@@ -55,8 +55,8 @@ import {
 } from './i18n';
 import { useLocalCompilation, type LocalCompiledDocument } from './use-local-compilation';
 import { PreviewStateSession } from './preview-state';
-import guideEnSource from '../../docs/local-guide-en.md?raw';
-import guideZhSource from '../../docs/local-guide-ch.md?raw';
+import guideEnSource from '../../docs/guides/local-guide-en.md?raw';
+import guideZhSource from '../../docs/guides/local-guide-ch.md?raw';
 
 type LocalRuntimeInstance = LocalRuntime;
 
@@ -66,13 +66,12 @@ const SELECTION_KEY = 'reactive-md:selection';
 const SOURCE_WRITE_DELAY = 400;
 const GUIDE_REPOSITORY = 'https://github.com/yao1145/ReactiveMD/blob/main';
 
-// The guides live in docs/ and link to neighbouring files. Send those links
-// to the repository (both English and Chinese docs) so they still work when a
-// guide is rendered in the demo.
+// Resolve guide links from their repository directory when rendered in the demo.
 function rewriteGuideLinks(source: string): string {
-  return source
-    .replace(/\]\(\.\.\/examples\/([^)]+)\)/g, `](${GUIDE_REPOSITORY}/examples/$1)`)
-    .replace(/\]\(([a-z0-9-]+-(?:en|ch)\.md(?:#[^)]+)?)\)/g, `](${GUIDE_REPOSITORY}/docs/$1)`);
+  return source.replace(/\]\(([^\s)]+)\)/g, (match, target: string) => {
+    if (/^[a-z][a-z\d+.-]*:/i.test(target) || target.startsWith('#')) return match;
+    return `](${new URL(target, `${GUIDE_REPOSITORY}/docs/guides/`).href})`;
+  });
 }
 
 const GUIDE_SOURCES: Record<Language, string> = {
