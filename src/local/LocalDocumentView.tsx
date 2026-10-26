@@ -1676,7 +1676,8 @@ function InputView({ node }: LocalComponentProps) {
 
   // Native minLength/maxLength count UTF-16 units and would reject a single
   // astral code point at max-length="1"; textProblem validates code points on
-  // every change instead.
+  // every change instead. Required is also a local rule: native required
+  // would block the enclosing host form's submission and Enter action.
   const problemFor = (value: string) =>
     textProblem(value, { required, minLength, maxLength, email }, t);
 
@@ -1692,7 +1693,7 @@ function InputView({ node }: LocalComponentProps) {
         value={draft}
         placeholder={placeholder || undefined}
         disabled={disabled}
-        required={required}
+        aria-required={required || undefined}
         aria-invalid={draftError || error || validation.invalid ? true : undefined}
         aria-describedby={validation.describedBy}
         onFocus={() => setFocused(true)}
@@ -1800,7 +1801,7 @@ function TextareaView({ node }: LocalComponentProps) {
         value={draft}
         placeholder={placeholder || undefined}
         disabled={disabled}
-        required={required}
+        aria-required={required || undefined}
         aria-invalid={draftError || error || validation.invalid ? true : undefined}
         aria-describedby={validation.describedBy}
         onFocus={() => setFocused(true)}
@@ -2146,7 +2147,7 @@ function DateView({ node }: LocalComponentProps) {
         value={value}
         min={min || undefined}
         max={max || undefined}
-        required={required}
+        aria-required={required || undefined}
         disabled={disabled}
         aria-invalid={problem || error || validation.invalid ? true : undefined}
         aria-describedby={validation.describedBy}
