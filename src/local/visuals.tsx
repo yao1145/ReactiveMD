@@ -23,6 +23,7 @@ import {
   type DiagramLayoutResult,
 } from './diagram-layout';
 import { LatexView } from './math-view';
+import { TableSurface } from './table-surface';
 import type { LocalNode, LocalRuntime, LocalValue } from './types';
 import type { LocalRenderMode, LocalVisualProps } from './render-types';
 import {
@@ -455,6 +456,26 @@ function columnIsNumeric(table: VisualTable, column: number): boolean {
   return seen;
 }
 
+/** Shared scalar classification for plain native cells and Markdown cells. */
+export function tableNumericColumns(rows: readonly LocalNode[][], runtime: LocalRuntime, t: Localize): boolean[] {
+  const width = rows[0]?.length ?? 0;
+  if (!rows.every(row => row.length === width)) return Array(width).fill(false);
+  const cells = rows.map(row => row.map(cell => {
+    const children = cell.children ?? [];
+    return readCell({ ...cell, children: children.length === 1 && children[0].type === 'paragraph' ? children[0].children : children }, runtime, t);
+  }));
+  return Array.from({ length: width }, (_, column) => {
+    let seen = false;
+    for (const row of cells) {
+      const cell = row[column];
+      if (cell.kind === 'empty') continue;
+      if (cell.numeric === null) return false;
+      seen = true;
+    }
+    return seen;
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Shared selection                                                    */
 /* ------------------------------------------------------------------ */
@@ -494,13 +515,13 @@ function readSelection(runtime: LocalRuntime, node: LocalNode, enabled: boolean)
 /* Shared visual pieces                                                */
 /* ------------------------------------------------------------------ */
 
-function VisualFrame({
+export function VisualFrame({
   className,
   label,
   children,
 }: {
   className: string;
-  label: string;
+  label: ReactNode;
   children: ReactNode;
 }) {
   const titleId = useId();
@@ -722,8 +743,7 @@ function TableView({ node, runtime, render, mode }: ResolvedLocalVisualProps) {
         className="local-visual-table-block local-static-table-block"
         label={label}
       >
-        <div className="local-visual-table-scroll local-static-table-scroll">
-          <table className="local-visual-table local-static-table">
+        <TableSurface className="local-static-table" scrollClassName="local-static-table-scroll">
             <caption className="local-visual-sr-only">{label}</caption>
             <thead>
               <tr>
@@ -775,8 +795,7 @@ function TableView({ node, runtime, render, mode }: ResolvedLocalVisualProps) {
                 );
               })}
             </tbody>
-          </table>
-        </div>
+        </TableSurface>
         {table.rows.length === 0 ? (
           <VisualMessage message={t('No rows to display', '没有可显示的行')} />
         ) : null}
@@ -801,8 +820,7 @@ function TableView({ node, runtime, render, mode }: ResolvedLocalVisualProps) {
           />
         </label>
       ) : null}
-      <div className="local-visual-table-scroll">
-        <table className="local-visual-table">
+      <TableSurface>
           <caption className="local-visual-sr-only">{label}</caption>
           <thead>
             <tr>
@@ -896,8 +914,7 @@ function TableView({ node, runtime, render, mode }: ResolvedLocalVisualProps) {
               );
             })}
           </tbody>
-        </table>
-      </div>
+      </TableSurface>
       {selectionError ? <VisualMessage message={selectionError} kind="alert" /> : null}
       {ordered.length === 0 ? (
         <VisualMessage message={t('No matching results', '没有匹配结果')} />

@@ -124,6 +124,13 @@ table.local-visual-table {
   text-align: left;
 }
 
+/* A merged first cell may span several rows; a later row's first child is
+   then not its first logical column and cannot safely be sticky. */
+.local-visual-table[data-merged="true"] th:first-child,
+.local-visual-table[data-merged="true"] td:first-child {
+  position: static;
+}
+
 .local-visual-table th,
 .local-visual-table td {
   padding: var(--space-2) 24px;

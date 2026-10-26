@@ -261,6 +261,11 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Raw HTML is not part of the local interaction syntax.',
     zh: '原始 HTML 不属于本地交互语法。',
   },
+  'html.table.structure': { en: 'Invalid native HTML table structure in <{tag}>.', zh: '原生 HTML 表格的 <{tag}> 结构无效。' },
+  'html.table.mixed': { en: 'Keep text and Markdown inside cells or captions; native HTML table structure cannot mix with Markdown table rows.', zh: '文字和 Markdown 应写在单元格或标题内；原生 HTML 表格结构不能混用 Markdown 表格行。' },
+  'html.table.attribute': { en: 'Attribute {name} is not supported on native HTML <{tag}>. ReactiveMD table options require a Markdown table body.', zh: '原生 HTML <{tag}> 不支持属性 {name}。ReactiveMD 表格选项只适用于 Markdown 表格正文。' },
+  'html.table.value': { en: 'Invalid value for {name} on native HTML <{tag}>.', zh: '原生 HTML <{tag}> 的 {name} 属性值无效。' },
+  'html.table.unclosed': { en: 'Native HTML table is missing </table>.', zh: '原生 HTML 表格缺少 </table>。' },
   'html.extended': {
     en: 'HTML element <{name}> requires enableExtendedHtml in this mode; it is shown as source.',
     zh: '此模式下 HTML 元素 <{name}> 需要启用 enableExtendedHtml；已按源码显示。',
@@ -1209,6 +1214,7 @@ const LOCAL_PARSER_CODES = [
   'local.math.whitespace',
   'local.component.unknown',
   'local.html',
+  'local.html.table',
 ] as const;
 
 const LOCAL_COMPILER_CODES = [
@@ -1445,6 +1451,7 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.math.whitespace': 'math.whitespace',
   'local.footnote.unsupported': 'footnote.unsupported',
   'local.html': 'html.raw',
+  'local.html.table': 'html.table.structure',
   'local.html.extended': 'html.extended',
   'local.html.attribute': 'html.attribute',
   'local.html.unsafe-url': 'html.unsafeUrl',

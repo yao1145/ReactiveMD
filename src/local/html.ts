@@ -4,6 +4,7 @@ import { localDiagnosticDetails } from './diagnostics';
 import { MAX_LOCAL_DIAGNOSTICS } from './limits';
 import type { Diagnostic, LocalHtmlPolicy } from './types';
 import { LOCAL_HTML_ALIGN_ELEMENTS, localHtmlAlign } from './html-names';
+import { HTML_TABLE_NAMES, HTML_TABLE_ATTRIBUTES, validHtmlTableValue } from './html-table';
 
 type PElement = DefaultTreeAdapterTypes.Element;
 type PParent = DefaultTreeAdapterTypes.ParentNode;
@@ -23,6 +24,7 @@ const P0_ELEMENTS = new Set([
   'code', 'pre',
   'ul', 'ol', 'li',
   'a', 'img',
+  ...HTML_TABLE_NAMES,
 ]);
 
 /** Structural wrappers the HTML parser inserts for a whole document. */
@@ -68,6 +70,7 @@ const P0_TAG_ATTRIBUTES: Record<string, ReadonlySet<string>> = {
   img: new Set(['src', 'alt', 'width', 'height']),
   ol: new Set(['start']),
   details: new Set(['open']),
+  ...HTML_TABLE_ATTRIBUTES,
   // These elements are admitted by their own capability before attributes are
   // checked. Keep their execution/media semantics independent of extended HTML.
   script: new Set(['type', 'src', 'async', 'defer', 'nomodule', 'crossorigin', 'integrity', 'referrerpolicy']),
@@ -375,6 +378,13 @@ function cleanAttributes(element: PElement, tag: string, html: boolean, state: S
     const name = attribute.name.toLowerCase();
     const fullName = attribute.prefix ? `${attribute.prefix}:${attribute.name}` : attribute.name;
     const range = attributeRange(element, attribute, state);
+
+    if (html && HTML_TABLE_NAMES.has(tag) && !validHtmlTableValue(name, attribute.value)) {
+      warn(state, 'local.html.table', `Invalid value for ${name} on native HTML <${tag}>.`, range.start, range.end, {
+        key: 'html.table.value', params: { name, tag },
+      });
+      continue;
+    }
 
     if (html && name === 'align' && LOCAL_HTML_ALIGN_ELEMENTS.has(tag)) {
       const align = localHtmlAlign(attribute.value);

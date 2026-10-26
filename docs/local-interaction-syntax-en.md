@@ -293,7 +293,9 @@ progress is a void component; label/value are required, max defaults to 100, and
 
 ### 9.1 Shared data rules
 
-The bodies of table, chart and timeline are each one Markdown table. Headers are non-empty and unique, and every row has the same number of columns; cells may contain interpolation. The first column is usually a label, and other columns read types according to the component.
+The ReactiveMD table, chart and timeline components each contain one Markdown table. Headers are non-empty and unique, and every row has the same number of columns; cells may contain interpolation. The first column is usually a label, and other columns read types according to the component.
+
+`<table>` also accepts a native HTML table body. Body structure selects the syntax; both share the rendering styles. HTML tables support merged cells and add no table interactions by default. See [HTML table compatibility](html-compatibility-en.md#two-table-syntaxes).
 
 Plain text cells display Markdown; plain decimal or scientific-notation text cells can be read as numbers, and a single complete interpolation keeps its result type. Mixed text such as `{{ price }} USD` is a display string and cannot be used as a numeric chart column. Legend labels take the plain text of headers.
 

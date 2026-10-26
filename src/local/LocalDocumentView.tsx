@@ -48,10 +48,12 @@ import { DEFAULT_MAX_LOCAL_SYNTAX_NODES, MAX_LOCAL_STRING_LENGTH, isLocalEmail }
 import { localCompileOptionsKey } from './options';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './html';
 import { localHtmlAlign } from './html-names';
+import { TableSurface } from './table-surface';
+import { HTML_TABLE_NAMES } from './html-table';
 import { formatLocalDiagnostic } from './diagnostics';
 import { countLocalCodePoints } from './text-length';
 import { LatexView } from './math-view';
-import { LocalVisual } from './visuals';
+import { LocalVisual, VisualFrame, tableNumericColumns } from './visuals';
 import { createHeadingAnchors } from './heading-anchors';
 import { isLocalColor } from './colors';
 import { DataTableView } from './data-table';
@@ -956,6 +958,57 @@ function safeHtmlProps(env: RenderEnv, node: LocalNode): Record<string, string> 
   return props;
 }
 
+function renderNativeTable(env: RenderEnv, node: LocalNode, visible: boolean, key: string): ReactNode {
+  const rows: LocalNode[] = [];
+  const collectRows = (nodes: LocalNode[]) => {
+    for (const n of nodes) {
+      if (n.name === 'tr') rows.push(n);
+      else if (n.name !== 'td' && n.name !== 'th' && n.type !== 'htmlTable') collectRows(n.children ?? []);
+    }
+  };
+  collectRows(node.children ?? []);
+  const merged = rows.some(row => row.children?.some(cell => ['colspan', 'rowspan'].some(a => cell.attrs?.[a] !== undefined && cell.attrs[a] !== '1')));
+  const bodyRows = rows.filter(row => row.children?.some(cell => cell.name === 'td'));
+  const text = (n: LocalNode): string => {
+    if (n.type === 'interpolation') {
+      try { return scalarText(env.runtime.evaluate(n.value ?? '')) ?? ''; } catch { return ''; }
+    }
+    return (n.value ?? '') + (n.children ?? []).map(text).join('');
+  };
+  const numeric = merged ? [] : tableNumericColumns(bodyRows.map(row => row.children ?? []), env.runtime, env.t);
+  const structural = (n: LocalNode, index = 0): ReactNode => {
+    if (n.type === 'htmlTable') return renderNativeTable(env, n, visible, n.id);
+    const name = n.name ?? '';
+    if (!HTML_TABLE_NAMES.has(name) || name === 'table') return null;
+    const props: Record<string, unknown> = { ...safeHtmlProps(env, n), key: n.id };
+    const attrs = n.attrs ?? {};
+    if (name === 'th' || name === 'td') {
+      if (attrs.colspan !== undefined) props.colSpan = Number(attrs.colspan);
+      if (attrs.rowspan !== undefined) props.rowSpan = Number(attrs.rowspan);
+      if (attrs.scope !== undefined) props.scope = attrs.scope.trim().toLowerCase();
+      if (attrs.abbr !== undefined) props.abbr = attrs.abbr;
+      if (attrs.headers !== undefined) props.headers = attrs.headers.trim().split(/\s+/).map(id => env.anchors.referenceId(id)).join(' ');
+      if (numeric[index]) props.className = 'is-numeric';
+      const align = attrs.align && localHtmlAlign(attrs.align);
+      if (align) props.style = { textAlign: align };
+      return createElement(name, props, renderNodes(env, n.children, visible));
+    }
+    if (name === 'col' || name === 'colgroup') {
+      if (attrs.span !== undefined) props.span = Number(attrs.span);
+      if (name === 'col') return createElement('col', props);
+    }
+    return createElement(name, props, (n.children ?? []).map((child, i) => structural(child, i)));
+  };
+  const caption = node.children?.find(n => n.name === 'caption');
+  const title = caption ? renderNodes(env, (caption.children ?? []).flatMap(n => n.type === 'paragraph' ? n.children ?? [] : [n]), visible, false) : env.t('Table', '表格');
+  return <VisualFrame key={key} className="local-visual-table-block local-html-table-block" label={title}>
+    <TableSurface tableProps={{ ...safeHtmlProps(env, node), ...(merged ? { 'data-merged': 'true' } : {}) }}>
+      <caption {...(caption ? safeHtmlProps(env, caption) : {})} className="local-visual-sr-only">{caption ? text(caption) : env.t('Table', '表格')}</caption>
+      {(node.children ?? []).filter(child => child.name !== 'caption').map(child => structural(child))}
+    </TableSurface>
+  </VisualFrame>;
+}
+
 interface LocalBlockProps {
   node: LocalNode;
   index: number;
@@ -1364,6 +1417,9 @@ function renderNode(
         />
       );
     }
+
+    case 'htmlTable':
+      return renderNativeTable(env, node, visible, key);
 
     case 'table': {
       const rows = node.children ?? [];

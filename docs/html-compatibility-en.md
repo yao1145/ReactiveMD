@@ -65,6 +65,7 @@ Lower-level hosts pass the compiled document to `LocalDocumentView`. Native HTML
 | Code | `code`, `pre`, and `code` inside `pre` |
 | Lists | `ul`, `ol`, `li`, including `ol[start]` |
 | Links and images | `a`, `img`, using the default path's URL policy |
+| Native tables | `table`, `caption`, `colgroup`, `col`, `thead`, `tbody`, `tfoot`, `tr`, `th`, `td`; distinguished from ReactiveMD tables by their body structure |
 | Other forms | HTML comments, named and numeric character references, case-insensitive HTML names and void-element spelling |
 
 Container bodies continue to parse Markdown, formulas, interpolation and ReactiveMD controls. Code elements preserve literal content. `details` reuses the existing disclosure theme and interaction, with rich summaries, nesting and the `open` attribute. Static rendering expands the body. HTML boolean attributes use presence semantics, so `open="false"` still means open. Existing ReactiveMD component boolean rules stay unchanged.
@@ -82,17 +83,35 @@ Alignment works without enabling CSS or extended HTML. Markdown and bindings ins
 
 Common attributes use an allowlist for document identifiers, titles, language, direction and accessibility. Author styles, event-handler attributes and unsupported elements in the default mode remain inert source or produce positioned diagnostics. Images still require explicit host approval. Code and unsupported regions execute no scripts.
 
+## Two table syntaxes
+
+A `<table>` containing a Markdown table remains a ReactiveMD component, with its existing search, sorting, pagination and row selection. A body with native table structure is parsed as an HTML table without enabling extended HTML or changing the whole document's mode:
+
+```html
+<table>
+  <caption>Prices</caption>
+  <tr><th scope="col">Item</th><th scope="col">Price</th></tr>
+  <tr><td>Apple</td><td>5</td></tr>
+  <tr><td colspan="2">**Note**: prices can follow document parameters.</td></tr>
+</table>
+```
+
+Both syntaxes share the table frame, title, cell styles and narrow-screen scrolling. Plain numeric columns use the same automatic alignment rules. Merged cells preserve their structure; cells can set `align` explicitly. Native tables add no search, sorting, pagination or selection controls by default.
+
+Supported attributes include `colspan`, `rowspan`, `scope`, `headers` and `span` on `col` / `colgroup`. `colspan` and `span` accept 1–1000; `rowspan` accepts 0–65534, with 0 extending to the end of the current row group. Cells and captions support Markdown, formulas, interpolation, images and controls. Omitted row groups, row ends and cell ends are normalized using HTML rules, while source locations retain their original offsets.
+
+Mixing Markdown table rows and HTML table structure in one table is an error. Native tables reject component attributes such as `bind`, `key`, `label`, `searchable`, `sortable` and `page-size`; use `caption` for a title or `aria-label` for an accessible name. Structural tags inside code examples never determine the table type.
+
 ## Extended HTML
 
 `enableExtendedHtml` controls the following author syntax:
 
-- Tables and their structure: `table`, `caption`, `thead`, `tbody`, `tfoot`, `tr`, `th`, `td`.
 - Definition lists: `dl`, `dt`, `dd`.
 - Additional text semantics: `small`, `kbd`, `samp`, `var`, `abbr`, `q`, `cite`, `ins`.
 - Figures and structure: `figure`, `figcaption`, `article`, `section`, `aside`, `header`, `footer`, `ruby`, `rt`, `rp`, `wbr`.
 - Native forms, `iframe`, `object`, `embed`, `dialog`, arbitrary SVG/MathML and whole-page HTML features.
 
-In the default mode, existing ReactiveMD components such as `table`, `section`, `input` and `select` retain their current meanings. In native HTML mode, these names use browser semantics.
+In the default mode, `table` distinguishes native and ReactiveMD syntax by its body; existing components such as `section`, `input` and `select` retain their current meanings. In native HTML mode, these names use browser semantics.
 
 ## Isolation and export
 

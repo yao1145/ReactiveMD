@@ -65,6 +65,7 @@ React 快捷组件通过 `compileOptions` 接收同样的设置：
 | 代码 | `code`、`pre`、`pre` 内的 `code` |
 | 列表 | `ul`、`ol`、`li`，含 `ol[start]` |
 | 链接与图片 | `a`、`img`，沿用默认路径的 URL 策略 |
+| 原生表格 | `table`、`caption`、`colgroup`、`col`、`thead`、`tbody`、`tfoot`、`tr`、`th`、`td`，按正文结构与 ReactiveMD 表格区分 |
 | 其他写法 | HTML 注释、命名及数字字符引用、HTML 大小写和空元素写法 |
 
 容器中的正文继续解析 Markdown、公式、插值和 ReactiveMD 控件；`code`、`pre` 中的内容按字面显示。`details` 复用现有折叠组件的主题和交互，支持富文本标题、嵌套和 `open`，静态模式展开正文。HTML 布尔属性按存在与否判断，因此 `open="false"` 仍表示展开；现有 ReactiveMD 组件的布尔值规则保持不变。
@@ -82,17 +83,35 @@ React 快捷组件通过 `compileOptions` 接收同样的设置：
 
 通用属性按允许列表接收，支持文档标识、标题、语言、方向和可访问性属性。默认模式中的作者 `style`、事件处理属性及不支持的标签保持惰性源码或产生定位诊断。图片仍需宿主明确允许后才加载。代码与不支持区域不执行脚本。
 
+## 两种表格写法
+
+`<table>` 的正文是 Markdown 表格时，继续使用 ReactiveMD 表格组件，保留搜索、排序、分页和行选择。正文出现原生表格结构时，解析为 HTML 表格，无需开启扩展 HTML，也不切换整篇文档的模式：
+
+```html
+<table>
+  <caption>价格表</caption>
+  <tr><th scope="col">商品</th><th scope="col">价格</th></tr>
+  <tr><td>苹果</td><td>5</td></tr>
+  <tr><td colspan="2">**说明**：价格可随参数更新。</td></tr>
+</table>
+```
+
+两种写法共用表格框架、标题、单元格样式和窄屏滚动。普通数字列使用相同的自动对齐规则；合并单元格保留其结构，单元格可用 `align` 明确设置对齐。原生表格默认不添加搜索、排序、分页或选择控件。
+
+支持 `colspan`、`rowspan`、`scope`、`headers` 和 `col` / `colgroup` 的 `span`。`colspan` 与 `span` 为 1–1000；`rowspan` 为 0–65534，其中 0 表示延伸到当前行组末尾。单元格和标题内继续解析 Markdown、公式、插值、图片及控件；省略的行组、行和单元格结束标签按 HTML 规则补齐，原始源码位置保持不变。
+
+同一表格混用 Markdown 表格行与 HTML 表格结构会报错。原生表格不接受 `bind`、`key`、`label`、`searchable`、`sortable`、`page-size` 等组件属性；标题用 `caption`，无障碍名称也可用 `aria-label`。代码示例中的结构标签不参与类型判断。
+
 ## 扩展 HTML
 
 `enableExtendedHtml` 管理以下作者语法：
 
-- 表格及结构：`table`、`caption`、`thead`、`tbody`、`tfoot`、`tr`、`th`、`td`。
 - 定义列表：`dl`、`dt`、`dd`。
 - 补充文字语义：`small`、`kbd`、`samp`、`var`、`abbr`、`q`、`cite`、`ins`。
 - 图文和结构：`figure`、`figcaption`、`article`、`section`、`aside`、`header`、`footer`、`ruby`、`rt`、`rp`、`wbr`。
 - 原生表单、`iframe`、`object`、`embed`、`dialog`、任意 SVG/MathML 和整页 HTML 功能。
 
-在默认模式中，已有的 ReactiveMD `<table>`、`<section>`、`<input>`、`<select>` 等组件继续采用当前语义。在原生 HTML 模式中，同名元素采用浏览器语义。
+在默认模式中，ReactiveMD `<table>` 按正文结构与原生表格区分；`<section>`、`<input>`、`<select>` 等同名组件继续采用当前语义。在原生 HTML 模式中，同名元素采用浏览器语义。
 
 ## 隔离与导出
 

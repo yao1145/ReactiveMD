@@ -5,7 +5,8 @@ import { parseFragment } from 'parse5';
 import type { Diagnostic } from './types';
 import type { LocalCompileOptions, LocalNode, LocalVersionDeclaration, SourceRange } from './types';
 import { LOCAL_SYNTAX_VERSION } from './version';
-import { localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
+import { localDiagnosticDetails, renderLocalDiagnostic, type LocalDiagnosticDetails } from './diagnostics';
+import { HTML_TABLE_NAMES, HTML_TABLE_ATTRIBUTES, validHtmlTableValue, readHtmlTable } from './html-table';
 import { localComponentNames, suggestComponent } from './schema';
 import { LOCAL_HTML_NAMES, LOCAL_HTML_ALIGN_ELEMENTS, localHtmlAlign } from './html-names';
 import { isLocalThemeName } from './theme';
@@ -49,13 +50,14 @@ const HTML_BLOCK = new Set([
   'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'div', 'details', 'blockquote', 'pre', 'ul', 'ol', 'li',
 ]);
-const BLOCK_HTML_RESULTS = new Set(['paragraph', 'heading', 'div', 'details', 'blockquote', 'code', 'list', 'listItem', 'thematicBreak']);
+const BLOCK_HTML_RESULTS = new Set(['paragraph', 'heading', 'div', 'details', 'blockquote', 'code', 'list', 'listItem', 'thematicBreak', 'htmlTable']);
 const HTML_GLOBAL_ATTRIBUTES = new Set(['id', 'title', 'lang', 'dir']);
 const HTML_TAG_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
   a: new Set(['href']),
   img: new Set(['src', 'alt', 'width', 'height']),
   ol: new Set(['start']),
   details: new Set(['open']),
+  ...HTML_TABLE_ATTRIBUTES,
 };
 /**
  * Decode character references with the same grammar the browser uses. Literal
@@ -622,11 +624,11 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     return { label: found.label, identifier: found.identifier, bodyStart: found.closeEnd + 1 };
   }
   /** Basic HTML tag shape (name only); attributes are validated by the caller. */
-  function htmlTagAt(start: number, limit: number) {
+  function htmlTagAt(start: number, limit: number, tableContext = false) {
     const match = /^<(\/?)([A-Za-z][A-Za-z0-9]*)(?=[\s/>])/.exec(source.slice(start, Math.min(limit, start + 64)));
     if (!match) return null;
     const lower = match[2].toLowerCase();
-    if (!HTML_NAMES.has(lower)) return null;
+    if (!HTML_NAMES.has(lower) && !(tableContext && HTML_TABLE_NAMES.has(lower))) return null;
     const head = start + match[0].length;
     let quote = '', end = head;
     for (; end < limit; end++) {
@@ -716,6 +718,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         if (!/^\d{1,6}$/.test(entry.value.trim())) return { ok: false, attr: name };
       }
       if (name === 'start' && !/^-?\d{1,9}$/.test(entry.value.trim())) return { ok: false, attr: name };
+      if (!validHtmlTableValue(name, entry.value)) return { ok: false, attr: name };
       if ((name === 'href' || name === 'src')) {
         const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(entry.value.trim().replace(/[\u0000- ]+/g, ''));
         if (scheme) {
@@ -1224,6 +1227,53 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         }
       }
       if (source[i] === '<') {
+        const nativeTable = readHtmlTable(source, i, end, {
+          shield: (offset, limit) => {
+            if (source.startsWith('{{', offset)) {
+              const finish = interpolationEnd(offset, limit);
+              if (finish >= 0) return finish;
+            }
+            if (source[offset] === '<') {
+              const tag = scanTag(offset, limit);
+              if (tag && !tag.closing && !HTML_TABLE_NAMES.has(tag.name.toLowerCase())
+                && !HTML_NAMES.has(tag.name.toLowerCase()) && !known.has(tag.name.toLowerCase())) {
+                const close = unknownTagEnd(tag.end, tag.name, limit, insideContainer);
+                if (close) return close.end;
+              }
+            }
+            return protectedEnd(offset, limit, insideContainer);
+          },
+          budget: (offset, count) => {
+            if (count > maxSyntaxNodes * 2) throw new LocalBudgetError('local.budget', `Syntax nodes exceed the limit of ${maxSyntaxNodes}.`, offset, offset + 1, 'local.budget.nodes', { limit: maxSyntaxNodes });
+          },
+          node,
+          problem: (kind, from, to, tag, name) => {
+            const key = `html.table.${kind}`;
+            const params = { tag: tag ?? 'table', name: name ?? '' };
+            error('local.html.table', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
+          },
+          attributes: (name, from, to) => {
+            const tag = htmlTagAt(from, to, true);
+            const selected = tag && selectHtmlAttributes(name, tag);
+            if (!selected || !selected.ok) {
+              const attribute = selected && !selected.ok ? selected.attr : '';
+              const key = `html.table.${['colspan', 'rowspan', 'span', 'scope', 'align'].includes(attribute) ? 'value' : 'attribute'}`;
+              const params = { tag: name, name: attribute };
+              error('local.html.table', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
+              return {};
+            }
+            return selected.attrs;
+          },
+          content: (from, to) => {
+            const body = region(from, to, undefined, from, from, depth + 1, { ...options, definitions: [] });
+            return convert(from, to, body.tokens, commonIndent(from, to), { literalHtml: footnoteMode, stripBlockquote: options.stripBlockquote === true });
+          },
+        });
+        if (nativeTable) {
+          tokens.push({ start: i, end: nativeTable.end, block: true, node: nativeTable.node });
+          i = nativeTable.end;
+          continue;
+        }
         const html = htmlTagAt(i, end);
         if (html) {
           if (html.closing) {
