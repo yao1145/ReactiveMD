@@ -40,6 +40,49 @@ export interface DiagramEdgeSection {
   startPoint: DiagramPoint;
   endPoint: DiagramPoint;
   bendPoints: DiagramPoint[];
+  /** ELK spline points are cubic controls, not polyline vertices. */
+  cubic?: boolean;
+}
+
+/** Round routed corners without moving ports or leaving the routing corridor. */
+export function diagramEdgePath(sections: DiagramEdgeSection[], radius = 8): string {
+  return sections.map(section => {
+    if (section.cubic) {
+      const controls = [...section.bendPoints, section.endPoint];
+      if (section.bendPoints.length > 0 && controls.length % 3 === 0) {
+        // Keep repeated controls: they determine tangents at segment joins.
+        return `M ${section.startPoint.x} ${section.startPoint.y} C ${controls
+          .map(point => `${point.x} ${point.y}`).join(' ')}`;
+      }
+    }
+    const points = [section.startPoint, ...section.bendPoints, section.endPoint]
+      .filter((point, index, all) => index === 0 ||
+        point.x !== all[index - 1].x || point.y !== all[index - 1].y);
+    if (points.length < 2) return '';
+    const commands = [`M ${points[0].x} ${points[0].y}`];
+    for (let index = 1; index < points.length - 1; index += 1) {
+      const previous = points[index - 1];
+      const corner = points[index];
+      const next = points[index + 1];
+      const incoming = Math.hypot(corner.x - previous.x, corner.y - previous.y);
+      const outgoing = Math.hypot(next.x - corner.x, next.y - corner.y);
+      const trim = Math.min(Math.max(0, radius), incoming / 2, outgoing / 2);
+      const cross = (corner.x - previous.x) * (next.y - corner.y) -
+        (corner.y - previous.y) * (next.x - corner.x);
+      if (trim === 0 || cross === 0) {
+        commands.push(`L ${corner.x} ${corner.y}`);
+        continue;
+      }
+      const enterX = corner.x + (previous.x - corner.x) * trim / incoming;
+      const enterY = corner.y + (previous.y - corner.y) * trim / incoming;
+      const exitX = corner.x + (next.x - corner.x) * trim / outgoing;
+      const exitY = corner.y + (next.y - corner.y) * trim / outgoing;
+      commands.push(`L ${enterX} ${enterY} Q ${corner.x} ${corner.y} ${exitX} ${exitY}`);
+    }
+    const end = points[points.length - 1];
+    commands.push(`L ${end.x} ${end.y}`);
+    return commands.join(' ');
+  }).join(' ');
 }
 
 export interface DiagramLabelRect {
@@ -185,7 +228,7 @@ async function runElk(input: DiagramLayoutInput): Promise<DiagramLayoutResult> {
     layoutOptions: {
       'elk.algorithm': 'layered',
       'elk.direction': input.direction === 'down' ? 'DOWN' : 'RIGHT',
-      'elk.edgeRouting': 'ORTHOGONAL',
+      'elk.edgeRouting': 'SPLINES',
       'elk.padding': '[top=0,left=0,bottom=0,right=0]',
       'elk.spacing.nodeNode': String(NODE_GAP),
       'elk.layered.spacing.nodeNodeBetweenLayers': String(LAYER_GAP),
@@ -230,6 +273,7 @@ async function runElk(input: DiagramLayoutInput): Promise<DiagramLayoutResult> {
       startPoint: { ...section.startPoint },
       endPoint: { ...section.endPoint },
       bendPoints: (section.bendPoints ?? []).map((point) => ({ ...point })),
+      cubic: true,
     }));
     const label = edge.labels?.[0];
     let labelRect: DiagramLabelRect | undefined;

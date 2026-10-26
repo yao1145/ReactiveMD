@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createDiagramLayoutFallback,
+  diagramEdgePath,
   layoutDiagram,
   type DiagramLayoutInput,
   type DiagramLayoutResult,
@@ -70,6 +71,26 @@ function expectLabelsClear(result: DiagramLayoutResult): void {
 }
 
 describe('diagram layout (ELK layered)', () => {
+  it('uses continuous independent curves for parallel, reverse and return edges', async () => {
+    for (const direction of ['right', 'down'] as const) {
+      const result = await layoutDiagram(makeInput(direction,
+        ['input', 'check', 'confirm', 'outside'], [
+          ['input', 'check', 'submit'], ['input', 'check', 'unknown'],
+          ['check', 'input', 'back'], ['check', 'confirm', 'pass'],
+          ['confirm', 'input', 'modify'], ['outside', 'check', 'pass'],
+        ]));
+      expect(result.source).toBe('elk');
+      const paths = [...result.edges.values()].map(edge => diagramEdgePath(edge.sections));
+      expect(new Set(paths).size).toBe(6);
+      for (const path of paths) {
+        expect(path).toContain(' C ');
+        expect(path).not.toMatch(/NaN|Infinity| Q | L /);
+      }
+      expectInside(result);
+      expectLabelsClear(result);
+    }
+  });
+
   it('lays a three-node right cycle along consecutive layers and keeps its back edge inside', async () => {
     const input = makeInput(
       'right',

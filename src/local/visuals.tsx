@@ -16,6 +16,7 @@ import { compileLatex, LatexError, samplePlot, type LatexEvaluationBudget } from
 import { formatLocalDiagnostic } from './diagnostics';
 import {
   createDiagramLayoutFallback,
+  diagramEdgePath,
   diagramLayoutKey,
   layoutDiagram,
   type DiagramLayoutInput,
@@ -3075,14 +3076,7 @@ function DiagramView({ node, runtime, render, mode }: ResolvedLocalVisualProps) 
   for (const edge of edges) {
     const edgeLayout = layout.edges.get(edge.key);
     if (!edgeLayout || edgeLayout.sections.length === 0) continue;
-    const path = edgeLayout.sections
-      .map((section) => {
-        const points = [section.startPoint, ...section.bendPoints, section.endPoint];
-        return points
-          .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-          .join(' ');
-      })
-      .join(' ');
+    const path = diagramEdgePath(edgeLayout.sections);
     edgePaths.push(
       <g key={`edge-${edge.key}`} className="local-visual-edge">
         <path
@@ -3151,11 +3145,12 @@ function DiagramView({ node, runtime, render, mode }: ResolvedLocalVisualProps) 
               viewBox="0 0 10 10"
               refX="9"
               refY="5"
-              markerWidth="7"
-              markerHeight="7"
+              markerWidth="8"
+              markerHeight="8"
+              markerUnits="userSpaceOnUse"
               orient="auto-start-reverse"
             >
-              <path d="M 0 0 L 10 5 L 0 10 z" style={{ fill: 'var(--ink-muted)' }} />
+              <path d="M 1 1 L 9 5 L 1 9 L 3 5 Z" style={{ fill: 'var(--ink-muted)' }} />
             </marker>
           </defs>
           {edgePaths}

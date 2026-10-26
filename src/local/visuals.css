@@ -769,6 +769,8 @@ table.local-visual-table {
 
 .local-visual-edge path {
   fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .local-visual-edge-label-group {
