@@ -489,4 +489,4 @@ node.id 为当前图解内唯一的 `[A-Za-z_][A-Za-z0-9_-]*`。edge 必填 from
 这些规则用于编译器、运行时和浏览器验收。示例映射及预期观察点见[示例索引](../examples/local/README.md)，机器可读的最小验收集见[语言验收数据](../examples/conformance/README.md)。实际仓库检查记录保留在仓库内，不属于发布包。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.4.0` 是 `next` 渠道的预览版。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.5.3` 是 `next` 渠道的预览版。

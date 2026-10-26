@@ -744,4 +744,4 @@ Portable machine cases remain `examples/conformance/component-protocol-1.json`, 
 | `component-protocol-1` | 2026-10-23 | Initial version; originally applied to `local-draft-1` and package version `0.3.0`, defining component contribution, acceptance and extension boundaries. It now applies to `local-draft-2` and the `0.4.0` preview release without changing its MUST clauses or machine format. |
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. `0.5.2` is the preview release on the `next` channel.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](release-0.4.0-en.md) for the upgrade checklist. `0.5.3` is the preview release on the `next` channel.

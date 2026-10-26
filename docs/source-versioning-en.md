@@ -156,4 +156,4 @@ The command migrates one source at a time. This build has no `--write` mode, no 
 
 Migration handles the declared metadata change and checks whether the body can cross the revision boundary. It is not a legacy reader: it does not interpret YAML `state`/`data`/`computed`/`actions` blocks, directives or other pre-draft syntax, and it does not rewrite the body. Source that already fails to compile under `local-draft-2` stays blocked until the author fixes the reported positions.
 
-`0.4.0` is the preview release on the `next` channel. This page documents its migration tools.
+`0.5.3` is the preview release on the `next` channel. This page documents the migration tools introduced in `0.4.0`.

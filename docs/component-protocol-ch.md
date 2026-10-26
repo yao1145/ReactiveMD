@@ -744,4 +744,4 @@ React 视图把 `hostComponent` 节点分发给 `hostRenderer(node, data, ctx)`�
 | `component-protocol-1` | 2026-10-23 | 初版；最初适用于 `local-draft-1` 和包版本 `0.3.0`，定义组块贡献、验收和扩展边界。现在适用于 `local-draft-2` 和 `0.4.0` 预览版，MUST 条款和机器格式不变。 |
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.5.2` 是 `next` 渠道的预览版。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](release-0.4.0-ch.md)。`0.5.3` 是 `next` 渠道的预览版。
