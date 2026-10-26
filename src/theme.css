@@ -8,6 +8,7 @@
   --paper: #f4f4f2;
   --surface: #ffffff;
   --document-bg: var(--surface);
+  --image-zoom-backdrop: rgb(15 23 42 / 78%);
   --surface-subtle: #f7f7f5;
   --surface-hover: color-mix(in srgb, var(--ink) 5%, var(--surface));
   --surface-active: color-mix(in srgb, var(--ink) 8%, var(--surface));
@@ -74,9 +75,18 @@
   --coordinate-point: #2563eb;
 
   /* Code */
-  --code-bg: #0f172a;
-  --code-bg-deep: #0b1220;
-  --code-ink: #dce6ff;
+  --code-bg: #ffffff;
+  --code-bg-deep: #ffffff;
+  --code-ink: #253247;
+  --md-code-token-comment: #596579;
+  --md-code-token-keyword: #6f42c1;
+  --md-code-token-string: #22622d;
+  --md-code-token-number: #885013;
+  --md-code-token-title: #075b9a;
+  --md-code-token-attr: #a52c54;
+  --md-code-token-meta: #6f42c1;
+  --md-code-token-addition: #166447;
+  --md-code-token-deletion: #b4233e;
 
   /* Type */
   --text-xs: 12.5px;
@@ -218,8 +228,18 @@
   --coordinate-point: #82aaff;
 
   --code-bg: #0b1220;
+  --image-zoom-backdrop: rgb(11 18 32 / 78%);
   --code-bg-deep: #090f1c;
   --code-ink: #dce6ff;
+  --md-code-token-comment: #93a4bd;
+  --md-code-token-keyword: #c7a4ff;
+  --md-code-token-string: #9fdb9a;
+  --md-code-token-number: #f2c879;
+  --md-code-token-title: #8fc7ff;
+  --md-code-token-attr: #ffb3c8;
+  --md-code-token-meta: #d2b4ff;
+  --md-code-token-addition: #8fe3c8;
+  --md-code-token-deletion: #ff9daa;
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 45%);
   --shadow-md: 0 6px 24px rgb(0 0 0 / 50%);

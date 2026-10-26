@@ -1,0 +1,11 @@
+/* Keep fenced code on the code card's themed surface, above the guide's pre rules. */
+
+.guide-paper .local-document .md-code-block > .md-code {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--code-ink);
+  overflow-x: auto;
+}

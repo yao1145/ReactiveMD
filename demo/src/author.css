@@ -1,9 +1,9 @@
 .author-tools {
   display: flex;
-  justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-2) var(--space-4);
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-4);
   background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
@@ -11,11 +11,17 @@
 .author-tool-group {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  align-items: center;
+  gap: var(--space-1);
 }
 
-.author-tools button {
-  min-height: var(--control-height);
+.author-tools button,
+.author-tools-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--control-height-lg);
   padding: 0 var(--control-inset-x);
   background: transparent;
   border: 1px solid transparent;
@@ -31,7 +37,8 @@
     color var(--motion-fast) var(--ease-standard);
 }
 
-.author-tools button:hover {
+.author-tools button:hover,
+.author-tools-menu > summary:hover {
   background: var(--surface-hover);
   border-color: var(--line-strong);
   color: var(--ink);
@@ -64,7 +71,8 @@
   border-color: var(--line-strong);
 }
 
-.author-tools button:focus-visible {
+.author-tools button:focus-visible,
+.author-tools-menu > summary:focus-visible {
   outline: var(--focus-outline);
   outline-offset: 2px;
 }
@@ -72,6 +80,60 @@
 .author-tools button:disabled {
   opacity: var(--disabled-opacity);
   cursor: not-allowed;
+}
+
+/* Import lives behind a native disclosure so the row stays short.
+   The panel opens in flow, keeping it clear of the workbench overflow clip. */
+.author-tools-menu {
+  margin-left: auto;
+  min-width: 0;
+}
+
+.author-tools-menu > summary {
+  list-style: none;
+}
+
+.author-tools-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.author-tools-menu-chevron {
+  font-size: var(--text-xs);
+  line-height: 1;
+  transition: transform var(--motion-fast) var(--ease-standard);
+}
+
+.author-tools-menu[open] {
+  flex: 1 1 100%;
+}
+
+.author-tools-menu[open] > summary {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.author-tools-menu[open] .author-tools-menu-chevron {
+  transform: rotate(180deg);
+}
+
+.author-tools-menu-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-1) 0;
+  border-top: 1px dashed var(--line);
+}
+
+.author-tools-menu-panel .html-compat {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.tool-short-label,
+.tool-mobile-label {
+  display: none;
 }
 
 .app-shell.is-simple .pane-editor > .pane-head,
@@ -114,7 +176,7 @@
 }
 
 .showcase-nav {
-  padding: var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--line);
   background: var(--paper);
 }
@@ -161,10 +223,6 @@
   outline-offset: 2px;
 }
 
-.author-tools button {
-  min-height: var(--control-height-lg);
-}
-
 .app-shell.is-simple .workspace {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -182,15 +240,45 @@
 
 @media (max-width: 600px) {
   .author-tools {
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-2);
   }
 
   .author-tool-group {
-    width: 100%;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
   }
 
   .author-tools button {
     flex: 1 1 auto;
+  }
+
+  .author-tools-menu {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .author-tools-menu[open] {
+    flex: 1 1 100%;
+  }
+
+  .tool-full-label {
+    display: none;
+  }
+
+  .tool-short-label,
+  .tool-mobile-label {
+    display: inline;
+  }
+
+  .author-tools button,
+  .author-tools-menu > summary {
+    padding-inline: 8px;
+    min-width: 44px;
+  }
+
+  .author-tools-menu > summary {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .example-hint {
@@ -199,7 +287,7 @@
   }
 
   .showcase-nav {
-    padding: var(--space-3);
+    padding: var(--space-2);
   }
 
   .showcase-links {
@@ -232,10 +320,6 @@
 
   .showcase-nav button {
     text-align: left;
-  }
-
-  .app-shell.is-simple .author-tool-group:last-child {
-    display: none;
   }
 
   .app-shell.is-simple .pane-preview {

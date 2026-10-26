@@ -1,18 +1,8 @@
 /* Fenced code blocks: striped toolbar, highlighted tokens and copy control.
    Every selector stays inside .md-document so a host page keeps its own
-   styles. The dark code surface matches the existing .md-code block. */
+   styles. Colors follow the document's light or dark theme. */
 
 .md-document .md-code-block {
-  --md-code-token-comment: #93a4bd;
-  --md-code-token-keyword: #c7a4ff;
-  --md-code-token-string: #9fdb9a;
-  --md-code-token-number: #f2c879;
-  --md-code-token-title: #8fc7ff;
-  --md-code-token-attr: #ffb3c8;
-  --md-code-token-meta: #d2b4ff;
-  --md-code-token-addition: #8fe3c8;
-  --md-code-token-deletion: #ff9daa;
-
   margin: var(--space-4) 0;
   border: 1px solid color-mix(in srgb, var(--code-ink) 14%, var(--code-bg));
   border-radius: var(--radius-card);

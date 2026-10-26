@@ -19,10 +19,10 @@ export interface HtmlCompatibilityControlsProps {
  * Playground-only switches for the temporary whole-document HTML route. They
  * are plain checkboxes and are intentionally not persisted: a reload, a
  * different example, or an import starts from the safe ReactiveMD defaults.
+ * The disclosure stays collapsed by default and always reports the active mode.
  */
 export function HtmlCompatibilityControls({ options, onChange }: HtmlCompatibilityControlsProps) {
   const copy = useCopy().htmlCompatibility;
-  const headingId = useId();
   const policyId = useId();
   const active = isHtmlOptionsActive(options);
 
@@ -42,12 +42,9 @@ export function HtmlCompatibilityControls({ options, onChange }: HtmlCompatibili
   };
 
   return (
-    <section className="html-compat" aria-labelledby={headingId}>
-      <div className="html-compat-copy">
-        <h2 id={headingId}>{copy.heading}</h2>
-        <p className="html-compat-policy" id={policyId}>{copy.policy}</p>
-      </div>
-      <div className="html-compat-controls">
+    <details className="html-compat">
+      <summary className="html-compat-summary">
+        <span className="html-compat-title">{copy.heading}</span>
         <span
           className={`html-mode${active ? ' is-html' : ''}`}
           role="status"
@@ -57,6 +54,10 @@ export function HtmlCompatibilityControls({ options, onChange }: HtmlCompatibili
         >
           {active ? copy.modeHtml : copy.modeReactive}
         </span>
+        <span className="html-compat-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div className="html-compat-body">
+        <p className="html-compat-policy" id={policyId}>{copy.policy}</p>
         <fieldset className="html-compat-options" aria-describedby={policyId}>
           <legend>{copy.legend}</legend>
           <div className="html-compat-option-list">
@@ -77,6 +78,6 @@ export function HtmlCompatibilityControls({ options, onChange }: HtmlCompatibili
           </div>
         </fieldset>
       </div>
-    </section>
+    </details>
   );
 }
