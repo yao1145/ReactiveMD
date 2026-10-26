@@ -23,6 +23,18 @@ function mount(source: string): { html: string; text: string } {
   }
 }
 
+it('keeps required component semantics without native form-validation attributes', () => {
+  const { html } = mount([
+    '<input bind="name" label="组织者" placeholder="你的名字" max-length="30" required="true">',
+    '<input bind="email" type="email" label="Email" required="true">',
+    '<textarea bind="notes" label="Notes" required="true">',
+    '<date bind="day" label="Day" required="true">',
+    '<input label="Optional" required="false">',
+  ].join('\n'));
+  expect(html.match(/aria-required="true"/g)).toHaveLength(4);
+  expect(html).not.toMatch(/\srequired(?:=|\s|>)/);
+});
+
 it('renders Markdown, interpolated text and controls with accessible names', () => {
   const { html, text } = mount(
     '# 费用估算\n\n' +

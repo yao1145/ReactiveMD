@@ -235,6 +235,8 @@ try {
         ['Dependency rendering equivalence', ['run', 'verify:memo'], projectRoot, browserEnv],
         ['Release combination browser', ['run', 'test:release-browser'], projectRoot, browserEnv],
         ['Firefox and WebKit core workflows', ['run', 'test:browser:core'], projectRoot, browserEnv],
+        ['Required controls in host forms', ['run', 'test:required-browser'], projectRoot, browserEnv],
+        ['Tooltip layout and themes', ['run', 'test:tooltip-browser'], projectRoot, browserEnv],
       ]);
     } finally {
       await closeDemoPreview();
