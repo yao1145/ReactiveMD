@@ -745,6 +745,24 @@ table.local-visual-table {
 
 /* Diagram */
 
+/* A wide diagram keeps its natural scale on narrow screens instead of
+   shrinking labels to illegibility. Only this block scrolls; the page itself
+   never gains horizontal overflow. */
+.local-visual-diagram .local-visual-svg-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.local-visual-diagram .local-visual-diagram-svg {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  height: auto;
+  margin-inline: auto;
+}
+
 .local-visual-diagram-svg {
   overflow: visible;
 }
@@ -1092,6 +1110,17 @@ table.local-visual-table {
     width: 100%;
     max-width: 100%;
     height: auto;
+  }
+
+  /* Printed diagrams shrink to the page instead of scrolling off it. */
+  .local-visual-diagram .local-visual-svg-wrap {
+    overflow: visible;
+  }
+
+  .local-visual-diagram .local-visual-diagram-svg {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .local-visual-chart,

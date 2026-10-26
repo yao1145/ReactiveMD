@@ -14,6 +14,13 @@ import {
 } from './limits';
 import { compileLatex, LatexError, samplePlot, type LatexEvaluationBudget } from './math';
 import { formatLocalDiagnostic } from './diagnostics';
+import {
+  createDiagramLayoutFallback,
+  diagramLayoutKey,
+  layoutDiagram,
+  type DiagramLayoutInput,
+  type DiagramLayoutResult,
+} from './diagram-layout';
 import { LatexView } from './math-view';
 import type { LocalNode, LocalRuntime, LocalValue } from './types';
 import type { LocalRenderMode, LocalVisualProps } from './render-types';
@@ -48,18 +55,14 @@ const CHART_WIDTH = 520;
 const CHART_HEIGHT = 320;
 const PLOT_WIDTH = 520;
 const PLOT_HEIGHT = 320;
-const DIAGRAM_MIN_WIDTH = 520;
 const DIAGRAM_NODE_WIDTH = 120;
 const DIAGRAM_NODE_HEIGHT = 46;
-const DIAGRAM_LAYER_GAP = 150;
 /* Edge-label metrics mirror the SVG styles below: --text-xs is 12.5px and the
    text uses a surface-colored halo. Long labels wrap to two lines and then
    ellipsize, so the layout can reserve a predictable amount of space. */
 const DIAGRAM_EDGE_LABEL_FONT_SIZE = 12.5;
 const DIAGRAM_EDGE_LABEL_PAD_X = 5;
 const DIAGRAM_EDGE_LABEL_PAD_Y = 3;
-const DIAGRAM_EDGE_LABEL_CLEARANCE = 12;
-const DIAGRAM_EDGE_LABEL_MARGIN = 10;
 const DIAGRAM_EDGE_LABEL_MAX_WIDTH = 100;
 const DIAGRAM_EDGE_LABEL_MAX_LINES = 2;
 const DIAGRAM_EDGE_LABEL_LINE_HEIGHT = 15;
@@ -2842,12 +2845,6 @@ interface DiagramModelEdge {
   label: string;
 }
 
-interface DiagramLayout {
-  width: number;
-  height: number;
-  positions: Map<string, { x: number; y: number }>;
-}
-
 /** CJK, kana, hangul and full-width punctuation occupy roughly one em. */
 const DIAGRAM_WIDE_CHAR =
   /[\u1100-\u115f\u2e80-\u303f\u3040-\u33ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/u;
@@ -2909,317 +2906,6 @@ function diagramLabelMetrics(label: string): DiagramLabelMetrics {
     width: width + DIAGRAM_EDGE_LABEL_PAD_X * 2,
     height: lines.length * DIAGRAM_EDGE_LABEL_LINE_HEIGHT + DIAGRAM_EDGE_LABEL_PAD_Y * 2,
     lines,
-  };
-}
-
-/**
- * Parallel edges fan out around the pair's center. The same offsets must be
- * used for layout measurement and rendering so label bounds stay accurate.
- */
-function diagramEdgeOffsets(edges: DiagramModelEdge[]): Map<string, number> {
-  const totals = new Map<string, number>();
-  for (const edge of edges) {
-    const pair = `${edge.from}\u0000${edge.to}`;
-    totals.set(pair, (totals.get(pair) ?? 0) + 1);
-  }
-  const seen = new Map<string, number>();
-  const offsets = new Map<string, number>();
-  for (const edge of edges) {
-    const pair = `${edge.from}\u0000${edge.to}`;
-    const total = totals.get(pair) ?? 1;
-    const index = seen.get(pair) ?? 0;
-    seen.set(pair, index + 1);
-    offsets.set(edge.key, (index - (total - 1) / 2) * 12);
-  }
-  return offsets;
-}
-
-/**
- * Grows the viewBox and shifts every node when a label would leave it. Forward
- * labels already fit between cards thanks to the adaptive layer spacing; this
- * pass protects back-edge and self-loop labels near the diagram borders.
- */
-function padDiagramForLabels(
-  layout: DiagramLayout,
-  edges: DiagramModelEdge[],
-  direction: 'right' | 'down',
-): DiagramLayout {
-  const { width, height, positions } = layout;
-  const offsets = diagramEdgeOffsets(edges);
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  for (const edge of edges) {
-    if (!edge.label) continue;
-    const from = positions.get(edge.from);
-    const to = positions.get(edge.to);
-    if (!from || !to) continue;
-    const geometry = edgeGeometry(
-      direction,
-      from,
-      to,
-      offsets.get(edge.key) ?? 0,
-      edge.from === edge.to,
-    );
-    const metrics = diagramLabelMetrics(edge.label);
-    minX = Math.min(minX, geometry.labelX - metrics.width / 2);
-    minY = Math.min(minY, geometry.labelY - metrics.height / 2);
-    maxX = Math.max(maxX, geometry.labelX + metrics.width / 2);
-    maxY = Math.max(maxY, geometry.labelY + metrics.height / 2);
-  }
-  if (!Number.isFinite(minX)) return layout;
-
-  const left = Math.max(0, DIAGRAM_EDGE_LABEL_MARGIN - minX);
-  const top = Math.max(0, DIAGRAM_EDGE_LABEL_MARGIN - minY);
-  const right = Math.max(0, maxX + DIAGRAM_EDGE_LABEL_MARGIN - width);
-  const bottom = Math.max(0, maxY + DIAGRAM_EDGE_LABEL_MARGIN - height);
-  if (left === 0 && top === 0 && right === 0 && bottom === 0) return layout;
-
-  for (const position of positions.values()) {
-    position.x += left;
-    position.y += top;
-  }
-  return {
-    width: width + left + right,
-    height: height + top + bottom,
-    positions,
-  };
-}
-
-function diagramLayout(
-  nodes: DiagramModelNode[],
-  edges: DiagramModelEdge[],
-  direction: 'right' | 'down',
-): DiagramLayout {
-  const ids = nodes.map((entry) => entry.id);
-  const sourceOrder = new Map(ids.map((id, index) => [id, index]));
-  const known = new Set(ids);
-  const adjacency = new Map<string, string[]>(ids.map((id) => [id, []]));
-  for (const edge of edges) {
-    if (edge.from === edge.to || !known.has(edge.from) || !known.has(edge.to)) continue;
-    adjacency.get(edge.from)!.push(edge.to);
-  }
-
-  const indices = new Map<string, number>();
-  const low = new Map<string, number>();
-  const onStack = new Set<string>();
-  const stack: string[] = [];
-  const components: string[][] = [];
-  let counter = 0;
-
-  const strongConnect = (id: string) => {
-    indices.set(id, counter);
-    low.set(id, counter);
-    counter += 1;
-    stack.push(id);
-    onStack.add(id);
-    for (const next of adjacency.get(id) ?? []) {
-      if (!indices.has(next)) {
-        strongConnect(next);
-        low.set(id, Math.min(low.get(id)!, low.get(next)!));
-      } else if (onStack.has(next)) {
-        low.set(id, Math.min(low.get(id)!, indices.get(next)!));
-      }
-    }
-    if (low.get(id) === indices.get(id)) {
-      const component: string[] = [];
-      let current: string;
-      do {
-        current = stack.pop()!;
-        onStack.delete(current);
-        component.push(current);
-      } while (current !== id);
-      components.push(component.reverse());
-    }
-  };
-  for (const id of ids) if (!indices.has(id)) strongConnect(id);
-
-  const componentOf = new Map<string, number>();
-  components.forEach((component, index) => {
-    for (const id of component) componentOf.set(id, index);
-  });
-
-  const condensed = components.map(() => new Set<number>());
-  const indegree = components.map(() => 0);
-  for (const edge of edges) {
-    if (!known.has(edge.from) || !known.has(edge.to)) continue;
-    const from = componentOf.get(edge.from)!;
-    const to = componentOf.get(edge.to)!;
-    if (from === to || condensed[from].has(to)) continue;
-    condensed[from].add(to);
-    indegree[to] += 1;
-  }
-
-  const componentOrder = components.map((component, index) => ({
-    index,
-    order: Math.min(...component.map((id) => sourceOrder.get(id) ?? 0)),
-  }));
-  const queue = componentOrder
-    .filter((entry) => indegree[entry.index] === 0)
-    .map((entry) => entry.index)
-    .sort((left, right) => {
-      const a = componentOrder[left].order;
-      const b = componentOrder[right].order;
-      return a - b;
-    });
-  const layer = components.map(() => 0);
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    for (const next of condensed[current]) {
-      layer[next] = Math.max(layer[next], layer[current] + 1);
-      indegree[next] -= 1;
-      if (indegree[next] === 0) queue.push(next);
-    }
-  }
-
-  const layerCount = Math.max(1, ...layer) + 1;
-  const groups: string[][] = Array.from({ length: layerCount }, () => []);
-  for (const id of ids) groups[layer[componentOf.get(id)!]].push(id);
-  const populated = groups.filter((group) => group.length > 0);
-  const maxCount = Math.max(1, ...populated.map((group) => group.length));
-  const marginX = 44;
-  const marginY = 30;
-
-  const positions = new Map<string, { x: number; y: number }>();
-  let width: number;
-  let height: number;
-  if (direction === 'down') {
-    width = DIAGRAM_MIN_WIDTH;
-    height = Math.max(
-      240,
-      marginY * 2 + DIAGRAM_NODE_HEIGHT + (populated.length - 1) * 120,
-    );
-    populated.forEach((group, layerIndex) => {
-      const y = marginY + DIAGRAM_NODE_HEIGHT / 2 + layerIndex * 120;
-      group.forEach((id, index) => {
-        const x =
-          group.length === 1
-            ? width / 2
-            : marginX +
-              DIAGRAM_NODE_WIDTH / 2 +
-              index * ((width - marginX * 2 - DIAGRAM_NODE_WIDTH) / (group.length - 1));
-        positions.set(id, { x, y });
-      });
-    });
-  } else {
-    // Forward edge labels sit in the channel between two layers. Reserve the
-    // widest estimated label plus breathing room on both sides; fall back to
-    // the original 150px rhythm when there are no labels.
-    const widestLabel = edges.reduce(
-      (widest, edge) =>
-        edge.label ? Math.max(widest, diagramLabelMetrics(edge.label).width) : widest,
-      0,
-    );
-    const layerSpacing = Math.max(
-      DIAGRAM_LAYER_GAP,
-      DIAGRAM_NODE_WIDTH +
-        (widestLabel > 0 ? widestLabel + DIAGRAM_EDGE_LABEL_CLEARANCE * 2 : 0),
-    );
-    width = Math.max(
-      DIAGRAM_MIN_WIDTH,
-      marginX * 2 + DIAGRAM_NODE_WIDTH + (populated.length - 1) * layerSpacing,
-    );
-    height = Math.max(
-      240,
-      marginY * 2 + DIAGRAM_NODE_HEIGHT + (maxCount - 1) * 74,
-    );
-    populated.forEach((group, layerIndex) => {
-      const x =
-        populated.length === 1
-          ? width / 2
-          : marginX +
-            DIAGRAM_NODE_WIDTH / 2 +
-            layerIndex * ((width - marginX * 2 - DIAGRAM_NODE_WIDTH) / (populated.length - 1));
-      group.forEach((id, index) => {
-        const y =
-          group.length === 1
-            ? height / 2
-            : marginY +
-              DIAGRAM_NODE_HEIGHT / 2 +
-              index * ((height - marginY * 2 - DIAGRAM_NODE_HEIGHT) / (group.length - 1));
-        positions.set(id, { x, y });
-      });
-    });
-  }
-
-  return padDiagramForLabels({ width, height, positions }, edges, direction);
-}
-
-interface EdgeGeometry {
-  d: string;
-  labelX: number;
-  labelY: number;
-}
-
-function edgeGeometry(
-  direction: 'right' | 'down',
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-  offset: number,
-  self: boolean,
-): EdgeGeometry {
-  const width = DIAGRAM_NODE_WIDTH;
-  const height = DIAGRAM_NODE_HEIGHT;
-  if (self) {
-    if (direction === 'right') {
-      const d = `M ${from.x + 20} ${from.y - height / 2} C ${from.x + 64} ${
-        from.y - height / 2 - 64
-      }, ${from.x - 64} ${from.y - height / 2 - 64}, ${from.x - 20} ${from.y - height / 2}`;
-      return { d, labelX: from.x, labelY: from.y - height / 2 - 46 };
-    }
-    const d = `M ${from.x + width / 2} ${from.y - 10} C ${from.x + width / 2 + 64} ${
-      from.y - 54
-    }, ${from.x + width / 2 + 64} ${from.y + 54}, ${from.x + width / 2} ${from.y + 10}`;
-    return { d, labelX: from.x + width / 2 + 44, labelY: from.y };
-  }
-
-  if (direction === 'right') {
-    const forward = to.x > from.x;
-    if (forward) {
-      const x1 = from.x + width / 2;
-      const y1 = from.y + offset;
-      const x2 = to.x - width / 2;
-      const y2 = to.y + offset;
-      return {
-        d: `M ${x1} ${y1} L ${x2} ${y2}`,
-        labelX: (x1 + x2) / 2,
-        labelY: (y1 + y2) / 2 - 12,
-      };
-    }
-    const x1 = from.x + offset;
-    const x2 = to.x + offset;
-    const y1 = from.y + height / 2;
-    const y2 = to.y - height / 2;
-    const bend = Math.max(70, Math.abs(x2 - x1) * 0.45);
-    return {
-      d: `M ${x1} ${y1} C ${x1 + bend} ${y1 + 86}, ${x2 - bend} ${y2 + 86}, ${x2} ${y2}`,
-      labelX: (x1 + x2) / 2,
-      labelY: Math.max(y1, y2) + 48,
-    };
-  }
-
-  const forward = to.y > from.y;
-  if (forward) {
-    const x1 = from.x + offset;
-    const x2 = to.x + offset;
-    const y1 = from.y + height / 2;
-    const y2 = to.y - height / 2;
-    return {
-      d: `M ${x1} ${y1} L ${x2} ${y2}`,
-      labelX: (x1 + x2) / 2 + 10,
-      labelY: (y1 + y2) / 2,
-    };
-  }
-  const x1 = from.x + width / 2;
-  const x2 = to.x - width / 2;
-  const y1 = from.y + offset;
-  const y2 = to.y + offset;
-  const bend = Math.max(70, Math.abs(y2 - y1) * 0.45);
-  return {
-    d: `M ${x1} ${y1} C ${x1 + 86} ${y1 + bend}, ${x2 + 86} ${y2 - bend}, ${x2} ${y2}`,
-    labelX: Math.max(x1, x2) + 48,
-    labelY: (y1 + y2) / 2,
   };
 }
 
@@ -3288,6 +2974,55 @@ function DiagramView({ node, runtime, render, mode }: ResolvedLocalVisualProps) 
     edges.push({ key, from, to, label });
   }
 
+  /* Layout depends only on topology, direction and label sizes. Selection,
+     tone and node descriptions never rebuild it. */
+  const layoutInput: DiagramLayoutInput = {
+    direction,
+    nodes: nodes.map((entry) => ({
+      id: entry.id,
+      width: DIAGRAM_NODE_WIDTH,
+      height: DIAGRAM_NODE_HEIGHT,
+    })),
+    edges: edges.map((edge) => {
+      const metrics = edge.label ? diagramLabelMetrics(edge.label) : null;
+      return {
+        id: edge.key,
+        from: edge.from,
+        to: edge.to,
+        label: edge.label,
+        labelWidth: metrics?.width,
+        labelHeight: metrics?.height,
+      };
+    }),
+  };
+  const layoutKey = diagramLayoutKey(layoutInput);
+  const fallbackLayout = useMemo(
+    () => createDiagramLayoutFallback(layoutInput),
+    [layoutKey],
+  );
+  const [resolvedLayout, setResolvedLayout] = useState<{
+    key: string;
+    layout: DiagramLayoutResult;
+  } | null>(null);
+  useEffect(() => {
+    if (layoutInput.nodes.length === 0) return undefined;
+    let active = true;
+    layoutDiagram(layoutInput)
+      .then((result) => {
+        if (active) setResolvedLayout({ key: layoutKey, layout: result });
+      })
+      .catch(() => {
+        /* The fallback already provides a usable layout. */
+      });
+    return () => {
+      active = false;
+    };
+  }, [layoutKey]);
+  /* A result for an older topology is never painted; the synchronous layout
+     covers the single frame before ELK resolves. */
+  const layout =
+    resolvedLayout && resolvedLayout.key === layoutKey ? resolvedLayout.layout : fallbackLayout;
+
   if (nodes.length === 0) {
     return (
       <VisualFrame className="local-visual-diagram" label={title}>
@@ -3334,26 +3069,24 @@ function DiagramView({ node, runtime, render, mode }: ResolvedLocalVisualProps) 
     }
   };
 
-  const layout = diagramLayout(nodes, edges, direction);
-  const offsets = diagramEdgeOffsets(edges);
   const edgePaths: ReactNode[] = [];
   const edgeLabels: ReactNode[] = [];
 
   for (const edge of edges) {
-    const from = layout.positions.get(edge.from);
-    const to = layout.positions.get(edge.to);
-    if (!from || !to) continue;
-    const geometry = edgeGeometry(
-      direction,
-      from,
-      to,
-      offsets.get(edge.key) ?? 0,
-      edge.from === edge.to,
-    );
+    const edgeLayout = layout.edges.get(edge.key);
+    if (!edgeLayout || edgeLayout.sections.length === 0) continue;
+    const path = edgeLayout.sections
+      .map((section) => {
+        const points = [section.startPoint, ...section.bendPoints, section.endPoint];
+        return points
+          .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+          .join(' ');
+      })
+      .join(' ');
     edgePaths.push(
       <g key={`edge-${edge.key}`} className="local-visual-edge">
         <path
-          d={geometry.d}
+          d={path}
           fill="none"
           style={{ stroke: 'var(--ink-muted)' }}
           strokeWidth={1.6}
@@ -3362,21 +3095,25 @@ function DiagramView({ node, runtime, render, mode }: ResolvedLocalVisualProps) 
       </g>,
     );
     if (!edge.label) continue;
+    const labelBox = edgeLayout.label;
+    if (!labelBox) continue;
     const label = diagramLabelMetrics(edge.label);
+    const labelX = labelBox.x + labelBox.width / 2;
+    const labelY = labelBox.y + labelBox.height / 2;
     edgeLabels.push(
       <g key={`edge-label-${edge.key}`} className="local-visual-edge-label-group">
         <text
           className="local-visual-edge-label"
-          x={geometry.labelX}
-          y={geometry.labelY}
+          x={labelX}
+          y={labelY}
           textAnchor="middle"
           dominantBaseline="middle"
         >
           {label.lines.map((line, index) => (
             <tspan
               key={index}
-              x={geometry.labelX}
-              y={geometry.labelY + (index - (label.lines.length - 1) / 2) * DIAGRAM_EDGE_LABEL_LINE_HEIGHT}
+              x={labelX}
+              y={labelY + (index - (label.lines.length - 1) / 2) * DIAGRAM_EDGE_LABEL_LINE_HEIGHT}
             >
               {line}
             </tspan>
@@ -3395,6 +3132,8 @@ function DiagramView({ node, runtime, render, mode }: ResolvedLocalVisualProps) 
         <svg
           className="local-visual-svg local-visual-diagram-svg"
           viewBox={`0 0 ${layout.width} ${layout.height}`}
+          width={layout.width}
+          height={layout.height}
           role="group"
           aria-label={
             interactive
@@ -3421,7 +3160,7 @@ function DiagramView({ node, runtime, render, mode }: ResolvedLocalVisualProps) 
           </defs>
           {edgePaths}
           {nodes.map((entry) => {
-            const position = layout.positions.get(entry.id);
+            const position = layout.nodes.get(entry.id);
             if (!position) return null;
             const selected = interactive
               ? entry.id === selectedId
@@ -3460,10 +3199,10 @@ function DiagramView({ node, runtime, render, mode }: ResolvedLocalVisualProps) 
                 <title>{entry.label}</title>
                 <rect
                   className="local-visual-node-shape"
-                  x={-DIAGRAM_NODE_WIDTH / 2}
-                  y={-DIAGRAM_NODE_HEIGHT / 2}
-                  width={DIAGRAM_NODE_WIDTH}
-                  height={DIAGRAM_NODE_HEIGHT}
+                  x={-position.width / 2}
+                  y={-position.height / 2}
+                  width={position.width}
+                  height={position.height}
                   rx={10}
                 />
                 <text className="local-visual-node-text" textAnchor="middle">
