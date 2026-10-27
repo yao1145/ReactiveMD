@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { preview } from 'vite';
+import { clickWorkbenchAction } from '../demo/scripts/workbench-ui.mjs';
 
 // Chromium keeps the full suite; Firefox and WebKit share this smaller gate.
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -111,7 +112,7 @@ async function runCase(browser, engine, width, result, baseURL) {
 
     await check('create, name and edit a personal document', async () => {
       await page.getByRole('button', { name: 'My documents', exact: true }).click();
-      await page.getByRole('button', { name: 'New document', exact: true }).click();
+      await clickWorkbenchAction(page, 'New document');
       await page.getByRole('textbox', { name: 'Document name', exact: true }).fill('Core workflow');
       await page.getByRole('button', { name: 'Create', exact: true }).click();
       await expect(documentSelect.locator('option:checked')).toHaveText('Core workflow');
@@ -159,11 +160,11 @@ async function runCase(browser, engine, width, result, baseURL) {
       await page.reload();
       await expect(documentSelect).toHaveValue(originalId);
       await expect(editor).toHaveValue(source);
-      await page.locator('.doc-library').getByRole('button', { name: 'Rename', exact: true }).click();
+      await clickWorkbenchAction(page, 'Rename');
       const form = page.getByRole('form', { name: 'Rename document', exact: true });
       await form.getByRole('textbox', { name: 'Document name', exact: true }).fill('Core saved');
       await form.getByRole('button', { name: 'Rename', exact: true }).click();
-      await page.getByRole('button', { name: 'Duplicate', exact: true }).click();
+      await clickWorkbenchAction(page, 'Duplicate');
       await page.getByRole('textbox', { name: 'Document name', exact: true }).fill('Core copy');
       await page.getByRole('button', { name: 'Create copy', exact: true }).click();
       copyId = await documentSelect.inputValue();
@@ -181,13 +182,13 @@ async function runCase(browser, engine, width, result, baseURL) {
     });
 
     await check('Markdown and interactive HTML downloads reopen with working controls', async () => {
-      await page.getByRole('button', { name: 'Export document…', exact: true }).click();
+      await clickWorkbenchAction(page, 'Export');
       const markdownReady = page.waitForEvent('download');
       await page.getByRole('dialog').getByRole('button', { name: 'Download Markdown', exact: true }).click();
       const markdown = await markdownReady;
       expect(markdown.suggestedFilename()).toBe('Core copy.reactive.md');
       expect(await readFile(await markdown.path(), 'utf8')).toBe(source);
-      await page.getByRole('button', { name: 'Export document…', exact: true }).click();
+      await clickWorkbenchAction(page, 'Export');
       const htmlReady = page.waitForEvent('download');
       await page.getByRole('dialog').getByRole('button', { name: 'Export HTML', exact: true }).click();
       const html = await htmlReady;
@@ -218,11 +219,11 @@ async function runCase(browser, engine, width, result, baseURL) {
       await expect(code).toHaveCSS('background-color', 'rgb(11, 18, 32)');
       await page.getByRole('button', { name: '浅色主题', exact: true }).click();
       await page.getByRole('button', { name: 'Playground', exact: true }).click();
-      const tools = page.locator('.author-tools-menu');
+      const tools = page.locator('.workbench-options');
       await tools.locator(':scope > summary').focus();
       await tools.locator(':scope > summary').press('Enter');
       await expect(tools).toHaveAttribute('open', '');
-      await expect(tools.getByRole('button', { name: '导入文档', exact: true })).toBeVisible();
+      await expect(tools.getByRole('button', { name: '导入', exact: true })).toBeVisible();
       await fits();
       await page.screenshot({ path: join(artifactRoot, engine, `${width}.png`) });
     });
