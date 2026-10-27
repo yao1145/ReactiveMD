@@ -151,6 +151,9 @@ try {
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await page.getByTestId('language-toggle').click();
+  // Example drafts are language-specific. Give the Chinese draft an image
+  // reference so its resource panel exists before checking its translation.
+  await editor.fill('# 图片文档\n\n![图片](images/local.png)');
   await expect(mainPanel).toContainText('文档图片');
   check('390px layout has no page overflow and image controls are localized');
   expect(errors).toEqual([]);

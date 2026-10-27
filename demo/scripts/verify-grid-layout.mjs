@@ -38,7 +38,11 @@ try {
   const source = '# Container layout regression\n\n' + [1, 2, 3, 4].map((columns) => `<grid columns="${columns}">${cards(4)}</grid>`).join('\n\n') + '\n\n' + nested;
   await page.setViewportSize({ width: 1600, height: 1000 });
   await expect(page.locator('[data-editor-view-option="split"]')).toHaveAttribute('aria-pressed', 'true');
-  await page.locator('#source-editor').fill(source);
+  const editor = page.locator('#source-editor');
+  await editor.focus();
+  await expect(editor).toBeFocused();
+  await editor.fill(source);
+  await expect(editor).toHaveValue(source);
   await expect(preview.getByRole('heading', { name: 'Container layout regression', exact: true })).toBeVisible();
   await clickWorkbenchAction(page, '演示模式');
   for (const width of [200, 240, 320, 430, 451, 452, 480, 600, 700, 720, 960, 1200]) {
