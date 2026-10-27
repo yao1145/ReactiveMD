@@ -1,6 +1,7 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { gridOverflows } from './grid-layout-assertions.mjs';
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 
 const baseURL = process.env.DEMO_URL ?? 'http://127.0.0.1:5173';
 const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge';
@@ -12,8 +13,8 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.addInitScript(() => localStorage.setItem('reactive-md:language', 'zh'));
   await page.goto(baseURL);
-  await page.locator('[data-example-id="statistics"]').click();
-  await page.getByRole('button', { name: '显示源码', exact: true }).click();
+  await page.locator('#example-select').selectOption('statistics');
+  await clickWorkbenchAction(page, '显示源码');
   const preview = page.locator('.preview-stage');
   await expect(preview.getByRole('heading', { name: '一份预算，多种观察方式', exact: true })).toBeVisible();
   await page.screenshot({ path: 'artifacts/grid-statistics-editing.png', fullPage: true });
@@ -23,12 +24,12 @@ try {
   for (const width of [1920, 1440, 1200, 1024, 980, 800, 768, 621, 620, 480, 375]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const mode of ['editing', 'presentation']) {
-      if (mode === 'presentation') await page.getByRole('button', { name: '演示模式', exact: true }).click();
+      if (mode === 'presentation') await clickWorkbenchAction(page, '演示模式');
       expect(await gridOverflows(preview), `statistics ${mode} at ${width}px`).toEqual([]);
       if (width === 1200 || width === 768) await page.screenshot({ path: `artifacts/grid-statistics-${mode}-${width}.png`, fullPage: true });
       checks.push(`statistics ${mode} at ${width}px`);
     }
-    await page.getByRole('button', { name: '显示源码', exact: true }).click();
+    await clickWorkbenchAction(page, '显示源码');
   }
 
   // A wide viewport with a small host is the important case for embedded documents.
@@ -36,9 +37,10 @@ try {
   const nested = `<grid columns="2">${cards(2, `<grid columns="3">${cards(3)}</grid>`)}</grid>`;
   const source = '# Container layout regression\n\n' + [1, 2, 3, 4].map((columns) => `<grid columns="${columns}">${cards(4)}</grid>`).join('\n\n') + '\n\n' + nested;
   await page.setViewportSize({ width: 1600, height: 1000 });
+  await expect(page.locator('[data-editor-view-option="split"]')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#source-editor').fill(source);
   await expect(preview.getByRole('heading', { name: 'Container layout regression', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '演示模式', exact: true }).click();
+  await clickWorkbenchAction(page, '演示模式');
   for (const width of [200, 240, 320, 430, 451, 452, 480, 600, 700, 720, 960, 1200]) {
     await preview.evaluate((element, width) => {
       element.style.width = `${width}px`;

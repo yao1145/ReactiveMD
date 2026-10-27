@@ -119,7 +119,7 @@ try {
         await clickWorkbenchAction(page, t('Show source', '显示源码'));
         await expect(page.locator('#source-editor')).toBeVisible();
         await expect(summary).toContainText('480');
-        await page.getByRole('button', { name: t('Presentation mode', '演示模式'), exact: true }).click();
+        await clickWorkbenchAction(page, t('Presentation mode', '演示模式'));
         await expect(summary).toContainText('480');
         await preview.getByRole('button', { name: t('Reset Workshop details', '活动配置 恢复默认'), exact: true }).click();
         await expect(summary).toContainText('320');
@@ -246,7 +246,7 @@ try {
             await clickWorkbenchAction(page, t('Show source', '显示源码'));
             expect(await fits(), `${language} ${id} editing at ${width}`).toBe(true);
             expect(await gridOverflows(preview), `${language} ${id} editing grids at ${width}`).toEqual([]);
-            await page.getByRole('button', { name: t('Presentation mode', '演示模式'), exact: true }).click();
+            await clickWorkbenchAction(page, t('Presentation mode', '演示模式'));
           }
           if (width === 375) await page.screenshot({ path: `artifacts/showcase-${language}-mobile.png`, fullPage: true });
         }

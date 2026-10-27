@@ -71,7 +71,7 @@ export const LIBRARY_COPY: Record<Language, DocumentLibraryCopy> = {
     defaultName: 'Untitled document',
     importedName: 'Imported document',
     copySuffix: ' copy',
-    copyExample: 'Copy example to My documents',
+    copyExample: 'Save copy',
     moreOptions: 'More options',
   },
   zh: {
@@ -101,7 +101,7 @@ export const LIBRARY_COPY: Record<Language, DocumentLibraryCopy> = {
     defaultName: '未命名文档',
     importedName: '导入的文档',
     copySuffix: ' 副本',
-    copyExample: '复制示例到我的文档',
+    copyExample: '保存副本',
     moreOptions: '更多选项',
   },
 };

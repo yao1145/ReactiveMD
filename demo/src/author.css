@@ -696,20 +696,261 @@
   margin-left: auto;
 }
 .workbench-quick-actions > .button { min-height: 44px; white-space: nowrap; }
-.workbench-options[open] { flex: 1 1 100%; order: 10; }
-.workbench-options-body { padding-block: var(--space-2); border-top: 1px solid var(--line); }
-.library-more-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); width: 100%; }
-.library-more-actions:empty { display: none; }
-.workbench-options-body > .author-tools {
-  flex: 1 1 100%;
-  padding: 0 0 var(--space-2);
+.workbench-bar { position: relative; }
+.workbench-options { position: static; }
+
+/* More options reads as one quiet settings surface: sections are separated by
+   hairlines instead of nested cards, and every action is the same pill. */
+.workbench-options-body {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: var(--space-4);
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  width: min(760px, calc(100vw - 2 * var(--space-4)));
+  max-height: min(76dvh, 640px);
+  overflow: auto;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-panel);
+  box-shadow:
+    0 24px 64px color-mix(in srgb, var(--ink) 16%, transparent),
+    0 2px 8px color-mix(in srgb, var(--ink) 5%, transparent);
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
+  animation: options-panel-in var(--motion-fast) var(--ease-standard) both;
+}
+
+@keyframes options-panel-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workbench-options-body { animation: none; }
+}
+
+.options-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.options-group + .options-group {
+  border-left: 1px solid var(--line);
+}
+
+.options-heading {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  line-height: var(--leading-tight);
+  text-transform: uppercase;
+}
+
+/* The author tools normally carry their own bar chrome; inside the panel they
+   are only a grid of buttons. */
+.options-group .author-tools {
+  display: block;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.options-group .author-tool-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.options-group .author-tools button,
+.options-actions-row .button {
+  min-height: var(--control-height);
+  padding-inline: 10px;
+  background: var(--surface);
+  border-color: var(--line-strong);
+  border-radius: var(--radius-field);
+  color: var(--ink);
+  line-height: var(--leading-tight);
+}
+
+.options-group .author-tools button:hover,
+.options-actions-row .button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--line-strong);
+}
+
+/* Library actions arrive through a portal, so both containers dissolve and
+   their buttons share one wrapping row. */
+.options-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.options-actions,
+.library-more-actions {
+  display: contents;
+}
+
+.options-actions-row .button {
+  flex: 1 1 0;
+  min-width: max-content;
+}
+
+.options-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 2px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  cursor: pointer;
+}
+
+.options-check input {
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+}
+
+.workbench-options-body > .html-compat {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
   background: transparent;
 }
-.more-options-heading { flex-basis: 100%; margin: 0; font-size: var(--text-sm); }
-.workbench-options-body .author-tool-group { flex-wrap: wrap; }
-.workbench-options-body .html-compat { flex-basis: 100%; }
-.workbench-options-body > .image-assets { width: 100%; margin-block: var(--space-2) 0; }
+
+.workbench-options-body > .html-compat > .html-compat-summary {
+  min-height: 0;
+  padding: 13px var(--space-4);
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+
+.workbench-options-body > .html-compat > .html-compat-summary:hover {
+  background: var(--surface-hover);
+}
+
+.workbench-options-body > .html-compat .html-compat-title {
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.workbench-options-body > .html-compat .html-compat-body {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.workbench-options-body .html-compat-option-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.workbench-options-body .html-compat-option {
+  align-items: flex-start;
+  gap: 9px;
+  min-height: 0;
+  padding: 11px 12px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+.workbench-options-body .html-compat-option:hover {
+  background: var(--surface-hover);
+  border-color: var(--line-strong);
+}
+
+.workbench-options-body .html-compat-option:has(input:checked) {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.workbench-options-body .html-compat-option input {
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
+.workbench-options-body .html-compat-option-copy {
+  gap: 3px;
+}
+
+.workbench-options-body .html-compat-option-label {
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+}
+
+.workbench-options-body .html-compat-option-hint {
+  max-width: none;
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+.workbench-options-body > .image-assets {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--space-4);
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.workbench-options-body > .image-assets .image-assets-head h3 {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .library-workbench > .status-chip { margin-left: 0; }
+
+@media (max-width: 720px) {
+  .workbench-options-body {
+    left: var(--space-3);
+    right: var(--space-3);
+    width: auto;
+    grid-template-columns: minmax(0, 1fr);
+    max-height: min(78dvh, 640px);
+  }
+  .options-group { padding: var(--space-3) var(--space-4); }
+  .options-group + .options-group {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .options-group .author-tool-group { grid-template-columns: minmax(0, 1fr); }
+  .options-group .author-tools button,
+  .options-actions-row .button { min-height: var(--control-height-lg); }
+  .options-actions-row .button { flex: 1 1 100%; }
+  .workbench-options-body .html-compat-option-list { grid-template-columns: minmax(0, 1fr); }
+  .workbench-options-body > .html-compat > .html-compat-summary,
+  .workbench-options-body > .html-compat .html-compat-body {
+    padding-inline: var(--space-4);
+  }
+}
 @media (max-width: 600px) {
   .workbench-quick-actions { margin-left: 0; }
   .workbench-options { margin-left: auto; }

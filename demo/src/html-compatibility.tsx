@@ -1,4 +1,4 @@
-import { useId, type ChangeEvent } from 'react';
+import { type ChangeEvent } from 'react';
 import { useCopy } from './i18n';
 import { isHtmlOptionsActive, type DemoHtmlOptions } from './html-options';
 
@@ -23,7 +23,6 @@ export interface HtmlCompatibilityControlsProps {
  */
 export function HtmlCompatibilityControls({ options, onChange }: HtmlCompatibilityControlsProps) {
   const copy = useCopy().htmlCompatibility;
-  const policyId = useId();
   const active = isHtmlOptionsActive(options);
 
   const labels: Record<HtmlOptionKey, { label: string; hint: string }> = {
@@ -57,9 +56,7 @@ export function HtmlCompatibilityControls({ options, onChange }: HtmlCompatibili
         <span className="html-compat-chevron" aria-hidden="true">⌄</span>
       </summary>
       <div className="html-compat-body">
-        <p className="html-compat-policy" id={policyId}>{copy.policy}</p>
-        <fieldset className="html-compat-options" aria-describedby={policyId}>
-          <legend>{copy.legend}</legend>
+        <fieldset className="html-compat-options" aria-label={copy.legend}>
           <div className="html-compat-option-list">
             {OPTION_KEYS.map((key) => (
               <label className="html-compat-option" key={key}>

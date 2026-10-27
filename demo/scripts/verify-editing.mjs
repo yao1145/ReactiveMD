@@ -41,14 +41,14 @@ try {
   });
   await check('switching examples discards old work and flushes each source separately', async () => {
     await fillSource(article(300) + '\n\nSaved pricing edit.');
-    await page.locator('[data-example-id="forms"]').click();
+    await page.locator('#example-select').selectOption('forms');
     await clickWorkbenchAction(page, 'Restore example');
     await expect(page.locator('.status-chip')).toContainText('Compiled');
     await expect(preview).not.toContainText('Saved pricing edit.');
     await fillSource('# Counter edit\n\nSaved counter edit.');
-    await page.locator('[data-example-id="pricing"]').click();
+    await page.locator('#example-select').selectOption('pricing');
     await expect(editor).toHaveValue(article(300) + '\n\nSaved pricing edit.');
-    await page.locator('[data-example-id="forms"]').click();
+    await page.locator('#example-select').selectOption('forms');
     await expect(editor).toHaveValue('# Counter edit\n\nSaved counter edit.');
     await page.reload();
     await clickWorkbenchAction(page, 'Show source');

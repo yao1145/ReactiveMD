@@ -255,14 +255,6 @@ textarea {
   padding: 0 var(--space-4) var(--space-3);
 }
 
-.html-compat-policy {
-  max-width: 74ch;
-  margin: 0;
-  color: var(--ink-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-snug);
-}
-
 .html-compat-options {
   min-width: 0;
   margin: 0;

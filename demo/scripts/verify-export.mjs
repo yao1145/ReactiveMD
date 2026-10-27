@@ -29,7 +29,7 @@ try {
   await slider.focus();
   for (let index = 0; index < 4; index += 1) await slider.press('ArrowRight');
   await clickWorkbenchAction(page, 'Show source');
-  await clickWorkbenchAction(page, /^Export document/);
+  await clickWorkbenchAction(page, /^Export/);
   const dialog = page.getByRole('dialog');
   await dialog.waitFor();
 
@@ -83,7 +83,7 @@ try {
   });
 
   await check('static output can be downloaded without a runtime', async () => {
-    await clickWorkbenchAction(page, /^Export document/);
+    await clickWorkbenchAction(page, /^Export/);
     const reopened = page.getByRole('dialog');
     await reopened.waitFor();
     await reopened.getByRole('radio', { name: /^Static HTML/ }).check();

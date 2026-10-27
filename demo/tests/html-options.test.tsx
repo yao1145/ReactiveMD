@@ -104,7 +104,6 @@ describe('HTML compatibility controls', () => {
     );
     expect(markup.match(/type="checkbox"/g)).toHaveLength(3);
     expect(markup.match(/checked=""/g) ?? []).toHaveLength(0);
-    expect(markup).toContain(COPY.en.htmlCompatibility.policy);
     expect(markup).toContain(COPY.en.htmlCompatibility.modeReactive);
     expect(markup).toContain(COPY.en.htmlCompatibility.css);
     expect(markup).toContain(COPY.en.htmlCompatibility.javascript);
@@ -124,7 +123,6 @@ describe('HTML compatibility controls', () => {
     expect(markup.match(/checked=""/g) ?? []).toHaveLength(1);
     expect(markup).toContain(COPY.zh.htmlCompatibility.modeHtml);
     expect(markup).not.toContain(COPY.zh.htmlCompatibility.modeReactive);
-    expect(markup).toContain('暂时性分流政策');
     expect(markup).toContain('JavaScript');
   });
 
@@ -135,8 +133,6 @@ describe('HTML compatibility controls', () => {
     expect(COPY.zh.htmlCompatibility.javascript).toBe('JavaScript');
     expect(COPY.zh.htmlCompatibility.extendedHtml).toContain('HTML');
     expect(COPY.en.htmlCompatibility.extendedHtml).not.toBe(COPY.zh.htmlCompatibility.extendedHtml);
-    expect(COPY.en.htmlCompatibility.policy).toContain('Temporary');
-    expect(COPY.zh.htmlCompatibility.policy).toContain('暂时性分流政策');
   });
 });
 

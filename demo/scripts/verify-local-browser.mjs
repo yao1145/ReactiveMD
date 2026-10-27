@@ -270,7 +270,8 @@ try {
 
   await pick('components');
   await check('style choice changes prose and tooltips are keyboard reachable', async () => {
-    await preview().getByText('reactive bindings', { exact: true }).focus();
+    await expect(preview().getByRole('heading', { name: 'Organize interactions with content', exact: true })).toBeVisible();
+    await preview().locator('.local-tooltip-trigger').filter({ hasText: 'reactive bindings' }).focus();
     await expect(page.getByRole('tooltip')).toBeVisible();
     await page.getByLabel('Detailed', { exact: true }).click();
     await expect(preview().getByText('When readers adjust a control, the related content updates immediately.', { exact: false })).toBeVisible();
@@ -318,7 +319,7 @@ try {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await page.getByRole('button', { name: 'Light theme', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-    await page.getByRole('button', { name: 'Presentation mode', exact: true }).click();
+    await clickWorkbenchAction(page, 'Presentation mode');
     await expect(page.locator('#source-editor')).toBeHidden();
     await expect(preview()).toBeVisible();
     await clickWorkbenchAction(page, 'Show source');
@@ -529,7 +530,7 @@ Independent calculation: {{ n + 2 }}.`);
       await expect(localized.getByRole('toolbar', { name: '文档编辑工具栏', exact: true })).toBeVisible();
 
       await localized.reload();
-      await localized.getByRole('button', { name: '显示源码', exact: true }).click();
+      await clickWorkbenchAction(localized, '显示源码');
       await expect(localized.locator('html')).toHaveAttribute('lang', 'zh-CN');
       await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
       await expect(localized.locator('#example-select')).toHaveValue('pricing');

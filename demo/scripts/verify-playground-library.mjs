@@ -122,7 +122,7 @@ try {
   });
 
   await check('Markdown export uses the document name and exact current source', async () => {
-    await clickWorkbenchAction(page, 'Export document…');
+    await clickWorkbenchAction(page, 'Export');
     const downloadEvent = page.waitForEvent('download');
     await page.getByRole('dialog').getByRole('button', { name: 'Download Markdown', exact: true }).click();
     const download = await downloadEvent;
@@ -157,7 +157,7 @@ try {
     await editor.fill(fixture);
     await expect(page.locator('.status-chip')).toContainText('Compiled');
     await expect(page.locator('.preview-stage')).toContainText('My estimate');
-    await clickWorkbenchAction(page, 'Export document…');
+    await clickWorkbenchAction(page, 'Export');
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('radio', { name: /^Static HTML/ }).check();
     const ready = page.waitForEvent('download');
@@ -182,7 +182,7 @@ try {
     const exampleSource = await editor.inputValue();
     const options = page.locator('.workbench-options');
     await options.locator('summary').click();
-    await page.getByRole('button', { name: 'Copy example to My documents', exact: true }).click();
+    await page.getByRole('button', { name: 'Save copy', exact: true }).click();
     await expect(editor).toHaveValue(exampleSource);
     expect(await documents.inputValue()).not.toBe(duplicateId);
     await editor.fill('# Independent example copy');

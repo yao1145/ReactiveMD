@@ -73,7 +73,7 @@ try {
   check('native clipboard paste adds an image resource and Markdown reference');
 
   await editor.fill(`${await editor.inputValue()}\n\n![Local](images/local.png)`);
-  await clickWorkbenchAction(page, /^Export document/);
+  await clickWorkbenchAction(page, /^Export/);
   const dialog = page.getByRole('dialog');
   const exportButton = dialog.getByRole('button', { name: 'Export HTML', exact: true });
   await expect(exportButton).toBeDisabled();
@@ -85,7 +85,7 @@ try {
 
   for (const mode of ['interactive', 'static']) {
     if (mode === 'static') {
-      await clickWorkbenchAction(page, /^Export document/);
+      await clickWorkbenchAction(page, /^Export/);
       await dialog.getByRole('radio', { name: /^Static HTML/ }).check();
     }
     const downloadEvent = page.waitForEvent('download');
@@ -116,18 +116,18 @@ try {
   await expect(page.locator('.preview-stage .md-document img')).toHaveCount(3);
   check('draft image manifest and image preview survive refresh');
 
-  const examples = page.locator('[data-example-id]');
-  const selected = await page.locator('[data-example-id][aria-pressed=true]').getAttribute('data-example-id');
-  const other = await examples.evaluateAll((buttons, current) => buttons.find(b => b.dataset.exampleId !== current)?.dataset.exampleId, selected);
-  await page.locator(`[data-example-id="${other}"]`).click();
+  const examples = page.locator('#example-select option');
+  const selected = await page.locator('#example-select').inputValue();
+  const other = await examples.evaluateAll((options, current) => options.map(option => option.value).find(value => value !== current), selected);
+  await page.locator('#example-select').selectOption(other);
   await expect(mainPanel.locator('img')).toHaveCount(0);
-  await page.locator(`[data-example-id="${selected}"]`).click();
+  await page.locator('#example-select').selectOption(selected);
   await expect(mainPanel.locator('img')).toHaveCount(3);
   check('image manifests stay with their own document when switching examples');
 
   await clickWorkbenchAction(page, 'Remove images/local.png');
   await expect(mainPanel).toContainText('File needed');
-  await clickWorkbenchAction(page, /^Export document/);
+  await clickWorkbenchAction(page, /^Export/);
   await expect(exportButton).toBeDisabled();
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   check('removal keeps the reference visible and blocks an incomplete export');
@@ -137,9 +137,9 @@ try {
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await expect(addPanel.getByRole('button', { name: 'Add images', exact: true })).toBeVisible();
   await page.screenshot({ path: path.join(artifacts, 'mobile-images.png'), fullPage: false });
-  const showSource = page.getByRole('button', { name: 'Show source', exact: true });
-  if (await showSource.isVisible()) await showSource.click();
-  await clickWorkbenchAction(page, /^Export document/);
+  const previewMode = await page.locator('[data-editor-view-option="preview"]').getAttribute('aria-pressed');
+  if (previewMode === 'true') await clickWorkbenchAction(page, 'Show source');
+  await clickWorkbenchAction(page, /^Export/);
   await expect(exportButton).toBeVisible();
   await expect(exportButton).toBeDisabled();
   await expect.poll(() => dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);

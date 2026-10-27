@@ -883,37 +883,48 @@ export default function App() {
                   optionsRef.current?.querySelector('summary')?.focus();
                 }
               }}>
-                <div className="library-more-actions" ref={setLibraryActionsTarget} />
-                <AuthorTools simple={simple}
-                  onSimple={() => setEditorView(current => current === 'preview' ? 'split' : 'preview')}
-                  onImport={importSource} onExport={openExportDialog}>
-                  <HtmlCompatibilityControls options={htmlOptions} onChange={changeHtmlOptions} />
-                </AuthorTools>
-                {libraryMode === 'example' ? (
-                  <button type="button" className="button button-secondary" onClick={copyExampleToDocuments}>
-                    {libraryCopy.copyExample}
-                  </button>
-                ) : null}
-                <label className="bar-label edit-only" title={copy.workbench.keepTrialStateTitle}>
-                  <input
-                    type="checkbox"
-                    checked={retainPreviewState}
-                    aria-describedby="preview-state-note"
-                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                      previewSession.setRetention(event.target.checked);
-                      setRetainPreviewState(event.target.checked);
-                    }}
-                  />{' '}
-                  {copy.workbench.keepTrialState}
-                </label>
-                {libraryMode === 'example' ? (
-                  <button type="button" className="button button-secondary" onClick={restoreExample}>
-                    {copy.workbench.restoreExample}
-                  </button>
-                ) : null}
-                <button type="button" className="button button-secondary" onClick={resetInstance}>
-                  {copy.workbench.runAgain}
-                </button>
+                <div className="options-group">
+                  <h3 className="options-heading">{copy.authorTools.ariaLabel}</h3>
+                  <AuthorTools simple={simple}
+                    onSimple={() => setEditorView(current => current === 'preview' ? 'split' : 'preview')}
+                    onImport={importSource} onExport={openExportDialog} />
+                </div>
+                <div className="options-group">
+                  <h3 className="options-heading">
+                    {libraryMode === 'documents' ? libraryCopy.documents : copy.workbench.example}
+                  </h3>
+                  <div className="options-actions-row">
+                    <div className="library-more-actions" ref={setLibraryActionsTarget} />
+                    <div className="options-actions">
+                      {libraryMode === 'example' ? (
+                        <button type="button" className="button button-secondary" onClick={copyExampleToDocuments}>
+                          {libraryCopy.copyExample}
+                        </button>
+                      ) : null}
+                      {libraryMode === 'example' ? (
+                        <button type="button" className="button button-secondary" onClick={restoreExample}>
+                          {copy.workbench.restoreExample}
+                        </button>
+                      ) : null}
+                      <button type="button" className="button button-secondary" onClick={resetInstance}>
+                        {copy.workbench.runAgain}
+                      </button>
+                    </div>
+                  </div>
+                  <label className="options-check edit-only" title={copy.workbench.keepTrialStateTitle}>
+                    <input
+                      type="checkbox"
+                      checked={retainPreviewState}
+                      aria-describedby="preview-state-note"
+                      onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                        previewSession.setRetention(event.target.checked);
+                        setRetainPreviewState(event.target.checked);
+                      }}
+                    />
+                    <span>{copy.workbench.keepTrialState}</span>
+                  </label>
+                </div>
+                <HtmlCompatibilityControls options={htmlOptions} onChange={changeHtmlOptions} />
                 {(documentImages.assets.length > 0 || (compiled?.ok && documentImageUrls(compiled.document).length > 0)) &&
                   <ImageAssetsPanel assets={documentImages.assets}
                     references={compiled?.ok ? documentImageUrls(compiled.document) : []}

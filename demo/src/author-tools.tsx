@@ -12,8 +12,7 @@ export interface AuthorToolsProps {
 export function AuthorTools(props: AuthorToolsProps) {
   const copy = useCopy().authorTools;
   const file = useRef<HTMLInputElement>(null);
-  return <div className="author-tools" aria-label={copy.ariaLabel}>
-    <h3 className="more-options-heading">{copy.ariaLabel}</h3>
+  return <div className="author-tools" role="group" aria-label={copy.ariaLabel}>
     <div className="author-tool-group">
       <button type="button" className={props.simple ? 'source-toggle is-primary' : 'source-toggle'} onClick={props.onSimple} aria-expanded={!props.simple} aria-controls="source-pane">
         {props.simple ? copy.showSource : copy.simpleView}

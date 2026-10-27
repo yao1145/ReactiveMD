@@ -61,8 +61,6 @@ export interface DemoCopy {
   };
   htmlCompatibility: {
     heading: string;
-    /** Short statement of the temporary whole-document routing policy. */
-    policy: string;
     legend: string;
     css: string;
     cssHint: string;
@@ -234,8 +232,6 @@ const ENGLISH: DemoCopy = {
   },
   htmlCompatibility: {
     heading: 'HTML compatibility',
-    policy:
-      'Temporary split-routing policy: enabling any capability below renders the entire source as native HTML. Markdown, formulas, {{ }} bindings, and ReactiveMD components are not interpreted in that mode.',
     legend: 'Allowed capabilities',
     css: 'CSS',
     cssHint: 'Allow <style> blocks and style attributes.',
@@ -252,8 +248,8 @@ const ENGLISH: DemoCopy = {
     darkTheme: 'Dark theme',
     showSource: 'Show source',
     simpleView: 'Presentation mode',
-    importDocument: 'Import document',
-    exportDocument: 'Export document…',
+    importDocument: 'Import',
+    exportDocument: 'Export',
   },
   exportDialog: {
     title: 'Export document',
@@ -423,9 +419,7 @@ const CHINESE: DemoCopy = {
     runAgain: '重新运行',
   },
   htmlCompatibility: {
-    heading: 'HTML 兼容控制',
-    policy:
-      '暂时性分流政策：启用下方任一能力后，整份源码按原生 HTML 渲染；该模式下不再解析 Markdown、公式、{{ }} 插值和 ReactiveMD 组件。',
+    heading: 'HTML 兼容',
     legend: '允许的能力',
     css: 'CSS',
     cssHint: '允许 <style> 块和 style 属性。',
@@ -442,8 +436,8 @@ const CHINESE: DemoCopy = {
     darkTheme: '深色主题',
     showSource: '显示源码',
     simpleView: '演示模式',
-    importDocument: '导入文档',
-    exportDocument: '导出文档…',
+    importDocument: '导入',
+    exportDocument: '导出',
   },
   exportDialog: {
     title: '导出文档',

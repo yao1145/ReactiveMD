@@ -18,7 +18,7 @@ try {
     await expect(add).toBeEnabled();
     await expect(theme).toBeVisible();
     assert.equal(await page.locator('.image-assets-hint').count(), 0);
-    await expect(page.getByRole('button', {name: 'Export document…', exact: true})).toBeHidden();
+    await expect(page.getByRole('button', {name: 'Export', exact: true})).toBeHidden();
     const [a, t] = await Promise.all([add.boundingBox(), theme.boundingBox()]);
     assert.ok(Math.abs(a.y - t.y) < 2, 'image and theme actions share a row');
     await clickWorkbenchAction(page, 'Show source');
@@ -38,13 +38,13 @@ try {
     await expect(quick.locator('.image-asset-row')).toHaveCount(0);
     await more.locator(':scope > summary').click();
     await expect(more.locator('.image-asset-row')).toHaveCount(1);
-    await expect(more.getByRole('button', {name: 'Import document', exact: true})).toBeVisible();
+    await expect(more.getByRole('button', {name: 'Import', exact: true})).toBeVisible();
     await more.press('Escape');
     await expect(more.locator(':scope > summary')).toBeFocused();
-    await clickWorkbenchAction(page, 'Export document…');
+    await clickWorkbenchAction(page, 'Export');
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.getByRole('dialog').getByRole('button', {name: 'Cancel', exact: true}).click();
-    const [importPicker] = await Promise.all([page.waitForEvent('filechooser'), clickWorkbenchAction(page, 'Import document')]);
+    const [importPicker] = await Promise.all([page.waitForEvent('filechooser'), clickWorkbenchAction(page, 'Import')]);
     await importPicker.setFiles({name: 'imported.md', mimeType: 'text/markdown', buffer: Buffer.from('# Imported document')});
     await expect(editor).toHaveValue('# Imported document');
     await page.getByRole('button', {name: 'My documents', exact: true}).click();

@@ -138,6 +138,7 @@
 }
 
 .workbench-options {
+  position: static;
   flex: 0 1 auto;
   min-width: 0;
 }
@@ -162,11 +163,6 @@
   display: none;
 }
 
-.workbench-options > summary::after {
-  content: "⌄";
-  font-size: var(--text-xs);
-}
-
 .workbench-options[open] > summary {
   color: var(--ink);
   background: var(--surface-hover);
@@ -181,14 +177,6 @@
 .workbench-options > summary:focus-visible {
   outline: var(--focus-outline);
   outline-offset: 2px;
-}
-
-.workbench-options-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-  padding: var(--space-1) 0;
 }
 
 @media (max-width: 600px) {
