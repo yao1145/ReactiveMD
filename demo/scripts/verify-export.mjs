@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -27,8 +28,8 @@ try {
   const slider = page.getByRole('slider', { name: 'People', exact: true });
   await slider.focus();
   for (let index = 0; index < 4; index += 1) await slider.press('ArrowRight');
-  await page.getByRole('button', { name: 'Show source', exact: true }).click();
-  await page.getByRole('button', { name: /^Export document/ }).click();
+  await clickWorkbenchAction(page, 'Show source');
+  await clickWorkbenchAction(page, /^Export document/);
   const dialog = page.getByRole('dialog');
   await dialog.waitFor();
 
@@ -82,7 +83,7 @@ try {
   });
 
   await check('static output can be downloaded without a runtime', async () => {
-    await page.getByRole('button', { name: /^Export document/ }).click();
+    await clickWorkbenchAction(page, /^Export document/);
     const reopened = page.getByRole('dialog');
     await reopened.waitFor();
     await reopened.getByRole('radio', { name: /^Static HTML/ }).check();

@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
@@ -30,11 +31,11 @@ async function pick(id) {
   if (id === 'pricing') {
     await page.locator('#example-select').selectOption('pricing');
     await page.locator('.workbench-options').evaluate(node => { node.open = true; });
-    await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+    await clickWorkbenchAction(page, 'Restore example');
   } else if (id === 'diagnostics') {
     await page.locator('#example-select').selectOption(id);
     await page.locator('.workbench-options').evaluate(node => { node.open = true; });
-    await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+    await clickWorkbenchAction(page, 'Restore example');
   } else {
     // Retain the original component regressions alongside the new feature tours.
     const source = await readFile(new URL(`../../examples/local/${id}.reactive.md`, import.meta.url), 'utf8');
@@ -51,7 +52,7 @@ async function pick(id) {
 try {
   await page.goto(baseURL);
   await expect(page.locator('#example-select')).toHaveValue('pricing');
-  await page.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(page, 'Show source');
   await expect(page.getByRole('slider', { name: 'People', exact: true })).toBeVisible();
   await check('library styles preserve host elements with common class names', async () => {
     // A separate document excludes the playground's own diagnostic styles.
@@ -123,7 +124,7 @@ try {
   });
 
   await check('source editing compiles local controls and expressions immediately', async () => {
-    await page.getByRole('button', { name: 'Show source', exact: true }).click();
+    await clickWorkbenchAction(page, 'Show source');
     const editor = page.locator('#source-editor');
     // Establish the focus handoff after opening the source pane before sending
     // text through the browser input protocol. Assert both views of the edit.
@@ -320,7 +321,7 @@ try {
     await page.getByRole('button', { name: 'Presentation mode', exact: true }).click();
     await expect(page.locator('#source-editor')).toBeHidden();
     await expect(preview()).toBeVisible();
-    await page.getByRole('button', { name: 'Show source', exact: true }).click();
+    await clickWorkbenchAction(page, 'Show source');
     await expect(page.locator('#source-editor')).toBeVisible();
   });
 
@@ -497,7 +498,7 @@ Independent calculation: {{ n + 2 }}.`);
       });
 
       await localized.goto(baseURL);
-      await localized.getByRole('button', { name: 'Show source', exact: true }).click();
+      await clickWorkbenchAction(localized, 'Show source');
       await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
       await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
       await expect(localized.locator('#example-select')).toHaveValue('pricing');

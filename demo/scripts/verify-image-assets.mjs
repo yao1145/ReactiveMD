@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -15,14 +16,15 @@ try {
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(baseURL);
-  await page.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(page, 'Show source');
   const editor = page.locator('#source-editor');
   const source = '# Image document\n\n<slider bind="people" label="People" initial="2" min="1" max="10">\n\nBefore AFTER';
   await editor.fill(source);
   // Keep the selector independent of surrounding workbench layout.
-  const mainPanel = page.locator('.image-assets').first();
-  const picker = mainPanel.locator('input[type=file]');
-  await expect(mainPanel.getByRole('button', { name: 'Add images', exact: true })).toBeEnabled();
+  const mainPanel = page.locator('.workbench-options .image-assets');
+  const addPanel = page.locator('.image-assets-compact');
+  const picker = addPanel.locator('input[type=file]');
+  await expect(addPanel.getByRole('button', { name: 'Add images', exact: true })).toBeEnabled();
   const png = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 12; canvas.height = 8;
@@ -49,13 +51,13 @@ try {
     { ...image, name: 'valid.png' },
     { name: 'attack.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg onload="alert(1)"/>') },
   ]);
-  await expect(mainPanel.getByRole('alert')).toContainText('SVG');
+  await expect(addPanel.getByRole('alert')).toContainText('SVG');
   await expect(mainPanel.locator('.image-asset-row')).toHaveCount(1);
   await expect(editor).toHaveValue(inserted);
   await picker.setInputFiles({ name: 'large.png', mimeType: 'image/png', buffer: Buffer.alloc(8 * 1024 * 1024 + 1) });
-  await expect(mainPanel.getByRole('alert')).toContainText('8 MiB');
+  await expect(addPanel.getByRole('alert')).toContainText('8 MiB');
   await picker.setInputFiles({ name: 'broken.png', mimeType: 'image/png', buffer: Buffer.from([137,80,78,71,13,10,26,10]) });
-  await expect(mainPanel.getByRole('alert')).toContainText('cannot be decoded');
+  await expect(addPanel.getByRole('alert')).toContainText('cannot be decoded');
   check('invalid batches, oversized and truncated images leave source and resources unchanged');
 
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -71,7 +73,7 @@ try {
   check('native clipboard paste adds an image resource and Markdown reference');
 
   await editor.fill(`${await editor.inputValue()}\n\n![Local](images/local.png)`);
-  await page.getByRole('button', { name: /^Export document/ }).click();
+  await clickWorkbenchAction(page, /^Export document/);
   const dialog = page.getByRole('dialog');
   const exportButton = dialog.getByRole('button', { name: 'Export HTML', exact: true });
   await expect(exportButton).toBeDisabled();
@@ -83,7 +85,7 @@ try {
 
   for (const mode of ['interactive', 'static']) {
     if (mode === 'static') {
-      await page.getByRole('button', { name: /^Export document/ }).click();
+      await clickWorkbenchAction(page, /^Export document/);
       await dialog.getByRole('radio', { name: /^Static HTML/ }).check();
     }
     const downloadEvent = page.waitForEvent('download');
@@ -123,21 +125,21 @@ try {
   await expect(mainPanel.locator('img')).toHaveCount(3);
   check('image manifests stay with their own document when switching examples');
 
-  await mainPanel.getByRole('button', { name: 'Remove images/local.png', exact: true }).click();
+  await clickWorkbenchAction(page, 'Remove images/local.png');
   await expect(mainPanel).toContainText('File needed');
-  await page.getByRole('button', { name: /^Export document/ }).click();
+  await clickWorkbenchAction(page, /^Export document/);
   await expect(exportButton).toBeDisabled();
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   check('removal keeps the reference visible and blocks an incomplete export');
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await mainPanel.scrollIntoViewIfNeeded();
+  await addPanel.scrollIntoViewIfNeeded();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await expect(mainPanel.getByRole('button', { name: 'Add images', exact: true })).toBeVisible();
+  await expect(addPanel.getByRole('button', { name: 'Add images', exact: true })).toBeVisible();
   await page.screenshot({ path: path.join(artifacts, 'mobile-images.png'), fullPage: false });
   const showSource = page.getByRole('button', { name: 'Show source', exact: true });
   if (await showSource.isVisible()) await showSource.click();
-  await page.getByRole('button', { name: /^Export document/ }).click();
+  await clickWorkbenchAction(page, /^Export document/);
   await expect(exportButton).toBeVisible();
   await expect(exportButton).toBeDisabled();
   await expect.poll(() => dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);

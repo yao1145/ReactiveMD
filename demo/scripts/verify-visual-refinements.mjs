@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -28,7 +29,7 @@ $$ y = \frac{123x^2 + 456x + 789}{1 + x^2} + \sin(2x) + \cos(3x) $$
 
 try {
   await page.goto(baseURL + '/?example=functions');
-  await page.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(page, 'Show source');
   await page.locator('#source-editor').fill(source);
   await expect(preview.getByRole('heading', { name: 'Responsive formula', exact: true })).toBeVisible();
   // Use presentation mode to measure the same document at full and phone widths.

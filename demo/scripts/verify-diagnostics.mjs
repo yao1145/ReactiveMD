@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -32,7 +33,7 @@ async function fillSource(source) {
 
 try {
   await page.goto(baseURL);
-  await page.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(page, 'Show source');
 
   await check('a one-code-point emoji fits max-length="1" and a second code point is rejected', async () => {
     await fillSource('<input bind="name" label="Name" max-length="1">\n\nLength: {{ len(name) }}');

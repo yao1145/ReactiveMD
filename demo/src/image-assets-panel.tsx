@@ -12,29 +12,29 @@ export interface ImageAssetsPanelProps {
   onFiles(files: File[], target?: string): void;
   onRemove(url: string): void;
   allowInsert?: boolean;
+  compact?: boolean;
 }
 
-export function ImageAssetsPanel({ assets, references, busy, error, storageError, onFiles, onRemove, allowInsert = true }: ImageAssetsPanelProps) {
+export function ImageAssetsPanel({ assets, references, busy, error, storageError, onFiles, onRemove, allowInsert = true, compact = false }: ImageAssetsPanelProps) {
   const copy = IMAGE_COPY[useLanguage()];
   const id = useId();
   const picker = useRef<HTMLInputElement>(null);
   const target = useRef<string | undefined>(undefined);
   const rows = [...new Set([...references, ...assets.map(a => a.url)])];
   const byUrl = new Map(assets.map(a => [a.url, a]));
-  return <section className="image-assets" aria-labelledby={id} aria-busy={busy}>
+  return <section className={`image-assets${compact ? ' image-assets-compact' : ''}`} aria-labelledby={compact ? undefined : id} aria-label={compact ? copy.add : undefined} aria-busy={busy}>
     <div className="image-assets-head">
-      <h3 id={id}>{copy.title}</h3>
+      {!compact && <h3 id={id}>{copy.title}</h3>}
       {allowInsert && <button type="button" className="button button-secondary" disabled={busy}
         onClick={() => { target.current = undefined; if (picker.current) picker.current.multiple = true; picker.current?.click(); }}>{copy.add}</button>}
     </div>
-    <p className="image-assets-hint">{copy.hint}</p>
     <input ref={picker} type="file" accept={IMAGE_ACCEPT} multiple={allowInsert} hidden aria-label={copy.add}
       onChange={event => {
         const files = Array.from(event.target.files ?? []);
         if (files.length) onFiles(files, target.current);
         event.target.value = '';
       }} />
-    {rows.length > 0 && <ul className="image-assets-list">{rows.map(url => {
+    {!compact && rows.length > 0 && <ul className="image-assets-list">{rows.map(url => {
       const asset = byUrl.get(url);
       return <li key={url} className="image-asset-row">
         {asset ? <img src={asset.dataUrl} alt="" width="48" height="48" /> : <span className="image-asset-placeholder" aria-hidden="true">?</span>}

@@ -320,12 +320,22 @@ export default function App() {
   const [retainPreviewState, setRetainPreviewState] = useState(true);
   const [previewSession, setPreviewSession] = useState(() => new PreviewStateSession());
   const [exportOpen, setExportOpen] = useState(false);
+  const optionsRef = useRef<HTMLDetailsElement>(null);
+  const [libraryActionsTarget, setLibraryActionsTarget] = useState<HTMLDivElement | null>(null);
   const [runtimeDiagnostics, setRuntimeDiagnostics] = useState<Diagnostic[]>([]);
   // Capabilities are session-only: they start disabled on every load and are
   // reset whenever the document switches, never inferred from source or state.
   const [htmlOptions, setHtmlOptions] = useState<DemoHtmlOptions>(freshHtmlOptions);
 
   const copy = COPY[language];
+  useEffect(() => {
+    const dismiss = (event: MouseEvent) => {
+      const menu = optionsRef.current;
+      if (menu?.open && event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
+    };
+    document.addEventListener('click', dismiss);
+    return () => document.removeEventListener('click', dismiss);
+  }, []);
   const libraryCopy = LIBRARY_COPY[language];
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const editorHandle = useRef<ReactiveMarkdownEditorHandle>(null);
@@ -838,6 +848,7 @@ export default function App() {
               </>
             ) : (
               <DocumentLibraryBar
+                actionsTarget={libraryActionsTarget}
                 documents={libraryState.documents}
                 selectedId={libraryState.selectedId}
                 saveStatus={libraryState.saveStatus}
@@ -849,9 +860,35 @@ export default function App() {
                 onRetry={() => library.retry()}
               />
             )}
-            <details className="workbench-options" key={documentKey}>
+            <div className="workbench-quick-actions">
+              <ImageAssetsPanel compact assets={documentImages.assets} references={[]}
+                busy={imageBusy || !documentImages.ready} error={imageError} storageError={documentImages.storageError}
+                onFiles={addImages} onRemove={removeImage} />
+              <button type="button" className="button button-quiet" aria-pressed={dark} onClick={() => setDark(value => !value)}>
+                {dark ? copy.authorTools.lightTheme : copy.authorTools.darkTheme}
+              </button>
+            </div>
+            <details ref={optionsRef} className="workbench-options" key={documentKey}
+              onKeyDown={event => {
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  event.currentTarget.open = false;
+                  event.currentTarget.querySelector('summary')?.focus();
+                }
+              }}>
               <summary>{libraryCopy.moreOptions}</summary>
-              <div className="workbench-options-body">
+              <div className="workbench-options-body" onClick={event => {
+                if (event.target instanceof Element && event.target.closest('button')) {
+                  if (optionsRef.current) optionsRef.current.open = false;
+                  optionsRef.current?.querySelector('summary')?.focus();
+                }
+              }}>
+                <div className="library-more-actions" ref={setLibraryActionsTarget} />
+                <AuthorTools simple={simple}
+                  onSimple={() => setEditorView(current => current === 'preview' ? 'split' : 'preview')}
+                  onImport={importSource} onExport={openExportDialog}>
+                  <HtmlCompatibilityControls options={htmlOptions} onChange={changeHtmlOptions} />
+                </AuthorTools>
                 {libraryMode === 'example' ? (
                   <button type="button" className="button button-secondary" onClick={copyExampleToDocuments}>
                     {libraryCopy.copyExample}
@@ -877,6 +914,11 @@ export default function App() {
                 <button type="button" className="button button-secondary" onClick={resetInstance}>
                   {copy.workbench.runAgain}
                 </button>
+                {(documentImages.assets.length > 0 || (compiled?.ok && documentImageUrls(compiled.document).length > 0)) &&
+                  <ImageAssetsPanel assets={documentImages.assets}
+                    references={compiled?.ok ? documentImageUrls(compiled.document) : []}
+                    busy={imageBusy || !documentImages.ready} error={null} storageError={false}
+                    onFiles={addImages} onRemove={removeImage} allowInsert={false} />}
               </div>
             </details>
             <span
@@ -887,22 +929,6 @@ export default function App() {
               {statusLabel}
             </span>
           </div>
-
-          <AuthorTools
-            dark={dark}
-            simple={simple}
-            onTheme={() => setDark((value) => !value)}
-            onSimple={() => setEditorView((current) => current === 'preview' ? 'split' : 'preview')}
-            onImport={importSource}
-            onExport={openExportDialog}
-          >
-            <HtmlCompatibilityControls options={htmlOptions} onChange={changeHtmlOptions} />
-          </AuthorTools>
-
-          <ImageAssetsPanel assets={documentImages.assets}
-            references={compiled?.ok ? documentImageUrls(compiled.document) : []}
-            busy={imageBusy || !documentImages.ready} error={imageError} storageError={documentImages.storageError}
-            onFiles={addImages} onRemove={removeImage} />
 
           <div className="workspace has-editor">
             <section id="source-pane" className="pane pane-editor" aria-label={copy.editor.region}
@@ -930,7 +956,7 @@ export default function App() {
                 onChange={replaceSource}
                 locale={language}
                 theme={dark ? 'dark' : 'light'}
-                height="max(560px, 80vh)"
+                height="max(720px, 90dvh)"
                 ariaLabel={copy.editor.sourceLabel}
                 documentKey={documentKey}
                 diagnostics={currentDiagnostics}

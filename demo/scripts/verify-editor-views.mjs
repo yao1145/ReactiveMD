@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -67,7 +68,7 @@ try {
       await bar.screenshot({ path: `artifacts/editor-views/bar-${width}-${theme}.png` });
     }
     // The rendered preview stays mounted across modes, retaining trial inputs.
-    await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+    await clickWorkbenchAction(page, 'Restore example');
     const slider = preview.locator('input[type="range"]').first();
     await slider.fill('7');
     await mode('Edit').click();

@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -136,7 +137,7 @@ try {
   boundary.setDefaultTimeout(10000);
   boundary.on('pageerror',error=>errors.push(error.message));
   await boundary.goto(baseURL+'/?example=functions');
-  await boundary.getByRole('button',{name:'Show source',exact:true}).click();
+  await clickWorkbenchAction(boundary, 'Show source');
   await boundary.locator('#source-editor').fill(`<panel title="Boundary checks">
 <coordinate label="Fractional point" bind-x="px" bind-y="py" initial-x="0.3" initial-y="0.6" x-min="0" x-max="1" y-min="0" y-max="1" step="0.3">
 <toggle bind="shown" label="Show target">

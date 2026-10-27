@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useLanguage, type Language } from './i18n';
 import {
   MAX_DOCUMENT_NAME_LENGTH,
@@ -141,6 +142,7 @@ interface NameFormState {
 }
 
 export interface DocumentLibraryBarProps {
+  actionsTarget?: HTMLElement | null;
   documents: readonly LibraryDocument[];
   selectedId: string | null;
   saveStatus: LibrarySaveStatus;
@@ -177,7 +179,10 @@ export function DocumentLibraryBar(props: DocumentLibraryBarProps) {
   }, [form?.kind]);
 
   const openForm = (next: NameFormState) => {
-    formTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const menu = active?.closest('details');
+    formTrigger.current = menu?.querySelector('summary') ?? active;
+    if (menu) menu.open = false;
     setError(null);
     setForm(next);
   };
@@ -213,23 +218,7 @@ export function DocumentLibraryBar(props: DocumentLibraryBarProps) {
       ? copy.rename
       : copy.duplicateConfirm;
 
-  return (
-    <div className="doc-library" aria-label={copy.region}>
-      <div className="doc-library-row">
-        <label className="bar-label" htmlFor={selectId}>{copy.documentLabel}</label>
-        <select
-          id={selectId}
-          className="bar-select doc-select"
-          value={props.selectedId ?? ''}
-          disabled={props.documents.length === 0}
-          onChange={(event) => props.onSelect(event.target.value)}
-        >
-          {props.documents.length === 0
-            ? <option value="">{copy.empty}</option>
-            : props.documents.map((document) => (
-              <option key={document.id} value={document.id}>{document.name}</option>
-            ))}
-        </select>
+  const actions = <>
         <button
           type="button"
           className="button button-secondary"
@@ -259,6 +248,18 @@ export function DocumentLibraryBar(props: DocumentLibraryBarProps) {
         >
           {copy.duplicate}
         </button>
+  </>;
+
+  return (
+    <div className="doc-library" aria-label={copy.region}>
+      <div className="doc-library-row">
+        <label className="bar-label" htmlFor={selectId}>{copy.documentLabel}</label>
+        <select id={selectId} className="bar-select doc-select" value={props.selectedId ?? ''}
+          disabled={props.documents.length === 0} onChange={event => props.onSelect(event.target.value)}>
+          {props.documents.length === 0 ? <option value="">{copy.empty}</option>
+            : props.documents.map(document => <option key={document.id} value={document.id}>{document.name}</option>)}
+        </select>
+        {props.actionsTarget === undefined ? actions : props.actionsTarget ? createPortal(actions, props.actionsTarget) : null}
         {selected ? (
           <span
             className={`doc-save-state is-${props.saveStatus}`}

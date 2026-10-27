@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -55,7 +56,7 @@ try {
     localStorage.setItem('reactive-md:local:source:pricing', source);
   }, initialSource);
   await initial.goto(baseURL);
-  await initial.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(initial, 'Show source');
   const initialEditor = initial.locator('#source-editor');
   await expect(initialEditor).toBeVisible();
   await initialEditor.hover();
@@ -71,7 +72,7 @@ try {
   console.log('PASS highlight follows scrolling before the first edit');
 
   await page.goto(baseURL);
-  await page.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(page, 'Show source');
 
   const panel = page.getByRole('region', { name: 'Source authoring tools', exact: true });
   await expect(panel).toBeVisible();
@@ -238,7 +239,7 @@ try {
   await expect(editor).toBeFocused();
   console.log('PASS Ctrl+Space opens and Escape closes completion without moving focus');
 
-  await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+  await clickWorkbenchAction(page, 'Restore example');
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -263,7 +264,7 @@ try {
   const mobileErrors = [];
   mobile.on('pageerror', (error) => mobileErrors.push(error.message));
   await mobile.goto(baseURL);
-  await mobile.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(mobile, 'Show source');
   const mobilePanel = mobile.getByRole('region', { name: 'Source authoring tools', exact: true });
   await expect(mobilePanel).toBeVisible();
   await expect(mobile.locator('.author-highlight')).toBeVisible();

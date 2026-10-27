@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -65,7 +66,7 @@ try {
 
   const editor = page.locator('#source-editor');
   const showSource = async () => {
-    if (!await editor.isVisible()) await page.getByRole('button', { name: 'Show source', exact: true }).click();
+    if (!await editor.isVisible()) await clickWorkbenchAction(page, 'Show source');
   };
   const documents = page.locator('.doc-select');
   const fixture = '# My estimate\n\n<slider bind="people" label="Guests" initial="3" min="1" max="20">\n\nTotal: {{ people * 100 }} USD.';
@@ -73,7 +74,7 @@ try {
   let duplicateId;
   await check('create and name a personal document, autosave, and reopen after reload', async () => {
     await page.getByRole('button', { name: 'My documents', exact: true }).click();
-    await page.getByRole('button', { name: 'New document', exact: true }).click();
+    await clickWorkbenchAction(page, 'New document');
     await page.getByRole('textbox', { name: 'Document name', exact: true }).fill('Workshop estimate');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await expect(editor).toBeVisible();
@@ -87,12 +88,12 @@ try {
   });
 
   await check('rename and duplicate independently, and flush edits before switching', async () => {
-    await page.locator('.doc-library').getByRole('button', { name: 'Rename', exact: true }).click();
+    await clickWorkbenchAction(page, 'Rename');
     const rename = page.getByRole('form', { name: 'Rename document', exact: true });
     await rename.getByRole('textbox', { name: 'Document name', exact: true }).fill('My workshop');
     await rename.getByRole('button', { name: 'Rename', exact: true }).click();
     await expect(documents.locator('option:checked')).toHaveText('My workshop');
-    await page.getByRole('button', { name: 'Duplicate', exact: true }).click();
+    await clickWorkbenchAction(page, 'Duplicate');
     await page.getByRole('textbox', { name: 'Document name', exact: true }).fill('Workshop alternative');
     await page.getByRole('button', { name: 'Create copy', exact: true }).click();
     duplicateId = await documents.inputValue();
@@ -121,7 +122,7 @@ try {
   });
 
   await check('Markdown export uses the document name and exact current source', async () => {
-    await page.getByRole('button', { name: 'Export document…', exact: true }).click();
+    await clickWorkbenchAction(page, 'Export document…');
     const downloadEvent = page.waitForEvent('download');
     await page.getByRole('dialog').getByRole('button', { name: 'Download Markdown', exact: true }).click();
     const download = await downloadEvent;
@@ -156,7 +157,7 @@ try {
     await editor.fill(fixture);
     await expect(page.locator('.status-chip')).toContainText('Compiled');
     await expect(page.locator('.preview-stage')).toContainText('My estimate');
-    await page.getByRole('button', { name: 'Export document…', exact: true }).click();
+    await clickWorkbenchAction(page, 'Export document…');
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('radio', { name: /^Static HTML/ }).check();
     const ready = page.waitForEvent('download');
@@ -202,11 +203,11 @@ try {
     for (const width of [1440, 375]) {
       await page.setViewportSize({ width, height: 1000 });
       await noOverflow();
-      await page.getByRole('button', { name: 'New document', exact: true }).click();
+      await clickWorkbenchAction(page, 'New document');
       await expect(page.getByRole('textbox', { name: 'Document name', exact: true })).toBeFocused();
       await noOverflow();
       await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'New document', exact: true })).toBeFocused();
+      await expect(page.locator('.workbench-options > summary')).toBeFocused();
       await page.screenshot({ path: `artifacts/playground-documents-${width}.png` });
     }
   });

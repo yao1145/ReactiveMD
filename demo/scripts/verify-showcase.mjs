@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { gridOverflows } from './grid-layout-assertions.mjs';
@@ -28,7 +29,7 @@ try {
     const pick = async (id) => {
       await page.locator('#example-select').selectOption(id);
       await page.locator('.workbench-options').evaluate(node => { node.open = true; });
-      await page.getByRole('button', { name: t('Restore example', '恢复示例'), exact: true }).click();
+      await clickWorkbenchAction(page, t('Restore example', '恢复示例'));
       await page.locator('.workbench-options').evaluate(node => { node.open = false; });
       await expect(page.locator('.status-chip')).toContainText(t('Compiled', '已编译'));
       await expect(preview.locator('.local-document')).toBeVisible();
@@ -115,7 +116,7 @@ try {
         await expect(summary).toContainText('Lin');
         await expect(summary).toContainText('480');
         await expect(preview.getByText(t('Prepare the call', '线上准备'), { exact: true })).toBeVisible();
-        await page.getByRole('button', { name: t('Show source', '显示源码'), exact: true }).click();
+        await clickWorkbenchAction(page, t('Show source', '显示源码'));
         await expect(page.locator('#source-editor')).toBeVisible();
         await expect(summary).toContainText('480');
         await page.getByRole('button', { name: t('Presentation mode', '演示模式'), exact: true }).click();
@@ -242,7 +243,7 @@ try {
               await page.screenshot({ path: `artifacts/showcase-${language}-forms-mobile.png`, fullPage: true });
               await limit.fill('500'); await limit.blur();
             }
-            await page.getByRole('button', { name: t('Show source', '显示源码'), exact: true }).click();
+            await clickWorkbenchAction(page, t('Show source', '显示源码'));
             expect(await fits(), `${language} ${id} editing at ${width}`).toBe(true);
             expect(await gridOverflows(preview), `${language} ${id} editing grids at ${width}`).toEqual([]);
             await page.getByRole('button', { name: t('Presentation mode', '演示模式'), exact: true }).click();

@@ -1,3 +1,4 @@
+import { clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -166,7 +167,7 @@ const startDevBold = async (target, editor) => {
 try {
   await installEditorProbe(page);
   await page.goto(baseURL);
-  await page.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(page, 'Show source');
   const toolbar = page.locator('.editor-toolbar');
   await expect(toolbar).toBeVisible();
   const editor = page.locator('#source-editor');
@@ -175,7 +176,7 @@ try {
   const insertTrigger = page.locator('[data-toolbar-id="insert"]');
   const headingTrigger = page.locator('[data-toolbar-id="heading"]');
 
-  await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+  await clickWorkbenchAction(page, 'Restore example');
 
   expectSameIds(
     await visibleToolbarIds(toolbar),
@@ -350,7 +351,7 @@ try {
   await expect(insertTrigger).toBeFocused();
   console.log('PASS menu arrow and End navigation');
 
-  await page.getByRole('button', { name: 'Restore example', exact: true }).click();
+  await clickWorkbenchAction(page, 'Restore example');
   await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await expect(toolbar).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   const sourceBeforeTheme = await editor.inputValue();
@@ -365,7 +366,7 @@ try {
   await page.locator('.editor-frame').screenshot({ path: 'artifacts/editor-toolbar-dark.png' });
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(page, 'Show source');
   await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
   await page.getByRole('button', { name: 'Light theme', exact: true }).click();
   await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
@@ -377,7 +378,7 @@ try {
   const tablet = await browser.newPage({ viewport: { width: 1024, height: 900 } });
   tablet.setDefaultTimeout(10000);
   await tablet.goto(baseURL);
-  await tablet.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(tablet, 'Show source');
   // Exercise the reusable editor's compact container layout on a wide page.
   await tablet.addStyleTag({ content: '.reactive-md-editor { max-width: 480px; }' });
   const tabletToolbar = tablet.locator('.editor-toolbar');
@@ -431,7 +432,7 @@ try {
     if (response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`);
   });
   await mobile.goto(baseURL);
-  await mobile.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(mobile, 'Show source');
   const mobileToolbar = mobile.locator('.editor-toolbar');
   await expect(mobileToolbar).toBeVisible();
   const mobileOverflow = await mobile.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
@@ -544,7 +545,7 @@ try {
   chinese.setDefaultTimeout(10000);
   chinese.on('pageerror', (error) => chineseErrors.push(error.message));
   await chinese.goto(baseURL);
-  await chinese.getByRole('button', { name: 'Show source', exact: true }).click();
+  await clickWorkbenchAction(chinese, 'Show source');
   await chinese.getByRole('button', { name: 'Switch to Chinese', exact: true }).click();
   const chineseToolbar = chinese.getByRole('toolbar', { name: '文档编辑工具栏', exact: true });
   await expect(chineseToolbar).toBeVisible();
