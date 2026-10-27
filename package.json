@@ -1,6 +1,6 @@
 {
   "name": "reactive-md",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "description": "Author interactive local documents in Markdown, with expression-bound inputs, charts and diagrams.",
   "keywords": [
     "markdown",
@@ -135,8 +135,10 @@
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "elkjs": "0.12.0",
     "highlight.js": "11.11.2",
     "lowlight": "3.3.0",
+    "mhchemparser": "4.2.1",
     "parse5": "8.0.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -146,9 +148,5 @@
     "unified": "11.0.5",
     "vite": "8.3.5",
     "vitest": "5.0.5"
-  },
-  "dependencies": {
-    "elkjs": "0.12.0",
-    "mhchemparser": "4.2.1"
   }
 }

@@ -4,16 +4,16 @@
 
 The editor has its own stylesheet at `reactive-md/editor/styles.css`. It is separate from `reactive-md/styles.css`, so a page that only edits source does not load document rendering styles.
 
-The editor is part of the `0.5.0` preview, which targets the `next` channel. `latest` remains `0.4.0`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports are unchanged.
+The editor is part of the `0.6.0` release, available on both `latest` and `next`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports are unchanged.
 
 ## Install
 
 ```sh
-npm install reactive-md@next
+npm install reactive-md
 npm install react@19 react-dom@19
 ```
 
-Pin the preview with `npm install reactive-md@0.5.0`. The package ships ESM only and needs Node.js 22.12 or newer for tooling and server rendering.
+Pin the version with `npm install reactive-md@0.6.0`. The package ships ESM only and needs Node.js 22.12 or newer for tooling and server rendering.
 
 ## Minimal controlled editor
 
@@ -235,4 +235,4 @@ If the same page also renders a document preview, import `reactive-md/styles.css
 
 `0.5.0` adds the editor entry and keeps `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`. Projects that only render documents can upgrade without changing imports or source. The editor is new, so it has no older API to migrate from. See the [0.5.0 release notes](../releases/release-0.5.0-en.md) and [Versions and compatibility](../compatibility/compatibility-en.md).
 
- .5.3 adds compile-option-aware authoring and explicit screen/print styles. See [0.5.3 host integration](../releases/release-0.5.3-en.md).
+0.5.3 adds compile-option-aware authoring and explicit screen/print styles. See [0.5.3 host integration](../releases/release-0.5.3-en.md). 0.6.0 adds `insertText` to the ref handle; see the [0.6.0 release notes](../releases/release-0.6.0-en.md).

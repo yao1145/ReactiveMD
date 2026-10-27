@@ -156,4 +156,4 @@ reactive-md migrate old.reactive.md --from local-draft-1 --accept-semantic-chang
 
 迁移处理声明的元数据变化，并检查正文能否跨越修订边界。它不是旧版读取器：不解释 YAML `state`/`data`/`computed`/`actions` 配置块、directive 或其他 draft 之前的语法，也不改写正文。在 `local-draft-2` 下已经无法编译的源码会保持阻止状态，直到作者修复报告的位置。
 
-`0.5.3` 是 `next` 渠道的预览版。本页说明从 `0.4.0` 起提供的迁移工具。
+`0.6.0` 同时提供于 `latest` 与 `next` 渠道。本页说明从 `0.4.0` 起提供的迁移工具。

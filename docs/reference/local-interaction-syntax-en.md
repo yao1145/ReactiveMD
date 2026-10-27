@@ -504,4 +504,4 @@ Implementation acceptance must cover:
 These rules cover compiler, runtime and browser acceptance. See the [example index](../../examples/local/README.md) for example mappings and expected observations, and the [language conformance data](../../examples/conformance/README.md) for the machine-readable minimum acceptance set. Actual repository check records stay in the repository and are not part of the package.
 
 
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.5.3` is the preview release on the `next` channel.
+See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.6.0` is available on both the `latest` and `next` channels.

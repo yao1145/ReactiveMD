@@ -16,7 +16,7 @@ Documents are grouped by purpose, with Chinese and English versions of each topi
 
 - **编写文档 / Authors**：先读[入门指南](guides/local-guide-ch.md)（[English](guides/local-guide-en.md)），再查语法参考；可运行的示例见 [examples/local](../examples/local/README.md)。
 - **接入项目 / Integrators**：从[本地模式集成](integration/local-integration-ch.md)（[English](integration/local-integration-en.md)）开始，独立项目示例见 [examples/integration](../examples/integration/README.md)。
-- **升级版本 / Upgrading**：先查[兼容性](compatibility/compatibility-ch.md)（[English](compatibility/compatibility-en.md)），再读目标版本的发布记录。当前文档版本为 0.5.3；各版本记录保留当时的行为与迁移说明。
+- **升级版本 / Upgrading**：先查[兼容性](compatibility/compatibility-ch.md)（[English](compatibility/compatibility-en.md)），再读目标版本的发布记录。当前文档版本为 0.6.0；各版本记录保留当时的行为与迁移说明。
 
 ## 入门 · Guides
 
@@ -65,6 +65,7 @@ Documents are grouped by purpose, with Chinese and English versions of each topi
 
 | 版本 / Version | 中文 | English |
 | --- | --- | --- |
+| 0.6.0 | [中文](releases/release-0.6.0-ch.md) | [English](releases/release-0.6.0-en.md) |
 | 0.5.3 | [中文](releases/release-0.5.3-ch.md) | [English](releases/release-0.5.3-en.md) |
 | 0.5.2 | [中文](releases/release-0.5.2-ch.md) | [English](releases/release-0.5.2-en.md) |
 | 0.5.1 | [中文](releases/release-0.5.1-ch.md) | [English](releases/release-0.5.1-en.md) |

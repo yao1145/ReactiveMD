@@ -2,7 +2,7 @@
 
 Add controls to Markdown, and the prose, calculations and charts update as the reader changes them. Open the [online Playground](https://yaozi.raricy.com/) and paste an example into the editor to try it in the preview.
 
-This guide uses `reactive-md@0.5.3` and syntax revision `local-draft-2`. Each section starts with a runnable example, then explains it. The complete tag reference is at the end.
+This guide uses `reactive-md@0.6.0` and syntax revision `local-draft-2`. Each section starts with a runnable example, then explains it. The complete tag reference is at the end.
 
 ## 1. Your first interactive document
 

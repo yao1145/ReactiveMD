@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.6.0 (2026-10-27, latest and next channels)
+
+See [0.6.0 release notes](docs/releases/release-0.6.0-en.md). Syntax revision `local-draft-2`, component protocol `component-protocol-2` and theme protocol `reactive-md-theme-1` are unchanged.
+
+### Added
+
+- Add native HTML tables to the default P0 HTML path, including `caption`, `colgroup`, `colspan`, `rowspan`, `scope`, `headers` and shared table styling. No extended HTML switch is needed.
+- Add static `align` on `div`, `p` and headings, and `target`/`rel` on links with safe handling for `_blank`.
+- Add `\(...\)` and `\[...\]` math delimiters, the `aligned`, `align`, `align*`, `pmatrix`, `bmatrix` and `vmatrix` environments, `\tag`, additional alphabets, arrows, delimiter sizes and functions, and mhchem `\ce{...}`.
+- Add `cattca`, `mermaid` and `vue` fenced-code highlighting.
+- Lay out node/edge diagrams with ELK layered routing while keeping the deterministic synchronous first paint.
+- Add `insertText(text)` to the editor ref handle.
+
+### Changed
+
+- Return only plain objects and arrays from `compileLocal` so results can cross a React Server Components boundary.
+- Clamp tooltips to the viewport, reposition them on scroll, resize and content changes, and follow document themes.
+- Use `aria-required` and local validation instead of the native `required` attribute so required controls do not block host form submission.
+- Unparseable native HTML now falls back to inert source instead of failing the document; add `local.html.fallback` and `local.html.fallbackAttribute` warnings.
+- Add two bundled dependencies, `elkjs` and `mhchemparser`, and update `THIRD_PARTY_NOTICES.md`.
+
 ## 0.5.3 (2026-10-26, next channel)
 
 See [0.5.3 release notes](docs/releases/release-0.5.3-en.md). Syntax and protocol revisions are unchanged.

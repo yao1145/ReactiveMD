@@ -405,6 +405,6 @@ These limits bound the work for a single document; they do not replace host cont
 The default ReactiveMD path supports P0 HTML. Host options for author CSS, JavaScript and extended HTML use the separate native HTML path described in [HTML compatibility](../reference/html-compatibility-en.md). Local mode still provides no automatic state persistence or unrestricted network access, plugins or custom component registration, external data APIs, Vue support, React 18 support or a CommonJS entry. State export and import are explicit host calls. `LocalReactiveDocument` starts from initial values when the source changes; use retention helpers or manage the runtime and document yourself.
 
 
-See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.4.0` is the preview release on the `next` channel.
+See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.6.0` is available on both the `latest` and `next` channels.
 
- .5.3 adds compile-option-aware authoring and explicit screen/print styles. See [0.5.3 host integration](../releases/release-0.5.3-en.md).
+0.5.3 adds compile-option-aware authoring and explicit screen/print styles. See [0.5.3 host integration](../releases/release-0.5.3-en.md). 0.6.0 makes `compileLocal` return plain data that can cross a React Server Components boundary; see the [0.6.0 release notes](../releases/release-0.6.0-en.md).

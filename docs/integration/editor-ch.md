@@ -4,16 +4,16 @@
 
 编辑器有独立样式表 `reactive-md/editor/styles.css`，与 `reactive-md/styles.css` 分开。只编辑源码的页面不会加载文档渲染样式。
 
-编辑器属于 `0.5.0` 预览版，目标渠道为 `next`；`latest` 仍为 `0.4.0`。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入保持不变。
+编辑器属于 `0.6.0`，同时提供于 `latest` 与 `next` 渠道。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入保持不变。
 
 ## 安装
 
 ```sh
-npm install reactive-md@next
+npm install reactive-md
 npm install react@19 react-dom@19
 ```
 
-需要固定预览版时使用 `npm install reactive-md@0.5.0`。包只提供 ESM，工具和服务端渲染需要 Node.js 22.12 或更新版本。
+需要固定版本时使用 `npm install reactive-md@0.6.0`。包只提供 ESM，工具和服务端渲染需要 Node.js 22.12 或更新版本。
 
 ## 最小受控编辑器
 
@@ -235,4 +235,4 @@ const result = compileLocal(source);
 
 `0.5.0` 新增编辑器入口，`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 保持不变。只渲染文档的项目升级时无需修改导入或源码。编辑器是新增入口，没有旧 API 需要迁移。见[0.5.0 发布说明](../releases/release-0.5.0-ch.md)与[版本与兼容性](../compatibility/compatibility-ch.md)。
 
- .5.3 新增接受编译配置的作者工具及显式屏幕、打印样式入口，见 [0.5.3 宿主集成](../releases/release-0.5.3-ch.md)。
+0.5.3 新增接受编译配置的作者工具及显式屏幕、打印样式入口，见 [0.5.3 宿主集成](../releases/release-0.5.3-ch.md)。0.6.0 为 ref 句柄新增 `insertText`，见 [0.6.0 发布说明](../releases/release-0.6.0-ch.md)。

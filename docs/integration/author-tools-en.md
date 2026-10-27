@@ -2,7 +2,7 @@
 
 [中文](author-tools-ch.md)
 
-Install `reactive-md@0.5.3` to use the CLI and the React-free `reactive-md/authoring` entry. To work from this repository, build the package first:
+Install `reactive-md@0.6.0` to use the CLI and the React-free `reactive-md/authoring` entry. To work from this repository, build the package first:
 
 ```sh
 npm ci

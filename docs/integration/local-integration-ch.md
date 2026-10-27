@@ -405,6 +405,6 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 默认 ReactiveMD 路径支持 P0 HTML。作者 CSS、JavaScript 和扩展 HTML 的宿主开关使用独立的原生 HTML 路径，见 [HTML 部分兼容](../reference/html-compatibility-ch.md)。本地模式仍不提供自动状态持久化或不受限的网络访问、插件或自定义组件注册、外部数据接口、Vue 支持、React 18 支持或 CommonJS 入口。状态导出与导入是宿主的显式调用。`LocalReactiveDocument` 在源码变化时从初值开始；需要保留参数时使用保留工具，或自行管理运行时和文档。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。`0.4.0` 是 `next` 渠道的预览版。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。`0.6.0` 同时提供于 `latest` 与 `next` 渠道。
 
- .5.3 新增接受编译配置的作者工具及显式屏幕、打印样式入口，见 [0.5.3 宿主集成](../releases/release-0.5.3-ch.md)。
+0.5.3 新增接受编译配置的作者工具及显式屏幕、打印样式入口，见 [0.5.3 宿主集成](../releases/release-0.5.3-ch.md)。0.6.0 让 `compileLocal` 返回可跨 React Server Components 边界的普通数据，见 [0.6.0 发布说明](../releases/release-0.6.0-ch.md)。

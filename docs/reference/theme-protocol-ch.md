@@ -1,6 +1,6 @@
 # Reactive MD 主题协议
 
-协议修订：`reactive-md-theme-1`。本功能从 `0.4.0` 起提供，当前 `next` 预览版为 `0.5.3`；现有外观作为内置 `default` 保留。
+协议修订：`reactive-md-theme-1`。本功能从 `0.4.0` 起提供，当前版本 `0.6.0` 同时提供于 `latest` 与 `next`；现有外观作为内置 `default` 保留。
 
 ## 文档选择主题
 

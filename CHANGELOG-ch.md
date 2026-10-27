@@ -1,5 +1,26 @@
 # 变更记录
 
+## 0.6.0（2026-10-27，latest 与 next 渠道）
+
+参见 [0.6.0 发布说明](docs/releases/release-0.6.0-ch.md)。语法修订 `local-draft-2`、组块协议 `component-protocol-2` 和主题协议 `reactive-md-theme-1` 保持不变。
+
+### 新增
+
+- 默认 P0 HTML 路径新增原生表格，支持 `caption`、`colgroup`、`colspan`、`rowspan`、`scope`、`headers` 和共享表格样式，无需开启扩展 HTML。
+- `div`、`p` 和标题支持静态 `align`；链接支持 `target`/`rel`，并对 `_blank` 合并安全关系词。
+- 新增 `\(...\)` 和 `\[...\]` 公式定界符，`aligned`、`align`、`align*`、`pmatrix`、`bmatrix`、`vmatrix` 环境与 `\tag`，以及更多字体、箭头、定界符尺寸、函数命令和 mhchem `\ce{...}`。
+- 代码围栏新增 `cattca`、`mermaid` 和 `vue` 高亮。
+- node/edge 图解改用 ELK 分层布局，同时保留确定性的同步首屏。
+- 编辑器 ref 句柄新增 `insertText(text)`。
+
+### 调整
+
+- `compileLocal` 只返回普通对象和数组，可安全跨 React Server Components 边界传递。
+- tooltip 限制在视口内，并在滚动、缩放和内容变化时重新定位，配色跟随文档主题。
+- 必填控件改用 `aria-required` 和本地校验，不再用原生 `required` 阻止宿主表单提交。
+- 无法解析的原生 HTML 回退为惰性源码，不再导致整篇文档失败；新增 `local.html.fallback` 和 `local.html.fallbackAttribute` 警告。
+- 新增两个随包构建的依赖 `elkjs` 与 `mhchemparser`，更新 `THIRD_PARTY_NOTICES.md`。
+
 ## 0.5.3（2026-10-26，next 渠道）
 
 参见 [0.5.3 发布说明](docs/releases/release-0.5.3-ch.md)。语法与协议修订保持不变。
