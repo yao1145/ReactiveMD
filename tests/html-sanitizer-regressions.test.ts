@@ -17,6 +17,21 @@ function output(source: string, flags: Partial<LocalHtmlPolicy>, limit = 10000) 
 }
 
 describe('native HTML capability boundaries', () => {
+  it('supports anchor target and rel with CSS-only native routing', () => {
+    const result = output('<a href="/docs" target="_self" rel="help next">Docs</a><a href="https://example.com" target="_blank" rel="nofollow opener">External</a>', {enableCss: true});
+    expect(result.diagnostics).toEqual([]);
+    const [internal, external] = elements(result.tree, 'a');
+    expect(attrs(internal)).toMatchObject({target: '_self', rel: 'help next'});
+    expect(attrs(external)).toMatchObject({target: '_blank', rel: 'nofollow noopener noreferrer'});
+  });
+
+  it('retains native sandbox restrictions on parent navigation', () => {
+    const result = output('<a href="/docs" target="_parent" rel="help">Docs</a>', {enableCss: true});
+    expect(attrs(elements(result.tree, 'a')[0]).target).toBeUndefined();
+    expect(attrs(elements(result.tree, 'a')[0]).rel).toBe('help');
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({code: 'local.html.capability'}));
+  });
+
   it('keeps validated block alignment without granting author CSS', () => {
     const result = output('<div align=" CENTER ">你好</div><p align="right">Right</p><h2 align="justify">Title</h2>', { enableJavaScript: true });
     expect(result.diagnostics).toEqual([]);

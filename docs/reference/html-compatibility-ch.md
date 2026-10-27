@@ -83,6 +83,8 @@ React 快捷组件通过 `compileOptions` 接收同样的设置：
 
 通用属性按允许列表接收，支持文档标识、标题、语言、方向和可访问性属性。默认模式中的作者 `style`、事件处理属性及不支持的标签保持惰性源码或产生定位诊断。图片仍需宿主明确允许后才加载。代码与不支持区域不执行脚本。
 
+`a` 支持静态 `target`、`rel` 属性，例如 `<a href="https://example.com" target="_self" rel="nofollow">当前页面打开</a>`。显式 `target` 覆盖默认打开方式，`rel` 支持多个空白分隔的关系词。默认混排模式中，未指定属性的 HTTP(S) 链接仍使用 `_blank` 和 `noopener noreferrer`；相对链接仍在当前页面打开。`target="_blank"` 会保留作者关系词、合并 `noopener noreferrer` 并移除冲突的 `opener`。沙箱 HTML 路径也支持这两个属性，且继续限制 `_top`、`_parent` 导航及弹窗权限。
+
 ## 两种表格写法
 
 `<table>` 的正文是 Markdown 表格时，继续使用 ReactiveMD 表格组件，保留搜索、排序、分页和行选择。正文出现原生表格结构时，解析为 HTML 表格，无需开启扩展 HTML，也不切换整篇文档的模式：

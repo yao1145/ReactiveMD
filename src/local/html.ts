@@ -3,7 +3,7 @@ import type { DefaultTreeAdapterTypes } from 'parse5';
 import { localDiagnosticDetails } from './diagnostics';
 import { MAX_LOCAL_DIAGNOSTICS } from './limits';
 import type { Diagnostic, LocalHtmlPolicy } from './types';
-import { LOCAL_HTML_ALIGN_ELEMENTS, localHtmlAlign } from './html-names';
+import { LOCAL_HTML_ALIGN_ELEMENTS, LOCAL_HTML_ANCHOR_ATTRIBUTES, localHtmlAlign, localHtmlLinkRel } from './html-names';
 import { HTML_TABLE_NAMES, HTML_TABLE_ATTRIBUTES, validHtmlTableValue } from './html-table';
 
 type PElement = DefaultTreeAdapterTypes.Element;
@@ -66,7 +66,7 @@ const LEGACY_PRESENTATION_ATTRIBUTES = new Set([
   'border', 'cellpadding', 'cellspacing', 'frame', 'rules', 'hspace', 'vspace',
 ]);
 const P0_TAG_ATTRIBUTES: Record<string, ReadonlySet<string>> = {
-  a: new Set(['href']),
+  a: LOCAL_HTML_ANCHOR_ATTRIBUTES,
   img: new Set(['src', 'alt', 'width', 'height']),
   ol: new Set(['start']),
   details: new Set(['open']),
@@ -468,6 +468,15 @@ function cleanAttributes(element: PElement, tag: string, html: boolean, state: S
 
   if (tag === 'iframe' && !sandboxed) {
     kept.push({ name: 'sandbox', value: localHtmlSandbox(state.policy) });
+  }
+  if (tag === 'a') {
+    const target = kept.find(attribute => attribute.name.toLowerCase() === 'target')?.value;
+    const relAttribute = kept.find(attribute => attribute.name.toLowerCase() === 'rel');
+    const rel = localHtmlLinkRel(relAttribute?.value, target);
+    if (rel !== undefined) {
+      if (relAttribute) relAttribute.value = rel;
+      else kept.push({name: 'rel', value: rel});
+    }
   }
   element.attrs = kept;
   void location;

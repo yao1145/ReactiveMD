@@ -21,6 +21,38 @@ function render(source: string, urlPolicy?: LocalUrlPolicy, allowWarnings = fals
 }
 
 describe('P0 HTML renderer', () => {
+  it.each([
+    ['_self', 'nofollow', '_self', 'nofollow'],
+    ['_blank', 'nofollow sponsored', '_blank', 'nofollow sponsored noopener noreferrer'],
+    ['_BLANK', 'NOOPENER opener ugc', '_BLANK', 'NOOPENER ugc noreferrer'],
+    ['reader', 'help', 'reader', 'help'],
+    ['', '', '', ''],
+  ])('preserves authored target=%s and rel=%s', (target, rel, expectedTarget, expectedRel) => {
+    const source = `<a href="https://example.com" target="${target}" rel="${rel}">**Read**</a>`;
+    const result = compileLocal(source);
+    expect(result.diagnostics).toEqual([]);
+    const {tree} = render(source);
+    const link = elements(tree, 'a')[0];
+    expect(attrs(link)).toMatchObject({href: 'https://example.com', target: expectedTarget, rel: expectedRel});
+    expect(elements(link, 'strong')).toHaveLength(1);
+  });
+
+  it('supports rel without target and preserves default external link behavior', () => {
+    const {tree} = render('<a href="/docs" rel="help next">Docs</a> [External](https://example.com)');
+    const [internal, external] = elements(tree, 'a');
+    expect(attrs(internal)).toMatchObject({href: '/docs', rel: 'help next'});
+    expect(attrs(internal).target).toBeUndefined();
+    expect(attrs(external)).toMatchObject({target: '_blank', rel: 'noopener noreferrer'});
+  });
+
+  it('secures relative blank links too and keeps URL rejection in place', () => {
+    const {tree} = render('<a href="/docs" target="_blank">Docs</a>');
+    expect(attrs(elements(tree, 'a')[0])).toMatchObject({target: '_blank', rel: 'noopener noreferrer'});
+    const rejected = render('<a href="https://example.com" target="_self" rel="nofollow">Blocked</a>', () => false);
+    expect(elements(rejected.tree, 'a')).toHaveLength(0);
+    expect(attrs(elements(rejected.tree, 'span').find(n => attrs(n).class === 'md-link-rejected')).target).toBeUndefined();
+  });
+
   it.each(['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])('renders validated alignment on %s without switching the document route', tag => {
     for (const align of ['left', 'center', 'right', 'justify']) {
       const source = `<${tag} align=" ${align.toUpperCase()} ">你好 **Markdown**</${tag}>`;

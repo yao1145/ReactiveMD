@@ -49,6 +49,36 @@ try {
     });
     assert.equal(textCentered, true);
 
+    await page.context().route('**/link-target-proof', route => route.fulfill({contentType: 'text/html', body: '<p>Target opened</p>'}));
+    const links = '<a href="#destination" target="_self" rel="next">Same page</a> <a href="/link-target-proof" target="_blank" rel="nofollow">New page</a> <a href="/link-target-proof" target="reader" rel="help">Named frame</a><p id="destination">Destination</p>';
+    await page.evaluate(source => window.setHtmlCase(source), links);
+    const samePage = page.getByRole('link', {name: 'Same page', exact: true});
+    await expect(samePage).toHaveAttribute('target', '_self');
+    await expect(samePage).toHaveAttribute('rel', 'next');
+    await samePage.click();
+    await expect.poll(() => new URL(page.url()).hash).toMatch(/destination$/);
+    const newPage = page.getByRole('link', {name: 'New page', exact: true});
+    await expect(newPage).toHaveAttribute('rel', 'nofollow noopener noreferrer');
+    const [popup] = await Promise.all([page.waitForEvent('popup'), newPage.click()]);
+    await expect(popup.locator('p')).toHaveText('Target opened');
+    assert.equal(await popup.evaluate(() => window.opener), null);
+    await popup.close();
+    await page.evaluate(() => {
+      const frame = document.createElement('iframe');
+      frame.name = 'reader';
+      frame.srcdoc = '<p>Before navigation</p>';
+      document.body.append(frame);
+    });
+    await page.getByRole('link', {name: 'Named frame', exact: true}).click();
+    await expect(page.frameLocator('iframe[name="reader"]').locator('p')).toHaveText('Target opened');
+    await page.locator('iframe[name="reader"]').evaluate(frame => frame.remove());
+    await page.evaluate(source => window.setHtmlCase(source, {enableCss: true}), links.replace('href="#destination"', 'href="/link-target-proof"'));
+    const nativeLinks = page.frameLocator('iframe').first();
+    await expect(nativeLinks.getByRole('link', {name: 'Same page', exact: true})).toHaveAttribute('target', '_self');
+    await expect(nativeLinks.getByRole('link', {name: 'New page', exact: true})).toHaveAttribute('rel', 'nofollow noopener noreferrer');
+    await nativeLinks.getByRole('link', {name: 'Same page', exact: true}).click();
+    await expect(nativeLinks.locator('p')).toHaveText('Target opened');
+
     await page.evaluate(() => window.setHtmlCase('<div align="center">你好</div><p align="right">Native alignment</p>', { enableJavaScript: true }));
     await expect(page.frameLocator('iframe').first().locator('div')).toHaveCSS('text-align', /center$/);
     await expect(page.frameLocator('iframe').first().locator('p')).toHaveCSS('text-align', /right$/);

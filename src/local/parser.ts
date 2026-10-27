@@ -8,7 +8,7 @@ import { LOCAL_SYNTAX_VERSION } from './version';
 import { localDiagnosticDetails, renderLocalDiagnostic, type LocalDiagnosticDetails } from './diagnostics';
 import { HTML_TABLE_NAMES, HTML_TABLE_ATTRIBUTES, validHtmlTableValue, readHtmlTable } from './html-table';
 import { localComponentNames, suggestComponent } from './schema';
-import { LOCAL_HTML_NAMES, LOCAL_HTML_ALIGN_ELEMENTS, localHtmlAlign } from './html-names';
+import { LOCAL_HTML_NAMES, LOCAL_HTML_ALIGN_ELEMENTS, LOCAL_HTML_ANCHOR_ATTRIBUTES, localHtmlAlign } from './html-names';
 import { isLocalThemeName } from './theme';
 import { normalizeFootnoteIdentifier } from './footnotes';
 import {
@@ -53,7 +53,7 @@ const HTML_BLOCK = new Set([
 const BLOCK_HTML_RESULTS = new Set(['paragraph', 'heading', 'div', 'details', 'blockquote', 'code', 'list', 'listItem', 'thematicBreak', 'htmlTable']);
 const HTML_GLOBAL_ATTRIBUTES = new Set(['id', 'title', 'lang', 'dir']);
 const HTML_TAG_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
-  a: new Set(['href']),
+  a: LOCAL_HTML_ANCHOR_ATTRIBUTES,
   img: new Set(['src', 'alt', 'width', 'height']),
   ol: new Set(['start']),
   details: new Set(['open']),

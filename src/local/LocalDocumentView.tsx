@@ -47,7 +47,7 @@ import { createLocalRuntime } from './runtime';
 import { DEFAULT_MAX_LOCAL_SYNTAX_NODES, MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
 import { localCompileOptionsKey } from './options';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './html';
-import { localHtmlAlign } from './html-names';
+import { localHtmlAlign, localHtmlLinkRel } from './html-names';
 import { TableSurface } from './table-surface';
 import { HTML_TABLE_NAMES } from './html-table';
 import { formatLocalDiagnostic } from './diagnostics';
@@ -1368,14 +1368,16 @@ function renderNode(
       }
       const href = env.anchors.resolve(allowedHref);
       const external = /^https?:/i.test(href);
+      const target = node.attrs?.target ?? (external ? '_blank' : undefined);
+      const rel = localHtmlLinkRel(node.attrs?.rel ?? (external ? 'noopener noreferrer' : undefined), target);
       return (
         <a
           key={key}
           {...safeHtmlProps(env, node)}
           href={href}
           title={node.title ?? undefined}
-          target={external ? '_blank' : undefined}
-          rel={external ? 'noopener noreferrer' : undefined}
+          target={target}
+          rel={rel}
         >
           {renderNodes(env,node.children, visible, false)}
         </a>

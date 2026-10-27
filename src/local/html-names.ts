@@ -20,3 +20,22 @@ export function localHtmlAlign(value: string): 'left' | 'center' | 'right' | 'ju
   const align = value.trim().toLowerCase();
   return align === 'left' || align === 'center' || align === 'right' || align === 'justify' ? align : null;
 }
+
+export const LOCAL_HTML_ANCHOR_ATTRIBUTES: ReadonlySet<string> = new Set(['href', 'target', 'rel']);
+
+/** Preserve author relationship tokens while retaining blank-link isolation. */
+export function localHtmlLinkRel(rel: string | undefined, target: string | undefined): string | undefined {
+  if (target?.toLowerCase() !== '_blank') return rel;
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+  for (const token of (rel ?? '').split(/[\t\n\f\r ]+/)) {
+    const lower = token.toLowerCase();
+    if (!token || lower === 'opener' || seen.has(lower)) continue;
+    seen.add(lower);
+    tokens.push(token);
+  }
+  for (const token of ['noopener', 'noreferrer']) {
+    if (!seen.has(token)) tokens.push(token);
+  }
+  return tokens.join(' ');
+}

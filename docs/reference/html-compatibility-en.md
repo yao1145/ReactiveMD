@@ -83,6 +83,8 @@ Alignment works without enabling CSS or extended HTML. Markdown and bindings ins
 
 Common attributes use an allowlist for document identifiers, titles, language, direction and accessibility. Author styles, event-handler attributes and unsupported elements in the default mode remain inert source or produce positioned diagnostics. Images still require explicit host approval. Code and unsupported regions execute no scripts.
 
+Anchors accept static `target` and `rel` attributes, for example `<a href="https://example.com" target="_self" rel="nofollow">Open here</a>`. An explicit `target` overrides the default opening behavior; `rel` accepts whitespace-separated relationship tokens. In the default mixed mode, HTTP(S) links without these attributes retain `_blank` and `noopener noreferrer`, while relative links open in the current page. A `_blank` target preserves author relationship tokens, merges `noopener noreferrer` and removes the conflicting `opener` token. The sandboxed HTML route also accepts these attributes, retaining its restrictions on `_top`, `_parent` navigation and popups.
+
 ## Two table syntaxes
 
 A `<table>` containing a Markdown table remains a ReactiveMD component, with its existing search, sorting, pagination and row selection. A body with native table structure is parsed as an HTML table without enabling extended HTML or changing the whole document's mode:
