@@ -3,7 +3,8 @@ name: Publish npm package
 # Manual publish flow. Add an npm automation or granular access token with
 # publish permission as the repository secret NPM_TOKEN. The token must not
 # require an interactive one-time password, because Actions cannot prompt for
-# one. The workflow refuses to overwrite a version that already exists.
+# one. If the version is already on the registry, the workflow skips the
+# publish step and still applies the requested dist-tags.
 
 on:
   workflow_dispatch:
@@ -64,18 +65,23 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Target: reactive-md@$version"
 
-      - name: Refuse to overwrite a published version
+      - name: Check whether the version is already published
+        id: registry
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
           if npm view "reactive-md@$VERSION" version >/dev/null 2>&1; then
-            echo "::error::reactive-md@$VERSION is already published"
-            exit 1
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "reactive-md@$VERSION already exists; skipping publish and updating tags only"
+            npm view "reactive-md@$VERSION" version dist.integrity dist.tarball --json
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Test, build and refresh notices
+        if: steps.registry.outputs.published != 'true'
         run: |
           npm test
           npm run build
@@ -83,6 +89,7 @@ jobs:
           git diff --exit-code -- THIRD_PARTY_NOTICES.md
 
       - name: Pack the release tarball
+        if: steps.registry.outputs.published != 'true'
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -95,6 +102,7 @@ jobs:
           sha256sum "$tarball"
 
       - name: Publish to npm
+        if: steps.registry.outputs.published != 'true'
         shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
