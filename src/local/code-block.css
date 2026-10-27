@@ -105,6 +105,7 @@
 }
 
 .md-document .md-code-block .hljs-keyword,
+.md-document .md-code-block .hljs-operator,
 .md-document .md-code-block .hljs-selector-tag,
 .md-document .md-code-block .hljs-literal,
 .md-document .md-code-block .hljs-doctag {

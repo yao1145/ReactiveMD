@@ -47,6 +47,8 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 
 标题、段落、强调、链接、图片、引用、列表、普通表格、行内代码和代码围栏继续使用 Markdown。组件标签可以位于段落或独立块中，其位置由组件类型决定。容器内部继续解析 Markdown，不要求作者额外添加 `markdown` 属性。
 
+代码围栏支持常见编程语言，以及 `latex` / `tex`、`cattca`、`mermaid`、`jinja` / `jinja2`、`dockerfile` / `docker` 和 `vue` 的语法高亮。Vue 单文件组件中的模板、JavaScript / TypeScript、CSS / SCSS 分别高亮；Cattca 按 Markdown 正文与命令块高亮。Mermaid 围栏展示带高亮的源码。无语言标注时，在受限的常用语言集合中自动识别，并在工具栏显示识别出的语言；识别证据不足时保留纯文本。用 `text`、`txt`、`plaintext` 或 `nohighlight` 明确指定纯文本。未知语言和超过 20,000 字符的代码块保留原文；高亮与复制均保留源码空白。
+
 块组件的开始与结束标签各占一行。开始标签的属性可以跨多行书写。标签内部的 `>` 只有在引号之外才结束标签。缩进只用于可读性：容器内容按共同缩进量去缩进，再按 Markdown 解析；代码围栏内部的缩进保持原样。
 
 行内组件 `badge`、`tooltip`、`jump`、`text` 可以嵌入句子。其他组件为块组件；`option`、`tab`、`disclosure`、`node`、`edge` 是限定父容器内的子组件。

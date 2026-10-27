@@ -72,6 +72,15 @@ describe('CodeBlockView highlighting', () => {
     ['html', '<div>hi</div>'],
     ['xml', '<div>hi</div>'],
     ['css', 'body { color: red; }'],
+    ['latex', String.raw`\begin{aligned}x&=\frac{a}{b}\end{aligned}`],
+    ['tex', String.raw`\frac{a}{b} % comment`],
+    ['cattca', '</let hp = 100; if hp > 0 -> goto start;/>'],
+    ['mermaid', 'flowchart TD\n  A[Start] --> B[End]\n%% comment'],
+    ['jinja', '{% for user in users %}{{ user.name }}{% endfor %}'],
+    ['jinja2', '{% if user %}{{ user.name }}{% endif %}'],
+    ['dockerfile', 'FROM node:22\nWORKDIR /app\nRUN npm ci'],
+    ['docker', 'FROM node:22\nRUN npm ci'],
+    ['vue', '<template><p>{{ count + 1 }}</p></template>\n<script setup lang="ts">const count: number = 1;</script>'],
   ])('highlights the %s alias', (language, value) => {
     const html = render(value, language);
     expect(html).toContain('hljs-');
@@ -95,6 +104,42 @@ describe('CodeBlockView highlighting', () => {
     expect(codeText(html)).toBe(value);
   });
 
+  it.each([undefined, '', '  '])('detects unlabeled code with language=%s', language => {
+    const value = 'function greet(name) {\n  const result = `Hello ${name}`;\n  return result;\n}\n';
+    const html = render(value, language);
+    expect(html).toContain('hljs-keyword');
+    expect(html).toContain('language-');
+    expect(codeText(html)).toBe(value);
+  });
+
+  it.each(['text', 'txt', 'plaintext', 'plain', 'nohighlight'])('keeps explicit %s blocks plain', language => {
+    const value = 'function greet() { return true; }';
+    const html = render(value, language);
+    expect(html).not.toContain('hljs-keyword');
+    expect(codeText(html)).toBe(value);
+  });
+
+  it('highlights Vue script, styles, directives and interpolations', () => {
+    const value = '<template><button v-if="ready" @click="count++">{{ count + 1 }}</button></template>\n<script setup lang="ts">interface State { count: number }\nconst ready = true;</script>\n<style scoped>.button { color: red; }</style>';
+    const html = render(value, 'vue');
+    expect(html).toContain('hljs-tag');
+    expect(html).toContain('hljs-keyword');
+    expect(html).toContain('hljs-number');
+    expect(html).toContain('hljs-attribute');
+    expect(codeText(html)).toBe(value);
+  });
+
+  it('highlights Cattca commands inside blocks and Markdown outside them', () => {
+    const value = '# Story\nYou say let and goto.\n</let hp = 100; /* test */ input case: "Go" -> goto start;/>\n**Continue**';
+    const html = render(value, 'cattca');
+    expect(html).toContain('hljs-section');
+    expect(html).toContain('hljs-keyword');
+    expect(html).toContain('hljs-string');
+    expect(html).toContain('hljs-comment');
+    expect(html).toContain('You say let and goto.');
+    expect(codeText(html)).toBe(value);
+  });
+
   it('leaves oversized sources unhighlighted', () => {
     const value = 'const x = 1;\n'.repeat(Math.ceil((MAX_HIGHLIGHT_CHARS + 1) / 13));
     expect(value.length).toBeGreaterThan(MAX_HIGHLIGHT_CHARS);
@@ -102,6 +147,7 @@ describe('CodeBlockView highlighting', () => {
     const html = render(value, 'js');
     expect(html).not.toContain('hljs-');
     expect(codeText(html)).toBe(value);
+    expect(render(value)).not.toContain('hljs-keyword');
   });
 
   it('renders empty code without failing', () => {
@@ -119,6 +165,10 @@ describe('CodeBlockView safety', () => {
     expect(html).not.toContain('<img');
     expect(html).not.toContain('<script');
     expect(codeText(html)).toBe(value);
+    const detected = render(value);
+    expect(detected).not.toContain('<img');
+    expect(detected).not.toContain('<script');
+    expect(codeText(detected)).toBe(value);
   });
 
   it('does not put an unsafe language string into a class', () => {
@@ -152,7 +202,7 @@ describe('CodeBlockView modes', () => {
   });
 
   it('localizes the label and copy control for Chinese', () => {
-    const html = render('const x = 1;', undefined, 'interactive', 'zh');
+    const html = render('ordinary prose', undefined, 'interactive', 'zh');
 
     expect(html).toContain('>文本</span>');
     expect(html).toContain('aria-label="复制代码"');

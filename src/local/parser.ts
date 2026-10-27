@@ -1196,6 +1196,9 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           const value = source.slice(i + 1, stop);
           const after = source[stop + 1];
           if (!value.trim()) break;
+          // A tight numeric opener followed by prose is a price, not a formula.
+          // Do not consume the opening `$` of a later formula as its closer.
+          if (/\s$/.test(value) && /^\d[\d.,]*(?:[，、；：。！？]|[.,;:!?]\s|\s+(?:and|or|to|each|per|for)\b)/i.test(value)) break;
           if (after !== undefined && after >= '0' && after <= '9') break;
           close = stop;
           break;

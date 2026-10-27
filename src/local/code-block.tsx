@@ -8,8 +8,12 @@ import {
   type ReactNode,
 } from 'react';
 import { common, createLowlight } from 'lowlight';
+import latex from 'highlight.js/lib/languages/latex';
+import django from 'highlight.js/lib/languages/django';
+import dockerfile from 'highlight.js/lib/languages/dockerfile';
 import type { Element, RootContent } from 'hast';
 import { useLocalize } from './i18n';
+import { cattca, mermaid, vue } from './code-languages';
 
 /**
  * Fenced code blocks with optional syntax highlighting and a copy button.
@@ -28,6 +32,14 @@ const MAX_TOKEN_DEPTH = 100;
 const COPY_FEEDBACK_MS = 2_000;
 
 const lowlight = createLowlight(common);
+lowlight.register({latex, django, dockerfile, cattca, mermaid, vue});
+
+// Keep detection bounded to common, distinguishable grammars. Explicit language
+// names can still select every registered grammar, including mixed Vue SFCs.
+const AUTO_LANGUAGES = [
+  'javascript', 'typescript', 'python', 'bash', 'json', 'yaml', 'sql',
+  'xml', 'css', 'java', 'cpp', 'rust', 'go', 'latex', 'dockerfile', 'mermaid', 'cattca', 'django',
+];
 
 /**
  * Aliases people use in fenced code blocks. Registered highlight.js aliases
@@ -56,6 +68,15 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   markdown: 'markdown',
   yml: 'yaml',
   yaml: 'yaml',
+  tex: 'latex',
+  jinja: 'django',
+  jinja2: 'django',
+  j2: 'django',
+  docker: 'dockerfile',
+  text: 'plaintext',
+  txt: 'plaintext',
+  plain: 'plaintext',
+  nohighlight: 'plaintext',
 };
 
 function normalizeLanguage(language: string | undefined): string | null {
@@ -127,23 +148,28 @@ export interface CodeHighlight {
   /** Highlighted children, or `null` when the source should render verbatim. */
   nodes: ReactNode[] | null;
   highlighted: boolean;
+  /** Resolved grammar, including the detected language for unlabeled blocks. */
+  language?: string;
 }
 
-/** Highlight a source string without automatic language detection. */
+/** Highlight explicit languages, or detect unlabeled code with bounded grammars. */
 export function highlightCode(value: string, language?: string): CodeHighlight {
   const requested = normalizeLanguage(language);
-  if (requested === null || value === '' || value.length > MAX_HIGHLIGHT_CHARS) {
+  if (value === '' || value.length > MAX_HIGHLIGHT_CHARS) {
     return { nodes: null, highlighted: false };
   }
-  const resolved = resolveLanguage(requested);
-  if (resolved === null) return { nodes: null, highlighted: false };
+  const resolved = requested === null ? null : resolveLanguage(requested);
+  if (requested !== null && (resolved === null || resolved === 'plaintext')) return { nodes: null, highlighted: false };
 
   try {
-    const tree = lowlight.highlight(resolved, value);
+    const tree = resolved === null
+      ? lowlight.highlightAuto(value, {subset: AUTO_LANGUAGES})
+      : lowlight.highlight(resolved, value);
+    if (resolved === null && (!tree.data?.language || (tree.data.relevance ?? 0) < 2)) return {nodes: null, highlighted: false};
     if (flattenText(tree.children) !== value) return { nodes: null, highlighted: false };
     const nodes = renderTokens(tree.children);
     if (nodes.length === 0 && value !== '') return { nodes: null, highlighted: false };
-    return { nodes, highlighted: true };
+    return { nodes, highlighted: true, language: resolved ?? tree.data?.language };
   } catch {
     return { nodes: null, highlighted: false };
   }
@@ -286,10 +312,11 @@ export function CodeBlockView({ value, language, mode, htmlProps }: CodeBlockVie
   }, [value]);
 
   const requested = normalizeLanguage(language);
-  const label = language !== undefined && language.trim() !== '' ? language.trim() : t('Text', '文本');
+  const label = language !== undefined && language.trim() !== '' ? language.trim() : highlight.language ?? t('Text', '文本');
+  const classLanguage = requested ?? highlight.language;
   const codeClass = [
     highlight.highlighted ? 'hljs' : '',
-    requested !== null && SAFE_LANGUAGE_CLASS.test(requested) ? `language-${requested}` : '',
+    classLanguage && SAFE_LANGUAGE_CLASS.test(classLanguage) ? `language-${classLanguage}` : '',
   ].filter((item) => item !== '').join(' ') || undefined;
 
   const feedbackText = feedbackState === 'success'

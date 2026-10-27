@@ -10,7 +10,7 @@ const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...f
 const formulas = (nodes: LocalNode[]) => flatten(nodes).filter(n => n.type === 'math' || n.type === 'inlineMath');
 
 describe('space-padded dollar math', () => {
-  it.each(['$ x $', '$x $', '$ x$', '$\tx + y\t$', '$ \\frac{a}{b} $'])(
+  it.each(['$ x $', '$x $', '$ x$', '$\tx + y\t$', '$ \\frac{a}{b} $', '$2 sin x$', '$2 sin x $'])(
     'parses and renders inline math while preserving source whitespace: %s', source => {
       const result = compileLocal(source);
       expect(result.ok).toBe(true);
@@ -47,6 +47,14 @@ describe('space-padded dollar math', () => {
     expect(result.diagnostics).toEqual([]);
     expect(formulas(result.nodes).map(n => n.value)).toEqual([' x ', ' y ']);
   });
+
+  it.each(['价格 $5、$10，函数 $ x^2 $', 'Costs $5 and $10, then $ x^2 $'])(
+    'keeps prices separate from later padded math: %s', source => {
+      const result = parseLocal(source);
+      expect(result.diagnostics).toEqual([]);
+      expect(formulas(result.nodes).map(n => n.value)).toEqual([' x^2 ']);
+    },
+  );
 });
 
 describe('backslash LaTeX delimiters', () => {

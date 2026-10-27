@@ -43,6 +43,8 @@ When no cross-component linkage is needed, omit `bind`, for example `<counter la
 
 Headings, paragraphs, emphasis, links, images, quotes, lists, plain tables, inline code and code fences continue to use Markdown. Component tags may sit in a paragraph or a standalone block, depending on component type. Container contents continue to parse as Markdown; authors do not need to add a `markdown` attribute.
 
+Code fences highlight common programming languages plus `latex` / `tex`, `cattca`, `mermaid`, `jinja` / `jinja2`, `dockerfile` / `docker` and `vue`. Vue single-file components highlight templates, JavaScript / TypeScript and CSS / SCSS separately; Cattca highlights Markdown narrative and command blocks. Mermaid fences display highlighted source. Unlabeled code is detected within a bounded set of common languages, with the detected language shown in the toolbar. Blocks without sufficient detection evidence stay plain. Use `text`, `txt`, `plaintext` or `nohighlight` to request plain text explicitly. Unknown languages and blocks longer than 20,000 characters preserve the original text. Highlighting and copying retain source whitespace.
+
 Block component start and end tags each occupy a line. Attributes in a start tag may span multiple lines. A `>` inside a tag ends the tag only when it is outside quotes. Indentation is only for readability: container content is dedented by the common indentation and then parsed as Markdown; indentation inside code fences is preserved.
 
 The inline components `badge`, `tooltip`, `jump` and `text` can be embedded in sentences. Other components are block components; `option`, `tab`, `disclosure`, `node`, `edge` and `step` are child components restricted to specific parent containers.

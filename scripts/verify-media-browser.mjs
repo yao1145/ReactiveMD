@@ -20,13 +20,27 @@ try {
     await page.goto(`${server.resolvedUrls.local[0]}tests/browser/media-fixture.html?locale=${locale}&theme=${theme}`);
     const primary = page.locator('#primary article');
     const blocks = primary.locator('.md-code-block');
-    await expect(blocks).toHaveCount(5);
+    await expect(blocks).toHaveCount(13);
     await expect(blocks.first().locator('code .hljs-keyword')).toContainText('const');
     await expect(blocks.nth(1).locator('code .hljs-keyword').first()).toHaveText('def');
     await expect(blocks.nth(2).locator('code [class*="hljs-"]').first()).toBeVisible();
     await expect(blocks.nth(3).locator('code')).toHaveText('<script>window.codeExecuted = true</script>');
     await expect(blocks.nth(3).locator('code script')).toHaveCount(0);
     await expect(blocks.nth(4).locator('code')).toHaveText('plain <text> & symbols');
+    for (let index = 5; index < 13; index++) {
+      await expect(blocks.nth(index).locator('code')).toHaveClass(/hljs/);
+      await expect(blocks.nth(index).locator('code [class*="hljs-"]').first()).toBeVisible();
+    }
+    await expect(blocks.nth(12).locator('.md-code-block-language')).not.toHaveText(/^(Text|文本)$/);
+    const tokenColors = await blocks.nth(7).locator('code').evaluate(code => ({
+      base: getComputedStyle(code).color,
+      keyword: getComputedStyle(code.querySelector('.hljs-keyword')).color,
+    }));
+    assert.notEqual(tokenColors.base, tokenColors.keyword);
+    await primary.screenshot({path: `artifacts/media/${width}-${theme}-highlighting.png`});
+    const detectedCopy = blocks.nth(12).getByRole('button');
+    await detectedCopy.click();
+    assert.equal((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g,'\n'), await page.evaluate(() => window.mediaHarness.code));
     await expect(primary.locator('.md-inline-code')).toHaveText('const plain = true');
     assert.equal(await page.evaluate(() => window.codeExecuted), undefined);
     await expect(page.locator('#denied img')).toHaveCount(0);

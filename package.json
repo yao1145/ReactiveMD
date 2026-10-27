@@ -135,6 +135,7 @@
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "highlight.js": "11.11.2",
     "lowlight": "3.3.0",
     "parse5": "8.0.1",
     "react": "19.3.1",
