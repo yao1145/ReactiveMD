@@ -59,6 +59,35 @@ describe('space-padded dollar math', () => {
 });
 
 describe('backslash LaTeX delimiters', () => {
+  it.each([
+    String.raw`\[ I=\int P(x)\sin^n x\,dx \quad\text{或}\quad I=\int P(x)\cos^n x\,dx \]`,
+    String.raw`\\[ I=\int P(x)\sin^n x\\,dx \quad\text{或}\quad I=\int P(x)\cos^n x\\,dx \\]`,
+    '\\\\[\r\nI=\\int P(x)\\sin^n x\\,dx\r\n\\\\]',
+  ])('renders pasted integral display wrappers: %s', source => {
+    const result = compileLocal(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.diagnostics).toEqual([]);
+    const math = formulas(result.document.nodes);
+    expect(math).toHaveLength(1);
+    expect(math[0]).toMatchObject({type: 'math', range: {start: 0, end: source.length}});
+    const runtime = createLocalRuntime(result.document);
+    try {
+      const html = renderToStaticMarkup(<LocalDocumentView document={result.document} runtime={runtime} />);
+      expect(html).toContain('katex-display');
+      expect(html).toContain('∫');
+    } finally { runtime.dispose(); }
+  });
+
+  it('retains diagnostic offsets and shields pasted wrappers in code and links', () => {
+    const source = String.raw`😀 \\[ a+\unknown \\]`;
+    const issue = compileLocal(source).diagnostics.find(d => d.code === 'local.math.display')!;
+    expect(source.slice(issue.range.start, issue.range.end)).toBe(String.raw`\unknown`);
+    const literal = parseLocal('`\\\\[ x \\\\]`\n\n```tex\n\\\\[ x \\\\]\n```\n\n[Link](docs/\\\\[part)');
+    expect(literal.diagnostics).toEqual([]);
+    expect(formulas(literal.nodes)).toEqual([]);
+  });
+
   it('parses inline and display delimiters without rewriting original source ranges', () => {
     const source = String.raw`前文 \(\frac{a}{b}\) 后文。
 

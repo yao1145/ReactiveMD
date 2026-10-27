@@ -468,7 +468,9 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions): Lo
   while (displayNodes.length && diagnostics.length < MAX_LOCAL_DIAGNOSTICS) {
     const node = displayNodes.pop()!;
     if (node.type === 'math' || node.type === 'inlineMath') {
-      const base = node.range.start + (node.type === 'math' || source.startsWith('\\(', node.range.start) ? 2 : 1);
+      const delimiterLength = source.startsWith('\\\\[', node.range.start) ? 3
+        : node.type === 'math' || source.startsWith('\\(', node.range.start) ? 2 : 1;
+      const base = node.range.start + delimiterLength;
       for (const issue of inspectLocalMathDisplay(node.value ?? '', node.type === 'math')) {
         reportWarning(state, issue.code, issue.message, base + issue.start, base + issue.end, {
           key: issue.messageKey, params: issue.params,

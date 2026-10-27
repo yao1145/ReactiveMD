@@ -1118,14 +1118,20 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       // TeX-style delimiters precede Markdown backslash escapes. Code ranges,
       // fences and inline-code spans are still shielded by the surrounding
       // scan. Plot deliberately retains its $$...$$-only body grammar.
+      // Imported Markdown sometimes retains escaped display wrappers. Only
+      // accept padded \\[ ... \\] wrappers so ordinary escaped brackets stay literal.
+      const escapedDisplay = source.startsWith('\\\\[', i) && /\s/.test(source[i + 3] ?? '');
       if (!footnoteMode && parent !== 'plot' && source[i] === '\\'
-        && (source[i + 1] === '(' || source[i + 1] === '[') && !inMathLiteral(mathLiterals, i)) {
-        const display = source[i + 1] === '[';
+        && (source[i + 1] === '(' || source[i + 1] === '[' || escapedDisplay) && !inMathLiteral(mathLiterals, i)) {
+        const display = escapedDisplay || source[i + 1] === '[';
+        const delimiterLength = escapedDisplay ? 3 : 2;
         const closing = display ? ']' : ')';
-        let stop = i + 2;
+        let stop = i + delimiterLength;
         while (stop < end) {
           if (source[stop] === '\\') {
-            if (source[stop + 1] === closing && stop + 1 < end) break;
+            if (escapedDisplay
+              ? source.startsWith('\\\\]', stop) && stop + 2 < end && /\s/.test(source[stop - 1] ?? '')
+              : source[stop + 1] === closing && stop + 1 < end) break;
             stop += 2;
           } else stop++;
         }
@@ -1134,8 +1140,8 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           i = end;
           continue;
         }
-        const finish = stop + 2;
-        let value = source.slice(i + 2, stop);
+        const finish = stop + delimiterLength;
+        let value = source.slice(i + delimiterLength, stop);
         if (value.length > MAX_DISPLAY_MATH_SOURCE) {
           error('local.budget.math', `Formula exceeds the ${MAX_DISPLAY_MATH_SOURCE}-character limit.`, i, finish, { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } });
           value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
