@@ -17,6 +17,8 @@ describe('native HTML source fallback', () => {
     '<table><tr><td colspan="bad">{{ missing }}</td></tr></table>',
     '<table><caption>A</caption><caption>B</caption><tr><td>A</td></tr></table>',
     '<div align="middle">**Uncompiled** {{ missing }}</div>',
+    '<div style="color:red">原文 {{ missing }}',
+    '<div unsupported="x">原文 {{ missing }}',
     '<meta name="description" content="{{ missing }}">',
     '<article>**Uncompiled** {{ missing }}',
     '<ARTICLE>**Uncompiled** {{ missing }}</article>',
@@ -41,12 +43,13 @@ describe('native HTML source fallback', () => {
     } finally { runtime.dispose(); }
   });
 
-  it('keeps an unclosed native fragment inside its ReactiveMD parent', () => {
-    const source = '<card title="Host">\n<article>**Raw** {{ missing }}\n</card>\n\n<counter bind="n" label="Count" initial="2">';
+  it.each(['<article>', '<div style="color:red">', '<div unsupported="x">'])('keeps an unclosed native fragment inside its ReactiveMD parent: %s', opening => {
+    const fragment = `${opening}**Raw** {{ missing }}\n`;
+    const source = `<card title="Host">\n${fragment}</card>\n\n<counter bind="n" label="Count" initial="2">`;
     const result = compileLocal(source);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(flatten(result.document.nodes).find(n => n.type === 'fallback')?.value).toBe('<article>**Raw** {{ missing }}\n');
+    expect(flatten(result.document.nodes).find(n => n.type === 'fallback')?.value).toBe(fragment);
     expect(result.document.bindings.n).toBeDefined();
   });
 

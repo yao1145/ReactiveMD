@@ -1328,7 +1328,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           if (!selection.ok) {
             const stop = html.self || HTML_VOID.has(html.lower)
               ? html.end
-              : (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? html.end);
+              : (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? htmlLiteralEnd(html.end, end, parent));
             warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback.attribute', 'en', {name: selection.attr}), i, stop, {key: 'local.html.fallback.attribute', params: {name: selection.attr}});
             tokens.push({ start: i, end: stop, block: false, node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
             i = stop;
