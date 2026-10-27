@@ -79,9 +79,12 @@ async function runCase(browser, engine, width, result, baseURL) {
   const documentSelect = page.locator('.doc-select');
   const edit = async text => {
     await page.locator('[data-editor-view-option="edit"]').click();
-    await editor.focus();
+    // Wait for the view transition's layout and use native text input. A direct
+    // fill immediately after switching views can race WebKit's textarea reset.
+    await editor.click();
     await expect(editor).toBeFocused();
-    await editor.fill(text);
+    await editor.press('ControlOrMeta+A');
+    await page.keyboard.insertText(text);
     await expect(editor).toHaveValue(text);
     await expect.poll(() => page.locator('.author-highlight-content').textContent()).toBe(text);
     await expect(page.locator('.status-chip')).toContainText('Compiled');

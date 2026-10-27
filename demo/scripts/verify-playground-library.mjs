@@ -36,7 +36,7 @@ try {
       expect(original).toContain('{{');
       expect(original).toContain('<slider');
       await block.getByRole('button', { name: language === 'en' ? 'Copy code' : '复制代码', exact: true }).click();
-      expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(original);
+      expect((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n')).toBe(original.replace(/\r\n/g, '\n'));
       for (const width of [1440, 375]) {
         await page.setViewportSize({ width, height: 1000 });
         for (const theme of ['light', 'dark']) {
