@@ -133,7 +133,7 @@ try {
   // Long sources exercise real scrolling. The highlight must follow the
   // textarea's native scroll position on its own: no synthetic scroll event,
   // and the overlay moves through a transform rather than its own scrollTop.
-  await replaceWorkbenchSource(page, 
+  await replaceWorkbenchSource(page,
     Array.from({ length: 80 }, (_, index) => `Line ${index + 1} <bind name="value${index}" value="${index}" />`).join('\n'),
   );
   await expect(page.locator('.status-chip')).toContainText('Compiled');
