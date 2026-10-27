@@ -45,7 +45,8 @@ try {
       await expect(tables.nth(2).locator('th[rowspan="2"]')).toHaveText('Item');
       await expect(tables.nth(2).locator('th[colspan="2"]')).toHaveText('Prices');
       await expect(tables.nth(2).locator('strong')).toHaveText('Rich text');
-      await expect(tables.nth(2).locator('math')).toBeVisible();
+      await expect(tables.nth(2).locator('.katex-html')).toBeVisible();
+      await expect(tables.nth(2).locator('.katex-mathml math')).toHaveCount(1);
       // Direct <tr> input is normalized to tbody, including its header row.
       await expect(tables.nth(1).locator('tbody')).toHaveCount(1);
       const widths = await tables.nth(1).evaluate(el => ({ table: el.getBoundingClientRect().width, parent: el.parentElement.getBoundingClientRect().width }));

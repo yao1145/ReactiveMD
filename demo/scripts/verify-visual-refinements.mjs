@@ -34,7 +34,7 @@ try {
   await expect(preview.getByRole('heading', { name: 'Responsive formula', exact: true })).toBeVisible();
   // Use presentation mode to measure the same document at full and phone widths.
   await page.locator('.source-toggle').click();
-  const math = preview.locator('math.local-math-block');
+  const math = preview.locator('.local-math-block');
   await check('formulas retain the document body size on desktop and phone', async () => {
     const bodySize = await preview.locator('.local-document').evaluate(e => getComputedStyle(e).fontSize);
     await expect(math).toHaveCSS('font-size', bodySize);
@@ -80,17 +80,16 @@ try {
     await page.evaluate(() => localStorage.clear());
     await page.goto(baseURL + '/?example=functions');
     await preview.getByRole('tab', { name: 'Savings application', exact: true }).click();
-    const cases = preview.locator('.local-visual-plot-formula mtable').last();
+    const cases = preview.locator('.local-visual-plot-formula .katex-html .mtable').last();
     await expect(cases).toBeVisible();
     for (const width of [1440, 760, 375]) {
       await page.setViewportSize({ width, height: 1000 });
       for (const mode of ['light', 'dark']) {
         if (mode === 'dark') await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
-        await expect.poll(async () => cases.evaluate(table => [...table.querySelectorAll('mtr')].every(row => {
-          const [expression, condition] = row.children;
-          const right = Math.max(...[...expression.querySelectorAll('*')].map(e => e.getBoundingClientRect().right));
-          return right <= condition.getBoundingClientRect().left - 1;
-        })), { message: `cases overlap at ${width}px ${mode}` }).toBe(true);
+        await expect.poll(async () => cases.evaluate(table => {
+          const [expression, condition] = table.querySelectorAll(':scope > .col-align-l');
+          return expression.getBoundingClientRect().right <= condition.getBoundingClientRect().left - 1;
+        }), { message: `cases overlap at ${width}px ${mode}` }).toBe(true);
         if (width === 1440 || width === 375) {
           await cases.locator('..').locator('..').screenshot({
             path: `${outputDir}/cases-fixed-${width}-${mode}.png`,
