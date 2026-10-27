@@ -1,0 +1,125 @@
+name: Publish npm package
+
+# Manual publish flow. Add an npm automation or granular access token with
+# publish permission as the repository secret NPM_TOKEN. The token must not
+# require an interactive one-time password, because Actions cannot prompt for
+# one. The workflow refuses to overwrite a version that already exists.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit SHA to publish
+        required: true
+        default: main
+      dist_tag:
+        description: npm dist-tag to publish under
+        required: true
+        default: next
+        type: choice
+        options:
+          - next
+          - latest
+      update_latest:
+        description: Also move latest to this version
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the selected ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Set up Node and the npm registry
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Read the package version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Target: reactive-md@$version"
+
+      - name: Refuse to overwrite a published version
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if npm view "reactive-md@$VERSION" version >/dev/null 2>&1; then
+            echo "::error::reactive-md@$VERSION is already published"
+            exit 1
+          fi
+
+      - name: Test, build and refresh notices
+        run: |
+          npm test
+          npm run build
+          npm run notices
+          git diff --exit-code -- THIRD_PARTY_NOTICES.md
+
+      - name: Pack the release tarball
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/release-package
+          npm pack --ignore-scripts --pack-destination artifacts/release-package
+          tarball="artifacts/release-package/reactive-md-$VERSION.tgz"
+          test -f "$tarball"
+          sha256sum "$tarball"
+
+      - name: Publish to npm
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: |
+          set -euo pipefail
+          npm publish "artifacts/release-package/reactive-md-$VERSION.tgz" \
+            --access public --tag "$DIST_TAG" --ignore-scripts
+
+      - name: Move latest when requested
+        if: inputs.update_latest && inputs.dist_tag != 'latest'
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          npm dist-tag add "reactive-md@$VERSION" latest
+
+      - name: Confirm the published package
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          npm view "reactive-md@$VERSION" version dist.integrity dist.tarball --json
+          npm view reactive-md dist-tags --json
