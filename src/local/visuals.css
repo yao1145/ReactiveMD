@@ -859,71 +859,69 @@ table.local-visual-table {
   margin: 0;
 }
 
-/* Body formulas and plot formulas share the document's body size. */
+/* KaTeX owns glyph metrics; formulas follow the surrounding text size. */
 .local-math {
   color: var(--formula-ink, var(--ink));
-  font-size: var(--text-md);
+  font-size: 1em;
+  overflow-wrap: normal;
 }
 
-/* MathML cells must retain their intrinsic width before the formula is fitted.
-   Otherwise a narrow inline table paints long expressions over its conditions. */
-.local-math mtable {
+.local-math .katex {
+  font-size: 1.1em;
+  text-indent: 0;
+}
+
+.local-math .katex-display {
+  margin: 0;
+}
+
+.local-math-block {
+  display: block;
   width: max-content;
-  min-width: max-content;
-}
-
-.local-math mtd {
-  text-align: left;
-  /* Chromium aligns MathML cell content through justify-items. */
-  justify-items: start;
-}
-
-.local-math mtd[columnalign="right"] {
-  text-align: right;
-  justify-items: end;
-}
-
-.local-math mtd[columnalign="center"] {
-  text-align: center;
-  justify-items: center;
-}
-
-.local-math mtable[data-local-math-tag] {
-  width: 100%;
   min-width: 100%;
 }
 
-/* Inline math keeps its intrinsic width; inline-size containment here would
-   collapse it to the containing block. */
-.local-math-inline {
-  max-width: 100%;
-  overflow-x: auto;
+.local-math-block .katex-display > .katex {
+  min-width: 100%;
 }
 
-/* `safe center` centres wide formulas but falls back to the start edge when
-   one overflows, so both ends stay reachable by scrolling. */
-.local-math-display {
+/* KaTeX positions tags absolutely by default. Let them contribute intrinsic
+   width so a scrolling equation cannot paint its final terms over the tag. */
+.local-math .katex-display > .katex > .katex-html:has(> .katex-tag) {
   display: flex;
-  justify-content: safe center;
+  align-items: baseline;
+}
+
+.local-math .katex-display > .katex > .katex-html:has(> .katex-tag)::before {
+  content: '';
+  flex: 1 0 0;
+  margin-right: 2em;
+}
+
+.local-math .katex-display > .katex > .katex-html > .katex-tag {
+  position: static;
+  flex: 1 0 0;
+  min-width: max-content;
+  margin-left: 2em;
+  text-align: right;
+}
+
+.local-math-fallback {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Inline formulas share the text baseline and wrap at KaTeX break points. */
+.local-math-inline {
+  max-width: 100%;
+}
+
+.local-math-display {
+  display: block;
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-block: 0.15em;
-}
-
-.local-math-display > .local-math {
-  flex: none;
-  max-width: none;
-}
-
-.local-math-display > .local-math-tagged {
-  min-width: 100%;
-}
-
-.local-math-tagged > semantics,
-.local-math-tagged > semantics > mrow {
-  display: block;
-  width: 100%;
+  padding-block: 0.25em;
 }
 
 @media (max-width: 480px) {

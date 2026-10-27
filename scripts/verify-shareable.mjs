@@ -26,6 +26,10 @@ The group is large enough.
 </if>
 
 ![Pixel](media/pixel.png)
+
+Inline math: $x^2 + \\frac{a}{b}$ and chemistry $\\ce{H2O}$.
+
+$$\\Gamma=\\oint_{\\partial S}\\mathbf{v}\\times d\\mathbf{l}=\\iint_S\\omega\\,dA$$
 `;
 
 const PIXEL = Buffer.from(
@@ -134,6 +138,16 @@ async function browserChecks(temp) {
       await expect.poll(() => image.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
     });
 
+    await check('offline math includes KaTeX layout, accessible MathML and loaded fonts', async () => {
+      await expect(page.locator('.local-math .katex-html')).toHaveCount(3);
+      await expect(page.locator('.local-math .katex-mathml math')).toHaveCount(3);
+      assert.equal(await page.evaluate(async () => {
+        await document.fonts.ready;
+        return [...document.fonts].some(font => font.family.includes('KaTeX_Main') && font.status === 'loaded')
+          && [...document.fonts].some(font => font.family.includes('KaTeX_Math') && font.status === 'loaded');
+      }), true);
+    });
+
     await check('runtime updates expressions and conditional content', async () => {
       const slider = page.getByRole('slider', { name: 'People', exact: true });
       await slider.focus();
@@ -210,6 +224,11 @@ async function browserChecks(temp) {
       assert.equal(/<script\b/.test(html), false);
       assert.equal(html.includes('application/reactive-md+json'), false);
       assert.match(await noJsPage.locator('.local-document').innerText(), /Ada/);
+      await expect(noJsPage.locator('.local-math .katex-html')).toHaveCount(3);
+      assert.equal(await noJsPage.evaluate(async () => {
+        await document.fonts.ready;
+        return [...document.fonts].some(font => font.family.includes('KaTeX_Main') && font.status === 'loaded');
+      }), true);
     });
     await noJs.close();
 
@@ -324,12 +343,13 @@ async function sizeBaseline() {
     cssGzip: gzipSync(css).byteLength,
   };
   console.log(`Standalone size: ${sizes.js} B (${sizes.jsGzip} B gzip), CSS ${sizes.css} B (${sizes.cssGzip} B gzip)`);
-  // The published 0.5.2 HTML/highlighter runtime is 1,112,662 B; 0.5.3 adds
-  // shared math diagnostics. Keep a 1100 KiB raw alarm and the gzip cap below.
-  assert.ok(sizes.js <= 1100 * 1024, `Standalone JS grew beyond the 1100 KiB alarm: ${sizes.js}`);
-  assert.ok(sizes.jsGzip <= 320 * 1024, `Standalone JS gzip grew beyond the 320 KiB alarm: ${sizes.jsGzip}`);
-  assert.ok(sizes.css <= 80 * 1024, `Standalone CSS grew beyond the 80 KiB alarm: ${sizes.css}`);
-  assert.ok(sizes.cssGzip <= 20 * 1024, `Standalone CSS gzip grew beyond the 20 KiB alarm: ${sizes.cssGzip}`);
+  // Includes ELK/highlighting, KaTeX + mhchem, and 20 inlined WOFF2 fonts.
+  // The KaTeX migration measures about 2.88/0.87 MB JS and 0.45/0.28 MB CSS
+  // (raw/gzip). Keep roughly 10% headroom for regressions.
+  assert.ok(sizes.js <= 3 * 1024 * 1024, `Standalone JS grew beyond the 3 MiB alarm: ${sizes.js}`);
+  assert.ok(sizes.jsGzip <= 950 * 1024, `Standalone JS gzip grew beyond the 950 KiB alarm: ${sizes.jsGzip}`);
+  assert.ok(sizes.css <= 480 * 1024, `Standalone CSS grew beyond the 480 KiB alarm: ${sizes.css}`);
+  assert.ok(sizes.cssGzip <= 300 * 1024, `Standalone CSS gzip grew beyond the 300 KiB alarm: ${sizes.cssGzip}`);
   return sizes;
 }
 

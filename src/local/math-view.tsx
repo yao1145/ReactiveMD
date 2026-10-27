@@ -1,15 +1,14 @@
 import { createElement, type ReactElement, type ReactNode } from 'react';
-import { boundedLocalMathLiteral, parseLocalMathDisplay, type MathNode } from './math-display';
+import { boundedLocalMathLiteral, renderLocalMathDisplay } from './math-display';
 
 /**
- * Safe native MathML rendering for local LaTeX.
+ * Safe KaTeX rendering for local LaTeX.
  *
- * Parsing and support detection live in the React-free `math-display` module,
- * so compile-time diagnostics use exactly the same rules as this renderer.
- * The renderer never interprets HTML, styles, macros, files or links from the
- * source. Unknown commands are shown as literal text, so a formula that cannot
- * be computed still remains readable. All source text passes through React as
- * text nodes.
+ * Typesetting, support detection and diagnostics live in the React-free
+ * `math-display` module, so compile-time diagnostics use exactly the same KaTeX
+ * call as this renderer. Only the markup KaTeX generated is injected; error
+ * messages, macros and HTML from the author are never interpreted. A formula
+ * that cannot be typeset falls back to bounded source text rendered by React.
  */
 
 export interface LatexViewProps {
@@ -17,45 +16,36 @@ export interface LatexViewProps {
   display?: boolean;
 }
 
-type MathProps = Record<string, unknown> | null;
+type ElementProps = Record<string, unknown>;
 
-const element = (tag: string, props: MathProps, ...children: ReactNode[]): ReactElement =>
+const element = (tag: string, props: ElementProps, ...children: ReactNode[]): ReactElement =>
   (createElement as unknown as (
     type: string,
-    props?: MathProps,
+    props?: ElementProps,
     ...children: ReactNode[]
   ) => ReactElement)(tag, props, ...children);
 
-function renderMathNode(node: MathNode): ReactNode {
-  const props = (node.style ? {...node.attrs, style: node.style} : node.attrs ?? null) as MathProps;
-  if (node.children && node.children.length > 0) {
-    return element(node.tag, props, ...node.children.map(renderMathNode));
-  }
-  if (node.text !== undefined) return element(node.tag, props, node.text);
-  return element(node.tag, props);
-}
-
-function hasEquationTag(node: MathNode): boolean {
-  return node.attrs?.['data-local-math-tag'] === 'true' || (node.children?.some(hasEquationTag) ?? false);
-}
-
 export function LatexView({ source, display = false }: LatexViewProps): ReactElement {
+  const result = renderLocalMathDisplay(source, display);
+  const classes = display ? 'local-math local-math-block' : 'local-math';
+
+  if (result.html !== null) {
+    return element('span', {
+      className: classes,
+      'data-local-math': 'katex',
+      dangerouslySetInnerHTML: { __html: result.html },
+    });
+  }
+
   const literal = boundedLocalMathLiteral(source);
-  const parsed = parseLocalMathDisplay(source);
-  const body = parsed.node ? renderMathNode(parsed.node) : element('mtext', null, literal);
-  const annotation = literal;
   return element(
-    'math',
+    'span',
     {
-      display: display ? 'block' : 'inline',
-      className: `${display ? 'local-math local-math-block' : 'local-math'}${parsed.node && hasEquationTag(parsed.node) ? ' local-math-tagged' : ''}`,
-      'aria-label': annotation,
+      className: `${classes} local-math-fallback`,
+      'data-local-math': 'fallback',
+      role: 'math',
+      'aria-label': literal,
     },
-    element(
-      'semantics',
-      null,
-      element('mrow', null, body),
-      element('annotation', { encoding: 'application/x-tex' }, annotation),
-    ),
+    literal,
   );
 }

@@ -151,7 +151,7 @@ describe('host URL policy', () => {
 
 /* ------------------------------------------------------------ math budgets */
 
-describe('MathML budgets', () => {
+describe('formula display budgets', () => {
   it('falls back to bounded literal text for oversized sources', () => {
     const html = renderToStaticMarkup(
       createElement(LatexView, { source: 'x'.repeat(50_001) }),

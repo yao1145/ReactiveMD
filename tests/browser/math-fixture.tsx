@@ -3,8 +3,15 @@ import { createRoot } from 'react-dom/client';
 import { LocalReactiveDocument } from '../../src/react/index';
 import { compileLocal } from '../../src/index';
 import '../../src/styles.css';
+import '../../src/print.css';
 
 const source = String.raw`# Math and chemistry
+
+$$\Gamma=\oint_{\partial S}\mathbf{v}\times d\mathbf{l}=\iint_S\omega\,dA$$
+
+Inline baseline: $x^2+\frac{a}{b}$ in a sentence. 中文公式 $\alpha+\beta=\gamma$ 与正文。
+
+Long inline: $${Array.from({length: 20}, (_, i) => `x_{${i}}`).join('+')}$ continues here.
 
 $$\begin{aligned}A&=\begin{pmatrix}1&2\\3&4\end{pmatrix}\\B&=\begin{bmatrix}a&b\\c&d\end{bmatrix}\end{aligned}$$
 
@@ -29,6 +36,10 @@ $$\ce{2 H2 + O2 -> 2 H2O}$$
 $$\ce{A <=>[forward][reverse] B}$$
 
 $$\ce{Ca(OH)2 + 2 HCl -> CaCl2 + 2 H2O}$$
+
+$$\sum\limits_{n=1}^{\infty}\frac{1}{n^2}=\frac{\pi^2}{6}$$
+
+$$${Array.from({length: 36}, (_, i) => `x_{${i}}`).join('+')}\tag{wide}$$
 `;
 
 Object.assign(window, {mathDiagnostics: compileLocal(source).diagnostics});

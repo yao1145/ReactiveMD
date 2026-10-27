@@ -155,10 +155,12 @@ P\left(1+\frac{r}{1200}\right)^{12x}
   });
 });
 
-describe('MathML view', () => {
-  it('renders native MathML with a source annotation', () => {
+describe('KaTeX view', () => {
+  it('renders visual HTML and accessible MathML with a source annotation', () => {
     const html = renderToStaticMarkup(createElement(LatexView, { source: '\\frac{a}{b}', display: true }));
     expect(html).toContain('<math');
+    expect(html).toContain('katex-html');
+    expect(html).toContain('katex-mathml');
     expect(html).toContain('display="block"');
     expect(html).toContain('<mfrac>');
     expect(html).toContain('annotation');

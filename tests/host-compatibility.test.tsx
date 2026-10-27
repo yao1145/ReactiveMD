@@ -17,7 +17,7 @@ it('reports display fallback at its original formula range', () => {
 });
 
 it('diagnoses unsupported environments and rendering depth fallbacks', () => {
-  for (const formula of ['\\begin{matrix}x\\end{matrix}', '{'.repeat(125) + 'x' + '}'.repeat(125)]) {
+  for (const formula of ['\\begin{unsupportedEnvironment}x\\end{unsupportedEnvironment}', '{'.repeat(125) + 'x' + '}'.repeat(125)]) {
     const source = `$$${formula}$$`;
     const result = compileLocal(source);
     expect(result.ok).toBe(true);

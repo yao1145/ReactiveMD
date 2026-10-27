@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 // Markdown is bundled by core; renderer code highlighting bundles lowlight.
 // The standalone IIFE also bundles React/DOM.
-const roots = ['remark-gfm', 'remark-parse', 'unified', 'parse5', 'lowlight', 'elkjs', 'mhchemparser', 'react', 'react-dom'];
+const roots = ['remark-gfm', 'remark-parse', 'unified', 'parse5', 'lowlight', 'elkjs', 'katex', 'react', 'react-dom'];
 const visited = new Map();
 async function findPackage(name, from) {
   let current = from;
@@ -28,11 +28,15 @@ async function collect(name, from) {
   for (const dependency of Object.keys(pkg.dependencies ?? {}).sort()) await collect(dependency, directory);
 }
 for (const name of roots) await collect(name, root);
+// KaTeX's mhchem extension preserves upstream Apache-2.0 code and attribution.
+const chemistry = await readFile(join(await findPackage('katex', root), 'dist/contrib/mhchem.mjs'), 'utf8');
+const chemistryAttribution = chemistry.slice(chemistry.indexOf('/* eslint-disable */'), chemistry.indexOf('//\n// Coding Style')).replace(/[\t ]+$/gm, '');
+if (!chemistryAttribution.includes('Copyright (c) 2015-2018 Martin Hensel')) throw new Error('KaTeX mhchem attribution changed; review its bundled license.');
 const packages = [...visited.values()].sort((a, b) => `${a.name}@${a.version}`.localeCompare(`${b.name}@${b.version}`, 'en'));
 const notice = [
   '# Third-party notices',
   '',
-  'Reactive MD bundles its Markdown, HTML parsing, syntax-highlighting, diagram-layout and chemical-formula parsing dependencies. The standalone HTML runtime also bundles React, React DOM and scheduler. This file preserves license texts for those installed dependency trees, including supporting type packages. The library React entry uses host-provided React and React DOM peers.',
+  'Reactive MD bundles its Markdown, HTML parsing, syntax-highlighting, diagram-layout and KaTeX math typesetting dependencies, including KaTeX fonts and the mhchem extension. The standalone HTML runtime also bundles React, React DOM and scheduler. This file preserves license texts for those installed dependency trees, including supporting type packages. The library React entry uses host-provided React and React DOM peers.',
   '',
   'Regenerate after dependency updates with `node scripts/generate-notices.mjs`.',
   '',
@@ -44,6 +48,12 @@ const notice = [
     ...(pkg.name === 'elkjs' ? ['ELK source is available under the Eclipse Public License 2.0 at https://github.com/kieler/elkjs and https://github.com/eclipse-elk/elk.', ''] : []),
     ...pkg.texts.flatMap(license => ['```text', license.trim(), '```', '']),
   ]),
+  '## KaTeX mhchem extension: upstream attribution',
+  '',
+  'The bundled mhchem extension includes code adapted from MathJax mhchem, licensed under Apache-2.0. Its upstream notice and license follow.',
+  '',
+  '```text', chemistryAttribution.trim(), '```', '',
+  '```text', (await readFile(join(root, 'scripts/licenses/Apache-2.0.txt'), 'utf8')).trim(), '```', '',
 ].join('\n');
 await writeFile(resolve(root, 'THIRD_PARTY_NOTICES.md'), notice);
 console.log(`Preserved third-party license texts for ${packages.length} packages.`);

@@ -21,7 +21,8 @@ describe('space-padded dollar math', () => {
       const runtime = createLocalRuntime(result.document);
       try {
         const html = renderToStaticMarkup(<LocalDocumentView document={result.document} runtime={runtime} />);
-        expect(html).toContain('display="inline"');
+        expect(html).toContain('katex-html');
+        expect(html).not.toContain('katex-display');
         expect(html).toContain('application/x-tex');
       } finally { runtime.dispose(); }
     },
@@ -78,7 +79,8 @@ x^2 + y^2
       const markup = renderToStaticMarkup(<LocalDocumentView document={result.document} runtime={runtime} />);
       expect((markup.match(/<math\b/g) ?? [])).toHaveLength(2);
       expect(markup).toContain('<mfrac>');
-      expect(markup).toContain('display="inline"');
+      expect(markup).toContain('local-math-inline');
+      expect(markup).toContain('katex-html');
       expect(markup).toContain('display="block"');
     } finally { runtime.dispose(); }
   });

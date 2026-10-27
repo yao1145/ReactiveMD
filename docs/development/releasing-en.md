@@ -17,11 +17,11 @@ The package name and version determine the tarball name. The expected filename f
 
 ### Third-party notices
 
-The library bundles `remark-gfm@4.0.1`, `remark-parse@11.0.0`, `unified@11.0.5`, `elkjs@0.12.0`, `mhchemparser@4.2.1` and their dependencies. The standalone HTML runtime also bundles React, React DOM and scheduler; the library React entry uses host-provided peers. All these bundles retain the installed dependencies' copyright and license notices in `THIRD_PARTY_NOTICES.md`.
+The library bundles `remark-gfm@4.0.1`, `remark-parse@11.0.0`, `unified@11.0.5`, `elkjs@0.12.0`, `katex@0.19.1` and their dependencies. KaTeX includes math fonts and the mhchem extension. The standalone HTML runtime also bundles React, React DOM and scheduler; the library React entry uses host-provided peers. All these bundles retain their copyright and license notices in `THIRD_PARTY_NOTICES.md`.
 
 Before releasing, maintainers:
 
-1. Run `npm run notices` to regenerate `THIRD_PARTY_NOTICES.md` from installed dependencies. The generation script covers the dependency trees and actual license texts of `remark-gfm`, `remark-parse`, `unified`, `parse5`, `lowlight`, `elkjs`, `mhchemparser`, `react` and `react-dom`, including scheduler.
+1. Run `npm run notices` to regenerate `THIRD_PARTY_NOTICES.md` from installed dependencies. The script covers `remark-gfm`, `remark-parse`, `unified`, `parse5`, `lowlight`, `elkjs`, `katex`, `react` and `react-dom`, including scheduler, plus the upstream mhchem attribution and Apache-2.0 license.
 2. Confirm `files` in `package.json` includes `THIRD_PARTY_NOTICES.md` so it ships in the tarball.
 3. Inspect the output of `npm pack --dry-run` and confirm there is no `node_modules`, `demo/`, `demo/artifacts/`, test output or local cache.
 4. Check that dependency licenses match the packaged content; regenerate notices after adding or upgrading Markdown dependencies.

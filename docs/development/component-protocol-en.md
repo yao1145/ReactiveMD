@@ -417,9 +417,9 @@ Static SSR rendering is covered by the pre-release packed check. Single-file exp
 
 The renderer and evaluators treat document content as untrusted input:
 
-- They do not execute author scripts or write `dangerouslySetInnerHTML` or `innerHTML`.
+- They do not execute author scripts. Formula HTML comes only from the configured KaTeX renderer; author source and error messages are never injected as HTML.
 - Expressions use their own parser and AST evaluator, not `eval` or `new Function`, and do not support assignment, method calls, property access, prototype paths or imports.
-- LaTeX uses a budget-limited parser and renders as native MathML; it does not execute macros, files, network or HTML entry points.
+- LaTeX is typeset by KaTeX as HTML with accessible MathML and bundled fonts. Input, expansion and output dimensions are bounded; author-defined macros, files, network and HTML entry points are disabled. Plot evaluation keeps its separate budget-limited parser.
 - Expressions, templates, tables and charts do not make network requests.
 
 ### CP-SEC-02 URLs and networking (existing)

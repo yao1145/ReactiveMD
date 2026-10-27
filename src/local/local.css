@@ -1096,6 +1096,10 @@
 
 /* ------------------------------------------------------------------ math */
 
+.md-document {
+  counter-reset: katexEqnNo mmlEqnNo;
+}
+
 .local-math-display {
   display: block;
   margin: 1em 0;
@@ -1104,8 +1108,8 @@
 }
 
 .local-math-inline {
-  display: inline-block;
-  vertical-align: middle;
+  display: inline;
+  vertical-align: baseline;
 }
 
 /* ------------------------------------------------- inline text and sections */

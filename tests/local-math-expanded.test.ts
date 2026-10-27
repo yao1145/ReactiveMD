@@ -1,83 +1,97 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { parseLocalMathDisplay, type MathNode } from '../src/local/math-display';
+import {
+  inspectLocalMathDisplay,
+  renderLocalMathDisplay,
+} from '../src/local/math-display';
 import { LatexView } from '../src/local/math-view';
 import { compileLocal } from '../src/local/compiler';
 
-function parse(source: string): MathNode {
-  const result = parseLocalMathDisplay(source);
+function render(source: string, display = true): string {
+  const result = renderLocalMathDisplay(source, display);
   expect(result.issues, source).toEqual([]);
-  expect(result.node).not.toBeNull();
-  return result.node!;
-}
-
-function nodes(node: MathNode, tag: string): MathNode[] {
-  return [ ...(node.tag === tag ? [node] : []), ...(node.children ?? []).flatMap(child => nodes(child, tag)) ];
+  expect(result.html, source).not.toBeNull();
+  return result.html!;
 }
 
 describe('expanded display LaTeX', () => {
-  it.each(['aligned', 'align', 'align*', 'pmatrix', 'bmatrix', 'vmatrix'])(
-    'renders %s as a two-row, two-column table', name => {
-      const tree = parse(String.raw`\begin{${name}}a&b\\c&d\end{${name}}`);
-      expect(nodes(tree, 'mtr')).toHaveLength(2);
-      expect(nodes(tree, 'mtd')).toHaveLength(4);
-      const fences = nodes(tree, 'mo').filter(node => node.attrs?.fence === 'true').map(node => node.text);
-      expect(fences).toEqual(name === 'pmatrix' ? ['(', ')'] : name === 'bmatrix' ? ['[', ']'] : name === 'vmatrix' ? ['|', '|'] : []);
-      expect(nodes(tree, 'mtd').map(node => node.attrs?.columnalign)).toEqual(
-        name.startsWith('align') ? ['right', 'left', 'right', 'left'] : ['center', 'center', 'center', 'center']);
-    });
+  it('typesets the circulation formula with integrals and bold vectors', () => {
+    const source = String.raw`\Gamma=\oint_{\partial S}\mathbf{v}\times d\mathbf{l}=\iint_S\omega\,dA`;
+    const html = render(source);
+    expect(html).toContain('katex-html');
+    expect(html).toContain('katex-mathml');
+    expect(html).toContain('∮');
+    expect(html).toContain('∬');
+    expect(html).toContain(source);
+  });
 
-  it('keeps nested environments inside their own cells', () => {
-    const tree = parse(String.raw`\begin{aligned}A&=\begin{pmatrix}1&2\\3&4\end{pmatrix}\\B&=0\end{aligned}`);
-    expect(nodes(tree, 'mtable')).toHaveLength(2);
-    expect(nodes(tree, 'mtr')).toHaveLength(4);
+  it('uses MathML structures for fractions, roots and text', () => {
+    expect(render(String.raw`\frac{a}{b}`)).toContain('<mfrac>');
+    expect(render(String.raw`\sqrt[3]{x}`)).toContain('<mroot>');
+    expect(render(String.raw`\text{otherwise}`)).toContain('otherwise');
+  });
+
+  it('keeps double-struck, script and fraktur font variants in MathML', () => {
+    const html = render(String.raw`\mathbb{R}\mathcal{F}\mathfrak{g}`);
+    expect(html).toContain('mathvariant="double-struck"');
+    expect(html).toContain('mathvariant="script"');
+    expect(html).toContain('mathvariant="fraktur"');
   });
 
   it.each([
-    String.raw`\implies\triangle\circ\vdots\rightleftharpoons\ddots\mapsto\iff\not=\downarrow\oplus\mid\ll\longrightarrow\varnothing\dagger\therefore\because\cong\Longleftrightarrow`,
-    String.raw`\sec x+\sinh x+\cot x+\lg x+\cosh x+\csc x`,
-    String.raw`\left\lfloor x\right\rfloor+\left\lceil y\right\rceil+\Bigg(\frac ab\Bigg)+\bigl[x\bigr]`,
-    String.raw`\mathbb{R}\mathcal{F}\mathfrak{g}\mathscr{L}\textbf{bold text}`,
-    String.raw`\binom{n}{k}\underbrace{a+b}_{n}\overrightarrow{AB}\xrightarrow[below]{above}\stackrel{!}{=}\underset{x}{\lim}\underline{x}\boxed{x}\pmod{n}\tag{1}`,
-    String.raw`A\xrightleftharpoons[k_2]{k_1}B`,
-  ])('renders requested commands without literal command fallback: %s', source => { parse(source); });
-
-  it('uses MathML structures for fractions, annotations, negation and boxes', () => {
-    expect(parse(String.raw`\binom{n}{k}`)).toMatchObject({tag: 'mrow', children: [
-      {tag: 'mo', text: '('}, {tag: 'mfrac', attrs: {linethickness: '0'}}, {tag: 'mo', text: ')'},
-    ]});
-    expect(parse(String.raw`\xrightarrow[b]{a}`)).toMatchObject({tag: 'munderover', children: [
-      {tag: 'mo', text: '→'}, {tag: 'mrow'}, {tag: 'mrow'},
-    ]});
-    expect(parse(String.raw`\underbrace{x+y}_{n}`)).toMatchObject({tag: 'munder', children: [{tag: 'munder'}, {tag: 'mrow'}]});
-    expect(parse(String.raw`\not\in`)).toMatchObject({tag: 'mo', text: '∉'});
-    expect(parse(String.raw`\boxed{x}`)).toMatchObject({tag: 'mrow', style: {border: '1px solid currentColor'}});
+    String.raw`\begin{matrix}1&2\\3&4\end{matrix}`,
+    String.raw`\begin{pmatrix}1&2\\3&4\end{pmatrix}`,
+    String.raw`\begin{bmatrix}1&2\\3&4\end{bmatrix}`,
+    String.raw`\begin{cases}1,&x<0\\0,&\text{otherwise}\end{cases}`,
+    String.raw`\begin{aligned}a&=b\\c&=d\end{aligned}`,
+    String.raw`\begin{align}a&=b\\c&=d\end{align}`,
+  ])('renders %s as a KaTeX table', source => {
+    expect(render(source)).toContain('<mtable');
   });
 
-  it('renders boxes and bold text through React in SSR as well as MathML', () => {
-    const html = renderToStaticMarkup(createElement(LatexView, {source: String.raw`\boxed{x}\textbf{bold}`}));
-    expect(html).toContain('border:1px solid currentColor');
-    expect(html).toContain('font-weight:bold');
+  it('keeps nested environments inside their own cells', () => {
+    const html = render(String.raw`\begin{aligned}A&=\begin{pmatrix}1&2\\3&4\end{pmatrix}\\B&=0\end{aligned}`);
+    expect(html.match(/<mtable/g)?.length).toBe(2);
   });
 
-  it('parses math inside alphabet groups and reports unsupported nested commands', () => {
-    const tree = parse(String.raw`\mathbb{R}^{n}\mathcal{F_{x}}`);
-    expect(nodes(tree, 'msup')).toHaveLength(1);
-    expect(nodes(tree, 'msub')).toHaveLength(1);
-    expect(JSON.stringify(tree)).toContain('ℝ');
-    expect(parseLocalMathDisplay(String.raw`\mathbb{\href{x}{y}}`).issues[0].reason).toBe('unsupported-command');
-  });
-
-  it('reports unclosed and mismatched environments', () => {
-    for (const source of [String.raw`\begin{aligned}x&=1`, String.raw`\begin{bmatrix}1\end{pmatrix}`]) {
-      expect(parseLocalMathDisplay(source).issues).toContainEqual(expect.objectContaining({reason: 'syntax'}));
+  it('accepts newer KaTeX commands without false warnings', () => {
+    for (const source of [
+      String.raw`\overset{!}{=}\quad\underset{x}{y}`,
+      String.raw`\displaystyle\sum\limits_{n=1}^N n`,
+      String.raw`\operatorname{E}[X]`,
+      String.raw`\left(\frac{a}{b}\right)`,
+      String.raw`\begin{matrix}1&2\\3&4\end{matrix}`,
+    ]) {
+      expect(inspectLocalMathDisplay(source), source).toEqual([]);
     }
   });
 
+  it('renders displayed equation numbers', () => {
+    const html = render(String.raw`x\tag{1}`);
+    expect(html).toContain('katex-display');
+    expect(html).toContain('katex-tag');
+    expect(html).toContain('<mtable');
+    expect(inspectLocalMathDisplay(String.raw`x\tag{1}`, false)[0]?.reason).toBe('syntax');
+  });
+
   it('compiles expanded formulas without display warnings', () => {
-    const result = compileLocal(String.raw`$$\begin{aligned}\mathbb{R}&\implies\boxed{x}\\a&=\binom{n}{k}\end{aligned}$$`);
-    expect(result.diagnostics.filter(issue => issue.code === 'local.math.display')).toEqual([]);
+    const result = compileLocal(
+      String.raw`$$\begin{aligned}\mathbb{R}&\implies\boxed{x}\\a&=\binom{n}{k}\end{aligned}$$`,
+    );
+    expect(result.diagnostics.filter(diagnostic => diagnostic.code === 'local.math.display')).toEqual([]);
+  });
+
+  it('renders through React and SSR, including tables and tags', () => {
+    const html = renderToStaticMarkup(
+      createElement(LatexView, {
+        source: String.raw`\begin{cases}x&1\\y&2\end{cases}`,
+        display: true,
+      }),
+    );
+    expect(html).toContain('katex-display');
+    expect(html).toContain('<mtable');
+    expect(html).not.toContain('local-math-fallback');
   });
 });
 
@@ -87,34 +101,83 @@ describe('mhchem display', () => {
     '^{14}_{6}C', 'Ca(OH)2', 'CuSO4 * 5 H2O', 'H2O(l)',
     'A <=> B', 'A ->[heat] B', 'A <=>[above][below] B',
     'H-C#C-H', 'Na+ + Cl- -> NaCl',
-  ])('renders chemical notation: %s', formula => { parse(`\\ce{${formula}}`); });
+  ])('typesets chemical notation: %s', formula => {
+    expect(render(`\\ce{${formula}}`)).toContain('katex-html');
+  });
 
   it('renders subscripts, superscripts and reaction arrows', () => {
-    const tree = parse(String.raw`\ce{2 H2 + O2 -> 2 H2O + SO4^2-}`);
-    expect(nodes(tree, 'msub').length + nodes(tree, 'msubsup').length).toBeGreaterThanOrEqual(4);
-    expect(nodes(tree, 'msup').length + nodes(tree, 'msubsup').length).toBeGreaterThanOrEqual(1);
-    expect(nodes(tree, 'mo').map(node => node.text)).toContain('⟶');
+    const html = render(String.raw`\ce{2 H2 + O2 -> 2 H2O + SO4^2-}`);
+    expect(html).toContain('<msub>');
+    expect(html).toContain('→');
   });
 
-  it('renders isotope numbers as left subscripts and superscripts', () => {
-    const tree = parse(String.raw`\ce{^{14}_{6}C}`);
-    const [isotope] = nodes(tree, 'mmultiscripts');
-    expect(isotope.children?.[1]).toEqual({tag: 'mprescripts'});
-    expect(JSON.stringify(isotope.children?.[2])).toContain('"6"');
-    expect(JSON.stringify(isotope.children?.[3])).toContain('"14"');
+  it('renders isotope numbers as scripts', () => {
+    const html = render(String.raw`\ce{^{14}_{6}C}`);
+    expect(html).toContain('14');
+    expect(html).toContain('6');
+    expect(html).toContain('C');
   });
 
-  it('escapes text and keeps unsafe commands inert', () => {
+  it('escapes chemical text and never injects HTML', () => {
     const source = String.raw`\ce{\text{<img src=x onerror=alert(1)>}}`;
-    const html = renderToStaticMarkup(createElement(LatexView, {source}));
+    const html = render(source);
     expect(html).not.toContain('<img');
     expect(html).not.toContain('<script');
-    expect(parseLocalMathDisplay(String.raw`\ce{\href{https://example.com}{x}}`).issues.length).toBeGreaterThan(0);
+    expect(html).toContain('&lt;img');
   });
 
-  it('bounds nested and malformed chemical input', () => {
-    for (const source of [String.raw`\ce{H2O`, `\\ce{${'\\ce{'.repeat(150)}H${'}'.repeat(150)}}`]) {
-      expect(parseLocalMathDisplay(source).issues.length).toBeGreaterThan(0);
+  it('reports unsafe commands inside chemistry as unsupported', () => {
+    const [issue] = inspectLocalMathDisplay(String.raw`\ce{\href{https://example.com}{x}}`);
+    expect(issue).toMatchObject({ reason: 'unsupported-command', params: { name: 'href' } });
+    expect(renderLocalMathDisplay(String.raw`\ce{\href{https://example.com}{x}}`, true).html).toBeNull();
+  });
+
+  it('bounds nested and malformed chemical input without throwing', () => {
+    for (const source of [
+      String.raw`\ce{H2O`,
+      `\\ce{${'\\ce{'.repeat(150)}H${'}'.repeat(150)}}`,
+    ]) {
+      expect(() => renderLocalMathDisplay(source, true), source).not.toThrow();
+      const result = renderLocalMathDisplay(source, true);
+      expect(result.html, source).toBeNull();
+      expect(result.issues.length, source).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('math display safety', () => {
+  it.each([
+    [String.raw`\href{https://example.com}{x}`, 'href'],
+    [String.raw`\url{https://example.com}`, 'url'],
+    [String.raw`\includegraphics{file.png}`, 'includegraphics'],
+    [String.raw`\htmlClass{klass}{x}`, 'htmlClass'],
+    [String.raw`\def\x{1}\x`, 'def'],
+    [String.raw`\global\def\x{1}`, 'global'],
+    [String.raw`\input{file.tex}`, 'input'],
+  ])('falls back for %s', (source, name) => {
+    const result = renderLocalMathDisplay(source, true);
+    expect(result.html).toBeNull();
+    expect(result.issues[0]).toMatchObject({ reason: 'unsupported-command', params: { name } });
+  });
+
+  it('keeps source ranges on the offending command after leading text', () => {
+    const source = String.raw`f(x)=\notARealMathCommand{x}`;
+    const [issue] = inspectLocalMathDisplay(source);
+    expect(issue.reason).toBe('unsupported-command');
+    expect(source.slice(issue.start, issue.end)).toBe(String.raw`\notARealMathCommand`);
+  });
+
+  it('falls back instead of recursing through brace-less commands', () => {
+    const source = `${String.raw`\sqrt`.repeat(200)}x`;
+    expect(() => renderLocalMathDisplay(source, true)).not.toThrow();
+    const result = renderLocalMathDisplay(source, true);
+    expect(result.html).toBeNull();
+    expect(result.issues[0]).toMatchObject({ reason: 'budget', params: { kind: 'depth' } });
+  });
+
+  it('bounds literal output in the rendered view', () => {
+    const html = renderToStaticMarkup(createElement(LatexView, { source: 'x'.repeat(50_001) }));
+    expect(html).toContain('local-math-fallback');
+    expect(html.length).toBeLessThan(50_000);
   });
 });

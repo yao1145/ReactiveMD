@@ -31,7 +31,7 @@ The Playground has switched to `local-draft-1` and loads the 12 documents in `ex
 | Tags and Markdown | `src/local/parser.ts`: isolates code and math regions, nested containers, attributes, table escapes and original source positions |
 | Expressions | `src/local/expression.ts`: strict types, short-circuit evaluation, built-in functions, interpolation and execution budgets |
 | Compilation and state | `src/local/schema.ts`, `compiler.ts`, `runtime.ts`: 33 components, forward and shared bindings, initial-value constraints, local errors and atomic resets |
-| LaTeX | `src/local/math.ts`, `math-view.tsx`: real-function parsing, piecewise functions, global execution budget, discontinuity subdivision and native MathML typesetting |
+| LaTeX | `src/local/math.ts`: real-function evaluation, piecewise functions, execution budgets and discontinuity subdivision; `math-display.ts`, `math-view.tsx`: KaTeX HTML/MathML typesetting, mhchem, shared diagnostics and bundled fonts |
 | React | `src/local/LocalDocumentView.tsx`: input drafts, IME composition input, hidden state, timer pausing, error recovery and unique DOM IDs across instances |
 | Visualization | `src/local/visuals.tsx`: tables, five chart types, function curves, timeline, auto-layout diagrams and keyboard readouts |
 

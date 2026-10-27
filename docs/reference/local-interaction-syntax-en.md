@@ -350,11 +350,13 @@ timeline supports optional title and unit (display text, default "minutes"), and
 
 ### 10.1 Display and plotting
 
+KaTeX typesets formulas with bundled math fonts, producing visual HTML and MathML for assistive technology. Fonts are inlined in the standard stylesheet so previews, printing and exported single-file HTML work offline. Hosts using `reactive-md/react/unstyled` must load `reactive-md/styles.css` or supply KaTeX styles and fonts. Formula display and plot evaluation are handled separately.
+
 Prose accepts `$...$` or `\(...\)` for inline math, and `$$...$$` or `\[...\]` for display formulas. Dollar-delimited inline math pairs on the same line and permits leading or trailing whitespace, as in `$ x $`, `$x $` and `$ x$`. Its content must include a non-whitespace character. Currency text such as `$5 and $10` stays literal; use `\$` for an explicit literal dollar sign. Backslash-delimited formulas may contain whitespace and span lines. For example, write `\(\frac{a}{b}\)` in a sentence or `\[x^2 + 1\]` as a display formula. Unclosed math delimiters are errors; an unmatched single dollar sign stays literal. Code, comments and Markdown destinations keep these delimiters literal; escape the opening backslash or use code to show an example in prose.
 
 Standalone formulas are for layout and create no state or functions. Each `$$...$$` block inside a plot container defines one curve; the math content keeps normal LaTeX syntax and does not need `{{ }}`. Plot accepts only `$$...$$`, not `\(...\)` or `\[...\]`.
 
-Display supports the `cases`, `aligned`, `align`, `align*`, `pmatrix`, `bmatrix` and `vmatrix` environments. Use `&` for columns and `\\` for rows. Alignment environments alternate right and left column alignment; matrices center their cells and show the corresponding delimiters. Both `align` and `aligned` belong inside math delimiters. Add explicit equation labels with `\tag{1}`, or `\tag*{A}` to omit parentheses.
+Display supports KaTeX math commands and environments, including `cases`, `aligned`, `align`, `align*`, `matrix`, `pmatrix`, `bmatrix` and `vmatrix`. Use `&` for columns and `\\` for rows. Alignment environments alternate right and left column alignment; matrices center their cells and show the corresponding delimiters. Both `align` and `aligned` belong inside math delimiters. Add explicit equation labels to display formulas with `\tag{1}`, or `\tag*{A}` to omit parentheses. Use `\displaystyle`, `\textstyle`, `\limits` and `\nolimits` to control style and limit placement.
 
 | Display content | Example commands |
 | --- | --- |
@@ -365,7 +367,9 @@ Display supports the `cases`, `aligned`, `align`, `align*`, `pmatrix`, `bmatrix`
 | Arrows, delimiters and sizes | `\rightleftharpoons`, `\longrightarrow`, `\Longleftrightarrow`, `\downarrow`, `\lfloor`, `\rfloor`, `\lceil`, `\rceil`, `\bigl(`, `\bigr)`, `\Bigg(` |
 | Functions and congruences | `\sec`, `\csc`, `\cot`, `\sinh`, `\cosh`, `\lg`, `\pmod{n}` |
 
-Use mhchem notation for chemistry: `$\ce{H2O}$`, `$\ce{SO4^2-}$`, `$\ce{^{14}_{6}C}$`, `$$\ce{2 H2 + O2 -> 2 H2O}$$` or `$$\ce{A <=>[forward][reverse] B}$$`. Molecular subscripts, ionic charges, isotopes, coefficients, physical states, bonds and reaction arrows are converted by `mhchemparser` and rendered through the same MathML renderer. Unsupported conversion commands produce `local.math.display` diagnostics. All text is escaped, and converted output is bounded by source, token and nesting budgets. These forms are available for formula display; plotting computation supports the syntax listed below.
+`align` numbers its rows automatically; use `align*` or `aligned` to omit automatic numbering. Numbering counters are scoped to each document.
+
+Use mhchem notation for chemistry: `$\ce{H2O}$`, `$\ce{SO4^2-}$`, `$\ce{^{14}_{6}C}$`, `$$\ce{2 H2 + O2 -> 2 H2O}$$` or `$$\ce{A <=>[forward][reverse] B}$$`. KaTeX's mhchem extension typesets molecular subscripts, ionic charges, isotopes, coefficients, physical states, bonds and reaction arrows. Invalid or unsupported formulas produce a `local.math.display` warning and fall back to bounded source text for the whole formula. Input and conversion have resource budgets; author-defined macros, HTML, file and network entry points are disabled. These forms are available for formula display; plotting computation supports the syntax listed below.
 
 ```markdown
 <slider bind="a" label="Amplitude" initial="1" min="0" max="5">

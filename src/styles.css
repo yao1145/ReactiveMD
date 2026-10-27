@@ -1,3 +1,4 @@
+@import 'katex/dist/katex.min.css';
 @import './theme.css';
 @import './base.css';
 @import './local/code-block.css';

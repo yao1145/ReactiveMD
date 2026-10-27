@@ -14,9 +14,9 @@ Reactive MD 渲染作者编写的本地交互文档。文档是不可信输入�
 
 - 三个 HTML 能力开关全部关闭时，作者脚本、事件属性和 CSS 保持惰性。P0 HTML 重建为受控节点和 React 元素。见 [HTML 部分兼容与暂时性分流政策](docs/reference/html-compatibility-ch.md)。
 - 开启 `enableCss`、`enableJavaScript` 或 `enableExtendedHtml` 中任意一个，整篇源码会在不带 `allow-same-origin` 的沙箱 iframe 中按原生 HTML 处理。其他开关继续约束作者源码；允许任意 JavaScript 后，脚本可以动态创建元素和样式，源码开关不构成运行时 DOM 权限。网络、表单和导航继续受 CSP 与沙箱限制。
-- 默认 React 渲染器不调用 `dangerouslySetInnerHTML`，也不把文档内容写入 `innerHTML`。原生 HTML 通过解析和过滤后的 iframe `srcdoc` 渲染，与宿主 DOM 分离。
+- 默认 React 渲染器仅注入按固定选项配置的 KaTeX 排版结果；作者源码与错误消息均作为转义文本处理。原生 HTML 通过解析和过滤后的 iframe `srcdoc` 渲染，与宿主 DOM 分离。
 - 表达式使用自己的解析器和 AST 求值器，不使用 `eval`、`new Function`，不支持赋值、方法调用、属性访问、原型路径或导入。表达式只能读取文档声明的参数和内置函数。
-- LaTeX 通过受预算限制的解析器计算，并由原生 MathML 渲染；渲染器不执行宏、文件、网络或 HTML 入口。未知命令显示为文本。
+- KaTeX 将公式排版为 HTML 和用于辅助技术的 MathML。输入、宏展开及作者指定的尺寸受限；作者自定义宏、文件、网络和 HTML 入口关闭。无效或不支持的公式回退为有界的原始文本。绘图求值保留独立的受预算限制解析器。
 - 表达式、模板、表格和图表不会发起网络请求；图表数据必须写在文档里。
 
 ### URL 与网络

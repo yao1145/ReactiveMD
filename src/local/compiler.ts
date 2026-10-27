@@ -469,7 +469,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions): Lo
     const node = displayNodes.pop()!;
     if (node.type === 'math' || node.type === 'inlineMath') {
       const base = node.range.start + (node.type === 'math' || source.startsWith('\\(', node.range.start) ? 2 : 1);
-      for (const issue of inspectLocalMathDisplay(node.value ?? '')) {
+      for (const issue of inspectLocalMathDisplay(node.value ?? '', node.type === 'math')) {
         reportWarning(state, issue.code, issue.message, base + issue.start, base + issue.end, {
           key: issue.messageKey, params: issue.params,
         });

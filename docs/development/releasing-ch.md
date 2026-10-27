@@ -17,11 +17,11 @@
 
 ### 第三方 notice
 
-库产物打包了 `remark-gfm@4.0.1`、`remark-parse@11.0.0`、`unified@11.0.5`、`elkjs@0.12.0`、`mhchemparser@4.2.1` 及其依赖。独立 HTML 运行时还打包了 React、React DOM 和 scheduler；库的 React 入口使用宿主提供的 peer dependency。`THIRD_PARTY_NOTICES.md` 保留这些打包依赖的版权和许可声明。
+库产物打包了 `remark-gfm@4.0.1`、`remark-parse@11.0.0`、`unified@11.0.5`、`elkjs@0.12.0`、`katex@0.19.1` 及其依赖。KaTeX 包含数学字体和 mhchem 扩展。独立 HTML 运行时还打包了 React、React DOM 和 scheduler；库的 React 入口使用宿主提供的 peer dependency。`THIRD_PARTY_NOTICES.md` 保留这些打包依赖的版权和许可声明。
 
 维护者在发布前：
 
-1. 运行 `npm run notices`，从已安装依赖重新生成 `THIRD_PARTY_NOTICES.md`。生成脚本覆盖 `remark-gfm`、`remark-parse`、`unified`、`parse5`、`lowlight`、`elkjs`、`mhchemparser`、`react`、`react-dom` 的依赖树和实际许可证文本，包括 scheduler。
+1. 运行 `npm run notices`，从已安装依赖重新生成 `THIRD_PARTY_NOTICES.md`。生成脚本覆盖 `remark-gfm`、`remark-parse`、`unified`、`parse5`、`lowlight`、`elkjs`、`katex`、`react`、`react-dom` 的依赖树和实际许可证文本，包括 scheduler，以及 mhchem 的上游声明和 Apache-2.0 许可。
 2. 确认 `package.json` 的 `files` 包含 `THIRD_PARTY_NOTICES.md`，并随 tarball 分发。
 3. 检查 `npm pack --dry-run` 的输出，确认没有 `node_modules`、`demo/`、`demo/artifacts/`、测试产物或本地缓存。
 4. 核对依赖许可证与打包内容一致；新增或升级 Markdown 依赖后重新生成 notice。
