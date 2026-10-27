@@ -181,7 +181,7 @@ try {
     await examples.selectOption('functions');
     const exampleSource = await editor.inputValue();
     const options = page.locator('.workbench-options');
-    await options.locator('summary').click();
+    await options.locator(':scope > summary').click();
     await page.getByRole('button', { name: 'Save copy', exact: true }).click();
     await expect(editor).toHaveValue(exampleSource);
     expect(await documents.inputValue()).not.toBe(duplicateId);
