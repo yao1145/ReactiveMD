@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -78,7 +78,7 @@ try {
     await page.getByRole('textbox', { name: 'Document name', exact: true }).fill('Workshop estimate');
     await page.getByRole('button', { name: 'Create', exact: true }).click();
     await expect(editor).toBeVisible();
-    await editor.fill(fixture);
+    await replaceWorkbenchSource(page, fixture);
     await expect(page.locator('.doc-save-state')).toHaveText('Saved');
     originalId = await documents.inputValue();
     await page.reload();
@@ -99,12 +99,12 @@ try {
     duplicateId = await documents.inputValue();
     expect(duplicateId).not.toBe(originalId);
     await expect(editor).toHaveValue(fixture);
-    await editor.fill(`${fixture}\n\nOnly in the copy.`);
+    await replaceWorkbenchSource(page, `${fixture}\n\nOnly in the copy.`);
     await documents.selectOption(originalId);
     await expect(editor).toHaveValue(fixture);
     await documents.selectOption(duplicateId);
     await expect(editor).toHaveValue(`${fixture}\n\nOnly in the copy.`);
-    await editor.fill(`${fixture}\n\nSaved on pagehide.`);
+    await replaceWorkbenchSource(page, `${fixture}\n\nSaved on pagehide.`);
     await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
     await page.reload();
     await showSource();
@@ -139,7 +139,7 @@ try {
         return window.restoreDocumentStorage.call(this, key, value);
       };
     });
-    await editor.fill('# Retained during storage failure');
+    await replaceWorkbenchSource(page, '# Retained during storage failure');
     await expect(page.locator('.doc-save-state')).toHaveText('Not saved');
     await documents.selectOption(originalId);
     await expect(editor).toHaveValue(fixture);
@@ -154,7 +154,7 @@ try {
   });
 
   await check('HTML export uses the personal name and opens as a standalone document', async () => {
-    await editor.fill(fixture);
+    await replaceWorkbenchSource(page, fixture);
     await expect(page.locator('.status-chip')).toContainText('Compiled');
     await expect(page.locator('.preview-stage')).toContainText('My estimate');
     await clickWorkbenchAction(page, 'Export');
@@ -185,7 +185,7 @@ try {
     await page.getByRole('button', { name: 'Save copy', exact: true }).click();
     await expect(editor).toHaveValue(exampleSource);
     expect(await documents.inputValue()).not.toBe(duplicateId);
-    await editor.fill('# Independent example copy');
+    await replaceWorkbenchSource(page, '# Independent example copy');
     const count = await documents.locator('option').count();
     await page.locator('.author-tools input[type=file]').setInputFiles({
       name: 'import.reactive.md', mimeType: 'text/markdown', buffer: Buffer.from('# Imported work\n\nIndependent source.'),

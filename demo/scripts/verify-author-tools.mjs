@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -79,7 +79,7 @@ try {
   const editor = page.locator('#source-editor');
   const highlight = page.locator('.author-highlight');
 
-  await editor.fill(fixture);
+  await replaceWorkbenchSource(page, fixture);
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await expect(page.locator('.author-token-tag').first()).toBeVisible();
   await expect(page.locator('.author-token-attribute').first()).toBeVisible();
@@ -133,7 +133,7 @@ try {
   // Long sources exercise real scrolling. The highlight must follow the
   // textarea's native scroll position on its own: no synthetic scroll event,
   // and the overlay moves through a transform rather than its own scrollTop.
-  await editor.fill(
+  await replaceWorkbenchSource(page, 
     Array.from({ length: 80 }, (_, index) => `Line ${index + 1} <bind name="value${index}" value="${index}" />`).join('\n'),
   );
   await expect(page.locator('.status-chip')).toContainText('Compiled');
@@ -158,7 +158,7 @@ try {
   })).toBe(true);
   console.log('PASS highlight scrolling follows native textarea scrolling');
 
-  await editor.fill(fixture);
+  await replaceWorkbenchSource(page, fixture);
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await editor.evaluate((element) => { element.scrollTop = 0; });
 
@@ -201,7 +201,7 @@ try {
   console.log('PASS rename updates declarations and references, protects code, and undoes in one step');
 
   const uneven = 'Text\n\n<slider bind="amount" label="Amount"   min="0"    max="10" />\n\nValue: {{ amount }}';
-  await editor.fill(uneven);
+  await replaceWorkbenchSource(page, uneven);
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await panel.locator('[data-authoring-action="format"]').click();
   const formatted = await editor.inputValue();
@@ -214,7 +214,7 @@ try {
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   console.log('PASS format keeps preview alive and undoes in one step');
 
-  await editor.fill('Text\n\n<');
+  await replaceWorkbenchSource(page, 'Text\n\n<');
   await selectCaret(editor, 7);
   await panel.locator('[data-authoring-action="suggest"]').click();
   const list = panel.getByRole('listbox', { name: 'Source suggestions', exact: true });

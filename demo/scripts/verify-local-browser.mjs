@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
@@ -39,7 +39,7 @@ async function pick(id) {
   } else {
     // Retain the original component regressions alongside the new feature tours.
     const source = await readFile(new URL(`../../examples/local/${id}.reactive.md`, import.meta.url), 'utf8');
-    await page.locator('#source-editor').fill(source);
+    await replaceWorkbenchSource(page, source);
   }
   if (id === 'diagnostics') {
     await expect(status()).toContainText('Compile failed');
@@ -131,7 +131,7 @@ try {
     await editor.focus();
     await expect(editor).toBeFocused();
     const source = '<slider bind="n" label="Test value" initial="4" min="0" max="10">\n\nCurrent value: **{{ n * 2 }}**.';
-    await editor.fill(source);
+    await replaceWorkbenchSource(page, source);
     await expect(editor).toHaveValue(source);
     await expect.poll(() => page.locator('.author-highlight-content').textContent()).toBe(source);
     const slider = page.getByRole('slider', { name: 'Test value', exact: true });
@@ -144,7 +144,7 @@ try {
   });
 
   await check('invalid source deactivates the preview and diagnostics focus the editor', async () => {
-    await page.locator('#source-editor').fill('<slider bind="n" label="Test value" initial="20" min="0" max="10">');
+    await replaceWorkbenchSource(page, '<slider bind="n" label="Test value" initial="20" min="0" max="10">');
     await expect(status()).toContainText('Compile failed');
     await expect(preview().getByText('Preview disabled', { exact: true })).toBeVisible();
     await expect(page.locator('.diagnostic-item').first()).toBeVisible();
@@ -155,7 +155,7 @@ try {
 
   await check('script tags are inert fallback text, not executable HTML', async () => {
     // Unsupported tags are preserved as fallback content and reported as warnings.
-    await page.locator('#source-editor').fill('<script>window.__localInjected=1</script>\n\n# Should not run');
+    await replaceWorkbenchSource(page, '<script>window.__localInjected=1</script>\n\n# Should not run');
     await expect(status()).toContainText('Compiled');
     await expect(preview().locator('.local-fallback')).toContainText('window.__localInjected=1');
     expect(await preview().locator('script').count()).toBe(0);
@@ -347,7 +347,7 @@ try {
   await expect(page.locator('.editor-frame')).toHaveAttribute('data-editor-view', 'split');
   async function fixture(source) {
     const sourceEditor = page.locator('#source-editor');
-    await sourceEditor.fill(source);
+    await replaceWorkbenchSource(page, source);
     // The previous preview can remain visible while the controlled input and
     // worker commit. Observe the source state before accepting compile status.
     try {

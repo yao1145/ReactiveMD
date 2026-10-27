@@ -220,7 +220,7 @@ Collapsed body copy.
   });
 
   await check('a temporary compilation error keeps the previous trial values for recovery', async () => {
-    await editor.fill(trialSource + '\n\n<panel>');
+    await replaceWorkbenchSource(page, trialSource + '\n\n<panel>');
     await expect(page.locator('.status-chip')).toContainText('Compile failed');
     await expect(preview.getByRole('heading', { name: 'Preview disabled' })).toBeVisible();
     await edit(trialSource + '\n\nSyntax recovered.');

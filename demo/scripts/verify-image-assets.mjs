@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -19,7 +19,7 @@ try {
   await clickWorkbenchAction(page, 'Show source');
   const editor = page.locator('#source-editor');
   const source = '# Image document\n\n<slider bind="people" label="People" initial="2" min="1" max="10">\n\nBefore AFTER';
-  await editor.fill(source);
+  await replaceWorkbenchSource(page, source);
   // Keep the selector independent of surrounding workbench layout.
   const mainPanel = page.locator('.workbench-options .image-assets');
   const addPanel = page.locator('.image-assets-compact');
@@ -72,7 +72,7 @@ try {
   await expect(page.locator('.preview-stage .md-document img')).toHaveCount(2);
   check('native clipboard paste adds an image resource and Markdown reference');
 
-  await editor.fill(`${await editor.inputValue()}\n\n![Local](images/local.png)`);
+  await replaceWorkbenchSource(page, `${await editor.inputValue()}\n\n![Local](images/local.png)`);
   await clickWorkbenchAction(page, /^Export/);
   const dialog = page.getByRole('dialog');
   const exportButton = dialog.getByRole('button', { name: 'Export HTML', exact: true });
@@ -153,7 +153,7 @@ try {
   await page.getByTestId('language-toggle').click();
   // Example drafts are language-specific. Give the Chinese draft an image
   // reference so its resource panel exists before checking its translation.
-  await editor.fill('# 图片文档\n\n![图片](images/local.png)');
+  await replaceWorkbenchSource(page, '# 图片文档\n\n![图片](images/local.png)');
   await expect(mainPanel).toContainText('文档图片');
   check('390px layout has no page overflow and image controls are localized');
   expect(errors).toEqual([]);
