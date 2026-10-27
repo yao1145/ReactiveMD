@@ -216,7 +216,7 @@ const ENGLISH: DemoCopy = {
     eyebrow: 'Documentation',
     title: 'User Guide',
     intro:
-      'For readers who already write Markdown: start with your first interactive document, then add conditions, charts and function curves step by step.',
+      'Read the source, then try the live example below each code block. Each example runs independently.',
     lightTheme: 'Light theme',
     darkTheme: 'Dark theme',
     back: 'Back to Playground',
@@ -405,7 +405,7 @@ const CHINESE: DemoCopy = {
   guide: {
     eyebrow: '阅读文档',
     title: '使用指南',
-    intro: '面向会写 Markdown 的读者：从第一份交互文档开始，逐步加入条件、图表与函数曲线。',
+    intro: '阅读源码后，直接操作每个代码块下方的实际示例。各示例独立运行，可以分别调整和重置。',
     lightTheme: '浅色主题',
     darkTheme: '深色主题',
     back: '返回 Playground',

@@ -9,7 +9,7 @@ import {
   type ChangeEvent,
 } from 'react';
 import { formatLocalDiagnostic, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
-import { LocalDocumentView, LocalReactiveDocument } from 'reactive-md/react';
+import { LocalDocumentView } from 'reactive-md/react';
 import {
   ReactiveMarkdownEditor,
   type ReactiveMarkdownEditorHandle,
@@ -55,6 +55,7 @@ import {
 } from './i18n';
 import { useLocalCompilation, type LocalCompiledDocument } from './use-local-compilation';
 import { PreviewStateSession } from './preview-state';
+import { GuideDocument } from './guide-examples';
 import guideEnSource from '../../docs/guides/local-guide-en.md?raw';
 import guideZhSource from '../../docs/guides/local-guide-ch.md?raw';
 
@@ -283,7 +284,7 @@ function GuideView({ dark, onTheme, onBack }: GuideViewProps) {
         </div>
       </div>
       <div className="guide-paper">
-        <LocalReactiveDocument source={GUIDE_SOURCES[language]} locale={language} />
+        <GuideDocument source={GUIDE_SOURCES[language]} language={language} />
       </div>
     </main>
   );
