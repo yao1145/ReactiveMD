@@ -1,10 +1,9 @@
 name: Publish npm package
 
-# Manual publish flow. Add an npm automation or granular access token with
-# publish permission as the repository secret NPM_TOKEN. The token must not
-# require an interactive one-time password, because Actions cannot prompt for
-# one. If the version is already on the registry, the workflow skips the
-# publish step and still applies the requested dist-tags.
+# Manual publish flow using npm trusted publishing (OIDC). Configure the
+# repository and workflow as a trusted publisher for reactive-md on npm; no
+# NPM_TOKEN secret is needed. If the version is already on the registry, the
+# workflow skips the publish step and still applies the requested dist-tags.
 
 on:
   workflow_dispatch:
@@ -29,6 +28,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: npm-publish
@@ -49,8 +49,11 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '24'
-          cache: npm
           registry-url: https://registry.npmjs.org/
+          package-manager-cache: false
+
+      - name: Upgrade npm for OIDC publishing and dist-tag updates
+        run: npm install -g 'npm@^11.21.0'
 
       - name: Install dependencies
         run: npm ci
@@ -105,7 +108,6 @@ jobs:
         if: steps.registry.outputs.published != 'true'
         shell: bash
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
           DIST_TAG: ${{ inputs.dist_tag }}
         run: |
@@ -117,7 +119,6 @@ jobs:
         if: inputs.update_latest && inputs.dist_tag != 'latest'
         shell: bash
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
