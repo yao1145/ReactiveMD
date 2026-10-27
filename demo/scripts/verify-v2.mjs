@@ -148,7 +148,10 @@ Revealed destination.
 </if>
 </panel>`);
   const stage=boundary.locator('.preview-stage');
-  await expect(stage.locator('.local-coordinate')).toBeVisible();
+  // The previous function example also contains a coordinate. Wait for this
+  // fixture's labelled fields before sending keys to its coordinate pad.
+  await expect(stage.getByRole('textbox',{name:'Fractional point X',exact:true})).toHaveValue('0.3');
+  await expect(stage.getByRole('textbox',{name:'Fractional point Y',exact:true})).toHaveValue('0.6');
   await check('fractional coordinate boundaries snap to a valid step',async()=>{
     await stage.locator('.local-coordinate-pad').focus();
     await stage.locator('.local-coordinate-pad').press('End');
