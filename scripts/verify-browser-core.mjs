@@ -185,17 +185,20 @@ async function runCase(browser, engine, width, result, baseURL) {
     });
 
     await check('Markdown and interactive HTML downloads reopen with working controls', async () => {
+      // Linux WebKit sanitizes spaces in the suggested download name. The
+      // document name, extension and downloaded content must still match.
+      const downloadName = engine === 'webkit' && process.platform === 'linux' ? 'Core_copy' : 'Core copy';
       await clickWorkbenchAction(page, 'Export');
       const markdownReady = page.waitForEvent('download');
       await page.getByRole('dialog').getByRole('button', { name: 'Download Markdown', exact: true }).click();
       const markdown = await markdownReady;
-      expect(markdown.suggestedFilename()).toBe('Core copy.reactive.md');
+      expect(markdown.suggestedFilename()).toBe(`${downloadName}.reactive.md`);
       expect(await readFile(await markdown.path(), 'utf8')).toBe(source);
       await clickWorkbenchAction(page, 'Export');
       const htmlReady = page.waitForEvent('download');
       await page.getByRole('dialog').getByRole('button', { name: 'Export HTML', exact: true }).click();
       const html = await htmlReady;
-      expect(html.suggestedFilename()).toBe('Core copy.html');
+      expect(html.suggestedFilename()).toBe(`${downloadName}.html`);
       const output = join(artifactRoot, engine, `${width}-interactive.html`);
       await html.saveAs(output);
       const exported = await context.newPage();
