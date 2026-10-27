@@ -1,7 +1,7 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { gridOverflows } from './grid-layout-assertions.mjs';
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 
 const baseURL = process.env.DEMO_URL ?? 'http://127.0.0.1:5173';
 const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge';
@@ -38,11 +38,7 @@ try {
   const source = '# Container layout regression\n\n' + [1, 2, 3, 4].map((columns) => `<grid columns="${columns}">${cards(4)}</grid>`).join('\n\n') + '\n\n' + nested;
   await page.setViewportSize({ width: 1600, height: 1000 });
   await expect(page.locator('[data-editor-view-option="split"]')).toHaveAttribute('aria-pressed', 'true');
-  const editor = page.locator('#source-editor');
-  await editor.focus();
-  await expect(editor).toBeFocused();
-  await editor.fill(source);
-  await expect(editor).toHaveValue(source);
+  await replaceWorkbenchSource(page, source);
   await expect(preview.getByRole('heading', { name: 'Container layout regression', exact: true })).toBeVisible();
   await clickWorkbenchAction(page, '演示模式');
   for (const width of [200, 240, 320, 430, 451, 452, 480, 600, 700, 720, 960, 1200]) {

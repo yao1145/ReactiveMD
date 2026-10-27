@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { preview } from 'vite';
-import { clickWorkbenchAction } from '../demo/scripts/workbench-ui.mjs';
+import { clickWorkbenchAction, replaceWorkbenchSource } from '../demo/scripts/workbench-ui.mjs';
 
 // Chromium keeps the full suite; Firefox and WebKit share this smaller gate.
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -79,14 +79,7 @@ async function runCase(browser, engine, width, result, baseURL) {
   const documentSelect = page.locator('.doc-select');
   const edit = async text => {
     await page.locator('[data-editor-view-option="edit"]').click();
-    // Wait for the view transition's layout and use native text input. A direct
-    // fill immediately after switching views can race WebKit's textarea reset.
-    await editor.click();
-    await expect(editor).toBeFocused();
-    await editor.press('ControlOrMeta+A');
-    await page.keyboard.insertText(text);
-    await expect(editor).toHaveValue(text);
-    await expect.poll(() => page.locator('.author-highlight-content').textContent()).toBe(text);
+    await replaceWorkbenchSource(page, text);
     await expect(page.locator('.status-chip')).toContainText('Compiled');
   };
   const showPreview = () => page.locator('[data-editor-view-option="preview"]').click();
@@ -147,7 +140,7 @@ async function runCase(browser, engine, width, result, baseURL) {
 
     await check('diagnostics recover after editing invalid source', async () => {
       await page.locator('[data-editor-view-option="edit"]').click();
-      await editor.fill(`${source}\n{{ missing + }}`);
+      await replaceWorkbenchSource(page, `${source}\n{{ missing + }}`);
       await expect(page.locator('.status-chip')).toContainText('Compile failed');
       await expect(page.locator('.diagnostics-panel .diagnostic-item').first()).toBeVisible();
       await edit(source);

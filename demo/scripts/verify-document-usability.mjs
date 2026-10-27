@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -22,7 +22,7 @@ async function check(name, run) {
 
 async function edit(source) {
   const marker = `Browser check revision ${++revision}`;
-  await editor.fill(`${source}\n\n${marker}`);
+  await replaceWorkbenchSource(page, `${source}\n\n${marker}`);
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await expect(preview).toContainText(marker);
 }
