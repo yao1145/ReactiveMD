@@ -102,7 +102,13 @@ React 快捷组件通过 `compileOptions` 接收同样的设置：
 
 支持 `colspan`、`rowspan`、`scope`、`headers` 和 `col` / `colgroup` 的 `span`。`colspan` 与 `span` 为 1–1000；`rowspan` 为 0–65534，其中 0 表示延伸到当前行组末尾。单元格和标题内继续解析 Markdown、公式、插值、图片及控件；省略的行组、行和单元格结束标签按 HTML 规则补齐，原始源码位置保持不变。
 
-同一表格混用 Markdown 表格行与 HTML 表格结构会报错。原生表格不接受 `bind`、`key`、`label`、`searchable`、`sortable`、`page-size` 等组件属性；标题用 `caption`，无障碍名称也可用 `aria-label`。代码示例中的结构标签不参与类型判断。
+同一表格混用 Markdown 表格行与 HTML 表格结构会产生诊断，并将该表格按原文显示。原生表格不接受 `bind`、`key`、`label`、`searchable`、`sortable`、`page-size` 等组件属性；标题用 `caption`，无障碍名称也可用 `aria-label`。代码示例中的结构标签不参与类型判断。
+
+### 原文回退
+
+无法编译的局部原生 HTML 按原文显示，其余 Markdown、公式和控件继续工作。回退覆盖不支持的标签或属性、无效的原生表格，以及缺少完整结束标记的 HTML 片段。无法找到结束标签时，片段截至当前段落或外层 ReactiveMD 容器的结束标签。回退片段中的 Markdown、`{{ 表达式 }}`、组件和脚本均保留为文本。
+
+原生 HTML 路径中，不支持的属性会使所在元素回退为原文；相邻元素继续渲染。整篇解析、序列化或编译预算检查失败时，React 预览和 standalone 挂载显示完整源码，保留换行并转义标签。`compileLocal` 的错误结果、资源限制和 `onDiagnostics` 诊断仍保留；配置错误及 ReactiveMD 组件语法错误继续按原规则处理。
 
 ## 扩展 HTML
 

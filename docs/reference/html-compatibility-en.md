@@ -102,7 +102,13 @@ Both syntaxes share the table frame, title, cell styles and narrow-screen scroll
 
 Supported attributes include `colspan`, `rowspan`, `scope`, `headers` and `span` on `col` / `colgroup`. `colspan` and `span` accept 1–1000; `rowspan` accepts 0–65534, with 0 extending to the end of the current row group. Cells and captions support Markdown, formulas, interpolation, images and controls. Omitted row groups, row ends and cell ends are normalized using HTML rules, while source locations retain their original offsets.
 
-Mixing Markdown table rows and HTML table structure in one table is an error. Native tables reject component attributes such as `bind`, `key`, `label`, `searchable`, `sortable` and `page-size`; use `caption` for a title or `aria-label` for an accessible name. Structural tags inside code examples never determine the table type.
+Mixing Markdown table rows and HTML table structure in one table produces a diagnostic and displays that table as source. Native tables reject component attributes such as `bind`, `key`, `label`, `searchable`, `sortable` and `page-size`; use `caption` for a title or `aria-label` for an accessible name. Structural tags inside code examples never determine the table type.
+
+### Source fallback
+
+Native HTML fragments that cannot compile are displayed as their original text, while surrounding Markdown, formulas and controls continue to work. This covers unsupported tags or attributes, invalid native tables and incomplete HTML fragments. An unclosed fragment ends at the current paragraph boundary or the enclosing ReactiveMD container's closing tag. Markdown, `{{ expressions }}`, components and scripts inside a fallback fragment stay literal.
+
+In the native HTML route, an unsupported attribute makes its element fall back to source while neighboring elements continue to render. If whole-document parsing, serialization or compilation budget checks fail, React previews and standalone mounts display the complete source with preserved line breaks and escaped tags. Error results from `compileLocal`, resource limits and `onDiagnostics` reports are retained. Invalid host options and ReactiveMD component syntax errors keep their existing behavior.
 
 ## Extended HTML
 

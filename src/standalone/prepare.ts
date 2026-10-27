@@ -3,17 +3,20 @@ import { parseLocalState, type LocalStateFile } from '../local/state';
 import type { Diagnostic, LocalCompileOptions, LocalDocument } from '../local/types';
 import { resolveLocalStateBaseline } from '../shareable';
 import { ReactiveMDMountError, standaloneDiagnostic } from './diagnostics';
+import { readLocalCompileOptions } from '../local/options';
+import { LOCAL_SYNTAX_VERSION } from '../local/version';
 
 export interface PreparedStandaloneDocument {
   document: LocalDocument;
-  /** Non-fatal compiler diagnostics already produced for this document. */
+  /** Compiler diagnostics, including errors retained for native source fallback. */
   diagnostics: Diagnostic[];
 }
 
 /**
  * Compile the source once and, when an exported state is supplied, rebase it
  * through `resolveLocalStateBaseline` so first render and Reset both start from
- * the shared values. Invalid source/state throws before anything is mounted.
+ * the shared values. Native HTML compile failures become literal source views;
+ * invalid ReactiveMD source, host options or state still throw before mounting.
  *
  * `theme` is an optional host-only override (used by `<reactive-md-doc theme>`):
  * it replaces the document-level theme on a shallow, immutable clone so the
@@ -36,14 +39,25 @@ export function prepareStandaloneDocument(
   }
 
   const compiled = compileLocal(source, compileOptions);
+  let document: LocalDocument;
   if (!compiled.ok) {
-    throw new ReactiveMDMountError(
-      'Cannot mount a Reactive MD document: the source contains syntax errors.',
-      compiled.diagnostics,
-    );
+    const options = readLocalCompileOptions(compileOptions);
+    if (!options.ok || !options.htmlActive) {
+      throw new ReactiveMDMountError(
+        'Cannot mount a Reactive MD document: the source contains syntax errors.',
+        compiled.diagnostics,
+      );
+    }
+    // A literal document carries no bindings or executable markup. Keep the
+    // failed compile's diagnostics while allowing standalone mounts to show it.
+    document = {
+      syntax: 'local', syntaxVersion: LOCAL_SYNTAX_VERSION, source,
+      html: options.html, initialState: {}, bindings: {},
+      nodes: [{type: 'fallback', id: 'local-0', range: {start: 0, end: source.length}, value: source}],
+    };
+  } else {
+    document = compiled.document;
   }
-
-  let document = compiled.document;
 
   if (state !== undefined) {
     const parsed = parseLocalState(state);

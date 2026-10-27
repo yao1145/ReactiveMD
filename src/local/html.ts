@@ -341,13 +341,22 @@ function shell(state: SanitizeState, document: DefaultTreeAdapterTypes.Document)
   return `<!doctype html><html${attributes(html)}><head${attributes(head)}><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}">${headExtra}</head><body${attributes(body)}>${bodyMarkup}</body></html>`;
 }
 
+/** Construct escaped source without invoking the parser or serializer again. */
+function literalHtmlDocument(state: SanitizeState): string {
+  const literal = state.source.replace(/\u0000/g, '�').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const csp = escapeAttribute(localHtmlContentSecurityPolicy(state.policy));
+  // HTML consumes one LF immediately after <pre>; supply our own LF so every
+  // newline in the original source survives reparsing.
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"></head><body><pre data-local-html-fallback="document">\n${literal}</pre></body></html>`;
+}
+
 function sanitizeSrcdoc(value: string, state: SanitizeState): string {
   if (state.depth >= MAX_HTML_SRCDOC_DEPTH) return '';
   let document: DefaultTreeAdapterTypes.Document;
   try {
-    document = parse(value, { scriptingEnabled: false, sourceCodeLocationInfo: false });
+    document = parse(value, { scriptingEnabled: false, sourceCodeLocationInfo: true });
   } catch {
-    return '';
+    return literalHtmlDocument({...state, source: value});
   }
   const nested: SanitizeState = {
     ...state,
@@ -360,26 +369,28 @@ function sanitizeSrcdoc(value: string, state: SanitizeState): string {
   try {
     const html = findChildElement(document, 'html');
     if (html) {
-      cleanAttributes(html, 'html', true, nested);
+      if (!cleanAttributes(html, 'html', true, nested)) return literalHtmlDocument(nested);
       cleanParent(html, nested, false);
     }
     return shell(nested, document);
   } catch (error) {
     if (error instanceof HtmlBudgetError) throw error;
-    return '';
+    return literalHtmlDocument(nested);
   }
 }
 
-function cleanAttributes(element: PElement, tag: string, html: boolean, state: SanitizeState): void {
+function cleanAttributes(element: PElement, tag: string, html: boolean, state: SanitizeState): boolean {
   const location = element.sourceCodeLocation;
   const kept: PAttribute[] = [];
   let sandboxed = false;
+  let supported = true;
   for (const attribute of element.attrs) {
     const name = attribute.name.toLowerCase();
     const fullName = attribute.prefix ? `${attribute.prefix}:${attribute.name}` : attribute.name;
     const range = attributeRange(element, attribute, state);
 
     if (html && HTML_TABLE_NAMES.has(tag) && !validHtmlTableValue(name, attribute.value)) {
+      supported = false;
       warn(state, 'local.html.table', `Invalid value for ${name} on native HTML <${tag}>.`, range.start, range.end, {
         key: 'html.table.value', params: { name, tag },
       });
@@ -391,6 +402,7 @@ function cleanAttributes(element: PElement, tag: string, html: boolean, state: S
       if (align) {
         kept.push({ ...attribute, value: align });
       } else {
+        supported = false;
         warn(state, 'local.html.attribute', 'HTML attribute align requires left, center, right or justify.', range.start, range.end, {
           key: 'local.html.attribute', params: { name: fullName, tag },
         });
@@ -457,6 +469,7 @@ function cleanAttributes(element: PElement, tag: string, html: boolean, state: S
     }
 
     if (!state.policy.enableExtendedHtml && !allowedP0Attribute(tag, name)) {
+      supported = false;
       warn(state, 'local.html.attribute', `HTML attribute ${fullName} on <${tag}> is not supported; the element is shown as source.`, range.start, range.end, {
         key: 'local.html.attribute', params: { name: fullName, tag },
       });
@@ -480,6 +493,7 @@ function cleanAttributes(element: PElement, tag: string, html: boolean, state: S
   }
   element.attrs = kept;
   void location;
+  return supported;
 }
 
 function cleanElement(element: PElement, state: SanitizeState, inHead: boolean): PChild[] {
@@ -510,7 +524,7 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
       });
       return [];
     }
-    cleanAttributes(element, tag, html, state);
+    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
     return [element];
   }
 
@@ -521,7 +535,7 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
       });
       return [];
     }
-    cleanAttributes(element, tag, html, state);
+    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
     return [element];
   }
 
@@ -534,13 +548,13 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
         });
         return [];
       }
-      cleanAttributes(element, tag, html, state);
+      if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
       return [element];
     }
     if (!state.policy.enableExtendedHtml) {
       return disallowed(element, state);
     }
-    cleanAttributes(element, tag, html, state);
+    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
     return [element];
   }
 
@@ -553,7 +567,7 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
       });
       return [];
     }
-    cleanAttributes(element, tag, html, state);
+    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
     return [element];
   }
 
@@ -566,7 +580,7 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
     : state.policy.enableExtendedHtml;
   if (!allowed) return disallowed(element, state, inHead);
 
-  cleanAttributes(element, tag, html, state);
+  if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
 
   if (tag === 'template') {
     const content = defaultTreeAdapter.getTemplateContent(element as DefaultTreeAdapterTypes.Template);
@@ -584,6 +598,10 @@ function disallowed(element: PElement, state: SanitizeState, inHead = false): PC
   warn(state, 'local.html.extended', `HTML element <${tag}> requires enableExtendedHtml in this mode; it is shown as source.`, range.start, range.end, {
     key: 'local.html.extended', params: { name: tag },
   });
+  return literalElement(element, state, inHead);
+}
+
+function literalElement(element: PElement, state: SanitizeState, inHead: boolean): PChild[] {
   // Head metadata cannot display; append escaped source to the body instead.
   if (inHead) {
     state.bodyFallbacks.push(fallbackSource(element, state));
@@ -639,7 +657,7 @@ export function sanitizeLocalHtmlDocument(source: string, policy: LocalHtmlPolic
     document = parse(source, { scriptingEnabled: false, sourceCodeLocationInfo: true });
   } catch (error) {
     return {
-      markup: shell(state, defaultTreeAdapter.createDocument()),
+      markup: literalHtmlDocument(state),
       diagnostics: [{
         code: 'local.parse',
         message: `Cannot parse the HTML document: ${error instanceof Error ? error.message : String(error)}`,
@@ -656,16 +674,17 @@ export function sanitizeLocalHtmlDocument(source: string, policy: LocalHtmlPolic
   try {
     const html = findChildElement(document, 'html');
     if (html) {
-      cleanAttributes(html, 'html', true, state);
+      if (!cleanAttributes(html, 'html', true, state)) return {markup: literalHtmlDocument(state), diagnostics};
       cleanParent(html, state, false);
     } else {
       cleanParent(document, state, false);
     }
+    return {markup: shell(state, document), diagnostics};
   } catch (error) {
     if (error instanceof HtmlBudgetError) {
       const place = position(state, error.start, error.end);
       return {
-        markup: '',
+        markup: literalHtmlDocument(state),
         diagnostics: [{
           code: 'local.budget',
           message: error.message,
@@ -679,7 +698,7 @@ export function sanitizeLocalHtmlDocument(source: string, policy: LocalHtmlPolic
       };
     }
     return {
-      markup: '',
+      markup: literalHtmlDocument(state),
       diagnostics: [{
         code: 'local.parse',
         message: `Cannot parse the HTML document: ${error instanceof Error ? error.message : String(error)}`,
@@ -693,7 +712,6 @@ export function sanitizeLocalHtmlDocument(source: string, policy: LocalHtmlPolic
     };
   }
 
-  return { markup: shell(state, document), diagnostics };
 }
 
 export const LOCAL_HTML_P0_ELEMENTS = P0_ELEMENTS;

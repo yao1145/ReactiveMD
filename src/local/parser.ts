@@ -1,7 +1,7 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import { parseFragment } from 'parse5';
+import { parseFragment, html as nativeHtml } from 'parse5';
 import type { Diagnostic } from './types';
 import type { LocalCompileOptions, LocalNode, LocalVersionDeclaration, SourceRange } from './types';
 import { LOCAL_SYNTAX_VERSION } from './version';
@@ -52,6 +52,8 @@ const HTML_BLOCK = new Set([
 ]);
 const BLOCK_HTML_RESULTS = new Set(['paragraph', 'heading', 'div', 'details', 'blockquote', 'code', 'list', 'listItem', 'thematicBreak', 'htmlTable']);
 const HTML_GLOBAL_ATTRIBUTES = new Set(['id', 'title', 'lang', 'dir']);
+const NATIVE_HTML_NAMES = new Set<string>(Object.values(nativeHtml.TAG_NAMES));
+const NATIVE_HTML_VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 const HTML_TAG_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
   a: LOCAL_HTML_ANCHOR_ATTRIBUTES,
   img: new Set(['src', 'alt', 'width', 'height']),
@@ -596,6 +598,18 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     const rest = source.slice(head, end);
     return { name: match[2], closing: !!match[1], self: !match[1] && /\/\s*$/.test(rest), end: end + 1 };
   }
+  /** Keep an unclosed HTML fragment local to its paragraph. */
+  function htmlLiteralEnd(start: number, limit: number, parent?: string): number {
+    const boundary = /\r?\n[\t ]*\r?\n/.exec(source.slice(start, limit));
+    let stop = boundary ? start + boundary.index : limit;
+    if (parent) {
+      const closing = new RegExp(`</${parent}\\s*>`, 'g');
+      closing.lastIndex = start;
+      const match = closing.exec(source);
+      if (match && match.index < stop) stop = match.index;
+    }
+    return stop;
+  }
   function beginsLine(offset: number): boolean {
     const lineStart = source.lastIndexOf('\n', offset - 1) + 1;
     return /^[ \t]*$/.test(source.slice(lineStart, offset));
@@ -916,7 +930,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
    * changes depth; nested unknowns, attributes, comments, code and escapes are
    * opaque, so malformed content inside cannot produce document-wide errors.
    */
-  function unknownTagEnd(start: number, name: string, limit: number, insideContainer: boolean): { start: number; end: number } | null {
+  function unknownTagEnd(start: number, name: string, limit: number, insideContainer: boolean, ignoreCase = false): { start: number; end: number } | null {
     let depth = 1;
     for (let i = start; i < limit;) {
       if (!insideContainer) {
@@ -933,7 +947,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       if (source[i] === '<') {
         const tag = scanTag(i, limit);
         if (tag) {
-          if (tag.name === name) {
+          if (tag.name === name || (ignoreCase && tag.name.toLowerCase() === name.toLowerCase())) {
             if (tag.closing) {
               depth -= 1;
               if (depth === 0) return { start: i, end: tag.end };
@@ -1230,7 +1244,11 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         }
       }
       if (source[i] === '<') {
-        const nativeTable = readHtmlTable(source, i, end, {
+        const htmlDiagnosticStart = diagnostics.length;
+        let invalidNativeTable = false;
+        let nativeTable: ReturnType<typeof readHtmlTable>;
+        try {
+          nativeTable = readHtmlTable(source, i, end, {
           shield: (offset, limit) => {
             if (source.startsWith('{{', offset)) {
               const finish = interpolationEnd(offset, limit);
@@ -1251,18 +1269,20 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           },
           node,
           problem: (kind, from, to, tag, name) => {
+            invalidNativeTable = true;
             const key = `html.table.${kind}`;
             const params = { tag: tag ?? 'table', name: name ?? '' };
-            error('local.html.table', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
+            warning('local.html.table', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
           },
           attributes: (name, from, to) => {
             const tag = htmlTagAt(from, to, true);
             const selected = tag && selectHtmlAttributes(name, tag);
             if (!selected || !selected.ok) {
+              invalidNativeTable = true;
               const attribute = selected && !selected.ok ? selected.attr : '';
               const key = `html.table.${['colspan', 'rowspan', 'span', 'scope', 'align'].includes(attribute) ? 'value' : 'attribute'}`;
               const params = { tag: name, name: attribute };
-              error('local.html.table', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
+              warning('local.html.table', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
               return {};
             }
             return selected.attrs;
@@ -1271,9 +1291,27 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
             const body = region(from, to, undefined, from, from, depth + 1, { ...options, definitions: [] });
             return convert(from, to, body.tokens, commonIndent(from, to), { literalHtml: footnoteMode, stripBlockquote: options.stripBlockquote === true });
           },
-        });
+          });
+        } catch (cause) {
+          if (cause instanceof LocalBudgetError) throw cause;
+          const opening = scanTag(i, end);
+          if (!opening || opening.closing || opening.name.toLowerCase() !== 'table') throw cause;
+          const stop = unknownTagEnd(opening.end, opening.name, end, insideContainer, true)?.end ?? htmlLiteralEnd(opening.end, end, parent);
+          const retained = diagnostics.slice(htmlDiagnosticStart).filter(d => d.code.startsWith('local.budget'));
+          diagnostics.splice(htmlDiagnosticStart, diagnostics.length - htmlDiagnosticStart, ...retained);
+          warning('local.html', 'Native HTML parsing failed; the fragment is shown as source.', i, stop, {key: 'local.html'});
+          nativeTable = {node: node('fallback', i, stop, {value: source.slice(i, stop)}), end: stop};
+          invalidNativeTable = false;
+        }
         if (nativeTable) {
-          tokens.push({ start: i, end: nativeTable.end, block: true, node: nativeTable.node });
+          if (invalidNativeTable) {
+            // Discard diagnostics from content that will now be shown literally.
+            // Resource budgets remain fatal, including those hit in nested cells.
+            const retained = diagnostics.slice(htmlDiagnosticStart).filter(d => d.code === 'local.html.table' || d.code.startsWith('local.budget'));
+            diagnostics.splice(htmlDiagnosticStart, diagnostics.length - htmlDiagnosticStart, ...retained);
+          }
+          tokens.push({ start: i, end: nativeTable.end, block: true, node: invalidNativeTable
+            ? node('fallback', i, nativeTable.end, {value: source.slice(i, nativeTable.end)}) : nativeTable.node });
           i = nativeTable.end;
           continue;
         }
@@ -1323,9 +1361,10 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           }
           const close = htmlCloseEnd(html.end, html.lower, end, insideContainer);
           if (!close) {
-            // An unclosed tag in running text stays literal prose.
-            tokens.push({ start: i, end: html.end, block: false, node: node('text', i, html.end, { value: source.slice(i, html.end) }) });
-            i = html.end;
+            const stop = htmlLiteralEnd(html.end, end, parent);
+            warning('local.html', 'Unclosed native HTML is shown as source.', i, stop, {key: 'local.html'});
+            tokens.push({ start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
+            i = stop;
             continue;
           }
           const block = HTML_BLOCK.has(html.lower);
@@ -1382,6 +1421,18 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           continue;
         }
         const scanned = scanTag(i, end);
+        if (scanned && !known.has(scanned.name.toLowerCase()) && NATIVE_HTML_NAMES.has(scanned.name.toLowerCase())) {
+          const stop = scanned.closing || scanned.self || NATIVE_HTML_VOID.has(scanned.name.toLowerCase())
+            ? scanned.end : (unknownTagEnd(scanned.end, scanned.name, end, insideContainer, true)?.end ?? htmlLiteralEnd(scanned.end, end, parent));
+          const suggestion = suggestComponent(scanned.name);
+          warning('local.component.unknown',
+            `Unknown component <${scanned.name}>. ${suggestion ? `Did you mean <${suggestion}>?` : 'This mode only accepts local interaction components.'}`,
+            i, stop, {key: suggestion ? 'local.component.unknown.suggestion' : 'local.component.unknown',
+              params: suggestion ? {name: scanned.name, suggestion} : {name: scanned.name}});
+          tokens.push({start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, {value: source.slice(i, stop)})});
+          i = stop;
+          continue;
+        }
         if (
           scanned && !scanned.closing && TAG_NAME.test(scanned.name)
           && scanned.name.length <= MAX_LOCAL_NAME_LENGTH && !known.has(scanned.name)
@@ -1424,6 +1475,13 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         const tag = tagAt(i, end);
         if (tag) {
           if (tag.unclosed) {
+            if (!known.has(tag.name.toLowerCase()) && NATIVE_HTML_NAMES.has(tag.name.toLowerCase())) {
+              const stop = htmlLiteralEnd(tag.head, end, parent);
+              warning('local.html', 'Malformed native HTML is shown as source.', i, stop, {key: 'local.html'});
+              tokens.push({start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, {value: source.slice(i, stop)})});
+              i = stop;
+              continue;
+            }
             if (!known.has(tag.name.toLowerCase()) && !beginsLine(i)) {
               // `<y` in `x<y` and similar prose fragments are literal text.
               tokens.push({ start: i, end: tag.head, block: false, node: node('text', i, tag.head, { value: source.slice(i, tag.head) }) });

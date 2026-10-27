@@ -49,6 +49,49 @@ try {
     });
     assert.equal(textCentered, true);
 
+    const brokenTable = '<table><tr><td colspan="bad">**Literal** {{ missing }} <script>window.rawHtmlRan = true</script></td></tr></table>';
+    const unsupported = '<meta name="description" content="{{ missing }}">';
+    await page.evaluate(source => window.setHtmlCase(source), `${brokenTable}\n\n${unsupported}\n\n<counter bind="count" label="Surviving count" initial="2">\n\nCurrent: {{ count }}`);
+    await expect(page.locator('.local-fallback').first()).toHaveText(brokenTable);
+    await expect(page.locator('.local-fallback').nth(1)).toHaveText(unsupported);
+    await expect(page.locator('table, script:not([type="module"])')).toHaveCount(0);
+    await page.getByRole('button', {name: 'Surviving count increase', exact: true}).click();
+    await expect(page.locator('article')).toContainText('Current: 3');
+    assert.equal(await page.evaluate(() => window.rawHtmlRan), undefined);
+    assert.equal(await page.evaluate(() => window.htmlFallbackDiagnostics.every(d => d.severity === 'warning')), true);
+    await page.screenshot({path: `artifacts/html-compat/browser/${width}-source-fallback.png`});
+
+    const nativeFragment = '<div unsupported="value">**Literal**\n{{ missing }} <script>window.rawHtmlRan = true</script></div>';
+    await page.evaluate(source => window.setHtmlCase(source, {enableJavaScript: true}), `<p>Before</p>${nativeFragment}<p>After</p>`);
+    const nativeFallback = page.frameLocator('iframe').first();
+    await expect(nativeFallback.locator('body')).toContainText(nativeFragment);
+    await expect(nativeFallback.locator('div, script')).toHaveCount(0);
+    await expect(nativeFallback.locator('p')).toHaveText(['Before', 'After']);
+
+    const failedDocument = '\n<p>Before</p>\n<script>window.rawHtmlRan = true</script>\n<p>After</p>';
+    await page.evaluate(source => window.setHtmlCase(source, {enableJavaScript: true, limits: {maxSyntaxNodes: 1}}), failedDocument);
+    await expect(page.locator('iframe')).toHaveCount(0);
+    assert.equal(await page.locator('[data-html-fallback="document"] pre').textContent(), failedDocument);
+    await expect.poll(() => page.evaluate(() => window.htmlFallbackDiagnostics.some(d => d.code === 'local.budget' && d.severity === 'error'))).toBe(true);
+    assert.equal(await page.evaluate(() => window.rawHtmlRan), undefined);
+
+    await page.evaluate(async source => {
+      const {createStandaloneMount} = await import('/src/standalone/session.tsx');
+      const host = document.createElement('div');
+      host.id = 'native-source-mount';
+      document.body.append(host);
+      window.rawFallbackReports = [];
+      const handle = createStandaloneMount(host,
+        {source, compileOptions: {enableJavaScript: true, limits: {maxSyntaxNodes: 1}}},
+        {onDiagnostics: diagnostics => window.rawFallbackReports.push(diagnostics)});
+      window.cleanupRawMount = () => { handle.unmount(); host.remove(); };
+    }, failedDocument);
+    await expect(page.locator('#native-source-mount pre')).toBeVisible();
+    assert.equal(await page.locator('#native-source-mount pre').textContent(), failedDocument);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await page.evaluate(() => window.rawFallbackReports.at(-1).some(d => d.code === 'local.budget' && d.severity === 'error')), true);
+    await page.evaluate(() => window.cleanupRawMount());
+
     await page.context().route('**/link-target-proof', route => route.fulfill({contentType: 'text/html', body: '<p>Target opened</p>'}));
     const links = '<a href="#destination" target="_self" rel="next">Same page</a> <a href="/link-target-proof" target="_blank" rel="nofollow">New page</a> <a href="/link-target-proof" target="reader" rel="help">Named frame</a><p id="destination">Destination</p>';
     await page.evaluate(source => window.setHtmlCase(source), links);

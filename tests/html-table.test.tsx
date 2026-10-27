@@ -110,9 +110,13 @@ describe('HTML table compatibility', () => {
     '<table><caption>A</caption><caption>B</caption><tr><td>Text</td></tr></table>',
     '<table><colgroup span="2"><col></colgroup><tr><td>Text</td></tr></table>',
     '<table><tr><td>A</td></tr>',
-  ])('rejects mixed, invalid or unsupported native structure: %s', source => {
+  ])('shows mixed, invalid or unsupported native structure as source: %s', source => {
     const result = compileLocal(source);
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.diagnostics.every(d => d.severity === 'warning')).toBe(true);
+    expect(flat(result.document.nodes).find(n => n.type === 'fallback')?.value).toBe(source);
+    expect(flat(result.document.nodes).some(n => n.type === 'htmlTable')).toBe(false);
     expect(result.diagnostics.some(d => d.code === 'local.html.table')).toBe(true);
     expect(formatLocalDiagnostic(result.diagnostics.find(d => d.code === 'local.html.table')!, 'zh')).toMatch(/[\u4e00-\u9fff]/);
     expect(result.diagnostics.every(d => d.range.start >= 0 && d.range.end <= source.length)).toBe(true);

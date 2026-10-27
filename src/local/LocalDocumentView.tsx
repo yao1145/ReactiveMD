@@ -45,7 +45,7 @@ import {
 import { compileLocal } from './compiler';
 import { createLocalRuntime } from './runtime';
 import { DEFAULT_MAX_LOCAL_SYNTAX_NODES, MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
-import { localCompileOptionsKey } from './options';
+import { localCompileOptionsKey, readLocalCompileOptions } from './options';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './html';
 import { localHtmlAlign, localHtmlLinkRel } from './html-names';
 import { TableSurface } from './table-surface';
@@ -4566,6 +4566,13 @@ function EndnotesView({
 
 /* ---------------------------------------------------------------- document */
 
+function LocalHtmlSourceFallback({source, mode}: {source: string; mode: LocalRenderMode}) {
+  return <article className={`md-document local-document${mode === 'static' ? ' local-static' : ''}`}
+    data-source-mode="html" data-render-mode={mode} data-html-fallback="document">
+    <pre className="local-fallback local-fallback-block" style={{whiteSpace: 'pre-wrap', overflowWrap: 'anywhere'}}>{source}</pre>
+  </article>;
+}
+
 function LocalDocumentViewHtml({ document, mode = 'interactive', staticFirst = false, locale = 'en', onDiagnostics }: LocalDocumentViewProps) {
   const [settled, setSettled] = useState(!staticFirst);
   useEffect(() => { if (staticFirst) setSettled(true); }, [staticFirst]);
@@ -4574,15 +4581,16 @@ function LocalDocumentViewHtml({ document, mode = 'interactive', staticFirst = f
   const enableJavaScript = renderedMode === 'interactive' && document.html?.enableJavaScript === true;
   const enableExtendedHtml = document.html?.enableExtendedHtml === true;
   const policy = useMemo(() => ({ enableCss, enableJavaScript, enableExtendedHtml }), [enableCss, enableJavaScript, enableExtendedHtml]);
+  const sourceFallback = document.nodes.length === 1 && document.nodes[0].type === 'fallback';
   // Compilation already validated the host budget. A second pass applies the
   // effective render policy (notably script-free static output) to the source.
-  const result = useMemo(() => sanitizeLocalHtmlDocument(document.source, policy,
-    Math.max(DEFAULT_MAX_LOCAL_SYNTAX_NODES, document.source.length * 2 + 10)), [document.source, policy]);
+  const result = useMemo(() => sourceFallback ? {markup: '', diagnostics: []} : sanitizeLocalHtmlDocument(document.source, policy,
+    Math.max(DEFAULT_MAX_LOCAL_SYNTAX_NODES, document.source.length * 2 + 10)), [document.source, policy, sourceFallback]);
   const report = useRef(onDiagnostics);
   report.current = onDiagnostics;
-  useEffect(() => { report.current?.(result.diagnostics); }, [result]);
-  if (result.diagnostics.some(item => item.severity === 'error')) {
-    return <div className="md-document local-document local-inactive" role="alert">{localize(locale, 'HTML rendering failed.', 'HTML 渲染失败。')}</div>;
+  useEffect(() => { if (!sourceFallback) report.current?.(result.diagnostics); }, [result, sourceFallback]);
+  if (sourceFallback || result.diagnostics.some(item => item.severity === 'error')) {
+    return <LocalHtmlSourceFallback source={document.source} mode={renderedMode} />;
   }
   return <article className={`md-document local-document reactive-md-native-document${renderedMode === 'static' ? ' local-static' : ''}`} data-source-mode="html" data-render-mode={renderedMode}>
     <iframe
@@ -4887,6 +4895,10 @@ export function LocalReactiveDocument({
   }, [runtime]);
 
   if (!result.ok || !runtime) {
+    const options = readLocalCompileOptions(compileOptions);
+    if (typeof source === 'string' && options.ok && options.htmlActive) {
+      return <LocalHtmlSourceFallback source={source} mode={mode} />;
+    }
     return (
       <div
         className={`md-document local-document local-inactive${mode === 'static' ? ' local-static' : ''}`}
