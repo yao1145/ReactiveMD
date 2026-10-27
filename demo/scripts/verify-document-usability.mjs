@@ -251,7 +251,7 @@ Collapsed body copy.
     await edit(trialSource);
     await maxSlider('Trial count');
     const identicalSource = await editor.inputValue();
-    await page.locator('input[type="file"]').setInputFiles({
+    await page.locator('.author-tools input[type="file"]').setInputFiles({
       name: 'trial.reactive.md',
       mimeType: 'text/markdown',
       buffer: Buffer.from(identicalSource),
