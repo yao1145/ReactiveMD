@@ -1183,19 +1183,19 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         }
         // A single dollar only opens inline math at an explainable boundary.
         // Currency such as `$5 and $10` stays literal: the closer must not be
-        // immediately followed by a digit, and the content may not touch
-        // whitespace. The first `$` that fails this boundary ends the current
+        // immediately followed by a digit, and the content must contain a
+        // non-whitespace character. The first `$` that fails this boundary ends the current
         // match, so a later, well-formed formula is still recognized on its own.
         let stop = i + 1;
         let close = -1;
         for (; stop < end; stop++) {
           const character = source[stop];
           if (character === '\\') { stop++; continue; }
-          if (character === '\n') break;
+          if (character === '\n' || character === '\r') break;
           if (character !== '$') continue;
           const value = source.slice(i + 1, stop);
           const after = source[stop + 1];
-          if (!value || /^\s/.test(value) || /\s$/.test(value)) break;
+          if (!value.trim()) break;
           if (after !== undefined && after >= '0' && after <= '9') break;
           close = stop;
           break;

@@ -27,12 +27,16 @@ const element = (tag: string, props: MathProps, ...children: ReactNode[]): React
   ) => ReactElement)(tag, props, ...children);
 
 function renderMathNode(node: MathNode): ReactNode {
-  const props = (node.attrs ?? null) as MathProps;
+  const props = (node.style ? {...node.attrs, style: node.style} : node.attrs ?? null) as MathProps;
   if (node.children && node.children.length > 0) {
     return element(node.tag, props, ...node.children.map(renderMathNode));
   }
   if (node.text !== undefined) return element(node.tag, props, node.text);
   return element(node.tag, props);
+}
+
+function hasEquationTag(node: MathNode): boolean {
+  return node.attrs?.['data-local-math-tag'] === 'true' || (node.children?.some(hasEquationTag) ?? false);
 }
 
 export function LatexView({ source, display = false }: LatexViewProps): ReactElement {
@@ -44,7 +48,7 @@ export function LatexView({ source, display = false }: LatexViewProps): ReactEle
     'math',
     {
       display: display ? 'block' : 'inline',
-      className: display ? 'local-math local-math-block' : 'local-math',
+      className: `${display ? 'local-math local-math-block' : 'local-math'}${parsed.node && hasEquationTag(parsed.node) ? ' local-math-tagged' : ''}`,
       'aria-label': annotation,
     },
     element(

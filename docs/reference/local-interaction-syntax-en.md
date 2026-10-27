@@ -348,9 +348,22 @@ timeline supports optional title and unit (display text, default "minutes"), and
 
 ### 10.1 Display and plotting
 
-Prose accepts `$...$` or `\(...\)` for inline math, and `$$...$$` or `\[...\]` for display formulas. Dollar-delimited inline math pairs on the same line and cannot start or end with whitespace; use `\$` for a literal dollar sign. Backslash-delimited formulas may contain whitespace and span lines. For example, write `\(\frac{a}{b}\)` in a sentence or `\[x^2 + 1\]` as a display formula. Unclosed math delimiters are errors. Code, comments and Markdown destinations keep these delimiters literal; escape the opening backslash or use code to show an example in prose.
+Prose accepts `$...$` or `\(...\)` for inline math, and `$$...$$` or `\[...\]` for display formulas. Dollar-delimited inline math pairs on the same line and permits leading or trailing whitespace, as in `$ x $`, `$x $` and `$ x$`. Its content must include a non-whitespace character. Currency text such as `$5 and $10` stays literal; use `\$` for an explicit literal dollar sign. Backslash-delimited formulas may contain whitespace and span lines. For example, write `\(\frac{a}{b}\)` in a sentence or `\[x^2 + 1\]` as a display formula. Unclosed math delimiters are errors; an unmatched single dollar sign stays literal. Code, comments and Markdown destinations keep these delimiters literal; escape the opening backslash or use code to show an example in prose.
 
 Standalone formulas are for layout and create no state or functions. Each `$$...$$` block inside a plot container defines one curve; the math content keeps normal LaTeX syntax and does not need `{{ }}`. Plot accepts only `$$...$$`, not `\(...\)` or `\[...\]`.
+
+Display supports the `cases`, `aligned`, `align`, `align*`, `pmatrix`, `bmatrix` and `vmatrix` environments. Use `&` for columns and `\\` for rows. Alignment environments alternate right and left column alignment; matrices center their cells and show the corresponding delimiters. Both `align` and `aligned` belong inside math delimiters. Add explicit equation labels with `\tag{1}`, or `\tag*{A}` to omit parentheses.
+
+| Display content | Example commands |
+| --- | --- |
+| Alphabets and text | `\mathbb{R}`, `\mathcal{F}`, `\mathscr{L}`, `\mathfrak{g}`, `\textbf{bold text}` |
+| Binomials, annotations and boxes | `\binom{n}{k}`, `\underbrace{a+b}_{n}`, `\overrightarrow{AB}`, `\underline{x}`, `\boxed{x}` |
+| Above/below labels and labeled arrows | `\stackrel{!}{=}`, `\underset{x}{\lim}`, `\xrightarrow[below]{above}`, `\xrightleftharpoons[k_2]{k_1}` |
+| Logic, relations and symbols | `\implies`, `\iff`, `\not\in`, `\cong`, `\mapsto`, `\mid`, `\ll`, `\oplus`, `\varnothing`, `\therefore`, `\because`, `\triangle`, `\circ`, `\dagger`, `\vdots`, `\ddots` |
+| Arrows, delimiters and sizes | `\rightleftharpoons`, `\longrightarrow`, `\Longleftrightarrow`, `\downarrow`, `\lfloor`, `\rfloor`, `\lceil`, `\rceil`, `\bigl(`, `\bigr)`, `\Bigg(` |
+| Functions and congruences | `\sec`, `\csc`, `\cot`, `\sinh`, `\cosh`, `\lg`, `\pmod{n}` |
+
+Use mhchem notation for chemistry: `$\ce{H2O}$`, `$\ce{SO4^2-}$`, `$\ce{^{14}_{6}C}$`, `$$\ce{2 H2 + O2 -> 2 H2O}$$` or `$$\ce{A <=>[forward][reverse] B}$$`. Molecular subscripts, ionic charges, isotopes, coefficients, physical states, bonds and reaction arrows are converted by `mhchemparser` and rendered through the same MathML renderer. Unsupported conversion commands produce `local.math.display` diagnostics. All text is escaped, and converted output is bounded by source, token and nesting budgets. These forms are available for formula display; plotting computation supports the syntax listed below.
 
 ```markdown
 <slider bind="a" label="Amplitude" initial="1" min="0" max="5">

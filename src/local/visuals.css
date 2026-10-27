@@ -874,6 +874,23 @@ table.local-visual-table {
 
 .local-math mtd {
   text-align: left;
+  /* Chromium aligns MathML cell content through justify-items. */
+  justify-items: start;
+}
+
+.local-math mtd[columnalign="right"] {
+  text-align: right;
+  justify-items: end;
+}
+
+.local-math mtd[columnalign="center"] {
+  text-align: center;
+  justify-items: center;
+}
+
+.local-math mtable[data-local-math-tag] {
+  width: 100%;
+  min-width: 100%;
 }
 
 /* Inline math keeps its intrinsic width; inline-size containment here would
@@ -897,6 +914,16 @@ table.local-visual-table {
 .local-math-display > .local-math {
   flex: none;
   max-width: none;
+}
+
+.local-math-display > .local-math-tagged {
+  min-width: 100%;
+}
+
+.local-math-tagged > semantics,
+.local-math-tagged > semantics > mrow {
+  display: block;
+  width: 100%;
 }
 
 @media (max-width: 480px) {

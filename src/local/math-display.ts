@@ -12,6 +12,7 @@
 
 import type { LocalDiagnosticParams } from './types';
 import { renderLocalDiagnostic } from './diagnostics';
+import { mhchemParser } from 'mhchemparser';
 
 /* ------------------------------------------------------------------ */
 /* Public types                                                        */
@@ -43,6 +44,7 @@ export interface LocalMathDisplayIssue {
 export interface MathNode {
   tag: string;
   attrs?: Readonly<Record<string, string>>;
+  style?: Readonly<Record<string, string>>;
   text?: string;
   children?: MathNode[];
 }
@@ -108,11 +110,20 @@ const OPERATORS: Record<string, string> = {
   lbrace: '{', rbrace: '}', vert: '|', lvert: '|', rvert: '|',
   lVert: '‖', rVert: '‖', backslash: '\\', percent: '%', amp: '&',
   hash: '#', underscore: '_', dollar: '$', colon: ':',
+  implies: '⟹', iff: '⟺', triangle: '△', circ: '∘', vdots: '⋮', ddots: '⋱',
+  rightleftharpoons: '⇌', leftrightharpoons: '⇋', mapsto: '↦', downarrow: '↓', uparrow: '↑',
+  oplus: '⊕', otimes: '⊗', mid: '∣', ll: '≪', gg: '≫',
+  longrightarrow: '⟶', longleftarrow: '⟵', longleftrightarrow: '⟷',
+  Longrightarrow: '⟹', Longleftarrow: '⟸', Longleftrightarrow: '⟺',
+  longrightleftharpoons: '⇌', longleftrightharpoons: '⇋', longleftrightarrows: '⇄',
+  varnothing: '∅', dagger: '†', ddagger: '‡', therefore: '∴', because: '∵', cong: '≅',
+  lfloor: '⌊', rfloor: '⌋', lceil: '⌈', rceil: '⌉', bullet: '•',
 };
 
 const FUNCTIONS = new Set([
   'sin', 'cos', 'tan', 'arcsin', 'arccos', 'arctan', 'exp', 'ln', 'log',
   'min', 'max', 'lim', 'det', 'sup', 'inf', 'arg', 'gcd',
+  'sec', 'csc', 'cot', 'sinh', 'cosh', 'tanh', 'coth', 'lg',
 ]);
 
 const SPACES: Record<string, string> = {
@@ -124,22 +135,56 @@ const IGNORED_COMMANDS = new Set([
   'displaystyle', 'textstyle', 'scriptstyle', 'scriptscriptstyle', 'limits', 'nolimits',
 ]);
 
-const TEXT_COMMANDS = new Set(['text', 'textrm', 'mbox', 'operatorname']);
+const TEXT_COMMANDS = new Set(['text', 'textrm', 'mbox', 'operatorname', 'textbf', 'textit']);
 
 const VARIANT_COMMANDS: Record<string, string> = {
   mathrm: 'normal', mathbf: 'bold', mathit: 'italic', mathsf: 'sans-serif',
+  mathbb: 'double-struck', mathcal: 'script', mathscr: 'script', mathfrak: 'fraktur',
 };
 
 const ACCENT_COMMANDS: Record<string, string> = {
   overline: '¯', bar: '¯', hat: '^', tilde: '~', vec: '→', dot: '˙', ddot: '¨',
+  overrightarrow: '→', overleftarrow: '←', widehat: '^', widetilde: '~',
 };
 
 const DELIMITER_COMMANDS: Record<string, string> = {
   lbrace: '{', rbrace: '}', lvert: '|', rvert: '|', vert: '|',
   lVert: '‖', rVert: '‖', Vert: '‖', langle: '⟨', rangle: '⟩',
+  lfloor: '⌊', rfloor: '⌋', lceil: '⌈', rceil: '⌉',
 };
 
-const SUPPORTED_ENVIRONMENTS = new Set(['cases']);
+const SUPPORTED_ENVIRONMENTS = new Set(['cases', 'aligned', 'align', 'align*', 'pmatrix', 'bmatrix', 'vmatrix']);
+
+const DELIMITER_SIZES: Record<string, string> = {
+  big: '1.2em', Big: '1.6em', bigg: '2.2em', Bigg: '2.9em',
+};
+
+// MathML Core browsers do not implement the legacy mathvariant alphabets.
+// Use Unicode mathematical letters, including the exceptions in Letterlike Symbols.
+const ALPHABETS: Record<string, [number, number, Record<string, string>]> = {
+  'double-struck': [0x1d538, 0x1d552, {C: 'ℂ', H: 'ℍ', N: 'ℕ', P: 'ℙ', Q: 'ℚ', R: 'ℝ', Z: 'ℤ'}],
+  script: [0x1d49c, 0x1d4b6, {B: 'ℬ', E: 'ℰ', F: 'ℱ', H: 'ℋ', I: 'ℐ', L: 'ℒ', M: 'ℳ', R: 'ℛ', e: 'ℯ', g: 'ℊ', o: 'ℴ'}],
+  fraktur: [0x1d504, 0x1d51e, {C: 'ℭ', H: 'ℌ', I: 'ℑ', R: 'ℜ', Z: 'ℨ'}],
+  bold: [0x1d400, 0x1d41a, {}],
+  italic: [0x1d434, 0x1d44e, {h: 'ℎ'}],
+  'sans-serif': [0x1d5a0, 0x1d5ba, {}],
+};
+
+function withMathVariant(node: MathNode, variant: string): MathNode {
+  // Explicit inner font commands override the outer alphabet.
+  if (node.attrs?.mathvariant) return node;
+  const alphabet = ALPHABETS[variant];
+  const text = node.tag === 'mi' && node.text && alphabet
+    ? node.text.replace(/[A-Za-z]/g, ch => alphabet[2][ch]
+      ?? String.fromCodePoint((ch <= 'Z' ? alphabet[0] : alphabet[1]) + ch.charCodeAt(0) - (ch <= 'Z' ? 65 : 97)))
+    : node.text;
+  return {
+    ...node,
+    ...(text !== undefined ? {text} : {}),
+    ...(node.tag === 'mi' ? {attrs: {...node.attrs, mathvariant: variant === 'normal' ? 'normal' : variant}} : {}),
+    ...(node.children ? {children: node.children.map(child => withMathVariant(child, variant))} : {}),
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /* Tokenizer                                                           */
@@ -309,6 +354,7 @@ interface RawGroup {
 
 interface NodeOptions {
   attrs?: Record<string, string>;
+  style?: Record<string, string>;
   text?: string;
   children?: MathNode[];
 }
@@ -316,6 +362,7 @@ interface NodeOptions {
 function makeNode(tag: string, options: NodeOptions = {}): MathNode {
   const result: MathNode = { tag };
   if (options.attrs) result.attrs = options.attrs;
+  if (options.style) result.style = options.style;
   if (options.text !== undefined) result.text = options.text;
   if (options.children && options.children.length > 0) result.children = options.children;
   return result;
@@ -325,6 +372,26 @@ function moNode(text: string, attrs?: Record<string, string>): MathNode {
   return makeNode('mo', attrs ? { attrs, text } : { text });
 }
 
+/** Replace mhchem's TeX overlap construction with MathML Core prescripts. */
+function normalizeChemicalPrescripts(node: MathNode): MathNode {
+  if (!node.children) return node;
+  const children = node.children.map(normalizeChemicalPrescripts);
+  const phantomArgument = (script: MathNode | undefined): MathNode | undefined => {
+    const padded = script?.tag === 'mrow' && script.children?.length === 1 ? script.children[0] : undefined;
+    const phantom = padded?.tag === 'mpadded' && padded.attrs?.height === '0' ? padded.children?.[0] : undefined;
+    return phantom?.tag === 'mphantom' ? phantom.children?.[0] : undefined;
+  };
+  for (let i = 0; i + 3 < children.length; i++) {
+    const [reserve, kern, overlap, base] = children.slice(i, i + 4);
+    if (reserve.tag !== 'msubsup' || kern.tag !== 'mspace' || kern.attrs?.width !== `${-1.5 / 18}em` || overlap.tag !== 'msubsup') continue;
+    const sub = phantomArgument(reserve.children?.[1]);
+    const sup = phantomArgument(reserve.children?.[2]);
+    if (!sub || !sup) continue;
+    children.splice(i, 4, makeNode('mmultiscripts', {children: [base, makeNode('mprescripts'), sub, sup]}));
+  }
+  return {...node, children};
+}
+
 class MathDisplayParser {
   readonly issues: LocalMathDisplayIssue[] = [];
 
@@ -332,10 +399,15 @@ class MathDisplayParser {
   private pos = 0;
   private readonly source: string;
   private depth = 0;
+  private readonly expansion: { length: number };
+  private readonly chemistry: boolean;
 
-  constructor(source: string) {
+  constructor(source: string, expansion = { length: 0 }, depth = 0, chemistry = false) {
     this.source = source;
     this.tokens = tokenize(source);
+    this.expansion = expansion;
+    this.depth = depth;
+    this.chemistry = chemistry;
   }
 
   parse(): MathNode {
@@ -388,14 +460,35 @@ class MathDisplayParser {
     this.enter();
     try {
       const output: MathNode[] = [];
+      let label: MathNode | undefined;
       for (;;) {
         const token = this.peek();
         if (token.kind === 'eof') break;
         if (token.kind === 'punct' && stop.chars?.has(token.value)) break;
         if (token.kind === 'command' && stop.commands?.has(token.value)) break;
         if (token.kind === 'newline' && stop.newline) break;
+        if (this.chemistry && token.kind === 'punct' && token.value === '$') {
+          this.take();
+          continue;
+        }
+        if (token.kind === 'command' && token.value === 'tag') {
+          this.take();
+          const starred = this.atPunct('*');
+          if (starred) this.take();
+          const text = this.requiredRawGroup(token).text;
+          label = makeNode('mtext', {text: starred ? text : `(${text})`});
+          continue;
+        }
         output.push(this.parseAtom());
       }
+      if (label) return [makeNode('mtable', {
+        attrs: {'data-local-math-tag': 'true'},
+        children: [makeNode('mtr', {children: [
+          makeNode('mtd', {children: [makeNode('mphantom', {children: [label]})]}),
+          makeNode('mtd', {attrs: {columnalign: 'center'}, children: output}),
+          makeNode('mtd', {attrs: {columnalign: 'right'}, children: [label]}),
+        ]})],
+      })];
       return output;
     } finally {
       this.leave();
@@ -452,6 +545,99 @@ class MathDisplayParser {
 
   private parseCommand(token: Token): MathNode {
     const name = token.value;
+    if (name === 'ce') {
+      this.take();
+      return this.parseChemistry(token);
+    }
+    if (name === 'binom' || name === 'dbinom' || name === 'tbinom') {
+      this.take();
+      const fraction = this.parseFraction();
+      fraction.attrs = {linethickness: '0'};
+      return makeNode('mrow', {children: [
+        moNode('(', {fence: 'true', stretchy: 'true'}), fraction,
+        moNode(')', {fence: 'true', stretchy: 'true'}),
+      ]});
+    }
+    if (['overset', 'stackrel', 'underset'].includes(name)) {
+      this.take();
+      const label = this.parseRequiredArgument();
+      const base = this.parseRequiredArgument();
+      return makeNode(name === 'underset' ? 'munder' : 'mover', {children: [base, label]});
+    }
+    if (['xrightarrow', 'xleftarrow', 'xrightleftharpoons', 'xleftrightharpoons', 'xleftrightarrow'].includes(name)) {
+      this.take();
+      const below = this.parseOptionalArgument();
+      const above = this.parseRequiredArgument();
+      const arrows: Record<string, string> = {xrightarrow: '→', xleftarrow: '←', xrightleftharpoons: '⇌', xleftrightharpoons: '⇋', xleftrightarrow: '↔'};
+      const arrow = moNode(arrows[name], {stretchy: 'true', minsize: '2em'});
+      return makeNode(below ? 'munderover' : 'mover', {children: below ? [arrow, below, above] : [arrow, above]});
+    }
+    if (name === 'underline' || name === 'underbrace' || name === 'overbrace') {
+      this.take();
+      const base = this.parseRequiredArgument();
+      const over = name === 'overbrace';
+      return makeNode(over ? 'mover' : 'munder', {
+        attrs: over ? {accent: 'true'} : {accentunder: 'true'},
+        children: [base, moNode(name === 'underline' ? '_' : over ? '⏞' : '⏟', {stretchy: 'true'})],
+      });
+    }
+    if (name === 'boxed') {
+      this.take();
+      return makeNode('mrow', {style: {border: '1px solid currentColor', padding: '0.2em'}, children: [this.parseRequiredArgument()]});
+    }
+    if (name === 'pmod') {
+      this.take();
+      return makeNode('mrow', {children: [makeNode('mspace', {attrs: {width: '1em'}}), moNode('('), makeNode('mi', {attrs: {mathvariant: 'normal'}, text: 'mod'}), makeNode('mspace', {attrs: {width: '0.25em'}}), this.parseRequiredArgument(), moNode(')')]});
+    }
+    if (name === 'not') {
+      this.take();
+      const base = this.parseRequiredArgument();
+      const negated: Record<string, string> = {'=': '≠', '∈': '∉', '∋': '∌', '<': '≮', '>': '≯', '≤': '≰', '≥': '≱', '⊂': '⊄', '⊆': '⊈', '≡': '≢', '∣': '∤'};
+      if (base.tag === 'mo' && base.text) return {...base, text: negated[base.text] ?? `${base.text}\u0338`};
+      return makeNode('mrow', {children: [moNode('∕'), base]});
+    }
+    const size = DELIMITER_SIZES[name.replace(/[lrm]$/, '')];
+    if (size) {
+      this.take();
+      const delimiter = this.readDelimiter();
+      if (!delimiter) return makeNode('mrow');
+      return {...delimiter, attrs: {...delimiter.attrs, minsize: size, maxsize: size}};
+    }
+    // Layout helpers emitted by mhchem. They accept only parsed nodes and numeric lengths.
+    if (['mathrel', 'mathord', 'mathop', 'smash', 'vphantom', 'hphantom', 'phantom', 'llap', 'rlap'].includes(name)) {
+      this.take();
+      if (name === 'smash') this.parseOptionalArgument();
+      const body = this.parseRequiredArgument();
+      if (name.includes('phantom')) {
+        const phantom = makeNode('mphantom', {children: [body]});
+        if (name === 'phantom') return phantom;
+        return makeNode('mpadded', {attrs: name === 'vphantom' ? {width: '0'} : {height: '0', depth: '0'}, children: [phantom]});
+      }
+      if (name === 'llap' || name === 'rlap') return makeNode('mpadded', {
+        attrs: {width: '0'},
+        children: [name === 'llap' ? makeNode('mrow', {style: {display: 'inline-block', transform: 'translateX(-100%)'}, children: [body]}) : body],
+      });
+      return body;
+    }
+    if (['mkern', 'mskip', 'lower', 'raise'].includes(name)) {
+      this.take();
+      const match = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:mu|em|ex|pt)/.exec(this.source.slice(this.peek().offset));
+      if (!match) {
+        this.report('syntax', MATH_DISPLAY_MESSAGE_KEYS.syntax, undefined, token.offset, token.end);
+        return makeNode('mrow');
+      }
+      const end = this.peek().offset + match[0].length;
+      while (this.peek().kind !== 'eof' && this.peek().end <= end) this.take();
+      if (name === 'lower' || name === 'raise') return this.parseRequiredArgument();
+      const length = match[0].endsWith('mu') ? `${parseFloat(match[0]) / 18}em` : match[0];
+      return makeNode('mspace', {attrs: {width: length}});
+    }
+    if (name === 'mathchoice') {
+      this.take();
+      const choice = this.parseRequiredArgument();
+      for (let i = 0; i < 3; i++) this.parseRequiredArgument();
+      return choice;
+    }
     if (name === 'frac' || name === 'dfrac' || name === 'tfrac') {
       this.take();
       return this.parseFraction();
@@ -482,13 +668,12 @@ class MathDisplayParser {
     }
     if (TEXT_COMMANDS.has(name)) {
       this.take();
-      const raw = this.readRawGroupInfo();
-      return makeNode('mtext', { text: raw.text });
+      const raw = this.requiredRawGroup(token);
+      return makeNode('mtext', { text: raw.text, ...(name === 'textbf' ? {style: {fontWeight: 'bold'}} : name === 'textit' ? {style: {fontStyle: 'italic'}} : {}) });
     }
     if (Object.hasOwn(VARIANT_COMMANDS, name)) {
       this.take();
-      const raw = this.readRawGroupInfo();
-      return makeNode('mtext', { attrs: { mathvariant: VARIANT_COMMANDS[name] }, text: raw.text });
+      return withMathVariant(this.parseRequiredArgument(), VARIANT_COMMANDS[name]);
     }
     if (Object.hasOwn(ACCENT_COMMANDS, name)) {
       this.take();
@@ -520,7 +705,7 @@ class MathDisplayParser {
       const char = OPERATORS[name];
       const fences = char === '(' || char === ')' || char === '[' || char === ']'
         || char === '{' || char === '}' || char === '|' || char === '‖'
-        || char === '⟨' || char === '⟩';
+        || char === '⟨' || char === '⟩' || '⌊⌋⌈⌉'.includes(char);
       return moNode(char, fences ? { fence: 'true', stretchy: 'true' } : undefined);
     }
 
@@ -540,6 +725,7 @@ class MathDisplayParser {
     this.take();
     const body = this.parseRow({ chars: new Set(['}']) });
     if (this.atPunct('}')) this.take();
+    else this.report('syntax', MATH_DISPLAY_MESSAGE_KEYS.syntax, undefined, this.peek().offset, this.peek().end);
     return makeNode('mrow', { children: body });
   }
 
@@ -562,8 +748,63 @@ class MathDisplayParser {
   }
 
   private parseRequiredArgument(): MathNode {
+    const token = this.peek();
+    if (token.kind === 'eof' || token.kind === 'newline' || this.atPunct('}') || this.atPunct('&') || this.atCommand('end')) {
+      this.report('syntax', MATH_DISPLAY_MESSAGE_KEYS.syntax, undefined, token.offset, token.end);
+      return makeNode('mrow');
+    }
     if (this.atPunct('{')) return this.parseBraceGroup();
     return this.parseAtom();
+  }
+
+  private parseOptionalArgument(): MathNode | null {
+    if (!this.atPunct('[')) return null;
+    this.take();
+    const children = this.parseRow({chars: new Set([']'])});
+    if (this.atPunct(']')) this.take();
+    else this.report('syntax', MATH_DISPLAY_MESSAGE_KEYS.syntax, undefined, this.peek().offset, this.peek().end);
+    return makeNode('mrow', {children});
+  }
+
+  private requiredRawGroup(token: Token): RawGroup {
+    const group = this.readRawGroupInfo();
+    if (!group.present || !group.terminated) this.report('syntax', MATH_DISPLAY_MESSAGE_KEYS.syntax, undefined, token.offset, group.end);
+    return group;
+  }
+
+  private parseChemistry(token: Token): MathNode {
+    const group = this.requiredRawGroup(token);
+    const literal = () => makeNode('mtext', {text: boundedLocalMathLiteral(this.source.slice(token.offset, group.end))});
+    if (!group.present || !group.terminated) return literal();
+    // Bound mhchem's recursive conversion before calling it, then bound its output
+    // across all chemical groups in this formula before parsing generated TeX.
+    let nesting = 0;
+    for (let i = 0; i < group.text.length; i++) {
+      if (group.text[i] === '\\') { i++; continue; }
+      if ('{[('.includes(group.text[i]) && ++nesting + this.depth > MAX_LOCAL_MATH_DISPLAY_DEPTH / 2) {
+        throw new MathDisplayBudget('depth', MAX_LOCAL_MATH_DISPLAY_DEPTH, token.offset);
+      }
+      if ('}])'.includes(group.text[i])) nesting--;
+    }
+    if (this.chemistry) {
+      this.report('syntax', MATH_DISPLAY_MESSAGE_KEYS.syntax, undefined, token.offset, group.end);
+      return literal();
+    }
+    try {
+      const tex = mhchemParser.toTex(group.text, 'ce');
+      this.expansion.length += tex.length;
+      if (this.expansion.length > MAX_LOCAL_MATH_DISPLAY_SOURCE) throw new MathDisplayBudget('source', MAX_LOCAL_MATH_DISPLAY_SOURCE, token.offset);
+      const parser = new MathDisplayParser(tex, this.expansion, this.depth, true);
+      const node = normalizeChemicalPrescripts(parser.parse());
+      // Generated TeX offsets have no direct source equivalent. Highlight the
+      // original chemical group, retaining each diagnostic's reason and message.
+      for (const issue of parser.issues) this.report(issue.reason, issue.messageKey, issue.params, token.offset, group.end);
+      return node;
+    } catch (error) {
+      if (error instanceof MathDisplayBudget) throw new MathDisplayBudget(error.kind, error.limit, token.offset);
+      this.report('syntax', MATH_DISPLAY_MESSAGE_KEYS.syntax, undefined, token.offset, group.end);
+      return literal();
+    }
   }
 
   private parseLeft(): MathNode {
@@ -649,13 +890,13 @@ class MathDisplayParser {
     }
 
     const rows: MathNode[] = [];
-    let guard = 0;
-    while (!this.atCommand('end') && this.peek().kind !== 'eof' && guard < 500) {
-      guard += 1;
+    const aligned = name === 'aligned' || name === 'align' || name === 'align*';
+    while (!this.atCommand('end') && this.peek().kind !== 'eof') {
       const cells: MathNode[] = [];
       for (;;) {
         const body = this.parseRow({ chars: new Set(['&']), commands: new Set(['end']), newline: true });
-        cells.push(makeNode('mtd', { attrs: { columnalign: 'left' }, children: body }));
+        const columnalign = name === 'cases' ? 'left' : aligned ? (cells.length % 2 === 0 ? 'right' : 'left') : 'center';
+        cells.push(makeNode('mtd', { attrs: { columnalign }, children: body }));
         if (!this.atPunct('&')) break;
         this.take();
       }
@@ -670,20 +911,26 @@ class MathDisplayParser {
       this.take();
     }
     if (this.atCommand('end')) {
-      this.take();
-      this.readRawGroupInfo();
+      const end = this.take();
+      const close = this.readRawGroupInfo();
+      if (!close.terminated || close.text.trim() !== name) {
+        this.report('syntax', MATH_DISPLAY_MESSAGE_KEYS.syntax, undefined, end.offset, close.end);
+      }
+    } else {
+      this.report('syntax', MATH_DISPLAY_MESSAGE_KEYS['environment-unclosed'], {name: boundedDisplayName(name)}, beginToken.offset, group.end);
     }
 
     const table = makeNode('mtable', {
-      attrs: { columnalign: 'left', columnspacing: '1em' },
+      attrs: { columnalign: name === 'cases' ? 'left' : aligned ? 'right left' : 'center', columnspacing: aligned ? '0em 1em' : '1em' },
       children: rows,
     });
-    return makeNode('mrow', {
-      children: [
-        moNode('{', { fence: 'true', stretchy: 'true' }),
-        table,
-      ],
-    });
+    const fences: Record<string, [string, string]> = {cases: ['{', ''], pmatrix: ['(', ')'], bmatrix: ['[', ']'], vmatrix: ['|', '|']};
+    const pair = fences[name];
+    if (!pair) return table;
+    return makeNode('mrow', {children: [
+      ...(pair[0] ? [moNode(pair[0], {fence: 'true', stretchy: 'true'})] : []), table,
+      ...(pair[1] ? [moNode(pair[1], {fence: 'true', stretchy: 'true'})] : []),
+    ]});
   }
 
   private applyScripts(base: MathNode): MathNode {
@@ -706,6 +953,12 @@ class MathDisplayParser {
       break;
     }
     if (!changed) return base;
+    const brace = base.children?.[1]?.text;
+    if ((base.tag === 'munder' && brace === '⏟') || (base.tag === 'mover' && brace === '⏞')) {
+      if (sub) base = makeNode('munder', {children: [base, sub]});
+      if (sup) base = makeNode('mover', {children: [base, sup]});
+      return base;
+    }
     if (sub !== null && sup !== null) return makeNode('msubsup', { children: [base, sub, sup] });
     if (sup !== null) return makeNode('msup', { children: [base, sup] });
     return makeNode('msub', { children: [base, sub!] });

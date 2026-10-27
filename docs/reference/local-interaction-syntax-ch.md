@@ -352,9 +352,22 @@ timeline 支持可选 title、unit（显示文本，默认“分钟”），正�
 
 ### 10.1 显示与绘图
 
-正文用 `$...$` 或 `\(...\)` 写行内公式，用 `$$...$$` 或 `\[...\]` 写独立公式。美元定界的行内公式在同一行配对，内容首尾不能是空白；普通美元符号写 `\$`。反斜线定界的公式允许首尾空白和跨行，例如句子中的 `\(\frac{a}{b}\)`，或独立公式 `\[x^2 + 1\]`。未闭合的定界符报错。代码、注释和 Markdown 链接目标中的定界符保持字面含义；正文中展示写法时，转义开头的反斜线或使用代码。
+正文用 `$...$` 或 `\(...\)` 写行内公式，用 `$$...$$` 或 `\[...\]` 写独立公式。美元定界的行内公式在同一行配对，允许首尾空白，例如 `$ x $`、`$x $`、`$ x$`；内容须包含非空白字符。普通金额文本（如 `$5 and $10`）保持字面含义，普通美元符号也可写 `\$`。反斜线定界的公式允许首尾空白和跨行，例如句子中的 `\(\frac{a}{b}\)`，或独立公式 `\[x^2 + 1\]`。未闭合的公式定界符报错；没有配对的单个美元符号保留为文本。代码、注释和 Markdown 链接目标中的定界符保持字面含义；正文中展示写法时，转义开头的反斜线或使用代码。
 
 独立公式用于排版，不创建状态、不发布函数。plot 容器内每个 `$$...$$` 块定义一条曲线，数学内容保持正常 LaTeX 写法，不需要 `{{ }}`。plot 仍只接受 `$$...$$`，不接受 `\(...\)` 或 `\[...\]`。
+
+排版支持 `cases`、`aligned`、`align`、`align*`、`pmatrix`、`bmatrix`、`vmatrix` 环境。用 `&` 分列，`\\` 换行；对齐环境按右、左交替对齐列，矩阵单元格居中，并显示对应括号。`align` 与 `aligned` 均在公式定界符内使用；编号通过 `\tag{1}` 显式添加，`\tag*{A}` 不加括号。
+
+| 排版内容 | 命令示例 |
+| --- | --- |
+| 字体与文本 | `\mathbb{R}`、`\mathcal{F}`、`\mathscr{L}`、`\mathfrak{g}`、`\textbf{文字}` |
+| 组合数、标注与边框 | `\binom{n}{k}`、`\underbrace{a+b}_{n}`、`\overrightarrow{AB}`、`\underline{x}`、`\boxed{x}` |
+| 上下标注与带标签箭头 | `\stackrel{!}{=}`、`\underset{x}{\lim}`、`\xrightarrow[下方]{上方}`、`\xrightleftharpoons[k_2]{k_1}` |
+| 逻辑、关系与符号 | `\implies`、`\iff`、`\not\in`、`\cong`、`\mapsto`、`\mid`、`\ll`、`\oplus`、`\varnothing`、`\therefore`、`\because`、`\triangle`、`\circ`、`\dagger`、`\vdots`、`\ddots` |
+| 箭头、定界符与尺寸 | `\rightleftharpoons`、`\longrightarrow`、`\Longleftrightarrow`、`\downarrow`、`\lfloor`、`\rfloor`、`\lceil`、`\rceil`、`\bigl(`、`\bigr)`、`\Bigg(` |
+| 函数与同余 | `\sec`、`\csc`、`\cot`、`\sinh`、`\cosh`、`\lg`、`\pmod{n}` |
+
+化学式使用 mhchem 语法 `\ce{...}`，例如 `$\ce{H2O}$`、`$\ce{SO4^2-}$`、`$\ce{^{14}_{6}C}$`、`$$\ce{2 H2 + O2 -> 2 H2O}$$`、`$$\ce{A <=>[正向][逆向] B}$$`。支持分子下标、离子电荷、同位素、系数、物态、化学键和反应箭头，由 `mhchemparser` 转换并通过同一 MathML 渲染器排版。未支持的转换命令会给出 `local.math.display` 诊断；所有文本经过转义，转换结果受长度、记号和嵌套预算限制。这些排版语法可在普通公式中使用；绘图计算支持的语法见下一节。
 
 ```markdown
 <slider bind="a" label="振幅" initial="1" min="0" max="5">

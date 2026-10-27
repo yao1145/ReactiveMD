@@ -78,6 +78,7 @@
     "test:date-browser": "node scripts/verify-date-input-browser.mjs",
     "test:editor-browser": "node scripts/verify-editor-browser.mjs",
     "test:markdown-browser": "node scripts/verify-markdown-browser.mjs",
+    "test:math-browser": "node scripts/verify-math-browser.mjs",
     "test:html-browser": "node scripts/verify-html-compat-browser.mjs && node scripts/verify-html-table-browser.mjs",
     "test:media-browser": "node scripts/verify-media-browser.mjs",
     "test:computations-browser": "node scripts/verify-computations-browser.mjs",
@@ -146,6 +147,7 @@
     "vitest": "5.0.5"
   },
   "dependencies": {
-    "elkjs": "0.12.0"
+    "elkjs": "0.12.0",
+    "mhchemparser": "4.2.1"
   }
 }

@@ -9,6 +9,46 @@ import type { LocalNode } from '../src/local/types';
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flatten(n.children ?? [])]);
 const formulas = (nodes: LocalNode[]) => flatten(nodes).filter(n => n.type === 'math' || n.type === 'inlineMath');
 
+describe('space-padded dollar math', () => {
+  it.each(['$ x $', '$x $', '$ x$', '$\tx + y\t$', '$ \\frac{a}{b} $'])(
+    'parses and renders inline math while preserving source whitespace: %s', source => {
+      const result = compileLocal(source);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.diagnostics).toEqual([]);
+      const [math] = formulas(result.document.nodes);
+      expect(math).toMatchObject({type: 'inlineMath', value: source.slice(1, -1), range: {start: 0, end: source.length}});
+      const runtime = createLocalRuntime(result.document);
+      try {
+        const html = renderToStaticMarkup(<LocalDocumentView document={result.document} runtime={runtime} />);
+        expect(html).toContain('display="inline"');
+        expect(html).toContain('application/x-tex');
+      } finally { runtime.dispose(); }
+    },
+  );
+
+  it('retains diagnostic offsets after leading whitespace and emoji', () => {
+    const source = '😀 $  x+\\unknown  $';
+    const issue = compileLocal(source).diagnostics.find(d => d.code === 'local.math.display');
+    expect(issue).toBeDefined();
+    expect(source.slice(issue!.range.start, issue!.range.end)).toBe('\\unknown');
+  });
+
+  it.each(['$ $', '$\t $', '$ x\ny $', '$ x\r\ny $', '价格 $5 and $10', '价格 $5 $10'])(
+    'keeps empty, multiline and currency text literal: %s', source => {
+      const result = parseLocal(source);
+      expect(result.diagnostics).toEqual([]);
+      expect(formulas(result.nodes)).toEqual([]);
+    },
+  );
+
+  it('supports adjacent padded formulas inside formatting and leaves code literal', () => {
+    const result = parseLocal('**$ x $** and $ y $ and `$ z $`');
+    expect(result.diagnostics).toEqual([]);
+    expect(formulas(result.nodes).map(n => n.value)).toEqual([' x ', ' y ']);
+  });
+});
+
 describe('backslash LaTeX delimiters', () => {
   it('parses inline and display delimiters without rewriting original source ranges', () => {
     const source = String.raw`前文 \(\frac{a}{b}\) 后文。
