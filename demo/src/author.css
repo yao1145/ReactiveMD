@@ -163,10 +163,6 @@
   max-width: none;
 }
 
-.app-shell.is-simple .local-document > p {
-  max-width: 75ch;
-}
-
 /* Untitled cards group controls and results in the source. Keep their
    presentation open; titled content cards retain their normal treatment. */
 .app-shell.is-simple .local-document > .local-grid > .local-card:not(:has(> .md-card-title)) {
