@@ -43,7 +43,7 @@ describe('native HTML capability boundaries', () => {
   it('rejects invalid alignment values even when author CSS is allowed', () => {
     const result = output('<div align="center;color:red">Text</div>', { enableCss: true });
     expect(attrs(elements(result.tree, 'div')[0]).align).toBeUndefined();
-    expect(result.diagnostics.some(d => d.code === 'local.html.attribute')).toBe(true);
+    expect(result.diagnostics.some(d => d.code === 'local.html.fallback')).toBe(true);
   });
   it('preserves allowed whole-document attributes within the isolated document', () => {
     const result = output('<html lang="zh" dir="rtl"><head data-note="head"></head><body id="content" style="color:red" onload="window.ran=true"><p>Body</p></body></html>', { enableCss: true, enableJavaScript: true, enableExtendedHtml: true });

@@ -35,7 +35,7 @@ describe('native HTML engine failure fallback', () => {
     const result = compileLocal(`# Before\n\n${fragment}\n\n# After`);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.diagnostics).toContainEqual(expect.objectContaining({code: 'local.html', severity: 'warning'}));
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({code: 'local.html.fallback', severity: 'warning'}));
     const runtime = createLocalRuntime(result.document);
     try {
       const markup = renderToStaticMarkup(<LocalDocumentView document={result.document} runtime={runtime} />);
@@ -70,5 +70,20 @@ describe('native HTML engine failure fallback', () => {
       const markup = renderToStaticMarkup(<LocalDocumentView document={document} runtime={runtime} />);
       expect(elements(parseFragment(markup), 'pre').map(text)).toEqual([source]);
     } finally { runtime.dispose(); }
+  });
+
+  it.each([
+    '<!-- force-parse-failure --><p>Nested</p>',
+    '<p data-force-serialization-failure>Nested</p>',
+  ])('reports safe srcdoc engine fallback without failing its host: %s', nested => {
+    const encoded = nested.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const source = `<iframe srcdoc="${encoded}"></iframe>`;
+    const result = compileLocal(source, {enableExtendedHtml: true});
+    expect(result.ok).toBe(true);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({code: 'local.html.fallback', severity: 'warning'}));
+    if (!result.ok) return;
+    const frame = elements(parseFragment(result.document.nodes[0].value!), 'iframe')[0];
+    const srcdoc = frame.attrs.find((attr: any) => attr.name === 'srcdoc').value;
+    expect(elements(parseFragment(srcdoc), 'pre').map(text)).toEqual([nested]);
   });
 });

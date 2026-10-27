@@ -106,6 +106,8 @@ React 快捷组件通过 `compileOptions` 接收同样的设置：
 
 ### 原文回退
 
+成功转为惰性源码时发出 `local.html.fallback` 警告。未知 ReactiveMD 组件继续使用 `local.component.unknown`；致命编译失败仍返回 `ok: false`。宿主可以单独放行回退警告，同时保留对组件拼写错误的检查。详见[诊断契约](diagnostics-counting-ch.md#原生-html-安全回退)。
+
 无法编译的局部原生 HTML 按原文显示，其余 Markdown、公式和控件继续工作。回退覆盖不支持的标签或属性、无效的原生表格，以及缺少完整结束标记的 HTML 片段。无法找到结束标签时，片段截至当前段落或外层 ReactiveMD 容器的结束标签。回退片段中的 Markdown、`{{ 表达式 }}`、组件和脚本均保留为文本。
 
 原生 HTML 路径中，不支持的属性会使所在元素回退为原文；相邻元素继续渲染。整篇解析、序列化或编译预算检查失败时，React 预览和 standalone 挂载显示完整源码，保留换行并转义标签。`compileLocal` 的错误结果、资源限制和 `onDiagnostics` 诊断仍保留；配置错误及 ReactiveMD 组件语法错误继续按原规则处理。

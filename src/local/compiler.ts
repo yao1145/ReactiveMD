@@ -42,6 +42,7 @@ import {
 import { parseValidationFields } from './validation';
 import { readLocalCompileOptions, type LocalOptionCheck } from './options';
 import { sanitizeLocalHtmlDocument } from './html';
+import { plainCompiledData } from './compiled-data';
 import type {
   LocalBinding,
   LocalCompileOptions,
@@ -317,7 +318,12 @@ function compileHtmlLocal(source: string, check: Extract<LocalOptionCheck, { ok:
   return { ok: true, document, diagnostics: sanitized.diagnostics };
 }
 
+/** Compile to plain data that can cross a React Server Component boundary. */
 export function compileLocal(source: string, options?: LocalCompileOptions): LocalCompileResult {
+  return plainCompiledData(compileLocalInternal(source, options));
+}
+
+function compileLocalInternal(source: string, options?: LocalCompileOptions): LocalCompileResult {
   const optionCheck = readLocalCompileOptions(options);
   if (!optionCheck.ok) {
     return {

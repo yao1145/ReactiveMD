@@ -196,7 +196,7 @@ describe('basic inline HTML', () => {
 
   it('never turns attributes or unknown raw HTML into executable elements', () => {
     const attributed = parseLocal('<b class="x">粗</b>');
-    expect(attributed.diagnostics.map(d => d.code)).toContain('local.html');
+    expect(attributed.diagnostics.map(d => d.code)).toContain('local.html.fallback');
     expect(attributed.diagnostics.every(d => d.severity === 'warning')).toBe(true);
     expect(flat(attributed.nodes).some(n => n.type === 'strong')).toBe(false);
 

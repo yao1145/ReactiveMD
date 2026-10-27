@@ -350,13 +350,19 @@ function literalHtmlDocument(state: SanitizeState): string {
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"></head><body><pre data-local-html-fallback="document">\n${literal}</pre></body></html>`;
 }
 
-function sanitizeSrcdoc(value: string, state: SanitizeState): string {
+function sanitizeSrcdoc(value: string, state: SanitizeState, range: {start: number; end: number}): string {
   if (state.depth >= MAX_HTML_SRCDOC_DEPTH) return '';
+  const diagnosticStart = state.diagnostics.length;
+  const fallback = () => {
+    markLiteralDiagnostics(state, diagnosticStart);
+    warn(state, 'local.html.fallback', 'Native HTML was safely converted to inert source text.', range.start, range.end);
+    return literalHtmlDocument({...state, source: value});
+  };
   let document: DefaultTreeAdapterTypes.Document;
   try {
     document = parse(value, { scriptingEnabled: false, sourceCodeLocationInfo: true });
   } catch {
-    return literalHtmlDocument({...state, source: value});
+    return fallback();
   }
   const nested: SanitizeState = {
     ...state,
@@ -369,13 +375,17 @@ function sanitizeSrcdoc(value: string, state: SanitizeState): string {
   try {
     const html = findChildElement(document, 'html');
     if (html) {
-      if (!cleanAttributes(html, 'html', true, nested)) return literalHtmlDocument(nested);
+      const diagnosticStart = state.diagnostics.length;
+      if (!cleanAttributes(html, 'html', true, nested)) {
+        markLiteralDiagnostics(nested, diagnosticStart);
+        return literalHtmlDocument(nested);
+      }
       cleanParent(html, nested, false);
     }
     return shell(nested, document);
   } catch (error) {
     if (error instanceof HtmlBudgetError) throw error;
-    return literalHtmlDocument(nested);
+    return fallback();
   }
 }
 
@@ -440,7 +450,7 @@ function cleanAttributes(element: PElement, tag: string, html: boolean, state: S
     }
 
     if (name === 'srcdoc' && tag === 'iframe') {
-      const sanitized = sanitizeSrcdoc(attribute.value, state);
+      const sanitized = sanitizeSrcdoc(attribute.value, state, range);
       if (sanitized === '') continue;
       attribute.value = sanitized;
       kept.push(attribute);
@@ -497,6 +507,7 @@ function cleanAttributes(element: PElement, tag: string, html: boolean, state: S
 }
 
 function cleanElement(element: PElement, state: SanitizeState, inHead: boolean): PChild[] {
+  const diagnosticStart = state.diagnostics.length;
   const range = elementRange(element, state);
   countNode(state, range.start, range.end);
   const tag = element.tagName.toLowerCase();
@@ -504,7 +515,7 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
 
   if (ALWAYS_DENIED.has(tag)) {
     state.bodyFallbacks.push(fallbackSource(element, state));
-    warn(state, 'local.html.extended', `HTML element <${tag}> requires enableExtendedHtml in this mode; it is shown as source.`, range.start, range.end, {
+    warn(state, 'local.html.fallback', `HTML element <${tag}> requires enableExtendedHtml in this mode; it is shown as source.`, range.start, range.end, {
       key: 'local.html.extended', params: { name: tag },
     });
     return [];
@@ -524,7 +535,7 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
       });
       return [];
     }
-    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
+    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead, diagnosticStart);
     return [element];
   }
 
@@ -535,7 +546,7 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
       });
       return [];
     }
-    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
+    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead, diagnosticStart);
     return [element];
   }
 
@@ -548,13 +559,13 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
         });
         return [];
       }
-      if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
+      if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead, diagnosticStart);
       return [element];
     }
     if (!state.policy.enableExtendedHtml) {
       return disallowed(element, state);
     }
-    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
+    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead, diagnosticStart);
     return [element];
   }
 
@@ -567,7 +578,7 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
       });
       return [];
     }
-    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
+    if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead, diagnosticStart);
     return [element];
   }
 
@@ -580,7 +591,7 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
     : state.policy.enableExtendedHtml;
   if (!allowed) return disallowed(element, state, inHead);
 
-  if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead);
+  if (!cleanAttributes(element, tag, html, state)) return literalElement(element, state, inHead, diagnosticStart);
 
   if (tag === 'template') {
     const content = defaultTreeAdapter.getTemplateContent(element as DefaultTreeAdapterTypes.Template);
@@ -593,21 +604,32 @@ function cleanElement(element: PElement, state: SanitizeState, inHead: boolean):
 }
 
 function disallowed(element: PElement, state: SanitizeState, inHead = false): PChild[] {
+  const diagnosticStart = state.diagnostics.length;
   const tag = element.tagName.toLowerCase();
   const range = elementRange(element, state);
   warn(state, 'local.html.extended', `HTML element <${tag}> requires enableExtendedHtml in this mode; it is shown as source.`, range.start, range.end, {
     key: 'local.html.extended', params: { name: tag },
   });
-  return literalElement(element, state, inHead);
+  return literalElement(element, state, inHead, diagnosticStart);
 }
 
-function literalElement(element: PElement, state: SanitizeState, inHead: boolean): PChild[] {
+function literalElement(element: PElement, state: SanitizeState, inHead: boolean, diagnosticStart: number): PChild[] {
+  markLiteralDiagnostics(state, diagnosticStart);
   // Head metadata cannot display; append escaped source to the body instead.
   if (inHead) {
     state.bodyFallbacks.push(fallbackSource(element, state));
     return [];
   }
   return [makeText(fallbackSource(element, state))];
+}
+
+/** Classify only diagnostics for an element actually replaced by source text. */
+function markLiteralDiagnostics(state: SanitizeState, diagnosticStart: number): void {
+  for (const diagnostic of state.diagnostics.slice(diagnosticStart)) {
+    if (diagnostic.severity === 'warning') {
+      diagnostic.code = 'local.html.fallback';
+    }
+  }
 }
 
 function cleanParent(parent: PParent, state: SanitizeState, inHead: boolean): void {
@@ -674,7 +696,11 @@ export function sanitizeLocalHtmlDocument(source: string, policy: LocalHtmlPolic
   try {
     const html = findChildElement(document, 'html');
     if (html) {
-      if (!cleanAttributes(html, 'html', true, state)) return {markup: literalHtmlDocument(state), diagnostics};
+      const diagnosticStart = state.diagnostics.length;
+      if (!cleanAttributes(html, 'html', true, state)) {
+        markLiteralDiagnostics(state, diagnosticStart);
+        return {markup: literalHtmlDocument(state), diagnostics};
+      }
       cleanParent(html, state, false);
     } else {
       cleanParent(document, state, false);

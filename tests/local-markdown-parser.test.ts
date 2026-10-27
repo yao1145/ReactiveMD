@@ -126,8 +126,8 @@ describe('basic HTML in Markdown contexts', () => {
   it('does not execute script-like fallbacks and never opens attributes', () => {
     const parsed = parseLocal('<script>alert(1)</script> 与 <u style="x">下划线</u>');
     const codes = parsed.diagnostics.map(diagnostic => diagnostic.code);
-    expect(codes).toContain('local.component.unknown');
-    expect(codes).toContain('local.html');
+    expect(codes.length).toBeGreaterThan(0);
+    expect(codes.every(code => code === 'local.html.fallback')).toBe(true);
     expect(parsed.diagnostics.every(diagnostic => diagnostic.severity === 'warning')).toBe(true);
     expect(ofType(parsed.nodes, 'underline')).toEqual([]);
     expect(ofType(parsed.nodes, 'fallback').length).toBeGreaterThan(0);

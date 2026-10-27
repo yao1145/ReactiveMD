@@ -119,6 +119,24 @@ The budget counts `LocalNode` instances created cumulatively during parsing, inc
 
 To use a custom budget in React, call `compileLocal` first and pass the compiled document and runtime to `LocalDocumentView`. `LocalReactiveDocument` and the Playground compilation thread use the default budget. After raising the node budget, hosts should measure memory and preview rendering time with their actual documents.
 
+#### Next.js Server Components
+
+`compileLocal` returns plain data at every depth, including `document.dependencies`, node `attrs`, bindings and diagnostics. Records use `Object.prototype`; arrays use `Array.prototype`. Internal dictionaries may still use null prototypes. Existing frozen metadata and `undefined` fields are preserved.
+
+Compile on the server, check `result.ok`, then pass `result.document` directly to a Client Component as a prop. A JSON round trip is unnecessary. This meets React's [plain-object requirement for serializable props](https://react.dev/reference/rsc/use-client#serializable-types-returned-by-server-components). In the Client Component, create and dispose `createLocalRuntime(document)` and render `LocalDocumentView` with that runtime. Runtime instances and host callbacks stay on the client; the plain-data guarantee applies to compiler output.
+
+```tsx
+// Server Component; ClientDocument is the host's 'use client' wrapper.
+import { compileLocal } from 'reactive-md';
+import ClientDocument from './ClientDocument';
+
+export default function Page() {
+  const result = compileLocal('<counter bind="n" label="Count" initial="2">');
+  if (!result.ok) throw new Error('Compilation failed');
+  return <ClientDocument document={result.document} />;
+}
+```
+
 ### Host components
 
 A host can register leaf tags for one compilation without changing the `local-draft-2` syntax revision:

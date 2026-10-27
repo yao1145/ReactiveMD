@@ -28,7 +28,7 @@ describe('security regression boundaries', () => {
     const result = compileLocal(source);
     expect(result.ok).toBe(true);
     expect(result.diagnostics).toEqual([expect.objectContaining({
-      code: 'local.component.unknown', severity: 'warning',
+      code: 'local.html.fallback', severity: 'warning',
     })]);
     const html = renderToStaticMarkup(createElement(LocalReactiveDocument, { source }));
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');

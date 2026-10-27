@@ -1272,7 +1272,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
             invalidNativeTable = true;
             const key = `html.table.${kind}`;
             const params = { tag: tag ?? 'table', name: name ?? '' };
-            warning('local.html.table', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
+            warning('local.html.fallback', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
           },
           attributes: (name, from, to) => {
             const tag = htmlTagAt(from, to, true);
@@ -1282,7 +1282,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
               const attribute = selected && !selected.ok ? selected.attr : '';
               const key = `html.table.${['colspan', 'rowspan', 'span', 'scope', 'align'].includes(attribute) ? 'value' : 'attribute'}`;
               const params = { tag: name, name: attribute };
-              warning('local.html.table', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
+              warning('local.html.fallback', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
               return {};
             }
             return selected.attrs;
@@ -1299,7 +1299,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           const stop = unknownTagEnd(opening.end, opening.name, end, insideContainer, true)?.end ?? htmlLiteralEnd(opening.end, end, parent);
           const retained = diagnostics.slice(htmlDiagnosticStart).filter(d => d.code.startsWith('local.budget'));
           diagnostics.splice(htmlDiagnosticStart, diagnostics.length - htmlDiagnosticStart, ...retained);
-          warning('local.html', 'Native HTML parsing failed; the fragment is shown as source.', i, stop, {key: 'local.html'});
+          warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
           nativeTable = {node: node('fallback', i, stop, {value: source.slice(i, stop)}), end: stop};
           invalidNativeTable = false;
         }
@@ -1307,7 +1307,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           if (invalidNativeTable) {
             // Discard diagnostics from content that will now be shown literally.
             // Resource budgets remain fatal, including those hit in nested cells.
-            const retained = diagnostics.slice(htmlDiagnosticStart).filter(d => d.code === 'local.html.table' || d.code.startsWith('local.budget'));
+            const retained = diagnostics.slice(htmlDiagnosticStart).filter(d => d.code === 'local.html.fallback' || d.code.startsWith('local.budget'));
             diagnostics.splice(htmlDiagnosticStart, diagnostics.length - htmlDiagnosticStart, ...retained);
           }
           tokens.push({ start: i, end: nativeTable.end, block: true, node: invalidNativeTable
@@ -1319,6 +1319,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         if (html) {
           if (html.closing) {
             // A stray closing tag is inert source, never a structural error.
+            warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, html.end, {key: 'local.html.fallback'});
             tokens.push({ start: i, end: html.end, block: false, node: node('fallback', i, html.end, { value: source.slice(i, html.end) }) });
             i = html.end;
             continue;
@@ -1328,7 +1329,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
             const stop = html.self || HTML_VOID.has(html.lower)
               ? html.end
               : (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? html.end);
-            warning('local.html', `HTML attribute ${selection.attr} is not supported; the tag is shown as source.`, i, stop, { key: 'local.html' });
+            warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback.attribute', 'en', {name: selection.attr}), i, stop, {key: 'local.html.fallback.attribute', params: {name: selection.attr}});
             tokens.push({ start: i, end: stop, block: false, node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
             i = stop;
             continue;
@@ -1362,7 +1363,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           const close = htmlCloseEnd(html.end, html.lower, end, insideContainer);
           if (!close) {
             const stop = htmlLiteralEnd(html.end, end, parent);
-            warning('local.html', 'Unclosed native HTML is shown as source.', i, stop, {key: 'local.html'});
+            warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
             tokens.push({ start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
             i = stop;
             continue;
@@ -1424,11 +1425,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         if (scanned && !known.has(scanned.name.toLowerCase()) && NATIVE_HTML_NAMES.has(scanned.name.toLowerCase())) {
           const stop = scanned.closing || scanned.self || NATIVE_HTML_VOID.has(scanned.name.toLowerCase())
             ? scanned.end : (unknownTagEnd(scanned.end, scanned.name, end, insideContainer, true)?.end ?? htmlLiteralEnd(scanned.end, end, parent));
-          const suggestion = suggestComponent(scanned.name);
-          warning('local.component.unknown',
-            `Unknown component <${scanned.name}>. ${suggestion ? `Did you mean <${suggestion}>?` : 'This mode only accepts local interaction components.'}`,
-            i, stop, {key: suggestion ? 'local.component.unknown.suggestion' : 'local.component.unknown',
-              params: suggestion ? {name: scanned.name, suggestion} : {name: scanned.name}});
+          warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
           tokens.push({start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, {value: source.slice(i, stop)})});
           i = stop;
           continue;
@@ -1477,7 +1474,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           if (tag.unclosed) {
             if (!known.has(tag.name.toLowerCase()) && NATIVE_HTML_NAMES.has(tag.name.toLowerCase())) {
               const stop = htmlLiteralEnd(tag.head, end, parent);
-              warning('local.html', 'Malformed native HTML is shown as source.', i, stop, {key: 'local.html'});
+              warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
               tokens.push({start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, {value: source.slice(i, stop)})});
               i = stop;
               continue;

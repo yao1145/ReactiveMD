@@ -59,7 +59,7 @@ describe('native HTML source fallback', () => {
     expect(elements(tree, 'script')).toHaveLength(0);
     expect(text(tree)).toContain(fragment);
     expect(elements(tree, 'p').map(text)).toEqual(['Before', 'After']);
-    expect(result.diagnostics).toContainEqual(expect.objectContaining({code: 'local.html.attribute', severity: 'warning'}));
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({code: 'local.html.fallback', severity: 'warning'}));
   });
 
   it('shows the full native document as text when compilation exceeds its node budget', () => {

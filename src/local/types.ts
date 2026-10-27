@@ -97,6 +97,7 @@ export interface LocalValidation {
   fields: string[];
   range: SourceRange;
 }
+/** Compiler-produced documents contain only plain records, arrays and primitives. */
 export interface LocalDocument {
   syntax: 'local';
   source: string;
@@ -214,6 +215,7 @@ export interface LocalCompileOptions extends LocalHtmlOptions {
   /** Host-defined leaf components recognized alongside the built-in schema. */
   readonly hostComponents?: readonly LocalHostComponentSchema[];
 }
+/** Public compiler output is plain data, including nested attributes and dependencies. */
 export type LocalCompileResult = { ok: true; document: LocalDocument; diagnostics: Diagnostic[] } | { ok: false; diagnostics: Diagnostic[] };
 export interface LocalSnapshot { revision: number; state: Readonly<Record<string, LocalValue>> }
 export interface LocalRuntime {

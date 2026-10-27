@@ -87,7 +87,7 @@ describe('P0 HTML renderer', () => {
   it.each(['center;color:red', '{{ alignment }}', '', 'middle', 'url(javascript:alert(1))'])('keeps invalid alignment inert: %s', align => {
     const result = compileLocal(`<div align="${align}">你好</div>`);
     expect(result.ok).toBe(true);
-    expect(result.diagnostics.some(d => d.code === 'local.html')).toBe(true);
+    expect(result.diagnostics.some(d => d.code === 'local.html.fallback')).toBe(true);
     const { tree } = render(`<div align="${align}">你好</div>`, undefined, true);
     expect(elements(tree, 'div').some(node => attrs(node).align !== undefined)).toBe(false);
   });

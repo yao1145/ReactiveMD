@@ -2,7 +2,7 @@
 
 [中文](diagnostics-counting-ch.md)
 
-This page defines the 0.4.x diagnostics contract, text-length units and resource-budget scopes.
+This page defines the diagnostics contract, text-length units and resource-budget scopes.
 
 ## Diagnostics contract
 
@@ -22,6 +22,26 @@ Changing language preserves codes, severity and source locations. Existing diagn
 Ranges are zero-based UTF-16 indexes with half-open intervals `[start, end)`. Lines and columns are one-based; columns count UTF-16 code units. LF advances the line, and CRLF occupies two source code units. Positions always refer to the original, unnormalized source.
 
 When the diagnostic limit is reached, new warnings may be omitted; a new error takes priority over an existing warning. Compile errors make `ok` false. Rejected runtime writes preserve committed state and revision.
+
+### Safe native HTML fallback
+
+| Outcome | Machine contract | Host action |
+| --- | --- | --- |
+| Native HTML converted to inert source | `code: 'local.html.fallback'`, `severity: 'warning'` | The affected HTML is already literal text; this warning can be allowed explicitly |
+| Unknown ReactiveMD component, such as `<slidr />` | `code: 'local.component.unknown'` | Report or reject according to the host's component policy |
+| Fatal compilation failure | `result.ok === false`, with an `error` diagnostic | Reject the compilation; rendering source text does not change this outcome |
+
+The fallback code covers unsupported native tags, attributes, malformed fragments and native tables in both compilation routes. It does not mean the entire document has no other problems. Capability stripping, such as removing disabled scripts from native HTML, retains `local.html.capability`; it is not source fallback. Existing codes remain registered, but hosts should use the dedicated code for this allowance:
+
+```ts
+const result = compileLocal(source);
+if (!result.ok) throw new Error('Compilation failed');
+const unhandled = result.diagnostics.filter(d => d.code !== 'local.html.fallback');
+if (unhandled.length) throw new Error('Document needs review');
+// result.document is ready for rendering under the host's HTML policy.
+```
+
+Messages and template keys describe the cause and may differ across fallback cases. Use `code` and `severity` for classification. See [HTML source fallback](html-compatibility-en.md#source-fallback) for rendering behavior.
 
 ## Text length
 

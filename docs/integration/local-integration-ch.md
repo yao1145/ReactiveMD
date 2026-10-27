@@ -119,6 +119,24 @@ const result = compileLocal(source, options);
 
 需要在 React 中使用自定义预算时，先调用 `compileLocal`，再把编译文档和运行时交给 `LocalDocumentView`。`LocalReactiveDocument` 和 Playground 的编译线程使用默认预算。提高节点预算后，宿主应结合实际文档测量内存和预览渲染耗时。
 
+#### Next.js Server Components
+
+`compileLocal` 的返回值在每一层都使用普通数据，包括 `document.dependencies`、节点 `attrs`、绑定及诊断。记录对象的原型为 `Object.prototype`，数组为 `Array.prototype`；内部字典仍可使用空原型。已有的冻结元数据和 `undefined` 字段会保留。
+
+在服务端编译并检查 `result.ok` 后，可以直接把 `result.document` 作为属性交给 Client Component，无需 JSON 往返转换。这满足 React 对[可序列化属性中普通对象的要求](https://react.dev/reference/rsc/use-client#serializable-types-returned-by-server-components)。客户端组件负责创建、销毁 `createLocalRuntime(document)`，并把运行时交给 `LocalDocumentView`。运行时实例及宿主回调留在客户端；普通数据保证适用于编译产物。
+
+```tsx
+// Server Component；ClientDocument 是宿主的 'use client' 包装组件。
+import { compileLocal } from 'reactive-md';
+import ClientDocument from './ClientDocument';
+
+export default function Page() {
+  const result = compileLocal('<counter bind="n" label="计数" initial="2">');
+  if (!result.ok) throw new Error('编译失败');
+  return <ClientDocument document={result.document} />;
+}
+```
+
 ### 宿主组件
 
 宿主可以为单次编译登记叶子标签，不改变 `local-draft-2` 语法修订：

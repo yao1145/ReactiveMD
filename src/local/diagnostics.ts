@@ -261,6 +261,14 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Raw HTML is not part of the local interaction syntax.',
     zh: '原始 HTML 不属于本地交互语法。',
   },
+  'html.fallback': {
+    en: 'Native HTML was safely converted to inert source text.',
+    zh: '原生 HTML 已安全回退为惰性源码文本。',
+  },
+  'html.fallbackAttribute': {
+    en: 'Native HTML attribute {name} is unsupported; the element was safely converted to inert source text.',
+    zh: '原生 HTML 属性 {name} 不受支持；该元素已安全回退为惰性源码文本。',
+  },
   'html.table.structure': { en: 'Invalid native HTML table structure in <{tag}>.', zh: '原生 HTML 表格的 <{tag}> 结构无效。' },
   'html.table.mixed': { en: 'Keep text and Markdown inside cells or captions; native HTML table structure cannot mix with Markdown table rows.', zh: '文字和 Markdown 应写在单元格或标题内；原生 HTML 表格结构不能混用 Markdown 表格行。' },
   'html.table.attribute': { en: 'Attribute {name} is not supported on native HTML <{tag}>. ReactiveMD table options require a Markdown table body.', zh: '原生 HTML <{tag}> 不支持属性 {name}。ReactiveMD 表格选项只适用于 Markdown 表格正文。' },
@@ -1214,6 +1222,7 @@ const LOCAL_PARSER_CODES = [
   'local.math.whitespace',
   'local.component.unknown',
   'local.html',
+  'local.html.fallback',
   'local.html.table',
 ] as const;
 
@@ -1451,6 +1460,8 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.math.whitespace': 'math.whitespace',
   'local.footnote.unsupported': 'footnote.unsupported',
   'local.html': 'html.raw',
+  'local.html.fallback': 'html.fallback',
+  'local.html.fallback.attribute': 'html.fallbackAttribute',
   'local.html.table': 'html.table.structure',
   'local.html.extended': 'html.extended',
   'local.html.attribute': 'html.attribute',

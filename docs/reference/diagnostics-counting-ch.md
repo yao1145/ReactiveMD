@@ -2,7 +2,7 @@
 
 [English](diagnostics-counting-en.md)
 
-本页定义 0.4.x 的诊断契约、字符长度单位与资源预算作用域。
+本页定义诊断契约、字符长度单位与资源预算作用域。
 
 ## 诊断契约
 
@@ -22,6 +22,26 @@ for (const diagnostic of result.diagnostics) {
 `range` 使用从零开始的 UTF-16 索引，表示半开区间 `[start, end)`。`line` 和 `column` 从 1 开始，列按 UTF-16 代码单元计数。LF 换行使行号增加，CRLF 占两个源码代码单元。范围始终指向未经规范化的原始源码。
 
 诊断数量达到上限时，新警告可以被省略；新的错误优先替换已有警告。编译错误使 `ok` 为 `false`。运行时写入被拒绝时，已提交状态与 revision 保持不变。
+
+### 原生 HTML 安全回退
+
+| 情况 | 机器契约 | 宿主处理 |
+| --- | --- | --- |
+| 原生 HTML 已转换为惰性源码 | `code: 'local.html.fallback'`，`severity: 'warning'` | 对应 HTML 已成为纯文本，可以单独放行此警告 |
+| 未知 ReactiveMD 组件，例如 `<slidr />` | `code: 'local.component.unknown'` | 按宿主的组件策略报告或拒绝 |
+| 致命编译失败 | `result.ok === false`，并有 `error` 诊断 | 拒绝此次编译；界面显示源码不改变失败结果 |
+
+专用回退码覆盖两条编译路径中不支持的原生标签、属性、不完整片段和原生表格。它只说明对应 HTML 已回退，同一文档仍可能有其他问题。移除原生 HTML 中未获授权的脚本等能力裁剪继续使用 `local.html.capability`，不属于源码回退。旧诊断码仍保留注册；宿主应按专用码设置放行策略：
+
+```ts
+const result = compileLocal(source);
+if (!result.ok) throw new Error('编译失败');
+const unhandled = result.diagnostics.filter(d => d.code !== 'local.html.fallback');
+if (unhandled.length) throw new Error('文档需要检查');
+// 可以按宿主的 HTML 策略渲染 result.document。
+```
+
+不同回退原因可以保留不同消息和模板键，分类使用 `code` 与 `severity`。渲染行为见 [HTML 原文回退](html-compatibility-ch.md#原文回退)。
 
 ## 文本长度
 

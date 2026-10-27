@@ -106,6 +106,8 @@ Mixing Markdown table rows and HTML table structure in one table produces a diag
 
 ### Source fallback
 
+Successful conversion to inert source emits a `local.html.fallback` warning. Unknown ReactiveMD components retain `local.component.unknown`; fatal compilation still returns `ok: false`. Hosts can explicitly allow the fallback warning without allowing component spelling errors. See the [diagnostic contract](diagnostics-counting-en.md#safe-native-html-fallback).
+
 Native HTML fragments that cannot compile are displayed as their original text, while surrounding Markdown, formulas and controls continue to work. This covers unsupported tags or attributes, invalid native tables and incomplete HTML fragments. An unclosed fragment ends at the current paragraph boundary or the enclosing ReactiveMD container's closing tag. Markdown, `{{ expressions }}`, components and scripts inside a fallback fragment stay literal.
 
 In the native HTML route, an unsupported attribute makes its element fall back to source while neighboring elements continue to render. If whole-document parsing, serialization or compilation budget checks fail, React previews and standalone mounts display the complete source with preserved line breaks and escaped tags. Error results from `compileLocal`, resource limits and `onDiagnostics` reports are retained. Invalid host options and ReactiveMD component syntax errors keep their existing behavior.

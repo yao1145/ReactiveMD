@@ -117,8 +117,8 @@ describe('HTML table compatibility', () => {
     expect(result.diagnostics.every(d => d.severity === 'warning')).toBe(true);
     expect(flat(result.document.nodes).find(n => n.type === 'fallback')?.value).toBe(source);
     expect(flat(result.document.nodes).some(n => n.type === 'htmlTable')).toBe(false);
-    expect(result.diagnostics.some(d => d.code === 'local.html.table')).toBe(true);
-    expect(formatLocalDiagnostic(result.diagnostics.find(d => d.code === 'local.html.table')!, 'zh')).toMatch(/[\u4e00-\u9fff]/);
+    expect(result.diagnostics.some(d => d.code === 'local.html.fallback')).toBe(true);
+    expect(formatLocalDiagnostic(result.diagnostics.find(d => d.code === 'local.html.fallback')!, 'zh')).toMatch(/[\u4e00-\u9fff]/);
     expect(result.diagnostics.every(d => d.range.start >= 0 && d.range.end <= source.length)).toBe(true);
   });
 
