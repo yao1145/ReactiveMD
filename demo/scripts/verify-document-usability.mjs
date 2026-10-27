@@ -34,6 +34,12 @@ async function maxSlider(name) {
   return slider;
 }
 
+async function trialStateCheckbox() {
+  const options = page.locator('.workbench-options');
+  if (!await options.evaluate(element => element.open)) await options.locator(':scope > summary').click();
+  return options.getByRole('checkbox', {name: 'Keep trial state', exact: true});
+}
+
 const trialSource = `<panel title="Trial parameters">
 <slider bind="count" label="Trial count" initial="2" min="0" max="10">
 <input bind="name" label="Trial name" initial="Reader">
@@ -202,7 +208,7 @@ Collapsed body copy.
 
   await check('prose and formula edits preserve the latest named numeric, text and boolean values', async () => {
     await edit(trialSource);
-    await expect(page.getByRole('checkbox', { name: 'Keep trial state', exact: true })).toBeChecked();
+    await expect(await trialStateCheckbox()).toBeChecked();
     await maxSlider('Trial count');
     await preview.getByRole('textbox', { name: 'Trial name', exact: true }).fill('Alex');
     await preview.getByRole('checkbox', { name: 'Trial annual billing', exact: true }).check();
@@ -231,11 +237,11 @@ Collapsed body copy.
   });
 
   await check('opting out resets values on editing and rerun restores current document defaults', async () => {
-    await page.getByRole('checkbox', { name: 'Keep trial state', exact: true }).uncheck();
+    await (await trialStateCheckbox()).uncheck();
     await maxSlider('Trial count');
     await edit(trialSource);
     await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');
-    await page.getByRole('checkbox', { name: 'Keep trial state', exact: true }).check();
+    await (await trialStateCheckbox()).check();
     await maxSlider('Trial count');
     await page.getByRole('button', { name: 'Run again', exact: true }).click();
     await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');

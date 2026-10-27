@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1 (2026-10-27, latest and next channels)
+
+- Typeset formulas with KaTeX HTML and accessible MathML, retaining the original LaTeX annotation and mhchem chemistry.
+- Embed WOFF2 math fonts for offline preview, printing and static or interactive HTML exports. Match inline baselines, wrap inline math and reserve space for tags beside scrolling display formulas.
+- Share KaTeX support detection between compilation and display. Support additional environments and style commands; invalid formulas fall back to bounded source text with source-ranged warnings.
+- Keep plot evaluation and protocol revisions unchanged. `align` now numbers rows; use `align*` or `aligned` for unnumbered alignment.
+
+See the [0.6.1 release notes](docs/releases/release-0.6.1-en.md) for installation and compatibility details.
+
 ## 0.6.0 (2026-10-27, latest and next channels)
 
 See [0.6.0 release notes](docs/releases/release-0.6.0-en.md). Syntax revision `local-draft-2`, component protocol `component-protocol-2` and theme protocol `reactive-md-theme-1` are unchanged.

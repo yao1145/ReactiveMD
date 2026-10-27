@@ -1,13 +1,13 @@
 # 版本与兼容性
 
-Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。显式修订声明、迁移 API 与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，公开 API 与样式接入见[本地模式集成](../integration/local-integration-ch.md)，当前版本见[0.6.0 发布说明](../releases/release-0.6.0-ch.md)，该 minor 系列见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
+Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。显式修订声明、迁移 API 与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，公开 API 与样式接入见[本地模式集成](../integration/local-integration-ch.md)，当前版本见[0.6.1 发布说明](../releases/release-0.6.1-ch.md)，该 minor 系列见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
 ## 版本对应
 
 | 项目 | 当前值 | 说明 |
 | --- | --- | --- |
-| 包版本 | `0.6.0` | 0.x 预览版；0.6.0 同时提供于 `latest` 与 `next` |
-| 分发标签 | `latest` → `0.6.0`；`next` → `0.6.0` | 默认安装使用 `latest` |
+| 包版本 | `0.6.1` | 0.x 预览版；0.6.1 同时提供于 `latest` 与 `next` |
+| 分发标签 | `latest` → `0.6.1`；`next` → `0.6.1` | 默认安装使用 `latest` |
 | 语法版本 | `local-draft-2` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
 | 源码修订指令 | 可选 `<!-- reactive-md: local-draft-2 -->` | 文档前导区中的一行；无指令源码继续按当前修订解析 |
 | 组块协议 | `component-protocol-2` | 贡献与验收契约，见[组块协议](../development/component-protocol-ch.md)；不是运行时版本选择参数 |
@@ -54,6 +54,8 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 ## 破坏性变更与迁移
 
 `0.5.0` 新增 `reactive-md/editor` 入口及其独立样式表；`0.5.1` 新增编辑器视图、主题配色和 HTML 兼容。`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 保持不变。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入继续有效，为 0.4.x 编写的文档无需迁移。编辑器需要 React 19；历史与渲染边界见[编辑器指南](../integration/editor-ch.md)。
+
+`0.6.1` 将公式展示改为 KaTeX，随包提供 WOFF2 数学字体和用于辅助技术的 MathML。绘图求值与协议修订保持不变。无效公式给出警告，并回退为有界原文。`align` 现在自动按行编号；使用 `align*` 或 `aligned` 可省略自动编号。见[0.6.1 发布说明](../releases/release-0.6.1-ch.md)。
 
 `0.6.0` 新增原生 HTML 表格、`align` 与链接 `target`/`rel`、更多数学环境与命令、mhchem 化学式和扩展代码高亮，并把图解改为分层布局。无法解析的原生 HTML 改为按原文回退。`compileLocal` 的返回值只包含普通对象和数组，编辑器新增 `insertText`。语法、组块和主题修订均保持不变，现有导入继续有效。见[0.6.0 发布说明](../releases/release-0.6.0-ch.md)。
 
@@ -116,4 +118,4 @@ Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `c
 语言范围见[语法规范](../reference/local-interaction-syntax-ch.md)，安全边界与宿主责任见[安全策略](../../SECURITY-ch.md)。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。0.6.0 同时提供于 `latest` 与 `next`。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。0.6.1 同时提供于 `latest` 与 `next`。

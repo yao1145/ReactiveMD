@@ -2,6 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { compileLocal, createLocalStateFile } from 'reactive-md';
 import { buildShareableHtml } from '../src/export-html';
 import { createImageAsset } from '../src/image-assets';
+import { parse, serializeOuter, type DefaultTreeAdapterTypes } from 'parse5';
+
+// Parse the document so strings inside the bundled runtime are not counted as
+// image elements. KaTeX includes an image builder even when no formula uses it.
+function renderedImageTags(html: string): string[] {
+  const visit = (node: DefaultTreeAdapterTypes.Node): string[] => [
+    ...('tagName' in node && node.tagName === 'img' ? [serializeOuter(node)] : []),
+    ...('childNodes' in node ? node.childNodes.flatMap(visit) : []),
+  ];
+  return visit(parse(html));
+}
 
 vi.mock('../../dist-library/reactive-md.css?raw', () => ({ default: '.md-document{}' }));
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
@@ -21,7 +32,7 @@ describe('browser image HTML export', () => {
     const output = await buildShareableHtml({ source: aligned, state: alignedState, mode, imageAssets: [asset] });
     expect(/<div align="center">/.test(output.html)).toBe(true);
     expect(output.imageCount).toBe(1);
-    const imageTags = output.html.match(/<img\b[^>]*>/g) ?? [];
+    const imageTags = renderedImageTags(output.html);
     expect(imageTags).toHaveLength(1);
     expect(imageTags[0]).toContain(`src="${asset.dataUrl}"`);
   });
@@ -34,7 +45,7 @@ describe('browser image HTML export', () => {
     const asset = await createImageAsset(new File([Uint8Array.from(atob(png), c => c.charCodeAt(0))], 'photo.png', { type: 'image/png' }), 'images/photo.png');
     const result = await buildShareableHtml({ source, state, mode, imageAssets: [asset, { ...asset, url: 'unused.png' }] });
     expect(result.imageCount).toBe(2);
-    const imageTags = result.html.match(/<img\b[^>]*>/g) ?? [];
+    const imageTags = renderedImageTags(result.html);
     expect(imageTags).toHaveLength(2);
     for (const tag of imageTags) expect(tag).toContain(`src="${asset.dataUrl}"`);
     expect(result.html).not.toContain('unused.png');

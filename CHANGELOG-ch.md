@@ -1,5 +1,14 @@
 # 变更记录
 
+## 0.6.1（2026-10-27，latest 与 next 渠道）
+
+- 公式展示改用 KaTeX，输出可视 HTML、用于辅助技术的 MathML 和原始 LaTeX 注释，保留 mhchem 化学式支持。
+- 内嵌 WOFF2 数学字体，支持离线预览、打印及静态或交互 HTML 导出；调整行内基线与换行，为超宽独立公式的编号预留间距。
+- 编译诊断与展示共用 KaTeX 语法范围，支持更多环境和排版指令；无效公式给出源码范围警告，并回退为有界原文。
+- 绘图求值与协议修订保持不变。`align` 现在自动编号；使用 `align*` 或 `aligned` 可省略自动编号。
+
+安装与兼容性说明见 [0.6.1 发布说明](docs/releases/release-0.6.1-ch.md)。
+
 ## 0.6.0（2026-10-27，latest 与 next 渠道）
 
 参见 [0.6.0 发布说明](docs/releases/release-0.6.0-ch.md)。语法修订 `local-draft-2`、组块协议 `component-protocol-2` 和主题协议 `reactive-md-theme-1` 保持不变。

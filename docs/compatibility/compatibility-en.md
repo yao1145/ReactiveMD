@@ -1,13 +1,13 @@
 # Versions and compatibility
 
-Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](../integration/local-integration-en.md) for the public API and style integration, the [0.6.0 release notes](../releases/release-0.6.0-en.md) for the current release, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for that minor series.
+Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](../integration/local-integration-en.md) for the public API and style integration, the [0.6.1 release notes](../releases/release-0.6.1-en.md) for the current release, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for that minor series.
 
 ## Version mapping
 
 | Item | Current value | Notes |
 | --- | --- | --- |
-| Package version | `0.6.0` | 0.x preview; 0.6.0 is available on both `latest` and `next` |
-| Distribution tags | `latest` → `0.6.0`; `next` → `0.6.0` | Default installs use `latest` |
+| Package version | `0.6.1` | 0.x preview; 0.6.1 is available on both `latest` and `next` |
+| Distribution tags | `latest` → `0.6.1`; `next` → `0.6.1` | Default installs use `latest` |
 | Syntax version | `local-draft-2` | `LOCAL_SYNTAX_VERSION`; the current build accepts only this revision |
 | Source revision directive | Optional `<!-- reactive-md: local-draft-2 -->` | One line in the document prologue; unversioned source keeps current-revision behavior |
 | Component protocol | `component-protocol-2` | Contribution and acceptance contract, see [Component protocol](../development/component-protocol-en.md); not a runtime version selection parameter |
@@ -54,6 +54,8 @@ Regression data in [the historical corpus](../../examples/conformance/history/v0
 ## Breaking changes and migration
 
 `0.5.0` added the `reactive-md/editor` entry and its independent stylesheet. `0.5.1` adds editor views, theme palettes and HTML compatibility. They keep `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports keep working, and documents written for 0.4.x need no migration. The editor requires React 19; see the [editor guide](../integration/editor-en.md) for its history and rendering boundaries.
+
+`0.6.1` switches formula display to KaTeX with bundled WOFF2 fonts and accessible MathML. Plot evaluation and protocol revisions are unchanged. Invalid formulas fall back to bounded source text with a warning. `align` now numbers rows; use `align*` or `aligned` to omit automatic numbers. See the [0.6.1 release notes](../releases/release-0.6.1-en.md).
 
 `0.6.0` adds native HTML tables, `align` and link `target`/`rel`, more math environments and commands, mhchem chemistry and expanded code highlighting, and switches diagrams to a layered layout. Unparseable native HTML now falls back to source. `compileLocal` returns only plain objects and arrays, and the editor adds `insertText`. Syntax, component and theme revisions remain unchanged, and existing imports keep working. See the [0.6.0 release notes](../releases/release-0.6.0-en.md).
 
@@ -116,4 +118,4 @@ Node-side consumption means importing `reactive-md` in Node and calling `compile
 See the [syntax specification](../reference/local-interaction-syntax-en.md) for the language scope, and the [security policy](../../SECURITY.md) for the security boundary and host responsibilities.
 
 
-See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. 0.6.0 is available on both `latest` and `next`.
+See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. 0.6.1 is available on both `latest` and `next`.

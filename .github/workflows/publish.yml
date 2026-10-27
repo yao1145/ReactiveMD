@@ -25,6 +25,11 @@ on:
         required: true
         default: true
         type: boolean
+      use_verified_release:
+        description: Publish the exact verified tarball attached to the version's GitHub Release
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -92,7 +97,7 @@ jobs:
           git diff --exit-code -- THIRD_PARTY_NOTICES.md
 
       - name: Pack the release tarball
-        if: steps.registry.outputs.published != 'true'
+        if: steps.registry.outputs.published != 'true' && !inputs.use_verified_release
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -103,6 +108,19 @@ jobs:
           tarball="artifacts/release-package/reactive-md-$VERSION.tgz"
           test -f "$tarball"
           sha256sum "$tarball"
+
+      - name: Download and verify the release candidate
+        if: steps.registry.outputs.published != 'true' && inputs.use_verified_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p artifacts/release-package
+          gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" \
+            --pattern "reactive-md-$VERSION.tgz" \
+            --pattern package-verification.json --pattern release-manifest.json \
+            --dir artifacts/release-package
+          node scripts/verify-release-candidate.mjs
 
       - name: Publish to npm
         if: steps.registry.outputs.published != 'true'
