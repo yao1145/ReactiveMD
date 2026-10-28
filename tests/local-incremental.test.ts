@@ -27,6 +27,70 @@ function normalize(input: LocalCompileResult): unknown {
 const slider = '<slider bind="n" label="N" initial="2">';
 
 describe('incremental compilation sessions', () => {
+  it('defers rebuilding throughout context edits and recovers on the next prose edit', () => {
+    const session = createLocalCompileSession();
+    let source = `${slider}\n\nFirst **paragraph**\n\nValue {{ n }}\n\nLast paragraph`;
+    session.compile(source);
+    for (let n = 3; n < 8; n++) {
+      source = source.replace(/initial="\d+"/, `initial="${n}"`);
+      const result = session.compile(source);
+      expect(normalize(result)).toEqual(normalize(compileLocal(source)));
+      expect(session.stats).toMatchObject({mode: 'full', cacheBuilds: 0});
+      if (result.ok) {
+        result.document.nodes[0].attrs!.initial = '999';
+        result.document.nodes[1].children![0].value = 'corrupted';
+        result.document.initialState.n = 999;
+      }
+    }
+    expect(normalize(session.compile(source))).toEqual(normalize(compileLocal(source)));
+    expect(session.stats).toMatchObject({mode: 'cached', cacheBuilds: 0});
+    source = source.replace('Last paragraph', 'Last paragraph edited');
+    expect(normalize(session.compile(source))).toEqual(normalize(compileLocal(source)));
+    expect(session.stats).toMatchObject({mode: 'incremental', compiledBlocks: 1, reusedBlocks: 2, cacheBuilds: 1});
+  });
+
+  it('drops deferred state on errors, option changes, clear and disposal', () => {
+    const session = createLocalCompileSession();
+    const initial = `${slider}\n\none\nline\n\ntwo`;
+    const changed = initial.replace('initial="2"', 'initial="3"');
+    for (const reset of ['clear', 'options', 'error'] as const) {
+      session.compile(initial); session.compile(changed);
+      if (reset === 'clear') session.clear();
+      if (reset === 'error') session.compile(changed + '\n\n{{ unknown }}');
+      const options = reset === 'options' ? {markdownBreaks: true} : undefined;
+      expect(normalize(session.compile(changed.replace('two', 'two edited'), options)))
+        .toEqual(normalize(compileLocal(changed.replace('two', 'two edited'), options)));
+      expect(session.stats.mode).toBe('full');
+      session.clear();
+    }
+    session.compile(initial); session.compile(changed); session.dispose();
+    expect(() => session.compile(changed)).toThrow('disposed');
+  });
+
+  it('recovers with current computed values, container shapes and relocated ranges', () => {
+    for (const context of [
+      '<computed name="n" value="{{ 2 }}">',
+      '<table label="Data">\n| A |\n| --- |\n| 2 |\n</table>',
+      '<panel title="Panel">\n\nInside 2\n\n</panel>',
+    ]) {
+      const session = createLocalCompileSession();
+      let source = `Introduction\n\n${context}\n\nLast paragraph`;
+      session.compile(source);
+      for (const value of ['333', '4', '55555']) {
+        source = source.replace(/2|333|55555|4/, value);
+        expect(normalize(session.compile(source))).toEqual(normalize(compileLocal(source)));
+        expect(session.stats).toMatchObject({mode: 'full', cacheBuilds: 0});
+      }
+      source = source.replace('Last paragraph', 'An edited last paragraph');
+      expect(normalize(session.compile(source))).toEqual(normalize(compileLocal(source)));
+      expect(session.stats.mode).toBe('incremental');
+      const stable = session.compile(source);
+      if (stable.ok) stable.document.source = 'corrupted';
+      expect(normalize(session.compile(source))).toEqual(normalize(compileLocal(source)));
+      session.dispose();
+    }
+  });
+
   it('compiles only the changed Markdown block and retains neighboring block IDs', () => {
     const session = createLocalCompileSession();
     const initial = session.compile('first **bold**\n\nsecond _emphasis_\n\nthird');

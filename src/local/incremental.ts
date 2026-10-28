@@ -96,18 +96,46 @@ export interface LocalIncrementalStats {
   reusedBlocks: number;
   compiledCharacters: number;
   fallbackReason?: string;
+  /** Block-index construction attempts during this call (including deferred recovery). */
+  cacheBuilds?: number;
 }
 
 export class LocalCompileSession {
   private disposed = false;
   private snapshot: Snapshot | null = null;
+  private deferred: {source: string; key: string; tracked: Tracked} | null = null;
+  private cacheBuilds = 0;
   private serial = 0;
   private lastStats: LocalIncrementalStats = { mode: 'full', totalBlocks: 0, compiledBlocks: 0, reusedBlocks: 0, compiledCharacters: 0 };
-  get stats(): Readonly<LocalIncrementalStats> { return { ...this.lastStats }; }
+  get stats(): Readonly<LocalIncrementalStats> { return { ...this.lastStats, cacheBuilds: this.cacheBuilds }; }
   compile(source: string, options?: LocalCompileOptions): LocalCompileResult {
     if (this.disposed) throw new Error('Local compile session is disposed');
+    this.cacheBuilds = 0;
     const key = localCompileOptionsKey(options), check = readLocalCompileOptions(options);
     let reason = 'initial';
+    let defer = false;
+    const pending = this.deferred;
+    this.deferred = null;
+    if (pending && pending.key === key && check.ok && !check.htmlActive && typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH) {
+      if (source === pending.source) {
+        this.deferred = pending;
+        this.lastStats = {mode: 'cached', totalBlocks: this.lastStats.totalBlocks, compiledBlocks: 0, reusedBlocks: this.lastStats.totalBlocks, compiledCharacters: 0};
+        return plainCompiledData(pending.tracked.result);
+      }
+      // Keep only the latest successful full result during context churn.
+      // Build its block index when an ordinary edit can actually use it.
+      defer = true;
+      reason = 'scope-or-boundary';
+      const edit = change(pending.source, source);
+      const touches = (range: SourceRange) => edit.from <= range.end && edit.oldTo >= range.start;
+      const parsed = pending.tracked.parsed;
+      if (parsed && !/[`\\~]/.test(pending.source.slice(edit.from, edit.oldTo) + source.slice(edit.from, edit.newTo))
+        && !parsed.nodes.some(n => touches(n.range) && contextKind(n) !== 'fragment')
+        && ![parsed.versionDeclaration?.range, parsed.themeRange].some(r => r && touches(r))) {
+        try { this.snapshot = this.seed(pending.source, key, pending.tracked, options); }
+        catch { this.snapshot = null; }
+      }
+    } else if (pending) reason = 'options-or-limits';
     const previous = this.snapshot;
     if (previous && previous.key === key && check.ok && !check.htmlActive && typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH) {
       if (source === previous.source) {
@@ -119,22 +147,28 @@ export class LocalCompileSession {
       catch { /* Incremental machinery must preserve the full compiler's error boundary. */ }
       if (updated) { this.snapshot = updated; return this.publish(updated); }
       reason = 'scope-or-boundary';
+      defer = true;
     } else if (previous) reason = 'options-or-limits';
     this.snapshot = null;
     const tracked = compileLocalTracked(source, options);
+    const published = plainCompiledData(tracked.result);
     this.lastStats = {mode: 'full', totalBlocks: tracked.parsed?.nodes.length ?? 0, compiledBlocks: tracked.parsed?.nodes.length ?? 0, reusedBlocks: 0, compiledCharacters: typeof source === 'string' ? source.length : 0, fallbackReason: reason};
     if (tracked.result.ok && tracked.result.diagnostics.length === 0 && check.ok && !check.htmlActive && key !== 'invalid') {
-      try { this.snapshot = this.seed(source, key, tracked, options); }
-      catch { this.snapshot = null; }
+      if (defer) this.deferred = {source, key, tracked};
+      else {
+        try { this.snapshot = this.seed(source, key, tracked, options); }
+        catch { this.snapshot = null; }
+      }
       if (this.snapshot) this.lastStats.totalBlocks = this.lastStats.compiledBlocks = this.snapshot.blocks.length;
     }
-    return tracked.result;
+    return published;
   }
   private seed(source: string, key: string, tracked: Tracked, options?: LocalCompileOptions): Snapshot | null {
+    this.cacheBuilds++;
     if (!tracked.result.ok || !tracked.parsed || source.includes('[^') || source.includes('\ufeff')) return null;
     const roots = tracked.parsed.nodes, kinds = roots.map(contextKind);
     if (kinds.includes('unsupported') || kinds.filter(kind => kind === 'fragment').length < 2) return null;
-    const doc = plainCompiledData(tracked.result.document);
+    const doc = tracked.result.document;
     const rendered = new Map(doc.nodes.map(node => [node.id, node]));
     const context: Block[] = [];
     const fragments: LocalNode[] = [];
@@ -257,7 +291,7 @@ export class LocalCompileSession {
     for (const value of doc.validations ?? []) value.range = shift(value.range);
     return {ok: true, document: doc, diagnostics: []};
   }
-  clear(): void { this.snapshot = null; this.serial = 0; }
+  clear(): void { this.snapshot = null; this.deferred = null; this.serial = 0; this.cacheBuilds = 0; }
   dispose(): void { this.clear(); this.disposed = true; }
 }
 

@@ -38,12 +38,39 @@ try{
       }
       let pending=receive();worker.postMessage({id:20,source:source+'changed',options:{markdownBreaks:true}});
       const invalidated=await pending;
-      return{samples,optionChange:invalidated.incremental};
+      const contextEdits=[];
+      let current=source+'changed';
+      for(let n=3;n<7;n++) {
+        current=current.replace(/initial="\d+"/,`initial="${n}"`);
+        pending=receive();worker.postMessage({id:20+n,source:current,options:{markdownBreaks:true}});
+        const response=await pending;
+        if(!response.ok||!response.result.ok||response.result.document.initialState.n!==n)throw new Error('Stale context result');
+        contextEdits.push(response.incremental);
+      }
+      pending=receive();worker.postMessage({id:30,source:current+' edited prose',options:{markdownBreaks:true}});
+      const recovered=await pending;
+      if(!recovered.ok||!recovered.result.ok)throw new Error('Context recovery failed');
+      const fastBlocks=[];
+      for(const kind of ['table','list']) {
+        const body=kind==='table'?'|A|B|\n|-|-|\n'+Array.from({length:500},(_,i)=>`|row ${i}|value ${i}|`).join('\n')
+          :Array.from({length:500},(_,i)=>`- Item ${i} with **bold** and value ${i}.`).join('\n');
+        const text='Before\n\n'+body+'\n\nAfter';
+        for(let i=0;i<2;i++) {
+          pending=receive();worker.postMessage({id:40+i,source:i?text.replace('value 499','edited 499'):text});
+          const response=await pending;
+          if(!response.ok||!response.result.ok||response.result.diagnostics.length)throw new Error(`Fast ${kind} failed`);
+          fastBlocks.push({kind,revision:i,stats:response.incremental});
+        }
+      }
+      return{samples,optionChange:invalidated.incremental,contextEdits,recovery:recovered.incremental,fastBlocks};
     }finally{worker.terminate();URL.revokeObjectURL(url);}
   },{base,source:fixture('article',600).trimEnd()});
   assert.equal(report.samples[0].stats.mode,'full');
   assert.ok(report.samples.slice(1).every(s=>s.stats.mode==='incremental'&&s.stats.compiledBlocks===1&&s.stats.reusedBlocks===1799));
   assert.equal(report.optionChange.mode,'full');
+  assert.ok(report.contextEdits.every(s=>s.mode==='full'&&s.cacheBuilds===0));
+  assert.equal(report.recovery.mode,'incremental');assert.equal(report.recovery.cacheBuilds,1);
+  assert.ok(report.fastBlocks.filter(s=>s.revision===1).every(s=>s.stats.mode==='incremental'&&s.stats.compiledBlocks===1&&s.stats.reusedBlocks===2));
   const median=values=>[...values].sort((a,b)=>a-b)[Math.floor(values.length/2)];
   const samples=report.samples.slice(3);
   const result={generatedAt:new Date().toISOString(),browser:browser.version(),workerMedianMs:median(samples.map(s=>s.workerMs)),roundTripMedianMs:median(samples.map(s=>s.roundTripMs)),...report};

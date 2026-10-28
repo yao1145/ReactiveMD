@@ -89,7 +89,9 @@ session.dispose(); // 关闭文档时释放会话缓存
 
 同一会话内，参数与声明上下文保持不变时，只重新编译受影响的 Markdown 块。改变声明、组件内容、编译选项、权限或宿主 schema 时执行完整编译。引用定义、脚注、导航锚点、HTML、BOM、代码定界符变化及无法确认安全边界的输入也保守回到完整编译。出现诊断时返回完整编译的诊断。整篇源码和累计节点预算仍然生效，缓存只保留当前版本。
 
-`stats` 提供最近一次调用的 `mode`（`full`、`incremental`、`cached`）、块数、复用数、编译字符数与可选失效原因，用于观测实际复用。修改块会在不变的声明前缀下编译，前缀工作量计入 `compiledCharacters`。差异检测、范围重定位和完整结果快照组装仍随文档规模增长；会话不保证每次编辑都是常数时间。
+连续修改组件或声明时，会话保留最新的成功编译结果，延迟建立块索引。恢复编辑独立正文块时，再建立一次索引并复用其他块。相同源码可直接返回独立快照；选项变化、错误、`clear()` 和 `dispose()` 都会清除待恢复状态。
+
+`stats` 提供最近一次调用的 `mode`（`full`、`incremental`、`cached`）、块数、复用数、编译字符数与可选失效原因，用于观测实际复用。`cacheBuilds` 记录本次调用尝试建立块索引的次数，包括延迟恢复。修改块会在不变的声明前缀下编译，前缀工作量计入 `compiledCharacters`。差异检测、范围重定位和完整结果快照组装仍随文档规模增长；会话不保证每次编辑都是常数时间。
 
 内置 `startLocalCompileWorker()`、`LocalCompileScheduler` 默认降级编译和 `LocalReactiveDocument` 已管理各自会话。自定义 `fallbackCompile` 继续由宿主管理。`compileLocal()` 保持单次完整编译 API。测试与性能数据见[块级增量编译](../development/incremental-compilation-2026-10-28-ch.md)。
 

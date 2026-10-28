@@ -89,7 +89,9 @@ session.dispose(); // when closing the document
 
 With an unchanged declaration and binding context, only affected Markdown blocks are recompiled. Changes to declarations, component contents, options, permissions or host schemas trigger full compilation. Reference definitions, footnotes, navigation anchors, HTML, BOMs, code-delimiter changes and uncertain boundaries also use full compilation. Inputs producing diagnostics return the full compiler's diagnostics. Whole-document source and cumulative node budgets still apply, and only the current version is retained.
 
-`stats` reports the latest mode (`full`, `incremental`, or `cached`), block counts, reuse counts, compiled characters and an optional invalidation reason. Changed blocks compile under the unchanged declaration prefix; that work is included in `compiledCharacters`. Source comparison, range relocation and complete result snapshot assembly still scale with document size.
+During consecutive component or declaration edits, the session retains the latest successful full result and defers building its block index. The next independent prose edit builds the index once and reuses the other blocks. Identical source can return an independent cached snapshot. Option changes, errors, `clear()` and `dispose()` discard deferred state.
+
+`stats` reports the latest mode (`full`, `incremental`, or `cached`), block counts, reuse counts, compiled characters and an optional invalidation reason. `cacheBuilds` counts block-index construction attempts during the call, including deferred recovery. Changed blocks compile under the unchanged declaration prefix; that work is included in `compiledCharacters`. Source comparison, range relocation and complete result snapshot assembly still scale with document size.
 
 `startLocalCompileWorker()`, the default `LocalCompileScheduler` fallback, and `LocalReactiveDocument` manage their own sessions. A custom `fallbackCompile` remains host-owned. `compileLocal()` remains the one-shot full compiler. See the [implementation and measurements (Chinese)](../development/incremental-compilation-2026-10-28-ch.md).
 

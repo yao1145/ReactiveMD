@@ -19,6 +19,7 @@ import {
 } from './limits';
 import { readLocalCompileOptions } from './options';
 import { parsePlainParagraphs } from './plain-paragraphs';
+import { parseFastMarkdown } from './fast-markdown';
 
 /* Tag shapes come from the component schema; tests/schema-shapes.test.ts
  * pins the accepted syntax against the original literal lists. */
@@ -306,7 +307,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   };
   let rootMarkdown: any;
   try {
-    rootMarkdown = markdown.parse(source.slice(sourceBomOffset));
+    rootMarkdown = parseFastMarkdown(source.slice(sourceBomOffset)) ?? markdown.parse(source.slice(sourceBomOffset));
     findShielded(rootMarkdown);
   } catch {
     error('local.parse', 'Cannot parse the Markdown document.', 0, undefined, { key: 'local.parse.markdown' });
@@ -1604,7 +1605,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         cursor = token.end;
       }
       append(source.slice(cursor, end), cursor, true); offsets.push(end);
-      tree = markdown.parse(masked);
+      tree = parseFastMarkdown(masked) ?? markdown.parse(masked);
     }
     function unescapeTablePipes(nodes: LocalNode[]) {
       for (const child of nodes) {

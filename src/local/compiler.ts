@@ -323,12 +323,12 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   return plainCompiledData(compileLocalInternal(source, options));
 }
 
-/** Internal capture for editor sessions; parsed trees never cross the public boundary. */
+/** Compiler-owned capture for editor sessions. Callers must copy before publishing. */
 export function compileLocalTracked(source: string, options?: LocalCompileOptions): {
   result: LocalCompileResult; parsed?: ReturnType<typeof parseLocal>;
 } {
   let parsed: ReturnType<typeof parseLocal> | undefined;
-  const result = plainCompiledData(compileLocalInternal(source, options, tree => { parsed = tree; }));
+  const result = compileLocalInternal(source, options, tree => { parsed = tree; });
   return { result, parsed };
 }
 
