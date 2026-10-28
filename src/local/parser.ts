@@ -18,6 +18,7 @@ import {
   MAX_LOCAL_STRING_LENGTH,
 } from './limits';
 import { readLocalCompileOptions } from './options';
+import { parsePlainParagraphs } from './plain-paragraphs';
 
 /* Tag shapes come from the component schema; tests/schema-shapes.test.ts
  * pins the accepted syntax against the original literal lists. */
@@ -239,6 +240,21 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   let serial = 0;
   let nodeCount = 0;
   let markerSerial = 0;
+  const node = (type: string, start: number, end: number, extra: Partial<LocalNode> = {}): LocalNode => {
+    if (nodeCount >= maxSyntaxNodes) {
+      throw new LocalBudgetError('local.budget', `Syntax nodes exceed the limit of ${maxSyntaxNodes}.`, start, end, 'local.budget.nodes', { limit: maxSyntaxNodes });
+    }
+    nodeCount += 1;
+    return { type, id: `local-${serial++}`, range: { start, end }, ...extra };
+  };
+  try {
+    const plain = parsePlainParagraphs(source, markdownBreaks, node);
+    if (plain !== undefined) return { nodes: plain, diagnostics };
+  } catch (cause) {
+    if (!(cause instanceof LocalBudgetError)) throw cause;
+    error(cause.code, cause.message, cause.start, cause.end, { key: cause.key, params: cause.params });
+    return { nodes: [], diagnostics };
+  }
   const reservedMarkers = new Set(source.match(new RegExp(MARK_OPEN + '[0-9]+' + MARK_CLOSE, 'g')) ?? []);
   const codeRanges: { start: number; end: number }[] = [];
   const rootMathLiterals: SourceRange[] = [];
@@ -286,8 +302,10 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     }
     for (const child of raw.children ?? []) findShielded(child);
   };
+  let rootMarkdown: any;
   try {
-    findShielded(markdown.parse(source.slice(sourceBomOffset)));
+    rootMarkdown = markdown.parse(source.slice(sourceBomOffset));
+    findShielded(rootMarkdown);
   } catch {
     error('local.parse', 'Cannot parse the Markdown document.', 0, undefined, { key: 'local.parse.markdown' });
     return { nodes: [], diagnostics };
@@ -316,13 +334,6 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     return null;
   };
   let codeIndex = 0;
-  const node = (type: string, start: number, end: number, extra: Partial<LocalNode> = {}): LocalNode => {
-    if (nodeCount >= maxSyntaxNodes) {
-      throw new LocalBudgetError('local.budget', `Syntax nodes exceed the limit of ${maxSyntaxNodes}.`, start, end, 'local.budget.nodes', { limit: maxSyntaxNodes });
-    }
-    nodeCount += 1;
-    return { type, id: `local-${serial++}`, range: { start, end }, ...extra };
-  };
   function diagnostic(
     code: string,
     message: string,
@@ -1530,7 +1541,13 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   }
   function convert(start: number, end: number, tokens: Token[], indent = 0, options: ConvertOptions = {}): LocalNode[] {
     let masked = '', cursor = start;
+    // With no replacements or dedenting, the shielding pass already parsed
+    // exactly this source. Its positions only need the original BOM offset.
+    const reuseRoot = start === 0 && end === source.length && tokens.length === 0
+      && indent === 0 && !options.stripBlockquote && !options.literalHtml;
     const offsets: number[] = [];
+    const sourceAt = (offset: number, fallback: number): number =>
+      reuseRoot ? offset + sourceBomOffset : offsets[offset] ?? fallback;
     const markers = new Map<number, { marker: string; end: number; node: LocalNode }>();
     const skipCache = new Map<number, number>();
     function lineSkip(absolute: number) {
@@ -1563,22 +1580,30 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       masked += text;
       for (let j = 0; j < text.length; j++) offsets.push(linear ? from + j : from);
     }
-    for (const token of tokens) {
-      append(source.slice(cursor, token.start), cursor, true);
-      let marker: string;
-      do { marker = MARK_OPEN + markerSerial++ + MARK_CLOSE; } while (reservedMarkers.has(marker));
-      const block = token.block ?? (token.node.type === 'math' || ((token.node.type === 'component' || token.node.type === 'hostComponent') && !INLINE.has(token.node.name!)));
-      if (block) append('\n\n', token.start, false);
-      const markerStart = masked.length;
-      // A generated Markdown image has its own source range. Restore only this
-      // exact range; entity decoding and adjacent code cannot forge a node.
-      append(`![${marker}](rmd-internal:placeholder)`, token.start, false);
-      markers.set(markerStart, { marker, end: masked.length, node: token.node });
-      if (block) append('\n\n', token.end, false);
-      cursor = token.end;
+    let tree: any;
+    if (reuseRoot) {
+      masked = source.slice(sourceBomOffset);
+      tree = rootMarkdown;
+      rootMarkdown = undefined;
+    } else {
+      if (start === 0 && end === source.length) rootMarkdown = undefined;
+      for (const token of tokens) {
+        append(source.slice(cursor, token.start), cursor, true);
+        let marker: string;
+        do { marker = MARK_OPEN + markerSerial++ + MARK_CLOSE; } while (reservedMarkers.has(marker));
+        const block = token.block ?? (token.node.type === 'math' || ((token.node.type === 'component' || token.node.type === 'hostComponent') && !INLINE.has(token.node.name!)));
+        if (block) append('\n\n', token.start, false);
+        const markerStart = masked.length;
+        // A generated Markdown image has its own source range. Restore only this
+        // exact range; entity decoding and adjacent code cannot forge a node.
+        append(`![${marker}](rmd-internal:placeholder)`, token.start, false);
+        markers.set(markerStart, { marker, end: masked.length, node: token.node });
+        if (block) append('\n\n', token.end, false);
+        cursor = token.end;
+      }
+      append(source.slice(cursor, end), cursor, true); offsets.push(end);
+      tree = markdown.parse(masked);
     }
-    append(source.slice(cursor, end), cursor, true); offsets.push(end);
-    const tree = markdown.parse(masked) as any;
     function unescapeTablePipes(nodes: LocalNode[]) {
       for (const child of nodes) {
         if (child.type === 'interpolation' && child.value !== undefined) child.value = child.value.replace(/\\\|/g, '|');
@@ -1659,14 +1684,14 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         next += 1;
         const valueEnd = !lineEnding.literal && character === '\r' && value[index + 1] === '\n' ? index + 2 : index + 1;
         if (lineEnding.literal) continue;
-        const breakStart = offsets[lineEnding.start] ?? sourceStart;
+        const breakStart = sourceAt(lineEnding.start, sourceStart);
         const breakEnd = breakStart + (lineEnding.end - lineEnding.start);
         if (index > segmentValue) {
           result.push(node('text', sourceStart, breakStart, { value: value.slice(segmentValue, index) }));
         }
         result.push(node('break', breakStart, breakEnd));
         segmentValue = valueEnd;
-        sourceStart = segmentSource(offsets[lineEnding.end] ?? breakEnd, value[valueEnd]);
+        sourceStart = segmentSource(sourceAt(lineEnding.end, breakEnd), value[valueEnd]);
         index = valueEnd - 1;
       }
       if (segmentValue < value.length) {
@@ -1675,8 +1700,8 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       return result;
     }
     function transform(raw: any): LocalNode[] {
-      const from = offsets[raw.position?.start?.offset ?? 0] ?? start;
-      const to = offsets[raw.position?.end?.offset ?? masked.length] ?? end;
+      const from = sourceAt(raw.position?.start?.offset ?? 0, start);
+      const to = sourceAt(raw.position?.end?.offset ?? masked.length, end);
       if (raw.type === 'image') {
         const slot = markers.get(raw.position?.start?.offset);
         if (slot && raw.position.end.offset === slot.end
