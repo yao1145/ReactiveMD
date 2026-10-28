@@ -1,6 +1,8 @@
 export { analyzeLocalSource, completeLocalSource, renameLocalBinding, formatLocalSource } from './authoring';
 export type { AuthorToken, AuthorBinding, AuthorAnalysis, AuthorCompletion, AuthorCompletionKind, AuthorRename } from './authoring';
 export { compileLocal } from './compiler';
+export { createLocalCompileSession, LocalCompileSession } from './incremental';
+export type { LocalIncrementalStats } from './incremental';
 export { localCompileOptionsKey } from './options';
 export {
   formatLocalDiagnostic,

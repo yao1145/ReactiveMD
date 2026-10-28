@@ -71,6 +71,28 @@ Each document instance has its own anchor prefix, and matching table-of-contents
 
 Anchors for dynamic headings are computed from source initial values, and parameter changes only update the displayed heading text. Rendered DOM IDs belong to the current mounted instance; when saving a table of contents, keep the fragment links from the source.
 
+## Incremental compilation for editing
+
+Keep one `createLocalCompileSession()` for repeated edits of the same document:
+
+```ts
+import { createLocalCompileSession } from 'reactive-md';
+
+const session = createLocalCompileSession();
+session.compile('First **paragraph**.\n\nSecond paragraph.');
+const result = session.compile('First **paragraph**.\n\nEdited second paragraph.');
+console.log(session.stats); // mode: 'incremental', compiledBlocks: 1, reusedBlocks: 1
+session.dispose(); // when closing the document
+```
+
+`compile(source, options?)` returns `LocalCompileResult`. `clear()` releases reusable state; `dispose()` releases it and ends the session. Compiling after disposal throws. Each result is an independent, serializable plain-data snapshot, so mutating an earlier result cannot corrupt cached blocks. Unchanged blocks may retain node IDs across edits. Their numbering can differ from a separate `compileLocal()` call; resolve metadata IDs within the same result.
+
+With an unchanged declaration and binding context, only affected Markdown blocks are recompiled. Changes to declarations, component contents, options, permissions or host schemas trigger full compilation. Reference definitions, footnotes, navigation anchors, HTML, BOMs, code-delimiter changes and uncertain boundaries also use full compilation. Inputs producing diagnostics return the full compiler's diagnostics. Whole-document source and cumulative node budgets still apply, and only the current version is retained.
+
+`stats` reports the latest mode (`full`, `incremental`, or `cached`), block counts, reuse counts, compiled characters and an optional invalidation reason. Changed blocks compile under the unchanged declaration prefix; that work is included in `compiledCharacters`. Source comparison, range relocation and complete result snapshot assembly still scale with document size.
+
+`startLocalCompileWorker()`, the default `LocalCompileScheduler` fallback, and `LocalReactiveDocument` manage their own sessions. A custom `fallbackCompile` remains host-owned. `compileLocal()` remains the one-shot full compiler. See the [implementation and measurements (Chinese)](../development/incremental-compilation-2026-10-28-ch.md).
+
 ## Core API
 
 ```ts

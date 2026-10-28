@@ -179,6 +179,8 @@ interface ConvertOptions {
 export interface ParsedLocal {
   nodes: LocalNode[];
   diagnostics: Diagnostic[];
+  /** Internal cumulative creation count, including discarded intermediates. */
+  syntaxNodes?: number;
   versionDeclaration?: LocalVersionDeclaration;
   /** Declared theme name, when the leading declaration is valid. */
   theme?: string;
@@ -249,7 +251,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   };
   try {
     const plain = parsePlainParagraphs(source, markdownBreaks, node);
-    if (plain !== undefined) return { nodes: plain, diagnostics };
+    if (plain !== undefined) return { nodes: plain, diagnostics, syntaxNodes: nodeCount };
   } catch (cause) {
     if (!(cause instanceof LocalBudgetError)) throw cause;
     error(cause.code, cause.message, cause.start, cause.end, { key: cause.key, params: cause.params });
@@ -1782,6 +1784,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     return {
       nodes,
       diagnostics,
+      syntaxNodes: nodeCount,
       ...(versionDeclaration ? { versionDeclaration } : {}),
       ...(theme !== undefined ? { theme } : {}),
       ...(themeRange ? { themeRange } : {}),

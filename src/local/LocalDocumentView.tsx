@@ -42,7 +42,7 @@ import {
   type DependencyIndex,
   type NodeDependencies,
 } from './dependencies';
-import { compileLocal } from './compiler';
+import { createLocalCompileSession, type LocalCompileSession } from './incremental';
 import { createLocalRuntime } from './runtime';
 import { DEFAULT_MAX_LOCAL_SYNTAX_NODES, MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
 import { localCompileOptionsKey, readLocalCompileOptions } from './options';
@@ -4815,7 +4815,12 @@ export function LocalReactiveDocument({
   compileOptions,
 }: LocalReactiveDocumentProps) {
   const optionsKey = localCompileOptionsKey(compileOptions);
-  const result = useMemo(() => compileLocal(source, compileOptions), [source, optionsKey]);
+  const compileSession = useRef<LocalCompileSession | null>(null);
+  useEffect(() => () => { compileSession.current?.dispose(); compileSession.current = null; }, []);
+  const result = useMemo(() => {
+    compileSession.current ??= createLocalCompileSession();
+    return compileSession.current.compile(source, compileOptions);
+  }, [source, optionsKey]);
   const runtime = useMemo(() => {
     if (!result.ok) return null;
     try {

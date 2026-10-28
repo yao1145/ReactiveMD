@@ -340,6 +340,20 @@ function requestEvent(data: unknown): MessageEvent<LocalCompileRequest> {
 }
 
 describe('startLocalCompileWorker', () => {
+  it('keeps an incremental session across messages and invalidates changed options', () => {
+    const scope = createScope();
+    startLocalCompileWorker(scope);
+    const source = 'first **paragraph**\n\nsecond\n\nlast';
+    scope.onmessage!(requestEvent({id: 1, source}));
+    scope.onmessage!(requestEvent({id: 2, source: source + ' edit'}));
+    const response = scope.messages[1];
+    expect(response.ok).toBe(true);
+    if (response.ok) expect(response.incremental).toMatchObject({mode: 'incremental', compiledBlocks: 1, reusedBlocks: 2});
+    scope.onmessage!(requestEvent({id: 3, source: source + ' edit', options: {markdownBreaks: true}}));
+    const changed = scope.messages[2];
+    if (changed.ok) expect(changed.incremental?.mode).toBe('full');
+  });
+
   it('compiles a valid request and posts an ok response', () => {
     const scope = createScope();
     startLocalCompileWorker(scope);

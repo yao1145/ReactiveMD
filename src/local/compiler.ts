@@ -323,7 +323,16 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   return plainCompiledData(compileLocalInternal(source, options));
 }
 
-function compileLocalInternal(source: string, options?: LocalCompileOptions): LocalCompileResult {
+/** Internal capture for editor sessions; parsed trees never cross the public boundary. */
+export function compileLocalTracked(source: string, options?: LocalCompileOptions): {
+  result: LocalCompileResult; parsed?: ReturnType<typeof parseLocal>;
+} {
+  let parsed: ReturnType<typeof parseLocal> | undefined;
+  const result = plainCompiledData(compileLocalInternal(source, options, tree => { parsed = tree; }));
+  return { result, parsed };
+}
+
+function compileLocalInternal(source: string, options?: LocalCompileOptions, capture?: (tree: ReturnType<typeof parseLocal>) => void): LocalCompileResult {
   const optionCheck = readLocalCompileOptions(options);
   if (!optionCheck.ok) {
     return {
@@ -391,6 +400,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions): Lo
   let parsed: ReturnType<typeof parseLocal>;
   try {
     parsed = parseLocal(source, options);
+    capture?.(parsed);
   } catch (error) {
     report('local.parse', `Cannot parse document: ${error instanceof Error ? error.message : String(error)}`, 0, undefined, {
       key: 'local.parse.document',

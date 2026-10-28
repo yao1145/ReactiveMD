@@ -1,5 +1,7 @@
 # Performance measurements
 
+For repeated source edits, `createLocalCompileSession()` reuses unchanged compiled blocks. The built-in Worker, default fallback and React document component manage sessions automatically. See [session integration](../integration/local-integration-en.md#incremental-compilation-for-editing) and the [implementation, invalidation rules and measurements (Chinese)](incremental-compilation-2026-10-28-ch.md).
+
 Build the language package in the source repository root, then run:
 
 ```sh

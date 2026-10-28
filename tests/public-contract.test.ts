@@ -17,6 +17,7 @@ it('loads the core entry without touching React', async () => {
     expect(core.LOCAL_STATE_FORMAT).toBe('reactive-md-state/v1');
     expect(core.SHAREABLE_HTML_FORMAT).toBe('reactive-md-html/v1');
     expect(typeof core.compileLocal).toBe('function');
+    expect(typeof core.createLocalCompileSession).toBe('function');
     expect(typeof core.createLocalRuntime).toBe('function');
     expect(typeof core.createLocalStateFile).toBe('function');
     expect(typeof core.exportLocalState).toBe('function');

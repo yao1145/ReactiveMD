@@ -1,4 +1,4 @@
-import { compileLocal } from './compiler';
+import { createLocalCompileSession, type LocalCompileSession, type LocalIncrementalStats } from './incremental';
 import { MAX_LOCAL_HOST_COMPONENTS, MAX_LOCAL_HOST_ENUM_VALUES } from './limits';
 import { LOCAL_HTML_FLAGS, localCompileOptionsKey } from './options';
 import type { Diagnostic, LocalCompileOptions, LocalCompileResult } from './types';
@@ -18,7 +18,7 @@ export interface LocalCompileRequest {
 }
 
 export type LocalCompileResponse =
-  | { id: number; ok: true; result: LocalCompileResult; duration: number }
+  | { id: number; ok: true; result: LocalCompileResult; duration: number; incremental?: Readonly<LocalIncrementalStats> }
   | { id: number; ok: false; message: string };
 
 /**
@@ -196,6 +196,7 @@ export class LocalCompileScheduler {
   private inFlight: { id: number; job: CompileJob } | null = null;
   private nextId = 1;
   private pending = false;
+  private fallbackSession: LocalCompileSession | null = null;
   private disposed = false;
 
   constructor(options: LocalCompileSchedulerOptions) {
@@ -258,6 +259,8 @@ export class LocalCompileScheduler {
       }
     }
     this.pending = false;
+    this.fallbackSession?.dispose();
+    this.fallbackSession = null;
   }
 
   private drain(): void {
@@ -310,7 +313,10 @@ export class LocalCompileScheduler {
     const started = now();
     let result: LocalCompileResult;
     try {
-      const fallbackCompile = this.options.fallbackCompile ?? compileLocal;
+      const fallbackCompile = this.options.fallbackCompile ?? ((source: string, options?: LocalCompileOptions) => {
+        this.fallbackSession ??= createLocalCompileSession();
+        return this.fallbackSession.compile(source, options);
+      });
       // Keep the historical one-argument call shape when no options were given.
       result = job.options === undefined
         ? fallbackCompile(job.source)
@@ -443,6 +449,7 @@ export function startLocalCompileWorker(scope?: LocalCompileWorkerScope): void {
   if (!target || typeof target.postMessage !== 'function') {
     throw new TypeError('startLocalCompileWorker requires a worker scope with postMessage');
   }
+  const session = createLocalCompileSession();
   target.onmessage = (event) => {
     const request = event?.data;
     if (!request || typeof request.id !== 'number' || typeof request.source !== 'string') return;
@@ -450,11 +457,11 @@ export function startLocalCompileWorker(scope?: LocalCompileWorkerScope): void {
     const started = now();
     try {
       const result = request.options === undefined
-        ? compileLocal(request.source)
-        : compileLocal(request.source, request.options);
+        ? session.compile(request.source)
+        : session.compile(request.source, request.options);
       const duration = safeDuration(now() - started);
       try {
-        target.postMessage({ id: request.id, ok: true, result, duration });
+        target.postMessage({ id: request.id, ok: true, result, duration, incremental: session.stats });
       } catch (error) {
         // The result itself may not be cloneable; report the failure instead.
         postFailure(target, request.id, `Could not return the compile result: ${messageOf(error)}`);

@@ -71,6 +71,28 @@ export function Article() {
 
 动态标题的锚点根据源码初值计算，参数变化只更新标题显示文字。渲染后的 DOM ID 属于当前挂载实例；保存目录时应保留源码中的片段链接。
 
+## 持续编辑的增量编译
+
+持续编辑同一份文档时，复用一个 `createLocalCompileSession()`，让未变化的顶层块保留解析与编译产物：
+
+```ts
+import { createLocalCompileSession } from 'reactive-md';
+
+const session = createLocalCompileSession();
+session.compile('第一段 **文字**。\n\n第二段。');
+const result = session.compile('第一段 **文字**。\n\n第二段有修改。');
+console.log(session.stats); // mode: 'incremental', compiledBlocks: 1, reusedBlocks: 1
+session.dispose(); // 关闭文档时释放会话缓存
+```
+
+`compile(source, options?)` 返回 `LocalCompileResult`。`clear()` 清空复用数据，`dispose()` 释放缓存并结束会话；销毁后的会话不能再次编译。结果是可序列化的普通数据，每次返回独立快照，修改旧结果不会污染缓存。会话内未修改块的节点 ID 可跨编辑保持稳定，编号不要求与独立 `compileLocal()` 调用相同；节点 ID 及其元数据关联始终以同一份结果为准。
+
+同一会话内，参数与声明上下文保持不变时，只重新编译受影响的 Markdown 块。改变声明、组件内容、编译选项、权限或宿主 schema 时执行完整编译。引用定义、脚注、导航锚点、HTML、BOM、代码定界符变化及无法确认安全边界的输入也保守回到完整编译。出现诊断时返回完整编译的诊断。整篇源码和累计节点预算仍然生效，缓存只保留当前版本。
+
+`stats` 提供最近一次调用的 `mode`（`full`、`incremental`、`cached`）、块数、复用数、编译字符数与可选失效原因，用于观测实际复用。修改块会在不变的声明前缀下编译，前缀工作量计入 `compiledCharacters`。差异检测、范围重定位和完整结果快照组装仍随文档规模增长；会话不保证每次编辑都是常数时间。
+
+内置 `startLocalCompileWorker()`、`LocalCompileScheduler` 默认降级编译和 `LocalReactiveDocument` 已管理各自会话。自定义 `fallbackCompile` 继续由宿主管理。`compileLocal()` 保持单次完整编译 API。测试与性能数据见[块级增量编译](../development/incremental-compilation-2026-10-28-ch.md)。
+
 ## 核心 API
 
 ```ts
