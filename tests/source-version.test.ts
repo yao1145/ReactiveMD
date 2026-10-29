@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime, formatLocalDiagnostic } from '../src/local';
 
-const header = '<!-- reactive-md: local-draft-2 -->';
+const header = '<!-- reactive-md: local-draft-3 -->';
 
 describe('source syntax revision gate', () => {
   it('rejects an unsupported explicit version before evaluating declarations', () => {
@@ -21,9 +21,9 @@ describe('source syntax revision gate', () => {
     const result = compileLocal(source);
     expect(result.diagnostics).toEqual([]);
     if (!result.ok) throw new Error('Expected a valid document');
-    expect(result.document.syntaxVersion).toBe('local-draft-2');
+    expect(result.document.syntaxVersion).toBe('local-draft-3');
     expect(result.document.versionDeclaration).toEqual({
-      version: 'local-draft-2', range: { start: source.indexOf(header), end: source.indexOf(header) + header.length },
+      version: 'local-draft-3', range: { start: source.indexOf(header), end: source.indexOf(header) + header.length },
     });
     expect(result.document.nodes.find(node => node.name === 'number')?.range.start).toBe(source.indexOf('<number'));
     const runtime = createLocalRuntime(result.document);
@@ -34,7 +34,7 @@ describe('source syntax revision gate', () => {
     const result = compileLocal('<number bind="n" label="Count">');
     expect(result.diagnostics).toEqual([]);
     if (!result.ok) throw new Error('Expected a valid document');
-    expect(result.document.syntaxVersion).toBe('local-draft-2');
+    expect(result.document.syntaxVersion).toBe('local-draft-3');
     expect(result.document.versionDeclaration).toBeUndefined();
   });
 
@@ -42,7 +42,7 @@ describe('source syntax revision gate', () => {
     [`${header}\n${header}\n# Body`, 'local.version.duplicate'],
     ['<!-- reactive-md: something -->\n# Body', 'local.version.malformed'],
     ['<!-- reactive-md local-draft-99 -->\n# Body', 'local.version.malformed'],
-    ['<!-- reactive-md: local-draft-2\n# Body', 'local.version.malformed'],
+    ['<!-- reactive-md: local-draft-3\n# Body', 'local.version.malformed'],
     [`# Body\n${header}`, 'local.version.placement'],
     [`<theme name="default">\n${header}\n# Body`, 'local.version.placement'],
     [`<panel>\n${header}\n</panel>`, 'local.version.placement'],

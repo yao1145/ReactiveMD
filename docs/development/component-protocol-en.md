@@ -1,6 +1,6 @@
 # Reactive MD component protocol
 
-Protocol revision `component-protocol-2` · applicable syntax `local-draft-2` · current package version `0.5.2` (preview)
+Protocol revision `component-protocol-3` · applicable syntax `local-draft-3` · current package version `0.6.1`
 
 Components are the building blocks of the Reactive MD language. This protocol defines the shared contract for contribution, implementation and acceptance, connecting author syntax, the compiler, the runtime, the React reference adapter and machine conformance data. Authors writing documents follow the [local interaction syntax specification](../reference/local-interaction-syntax-en.md); hosts integrating follow [local mode integration](../integration/local-integration-en.md); this document is for contributors, reviewers and tests.
 
@@ -21,8 +21,8 @@ Reactive MD maintains the following independent version axes:
 | Version axis | Current value | Determines |
 | --- | --- | --- |
 | Package version | `0.5.2` | npm release, core and React entries, upgrade compatibility rules |
-| Syntax revision | `local-draft-2` | Tags, attributes and expressions authors can write |
-| Protocol revision | `component-protocol-2` | Component contribution requirements, acceptance gates and machine data semantics |
+| Syntax revision | `local-draft-3` | Tags, attributes and expressions authors can write |
+| Protocol revision | `component-protocol-3` | Component contribution requirements, acceptance gates and machine data semantics |
 | Theme protocol | `reactive-md-theme-1` | Theme registration, style variables, color schemes and theme acceptance |
 
 The protocol revision is independent of the package version and syntax version. One package version accepts only one syntax revision. A protocol revision may raise contribution and acceptance requirements without changing author syntax; a syntax revision change does not automatically require a protocol revision.
@@ -60,7 +60,7 @@ When a clause restating existing behavior conflicts with the syntax specificatio
 
 ### CP-SCOPE-05 Scope (boundary)
 
-This protocol applies to the 48 tag names of `local-draft-2`, their compilation, runtime and reference rendering behavior, and the process for submitting new components or changing existing ones to the repository.
+This protocol applies to the 49 tag names of `local-draft-3`, their compilation, runtime and reference rendering behavior, and the process for submitting new components or changing existing ones to the repository.
 
 This document defines contribution and acceptance contracts. The author tutorial and host API have separate documents; see CP-CORE-03 for the portable HTML scope and CP-CORE-05 for extension interface boundaries.
 
@@ -68,7 +68,7 @@ This document defines contribution and acceptance contracts. The author tutorial
 
 ### CP-MODEL-01 Component classification (existing)
 
-`local-draft-2` fixes 48 tag names in the following groups:
+`local-draft-3` fixes 49 tag names in the following groups:
 
 | Category | Components | Notes |
 | --- | --- | --- |
@@ -78,7 +78,7 @@ This document defines contribution and acceptance contracts. The author tutorial
 | Navigation and prose | `jump`, `anchor`, `text`, `section` | Jumps, explicit anchors and bounded foreground colors |
 | Assessment | `quiz` | Choice or numeric self-study questions; no public binding |
 | Feedback | `alert`, `badge`, `tooltip` | Alerts and inline explanations |
-| Declarations | `computed`, `const`, `validation` | Parsed tags that are not rendered controls |
+| Declarations | `external`, `computed`, `const`, `validation` | Parsed tags that are not rendered controls; `external` is a read-only host-data declaration |
 | Generated data and visualization | `data-table`, `column`, `table`, `chart`, `plot`, `timeline`, `diagram`, `node`, `edge` | Generated rows, tables, charts, function curves, timelines and diagrams |
 
 `option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children that appear only inside their specified parent components. `computed` and `const` are invisible declarations; `validation` produces accessible hints when its rule fails. The leading `<theme>` declaration is document metadata, not a component. See [section 12 of the syntax specification](../reference/local-interaction-syntax-en.md#12-component-reference-and-syntax-scope) for the complete names and purposes.
@@ -87,7 +87,7 @@ This document defines contribution and acceptance contracts. The author tutorial
 
 | Shape | Author form | Current components |
 | --- | --- | --- |
-| No body (leaf) | `<slider ...>`, no end tag; `<slider ... />` is also accepted | `input`, `textarea`, `number`, `slider`, `range-slider`, `coordinate`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `edge`, `anchor`, `computed`, `const`, `validation`, `column` |
+| No body (leaf) | `<slider ...>`, no end tag; `<slider ... />` is also accepted | `input`, `textarea`, `number`, `slider`, `range-slider`, `coordinate`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `edge`, `anchor`, `external`, `computed`, `const`, `validation`, `column` |
 | Inline | Paired tags with content embedded in a sentence | `badge`, `tooltip`, `jump`, `text` |
 | Container | Paired tags whose content continues to parse as Markdown or child components | The remaining components |
 
@@ -116,7 +116,7 @@ The current declaration table is `src/local/schema.ts`; the tag lexical sets are
 
 ### CP-MODEL-04 Name set (existing)
 
-The 48 names of `local-draft-2` are the complete set for the current syntax. Adding, removing or changing the meaning of a name is an author-visible change and is handled under section 10. Implementations may use undocumented node types internally, but authors can only use the names listed here and in the syntax specification.
+The 49 names of `local-draft-3` are the complete set for the current syntax. Adding, removing or changing the meaning of a name is an author-visible change and is handled under section 10. Implementations may use undocumented node types internally, but authors can only use the names listed here and in the syntax specification.
 
 ## 3. Names, syntax and attributes
 
@@ -153,7 +153,7 @@ $$ y = x^2 $$
 </if>
 ```
 
-`bind`, `initial`, `id`, `value`, `from`, `to`, `kind`, `type` and layout enums are static attributes; `disabled`, `if.when`, `plot.min`, `plot.max` and `node.tone` are dynamic attributes. The complete list follows the `static` and `dynamic` markers in `schema.ts`.
+`bind`, `initial`, `id`, `value`, `from`, `to`, `kind`, `type`, `step`, text-length limits and layout enums are static attributes. `disabled`, `if.when`, `plot.min`, `plot.max`, `node.tone`, `number`/`slider` `min`/`max`, `date` `min`/`max`/`required`, and `input`/`textarea` `required` are dynamic. The complete list follows the `static` and `dynamic` markers in `schema.ts`.
 
 ### CP-SYNTAX-05 Labels and accessible names (existing)
 
@@ -221,7 +221,8 @@ Each numeric slot of range-slider and coordinate is also exclusive. Bounds, step
 A same-name binding is valid only when all of the following conditions hold:
 
 - All components belong to the same family.
-- Numeric bindings have exactly identical `min`, `max` and `step`.
+- Numeric bindings have exactly identical `min`, `max` and `step`; when a bound is dynamic, all owners must declare the same expression.
+- Date bindings have identical `min` and `max` after resolving literals and dynamic expressions.
 - Selector option value sets and order are exactly identical.
 - An exclusive family has only one component.
 - The same binding has at most one explicit `initial`.
@@ -524,7 +525,7 @@ Editorial changes do not raise the protocol revision. Protocol revisions can shi
 
 ### CP-COMPAT-04 Name governance (required)
 
-- New names must be lowercase kebab-case, semantically clear, and avoid conflicts with the existing 48 names.
+- New names must be lowercase kebab-case, semantically clear, and avoid conflicts with the existing 49 names.
 - Do not use HTML names such as `script`, `style`, `div`, `span` or `a`, and do not use `on-*`, `class` or `style` as author attributes.
 - Within `component-protocol-1`, the existing 48 names are reserved for existing semantics; reusing a name is a breaking change.
 - No implicit aliases. An alias needs its own name, documentation and acceptance evidence.
@@ -563,7 +564,7 @@ Persist only the original `.reactive.md` source and the syntax revision used. `L
 
 ### CP-ACCEPT-02 Machine conformance data (required)
 
-The root object of a machine conformance set contains only `protocolVersion`, `syntaxVersion` and a non-empty `cases` array. The current author-component set fixes them to `component-protocol-1` and `local-draft-2`; it remains the frozen v1 baseline described in section 14. The package version is identified by `package.json` and is not inferred from these fields.
+The root object of a machine conformance set contains only `protocolVersion`, `syntaxVersion` and a non-empty `cases` array. The frozen author-component set `examples/conformance/component-protocol-1.json` remains `component-protocol-1` / `local-draft-2`. The current portable syntax set is `examples/conformance/local-draft-3.json`; both are checked for their declared revisions. The package version is identified by `package.json` and is not inferred from these fields.
 
 Each case contains at least a unique string `id`, component name `component`, source `source`, boolean `ok` and a deduplicated diagnostic code set `codes`. Optional fields `initial`, `bindingNames`, `actions`, `reset`, `text`, `expectedText`, `htmlIncludes` and `htmlExcludes` follow the [language conformance data notes](../../examples/conformance/README.md) and the JSON Schema shipped with the repository. The full format follows that document and the Schema; this protocol defines only the semantic gates.
 
@@ -578,7 +579,7 @@ The runner must:
 
 `initial` and `reset.expectedState` use partial matching; `bindingNames` checks the complete public binding name set; `text` and `expectedText` must appear in pairs.
 
-The frozen author-component set covers representative `slider`, `tabs` and `plot` cases and at least one complete unknown-tag fallback case. It remains a representative gate, not full certification of the 48 tag names; host components have no portable machine cases.
+The frozen author-component set covers representative `slider`, `tabs` and `plot` cases and at least one complete unknown-tag fallback case. It remains a representative gate, not full certification of the 49 tag names; host components have no portable machine cases.
 
 ### CP-ACCEPT-03 Component-level evidence (required)
 
@@ -630,7 +631,7 @@ Only SHOULD clauses can be exempted; exemptions must record the rationale, alter
 
 ### CP-IMPL-02 Current coverage (existing / boundary)
 
-The current implementation covers parsing, declarations, compilation, runtime, React rendering, resource budgets and release checks. Real keyboard input, IME, 375px layout and timer pause require corresponding automated browser checks or manual checks; general SSR hydration outside the single-file export is unverified. The machine data of `component-protocol-1` is a representative gate, not certification of all 48 tag names.
+The current implementation covers parsing, declarations, compilation, runtime, React rendering, resource budgets and release checks. Real keyboard input, IME, 375px layout and timer pause require corresponding automated browser checks or manual checks; general SSR hydration outside the single-file export is unverified. The machine data of `component-protocol-1` is a representative gate, not certification of all 49 tag names.
 
 ### CP-IMPL-03 Extension interfaces (boundary)
 
@@ -652,7 +653,7 @@ The tables below are for review. See the [component development guide](component
 | Item | Content |
 | --- | --- |
 | Component name | `<name>` (lowercase kebab-case) |
-| Protocol revision | `component-protocol-2` |
+| Protocol revision | `component-protocol-3` |
 | Purpose | What problem it solves and how readers use it |
 | Non-goals | Capabilities this component does not take on |
 | Version impact | Package version, syntax revision, protocol revision |
@@ -713,10 +714,11 @@ The tables below are for review. See the [component development guide](component
 | Field | Content |
 | --- | --- |
 | `name` | Lowercase kebab-case, unique within the set, not one of the 48 author tag names, a P0 HTML tag name or the theme declaration name |
-| `form` | `'leaf'`; host components have no body |
+| `form` | `'leaf'`, `'inline'` or `'container'`; inline and container bodies are compiled as normal Markdown and may contain components |
 | `props` | A table of host properties; property names use lowercase kebab-case |
+| `binding` | Optional scalar binding (`string`, `number`, `boolean`) with static `min`, `max`, `step`, `options`, `initialRule` and `exclusive`; the component then accepts `bind`, `initial` and dynamic `disabled` implicitly |
 
-One compilation accepts at most 32 host component schemas. Each property declares `kind` (`string`, `number`, `boolean` or `enum`), `required`, `static`, `enum` and `pattern`. `enum` applies to `enum` properties, and `pattern` applies to `string` properties. P0 HTML tag names are reserved because the parser handles them before component tags. `pattern` is restricted to a linear-time-safe subset: backreferences, lookarounds, named groups, nested quantifiers and quantified alternation are rejected. Invalid schemas are rejected with a `local.options.invalid` diagnostic; compilation fails and no host component from that set is partially registered.
+One compilation accepts at most 32 host component schemas. Each property declares `kind` (`string`, `number`, `boolean` or `enum`), `required`, `static`, `enum` and `pattern`. A host binding shares the built-in families; when its name matches a built-in control, family and static constraints must agree. `enum` applies to `enum` properties, and `pattern` applies to `string` properties. P0 HTML tag names are reserved because the parser handles them before component tags. `pattern` is restricted to a linear-time-safe subset: backreferences, lookarounds, named groups, nested quantifiers and quantified alternation are rejected. Invalid schemas are rejected with a `local.options.invalid` diagnostic; compilation fails and no host component from that set is partially registered.
 
 ### CP-HOST-03 Host components are not author syntax (boundary)
 
@@ -730,7 +732,7 @@ A valid host node counts as exactly one syntax node in the existing syntax-node 
 
 ### CP-HOST-05 React dispatch and host-owned data (required)
 
-The React view dispatches a `hostComponent` node to `hostRenderer(node, data, ctx)`. `data` is read from `hostData`, JSON-safe host data indexed by `${kind}:${ref}` from the node attributes. Both props stay on the host/React side: the renderer function never enters a worker, and `hostData` never enters the worker either, because compilation needs only the schemas.
+The React view dispatches a `hostComponent` node to `hostRenderer(node, data, ctx)`. `data` is read from `hostData`, JSON-safe host data indexed by `${kind}:${ref}` from the node attributes; components without those attributes (binding-only, inline or container shapes) do not require host data. `ctx` provides `value`, a validating `setValue`, `disabled`, `resetToken`, resolved `props`, `report` and `render`; `ctx.render()` with no arguments renders a container's parsed children. Both props stay on the host/React side: the renderer function never enters a worker, and `hostData` never enters the worker either, because compilation needs only the schemas.
 
 A missing renderer, a missing `${kind}:${ref}` key or a renderer that throws renders a visible diagnostic placeholder. It must not throw out of the document or blank the rest of the content. `mode === 'static'` goes through the same dispatch, so static rendering shows the same placeholder when the host has not supplied a renderer or data.
 
@@ -740,6 +742,7 @@ Portable machine cases remain `examples/conformance/component-protocol-1.json`, 
 
 | Revision | Date | Notes |
 | --- | --- | --- |
+| `component-protocol-3` | 2026-10-29 | Host components gain inline/container forms and scalar bindings; `local-draft-3` adds `<external>` and dynamic constraints. |
 | `component-protocol-2` | 2026-10-25 | Added the host component extension axis; author syntax remains `local-draft-2`. |
 | `component-protocol-1` | 2026-10-23 | Initial version; originally applied to `local-draft-1` and package version `0.3.0`, defining component contribution, acceptance and extension boundaries. It now applies to `local-draft-2` and the `0.4.0` preview release without changing its MUST clauses or machine format. |
 

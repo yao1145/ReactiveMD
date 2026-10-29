@@ -10,12 +10,12 @@ import type { LocalNode } from '../src/local/types';
 
 /*
  * These literal lists are the tag sets parser.ts hardcoded before deriving
- * them from component forms. They deliberately pin the accepted local-draft-2
+ * them from component forms. They deliberately pin the accepted local-draft-3
  * syntax: a schema form change alters which tags self-close, require a closing
  * tag or inline their content. If such a change is intended, update these
  * lists in the same change and treat it as a syntax change, not a refactor.
  */
-const LEGACY_VOID = 'input textarea number slider range-slider coordinate toggle checkbox date counter timer progress edge anchor computed const validation column'.split(' ');
+const LEGACY_VOID = 'input textarea number slider range-slider coordinate toggle checkbox date counter timer progress edge anchor computed const external validation column'.split(' ');
 const LEGACY_PAIRED = 'panel card grid tabs tab steps step accordion disclosure if alert badge tooltip select choices radio-group multi-select quiz checklist table chart plot timeline diagram node option jump text section data-table'.split(' ');
 const LEGACY_INLINE = ['badge', 'tooltip', 'jump', 'text'];
 
@@ -79,7 +79,7 @@ describe('schema component forms', () => {
 describe('schema and renderer registry coverage', () => {
   it('registers every schema component in exactly one view registry', () => {
     // renderComponent handles declarations and the generated table directly.
-    const specialViews = ['computed', 'const', 'data-table'];
+    const specialViews = ['computed', 'const', 'external', 'data-table'];
     const registered = new Set([...Object.keys(COMPONENTS), ...VISUAL_COMPONENTS, ...specialViews]);
     for (const name of LOCAL_COMPONENT_NAMES) {
       expect(registered.has(name), `<${name}> is declared in the schema but has no view`).toBe(true);

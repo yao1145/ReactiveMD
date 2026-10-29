@@ -29,7 +29,7 @@ function codes(source: string): string[] {
 const tableSource = (key = '', rows = '| a | Alpha |\n| b | Beta |') =>
   `<table label="Items" key="id"${key ? ` bind="${key}"` : ''}>\n| id | name |\n| --- | --- |\n${rows}\n</table>`;
 
-describe('local-draft-2 colors', () => {
+describe('local-draft-3 colors', () => {
   it('accepts only named CSS colors and #RGB/#RRGGBB', () => {
     for (const value of ['red', 'RebeccaPurple', '#abc', '#A1B2C3']) expect(isLocalColor(value)).toBe(true);
     for (const value of [

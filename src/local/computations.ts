@@ -125,6 +125,7 @@ export function resolveComputationGraph(
   inputs: ComputationInput[],
   controls: Record<string, LocalValueKind>,
   report: ComputationReport,
+  externalNames: ReadonlySet<string> = new Set(),
   cache?:{expression(source:string):LocalExpression;infer(expression:LocalExpression,env:Record<string,LocalValueKind>):LocalValueKind},
 ): ResolvedComputations {
   const expressions = new Map<string, LocalExpression>();
@@ -186,7 +187,7 @@ export function resolveComputationGraph(
       if (Object.hasOwn(controls, dependency)) {
         report(
           'local.computation.const',
-          `Constant "${name}" cannot depend on control parameter "${dependency}".`,
+          `Constant "${name}" cannot depend on ${externalNames.has(dependency) ? 'external data' : 'control parameter'} "${dependency}".`,
           input.expressionOffset + Math.max(0, input.source.indexOf(dependency)),
         );
         invalidConst.add(name);
@@ -337,11 +338,21 @@ export function evaluateComputations(
   expressions: Map<string, LocalExpression>,
   controls: Record<string, LocalValue>,
   constValues: Record<string, LocalValue>,
+  unavailable: ReadonlyMap<string, LocalExpressionError> = new Map(),
 ): ComputationEvaluation {
   const values: Record<string, LocalValue> = {};
   const errors = new Map<string, LocalExpressionError>();
   const env: Record<string, LocalValue> = {};
   for (const [key, value] of Object.entries(controls)) env[key] = value;
+  for (const [key, error] of unavailable) {
+    Object.defineProperty(env, key, {
+      enumerable: true,
+      configurable: true,
+      get() {
+        throw error;
+      },
+    });
+  }
   for (const [key, value] of Object.entries(constValues)) {
     values[key] = value;
     env[key] = value;

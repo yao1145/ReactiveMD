@@ -84,6 +84,7 @@
     "test:media-browser": "node scripts/verify-media-browser.mjs",
     "test:computations-browser": "node scripts/verify-computations-browser.mjs",
     "test:constraints-browser": "node scripts/verify-constraints-browser.mjs",
+    "test:dynamic-browser": "node scripts/verify-dynamic-browser.mjs",
     "verify:memo": "node scripts/verify-memo-browser.mjs",
     "verify:release": "node scripts/verify-release.mjs",
     "verify:release:node": "node scripts/verify-release.mjs --node",

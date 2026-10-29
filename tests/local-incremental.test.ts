@@ -160,7 +160,7 @@ describe('incremental compilation sessions', () => {
   it('relocates declaration metadata and anonymous bindings with unchanged context', () => {
     for (const control of [slider, '<slider label="anonymous" initial="2">']) {
       const session = createLocalCompileSession();
-      const initial = `<!-- reactive-md: local-draft-2 -->\n\n<theme name="default">\n\nIntroduction\n\n${control}\n\n<computed name="twice" value="{{ 2 * 2 }}">\n\nValue {{ twice }}\n\nLast **paragraph**`;
+      const initial = `<!-- reactive-md: local-draft-3 -->\n\n<theme name="default">\n\nIntroduction\n\n${control}\n\n<computed name="twice" value="{{ 2 * 2 }}">\n\nValue {{ twice }}\n\nLast **paragraph**`;
       session.compile(initial);
       const source = initial.replace('Introduction', 'A much longer introduction');
       expect(normalize(session.compile(source))).toEqual(normalize(compileLocal(source)));

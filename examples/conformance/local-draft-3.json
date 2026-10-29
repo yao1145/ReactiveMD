@@ -1,0 +1,296 @@
+{
+  "syntaxVersion": "local-draft-3",
+  "cases": [
+    {
+      "name": "shared numeric binding has one initial value and updates prose",
+      "source": "<number bind=\"n\" label=\"Count\" initial=\"2\" min=\"0\" max=\"10\">\n<slider bind=\"n\" label=\"Shared count\" min=\"0\" max=\"10\">\n\nTotal: {{ n * 2 }}",
+      "ok": true,
+      "initial": {
+        "n": 2
+      },
+      "actions": [
+        {
+          "bind": "n",
+          "value": 5
+        }
+      ],
+      "text": "Total: {{ n * 2 }}",
+      "expectedText": "Total: 10"
+    },
+    {
+      "name": "hidden controls initialize their bindings",
+      "source": "<toggle bind=\"show\" label=\"Show\">\n<if when=\"{{ show }}\">\n<number bind=\"n\" label=\"Hidden count\" initial=\"4\">\n</if>\n\n{{ n * 2 }}",
+      "ok": true,
+      "initial": {
+        "show": false,
+        "n": 4
+      },
+      "text": "{{ n * 2 }}",
+      "expectedText": "8"
+    },
+    {
+      "name": "invalid state writes keep the last valid value",
+      "source": "<number bind=\"n\" label=\"Count\" initial=\"4\" min=\"0\" max=\"10\">",
+      "ok": true,
+      "initial": {
+        "n": 4
+      },
+      "actions": [
+        {
+          "bind": "n",
+          "value": 11,
+          "codes": [
+            "local.runtime.value"
+          ]
+        }
+      ],
+      "text": "{{ n }}",
+      "expectedText": "4"
+    },
+    {
+      "name": "code fences keep controls and interpolation literal",
+      "source": "```markdown\n<counter bind=\"n\" label=\"Literal\">\n{{ missing }}\n```",
+      "ok": true,
+      "bindingNames": []
+    },
+    {
+      "name": "unknown components preserve source with a warning",
+      "source": "<slidr label=\"Typo\">\n</slidr>",
+      "ok": true,
+      "bindingNames": [],
+      "codes": [
+        "local.component.unknown"
+      ]
+    },
+    {
+      "name": "unbound expression names produce a compiler diagnostic",
+      "source": "Total: {{ missing * 2 }}",
+      "ok": false,
+      "codes": [
+        "local.binding.unknown"
+      ]
+    },
+    {
+      "name": "multi-select-values",
+      "source": "<multi-select bind=\"subjects\" label=\"Subjects\" max-selected=\"2\">\n<option value=\"math\">Math</option>\n<option value=\"physics\">Physics</option>\n</multi-select>",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "subjects": []
+      },
+      "bindingNames": [
+        "subjects"
+      ],
+      "actions": [
+        {
+          "bind": "subjects",
+          "value": [
+            "physics",
+            "math"
+          ],
+          "codes": []
+        }
+      ],
+      "text": "{{ len(subjects) }}",
+      "expectedText": "2"
+    },
+    {
+      "name": "range-slots",
+      "source": "<range-slider label=\"Interval\" bind-start=\"low\" bind-end=\"high\" initial-start=\"20\" initial-end=\"80\">",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "low": 20,
+        "high": 80
+      },
+      "bindingNames": [
+        "low",
+        "high"
+      ],
+      "text": "{{ high - low }}",
+      "expectedText": "60"
+    },
+    {
+      "name": "coordinate-slots",
+      "source": "<coordinate label=\"Point\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\">",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "px": 1,
+        "py": 2
+      },
+      "bindingNames": [
+        "px",
+        "py"
+      ],
+      "text": "{{ px + py }}",
+      "expectedText": "3"
+    },
+    {
+      "name": "steps-initialization",
+      "source": "<steps label=\"Path\" bind=\"lesson\">\n<step label=\"Read\">\nRead first.\n</step>\n<step label=\"Try\">\nTry next.\n</step>\n</steps>",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "lesson": "step-1"
+      },
+      "bindingNames": [
+        "lesson"
+      ],
+      "actions": [
+        {
+          "bind": "lesson",
+          "value": "step-2",
+          "codes": []
+        }
+      ],
+      "text": "{{ lesson }}",
+      "expectedText": "step-2"
+    },
+    {
+      "name": "jump-colored-prose",
+      "source": "<jump to=\"result\">Results</jump>\n\n<section color=\"#123\">\n\n<text color=\"red\">Important</text>\n\n</section>\n\n<anchor id=\"result\">\n\nDone.",
+      "ok": true,
+      "codes": []
+    },
+    {
+      "name": "quiz-choice",
+      "source": "<quiz label=\"Two plus three\" answer=\"b\">\n<option value=\"a\">4</option>\n<option value=\"b\">5</option>\n</quiz>",
+      "ok": true,
+      "codes": []
+    },
+    {
+      "name": "selection-key",
+      "source": "<table bind=\"project\" key=\"Project\" initial=\"Visual\">\n| Project | Cost |\n| --- | ---: |\n| Content | 120 |\n| Visual | 230 |\n</table>",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "project": "Visual"
+      },
+      "bindingNames": [
+        "project"
+      ],
+      "actions": [
+        {
+          "bind": "project",
+          "value": "Content",
+          "codes": []
+        }
+      ],
+      "text": "{{ project }}",
+      "expectedText": "Content"
+    },
+    {
+      "name": "computed-values-recalculate-from-controls-and-arrays",
+      "source": "<computed name=\"costs\" value=\"{{ [seats * 80, materials ? seats * 20 : 0] }}\">\n<computed name=\"total\" value=\"{{ sum(costs) }}\">\n\n<number bind=\"seats\" label=\"Seats\" initial=\"4\" min=\"1\" max=\"20\">\n<toggle bind=\"materials\" label=\"Materials\">\n\nTotal: {{ total }}.",
+      "ok": true,
+      "codes": [],
+      "initial": {
+        "seats": 4,
+        "materials": false
+      },
+      "bindingNames": [
+        "materials",
+        "seats"
+      ],
+      "actions": [
+        {
+          "bind": "materials",
+          "value": true,
+          "codes": []
+        },
+        {
+          "bind": "seats",
+          "value": 6,
+          "codes": []
+        }
+      ],
+      "text": "Total: {{ total }}.",
+      "expectedText": "Total: 600."
+    },
+    {
+      "id": "dynamic-number-max-narrows",
+      "component": "number",
+      "source": "<number bind=\"rooms\" label=\"Rooms\" initial=\"2\" min=\"1\" max=\"5\">\n<number bind=\"guests\" label=\"Guests\" initial=\"6\" min=\"1\" max=\"{{ rooms * 4 }}\">",
+      "ok": true,
+      "initial": {
+        "rooms": 2,
+        "guests": 6
+      },
+      "bindingNames": [
+        "guests",
+        "rooms"
+      ],
+      "codes": [],
+      "actions": [
+        {
+          "bind": "rooms",
+          "value": 1,
+          "codes": []
+        },
+        {
+          "bind": "guests",
+          "value": 6,
+          "codes": [
+            "local.runtime.value"
+          ]
+        },
+        {
+          "bind": "guests",
+          "value": 4,
+          "codes": []
+        }
+      ],
+      "text": "{{ guests }}",
+      "expectedText": "4"
+    },
+    {
+      "id": "dynamic-date-min-follows-departure",
+      "component": "date",
+      "source": "<date bind=\"departure\" label=\"Departure\" initial=\"2026-11-10\">\n<date bind=\"return\" label=\"Return\" initial=\"2026-11-12\" min=\"{{ departure }}\">",
+      "ok": true,
+      "initial": {
+        "departure": "2026-11-10",
+        "return": "2026-11-12"
+      },
+      "bindingNames": [
+        "departure",
+        "return"
+      ],
+      "codes": [],
+      "actions": [
+        {
+          "bind": "return",
+          "value": "2026-11-01",
+          "codes": [
+            "local.runtime.value"
+          ]
+        }
+      ],
+      "text": "{{ return }}",
+      "expectedText": "2026-11-12"
+    },
+    {
+      "id": "external-declaration-compiles",
+      "component": "external",
+      "source": "<external name=\"rate\" type=\"number\">\n<number bind=\"usd\" label=\"USD\" initial=\"10\" min=\"0\" max=\"1000\">\n\nUSD {{ usd }}",
+      "ok": true,
+      "initial": {
+        "usd": 10
+      },
+      "bindingNames": [
+        "usd"
+      ],
+      "codes": []
+    },
+    {
+      "id": "external-placement-is-rejected",
+      "component": "external",
+      "source": "<panel><external name=\"rate\" type=\"number\"></panel>",
+      "ok": false,
+      "codes": [
+        "local.external.placement"
+      ]
+    }
+  ]
+}

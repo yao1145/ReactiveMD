@@ -36,6 +36,7 @@ import {
   getLocalComponent,
   suggestAttribute,
   suggestComponent,
+  type LocalBindingFamily,
   type LocalComponentSchema,
   type LocalPropSchema,
 } from './schema';
@@ -54,6 +55,9 @@ import type {
   LocalCompileResult,
   LocalComputation,
   LocalDocument,
+  LocalDynamicConstraints,
+  LocalExternal,
+  LocalHostBindingSchema,
   LocalHostComponentSchema,
   LocalHostPropSchema,
   LocalNode,
@@ -274,6 +278,9 @@ interface CompileState {
   bindingKinds: Record<string, LocalValueKind>;
   computationKinds: Record<string, LocalValueKind>;
   computations: Record<string, LocalComputation>;
+  externals: Record<string, LocalExternal>;
+  externalKinds: Record<string, LocalValueKind>;
+  dynamicConstraints: Record<string, LocalDynamicConstraints>;
   expressionKinds: Map<string, LocalValueKind | null>;
 }
 
@@ -469,6 +476,9 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
     bindingKinds: {},
     computationKinds: {},
     computations: {},
+    externals: {},
+    externalKinds: {},
+    dynamicConstraints: {},
     expressionKinds: new Map(),
   };
 
@@ -483,11 +493,14 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   mark?.('structureMs');
 
   const bindings = resolveBindings(state);
+  resolveHostBindings(state, optionCheck.hostByName, bindings);
   state.bindingKinds = bindingKinds(bindings);
   mark?.('bindingsMs');
 
+  resolveExternals(state);
   resolveComputations(state);
   mark?.('computationsMs');
+  collectDynamicConstraints(state);
 
   validateExpressions(state);
   mark?.('expressionsMs');
@@ -527,18 +540,24 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
 
   const bindingSlots = slotMap(state);
   const computationNames = Object.keys(state.computations);
+  const externalNames = Object.keys(state.externals);
+  const dynamicConstraints = Object.keys(state.dynamicConstraints).length
+    ? state.dynamicConstraints
+    : undefined;
   const document: LocalDocument = {
     syntax: 'local',
     source,
     syntaxVersion: LOCAL_SYNTAX_VERSION,
     ...(parsed.versionDeclaration ? { versionDeclaration: parsed.versionDeclaration } : {}),
-    nodes: stripComputationNodes(parsed.nodes),
+    nodes: stripDeclarationNodes(parsed.nodes),
     initialState,
     bindings,
     theme: parsed.theme ?? DEFAULT_LOCAL_THEME.name,
     ...(parsed.themeRange ? { themeRange: parsed.themeRange } : {}),
     ...(bindingSlots ? { bindingSlots } : {}),
     ...(computationNames.length ? { computations: state.computations } : {}),
+    ...(externalNames.length ? { externals: state.externals } : {}),
+    ...(dynamicConstraints ? { dynamicConstraints } : {}),
     ...(validations.length ? { validations } : {}),
   };
   attachNodeDependencies(document);
@@ -701,6 +720,20 @@ function validatePropValue(
   state: CompileState,
 ): void {
   if (prop.kind === 'string') {
+    // A dynamic string attribute (for example `date.min`) accepts one complete
+    // interpolation that must evaluate to a string, or a literal fallback.
+    if (prop.dynamic) {
+      const full = fullInterpolation(info.raw);
+      if (full) {
+        info.dynamic = true;
+        info.expression = full.expression;
+        info.expressionOffset = info.offset + full.start;
+        if (!full.expression) {
+          state.report('local.expression.empty', `Attribute ${name} interpolation cannot be empty.`, info.expressionOffset, undefined, { key: 'local.expression.empty.attribute', params: { name } });
+        }
+        return;
+      }
+    }
     if (prop.static) {
       const scanned = scanInterpolations(info.raw);
       if (scanned.segments.length || scanned.unterminated.length) {
@@ -1453,10 +1486,254 @@ function bindingKinds(bindings: Record<string, LocalBinding>): Record<string, Lo
   return kinds;
 }
 
+function flattenNodes(nodes: LocalNode[], out: LocalNode[] = []): LocalNode[] {
+  for (const node of nodes) {
+    out.push(node);
+    if (node.children) flattenNodes(node.children, out);
+  }
+  return out;
+}
+
+function hostBindingFamily(binding: LocalHostBindingSchema): LocalBindingFamily {
+  if (binding.kind === 'number') return 'number';
+  if (binding.kind === 'boolean') return 'boolean';
+  return binding.options?.length ? 'choice' : 'text';
+}
+
+/**
+ * Register public or internal bindings owned by host components. A host
+ * binding shares the built-in families: when its name matches an existing
+ * control binding, both owners must agree on family and static constraints.
+ */
+function resolveHostBindings(
+  state: CompileState,
+  hostByName: ReadonlyMap<string, LocalHostComponentSchema>,
+  bindings: Record<string, LocalBinding>,
+): void {
+  if (hostByName.size === 0) return;
+  const nodes = flattenNodes(state.nodes);
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const entryById = new Map(state.entries.map((entry) => [entry.node.id, entry]));
+  const ownerBinding = (id: string, key: string): { family: LocalBindingFamily; exclusive?: boolean } | undefined => {
+    const owner = nodeById.get(id);
+    const host = owner?.type === 'hostComponent' && owner.name ? hostByName.get(owner.name)?.binding : undefined;
+    if (host) return { family: hostBindingFamily(host), exclusive: host.exclusive };
+    const entry = entryById.get(id);
+    return entry?.schema.binding ?? entry?.schema.slots?.find((slot) => state.bindingSlots[id]?.[slot.name] === key);
+  };
+  for (const node of nodes) {
+    if (node.type !== 'hostComponent' || !node.name) continue;
+    const schema = hostByName.get(node.name);
+    const bindingSchema = schema?.binding;
+    if (!schema || !bindingSchema) continue;
+    const rawAttrs = node.attrs ?? {};
+    const family = hostBindingFamily(bindingSchema);
+    const kind = bindingSchema.kind as LocalValueKind;
+    let key = `@${node.id}`;
+    const rawBind = rawAttrs.bind;
+    if (rawBind !== undefined) {
+      const offset = attributeOffset(state, node, 'bind');
+      if (rawBind.length > MAX_LOCAL_NAME_LENGTH) {
+        state.report(
+          'local.budget.identifier',
+          `Parameter name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`,
+          offset,
+          undefined,
+          { key: 'local.budget.identifier', params: { limit: MAX_LOCAL_NAME_LENGTH } },
+        );
+      } else if (!IDENTIFIER.test(rawBind)) {
+        state.report(
+          'local.binding.name',
+          `Parameter name "${rawBind}" must match [A-Za-z_][A-Za-z0-9_]*.`,
+          offset,
+          undefined,
+          { key: 'local.binding.name', params: { name: rawBind } },
+        );
+      } else if (RESERVED_NAMES.has(rawBind) || EXTRA_RESERVED.has(rawBind)) {
+        state.report(
+          'local.binding.reserved',
+          `Parameter name "${rawBind}" is reserved; choose another name.`,
+          offset,
+          undefined,
+          { key: 'local.binding.reserved', params: { name: rawBind } },
+        );
+      } else if (!rawBind.startsWith('@')) {
+        key = rawBind;
+      }
+    }
+
+    const min = bindingSchema.kind === 'number' ? bindingSchema.min : undefined;
+    const max = bindingSchema.kind === 'number' ? bindingSchema.max : undefined;
+    const step = bindingSchema.kind === 'number' ? bindingSchema.step ?? 1 : 1;
+    const options = bindingSchema.options ? [...bindingSchema.options] : [];
+
+    const explicit = rawAttrs.initial !== undefined;
+    let initial: LocalValue;
+    if (explicit) {
+      initial = parseHostBindingInitial(node, bindingSchema, rawAttrs.initial, state);
+    } else {
+      switch (bindingSchema.initialRule) {
+        case 'min': initial = min ?? 0; break;
+        case 'nearest-zero': initial = nearestZero(min, max, step) ?? 0; break;
+        case 'first-option': initial = options[0] ?? ''; break;
+        case 'false': initial = false; break;
+        case 'empty': default: initial = '';
+      }
+    }
+
+    const existing = bindings[key];
+    if (existing) {
+      const peerBindings = existing.nodeIds.map((id) => ownerBinding(id, key));
+      const explicitOwners = existing.nodeIds
+        .map((id) => nodeById.get(id))
+        .filter((owner): owner is LocalNode => owner !== undefined && owner.attrs?.initial !== undefined);
+      if (explicit && explicitOwners.length) {
+        state.report(
+          'local.initial.duplicate',
+          `Parameter "${key}" has multiple explicit initial values.`,
+          attributeOffset(state, node, 'initial'),
+          undefined,
+          { key: 'local.initial.duplicate', params: { key, count: explicitOwners.length + 1 } },
+        );
+      }
+      if (existing.type !== kind || peerBindings.some((binding) => binding && binding.family !== family)) {
+        state.report(
+          'local.binding.type',
+          `Parameter "${key}" is declared as ${typeName(existing.type)} and cannot also bind <${node.name}>.`,
+          node.range.start,
+          node.range.end,
+          { key: 'local.binding.type', params: { key, kind: typeName(existing.type), first: existing.owner ?? node.name, second: node.name } },
+        );
+      } else {
+        // The host declaration supplies the initial value when no earlier owner
+        // declared one explicitly.
+        if (explicit && explicitOwners.length === 0) {
+          existing.initial = cloneValue(initial);
+          // Host initials are resolved after built-in groups. Revalidate the
+          // final value against every built-in text owner it replaces.
+          const members = existing.nodeIds.flatMap((id): GroupMember[] => {
+            const entry = entryById.get(id);
+            return entry?.schema.binding?.family === 'text'
+              ? [{ entry, attrs: state.attrs.get(id) ?? {} }]
+              : [];
+          });
+          if (members.length) {
+            validateStaticInitial({ key, schema: members[0].entry.schema, members }, initial, state, attributeOffset(state, node, 'initial'));
+          }
+        }
+        if (bindingSchema.kind === 'number') {
+          const dynamicPeer = existing.nodeIds.some((id) => {
+            const attrs = state.attrs.get(id);
+            return attrs?.min?.dynamic || attrs?.max?.dynamic;
+          });
+          if (dynamicPeer || existing.min !== min || existing.max !== max || (existing.step ?? 1) !== step) {
+            state.report(
+              'local.binding.constraint',
+              `Parameter "${key}" must use the same numeric range and step as <${node.name}>.`,
+              node.range.start,
+              node.range.end,
+              { key: 'local.binding.constraint', params: { key, first: node.name, second: node.name, firstConstraints: describeConstraints({ min, max, step }), secondConstraints: describeConstraints({ min: existing.min, max: existing.max, step: existing.step ?? 1 }) } },
+            );
+          }
+        } else if (family === 'choice') {
+          if (existing.options?.join('\u0000') !== options.join('\u0000')) {
+            state.report(
+              'local.binding.option',
+              `Parameter "${key}" must use the same option set in the same order.`,
+              node.range.start,
+              node.range.end,
+              { key: 'local.binding.option', params: { key } },
+            );
+          }
+        }
+      }
+      if (bindingSchema.exclusive || peerBindings.some((binding) => binding?.exclusive)) {
+        state.report(
+          'local.binding.exclusive',
+          `Parameter "${key}" of <${node.name}> can only be owned by one component.`,
+          node.range.start,
+          node.range.end,
+          { key: 'local.binding.exclusive', params: { key, first: node.name, second: node.name } },
+        );
+      }
+      existing.nodeIds.push(node.id);
+      continue;
+    }
+
+    const binding: LocalBinding = {
+      name: key,
+      nodeIds: [node.id],
+      type: kind,
+      initial: cloneValue(initial),
+      owner: node.id,
+    };
+    if (bindingSchema.kind === 'number') {
+      if (min !== undefined) binding.min = min;
+      if (max !== undefined) binding.max = max;
+      binding.step = step;
+    }
+    if (options.length) binding.options = options;
+    bindings[key] = binding;
+  }
+}
+
+/** Parse a host component's static `initial` attribute against its binding. */
+function parseHostBindingInitial(
+  node: LocalNode,
+  binding: LocalHostBindingSchema,
+  raw: string,
+  state: CompileState,
+): LocalValue {
+  const offset = attributeOffset(state, node, 'initial');
+  const scanned = scanInterpolations(raw);
+  if (scanned.segments.length || scanned.unterminated.length) {
+    state.report(
+      'local.host.attribute',
+      'Attribute initial is static and cannot contain interpolations.',
+      offset,
+      offset + raw.length,
+      { key: 'local.host.attribute.static', params: { name: 'initial' } },
+    );
+    return binding.kind === 'number' ? 0 : binding.kind === 'boolean' ? false : '';
+  }
+  if (binding.kind === 'number') {
+    const value = parseNumberText(raw);
+    if (value === null) {
+      state.report('local.host.attribute', `Attribute initial requires a number, got "${raw}".`, offset, offset + raw.length, { key: 'local.host.attribute.type', params: { name: 'initial', value: raw, kind: 'number' } });
+      return 0;
+    }
+    const step = binding.step ?? 1;
+    if (binding.min !== undefined && value < binding.min) {
+      state.report('local.initial.range', `Initial value ${value} of <${node.name}> is below the minimum ${binding.min}.`, offset, undefined, { key: 'local.initial.range.min', params: { value, key: node.name ?? '', min: binding.min } });
+    }
+    if (binding.max !== undefined && value > binding.max) {
+      state.report('local.initial.range', `Initial value ${value} of <${node.name}> exceeds the maximum ${binding.max}.`, offset, undefined, { key: 'local.initial.range.max', params: { value, key: node.name ?? '', max: binding.max } });
+    }
+    if (!onStep(value, binding.min ?? 0, step)) {
+      state.report('local.initial.step', `Initial value ${value} of <${node.name}> is not on step ${step}.`, offset, undefined, { key: 'local.initial.range.step', params: { value, key: node.name ?? '', step, base: binding.min ?? 0 } });
+    }
+    return value;
+  }
+  if (binding.kind === 'boolean') {
+    if (raw !== 'true' && raw !== 'false') {
+      state.report('local.host.attribute', `Attribute initial requires true or false, got "${raw}".`, offset, offset + raw.length, { key: 'local.host.attribute.type', params: { name: 'initial', value: raw, kind: 'boolean' } });
+      return false;
+    }
+    return raw === 'true';
+  }
+  if (binding.options?.length && !binding.options.includes(raw)) {
+    state.report('local.initial.option', `Initial value "${raw}" is not an available option: ${binding.options.join(', ')}.`, offset, undefined, { key: 'local.initial.value.option', params: { value: raw, options: binding.options.join(', ') } });
+  }
+  return raw;
+}
+
 interface NumericConstraints {
   min?: number;
   max?: number;
   step: number;
+  /** Trimmed expression sources for dynamic bounds; static bounds stay numbers. */
+  dynamicMin?: string;
+  dynamicMax?: string;
 }
 
 function numericConstraints(entry: Entry, attrs: AttrMap, family: string): NumericConstraints {
@@ -1464,11 +1741,23 @@ function numericConstraints(entry: Entry, attrs: AttrMap, family: string): Numer
     const duration = numberValue(entry, attrs, 'duration') ?? 60;
     return { min: 0, max: duration, step: 1 };
   }
+  const minInfo = attrs.min;
+  const maxInfo = attrs.max;
   return {
     min: numberValue(entry, attrs, 'min'),
     max: numberValue(entry, attrs, 'max'),
     step: numberValue(entry, attrs, 'step') ?? 1,
+    ...(minInfo?.dynamic && minInfo.expression !== undefined ? { dynamicMin: minInfo.expression.trim() } : {}),
+    ...(maxInfo?.dynamic && maxInfo.expression !== undefined ? { dynamicMax: maxInfo.expression.trim() } : {}),
   };
+}
+
+/** Bounds are compatible only when both sides are the same literal or the same expression. */
+function sameNumericBound(a: NumericConstraints, b: NumericConstraints, bound: 'min' | 'max'): boolean {
+  const dynamicA = bound === 'min' ? a.dynamicMin : a.dynamicMax;
+  const dynamicB = bound === 'min' ? b.dynamicMin : b.dynamicMax;
+  if (dynamicA !== undefined || dynamicB !== undefined) return dynamicA === dynamicB;
+  return a[bound] === b[bound];
 }
 
 function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
@@ -1509,9 +1798,9 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
     for (const member of group.members.slice(1)) {
       const other = numericConstraints(member.entry, member.attrs, family);
       if (
-        other.min !== constraints.min ||
-        other.max !== constraints.max ||
-        other.step !== constraints.step
+        !sameNumericBound(other, constraints, 'min')
+        || !sameNumericBound(other, constraints, 'max')
+        || other.step !== constraints.step
       ) {
         state.report(
           'local.binding.constraint',
@@ -1543,6 +1832,28 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
           member.entry.node.range.start,
           member.entry.node.range.end,
           { key: 'local.binding.option', params: { key: group.key } },
+        );
+      }
+    }
+  }
+
+  // Date bounds participate in shared writes. Require the same literal or the
+  // same dynamic expression so every owner enforces an identical range.
+  if (family === 'date') {
+    const boundOf = (member: GroupMember, name: 'min' | 'max'): string | undefined => {
+      const info = member.attrs[name];
+      if (!info) return undefined;
+      if (info.dynamic) return `{{ ${(info.expression ?? '').trim()} }}`;
+      return typeof info.value === 'string' ? info.value : undefined;
+    };
+    for (const member of group.members.slice(1)) {
+      if (boundOf(member, 'min') !== boundOf(first, 'min') || boundOf(member, 'max') !== boundOf(first, 'max')) {
+        state.report(
+          'local.binding.constraint',
+          `Parameter "${group.key}" must use the same date bounds: <${first.entry.name}> and <${member.entry.name}> differ.`,
+          member.entry.node.range.start,
+          member.entry.node.range.end,
+          { key: 'local.binding.constraint', params: { key: group.key, first: first.entry.name, second: member.entry.name, firstConstraints: 'date bounds', secondConstraints: 'date bounds' } },
         );
       }
     }
@@ -1603,8 +1914,12 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
 }
 
 function describeConstraints(constraints: NumericConstraints): string {
-  const min = constraints.min === undefined ? '-∞' : String(constraints.min);
-  const max = constraints.max === undefined ? '∞' : String(constraints.max);
+  const min = constraints.dynamicMin !== undefined
+    ? `{{ ${constraints.dynamicMin} }}`
+    : constraints.min === undefined ? '-∞' : String(constraints.min);
+  const max = constraints.dynamicMax !== undefined
+    ? `{{ ${constraints.dynamicMax} }}`
+    : constraints.max === undefined ? '∞' : String(constraints.max);
   return `[${min}, ${max}] / ${constraints.step}`;
 }
 
@@ -1625,10 +1940,10 @@ function lineAt(state: CompileState, offset: number): number {
  * Empty values stay allowed at compile time so an optional required input can
  * still start empty; writes are enforced by the runtime.
  */
-function validateStaticInitial(group: Group, initial: LocalValue, state: CompileState): void {
+function validateStaticInitial(group: Group, initial: LocalValue, state: CompileState, initialOffset?: number): void {
   if (typeof initial !== 'string' || initial === '') return;
   const first = group.members[0];
-  const offset = first.attrs.initial?.offset ?? first.entry.node.range.start;
+  const offset = initialOffset ?? first.attrs.initial?.offset ?? first.entry.node.range.start;
   const length = countLocalCodePoints(initial);
   for (const member of group.members) {
     const { entry, attrs } = member;
@@ -1845,7 +2160,7 @@ function validateInitialValue(
       );
     }
     const base = local.min ?? 0;
-    if (value >= (local.min ?? Number.NEGATIVE_INFINITY) && value <= (local.max ?? Number.POSITIVE_INFINITY) && !onStep(value, base, local.step)) {
+    if (local.dynamicMin === undefined && value >= (local.min ?? Number.NEGATIVE_INFINITY) && value <= (local.max ?? Number.POSITIVE_INFINITY) && !onStep(value, base, local.step)) {
       state.report(
         'local.initial.step',
         `Initial value ${value} of parameter "${key}" is not on step ${local.step} (based at ${local.min ?? 0}).`,
@@ -2100,6 +2415,14 @@ function resolveComputations(state: CompileState): void {
       );
       continue;
     }
+    if (Object.hasOwn(state.externalKinds, rawName)) {
+      state.report(
+        'local.computation.duplicate',
+        `Computation name "${rawName}" conflicts with an external declaration of the same name.`,
+        nameInfo.offset,
+      );
+      continue;
+    }
     if (declared.has(rawName)) {
       state.report(
         'local.computation.duplicate',
@@ -2136,27 +2459,31 @@ function resolveComputations(state: CompileState): void {
     });
   }
 
-  const resolved = resolveComputationGraph(inputs, state.bindingKinds, state.report,state.semantic);
+  const resolved = resolveComputationGraph(
+    inputs,
+    { ...state.bindingKinds, ...state.externalKinds },
+    state.report,
+    new Set(Object.keys(state.externalKinds)),
+    state.semantic,
+  );
   state.computations = resolved.computations;
   state.computationKinds = resolved.kinds;
 }
 
-/** Environment used by ordinary expressions: writable parameters plus read-only computations. */
+/** Environment used by ordinary expressions: writable parameters plus read-only computations and externals. */
 function expressionEnv(state: CompileState): Record<string, LocalValueKind> {
-  return Object.keys(state.computationKinds).length
-    ? { ...state.bindingKinds, ...state.computationKinds }
-    : state.bindingKinds;
+  return { ...state.bindingKinds, ...state.externalKinds, ...state.computationKinds };
 }
 
 /** Declaration tags never reach the published tree; they are metadata only. */
-function stripComputationNodes(nodes: LocalNode[]): LocalNode[] {
+function stripDeclarationNodes(nodes: LocalNode[]): LocalNode[] {
   const kept: LocalNode[] = [];
   const pending=[{nodes,kept,index:0}];
   while(pending.length){
     const frame=pending[pending.length-1];
     if(frame.index===frame.nodes.length){pending.pop();continue;}
     const node=frame.nodes[frame.index++];
-    if (node.type === 'component' && (node.name === 'computed' || node.name === 'const')) continue;
+    if (node.type === 'component' && (node.name === 'computed' || node.name === 'const' || node.name === 'external')) continue;
     frame.kept.push(node);
     if(node.children){
       const children=node.children;node.children=[];
@@ -2164,6 +2491,146 @@ function stripComputationNodes(nodes: LocalNode[]): LocalNode[] {
     }
   }
   return kept;
+}
+
+/** Author-facing type names for `<external type="...">`. */
+const EXTERNAL_TYPES: Readonly<Record<string, LocalValueKind>> = {
+  string: 'string',
+  number: 'number',
+  boolean: 'boolean',
+  'string-array': 'array',
+  'number-array': 'number-array',
+};
+
+/**
+ * Resolve top-level `<external>` declarations into read-only document metadata.
+ * Names share the expression namespace with controls and computations but are
+ * never writable: they do not enter `bindings`, public parameters or state
+ * files.
+ */
+function resolveExternals(state: CompileState): void {
+  const roots = new Set(state.nodes);
+  for (const entry of state.entries) {
+    if (entry.name !== 'external') continue;
+    const node = entry.node;
+    if (!roots.has(node) || !standaloneDeclaration(state, node)) {
+      state.report(
+        'local.external.placement',
+        '<external> declarations must be standalone tags at the document top level.',
+        node.range.start,
+        node.range.end,
+        { key: 'local.external.placement' },
+      );
+      continue;
+    }
+    const attrs = state.attrs.get(node.id) ?? {};
+    const nameInfo = attrs.name;
+    const rawName = typeof nameInfo?.value === 'string' ? nameInfo.value : '';
+    if (!nameInfo || !rawName) continue;
+    if (rawName.length > MAX_LOCAL_NAME_LENGTH) {
+      state.report(
+        'local.budget.identifier',
+        `External name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`,
+        nameInfo.offset,
+        undefined,
+        { key: 'local.budget.identifier', params: { limit: MAX_LOCAL_NAME_LENGTH } },
+      );
+      continue;
+    }
+    if (!IDENTIFIER.test(rawName)) {
+      state.report(
+        'local.external.name',
+        `External name "${rawName}" must match [A-Za-z_][A-Za-z0-9_]*.`,
+        nameInfo.offset,
+        undefined,
+        { key: 'local.external.name', params: { name: rawName } },
+      );
+      continue;
+    }
+    if (RESERVED_NAMES.has(rawName) || EXTRA_RESERVED.has(rawName)) {
+      state.report(
+        'local.external.reserved',
+        `External name "${rawName}" is reserved; choose another name.`,
+        nameInfo.offset,
+        undefined,
+        { key: 'local.external.reserved', params: { name: rawName } },
+      );
+      continue;
+    }
+    if (Object.hasOwn(state.bindingKinds, rawName)) {
+      state.report(
+        'local.external.duplicate',
+        `External name "${rawName}" conflicts with a control parameter of the same name.`,
+        nameInfo.offset,
+        undefined,
+        { key: 'local.external.conflict', params: { name: rawName } },
+      );
+      continue;
+    }
+    if (Object.hasOwn(state.externals, rawName)) {
+      state.report(
+        'local.external.duplicate',
+        `External name "${rawName}" is declared more than once.`,
+        nameInfo.offset,
+        undefined,
+        { key: 'local.external.duplicate', params: { name: rawName } },
+      );
+      continue;
+    }
+    const typeInfo = attrs.type;
+    const rawType = typeof typeInfo?.value === 'string' ? typeInfo.value : '';
+    const kind = EXTERNAL_TYPES[rawType];
+    if (!kind) {
+      state.report(
+        'local.external.type',
+        `External "${rawName}" must declare type string, number, boolean, string-array or number-array.`,
+        typeInfo?.offset ?? node.range.start,
+        undefined,
+        { key: 'local.external.type', params: { name: rawName } },
+      );
+      continue;
+    }
+    state.externals[rawName] = {
+      name: rawName,
+      type: kind,
+      nodeId: node.id,
+      range: { ...node.range },
+    };
+    state.externalKinds[rawName] = kind;
+  }
+}
+
+/** Attributes that may carry a dynamic constraint expression, by component. */
+const DYNAMIC_CONSTRAINT_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
+  number: ['min', 'max'],
+  slider: ['min', 'max'],
+  date: ['min', 'max', 'required'],
+  input: ['required'],
+  textarea: ['required'],
+};
+
+/**
+ * Record dynamic `min`, `max` and `required` expressions for the runtime. The
+ * compiler has already validated each expression's type, syntax and
+ * dependencies; the runtime evaluates them against the current state.
+ */
+function collectDynamicConstraints(state: CompileState): void {
+  for (const entry of state.entries) {
+    const allowed = DYNAMIC_CONSTRAINT_ATTRIBUTES[entry.name];
+    if (!allowed) continue;
+    const attrs = state.attrs.get(entry.node.id) ?? {};
+    let collected: LocalDynamicConstraints | undefined;
+    for (const name of allowed) {
+      const info = attrs[name];
+      if (!info?.dynamic || info.expression === undefined) continue;
+      collected ??= {};
+      collected[name as 'min' | 'max' | 'required'] = {
+        source: info.expression,
+        offset: info.expressionOffset ?? info.offset,
+      };
+    }
+    if (collected) state.dynamicConstraints[entry.node.id] = collected;
+  }
 }
 
 function validateExpressions(state: CompileState): void {
@@ -2270,6 +2737,12 @@ function validateExpressions(state: CompileState): void {
       if (entry.name === 'column' && name === 'value') continue;
       if (entry.name === 'validation' && name === 'when') continue;
       if (prop.kind === 'string') {
+        if (prop.dynamic) {
+          // A full interpolation is a typed string expression; a literal is a
+          // static fallback and has no expression to validate.
+          if (info.dynamic) validate(info.expression ?? '', info.expressionOffset ?? info.offset, 'string');
+          continue;
+        }
         const scanned = scanInterpolations(info.raw);
         for (const offset of scanned.unterminated) {
           state.report('local.interpolation', 'Interpolation is missing }}.', info.offset + offset, undefined, { key: 'local.interpolation.unclosed' });
@@ -3327,19 +3800,19 @@ function validateHostAttributes(
 ): void {
   const component = schema.name;
   const rawAttrs = node.attrs ?? {};
+  if (schema.form === 'leaf' && meaningful(node.children).length) {
+    const first = meaningful(node.children)[0];
+    state.report(
+      'local.host.structure',
+      `Host component <${component}> is a leaf and cannot have body content.`,
+      first.range.start,
+      first.range.end,
+      { key: 'local.host.structure.leaf', params: { component } },
+    );
+  }
+  const binding = schema.binding;
   for (const [name, raw] of Object.entries(rawAttrs)) {
-    const prop = schema.props[name];
     const offset = attributeOffset(state, node, name);
-    if (!prop) {
-      state.report(
-        'local.host.attribute',
-        `Component <${component}> does not support attribute ${name}.`,
-        offset,
-        offset + name.length,
-        { key: 'local.host.attribute.unknown', params: { component, name } },
-      );
-      continue;
-    }
     if (raw.length > MAX_LOCAL_STRING_LENGTH) {
       state.report(
         'local.budget.attribute',
@@ -3350,7 +3823,57 @@ function validateHostAttributes(
       );
       continue;
     }
+    if (binding && name === 'bind') {
+      // resolveHostBindings already reported name rules; only shape is local.
+      continue;
+    }
+    if (binding && name === 'initial') {
+      // Static type and range are validated while resolving the binding.
+      continue;
+    }
+    if (binding && name === 'disabled') {
+      const scanned = scanInterpolations(raw);
+      if (scanned.unterminated.length) {
+        state.report('local.interpolation', 'Interpolation is missing }}.', offset, undefined, { key: 'local.interpolation.unclosed' });
+        continue;
+      }
+      if (scanned.segments.length) {
+        if (!singleFullInterpolation(raw)) {
+          state.report(
+            'local.host.attribute',
+            `Attribute ${name} must be true or false, or one full boolean interpolation.`,
+            offset,
+            offset + raw.length,
+            { key: 'local.host.attribute.type', params: { name, value: raw, kind: 'boolean' } },
+          );
+          continue;
+        }
+        const full = fullInterpolation(raw)!;
+        validateHostExpression(state, full.expression, offset + full.start, 'boolean');
+      } else if (raw !== 'true' && raw !== 'false') {
+        state.report(
+          'local.host.attribute',
+          `Attribute ${name} requires a boolean, got "${raw}".`,
+          offset,
+          offset + raw.length,
+          { key: 'local.host.attribute.type', params: { name, value: raw, kind: 'boolean' } },
+        );
+      }
+      continue;
+    }
+    const prop = schema.props[name];
+    if (!prop) {
+      state.report(
+        'local.host.attribute',
+        `Component <${component}> does not support attribute ${name}.`,
+        offset,
+        offset + name.length,
+        { key: 'local.host.attribute.unknown', params: { component, name } },
+      );
+      continue;
+    }
     validateHostPropValue(name, prop, raw, offset, state);
+    validateHostPropExpressions(name, prop, raw, offset, state);
   }
   for (const [name, prop] of Object.entries(schema.props)) {
     if (prop.required && !Object.hasOwn(rawAttrs, name)) {
@@ -3363,6 +3886,88 @@ function validateHostAttributes(
       );
     }
   }
+}
+
+/** Validate the expression inside a host property against the document environment. */
+function validateHostExpression(
+  state: CompileState,
+  expression: string,
+  offset: number,
+  expected: 'text' | 'number' | 'boolean' | 'string',
+): void {
+  if (!expression.trim()) {
+    state.report('local.expression.empty', 'Interpolation expression cannot be empty.', offset, undefined, { key: 'local.expression.empty' });
+    return;
+  }
+  let compiled: LocalExpression;
+  try {
+    compiled = compileExpression(expression);
+  } catch (error) {
+    if (error instanceof LocalExpressionError) {
+      state.report(
+        `local.expression.${error.code || 'invalid'}`,
+        `Expression error: ${error.message}`,
+        offset + (Number.isFinite(error.offset) ? error.offset : 0),
+        undefined,
+        { key: 'local.expression.error', params: { detail: error.message, code: error.code || 'invalid', near: state.source.slice(Math.max(offset, offset + error.offset - 16), offset + error.offset + 24) } },
+      );
+      return;
+    }
+    state.report('local.expression.invalid', `Expression error: ${error instanceof Error ? error.message : String(error)}`, offset, undefined, { key: 'local.expression.error', params: { detail: error instanceof Error ? error.message : String(error), code: 'invalid' } });
+    return;
+  }
+  const env = expressionEnv(state);
+  for (const dependency of compiled.dependencies) {
+    if (Object.hasOwn(env, dependency)) continue;
+    state.report(
+      'local.binding.unknown',
+      `Reference to undeclared parameter ${dependency}.`,
+      offset,
+      undefined,
+      { key: 'local.binding.unknown', params: { name: dependency } },
+    );
+    return;
+  }
+  let kind: LocalValueKind;
+  try {
+    kind = compiled.inferType(env);
+  } catch (error) {
+    state.report('local.expression.invalid', `Expression error: ${error instanceof Error ? error.message : String(error)}`, offset, undefined, { key: 'local.expression.error', params: { detail: error instanceof Error ? error.message : String(error), code: 'invalid' } });
+    return;
+  }
+  if (expected === 'number' && kind !== 'number') {
+    state.report('local.type', `Expected a number here, but the expression evaluates to ${typeName(kind)}.`, offset, undefined, { key: 'local.type.number', params: { kind: typeName(kind) } });
+  } else if (expected === 'boolean' && kind !== 'boolean') {
+    state.report('local.type', `Expected a boolean here, but the expression evaluates to ${typeName(kind)}.`, offset, undefined, { key: 'local.type.boolean', params: { kind: typeName(kind) } });
+  } else if (expected === 'string' && kind !== 'string') {
+    state.report('local.type', `Expected a string here, but the expression evaluates to ${typeName(kind)}.`, offset, undefined, { key: 'local.type.string', params: { kind: typeName(kind) } });
+  } else if (expected === 'text' && (kind === 'array' || kind === 'number-array')) {
+    state.report('local.type', 'Arrays cannot be displayed directly; convert them first with a function such as len.', offset, undefined, { key: 'local.type.array' });
+  }
+}
+
+function validateHostPropExpressions(
+  name: string,
+  prop: LocalHostPropSchema,
+  raw: string,
+  offset: number,
+  state: CompileState,
+): void {
+  if (prop.static) return;
+  if (prop.kind === 'string') {
+    const scanned = scanInterpolations(raw);
+    for (const start of scanned.unterminated) {
+      state.report('local.interpolation', 'Interpolation is missing }}.', offset + start, undefined, { key: 'local.interpolation.unclosed' });
+    }
+    for (const segment of scanned.segments) {
+      validateHostExpression(state, segment.expression, offset + segment.start, 'text');
+    }
+    return;
+  }
+  const full = fullInterpolation(raw);
+  if (!full) return;
+  const expected = prop.kind === 'number' ? 'number' : prop.kind === 'boolean' ? 'boolean' : 'string';
+  validateHostExpression(state, full.expression, offset + full.start, expected);
 }
 
 function singleFullInterpolation(value: string): boolean {

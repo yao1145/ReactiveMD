@@ -54,8 +54,23 @@ export function Article() {
 | `colorScheme` | `'light' \| 'dark' \| 'auto'` | 两者 | 默认 `auto`，跟随最近祖先的显式模式或系统偏好 |
 | `hostData` | `Readonly<Record<string, unknown>>` | 两者 | 按 `${kind}:${ref}` 索引的 JSON 安全宿主数据，用于 `hostComponent` 节点；不进入 worker |
 | `hostRenderer` | `LocalHostRenderer` | 两者 | `hostComponent` 的客户端渲染函数；缺少 renderer 或数据时显示占位 |
+| `externalValues` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | `<external>` 声明的值；更新不重新编译、不重置参数。`LocalDocumentView` 也接受该属性以更新宿主自管的运行时 |
+| `initialParameters` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | 每次创建新运行时后、首次交互前应用一次的公开参数；非法集合原子拒绝并通过 `onDiagnostics` 报告 |
+| `onParametersChange` | `(parameters, snapshot) => void` | `LocalReactiveDocument` | 公开可写参数实际变化时每次提交调用一次；初始化、被拒绝的写入、未变化的值和纯 external 更新不触发 |
+| `onSourceNavigate` | `(target: LocalSourceTarget) => void` | 两者 | 报告预览节点的源码范围；启用时输出 source 元数据，省略时 DOM 保持不变 |
 
 两个组件都没有 `className`、`style` 或插槽属性。`LocalReactiveDocument` 渲染 `<article class="md-document local-document">`；`LocalDocumentView` 使用同样的文档容器。样式覆盖见下文。
+
+```tsx
+<LocalReactiveDocument
+  source={source}
+  initialParameters={savedParameters}
+  onParametersChange={(parameters) => save(parameters)}
+  externalValues={{ exchangeRate: 7.2 }}
+  onSourceNavigate={(target) => editor.current?.selectRange(target.range)}
+  hostRenderer={(node, data, ctx) => <HostWidget node={node} data={data} ctx={ctx} />}
+/>
+```
 
 每个组件实例独立管理内存状态。修改源码会重新编译并从初值开始；销毁实例会清理订阅和计时器。需要在源码变化时保留值时，使用保留工具或自行管理运行时，见[源码变化时保留参数](#源码变化时保留参数)。文档中的面板重置其内部参数、输入草稿和组件状态，同名参数在面板外的显示也会同步更新。
 
@@ -128,7 +143,7 @@ if (result.ok) {
 - 成功：`{ ok: true; document: LocalDocument; diagnostics: Diagnostic[] }`
 - 失败：`{ ok: false; diagnostics: Diagnostic[] }`
 
-语法问题通过诊断返回；当前构建只接受 `local-draft-2`。显式旧修订指令会以 `local.version.*` 诊断拒绝；无指令源码保持当前修订的行为。源码上限为 1,000,000 字符。`document` 是当前运行时对象，不应当作持久化格式。
+语法问题通过诊断返回；当前构建只接受 `local-draft-3`。显式旧修订指令会以 `local.version.*` 诊断拒绝；无指令源码保持当前修订的行为。源码上限为 1,000,000 字符。`document` 是当前运行时对象，不应当作持久化格式。
 
 宿主可以为单次编译设置语法节点预算：
 
@@ -167,7 +182,7 @@ export default function Page() {
 
 ### 宿主组件
 
-宿主可以为单次编译登记叶子标签，不改变 `local-draft-2` 语法修订：
+宿主可以为单次编译登记组件，不改变作者语法修订。schema 声明 `form`，并可声明标量绑定：
 
 ```ts
 import { compileLocal, type LocalHostComponentSchema } from 'reactive-md';
@@ -185,7 +200,11 @@ const hostComponents: LocalHostComponentSchema[] = [
 const result = compileLocal(source, { hostComponents });
 ```
 
-不传 `hostComponents` 时，这些标签仍是未知标签并按原文降级。名称必须是唯一的小写 kebab-case，且不得复用 48 个作者标签名、P0 HTML 标签名或 `theme`；一次最多接受 32 个 schema。`pattern` 只接受线性时间安全的正则子集（拒绝反向引用、环视、命名组、嵌套量词和被量词修饰的分支）。schema 不合法返回 `local.options.invalid`，作者写出的属性不合法返回 `local.host.attribute`。一个合法宿主节点计为一个语法节点。把 `hostData`（按 `${kind}:${ref}` 索引）和 `hostRenderer` 传给 `LocalDocumentView`；两者都不进入 worker。缺少 renderer、缺少数据或 renderer 抛错时显示可见占位，不会让整个文档失败。`mode="static"` 走同一分派，并把 `ctx.mode` 传给 renderer。
+不传 `hostComponents` 时，这些标签仍是未知标签并按原文降级。名称必须是唯一的小写 kebab-case，且不得复用 49 个作者标签名、P0 HTML 标签名或 `theme`；一次最多接受 32 个 schema。`pattern` 只接受线性时间安全的正则子集（拒绝反向引用、环视、命名组、嵌套量词和被量词修饰的分支）。schema 不合法返回 `local.options.invalid`，作者写出的属性不合法返回 `local.host.attribute`。一个合法宿主节点计为一个语法节点。
+
+`form` 为 `leaf`、`inline` 或 `container`；inline 和 container 使用成对标签，正文按普通 Markdown 与 ReactiveMD 规则编译，container renderer 可通过 `ctx.render()` 渲染子节点。`binding` 可选，接受 `string`、`number`、`boolean`，可声明静态 `min`、`max`、`step`、`options`、`initialRule` 和 `exclusive`。带绑定的宿主组件隐式接受 `bind`、`initial` 和动态 `disabled`，并与内置控件共享绑定族；例如宿主评分控件可与 `<number>` 共用同一个值。
+
+renderer 接收 `(node, data, ctx)`。`ctx` 在渲染上下文之外提供 `value`、经运行时校验的 `setValue(value)`、`disabled`、`resetToken`、解析后的 `props` 和 `report(diagnostics)`。`setValue` 不会绕过共享约束或 reset。只有声明了 `kind`/`ref` 的组件才需要 `hostData`；纯绑定组件和 container 不需要伪造宿主数据。缺少 renderer、缺少其声明的数据或 renderer 抛错时显示可见占位，不会让整个文档失败。schema 是普通数据，可进入 worker；renderer 永远不进入。
 
 ### 版本查看与迁移
 
@@ -205,11 +224,11 @@ const migrated = migrateLocalSource(source, { fromVersion: 'local-draft-1' });
 
 `inspectLocalSourceVersion` 返回声明修订、用于判定的修订、当前编译器是否支持、指令位置和版本诊断。`checkLocalUpgrade` 返回 `ok`、`fromVersion`、`toVersion`、`needsMigration` 和诊断。`migrateLocalSource` 在此基础上增加 `source`、`changed` 和准确的 `edits`。
 
-`LocalUpgradeOptions` 提供 `fromVersion` 和 `allowSemanticChanges`。无版本声明的历史文档需要 `fromVersion: 'local-draft-1'`。显式 `fromVersion` 与声明不一致时被拒绝。迁移源只接受 `local-draft-1` 和 `local-draft-2`。
+`LocalUpgradeOptions` 提供 `fromVersion` 和 `allowSemanticChanges`。无版本声明的历史文档需要 `fromVersion: 'local-draft-1'`。显式 `fromVersion` 与声明不一致时被拒绝。迁移源接受 `local-draft-1`、`local-draft-2` 和 `local-draft-3`。
 
 迁移只改元数据指令，保留正文原始字节、BOM 和 CRLF，并且幂等。生成结果前会阻止保留绑定、新增可识别标签、编译错误和文本控件长度语义变化。完整检查与 CLI 见[源码修订与迁移](../compatibility/source-versioning-ch.md)。
 
-### `createLocalRuntime(document: LocalDocument)`
+### `createLocalRuntime(document: LocalDocument, options?: LocalRuntimeOptions)`
 
 只读命名值在可选的 `document.computations` 记录中用 `LocalComputation` 描述。`bindings` 和 `initialState` 继续只包含可写控件；`snapshot().state` 还包含该修订成功求值的计算结果。需要保留表达式错误语义时用 `evaluate(name)` 读取，失败值不会出现在快照里。见[计算与错误规则](../reference/computations-formatting-ch.md)。
 
@@ -222,7 +241,7 @@ const migrated = migrateLocalSource(source, { fromVersion: 'local-draft-1' });
 | 成员 | 参数 | 返回 | 行为 |
 | --- | --- | --- | --- |
 | `document` | — | `LocalDocument` | 创建时使用的编译结果 |
-| `snapshot()` | — | `{ revision: number; state: Readonly<Record<string, LocalValue>> }` | 状态未变时返回同一快照对象；状态冻结 |
+| `snapshot()` | — | `{ revision: number; state: Readonly<Record<string, LocalValue>> }` | 状态未变时返回同一快照对象；状态冻结并包含可用的 external 值；可写参数请用 `getParameters()` |
 | `get(node, slot?)` | `LocalNode`、可选槽位 | `LocalValue` | 读取该控件绑定的值；`slot` 选择 `start`/`end` 或 `x`/`y`；无绑定或未知节点返回 `null`；数组为副本 |
 | `set(node, value, slot?)` | `LocalNode`、`LocalValue`、可选槽位 | `Diagnostic[]` | 校验所有共享控件；成功返回空数组并提交一次；失败不增加 revision |
 | `setMany(node, values)` | `LocalNode`、槽位值对象 | `Diagnostic[]` | 原子写入同一多槽控件的多个槽位；非法批次保持状态与 revision 不变 |
@@ -232,6 +251,9 @@ const migrated = migrateLocalSource(source, { fromVersion: 'local-draft-1' });
 | `getParameters()` | — | `Readonly<Record<string, LocalValue>>` | 只含公开参数的冻结快照；永不含内部 `@` 键 |
 | `setParameter(name, value)` | `string`, `LocalValue` | `Diagnostic[]` | 校验共享该绑定的所有控件；成功只提交一次；失败时状态不变 |
 | `setParameters(values)` | `Readonly<Record<string, LocalValue>>` | `Diagnostic[]` | 校验每个公开值和多槽关系后全部提交或全部不提交；未知或内部名称返回 `local.runtime.parameter`；非法值返回 `local.runtime.value`；值未变化不增加 revision |
+| `getExternal(name)` | `string` | `LocalValue \| undefined` | 已声明 external 的当前值；未声明或不可用时为 `undefined`；数组为副本 |
+| `getExternalValues()` | — | `Readonly<Record<string, LocalValue>>` | 当前可用 external 值的冻结记录 |
+| `setExternalValues(values)` | `Readonly<Record<string, LocalValue>>` | `Diagnostic[]` | 原子校验部分更新；只提交并通知一次；未知名称、类型错误或超预算返回 `local.runtime.external`，不改变状态或 revision |
 | `evaluate(expression)` | `string` | `LocalValue` | 用当前状态求值；失败抛出 `LocalExpressionError`；数组为副本 |
 | `text(template)` | `string` | `string` | 渲染带 `{{ }}` 的文本；失败抛出错误 |
 | `reset(node)` | `LocalNode` | `void` | 一次恢复该节点子树内的参数和组件状态，只通知一次 |
@@ -342,7 +364,7 @@ scheduler.schedule(source);
 
 ### 其他核心导出
 
-- `LOCAL_SYNTAX_VERSION`：当前为字面量 `'local-draft-2'`。用它记录文档所用的语法修订。
+- `LOCAL_SYNTAX_VERSION`：当前为字面量 `'local-draft-3'`。用它记录文档所用的语法修订。
 - `compileExpression(source: string)`：返回带 `source`、`dependencies`、`evaluate(env)` 和 `inferType(env)` 的对象；失败抛出 `LocalExpressionError`。
 - `LocalExpressionError`：包含 `code` 和 `offset`。
 - `compileLatex(source: string)`：返回带 `source`、`dependencies` 和 `evaluate(x, env, budget?)` 的对象；失败抛出带 `code`、`offset` 的错误。
@@ -430,7 +452,7 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 ## 不提供的功能
 
-默认 ReactiveMD 路径支持 P0 HTML。作者 CSS、JavaScript 和扩展 HTML 的宿主开关使用独立的原生 HTML 路径，见 [HTML 部分兼容](../reference/html-compatibility-ch.md)。本地模式仍不提供自动状态持久化或不受限的网络访问、插件或自定义组件注册、外部数据接口、Vue 支持、React 18 支持或 CommonJS 入口。状态导出与导入是宿主的显式调用。`LocalReactiveDocument` 在源码变化时从初值开始；需要保留参数时使用保留工具，或自行管理运行时和文档。
+默认 ReactiveMD 路径支持 P0 HTML。作者 CSS、JavaScript 和扩展 HTML 的宿主开关使用独立的原生 HTML 路径，见 [HTML 部分兼容](../reference/html-compatibility-ch.md)。本地模式仍不提供自动状态持久化或不受限的网络访问、插件或自定义组件注册、作者发起的网络或存储调用、Vue 支持、React 18 支持或 CommonJS 入口。宿主数据必须通过显式只读声明提供，核心不会自行抓取。状态导出与导入是宿主的显式调用。`LocalReactiveDocument` 在源码变化时从初值开始；需要保留参数时使用保留工具，或自行管理运行时和文档。
 
 
 新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。`0.6.0` 同时提供于 `latest` 与 `next` 渠道。

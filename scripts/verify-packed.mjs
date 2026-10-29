@@ -219,6 +219,7 @@ try {
     'docs/integration/shareable-export-ch.md',
     'examples/local/counter.reactive.md',
     'examples/conformance/local-draft-2.json',
+    'examples/conformance/local-draft-3.json',
     'examples/integration/core/index.mjs',
     'examples/integration/react/main.jsx',
   ]) {
@@ -325,7 +326,7 @@ assert.equal(typeof applyLocalStateRetention, 'function', 'applyLocalStateRetent
 assert.equal(typeof LocalCompileScheduler, 'function', 'LocalCompileScheduler must be exported from the core tarball');
 assert.equal(typeof startLocalCompileWorker, 'function', 'startLocalCompileWorker must be exported from the core tarball');
 assert.equal(LOCAL_COMPILE_DELAY_MS, 150);
-assert.equal(LOCAL_SYNTAX_VERSION, 'local-draft-2');
+assert.equal(LOCAL_SYNTAX_VERSION, 'local-draft-3');
 const oldSource = '<!-- reactive-md: local-draft-1 -->\\n# Historical source';
 assert.equal(compileLocal(oldSource).ok, false);
 assert.equal(inspectLocalSourceVersion(oldSource).supported, false);
@@ -360,7 +361,7 @@ console.log('PASS core API without React');
   await run('packed migration without React', process.execPath,
     [path.join(installedCore, 'bin/reactive-md.mjs'), 'migrate', historicalInput, '-o', migratedOutput], coreConsumer);
   assert.equal(await readFile(historicalInput, 'utf8'), historicalText);
-  assert.equal(await readFile(migratedOutput, 'utf8'), historicalText.replace('local-draft-1', 'local-draft-2'));
+  assert.equal(await readFile(migratedOutput, 'utf8'), historicalText.replace('local-draft-1', 'local-draft-3'));
   await run('packed upgrade check', process.execPath,
     [path.join(installedCore, 'bin/reactive-md.mjs'), 'migrate', '--check', migratedOutput], coreConsumer);
   await run('standalone Node example', process.execPath, [path.join(installedCore, 'examples/integration/core/index.mjs')], coreConsumer);
@@ -501,7 +502,7 @@ const plan = planLocalStateRetention({
 applyLocalStateRetention(runtime, plan);
 importLocalState(runtime, file);
 runtime.dispose();
-const version: 'local-draft-2' = LOCAL_SYNTAX_VERSION;
+const version: 'local-draft-3' = LOCAL_SYNTAX_VERSION;
 const delay: number = LOCAL_COMPILE_DELAY_MS;
 void version;
 void delay;

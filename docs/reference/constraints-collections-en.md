@@ -1,6 +1,6 @@
 # Constraints, conditional tones and local collections
 
-These additions extend `0.4.0`, which uses `local-draft-2`. The [workshop example](../../examples/local/recipes/workshop.reactive.md) combines a participant budget, a date interval and a selected-subject table. [Named calculations](computations-formatting-en.md) hold its intermediate results.
+These additions extend `0.4.0` and are available in `local-draft-3`. The [workshop example](../../examples/local/recipes/workshop.reactive.md) combines a participant budget, a date interval and a selected-subject table. [Named calculations](computations-formatting-en.md) hold its intermediate results.
 
 ## Cross-field validation
 
@@ -17,6 +17,24 @@ Constraints report the current consistency of a document. Readers can still edit
 `runtime.validate()` returns diagnostics for all current failed rules in source order. It reports `local.validation.failed` when `when` is false and `local.validation.expression` when an expression cannot be evaluated. Errors count as failures. One failed rule does not stop independent rules. The result is cached for the current runtime revision and returned as defensive copies. Edits, atomic slot updates and resets refresh calculations and validation together.
 
 The renderer displays failed-rule hints and associates them with the corresponding controls or their accessible groups using `aria-describedby` and `aria-invalid`. Hint IDs belong to the mounted document instance. Success removes the error text. Rules in hidden content remain active, as do their bindings; hidden hints do not announce themselves. A document supports at most 100 validation rules, including hidden regions. Diagnostic messages retain the existing 2,000-character bound.
+
+## Dynamic input constraints
+
+`number` and `slider` accept dynamic `min` and `max`; `date` accepts dynamic `min`, `max` and `required`; `input` and `textarea` accept dynamic `required`. Each dynamic value is one complete interpolation:
+
+```markdown
+<number bind="rooms" label="Rooms" initial="2" min="1" max="5">
+<number bind="guests" label="Guests" initial="4" min="1" max="{{ rooms * 4 }}">
+
+<date bind="departure" label="Departure" initial="2026-11-10">
+<date bind="return" label="Return" initial="2026-11-12" min="{{ departure }}">
+
+<input bind="company" label="Company" required="{{ business }}">
+```
+
+Write validation uses the constraints in effect at that moment and still commits atomically. When another parameter narrows a range so that an existing value becomes invalid, the value is kept and the control shows the constraint error; the runtime never clamps, resets or snaps it to a nearby legal value. Reducing a field to satisfy the new range, or restoring the dependency, clears the error. Dynamic `required` switching to true while a value is empty shows a hint and does not fill the field.
+
+A dynamic bound that cannot be evaluated, a dynamic `min` greater than `max`, or an invalid dynamic date bound rejects the related write and leaves state and revision unchanged. Shared numeric and date bindings must declare the same static range and, when a bound is dynamic, the same expression. `step` and text-length limits remain static. `runtime.validate()` keeps its cross-field meaning; dynamic constraint failures are enforced on writes and displayed on the field.
 
 ## Conditional visual emphasis
 

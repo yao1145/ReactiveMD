@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { checkLocalUpgrade, compileLocal, inspectLocalSourceVersion, migrateLocalSource, renameLocalBinding, type LocalDocument, createLocalRuntime } from '../src/local';
 
-const header = '<!-- reactive-md: local-draft-2 -->';
+const header = '<!-- reactive-md: local-draft-3 -->';
 const number = '<number bind="count" label="Count" initial="2" min="0" max="10">\n\n{{ count * 3 }}';
 
 describe('source upgrade and migration APIs', () => {
   it('inspects versions without evaluating declarations', () => {
     expect(inspectLocalSourceVersion(`${header}\n<const name="bad" value="{{ 1 / 0 }}">`))
-      .toMatchObject({ declaredVersion: 'local-draft-2', effectiveVersion: 'local-draft-2', supported: true, diagnostics: [] });
+      .toMatchObject({ declaredVersion: 'local-draft-3', effectiveVersion: 'local-draft-3', supported: true, diagnostics: [] });
     expect(inspectLocalSourceVersion('<!-- reactive-md: local-draft-9 -->'))
       .toMatchObject({ declaredVersion: 'local-draft-9', supported: false });
-    expect(inspectLocalSourceVersion(number)).toMatchObject({ declaredVersion: null, effectiveVersion: 'local-draft-2', supported: true });
+    expect(inspectLocalSourceVersion(number)).toMatchObject({ declaredVersion: null, effectiveVersion: 'local-draft-3', supported: true });
   });
 
   it('pins unversioned source and preserves BOM, CRLF, code and body bytes', () => {
@@ -62,6 +62,19 @@ describe('source upgrade and migration APIs', () => {
   it('does not mistake strings, code or fallback content for new active expressions', () => {
     const source = '{{ "sum([1, 2])" }}\n\n`<text color="red">literal</text>`\n\n<future>\n<computed name="n" value="{{ 2 }}">\n</future>';
     expect(migrateLocalSource(source, { fromVersion: 'local-draft-1' }).ok).toBe(true);
+  });
+
+  it('migrates local-draft-2 source and blocks newly active external tags', () => {
+    const draft2 = '<!-- reactive-md: local-draft-2 -->\n\n# Draft two\n';
+    const migrated = migrateLocalSource(draft2);
+    expect(migrated).toMatchObject({ ok: true, fromVersion: 'local-draft-2', changed: true });
+    expect(migrated.source).toContain('<!-- reactive-md: local-draft-3 -->');
+
+    const withExternal = '<!-- reactive-md: local-draft-2 -->\n\n<external name="rate" type="number">\n';
+    const blocked = migrateLocalSource(withExternal);
+    expect(blocked.ok).toBe(false);
+    expect(blocked.source).toBe(withExternal);
+    expect(blocked.diagnostics.map((item) => item.code)).toContain('local.upgrade.tag');
   });
 
   it('rejects an explicit source-version override conflict and invalid options', () => {

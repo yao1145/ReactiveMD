@@ -9,8 +9,9 @@ import {
   useSyncExternalStore,
   type ChangeEvent,
 } from 'react';
-import { formatLocalDiagnostic, notifyLocalRuntime, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
+import { formatLocalDiagnostic, notifyLocalRuntime, LOCAL_SYNTAX_VERSION, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
 import { LocalDocumentView } from 'reactive-md/react';
+import type { LocalSourceTarget } from 'reactive-md/react';
 import {
   ReactiveMarkdownEditor,
   type ReactiveMarkdownEditorHandle,
@@ -211,9 +212,10 @@ interface LocalPreviewProps {
   session: PreviewStateSession;
   onDiagnostics: (diagnostics: Diagnostic[]) => void;
   images: readonly ImageAsset[];
+  onSourceNavigate?(target: LocalSourceTarget): void;
 }
 
-export const LocalPreview = memo(function LocalPreview({ document, session, onDiagnostics, images }: LocalPreviewProps) {
+export const LocalPreview = memo(function LocalPreview({ document, session, onDiagnostics, images, onSourceNavigate }: LocalPreviewProps) {
   const language = useLanguage();
   const copy = useCopy();
   const imageProps = useMemo(() => imagePolicy(Object.fromEntries(images.map(a => [a.url, a.dataUrl]))), [images]);
@@ -274,6 +276,7 @@ export const LocalPreview = memo(function LocalPreview({ document, session, onDi
       runtime={instance.runtime}
       onDiagnostics={onDiagnostics}
       locale={language}
+      onSourceNavigate={onSourceNavigate}
     />
   );
 });
@@ -368,6 +371,23 @@ export default function App() {
     const end=transaction.source.length-(transaction.previousSource.length-to);
     editHint.current={baseSource:transaction.previousSource,edit:{from,to,insert:transaction.source.slice(from,end)}};
   },[]);
+  /** Source range clicked in the preview while the editor pane was hidden. */
+  const pendingSourceRange = useRef<SourceRange | null>(null);
+  const revealSource = useCallback((target: LocalSourceTarget) => {
+    if (editorView === 'preview') {
+      pendingSourceRange.current = target.range;
+      setEditorView('split');
+      return;
+    }
+    editorHandle.current?.selectRange(target.range);
+  }, [editorView]);
+  useEffect(() => {
+    if (editorView === 'preview') return;
+    const range = pendingSourceRange.current;
+    if (!range) return;
+    pendingSourceRange.current = null;
+    editorHandle.current?.selectRange(range);
+  }, [editorView]);
   const imageKey = `${language}:${selectedExample}`;
   const documentImages = useDocumentImages(imageKey);
   const imageContext = useRef({ key: imageKey, assets: documentImages.assets, ready: documentImages.ready });
@@ -957,7 +977,7 @@ export default function App() {
                   <h2>{copy.editor.heading}</h2>
                   <p className="pane-subtitle">{copy.editor.subtitle}</p>
                 </div>
-                <span className="syntax-tag">local-draft-2</span>
+                <span className="syntax-tag">{LOCAL_SYNTAX_VERSION}</span>
               </div>
 
               <ReactiveMarkdownEditor
@@ -987,7 +1007,7 @@ export default function App() {
                         <DiagnosticList diagnostics={compiled.diagnostics} focusDiagnostic={focusDiagnostic} />
                       </div>
                     ) : previewDocument ? (
-                      <LocalPreview key={instanceKey} document={previewDocument} session={previewSession} onDiagnostics={report} images={documentImages.assets} />
+                      <LocalPreview key={instanceKey} document={previewDocument} session={previewSession} onDiagnostics={report} images={documentImages.assets} onSourceNavigate={revealSource} />
                     ) : (
                       <div className="preview-loading" role="status"><p>{copy.preview.preparing}</p></div>
                     )}

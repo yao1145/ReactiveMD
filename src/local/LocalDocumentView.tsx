@@ -31,10 +31,13 @@ import type {
   LocalValue,
 } from './types';
 import type {
+  LocalHostComponentContext,
   LocalHostData,
+  LocalHostPropValue,
   LocalHostRenderer,
   LocalRenderContext,
   LocalRenderMode,
+  LocalSourceTarget,
 } from './render-types';
 import {
   collectNodeDependencies,
@@ -139,6 +142,16 @@ export interface LocalDocumentViewProps {
   hostData?: LocalHostData;
   /** Client-only renderer for hostComponent nodes; never enters the worker. */
   hostRenderer?: LocalHostRenderer;
+  /**
+   * Read-only host values for `<external>` declarations. Changing them updates
+   * the given runtime without recompiling the source or resetting parameters.
+   */
+  externalValues?: Readonly<Record<string, LocalValue>>;
+  /**
+   * Report a preview location to the host, for example to select the matching
+   * source range in an editor. Omit to keep the plain rendered output.
+   */
+  onSourceNavigate?: (target: LocalSourceTarget) => void;
 }
 
 export interface LocalReactiveDocumentProps {
@@ -161,6 +174,24 @@ export interface LocalReactiveDocumentProps {
   hostData?: LocalHostData;
   /** Client-only renderer for hostComponent nodes; never enters the worker. */
   hostRenderer?: LocalHostRenderer;
+  /** Read-only host values for `<external>` declarations. */
+  externalValues?: Readonly<Record<string, LocalValue>>;
+  /**
+   * Public parameter values applied once after each new runtime is created,
+   * before the reader can interact. Invalid sets are rejected atomically and
+   * reported through `onDiagnostics`.
+   */
+  initialParameters?: Readonly<Record<string, LocalValue>>;
+  /**
+   * Called once per commit when the public writable parameter set actually
+   * changes. Initialization does not call it.
+   */
+  onParametersChange?: (
+    parameters: Readonly<Record<string, LocalValue>>,
+    snapshot: LocalSnapshot,
+  ) => void;
+  /** Report preview locations so a host editor can select the source range. */
+  onSourceNavigate?: (target: LocalSourceTarget) => void;
   /**
    * Host-owned compile options. HTML capability flags select the temporary
    * whole-document native branch; Markdown capability options such as
@@ -187,6 +218,8 @@ interface LocalViewContext extends LocalRenderContext {
   dependencies: DependencyLookup;
   /** Whole-document footnote index, shared with the render environment. */
   footnotes: LocalFootnoteIndex;
+  /** Present when the host asked for preview-to-source navigation. */
+  sourceNavigation?: (target: LocalSourceTarget) => void;
 }
 
 const LocalViewContext = createContext<LocalViewContext | null>(null);
@@ -195,6 +228,15 @@ function useLocal(): LocalViewContext {
   const value = useContext(LocalViewContext);
   if (!value) throw new Error('LocalViewContext is not initialized');
   return value;
+}
+
+/** Source metadata for a control label, only when navigation is enabled. */
+function useSourceAttributes(node: LocalNode): Record<string, string> {
+  const { sourceNavigation } = useLocal();
+  const componentName = node.type === 'component' || node.type === 'hostComponent'
+    ? node.name
+    : undefined;
+  return sourceAttributes(sourceNavigation !== undefined, node, componentName);
 }
 
 /* ------------------------------------------------------------- validations */
@@ -458,6 +500,39 @@ function numberAttr(runtime: LocalRuntime, node: LocalNode, name: string, fallba
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
   } catch {
     return fallback;
+  }
+}
+
+type ConstraintRead<T> =
+  | { present: false; error: false }
+  | { present: true; error: true }
+  | { present: true; error: false; value: T };
+
+/** Read a numeric constraint and keep evaluation failures distinguishable. */
+function numberConstraint(runtime: LocalRuntime, node: LocalNode, name: string): ConstraintRead<number> {
+  const raw = rawAttr(node, name);
+  if (raw === undefined) return { present: false, error: false };
+  const full = FULL_EXPRESSION.exec(raw);
+  try {
+    const value = full ? runtime.evaluate(full[1]) : Number(raw);
+    return typeof value === 'number' && Number.isFinite(value)
+      ? { present: true, error: false, value }
+      : { present: true, error: true };
+  } catch {
+    return { present: true, error: true };
+  }
+}
+
+/** Read a date-bound constraint; an empty string means "no bound". */
+function dateConstraint(runtime: LocalRuntime, node: LocalNode, name: string): ConstraintRead<string> {
+  const raw = rawAttr(node, name);
+  if (raw === undefined) return { present: false, error: false };
+  const full = FULL_EXPRESSION.exec(raw);
+  try {
+    const value = full ? runtime.evaluate(full[1]) : raw;
+    return typeof value === 'string' ? { present: true, error: false, value } : { present: true, error: true };
+  } catch {
+    return { present: true, error: true };
   }
 }
 
@@ -1021,6 +1096,73 @@ interface RenderEnv {
   dependencies: DependencyLookup;
   /** Whole-document footnote numbering and reference ids for this instance. */
   footnotes: LocalFootnoteIndex;
+  /** When present, rendered targets carry source metadata and clicks report. */
+  sourceNavigation?: (target: LocalSourceTarget) => void;
+  /** Runtime diagnostics from host renderers and rejected writes. */
+  report?: (diagnostics: Diagnostic[]) => void;
+}
+
+/**
+ * Source-location attributes are emitted only when navigation is enabled, so
+ * ordinary SSR output and exported HTML stay unchanged.
+ */
+function sourceAttributes(
+  enabled: boolean,
+  node: LocalNode,
+  componentName?: string,
+): Record<string, string> {
+  if (!enabled) return {};
+  const { start, end } = node.range;
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) return {};
+  return {
+    'data-rmd-source-start': String(start),
+    'data-rmd-source-end': String(end),
+    'data-rmd-source-node': node.id,
+    'data-rmd-source-type': node.type,
+    ...(componentName ? { 'data-rmd-source-component': componentName } : {}),
+  };
+}
+
+function sourceProps(
+  env: RenderEnv,
+  node: LocalNode,
+  componentName?: string,
+): Record<string, string> {
+  return sourceAttributes(env.sourceNavigation !== undefined, node, componentName);
+}
+
+/* ------------------------------------------------------- parameter bridge */
+
+/** Defensive copy of host-supplied parameter values. */
+function cloneParameterValues(
+  values: Readonly<Record<string, LocalValue>>,
+): Record<string, LocalValue> {
+  const copy: Record<string, LocalValue> = {};
+  for (const [key, value] of Object.entries(values)) {
+    copy[key] = Array.isArray(value) ? value.slice() : value;
+  }
+  return copy;
+}
+
+function parameterValueEqual(a: LocalValue | undefined, b: LocalValue | undefined): boolean {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((entry, index) => entry === b[index]);
+  }
+  return a === b;
+}
+
+function parameterRecordsEqual(
+  a: Readonly<Record<string, LocalValue>>,
+  b: Readonly<Record<string, LocalValue>>,
+): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const key of aKeys) {
+    if (!Object.hasOwn(b, key) || !parameterValueEqual(a[key], b[key])) return false;
+  }
+  return true;
 }
 
 const SAFE_HTML_ATTRIBUTE = /^(?:aria|data)-[a-z0-9_.:-]+$/;
@@ -1255,10 +1397,35 @@ function renderFootnoteReference(env: RenderEnv, node: LocalNode, key: string): 
   );
 }
 
+/** Resolve one host property; full interpolations keep their expression type. */
+function resolveHostProp(
+  runtime: LocalRuntime,
+  raw: string,
+): LocalHostPropValue {
+  const full = FULL_EXPRESSION.exec(raw);
+  if (full) {
+    try {
+      const value = runtime.evaluate(full[1]);
+      if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return value;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  try {
+    return runtime.text(raw);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * A host component renders entirely on the client. The placeholder is the
- * diagnostic surface: a missing renderer, missing data and a synchronous
- * renderer failure all stay visible without reporting through `onDiagnostics`.
+ * diagnostic surface: a missing renderer and a synchronous renderer failure
+ * stay visible without reporting through `onDiagnostics`. Host data is only
+ * required when the node declares a `kind`/`ref` key.
  */
 function renderHostComponent(
   env: RenderEnv,
@@ -1282,18 +1449,72 @@ function renderHostComponent(
   const kind = node.attrs?.kind?.trim() ?? '';
   const ref = node.attrs?.ref?.trim() ?? '';
   const dataKey = kind !== '' && ref !== '' ? `${kind}:${ref}` : null;
+  if (dataKey === null) {
+    // A binding-only host component does not need host data. Without a
+    // binding, a node that declares neither kind nor ref keeps the historical
+    // visible data placeholder.
+    let bound = false;
+    try {
+      bound = Object.values(env.runtime.document.bindings).some((binding) => binding.nodeIds.includes(node.id));
+    } catch {
+      bound = false;
+    }
+    // Container and inline host components are structural: they may render
+    // children without host data. A bare leaf keeps the historical placeholder.
+    if (!bound && node.hostForm !== 'container' && node.hostForm !== 'inline') return unavailable('data');
+  }
   const renderer = env.hostRenderer;
   if (!renderer) return unavailable('renderer');
-  // `undefined` alone means missing: null, false and 0 are valid host data.
-  if (dataKey === null) return unavailable('data');
-  const data = env.hostData?.[dataKey];
-  if (data === undefined) return unavailable('data');
+  let data: unknown;
+  if (dataKey !== null) {
+    // `undefined` alone means missing: null, false and 0 are valid host data.
+    data = env.hostData?.[dataKey];
+    if (data === undefined) return unavailable('data');
+  }
 
-  const ctx: LocalRenderContext = {
+  const readValue = (): LocalValue => {
+    try {
+      return env.runtime.get(node);
+    } catch {
+      return null;
+    }
+  };
+  const props: Record<string, LocalHostPropValue> = {};
+  for (const [propName, raw] of Object.entries(node.attrs ?? {})) {
+    if (propName === 'bind' || propName === 'initial' || propName === 'disabled') continue;
+    props[propName] = resolveHostProp(env.runtime, raw);
+  }
+  let resetToken = 0;
+  try {
+    resetToken = env.runtime.resetToken(node);
+  } catch {
+    resetToken = 0;
+  }
+  const disabledRead = readBooleanAttr(env.runtime, node, 'disabled', false);
+
+  const ctx: LocalHostComponentContext = {
     runtime: env.runtime,
-    render: (nodes, nextVisible = true) => renderNodes(env, nodes ?? [], nextVisible),
+    // With no explicit nodes, a container renders its parsed children.
+    render: (nodes, nextVisible = true) => renderNodes(env, nodes ?? node.children ?? [], nextVisible),
     visible,
     mode: env.mode,
+    value: readValue(),
+    setValue: (next: LocalValue): boolean => {
+      try {
+        const diagnostics = env.runtime.set(node, next);
+        if (diagnostics.length) {
+          env.report?.(diagnostics);
+          return false;
+        }
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    disabled: disabledRead.ok ? disabledRead.value : true,
+    resetToken,
+    props: Object.freeze(props),
+    report: (diagnostics) => env.report?.(diagnostics),
   };
   try {
     // A Fragment keeps the outer list key stable around the renderer output.
@@ -1359,12 +1580,13 @@ function renderNode(
           // An explicit source id wins; otherwise the generated heading slug.
           id: env.anchors.ids.get(node),
           ...safeHtmlProps(env, node),
+          ...sourceProps(env, node),
         },
         renderNodes(env,node.children, visible, false),
       );
 
     case 'paragraph':
-      return <p key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</p>;
+      return <p key={key} {...safeHtmlProps(env, node)} {...sourceProps(env, node)}>{renderNodes(env,node.children, visible, false)}</p>;
 
     case 'text':
       return <span key={key}>{node.value ?? ''}</span>;
@@ -1415,7 +1637,7 @@ function renderNode(
       return <CodeBlockView key={key} value={node.value ?? ''} language={node.lang ?? undefined} mode={env.mode} htmlProps={safeHtmlProps(env, node)} />;
 
     case 'blockquote':
-      return <blockquote key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible)}</blockquote>;
+      return <blockquote key={key} {...safeHtmlProps(env, node)} {...sourceProps(env, node)}>{renderNodes(env,node.children, visible)}</blockquote>;
 
     case 'break':
       return <br key={key} {...safeHtmlProps(env, node)} />;
@@ -1437,7 +1659,7 @@ function renderNode(
     case 'listItem': {
       const task = typeof node.checked === 'boolean';
       return (
-        <li key={key} className={task ? 'md-list-item md-task-item' : 'md-list-item'} {...safeHtmlProps(env, node)}>
+        <li key={key} className={task ? 'md-list-item md-task-item' : 'md-list-item'} {...safeHtmlProps(env, node)} {...sourceProps(env, node)}>
           {task ? (
             env.mode === 'static' ? (
               <span
@@ -1584,7 +1806,7 @@ function renderNode(
         const text = scalarText(env.runtime.evaluate(node.value ?? ''));
         if (text === null) throw new Error('Cannot display an array');
         return (
-          <span className="local-interpolation" key={key}>
+          <span className="local-interpolation" key={key} {...sourceProps(env, node)}>
             {text}
           </span>
         );
@@ -1600,6 +1822,7 @@ function renderNode(
         <span
           key={key}
           className={display ? 'local-math-display' : 'local-math-inline'}
+          {...sourceProps(env, node)}
         >
           <LocalErrorBoundary revision={runtimeRevision(env.runtime)}>
             <LatexView source={node.value ?? ''} display={display} />
@@ -1698,7 +1921,7 @@ function renderComponent(
 }
 
 function VisualView({ node, visible }: LocalComponentProps) {
-  const { runtime, render, mode } = useLocal();
+  const { runtime, render, mode, sourceNavigation } = useLocal();
   const t = useLocalize();
   const validation = useValidationField(node);
   const visual = (
@@ -1716,13 +1939,16 @@ function VisualView({ node, visible }: LocalComponentProps) {
     Object.hasOwn(runtime.document.bindings, name)
     && runtime.document.bindings[name].nodeIds.includes(node.id)
   )));
-  if (!targeted) return visual;
-  const label = textAttr(runtime, node, 'label', textAttr(runtime, node, 'title', t('Selection', '选择'), t), t);
-  return (
-    <div role="group" aria-label={label} aria-invalid={validation.invalid || undefined} aria-describedby={validation.describedBy}>
+  const content = !targeted ? visual : (
+    <div role="group" aria-label={textAttr(runtime, node, 'label', textAttr(runtime, node, 'title', t('Selection', '选择'), t), t)} aria-invalid={validation.invalid || undefined} aria-describedby={validation.describedBy}>
       {visual}
     </div>
   );
+  // Source navigation wrappers appear only when the host enabled it, so export
+  // and ordinary SSR output keep their previous DOM.
+  return sourceNavigation === undefined
+    ? content
+    : <div {...sourceAttributes(true, node)}>{content}</div>;
 }
 
 /**
@@ -1803,6 +2029,7 @@ export function textProblem(
 
 function InputView({ node }: LocalComponentProps) {
   const domId = useId();
+  const sourceAttrs = useSourceAttributes(node);
   const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error, setError } = useWriter(node);
@@ -1810,7 +2037,9 @@ function InputView({ node }: LocalComponentProps) {
   const placeholder = textAttr(runtime, node, 'placeholder', '', t);
   const typeRaw = rawAttr(node, 'type') ?? 'text';
   const email = typeRaw === 'email';
-  const required = boolAttr(runtime, node, 'required', false);
+  const requiredRead = readBooleanAttr(runtime, node, 'required', false);
+  const required = requiredRead.ok ? requiredRead.value : false;
+  const requiredDynamic = (rawAttr(node, 'required') ?? '').includes('{{');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const validation = useValidationField(node);
   const minLengthRaw = rawAttr(node, 'min-length');
@@ -1865,7 +2094,7 @@ function InputView({ node }: LocalComponentProps) {
     textProblem(value, { required, minLength, maxLength, email }, t);
 
   return (
-    <div className={`md-control local-input${email ? ' local-input-email' : ''}`}>
+    <div className={`md-control local-input${email ? ' local-input-email' : ''}`} {...sourceAttrs}>
       <label className="md-label" htmlFor={`${domId}-input`}>
         {label}
       </label>
@@ -1877,7 +2106,7 @@ function InputView({ node }: LocalComponentProps) {
         placeholder={placeholder || undefined}
         disabled={disabled}
         aria-required={required || undefined}
-        aria-invalid={draftError || error || validation.invalid ? true : undefined}
+        aria-invalid={draftError || error || validation.invalid || !requiredRead.ok ? true : undefined}
         aria-describedby={validation.describedBy}
         onFocus={() => setFocused(true)}
         onBlur={() => {
@@ -1906,20 +2135,23 @@ function InputView({ node }: LocalComponentProps) {
         }}
       />
       <PrintValue value={staticText(display)} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : (draftError ?? error)} />
+      <FieldError message={disabledInvalid || !requiredRead.ok ? t('Cannot compute', '无法计算') : (draftError ?? error ?? (requiredDynamic && required && display === '' ? t('This field is required', '请填写此字段') : null))} />
     </div>
   );
 }
 
 function TextareaView({ node }: LocalComponentProps) {
   const domId = useId();
+  const sourceAttrs = useSourceAttributes(node);
   const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Text', '文本'), t);
   const placeholder = textAttr(runtime, node, 'placeholder', '', t);
   const rows = Math.min(40, Math.max(1, Math.floor(numberAttr(runtime, node, 'rows', 4))));
-  const required = boolAttr(runtime, node, 'required', false);
+  const requiredRead = readBooleanAttr(runtime, node, 'required', false);
+  const required = requiredRead.ok ? requiredRead.value : false;
+  const requiredDynamic = (rawAttr(node, 'required') ?? '').includes('{{');
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const validation = useValidationField(node);
   const minLengthRaw = rawAttr(node, 'min-length');
@@ -1973,7 +2205,7 @@ function TextareaView({ node }: LocalComponentProps) {
     textProblem(value, { required, minLength, maxLength }, t);
 
   return (
-    <div className="md-control local-textarea">
+    <div className="md-control local-textarea" {...sourceAttrs}>
       <label className="md-label" htmlFor={`${domId}-textarea`}>
         {label}
       </label>
@@ -1985,7 +2217,7 @@ function TextareaView({ node }: LocalComponentProps) {
         placeholder={placeholder || undefined}
         disabled={disabled}
         aria-required={required || undefined}
-        aria-invalid={draftError || error || validation.invalid ? true : undefined}
+        aria-invalid={draftError || error || validation.invalid || !requiredRead.ok ? true : undefined}
         aria-describedby={validation.describedBy}
         onFocus={() => setFocused(true)}
         onBlur={() => {
@@ -2014,7 +2246,7 @@ function TextareaView({ node }: LocalComponentProps) {
         }}
       />
       <PrintValue value={staticText(display)} block />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : (draftError ?? error)} />
+      <FieldError message={disabledInvalid || !requiredRead.ok ? t('Cannot compute', '无法计算') : (draftError ?? error ?? (requiredDynamic && required && display === '' ? t('This field is required', '请填写此字段') : null))} />
     </div>
   );
 }
@@ -2061,19 +2293,26 @@ function numberProblem(
 
 function NumberView({ node }: LocalComponentProps) {
   const domId = useId();
+  const sourceAttrs = useSourceAttributes(node);
   const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error, setError } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Number', '数字'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const validation = useValidationField(node);
-  const minPresent = rawAttr(node, 'min') !== undefined;
-  const maxPresent = rawAttr(node, 'max') !== undefined;
-  const min = minPresent ? numberAttr(runtime, node, 'min', 0) : undefined;
-  const max = maxPresent ? numberAttr(runtime, node, 'max', 0) : undefined;
+  const minRead = numberConstraint(runtime, node, 'min');
+  const maxRead = numberConstraint(runtime, node, 'max');
+  const min = minRead.present && !minRead.error ? minRead.value : undefined;
+  const max = maxRead.present && !maxRead.error ? maxRead.value : undefined;
+  const constraintError = minRead.error || maxRead.error;
   const step = numberAttr(runtime, node, 'step', 1);
   const stored = currentValue(runtime, node);
   const display = typeof stored === 'number' && Number.isFinite(stored) ? String(stored) : '';
+  // A narrowed dynamic range never rewrites the stored value; it surfaces as a
+  // field error until the reader adjusts the value or the dependency.
+  const storedProblem = typeof stored === 'number' && Number.isFinite(stored)
+    ? numberProblem(stored, min, max, step, t)
+    : null;
 
   const [draft, setDraft] = useState(display);
   const [focused, setFocused] = useState(false);
@@ -2135,7 +2374,7 @@ function NumberView({ node }: LocalComponentProps) {
   };
 
   return (
-    <div className="md-control local-number">
+    <div className="md-control local-number" {...sourceAttrs}>
       <label className="md-label" htmlFor={`${domId}-number`}>
         {label}
       </label>
@@ -2145,8 +2384,11 @@ function NumberView({ node }: LocalComponentProps) {
         type="text"
         inputMode="decimal"
         value={draft}
+        min={min}
+        max={max}
+        step={step}
         disabled={disabled}
-        aria-invalid={draftError || error || validation.invalid ? true : undefined}
+        aria-invalid={draftError || error || validation.invalid || constraintError || (!focused && storedProblem) ? true : undefined}
         aria-describedby={validation.describedBy}
         onFocus={() => setFocused(true)}
         onBlur={() => {
@@ -2172,42 +2414,51 @@ function NumberView({ node }: LocalComponentProps) {
       {min !== undefined || max !== undefined || step !== undefined ? (
         <span className="md-hint">{hint}</span>
       ) : null}
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : (draftError ?? error)} />
+      <FieldError message={disabledInvalid || constraintError ? t('Cannot compute', '无法计算') : (draftError ?? error ?? (!focused ? storedProblem : null))} />
     </div>
   );
 }
 
 function SliderView({ node }: LocalComponentProps) {
   const domId = useId();
+  const sourceAttrs = useSourceAttributes(node);
   const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Slider', '滑块'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const validation = useValidationField(node);
-  const min = numberAttr(runtime, node, 'min', 0);
-  const max = numberAttr(runtime, node, 'max', 100);
+  const minRead = numberConstraint(runtime, node, 'min');
+  const maxRead = numberConstraint(runtime, node, 'max');
+  const min = minRead.present && !minRead.error ? minRead.value : 0;
+  const max = maxRead.present && !maxRead.error ? maxRead.value : 100;
+  const constraintError = minRead.error || maxRead.error;
   const step = numberAttr(runtime, node, 'step', 1);
   const stored = currentValue(runtime, node);
   const rawValue = typeof stored === 'number' && Number.isFinite(stored) ? stored : min;
   const value = Math.min(max, Math.max(min, rawValue));
+  const storedProblem = typeof stored === 'number' && Number.isFinite(stored)
+    ? (stored < min ? t(`Must be at least ${min}`, `不能小于 ${min}`)
+      : stored > max ? t(`Must be at most ${max}`, `不能大于 ${max}`)
+      : null)
+    : null;
 
   if (mode === 'static') {
     return (
       <StaticValue
         className="md-slider local-slider"
         label={label}
-        value={String(value)}
+        value={String(rawValue)}
       />
     );
   }
 
   return (
-    <div className="md-control md-slider local-slider" style={accentStyle(localColor(node))}>
+    <div className="md-control md-slider local-slider" style={accentStyle(localColor(node))} {...sourceAttrs}>
       <label className="md-label" htmlFor={`${domId}-slider`}>
         <span>{label}</span>
         <span className="md-slider-value" aria-hidden="true">
-          {value}
+          {rawValue}
         </span>
       </label>
       <input
@@ -2218,18 +2469,19 @@ function SliderView({ node }: LocalComponentProps) {
         step={step}
         value={value}
         disabled={disabled}
-        aria-invalid={validation.invalid || undefined}
+        aria-invalid={validation.invalid || storedProblem || constraintError ? true : undefined}
         aria-describedby={validation.describedBy}
         onChange={(event: ChangeEvent<HTMLInputElement>) => write(Number(event.target.value))}
       />
-      <PrintValue value={String(value)} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
+      <PrintValue value={String(rawValue)} />
+      <FieldError message={disabledInvalid || constraintError ? t('Cannot compute', '无法计算') : (error ?? storedProblem)} />
     </div>
   );
 }
 
 function ToggleView({ node }: LocalComponentProps) {
   const domId = useId();
+  const sourceAttrs = useSourceAttributes(node);
   const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
@@ -2244,7 +2496,7 @@ function ToggleView({ node }: LocalComponentProps) {
   }
 
   return (
-    <div className="md-control md-toggle local-toggle" style={accentStyle(localColor(node))}>
+    <div className="md-control md-toggle local-toggle" style={accentStyle(localColor(node))} {...sourceAttrs}>
       <label className="md-toggle-label" htmlFor={`${domId}-toggle`}>
         <input
           id={`${domId}-toggle`}
@@ -2265,6 +2517,7 @@ function ToggleView({ node }: LocalComponentProps) {
 
 function CheckboxView({ node }: LocalComponentProps) {
   const domId = useId();
+  const sourceAttrs = useSourceAttributes(node);
   const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
@@ -2279,7 +2532,7 @@ function CheckboxView({ node }: LocalComponentProps) {
   }
 
   return (
-    <div className="md-control local-checkbox" style={accentStyle(localColor(node))}>
+    <div className="md-control local-checkbox" style={accentStyle(localColor(node))} {...sourceAttrs}>
       <label className="md-toggle-label" htmlFor={`${domId}-checkbox`}>
         <input
           id={`${domId}-checkbox`}
@@ -2300,26 +2553,40 @@ function CheckboxView({ node }: LocalComponentProps) {
 
 function DateView({ node }: LocalComponentProps) {
   const domId = useId();
+  const sourceAttrs = useSourceAttributes(node);
   const { runtime, mode } = useLocal();
   const t = useLocalize();
   const { write, error } = useWriter(node);
   const label = textAttr(runtime, node, 'label', t('Date', '日期'), t);
   const { disabled, invalid: disabledInvalid } = useDisabled(node);
   const validation = useValidationField(node);
-  const required = boolAttr(runtime, node, 'required', false);
-  const min = textAttr(runtime, node, 'min', '', t);
-  const max = textAttr(runtime, node, 'max', '', t);
+  const requiredRead = readBooleanAttr(runtime, node, 'required', false);
+  const required = requiredRead.ok ? requiredRead.value : false;
+  const requiredDynamic = (rawAttr(node, 'required') ?? '').includes('{{');
+  const minRead = dateConstraint(runtime, node, 'min');
+  const maxRead = dateConstraint(runtime, node, 'max');
+  const min = minRead.present && !minRead.error ? minRead.value : '';
+  const max = maxRead.present && !maxRead.error ? maxRead.value : '';
+  const constraintError = minRead.error || maxRead.error || !requiredRead.ok;
   const stored = currentValue(runtime, node);
   const value = typeof stored === 'string' ? stored : '';
   const [touched, setTouched] = useState(false);
-  const problem = touched && required && value === '' ? t('Select a date', '请选择日期') : null;
+  // A narrowed dynamic range never rewrites the stored date; it shows a field
+  // error until the reader changes the date or the dependency.
+  const rangeProblem = value !== '' && ((min !== '' && value < min) || (max !== '' && value > max))
+    ? t(`Date must be between ${min || '…'} and ${max || '…'}`, `日期必须在 ${min || '…'} 与 ${max || '…'} 之间`)
+    : null;
+  const missingProblem = required && value === '' && (touched || requiredDynamic)
+    ? t('Select a date', '请选择日期')
+    : null;
+  const problem = missingProblem ?? rangeProblem;
 
   if (mode === 'static') {
     return <StaticValue className="local-date" label={label} value={staticText(value)} />;
   }
 
   return (
-    <div className="md-control local-date">
+    <div className="md-control local-date" {...sourceAttrs}>
       <label className="md-label" htmlFor={`${domId}-date`}>
         {label}
       </label>
@@ -2332,7 +2599,7 @@ function DateView({ node }: LocalComponentProps) {
         max={max || undefined}
         aria-required={required || undefined}
         disabled={disabled}
-        aria-invalid={problem || error || validation.invalid ? true : undefined}
+        aria-invalid={problem || error || validation.invalid || constraintError ? true : undefined}
         aria-describedby={validation.describedBy}
         onBlur={() => setTouched(true)}
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
@@ -2341,7 +2608,7 @@ function DateView({ node }: LocalComponentProps) {
         }}
       />
       <PrintValue value={staticText(value)} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : (problem ?? error)} />
+      <FieldError message={disabledInvalid || constraintError ? t('Cannot compute', '无法计算') : (problem ?? error)} />
     </div>
   );
 }
@@ -4744,6 +5011,8 @@ function LocalDocumentViewLocal({
   imageResolver,
   hostData,
   hostRenderer,
+  externalValues,
+  onSourceNavigate,
 }: LocalDocumentViewProps) {
   const [staticFirstSettled, setStaticFirstSettled] = useState(!staticFirst);
   useEffect(() => {
@@ -4783,6 +5052,60 @@ function LocalDocumentViewLocal({
   const report = useCallback((diagnostics: Diagnostic[]) => {
     reportRef.current?.(diagnostics);
   }, []);
+
+  // External values update the existing runtime only; source compilation and
+  // reader parameters are untouched.
+  const externalRef = useRef(externalValues);
+  externalRef.current = externalValues;
+  useEffect(() => {
+    const values = externalRef.current;
+    if (!values) return;
+    try {
+      const diagnostics = runtime.setExternalValues(values);
+      if (diagnostics.length) report(diagnostics);
+    } catch {
+      // A disposed runtime has nothing left to update.
+    }
+  }, [runtime, document, externalValues, report]);
+
+  // Preview-to-source navigation. Source metadata is emitted only when a host
+  // callback is present; the click handler ignores interactive descendants so
+  // dragging a slider, sorting a table or following a link keeps its behavior.
+  const navigateRef = useRef(onSourceNavigate);
+  navigateRef.current = onSourceNavigate;
+  const sourceNavigation = useMemo<((target: LocalSourceTarget) => void) | undefined>(
+    () => (onSourceNavigate === undefined
+      ? undefined
+      : (target) => {
+          try {
+            navigateRef.current?.(target);
+          } catch {
+            /* A host navigation failure must not break rendering. */
+          }
+        }),
+    [onSourceNavigate === undefined],
+  );
+  const handleSourceClick = useCallback((event: ReactMouseEvent<HTMLElement>) => {
+    if (!sourceNavigation) return;
+    if (event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const origin = event.target;
+    if (!(origin instanceof Element)) return;
+    if (origin.closest('input, textarea, select, button, a, summary, [contenteditable="true"], [role="button"]')) return;
+    const target = origin.closest<HTMLElement>('[data-rmd-source-start]');
+    if (!target || !rootRef.current?.contains(target)) return;
+    const selection = typeof window === 'undefined' ? null : window.getSelection();
+    if (selection && selection.toString().trim()) return;
+    const start = Number(target.dataset.rmdSourceStart);
+    const end = Number(target.dataset.rmdSourceEnd);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) return;
+    const componentName = target.dataset.rmdSourceComponent;
+    sourceNavigation({
+      range: { start, end },
+      nodeId: target.dataset.rmdSourceNode ?? '',
+      nodeType: target.dataset.rmdSourceType ?? '',
+      ...(componentName ? { componentName } : {}),
+    });
+  }, [rootRef, sourceNavigation]);
 
   // Theme resolution only depends on manifest content, so a host array with
   // identical entries never restarts the reporting effect.
@@ -4863,8 +5186,10 @@ function LocalDocumentViewLocal({
       mode: renderedMode,
       dependencies: dependencyIndex,
       footnotes,
+      sourceNavigation,
+      report,
     }),
-    [runtime, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, anchors, t, renderedMode, dependencyIndex, footnotes],
+    [runtime, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, anchors, t, renderedMode, dependencyIndex, footnotes, sourceNavigation, report],
   );
 
   // Revision-independent deps keep this closure and the provider value stable
@@ -4890,8 +5215,9 @@ function LocalDocumentViewLocal({
       t,
       dependencies: dependencyIndex,
       footnotes,
+      sourceNavigation,
     }),
-    [runtime, render, report, urlPolicy, imageResolver, renderedMode, anchors, rootRef, t, validation, dependencyIndex, footnotes],
+    [runtime, render, report, urlPolicy, imageResolver, renderedMode, anchors, rootRef, t, validation, dependencyIndex, footnotes, sourceNavigation],
   );
 
   return (
@@ -4904,6 +5230,7 @@ function LocalDocumentViewLocal({
         data-render-mode={renderedMode}
         data-rmd-long-prose={document.nodes.length >= 200 ? '' : undefined}
         style={{ colorScheme: resolvedScheme }}
+        onClick={sourceNavigation ? handleSourceClick : undefined}
         aria-label={
           renderedMode === 'static'
             ? t('Static document', '静态文档')
@@ -4947,9 +5274,30 @@ export function LocalReactiveDocument({
   imageResolver,
   hostData,
   hostRenderer,
+  externalValues,
+  initialParameters,
+  onParametersChange,
+  onSourceNavigate,
   compileOptions,
 }: LocalReactiveDocumentProps) {
   const optionsKey = localCompileOptionsKey(compileOptions);
+  // The latest external values seed a newly created runtime; later changes go
+  // through the view's update effect without recompiling or resetting state.
+  const externalRef = useRef(externalValues);
+  externalRef.current = externalValues;
+  const initialParametersRef = useRef(initialParameters);
+  initialParametersRef.current = initialParameters;
+  const onParametersChangeRef = useRef(onParametersChange);
+  onParametersChangeRef.current = onParametersChange;
+  /** Diagnostics from applying initial parameters to the current runtime. */
+  const initialDiagnosticsRef = useRef<Diagnostic[]>([]);
+  const initializeRuntime = (document: LocalDocument): LocalRuntime => {
+    const created = createLocalRuntime(document, externalRef.current === undefined ? undefined : { externalValues: externalRef.current });
+    const initial = initialParametersRef.current;
+    initialDiagnosticsRef.current = initial && Object.keys(initial).length
+      ? created.setParameters(cloneParameterValues(initial)) : [];
+    return created;
+  };
   const compileSession = useRef<LocalCompileSession | null>(null);
   const sessionOptionsKey = useRef<string | null>(null);
   const result = useMemo(() => {
@@ -4993,7 +5341,7 @@ export function LocalReactiveDocument({
     }
     if (!runtime) {
       try {
-        runtime = createLocalRuntime(nextDocument);
+        runtime = initializeRuntime(nextDocument);
       } catch {
         runtime = null;
       }
@@ -5013,7 +5361,7 @@ export function LocalReactiveDocument({
         retiredRuntimes.current.push(runtime);
         let replacement: LocalRuntime | null = null;
         try {
-          replacement = createLocalRuntime(nextDocument);
+          replacement = initializeRuntime(nextDocument);
         } catch {
           replacement = null;
         }
@@ -5045,8 +5393,8 @@ export function LocalReactiveDocument({
     }
   }, [result, themesKey]);
 
-  // Host callbacks see compile and theme diagnostics together; runtime write
-  // diagnostics from the view are appended rather than replacing them.
+  // Host callbacks see compile, theme, initial-parameter and runtime write
+  // diagnostics together.
   const lastReport = useRef<string | null>(null);
   const emit = useCallback((diagnostics: Diagnostic[]) => {
     const signature = diagnosticsSignature(diagnostics);
@@ -5054,17 +5402,78 @@ export function LocalReactiveDocument({
     lastReport.current = signature;
     reportRef.current?.(diagnostics);
   }, []);
+  const viewDiagnostics = useRef<Diagnostic[]>([]);
+  const flush = useCallback(() => {
+    emit(composeDiagnostics(
+      result.diagnostics,
+      themeDiagnostics,
+      initialDiagnosticsRef.current,
+      viewDiagnostics.current,
+    ));
+  }, [result, themeDiagnostics, emit]);
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
 
   useEffect(() => {
-    emit(composeDiagnostics(result.diagnostics, themeDiagnostics));
-  }, [result, themeDiagnostics, emit]);
+    viewDiagnostics.current = [];
+  }, [result]);
+
+  useEffect(() => {
+    flush();
+  }, [flush]);
 
   const handleViewDiagnostics = useCallback(
     (diagnostics: Diagnostic[]) => {
-      emit(composeDiagnostics(result.diagnostics, themeDiagnostics, diagnostics));
+      viewDiagnostics.current = diagnostics;
+      flushRef.current();
     },
-    [result, themeDiagnostics, emit],
+    [],
   );
+
+  /**
+   * Parameter bridge: subscribe after initialization, compare the public
+   * writable set on each commit and notify once per actual change. Values that
+   * did not change and rejected writes never notify. External-only updates do
+   * not change the public parameter set.
+   */
+  useEffect(() => {
+    if (!runtime) return;
+    flushRef.current();
+    let active = true;
+    let last: Readonly<Record<string, LocalValue>>;
+    try {
+      last = runtime.getParameters();
+    } catch {
+      return;
+    }
+    let unsubscribe: () => void = () => {};
+    try {
+      unsubscribe = runtime.subscribe(() => {
+        if (!active) return;
+        let current: Readonly<Record<string, LocalValue>>;
+        let snapshot: LocalSnapshot;
+        try {
+          current = runtime.getParameters();
+          snapshot = runtime.snapshot();
+        } catch {
+          return;
+        }
+        if (parameterRecordsEqual(last, current)) return;
+        last = current;
+        try {
+          onParametersChangeRef.current?.(current, snapshot);
+        } catch {
+          // A host callback must not break the runtime commit.
+        }
+      });
+    } catch {
+      return;
+    }
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [runtime]);
 
   useEffect(() => {
     mounted.current += 1;
@@ -5198,6 +5607,8 @@ export function LocalReactiveDocument({
       imageResolver={imageResolver}
       hostData={hostData}
       hostRenderer={hostRenderer}
+      externalValues={externalValues}
+      onSourceNavigate={onSourceNavigate}
     />
   );
 }

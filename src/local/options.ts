@@ -11,6 +11,8 @@ import { LOCAL_COMPONENT_NAMES } from './schema';
 import { LOCAL_HTML_NAMES } from './html-names';
 import type {
   LocalCompileOptions,
+  LocalHostBindingSchema,
+  LocalHostComponentForm,
   LocalHostComponentSchema,
   LocalHostPropKind,
   LocalHostPropSchema,
@@ -51,6 +53,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const HOST_COMPONENTS_KEY = 'local.options.invalid.host-components';
 const HOST_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const HOST_PROP_KINDS: ReadonlySet<string> = new Set(['string', 'number', 'boolean', 'enum']);
+const HOST_FORMS: ReadonlySet<string> = new Set(['leaf', 'inline', 'container']);
+const HOST_BINDING_KINDS: ReadonlySet<string> = new Set(['string', 'number', 'boolean']);
+/** Attributes a host binding owns implicitly; host props may not redeclare them. */
+const HOST_BINDING_ATTRIBUTES = new Set(['bind', 'initial', 'disabled']);
 
 /** Limit keys accepted under `options.limits`; anything else is a typo. */
 const LIMIT_KEYS: ReadonlySet<string> = new Set(['maxSyntaxNodes', 'maxParseWork', 'maxMarkdownDepth']);
@@ -181,6 +187,113 @@ function invalidHost(detail: string): { ok: false; message: string; key: string;
   };
 }
 
+/** Validate and rebuild one optional host binding declaration. */
+function readHostBinding(
+  raw: unknown,
+  lead: string,
+): { ok: true; binding: LocalHostBindingSchema | undefined } | { ok: false; message: string; key: string; detail: string } {
+  if (raw === undefined) return { ok: true, binding: undefined };
+  if (!isRecord(raw)) return invalidHost(`${lead} "binding" must be an object.`);
+  for (const key of Object.keys(raw)) {
+    if (!['kind', 'initialRule', 'min', 'max', 'step', 'options', 'exclusive'].includes(key)) {
+      return invalidHost(`${lead} "binding" has unknown field "${key}".`);
+    }
+  }
+  const kind = raw.kind;
+  if (typeof kind !== 'string' || !HOST_BINDING_KINDS.has(kind)) {
+    const shown = typeof kind === 'string' ? `"${kind}"` : String(kind);
+    return invalidHost(`${lead} "binding.kind" has unsupported kind ${shown}.`);
+  }
+  const binding: {
+    kind: 'string' | 'number' | 'boolean';
+    initialRule?: 'empty' | 'false' | 'nearest-zero' | 'min' | 'first-option';
+    min?: number;
+    max?: number;
+    step?: number;
+    options?: readonly string[];
+    exclusive?: boolean;
+  } = { kind: kind as 'string' | 'number' | 'boolean' };
+  if (Object.hasOwn(raw, 'exclusive') && raw.exclusive !== undefined) {
+    if (typeof raw.exclusive !== 'boolean') return invalidHost(`${lead} "binding.exclusive" must be a boolean.`);
+    binding.exclusive = raw.exclusive;
+  }
+  if (Object.hasOwn(raw, 'initialRule') && raw.initialRule !== undefined) {
+    const rule = raw.initialRule;
+    if (typeof rule !== 'string' || !['empty', 'false', 'nearest-zero', 'min', 'first-option'].includes(rule)) {
+      return invalidHost(`${lead} "binding.initialRule" is not supported.`);
+    }
+    binding.initialRule = rule as NonNullable<LocalHostBindingSchema['initialRule']>;
+  }
+  const numeric = ['min', 'max', 'step'] as const;
+  for (const field of numeric) {
+    if (!Object.hasOwn(raw, field) || raw[field] === undefined) continue;
+    if (binding.kind !== 'number') {
+      return invalidHost(`${lead} "binding.${field}" is only valid for number bindings.`);
+    }
+    const value = raw[field];
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return invalidHost(`${lead} "binding.${field}" must be a finite number.`);
+    }
+    binding[field] = value;
+  }
+  if (binding.kind === 'number') {
+    if (binding.step !== undefined && !(binding.step > 0)) {
+      return invalidHost(`${lead} "binding.step" must be greater than 0.`);
+    }
+    if (binding.min !== undefined && binding.max !== undefined && binding.min > binding.max) {
+      return invalidHost(`${lead} "binding.min" cannot exceed "binding.max".`);
+    }
+    if (binding.initialRule !== undefined && !['min', 'nearest-zero'].includes(binding.initialRule)) {
+      return invalidHost(`${lead} "binding.initialRule" must be "min" or "nearest-zero" for number bindings.`);
+    }
+    binding.initialRule ??= 'nearest-zero';
+  }
+  const hasOptions = Object.hasOwn(raw, 'options') && raw.options !== undefined;
+  if (hasOptions) {
+    if (binding.kind !== 'string') {
+      return invalidHost(`${lead} "binding.options" is only valid for string bindings.`);
+    }
+    const values = raw.options;
+    if (!Array.isArray(values) || values.length === 0) {
+      return invalidHost(`${lead} "binding.options" must be a non-empty string array.`);
+    }
+    if (values.length > MAX_LOCAL_HOST_ENUM_VALUES) {
+      return invalidHost(`${lead} "binding.options" accepts at most ${MAX_LOCAL_HOST_ENUM_VALUES} values.`);
+    }
+    const seen = new Set<string>();
+    const options: string[] = [];
+    for (const item of values) {
+      if (typeof item !== 'string' || item === '') {
+        return invalidHost(`${lead} "binding.options" must be a non-empty string array.`);
+      }
+      if (item.length > MAX_LOCAL_HOST_NAME_LENGTH) {
+        return invalidHost(`${lead} "binding.options" value exceeds the ${MAX_LOCAL_HOST_NAME_LENGTH}-character limit.`);
+      }
+      if (seen.has(item)) {
+        return invalidHost(`${lead} "binding.options" value "${item}" is declared more than once.`);
+      }
+      seen.add(item);
+      options.push(item);
+    }
+    binding.options = options;
+    binding.initialRule ??= 'first-option';
+  }
+  if (binding.kind === 'string') {
+    const rule = hasOptions ? 'first-option' : 'empty';
+    if (binding.initialRule !== undefined && binding.initialRule !== rule) {
+      return invalidHost(`${lead} "binding.initialRule" must be "${rule}" for ${hasOptions ? 'choice' : 'string'} bindings.`);
+    }
+    binding.initialRule ??= rule;
+  }
+  if (binding.kind === 'boolean') {
+    if (binding.initialRule !== undefined && binding.initialRule !== 'false') {
+      return invalidHost(`${lead} "binding.initialRule" must be "false" for boolean bindings.`);
+    }
+    binding.initialRule ??= 'false';
+  }
+  return { ok: true, binding };
+}
+
 /**
  * Validate and normalize host component schemas. Each accepted component is
  * rebuilt from known fields so the result stays plain, cloneable data and the
@@ -216,13 +329,22 @@ function readLocalHostComponents(value: unknown): HostComponentCheck {
     if (hostByName.has(name.toLowerCase())) {
       return invalidHost(`${lead} "name" ${name} is declared more than once.`);
     }
-    if (entry.form !== 'leaf') return invalidHost(`${lead} "form" must be "leaf".`);
+    if (typeof entry.form !== 'string' || !HOST_FORMS.has(entry.form)) {
+      return invalidHost(`${lead} "form" must be "leaf", "inline" or "container".`);
+    }
+    const form = entry.form as LocalHostComponentForm;
+    const bindingCheck = readHostBinding(entry.binding, lead);
+    if (!bindingCheck.ok) return bindingCheck;
+    const hostBinding = bindingCheck.binding;
     const rawProps = entry.props;
     if (!isRecord(rawProps)) return invalidHost(`${lead} "props" must be an object.`);
     const props: Record<string, LocalHostPropSchema> = {};
     for (const propName of Object.keys(rawProps)) {
       if (!HOST_NAME.test(propName)) {
         return invalidHost(`${lead} property "${propName}" must use lowercase kebab-case.`);
+      }
+      if (hostBinding && HOST_BINDING_ATTRIBUTES.has(propName)) {
+        return invalidHost(`${lead} property "${propName}" is reserved by the host binding.`);
       }
       const raw: unknown = rawProps[propName];
       if (!isRecord(raw)) return invalidHost(`${lead} property "${propName}" must be an object.`);
@@ -307,7 +429,12 @@ function readLocalHostComponents(value: unknown): HostComponentCheck {
       }
       props[propName] = prop;
     }
-    const component: LocalHostComponentSchema = { name, form: 'leaf', props };
+    const component: LocalHostComponentSchema = {
+      name,
+      form,
+      props,
+      ...(hostBinding ? { binding: hostBinding } : {}),
+    };
     hostComponents.push(component);
     hostByName.set(name, component);
   }

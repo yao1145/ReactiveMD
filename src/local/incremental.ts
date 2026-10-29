@@ -405,6 +405,12 @@ export class LocalCompileSession {
     if (doc.themeRange) doc.themeRange = shift(doc.themeRange);
     for (const value of Object.values(doc.computations ?? {})) value.range = shift(value.range);
     for (const value of doc.validations ?? []) value.range = shift(value.range);
+    for (const value of Object.values(doc.externals ?? {})) value.range = shift(value.range);
+    for (const constraints of Object.values(doc.dynamicConstraints ?? {})) {
+      for (const constraint of Object.values(constraints)) {
+        constraint.offset = shift({ start: constraint.offset, end: constraint.offset }).start;
+      }
+    }
     return {ok: true, document: doc, diagnostics: []};
   }
   get hasPendingPreparation():boolean{return !this.disposed&&this.deferred!==null;}

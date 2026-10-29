@@ -71,4 +71,4 @@ In parameters, the conditional checklist sits outside the panel: its existing ch
 
 `npm test` checks parsing, bindings, expressions, LaTeX, the runtime and examples; `npm run test:demo` checks the Playground index; `npm run verify:release` runs the complete Node-side and browser gate, including real-tarball consumption and HTML export. See the [contributing guide](../../CONTRIBUTING.md) for individual commands.
 
-The [six scenarios](showcase/README.md) include all 48 tag names: intervals, coordinates and numeric questions in Functions; input choices in Forms; linked selection in Data; jumps and prose colors in Layout; guided steps and choice questions in Flow; todos and timing in Checklists. The standalone gallery and interaction-tour sources remain available as authoring examples.
+The [six scenarios](showcase/README.md) include all 49 tag names: intervals, coordinates and numeric questions in Functions; input choices in Forms; linked selection in Data; jumps and prose colors in Layout; guided steps and choice questions in Flow; todos and timing in Checklists. The standalone gallery and interaction-tour sources remain available as authoring examples.

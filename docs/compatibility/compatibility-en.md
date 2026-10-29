@@ -8,9 +8,9 @@ Reactive MD is currently a 0.x preview. This page covers package versions, synta
 | --- | --- | --- |
 | Package version | `0.6.1` | 0.x preview; 0.6.1 is available on both `latest` and `next` |
 | Distribution tags | `latest` → `0.6.1`; `next` → `0.6.1` | Default installs use `latest` |
-| Syntax version | `local-draft-2` | `LOCAL_SYNTAX_VERSION`; the current build accepts only this revision |
-| Source revision directive | Optional `<!-- reactive-md: local-draft-2 -->` | One line in the document prologue; unversioned source keeps current-revision behavior |
-| Component protocol | `component-protocol-2` | Contribution and acceptance contract, see [Component protocol](../development/component-protocol-en.md); not a runtime version selection parameter |
+| Syntax version | `local-draft-3` | `LOCAL_SYNTAX_VERSION`; the working tree accepts only this revision. The published `0.6.1` package still ships `local-draft-2` until the next release |
+| Source revision directive | Optional `<!-- reactive-md: local-draft-3 -->` | One line in the document prologue; unversioned source keeps current-revision behavior |
+| Component protocol | `component-protocol-3` | Contribution and acceptance contract, see [Component protocol](../development/component-protocol-en.md); not a runtime version selection parameter |
 | Theme protocol | `reactive-md-theme-1` | Document themes and host CSS integration |
 | Authoring entry | `reactive-md/authoring` | Schema, catalog and editor helpers, without React or CSS |
 | Unstyled React entry | `reactive-md/react/unstyled` | React renderer without a stylesheet dependency |
@@ -26,7 +26,7 @@ One package version corresponds to exactly one syntax revision. Before upgrading
 
 ## Explicit source revisions
 
-A source may declare its revision with one `<!-- reactive-md: local-draft-2 -->` line in the prologue. Unversioned source is read as the current revision, without a new warning. An explicit `local-draft-1` or unknown revision is rejected with a `local.version.*` diagnostic and no runtime is created; declaring an old revision does not select an old parser. Malformed, duplicate and misplaced directives are rejected the same way.
+A source may declare its revision with one `<!-- reactive-md: local-draft-3 -->` line in the prologue. Unversioned source is read as the current revision, without a new warning. An explicit older (for example `local-draft-1` or `local-draft-2`) or unknown revision is rejected with a `local.version.*` diagnostic and no runtime is created; declaring an old revision does not select an old parser. Malformed, duplicate and misplaced directives are rejected the same way.
 
 Readers built before this directive existed, including `0.3.1`, treat it as an ordinary comment and do not enforce the check. Migrate old documents before relying on it. `inspectLocalSourceVersion`, `checkLocalUpgrade` and `migrateLocalSource` expose the declaration outside the compiler, and `reactive-md migrate` performs the single-source metadata migration. See [Source revisions and migration](source-versioning-en.md).
 
@@ -57,6 +57,8 @@ Regression data in [the historical corpus](../../examples/conformance/history/v0
 
 `0.6.1` switches formula display to KaTeX with bundled WOFF2 fonts and accessible MathML. Plot evaluation and protocol revisions are unchanged. Invalid formulas fall back to bounded source text with a warning. `align` now numbers rows; use `align*` or `aligned` to omit automatic numbers. See the [0.6.1 release notes](../releases/release-0.6.1-en.md).
 
+**Working tree (next release):** `local-draft-3` adds `<external>` read-only declarations and dynamic `min`/`max`/`required` constraints; `component-protocol-3` adds host inline/container forms and scalar bindings. Migration from `local-draft-2` blocks newly active `<external>` tags. The package version is not bumped in this working tree; the published `0.6.1` still accepts only `local-draft-2`.
+
 `0.6.0` adds native HTML tables, `align` and link `target`/`rel`, more math environments and commands, mhchem chemistry and expanded code highlighting, and switches diagrams to a layered layout. Unparseable native HTML now falls back to source. `compileLocal` returns only plain objects and arrays, and the editor adds `insertText`. Syntax, component and theme revisions remain unchanged, and existing imports keep working. See the [0.6.0 release notes](../releases/release-0.6.0-en.md).
 
 `0.5.3` adds host authoring tools, consistent compile options, math fallback diagnostics and separate screen/print stylesheets. Existing entries remain available; import `reactive-md/print.css` explicitly for document print layout. Syntax, component and theme revisions remain unchanged. See the [0.5.3 release notes](../releases/release-0.5.3-en.md).
@@ -69,11 +71,11 @@ Regression data in [the historical corpus](../../examples/conformance/history/v0
 
 `0.4.0` establishes `local-draft-2`. Unversioned source that uses supported `local-draft-1` forms remains valid; an explicit `local-draft-1` declaration is rejected until migrated. The build now recognizes 15 additional tag names: the ten `local-draft-2` components plus `computed`, `const`, `validation`, `data-table` and `column`. Text that previously displayed as an unknown or literal tag now parses as a component or declaration; move literal examples into code spans or fences. The leading `<theme>` declaration is document metadata and is not counted as a component. See [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the complete rename and upgrade checklist.
 
-Author-visible syntax changes establish a new syntax revision, such as `local-draft-2`, and raise the minor version and update `LOCAL_SYNTAX_VERSION`. Changes to the core or React API are also recorded in the changelog. The project does not rewrite document bodies automatically. `reactive-md migrate` moves one source's metadata declaration and blocks body-level conflicts; after upgrading, authors or hosts complete any remaining source changes according to the record.
+Author-visible syntax changes establish a new syntax revision, such as `local-draft-3`, and raise the minor version and update `LOCAL_SYNTAX_VERSION`. Changes to the core or React API are also recorded in the changelog. The project does not rewrite document bodies automatically. `reactive-md migrate` moves one source's metadata declaration and blocks body-level conflicts; after upgrading, authors or hosts complete any remaining source changes according to the record.
 
-Legacy configuration syntax is not part of `local-draft-2`. Common replacements:
+Legacy configuration syntax is not part of `local-draft-3`. Common replacements:
 
-| Old form | What to do in `local-draft-2` |
+| Old form | What to do in `local-draft-3` |
 | --- | --- |
 | Directives such as `:::card`, `:::row` | Tags such as `<card>`, `<grid>` |
 | YAML `state:` declaring parameters | `bind` and `initial` on controls |

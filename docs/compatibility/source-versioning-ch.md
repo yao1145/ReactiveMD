@@ -7,7 +7,7 @@
 源码用一行 HTML 注释声明修订：
 
 ```markdown
-<!-- reactive-md: local-draft-2 -->
+<!-- reactive-md: local-draft-3 -->
 ```
 
 该指令属于文档前导区，位于 `<theme>` 声明和正文之前。BOM、空行和普通 Markdown 注释可以出现在它前面。只允许一条指令。
@@ -18,8 +18,9 @@
 
 | 源码 | 结果 |
 | --- | --- |
-| 没有指令 | 按当前修订 `local-draft-2` 解析，与之前一致；不新增警告 |
-| `local-draft-2` | 正常解析 |
+| 没有指令 | 按当前修订 `local-draft-3` 解析；不新增警告 |
+| `local-draft-3` | 正常解析 |
+| `local-draft-1` 或 `local-draft-2` | 以 `local.version.*` 诊断拒绝；先迁移 |
 | `local-draft-1` 或其他显式旧修订 | 以 `local.version.*` 诊断拒绝 |
 | 未知、格式错误、重复或位置错误的指令 | 以 `local.version.*` 诊断拒绝 |
 
@@ -50,7 +51,7 @@ const info = inspectLocalSourceVersion(source);
 - `range` 指向原始源码中的指令；没有指令时为 `null`。
 - `diagnostics` 使用 `local.version.*` 前缀报告格式错误、重复、位置错误、旧修订或未知声明。
 
-无指令源码返回 `declaredVersion: null`、`effectiveVersion: 'local-draft-2'`、`supported: true`，不产生版本诊断。
+无指令源码返回 `declaredVersion: null`、`effectiveVersion: 'local-draft-3'`、`supported: true`，不产生版本诊断。
 
 ## 检查升级
 
@@ -61,7 +62,7 @@ const check = checkLocalUpgrade(source);
 // {
 //   ok: boolean,
 //   fromVersion: string,
-//   toVersion: 'local-draft-2',
+//   toVersion: 'local-draft-3',
 //   needsMigration: boolean,
 //   diagnostics: Diagnostic[]
 // }
@@ -78,7 +79,7 @@ type LocalUpgradeOptions = {
 const check = checkLocalUpgrade(oldSource, { fromVersion: 'local-draft-1' });
 ```
 
-无版本声明的历史文档需要传入 `fromVersion: 'local-draft-1'`，才会执行 draft-1 检查。显式 `fromVersion` 与声明不一致时，检查被拒绝。迁移源只接受 `local-draft-1` 和当前的 `local-draft-2`；旧版 YAML 修订和未知名称会被拒绝。
+无版本声明的历史文档需要传入 `fromVersion: 'local-draft-1'`，才会执行 draft-1 检查。显式 `fromVersion` 与声明不一致时，检查被拒绝。迁移源接受 `local-draft-1`、`local-draft-2` 和当前的 `local-draft-3`；旧版 YAML 修订和未知名称会被拒绝。
 
 `needsMigration` 表示源码需要写入或替换声明：无声明源码需要补上当前指令，当前源码已经完整，draft-1 源码需要替换指令。版本变化本身可以识别、但存在阻止安全迁移的条件时，`ok` 为 `false`。
 
@@ -91,7 +92,7 @@ const result = migrateLocalSource(oldSource, { fromVersion: 'local-draft-1' });
 // {
 //   ok: boolean,
 //   fromVersion: string,
-//   toVersion: 'local-draft-2',
+//   toVersion: 'local-draft-3',
 //   needsMigration: boolean,
 //   diagnostics: Diagnostic[],
 //   source: string,
@@ -102,10 +103,10 @@ const result = migrateLocalSource(oldSource, { fromVersion: 'local-draft-1' });
 
 迁移只写入或替换元数据注释，保留正文。正文原始字节、UTF-8 BOM 和 CRLF 换行保持不变；操作幂等，已迁移到当前版本的源码返回 `changed: false` 和相同文本。`edits` 定位每处替换。迁移被阻止时不产生迁移结果，调用方传入的内容保持不变。
 
-把 `local-draft-1` 源码迁移到 `local-draft-2` 之前，迁移会阻止：
+把 `local-draft-1` 源码迁移到 `local-draft-3` 之前，迁移会阻止：
 
 - 使用 17 个新增保留表达式名的绑定：`sum`、`average`、`minOf`、`maxOf`、`formatNumber`、`formatPercent`、`formatScientific`、`formatCurrency`、`trim`、`lower`、`upper`、`startsWith`、`endsWith`、`replace`、`slice`、`dateCompare`、`dateDiff`；
-- 代码之外出现的 15 个新增可识别标签名：`jump`、`anchor`、`text`、`section`、`multi-select`、`range-slider`、`coordinate`、`quiz`、`steps`、`step`、`computed`、`const`、`validation`、`data-table`、`column`；
+- 代码之外出现的、在旧修订中不执行的新增标签名：`jump`、`anchor`、`text`、`section`、`multi-select`、`range-slider`、`coordinate`、`quiz`、`steps`、`step`、`computed`、`const`、`validation`、`data-table`、`column`、`external`；
 - 表达式中的数组语法或新增内置函数调用；字符串字面量中的文本不触发此检查；
 - 源码当前的编译错误。
 
@@ -139,7 +140,7 @@ reactive-md migrate old.reactive.md --from local-draft-1 --accept-semantic-chang
 | 选项 | 含义 |
 | --- | --- |
 | `[file\|-]` | 输入文件；`-` 表示标准输入 |
-| `--from local-draft-1\|local-draft-2` | 源修订；默认取声明或当前修订 |
+| `--from local-draft-1\|local-draft-2\|local-draft-3` | 源修订；默认取声明或当前修订 |
 | `--check` | 只报告是否需要迁移，从不写入 |
 | `--json` | 标准输出结构化报告，且是唯一的 stdout 内容 |
 | `-o, --output <file>` | 新建文件；拒绝任何已存在的路径，包括输入文件本身 |
@@ -154,6 +155,6 @@ reactive-md migrate old.reactive.md --from local-draft-1 --accept-semantic-chang
 
 ## 范围
 
-迁移处理声明的元数据变化，并检查正文能否跨越修订边界。它不是旧版读取器：不解释 YAML `state`/`data`/`computed`/`actions` 配置块、directive 或其他 draft 之前的语法，也不改写正文。在 `local-draft-2` 下已经无法编译的源码会保持阻止状态，直到作者修复报告的位置。
+迁移处理声明的元数据变化，并检查正文能否跨越修订边界。它不是旧版读取器：不解释 YAML `state`/`data`/`computed`/`actions` 配置块、directive 或其他 draft 之前的语法，也不改写正文。在 `local-draft-3` 下已经无法编译的源码会保持阻止状态，直到作者修复报告的位置。
 
 `0.6.0` 同时提供于 `latest` 与 `next` 渠道。本页说明从 `0.4.0` 起提供的迁移工具。

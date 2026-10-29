@@ -2,7 +2,7 @@
 
 Add controls to Markdown, and the prose, calculations and charts update as the reader changes them. Open the [online Playground](https://yaozi.raricy.com/) and paste an example into the editor to try it in the preview.
 
-This guide uses `reactive-md@0.6.0` and syntax revision `local-draft-2`. Each section starts with a runnable example, then explains it. The complete tag reference is at the end.
+This guide uses the current working tree with syntax revision `local-draft-3`. Each section starts with a runnable example, then explains it. The complete tag reference is at the end.
 
 ## 1. Your first interactive document
 
@@ -412,9 +412,9 @@ Use inline code or code fences to show literal tags and expressions. Write `\{{ 
 
 ## Complete component reference
 
-The following tables list all 48 tags in `local-draft-2`, grouped by purpose. The "Form" column shows how each tag is written: a no-body component has no closing tag, a container must close explicitly, an inline component can sit inside a sentence, a child tag belongs inside its parent, and a declaration does not render as interface content.
+The following tables list all 49 tags in `local-draft-3`, grouped by purpose. The "Form" column shows how each tag is written: a no-body component has no closing tag, a container must close explicitly, an inline component can sit inside a sentence, a child tag belongs inside its parent, and a declaration does not render as interface content.
 
-Most interactive controls support `label`, optional `bind`, optional `initial` and dynamic `disabled`. The tables list the key attributes only.
+Most interactive controls support `label`, optional `bind`, optional `initial` and dynamic `disabled`. The tables list the key attributes only. `number`/`slider` and `date` bounds and `required` may use one interpolation, such as `max="{{ rooms * 4 }}"`; narrowing a range keeps the current value and shows a field error instead of clamping it.
 
 ### Inputs and choices
 
@@ -422,13 +422,13 @@ Most interactive controls support `label`, optional `bind`, optional `initial` a
 | --- | --- | --- | --- |
 | `input` | No body | `label`, `bind`, `initial`, `type=text/email`, `placeholder`, `required`, `min-length`, `max-length` | Single-line text; value is a string |
 | `textarea` | No body | `label`, `bind`, `initial`, `placeholder`, `rows=4`, `required`, `min-length`, `max-length` | Multiline text; text goes in `initial` |
-| `number` | No body | `label`, `bind`, `initial`, `min`, `max`, `step=1` | Numeric input; default is the closest valid value to 0 |
-| `slider` | No body | `label`, `bind`, `initial`, `min=0`, `max=100`, `step=1`, `color` | Slider number; default is `min` |
+| `number` | No body | `label`, `bind`, `initial`, `min`, `max` (both dynamic), `step=1` | Numeric input; default is the closest valid value to 0 |
+| `slider` | No body | `label`, `bind`, `initial`, `min=0`, `max=100` (both dynamic), `step=1`, `color` | Slider number; default is `min` |
 | `range-slider` | No body | `label`, `bind-start`, `bind-end`, `initial-start`, `initial-end`, `min`, `max`, `step`, `color` | Two numbers forming a range |
 | `coordinate` | No body | `label`, `bind-x`, `bind-y`, `initial-x`, `initial-y`, `x-min`, `x-max`, `y-min`, `y-max`, `step`, `color` | Two-dimensional coordinate |
 | `toggle` | No body | `label`, `bind`, `initial`, `color` | Toggle; boolean, default `false` |
 | `checkbox` | No body | `label`, `bind`, `initial`, `color` | Checkbox; boolean, default `false` |
-| `date` | No body | `label`, `bind`, `initial`, `min`, `max`, `required` | Date; value is `YYYY-MM-DD` or an empty string |
+| `date` | No body | `label`, `bind`, `initial`, `min`, `max`, `required` (all three dynamic) | Date; value is `YYYY-MM-DD` or an empty string |
 | `counter` | No body | `label`, `bind`, `initial`, `min=0`, `max`, `step=1` | Number stepper; built-in decrease, increase and reset |
 | `select` | Container | `label`, `bind`, `initial`, `color`; child `option` | Dropdown single choice; first option by default |
 | `choices` | Container | `label`, `bind`, `initial`, `color`; child `option` | Option-card single choice |
@@ -486,6 +486,7 @@ Most interactive controls support `label`, optional `bind`, optional `initial` a
 
 | Tag | Form | Key attributes | Purpose |
 | --- | --- | --- | --- |
+| `external` | Declaration | `name`, `type=string/number/boolean/string-array/number-array` required | Top-level read-only host value; read by expressions and computations, never written by the reader |
 | `computed` | Declaration | `name`, `value` required | Top-level computed value; can read controls, constants and other computed values; not rendered |
 | `const` | Declaration | `name`, `value` required | Top-level constant; can read only constants and built-in constants; not rendered |
 | `validation` | Declaration | `when`, `message`, `fields` required | Cross-field validation; shows a message when it fails |
@@ -504,10 +505,10 @@ Most interactive controls support `label`, optional `bind`, optional `initial` a
 | `node` | Child | `id` required and unique, `label` required, `tone` can be dynamic | Diagram node |
 | `edge` | Child | `from`, `to` required, `label` | Diagram edge |
 
-These 48 tags are the full set. `option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children; they must appear inside their matching parent and cannot be used alone.
+These 49 tags are the full set. `option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children; they must appear inside their matching parent and cannot be used alone.
 
 `table` and `chart` require `key` together with `bind` or `initial`; `key` identifies the selected row. Each `$$...$$` block in a `plot` defines one `y = expression` curve, with up to 16 curves per plot.
 
-In addition, `<theme name="default">` before the body selects the document theme. It is document metadata and is not counted among the 48 tags.
+In addition, `<theme name="default">` before the body selects the document theme. It is document metadata and is not counted among the 49 tags.
 
-Default mode also supports P0 HTML elements such as `div`, `span`, `p` and `h1` through `h6`. Among them, `div`, `p` and `h1` through `h6` accept a static `align` value (`left`, `center`, `right` or `justify`). These are HTML elements, not part of the 48 tags above.
+Default mode also supports P0 HTML elements such as `div`, `span`, `p` and `h1` through `h6`. Among them, `div`, `p` and `h1` through `h6` accept a static `align` value (`left`, `center`, `right` or `justify`). These are HTML elements, not part of the 49 tags above.

@@ -106,6 +106,12 @@ const diagnostics = importLocalState(runtime, saved);
 
 The demo's export dialog can download the current preview parameters as a state file for a later CLI build. The lower-level `createLocalStateFile`, `parseLocalState`, `applyLocalState` and `serializeLocalState` remain available from `reactive-md`.
 
+## External data and host components
+
+A state file carries public writable parameters only. Values declared with `<external>` are host-owned, are never exported, and are not restored from a previous session. An export therefore renders external-dependent expressions with their local "data unavailable" state unless the host integration supplies values in its own environment. Static and SSR export follow the same rule; the file never fetches data at render time.
+
+Host components are also host-owned. A single-file export has no host renderer or host schema, so those tags fall back to the visible unavailable placeholder while the rest of the document keeps working. Do not rely on host components in documents intended to be portable.
+
 ## Images
 
 ### Browser

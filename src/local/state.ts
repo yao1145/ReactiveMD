@@ -33,7 +33,7 @@ export interface LocalStateGenerator {
 
 export interface LocalStateFile {
   format: typeof LOCAL_STATE_FORMAT;
-  /** Syntax revision the state was produced for (`local-draft-2`). */
+  /** Syntax revision the state was produced for (currently `local-draft-3`). */
   syntax: string;
   /** Deterministic digest of the document source. */
   sourceDigest: string;

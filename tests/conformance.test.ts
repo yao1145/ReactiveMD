@@ -13,7 +13,7 @@ interface Fixture {
   text?: string;
   expectedText?: string;
 }
-const suite = JSON.parse(readFileSync(new URL('../examples/conformance/local-draft-2.json', import.meta.url), 'utf8')) as {
+const suite = JSON.parse(readFileSync(new URL('../examples/conformance/local-draft-3.json', import.meta.url), 'utf8')) as {
   syntaxVersion: string;
   cases: Fixture[];
 };

@@ -200,7 +200,7 @@ $$ y = a \sin x $$
 | 文档、语法、示例或版本 | `npm run test:docs`，对应示例编译及迁移核对 |
 | 完整发布门禁 | `npm run verify:release`；覆盖 Node 端与浏览器检查、真实 tarball 消费和组合文档行为。发布前或改动横跨多行时使用 |
 
-`npm run test:components` 执行协议的 `slider`、`tabs`、`plot` 代表性用例和原有语言验收数据。文件格式、字段含义和运行顺序见[验收说明](../../examples/conformance/README.md)。新增组块继续补自己的用例；这个命令不证明全部 48 个标签名或全部浏览器行为已经认证。新增的 `tests/**/*.test.ts` 或 `.tsx` 也会由已有 `npm test` 和 CI 运行。
+`npm run test:components` 执行协议的 `slider`、`tabs`、`plot` 代表性用例和原有语言验收数据。文件格式、字段含义和运行顺序见[验收说明](../../examples/conformance/README.md)。新增组块继续补自己的用例；这个命令不证明全部 49 个标签名或全部浏览器行为已经认证。新增的 `tests/**/*.test.ts` 或 `.tsx` 也会由已有 `npm test` 和 CI 运行。
 
 浏览器检查须记录具体环境和操作。按组件适用性检查真实键盘与焦点、输入法草稿、375px 布局、触控、主题、重置、隐藏与再次显示、计时暂停和卸载清理。已有自动浏览器检查可以提供对应行为的证据；读屏体验等尚未覆盖的项目需要人工检查。静态 SSR 只能证明服务器输出，不能证明真实输入、effect 生命周期或水合。
 

@@ -10,7 +10,7 @@
 
 - [文档导航](docs/README.md)：按入门、参考、集成、兼容、开发维护与发布记录查阅。
 - [新用户入门指南](docs/guides/local-guide-ch.md)：从 Markdown 过渡到交互文档，含完整练习与错误速查。
-- [本地交互语法规范](docs/reference/local-interaction-syntax-ch.md) · [功能演示与示例](examples/local/README.md)：48 个标签名、标签、就地参数与 LaTeX 绘图。
+- [本地交互语法规范](docs/reference/local-interaction-syntax-ch.md) · [功能演示与示例](examples/local/README.md)：49 个标签名、标签、就地参数与 LaTeX 绘图。
 - [本地模式集成](docs/integration/local-integration-ch.md)：`compileLocal`、状态运行时、React 嵌入、URL 策略与样式作用域。
 - [HTML 部分兼容](docs/reference/html-compatibility-ch.md)：P0 HTML 与下个发行版针对作者 CSS、JavaScript 和扩展 HTML 的暂时性分流政策。
 - [可分享文档与静态导出](docs/integration/shareable-export-ch.md)：单文件交互 HTML、静态输出、版本化状态文件、图片资源、CLI 与独立浏览器 API。

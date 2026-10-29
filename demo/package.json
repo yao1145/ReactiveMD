@@ -17,6 +17,7 @@
     "test:showcase": "node scripts/verify-showcase.mjs",
     "test:toolbar": "node scripts/verify-editor-toolbar.mjs && node scripts/verify-editor-scroll.mjs && node scripts/verify-editor-views.mjs",
     "test:views": "node scripts/verify-editor-views.mjs",
+    "test:navigation": "node scripts/verify-source-navigation.mjs",
     "test:workbench": "node scripts/verify-compact-workbench.mjs"
   },
   "dependencies": {
