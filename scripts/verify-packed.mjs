@@ -713,6 +713,12 @@ import { LocalDocumentView, LocalReactiveDocument, type LocalUrlPolicy, type Loc
 import { LocalDocumentView as UnstyledDocumentView } from 'reactive-md/react/unstyled';
 import { createRef } from 'react';
 import { ReactiveMarkdownEditor, type ReactiveMarkdownEditorHandle, type ReactiveMarkdownEditorProps } from 'reactive-md/editor';
+import { ReactiveMarkdownCodeEditor, type ReactiveMarkdownCodeEditorHandle } from 'reactive-md/editor/codemirror';
+
+const codeRef = createRef<ReactiveMarkdownCodeEditorHandle>();
+createElement(ReactiveMarkdownCodeEditor, {value: 'Typed CM6', onChange(value) { void value; }, ref: codeRef,
+  onTransaction(transaction) { void transaction.changes; void transaction.previousSource; }});
+codeRef.current?.getVisibleRanges();
 
 const editorRef = createRef<ReactiveMarkdownEditorHandle>();
 const renderContext = (ctx: LocalRenderContext) => ctx.render();
@@ -760,18 +766,22 @@ void view;
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { ReactiveMarkdownEditor } from 'reactive-md/editor';
+import { ReactiveMarkdownCodeEditor } from 'reactive-md/editor/codemirror';
 const html = renderToString(createElement(ReactiveMarkdownEditor, {
   value: '# Packed editor\\n\\n<script>literal</script>', onChange() {}, locale: 'zh', theme: 'dark',
 }));
 assert.ok(html.includes('Packed editor'));
 assert.ok(html.includes('textarea'));
 assert.ok(!html.includes('<script>literal</script>'));
+const codeHtml = renderToString(createElement(ReactiveMarkdownCodeEditor, {value: 'Code', onChange() {}, authoring: false}));
+assert.ok(codeHtml.includes('rmd-cm6'));
 console.log('PASS packed editor import and SSR');
 `);
   await run('packed editor SSR', process.execPath, [path.join(reactConsumer, 'editor-ssr.mjs')], reactConsumer);
   const editorCssTarget = exportTarget(installedPkg, './editor/styles.css');
   assert.equal(editorCssTarget, './dist-library/reactive-md-editor.css');
   assert.ok((await stat(path.resolve(installedCore, editorCssTarget))).size > 0);
+  assert.ok((await stat(path.resolve(installedCore, exportTarget(installedPkg, './editor/codemirror/styles.css')))).size > 0);
   await writeFile(path.join(reactConsumer, 'main.jsx'), `import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ReactiveMarkdownEditor } from 'reactive-md/editor';

@@ -15,7 +15,7 @@ export function EditorViewBar({ source, mode, onModeChange, sourceId, previewId,
 }) {
   const locale = useEditorLocale();
   const copy = EDITOR_CHROME_COPY[locale];
-  const count = useMemo(() => Array.from(source).length, [source]);
+  const count = useMemo(() => { let count = 0; for (const _character of source) count++; return count; }, [source]);
   return <div className="editor-status-bar" role="group" aria-label={copy.viewLabel}>
     <span className="editor-status-count">{copy.count(count.toLocaleString(locale))}</span>
     <span className="editor-status-hint">

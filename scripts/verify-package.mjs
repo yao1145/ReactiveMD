@@ -169,13 +169,14 @@ await inspectCoreModule(new URL('../dist-library/reactive-md.js', import.meta.ur
 
 // The core declaration graph is consumed without React or repository @types.
 const declared = new Set();
-async function inspectCoreDeclaration(url) {
+async function inspectCoreDeclaration(url, externals = []) {
   if (declared.has(url.href)) return;
   declared.add(url.href);
   const source = await readFile(fileURLToPath(url), 'utf8');
   const specifiers = moduleSpecifiers(source, 'module.d.ts');
   for (const specifier of specifiers) {
-    assert.ok(specifier.startsWith('.'), `Core types must not depend on ${specifier} (in ${fileURLToPath(url)})`);
+    assert.ok(specifier.startsWith('.') || externals.includes(specifier), `Unexpected type dependency ${specifier} (in ${fileURLToPath(url)})`);
+    if (!specifier.startsWith('.')) continue;
     const candidates = [
       new URL(`${specifier}.d.ts`, url),
       new URL(`${specifier.replace(/\.js$/, '.d.ts')}`, url),
@@ -185,7 +186,7 @@ async function inspectCoreDeclaration(url) {
       try { return statSync(fileURLToPath(candidate)).isFile(); } catch { return false; }
     });
     assert.ok(target, `Core declaration ${specifier} from ${fileURLToPath(url)} is missing`);
-    await inspectCoreDeclaration(target);
+    await inspectCoreDeclaration(target, externals);
   }
 }
 await inspectCoreDeclaration(new URL('../dist-library/types/index.d.ts', import.meta.url));
@@ -242,6 +243,20 @@ assert.ok(editorHtml.includes('Editor host'), 'The editor must render without a 
 assert.ok(!editorHtml.includes('<script>literal</script>'), 'Editor source must stay escaped');
 for (const specifier of moduleSpecifiers(await readFile('dist-library/reactive-md-editor.js', 'utf8'))) {
   assert.ok(specifier.startsWith('.') || ['react', 'react-dom', 'react/jsx-runtime', 'reactive-md'].includes(specifier), `Unexpected editor runtime dependency: ${specifier}`);
+}
+const codeEditor = await import('reactive-md/editor/codemirror');
+assert.ok(codeEditor.ReactiveMarkdownCodeEditor);
+await inspectCoreDeclaration(new URL('../dist-library/types/editor/codemirror/index.d.ts', import.meta.url), ['react', 'reactive-md']);
+assert.equal(pkg.exports['./editor/codemirror'].types, './dist-library/types/editor/codemirror/index.d.ts');
+assert.equal(pkg.exports['./editor/codemirror/styles.css'], './dist-library/reactive-md-codemirror.css');
+const codeEditorHtml = renderToStaticMarkup(createElement(codeEditor.ReactiveMarkdownCodeEditor, {
+  value: '# Code editor\n<script>literal</script>', onChange() {}, authoring: false,
+}));
+assert.ok(codeEditorHtml.includes('rmd-cm6'));
+assert.ok(!codeEditorHtml.includes('<script>literal</script>'));
+assert.ok(!(await readFile('dist-library/reactive-md-editor.js', 'utf8')).includes('cm-editor'), 'Textarea entry must not include CodeMirror');
+for (const specifier of moduleSpecifiers(await readFile('dist-library/reactive-md-codemirror.js', 'utf8'))) {
+  assert.ok(specifier.startsWith('.') || ['react', 'react-dom', 'react/jsx-runtime', 'reactive-md'].includes(specifier), `Unexpected CM6 runtime dependency: ${specifier}`);
 }
 const themeHtml = renderToStaticMarkup(createElement(renderer.LocalReactiveDocument, {
   source: themed.document.source, themes: [themeDefinition], colorScheme: 'dark',

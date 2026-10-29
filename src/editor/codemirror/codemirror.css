@@ -1,0 +1,20 @@
+.rmd-cm6 .rmd-cm6-host { width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.rmd-cm6 .cm-editor { height: 100%; font-size: var(--text-sm, 14px); }
+.rmd-cm6 .cm-scroller { overscroll-behavior: contain; }
+/* Lezer may nest HTML string spans inside a semantic expression decoration.
+   Read the semantic colour from the ancestor so attribute templates stay orange. */
+.rmd-cm6 .rmd-syntax-tag { color: var(--rmd-semantic-color, var(--code-tag)); }
+.rmd-cm6 .rmd-syntax-attribute { color: var(--rmd-semantic-color, var(--code-attribute)); }
+.rmd-cm6 .rmd-syntax-string { color: var(--rmd-semantic-color, var(--code-string)); }
+.rmd-cm6 .rmd-syntax-comment, .rmd-cm6 .rmd-syntax-code { color: var(--rmd-semantic-color, var(--code-muted)); }
+.rmd-cm6 .rmd-syntax-markdown { color: var(--rmd-semantic-color, color-mix(in srgb, var(--code-ink) 78%, var(--code-bg))); }
+.rmd-cm6 .author-token-tag { --rmd-semantic-color: var(--code-tag); }
+.rmd-cm6 .author-token-attribute { --rmd-semantic-color: var(--code-attribute); }
+.rmd-cm6 .author-token-string { --rmd-semantic-color: var(--code-string); }
+.rmd-cm6 .author-token-expression, .rmd-cm6 .author-token-math { --rmd-semantic-color: var(--code-expression); }
+.rmd-cm6 .author-token-binding { --rmd-semantic-color: var(--code-binding); }
+.rmd-cm6 .author-token-comment, .rmd-cm6 .author-token-code { --rmd-semantic-color: var(--code-muted); }
+.rmd-cm6 .author-token-markdown { --rmd-semantic-color: color-mix(in srgb, var(--code-ink) 78%, var(--code-bg)); }
+.rmd-cm6 .authoring-pagination { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+.rmd-cm6 .authoring-pagination button { cursor: pointer; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 4px 10px; }
+.rmd-cm6 .authoring-pagination button:disabled { opacity: .4; cursor: default; }

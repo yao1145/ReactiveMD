@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -11,7 +11,7 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(baseURL);
+    await page.goto(textareaWorkbenchURL(baseURL));
     const bar = page.locator('.editor-status-bar');
     await expect(page.locator('.reactive-md-editor .editor-frame > .editor-status-bar')).toHaveCount(1);
     await expect(bar).toHaveAttribute('aria-label', 'Editor view');

@@ -68,6 +68,6 @@ node scripts/verify-incremental-browser.mjs
 npm run test:docs
 ```
 
-修改前应先保存当时的 `dist-library`，供 `--before` 指定；脚本也可仅测当前版本。支持 `--case`、`--iterations`、`--warmups` 和 `--output`。测量数据位于本地忽略目录：[完整对照](../../artifacts/parser-pipeline/benchmark.json)、[混合块复测](../../artifacts/parser-pipeline/confirmation.json)、[普通段落最终复测](../../artifacts/parser-pipeline/ordinary-final.json)、[复杂回退补测](../../artifacts/parser-pipeline/complex-fallback.json)、[大量组件最终复测](../../artifacts/parser-pipeline/controls-final.json)、[语义差分](../../artifacts/parser-pipeline/equivalence.json)。
+修改前应先保存当时的 `dist-library`，供 `--before` 指定；脚本也可仅测当前版本。支持 `--case`、`--iterations`、`--warmups` 和 `--output`。测量数据位于本地忽略目录：完整对照（本地文件 `artifacts/parser-pipeline/benchmark.json`）、混合块复测（本地文件 `artifacts/parser-pipeline/confirmation.json`）、普通段落最终复测（本地文件 `artifacts/parser-pipeline/ordinary-final.json`）、复杂回退补测（本地文件 `artifacts/parser-pipeline/complex-fallback.json`）、大量组件最终复测（本地文件 `artifacts/parser-pipeline/controls-final.json`）、语义差分（本地文件 `artifacts/parser-pipeline/equivalence.json`）。
 
 后续阶段包括组件内部依赖增量、表格行/列表项缓存、Worker 结果补丁与预览运行时复用。本轮保留原有块级会话和完整公开快照协议。

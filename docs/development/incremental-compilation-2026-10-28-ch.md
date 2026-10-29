@@ -85,4 +85,4 @@ node --expose-gc scripts/benchmark-incremental-retention.mjs
 npm test -- tests/local-incremental.test.ts tests/local-compile-worker.test.ts
 ```
 
-原始数据：[Node 持续编辑](../../artifacts/benchmark-incremental.json)、[浏览器 Worker](../../artifacts/incremental-browser.json)、[200 次编辑内存](../../artifacts/incremental-retention.json)。它们保存在忽略目录 `artifacts/`，随本地工作区交付。
+原始数据：Node 持续编辑（本地文件 `artifacts/benchmark-incremental.json`）、浏览器 Worker（本地文件 `artifacts/incremental-browser.json`）、200 次编辑内存（本地文件 `artifacts/incremental-retention.json`）。它们保存在忽略目录 `artifacts/`，随本地工作区交付。

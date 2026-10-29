@@ -1,4 +1,4 @@
-import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -15,7 +15,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(baseURL);
+  await page.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(page, 'Show source');
   const editor = page.locator('#source-editor');
   const source = '# Image document\n\n<slider bind="people" label="People" initial="2" min="1" max="10">\n\nBefore AFTER';

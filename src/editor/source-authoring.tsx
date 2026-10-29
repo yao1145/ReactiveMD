@@ -30,6 +30,7 @@ import type { Diagnostic, LocalCompileOptions, LocalDocument, SourceRange } from
 import type { EditorEdit, EditorLocale, EditorSelection } from './types';
 import { useEditorLocale } from './locale';
 import { SourcePositionIndex } from './source-positions';
+import {createTextareaSurface,type EditorSurface} from './surface';
 
 /* ------------------------------------------------------------------ */
 /* Shared shapes                                                       */
@@ -433,13 +434,8 @@ function bindingAtOffset(bindings: AuthorBinding[], offset: number): CaretBindin
   return best;
 }
 
-function readSelection(editorRef: RefObject<HTMLTextAreaElement | null>): EditorSelection {
-  const editor = editorRef.current;
-  if (!editor) return { start: 0, end: 0 };
-  const length = editor.value.length;
-  const start = clamp(editor.selectionStart, 0, length);
-  const end = clamp(editor.selectionEnd, start, length);
-  return { start, end };
+function readSelection(surface: EditorSurface): EditorSelection {
+  return surface.read().selection;
 }
 
 function commonPrefixLength(a: string, b: string): number {
@@ -508,6 +504,9 @@ export interface AuthoringPanelProps {
   /** Same compile options as the preview; analysis, completion, rename and format follow them. */
   compileOptions?: LocalCompileOptions;
   editorRef: RefObject<HTMLTextAreaElement | null>;
+  editorSurface?: EditorSurface;
+  /** Bound large binding/reference lists; omitted preserves the textarea UI. */
+  pageSize?: number;
   onEdit(edit: EditorEdit): void;
   onLocate(range: SourceRange): void;
   /** Read-only and disabled editors block every authoring action. */
@@ -520,10 +519,13 @@ export function AuthoringPanel({
   bindingDocument,
   compileOptions,
   editorRef,
+  editorSurface,
+  pageSize,
   onEdit,
   onLocate,
   disabled = false,
 }: AuthoringPanelProps) {
+  const inputSurface=useMemo(()=>editorSurface??createTextareaSurface(editorRef),[editorSurface,editorRef]);
   const locale = useEditorLocale();
   const copy = AUTHORING_COPY[locale];
   const renameInputId = useId();
@@ -533,6 +535,9 @@ export function AuthoringPanel({
 
   const [offset, setOffset] = useState(0);
   const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [bindingPage, setBindingPage] = useState(0);
+  const [locationPage, setLocationPage] = useState(0);
+  const size = pageSize === undefined ? Infinity : Math.max(1, Math.floor(pageSize) || 50);
   const [renameValue, setRenameValue] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -552,19 +557,13 @@ export function AuthoringPanel({
   // Caret tracking is local so moving the caret never asks the host to
   // re-render the whole editor.
   useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const update = () => setOffset(editor.selectionStart);
+    const update = () => setOffset(inputSurface.read().selection.start);
     update();
-    const events = ['select', 'keyup', 'click', 'input', 'focus'] as const;
-    for (const type of events) editor.addEventListener(type, update);
-    return () => {
-      for (const type of events) editor.removeEventListener(type, update);
-    };
-  }, [editorRef]);
+    return inputSurface.subscribe(update);
+  }, [inputSurface]);
 
   useEffect(() => {
-    setCompletionOpen(false);
+    if (completionOpenRef.current) setCompletionOpen(false);
   }, [source]);
 
   useEffect(() => {
@@ -604,8 +603,7 @@ export function AuthoringPanel({
 
   const openCompletions = useCallback(() => {
     if (disabled) return;
-    const editor = editorRef.current;
-    const at = clamp(editor?.selectionStart ?? 0, 0, source.length);
+    const at = clamp(inputSurface.read().selection.start, 0, source.length);
     let items: AuthorCompletion[] = [];
     try {
       items = completeLocalSource(source, at, compileOptions) ?? [];
@@ -616,7 +614,7 @@ export function AuthoringPanel({
     setCompletionIndex(0);
     setCompletionOpen(true);
     setStatus(null);
-  }, [compileOptions, disabled, editorRef, source]);
+  }, [compileOptions, disabled, inputSurface, source]);
 
   const applyCompletion = useCallback((item: AuthorCompletion) => {
     if (disabled) return;
@@ -632,8 +630,6 @@ export function AuthoringPanel({
   // are consumed only while the list is open, so Tab, IME composition and
   // normal editing keys keep their default behaviour.
   useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isComposingEvent(event)) return;
       if (disabled) {
@@ -674,9 +670,8 @@ export function AuthoringPanel({
         setCompletionOpen(false);
       }
     };
-    editor.addEventListener('keydown', handleKeyDown, true);
-    return () => editor.removeEventListener('keydown', handleKeyDown, true);
-  }, [applyCompletion, disabled, editorRef, openCompletions]);
+    return inputSurface.listenKeyDown(handleKeyDown);
+  }, [applyCompletion, disabled, inputSurface, openCompletions]);
 
   useEffect(() => {
     if (!completionOpen) return;
@@ -714,7 +709,7 @@ export function AuthoringPanel({
       setStatus(copy.formatUnchanged);
       return;
     }
-    const selection = readSelection(editorRef);
+    const selection = readSelection(inputSurface);
     onEdit({
       value: formatted,
       selection: {
@@ -738,7 +733,7 @@ export function AuthoringPanel({
     }
     try {
       const result = renameLocalBinding(source, activeBinding.name, nextName, compileOptions);
-      const selection = readSelection(editorRef);
+      const selection = readSelection(inputSurface);
       onEdit({
         value: result.source,
         selection: {
@@ -770,6 +765,16 @@ export function AuthoringPanel({
       })),
     ]
     : [];
+  const bindingPages = Math.max(1, Math.ceil(analysis.bindings.length / size));
+  const locationPages = Math.max(1, Math.ceil(locations.length / size));
+  const shownBindingPage = Math.min(bindingPage, bindingPages - 1);
+  const shownLocationPage = Math.min(locationPage, locationPages - 1);
+  const pager = (page: number, pages: number, change: (page: number) => void) => pages > 1 ? <div className="authoring-pagination">
+    <button type="button" disabled={page === 0} onClick={() => change(page - 1)} aria-label={locale === 'zh' ? '上一页' : 'Previous page'}>←</button>
+    <span aria-live="polite">{page + 1} / {pages}</span>
+    <button type="button" disabled={page + 1 === pages} onClick={() => change(page + 1)} aria-label={locale === 'zh' ? '下一页' : 'Next page'}>→</button>
+  </div> : null;
+  const pageSlice = <T,>(items: T[], page: number): T[] => Number.isFinite(size) ? items.slice(page * size, (page + 1) * size) : items;
 
   return (
     <section className="source-authoring" aria-label={copy.region} ref={panelRef}>
@@ -866,7 +871,7 @@ export function AuthoringPanel({
           <div className="authoring-binding-list">
             {analysis.bindings.length === 0 ? (
               <span className="authoring-muted">{copy.noBindings}</span>
-            ) : analysis.bindings.map((binding) => (
+            ) : pageSlice(analysis.bindings, shownBindingPage).map((binding) => (
               <button
                 key={binding.name}
                 type="button"
@@ -876,6 +881,7 @@ export function AuthoringPanel({
                 title={`${copy.declarationCount(binding.declarations.length)} · ${copy.referenceCount(binding.references.length)}`}
                 onClick={() => {
                   setSelectedName(binding.name);
+                  setLocationPage(0);
                   setStatus(null);
                 }}
               >
@@ -886,6 +892,7 @@ export function AuthoringPanel({
               </button>
             ))}
           </div>
+          {pager(shownBindingPage, bindingPages, setBindingPage)}
         </div>
 
         {activeBinding ? (
@@ -894,7 +901,7 @@ export function AuthoringPanel({
               {activeBinding.name} · {copy.typeLabel}: {typeName}
             </span>
             <div className="authoring-locations">
-              {locations.map(({ range, role, index }) => {
+              {pageSlice(locations, shownLocationPage).map(({ range, role, index }) => {
                 const position = sourcePositions.position(range.start);
                 return (
                   <button
@@ -918,6 +925,7 @@ export function AuthoringPanel({
                 );
               })}
             </div>
+            {pager(shownLocationPage, locationPages, setLocationPage)}
           </div>
         ) : null}
 

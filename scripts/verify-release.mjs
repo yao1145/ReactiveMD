@@ -223,6 +223,7 @@ try {
       await runSequence('browser', [
         ['Editor toolbar browser', ['run', 'test:toolbar'], demoRoot, browserEnv],
         ['Published editor browser', ['run', 'test:editor-browser'], projectRoot, browserEnv],
+        ['Default CM6 editor browser', ['run', 'test:codemirror-browser', '--', '--skip-performance', '--demo'], projectRoot, browserEnv],
         ['Markdown compatibility browser', ['run', 'test:markdown-browser'], projectRoot, browserEnv],
         ['Math typesetting browser', ['run', 'test:math-browser'], projectRoot, browserEnv],
           ['HTML compatibility browser', ['run', 'test:html-browser'], projectRoot, browserEnv],

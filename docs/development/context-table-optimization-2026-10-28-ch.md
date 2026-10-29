@@ -91,4 +91,4 @@ npm run test:package
 npm run test:docs
 ```
 
-`benchmark-fast-blocks.mjs` 可独立运行当前版本，也可用 `--iterations`、`--warmups`、`--edits`、`--case` 和 `--output` 调整测量。前后包和原始 JSON 位于本地忽略目录 `artifacts/`：[长文优化前](../../artifacts/context-tables-before.json)、[优化后](../../artifacts/context-tables-after.json)、[规模与内存](../../artifacts/context-tables-scaling.json)、[组件表格补测](../../artifacts/context-tables-components.json)、[浏览器验证](../../artifacts/incremental-browser.json)。
+`benchmark-fast-blocks.mjs` 可独立运行当前版本，也可用 `--iterations`、`--warmups`、`--edits`、`--case` 和 `--output` 调整测量。前后包和原始 JSON 位于本地忽略目录 `artifacts/`：长文优化前（本地文件 `artifacts/context-tables-before.json`）、优化后（本地文件 `artifacts/context-tables-after.json`）、规模与内存（本地文件 `artifacts/context-tables-scaling.json`）、组件表格补测（本地文件 `artifacts/context-tables-components.json`）、浏览器验证（本地文件 `artifacts/incremental-browser.json`）。

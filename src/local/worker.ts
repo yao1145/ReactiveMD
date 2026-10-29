@@ -11,6 +11,7 @@ import {
 import { MAX_LOCAL_HOST_COMPONENTS, MAX_LOCAL_HOST_ENUM_VALUES } from './limits';
 import { LOCAL_HTML_FLAGS, localCompileOptionsKey } from './options';
 import type { Diagnostic, LocalCompileOptions, LocalCompileResult } from './types';
+import { analyzeLocalSource, type AuthorAnalysis } from './authoring';
 
 /** Editors are coalesced for this long before a compile is dispatched. */
 export const LOCAL_COMPILE_DELAY_MS = 150;
@@ -27,6 +28,8 @@ const LIMIT_KEYS = ['maxSyntaxNodes', 'maxParseWork', 'maxMarkdownDepth'] as con
 export type LocalCompileProtocol = typeof LOCAL_RESULT_PATCH_PROTOCOL;
 
 export interface LocalCompileRequest {
+  /** Return authoring data from the same compiled document. Off by default. */
+  includeAuthorAnalysis?: boolean;
   id: number;
   source: string;
   /**
@@ -47,6 +50,7 @@ export interface LocalCompileRequest {
 
 /** An incremental request; only sent once a `patch-v1` worker was confirmed. */
 export interface LocalCompilePatchRequest {
+  includeAuthorAnalysis?: boolean;
   id: number;
   protocol: LocalCompileProtocol;
   /** Revision of the complete source this edit applies to. */
@@ -64,6 +68,7 @@ export interface LocalCompilePatchRequest {
 export type LocalCompileWorkerRequest = LocalCompileRequest | LocalCompilePatchRequest;
 
 export interface LocalCompileWorkerMetrics {
+  analysisMs?: number;
   /** Time spent inside the compile call, mirroring `duration`. */
   compileMs?: number;
   /** Time spent encoding a result patch. */
@@ -86,6 +91,7 @@ export interface LocalCompileMetrics {
 }
 
 export interface LocalCompilePatchResponse {
+  analysis?: AuthorAnalysis;
   id: number;
   ok: true;
   protocol: LocalCompileProtocol;
@@ -107,6 +113,7 @@ export type LocalCompileResponse =
       protocol?: LocalCompileProtocol;
       revision?: number;
       metrics?: LocalCompileWorkerMetrics;
+      analysis?: AuthorAnalysis;
     }
   | {
       id: number;
@@ -142,6 +149,7 @@ export interface LocalCompileWorker {
 export type LocalCompileMode = 'worker' | 'fallback';
 
 export interface LocalCompileOutcome {
+  analysis?: AuthorAnalysis;
   source: string;
   result: LocalCompileResult;
   duration: number;
@@ -155,6 +163,7 @@ export interface LocalCompileOutcome {
 }
 
 export interface LocalCompileSchedulerOptions {
+  includeAuthorAnalysis?: boolean;
   createWorker(): LocalCompileWorker;
   /**
    * Defaults to compileLocal. Runs on the main thread only when the worker is
@@ -173,6 +182,7 @@ export interface LocalCompileSchedulerOptions {
 }
 
 interface CompileJob {
+  editHint?: LocalCompileEditHint;
   source: string;
   /** Copied at schedule time so later caller mutation cannot change permissions or host schemas. */
   options?: LocalCompileOptions;
@@ -182,6 +192,12 @@ interface CompileJob {
   scheduledAt: number;
   /** Full-result recovery attempts for this job (bounded to one). */
   recovery?: number;
+}
+
+/** Optional native-editor transaction; discarded when its baseline differs. */
+export interface LocalCompileEditHint {
+  baseSource: string;
+  edit: LocalSourceEdit;
 }
 
 interface InFlightJob {
@@ -210,6 +226,38 @@ function now(): number {
 
 function safeDuration(value: number): number {
   return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+}
+
+// Budget failures must never start another parse. Successful documents carry
+// the exact source and nodes already produced by this compile.
+function analyzeResult(source: string, options: LocalCompileOptions | undefined, result: LocalCompileResult): AuthorAnalysis {
+  const empty:AuthorAnalysis={ tokens: [], bindings: [], diagnostics: [] };
+  if (result.ok && result.document.source !== source) return empty;
+  if (!result.ok && result.diagnostics.some(d=>d.code.startsWith('local.budget') || d.code.startsWith('local.options.'))) return empty;
+  // A temporarily unknown binding must not blank the whole editor. Recover
+  // syntax on this worker with the same limits, without another semantic compile.
+  try { return analyzeLocalSource(source, options, { ...(result.ok ? {document:result.document} : {}), diagnostics: false }); }
+  catch { return { tokens: [], bindings: [], diagnostics: [] }; }
+}
+
+function validAnalysis(value: unknown, length: number): value is AuthorAnalysis {
+  if (!value || typeof value !== 'object') return false;
+  const data = value as AuthorAnalysis;
+  const range = (r: any) => r && Number.isSafeInteger(r.start) && Number.isSafeInteger(r.end)
+    && r.start >= 0 && r.end >= r.start && r.end <= length;
+  if (!Array.isArray(data.tokens) || data.tokens.length > length + 1 || !Array.isArray(data.bindings)
+    || data.bindings.length > length + 1 || !Array.isArray(data.diagnostics)) return false;
+  let end = 0, count = 0;
+  for (const token of data.tokens) {
+    if (!token || typeof token.kind !== 'string' || !range(token.range) || token.range.start < end) return false;
+    end = token.range.end;
+  }
+  for (const binding of data.bindings) {
+    if (!binding || typeof binding.name !== 'string' || !Array.isArray(binding.declarations) || !Array.isArray(binding.references)) return false;
+    count += binding.declarations.length + binding.references.length;
+    if (count > length + 1 || !binding.declarations.every(range) || !binding.references.every(range)) return false;
+  }
+  return true;
 }
 
 /**
@@ -418,9 +466,13 @@ export class LocalCompileScheduler {
    * permissions of an in-flight compile. An options-only edit still supersedes
    * an older result for the same source.
    */
-  schedule(source: string, options?: LocalCompileOptions): void {
+  schedule(source: string, options?: LocalCompileOptions, hint?: LocalCompileEditHint): void {
     if (this.disposed) return;
     this.queued = createJob(source, options);
+    if (hint && typeof hint.baseSource === 'string' && isPatchEdit(hint.edit) && hint.edit.to <= hint.baseSource.length
+      && hint.baseSource.slice(0, hint.edit.from) + hint.edit.insert + hint.baseSource.slice(hint.edit.to) === source) {
+      this.queued.editHint = { baseSource: hint.baseSource, edit: { ...hint.edit } };
+    }
     this.clearTimer();
     this.timer = setTimeout(() => {
       this.timer = null;
@@ -484,7 +536,8 @@ export class LocalCompileScheduler {
           protocol: LOCAL_RESULT_PATCH_PROTOCOL,
           baseRevision: baseline!.revision,
           revision,
-          edit: diffSourceEdit(baseline!.source, job.source) ?? { from: 0, to: 0, insert: '' },
+          edit: job.editHint?.baseSource === baseline!.source ? job.editHint.edit
+            : diffSourceEdit(baseline!.source, job.source) ?? { from: 0, to: 0, insert: '' },
           targetLength: job.source.length,
           optionsKey: job.optionsKey,
         }
@@ -496,6 +549,7 @@ export class LocalCompileScheduler {
           revision,
         };
     this.inFlight = { id, job, startedAt, revision };
+    if (this.options.includeAuthorAnalysis) request.includeAuthorAnalysis = true;
     try {
       worker.postMessage(request);
     } catch (error) {
@@ -541,6 +595,7 @@ export class LocalCompileScheduler {
       result,
       duration: safeDuration(now() - started),
       mode: 'fallback',
+      ...(this.options.includeAuthorAnalysis ? { analysis: analyzeResult(job.source, job.options, result) } : {}),
       ...(job.options === undefined ? {} : { options: job.options }),
       metrics: { queueMs: safeDuration(started - job.scheduledAt) },
     });
@@ -620,6 +675,7 @@ export class LocalCompileScheduler {
           result,
           duration: safeDuration(response.ok ? response.duration : 0),
           mode,
+          ...(response.ok && this.options.includeAuthorAnalysis && validAnalysis(response.analysis, job.source.length) ? { analysis: response.analysis } : {}),
           ...(job.options === undefined ? {} : { options: job.options }),
           metrics: {
             queueMs,
@@ -994,6 +1050,7 @@ export function startLocalCompileWorker(
     revision: number,
     compileMs: number,
     negotiated: boolean,
+    includeAnalysis = false,
   ): boolean => {
     const state = current;
     if (state === null) return false;
@@ -1017,6 +1074,11 @@ export function startLocalCompileWorker(
             duration,
             incremental: sessionStats(session),
           };
+      if (includeAnalysis && response.ok) {
+        const started = now();
+        response.analysis = analyzeResult(state.source, state.options, state.result);
+        response.metrics = { ...response.metrics, analysisMs: safeDuration(now() - started) };
+      }
       target.postMessage(response);
       return true;
     } catch (error) {
@@ -1064,7 +1126,7 @@ export function startLocalCompileWorker(
           optionsKey,
           result,
         };
-        if (respondFull(full.id, revision, compileMs, negotiated)) {
+        if (respondFull(full.id, revision, compileMs, negotiated, full.includeAuthorAnalysis === true)) {
           schedulePreparation();
         }
       } catch (error) {
@@ -1137,7 +1199,7 @@ export function startLocalCompileWorker(
       if (patch === null) {
         // A failed/cached-exception result cannot be patched; the complete
         // result still keeps the revision chain usable.
-        if (respondFull(patchRequest.id, revision, compileMs, true)) {
+        if (respondFull(patchRequest.id, revision, compileMs, true, patchRequest.includeAuthorAnalysis === true)) {
           schedulePreparation();
         }
         return;
@@ -1160,6 +1222,11 @@ export function startLocalCompileWorker(
           incremental: sessionStats(session),
           metrics,
         };
+        if (patchRequest.includeAuthorAnalysis === true) {
+          const started = now();
+          response.analysis = analyzeResult(nextSource, state.options, result);
+          metrics.analysisMs = safeDuration(now() - started);
+        }
         // Patch frames only reach a client that negotiated patch-v1, so this
         // cast keeps the classic scope contract for every existing caller.
         target.postMessage(response as unknown as LocalCompileResponse);

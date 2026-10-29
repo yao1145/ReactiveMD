@@ -1,3 +1,4 @@
+import {textareaWorkbenchURL} from '../demo/scripts/workbench-ui.mjs';
 import { chromium, firefox, webkit, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -91,7 +92,7 @@ async function runCase(browser, engine, width, result, baseURL) {
   };
 
   try {
-    await page.goto(baseURL);
+    await page.goto(textareaWorkbenchURL(baseURL));
     await check('example navigation and reactive controls', async () => {
       await expect(page.locator('#example-select option')).toHaveCount(8);
       const people = stage.getByRole('slider', { name: 'People', exact: true });

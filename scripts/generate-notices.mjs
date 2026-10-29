@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 // Markdown is bundled by core; renderer code highlighting bundles lowlight.
 // The standalone IIFE also bundles React/DOM.
-const roots = ['remark-gfm', 'remark-parse', 'unified', '@lezer/markdown', '@lezer/common', 'parse5', 'lowlight', 'elkjs', 'katex', 'react', 'react-dom'];
+const roots = ['remark-gfm', 'remark-parse', 'unified', '@lezer/markdown', '@lezer/common', 'parse5', 'lowlight', 'elkjs', 'katex', 'react', 'react-dom', '@codemirror/state', '@codemirror/view', '@codemirror/commands', '@codemirror/language', '@codemirror/lang-markdown', '@codemirror/search', '@codemirror/autocomplete', '@codemirror/lint'];
 const visited = new Map();
 async function findPackage(name, from) {
   let current = from;

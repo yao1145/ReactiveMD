@@ -7,6 +7,7 @@
  */
 
 export { ReactiveMarkdownEditor } from './ReactiveMarkdownEditor';
+export type {EditorSurface} from './surface';
 export type {
   EditorEdit,
   EditorLocale,

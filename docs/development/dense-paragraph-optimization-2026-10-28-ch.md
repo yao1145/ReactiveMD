@@ -64,10 +64,10 @@ node scripts/benchmark-compiler-stress.mjs --case '^(paragraphs-(5000|100000)(-r
 
 本地原始结果：
 
-- [独立进程优化前](../../artifacts/compiler-dense-optimization-before.json)、[优化后](../../artifacts/compiler-dense-optimization-after.json)
-- [预热 A/B，旧模块先导入](../../artifacts/compiler-dense-paired-before-first.json)、[新模块先导入](../../artifacts/compiler-dense-paired-after-first.json)
-- [预热对照脚本](../../artifacts/benchmark-dense-paired.mjs)
-- [完整结果差分](../../artifacts/compiler-equivalence.json)、[差分脚本](../../artifacts/verify-compiler-equivalence.mjs)
-- [浏览器 Worker 复测](../../artifacts/compiler-browser-dense-after.json)
+- 独立进程优化前（本地文件 `artifacts/compiler-dense-optimization-before.json`）、优化后（本地文件 `artifacts/compiler-dense-optimization-after.json`）
+- 预热 A/B，旧模块先导入（本地文件 `artifacts/compiler-dense-paired-before-first.json`）、新模块先导入（本地文件 `artifacts/compiler-dense-paired-after-first.json`）
+- 预热对照脚本（本地文件 `artifacts/benchmark-dense-paired.mjs`）
+- 完整结果差分（本地文件 `artifacts/compiler-equivalence.json`）、差分脚本（本地文件 `artifacts/verify-compiler-equivalence.mjs`）
+- 浏览器 Worker 复测（本地文件 `artifacts/compiler-browser-dense-after.json`）
 
 这些原始记录保存在忽略目录 `artifacts/`，随本地工作区交付。初始调查及测量范围见[编译性能调查](compiler-performance-2026-10-28-ch.md)。

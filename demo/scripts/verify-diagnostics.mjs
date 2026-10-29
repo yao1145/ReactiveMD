@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -32,7 +32,7 @@ async function fillSource(source) {
 }
 
 try {
-  await page.goto(baseURL);
+  await page.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(page, 'Show source');
 
   await check('a one-code-point emoji fits max-length="1" and a second code point is rejected', async () => {

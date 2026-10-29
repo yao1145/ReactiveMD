@@ -113,9 +113,9 @@ node scripts/benchmark-block-types.mjs --case '^(panel-50|chart-20|table-200)$' 
 
 支持 `--iterations`、`--warmups`、`--background`、`--case` 和 `--output`。快速检查可用 `--iterations 1 --warmups 0 --background 12`；它没有足够预热，不能代替正式时间数据。
 
-- [基准脚本](../../scripts/benchmark-block-types.mjs)
-- [24 场景正式数据](../../artifacts/benchmark-block-types-2026-10-28.json)
-- [3 场景独立复测](../../artifacts/benchmark-block-types-confirm-2026-10-28.json)
+- 基准脚本（仓库文件 `scripts/benchmark-block-types.mjs`）
+- 24 场景正式数据（本地文件 `artifacts/benchmark-block-types-2026-10-28.json`）
+- 3 场景独立复测（本地文件 `artifacts/benchmark-block-types-confirm-2026-10-28.json`）
 - [增量实现与失效规则](incremental-compilation-2026-10-28-ch.md)
 
 原始 JSON 在忽略目录 `artifacts/`，随本地工作区交付。

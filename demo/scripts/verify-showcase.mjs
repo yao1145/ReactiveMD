@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { gridOverflows } from './grid-layout-assertions.mjs';
@@ -42,7 +42,7 @@ try {
     };
     const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
     try {
-      await page.goto(baseURL);
+      await page.goto(textareaWorkbenchURL(baseURL));
       await check(`${language}: opens in presentation mode with seven distinct feature entries`, async () => {
         await expect(page.locator('#source-editor')).toBeHidden();
         const choices = await page.locator('#example-select option').evaluateAll(options => options.map(option => option.value));

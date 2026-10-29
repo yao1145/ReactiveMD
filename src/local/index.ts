@@ -60,6 +60,7 @@ export {
 } from './worker';
 export type {
   LocalCompileRequest,
+  LocalCompileEditHint,
   LocalCompileResponse,
   LocalCompileWorker,
   LocalCompileMode,

@@ -1,4 +1,4 @@
-import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -26,7 +26,7 @@ async function noOverflow() {
 }
 
 try {
-  await page.goto(baseURL);
+  await page.goto(textareaWorkbenchURL(baseURL));
   await check('guide code uses one surface and copies literal source in both languages and themes', async () => {
     for (const language of ['en', 'zh']) {
       if (language === 'zh') await page.getByTestId('language-toggle').click();

@@ -5,11 +5,13 @@ import type {
   LocalCompileOptions,
   LocalCompileResult,
   LocalCompileWorker,
+  AuthorAnalysis, LocalCompileEditHint,
 } from 'reactive-md';
 
 export type LocalCompiledDocument = Extract<LocalCompileResult, { ok: true }>['document'];
 
 export interface LocalCompilation {
+  analysis: {source:string;optionsKey:string;analysis:AuthorAnalysis}|null;
   /** Compile result for the exact source and routing options in use, once it exists. */
   result: LocalCompileResult | null;
   duration: number;
@@ -22,6 +24,7 @@ export interface LocalCompilation {
 }
 
 interface CompilationState {
+  analysis: AuthorAnalysis|null;
   resultSource: string | null;
   resultOptionsKey: string | null;
   result: LocalCompileResult | null;
@@ -44,9 +47,12 @@ function createCompileWorker(): LocalCompileWorker {
 export function useLocalCompilation(
   source: string,
   options?: LocalCompileOptions,
+  includeAuthorAnalysis = false,
+  editHint?: LocalCompileEditHint,
 ): LocalCompilation {
   const optionsKey = localCompileOptionsKey(options);
   const [state, setState] = useState<CompilationState>(() => ({
+    analysis: null,
     resultSource: null,
     resultOptionsKey: null,
     result: null,
@@ -72,6 +78,7 @@ export function useLocalCompilation(
   useEffect(() => {
     const scheduledOptionsKey = optionsKey;
     const scheduler = new LocalCompileScheduler({
+      includeAuthorAnalysis,
       createWorker: createCompileWorker,
       shareResults: true,
       // Coalesce a frame's edits without adding the library's conservative
@@ -89,6 +96,7 @@ export function useLocalCompilation(
             resultSource: outcome.source,
             resultOptionsKey: outcomeOptionsKey,
             result: outcome.result,
+            analysis: outcome.analysis ?? null,
             duration: outcome.duration,
             previewDocument: outcome.result.ok ? outcome.result.document : previous.previewDocument,
             previewOptionsKey: outcome.result.ok ? outcomeOptionsKey : previous.previewOptionsKey,
@@ -115,10 +123,10 @@ export function useLocalCompilation(
       schedulerRef.current = null;
       scheduler.dispose();
     };
-  }, [optionsKey]);
+  }, [optionsKey, includeAuthorAnalysis]);
 
   useEffect(() => {
-    schedulerRef.current?.schedule(source, optionsRef.current);
+    schedulerRef.current?.schedule(source, optionsRef.current, editHint);
   }, [source]);
 
   const sameRoute = state.resultOptionsKey === optionsKey;
@@ -127,6 +135,7 @@ export function useLocalCompilation(
   // the frame before the recompile completes.
   const previewDocument = state.previewOptionsKey === optionsKey ? state.previewDocument : null;
   return {
+    analysis: result && state.analysis ? {source, optionsKey, analysis: state.analysis} : null,
     result,
     duration: result ? state.duration : 0,
     previewDocument,

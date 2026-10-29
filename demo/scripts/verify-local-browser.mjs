@@ -1,4 +1,4 @@
-import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
@@ -50,7 +50,7 @@ async function pick(id) {
 }
 
 try {
-  await page.goto(baseURL);
+  await page.goto(textareaWorkbenchURL(baseURL));
   await expect(page.locator('#example-select')).toHaveValue('pricing');
   await clickWorkbenchAction(page, 'Show source');
   await expect(page.getByRole('slider', { name: 'People', exact: true })).toBeVisible();
@@ -467,7 +467,7 @@ Independent calculation: {{ n + 2 }}.`);
     await expect(rows.nth(1)).toContainText('A');
   });
 
-  await page.goto(baseURL + '/embed.html');
+  await page.goto(textareaWorkbenchURL(baseURL + '/embed.html'));
   await check('embedded local documents keep independent in-memory state', async () => {
     const first = page.getByRole('region', { name: 'Instance A', exact: true });
     const second = page.getByRole('region', { name: 'Instance B', exact: true });
@@ -498,7 +498,7 @@ Independent calculation: {{ n + 2 }}.`);
         }
       });
 
-      await localized.goto(baseURL);
+      await localized.goto(textareaWorkbenchURL(baseURL));
       await clickWorkbenchAction(localized, 'Show source');
       await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
       await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');

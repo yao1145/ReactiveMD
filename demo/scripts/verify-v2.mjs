@@ -1,4 +1,4 @@
-import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -18,7 +18,7 @@ try {
     page.on('pageerror',error=>errors.push(error.message));
     const preview=page.locator('.preview-stage');
     const open=async id=>{
-      await page.goto(baseURL+'/?example='+id);
+      await page.goto(textareaWorkbenchURL(baseURL+'/?example='+id));
       await expect(page.locator('#example-select')).toHaveValue(id);
       await expect(preview.locator('.local-document')).toBeVisible();
     };
@@ -136,7 +136,7 @@ try {
   const boundary=await boundaryContext.newPage();
   boundary.setDefaultTimeout(10000);
   boundary.on('pageerror',error=>errors.push(error.message));
-  await boundary.goto(baseURL+'/?example=functions');
+  await boundary.goto(textareaWorkbenchURL(baseURL+'/?example=functions'));
   await clickWorkbenchAction(boundary, 'Show source');
   await replaceWorkbenchSource(boundary, `<panel title="Boundary checks">
 <coordinate label="Fractional point" bind-x="px" bind-y="py" initial-x="0.3" initial-y="0.6" x-min="0" x-max="1" y-min="0" y-max="1" step="0.3">

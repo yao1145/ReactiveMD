@@ -57,7 +57,7 @@
     "dev:lib": "vite build --config vite.lib.config.ts --watch",
     "build": "npm run typecheck && npm run build:lib",
     "build:standalone": "vite build --config vite.standalone.config.ts",
-    "build:lib": "vite build --config vite.lib.config.ts && vite build --config vite.editor.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
+    "build:lib": "vite build --config vite.lib.config.ts && vite build --config vite.editor.config.ts && vite build --config vite.codemirror.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
     "build:demo": "npm run build && npm run build --workspace=@reactive-md/demo",
     "preview": "npm run preview --workspace=@reactive-md/demo",
     "typecheck": "tsc --noEmit",
@@ -65,7 +65,7 @@
     "lint": "node bin/reactive-md.mjs lint",
     "test:components": "vitest run --config vitest.config.ts tests/component-protocol.test.ts tests/conformance.test.ts",
     "test:demo": "npm run build:lib && npm run test --workspace=@reactive-md/demo",
-    "test:browser": "npm run test:browser --workspace=@reactive-md/demo",
+    "test:browser": "npm run test:browser --workspace=@reactive-md/demo && npm run build --workspace=@reactive-md/demo && node scripts/verify-codemirror-browser.mjs --skip-performance --demo",
     "test:browser:core": "node scripts/verify-browser-core.mjs",
     "test:required-browser": "node scripts/verify-required-form-browser.mjs",
     "test:tooltip-browser": "node scripts/verify-tooltip-browser.mjs",
@@ -77,6 +77,7 @@
     "test:theme-browser": "node scripts/verify-theme-browser.mjs",
     "test:date-browser": "node scripts/verify-date-input-browser.mjs",
     "test:editor-browser": "node scripts/verify-editor-browser.mjs",
+    "test:codemirror-browser": "node scripts/verify-codemirror-browser.mjs",
     "test:markdown-browser": "node scripts/verify-markdown-browser.mjs",
     "test:math-browser": "node scripts/verify-math-browser.mjs",
     "test:html-browser": "node scripts/verify-html-compat-browser.mjs && node scripts/verify-html-table-browser.mjs",
@@ -108,6 +109,11 @@
       "import": "./dist-library/reactive-md-editor.js"
     },
     "./editor/styles.css": "./dist-library/reactive-md-editor.css",
+    "./editor/codemirror": {
+      "types": "./dist-library/types/editor/codemirror/index.d.ts",
+      "import": "./dist-library/reactive-md-codemirror.js"
+    },
+    "./editor/codemirror/styles.css": "./dist-library/reactive-md-codemirror.css",
     "./react/unstyled": {
       "types": "./dist-library/types/react/index.d.ts",
       "import": "./dist-library/reactive-md-react-unstyled.js"
@@ -132,7 +138,16 @@
     }
   },
   "devDependencies": {
+    "@codemirror/autocomplete": "6.20.4",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/lint": "6.9.7",
+    "@codemirror/search": "6.7.2",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
     "@lezer/common": "1.5.4",
+    "@lezer/highlight": "1.2.5",
     "@lezer/markdown": "1.8.1",
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",

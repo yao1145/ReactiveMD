@@ -1,5 +1,7 @@
 # React source editor
 
+The Demo defaults to the [CodeMirror 6 entry](codemirror-en.md) (unreleased). The textarea entry documented here remains compatible.
+
 `reactive-md/editor` is a controlled React 19 editor for Reactive MD source. It comes from the Playground editor and provides source highlighting, a formatting and insertion toolbar, completion, binding navigation, rename and format commands, undo and redo, line numbers and scroll synchronization. Its built-in status bar provides a character count and Edit, Split and Preview views. The host keeps the source text and supplies preview content, persistence and export.
 
 The editor has its own stylesheet at `reactive-md/editor/styles.css`. It is separate from `reactive-md/styles.css`, so a page that only edits source does not load document rendering styles.

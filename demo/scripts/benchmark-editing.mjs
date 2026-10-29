@@ -1,3 +1,4 @@
+import { textareaWorkbenchURL } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { article } from '../../scripts/benchmark-large-documents.mjs';
@@ -9,7 +10,7 @@ page.setDefaultTimeout(30_000);
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
-  await page.goto(baseURL);
+  await page.goto(textareaWorkbenchURL(baseURL));
   const editor = page.getByRole('textbox', { name: 'Reactive MD source', exact: true });
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   const sections = Number(process.env.EDITING_SECTIONS ?? 300);

@@ -83,7 +83,7 @@ EDITING_DYNAMIC_ROWS=1 EDITING_CASES=list,table EDITING_COMPARISON_REPORT=artifa
 node scripts/benchmark-editing-memory.mjs
 ```
 
-原始报告位于本地忽略目录：[浏览器主链路](../../artifacts/editing-completion/browser.json)、[协议与并发](../../artifacts/editing-completion/recovery.json)、[性能对照](../../artifacts/editing-completion/comparison.json)、[简单行复测](../../artifacts/editing-completion/comparison-large-blocks-fast.json)、[动态插值行复测](../../artifacts/editing-completion/comparison-large-blocks.json)、[内存与释放](../../artifacts/editing-completion/memory.json)。浏览器截图保存在 `artifacts/editing-completion/browser.png`。
+原始报告位于本地忽略目录：浏览器主链路（本地文件 `artifacts/editing-completion/browser.json`）、协议与并发（本地文件 `artifacts/editing-completion/recovery.json`）、性能对照（本地文件 `artifacts/editing-completion/comparison.json`）、简单行复测（本地文件 `artifacts/editing-completion/comparison-large-blocks-fast.json`）、动态插值行复测（本地文件 `artifacts/editing-completion/comparison-large-blocks.json`）、内存与释放（本地文件 `artifacts/editing-completion/memory.json`）。浏览器截图保存在 `artifacts/editing-completion/browser.png`。
 
 ## 工作区状态
 

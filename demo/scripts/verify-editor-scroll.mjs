@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 
 const baseURL = process.env.DEMO_URL ?? 'http://127.0.0.1:5173';
@@ -11,7 +11,7 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(baseURL);
+    await page.goto(textareaWorkbenchURL(baseURL));
     await clickWorkbenchAction(page, 'Show source');
     const editor = page.locator('#source-editor');
     const position = () => editor.evaluate((element) => ({

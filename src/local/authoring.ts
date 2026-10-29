@@ -3,6 +3,8 @@ import { RESERVED_NAMES } from './expression';
 import { readLocalCompileOptions } from './options';
 import { parseLocal } from './parser';
 import { localLatexReferences } from './math';
+import { LOCAL_HTML_NAMES } from './html-names';
+import { HTML_TABLE_NAMES } from './html-table';
 import {
   LOCAL_COMPONENT_NAMES,
   getLocalComponent,
@@ -263,7 +265,9 @@ function closingTagOf(source: string, node: LocalNode, openingEnd: number): RawT
   const start = source.lastIndexOf('</', node.range.end - 1);
   if (start < openingEnd) return null;
   const tag = readTagAt(source, start);
-  if (!tag || !tag.closing || tag.name !== node.name || tag.end > node.range.end) return null;
+  if (!tag || !tag.closing || tag.end > node.range.end) return null;
+  if (tag.name !== node.name && !((LOCAL_HTML_NAMES.has(tag.name.toLowerCase()) || HTML_TABLE_NAMES.has(tag.name.toLowerCase()))
+    && tag.name.toLowerCase() === node.name?.toLowerCase())) return null;
   return tag;
 }
 
@@ -444,7 +448,17 @@ function authoringProps(name: string, options?: LocalCompileOptions): Readonly<R
   return host ? Object.fromEntries(Object.entries(host.props).map(([key, prop]) => [key, { ...prop, values: prop.enum }])) : undefined;
 }
 
-function buildAnalysisData(source: string, nodes: LocalNode[], options?: LocalCompileOptions): AnalysisData {
+function buildAnalysisData(source: string, nodes: LocalNode[], options?: LocalCompileOptions,
+  metadata?: Pick<LocalDocument, 'computations' | 'themeRange'>): AnalysisData {
+  // Rendering removes declarations from nodes. Their source ranges let author
+  // tools recover the original tags without parsing the document again.
+  const recovered: LocalNode[] = [];
+  if (metadata?.themeRange) recovered.push({type:'component',name:'theme',id:'author-theme',range:metadata.themeRange});
+  for (const entry of Object.values(metadata?.computations ?? {})) {
+    recovered.push({type:'component',name:entry.kind,id:entry.nodeId,range:entry.range});
+  }
+  const roots = recovered.length ? nodes.concat(recovered) : nodes;
+  const visitedTags = new Set<number>();
   const tokens: AuthorToken[] = [];
   const declarations = new Map<string, SourceRange[]>();
   const references: IdentifierRange[] = [];
@@ -461,8 +475,10 @@ function buildAnalysisData(source: string, nodes: LocalNode[], options?: LocalCo
   };
 
   const visitComponent = (node: LocalNode, parent?: string): void => {
+    if (visitedTags.has(node.range.start)) return;
     const tag = readTagAt(source, node.range.start);
     if (!tag || tag.closing) return;
+    visitedTags.add(node.range.start);
     tokens.push({ kind: 'tag', range: sortedRange(tag.nameRange) });
     const component = getLocalComponent(node.name ?? '');
     const hasKey = tag.attrs.some((attribute) => attribute.name === 'key');
@@ -545,11 +561,19 @@ function buildAnalysisData(source: string, nodes: LocalNode[], options?: LocalCo
       } else if (node.type === 'comment') {
         tokens.push({ kind: 'comment', range: sortedRange(node.range) });
       }
+      // Native HTML becomes div/heading/strong/etc. nodes. Recover only tags
+      // represented by active nodes; code, comments and fallback stay opaque.
+      if (!INACTIVE_NODE_TYPES.has(node.type) && source[node.range.start] === '<' && !visitedTags.has(node.range.start)) {
+        const tag = readTagAt(source, node.range.start);
+        if (tag && !tag.closing && (LOCAL_HTML_NAMES.has(tag.name.toLowerCase()) || HTML_TABLE_NAMES.has(tag.name.toLowerCase()))) {
+          visitComponent({...node,name:tag.name}, parent);
+        }
+      }
       if (node.type !== 'fallback' && node.children) walk(node.children, node.name);
     }
   };
-  walk(nodes);
-  for (const range of commentRanges(source, nodes)) tokens.push({ kind: 'comment', range });
+  walk(roots);
+  for (const range of commentRanges(source, roots)) tokens.push({ kind: 'comment', range });
 
   // Tokens are lexical and must never overlap: attribute values split around
   // interpolation segments, and component tags contribute only names.
@@ -596,8 +620,8 @@ export function analyzeLocalSource(source: string, options?: LocalCompileOptions
   if (authoringOptionMode(options) !== 'markdown') {
     return { tokens: [], bindings: [], diagnostics: settings.diagnostics === false ? [] : compileDiagnostics(source, options) };
   }
-  const nodes = settings.document?.source === source ? settings.document.nodes : parseLocal(source, options).nodes;
-  const data = buildAnalysisData(source, nodes, options);
+  const document = settings.document?.source === source ? settings.document : parseLocal(source, options);
+  const data = buildAnalysisData(source, document.nodes, options, document);
   return { tokens: data.tokens, bindings: data.bindings, diagnostics: settings.diagnostics === false ? [] : compileDiagnostics(source, options) };
 }
 

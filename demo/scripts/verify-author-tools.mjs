@@ -1,4 +1,4 @@
-import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -55,7 +55,7 @@ try {
     localStorage.setItem('reactive-md:selection', 'pricing');
     localStorage.setItem('reactive-md:local:source:pricing', source);
   }, initialSource);
-  await initial.goto(baseURL);
+  await initial.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(initial, 'Show source');
   const initialEditor = initial.locator('#source-editor');
   await expect(initialEditor).toBeVisible();
@@ -71,7 +71,7 @@ try {
   await initial.close();
   console.log('PASS highlight follows scrolling before the first edit');
 
-  await page.goto(baseURL);
+  await page.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(page, 'Show source');
 
   const panel = page.getByRole('region', { name: 'Source authoring tools', exact: true });
@@ -263,7 +263,7 @@ try {
   mobile.setDefaultTimeout(15000);
   const mobileErrors = [];
   mobile.on('pageerror', (error) => mobileErrors.push(error.message));
-  await mobile.goto(baseURL);
+  await mobile.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(mobile, 'Show source');
   const mobilePanel = mobile.getByRole('region', { name: 'Source authoring tools', exact: true });
   await expect(mobilePanel).toBeVisible();

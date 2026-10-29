@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -166,7 +166,7 @@ const startDevBold = async (target, editor) => {
 
 try {
   await installEditorProbe(page);
-  await page.goto(baseURL);
+  await page.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(page, 'Show source');
   const toolbar = page.locator('.editor-toolbar');
   await expect(toolbar).toBeVisible();
@@ -377,7 +377,7 @@ try {
 
   const tablet = await browser.newPage({ viewport: { width: 1024, height: 900 } });
   tablet.setDefaultTimeout(10000);
-  await tablet.goto(baseURL);
+  await tablet.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(tablet, 'Show source');
   // Exercise the reusable editor's compact container layout on a wide page.
   await tablet.addStyleTag({ content: '.reactive-md-editor { max-width: 480px; }' });
@@ -431,7 +431,7 @@ try {
   mobile.on('response', (response) => {
     if (response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`);
   });
-  await mobile.goto(baseURL);
+  await mobile.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(mobile, 'Show source');
   const mobileToolbar = mobile.locator('.editor-toolbar');
   await expect(mobileToolbar).toBeVisible();
@@ -544,7 +544,7 @@ try {
   const chineseErrors = [];
   chinese.setDefaultTimeout(10000);
   chinese.on('pageerror', (error) => chineseErrors.push(error.message));
-  await chinese.goto(baseURL);
+  await chinese.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(chinese, 'Show source');
   await chinese.getByRole('button', { name: 'Switch to Chinese', exact: true }).click();
   const chineseToolbar = chinese.getByRole('toolbar', { name: '文档编辑工具栏', exact: true });

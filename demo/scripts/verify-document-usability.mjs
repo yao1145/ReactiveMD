@@ -1,4 +1,4 @@
-import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -49,7 +49,7 @@ const trialSource = `<panel title="Trial parameters">
 Trial result: {{ count * 2 }}; {{ name }}; {{ annual }}.`;
 
 try {
-  await page.goto(baseURL);
+  await page.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(page, 'Show source');
   await page.locator('.workbench-options').evaluate(node => { node.open = true; });
   await expect(page.locator('.status-chip')).toContainText('Compiled');
@@ -286,7 +286,7 @@ Collapsed body copy.
     expect(broken).toEqual([]);
   });
 
-  await page.goto(baseURL + '/embed.html');
+  await page.goto(textareaWorkbenchURL(baseURL + '/embed.html'));
   await check('identical embedded documents use separate IDs and target their own headings', async () => {
     const first = page.getByRole('region', { name: 'Instance A', exact: true });
     const second = page.getByRole('region', { name: 'Instance B', exact: true });

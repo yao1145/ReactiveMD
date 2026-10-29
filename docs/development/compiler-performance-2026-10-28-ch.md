@@ -138,16 +138,16 @@ node scripts/benchmark-compiler-browser.mjs --output artifacts/compiler-browser.
 
 本次原始记录保存在忽略目录 `artifacts/`，与本地工作区一起交付：
 
-- [Node 主矩阵](../../artifacts/compiler-stress-2026-10-28.json)
-- [Node 边界补测](../../artifacts/compiler-stress-supplement-2026-10-28.json)
-- [首次密集段落编译](../../artifacts/compiler-dense-first-call-2026-10-28.json)
-- [100 次编辑版本的内存记录](../../artifacts/compiler-retention-2026-10-28.json)
-- [浏览器 Worker 测量](../../artifacts/compiler-browser-2026-10-28.json)
-- [大量组件与深层 Markdown 的浏览器补测](../../artifacts/compiler-browser-supplement-2026-10-28.json)
-- [公开 Worker 协议的复制失败与恢复](../../artifacts/compiler-browser-protocol-2026-10-28.json)
-- [Node 深层 Markdown 补测](../../artifacts/compiler-depth-2026-10-28.json)
-- [默认 Node 配置的原有基准](../../artifacts/benchmark-2026-10-28.json)
-- [CPU 采样脚本](../../artifacts/profile-compiler.mjs)，运行方式为 `node --expose-gc artifacts/profile-compiler.mjs article 600`，生成 `.cpuprofile` 和阶段汇总 JSON；`plain 1000000`、`controls 5000` 对应另外两组采样。
+- Node 主矩阵（本地文件 `artifacts/compiler-stress-2026-10-28.json`）
+- Node 边界补测（本地文件 `artifacts/compiler-stress-supplement-2026-10-28.json`）
+- 首次密集段落编译（本地文件 `artifacts/compiler-dense-first-call-2026-10-28.json`）
+- 100 次编辑版本的内存记录（本地文件 `artifacts/compiler-retention-2026-10-28.json`）
+- 浏览器 Worker 测量（本地文件 `artifacts/compiler-browser-2026-10-28.json`）
+- 大量组件与深层 Markdown 的浏览器补测（本地文件 `artifacts/compiler-browser-supplement-2026-10-28.json`）
+- 公开 Worker 协议的复制失败与恢复（本地文件 `artifacts/compiler-browser-protocol-2026-10-28.json`）
+- Node 深层 Markdown 补测（本地文件 `artifacts/compiler-depth-2026-10-28.json`）
+- 默认 Node 配置的原有基准（本地文件 `artifacts/benchmark-2026-10-28.json`）
+- CPU 采样脚本（本地文件 `artifacts/profile-compiler.mjs`），运行方式为 `node --expose-gc artifacts/profile-compiler.mjs article 600`，生成 `.cpuprofile` 和阶段汇总 JSON；`plain 1000000`、`controls 5000` 对应另外两组采样。
 
 Node 主矩阵中的 `markdown-depth-1000` 最初在基准附加的 `structuredClone` 步骤退出，后续补测已将复制异常单独捕获。评估编译稳定性应采用补测中的 `outcome` 和 `cloneError`，避免将复制异常误判为编译器崩溃。
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {chromium, expect} from '@playwright/test';
-import {clickWorkbenchAction} from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
 
 const browser = await chromium.launch({channel: process.env.PLAYWRIGHT_CHANNEL ?? 'msedge', headless: true});
 await mkdir('artifacts/compact-workbench', {recursive: true});
@@ -10,7 +10,7 @@ try {
     const page = await browser.newPage({viewport: {width, height: 900}});
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    await page.goto(process.env.DEMO_URL ?? 'http://127.0.0.1:5173');
+    await page.goto(textareaWorkbenchURL(process.env.DEMO_URL ?? 'http://127.0.0.1:5173'));
     const more = page.locator('.workbench-options');
     const quick = page.locator('.workbench-quick-actions');
     const add = quick.getByRole('button', {name: 'Add images', exact: true});

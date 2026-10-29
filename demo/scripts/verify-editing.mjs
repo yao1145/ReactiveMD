@@ -1,4 +1,4 @@
-import { clickWorkbenchAction } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { article } from '../../scripts/benchmark-large-documents.mjs';
@@ -18,7 +18,7 @@ const fillSource = source => editor.evaluate((element, value) => {
 const preview = page.locator('.preview-stage');
 async function check(name, run) { await run(); checks.push(name); console.log('PASS ' + name); }
 try {
-  await page.goto(baseURL);
+  await page.goto(textareaWorkbenchURL(baseURL));
   await clickWorkbenchAction(page, 'Show source');
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await check('editing keeps the last preview while compilation is pending', async () => {
@@ -60,7 +60,7 @@ try {
     fallback.on('pageerror', error => errors.push(error.message));
     await fallback.addInitScript(() => { window.Worker = undefined; });
     try {
-      await fallback.goto(baseURL);
+      await fallback.goto(textareaWorkbenchURL(baseURL));
       await clickWorkbenchAction(fallback, 'Show source');
       await expect(fallback.locator('.status-chip')).toContainText('Compiled');
       await fallback.locator('#source-editor').fill('# Fallback\n\nWorking without Worker.', { force: true });

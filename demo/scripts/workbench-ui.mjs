@@ -1,5 +1,11 @@
 import {expect} from '@playwright/test';
 
+/** The legacy regression suite exercises textarea-only DOM/selection APIs.
+ * Default CM6 workflows are covered by verify-codemirror-browser.mjs. */
+export function textareaWorkbenchURL(value) {
+  const url=new URL(value);url.searchParams.set('editor','textarea');return url.href;
+}
+
 /** Actions kept behind More options in the compact workbench. */
 export async function clickWorkbenchAction(page, name) {
   const options = page.locator('.workbench-options');

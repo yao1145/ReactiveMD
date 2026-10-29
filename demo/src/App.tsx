@@ -1,5 +1,6 @@
 import {
   memo,
+  lazy, Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -16,6 +17,13 @@ import {
   type ReactiveMarkdownEditorHandle,
   type EditorViewMode,
 } from 'reactive-md/editor';
+import type {ReactiveMarkdownCodeEditorHandle,EditorTransaction} from 'reactive-md/editor/codemirror';
+import type {LocalCompileEditHint} from 'reactive-md';
+const CodeEditor=lazy(()=>Promise.all([
+  import('reactive-md/editor/codemirror'),import('reactive-md/editor/codemirror/styles.css'),
+]).then(([module])=>({default:module.ReactiveMarkdownCodeEditor})));
+const useCodeEditor=typeof window==='undefined'||new URLSearchParams(window.location.search).get('editor')!=='textarea';
+const SourceEditor=useCodeEditor?CodeEditor:ReactiveMarkdownEditor;
 import { AuthorTools } from './author-tools';
 import {
   DocumentLibrary,
@@ -358,7 +366,15 @@ export default function App() {
   }, []);
   const libraryCopy = LIBRARY_COPY[language];
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const editorHandle = useRef<ReactiveMarkdownEditorHandle>(null);
+  const editorHandle = useRef<ReactiveMarkdownEditorHandle|ReactiveMarkdownCodeEditorHandle|null>(null);
+  const editHint=useRef<LocalCompileEditHint|undefined>(undefined);
+  const onEditorTransaction=useCallback((transaction:EditorTransaction)=>{
+    const changes=transaction.changes;
+    if(!changes.length){editHint.current=undefined;return;}
+    const from=changes[0].from,to=changes[changes.length-1].to;
+    const end=transaction.source.length-(transaction.previousSource.length-to);
+    editHint.current={baseSource:transaction.previousSource,edit:{from,to,insert:transaction.source.slice(from,end)}};
+  },[]);
   const imageKey = `${language}:${selectedExample}`;
   const documentImages = useDocumentImages(imageKey);
   const imageContext = useRef({ key: imageKey, assets: documentImages.assets, ready: documentImages.ready });
@@ -438,7 +454,7 @@ export default function App() {
   const sourceWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const compileOptions = useMemo(() => toCompileOptions(htmlOptions), [htmlOptions]);
-  const compilation = useLocalCompilation(source, compileOptions);
+  const compilation = useLocalCompilation(source, compileOptions, useCodeEditor, editHint.current);
   const currentExample = localizedExample(
     EXAMPLES.find((item) => item.id === selectedExample) ?? DEFAULT_EXAMPLE,
     language,
@@ -573,7 +589,9 @@ export default function App() {
   const focusDiagnostic = useCallback((range: SourceRange) => {
     setEditorView((current) => current === 'preview' ? 'split' : current);
     window.requestAnimationFrame(() => {
-      const editor = editorHandle.current?.getTextarea() ?? editorRef.current;
+      const current=editorHandle.current;
+      if(current && !('getTextarea' in current)){current.selectRange(range);return;}
+      const editor = current?.getTextarea() ?? editorRef.current;
       if (!editor) return;
       const handle = editorHandle.current;
       if (handle) handle.focus({ start: range.start, end: range.end });
@@ -964,7 +982,8 @@ export default function App() {
           <div className="workspace has-editor">
             <section id="source-pane" className="pane pane-editor" aria-label={copy.editor.region}
               onPasteCapture={event => {
-                if (!(event.target instanceof HTMLTextAreaElement)) return;
+                if (!(event.target instanceof HTMLTextAreaElement)
+                  && !(useCodeEditor && event.target instanceof HTMLElement && event.target.closest('.cm-content'))) return;
                 const files = Array.from(event.clipboardData.files);
                 if (!files.length) return;
                 event.preventDefault();
@@ -978,9 +997,11 @@ export default function App() {
                 <span className="syntax-tag">local-draft-2</span>
               </div>
 
-              <ReactiveMarkdownEditor
+              <Suspense fallback={<p role="status">{copy.preview.preparing}</p>}><SourceEditor
                 compileOptions={compileOptions}
-                ref={editorHandle}
+                ref={(handle:ReactiveMarkdownEditorHandle|ReactiveMarkdownCodeEditorHandle|null)=>{editorHandle.current=handle;}}
+                analysis={compilation.analysis}
+                onTransaction={onEditorTransaction}
                 id="source-editor"
                 textareaRef={editorRef}
                 value={source}
@@ -1018,7 +1039,7 @@ export default function App() {
                 </section>}
                 authoring
                 toolbar
-              />
+              /></Suspense>
 
               <p className="editor-note" id="editor-note">
                 {copy.editor.note}

@@ -1,7 +1,7 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { gridOverflows } from './grid-layout-assertions.mjs';
-import { clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 
 const baseURL = process.env.DEMO_URL ?? 'http://127.0.0.1:5173';
 const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge';
@@ -12,7 +12,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.addInitScript(() => localStorage.setItem('reactive-md:language', 'zh'));
-  await page.goto(baseURL);
+  await page.goto(textareaWorkbenchURL(baseURL));
   await page.locator('#example-select').selectOption('statistics');
   await clickWorkbenchAction(page, '显示源码');
   const preview = page.locator('.preview-stage');

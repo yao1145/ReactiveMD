@@ -53,9 +53,11 @@ import {
 import { useEditorLocale } from './locale';
 import { EDITOR_TOOLBAR_COPY } from './editor-i18n';
 import type { EditorLocale } from './types';
+import {createTextareaSurface,type EditorSurface} from './surface';
 
 export interface EditorToolbarProps {
   editorRef: RefObject<HTMLTextAreaElement | null>;
+  editorSurface?: EditorSurface;
   onEdit(edit: EditorEdit): void;
   onUndo(): void;
   onRedo(): void;
@@ -422,12 +424,9 @@ function ToolbarButton({
   );
 }
 
-function readEditor(editorRef: RefObject<HTMLTextAreaElement | null>) {
-  const element = editorRef.current;
-  const value = element?.value ?? '';
-  const start = Math.max(0, Math.min(element?.selectionStart ?? 0, value.length));
-  const end = Math.max(start, Math.min(element?.selectionEnd ?? 0, value.length));
-  return { value, selection: { start, end }, selectedText: value.slice(start, end) };
+function readEditor(surface: EditorSurface) {
+  const {value,selection}=surface.read();
+  return {value,selection,selectedText:value.slice(selection.start,selection.end)};
 }
 
 function matchesQuery(component: NativeComponentDefinition, term: string): boolean {
@@ -540,6 +539,7 @@ function moveEmojiFocus(
 
 export function EditorToolbar({
   editorRef,
+  editorSurface,
   onEdit,
   onUndo,
   onRedo,
@@ -549,6 +549,7 @@ export function EditorToolbar({
   showExport = false,
   disabled = false,
 }: EditorToolbarProps): ReactElement {
+  const inputSurface=useMemo(()=>editorSurface??createTextareaSurface(editorRef),[editorSurface,editorRef]);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -600,17 +601,14 @@ export function EditorToolbar({
   }, [catalog, query]);
 
   const syncFormatState = useCallback(() => {
-    const element = editorRef.current;
-    if (!element) {
+    if (!inputSurface.element()) {
       setFormatState(INITIAL_FORMAT_STATE);
       return;
     }
-    const next = readFormatState(element.value, {
-      start: element.selectionStart,
-      end: element.selectionEnd,
-    });
+    const {value,selection}=inputSurface.read();
+    const next = readFormatState(value,selection);
     setFormatState((current) => (sameFormatState(current, next) ? current : next));
-  }, [editorRef]);
+  }, [inputSurface]);
 
   const queueFormatSync = useCallback(() => {
     if (formatFrame.current !== null) window.cancelAnimationFrame(formatFrame.current);
@@ -621,21 +619,10 @@ export function EditorToolbar({
   }, [syncFormatState]);
 
   useEffect(() => {
-    const element = editorRef.current;
-    if (!element) return;
-    const handleChange = () => syncFormatState();
-    const events = ['select', 'keyup', 'click', 'input', 'focus'] as const;
-    for (const type of events) element.addEventListener(type, handleChange);
-    const handleSelectionChange = () => {
-      if (document.activeElement === element) syncFormatState();
-    };
-    document.addEventListener('selectionchange', handleSelectionChange);
+    const release=inputSurface.subscribe(syncFormatState);
     syncFormatState();
-    return () => {
-      for (const type of events) element.removeEventListener(type, handleChange);
-      document.removeEventListener('selectionchange', handleSelectionChange);
-    };
-  }, [editorRef, syncFormatState]);
+    return release;
+  }, [inputSurface, syncFormatState]);
 
   useEffect(() => {
     return () => {
@@ -776,25 +763,25 @@ export function EditorToolbar({
 
   const applySimple = (command: SimpleCommand) => {
     if (disabled) return;
-    const { value, selection } = readEditor(editorRef);
+    const { value, selection } = readEditor(inputSurface);
     commitEdit(command(value, selection, locale));
   };
 
   const applyHeading = (level: HeadingLevel) => {
     if (disabled) return;
-    const { value, selection } = readEditor(editorRef);
+    const { value, selection } = readEditor(inputSurface);
     commitEdit(formatHeading(value, selection, level));
   };
 
   const applyEmoji = (emoji: string) => {
     if (disabled) return;
-    const { value, selection } = readEditor(editorRef);
+    const { value, selection } = readEditor(inputSurface);
     commitEdit(insertText(value, selection, emoji));
   };
 
   const applyNativeComponent = (component: NativeComponentDefinition) => {
     if (disabled) return;
-    const { value, selection, selectedText } = readEditor(editorRef);
+    const { value, selection, selectedText } = readEditor(inputSurface);
     const snippet = renderNativeSnippet(component, value, selectedText);
     commitEdit(insertTemplate(value, selection, snippet, { block: !component.inline }));
   };
