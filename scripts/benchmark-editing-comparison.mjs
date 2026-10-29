@@ -13,7 +13,7 @@ const output=resolve(process.env.EDITING_COMPARISON_REPORT??'artifacts/editing-c
 const dist=resolve('artifacts/editing-completion/comparison-dist');
 const decode=fileURLToPath(import.meta.resolve('decode-named-character-reference'));
 async function bundle(label,library){
-  await build({configFile:false,base:'./',logLevel:'error',resolve:{alias:[
+  await build({configFile:false,base:'./',logLevel:'error',worker:{format:'es'},resolve:{alias:[
     {find:'react-dom/client',replacement:'react-dom/profiling'},
     {find:'decode-named-character-reference',replacement:decode},
     {find:/^reactive-md\/react$/,replacement:resolve(library,'reactive-md-react.js')},

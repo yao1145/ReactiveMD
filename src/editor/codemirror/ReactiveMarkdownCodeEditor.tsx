@@ -15,14 +15,13 @@ import type {SourceChange} from './source-coordinates';
 const EMPTY:AuthorAnalysis={tokens:[],bindings:[],diagnostics:[]};
 const cssSize=(size:number|string)=>typeof size==='number'?`${size}px`:size;
 
-/** Optional viewport-rendered editor. One mounted EditorView owns its DOM and history. */
+/** Viewport-rendered source editor. One mounted EditorView owns its DOM and history. */
 export const ReactiveMarkdownCodeEditor=forwardRef<ReactiveMarkdownCodeEditorHandle,ReactiveMarkdownCodeEditorProps>(function ReactiveMarkdownCodeEditor(props,ref){
   const {value,locale='en',theme='auto',preview,viewMode,defaultViewMode='edit',height=560,minHeight=280,
     readOnly=false,disabled=false,toolbar=true,authoring=true}=props;
   const generatedId=useId(),id=props.id??`reactive-md-code-editor-${generatedId.replace(/:/g,'')}`;
   const copy=EDITOR_CHROME_COPY[locale];
   const frame=useRef<HTMLDivElement>(null),host=useRef<HTMLDivElement>(null),controller=useRef<CodeEditorController|null>(null);
-  const emptyTextarea=useRef<HTMLTextAreaElement|null>(null);
   const latest=useRef(props);latest.current=props;
   const [source,setSource]=useState(value),sourceRef=useRef(source);sourceRef.current=source;
   const [status,setStatus]=useState({undo:false,redo:false,composing:false});
@@ -126,7 +125,7 @@ export const ReactiveMarkdownCodeEditor=forwardRef<ReactiveMarkdownCodeEditorHan
   return <EditorLocaleProvider locale={locale}><div className={`reactive-md-editor rmd-cm6${props.className?` ${props.className}`:''}`}
     data-editor-theme={theme} lang={locale==='zh'?'zh-CN':'en'} style={props.style} role="group" aria-label={copy.region} aria-disabled={locked||undefined} inert={disabled||undefined}>
     <div className="editor-frame" ref={frame} data-editor-view={currentView} style={{height:cssSize(height),minHeight:cssSize(minHeight)}}>
-      {toolbar?<EditorToolbar editorRef={emptyTextarea} editorSurface={surface} onEdit={applyEdit} onUndo={()=>controller.current?.undo()} onRedo={()=>controller.current?.redo()}
+      {toolbar?<EditorToolbar editorSurface={surface} onEdit={applyEdit} onUndo={()=>controller.current?.undo()} onRedo={()=>controller.current?.redo()}
         canUndo={status.undo} canRedo={status.redo} onExport={props.onExport} showExport={typeof props.onExport==='function'} disabled={locked}/>:null}
       <div className="editor-workspace" data-view={currentView}>
         <div id={`${id}-source`} hidden={currentView==='preview'} className={`editor-shell${status.composing?' is-composing':''}`}>
@@ -137,6 +136,6 @@ export const ReactiveMarkdownCodeEditor=forwardRef<ReactiveMarkdownCodeEditorHan
       <EditorViewBar source={source} mode={currentView} onModeChange={changeView} sourceId={`${id}-source`} previewId={`${id}-preview`} hasPreview={hasPreview} allowSplit={!narrow} toolbar={toolbar&&!locked}/>
     </div>
     {authoring?<div hidden={currentView==='preview'}><AuthoringPanel source={source} analysis={analysis} bindingDocument={props.document??null}
-      compileOptions={props.compileOptions} editorRef={emptyTextarea} editorSurface={surface} pageSize={50} onEdit={applyEdit} onLocate={locate} disabled={locked}/></div>:null}
+      compileOptions={props.compileOptions} editorSurface={surface} pageSize={50} onEdit={applyEdit} onLocate={locate} disabled={locked}/></div>:null}
   </div></EditorLocaleProvider>;
 });

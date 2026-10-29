@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction, fillEditor } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -28,11 +28,11 @@ const toggleLanguage = () => page.locator('[data-testid="language-toggle"]');
 const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
 
 async function fillSource(source) {
-  await editor().fill(source);
+  await fillEditor(editor(),source);
 }
 
 try {
-  await page.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(page,baseURL);
   await clickWorkbenchAction(page, 'Show source');
 
   await check('a one-code-point emoji fits max-length="1" and a second code point is rejected', async () => {
@@ -59,16 +59,16 @@ try {
     await expect(diagMessages().first()).toContainText('undeclared parameter');
     await diagMessages().first().click();
     // The editor applies diagnostic selections in requestAnimationFrame.
-    await expect.poll(() => editor().evaluate((element) => element.selectionStart)).toBe(3);
-    const englishSelection = await editor().evaluate((element) => element.selectionStart);
+    await expect.poll(() => editor().evaluate((element) => window.rmdEditorProbe.selection(element).start)).toBe(3);
+    const englishSelection = await editor().evaluate((element) => window.rmdEditorProbe.selection(element).start);
 
     await toggleLanguage().click();
     await fillSource('{{ absent }}');
     await expect(status()).toContainText(failed);
     await expect(diagMessages().first()).toContainText('未声明');
     await diagMessages().first().click();
-    await expect.poll(() => editor().evaluate((element) => element.selectionStart)).toBe(englishSelection);
-    const chineseSelection = await editor().evaluate((element) => element.selectionStart);
+    await expect.poll(() => editor().evaluate((element) => window.rmdEditorProbe.selection(element).start)).toBe(englishSelection);
+    const chineseSelection = await editor().evaluate((element) => window.rmdEditorProbe.selection(element).start);
     expect(chineseSelection).toBe(englishSelection);
 
     // Switching back loads the saved English draft: same source, same code and

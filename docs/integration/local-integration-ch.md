@@ -93,7 +93,11 @@ session.dispose(); // 关闭文档时释放会话缓存
 
 `stats` 提供最近一次调用的 `mode`（`full`、`incremental`、`cached`）、块数、复用数、编译字符数与可选失效原因，用于观测实际复用。`cacheBuilds` 记录本次调用尝试建立块索引的次数，包括延迟恢复。修改块会在不变的声明前缀下编译，前缀工作量计入 `compiledCharacters`。差异检测、范围重定位和完整结果快照组装仍随文档规模增长；会话不保证每次编辑都是常数时间。
 
-内置 `startLocalCompileWorker()`、`LocalCompileScheduler` 默认降级编译和 `LocalReactiveDocument` 已管理各自会话。自定义 `fallbackCompile` 继续由宿主管理。`compileLocal()` 保持单次完整编译 API。测试与性能数据见[块级增量编译](../development/incremental-compilation-2026-10-28-ch.md)。
+扁平单行列表、表格即使占满整个文档，也可建立增量快照。修改一行后，会话复用上一版的简单行解析计划，并在完整语义校验后保留未修改行的节点 ID。位置不变的行可共享对象；位置变化时克隆并更新 UTF-16 范围。动态插值仍由通用解析器处理。`stats.parse` 中的 `reusedRows` / `reusedItems` 累计解析计划复用，`reusedRowNodes` / `reusedItemNodes` 单独累计最终行节点复用。
+
+Worker 判断结果补丁不划算时，可对同一修订返回完整成功结果，并以该结果继续后续补丁链。`metrics.patchFallback === 'cost'` 表示成本选择；`patchBytes` / `fullBytes` 为 JSON UTF-8 估算，不是结构化克隆的实际大小。这种切换不会触发完整请求重试。
+
+内置 `startLocalCompileWorker()`、`LocalCompileScheduler` 默认降级编译和 `LocalReactiveDocument` 已管理各自会话。自定义 `fallbackCompile` 继续由宿主管理。`compileLocal()` 保持单次完整编译 API。测试与性能数据见[块级增量编译](../development/performance-overview-ch.md)。
 
 ## 核心 API
 

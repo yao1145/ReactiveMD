@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, readEditor, expectEditorSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -26,7 +26,7 @@ async function noOverflow() {
 }
 
 try {
-  await page.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(page,baseURL);
   await check('guide code uses one surface and copies literal source in both languages and themes', async () => {
     for (const language of ['en', 'zh']) {
       if (language === 'zh') await page.getByTestId('language-toggle').click();
@@ -84,7 +84,7 @@ try {
     await page.reload();
     await showSource();
     await expect(documents).toHaveValue(originalId);
-    await expect(editor).toHaveValue(fixture);
+    await expectEditorSource(editor,fixture);
   });
 
   await check('rename and duplicate independently, and flush edits before switching', async () => {
@@ -98,27 +98,27 @@ try {
     await page.getByRole('button', { name: 'Create copy', exact: true }).click();
     duplicateId = await documents.inputValue();
     expect(duplicateId).not.toBe(originalId);
-    await expect(editor).toHaveValue(fixture);
+    await expectEditorSource(editor,fixture);
     await replaceWorkbenchSource(page, `${fixture}\n\nOnly in the copy.`);
     await documents.selectOption(originalId);
-    await expect(editor).toHaveValue(fixture);
+    await expectEditorSource(editor,fixture);
     await documents.selectOption(duplicateId);
-    await expect(editor).toHaveValue(`${fixture}\n\nOnly in the copy.`);
+    await expectEditorSource(editor,`${fixture}\n\nOnly in the copy.`);
     await replaceWorkbenchSource(page, `${fixture}\n\nSaved on pagehide.`);
     await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
     await page.reload();
     await showSource();
-    await expect(editor).toHaveValue(`${fixture}\n\nSaved on pagehide.`);
+    await expectEditorSource(editor,`${fixture}\n\nSaved on pagehide.`);
   });
 
   await check('interface language preserves personal source, name, and selection', async () => {
-    const source = await editor.inputValue();
+    const source = await readEditor(editor);
     await page.getByTestId('language-toggle').click();
-    await expect(editor).toHaveValue(source);
+    await expectEditorSource(editor,source);
     await expect(documents).toHaveValue(duplicateId);
     await expect(documents.locator('option:checked')).toHaveText('Workshop alternative');
     await page.getByTestId('language-toggle').click();
-    await expect(editor).toHaveValue(source);
+    await expectEditorSource(editor,source);
   });
 
   await check('Markdown export uses the document name and exact current source', async () => {
@@ -128,7 +128,7 @@ try {
     const download = await downloadEvent;
     expect(download.suggestedFilename()).toBe('Workshop alternative.reactive.md');
     const path = await download.path();
-    expect(await readFile(path, 'utf8')).toBe(await editor.inputValue());
+    expect((await readFile(path, 'utf8')).replace(/\r\n?/g, '\n')).toBe(await readEditor(editor));
   });
 
   await check('storage failure reports unsaved data, preserves edits, and retries', async () => {
@@ -142,15 +142,15 @@ try {
     await replaceWorkbenchSource(page, '# Retained during storage failure');
     await expect(page.locator('.doc-save-state')).toHaveText('Not saved');
     await documents.selectOption(originalId);
-    await expect(editor).toHaveValue(fixture);
+    await expectEditorSource(editor,fixture);
     await documents.selectOption(duplicateId);
-    await expect(editor).toHaveValue('# Retained during storage failure');
+    await expectEditorSource(editor,'# Retained during storage failure');
     await page.evaluate(() => { Storage.prototype.setItem = window.restoreDocumentStorage; });
     await page.getByRole('button', { name: 'Retry save', exact: true }).click();
     await expect(page.locator('.doc-save-state')).toHaveText('Saved');
     await page.reload();
     await showSource();
-    await expect(editor).toHaveValue('# Retained during storage failure');
+    await expectEditorSource(editor,'# Retained during storage failure');
   });
 
   await check('HTML export uses the personal name and opens as a standalone document', async () => {
@@ -179,11 +179,11 @@ try {
     const examples = page.locator('#example-select');
     await expect(examples.locator('option')).toHaveCount(8);
     await examples.selectOption('functions');
-    const exampleSource = await editor.inputValue();
+    const exampleSource = await readEditor(editor);
     const options = page.locator('.workbench-options');
     await options.locator(':scope > summary').click();
     await page.getByRole('button', { name: 'Save copy', exact: true }).click();
-    await expect(editor).toHaveValue(exampleSource);
+    await expectEditorSource(editor,exampleSource);
     expect(await documents.inputValue()).not.toBe(duplicateId);
     await replaceWorkbenchSource(page, '# Independent example copy');
     const count = await documents.locator('option').count();
@@ -191,12 +191,12 @@ try {
       name: 'import.reactive.md', mimeType: 'text/markdown', buffer: Buffer.from('# Imported work\n\nIndependent source.'),
     });
     await expect(documents.locator('option')).toHaveCount(count + 1);
-    await expect(editor).toHaveValue('# Imported work\n\nIndependent source.');
+    await expectEditorSource(editor,'# Imported work\n\nIndependent source.');
     await page.getByRole('button', { name: 'Try examples', exact: true }).click();
     await expect(examples).toHaveValue('functions');
-    await expect(editor).toHaveValue(exampleSource);
+    await expectEditorSource(editor,exampleSource);
     await page.getByRole('button', { name: 'My documents', exact: true }).click();
-    await expect(editor).toHaveValue('# Imported work\n\nIndependent source.');
+    await expectEditorSource(editor,'# Imported work\n\nIndependent source.');
   });
 
   await check('compact controls and document forms fit desktop and phone screens', async () => {

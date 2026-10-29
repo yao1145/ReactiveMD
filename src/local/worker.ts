@@ -3,7 +3,7 @@ import {
   applyLocalResultPatch,
   cloneLocalCompileResult,
   diffSourceEdit,
-  encodeLocalResultPatch,
+  encodeLocalResultPatchWithCost,
   LOCAL_RESULT_PATCH_PROTOCOL,
   type LocalResultPatch,
   type LocalSourceEdit,
@@ -75,6 +75,17 @@ export interface LocalCompileWorkerMetrics {
   patchEncodeMs?: number;
   /** Node records in the result patch. */
   patchNodes?: number;
+  /**
+   * Set when a complete result was sent instead of a patch because the patch
+   * was estimated to be no cheaper. This is a transport choice for the same
+   * revision, never an error or a retry; the patch* estimates describe the
+   * discarded patch.
+   */
+  patchFallback?: 'cost';
+  /** Estimated serialized characters of the discarded patch payload. */
+  patchBytes?: number;
+  /** Estimated serialized characters of the complete result payload. */
+  fullBytes?: number;
   /** Time of the most recent idle preparation, when one completed. */
   preparationMs?: number;
 }
@@ -1051,10 +1062,14 @@ export function startLocalCompileWorker(
     compileMs: number,
     negotiated: boolean,
     includeAnalysis = false,
+    extraMetrics?: LocalCompileWorkerMetrics,
   ): boolean => {
     const state = current;
     if (state === null) return false;
     const duration = safeDuration(compileMs);
+    const metrics = extraMetrics === undefined
+      ? workerMetrics(duration)
+      : { ...workerMetrics(duration), ...extraMetrics };
     try {
       const response: LocalCompileResponse = negotiated
         ? {
@@ -1065,7 +1080,7 @@ export function startLocalCompileWorker(
             incremental: sessionStats(session),
             protocol: LOCAL_RESULT_PATCH_PROTOCOL,
             revision,
-            metrics: workerMetrics(duration),
+            metrics,
           }
         : {
             id,
@@ -1189,17 +1204,42 @@ export function startLocalCompileWorker(
         optionsKey: state.optionsKey,
         result,
       };
-      let patch: LocalResultPatch | null = null;
+      let encoding: ReturnType<typeof encodeLocalResultPatchWithCost> = null;
       let patchEncodeMs = 0;
       if (result.ok && baseResult.ok) {
         const encodeStarted = now();
-        patch = encodeLocalResultPatch(baseResult, result);
+        encoding = encodeLocalResultPatchWithCost(baseResult, result);
         patchEncodeMs = safeDuration(now() - encodeStarted);
       }
+      const patch: LocalResultPatch | null = encoding?.patch ?? null;
       if (patch === null) {
         // A failed/cached-exception result cannot be patched; the complete
         // result still keeps the revision chain usable.
         if (respondFull(patchRequest.id, revision, compileMs, true, patchRequest.includeAuthorAnalysis === true)) {
+          schedulePreparation();
+        }
+        return;
+      }
+      if (encoding !== null && encoding.cost.preferFull) {
+        // A wholesale rewrite can make the encoded patch as large as the
+        // complete result. Send the complete result for this same revision: it
+        // needs no patch decode or apply on the receiving thread, and the
+        // client adopts it as the new baseline exactly like any full response.
+        const cost = encoding.cost;
+        const fallbackMetrics: LocalCompileWorkerMetrics = {
+          patchEncodeMs,
+          patchFallback: 'cost',
+          patchBytes: cost.patchBytes,
+          ...(cost.fullBytes === undefined ? {} : { fullBytes: cost.fullBytes }),
+        };
+        if (respondFull(
+          patchRequest.id,
+          revision,
+          compileMs,
+          true,
+          patchRequest.includeAuthorAnalysis === true,
+          fallbackMetrics,
+        )) {
           schedulePreparation();
         }
         return;

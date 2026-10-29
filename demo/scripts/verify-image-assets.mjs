@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, readEditor, expectEditorSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -15,7 +15,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(page,baseURL);
   await clickWorkbenchAction(page, 'Show source');
   const editor = page.locator('#source-editor');
   const source = '# Image document\n\n<slider bind="people" label="People" initial="2" min="1" max="10">\n\nBefore AFTER';
@@ -34,17 +34,17 @@ try {
   });
   const image = { name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') };
   await editor.focus();
-  await editor.evaluate((el) => el.setSelectionRange(el.value.indexOf('AFTER'), el.value.indexOf('AFTER') + 5));
+  await editor.evaluate((el) => window.rmdEditorProbe.select(el,window.rmdEditorProbe.read(el).indexOf('AFTER'), window.rmdEditorProbe.read(el).indexOf('AFTER') + 5));
   await picker.setInputFiles(image);
-  await expect(editor).toHaveValue(/Before \n\n!\[photo.png\]\(assets\/photo-[a-f\d]+\.png\)\n\n$/);
+  await expectEditorSource(editor,/Before \n\n!\[photo.png\]\(assets\/photo-[a-f\d]+\.png\)\n\n$/);
   await expect(mainPanel.locator('.image-asset-row')).toHaveCount(1);
   await expect(page.locator('.preview-stage .md-document img')).toHaveCount(1);
   await expect.poll(() => page.locator('.preview-stage .md-document img').first().evaluate(img => img.naturalWidth)).toBe(12);
-  const inserted = await editor.inputValue();
+  const inserted = await readEditor(editor);
   await editor.press('Control+z');
-  await expect(editor).toHaveValue(source);
-  await editor.press('Control+Shift+z');
-  await expect(editor).toHaveValue(inserted);
+  await expectEditorSource(editor,source);
+  await editor.press('Control+Shift+Z');
+  await expectEditorSource(editor,inserted);
   check('file selection replaces the editor selection; preview, undo and redo work');
 
   await picker.setInputFiles([
@@ -53,7 +53,7 @@ try {
   ]);
   await expect(addPanel.getByRole('alert')).toContainText('SVG');
   await expect(mainPanel.locator('.image-asset-row')).toHaveCount(1);
-  await expect(editor).toHaveValue(inserted);
+  await expectEditorSource(editor,inserted);
   await picker.setInputFiles({ name: 'large.png', mimeType: 'image/png', buffer: Buffer.alloc(8 * 1024 * 1024 + 1) });
   await expect(addPanel.getByRole('alert')).toContainText('8 MiB');
   await picker.setInputFiles({ name: 'broken.png', mimeType: 'image/png', buffer: Buffer.from([137,80,78,71,13,10,26,10]) });
@@ -72,7 +72,7 @@ try {
   await expect(page.locator('.preview-stage .md-document img')).toHaveCount(2);
   check('native clipboard paste adds an image resource and Markdown reference');
 
-  await replaceWorkbenchSource(page, `${await editor.inputValue()}\n\n![Local](images/local.png)`);
+  await replaceWorkbenchSource(page, `${await readEditor(editor)}\n\n![Local](images/local.png)`);
   await clickWorkbenchAction(page, /^Export/);
   const dialog = page.getByRole('dialog');
   const exportButton = dialog.getByRole('button', { name: 'Export HTML', exact: true });

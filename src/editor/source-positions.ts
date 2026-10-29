@@ -1,4 +1,4 @@
-/** One LF index per source revision. Positions retain textarea UTF-16 units. */
+/** One LF index per source revision. Positions use original-source UTF-16 units. */
 export class SourcePositionIndex {
   private readonly starts=[0];
   constructor(private readonly source:string){

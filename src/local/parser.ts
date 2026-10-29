@@ -19,7 +19,7 @@ import {
 } from './limits';
 import { readLocalCompileOptions } from './options';
 import { parsePlainParagraphs } from './plain-paragraphs';
-import type { FastMarkdownPlan } from './fast-markdown';
+import type { FastMarkdownPlan, InlinePlanLookup } from './fast-markdown';
 import { parseMarkdownBlocks,scanMarkdownStructure,markdownTreeFacts,type MarkdownStructure } from './markdown-blocks';
 import { SourceContext, MappedSource } from './source-context';
 import { ParseBudgetError, ParseWorkBudget, type ParseSessionCache, type ParseSessionCounters } from './parse-budget';
@@ -211,6 +211,12 @@ export interface ParsedLocal {
   theme?: string;
   /** Source range of the first leading theme declaration, valid or not. */
   themeRange?: SourceRange;
+  /**
+   * Internal: fast Markdown plans used by this parse. The incremental
+   * compiler keeps their per-row inline plans so a later edit of the same
+   * block can skip re-scanning unchanged rows.
+   */
+  plans?: FastMarkdownPlan[];
 }
 
 export interface ParserWork {
@@ -267,6 +273,7 @@ export function parseLocal(
   options?: LocalCompileOptions,
   context?: SourceContext,
   cache?: ParseSessionCache,
+  rowPlans?: InlinePlanLookup,
 ): ParsedLocal {
   const diagnostics: Diagnostic[] = [];
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
@@ -366,7 +373,7 @@ export function parseLocal(
       work.markdownCalls++;work.generalBlocks+=tree.children.length;work.generalCharacters+=text.length;
       return tree;
     }
-    const {tree,stats}=parseMarkdownBlocks(text, generalParse, sourceContext, cache,structures.get(text));
+    const {tree,stats}=parseMarkdownBlocks(text, generalParse, sourceContext, cache,structures.get(text),rowPlans);
     work.markdownCalls++;
     work.fastBlocks+=stats.fastBlocks;work.generalBlocks+=stats.generalBlocks;
     work.fastCharacters+=stats.fastCharacters;work.generalCharacters+=stats.generalCharacters;
@@ -375,6 +382,8 @@ export function parseLocal(
   let serial = 0;
   let nodeCount = 0;
   let markerSerial = 0;
+  /** Fast plans actually emitted, in document order (incremental reuse hints). */
+  const fastPlans = new Set<FastMarkdownPlan>();
   const node = (type: string, start: number, end: number, extra: Partial<LocalNode> = {}): LocalNode => {
     if (nodeCount >= maxSyntaxNodes) {
       throw new LocalBudgetError('local.budget', `Syntax nodes exceed the limit of ${maxSyntaxNodes}.`, start, end, 'local.budget.nodes', { limit: maxSyntaxNodes });
@@ -1826,6 +1835,8 @@ export function parseLocal(
       const to = sourceAt(raw.position?.end?.offset ?? masked.length, end);
       if(raw.type==='rmdFastBlock') {
         const plan=raw.plan as FastMarkdownPlan,base=raw.position.start.offset;
+        // Reuse hints are consumed per parse and never mutate the plan.
+        fastPlans.add(plan);
         const overflow=plan.overflowAt(maxSyntaxNodes-nodeCount);
         if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,sourceAt(base+overflow.start,from),sourceAt(base+overflow.end,to),'local.budget.nodes',{limit:maxSyntaxNodes});
         return plan.emit((type,begin,finish,extra)=>node(type,sourceAt(base+begin,from),sourceAt(base+finish,to),extra));
@@ -1917,6 +1928,7 @@ export function parseLocal(
       diagnostics,
       syntaxNodes: nodeCount,
       work,
+      ...(fastPlans.size ? { plans: [...fastPlans] } : {}),
       ...(versionDeclaration ? { versionDeclaration } : {}),
       ...(theme !== undefined ? { theme } : {}),
       ...(themeRange ? { themeRange } : {}),

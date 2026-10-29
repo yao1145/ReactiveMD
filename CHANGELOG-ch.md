@@ -1,5 +1,12 @@
 # 变更记录
 
+## 未发布
+
+- `reactive-md/editor` 统一使用 CM6，`/editor/codemirror` 保留为共用运行时和样式的别名。删除 `textareaRef`、`getTextarea`，通过编辑器 ref 访问源码、选区和 DOM；文档中的 textarea 表单组件继续受支持。
+- 连续编辑时复用扁平列表、表格的行解析计划及未修改行的节点身份，支持整篇只有一个巨大列表或表格；正确更新移位后的 UTF-16 范围，并分别统计计划和节点复用。
+- Worker 在结果补丁成本过高时直接返回同一修订的完整成功结果，继续后续补丁链；为行内缓存复制短字符串，避免保留旧版全文。
+- 将优化历史、当前复测和复现命令归并到[性能总览](docs/development/performance-overview-ch.md)。
+
 ## 0.6.1（2026-10-27，latest 与 next 渠道）
 
 - 公式展示改用 KaTeX，输出可视 HTML、用于辅助技术的 MathML 和原始 LaTeX 注释，保留 mhchem 化学式支持。

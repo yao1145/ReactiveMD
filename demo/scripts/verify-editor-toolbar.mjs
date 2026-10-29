@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction, readEditor, fillEditor, expectEditorSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -10,7 +10,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(10000);
 const errors = [];
 const failedResponses = [];
-page.on('pageerror', (error) => errors.push(error.message));
+page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
 page.on('console', (message) => {
   if (message.type() === 'error' && !message.text().startsWith('Failed to load resource')) {
     errors.push(message.text());
@@ -33,114 +33,19 @@ const expectSameIds = (actual, expected, label) => {
   }
 };
 
-// Passive instrumentation. It never dispatches or mutates anything; it only
-// records the editing events and the two values that can drift apart: the
-// textarea DOM and the React state that renders the source highlight.
-const installEditorProbe = async (target) => {
-  await target.addInitScript(() => {
-    const events = [];
-    window.__editorProbe = events;
-    const record = (event) => {
-      const element = event.target;
-      if (!(element instanceof HTMLTextAreaElement) || element.id !== 'source-editor') return;
-      const propsKey = Object.keys(element).find((key) => key.startsWith('__reactProps$'));
-      events.push({
-        type: event.type,
-        inputType: typeof event.inputType === 'string' ? event.inputType : null,
-        trusted: event.isTrusted === true,
-        dom: element.value,
-        react: propsKey ? element[propsKey]?.value ?? null : null,
-        start: element.selectionStart,
-        end: element.selectionEnd,
-        active: document.activeElement === element,
-        at: Math.round(performance.now()),
-      });
-      if (events.length > 200) events.shift();
-    };
-    for (const type of ['beforeinput', 'input', 'change', 'select', 'focus', 'blur']) {
-      document.addEventListener(type, record, true);
-    }
-  });
-};
-
-const readEditorState = (editor) => editor.evaluate((element) => {
-  const propsKey = Object.keys(element).find((key) => key.startsWith('__reactProps$'));
-  const highlight = document.querySelector('.author-highlight-content');
-  return {
-    dom: element.value,
-    react: propsKey ? element[propsKey]?.value ?? null : null,
-    highlight: highlight ? highlight.textContent : null,
-    start: element.selectionStart,
-    end: element.selectionEnd,
-    focused: document.activeElement === element,
-  };
+// Observe native editing events without reading React internals or a mirror.
+const installEditorProbe=async target=>target.addInitScript(()=>{
+ const events=[];window.__editorProbe=events;
+ for(const type of ['beforeinput','input','focus','blur'])document.addEventListener(type,event=>{
+  if(!(event.target instanceof HTMLElement)||event.target.id!=='source-editor')return;
+  events.push({type:event.type,trusted:event.isTrusted,at:performance.now()});if(events.length>200)events.shift();
+ },true);
 });
-
-const probeCount = (target) => target.evaluate(() => (window.__editorProbe ?? []).length);
-
-const probeSince = (target, index) =>
-  target.evaluate((from) => (window.__editorProbe ?? []).slice(from).slice(-40), index);
-
-const formatProbe = (events) => events.map((event) =>
-  `${event.type}${event.inputType ? `(${event.inputType})` : ''} trusted=${event.trusted}`
-  + ` dom=${JSON.stringify(String(event.dom).slice(0, 40))}`
-  + ` react=${event.react === null ? 'null' : JSON.stringify(String(event.react).slice(0, 40))}`
-  + ` sel=${event.start}-${event.end} active=${event.active} at=${event.at}`);
-
-const classifyEditorState = (state, expected, previous, events) => {
-  if (state.dom === expected && state.highlight === expected) {
-    return 'source and highlight match the expected text; inspect selection and the click path';
-  }
-  if (state.dom === expected && state.highlight !== expected) {
-    return 'the textarea holds the expected text but React state (highlight) never committed it';
-  }
-  if (state.dom !== expected && events.some((event) => event.dom === expected)) {
-    return 'the textarea briefly held the expected text, then a render overwrote it (controlled rollback)';
-  }
-  if (state.dom === previous && state.highlight === previous) {
-    return 'textarea and React state both hold the previous source; the edit is absent from both';
-  }
-  if (events.some((event) => event.dom === previous)) {
-    return 'the previous source was present after the fill and was later overwritten before the edit was read';
-  }
-  return 'textarea and highlight disagree with both the expected and previous source';
-};
-
-const describeEditorState = async (target, editor, label, from, expected, previous) => {
-  try {
-    const [state, events] = await Promise.all([
-      readEditorState(editor),
-      probeSince(target, from),
-    ]);
-    return [
-      `[${label}] ${classifyEditorState(state, expected, previous, events)}`,
-      `dom=${JSON.stringify(state.dom.slice(0, 80))}`,
-      `react=${state.react === null ? 'unavailable' : JSON.stringify(String(state.react).slice(0, 80))}`,
-      `highlight=${state.highlight === null ? 'missing' : JSON.stringify(state.highlight.slice(0, 80))}`,
-      `selection=${state.start}-${state.end} focused=${state.focused}`,
-      `events=${events.length ? formatProbe(events.slice(-8)).join(' | ') : 'none'}`,
-    ].join('\n');
-  } catch (error) {
-    return `[${label}] diagnostics unavailable: ${error instanceof Error ? error.message : String(error)}`;
-  }
-};
-
-// The fill must reach both the textarea DOM and React before the toolbar reads
-// the selection. This waits for both to agree with the typed source and then
-// for the caret, so a later bold failure is never blamed on a lost fill.
-const waitForEditorSource = async (target, editor, expected, previous, label, from) => {
-  try {
-    await expect.poll(async () => {
-      const state = await readEditorState(editor);
-      return { dom: state.dom, highlight: state.highlight };
-    }, { timeout: 10000 }).toEqual({ dom: expected, highlight: expected });
-  } catch (error) {
-    throw new Error(`${error.message}\n${await describeEditorState(target, editor, label, from, expected, previous)}`);
-  }
-};
-
+const readEditorState=editor=>editor.evaluate(element=>({...window.rmdEditorProbe.snapshot(element),focused:document.activeElement===element}));
+const probeCount=target=>target.evaluate(()=>(window.__editorProbe??[]).length);
+const waitForEditorSource=async(_target,editor,expected)=>{await expect.poll(async()=>(await readEditorState(editor)).value).toBe(expected);};
 const startDevBold = async (target, editor) => {
-  const previous = await editor.inputValue();
+  const previous = await readEditor(editor);
   const from = await probeCount(target);
   await editor.focus();
   await expect(editor).toBeFocused();
@@ -151,7 +56,7 @@ const startDevBold = async (target, editor) => {
   await waitForEditorSource(target, editor, '# Test\n\nBody', previous, 'fill before bold', from);
   await editor.evaluate((element) => {
     element.focus();
-    element.setSelectionRange(8, 12);
+    window.rmdEditorProbe.select(element,8, 12);
   });
   try {
     await expect.poll(async () => {
@@ -159,14 +64,14 @@ const startDevBold = async (target, editor) => {
       return { start: state.start, end: state.end, focused: state.focused };
     }, { timeout: 10000 }).toEqual({ start: 8, end: 12, focused: true });
   } catch (error) {
-    throw new Error(`${error.message}\n${await describeEditorState(target, editor, 'selection before bold', from, '# Test\n\nBody', previous)}`);
+    throw error;
   }
   return from;
 };
 
 try {
   await installEditorProbe(page);
-  await page.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(page,baseURL);
   await clickWorkbenchAction(page, 'Show source');
   const toolbar = page.locator('.editor-toolbar');
   await expect(toolbar).toBeVisible();
@@ -207,13 +112,13 @@ try {
   const boldFrom = await startDevBold(page, editor);
   await boldButton.click();
   try {
-    await expect.poll(() => editor.inputValue()).toBe('# Test\n\n**Body**');
+    await expect.poll(() => readEditor(editor)).toBe('# Test\n\n**Body**');
   } catch (error) {
-    throw new Error(`${error.message}\n${await describeEditorState(page, editor, 'first bold', boldFrom, '# Test\n\n**Body**', '# Test\n\nBody')}`);
+    throw error;
   }
   const boldSelection = await editor.evaluate((element) => ({
-    start: element.selectionStart,
-    end: element.selectionEnd,
+    start: window.rmdEditorProbe.selection(element).start,
+    end: window.rmdEditorProbe.selection(element).end,
     focused: document.activeElement === element,
   }));
   if (boldSelection.start !== 10 || boldSelection.end !== 14 || !boldSelection.focused) {
@@ -228,14 +133,14 @@ try {
   console.log('PASS bold formatting, selection, focus and pressed state');
 
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
-  await expect.poll(() => editor.inputValue()).toBe('# Test\n\nBody');
+  await expect.poll(() => readEditor(editor)).toBe('# Test\n\nBody');
   await page.getByRole('button', { name: 'Redo', exact: true }).click();
-  await expect.poll(() => editor.inputValue()).toBe('# Test\n\n**Body**');
+  await expect.poll(() => readEditor(editor)).toBe('# Test\n\n**Body**');
   await editor.focus();
   await page.keyboard.press('Control+z');
-  await expect.poll(() => editor.inputValue()).toBe('# Test\n\nBody');
+  await expect.poll(() => readEditor(editor)).toBe('# Test\n\nBody');
   await page.keyboard.press('Control+y');
-  await expect.poll(() => editor.inputValue()).toBe('# Test\n\n**Body**');
+  await expect.poll(() => readEditor(editor)).toBe('# Test\n\n**Body**');
   console.log('PASS undo and redo via buttons and keyboard');
 
   await insertTrigger.click();
@@ -249,13 +154,13 @@ try {
   await expect(emojiMenu).toBeVisible();
   await expect(emojiMenu.locator('.editor-toolbar-emoji').first()).toBeFocused();
   await emojiMenu.getByRole('menuitem', { name: 'Insert emoji 🚀' }).click();
-  await expect.poll(() => editor.inputValue()).toContain('🚀');
+  await expect.poll(() => readEditor(editor)).toContain('🚀');
   console.log('PASS insert menu and emoji insertion');
 
   await editor.evaluate((element) => {
     element.focus();
-    const end = element.value.length;
-    element.setSelectionRange(end, end);
+    const end = window.rmdEditorProbe.read(element).length;
+    window.rmdEditorProbe.select(element,end, end);
   });
   await page.getByRole('button', { name: 'Insert native component', exact: true }).click();
   const nativeMenu = page.locator('.editor-toolbar-native-menu');
@@ -276,7 +181,7 @@ try {
   await search.fill('slider');
   await expect(nativeMenu.locator('.editor-toolbar-native-item')).toHaveCount(2);
   await nativeMenu.getByRole('menuitem', { name: /^Slider\b/ }).click();
-  await expect.poll(() => editor.inputValue()).toContain('<slider bind="amount"');
+  await expect.poll(() => readEditor(editor)).toContain('<slider bind="amount"');
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await expect(page.getByRole('slider', { name: 'Amount', exact: true })).toBeVisible();
   console.log('PASS native picker header, search, keyboard entry and insertion');
@@ -292,10 +197,10 @@ try {
   await expect(page.getByRole('button', { name: 'Insert native component', exact: true })).toBeFocused();
   console.log('PASS picker close button and Escape restore trigger focus');
 
-  await editor.fill('Title line\nBody');
+  await fillEditor(editor,'Title line\nBody');
   await editor.evaluate((element) => {
     element.focus();
-    element.setSelectionRange(0, 0);
+    window.rmdEditorProbe.select(element,0, 0);
   });
   await headingTrigger.focus();
   await page.keyboard.press('ArrowDown');
@@ -305,7 +210,7 @@ try {
   await page.keyboard.press('ArrowDown');
   await expect(headingMenu.getByRole('menuitemradio', { name: /Heading 1/ })).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect.poll(() => editor.inputValue()).toBe('# Title line\nBody');
+  await expect.poll(() => readEditor(editor)).toBe('# Title line\nBody');
   await expect(headingTrigger).toHaveAttribute('aria-label', 'Heading level: Heading 1');
   await headingTrigger.click();
   await expect(
@@ -326,16 +231,16 @@ try {
   await expect(headingTrigger).toBeFocused();
   console.log('PASS toolbar roving arrow and Home navigation');
 
-  await editor.fill('**Bold**\n- Item');
+  await fillEditor(editor,'**Bold**\n- Item');
   await editor.evaluate((element) => {
     element.focus();
-    element.setSelectionRange(3, 3);
+    window.rmdEditorProbe.select(element,3, 3);
   });
   await expect(boldButton).toHaveAttribute('aria-pressed', 'true');
   await editor.evaluate((element) => {
     element.focus();
-    const end = element.value.length;
-    element.setSelectionRange(end, end);
+    const end = window.rmdEditorProbe.read(element).length;
+    window.rmdEditorProbe.select(element,end, end);
   });
   await expect(listTrigger).toHaveAttribute('aria-label', 'List: Bullet list');
   await expect(listTrigger).toHaveClass(/is-active/);
@@ -354,7 +259,7 @@ try {
   await clickWorkbenchAction(page, 'Restore example');
   await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
   await expect(toolbar).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  const sourceBeforeTheme = await editor.inputValue();
+  const sourceBeforeTheme = await readEditor(editor);
   await page.locator('.editor-frame').screenshot({ path: 'artifacts/editor-toolbar-desktop.png' });
   const pageOverflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
   if (pageOverflow) throw new Error('Desktop page overflows horizontally');
@@ -362,7 +267,7 @@ try {
   await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
-  await expect(editor).toHaveValue(sourceBeforeTheme);
+  await expectEditorSource(editor,sourceBeforeTheme);
   await page.locator('.editor-frame').screenshot({ path: 'artifacts/editor-toolbar-dark.png' });
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -370,14 +275,14 @@ try {
   await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(15, 23, 42)');
   await page.getByRole('button', { name: 'Light theme', exact: true }).click();
   await expect(page.locator('.editor-shell')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  await expect(editor).toHaveValue(sourceBeforeTheme);
+  await expectEditorSource(editor,sourceBeforeTheme);
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   console.log('PASS desktop light/dark source surfaces, content preservation and saved preference');
 
   const tablet = await browser.newPage({ viewport: { width: 1024, height: 900 } });
   tablet.setDefaultTimeout(10000);
-  await tablet.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(tablet,baseURL);
   await clickWorkbenchAction(tablet, 'Show source');
   // Exercise the reusable editor's compact container layout on a wide page.
   await tablet.addStyleTag({ content: '.reactive-md-editor { max-width: 480px; }' });
@@ -427,11 +332,11 @@ try {
   });
   mobile.setDefaultTimeout(10000);
   const mobileErrors = [];
-  mobile.on('pageerror', (error) => mobileErrors.push(error.message));
+  mobile.on('pageerror', (error) => mobileErrors.push(error.stack ?? error.message));
   mobile.on('response', (response) => {
     if (response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`);
   });
-  await mobile.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(mobile,baseURL);
   await clickWorkbenchAction(mobile, 'Show source');
   const mobileToolbar = mobile.locator('.editor-toolbar');
   await expect(mobileToolbar).toBeVisible();
@@ -544,7 +449,7 @@ try {
   const chineseErrors = [];
   chinese.setDefaultTimeout(10000);
   chinese.on('pageerror', (error) => chineseErrors.push(error.message));
-  await chinese.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(chinese,baseURL);
   await clickWorkbenchAction(chinese, 'Show source');
   await chinese.getByRole('button', { name: 'Switch to Chinese', exact: true }).click();
   const chineseToolbar = chinese.getByRole('toolbar', { name: '文档编辑工具栏', exact: true });

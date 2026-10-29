@@ -1,5 +1,5 @@
-import type { CSSProperties, ReactNode, RefObject } from 'react';
-import type { Diagnostic, LocalCompileOptions, LocalDocument, SourceRange } from '../local/types';
+import type { CSSProperties, ReactNode } from 'react';
+import type { Diagnostic, LocalCompileOptions, LocalDocument } from '../local/types';
 
 import type { EditorLocale, EditorSelection } from './command-types';
 export type { EditorLocale, EditorSelection, EditorEdit } from './command-types';
@@ -36,16 +36,4 @@ export interface ReactiveMarkdownEditorProps {
   toolbar?: boolean;
   authoring?: boolean;
   onExport?(): void;
-  textareaRef?: RefObject<HTMLTextAreaElement | null>;
-}
-
-export interface ReactiveMarkdownEditorHandle {
-  focus(selection?: EditorSelection): void;
-  selectRange(range: SourceRange): void;
-  getSelection(): EditorSelection;
-  getTextarea(): HTMLTextAreaElement | null;
-  /** Replace the current selection and record one undoable host edit. */
-  insertText(text: string): void;
-  undo(): void;
-  redo(): void;
 }

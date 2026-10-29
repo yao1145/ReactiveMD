@@ -1,4 +1,4 @@
-import {textareaWorkbenchURL} from '../demo/scripts/workbench-ui.mjs';
+import { openWorkbench, expectEditorSource } from '../demo/scripts/workbench-ui.mjs';
 import { chromium, firefox, webkit, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -92,7 +92,7 @@ async function runCase(browser, engine, width, result, baseURL) {
   };
 
   try {
-    await page.goto(textareaWorkbenchURL(baseURL));
+    await openWorkbench(page,baseURL);
     await check('example navigation and reactive controls', async () => {
       await expect(page.locator('#example-select option')).toHaveCount(8);
       const people = stage.getByRole('slider', { name: 'People', exact: true });
@@ -156,7 +156,7 @@ async function runCase(browser, engine, width, result, baseURL) {
       await expect(page.locator('.doc-save-state')).toHaveText('Saved');
       await page.reload();
       await expect(documentSelect).toHaveValue(originalId);
-      await expect(editor).toHaveValue(source);
+      await expectEditorSource(editor,source);
       await clickWorkbenchAction(page, 'Rename');
       const form = page.getByRole('form', { name: 'Rename document', exact: true });
       await form.getByRole('textbox', { name: 'Document name', exact: true }).fill('Core saved');
@@ -168,11 +168,11 @@ async function runCase(browser, engine, width, result, baseURL) {
       expect(copyId).not.toBe(originalId);
       await edit(`${source}\nCopy only.`);
       await documentSelect.selectOption(originalId);
-      await expect(editor).toHaveValue(source);
+      await expectEditorSource(editor,source);
       await documentSelect.selectOption(copyId);
-      await expect(editor).toHaveValue(`${source}\nCopy only.`);
+      await expectEditorSource(editor,`${source}\nCopy only.`);
       await page.getByTestId('language-toggle').click();
-      await expect(editor).toHaveValue(`${source}\nCopy only.`);
+      await expectEditorSource(editor,`${source}\nCopy only.`);
       await expect(documentSelect.locator('option:checked')).toHaveText('Core copy');
       await page.getByTestId('language-toggle').click();
       await edit(source);
@@ -187,7 +187,7 @@ async function runCase(browser, engine, width, result, baseURL) {
       await page.getByRole('dialog').getByRole('button', { name: 'Download Markdown', exact: true }).click();
       const markdown = await markdownReady;
       expect(markdown.suggestedFilename()).toBe(`${downloadName}.reactive.md`);
-      expect(await readFile(await markdown.path(), 'utf8')).toBe(source);
+      expect((await readFile(await markdown.path(), 'utf8')).replace(/\r\n?/g, '\n')).toBe(source.replace(/\r\n?/g, '\n'));
       await clickWorkbenchAction(page, 'Export');
       const htmlReady = page.waitForEvent('download');
       await page.getByRole('dialog').getByRole('button', { name: 'Export HTML', exact: true }).click();

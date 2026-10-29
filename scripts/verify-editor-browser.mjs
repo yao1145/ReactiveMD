@@ -1,474 +1,62 @@
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
-import { chromium, expect } from '@playwright/test';
-import { createServer } from 'vite';
-
-// The fixture imports the published entry (`reactive-md/editor` and its CSS),
-// not src/. It is served by a throwaway Vite server so the script needs no
-// running dev server and never reuses another task's port.
-const server = await createServer({
-  configFile: false,
-  root: process.cwd(),
-  appType: 'mpa',
-  server: { host: '127.0.0.1', port: 0 },
-  optimizeDeps: { exclude: ['reactive-md'] },
-});
-
+import {createServer} from 'vite';
+import {chromium,expect} from '@playwright/test';
+const server=await createServer({configFile:false,root:process.cwd(),appType:'mpa',server:{host:'127.0.0.1',port:0},optimizeDeps:{exclude:['reactive-md']}});
 let browser;
-const checks = [];
-
-const SOURCE_A = [
-  '# Editor A',
-  '',
-  '<slider bind="amount" label="Amount" min="0" max="10" />',
-  '',
-  'Value: {{ amount }}',
-  '',
-  'Plain paragraph for selection.',
-].join('\n');
-const SOURCE_B = ['# Editor B', '', 'Second instance stays independent.', '', '- list item'].join('\n');
-
-try {
-  await server.listen();
-  const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge';
-  browser = await chromium.launch({ ...(channel === 'chromium' ? {} : { channel }), headless: true });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 1000 }, colorScheme: 'light' });
-  page.setDefaultTimeout(15000);
-  const errors = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-
-  const check = async (name, run) => {
-    await run();
-    checks.push(name);
-    console.log(`PASS ${name}`);
-  };
-
-  const root = (id) => page.locator('.reactive-md-editor').filter({ has: page.locator(`#editor-${id}`) });
-  const input = (id) => page.locator(`#editor-${id}`);
-  const toolbar = (id) => root(id).locator('.editor-toolbar');
-  const authoring = (id) => root(id).locator('.source-authoring');
-  const setValue = async (id, value) => {
-    await page.evaluate(([target, next]) => window.editorHarness.setValue(target, next), [id, value]);
-    await expect(input(id)).toHaveValue(value);
-  };
-  const setCaret = async (id, start, end = start) => {
-    await page.evaluate(([target, a, b]) => window.editorHarness.focusRange(target, a, b), [id, start, end]);
-  };
-  const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-
-  await page.goto(`${server.resolvedUrls.local[0]}tests/browser/editor-fixture.html`);
-  await expect(input('a')).toHaveValue(SOURCE_A);
-  await expect(input('b')).toHaveValue(SOURCE_B);
-
-  await check('package entry renders two controlled editors with unique ids and toolbar state', async () => {
-    await expect(root('a')).toHaveCount(1);
-    await expect(root('b')).toHaveCount(1);
-    await expect(root('a')).toHaveAttribute('data-editor-theme', 'light');
-    await expect(root('b')).toHaveAttribute('data-editor-theme', 'light');
-    await expect(page.locator('.editor-frame')).toHaveCount(2);
-    await expect(page.locator('.editor-toolbar')).toHaveCount(2);
-    await expect(page.locator('.editor-gutter')).toHaveCount(2);
-    await expect(page.locator('.author-highlight-content')).toHaveCount(2);
-    await expect(authoring('a')).toBeVisible();
-    await expect(authoring('b')).toBeVisible();
-
-    const ids = await page.evaluate(() => {
-      const controls = (scope) =>
-        Array.from(scope.querySelectorAll('[aria-controls]'))
-          .map((element) => element.getAttribute('aria-controls'))
-          .filter(Boolean);
-      const roots = Array.from(document.querySelectorAll('.reactive-md-editor'));
-      return {
-        a: controls(roots[0]),
-        b: controls(roots[1]),
-        textareas: Array.from(document.querySelectorAll('textarea')).map((element) => element.id),
-      };
-    });
-    assert.deepEqual(ids.textareas.filter(Boolean).sort(), ['editor-a', 'editor-b']);
-    assert.ok(ids.a.length > 0 && ids.b.length > 0, 'toolbar controls must reference menus');
-    const shared = ids.a.filter((id) => ids.b.includes(id));
-    assert.deepEqual(shared, [], `two instances share generated ids: ${shared.join(', ')}`);
-    await expect(toolbar('a').getByRole('button', { name: 'Bold', exact: true })).toBeVisible();
-    await expect(toolbar('b').getByRole('button', { name: 'Bold', exact: true })).toBeVisible();
-  });
-
-  await check('view switching is built into each editor frame and supports controlled and uncontrolled hosts', async () => {
-    const frame = root('a').locator('.editor-frame');
-    const bar = frame.locator(':scope > .editor-status-bar');
-    await expect(bar).toBeVisible();
-    await expect(frame).toHaveAttribute('data-editor-view', 'edit');
-    await bar.getByRole('button', { name: 'Split', exact: true }).click();
-    await expect(frame).toHaveAttribute('data-editor-view', 'split');
-    await expect(input('a')).toBeVisible();
-    await expect(root('a').locator('.editor-preview')).toBeVisible();
-    const slider = root('a').getByRole('slider', { name: 'Preview amount a' });
-    await slider.fill('7');
-    await bar.getByRole('button', { name: 'Preview', exact: true }).click();
-    await expect(input('a')).toBeHidden();
-    await expect(toolbar('a')).toBeHidden();
-    await expect(root('a').locator('.source-authoring')).toBeHidden();
-    await expect(root('b').locator('.editor-frame')).toHaveAttribute('data-editor-view', 'edit');
-    await bar.getByRole('button', { name: 'Edit', exact: true }).click();
-    await expect(input('a')).toHaveValue(SOURCE_A);
-    await bar.getByRole('button', { name: 'Split', exact: true }).click();
-    await expect(slider).toHaveValue('7');
-    const positions = await frame.evaluate((element) => ({
-      frame: element.getBoundingClientRect().bottom,
-      workspace: element.querySelector('.editor-workspace').getBoundingClientRect().bottom,
-      bar: element.querySelector('.editor-status-bar').getBoundingClientRect(),
-    }));
-    assert.ok(Math.abs(positions.bar.top - positions.workspace) < 2, 'bar must sit directly under the editor workspace');
-    assert.ok(Math.abs(positions.bar.bottom - positions.frame) < 2, 'bar must sit inside the editor frame');
-    await page.setViewportSize({ width: 375, height: 900 });
-    await expect(bar.getByRole('button', { name: 'Split', exact: true })).toHaveCount(0);
-    await expect(frame).toHaveAttribute('data-editor-view', 'edit');
-    await expect(bar.getByRole('button', { name: 'Edit', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(input('a')).toHaveValue(SOURCE_A);
-    await page.setViewportSize({ width: 1280, height: 1000 });
-    await expect(frame).toHaveAttribute('data-editor-view', 'split');
-    await expect(slider).toHaveValue('7');
-    await page.evaluate(() => window.editorHarness.setViewMode('preview', 'a'));
-    const before = await page.evaluate(() => window.editorHarness.viewChanges('a').length);
-    await bar.getByRole('button', { name: 'Edit', exact: true }).click();
-    await expect(frame).toHaveAttribute('data-editor-view', 'preview');
-    assert.equal(await page.evaluate(() => window.editorHarness.viewChanges('a').at(-1)), 'edit');
-    assert.equal(await page.evaluate(() => window.editorHarness.viewChanges('a').length), before + 1);
-    await page.evaluate(() => window.editorHarness.setViewMode(undefined, 'a'));
-    await bar.getByRole('button', { name: 'Edit', exact: true }).click();
-  });
-
-  await check('real typing is controlled and undo/redo stay in one instance', async () => {
-    const a = input('a');
-    await a.click();
-    await a.press('Control+End');
-    await page.keyboard.type(' Typed.');
-    await expect(a).toHaveValue(`${SOURCE_A} Typed.`);
-    await expect(toolbar('a').locator('[data-toolbar-id="undo"]')).toBeEnabled();
-    await expect(toolbar('b').locator('[data-toolbar-id="undo"]')).toBeDisabled();
-    await expect(input('b')).toHaveValue(SOURCE_B);
-
-    await toolbar('a').locator('[data-toolbar-id="undo"]').click();
-    await expect(a).toHaveValue(SOURCE_A);
-    await toolbar('a').locator('[data-toolbar-id="redo"]').click();
-    await expect(a).toHaveValue(`${SOURCE_A} Typed.`);
-    await setValue('a', SOURCE_A);
-  });
-
-  await check('selection API and toolbar formatting round-trip through undo and redo', async () => {
-    const a = input('a');
-    const start = SOURCE_A.indexOf('Plain');
-    await page.evaluate(([from, to]) => window.editorHarness.focusRange('a', from, to), [start, start + 'Plain'.length]);
-    await expect.poll(() => page.evaluate(() => window.editorHarness.getSelection('a'))).toEqual({
-      start,
-      end: start + 'Plain'.length,
-    });
-    const focused = await a.evaluate((element) => document.activeElement === element);
-    assert.ok(focused, 'focus(selection) should focus the textarea');
-
-    await page.evaluate(([from, to]) => window.editorHarness.selectRange('a', from, to), [start, start + 'Plain'.length]);
-    await expect.poll(() => page.evaluate(() => window.editorHarness.getSelection('a'))).toEqual({
-      start,
-      end: start + 'Plain'.length,
-    });
-
-    await toolbar('a').getByRole('button', { name: 'Bold', exact: true }).click();
-    await expect.poll(() => a.inputValue()).toContain('**Plain**');
-    await page.keyboard.press('Control+z');
-    await expect(a).toHaveValue(SOURCE_A);
-    await page.keyboard.press('Control+Shift+z');
-    await expect.poll(() => a.inputValue()).toContain('**Plain**');
-    await setValue('a', SOURCE_A);
-  });
-
-  await check('Tab indents selected lines without deleting their contents', async () => {
-    const value = 'first line\nsecond line';
-    await setValue('a', value);
-    await setCaret('a', 0, value.length);
-    await input('a').press('Tab');
-    await expect(input('a')).toHaveValue('  first line\n  second line');
-    await input('a').press('Control+z');
-    await expect(input('a')).toHaveValue(value);
-    await setValue('a', SOURCE_A);
-  });
-
-  await check('Escape then Tab reaches the toolbar without changing source; typing cancels the escape', async () => {
-    await setCaret('a', SOURCE_A.length);
-    await input('a').press('Escape');
-    await input('a').press('Tab');
-    await expect(toolbar('a').locator('[tabindex="0"]')).toBeFocused();
-    await expect(input('a')).toHaveValue(SOURCE_A);
-    await setCaret('a', SOURCE_A.length);
-    await input('a').press('Escape');
-    await input('a').press('x');
-    await input('a').press('Tab');
-    await expect(input('a')).toBeFocused();
-    await expect(input('a')).toHaveValue(`${SOURCE_A}x  `);
-    await setValue('a', SOURCE_A);
-  });
-
-  await check('external value replacement syncs text, highlight and host callback count', async () => {
-    const before = await page.evaluate(() => window.editorHarness.changes('a'));
-    const replacement = '# Replaced\n\nExternal text with <b>tag</b>.';
-    await page.evaluate((value) => window.editorHarness.setValue('a', value), replacement);
-    await expect(input('a')).toHaveValue(replacement);
-    await expect(root('a').locator('.author-highlight-content')).toContainText('External text');
-    const after = await page.evaluate(() => window.editorHarness.changes('a'));
-    assert.equal(after, before, 'host-driven value updates must not call onChange');
-    await expect(input('b')).toHaveValue(SOURCE_B);
-    await setValue('a', SOURCE_A);
-  });
-
-  await check('documentKey selection resets history without touching the current text', async () => {
-    const a = input('a');
-    await a.click();
-    await a.press('Control+End');
-    await page.keyboard.type('!');
-    await expect(a).toHaveValue(`${SOURCE_A}!`);
-    await expect(toolbar('a').locator('[data-toolbar-id="undo"]')).toBeEnabled();
-
-    await page.evaluate(() => window.editorHarness.setDocumentKey('document-a-second'));
-    await page.waitForTimeout(100);
-    await expect(a).toHaveValue(`${SOURCE_A}!`);
-    await page.evaluate(() => window.editorHarness.undo('a'));
-    await expect(a).toHaveValue(`${SOURCE_A}!`);
-    await expect(toolbar('a').locator('[data-toolbar-id="undo"]')).toBeDisabled();
-
-    await setValue('a', SOURCE_A);
-    await page.evaluate(() => window.editorHarness.setDocumentKey('document-a'));
-  });
-
-  await check('completion opens, ignores an Enter during IME composition and applies normally', async () => {
-    await setValue('a', 'Text\n\n<');
-    await setCaret('a', 7);
-    await page.keyboard.press('Control+Space');
-    const list = authoring('a').getByRole('listbox', { name: 'Source suggestions', exact: true });
-    await expect(list).toBeVisible();
-    await expect(list.getByRole('option').first()).toBeVisible();
-
-    await input('a').evaluate((element) => {
-      element.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-    });
-    await expect(root('a').locator('.editor-shell')).toHaveClass(/is-composing/);
-    const composing = await input('a').evaluate((element) => {
-      const event = new KeyboardEvent('keydown', {
-        key: 'Enter',
-        bubbles: true,
-        cancelable: true,
-        isComposing: true,
-      });
-      element.dispatchEvent(event);
-      return {
-        prevented: event.defaultPrevented,
-        value: element.value,
-      };
-    });
-    assert.equal(composing.value, 'Text\n\n<', 'IME composition must not submit a suggestion');
-    assert.equal(composing.prevented, false, 'IME Enter must keep its default behaviour');
-
-    await input('a').evaluate((element) => {
-      element.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true }));
-    });
-    await expect(root('a').locator('.editor-shell')).not.toHaveClass(/is-composing/);
-    await page.keyboard.press('Escape');
-    await expect(list).toHaveCount(0);
-
-    await setCaret('a', 7);
-    await page.keyboard.press('Control+Space');
-    await expect(list).toBeVisible();
-    await page.keyboard.press('Enter');
-    await expect(list).toHaveCount(0);
-    await expect.poll(() => input('a').inputValue()).not.toBe('Text\n\n<');
-    await page.keyboard.press('Control+z');
-    await expect(input('a')).toHaveValue('Text\n\n<');
-    await setValue('a', SOURCE_A);
-  });
-
-  await check('authoring format and rename act on the source as single undo steps', async () => {
-    const uneven = 'Text\n\n<slider bind="amount" label="Amount"   min="0"    max="10" />\n\nValue: {{ amount }}';
-    await setValue('a', uneven);
-    await authoring('a').locator('[data-authoring-action="format"]').click();
-    await expect.poll(() => input('a').inputValue()).not.toBe(uneven);
-    await input('a').press('Control+z');
-    await expect(input('a')).toHaveValue(uneven);
-
-    await authoring('a').locator('[data-binding-name="amount"]').click();
-    const rename = authoring('a').locator('[data-authoring-action="rename-input"]');
-    await rename.fill('total');
-    await authoring('a').locator('[data-authoring-action="rename"]').click();
-    await expect.poll(() => input('a').inputValue()).toContain('bind="total"');
-    await expect.poll(() => input('a').inputValue()).toContain('{{ total }}');
-    await input('a').press('Control+z');
-    await expect(input('a')).toHaveValue(uneven);
-    await setValue('a', SOURCE_A);
-  });
-
-  await check('readOnly and disabled block typing, commands and ref undo', async () => {
-    const a = input('a');
-    await page.evaluate(() => window.editorHarness.setReadOnly(true, 'a'));
-    await expect(a).toHaveAttribute('readonly');
-    const before = await a.inputValue();
-    await a.focus();
-    await page.keyboard.type('X');
-    await page.evaluate(() => window.editorHarness.undo('a'));
-    await toolbar('a').locator('[data-toolbar-id="bold"]').evaluate((button) => button.disabled || button.click());
-    await expect(a).toHaveValue(before);
-
-    await page.evaluate(() => window.editorHarness.setReadOnly(false, 'a'));
-    await expect(a).not.toHaveAttribute('readonly');
-    await page.evaluate(() => window.editorHarness.setDisabled(true, 'a'));
-    await expect(a).toBeDisabled();
-    await page.evaluate(() => window.editorHarness.undo('a'));
-    await expect(a).toHaveValue(before);
-
-    await page.evaluate(() => window.editorHarness.setDisabled(false, 'a'));
-    await expect(a).toBeEnabled();
-    await setValue('a', SOURCE_A);
-  });
-
-  await check('long source keeps line numbers and highlight scrolling in sync', async () => {
-    const long = Array.from({ length: 120 }, (_, index) => `Line ${index + 1} of the long source`).join('\n');
-    await setValue('a', long);
-    await expect(root('a').locator('.gutter-line')).toHaveCount(120);
-    await expect(root('a').locator('.author-highlight-content')).toHaveText(long);
-
-    await input('a').evaluate((element) => { element.scrollTop = 420; });
-    await expect.poll(() => input('a').evaluate((element) => {
-      const rootElement = element.closest('.reactive-md-editor');
-      const content = rootElement.querySelector('.author-highlight-content');
-      const gutter = rootElement.querySelector('.editor-gutter');
-      const matrix = new DOMMatrixReadOnly(getComputedStyle(content).transform);
-      return {
-        editor: Math.round(element.scrollTop),
-        highlight: Math.round(-matrix.m42),
-        gutter: Math.round(gutter.scrollTop),
-      };
-    })).toEqual({ editor: 420, highlight: 420, gutter: 420 });
-    await page.evaluate(() => window.editorHarness.setDocumentKey('scroll-reset-a'));
-    await expect.poll(() => input('a').evaluate((element) => element.scrollTop)).toBe(0);
-    await expect.poll(() => root('a').locator('.editor-gutter').evaluate((element) => element.scrollTop)).toBe(0);
-    await setValue('a', SOURCE_A);
-  });
-
-  await check('theme and locale stay per instance and the host page is untouched', async () => {
-    const lightA = await root('a').evaluate((element) => getComputedStyle(element).color);
-    const lightB = await root('b').evaluate((element) => getComputedStyle(element).color);
-    await page.evaluate(() => window.editorHarness.setTheme('dark', 'a'));
-    await expect(root('a')).toHaveAttribute('data-editor-theme', 'dark');
-    await expect(root('b')).toHaveAttribute('data-editor-theme', 'light');
-    const darkA = await root('a').evaluate((element) => getComputedStyle(element).color);
-    const darkB = await root('b').evaluate((element) => getComputedStyle(element).color);
-    assert.notEqual(darkA, lightA, 'dark theme should change the editor foreground');
-    assert.equal(darkB, lightB, 'the other instance must keep its own theme');
-
-    await page.evaluate(() => window.editorHarness.setLocale('zh', 'a'));
-    await expect(root('a').getByRole('region', { name: '源码作者工具', exact: true })).toBeVisible();
-    await expect(root('a').getByRole('button', { name: '补全', exact: true })).toBeVisible();
-    await expect(root('b').getByRole('region', { name: 'Source authoring tools', exact: true })).toBeVisible();
-
-    await expect(page.locator('#host-sentinel')).toHaveCSS('color', 'rgb(1, 2, 3)');
-    await expect(page.locator('#host-button')).toHaveCSS('background-color', 'rgb(9, 9, 9)');
-    await expect(page.locator('#host-button')).toHaveCSS('border-radius', '2px');
-    await page.locator('#host-button').hover();
-    await expect(page.locator('#host-button')).toHaveCSS('background-color', 'rgb(9, 9, 9)');
-
-    await page.evaluate(() => window.editorHarness.setLocale('en', 'a'));
-    await page.evaluate(() => window.editorHarness.setTheme('light', 'a'));
-  });
-
-  await check('toolbar export calls the host callback instead of downloading', async () => {
-    const before = await page.evaluate(() => window.editorHarness.exports());
-    await toolbar('a').locator('[data-toolbar-id="download"]').click();
-    await expect.poll(() => page.evaluate(() => window.editorHarness.exports())).toBe(before + 1);
-  });
-
-  await check('light, dark and automatic themes cover source, syntax, toolbar and menus', async () => {
-    const sample = '# Heading\n\n<!-- Comment -->\n<slider bind="amount" label="Amount" min="0" max="10" />\n\n{{ amount }}\n\n`code` and $x$';
-    await setValue('a', sample);
-    const snapshot = () => root('a').evaluate((element) => {
-      const style = (selector) => getComputedStyle(element.querySelector(selector));
-      // Canvas normalizes CSS color-mix values as well as rgb/hex to sRGB.
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 1;
-      const ctx = canvas.getContext('2d');
-      const luminance = (color) => {
-        ctx.clearRect(0, 0, 1, 1);
-        ctx.fillStyle = color;
-        ctx.fillRect(0, 0, 1, 1);
-        const rgb = Array.from(ctx.getImageData(0, 0, 1, 1).data).slice(0, 3).map((v) => {
-          const s = v / 255;
-          return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-        });
-        return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722;
-      };
-      const contrast = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-      const bg = luminance(style('.editor-shell').backgroundColor);
-      const gutter = style('.editor-gutter');
-      const sourceColors = [style('.author-highlight').color, style('.editor-input').caretColor,
-        ...Array.from(element.querySelectorAll('.author-highlight [class^="author-token-"]'), (token) => getComputedStyle(token).color)];
-      return {
-        bg,
-        toolbar: luminance(style('.editor-toolbar').backgroundColor),
-        sourceContrast: Math.min(...sourceColors.map((color) => contrast(luminance(color), bg))),
-        gutterContrast: contrast(luminance(gutter.color), luminance(gutter.backgroundColor)),
-      };
-    });
-    for (const theme of ['light', 'dark', 'auto']) {
-      for (const system of ['light', 'dark']) {
-        await page.emulateMedia({ colorScheme: system });
-        await page.evaluate((theme) => window.editorHarness.setTheme(theme, 'a'), theme);
-        await expect(root('a')).toHaveAttribute('data-editor-theme', theme);
-        const dark = (theme === 'auto' ? system : theme) === 'dark';
-        const colors = await snapshot();
-        assert.ok(dark ? colors.bg < 0.05 : colors.bg > 0.9, `${theme}/${system}: source background`);
-        assert.ok(dark ? colors.toolbar < 0.05 : colors.toolbar > 0.9, `${theme}/${system}: toolbar background`);
-        assert.ok(colors.sourceContrast >= 4.5, `${theme}/${system}: source contrast ${colors.sourceContrast}`);
-        assert.ok(colors.gutterContrast >= 4.5, `${theme}/${system}: gutter contrast ${colors.gutterContrast}`);
-        for (const [trigger, menu] of [['heading', '.editor-toolbar-heading-menu'], ['components', '.editor-toolbar-native-menu']]) {
-          await toolbar('a').locator(`[data-toolbar-id="${trigger}"]`).click();
-          const popup = root('a').locator(menu);
-          await expect(popup).toBeVisible();
-          const bg = await popup.evaluate((element) => getComputedStyle(element).backgroundColor);
-          assert.equal(bg, dark ? 'rgb(27, 27, 29)' : 'rgb(255, 255, 255)', `${theme}/${system}: ${menu}`);
-          await page.keyboard.press('Escape');
-        }
-        await expect(input('a')).toHaveValue(sample);
-        await expect(root('b')).toHaveAttribute('data-editor-theme', 'light');
-      }
-    }
-    await page.emulateMedia({ colorScheme: 'light' });
-    await page.evaluate(() => window.editorHarness.setTheme('light', 'a'));
-    await setValue('a', SOURCE_A);
-  });
-
-  await check('desktop and 375px layouts avoid horizontal overflow and page errors', async () => {
-    await mkdir('artifacts/editor', { recursive: true });
-    assert.ok(await noOverflow(), 'desktop page overflows horizontally');
-    await root('a').screenshot({ path: 'artifacts/editor/editor-desktop-light.png' });
-
-    await page.evaluate(() => window.editorHarness.setTheme('dark', 'both'));
-    await root('a').screenshot({ path: 'artifacts/editor/editor-desktop-dark.png' });
-
-    await page.setViewportSize({ width: 375, height: 900 });
-    await expect(input('a')).toBeVisible();
-    await expect(input('b')).toBeVisible();
-    assert.ok(await noOverflow(), '375px page overflows horizontally');
-    const widths = await page.locator('.reactive-md-editor').evaluateAll((elements) =>
-      elements.map((element) => element.getBoundingClientRect().width),
-    );
-    assert.ok(widths.every((width) => width <= 376), `editor wider than the viewport: ${widths}`);
-    const heights = await page.locator('.editor-toolbar').evaluateAll((elements) =>
-      elements.map((element) => element.getBoundingClientRect().height),
-    );
-    assert.ok(heights.every((height) => height > 0), `toolbar collapsed: ${heights}`);
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await root('a').screenshot({ path: 'artifacts/editor/editor-375-dark.png' });
-    await page.evaluate(() => window.editorHarness.setTheme('light', 'both'));
-    await root('a').screenshot({ path: 'artifacts/editor/editor-375-light.png' });
-    assert.deepEqual(errors, [], `page errors: ${JSON.stringify(errors)}`);
-  });
-
-  console.log(`PASS ${checks.length} editor browser checks`);
-} finally {
-  await browser?.close();
-  await server.close();
-}
+try{
+ await server.listen();browser=await chromium.launch({channel:process.env.PLAYWRIGHT_CHANNEL??'msedge',headless:true});
+ const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[],checks=[];page.setDefaultTimeout(20000);
+ page.on('pageerror',error=>errors.push(error.message));
+ const check=async(name,run)=>{await run();checks.push(name);console.log('PASS '+name);};
+ const source=id=>page.evaluate(id=>window.editorHarness.getValue(id),id);
+ const install=async(id,text)=>{await page.evaluate(([id,text])=>window.editorHarness.setValue(id,text),[id,text]);await expect.poll(()=>source(id)).toBe(text);};
+ const focus=(id,start,end=start)=>page.evaluate(([id,start,end])=>window.editorHarness.focusRange(id,start,end),[id,start,end]);
+ const root=id=>page.locator('#host-'+id+' .reactive-md-editor');
+ await page.goto(server.resolvedUrls.local[0]+'tests/browser/editor-fixture.html');
+ await expect(page.locator('.cm-editor')).toHaveCount(2);
+ await check('canonical package entry mounts two CM6 instances without legacy mirrors',async()=>{
+   await expect(page.locator('.editor-shell textarea,.author-highlight,.editor-mirror,.editor-gutter')).toHaveCount(0);
+   assert.notEqual(await source('a'),await source('b'));await expect(page.locator('.cm-gutters')).toHaveCount(2);
+   await expect(root('a')).toHaveAttribute('data-editor-theme','light');
+ });
+ await check('native typing, history and controlled callbacks stay per instance',async()=>{
+   const untouched=await source('b');await install('a','alpha beta');await focus('a',0);await page.keyboard.type('X');await expect.poll(()=>source('a')).toBe('Xalpha beta');
+   await page.keyboard.press('Control+z');await expect.poll(()=>source('a')).toBe('alpha beta');
+   await page.keyboard.press('Control+Shift+Z');await expect.poll(()=>source('a')).toBe('Xalpha beta');assert.equal(await source('b'),untouched);
+ });
+ await check('selection and toolbar edits are undoable without a textarea',async()=>{
+   await install('a','alpha beta');await focus('a',0,5);await root('a').getByRole('button',{name:'Bold',exact:true}).click();
+   await expect.poll(()=>source('a')).toBe('**alpha** beta');await page.evaluate(()=>window.editorHarness.undo('a'));await expect.poll(()=>source('a')).toBe('alpha beta');
+   await focus('a',0);await page.keyboard.press('Escape');await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>!!document.activeElement.closest('#host-a .editor-toolbar')),true);
+ });
+ await check('external replacements and document keys reset history',async()=>{
+   await install('a','replacement');await focus('a',11);await page.keyboard.type('!');await expect.poll(()=>source('a')).toBe('replacement!');
+   await page.evaluate(()=>window.editorHarness.setDocumentKey('next'));await expect(root('a').locator('[data-toolbar-id="undo"]')).toBeDisabled();
+   await page.evaluate(()=>window.editorHarness.undo('a'));assert.equal(await source('a'),'replacement!');
+   await install('a','external');await page.evaluate(()=>window.editorHarness.undo('a'));assert.equal(await source('a'),'external');
+ });
+ await check('readonly and disabled protect native input and ref commands',async()=>{
+   await page.evaluate(()=>window.editorHarness.setReadOnly(true,'a'));await expect(page.locator('#editor-a')).toHaveAttribute('contenteditable','false');
+   await focus('a',0);await page.keyboard.type('blocked');assert.equal(await source('a'),'external');
+   await page.evaluate(()=>window.editorHarness.setReadOnly(false,'a'));await page.evaluate(()=>window.editorHarness.setDisabled(true,'a'));
+   await page.evaluate(()=>window.editorHarness.undo('a'));assert.equal(await source('a'),'external');await page.evaluate(()=>window.editorHarness.setDisabled(false,'a'));
+ });
+ await check('view switches preserve host preview inputs',async()=>{
+   await page.evaluate(()=>window.editorHarness.setViewMode('split','a'));
+   const slider=root('a').getByRole('slider',{name:'Preview amount a'});await slider.fill('7');
+   await page.evaluate(()=>window.editorHarness.setViewMode('edit','a'));await page.evaluate(()=>window.editorHarness.setViewMode('preview','a'));await expect(slider).toHaveValue('7');
+   await page.evaluate(()=>window.editorHarness.setViewMode('edit','a'));
+ });
+ await check('source DOM stays bounded when locating the end of a long document',async()=>{
+   const text=Array.from({length:3000},(_,i)=>'Line '+i).join('\n');await install('a',text);await focus('a',text.length);
+   await expect.poll(()=>page.evaluate(()=>window.editorHarness.getSelection('a'))).toEqual({start:text.length,end:text.length});
+   assert.ok(await root('a').locator('.cm-line').count()<200);await page.keyboard.type('Z');await expect.poll(()=>source('a')).toBe(text+'Z');
+ });
+ await check('locale, themes, exports and narrow layout remain scoped',async()=>{
+   await page.evaluate(()=>{window.editorHarness.setLocale('zh','a');window.editorHarness.setTheme('dark','a');});
+   await expect(root('a')).toHaveAttribute('data-editor-theme','dark');await expect(root('b')).toHaveAttribute('data-editor-theme','light');
+   await root('a').getByRole('button',{name:/下载文档|导出文档/}).click();assert.equal(await page.evaluate(()=>window.editorHarness.exports()),1);
+   await page.setViewportSize({width:375,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ });
+ assert.deepEqual(errors,[]);console.log('PASS '+checks.length+' canonical CM6 browser checks');
+}finally{await browser?.close();await server.close();}

@@ -71,6 +71,8 @@ export interface ParseSessionCounters {
   readonly reusedBlocks: number;
   readonly reusedRows: number;
   readonly reusedItems: number;
+  readonly reusedRowNodes: number;
+  readonly reusedItemNodes: number;
   readonly reusedAst: number;
 }
 

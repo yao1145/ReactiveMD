@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, readEditor, expectEditorSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -49,7 +49,7 @@ const trialSource = `<panel title="Trial parameters">
 Trial result: {{ count * 2 }}; {{ name }}; {{ annual }}.`;
 
 try {
-  await page.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(page,baseURL);
   await clickWorkbenchAction(page, 'Show source');
   await page.locator('.workbench-options').evaluate(node => { node.open = true; });
   await expect(page.locator('.status-chip')).toContainText('Compiled');
@@ -250,13 +250,13 @@ Collapsed body copy.
   await check('importing identical source starts a fresh trial session', async () => {
     await edit(trialSource);
     await maxSlider('Trial count');
-    const identicalSource = await editor.inputValue();
+    const identicalSource = await readEditor(editor);
     await page.locator('.author-tools input[type="file"]').setInputFiles({
       name: 'trial.reactive.md',
       mimeType: 'text/markdown',
       buffer: Buffer.from(identicalSource),
     });
-    await expect(editor).toHaveValue(identicalSource);
+    await expectEditorSource(editor,identicalSource);
     await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');
   });
 
@@ -286,7 +286,7 @@ Collapsed body copy.
     expect(broken).toEqual([]);
   });
 
-  await page.goto(textareaWorkbenchURL(baseURL + '/embed.html'));
+  await openWorkbench(page,baseURL + '/embed.html');
   await check('identical embedded documents use separate IDs and target their own headings', async () => {
     const first = page.getByRole('region', { name: 'Instance A', exact: true });
     const second = page.getByRole('region', { name: 'Instance B', exact: true });

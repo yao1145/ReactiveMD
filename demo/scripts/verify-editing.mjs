@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
+import { fillEditor, openWorkbench, clickWorkbenchAction, expectEditorSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { article } from '../../scripts/benchmark-large-documents.mjs';
@@ -11,14 +11,11 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(15_000);
 page.on('pageerror', error => errors.push(error.message));
 const editor = page.locator('#source-editor');
-const fillSource = source => editor.evaluate((element, value) => {
-  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(element, value);
-  element.dispatchEvent(new Event('input', { bubbles: true }));
-}, source);
+const fillSource = source => fillEditor(editor,source);
 const preview = page.locator('.preview-stage');
 async function check(name, run) { await run(); checks.push(name); console.log('PASS ' + name); }
 try {
-  await page.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(page,baseURL);
   await clickWorkbenchAction(page, 'Show source');
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await check('editing keeps the last preview while compilation is pending', async () => {
@@ -47,12 +44,12 @@ try {
     await expect(preview).not.toContainText('Saved pricing edit.');
     await fillSource('# Counter edit\n\nSaved counter edit.');
     await page.locator('#example-select').selectOption('pricing');
-    await expect(editor).toHaveValue(article(300) + '\n\nSaved pricing edit.');
+    await expectEditorSource(editor,article(300) + '\n\nSaved pricing edit.');
     await page.locator('#example-select').selectOption('forms');
-    await expect(editor).toHaveValue('# Counter edit\n\nSaved counter edit.');
+    await expectEditorSource(editor,'# Counter edit\n\nSaved counter edit.');
     await page.reload();
     await clickWorkbenchAction(page, 'Show source');
-    await expect(editor).toHaveValue('# Counter edit\n\nSaved counter edit.');
+    await expectEditorSource(editor,'# Counter edit\n\nSaved counter edit.');
     await expect(preview).toContainText('Saved counter edit.');
   });
   await check('unavailable Worker still compiles and edits', async () => {
@@ -60,10 +57,10 @@ try {
     fallback.on('pageerror', error => errors.push(error.message));
     await fallback.addInitScript(() => { window.Worker = undefined; });
     try {
-      await fallback.goto(textareaWorkbenchURL(baseURL));
+      await openWorkbench(fallback,baseURL);
       await clickWorkbenchAction(fallback, 'Show source');
       await expect(fallback.locator('.status-chip')).toContainText('Compiled');
-      await fallback.locator('#source-editor').fill('# Fallback\n\nWorking without Worker.', { force: true });
+      await fillEditor(fallback.locator('#source-editor'),'# Fallback\n\nWorking without Worker.');
       await expect(fallback.locator('.preview-stage')).toContainText('Working without Worker.');
     } finally { await fallback.close(); }
   });

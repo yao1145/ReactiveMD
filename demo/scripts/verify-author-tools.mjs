@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, readEditor } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -33,7 +33,7 @@ const fixture = [
 const selectCaret = async (editor, offset) => {
   await editor.evaluate((element, position) => {
     element.focus();
-    element.setSelectionRange(position, position);
+    window.rmdEditorProbe.select(element,position, position);
     element.dispatchEvent(new Event('select', { bubbles: true }));
   }, offset);
 };
@@ -42,134 +42,17 @@ const horizontalOverflow = (target) =>
   target.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
 
 try {
-  // Regression: the highlight layer renders before its sibling textarea, so its
-  // scroll listener must still bind on the first commit. Scrolling before any
-  // source edit used to leave the code frozen while the gutter and caret moved.
-  const initial = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-  const initialSource = '# Long draft\n\n' + Array.from(
-    { length: 120 },
-    (_, index) => `Line ${index + 1} <bind name="v${index}" value="${index}" /> text text text`,
-  ).join('\n');
-  await initial.addInitScript((source) => {
-    localStorage.setItem('reactive-md:language', 'en');
-    localStorage.setItem('reactive-md:selection', 'pricing');
-    localStorage.setItem('reactive-md:local:source:pricing', source);
-  }, initialSource);
-  await initial.goto(textareaWorkbenchURL(baseURL));
-  await clickWorkbenchAction(initial, 'Show source');
-  const initialEditor = initial.locator('#source-editor');
-  await expect(initialEditor).toBeVisible();
-  await initialEditor.hover();
-  await initial.mouse.wheel(0, 500);
-  await expect.poll(() => initial.evaluate(() => {
-    const textarea = document.querySelector('#source-editor');
-    const content = document.querySelector('.author-highlight-content');
-    const matrix = new DOMMatrix(getComputedStyle(content).transform);
-    return Math.round(textarea.scrollTop) > 0
-      && Math.round(textarea.scrollTop) === Math.round(-matrix.m42);
-  })).toBe(true);
-  await initial.close();
-  console.log('PASS highlight follows scrolling before the first edit');
-
-  await page.goto(textareaWorkbenchURL(baseURL));
-  await clickWorkbenchAction(page, 'Show source');
-
-  const panel = page.getByRole('region', { name: 'Source authoring tools', exact: true });
-  await expect(panel).toBeVisible();
-  const editor = page.locator('#source-editor');
-  const highlight = page.locator('.author-highlight');
-
-  await replaceWorkbenchSource(page, fixture);
+  await openWorkbench(page,baseURL);
+  await clickWorkbenchAction(page,'Show source');
+  const panel=page.getByRole('region',{name:'Source authoring tools',exact:true});
+  const editor=page.locator('#source-editor');
+  const highlight=page.locator('.cm-content');
+  await replaceWorkbenchSource(page,fixture);
   await expect(page.locator('.status-chip')).toContainText('Compiled');
-  await expect(page.locator('.author-token-tag').first()).toBeVisible();
-  await expect(page.locator('.author-token-attribute').first()).toBeVisible();
-  await expect(page.locator('.author-token-binding').first()).toBeVisible();
-  console.log('PASS highlight layer renders tag, attribute and binding tokens');
-
-  const colours = await page.evaluate(() => {
-    const layer = document.querySelector('.author-highlight');
-    const token = document.querySelector('.author-token-tag');
-    return {
-      layer: layer ? getComputedStyle(layer).color : '',
-      token: token ? getComputedStyle(token).color : '',
-    };
-  });
-  if (!colours.layer || !colours.token || colours.layer === colours.token) {
-    throw new Error(`Syntax tokens are not coloured: ${JSON.stringify(colours)}`);
-  }
-  console.log('PASS syntax tokens use their own colour');
-
-  const geometry = await page.evaluate(() => {
-    const editorElement = document.querySelector('#source-editor');
-    const layer = document.querySelector('.author-highlight');
-    if (!editorElement || !layer) return null;
-    const a = editorElement.getBoundingClientRect();
-    const b = layer.getBoundingClientRect();
-    const styles = getComputedStyle(editorElement);
-    return {
-      dx: Math.abs(a.x - b.x),
-      dy: Math.abs(a.y - b.y),
-      dw: Math.abs(a.width - b.width),
-      dh: Math.abs(a.height - b.height),
-      fontSize: styles.fontSize,
-      lineHeight: styles.lineHeight,
-      layerFontSize: getComputedStyle(layer).fontSize,
-      layerLineHeight: getComputedStyle(layer).lineHeight,
-    };
-  });
-  if (
-    !geometry
-    || geometry.dx > 2
-    || geometry.dy > 2
-    || geometry.dw > 2
-    || geometry.dh > 2
-    || geometry.fontSize !== geometry.layerFontSize
-    || geometry.lineHeight !== geometry.layerLineHeight
-  ) {
-    throw new Error(`Highlight layer is not aligned with the textarea: ${JSON.stringify(geometry)}`);
-  }
-  console.log('PASS highlight geometry and text metrics match the textarea');
-
-  // Long sources exercise real scrolling. The highlight must follow the
-  // textarea's native scroll position on its own: no synthetic scroll event,
-  // and the overlay moves through a transform rather than its own scrollTop.
-  await replaceWorkbenchSource(page,
-    Array.from({ length: 80 }, (_, index) => `Line ${index + 1} <bind name="value${index}" value="${index}" />`).join('\n'),
-  );
-  await expect(page.locator('.status-chip')).toContainText('Compiled');
-  await editor.evaluate((element) => { element.scrollTop = 400; });
-  await expect.poll(() => page.evaluate(() => {
-    const textarea = document.querySelector('#source-editor');
-    const content = document.querySelector('.author-highlight-content');
-    const matrix = new DOMMatrix(getComputedStyle(content).transform);
-    return {
-      editor: Math.round(textarea.scrollTop),
-      highlight: Math.round(-matrix.m42),
-    };
-  })).toEqual({ editor: 400, highlight: 400 });
-  await editor.hover();
-  await page.mouse.wheel(0, 240);
-  await expect.poll(() => page.evaluate(() => {
-    const textarea = document.querySelector('#source-editor');
-    const content = document.querySelector('.author-highlight-content');
-    const matrix = new DOMMatrix(getComputedStyle(content).transform);
-    return Math.round(textarea.scrollTop) > 400
-      && Math.round(textarea.scrollTop) === Math.round(-matrix.m42);
-  })).toBe(true);
-  console.log('PASS highlight scrolling follows native textarea scrolling');
-
-  await replaceWorkbenchSource(page, fixture);
-  await expect(page.locator('.status-chip')).toContainText('Compiled');
-  await editor.evaluate((element) => { element.scrollTop = 0; });
-
-  await editor.evaluate((element) => element.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true })));
-  await expect(page.locator('.editor-shell')).toHaveClass(/is-composing/);
-  await expect(highlight).toBeHidden();
-  await editor.evaluate((element) => element.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true })));
-  await expect(highlight).toBeVisible();
-  await expect(page.locator('.editor-shell')).not.toHaveClass(/is-composing/);
-  console.log('PASS IME composition temporarily reveals the native text');
-
+  await expect(panel.locator('[data-binding-name="amount"]')).toBeVisible();
+  await expect(page.locator('.author-highlight,.editor-mirror')).toHaveCount(0);
+  await expect(page.locator('.cm-content .author-token-tag').first()).toBeVisible();
+  console.log('PASS CM6 authoring uses visible syntax decorations without a mirror');
   const declaration = fixture.indexOf('amount');
   await selectCaret(editor, declaration + 2);
   const caretInfo = panel.locator('[data-binding-caret="amount"]');
@@ -182,35 +65,39 @@ try {
 
   const referenceButton = panel.locator('[data-binding-location="reference"]').first();
   await expect(referenceButton).toBeVisible();
-  const referenceStart = Number(await referenceButton.getAttribute('data-start'));
   await referenceButton.click();
-  await expect.poll(() => editor.evaluate((element) => element.selectionStart)).toBe(referenceStart);
+  // Analysis uses original source offsets (including CRLF). The CM view uses
+  // normalized line breaks; verify the selected binding in the view itself.
+  await expect.poll(() => editor.evaluate(element => {
+    const {start,end}=window.rmdEditorProbe.selection(element);
+    return window.rmdEditorProbe.read(element).slice(start,end);
+  })).toBe('amount');
   console.log('PASS reference location moves the caret to the reference');
 
   const renameInput = panel.locator('[data-authoring-action="rename-input"]');
   await panel.locator('[data-binding-name="amount"]').click();
   await renameInput.fill('total');
   await panel.locator('[data-authoring-action="rename"]').click();
-  await expect.poll(() => editor.inputValue()).toContain('<slider bind="total"');
-  await expect.poll(() => editor.inputValue()).toContain('Value: {{ total }}');
-  await expect.poll(() => editor.inputValue()).toContain('amount stays literal here');
+  await expect.poll(() => readEditor(editor)).toContain('<slider bind="total"');
+  await expect.poll(() => readEditor(editor)).toContain('Value: {{ total }}');
+  await expect.poll(() => readEditor(editor)).toContain('amount stays literal here');
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await editor.focus();
   await page.keyboard.press('Control+z');
-  await expect.poll(() => editor.inputValue()).toBe(fixture);
+  await expect.poll(() => readEditor(editor)).toBe(fixture);
   console.log('PASS rename updates declarations and references, protects code, and undoes in one step');
 
   const uneven = 'Text\n\n<slider bind="amount" label="Amount"   min="0"    max="10" />\n\nValue: {{ amount }}';
   await replaceWorkbenchSource(page, uneven);
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await panel.locator('[data-authoring-action="format"]').click();
-  const formatted = await editor.inputValue();
+  const formatted = await readEditor(editor);
   if (formatted === uneven) throw new Error('Format did not tidy a deliberately uneven tag');
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   await expect(page.locator('.local-slider, input[type="range"]').first()).toBeVisible();
   await editor.focus();
   await page.keyboard.press('Control+z');
-  await expect.poll(() => editor.inputValue()).toBe(uneven);
+  await expect.poll(() => readEditor(editor)).toBe(uneven);
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   console.log('PASS format keeps preview alive and undoes in one step');
 
@@ -226,9 +113,9 @@ try {
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(list).toHaveCount(0);
-  await expect.poll(() => editor.inputValue()).not.toBe('Text\n\n<');
+  await expect.poll(() => readEditor(editor)).not.toBe('Text\n\n<');
   await page.keyboard.press('Control+z');
-  await expect.poll(() => editor.inputValue()).toBe('Text\n\n<');
+  await expect.poll(() => readEditor(editor)).toBe('Text\n\n<');
   console.log('PASS completion button, arrow keys, Enter and single-step undo');
 
   await selectCaret(editor, 7);
@@ -263,11 +150,11 @@ try {
   mobile.setDefaultTimeout(15000);
   const mobileErrors = [];
   mobile.on('pageerror', (error) => mobileErrors.push(error.message));
-  await mobile.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(mobile,baseURL);
   await clickWorkbenchAction(mobile, 'Show source');
   const mobilePanel = mobile.getByRole('region', { name: 'Source authoring tools', exact: true });
   await expect(mobilePanel).toBeVisible();
-  await expect(mobile.locator('.author-highlight')).toBeVisible();
+  await expect(mobile.locator('.cm-content')).toBeVisible();
 
   if (await horizontalOverflow(mobile)) throw new Error('375px page overflows horizontally');
   const controls = await mobilePanel.locator('button, input').evaluateAll((elements) =>

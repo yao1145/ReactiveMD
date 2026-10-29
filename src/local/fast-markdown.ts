@@ -26,6 +26,15 @@ export interface FastMarkdownPlan {
   readonly nodeCount: number;
   /** Number of top-level nodes. */
   readonly blockCount: number;
+  /** Exact scanned text this plan was validated against. */
+  readonly source: string;
+  /**
+   * Inline plans discovered while validating this block, keyed by exact inline
+   * text. A caller that recompiles a structurally similar block can hand this
+   * map back as an `InlinePlanLookup` so unchanged rows/items never have to be
+   * rescanned. Values may be `undefined` (a cached rejection).
+   */
+  readonly rows: ReadonlyMap<string, InlinePlan | undefined>;
   /**
    * Range of the `(remaining + 1)`-th node in transform order, or `undefined`
    * when the plan does not construct that many nodes. Never creates nodes.
@@ -66,6 +75,13 @@ export interface InlineStrongToken {
 export type InlineToken = InlineTextToken | InlineStrongToken;
 /** Read-only inline plan. `undefined` means the text is outside the subset. */
 export type InlinePlan = readonly InlineToken[];
+
+/**
+ * Row-level inline plans carried by a previous compile. Used in preference to
+ * the bounded global LRU so a sequence of edits over a large list/table never
+ * has to re-scan unchanged rows (and cannot thrash the LRU).
+ */
+export type InlinePlanLookup = ReadonlyMap<string, InlinePlan | undefined>;
 
 /** Distinguishes a cached rejection from a cache miss. */
 export type CacheLookup<T> =
@@ -267,13 +283,23 @@ function uncachedInline(source: string): InlineLookup {
  * prevents the counting and emission passes from double-counting a session hit
  * while still letting a changed block reuse unchanged rows/items.
  */
-function buildPlan(source: string, cache?: FastMarkdownCache): FastMarkdownPlan | undefined {
+function buildPlan(source: string, cache?: FastMarkdownCache, rowPlans?: InlinePlanLookup): FastMarkdownPlan | undefined {
   const lines = readLines(source);
   if (lines === undefined) return;
   const local = new Map<string, InlinePlan | undefined>();
   const inlinePlan: InlineLookup = (from, to, kind) => {
     const text = source.slice(from, to);
     if (local.has(text)) return local.get(text);
+    // A previous revision's per-row plan is exact for the same text and works
+    // regardless of row order, so it is checked before the bounded LRU. This
+    // is what keeps a 1000-row sequential scan from evicting its own working
+    // set on every edit.
+    if (rowPlans?.has(text)) {
+      const plan = rowPlans.get(text);
+      local.set(text, plan);
+      if (kind && plan !== undefined) cache?.noteInlineReuse?.(kind);
+      return plan;
+    }
     if (cache) {
       const cached = cache.readInline(text);
       if (cached.hit) {
@@ -294,6 +320,8 @@ function buildPlan(source: string, cache?: FastMarkdownCache): FastMarkdownPlan 
   return {
     nodeCount,
     blockCount,
+    source,
+    rows: local,
     overflowAt(remaining: number): {start: number; end: number} | undefined {
       // Looking for `remaining + 1` (one-based) is the first construction that
       // a cumulative budget of `remaining` would reject.
@@ -346,8 +374,16 @@ export function parseFastMarkdown(source: string): FastNode | undefined {
  *
  * When a session cache is supplied, identical block text reuses the complete
  * plan (and, on a plan miss, identical rows/items reuse their inline plans).
+ * `rowPlans` is an additional, caller-owned hint from the previous revision;
+ * it is consulted before the bounded cache so large row blocks cannot thrash
+ * it. Inline plans are pure functions of their text, so this never changes
+ * validation, emission order or node counts.
  */
-export function planFastMarkdown(source: string, cache?: FastMarkdownCache): FastMarkdownPlan | undefined {
+export function planFastMarkdown(
+  source: string,
+  cache?: FastMarkdownCache,
+  rowPlans?: InlinePlanLookup,
+): FastMarkdownPlan | undefined {
   if (cache) {
     const cached = cache.readPlan(source);
     if (cached.hit) {
@@ -355,7 +391,7 @@ export function planFastMarkdown(source: string, cache?: FastMarkdownCache): Fas
       return cached.value;
     }
   }
-  const plan = buildPlan(source, cache);
+  const plan = buildPlan(source, cache, rowPlans);
   cache?.writePlan(source, plan);
   return plan;
 }

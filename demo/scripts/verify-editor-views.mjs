@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction, expectEditorSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 
@@ -11,7 +11,7 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(textareaWorkbenchURL(baseURL));
+    await openWorkbench(page,baseURL);
     const bar = page.locator('.editor-status-bar');
     await expect(page.locator('.reactive-md-editor .editor-frame > .editor-status-bar')).toHaveCount(1);
     await expect(bar).toHaveAttribute('aria-label', 'Editor view');
@@ -41,14 +41,14 @@ try {
     await expect(source).toBeHidden();
     await expect(preview).toBeVisible();
     await mode('Edit').click();
-    await expect(source).toHaveValue('中文😀  ');
+    await expectEditorSource(source,'  中文😀');
     await source.focus();
     await source.press('Control+z');
-    await expect(source).toHaveValue('中文😀');
+    await expectEditorSource(source,'中文😀');
     await source.press('Escape');
     await source.press('Tab');
     await expect(page.locator('.editor-toolbar [tabindex="0"]')).toBeFocused();
-    await expect(source).toHaveValue('中文😀');
+    await expectEditorSource(source,'中文😀');
     await mode(width > 600 ? 'Split' : 'Preview').focus();
     await page.keyboard.press('Enter');
     await expect(mode(width > 600 ? 'Split' : 'Preview')).toHaveAttribute('aria-pressed', 'true');

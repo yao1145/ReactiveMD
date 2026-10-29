@@ -1,6 +1,6 @@
 # React source editor
 
-The Demo defaults to the [CodeMirror 6 entry](codemirror-en.md) (unreleased). The textarea entry documented here remains compatible.
+The current workspace uses CodeMirror 6 for `reactive-md/editor` and removes the old textarea source editor. This change is unreleased. See [CM6 integration](codemirror-en.md) for transactions, shared analysis and source coordinates.
 
 `reactive-md/editor` is a controlled React 19 editor for Reactive MD source. It comes from the Playground editor and provides source highlighting, a formatting and insertion toolbar, completion, binding navigation, rename and format commands, undo and redo, line numbers and scroll synchronization. Its built-in status bar provides a character count and Edit, Split and Preview views. The host keeps the source text and supplies preview content, persistence and export.
 
@@ -43,7 +43,7 @@ export function SourceEditor() {
 }
 ```
 
-`value` and `onChange` are required. The component renders a textarea and keeps its own undo history. The source text stays in your state. Built-in labels default to English.
+`value` and `onChange` are required. CM6 renders source lines around the viewport and provides native undo history. The complete source text stays in your state. Built-in labels default to English.
 
 ## Entries
 
@@ -82,11 +82,13 @@ export function SourceEditor() {
 
 | Method | Behavior |
 | --- | --- |
-| `focus(selection?)` | Focuses the textarea. Applies the optional selection. |
+| `focus(selection?)` | Focuses the source editor. Applies the optional selection. |
 | `selectRange(range)` | Selects a source range. Ranges use the same UTF-16 half-open offsets as compile diagnostics. |
 | `insertText(text)` | Replaces the current selection with text as one undoable edit, then places the caret after it. Read-only and disabled editors ignore the call. |
 | `getSelection()` | Returns the current selection. |
-| `getTextarea()` | Returns the underlying textarea, or `null` before mount. |
+| `getSource()` | Returns the complete original source, including offscreen text. |
+| `getEditorElement()` | Returns the editable DOM element, or `null` before mount. |
+| `getVisibleRanges()` | Returns the visible source ranges. |
 | `undo()` / `redo()` | Moves through this instance's history and emits the resulting value through `onChange`. Both are no-ops at the ends of the history and while `readOnly` or `disabled` is set. |
 
 The entry also exports `ReactiveMarkdownEditorProps`, `ReactiveMarkdownEditorHandle`, `EditorLocale`, `EditorTheme` and `EditorSelection` types.
@@ -103,13 +105,13 @@ The entry also exports `ReactiveMarkdownEditorProps`, `ReactiveMarkdownEditorHan
 | `viewMode` | `EditorViewMode` | none | Controlled view: `'edit'`, `'split'` or `'preview'`. |
 | `defaultViewMode` | `EditorViewMode` | `'edit'` | Initial mode for an uncontrolled instance. |
 | `onViewModeChange` | `(mode: EditorViewMode) => void` | none | Called when a view button is clicked. |
-| `id` | `string` | generated | Textarea id. The instance uses it for its internal labels and gutter. |
+| `id` | `string` | generated | Id of the editable source element. |
 | `className` | `string` | none | Added to the `.reactive-md-editor` root. |
 | `style` | `CSSProperties` | none | Inline styles for the root. |
 | `height` | `number \| string` | `560` | A number is pixels. A string accepts any CSS length. |
 | `minHeight` | `number \| string` | `280` | Minimum editor height, in the same units as `height`. |
 | `placeholder` | `string` | none | Placeholder for an empty source. |
-| `ariaLabel` | `string` | localized label | Accessible name for the textarea. |
+| `ariaLabel` | `string` | localized label | Accessible name for the source editor. |
 | `readOnly` | `boolean` | `false` | Keeps text selectable and copyable while blocking changes. |
 | `disabled` | `boolean` | `false` | Blocks focus and editing. |
 | `documentKey` | `string \| number` | none | Change it when the editor switches to an independent source document. The change resets undo history and selection. |
@@ -118,7 +120,9 @@ The entry also exports `ReactiveMarkdownEditorProps`, `ReactiveMarkdownEditorHan
 | `toolbar` | `boolean` | `true` | Shows the formatting and insertion toolbar, including its export action. |
 | `authoring` | `boolean` | `true` | Enables completion, binding navigation, rename and format tools. |
 | `onExport` | `() => void` | none | Called by the toolbar export action. Use it to open your export dialog or write the file yourself. |
-| `textareaRef` | `RefObject<HTMLTextAreaElement \| null>` | none | Receives the underlying textarea for advanced host code. |
+| `analysis` | `EditorAuthorAnalysis \| null` | none | Omit to use a private analysis Worker; pass `null` while awaiting host analysis. |
+| `onTransaction` | `(transaction: EditorTransaction) => void` | none | Receives edits in original source coordinates. |
+| `createAnalysisWorker` | `() => Worker` | none | Supplies a CSP-compatible analysis Worker factory. |
 
 ## Built-in editor views
 
@@ -199,7 +203,7 @@ const result = compileLocal(source);
 />
 ```
 
-`diagnostics` marks the reported lines in the gutter. Incomplete source remains editable, and a compile error does not lock the textarea. `document` supplies binding value types for the authoring inspection panel. Both props are optional; pass neither when the editor is used only to edit Markdown.
+`diagnostics` marks the reported lines in the gutter. Incomplete source remains editable through compile errors. `document` supplies binding value types for the authoring inspection panel. Both props are optional.
 
 ## Sizing and layout
 
@@ -209,7 +213,7 @@ Use `className` or `style` for margins and placement in a host layout. Internal 
 
 ## Toolbar and authoring tools
 
-`toolbar={false}` removes the formatting and insertion toolbar, including its export action. `authoring={false}` keeps the textarea and toolbar but disables syntax highlighting, completion, binding navigation, rename and format. Both default to enabled.
+`toolbar={false}` removes the formatting and insertion toolbar, including its export action. `authoring={false}` keeps CM6 and its toolbar while disabling author analysis, binding navigation, rename and format. Basic Markdown highlighting remains available. Both default to enabled.
 
 The toolbar formats Markdown, inserts lists, tables, links, images and the built-in component templates, and exposes undo and redo. Formatting commands use the current selection and return the next source through `onChange`.
 
@@ -225,7 +229,7 @@ Compilation scheduling and debouncing also stay in the host. See [Local mode int
 
 ## Server rendering
 
-The editor entry has no top-level `window` or `document` access. Importing it and rendering the initial textarea with `react-dom/server` is safe. Focus, selection, completion, layout measurement and toolbar menus run after the component mounts in a browser, so interactive checks and browser tests need a client.
+The editor entry has no top-level `window` or `document` access. Server rendering produces the editor frame; the CM6 editing view mounts on the client. Focus, selection, completion, layout measurement and toolbar menus require a browser.
 
 ## Styles and scope
 
@@ -235,6 +239,6 @@ If the same page also renders a document preview, import `reactive-md/styles.css
 
 ## Compatibility
 
-`0.5.0` adds the editor entry and keeps `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`. Projects that only render documents can upgrade without changing imports or source. The editor is new, so it has no older API to migrate from. See the [0.5.0 release notes](../releases/release-0.5.0-en.md) and [Versions and compatibility](../compatibility/compatibility-en.md).
+To migrate from the textarea editor, remove `textareaRef`. Use the ref's `getSource()`, `getSelection()` and `selectRange()` for source and selection, and `getEditorElement()` for DOM access. `reactive-md/editor/codemirror` remains a compatibility alias for the same component, stylesheet and runtime. Document `<textarea>` form controls remain supported.
 
 0.5.3 adds compile-option-aware authoring and explicit screen/print styles. See [0.5.3 host integration](../releases/release-0.5.3-en.md). 0.6.0 adds `insertText` to the ref handle; see the [0.6.0 release notes](../releases/release-0.6.0-en.md).

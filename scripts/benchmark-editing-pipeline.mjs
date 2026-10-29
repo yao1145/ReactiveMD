@@ -7,7 +7,7 @@ import {chromium} from 'playwright';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
 
 const root=resolve('artifacts/editing-completion/browser-dist');
-await build({configFile:false,logLevel:'error',resolve:{alias:{'react-dom/client':'react-dom/profiling','decode-named-character-reference':fileURLToPath(import.meta.resolve('decode-named-character-reference'))}},build:{outDir:root,rollupOptions:{input:resolve('scripts/fixtures/editing-pipeline/browser.html')}}});
+await build({configFile:false,logLevel:'error',worker:{format:'es'},resolve:{alias:{'react-dom/client':'react-dom/profiling','decode-named-character-reference':fileURLToPath(import.meta.resolve('decode-named-character-reference'))}},build:{outDir:root,rollupOptions:{input:resolve('scripts/fixtures/editing-pipeline/browser.html')}}});
 const server=createServer(async(req,res)=>{
   const path=resolve(root,'.'+new URL(req.url,'http://localhost').pathname);
   if(!path.startsWith(root+sep)){res.writeHead(404).end();return;}

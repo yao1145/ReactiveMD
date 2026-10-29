@@ -1,14 +1,12 @@
 /**
- * Authoring aids layered on the plain source textarea.
+ * Authoring aids layered on the source editor.
  *
- * The textarea stays the single editable surface: the highlight layer is a
- * pointer-transparent copy of the source with token colours, and every action
- * hands an `EditorEdit` back to the editor so history, selection restoration
- * and controlled updates keep working unchanged.
+ * The panel reads the editor through `EditorSurface` and hands every action
+ * back as an `EditorEdit`, so history, selection restoration and controlled
+ * updates keep working unchanged.
  */
 
 import {
-  memo,
   useCallback,
   useEffect,
   useId,
@@ -16,12 +14,8 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
-  type RefObject,
 } from 'react';
 import {
-  analyzeLocalSource,
-  createLocalCompileSession,
   completeLocalSource,
   formatLocalSource,
   renameLocalBinding,
@@ -30,7 +24,7 @@ import type { Diagnostic, LocalCompileOptions, LocalDocument, SourceRange } from
 import type { EditorEdit, EditorLocale, EditorSelection } from './types';
 import { useEditorLocale } from './locale';
 import { SourcePositionIndex } from './source-positions';
-import {createTextareaSurface,type EditorSurface} from './surface';
+import type { EditorSurface } from './surface';
 
 /* ------------------------------------------------------------------ */
 /* Shared shapes                                                       */
@@ -61,209 +55,9 @@ export interface AuthorAnalysis {
   diagnostics: Diagnostic[];
 }
 
-const EMPTY_ANALYSIS: AuthorAnalysis = { tokens: [], bindings: [], diagnostics: [] };
-
-const TOKEN_CLASSES: Record<string, string> = {
-  tag: 'tag',
-  attribute: 'attribute',
-  string: 'string',
-  expression: 'expression',
-  binding: 'binding',
-  markdown: 'markdown',
-  math: 'math',
-  code: 'code',
-  comment: 'comment',
-};
-
-function tokenClass(kind: string): string {
-  const normalized = kind.toLowerCase();
-  const direct = TOKEN_CLASSES[normalized];
-  if (direct) return direct;
-  if (normalized.includes('tag')) return 'tag';
-  if (normalized.includes('attr')) return 'attribute';
-  if (normalized.includes('string') || normalized.includes('quote')) return 'string';
-  if (normalized.includes('expr') || normalized.includes('interp')) return 'expression';
-  if (normalized.includes('bind')) return 'binding';
-  if (normalized.includes('math') || normalized.includes('latex')) return 'math';
-  if (normalized.includes('code') || normalized.includes('fence')) return 'code';
-  if (normalized.includes('comment')) return 'comment';
-  if (
-    normalized.includes('markdown')
-    || normalized.includes('heading')
-    || normalized.includes('emphasis')
-    || normalized.includes('link')
-  ) {
-    return 'markdown';
-  }
-  return 'plain';
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
-
-// The core guarantees ordered, non-overlapping tokens. Rendering additionally
-// clamps and splits defensive copies so a stale or malformed range can never
-// drop source text from the highlight layer.
-function normalizeTokens(source: string, tokens: AuthorToken[]): AuthorToken[] {
-  const result: AuthorToken[] = [];
-  let cursor = 0;
-  const ordered = [...tokens].sort((a, b) => a.range.start - b.range.start);
-  for (const token of ordered) {
-    const start = clamp(Math.max(token.range.start, cursor), 0, source.length);
-    const end = clamp(token.range.end, start, source.length);
-    cursor = end;
-    if (end > start) result.push({ kind: token.kind, range: { start, end } });
-  }
-  return result;
-}
-
-/**
- * Analyses the exact source; caret movement never retriggers this work.
- * `enabled` lets the editor skip the analysis when authoring tools are off.
- */
-export function useAuthorAnalysis(
-  source: string,
-  enabled = true,
-  compileOptions?: LocalCompileOptions,
-): AuthorAnalysis {
-  const session = useRef<ReturnType<typeof createLocalCompileSession> | null>(null);
-  useEffect(() => () => { session.current?.dispose(); session.current = null; }, []);
-  return useMemo(() => {
-    if (!enabled) { session.current?.clear(); return EMPTY_ANALYSIS; }
-    try {
-      session.current ??= createLocalCompileSession();
-      const compiled = session.current.compileShared(source, compileOptions);
-      // Authoring consumes tokens/bindings. Visible diagnostics come from the
-      // host compiler. Reuse incremental nodes instead of parsing and then
-      // compiling the entire source again in the input's render path.
-      const result = analyzeLocalSource(source, compileOptions, {
-        ...(compiled.ok ? { document: compiled.document } : {}), diagnostics: false,
-      });
-      return {
-        tokens: normalizeTokens(source, result.tokens),
-        bindings: result.bindings,
-        diagnostics: result.diagnostics,
-      };
-    } catch {
-      return EMPTY_ANALYSIS;
-    }
-  }, [source, enabled, compileOptions]);
-}
-
-/* ------------------------------------------------------------------ */
-/* Highlight layer                                                     */
-/* ------------------------------------------------------------------ */
-
-function renderHighlight(source: string, tokens: AuthorToken[]): ReactNode[] {
-  const parts: ReactNode[] = [];
-  let cursor = 0;
-  tokens.forEach((token, index) => {
-    if (token.range.start > cursor) parts.push(source.slice(cursor, token.range.start));
-    parts.push(
-      <span
-        // These spans only display text. An offset shift must not replace all
-        // later spans; the ordered slot stays valid when token contents change.
-        key={index}
-        className={`author-token author-token-${tokenClass(token.kind)}`}
-        data-token-kind={token.kind}
-      >
-        {source.slice(token.range.start, token.range.end)}
-      </span>,
-    );
-    cursor = token.range.end;
-  });
-  if (cursor < source.length) parts.push(source.slice(cursor));
-  return parts;
-}
-
-export interface AuthorHighlightProps {
-  source: string;
-  tokens: AuthorToken[];
-  /** Content width of the textarea, i.e. its client width without scrollbars. */
-  width: number;
-  editorRef: RefObject<HTMLTextAreaElement | null>;
-}
-
-export const AuthorHighlight = memo(function AuthorHighlight({
-  source,
-  tokens,
-  width,
-  editorRef,
-}: AuthorHighlightProps) {
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  // The textarea scrolls natively, so the overlay has to follow it. Moving the
-  // highlight with a compositor transform (instead of its own scrollTop) keeps
-  // the two in the same frame: scrolling never repaints the highlighted text,
-  // and a short animation-frame follow catches scroll events that a browser
-  // coalesces or delays during momentum scrolling.
-  //
-  // This is a passive effect on purpose. The highlight renders before its
-  // sibling textarea, so on the first commit the editor ref is not attached
-  // yet; a layout effect would bail out and leave the overlay frozen until the
-  // next source change re-ran it. Passive effects flush after the whole commit,
-  // when the ref is always available.
-  useEffect(() => {
-    const editor = editorRef.current;
-    const content = contentRef.current;
-    if (!editor || !content) return;
-
-    let frame = 0;
-    let idleTimer = 0;
-    let lastTop = Number.NaN;
-    let lastLeft = Number.NaN;
-
-    const apply = () => {
-      const top = editor.scrollTop;
-      const left = editor.scrollLeft;
-      if (top === lastTop && left === lastLeft) return;
-      lastTop = top;
-      lastLeft = left;
-      content.style.transform = `translate3d(${-left}px, ${-top}px, 0)`;
-    };
-
-    const follow = () => {
-      frame = 0;
-      apply();
-      if (idleTimer !== 0) frame = window.requestAnimationFrame(follow);
-    };
-
-    const wake = () => {
-      apply();
-      if (idleTimer !== 0) window.clearTimeout(idleTimer);
-      idleTimer = window.setTimeout(() => {
-        idleTimer = 0;
-        if (frame !== 0) {
-          window.cancelAnimationFrame(frame);
-          frame = 0;
-        }
-      }, 1000);
-      if (frame === 0) frame = window.requestAnimationFrame(follow);
-    };
-
-    apply();
-    const events = ['scroll', 'wheel', 'touchstart', 'touchmove'] as const;
-    for (const type of events) editor.addEventListener(type, wake, { passive: true });
-    return () => {
-      for (const type of events) editor.removeEventListener(type, wake);
-      if (idleTimer !== 0) window.clearTimeout(idleTimer);
-      if (frame !== 0) window.cancelAnimationFrame(frame);
-    };
-  }, [editorRef]);
-
-  return (
-    <div
-      className="author-highlight"
-      aria-hidden="true"
-      style={width > 0 ? { width: `${width}px` } : undefined}
-    >
-      <div className="author-highlight-content" ref={contentRef}>
-        {renderHighlight(source, tokens)}
-      </div>
-    </div>
-  );
-});
 
 /* ------------------------------------------------------------------ */
 /* Bilingual copy                                                      */
@@ -503,9 +297,8 @@ export interface AuthoringPanelProps {
   bindingDocument: LocalDocument | null;
   /** Same compile options as the preview; analysis, completion, rename and format follow them. */
   compileOptions?: LocalCompileOptions;
-  editorRef: RefObject<HTMLTextAreaElement | null>;
-  editorSurface?: EditorSurface;
-  /** Bound large binding/reference lists; omitted preserves the textarea UI. */
+  editorSurface: EditorSurface;
+  /** Bound large binding/reference lists; omitted renders the full list. */
   pageSize?: number;
   onEdit(edit: EditorEdit): void;
   onLocate(range: SourceRange): void;
@@ -518,14 +311,13 @@ export function AuthoringPanel({
   analysis,
   bindingDocument,
   compileOptions,
-  editorRef,
   editorSurface,
   pageSize,
   onEdit,
   onLocate,
   disabled = false,
 }: AuthoringPanelProps) {
-  const inputSurface=useMemo(()=>editorSurface??createTextareaSurface(editorRef),[editorSurface,editorRef]);
+  const inputSurface=editorSurface;
   const locale = useEditorLocale();
   const copy = AUTHORING_COPY[locale];
   const renameInputId = useId();

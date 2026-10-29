@@ -1,6 +1,5 @@
 import {
   memo,
-  lazy, Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -15,15 +14,10 @@ import { LocalDocumentView } from 'reactive-md/react';
 import {
   ReactiveMarkdownEditor,
   type ReactiveMarkdownEditorHandle,
+  type EditorTransaction,
   type EditorViewMode,
 } from 'reactive-md/editor';
-import type {ReactiveMarkdownCodeEditorHandle,EditorTransaction} from 'reactive-md/editor/codemirror';
 import type {LocalCompileEditHint} from 'reactive-md';
-const CodeEditor=lazy(()=>Promise.all([
-  import('reactive-md/editor/codemirror'),import('reactive-md/editor/codemirror/styles.css'),
-]).then(([module])=>({default:module.ReactiveMarkdownCodeEditor})));
-const useCodeEditor=typeof window==='undefined'||new URLSearchParams(window.location.search).get('editor')!=='textarea';
-const SourceEditor=useCodeEditor?CodeEditor:ReactiveMarkdownEditor;
 import { AuthorTools } from './author-tools';
 import {
   DocumentLibrary,
@@ -365,8 +359,7 @@ export default function App() {
     return () => document.removeEventListener('click', dismiss);
   }, []);
   const libraryCopy = LIBRARY_COPY[language];
-  const editorRef = useRef<HTMLTextAreaElement>(null);
-  const editorHandle = useRef<ReactiveMarkdownEditorHandle|ReactiveMarkdownCodeEditorHandle|null>(null);
+  const editorHandle = useRef<ReactiveMarkdownEditorHandle|null>(null);
   const editHint=useRef<LocalCompileEditHint|undefined>(undefined);
   const onEditorTransaction=useCallback((transaction:EditorTransaction)=>{
     const changes=transaction.changes;
@@ -454,7 +447,7 @@ export default function App() {
   const sourceWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const compileOptions = useMemo(() => toCompileOptions(htmlOptions), [htmlOptions]);
-  const compilation = useLocalCompilation(source, compileOptions, useCodeEditor, editHint.current);
+  const compilation = useLocalCompilation(source, compileOptions, true, editHint.current);
   const currentExample = localizedExample(
     EXAMPLES.find((item) => item.id === selectedExample) ?? DEFAULT_EXAMPLE,
     language,
@@ -588,37 +581,7 @@ export default function App() {
 
   const focusDiagnostic = useCallback((range: SourceRange) => {
     setEditorView((current) => current === 'preview' ? 'split' : current);
-    window.requestAnimationFrame(() => {
-      const current=editorHandle.current;
-      if(current && !('getTextarea' in current)){current.selectRange(range);return;}
-      const editor = current?.getTextarea() ?? editorRef.current;
-      if (!editor) return;
-      const handle = editorHandle.current;
-      if (handle) handle.focus({ start: range.start, end: range.end });
-      else {
-        const length = editor.value.length;
-        editor.focus();
-        editor.setSelectionRange(
-          Math.max(0, Math.min(range.start, length)),
-          Math.max(0, Math.min(range.end, length)),
-        );
-      }
-      const length = editor.value.length;
-      const start = Math.max(0, Math.min(editor.selectionStart, length));
-      const line = editor.value.slice(0, start).split('\n').length;
-      const gutter = editor.closest('.editor-frame')?.querySelector<HTMLElement>('.editor-gutter');
-      const lineElement = gutter?.children[line - 1] as HTMLElement | undefined;
-      if (gutter && lineElement) {
-        const offset = lineElement.getBoundingClientRect().top
-          - gutter.getBoundingClientRect().top
-          + gutter.scrollTop;
-        editor.scrollTop = Math.max(0, offset - editor.clientHeight / 3);
-      } else {
-        const styles = window.getComputedStyle(editor);
-        const lineHeight = Number.parseFloat(styles.lineHeight) || 22;
-        editor.scrollTop = Math.max(0, (line - 1) * lineHeight - editor.clientHeight / 3);
-      }
-    });
+    window.requestAnimationFrame(() => editorHandle.current?.selectRange(range));
   }, []);
 
   const loadExample = useCallback((exampleId: string) => {
@@ -983,7 +946,7 @@ export default function App() {
             <section id="source-pane" className="pane pane-editor" aria-label={copy.editor.region}
               onPasteCapture={event => {
                 if (!(event.target instanceof HTMLTextAreaElement)
-                  && !(useCodeEditor && event.target instanceof HTMLElement && event.target.closest('.cm-content'))) return;
+                  && !(event.target instanceof HTMLElement && event.target.closest('.cm-content'))) return;
                 const files = Array.from(event.clipboardData.files);
                 if (!files.length) return;
                 event.preventDefault();
@@ -997,13 +960,12 @@ export default function App() {
                 <span className="syntax-tag">local-draft-2</span>
               </div>
 
-              <Suspense fallback={<p role="status">{copy.preview.preparing}</p>}><SourceEditor
+              <ReactiveMarkdownEditor
                 compileOptions={compileOptions}
-                ref={(handle:ReactiveMarkdownEditorHandle|ReactiveMarkdownCodeEditorHandle|null)=>{editorHandle.current=handle;}}
+                ref={(handle:ReactiveMarkdownEditorHandle|null)=>{editorHandle.current=handle;}}
                 analysis={compilation.analysis}
                 onTransaction={onEditorTransaction}
                 id="source-editor"
-                textareaRef={editorRef}
                 value={source}
                 onChange={replaceSource}
                 locale={language}
@@ -1039,7 +1001,7 @@ export default function App() {
                 </section>}
                 authoring
                 toolbar
-              /></Suspense>
+              />
 
               <p className="editor-note" id="editor-note">
                 {copy.editor.note}

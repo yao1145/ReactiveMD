@@ -1,6 +1,6 @@
 import {chromium, expect} from '@playwright/test';
 import {mkdir, writeFile} from 'node:fs/promises';
-import { textareaWorkbenchURL, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { openWorkbench, replaceWorkbenchSource } from './workbench-ui.mjs';
 
 const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge';
 const browser = await chromium.launch({...(channel === 'chromium' ? {} : {channel}), headless: true});
@@ -13,7 +13,7 @@ const source = `${paragraph.repeat(8)}\n\n${'这是用于检查正文宽度的�
 try {
   const page = await browser.newPage({viewport: {width: 1920, height: 1080}});
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(textareaWorkbenchURL(process.env.DEMO_URL ?? 'http://127.0.0.1:5173'));
+  await openWorkbench(page,process.env.DEMO_URL ?? 'http://127.0.0.1:5173');
   await page.locator('[data-editor-view-option="edit"]').click();
   await replaceWorkbenchSource(page, source);
   await page.locator('[data-editor-view-option="preview"]').click();

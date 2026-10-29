@@ -49,7 +49,7 @@ npm run test:browser
 
 After changing the language package, rerun `npm run build:lib`, or use `npm run dev:lib` to watch and rebuild.
 
-Performance measurement conditions and current baselines are in [Performance measurements](docs/development/performance-en.md); reusable inputs and expected results across implementations are in the [language conformance data](examples/conformance/README.md).
+Performance measurement conditions and current baselines are in [Performance measurements](docs/development/performance-overview-ch.md); reusable inputs and expected results across implementations are in the [language conformance data](examples/conformance/README.md).
 
 ## Change requirements
 

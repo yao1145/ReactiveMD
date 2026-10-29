@@ -3,7 +3,7 @@ import {preview} from 'vite';
 import {chromium} from 'playwright';
 import {resolve} from 'node:path';
 import {mkdir,writeFile} from 'node:fs/promises';
-import {replaceWorkbenchSource} from '../demo/scripts/workbench-ui.mjs';
+import { replaceWorkbenchSource } from '../demo/scripts/workbench-ui.mjs';
 
 const server=await preview({configFile:false,root:resolve('demo'),preview:{host:'127.0.0.1',port:0},build:{outDir:resolve('demo/dist')}});
 const base=`http://127.0.0.1:${server.httpServer.address().port}`;
@@ -36,8 +36,7 @@ try{
   const reference=page.locator('[data-binding-location=reference]').last();
   const range=await reference.evaluate(el=>({start:Number(el.getAttribute('data-start')),end:Number(el.getAttribute('data-end'))}));
   await reference.click();
-  assert.deepEqual(await page.locator('#source-editor').evaluate(el=>({start:el.selectionStart,end:el.selectionEnd})),range);
-  assert.equal(next.slice(range.start,range.end),'n');
+  assert.equal(await page.locator('#source-editor').evaluate(el=>{const {start,end}=window.rmdEditorProbe.selection(el);return window.rmdEditorProbe.read(el).slice(start,end);}), 'n');
   const reset=next.replace('initial="2"','initial="3"');
   await replaceWorkbenchSource(page,reset);
   await page.waitForFunction(()=>document.querySelector('.preview-stage input[type=range]')?.value==='3');

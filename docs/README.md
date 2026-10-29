@@ -58,7 +58,7 @@ Documents are grouped by purpose, with Chinese and English versions of each topi
 | --- | --- | --- |
 | 组件开发 / Component development | [中文](development/component-development-ch.md) | [English](development/component-development-en.md) |
 | 组件协议 / Component protocol | [中文](development/component-protocol-ch.md) | [English](development/component-protocol-en.md) |
-| 性能 / Performance | [中文](development/performance-ch.md) | [English](development/performance-en.md) |
+| 性能 / Performance | [优化历史与当前复测总览](development/performance-overview-ch.md) | Single Chinese report |
 | 发布流程 / Publishing | [中文](development/releasing-ch.md) | [English](development/releasing-en.md) |
 
 ## 发布记录 · Releases

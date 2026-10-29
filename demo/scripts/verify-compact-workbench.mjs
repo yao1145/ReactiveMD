@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 import {chromium, expect} from '@playwright/test';
-import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction, fillEditor, expectEditorSource } from './workbench-ui.mjs';
 
 const browser = await chromium.launch({channel: process.env.PLAYWRIGHT_CHANNEL ?? 'msedge', headless: true});
 await mkdir('artifacts/compact-workbench', {recursive: true});
@@ -10,7 +10,7 @@ try {
     const page = await browser.newPage({viewport: {width, height: 900}});
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    await page.goto(textareaWorkbenchURL(process.env.DEMO_URL ?? 'http://127.0.0.1:5173'));
+    await openWorkbench(page,process.env.DEMO_URL ?? 'http://127.0.0.1:5173');
     const more = page.locator('.workbench-options');
     const quick = page.locator('.workbench-quick-actions');
     const add = quick.getByRole('button', {name: 'Add images', exact: true});
@@ -26,14 +26,14 @@ try {
     const editor = page.locator('#source-editor');
     await expect(editor).toBeVisible();
     assert.ok((await page.locator('.reactive-md-editor').boundingBox()).height >= 720);
-    await editor.fill('# Compact toolbar\n\nImages go here.');
+    await fillEditor(editor,'# Compact toolbar\n\nImages go here.');
     const png = await page.evaluate(() => {
       const canvas = document.createElement('canvas'); canvas.width = 12; canvas.height = 8;
       return canvas.toDataURL('image/png').split(',')[1];
     });
     const [picker] = await Promise.all([page.waitForEvent('filechooser'), add.click()]);
     await picker.setFiles({name: 'photo.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64')});
-    await expect(editor).toHaveValue(/!\[photo.png\]\(assets\//);
+    await expectEditorSource(editor,/!\[photo.png\]\(assets\//);
     await expect(page.locator('.preview-stage img')).toHaveCount(1);
     await expect(quick.locator('.image-asset-row')).toHaveCount(0);
     await more.locator(':scope > summary').click();
@@ -46,7 +46,7 @@ try {
     await page.getByRole('dialog').getByRole('button', {name: 'Cancel', exact: true}).click();
     const [importPicker] = await Promise.all([page.waitForEvent('filechooser'), clickWorkbenchAction(page, 'Import')]);
     await importPicker.setFiles({name: 'imported.md', mimeType: 'text/markdown', buffer: Buffer.from('# Imported document')});
-    await expect(editor).toHaveValue('# Imported document');
+    await expectEditorSource(editor,'# Imported document');
     await page.getByRole('button', {name: 'My documents', exact: true}).click();
     await clickWorkbenchAction(page, 'New document');
     await page.getByRole('textbox', {name: 'Document name', exact: true}).fill('Compact document');

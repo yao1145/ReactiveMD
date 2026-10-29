@@ -1,6 +1,6 @@
-# 可选 CodeMirror 6 编辑器
+# CodeMirror 6 编辑器集成
 
-此入口尚未发布。Demo 默认使用 CM6；在 URL 添加 `?editor=textarea` 可使用 [textarea 编辑器](editor-ch.md)。CM6 按视口创建源码行 DOM，使用原生历史和搜索，并复用工具栏、作者面板及视图切换。
+当前工作区已统一使用 CM6，本轮变化尚未发布。推荐从 [`reactive-md/editor`](editor-ch.md) 导入 `ReactiveMarkdownEditor`；本页的 `/editor/codemirror` 路径保留为同一组件的兼容别名。CM6 按视口创建源码行 DOM，使用原生历史和搜索，并提供工具栏、作者面板及视图切换。
 
 ```tsx
 import { useRef, useState } from 'react';
@@ -15,9 +15,9 @@ export function LongSourceEditor() {
 }
 ```
 
-CM6 依赖随该入口打包，公共类型不要求消费者安装 CodeMirror。组件可在服务端导入并渲染外框；编辑视图在客户端挂载。样式独立于文档渲染样式。旧入口和基础渲染入口不包含 CM6。
+CM6 依赖随编辑器入口打包，公共类型不要求消费者安装 CodeMirror。组件可在服务端导入并渲染外框；编辑视图在客户端挂载。两条编辑器路径共用运行时代码和样式，基础文档渲染入口保持独立。
 
-ref 支持 `focus`、`selectRange`、`insertText`、`undo`、`redo`、`getSelection`、`getSource`、`getEditorElement` 和 `getVisibleRanges`。`textareaRef`、`getTextarea` 属于旧入口。
+ref 支持 `focus`、`selectRange`、`insertText`、`undo`、`redo`、`getSelection`、`getSource`、`getEditorElement` 和 `getVisibleRanges`。旧版 `textareaRef`、`getTextarea` 已移除；完整源码和选区通过 ref 读取。
 
 所有范围均为原始源码中的 UTF-16 偏移。未修改的 CRLF、LF、CR、BOM 和 emoji 会保留；原生输入的新换行使用文档第一个换行的样式。CRLF 内部的偏移映射到该换行之前。受控回传保留历史；外部替换和 `documentKey` 变化重置历史及滚动位置。宿主可延迟回传；超过 120 次未确认修改的旧回传会作为外部替换处理。待确认队列保存逆向编辑。
 
@@ -47,4 +47,4 @@ const scheduler = new LocalCompileScheduler({
 
 `createAnalysisWorker` 可提供符合宿主 CSP 的工厂。默认模块 Worker 无法启动时使用现有主线程编译降级。分析时间记录在 `metrics.worker.analysisMs`。编辑器只装饰可见语法范围，绑定和引用每页显示 50 项。预览由宿主提供，在视图切换时保留 DOM。
 
-自动检查覆盖组合事件与原生文字插入；物理中文输入法、移动端键盘和辅助技术需在目标设备验收。`npm run test:codemirror-browser` 复现生产 Edge 对照。性能与边界见 [实施报告](../development/codemirror-editor-2026-10-29-ch.md)。
+自动检查覆盖组合事件与原生文字插入；物理中文输入法、移动端键盘和辅助技术需在目标设备验收。`npm run test:codemirror-browser` 复现生产 Edge 对照。性能与边界见 [实施报告](../development/performance-overview-ch.md)。

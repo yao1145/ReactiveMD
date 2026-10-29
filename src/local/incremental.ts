@@ -4,6 +4,8 @@ import { compileLocalTracked,type LocalCompilerServices } from './compiler';
 import {LocalSemanticCache,type SemanticCacheStats} from './compiler-cache';
 import {LocalParseSession} from './parse-session';
 import {shareCompiledData,countSharedNodes} from './shared-data';
+import {reuseFlatRows} from './row-reuse';
+import type {InlinePlan} from './fast-markdown';
 import { plainCompiledData } from './compiled-data';
 import { localCompileOptionsKey, readLocalCompileOptions } from './options';
 import { getLocalComponent } from './schema';
@@ -16,6 +18,8 @@ type Dependencies = Record<string, readonly string[] | null>;
 interface Block {
   from: number; to: number; origin: number; text: string;
   nodes: LocalNode[]; dependencies: Dependencies; cost: number;
+  /** Per-row inline plans from the compile that produced this block. */
+  rowPlans?: ReadonlyMap<string, InlinePlan | undefined>;
   publication?:{delta:number;nodes:LocalNode[]};
 }
 interface Snapshot {
@@ -93,6 +97,22 @@ function change(before: string, after: string) {
   while (oldTo > from && newTo > from && before.charCodeAt(oldTo - 1) === after.charCodeAt(newTo - 1)) { oldTo--; newTo--; }
   return {from, oldTo, newTo, delta: newTo - oldTo};
 }
+/**
+ * Collect the inline plans of the fast region that exactly matches `text`.
+ * These plans are a pure function of the row text, so a later edit of the same
+ * block can reuse them without touching the bounded global LRU.
+ */
+function rowPlansFor(tracked: Tracked, text: string): ReadonlyMap<string, InlinePlan | undefined> | undefined {
+  const plans = tracked.parsed?.plans;
+  if (!plans?.length) return;
+  // Fast plans are pure functions of their text, so the region that matches
+  // this block is the best hint. A single whole-document plan also covers
+  // every block (including large ones embedded in plain paragraphs).
+  for (const plan of plans) if (plan.source === text) return plan.rows;
+  if (plans.length === 1) return plans[0].rows;
+  return;
+}
+
 
 export interface LocalIncrementalStats {
   mode: 'full' | 'incremental' | 'cached';
@@ -201,7 +221,13 @@ export class LocalCompileSession {
     this.cacheBuilds++;
     if (!tracked.result.ok || !tracked.parsed || source.includes('[^') || source.includes('\ufeff')) return null;
     const roots = tracked.parsed.nodes, kinds = roots.map(contextKind);
-    if (kinds.includes('unsupported') || kinds.filter(kind => kind === 'fragment').length < 2) return null;
+    // A plain single-block document normally has nothing to reuse. One huge
+    // flat list or table is the exception: row-level reuse makes the
+    // incremental path cheaper than a full recompile, so let it seed.
+    const rowBlock = roots.length === 1 && kinds[0] === 'fragment'
+      && (roots[0].type === 'list' || roots[0].type === 'table');
+    if (kinds.includes('unsupported')
+      || (!rowBlock && kinds.filter(kind => kind === 'fragment').length < 2)) return null;
     const doc:LocalDocument = {...tracked.result.document,nodes:[],source:''};
     const rendered = new Map(tracked.result.document.nodes.map(node => [node.id, node]));
     const context: Block[] = [];
@@ -240,7 +266,9 @@ export class LocalCompileSession {
       if (!members.length) return null;
       const nodes = members.flatMap(member => rendered.has(member.id) ? [rendered.get(member.id)!] : []);
       const cost = allNodes(nodes).length;
-      blocks.push({from: range.start, to: range.end, origin: range.start, text: source.slice(range.start, range.end), nodes, dependencies: dependencies(nodes, doc), cost});
+      const text = source.slice(range.start, range.end);
+      blocks.push({from: range.start, to: range.end, origin: range.start, text, nodes,
+        dependencies: dependencies(nodes, doc), cost, rowPlans: rowPlansFor(tracked, text)});
     }
     if (assigned !== fragments.length) return null;
     const prefix = context.length ? context.map(b => b.text).join(separator) + separator : '';
@@ -276,6 +304,8 @@ export class LocalCompileSession {
     if (!ranges) return null;
     const index = new Map(old.blocks.map(b => [`${b.from}:${b.to}`, b]));
     const blocks: Block[] = [];
+    /** IDs already claimed by this revision; prevents a split block from duplicating them. */
+    const claimed = new Set<string>();
     let reused = 0, compiled = 0, characters = 0, cost = old.contextCost;
     for (const range of ranges) {
       const delta = range.start >= edit.newTo ? edit.delta : 0;
@@ -284,20 +314,62 @@ export class LocalCompileSession {
       const text = source.slice(range.start, range.end);
       if (cached && cached.text === text) {
         blocks.push({...cached, from: range.start, to: range.end}); reused++; cost += cached.cost;
+        for (const node of allNodes(cached.nodes)) claimed.add(node.id);
       } else {
         // The unchanged declaration prefix supplies the same binding and type
         // environment. Only this new block is semantically compiled.
         const from = old.prefix.length;
-        const tracked = compileLocalTracked(old.prefix + text, options,this.services);
+        // Locate the previous block that occupied this new range. Its per-row
+        // inline plans are checked before the bounded LRU (which would thrash
+        // on a 1000-row sequential scan) and its row subtrees are candidates
+        // for node-level substitution below.
+        const previous = old.blocks.find(b => {
+          const mappedStart = b.from >= edit.oldTo ? b.from + edit.delta : b.from;
+          const mappedEnd = b.to >= edit.oldTo ? b.to + edit.delta : b.to;
+          return mappedStart < range.end && mappedEnd > range.start;
+        });
+        const services = previous?.rowPlans ? {...this.services, rowPlans: previous.rowPlans} : this.services;
+        const tracked = compileLocalTracked(old.prefix + text, options, services);
         characters += from + text.length; compiled++;
         if (!tracked.result.ok || tracked.result.diagnostics.length || !tracked.parsed) return null;
         const parsed = tracked.parsed.nodes.filter(n => n.range.start >= from);
         if (!parsed.length || parsed.some(n => contextKind(n) !== 'fragment')) return null;
-        const nodes = tracked.result.document.nodes.filter(n => n.range.start >= from);
-        const rename = new Map(allNodes(nodes).map(n => [n.id, `incremental-${++this.serial}-${n.id}`]));
+        const fresh = tracked.result.document.nodes.filter(n => n.range.start >= from);
+        const rename = new Map(allNodes(fresh).map(n => [n.id, `incremental-${++this.serial}-${n.id}`]));
+        const renamed = copyNodes(fresh, 0, rename);
+        let outcome = previous
+          ? reuseFlatRows({text: previous.text, origin: previous.origin, nodes: previous.nodes}, {text, origin: from, nodes: renamed})
+          : undefined;
+        if (outcome) {
+          // A block split can map two new blocks onto the same old block. If
+          // any kept id was already published this revision, fall back to the
+          // fresh nodes rather than duplicate node identity.
+          for (const id of outcome.reusedIds) if (claimed.has(id)) { outcome = undefined; break; }
+        }
+        const nodes = outcome?.nodes ?? renamed;
         const count = (tracked.parsed.syntaxNodes ?? 0) - old.prefixCost;
         if (count < allNodes(nodes).length) return null;
-        blocks.push({from: range.start, to: range.end, origin: from, text, nodes: copyNodes(nodes, 0, rename), dependencies: dependencies(nodes, tracked.result.document, rename), cost: count});
+        // Fresh dependencies are keyed by the renamed ids; kept row ids have no
+        // entry here and are filled from the previous revision below.
+        const freshDeps = dependencies(fresh, tracked.result.document, rename);
+        const deps: Dependencies = Object.create(null);
+        for (const node of allNodes(nodes)) deps[node.id] = freshDeps[node.id] ?? null;
+        if (outcome && previous) {
+          // Kept row IDs see only unchanged descendants, so their previous
+          // lists are exact. The kept container ID, however, must use the
+          // fresh aggregate: a changed row may read different bindings.
+          const previousParentId = previous.nodes[0]?.id;
+          const freshParentId = renamed[0]?.id;
+          for (const id of outcome.reusedIds) {
+            deps[id] = id === previousParentId && freshParentId !== undefined
+              ? freshDeps[freshParentId] ?? null
+              : previous.dependencies[id] ?? null;
+            claimed.add(id);
+          }
+          for (let reusedIndex = 0; reusedIndex < outcome.reused; reusedIndex++) this.parseSession.noteRowReuse(outcome.kind);
+        }
+        blocks.push({from: range.start, to: range.end, origin: from, text, nodes,
+          dependencies: deps, cost: count, rowPlans: rowPlansFor(tracked, text)});
         cost += count;
       }
       if (cost > budget) return null;

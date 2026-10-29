@@ -46,6 +46,7 @@ import { plainCompiledData } from './compiled-data';
 import { SourceContext } from './source-context';
 import { LocalSemanticCache, type SemanticCacheStats } from './compiler-cache';
 import { localCompileOptionsKey } from './options';
+import type { InlinePlanLookup } from './fast-markdown';
 import type {
   LocalBinding,
   LocalCompileOptions,
@@ -329,8 +330,13 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
 
 /** Compiler-owned capture for editor sessions. Callers must copy before publishing. */
 export interface LocalCompilerServices {
-  parser?: {parse(source:string,options?:LocalCompileOptions,context?:SourceContext):ReturnType<typeof parseLocal>};
+  parser?: {parse(source:string,options?:LocalCompileOptions,context?:SourceContext,rowPlans?:InlinePlanLookup):ReturnType<typeof parseLocal>};
   semantic?: LocalSemanticCache;
+  /**
+   * Per-row inline plans from the previous revision. Checked before the
+   * session LRU so large sequential row blocks cannot thrash it.
+   */
+  rowPlans?: InlinePlanLookup;
 }
 export function compileLocalTracked(source: string, options?: LocalCompileOptions, services?:LocalCompilerServices): {
   result: LocalCompileResult; parsed?: ReturnType<typeof parseLocal>;
@@ -411,7 +417,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
 
   let parsed: ReturnType<typeof parseLocal>;
   try {
-    parsed = services?.parser ? services.parser.parse(source,options,sourceContext) : parseLocal(source, options, sourceContext);
+    parsed = services?.parser ? services.parser.parse(source,options,sourceContext,services.rowPlans) : parseLocal(source, options, sourceContext);
     capture?.(parsed);
     mark?.('parseMs');
   } catch (error) {

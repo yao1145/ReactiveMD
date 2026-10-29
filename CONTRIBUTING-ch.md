@@ -47,7 +47,7 @@ npm run test:browser
 
 修改语言包后重新运行 `npm run build:lib`，或使用 `npm run dev:lib` 监听重建。
 
-性能测量条件与当前基线见[性能说明](docs/development/performance-ch.md)，跨实现可复用的输入与预期结果见[语言验收数据](examples/conformance/README.md)。
+性能测量条件与当前基线见[性能说明](docs/development/performance-overview-ch.md)，跨实现可复用的输入与预期结果见[语言验收数据](examples/conformance/README.md)。
 
 ## 改动要求
 

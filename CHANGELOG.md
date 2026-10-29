@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Use CM6 as the only source editor at `reactive-md/editor`; retain `/editor/codemirror` as an alias sharing the same runtime and styles. Remove `textareaRef` and `getTextarea`; use the editor ref for source, selection and DOM access. Document textarea controls remain supported.
+- Reuse flat list/table row plans and unchanged node identities across edits, including documents containing a single large list or table. Keep shifted UTF-16 ranges accurate and count plan reuse separately from node reuse.
+- Return a complete successful Worker result when a result patch costs too much, retaining the negotiated revision chain. Copy short inline-cache strings so they cannot retain old full document strings.
+- Consolidate performance history, current measurements and reproduction commands into the [performance overview (Chinese)](docs/development/performance-overview-ch.md).
+
 ## 0.6.1 (2026-10-27, latest and next channels)
 
 - Typeset formulas with KaTeX HTML and accessible MathML, retaining the original LaTeX annotation and mhchem chemistry.

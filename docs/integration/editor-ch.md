@@ -1,6 +1,6 @@
 # React 源码编辑器
 
-Demo 默认使用 [CodeMirror 6 入口](codemirror-ch.md)（尚未发布）；本页的 textarea 入口保持兼容。
+当前工作区已将 `reactive-md/editor` 统一为 CodeMirror 6 编辑器，删除旧 textarea 源码编辑器。本轮变化尚未发布。CM6 的事务、共享分析和坐标约定见 [CM6 集成](codemirror-ch.md)。
 
 `reactive-md/editor` 是用于 Reactive MD 源码的受控 React 19 编辑器，由 Playground 编辑器抽出。它提供源码高亮、格式与插入工具栏、补全、绑定导航、重命名与格式化、撤销重做、行号及滚动同步。编辑器内置字数底栏及编辑、并排、预览三种视图。宿主保存源码，并提供预览内容、持久化和导出。
 
@@ -43,7 +43,7 @@ export function SourceEditor() {
 }
 ```
 
-`value` 和 `onChange` 为必需属性。组件渲染一个 textarea，并维护自己的撤销历史；源码文本保存在宿主状态中。内置文案默认为英文。
+`value` 和 `onChange` 为必需属性。组件使用 CM6 按视口创建源码行 DOM，并使用 CM6 原生历史；源码文本保存在宿主状态中。内置文案默认为英文。
 
 ## 入口
 
@@ -82,11 +82,13 @@ export function SourceEditor() {
 
 | 方法 | 行为 |
 | --- | --- |
-| `focus(selection?)` | 聚焦 textarea，可同时应用选区。 |
+| `focus(selection?)` | 聚焦源码编辑区，可同时应用选区。 |
 | `selectRange(range)` | 选中一段源码。区间与编译诊断一样使用 UTF-16 半开区间偏移。 |
 | `insertText(text)` | 用文本替换当前选区，记录为一次可撤销编辑，并将光标放到插入内容之后。只读或禁用时不执行。 |
 | `getSelection()` | 返回当前选区。 |
-| `getTextarea()` | 返回底层 textarea；挂载前为 `null`。 |
+| `getSource()` | 返回完整原始源码，包含视口外文本。 |
+| `getEditorElement()` | 返回可编辑 DOM 元素；挂载前为 `null`。 |
+| `getVisibleRanges()` | 返回当前可见源码区间。 |
 | `undo()` / `redo()` | 在该实例的历史中前后移动，并通过 `onChange` 发出结果值。到达历史两端或 `readOnly`、`disabled` 时不执行操作。 |
 
 入口同时导出 `ReactiveMarkdownEditorProps`、`ReactiveMarkdownEditorHandle`、`EditorLocale`、`EditorTheme` 和 `EditorSelection` 类型。
@@ -103,13 +105,13 @@ export function SourceEditor() {
 | `viewMode` | `EditorViewMode` | 无 | 受控视图：`'edit'`、`'split'` 或 `'preview'`。 |
 | `defaultViewMode` | `EditorViewMode` | `'edit'` | 非受控视图的初始模式。 |
 | `onViewModeChange` | `(mode: EditorViewMode) => void` | 无 | 用户点击底栏视图按钮时调用。 |
-| `id` | `string` | 自动生成 | textarea 的 id。实例用它关联内部标签和行号栏。 |
+| `id` | `string` | 自动生成 | 源码可编辑元素的 id。 |
 | `className` | `string` | 无 | 加到 `.reactive-md-editor` 根节点。 |
 | `style` | `CSSProperties` | 无 | 根节点的内联样式。 |
 | `height` | `number \| string` | `560` | 数字按像素计算，字符串可使用任意 CSS 长度。 |
 | `minHeight` | `number \| string` | `280` | 最小高度，单位规则与 `height` 相同。 |
 | `placeholder` | `string` | 无 | 源码为空时的占位提示。 |
-| `ariaLabel` | `string` | 本地化标签 | textarea 的可访问名称。 |
+| `ariaLabel` | `string` | 本地化标签 | 源码编辑区的可访问名称。 |
 | `readOnly` | `boolean` | `false` | 文本仍可选中和复制，但不能修改。 |
 | `disabled` | `boolean` | `false` | 阻止聚焦和编辑。 |
 | `documentKey` | `string \| number` | 无 | 切换到独立源码文档时修改该值。变化会重置撤销历史与选区。 |
@@ -118,7 +120,9 @@ export function SourceEditor() {
 | `toolbar` | `boolean` | `true` | 显示格式与插入工具栏，包括导出操作。 |
 | `authoring` | `boolean` | `true` | 启用补全、绑定导航、重命名和格式化工具。 |
 | `onExport` | `() => void` | 无 | 工具栏导出操作调用该回调，用于打开宿主导出对话框或自行写文件。 |
-| `textareaRef` | `RefObject<HTMLTextAreaElement \| null>` | 无 | 接收底层 textarea，供宿主的高级用法读取。 |
+| `analysis` | `EditorAuthorAnalysis \| null` | 无 | 省略时使用私有分析 Worker；`null` 表示等待宿主共享分析。 |
+| `onTransaction` | `(transaction: EditorTransaction) => void` | 无 | 接收原始源码坐标下的编辑事务。 |
+| `createAnalysisWorker` | `() => Worker` | 无 | 提供符合宿主 CSP 的分析 Worker 工厂。 |
 
 ## 编辑器内置视图
 
@@ -199,7 +203,7 @@ const result = compileLocal(source);
 />
 ```
 
-`diagnostics` 在行号栏标记报告所在行。未完成的源码仍可继续输入，编译错误不会锁住 textarea。`document` 为作者检查面板提供绑定值类型。两个属性都可省略；只编辑 Markdown 时无需传入。
+`diagnostics` 在行号栏标记报告所在行。未完成的源码仍可继续输入，编译错误不会锁住编辑器。`document` 为作者检查面板提供绑定值类型。两个属性都可省略；只编辑 Markdown 时无需传入。
 
 ## 尺寸与布局
 
@@ -209,7 +213,7 @@ const result = compileLocal(source);
 
 ## 工具栏与作者工具
 
-`toolbar={false}` 移除格式与插入工具栏，包括导出操作。`authoring={false}` 保留 textarea 和工具栏，但停用语法高亮、补全、绑定导航、重命名和格式化。两者默认启用。
+`toolbar={false}` 移除格式与插入工具栏，包括导出操作。`authoring={false}` 保留 CM6 和工具栏，停用作者分析、绑定导航、重命名和格式化；基础 Markdown 高亮继续可用。两者默认启用。
 
 工具栏处理 Markdown 格式，插入列表、表格、链接、图片和内置组块模板，并提供撤销重做。格式化命令基于当前选区，通过 `onChange` 返回新源码。
 
@@ -225,7 +229,7 @@ const result = compileLocal(source);
 
 ## 服务端渲染
 
-编辑器入口没有顶层 `window` 或 `document` 访问。用 `react-dom/server` 导入并渲染初始 textarea 是安全的。聚焦、选区、补全、布局测量和工具栏菜单在浏览器挂载后运行，交互检查和浏览器测试需要客户端环境。
+编辑器入口没有顶层 `window` 或 `document` 访问。服务端渲染输出编辑器外框，CM6 编辑视图在客户端挂载。聚焦、选区、补全、布局测量和工具栏菜单需要浏览器环境。
 
 ## 样式与作用域
 
@@ -235,6 +239,6 @@ const result = compileLocal(source);
 
 ## 兼容性
 
-`0.5.0` 新增编辑器入口，`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 保持不变。只渲染文档的项目升级时无需修改导入或源码。编辑器是新增入口，没有旧 API 需要迁移。见[0.5.0 发布说明](../releases/release-0.5.0-ch.md)与[版本与兼容性](../compatibility/compatibility-ch.md)。
+从 textarea 编辑器迁移时，移除 `textareaRef`，以 ref 的 `getSource()` 读取完整源码、`getSelection()` 读取选区、`selectRange()` 设置选区。`getEditorElement()` 提供可编辑 DOM 元素。`reactive-md/editor/codemirror` 保留为同一组件的兼容别名，共用样式和运行时代码。文档中的 `<textarea>` 表单组件继续受支持。
 
 0.5.3 新增接受编译配置的作者工具及显式屏幕、打印样式入口，见 [0.5.3 宿主集成](../releases/release-0.5.3-ch.md)。0.6.0 为 ref 句柄新增 `insertText`，见 [0.6.0 发布说明](../releases/release-0.6.0-ch.md)。

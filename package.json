@@ -113,7 +113,7 @@
       "types": "./dist-library/types/editor/codemirror/index.d.ts",
       "import": "./dist-library/reactive-md-codemirror.js"
     },
-    "./editor/codemirror/styles.css": "./dist-library/reactive-md-codemirror.css",
+    "./editor/codemirror/styles.css": "./dist-library/reactive-md-editor.css",
     "./react/unstyled": {
       "types": "./dist-library/types/react/index.d.ts",
       "import": "./dist-library/reactive-md-react-unstyled.js"

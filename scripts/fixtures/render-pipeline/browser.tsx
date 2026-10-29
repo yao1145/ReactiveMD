@@ -23,7 +23,8 @@ const images:any[]=[];const report=(diagnostics:any[])=>{if(diagnostics.some(d=>
 const compileOptions={limits:{maxSyntaxNodes:100000}};
 function App(){
   const [source,setSource]=useState('Ready');
-  const compilation=useLocalCompilation(source,compileOptions);
+  const fullEditor=new URLSearchParams(location.search).get('editor')==='full';
+  const compilation=useLocalCompilation(source,compileOptions,fullEditor);
   const [session,setSession]=useState(()=>new PreviewStateSession());
   const document=compilation.previewDocument;
   const input=useRef({source:'',at:0}),preview=useRef<HTMLDivElement>(null);
@@ -52,8 +53,8 @@ function App(){
   const view=<div id="preview" ref={preview}><Profiler id="preview" onRender={(_id,phase,actualDuration,_base,start,commit)=>probe.reactRenders.push({phase,actualDuration,start,commit})}>
     {document?<LocalPreview document={document} session={session} onDiagnostics={report} images={images}/>:null}
   </Profiler></div>;
-  return new URLSearchParams(location.search).get('editor')==='full'
-    ?<Profiler id="editor" onRender={(_id,phase,actualDuration,_base,start,commit)=>probe.editorRenders.push({phase,actualDuration,start,commit})}><ReactiveMarkdownEditor id="source-editor" value={source} onChange={update} compileOptions={compileOptions} document={compilation.result?.ok?compilation.result.document:null} viewMode="split" height={720} ariaLabel="Source" preview={view}/></Profiler>
+  return fullEditor
+    ?<Profiler id="editor" onRender={(_id,phase,actualDuration,_base,start,commit)=>probe.editorRenders.push({phase,actualDuration,start,commit})}><ReactiveMarkdownEditor id="source-editor" value={source} onChange={update} compileOptions={compileOptions} analysis={compilation.analysis} document={compilation.result?.ok?compilation.result.document:null} viewMode="split" height={720} ariaLabel="Source" preview={view}/></Profiler>
     :<><textarea aria-label="Source" value={source} onChange={e=>update(e.target.value)}/>{view}</>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);

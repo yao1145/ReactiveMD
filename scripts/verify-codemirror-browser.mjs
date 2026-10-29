@@ -38,17 +38,17 @@ try{
     await page.keyboard.type('X');await expect.poll(source).toBe('XReady');
     assert.equal(await page.evaluate(()=>window.originalEditor===document.querySelector('.cm-editor')),true);
     await page.keyboard.press('Control+z');await expect.poll(source).toBe('Ready');
-    await page.keyboard.press('Control+Shift+z');await expect.poll(source).toBe('XReady');
+    await page.keyboard.press('Control+Shift+Z');await expect.poll(source).toBe('XReady');
   });
   await check('UTF16, mixed CRLF and CR, BOM and emoji round trip through native input and history',async()=>{
     const raw='\ufeff😀\r\nalpha\r\nend\rtail';await install(raw);await focus(5,10);await page.keyboard.insertText('中文');
     await expect.poll(source).toBe('\ufeff😀\r\n中文\r\nend\rtail');
     const edit=await page.evaluate(()=>window.cmProbe.transactions.at(-1).changes[0]);assert.deepEqual(edit,{from:5,to:10,insert:'中文'});
     await page.keyboard.press('Control+z');await expect.poll(source).toBe(raw);
-    await page.keyboard.press('Control+Shift+z');await expect.poll(source).toBe('\ufeff😀\r\n中文\r\nend\rtail');
+    await page.keyboard.press('Control+Shift+Z');await expect.poll(source).toBe('\ufeff😀\r\n中文\r\nend\rtail');
     await focus(7);await page.keyboard.press('Enter');await expect.poll(source).toBe('\ufeff😀\r\n中文\r\n\r\nend\rtail');
     await install(raw);await focus(10,raw.length);await page.keyboard.insertText('K');await page.keyboard.press('Control+z');await expect.poll(source).toBe(raw);
-    await page.keyboard.press('Control+Shift+z');await expect.poll(source).toBe(raw.slice(0,10)+'K');
+    await page.keyboard.press('Control+Shift+Z');await expect.poll(source).toBe(raw.slice(0,10)+'K');
     await install('a\r\nb');await focus(1,3);await page.evaluate(()=>window.cmProbe.insert('\n'));await expect.poll(source).toBe('a\nb');
     await page.evaluate(()=>window.cmProbe.undo());await expect.poll(source).toBe('a\r\nb');
   });
@@ -60,6 +60,15 @@ try{
     await install('replacement');await page.evaluate(()=>window.cmProbe.undo());assert.equal(await source(),'replacement');
     await focus(0);await page.keyboard.press('Escape');await page.keyboard.press('Tab');await expect(page.locator('.editor-toolbar')).toContainText('Body');
     assert.equal(await page.evaluate(()=>!!document.activeElement?.closest('.editor-toolbar')),true);
+  });
+  await check('native document replacement followed by mixed-ending host insertion retains redo',async()=>{
+    await install('# Old\r\n\r\nBody');await focus(0,(await source()).length);
+    await page.keyboard.insertText('# New\n\nBefore AFTER');
+    const before=await source();await focus(before.indexOf('AFTER'),before.length);
+    await page.evaluate(()=>window.cmProbe.insert('\n\n![Image](image.png)\n\n'));
+    const inserted=await source();await page.keyboard.press('Control+z');await expect.poll(source).toBe(before);
+    await page.keyboard.press('Control+Shift+Z');
+    await expect.poll(source).toBe(inserted);
   });
   await check('delayed host echoes do not roll back later local transactions',async()=>{
     await install('');await page.evaluate(()=>window.cmProbe.defer(true));await focus(0);await page.keyboard.type('ab');await expect.poll(source).toBe('ab');
@@ -97,6 +106,24 @@ try{
     const textContent=await page.locator('.editor-preview').textContent();assert.ok(textContent.includes('Searchable content'));
     await page.emulateMedia({media:'print'});assert.ok((await page.locator('.editor-preview').textContent()).includes('Searchable content'));await page.emulateMedia({media:'screen'});
     await page.evaluate(()=>window.cmProbe.view('split'));
+  });
+  await check('giant static and dynamic list/table edits retain unaffected preview DOM and live state',async()=>{
+    for(const kind of ['list','table','dynamic-list','dynamic-table']){
+      const table=kind.endsWith('table'),dynamic=kind.startsWith('dynamic-'),count=table?500:1000;
+      const prefix='<number bind="n" label="Row state" initial="2">\n\n';
+      const body=table?'| Name | Value |\n| --- | --- |\n'+Array.from({length:count},(_,i)=>`| Row ${i} | ${dynamic?'{{ n * 1000 }}':'1000'} |`).join('\n')
+        :Array.from({length:count},(_,i)=>`- Row ${i} value ${dynamic?'{{ n * 1000 }}':'1000'}`).join('\n');
+      const initial=prefix+'Before\n\n'+body+'\n\nAfter';await install(initial);await waitPreview(initial);
+      const input=page.getByRole('textbox',{name:'Row state',exact:true});await input.fill('13');await input.press('Tab');
+      const selector=table?'.editor-preview tbody tr':'.editor-preview li';
+      await page.locator(selector).nth(10).evaluate(element=>window.keptPreviewRow=element);
+      const at=initial.indexOf(`Row ${Math.floor(count/2)}`),value=initial.indexOf('1000',at);
+      const edited=initial.slice(0,value)+'1001'+initial.slice(value+4);
+      await install(edited);await waitPreview(edited);await expect(input).toHaveValue('13');
+      await expect(page.locator(selector).nth(Math.floor(count/2))).toContainText(dynamic?'13013':'1001');
+      assert.ok(await page.locator(selector).nth(10).evaluate(element=>element===window.keptPreviewRow),kind);
+      assert.equal(await page.evaluate(()=>window.cmProbe.responses.at(-1).patch),true,kind);
+    }
   });
   await check('metadata and native HTML use the original light/dark palette, including nested attribute expressions',async()=>{
     const text=[
@@ -148,9 +175,9 @@ try{
     await page.setViewportSize({width:390,height:844});await expect(page.locator('.editor-workspace')).toHaveAttribute('data-view','edit');
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.setViewportSize({width:1440,height:1000});
   });
-  if(process.argv.includes('--demo'))await check('production Demo defaults to CM6, retains explicit textarea and compiles native edits',async()=>{
-    await page.goto(new URL('/demo?editor=textarea',url).href);await expect(page.locator('textarea#source-editor')).toHaveCount(1,{timeout:60000});
-    assert.equal(await page.evaluate(()=>performance.getEntriesByType('resource').some(entry=>/reactive-md-codemirror.*\.js/.test(entry.name))),false);
+  if(process.argv.includes('--demo'))await check('production Demo only uses CM6 and compiles native edits',async()=>{
+    await page.goto(new URL('/demo?editor=textarea',url).href);await expect(page.locator('.cm-editor')).toHaveCount(1,{timeout:60000});
+    await expect(page.locator('textarea#source-editor')).toHaveCount(0);
     await page.goto(new URL('/demo',url).href);await expect(page.locator('.cm-editor')).toHaveCount(1,{timeout:60000});
     await page.locator('[data-editor-view-option="split"]').click();await expect(page.locator('#source-editor')).toBeVisible();
     await page.locator('#source-editor').click();await page.keyboard.press('Control+End');await page.keyboard.insertText('\n\nCM6-check');
@@ -164,7 +191,7 @@ try{
     });
     await expect(page.locator('.cm-content')).toContainText('cm6-paste',{timeout:20000});
   });
-  if(!process.argv.includes('--skip-performance'))for(const engine of ['textarea','cm6'])for(const kind of ['paragraphs800','paragraphs2400','table1000']){
+  if(!process.argv.includes('--skip-performance'))for(const engine of ['cm6'])for(const kind of ['paragraphs800','paragraphs2400','table1000']){
     await page.goto(url+'?engine='+engine);await page.waitForFunction(()=>window.cmProbe?.ready);
     const count=Number(kind.match(/\d+/)[0]);
     const body=kind.startsWith('table')?'|Name|Value|\n|-|-|\n'+Array.from({length:count},(_,i)=>`|Row ${i}|{{ n }}|`).join('\n')

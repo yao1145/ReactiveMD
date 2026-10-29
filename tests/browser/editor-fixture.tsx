@@ -77,7 +77,6 @@ function Fixture() {
 
   const handleA = useRef<ReactiveMarkdownEditorHandle>(null);
   const handleB = useRef<ReactiveMarkdownEditorHandle>(null);
-  const textareaA = useRef<HTMLTextAreaElement>(null);
 
   const handles: Record<EditorId, typeof handleA> = { a: handleA, b: handleB };
   const apply = <T,>(setter: (update: (current: Record<EditorId, T>) => Record<EditorId, T>) => void) =>
@@ -111,7 +110,6 @@ function Fixture() {
     <ReactiveMarkdownEditor
       id={`editor-${id}`}
       ref={handles[id]}
-      textareaRef={id === 'a' ? textareaA : undefined}
       value={values[id]}
       onChange={(value) => {
         setValues((current) => ({ ...current, [id]: value }));

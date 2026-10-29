@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL, clickWorkbenchAction } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -28,7 +28,7 @@ $$ y = \frac{123x^2 + 456x + 789}{1 + x^2} + \sin(2x) + \cos(3x) $$
 `;
 
 try {
-  await page.goto(textareaWorkbenchURL(baseURL + '/?example=functions'));
+  await openWorkbench(page,baseURL + '/?example=functions');
   await clickWorkbenchAction(page, 'Show source');
   await page.locator('#source-editor').fill(source);
   await expect(preview.getByRole('heading', { name: 'Responsive formula', exact: true })).toBeVisible();
@@ -78,7 +78,7 @@ try {
   });
   await check('savings cases keep expressions and conditions separate at every width and theme', async () => {
     await page.evaluate(() => localStorage.clear());
-    await page.goto(textareaWorkbenchURL(baseURL + '/?example=functions'));
+    await openWorkbench(page,baseURL + '/?example=functions');
     await preview.getByRole('tab', { name: 'Savings application', exact: true }).click();
     const cases = preview.locator('.local-visual-plot-formula .katex-html .mtable').last();
     await expect(cases).toBeVisible();
@@ -101,7 +101,7 @@ try {
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
   });
-  await page.goto(textareaWorkbenchURL(baseURL + '/?example=statistics'));
+  await openWorkbench(page,baseURL + '/?example=statistics');
   await expect(preview.locator('.local-visual-chart-donut svg')).toBeVisible();
   await check('tables fill the container with balanced data columns and a narrow selection column', async () => {
     const table = preview.locator('table.local-visual-table').first();

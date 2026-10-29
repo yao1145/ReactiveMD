@@ -141,7 +141,7 @@ demo/          独立的 Playground 应用
 - [版本与兼容性](docs/compatibility/compatibility-ch.md)、[0.6.1 发布说明](docs/releases/release-0.6.1-ch.md)与[0.5.1 发布说明](docs/releases/release-0.5.1-ch.md)。
 - [0.4.0 发布与迁移](docs/releases/release-0.4.0-ch.md)。
 - [组块协议](docs/development/component-protocol-ch.md)与[组块开发指南](docs/development/component-development-ch.md)。
-- [性能说明](docs/development/performance-ch.md)与[发布清单](docs/development/releasing-ch.md)。
+- [性能说明](docs/development/performance-overview-ch.md)与[发布清单](docs/development/releasing-ch.md)。
 
 更多开发与测试命令见[贡献指南](CONTRIBUTING-ch.md)。
 

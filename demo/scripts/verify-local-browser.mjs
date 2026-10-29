@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, expectEditorSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
@@ -50,7 +50,7 @@ async function pick(id) {
 }
 
 try {
-  await page.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(page,baseURL);
   await expect(page.locator('#example-select')).toHaveValue('pricing');
   await clickWorkbenchAction(page, 'Show source');
   await expect(page.getByRole('slider', { name: 'People', exact: true })).toBeVisible();
@@ -132,8 +132,8 @@ try {
     await expect(editor).toBeFocused();
     const source = '<slider bind="n" label="Test value" initial="4" min="0" max="10">\n\nCurrent value: **{{ n * 2 }}**.';
     await replaceWorkbenchSource(page, source);
-    await expect(editor).toHaveValue(source);
-    await expect.poll(() => page.locator('.author-highlight-content').textContent()).toBe(source);
+    await expectEditorSource(editor,source);
+    await expect(page.locator('.author-highlight-content')).toHaveCount(0);
     const slider = page.getByRole('slider', { name: 'Test value', exact: true });
     await expect(slider).toHaveValue('4');
     await expect(paragraph('Current value:')).toContainText('8');
@@ -150,7 +150,7 @@ try {
     await expect(page.locator('.diagnostic-item').first()).toBeVisible();
     await page.locator('.diagnostic-item').first().click();
     await expect(page.locator('#source-editor')).toBeFocused();
-    expect(await page.locator('#source-editor').evaluate((element) => element.selectionEnd > element.selectionStart)).toBe(true);
+    expect(await page.locator('#source-editor').evaluate((element) => window.rmdEditorProbe.selection(element).end > window.rmdEditorProbe.selection(element).start)).toBe(true);
   });
 
   await check('script tags are inert fallback text, not executable HTML', async () => {
@@ -351,12 +351,10 @@ try {
     // The previous preview can remain visible while the controlled input and
     // worker commit. Observe the source state before accepting compile status.
     try {
-      await expect(page.locator('#source-editor')).toHaveValue(source);
-      await expect.poll(() => page.locator('.author-highlight-content').textContent()).toBe(source);
+      await expectEditorSource(page.locator('#source-editor'), source);
     } catch (error) {
       const state = await page.evaluate(() => ({
-        value: document.querySelector('#source-editor')?.value,
-        highlight: document.querySelector('.author-highlight-content')?.textContent,
+        value: window.rmdEditorProbe.read(document.querySelector('#source-editor')),
         status: document.querySelector('.status-chip')?.textContent,
       }));
       throw new Error(`${error.message}\nSource fixture state: ${JSON.stringify(state)}`);
@@ -467,7 +465,7 @@ Independent calculation: {{ n + 2 }}.`);
     await expect(rows.nth(1)).toContainText('A');
   });
 
-  await page.goto(textareaWorkbenchURL(baseURL + '/embed.html'));
+  await openWorkbench(page,baseURL + '/embed.html');
   await check('embedded local documents keep independent in-memory state', async () => {
     const first = page.getByRole('region', { name: 'Instance A', exact: true });
     const second = page.getByRole('region', { name: 'Instance B', exact: true });
@@ -498,13 +496,13 @@ Independent calculation: {{ n + 2 }}.`);
         }
       });
 
-      await localized.goto(textareaWorkbenchURL(baseURL));
+      await openWorkbench(localized,baseURL);
       await clickWorkbenchAction(localized, 'Show source');
       await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
       await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
       await expect(localized.locator('#example-select')).toHaveValue('pricing');
       await expect(localized.locator('#example-select option:checked')).toHaveText('Quick start');
-      await expect(localized.locator('#source-editor')).toHaveValue(/# Plan calculator/);
+      await expectEditorSource(localized.locator('#source-editor'),/# Plan calculator/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: 'Plan calculator', level: 1 }))
         .toBeVisible();
 
@@ -513,7 +511,7 @@ Independent calculation: {{ n + 2 }}.`);
       await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
       await expect(localized.locator('#example-select')).toHaveValue('pricing');
       await expect(localized.locator('#example-select option:checked')).toHaveText('快速体验');
-      await expect(localized.locator('#source-editor')).toHaveValue(/# 方案计算器/);
+      await expectEditorSource(localized.locator('#source-editor'),/# 方案计算器/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: '方案计算器', level: 1 }))
         .toBeVisible();
       await expect(localized.getByRole('button', { name: '你的方案 恢复默认', exact: true })).toBeVisible();
@@ -534,7 +532,7 @@ Independent calculation: {{ n + 2 }}.`);
       await expect(localized.locator('html')).toHaveAttribute('lang', 'zh-CN');
       await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
       await expect(localized.locator('#example-select')).toHaveValue('pricing');
-      await expect(localized.locator('#source-editor')).toHaveValue(/# 方案计算器/);
+      await expectEditorSource(localized.locator('#source-editor'),/# 方案计算器/);
       await expect(localized.getByRole('button', { name: '切换到英文', exact: true })).toBeVisible();
       await expect(localized.getByRole('button', { name: '你的方案 恢复默认', exact: true })).toBeVisible();
 
@@ -543,7 +541,7 @@ Independent calculation: {{ n + 2 }}.`);
       await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
       await expect(localized.locator('#example-select')).toHaveValue('pricing');
       await expect(localized.locator('#example-select option:checked')).toHaveText('Quick start');
-      await expect(localized.locator('#source-editor')).toHaveValue(/# Plan calculator/);
+      await expectEditorSource(localized.locator('#source-editor'),/# Plan calculator/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: 'Plan calculator', level: 1 }))
         .toBeVisible();
       await expect(localized.getByRole('button', { name: 'Switch to Chinese', exact: true })).toBeVisible();

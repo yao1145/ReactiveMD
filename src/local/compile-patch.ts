@@ -76,6 +76,45 @@ export interface LocalResultPatch {
   readonly diagnostics?: Diagnostic[];
 }
 
+/**
+ * Relative transport cost of an encoded patch and the equivalent complete
+ * result. The complete result is only measured when the patch is too large to
+ * be provably cheaper, so `fullBytes`/`fullNodes` stay absent otherwise.
+ */
+export interface LocalResultPatchCost {
+  /** Estimated JSON UTF-8 bytes of the patch payload, not structured-clone bytes. */
+  readonly patchBytes: number;
+  /** Estimated JSON UTF-8 bytes of the complete result payload. */
+  readonly fullBytes?: number;
+  /** Node records carried by the patch. */
+  readonly patchNodes: number;
+  /** Nodes in the complete result; absent when it was not measured. */
+  readonly fullNodes?: number;
+  /** True when the complete result is expected to be no more expensive. */
+  readonly preferFull: boolean;
+  /** Which dimension made the complete result preferable. */
+  readonly reason?: 'bytes' | 'nodes';
+}
+
+export interface LocalResultPatchEncoding {
+  readonly patch: LocalResultPatch;
+  readonly cost: LocalResultPatchCost;
+}
+
+/**
+ * A patch must be strictly smaller than the equivalent complete result to be
+ * worth its extra decode/apply work. At parity the complete result wins
+ * because it needs no patch validation on the receiving thread.
+ */
+const LOCAL_RESULT_PATCH_COST_RATIO = 1;
+
+/**
+ * Patches below this size are always sent as patches. A tiny result is cheap
+ * either way, and measuring every keystroke against the complete document
+ * would cost more than the transport choice can save.
+ */
+const LOCAL_RESULT_PATCH_COST_MIN_BYTES = 4096;
+
 const RECORD_KEYS: readonly LocalDocumentRecordKey[] = [
   'initialState',
   'bindings',
@@ -357,6 +396,128 @@ function diffRecord(base: unknown, next: Record<string, unknown>): LocalRecordPa
   };
 }
 
+interface LocalSerializedEstimate {
+  bytes: number;
+  nodes: number;
+}
+
+/**
+ * Per-object size cache. Compiler output is treated as read-only and the
+ * incremental session shares unchanged nodes between revisions, so a subtree
+ * measured once is never walked again. Estimates are only used to choose a
+ * transport; a stale entry can never corrupt a result.
+ */
+const serializedEstimates = new WeakMap<object, LocalSerializedEstimate>();
+
+/** Count JSON escaping and UTF-8 without allocating a serialized string. */
+function jsonStringBytes(value: string): number {
+  let bytes=2;
+  for(let index=0;index<value.length;index++){
+    const code=value.charCodeAt(index);
+    if(code===34||code===92){bytes+=2;continue;}
+    if(code<32){bytes+=code===8||code===9||code===10||code===12||code===13?2:6;continue;}
+    if(code<128){bytes++;continue;}
+    if(code<2048){bytes+=2;continue;}
+    if(code>=0xd800&&code<=0xdbff){
+      const next=value.charCodeAt(index+1);
+      if(next>=0xdc00&&next<=0xdfff){bytes+=4;index++;}else bytes+=6;
+    }else bytes+=code>=0xdc00&&code<=0xdfff?6:3;
+  }
+  return bytes;
+}
+
+/**
+ * Approximate `JSON.stringify` length of a plain compiler value without
+ * building the string. Counts node-shaped objects so the same walk can report
+ * how much of the document a patch would resend.
+ */
+function estimateSerialized(value: unknown, active: Set<object>): LocalSerializedEstimate {
+  if (value === null) return { bytes: 4, nodes: 0 };
+  const type = typeof value;
+  if (type === 'string') return { bytes: jsonStringBytes(value as string), nodes: 0 };
+  if (type === 'number') return { bytes: Number.isFinite(value) ? String(value).length : 4, nodes: 0 };
+  if (type === 'boolean') return { bytes: value === true ? 4 : 5, nodes: 0 };
+  if (type !== 'object') return { bytes: 0, nodes: 0 };
+  const object = value as object;
+  const cached = serializedEstimates.get(object);
+  if (cached !== undefined) return cached;
+  // Compiler data is acyclic; this guard only keeps a malformed value from
+  // turning a cost estimate into a stack overflow.
+  if (active.has(object)) return { bytes: 0, nodes: 0 };
+  active.add(object);
+  let bytes: number;
+  let nodes = isNodeLike(value) ? 1 : 0;
+  if (Array.isArray(value)) {
+    bytes = 2;
+    for (let index = 0; index < value.length; index += 1) {
+      if (index > 0) bytes += 1;
+      const item = estimateSerialized(value[index], active);
+      bytes += item.bytes || 4;
+      nodes += item.nodes;
+    }
+  } else {
+    bytes = 2;
+    let count = 0;
+    for (const key in object as Record<string, unknown>) {
+      if (!Object.hasOwn(object, key)) continue;
+      const child = (object as Record<string, unknown>)[key];
+      if (child === undefined) continue; // JSON omits undefined properties.
+      if (count > 0) bytes += 1;
+      count += 1;
+      bytes += jsonStringBytes(key) + 1;
+      const item = estimateSerialized(child, active);
+      bytes += item.bytes;
+      nodes += item.nodes;
+    }
+  }
+  active.delete(object);
+  const estimate: LocalSerializedEstimate = { bytes, nodes };
+  serializedEstimates.set(object, estimate);
+  return estimate;
+}
+
+/**
+ * Decide whether `patch` is worth sending. The complete result always carries
+ * the source string, so a patch no larger than it is provably cheaper; tiny
+ * patches are skipped as well. Only a large patch is measured against the
+ * complete result, and that comparison never serializes either document — the
+ * structural estimate above allocates no JSON string.
+ */
+function measureResultPatchCost(patch: LocalResultPatch, next: LocalCompileResult): LocalResultPatchCost {
+  const records = patch.document.nodes ?? [];
+  try {
+    const patchEstimate = estimateSerialized(patch, new Set<object>());
+    const sourceLength = next.ok && typeof next.document.source === 'string' ? next.document.source.length : 0;
+    // The complete result always carries the source string, so such a patch is
+    // provably cheaper. Tiny patches are also always worth sending: the
+    // comparison would cost more than it can save.
+    if (patchEstimate.bytes <= Math.max(sourceLength, LOCAL_RESULT_PATCH_COST_MIN_BYTES)) {
+      return { patchBytes: patchEstimate.bytes, patchNodes: records.length, preferFull: false };
+    }
+    const fullEstimate = estimateSerialized(next, new Set<object>());
+    let payloadNodes = 0;
+    for (const record of records) {
+      if (record.node !== undefined) payloadNodes += estimateSerialized(record.node, new Set<object>()).nodes;
+      else if (record.data !== undefined) payloadNodes += 1;
+    }
+    const bytesUnfavorable = patchEstimate.bytes * LOCAL_RESULT_PATCH_COST_RATIO >= fullEstimate.bytes;
+    const nodesUnfavorable = fullEstimate.nodes > 0
+      && payloadNodes * LOCAL_RESULT_PATCH_COST_RATIO >= fullEstimate.nodes;
+    return {
+      patchBytes: patchEstimate.bytes,
+      fullBytes: fullEstimate.bytes,
+      patchNodes: records.length,
+      fullNodes: fullEstimate.nodes,
+      preferFull: bytesUnfavorable || nodesUnfavorable,
+      ...(bytesUnfavorable ? { reason: 'bytes' as const } : nodesUnfavorable ? { reason: 'nodes' as const } : {}),
+    };
+  } catch {
+    // Measurement must never change the protocol; an unmeasurable patch is
+    // still a valid patch.
+    return { patchBytes: 0, patchNodes: records.length, preferFull: false };
+  }
+}
+
 /**
  * Encode `next` relative to `base`. Returns null when a patch is impossible
  * (for example a failed result), in which case the caller must send the full
@@ -364,6 +525,23 @@ function diffRecord(base: unknown, next: Record<string, unknown>): LocalRecordPa
  * unchanged objects are addressed by their stable ids.
  */
 export function encodeLocalResultPatch(base: LocalCompileResult, next: LocalCompileResult): LocalResultPatch | null {
+  return encodeResultPatch(base,next);
+}
+
+/**
+ * `encodeLocalResultPatch` plus a transport cost estimate. The patch contract
+ * is unchanged; the estimate only tells the caller whether the complete
+ * result would be cheaper for this same revision.
+ */
+export function encodeLocalResultPatchWithCost(
+  base: LocalCompileResult,
+  next: LocalCompileResult,
+): LocalResultPatchEncoding | null {
+  const patch=encodeResultPatch(base,next);
+  return patch?{patch,cost:measureResultPatchCost(patch,next)}:null;
+}
+
+function encodeResultPatch(base: LocalCompileResult,next: LocalCompileResult):LocalResultPatch|null {
   try {
     if (!base.ok || !next.ok) return null;
     const baseDocument = base.document;
@@ -448,12 +626,13 @@ export function encodeLocalResultPatch(base: LocalCompileResult, next: LocalComp
     if (Object.keys(values).length > 0) document.values = values;
     if (Object.keys(records).length > 0) document.records = records;
 
-    return {
+    const patch: LocalResultPatch = {
       kind: 'result-patch',
       protocol: LOCAL_RESULT_PATCH_PROTOCOL,
       document,
       ...(localDataEqual(base.diagnostics, next.diagnostics) ? {} : { diagnostics: next.diagnostics }),
     };
+    return patch;
   } catch {
     return null;
   }

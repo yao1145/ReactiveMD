@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   applyLocalResultPatch,
   applySourceEdit,
   cloneLocalCompileResult,
   diffSourceEdit,
   encodeLocalResultPatch,
+  encodeLocalResultPatchWithCost,
   LOCAL_RESULT_PATCH_PROTOCOL,
   type LocalResultPatch,
 } from '../src/local/compile-patch';
@@ -60,6 +61,17 @@ function makeResult(
 function byteLength(value: unknown): number {
   return JSON.stringify(value).length;
 }
+
+it('measures escaped Unicode payloads as JSON UTF-8 bytes without serializing them', () => {
+  const base = makeResult('before', [makeNode('old', 0, 'before')]);
+  const source = ('中文🙂\\"\n\t\u0000\ud800').repeat(500);
+  const next = makeResult(source, [makeNode('new', 0, source)]);
+  const encoded = encodeLocalResultPatchWithCost(base, next)!;
+  const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length;
+  expect(encoded.cost.patchBytes).toBe(bytes(encoded.patch));
+  expect(encoded.cost.fullBytes).toBe(bytes(next));
+  expect(applyLocalResultPatch(base, encoded.patch)).toEqual(next);
+});
 
 function applyOrThrow(
   base: LocalCompileResult,
@@ -248,5 +260,129 @@ describe('result patches', () => {
     expect(Object.isFrozen(copy)).toBe(false);
     copy.document.source = 'mutated';
     expect(source.document.source).toBe('x');
+  });
+});
+
+describe('result patch cost', () => {
+  it('keeps a small patch and skips measuring the complete result', () => {
+    const texts = Array.from({ length: 120 }, (_, index) => `paragraph ${index}`);
+    const source = texts.join('\n\n');
+    let offset = 0;
+    const nodes = texts.map((text, index) => {
+      const node = makeNode(`block-${index}`, offset, text);
+      offset += text.length + 2;
+      return node;
+    });
+    const base = deepFreeze(makeResult(source, nodes));
+    const nextNodes = base.document.nodes.map((node) => (
+      node.id === 'block-60' ? makeNode('block-60', node.range.start, 'changed paragraph') : node
+    ));
+    const next = makeResult(source.replace(texts[60], 'changed paragraph'), nextNodes);
+
+    const spy = vi.spyOn(JSON, 'stringify');
+    let encoding: ReturnType<typeof encodeLocalResultPatchWithCost> = null;
+    try {
+      encoding = encodeLocalResultPatchWithCost(base, next);
+      expect(spy.mock.calls.some((call) => call[0] === next || call[0] === next.document)).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(encoding).not.toBeNull();
+    const cost = encoding!.cost;
+    expect(cost.preferFull).toBe(false);
+    expect(cost.reason).toBeUndefined();
+    // The patch alone is smaller than the source the complete result must
+    // carry, so the whole-document path is never measured.
+    expect(cost.patchBytes).toBeLessThanOrEqual(next.document.source.length);
+    expect(cost.fullBytes).toBeUndefined();
+    expect(cost.fullNodes).toBeUndefined();
+    expect(cost.patchNodes).toBe(2);
+    expect(encoding!.patch).toEqual(encodeLocalResultPatch(base, next));
+    expect(applyOrThrow(base, encoding!.patch)).toEqual(next);
+  });
+
+  it('prefers the complete result for a wholesale rewrite without serializing it', () => {
+    const baseTexts = Array.from({ length: 80 }, (_, index) => `alpha paragraph ${index} with a deliberately long value`);
+    const baseSource = baseTexts.join('\n\n');
+    let baseOffset = 0;
+    const baseNodes = baseTexts.map((text, index) => {
+      const node = makeNode(`alpha-${index}`, baseOffset, text);
+      baseOffset += text.length + 2;
+      return node;
+    });
+    const base = deepFreeze(makeResult(baseSource, baseNodes));
+
+    const nextTexts = Array.from({ length: 80 }, (_, index) => `omega paragraph ${index} with a deliberately long value`);
+    const nextSource = nextTexts.join('\n\n');
+    let nextOffset = 0;
+    const nextNodes = nextTexts.map((text, index) => {
+      const node = makeNode(`omega-${index}`, nextOffset, text);
+      nextOffset += text.length + 2;
+      return node;
+    });
+    const next = makeResult(nextSource, nextNodes);
+
+    const spy = vi.spyOn(JSON, 'stringify');
+    let encoding: ReturnType<typeof encodeLocalResultPatchWithCost> = null;
+    try {
+      encoding = encodeLocalResultPatchWithCost(base, next);
+      expect(spy.mock.calls.some((call) => call[0] === next || call[0] === next.document)).toBe(false);
+      // Neither may the baseline be serialized to estimate the comparison.
+      expect(spy.mock.calls.some((call) => call[0] === base || call[0] === base.document)).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(encoding).not.toBeNull();
+    const cost = encoding!.cost;
+    expect(cost.preferFull).toBe(true);
+    expect(cost.reason).toBe('bytes');
+    expect(cost.fullBytes).toBeTypeOf('number');
+    // Every node is new, so the patch carries both the inserted source and the
+    // complete node forest: it is at least as large as the complete result.
+    expect(cost.patchBytes).toBeGreaterThanOrEqual(cost.fullBytes!);
+    expect(cost.patchNodes).toBe(80);
+    expect(cost.fullNodes).toBe(160);
+    // The patch contract is untouched: it is still valid and applies exactly.
+    const applied = applyOrThrow(base, encoding!.patch);
+    expect(applied).toEqual(next);
+    expect(encodeLocalResultPatch(base, next)).toEqual(encoding!.patch);
+    expect(base.document.source).toBe(baseSource);
+  });
+
+  it('reports a node-dominated patch even when its bytes are smaller', () => {
+    const baseTexts = Array.from({ length: 40 }, (_, index) => `block ${index}`);
+    const baseSource = baseTexts.join('\n\n');
+    let baseOffset = 0;
+    const baseNodes = baseTexts.map((text, index) => {
+      const node = makeNode(`node-${index}`, baseOffset, text);
+      baseOffset += text.length + 2;
+      return node;
+    });
+    // Large unchanged metadata keeps the complete result larger in bytes, so
+    // only the node-work dimension can identify the unfavourable patch.
+    const initialState: Record<string, string> = {};
+    for (let index = 0; index < 500; index += 1) initialState[`key-${index}`] = `value-${index}`;
+    const base = deepFreeze(makeResult(baseSource, baseNodes, { initialState }));
+
+    const nextTexts = Array.from({ length: 40 }, (_, index) => `x${index}`);
+    let nextOffset = 0;
+    const nextNodes = nextTexts.map((text, index) => {
+      const node = makeNode(`fresh-${index}`, nextOffset, text);
+      nextOffset += text.length + 2;
+      return node;
+    });
+    const next = makeResult(nextTexts.join('\n\n'), nextNodes, { initialState });
+
+    const encoding = encodeLocalResultPatchWithCost(base, next);
+    expect(encoding).not.toBeNull();
+    const cost = encoding!.cost;
+    expect(cost.fullBytes).toBeTypeOf('number');
+    expect(cost.fullNodes).toBe(80);
+    // Every node's payload is resent, so the apply work equals a full result.
+    expect(cost.patchBytes).toBeLessThan(cost.fullBytes!);
+    expect(cost.reason).toBe('nodes');
+    expect(cost.preferFull).toBe(true);
   });
 });

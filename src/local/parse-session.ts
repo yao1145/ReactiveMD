@@ -2,13 +2,18 @@ import { parseLocal, type ParsedLocal } from './parser';
 import { localCompileOptionsKey } from './options';
 import type { LocalCompileOptions } from './types';
 import type { SourceContext } from './source-context';
-import type { CacheLookup, FastMarkdownPlan, InlinePlan } from './fast-markdown';
+import type { CacheLookup, FastMarkdownPlan, InlinePlan, InlinePlanLookup } from './fast-markdown';
 import type { ParseSessionCache, ParseSessionCounters } from './parse-budget';
 
 /** Bounded entry counts; sessions retain only the current/recent document. */
 const MAX_PLAN_ENTRIES = 128;
 const MAX_INLINE_ENTRIES = 512;
 const MAX_TREE_ENTRIES = 32;
+const MAX_INLINE_KEY_LENGTH = 128 * 1024;
+
+// A short substring can retain its entire source document in JS engines.
+// Own the small cache strings so recent changed rows cannot pin old revisions.
+const ownString = (text: string): string => JSON.parse(JSON.stringify(text));
 
 /**
  * Small insertion-ordered LRU. Values may themselves be `undefined` (a cached
@@ -79,10 +84,12 @@ export class LocalParseSession implements ParseSessionCache {
     reusedBlocks: 0,
     reusedRows: 0,
     reusedItems: 0,
+    reusedRowNodes: 0,
+    reusedItemNodes: 0,
     reusedAst: 0,
   };
 
-  parse(source: string, options?: LocalCompileOptions, context?: SourceContext): ParsedLocal {
+  parse(source: string, options?: LocalCompileOptions, context?: SourceContext, rowPlans?: InlinePlanLookup): ParsedLocal {
     if (this.disposed) throw new Error('Local parse session is disposed');
     const key = localCompileOptionsKey(options);
     // Options, capability flags and budgets all fold into this key.
@@ -90,7 +97,7 @@ export class LocalParseSession implements ParseSessionCache {
       this.optionKey = key;
       this.reset();
     }
-    return parseLocal(source, options, context, this);
+    return parseLocal(source, options, context, this, rowPlans);
   }
 
   clear(): void {
@@ -109,6 +116,8 @@ export class LocalParseSession implements ParseSessionCache {
     reusedBlocks: number;
     reusedRows: number;
     reusedItems: number;
+    reusedRowNodes: number;
+    reusedItemNodes: number;
     entries: number;
   }> {
     return {
@@ -117,6 +126,8 @@ export class LocalParseSession implements ParseSessionCache {
       reusedBlocks: this.counts.reusedBlocks,
       reusedRows: this.counts.reusedRows,
       reusedItems: this.counts.reusedItems,
+      reusedRowNodes: this.counts.reusedRowNodes,
+      reusedItemNodes: this.counts.reusedItemNodes,
       entries: this.plans.size + this.inline.size + this.trees.size,
     };
   }
@@ -125,7 +136,7 @@ export class LocalParseSession implements ParseSessionCache {
     this.plans.clear();
     this.inline.clear();
     this.trees.clear();
-    this.counts = { hits: 0, misses: 0, reusedBlocks: 0, reusedRows: 0, reusedItems: 0, reusedAst: 0 };
+    this.counts = { hits: 0, misses: 0, reusedBlocks: 0, reusedRows: 0, reusedItems: 0, reusedRowNodes: 0, reusedItemNodes: 0, reusedAst: 0 };
   }
 
   counters(): ParseSessionCounters {
@@ -145,7 +156,8 @@ export class LocalParseSession implements ParseSessionCache {
   }
 
   writeInline(text: string, value: InlinePlan | undefined): void {
-    this.inline.write(text, value);
+    if (text.length > MAX_INLINE_KEY_LENGTH) return;
+    this.inline.write(ownString(text), value?.map(token => ({...token, value: ownString(token.value)})));
   }
 
   notePlanReuse(): void {
@@ -155,6 +167,16 @@ export class LocalParseSession implements ParseSessionCache {
   noteInlineReuse(kind: 'row' | 'item'): void {
     if (kind === 'row') this.counts.reusedRows += 1;
     else this.counts.reusedItems += 1;
+  }
+
+  /**
+   * The incremental compiler substitutes an unchanged flat row/item subtree
+   * from the previous revision. That is node-level reuse rather than an
+   * inline-plan hit, so it is counted separately from plan reuse.
+   */
+  noteRowReuse(kind: 'row' | 'item'): void {
+    if (kind === 'row') this.counts.reusedRowNodes += 1;
+    else this.counts.reusedItemNodes += 1;
   }
 
   readTree(text: string): { readonly hit: true; readonly value: unknown } | { readonly hit: false } {

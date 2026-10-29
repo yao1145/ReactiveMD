@@ -1,4 +1,4 @@
-import { textareaWorkbenchURL } from './workbench-ui.mjs';
+import { openWorkbench, replaceWorkbenchSource, clickWorkbenchAction } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { article } from '../../scripts/benchmark-large-documents.mjs';
@@ -10,15 +10,13 @@ page.setDefaultTimeout(30_000);
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 try {
-  await page.goto(textareaWorkbenchURL(baseURL));
+  await openWorkbench(page,baseURL);
   const editor = page.getByRole('textbox', { name: 'Reactive MD source', exact: true });
+  await clickWorkbenchAction(page,'Show source');
   await expect(page.locator('.status-chip')).toContainText('Compiled');
   const sections = Number(process.env.EDITING_SECTIONS ?? 300);
   const source = article(sections) + '\n\nEdit marker: BASE';
-  await editor.evaluate((element, value) => {
-    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(element, value);
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-  }, source);
+  await replaceWorkbenchSource(page,source);
   await expect(page.locator('.preview-stage')).toContainText('Edit marker: BASE');
   await editor.focus();
   await editor.press('Control+End');

@@ -1,14 +1,12 @@
 import {StrictMode,useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {ReactiveMarkdownCodeEditor,type ReactiveMarkdownCodeEditorHandle,type EditorTransaction} from 'reactive-md/editor/codemirror';
-import {ReactiveMarkdownEditor,type ReactiveMarkdownEditorHandle} from 'reactive-md/editor';
 import {useLocalCompilation} from '../../demo/src/use-local-compilation';
 import {LocalPreview} from '../../demo/src/App';
 import {PreviewStateSession} from '../../demo/src/preview-state';
 import '../../src/theme.css';
 import '../../src/local/local.css';
 import 'reactive-md/editor/codemirror/styles.css';
-const cm=new URLSearchParams(location.search).get('engine')!=='textarea';
 const privateAnalysis=new URLSearchParams(location.search).has('private');
 const probe:any={events:[],transactions:[],commits:[],errors:[],responses:[],workers:0};
 (window as any).cmProbe=probe;
@@ -35,8 +33,8 @@ function Fixture(){
   const [toolbar,setToolbar]=useState(true);
   const [session]=useState(()=>new PreviewStateSession());
   const [deferred,setDeferred]=useState(false),pending=useRef<string[]>([]);
-  const handle=useRef<ReactiveMarkdownCodeEditorHandle|ReactiveMarkdownEditorHandle|null>(null);
-  const compilation=useLocalCompilation(source,options,cm&&!privateAnalysis);
+  const handle=useRef<ReactiveMarkdownCodeEditorHandle|null>(null);
+  const compilation=useLocalCompilation(source,options,!privateAnalysis);
   const sourceRef=useRef(source);sourceRef.current=source;
   const update=(next:string)=>{probe.events.push({at:performance.now(),name:'change',source:next});if(deferred)pending.current.push(next);else setSource(next);};
   useEffect(()=>{
@@ -56,8 +54,7 @@ function Fixture(){
       const at=performance.now();requestAnimationFrame(()=>probe.events.push({name:'input-frame',key:event.key,duration:performance.now()-at}));}};
     document.addEventListener('keydown',record,true);return()=>document.removeEventListener('keydown',record,true);
   },[]);
-  const Component=cm?ReactiveMarkdownCodeEditor:ReactiveMarkdownEditor;
-  return mounted?<Component ref={(node:ReactiveMarkdownCodeEditorHandle|ReactiveMarkdownEditorHandle|null)=>{handle.current=node;}} id="source-editor" value={source} onChange={update} onTransaction={(transaction:EditorTransaction)=>probe.transactions.push(transaction)}
+  return mounted?<ReactiveMarkdownCodeEditor ref={(node:ReactiveMarkdownCodeEditorHandle|null)=>{handle.current=node;}} id="source-editor" value={source} onChange={update} onTransaction={(transaction:EditorTransaction)=>probe.transactions.push(transaction)}
     documentKey={key} compileOptions={options} analysis={privateAnalysis?undefined:compilation.analysis}
     readOnly={readOnly} disabled={disabled} toolbar={toolbar} locale={locale} theme={theme} height={660} ariaLabel="Source"
     viewMode={view} onViewModeChange={setView} document={compilation.result?.ok?compilation.result.document:null}

@@ -730,7 +730,8 @@ const editorProps: ReactiveMarkdownEditorProps = {
 };
 const editor = createElement(ReactiveMarkdownEditor, { ...editorProps, ref: editorRef });
 editorRef.current?.selectRange({ start: 0, end: 3 });
-editorRef.current?.getTextarea();
+editorRef.current?.getSource();
+editorRef.current?.getEditorElement();
 editorRef.current?.getSelection();
 editorRef.current?.undo();
 editorRef.current?.redo();
@@ -770,8 +771,8 @@ import { ReactiveMarkdownCodeEditor } from 'reactive-md/editor/codemirror';
 const html = renderToString(createElement(ReactiveMarkdownEditor, {
   value: '# Packed editor\\n\\n<script>literal</script>', onChange() {}, locale: 'zh', theme: 'dark',
 }));
-assert.ok(html.includes('Packed editor'));
-assert.ok(html.includes('textarea'));
+assert.ok(html.includes('rmd-cm6-host'));
+assert.ok(!html.includes('<textarea'));
 assert.ok(!html.includes('<script>literal</script>'));
 const codeHtml = renderToString(createElement(ReactiveMarkdownCodeEditor, {value: 'Code', onChange() {}, authoring: false}));
 assert.ok(codeHtml.includes('rmd-cm6'));

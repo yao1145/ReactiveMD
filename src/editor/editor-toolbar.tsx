@@ -1,10 +1,10 @@
 /**
  * Editor toolbar for the Reactive MD editor.
  *
- * The toolbar only reads the textarea and hands pure `EditorEdit` results back
- * to the editor. The editor owns history, focus restoration and the controlled
- * value. Format state is derived from the current selection so the toolbar
- * reflects the block and inline formatting under the caret.
+ * The toolbar only reads the source surface and hands pure `EditorEdit` results
+ * back to the editor. The editor owns history, focus restoration and the
+ * controlled value. Format state is derived from the current selection so the
+ * toolbar reflects the block and inline formatting under the caret.
  */
 
 import {
@@ -20,7 +20,6 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactElement,
   type ReactNode,
-  type RefObject,
 } from 'react';
 import {
   formatBold,
@@ -53,11 +52,10 @@ import {
 import { useEditorLocale } from './locale';
 import { EDITOR_TOOLBAR_COPY } from './editor-i18n';
 import type { EditorLocale } from './types';
-import {createTextareaSurface,type EditorSurface} from './surface';
+import {type EditorSurface} from './surface';
 
 export interface EditorToolbarProps {
-  editorRef: RefObject<HTMLTextAreaElement | null>;
-  editorSurface?: EditorSurface;
+  editorSurface: EditorSurface;
   onEdit(edit: EditorEdit): void;
   onUndo(): void;
   onRedo(): void;
@@ -538,7 +536,6 @@ function moveEmojiFocus(
 }
 
 export function EditorToolbar({
-  editorRef,
   editorSurface,
   onEdit,
   onUndo,
@@ -549,7 +546,7 @@ export function EditorToolbar({
   showExport = false,
   disabled = false,
 }: EditorToolbarProps): ReactElement {
-  const inputSurface=useMemo(()=>editorSurface??createTextareaSurface(editorRef),[editorSurface,editorRef]);
+  const inputSurface=editorSurface;
   const rootRef = useRef<HTMLDivElement>(null);
   const menuPanelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);

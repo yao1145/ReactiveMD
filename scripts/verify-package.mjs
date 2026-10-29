@@ -239,7 +239,8 @@ assert.ok(!css.includes('.reactive-md-editor'), 'Document CSS must remain indepe
 const editorHtml = renderToStaticMarkup(createElement(editor.ReactiveMarkdownEditor, {
   value: '# Editor host\n\n<script>literal</script>', onChange() {}, locale: 'zh', theme: 'dark',
 }));
-assert.ok(editorHtml.includes('Editor host'), 'The editor must render without a browser');
+assert.ok(editorHtml.includes('rmd-cm6-host'), 'The CM6 frame must render without a browser');
+assert.ok(!editorHtml.includes('<textarea'), 'The source editor must not contain the removed textarea');
 assert.ok(!editorHtml.includes('<script>literal</script>'), 'Editor source must stay escaped');
 for (const specifier of moduleSpecifiers(await readFile('dist-library/reactive-md-editor.js', 'utf8'))) {
   assert.ok(specifier.startsWith('.') || ['react', 'react-dom', 'react/jsx-runtime', 'reactive-md'].includes(specifier), `Unexpected editor runtime dependency: ${specifier}`);
@@ -248,15 +249,16 @@ const codeEditor = await import('reactive-md/editor/codemirror');
 assert.ok(codeEditor.ReactiveMarkdownCodeEditor);
 await inspectCoreDeclaration(new URL('../dist-library/types/editor/codemirror/index.d.ts', import.meta.url), ['react', 'reactive-md']);
 assert.equal(pkg.exports['./editor/codemirror'].types, './dist-library/types/editor/codemirror/index.d.ts');
-assert.equal(pkg.exports['./editor/codemirror/styles.css'], './dist-library/reactive-md-codemirror.css');
+assert.equal(pkg.exports['./editor/codemirror/styles.css'], './dist-library/reactive-md-editor.css');
 const codeEditorHtml = renderToStaticMarkup(createElement(codeEditor.ReactiveMarkdownCodeEditor, {
   value: '# Code editor\n<script>literal</script>', onChange() {}, authoring: false,
 }));
 assert.ok(codeEditorHtml.includes('rmd-cm6'));
 assert.ok(!codeEditorHtml.includes('<script>literal</script>'));
-assert.ok(!(await readFile('dist-library/reactive-md-editor.js', 'utf8')).includes('cm-editor'), 'Textarea entry must not include CodeMirror');
+assert.equal(codeEditor.ReactiveMarkdownCodeEditor, editor.ReactiveMarkdownEditor, 'Both editor entries must use the same CM6 implementation');
+assert.ok((await readFile('dist-library/reactive-md-codemirror.js','utf8')).length < 10000, 'The compatibility entry must not duplicate CM6');
 for (const specifier of moduleSpecifiers(await readFile('dist-library/reactive-md-codemirror.js', 'utf8'))) {
-  assert.ok(specifier.startsWith('.') || ['react', 'react-dom', 'react/jsx-runtime', 'reactive-md'].includes(specifier), `Unexpected CM6 runtime dependency: ${specifier}`);
+  assert.ok(specifier.startsWith('.') || ['react', 'react-dom', 'react/jsx-runtime', 'reactive-md', 'reactive-md/editor'].includes(specifier), `Unexpected CM6 runtime dependency: ${specifier}`);
 }
 const themeHtml = renderToStaticMarkup(createElement(renderer.LocalReactiveDocument, {
   source: themed.document.source, themes: [themeDefinition], colorScheme: 'dark',

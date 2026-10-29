@@ -70,7 +70,18 @@ async function deepContainers(){
   assert.equal(accepted.ok,true);assert.equal(rejected.ok,false);assert.equal(rejected.diagnostics[0].code,'local.budget');
   const disposed=memory();return{acceptedDepth:1000,rejectedDepth:1001,before,disposed,diagnostic:rejected.diagnostics[0].code};
 }
-const cases={longEdit,cacheEviction,rapidCancel,longText,manyComponents,deepContainers};
+async function longRows(){
+  const {createLocalCompileSession}=await import('reactive-md'),session=createLocalCompileSession(),before=memory(),checkpoints=[];
+  let source=Array.from({length:1000},(_,i)=>`- Item ${i} with **bold** and value 1000.`).join('\n'),result=null;
+  for(let edit=1;edit<=500;edit++){
+    source=source.replace(/value \d+\./,`value ${1000+edit}.`);result=session.compileShared(source);assert.ok(result.ok);
+    if([50,100,250,500].includes(edit))checkpoints.push({iteration:edit,...memory(),parseEntries:session.stats.parse?.entries});
+  }
+  assert.ok((session.stats.parse?.entries??0)<=672);
+  const retained=memory();result=null;session.dispose();const disposed=memory();
+  return{iterations:500,before,checkpoints,retained,disposed,heapGrowthAfterWarmupMiB:mib(checkpoints.at(-1).heapUsed-checkpoints[0].heapUsed)};
+}
+const cases={longEdit,longRows,cacheEviction,rapidCancel,longText,manyComponents,deepContainers};
 async function runChild(name){
   const started=performance.now(),result=await cases[name]();process.send({name,status:'completed',wallMs:round(performance.now()-started),...result});
 }

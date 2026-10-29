@@ -93,7 +93,11 @@ During consecutive component or declaration edits, the session retains the lates
 
 `stats` reports the latest mode (`full`, `incremental`, or `cached`), block counts, reuse counts, compiled characters and an optional invalidation reason. `cacheBuilds` counts block-index construction attempts during the call, including deferred recovery. Changed blocks compile under the unchanged declaration prefix; that work is included in `compiledCharacters`. Source comparison, range relocation and complete result snapshot assembly still scale with document size.
 
-`startLocalCompileWorker()`, the default `LocalCompileScheduler` fallback, and `LocalReactiveDocument` manage their own sessions. A custom `fallbackCompile` remains host-owned. `compileLocal()` remains the one-shot full compiler. See the [implementation and measurements (Chinese)](../development/incremental-compilation-2026-10-28-ch.md).
+A document consisting of one flat list or table can also establish an incremental snapshot. Simple inline plans survive row edits; unchanged rows retain node IDs after semantic validation. Rows at unchanged offsets can share objects; shifted rows are cloned with updated UTF-16 ranges. Dynamic interpolation still uses the general parser. The cumulative `stats.parse.reusedRows` / `reusedItems` counters track inline plans, while `reusedRowNodes` / `reusedItemNodes` track final row subtrees separately.
+
+When a result patch costs too much, the Worker can return a complete successful result for the same revision and continue the patch chain from it. `metrics.patchFallback === 'cost'` identifies this choice. `patchBytes` / `fullBytes` estimate JSON UTF-8 size, not structured-clone size. This choice does not trigger a full-request retry.
+
+`startLocalCompileWorker()`, the default `LocalCompileScheduler` fallback, and `LocalReactiveDocument` manage their own sessions. A custom `fallbackCompile` remains host-owned. `compileLocal()` remains the one-shot full compiler. See the [implementation and measurements (Chinese)](../development/performance-overview-ch.md).
 
 ## Core API
 

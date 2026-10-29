@@ -5,6 +5,7 @@ import {createServer} from 'node:http';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {resolve,sep,extname,basename} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {installEditorProbe} from '../demo/scripts/editor-probe.mjs';
 
 const root=resolve('artifacts/render-pipeline'),args=process.argv.slice(2);
 const option=(key,fallback)=>args.includes(key)?args[args.indexOf(key)+1]:fallback;
@@ -31,7 +32,7 @@ function instrumentReact(){return{name:'measure-react-commit',enforce:'pre',tran
 }};}
 async function bundle(variant){
   const library=resolve(variant==='before'?root+'/before-library':'dist-library');
-  await build({configFile:false,base:'./',logLevel:'error',plugins:[{
+  await build({configFile:false,base:'./',logLevel:'error',worker:{format:'es'},plugins:[{
     name:'baseline-demo-snapshot',enforce:'pre',async load(id){
       const file=id.replaceAll('\\','/');
       if(variant==='before'&&['App.tsx','preview-state.ts','use-local-compilation.ts'].some(name=>file===resolve('demo/src',name).replaceAll('\\','/')))return await readFile(resolve(root,'before-demo',basename(file)),'utf8');
@@ -58,7 +59,8 @@ const stat=values=>{const a=[...values].sort((a,b)=>a-b);return{median:a[Math.ce
 const fixture=(kind,n)=>{
   const count=Number(kind.match(/\d+/)[0]);
   const marker=` RMD-END-${n} ${'x'.repeat(n)}`;
-  const body=kind.startsWith('paragraphs')?Array.from({length:count},(_,i)=>`Paragraph ${i} with **bold** and _emphasis_, value {{ n * 2 }}.${i===Math.floor(count/2)?marker:''}`).join('\n\n')
+  const body=kind.startsWith('controls')?Array.from({length:count},(_,i)=>`<slider bind="v${i}" label="Value ${i}${i===Math.floor(count/2)?marker:''}" initial="2" min="0" max="100">`).join('\n')
+    :kind.startsWith('paragraphs')?Array.from({length:count},(_,i)=>`Paragraph ${i} with **bold** and _emphasis_, value {{ n * 2 }}.${i===Math.floor(count/2)?marker:''}`).join('\n\n')
     :'|Name|Value|Description|\n|-|-|-|\n'+Array.from({length:count},(_,i)=>`|Row ${i}|{{ n * ${i+1} }}|Text ${i}${i===Math.floor(count/2)?marker:''}|`).join('\n');
   return `<slider bind="n" label="N" initial="2">\n\n${body}`;
 };
@@ -76,6 +78,7 @@ async function measure(browser,variant,kind){
   try{
     await page.goto(`${base}/${variant}/scripts/fixtures/render-pipeline/browser.html?editor=${option('--editor','minimal')}`);
     await page.waitForFunction(()=>window.renderProbe?.ready,undefined,{timeout:60000});
+    if(option('--editor','minimal')==='full')await installEditorProbe(page);
     let previousSource='';
     const install=async(n,native=true)=>{
       const text=fixture(kind,n);
@@ -83,7 +86,9 @@ async function measure(browser,variant,kind){
         let from=0,oldTo=previousSource.length,newTo=text.length;
         while(from<oldTo&&from<newTo&&previousSource[from]===text[from])from++;
         while(oldTo>from&&newTo>from&&previousSource[oldTo-1]===text[newTo-1]){oldTo--;newTo--;}
-        await page.getByRole('textbox',{name:'Source',exact:true}).evaluate((el,{from,to})=>{el.focus();el.setSelectionRange(from,to);},{from,to:oldTo});
+        await page.getByRole('textbox',{name:'Source',exact:true}).evaluate((el,{from,to})=>{
+          el.focus();if(el.matches('.cm-content'))window.rmdEditorProbe.select(el,from,to,true);else el.setSelectionRange(from,to);
+        },{from,to:oldTo});
         await page.keyboard.insertText(text.slice(from,newTo));
       }else await page.evaluate(source=>window.renderProbe.install(source),text);
       await page.waitForFunction(source=>window.renderProbe.renderedSource===source,text,{timeout:120000});
