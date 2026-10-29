@@ -61,6 +61,17 @@ export function Article() {
 
 两个组件都没有 `className`、`style` 或插槽属性。`LocalReactiveDocument` 渲染 `<article class="md-document local-document">`；`LocalDocumentView` 使用同样的文档容器。样式覆盖见下文。
 
+```tsx
+<LocalReactiveDocument
+  source={source}
+  initialParameters={savedParameters}
+  onParametersChange={(parameters) => save(parameters)}
+  externalValues={{ exchangeRate: 7.2 }}
+  onSourceNavigate={(target) => editor.current?.selectRange(target.range)}
+  hostRenderer={(node, data, ctx) => <HostWidget node={node} data={data} ctx={ctx} />}
+/>
+```
+
 每个组件实例独立管理内存状态。修改源码会重新编译并从初值开始；销毁实例会清理订阅和计时器。需要在源码变化时保留值时，使用保留工具或自行管理运行时，见[源码变化时保留参数](#源码变化时保留参数)。文档中的面板重置其内部参数、输入草稿和组件状态，同名参数在面板外的显示也会同步更新。
 
 宿主 React 根与 standalone IIFE 共存于同一页面时，为宿主根设置独立的 `identifierPrefix`，例如 `createRoot(container, { identifierPrefix: 'host-' })`。两个 bundle 各自拥有 React 实例，默认 `useId` 计数可能重叠。独立的服务端渲染根也应在服务端和客户端使用相同且互不重复的前缀。

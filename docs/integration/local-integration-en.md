@@ -61,6 +61,17 @@ export function Article() {
 
 Neither component has `className`, `style` or slot props. `LocalReactiveDocument` renders `<article class="md-document local-document">`; `LocalDocumentView` uses the same document container. See below for style overrides.
 
+```tsx
+<LocalReactiveDocument
+  source={source}
+  initialParameters={savedParameters}
+  onParametersChange={(parameters) => save(parameters)}
+  externalValues={{ exchangeRate: 7.2 }}
+  onSourceNavigate={(target) => editor.current?.selectRange(target.range)}
+  hostRenderer={(node, data, ctx) => <HostWidget node={node} data={data} ctx={ctx} />}
+/>
+```
+
 Each component instance manages in-memory state independently. Changing the source recompiles and starts from initial values; disposing an instance clears subscriptions and timers. To carry values across a source change, use the retention helpers or manage the runtime yourself; see [Keeping values when source changes](#keeping-values-when-source-changes). A panel reset in the document restores its internal parameters, input drafts and component state, and displays of same-name parameters outside the panel update as well.
 
 When a host React root shares a page with the standalone IIFE, give the host root a distinct `identifierPrefix`, for example `createRoot(container, { identifierPrefix: 'host-' })`. The bundles own separate React instances, so their default `useId` counters can overlap. Independent server-rendered roots need matching unique prefixes on the server and client too.
