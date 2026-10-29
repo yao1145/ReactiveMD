@@ -1747,6 +1747,28 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
     }
   }
 
+  // Date bounds participate in shared writes. Require the same literal or the
+  // same dynamic expression so every owner enforces an identical range.
+  if (family === 'date') {
+    const boundOf = (member: GroupMember, name: 'min' | 'max'): string | undefined => {
+      const info = member.attrs[name];
+      if (!info) return undefined;
+      if (info.dynamic) return `{{ ${(info.expression ?? '').trim()} }}`;
+      return typeof info.value === 'string' ? info.value : undefined;
+    };
+    for (const member of group.members.slice(1)) {
+      if (boundOf(member, 'min') !== boundOf(first, 'min') || boundOf(member, 'max') !== boundOf(first, 'max')) {
+        state.report(
+          'local.binding.constraint',
+          `Parameter "${group.key}" must use the same date bounds: <${first.entry.name}> and <${member.entry.name}> differ.`,
+          member.entry.node.range.start,
+          member.entry.node.range.end,
+          { key: 'local.binding.constraint', params: { key: group.key, first: first.entry.name, second: member.entry.name, firstConstraints: 'date bounds', secondConstraints: 'date bounds' } },
+        );
+      }
+    }
+  }
+
   const maxSelected = family === 'multi-select' ? numberValue(first.entry, first.attrs, 'max-selected') : undefined;
   const explicit = group.members.filter((member) => Object.hasOwn(member.attrs, 'initial'));
   let initial: LocalValue;

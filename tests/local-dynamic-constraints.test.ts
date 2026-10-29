@@ -124,6 +124,14 @@ describe('dynamic input constraints', () => {
     ].join('\n'));
     expect(result.ok).toBe(false);
     expect(result.diagnostics.map((item) => item.code)).toContain('local.binding.constraint');
+
+    const dates = compileLocal([
+      '<date bind="start" label="Start">',
+      '<date bind="end" label="A" min="{{ start }}">',
+      '<date bind="end" label="B">',
+    ].join('\n'));
+    expect(dates.ok).toBe(false);
+    expect(dates.diagnostics.map((item) => item.code)).toContain('local.binding.constraint');
   });
 
   it('rejects dynamic attributes with the wrong expression type', () => {
