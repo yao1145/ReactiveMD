@@ -5,6 +5,19 @@ import type { LocalSourceTarget } from '../src/local/render-types';
 import { LocalDocumentView, LocalReactiveDocument } from '../src/local/LocalDocumentView';
 
 describe('LocalReactiveDocument state bridge', () => {
+  it.each(['interactive', 'static'] as const)('keeps the stored slider value in %s output after a bound narrows', (mode) => {
+    const source = '<external name="cap" type="number">\n<slider bind="n" label="N" initial="8" min="0" max="{{ cap }}">\n\n{{ n }}';
+    const html = renderToStaticMarkup(<LocalReactiveDocument source={source} externalValues={{ cap: 4 }} mode={mode} />);
+    expect(html).toContain('local-interpolation">8');
+    if (mode === 'static') {
+      expect(html).toContain('data-local-static-value="">8');
+    } else {
+      expect(html).toContain('class="md-slider-value" aria-hidden="true">8');
+      expect(html).toContain('data-local-print-value="">8');
+      expect(html).toContain('Must be at most 4');
+    }
+  });
+
   it('applies initialParameters before server rendering', () => {
     const source = '<number bind="pages" label="Pages" initial="4" min="1" max="20">\n\nPages: {{ pages }}';
     const html = renderToStaticMarkup(

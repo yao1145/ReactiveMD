@@ -25,6 +25,71 @@ const ROOMS = [
 ].join('\n');
 
 describe('dynamic input constraints', () => {
+  it('recomputes transitive computed bounds against an atomic prospective batch', () => {
+    const document = compile([
+      '<number bind="rooms" label="Rooms" initial="2" min="1" max="5">',
+      '<computed name="capacity" value="{{ rooms * 4 }}">',
+      '<computed name="limit" value="{{ capacity }}">',
+      '<number bind="guests" label="Guests" initial="6" min="1" max="{{ limit }}">',
+    ].join('\n'));
+    const runtime = createLocalRuntime(document);
+    try {
+      const before = runtime.snapshot();
+      expect(runtime.setParameters({ rooms: 1, guests: 6 })).not.toEqual([]);
+      expect(runtime.snapshot()).toBe(before);
+      expect(runtime.setParameters({ rooms: 3, guests: 10 })).toEqual([]);
+      expect(runtime.snapshot().state).toMatchObject({ rooms: 3, guests: 10, limit: 12 });
+    } finally {
+      runtime.dispose();
+    }
+  });
+
+  it('rejects prospective computed failures without retaining their old values', () => {
+    const document = compile([
+      '<number bind="divisor" label="Divisor" initial="2">',
+      '<computed name="limit" value="{{ 10 / divisor }}">',
+      '<number bind="n" label="N" initial="1" max="{{ limit }}">',
+    ].join('\n'));
+    const runtime = createLocalRuntime(document);
+    try {
+      const before = runtime.snapshot();
+      expect(runtime.setParameters({ divisor: 0, n: 2 })).not.toEqual([]);
+      expect(runtime.snapshot()).toBe(before);
+    } finally {
+      runtime.dispose();
+    }
+  });
+
+  it.each(['number', 'slider'])('uses the dynamic min as the %s step base', (component) => {
+    const document = compile([
+      '<external name="offset" type="number">',
+      `<${component} bind="n" label="N" initial="1" min="{{ offset }}" max="10" step="1">`,
+    ].join('\n'));
+    const runtime = createLocalRuntime(document, { externalValues: { offset: 0.5 } });
+    try {
+      expect(runtime.setParameter('n', 1.5)).toEqual([]);
+      const before = runtime.snapshot();
+      expect(runtime.setParameter('n', 2)).not.toEqual([]);
+      expect(runtime.snapshot()).toBe(before);
+      expect(runtime.set(node(document, component), 2.5)).toEqual([]);
+      expect(runtime.setExternalValues({ offset: 0.25 })).toEqual([]);
+      expect(runtime.setParameter('n', 2.25)).toEqual([]);
+    } finally {
+      runtime.dispose();
+    }
+  });
+
+  it('defers initial step alignment until a dynamic min is available', () => {
+    const document = compile('<external name="offset" type="number">\n<number bind="n" label="N" initial="1.5" min="{{ offset }}" step="1">');
+    const runtime = createLocalRuntime(document, { externalValues: { offset: 0.5 } });
+    try {
+      expect(runtime.getParameter('n')).toBe(1.5);
+      expect(runtime.setParameter('n', 1.5)).toEqual([]);
+    } finally {
+      runtime.dispose();
+    }
+  });
+
   it('records dynamic bounds without freezing them into the binding', () => {
     const document = compile(ROOMS);
     const guests = document.bindings.guests;

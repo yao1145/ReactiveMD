@@ -8,6 +8,7 @@ import '../../src/styles.css';
 const SOURCE = [
   '<external name="exchangeRate" type="number">',
   '<external name="inventory" type="number">',
+  '<external name="offset" type="number">',
   '<panel title="Plan">',
   '<host-rating bind="rating" label="Course rating" initial="4">',
   '<number bind="rating" label="Numeric rating" min="0" max="5" step="1">',
@@ -16,6 +17,9 @@ const SOURCE = [
   '</panel>',
   '<computed name="priceCny" value="{{ quantity * priceUsd * exchangeRate }}">',
   '<number bind="guests" label="Guests" initial="6" min="1" max="{{ quantity * 4 }}">',
+  '<number bind="fraction" label="Offset number" initial="1.5" min="{{ offset }}" max="10" step="1">',
+  '<slider bind="fractionSlider" label="Offset slider" initial="1.5" min="{{ offset }}" max="10" step="1">',
+  '<slider bind="sample" label="Retained slider" initial="4" min="0" max="{{ inventory }}">',
   '',
   'Rating: {{ rating }}',
   '',
@@ -35,6 +39,7 @@ function App() {
   const [externalValues, setExternalValues] = useState<Record<string, LocalValue>>({
     exchangeRate: 7.2,
     inventory: 6,
+    offset: 0.5,
   });
   const [parameters, setParameters] = useState<Record<string, LocalValue>>({});
   const [calls, setCalls] = useState(0);
@@ -51,7 +56,7 @@ function App() {
         </button>
       </div>
       <p id="parameter-calls">{calls}</p>
-      <p id="parameters">{JSON.stringify(parameters)}</p>
+      <p id="parameters" style={{ overflowWrap: 'anywhere' }}>{JSON.stringify(parameters)}</p>
       <p id="target">{target ? `${target.nodeType}:${target.range.start}-${target.range.end}` : ''}</p>
       <LocalReactiveDocument
         source={SOURCE}

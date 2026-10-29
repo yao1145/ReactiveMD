@@ -242,7 +242,13 @@ function readHostBinding(
     binding.options = options;
     binding.initialRule ??= 'first-option';
   }
-  if (binding.kind === 'string' && !hasOptions) binding.initialRule ??= 'empty';
+  if (binding.kind === 'string') {
+    const rule = hasOptions ? 'first-option' : 'empty';
+    if (binding.initialRule !== undefined && binding.initialRule !== rule) {
+      return invalidHost(`${lead} "binding.initialRule" must be "${rule}" for ${hasOptions ? 'choice' : 'string'} bindings.`);
+    }
+    binding.initialRule ??= rule;
+  }
   if (binding.kind === 'boolean') {
     if (binding.initialRule !== undefined && binding.initialRule !== 'false') {
       return invalidHost(`${lead} "binding.initialRule" must be "false" for boolean bindings.`);

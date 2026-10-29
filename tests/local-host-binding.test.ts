@@ -34,6 +34,108 @@ const SHARED = [
 ].join('\n');
 
 describe('host component bindings', () => {
+  it.each([
+    ['min-length="3"', 'a', 'local.initial.length'],
+    ['max-length="2"', 'abc', 'local.initial.length'],
+    ['type="email"', 'invalid', 'local.initial.email'],
+  ])('validates a host initial against shared input %s', (constraint, initial, code) => {
+    const result = compileLocal([
+      `<input bind="value" label="Value" ${constraint}>`,
+      `<host-text bind="value" initial="${initial}">`,
+    ].join('\n'), { hostComponents: [{ name: 'host-text', form: 'leaf', props: {}, binding: { kind: 'string' } }] });
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((item) => item.code)).toContain(code);
+  });
+
+  it('accepts a host initial satisfying every shared text control', () => {
+    const document = compile([
+      '<input bind="value" label="Value" min-length="3">',
+      '<textarea bind="value" label="Text" max-length="5">',
+      '<host-text bind="value" initial="abcd">',
+    ].join('\n'), [{ name: 'host-text', form: 'leaf', props: {}, binding: { kind: 'string' } }]);
+    const runtime = createLocalRuntime(document);
+    try {
+      expect(runtime.getParameter('value')).toBe('abcd');
+      expect(runtime.setParameters(runtime.getParameters())).toEqual([]);
+    } finally {
+      runtime.dispose();
+    }
+  });
+
+  it('keeps matching choice bindings and defaults valid', () => {
+    const document = compile('<select bind="value" label="Choice"><option value="a">A</option><option value="b">B</option></select>\n<host-choice bind="value">', [
+      { name: 'host-choice', form: 'leaf', props: {}, binding: { kind: 'string', options: ['a', 'b'], initialRule: 'first-option' } },
+    ]);
+    const runtime = createLocalRuntime(document);
+    try {
+      expect(runtime.getParameter('value')).toBe('a');
+      expect(runtime.setParameters(runtime.getParameters())).toEqual([]);
+    } finally {
+      runtime.dispose();
+    }
+  });
+
+  it('requires host and built-in numeric owners to agree on dynamic bounds', () => {
+    const result = compileLocal('<number bind="limit" label="Limit" initial="5">\n<number bind="n" label="N" max="{{ limit }}">\n<host-number bind="n">', {
+      hostComponents: [{ name: 'host-number', form: 'leaf', props: {}, binding: { kind: 'number' } }],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((item) => item.code)).toContain('local.binding.constraint');
+  });
+
+  it.each([false, true])('rejects sharing an exclusive host in either order (reverse=%s)', (reverse) => {
+    const tags = ['<host-one bind="n">', '<host-two bind="n">'];
+    const result = compileLocal((reverse ? tags.reverse() : tags).join('\n'), {
+      hostComponents: [
+        { name: 'host-one', form: 'leaf', props: {}, binding: { kind: 'number', exclusive: true } },
+        { name: 'host-two', form: 'leaf', props: {}, binding: { kind: 'number' } },
+      ],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((item) => item.code)).toContain('local.binding.exclusive');
+  });
+
+  it('preserves built-in exclusive bindings when adding a host owner', () => {
+    const result = compileLocal('<timer bind="n" label="Timer" duration="60">\n<host-number bind="n">', {
+      hostComponents: [{ name: 'host-number', form: 'leaf', props: {}, binding: { kind: 'number', min: 0, max: 60 } }],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((item) => item.code)).toContain('local.binding.exclusive');
+  });
+
+  it('preserves the exclusive ownership of built-in slots', () => {
+    const result = compileLocal('<range-slider bind-start="n" label="Range">\n<host-number bind="n">', {
+      hostComponents: [{ name: 'host-number', form: 'leaf', props: {}, binding: { kind: 'number', min: 0, max: 100 } }],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((item) => item.code)).toContain('local.binding.exclusive');
+  });
+
+  it.each(['<date bind="value" label="Date">', '<select bind="value" label="Choice"><option value="a">A</option></select>'])(
+    'rejects a host text binding sharing an incompatible family: %s', (builtin) => {
+      const result = compileLocal(`${builtin}\n<host-text bind="value" initial="invalid">`, {
+        hostComponents: [{ name: 'host-text', form: 'leaf', props: {}, binding: { kind: 'string' } }],
+      });
+      expect(result.ok).toBe(false);
+      expect(result.diagnostics.map((item) => item.code)).toContain('local.binding.type');
+    },
+  );
+
+  it.each([
+    { kind: 'string', initialRule: 'false' },
+    { kind: 'string', initialRule: 'min' },
+    { kind: 'string', initialRule: 'nearest-zero' },
+    { kind: 'string', initialRule: 'first-option' },
+    { kind: 'string', options: ['a', 'b'], initialRule: 'empty' },
+    { kind: 'string', options: ['a', 'b'], initialRule: 'false' },
+  ])('rejects incompatible string initial rules: %j', (binding) => {
+    const result = compileLocal('<host-text bind="value">', {
+      hostComponents: [{ name: 'host-text', form: 'leaf', props: {}, binding } as LocalHostComponentSchema],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map((item) => item.code)).toContain('local.options.invalid');
+  });
+
   it('shares a scalar binding with a built-in control', () => {
     const document = compile(SHARED);
     const binding = document.bindings.rating;

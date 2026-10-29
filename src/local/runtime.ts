@@ -184,7 +184,7 @@ function validateValue(
         return invalid('local.runtime.value.finite-number', { name: binding.name });
       }
       const step = binding.step ?? 1;
-      const base = binding.min ?? 0;
+      let base = binding.min ?? 0;
       for (const node of nodes) {
         const minRead = readDynamic(node, 'min');
         if (minRead.present && !minRead.ok) return invalid('local.runtime.value.constraint', { name: binding.name, attribute: 'min' });
@@ -192,6 +192,7 @@ function validateValue(
           if (typeof minRead.value !== 'number' || !Number.isFinite(minRead.value)) {
             return invalid('local.runtime.value.constraint', { name: binding.name, attribute: 'min' });
           }
+          base = minRead.value;
           if (value < minRead.value) return invalid('local.runtime.value.min', { name: binding.name, min: minRead.value });
         }
         const maxRead = readDynamic(node, 'max');
@@ -621,6 +622,22 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     if (disposed) throw new Error('The local interaction runtime has been disposed.');
   };
 
+  /** Evaluate the read-only layer without mutating the current revision. */
+  const computeValues = (controls: Record<string, LocalValue>, missing: ReadonlyMap<string, LocalExpressionError>) => {
+    const evaluated = evaluateComputations(
+      computationMetadata,
+      computationOrder,
+      computationExpressions,
+      { ...controls, ...externalState },
+      constValues,
+      missing,
+    );
+    for (const [name, error] of [...constErrors, ...cycleErrors]) {
+      if (!Object.hasOwn(evaluated.values, name)) evaluated.errors.set(name, error);
+    }
+    return evaluated;
+  };
+
   /**
    * Recompute the read-only layer for the current controls. Constants are not
    * re-evaluated: their static values were resolved once above. Failed values
@@ -634,24 +651,9 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
       computationValues = {};
       computationErrors = new Map();
     } else {
-      const inputs: Record<string, LocalValue> = { ...state };
-      for (const [name, value] of Object.entries(externalState)) inputs[name] = value;
-      const evaluated = evaluateComputations(
-        computationMetadata,
-        computationOrder,
-        computationExpressions,
-        inputs,
-        constValues,
-        missing,
-      );
+      const evaluated = computeValues(state, missing);
       computationValues = evaluated.values;
       computationErrors = evaluated.errors;
-      for (const [name, error] of constErrors) {
-        if (!Object.hasOwn(computationValues, name)) computationErrors.set(name, error);
-      }
-      for (const [name, error] of cycleErrors) {
-        if (!Object.hasOwn(computationValues, name)) computationErrors.set(name, error);
-      }
     }
 
     const environment: Record<string, LocalValue> = {};
@@ -688,16 +690,34 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
   };
 
   /**
-   * Constraint expressions read the current plain values, plus the values being
-   * written, without touching throwing getters for unavailable externals.
+   * Constraints observe the prospective controls and their recomputed values.
+   * Missing data and failed computations remain lazy errors, so unrelated or
+   * short-circuited expressions can still succeed.
    */
   const constraintEnvironment = (overrides: Readonly<Record<string, LocalValue>> = {}): Record<string, LocalValue> => {
-    const env: Record<string, LocalValue> = {};
-    for (const [key, value] of Object.entries(state)) env[key] = value;
-    for (const [key, value] of Object.entries(externalState)) env[key] = value;
-    for (const [key, value] of Object.entries(computationValues)) env[key] = value;
-    for (const [key, value] of Object.entries(overrides)) env[key] = value;
+    const controls = { ...state, ...overrides };
+    const missing = unavailableExternals();
+    const evaluated = computeValues(controls, missing);
+    const env: Record<string, LocalValue> = { ...controls, ...externalState, ...evaluated.values };
+    for (const [key, error] of [...missing, ...evaluated.errors]) {
+      if (Object.hasOwn(env, key)) continue;
+      Object.defineProperty(env, key, {
+        enumerable: true,
+        configurable: true,
+        get() { throw error; },
+      });
+    }
     return env;
+  };
+
+  /** Recompute once per write, only when a written control has a dynamic rule. */
+  const prospectiveReader = (overrides: Readonly<Record<string, LocalValue>>) => {
+    let env: Record<string, LocalValue> | undefined;
+    return (node: LocalNode, attribute: 'min' | 'max' | 'required'): DynamicRead => {
+      if (!dynamicMetadata[node.id]?.[attribute]) return { present: false };
+      env ??= constraintEnvironment(overrides);
+      return readDynamic(node, attribute, env);
+    };
   };
 
   const publish = (): void => {
@@ -768,7 +788,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     const diagnostics: Diagnostic[] = [];
     const normalized: Record<string, LocalValue> = {};
     const keys = Object.keys(values).sort();
-    const env = constraintEnvironment(values);
+    const read = prospectiveReader(values);
     for (const key of keys) {
       if (key === '__proto__') {
         diagnostics.push(parameterDiagnostic('local.runtime.parameter', 'Parameter names cannot be "__proto__".'));
@@ -783,7 +803,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
         continue;
       }
       const binding = document.bindings[key];
-      const result = validateValue(binding, controls.get(key) ?? [], values[key], (node, attribute) => readDynamic(node, attribute, env));
+      const result = validateValue(binding, controls.get(key) ?? [], values[key], read);
       if (!result.ok) {
         diagnostics.push(valueDiagnostic(binding, result.detail));
         continue;
@@ -886,7 +906,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
         binding,
         controls.get(key) ?? [],
         value,
-        (target, attribute) => readDynamic(target, attribute, constraintEnvironment({ [key]: value })),
+        prospectiveReader({ [key]: value }),
       );
       if (!result.ok) {
         return [diagnosticFor(document, canonical, 'local.runtime.value', result.detail)];

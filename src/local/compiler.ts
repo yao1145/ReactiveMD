@@ -1449,7 +1449,17 @@ function resolveHostBindings(
   bindings: Record<string, LocalBinding>,
 ): void {
   if (hostByName.size === 0) return;
-  for (const node of flattenNodes(state.nodes)) {
+  const nodes = flattenNodes(state.nodes);
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const entryById = new Map(state.entries.map((entry) => [entry.node.id, entry]));
+  const ownerBinding = (id: string, key: string): { family: LocalBindingFamily; exclusive?: boolean } | undefined => {
+    const owner = nodeById.get(id);
+    const host = owner?.type === 'hostComponent' && owner.name ? hostByName.get(owner.name)?.binding : undefined;
+    if (host) return { family: hostBindingFamily(host), exclusive: host.exclusive };
+    const entry = entryById.get(id);
+    return entry?.schema.binding ?? entry?.schema.slots?.find((slot) => state.bindingSlots[id]?.[slot.name] === key);
+  };
+  for (const node of nodes) {
     if (node.type !== 'hostComponent' || !node.name) continue;
     const schema = hostByName.get(node.name);
     const bindingSchema = schema?.binding;
@@ -1511,8 +1521,9 @@ function resolveHostBindings(
 
     const existing = bindings[key];
     if (existing) {
+      const peerBindings = existing.nodeIds.map((id) => ownerBinding(id, key));
       const explicitOwners = existing.nodeIds
-        .map((id) => flattenNodes(state.nodes).find((candidate) => candidate.id === id))
+        .map((id) => nodeById.get(id))
         .filter((owner): owner is LocalNode => owner !== undefined && owner.attrs?.initial !== undefined);
       if (explicit && explicitOwners.length) {
         state.report(
@@ -1523,7 +1534,7 @@ function resolveHostBindings(
           { key: 'local.initial.duplicate', params: { key, count: explicitOwners.length + 1 } },
         );
       }
-      if (existing.type !== kind) {
+      if (existing.type !== kind || peerBindings.some((binding) => binding && binding.family !== family)) {
         state.report(
           'local.binding.type',
           `Parameter "${key}" is declared as ${typeName(existing.type)} and cannot also bind <${node.name}>.`,
@@ -1534,17 +1545,34 @@ function resolveHostBindings(
       } else {
         // The host declaration supplies the initial value when no earlier owner
         // declared one explicitly.
-        if (explicit && explicitOwners.length === 0) existing.initial = cloneValue(initial);
-        if (bindingSchema.kind === 'number') {
-        if (existing.min !== min || existing.max !== max || (existing.step ?? 1) !== step) {
-          state.report(
-            'local.binding.constraint',
-            `Parameter "${key}" must use the same numeric range and step as <${node.name}>.`,
-            node.range.start,
-            node.range.end,
-            { key: 'local.binding.constraint', params: { key, first: node.name, second: node.name, firstConstraints: describeConstraints({ min, max, step }), secondConstraints: describeConstraints({ min: existing.min, max: existing.max, step: existing.step ?? 1 }) } },
-          );
+        if (explicit && explicitOwners.length === 0) {
+          existing.initial = cloneValue(initial);
+          // Host initials are resolved after built-in groups. Revalidate the
+          // final value against every built-in text owner it replaces.
+          const members = existing.nodeIds.flatMap((id): GroupMember[] => {
+            const entry = entryById.get(id);
+            return entry?.schema.binding?.family === 'text'
+              ? [{ entry, attrs: state.attrs.get(id) ?? {} }]
+              : [];
+          });
+          if (members.length) {
+            validateStaticInitial({ key, schema: members[0].entry.schema, members }, initial, state, attributeOffset(state, node, 'initial'));
+          }
         }
+        if (bindingSchema.kind === 'number') {
+          const dynamicPeer = existing.nodeIds.some((id) => {
+            const attrs = state.attrs.get(id);
+            return attrs?.min?.dynamic || attrs?.max?.dynamic;
+          });
+          if (dynamicPeer || existing.min !== min || existing.max !== max || (existing.step ?? 1) !== step) {
+            state.report(
+              'local.binding.constraint',
+              `Parameter "${key}" must use the same numeric range and step as <${node.name}>.`,
+              node.range.start,
+              node.range.end,
+              { key: 'local.binding.constraint', params: { key, first: node.name, second: node.name, firstConstraints: describeConstraints({ min, max, step }), secondConstraints: describeConstraints({ min: existing.min, max: existing.max, step: existing.step ?? 1 }) } },
+            );
+          }
         } else if (family === 'choice') {
           if (existing.options?.join('\u0000') !== options.join('\u0000')) {
             state.report(
@@ -1557,7 +1585,7 @@ function resolveHostBindings(
           }
         }
       }
-      if (bindingSchema.exclusive) {
+      if (bindingSchema.exclusive || peerBindings.some((binding) => binding?.exclusive)) {
         state.report(
           'local.binding.exclusive',
           `Parameter "${key}" of <${node.name}> can only be owned by one component.`,
@@ -1850,10 +1878,10 @@ function lineAt(state: CompileState, offset: number): number {
  * Empty values stay allowed at compile time so an optional required input can
  * still start empty; writes are enforced by the runtime.
  */
-function validateStaticInitial(group: Group, initial: LocalValue, state: CompileState): void {
+function validateStaticInitial(group: Group, initial: LocalValue, state: CompileState, initialOffset?: number): void {
   if (typeof initial !== 'string' || initial === '') return;
   const first = group.members[0];
-  const offset = first.attrs.initial?.offset ?? first.entry.node.range.start;
+  const offset = initialOffset ?? first.attrs.initial?.offset ?? first.entry.node.range.start;
   const length = countLocalCodePoints(initial);
   for (const member of group.members) {
     const { entry, attrs } = member;
@@ -2070,7 +2098,7 @@ function validateInitialValue(
       );
     }
     const base = local.min ?? 0;
-    if (value >= (local.min ?? Number.NEGATIVE_INFINITY) && value <= (local.max ?? Number.POSITIVE_INFINITY) && !onStep(value, base, local.step)) {
+    if (local.dynamicMin === undefined && value >= (local.min ?? Number.NEGATIVE_INFINITY) && value <= (local.max ?? Number.POSITIVE_INFINITY) && !onStep(value, base, local.step)) {
       state.report(
         'local.initial.step',
         `Initial value ${value} of parameter "${key}" is not on step ${local.step} (based at ${local.min ?? 0}).`,

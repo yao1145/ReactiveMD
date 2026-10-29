@@ -2329,7 +2329,7 @@ function SliderView({ node }: LocalComponentProps) {
       <StaticValue
         className="md-slider local-slider"
         label={label}
-        value={String(value)}
+        value={String(rawValue)}
       />
     );
   }
@@ -2339,7 +2339,7 @@ function SliderView({ node }: LocalComponentProps) {
       <label className="md-label" htmlFor={`${domId}-slider`}>
         <span>{label}</span>
         <span className="md-slider-value" aria-hidden="true">
-          {value}
+          {rawValue}
         </span>
       </label>
       <input
@@ -2354,7 +2354,7 @@ function SliderView({ node }: LocalComponentProps) {
         aria-describedby={validation.describedBy}
         onChange={(event: ChangeEvent<HTMLInputElement>) => write(Number(event.target.value))}
       />
-      <PrintValue value={String(value)} />
+      <PrintValue value={String(rawValue)} />
       <FieldError message={disabledInvalid || constraintError ? t('Cannot compute', '无法计算') : (error ?? storedProblem)} />
     </div>
   );
