@@ -1,3 +1,4 @@
+import {walkLocalNodes} from './node-walk';
 import type {
   Diagnostic,
   LocalBinding,
@@ -40,13 +41,9 @@ interface RetainableBinding {
 
 function indexNodes(document: LocalDocument): Map<string, LocalNode> {
   const index = new Map<string, LocalNode>();
-  const walk = (nodes: LocalNode[]): void => {
-    for (const node of nodes) {
+    for (const node of walkLocalNodes(document.nodes)) {
       index.set(node.id, node);
-      if (node.children) walk(node.children);
     }
-  };
-  walk(document.nodes);
   return index;
 }
 

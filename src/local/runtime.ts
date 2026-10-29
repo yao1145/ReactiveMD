@@ -1,4 +1,5 @@
 import type { Diagnostic } from './types';
+import {walkLocalNodes} from './node-walk';
 import { localDateTimestamp } from './dates';
 import {
   compileExpression,
@@ -289,13 +290,9 @@ function compileMetadataExpression(
 
 function loadRuntimeCore(document: LocalDocument, expressions: Map<string, LocalExpression>): RuntimeCore {
   const nodeIndex = new Map<string, LocalNode>();
-  const collectNodes = (nodes: LocalNode[]): void => {
-    for (const node of nodes) {
+    for (const node of walkLocalNodes(document.nodes)) {
       nodeIndex.set(node.id, node);
-      if (node.children) collectNodes(node.children);
     }
-  };
-  collectNodes(document.nodes);
 
   const initial: Record<string, LocalValue> = {};
   /** Registered controls per binding; caller-supplied node metadata is ignored. */
@@ -910,11 +907,9 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
   const subtreeIds = (node: LocalNode): Set<string> => {
     const ids = new Set<string>();
-    const walk = (current: LocalNode): void => {
+    for(const current of walkLocalNodes([node])){
       ids.add(current.id);
-      for (const child of current.children ?? []) walk(child);
-    };
-    walk(node);
+    }
     return ids;
   };
 

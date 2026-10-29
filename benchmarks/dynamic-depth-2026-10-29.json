@@ -1,0 +1,2779 @@
+{
+  "generatedAt": "2026-10-29T11:15:45.086Z",
+  "baseCommit": "4a8f1ea",
+  "scope": "Targeted dynamic-row and deep-nesting validation; the 45-case overview was not rerun.",
+  "productionHashes": {
+    "algorithm": "sha256 over sorted JS paths plus file bytes",
+    "before": "8283d33449e8fd91be5bd742ca39000850127066de3090251b57fc110b56f05e",
+    "after": "71f1b8938184e765d104fe6f95374699b92898a622ca90f87bf9ff56a713d180"
+  },
+  "environment": {
+    "node": "v22.17.0",
+    "platform": "win32",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) Ultra 5 125H"
+  },
+  "browser": "135.0.3179.66",
+  "methodology": {
+    "browser": "Production packages built into the same Playwright fixture. Real Edge module Worker, 20ms scheduler delay, react-dom/profiling. Three warmups then fifteen measured textarea edits per scenario; version order alternates by scenario. Median/P95 are descriptive for fifteen samples. Input-to-preview ends at two requestAnimationFrame callbacks after commit, not completed paint. JSON UTF-8 lengths estimate messages, not structured-clone bytes. Before and after are measured sequentially on one machine and are not statistically controlled.",
+    "node": [
+      "Production bundle, in-process Worker handler: no browser rendering, scheduling delay or thread message latency.",
+      "Every response crosses structuredClone before application. UTF-8 JSON bytes estimate payload size, not structured-clone size.",
+      "P95 is exploratory with 15 measured edits. Each case has one persistent compiler session."
+    ],
+    "depth": "Serial isolated processes. Public production compileLocal. First compile after import reported separately; 2 further warmups and 10 measured calls by default, with per-case/CLI overrides recorded on each result. --once stops after the first compile; --soak replaces timing loops with successive edit versions and GC checkpoints every 10 versions. No forced GC inside ordinary timing loops. Input generation, assertions and optional one-shot structuredClone excluded from compile timing. GC snapshots before/after first compile, with result retained and released. Peak RSS is OS process.resourceUsage maxRSS (KiB converted to bytes), includes runtime/import/input and is captured before correctness traversal or cloning on first compile. Returned node count excludes intermediate allocations. P95 for small sample counts is descriptive only. Uncaught errors, process exits and timeout are separate outcomes. Results written after every case.",
+    "memory": "Isolated production-package processes with explicit GC before every memory snapshot. Long edits retain the previous preview until its replacement exists. RSS peak covers the entire child; heapUsed is a post-GC snapshot, not total allocations. No hard real-time or cross-machine memory threshold is inferred.",
+    "timingNotes": "Browser before samples are retained from the first paired run, after samples were rerun on the final build. Both runs use three warmups and fifteen measurements. Node multi-case and isolated-shift runs are separate batches; all are retained, including regressions. Deep browser timings are functional-verification samples, not medians."
+  },
+  "preview": [
+    {
+      "kind": "list",
+      "before": {
+        "variant": "before",
+        "kind": "list",
+        "characters": 60867,
+        "requests": {
+          "count": 15,
+          "median": 153,
+          "p95": 154,
+          "min": 150,
+          "max": 154,
+          "samples": [
+            150,
+            150,
+            150,
+            150,
+            152,
+            153,
+            154,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153
+          ]
+        },
+        "responses": {
+          "count": 15,
+          "median": 15444,
+          "p95": 38049,
+          "min": 15439,
+          "max": 38049,
+          "samples": [
+            15439,
+            15440,
+            15439,
+            15439,
+            15441,
+            15442,
+            38049,
+            15444,
+            15444,
+            15463,
+            15472,
+            15471,
+            15472,
+            15472,
+            15472
+          ]
+        },
+        "patchResponses": {
+          "count": 15,
+          "median": 15444,
+          "p95": 38049,
+          "min": 15439,
+          "max": 38049,
+          "samples": [
+            15439,
+            15440,
+            15439,
+            15439,
+            15441,
+            15442,
+            38049,
+            15444,
+            15444,
+            15463,
+            15472,
+            15471,
+            15472,
+            15472,
+            15472
+          ]
+        },
+        "fullResponses": null,
+        "sourceEditRequests": 15,
+        "workerMs": {
+          "count": 15,
+          "median": 268,
+          "p95": 342,
+          "min": 235,
+          "max": 342,
+          "samples": [
+            257,
+            263,
+            342,
+            254,
+            254,
+            260,
+            291,
+            235,
+            268,
+            280,
+            275,
+            278,
+            277,
+            283,
+            267
+          ]
+        },
+        "inputToPreviewMs": {
+          "count": 15,
+          "median": 339.6,
+          "p95": 408.9,
+          "min": 318.4,
+          "max": 408.9,
+          "samples": [
+            330.4,
+            334.5,
+            408.9,
+            319.6,
+            318.4,
+            329.3,
+            361.1,
+            319.5,
+            334.5,
+            345,
+            352,
+            347.7,
+            348.5,
+            349.3,
+            339.6
+          ]
+        },
+        "inputToFrameMs": {
+          "count": 15,
+          "median": 12.7,
+          "p95": 18.1,
+          "min": 10.6,
+          "max": 18.1,
+          "samples": [
+            10.6,
+            13.5,
+            12.7,
+            16.3,
+            12.5,
+            12.5,
+            10.6,
+            12.7,
+            12.1,
+            11.9,
+            13,
+            12.4,
+            18.1,
+            14.2,
+            13.3
+          ]
+        },
+        "reactRenderMs": {
+          "count": 45,
+          "median": 0.4,
+          "p95": 7.6,
+          "min": 0,
+          "max": 11,
+          "samples": [
+            0.3,
+            6.3,
+            0,
+            1.2,
+            5.7,
+            0.1,
+            0.4,
+            5.8,
+            0,
+            1.3,
+            6.6,
+            0,
+            0.4,
+            6.9,
+            0,
+            0.4,
+            6.4,
+            0,
+            0.4,
+            11,
+            0,
+            0.4,
+            7.2,
+            0,
+            0.7,
+            6.8,
+            0,
+            0.4,
+            6.5,
+            0,
+            0.5,
+            7.6,
+            0,
+            0.4,
+            5.5,
+            0,
+            0.6,
+            7,
+            0,
+            0.4,
+            6.7,
+            0,
+            0.5,
+            8.4,
+            0
+          ]
+        },
+        "queueMs": {
+          "count": 15,
+          "median": 24,
+          "p95": 30,
+          "min": 22,
+          "max": 30,
+          "samples": [
+            23,
+            26,
+            25,
+            25,
+            22,
+            23,
+            23,
+            28,
+            23,
+            25,
+            22,
+            26,
+            30,
+            24,
+            23
+          ]
+        },
+        "roundTripMs": {
+          "count": 15,
+          "median": 279,
+          "p95": 353,
+          "min": 245,
+          "max": 353,
+          "samples": [
+            268,
+            276,
+            353,
+            262,
+            264,
+            268,
+            299,
+            245,
+            279,
+            288,
+            283,
+            284,
+            285,
+            294,
+            275
+          ]
+        },
+        "applyMs": {
+          "count": 15,
+          "median": 8,
+          "p95": 12,
+          "min": 7,
+          "max": 12,
+          "samples": [
+            8,
+            8,
+            8,
+            8,
+            7,
+            7,
+            12,
+            10,
+            10,
+            8,
+            10,
+            9,
+            7,
+            8,
+            12
+          ]
+        },
+        "lastStats": {
+          "mode": "incremental",
+          "totalBlocks": 3,
+          "compiledBlocks": 1,
+          "reusedBlocks": 2,
+          "compiledCharacters": 60873,
+          "sharedNodes": 7997,
+          "parse": {
+            "hits": 74,
+            "misses": 125,
+            "reusedBlocks": 2,
+            "reusedRows": 0,
+            "reusedItems": 0,
+            "reusedRowNodes": 0,
+            "reusedItemNodes": 17982,
+            "entries": 20
+          },
+          "semantic": {
+            "expressionsCompiled": 0,
+            "expressionsReused": 1000,
+            "typesInferred": 0,
+            "typesReused": 1000,
+            "attributesValidated": 0,
+            "attributesReused": 1,
+            "bindingsResolved": 0,
+            "bindingsReused": 1,
+            "formulasCompiled": 0,
+            "formulasReused": 0,
+            "displaysInspected": 0,
+            "displaysReused": 0,
+            "entries": 2002
+          },
+          "stages": {
+            "sharedPublicationMs": 11.200000047683716
+          },
+          "cacheBuilds": 0
+        },
+        "runtimeCreations": 1,
+        "errors": []
+      },
+      "after": {
+        "variant": "after",
+        "kind": "list",
+        "characters": 60867,
+        "requests": {
+          "count": 15,
+          "median": 153,
+          "p95": 154,
+          "min": 150,
+          "max": 154,
+          "samples": [
+            150,
+            150,
+            150,
+            150,
+            152,
+            153,
+            154,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153
+          ]
+        },
+        "responses": {
+          "count": 15,
+          "median": 15453,
+          "p95": 38042,
+          "min": 15434,
+          "max": 38042,
+          "samples": [
+            15446,
+            15447,
+            15447,
+            15447,
+            15434,
+            15435,
+            38042,
+            15453,
+            15453,
+            15471,
+            15479,
+            15480,
+            15479,
+            15476,
+            15479
+          ]
+        },
+        "patchResponses": {
+          "count": 15,
+          "median": 15453,
+          "p95": 38042,
+          "min": 15434,
+          "max": 38042,
+          "samples": [
+            15446,
+            15447,
+            15447,
+            15447,
+            15434,
+            15435,
+            38042,
+            15453,
+            15453,
+            15471,
+            15479,
+            15480,
+            15479,
+            15476,
+            15479
+          ]
+        },
+        "fullResponses": null,
+        "sourceEditRequests": 15,
+        "workerMs": {
+          "count": 15,
+          "median": 175,
+          "p95": 253,
+          "min": 72,
+          "max": 253,
+          "samples": [
+            233,
+            223,
+            175,
+            158,
+            240,
+            196,
+            253,
+            214,
+            175,
+            158,
+            151,
+            147,
+            173,
+            72,
+            154
+          ]
+        },
+        "inputToPreviewMs": {
+          "count": 15,
+          "median": 280.6,
+          "p95": 396.7,
+          "min": 145.8,
+          "max": 396.7,
+          "samples": [
+            352.2,
+            367.7,
+            299.4,
+            256.2,
+            333.5,
+            300.8,
+            396.7,
+            345.3,
+            277.6,
+            254.8,
+            258,
+            234.4,
+            280.6,
+            145.8,
+            245.6
+          ]
+        },
+        "inputToFrameMs": {
+          "count": 15,
+          "median": 23.5,
+          "p95": 34.2,
+          "min": 10.3,
+          "max": 34.2,
+          "samples": [
+            25,
+            34.2,
+            31.9,
+            27.6,
+            19.3,
+            21.6,
+            25.1,
+            30.1,
+            18.4,
+            23.5,
+            21.8,
+            18.4,
+            27.5,
+            10.3,
+            20.6
+          ]
+        },
+        "reactRenderMs": {
+          "count": 45,
+          "median": 0.7,
+          "p95": 13.1,
+          "min": 0,
+          "max": 25.4,
+          "samples": [
+            1.4,
+            10.9,
+            0,
+            1.5,
+            13.1,
+            0,
+            0.9,
+            13.5,
+            0,
+            1.1,
+            8.9,
+            0,
+            0.6,
+            8.5,
+            0,
+            0.8,
+            12.3,
+            0,
+            0.6,
+            25.4,
+            0.1,
+            0.6,
+            12.1,
+            0,
+            0.5,
+            7.8,
+            0,
+            0.6,
+            10.5,
+            0,
+            0.6,
+            9.8,
+            0,
+            0.7,
+            8.5,
+            0,
+            0.8,
+            8.7,
+            0,
+            0.4,
+            5,
+            0,
+            0.9,
+            7.9,
+            0
+          ]
+        },
+        "queueMs": {
+          "count": 15,
+          "median": 44,
+          "p95": 58,
+          "min": 24,
+          "max": 58,
+          "samples": [
+            44,
+            58,
+            57,
+            44,
+            36,
+            36,
+            47,
+            48,
+            44,
+            36,
+            40,
+            31,
+            46,
+            24,
+            36
+          ]
+        },
+        "roundTripMs": {
+          "count": 15,
+          "median": 185,
+          "p95": 276,
+          "min": 83,
+          "max": 276,
+          "samples": [
+            254,
+            248,
+            191,
+            170,
+            258,
+            212,
+            276,
+            246,
+            185,
+            170,
+            166,
+            162,
+            185,
+            83,
+            164
+          ]
+        },
+        "applyMs": {
+          "count": 15,
+          "median": 14,
+          "p95": 20,
+          "min": 7,
+          "max": 20,
+          "samples": [
+            16,
+            20,
+            13,
+            14,
+            14,
+            18,
+            20,
+            16,
+            12,
+            13,
+            18,
+            13,
+            13,
+            7,
+            14
+          ]
+        },
+        "lastStats": {
+          "mode": "incremental",
+          "totalBlocks": 3,
+          "compiledBlocks": 1,
+          "reusedBlocks": 2,
+          "compiledCharacters": 60873,
+          "sharedNodes": 7997,
+          "parse": {
+            "hits": 69,
+            "misses": 21112,
+            "reusedBlocks": 0,
+            "reusedRows": 0,
+            "reusedItems": 16983,
+            "reusedRowNodes": 0,
+            "reusedItemNodes": 17982,
+            "entries": 529
+          },
+          "semantic": {
+            "expressionsCompiled": 0,
+            "expressionsReused": 1000,
+            "typesInferred": 0,
+            "typesReused": 1000,
+            "attributesValidated": 0,
+            "attributesReused": 1,
+            "bindingsResolved": 0,
+            "bindingsReused": 1,
+            "formulasCompiled": 0,
+            "formulasReused": 0,
+            "displaysInspected": 0,
+            "displaysReused": 0,
+            "entries": 2002
+          },
+          "stages": {
+            "sharedPublicationMs": 18.600000143051147
+          },
+          "cacheBuilds": 0
+        },
+        "runtimeCreations": 1,
+        "errors": []
+      }
+    },
+    {
+      "kind": "table",
+      "before": {
+        "variant": "before",
+        "kind": "table",
+        "characters": 21774,
+        "requests": {
+          "count": 15,
+          "median": 153,
+          "p95": 154,
+          "min": 150,
+          "max": 154,
+          "samples": [
+            150,
+            150,
+            150,
+            150,
+            150,
+            152,
+            154,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153
+          ]
+        },
+        "responses": {
+          "count": 15,
+          "median": 8688,
+          "p95": 20042,
+          "min": 8668,
+          "max": 20042,
+          "samples": [
+            8677,
+            8685,
+            8668,
+            8686,
+            8685,
+            8687,
+            20042,
+            8688,
+            8689,
+            8688,
+            8689,
+            8689,
+            8689,
+            8690,
+            8689
+          ]
+        },
+        "patchResponses": {
+          "count": 15,
+          "median": 8688,
+          "p95": 20042,
+          "min": 8668,
+          "max": 20042,
+          "samples": [
+            8677,
+            8685,
+            8668,
+            8686,
+            8685,
+            8687,
+            20042,
+            8688,
+            8689,
+            8688,
+            8689,
+            8689,
+            8689,
+            8690,
+            8689
+          ]
+        },
+        "fullResponses": null,
+        "sourceEditRequests": 15,
+        "workerMs": {
+          "count": 15,
+          "median": 213,
+          "p95": 310,
+          "min": 157,
+          "max": 310,
+          "samples": [
+            204,
+            235,
+            207,
+            221,
+            226,
+            236,
+            216,
+            209,
+            310,
+            183,
+            241,
+            157,
+            164,
+            213,
+            197
+          ]
+        },
+        "inputToPreviewMs": {
+          "count": 15,
+          "median": 286,
+          "p95": 373.1,
+          "min": 220.6,
+          "max": 373.1,
+          "samples": [
+            261.7,
+            296.5,
+            276,
+            289.7,
+            298.6,
+            307.3,
+            289.5,
+            286,
+            373.1,
+            256.1,
+            310.8,
+            220.6,
+            228.7,
+            281.5,
+            264.7
+          ]
+        },
+        "inputToFrameMs": {
+          "count": 15,
+          "median": 10.8,
+          "p95": 13.6,
+          "min": 8,
+          "max": 13.6,
+          "samples": [
+            9.2,
+            8,
+            13.6,
+            11.6,
+            12.8,
+            13.3,
+            12.5,
+            12,
+            10.8,
+            10.8,
+            9.1,
+            8.8,
+            9.3,
+            12.1,
+            10.3
+          ]
+        },
+        "reactRenderMs": {
+          "count": 45,
+          "median": 0.1,
+          "p95": 9.6,
+          "min": 0,
+          "max": 10.9,
+          "samples": [
+            0.1,
+            9.5,
+            0,
+            0.1,
+            8,
+            0,
+            0.1,
+            8.2,
+            0,
+            0,
+            8,
+            0,
+            0.1,
+            8.9,
+            0,
+            0.1,
+            7.2,
+            0,
+            0,
+            7.7,
+            0,
+            0.2,
+            8.7,
+            0,
+            0,
+            6.9,
+            0,
+            0.1,
+            8.9,
+            0,
+            0,
+            9.6,
+            0,
+            0,
+            5.7,
+            0,
+            0.1,
+            8.1,
+            0,
+            0.1,
+            10.9,
+            0,
+            0.1,
+            10.9,
+            0
+          ]
+        },
+        "queueMs": {
+          "count": 15,
+          "median": 24,
+          "p95": 29,
+          "min": 21,
+          "max": 29,
+          "samples": [
+            22,
+            22,
+            29,
+            22,
+            28,
+            28,
+            27,
+            29,
+            21,
+            26,
+            24,
+            24,
+            23,
+            23,
+            25
+          ]
+        },
+        "roundTripMs": {
+          "count": 15,
+          "median": 220,
+          "p95": 315,
+          "min": 162,
+          "max": 315,
+          "samples": [
+            209,
+            241,
+            214,
+            232,
+            233,
+            243,
+            224,
+            219,
+            315,
+            188,
+            248,
+            162,
+            174,
+            220,
+            203
+          ]
+        },
+        "applyMs": {
+          "count": 15,
+          "median": 9,
+          "p95": 12,
+          "min": 8,
+          "max": 12,
+          "samples": [
+            8,
+            10,
+            9,
+            11,
+            10,
+            8,
+            9,
+            11,
+            8,
+            9,
+            10,
+            8,
+            11,
+            12,
+            8
+          ]
+        },
+        "lastStats": {
+          "mode": "incremental",
+          "totalBlocks": 3,
+          "compiledBlocks": 1,
+          "reusedBlocks": 2,
+          "compiledCharacters": 21778,
+          "sharedNodes": 3505,
+          "parse": {
+            "hits": 74,
+            "misses": 125,
+            "reusedBlocks": 2,
+            "reusedRows": 0,
+            "reusedItems": 0,
+            "reusedRowNodes": 9000,
+            "reusedItemNodes": 0,
+            "entries": 44
+          },
+          "semantic": {
+            "expressionsCompiled": 0,
+            "expressionsReused": 500,
+            "typesInferred": 0,
+            "typesReused": 500,
+            "attributesValidated": 0,
+            "attributesReused": 1,
+            "bindingsResolved": 0,
+            "bindingsReused": 1,
+            "formulasCompiled": 0,
+            "formulasReused": 0,
+            "displaysInspected": 0,
+            "displaysReused": 0,
+            "entries": 1002
+          },
+          "stages": {
+            "sharedPublicationMs": 7.699999809265137
+          },
+          "cacheBuilds": 0
+        },
+        "runtimeCreations": 1,
+        "errors": []
+      },
+      "after": {
+        "variant": "after",
+        "kind": "table",
+        "characters": 21774,
+        "requests": {
+          "count": 15,
+          "median": 153,
+          "p95": 154,
+          "min": 150,
+          "max": 154,
+          "samples": [
+            150,
+            150,
+            150,
+            150,
+            152,
+            153,
+            154,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153,
+            153
+          ]
+        },
+        "responses": {
+          "count": 15,
+          "median": 8693,
+          "p95": 20048,
+          "min": 8673,
+          "max": 20048,
+          "samples": [
+            8682,
+            8688,
+            8673,
+            8689,
+            8692,
+            8693,
+            20048,
+            8694,
+            8694,
+            8678,
+            8694,
+            8694,
+            8694,
+            8679,
+            8695
+          ]
+        },
+        "patchResponses": {
+          "count": 15,
+          "median": 8693,
+          "p95": 20048,
+          "min": 8673,
+          "max": 20048,
+          "samples": [
+            8682,
+            8688,
+            8673,
+            8689,
+            8692,
+            8693,
+            20048,
+            8694,
+            8694,
+            8678,
+            8694,
+            8694,
+            8694,
+            8679,
+            8695
+          ]
+        },
+        "fullResponses": null,
+        "sourceEditRequests": 15,
+        "workerMs": {
+          "count": 15,
+          "median": 66,
+          "p95": 89,
+          "min": 52,
+          "max": 89,
+          "samples": [
+            66,
+            71,
+            61,
+            52,
+            63,
+            66,
+            80,
+            80,
+            61,
+            52,
+            80,
+            63,
+            53,
+            89,
+            70
+          ]
+        },
+        "inputToPreviewMs": {
+          "count": 15,
+          "median": 134.4,
+          "p95": 159.1,
+          "min": 114.5,
+          "max": 159.1,
+          "samples": [
+            129.6,
+            148.5,
+            120.8,
+            128,
+            127.3,
+            139.2,
+            152.8,
+            147.2,
+            134.4,
+            114.5,
+            147.4,
+            131.1,
+            129,
+            159.1,
+            150.5
+          ]
+        },
+        "inputToFrameMs": {
+          "count": 15,
+          "median": 8.7,
+          "p95": 14.3,
+          "min": 6.7,
+          "max": 14.3,
+          "samples": [
+            10.4,
+            13.5,
+            13,
+            8.5,
+            8.8,
+            8.2,
+            8.4,
+            9,
+            8.7,
+            9.1,
+            6.7,
+            8.4,
+            7.3,
+            8.5,
+            14.3
+          ]
+        },
+        "reactRenderMs": {
+          "count": 45,
+          "median": 0.1,
+          "p95": 10.4,
+          "min": 0,
+          "max": 10.4,
+          "samples": [
+            0.1,
+            8.3,
+            0,
+            0.2,
+            10.4,
+            0,
+            0.1,
+            5.9,
+            0,
+            0.2,
+            5.3,
+            0,
+            0.1,
+            8,
+            0,
+            0.1,
+            8.9,
+            0,
+            0,
+            10.4,
+            0,
+            0.1,
+            9.4,
+            0,
+            0,
+            7,
+            0,
+            0.1,
+            4.9,
+            0,
+            0.1,
+            7.4,
+            0,
+            0.1,
+            7.9,
+            0,
+            0.1,
+            5.2,
+            0,
+            0.1,
+            10.4,
+            0,
+            0,
+            7.7,
+            0.1
+          ]
+        },
+        "queueMs": {
+          "count": 15,
+          "median": 23,
+          "p95": 29,
+          "min": 20,
+          "max": 29,
+          "samples": [
+            21,
+            29,
+            26,
+            23,
+            20,
+            22,
+            23,
+            25,
+            25,
+            23,
+            22,
+            24,
+            22,
+            22,
+            29
+          ]
+        },
+        "roundTripMs": {
+          "count": 15,
+          "median": 74,
+          "p95": 96,
+          "min": 60,
+          "max": 96,
+          "samples": [
+            75,
+            84,
+            69,
+            66,
+            69,
+            74,
+            87,
+            89,
+            70,
+            60,
+            90,
+            71,
+            66,
+            96,
+            79
+          ]
+        },
+        "applyMs": {
+          "count": 15,
+          "median": 10,
+          "p95": 11,
+          "min": 7,
+          "max": 11,
+          "samples": [
+            9,
+            11,
+            7,
+            8,
+            9,
+            10,
+            10,
+            10,
+            8,
+            10,
+            10,
+            8,
+            9,
+            10,
+            10
+          ]
+        },
+        "lastStats": {
+          "mode": "incremental",
+          "totalBlocks": 3,
+          "compiledBlocks": 1,
+          "reusedBlocks": 2,
+          "compiledCharacters": 21778,
+          "sharedNodes": 3505,
+          "parse": {
+            "hits": 69,
+            "misses": 22232,
+            "reusedBlocks": 0,
+            "reusedRows": 25534,
+            "reusedItems": 0,
+            "reusedRowNodes": 9000,
+            "reusedItemNodes": 0,
+            "entries": 543
+          },
+          "semantic": {
+            "expressionsCompiled": 0,
+            "expressionsReused": 500,
+            "typesInferred": 0,
+            "typesReused": 500,
+            "attributesValidated": 0,
+            "attributesReused": 1,
+            "bindingsResolved": 0,
+            "bindingsReused": 1,
+            "formulasCompiled": 0,
+            "formulasReused": 0,
+            "displaysInspected": 0,
+            "displaysReused": 0,
+            "entries": 1002
+          },
+          "stages": {
+            "sharedPublicationMs": 6.1000001430511475
+          },
+          "cacheBuilds": 0
+        },
+        "runtimeCreations": 1,
+        "errors": []
+      }
+    }
+  ],
+  "nodeRows": [
+    {
+      "kind": "dynamic-list",
+      "edit": "equal",
+      "before": {
+        "kind": "dynamic-list",
+        "edit": "equal",
+        "size": 1000,
+        "workerMs": {
+          "median": 156.73839999999996,
+          "p95": 217.8226999999997
+        },
+        "compileMs": {
+          "median": 148,
+          "p95": 212
+        },
+        "encodeMs": {
+          "median": 7,
+          "p95": 11
+        },
+        "cloneMs": {
+          "median": 0.13210000000003674,
+          "p95": 0.22939999999971405
+        },
+        "applyMs": {
+          "median": 4.738600000000133,
+          "p95": 11.693500000000085
+        },
+        "bytes": {
+          "median": 15432,
+          "p95": 15459
+        },
+        "shared": {
+          "median": 7997,
+          "p95": 7997
+        },
+        "patches": 15
+      },
+      "after": {
+        "kind": "dynamic-list",
+        "edit": "equal",
+        "size": 1000,
+        "workerMs": {
+          "median": 111.26220000000012,
+          "p95": 136.73120000000017
+        },
+        "compileMs": {
+          "median": 104,
+          "p95": 129
+        },
+        "encodeMs": {
+          "median": 8,
+          "p95": 10
+        },
+        "cloneMs": {
+          "median": 0.1483000000002903,
+          "p95": 0.4150999999999385
+        },
+        "applyMs": {
+          "median": 5.570699999999761,
+          "p95": 10.48909999999978
+        },
+        "bytes": {
+          "median": 15436,
+          "p95": 15463
+        },
+        "shared": {
+          "median": 7997,
+          "p95": 7997
+        },
+        "patches": 15
+      }
+    },
+    {
+      "kind": "dynamic-list",
+      "edit": "shift",
+      "before": {
+        "kind": "dynamic-list",
+        "edit": "shift",
+        "size": 1000,
+        "workerMs": {
+          "median": 208.67889999999898,
+          "p95": 302.27869999999984
+        },
+        "compileMs": {
+          "median": 195,
+          "p95": 291
+        },
+        "encodeMs": {
+          "median": 11,
+          "p95": 23
+        },
+        "cloneMs": {
+          "median": 0.44580000000041764,
+          "p95": 1.1359000000011292
+        },
+        "applyMs": {
+          "median": 9.694000000000415,
+          "p95": 12.779099999999744
+        },
+        "bytes": {
+          "median": 38532,
+          "p95": 38565
+        },
+        "shared": {
+          "median": 4003,
+          "p95": 4003
+        },
+        "patches": 15
+      },
+      "after": {
+        "kind": "dynamic-list",
+        "edit": "shift",
+        "size": 1000,
+        "workerMs": {
+          "median": 281.2352000000001,
+          "p95": 387.84690000000046
+        },
+        "compileMs": {
+          "median": 266,
+          "p95": 368
+        },
+        "encodeMs": {
+          "median": 15,
+          "p95": 23
+        },
+        "cloneMs": {
+          "median": 1.1309000000001106,
+          "p95": 10.17410000000018
+        },
+        "applyMs": {
+          "median": 14.376800000000003,
+          "p95": 23.11460000000079
+        },
+        "bytes": {
+          "median": 38535,
+          "p95": 38568
+        },
+        "shared": {
+          "median": 4003,
+          "p95": 4003
+        },
+        "patches": 15
+      }
+    },
+    {
+      "kind": "dynamic-table",
+      "edit": "equal",
+      "before": {
+        "kind": "dynamic-table",
+        "edit": "equal",
+        "size": 500,
+        "workerMs": {
+          "median": 117.47379999999976,
+          "p95": 209.11089999999967
+        },
+        "compileMs": {
+          "median": 111,
+          "p95": 202
+        },
+        "encodeMs": {
+          "median": 5,
+          "p95": 7
+        },
+        "cloneMs": {
+          "median": 0.17560000000048603,
+          "p95": 0.3158000000003085
+        },
+        "applyMs": {
+          "median": 3.606999999999971,
+          "p95": 8.895800000000236
+        },
+        "bytes": {
+          "median": 8676,
+          "p95": 8677
+        },
+        "shared": {
+          "median": 3505,
+          "p95": 3505
+        },
+        "patches": 15
+      },
+      "after": {
+        "kind": "dynamic-table",
+        "edit": "equal",
+        "size": 500,
+        "workerMs": {
+          "median": 93.08469999999943,
+          "p95": 114.52540000000045
+        },
+        "compileMs": {
+          "median": 86,
+          "p95": 106
+        },
+        "encodeMs": {
+          "median": 7,
+          "p95": 9
+        },
+        "cloneMs": {
+          "median": 0.23960000000079162,
+          "p95": 0.2815000000009604
+        },
+        "applyMs": {
+          "median": 5.529199999999037,
+          "p95": 8.222999999999956
+        },
+        "bytes": {
+          "median": 8679,
+          "p95": 8681
+        },
+        "shared": {
+          "median": 3505,
+          "p95": 3505
+        },
+        "patches": 15
+      }
+    },
+    {
+      "kind": "dynamic-table",
+      "edit": "shift",
+      "before": {
+        "kind": "dynamic-table",
+        "edit": "shift",
+        "size": 500,
+        "workerMs": {
+          "median": 117.83920000000035,
+          "p95": 236.02059999999983
+        },
+        "compileMs": {
+          "median": 115,
+          "p95": 230
+        },
+        "encodeMs": {
+          "median": 3,
+          "p95": 11
+        },
+        "cloneMs": {
+          "median": 0.3109999999996944,
+          "p95": 1.0261000000009517
+        },
+        "applyMs": {
+          "median": 4.339500000000044,
+          "p95": 8.02310000000034
+        },
+        "bytes": {
+          "median": 20267,
+          "p95": 20280
+        },
+        "shared": {
+          "median": 1760,
+          "p95": 1760
+        },
+        "patches": 15
+      },
+      "after": {
+        "kind": "dynamic-table",
+        "edit": "shift",
+        "size": 500,
+        "workerMs": {
+          "median": 118.78429999999935,
+          "p95": 193.27050000000054
+        },
+        "compileMs": {
+          "median": 110,
+          "p95": 185
+        },
+        "encodeMs": {
+          "median": 7,
+          "p95": 41
+        },
+        "cloneMs": {
+          "median": 0.6168999999990774,
+          "p95": 1.3418000000001484
+        },
+        "applyMs": {
+          "median": 5.799599999998463,
+          "p95": 16.142499999999927
+        },
+        "bytes": {
+          "median": 20271,
+          "p95": 20284
+        },
+        "shared": {
+          "median": 1760,
+          "p95": 1760
+        },
+        "patches": 15
+      }
+    }
+  ],
+  "isolatedShift": {
+    "before": {
+      "kind": "dynamic-list",
+      "edit": "shift",
+      "size": 1000,
+      "workerMs": {
+        "median": 334.15980000000036,
+        "p95": 520.0088999999998
+      },
+      "compileMs": {
+        "median": 324,
+        "p95": 508
+      },
+      "encodeMs": {
+        "median": 10,
+        "p95": 21
+      },
+      "cloneMs": {
+        "median": 0.7677000000003318,
+        "p95": 1.5077000000001135
+      },
+      "applyMs": {
+        "median": 10.804200000000037,
+        "p95": 25.749699999999393
+      },
+      "bytes": {
+        "median": 38532,
+        "p95": 38563
+      },
+      "shared": {
+        "median": 4003,
+        "p95": 4003
+      },
+      "patches": 15
+    },
+    "after": {
+      "kind": "dynamic-list",
+      "edit": "shift",
+      "size": 1000,
+      "workerMs": {
+        "median": 136.76839999999993,
+        "p95": 271.39540000000034
+      },
+      "compileMs": {
+        "median": 124,
+        "p95": 255
+      },
+      "encodeMs": {
+        "median": 9,
+        "p95": 15
+      },
+      "cloneMs": {
+        "median": 0.48700000000008004,
+        "p95": 1.4919000000004417
+      },
+      "applyMs": {
+        "median": 9.053100000000086,
+        "p95": 20.38819999999987
+      },
+      "bytes": {
+        "median": 38530,
+        "p95": 38569
+      },
+      "shared": {
+        "median": 4003,
+        "p95": 4003
+      },
+      "patches": 15
+    }
+  },
+  "depth": [
+    {
+      "id": "containers-50",
+      "before": {
+        "timing": {
+          "samples": [
+            46.717,
+            37.375,
+            34.395
+          ],
+          "count": 3,
+          "medianMs": 37.375,
+          "p95Ms": 46.717,
+          "maxMs": 46.717
+        },
+        "coldMs": 114.276,
+        "outcome": {
+          "ok": true,
+          "nodes": 52,
+          "components": 50,
+          "maxDepth": 52,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 0,
+          "diagnosticKeys": []
+        },
+        "peakRssBytes": 74743808
+      },
+      "after": {
+        "timing": {
+          "samples": [
+            20.094,
+            16.873,
+            14.817
+          ],
+          "count": 3,
+          "medianMs": 16.873,
+          "p95Ms": 20.094,
+          "maxMs": 20.094
+        },
+        "coldMs": 50.954,
+        "outcome": {
+          "ok": true,
+          "nodes": 52,
+          "components": 50,
+          "maxDepth": 52,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 0,
+          "diagnosticKeys": []
+        },
+        "peakRssBytes": 70524928
+      }
+    },
+    {
+      "id": "containers-100",
+      "before": {
+        "timing": {
+          "samples": [
+            110.523,
+            106.658,
+            109.419
+          ],
+          "count": 3,
+          "medianMs": 109.419,
+          "p95Ms": 110.523,
+          "maxMs": 110.523
+        },
+        "coldMs": 215.096,
+        "outcome": {
+          "ok": true,
+          "nodes": 102,
+          "components": 100,
+          "maxDepth": 102,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 0,
+          "diagnosticKeys": []
+        },
+        "peakRssBytes": 85114880
+      },
+      "after": {
+        "timing": {
+          "samples": [
+            32.905,
+            34.132,
+            29.003
+          ],
+          "count": 3,
+          "medianMs": 32.905,
+          "p95Ms": 34.132,
+          "maxMs": 34.132
+        },
+        "coldMs": 76.321,
+        "outcome": {
+          "ok": true,
+          "nodes": 102,
+          "components": 100,
+          "maxDepth": 102,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 0,
+          "diagnosticKeys": []
+        },
+        "peakRssBytes": 73703424
+      }
+    },
+    {
+      "id": "containers-101",
+      "before": {
+        "timing": {
+          "samples": [
+            118.567,
+            107.522,
+            107.89
+          ],
+          "count": 3,
+          "medianMs": 107.89,
+          "p95Ms": 118.567,
+          "maxMs": 118.567
+        },
+        "coldMs": 207.845,
+        "outcome": {
+          "ok": false,
+          "nodes": 0,
+          "components": 0,
+          "maxDepth": 0,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 100,
+          "diagnosticKeys": [
+            "local.tag.unclosed.pair",
+            "local.budget.nesting"
+          ],
+          "firstDiagnostic": "<panel> is missing </panel>."
+        },
+        "peakRssBytes": 83288064
+      },
+      "after": {
+        "timing": {
+          "samples": [
+            12.702,
+            10.688,
+            11.145
+          ],
+          "count": 3,
+          "medianMs": 11.145,
+          "p95Ms": 12.702,
+          "maxMs": 12.702
+        },
+        "coldMs": 36.841,
+        "outcome": {
+          "ok": false,
+          "nodes": 0,
+          "components": 0,
+          "maxDepth": 0,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 1,
+          "diagnosticKeys": [
+            "local.budget.nesting"
+          ],
+          "firstDiagnostic": "Component nesting exceeds the 100-level limit."
+        },
+        "peakRssBytes": 70381568
+      }
+    },
+    {
+      "id": "containers-1000",
+      "before": {
+        "timing": {
+          "samples": [
+            4587.179,
+            4571.314,
+            4724.295
+          ],
+          "count": 3,
+          "medianMs": 4587.179,
+          "p95Ms": 4724.295,
+          "maxMs": 4724.295
+        },
+        "coldMs": 2077.148,
+        "outcome": {
+          "ok": false,
+          "nodes": 0,
+          "components": 0,
+          "maxDepth": 0,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 100,
+          "diagnosticKeys": [
+            "local.tag.unclosed.pair",
+            "local.budget.nesting"
+          ],
+          "firstDiagnostic": "<panel> is missing </panel>."
+        },
+        "peakRssBytes": 144896000
+      },
+      "after": {
+        "timing": {
+          "samples": [
+            104.324,
+            88.825,
+            86.484
+          ],
+          "count": 3,
+          "medianMs": 88.825,
+          "p95Ms": 104.324,
+          "maxMs": 104.324
+        },
+        "coldMs": 151.876,
+        "outcome": {
+          "ok": false,
+          "nodes": 0,
+          "components": 0,
+          "maxDepth": 0,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 1,
+          "diagnosticKeys": [
+            "local.budget.nesting"
+          ],
+          "firstDiagnostic": "Component nesting exceeds the 100-level limit."
+        },
+        "peakRssBytes": 102379520
+      }
+    },
+    {
+      "id": "markdown-depth-500",
+      "before": {
+        "timing": {
+          "samples": [
+            15.268,
+            10.246,
+            8.966
+          ],
+          "count": 3,
+          "medianMs": 10.246,
+          "p95Ms": 15.268,
+          "maxMs": 15.268
+        },
+        "coldMs": 31.953,
+        "outcome": {
+          "ok": true,
+          "nodes": 502,
+          "components": 0,
+          "maxDepth": 502,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 0,
+          "diagnosticKeys": []
+        },
+        "peakRssBytes": 70434816
+      },
+      "after": {
+        "timing": {
+          "samples": [
+            13.238,
+            12.366,
+            8.361
+          ],
+          "count": 3,
+          "medianMs": 12.366,
+          "p95Ms": 13.238,
+          "maxMs": 13.238
+        },
+        "coldMs": 31.937,
+        "outcome": {
+          "ok": true,
+          "nodes": 502,
+          "components": 0,
+          "maxDepth": 502,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 0,
+          "diagnosticKeys": []
+        },
+        "peakRssBytes": 70451200
+      }
+    },
+    {
+      "id": "markdown-depth-1000",
+      "before": {
+        "timing": {
+          "samples": [
+            32.107,
+            22.293,
+            18.416
+          ],
+          "count": 3,
+          "medianMs": 22.293,
+          "p95Ms": 32.107,
+          "maxMs": 32.107
+        },
+        "coldMs": 59.047,
+        "outcome": {
+          "ok": true,
+          "nodes": 1002,
+          "components": 0,
+          "maxDepth": 1002,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 0,
+          "diagnosticKeys": []
+        },
+        "peakRssBytes": 81694720
+      },
+      "after": {
+        "timing": {
+          "samples": [
+            33.477,
+            20.078,
+            18.139
+          ],
+          "count": 3,
+          "medianMs": 20.078,
+          "p95Ms": 33.477,
+          "maxMs": 33.477
+        },
+        "coldMs": 52.691,
+        "outcome": {
+          "ok": true,
+          "nodes": 1002,
+          "components": 0,
+          "maxDepth": 1002,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 0,
+          "diagnosticKeys": []
+        },
+        "peakRssBytes": 80592896
+      }
+    },
+    {
+      "id": "markdown-depth-1500",
+      "before": {
+        "timing": {
+          "samples": [
+            4.279,
+            3.192,
+            3.053
+          ],
+          "count": 3,
+          "medianMs": 3.192,
+          "p95Ms": 4.279,
+          "maxMs": 4.279
+        },
+        "coldMs": 13.338,
+        "outcome": {
+          "ok": false,
+          "nodes": 0,
+          "components": 0,
+          "maxDepth": 0,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 1,
+          "diagnosticKeys": [
+            "local.budget.markdown-depth"
+          ],
+          "firstDiagnostic": "Markdown nesting exceeds the 1000-level limit."
+        },
+        "peakRssBytes": 67284992
+      },
+      "after": {
+        "timing": {
+          "samples": [
+            5.715,
+            2.799,
+            2.774
+          ],
+          "count": 3,
+          "medianMs": 2.799,
+          "p95Ms": 5.715,
+          "maxMs": 5.715
+        },
+        "coldMs": 13.177,
+        "outcome": {
+          "ok": false,
+          "nodes": 0,
+          "components": 0,
+          "maxDepth": 0,
+          "bindings": 0,
+          "computations": 0,
+          "diagnostics": 1,
+          "diagnosticKeys": [
+            "local.budget.markdown-depth"
+          ],
+          "firstDiagnostic": "Markdown nesting exceeds the 1000-level limit."
+        },
+        "peakRssBytes": 67153920
+      }
+    }
+  ],
+  "deepBrowser": {
+    "generatedAt": "2026-10-29T10:57:58.562Z",
+    "browser": "135.0.3179.66",
+    "methodology": "Production ESM, real module Worker and public scheduler with author analysis. 100/500/1000 quote levels, deep edits, 1001 budget rejection, ordinary recovery, 1000 nested lists and 500 quote/list pairs; repeat with one forged cyclic flat response. CM6 and React preview verified 500/1000 quote levels, 1000 unordered/ordered lists and mixed containers, parameter retention and recomputed interpolation. Timings are verification samples, not benchmark percentiles.",
+    "results": [
+      {
+        "corrupt": false,
+        "requests": [
+          {
+            "patch": false,
+            "flatResults": "flat-v1"
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": false,
+            "flatResults": "flat-v1"
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": true
+          }
+        ],
+        "frames": [
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": false,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": false,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "quote",
+            "depth": 100,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 100,
+            "leafType": "interpolation",
+            "leafValue": "1 + 2",
+            "diagnostics": [],
+            "compileMs": 24,
+            "totalMs": 130.79999995231628,
+            "metrics": {
+              "queueMs": 1,
+              "roundTripMs": 129,
+              "applyMs": 1,
+              "worker": {
+                "compileMs": 24,
+                "analysisMs": 1
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "quote",
+            "depth": 500,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 500,
+            "leafType": "interpolation",
+            "leafValue": "1 + 2",
+            "diagnostics": [],
+            "compileMs": 29,
+            "totalMs": 42.200000047683716,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 40,
+              "applyMs": 4,
+              "worker": {
+                "compileMs": 29,
+                "analysisMs": 1
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "quote",
+            "depth": 1000,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 1000,
+            "leafType": "interpolation",
+            "leafValue": "1 + 2",
+            "diagnostics": [],
+            "compileMs": 39,
+            "totalMs": 53.40000009536743,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 51,
+              "applyMs": 5,
+              "worker": {
+                "compileMs": 39,
+                "analysisMs": 1
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "quote",
+            "depth": 1000,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 1000,
+            "leafType": "interpolation",
+            "leafValue": "3 + 4",
+            "diagnostics": [],
+            "compileMs": 18,
+            "totalMs": 30,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 28,
+              "applyMs": 3,
+              "worker": {
+                "compileMs": 18,
+                "analysisMs": 3
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "quote",
+            "depth": 1001,
+            "mode": "worker",
+            "ok": false,
+            "measuredDepth": 0,
+            "diagnostics": [
+              "local.budget.markdown-depth"
+            ],
+            "compileMs": 4,
+            "totalMs": 4.8999998569488525,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 5,
+              "worker": {
+                "compileMs": 4,
+                "analysisMs": 0
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "quote",
+            "depth": 0,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 0,
+            "leafType": "text",
+            "leafValue": "ordinary text",
+            "diagnostics": [],
+            "compileMs": 0,
+            "totalMs": 0.5,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 1,
+              "worker": {
+                "compileMs": 0,
+                "analysisMs": 0
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "list",
+            "depth": 1000,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 1000,
+            "leafType": "interpolation",
+            "leafValue": "1 + 2",
+            "diagnostics": [],
+            "compileMs": 407,
+            "totalMs": 442.40000009536743,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 437,
+              "applyMs": 12,
+              "worker": {
+                "compileMs": 407,
+                "analysisMs": 6
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "list",
+            "depth": 1000,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 1000,
+            "leafType": "interpolation",
+            "leafValue": "3 + 4",
+            "diagnostics": [],
+            "compileMs": 249,
+            "totalMs": 287.10000014305115,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 277,
+              "applyMs": 7,
+              "worker": {
+                "compileMs": 249,
+                "analysisMs": 6
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "mixed",
+            "depth": 1000,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 1000,
+            "leafType": "interpolation",
+            "leafValue": "1 + 2",
+            "diagnostics": [],
+            "compileMs": 135,
+            "totalMs": 149.89999985694885,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 147,
+              "applyMs": 5,
+              "worker": {
+                "compileMs": 135,
+                "analysisMs": 1
+              }
+            },
+            "analysis": true
+          }
+        ]
+      },
+      {
+        "corrupt": true,
+        "requests": [
+          {
+            "patch": false,
+            "flatResults": "flat-v1"
+          },
+          {
+            "patch": false,
+            "flatResults": "flat-v1"
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": false,
+            "flatResults": "flat-v1"
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": true
+          },
+          {
+            "patch": true
+          }
+        ],
+        "frames": [
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": false,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": false,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          },
+          {
+            "flat": true,
+            "patch": false,
+            "ok": true
+          }
+        ],
+        "outcomes": [
+          {
+            "kind": "quote",
+            "depth": 100,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 100,
+            "leafType": "interpolation",
+            "leafValue": "1 + 2",
+            "diagnostics": [],
+            "compileMs": 2,
+            "totalMs": 72.09999990463257,
+            "metrics": {
+              "queueMs": 67,
+              "roundTripMs": 5,
+              "applyMs": 1,
+              "worker": {
+                "compileMs": 2,
+                "analysisMs": 0
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "quote",
+            "depth": 500,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 500,
+            "leafType": "interpolation",
+            "leafValue": "1 + 2",
+            "diagnostics": [],
+            "compileMs": 20,
+            "totalMs": 25.700000047683716,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 24,
+              "applyMs": 1,
+              "worker": {
+                "compileMs": 20,
+                "analysisMs": 0
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "quote",
+            "depth": 1000,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 1000,
+            "leafType": "interpolation",
+            "leafValue": "1 + 2",
+            "diagnostics": [],
+            "compileMs": 32,
+            "totalMs": 42.5,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 41,
+              "applyMs": 3,
+              "worker": {
+                "compileMs": 32,
+                "analysisMs": 1
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "quote",
+            "depth": 1000,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 1000,
+            "leafType": "interpolation",
+            "leafValue": "3 + 4",
+            "diagnostics": [],
+            "compileMs": 14,
+            "totalMs": 24.700000047683716,
+            "metrics": {
+              "queueMs": 3,
+              "roundTripMs": 20,
+              "applyMs": 2,
+              "worker": {
+                "compileMs": 14,
+                "analysisMs": 0
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "quote",
+            "depth": 1001,
+            "mode": "worker",
+            "ok": false,
+            "measuredDepth": 0,
+            "diagnostics": [
+              "local.budget.markdown-depth"
+            ],
+            "compileMs": 4,
+            "totalMs": 4.700000047683716,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 5,
+              "worker": {
+                "compileMs": 4,
+                "analysisMs": 0
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "quote",
+            "depth": 0,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 0,
+            "leafType": "text",
+            "leafValue": "ordinary text",
+            "diagnostics": [],
+            "compileMs": 0,
+            "totalMs": 0.5,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 1,
+              "worker": {
+                "compileMs": 0,
+                "analysisMs": 0
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "list",
+            "depth": 1000,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 1000,
+            "leafType": "interpolation",
+            "leafValue": "1 + 2",
+            "diagnostics": [],
+            "compileMs": 348,
+            "totalMs": 376.69999980926514,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 373,
+              "applyMs": 9,
+              "worker": {
+                "compileMs": 348,
+                "analysisMs": 6
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "list",
+            "depth": 1000,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 1000,
+            "leafType": "interpolation",
+            "leafValue": "3 + 4",
+            "diagnostics": [],
+            "compileMs": 206,
+            "totalMs": 229.80000019073486,
+            "metrics": {
+              "queueMs": 0,
+              "roundTripMs": 225,
+              "applyMs": 4,
+              "worker": {
+                "compileMs": 206,
+                "analysisMs": 6
+              }
+            },
+            "analysis": true
+          },
+          {
+            "kind": "mixed",
+            "depth": 1000,
+            "mode": "worker",
+            "ok": true,
+            "measuredDepth": 1000,
+            "leafType": "interpolation",
+            "leafValue": "1 + 2",
+            "diagnostics": [],
+            "compileMs": 120,
+            "totalMs": 136.20000004768372,
+            "metrics": {
+              "queueMs": 2,
+              "roundTripMs": 131,
+              "applyMs": 3,
+              "worker": {
+                "compileMs": 120,
+                "analysisMs": 1
+              }
+            },
+            "analysis": true
+          }
+        ]
+      }
+    ],
+    "previewResults": [
+      {
+        "kind": "quote",
+        "depth": 500,
+        "containerCount": 500,
+        "parameter": "13",
+        "workers": 1
+      },
+      {
+        "kind": "quote",
+        "depth": 1000,
+        "containerCount": 1000,
+        "parameter": "13",
+        "workers": 1
+      },
+      {
+        "kind": "list",
+        "depth": 1000,
+        "containerCount": 1000,
+        "parameter": "13",
+        "workers": 1
+      },
+      {
+        "kind": "ordered",
+        "depth": 1000,
+        "containerCount": 1000,
+        "parameter": "13",
+        "workers": 1
+      },
+      {
+        "kind": "mixed",
+        "depth": 1000,
+        "containerCount": 1000,
+        "parameter": "13",
+        "workers": 1
+      }
+    ],
+    "errors": []
+  },
+  "memory": {
+    "name": "longRows",
+    "status": "completed",
+    "wallMs": 69440.411,
+    "iterations": 500,
+    "dynamic": true,
+    "before": {
+      "rss": 62758912,
+      "heapTotal": 20058112,
+      "heapUsed": 10637768,
+      "external": 2105808,
+      "arrayBuffers": 37766,
+      "heapUsedMiB": 10.145,
+      "rssMiB": 59.852,
+      "maxRssBytes": 67174400,
+      "maxRssMiB": 64.063
+    },
+    "checkpoints": [
+      {
+        "iteration": 50,
+        "rss": 133410816,
+        "heapTotal": 62738432,
+        "heapUsed": 18546064,
+        "external": 2069958,
+        "arrayBuffers": 37766,
+        "heapUsedMiB": 17.687,
+        "rssMiB": 127.23,
+        "maxRssBytes": 148692992,
+        "maxRssMiB": 141.805,
+        "parseEntries": 524
+      },
+      {
+        "iteration": 100,
+        "rss": 134660096,
+        "heapTotal": 62214144,
+        "heapUsed": 18652496,
+        "external": 2069958,
+        "arrayBuffers": 37766,
+        "heapUsedMiB": 17.788,
+        "rssMiB": 128.422,
+        "maxRssBytes": 148705280,
+        "maxRssMiB": 141.816,
+        "parseEntries": 524
+      },
+      {
+        "iteration": 250,
+        "rss": 134246400,
+        "heapTotal": 66408448,
+        "heapUsed": 18815552,
+        "external": 2069958,
+        "arrayBuffers": 37766,
+        "heapUsedMiB": 17.944,
+        "rssMiB": 128.027,
+        "maxRssBytes": 152752128,
+        "maxRssMiB": 145.676,
+        "parseEntries": 524
+      },
+      {
+        "iteration": 500,
+        "rss": 133058560,
+        "heapTotal": 73224192,
+        "heapUsed": 19031320,
+        "external": 2141958,
+        "arrayBuffers": 37766,
+        "heapUsedMiB": 18.15,
+        "rssMiB": 126.895,
+        "maxRssBytes": 153473024,
+        "maxRssMiB": 146.363,
+        "parseEntries": 524
+      }
+    ],
+    "retained": {
+      "rss": 133058560,
+      "heapTotal": 56446976,
+      "heapUsed": 19027360,
+      "external": 2069958,
+      "arrayBuffers": 37766,
+      "heapUsedMiB": 18.146,
+      "rssMiB": 126.895,
+      "maxRssBytes": 153473024,
+      "maxRssMiB": 146.363
+    },
+    "disposed": {
+      "rss": 132067328,
+      "heapTotal": 55455744,
+      "heapUsed": 13731424,
+      "external": 2069958,
+      "arrayBuffers": 37766,
+      "heapUsedMiB": 13.095,
+      "rssMiB": 125.949,
+      "maxRssBytes": 153473024,
+      "maxRssMiB": 146.363
+    },
+    "heapGrowthAfterWarmupMiB": 0.463
+  },
+  "validation": {
+    "coreFiles": 116,
+    "coreTests": 1534,
+    "demoFiles": 16,
+    "demoTests": 254,
+    "typecheck": true,
+    "productionStandaloneDeclarations": true,
+    "demoBuild": true,
+    "publicPackage": true,
+    "packedOffline": true,
+    "localDocumentationLinks": 736,
+    "diffCheck": true,
+    "deepPreviewCases": 5
+  },
+  "sources": [
+    "https://lezer.codemirror.net/docs/guide/",
+    "https://v8.dev/blog/json-stringify",
+    "https://github.com/ungap/structured-clone/blob/main/esm/serialize.js"
+  ]
+}

@@ -1,5 +1,6 @@
 import type { DependencyIndex, NodeDependencies } from './dependencies';
 import type { LocalDocument, LocalNode, LocalValue } from './types';
+import {walkLocalNodes} from './node-walk';
 
 /**
  * Pure projections used to keep a rendered document's memo boundaries stable
@@ -54,17 +55,13 @@ export function anchorMetadataKey(document: LocalDocument): string {
 
 export function projectAnchors(document: LocalDocument): AnchorProjection {
   const nodes: LocalNode[] = [];
-  const visit = (list: LocalNode[] | undefined): void => {
-    for (const node of list ?? []) {
+    for (const node of walkLocalNodes(document.nodes)) {
       const explicitHtmlId = node.type !== 'component' && typeof node.attrs?.id === 'string';
       const explicitAnchor = node.type === 'component'
         && node.name === 'anchor'
         && typeof node.attrs?.id === 'string';
       if (node.type === 'heading' || explicitHtmlId || explicitAnchor) nodes.push(node);
-      visit(node.children);
     }
-  };
-  visit(document.nodes);
   return { nodes, metadata: anchorMetadataKey(document) };
 }
 
@@ -79,13 +76,9 @@ export function sameAnchorProjection(previous: AnchorProjection, next: AnchorPro
 
 export function projectFootnotes(document: LocalDocument): FootnoteProjection {
   const nodes: LocalNode[] = [];
-  const visit = (list: LocalNode[] | undefined): void => {
-    for (const node of list ?? []) {
+    for (const node of walkLocalNodes(document.nodes)) {
       if (node.type === 'footnoteDefinition' || node.type === 'footnoteReference') nodes.push(node);
-      visit(node.children);
     }
-  };
-  visit(document.nodes);
   return { nodes };
 }
 

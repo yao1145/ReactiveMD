@@ -68,7 +68,7 @@ export type {
   LocalCompileSchedulerOptions,
   LocalCompileWorkerScope,
   LocalCompilePatchRequest,LocalCompileWorkerRequest,LocalCompilePatchResponse,
-  LocalCompileWorkerResponse,LocalCompileWorkerMetrics,LocalCompileMetrics,
+  LocalCompileWorkerResponse,LocalCompileFlatResponse,LocalCompileWorkerMetrics,LocalCompileMetrics,
   LocalCompileWorkerControl,LocalCompileWorkerControlMessage,LocalCompileWorkerOptions,
 } from './worker';
 export {LOCAL_RESULT_PATCH_PROTOCOL,diffSourceEdit,applySourceEdit,encodeLocalResultPatch,applyLocalResultPatch} from './compile-patch';

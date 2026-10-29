@@ -86,7 +86,9 @@ try{
   const kinds=(process.env.EDITING_CASES??Object.keys(fixtures).join(',')).split(',');
   assert.ok(kinds.every(kind=>Object.hasOwn(fixtures,kind)),'Unknown EDITING_CASES entry');
   for(let index=0;index<kinds.length;index++){
-    const kind=kinds[index],variants=index%2?['after','before']:['before','after'];
+    const kind=kinds[index],allowed=(process.env.EDITING_VARIANTS??'before,after').split(',');
+    assert.ok(allowed.every(variant=>variant==='before'||variant==='after'),'Unknown EDITING_VARIANTS entry');
+    const variants=(index%2?['after','before']:['before','after']).filter(variant=>allowed.includes(variant));
     for(const variant of variants){
       console.log(`START ${kind} ${variant}`);
       const result=await measure(browser,variant,kind);results.push(result);

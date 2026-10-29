@@ -12,6 +12,7 @@ import { MAX_LOCAL_HOST_COMPONENTS, MAX_LOCAL_HOST_ENUM_VALUES } from './limits'
 import { LOCAL_HTML_FLAGS, localCompileOptionsKey } from './options';
 import type { Diagnostic, LocalCompileOptions, LocalCompileResult } from './types';
 import { analyzeLocalSource, type AuthorAnalysis } from './authoring';
+import {decodeFlatCompiledData,encodeFlatCompiledData,needsFlatCompileResult,FLAT_COMPILED_DATA_PROTOCOL,type FlatCompiledData} from './flat-compiled-data';
 
 /** Editors are coalesced for this long before a compile is dispatched. */
 export const LOCAL_COMPILE_DELAY_MS = 150;
@@ -28,6 +29,8 @@ const LIMIT_KEYS = ['maxSyntaxNodes', 'maxParseWork', 'maxMarkdownDepth'] as con
 export type LocalCompileProtocol = typeof LOCAL_RESULT_PATCH_PROTOCOL;
 
 export interface LocalCompileRequest {
+  /** Opt into depth-independent full results. Absent on legacy clients. */
+  flatResults?: typeof FLAT_COMPILED_DATA_PROTOCOL;
   /** Return authoring data from the same compiled document. Off by default. */
   includeAuthorAnalysis?: boolean;
   id: number;
@@ -143,7 +146,8 @@ export type LocalCompileResponse =
  * full-result typing; patch frames are layered on top rather than embedded in
  * the full result shape.
  */
-export type LocalCompileWorkerResponse = LocalCompileResponse | LocalCompilePatchResponse;
+export type LocalCompileFlatResponse = Omit<Extract<LocalCompileResponse,{ok:true}>,'result'> & {flatResult:FlatCompiledData};
+export type LocalCompileWorkerResponse = LocalCompileResponse | LocalCompilePatchResponse | LocalCompileFlatResponse;
 
 /**
  * The small surface the scheduler needs from a Worker. Events stay untyped so
@@ -558,6 +562,7 @@ export class LocalCompileScheduler {
           ...(job.options === undefined ? {} : { options: job.options }),
           protocol: LOCAL_RESULT_PATCH_PROTOCOL,
           revision,
+          flatResults: FLAT_COMPILED_DATA_PROTOCOL,
         };
     this.inFlight = { id, job, startedAt, revision };
     if (this.options.includeAuthorAnalysis) request.includeAuthorAnalysis = true;
@@ -613,10 +618,20 @@ export class LocalCompileScheduler {
     this.finishRun();
   }
 
-  private receive(response: LocalCompileWorkerResponse): void {
+  private receive(wireResponse: LocalCompileWorkerResponse): void {
     if (this.disposed) return;
     const inFlight = this.inFlight;
-    if (!inFlight || !response || response.id !== inFlight.id) return;
+    if (!inFlight || !wireResponse || wireResponse.id !== inFlight.id) return;
+    let response:LocalCompileResponse|LocalCompilePatchResponse;
+    let flatApplyMs=0;
+    if(wireResponse.ok&&'flatResult'in wireResponse){
+      const started=now();
+      const decoded=decodeFlatCompiledData(wireResponse.flatResult);
+      flatApplyMs=safeDuration(now()-started);
+      response=isCompileResult(decoded)
+        ?{...wireResponse,result:decoded}
+        :{id:wireResponse.id,ok:false,retryFull:true,message:'Invalid flat compile result'};
+    }else response=wireResponse;
     this.inFlight = null;
     const job = inFlight.job;
     const receivedAt = now();
@@ -624,7 +639,7 @@ export class LocalCompileScheduler {
     const queueMs = safeDuration(inFlight.startedAt - job.scheduledAt);
 
     let result: LocalCompileResult | null = null;
-    let applyMs = 0;
+    let applyMs = flatApplyMs;
     let failure: string | null = null;
     const mode: LocalCompileMode = 'worker';
     let revision: number | undefined;
@@ -891,6 +906,8 @@ interface WorkerState {
   options?: LocalCompileOptions;
   optionsKey: string;
   result: LocalCompileResult;
+  deep: boolean;
+  flatResults: boolean;
 }
 
 function compileWithSession(
@@ -1094,7 +1111,11 @@ export function startLocalCompileWorker(
         response.analysis = analyzeResult(state.source, state.options, state.result);
         response.metrics = { ...response.metrics, analysisMs: safeDuration(now() - started) };
       }
-      target.postMessage(response);
+      if(state.deep&&state.flatResults&&response.ok){
+        const {result,...header}=response;
+        const flat:LocalCompileFlatResponse={...header,flatResult:encodeFlatCompiledData(result)};
+        target.postMessage(flat as unknown as LocalCompileResponse);
+      }else target.postMessage(response);
       return true;
     } catch (error) {
       // The result itself may not be cloneable; report the failure instead.
@@ -1140,6 +1161,8 @@ export function startLocalCompileWorker(
           options: snapshot,
           optionsKey,
           result,
+          deep: needsFlatCompileResult(result),
+          flatResults: full.flatResults===FLAT_COMPILED_DATA_PROTOCOL,
         };
         if (respondFull(full.id, revision, compileMs, negotiated, full.includeAuthorAnalysis === true)) {
           schedulePreparation();
@@ -1203,10 +1226,12 @@ export function startLocalCompileWorker(
         options: state.options,
         optionsKey: state.optionsKey,
         result,
+        deep: needsFlatCompileResult(result),
+        flatResults: state.flatResults,
       };
       let encoding: ReturnType<typeof encodeLocalResultPatchWithCost> = null;
       let patchEncodeMs = 0;
-      if (result.ok && baseResult.ok) {
+      if (result.ok && baseResult.ok && !current.deep && !state.deep) {
         const encodeStarted = now();
         encoding = encodeLocalResultPatchWithCost(baseResult, result);
         patchEncodeMs = safeDuration(now() - encodeStarted);

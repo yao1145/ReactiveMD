@@ -46,6 +46,7 @@ function Fixture(){
     probe.insert=(text:string)=>handle.current?.insertText(text);probe.undo=()=>handle.current?.undo();probe.redo=()=>handle.current?.redo();
     probe.source=()=>{const current=handle.current;return current&&'getSource'in current?current.getSource():sourceRef.current;};
     probe.selection=()=>handle.current?.getSelection();probe.handle=()=>handle.current;
+    probe.document=()=>compilation.previewDocument;
     probe.ready=true;
   });
   useLayoutEffect(()=>{probe.hostSource=source;probe.commits.push({at:performance.now(),source});probe.previewSource=compilation.previewDocument?.source;},[source,compilation.previewDocument]);

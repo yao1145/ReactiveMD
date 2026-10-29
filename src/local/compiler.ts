@@ -43,6 +43,7 @@ import { parseValidationFields } from './validation';
 import { readLocalCompileOptions, type LocalOptionCheck } from './options';
 import { sanitizeLocalHtmlDocument } from './html';
 import { plainCompiledData } from './compiled-data';
+import {walkLocalNodes} from './node-walk';
 import { SourceContext } from './source-context';
 import { LocalSemanticCache, type SemanticCacheStats } from './compiler-cache';
 import { localCompileOptionsKey } from './options';
@@ -552,19 +553,19 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
 
 function collectLegacyFences(nodes: LocalNode[]): LocalNode[] {
   const found: LocalNode[] = [];
-  const walk = (items: LocalNode[]): void => {
-    for (const node of items) {
+    for (const node of walkLocalNodes(nodes)) {
       if (node.type === 'code' && (node.lang ?? '').trim().toLowerCase() === 'reactive-md') found.push(node);
-      if (node.children) walk(node.children);
     }
-  };
-  walk(nodes);
   return found;
 }
 
 function collectEntries(nodes: LocalNode[], parent: Entry | null, out: Entry[], state: CompileState): void {
-  for (const node of nodes) {
-    let nextParent = parent;
+  const pending=[{nodes,parent,index:0}];
+  while(pending.length){
+    const frame=pending[pending.length-1];
+    if(frame.index===frame.nodes.length){pending.pop();continue;}
+    const node=frame.nodes[frame.index++],parent=frame.parent;
+    let nextParent=parent;
     if (node.type === 'component' && node.name) {
       const schema = getLocalComponent(node.name);
       if (schema) {
@@ -585,7 +586,7 @@ function collectEntries(nodes: LocalNode[], parent: Entry | null, out: Entry[], 
         );
       }
     }
-    if (node.children) collectEntries(node.children, nextParent, out, state);
+    if(node.children)pending.push({nodes:node.children,parent:nextParent,index:0});
   }
 }
 
@@ -2150,10 +2151,17 @@ function expressionEnv(state: CompileState): Record<string, LocalValueKind> {
 /** Declaration tags never reach the published tree; they are metadata only. */
 function stripComputationNodes(nodes: LocalNode[]): LocalNode[] {
   const kept: LocalNode[] = [];
-  for (const node of nodes) {
+  const pending=[{nodes,kept,index:0}];
+  while(pending.length){
+    const frame=pending[pending.length-1];
+    if(frame.index===frame.nodes.length){pending.pop();continue;}
+    const node=frame.nodes[frame.index++];
     if (node.type === 'component' && (node.name === 'computed' || node.name === 'const')) continue;
-    if (node.children) node.children = stripComputationNodes(node.children);
-    kept.push(node);
+    frame.kept.push(node);
+    if(node.children){
+      const children=node.children;node.children=[];
+      pending.push({nodes:children,kept:node.children,index:0});
+    }
   }
   return kept;
 }
@@ -2238,8 +2246,7 @@ function validateExpressions(state: CompileState): void {
     return kind;
   };
 
-  const walk = (nodes: LocalNode[]): void => {
-    for (const node of nodes) {
+    for (const node of walkLocalNodes(state.nodes)) {
       if (node.type === 'interpolation') {
         const raw = state.source.slice(node.range.start + 2, Math.max(node.range.start + 2, node.range.end - 2));
         const value = node.value ?? '';
@@ -2247,10 +2254,7 @@ function validateExpressions(state: CompileState): void {
         const base = node.range.start + 2 + leading;
         state.expressionKinds.set(node.id, validate(value, base, 'text'));
       }
-      if (node.children) walk(node.children);
     }
-  };
-  walk(state.nodes);
 
   for (const entry of state.entries) {
     // Declaration values are expressions, not text templates; they are
@@ -2318,16 +2322,12 @@ function validateNavigation(
   // rejected regardless of whether the explicit anchor appears first.
   const anchors = createHeadingAnchors(document, namespace, false);
   const headingSlugs = new Set<string>();
-  const visit = (nodes: LocalNode[]): void => {
-    for (const node of nodes) {
+    for (const node of walkLocalNodes(state.nodes)) {
       if (node.type === 'heading') {
         const id = anchors.ids.get(node);
         if (id && id.startsWith(`${namespace}-`)) headingSlugs.add(id.slice(namespace.length + 1));
       }
-      if (node.children) visit(node.children);
     }
-  };
-  visit(state.nodes);
 
   const explicit = new Set<string>();
   for (const entry of state.entries) {
@@ -3298,7 +3298,7 @@ function validateHostComponents(
   hostByName: ReadonlyMap<string, LocalHostComponentSchema>,
   state: CompileState,
 ): void {
-  for (const node of nodes) {
+  for (const node of walkLocalNodes(nodes)) {
     if (node.type === 'hostComponent') {
       const schema = node.name ? hostByName.get(node.name) : undefined;
       if (!schema) {
@@ -3317,7 +3317,6 @@ function validateHostComponents(
         validateHostAttributes(node, schema, state);
       }
     }
-    if (node.children) validateHostComponents(node.children, hostByName, state);
   }
 }
 

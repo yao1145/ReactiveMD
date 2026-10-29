@@ -2,6 +2,7 @@ import type { LocalDocument, LocalNode, LocalRuntime } from './types';
 import { localKey } from './types';
 import { compileExpression, templateDependencies } from './expression';
 import { compileLatex } from './math';
+import {walkLocalNodes} from './node-walk';
 
 /**
  * Binding keys a node subtree reads. `null` marks nodes whose reads cannot be
@@ -50,13 +51,13 @@ export function collectSubtreeResetTokens(runtime: LocalRuntime): ReadonlyMap<st
   if (cached?.revision === revision) return cached.tokens;
 
   const tokens = new Map<string, number>();
-  const visit = (node: LocalNode): number => {
+  const values=new WeakMap<LocalNode,number>();
+  for(const node of walkLocalNodes(runtime.document.nodes,true)){
     let token = runtime.resetToken(node);
-    for (const child of node.children ?? []) token += visit(child);
+    for (const child of node.children ?? []) token += values.get(child)!;
     tokens.set(node.id, token);
-    return token;
-  };
-  for (const node of runtime.document.nodes) visit(node);
+    values.set(node,token);
+  }
   subtreeResetCache.set(runtime, { revision, tokens });
   return tokens;
 }
@@ -83,7 +84,8 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
 
   const index = new Map<string, NodeDependencies>();
 
-  const visit = (node: LocalNode): NodeDependencies => {
+  const values=new WeakMap<LocalNode,NodeDependencies>();
+  for(const node of walkLocalNodes(document.nodes,true)){
     const dependencies = new Set<string>();
     let undecidable = false;
 
@@ -152,17 +154,15 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
 
     let descendantUndecidable = false;
     for (const child of node.children ?? []) {
-      const childDependencies = visit(child);
+      const childDependencies = values.get(child)!;
       if (childDependencies === null) descendantUndecidable = true;
       else addAll(dependencies, childDependencies);
     }
 
     const entry = undecidable || descendantUndecidable ? null : [...dependencies];
     index.set(node.id, entry);
-    return entry;
-  };
-
-  for (const node of document.nodes) visit(node);
+    values.set(node,entry);
+  }
   dependencyIndexCache.set(document, index);
   return index;
 }

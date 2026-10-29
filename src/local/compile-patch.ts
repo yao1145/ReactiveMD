@@ -1,4 +1,5 @@
 import type { Diagnostic, LocalCompileResult, LocalDocument, LocalNode, SourceRange } from './types';
+import { plainCompiledData } from './compiled-data';
 
 /**
  * Wire protocol for incremental compile results.
@@ -170,25 +171,7 @@ export function localDataEqual(left: unknown, right: unknown): boolean {
  * internal baseline.
  */
 export function cloneLocalCompileResult<T>(value: T): T {
-  const seen = new Map<object, unknown>();
-  const visit = (input: unknown): unknown => {
-    if (input === null || typeof input !== 'object') return input;
-    const object = input as object;
-    const cached = seen.get(object);
-    if (cached !== undefined) return cached;
-    const output: Record<string, unknown> | unknown[] = Array.isArray(input) ? [] : {};
-    seen.set(object, output);
-    for (const [key, child] of Object.entries(input as Record<string, unknown>)) {
-      Object.defineProperty(output, key, {
-        value: visit(child),
-        enumerable: true,
-        configurable: true,
-        writable: true,
-      });
-    }
-    return output;
-  };
-  return visit(value) as T;
+  return plainCompiledData(value, false);
 }
 
 /** Longest-common-prefix/suffix UTF-16 edit from `before` to `after`. */

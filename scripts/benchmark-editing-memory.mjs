@@ -72,14 +72,17 @@ async function deepContainers(){
 }
 async function longRows(){
   const {createLocalCompileSession}=await import('reactive-md'),session=createLocalCompileSession(),before=memory(),checkpoints=[];
-  let source=Array.from({length:1000},(_,i)=>`- Item ${i} with **bold** and value 1000.`).join('\n'),result=null;
+  const dynamic=process.env.EDITING_DYNAMIC_ROWS==='1';
+  let source=(dynamic?'<slider bind="n" label="N" initial="2">\n\n':'')
+    +Array.from({length:1000},(_,i)=>`- Item ${i} with **bold** and value ${dynamic?'{{ n * 1000 }}':'1000'}.`).join('\n'),result=null;
   for(let edit=1;edit<=500;edit++){
-    source=source.replace(/value \d+\./,`value ${1000+edit}.`);result=session.compileShared(source);assert.ok(result.ok);
+    source=dynamic?source.replace(/n \* \d+/,`n * ${1000+edit}`):source.replace(/value \d+\./,`value ${1000+edit}.`);
+    result=session.compileShared(source);assert.ok(result.ok);
     if([50,100,250,500].includes(edit))checkpoints.push({iteration:edit,...memory(),parseEntries:session.stats.parse?.entries});
   }
   assert.ok((session.stats.parse?.entries??0)<=672);
   const retained=memory();result=null;session.dispose();const disposed=memory();
-  return{iterations:500,before,checkpoints,retained,disposed,heapGrowthAfterWarmupMiB:mib(checkpoints.at(-1).heapUsed-checkpoints[0].heapUsed)};
+  return{iterations:500,dynamic,before,checkpoints,retained,disposed,heapGrowthAfterWarmupMiB:mib(checkpoints.at(-1).heapUsed-checkpoints[0].heapUsed)};
 }
 const cases={longEdit,longRows,cacheEviction,rapidCancel,longText,manyComponents,deepContainers};
 async function runChild(name){
@@ -87,7 +90,9 @@ async function runChild(name){
 }
 async function main(){
   const results=[];
-  for(const name of Object.keys(cases)){
+  const names=(process.env.EDITING_MEMORY_CASES??Object.keys(cases).join(',')).split(',');
+  assert.ok(names.every(name=>Object.hasOwn(cases,name)),'Unknown EDITING_MEMORY_CASES entry');
+  for(const name of names){
     console.log(`START ${name}`);
     const result=await new Promise(resolveCase=>{
       const child=fork(self,['--child',name],{execArgv:['--expose-gc','--max-old-space-size=1024'],silent:true});let report=null,stderr='';

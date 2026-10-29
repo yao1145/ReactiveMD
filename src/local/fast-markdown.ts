@@ -22,6 +22,8 @@ const itemMarker = /^([-+*]|\d{1,9}[.)]) /;
  * caller can enforce its cumulative budget without an intermediate tree.
  */
 export interface FastMarkdownPlan {
+  /** Advisory shielding scan; never materialize this plan as document nodes. */
+  readonly shieldOnly?:boolean;
   /** Exact number of `LocalNode` constructions, excluding the root. */
   readonly nodeCount: number;
   /** Number of top-level nodes. */
@@ -72,7 +74,17 @@ export interface InlineStrongToken {
   /** Inner text value; the inner range is `[from + 2, to - 2)`. */
   readonly value: string;
 }
-export type InlineToken = InlineTextToken | InlineStrongToken;
+export interface InlineOpaqueToken {readonly type:'opaque';readonly from:number;readonly to:number;readonly value:string}
+export type InlineToken = InlineTextToken | InlineStrongToken | InlineOpaqueToken;
+/** Only parser-created interpolation placeholders may bypass Markdown syntax. */
+export interface FastMarkdownContext {
+  /** Parser-owned same-line interpolation masking for the advisory first pass. */
+  readonly shield?: (text:string,offset:number)=>string|undefined;
+  readonly allowBraces?:boolean;
+  readonly offset?:number;
+  readonly placeholders?:ReadonlyMap<number,{readonly end:number;readonly marker:string}>;
+}
+const opaquePattern=/!\[(\ue000[0-9]+\ue001)\]\(rmd-internal:placeholder\)/g;
 /** Read-only inline plan. `undefined` means the text is outside the subset. */
 export type InlinePlan = readonly InlineToken[];
 
@@ -109,9 +121,14 @@ type InlineLookup = (from: number, to: number, kind?: 'row' | 'item') => InlineP
  * Reject the whole document before any node is built. Lines keep their exact
  * UTF-16 offsets; CR, LF and CRLF all terminate a line without normalization.
  */
-function readLines(source: string): Line[] | undefined {
+function readLines(source: string, context?:FastMarkdownContext): Line[] | undefined {
+  const checked=context?.placeholders?source.replace(opaquePattern,(match,marker,at)=>{
+    const slot=context.placeholders!.get(at+(context.offset??0));
+    return slot&&slot.marker===marker&&slot.end===at+(context.offset??0)+match.length?'x'.repeat(match.length):match;
+  }):source;
   if (source.includes(String.fromCharCode(0xfeff))
-    || /[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f\\`_{}\[\]<>!~&$@#]/.test(source)
+    || /[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f\\`_\[\]<>!~&$@#]/.test(checked)
+    || (!context?.allowBraces&&/[{}]/.test(source))
     || source.includes('://') || /www\./i.test(source)) return;
   const lines: Line[] = [];
   for (let from = 0; from < source.length;) {
@@ -131,15 +148,23 @@ function readLines(source: string): Line[] | undefined {
  * depends only on the text itself, so `LocalParseSession` can reuse it when
  * one row or item in a table/list changes.
  */
-function computeInlinePlan(text: string): InlinePlan | undefined {
+function computeInlinePlan(text: string, opaque=false): InlinePlan | undefined {
   const tokens: InlineToken[] = [];
   let cursor = 0;
   while (cursor < text.length) {
     let open = cursor;
-    while (open < text.length && text[open] !== '*') open++;
+    while (open < text.length && text[open] !== '*' && !(opaque&&text[open]==='!')) open++;
     if (open === text.length) {
       tokens.push({type: 'text', from: cursor, to: text.length, value: text.slice(cursor)});
       break;
+    }
+    if(opaque&&text[open]==='!'){
+      opaquePattern.lastIndex=open;
+      const match=opaquePattern.exec(text);
+      if(!match||match.index!==open)return;
+      if(open>cursor)tokens.push({type:'text',from:cursor,to:open,value:text.slice(cursor,open)});
+      tokens.push({type:'opaque',from:open,to:open+match[0].length,value:match[1]});
+      cursor=open+match[0].length;continue;
     }
     if (text.slice(open, open + 2) !== '**' || (open > 0 && text[open - 1] !== ' ')) return;
     let close = open + 2;
@@ -169,6 +194,8 @@ function inlineNodes<N>(
   for (const token of plan) {
     if (token.type === 'text') {
       result.push(build('text', from + token.from, from + token.to, {value: token.value}));
+    } else if(token.type==='opaque'){
+      result.push(build('rmdOpaque',from+token.from,from+token.to,{value:token.value}));
     } else {
       const inner = build('text', from + token.from + 2, from + token.to - 2, {value: token.value});
       result.push(build('strong', from + token.from, from + token.to, {children: [inner]}));
@@ -195,6 +222,9 @@ function scan<N>(source: string, lines: readonly Line[], build: ScanCreate<N>, i
   function prose(from: number, to: number, kind?: 'row' | 'item'): N | undefined {
     const text = source.slice(from, to);
     if (!text || /^[ >+=-]/.test(text) || itemMarker.test(text) || text.includes('|')) return;
+    // Standalone lexical blocks may remove their paragraph wrapper. Leave that
+    // decision to the normal transform; list interpolation paragraphs are safe.
+    if(!kind&&text.startsWith('!['))return;
     const children = inline(from, to, kind);
     if (children === undefined) return;
     return build('paragraph', from, to, {children});
@@ -283,8 +313,8 @@ function uncachedInline(source: string): InlineLookup {
  * prevents the counting and emission passes from double-counting a session hit
  * while still letting a changed block reuse unchanged rows/items.
  */
-function buildPlan(source: string, cache?: FastMarkdownCache, rowPlans?: InlinePlanLookup): FastMarkdownPlan | undefined {
-  const lines = readLines(source);
+function buildPlan(source: string, cache?: FastMarkdownCache, rowPlans?: InlinePlanLookup, context?:FastMarkdownContext, validatedLines?:Line[]): FastMarkdownPlan | undefined {
+  const lines = validatedLines??readLines(source,context);
   if (lines === undefined) return;
   const local = new Map<string, InlinePlan | undefined>();
   const inlinePlan: InlineLookup = (from, to, kind) => {
@@ -301,20 +331,20 @@ function buildPlan(source: string, cache?: FastMarkdownCache, rowPlans?: InlineP
       return plan;
     }
     if (cache) {
-      const cached = cache.readInline(text);
+      const cached = cache.readInline(context?.placeholders?'\0opaque\0'+text:text);
       if (cached.hit) {
         if (kind && cached.value !== undefined) cache.noteInlineReuse?.(kind);
         local.set(text, cached.value);
         return cached.value;
       }
     }
-    const plan = computeInlinePlan(text);
+    const plan = computeInlinePlan(text,!!context?.placeholders);
     local.set(text, plan);
-    cache?.writeInline(text, plan);
+    cache?.writeInline(context?.placeholders?'\0opaque\0'+text:text, plan);
     return plan;
   };
   let nodeCount = 0;
-  const blocks = scan<null>(source, lines, () => { nodeCount += 1; return null; }, inlinePlan);
+  const blocks = scan<null>(source, lines, type => { if(type!=='rmdOpaque')nodeCount += 1; return null; }, inlinePlan);
   if (blocks === undefined) return;
   const blockCount = blocks.length;
   return {
@@ -332,6 +362,7 @@ function buildPlan(source: string, cache?: FastMarkdownCache, rowPlans?: InlineP
       const stop = {};
       try {
         scan<null>(source, lines, (_type, start, end) => {
+          if(_type==='rmdOpaque')return null;
           index += 1;
           if (index === target) {found = {start, end}; throw stop;}
           return null;
@@ -383,15 +414,21 @@ export function planFastMarkdown(
   source: string,
   cache?: FastMarkdownCache,
   rowPlans?: InlinePlanLookup,
+  context?:FastMarkdownContext,
 ): FastMarkdownPlan | undefined {
+  // Validate every opaque span against this parse, even when its textual plan
+  // is cached. A previous parse's trust must never authorize a forged image.
+  const lines=context?.placeholders?readLines(source,context):undefined;
+  if(context?.placeholders&&!lines)return;
+  const key=context?'\0'+(context.allowBraces?'braces':'')+(context.placeholders?'opaque':'')+'\0'+source:source;
   if (cache) {
-    const cached = cache.readPlan(source);
+    const cached = cache.readPlan(key);
     if (cached.hit) {
       if (cached.value !== undefined) cache.notePlanReuse?.();
       return cached.value;
     }
   }
-  const plan = buildPlan(source, cache, rowPlans);
-  cache?.writePlan(source, plan);
+  const plan = buildPlan(source, cache, rowPlans, context, lines);
+  cache?.writePlan(key, plan);
   return plan;
 }

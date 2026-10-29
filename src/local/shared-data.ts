@@ -6,7 +6,18 @@ const ordinaryObjects=new WeakSet<object>();
 export function shareCompiledData<T>(previous:T|undefined,next:T):SharedDataResult<T> {
   let reused=0,created=0;
   const seen=new WeakMap<object,unknown>();
-  const visit=(before:unknown,after:unknown):unknown=>{
+  interface Frame {
+    before: unknown; after: object; old?: Record<string,unknown>;
+    keys: string[]; index: number; output: Record<string,unknown>; equal: boolean;
+    byId?: Map<string,unknown>; parent?: Frame; key?: string;
+  }
+  const pending:Frame[]=[];
+  const assign=(parent:Frame|undefined,key:string|undefined,value:unknown)=>{
+    if(!parent)return;
+    Object.defineProperty(parent.output,key!,{value,enumerable:true,writable:true,configurable:true});
+    if(!parent.old||!Object.hasOwn(parent.old,key!)||parent.old[key!]!==value)parent.equal=false;
+  };
+  const begin=(before:unknown,after:unknown,parent?:Frame,key?:string):unknown=>{
     if(after===null||typeof after!=='object')return after;
     if(before===after){reused++;return before;}
     if(before===undefined&&ordinaryObjects.has(after)){reused++;return after;}
@@ -15,27 +26,39 @@ export function shareCompiledData<T>(previous:T|undefined,next:T):SharedDataResu
     const comparable=before!==null&&typeof before==='object'&&Array.isArray(before)===array;
     const old=comparable?before as Record<string,unknown>:undefined;
     const keys=Object.keys(after),oldKeys=old?Object.keys(old):[];
-    const output:Record<string,unknown>=array?[] as unknown as Record<string,unknown>:{};
+    const output:Record<string,unknown>=array?new Array((after as unknown[]).length) as unknown as Record<string,unknown>:{};
     seen.set(after,output);
     // A source insertion can change node numbering. Prefer stable node ids
     // while still comparing all published fields before sharing an object.
     const byId=array&&Array.isArray(before)?new Map(before.filter(n=>n&&typeof n==='object'&&typeof n.id==='string').map(n=>[n.id,n])):undefined;
-    let equal=!!old&&keys.length===oldKeys.length;
-    for(const key of keys) {
-      const child=(after as Record<string,unknown>)[key];
-      const prior=byId&&child&&typeof child==='object'&&typeof (child as {id?:unknown}).id==='string'
-        ?byId.get((child as {id:string}).id):old?.[key];
-      const value=visit(prior,child);
-      Object.defineProperty(output,key,{value,enumerable:true,writable:true,configurable:true});
-      if(!old||!Object.hasOwn(old,key)||old[key]!==value)equal=false;
-    }
-    if(equal){seen.set(after,before);reused++;return before;}
-    created++;
-    const result=Object.isFrozen(after)?Object.freeze(output):output;
-    ordinaryObjects.add(result);
-    seen.set(after,result);return result;
+    const equal=!!old&&keys.length===oldKeys.length&&(!array||(before as unknown[]).length===(after as unknown[]).length);
+    pending.push({before,after,old,keys,index:0,output,equal,byId,parent,key});
+    return output;
   };
-  return {value:visit(previous,next) as T,reused,created};
+  let value=begin(previous,next);
+  while(pending.length){
+    const frame=pending[pending.length-1];
+    if(frame.index<frame.keys.length){
+      const key=frame.keys[frame.index++],child=(frame.after as Record<string,unknown>)[key];
+      const prior=frame.byId&&child&&typeof child==='object'&&typeof (child as {id?:unknown}).id==='string'
+        ?frame.byId.get((child as {id:string}).id):frame.old?.[key];
+      const depth=pending.length,result=begin(prior,child,frame,key);
+      if(pending.length===depth)assign(frame,key,result);
+      continue;
+    }
+    pending.pop();
+    let result:unknown;
+    if(frame.equal){result=frame.before;reused++;}
+    else{
+      created++;
+      result=Object.isFrozen(frame.after)?Object.freeze(frame.output):frame.output;
+      ordinaryObjects.add(result as object);
+    }
+    seen.set(frame.after,result);
+    if(frame.parent)assign(frame.parent,frame.key,result);
+    else value=result;
+  }
+  return {value:value as T,reused,created};
 }
 
 /** Lightweight identity index for diagnostics/benchmarking, without publishing it. */

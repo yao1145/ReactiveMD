@@ -1,6 +1,7 @@
 import { compileExpression, type LocalExpression } from './expression';
 import { evaluateComputations, orderComputations } from './computations';
 import type { LocalDocument, LocalNode, LocalValue } from './types';
+import {walkLocalNodes} from './node-walk';
 
 function headingText(nodes: LocalNode[] | undefined, initialState: Record<string, LocalValue>): string {
   return (nodes ?? []).map((node): string => {
@@ -99,8 +100,7 @@ export function createHeadingAnchors(document: LocalDocument, namespace: string,
     return { slug, id };
   }
 
-  function visit(nodes: LocalNode[]) {
-    for (const node of nodes) {
+    for (const node of walkLocalNodes(document.nodes)) {
       if (node.type === 'heading') {
         const explicit = sourceHtmlId(node);
         const base = explicit ?? headingSlug(headingText(node.children, initialState));
@@ -113,10 +113,7 @@ export function createHeadingAnchors(document: LocalDocument, namespace: string,
         const sourceId = sourceHtmlId(node);
         if (sourceId) htmlIds.set(node, claim(sourceId).id);
       }
-      if (node.children) visit(node.children);
     }
-  }
-  visit(document.nodes);
 
   function lookup(fragment: string): string | undefined {
     if (fragment.length === 0) return undefined;

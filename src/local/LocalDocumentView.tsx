@@ -1303,6 +1303,31 @@ function renderHostComponent(
   }
 }
 
+/** Collapse memo wrappers along deep single-child Markdown chains. The native
+ * DOM stays nested, while React no longer needs one extra component per level. */
+function renderDeepContainerChain(env:RenderEnv,node:LocalNode,visible:boolean):ReactNode|undefined {
+  const plain=(node:LocalNode)=>node.type==='blockquote'||node.type==='list'
+    ||(node.type==='listItem'&&typeof node.checked!=='boolean');
+  if(!plain(node)||node.children?.length!==1||!plain(node.children[0]))return;
+  const chain:LocalNode[]=[];
+  let current=node;
+  for(;;){
+    chain.push(current);
+    if(current.children?.length!==1||!plain(current.children[0]))break;
+    current=current.children[0];
+  }
+  if(chain.length<32)return;
+  let children=renderNodes(env,current.children,visible);
+  for(let i=chain.length-1;i>=0;i--){
+    const item=chain[i],props=safeHtmlProps(env,item),key=item.id;
+    if(item.type==='blockquote')children=<blockquote key={key} {...props}>{children}</blockquote>;
+    else if(item.type==='listItem')children=<li key={key} {...props} className="md-list-item">{children}</li>;
+    else if(item.ordered)children=<ol key={key} {...props} start={item.start??1} className="md-list">{children}</ol>;
+    else children=<ul key={key} {...props} className="md-list">{children}</ul>;
+  }
+  return children;
+}
+
 function renderNode(
   env: RenderEnv,
   node: LocalNode,
@@ -1311,6 +1336,8 @@ function renderNode(
   block = true,
 ): ReactNode {
   const key = node.id || `${node.type}-${index}`;
+  const chain=renderDeepContainerChain(env,node,visible);
+  if(chain!==undefined)return chain;
 
   if (node.type === 'component') {
     return (

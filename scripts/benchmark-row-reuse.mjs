@@ -7,6 +7,7 @@ import {performance} from 'node:perf_hooks';
 const flag=(name,fallback)=>process.argv.find(arg=>arg.startsWith(`--${name}=`))?.slice(name.length+3)??fallback;
 const modulePath=resolve(flag('module','dist-library/reactive-md.js'));
 const output=resolve(flag('out','artifacts/next-editing/row-benchmark.json'));
+const filter=new RegExp(flag('case','.*'));
 const samples=Number(flag('samples','15')),warmups=3;
 assert.ok(Number.isSafeInteger(samples)&&samples>0);
 const api=await import(pathToFileURL(modulePath).href);
@@ -16,6 +17,7 @@ const cases=['list','table','dynamic-list','dynamic-table'].flatMap(kind=>['equa
   .concat([{kind:'paragraphs',edit:'equal'},{kind:'list',edit:'rewrite'}]);
 const results=[];
 for(const {kind,edit} of cases){
+  if(!filter.test(`${kind}-${edit}`))continue;
   const size=kind==='paragraphs'?800:kind.endsWith('table')?500:1000;
   const source=revision=>{
     const suffix=String(1000+revision);

@@ -19,7 +19,7 @@ import {
 } from './limits';
 import { readLocalCompileOptions } from './options';
 import { parsePlainParagraphs } from './plain-paragraphs';
-import type { FastMarkdownPlan, InlinePlanLookup } from './fast-markdown';
+import type { FastMarkdownPlan, InlinePlanLookup, FastMarkdownContext } from './fast-markdown';
 import { parseMarkdownBlocks,scanMarkdownStructure,markdownTreeFacts,type MarkdownStructure } from './markdown-blocks';
 import { SourceContext, MappedSource } from './source-context';
 import { ParseBudgetError, ParseWorkBudget, type ParseSessionCache, type ParseSessionCounters } from './parse-budget';
@@ -363,7 +363,7 @@ export function parseLocal(
     cache?.writeTree(text, tree);
     return tree;
   };
-  const parseMarkdown = (text: string, tryFast = true): any => {
+  const parseMarkdown = (text: string, tryFast = true, fastContext:FastMarkdownContext={allowBraces:true}): any => {
     // Charge every submission up front, including cache hits, so whether a
     // document fits the work budget never depends on session state.
     budget.charge(text.length + 1, 0, Math.max(1, text.length));
@@ -373,7 +373,7 @@ export function parseLocal(
       work.markdownCalls++;work.generalBlocks+=tree.children.length;work.generalCharacters+=text.length;
       return tree;
     }
-    const {tree,stats}=parseMarkdownBlocks(text, generalParse, sourceContext, cache,structures.get(text),rowPlans);
+    const {tree,stats}=parseMarkdownBlocks(text, generalParse, sourceContext, cache,structures.get(text),rowPlans,fastContext);
     work.markdownCalls++;
     work.fastBlocks+=stats.fastBlocks;work.generalBlocks+=stats.generalBlocks;
     work.fastCharacters+=stats.fastCharacters;work.generalCharacters+=stats.generalCharacters;
@@ -441,10 +441,24 @@ export function parseLocal(
    */
   let rootMarkdown: any;
   try {
-    rootMarkdown = parseMarkdown(source.slice(sourceBomOffset));
+    rootMarkdown = parseMarkdown(source.slice(sourceBomOffset),true,{allowBraces:true,shield(text,offset){
+      if(!text.includes('{{'))return;
+      const parts:string[]=[];
+      let cursor=0,search=0;
+      while(search<text.length){
+        const start=text.indexOf('{{',search);if(start<0)break;
+        const stop=interpolationEnd(start+offset+sourceBomOffset,offset+sourceBomOffset+text.length)-offset-sourceBomOffset;
+        // Only validated simple blocks may use equal-length advisory text.
+        // Multiline expressions keep the original shielding parser.
+        if(stop<=start||/[\r\n]/.test(text.slice(start,stop)))return;
+        parts.push(text.slice(cursor,start),'v'.repeat(stop-start));cursor=search=stop;
+      }
+      if(!parts.length)return;
+      parts.push(text.slice(cursor));return parts.join('');
+    }});
     // A wholly recognized simple document has no lexical tokens. Reject its
     // exact first over-budget node before constructing any LocalNode tree.
-    if(rootMarkdown.children.length===1 && rootMarkdown.children[0].type==='rmdFastBlock') {
+    if(!source.includes('{{')&&rootMarkdown.children.length===1 && rootMarkdown.children[0].type==='rmdFastBlock') {
       const overflow=(rootMarkdown.children[0].plan as FastMarkdownPlan).overflowAt(maxSyntaxNodes);
       if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,overflow.start+sourceBomOffset,overflow.end+sourceBomOffset,'local.budget.nodes',{limit:maxSyntaxNodes});
     }
@@ -1188,8 +1202,7 @@ export function parseLocal(
     if (end > start) budget.charge(end - start, start, end);
     work.maxComponentDepth=Math.max(work.maxComponentDepth,depth);
     if (depth > MAX_COMPONENT_DEPTH) {
-      error('local.budget', 'Component nesting exceeds the 100-level limit.', openStart, openEnd, { key: 'local.budget.nesting', params: { limit: MAX_COMPONENT_DEPTH } });
-      return { tokens, end, contentEnd: start, indent: 0 };
+      throw new LocalBudgetError('local.budget','Component nesting exceeds the 100-level limit.',openStart,openEnd,'local.budget.nesting',{limit:MAX_COMPONENT_DEPTH});
     }
     const footnoteMode = options.footnote === true;
     const insideContainer = options.container ?? parent !== undefined;
@@ -1207,7 +1220,15 @@ export function parseLocal(
       mapped.original(start, bodyEnd, indent); mapped.finish(bodyEnd);
       work.mappingSegments+=mapped.segmentCount;
       const text = mapped.text();
-      const facts=markdownTreeFacts(parseMarkdown(text),false);
+      // Definitions/images need `[`, autolinks need a protocol, `www.` or an
+      // email `@`. Without these features there are no inline facts to find.
+      // Retain the same deterministic work/depth charges on this shortcut.
+      let facts:{definitions:SourceRange[];mathLiterals:SourceRange[]};
+      if(!/[\[:@]|www\./i.test(text)){
+        budget.charge(text.length+1,0,Math.max(1,text.length));
+        ensureDepth(text);
+        facts={definitions:[],mathLiterals:[]};
+      }else facts=markdownTreeFacts(parseMarkdown(text),false);
       const translate=(range:SourceRange):SourceRange=>({start:mapped.at(range.start,bodyEnd),end:mapped.at(range.end,bodyEnd)});
       const found=facts.definitions.map(translate).filter(range=>range.end>range.start);
       const literals=facts.mathLiterals.map(translate);
@@ -1692,7 +1713,8 @@ export function parseLocal(
     // With no replacements or dedenting, the shielding pass already parsed
     // exactly this source. Its positions only need the original BOM offset.
     const reuseRoot = start === 0 && end === source.length && tokens.length === 0
-      && indent === 0 && !options.stripBlockquote && !options.literalHtml;
+      && indent === 0 && !options.stripBlockquote && !options.literalHtml
+      && !rootMarkdown?.children.some((child:any)=>child.plan?.shieldOnly);
     const mapped = new MappedSource(sourceContext);
     const sourceAt = (offset: number, fallback: number): number =>
       reuseRoot ? offset + sourceBomOffset : mapped.at(offset, fallback);
@@ -1733,7 +1755,8 @@ export function parseLocal(
       // A document containing only opaque lexical tokens and whitespace has
       // no simple Markdown block to discover. Avoid building an advisory tree
       // for thousands of generated control placeholders.
-      tree = parseMarkdown(masked,hasProse);
+      const placeholders=new Map([...markers].filter(([,slot])=>slot.node.type==='interpolation'));
+      tree = parseMarkdown(masked,hasProse,{allowBraces:true,...(placeholders.size?{placeholders}:{})});
     }
     function unescapeTablePipes(nodes: LocalNode[]) {
       for (const child of nodes) {
@@ -1830,7 +1853,7 @@ export function parseLocal(
       }
       return result;
     }
-    function transform(raw: any): LocalNode[] {
+    function transform(raw: any, children?: LocalNode[]): LocalNode[] {
       const from = sourceAt(raw.position?.start?.offset ?? 0, start);
       const to = sourceAt(raw.position?.end?.offset ?? masked.length, end);
       if(raw.type==='rmdFastBlock') {
@@ -1839,7 +1862,14 @@ export function parseLocal(
         fastPlans.add(plan);
         const overflow=plan.overflowAt(maxSyntaxNodes-nodeCount);
         if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,sourceAt(base+overflow.start,from),sourceAt(base+overflow.end,to),'local.budget.nodes',{limit:maxSyntaxNodes});
-        return plan.emit((type,begin,finish,extra)=>node(type,sourceAt(base+begin,from),sourceAt(base+finish,to),extra));
+        return plan.emit((type,begin,finish,extra)=>{
+          if(type==='rmdOpaque'){
+            const slot=markers.get(base+begin);
+            if(!slot||slot.node.type!=='interpolation'||slot.end!==base+finish||slot.marker!==extra?.value)throw new Error('Invalid interpolation placeholder');
+            markers.delete(base+begin);return slot.node;
+          }
+          return node(type,sourceAt(base+begin,from),sourceAt(base+finish,to),extra);
+        });
       }
       if (raw.type === 'image') {
         const slot = markers.get(raw.position?.start?.offset);
@@ -1859,12 +1889,10 @@ export function parseLocal(
         const label = typeof raw.label === 'string' && raw.label ? raw.label : String(raw.identifier ?? '');
         const identifier = normalizeFootnoteIdentifier(String(raw.identifier ?? label));
         if (raw.type === 'footnoteDefinition') {
-          const definitionChildren = raw.children?.flatMap(transform);
-          return [node('footnoteDefinition', from, to, { identifier, label, children: definitionChildren ?? [] })];
+          return [node('footnoteDefinition', from, to, { identifier, label, children: children ?? [] })];
         }
         return [node('footnoteReference', from, to, { identifier, label })];
       }
-      const children = raw.children?.flatMap(transform);
       if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || BLOCK_HTML_RESULTS.has(children[0].type) || ((children[0].type === 'component' || children[0].type === 'hostComponent') && !INLINE.has(children[0].name!)))) return children;
       if (raw.type === 'paragraph' && !children?.length) return [];
       if (raw.type === 'html') {
@@ -1884,7 +1912,24 @@ export function parseLocal(
       if (raw.type === 'table' && result.children) unescapeTablePipes(result.children);
       return [result];
     }
-    return tree.children.flatMap(transform);
+    // Preserve postorder node allocation without consuming the JavaScript
+    // call stack for each Markdown container and its flatMap callback.
+    const frames: { raw: any; index: number; children?: LocalNode[] }[] = [
+      { raw: tree, index: 0, children: [] },
+    ];
+    while (frames.length) {
+      const frame = frames[frames.length - 1];
+      if (frame.raw.children && frame.index < frame.raw.children.length) {
+        const raw = frame.raw.children[frame.index++];
+        frames.push({ raw, index: 0, children: raw.children ? [] : undefined });
+        continue;
+      }
+      frames.pop();
+      if (!frames.length) return frame.children ?? [];
+      const output = transform(frame.raw, frame.children);
+      for (const child of output) frames[frames.length - 1].children!.push(child);
+    }
+    return [];
   }
   /**
    * Undefined references stay visible as their original source. Definitions
@@ -1894,25 +1939,23 @@ export function parseLocal(
    */
   function resolveFootnoteReferences(nodes: LocalNode[]): void {
     const defined = new Set<string>();
-    const collect = (list: LocalNode[]): void => {
-      for (const item of list) {
+    const pending = [...nodes];
+    while (pending.length) {
+        const item = pending.pop()!;
         if (item.type === 'footnoteDefinition' && item.identifier) defined.add(item.identifier);
-        if (item.children) collect(item.children);
-      }
-    };
-    collect(nodes);
-    const resolve = (list: LocalNode[]): void => {
-      for (const item of list) {
+        if (item.children) for (const child of item.children) pending.push(child);
+    }
+    pending.push(...nodes);
+    while (pending.length) {
+        const item = pending.pop()!;
         if (item.type === 'footnoteReference' && (!item.identifier || !defined.has(item.identifier))) {
           item.type = 'text';
           item.value = source.slice(item.range.start, item.range.end);
           delete item.identifier;
           delete item.label;
         }
-        if (item.children) resolve(item.children);
-      }
-    };
-    resolve(nodes);
+        if (item.children) for (const child of item.children) pending.push(child);
+    }
   }
   try {
     const regionStart = clock();

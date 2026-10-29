@@ -3,22 +3,29 @@
  * keep null prototypes; React Server Component props require ordinary records.
  * Keep undefined fields, shared references and existing frozen metadata intact.
  */
-export function plainCompiledData<T>(value: T): T {
+export function plainCompiledData<T>(value: T, preserveFrozen = true): T {
   const seen = new WeakMap<object, object>();
-  const visit = (input: unknown): unknown => {
+  const pending: {input: object; output: object}[] = [];
+  const allocate = (input: unknown): unknown => {
     if (input === null || typeof input !== 'object') return input;
     const existing = seen.get(input);
     if (existing) return existing;
-    const output = Array.isArray(input) ? [] : {};
+    const output = Array.isArray(input) ? new Array(input.length) : {};
     seen.set(input, output);
+    pending.push({input, output});
+    return output;
+  };
+  const result = allocate(value);
+  while (pending.length) {
+    const {input, output} = pending.pop()!;
     for (const [key, child] of Object.entries(input)) {
       // Defining own data properties avoids invoking Object.prototype setters
       // for keys such as __proto__, without dropping source dictionary entries.
       Object.defineProperty(output, key, {
-        value: visit(child), enumerable: true, configurable: true, writable: true,
+        value: allocate(child), enumerable: true, configurable: true, writable: true,
       });
     }
-    return Object.isFrozen(input) ? Object.freeze(output) : output;
-  };
-  return visit(value) as T;
+    if (preserveFrozen && Object.isFrozen(input)) Object.freeze(output);
+  }
+  return result as T;
 }

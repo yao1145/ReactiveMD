@@ -1,5 +1,5 @@
 import { GFM, parser as lezerParser } from '@lezer/markdown';
-import { planFastMarkdown, type FastMarkdownCache, type FastMarkdownPlan, type InlinePlanLookup } from './fast-markdown';
+import { planFastMarkdown, type FastMarkdownCache, type FastMarkdownPlan, type InlinePlanLookup, type FastMarkdownContext } from './fast-markdown';
 import type { SourceContext } from './source-context';
 
 /** Per-parse accounting used by the compiler's performance diagnostics. */
@@ -39,11 +39,12 @@ export function parseMarkdownBlocks(
   cache?: FastMarkdownCache,
   structure?:MarkdownStructure,
   rowPlans?:InlinePlanLookup,
+  fastContext?:FastMarkdownContext,
 ): {tree: any; stats: MarkdownBlockStats} {
   // Physical line count for the work statistics. LF-only `lineStarts` stays
   // reserved for diagnostic coordinates.
   const lines = context?.source === source ? context.logicalLineCount : countLines(source);
-  const whole = planOf(source, cache, rowPlans);
+  const whole = planOf(source, cache, rowPlans, fastContext);
   if (whole) {
     return {
       tree: root(source, [fastBlock(0, source.length, whole)]),
@@ -64,7 +65,7 @@ export function parseMarkdownBlocks(
     const candidate = candidates[index];
     if (candidate.from < floor || !isBlockBoundary(source, candidate)) continue;
     if (!safePredecessor(source, candidate, candidates[index - 1])) continue;
-    const plan = planOf(source.slice(candidate.from, candidate.to), cache, rowPlans);
+    const plan = planOf(source.slice(candidate.from, candidate.to), cache, rowPlans, fastContext?{...fastContext,offset:candidate.from}:undefined);
     if (!plan) continue;
     regions.push({from: candidate.from, to: candidate.to, plan});
     floor = candidate.to;
@@ -97,11 +98,16 @@ export function parseMarkdownBlocks(
   };
 }
 
-function planOf(source: string, cache?: FastMarkdownCache, rowPlans?:InlinePlanLookup): FastMarkdownPlan | undefined {
+function planOf(source: string, cache?: FastMarkdownCache, rowPlans?:InlinePlanLookup, context?:FastMarkdownContext): FastMarkdownPlan | undefined {
   if (!source.length || typeof planFastMarkdown !== 'function') return undefined;
   let plan: FastMarkdownPlan | undefined;
   try {
-    plan = planFastMarkdown(source, cache, rowPlans);
+    const shield=context?.shield?.(source,context.offset??0);
+    if(shield!==undefined){
+      const advisory=planFastMarkdown(shield,cache,undefined,{allowBraces:true});
+      if(advisory)return {...advisory,shieldOnly:true,emit(){throw new Error('Cannot emit an advisory shielding plan');}};
+    }
+    plan = planFastMarkdown(source, cache, rowPlans,context);
   } catch {
     return undefined;
   }

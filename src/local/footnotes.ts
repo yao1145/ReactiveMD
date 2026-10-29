@@ -116,20 +116,19 @@ export function collectLocalFootnotes(
   const definitions = new Map<string, LocalNode>();
   const topReferences: LocalNode[] = [];
   const nestedReferences = new Map<LocalNode, LocalNode[]>();
-  const definitionStack: LocalNode[] = [];
-
-  const walk = (nodes: LocalNode[] | undefined) => {
-    for (const node of nodes ?? []) {
+  const pending:{nodes:LocalNode[];index:number;owner?:LocalNode}[]=[{nodes:document.nodes,index:0}];
+  while(pending.length){
+      const frame=pending[pending.length-1];
+      if(frame.index===frame.nodes.length){pending.pop();continue;}
+      const node=frame.nodes[frame.index++];
       if (node.type === 'footnoteDefinition') {
         const identifier = footnoteIdentifier(node);
         if (identifier && !definitions.has(identifier)) definitions.set(identifier, node);
-        definitionStack.push(node);
-        walk(node.children);
-        definitionStack.pop();
+        if(node.children)pending.push({nodes:node.children,index:0,owner:node});
         continue;
       }
       if (node.type === 'footnoteReference') {
-        const owner = definitionStack[definitionStack.length - 1];
+        const owner = frame.owner;
         if (owner) {
           const list = nestedReferences.get(owner);
           if (list) list.push(node);
@@ -141,10 +140,8 @@ export function collectLocalFootnotes(
         // so they must not be numbered either.
         continue;
       }
-      walk(node.children);
-    }
-  };
-  walk(document.nodes);
+      if(node.children)pending.push({nodes:node.children,index:0,owner:frame.owner});
+  }
 
   const entries: LocalFootnoteEntry[] = [];
   const entryByIdentifier = new Map<string, LocalFootnoteEntry>();
