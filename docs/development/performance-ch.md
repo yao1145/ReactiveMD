@@ -1,5 +1,7 @@
 # 性能测量
 
+调度、主线程结果应用、React 提交、浏览器布局与绘制的拆测，以及真实编辑器和预览的优化，见[长文渲染流水线](render-pipeline-optimization-2026-10-29-ch.md)。
+
 当前 0.6.1 的编译时间、内存峰值、密集段落和大量组件压力测试见 [2026-10-28 编译性能调查](compiler-performance-2026-10-28-ch.md)，附可复现脚本与浏览器 Worker 实测。
 
 普通段落直接解析、无替换 Markdown 的解析树复用，以及优化前后的时间、内存和语义对照，见[密集段落编译优化](dense-paragraph-optimization-2026-10-28-ch.md)。

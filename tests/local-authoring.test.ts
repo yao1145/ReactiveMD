@@ -18,6 +18,21 @@ import {
   renderNativeSnippet,
 } from '../src/authoring';
 
+it('can reuse an exact compiled document and omit unused authoring diagnostics', () => {
+  const source='<number bind="n" label="N" initial="2">\n\nValue {{ n * 2 }}.\n\n```\n{{ literal }}\n```';
+  const compiled=compileLocal(source);
+  if(!compiled.ok)throw new Error('Expected valid authoring fixture');
+  const full=analyzeLocalSource(source);
+  expect(analyzeLocalSource(source,undefined,{document:compiled.document,diagnostics:false}))
+    .toEqual({...full,diagnostics:[]});
+  const edited=source.replace('n * 2','n * 3');
+  expect(analyzeLocalSource(edited,undefined,{document:compiled.document,diagnostics:false}))
+    .toEqual({...analyzeLocalSource(edited),diagnostics:[]});
+  const invalid='<number bind="n" label="N" initial="invalid">';
+  expect(analyzeLocalSource(invalid).diagnostics.length).toBeGreaterThan(0);
+  expect(analyzeLocalSource(invalid,undefined,{diagnostics:false}).diagnostics).toEqual([]);
+});
+
 function slices(source: string, ranges: SourceRange[]): string[] {
   return ranges.map((range) => source.slice(range.start, range.end));
 }

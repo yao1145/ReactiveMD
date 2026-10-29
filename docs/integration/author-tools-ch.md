@@ -49,6 +49,8 @@ const formatted = formatLocalSource(renamed.source, compileOptions);
 
 分析结果包含按位置排序的高亮 token、绑定声明和引用范围，以及编译诊断。补全项包含 `label`、`kind`、`insertText` 和待替换的 `range`。应用编辑时，应使用生成这些范围的同一版本源码。
 
+已有成功编译结果时，可调用 `analyzeLocalSource(source, compileOptions, { document, diagnostics: false })` 复用节点，并省略诊断编译。`document` 必须来自同一源码与编译配置；源码不同会重新解析。省略第三个参数时仍生成完整诊断。内置编辑器使用独立的增量会话复用作者分析节点，诊断由宿主编译结果提供。
+
 重命名修改生效的绑定声明、表达式引用和绘图参数，保留普通文字与展示公式。绘图参数在重命名后写为 `\mathrm{newName}`。非法名称和名称冲突会抛出错误。格式化整理已识别组件标签内的空白，保留 Markdown 排版、引号内容、公式、代码与降级区域的源码。编辑器应持续保存原始文档。
 
 ## Playground
@@ -57,6 +59,6 @@ const formatted = formatLocalSource(renamed.source, compileOptions);
 
 ## 宿主编辑器配置
 
-`reactive-md/authoring` 还导出 `LOCAL_COMPONENTS`、`getLocalComponent`、`getNativeComponentCatalog`、`renderNativeSnippet`、`insertTemplate` 及其类型，无需 React 或 CSS。将预览使用的 `LocalCompileOptions` 作为分析、补全、重命名和格式化的最后一个参数；省略时保持原有默认值。配置包括宿主 schema、HTML 模式、资源预算和 `markdownBreaks`。
+`reactive-md/authoring` 还导出 `LOCAL_COMPONENTS`、`getLocalComponent`、`getNativeComponentCatalog`、`renderNativeSnippet`、`insertTemplate` 及其类型，无需 React 或 CSS。将预览使用的 `LocalCompileOptions` 传给这些函数的编译配置参数；省略时保持原有默认值。配置包括宿主 schema、HTML 模式、资源预算和 `markdownBreaks`。
 
 入口与样式接入方式见 [0.5.3 发布说明](../releases/release-0.5.3-ch.md)。

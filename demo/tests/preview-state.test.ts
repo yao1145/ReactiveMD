@@ -22,6 +22,32 @@ function control(document: LocalDocument, bind: string) {
 const number = '<number label="Amount" bind="amount" initial="2" min="0" max="20">';
 
 describe('Playground preview state session', () => {
+  it('adopts edited documents in the active lease without replacing the runtime', () => {
+    const session = new PreviewStateSession();
+    const first = compile(number+'\n\nBefore');
+    const active = session.open(first);
+    active.runtime.set(control(first,'amount'),13);
+    const next = compile(number+'\n\nAfter');
+    expect(active.update(next)).toBe(true);
+    expect(active.runtime.document).toBe(next);
+    expect(active.runtime.getParameter('amount')).toBe(13);
+    expect(session.currentState(next)?.amount).toBe(13);
+    expect(session.currentState(first)).toBeNull();
+    const reset = compile(number.replace('initial="2"','initial="3"')+'\n\nReset');
+    expect(active.update(reset)).toBe(true);
+    expect(active.runtime.getParameter('amount')).toBe(3);
+    active.release();
+    expect(active.update(next)).toBe(false);
+  });
+  it('does not adopt a stale lease or retain values after retention is disabled', () => {
+    const session = new PreviewStateSession();
+    const first = compile(number),active = session.open(first);
+    const current = session.open(compile(number+'\n\nCurrent'));
+    expect(active.update(compile(number+'\n\nStale'))).toBe(false);
+    session.setRetention(false);
+    expect(current.update(compile(number+'\n\nReset'))).toBe(false);
+    active.release();current.release();
+  });
   it('retains the latest trial values across prose and formula edits and repeated compiles', () => {
     const session = new PreviewStateSession();
     const first = compile(`${number}\n\nTotal: {{ amount * 2 }}`);

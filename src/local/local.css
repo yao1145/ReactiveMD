@@ -5,6 +5,17 @@
 /* Document headings use the Markdown scale. Block titles use one shared
    scale across containers and visuals, independent of their HTML element.
    Layout-only wrappers (grid/if) do not introduce a new title level. */
+/* Keep the opening viewport eager. Later prose stays in the DOM (including
+   native search/selection), while the browser may defer off-screen layout.
+   Screen-only containment leaves printing fully laid out. Remember measured
+   heights; two lines estimate an unseen paragraph in the split editor. */
+@media screen {
+  .local-document[data-rmd-long-prose] > p:nth-child(n + 40) {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 2lh;
+  }
+}
+
 .local-document {
   --local-block-title-size: var(--text-block-title);
 

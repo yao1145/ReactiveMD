@@ -1,5 +1,7 @@
 # Performance measurements
 
+Stage measurements for scheduling, result application, React commits, browser layout/paint, and the editor/preview optimizations are recorded in the [render pipeline report (Chinese)](render-pipeline-optimization-2026-10-29-ch.md).
+
 For repeated source edits, `createLocalCompileSession()` reuses unchanged compiled blocks. The built-in Worker, default fallback and React document component manage sessions automatically. See [session integration](../integration/local-integration-en.md#incremental-compilation-for-editing) and the [implementation, invalidation rules and measurements (Chinese)](incremental-compilation-2026-10-28-ch.md).
 
 Segmented source mappings, shared line indexing, block-local fast-path fallback, direct node generation and exact budget preflight are covered in the [parser pipeline measurements (Chinese)](parser-pipeline-optimization-2026-10-28-ch.md).

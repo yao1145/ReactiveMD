@@ -49,6 +49,8 @@ const formatted = formatLocalSource(renamed.source, compileOptions);
 
 Analysis returns ordered highlight tokens, bindings with declaration/reference ranges, and compiler diagnostics. Completions contain `label`, `kind`, `insertText` and the `range` to replace. Apply edits against the same source version that produced their ranges.
 
+With a successful compile result, call `analyzeLocalSource(source, compileOptions, { document, diagnostics: false })` to reuse its nodes and skip diagnostic compilation. The document must come from the same source and compile options; a different source is parsed again. Omitting the third argument still produces full diagnostics. The built-in editor uses its own incremental session for analysis nodes, while visible diagnostics come from the host compiler.
+
 Rename updates active binding declarations, expression references and computed plot parameters, preserving literal text and display formulas. Plot parameters use `\mathrm{newName}` after a rename. Invalid names and collisions throw an error. Formatting normalizes spacing inside recognized component tags; Markdown layout, quoted content, formulas, code and fallback regions retain their source. Keep the original source as the editable document.
 
 ## Playground
@@ -57,6 +59,6 @@ Run `npm run dev` and choose **Show source**. The source editor provides highlig
 
 ## Host editor configuration
 
-The `reactive-md/authoring` entry also exports `LOCAL_COMPONENTS`, `getLocalComponent`, `getNativeComponentCatalog`, `renderNativeSnippet`, `insertTemplate` and their types. It loads without React or CSS. Pass the preview's `LocalCompileOptions` as the last argument to analysis, completion, rename and formatting; omitted options keep the existing defaults. This includes host schemas, HTML mode, resource limits and `markdownBreaks`.
+The `reactive-md/authoring` entry also exports `LOCAL_COMPONENTS`, `getLocalComponent`, `getNativeComponentCatalog`, `renderNativeSnippet`, `insertTemplate` and their types. It loads without React or CSS. Pass the preview's `LocalCompileOptions` to each function's compile-options parameter; omitted options keep the existing defaults. This includes host schemas, HTML mode, resource limits and `markdownBreaks`.
 
 For full entry and stylesheet details, see the [0.5.3 release notes](../releases/release-0.5.3-en.md).

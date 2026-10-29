@@ -9,7 +9,7 @@ import {
   type LocalComponentSchema,
   type LocalPropSchema,
 } from './schema';
-import type { Diagnostic, LocalCompileOptions, LocalNode, SourceRange } from './types';
+import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalNode, SourceRange } from './types';
 
 /**
  * DOM-free authoring services for the local interaction syntax.
@@ -565,10 +565,14 @@ function buildAnalysisData(source: string, nodes: LocalNode[], options?: LocalCo
   const bindings: AuthorBinding[] = [];
   for (const [name, ranges] of declarations) {
     const ownReferences: SourceRange[] = [];
+    const seenReferences = new Set<string>();
     for (const reference of references) {
       if (reference.name !== name) continue;
-      const exists = ownReferences.some((range) => range.start === reference.range.start && range.end === reference.range.end);
-      if (!exists) ownReferences.push(sortedRange(reference.range));
+      const key = `${reference.range.start}:${reference.range.end}`;
+      if (!seenReferences.has(key)) {
+        seenReferences.add(key);
+        ownReferences.push(sortedRange(reference.range));
+      }
     }
     ownReferences.sort((a, b) => a.start - b.start || a.end - b.end);
     ranges.sort((a, b) => a.start - b.start || a.end - b.end);
@@ -578,17 +582,23 @@ function buildAnalysisData(source: string, nodes: LocalNode[], options?: LocalCo
   return { tokens: ordered, bindings, mathReferences };
 }
 
-/** Analyze active syntax, binding declarations/references and compile diagnostics. */
-export function analyzeLocalSource(source: string, options?: LocalCompileOptions): AuthorAnalysis {
+/**
+ * Analyze syntax, declarations/references and (by default) compiler diagnostics.
+ * A supplied document must come from the same source and compile options;
+ * stale-source documents are ignored. Editors with separate diagnostics may
+ * omit their compilation via `diagnostics: false`.
+ */
+export function analyzeLocalSource(source: string, options?: LocalCompileOptions,
+  settings: {document?: LocalDocument; diagnostics?: boolean} = {}): AuthorAnalysis {
   if (typeof source !== 'string') {
     return { tokens: [], bindings: [], diagnostics: [] };
   }
   if (authoringOptionMode(options) !== 'markdown') {
-    return { tokens: [], bindings: [], diagnostics: compileDiagnostics(source, options) };
+    return { tokens: [], bindings: [], diagnostics: settings.diagnostics === false ? [] : compileDiagnostics(source, options) };
   }
-  const parsed = parseLocal(source, options);
-  const data = buildAnalysisData(source, parsed.nodes, options);
-  return { tokens: data.tokens, bindings: data.bindings, diagnostics: compileDiagnostics(source, options) };
+  const nodes = settings.document?.source === source ? settings.document.nodes : parseLocal(source, options).nodes;
+  const data = buildAnalysisData(source, nodes, options);
+  return { tokens: data.tokens, bindings: data.bindings, diagnostics: settings.diagnostics === false ? [] : compileDiagnostics(source, options) };
 }
 
 /* ------------------------------------------------------------------ */

@@ -2,6 +2,7 @@ import {
   applyLocalStateRetention,
   createLocalRuntime,
   planLocalStateRetention,
+  updateLocalRuntime,
   type LocalDocument,
   type LocalValue,
 } from 'reactive-md';
@@ -47,6 +48,7 @@ export class PreviewStateSession {
   }
 
   open(document: LocalDocument) {
+    let currentDocument = document;
     const runtime = createLocalRuntime(document);
     if (this.retention && this.saved) {
       // plan/apply validate every value against the new document and write
@@ -62,7 +64,7 @@ export class PreviewStateSession {
     this.active = { token, source: document.source };
     const capture = () => {
       if (this.active?.token === token) {
-        this.saved = { document, state: runtime.snapshot().state, source: document.source };
+        this.saved = { document: currentDocument, state: runtime.snapshot().state, source: currentDocument.source };
       }
     };
     capture();
@@ -70,6 +72,16 @@ export class PreviewStateSession {
     let released = false;
     return {
       runtime,
+      /** Called after React commits the next document, before its view updates. */
+      update: (next: LocalDocument): boolean => {
+        if (released || this.active?.token !== token || !this.retention) return false;
+        const result = updateLocalRuntime(runtime, next, { notify: false });
+        if (!result.ok) return false;
+        currentDocument = next;
+        this.active.source = next.source;
+        capture();
+        return true;
+      },
       release: () => {
         if (released) return;
         released = true;

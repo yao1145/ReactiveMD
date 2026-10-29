@@ -2,13 +2,14 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
   type ChangeEvent,
 } from 'react';
-import { formatLocalDiagnostic, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
+import { formatLocalDiagnostic, notifyLocalRuntime, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
 import { LocalDocumentView } from 'reactive-md/react';
 import {
   ReactiveMarkdownEditor,
@@ -210,32 +211,50 @@ interface LocalPreviewProps {
   images: readonly ImageAsset[];
 }
 
-const LocalPreview = memo(function LocalPreview({ document, session, onDiagnostics, images }: LocalPreviewProps) {
+export const LocalPreview = memo(function LocalPreview({ document, session, onDiagnostics, images }: LocalPreviewProps) {
   const language = useLanguage();
   const copy = useCopy();
   const imageProps = useMemo(() => imagePolicy(Object.fromEntries(images.map(a => [a.url, a.dataUrl]))), [images]);
   const [instance, setInstance] = useState<{
     document: LocalCompiledDocument;
     runtime: LocalRuntimeInstance;
+    session: PreviewStateSession;
   } | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const reportRef = useRef(onDiagnostics);
   reportRef.current = onDiagnostics;
+  const activeRef = useRef<{session:PreviewStateSession; lease:ReturnType<PreviewStateSession['open']>} | null>(null);
 
-  useEffect(() => {
-    let runtime: LocalRuntimeInstance;
-    let release: () => void;
+  useLayoutEffect(() => () => {
+    const active = activeRef.current;
+    if (active?.session === session) {
+      active.lease.release();
+      activeRef.current = null;
+    }
+  }, [session]);
+
+  useLayoutEffect(() => {
     try {
-      ({ runtime, release } = session.open(document));
+      let active = activeRef.current;
+      if (!active || active.session !== session || !active.lease.update(document)) {
+        const lease = session.open(document);
+        const previous = active;
+        active = {session,lease};
+        activeRef.current = active;
+        previous?.lease.release();
+      }
+      setInstance({document,runtime:active.lease.runtime,session});
+      setInitError(null);
     } catch (error) {
       setInitError(error instanceof Error ? error.message : String(error));
       reportRef.current([unexpectedDiagnostic(error, copy.status.unexpectedError)]);
       return;
     }
-    setInstance({ document, runtime });
-    setInitError(null);
-    return release;
   }, [document, session, copy.status.unexpectedError]);
+
+  useLayoutEffect(() => {
+    if (instance?.document === document) notifyLocalRuntime(instance.runtime);
+  }, [instance, document]);
 
   if (initError) {
     return <div className="preview-error" role="alert">
@@ -243,13 +262,13 @@ const LocalPreview = memo(function LocalPreview({ document, session, onDiagnosti
       <p>{initError}</p>
     </div>;
   }
-  if (!instance || instance.document !== document) {
+  if (!instance || instance.session !== session) {
     return <div className="preview-loading" role="status"><p>{copy.preview.preparing}</p></div>;
   }
   return (
     <LocalDocumentView
       {...imageProps}
-      document={document}
+      document={instance.document}
       runtime={instance.runtime}
       onDiagnostics={onDiagnostics}
       locale={language}

@@ -4875,6 +4875,7 @@ function LocalDocumentViewLocal({
         data-rmd-theme={theme.name}
         data-color-scheme={resolvedScheme}
         data-render-mode={renderedMode}
+        data-rmd-long-prose={document.nodes.length >= 200 ? '' : undefined}
         style={{ colorScheme: resolvedScheme }}
         aria-label={
           renderedMode === 'static'

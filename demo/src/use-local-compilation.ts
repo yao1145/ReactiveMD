@@ -74,6 +74,9 @@ export function useLocalCompilation(
     const scheduler = new LocalCompileScheduler({
       createWorker: createCompileWorker,
       shareResults: true,
+      // Coalesce a frame's edits without adding the library's conservative
+      // 150 ms default to every local preview. In-flight work is still coalesced.
+      delay: 20,
       onResult: (outcome) => {
         const outcomeOptionsKey = outcome.options === undefined
           ? scheduledOptionsKey

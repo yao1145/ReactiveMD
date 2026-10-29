@@ -21,6 +21,7 @@ import {
 } from 'react';
 import {
   analyzeLocalSource,
+  createLocalCompileSession,
   completeLocalSource,
   formatLocalSource,
   renameLocalBinding,
@@ -28,6 +29,7 @@ import {
 import type { Diagnostic, LocalCompileOptions, LocalDocument, SourceRange } from 'reactive-md';
 import type { EditorEdit, EditorLocale, EditorSelection } from './types';
 import { useEditorLocale } from './locale';
+import { SourcePositionIndex } from './source-positions';
 
 /* ------------------------------------------------------------------ */
 /* Shared shapes                                                       */
@@ -124,10 +126,19 @@ export function useAuthorAnalysis(
   enabled = true,
   compileOptions?: LocalCompileOptions,
 ): AuthorAnalysis {
+  const session = useRef<ReturnType<typeof createLocalCompileSession> | null>(null);
+  useEffect(() => () => { session.current?.dispose(); session.current = null; }, []);
   return useMemo(() => {
-    if (!enabled) return EMPTY_ANALYSIS;
+    if (!enabled) { session.current?.clear(); return EMPTY_ANALYSIS; }
     try {
-      const result = analyzeLocalSource(source, compileOptions);
+      session.current ??= createLocalCompileSession();
+      const compiled = session.current.compileShared(source, compileOptions);
+      // Authoring consumes tokens/bindings. Visible diagnostics come from the
+      // host compiler. Reuse incremental nodes instead of parsing and then
+      // compiling the entire source again in the input's render path.
+      const result = analyzeLocalSource(source, compileOptions, {
+        ...(compiled.ok ? { document: compiled.document } : {}), diagnostics: false,
+      });
       return {
         tokens: normalizeTokens(source, result.tokens),
         bindings: result.bindings,
@@ -150,7 +161,9 @@ function renderHighlight(source: string, tokens: AuthorToken[]): ReactNode[] {
     if (token.range.start > cursor) parts.push(source.slice(cursor, token.range.start));
     parts.push(
       <span
-        key={`${index}-${token.range.start}`}
+        // These spans only display text. An offset shift must not replace all
+        // later spans; the ordered slot stays valid when token contents change.
+        key={index}
         className={`author-token author-token-${tokenClass(token.kind)}`}
         data-token-kind={token.kind}
       >
@@ -483,15 +496,6 @@ function isComposingEvent(event: { isComposing?: boolean; keyCode?: number }): b
   return event.isComposing === true || event.keyCode === 229;
 }
 
-function lineAndColumn(source: string, offset: number): { line: number; column: number } {
-  const clamped = clamp(offset, 0, source.length);
-  const lineStart = source.lastIndexOf('\n', clamped - 1) + 1;
-  return {
-    line: source.slice(0, clamped).split('\n').length,
-    column: clamped - lineStart + 1,
-  };
-}
-
 /* ------------------------------------------------------------------ */
 /* Authoring panel                                                     */
 /* ------------------------------------------------------------------ */
@@ -540,6 +544,7 @@ export function AuthoringPanel({
   const completionOpenRef = useRef(completionOpen);
   const completionItemsRef = useRef(completionItems);
   const completionIndexRef = useRef(completionIndex);
+  const sourcePositions = useMemo(() => new SourcePositionIndex(source), [source]);
   completionOpenRef.current = completionOpen;
   completionItemsRef.current = completionItems;
   completionIndexRef.current = completionIndex;
@@ -890,10 +895,10 @@ export function AuthoringPanel({
             </span>
             <div className="authoring-locations">
               {locations.map(({ range, role, index }) => {
-                const position = lineAndColumn(source, range.start);
+                const position = sourcePositions.position(range.start);
                 return (
                   <button
-                    key={`${role}-${range.start}-${range.end}`}
+                    key={`${role}-${index}`}
                     type="button"
                     className={`authoring-location is-${role}`}
                     data-binding-location={role}
