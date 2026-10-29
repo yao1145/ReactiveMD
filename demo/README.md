@@ -22,7 +22,7 @@ The export dialog downloads Markdown, interactive HTML or static HTML. It defaul
 
 The masthead has a language toggle: `中` switches the whole demo to Chinese and `EN` switches back. English is the default. The choice is saved in the browser, each language keeps its own example drafts and guide (`docs/guides/local-guide-ch.md` for Chinese), and the Playground preview is rendered with the matching locale.
 
-While you edit, consecutive keystrokes are coalesced and compiled on a background thread; the previous preview stays visible while waiting. The preview updates once the current source compiles successfully and shows diagnostics when it fails. For implementation details and how to re-measure, see [performance measurement](../docs/development/performance-overview-ch.md).
+While you edit, consecutive keystrokes are coalesced and compiled on a background thread; the previous preview stays visible while waiting. The preview updates once the current source compiles successfully and shows diagnostics when it fails. For implementation details and how to re-measure, see [performance measurement](../docs/development/performance-overview-en.md).
 
 "Keep trial state" is on by default. When you edit prose, control labels or formulas, parameter values with the same name and type that still satisfy the new constraints are kept; they are also restored after a temporary compile error is fixed. Changing `initial` or an effective default uses the new initial value. With the option off, the next compile starts from initial values.
 

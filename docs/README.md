@@ -59,7 +59,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | --- | --- |
 | Component development | [English](development/component-development-en.md) |
 | Component protocol | [English](development/component-protocol-en.md) |
-| Performance | [Performance overview (Chinese only)](development/performance-overview-ch.md) |
+| Performance | [English](development/performance-overview-en.md) |
 | Publishing | [English](development/releasing-en.md) |
 
 ## Releases

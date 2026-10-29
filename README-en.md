@@ -162,7 +162,7 @@ demo/          Standalone Playground app
 - [0.5.0 release notes](docs/releases/release-0.5.0-en.md): the editor entry and document rendering fixes.
 - [0.4.0 release and migration](docs/releases/release-0.4.0-en.md): the upgrade checklist for that minor series.
 - [Component protocol](docs/development/component-protocol-en.md) and [component development guide](docs/development/component-development-en.md): contribution contracts, a proposal template and acceptance cases.
-- [Performance measurements](docs/development/performance-overview-ch.md) and [release checklist](docs/development/releasing-en.md).
+- [Performance measurements](docs/development/performance-overview-en.md) and [release checklist](docs/development/releasing-en.md).
 
 See the [contributing guide](CONTRIBUTING.md) for development and test commands.
 

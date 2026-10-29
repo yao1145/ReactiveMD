@@ -24,4 +24,4 @@ For a shared preview Worker, enable scheduler `includeAuthorAnalysis: true`. Pas
 
 `createAnalysisWorker` can supply a CSP-compatible factory. If the default Worker cannot start, the scheduler uses its main-thread fallback. Analysis time is reported as `metrics.worker.analysisMs`. Only visible syntax ranges receive decorations; binding and reference lists show 50 items per page. Host-supplied preview DOM stays mounted across view changes.
 
-Physical IME, mobile keyboards and assistive technology need target-device acceptance; automation covers composition events and native text insertion. Run `npm run test:codemirror-browser` for production Edge checks. See the [implementation report](../development/performance-overview-ch.md) for performance and limits.
+Physical IME, mobile keyboards and assistive technology need target-device acceptance; automation covers composition events and native text insertion. Run `npm run test:codemirror-browser` for production Edge checks. See the [implementation report](../development/performance-overview-en.md) for performance and limits.

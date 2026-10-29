@@ -112,7 +112,7 @@ A document consisting of one flat list or table can also establish an incrementa
 
 When a result patch costs too much, the Worker can return a complete successful result for the same revision and continue the patch chain from it. `metrics.patchFallback === 'cost'` identifies this choice. `patchBytes` / `fullBytes` estimate JSON UTF-8 size, not structured-clone size. This choice does not trigger a full-request retry.
 
-`startLocalCompileWorker()`, the default `LocalCompileScheduler` fallback, and `LocalReactiveDocument` manage their own sessions. A custom `fallbackCompile` remains host-owned. `compileLocal()` remains the one-shot full compiler. See the [implementation and measurements (Chinese)](../development/performance-overview-ch.md).
+`startLocalCompileWorker()`, the default `LocalCompileScheduler` fallback, and `LocalReactiveDocument` manage their own sessions. A custom `fallbackCompile` remains host-owned. `compileLocal()` remains the one-shot full compiler. See the [implementation and measurements](../development/performance-overview-en.md).
 
 ## Core API
 
