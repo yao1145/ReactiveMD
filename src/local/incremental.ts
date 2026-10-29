@@ -1,6 +1,9 @@
 import { TreeFragment, type Tree } from '@lezer/common';
 import { parser, GFM } from '@lezer/markdown';
-import { compileLocalTracked } from './compiler';
+import { compileLocalTracked,type LocalCompilerServices } from './compiler';
+import {LocalSemanticCache,type SemanticCacheStats} from './compiler-cache';
+import {LocalParseSession} from './parse-session';
+import {shareCompiledData,countSharedNodes} from './shared-data';
 import { plainCompiledData } from './compiled-data';
 import { localCompileOptionsKey, readLocalCompileOptions } from './options';
 import { getLocalComponent } from './schema';
@@ -13,6 +16,7 @@ type Dependencies = Record<string, readonly string[] | null>;
 interface Block {
   from: number; to: number; origin: number; text: string;
   nodes: LocalNode[]; dependencies: Dependencies; cost: number;
+  publication?:{delta:number;nodes:LocalNode[]};
 }
 interface Snapshot {
   source: string; key: string; tree: Tree; metadata: LocalDocument;
@@ -30,6 +34,7 @@ function allNodes(nodes: LocalNode[]): LocalNode[] {
   return result;
 }
 function copyNodes(nodes: LocalNode[], delta: number, rename?: Map<string, string>): LocalNode[] {
+  if(delta===0&&!rename)return nodes;
   return nodes.map(node => ({ ...node, id: rename?.get(node.id) ?? node.id,
     range: {start: node.range.start + delta, end: node.range.end + delta},
     ...(node.attrs ? {attrs: {...node.attrs}} : {}), ...(node.align ? {align: [...node.align]} : {}),
@@ -98,17 +103,47 @@ export interface LocalIncrementalStats {
   fallbackReason?: string;
   /** Block-index construction attempts during this call (including deferred recovery). */
   cacheBuilds?: number;
+  sharedNodes?:number;
+  semantic?:SemanticCacheStats;
+  parse?:Readonly<LocalParseSession['stats']>;
+  stages?:Readonly<Record<string,number>>;
 }
 
 export class LocalCompileSession {
   private disposed = false;
   private snapshot: Snapshot | null = null;
-  private deferred: {source: string; key: string; tracked: Tracked} | null = null;
+  private deferred: {source: string; key: string; tracked: Tracked; options?:LocalCompileOptions} | null = null;
+  private readonly parseSession=new LocalParseSession();
+  private readonly semantic=new LocalSemanticCache();
+  private readonly services:LocalCompilerServices={parser:this.parseSession,semantic:this.semantic};
+  private shared:LocalCompileResult|null=null;
+  private sharedKey:string|undefined;
+  private epoch=0;
   private cacheBuilds = 0;
   private serial = 0;
   private lastStats: LocalIncrementalStats = { mode: 'full', totalBlocks: 0, compiledBlocks: 0, reusedBlocks: 0, compiledCharacters: 0 };
   get stats(): Readonly<LocalIncrementalStats> { return { ...this.lastStats, cacheBuilds: this.cacheBuilds }; }
   compile(source: string, options?: LocalCompileOptions): LocalCompileResult {
+    const result=this.compileShared(source,options),start=performance.now();
+    const published=plainCompiledData(result);
+    this.lastStats={...this.lastStats,stages:{...this.lastStats.stages,publicSnapshotMs:performance.now()-start}};
+    return published;
+  }
+  /** Compiler-owned persistent result for the Worker and preview. Treat as read-only. */
+  compileShared(source:string,options?:LocalCompileOptions):LocalCompileResult {
+    if(this.disposed)throw new Error('Local compile session is disposed');
+    this.epoch++;
+    const key=localCompileOptionsKey(options);
+    if(key!==this.sharedKey){this.shared=null;this.sharedKey=key;}
+    const result=this.compileCore(source,options),start=performance.now(),previous=this.shared;
+    const persistent=shareCompiledData(previous??undefined,result).value;
+    this.shared=persistent;
+    this.lastStats={...this.lastStats,sharedNodes:countSharedNodes(previous,persistent),parse:this.parseSession.stats,
+      semantic:this.lastStats.semantic??this.semantic.stats,
+      stages:{...this.lastStats.stages,sharedPublicationMs:performance.now()-start}};
+    return persistent;
+  }
+  private compileCore(source: string, options?: LocalCompileOptions): LocalCompileResult {
     if (this.disposed) throw new Error('Local compile session is disposed');
     this.cacheBuilds = 0;
     const key = localCompileOptionsKey(options), check = readLocalCompileOptions(options);
@@ -120,7 +155,7 @@ export class LocalCompileSession {
       if (source === pending.source) {
         this.deferred = pending;
         this.lastStats = {mode: 'cached', totalBlocks: this.lastStats.totalBlocks, compiledBlocks: 0, reusedBlocks: this.lastStats.totalBlocks, compiledCharacters: 0};
-        return plainCompiledData(pending.tracked.result);
+        return pending.tracked.result;
       }
       // Keep only the latest successful full result during context churn.
       // Build its block index when an ordinary edit can actually use it.
@@ -150,26 +185,25 @@ export class LocalCompileSession {
       defer = true;
     } else if (previous) reason = 'options-or-limits';
     this.snapshot = null;
-    const tracked = compileLocalTracked(source, options);
-    const published = plainCompiledData(tracked.result);
-    this.lastStats = {mode: 'full', totalBlocks: tracked.parsed?.nodes.length ?? 0, compiledBlocks: tracked.parsed?.nodes.length ?? 0, reusedBlocks: 0, compiledCharacters: typeof source === 'string' ? source.length : 0, fallbackReason: reason};
+    const tracked = compileLocalTracked(source, options,this.services);
+    this.lastStats = {mode: 'full', totalBlocks: tracked.parsed?.nodes.length ?? 0, compiledBlocks: tracked.parsed?.nodes.length ?? 0, reusedBlocks: 0, compiledCharacters: typeof source === 'string' ? source.length : 0, fallbackReason: reason,semantic:tracked.semantic,stages:tracked.timings};
     if (tracked.result.ok && tracked.result.diagnostics.length === 0 && check.ok && !check.htmlActive && key !== 'invalid') {
-      if (defer) this.deferred = {source, key, tracked};
+      if (defer) this.deferred = {source, key, tracked,options:options===undefined?undefined:plainCompiledData(options)};
       else {
         try { this.snapshot = this.seed(source, key, tracked, options); }
         catch { this.snapshot = null; }
       }
       if (this.snapshot) this.lastStats.totalBlocks = this.lastStats.compiledBlocks = this.snapshot.blocks.length;
     }
-    return published;
+    return this.snapshot?this.publish(this.snapshot):tracked.result;
   }
-  private seed(source: string, key: string, tracked: Tracked, options?: LocalCompileOptions): Snapshot | null {
+  private seed(source: string, key: string, tracked: Tracked, options?: LocalCompileOptions,preparedTree?:Tree): Snapshot | null {
     this.cacheBuilds++;
     if (!tracked.result.ok || !tracked.parsed || source.includes('[^') || source.includes('\ufeff')) return null;
     const roots = tracked.parsed.nodes, kinds = roots.map(contextKind);
     if (kinds.includes('unsupported') || kinds.filter(kind => kind === 'fragment').length < 2) return null;
-    const doc = tracked.result.document;
-    const rendered = new Map(doc.nodes.map(node => [node.id, node]));
+    const doc:LocalDocument = {...tracked.result.document,nodes:[],source:''};
+    const rendered = new Map(tracked.result.document.nodes.map(node => [node.id, node]));
     const context: Block[] = [];
     const fragments: LocalNode[] = [];
     for (let index = 0; index < roots.length; index++) {
@@ -191,7 +225,7 @@ export class LocalCompileSession {
     // The local HTML scanner and Markdown's HTML lexer have different block
     // boundaries. Keep their whole-document shielding on the full path.
     if (masked.includes('<')) return null;
-    const tree = markdown.parse(masked);
+    const tree = preparedTree??markdown.parse(masked);
     const ranges = boundaries(tree, context, masked);
     if (!ranges) return null;
     const blocks: Block[] = [];
@@ -210,12 +244,14 @@ export class LocalCompileSession {
     }
     if (assigned !== fragments.length) return null;
     const prefix = context.length ? context.map(b => b.text).join(separator) + separator : '';
-    const prefixResult = prefix ? compileLocalTracked(prefix, options) : null;
-    if (prefixResult && (!prefixResult.result.ok || prefixResult.result.diagnostics.length)) return null;
+    // All semantic context already belongs to a successful complete result.
+    // Recount the separator-prefixed syntax without revalidating every binding.
+    const prefixResult = prefix ? this.parseSession.parse(prefix, options) : null;
+    if (prefixResult?.diagnostics.length) return null;
     const contextCost = (tracked.parsed.syntaxNodes ?? 0) - blocks.reduce((sum,b) => sum + b.cost, 0);
     if (contextCost < 0) return null;
     doc.nodes = []; doc.source = ''; delete doc.dependencies;
-    return {source, key, tree, metadata: doc, blocks, context, contextCost, prefix, prefixCost: prefixResult?.parsed?.syntaxNodes ?? 0};
+    return {source, key, tree, metadata: doc, blocks, context, contextCost, prefix, prefixCost: prefixResult?.syntaxNodes ?? 0};
   }
   private update(old: Snapshot, source: string, options: LocalCompileOptions | undefined, budget: number): Snapshot | null {
     if (source.includes('[^') || source.includes('\ufeff')) return null;
@@ -252,7 +288,7 @@ export class LocalCompileSession {
         // The unchanged declaration prefix supplies the same binding and type
         // environment. Only this new block is semantically compiled.
         const from = old.prefix.length;
-        const tracked = compileLocalTracked(old.prefix + text, options);
+        const tracked = compileLocalTracked(old.prefix + text, options,this.services);
         characters += from + text.length; compiled++;
         if (!tracked.result.ok || tracked.result.diagnostics.length || !tracked.parsed) return null;
         const parsed = tracked.parsed.nodes.filter(n => n.range.start >= from);
@@ -274,7 +310,15 @@ export class LocalCompileSession {
     const doc = plainCompiledData(snapshot.metadata);
     doc.source = snapshot.source;
     const all = [...snapshot.blocks, ...snapshot.context].sort((a,b) => a.from - b.from);
-    doc.nodes = all.flatMap(b => copyNodes(b.nodes, b.from - b.origin));
+    const oldById=new Map(this.shared?.ok?this.shared.document.nodes.map(n=>[n.id,n]):[]);
+    doc.nodes = all.flatMap(b => {
+      const delta=b.from-b.origin;
+      if(b.publication?.delta===delta)return b.publication.nodes;
+      const before=b.publication?.nodes??b.nodes.map(n=>oldById.get(n.id)).filter((n):n is LocalNode=>!!n);
+      const nodes=shareCompiledData(before,copyNodes(b.nodes,delta)).value;
+      b.publication={delta,nodes};
+      return nodes;
+    });
     const deps: Dependencies = {};
     for (const block of all) for (const [id, values] of Object.entries(block.dependencies)) {
       Object.defineProperty(deps, id, {value: values === null ? null : Object.freeze([...values]), enumerable: true});
@@ -291,8 +335,51 @@ export class LocalCompileSession {
     for (const value of doc.validations ?? []) value.range = shift(value.range);
     return {ok: true, document: doc, diagnostics: []};
   }
-  clear(): void { this.snapshot = null; this.deferred = null; this.serial = 0; this.cacheBuilds = 0; }
-  dispose(): void { this.clear(); this.disposed = true; }
+  get hasPendingPreparation():boolean{return !this.disposed&&this.deferred!==null;}
+  prepare():boolean {
+    if(this.disposed||!this.deferred)return false;
+    const pending=this.deferred,epoch=this.epoch,builds=this.cacheBuilds;
+    try {
+      const snapshot=this.seed(pending.source,pending.key,pending.tracked,pending.options);
+      if(this.disposed||epoch!==this.epoch||this.deferred!==pending)return false;
+      this.snapshot=snapshot;this.deferred=null;return snapshot!==null;
+    } catch {return false;} finally {this.cacheBuilds=builds;}
+  }
+  async prepareAsync(signal?:{readonly aborted:boolean},yieldTask:()=>Promise<void>=()=>new Promise(resolve=>setTimeout(resolve,0))):Promise<boolean> {
+    if(this.disposed||!this.deferred||signal?.aborted)return false;
+    const pending=this.deferred,epoch=this.epoch;
+    const valid=()=>!this.disposed&&!signal?.aborted&&this.epoch===epoch&&this.deferred===pending;
+    await yieldTask();if(!valid())return false;
+    if(!pending.tracked.result.ok||!pending.tracked.parsed)return false;
+    const context:Block[]=[];
+    const roots=pending.tracked.parsed.nodes;
+    for(let index=0;index<roots.length;index++) {
+      const node=roots[index],kind=contextKind(node);
+      if(kind==='unsupported')return false;
+      if(kind==='context')context.push({from:node.range.start,to:node.range.end,origin:node.range.start,text:pending.source.slice(node.range.start,node.range.end),nodes:[],dependencies:{},cost:0});
+      if(index%64===63){await yieldTask();if(!valid())return false;}
+    }
+    for(const range of [pending.tracked.parsed.versionDeclaration?.range,pending.tracked.parsed.themeRange]) {
+      if(range&&!context.some(b=>range.start>=b.from&&range.end<=b.to))context.push({from:range.start,to:range.end,origin:range.start,text:pending.source.slice(range.start,range.end),nodes:[],dependencies:{},cost:0});
+    }
+    context.sort((a,b)=>a.from-b.from);
+    const masked=mask(pending.source,context);
+    if(masked.includes('<'))return false;
+    // Drive Lezer's partial parser in separate tasks. Message events can revoke
+    // this revision while the advisory index is being prepared.
+    const parse=markdown.startParse(masked);
+    let tree:Tree|null=null;
+    while(!tree){tree=parse.advance();if(!tree){await yieldTask();if(!valid())return false;}}
+    await yieldTask();if(!valid())return false;
+    const builds=this.cacheBuilds;
+    try {
+      const snapshot=this.seed(pending.source,pending.key,pending.tracked,pending.options,tree);
+      if(!valid())return false;
+      this.snapshot=snapshot;this.deferred=null;return snapshot!==null;
+    } catch {return false;} finally {this.cacheBuilds=builds;}
+  }
+  clear(): void { this.epoch++;this.snapshot = null; this.deferred = null; this.serial = 0; this.cacheBuilds = 0;this.shared=null;this.sharedKey=undefined;this.parseSession.clear();this.semantic.clear(); }
+  dispose(): void { this.clear(); this.parseSession.dispose();this.disposed = true; }
 }
 
 export function createLocalCompileSession(): LocalCompileSession { return new LocalCompileSession(); }

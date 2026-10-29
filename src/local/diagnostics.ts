@@ -110,6 +110,14 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Syntax nodes exceed the limit of {limit}.',
     zh: '语法节点数量超过上限 {limit}。',
   },
+  'budget.parseWork': {
+    en: 'Parsing work exceeds the limit of {limit}.',
+    zh: '解析工作量超过上限 {limit}。',
+  },
+  'budget.markdownDepth': {
+    en: 'Markdown nesting exceeds the {limit}-level limit.',
+    zh: 'Markdown 嵌套超过 {limit} 层上限。',
+  },
   'budget.nesting': {
     en: 'Component nesting exceeds the {limit}-level limit.',
     zh: '组件嵌套超过 {limit} 层上限。',
@@ -125,6 +133,18 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
   'options.maxSyntaxNodes': {
     en: 'Compile option limits.maxSyntaxNodes must be a positive safe integer.',
     zh: '编译选项 limits.maxSyntaxNodes 必须是正安全整数。',
+  },
+  'options.maxParseWork': {
+    en: 'Compile option limits.maxParseWork must be a positive safe integer.',
+    zh: '编译选项 limits.maxParseWork 必须是正安全整数。',
+  },
+  'options.maxMarkdownDepth': {
+    en: 'Compile option limits.maxMarkdownDepth must be a positive safe integer.',
+    zh: '编译选项 limits.maxMarkdownDepth 必须是正安全整数。',
+  },
+  'options.unknownLimit': {
+    en: 'Compile option limits.{detail} is not supported.',
+    zh: '编译选项 limits.{detail} 不受支持。',
   },
   'options.hostComponents': {
     en: 'Compile option hostComponents is invalid: {detail}',
@@ -1407,9 +1427,14 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.options.invalid.object': 'options.notObject',
   'local.options.invalid.limits': 'options.limitsNotObject',
   'local.options.invalid.max-syntax-nodes': 'options.maxSyntaxNodes',
+  'local.options.invalid.max-parse-work': 'options.maxParseWork',
+  'local.options.invalid.max-markdown-depth': 'options.maxMarkdownDepth',
+  'local.options.invalid.limits-unknown': 'options.unknownLimit',
   'local.options.invalid.host-components': 'options.hostComponents',
   'local.budget.document': 'budget.document',
   'local.budget.nodes': 'budget.syntaxNodes',
+  'local.budget.parse-work': 'budget.parseWork',
+  'local.budget.markdown-depth': 'budget.markdownDepth',
   'local.budget.nesting': 'budget.nesting',
   'local.budget.name.attribute': 'budget.attributeName',
   'local.budget.name.tag': 'budget.tagName',

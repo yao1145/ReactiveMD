@@ -13,7 +13,8 @@ export {
 } from './diagnostics';
 export type { LocalDiagnosticDetails } from './diagnostics';
 export { countLocalCodePoints } from './text-length';
-export { createLocalRuntime } from './runtime';
+export { createLocalRuntime,updateLocalRuntime,notifyLocalRuntime } from './runtime';
+export type {LocalRuntimeUpdateOptions,LocalRuntimeDocumentUpdate} from './runtime';
 export { compileExpression, LocalExpressionError } from './expression';
 export { compileLatex, samplePlot } from './math';
 export { LOCAL_SYNTAX_VERSION } from './version';
@@ -51,6 +52,8 @@ export type {
 } from './retention';
 export {
   LOCAL_COMPILE_DELAY_MS,
+  LOCAL_COMPILE_PREPARATION_DELAY_MS,
+  localWorkerOptionsKey,
   LocalCompileScheduler,
   compileFailureDiagnostic,
   startLocalCompileWorker,
@@ -63,4 +66,9 @@ export type {
   LocalCompileOutcome,
   LocalCompileSchedulerOptions,
   LocalCompileWorkerScope,
+  LocalCompilePatchRequest,LocalCompileWorkerRequest,LocalCompilePatchResponse,
+  LocalCompileWorkerResponse,LocalCompileWorkerMetrics,LocalCompileMetrics,
+  LocalCompileWorkerControl,LocalCompileWorkerControlMessage,LocalCompileWorkerOptions,
 } from './worker';
+export {LOCAL_RESULT_PATCH_PROTOCOL,diffSourceEdit,applySourceEdit,encodeLocalResultPatch,applyLocalResultPatch} from './compile-patch';
+export type {LocalSourceEdit,LocalResultPatch,LocalNodePatch,LocalDocumentPatch,LocalRecordPatch} from './compile-patch';

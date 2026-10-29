@@ -1,4 +1,6 @@
 import {
+  DEFAULT_MAX_LOCAL_MARKDOWN_DEPTH,
+  DEFAULT_MAX_LOCAL_PARSE_WORK,
   DEFAULT_MAX_LOCAL_SYNTAX_NODES,
   MAX_LOCAL_HOST_COMPONENTS,
   MAX_LOCAL_HOST_ENUM_VALUES,
@@ -25,6 +27,10 @@ export type LocalOptionCheck =
       ok: true;
       /** Validated syntax-node budget for this compilation. */
       maxSyntaxNodes: number;
+      /** Validated deterministic parser work budget, in abstract units. */
+      maxParseWork: number;
+      /** Validated nested Markdown container depth budget. */
+      maxMarkdownDepth: number;
       /** Effective HTML policy; every flag is false by default. */
       html: LocalHtmlPolicy;
       /** True when at least one capability flag is enabled. */
@@ -45,6 +51,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const HOST_COMPONENTS_KEY = 'local.options.invalid.host-components';
 const HOST_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const HOST_PROP_KINDS: ReadonlySet<string> = new Set(['string', 'number', 'boolean', 'enum']);
+
+/** Limit keys accepted under `options.limits`; anything else is a typo. */
+const LIMIT_KEYS: ReadonlySet<string> = new Set(['maxSyntaxNodes', 'maxParseWork', 'maxMarkdownDepth']);
+
+type LimitRead =
+  | { ok: true; value: number }
+  | { ok: false; message: string; key: string };
+
+/**
+ * Read one positive-safe-integer limit. An explicit `undefined` means the
+ * default, matching every other optional compile option.
+ */
+function readLimit(limits: Record<string, unknown>, name: string, fallback: number): LimitRead {
+  if (!Object.hasOwn(limits, name)) return { ok: true, value: fallback };
+  const value = limits[name];
+  if (value === undefined) return { ok: true, value: fallback };
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+    const suffix = name === 'maxSyntaxNodes'
+      ? 'max-syntax-nodes'
+      : name === 'maxParseWork'
+        ? 'max-parse-work'
+        : 'max-markdown-depth';
+    return {
+      ok: false,
+      message: `Compile option limits.${name} must be a positive safe integer.`,
+      key: `local.options.invalid.${suffix}`,
+    };
+  }
+  return { ok: true, value };
+}
 
 type HostComponentCheck =
   | {
@@ -288,6 +324,8 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
     return {
       ok: true,
       maxSyntaxNodes: DEFAULT_MAX_LOCAL_SYNTAX_NODES,
+      maxParseWork: DEFAULT_MAX_LOCAL_PARSE_WORK,
+      maxMarkdownDepth: DEFAULT_MAX_LOCAL_MARKDOWN_DEPTH,
       html: { enableCss: false, enableJavaScript: false, enableExtendedHtml: false },
       htmlActive: false,
       markdownBreaks: false,
@@ -337,21 +375,33 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
 
   const limits = options.limits;
   let maxSyntaxNodes = DEFAULT_MAX_LOCAL_SYNTAX_NODES;
+  let maxParseWork = DEFAULT_MAX_LOCAL_PARSE_WORK;
+  let maxMarkdownDepth = DEFAULT_MAX_LOCAL_MARKDOWN_DEPTH;
   if (limits !== undefined) {
     if (!isRecord(limits)) {
       return { ok: false, message: 'Compile option limits must be an object.', key: 'local.options.invalid.limits' };
     }
-    const value = limits.maxSyntaxNodes;
-    if (value !== undefined) {
-      if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
-        return {
-          ok: false,
-          message: 'Compile option limits.maxSyntaxNodes must be a positive safe integer.',
-          key: 'local.options.invalid.max-syntax-nodes',
-        };
-      }
-      maxSyntaxNodes = value;
+    // Unknown limit keys are rejected instead of silently ignored: a typo must
+    // never look like a raised budget.
+    for (const key of Object.keys(limits)) {
+      if (LIMIT_KEYS.has(key)) continue;
+      if ((limits as Record<string, unknown>)[key] === undefined) continue;
+      return {
+        ok: false,
+        message: `Compile option limits.${key} is not supported.`,
+        key: 'local.options.invalid.limits-unknown',
+        detail: key,
+      };
     }
+    const syntaxNodes = readLimit(limits, 'maxSyntaxNodes', maxSyntaxNodes);
+    if (!syntaxNodes.ok) return syntaxNodes;
+    maxSyntaxNodes = syntaxNodes.value;
+    const parseWork = readLimit(limits, 'maxParseWork', maxParseWork);
+    if (!parseWork.ok) return parseWork;
+    maxParseWork = parseWork.value;
+    const markdownDepth = readLimit(limits, 'maxMarkdownDepth', maxMarkdownDepth);
+    if (!markdownDepth.ok) return markdownDepth;
+    maxMarkdownDepth = markdownDepth.value;
   }
 
   const hosts = readLocalHostComponents(options.hostComponents);
@@ -360,6 +410,8 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
   return {
     ok: true,
     maxSyntaxNodes,
+    maxParseWork,
+    maxMarkdownDepth,
     html,
     htmlActive: html.enableCss || html.enableJavaScript || html.enableExtendedHtml,
     markdownBreaks,
@@ -485,13 +537,16 @@ export function localCompileOptionsKey(options?: LocalCompileOptions): string {
     if (value === false) return '0';
     return '!';
   }).join('');
-  let maxSyntaxNodes = '';
+  let limitsKey = '';
   if (Object.hasOwn(options, 'limits')) {
     const limits = options.limits;
-    if (limits === undefined) maxSyntaxNodes = 'default';
-    else if (!isRecord(limits)) maxSyntaxNodes = 'invalid';
-    else if (!Object.hasOwn(limits, 'maxSyntaxNodes') || limits.maxSyntaxNodes === undefined) maxSyntaxNodes = 'default';
-    else maxSyntaxNodes = String(limits.maxSyntaxNodes);
+    if (limits === undefined) limitsKey = 'default';
+    else if (!isRecord(limits)) limitsKey = 'invalid';
+    else {
+      const part = (name: string): string =>
+        !Object.hasOwn(limits, name) || limits[name] === undefined ? 'default' : String(limits[name]);
+      limitsKey = `${part('maxSyntaxNodes')}:${part('maxParseWork')}:${part('maxMarkdownDepth')}`;
+    }
   }
   let hostSignature = '';
   if (Object.hasOwn(options, 'hostComponents') && options.hostComponents !== undefined) {
@@ -519,5 +574,5 @@ export function localCompileOptionsKey(options?: LocalCompileOptions): string {
       : options.markdownBreaks === false
         ? '0'
         : '!';
-  return `${flags}:${maxSyntaxNodes}:${breaks}${hostSignature}`;
+  return `${flags}:${limitsKey}:${breaks}${hostSignature}`;
 }

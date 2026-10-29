@@ -4,6 +4,16 @@ export interface LocalVersionDeclaration { version: string; range: SourceRange }
 /** A scalar, JSON/structured-clone-safe diagnostic template parameter. */
 export type LocalDiagnosticParam = string | number | boolean | null;
 export type LocalDiagnosticParams = Readonly<Record<string, LocalDiagnosticParam>>;
+/** A display issue relative to the formula body, independent of the renderer. */
+export interface LocalMathDisplayIssue {
+  start: number;
+  end: number;
+  reason: 'unsupported-command' | 'unsupported-environment' | 'budget' | 'syntax';
+  message: string;
+  code: string;
+  messageKey: string;
+  params?: LocalDiagnosticParams;
+}
 export interface Diagnostic {
   code: string;
   message: string;
@@ -157,6 +167,17 @@ export interface LocalDocument {
 export interface LocalCompileLimits {
   /** Positive safe integer; defaults to 10,000 cumulative LocalNode creations. */
   readonly maxSyntaxNodes?: number;
+  /**
+   * Positive safe integer; defaults to 20,000,000 deterministic parser work
+   * units (source scanning plus general Markdown parse submission). Raising it
+   * only affects pathological inputs; normal documents stay far below it.
+   */
+  readonly maxParseWork?: number;
+  /**
+   * Positive safe integer; defaults to 1,000 nested Markdown container levels
+   * (blockquotes and open list levels). Fenced and indented code is ignored.
+   */
+  readonly maxMarkdownDepth?: number;
 }
 /**
  * Host-owned capability flags for the temporary whole-document HTML mode.

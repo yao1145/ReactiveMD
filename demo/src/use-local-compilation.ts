@@ -73,6 +73,7 @@ export function useLocalCompilation(
     const scheduledOptionsKey = optionsKey;
     const scheduler = new LocalCompileScheduler({
       createWorker: createCompileWorker,
+      shareResults: true,
       onResult: (outcome) => {
         const outcomeOptionsKey = outcome.options === undefined
           ? scheduledOptionsKey

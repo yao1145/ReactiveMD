@@ -23,6 +23,7 @@ import {
 import type {
   Diagnostic,
   LocalCompileOptions,
+  LocalCompileResult,
   LocalDocument,
   LocalNode,
   LocalRuntime,
@@ -43,7 +44,17 @@ import {
   type NodeDependencies,
 } from './dependencies';
 import { createLocalCompileSession, type LocalCompileSession } from './incremental';
-import { createLocalRuntime } from './runtime';
+import { createLocalRuntime, notifyLocalRuntime, updateLocalRuntime } from './runtime';
+import {
+  blockInputsEqual,
+  projectAnchors,
+  projectFootnotes,
+  sameAnchorProjection,
+  sameFootnoteProjection,
+  validationDiagnosticKey,
+  validationProjectionKey,
+  type DependencyLookup,
+} from './view-revision';
 import { DEFAULT_MAX_LOCAL_SYNTAX_NODES, MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
 import { localCompileOptionsKey, readLocalCompileOptions } from './options';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './html';
@@ -173,7 +184,7 @@ interface LocalViewContext extends LocalRenderContext {
   /** Cross-field hints and field associations for this document instance. */
   validation: LocalValidationState;
   /** Views pass this object straight to renderInlineNodes, so it must match RenderEnv. */
-  dependencies: DependencyIndex;
+  dependencies: DependencyLookup;
   /** Whole-document footnote index, shared with the render environment. */
   footnotes: LocalFootnoteIndex;
 }
@@ -743,6 +754,100 @@ function numericRange(
 
 /* ------------------------------------------------------------ state hooks */
 
+interface ProjectionCache<P, T> {
+  document: LocalDocument;
+  projection: P;
+  value: T;
+}
+
+/**
+ * Memoize a value derived from a document while comparing only its relevant
+ * projection. An edit that leaves the projection untouched keeps both the
+ * previous value and its identity, so `env` (and every memoized block keyed on
+ * it) stays stable across recompiles.
+ */
+function useProjectedMemo<P, T>(
+  document: LocalDocument,
+  project: (document: LocalDocument) => P,
+  equal: (previous: P, next: P) => boolean,
+  compute: () => T,
+): T {
+  const cache = useRef<ProjectionCache<P, T> | null>(null);
+  let entry = cache.current;
+  if (!entry || entry.document !== document) {
+    const projection = project(document);
+    if (entry && equal(entry.projection, projection)) {
+      entry = { document, projection, value: entry.value };
+    } else {
+      entry = { document, projection, value: compute() };
+    }
+    cache.current = entry;
+  }
+  return entry.value;
+}
+
+interface DependencyIndexCache {
+  document: LocalDocument | null;
+  index: DependencyIndex;
+  lookup: DependencyLookup;
+}
+
+/**
+ * A stable handle over the document's dependency index. The index is removed
+ * from `env` identity on purpose: recompiling one block changes node ids in
+ * the index without changing what any other block reads.
+ */
+function useDependencyIndex(document: LocalDocument): DependencyLookup {
+  const cache = useRef<DependencyIndexCache | null>(null);
+  let entry = cache.current;
+  if (!entry) {
+    entry = {
+      document: null,
+      index: EMPTY_DEPENDENCY_INDEX,
+      lookup: { get: (nodeId) => cache.current?.index.get(nodeId) },
+    };
+    cache.current = entry;
+  }
+  if (entry.document !== document) {
+    let index: DependencyIndex;
+    try {
+      index = collectNodeDependencies(document);
+    } catch {
+      index = EMPTY_DEPENDENCY_INDEX;
+    }
+    entry.index = index;
+    entry.document = document;
+  }
+  return entry.lookup;
+}
+
+interface ValidationCache {
+  runtime: LocalRuntime;
+  t: Localize;
+  key: string;
+  value: LocalValidationState;
+}
+
+/**
+ * Validation rendering only depends on the rule/binding projection and the
+ * current diagnostic signature, not on prose elsewhere in the document.
+ */
+function useStableValidation(
+  document: LocalDocument,
+  runtime: LocalRuntime,
+  instanceId: string,
+  t: Localize,
+  key: string,
+): LocalValidationState {
+  const cache = useRef<ValidationCache | null>(null);
+  let entry = cache.current;
+  if (!entry || entry.runtime !== runtime || entry.t !== t || entry.key !== key) {
+    entry = { runtime, t, key, value: createValidationState(document, runtime, instanceId, t) };
+    cache.current = entry;
+  }
+  return entry.value;
+}
+
 function useWriter(node: LocalNode) {
   const { runtime, report } = useLocal();
   const locale = useLocalLocale();
@@ -913,7 +1018,7 @@ interface RenderEnv {
   t: Localize;
   mode: LocalRenderMode;
   /** Binding keys per node subtree; an empty index makes every block a wildcard. */
-  dependencies: DependencyIndex;
+  dependencies: DependencyLookup;
   /** Whole-document footnote numbering and reference ids for this instance. */
   footnotes: LocalFootnoteIndex;
 }
@@ -1024,20 +1129,7 @@ interface LocalBlockProps {
  * block keeps the pre-memoization behavior of re-rendering on every revision.
  */
 function blockPropsEqual(previous: LocalBlockProps, next: LocalBlockProps): boolean {
-  if (
-    previous.node !== next.node ||
-    previous.visible !== next.visible ||
-    previous.resetToken !== next.resetToken ||
-    previous.env !== next.env
-  ) {
-    return false;
-  }
-  if (previous.depValues === null || next.depValues === null) return false;
-  if (previous.depValues.length !== next.depValues.length) return false;
-  for (let index = 0; index < previous.depValues.length; index += 1) {
-    if (!Object.is(previous.depValues[index], next.depValues[index])) return false;
-  }
-  return true;
+  return blockInputsEqual(previous, next);
 }
 
 const LocalBlock = memo(function LocalBlock({ node, index, visible, env }: LocalBlockProps) {
@@ -4638,25 +4730,26 @@ function LocalDocumentViewLocal({
     () => (en: string, zh: string) => localize(locale, en, zh),
     [locale],
   );
-  const anchors = useMemo(
+  // Anchor ids, footnote numbering and dependency analysis are projections of
+  // the document: a prose-only edit keeps their identity, so the render
+  // environment (and every memoized block) stays stable.
+  const anchors = useProjectedMemo(
+    document,
+    projectAnchors,
+    sameAnchorProjection,
     () => createHeadingAnchors(document, `local-heading-${instanceId}`),
-    [document, instanceId],
   );
   // Numbering and ids are instance-scoped: two documents on one page never
   // share footnote targets, and every reference keeps a stable id.
-  const footnotes = useMemo(
+  const footnotes = useProjectedMemo(
+    document,
+    projectFootnotes,
+    sameFootnoteProjection,
     () => collectLocalFootnotes(document, instanceId),
-    [document, instanceId],
   );
   // A failing collector degrades to the wildcard index, so the view stays
   // correct (every block re-renders) instead of losing content.
-  const dependencyIndex = useMemo(() => {
-    try {
-      return collectNodeDependencies(document);
-    } catch {
-      return EMPTY_DEPENDENCY_INDEX;
-    }
-  }, [document]);
+  const dependencyIndex = useDependencyIndex(document);
   const reportRef = useRef(onDiagnostics);
   reportRef.current = onDiagnostics;
   const rootRef = useRef<HTMLElement>(null);
@@ -4713,14 +4806,19 @@ function LocalDocumentViewLocal({
 
   // Advisory rules are read after the subscription so the hints reflect the
   // revision that triggered this render. The runtime caches per revision.
+  // Ranges are excluded from the identity key: moving a rule in the source
+  // does not change which fields it targets.
   let validationKey = '';
   if (document.validations?.length) {
-    try { validationKey = diagnosticsSignature(runtime.validate()); }
+    try { validationKey = validationDiagnosticKey(document, runtime.validate()); }
     catch { validationKey = 'unavailable'; }
   }
-  const validation = useMemo(
-    () => createValidationState(document, runtime, instanceId, t),
-    [document, runtime, instanceId, t, validationKey],
+  const validation = useStableValidation(
+    document,
+    runtime,
+    instanceId,
+    t,
+    `${document.validations?.length ? validationProjectionKey(document) : ''}\u0000${validationKey}`,
   );
 
   // Stable across revisions: each field comes from a prop, a memo, or the
@@ -4800,6 +4898,15 @@ function LocalDocumentViewLocal({
   );
 }
 
+/**
+ * Optional private compile path supplied by the incremental compiler. It
+ * returns a read-only result whose unchanged nodes keep their identity; the
+ * public `compile` protocol is unaffected.
+ */
+interface SharedCompileSession {
+  compileShared?(source: string, options?: LocalCompileOptions): LocalCompileResult;
+}
+
 export function LocalReactiveDocument({
   source,
   onDiagnostics,
@@ -4816,27 +4923,84 @@ export function LocalReactiveDocument({
 }: LocalReactiveDocumentProps) {
   const optionsKey = localCompileOptionsKey(compileOptions);
   const compileSession = useRef<LocalCompileSession | null>(null);
-  useEffect(() => () => { compileSession.current?.dispose(); compileSession.current = null; }, []);
+  const sessionOptionsKey = useRef<string | null>(null);
   const result = useMemo(() => {
-    compileSession.current ??= createLocalCompileSession();
-    return compileSession.current.compile(source, compileOptions);
-  }, [source, optionsKey]);
-  const runtime = useMemo(() => {
-    if (!result.ok) return null;
-    try {
-      return createLocalRuntime(result.document);
-    } catch {
-      return null;
+    // Option changes start a fresh session; ordinary source edits reuse it so
+    // the compiler can keep its block cache and structural sharing.
+    if (!compileSession.current || sessionOptionsKey.current !== optionsKey) {
+      compileSession.current?.dispose();
+      compileSession.current = createLocalCompileSession();
+      sessionOptionsKey.current = optionsKey;
     }
-  }, [result]);
+    const session = compileSession.current as LocalCompileSession & SharedCompileSession;
+    // `compileShared` keeps object identity for unchanged nodes. Until it is
+    // available the public compile path still produces a valid document.
+    return typeof session.compileShared === 'function'
+      ? session.compileShared(source, compileOptions)
+      : session.compile(source, compileOptions);
+  }, [source, optionsKey]);
+
+  const runtimeRef = useRef<LocalRuntime | null>(null);
+  const runtimeOptionsKey = useRef<string | null>(null);
+  const retiredRuntimes = useRef<LocalRuntime[]>([]);
+  const pendingNotify = useRef(false);
+
+  // Keep the runtime object (and its subscriptions, tokens and expression
+  // cache) across source edits and adopt the new document in place instead of
+  // constructing a fresh runtime for every result.
+  let runtime = runtimeRef.current;
+  if (!result.ok) {
+    // Keep the ref until this render commits; a discarded render must not
+    // release a runtime the committed tree still uses. The commit effect
+    // below disposes it.
+    runtime = null;
+  } else {
+    const nextDocument = result.document;
+    if (runtime && runtimeOptionsKey.current !== optionsKey) {
+      // Host options (including HTML capabilities) may change document
+      // semantics, so the previous runtime is released rather than migrated.
+      retiredRuntimes.current.push(runtime);
+      runtime = null;
+      runtimeRef.current = null;
+    }
+    if (!runtime) {
+      try {
+        runtime = createLocalRuntime(nextDocument);
+      } catch {
+        runtime = null;
+      }
+      runtimeRef.current = runtime;
+    } else if (runtime.document !== nextDocument) {
+      let adopted = false;
+      try {
+        const update = updateLocalRuntime(runtime, nextDocument, { notify: false });
+        adopted = update.ok;
+        // Subscribers are notified after React commits; notifying here would
+        // trigger cross-component updates during this render.
+        if (update.ok && update.changed) pendingNotify.current = true;
+      } catch {
+        adopted = false;
+      }
+      if (!adopted) {
+        retiredRuntimes.current.push(runtime);
+        let replacement: LocalRuntime | null = null;
+        try {
+          replacement = createLocalRuntime(nextDocument);
+        } catch {
+          replacement = null;
+        }
+        runtime = replacement;
+        runtimeRef.current = replacement;
+      }
+    }
+    runtimeOptionsKey.current = optionsKey;
+  }
 
   const reportRef = useRef(onDiagnostics);
   reportRef.current = onDiagnostics;
-  const currentRuntime = useRef(runtime);
-  currentRuntime.current = runtime;
   const mounted = useRef(0);
 
-  // Theme/color-mode props never feed the runtime memo above, so changing them
+  // Theme/color-mode props never feed the compilation above, so changing them
   // re-renders the document without recreating state.
   const themesKey = themesSignature(themes);
   const themeDiagnostics = useMemo(() => {
@@ -4878,26 +5042,74 @@ export function LocalReactiveDocument({
     mounted.current += 1;
     return () => {
       mounted.current -= 1;
-    };
-  }, []);
-
-  useEffect(() => {
-    const owned = runtime;
-    return () => {
       // StrictMode runs setup, cleanup, then setup synchronously. Deferring
-      // disposal one microtask lets that remount re-claim the same runtime
-      // (mounted > 0 and still current). A runtime replaced by a new source is
-      // no longer current and is disposed even while the document stays mounted.
+      // disposal one microtask lets that remount re-claim the same resources;
+      // a real unmount reaches zero and releases both the runtime and session.
       queueMicrotask(() => {
-        if (currentRuntime.current === owned && mounted.current > 0) return;
+        if (mounted.current !== 0) return;
+        const owned = runtimeRef.current;
+        runtimeRef.current = null;
         try {
           owned?.dispose();
         } catch {
           /* Disposal is best-effort during unmount. */
         }
+        try {
+          compileSession.current?.dispose();
+        } catch {
+          /* Disposal is best-effort during unmount. */
+        }
+        compileSession.current = null;
+        sessionOptionsKey.current = null;
       });
     };
-  }, [runtime]);
+  }, []);
+
+  // Commit-time bookkeeping: release runtimes replaced by a compile error,
+  // option change or a failed migration, then announce a staged document
+  // update to subscribers. Running after commit avoids notifying React
+  // components from inside a render.
+  useEffect(() => {
+    const retired = retiredRuntimes.current;
+    retiredRuntimes.current = [];
+    for (const owned of retired) {
+      queueMicrotask(() => {
+        if (runtimeRef.current === owned) return;
+        try {
+          owned.dispose();
+        } catch {
+          /* Disposal is best-effort. */
+        }
+      });
+    }
+    if (!result.ok || !runtime) {
+      // A committed compile error (or an unusable document) releases the
+      // runtime and compile session only after the error tree is visible.
+      const owned = runtimeRef.current;
+      if (owned) {
+        runtimeRef.current = null;
+        runtimeOptionsKey.current = null;
+        queueMicrotask(() => {
+          if (runtimeRef.current === owned) return;
+          try {
+            owned.dispose();
+          } catch {
+            /* Disposal is best-effort. */
+          }
+        });
+      }
+      if (compileSession.current) {
+        compileSession.current.dispose();
+        compileSession.current = null;
+        sessionOptionsKey.current = null;
+      }
+    }
+    if (pendingNotify.current) {
+      pendingNotify.current = false;
+      const current = runtimeRef.current;
+      if (current) notifyLocalRuntime(current);
+    }
+  });
 
   if (!result.ok || !runtime) {
     const options = readLocalCompileOptions(compileOptions);
@@ -4943,7 +5155,9 @@ export function LocalReactiveDocument({
 
   return (
     <LocalDocumentView
-      key={`${optionsKey}:${source}`}
+      // Re-mount only when host options change; source edits update the
+      // document and runtime in place so unchanged blocks keep their state.
+      key={optionsKey}
       document={result.document}
       runtime={runtime}
       onDiagnostics={handleViewDiagnostics}

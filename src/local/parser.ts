@@ -19,7 +19,10 @@ import {
 } from './limits';
 import { readLocalCompileOptions } from './options';
 import { parsePlainParagraphs } from './plain-paragraphs';
-import { parseFastMarkdown } from './fast-markdown';
+import type { FastMarkdownPlan } from './fast-markdown';
+import { parseMarkdownBlocks,scanMarkdownStructure,markdownTreeFacts,type MarkdownStructure } from './markdown-blocks';
+import { SourceContext, MappedSource } from './source-context';
+import { ParseBudgetError, ParseWorkBudget, type ParseSessionCache, type ParseSessionCounters } from './parse-budget';
 
 /* Tag shapes come from the component schema; tests/schema-shapes.test.ts
  * pins the accepted syntax against the original literal lists. */
@@ -155,6 +158,25 @@ const MAX_DISPLAY_MATH_SOURCE = Math.min(50_000, MAX_LOCAL_STRING_LENGTH);
 const MAX_COMPONENT_DEPTH = 100;
 /** Footnote labels longer than this are treated as ordinary text. */
 const MAX_FOOTNOTE_LABEL_LENGTH = 1_000;
+/** Monotonic wall clock for optional phase observations (never for budgets). */
+function clock(): number {
+  const perf = globalThis.performance;
+  return perf && typeof perf.now === 'function' ? perf.now() : Date.now();
+}
+function roundMs(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+/**
+ * Cheap over-approximation of "this source may contain Markdown containers".
+ * When it is false the shared facts scan can be skipped entirely, preserving
+ * the plain-paragraph fast path. The expression is line-anchored so `<`/`>`
+ * used in prose does not trigger the scan.
+ */
+const CONTAINER_HINT = /(?:^|[\r\n])(?:[ \t]{0,3}>|[ \t]*(?:[-+*]|\d{1,9}[.)])(?=[ \t]|[\r\n]|$))/;
+function mayHaveContainer(source: string): boolean {
+  return CONTAINER_HINT.test(source)
+    || (source.charCodeAt(0) === 0xfeff && CONTAINER_HINT.test(source.slice(1)));
+}
 const markdown = unified().use(remarkParse).use(remarkGfm);
 interface Token { start: number; end: number; block?: boolean; node: LocalNode }
 interface RegionResult { tokens: Token[]; end: number; contentEnd: number; indent: number }
@@ -182,11 +204,47 @@ export interface ParsedLocal {
   diagnostics: Diagnostic[];
   /** Internal cumulative creation count, including discarded intermediates. */
   syntaxNodes?: number;
+  /** Internal aggregate work over shielding and nested conversion calls. */
+  work?: ParserWork;
   versionDeclaration?: LocalVersionDeclaration;
   /** Declared theme name, when the leading declaration is valid. */
   theme?: string;
   /** Source range of the first leading theme declaration, valid or not. */
   themeRange?: SourceRange;
+}
+
+export interface ParserWork {
+  markdownCalls: number;
+  fastBlocks: number;
+  generalBlocks: number;
+  fastCharacters: number;
+  generalCharacters: number;
+  mappingSegments: number;
+  sourceLines: number;
+  maxComponentDepth: number;
+  /** Deterministic parser work charged for this parse. */
+  parseWork?: number;
+  /** Maximum Markdown container depth observed in the source. */
+  maxMarkdownDepth?: number;
+  /** Session cache lookups that were served from the session. */
+  cacheHits?: number;
+  /** Session cache lookups that had to be computed. */
+  cacheMisses?: number;
+  /** Whole fast plans reused from the session. */
+  reusedBlocks?: number;
+  /** Table rows/cells whose inline plan was reused. */
+  reusedRows?: number;
+  /** List items whose inline plan was reused. */
+  reusedItems?: number;
+  /** General Markdown ASTs reused from the session. */
+  reusedAst?: number;
+  /** Coarse phase timings; observability only, never part of a result. */
+  timings?: {
+    shieldMs: number;
+    regionMs: number;
+    convertMs: number;
+    totalMs: number;
+  };
 }
 
 class LocalBudgetError extends Error {
@@ -204,7 +262,12 @@ class LocalBudgetError extends Error {
 }
 
 /** A lexical pass shields code before recognizing local tags, interpolation and math. */
-export function parseLocal(source: string, options?: LocalCompileOptions): ParsedLocal {
+export function parseLocal(
+  source: string,
+  options?: LocalCompileOptions,
+  context?: SourceContext,
+  cache?: ParseSessionCache,
+): ParsedLocal {
   const diagnostics: Diagnostic[] = [];
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     const details = typeof source === 'string'
@@ -226,6 +289,10 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     }] };
   }
   const maxSyntaxNodes = optionCheck.maxSyntaxNodes;
+  const budget = new ParseWorkBudget({
+    maxParseWork: optionCheck.maxParseWork,
+    maxMarkdownDepth: optionCheck.maxMarkdownDepth,
+  });
   // Soft breaks only become nodes when the host opts in; the source string is
   // never normalized, so offsets keep pointing at the original code units.
   const markdownBreaks = optionCheck.markdownBreaks;
@@ -236,10 +303,75 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   const known = optionCheck.hostComponents.length
     ? new Set([...KNOWN, ...optionCheck.hostComponents.map((component) => component.name)])
     : KNOWN;
-  const lineStarts = [0];
-  for (let index = 0; index < source.length; index += 1) {
-    if (source[index] === '\n') lineStarts.push(index + 1);
-  }
+  const sourceContext = context?.source === source ? context : new SourceContext(source);
+  const {lineStarts} = sourceContext;
+  const work: ParserWork = {markdownCalls:0,fastBlocks:0,generalBlocks:0,fastCharacters:0,generalCharacters:0,mappingSegments:0,sourceLines:lineStarts.length,maxComponentDepth:0};
+  const cacheStart: ParseSessionCounters | undefined = cache?.counters();
+  const startedAt = clock();
+  let shieldPhaseMs = 0;
+  let regionPhaseMs = 0;
+  let convertPhaseMs = 0;
+  const structures=new Map<string,MarkdownStructure>();
+  const guarded=new Set<string>();
+  const ensureDepth=(text:string):void=>{
+    if(guarded.has(text)||!mayHaveContainer(text))return;
+    guarded.add(text);
+    const index=text===source?sourceContext:new SourceContext(text),facts=index.facts;
+    let depth=facts.maxMarkdownDepth;
+    // Raw prefixes are only an upper-bound hint. Resolve deep-looking code,
+    // comments and same-line nested containers through the shared block scan.
+    if(facts.potentialDepth>optionCheck.maxMarkdownDepth||depth>optionCheck.maxMarkdownDepth) {
+      const structure=scanMarkdownStructure(text);structures.set(text,structure);depth=structure.maxDepth;
+    }
+    budget.observeDepth(depth,0,Math.max(1,text.length));
+  };
+  const finishWork = (): void => {
+    work.parseWork = budget.parseWork;
+    work.maxMarkdownDepth = budget.maxDepth;
+    if (cache) {
+      const end = cache.counters();
+      work.cacheHits = end.hits - (cacheStart?.hits ?? end.hits);
+      work.cacheMisses = end.misses - (cacheStart?.misses ?? end.misses);
+      work.reusedBlocks = end.reusedBlocks - (cacheStart?.reusedBlocks ?? end.reusedBlocks);
+      work.reusedRows = end.reusedRows - (cacheStart?.reusedRows ?? end.reusedRows);
+      work.reusedItems = end.reusedItems - (cacheStart?.reusedItems ?? end.reusedItems);
+      work.reusedAst = end.reusedAst - (cacheStart?.reusedAst ?? end.reusedAst);
+    }
+    work.timings = {
+      shieldMs: roundMs(shieldPhaseMs),
+      regionMs: roundMs(regionPhaseMs),
+      convertMs: roundMs(convertPhaseMs),
+      totalMs: roundMs(clock() - startedAt),
+    };
+  };
+  /**
+   * General Markdown parses are pure functions of their text. Reusing the
+   * read-only AST across session calls never changes ids or ranges because the
+   * transform still rebuilds every LocalNode through this parse's factory.
+   */
+  const generalParse = (text: string): any => {
+    const cached = cache?.readTree(text);
+    if (cached?.hit) return cached.value;
+    const tree = markdown.parse(text);
+    cache?.writeTree(text, tree);
+    return tree;
+  };
+  const parseMarkdown = (text: string, tryFast = true): any => {
+    // Charge every submission up front, including cache hits, so whether a
+    // document fits the work budget never depends on session state.
+    budget.charge(text.length + 1, 0, Math.max(1, text.length));
+    ensureDepth(text);
+    if(!tryFast) {
+      const tree=generalParse(text);
+      work.markdownCalls++;work.generalBlocks+=tree.children.length;work.generalCharacters+=text.length;
+      return tree;
+    }
+    const {tree,stats}=parseMarkdownBlocks(text, generalParse, sourceContext, cache,structures.get(text));
+    work.markdownCalls++;
+    work.fastBlocks+=stats.fastBlocks;work.generalBlocks+=stats.generalBlocks;
+    work.fastCharacters+=stats.fastCharacters;work.generalCharacters+=stats.generalCharacters;
+    return tree;
+  };
   let serial = 0;
   let nodeCount = 0;
   let markerSerial = 0;
@@ -251,9 +383,24 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     return { type, id: `local-${serial++}`, range: { start, end }, ...extra };
   };
   try {
+    // One shared line/container scan bounds the root document before any
+    // Markdown parser allocates an intermediate tree. Fenced and indented code
+    // never contributes depth, so `>`/`-` inside code cannot be misread.
+    budget.charge(source.length, 0, Math.max(1, source.length));
+    // Only sources that may contain a container pay for the shared facts scan.
+    ensureDepth(source);
     const plain = parsePlainParagraphs(source, markdownBreaks, node);
-    if (plain !== undefined) return { nodes: plain, diagnostics, syntaxNodes: nodeCount };
+    if (plain !== undefined) {
+      work.fastBlocks=plain.length;work.fastCharacters=source.length;
+      finishWork();
+      return { nodes: plain, diagnostics, syntaxNodes: nodeCount, work };
+    }
   } catch (cause) {
+    if (cause instanceof ParseBudgetError) {
+      reportParseBudget(cause);
+      finishWork();
+      return { nodes: [], diagnostics, work };
+    }
     if (!(cause instanceof LocalBudgetError)) throw cause;
     error(cause.code, cause.message, cause.start, cause.end, { key: cause.key, params: cause.params });
     return { nodes: [], diagnostics };
@@ -263,14 +410,6 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   const rootMathLiterals: SourceRange[] = [];
   // Markdown destinations use backslashes to escape parentheses/brackets.
   // Only labels are prose; a destination, title, or image is never TeX.
-  function mathLiteralRange(raw: any, map: (offset: number) => number): SourceRange | null {
-    const whole = raw.type === 'image' || raw.type === 'imageReference' || raw.type === 'definition';
-    if (!whole && raw.type !== 'link' && raw.type !== 'linkReference') return null;
-    const start = whole ? raw.position?.start?.offset
-      : raw.children?.at(-1)?.position?.end?.offset ?? raw.position?.start?.offset;
-    const end = raw.position?.end?.offset;
-    return Number.isInteger(start) && Number.isInteger(end) ? { start: map(start), end: map(end) } : null;
-  }
   function inMathLiteral(ranges: readonly SourceRange[], offset: number): boolean {
     let low = 0, high = ranges.length - 1;
     while (low <= high) {
@@ -291,25 +430,31 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
    * definitions are re-parsed separately so their bodies can keep controls and
    * interpolations inert while still formatting safe Markdown.
    */
-  const findShielded = (raw: any): void => {
-    const literal = mathLiteralRange(raw, offset => offset + sourceBomOffset);
-    if (literal) rootMathLiterals.push(literal);
-    if (raw.type === 'code') {
-      codeRanges.push({ start: raw.position.start.offset + sourceBomOffset, end: raw.position.end.offset + sourceBomOffset });
-    } else if (raw.type === 'footnoteDefinition') {
-      const start = raw.position?.start?.offset;
-      const end = raw.position?.end?.offset;
-      if (Number.isInteger(start) && Number.isInteger(end) && end > start) {
-        rootDefinitions.push({ start: start + sourceBomOffset, end: end + sourceBomOffset });
-      }
-    }
-    for (const child of raw.children ?? []) findShielded(child);
-  };
   let rootMarkdown: any;
   try {
-    rootMarkdown = parseFastMarkdown(source.slice(sourceBomOffset)) ?? markdown.parse(source.slice(sourceBomOffset));
-    findShielded(rootMarkdown);
-  } catch {
+    rootMarkdown = parseMarkdown(source.slice(sourceBomOffset));
+    // A wholly recognized simple document has no lexical tokens. Reject its
+    // exact first over-budget node before constructing any LocalNode tree.
+    if(rootMarkdown.children.length===1 && rootMarkdown.children[0].type==='rmdFastBlock') {
+      const overflow=(rootMarkdown.children[0].plan as FastMarkdownPlan).overflowAt(maxSyntaxNodes);
+      if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,overflow.start+sourceBomOffset,overflow.end+sourceBomOffset,'local.budget.nodes',{limit:maxSyntaxNodes});
+    }
+    const facts=markdownTreeFacts(rootMarkdown);
+    const shift=(range:SourceRange):SourceRange=>({start:range.start+sourceBomOffset,end:range.end+sourceBomOffset});
+    for(const range of facts.codeRanges)codeRanges.push(shift(range));
+    for(const range of facts.definitions)if(range.end>range.start)rootDefinitions.push(shift(range));
+    for(const range of facts.mathLiterals)rootMathLiterals.push(shift(range));
+    shieldPhaseMs = clock() - startedAt;
+  } catch (cause) {
+    if (cause instanceof ParseBudgetError) {
+      reportParseBudget(cause);
+      finishWork();
+      return { nodes: [], diagnostics, work };
+    }
+    if(cause instanceof LocalBudgetError) {
+      error(cause.code,cause.message,cause.start,cause.end,{key:cause.key,params:cause.params});
+      return {nodes:[],diagnostics,work};
+    }
     error('local.parse', 'Cannot parse the Markdown document.', 0, undefined, { key: 'local.parse.markdown' });
     return { nodes: [], diagnostics };
   }
@@ -396,6 +541,17 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     details?: LocalDiagnosticDetails,
   ) {
     diagnostic(code, message, 'warning', start, end, details);
+  }
+  /** Convert a deterministic budget failure into a localized parse diagnostic. */
+  function reportParseBudget(cause: ParseBudgetError): void {
+    const key = cause.kind === 'parse-work' ? 'local.budget.parse-work' : 'local.budget.markdown-depth';
+    error(
+      'local.budget',
+      renderLocalDiagnostic(key, 'en', { limit: cause.limit }),
+      cause.start,
+      cause.end,
+      { key, params: { limit: cause.limit } },
+    );
   }
 
   /* ---------------------------------------------------------- theme header */
@@ -625,7 +781,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     return stop;
   }
   function beginsLine(offset: number): boolean {
-    const lineStart = source.lastIndexOf('\n', offset - 1) + 1;
+    const lineStart = sourceContext.lineStartAt(offset);
     return /^[ \t]*$/.test(source.slice(lineStart, offset));
   }
   /** Label and normalized identifier of `[^label]` at `start`, if present. */
@@ -917,7 +1073,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     if (character === '\\') return Math.min(end, i + 2);
     if (character !== '`' && character !== '~') return null;
     // Recognize fenced code at a Markdown line boundary, including container indentation.
-    const lineStart = source.lastIndexOf('\n', i - 1) + 1;
+    const lineStart = sourceContext.lineStartAt(i);
     if ((insideContainer ? CONTAINER_FENCE_LINE : ROOT_FENCE_LINE).test(source.slice(lineStart, i))) {
       const fence = /^(`{3,}|~{3,})[^\n]*(?:\n|$)/.exec(source.slice(i, end));
       if (fence) {
@@ -999,7 +1155,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       const lineEnd = source.indexOf('\n', pos);
       const stop = lineEnd < 0 || lineEnd > end ? end : lineEnd;
       const text = source.slice(pos, stop);
-      const atLineStart = source.lastIndexOf('\n', pos - 1) + 1 === pos;
+      const atLineStart = sourceContext.lineStartAt(pos) === pos;
       if (atLineStart) {
         if (fenceChar) {
           if (new RegExp(`^[ \\t]*${fenceChar}{${fenceLength},}[ \\t]*\\r?$`).test(text)) fenceChar = '';
@@ -1020,6 +1176,8 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   }
   function region(start: number, end: number, parent?: string, openStart = start, openEnd = start, depth = 0, options: RegionOptions = {}): RegionResult {
     const tokens: Token[] = [];
+    if (end > start) budget.charge(end - start, start, end);
+    work.maxComponentDepth=Math.max(work.maxComponentDepth,depth);
     if (depth > MAX_COMPONENT_DEPTH) {
       error('local.budget', 'Component nesting exceeds the 100-level limit.', openStart, openEnd, { key: 'local.budget.nesting', params: { limit: MAX_COMPONENT_DEPTH } });
       return { tokens, end, contentEnd: start, indent: 0 };
@@ -1036,32 +1194,14 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       const bodyEnd = unknownTagEnd(start, parent, end, true)?.start ?? end;
       const indent = commonIndent(start, bodyEnd);
       contentIndent = indent;
-      let text = '';
-      const offsets: number[] = [];
-      for (let i = start; i < bodyEnd;) {
-        if (i === 0 || source[i - 1] === '\n') {
-          let skipped = 0;
-          while (skipped < indent && i < bodyEnd && /[ \t]/.test(source[i])) { i++; skipped++; }
-        }
-        if (i >= bodyEnd) break;
-        offsets.push(i);
-        text += source[i++];
-      }
-      offsets.push(bodyEnd);
-      const found: DefinitionRange[] = [];
-      const literals: SourceRange[] = [];
-      const visit = (raw: any): void => {
-        const literal = mathLiteralRange(raw, offset => offsets[offset]);
-        if (literal) literals.push(literal);
-        if (raw.type === 'footnoteDefinition') {
-          const from = offsets[raw.position.start.offset];
-          const to = offsets[raw.position.end.offset];
-          if (Number.isInteger(from) && Number.isInteger(to) && to > from) found.push({ start: from, end: to });
-          return;
-        }
-        for (const child of raw.children ?? []) visit(child);
-      };
-      visit(markdown.parse(text));
+      const mapped = new MappedSource(sourceContext);
+      mapped.original(start, bodyEnd, indent); mapped.finish(bodyEnd);
+      work.mappingSegments+=mapped.segmentCount;
+      const text = mapped.text();
+      const facts=markdownTreeFacts(parseMarkdown(text),false);
+      const translate=(range:SourceRange):SourceRange=>({start:mapped.at(range.start,bodyEnd),end:mapped.at(range.end,bodyEnd)});
+      const found=facts.definitions.map(translate).filter(range=>range.end>range.start);
+      const literals=facts.mathLiterals.map(translate);
       mathLiterals = literals.sort((a, b) => a.start - b.start);
       regionDefinitions = found
         .filter(range => range.start >= start && range.end <= bodyEnd)
@@ -1069,13 +1209,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     } else if (start > 0 && options.definitions !== undefined && !footnoteMode) {
       // HTML bodies can be opaque to the root Markdown pass, just like
       // component bodies. Discover destinations without changing note scope.
-      const literals: SourceRange[] = [];
-      const visit = (raw: any): void => {
-        const literal = mathLiteralRange(raw, offset => offset + start);
-        if (literal) literals.push(literal);
-        for (const child of raw.children ?? []) visit(child);
-      };
-      visit(markdown.parse(source.slice(start, end)));
+      const literals=markdownTreeFacts(parseMarkdown(source.slice(start,end))).mathLiterals.map(range=>({start:range.start+start,end:range.end+start}));
       mathLiterals = literals.sort((a, b) => a.start - b.start);
     }
     let definitionIndex = 0;
@@ -1099,7 +1233,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           marker = definitionLabelAt(labelStart);
         }
         if (marker && marker.bodyStart <= definition.end) {
-          const lineStart = source.lastIndexOf('\n', labelStart - 1) + 1;
+          const lineStart = sourceContext.lineStartAt(labelStart);
           const prefix = source.slice(lineStart, labelStart);
           const quotePrefix = /^(?:[ \t]{0,3}>[ \t]?)+/.exec(prefix)?.[0] ?? '';
           const definitionIndent = /^[ \t]*/.exec(prefix.slice(quotePrefix.length))![0].length;
@@ -1171,7 +1305,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         const comment = source.slice(i, stop);
         if (!footnoteMode && /^<!--\s*reactive-md(?=[\s:]|-->|$)/i.test(comment)) {
           versionHeaders += 1;
-          const lineStart = source.lastIndexOf('\n', i - 1) + 1;
+          const lineStart = sourceContext.lineStartAt(i);
           const nextLine = source.indexOf('\n', stop);
           const standalone = /^\s*$/.test(source.slice(lineStart, i))
             && /^\s*$/.test(source.slice(stop, nextLine < 0 ? source.length : nextLine));
@@ -1543,45 +1677,25 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     return { tokens, end, contentEnd: end, indent: parent ? commonIndent(start, end) : 0 };
   }
   function convert(start: number, end: number, tokens: Token[], indent = 0, options: ConvertOptions = {}): LocalNode[] {
+    if (end > start) budget.charge(end - start, start, end);
     let masked = '', cursor = start;
+    let hasProse = false;
     // With no replacements or dedenting, the shielding pass already parsed
     // exactly this source. Its positions only need the original BOM offset.
     const reuseRoot = start === 0 && end === source.length && tokens.length === 0
       && indent === 0 && !options.stripBlockquote && !options.literalHtml;
-    const offsets: number[] = [];
+    const mapped = new MappedSource(sourceContext);
     const sourceAt = (offset: number, fallback: number): number =>
-      reuseRoot ? offset + sourceBomOffset : offsets[offset] ?? fallback;
+      reuseRoot ? offset + sourceBomOffset : mapped.at(offset, fallback);
     const markers = new Map<number, { marker: string; end: number; node: LocalNode }>();
-    const skipCache = new Map<number, number>();
-    function lineSkip(absolute: number) {
-      const lineStart = source.lastIndexOf('\n', absolute - 1) + 1;
-      let skip = skipCache.get(lineStart);
-      if (skip === undefined) {
-        skip = options.stripBlockquote ? (/^(?:[ \t]{0,3}>[ \t]?)+/.exec(source.slice(lineStart))?.[0].length ?? 0) : 0;
-        let indentation = 0;
-        while (indentation < indent && (source[lineStart + skip] === ' ' || source[lineStart + skip] === '\t')) { skip++; indentation++; }
-        skipCache.set(lineStart, skip);
-      }
-      return { lineStart, skip };
-    }
     function append(text: string, from: number, linear: boolean) {
       // Remove a file BOM before calculating generated marker indices. remark
       // ignores it, while this mapping retains original source coordinates.
-      if (linear && from === 0 && text.charCodeAt(0) === 0xfeff) {
-        text = text.slice(1);
-        from += 1;
+      if(linear) {
+        if(text.trim().length)hasProse=true;
+        mapped.original(from,from+text.length,indent,options.stripBlockquote,true);
       }
-      if (linear && indent > 0) {
-        for (let j = 0; j < text.length; j++) {
-          const absolute = from + j;
-          const { lineStart, skip } = lineSkip(absolute);
-          if (absolute < lineStart + skip) continue;
-          masked += text[j]; offsets.push(absolute);
-        }
-        return;
-      }
-      masked += text;
-      for (let j = 0; j < text.length; j++) offsets.push(linear ? from + j : from);
+      else mapped.generated(text,from);
     }
     let tree: any;
     if (reuseRoot) {
@@ -1596,16 +1710,21 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         do { marker = MARK_OPEN + markerSerial++ + MARK_CLOSE; } while (reservedMarkers.has(marker));
         const block = token.block ?? (token.node.type === 'math' || ((token.node.type === 'component' || token.node.type === 'hostComponent') && !INLINE.has(token.node.name!)));
         if (block) append('\n\n', token.start, false);
-        const markerStart = masked.length;
+        const markerStart = mapped.length;
         // A generated Markdown image has its own source range. Restore only this
         // exact range; entity decoding and adjacent code cannot forge a node.
         append(`![${marker}](rmd-internal:placeholder)`, token.start, false);
-        markers.set(markerStart, { marker, end: masked.length, node: token.node });
+        markers.set(markerStart, { marker, end: mapped.length, node: token.node });
         if (block) append('\n\n', token.end, false);
         cursor = token.end;
       }
-      append(source.slice(cursor, end), cursor, true); offsets.push(end);
-      tree = parseFastMarkdown(masked) ?? markdown.parse(masked);
+      append(source.slice(cursor, end), cursor, true); mapped.finish(end);
+      masked = mapped.text();
+      work.mappingSegments+=mapped.segmentCount;
+      // A document containing only opaque lexical tokens and whitespace has
+      // no simple Markdown block to discover. Avoid building an advisory tree
+      // for thousands of generated control placeholders.
+      tree = parseMarkdown(masked,hasProse);
     }
     function unescapeTablePipes(nodes: LocalNode[]) {
       for (const child of nodes) {
@@ -1705,6 +1824,12 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     function transform(raw: any): LocalNode[] {
       const from = sourceAt(raw.position?.start?.offset ?? 0, start);
       const to = sourceAt(raw.position?.end?.offset ?? masked.length, end);
+      if(raw.type==='rmdFastBlock') {
+        const plan=raw.plan as FastMarkdownPlan,base=raw.position.start.offset;
+        const overflow=plan.overflowAt(maxSyntaxNodes-nodeCount);
+        if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,sourceAt(base+overflow.start,from),sourceAt(base+overflow.end,to),'local.budget.nodes',{limit:maxSyntaxNodes});
+        return plan.emit((type,begin,finish,extra)=>node(type,sourceAt(base+begin,from),sourceAt(base+finish,to),extra));
+      }
       if (raw.type === 'image') {
         const slot = markers.get(raw.position?.start?.offset);
         if (slot && raw.position.end.offset === slot.end
@@ -1779,24 +1904,36 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
     resolve(nodes);
   }
   try {
+    const regionStart = clock();
     const result = region(0, source.length);
+    regionPhaseMs = clock() - regionStart;
+    const convertStart = clock();
     const nodes = convert(0, source.length, result.tokens);
+    convertPhaseMs = clock() - convertStart;
     resolveFootnoteReferences(nodes);
+    finishWork();
     return {
       nodes,
       diagnostics,
       syntaxNodes: nodeCount,
+      work,
       ...(versionDeclaration ? { versionDeclaration } : {}),
       ...(theme !== undefined ? { theme } : {}),
       ...(themeRange ? { themeRange } : {}),
     };
   } catch (cause) {
+    if (cause instanceof ParseBudgetError) {
+      reportParseBudget(cause);
+      finishWork();
+      return { nodes: [], diagnostics, work };
+    }
     if (cause instanceof LocalBudgetError) {
       error(cause.code, cause.message, cause.start, cause.end, {
         key: cause.key,
         params: cause.params,
       });
-      return { nodes: [], diagnostics };
+      finishWork();
+      return { nodes: [], diagnostics, work };
     }
     error('local.parse', `Cannot parse document: ${cause instanceof Error ? cause.message : String(cause)}`, 0, undefined, {
       key: 'local.parse.document',

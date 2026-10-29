@@ -86,6 +86,39 @@ describe('native HTML shareable envelope', () => {
     });
   });
 
+  it('round-trips parser work and Markdown depth budgets into standalone preparation', () => {
+    const options: LocalCompileOptions = {
+      limits: { maxSyntaxNodes: 500, maxParseWork: 123_456, maxMarkdownDepth: 17 },
+    };
+    const document = compileOk(DEFAULT_SOURCE, options);
+    const html = createShareableHtml({
+      title: 'Budget export',
+      source: DEFAULT_SOURCE,
+      state: stateOf(document),
+      staticMarkup: '<article class="md-document"></article>',
+      css: 'body{}',
+      mode: 'interactive',
+      runtimeScript: 'globalThis.mounted = true;',
+      compileOptions: options,
+    });
+    const parsed = parseMountPayload(payloadScript(html));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.payload.compileOptions).toEqual({
+      enableCss: false,
+      enableJavaScript: false,
+      enableExtendedHtml: false,
+      limits: { maxSyntaxNodes: 500, maxParseWork: 123_456, maxMarkdownDepth: 17 },
+    });
+    const prepared = prepareStandaloneDocument(
+      parsed.payload.source,
+      parsed.payload.state,
+      undefined,
+      parsed.payload.compileOptions,
+    );
+    expect(prepared.document.source).toBe(DEFAULT_SOURCE);
+  });
+
   it('regenerates a script-free native frame for a static JavaScript-only document', () => {
     const options: LocalCompileOptions = { enableJavaScript: true };
     const document = compileOk(NATIVE_SOURCE, options);
@@ -209,6 +242,8 @@ describe('shareable payload compile options', () => {
       { enableExtendedHtml: null },
       { limits: { maxSyntaxNodes: 0 } },
       { limits: { maxSyntaxNodes: 1.5 } },
+      { limits: { maxParseWork: 0 } },
+      { limits: { maxMarkdownDepth: 1.5 } },
       { limits: [] },
       [],
       'css',

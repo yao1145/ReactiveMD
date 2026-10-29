@@ -12,7 +12,8 @@
  * literal text" and "reported as a warning" stay in sync.
  */
 
-import type { LocalDiagnosticParams } from './types';
+import type { LocalMathDisplayIssue, LocalDiagnosticParams } from './types';
+export type { LocalMathDisplayIssue } from './types';
 import { renderLocalDiagnostic } from './diagnostics';
 import katex from 'katex';
 import 'katex/contrib/mhchem';
@@ -26,22 +27,6 @@ export type LocalMathDisplayIssueReason =
   | 'unsupported-environment'
   | 'budget'
   | 'syntax';
-
-/** One display-compatibility issue; offsets are relative to the formula body. */
-export interface LocalMathDisplayIssue {
-  /** Inclusive UTF-16 offset into the formula body. */
-  start: number;
-  /** Exclusive UTF-16 offset into the formula body. */
-  end: number;
-  reason: LocalMathDisplayIssueReason;
-  /** English message for the issue (localize with `messageKey`/`params`). */
-  message: string;
-  /** Coarse machine code reported on `Diagnostic.code`. */
-  code: string;
-  /** Template key registered in `diagnostics.ts`. */
-  messageKey: string;
-  params?: LocalDiagnosticParams;
-}
 
 /** Result of typesetting one formula; `html === null` means literal fallback. */
 export interface LocalMathDisplayRender {

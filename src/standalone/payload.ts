@@ -75,7 +75,7 @@ function parseCompileOptions(
     enableJavaScript: boolean;
     enableExtendedHtml: boolean;
     markdownBreaks?: boolean;
-    limits?: { maxSyntaxNodes: number };
+    limits?: { maxSyntaxNodes?: number;maxParseWork?:number;maxMarkdownDepth?:number };
   } = {
     enableCss: check.html.enableCss,
     enableJavaScript: check.html.enableJavaScript,
@@ -85,8 +85,13 @@ function parseCompileOptions(
     normalized.markdownBreaks = check.markdownBreaks;
   }
   const limits = (value as { limits?: unknown }).limits;
-  if (isPlainRecord(limits) && limits.maxSyntaxNodes !== undefined) {
-    normalized.limits = { maxSyntaxNodes: check.maxSyntaxNodes };
+  if (isPlainRecord(limits)) {
+    const values={
+      ...(limits.maxSyntaxNodes===undefined?{}:{maxSyntaxNodes:check.maxSyntaxNodes}),
+      ...(limits.maxParseWork===undefined?{}:{maxParseWork:check.maxParseWork}),
+      ...(limits.maxMarkdownDepth===undefined?{}:{maxMarkdownDepth:check.maxMarkdownDepth}),
+    };
+    if(Object.keys(values).length)normalized.limits=values;
   }
   return normalized;
 }

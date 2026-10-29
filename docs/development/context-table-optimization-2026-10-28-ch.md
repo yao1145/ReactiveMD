@@ -2,6 +2,8 @@
 
 2026-10-28。本轮针对[块类型基线](block-type-performance-2026-10-28-ch.md)中的两处开销：修改组件后立即重建整篇缓存，以及大列表、表格进入通用 Markdown 分词器的成本。
 
+后续的分段映射、按块降级、直接节点生成与预算前移，见[解析流水线优化](parser-pipeline-optimization-2026-10-28-ch.md)。本文保留该轮实现的测量结果。
+
 ## 搜索与实现
 
 上游 [micromark GFM 表格 PR #17](https://github.com/micromark/micromark-extension-gfm-table/pull/17)修复了编辑列表查找导致的二次复杂度问题。本地安装的 `micromark-extension-gfm-table 2.1.2` 已包含基于 `Map` 的修复。本轮保持依赖版本，在 ReactiveMD 内增加快速扫描。

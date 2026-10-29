@@ -144,8 +144,13 @@ function normalizeCompileOptions(input: LocalCompileOptions | undefined): LocalC
     ...(Object.hasOwn(input, 'markdownBreaks') && input.markdownBreaks !== undefined
       ? { markdownBreaks: check.markdownBreaks } : {}),
   };
-  if (input.limits !== undefined && input.limits.maxSyntaxNodes !== undefined) {
-    return { ...normalized, limits: { maxSyntaxNodes: check.maxSyntaxNodes } };
+  if (input.limits !== undefined) {
+    const limits={
+      ...(input.limits.maxSyntaxNodes===undefined?{}:{maxSyntaxNodes:check.maxSyntaxNodes}),
+      ...(input.limits.maxParseWork===undefined?{}:{maxParseWork:check.maxParseWork}),
+      ...(input.limits.maxMarkdownDepth===undefined?{}:{maxMarkdownDepth:check.maxMarkdownDepth}),
+    };
+    if(Object.keys(limits).length)return {...normalized,limits};
   }
   return normalized;
 }

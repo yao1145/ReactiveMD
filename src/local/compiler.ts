@@ -43,6 +43,9 @@ import { parseValidationFields } from './validation';
 import { readLocalCompileOptions, type LocalOptionCheck } from './options';
 import { sanitizeLocalHtmlDocument } from './html';
 import { plainCompiledData } from './compiled-data';
+import { SourceContext } from './source-context';
+import { LocalSemanticCache, type SemanticCacheStats } from './compiler-cache';
+import { localCompileOptionsKey } from './options';
 import type {
   LocalBinding,
   LocalCompileOptions,
@@ -243,6 +246,7 @@ interface ChecklistInfo {
 }
 
 interface CompileState {
+  semantic?: LocalSemanticCache;
   source: string;
   lineStarts: number[];
   nodes: LocalNode[];
@@ -324,15 +328,25 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
 }
 
 /** Compiler-owned capture for editor sessions. Callers must copy before publishing. */
-export function compileLocalTracked(source: string, options?: LocalCompileOptions): {
+export interface LocalCompilerServices {
+  parser?: {parse(source:string,options?:LocalCompileOptions,context?:SourceContext):ReturnType<typeof parseLocal>};
+  semantic?: LocalSemanticCache;
+}
+export function compileLocalTracked(source: string, options?: LocalCompileOptions, services?:LocalCompilerServices): {
   result: LocalCompileResult; parsed?: ReturnType<typeof parseLocal>;
+  semantic?:SemanticCacheStats; timings:Record<string,number>;
 } {
   let parsed: ReturnType<typeof parseLocal> | undefined;
-  const result = compileLocalInternal(source, options, tree => { parsed = tree; });
-  return { result, parsed };
+  const now=()=>globalThis.performance?.now?.()??Date.now();
+  const started=now(),timings:Record<string,number>={};let previous=started;
+  const mark=(name:string)=>{const time=now();timings[name]=time-previous;previous=time;};
+  services?.semantic?.begin(localCompileOptionsKey(options));
+  const result = compileLocalInternal(source, options, tree => { parsed = tree; },services,mark);
+  timings.totalMs=now()-started;
+  return { result, parsed, ...(services?.semantic?{semantic:services.semantic.stats}:{}),timings };
 }
 
-function compileLocalInternal(source: string, options?: LocalCompileOptions, capture?: (tree: ReturnType<typeof parseLocal>) => void): LocalCompileResult {
+function compileLocalInternal(source: string, options?: LocalCompileOptions, capture?: (tree: ReturnType<typeof parseLocal>) => void,services?:LocalCompilerServices,mark?:(name:string)=>void): LocalCompileResult {
   const optionCheck = readLocalCompileOptions(options);
   if (!optionCheck.ok) {
     return {
@@ -354,10 +368,8 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
     return { ok: false, diagnostics: parseLocal(source, options).diagnostics };
   }
   const diagnostics: Diagnostic[] = [];
-  const lineStarts = [0];
-  for (let index = 0; index < source.length; index += 1) {
-    if (source[index] === '\n') lineStarts.push(index + 1);
-  }
+  const sourceContext = new SourceContext(source);
+  const {lineStarts} = sourceContext;
   const report = (
     code: string,
     message: string,
@@ -399,8 +411,9 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
 
   let parsed: ReturnType<typeof parseLocal>;
   try {
-    parsed = parseLocal(source, options);
+    parsed = services?.parser ? services.parser.parse(source,options,sourceContext) : parseLocal(source, options, sourceContext);
     capture?.(parsed);
+    mark?.('parseMs');
   } catch (error) {
     report('local.parse', `Cannot parse document: ${error instanceof Error ? error.message : String(error)}`, 0, undefined, {
       key: 'local.parse.document',
@@ -429,6 +442,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   }
 
   const state: CompileState = {
+    semantic:services?.semantic,
     source,
     lineStarts,
     nodes: parsed.nodes,
@@ -456,24 +470,34 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
     state.attrs.set(entry.node.id, validateAttributes(entry, state));
     validateAttributeRelations(entry, state);
   }
+  mark?.('attributesMs');
   for (const entry of state.entries) validateChildren(entry, state);
   computeSelections(state);
+  mark?.('structureMs');
 
   const bindings = resolveBindings(state);
   state.bindingKinds = bindingKinds(bindings);
+  mark?.('bindingsMs');
 
   resolveComputations(state);
+  mark?.('computationsMs');
 
   validateExpressions(state);
+  mark?.('expressionsMs');
   validateDataTables(state);
+  mark?.('dataTablesMs');
   const validations = validateValidations(state);
+  mark?.('validationsMs');
   validatePlots(state);
+  mark?.('plotsMs');
   validateTables(state);
+  mark?.('tablesMs');
 
   const initialState: Record<string, LocalValue> = {};
   for (const [key, binding] of Object.entries(bindings)) initialState[key] = cloneValue(binding.initial);
   validateNavigation(state, bindings, initialState);
   validateHostComponents(parsed.nodes, optionCheck.hostByName, state);
+  mark?.('hostAndNavigationMs');
   const displayNodes = [...parsed.nodes];
   while (displayNodes.length && diagnostics.length < MAX_LOCAL_DIAGNOSTICS) {
     const node = displayNodes.pop()!;
@@ -481,13 +505,14 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
       const delimiterLength = source.startsWith('\\\\[', node.range.start) ? 3
         : node.type === 'math' || source.startsWith('\\(', node.range.start) ? 2 : 1;
       const base = node.range.start + delimiterLength;
-      for (const issue of inspectLocalMathDisplay(node.value ?? '', node.type === 'math')) {
+      for (const issue of (state.semantic ? state.semantic.display(node.value ?? '',node.type==='math') : inspectLocalMathDisplay(node.value ?? '', node.type === 'math'))) {
         reportWarning(state, issue.code, issue.message, base + issue.start, base + issue.end, {
           key: issue.messageKey, params: issue.params,
         });
       }
     } else if (node.children) displayNodes.push(...node.children);
   }
+  mark?.('mathDisplayMs');
 
   diagnostics.sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
   const hasError = diagnostics.some((diagnostic) => diagnostic.severity === 'error');
@@ -511,6 +536,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   };
   attachNodeDependencies(document);
   attachTableShapes(document, state.tableShapes);
+  mark?.('publicationMs');
   return { ok: true, document, diagnostics };
 }
 
@@ -584,6 +610,16 @@ function attributeOffset(state: CompileState, node: LocalNode, name: string): nu
 }
 
 function validateAttributes(entry: Entry, state: CompileState): AttrMap {
+  if(!state.semantic)return validateAttributesUncached(entry,state);
+  const key=entry.name+'\0'+openingTag(state.source,entry.node.range.start,entry.node.range.end);
+  const cached=state.semantic.attributes<AttrMap>(key);
+  const clone=(attrs:AttrMap,delta:number):AttrMap=>Object.fromEntries(Object.entries(attrs).map(([name,info])=>[name,{...info,offset:info.offset+delta,...(info.expressionOffset===undefined?{}:{expressionOffset:info.expressionOffset+delta}),...(Array.isArray(info.value)?{value:cloneValue(info.value)}:{})}]));
+  if(cached)return clone(cached.value,entry.node.range.start-cached.origin);
+  const count=state.diagnostics.length,value=validateAttributesUncached(entry,state);
+  if(count<MAX_LOCAL_DIAGNOSTICS && state.diagnostics.length===count)state.semantic.rememberAttributes(key,entry.node.range.start,clone(value,0));
+  return value;
+}
+function validateAttributesUncached(entry: Entry, state: CompileState): AttrMap {
   const attrs: AttrMap = {};
   const rawAttrs = entry.node.attrs ?? {};
   for (const [name, raw] of Object.entries(rawAttrs)) {
@@ -1386,7 +1422,16 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
 
   const bindings: Record<string, LocalBinding> = {};
   for (const group of groups.values()) {
-    const binding = resolveGroup(group, state);
+    const family=group.schema.binding?.family;
+    // Checklist defaults populate a separate validation index and must keep
+    // their original side effects. Other groups depend on their own members,
+    // constraints and already-resolved option sets, not unrelated bindings.
+    const cacheKey=state.semantic&&family&&family!=='checklist'
+      ?JSON.stringify([group.key,group.members.map(({entry})=>[entry.name,entry.node.id,entry.node.attrs,bindingOptions(entry,state,entry.schema.binding!.family)])]):undefined;
+    const cached=cacheKey?state.semantic!.binding<LocalBinding>(cacheKey):undefined;
+    const count=state.diagnostics.length;
+    const binding = cached?plainCompiledData(cached):resolveGroup(group, state);
+    if(!cached&&binding&&cacheKey&&count<MAX_LOCAL_DIAGNOSTICS&&state.diagnostics.length===count)state.semantic!.rememberBinding(cacheKey,plainCompiledData(binding));
     if (binding) bindings[group.key] = binding;
   }
   resolveSlotBindings(state, bindings);
@@ -1971,9 +2016,9 @@ function slotMap(state: CompileState): Record<string, Record<string, string>> | 
 
 /** A declaration must be its own top-level source line. */
 function standaloneDeclaration(state: CompileState, node: LocalNode): boolean {
-  const lineStart = state.source.lastIndexOf('\n', node.range.start - 1) + 1;
-  const newline = state.source.indexOf('\n', node.range.end);
-  const lineEnd = newline < 0 ? state.source.length : newline;
+  const lineStart = state.lineStarts[lineAt(state,node.range.start)-1];
+  const next = state.lineStarts[lineAt(state,node.range.end)];
+  const lineEnd = next === undefined ? state.source.length : next-1;
   return (
     state.source.slice(lineStart, node.range.start).trim() === ''
     && state.source.slice(node.range.end, lineEnd).trim() === ''
@@ -2084,7 +2129,7 @@ function resolveComputations(state: CompileState): void {
     });
   }
 
-  const resolved = resolveComputationGraph(inputs, state.bindingKinds, state.report);
+  const resolved = resolveComputationGraph(inputs, state.bindingKinds, state.report,state.semantic);
   state.computations = resolved.computations;
   state.computationKinds = resolved.kinds;
 }
@@ -2145,7 +2190,7 @@ function validateExpressions(state: CompileState): void {
     }
     let compiled: LocalExpression | null = null;
     try {
-      compiled = compileExpression(expression);
+      compiled = state.semantic?.expression(expression) ?? compileExpression(expression);
     } catch (error) {
       expressionError(error, base);
       return null;
@@ -2170,7 +2215,7 @@ function validateExpressions(state: CompileState): void {
     if (missing) return null;
     let kind: LocalValueKind;
     try {
-      kind = compiled.inferType(env);
+      kind = state.semantic ? state.semantic.infer(compiled,env) : compiled.inferType(env);
     } catch (error) {
       expressionError(error, base);
       return null;
@@ -2389,7 +2434,7 @@ function validateScopedExpression(
   }
   let compiled: LocalExpression;
   try {
-    compiled = compileExpression(expression);
+    compiled = state.semantic?.expression(expression) ?? compileExpression(expression);
   } catch (error) {
     reportExpressionError(state, error, base);
     return null;
@@ -2410,7 +2455,7 @@ function validateScopedExpression(
   if (missing || !infer) return { compiled, kind: null };
   let kind: LocalValueKind;
   try {
-    kind = compiled.inferType(env);
+    kind = state.semantic ? state.semantic.infer(compiled,env) : compiled.inferType(env);
   } catch (error) {
     reportExpressionError(state, error, base);
     return null;
@@ -2766,7 +2811,7 @@ function validatePlots(state: CompileState): void {
       }
       let compiled: ReturnType<typeof compileLatex> | null = null;
       try {
-        compiled = compileLatex(recipe);
+        compiled = state.semantic?.latex(recipe) ?? compileLatex(recipe);
       } catch (error) {
         state.report(
           'local.math',

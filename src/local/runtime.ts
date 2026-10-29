@@ -23,7 +23,9 @@ import {
   LOCAL_VALIDATION_FALLBACK_MESSAGE,
   validationDiagnostic,
 } from './validation';
-import { localKey, type LocalBinding, type LocalDocument, type LocalNode, type LocalRuntime, type LocalSnapshot, type LocalValidation, type LocalValue } from './types';
+import type { LocalStateRetentionDrop } from './retention';
+import { planLocalStateRetention } from './retention';
+import { localKey, type LocalBinding, type LocalComputation, type LocalDocument, type LocalNode, type LocalRuntime, type LocalSnapshot, type LocalValidation, type LocalValue } from './types';
 
 const EPSILON = 1e-9;
 const RUNTIME_EXPRESSION_CACHE_LIMIT = 200;
@@ -224,15 +226,68 @@ function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalVa
   return invalid('local.runtime.value.unsupported-type', { name: binding.name });
 }
 
-export function createLocalRuntime(document: LocalDocument): LocalRuntime {
-  if (!document || document.syntax !== 'local') {
-    throw new Error('createLocalRuntime requires a local interaction document.');
-  }
-  if ((document.syntaxVersion !== undefined && document.syntaxVersion !== LOCAL_SYNTAX_VERSION)
-    || (document.versionDeclaration && document.versionDeclaration.version !== LOCAL_SYNTAX_VERSION)) {
-    throw new Error(`createLocalRuntime requires ${LOCAL_SYNTAX_VERSION}; migrate the source before constructing a runtime.`);
-  }
+function normalizeComputationError(error: unknown): LocalExpressionError {
+  return error instanceof LocalExpressionError
+    ? error
+    : new LocalExpressionError('expression-eval', error instanceof Error ? error.message : String(error), 0);
+}
 
+interface RuntimeValidationRule {
+  rule: LocalValidation;
+  expression: LocalExpression | null;
+  error: LocalExpressionError | null;
+}
+
+/**
+ * Structural part of a runtime derived from one document. Rebuilt on every
+ * document adoption; values, listeners and expression caches stay on the
+ * runtime so identity survives an edit.
+ */
+interface RuntimeCore {
+  document: LocalDocument;
+  nodeIndex: Map<string, LocalNode>;
+  controls: Map<string, LocalNode[]>;
+  slotKeys: Map<string, Record<string, string>>;
+  publicNames: readonly string[];
+  publicSlotOwners: Map<string, Set<string>>;
+  initial: Record<string, LocalValue>;
+  computationMetadata: Record<string, LocalComputation>;
+  computationNames: string[];
+  computationOrder: string[];
+  cyclicComputations: string[];
+  computationExpressions: Map<string, LocalExpression>;
+  constValues: Record<string, LocalValue>;
+  constErrors: Map<string, LocalExpressionError>;
+  cycleErrors: Map<string, LocalExpressionError>;
+  validationRules: RuntimeValidationRule[];
+  validationLineStarts: number[];
+}
+
+/**
+ * Compile a metadata expression through the runtime-wide source cache. A
+ * failed compile returns its error without caching it, so fixing the source
+ * recovers on the next document adoption.
+ */
+function compileMetadataExpression(
+  source: string,
+  cache: Map<string, LocalExpression>,
+): { expression: LocalExpression; error: null } | { expression: null; error: LocalExpressionError } {
+  const cached = cache.get(source);
+  if (cached) return { expression: cached, error: null };
+  try {
+    const compiled = compileExpression(source);
+    if (cache.size >= RUNTIME_EXPRESSION_CACHE_LIMIT) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+    cache.set(source, compiled);
+    return { expression: compiled, error: null };
+  } catch (error) {
+    return { expression: null, error: normalizeComputationError(error) };
+  }
+}
+
+function loadRuntimeCore(document: LocalDocument, expressions: Map<string, LocalExpression>): RuntimeCore {
   const nodeIndex = new Map<string, LocalNode>();
   const collectNodes = (nodes: LocalNode[]): void => {
     for (const node of nodes) {
@@ -280,40 +335,20 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     }
   }
 
-  /** Reject a range whose start would cross its end before any commit. */
-  const slotRelationError = (nodeId: string, next: Record<string, LocalValue>): boolean => {
-    const slots = slotKeys.get(nodeId);
-    if (!slots?.start || !slots?.end) return false;
-    const start = next[slots.start];
-    const end = next[slots.end];
-    return typeof start === 'number' && typeof end === 'number' && start > end;
-  };
-
   /* --------------------------------------------------------- computations */
 
-  /**
-   * Read-only values are metadata, not controls. Both caches are internal:
-   * `initialState` and `bindings` remain controls-only, while `snapshot().state`
-   * publishes values that succeeded in the current revision.
-   */
-  const computationMetadata = document.computations ?? {};
+  const computationMetadata = (document.computations ?? {}) as Record<string, LocalComputation>;
   const computationNames = Object.keys(computationMetadata);
   const computationExpressions = new Map<string, LocalExpression>();
   for (const [name, meta] of Object.entries(computationMetadata)) {
-    try {
-      computationExpressions.set(name, compileExpression(meta.source));
-    } catch {
-      // A hand-built document can carry an invalid expression. The runtime
-      // reports it through the same lazy-error channel as a domain failure.
-    }
+    const compiled = compileMetadataExpression(meta.source, expressions);
+    // A hand-built document can carry an invalid expression. The runtime
+    // reports it through the same lazy-error channel as a domain failure.
+    if (compiled.expression) computationExpressions.set(name, compiled.expression);
   }
   const { order: computationOrder, cyclic: cyclicComputations } = orderComputations(computationMetadata);
   const constValues: Record<string, LocalValue> = {};
   const constErrors = new Map<string, LocalExpressionError>();
-  const normalizeComputationError = (error: unknown): LocalExpressionError =>
-    error instanceof LocalExpressionError
-      ? error
-      : new LocalExpressionError('expression-eval', error instanceof Error ? error.message : String(error), 0);
   for (const name of computationOrder) {
     const meta = computationMetadata[name];
     if (!meta || meta.kind !== 'const') continue;
@@ -351,90 +386,154 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
   /* --------------------------------------------------------- validations */
 
-  /**
-   * Advisory rules are metadata. Each rule is compiled once and evaluated
-   * independently, so a failure in one rule never hides another or blocks
-   * writes. `validate()` caches results per revision and returns clones.
-   */
-  const validationRules: { rule: LocalValidation; expression: LocalExpression | null; error: LocalExpressionError | null }[] = [];
+  const validationRules: RuntimeValidationRule[] = [];
   if (Array.isArray(document.validations)) {
     for (const rule of document.validations) {
       if (!isLocalValidation(rule)) continue;
-      try {
-        validationRules.push({ rule, expression: compileExpression(rule.expression), error: null });
-      } catch (error) {
-        validationRules.push({ rule, expression: null, error: normalizeComputationError(error) });
-      }
+      const compiled = compileMetadataExpression(rule.expression, expressions);
+      validationRules.push({ rule, expression: compiled.expression, error: compiled.error });
     }
   }
   const validationLineStarts = localLineStarts(typeof document.source === 'string' ? document.source : '');
-  let validationCache: { revision: number; diagnostics: readonly Diagnostic[] } | null = null;
 
-  const safeValidationMessage = (template: string): string => {
-    let value: string;
-    try {
-      value = interpolate(template, evaluationEnv);
-    } catch {
-      // A message may read the same failing value as its rule. Show a safe
-      // default instead of leaking a raw template or an error string.
-      value = LOCAL_VALIDATION_FALLBACK_MESSAGE;
-    }
-    return boundLocalDiagnosticMessage(value);
+  return {
+    document,
+    nodeIndex,
+    controls,
+    slotKeys,
+    publicNames,
+    publicSlotOwners,
+    initial,
+    computationMetadata,
+    computationNames,
+    computationOrder,
+    cyclicComputations,
+    computationExpressions,
+    constValues,
+    constErrors,
+    cycleErrors,
+    validationRules,
+    validationLineStarts,
   };
+}
 
-  const evaluateValidations = (): Diagnostic[] => {
-    const diagnostics: Diagnostic[] = [];
-    const source = typeof document.source === 'string' ? document.source : '';
-    for (const item of validationRules) {
-      if (item.error) {
-        diagnostics.push(validationDiagnostic(
-          source,
-          validationLineStarts,
-          item.rule.range,
-          LOCAL_VALIDATION_EXPRESSION_CODE,
-          boundLocalDiagnosticMessage(`Validation expression is invalid: ${item.error.message}`),
-        ));
-        continue;
-      }
-      if (!item.expression) continue;
-      let value: LocalValue;
-      try {
-        value = item.expression.evaluate(evaluationEnv);
-      } catch (error) {
-        diagnostics.push(validationDiagnostic(
-          source,
-          validationLineStarts,
-          item.rule.range,
-          LOCAL_VALIDATION_EXPRESSION_CODE,
-          boundLocalDiagnosticMessage(
-            `Validation expression failed: ${error instanceof Error ? error.message : String(error)}`,
-          ),
-        ));
-        continue;
-      }
-      if (typeof value !== 'boolean') {
-        diagnostics.push(validationDiagnostic(
-          source,
-          validationLineStarts,
-          item.rule.range,
-          LOCAL_VALIDATION_EXPRESSION_CODE,
-          'Validation expression must evaluate to a boolean.',
-        ));
-        continue;
-      }
-      if (value) continue;
-      diagnostics.push(validationDiagnostic(
-        source,
-        validationLineStarts,
-        item.rule.range,
-        LOCAL_VALIDATION_FAILED_CODE,
-        safeValidationMessage(item.rule.message),
-      ));
-    }
-    return diagnostics;
-  };
+function runtimeDocumentProblem(document: LocalDocument | null | undefined): string | null {
+  if (!document || document.syntax !== 'local') {
+    return 'createLocalRuntime requires a local interaction document.';
+  }
+  if ((document.syntaxVersion !== undefined && document.syntaxVersion !== LOCAL_SYNTAX_VERSION)
+    || (document.versionDeclaration && document.versionDeclaration.version !== LOCAL_SYNTAX_VERSION)) {
+    return `createLocalRuntime requires ${LOCAL_SYNTAX_VERSION}; migrate the source before constructing a runtime.`;
+  }
+  return null;
+}
 
-  let state: Record<string, LocalValue> = initial;
+function nodeForBinding(core: RuntimeCore, binding: LocalBinding): LocalNode | undefined {
+  return (core.controls.get(binding.name) ?? [])[0]
+    ?? (binding.owner ? core.nodeIndex.get(binding.owner) : undefined)
+    ?? (binding.nodeIds[0] ? core.nodeIndex.get(binding.nodeIds[0]) : undefined);
+}
+
+function valueDiagnosticFor(core: RuntimeCore, binding: LocalBinding, detail: LocalDiagnosticDetails): Diagnostic {
+  const node = nodeForBinding(core, binding);
+  return node
+    ? diagnosticFor(core.document, node, 'local.runtime.value', detail)
+    : parameterDiagnostic('local.runtime.value', diagnosticEnglish(detail));
+}
+
+/** Reject a range whose start would cross its end before any commit. */
+function slotRelationError(core: RuntimeCore, nodeId: string, next: Record<string, LocalValue>): boolean {
+  const slots = core.slotKeys.get(nodeId);
+  if (!slots?.start || !slots?.end) return false;
+  const start = next[slots.start];
+  const end = next[slots.end];
+  return typeof start === 'number' && typeof end === 'number' && start > end;
+}
+
+function rangeOrderDiagnostic(core: RuntimeCore, nodeId: string): Diagnostic {
+  const node = core.nodeIndex.get(nodeId);
+  return node
+    ? diagnosticFor(core.document, node, 'local.runtime.value', localDiagnosticDetails('local.runtime.value.range-order'))
+    : parameterDiagnostic('local.runtime.value', diagnosticEnglish(localDiagnosticDetails('local.runtime.value.range-order')));
+}
+
+export interface LocalRuntimeUpdateOptions {
+  /**
+   * Announce the adopted revision to subscribers (default true). The document
+   * view stages updates with `false` and flushes after React commits, so no
+   * subscriber is notified during render.
+   */
+  readonly notify?: boolean;
+}
+
+export interface LocalRuntimeDocumentUpdate {
+  /** False when the next document could not be adopted; the runtime is unchanged. */
+  readonly ok: boolean;
+  /** True when the document identity was adopted (state may or may not differ). */
+  readonly changed: boolean;
+  /** Revision after the call; unchanged when `ok` is false. */
+  readonly revision: number;
+  readonly retained: readonly string[];
+  readonly dropped: readonly LocalStateRetentionDrop[];
+  readonly diagnostics: readonly Diagnostic[];
+}
+
+interface RuntimeController {
+  update(next: LocalDocument, notify: boolean): LocalRuntimeDocumentUpdate;
+  notify(): void;
+}
+
+const runtimeControllers = new WeakMap<LocalRuntime, RuntimeController>();
+
+function freezeUpdate(result: LocalRuntimeDocumentUpdate): LocalRuntimeDocumentUpdate {
+  return Object.freeze({
+    ok: result.ok,
+    changed: result.changed,
+    revision: result.revision,
+    retained: Object.freeze([...result.retained]),
+    dropped: Object.freeze(result.dropped.map((entry) => Object.freeze({ ...entry }))),
+    diagnostics: Object.freeze([...result.diagnostics]),
+  });
+}
+
+/**
+ * Adopt a freshly compiled document without discarding the runtime object.
+ * Values migrate with the same rules as `planLocalStateRetention` /
+ * `applyLocalStateRetention`: an unchanged public binding keeps its value, a
+ * value the new constraints reject falls back to the new author initial, and
+ * type, initial-definition, anonymous, timer, checklist, renamed or removed
+ * bindings reset conservatively. Multi-slot ranges stay globally ordered.
+ */
+export function updateLocalRuntime(
+  runtime: LocalRuntime,
+  next: LocalDocument,
+  options?: LocalRuntimeUpdateOptions,
+): LocalRuntimeDocumentUpdate {
+  const controller = runtimeControllers.get(runtime);
+  if (!controller) {
+    throw new TypeError('updateLocalRuntime requires a runtime created by createLocalRuntime.');
+  }
+  return controller.update(next, options?.notify !== false);
+}
+
+/** Flush a staged document update to subscribers after React commits. */
+export function notifyLocalRuntime(runtime: LocalRuntime): void {
+  runtimeControllers.get(runtime)?.notify();
+}
+
+export function createLocalRuntime(document: LocalDocument): LocalRuntime {
+  const problem = runtimeDocumentProblem(document);
+  if (problem) throw new Error(problem);
+
+  /** Source-keyed cache shared by control expressions and document metadata. */
+  const expressions = new Map<string, LocalExpression>();
+  const metadataExpressions = new Map<string, LocalExpression>();
+  let core = loadRuntimeCore(document, metadataExpressions);
+
+  /** Internal reads always go through the core of the current document. */
+  const current = (): RuntimeCore => core;
+
+  let state: Record<string, LocalValue> = core.initial;
   let revision = 0;
   let computationValues: Record<string, LocalValue> = {};
   let computationErrors = new Map<string, LocalExpressionError>();
@@ -443,48 +542,56 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
   let snapshotState: Record<string, LocalValue> = {};
   let snapshot: LocalSnapshot = { revision: 0, state: freezeState({}) };
   let disposed = false;
+  let validationCache: { revision: number; diagnostics: readonly Diagnostic[] } | null = null;
   const listeners = new Set<() => void>();
   const tokens = new Map<string, number>();
-  const expressions = new Map<string, LocalExpression>();
 
   const ensure = (): void => {
     if (disposed) throw new Error('The local interaction runtime has been disposed.');
   };
 
   /**
-   * Recompute the read-only layer for the current controls. Constants are not
-   * re-evaluated: their static values were resolved once above. Failed values
-   * are exposed through throwing getters in the evaluation environment, so an
-   * unrelated expression or a short-circuited branch never observes an error,
-   * while a real read propagates the original `LocalExpressionError`.
+   * Compute the read-only layer for a candidate document/state pair without
+   * publishing it. Constants are not re-evaluated: their static values live on
+   * the adopted core. Failed values are exposed through throwing getters in the
+   * evaluation environment, so an unrelated expression or a short-circuited
+   * branch never observes an error, while a real read propagates the original
+   * `LocalExpressionError`.
    */
-  const refreshComputations = (): void => {
-    if (computationNames.length === 0) {
-      computationValues = {};
-      computationErrors = new Map();
-    } else {
+  const computeLayer = (
+    loaded: RuntimeCore,
+    controlsState: Record<string, LocalValue>,
+  ): {
+    values: Record<string, LocalValue>;
+    errors: Map<string, LocalExpressionError>;
+    environment: Record<string, LocalValue>;
+    snapshotState: Record<string, LocalValue>;
+  } => {
+    let values: Record<string, LocalValue> = {};
+    let errors = new Map<string, LocalExpressionError>();
+    if (loaded.computationNames.length > 0) {
       const evaluated = evaluateComputations(
-        computationMetadata,
-        computationOrder,
-        computationExpressions,
-        state,
-        constValues,
+        loaded.computationMetadata,
+        loaded.computationOrder,
+        loaded.computationExpressions,
+        controlsState,
+        loaded.constValues,
       );
-      computationValues = evaluated.values;
-      computationErrors = evaluated.errors;
-      for (const [name, error] of constErrors) {
-        if (!Object.hasOwn(computationValues, name)) computationErrors.set(name, error);
+      values = evaluated.values;
+      errors = evaluated.errors;
+      for (const [name, error] of loaded.constErrors) {
+        if (!Object.hasOwn(values, name)) errors.set(name, error);
       }
-      for (const [name, error] of cycleErrors) {
-        if (!Object.hasOwn(computationValues, name)) computationErrors.set(name, error);
+      for (const [name, error] of loaded.cycleErrors) {
+        if (!Object.hasOwn(values, name)) errors.set(name, error);
       }
     }
 
     const environment: Record<string, LocalValue> = {};
-    for (const [key, value] of Object.entries(state)) environment[key] = value;
-    for (const [key, value] of Object.entries(computationValues)) environment[key] = value;
-    for (const [key, error] of computationErrors) {
-      if (Object.hasOwn(computationValues, key)) continue;
+    for (const [key, value] of Object.entries(controlsState)) environment[key] = value;
+    for (const [key, value] of Object.entries(values)) environment[key] = value;
+    for (const [key, error] of errors) {
+      if (Object.hasOwn(values, key)) continue;
       Object.defineProperty(environment, key, {
         enumerable: true,
         configurable: true,
@@ -493,12 +600,19 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
         },
       });
     }
-    evaluationEnv = environment;
 
     const merged: Record<string, LocalValue> = {};
-    for (const [key, value] of Object.entries(state)) merged[key] = value;
-    for (const [key, value] of Object.entries(computationValues)) merged[key] = value;
-    snapshotState = merged;
+    for (const [key, value] of Object.entries(controlsState)) merged[key] = value;
+    for (const [key, value] of Object.entries(values)) merged[key] = value;
+    return { values, errors, environment, snapshotState: merged };
+  };
+
+  const refreshComputations = (): void => {
+    const layer = computeLayer(current(), state);
+    computationValues = layer.values;
+    computationErrors = layer.errors;
+    evaluationEnv = layer.environment;
+    snapshotState = layer.snapshotState;
   };
 
   const publish = (): void => {
@@ -513,17 +627,9 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     for (const listener of listeners) listener();
   };
 
-  const valueDiagnostic = (binding: LocalBinding, detail: LocalDiagnosticDetails): Diagnostic => {
-    const node = (controls.get(binding.name) ?? [])[0]
-      ?? (binding.owner ? nodeIndex.get(binding.owner) : undefined)
-      ?? (binding.nodeIds[0] ? nodeIndex.get(binding.nodeIds[0]) : undefined);
-    return node
-      ? diagnosticFor(document, node, 'local.runtime.value', detail)
-      : parameterDiagnostic('local.runtime.value', diagnosticEnglish(detail));
-  };
-
   const writeParameters = (values: Readonly<Record<string, LocalValue>>): Diagnostic[] => {
     ensure();
+    const loaded = current();
     const diagnostics: Diagnostic[] = [];
     const normalized: Record<string, LocalValue> = {};
     const keys = Object.keys(values).sort();
@@ -536,14 +642,14 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
         diagnostics.push(parameterDiagnostic('local.runtime.parameter', `Internal parameter "${key}" cannot be written by name.`));
         continue;
       }
-      if (!Object.hasOwn(document.bindings, key)) {
+      if (!Object.hasOwn(loaded.document.bindings, key)) {
         diagnostics.push(parameterDiagnostic('local.runtime.parameter', `Unknown parameter "${key}".`));
         continue;
       }
-      const binding = document.bindings[key];
-      const result = validateValue(binding, controls.get(key) ?? [], values[key]);
+      const binding = loaded.document.bindings[key];
+      const result = validateValue(binding, loaded.controls.get(key) ?? [], values[key]);
       if (!result.ok) {
-        diagnostics.push(valueDiagnostic(binding, result.detail));
+        diagnostics.push(valueDiagnosticFor(loaded, binding, result.detail));
         continue;
       }
       normalized[key] = cloneValue(result.value);
@@ -556,15 +662,11 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     const next: Record<string, LocalValue> = { ...state, ...normalized };
     const affected = new Set<string>();
     for (const key of keys) {
-      for (const nodeId of publicSlotOwners.get(key) ?? []) affected.add(nodeId);
+      for (const nodeId of loaded.publicSlotOwners.get(key) ?? []) affected.add(nodeId);
     }
     for (const nodeId of [...affected].sort()) {
-      const crossing = slotRelationError(nodeId, next);
-      if (crossing) {
-        const node = nodeIndex.get(nodeId);
-        diagnostics.push(node
-          ? diagnosticFor(document, node, 'local.runtime.value', localDiagnosticDetails('local.runtime.value.range-order'))
-          : parameterDiagnostic('local.runtime.value', diagnosticEnglish(localDiagnosticDetails('local.runtime.value.range-order'))));
+      if (slotRelationError(loaded, nodeId, next)) {
+        diagnostics.push(rangeOrderDiagnostic(loaded, nodeId));
       }
     }
     if (diagnostics.length) return diagnostics;
@@ -572,8 +674,6 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     commit(next);
     return [];
   };
-  refreshComputations();
-  publish();
 
   const compile = (expression: string): LocalExpression => {
     let compiled = expressions.get(expression);
@@ -588,6 +688,226 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     return compiled;
   };
 
+  const evaluateValidations = (): Diagnostic[] => {
+    const loaded = current();
+    const diagnostics: Diagnostic[] = [];
+    const source = typeof loaded.document.source === 'string' ? loaded.document.source : '';
+    for (const item of loaded.validationRules) {
+      if (item.error) {
+        diagnostics.push(validationDiagnostic(
+          source,
+          loaded.validationLineStarts,
+          item.rule.range,
+          LOCAL_VALIDATION_EXPRESSION_CODE,
+          boundLocalDiagnosticMessage(`Validation expression is invalid: ${item.error.message}`),
+        ));
+        continue;
+      }
+      if (!item.expression) continue;
+      let value: LocalValue;
+      try {
+        value = item.expression.evaluate(evaluationEnv);
+      } catch (error) {
+        diagnostics.push(validationDiagnostic(
+          source,
+          loaded.validationLineStarts,
+          item.rule.range,
+          LOCAL_VALIDATION_EXPRESSION_CODE,
+          boundLocalDiagnosticMessage(
+            `Validation expression failed: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        ));
+        continue;
+      }
+      if (typeof value !== 'boolean') {
+        diagnostics.push(validationDiagnostic(
+          source,
+          loaded.validationLineStarts,
+          item.rule.range,
+          LOCAL_VALIDATION_EXPRESSION_CODE,
+          'Validation expression must evaluate to a boolean.',
+        ));
+        continue;
+      }
+      if (value) continue;
+      diagnostics.push(validationDiagnostic(
+        source,
+        loaded.validationLineStarts,
+        item.rule.range,
+        LOCAL_VALIDATION_FAILED_CODE,
+        safeValidationMessage(item.rule.message),
+      ));
+    }
+    return diagnostics;
+  };
+
+  const safeValidationMessage = (template: string): string => {
+    let value: string;
+    try {
+      value = interpolate(template, evaluationEnv);
+    } catch {
+      // A message may read the same failing value as its rule. Show a safe
+      // default instead of leaking a raw template or an error string.
+      value = LOCAL_VALIDATION_FALLBACK_MESSAGE;
+    }
+    return boundLocalDiagnosticMessage(value);
+  };
+
+  /**
+   * Migrate control state onto a new document. The retention plan decides what
+   * is comparable at all; each surviving value is revalidated against the new
+   * bindings and shared controls exactly like a parameter write would be.
+   */
+  const migrateState = (next: LocalDocument, nextCore: RuntimeCore): {
+    values: Record<string, LocalValue>;
+    retained: string[];
+    dropped: LocalStateRetentionDrop[];
+    diagnostics: Diagnostic[];
+  } => {
+    const plan = planLocalStateRetention({ previous: core.document, state, next });
+    const values: Record<string, LocalValue> = {};
+    for (const [key, binding] of Object.entries(next.bindings)) {
+      values[key] = cloneValue(binding.initial);
+    }
+
+    const droppedByName = new Map<string, LocalStateRetentionDrop>();
+    for (const entry of plan.dropped) droppedByName.set(entry.name, Object.freeze({ ...entry }));
+    const diagnostics: Diagnostic[] = [];
+    const accepted: Record<string, LocalValue> = {};
+    const acceptedNames: string[] = [];
+
+    for (const name of plan.retained) {
+      const binding = next.bindings[name];
+      if (!binding) continue;
+      const result = validateValue(binding, nextCore.controls.get(name) ?? [], plan.values[name]);
+      if (!result.ok) {
+        diagnostics.push(valueDiagnosticFor(nextCore, binding, result.detail));
+        droppedByName.set(name, Object.freeze({ name, reason: 'invalid' }));
+        continue;
+      }
+      accepted[name] = cloneValue(result.value);
+      acceptedNames.push(name);
+    }
+
+    // Mirror applyLocalStateRetention: try the surviving values atomically
+    // first, then fall back to sorted individual writes when a slot relation
+    // would cross. That keeps both slots readable and the final range ordered.
+    const atomic: Record<string, LocalValue> = { ...values, ...accepted };
+    const affected = new Set<string>();
+    for (const name of acceptedNames) {
+      for (const nodeId of nextCore.publicSlotOwners.get(name) ?? []) affected.add(nodeId);
+    }
+    let crossing = false;
+    for (const nodeId of [...affected].sort()) {
+      if (slotRelationError(nextCore, nodeId, atomic)) {
+        crossing = true;
+        break;
+      }
+    }
+
+    let retained: string[];
+    if (!crossing) {
+      Object.assign(values, accepted);
+      retained = acceptedNames;
+    } else {
+      retained = [];
+      for (const name of acceptedNames) {
+        const previous = values[name];
+        values[name] = accepted[name];
+        let blocked = false;
+        for (const nodeId of [...(nextCore.publicSlotOwners.get(name) ?? [])].sort()) {
+          if (slotRelationError(nextCore, nodeId, values)) {
+            diagnostics.push(rangeOrderDiagnostic(nextCore, nodeId));
+            blocked = true;
+          }
+        }
+        if (blocked) {
+          values[name] = previous;
+          droppedByName.set(name, Object.freeze({ name, reason: 'invalid' }));
+        } else {
+          retained.push(name);
+        }
+      }
+    }
+
+    // Final invariant: a hand-built document may still declare crossing
+    // initials. Reset both slots to their authored defaults, and reject the
+    // document if even those defaults cross.
+    for (const [nodeId, slots] of nextCore.slotKeys) {
+      if (!slotRelationError(nextCore, nodeId, values)) continue;
+      for (const slot of ['start', 'end'] as const) {
+        const key = slots[slot];
+        if (!key) continue;
+        const binding = next.bindings[key];
+        if (!binding) continue;
+        values[key] = cloneValue(binding.initial);
+        const index = retained.indexOf(key);
+        if (index >= 0) retained.splice(index, 1);
+        droppedByName.set(key, Object.freeze({ name: key, reason: 'invalid' }));
+      }
+      diagnostics.push(rangeOrderDiagnostic(nextCore, nodeId));
+      if (slotRelationError(nextCore, nodeId, values)) {
+        return { values: {}, retained: [], dropped: [], diagnostics: [] };
+      }
+    }
+
+    const dropped = [...droppedByName.values()].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    retained.sort();
+    return { values, retained, dropped, diagnostics };
+  };
+
+  const update = (next: LocalDocument, notify: boolean): LocalRuntimeDocumentUpdate => {
+    ensure();
+    if (next === core.document) {
+      return freezeUpdate({ ok: true, changed: false, revision, retained: [], dropped: [], diagnostics: [] });
+    }
+    if (runtimeDocumentProblem(next)) {
+      return freezeUpdate({ ok: false, changed: false, revision, retained: [], dropped: [], diagnostics: [] });
+    }
+    let nextCore: RuntimeCore;
+    try {
+      nextCore = loadRuntimeCore(next, metadataExpressions);
+    } catch {
+      return freezeUpdate({ ok: false, changed: false, revision, retained: [], dropped: [], diagnostics: [] });
+    }
+
+    const migrated = migrateState(next, nextCore);
+    if (Object.keys(migrated.values).length === 0 && Object.keys(next.bindings).length > 0) {
+      // A globally invalid slot document was rejected above.
+      return freezeUpdate({ ok: false, changed: false, revision, retained: [], dropped: [], diagnostics: [] });
+    }
+
+    // Compute the read-only layer before mutating anything, so a failing
+    // evaluation cannot leave the runtime half-adopted.
+    let layer: ReturnType<typeof computeLayer>;
+    try {
+      layer = computeLayer(nextCore, migrated.values);
+    } catch {
+      return freezeUpdate({ ok: false, changed: false, revision, retained: [], dropped: [], diagnostics: [] });
+    }
+
+    core = nextCore;
+    state = migrated.values;
+    computationValues = layer.values;
+    computationErrors = layer.errors;
+    evaluationEnv = layer.environment;
+    snapshotState = layer.snapshotState;
+    validationCache = null;
+    revision += 1;
+    publish();
+    if (notify) {
+      for (const listener of listeners) listener();
+    }
+    return freezeUpdate({
+      ok: true,
+      changed: true,
+      revision,
+      retained: migrated.retained,
+      dropped: migrated.dropped,
+      diagnostics: migrated.diagnostics,
+    });
+  };
+
   const subtreeIds = (node: LocalNode): Set<string> => {
     const ids = new Set<string>();
     const walk = (current: LocalNode): void => {
@@ -599,7 +919,9 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
   };
 
   const runtime: LocalRuntime = {
-    document,
+    get document(): LocalDocument {
+      return core.document;
+    },
 
     snapshot(): LocalSnapshot {
       ensure();
@@ -608,48 +930,49 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     get(node: LocalNode, slot?: string): LocalValue {
       ensure();
-      const canonical = nodeIndex.get(node.id);
+      const loaded = current();
+      const canonical = loaded.nodeIndex.get(node.id);
       if (!canonical) return null;
       const key = slot === undefined
         ? localKey(canonical)
-        : slotKeys.get(canonical.id)?.[slot];
+        : loaded.slotKeys.get(canonical.id)?.[slot];
       if (!key) return null;
       return Object.hasOwn(state, key) ? cloneValue(state[key]) : null;
     },
 
     set(node: LocalNode, value: LocalValue, slot?: string): Diagnostic[] {
       ensure();
-      const canonical = nodeIndex.get(node.id);
+      const loaded = current();
+      const canonical = loaded.nodeIndex.get(node.id);
       if (!canonical) {
-        return [diagnosticFor(document, node, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
+        return [diagnosticFor(loaded.document, node, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
       }
-      const slots = slotKeys.get(canonical.id);
+      const slots = loaded.slotKeys.get(canonical.id);
       let key: string | undefined;
       if (slot === undefined) {
         if (slots) {
-          return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.needs-slot'))];
+          return [diagnosticFor(loaded.document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.needs-slot'))];
         }
         key = localKey(canonical);
       } else {
         key = slots?.[slot];
         if (!key) {
-          return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.unknown-slot', { slot }))];
+          return [diagnosticFor(loaded.document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.unknown-slot', { slot }))];
         }
       }
-      const binding = Object.hasOwn(document.bindings, key) ? document.bindings[key] : undefined;
+      const binding = Object.hasOwn(loaded.document.bindings, key) ? loaded.document.bindings[key] : undefined;
       if (!binding) {
-        return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
+        return [diagnosticFor(loaded.document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
       }
-      const result = validateValue(binding, controls.get(key) ?? [], value);
+      const result = validateValue(binding, loaded.controls.get(key) ?? [], value);
       if (!result.ok) {
-        return [diagnosticFor(document, canonical, 'local.runtime.value', result.detail)];
+        return [diagnosticFor(loaded.document, canonical, 'local.runtime.value', result.detail)];
       }
       const nextValue = cloneValue(result.value);
       if (valuesEqual(state[key], nextValue)) return [];
       const next = { ...state, [key]: nextValue };
-      const crossing = slotRelationError(canonical.id, next);
-      if (crossing) {
-        return [diagnosticFor(document, canonical, 'local.runtime.value', localDiagnosticDetails('local.runtime.value.range-order'))];
+      if (slotRelationError(loaded, canonical.id, next)) {
+        return [diagnosticFor(loaded.document, canonical, 'local.runtime.value', localDiagnosticDetails('local.runtime.value.range-order'))];
       }
       commit(next);
       return [];
@@ -657,31 +980,31 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     setMany(node: LocalNode, values: Readonly<Record<string, LocalValue>>): Diagnostic[] {
       ensure();
-      const canonical = nodeIndex.get(node.id);
+      const loaded = current();
+      const canonical = loaded.nodeIndex.get(node.id);
       if (!canonical) {
-        return [diagnosticFor(document, node, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
+        return [diagnosticFor(loaded.document, node, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
       }
-      const slots = slotKeys.get(canonical.id);
+      const slots = loaded.slotKeys.get(canonical.id);
       if (!slots) {
-        return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-multi-slot'))];
+        return [diagnosticFor(loaded.document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-multi-slot'))];
       }
       const entries = Object.entries(values);
       if (!entries.length) return [];
       const next: Record<string, LocalValue> = { ...state };
       for (const [slot, value] of entries) {
         const key = slots[slot];
-        if (!key || !Object.hasOwn(document.bindings, key)) {
-          return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.unknown-slot', { slot }))];
+        if (!key || !Object.hasOwn(loaded.document.bindings, key)) {
+          return [diagnosticFor(loaded.document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.unknown-slot', { slot }))];
         }
-        const result = validateValue(document.bindings[key], controls.get(key) ?? [], value);
+        const result = validateValue(loaded.document.bindings[key], loaded.controls.get(key) ?? [], value);
         if (!result.ok) {
-          return [diagnosticFor(document, canonical, 'local.runtime.value', result.detail)];
+          return [diagnosticFor(loaded.document, canonical, 'local.runtime.value', result.detail)];
         }
         next[key] = cloneValue(result.value);
       }
-      const crossing = slotRelationError(canonical.id, next);
-      if (crossing) {
-        return [diagnosticFor(document, canonical, 'local.runtime.value', localDiagnosticDetails('local.runtime.value.range-order'))];
+      if (slotRelationError(loaded, canonical.id, next)) {
+        return [diagnosticFor(loaded.document, canonical, 'local.runtime.value', localDiagnosticDetails('local.runtime.value.range-order'))];
       }
       if (entries.every(([slot, value]) => valuesEqual(state[slots[slot]], value))) return [];
       commit(next);
@@ -690,19 +1013,21 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     parameterNames(): readonly string[] {
       ensure();
-      return publicNames;
+      return current().publicNames;
     },
 
     getParameter(name: string): LocalValue | undefined {
       ensure();
-      if (name.startsWith('@') || !Object.hasOwn(document.bindings, name)) return undefined;
+      const loaded = current();
+      if (name.startsWith('@') || !Object.hasOwn(loaded.document.bindings, name)) return undefined;
       return Object.hasOwn(state, name) ? cloneValue(state[name]) : undefined;
     },
 
     getParameters(): Readonly<Record<string, LocalValue>> {
       ensure();
+      const loaded = current();
       const values: Record<string, LocalValue> = {};
-      for (const name of publicNames) {
+      for (const name of loaded.publicNames) {
         const value = state[name];
         values[name] = Array.isArray(value) ? Object.freeze([...value]) as unknown as LocalValue : value;
       }
@@ -748,12 +1073,13 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     reset(node: LocalNode): void {
       ensure();
-      const canonical = nodeIndex.get(node.id);
+      const loaded = current();
+      const canonical = loaded.nodeIndex.get(node.id);
       if (!canonical) return;
       const ids = subtreeIds(canonical);
       const next: Record<string, LocalValue> = { ...state };
-      for (const [key, binding] of Object.entries(document.bindings)) {
-        if (!(controls.get(key) ?? []).some((node) => ids.has(node.id))) continue;
+      for (const [key, binding] of Object.entries(loaded.document.bindings)) {
+        if (!(loaded.controls.get(key) ?? []).some((node) => ids.has(node.id))) continue;
         const budget = localValueBudgetIssue(binding.initial);
         if (budget) {
           throw new LocalExpressionError('expression-budget', `Parameter "${key}": ${diagnosticEnglish(budget)}`, 0);
@@ -766,7 +1092,7 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     resetToken(node: LocalNode): number {
       ensure();
-      const canonical = nodeIndex.get(node.id);
+      const canonical = current().nodeIndex.get(node.id);
       return canonical ? (tokens.get(canonical.id) ?? 0) : 0;
     },
 
@@ -783,10 +1109,25 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       disposed = true;
       listeners.clear();
       expressions.clear();
-      computationExpressions.clear();
+      metadataExpressions.clear();
+      core.computationExpressions.clear();
+      core.constErrors.clear();
+      core.cycleErrors.clear();
+      core.validationRules.length = 0;
       tokens.clear();
     },
   };
+
+  runtimeControllers.set(runtime, {
+    update,
+    notify() {
+      if (disposed) return;
+      for (const listener of listeners) listener();
+    },
+  });
+
+  refreshComputations();
+  publish();
 
   return runtime;
 }

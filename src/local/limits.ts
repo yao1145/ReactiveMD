@@ -10,14 +10,27 @@
  * - Arrays and plot sample counts are element counts.
  *
  * Each limit is inclusive: a value equal to the limit is accepted, a larger
- * value is rejected. Limits are intentionally not configurable except for the
- * per-compilation syntax-node budget (`limits.maxSyntaxNodes`).
+ * value is rejected. Only the per-compilation parser budgets are configurable:
+ * `limits.maxSyntaxNodes`, `limits.maxParseWork` and `limits.maxMarkdownDepth`.
  */
 
 /** Original source length for one compilation, in UTF-16 code units. */
 export const MAX_LOCAL_DOCUMENT_LENGTH = 1_000_000;
 /** Cumulative `LocalNode` constructions during one parse, including intermediates. */
 export const DEFAULT_MAX_LOCAL_SYNTAX_NODES = 10_000;
+/**
+ * Deterministic Markdown parsing work per parse, in abstract work units.
+ * A unit is roughly one source code unit scanned or committed to a parser.
+ * This intentionally excludes wall-clock time so compilation results stay
+ * reproducible; hosts may raise it for unusually dense documents.
+ */
+export const DEFAULT_MAX_LOCAL_PARSE_WORK = 20_000_000;
+/**
+ * Nested Markdown container depth (blockquotes plus open list levels).
+ * Fenced and indented code content is not a container and is not counted.
+ * The value is inclusive: a depth equal to the limit is accepted.
+ */
+export const DEFAULT_MAX_LOCAL_MARKDOWN_DEPTH = 1_000;
 /** One string value, attribute, template or concatenation result, in UTF-16 code units. */
 export const MAX_LOCAL_STRING_LENGTH = 100_000;
 /** Number of elements in one array value or selection. */

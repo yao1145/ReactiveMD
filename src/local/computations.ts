@@ -125,6 +125,7 @@ export function resolveComputationGraph(
   inputs: ComputationInput[],
   controls: Record<string, LocalValueKind>,
   report: ComputationReport,
+  cache?:{expression(source:string):LocalExpression;infer(expression:LocalExpression,env:Record<string,LocalValueKind>):LocalValueKind},
 ): ResolvedComputations {
   const expressions = new Map<string, LocalExpression>();
   const dependencies = new Map<string, string[]>();
@@ -146,7 +147,7 @@ export function resolveComputationGraph(
     const input = byName.get(name)!;
     let compiled: LocalExpression;
     try {
-      compiled = compileExpression(input.source);
+      compiled = cache?.expression(input.source) ?? compileExpression(input.source);
     } catch (error) {
       expressionError(report, error, input.expressionOffset);
       failed.add(name);
@@ -258,7 +259,7 @@ export function resolveComputationGraph(
     }
     const compiled = expressions.get(name)!;
     try {
-      const kind = compiled.inferType(typeEnv);
+      const kind = cache ? cache.infer(compiled,typeEnv) : compiled.inferType(typeEnv);
       kinds[name] = kind;
       typeEnv[name] = kind;
     } catch (error) {
