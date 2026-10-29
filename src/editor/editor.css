@@ -154,6 +154,13 @@
 
   --focus: #a9bce3;
   --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
+
+  /* CodeMirror's base theme paints selection with a light lavender that
+     overrides dark syntax colours; retint it from the dark accent. */
+  .cm-editor .cm-selectionBackground,
+  .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+    background-color: color-mix(in srgb, var(--blue) 40%, transparent);
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -194,6 +201,13 @@
 
     --focus: #a9bce3;
     --focus-ring: 0 0 0 2px color-mix(in srgb, var(--focus) 28%, transparent);
+
+    /* CodeMirror's base theme paints selection with a light lavender that
+       overrides dark syntax colours; retint it from the dark accent. */
+    .cm-editor .cm-selectionBackground,
+    .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+      background-color: color-mix(in srgb, var(--blue) 40%, transparent);
+    }
   }
 }
 
