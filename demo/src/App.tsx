@@ -466,7 +466,7 @@ export default function App() {
   } | null>(null);
   const sourceWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const compileOptions = useMemo(() => toCompileOptions(htmlOptions), [htmlOptions]);
+  const compileOptions = useMemo(() => ({ ...toCompileOptions(htmlOptions), markdownBreaks: true }), [htmlOptions]);
   const compilation = useLocalCompilation(source, compileOptions, true, editHint.current);
   const currentExample = localizedExample(
     EXAMPLES.find((item) => item.id === selectedExample) ?? DEFAULT_EXAMPLE,

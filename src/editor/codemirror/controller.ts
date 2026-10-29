@@ -37,6 +37,7 @@ export class CodeEditorController {
   private disposed=false;
   private suppressed=false;
   private escapeTab=false;
+  private revealTarget:number|null=null;
   private listeners=new Set<()=>void>();
   private readonly configuration=new Compartment();
   private analysis:{source:string;value:AuthorAnalysis}|null=null;
@@ -69,6 +70,15 @@ export class CodeEditorController {
     this.extensions=[
       this.coordinates,
       lineNumbers(),drawSelection(),highlightActiveLine(),highlightActiveLineGutter(),
+      EditorView.editorAttributes.of(view=>({'data-selection-active':String(view.state.selection.ranges.some(range=>!range.empty))})),
+      EditorView.scrollHandler.of((view,range)=>{
+        if(this.revealTarget===null)return false;
+        const target=this.revealTarget;this.revealTarget=null;
+        if(range.head!==target)return false;
+        // The focus request measures and scrolls this editor separately.
+        // Suppress the default scrolling of the host page and other ancestors.
+        return true;
+      }),
       history({minDepth:120,newGroupDelay:700}),
       invertedEffects.of(tr=>{
         if(!tr.docChanged&&!tr.effects.some(e=>e.is(rawSource)))return [];
@@ -99,6 +109,7 @@ export class CodeEditorController {
         '.cm-content':{padding:'12px 0',minHeight:'100%'},
         '.cm-line':{padding:'0 14px'},'.cm-gutters':{backgroundColor:'var(--code-bg-deep)',color:'var(--code-muted)',border:'none'},
         '.cm-activeLine':{backgroundColor:'var(--surface-hover)'},'.cm-activeLineGutter':{backgroundColor:'var(--surface-active)'},
+        '&[data-selection-active=true] .cm-activeLine':{backgroundColor:'transparent'},
         '.cm-cursor':{borderLeftColor:'var(--ink)'},'&.cm-focused':{outline:'none'},
         '.cm-panels, .cm-tooltip':{backgroundColor:'var(--surface)',color:'var(--ink)',borderColor:'var(--line)'},
         '.cm-textfield, .cm-button':{background:'var(--surface)',color:'var(--ink)',borderColor:'var(--line)'},
@@ -160,7 +171,23 @@ export class CodeEditorController {
   }
   focus(selection?:SourceSelection){
     if(this.disposed||this.options.disabled)return;
-    if(selection)this.view.dispatch({selection:EditorSelection.single(this.model.toView(selection.start),this.model.toView(selection.end)),effects:EditorView.scrollIntoView(this.model.toView(selection.start),{y:'center'})});
+    if(selection){
+      const start=this.model.toView(selection.start),end=this.model.toView(selection.end);
+      this.revealTarget=start;
+      this.view.dispatch({selection:EditorSelection.single(start,end),effects:EditorView.scrollIntoView(start,{y:'center'})});
+      this.view.requestMeasure({
+        key:this,
+        read:view=>{
+          const range=view.state.selection.main;
+          if(range.anchor!==start||range.head!==end)return null;
+          const caret=view.coordsAtPos(start),scroller=view.scrollDOM;
+          if(!caret)return null;
+          const bounds=scroller.getBoundingClientRect();
+          return scroller.scrollTop+((caret.top+caret.bottom)/2-(bounds.top+scroller.clientTop+scroller.clientHeight/2));
+        },
+        write:(top,view)=>{if(top!==null)view.scrollDOM.scrollTop=top;},
+      });
+    }
     this.view.focus();
   }
   undo(){if(!this.options.disabled&&!this.options.readOnly)undo(this.view);}
