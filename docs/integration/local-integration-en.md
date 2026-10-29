@@ -54,6 +54,10 @@ export function Article() {
 | `colorScheme` | `'light' \| 'dark' \| 'auto'` | Both | Defaults to `auto`, following the nearest explicit ancestor preference or the system |
 | `hostData` | `Readonly<Record<string, unknown>>` | Both | JSON-safe host data keyed `${kind}:${ref}` for `hostComponent` nodes; never enters the worker |
 | `hostRenderer` | `LocalHostRenderer` | Both | Client-only renderer for `hostComponent` nodes; a missing renderer or data renders a visible placeholder |
+| `externalValues` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | Values for `<external>` declarations; updates never recompile or reset parameters. `LocalDocumentView` also accepts it for host-managed runtimes |
+| `initialParameters` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | Public parameter values applied once after each new runtime is created, before interaction; an invalid set is rejected atomically and reported through `onDiagnostics` |
+| `onParametersChange` | `(parameters, snapshot) => void` | `LocalReactiveDocument` | Called once per commit when the public writable parameter set actually changes; initialization, rejected writes, unchanged values and external-only updates do not call it |
+| `onSourceNavigate` | `(target: LocalSourceTarget) => void` | Both | Reports a preview node's source range; enabling it adds source metadata attributes, omitting it leaves the DOM unchanged |
 
 Neither component has `className`, `style` or slot props. `LocalReactiveDocument` renders `<article class="md-document local-document">`; `LocalDocumentView` uses the same document container. See below for style overrides.
 
@@ -78,13 +82,16 @@ import { compileLocal, createLocalRuntime } from 'reactive-md';
 
 const result = compileLocal(source);
 if (result.ok) {
-  const runtime = createLocalRuntime(result.document);
+  const runtime = createLocalRuntime(result.document, {
+    externalValues: { exchangeRate: 7.2 },
+  });
   const unsubscribe = runtime.subscribe(() => {
     console.log(runtime.snapshot());
   });
 
   console.log(runtime.evaluate('people * 100'));
   console.log(runtime.text('People: {{ people }}'));
+  runtime.setExternalValues({ exchangeRate: 7.3 });
 
   unsubscribe();
   runtime.dispose();
@@ -100,7 +107,7 @@ if (result.ok) {
 - Success: `{ ok: true; document: LocalDocument; diagnostics: Diagnostic[] }`
 - Failure: `{ ok: false; diagnostics: Diagnostic[] }`
 
-Syntax problems are returned through diagnostics; the current build accepts only `local-draft-2`. An explicit older revision directive is rejected with a `local.version.*` diagnostic; an unversioned source keeps current-revision behavior. The source limit is 1,000,000 characters. `document` is a current runtime object and should not be treated as a persistence format.
+Syntax problems are returned through diagnostics; the current build accepts only `local-draft-3`. An explicit older revision directive is rejected with a `local.version.*` diagnostic; an unversioned source keeps current-revision behavior. The source limit is 1,000,000 characters. `document` is a current runtime object and should not be treated as a persistence format.
 
 Hosts can set the syntax node budget for a single compilation:
 
@@ -139,7 +146,7 @@ export default function Page() {
 
 ### Host components
 
-A host can register leaf tags for one compilation without changing the `local-draft-2` syntax revision:
+A host can register components for one compilation without changing the author syntax revision. A schema declares a `form` and may declare a scalar binding:
 
 ```ts
 import { compileLocal, type LocalHostComponentSchema } from 'reactive-md';
@@ -153,11 +160,34 @@ const hostComponents: LocalHostComponentSchema[] = [
       ref: { kind: 'string', required: true, pattern: '^[a-z-]+$' },
     },
   },
+  {
+    name: 'host-rating',
+    form: 'leaf',
+    props: { label: { kind: 'string' } },
+    binding: { kind: 'number', min: 0, max: 5, step: 1 },
+  },
 ];
 const result = compileLocal(source, { hostComponents });
 ```
 
-Without `hostComponents`, those tags remain unknown and fall back to source. Names must be unique lowercase kebab-case and cannot reuse one of the 48 author tag names, a P0 HTML tag name or `theme`; at most 32 schemas are accepted. `pattern` accepts only a linear-time-safe regex subset (no backreferences, lookarounds, named groups, nested quantifiers or quantified alternation). An invalid schema returns `local.options.invalid`, and an invalid authored attribute returns `local.host.attribute`. A valid host node counts as one syntax node. Pass `hostData`, keyed `${kind}:${ref}`, and `hostRenderer` to `LocalDocumentView`; neither enters the worker. A missing renderer, missing data or a throwing renderer renders a visible placeholder instead of failing the document. `mode="static"` uses the same dispatch and passes `ctx.mode` to the renderer.
+Without `hostComponents`, those tags remain unknown and fall back to source. Names must be unique lowercase kebab-case and cannot reuse one of the 49 author tag names, a P0 HTML tag name or `theme`; at most 32 schemas are accepted. `pattern` accepts only a linear-time-safe regex subset (no backreferences, lookarounds, named groups, nested quantifiers or quantified alternation). An invalid schema returns `local.options.invalid`, and an invalid authored attribute returns `local.host.attribute`; a valid host node counts as one syntax node.
+
+`form` is `leaf`, `inline` or `container`. Inline and container tags are paired; their body is compiled as normal Markdown and ReactiveMD content, and the renderer receives `ctx.render()` for children. `binding` is optional and accepts `string`, `number` or `boolean`, with static `min`, `max`, `step`, `options`, `initialRule` and `exclusive`. A bound host component implicitly accepts `bind`, `initial` and dynamic `disabled`, and shares the built-in binding families. For example, this rating control and the built-in number share one value:
+
+```markdown
+<host-rating bind="rating" label="Course rating">
+<number bind="rating" label="Numeric rating" min="0" max="5" step="1">
+
+Current rating: {{ rating }}
+```
+
+The host renderer receives `(node, data, ctx)`. `ctx` extends the render context with `value`, a validating `setValue(value)`, `disabled`, `resetToken`, resolved `props` and `report(diagnostics)`. `setValue` goes through the runtime, so shared constraints and reset behavior still apply. Pass `hostData`, keyed `${kind}:${ref}`, only for components that declare those props; a binding-only or container host does not need host data. A missing renderer, missing declared data or a throwing renderer renders a visible placeholder instead of failing the document. `mode="static"` uses the same dispatch and passes `ctx.mode` to the renderer. Host schemas are plain data and cross the worker boundary; renderers never do.
+
+### External data
+
+`<external name="exchangeRate" type="number">` declares a read-only value for expressions and computations. Pass initial values to `createLocalRuntime(document, { externalValues })` or the `externalValues` prop. `runtime.setExternalValues(partial)` validates every entry, commits once and increments the revision once; unknown names, wrong types, non-finite numbers and budget overruns return diagnostics and keep the previous state. Equal values do not increment the revision. `getExternal(name)` and `getExternalValues()` are read-only; externals never appear in `getParameters()`, `parameterNames()` or a state file.
+
+A missing external makes only expressions that read it fail locally; other content keeps updating, and those expressions recover when the value arrives. Missing values are never coerced to `0`, `false` or an empty string. Static export and SSR use the same rules; the export does not fetch or embed host data.
 
 ### Version inspection and migration
 
@@ -177,24 +207,24 @@ const migrated = migrateLocalSource(source, { fromVersion: 'local-draft-1' });
 
 `inspectLocalSourceVersion` reports the declared and effective revision, whether this compiler supports it, the directive range and version diagnostics. `checkLocalUpgrade` reports `ok`, `fromVersion`, `toVersion`, `needsMigration` and diagnostics. `migrateLocalSource` adds `source`, `changed` and precise `edits`.
 
-`LocalUpgradeOptions` supplies `fromVersion` and `allowSemanticChanges`. An unversioned historical document needs `fromVersion: 'local-draft-1'`. An explicit `fromVersion` that disagrees with the declaration is rejected. Only `local-draft-1` and `local-draft-2` are accepted migration sources.
+`LocalUpgradeOptions` supplies `fromVersion` and `allowSemanticChanges`. An unversioned historical document needs `fromVersion: 'local-draft-1'`. An explicit `fromVersion` that disagrees with the declaration is rejected. `local-draft-1`, `local-draft-2` and `local-draft-3` are accepted migration sources.
 
 Migration changes only the metadata directive, preserves body bytes, BOM and CRLF, and is idempotent. It blocks reserved bindings, newly recognized tags, compile errors and text-control length changes before producing output. See [Source revisions and migration](../compatibility/source-versioning-en.md) for the exact checks and the CLI.
 
-### `createLocalRuntime(document: LocalDocument)`
+### `createLocalRuntime(document: LocalDocument, options?: LocalRuntimeOptions)`
 
 Named read-only values are described by `LocalComputation` in the optional `document.computations` record. `bindings` and `initialState` remain writable controls; `snapshot().state` also includes successful calculated values for its revision. Read a named value with `evaluate(name)` to preserve expression errors; failed values are absent from snapshots. See [calculation and error semantics](../reference/computations-formatting-en.md).
 
-Creates an independent in-memory runtime for a compiled document. Throws if `document` is not a local mode document, if initial values exceed budgets, or if the structure is invalid. Each instance has independent state; the runtime never stores or transmits state by itself.
+`options.externalValues` seeds declared `<external>` values; invalid entries are treated as unavailable and can be corrected through `setExternalValues`. The runtime creates an independent in-memory instance. Throws if `document` is not a local mode document, if initial values exceed budgets, or if the structure is invalid. Each instance has independent state; the runtime never stores or transmits state by itself.
 
 ### `LocalRuntime`
 
-`validate(): Diagnostic[]` reads advisory cross-field failures for the current revision. It preserves editability and returns copies of cached diagnostics. `document.validations?: LocalValidation[]` holds the serializable rule declarations. Numeric collections add `number[]` to `LocalValue` and `number-array` to `LocalValueKind`; existing writable selection controls keep string arrays. See [constraints and collections](../reference/constraints-collections-en.md).
+`validate(): Diagnostic[]` reads advisory cross-field failures for the current revision. Dynamic `min`/`max`/`required` failures are enforced on writes and displayed on the control; `validate()` keeps its existing meaning. It preserves editability and returns copies of cached diagnostics. `document.validations?: LocalValidation[]` holds the serializable rule declarations. Numeric collections add `number[]` to `LocalValue` and `number-array` to `LocalValueKind`; existing writable selection controls keep string arrays. See [constraints and collections](../reference/constraints-collections-en.md).
 
 | Member | Parameters | Returns | Behavior |
 | --- | --- | --- | --- |
 | `document` | — | `LocalDocument` | The compiled result used at creation |
-| `snapshot()` | — | `{ revision: number; state: Readonly<Record<string, LocalValue>> }` | Returns the same snapshot object when state is unchanged; state is frozen |
+| `snapshot()` | — | `{ revision: number; state: Readonly<Record<string, LocalValue>> }` | Returns the same snapshot object when state is unchanged; state is frozen and includes available external values; use `getParameters()` for writable parameters only |
 | `get(node, slot?)` | `LocalNode`, optional slot | `LocalValue` | Reads the value bound to the control; `slot` selects `start`/`end` or `x`/`y`; returns `null` for no binding or an unknown node; arrays are copies |
 | `set(node, value, slot?)` | `LocalNode`, `LocalValue`, optional slot | `Diagnostic[]` | Validates all shared controls; returns an empty array and commits once on success; does not increment revision on failure |
 | `setMany(node, values)` | `LocalNode`, slot values | `Diagnostic[]` | Atomically writes several slots of one multi-slot control; invalid batches leave state and revision unchanged |
@@ -204,6 +234,9 @@ Creates an independent in-memory runtime for a compiled document. Throws if `doc
 | `getParameters()` | — | `Readonly<Record<string, LocalValue>>` | Frozen public-only snapshot; internal `@` keys are never included |
 | `setParameter(name, value)` | `string`, `LocalValue` | `Diagnostic[]` | Validates every control sharing the binding; commits once; state unchanged on failure |
 | `setParameters(values)` | `Readonly<Record<string, LocalValue>>` | `Diagnostic[]` | Validates every public value and multi-slot relation, then commits all or nothing; unknown or internal names return `local.runtime.parameter`; invalid values return `local.runtime.value`; unchanged values do not bump the revision |
+| `getExternal(name)` | `string` | `LocalValue \| undefined` | Value of a declared external, or `undefined` when undeclared or unavailable; arrays are copies |
+| `getExternalValues()` | — | `Readonly<Record<string, LocalValue>>` | Frozen record of the currently available external values |
+| `setExternalValues(values)` | `Readonly<Record<string, LocalValue>>` | `Diagnostic[]` | Atomically validates partial external updates; commits and notifies once; unknown names, wrong types and budgets return `local.runtime.external` without changing state or revision |
 | `evaluate(expression)` | `string` | `LocalValue` | Evaluates with current state; throws `LocalExpressionError` on failure; arrays are copies |
 | `text(template)` | `string` | `string` | Renders text containing `{{ }}`; throws on failure |
 | `reset(node)` | `LocalNode` | `void` | Restores parameters and component state within the node's subtree in one commit, notifying once |
@@ -314,7 +347,7 @@ scheduler.schedule(source);
 
 ### Other core exports
 
-- `LOCAL_SYNTAX_VERSION`: currently the literal `'local-draft-2'`. Use it to record the syntax revision a document uses.
+- `LOCAL_SYNTAX_VERSION`: currently the literal `'local-draft-3'`. Use it to record the syntax revision a document uses.
 - `compileExpression(source: string)`: returns an object with `source`, `dependencies`, `evaluate(env)` and `inferType(env)`; throws `LocalExpressionError` on failure.
 - `LocalExpressionError`: contains `code` and `offset`.
 - `compileLatex(source: string)`: returns an object with `source`, `dependencies` and `evaluate(x, env, budget?)`; throws an error with `code` and `offset` on failure.
@@ -323,7 +356,7 @@ scheduler.schedule(source);
 - Source revisions: `inspectLocalSourceVersion`, `checkLocalUpgrade` and `migrateLocalSource`; `LocalUpgradeOptions` configures the source revision and semantic-change allowance.
 - Retention: `planLocalStateRetention` and `applyLocalStateRetention`.
 - Background compilation: `LocalCompileScheduler`, `LOCAL_COMPILE_DELAY_MS` and `startLocalCompileWorker`.
-- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalComputation`, `LocalValidation`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalHostPropKind`, `LocalHostPropSchema`, `LocalHostComponentSchema`, `LocalUpgradeOptions`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
+- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalComputation`, `LocalValidation`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalHostPropKind`, `LocalHostPropSchema`, `LocalHostComponentForm`, `LocalHostBindingSchema`, `LocalHostComponentSchema`, `LocalExternal`, `LocalDynamicConstraint`, `LocalDynamicConstraints`, `LocalRuntimeOptions`, `LocalUpgradeOptions`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
 
 `compileExpression`, `compileLatex` and `samplePlot` are lower-level utilities with the same stability level as the core API; usually only `compileLocal` and `createLocalRuntime` are needed.
 
@@ -402,7 +435,7 @@ These limits bound the work for a single document; they do not replace host cont
 
 ## Features not provided
 
-The default ReactiveMD path supports P0 HTML. Host options for author CSS, JavaScript and extended HTML use the separate native HTML path described in [HTML compatibility](../reference/html-compatibility-en.md). Local mode still provides no automatic state persistence or unrestricted network access, plugins or custom component registration, external data APIs, Vue support, React 18 support or a CommonJS entry. State export and import are explicit host calls. `LocalReactiveDocument` starts from initial values when the source changes; use retention helpers or manage the runtime and document yourself.
+The default ReactiveMD path supports P0 HTML. Host options for author CSS, JavaScript and extended HTML use the separate native HTML path described in [HTML compatibility](../reference/html-compatibility-en.md). Local mode still provides no automatic state persistence or unrestricted network access, plugins or custom component registration, author-issued network or storage calls, Vue support, React 18 support or a CommonJS entry. Host-provided values are explicit read-only declarations; the core never fetches them. State export and import are explicit host calls. `LocalReactiveDocument` starts from initial values when the source changes; use retention helpers or manage the runtime and document yourself.
 
 
 See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.6.0` is available on both the `latest` and `next` channels.

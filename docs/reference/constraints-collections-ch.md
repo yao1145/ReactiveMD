@@ -1,6 +1,6 @@
 # 条件、校验与本地集合
 
-这些能力扩展使用 `local-draft-2` 的 `0.4.0`。[工作坊示例](../../examples/local/recipes/workshop-zh.reactive.md)把人数预算、日期区间和已选主题表格放在同一份文档里，[命名计算](computations-formatting-ch.md)保存其中间结果。
+这些能力扩展 `0.4.0`，并在 `local-draft-3` 中可用。[工作坊示例](../../examples/local/recipes/workshop-zh.reactive.md)把人数预算、日期区间和已选主题表格放在同一份文档里，[命名计算](computations-formatting-ch.md)保存其中间结果。
 
 ## 跨字段校验
 
@@ -17,6 +17,24 @@
 `runtime.validate()` 按源码顺序返回当前失败规则的诊断。条件为 false 时使用 `local.validation.failed`，表达式无法求值时使用 `local.validation.expression`，错误也视为失败。一条失败规则不会阻断其他规则。结果按运行时修订缓存，对外返回副本；编辑、原子槽位更新及重置会同步刷新计算与校验。
 
 渲染器显示失败提示，并通过 `aria-describedby` 和 `aria-invalid` 把提示关联到字段或其可访问分组。提示 ID 属于各自文档实例；通过校验后清除错误文字。隐藏内容中的规则继续生效，但隐藏提示不会主动播报。每份文档最多有 100 条规则，隐藏区域也计入；诊断文字沿用 2,000 字符上限。
+
+## 动态输入约束
+
+`number` 和 `slider` 的 `min`、`max` 可以动态；`date` 的 `min`、`max`、`required` 可以动态；`input` 和 `textarea` 的 `required` 可以动态。每个动态值都是一个完整插值：
+
+```markdown
+<number bind="rooms" label="房间数" initial="2" min="1" max="5">
+<number bind="guests" label="旅客人数" initial="4" min="1" max="{{ rooms * 4 }}">
+
+<date bind="departure" label="出发日期" initial="2026-11-10">
+<date bind="return" label="返程日期" initial="2026-11-12" min="{{ departure }}">
+
+<input bind="company" label="公司名称" required="{{ business }}">
+```
+
+写入时按当时的约束校验，并继续保持原子提交。其他参数使范围收窄、已有值不再合法时，保留该值并在控件上显示约束错误；运行时绝不自动裁剪、重置或吸附到最近的合法值。调小字段以满足新范围，或恢复依赖值后，错误消失。动态 `required` 变为 true 且当前为空时只显示提示，不会自动填值。
+
+动态边界无法求值、动态 `min` 大于 `max` 或动态日期边界非法时，相关写入被拒绝，状态和 revision 都不变。同名数值和日期绑定必须声明相同的静态范围；边界为动态时，表达式也必须相同。`step` 和文本长度限制仍为静态。`runtime.validate()` 保持原有跨字段含义；动态约束在写入时强制、在字段上显示。
 
 ## 受控的条件样式
 

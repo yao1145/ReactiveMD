@@ -40,6 +40,18 @@ npm run dev
 
 The UI and scheduler wiring live in [worker/main.js](worker/main.js); the Worker entry is [worker/worker.js](worker/worker.js).
 
+## Comprehensive host example
+
+[react-comprehensive](react-comprehensive) combines the host-facing additions in one page: a host-provided exchange rate and inventory, dynamic `max="{{ inventory }}"`, a `host-rating` component that shares its binding with built-in controls, saved and restored public parameters through `initialParameters` and `onParametersChange`, and preview-to-source navigation through `onSourceNavigate`.
+
+```sh
+cd react-comprehensive
+npm install reactive-md@0.6.0
+npm run dev
+```
+
+Change the rate or inventory buttons, rate the course, and click a paragraph or a control label to see the reported source range. The host schema and renderer are in [react-comprehensive/main.jsx](react-comprehensive/main.jsx).
+
 ## Local package verification
 
 To try an unpublished build, run `npm pack` in the repository root and replace `reactive-md@0.6.0` in the install commands with the absolute path to the generated `reactive-md-0.6.0.tgz`.

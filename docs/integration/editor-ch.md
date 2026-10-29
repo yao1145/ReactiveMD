@@ -133,6 +133,25 @@ export function SourceEditor() {
 
 切换视图会保留源码选区、撤销历史及预览组件的状态。需要从外部控制视图时，同时传入 `viewMode` 和 `onViewModeChange`。只编辑源码时可省略 `preview`，底栏保留字符数及键盘提示。在源码中按 Esc，再按 Tab 可聚焦工具栏。
 
+## 预览定位源码
+
+`LocalDocumentView` 与 `LocalReactiveDocument` 接受 `onSourceNavigate`。提供回调后，渲染出的段落、标题、插值、公式、控件标签和图表框会携带源码元数据，普通点击会报告目标：
+
+```tsx
+<LocalDocumentView
+  document={document}
+  runtime={runtime}
+  onSourceNavigate={(target) => {
+    editor.current?.selectRange(target.range);
+    editor.current?.focus();
+  }}
+/>
+```
+
+`target` 包含 `range`（UTF-16 半开区间）、`nodeId`、`nodeType`，组件还包含 `componentName`。输入框、按钮、链接和表格控件等交互后代会被忽略，因此拖动滑块或点击表头排序不会误触跳转；点击控件标签才会定位到其标签源码。定位不会增加 Tab 停靠点；隐藏内容不渲染，原生 HTML iframe 内容没有可靠映射。
+
+省略回调时 DOM 与静态导出保持原样。容器宽度不超过 600px 时编辑器可能只显示编辑和预览；定位预览目标前先切换到并排视图，确保选区可见。`selectRange` 只聚焦源码，不会产生编辑或撤销步骤。
+
 ## 受控值与历史
 
 每次编辑都会以新源码调用 `onChange`，包括输入、工具栏格式化、插入模板、重命名、格式化及撤销重做。把该值回传给 `value`。编辑器把自己发出的修改视为当前会话的一部分，常规受控值回传会保留撤销步骤。

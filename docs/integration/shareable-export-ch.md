@@ -104,6 +104,12 @@ const diagnostics = importLocalState(runtime, saved);
 
 Demo 导出对话框可以把当前预览参数下载为状态文件，供后续 CLI 构建使用。较低层的 `createLocalStateFile`、`parseLocalState`、`applyLocalState` 和 `serializeLocalState` 仍可从 `reactive-md` 使用。
 
+## 外部数据与宿主组件
+
+状态文件只保存公开可写参数。`<external>` 声明的值归宿主所有，不会导出，也不会从上次会话恢复。因此，导出文件中的外部数据相关表达式会显示局部的“数据不可用”状态，除非宿主集成在自己的环境中提供值。静态导出和 SSR 遵循同一规则；文件在渲染时不会抓取数据。
+
+宿主组件同样归宿主所有。单文件导出没有宿主 renderer 和 schema，这些标签会降级为可见的不可用占位，文档其余内容继续工作。面向可移植的文档不要依赖宿主组件。
+
 ## 图片
 
 ### 浏览器

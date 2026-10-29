@@ -133,6 +133,25 @@ The status bar sits inside the editor frame, directly below its editing area. It
 
 Switching views preserves the source selection, undo history and preview component state. Pass both `viewMode` and `onViewModeChange` to control the mode from the host. Source-only instances retain the count and keyboard hint. Press Esc, then Tab in the source to focus the toolbar.
 
+## Preview to source navigation
+
+`LocalDocumentView` and `LocalReactiveDocument` accept `onSourceNavigate`. When present, rendered paragraphs, headings, interpolations, formulas, control labels and visual frames carry source metadata, and a plain click reports the target:
+
+```tsx
+<LocalDocumentView
+  document={document}
+  runtime={runtime}
+  onSourceNavigate={(target) => {
+    editor.current?.selectRange(target.range);
+    editor.current?.focus();
+  }}
+/>
+```
+
+`target` contains `range` (UTF-16 half-open offsets), `nodeId`, `nodeType` and, for components, `componentName`. Interactive descendants such as inputs, buttons, links and table controls are ignored, so dragging a slider or sorting a table keeps its behavior; click a control's label to jump to its tag. No extra tab stops are added, hidden content is not rendered, and native HTML iframe content has no reliable mapping.
+
+Omit the callback to keep the exact previous DOM and static export. In a 600px-or-narrower container the editor may show only Edit and Preview; switch to Split before selecting a preview target so the selection is visible. `selectRange` focuses the source and does not create an edit or undo step.
+
 ## Controlled value and history
 
 Every edit calls `onChange` with the next source: typing, toolbar formatting, insertion templates, rename, format and undo or redo. Pass that value back into `value`. The editor treats the edits it emits as part of the current session, so a normal controlled round trip keeps undo steps.

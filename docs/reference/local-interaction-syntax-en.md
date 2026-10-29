@@ -16,7 +16,7 @@ The base language requires only two connection rules: `bind` names an input, and
 
 This draft does not include external service calls, form submission, asynchronous resources, named actions, event handlers, programmable collection edits, general loop templates or arbitrary scripts. Legacy `state/data/computed/actions` configuration blocks are not part of the new syntax. Expressions can produce string or numeric arrays; checklist and multi-select components produce string arrays. Tables can use prose Markdown or bounded local row generation through `data-table`.
 
-By default a document only keeps in-memory state for the current instance. Reopening starts from initial values; persistence is not part of the author syntax. No language version declaration, component import or YAML is required. A document may optionally declare its revision with one `<!-- reactive-md: local-draft-2 -->` line in the prologue, before the theme and body; unversioned documents use the current revision. See [Source revisions and migration](../compatibility/source-versioning-en.md). Hosts should explicitly select draft parsing mode and must not guess by mixing old and new syntax.
+By default a document only keeps in-memory state for the current instance. Reopening starts from initial values; persistence is not part of the author syntax. No language version declaration, component import or YAML is required. A document may optionally declare its revision with one `<!-- reactive-md: local-draft-3 -->` line in the prologue, before the theme and body; unversioned documents use the current revision. See [Source revisions and migration](../compatibility/source-versioning-en.md). Hosts should explicitly select draft parsing mode and must not guess by mixing old and new syntax.
 
 Documents may select a theme with `<theme name="default">` before the body; omission uses `default`. This is static metadata, not a component. Custom themes must be registered by the host and support both color schemes; see the [theme protocol](theme-protocol-en.md).
 
@@ -83,6 +83,9 @@ Regular attribute values are enclosed in single or double quotes; boolean attrib
 | `required` | Boolean true |
 | `required="false"` | Boolean false |
 | `disabled="{{ people >= 20 }}"` | Dynamic boolean |
+| `max="{{ rooms * 4 }}"` | Dynamic number constraint (`number`, `slider`) |
+| `min="{{ departure }}"` | Dynamic date bound (`date`) |
+| `required="{{ business }}"` | Dynamic required (`input`, `textarea`, `date`) |
 | `label="Current people: {{ people }}"` | Text interpolation |
 | `bind="people"` | Static variable name |
 
@@ -90,7 +93,9 @@ Omitted boolean attributes use the component default rather than always assuming
 
 `&quot;`, `&apos;`, `&amp;`, `&lt;` and `&gt;` in attribute values decode to the corresponding characters; backslashes are not used to escape attribute quotes. Dynamic values for numeric and boolean attributes must be one complete interpolation and keep the original type; text attributes may contain multiple interpolations.
 
-`bind`, `initial`, `name`, `id`, `value` (option identifier), `to`, `from`, `answer`, `kind`, field mappings and layout enums are static attributes. Input `min/max/step` are static constraints too; plot `min/max` may be dynamic to support adjusting the observed range. The `rows` attribute of `textarea` is a static row count, while `data-table.rows` is a required expression; do not confuse the two.
+`bind`, `initial`, `name`, `id`, `value` (option identifier), `to`, `from`, `answer`, `kind`, field mappings and layout enums are static attributes. `min`, `max` and `required` are dynamic on `number`, `slider`, `date`, `input` and `textarea`: use one complete interpolation whose result is a number, a `YYYY-MM-DD` string (or empty string) or a boolean respectively. `step`, length limits, selector options and the range-slider/coordinate bounds remain static. Plot `min/max` may be dynamic to adjust the observed range. The `rows` attribute of `textarea` is a static row count, while `data-table.rows` is a required expression; do not confuse the two.
+
+Dynamic constraints are checked when a value is written and when the control is displayed. If another parameter narrows a range so that an existing value becomes invalid, the stored value is kept and the field shows the constraint error; it is never clamped or silently replaced. Shared bindings must declare the same static range and step and, when a bound is dynamic, the same expression.
 
 Unknown components, unknown attributes, wrong positions or wrong attribute types all produce source diagnostics. Registered tags are not executed as arbitrary HTML; authors cannot use `script`, `style`, `onclick` or other script entry points.
 
@@ -199,6 +204,22 @@ Pipes in GFM tables must be written `\|`, for example logical OR as `\|\|`. Tabl
 
 Division by zero, domain errors, non-finite results and type errors are shown near the corresponding content. When the parameter itself is valid, the user's new input is kept, and other independent content keeps updating; the error result shows "Unable to compute" instead of reusing an old number as a new result.
 
+### 5.3 Host-provided external data
+
+A document may declare read-only values supplied by the host:
+
+```markdown
+<external name="exchangeRate" type="number">
+<external name="inventory" type="number">
+<computed name="priceCny" value="{{ priceUsd * exchangeRate }}">
+
+Price: {{ priceCny }} CNY
+```
+
+`name` follows the same identifier and reserved-name rules as bindings. `type` is one of `string`, `number`, `boolean`, `string-array` or `number-array`. Declarations must be standalone tags at the document top level, cannot repeat a control parameter or another external name, and do not appear in the rendered document or in a state file. Text interpolation, conditions, charts and computations may read them; `setParameter()` cannot write them.
+
+The host supplies values through `externalValues` on `LocalReactiveDocument` or `runtime.setExternalValues()`. Values are validated against the declared type and the usual size budgets. When a value is missing, only expressions that read that name fail locally; independent content keeps working, and the dependent content recalculates when the value arrives. A missing value is never converted to `0`, `false` or an empty string. Static export and SSR behave the same way: pass the values into the host integration; an export does not fetch or embed them.
+
 This build adds named read-only values through top-level `computed` and `const` declarations. Short calculations can still be written in place; use declarations for intermediate results shared by prose, conditions, formulas and charts. See [Reusing calculations and formatting values](computations-formatting-en.md) for dependency, error and caching rules.
 
 ## 6. Inputs and parameter panels
@@ -207,15 +228,15 @@ All input components support `label`, optional `bind`, optional scalar `initial`
 
 | Component | Additional attributes and defaults |
 | --- | --- |
-| input | type=text/email; placeholder; required=false; min-length=0; optional max-length |
-| textarea | placeholder; rows=4; required=false; min-length=0; optional max-length |
-| number | optional min/max; step=1 |
-| slider | min=0; max=100; step=1 |
+| input | type=text/email; placeholder; required=false (dynamic); min-length=0; optional max-length |
+| textarea | placeholder; rows=4; required=false (dynamic); min-length=0; optional max-length |
+| number | optional min/max (dynamic); step=1 |
+| slider | min=0; max=100 (both dynamic); step=1 |
 | range-slider | bind-start/bind-end and initial-start/initial-end; min=0; max=100; step=1; optional color |
 | coordinate | bind-x/bind-y and initial-x/initial-y; x-min/y-min=-5; x-max/y-max=5; step=1; optional color |
 | counter | min=0; optional max; step=1 |
 | toggle, checkbox | Optional color |
-| date | optional min/max dates; required=false |
+| date | optional min/max dates (dynamic); required=false (dynamic) |
 | select, choices, radio-group, multi-select | Body is one or more options; multi-select adds max-selected and uses a string-array value |
 
 `range-slider` and `coordinate` expose independent number slots. Omit a slot's `bind-start`/`bind-end` or `bind-x`/`bind-y` to keep that slot internal; provide at most one explicit initial per slot. Crossing endpoints is rejected, not silently swapped. `multi-select` requires `label`, accepts `max-selected`, and normalizes writes to source order. These components also accept an optional `color`. See [local-draft-2 components and migration](local-components-v2-en.md) for the complete rules.
@@ -465,10 +486,10 @@ Nodes are clickable and keyboard-selectable by default, and the selected notes a
 | Navigation and prose | jump, anchor, text, section |
 | Assessment and reading | quiz, steps, step |
 | Hints | alert, badge, tooltip |
-| Declarations and generated data | computed, const, validation, data-table, column |
+| Declarations and generated data | external, computed, const, validation, data-table, column |
 | Visualization | table, chart, plot, timeline, diagram, node, edge |
 
-48 tag names in total. `option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children of parent components. `computed`, `const` and `validation` are document declarations; they are parsed as tags but are not rendered controls. The leading `<theme>` declaration is metadata and is not counted here. Most articles only need Markdown and two or three input/display components. Plain amounts can be written directly as `{{ total }} USD`; currency formatting and statistic cards are not entry-level requirements.
+49 tag names in total. `option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children of parent components. `external`, `external`, `computed`, `const` and `validation` are document declarations; they are parsed as tags but are not rendered controls. The leading `<theme>` declaration is metadata and is not counted here. Most articles only need Markdown and two or three input/display components. Plain amounts can be written directly as `{{ total }} USD`; currency formatting and statistic cards are not entry-level requirements.
 
 This draft does not accept legacy tags such as form, submit, button, each, list, spinner, stat or value, nor set/reset action attributes or on-* event attributes. The panel reset is a fixed boolean option, not a programmable action.
 
@@ -506,6 +527,14 @@ Implementation acceptance must cover:
 10. Document instances are independent, disposal cleans up, and no unintended network actions occur; complex or excessive math input can be halted by the execution budget.
 
 These rules cover compiler, runtime and browser acceptance. See the [example index](../../examples/local/README.md) for example mappings and expected observations, and the [language conformance data](../../examples/conformance/README.md) for the machine-readable minimum acceptance set. Actual repository check records stay in the repository and are not part of the package.
+
+## 14. Host components (host extension)
+
+Host components are not part of the portable author tag set. When the host registers a schema through the `hostComponents` compile option, a document may use that tag in one of three forms: `leaf`, `inline` or `container`. Inline and container tags use a closing tag; their body follows the normal Markdown and ReactiveMD rules, and a container renderer can render its children through `ctx.render()`. Without the schema, the same tag is an unknown component and keeps the inert source fallback.
+
+A host schema may declare an optional scalar binding for `string`, `number` or `boolean`. The component then accepts `bind`, `initial` and dynamic `disabled` implicitly and shares the built-in binding families: a `number` binding can pair with `<number>` or `<slider>` when its static `min`, `max` and `step` match. The host renderer receives the current `value`, a validating `setValue`, `disabled`, `resetToken`, resolved `props` and a `report` function. Host schemas remain plain data; the renderer is trusted host code and never enters a worker.
+
+**local-draft-3** adds `<external>` and the dynamic constraint attributes; host component forms and bindings are controlled by the host component protocol, not by the author syntax revision.
 
 
 See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.6.0` is available on both the `latest` and `next` channels.

@@ -2,7 +2,7 @@
 
 在 Markdown 中加入控件，正文、计算结果和图表就会随读者的操作更新。打开[在线 Playground](https://yaozi.raricy.com/)，把示例粘贴到编辑器，在预览中直接试用。
 
-本文使用 `reactive-md@0.6.0` 和 `local-draft-2` 语法。每一节先给一份可运行的示例，再解释其中的写法；文末汇总全部组块。
+本文对应当前工作区，语法修订为 `local-draft-3`。每一节先给一份可运行的示例，再解释其中的写法；文末汇总全部组块。
 
 ## 1. 第一份交互文档
 
@@ -412,7 +412,7 @@ $$ y = a \sin x $$
 
 ## 组块全集
 
-下面按用途列出 `local-draft-2` 的全部 48 个标签。“形态”一列说明写法：无正文组件不写结束标签，容器必须显式闭合，行内组件可以放进句子，子项只能出现在指定父容器内，声明不渲染为界面。
+下面按用途列出 `local-draft-3` 的全部 49 个标签。“形态”一列说明写法：无正文组件不写结束标签，容器必须显式闭合，行内组件可以放进句子，子项只能出现在指定父容器内，声明不渲染为界面。
 
 多数交互控件都支持 `label`、可选 `bind`、可选 `initial` 和动态 `disabled`。表中只列出常用的关键属性。
 
@@ -428,7 +428,7 @@ $$ y = a \sin x $$
 | `coordinate` | 无正文 | `label`、`bind-x`、`bind-y`、`initial-x`、`initial-y`、`x-min`、`x-max`、`y-min`、`y-max`、`step`、`color` | 二维坐标 |
 | `toggle` | 无正文 | `label`、`bind`、`initial`、`color` | 开关；布尔值，默认 `false` |
 | `checkbox` | 无正文 | `label`、`bind`、`initial`、`color` | 勾选框；布尔值，默认 `false` |
-| `date` | 无正文 | `label`、`bind`、`initial`、`min`、`max`、`required` | 日期；值为 `YYYY-MM-DD` 或空字符串 |
+| `date` | 无正文 | `label`、`bind`、`initial`、`min`、`max`、`required`（三者均可动态） | 日期；值为 `YYYY-MM-DD` 或空字符串 |
 | `counter` | 无正文 | `label`、`bind`、`initial`、`min=0`、`max`、`step=1` | 数字加减；自带减、加、恢复 |
 | `select` | 容器 | `label`、`bind`、`initial`、`color`；子项 `option` | 下拉单选；默认第一项 |
 | `choices` | 容器 | `label`、`bind`、`initial`、`color`；子项 `option` | 选项卡片单选 |
@@ -486,6 +486,7 @@ $$ y = a \sin x $$
 
 | 标签 | 形态 | 主要属性 | 用途 |
 | --- | --- | --- | --- |
+| `external` | 声明 | `name`、`type=string/number/boolean/string-array/number-array` 必填 | 顶层只读宿主数据；可被表达式和计算读取，阅读器不能写入 |
 | `computed` | 声明 | `name`、`value` 必填 | 顶层计算值；可读控件、常量和其他计算值；不渲染 |
 | `const` | 声明 | `name`、`value` 必填 | 顶层常量；只能读常量和内置常量；不渲染 |
 | `validation` | 声明 | `when`、`message`、`fields` 必填 | 跨字段校验；失败时显示提示 |
@@ -504,10 +505,10 @@ $$ y = a \sin x $$
 | `node` | 子项 | `id` 必填且唯一、`label` 必填、`tone` 可动态 | 图解节点 |
 | `edge` | 子项 | `from`、`to` 必填、`label` | 图解连线 |
 
-以上共 48 个标签。`option`、`tab`、`disclosure`、`node`、`edge`、`step`、`column` 是结构子项，只能放在对应父容器内，不能单独使用。
+以上共 49 个标签。`option`、`tab`、`disclosure`、`node`、`edge`、`step`、`column` 是结构子项，只能放在对应父容器内，不能单独使用。
 
 `table` 和 `chart` 的 `bind`、`initial` 需要同时提供 `key`，用于公开选中行的稳定标识。`plot` 的每个 `$$...$$` 块定义一条 `y = 表达式` 曲线，每个 `plot` 最多 16 条曲线。
 
-另有 `<theme name="default">`，写在正文之前，用于选择整份文档的主题。它是文档级元数据，不计入 48 个标签。
+另有 `<theme name="default">`，写在正文之前，用于选择整份文档的主题。它是文档级元数据，不计入 49 个标签。
 
-默认模式还支持 P0 HTML 的 `div`、`span`、`p`、`h1` 至 `h6` 等元素。其中 `div`、`p` 和 `h1` 至 `h6` 接受静态 `align`（`left`、`center`、`right`、`justify`）。这些是 HTML 元素，不计入上面的 48 个标签。
+默认模式还支持 P0 HTML 的 `div`、`span`、`p`、`h1` 至 `h6` 等元素。其中 `div`、`p` 和 `h1` 至 `h6` 接受静态 `align`（`left`、`center`、`right`、`justify`）。这些是 HTML 元素，不计入上面的 49 个标签。

@@ -20,7 +20,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 
 本草案不包含外部服务调用、提交表单、异步资源、命名动作、事件处理器、可编程集合增删、通用循环模板或任意脚本。旧版 `state/data/computed/actions` 配置块不属于新语法。表达式可以产生字符串或数字数组，清单与多选组件继续产生字符串数组。表格可直接写为 Markdown，也可通过带预算的 `data-table` 从本地值生成行。
 
-文档默认只保存当前实例的内存状态。重新打开从初值开始；持久化不属于作者语法。无需声明语言版本、导入组件或编写 YAML。文档可以在前导区、主题和正文之前用一行 `<!-- reactive-md: local-draft-2 -->` 可选地声明修订；无指令文档使用当前修订。见[源码修订与迁移](../compatibility/source-versioning-ch.md)。宿主应明确选择草案解析模式，不能把旧语法与新语法混合猜测解析。
+文档默认只保存当前实例的内存状态。重新打开从初值开始；持久化不属于作者语法。无需声明语言版本、导入组件或编写 YAML。文档可以在前导区、主题和正文之前用一行 `<!-- reactive-md: local-draft-3 -->` 可选地声明修订；无指令文档使用当前修订。见[源码修订与迁移](../compatibility/source-versioning-ch.md)。宿主应明确选择草案解析模式，不能把旧语法与新语法混合猜测解析。
 
 文档可在正文前用 `<theme name="default">` 选择整份文档的主题，省略时为 `default`。这是静态元数据声明，不是组件；自定义主题须由宿主登记并同时支持深浅模式，见[主题协议](theme-protocol-ch.md)。
 
@@ -60,7 +60,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 | 无正文组件 | `<slider bind="a" label="振幅">` | 不写结束标签；也接受末尾的 `/>` |
 | 有正文容器 | `<card title="说明">` 和 `</card>` | 必须显式闭合，允许嵌套 |
 
-无正文组件固定为 `input`、`textarea`、`number`、`slider`、`range-slider`、`coordinate`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`anchor`、`edge`。声明标签 `computed`、`const`、`validation` 以及结构子项 `column` 同样没有正文。其余本草案列出的组件均使用成对标签。`textarea` 的文本通过 `initial` 设置，因此属于无正文组件。
+无正文组件固定为 `input`、`textarea`、`number`、`slider`、`range-slider`、`coordinate`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`anchor`、`edge`。声明标签 `external`、`computed`、`const`、`validation` 以及结构子项 `column` 同样没有正文。其余本草案列出的组件均使用成对标签。`textarea` 的文本通过 `initial` 设置，因此属于无正文组件。
 
 例如：
 
@@ -87,6 +87,9 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 | `required` | 布尔值 true |
 | `required="false"` | 布尔值 false |
 | `disabled="{{ people >= 20 }}"` | 动态布尔值 |
+| `max="{{ rooms * 4 }}"` | 动态数值约束（`number`、`slider`） |
+| `min="{{ departure }}"` | 动态日期边界（`date`） |
+| `required="{{ business }}"` | 动态必填（`input`、`textarea`、`date`） |
 | `label="当前人数：{{ people }}"` | 文本插值 |
 | `bind="people"` | 静态变量名 |
 
@@ -94,7 +97,9 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 
 属性中的 `&quot;`、`&apos;`、`&amp;`、`&lt;`、`&gt;` 解码为相应文字；反斜杠不用于转义属性引号。数值和布尔属性的动态值必须是一个完整插值，结果保持原类型；文本属性可包含多段插值。
 
-`bind`、`initial`、`name`、`id`、`value`（选项标识）、`to`、`from`、`answer`、`kind`、字段映射以及布局枚举是静态属性。输入的 `min/max/step` 也是静态约束；绘图的 `min/max` 可以动态，以支持调整观察区间。`textarea` 的 `rows` 是静态行数，`data-table.rows` 则是必填表达式，两者不要混淆。
+`bind`、`initial`、`name`、`id`、`value`（选项标识）、`to`、`from`、`answer`、`kind`、字段映射以及布局枚举是静态属性。`number`、`slider` 的 `min/max`，`date` 的 `min/max/required`，以及 `input`、`textarea` 的 `required` 可以使用一个完整插值动态求值；`step`、长度限制、选项列表和 range-slider/coordinate 的边界仍为静态。绘图的 `min/max` 也可以动态，以支持调整观察区间。`textarea` 的 `rows` 是静态行数，`data-table.rows` 则是必填表达式，两者不要混淆。
+
+动态约束在写入和显示时检查。其他参数使范围收窄、已有值不再合法时，保留该值并在控件上显示约束错误，绝不自动裁剪或静默改成最近合法值。同名绑定必须声明相同的静态范围和步长；边界为动态时，表达式也必须相同。
 
 未知组件、未知属性、错误位置或错误属性类型都给出源码诊断。注册的标签不直接作为任意 HTML 执行；作者不能使用 `script`、`style`、`onclick` 或其他脚本入口。
 
@@ -203,6 +208,22 @@ GFM 表格中的竖线须写成 `\|`，例如逻辑或写 `\|\|`。表格解析�
 
 除零、定义域错误、非有限结果和类型错误显示在对应内容附近。参数本身合法时仍保留用户的新输入，其他独立内容正常更新；出错结果显示“无法计算”，不沿用旧数值冒充新结果。
 
+### 5.3 宿主提供的只读外部数据
+
+文档可以声明由宿主提供的只读值：
+
+```markdown
+<external name="exchangeRate" type="number">
+<external name="inventory" type="number">
+<computed name="priceCny" value="{{ priceUsd * exchangeRate }}">
+
+价格：{{ priceCny }} 元
+```
+
+`name` 与绑定使用相同的标识符和保留名规则；`type` 为 `string`、`number`、`boolean`、`string-array` 或 `number-array`。声明必须独占一行并位于文档顶层，不能与控件参数或其他 external 重名，不会出现在渲染结果或状态文件中。文本插值、条件、图表和 computed 可以读取它们；`setParameter()` 不能写入。
+
+宿主通过 `LocalReactiveDocument` 的 `externalValues` 或 `runtime.setExternalValues()` 提供值，值按声明类型和常规容量预算校验。值缺失时只影响读取它的表达式，其他内容继续工作；值到达后相关结果自动重算。缺失值不会被隐式转换为 `0`、`false` 或空字符串。静态导出和 SSR 行为相同：由宿主集成传入值，导出文件本身不抓取也不嵌入外部数据。
+
 本版本通过顶层 `computed` 与 `const` 声明增加只读命名值。简短计算仍可就地书写；需要被正文、条件、公式和图表共享的中间结果使用声明。依赖、错误和缓存规则见[复用计算与格式化数值](computations-formatting-ch.md)。
 
 ## 6. 输入与参数面板
@@ -211,15 +232,15 @@ GFM 表格中的竖线须写成 `\|`，例如逻辑或写 `\|\|`。表格解析�
 
 | 组件 | 附加属性及默认值 |
 | --- | --- |
-| input | type=text/email；placeholder；required=false；min-length=0；可选 max-length |
-| textarea | placeholder；rows=4；required=false；min-length=0；可选 max-length |
-| number | 可选 min/max；step=1 |
-| slider | min=0；max=100；step=1 |
+| input | type=text/email；placeholder；required=false（可动态）；min-length=0；可选 max-length |
+| textarea | placeholder；rows=4；required=false（可动态）；min-length=0；可选 max-length |
+| number | 可选 min/max（可动态）；step=1 |
+| slider | min=0；max=100（均可动态）；step=1 |
 | range-slider | bind-start/bind-end 与 initial-start/initial-end；min=0；max=100；step=1；可选 color |
 | coordinate | bind-x/bind-y 与 initial-x/initial-y；x-min/y-min=-5；x-max/y-max=5；step=1；可选 color |
 | counter | min=0；可选 max；step=1 |
 | toggle、checkbox | 可选 color |
-| date | 可选 min/max 日期；required=false |
+| date | 可选 min/max 日期（可动态）；required=false（可动态） |
 | select、choices、radio-group、multi-select | 正文为一个或多个 option；multi-select 增加 max-selected，值为字符串数组 |
 
 `range-slider` 和 `coordinate` 公开彼此独立的数字槽位。省略 `bind-start`/`bind-end` 或 `bind-x`/`bind-y` 时对应槽位只保留内部状态；每个槽位最多一处显式初值。端点交叉会被拒绝，不会自动交换。`multi-select` 的 `label` 必填，支持 `max-selected`，写入按源码顺序规范化。这些组件都支持可选 `color`。完整规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。
@@ -469,10 +490,10 @@ node.id 为当前图解内唯一的 `[A-Za-z_][A-Za-z0-9_-]*`。edge 必填 from
 | 跳转与正文 | jump、anchor、text、section |
 | 练习与分步 | quiz、steps、step |
 | 提示 | alert、badge、tooltip |
-| 声明与生成数据 | computed、const、validation、data-table、column |
+| 声明与生成数据 | external、computed、const、validation、data-table、column |
 | 可视化 | table、chart、plot、timeline、diagram、node、edge |
 
-共 48 个标签名。`option`、`tab`、`disclosure`、`node`、`edge`、`step`、`column` 为父组件的结构子项。`computed`、`const`、`validation` 是文档声明，按标签解析但不渲染为控件。开头的 `<theme>` 声明是元数据，不计入这里。大部分文章只需 Markdown 和两三个输入/展示组件。普通金额可以直接写 `{{ total }} 元`；货币格式、统计卡片不作为入门必需品。
+共 49 个标签名。`option`、`tab`、`disclosure`、`node`、`edge`、`step`、`column` 为父组件的结构子项。`external`、`computed`、`const`、`validation` 是文档声明，按标签解析但不渲染为控件。开头的 `<theme>` 声明是元数据，不计入这里。大部分文章只需 Markdown 和两三个输入/展示组件。普通金额可以直接写 `{{ total }} 元`；货币格式、统计卡片不作为入门必需品。
 
 本草案不接受旧版 form、submit、button、each、list、spinner、stat、value 等标签，也不接受 set/reset 动作属性或 on-* 事件属性。面板的 reset 是固定布尔选项，不是可编程动作。
 

@@ -8,9 +8,9 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | --- | --- | --- |
 | 包版本 | `0.6.1` | 0.x 预览版；0.6.1 同时提供于 `latest` 与 `next` |
 | 分发标签 | `latest` → `0.6.1`；`next` → `0.6.1` | 默认安装使用 `latest` |
-| 语法版本 | `local-draft-2` | `LOCAL_SYNTAX_VERSION`；当前构建只接受这一修订 |
-| 源码修订指令 | 可选 `<!-- reactive-md: local-draft-2 -->` | 文档前导区中的一行；无指令源码继续按当前修订解析 |
-| 组块协议 | `component-protocol-2` | 贡献与验收契约，见[组块协议](../development/component-protocol-ch.md)；不是运行时版本选择参数 |
+| 语法版本 | `local-draft-3` | `LOCAL_SYNTAX_VERSION`；当前工作区只接受这一修订。已发布的 `0.6.1` 包在下次发布前仍为 `local-draft-2` |
+| 源码修订指令 | 可选 `<!-- reactive-md: local-draft-3 -->` | 文档前导区中的一行；无指令源码继续按当前修订解析 |
+| 组块协议 | `component-protocol-3` | 贡献与验收契约，见[组块协议](../development/component-protocol-ch.md)；不是运行时版本选择参数 |
 | 主题协议 | `reactive-md-theme-1` | 文档主题与宿主 CSS 接入 |
 | 作者工具入口 | `reactive-md/authoring` | schema、目录与编辑辅助函数，不加载 React 或 CSS |
 | 无样式 React 入口 | `reactive-md/react/unstyled` | 不依赖样式表的 React 渲染器 |
@@ -26,7 +26,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 ## 显式源码修订
 
-源码可以在前导区用一行 `<!-- reactive-md: local-draft-2 -->` 声明修订。无指令源码按当前修订读取，不新增警告。显式 `local-draft-1` 或未知修订会以 `local.version.*` 诊断拒绝，不创建运行时；声明旧修订不会选择旧解析器。格式错误、重复和位置错误的指令同样被拒绝。
+源码可以在前导区用一行 `<!-- reactive-md: local-draft-3 -->` 声明修订。无指令源码按当前修订读取，不新增警告。显式旧修订（例如 `local-draft-1`、`local-draft-2`）或未知修订会以 `local.version.*` 诊断拒绝，不创建运行时；声明旧修订不会选择旧解析器。格式错误、重复和位置错误的指令同样被拒绝。
 
 在这一指令出现之前构建的读者（包括 `0.3.1`）会把它当作普通注释，不执行这项检查。依赖检查前请先迁移旧文档。`inspectLocalSourceVersion`、`checkLocalUpgrade` 和 `migrateLocalSource` 在编译器之外读取声明，`reactive-md migrate` 对单份源码执行元数据迁移。见[源码修订与迁移](source-versioning-ch.md)。
 
@@ -57,6 +57,8 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 `0.6.1` 将公式展示改为 KaTeX，随包提供 WOFF2 数学字体和用于辅助技术的 MathML。绘图求值与协议修订保持不变。无效公式给出警告，并回退为有界原文。`align` 现在自动按行编号；使用 `align*` 或 `aligned` 可省略自动编号。见[0.6.1 发布说明](../releases/release-0.6.1-ch.md)。
 
+**当前工作区（下次发布）：** `local-draft-3` 新增 `<external>` 只读声明和动态 `min`/`max`/`required` 约束；`component-protocol-3` 新增宿主 inline/container 形态与标量绑定。从 `local-draft-2` 迁移时，新激活的 `<external>` 标签会被阻止。当前工作区未提升包版本；已发布的 `0.6.1` 仍只接受 `local-draft-2`。
+
 `0.6.0` 新增原生 HTML 表格、`align` 与链接 `target`/`rel`、更多数学环境与命令、mhchem 化学式和扩展代码高亮，并把图解改为分层布局。无法解析的原生 HTML 改为按原文回退。`compileLocal` 的返回值只包含普通对象和数组，编辑器新增 `insertText`。语法、组块和主题修订均保持不变，现有导入继续有效。见[0.6.0 发布说明](../releases/release-0.6.0-ch.md)。
 
 `0.5.3` 新增宿主作者工具、统一编译选项、数学降级诊断，以及独立的屏幕与打印样式。现有入口继续有效；需要文档打印布局时显式引入 `reactive-md/print.css`。语法、组块和主题修订均保持不变。见[0.5.3 发布说明](../releases/release-0.5.3-ch.md)。
@@ -69,11 +71,11 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 `0.4.0` 建立 `local-draft-2`。使用受支持 `local-draft-1` 写法的无指令源码继续有效；显式 `local-draft-1` 声明在迁移前会被拒绝。构建新增识别 15 个标签名：十个 `local-draft-2` 组块，以及 `computed`、`const`、`validation`、`data-table`、`column`。以前作为未知标签或普通文字显示的内容现在会解析为组块或声明；字面示例应移入行内代码或代码围栏。开头的 `<theme>` 声明是文档元数据，不计入组块。完整的重命名与升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
-作者可见的语法变化会建立新的语法修订，例如本次的 `local-draft-2`，并提升次版本、更新 `LOCAL_SYNTAX_VERSION`。核心或 React API 的变化也会记录在变更记录中。项目不自动改写文档正文。`reactive-md migrate` 迁移单份源码的元数据声明，并阻止正文级冲突；升级后由作者或宿主按记录完成其余源码修改。
+作者可见的语法变化会建立新的语法修订，例如 `local-draft-3`，并提升次版本、更新 `LOCAL_SYNTAX_VERSION`。核心或 React API 的变化也会记录在变更记录中。项目不自动改写文档正文。`reactive-md migrate` 迁移单份源码的元数据声明，并阻止正文级冲突；升级后由作者或宿主按记录完成其余源码修改。
 
-旧版配置语法不属于 `local-draft-2`。常见替换如下：
+旧版配置语法不属于 `local-draft-3`。常见替换如下：
 
-| 旧写法 | `local-draft-2` 中的做法 |
+| 旧写法 | `local-draft-3` 中的做法 |
 | --- | --- |
 | `:::card`、`:::row` 等 directive | `<card>`、`<grid>` 等标签 |
 | YAML `state:` 声明参数 | 控件上的 `bind` 与 `initial` |
