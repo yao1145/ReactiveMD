@@ -1,5 +1,5 @@
 /**
- * Catalog of `local-draft-2` native components offered by the editor toolbar.
+ * Catalog of `local-draft-3` native components offered by the editor toolbar.
  *
  * Templates stay as close to the documented authoring syntax as possible:
  * - `{{bind:base}}` is resolved by `renderNativeSnippet` to a fresh bind name.

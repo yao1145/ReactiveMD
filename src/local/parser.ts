@@ -227,6 +227,9 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
   const markdownBreaks = optionCheck.markdownBreaks;
   // Captured separately so per-parse closures keep the narrowed option shape.
   const hostByName = optionCheck.hostByName;
+  /** Host inline forms behave like built-in inline tags for block placement. */
+  const isInlineName = (name: string): boolean =>
+    hostByName.has(name) ? hostByName.get(name)?.form === 'inline' : INLINE.has(name);
   // Host names join the accepted tag set for this parse only. Without host
   // schemas this is the module-level set, so behavior is unchanged.
   const known = optionCheck.hostComponents.length
@@ -1165,7 +1168,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           if (versionHeaders > 1) {
             error('local.version.duplicate', 'Only one source syntax declaration is allowed.', i, stop);
           } else if (!match || close < 0 || /[\r\n]/.test(comment)) {
-            error('local.version.malformed', 'Use <!-- reactive-md: local-draft-2 --> on one line.', i, stop);
+            error('local.version.malformed', `Use <!-- reactive-md: ${LOCAL_SYNTAX_VERSION} --> on one line.`, i, stop);
           } else {
             versionDeclaration = { version: match[1], range: { start: i, end: stop } };
             if (parent !== undefined || !standalone || skipThemePrefix(0, i) !== i) {
@@ -1506,21 +1509,33 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
           }
           if (tag.closing) {
             if (tag.name === parent) return { tokens, end: tag.end, contentEnd: i, indent: commonIndent(start, i) };
+            if (hostByName.get(tag.name)?.form === 'leaf') {
+              error('local.host.structure', `Host component <${tag.name}> is a leaf and cannot have a closing tag.`, i, tag.end, {
+                key: 'local.host.structure.leaf',
+                params: { component: tag.name },
+              });
+              i = tag.end;
+              continue;
+            }
             error('local.tag.mismatch', `Closing tag </${tag.name}> does not match ${parent ? `<${parent}>` : 'the document root'}.`, i, tag.end, {
               key: parent ? 'local.tag.mismatch.parent' : 'local.tag.mismatch.root',
               params: parent ? { name: tag.name, parent } : { name: tag.name },
             }); i = tag.end; continue;
           }
-          // Host components are leaves by schema: a tag with no slash is still
-          // complete, and only a `hostComponent` node is emitted.
-          const isHost = hostByName.has(tag.name);
-          const empty = isHost || VOID.has(tag.name) || tag.self;
-          if (tag.self && PAIRED.has(tag.name)) error('local.tag.shape', `<${tag.name}> requires a closing tag.`, i, tag.end, { key: 'local.tag.shape', params: { name: tag.name } });
-          if (empty) { tokens.push({ start: i, end: tag.end, ...(isHost ? { block: beginsLine(i) } : {}), node: node(isHost ? 'hostComponent' : 'component', i, tag.end, { name: tag.name, attrs: tag.attrs, children: [] }) }); i = tag.end; continue; }
+          // Host components follow their declared form: leaf tags are complete
+          // without a slash; inline and container tags are paired.
+          const hostSchema = hostByName.get(tag.name);
+          const isHost = hostSchema !== undefined;
+          const hostForm = hostSchema?.form;
+          const paired = isHost ? hostForm !== 'leaf' : PAIRED.has(tag.name);
+          const inline = isHost ? hostForm === 'inline' : INLINE.has(tag.name);
+          const empty = !paired || tag.self;
+          if (tag.self && paired) error('local.tag.shape', `<${tag.name}> requires a closing tag.`, i, tag.end, { key: 'local.tag.shape', params: { name: tag.name } });
+          if (empty) { tokens.push({ start: i, end: tag.end, ...(isHost ? { block: beginsLine(i) } : {}), node: node(isHost ? 'hostComponent' : 'component', i, tag.end, { name: tag.name, attrs: tag.attrs, children: [], ...(isHost ? { hostForm } : {}) }) }); i = tag.end; continue; }
           const nested = region(tag.end, end, tag.name, i, tag.end, depth + 1);
-          const children = convert(tag.end, nested.contentEnd, nested.tokens, INLINE.has(tag.name) ? 0 : nested.indent);
-          const component = node('component', i, nested.end, { name: tag.name, attrs: tag.attrs, children: INLINE.has(tag.name) && children.length === 1 && children[0].type === 'paragraph' ? children[0].children ?? [] : children });
-          tokens.push({ start: i, end: nested.end, node: component }); i = nested.end; continue;
+          const children = convert(tag.end, nested.contentEnd, nested.tokens, inline ? 0 : nested.indent);
+          const component = node(isHost ? 'hostComponent' : 'component', i, nested.end, { name: tag.name, attrs: tag.attrs, children: inline && children.length === 1 && children[0].type === 'paragraph' ? children[0].children ?? [] : children, ...(isHost ? { hostForm } : {}) });
+          tokens.push({ start: i, end: nested.end, ...(isHost ? { block: beginsLine(i) } : {}), node: component }); i = nested.end; continue;
         }
       }
       i++;
@@ -1567,7 +1582,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
       append(source.slice(cursor, token.start), cursor, true);
       let marker: string;
       do { marker = MARK_OPEN + markerSerial++ + MARK_CLOSE; } while (reservedMarkers.has(marker));
-      const block = token.block ?? (token.node.type === 'math' || ((token.node.type === 'component' || token.node.type === 'hostComponent') && !INLINE.has(token.node.name!)));
+      const block = token.block ?? (token.node.type === 'math' || ((token.node.type === 'component' || token.node.type === 'hostComponent') && !isInlineName(token.node.name!)));
       if (block) append('\n\n', token.start, false);
       const markerStart = masked.length;
       // A generated Markdown image has its own source range. Restore only this
@@ -1701,7 +1716,7 @@ export function parseLocal(source: string, options?: LocalCompileOptions): Parse
         return [node('footnoteReference', from, to, { identifier, label })];
       }
       const children = raw.children?.flatMap(transform);
-      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || BLOCK_HTML_RESULTS.has(children[0].type) || ((children[0].type === 'component' || children[0].type === 'hostComponent') && !INLINE.has(children[0].name!)))) return children;
+      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || BLOCK_HTML_RESULTS.has(children[0].type) || ((children[0].type === 'component' || children[0].type === 'hostComponent') && !isInlineName(children[0].name!)))) return children;
       if (raw.type === 'paragraph' && !children?.length) return [];
       if (raw.type === 'html') {
         if (options.literalHtml) {

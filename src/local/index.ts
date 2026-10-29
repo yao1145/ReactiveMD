@@ -21,7 +21,7 @@ export type { LocalVersionDeclaration } from './types';
 export type { LocalLocale } from './locale';
 export { LOCAL_THEME_PROTOCOL, DEFAULT_LOCAL_THEME, resolveLocalTheme, isLocalThemeName } from './theme';
 export type { LocalColorScheme, LocalThemeDefinition, LocalThemeResolution } from './theme';
-export type { Diagnostic, LocalDiagnosticParam, LocalDiagnosticParams, SourceRange, LocalValue, LocalValueKind, LocalNode, LocalBinding, LocalComputation, LocalValidation, LocalDocument, LocalHtmlOptions, LocalHtmlPolicy, LocalCompileLimits, LocalCompileOptions, LocalCompileResult, LocalRuntime, LocalSnapshot, LocalHostPropKind, LocalHostPropSchema, LocalHostComponentSchema } from './types';
+export type { Diagnostic, LocalDiagnosticParam, LocalDiagnosticParams, SourceRange, LocalValue, LocalValueKind, LocalNode, LocalBinding, LocalComputation, LocalExternal, LocalDynamicConstraint, LocalDynamicConstraints, LocalValidation, LocalDocument, LocalHtmlOptions, LocalHtmlPolicy, LocalCompileLimits, LocalCompileOptions, LocalCompileResult, LocalRuntime, LocalRuntimeOptions, LocalSnapshot, LocalHostPropKind, LocalHostPropSchema, LocalHostComponentForm, LocalHostBindingSchema, LocalHostComponentSchema } from './types';
 export {
   LOCAL_STATE_FORMAT,
   localSourceDigest,

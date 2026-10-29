@@ -42,6 +42,8 @@ export interface LocalNode {
   width?: number;
   /** Rendered height of an HTML `<img>`, in CSS pixels. */
   height?: number;
+  /** Host component shape recorded by the parser from the host schema. */
+  hostForm?: 'leaf' | 'inline' | 'container';
   lang?: string;
   align?: ('left' | 'center' | 'right' | null)[];
   /**
@@ -88,6 +90,33 @@ export interface LocalBinding {
   maxItems?: number;
   owner?: string;
 }
+/**
+ * One host-provided read-only value declared by a top-level `<external>` tag.
+ * The record is plain data: the declaration owns no writable binding and is
+ * never persisted in a state file.
+ */
+export interface LocalExternal {
+  name: string;
+  /** `array` is a string array; `number-array` a finite-number array. */
+  type: LocalValueKind;
+  /** Canonical id of the declaration node, retained for diagnostics. */
+  nodeId: string;
+  /** Source range of the declaration tag. */
+  range: SourceRange;
+}
+/** One dynamic constraint expression attached to a control attribute. */
+export interface LocalDynamicConstraint {
+  /** Expression source between `{{` and `}}`, trimmed. */
+  source: string;
+  /** Absolute offset of the expression in the document source. */
+  offset: number;
+}
+/** Dynamic constraints declared by one control, keyed by attribute name. */
+export interface LocalDynamicConstraints {
+  min?: LocalDynamicConstraint;
+  max?: LocalDynamicConstraint;
+  required?: LocalDynamicConstraint;
+}
 /** Advisory cross-field rule; an invalid rule keeps its fields editable. */
 export interface LocalValidation {
   nodeId: string;
@@ -102,7 +131,7 @@ export interface LocalDocument {
   syntax: 'local';
   source: string;
   /** Effective syntax revision; absent on older hand-built runtime documents. */
-  syntaxVersion?: 'local-draft-2';
+  syntaxVersion?: 'local-draft-3';
   /**
    * Present only when at least one HTML capability flag was enabled. Its
    * presence routes rendering to the isolated native-HTML branch; the
@@ -136,6 +165,19 @@ export interface LocalDocument {
   computations?: Record<string, LocalComputation>;
   /** Cross-field constraints in source order; evaluated against each revision. */
   validations?: LocalValidation[];
+  /**
+   * Host-provided read-only declarations, keyed by name. They participate in
+   * expressions and computations but never appear in `bindings`, public
+   * parameters or exported state files.
+   */
+  externals?: Record<string, LocalExternal>;
+  /**
+   * Node id -> dynamic constraint expressions. Controls such as `number`,
+   * `slider`, `date`, `input` and `textarea` use these to evaluate `min`,
+   * `max` or `required` against the current state instead of the compile-time
+   * value.
+   */
+  dynamicConstraints?: Record<string, LocalDynamicConstraints>;
   /**
    * Node id -> subtree binding dependencies, produced by the compiler. `null`
    * marks subtrees whose reads cannot be decided statically. Internal shape:
@@ -194,10 +236,32 @@ export interface LocalHostPropSchema {
   /** RegExp source applied to literal string values; restricted to a linear-time-safe subset. */
   readonly pattern?: string;
 }
+export type LocalHostComponentForm = 'leaf' | 'inline' | 'container';
+/**
+ * Optional public binding of a host component. The component accepts `bind`,
+ * `initial` and `disabled` attributes implicitly and shares the built-in
+ * binding families, so it can pair with `number`, `input` and `toggle`.
+ */
+export interface LocalHostBindingSchema {
+  readonly kind: 'string' | 'number' | 'boolean';
+  /** Default value rule when `initial` is omitted. */
+  readonly initialRule?: 'empty' | 'false' | 'nearest-zero' | 'min' | 'first-option';
+  /** `number` only: static lower bound. */
+  readonly min?: number;
+  /** `number` only: static upper bound. */
+  readonly max?: number;
+  /** `number` only: static step; defaults to 1. */
+  readonly step?: number;
+  /** `string` only: when present, the binding family is `choice`. */
+  readonly options?: readonly string[];
+  /** Only one component may own this binding. */
+  readonly exclusive?: boolean;
+}
 export interface LocalHostComponentSchema {
   readonly name: string;
-  readonly form: 'leaf';
+  readonly form: LocalHostComponentForm;
   readonly props: Readonly<Record<string, LocalHostPropSchema>>;
+  readonly binding?: LocalHostBindingSchema;
 }
 
 export interface LocalCompileOptions extends LocalHtmlOptions {
@@ -217,7 +281,20 @@ export interface LocalCompileOptions extends LocalHtmlOptions {
 }
 /** Public compiler output is plain data, including nested attributes and dependencies. */
 export type LocalCompileResult = { ok: true; document: LocalDocument; diagnostics: Diagnostic[] } | { ok: false; diagnostics: Diagnostic[] };
+/**
+ * Frozen state of the current revision. It contains controls, successful
+ * computed values and currently available external values. Use
+ * `getParameters()` when only writable public parameters are wanted.
+ */
 export interface LocalSnapshot { revision: number; state: Readonly<Record<string, LocalValue>> }
+/** Host-provided initial external values; invalid entries are treated as unavailable. */
+export interface LocalRuntimeOptions {
+  /**
+   * Initial read-only host values for `<external>` declarations. Declared names
+   * without a valid value stay unavailable until a later `setExternalValues`.
+   */
+  readonly externalValues?: Readonly<Record<string, LocalValue>>;
+}
 export interface LocalRuntime {
   document: LocalDocument;
   snapshot(): LocalSnapshot;
@@ -231,12 +308,21 @@ export interface LocalRuntime {
   parameterNames(): readonly string[];
   /** Read a public parameter by binding name. Returns undefined for unknown/internal names. */
   getParameter(name: string): LocalValue | undefined;
-  /** Snapshot of all public parameters; internal @... bindings are excluded. */
+  /** Snapshot of all public parameters; `@...` and external values are excluded. */
   getParameters(): Readonly<Record<string, LocalValue>>;
   /** Validate and atomically write one public parameter. */
   setParameter(name: string, value: LocalValue): Diagnostic[];
   /** Validate and atomically write one or more public parameters. */
   setParameters(values: Readonly<Record<string, LocalValue>>): Diagnostic[];
+  /** Read a declared external value; `undefined` when unavailable or undeclared. */
+  getExternal(name: string): LocalValue | undefined;
+  /** Frozen record of the currently available external values. */
+  getExternalValues(): Readonly<Record<string, LocalValue>>;
+  /**
+   * Atomically write declared external values. Unknown names, wrong types and
+   * budget failures return diagnostics without changing state or revision.
+   */
+  setExternalValues(values: Readonly<Record<string, LocalValue>>): Diagnostic[];
   evaluate(expression: string): LocalValue;
   /** Current advisory constraint failures; never changes or rejects field state. */
   validate(): Diagnostic[];

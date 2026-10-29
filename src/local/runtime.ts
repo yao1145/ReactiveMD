@@ -23,7 +23,7 @@ import {
   LOCAL_VALIDATION_FALLBACK_MESSAGE,
   validationDiagnostic,
 } from './validation';
-import { localKey, type LocalBinding, type LocalDocument, type LocalNode, type LocalRuntime, type LocalSnapshot, type LocalValidation, type LocalValue } from './types';
+import { localKey, type LocalBinding, type LocalDocument, type LocalNode, type LocalRuntime, type LocalRuntimeOptions, type LocalSnapshot, type LocalValidation, type LocalValue, type LocalValueKind } from './types';
 
 const EPSILON = 1e-9;
 const RUNTIME_EXPRESSION_CACHE_LIMIT = 200;
@@ -80,7 +80,7 @@ function diagnosticFor(document: LocalDocument, node: LocalNode, code: string, d
   };
 }
 
-function parameterDiagnostic(code: string, message: string): Diagnostic {
+function parameterDiagnostic(code: string, message: string, detail?: LocalDiagnosticDetails): Diagnostic {
   return {
     code,
     message,
@@ -88,6 +88,7 @@ function parameterDiagnostic(code: string, message: string): Diagnostic {
     range: { start: 0, end: 0 },
     line: 1,
     column: 1,
+    ...(detail ? { messageKey: detail.key, ...(detail.params ? { params: detail.params } : {}) } : {}),
   };
 }
 
@@ -125,21 +126,27 @@ function invalid(key: string, params?: Record<string, unknown>): ValidationResul
  * writable only when all owners accept the value. Length is checked before the
  * email validator, whose shared implementation is linear and length-bounded.
  */
-function validateStringControl(node: LocalNode, value: string): ValidationResult {
+function validateStringControl(
+  node: LocalNode,
+  value: string,
+  dynamic: { min?: string; max?: string; required?: boolean } = {},
+): ValidationResult {
   if (node.name === 'date') {
     if (!isValidDate(value)) return invalid('local.runtime.value.date-invalid');
-    if (value === '' && staticBoolean(node, 'required') === true) {
+    const required = dynamic.required ?? (staticBoolean(node, 'required') === true);
+    if (value === '' && required) {
       return invalid('local.runtime.value.date-required');
     }
-    const min = rawAttr(node, 'min');
-    const max = rawAttr(node, 'max');
+    const min = dynamic.min ?? rawAttr(node, 'min');
+    const max = dynamic.max ?? rawAttr(node, 'max');
     if (value !== '' && min && value < min) return invalid('local.runtime.value.date-earlier', { min });
     if (value !== '' && max && value > max) return invalid('local.runtime.value.date-later', { max });
     return { ok: true, value };
   }
   if (node.name === 'input' || node.name === 'textarea') {
     const length = codePointLength(value);
-    if (value === '' && staticBoolean(node, 'required') === true) {
+    const required = dynamic.required ?? (staticBoolean(node, 'required') === true);
+    if (value === '' && required) {
       return invalid('local.runtime.value.field-required');
     }
     const minLength = staticNumber(node, 'min-length');
@@ -160,11 +167,46 @@ function validateStringControl(node: LocalNode, value: string): ValidationResult
   return { ok: true, value };
 }
 
-function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalValue): ValidationResult {
+type DynamicRead =
+  | { present: false }
+  | { present: true; ok: true; value: LocalValue }
+  | { present: true; ok: false };
+
+function validateValue(
+  binding: LocalBinding,
+  nodes: LocalNode[],
+  value: LocalValue,
+  readDynamic: (node: LocalNode, attribute: 'min' | 'max' | 'required') => DynamicRead,
+): ValidationResult {
   switch (binding.type) {
     case 'number': {
       if (typeof value !== 'number' || !Number.isFinite(value)) {
         return invalid('local.runtime.value.finite-number', { name: binding.name });
+      }
+      const step = binding.step ?? 1;
+      const base = binding.min ?? 0;
+      for (const node of nodes) {
+        const minRead = readDynamic(node, 'min');
+        if (minRead.present && !minRead.ok) return invalid('local.runtime.value.constraint', { name: binding.name, attribute: 'min' });
+        if (minRead.present && minRead.ok) {
+          if (typeof minRead.value !== 'number' || !Number.isFinite(minRead.value)) {
+            return invalid('local.runtime.value.constraint', { name: binding.name, attribute: 'min' });
+          }
+          if (value < minRead.value) return invalid('local.runtime.value.min', { name: binding.name, min: minRead.value });
+        }
+        const maxRead = readDynamic(node, 'max');
+        if (maxRead.present && !maxRead.ok) return invalid('local.runtime.value.constraint', { name: binding.name, attribute: 'max' });
+        if (maxRead.present && maxRead.ok) {
+          if (typeof maxRead.value !== 'number' || !Number.isFinite(maxRead.value)) {
+            return invalid('local.runtime.value.constraint', { name: binding.name, attribute: 'max' });
+          }
+          if (value > maxRead.value) return invalid('local.runtime.value.max', { name: binding.name, max: maxRead.value });
+        }
+        if (minRead.present && minRead.ok && maxRead.present && maxRead.ok
+          && typeof minRead.value === 'number' && typeof maxRead.value === 'number'
+          && minRead.value > maxRead.value) {
+          return invalid('local.runtime.value.constraint-range', { name: binding.name });
+        }
       }
       if (binding.min !== undefined && value < binding.min) {
         return invalid('local.runtime.value.min', { name: binding.name, min: binding.min });
@@ -172,8 +214,6 @@ function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalVa
       if (binding.max !== undefined && value > binding.max) {
         return invalid('local.runtime.value.max', { name: binding.name, max: binding.max });
       }
-      const step = binding.step ?? 1;
-      const base = binding.min ?? 0;
       if (step > 0 && !onStep(value, base, step)) {
         return invalid('local.runtime.value.step', { name: binding.name, step, base });
       }
@@ -188,7 +228,32 @@ function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalVa
         return invalid('local.runtime.value.budget', { name: binding.name, detail: diagnosticEnglish(budget), detailKey: budget.key, ...budget.params });
       }
       for (const node of nodes) {
-        const result = validateStringControl(node, value);
+        const dynamic: { min?: string; max?: string; required?: boolean } = {};
+        if (node.name === 'date') {
+          for (const attribute of ['min', 'max'] as const) {
+            const read = readDynamic(node, attribute);
+            if (!read.present) continue;
+            if (!read.ok || typeof read.value !== 'string' || !isValidDate(read.value)) {
+              return invalid('local.runtime.value.constraint-date', { name: binding.name, attribute });
+            }
+            dynamic[attribute] = read.value;
+          }
+          const minValue = dynamic.min ?? rawAttr(node, 'min');
+          const maxValue = dynamic.max ?? rawAttr(node, 'max');
+          if (minValue && maxValue && isValidDate(minValue) && isValidDate(maxValue) && minValue > maxValue) {
+            return invalid('local.runtime.value.constraint-range', { name: binding.name });
+          }
+        }
+        if (node.name === 'date' || node.name === 'input' || node.name === 'textarea') {
+          const requiredRead = readDynamic(node, 'required');
+          if (requiredRead.present) {
+            if (!requiredRead.ok || typeof requiredRead.value !== 'boolean') {
+              return invalid('local.runtime.value.constraint', { name: binding.name, attribute: 'required' });
+            }
+            dynamic.required = requiredRead.value;
+          }
+        }
+        const result = validateStringControl(node, value, dynamic);
         if (!result.ok) return result;
       }
       if (binding.options?.length && !binding.options.includes(value)) {
@@ -224,7 +289,54 @@ function validateValue(binding: LocalBinding, nodes: LocalNode[], value: LocalVa
   return invalid('local.runtime.value.unsupported-type', { name: binding.name });
 }
 
-export function createLocalRuntime(document: LocalDocument): LocalRuntime {
+type ExternalCheck =
+  | { ok: true; value: LocalValue }
+  | { ok: false; key: string; params?: Record<string, string | number | boolean | null> };
+
+/** Validate one host external value against its declared type and budgets. */
+function validateExternalValue(kind: LocalValueKind, value: LocalValue): ExternalCheck {
+  switch (kind) {
+    case 'string': {
+      if (typeof value !== 'string') return { ok: false, key: 'local.runtime.external-value', params: { kind: 'string' } };
+      const budget = localValueBudgetIssue(value);
+      if (budget) return { ok: false, key: 'local.runtime.external-budget', params: { detailKey: budget.key, ...(budget.params ?? {}) } };
+      return { ok: true, value };
+    }
+    case 'number':
+      return typeof value === 'number' && Number.isFinite(value)
+        ? { ok: true, value }
+        : { ok: false, key: 'local.runtime.external-value', params: { kind: 'number' } };
+    case 'boolean':
+      return typeof value === 'boolean'
+        ? { ok: true, value }
+        : { ok: false, key: 'local.runtime.external-value', params: { kind: 'boolean' } };
+    case 'array': {
+      if (!Array.isArray(value)) return { ok: false, key: 'local.runtime.external-value', params: { kind: 'string-array' } };
+      for (const entry of value) {
+        if (typeof entry !== 'string') return { ok: false, key: 'local.runtime.external-value', params: { kind: 'string-array' } };
+      }
+      const budget = localValueBudgetIssue(value as string[]);
+      if (budget) return { ok: false, key: 'local.runtime.external-budget', params: { detailKey: budget.key, ...(budget.params ?? {}) } };
+      return { ok: true, value: value.slice() as string[] };
+    }
+    case 'number-array': {
+      if (!Array.isArray(value)) return { ok: false, key: 'local.runtime.external-value', params: { kind: 'number-array' } };
+      for (const entry of value) {
+        if (typeof entry !== 'number' || !Number.isFinite(entry)) {
+          return { ok: false, key: 'local.runtime.external-value', params: { kind: 'number-array' } };
+        }
+      }
+      const budget = localValueBudgetIssue(value as number[]);
+      if (budget) return { ok: false, key: 'local.runtime.external-budget', params: { detailKey: budget.key, ...(budget.params ?? {}) } };
+      return { ok: true, value: value.slice() as number[] };
+    }
+    case 'null':
+    default:
+      return { ok: false, key: 'local.runtime.external-value', params: { kind: String(kind) } };
+  }
+}
+
+export function createLocalRuntime(document: LocalDocument, options?: LocalRuntimeOptions): LocalRuntime {
   if (!document || document.syntax !== 'local') {
     throw new Error('createLocalRuntime requires a local interaction document.');
   }
@@ -287,6 +399,64 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     const start = next[slots.start];
     const end = next[slots.end];
     return typeof start === 'number' && typeof end === 'number' && start > end;
+  };
+
+  /* --------------------------------------------------------- externals */
+
+  /**
+   * Host-provided read-only values. They are declared by the document, filled
+   * by the host and never written into `document.bindings`; a missing
+   * declaration name stays unavailable and only affects expressions that read
+   * it.
+   */
+  const externalMetadata = document.externals ?? {};
+  const externalNames = Object.freeze(Object.keys(externalMetadata).sort());
+  const externalState: Record<string, LocalValue> = {};
+  if (options?.externalValues && externalNames.length) {
+    for (const name of externalNames) {
+      const raw = options.externalValues[name];
+      if (raw === undefined) continue;
+      const result = validateExternalValue(externalMetadata[name].type, raw);
+      if (result.ok) externalState[name] = result.value;
+    }
+  }
+
+  const unavailableExternals = (): Map<string, LocalExpressionError> => {
+    const missing = new Map<string, LocalExpressionError>();
+    for (const name of externalNames) {
+      if (Object.hasOwn(externalState, name)) continue;
+      missing.set(name, new LocalExpressionError('external-missing', `External data "${name}" is not available.`, 0));
+    }
+    return missing;
+  };
+
+  /* ------------------------------------------------- dynamic constraints */
+
+  const dynamicMetadata = document.dynamicConstraints ?? {};
+  const dynamicExpressions = new Map<string, LocalExpression | null>();
+  const readDynamic = (
+    node: LocalNode,
+    attribute: 'min' | 'max' | 'required',
+    env: Record<string, LocalValue>,
+  ): DynamicRead => {
+    const meta = dynamicMetadata[node.id]?.[attribute];
+    if (!meta) return { present: false };
+    const cacheKey = `${node.id}:${attribute}`;
+    let compiled = dynamicExpressions.get(cacheKey);
+    if (compiled === undefined) {
+      try {
+        compiled = compileExpression(meta.source);
+      } catch {
+        compiled = null;
+      }
+      dynamicExpressions.set(cacheKey, compiled);
+    }
+    if (!compiled) return { present: true, ok: false };
+    try {
+      return { present: true, ok: true, value: compiled.evaluate(env) };
+    } catch {
+      return { present: true, ok: false };
+    }
   };
 
   /* --------------------------------------------------------- computations */
@@ -459,16 +629,20 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
    * while a real read propagates the original `LocalExpressionError`.
    */
   const refreshComputations = (): void => {
+    const missing = unavailableExternals();
     if (computationNames.length === 0) {
       computationValues = {};
       computationErrors = new Map();
     } else {
+      const inputs: Record<string, LocalValue> = { ...state };
+      for (const [name, value] of Object.entries(externalState)) inputs[name] = value;
       const evaluated = evaluateComputations(
         computationMetadata,
         computationOrder,
         computationExpressions,
-        state,
+        inputs,
         constValues,
+        missing,
       );
       computationValues = evaluated.values;
       computationErrors = evaluated.errors;
@@ -482,7 +656,18 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     const environment: Record<string, LocalValue> = {};
     for (const [key, value] of Object.entries(state)) environment[key] = value;
+    for (const [key, value] of Object.entries(externalState)) environment[key] = value;
     for (const [key, value] of Object.entries(computationValues)) environment[key] = value;
+    for (const [key, error] of missing) {
+      if (Object.hasOwn(environment, key)) continue;
+      Object.defineProperty(environment, key, {
+        enumerable: true,
+        configurable: true,
+        get() {
+          throw error;
+        },
+      });
+    }
     for (const [key, error] of computationErrors) {
       if (Object.hasOwn(computationValues, key)) continue;
       Object.defineProperty(environment, key, {
@@ -497,12 +682,30 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
 
     const merged: Record<string, LocalValue> = {};
     for (const [key, value] of Object.entries(state)) merged[key] = value;
+    for (const [key, value] of Object.entries(externalState)) merged[key] = value;
     for (const [key, value] of Object.entries(computationValues)) merged[key] = value;
     snapshotState = merged;
   };
 
+  /**
+   * Constraint expressions read the current plain values, plus the values being
+   * written, without touching throwing getters for unavailable externals.
+   */
+  const constraintEnvironment = (overrides: Readonly<Record<string, LocalValue>> = {}): Record<string, LocalValue> => {
+    const env: Record<string, LocalValue> = {};
+    for (const [key, value] of Object.entries(state)) env[key] = value;
+    for (const [key, value] of Object.entries(externalState)) env[key] = value;
+    for (const [key, value] of Object.entries(computationValues)) env[key] = value;
+    for (const [key, value] of Object.entries(overrides)) env[key] = value;
+    return env;
+  };
+
   const publish = (): void => {
     snapshot = { revision, state: freezeState(snapshotState) };
+  };
+
+  const notify = (): void => {
+    for (const listener of listeners) listener();
   };
 
   const commit = (next: Record<string, LocalValue>): void => {
@@ -510,7 +713,45 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     revision += 1;
     refreshComputations();
     publish();
-    for (const listener of listeners) listener();
+    notify();
+  };
+
+  const writeExternals = (values: Readonly<Record<string, LocalValue>>): Diagnostic[] => {
+    ensure();
+    if (values === null || typeof values !== 'object' || Array.isArray(values)) {
+      throw new TypeError('setExternalValues requires an object of external values.');
+    }
+    const diagnostics: Diagnostic[] = [];
+    const normalized: Record<string, LocalValue> = {};
+    const keys = Object.keys(values).sort();
+    for (const key of keys) {
+      if (key === '__proto__') {
+        diagnostics.push(parameterDiagnostic('local.runtime.external', 'External names cannot be "__proto__".'));
+        continue;
+      }
+      const meta = Object.hasOwn(externalMetadata, key) ? externalMetadata[key] : undefined;
+      if (!meta) {
+        const detail = localDiagnosticDetails('local.runtime.external', { name: key });
+        diagnostics.push(parameterDiagnostic('local.runtime.external', diagnosticEnglish(detail), detail));
+        continue;
+      }
+      const result = validateExternalValue(meta.type, values[key]);
+      if (!result.ok) {
+        const detail = localDiagnosticDetails(result.key, { name: key, ...(result.params ?? {}) });
+        diagnostics.push(parameterDiagnostic('local.runtime.external', diagnosticEnglish(detail), detail));
+        continue;
+      }
+      normalized[key] = result.value;
+    }
+    if (diagnostics.length) return diagnostics;
+    const changed = keys.some((key) => !valuesEqual(externalState[key], normalized[key]));
+    if (!changed) return [];
+    for (const [key, value] of Object.entries(normalized)) externalState[key] = value;
+    revision += 1;
+    refreshComputations();
+    publish();
+    notify();
+    return [];
   };
 
   const valueDiagnostic = (binding: LocalBinding, detail: LocalDiagnosticDetails): Diagnostic => {
@@ -527,6 +768,7 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
     const diagnostics: Diagnostic[] = [];
     const normalized: Record<string, LocalValue> = {};
     const keys = Object.keys(values).sort();
+    const env = constraintEnvironment(values);
     for (const key of keys) {
       if (key === '__proto__') {
         diagnostics.push(parameterDiagnostic('local.runtime.parameter', 'Parameter names cannot be "__proto__".'));
@@ -541,7 +783,7 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
         continue;
       }
       const binding = document.bindings[key];
-      const result = validateValue(binding, controls.get(key) ?? [], values[key]);
+      const result = validateValue(binding, controls.get(key) ?? [], values[key], (node, attribute) => readDynamic(node, attribute, env));
       if (!result.ok) {
         diagnostics.push(valueDiagnostic(binding, result.detail));
         continue;
@@ -640,7 +882,12 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       if (!binding) {
         return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
       }
-      const result = validateValue(binding, controls.get(key) ?? [], value);
+      const result = validateValue(
+        binding,
+        controls.get(key) ?? [],
+        value,
+        (target, attribute) => readDynamic(target, attribute, constraintEnvironment({ [key]: value })),
+      );
       if (!result.ok) {
         return [diagnosticFor(document, canonical, 'local.runtime.value', result.detail)];
       }
@@ -668,12 +915,13 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       const entries = Object.entries(values);
       if (!entries.length) return [];
       const next: Record<string, LocalValue> = { ...state };
+      const env = constraintEnvironment(values);
       for (const [slot, value] of entries) {
         const key = slots[slot];
         if (!key || !Object.hasOwn(document.bindings, key)) {
           return [diagnosticFor(document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.unknown-slot', { slot }))];
         }
-        const result = validateValue(document.bindings[key], controls.get(key) ?? [], value);
+        const result = validateValue(document.bindings[key], controls.get(key) ?? [], value, (target, attribute) => readDynamic(target, attribute, env));
         if (!result.ok) {
           return [diagnosticFor(document, canonical, 'local.runtime.value', result.detail)];
         }
@@ -722,6 +970,25 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
         throw new TypeError('setParameters requires an object of parameter values.');
       }
       return writeParameters(values);
+    },
+
+    getExternal(name: string): LocalValue | undefined {
+      ensure();
+      if (!Object.hasOwn(externalMetadata, name) || !Object.hasOwn(externalState, name)) return undefined;
+      return cloneValue(externalState[name]);
+    },
+
+    getExternalValues(): Readonly<Record<string, LocalValue>> {
+      ensure();
+      const values: Record<string, LocalValue> = {};
+      for (const [name, value] of Object.entries(externalState)) {
+        values[name] = Array.isArray(value) ? Object.freeze([...value]) as unknown as LocalValue : value;
+      }
+      return Object.freeze(values);
+    },
+
+    setExternalValues(values: Readonly<Record<string, LocalValue>>): Diagnostic[] {
+      return writeExternals(values);
     },
 
     evaluate(expression: string): LocalValue {
@@ -784,6 +1051,7 @@ export function createLocalRuntime(document: LocalDocument): LocalRuntime {
       listeners.clear();
       expressions.clear();
       computationExpressions.clear();
+      dynamicExpressions.clear();
       tokens.clear();
     },
   };

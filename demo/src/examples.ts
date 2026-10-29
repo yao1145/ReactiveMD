@@ -37,7 +37,7 @@ export interface LocalizedExample {
   source: string;
 }
 
-/** All playground documents use the explicit local-draft-2 syntax. */
+/** All playground documents use the explicit local-draft-3 syntax. */
 export const EXAMPLES: PlaygroundExample[] = [
   {
     id: 'pricing',

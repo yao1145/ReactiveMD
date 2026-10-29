@@ -76,7 +76,7 @@ describe('published migrate command migration', () => {
     const result = run(['migrate', '-'], source);
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout.startsWith(bom)).toBe(true);
-    expect(result.stdout).toContain('<!-- reactive-md: local-draft-2 -->');
+    expect(result.stdout).toContain('<!-- reactive-md: local-draft-3 -->');
     expect(result.stdout).toContain('# Title\r\n\r\nBody text\r\n');
     expect(result.stdout).not.toContain('local-draft-1');
     expect(result.stderr).toBe('');
@@ -85,7 +85,7 @@ describe('published migrate command migration', () => {
   it('stamps the directive for an unversioned document with an explicit --from', () => {
     const result = run(['migrate', '--from', 'local-draft-1', '-'], '# Legacy\r\n');
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain('<!-- reactive-md: local-draft-2 -->');
+    expect(result.stdout).toContain('<!-- reactive-md: local-draft-3 -->');
     expect(result.stdout).toContain('# Legacy\r\n');
   });
 
@@ -97,7 +97,7 @@ describe('published migrate command migration', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toBe('');
     expect(readFileSync(input, 'utf8')).toBe(source);
-    expect(readFileSync(output, 'utf8')).toContain('local-draft-2');
+    expect(readFileSync(output, 'utf8')).toContain('local-draft-3');
 
     const again = run(['migrate', input, '-o', output]);
     expect(again.status).toBe(2);
@@ -112,17 +112,17 @@ describe('published migrate command migration', () => {
 describe('published migrate --check and --json reports', () => {
   it('reports needed changes with exit 1 and current documents with exit 0', () => {
     const old = file('old.reactive.md', '<!-- reactive-md: local-draft-1 -->\n\n# Old\n');
-    const current = file('current.reactive.md', '<!-- reactive-md: local-draft-2 -->\n\n# Current\n');
+    const current = file('current.reactive.md', '<!-- reactive-md: local-draft-3 -->\n\n# Current\n');
     const unversioned = file('unversioned.reactive.md', '# Unversioned\n');
 
     const needs = run(['migrate', '--check', old]);
     expect(needs.status, needs.stderr).toBe(1);
-    expect(needs.stdout).toMatch(/Migration needed: local-draft-1 -> local-draft-2/);
+    expect(needs.stdout).toMatch(/Migration needed: local-draft-1 -> local-draft-3/);
     expect(readFileSync(old, 'utf8')).toContain('local-draft-1');
 
     const upToDate = run(['migrate', '--check', current]);
     expect(upToDate.status).toBe(0);
-    expect(upToDate.stdout).toMatch(/Already current: local-draft-2/);
+    expect(upToDate.stdout).toMatch(/Already current: local-draft-3/);
 
     const implicit = run(['migrate', '--check', unversioned]);
     expect(implicit.status).toBe(1);
@@ -140,7 +140,7 @@ describe('published migrate --check and --json reports', () => {
       ok: expect.any(Boolean),
       needsMigration: true,
       fromVersion: 'local-draft-1',
-      toVersion: 'local-draft-2',
+      toVersion: 'local-draft-3',
     });
     expect(Array.isArray(report.diagnostics)).toBe(true);
     expect(report).not.toHaveProperty('source');
@@ -156,10 +156,10 @@ describe('published migrate --check and --json reports', () => {
       ok: true,
       changed: true,
       fromVersion: 'local-draft-1',
-      toVersion: 'local-draft-2',
+      toVersion: 'local-draft-3',
     });
     expect(Array.isArray(report.edits)).toBe(true);
-    expect(report.source).toContain('<!-- reactive-md: local-draft-2 -->');
+    expect(report.source).toContain('<!-- reactive-md: local-draft-3 -->');
     expect(report.source).toContain('# Json');
   });
 
@@ -171,6 +171,6 @@ describe('published migrate --check and --json reports', () => {
     const report = JSON.parse(result.stdout);
     expect(report.output).toBe(output);
     expect(report).not.toHaveProperty('source');
-    expect(readFileSync(output, 'utf8')).toContain('local-draft-2');
+    expect(readFileSync(output, 'utf8')).toContain('local-draft-3');
   });
 });

@@ -289,7 +289,8 @@ function sorted(values: readonly string[]): string[] {
 describe('component-protocol-1 fixture format', () => {
   it('declares the protocol and syntax revisions exactly', () => {
     expect(suite.protocolVersion).toBe('component-protocol-1');
-    expect(suite.syntaxVersion).toBe(LOCAL_SYNTAX_VERSION);
+    // The protocol-1 fixture is the frozen local-draft-2 baseline.
+    expect(suite.syntaxVersion).toBe('local-draft-2');
   });
 
   it('uses unique ids and only fields allowed by the machine format', () => {

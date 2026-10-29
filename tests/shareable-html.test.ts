@@ -49,7 +49,7 @@ describe('shareable HTML envelope', () => {
       expect(html).toContain('There are 7 people.');
       expect(html).toContain('reactive-md-html/v1');
       expect(html).toContain('content="static"');
-      expect(html).toContain('local-draft-2');
+      expect(html).toContain('local-draft-3');
       expect(html).toContain('reactive-md 0.4.0');
       expect(html).toContain('<title>A &lt;title&gt; &amp; "quotes"</title>');
       expect(html).toContain('default-src &#39;none&#39;');

@@ -5,7 +5,7 @@ function flatten(nodes: LocalNode[]): LocalNode[] {
   return nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
 }
 
-describe('local-draft-2 integrated behavior', () => {
+describe('local-draft-3 integrated behavior', () => {
   it('registers new controls rather than silently displaying their source', () => {
     const result = compileLocal('<multi-select bind="subjects" label="Subjects" max-selected="2">\n<option value="math">Math</option>\n<option value="physics">Physics</option>\n</multi-select>');
     expect(result.ok).toBe(true);

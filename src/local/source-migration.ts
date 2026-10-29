@@ -39,8 +39,11 @@ const NEW_NAMES = new Set([
 ]);
 const NEW_TAGS = new Set([
   'jump', 'anchor', 'text', 'section', 'multi-select', 'range-slider', 'coordinate', 'quiz', 'steps', 'step',
-  'computed', 'const', 'validation', 'data-table', 'column',
+  'computed', 'const', 'validation', 'data-table', 'column', 'external',
 ]);
+/** Tags that were inert in local-draft-2 and activate in local-draft-3. */
+const DRAFT3_TAGS = new Set(['external']);
+const ACCEPTED_SOURCES = new Set(['local-draft-1', 'local-draft-2', LOCAL_SYNTAX_VERSION]);
 const CURRENT_DECLARATION = `<!-- reactive-md: ${LOCAL_SYNTAX_VERSION} -->`;
 
 function versionInfo(parsed: ParsedLocal): LocalSourceVersion {
@@ -100,11 +103,11 @@ function check(source: string, options: LocalUpgradeOptions = {}): { report: Loc
   const add = (code: string, at: SourceRange, params?: Record<string, string>, severity?: 'error' | 'warning') => {
     append(issue(source, code, at, params, severity));
   };
-  if (!validOptions || typeof from !== 'string' || !['local-draft-1', LOCAL_SYNTAX_VERSION].includes(fromVersion)
+  if (!validOptions || typeof from !== 'string' || !ACCEPTED_SOURCES.has(fromVersion)
     || (options.allowSemanticChanges !== undefined && typeof options.allowSemanticChanges !== 'boolean')
     || (options.fromVersion !== undefined && info.declaredVersion !== null && fromVersion !== info.declaredVersion)) {
     add('local.upgrade.from-version', range, {
-      from: fromVersion, detail: 'use local-draft-1 or local-draft-2 and match the source declaration',
+      from: fromVersion, detail: 'use local-draft-1, local-draft-2 or local-draft-3 and match the source declaration',
     });
     return output;
   }
@@ -116,31 +119,34 @@ function check(source: string, options: LocalUpgradeOptions = {}): { report: Loc
     ? source.slice(0, range.start) + source.slice(range.start, range.end).replace(/[^\r\n]/g, ' ') + source.slice(range.end)
     : source;
   const bodyParsed = parsed.versionDeclaration ? parseLocal(body) : parsed;
-  if (fromVersion === 'local-draft-1') {
+  if (fromVersion === 'local-draft-1' || fromVersion === 'local-draft-2') {
+    const newlyActive = fromVersion === 'local-draft-1' ? NEW_TAGS : DRAFT3_TAGS;
     const visit = (nodes: LocalNode[]): void => {
       for (const node of nodes) {
-        if (node.name && NEW_TAGS.has(node.name)) {
+        if (node.name && newlyActive.has(node.name)) {
           add('local.upgrade.tag', node.range, { name: node.name });
           continue;
         }
-        for (const name of ['bind', 'bind-start', 'bind-end', 'bind-x', 'bind-y']) {
-          const binding = node.attrs?.[name];
-          if (binding && NEW_NAMES.has(binding)) add('local.upgrade.reserved-binding', node.range, { name: binding });
-        }
-        if ((node.name === 'input' || node.name === 'textarea')
-          && (node.attrs?.['max-length'] !== undefined || Number(node.attrs?.['min-length'] ?? 0) > 0)) {
-          add('local.upgrade.text-length', node.range, undefined, options.allowSemanticChanges ? 'warning' : 'error');
-        }
-        const expressions = [
-          ...(node.type === 'interpolation' ? [node.value ?? ''] : []),
-          ...Object.values(node.attrs ?? {}).flatMap(value => [...value.matchAll(/\{\{([\s\S]*?)\}\}/g)].map(match => match[1])),
-        ];
-        for (const expression of expressions) {
-          // Strings are literal data, so a string such as "sum([x])" must not
-          // be classified as a newly active operation.
-          const surface = expression.replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, '');
-          if (surface.includes('[') || [...NEW_NAMES].some(name => new RegExp(`\\b${name}\\s*\\(`).test(surface))) {
-            add('local.upgrade.expression', node.range);
+        if (fromVersion === 'local-draft-1') {
+          for (const name of ['bind', 'bind-start', 'bind-end', 'bind-x', 'bind-y']) {
+            const binding = node.attrs?.[name];
+            if (binding && NEW_NAMES.has(binding)) add('local.upgrade.reserved-binding', node.range, { name: binding });
+          }
+          if ((node.name === 'input' || node.name === 'textarea')
+            && (node.attrs?.['max-length'] !== undefined || Number(node.attrs?.['min-length'] ?? 0) > 0)) {
+            add('local.upgrade.text-length', node.range, undefined, options.allowSemanticChanges ? 'warning' : 'error');
+          }
+          const expressions = [
+            ...(node.type === 'interpolation' ? [node.value ?? ''] : []),
+            ...Object.values(node.attrs ?? {}).flatMap(value => [...value.matchAll(/\{\{([\s\S]*?)\}\}/g)].map(match => match[1])),
+          ];
+          for (const expression of expressions) {
+            // Strings are literal data, so a string such as "sum([x])" must not
+            // be classified as a newly active operation.
+            const surface = expression.replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, '');
+            if (surface.includes('[') || [...NEW_NAMES].some(name => new RegExp(`\\b${name}\\s*\\(`).test(surface))) {
+              add('local.upgrade.expression', node.range);
+            }
           }
         }
         if (node.type !== 'fallback' && node.children) visit(node.children);

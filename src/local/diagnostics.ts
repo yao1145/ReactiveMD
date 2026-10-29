@@ -81,12 +81,12 @@ export function localDiagnosticDetails(
 
 export const LOCAL_DIAGNOSTIC_MESSAGES = {
   'local.version.unsupported': { en: 'This reader accepts {supported}; migrate {declared} or use a compatible reader.', zh: '此阅读器支持 {supported}；请迁移 {declared} 或使用兼容的阅读器。' },
-  'local.version.malformed': { en: 'Use <!-- reactive-md: local-draft-2 --> on one line.', zh: '请在单独一行使用 <!-- reactive-md: local-draft-2 -->。' },
+  'local.version.malformed': { en: 'Use <!-- reactive-md: local-draft-3 --> on one line.', zh: '请在单独一行使用 <!-- reactive-md: local-draft-3 -->。' },
   'local.version.duplicate': { en: 'Only one source syntax declaration is allowed.', zh: '源码只能声明一次语法版本。' },
   'local.version.placement': { en: 'The syntax declaration must be on its own line before the theme and document body.', zh: '语法版本声明必须独占一行，位于主题声明和正文之前。' },
   'local.upgrade.from-version': { en: 'Cannot migrate from {from}: {detail}.', zh: '无法从 {from} 迁移：{detail}。' },
   'local.upgrade.reserved-binding': { en: 'Binding {name} becomes reserved in local-draft-2; rename it with a compatible old editor before migration.', zh: '绑定 {name} 在 local-draft-2 中成为保留名；迁移前请用兼容旧版本的编辑器重命名。' },
-  'local.upgrade.tag': { en: 'Tag {name} was inert in local-draft-1 and becomes active in local-draft-2; preserve it as literal code before migration.', zh: '标签 {name} 在 local-draft-1 中不执行，在 local-draft-2 中会激活；迁移前请将其保留为代码原文。' },
+  'local.upgrade.tag': { en: 'Tag {name} was inert in the older revision and becomes active in a newer one; preserve it as literal code before migration.', zh: '标签 {name} 在旧版本中不执行，在较新版本中会激活；迁移前请将其保留为代码原文。' },
   'local.upgrade.text-length': { en: 'Text length constraints change from UTF-16 units to Unicode code points; explicitly accept this semantic change before migration.', zh: '文本长度约束从 UTF-16 单元改为 Unicode 码点计数；迁移前须明确接受这一语义变化。' },
   'local.upgrade.expression': { en: 'This expression uses array syntax or a function introduced in local-draft-2; it is outside automatic draft-1 migration.', zh: '此表达式使用了 local-draft-2 新增的数组语法或函数，不属于 draft-1 自动迁移范围。' },
   'local.upgrade.version-missing': { en: 'The source has no syntax declaration; migration will pin {version}.', zh: '源码尚未声明语法版本；迁移将固定为 {version}。' },
@@ -1191,6 +1191,19 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
   'error.latex-undefined': { en: 'The formula is undefined at this point.', zh: '公式在此点没有有限定义值。' },
   'error.latex-plot-range': { en: 'Plot bounds must be finite and increasing.', zh: '绘图区间必须由有限数值构成，且最小值小于最大值。' },
   'error.latex-plot-samples': { en: 'The sample count must be an integer from 2 to 2000.', zh: '采样点数必须为 2 至 2000 的整数。' },
+  'local.external.placement': { en: '<external> declarations must be standalone tags at the document top level.', zh: '<external> 声明必须独占一行，位于文档顶层。' },
+  'local.external.name': { en: 'External name "{name}" must match [A-Za-z_][A-Za-z0-9_]*.', zh: '外部名称“{name}”必须匹配 [A-Za-z_][A-Za-z0-9_]*。' },
+  'local.external.reserved': { en: 'External name "{name}" is reserved; choose another name.', zh: '外部名称“{name}”为保留名称，请更换。' },
+  'local.external.duplicate': { en: 'External name "{name}" is declared more than once.', zh: '外部名称“{name}”被重复声明。' },
+  'local.external.conflict': { en: 'External name "{name}" conflicts with a control parameter of the same name.', zh: '外部名称“{name}”与同名控件参数冲突。' },
+  'local.external.type': { en: 'External "{name}" must declare type string, number, boolean, string-array or number-array.', zh: '外部声明“{name}”必须声明 string、number、boolean、string-array 或 number-array 类型。' },
+  'local.host.structure.leaf': { en: 'Host component <{component}> is a leaf and cannot have body content.', zh: '宿主组件 <{component}> 是叶子组件，不能包含正文内容。' },
+  'local.runtime.external': { en: 'External value {name} cannot be written.', zh: '无法写入外部数据 {name}。' },
+  'local.runtime.external-value': { en: 'External value {name} must be {kind}.', zh: '外部数据 {name} 必须是 {kind} 类型。' },
+  'local.runtime.external-budget': { en: 'External value {name} exceeds a resource limit.', zh: '外部数据 {name} 超过资源限制。' },
+  'local.runtime.value.constraint': { en: 'Dynamic {attribute} constraint failed for parameter {name}.', zh: '参数 {name} 的动态 {attribute} 约束无法计算。' },
+  'local.runtime.value.constraint-range': { en: 'Dynamic constraints for parameter {name} produce an invalid range.', zh: '参数 {name} 的动态约束产生无效范围。' },
+  'local.runtime.value.constraint-date': { en: 'Dynamic {attribute} date bound for parameter {name} is not a valid YYYY-MM-DD value.', zh: '参数 {name} 的动态 {attribute} 日期边界不是合法的 YYYY-MM-DD。' },
 } as const satisfies Record<string, { en: string; zh: string }>;
 
 export type LocalDiagnosticMessageKey = keyof typeof LOCAL_DIAGNOSTIC_MESSAGES;
@@ -1239,6 +1252,13 @@ const LOCAL_COMPILER_CODES = [
   'local.computation.placement',
   'local.computation.reserved',
   'local.computation.unknown',
+  'local.external.placement',
+  'local.external.name',
+  'local.external.reserved',
+  'local.external.duplicate',
+  'local.external.conflict',
+  'local.external.type',
+  'local.host.structure',
   'local.computation.value',
   'local.data-table.column',
   'local.data-table.key',
@@ -1318,7 +1338,7 @@ const LOCAL_COMPILER_CODES = [
   'local.html.capability',
 ] as const;
 
-const LOCAL_RUNTIME_CODES = ['local.runtime.binding', 'local.runtime.value'] as const;
+const LOCAL_RUNTIME_CODES = ['local.runtime.binding', 'local.runtime.value', 'local.runtime.external'] as const;
 
 const LOCAL_THEME_CODES = [
   'local.theme.name',

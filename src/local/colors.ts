@@ -1,5 +1,5 @@
 /**
- * Author-facing color validation for `local-draft-2`.
+ * Author-facing color validation for `local-draft-3`.
  *
  * Only a bounded whitelist of standard CSS named colors and three/six digit
  * hexadecimal colors are accepted. The compiler rejects everything else and

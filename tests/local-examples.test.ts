@@ -52,7 +52,7 @@ const expectedInitialState: Record<string, Record<string, LocalValue>> = {
   },
 };
 
-describe('local-draft-2 examples', () => {
+describe('local-draft-3 examples', () => {
   it('contains twelve runnable examples and one intentional diagnostic document', () => {
     expect(Object.keys(documents)).toHaveLength(13);
     expect(normalIds.every((id) => documents[id])).toBe(true);

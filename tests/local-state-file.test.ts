@@ -306,7 +306,7 @@ describe('local state file validation', () => {
 
   it('rejects prototype pollution, oversized payloads, malformed JSON and malformed UTF', () => {
     const polluted = [
-      '{"format":"reactive-md-state/v1","syntax":"local-draft-2",',
+      '{"format":"reactive-md-state/v1","syntax":"local-draft-3",',
       '"sourceDigest":"fnv1a32:00000000",',
       '"parameters":{"__proto__":{"polluted":true}}}',
     ].join('');
@@ -320,7 +320,7 @@ describe('local state file validation', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
 
     const nested = [
-      '{"format":"reactive-md-state/v1","syntax":"local-draft-2",',
+      '{"format":"reactive-md-state/v1","syntax":"local-draft-3",',
       '"sourceDigest":"fnv1a32:00000000",',
       '"parameters":{"constructor":{"prototype":{"polluted":true}}}}',
     ].join('');

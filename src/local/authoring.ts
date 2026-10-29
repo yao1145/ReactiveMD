@@ -441,7 +441,18 @@ function authoringProps(name: string, options?: LocalCompileOptions): Readonly<R
   const builtin = getLocalComponent(name);
   if (builtin) return builtin.props;
   const host = options?.hostComponents?.find(component => component.name === name);
-  return host ? Object.fromEntries(Object.entries(host.props).map(([key, prop]) => [key, { ...prop, values: prop.enum }])) : undefined;
+  if (!host) return undefined;
+  const props: Record<string, LocalPropSchema> = Object.fromEntries(
+    Object.entries(host.props).map(([key, prop]) => [key, { ...prop, values: prop.enum }]),
+  );
+  // A host binding owns these attributes implicitly; expose them for
+  // completion and so interpolation handling matches the compiler.
+  if (host.binding) {
+    props.bind = { kind: 'string', static: true };
+    props.initial = { kind: host.binding.kind, static: true };
+    props.disabled = { kind: 'boolean', dynamic: true };
+  }
+  return props;
 }
 
 function buildAnalysisData(source: string, nodes: LocalNode[], options?: LocalCompileOptions): AnalysisData {
@@ -465,15 +476,17 @@ function buildAnalysisData(source: string, nodes: LocalNode[], options?: LocalCo
     if (!tag || tag.closing) return;
     tokens.push({ kind: 'tag', range: sortedRange(tag.nameRange) });
     const component = getLocalComponent(node.name ?? '');
+    const host = component ? undefined : options?.hostComponents?.find(entry => entry.name === node.name);
     const hasKey = tag.attrs.some((attribute) => attribute.name === 'key');
     for (const attribute of tag.attrs) {
       tokens.push({ kind: 'attribute', range: sortedRange(attribute.nameRange) });
       if (!attribute.valueRange) continue;
       const prop = authoringProps(node.name ?? '', options)?.[attribute.name];
-      const bindAttribute = component !== undefined
+      const bindAttribute = (component !== undefined
         && isBindAttribute(component, attribute.name)
-        && !((node.name === 'table' || node.name === 'chart') && !hasKey);
-      const namedValue = (node.name === 'computed' || node.name === 'const') && attribute.name === 'name';
+        && !((node.name === 'table' || node.name === 'chart') && !hasKey))
+        || (host?.binding !== undefined && attribute.name === 'bind');
+      const namedValue = (node.name === 'computed' || node.name === 'const' || node.name === 'external') && attribute.name === 'name';
       const rawValue = source.slice(attribute.valueRange.start, attribute.valueRange.end);
       const decoded = decodedAttribute(source, attribute.valueRange);
       if (node.name === 'validation' && attribute.name === 'fields') {
