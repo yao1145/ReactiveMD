@@ -33,6 +33,19 @@ describe('LocalReactiveDocument state bridge', () => {
     );
     expect(html).toContain('local-interpolation">72');
   });
+
+  it('isolates a missing external to the expressions that read it', () => {
+    const source = [
+      '<external name="rate" type="number">',
+      '<computed name="price" value="{{ usd * rate }}">',
+      '<number bind="usd" label="USD" initial="10">',
+      'USD: {{ usd }}; price: {{ price }}',
+    ].join('\n');
+    const html = renderToStaticMarkup(<LocalReactiveDocument source={source} mode="static" />);
+    expect(html).toContain('USD: ');
+    expect(html).toContain('local-error');
+    expect(html).not.toContain('price: 0');
+  });
 });
 
 describe('preview to source navigation', () => {
