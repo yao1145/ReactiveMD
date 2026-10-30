@@ -494,7 +494,9 @@ Adding only a `schema.ts` entry does not automatically provide parsing, validati
 
 ### CP-CORE-05 Extension interface boundary (boundary)
 
-This revision has no runtime-loadable component implementation, `registerComponent` API, global registrar or author plugin entry point. `LOCAL_COMPONENTS` is an internal frozen table. The `hostComponents` option (section 14) accepts plain schema data for a single compile; component implementations stay in host code and are never loaded from document content. A future SDK that provides a general registration interface needs a new protocol revision that defines the trust model, version negotiation, budgets and acceptance methods.
+This revision describes built-in components and the legacy host interface in section 14. `LOCAL_COMPONENTS` remains an internal frozen table. `hostComponents` accepts plain schema data for one compilation, with implementations supplied by the host.
+
+The source tree's [extension SDK preview](../integration/extension-sdk-en.md) uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, authoring catalogs and a minimal offline export path. It ships with a later release; existing registry copies of `0.6.1` retain their original interfaces. SDK configuration and conformance tools define its version checks, budgets and acceptance. Built-in migration to the public SDK is the next phase. Hosts explicitly install component code; document declarations never load it, and instance configuration creates no global registrar.
 
 ## 10. Compatibility, name governance, revisions and migration
 

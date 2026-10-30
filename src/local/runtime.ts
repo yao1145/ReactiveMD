@@ -665,7 +665,15 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     if (!meta) return { present: false };
     const compiled = compileMetadataExpression(meta.source, metadataExpressions);
     if (!compiled.expression) return { present: true, ok: false };
-    try { return { present: true, ok: true, value: compiled.expression.evaluate(env) }; }
+    try {
+      const value = compiled.expression.evaluate(env);
+      const numeric = meta.numeric;
+      if (numeric && (typeof value !== 'number' || !Number.isFinite(value)
+        || (numeric.integer === true && !Number.isInteger(value))
+        || (numeric.min !== undefined && value < numeric.min)
+        || (numeric.max !== undefined && value > numeric.max))) return { present: true, ok: false };
+      return { present: true, ok: true, value };
+    }
     catch { return { present: true, ok: false }; }
   };
 

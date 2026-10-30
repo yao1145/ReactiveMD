@@ -42,6 +42,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | Topic | English |
 | --- | --- |
 | Local mode integration | [English](integration/local-integration-en.md) |
+| Extension SDK preview | [English](integration/extension-sdk-en.md) |
 | React source editor | [English](integration/editor-en.md) |
 | Author tools | [English](integration/author-tools-en.md) |
 | Sharing and static export | [English](integration/shareable-export-en.md) |

@@ -9,6 +9,11 @@ import {
 } from './limits';
 import { LOCAL_COMPONENT_NAMES } from './schema';
 import { LOCAL_HTML_NAMES } from './html-names';
+import { localConfigKey, readLocalConfig } from '../sdk/config';
+import { MAX_LOCAL_SDK_PATTERN_LENGTH } from '../sdk/manifest';
+import { isSafeLocalPattern } from '../sdk/pattern';
+import { localComponentHostBinding } from '../sdk/props';
+import type { LocalComponentDefinition, LocalComponentProp, LocalConfig } from '../sdk/types';
 import type {
   LocalCompileOptions,
   LocalHostBindingSchema,
@@ -43,6 +48,13 @@ export type LocalOptionCheck =
       hostComponents: readonly LocalHostComponentSchema[];
       /** Host tag name lookup; names are already lowercase kebab-case. */
       hostByName: ReadonlyMap<string, LocalHostComponentSchema>;
+      /** Validated instance configuration, when one was supplied. */
+      config?: LocalConfig;
+      /**
+       * SDK manifests by tag name, retained for typed prop defaults, ranges
+       * and binding constraints that the host schema cannot express.
+       */
+      sdkByName: ReadonlyMap<string, LocalComponentDefinition>;
     }
   | { ok: false; message: string; key: string; detail?: string };
 
@@ -98,85 +110,9 @@ type HostComponentCheck =
 
 /**
  * Reject regex constructs that can backtrack super-linearly on document-
- * controlled input. The accepted subset has no backreferences, lookarounds or
- * named groups, and never applies a quantifier to a group that contains a
- * quantifier or alternation.
+ * controlled input. The accepted subset lives in the shared SDK helper so
+ * manifests and host schemas use exactly the same rules.
  */
-function hostPatternQuantifier(source: string, index: number): { length: number } | null {
-  const char = source[index];
-  if (char === '*' || char === '+' || char === '?') {
-    return { length: source[index + 1] === '?' ? 2 : 1 };
-  }
-  if (char !== '{') return null;
-  const match = /^\{(\d+)(?:,(\d*))?\}/.exec(source.slice(index));
-  if (!match) return null;
-  return { length: match[0].length + (source[index + match[0].length] === '?' ? 1 : 0) };
-}
-
-function isSafeHostPattern(source: string): boolean {
-  const groups: { quantified: boolean; alternation: boolean }[] = [];
-  let escaped = false;
-  let inClass = false;
-  for (let index = 0; index < source.length; index += 1) {
-    const char = source[index];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (char === '\\') {
-      const next = source[index + 1];
-      if (next !== undefined && next >= '1' && next <= '9') return false;
-      if (next === 'k' && source[index + 2] === '<') return false;
-      escaped = true;
-      continue;
-    }
-    if (inClass) {
-      if (char === ']') inClass = false;
-      continue;
-    }
-    if (char === '[') {
-      inClass = true;
-      continue;
-    }
-    if (char === '(') {
-      // Non-capturing groups stay in the subset; lookarounds, named groups
-      // and atomic groups do not.
-      if (source[index + 1] === '?') {
-        if (source[index + 2] !== ':') return false;
-        groups.push({ quantified: false, alternation: false });
-        index += 2;
-        continue;
-      }
-      groups.push({ quantified: false, alternation: false });
-      continue;
-    }
-    if (char === '|') {
-      const group = groups[groups.length - 1];
-      if (group) group.alternation = true;
-      continue;
-    }
-    if (char === ')') {
-      const group = groups.pop();
-      if (!group) return false;
-      const quantifier = hostPatternQuantifier(source, index + 1);
-      if (quantifier && (group.quantified || group.alternation)) return false;
-      const parent = groups[groups.length - 1];
-      if (parent) {
-        parent.quantified = parent.quantified || group.quantified || quantifier !== null;
-        parent.alternation = parent.alternation || group.alternation;
-      }
-      if (quantifier) index += quantifier.length;
-      continue;
-    }
-    const quantifier = hostPatternQuantifier(source, index);
-    if (quantifier) {
-      const group = groups[groups.length - 1];
-      if (group) group.quantified = true;
-      index += quantifier.length - 1;
-    }
-  }
-  return groups.length === 0 && !escaped && !inClass;
-}
 
 function invalidHost(detail: string): { ok: false; message: string; key: string; detail: string } {
   return {
@@ -420,7 +356,7 @@ function readLocalHostComponents(value: unknown): HostComponentCheck {
         } catch {
           return invalidHost(`${lead} property "${propName}" "pattern" is not a valid regular expression.`);
         }
-        if (!isSafeHostPattern(pattern)) {
+        if (!isSafeLocalPattern(pattern)) {
           return invalidHost(
             `${lead} property "${propName}" "pattern" uses unsupported regex syntax; nested quantifiers, quantified alternation, backreferences and lookarounds are rejected.`,
           );
@@ -441,6 +377,74 @@ function readLocalHostComponents(value: unknown): HostComponentCheck {
   return { ok: true, hostComponents, hostByName };
 }
 
+/** Escape one literal for embedding in a linear-time-safe alternation. */
+function escapeSdkEnumValue(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Lower one SDK prop to the internal host schema shape. */
+function lowerSdkProp(prop: LocalComponentProp): LocalHostPropSchema {
+  const isStatic = prop.static === true || prop.dynamic === false;
+  if (prop.kind === 'enum') {
+    // Representing the enum as a string pattern keeps typed interpolation
+    // available; the runtime still checks the declared value set.
+    const pattern = `^(?:${(prop.enum ?? []).map(escapeSdkEnumValue).join('|')})$`;
+    if (pattern.length <= MAX_LOCAL_SDK_PATTERN_LENGTH) {
+      return {
+        kind: 'string',
+        ...(prop.required === true ? { required: true } : {}),
+        ...(isStatic ? { static: true } : {}),
+        pattern,
+      };
+    }
+  }
+  const lowered: {
+    kind: LocalHostPropKind;
+    required?: boolean;
+    static?: boolean;
+    enum?: readonly string[];
+    pattern?: string;
+  } = { kind: prop.kind };
+  if (prop.required === true && prop.default === undefined) lowered.required = true;
+  // `dynamic: false` means the same as `static` for interpolation purposes.
+  if (isStatic) lowered.static = true;
+  if (prop.enum) lowered.enum = [...prop.enum];
+  if (prop.pattern !== undefined) lowered.pattern = prop.pattern;
+  return lowered;
+}
+
+interface LoweredConfigComponents {
+  hostComponents: readonly LocalHostComponentSchema[];
+  hostByName: ReadonlyMap<string, LocalHostComponentSchema>;
+  sdkByName: ReadonlyMap<string, LocalComponentDefinition>;
+}
+
+/**
+ * Adapt external SDK manifests to the parser/compiler registry built for host
+ * components. The original manifest is retained separately so compile-time
+ * checks can still see typed widths, defaults and binding constraints.
+ */
+function lowerConfigComponents(config: LocalConfig): LoweredConfigComponents {
+  const hostComponents: LocalHostComponentSchema[] = [];
+  const hostByName = new Map<string, LocalHostComponentSchema>();
+  const sdkByName = new Map<string, LocalComponentDefinition>();
+  for (const definition of config.components) {
+    const props: Record<string, LocalHostPropSchema> = {};
+    for (const name of Object.keys(definition.props)) props[name] = lowerSdkProp(definition.props[name]);
+    const binding = localComponentHostBinding(definition);
+    const schema: LocalHostComponentSchema = {
+      name: definition.name,
+      form: definition.form,
+      props,
+      ...(binding ? { binding } : {}),
+    };
+    hostComponents.push(schema);
+    hostByName.set(definition.name, schema);
+    sdkByName.set(definition.name, definition);
+  }
+  return { hostComponents, hostByName, sdkByName };
+}
+
 /**
  * Read and validate host compile options once. Every call site (Markdown
  * parser, HTML compiler, worker and React component) uses the same rules so a
@@ -458,6 +462,7 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
       markdownBreaks: false,
       hostComponents: [],
       hostByName: new Map(),
+      sdkByName: new Map(),
     };
   }
   if (!isRecord(options)) {
@@ -531,8 +536,43 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
     maxMarkdownDepth = markdownDepth.value;
   }
 
-  const hosts = readLocalHostComponents(options.hostComponents);
-  if (!hosts.ok) return hosts;
+  const hasConfig = Object.hasOwn(options, 'config') && options.config !== undefined;
+  const hasHostComponents = Object.hasOwn(options, 'hostComponents') && options.hostComponents !== undefined;
+  if (hasConfig && hasHostComponents) {
+    return {
+      ok: false,
+      message: 'Compile option config cannot be combined with hostComponents.',
+      key: 'local.options.invalid.config-conflict',
+    };
+  }
+
+  let config: LocalConfig | undefined;
+  let hostComponents: readonly LocalHostComponentSchema[];
+  let hostByName: ReadonlyMap<string, LocalHostComponentSchema>;
+  let sdkByName: ReadonlyMap<string, LocalComponentDefinition>;
+  if (hasConfig) {
+    try {
+      config = readLocalConfig(options.config);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return {
+        ok: false,
+        message: `Compile option config is invalid: ${detail}`,
+        key: 'local.options.invalid.config',
+        detail,
+      };
+    }
+    const lowered = lowerConfigComponents(config);
+    hostComponents = lowered.hostComponents;
+    hostByName = lowered.hostByName;
+    sdkByName = lowered.sdkByName;
+  } else {
+    const hosts = readLocalHostComponents(options.hostComponents);
+    if (!hosts.ok) return hosts;
+    hostComponents = hosts.hostComponents;
+    hostByName = hosts.hostByName;
+    sdkByName = new Map();
+  }
 
   return {
     ok: true,
@@ -542,8 +582,10 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
     html,
     htmlActive: html.enableCss || html.enableJavaScript || html.enableExtendedHtml,
     markdownBreaks,
-    hostComponents: hosts.hostComponents,
-    hostByName: hosts.hostByName,
+    hostComponents,
+    hostByName,
+    ...(config ? { config } : {}),
+    sdkByName,
   };
 }
 
@@ -701,5 +743,10 @@ export function localCompileOptionsKey(options?: LocalCompileOptions): string {
       : options.markdownBreaks === false
         ? '0'
         : '!';
-  return `${flags}:${limitsKey}:${breaks}${hostSignature}`;
+  let configKey = '';
+  if (Object.hasOwn(options, 'config') && options.config !== undefined) {
+    // Recompute from contents; a supplied key or digest is never trusted.
+    configKey = `:config=${localConfigKey(options.config)}`;
+  }
+  return `${flags}:${limitsKey}:${breaks}${hostSignature}${configKey}`;
 }

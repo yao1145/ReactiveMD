@@ -2,6 +2,9 @@ import { defaultTreeAdapter, parseFragment, serializeOuter } from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './local/html';
 import { readLocalCompileOptions } from './local/options';
+import { portableCompileOptions } from './local/portable-options';
+import type { LocalExtensionRequirements } from './sdk/types';
+import { validateLocalExtensionRequirements } from './export/requirements';
 import {
   localSourceDigest,
   resolveLocalState,
@@ -26,6 +29,8 @@ export interface ShareableMountPayload {
   hydrate: boolean;
   /** Capability flags and limits the document was compiled with. */
   compileOptions?: LocalCompileOptions;
+  /** Installed component contracts required before applying saved state. */
+  extensions?: LocalExtensionRequirements;
   /** Verified relative image URL -> inline raster data URL. */
   images?: Readonly<Record<string, string>>;
 }
@@ -58,6 +63,8 @@ export interface ShareableHtmlOptions {
    * re-sanitized with author JavaScript forced off.
    */
   compileOptions?: LocalCompileOptions;
+  /** Companion component requirements, separate from the v1 state format. */
+  extensions?: LocalExtensionRequirements;
 }
 
 export interface LocalStateBaselineResult {
@@ -132,27 +139,10 @@ function cloneValue(value: LocalValue): LocalValue {
  * and budgets. Unknown or inherited keys never reach the exported payload.
  */
 function normalizeCompileOptions(input: LocalCompileOptions | undefined): LocalCompileOptions | undefined {
-  if (input === undefined) return undefined;
-  const check = readLocalCompileOptions(input);
-  if (!check.ok) {
-    throw new TypeError(`createShareableHtml received invalid compileOptions: ${check.message}`);
+  try { return portableCompileOptions(input); }
+  catch (error) {
+    throw new TypeError(`createShareableHtml received invalid compileOptions: ${error instanceof Error ? error.message : String(error)}`);
   }
-  const normalized: LocalCompileOptions = {
-    enableCss: check.html.enableCss,
-    enableJavaScript: check.html.enableJavaScript,
-    enableExtendedHtml: check.html.enableExtendedHtml,
-    ...(Object.hasOwn(input, 'markdownBreaks') && input.markdownBreaks !== undefined
-      ? { markdownBreaks: check.markdownBreaks } : {}),
-  };
-  if (input.limits !== undefined) {
-    const limits={
-      ...(input.limits.maxSyntaxNodes===undefined?{}:{maxSyntaxNodes:check.maxSyntaxNodes}),
-      ...(input.limits.maxParseWork===undefined?{}:{maxParseWork:check.maxParseWork}),
-      ...(input.limits.maxMarkdownDepth===undefined?{}:{maxMarkdownDepth:check.maxMarkdownDepth}),
-    };
-    if(Object.keys(limits).length)return {...normalized,limits};
-  }
-  return normalized;
 }
 
 /** Remove author/host scripts from the trusted static wrapper markup. */
@@ -339,6 +329,8 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
   }
 
   const compileOptions = normalizeCompileOptions(options.compileOptions);
+  const extensionErrors = validateLocalExtensionRequirements(options.extensions, compileOptions?.config);
+  if (extensionErrors.length) throw new TypeError(extensionErrors.map(item => item.message).join(' '));
   const optionCheck = readLocalCompileOptions(compileOptions);
   if (!optionCheck.ok) {
     // normalizeCompileOptions already validated the same payload.
@@ -391,6 +383,7 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
     colorScheme,
     hydrate: true,
     ...(compileOptions === undefined ? {} : { compileOptions }),
+    ...(options.extensions === undefined ? {} : { extensions: options.extensions }),
     ...(images ? { images } : {}),
   };
 
@@ -402,6 +395,9 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
     : '';
   const notices = options.notices?.trim()
     ? `<template id="reactive-md-notices"><pre>${escapeHtml(options.notices)}</pre></template>`
+    : '';
+  const extensionMetadata = !interactive && options.extensions
+    ? `<template id="reactive-md-extensions">${escapeHtml(JSON.stringify(options.extensions))}</template>`
     : '';
 
   return `<!doctype html>
@@ -424,6 +420,7 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
 <body class="reactive-md-export">
 <div id="${targetId}" class="reactive-md-export-root">${staticMarkup}</div>
 ${payloadScript}
+${extensionMetadata}
 ${notices}
 </body>
 </html>

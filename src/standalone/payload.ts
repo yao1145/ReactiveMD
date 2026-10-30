@@ -1,5 +1,7 @@
 import type { LocalStateFile } from '../local/state';
 import { readLocalCompileOptions } from '../local/options';
+import { portableCompileOptions } from '../local/portable-options';
+import { validateLocalExtensionRequirements } from '../export/requirements';
 import type { Diagnostic, LocalCompileOptions } from '../local/types';
 import type { ShareableMountPayload } from '../shareable';
 import { errorText, standaloneDiagnostic } from './diagnostics';
@@ -70,30 +72,7 @@ function parseCompileOptions(
     fail('standalone.payload.compile-options', `The payload compile options are invalid: ${check.message}`);
     return undefined;
   }
-  const normalized: {
-    enableCss: boolean;
-    enableJavaScript: boolean;
-    enableExtendedHtml: boolean;
-    markdownBreaks?: boolean;
-    limits?: { maxSyntaxNodes?: number;maxParseWork?:number;maxMarkdownDepth?:number };
-  } = {
-    enableCss: check.html.enableCss,
-    enableJavaScript: check.html.enableJavaScript,
-    enableExtendedHtml: check.html.enableExtendedHtml,
-  };
-  if (Object.hasOwn(value as object, 'markdownBreaks') && (value as LocalCompileOptions).markdownBreaks !== undefined) {
-    normalized.markdownBreaks = check.markdownBreaks;
-  }
-  const limits = (value as { limits?: unknown }).limits;
-  if (isPlainRecord(limits)) {
-    const values={
-      ...(limits.maxSyntaxNodes===undefined?{}:{maxSyntaxNodes:check.maxSyntaxNodes}),
-      ...(limits.maxParseWork===undefined?{}:{maxParseWork:check.maxParseWork}),
-      ...(limits.maxMarkdownDepth===undefined?{}:{maxMarkdownDepth:check.maxMarkdownDepth}),
-    };
-    if(Object.keys(values).length)normalized.limits=values;
-  }
-  return normalized;
+  return portableCompileOptions(value as LocalCompileOptions);
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -156,6 +135,7 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
     fail('standalone.payload.state', 'The payload state must be a JSON object.');
   }
   const compileOptions = parseCompileOptions(value.compileOptions, fail);
+  diagnostics.push(...validateLocalExtensionRequirements(value.extensions, compileOptions?.config));
   const images = parseImages(value.images, fail);
 
   if (diagnostics.length > 0) return { ok: false, diagnostics };
@@ -170,6 +150,7 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
     colorScheme: colorScheme as 'light' | 'dark' | 'auto',
     hydrate: hydrate as boolean,
     ...(compileOptions === undefined ? {} : { compileOptions }),
+    ...(value.extensions === undefined ? {} : { extensions: value.extensions as ShareableMountPayload['extensions'] }),
     ...(images && Object.keys(images).length > 0 ? { images } : {}),
   };
   return { ok: true, payload };

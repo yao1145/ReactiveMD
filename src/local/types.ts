@@ -1,3 +1,5 @@
+import type { LocalConfig, LocalExtensionRequirements } from '../sdk/types';
+
 export interface SourceRange { start: number; end: number }
 /** A source-level syntax declaration; offsets use original UTF-16 units. */
 export interface LocalVersionDeclaration { version: string; range: SourceRange }
@@ -120,6 +122,8 @@ export interface LocalDynamicConstraint {
   source: string;
   /** Absolute offset of the expression in the document source. */
   offset: number;
+  /** Optional schema of the numeric prop supplying this binding bound. */
+  numeric?: { min?: number; max?: number; integer?: boolean };
 }
 /** Dynamic constraints declared by one control, keyed by attribute name. */
 export interface LocalDynamicConstraints {
@@ -204,6 +208,12 @@ export interface LocalDocument {
   tableShapes?: Readonly<
     Record<string, { readonly header: readonly string[]; readonly rowIds: readonly (readonly string[])[] }>
   >;
+  /**
+   * External SDK components actually used by this document. Present only when
+   * an instance configuration contributed at least one used component; the
+   * list describes requirements and never carries executable code.
+   */
+  extensions?: LocalExtensionRequirements;
 }
 /** Host-owned budgets for a single compilation. */
 export interface LocalCompileLimits {
@@ -299,6 +309,12 @@ export interface LocalCompileOptions extends LocalHtmlOptions {
   readonly markdownBreaks?: boolean;
   /** Host-defined leaf components recognized alongside the built-in schema. */
   readonly hostComponents?: readonly LocalHostComponentSchema[];
+  /**
+   * Instance-level SDK configuration. Cannot be combined with
+   * `hostComponents`; external manifests are lowered to the same internal
+   * registry shape, while their typed defaults and constraints stay enforced.
+   */
+  readonly config?: LocalConfig;
 }
 /** Public compiler output is plain data, including nested attributes and dependencies. */
 export type LocalCompileResult = { ok: true; document: LocalDocument; diagnostics: Diagnostic[] } | { ok: false; diagnostics: Diagnostic[] };

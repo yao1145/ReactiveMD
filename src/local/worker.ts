@@ -10,6 +10,7 @@ import {
 } from './compile-patch';
 import { MAX_LOCAL_HOST_COMPONENTS, MAX_LOCAL_HOST_ENUM_VALUES } from './limits';
 import { LOCAL_HTML_FLAGS, localCompileOptionsKey } from './options';
+import { snapshotLocalConfig } from '../sdk/config';
 import type { Diagnostic, LocalCompileOptions, LocalCompileResult } from './types';
 import { analyzeLocalSource, type AuthorAnalysis } from './authoring';
 import {decodeFlatCompiledData,encodeFlatCompiledData,needsFlatCompileResult,FLAT_COMPILED_DATA_PROTOCOL,type FlatCompiledData} from './flat-compiled-data';
@@ -345,6 +346,12 @@ function snapshotCompileOptions(options: LocalCompileOptions | undefined): Local
     }
     if (Object.hasOwn(source, 'hostComponents')) {
       copy.hostComponents = snapshotHostComponents(source.hostComponents);
+    }
+    if (Object.hasOwn(source, 'config')) {
+      // Revalidate into fresh frozen JSON so a caller mutating its config after
+      // `schedule` cannot widen an in-flight compile. Invalid payloads pass
+      // through for the compiler to report.
+      copy.config = snapshotLocalConfig(source.config);
     }
     return copy as unknown as LocalCompileOptions;
   } catch {

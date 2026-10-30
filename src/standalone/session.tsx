@@ -18,6 +18,10 @@ import { REACTIVE_MD_DIAGNOSTICS_EVENT } from './events';
 import { parseMountPayload } from './payload';
 import { prepareStandaloneDocument } from './prepare';
 import { REACTIVE_MD_STANDALONE_GENERATOR } from './version';
+import type { LocalReactConfig } from '../react/sdk';
+import type { LocalExtensionRequirements } from '../sdk/types';
+import { readLocalConfig } from '../sdk/config';
+import { validateLocalExtensionRequirements } from '../export/requirements';
 
 export interface ReactiveMDMountOptions {
   source: string;
@@ -38,6 +42,10 @@ export interface ReactiveMDMountOptions {
    * payload values enable the native HTML route; source text and state never do.
    */
   compileOptions?: LocalCompileOptions;
+  /** Trusted implementations explicitly installed by the standalone host. */
+  reactConfig?: LocalReactConfig;
+  /** Companion contracts checked before state restoration. */
+  extensions?: LocalExtensionRequirements;
 }
 
 export interface ReactiveMDHandle {
@@ -165,12 +173,26 @@ export function createStandaloneMount(
     );
   }
 
+  let compileOptions = options.compileOptions;
+  if (options.reactConfig) {
+    if (compileOptions?.hostComponents !== undefined || options.themes !== undefined) {
+      throw new ReactiveMDMountError('Conflicting extension registration.', [standaloneDiagnostic('local.extension.config', 'reactConfig cannot be combined with hostComponents or themes.')]);
+    }
+    if (compileOptions?.config && readLocalConfig(compileOptions.config).key !== options.reactConfig.config.key) {
+      throw new ReactiveMDMountError('The export configuration differs from the installed bundle.', [standaloneDiagnostic('local.extension.config', 'Compile configuration does not match installed implementations.')]);
+    }
+    compileOptions = { ...compileOptions, config: options.reactConfig.config };
+  }
+  const requirementErrors = validateLocalExtensionRequirements(options.extensions, options.reactConfig?.config);
+  if (requirementErrors.length) throw new ReactiveMDMountError('Extension requirements are not satisfied.', requirementErrors);
   const prepared = prepareStandaloneDocument(
     options.source,
     options.state,
     hooks.theme,
-    options.compileOptions,
+    compileOptions,
   );
+  const compiledRequirements = validateLocalExtensionRequirements(prepared.document.extensions, options.reactConfig?.config);
+  if (compiledRequirements.length) throw new ReactiveMDMountError('Installed extension implementations are required.', compiledRequirements);
 
   let runtime: LocalRuntime;
   try {
@@ -219,6 +241,7 @@ export function createStandaloneMount(
       urlPolicy={urlPolicy}
       locale={options.locale ?? 'en'}
       themes={options.themes}
+      reactConfig={options.reactConfig}
       colorScheme={options.colorScheme ?? 'auto'}
       mode="interactive"
       staticFirst={hydrating}
@@ -340,7 +363,7 @@ function isHtmlElement(target: Element, doc: Document): target is HTMLElement {
  * Targets are resolved by id only, state is validated by `mount`, and failures
  * are isolated per payload. No MutationObserver is installed.
  */
-export function mountAll(root?: ParentNode): ReactiveMDHandle[] {
+export function mountAll(root?: ParentNode, host: Pick<ReactiveMDMountOptions, 'reactConfig'> = {}): ReactiveMDHandle[] {
   if (typeof document === 'undefined') return [];
   const scope = root ?? document;
   const scopeNode = scope as Node;
@@ -410,6 +433,8 @@ export function mountAll(root?: ParentNode): ReactiveMDHandle[] {
         hydrate: payload.hydrate,
         images: payload.images,
         compileOptions: payload.compileOptions,
+        extensions: payload.extensions,
+        reactConfig: host.reactConfig,
       }));
     } catch (error) {
       reportAutoDiagnostics(doc, target, diagnosticsFromError(error));

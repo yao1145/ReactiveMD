@@ -28,6 +28,21 @@ export type {
 } from '../local/authoring';
 
 export {
+  createLocalAuthoringLookup,
+  createLocalComponentCatalog,
+  insertLocalComponent,
+} from './extensions';
+export { validateLocalComponentInsertTemplates } from './conformance';
+export type {
+  LocalAttributeAuthoring,
+  LocalAuthoringLookup,
+  LocalComponentCatalogEntry,
+  LocalComponentCatalogProp,
+  LocalTagAuthoring,
+} from './extensions';
+export type { LocalInsertTemplateIssue } from './conformance';
+
+export {
   LOCAL_COMPONENT_NAMES,
   LOCAL_COMPONENTS,
   closestName,

@@ -493,7 +493,9 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-CORE-05 扩展接口边界（边界）
 
-当前修订没有运行时可装载的组块实现、`registerComponent` API、全局注册器或作者插件入口。`LOCAL_COMPONENTS` 是内部冻结表。`hostComponents` 选项（第 14 节）只为单次编译接受纯 schema 数据；组块实现留在宿主代码中，绝不从文档内容装载。未来 SDK 若提供通用注册接口，需要新的协议修订，并明确信任模型、版本协商、预算和验收方式。
+本修订描述内置组件和第 14 节的旧宿主接口。`LOCAL_COMPONENTS` 继续是内部冻结表；`hostComponents` 为单次编译接受纯 schema 数据，组件实现由宿主提供。
+
+源码新增的[扩展 SDK 预览](../integration/extension-sdk-ch.md)使用独立的 `reactive-md-component/v1` 数据契约和实例级配置，提供注册校验、React 实现绑定、作者目录及最小离线导出。它随后续版本发布；现有 registry 的 `0.6.1` 保持原接口。SDK 的版本、预算和验收通过其配置与合规工具维护，内置组件迁入公开 SDK 属于下一阶段。组件代码仍由宿主主动安装，文档声明不会装载代码；实例配置也不建立全局注册器。
 
 ## 10. 兼容、名称治理、修订和迁移
 

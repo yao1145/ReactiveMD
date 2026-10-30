@@ -64,6 +64,7 @@
     "test": "vitest run --config vitest.config.ts",
     "lint": "node bin/reactive-md.mjs lint",
     "test:components": "vitest run --config vitest.config.ts tests/component-protocol.test.ts tests/conformance.test.ts",
+    "test:sdk-consumer": "node scripts/verify-sdk-consumer.mjs",
     "test:demo": "npm run build:lib && npm run test --workspace=@reactive-md/demo",
     "test:browser": "npm run test:browser --workspace=@reactive-md/demo && npm run build --workspace=@reactive-md/demo && node scripts/verify-codemirror-browser.mjs --skip-performance --demo",
     "test:browser:core": "node scripts/verify-browser-core.mjs",
@@ -96,6 +97,26 @@
     "prepack": "npm run build && npm run notices"
   },
   "exports": {
+    "./sdk": {
+      "types": "./dist-library/types/sdk/index.d.ts",
+      "import": "./dist-library/reactive-md-sdk.js"
+    },
+    "./presets/default": {
+      "types": "./dist-library/types/presets/default.d.ts",
+      "import": "./dist-library/reactive-md-default-preset.js"
+    },
+    "./export": {
+      "types": "./dist-library/types/export/index.d.ts",
+      "import": "./dist-library/reactive-md-export.js"
+    },
+    "./standalone": {
+      "types": "./dist-library/types/standalone/library.d.ts",
+      "import": "./dist-library/reactive-md-standalone-host.js"
+    },
+    "./react/server": {
+      "types": "./dist-library/types/react/server.d.ts",
+      "import": "./dist-library/reactive-md-react-server.js"
+    },
     ".": {
       "types": "./dist-library/types/index.d.ts",
       "import": "./dist-library/reactive-md.js"

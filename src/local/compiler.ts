@@ -42,6 +42,9 @@ import {
 } from './schema';
 import { parseValidationFields } from './validation';
 import { readLocalCompileOptions, type LocalOptionCheck } from './options';
+import { localComponentRequirement } from '../sdk/manifest';
+import { localComponentHostBinding, resolveLocalComponentBindingConstraints } from '../sdk/props';
+import { LOCAL_EXTENSIONS_PROTOCOL, type LocalComponentDefinition, type LocalComponentRequirement, type LocalExtensionRequirements } from '../sdk/types';
 import { sanitizeLocalHtmlDocument } from './html';
 import { plainCompiledData } from './compiled-data';
 import {walkLocalNodes} from './node-walk';
@@ -493,7 +496,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   mark?.('structureMs');
 
   const bindings = resolveBindings(state);
-  resolveHostBindings(state, optionCheck.hostByName, bindings);
+  resolveHostBindings(state, optionCheck.hostByName, optionCheck.sdkByName, bindings);
   state.bindingKinds = bindingKinds(bindings);
   mark?.('bindingsMs');
 
@@ -501,6 +504,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   resolveComputations(state);
   mark?.('computationsMs');
   collectDynamicConstraints(state);
+  collectSdkDynamicConstraints(state, optionCheck.sdkByName);
 
   validateExpressions(state);
   mark?.('expressionsMs');
@@ -516,7 +520,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   const initialState: Record<string, LocalValue> = {};
   for (const [key, binding] of Object.entries(bindings)) initialState[key] = cloneValue(binding.initial);
   validateNavigation(state, bindings, initialState);
-  validateHostComponents(parsed.nodes, optionCheck.hostByName, state);
+  validateHostComponents(parsed.nodes, optionCheck.hostByName, optionCheck.sdkByName, state);
   mark?.('hostAndNavigationMs');
   const displayNodes = [...parsed.nodes];
   while (displayNodes.length && diagnostics.length < MAX_LOCAL_DIAGNOSTICS) {
@@ -544,6 +548,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   const dynamicConstraints = Object.keys(state.dynamicConstraints).length
     ? state.dynamicConstraints
     : undefined;
+  const extensions = extensionRequirements(parsed.nodes, optionCheck.sdkByName);
   const document: LocalDocument = {
     syntax: 'local',
     source,
@@ -559,6 +564,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
     ...(externalNames.length ? { externals: state.externals } : {}),
     ...(dynamicConstraints ? { dynamicConstraints } : {}),
     ...(validations.length ? { validations } : {}),
+    ...(extensions ? { extensions } : {}),
   };
   attachNodeDependencies(document);
   attachTableShapes(document, state.tableShapes);
@@ -1501,6 +1507,83 @@ function hostBindingFamily(binding: LocalHostBindingSchema): LocalBindingFamily 
 }
 
 /**
+ * Effective binding of one SDK component node. Literal constraints come from
+ * the lowered manifest; prop references are resolved from the node's own
+ * literal attributes or their defaults.
+ */
+function sdkBindingFor(
+  definition: LocalComponentDefinition,
+  attrs: Record<string, string>,
+): LocalHostBindingSchema | undefined {
+  const base = localComponentHostBinding(definition);
+  if (!base) return undefined;
+  const resolved = resolveLocalComponentBindingConstraints(definition, attrs);
+  return {
+    ...base,
+    ...(resolved.min !== undefined ? { min: resolved.min } : {}),
+    ...(resolved.max !== undefined ? { max: resolved.max } : {}),
+    ...(resolved.step !== undefined ? { step: resolved.step } : {}),
+  };
+}
+
+type BoundView =
+  | { readonly kind: 'literal'; readonly value: number }
+  | { readonly kind: 'dynamic'; readonly source: string }
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'missing' };
+
+/** How one SDK component expresses a numeric binding bound. */
+function sdkBoundView(
+  definition: LocalComponentDefinition,
+  attrs: Record<string, string>,
+  attribute: 'min' | 'max',
+): BoundView {
+  const binding = definition.bindings?.value;
+  if (!binding || binding.kind !== 'number') return { kind: 'missing' };
+  const constraint = binding.constraints?.[attribute];
+  if (constraint === undefined) return { kind: 'absent' };
+  if ('literal' in constraint) return { kind: 'literal', value: constraint.literal };
+  const prop = definition.props[constraint.prop];
+  if (prop === undefined || prop.kind !== 'number') return { kind: 'missing' };
+  const raw = attrs[constraint.prop];
+  if (raw === undefined) {
+    return typeof prop.default === 'number' ? { kind: 'literal', value: prop.default } : { kind: 'absent' };
+  }
+  const full = fullInterpolation(raw);
+  if (full) return { kind: 'dynamic', source: full.expression.trim() };
+  const literal = parseNumberText(raw);
+  return literal === null ? { kind: 'missing' } : { kind: 'literal', value: literal };
+}
+
+/** How an existing binding owner (built-in or SDK) expresses one bound. */
+function ownerBoundView(
+  state: CompileState,
+  nodeById: ReadonlyMap<string, LocalNode>,
+  sdkByName: ReadonlyMap<string, LocalComponentDefinition>,
+  id: string,
+  attribute: 'min' | 'max',
+  fallback: number | undefined,
+): BoundView {
+  const owner = nodeById.get(id);
+  const definition = owner?.name ? sdkByName.get(owner.name) : undefined;
+  if (owner && definition) return sdkBoundView(definition, owner.attrs ?? {}, attribute);
+  const info = state.attrs.get(id)?.[attribute];
+  if (info === undefined) {
+    return fallback === undefined ? { kind: 'absent' } : { kind: 'literal', value: fallback };
+  }
+  if (info.dynamic) return { kind: 'dynamic', source: (info.expression ?? '').trim() };
+  return typeof info.value === 'number' ? { kind: 'literal', value: info.value } : { kind: 'missing' };
+}
+
+/** Built-ins allow sharing only for an identical literal, expression or absence. */
+function sameBoundView(left: BoundView, right: BoundView): boolean {
+  if (left.kind === 'missing' || right.kind === 'missing') return false;
+  if (left.kind === 'absent' || right.kind === 'absent') return left.kind === 'absent' && right.kind === 'absent';
+  if (left.kind === 'dynamic') return right.kind === 'dynamic' && left.source === right.source;
+  return right.kind === 'literal' && left.value === right.value;
+}
+
+/**
  * Register public or internal bindings owned by host components. A host
  * binding shares the built-in families: when its name matches an existing
  * control binding, both owners must agree on family and static constraints.
@@ -1508,6 +1591,7 @@ function hostBindingFamily(binding: LocalHostBindingSchema): LocalBindingFamily 
 function resolveHostBindings(
   state: CompileState,
   hostByName: ReadonlyMap<string, LocalHostComponentSchema>,
+  sdkByName: ReadonlyMap<string, LocalComponentDefinition>,
   bindings: Record<string, LocalBinding>,
 ): void {
   if (hostByName.size === 0) return;
@@ -1524,9 +1608,10 @@ function resolveHostBindings(
   for (const node of nodes) {
     if (node.type !== 'hostComponent' || !node.name) continue;
     const schema = hostByName.get(node.name);
-    const bindingSchema = schema?.binding;
-    if (!schema || !bindingSchema) continue;
     const rawAttrs = node.attrs ?? {};
+    const definition = sdkByName.get(node.name);
+    const bindingSchema = definition ? sdkBindingFor(definition, rawAttrs) : schema?.binding;
+    if (!schema || !bindingSchema) continue;
     const family = hostBindingFamily(bindingSchema);
     const kind = bindingSchema.kind as LocalValueKind;
     let key = `@${node.id}`;
@@ -1622,11 +1707,27 @@ function resolveHostBindings(
           }
         }
         if (bindingSchema.kind === 'number') {
-          const dynamicPeer = existing.nodeIds.some((id) => {
-            const attrs = state.attrs.get(id);
-            return attrs?.min?.dynamic || attrs?.max?.dynamic;
-          });
-          if (dynamicPeer || existing.min !== min || existing.max !== max || (existing.step ?? 1) !== step) {
+          let divergent: boolean;
+          if (definition) {
+            // SDK components follow the built-in sharing rule: bounds may be
+            // shared only when every owner has the same literal or the same
+            // expression source. Divergent or unresolved constraints fail.
+            const currentMin = sdkBoundView(definition, rawAttrs, 'min');
+            const currentMax = sdkBoundView(definition, rawAttrs, 'max');
+            divergent = (existing.step ?? 1) !== step
+              || existing.nodeIds.some((id) => (
+                !sameBoundView(ownerBoundView(state, nodeById, sdkByName, id, 'min', existing.min), currentMin)
+                || !sameBoundView(ownerBoundView(state, nodeById, sdkByName, id, 'max', existing.max), currentMax)
+              ));
+          } else {
+            const dynamicPeer = existing.nodeIds.some((id) => {
+              const attrs = state.attrs.get(id);
+              return attrs?.min?.dynamic || attrs?.max?.dynamic;
+            });
+            divergent = Boolean(dynamicPeer)
+              || existing.min !== min || existing.max !== max || (existing.step ?? 1) !== step;
+          }
+          if (divergent) {
             state.report(
               'local.binding.constraint',
               `Parameter "${key}" must use the same numeric range and step as <${node.name}>.`,
@@ -3762,6 +3863,76 @@ function reportWarning(
 }
 
 /**
+ * Requirements for external components actually used by the document. A
+ * configured component that never appears in the source contributes nothing,
+ * so restoring a document only needs the implementations it really references.
+ */
+function extensionRequirements(
+  nodes: LocalNode[],
+  sdkByName: ReadonlyMap<string, LocalComponentDefinition>,
+): LocalExtensionRequirements | undefined {
+  if (sdkByName.size === 0) return undefined;
+  const used = new Map<string, LocalComponentRequirement>();
+  for (const node of walkLocalNodes(nodes)) {
+    if (node.type !== 'hostComponent' || !node.name) continue;
+    const definition = sdkByName.get(node.name);
+    if (definition !== undefined) used.set(definition.id, localComponentRequirement(definition));
+  }
+  if (used.size === 0) return undefined;
+  const components = Object.freeze(
+    [...used.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+  );
+  return Object.freeze({ protocol: LOCAL_EXTENSIONS_PROTOCOL, components });
+}
+
+/**
+ * Record dynamic SDK binding bounds (a `max`/`min` prop referenced by a binding
+ * constraint and supplied as a full interpolation) in the same metadata the
+ * runtime already evaluates for built-in controls. This makes writes through
+ * `runtime.set`, `runtime.setParameter` and React binding setters obey the
+ * component's current constraints.
+ */
+function collectSdkDynamicConstraints(
+  state: CompileState,
+  sdkByName: ReadonlyMap<string, LocalComponentDefinition>,
+): void {
+  if (sdkByName.size === 0) return;
+  for (const node of walkLocalNodes(state.nodes)) {
+    if (node.type !== 'hostComponent' || !node.name) continue;
+    const definition = sdkByName.get(node.name);
+    const binding = definition?.bindings?.value;
+    if (!definition || !binding || binding.kind !== 'number') continue;
+    const constraints = binding.constraints;
+    if (!constraints) continue;
+    const rawAttrs = node.attrs ?? {};
+    let collected: LocalDynamicConstraints | undefined;
+    for (const attribute of ['min', 'max'] as const) {
+      const constraint = constraints[attribute];
+      if (!constraint || !('prop' in constraint)) continue;
+      const raw = rawAttrs[constraint.prop];
+      if (typeof raw !== 'string') continue;
+      const full = fullInterpolation(raw);
+      if (!full) continue;
+      const prop = definition.props[constraint.prop];
+      collected ??= {};
+      collected[attribute] = {
+        source: full.expression,
+        offset: attributeOffset(state, node, constraint.prop) + full.start,
+        numeric: {
+          ...(prop.min === undefined ? {} : { min: prop.min }),
+          ...(prop.max === undefined ? {} : { max: prop.max }),
+          ...(prop.integer === true ? { integer: true } : {}),
+        },
+      };
+    }
+    if (collected) {
+      const previous = state.dynamicConstraints[node.id];
+      state.dynamicConstraints[node.id] = previous ? { ...previous, ...collected } : collected;
+    }
+  }
+}
+
+/**
  * Validate host-defined leaf tags in place. They already count as parser syntax
  * nodes but never enter `state.entries`: they own no bindings, children or
  * runtime state, so only their literal attributes are checked here.
@@ -3769,6 +3940,7 @@ function reportWarning(
 function validateHostComponents(
   nodes: LocalNode[],
   hostByName: ReadonlyMap<string, LocalHostComponentSchema>,
+  sdkByName: ReadonlyMap<string, LocalComponentDefinition>,
   state: CompileState,
 ): void {
   for (const node of walkLocalNodes(nodes)) {
@@ -3788,8 +3960,127 @@ function validateHostComponents(
         );
       } else {
         validateHostAttributes(node, schema, state);
+        const definition = node.name ? sdkByName.get(node.name) : undefined;
+        if (definition) validateSdkComponentAttributes(node, definition, state);
       }
     }
+  }
+}
+
+/**
+ * Compile-time checks that need the typed manifest rather than the lowered
+ * host schema: numeric prop widths, integer requirements and body rules.
+ */
+function validateSdkComponentAttributes(
+  node: LocalNode,
+  definition: LocalComponentDefinition,
+  state: CompileState,
+): void {
+  const rawAttrs = node.attrs ?? {};
+  for (const [name, prop] of Object.entries(definition.props)) {
+    if (prop.kind !== 'number') continue;
+    const raw = rawAttrs[name];
+    if (raw === undefined) continue;
+    // Dynamic bounds are checked per revision by resolveLocalComponentProps.
+    if (fullInterpolation(raw)) continue;
+    const value = parseNumberText(raw);
+    if (value === null) continue;
+    const offset = attributeOffset(state, node, name);
+    if (prop.integer === true && !Number.isInteger(value)) {
+      state.report(
+        'local.host.attribute',
+        `Attribute ${name} requires an integer, got "${raw}".`,
+        offset,
+        offset + raw.length,
+        { key: 'local.attribute.type.integer', params: { name } },
+      );
+    }
+    if (prop.min !== undefined && value < prop.min) {
+      state.report(
+        'local.host.attribute',
+        `Attribute ${name} must be at least ${prop.min}, got "${raw}".`,
+        offset,
+        offset + raw.length,
+        { key: 'local.attribute.range.min', params: { name, min: prop.min } },
+      );
+    }
+    if (prop.max !== undefined && value > prop.max) {
+      state.report(
+        'local.host.attribute',
+        `Attribute ${name} must be at most ${prop.max}, got "${raw}".`,
+        offset,
+        offset + raw.length,
+        { key: 'local.attribute.range.max', params: { name, max: prop.max } },
+      );
+    }
+  }
+  // A dynamic step cannot be represented by the kernel's shared numeric checks
+  // yet, so it is rejected instead of silently falling back to 1.
+  const binding = definition.bindings?.value;
+  const stepConstraint = binding?.kind === 'number' ? binding.constraints?.step : undefined;
+  if (stepConstraint && 'prop' in stepConstraint) {
+    const prop = definition.props[stepConstraint.prop];
+    const raw = rawAttrs[stepConstraint.prop];
+    const offset = attributeOffset(state, node, stepConstraint.prop);
+    if (raw === undefined) {
+      const defaultValue = prop?.default;
+      if (typeof defaultValue !== 'number') {
+        state.report(
+          'local.host.attribute',
+          `Attribute ${stepConstraint.prop} is required by the step constraint.`,
+          node.range.start,
+          node.range.end,
+          { key: 'local.host.attribute.type', params: { name: stepConstraint.prop, value: 'missing', kind: 'number' } },
+        );
+      } else if (!(defaultValue > 0)) {
+        state.report(
+          'local.host.attribute',
+          `Attribute ${stepConstraint.prop} requires a positive number.`,
+          node.range.start,
+          node.range.end,
+          { key: 'local.attribute.type.positive', params: { name: stepConstraint.prop } },
+        );
+      }
+    } else if (fullInterpolation(raw)) {
+      state.report(
+        'local.host.attribute',
+        `Attribute ${stepConstraint.prop} is used as a step and must be a static number.`,
+        offset,
+        offset + raw.length,
+        { key: 'local.host.attribute.static', params: { name: stepConstraint.prop } },
+      );
+    } else {
+      const value = parseNumberText(raw);
+      if (value !== null && !(value > 0)) {
+        state.report(
+          'local.host.attribute',
+          `Attribute ${stepConstraint.prop} requires a positive number.`,
+          offset,
+          offset + raw.length,
+          { key: 'local.attribute.type.positive', params: { name: stepConstraint.prop } },
+        );
+      }
+    }
+  }
+  const children = definition.children;
+  if (children === undefined) return;
+  const body = meaningful(node.children);
+  if (children.kind === 'none' && body.length > 0) {
+    state.report(
+      'local.host.structure',
+      `Component <${definition.name}> cannot have body content.`,
+      body[0].range.start,
+      body[0].range.end,
+      { key: 'local.host.structure.leaf', params: { component: definition.name } },
+    );
+  } else if (children.required === true && body.length === 0) {
+    state.report(
+      'local.host.structure',
+      `Component <${definition.name}> requires body content.`,
+      node.range.start,
+      node.range.end,
+      { key: 'local.host.structure.leaf', params: { component: definition.name } },
+    );
   }
 }
 

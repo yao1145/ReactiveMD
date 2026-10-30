@@ -8,6 +8,7 @@ import {reuseFlatRows} from './row-reuse';
 import type {InlinePlan} from './fast-markdown';
 import { plainCompiledData } from './compiled-data';
 import { localCompileOptionsKey, readLocalCompileOptions } from './options';
+import { readLocalConfig } from '../sdk/config';
 import { getLocalComponent } from './schema';
 import { MAX_LOCAL_DOCUMENT_LENGTH } from './limits';
 import type { LocalCompileOptions, LocalCompileResult, LocalDocument, LocalNode, SourceRange } from './types';
@@ -208,8 +209,21 @@ export class LocalCompileSession {
     const tracked = compileLocalTracked(source, options,this.services);
     this.lastStats = {mode: 'full', totalBlocks: tracked.parsed?.nodes.length ?? 0, compiledBlocks: tracked.parsed?.nodes.length ?? 0, reusedBlocks: 0, compiledCharacters: typeof source === 'string' ? source.length : 0, fallbackReason: reason,semantic:tracked.semantic,stages:tracked.timings};
     if (tracked.result.ok && tracked.result.diagnostics.length === 0 && check.ok && !check.htmlActive && key !== 'invalid') {
-      if (defer) this.deferred = {source, key, tracked,options:options===undefined?undefined:plainCompiledData(options)};
-      else {
+      if (defer) {
+        const deferredOptions = options === undefined ? undefined : plainCompiledData(options);
+        // Keep the validated, frozen config so per-block compile keys do not
+        // revalidate the whole registry. An invalid config is left untouched
+        // and reported by the compiler.
+        let trustedOptions = deferredOptions;
+        if (deferredOptions?.config !== undefined) {
+          try {
+            trustedOptions = { ...deferredOptions, config: readLocalConfig(deferredOptions.config) };
+          } catch {
+            /* reported later by the compiler */
+          }
+        }
+        this.deferred = {source, key, tracked, options: trustedOptions};
+      } else {
         try { this.snapshot = this.seed(source, key, tracked, options); }
         catch { this.snapshot = null; }
       }

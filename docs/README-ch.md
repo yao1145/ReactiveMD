@@ -42,6 +42,7 @@
 | 主题 | 中文 |
 | --- | --- |
 | 本地模式集成 | [中文](integration/local-integration-ch.md) |
+| 扩展 SDK 预览 | [中文](integration/extension-sdk-ch.md) |
 | React 源码编辑器 | [中文](integration/editor-ch.md) |
 | 作者工具 | [中文](integration/author-tools-ch.md) |
 | 分享与静态导出 | [中文](integration/shareable-export-ch.md) |
@@ -59,6 +60,8 @@
 | --- | --- |
 | 组件开发 | [中文](development/component-development-ch.md) |
 | 组件协议 | [中文](development/component-protocol-ch.md) |
+| 扩展 SDK 与组件统一架构规划 | [中文](development/extension-sdk-plan-ch.md) |
+| 扩展 SDK 第一阶段交付与验收 | [中文](development/extension-sdk-phase1-ch.md) |
 | 性能 | [优化历史与当前复测总览](development/performance-overview-ch.md) |
 | 发布流程 | [中文](development/releasing-ch.md) |
 

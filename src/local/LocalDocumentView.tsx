@@ -40,6 +40,14 @@ import type {
   LocalSourceTarget,
 } from './render-types';
 import {
+  LocalReactExtensionMissingError,
+  localReactExtensionRenderer,
+  validateLocalReactExtensions,
+  type LocalReactConfig,
+  type LocalReactRenderEnvironment,
+} from '../react/sdk';
+import { readLocalConfig } from '../sdk/config';
+import {
   collectNodeDependencies,
   collectSubtreeResetTokens,
   EMPTY_DEPENDENCY_INDEX,
@@ -60,6 +68,7 @@ import {
 } from './view-revision';
 import { DEFAULT_MAX_LOCAL_SYNTAX_NODES, MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
 import { localCompileOptionsKey, readLocalCompileOptions } from './options';
+import { validateLocalExtensionRequirements } from '../export/requirements';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './html';
 import { localHtmlAlign, localHtmlLinkRel } from './html-names';
 import { TableSurface } from './table-surface';
@@ -143,6 +152,12 @@ export interface LocalDocumentViewProps {
   /** Client-only renderer for hostComponent nodes; never enters the worker. */
   hostRenderer?: LocalHostRenderer;
   /**
+   * SDK component implementations. It replaces `hostData`, `hostRenderer` and
+   * `themes`; supplying any of them together is rejected, and themes are
+   * derived from the config.
+   */
+  reactConfig?: LocalReactConfig;
+  /**
    * Read-only host values for `<external>` declarations. Changing them updates
    * the given runtime without recompiling the source or resetting parameters.
    */
@@ -174,6 +189,11 @@ export interface LocalReactiveDocumentProps {
   hostData?: LocalHostData;
   /** Client-only renderer for hostComponent nodes; never enters the worker. */
   hostRenderer?: LocalHostRenderer;
+  /**
+   * SDK component implementations forwarded to `LocalDocumentView`. It cannot
+   * be combined with `hostData`, `hostRenderer` or `themes`.
+   */
+  reactConfig?: LocalReactConfig;
   /** Read-only host values for `<external>` declarations. */
   externalValues?: Readonly<Record<string, LocalValue>>;
   /**
@@ -200,6 +220,27 @@ export interface LocalReactiveDocumentProps {
    * equal object is recreated.
    */
   compileOptions?: LocalCompileOptions;
+}
+
+/**
+ * A config plus legacy host props have two different renderer registries and
+ * two different theme sources. Combining them is rejected instead of silently
+ * preferring one, which would make the document depend on prop order.
+ */
+function assertExtensionProps(
+  reactConfig: LocalReactConfig | undefined,
+  legacy: { hostData?: unknown; hostRenderer?: unknown; themes?: unknown },
+): void {
+  if (reactConfig === undefined) return;
+  if (legacy.hostRenderer !== undefined) {
+    throw new Error('reactConfig cannot be combined with hostRenderer.');
+  }
+  if (legacy.hostData !== undefined) {
+    throw new Error('reactConfig cannot be combined with hostData.');
+  }
+  if (legacy.themes !== undefined) {
+    throw new Error('reactConfig cannot be combined with themes; themes are derived from the config.');
+  }
 }
 
 /* --------------------------------------------------------------- contexts */
@@ -1089,6 +1130,11 @@ interface RenderEnv {
   /** Client-only host payload and renderer; both stay out of the worker. */
   hostData?: LocalHostData;
   hostRenderer?: LocalHostRenderer;
+  /**
+   * SDK renderer. It replaces the legacy host renderer for hostComponent
+   * nodes and does not require host data, so stateless leaves can render.
+   */
+  extensionRenderer?: (node: LocalNode, environment: LocalReactRenderEnvironment) => ReactNode;
   anchors: ReturnType<typeof createHeadingAnchors>;
   t: Localize;
   mode: LocalRenderMode;
@@ -1434,10 +1480,10 @@ function renderHostComponent(
   visible: boolean,
 ): ReactNode {
   const name = node.name ?? '';
-  const unavailable = (reason: 'renderer' | 'data' | 'error'): ReactNode => (
+  const unavailable = (reason: 'renderer' | 'data' | 'error', sdk = false): ReactNode => (
     <span
       key={key}
-      className="local-host-component local-host-unavailable"
+      className={`local-host-component local-host-unavailable${sdk ? ' local-sdk-unavailable' : ''}`}
       data-local-host-component={name}
       data-local-host-reason={reason}
       role="note"
@@ -1445,6 +1491,32 @@ function renderHostComponent(
       {env.t(`Host component <${name}> is unavailable here.`, `宿主组件 <${name}> 在此不可用。`)}
     </span>
   );
+
+  // SDK components own their props and bindings, so the legacy requirement for
+  // `kind`/`ref` host data never applies to them. Visibility travels into the
+  // context and children render under that visibility.
+  if (env.extensionRenderer) {
+    const disabledRead = readBooleanAttr(env.runtime, node, 'disabled', false);
+    let resetToken = 0;
+    try {
+      resetToken = env.runtime.resetToken(node);
+    } catch {
+      resetToken = 0;
+    }
+    try {
+      return createElement(Fragment, { key }, env.extensionRenderer(node, {
+        runtime: env.runtime,
+        mode: env.mode,
+        visible,
+        disabled: disabledRead.ok ? disabledRead.value : true,
+        resetToken,
+        renderChildren: (children, nextVisible) => renderNodes(env, children ?? [], nextVisible),
+        report: (diagnostics) => env.report?.(diagnostics),
+      }));
+    } catch (error) {
+      return unavailable(error instanceof LocalReactExtensionMissingError ? 'renderer' : 'error', true);
+    }
+  }
 
   const kind = node.attrs?.kind?.trim() ?? '';
   const ref = node.attrs?.ref?.trim() ?? '';
@@ -4993,6 +5065,7 @@ function LocalDocumentViewHtml({ document, mode = 'interactive', staticFirst = f
 
 /** Keep the two render paths in separate components so mode changes obey hook ordering. */
 export function LocalDocumentView(props: LocalDocumentViewProps) {
+  assertExtensionProps(props.reactConfig, props);
   return props.document.html
     ? <LocalDocumentViewHtml {...props} />
     : <LocalDocumentViewLocal {...props} />;
@@ -5011,6 +5084,7 @@ function LocalDocumentViewLocal({
   imageResolver,
   hostData,
   hostRenderer,
+  reactConfig,
   externalValues,
   onSourceNavigate,
 }: LocalDocumentViewProps) {
@@ -5052,6 +5126,38 @@ function LocalDocumentViewLocal({
   const report = useCallback((diagnostics: Diagnostic[]) => {
     reportRef.current?.(diagnostics);
   }, []);
+
+  // The document's extension requirements select installed implementations.
+  // A mismatch is reported and keeps the placeholders visible instead of
+  // executing a component whose manifest no longer matches. Requirements are
+  // compared by content so an unchanged recompile keeps the renderer stable.
+  const extensionKey = useMemo(() => {
+    try {
+      return `${reactConfig?.config.key ?? 'none'}\u0000${JSON.stringify(document.extensions ?? null)}`;
+    } catch {
+      return `${reactConfig?.config.key ?? 'none'}\u0000unreadable`;
+    }
+  }, [reactConfig, document.extensions]);
+  const extensionCheck = useMemo(() => {
+    const diagnostics = validateLocalExtensionRequirements(document.extensions, reactConfig?.config);
+    return { valid: diagnostics.length === 0, diagnostics };
+  }, [reactConfig, extensionKey]);
+  const extensionDiagnostics = extensionCheck.diagnostics;
+  const extensionReport = useRef('');
+  useEffect(() => {
+    const signature = diagnosticsSignature(extensionDiagnostics);
+    if (signature === extensionReport.current) return;
+    const hadPrevious = extensionReport.current !== '';
+    extensionReport.current = signature;
+    if (extensionDiagnostics.length > 0 || hadPrevious) report(extensionDiagnostics);
+  }, [extensionDiagnostics, report]);
+  const extensionRenderer = useMemo(
+    () => (reactConfig !== undefined && extensionCheck.valid
+      ? localReactExtensionRenderer(reactConfig)
+      : undefined),
+    [reactConfig, extensionCheck.valid],
+  );
+  const effectiveThemes = reactConfig?.themes ?? themes;
 
   // External values update the existing runtime only; source compilation and
   // reader parameters are untouched.
@@ -5109,10 +5215,10 @@ function LocalDocumentViewLocal({
 
   // Theme resolution only depends on manifest content, so a host array with
   // identical entries never restarts the reporting effect.
-  const themesKey = themesSignature(themes);
+  const themesKey = themesSignature(effectiveThemes);
   const theme = useMemo(() => {
     try {
-      return resolveLocalTheme(document.theme, themes, document.themeRange, document.source);
+      return resolveLocalTheme(document.theme, effectiveThemes, document.themeRange, document.source);
     } catch {
       // Malformed host input resolves to the built-in theme, never a crash.
       return { name: DEFAULT_LOCAL_THEME.name, diagnostics: [] as Diagnostic[] };
@@ -5180,7 +5286,8 @@ function LocalDocumentViewLocal({
       urlPolicy,
       imageResolver,
       hostData,
-      hostRenderer,
+      hostRenderer: extensionCheck.valid ? hostRenderer : undefined,
+      extensionRenderer,
       anchors,
       t,
       mode: renderedMode,
@@ -5189,7 +5296,7 @@ function LocalDocumentViewLocal({
       sourceNavigation,
       report,
     }),
-    [runtime, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, anchors, t, renderedMode, dependencyIndex, footnotes, sourceNavigation, report],
+    [runtime, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, extensionCheck.valid, extensionRenderer, anchors, t, renderedMode, dependencyIndex, footnotes, sourceNavigation, report],
   );
 
   // Revision-independent deps keep this closure and the provider value stable
@@ -5238,6 +5345,18 @@ function LocalDocumentViewLocal({
         }
       >
         <LocalViewContext.Provider value={contextValue}>
+          {extensionDiagnostics.length > 0 ? (
+            <div
+              className="local-extension-error"
+              role="alert"
+              data-local-extension-error=""
+              data-rmd-extension-error={extensionDiagnostics.map((diagnostic) => diagnostic.message).join('; ')}
+            >
+              {extensionDiagnostics.map((diagnostic, index) => (
+                <p key={`${diagnostic.code}-${index}`}>{diagnostic.message}</p>
+              ))}
+            </div>
+          ) : null}
           {render(document.nodes, true)}
           {footnotes.entries.length > 0 ? (
             <EndnotesView
@@ -5274,13 +5393,36 @@ export function LocalReactiveDocument({
   imageResolver,
   hostData,
   hostRenderer,
+  reactConfig,
   externalValues,
   initialParameters,
   onParametersChange,
   onSourceNavigate,
   compileOptions,
 }: LocalReactiveDocumentProps) {
-  const optionsKey = localCompileOptionsKey(compileOptions);
+  assertExtensionProps(reactConfig, { hostData, hostRenderer, themes });
+  if (reactConfig !== undefined) {
+    const optionConfig = compileOptions?.config;
+    if (optionConfig !== undefined && optionConfig !== reactConfig.config) {
+      let same = false;
+      try {
+        same = readLocalConfig(optionConfig).key === reactConfig.config.key;
+      } catch {
+        same = false;
+      }
+      if (!same) throw new Error('reactConfig and compileOptions.config must be the same local config.');
+    }
+    if (compileOptions?.hostComponents !== undefined) {
+      throw new Error('reactConfig cannot be combined with compileOptions.hostComponents.');
+    }
+  }
+  // Flags, limits and Markdown options still apply; only the component registry
+  // is selected by the config.
+  const effectiveCompileOptions: LocalCompileOptions | undefined = reactConfig === undefined
+    ? compileOptions
+    : { ...(compileOptions ?? {}), config: reactConfig.config };
+  const effectiveThemes = reactConfig?.themes ?? themes;
+  const optionsKey = localCompileOptionsKey(effectiveCompileOptions);
   // The latest external values seed a newly created runtime; later changes go
   // through the view's update effect without recompiling or resetting state.
   const externalRef = useRef(externalValues);
@@ -5312,8 +5454,8 @@ export function LocalReactiveDocument({
     // `compileShared` keeps object identity for unchanged nodes. Until it is
     // available the public compile path still produces a valid document.
     return typeof session.compileShared === 'function'
-      ? session.compileShared(source, compileOptions)
-      : session.compile(source, compileOptions);
+      ? session.compileShared(source, effectiveCompileOptions)
+      : session.compile(source, effectiveCompileOptions);
   }, [source, optionsKey]);
 
   const runtimeRef = useRef<LocalRuntime | null>(null);
@@ -5378,13 +5520,13 @@ export function LocalReactiveDocument({
 
   // Theme/color-mode props never feed the compilation above, so changing them
   // re-renders the document without recreating state.
-  const themesKey = themesSignature(themes);
+  const themesKey = themesSignature(effectiveThemes);
   const themeDiagnostics = useMemo(() => {
     if (!result.ok) return [] as Diagnostic[];
     try {
       return resolveLocalTheme(
         result.document.theme,
-        themes,
+        effectiveThemes,
         result.document.themeRange,
         result.document.source,
       ).diagnostics;
@@ -5549,7 +5691,7 @@ export function LocalReactiveDocument({
   });
 
   if (!result.ok || !runtime) {
-    const options = readLocalCompileOptions(compileOptions);
+    const options = readLocalCompileOptions(effectiveCompileOptions);
     if (typeof source === 'string' && options.ok && options.htmlActive) {
       return <LocalHtmlSourceFallback source={source} mode={mode} />;
     }
@@ -5600,13 +5742,14 @@ export function LocalReactiveDocument({
       onDiagnostics={handleViewDiagnostics}
       urlPolicy={urlPolicy}
       locale={locale}
-      themes={themes}
+      themes={reactConfig === undefined ? themes : undefined}
       colorScheme={colorScheme}
       mode={mode}
       staticFirst={staticFirst}
       imageResolver={imageResolver}
       hostData={hostData}
       hostRenderer={hostRenderer}
+      reactConfig={reactConfig}
       externalValues={externalValues}
       onSourceNavigate={onSourceNavigate}
     />
