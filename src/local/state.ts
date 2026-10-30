@@ -109,7 +109,7 @@ export function localSourceDigest(source: string): string {
 
 type NormalizedValue = { ok: true; value: LocalValue } | { ok: false; message: string };
 
-/** Accept only JSON-safe primitive values and string arrays; clone arrays. */
+/** Accept JSON-safe primitives and homogeneous string/finite-number arrays. */
 function normalizeStateValue(value: unknown): NormalizedValue {
   if (typeof value === 'string') {
     if (!isWellFormedText(value)) return { ok: false, message: 'contains malformed Unicode.' };
@@ -121,16 +121,19 @@ function normalizeStateValue(value: unknown): NormalizedValue {
   }
   if (typeof value === 'boolean' || value === null) return { ok: true, value };
   if (Array.isArray(value)) {
-    const clone: string[] = [];
+    const clone: (string | number)[] = [];
+    const kind = value.length === 0 ? 'string' : typeof value[0];
     for (let index = 0; index < value.length; index += 1) {
       const entry: unknown = value[index];
-      if (typeof entry !== 'string') return { ok: false, message: 'must be an array of strings.' };
-      if (!isWellFormedText(entry)) return { ok: false, message: 'contains malformed Unicode.' };
-      clone.push(entry);
+      if (kind === 'string' && typeof entry === 'string') {
+        if (!isWellFormedText(entry)) return { ok: false, message: 'contains malformed Unicode.' };
+        clone.push(entry);
+      } else if (kind === 'number' && typeof entry === 'number' && Number.isFinite(entry)) clone.push(entry);
+      else return { ok: false, message: 'must be an array of strings or finite numbers of one kind.' };
     }
     return { ok: true, value: Object.freeze(clone) as unknown as LocalValue };
   }
-  return { ok: false, message: 'must be a string, finite number, boolean, null or string array.' };
+  return { ok: false, message: 'must be a string, finite number, boolean, null or homogeneous primitive array.' };
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

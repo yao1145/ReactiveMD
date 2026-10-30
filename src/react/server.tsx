@@ -2,7 +2,12 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { LocalDocumentView, type LocalDocumentViewProps } from '../local/LocalDocumentView';
 import { createLocalExportPlan } from '../export';
-import { extensionDiagnostic, validateLocalExtensionRequirements } from '../export/requirements';
+import {
+  extensionDiagnostic,
+  validateLocalComponentContracts,
+  validateLocalExtensionRequirements,
+} from '../export/requirements';
+import { getLocalComponentRegistry } from '../sdk/registry';
 import type { Diagnostic } from '../local/types';
 import type { LocalStyleResource } from '../sdk/theme';
 
@@ -16,6 +21,13 @@ export function renderLocalStaticDocument(
 ): LocalStaticRenderResult {
   const diagnostics: Diagnostic[] = [];
   diagnostics.push(...validateLocalExtensionRequirements(options.document.extensions, options.reactConfig?.config));
+  diagnostics.push(...validateLocalComponentContracts({
+    document: options.document,
+    installed: getLocalComponentRegistry(options.reactConfig?.config),
+    externalNames: new Set(
+      options.reactConfig?.config.components.map(definition => definition.name) ?? [],
+    ),
+  }));
   if (diagnostics.length) return { ok: false, diagnostics };
   if (options.reactConfig) {
     const plan = createLocalExportPlan({ document: options.document, config: options.reactConfig.config, target: 'ssr', resources: options.resources });

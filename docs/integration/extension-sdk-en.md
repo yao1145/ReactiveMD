@@ -2,7 +2,7 @@
 
 [中文](extension-sdk-ch.md)
 
-The source tree includes the first-phase SDK preview. The package version remains `0.6.1`; the new entries will ship with a later release. Existing registry copies of `0.6.1` do not include the SDK. Build and install a local tarball to use this preview.
+The source tree includes an SDK preview covering public extensions and unified default components. The package version remains `0.6.1`; the new entries will ship with a later release. Existing registry copies of `0.6.1` do not include the SDK. Build and install a local tarball to use this preview.
 
 Component manifests and instance configuration are plain data. React implementations remain explicitly imported host code. The compiler, Worker, authoring tools and exporter use the same validated configuration.
 
@@ -35,7 +35,7 @@ export function Reader({ source }: { source: string }) {
 }
 ```
 
-The default built-in preset remains enabled. `reactive-md/presets/default` exports `defaultPreset` for explicit configuration. Built-in migration to the public protocol is the next phase.
+The default preset remains enabled. `reactive-md/presets/default` exports `defaultPreset` for explicit configuration. Its 46 components pass the public validator and share compilation and rendering with external components. Registration rejects name overrides.
 
 Registration validates identities, names, protocol, dependencies and budgets, then copies and freezes the data. `readLocalConfig` revalidates serialized configuration and recomputes its semantic key. React implementations must match their registered manifests.
 
@@ -45,7 +45,7 @@ Registration validates identities, names, protocol, dependencies and budgets, th
 
 Props support strings, numbers, booleans and enums, with defaults, required flags, static/dynamic modes, numeric bounds, integer checks and safe patterns. A valid numeric literal and a full numeric interpolation both reach the component as a number. Defaults apply to omitted attributes; invalid explicit values produce diagnostics. Missing optional props without a default resolve to `null`.
 
-The first phase provides a scalar `bindings.value` slot. Read through `ctx.bindings.value.get()` and write through `.set(next)`, which returns `{ ok, diagnostics }`. Writes use the kernel's shared constraints. A rating can share a parameter with the built-in number control when their bounds and step agree. Declare an explicit initial value only once per shared parameter.
+The main slot is `bindings.value`. Read through `ctx.bindings.value.get()` and write through `.set(next)`, which returns `{ ok, diagnostics }`. The manifest's `bind` and `initial` fields name the authored attributes. Writes use the kernel's shared constraints. A rating can share a parameter with the built-in number control when their bounds and step agree. Declare an explicit initial value only once per shared parameter.
 
 The context also exposes `props`, `children.render()`, `instance`, `mode`, `visible`, `disabled`, `resetToken` and `report`. It contains no internal AST. Components use React effect cleanup for resources and observe `resetToken` for local UI state. Static rendering receives read-only binding handles.
 
@@ -53,7 +53,31 @@ React descendant render failures produce a placeholder and diagnostics. `reactiv
 
 Use this server adapter's markup as the offline export's `staticMarkup`. It retains React text boundaries for static-first standalone hydration. Supply the same `resources` to server rendering and export when components declare required styles.
 
-Numeric bounds may reference props. Dynamic min/max use kernel constraints, including the bound prop's own range and integer checks. A prop used as a step must be static in this phase. String bindings support text and choice with explicit options; unsupported special families are rejected.
+Numeric bounds may reference props. Dynamic min/max use kernel constraints, including the bound prop's own range and integer checks. A prop used as a step must be static. Binding families declare general value semantics such as numbers, text, dates, choices and collections; implementations provide the interaction and appearance.
+
+## Named slots, collections and structure
+
+Phase two places default contracts in `defaultPreset.components`. Every definition passes the same `defineLocalComponent` validator as external definitions. `config.components` remains the external list; `config.registry` contains the complete default and external snapshot.
+
+`bindings` is a record keyed by slot name. A coordinate control can declare `x` and `y`, with separate `bind-x`, `bind-y` and initial-value attributes. Its React implementation uses:
+
+```ts
+const x = ctx.bindings.get('x');
+const y = ctx.bindings.slots.y.get();
+const result = ctx.bindings.setMany({ x: 2, y: 3 });
+```
+
+`setMany` commits one kernel transaction after every slot passes validation. Failure preserves all parameters and the revision. The primary `value` slot may coexist with named slots and participate in the same transaction. `slotRelations: [{ lower: 'start', upper: 'end' }]` declares an ordered range. Named slots use exclusive ownership: omitted `exclusive` normalizes to `true`, and explicit `false` is rejected at registration.
+
+Collection controls read arrays through the main slot and submit new arrays. Multi-select uses structural options and a selection limit; checklist derives its initial values from a task list. The adapter supplies read-only values, and the kernel owns state copies.
+
+Use `family: 'collection'` with `kind: 'array'` or `'number-array'` for general collections. Arrays retain order and duplicates, `initial` accepts a JSON array literal, and `maxItems` limits length through a literal or static numeric prop. Dynamic caps are rejected at registration. State files preserve string arrays and finite-number arrays, with binding validation on restoration. Named slots support `kind: 'number'` with `family: 'number'`; registration rejects other combinations. `required: true` requires an authored binding name. Capabilities describe supported rendering environments, so a display-only container can support an interactive document. Static runtime reset remains read-only.
+
+`structure` describes direct children, placement and content shape. `rules` declares reusable compile or state semantics for numeric ranges, dates, option sequences, tables, diagrams, navigation and budgets. External components may reuse default contracts or compose the primitives described by the public types.
+
+The React context exposes public content projections through `content` and `children.items()`. Use `children.render()`, `children.options()` and `children.table()` for child content, plus `validation`, `navigation`, `source` and `locale` for shared services. Runtime services expose evaluation, state writes and resets. The adapter owns internal AST access.
+
+`examples/integration/extension-sdk/advanced.tsx` implements an external coordinate control, collection control and Markdown container. The [phase-two inventory](../development/extension-sdk-phase2-inventory-ch.md) tracks each default component.
 
 ## Authoring and themes
 
@@ -91,4 +115,4 @@ npm.cmd run test:sdk-consumer
 
 The verifier installs tarballs outside the repository, checks types and SSR, builds the standalone bundle, and opens static and interactive HTML in fresh offline browser contexts. Results, exports and screenshots are retained in `artifacts/sdk-consumer`.
 
-Legacy `hostComponents`, `hostRenderer` and `hostData` remain available. Combining legacy registration with the new configuration is rejected. Multi-slot bindings, collections, complex children and complete built-in migration follow the [architecture plan](../development/extension-sdk-plan-ch.md).
+Legacy `hostComponents`, `hostRenderer` and `hostData` remain available. Combining legacy registration with the new configuration is rejected. Legacy declarations enter the common schema through an input adapter, while legacy render callbacks retain their prop behavior. The [architecture plan](../development/extension-sdk-plan-ch.md) tracks subsequent stabilization and consumer tooling.

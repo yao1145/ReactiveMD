@@ -1,4 +1,6 @@
 import {walkLocalNodes} from './node-walk';
+import { kernelDocumentMetadata } from './component-kernel';
+import { getLocalComponentDefinition } from '../sdk/registry';
 import type {
   Diagnostic,
   LocalBinding,
@@ -53,27 +55,55 @@ function isSlotBinding(document: LocalDocument, node: LocalNode, name: string): 
   return slots !== undefined && Object.values(slots).includes(name);
 }
 
+/**
+ * Authored initial attribute for a binding on a hand-built document, resolved
+ * from the public default manifest. Returns undefined when the manifest does
+ * not retain this binding (timers, checklists) or does not declare it.
+ */
+function declaredInitialAttribute(
+  document: LocalDocument,
+  node: LocalNode,
+  name: string,
+): string | undefined {
+  const definition = node.name ? getLocalComponentDefinition(node.name) : undefined;
+  if (definition?.bindings) {
+    const slots = document.bindingSlots?.[node.id];
+    for (const [slot, binding] of Object.entries(definition.bindings)) {
+      const matches = node.attrs?.[binding.bind] === name
+        || (slot !== 'value' && slots?.[slot] === name);
+      if (!matches) continue;
+      return binding.retain === false ? undefined : binding.initial;
+    }
+    return undefined;
+  }
+  if (node.attrs?.bind === name || isSlotBinding(document, node, name)) return 'initial';
+  return undefined;
+}
+
 function retainableBindings(document: LocalDocument): Map<string, RetainableBinding> {
   const nodeIndex = indexNodes(document);
+  const metadata = kernelDocumentMetadata(document);
+  const exclusions = new Set(metadata?.retentionExclusions ?? []);
   const result = new Map<string, RetainableBinding>();
   for (const [name, binding] of Object.entries(document.bindings)) {
     const controls = binding.nodeIds.flatMap((id) => {
       const node = nodeIndex.get(id);
       return node ? [node] : [];
     });
-    // Checklists are positional and timers own extra UI state, so neither can
-    // reinterpret a value from an earlier document safely.
-    if (
-      !controls.length
-      || name.startsWith('@')
-      || controls.some((node) => (
-        (node.attrs?.bind !== name && !isSlotBinding(document, node, name))
-        || node.name === 'timer'
-        || node.name === 'checklist'
-      ))
-    ) continue;
-    const explicitInitials = controls.flatMap((node) => (
-      Object.hasOwn(node.attrs ?? {}, 'initial') ? [node.attrs!.initial] : []
+    if (!controls.length || name.startsWith('@') || exclusions.has(name)) continue;
+    let initialAttributes: string[];
+    if (metadata === undefined) {
+      // Hand-built document: resolve storage attributes from the public
+      // default manifests, never from a second built-in name table.
+      const resolved = controls.map((node) => declaredInitialAttribute(document, node, name));
+      if (resolved.some((attribute) => attribute === undefined)) continue;
+      initialAttributes = resolved as string[];
+    } else {
+      const initial = metadata.bindingAttributes?.[name]?.initial ?? 'initial';
+      initialAttributes = controls.map(() => initial);
+    }
+    const explicitInitials = controls.flatMap((node, index) => (
+      Object.hasOwn(node.attrs ?? {}, initialAttributes[index]) ? [node.attrs![initialAttributes[index]]] : []
     )).sort();
     // Capture the author-requested definition too, so adding or removing
     // initial="0" still resets even when the effective default is unchanged.

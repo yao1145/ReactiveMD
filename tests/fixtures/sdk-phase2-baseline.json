@@ -1,0 +1,3103 @@
+{
+  "baseCommit": "d227fc09c503f8094883c33be87ad0a13d866213",
+  "cases": [
+    {
+      "suite": "local-draft-3.json",
+      "id": "shared numeric binding has one initial value and updates prose",
+      "source": "<number bind=\"n\" label=\"Count\" initial=\"2\" min=\"0\" max=\"10\">\n<slider bind=\"n\" label=\"Shared count\" min=\"0\" max=\"10\">\n\nTotal: {{ n * 2 }}",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "n": 2
+      },
+      "bindingShape": {
+        "n": {
+          "type": "number",
+          "initial": 2,
+          "min": 0,
+          "max": 10,
+          "step": 1
+        }
+      },
+      "actions": [
+        {
+          "bind": "n",
+          "value": 5,
+          "codes": [],
+          "state": {
+            "n": 5
+          }
+        }
+      ],
+      "text": "Total: 10",
+      "markupDigest": "9dbe87a2c746bef72974e0a58c58274a2aa08bda13729920fbe6a9873f00dc35",
+      "textTemplate": "Total: {{ n * 2 }}"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "hidden controls initialize their bindings",
+      "source": "<toggle bind=\"show\" label=\"Show\">\n<if when=\"{{ show }}\">\n<number bind=\"n\" label=\"Hidden count\" initial=\"4\">\n</if>\n\n{{ n * 2 }}",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "n": 4,
+        "show": false
+      },
+      "bindingShape": {
+        "show": {
+          "type": "boolean",
+          "initial": false
+        },
+        "n": {
+          "type": "number",
+          "initial": 4,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "text": "8",
+      "markupDigest": "e2be845824f3eac3565c6a3ff47905b74d96d0fc61af29d938d1bc9fb7a26c36",
+      "textTemplate": "{{ n * 2 }}"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "invalid state writes keep the last valid value",
+      "source": "<number bind=\"n\" label=\"Count\" initial=\"4\" min=\"0\" max=\"10\">",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "n": 4
+      },
+      "bindingShape": {
+        "n": {
+          "type": "number",
+          "initial": 4,
+          "min": 0,
+          "max": 10,
+          "step": 1
+        }
+      },
+      "actions": [
+        {
+          "bind": "n",
+          "value": 11,
+          "codes": [
+            "local.runtime.value"
+          ],
+          "state": {
+            "n": 4
+          }
+        }
+      ],
+      "text": "4",
+      "markupDigest": "25ae80acecc9ff905cd38ad96d5e50873484fb146d821f0dca469e050672d809",
+      "textTemplate": "{{ n }}"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "code fences keep controls and interpolation literal",
+      "source": "```markdown\n<counter bind=\"n\" label=\"Literal\">\n{{ missing }}\n```",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {},
+      "bindingShape": {},
+      "actions": [],
+      "markupDigest": "2f68ebf9cfbb2e94868909501550162ad60f3cb08c19a59b6aa25ad495e4708d"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "unknown components preserve source with a warning",
+      "source": "<slidr label=\"Typo\">\n</slidr>",
+      "ok": true,
+      "diagnostics": [
+        {
+          "code": "local.component.unknown",
+          "severity": "warning",
+          "range": {
+            "start": 0,
+            "end": 29
+          }
+        }
+      ],
+      "initial": {},
+      "bindingShape": {},
+      "actions": [],
+      "markupDigest": "609daa3c3246ba076311cf7853f5f71986eb3809b32298c5f4576af28bc5bff9"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "unbound expression names produce a compiler diagnostic",
+      "source": "Total: {{ missing * 2 }}",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "local.binding.unknown",
+          "severity": "error",
+          "range": {
+            "start": 10,
+            "end": 11
+          }
+        }
+      ]
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "multi-select-values",
+      "source": "<multi-select bind=\"subjects\" label=\"Subjects\" max-selected=\"2\">\n<option value=\"math\">Math</option>\n<option value=\"physics\">Physics</option>\n</multi-select>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "subjects": []
+      },
+      "bindingShape": {
+        "subjects": {
+          "type": "array",
+          "initial": [],
+          "options": [
+            "math",
+            "physics"
+          ],
+          "maxItems": 2
+        }
+      },
+      "actions": [
+        {
+          "bind": "subjects",
+          "value": [
+            "physics",
+            "math"
+          ],
+          "codes": [],
+          "state": {
+            "subjects": [
+              "math",
+              "physics"
+            ]
+          }
+        }
+      ],
+      "text": "2",
+      "markupDigest": "3646ea8e45356f2368b7e313f47b84dbfa2fa5108e66a73c2a049a7c233ac064",
+      "textTemplate": "{{ len(subjects) }}"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "range-slots",
+      "source": "<range-slider label=\"Interval\" bind-start=\"low\" bind-end=\"high\" initial-start=\"20\" initial-end=\"80\">",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "high": 80,
+        "low": 20
+      },
+      "bindingShape": {
+        "low": {
+          "type": "number",
+          "initial": 20,
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        "high": {
+          "type": "number",
+          "initial": 80,
+          "min": 0,
+          "max": 100,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "text": "60",
+      "markupDigest": "c4d2fc8923bf870f2d9cf658732b28aedd2b0f3582374e8fa00c4d4856f94029",
+      "textTemplate": "{{ high - low }}"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "coordinate-slots",
+      "source": "<coordinate label=\"Point\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\">",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "px": 1,
+        "py": 2
+      },
+      "bindingShape": {
+        "px": {
+          "type": "number",
+          "initial": 1,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        },
+        "py": {
+          "type": "number",
+          "initial": 2,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "text": "3",
+      "markupDigest": "2e0c9dba823e8d3ff063290bdc9861619eaca10410c0116dc64ca58e0dfa2172",
+      "textTemplate": "{{ px + py }}"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "steps-initialization",
+      "source": "<steps label=\"Path\" bind=\"lesson\">\n<step label=\"Read\">\nRead first.\n</step>\n<step label=\"Try\">\nTry next.\n</step>\n</steps>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "lesson": "step-1"
+      },
+      "bindingShape": {
+        "lesson": {
+          "type": "string",
+          "initial": "step-1",
+          "options": [
+            "step-1",
+            "step-2"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "bind": "lesson",
+          "value": "step-2",
+          "codes": [],
+          "state": {
+            "lesson": "step-2"
+          }
+        }
+      ],
+      "text": "step-2",
+      "markupDigest": "eb0a7fc6531e91e1aeb6d8e99c8bf495361d9bce907a380cd54343264644f37e",
+      "textTemplate": "{{ lesson }}"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "jump-colored-prose",
+      "source": "<jump to=\"result\">Results</jump>\n\n<section color=\"#123\">\n\n<text color=\"red\">Important</text>\n\n</section>\n\n<anchor id=\"result\">\n\nDone.",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {},
+      "bindingShape": {},
+      "actions": [],
+      "markupDigest": "fc09029213ee7fc3d417b5a49f263a3d2a3a37887b5207b38396fce6c3fa7bbd"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "quiz-choice",
+      "source": "<quiz label=\"Two plus three\" answer=\"b\">\n<option value=\"a\">4</option>\n<option value=\"b\">5</option>\n</quiz>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {},
+      "bindingShape": {},
+      "actions": [],
+      "markupDigest": "49959892b765fcccbc630df24962403f49f4f733e9e8828cb462f71a06864c7f"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "selection-key",
+      "source": "<table bind=\"project\" key=\"Project\" initial=\"Visual\">\n| Project | Cost |\n| --- | ---: |\n| Content | 120 |\n| Visual | 230 |\n</table>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "project": "Visual"
+      },
+      "bindingShape": {
+        "project": {
+          "type": "string",
+          "initial": "Visual",
+          "options": [
+            "",
+            "Content",
+            "Visual"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "bind": "project",
+          "value": "Content",
+          "codes": [],
+          "state": {
+            "project": "Content"
+          }
+        }
+      ],
+      "text": "Content",
+      "markupDigest": "c14af746c0a4af720ddd4246f07eb04249bbbf4b9d03d942d297c24d723d779f",
+      "textTemplate": "{{ project }}"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "computed-values-recalculate-from-controls-and-arrays",
+      "source": "<computed name=\"costs\" value=\"{{ [seats * 80, materials ? seats * 20 : 0] }}\">\n<computed name=\"total\" value=\"{{ sum(costs) }}\">\n\n<number bind=\"seats\" label=\"Seats\" initial=\"4\" min=\"1\" max=\"20\">\n<toggle bind=\"materials\" label=\"Materials\">\n\nTotal: {{ total }}.",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "materials": false,
+        "seats": 4
+      },
+      "bindingShape": {
+        "seats": {
+          "type": "number",
+          "initial": 4,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        },
+        "materials": {
+          "type": "boolean",
+          "initial": false
+        }
+      },
+      "actions": [
+        {
+          "bind": "materials",
+          "value": true,
+          "codes": [],
+          "state": {
+            "materials": true,
+            "seats": 4
+          }
+        },
+        {
+          "bind": "seats",
+          "value": 6,
+          "codes": [],
+          "state": {
+            "materials": true,
+            "seats": 6
+          }
+        }
+      ],
+      "text": "Total: 600.",
+      "markupDigest": "0303776e0e67fa8bea42deefdbb4314ae2dd73f3112f93c7ac14df20dbf472c8",
+      "textTemplate": "Total: {{ total }}."
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "dynamic-number-max-narrows",
+      "source": "<number bind=\"rooms\" label=\"Rooms\" initial=\"2\" min=\"1\" max=\"5\">\n<number bind=\"guests\" label=\"Guests\" initial=\"6\" min=\"1\" max=\"{{ rooms * 4 }}\">",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "guests": 6,
+        "rooms": 2
+      },
+      "bindingShape": {
+        "rooms": {
+          "type": "number",
+          "initial": 2,
+          "min": 1,
+          "max": 5,
+          "step": 1
+        },
+        "guests": {
+          "type": "number",
+          "initial": 6,
+          "min": 1,
+          "step": 1
+        }
+      },
+      "actions": [
+        {
+          "bind": "rooms",
+          "value": 1,
+          "codes": [],
+          "state": {
+            "guests": 6,
+            "rooms": 1
+          }
+        },
+        {
+          "bind": "guests",
+          "value": 6,
+          "codes": [
+            "local.runtime.value"
+          ],
+          "state": {
+            "guests": 6,
+            "rooms": 1
+          }
+        },
+        {
+          "bind": "guests",
+          "value": 4,
+          "codes": [],
+          "state": {
+            "guests": 4,
+            "rooms": 1
+          }
+        }
+      ],
+      "text": "4",
+      "markupDigest": "cf8a73ecc37aab259c40bca359e5245820ed9588a4273c98d46b1c1e4bdde1a7",
+      "textTemplate": "{{ guests }}"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "dynamic-date-min-follows-departure",
+      "source": "<date bind=\"departure\" label=\"Departure\" initial=\"2026-11-10\">\n<date bind=\"return\" label=\"Return\" initial=\"2026-11-12\" min=\"{{ departure }}\">",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "departure": "2026-11-10",
+        "return": "2026-11-12"
+      },
+      "bindingShape": {
+        "departure": {
+          "type": "string",
+          "initial": "2026-11-10"
+        },
+        "return": {
+          "type": "string",
+          "initial": "2026-11-12"
+        }
+      },
+      "actions": [
+        {
+          "bind": "return",
+          "value": "2026-11-01",
+          "codes": [
+            "local.runtime.value"
+          ],
+          "state": {
+            "departure": "2026-11-10",
+            "return": "2026-11-12"
+          }
+        }
+      ],
+      "text": "2026-11-12",
+      "markupDigest": "2bca1898530285a6c46fe2d53d64555e6f65c48c3b31dc2b18c6d333792012e5",
+      "textTemplate": "{{ return }}"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "external-declaration-compiles",
+      "source": "<external name=\"rate\" type=\"number\">\n<number bind=\"usd\" label=\"USD\" initial=\"10\" min=\"0\" max=\"1000\">\n\nUSD {{ usd }}",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "usd": 10
+      },
+      "bindingShape": {
+        "usd": {
+          "type": "number",
+          "initial": 10,
+          "min": 0,
+          "max": 1000,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "f4ce5e02d2ce0461c1ea7698ddef4e456c3d12b4bf9e80e58e417f119da58c59"
+    },
+    {
+      "suite": "local-draft-3.json",
+      "id": "external-placement-is-rejected",
+      "source": "<panel><external name=\"rate\" type=\"number\"></panel>",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "local.external.placement",
+          "severity": "error",
+          "range": {
+            "start": 7,
+            "end": 43
+          }
+        }
+      ]
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "slider-explicit-initial",
+      "source": "<slider bind=\"seats\" label=\"People\" initial=\"2\" min=\"1\" max=\"20\">\n\nCurrently {{ seats }} people.",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "seats": 2
+      },
+      "bindingShape": {
+        "seats": {
+          "type": "number",
+          "initial": 2,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "text": "Currently 2 people.",
+      "markupDigest": "034fe4d4c089a8496e05e83d1308875d9d155e11bcb27f480ce90b16b05dc4ce",
+      "textTemplate": "Currently {{ seats }} people."
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "slider-default-min",
+      "source": "<slider bind=\"level\" label=\"Level\" min=\"5\" max=\"15\">",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "level": 5
+      },
+      "bindingShape": {
+        "level": {
+          "type": "number",
+          "initial": 5,
+          "min": 5,
+          "max": 15,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "text": "Level: 5.",
+      "markupDigest": "aa5c483a15fd49be85493fc8e4b7151b8b0628d0fb3ae065530c77b656053a58",
+      "textTemplate": "Level: {{ level }}."
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "slider-shared-update",
+      "source": "<slider bind=\"n\" label=\"First\" initial=\"1\" min=\"0\" max=\"10\">\n<slider bind=\"n\" label=\"Second\" min=\"0\" max=\"10\">\n\nShared value {{ n }}.",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "n": 1
+      },
+      "bindingShape": {
+        "n": {
+          "type": "number",
+          "initial": 1,
+          "min": 0,
+          "max": 10,
+          "step": 1
+        }
+      },
+      "actions": [
+        {
+          "bind": "n",
+          "value": 7,
+          "codes": [],
+          "state": {
+            "n": 7
+          }
+        }
+      ],
+      "text": "Shared value 7.",
+      "markupDigest": "7ad5cdf33a879266ac861befb78a3fe5ee2c396e764dbbe2b6dd83c07a5e95cb",
+      "textTemplate": "Shared value {{ n }}."
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "slider-rejects-invalid-writes",
+      "source": "<slider bind=\"amount\" label=\"Amount\" initial=\"4\" min=\"0\" max=\"10\">",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "amount": 4
+      },
+      "bindingShape": {
+        "amount": {
+          "type": "number",
+          "initial": 4,
+          "min": 0,
+          "max": 10,
+          "step": 1
+        }
+      },
+      "actions": [
+        {
+          "bind": "amount",
+          "value": 11,
+          "codes": [
+            "local.runtime.value"
+          ],
+          "state": {
+            "amount": 4
+          }
+        },
+        {
+          "bind": "amount",
+          "value": 6,
+          "codes": [],
+          "state": {
+            "amount": 6
+          }
+        },
+        {
+          "bind": "amount",
+          "value": 1.5,
+          "codes": [
+            "local.runtime.value"
+          ],
+          "state": {
+            "amount": 6
+          }
+        }
+      ],
+      "text": "6",
+      "markupDigest": "172e42aacfd3915a357a06282b520e21553d547c3982cb94ae07d1a866ea5473",
+      "textTemplate": "{{ amount }}"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "slider-shared-constraint-mismatch",
+      "source": "<slider bind=\"n\" label=\"First\" min=\"0\" max=\"10\">\n<slider bind=\"n\" label=\"Second\" min=\"0\" max=\"20\">",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "local.binding.constraint",
+          "severity": "error",
+          "range": {
+            "start": 49,
+            "end": 98
+          }
+        }
+      ]
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "slider-anonymous-controls",
+      "source": "<slider label=\"Anonymous first\" initial=\"3\" min=\"0\" max=\"10\">\n<slider label=\"Anonymous second\" initial=\"7\" min=\"0\" max=\"10\">",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {},
+      "bindingShape": {},
+      "actions": [],
+      "markupDigest": "e91b3465bc1b7d34936aee51e02c91f46d7506d2242a87b125c33952b3d1b526"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "slider-initial-out-of-range",
+      "source": "<slider bind=\"ratio\" label=\"Ratio\" initial=\"12\" min=\"0\" max=\"10\">",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "local.initial.range",
+          "severity": "error",
+          "range": {
+            "start": 35,
+            "end": 36
+          }
+        }
+      ]
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "tabs-default-first",
+      "source": "<tabs bind=\"view\" label=\"View\">\n<tab label=\"Overview\">Overview content</tab>\n<tab label=\"Details\" value=\"detail\">Detail content</tab>\n</tabs>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "view": "tab-1"
+      },
+      "bindingShape": {
+        "view": {
+          "type": "string",
+          "initial": "tab-1",
+          "options": [
+            "tab-1",
+            "detail"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "bind": "view",
+          "value": "detail",
+          "codes": [],
+          "state": {
+            "view": "detail"
+          }
+        },
+        {
+          "bind": "view",
+          "value": "absent",
+          "codes": [
+            "local.runtime.value"
+          ],
+          "state": {
+            "view": "detail"
+          }
+        }
+      ],
+      "text": "Current tab detail.",
+      "markupDigest": "76dbdc43028c7c5f1a2bf7e6ee422dd13f824fc86a972dfc54fd7f5e1e0c1df6",
+      "textTemplate": "Current tab {{ view }}."
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "tabs-explicit-initial-and-reset",
+      "source": "<tabs bind=\"view\" label=\"View\" initial=\"detail\">\n<tab label=\"Overview\" value=\"summary\">Summary page</tab>\n<tab label=\"Details\" value=\"detail\">Detail page</tab>\n</tabs>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "view": "detail"
+      },
+      "bindingShape": {
+        "view": {
+          "type": "string",
+          "initial": "detail",
+          "options": [
+            "summary",
+            "detail"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "bind": "view",
+          "value": "summary",
+          "codes": [],
+          "state": {
+            "view": "summary"
+          }
+        }
+      ],
+      "text": "summary",
+      "markupDigest": "129e93dd89c2e106e3207cdda2a415ff83e3b19e6baee345962350a48869c628",
+      "textTemplate": "{{ view }}"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "tabs-exclusive-binding",
+      "source": "<tabs bind=\"view\" label=\"First\">\n<tab label=\"A\">First page</tab>\n</tabs>\n<tabs bind=\"view\" label=\"Second\">\n<tab label=\"B\">Second page</tab>\n</tabs>",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "local.binding.exclusive",
+          "severity": "error",
+          "range": {
+            "start": 73,
+            "end": 147
+          }
+        }
+      ]
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "tabs-hidden-controls-and-panel-reset",
+      "source": "<panel title=\"Settings\">\n<tabs bind=\"view\" label=\"Sections\" initial=\"basic\">\n<tab label=\"Basic\" value=\"basic\">\n<slider bind=\"a\" label=\"A\" initial=\"2\" min=\"0\" max=\"10\">\n</tab>\n<tab label=\"Advanced\" value=\"advanced\">\n<slider bind=\"b\" label=\"B\" initial=\"7\" min=\"0\" max=\"10\">\n</tab>\n</tabs>\n</panel>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "a": 2,
+        "b": 7,
+        "view": "basic"
+      },
+      "bindingShape": {
+        "view": {
+          "type": "string",
+          "initial": "basic",
+          "options": [
+            "basic",
+            "advanced"
+          ]
+        },
+        "a": {
+          "type": "number",
+          "initial": 2,
+          "min": 0,
+          "max": 10,
+          "step": 1
+        },
+        "b": {
+          "type": "number",
+          "initial": 7,
+          "min": 0,
+          "max": 10,
+          "step": 1
+        }
+      },
+      "actions": [
+        {
+          "bind": "view",
+          "value": "advanced",
+          "codes": [],
+          "state": {
+            "a": 2,
+            "b": 7,
+            "view": "advanced"
+          }
+        },
+        {
+          "bind": "a",
+          "value": 5,
+          "codes": [],
+          "state": {
+            "a": 5,
+            "b": 7,
+            "view": "advanced"
+          }
+        },
+        {
+          "bind": "b",
+          "value": 9,
+          "codes": [],
+          "state": {
+            "a": 5,
+            "b": 9,
+            "view": "advanced"
+          }
+        }
+      ],
+      "text": "advanced: 5 / 9",
+      "markupDigest": "955fa38fa138ec3430f35bca5873d84c2d994736d9cbdfc901a5b406be7da113",
+      "textTemplate": "{{ view }}: {{ a }} / {{ b }}"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "plot-valid-latex",
+      "source": "<slider bind=\"a\" label=\"Amplitude\" initial=\"1\" min=\"0\" max=\"3\" step=\"0.5\">\n\n<plot label=\"Sine wave\" min=\"-2\" max=\"2\">\n$$ y = a\\sin x $$\n</plot>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "a": 1
+      },
+      "bindingShape": {
+        "a": {
+          "type": "number",
+          "initial": 1,
+          "min": 0,
+          "max": 3,
+          "step": 0.5
+        }
+      },
+      "actions": [],
+      "markupDigest": "fae664d7d42324eef3cda2e580a828a4e0d5ba59e36f5da59c974ac44ce1c036"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "plot-dynamic-range",
+      "source": "<slider bind=\"low\" label=\"Lower bound\" initial=\"-2\" min=\"-10\" max=\"0\">\n<slider bind=\"high\" label=\"Upper bound\" initial=\"3\" min=\"0\" max=\"10\">\n\n<plot label=\"Range curve\" min=\"{{ low }}\" max=\"{{ high }}\">\n$$ y = x $$\n</plot>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "high": 3,
+        "low": -2
+      },
+      "bindingShape": {
+        "low": {
+          "type": "number",
+          "initial": -2,
+          "min": -10,
+          "max": 0,
+          "step": 1
+        },
+        "high": {
+          "type": "number",
+          "initial": 3,
+          "min": 0,
+          "max": 10,
+          "step": 1
+        }
+      },
+      "actions": [
+        {
+          "bind": "high",
+          "value": 5,
+          "codes": [],
+          "state": {
+            "high": 5,
+            "low": -2
+          }
+        }
+      ],
+      "text": "7",
+      "markupDigest": "4cd8260849509dd51cd0246cb7c61f3d57df296815699060b14835de838c1ee4",
+      "textTemplate": "{{ high - low }}"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "plot-non-number-binding",
+      "source": "<toggle bind=\"a\" label=\"Switch\">\n\n<plot label=\"Type error\">\n$$ y = a\\sin x $$\n</plot>",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "local.math.binding",
+          "severity": "error",
+          "range": {
+            "start": 60,
+            "end": 77
+          }
+        }
+      ]
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "plot-invalid-range",
+      "source": "<plot label=\"Invalid range\" min=\"5\" max=\"5\">\n$$ y = x $$\n</plot>",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "local.constraint",
+          "severity": "error",
+          "range": {
+            "start": 28,
+            "end": 29
+          }
+        }
+      ]
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "plot-point-budget",
+      "source": "<plot label=\"First group\" min=\"-1\" max=\"1\" samples=\"2000\">\n$$ y = x $$\n$$ y = x^2 $$\n$$ y = \\sin x $$\n$$ y = \\cos x $$\n$$ y = x/2 $$\n$$ y = 2x $$\n</plot>\n\n<plot label=\"Second group\" min=\"-1\" max=\"1\" samples=\"2000\">\n$$ y = x + 1 $$\n$$ y = x - 1 $$\n$$ y = 3x $$\n$$ y = \\frac{x}{3} $$\n$$ y = -x $$\n</plot>",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "local.budget.plot.points",
+          "severity": "error",
+          "range": {
+            "start": 155,
+            "end": 302
+          }
+        }
+      ]
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "unknown-tag-inert-fallback",
+      "source": "<slidr label=\"Typo\">\n<slider bind=\"ghost\" label=\"Should stay inert\" initial=\"4\" min=\"0\" max=\"10\">\n{{ ghost }} should not run.\n</slidr>\n\nOutside still evaluates: {{ 1 + 2 }}.",
+      "ok": true,
+      "diagnostics": [
+        {
+          "code": "local.component.unknown",
+          "severity": "warning",
+          "range": {
+            "start": 0,
+            "end": 134
+          }
+        }
+      ],
+      "initial": {},
+      "bindingShape": {},
+      "actions": [],
+      "text": "Outside still evaluates: 3.",
+      "markupDigest": "b723701606f74df1e9735502e90d00931fd0c667e7dc18bda4e637edeaabf4e9",
+      "textTemplate": "Outside still evaluates: {{ 1 + 2 }}."
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "v2-multi-select-values",
+      "source": "<multi-select bind=\"subjects\" label=\"Subjects\" max-selected=\"2\">\n<option value=\"math\">Math</option>\n<option value=\"physics\">Physics</option>\n</multi-select>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "subjects": []
+      },
+      "bindingShape": {
+        "subjects": {
+          "type": "array",
+          "initial": [],
+          "options": [
+            "math",
+            "physics"
+          ],
+          "maxItems": 2
+        }
+      },
+      "actions": [
+        {
+          "bind": "subjects",
+          "value": [
+            "physics",
+            "math"
+          ],
+          "codes": [],
+          "state": {
+            "subjects": [
+              "math",
+              "physics"
+            ]
+          }
+        }
+      ],
+      "text": "2",
+      "markupDigest": "3646ea8e45356f2368b7e313f47b84dbfa2fa5108e66a73c2a049a7c233ac064",
+      "textTemplate": "{{ len(subjects) }}"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "v2-range-slots",
+      "source": "<range-slider label=\"Interval\" bind-start=\"low\" bind-end=\"high\" initial-start=\"20\" initial-end=\"80\">",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "high": 80,
+        "low": 20
+      },
+      "bindingShape": {
+        "low": {
+          "type": "number",
+          "initial": 20,
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        "high": {
+          "type": "number",
+          "initial": 80,
+          "min": 0,
+          "max": 100,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "text": "60",
+      "markupDigest": "c4d2fc8923bf870f2d9cf658732b28aedd2b0f3582374e8fa00c4d4856f94029",
+      "textTemplate": "{{ high - low }}"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "v2-coordinate-slots",
+      "source": "<coordinate label=\"Point\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\">",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "px": 1,
+        "py": 2
+      },
+      "bindingShape": {
+        "px": {
+          "type": "number",
+          "initial": 1,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        },
+        "py": {
+          "type": "number",
+          "initial": 2,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "text": "3",
+      "markupDigest": "2e0c9dba823e8d3ff063290bdc9861619eaca10410c0116dc64ca58e0dfa2172",
+      "textTemplate": "{{ px + py }}"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "v2-steps-initialization",
+      "source": "<steps label=\"Path\" bind=\"lesson\">\n<step label=\"Read\">\nRead first.\n</step>\n<step label=\"Try\">\nTry next.\n</step>\n</steps>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "lesson": "step-1"
+      },
+      "bindingShape": {
+        "lesson": {
+          "type": "string",
+          "initial": "step-1",
+          "options": [
+            "step-1",
+            "step-2"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "bind": "lesson",
+          "value": "step-2",
+          "codes": [],
+          "state": {
+            "lesson": "step-2"
+          }
+        }
+      ],
+      "text": "step-2",
+      "markupDigest": "eb0a7fc6531e91e1aeb6d8e99c8bf495361d9bce907a380cd54343264644f37e",
+      "textTemplate": "{{ lesson }}"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "v2-jump-colored-prose",
+      "source": "<jump to=\"result\">Results</jump>\n\n<section color=\"#123\">\n\n<text color=\"red\">Important</text>\n\n</section>\n\n<anchor id=\"result\">\n\nDone.",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {},
+      "bindingShape": {},
+      "actions": [],
+      "markupDigest": "fc09029213ee7fc3d417b5a49f263a3d2a3a37887b5207b38396fce6c3fa7bbd"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "v2-quiz-choice",
+      "source": "<quiz label=\"Two plus three\" answer=\"b\">\n<option value=\"a\">4</option>\n<option value=\"b\">5</option>\n</quiz>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {},
+      "bindingShape": {},
+      "actions": [],
+      "markupDigest": "49959892b765fcccbc630df24962403f49f4f733e9e8828cb462f71a06864c7f"
+    },
+    {
+      "suite": "component-protocol-1.json",
+      "id": "v2-selection-key",
+      "source": "<table bind=\"project\" key=\"Project\" initial=\"Visual\">\n| Project | Cost |\n| --- | ---: |\n| Content | 120 |\n| Visual | 230 |\n</table>",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "project": "Visual"
+      },
+      "bindingShape": {
+        "project": {
+          "type": "string",
+          "initial": "Visual",
+          "options": [
+            "",
+            "Content",
+            "Visual"
+          ]
+        }
+      },
+      "actions": [
+        {
+          "bind": "project",
+          "value": "Content",
+          "codes": [],
+          "state": {
+            "project": "Content"
+          }
+        }
+      ],
+      "text": "Content",
+      "markupDigest": "c14af746c0a4af720ddd4246f07eb04249bbbf4b9d03d942d297c24d723d779f",
+      "textTemplate": "{{ project }}"
+    },
+    {
+      "suite": "examples/local/catalog.reactive.md",
+      "id": "examples/local/catalog.reactive.md",
+      "source": "# Find components in the document\n\nType \"visual\", \"input\" or another keyword into the search box above the table. Click a column name to sort, and use the paging controls to move between pages.\n\n<panel title=\"Local component catalog\">\n<table label=\"Component catalog\" page-size=\"4\">\n| Name | Category | Purpose |\n| --- | --- | --- |\n| slider | Input | Drag to adjust a number |\n| toggle | Input | Flip a switch |\n| choices | Input | Pick from a few options |\n| chart | Visual | Turn a Markdown table into a chart |\n| plot | Visual | Draw a function with LaTeX |\n| diagram | Visual | Select nodes to explore explanations |\n| checklist | Content | Tick off completed items |\n| timer | Utility | Start, pause and reset a countdown |\n</table>\n</panel>\n\nThe catalog data lives in this document. Searching filters the table directly, and restoring the defaults clears the query and returns to the original order.\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {},
+      "bindingShape": {},
+      "actions": [],
+      "markupDigest": "a77ff153f7a4c6250d953df4c44c15836a0c273adba388fb465426201b8a0565"
+    },
+    {
+      "suite": "examples/local/charts.reactive.md",
+      "id": "examples/local/charts.reactive.md",
+      "source": "# Charts follow their inputs\r\n\r\n## Comparing several budget series\r\n\r\n<chart title=\"Actual cost vs budget\" y-label=\"USD\">\r\n| Category | Actual cost | Budget |\r\n| --- | ---: | ---: |\r\n| Content | 120 | 150 |\r\n| Visual | 230 | 200 |\r\n| Interaction | 180 | 220 |\r\n| Testing | 90 | 120 |\r\n</chart>\r\n\r\n## Savings curve\r\n\r\nDeposit a fixed amount at the end of every month, compounded monthly at a fixed annual rate. $P$ is the initial amount, $m$ is the monthly deposit, and $r$ is the annual rate in percent.\r\n\r\n<panel title=\"Adjust savings parameters\">\r\n<number bind=\"P\" label=\"Initial amount\" initial=\"10000\" min=\"0\" step=\"100\">\r\n<number bind=\"m\" label=\"Monthly deposit\" initial=\"500\" min=\"0\" step=\"100\">\r\n<slider bind=\"r\" label=\"Annual rate (%)\" initial=\"5\" min=\"0\" max=\"10\" step=\"0.5\">\r\n<slider bind=\"t\" label=\"Years\" initial=\"20\" min=\"1\" max=\"40\">\r\n</panel>\r\n\r\n<plot min=\"0\" max=\"{{ t }}\" label=\"Savings growth\" x-label=\"Years\" y-label=\"Amount\">\r\n$$\r\ny =\r\n\\begin{cases}\r\nP + 12mx, & r = 0 \\\\\r\nP\\left(1+\\frac{r}{1200}\\right)^{12x}\r\n+ m\\frac{\\left(1+\\frac{r}{1200}\\right)^{12x}-1}{r/1200}, & r \\ne 0\r\n\\end{cases}\r\n$$\r\n</plot>\r\n\r\nMove the pointer to the end of the curve to read the balance at the end of year {{ t }}. Set the annual rate to 0 to compare growth from deposits alone.\r\n\r\n## Shares and scatter\r\n\r\n<grid>\r\n<card title=\"Cost share\">\r\n<chart kind=\"donut\" title=\"Share of actual cost\">\r\n| Category | Actual cost |\r\n| --- | ---: |\r\n| Content | 120 |\r\n| Visual | 230 |\r\n| Interaction | 180 |\r\n| Testing | 90 |\r\n</chart>\r\n</card>\r\n\r\n<card title=\"Budget vs actual\">\r\n<chart kind=\"scatter\" title=\"Budget scatter\" x=\"Budget\" y=\"Actual\" x-label=\"Budget\" y-label=\"Actual\">\r\n| Budget | Actual |\r\n| ---: | ---: |\r\n| 150 | 120 |\r\n| 200 | 230 |\r\n| 220 | 180 |\r\n| 120 | 90 |\r\n</chart>\r\n</card>\r\n</grid>\r\n\r\n## Charts read the same parameters\r\n\r\n<slider bind=\"people\" label=\"People\" initial=\"2\" min=\"1\" max=\"20\">\r\n\r\n<chart title=\"Plan cost by headcount\" y-label=\"USD\">\r\n| Plan | Monthly cost |\r\n| --- | ---: |\r\n| Basic | {{ people * 20 }} |\r\n| Pro | {{ people * 35 }} |\r\n</chart>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "P": 10000,
+        "m": 500,
+        "people": 2,
+        "r": 5,
+        "t": 20
+      },
+      "bindingShape": {
+        "P": {
+          "type": "number",
+          "initial": 10000,
+          "min": 0,
+          "step": 100
+        },
+        "m": {
+          "type": "number",
+          "initial": 500,
+          "min": 0,
+          "step": 100
+        },
+        "r": {
+          "type": "number",
+          "initial": 5,
+          "min": 0,
+          "max": 10,
+          "step": 0.5
+        },
+        "t": {
+          "type": "number",
+          "initial": 20,
+          "min": 1,
+          "max": 40,
+          "step": 1
+        },
+        "people": {
+          "type": "number",
+          "initial": 2,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "ec0cfcc3f4ba5b5e033ea68dcf85f530e89072827b70ffe6a417078fe20c7793"
+    },
+    {
+      "suite": "examples/local/checklist.reactive.md",
+      "id": "examples/local/checklist.reactive.md",
+      "source": "# Organize a walkthrough with a checklist\n\n<panel title=\"Walkthrough checklist\">\n<checklist bind=\"done\" label=\"Complete these steps\">\n- [x] Read the source document\n- [ ] Adjust parameters and watch the results\n- [ ] Try it at phone width\n</checklist>\n\nDone: **{{ len(done) }} / 3**.\n\n<progress label=\"Completion\" value=\"{{ len(done) / 3 * 100 }}\">\n\n<if when=\"{{ len(done) == 3 }}\">\n<alert tone=\"success\" title=\"Walkthrough complete\">\nYou have read the source, tried the interactions and checked the narrow layout.\n</alert>\n</if>\n</panel>\n\n## Search, sorting and paging\n\n<table label=\"Component price examples\" page-size=\"3\">\n| Name | Category | Price |\n| --- | --- | ---: |\n| Document | Basic | 20 |\n| Parameter panel | Input | 45 |\n| Chart | Visual | 80 |\n| Diagram | Visual | 65 |\n| Checklist | Basic | 30 |\n| Plan | Utility | 35 |\n</table>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "done": [
+          "item-1"
+        ]
+      },
+      "bindingShape": {
+        "done": {
+          "type": "array",
+          "initial": [
+            "item-1"
+          ],
+          "options": [
+            "item-1",
+            "item-2",
+            "item-3"
+          ]
+        }
+      },
+      "actions": [],
+      "markupDigest": "0fdea336e004b3653b4cbae0e172c95506baf5f0d4a2fa312c6a0f238f58544b"
+    },
+    {
+      "suite": "examples/local/comparison.reactive.md",
+      "id": "examples/local/comparison.reactive.md",
+      "source": "# Side by side, easier to compare\n\n<panel title=\"Payment method\">\n<toggle bind=\"annual\" label=\"Pay annually and save 20%\">\n</panel>\n\n<grid>\n<card title=\"Basic plan\">\nFor individuals and small projects.\n\n**{{ annual ? 80 : 100 }} USD per month**.\n\n<badge>Local documents</badge>\n</card>\n\n<card title=\"Pro plan\">\nFor teams that need collaboration and room to grow.\n\n**{{ annual ? 160 : 200 }} USD per month**.\n\n<badge tone=\"success\">More components</badge>\n</card>\n</grid>\n\n<tabs label=\"Plan details\">\n<tab label=\"Feature comparison\">\n| Capability | Basic plan | Pro plan |\n| --- | --- | --- |\n| Parameter adjustment | Included | Included |\n| Text binding | Included | Included |\n| Content organization | Basic layout | Charts and diagrams |\n</tab>\n\n<tab label=\"Buying advice\">\nChoose a plan for what you need, then compare how the billing cycle changes the cost.\n</tab>\n</tabs>\n\n<accordion>\n<disclosure label=\"How is the cost calculated?\">\nAnnual billing applies a 20% discount to the monthly list price, and the equivalent monthly cost is shown above.\n</disclosure>\n\n<disclosure label=\"Can I switch at any time?\">\nToggle the switch above to compare the two billing cycles. This is a local calculation example.\n</disclosure>\n</accordion>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "annual": false
+      },
+      "bindingShape": {
+        "annual": {
+          "type": "boolean",
+          "initial": false
+        }
+      },
+      "actions": [],
+      "markupDigest": "dc72b891a39cd785e8d3c0ce9f5290ac50f01ed564d81d4f898b546526deecc9"
+    },
+    {
+      "suite": "examples/local/components.reactive.md",
+      "id": "examples/local/components.reactive.md",
+      "source": "# Organize interactions with content\n\nHover over <tooltip text=\"When an input changes, the related text and charts update automatically.\">reactive bindings</tooltip>, or focus it with the keyboard to read the explanation.\n\n<panel title=\"Reading preferences\">\n<radio-group bind=\"preference\" label=\"Explanation style\">\n<option value=\"concise\">Concise</option>\n<option value=\"detailed\">Detailed</option>\n</radio-group>\n</panel>\n\n<if when=\"{{ preference == 'concise' }}\">\nName the input and reference it in the prose.\n</if>\n\n<if when=\"{{ preference == 'detailed' }}\">\nName an input parameter with `bind` and read it with `{{ }}` to compute results. When readers adjust a control, the related content updates immediately.\n</if>\n\n## Read at your own pace\n\n<accordion label=\"Reading order\">\n<disclosure label=\"Understand the parameters\" open>\nFind what readers can change, such as headcount, unit price or amplitude.\n</disclosure>\n\n<disclosure label=\"Write down the relationship\">\nConnect inputs and results with an expression, for example `{{ people * 100 }}`.\n</disclosure>\n\n<disclosure label=\"Choose how to present it\">\nUse prose for a single result, charts for comparisons, and function curves for mathematical relationships.\n</disclosure>\n</accordion>\n\n<alert title=\"Keep exploring\">\nSwitch the option above and watch the explanation change.\n</alert>\n\n<badge tone=\"success\">Local interaction</badge>\n\n---\n\n> Headings, blockquotes, links and images still follow Markdown. Components only handle the parts that need interaction.\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "preference": "concise"
+      },
+      "bindingShape": {
+        "preference": {
+          "type": "string",
+          "initial": "concise",
+          "options": [
+            "concise",
+            "detailed"
+          ]
+        }
+      },
+      "actions": [],
+      "markupDigest": "6f7c32324c0921e8a86b45cfef5ba99982c0008157620f8ce3633051d5e8cd8b"
+    },
+    {
+      "suite": "examples/local/counter.reactive.md",
+      "id": "examples/local/counter.reactive.md",
+      "source": "# Counter\n\n<counter bind=\"count\" label=\"Current value\">\n\nThe prose can read it too: **{{ count }}**.\n\nUse the component's own plus, minus and reset buttons.\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "count": 0
+      },
+      "bindingShape": {
+        "count": {
+          "type": "number",
+          "initial": 0,
+          "min": 0,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "7f8a1d158955236b42d54c1c74a36a6c2cd9a5d107ed1ca8f16a43bce633528d"
+    },
+    {
+      "suite": "examples/local/diagnostics.reactive.md",
+      "id": "examples/local/diagnostics.reactive.md",
+      "source": "# Diagnostics example\n\nThis document intentionally keeps errors to exercise the diagnostic messages. Start with the other documents in this folder for correct examples.\n\n## Reference to a misspelled parameter name\n\n<slider bind=\"seats\" label=\"People\" initial=\"2\" min=\"1\" max=\"20\">\n\nCurrent headcount: {{ seat }}.\n\n## Duplicate initial declaration\n\n<number bind=\"seats\" label=\"Another headcount input\" initial=\"3\" min=\"1\" max=\"20\">\n\n## Initial value out of range\n\n<slider bind=\"ratio\" label=\"Ratio\" initial=\"12\" min=\"0\" max=\"10\">\n\n## Condition type error\n\n<if when=\"{{ seats }}\">\nThis needs a boolean condition, such as seats greater than 5.\n</if>\n\n## Unknown tag\n\n<slidr label=\"Misspelled slider\" />\n\n## Event outside the local interaction language\n\n<counter label=\"Counter\" on-click=\"increment\">\n\n## Missing node\n\n<diagram label=\"Broken edge\">\n<node id=\"input\" label=\"Input\">\nThis is the only node.\n</node>\n<edge from=\"input\" to=\"missing\">\n</diagram>\n\n## Unsupported math structure\n\n<plot label=\"Integrals are not part of the plot grammar\">\n$$ y = \\int_0^x t^2\\,dt $$\n</plot>\n\n## Invalid chart data\n\n<chart title=\"Units mixed into a numeric column\">\n| Item | Cost |\n| --- | ---: |\n| Content | 20 USD |\n</chart>\n",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "local.initial.duplicate",
+          "severity": "error",
+          "range": {
+            "start": 251,
+            "end": 252
+          }
+        },
+        {
+          "code": "local.binding.unknown",
+          "severity": "error",
+          "range": {
+            "start": 304,
+            "end": 305
+          }
+        },
+        {
+          "code": "local.initial.duplicate",
+          "severity": "error",
+          "range": {
+            "start": 401,
+            "end": 402
+          }
+        },
+        {
+          "code": "local.initial.range",
+          "severity": "error",
+          "range": {
+            "start": 498,
+            "end": 499
+          }
+        },
+        {
+          "code": "local.type",
+          "severity": "error",
+          "range": {
+            "start": 562,
+            "end": 563
+          }
+        },
+        {
+          "code": "local.component.unknown",
+          "severity": "warning",
+          "range": {
+            "start": 664,
+            "end": 699
+          }
+        },
+        {
+          "code": "local.attribute.unknown",
+          "severity": "error",
+          "range": {
+            "start": 775,
+            "end": 783
+          }
+        },
+        {
+          "code": "local.diagram.edge",
+          "severity": "error",
+          "range": {
+            "start": 908,
+            "end": 940
+          }
+        },
+        {
+          "code": "local.math",
+          "severity": "error",
+          "range": {
+            "start": 1042,
+            "end": 1068
+          }
+        },
+        {
+          "code": "local.chart.numeric",
+          "severity": "error",
+          "range": {
+            "start": 1192,
+            "end": 1202
+          }
+        }
+      ]
+    },
+    {
+      "suite": "examples/local/diagram.reactive.md",
+      "id": "examples/local/diagram.reactive.md",
+      "source": "# Make explanations explorable\n\nClick a node or use the keyboard to select a step and read its description.\n\n<diagram bind=\"selected\" initial=\"input\" label=\"Reactive state flow\">\n<node id=\"input\" label=\"Input\">\nReaders change parameters with sliders, switches and text fields.\n</node>\n\n<node id=\"compute\" label=\"Compute\">\nFormulas that depend on those parameters are recalculated.\n</node>\n\n<node id=\"view\" label=\"View\">\nProse, charts and hints update with the result.\n</node>\n\n<edge from=\"input\" to=\"compute\" label=\"Parameter change\">\n<edge from=\"compute\" to=\"view\" label=\"Updated result\">\n</diagram>\n\nCurrent step: {{ selected == 'input' ? 'Input' : selected == 'compute' ? 'Compute' : 'View' }}.\n\n## Change parameters and watch the curve\n\n<panel title=\"Sine wave parameters\">\n<slider bind=\"a\" label=\"Amplitude\" initial=\"1\" min=\"0\" max=\"3\" step=\"0.5\">\n<slider bind=\"f\" label=\"Frequency parameter\" initial=\"1\" min=\"0.5\" max=\"3\" step=\"0.5\">\n</panel>\n\n<plot min=\"0\" max=\"12.56\" label=\"Sine wave\" x-label=\"x\" y-label=\"Displacement\">\n$$ y = a\\sin(fx) $$\n</plot>\n\n<if when=\"{{ a == 0 }}\">\nThe amplitude is zero, so the curve lies flat on the horizontal axis.\n</if>\n\n## Overlay two curves\n\n<plot min=\"-5\" max=\"5\" label=\"Parabola and line\">\n$$ y = x^2 $$\n$$ y = 2x + 1 $$\n</plot>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "a": 1,
+        "f": 1,
+        "selected": "input"
+      },
+      "bindingShape": {
+        "selected": {
+          "type": "string",
+          "initial": "input",
+          "options": [
+            "input",
+            "compute",
+            "view"
+          ]
+        },
+        "a": {
+          "type": "number",
+          "initial": 1,
+          "min": 0,
+          "max": 3,
+          "step": 0.5
+        },
+        "f": {
+          "type": "number",
+          "initial": 1,
+          "min": 0.5,
+          "max": 3,
+          "step": 0.5
+        }
+      },
+      "actions": [],
+      "markupDigest": "5c5b4da35a2db3d9206669077d055377fc58b68f7b32afd53f94c48ed075cfa7"
+    },
+    {
+      "suite": "examples/local/gallery.reactive.md",
+      "id": "examples/local/gallery.reactive.md",
+      "source": "# Common component gallery\n\n## Inputs and live results\n\n<panel title=\"Describe your plan\">\n<input bind=\"name\" label=\"Name\" initial=\"Alex\" placeholder=\"Enter a name\">\n<number bind=\"quantity\" label=\"Quantity\" initial=\"3\" min=\"1\" max=\"20\">\n\n<select bind=\"plan\" label=\"Plan\" initial=\"pro\">\n<option value=\"basic\">Basic</option>\n<option value=\"pro\">Pro</option>\n</select>\n\n<toggle bind=\"annual\" label=\"Annual billing (20% off)\">\n<toggle bind=\"express\" label=\"Show express checklist\" initial=\"true\">\n<slider bind=\"budgetLevel\" label=\"Budget level\" initial=\"50\" step=\"10\">\n</panel>\n\nHello, **{{ name }}**.\n\nEstimated cost: **{{ round(quantity * 80 * (plan == 'pro' ? 1 : 0.8) * (annual ? 0.8 : 1)) }} USD**.\n\n<if when=\"{{ quantity >= 5 }}\">\n<badge tone=\"success\">Team tier reached</badge>\n</if>\n\n| Condition | Current choice |\n| --- | --- |\n| Plan | {{ plan == 'pro' ? 'Pro' : 'Basic' }} |\n| Annual billing | {{ annual ? 'On' : 'Off' }} |\n| Budget level | {{ budgetLevel }} |\n\n<if when=\"{{ express }}\">\n<checklist label=\"Express preparation\">\n- [x] Express checklist shown\n- [ ] Confirm the delivery time\n</checklist>\n</if>\n\n## Components that work on their own\n\nThese components do not expose parameters to the prose, so they omit bind.\n\n<grid>\n<card title=\"People counter\">\n<counter label=\"Participants\" initial=\"2\" min=\"1\" max=\"20\">\n</card>\n\n<card title=\"Short focus\">\n<timer label=\"One-minute countdown\">\n</card>\n</grid>\n\n## Show code as-is\n\n```markdown\n<slider bind=\"example\" label=\"Example parameter\">\nCurrent value: {{ example }}.\n```\n\nThe code above is displayed as an example only and does not create a control.\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "annual": false,
+        "budgetLevel": 50,
+        "express": true,
+        "name": "Alex",
+        "plan": "pro",
+        "quantity": 3
+      },
+      "bindingShape": {
+        "name": {
+          "type": "string",
+          "initial": "Alex"
+        },
+        "quantity": {
+          "type": "number",
+          "initial": 3,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        },
+        "plan": {
+          "type": "string",
+          "initial": "pro",
+          "options": [
+            "basic",
+            "pro"
+          ]
+        },
+        "annual": {
+          "type": "boolean",
+          "initial": false
+        },
+        "express": {
+          "type": "boolean",
+          "initial": true
+        },
+        "budgetLevel": {
+          "type": "number",
+          "initial": 50,
+          "min": 0,
+          "max": 100,
+          "step": 10
+        }
+      },
+      "actions": [],
+      "markupDigest": "957152847dcd06f334e1af75a42e25518344d730f3475ae5b1eb717bd028c2f3"
+    },
+    {
+      "suite": "examples/local/html-compat.reactive.md",
+      "id": "examples/local/html-compat.reactive.md",
+      "source": "# HTML 与 ReactiveMD\n\n<details open>\n<summary>展开查看<strong>交互示例</strong></summary>\n\n## 调整参数\n\n<counter bind=\"count\" label=\"次数\" initial=\"2\">\n\n当前值：**{{ count }}**。HTML 上下标：H<sub>2</sub>O、x<sup>2</sup>。\n\n<details>\n<summary>补充说明</summary>\n\n折叠正文支持 Markdown、公式与 ReactiveMD 控件。\n\n</details>\n</details>\n\n<div align=\"center\">你好，**居中内容**。</div>\n\n<p align=\"right\">右对齐段落。</p>\n\n<blockquote>默认模式使用现有渲染器和主题。</blockquote>\n\n<ol start=\"3\"><li>支持 HTML 列表。</li><li>代码按原样显示。</li></ol>\n\n<pre><code>&lt;counter label=\"这里是代码\"&gt; {{ count }}</code></pre>\n\n<table label=\"Markdown 表格\" searchable=\"false\" sortable=\"false\">\n| 项目 | 数值 |\n| --- | ---: |\n| 当前次数 | {{ count }} |\n| 固定值 | 10 |\n</table>\n\n<table>\n<caption>原生 HTML 表格</caption>\n<tr><th scope=\"col\">项目</th><th scope=\"col\">数值</th></tr>\n<tr><td>当前次数</td><td>{{ count }}</td></tr>\n<tr><td>固定值</td><td>10</td></tr>\n<tr><td colspan=\"2\">**合并单元格**也支持 Markdown 和公式：\\(x^2\\)。</td></tr>\n</table>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "count": 2
+      },
+      "bindingShape": {
+        "count": {
+          "type": "number",
+          "initial": 2,
+          "min": 0,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "140a51648836b5a565249e8c3f52fb6cce557a5ce925f2dff640938971498b22"
+    },
+    {
+      "suite": "examples/local/parameters.reactive.md",
+      "id": "examples/local/parameters.reactive.md",
+      "source": "# Fill it in, watch the result\n\nEnter your preferences and the description below updates immediately.\n\n<panel title=\"Meeting preparation\">\n<input bind=\"name\" label=\"Name\" placeholder=\"What should we call you?\">\n\n<choices bind=\"role\" label=\"Usage\">\n<option value=\"personal\">Personal use</option>\n<option value=\"team\">Team use</option>\n</choices>\n\n<date bind=\"appointment\" label=\"Preferred meeting date\" initial=\"2026-10-22\">\n\n<textarea bind=\"message\" label=\"What interactive document do you want to build?\" placeholder=\"For example: a course handout with adjustable parameters\">\n\n<checkbox bind=\"showNotes\" label=\"Show the preparation checklist\">\n</panel>\n\n<card title=\"Current plan\">\nName: **{{ name == '' ? 'Not provided yet' : name }}**.\n\nUsage: {{ role == 'personal' ? 'Personal use' : 'Team use' }}.\n\nPlanned date: {{ appointment }}.\n\nIdea: {{ message == '' ? 'Start with a small calculator.' : message }}\n</card>\n\n<if when=\"{{ showNotes }}\">\n<checklist label=\"Before the meeting\">\n- [ ] Decide which parameters readers need to adjust\n- [ ] Prepare a concrete calculation or chart example\n- [ ] Write down the changes you want readers to notice\n</checklist>\n</if>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "appointment": "2026-10-22",
+        "message": "",
+        "name": "",
+        "role": "personal",
+        "showNotes": false
+      },
+      "bindingShape": {
+        "name": {
+          "type": "string",
+          "initial": ""
+        },
+        "role": {
+          "type": "string",
+          "initial": "personal",
+          "options": [
+            "personal",
+            "team"
+          ]
+        },
+        "appointment": {
+          "type": "string",
+          "initial": "2026-10-22"
+        },
+        "message": {
+          "type": "string",
+          "initial": ""
+        },
+        "showNotes": {
+          "type": "boolean",
+          "initial": false
+        }
+      },
+      "actions": [],
+      "markupDigest": "8440b9e65ea327ce33aa769de6cde3b2a69202cfd975105ab0662bba50dcb7e6"
+    },
+    {
+      "suite": "examples/local/planning.reactive.md",
+      "id": "examples/local/planning.reactive.md",
+      "source": "# Planning, timing and simple tools\n\n<timeline title=\"45-minute work plan\">\n| Task | Start | Duration | Notes |\n| --- | ---: | ---: | --- |\n| Prepare materials | 0 | 10 | List what you need first |\n| Draft the main section | 10 | 25 | Focus on the core content |\n| Assemble references | 15 | 15 | Can run in parallel with the main section |\n| Review and deliver | 35 | 10 | Leave time for a final check |\n</timeline>\n\n<timer label=\"One-minute focus timer\" duration=\"60\">\n\n## Splitting a dinner bill\n\n<panel title=\"Bill parameters\">\n<number bind=\"total\" label=\"Bill amount\" initial=\"240\" min=\"0\">\n<slider bind=\"people\" label=\"People\" initial=\"3\" min=\"1\" max=\"12\">\n<slider bind=\"tip\" label=\"Extra charge (%)\" initial=\"10\" min=\"0\" max=\"20\">\n</panel>\n\nEach person pays **{{ round(total * (1 + tip / 100) / people * 100) / 100 }} USD**.\n\nAmounts are rounded to two decimals without padding trailing zeros.\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "people": 3,
+        "tip": 10,
+        "total": 240
+      },
+      "bindingShape": {
+        "total": {
+          "type": "number",
+          "initial": 240,
+          "min": 0,
+          "step": 1
+        },
+        "people": {
+          "type": "number",
+          "initial": 3,
+          "min": 1,
+          "max": 12,
+          "step": 1
+        },
+        "tip": {
+          "type": "number",
+          "initial": 10,
+          "min": 0,
+          "max": 20,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "fd7e25207f4be7a1f4b376c4b2374e97c90daf08218472312787e2018e51159b"
+    },
+    {
+      "suite": "examples/local/pricing.reactive.md",
+      "id": "examples/local/pricing.reactive.md",
+      "source": "# Plan calculator\n\nAdjust the headcount and billing cycle to compare the average monthly cost. Each person costs 100 USD per month, and annual billing takes 20% off.\n\n<panel title=\"Your plan\">\n<slider bind=\"seats\" label=\"People\" initial=\"2\" min=\"1\" max=\"20\">\n<toggle bind=\"annual\" label=\"Annual billing\">\n</panel>\n\nCurrent headcount: **{{ seats }}**.\n\nPer person per month: **{{ annual ? 80 : 100 }} USD**.\n\nMonthly total: **{{ seats * (annual ? 80 : 100) }} USD**.\n\n<if when=\"{{ seats >= 5 }}\">\n<alert title=\"Team plan\">\nYou selected at least 5 people. Switch the billing cycle to compare costs.\n</alert>\n</if>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "annual": false,
+        "seats": 2
+      },
+      "bindingShape": {
+        "seats": {
+          "type": "number",
+          "initial": 2,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        },
+        "annual": {
+          "type": "boolean",
+          "initial": false
+        }
+      },
+      "actions": [],
+      "markupDigest": "1a8de84614b4bc204acc5eadd4836c64a154a96d7486beacc37d26590ec93162"
+    },
+    {
+      "suite": "examples/local/recipes/invoice-zh.reactive.md",
+      "id": "examples/local/recipes/invoice-zh.reactive.md",
+      "source": "<const name=\"unitPrice\" value=\"{{ 12.5 }}\">\r\n<computed name=\"total\" value=\"{{ quantity * unitPrice }}\">\r\n<computed name=\"invoice\" value=\"{{ formatCurrency(total, 'CNY', 2, 'zh-CN') }}\">\r\n<computed name=\"days\" value=\"{{ startDate == '' || endDate == '' ? null : dateDiff(endDate, startDate) }}\">\r\n\r\n# 共享账单计算\r\n\r\n<panel title=\"调整账单\">\r\n<number bind=\"quantity\" label=\"数量\" initial=\"2\" min=\"0\" max=\"100\">\r\n<date bind=\"startDate\" label=\"开始日期\" initial=\"2026-10-24\">\r\n<date bind=\"endDate\" label=\"结束日期\" initial=\"2026-10-26\">\r\n</panel>\r\n\r\n账单：**{{ invoice }}**。单价：{{ formatCurrency(unitPrice, 'CNY', 2, 'zh-CN') }}。\r\n\r\n天数：{{ days == null ? '请选择两个日期' : formatNumber(days, 0) }}。\r\n\r\n<if when=\"{{ total >= 100 }}\">\r\n达到批量配送门槛。\r\n</if>\r\n\r\n<chart kind=\"bar\" title=\"账单总额\" x=\"项目\" y=\"费用\">\r\n| 项目 | 费用 |\r\n| --- | --- |\r\n| 账单 | {{ total }} |\r\n| 单件 | {{ unitPrice }} |\r\n</chart>\r\n\r\n<plot label=\"账单倍数\" min=\"0\" max=\"2\" samples=\"21\">\r\n$$\r\ny = \\mathrm{total} x\r\n$$\r\n</plot>\r\n\r\n同一数字的其他显示：{{ formatNumber(total, 0) }}、{{ formatScientific(total) }}。\r\n比例 {{ formatPercent(0.125, 1) }} 的显示不随读者设备地区变化。\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "endDate": "2026-10-26",
+        "quantity": 2,
+        "startDate": "2026-10-24"
+      },
+      "bindingShape": {
+        "quantity": {
+          "type": "number",
+          "initial": 2,
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        "startDate": {
+          "type": "string",
+          "initial": "2026-10-24"
+        },
+        "endDate": {
+          "type": "string",
+          "initial": "2026-10-26"
+        }
+      },
+      "actions": [],
+      "markupDigest": "c16c235e2fef3f62c711b16538b74c6dbdbbad0c9aa0825f26e3f848ecb02f39"
+    },
+    {
+      "suite": "examples/local/recipes/invoice.reactive.md",
+      "id": "examples/local/recipes/invoice.reactive.md",
+      "source": "<const name=\"unitPrice\" value=\"{{ 12.5 }}\">\r\n<computed name=\"total\" value=\"{{ quantity * unitPrice }}\">\r\n<computed name=\"invoice\" value=\"{{ formatCurrency(total) }}\">\r\n<computed name=\"days\" value=\"{{ startDate == '' || endDate == '' ? null : dateDiff(endDate, startDate) }}\">\r\n\r\n# Shared invoice calculations\r\n\r\n<panel title=\"Adjust the invoice\">\r\n<number bind=\"quantity\" label=\"Quantity\" initial=\"2\" min=\"0\" max=\"100\">\r\n<date bind=\"startDate\" label=\"Start\" initial=\"2026-10-24\">\r\n<date bind=\"endDate\" label=\"End\" initial=\"2026-10-26\">\r\n</panel>\r\n\r\nInvoice: **{{ invoice }}**. Per item: {{ formatCurrency(unitPrice) }}.\r\n\r\nDays: {{ days == null ? 'Choose both dates' : formatNumber(days, 0) }}.\r\n\r\n<if when=\"{{ total >= 100 }}\">\r\nEligible for bulk delivery.\r\n</if>\r\n\r\n<chart kind=\"bar\" title=\"Invoice total\" x=\"Item\" y=\"Cost\">\r\n| Item | Cost |\r\n| --- | --- |\r\n| Invoice | {{ total }} |\r\n| One item | {{ unitPrice }} |\r\n</chart>\r\n\r\n<plot label=\"Scaled invoice\" min=\"0\" max=\"2\" samples=\"21\">\r\n$$\r\ny = \\mathrm{total} x\r\n$$\r\n</plot>\r\n\r\nOther displays of the same number: {{ formatNumber(total, 0) }}, {{ formatScientific(total) }}.\r\nThe fraction {{ formatPercent(0.125, 1) }} is independent of the reader's device locale.\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "endDate": "2026-10-26",
+        "quantity": 2,
+        "startDate": "2026-10-24"
+      },
+      "bindingShape": {
+        "quantity": {
+          "type": "number",
+          "initial": 2,
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        "startDate": {
+          "type": "string",
+          "initial": "2026-10-24"
+        },
+        "endDate": {
+          "type": "string",
+          "initial": "2026-10-26"
+        }
+      },
+      "actions": [],
+      "markupDigest": "332bf47237b226cffe45bfabb4ed0ee9581ae3bd6e4747974e35110f0fa43201"
+    },
+    {
+      "suite": "examples/local/recipes/workshop-zh.reactive.md",
+      "id": "examples/local/recipes/workshop-zh.reactive.md",
+      "source": "<computed name=\"costs\" value=\"{{ [seats * 80, materials ? seats * 20 : 0] }}\">\r\n<computed name=\"total\" value=\"{{ sum(costs) }}\">\r\n\r\n# 校验工作坊计划\r\n\r\n<panel title=\"工作坊计划\">\r\n<number bind=\"seats\" label=\"人数\" initial=\"4\" min=\"1\" max=\"20\">\r\n<number bind=\"budget\" label=\"预算\" initial=\"500\" min=\"0\" max=\"5000\">\r\n<toggle bind=\"materials\" label=\"包含材料\">\r\n<date bind=\"startDate\" label=\"开始日期\" initial=\"2026-10-24\">\r\n<date bind=\"endDate\" label=\"结束日期\" initial=\"2026-10-26\">\r\n<multi-select bind=\"subjects\" label=\"主题\" max-selected=\"3\">\r\n<option value=\"mathematics\">数学</option>\r\n<option value=\"physics\">物理</option>\r\n<option value=\"chemistry\">化学</option>\r\n</multi-select>\r\n</panel>\r\n\r\n<validation when=\"{{ total <= budget }}\" message=\"预估 {{ formatCurrency(total, 'CNY', 2, 'zh-CN') }} 已超出预算。\" fields=\"seats budget materials\">\r\n<validation when=\"{{ startDate == '' || endDate == '' || dateCompare(endDate, startDate) >= 0 }}\" message=\"结束日期应不早于开始日期。\" fields=\"startDate endDate\">\r\n\r\n<badge tone=\"{{ total <= budget ? 'success' : 'warning' }}\">预估：{{ formatCurrency(total, 'CNY', 2, 'zh-CN') }}</badge>\r\n\r\n教学：{{ formatCurrency(costs[0], 'CNY', 2, 'zh-CN') }}。材料：{{ formatCurrency(costs[1], 'CNY', 2, 'zh-CN') }}。\r\n平均费用类别：{{ formatCurrency(average(costs), 'CNY', 2, 'zh-CN') }}。\r\n\r\n<data-table label=\"已选主题\" rows=\"{{ subjects }}\" key=\"{{ item }}\" max-rows=\"3\">\r\n<column label=\"主题标识\" value=\"{{ item }}\">\r\n<column label=\"序号\" value=\"{{ index + 1 }}\">\r\n<column label=\"准备工作\" value=\"{{ item == 'chemistry' ? '准备材料' : '准备例题' }}\">\r\n</data-table>\r\n\r\n选择主题后表格自动生成行。调低预算可查看警告，再修改预算或人数即可消除。重置面板恢复初始计划。\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "budget": 500,
+        "endDate": "2026-10-26",
+        "materials": false,
+        "seats": 4,
+        "startDate": "2026-10-24",
+        "subjects": []
+      },
+      "bindingShape": {
+        "seats": {
+          "type": "number",
+          "initial": 4,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        },
+        "budget": {
+          "type": "number",
+          "initial": 500,
+          "min": 0,
+          "max": 5000,
+          "step": 1
+        },
+        "materials": {
+          "type": "boolean",
+          "initial": false
+        },
+        "startDate": {
+          "type": "string",
+          "initial": "2026-10-24"
+        },
+        "endDate": {
+          "type": "string",
+          "initial": "2026-10-26"
+        },
+        "subjects": {
+          "type": "array",
+          "initial": [],
+          "options": [
+            "mathematics",
+            "physics",
+            "chemistry"
+          ],
+          "maxItems": 3
+        }
+      },
+      "actions": [],
+      "markupDigest": "186a3662f572dc13c67be8c01f57894ae9fd395f2338b8391b5128515d4dcb96"
+    },
+    {
+      "suite": "examples/local/recipes/workshop.reactive.md",
+      "id": "examples/local/recipes/workshop.reactive.md",
+      "source": "<computed name=\"costs\" value=\"{{ [seats * 80, materials ? seats * 20 : 0] }}\">\r\n<computed name=\"total\" value=\"{{ sum(costs) }}\">\r\n\r\n# Check a workshop plan\r\n\r\n<panel title=\"Workshop plan\">\r\n<number bind=\"seats\" label=\"Participants\" initial=\"4\" min=\"1\" max=\"20\">\r\n<number bind=\"budget\" label=\"Budget\" initial=\"500\" min=\"0\" max=\"5000\">\r\n<toggle bind=\"materials\" label=\"Include materials\">\r\n<date bind=\"startDate\" label=\"Start date\" initial=\"2026-10-24\">\r\n<date bind=\"endDate\" label=\"End date\" initial=\"2026-10-26\">\r\n<multi-select bind=\"subjects\" label=\"Subjects\" max-selected=\"3\">\r\n<option value=\"mathematics\">Mathematics</option>\r\n<option value=\"physics\">Physics</option>\r\n<option value=\"chemistry\">Chemistry</option>\r\n</multi-select>\r\n</panel>\r\n\r\n<validation when=\"{{ total <= budget }}\" message=\"The estimated {{ formatCurrency(total) }} exceeds the budget.\" fields=\"seats budget materials\">\r\n<validation when=\"{{ startDate == '' || endDate == '' || dateCompare(endDate, startDate) >= 0 }}\" message=\"End date must be on or after start date.\" fields=\"startDate endDate\">\r\n\r\n<badge tone=\"{{ total <= budget ? 'success' : 'warning' }}\">Estimate: {{ formatCurrency(total) }}</badge>\r\n\r\nTeaching: {{ formatCurrency(costs[0]) }}. Materials: {{ formatCurrency(costs[1]) }}.\r\nAverage cost category: {{ formatCurrency(average(costs)) }}.\r\n\r\n<data-table label=\"Selected subjects\" rows=\"{{ subjects }}\" key=\"{{ item }}\" max-rows=\"3\">\r\n<column label=\"Subject ID\" value=\"{{ item }}\">\r\n<column label=\"Position\" value=\"{{ index + 1 }}\">\r\n<column label=\"Preparation\" value=\"{{ item == 'chemistry' ? 'Prepare materials' : 'Prepare examples' }}\">\r\n</data-table>\r\n\r\nChoose subjects to populate the table. Lower the budget to see the warning, then edit either the budget or participant count to clear it. Reset the panel to restore the plan.\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "budget": 500,
+        "endDate": "2026-10-26",
+        "materials": false,
+        "seats": 4,
+        "startDate": "2026-10-24",
+        "subjects": []
+      },
+      "bindingShape": {
+        "seats": {
+          "type": "number",
+          "initial": 4,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        },
+        "budget": {
+          "type": "number",
+          "initial": 500,
+          "min": 0,
+          "max": 5000,
+          "step": 1
+        },
+        "materials": {
+          "type": "boolean",
+          "initial": false
+        },
+        "startDate": {
+          "type": "string",
+          "initial": "2026-10-24"
+        },
+        "endDate": {
+          "type": "string",
+          "initial": "2026-10-26"
+        },
+        "subjects": {
+          "type": "array",
+          "initial": [],
+          "options": [
+            "mathematics",
+            "physics",
+            "chemistry"
+          ],
+          "maxItems": 3
+        }
+      },
+      "actions": [],
+      "markupDigest": "b28ac9f81dc5068f5647da397919be35297b4c28cbe1544da6ee5c14a62172e7"
+    },
+    {
+      "suite": "examples/local/showcase/explore.reactive.md",
+      "id": "examples/local/showcase/explore.reactive.md",
+      "source": "# Choose, explore and learn\r\n\r\nSelect two subjects, narrow the interval and drag the point. Check an answer, then choose a project in the table or chart.\r\n\r\n<jump to=\"results\" appearance=\"button\" color=\"#2563eb\">Jump to the results</jump>\r\n\r\n<panel title=\"Try the new interactions\">\r\n\r\n<anchor id=\"settings\">\r\n\r\n<section color=\"#45536f\">\r\nThese paragraphs use a shared color. <text color=\"#a2273a\">**This reminder has its own color.**</text> Links and controls keep their own appearance.\r\n</section>\r\n\r\n<grid>\r\n<card title=\"Choose up to two subjects\">\r\n<multi-select bind=\"subjects\" label=\"Subjects\" max-selected=\"2\" color=\"#167875\">\r\n<option value=\"math\">Mathematics</option>\r\n<option value=\"physics\">Physics</option>\r\n<option value=\"chemistry\">Chemistry</option>\r\n</multi-select>\r\n\r\nSelected: **{{ len(subjects) }} / 2**.\r\n<if when=\"{{ contains(subjects, 'chemistry') }}\">\r\n<badge color=\"#167875\">Chemistry selected</badge>\r\n</if>\r\n</card>\r\n<card title=\"Explore an interval\">\r\n<range-slider label=\"Observation interval\" bind-start=\"low\" bind-end=\"high\" initial-start=\"20\" initial-end=\"80\" min=\"0\" max=\"100\" color=\"#7c3aed\">\r\n\r\nInterval: **{{ low }}–{{ high }}**. Width: **{{ high - low }}**.\r\n</card>\r\n</grid>\r\n\r\n## Move a point\r\n\r\n<coordinate label=\"Point position\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\" x-min=\"-5\" x-max=\"5\" y-min=\"-5\" y-max=\"5\" color=\"#2563eb\">\r\n\r\nPoint: **({{ px }}, {{ py }})**. Distance from the origin: **{{ round(sqrt(px * px + py * py) * 100) / 100 }}**.\r\n\r\n## Follow the learning path\r\n\r\n<steps label=\"Learning path\" bind=\"lesson\">\r\n<step label=\"Observe\" value=\"observe\">\r\nDrag the point and watch its distance change.\r\n</step>\r\n<step label=\"Calculate\" value=\"calculate\">\r\nThe distance is the square root of the sum of the squared coordinates.\r\n</step>\r\n<step label=\"Practice\" value=\"practice\">\r\nTry the questions below, then mark your checklist.\r\n</step>\r\n</steps>\r\n\r\nCurrent step: **{{ lesson }}**.\r\n\r\n<quiz type=\"choice\" label=\"What is 2 + 3?\" answer=\"b\" explanation=\"Add the two numbers to get 5.\">\r\n<option value=\"a\">4</option>\r\n<option value=\"b\">5</option>\r\n<option value=\"c\">6</option>\r\n</quiz>\r\n\r\n<quiz type=\"number\" label=\"Approximate pi\" answer=\"3.14\" tolerance=\"0.01\" explanation=\"Any value within 0.01 of 3.14 is accepted.\">\r\n</quiz>\r\n\r\n## Mark completed tasks\r\n\r\n<checklist bind=\"done\" label=\"Exploration checklist\" color=\"#167875\">\r\n- [x] Read the instructions\r\n- [ ] Move the point\r\n- [ ] Check an answer\r\n</checklist>\r\n\r\n<progress label=\"Exploration progress\" value=\"{{ len(done) / 3 * 100 }}\" color=\"#167875\">\r\n\r\n<anchor id=\"results\">\r\n\r\n## One selection, two views\r\n\r\nChoose a project below. The table and chart share the selection; searching or sorting the table keeps the selected project.\r\n\r\n<table label=\"Project selection\" bind=\"project\" key=\"Project\" initial=\"Content\" page-size=\"2\">\r\n| Project | Actual | Budget |\r\n| --- | ---: | ---: |\r\n| Content | 120 | 150 |\r\n| Visual | 230 | 200 |\r\n| Testing | 90 | 120 |\r\n</table>\r\n\r\n<chart kind=\"bar\" title=\"Selected project\" bind=\"project\" key=\"Project\" y=\"Actual,Budget\">\r\n| Project | Actual | Budget |\r\n| --- | ---: | ---: |\r\n| Content | 120 | 150 |\r\n| Visual | 230 | 200 |\r\n| Testing | 90 | 120 |\r\n</chart>\r\n\r\nSelected project: **{{ project }}**.\r\n\r\n<jump to=\"settings\" appearance=\"button\" color=\"#2563eb\">Return to the settings</jump>\r\n\r\n</panel>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "done": [
+          "item-1"
+        ],
+        "high": 80,
+        "lesson": "observe",
+        "low": 20,
+        "project": "Content",
+        "px": 1,
+        "py": 2,
+        "subjects": []
+      },
+      "bindingShape": {
+        "subjects": {
+          "type": "array",
+          "initial": [],
+          "options": [
+            "math",
+            "physics",
+            "chemistry"
+          ],
+          "maxItems": 2
+        },
+        "lesson": {
+          "type": "string",
+          "initial": "observe",
+          "options": [
+            "observe",
+            "calculate",
+            "practice"
+          ]
+        },
+        "done": {
+          "type": "array",
+          "initial": [
+            "item-1"
+          ],
+          "options": [
+            "item-1",
+            "item-2",
+            "item-3"
+          ]
+        },
+        "project": {
+          "type": "string",
+          "initial": "Content",
+          "options": [
+            "",
+            "Content",
+            "Visual",
+            "Testing"
+          ]
+        },
+        "low": {
+          "type": "number",
+          "initial": 20,
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        "high": {
+          "type": "number",
+          "initial": 80,
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        "px": {
+          "type": "number",
+          "initial": 1,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        },
+        "py": {
+          "type": "number",
+          "initial": 2,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "15fa216a738306c857dd0c72961f1d009be60c3d1205ad72faa17e6b2e70dabf"
+    },
+    {
+      "suite": "examples/local/showcase/flow.reactive.md",
+      "id": "examples/local/showcase/flow.reactive.md",
+      "source": "<const name=\"rate\" value=\"{{ 80 }}\">\r\n<computed name=\"total\" value=\"{{ people * rate }}\">\r\n\r\n# Follow a value through a document\r\n\r\nChange the headcount, then select Input, Compute and Display in the diagram. Follow the same value from the control to the final explanation.\r\n\r\n<panel title=\"Try a value\">\r\n<slider bind=\"people\" label=\"Headcount\" initial=\"4\" min=\"1\" max=\"12\">\r\n</panel>\r\n\r\n<diagram bind=\"selected\" initial=\"input\" label=\"From input to explanation\">\r\n<node id=\"input\" label=\"Input: {{ people }}\">\r\nThe slider names its value people. Its current value is **{{ people }}**.\r\n</node>\r\n<node id=\"compute\" label=\"Compute: {{ people }} × {{ rate }}\">\r\nEach participant costs 80, so the total is **{{ people }} × {{ rate }} = {{ total }}**.\r\n</node>\r\n<node id=\"view\" label=\"Display: {{ total }}\">\r\nThe prose reads the read-only total: the workshop costs **{{ formatCurrency(total, 'USD', 2, 'en-US') }}**. The calculation node and explanations share this result.\r\n</node>\r\n<edge from=\"input\" to=\"compute\" label=\"Value changes\">\r\n<edge from=\"compute\" to=\"view\" label=\"Result updates\">\r\n</diagram>\r\n\r\nYou are exploring: **{{ selected == 'input' ? 'Input' : selected == 'compute' ? 'Compute' : 'Display' }}**.\r\n\r\n<if when=\"{{ selected == 'input' }}\">\r\n<alert title=\"Start with what readers can change\">Try 6 people, then select Compute to follow the calculation.</alert>\r\n</if>\r\n<if when=\"{{ selected == 'compute' }}\">\r\n<alert title=\"Make the relationship visible\">The named calculation total = people * rate gives **{{ total }}**.</alert>\r\n</if>\r\n<if when=\"{{ selected == 'view' }}\">\r\n<alert tone=\"success\" title=\"The document now explains the result\">For {{ people }} people, the total is **{{ total }}**.</alert>\r\n</if>\r\n\r\n## Explore with the keyboard\r\n\r\nTab to a diagram node, move focus with the arrow keys, then press Enter or Space to select it. The selected explanation and the text below the diagram stay in sync.\r\n\r\n## Explain the flow one step at a time\r\n\r\n<steps label=\"Explanation path\" bind=\"lesson\">\r\n<step label=\"Read the input\" value=\"observe\">\r\nStart at the Input node: the current headcount is **{{ people }}**.\r\n</step>\r\n<step label=\"Check the calculation\" value=\"calculate\">\r\nSelect Compute. Each participant costs 80, giving **{{ people }} × {{ rate }} = {{ total }}**.\r\n</step>\r\n<step label=\"Explain the result\" value=\"practice\">\r\nSelect Display and explain why the total changes when headcount changes.\r\n\r\n<quiz type=\"choice\" label=\"Which expression calculates the total?\" answer=\"total\" explanation=\"Multiply headcount by the cost per participant.\">\r\n<option value=\"total\">people × 80</option>\r\n<option value=\"sum\">people + 80</option>\r\n<option value=\"fixed\">80</option>\r\n</quiz>\r\n\r\n<counter label=\"Practice rounds\" initial=\"0\" min=\"0\" max=\"10\">\r\n</step>\r\n</steps>\r\n\r\nCurrent step: **{{ lesson }}**. After explaining the result to a partner, count one practice round.\r\n\r\n## How it is written\r\n\r\n<accordion>\r\n<disclosure label=\"Show the key source\">\r\n\r\n```markdown\r\n<const name=\"rate\" value=\"{{ 80 }}\">\r\n<computed name=\"total\" value=\"{{ people * rate }}\">\r\n<slider bind=\"people\" label=\"Headcount\" initial=\"4\" min=\"1\" max=\"12\">\r\n<diagram bind=\"selected\" initial=\"input\" label=\"A short flow\">\r\n<node id=\"input\" label=\"Input: {{ people }}\">Read headcount.</node>\r\n<node id=\"compute\" label=\"Compute: {{ total }}\">{{ people }} × {{ rate }} = {{ total }}</node>\r\n<node id=\"view\" label=\"Display: {{ total }}\">{{ formatCurrency(total, 'USD', 2, 'en-US') }}</node>\r\n<edge from=\"input\" to=\"compute\">\r\n<edge from=\"compute\" to=\"view\">\r\n</diagram>\r\nSelected node: {{ selected }}\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "lesson": "observe",
+        "people": 4,
+        "selected": "input"
+      },
+      "bindingShape": {
+        "people": {
+          "type": "number",
+          "initial": 4,
+          "min": 1,
+          "max": 12,
+          "step": 1
+        },
+        "selected": {
+          "type": "string",
+          "initial": "input",
+          "options": [
+            "input",
+            "compute",
+            "view"
+          ]
+        },
+        "lesson": {
+          "type": "string",
+          "initial": "observe",
+          "options": [
+            "observe",
+            "calculate",
+            "practice"
+          ]
+        }
+      },
+      "actions": [],
+      "markupDigest": "f6875c1ee9cee47de7cf1b8bfc1ff3f9069152f20916252dbeada3ffa5309b25"
+    },
+    {
+      "suite": "examples/local/showcase/forms.reactive.md",
+      "id": "examples/local/showcase/forms.reactive.md",
+      "source": "<computed name=\"organizer\" value=\"{{ trim(name) == '' ? 'Your group' : trim(name) }}\">\r\n<computed name=\"unitCost\" value=\"{{ (format == 'onsite' ? 80 : 60) + (equipment ? 20 : 0) }}\">\r\n<computed name=\"total\" value=\"{{ seats * unitCost }}\">\r\n<computed name=\"datesReady\" value=\"{{ date != '' && deadline != '' && dateCompare(deadline, date) <= 0 }}\">\r\n<computed name=\"registrationGap\" value=\"{{ datesReady ? dateDiff(date, deadline) : null }}\">\r\n\r\n# Build a workshop plan\r\n\r\nChange the name, headcount and format. Lower the budget or move the registration deadline past the workshop to see a hint; choose subjects to generate a preparation plan.\r\n\r\n<grid>\r\n<card>\r\n<panel title=\"Workshop details\">\r\n<input bind=\"name\" label=\"Organizer\" initial=\"Alex\" placeholder=\"Your name\">\r\n<choices bind=\"format\" label=\"Format\" initial=\"onsite\">\r\n<option value=\"onsite\">In person</option>\r\n<option value=\"online\">Online</option>\r\n</choices>\r\n<slider bind=\"seats\" label=\"Participants\" initial=\"4\" min=\"1\" max=\"20\">\r\n<date bind=\"date\" label=\"Workshop date\" initial=\"2026-11-01\">\r\n<date bind=\"deadline\" label=\"Registration deadline\" initial=\"2026-10-25\">\r\n<number bind=\"budget\" label=\"Spending limit\" initial=\"500\" min=\"0\" max=\"5000\" step=\"10\">\r\n<validation when=\"{{ datesReady }}\" message=\"Fill both dates and close registration on or before the workshop date.\" fields=\"deadline date\">\r\n<validation when=\"{{ total <= budget }}\" message=\"Estimate exceeds the limit by {{ formatCurrency(total - budget, 'USD', 2, 'en-US') }}; adjust participants, materials or the limit.\" fields=\"seats equipment budget\">\r\n<textarea bind=\"notes\" label=\"Special requests\" placeholder=\"What would help your group?\">\r\n<toggle bind=\"equipment\" label=\"Include a materials kit (20 per person)\">\r\n</panel>\r\n</card>\r\n\r\n<card title=\"Your workshop at a glance\">\r\n**{{ organizer }}** · {{ date }}\r\n\r\n{{ format == 'onsite' ? 'In-person workshop' : 'Online workshop' }} · **{{ seats }}** participants\r\n\r\nPer person: **{{ formatCurrency(unitCost, 'USD', 2, 'en-US') }}**\r\n\r\nEstimated total: **{{ formatCurrency(total, 'USD', 2, 'en-US') }}**\r\n\r\n<badge tone=\"{{ total <= budget ? 'success' : 'warning' }}\">Spending limit: {{ formatCurrency(budget, 'USD', 2, 'en-US') }}</badge>\r\n\r\n<if when=\"{{ datesReady }}\">\r\nRegistration closes **{{ deadline }}**, **{{ registrationGap }}** days before the workshop.\r\n</if>\r\n\r\nRequests: {{ trim(notes) == '' ? 'No special requests yet.' : trim(notes) }}\r\n\r\n<if when=\"{{ format == 'onsite' }}\">\r\n<alert title=\"Prepare the room\">Reserve a room with at least {{ seats }} seats and arrange a shared display.</alert>\r\n</if>\r\n<if when=\"{{ format == 'online' }}\">\r\n<alert title=\"Prepare the call\">Share the meeting link and check that everyone can open the workshop document.</alert>\r\n</if>\r\n</card>\r\n</grid>\r\n\r\n## Try a complete change\r\n\r\nChoose Online, set 6 participants and add materials: the estimate becomes **{{ formatCurrency(480, 'USD', 2, 'en-US') }}**. Reset Workshop details to return to the original **{{ formatCurrency(320, 'USD', 2, 'en-US') }}**.\r\n\r\n## Tailor the workshop to your group\r\n\r\nChoose the level, pace and subjects. These details shape the learning plan alongside the cost estimate above.\r\n\r\n<panel title=\"Learning preferences\">\r\n<select bind=\"level\" label=\"Experience level\" initial=\"intro\">\r\n<option value=\"intro\">First workshop</option>\r\n<option value=\"advanced\">Already familiar</option>\r\n</select>\r\n\r\n<radio-group bind=\"pace\" label=\"Session pace\" initial=\"guided\">\r\n<option value=\"guided\">Guided practice</option>\r\n<option value=\"independent\">Independent exploration</option>\r\n</radio-group>\r\n\r\n<multi-select bind=\"subjects\" label=\"Workshop subjects\" max-selected=\"2\" color=\"#167875\">\r\n<option value=\"math\">Mathematics</option>\r\n<option value=\"physics\">Physics</option>\r\n<option value=\"chemistry\">Chemistry</option>\r\n</multi-select>\r\n\r\n<checkbox bind=\"accessible\" label=\"Include a written step-by-step guide\">\r\n\r\n| Detail | Your choice |\r\n| --- | --- |\r\n| Level | {{ level == 'intro' ? 'Start with a worked example' : 'Compare several approaches' }} |\r\n| Pace | {{ pace == 'guided' ? 'Work through the steps together' : 'Leave time to explore independently' }} |\r\n| Subjects | {{ len(subjects) }} / 2 selected |\r\n\r\n<data-table label=\"Subject preparation\" rows=\"{{ subjects }}\" key=\"{{ item }}\" max-rows=\"2\">\r\n<column label=\"Subject\" value=\"{{ item == 'math' ? 'Mathematics' : item == 'physics' ? 'Physics' : 'Chemistry' }}\">\r\n<column label=\"Preparation\" value=\"{{ item == 'chemistry' ? 'Prepare materials and instructions' : 'Prepare a worked example' }}\">\r\n<column label=\"Guide\" value=\"{{ accessible ? 'Written steps included' : 'Live explanation' }}\">\r\n</data-table>\r\n\r\n<if when=\"{{ contains(subjects, 'chemistry') }}\">\r\n<badge color=\"#167875\">Include a chemistry example</badge>\r\n</if>\r\n<if when=\"{{ accessible }}\">\r\n<alert title=\"Prepare the written guide\">Include the parameter names and the expected result for each step.</alert>\r\n</if>\r\n</panel>\r\n\r\n## How it is written\r\n\r\n<accordion>\r\n<disclosure label=\"Show the key source\">\r\n\r\n```markdown\r\n<const name=\"rate\" value=\"{{ 80 }}\">\r\n<computed name=\"total\" value=\"{{ seats * rate }}\">\r\n<slider bind=\"seats\" label=\"Participants\" initial=\"4\" min=\"1\" max=\"20\">\r\n<number bind=\"budget\" label=\"Spending limit\" initial=\"500\" min=\"0\" max=\"5000\">\r\n<validation when=\"{{ total <= budget }}\" message=\"Adjust participants or the spending limit.\" fields=\"seats budget\">\r\n<badge tone=\"{{ total <= budget ? 'success' : 'warning' }}\">{{ formatCurrency(total, 'USD', 2, 'en-US') }}</badge>\r\n\r\n<multi-select bind=\"subjects\" label=\"Subjects\" max-selected=\"2\">\r\n<option value=\"math\">Mathematics</option>\r\n<option value=\"physics\">Physics</option>\r\n</multi-select>\r\n<data-table label=\"Preparation\" rows=\"{{ subjects }}\" key=\"{{ item }}\" max-rows=\"2\">\r\n<column label=\"Subject\" value=\"{{ item == 'math' ? 'Mathematics' : 'Physics' }}\">\r\n</data-table>\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "accessible": false,
+        "budget": 500,
+        "date": "2026-11-01",
+        "deadline": "2026-10-25",
+        "equipment": false,
+        "format": "onsite",
+        "level": "intro",
+        "name": "Alex",
+        "notes": "",
+        "pace": "guided",
+        "seats": 4,
+        "subjects": []
+      },
+      "bindingShape": {
+        "name": {
+          "type": "string",
+          "initial": "Alex"
+        },
+        "format": {
+          "type": "string",
+          "initial": "onsite",
+          "options": [
+            "onsite",
+            "online"
+          ]
+        },
+        "seats": {
+          "type": "number",
+          "initial": 4,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        },
+        "date": {
+          "type": "string",
+          "initial": "2026-11-01"
+        },
+        "deadline": {
+          "type": "string",
+          "initial": "2026-10-25"
+        },
+        "budget": {
+          "type": "number",
+          "initial": 500,
+          "min": 0,
+          "max": 5000,
+          "step": 10
+        },
+        "notes": {
+          "type": "string",
+          "initial": ""
+        },
+        "equipment": {
+          "type": "boolean",
+          "initial": false
+        },
+        "level": {
+          "type": "string",
+          "initial": "intro",
+          "options": [
+            "intro",
+            "advanced"
+          ]
+        },
+        "pace": {
+          "type": "string",
+          "initial": "guided",
+          "options": [
+            "guided",
+            "independent"
+          ]
+        },
+        "subjects": {
+          "type": "array",
+          "initial": [],
+          "options": [
+            "math",
+            "physics",
+            "chemistry"
+          ],
+          "maxItems": 2
+        },
+        "accessible": {
+          "type": "boolean",
+          "initial": false
+        }
+      },
+      "actions": [],
+      "markupDigest": "4368c6a21a96850c1fdc119ebe91b223ff11fcdd8ebdcfdb310cda55a44b9f9a"
+    },
+    {
+      "suite": "examples/local/showcase/functions.reactive.md",
+      "id": "examples/local/showcase/functions.reactive.md",
+      "source": "<const name=\"monthsPerYear\" value=\"{{ 12 }}\">\r\n<computed name=\"monthlyRate\" value=\"{{ r / (100 * monthsPerYear) }}\">\r\n<computed name=\"growthFactor\" value=\"{{ pow(1 + monthlyRate, monthsPerYear * t) }}\">\r\n<computed name=\"endingBalance\" value=\"{{ monthlyRate == 0 ? P + monthsPerYear * m * t : P * growthFactor + m * (growthFactor - 1) / monthlyRate }}\">\r\n<computed name=\"deposits\" value=\"{{ P + monthsPerYear * m * t }}\">\r\n<computed name=\"distance\" value=\"{{ sqrt(px * px + py * py) }}\">\r\n<computed name=\"waveHeight\" value=\"{{ a * sin(f * px) }}\">\r\n<computed name=\"insideInterval\" value=\"{{ px >= low && px <= high }}\">\r\n\r\n# Functions you can shape\r\n\r\nDrag Amplitude to 0: the wave becomes a flat line. Restore it, then increase Frequency to fit more waves into the same interval.\r\n\r\n<grid>\r\n<card>\r\n<panel title=\"Shape the wave\">\r\n<slider bind=\"a\" label=\"Amplitude\" initial=\"1\" min=\"0\" max=\"3\" step=\"0.5\">\r\n<slider bind=\"f\" label=\"Frequency\" initial=\"1\" min=\"0.5\" max=\"3\" step=\"0.5\">\r\n</panel>\r\n\r\nAmplitude **{{ a }}**, frequency **{{ f }}**.\r\n\r\n<if when=\"{{ a == 0 }}\">\r\n<alert title=\"The wave is flat\">Multiplying by zero makes every output zero, whatever the frequency.</alert>\r\n</if>\r\n</card>\r\n<card>\r\n<plot min=\"0\" max=\"12.56\" label=\"Adjustable sine wave\" x-label=\"x\" y-label=\"y\">\r\n$$ y = a\\sin(fx) $$\r\n</plot>\r\n</card>\r\n</grid>\r\n\r\n## Explore the same parameters\r\n\r\n<tabs label=\"Function explorations\">\r\n<tab label=\"Compare curves\">\r\nBoth curves share the amplitude and frequency above. Compare their peaks and zero crossings.\r\n\r\n<plot min=\"0\" max=\"12.56\" label=\"Sine and cosine\">\r\n$$ y = a\\sin(fx) $$\r\n$$ y = a\\cos(fx) $$\r\n</plot>\r\n</tab>\r\n<tab label=\"Piecewise function\">\r\nThe negative side is linear; the positive side is quadratic. Amplitude scales both branches.\r\n\r\n<plot min=\"-3\" max=\"3\" label=\"Linear meets quadratic\">\r\n$$\r\ny = \\begin{cases}\r\nax, & x < 0 \\\\\r\nax^2, & x \\ge 0\r\n\\end{cases}\r\n$$\r\n</plot>\r\n</tab>\r\n<tab label=\"Savings application\">\r\nMonthly deposits and monthly compounding turn a formula into a small planning tool. Set the annual rate to zero to compare deposits alone.\r\n\r\n<panel title=\"Savings parameters\">\r\n<number bind=\"P\" label=\"Starting amount\" initial=\"10000\" min=\"0\" step=\"100\">\r\n<number bind=\"m\" label=\"Monthly deposit\" initial=\"500\" min=\"0\" step=\"100\">\r\n<slider bind=\"r\" label=\"Annual rate (%)\" initial=\"5\" min=\"0\" max=\"10\" step=\"0.5\">\r\n<slider bind=\"t\" label=\"Years\" initial=\"20\" min=\"1\" max=\"40\">\r\n</panel>\r\n\r\n<plot min=\"0\" max=\"{{ t }}\" label=\"Savings growth\" x-label=\"Years\" y-label=\"Amount\">\r\n$$\r\ny = \\begin{cases}\r\nP + 12mx, & r = 0 \\\\\r\nP\\left(1+\\mathrm{monthlyRate}\\right)^{12x} + m\\frac{\\left(1+\\mathrm{monthlyRate}\\right)^{12x}-1}{\\mathrm{monthlyRate}}, & r \\ne 0\r\n\\end{cases}\r\n$$\r\n</plot>\r\n\r\nAt year **{{ t }}**, the ending balance is **{{ formatCurrency(endingBalance, 'USD', 2, 'en-US') }}**: deposits of **{{ formatCurrency(deposits, 'USD', 2, 'en-US') }}** and interest of **{{ formatCurrency(endingBalance - deposits, 'USD', 2, 'en-US') }}**. The annual rate is **{{ formatPercent(r / 100, 1, 'en-US') }}**. The curve and ending balance share the monthly rate; at zero rate they count deposits directly.\r\n</tab>\r\n</tabs>\r\n\r\n## Explore a point and an interval\r\n\r\nChoose an interval, then drag the point. Compare its horizontal position with the interval and read the wave height at that position.\r\n\r\n<panel title=\"Point and interval\">\r\n<range-slider label=\"Observation interval\" bind-start=\"low\" bind-end=\"high\" initial-start=\"-3\" initial-end=\"3\" min=\"-5\" max=\"5\" color=\"#7c3aed\">\r\n\r\nInterval: **{{ low }}–{{ high }}**. Width: **{{ high - low }}**.\r\n\r\n<coordinate label=\"Point position\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\" x-min=\"-5\" x-max=\"5\" y-min=\"-5\" y-max=\"5\" color=\"#2563eb\">\r\n\r\nPoint: **({{ px }}, {{ py }})**. Distance from the origin: **{{ formatNumber(distance, 2, 'en-US') }}**.\r\n\r\n{{ insideInterval ? 'The point lies inside the horizontal interval.' : 'The point lies outside the horizontal interval.' }} Wave height at this x: **{{ formatNumber(waveHeight, 2, 'en-US') }}**.\r\n\r\nThe same height in scientific notation is **{{ formatScientific(waveHeight, 2, 'en-US') }}**, useful when comparing values near zero.\r\n\r\n<quiz type=\"number\" label=\"How far is (3, 4) from the origin?\" answer=\"5\" tolerance=\"0.01\" explanation=\"The square root of 3² + 4² is 5. Try placing the point at (3, 4).\">\r\n</quiz>\r\n</panel>\r\n\r\n## How it is written\r\n\r\n<accordion>\r\n<disclosure label=\"Show the key source\">\r\n\r\n```markdown\r\n<slider bind=\"a\" label=\"Amplitude\" initial=\"1\" min=\"0\" max=\"3\" step=\"0.5\">\r\n<slider bind=\"f\" label=\"Frequency\" initial=\"1\" min=\"0.5\" max=\"3\" step=\"0.5\">\r\n<coordinate label=\"Point position\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\" x-min=\"-5\" x-max=\"5\" y-min=\"-5\" y-max=\"5\">\r\n<computed name=\"waveHeight\" value=\"{{ a * sin(f * px) }}\">\r\nHeight: {{ formatNumber(waveHeight, 2) }} · {{ formatScientific(waveHeight, 2) }}\r\n\r\n<plot min=\"0\" max=\"12.56\" label=\"Sine wave\">\r\n$$ y = a\\sin(fx) $$\r\n</plot>\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "P": 10000,
+        "a": 1,
+        "f": 1,
+        "high": 3,
+        "low": -3,
+        "m": 500,
+        "px": 1,
+        "py": 2,
+        "r": 5,
+        "t": 20
+      },
+      "bindingShape": {
+        "a": {
+          "type": "number",
+          "initial": 1,
+          "min": 0,
+          "max": 3,
+          "step": 0.5
+        },
+        "f": {
+          "type": "number",
+          "initial": 1,
+          "min": 0.5,
+          "max": 3,
+          "step": 0.5
+        },
+        "P": {
+          "type": "number",
+          "initial": 10000,
+          "min": 0,
+          "step": 100
+        },
+        "m": {
+          "type": "number",
+          "initial": 500,
+          "min": 0,
+          "step": 100
+        },
+        "r": {
+          "type": "number",
+          "initial": 5,
+          "min": 0,
+          "max": 10,
+          "step": 0.5
+        },
+        "t": {
+          "type": "number",
+          "initial": 20,
+          "min": 1,
+          "max": 40,
+          "step": 1
+        },
+        "low": {
+          "type": "number",
+          "initial": -3,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        },
+        "high": {
+          "type": "number",
+          "initial": 3,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        },
+        "px": {
+          "type": "number",
+          "initial": 1,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        },
+        "py": {
+          "type": "number",
+          "initial": 2,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "1aee4d82b9da39fb3d94f7e14aad3b1836c5764749ed58ab12593af0360bcd40"
+    },
+    {
+      "suite": "examples/local/showcase/layout.reactive.md",
+      "id": "examples/local/showcase/layout.reactive.md",
+      "source": "<const name=\"workshopDay\" value=\"{{ '2026-11-01' }}\">\r\n<computed name=\"readingPhase\" value=\"{{ readingDate == '' ? 'undated' : dateCompare(readingDate, workshopDay) < 0 ? 'before' : dateCompare(readingDate, workshopDay) == 0 ? 'during' : 'after' }}\">\r\n<computed name=\"daysUntil\" value=\"{{ readingDate == '' ? null : dateDiff(workshopDay, readingDate) }}\">\r\n\r\n# A workshop guide at every reading depth\r\n\r\nCompare the cards, then move the reading date to workshop day or later and watch the guidance change. Switch reading roles and expand a question to find the detail you need.\r\n\r\n<anchor id=\"reading-start\">\r\n\r\n<section color=\"#45536f\">\r\nFind the level of detail you need. <text color=\"#a2273a\">**Keep important reminders in view.**</text> Paragraphs can share a color while a few words carry their own emphasis.\r\n</section>\r\n\r\n<jump to=\"reading-details\" appearance=\"button\" color=\"#2563eb\">Jump to the questions</jump>\r\n\r\n<panel title=\"Reading date\">\r\n<date bind=\"readingDate\" label=\"When are you reading?\" initial=\"2026-10-24\">\r\n</panel>\r\n\r\n<badge tone=\"{{ readingPhase == 'before' ? 'neutral' : readingPhase == 'undated' ? 'warning' : 'success' }}\">{{ readingPhase == 'before' ? 'Before: prepare' : readingPhase == 'during' ? 'Workshop day: explore' : readingPhase == 'after' ? 'After: reflect' : 'Choose a reading date' }}</badge>\r\n\r\n<if when=\"{{ readingPhase == 'before' }}\">\r\nThe workshop is on **{{ workshopDay }}**, with **{{ daysUntil }}** days to prepare. Start with the preparation card.\r\n</if>\r\n<if when=\"{{ readingPhase == 'after' }}\">\r\nThe workshop was **{{ daysUntil == null ? 0 : -daysUntil }}** days ago. Revisit a useful exploration and share it with a partner.\r\n</if>\r\n\r\n<grid>\r\n<card title=\"Before the workshop\">\r\nBring a short Markdown document and one idea you want readers to explore.\r\n\r\n<badge>Preparation</badge>\r\n</card>\r\n<card title=\"During the workshop\">\r\nTurn an input into a live explanation, then share what changes when you adjust it.\r\n\r\n<badge tone=\"success\">Hands-on</badge>\r\n</card>\r\n</grid>\r\n\r\n## Choose your reading role\r\n\r\n<tabs label=\"Workshop roles\">\r\n<tab label=\"Participant\">\r\n### Make one idea interactive\r\n\r\n1. Start with a number readers can change.\r\n2. Connect it to a sentence or a chart.\r\n3. Ask a partner to explore the result.\r\n\r\nA <tooltip text=\"A named input lets prose and visualizations read its current value.\">reactive binding</tooltip> keeps the explanation connected to the input.\r\n</tab>\r\n<tab label=\"Facilitator\">\r\n### Guide the exploration\r\n\r\nShow the result first. Invite one clear change, ask what happened, then open the source to explain the relationship.\r\n\r\n> Useful prompt: What changes if we double this value?\r\n</tab>\r\n</tabs>\r\n\r\n<anchor id=\"reading-details\">\r\n\r\n## Open the detail you need\r\n\r\n<accordion label=\"Workshop questions\">\r\n<disclosure label=\"What should I prepare?\" open>\r\nA browser, a short document and a concrete question are enough to begin.\r\n</disclosure>\r\n<disclosure label=\"How do these layouts work together?\">\r\nCards compare related ideas, tabs separate reading contexts, and disclosures keep optional details within reach.\r\n</disclosure>\r\n</accordion>\r\n\r\n<alert title=\"Keep the reading path clear\">Place the main explanation first and let readers choose when to open supporting detail.</alert>\r\n\r\n<jump to=\"reading-start\" appearance=\"button\" color=\"#2563eb\">Return to the overview</jump>\r\n\r\n## How it is written\r\n\r\n<accordion>\r\n<disclosure label=\"Show the key source\">\r\n\r\n```markdown\r\n<const name=\"workshopDay\" value=\"{{ '2026-11-01' }}\">\r\n<date bind=\"readingDate\" label=\"Reading date\" initial=\"2026-10-24\">\r\n<computed name=\"daysUntil\" value=\"{{ readingDate == '' ? null : dateDiff(workshopDay, readingDate) }}\">\r\n<grid>\r\n<card title=\"Workshop date\">{{ workshopDay }}</card>\r\n<card title=\"Days until workshop\">{{ daysUntil }}</card>\r\n</grid>\r\n<accordion>\r\n<disclosure label=\"Read more\">Supporting detail goes here.</disclosure>\r\n</accordion>\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "readingDate": "2026-10-24"
+      },
+      "bindingShape": {
+        "readingDate": {
+          "type": "string",
+          "initial": "2026-10-24"
+        }
+      },
+      "actions": [],
+      "markupDigest": "31163c189d7a28f6e1f4e470906654d4b4ccda866bb011d3648c0a604643c36f"
+    },
+    {
+      "suite": "examples/local/showcase/statistics.reactive.md",
+      "id": "examples/local/showcase/statistics.reactive.md",
+      "source": "<const name=\"budgets\" value=\"{{ [150, 200, 220, 120] }}\">\r\n<computed name=\"expenses\" value=\"{{ [content, visual, interaction, testing] }}\">\r\n<computed name=\"budget\" value=\"{{ sum(budgets) }}\">\r\n<computed name=\"total\" value=\"{{ sum(expenses) }}\">\r\n<computed name=\"remaining\" value=\"{{ budget - total }}\">\r\n\r\n# One budget, several views\r\n\r\nRaise Visual from 230 to 300. The total reaches the {{ formatCurrency(budget, 'USD', 2, 'en-US') }} budget; increase it again to see the overspend warning. Every view reads the same four expense parameters.\r\n\r\n<grid>\r\n<card>\r\n<panel title=\"Workshop expenses\">\r\n<number bind=\"content\" label=\"Content expense\" initial=\"120\" min=\"0\" max=\"1000\" step=\"10\">\r\n<number bind=\"visual\" label=\"Visual expense\" initial=\"230\" min=\"0\" max=\"1000\" step=\"10\">\r\n<number bind=\"interaction\" label=\"Interaction expense\" initial=\"180\" min=\"0\" max=\"1000\" step=\"10\">\r\n<number bind=\"testing\" label=\"Testing expense\" initial=\"90\" min=\"0\" max=\"1000\" step=\"10\">\r\n</panel>\r\n</card>\r\n<card>\r\n<grid>\r\n<card title=\"Total spent\">**{{ formatCurrency(total, 'USD', 2, 'en-US') }}**</card>\r\n<card title=\"Budget remaining\">**{{ formatCurrency(remaining, 'USD', 2, 'en-US') }}**</card>\r\n</grid>\r\n\r\n<badge tone=\"{{ remaining >= 0 ? 'success' : 'warning' }}\">Budget used: {{ formatPercent(total / budget, 1, 'en-US') }}</badge>\r\n\r\nAverage item **{{ formatCurrency(average(expenses), 'USD', 2, 'en-US') }}**; smallest **{{ formatCurrency(minOf(expenses), 'USD', 2, 'en-US') }}**, largest **{{ formatCurrency(maxOf(expenses), 'USD', 2, 'en-US') }}**.\r\n\r\n<if when=\"{{ total > budget }}\">\r\n<alert tone=\"warning\" title=\"Over budget\">Reduce expenses by **{{ formatCurrency(total - budget, 'USD', 2, 'en-US') }}** to return to the {{ formatCurrency(budget, 'USD', 2, 'en-US') }} budget.</alert>\r\n</if>\r\n\r\n<chart bind=\"selectedExpense\" key=\"Category\" title=\"Actual against budget\" y-label=\"USD\">\r\n| Category | Actual | Budget |\r\n| --- | ---: | ---: |\r\n| Content | {{ expenses[0] }} | {{ budgets[0] }} |\r\n| Visual | {{ expenses[1] }} | {{ budgets[1] }} |\r\n| Interaction | {{ expenses[2] }} | {{ budgets[2] }} |\r\n| Testing | {{ expenses[3] }} | {{ budgets[3] }} |\r\n</chart>\r\n</card>\r\n</grid>\r\n\r\n## Inspect the data\r\n\r\nSearch for a category, sort by Actual, or turn the page. Search filters this table; the charts continue to show all four categories.\r\n\r\n<table bind=\"selectedExpense\" key=\"Category\" initial=\"Content\" label=\"Expense details\" page-size=\"2\">\r\n| Category | Actual | Budget |\r\n| --- | ---: | ---: |\r\n| Content | {{ expenses[0] }} | {{ budgets[0] }} |\r\n| Visual | {{ expenses[1] }} | {{ budgets[1] }} |\r\n| Interaction | {{ expenses[2] }} | {{ budgets[2] }} |\r\n| Testing | {{ expenses[3] }} | {{ budgets[3] }} |\r\n</table>\r\n\r\nSelected expense: **{{ selectedExpense }}**. Choose a row or chart mark to select the same category in the other views. Searching, sorting and paging preserve the selection.\r\n\r\n## Change the perspective\r\n\r\n<tabs label=\"Budget perspectives\">\r\n<tab label=\"Share of expenses\">\r\n<chart bind=\"selectedExpense\" key=\"Category\" kind=\"donut\" title=\"Where the money goes\">\r\n| Category | Actual |\r\n| --- | ---: |\r\n| Content | {{ expenses[0] }} |\r\n| Visual | {{ expenses[1] }} |\r\n| Interaction | {{ expenses[2] }} |\r\n| Testing | {{ expenses[3] }} |\r\n</chart>\r\n</tab>\r\n<tab label=\"Budget and actual\">\r\n<chart bind=\"selectedExpense\" key=\"Category\" kind=\"scatter\" title=\"Budget versus actual\" x=\"Budget\" y=\"Actual\" x-label=\"Budget\" y-label=\"Actual\">\r\n| Category | Actual | Budget |\r\n| --- | ---: | ---: |\r\n| Content | {{ expenses[0] }} | {{ budgets[0] }} |\r\n| Visual | {{ expenses[1] }} | {{ budgets[1] }} |\r\n| Interaction | {{ expenses[2] }} | {{ budgets[2] }} |\r\n| Testing | {{ expenses[3] }} | {{ budgets[3] }} |\r\n</chart>\r\n</tab>\r\n</tabs>\r\n\r\n## How it is written\r\n\r\n<accordion>\r\n<disclosure label=\"Show the key source\">\r\n\r\n```markdown\r\n<const name=\"budgets\" value=\"{{ [150, 200, 220, 120] }}\">\r\n<number bind=\"content\" label=\"Content expense\" initial=\"120\" min=\"0\" max=\"1000\">\r\n<number bind=\"visual\" label=\"Visual expense\" initial=\"230\" min=\"0\" max=\"1000\">\r\n<number bind=\"interaction\" label=\"Interaction expense\" initial=\"180\" min=\"0\" max=\"1000\">\r\n<number bind=\"testing\" label=\"Testing expense\" initial=\"90\" min=\"0\" max=\"1000\">\r\n<computed name=\"expenses\" value=\"{{ [content, visual, interaction, testing] }}\">\r\n<computed name=\"total\" value=\"{{ sum(expenses) }}\">\r\nTotal: {{ formatCurrency(total, 'USD', 2, 'en-US') }}\r\n\r\n<chart title=\"Actual against budget\">\r\n| Category | Actual | Budget |\r\n| --- | ---: | ---: |\r\n| Visual | {{ expenses[1] }} | {{ budgets[1] }} |\r\n</chart>\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "content": 120,
+        "interaction": 180,
+        "selectedExpense": "Content",
+        "testing": 90,
+        "visual": 230
+      },
+      "bindingShape": {
+        "content": {
+          "type": "number",
+          "initial": 120,
+          "min": 0,
+          "max": 1000,
+          "step": 10
+        },
+        "visual": {
+          "type": "number",
+          "initial": 230,
+          "min": 0,
+          "max": 1000,
+          "step": 10
+        },
+        "interaction": {
+          "type": "number",
+          "initial": 180,
+          "min": 0,
+          "max": 1000,
+          "step": 10
+        },
+        "testing": {
+          "type": "number",
+          "initial": 90,
+          "min": 0,
+          "max": 1000,
+          "step": 10
+        },
+        "selectedExpense": {
+          "type": "string",
+          "initial": "Content",
+          "options": [
+            "",
+            "Content",
+            "Visual",
+            "Interaction",
+            "Testing"
+          ]
+        }
+      },
+      "actions": [],
+      "markupDigest": "4aa851424055ddb1d47dead9ae84f96deac7af508aa6dc7e736b75e219e682ee"
+    },
+    {
+      "suite": "examples/local/showcase/tasks.reactive.md",
+      "id": "examples/local/showcase/tasks.reactive.md",
+      "source": "<const name=\"preparationCount\" value=\"{{ 3 }}\">\r\n<computed name=\"readyCount\" value=\"{{ len(done) }}\">\r\n<computed name=\"completion\" value=\"{{ readyCount / preparationCount }}\">\r\n<computed name=\"readyToShare\" value=\"{{ readyCount == preparationCount }}\">\r\n\r\n# Run a focused workshop\r\n\r\nCheck off the preparation steps, count the participants and start a short focus timer. This page keeps the plan, progress and timing together.\r\n\r\n<panel title=\"Workshop readiness\">\r\n<checklist color=\"#167875\" bind=\"done\" label=\"Prepare together\">\r\n- [x] Choose one question to explore\r\n- [ ] Open the document and adjust a parameter\r\n- [ ] Explain the result to a partner\r\n</checklist>\r\n\r\nReady: **{{ readyCount }} / {{ preparationCount }}**. Checking an item adds its reflection prompt below.\r\n\r\n<progress color=\"#167875\" label=\"Preparation progress\" value=\"{{ completion * 100 }}\">\r\n\r\n<badge tone=\"{{ readyToShare ? 'success' : 'neutral' }}\">{{ formatPercent(completion, 0, 'en-US') }} complete</badge>\r\n\r\n<data-table label=\"Completed preparation\" rows=\"{{ done }}\" key=\"{{ item }}\" max-rows=\"3\">\r\n<column label=\"Task\" value=\"{{ item == 'item-1' ? 'Choose a question' : item == 'item-2' ? 'Adjust a parameter' : 'Explain to a partner' }}\">\r\n<column label=\"Reflection\" value=\"{{ item == 'item-1' ? 'What do we want to learn?' : item == 'item-2' ? 'What changed?' : 'How can we explain it?' }}\">\r\n</data-table>\r\n\r\n<if when=\"{{ readyToShare }}\">\r\n<alert tone=\"success\" title=\"Ready to share\">Everyone has a question, a working example and a result to discuss.</alert>\r\n</if>\r\n</panel>\r\n\r\n<grid>\r\n<card title=\"People in the room\">\r\n<counter bind=\"count\" label=\"Participants present\" initial=\"0\" min=\"0\" max=\"20\">\r\nPresent: **{{ count }}**.\r\n</card>\r\n<card title=\"One minute to explore\">\r\n<timer label=\"Focus timer\" duration=\"60\">\r\nStart when you are ready. Pause to discuss a result, or reset for another round.\r\n</card>\r\n</grid>\r\n\r\n## See the whole session\r\n\r\n<timeline title=\"A 45-minute workshop\">\r\n| Task | Start | Duration | Notes |\r\n| --- | ---: | ---: | --- |\r\n| Choose a question | 0 | 10 | Agree on one thing to explore |\r\n| Build and explore | 10 | 25 | Try the controls and compare results |\r\n| Collect observations | 15 | 15 | Take notes while exploring |\r\n| Share back | 35 | 10 | Explain one useful finding |\r\n</timeline>\r\n\r\nReset Workshop readiness to restore its checklist. The participant counter and timer are outside that panel and keep their own state.\r\n\r\n## Keep track of the follow-up\r\n\r\nChecked tasks are crossed out. Hide and reopen this list to see that your completed items stay checked.\r\n\r\n<toggle bind=\"followUp\" label=\"Show follow-up tasks\" initial=\"true\">\r\n<if when=\"{{ followUp }}\">\r\n<checklist label=\"After sharing\" color=\"#167875\">\r\n- [ ] Save a useful observation\r\n- [ ] Share the document with a partner\r\n</checklist>\r\n</if>\r\n\r\n## How it is written\r\n\r\n<accordion>\r\n<disclosure label=\"Show the key source\">\r\n\r\n```markdown\r\n<checklist bind=\"done\" label=\"Preparation\">\r\n- [x] Choose a question\r\n- [ ] Explore a result\r\n</checklist>\r\n<computed name=\"completion\" value=\"{{ len(done) / 2 }}\">\r\n<progress label=\"Progress\" value=\"{{ completion * 100 }}\">\r\n{{ formatPercent(completion, 0) }}\r\n\r\n<data-table label=\"Completed tasks\" rows=\"{{ done }}\" key=\"{{ item }}\" max-rows=\"2\">\r\n<column label=\"Task\" value=\"{{ item == 'item-1' ? 'Choose a question' : 'Explore a result' }}\">\r\n</data-table>\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "count": 0,
+        "done": [
+          "item-1"
+        ],
+        "followUp": true
+      },
+      "bindingShape": {
+        "done": {
+          "type": "array",
+          "initial": [
+            "item-1"
+          ],
+          "options": [
+            "item-1",
+            "item-2",
+            "item-3"
+          ]
+        },
+        "count": {
+          "type": "number",
+          "initial": 0,
+          "min": 0,
+          "max": 20,
+          "step": 1
+        },
+        "followUp": {
+          "type": "boolean",
+          "initial": true
+        }
+      },
+      "actions": [],
+      "markupDigest": "6281921417df802ac72541af658e06d4404655d5c445b81b2fa85fe2245cd433"
+    },
+    {
+      "suite": "examples/local/showcase/zh/explore.reactive.md",
+      "id": "examples/local/showcase/zh/explore.reactive.md",
+      "source": "# 选择、探索，再检查你的理解\r\n\r\n选择两个主题、缩小观察区间，再拖动坐标点。检查一道练习题，最后在表格或图表中选择项目，观察另一视图同步变化。\r\n\r\n<jump to=\"results\" appearance=\"button\" color=\"#2563eb\">跳到结果</jump>\r\n\r\n<panel title=\"试用新组块\">\r\n\r\n<anchor id=\"settings\">\r\n\r\n<section color=\"#45536f\">\r\n这几段正文使用统一颜色。<text color=\"#a2273a\">**这条提醒单独着色。**</text> 链接和控件保留各自的样式。\r\n</section>\r\n\r\n<grid>\r\n<card title=\"最多选择两个主题\">\r\n<multi-select bind=\"subjects\" label=\"感兴趣的主题\" max-selected=\"2\" color=\"#167875\">\r\n<option value=\"math\">数学</option>\r\n<option value=\"physics\">物理</option>\r\n<option value=\"chemistry\">化学</option>\r\n</multi-select>\r\n\r\n已选 **{{ len(subjects) }} / 2** 项。\r\n<if when=\"{{ contains(subjects, 'chemistry') }}\">\r\n<badge color=\"#167875\">已选择化学</badge>\r\n</if>\r\n</card>\r\n<card title=\"调整观察区间\">\r\n<range-slider label=\"观察区间\" bind-start=\"low\" bind-end=\"high\" initial-start=\"20\" initial-end=\"80\" min=\"0\" max=\"100\" color=\"#7c3aed\">\r\n\r\n当前区间：**{{ low }}–{{ high }}**，宽度为 **{{ high - low }}**。\r\n</card>\r\n</grid>\r\n\r\n## 拖动一个点\r\n\r\n<coordinate label=\"点的位置\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\" x-min=\"-5\" x-max=\"5\" y-min=\"-5\" y-max=\"5\" color=\"#2563eb\">\r\n\r\n坐标：**({{ px }}, {{ py }})**，距原点 **{{ round(sqrt(px * px + py * py) * 100) / 100 }}**。\r\n\r\n## 按步骤理解\r\n\r\n<steps label=\"学习路线\" bind=\"lesson\">\r\n<step label=\"观察\" value=\"observe\">\r\n拖动坐标点，观察它到原点的距离如何变化。\r\n</step>\r\n<step label=\"计算\" value=\"calculate\">\r\n距离等于两个坐标的平方和再开平方。\r\n</step>\r\n<step label=\"练习\" value=\"practice\">\r\n完成下方练习，再勾选待办清单。\r\n</step>\r\n</steps>\r\n\r\n当前步骤：**{{ lesson }}**。\r\n\r\n<quiz type=\"choice\" label=\"2 + 3 等于多少？\" answer=\"b\" explanation=\"将两个数相加，结果为 5。\">\r\n<option value=\"a\">4</option>\r\n<option value=\"b\">5</option>\r\n<option value=\"c\">6</option>\r\n</quiz>\r\n\r\n<quiz type=\"number\" label=\"填写圆周率的近似值\" answer=\"3.14\" tolerance=\"0.01\" explanation=\"答案与 3.14 的差不超过 0.01 即可。\">\r\n</quiz>\r\n\r\n## 勾选完成的事项\r\n\r\n<checklist bind=\"done\" label=\"探索清单\" color=\"#167875\">\r\n- [x] 阅读操作说明\r\n- [ ] 拖动坐标点\r\n- [ ] 检查一道练习题\r\n</checklist>\r\n\r\n<progress label=\"探索进度\" value=\"{{ len(done) / 3 * 100 }}\" color=\"#167875\">\r\n\r\n<anchor id=\"results\">\r\n\r\n## 一次选择，两个视图\r\n\r\n选择一个项目，表格与图表同步显示选择。表格的搜索、排序和分页不会改变当前选择。\r\n\r\n<table label=\"项目选择\" bind=\"project\" key=\"项目\" initial=\"内容\" page-size=\"2\">\r\n| 项目 | 实际 | 预算 |\r\n| --- | ---: | ---: |\r\n| 内容 | 120 | 150 |\r\n| 视觉 | 230 | 200 |\r\n| 测试 | 90 | 120 |\r\n</table>\r\n\r\n<chart kind=\"bar\" title=\"当前项目\" bind=\"project\" key=\"项目\" y=\"实际,预算\">\r\n| 项目 | 实际 | 预算 |\r\n| --- | ---: | ---: |\r\n| 内容 | 120 | 150 |\r\n| 视觉 | 230 | 200 |\r\n| 测试 | 90 | 120 |\r\n</chart>\r\n\r\n当前选择：**{{ project }}**。\r\n\r\n<jump to=\"settings\" appearance=\"button\" color=\"#2563eb\">返回调整</jump>\r\n\r\n</panel>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "done": [
+          "item-1"
+        ],
+        "high": 80,
+        "lesson": "observe",
+        "low": 20,
+        "project": "内容",
+        "px": 1,
+        "py": 2,
+        "subjects": []
+      },
+      "bindingShape": {
+        "subjects": {
+          "type": "array",
+          "initial": [],
+          "options": [
+            "math",
+            "physics",
+            "chemistry"
+          ],
+          "maxItems": 2
+        },
+        "lesson": {
+          "type": "string",
+          "initial": "observe",
+          "options": [
+            "observe",
+            "calculate",
+            "practice"
+          ]
+        },
+        "done": {
+          "type": "array",
+          "initial": [
+            "item-1"
+          ],
+          "options": [
+            "item-1",
+            "item-2",
+            "item-3"
+          ]
+        },
+        "project": {
+          "type": "string",
+          "initial": "内容",
+          "options": [
+            "",
+            "内容",
+            "视觉",
+            "测试"
+          ]
+        },
+        "low": {
+          "type": "number",
+          "initial": 20,
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        "high": {
+          "type": "number",
+          "initial": 80,
+          "min": 0,
+          "max": 100,
+          "step": 1
+        },
+        "px": {
+          "type": "number",
+          "initial": 1,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        },
+        "py": {
+          "type": "number",
+          "initial": 2,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "06eb147809db8e7e0330b65112be3361dd82c4c6df6cd6efceb757b41f2d0ec1"
+    },
+    {
+      "suite": "examples/local/showcase/zh/flow.reactive.md",
+      "id": "examples/local/showcase/zh/flow.reactive.md",
+      "source": "<const name=\"rate\" value=\"{{ 80 }}\">\r\n<computed name=\"total\" value=\"{{ people * rate }}\">\r\n\r\n# 跟随一个数值走过文档\r\n\r\n先调整人数，再依次选择输入、计算和显示节点，跟随同一个数值，观察它如何变成最终结果。\r\n\r\n<panel title=\"试一个数值\">\r\n<slider bind=\"people\" label=\"人数\" initial=\"4\" min=\"1\" max=\"12\">\r\n</panel>\r\n\r\n<diagram bind=\"selected\" initial=\"input\" label=\"从输入到解释\">\r\n<node id=\"input\" label=\"输入: {{ people }}\">\r\n滑块用 people 命名当前数值，目前是 **{{ people }}**.\r\n</node>\r\n<node id=\"compute\" label=\"计算: {{ people }} × {{ rate }}\">\r\n每人费用 80 元，总费用为 **{{ people }} × {{ rate }} = {{ total }}**.\r\n</node>\r\n<node id=\"view\" label=\"显示: {{ total }}\">\r\n正文读取只读的 total：活动费用为 **{{ formatCurrency(total, 'CNY', 2, 'zh-CN') }}**。计算节点、这里和下方说明共用这一个结果。\r\n</node>\r\n<edge from=\"input\" to=\"compute\" label=\"参数变化\">\r\n<edge from=\"compute\" to=\"view\" label=\"结果更新\">\r\n</diagram>\r\n\r\n正在查看： **{{ selected == 'input' ? '输入' : selected == 'compute' ? '计算' : '显示' }}**.\r\n\r\n<if when=\"{{ selected == 'input' }}\">\r\n<alert title=\"从可调整的输入开始\">试着调到 6 人，再选择计算节点，跟进计算过程。</alert>\r\n</if>\r\n<if when=\"{{ selected == 'compute' }}\">\r\n<alert title=\"让关系可见\">命名计算 total = people * rate 的结果是 **{{ total }}**.</alert>\r\n</if>\r\n<if when=\"{{ selected == 'view' }}\">\r\n<alert tone=\"success\" title=\"文档呈现计算结果\">当前 {{ people }} 人，总费用为 **{{ total }}**.</alert>\r\n</if>\r\n\r\n## 用键盘继续探索\r\n\r\n按 Tab 聚焦图中的节点，用方向键移动焦点，再按 Enter 或空格键选择。节点说明和图下正文会跟随选择同步更新。\r\n\r\n## 按步骤解释这个流程\r\n\r\n<steps label=\"讲解路线\" bind=\"lesson\">\r\n<step label=\"读取输入\" value=\"observe\">\r\n先查看输入节点，当前人数为 **{{ people }}**。\r\n</step>\r\n<step label=\"核对计算\" value=\"calculate\">\r\n选择计算节点。每人 80 元，因此 **{{ people }} × {{ rate }} = {{ total }}**。\r\n</step>\r\n<step label=\"解释结果\" value=\"practice\">\r\n选择显示节点，向同伴说明人数变化为何会改变合计。\r\n\r\n<quiz type=\"choice\" label=\"哪个表达式用于计算总费用？\" answer=\"total\" explanation=\"总费用等于人数乘以每人的费用。\">\r\n<option value=\"total\">people × 80</option>\r\n<option value=\"sum\">people + 80</option>\r\n<option value=\"fixed\">80</option>\r\n</quiz>\r\n\r\n<counter label=\"讲解轮数\" initial=\"0\" min=\"0\" max=\"10\">\r\n</step>\r\n</steps>\r\n\r\n当前步骤：**{{ lesson }}**。向同伴讲清一次结果后，可以记录一轮讲解。\r\n\r\n## 看看写法\r\n\r\n<accordion>\r\n<disclosure label=\"展开关键源码\">\r\n\r\n```markdown\r\n<const name=\"rate\" value=\"{{ 80 }}\">\r\n<computed name=\"total\" value=\"{{ people * rate }}\">\r\n<slider bind=\"people\" label=\"人数\" initial=\"4\" min=\"1\" max=\"12\">\r\n<diagram bind=\"selected\" initial=\"input\" label=\"一个简单流程\">\r\n<node id=\"input\" label=\"输入: {{ people }}\">读取人数。</node>\r\n<node id=\"compute\" label=\"计算: {{ total }}\">{{ people }} × {{ rate }} = {{ total }}</node>\r\n<node id=\"view\" label=\"显示: {{ total }}\">{{ formatCurrency(total, 'CNY', 2, 'zh-CN') }}</node>\r\n<edge from=\"input\" to=\"compute\">\r\n<edge from=\"compute\" to=\"view\">\r\n</diagram>\r\n当前节点: {{ selected }}\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "lesson": "observe",
+        "people": 4,
+        "selected": "input"
+      },
+      "bindingShape": {
+        "people": {
+          "type": "number",
+          "initial": 4,
+          "min": 1,
+          "max": 12,
+          "step": 1
+        },
+        "selected": {
+          "type": "string",
+          "initial": "input",
+          "options": [
+            "input",
+            "compute",
+            "view"
+          ]
+        },
+        "lesson": {
+          "type": "string",
+          "initial": "observe",
+          "options": [
+            "observe",
+            "calculate",
+            "practice"
+          ]
+        }
+      },
+      "actions": [],
+      "markupDigest": "ecf6f463a7907b953a0326cd8b1f59f5f25524a3aabb0f9303be60a33b975895"
+    },
+    {
+      "suite": "examples/local/showcase/zh/forms.reactive.md",
+      "id": "examples/local/showcase/zh/forms.reactive.md",
+      "source": "<computed name=\"organizer\" value=\"{{ trim(name) == '' ? '你的小组' : trim(name) }}\">\r\n<computed name=\"unitCost\" value=\"{{ (format == 'onsite' ? 80 : 60) + (equipment ? 20 : 0) }}\">\r\n<computed name=\"total\" value=\"{{ seats * unitCost }}\">\r\n<computed name=\"datesReady\" value=\"{{ date != '' && deadline != '' && dateCompare(deadline, date) <= 0 }}\">\r\n<computed name=\"registrationGap\" value=\"{{ datesReady ? dateDiff(date, deadline) : null }}\">\r\n\r\n# 边填写，边生成活动方案\r\n\r\n修改称呼和人数，再切换线下或线上形式。调低预算或将报名截止日期设到活动之后，查看相应提示；选择主题，生成准备清单。\r\n\r\n<grid>\r\n<card>\r\n<panel title=\"活动配置\">\r\n<input bind=\"name\" label=\"组织者\" initial=\"Alex\" placeholder=\"你的称呼\">\r\n<choices bind=\"format\" label=\"活动形式\" initial=\"onsite\">\r\n<option value=\"onsite\">线下</option>\r\n<option value=\"online\">线上</option>\r\n</choices>\r\n<slider bind=\"seats\" label=\"参与人数\" initial=\"4\" min=\"1\" max=\"20\">\r\n<date bind=\"date\" label=\"活动日期\" initial=\"2026-11-01\">\r\n<date bind=\"deadline\" label=\"报名截止日期\" initial=\"2026-10-25\">\r\n<number bind=\"budget\" label=\"费用上限\" initial=\"500\" min=\"0\" max=\"5000\" step=\"10\">\r\n<validation when=\"{{ datesReady }}\" message=\"请填写两个日期，并将报名截止日期设为不晚于活动日期。\" fields=\"deadline date\">\r\n<validation when=\"{{ total <= budget }}\" message=\"预计费用超出上限 {{ formatCurrency(total - budget, 'CNY', 2, 'zh-CN') }}，请调整人数、材料或费用上限。\" fields=\"seats equipment budget\">\r\n<textarea bind=\"notes\" label=\"补充要求\" placeholder=\"写下小组的具体需要\">\r\n<toggle bind=\"equipment\" label=\"增加材料包（每人 20 元）\">\r\n</panel>\r\n</card>\r\n\r\n<card title=\"你的活动方案\">\r\n**{{ organizer }}** · {{ date }}\r\n\r\n{{ format == 'onsite' ? '线下活动' : '线上活动' }} · **{{ seats }}** 人\r\n\r\n每人费用： **{{ formatCurrency(unitCost, 'CNY', 2, 'zh-CN') }}**\r\n\r\n预计总费用： **{{ formatCurrency(total, 'CNY', 2, 'zh-CN') }}**\r\n\r\n<badge tone=\"{{ total <= budget ? 'success' : 'warning' }}\">费用上限：{{ formatCurrency(budget, 'CNY', 2, 'zh-CN') }}</badge>\r\n\r\n<if when=\"{{ datesReady }}\">\r\n报名于 **{{ deadline }}** 截止，比活动提前 **{{ registrationGap }}** 天。\r\n</if>\r\n\r\n补充要求： {{ trim(notes) == '' ? '暂未填写。' : trim(notes) }}\r\n\r\n<if when=\"{{ format == 'onsite' }}\">\r\n<alert title=\"线下准备\">预订至少能容纳 {{ seats }} 人的场地，并准备公共屏幕。</alert>\r\n</if>\r\n<if when=\"{{ format == 'online' }}\">\r\n<alert title=\"线上准备\">提前分享会议链接，确认每位参与者都能打开活动文档。</alert>\r\n</if>\r\n</card>\r\n</grid>\r\n\r\n## 试一次完整的修改\r\n\r\n选择线上、调到 6 人并增加材料包，总费用变为 **¥480.00**。点击活动配置的恢复默认，回到初始的 **¥320.00**。\r\n\r\n## 为小组安排合适的学习内容\r\n\r\n选择经验水平、活动节奏和主题，让学习安排与上方的费用方案一起明确下来。\r\n\r\n<panel title=\"学习偏好\">\r\n<select bind=\"level\" label=\"经验水平\" initial=\"intro\">\r\n<option value=\"intro\">第一次参与</option>\r\n<option value=\"advanced\">已有使用经验</option>\r\n</select>\r\n\r\n<radio-group bind=\"pace\" label=\"活动节奏\" initial=\"guided\">\r\n<option value=\"guided\">跟随步骤练习</option>\r\n<option value=\"independent\">自主探索</option>\r\n</radio-group>\r\n\r\n<multi-select bind=\"subjects\" label=\"活动主题\" max-selected=\"2\" color=\"#167875\">\r\n<option value=\"math\">数学</option>\r\n<option value=\"physics\">物理</option>\r\n<option value=\"chemistry\">化学</option>\r\n</multi-select>\r\n\r\n<checkbox bind=\"accessible\" label=\"提供书面步骤说明\">\r\n\r\n| 配置 | 当前安排 |\r\n| --- | --- |\r\n| 水平 | {{ level == 'intro' ? '从一个完整示例开始' : '比较几种不同方法' }} |\r\n| 节奏 | {{ pace == 'guided' ? '一起按步骤练习' : '留出自主探索时间' }} |\r\n| 主题 | 已选择 {{ len(subjects) }} / 2 项 |\r\n\r\n<data-table label=\"主题准备清单\" rows=\"{{ subjects }}\" key=\"{{ item }}\" max-rows=\"2\">\r\n<column label=\"主题\" value=\"{{ item == 'math' ? '数学' : item == 'physics' ? '物理' : '化学' }}\">\r\n<column label=\"准备事项\" value=\"{{ item == 'chemistry' ? '准备材料与操作说明' : '准备一个完整例题' }}\">\r\n<column label=\"配套说明\" value=\"{{ accessible ? '附书面步骤' : '现场讲解' }}\">\r\n</data-table>\r\n\r\n<if when=\"{{ contains(subjects, 'chemistry') }}\">\r\n<badge color=\"#167875\">加入一个化学示例</badge>\r\n</if>\r\n<if when=\"{{ accessible }}\">\r\n<alert title=\"准备书面说明\">为每一步写明参数名称和预期结果，方便参与者自行查阅。</alert>\r\n</if>\r\n</panel>\r\n\r\n## 看看写法\r\n\r\n<accordion>\r\n<disclosure label=\"展开关键源码\">\r\n\r\n```markdown\r\n<const name=\"rate\" value=\"{{ 80 }}\">\r\n<computed name=\"total\" value=\"{{ seats * rate }}\">\r\n<slider bind=\"seats\" label=\"参与人数\" initial=\"4\" min=\"1\" max=\"20\">\r\n<number bind=\"budget\" label=\"费用上限\" initial=\"500\" min=\"0\" max=\"5000\">\r\n<validation when=\"{{ total <= budget }}\" message=\"请调整人数或费用上限。\" fields=\"seats budget\">\r\n<badge tone=\"{{ total <= budget ? 'success' : 'warning' }}\">{{ formatCurrency(total, 'CNY', 2, 'zh-CN') }}</badge>\r\n\r\n<multi-select bind=\"subjects\" label=\"主题\" max-selected=\"2\">\r\n<option value=\"math\">数学</option>\r\n<option value=\"physics\">物理</option>\r\n</multi-select>\r\n<data-table label=\"准备清单\" rows=\"{{ subjects }}\" key=\"{{ item }}\" max-rows=\"2\">\r\n<column label=\"主题\" value=\"{{ item == 'math' ? '数学' : '物理' }}\">\r\n</data-table>\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "accessible": false,
+        "budget": 500,
+        "date": "2026-11-01",
+        "deadline": "2026-10-25",
+        "equipment": false,
+        "format": "onsite",
+        "level": "intro",
+        "name": "Alex",
+        "notes": "",
+        "pace": "guided",
+        "seats": 4,
+        "subjects": []
+      },
+      "bindingShape": {
+        "name": {
+          "type": "string",
+          "initial": "Alex"
+        },
+        "format": {
+          "type": "string",
+          "initial": "onsite",
+          "options": [
+            "onsite",
+            "online"
+          ]
+        },
+        "seats": {
+          "type": "number",
+          "initial": 4,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        },
+        "date": {
+          "type": "string",
+          "initial": "2026-11-01"
+        },
+        "deadline": {
+          "type": "string",
+          "initial": "2026-10-25"
+        },
+        "budget": {
+          "type": "number",
+          "initial": 500,
+          "min": 0,
+          "max": 5000,
+          "step": 10
+        },
+        "notes": {
+          "type": "string",
+          "initial": ""
+        },
+        "equipment": {
+          "type": "boolean",
+          "initial": false
+        },
+        "level": {
+          "type": "string",
+          "initial": "intro",
+          "options": [
+            "intro",
+            "advanced"
+          ]
+        },
+        "pace": {
+          "type": "string",
+          "initial": "guided",
+          "options": [
+            "guided",
+            "independent"
+          ]
+        },
+        "subjects": {
+          "type": "array",
+          "initial": [],
+          "options": [
+            "math",
+            "physics",
+            "chemistry"
+          ],
+          "maxItems": 2
+        },
+        "accessible": {
+          "type": "boolean",
+          "initial": false
+        }
+      },
+      "actions": [],
+      "markupDigest": "029e4944ffb767b90757e9dc42cd0aa545fc6049f8de50a0ed9592f90f2b599e"
+    },
+    {
+      "suite": "examples/local/showcase/zh/functions.reactive.md",
+      "id": "examples/local/showcase/zh/functions.reactive.md",
+      "source": "<const name=\"monthsPerYear\" value=\"{{ 12 }}\">\r\n<computed name=\"monthlyRate\" value=\"{{ r / (100 * monthsPerYear) }}\">\r\n<computed name=\"growthFactor\" value=\"{{ pow(1 + monthlyRate, monthsPerYear * t) }}\">\r\n<computed name=\"endingBalance\" value=\"{{ monthlyRate == 0 ? P + monthsPerYear * m * t : P * growthFactor + m * (growthFactor - 1) / monthlyRate }}\">\r\n<computed name=\"deposits\" value=\"{{ P + monthsPerYear * m * t }}\">\r\n<computed name=\"distance\" value=\"{{ sqrt(px * px + py * py) }}\">\r\n<computed name=\"waveHeight\" value=\"{{ a * sin(f * px) }}\">\r\n<computed name=\"insideInterval\" value=\"{{ px >= low && px <= high }}\">\r\n\r\n# 用参数改变函数\r\n\r\n先把振幅拖到 0，观察波形变成直线；再恢复振幅、提高频率，看看同一区间能容纳多少个波峰。\r\n\r\n<grid>\r\n<card>\r\n<panel title=\"调整波形\">\r\n<slider bind=\"a\" label=\"振幅\" initial=\"1\" min=\"0\" max=\"3\" step=\"0.5\">\r\n<slider bind=\"f\" label=\"频率\" initial=\"1\" min=\"0.5\" max=\"3\" step=\"0.5\">\r\n</panel>\r\n\r\n当前振幅 **{{ a }}**, 频率 **{{ f }}**.\r\n\r\n<if when=\"{{ a == 0 }}\">\r\n<alert title=\"波形已变为直线\">振幅为零时，任何频率对应的函数值都是零。</alert>\r\n</if>\r\n</card>\r\n<card>\r\n<plot min=\"0\" max=\"12.56\" label=\"可调正弦波\" x-label=\"x\" y-label=\"y\">\r\n$$ y = a\\sin(fx) $$\r\n</plot>\r\n</card>\r\n</grid>\r\n\r\n## 用同一组参数继续探索\r\n\r\n<tabs label=\"函数探索\">\r\n<tab label=\"多曲线比较\">\r\n两条曲线共用上方的振幅与频率，比较它们的波峰和过零点。\r\n\r\n<plot min=\"0\" max=\"12.56\" label=\"正弦与余弦\">\r\n$$ y = a\\sin(fx) $$\r\n$$ y = a\\cos(fx) $$\r\n</plot>\r\n</tab>\r\n<tab label=\"分段函数\">\r\n负半轴是直线，正半轴是抛物线；上方振幅同时缩放两段函数。\r\n\r\n<plot min=\"-3\" max=\"3\" label=\"直线与抛物线衔接\">\r\n$$\r\ny = \\begin{cases}\r\nax, & x < 0 \\\\\r\nax^2, & x \\ge 0\r\n\\end{cases}\r\n$$\r\n</plot>\r\n</tab>\r\n<tab label=\"应用：储蓄增长\">\r\n每月末存入固定金额，按月复利计算。将年利率调到零，比较只存本金时的增长。\r\n\r\n<panel title=\"储蓄参数\">\r\n<number bind=\"P\" label=\"初始金额\" initial=\"10000\" min=\"0\" step=\"100\">\r\n<number bind=\"m\" label=\"每月存入\" initial=\"500\" min=\"0\" step=\"100\">\r\n<slider bind=\"r\" label=\"年利率（%）\" initial=\"5\" min=\"0\" max=\"10\" step=\"0.5\">\r\n<slider bind=\"t\" label=\"年数\" initial=\"20\" min=\"1\" max=\"40\">\r\n</panel>\r\n\r\n<plot min=\"0\" max=\"{{ t }}\" label=\"储蓄增长曲线\" x-label=\"年\" y-label=\"金额\">\r\n$$\r\ny = \\begin{cases}\r\nP + 12mx, & r = 0 \\\\\r\nP\\left(1+\\mathrm{monthlyRate}\\right)^{12x} + m\\frac{\\left(1+\\mathrm{monthlyRate}\\right)^{12x}-1}{\\mathrm{monthlyRate}}, & r \\ne 0\r\n\\end{cases}\r\n$$\r\n</plot>\r\n\r\n第 **{{ t }}** 年的期末金额：**{{ formatCurrency(endingBalance, 'CNY', 2, 'zh-CN') }}**，其中存入本金 **{{ formatCurrency(deposits, 'CNY', 2, 'zh-CN') }}**、利息 **{{ formatCurrency(endingBalance - deposits, 'CNY', 2, 'zh-CN') }}**。年利率为 **{{ formatPercent(r / 100, 1, 'zh-CN') }}**。曲线和期末计算共用月利率，零利率时直接累计存款。\r\n</tab>\r\n</tabs>\r\n\r\n## 探索坐标与区间\r\n\r\n选择一个区间，再拖动坐标点。比较横坐标是否落在区间内，并读取波形在该位置的高度。\r\n\r\n<panel title=\"坐标与区间\">\r\n<range-slider label=\"观察区间\" bind-start=\"low\" bind-end=\"high\" initial-start=\"-3\" initial-end=\"3\" min=\"-5\" max=\"5\" color=\"#7c3aed\">\r\n\r\n当前区间：**{{ low }}–{{ high }}**，宽度为 **{{ high - low }}**。\r\n\r\n<coordinate label=\"点的位置\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\" x-min=\"-5\" x-max=\"5\" y-min=\"-5\" y-max=\"5\" color=\"#2563eb\">\r\n\r\n坐标：**({{ px }}, {{ py }})**，距原点 **{{ formatNumber(distance, 2, 'zh-CN') }}**。\r\n\r\n{{ insideInterval ? '横坐标位于观察区间内。' : '横坐标位于观察区间外。' }} 波形在这一横坐标处的高度为 **{{ formatNumber(waveHeight, 2, 'zh-CN') }}**。\r\n\r\n用科学计数法读取同一高度：**{{ formatScientific(waveHeight, 2, 'zh-CN') }}**，便于比较接近零的数值。\r\n\r\n<quiz type=\"number\" label=\"点 (3, 4) 到原点的距离是多少？\" answer=\"5\" tolerance=\"0.01\" explanation=\"3² + 4² 的平方根是 5，可以把坐标点拖到 (3, 4) 验证。\">\r\n</quiz>\r\n</panel>\r\n\r\n## 看看写法\r\n\r\n<accordion>\r\n<disclosure label=\"展开关键源码\">\r\n\r\n```markdown\r\n<slider bind=\"a\" label=\"振幅\" initial=\"1\" min=\"0\" max=\"3\" step=\"0.5\">\r\n<slider bind=\"f\" label=\"频率\" initial=\"1\" min=\"0.5\" max=\"3\" step=\"0.5\">\r\n<coordinate label=\"点的位置\" bind-x=\"px\" bind-y=\"py\" initial-x=\"1\" initial-y=\"2\" x-min=\"-5\" x-max=\"5\" y-min=\"-5\" y-max=\"5\">\r\n<computed name=\"waveHeight\" value=\"{{ a * sin(f * px) }}\">\r\n高度: {{ formatNumber(waveHeight, 2) }} · {{ formatScientific(waveHeight, 2) }}\r\n\r\n<plot min=\"0\" max=\"12.56\" label=\"正弦波\">\r\n$$ y = a\\sin(fx) $$\r\n</plot>\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "P": 10000,
+        "a": 1,
+        "f": 1,
+        "high": 3,
+        "low": -3,
+        "m": 500,
+        "px": 1,
+        "py": 2,
+        "r": 5,
+        "t": 20
+      },
+      "bindingShape": {
+        "a": {
+          "type": "number",
+          "initial": 1,
+          "min": 0,
+          "max": 3,
+          "step": 0.5
+        },
+        "f": {
+          "type": "number",
+          "initial": 1,
+          "min": 0.5,
+          "max": 3,
+          "step": 0.5
+        },
+        "P": {
+          "type": "number",
+          "initial": 10000,
+          "min": 0,
+          "step": 100
+        },
+        "m": {
+          "type": "number",
+          "initial": 500,
+          "min": 0,
+          "step": 100
+        },
+        "r": {
+          "type": "number",
+          "initial": 5,
+          "min": 0,
+          "max": 10,
+          "step": 0.5
+        },
+        "t": {
+          "type": "number",
+          "initial": 20,
+          "min": 1,
+          "max": 40,
+          "step": 1
+        },
+        "low": {
+          "type": "number",
+          "initial": -3,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        },
+        "high": {
+          "type": "number",
+          "initial": 3,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        },
+        "px": {
+          "type": "number",
+          "initial": 1,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        },
+        "py": {
+          "type": "number",
+          "initial": 2,
+          "min": -5,
+          "max": 5,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "0e4634b36d878291353f02ac58576da8ccddd998ca424744911bf703b2fcb234"
+    },
+    {
+      "suite": "examples/local/showcase/zh/layout.reactive.md",
+      "id": "examples/local/showcase/zh/layout.reactive.md",
+      "source": "<const name=\"workshopDay\" value=\"{{ '2026-11-01' }}\">\r\n<computed name=\"readingPhase\" value=\"{{ readingDate == '' ? 'undated' : dateCompare(readingDate, workshopDay) < 0 ? 'before' : dateCompare(readingDate, workshopDay) == 0 ? 'during' : 'after' }}\">\r\n<computed name=\"daysUntil\" value=\"{{ readingDate == '' ? null : dateDiff(workshopDay, readingDate) }}\">\r\n\r\n# 让一份活动指南更好读\r\n\r\n先并排比较两张卡片，再将阅读日期改到活动当天或之后，观察提示变化。切换阅读角色、展开常见问题，找到需要的内容。\r\n\r\n<anchor id=\"reading-start\">\r\n\r\n<section color=\"#45536f\">\r\n先找到需要的阅读深度。<text color=\"#a2273a\">**把重要提醒放在读者看得见的位置。**</text> 段落可以统一着色，局部文字可以单独强调。\r\n</section>\r\n\r\n<jump to=\"reading-details\" appearance=\"button\" color=\"#2563eb\">跳到常见问题</jump>\r\n\r\n<panel title=\"阅读时间\">\r\n<date bind=\"readingDate\" label=\"你在哪天阅读？\" initial=\"2026-10-24\">\r\n</panel>\r\n\r\n<badge tone=\"{{ readingPhase == 'before' ? 'neutral' : readingPhase == 'undated' ? 'warning' : 'success' }}\">{{ readingPhase == 'before' ? '活动前：准备' : readingPhase == 'during' ? '活动当天：动手探索' : readingPhase == 'after' ? '活动后：回顾' : '选择阅读日期' }}</badge>\r\n\r\n<if when=\"{{ readingPhase == 'before' }}\">\r\n距离 **{{ workshopDay }}** 的活动还有 **{{ daysUntil }}** 天，先从准备卡片开始。\r\n</if>\r\n<if when=\"{{ readingPhase == 'after' }}\">\r\n活动已过去 **{{ daysUntil == null ? 0 : -daysUntil }}** 天。回顾一次有效的探索，并向同伴分享。\r\n</if>\r\n\r\n<grid>\r\n<card title=\"活动之前\">\r\n准备一份简短的 Markdown 文档，想好一个希望读者能动手探索的问题。\r\n\r\n<badge>准备</badge>\r\n</card>\r\n<card title=\"活动之中\">\r\n给文档加入输入控件，展示参数改变时，解释和结果如何随之变化。\r\n\r\n<badge tone=\"success\">动手体验</badge>\r\n</card>\r\n</grid>\r\n\r\n## 选择你的阅读角色\r\n\r\n<tabs label=\"活动角色\">\r\n<tab label=\"参与者\">\r\n### 让一个想法可以交互\r\n\r\n1. 找到一个读者可以调整的数字。\r\n2. 把它连接到一句话或一张图。\r\n3. 请同伴操作，观察结果。\r\n\r\n把参数命名后， <tooltip text=\"命名后的输入控件，可以让正文和图表读取它当前的值。\">响应式绑定</tooltip> 会将输入和解释连接起来。\r\n</tab>\r\n<tab label=\"组织者\">\r\n### 引导一次探索\r\n\r\n先展示结果，再邀请大家做一次明确的调整。讨论发生了什么，最后展开源码，解释其中的关系。\r\n\r\n> 可以这样提问：如果把这个值翻倍，会发生什么？\r\n</tab>\r\n</tabs>\r\n\r\n<anchor id=\"reading-details\">\r\n\r\n## 按需展开细节\r\n\r\n<accordion label=\"活动常见问题\">\r\n<disclosure label=\"需要提前准备什么？\" open>\r\n准备浏览器、一篇短文和一个具体问题，就可以开始。\r\n</disclosure>\r\n<disclosure label=\"这些布局如何搭配？\">\r\n卡片用于比较相关信息，标签页区分阅读情境，折叠内容保留随时可查的补充细节。\r\n</disclosure>\r\n</accordion>\r\n\r\n<alert title=\"保持阅读主线\">先呈现主要解释，再让读者决定何时展开补充内容。</alert>\r\n\r\n<jump to=\"reading-start\" appearance=\"button\" color=\"#2563eb\">返回阅读概览</jump>\r\n\r\n## 看看写法\r\n\r\n<accordion>\r\n<disclosure label=\"展开关键源码\">\r\n\r\n```markdown\r\n<const name=\"workshopDay\" value=\"{{ '2026-11-01' }}\">\r\n<date bind=\"readingDate\" label=\"阅读日期\" initial=\"2026-10-24\">\r\n<computed name=\"daysUntil\" value=\"{{ readingDate == '' ? null : dateDiff(workshopDay, readingDate) }}\">\r\n<grid>\r\n<card title=\"活动日期\">{{ workshopDay }}</card>\r\n<card title=\"相隔天数\">{{ daysUntil }}</card>\r\n</grid>\r\n<accordion>\r\n<disclosure label=\"阅读更多\">在这里补充细节。</disclosure>\r\n</accordion>\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "readingDate": "2026-10-24"
+      },
+      "bindingShape": {
+        "readingDate": {
+          "type": "string",
+          "initial": "2026-10-24"
+        }
+      },
+      "actions": [],
+      "markupDigest": "a26ca7edc993596b41ec4e8a62235925d22a4fef4123e4ff309b191566a898a4"
+    },
+    {
+      "suite": "examples/local/showcase/zh/statistics.reactive.md",
+      "id": "examples/local/showcase/zh/statistics.reactive.md",
+      "source": "<const name=\"budgets\" value=\"{{ [150, 200, 220, 120] }}\">\r\n<computed name=\"expenses\" value=\"{{ [content, visual, interaction, testing] }}\">\r\n<computed name=\"budget\" value=\"{{ sum(budgets) }}\">\r\n<computed name=\"total\" value=\"{{ sum(expenses) }}\">\r\n<computed name=\"remaining\" value=\"{{ budget - total }}\">\r\n\r\n# 一份预算，多种观察方式\r\n\r\n把视觉费用从 230 调到 300，总费用恰好达到 690 元预算；继续增加，观察超支提示。下方各视图读取同一组费用参数。\r\n\r\n<grid>\r\n<card>\r\n<panel title=\"活动费用\">\r\n<number bind=\"content\" label=\"内容费用\" initial=\"120\" min=\"0\" max=\"1000\" step=\"10\">\r\n<number bind=\"visual\" label=\"视觉费用\" initial=\"230\" min=\"0\" max=\"1000\" step=\"10\">\r\n<number bind=\"interaction\" label=\"交互费用\" initial=\"180\" min=\"0\" max=\"1000\" step=\"10\">\r\n<number bind=\"testing\" label=\"测试费用\" initial=\"90\" min=\"0\" max=\"1000\" step=\"10\">\r\n</panel>\r\n</card>\r\n<card>\r\n<grid>\r\n<card title=\"费用合计\">**{{ formatCurrency(total, 'CNY', 2, 'zh-CN') }}**</card>\r\n<card title=\"预算余额\">**{{ formatCurrency(remaining, 'CNY', 2, 'zh-CN') }}**</card>\r\n</grid>\r\n\r\n<badge tone=\"{{ remaining >= 0 ? 'success' : 'warning' }}\">预算使用率：{{ formatPercent(total / budget, 1, 'zh-CN') }}</badge>\r\n\r\n每项平均 **{{ formatCurrency(average(expenses), 'CNY', 2, 'zh-CN') }}**，最低 **{{ formatCurrency(minOf(expenses), 'CNY', 2, 'zh-CN') }}**，最高 **{{ formatCurrency(maxOf(expenses), 'CNY', 2, 'zh-CN') }}**。\r\n\r\n<if when=\"{{ total > budget }}\">\r\n<alert tone=\"warning\" title=\"费用已超出预算\">需要减少 **{{ formatNumber(total - budget, 2, 'zh-CN') }}** 元，才能回到 690 元预算内。</alert>\r\n</if>\r\n\r\n<chart bind=\"selectedExpense\" key=\"项目\" title=\"实际费用与预算比较\" y-label=\"元\">\r\n| 项目 | 实际 | 预算 |\r\n| --- | ---: | ---: |\r\n| 内容 | {{ expenses[0] }} | {{ budgets[0] }} |\r\n| 视觉 | {{ expenses[1] }} | {{ budgets[1] }} |\r\n| 交互 | {{ expenses[2] }} | {{ budgets[2] }} |\r\n| 测试 | {{ expenses[3] }} | {{ budgets[3] }} |\r\n</chart>\r\n</card>\r\n</grid>\r\n\r\n## 查看数据明细\r\n\r\n搜索项目、按实际费用排序，或翻页查看。搜索只筛选此表，图表继续展示全部四个项目。\r\n\r\n<table bind=\"selectedExpense\" key=\"项目\" initial=\"内容\" label=\"费用明细\" page-size=\"2\">\r\n| 项目 | 实际 | 预算 |\r\n| --- | ---: | ---: |\r\n| 内容 | {{ expenses[0] }} | {{ budgets[0] }} |\r\n| 视觉 | {{ expenses[1] }} | {{ budgets[1] }} |\r\n| 交互 | {{ expenses[2] }} | {{ budgets[2] }} |\r\n| 测试 | {{ expenses[3] }} | {{ budgets[3] }} |\r\n</table>\r\n\r\n当前选择：**{{ selectedExpense }}**。点击行首圆圈或图表中的数据项，其他视图会同步显示选择。搜索、排序和分页保留当前选择。\r\n\r\n## 换一种观察角度\r\n\r\n<tabs label=\"预算视角\">\r\n<tab label=\"费用占比\">\r\n<chart bind=\"selectedExpense\" key=\"项目\" kind=\"donut\" title=\"费用流向\">\r\n| 项目 | 实际 |\r\n| --- | ---: |\r\n| 内容 | {{ expenses[0] }} |\r\n| 视觉 | {{ expenses[1] }} |\r\n| 交互 | {{ expenses[2] }} |\r\n| 测试 | {{ expenses[3] }} |\r\n</chart>\r\n</tab>\r\n<tab label=\"预算与实际\">\r\n<chart bind=\"selectedExpense\" key=\"项目\" kind=\"scatter\" title=\"预算与实际散点\" x=\"预算\" y=\"实际\" x-label=\"预算\" y-label=\"实际\">\r\n| 项目 | 实际 | 预算 |\r\n| --- | ---: | ---: |\r\n| 内容 | {{ expenses[0] }} | {{ budgets[0] }} |\r\n| 视觉 | {{ expenses[1] }} | {{ budgets[1] }} |\r\n| 交互 | {{ expenses[2] }} | {{ budgets[2] }} |\r\n| 测试 | {{ expenses[3] }} | {{ budgets[3] }} |\r\n</chart>\r\n</tab>\r\n</tabs>\r\n\r\n## 看看写法\r\n\r\n<accordion>\r\n<disclosure label=\"展开关键源码\">\r\n\r\n```markdown\r\n<const name=\"budgets\" value=\"{{ [150, 200, 220, 120] }}\">\r\n<number bind=\"content\" label=\"内容费用\" initial=\"120\" min=\"0\" max=\"1000\">\r\n<number bind=\"visual\" label=\"视觉费用\" initial=\"230\" min=\"0\" max=\"1000\">\r\n<number bind=\"interaction\" label=\"交互费用\" initial=\"180\" min=\"0\" max=\"1000\">\r\n<number bind=\"testing\" label=\"测试费用\" initial=\"90\" min=\"0\" max=\"1000\">\r\n<computed name=\"expenses\" value=\"{{ [content, visual, interaction, testing] }}\">\r\n<computed name=\"total\" value=\"{{ sum(expenses) }}\">\r\n合计: {{ formatCurrency(total, 'CNY', 2, 'zh-CN') }}\r\n\r\n<chart title=\"实际费用与预算比较\">\r\n| 项目 | 实际 | 预算 |\r\n| --- | ---: | ---: |\r\n| 视觉 | {{ expenses[1] }} | {{ budgets[1] }} |\r\n</chart>\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "content": 120,
+        "interaction": 180,
+        "selectedExpense": "内容",
+        "testing": 90,
+        "visual": 230
+      },
+      "bindingShape": {
+        "content": {
+          "type": "number",
+          "initial": 120,
+          "min": 0,
+          "max": 1000,
+          "step": 10
+        },
+        "visual": {
+          "type": "number",
+          "initial": 230,
+          "min": 0,
+          "max": 1000,
+          "step": 10
+        },
+        "interaction": {
+          "type": "number",
+          "initial": 180,
+          "min": 0,
+          "max": 1000,
+          "step": 10
+        },
+        "testing": {
+          "type": "number",
+          "initial": 90,
+          "min": 0,
+          "max": 1000,
+          "step": 10
+        },
+        "selectedExpense": {
+          "type": "string",
+          "initial": "内容",
+          "options": [
+            "",
+            "内容",
+            "视觉",
+            "交互",
+            "测试"
+          ]
+        }
+      },
+      "actions": [],
+      "markupDigest": "86d74e246cf72e8494b7ac85f88d84cf882f781e3d81e426c807b35b213bf2ff"
+    },
+    {
+      "suite": "examples/local/showcase/zh/tasks.reactive.md",
+      "id": "examples/local/showcase/zh/tasks.reactive.md",
+      "source": "<const name=\"preparationCount\" value=\"{{ 3 }}\">\r\n<computed name=\"readyCount\" value=\"{{ len(done) }}\">\r\n<computed name=\"completion\" value=\"{{ readyCount / preparationCount }}\">\r\n<computed name=\"readyToShare\" value=\"{{ readyCount == preparationCount }}\">\r\n\r\n# 完成一次专注活动\r\n\r\n勾选准备步骤、清点到场人数，再启动一段专注计时。同一页集中呈现活动安排、完成进度和时间。\r\n\r\n<panel title=\"活动准备进度\">\r\n<checklist color=\"#167875\" bind=\"done\" label=\"一起做好准备\">\r\n- [x] 选定一个要探索的问题\r\n- [ ] 打开文档，调整一个参数\r\n- [ ] 向同伴解释观察到的结果\r\n</checklist>\r\n\r\n已完成： **{{ readyCount }} / {{ preparationCount }}**。勾选后，下表会补上对应的回顾问题。\r\n\r\n<progress color=\"#167875\" label=\"准备进度\" value=\"{{ completion * 100 }}\">\r\n\r\n<badge tone=\"{{ readyToShare ? 'success' : 'neutral' }}\">{{ formatPercent(completion, 0, 'zh-CN') }} 已完成</badge>\r\n\r\n<data-table label=\"已完成的准备\" rows=\"{{ done }}\" key=\"{{ item }}\" max-rows=\"3\">\r\n<column label=\"事项\" value=\"{{ item == 'item-1' ? '选定探索问题' : item == 'item-2' ? '调整文档参数' : '向同伴解释结果' }}\">\r\n<column label=\"回顾问题\" value=\"{{ item == 'item-1' ? '希望了解什么？' : item == 'item-2' ? '调整后有什么变化？' : '如何解释这一结果？' }}\">\r\n</data-table>\r\n\r\n<if when=\"{{ readyToShare }}\">\r\n<alert tone=\"success\" title=\"可以开始分享了\">问题、示例和观察结果都已准备就绪。</alert>\r\n</if>\r\n</panel>\r\n\r\n<grid>\r\n<card title=\"到场人数\">\r\n<counter bind=\"count\" label=\"已到场人数\" initial=\"0\" min=\"0\" max=\"20\">\r\n已到场： **{{ count }}**.\r\n</card>\r\n<card title=\"一分钟探索\">\r\n<timer label=\"专注计时器\" duration=\"60\">\r\n准备好后开始；需要讨论时暂停，下一轮探索时重置。\r\n</card>\r\n</grid>\r\n\r\n## 查看完整活动安排\r\n\r\n<timeline title=\"45 分钟活动安排\">\r\n| 事项 | 开始 | 时长 | 说明 |\r\n| --- | ---: | ---: | --- |\r\n| 确定问题 | 0 | 10 | 确定一个要探索的主题 |\r\n| 动手探索 | 10 | 25 | 调整控件，比较结果 |\r\n| 整理观察 | 15 | 15 | 与探索阶段同步记录 |\r\n| 交流分享 | 35 | 10 | 分享一个有用的发现 |\r\n</timeline>\r\n\r\n恢复活动准备进度的默认值，会重置该清单。人数计数器和计时器位于面板外，各自保留状态。\r\n\r\n## 记录分享后的待办\r\n\r\n已完成事项会加上删除线。隐藏再展开这份清单，已经勾选的事项仍会保留。\r\n\r\n<toggle bind=\"followUp\" label=\"显示后续待办\" initial=\"true\">\r\n<if when=\"{{ followUp }}\">\r\n<checklist label=\"分享之后\" color=\"#167875\">\r\n- [ ] 保存一个有用的观察结果\r\n- [ ] 把文档分享给同伴\r\n</checklist>\r\n</if>\r\n\r\n## 看看写法\r\n\r\n<accordion>\r\n<disclosure label=\"展开关键源码\">\r\n\r\n```markdown\r\n<checklist bind=\"done\" label=\"准备步骤\">\r\n- [x] 选定问题\r\n- [ ] 探索结果\r\n</checklist>\r\n<computed name=\"completion\" value=\"{{ len(done) / 2 }}\">\r\n<progress label=\"进度\" value=\"{{ completion * 100 }}\">\r\n{{ formatPercent(completion, 0) }}\r\n\r\n<data-table label=\"已完成事项\" rows=\"{{ done }}\" key=\"{{ item }}\" max-rows=\"2\">\r\n<column label=\"事项\" value=\"{{ item == 'item-1' ? '选定问题' : '探索结果' }}\">\r\n</data-table>\r\n```\r\n\r\n</disclosure>\r\n</accordion>\r\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "count": 0,
+        "done": [
+          "item-1"
+        ],
+        "followUp": true
+      },
+      "bindingShape": {
+        "done": {
+          "type": "array",
+          "initial": [
+            "item-1"
+          ],
+          "options": [
+            "item-1",
+            "item-2",
+            "item-3"
+          ]
+        },
+        "count": {
+          "type": "number",
+          "initial": 0,
+          "min": 0,
+          "max": 20,
+          "step": 1
+        },
+        "followUp": {
+          "type": "boolean",
+          "initial": true
+        }
+      },
+      "actions": [],
+      "markupDigest": "4ae610d4c5331b9882256ad8ec49fa78826a7a030c532e0b8f34d07febd54832"
+    },
+    {
+      "suite": "examples/local/zh/catalog.reactive.md",
+      "id": "examples/local/zh/catalog.reactive.md",
+      "source": "# 在文档里查找组件\n\n在表格的搜索框输入“视觉”“参数”或其他关键词。点击列名可以排序，分页控件用于翻页。\n\n<panel title=\"本地组件目录\">\n<table label=\"组件目录\" page-size=\"4\">\n| 名称 | 分类 | 用途 |\n| --- | --- | --- |\n| slider | 参数 | 拖动调整数字 |\n| toggle | 参数 | 切换开关 |\n| choices | 参数 | 从几个方案中选择 |\n| chart | 视觉 | 把 Markdown 表格变成图表 |\n| plot | 视觉 | 使用 LaTeX 绘制函数 |\n| diagram | 视觉 | 点击节点探索说明 |\n| checklist | 内容 | 勾选完成事项 |\n| timer | 工具 | 开始、暂停和重置倒计时 |\n</table>\n</panel>\n\n目录数据就在这份文档中。搜索时直接筛选表格内容，恢复默认会清空查询并回到原始顺序。\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {},
+      "bindingShape": {},
+      "actions": [],
+      "markupDigest": "8997867b54a794f2c9cec1472cade30fbeaec0712a2859f0911f85cbd2cac04e"
+    },
+    {
+      "suite": "examples/local/zh/charts.reactive.md",
+      "id": "examples/local/zh/charts.reactive.md",
+      "source": "# 图表跟着输入变化\n\n## 多系列预算比较\n\n<chart title=\"实际费用与预算\" y-label=\"元\">\n| 项目 | 实际费用 | 预算 |\n| --- | ---: | ---: |\n| 内容 | 120 | 150 |\n| 视觉 | 230 | 200 |\n| 交互 | 180 | 220 |\n| 测试 | 90 | 120 |\n</chart>\n\n## 储蓄曲线\n\n每月末存入固定金额，按固定年利率、每月复利计算。$P$ 为初始金额，$m$ 为每月存入金额，$r$ 为年利率的百分数。\n\n<panel title=\"调整储蓄参数\">\n<number bind=\"P\" label=\"初始金额\" initial=\"10000\" min=\"0\" step=\"100\">\n<number bind=\"m\" label=\"每月存入\" initial=\"500\" min=\"0\" step=\"100\">\n<slider bind=\"r\" label=\"年利率（%）\" initial=\"5\" min=\"0\" max=\"10\" step=\"0.5\">\n<slider bind=\"t\" label=\"年数\" initial=\"20\" min=\"1\" max=\"40\">\n</panel>\n\n<plot min=\"0\" max=\"{{ t }}\" label=\"储蓄增长曲线\" x-label=\"年\" y-label=\"金额\">\n$$\ny =\n\\begin{cases}\nP + 12mx, & r = 0 \\\\\nP\\left(1+\\frac{r}{1200}\\right)^{12x}\n+ m\\frac{\\left(1+\\frac{r}{1200}\\right)^{12x}-1}{r/1200}, & r \\ne 0\n\\end{cases}\n$$\n</plot>\n\n把指针移到曲线末端，可以读取第 {{ t }} 年的期末金额。将年利率调到 0，可以比较只存入本金时的变化。\n\n## 占比与散点\n\n<grid>\n<card title=\"费用占比\">\n<chart kind=\"donut\" title=\"各项实际费用占比\">\n| 项目 | 实际费用 |\n| --- | ---: |\n| 内容 | 120 |\n| 视觉 | 230 |\n| 交互 | 180 |\n| 测试 | 90 |\n</chart>\n</card>\n\n<card title=\"预算与实际\">\n<chart kind=\"scatter\" title=\"预算散点\" x=\"预算\" y=\"实际\" x-label=\"预算\" y-label=\"实际\">\n| 预算 | 实际 |\n| ---: | ---: |\n| 150 | 120 |\n| 200 | 230 |\n| 220 | 180 |\n| 120 | 90 |\n</chart>\n</card>\n</grid>\n\n## 图表读取同一份参数\n\n<slider bind=\"people\" label=\"人数\" initial=\"2\" min=\"1\" max=\"20\">\n\n<chart title=\"按人数比较方案费用\" y-label=\"元\">\n| 方案 | 每月费用 |\n| --- | ---: |\n| 基础版 | {{ people * 20 }} |\n| 专业版 | {{ people * 35 }} |\n</chart>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "P": 10000,
+        "m": 500,
+        "people": 2,
+        "r": 5,
+        "t": 20
+      },
+      "bindingShape": {
+        "P": {
+          "type": "number",
+          "initial": 10000,
+          "min": 0,
+          "step": 100
+        },
+        "m": {
+          "type": "number",
+          "initial": 500,
+          "min": 0,
+          "step": 100
+        },
+        "r": {
+          "type": "number",
+          "initial": 5,
+          "min": 0,
+          "max": 10,
+          "step": 0.5
+        },
+        "t": {
+          "type": "number",
+          "initial": 20,
+          "min": 1,
+          "max": 40,
+          "step": 1
+        },
+        "people": {
+          "type": "number",
+          "initial": 2,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "30d0a1ea75258b7d9b760085947a1d07d0de8a0ec10ff519cebdf5435aa567ff"
+    },
+    {
+      "suite": "examples/local/zh/checklist.reactive.md",
+      "id": "examples/local/zh/checklist.reactive.md",
+      "source": "# 用清单组织体验过程\n\n<panel title=\"体验清单\">\n<checklist bind=\"done\" label=\"完成这些操作\">\n- [x] 读懂源文档\n- [ ] 调整参数并观察结果\n- [ ] 在手机宽度试用\n</checklist>\n\n已完成 **{{ len(done) }} / 3** 项。\n\n<progress label=\"完成进度\" value=\"{{ len(done) / 3 * 100 }}\">\n\n<if when=\"{{ len(done) == 3 }}\">\n<alert tone=\"success\" title=\"体验完成\">\n你已经看过源码、试过交互，也检查了窄屏效果。\n</alert>\n</if>\n</panel>\n\n## 搜索、排序和分页\n\n<table label=\"组件费用示例\" page-size=\"3\">\n| 名称 | 分类 | 价格 |\n| --- | --- | ---: |\n| 文档 | 基础 | 20 |\n| 参数面板 | 输入 | 45 |\n| 图表 | 视觉 | 80 |\n| 图解 | 视觉 | 65 |\n| 清单 | 基础 | 30 |\n| 计划 | 工具 | 35 |\n</table>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "done": [
+          "item-1"
+        ]
+      },
+      "bindingShape": {
+        "done": {
+          "type": "array",
+          "initial": [
+            "item-1"
+          ],
+          "options": [
+            "item-1",
+            "item-2",
+            "item-3"
+          ]
+        }
+      },
+      "actions": [],
+      "markupDigest": "1ef91bdf95853485bbd5b458de035eb2616ed243aa9da0f54bf2e771d99f3928"
+    },
+    {
+      "suite": "examples/local/zh/comparison.reactive.md",
+      "id": "examples/local/zh/comparison.reactive.md",
+      "source": "# 放在一起，比较更清楚\n\n<panel title=\"付款方式\">\n<toggle bind=\"annual\" label=\"按年付款，享受八折\">\n</panel>\n\n<grid>\n<card title=\"基础方案\">\n适合个人与小型项目。\n\n每月 **{{ annual ? 80 : 100 }} 元**。\n\n<badge>本地文档</badge>\n</card>\n\n<card title=\"专业方案\">\n适合需要协作与扩展的团队。\n\n每月 **{{ annual ? 160 : 200 }} 元**。\n\n<badge tone=\"success\">更多组件</badge>\n</card>\n</grid>\n\n<tabs label=\"方案说明\">\n<tab label=\"功能比较\">\n| 能力 | 基础方案 | 专业方案 |\n| --- | --- | --- |\n| 参数调整 | 支持 | 支持 |\n| 文本联动 | 支持 | 支持 |\n| 内容组织 | 基础排版 | 图表与图解 |\n</tab>\n\n<tab label=\"选购建议\">\n先根据实际用途选择方案，再比较付款周期带来的费用变化。\n</tab>\n</tabs>\n\n<accordion>\n<disclosure label=\"费用如何计算？\">\n年度付款按每月标价的八折计算，上方显示折算后的每月费用。\n</disclosure>\n\n<disclosure label=\"可以随时切换吗？\">\n切换上方开关即可比较两种付款周期。这是一份本地计算示例。\n</disclosure>\n</accordion>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "annual": false
+      },
+      "bindingShape": {
+        "annual": {
+          "type": "boolean",
+          "initial": false
+        }
+      },
+      "actions": [],
+      "markupDigest": "c208b39585d1709ff0acec270898c28a342b3b8b9d7b2262fa7ea8e3b65ce2c5"
+    },
+    {
+      "suite": "examples/local/zh/components.reactive.md",
+      "id": "examples/local/zh/components.reactive.md",
+      "source": "# 用内容组织交互\n\n将鼠标移到 <tooltip text=\"输入改变后，相关文字和图表自动更新。\">响应式绑定</tooltip>，或使用键盘聚焦查看说明。\n\n<panel title=\"阅读偏好\">\n<radio-group bind=\"preference\" label=\"说明风格\">\n<option value=\"concise\">简洁</option>\n<option value=\"detailed\">详细</option>\n</radio-group>\n</panel>\n\n<if when=\"{{ preference == 'concise' }}\">\n给输入命名，在正文中引用它。\n</if>\n\n<if when=\"{{ preference == 'detailed' }}\">\n用 `bind` 为输入参数命名，用 `{{ }}` 读取参数并计算结果。读者调整控件后，相关内容立即更新。\n</if>\n\n## 按自己的节奏阅读\n\n<accordion label=\"阅读顺序\">\n<disclosure label=\"理解参数\" open>\n找出读者可以改变的内容，例如人数、单价或振幅。\n</disclosure>\n\n<disclosure label=\"写下关系\">\n用算式连接输入和结果，例如 `{{ people * 100 }}`。\n</disclosure>\n\n<disclosure label=\"选择展示方式\">\n一句结果用正文，数据比较用图表，数学关系用函数曲线。\n</disclosure>\n</accordion>\n\n<alert title=\"继续尝试\">\n切换上方选项，观察说明文字的变化。\n</alert>\n\n<badge tone=\"success\">本地交互</badge>\n\n---\n\n> 标题、引用、链接和图片都沿用 Markdown。组件只负责需要交互的部分。\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "preference": "concise"
+      },
+      "bindingShape": {
+        "preference": {
+          "type": "string",
+          "initial": "concise",
+          "options": [
+            "concise",
+            "detailed"
+          ]
+        }
+      },
+      "actions": [],
+      "markupDigest": "6753bf47571cd7d9147af94af07e868d207a041ce181f8be52010a33b136497d"
+    },
+    {
+      "suite": "examples/local/zh/counter.reactive.md",
+      "id": "examples/local/zh/counter.reactive.md",
+      "source": "# 计数器\n\n<counter bind=\"count\" label=\"当前数值\">\n\n正文也可以读取它：**{{ count }}**。\n\n使用组件自带的加、减和重置按钮操作。\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "count": 0
+      },
+      "bindingShape": {
+        "count": {
+          "type": "number",
+          "initial": 0,
+          "min": 0,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "e3694ca6ad1ce07cf02303979255cd1eaa40cd08f6c240c14025a0fd3b6d8848"
+    },
+    {
+      "suite": "examples/local/zh/diagnostics.reactive.md",
+      "id": "examples/local/zh/diagnostics.reactive.md",
+      "source": "# 诊断示例\n\n这份文档故意保留错误，用于检查诊断提示。正确示例请从同目录的其他文档开始。\n\n## 引用拼错的参数名\n\n<slider bind=\"seats\" label=\"人数\" initial=\"2\" min=\"1\" max=\"20\">\n\n当前人数：{{ seat }}。\n\n## 重复声明初值\n\n<number bind=\"seats\" label=\"另一处人数输入\" initial=\"3\" min=\"1\" max=\"20\">\n\n## 超出范围的初值\n\n<slider bind=\"ratio\" label=\"比例\" initial=\"12\" min=\"0\" max=\"10\">\n\n## 条件类型错误\n\n<if when=\"{{ seats }}\">\n这里需要布尔条件，例如 seats 大于 5。\n</if>\n\n## 未知标签\n\n<slidr label=\"拼错的滑块\" />\n\n## 不属于本地交互语言的事件\n\n<counter label=\"计数\" on-click=\"increment\">\n\n## 缺少节点\n\n<diagram label=\"错误连线\">\n<node id=\"input\" label=\"输入\">\n只有这一个节点。\n</node>\n<edge from=\"input\" to=\"missing\">\n</diagram>\n\n## 不支持计算的数学结构\n\n<plot label=\"积分计算尚不属于绘图语法\">\n$$ y = \\int_0^x t^2\\,dt $$\n</plot>\n\n## 无效的图表数据\n\n<chart title=\"数值列中混入了单位\">\n| 项目 | 费用 |\n| --- | ---: |\n| 内容 | 20 元 |\n</chart>\n",
+      "ok": false,
+      "diagnostics": [
+        {
+          "code": "local.initial.duplicate",
+          "severity": "error",
+          "range": {
+            "start": 92,
+            "end": 93
+          }
+        },
+        {
+          "code": "local.binding.unknown",
+          "severity": "error",
+          "range": {
+            "start": 131,
+            "end": 132
+          }
+        },
+        {
+          "code": "local.initial.duplicate",
+          "severity": "error",
+          "range": {
+            "start": 189,
+            "end": 190
+          }
+        },
+        {
+          "code": "local.initial.range",
+          "severity": "error",
+          "range": {
+            "start": 264,
+            "end": 265
+          }
+        },
+        {
+          "code": "local.type",
+          "severity": "error",
+          "range": {
+            "start": 314,
+            "end": 315
+          }
+        },
+        {
+          "code": "local.component.unknown",
+          "severity": "warning",
+          "range": {
+            "start": 371,
+            "end": 394
+          }
+        },
+        {
+          "code": "local.attribute.unknown",
+          "severity": "error",
+          "range": {
+            "start": 433,
+            "end": 441
+          }
+        },
+        {
+          "code": "local.diagram.edge",
+          "severity": "error",
+          "range": {
+            "start": 534,
+            "end": 566
+          }
+        },
+        {
+          "code": "local.math",
+          "severity": "error",
+          "range": {
+            "start": 622,
+            "end": 648
+          }
+        },
+        {
+          "code": "local.chart.numeric",
+          "severity": "error",
+          "range": {
+            "start": 728,
+            "end": 736
+          }
+        }
+      ]
+    },
+    {
+      "suite": "examples/local/zh/diagram.reactive.md",
+      "id": "examples/local/zh/diagram.reactive.md",
+      "source": "# 让解释可以被探索\n\n点击节点或使用键盘选择一个环节，查看它的说明。\n\n<diagram bind=\"selected\" initial=\"input\" label=\"响应式状态流\">\n<node id=\"input\" label=\"输入\">\n读者通过滑块、开关和输入框改变参数。\n</node>\n\n<node id=\"compute\" label=\"计算\">\n重新计算依赖这些参数的公式。\n</node>\n\n<node id=\"view\" label=\"显示\">\n正文、图表和提示随结果更新。\n</node>\n\n<edge from=\"input\" to=\"compute\" label=\"参数变化\">\n<edge from=\"compute\" to=\"view\" label=\"更新结果\">\n</diagram>\n\n当前环节：{{ selected == 'input' ? '输入' : selected == 'compute' ? '计算' : '显示' }}。\n\n## 改变参数，观察曲线\n\n<panel title=\"正弦波参数\">\n<slider bind=\"a\" label=\"振幅\" initial=\"1\" min=\"0\" max=\"3\" step=\"0.5\">\n<slider bind=\"f\" label=\"频率参数\" initial=\"1\" min=\"0.5\" max=\"3\" step=\"0.5\">\n</panel>\n\n<plot min=\"0\" max=\"12.56\" label=\"正弦波\" x-label=\"x\" y-label=\"位移\">\n$$ y = a\\sin(fx) $$\n</plot>\n\n<if when=\"{{ a == 0 }}\">\n振幅为零，曲线与横轴重合。\n</if>\n\n## 叠加两条曲线\n\n<plot min=\"-5\" max=\"5\" label=\"抛物线与直线\">\n$$ y = x^2 $$\n$$ y = 2x + 1 $$\n</plot>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "a": 1,
+        "f": 1,
+        "selected": "input"
+      },
+      "bindingShape": {
+        "selected": {
+          "type": "string",
+          "initial": "input",
+          "options": [
+            "input",
+            "compute",
+            "view"
+          ]
+        },
+        "a": {
+          "type": "number",
+          "initial": 1,
+          "min": 0,
+          "max": 3,
+          "step": 0.5
+        },
+        "f": {
+          "type": "number",
+          "initial": 1,
+          "min": 0.5,
+          "max": 3,
+          "step": 0.5
+        }
+      },
+      "actions": [],
+      "markupDigest": "fe5aa6b3c7164c60b621387d6ae8591d94f6c9e4ea2f23bbf49aaa980a7f87da"
+    },
+    {
+      "suite": "examples/local/zh/gallery.reactive.md",
+      "id": "examples/local/zh/gallery.reactive.md",
+      "source": "# 常用组件画廊\n\n## 输入与实时结果\n\n<panel title=\"填写你的方案\">\n<input bind=\"name\" label=\"称呼\" initial=\"小林\" placeholder=\"请输入名字\">\n<number bind=\"quantity\" label=\"数量\" initial=\"3\" min=\"1\" max=\"20\">\n\n<select bind=\"plan\" label=\"方案\" initial=\"pro\">\n<option value=\"basic\">基础版</option>\n<option value=\"pro\">专业版</option>\n</select>\n\n<toggle bind=\"annual\" label=\"年度付款（八折）\">\n<toggle bind=\"express\" label=\"显示加急清单\" initial=\"true\">\n<slider bind=\"budgetLevel\" label=\"预算档位\" initial=\"50\" step=\"10\">\n</panel>\n\n你好，**{{ name }}**。\n\n预估费用：**{{ round(quantity * 80 * (plan == 'pro' ? 1 : 0.8) * (annual ? 0.8 : 1)) }} 元**。\n\n<if when=\"{{ quantity >= 5 }}\">\n<badge tone=\"success\">已达到团队档</badge>\n</if>\n\n| 条件 | 当前选择 |\n| --- | --- |\n| 方案 | {{ plan == 'pro' ? '专业版' : '基础版' }} |\n| 年度付款 | {{ annual ? '已开启' : '未开启' }} |\n| 预算档位 | {{ budgetLevel }} |\n\n<if when=\"{{ express }}\">\n<checklist label=\"加急准备\">\n- [x] 已选加急展示\n- [ ] 确认交付时间\n</checklist>\n</if>\n\n## 独立操作的组件\n\n下面的组件不需要向正文公开参数，所以省略 bind。\n\n<grid>\n<card title=\"人数计数\">\n<counter label=\"参与人数\" initial=\"2\" min=\"1\" max=\"20\">\n</card>\n\n<card title=\"短时专注\">\n<timer label=\"一分钟倒计时\">\n</card>\n</grid>\n\n## 原样展示代码\n\n```markdown\n<slider bind=\"example\" label=\"示例参数\">\n当前值：{{ example }}。\n```\n\n以上代码只作为示例显示，不会生成控件。\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "annual": false,
+        "budgetLevel": 50,
+        "express": true,
+        "name": "小林",
+        "plan": "pro",
+        "quantity": 3
+      },
+      "bindingShape": {
+        "name": {
+          "type": "string",
+          "initial": "小林"
+        },
+        "quantity": {
+          "type": "number",
+          "initial": 3,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        },
+        "plan": {
+          "type": "string",
+          "initial": "pro",
+          "options": [
+            "basic",
+            "pro"
+          ]
+        },
+        "annual": {
+          "type": "boolean",
+          "initial": false
+        },
+        "express": {
+          "type": "boolean",
+          "initial": true
+        },
+        "budgetLevel": {
+          "type": "number",
+          "initial": 50,
+          "min": 0,
+          "max": 100,
+          "step": 10
+        }
+      },
+      "actions": [],
+      "markupDigest": "9985d75728076af58c232d793d2197cad41da4c4f96a87f089e82533d1706b61"
+    },
+    {
+      "suite": "examples/local/zh/parameters.reactive.md",
+      "id": "examples/local/zh/parameters.reactive.md",
+      "source": "# 边填写，边看结果\n\n填写你的偏好，下方说明会立即变化。\n\n<panel title=\"交流准备\">\n<input bind=\"name\" label=\"称呼\" placeholder=\"怎么称呼你？\">\n\n<choices bind=\"role\" label=\"使用方式\">\n<option value=\"personal\">个人使用</option>\n<option value=\"team\">团队使用</option>\n</choices>\n\n<date bind=\"appointment\" label=\"计划交流的日期\" initial=\"2026-10-22\">\n\n<textarea bind=\"message\" label=\"想做什么交互文档？\" placeholder=\"例如：一份可以调整参数的课程讲义\">\n\n<checkbox bind=\"showNotes\" label=\"显示准备清单\">\n</panel>\n\n<card title=\"当前计划\">\n称呼：**{{ name == '' ? '尚未填写' : name }}**。\n\n使用方式：{{ role == 'personal' ? '个人使用' : '团队使用' }}。\n\n计划日期：{{ appointment }}。\n\n想法：{{ message == '' ? '可以先从一个小计算器开始。' : message }}\n</card>\n\n<if when=\"{{ showNotes }}\">\n<checklist label=\"交流前准备\">\n- [ ] 想清楚读者需要调整哪些参数\n- [ ] 准备一个具体的计算或图表示例\n- [ ] 写出希望读者观察到的变化\n</checklist>\n</if>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "appointment": "2026-10-22",
+        "message": "",
+        "name": "",
+        "role": "personal",
+        "showNotes": false
+      },
+      "bindingShape": {
+        "name": {
+          "type": "string",
+          "initial": ""
+        },
+        "role": {
+          "type": "string",
+          "initial": "personal",
+          "options": [
+            "personal",
+            "team"
+          ]
+        },
+        "appointment": {
+          "type": "string",
+          "initial": "2026-10-22"
+        },
+        "message": {
+          "type": "string",
+          "initial": ""
+        },
+        "showNotes": {
+          "type": "boolean",
+          "initial": false
+        }
+      },
+      "actions": [],
+      "markupDigest": "276bba3657b0b70ae4fbb0d5e4955e7a60361a162936dcffeb52a2df0ffab312"
+    },
+    {
+      "suite": "examples/local/zh/planning.reactive.md",
+      "id": "examples/local/zh/planning.reactive.md",
+      "source": "# 计划、计时和简单工具\n\n<timeline title=\"45 分钟工作计划\">\n| 事项 | 开始 | 时长 | 说明 |\n| --- | ---: | ---: | --- |\n| 准备材料 | 0 | 10 | 先列出所需内容 |\n| 完成主体 | 10 | 25 | 集中完成主要部分 |\n| 整理参考 | 15 | 15 | 可以与主体阶段并行 |\n| 检查与交付 | 35 | 10 | 留出复核时间 |\n</timeline>\n\n<timer label=\"一分钟专注计时\" duration=\"60\">\n\n## 聚餐分账\n\n<panel title=\"分账参数\">\n<number bind=\"total\" label=\"账单金额\" initial=\"240\" min=\"0\">\n<slider bind=\"people\" label=\"分账人数\" initial=\"3\" min=\"1\" max=\"12\">\n<slider bind=\"tip\" label=\"额外费用（%）\" initial=\"10\" min=\"0\" max=\"20\">\n</panel>\n\n每人支付 **{{ round(total * (1 + tip / 100) / people * 100) / 100 }} 元**。\n\n金额按两位小数四舍五入显示，不补齐末尾的零。\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "people": 3,
+        "tip": 10,
+        "total": 240
+      },
+      "bindingShape": {
+        "total": {
+          "type": "number",
+          "initial": 240,
+          "min": 0,
+          "step": 1
+        },
+        "people": {
+          "type": "number",
+          "initial": 3,
+          "min": 1,
+          "max": 12,
+          "step": 1
+        },
+        "tip": {
+          "type": "number",
+          "initial": 10,
+          "min": 0,
+          "max": 20,
+          "step": 1
+        }
+      },
+      "actions": [],
+      "markupDigest": "c73d04985170034b205ef34b60db94bbd48fbccba3c71ef22d4072cc06cf9d8e"
+    },
+    {
+      "suite": "examples/local/zh/pricing.reactive.md",
+      "id": "examples/local/zh/pricing.reactive.md",
+      "source": "# 方案计算器\n\n调整人数和付款方式，比较每月平均费用。每人每月 100 元，年度付款享受八折。\n\n<panel title=\"你的方案\">\n<slider bind=\"seats\" label=\"人数\" initial=\"2\" min=\"1\" max=\"20\">\n<toggle bind=\"annual\" label=\"年度付款\">\n</panel>\n\n当前人数：**{{ seats }}**。\n\n每人每月：**{{ annual ? 80 : 100 }} 元**。\n\n每月合计：**{{ seats * (annual ? 80 : 100) }} 元**。\n\n<if when=\"{{ seats >= 5 }}\">\n<alert title=\"团队方案\">\n你选择了至少 5 人，可以继续切换付款方式比较费用。\n</alert>\n</if>\n",
+      "ok": true,
+      "diagnostics": [],
+      "initial": {
+        "annual": false,
+        "seats": 2
+      },
+      "bindingShape": {
+        "seats": {
+          "type": "number",
+          "initial": 2,
+          "min": 1,
+          "max": 20,
+          "step": 1
+        },
+        "annual": {
+          "type": "boolean",
+          "initial": false
+        }
+      },
+      "actions": [],
+      "markupDigest": "021b93ce8dab840c7a4119cd1c6fcdae98a2506bbb38c6ce7a4d4ef72a5cd950"
+    }
+  ]
+}

@@ -2,6 +2,8 @@ import type { LocalDocument, LocalNode, LocalRuntime } from './types';
 import { localKey } from './types';
 import { compileExpression, templateDependencies } from './expression';
 import { compileLatex } from './math';
+import { kernelDocumentMetadata, kernelRules, type KernelComponentSchema, type KernelRule } from './component-kernel';
+import { getLocalComponentDefinition } from '../sdk/registry';
 import {walkLocalNodes} from './node-walk';
 
 /**
@@ -18,19 +20,10 @@ export type DependencyIndex = ReadonlyMap<string, NodeDependencies>;
 export const EMPTY_DEPENDENCY_INDEX: DependencyIndex = new Map();
 
 /**
- * Visual components whose runtime reads are covered by attribute templates,
- * their descendant subtree, and (where applicable) their own selection binding.
- *
- * Audited reads (visuals.tsx): tables, charts, timelines and diagrams evaluate
- * descendant interpolations/math through their own render paths, read their own
- * attribute templates, and never evaluate an arbitrary binding name. Plots copy
- * the whole snapshot into an environment, but only the variables named by the
- * descendant formulas are ever read from it. The remaining runtime read is the
- * node's own selection binding (`runtime.get`), which is enumerated below.
+ * Dependency analysis reads only public document metadata. Hand-built
+ * documents without metadata resolve the default manifest by name; there is no
+ * parallel built-in name table here.
  */
-const VISUAL_NODE_NAMES: ReadonlySet<string> = new Set([
-  'table', 'chart', 'plot', 'timeline', 'diagram',
-]);
 
 const dependencyIndexCache = new WeakMap<LocalDocument, DependencyIndex>();
 
@@ -83,6 +76,26 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
   }
 
   const index = new Map<string, NodeDependencies>();
+  const kernelMetadata = kernelDocumentMetadata(document);
+  const bindingByNode = new Map<string, string[]>();
+  const nodesWithBinding = new Set<string>();
+  for (const [key, binding] of Object.entries(document.bindings)) {
+    for (const id of binding.nodeIds) nodesWithBinding.add(id);
+    if (key.startsWith('@')) continue;
+    for (const id of binding.nodeIds) {
+      const list = bindingByNode.get(id) ?? [];
+      list.push(key);
+      bindingByNode.set(id, list);
+    }
+  }
+  const selfRead = (node: LocalNode): string[] => bindingByNode.get(node.id) ?? [localKey(node)];
+  const addSlots = (target: Set<string>, node: LocalNode): void => {
+    const slots = document.bindingSlots?.[node.id];
+    if (slots === undefined) return;
+    // Multi-slot controls also expose the compiler-generated anonymous key.
+    target.add(localKey(node));
+    for (const key of Object.values(slots)) target.add(key);
+  };
 
   const values=new WeakMap<LocalNode,NodeDependencies>();
   for(const node of walkLocalNodes(document.nodes,true)){
@@ -117,37 +130,63 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
           undecidable = true;
         }
       } else if (node.name !== undefined) {
-        if (node.name === 'table' || node.name === 'chart') {
-          // Selection reads `runtime.get(node)` only when a key column is
-          // declared. The compiler registers the binding (named or anonymous)
-          // for exactly those nodes, so the key is a real state read here.
-          if ((node.attrs?.key ?? '').trim() !== '') dependencies.add(localKey(node));
-        } else if (node.name === 'diagram') {
-          // DiagramView always reads its selection binding, including the
-          // compiler-generated anonymous key used when no bind is declared.
-          dependencies.add(localKey(node));
-        } else if (node.name === 'plot') {
-          // PlotView also accepts direct inline-math curves (only constructible
-          // by hand). Only formulas it samples, `y = ...`, read the environment;
-          // a formula that cannot compile is reported and reads nothing.
-          for (const child of node.children ?? []) {
-            if (child.type !== 'inlineMath') continue;
-            const source = (child.value ?? '').trim();
-            if (!/^y\s*=/u.test(source)) continue;
-            try {
-              addAll(dependencies, compileLatex(source).dependencies);
-            } catch {
-              // PlotView shows the same formula failure without reading state.
+        if (kernelMetadata) {
+          // Compiled documents publish their display-read capabilities.
+          const rules = kernelMetadata.dependencyRules?.[node.id];
+          if (rules?.selfBinding) {
+            const attribute = rules.selfBinding.attribute;
+            const present = rules.selfBinding.mode === 'always'
+              || (attribute !== undefined && (node.attrs?.[attribute] ?? '').trim() !== '');
+            if (present) addAll(dependencies, selfRead(node));
+          }
+          if (rules?.inlineMathReads) {
+            for (const child of node.children ?? []) {
+              if (child.type !== 'inlineMath') continue;
+              const source = (child.value ?? '').trim();
+              if (!/^y\s*=/u.test(source)) continue;
+              try {
+                addAll(dependencies, compileLatex(source).dependencies);
+              } catch {
+                // The renderer shows the same formula failure without state.
+              }
             }
           }
-        } else if (!VISUAL_NODE_NAMES.has(node.name)) {
-          // Controls display their own value, so they depend on it. Multi-slot
-          // components register one independent key per slot.
-          dependencies.add(localKey(node));
-          const slots = document.bindingSlots?.[node.id];
-          if (slots !== undefined) {
-            for (const key of Object.values(slots)) dependencies.add(key);
+          if (!rules) {
+            // Ordinary controls display their own value; static containers do
+            // not own a binding and therefore read nothing. Multi-slot
+            // controls also expose their anonymous key.
+            const slots = document.bindingSlots?.[node.id];
+            if (slots !== undefined) dependencies.add(localKey(node));
+            if (nodesWithBinding.has(node.id)) addAll(dependencies, selfRead(node));
+            addSlots(dependencies, node);
           }
+        } else {
+          // Hand-built document without kernel metadata: resolve the default
+          // manifest and read its public dependency capabilities.
+          const definition = node.name ? getLocalComponentDefinition(node.name) : undefined;
+          const rules = definition ? kernelRules(definition as unknown as KernelComponentSchema) : [];
+          const self = rules.find((rule): rule is Extract<KernelRule, { kind: 'self-binding-read' }> => rule.kind === 'self-binding-read');
+          const inlineMath = rules.some((rule) => rule.kind === 'inline-math-reads');
+          if (self) {
+            const present = self.mode === 'always'
+              || (self.attribute !== undefined && (node.attrs?.[self.attribute] ?? '').trim() !== '');
+            if (present) addAll(dependencies, selfRead(node));
+          } else if (!inlineMath && nodesWithBinding.has(node.id)) {
+            addAll(dependencies, selfRead(node));
+          }
+          if (inlineMath) {
+            for (const child of node.children ?? []) {
+              if (child.type !== 'inlineMath') continue;
+              const source = (child.value ?? '').trim();
+              if (!/^y\s*=/u.test(source)) continue;
+              try {
+                addAll(dependencies, compileLatex(source).dependencies);
+              } catch {
+                // The renderer shows the same formula failure without state.
+              }
+            }
+          }
+          addSlots(dependencies, node);
         }
       }
     }

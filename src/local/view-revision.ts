@@ -1,6 +1,8 @@
 import type { DependencyIndex, NodeDependencies } from './dependencies';
 import type { LocalDocument, LocalNode, LocalValue } from './types';
 import {walkLocalNodes} from './node-walk';
+import { anchorRuleAttributes } from './heading-anchors';
+import type { LocalComponentDefinition } from '../sdk/types';
 
 /**
  * Pure projections used to keep a rendered document's memo boundaries stable
@@ -37,7 +39,7 @@ function localValueKey(value: LocalValue | undefined): string {
 }
 
 /** Signature of document metadata that can change an anchor's rendered id. */
-export function anchorMetadataKey(document: LocalDocument): string {
+export function anchorMetadataKey(document: LocalDocument, installed?: readonly LocalComponentDefinition[]): string {
   let initial = '';
   const initialState = document.initialState ?? {};
   for (const key of Object.keys(initialState).sort()) {
@@ -50,19 +52,21 @@ export function anchorMetadataKey(document: LocalDocument): string {
     if (!computation) continue;
     computations += `${key}\u0000${computation.kind}\u0000${computation.source}\u0000${localValueKey(computation.value)}\u0002`;
   }
-  return `${initial}\u0003${computations}`;
+  const anchorRules = JSON.stringify([...anchorRuleAttributes(document, installed)].sort(([a], [b]) => a.localeCompare(b)));
+  return `${initial}\u0003${computations}\u0003${anchorRules}`;
 }
 
-export function projectAnchors(document: LocalDocument): AnchorProjection {
+export function projectAnchors(document: LocalDocument, installed?: readonly LocalComponentDefinition[]): AnchorProjection {
   const nodes: LocalNode[] = [];
+  const attributes = anchorRuleAttributes(document, installed);
     for (const node of walkLocalNodes(document.nodes)) {
-      const explicitHtmlId = node.type !== 'component' && typeof node.attrs?.id === 'string';
-      const explicitAnchor = node.type === 'component'
-        && node.name === 'anchor'
-        && typeof node.attrs?.id === 'string';
+      const component = node.type === 'component' || node.type === 'hostComponent';
+      const explicitHtmlId = !component && typeof node.attrs?.id === 'string';
+      const attribute = component ? attributes.get(node.name ?? '') : undefined;
+      const explicitAnchor = attribute !== undefined && typeof node.attrs?.[attribute] === 'string';
       if (node.type === 'heading' || explicitHtmlId || explicitAnchor) nodes.push(node);
     }
-  return { nodes, metadata: anchorMetadataKey(document) };
+  return { nodes, metadata: anchorMetadataKey(document, installed) };
 }
 
 export function sameAnchorProjection(previous: AnchorProjection, next: AnchorProjection): boolean {

@@ -1,4 +1,5 @@
 import type { LocalHostBindingSchema, LocalRuntime } from '../local/types';
+import { isLocalColor } from '../local/colors';
 import type {
   LocalComponentDefinition,
   LocalComponentProp,
@@ -15,8 +16,16 @@ export interface LocalResolvedBindingConstraints {
 }
 
 const NUMBER_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
-/** Attributes owned implicitly by a declared binding. */
-const BINDING_ATTRIBUTES: ReadonlySet<string> = new Set(['bind', 'initial', 'disabled']);
+
+/** All attribute names owned implicitly by a manifest's declared bindings. */
+export function localBindingAttributeNames(definition: LocalComponentDefinition): ReadonlySet<string> {
+  const names = new Set<string>();
+  for (const binding of Object.values(definition.bindings ?? {})) {
+    names.add(binding.bind);
+    names.add(binding.initial);
+  }
+  return names;
+}
 
 function parseNumberLiteral(raw: string): number | null {
   const text = raw.trim();
@@ -75,6 +84,9 @@ function checkNumber(
   if (prop.integer === true && !Number.isInteger(value)) {
     throw propError(definition, name, 'must be an integer.');
   }
+  if (prop.positive === true && !(value > 0)) {
+    throw propError(definition, name, 'must be greater than zero.');
+  }
   if (prop.min !== undefined && value < prop.min) {
     throw propError(definition, name, `must be at least ${prop.min}.`);
   }
@@ -114,6 +126,29 @@ function checkEnum(
   return value;
 }
 
+function checkColor(
+  definition: LocalComponentDefinition,
+  name: string,
+  prop: LocalComponentProp,
+  value: string,
+): string {
+  if (prop.color === true && value !== '' && !isLocalColor(value)) {
+    throw propError(definition, name, `must be a standard CSS named color or #RGB/#RRGGBB, got "${value}".`);
+  }
+  return value;
+}
+
+/** Apply the string checks shared by literal, expression and mixed values. */
+function checkText(
+  definition: LocalComponentDefinition,
+  name: string,
+  prop: LocalComponentProp,
+  value: string,
+): string {
+  if (prop.kind === 'enum') return checkColor(definition, name, prop, checkEnum(definition, name, prop, value));
+  return checkColor(definition, name, prop, checkStringPattern(definition, name, prop, value));
+}
+
 function resolveProp(
   definition: LocalComponentDefinition,
   name: string,
@@ -126,13 +161,13 @@ function resolveProp(
       throw propError(definition, name, 'is required but was not provided.');
     }
     if (prop.default !== undefined) {
+      if (prop.default === null) return null;
       if (prop.kind === 'number') {
         return checkNumber(definition, name, prop, prop.default as number);
       }
       if (prop.kind === 'boolean') return prop.default as boolean;
       const text = prop.default as string;
-      if (prop.kind === 'enum') return checkEnum(definition, name, prop, text);
-      return checkStringPattern(definition, name, prop, text);
+      return checkText(definition, name, prop, text);
     }
     return null;
   }
@@ -148,22 +183,27 @@ function resolveProp(
     let value: string;
     if (expression !== null) {
       const evaluated = evaluateProp(definition, name, expression, runtime);
-      if (typeof evaluated !== 'string') {
-        throw propError(definition, name, `expected a string, got ${typeof evaluated}.`);
+      if (prop.coerce === 'text' && prop.kind === 'string') {
+        // Builtin label/template text renders any scalar through `text()`.
+        if (evaluated === null) value = '';
+        else if (typeof evaluated === 'string') value = evaluated;
+        else if (typeof evaluated === 'number' || typeof evaluated === 'boolean') value = String(evaluated);
+        else throw propError(definition, name, `expected a scalar, got ${typeof evaluated}.`);
+      } else {
+        if (typeof evaluated !== 'string') {
+          throw propError(definition, name, `expected a string, got ${typeof evaluated}.`);
+        }
+        value = evaluated;
       }
-      value = evaluated;
-      if (prop.kind === 'enum') return checkEnum(definition, name, prop, value);
-      return checkStringPattern(definition, name, prop, value);
+      return checkText(definition, name, prop, value);
     }
     if (interpolated) {
       // Mixed literal text with interpolations is valid for string props only.
+      // Static pattern and color checks run on the resolved text.
       value = runtime.text(raw);
-      if (prop.kind === 'enum') return checkEnum(definition, name, prop, value);
-      // A pattern describes literal shape; a mixed template cannot be checked.
-      return value;
+      return checkText(definition, name, prop, value);
     }
-    if (prop.kind === 'enum') return checkEnum(definition, name, prop, raw);
-    return checkStringPattern(definition, name, prop, raw);
+    return checkText(definition, name, prop, raw);
   }
 
   if (prop.kind === 'number') {
@@ -214,9 +254,9 @@ export function resolveLocalComponentProps(
   if (!attrs || typeof attrs !== 'object' || Array.isArray(attrs)) {
     throw new TypeError(`Local component <${definition.name}> attributes must be an object.`);
   }
-  const hasBinding = definition.bindings !== undefined;
+  const bindingAttributes = localBindingAttributeNames(definition);
   for (const name of Object.keys(attrs)) {
-    if (hasBinding && BINDING_ATTRIBUTES.has(name)) continue;
+    if (bindingAttributes.has(name)) continue;
     if (!Object.hasOwn(definition.props, name)) {
       throw new Error(`Local component <${definition.name}> does not declare attribute "${name}".`);
     }
@@ -224,9 +264,25 @@ export function resolveLocalComponentProps(
   const output: Record<string, string | number | boolean | null> = {};
   for (const name of Object.keys(definition.props)) {
     const raw = Object.hasOwn(attrs, name) && typeof attrs[name] === 'string' ? attrs[name] : undefined;
-    output[name] = resolveProp(definition, name, definition.props[name], raw, runtime);
+    output[name] = resolveLocalComponentProp(definition, name, raw, runtime);
   }
   return Object.freeze(output);
+}
+
+/** Resolve one declared prop using the same contract as document rendering. */
+export function resolveLocalComponentProp(
+  definition: LocalComponentDefinition,
+  name: string,
+  raw: string | undefined,
+  runtime: Pick<LocalRuntime, 'evaluate' | 'text'>,
+): string | number | boolean | null {
+  const prop = definition.props[name];
+  if (!prop) throw propError(definition, name, 'is not declared.');
+  const scoped = definition.rules?.some(rule =>
+    rule.kind === 'scoped-expressions' && rule.attributes.includes(name)
+    || rule.kind === 'row-values' && (rule.rows === name || rule.key === name));
+  if (scoped && raw !== undefined && prop.kind === 'string') return raw;
+  return resolveProp(definition, name, prop, raw, runtime);
 }
 
 function constraintValue(
@@ -279,6 +335,9 @@ export function localComponentHostBinding(
 ): LocalHostBindingSchema | undefined {
   const binding = definition.bindings?.value;
   if (binding === undefined) return undefined;
+  if (binding.kind !== 'number' && binding.kind !== 'string' && binding.kind !== 'boolean') return undefined;
+  const compatibleRules = ['empty', 'false', 'first-option', 'min', 'nearest-zero'] as const;
+  const initialRule = compatibleRules.find(rule => rule === binding.initialRule);
   const constraints = binding.constraints;
   const literal = (value: { readonly literal: number } | { readonly prop: string } | undefined): number | undefined =>
     value !== undefined && 'literal' in value ? value.literal : undefined;
@@ -287,7 +346,7 @@ export function localComponentHostBinding(
   const step = literal(constraints?.step);
   return {
     kind: binding.kind,
-    initialRule: binding.initialRule,
+    ...(initialRule ? { initialRule } : {}),
     ...(binding.options ? { options: [...binding.options] } : {}),
     ...(min !== undefined ? { min } : {}),
     ...(max !== undefined ? { max } : {}),

@@ -4,5 +4,5 @@
     "module": "ESNext", "moduleResolution": "Bundler", "jsx": "react-jsx",
     "strict": true, "skipLibCheck": true, "noEmit": true
   },
-  "include": ["extensions.tsx", "main.tsx", "standalone.ts", "env.d.ts"]
+  "include": ["extensions.tsx", "main.tsx", "standalone.ts", "advanced.tsx", "advanced-standalone.ts", "env.d.ts"]
 }

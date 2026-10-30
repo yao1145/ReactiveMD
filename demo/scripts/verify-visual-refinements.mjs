@@ -1,4 +1,4 @@
-import { openWorkbench, clickWorkbenchAction } from './workbench-ui.mjs';
+import { openWorkbench, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -12,6 +12,7 @@ const errors = [], checks = [];
 page.on('pageerror', error => errors.push(error.message));
 const check = async (name, action) => { await action(); checks.push(name); console.log('PASS ' + name); };
 const preview = page.locator('.preview-stage');
+const theme = name => page.locator('.workbench-quick-actions').getByRole('button', { name, exact: true }).click();
 const source = String.raw`# Responsive formula
 
 <panel title="Parameters">
@@ -30,10 +31,10 @@ $$ y = \frac{123x^2 + 456x + 789}{1 + x^2} + \sin(2x) + \cos(3x) $$
 try {
   await openWorkbench(page,baseURL + '/?example=functions');
   await clickWorkbenchAction(page, 'Show source');
-  await page.locator('#source-editor').fill(source);
+  await replaceWorkbenchSource(page, source);
   await expect(preview.getByRole('heading', { name: 'Responsive formula', exact: true })).toBeVisible();
   // Use presentation mode to measure the same document at full and phone widths.
-  await page.locator('.source-toggle').click();
+  await page.locator('[data-editor-view-option="preview"]').click();
   const math = preview.locator('.local-math-block');
   await check('formulas retain the document body size on desktop and phone', async () => {
     const bodySize = await preview.locator('.local-document').evaluate(e => getComputedStyle(e).fontSize);
@@ -46,9 +47,9 @@ try {
   });
   await check('formulas use black in light mode and white in dark mode', async () => {
     await expect(math).toHaveCSS('color', 'rgb(0, 0, 0)');
-    await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
+    await theme('Dark theme');
     await expect(math).toHaveCSS('color', 'rgb(255, 255, 255)');
-    await page.getByRole('button', { name: 'Light theme', exact: true }).click();
+    await theme('Light theme');
   });
   await check('author colors paint ordinary and dual slider tracks', async () => {
     // Chromium does not expose the range track through getComputedStyle.
@@ -85,7 +86,7 @@ try {
     for (const width of [1440, 760, 375]) {
       await page.setViewportSize({ width, height: 1000 });
       for (const mode of ['light', 'dark']) {
-        if (mode === 'dark') await page.getByRole('button', { name: 'Dark theme', exact: true }).click();
+        if (mode === 'dark') await theme('Dark theme');
         await expect.poll(async () => cases.evaluate(table => {
           const [expression, condition] = table.querySelectorAll(':scope > .col-align-l');
           return expression.getBoundingClientRect().right <= condition.getBoundingClientRect().left - 1;
@@ -96,7 +97,7 @@ try {
             animations: 'disabled',
           });
         }
-        if (mode === 'dark') await page.getByRole('button', { name: 'Light theme', exact: true }).click();
+        if (mode === 'dark') await theme('Light theme');
       }
     }
     await page.setViewportSize({ width: 1440, height: 1000 });

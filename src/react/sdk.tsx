@@ -1,7 +1,6 @@
 import {
   Component,
   createElement,
-  type ComponentType,
   type ReactNode,
 } from 'react';
 import type { Diagnostic, LocalNode, LocalRuntime, SourceRange } from '../local/types';
@@ -9,84 +8,43 @@ import type {
   LocalHostComponentContext,
   LocalHostRenderer,
   LocalRenderMode,
+  LocalSourceTarget,
 } from '../local/render-types';
+import type { LocalUrlPolicy } from '../local/LocalDocumentView';
+import type { LocalLocale } from '../local/i18n';
 import type { LocalThemePackage } from '../sdk/theme';
 import { readLocalConfig } from '../sdk/config';
-import { defineLocalComponent, localComponentDigest } from '../sdk/manifest';
-import { resolveLocalComponentProps } from '../sdk/props';
-import type { LocalComponentDefinition, LocalConfig } from '../sdk/types';
+import { localComponentDigest } from '../sdk/manifest';
+import type {
+  LocalComponentDefinition,
+  LocalConfig,
+  LocalExtensionRequirements,
+} from '../sdk/types';
 import { validateLocalExtensionRequirements } from '../export/requirements';
+import {
+  createLocalComponentContext,
+  type LocalComponentAdapterEnvironment,
+  type LocalComponentContext,
+  type LocalReactComponent,
+  type LocalReactPreset,
+} from './component-api';
+export type { LocalComponentRender } from './component-api';
+import { createDefaultReactPreset } from '../components/default-preset';
+
+export {
+  defineReactComponent,
+  type LocalComponentBindingHandle,
+  type LocalComponentContext,
+  type LocalComponentInstance,
+  type LocalComponentPropValue,
+  type LocalComponentSetResult,
+  type LocalComponentValue,
+  type LocalReactComponent,
+  type LocalReactComponentImplementation,
+  type LocalReactPreset,
+} from './component-api';
 
 /* ------------------------------------------------------------------ types */
-
-/** A resolved, typed component attribute. */
-export type LocalComponentPropValue = string | number | boolean | null;
-
-/** Result of a `bindings.value.set` call. Rejected writes keep the state. */
-export interface LocalComponentSetResult {
-  readonly ok: boolean;
-  readonly diagnostics: Diagnostic[];
-}
-
-export interface LocalComponentBindingHandle {
-  /** Current binding value; `null` when the runtime has no readable value. */
-  get(): LocalComponentPropValue;
-  /**
-   * Write this component's binding through the kernel. In static mode the
-   * setter is read-only and always returns `ok: false`.
-   */
-  set(next: LocalComponentPropValue): LocalComponentSetResult;
-}
-
-/** Read-only identity of one rendered component instance. */
-export interface LocalComponentInstance {
-  /** Canonical node id for this document revision. */
-  readonly id: string;
-  /** Stable component id from the manifest, e.g. `example/rating`. */
-  readonly componentId: string;
-  readonly range: SourceRange;
-}
-
-/**
- * Context passed to every SDK component. It contains no AST: children are
- * rendered through `children.render()`, and visibility is inherited from the
- * document subtree.
- */
-export interface LocalComponentContext {
-  readonly props: Readonly<Record<string, LocalComponentPropValue>>;
-  readonly bindings: {
-    readonly value: LocalComponentBindingHandle;
-  };
-  readonly children: {
-    render(): ReactNode;
-  };
-  readonly instance: LocalComponentInstance;
-  readonly mode: LocalRenderMode;
-  /** False when an enclosing conditional hides this subtree. */
-  readonly visible: boolean;
-  readonly disabled: boolean;
-  /** Increments when the enclosing panel resets. */
-  readonly resetToken: number;
-  /** Report host-owned diagnostics to the document callback. */
-  report(diagnostics: Diagnostic[]): void;
-}
-
-export type LocalComponentRender = ComponentType<LocalComponentContext>;
-
-export interface LocalReactComponentImplementation {
-  render: LocalComponentRender;
-  /**
-   * Static/export implementation. When omitted, static mode calls `render`
-   * with a read-only binding setter.
-   */
-  renderStatic?: LocalComponentRender;
-}
-
-export interface LocalReactComponent extends LocalReactComponentImplementation {
-  readonly definition: LocalComponentDefinition;
-  /** Digest of the supplied manifest, rechecked by `createReactConfig`. */
-  readonly digest: string;
-}
 
 /** Everything a renderer needs from the document view. */
 export interface LocalReactRenderEnvironment {
@@ -94,10 +52,33 @@ export interface LocalReactRenderEnvironment {
   mode: LocalRenderMode;
   visible: boolean;
   disabled: boolean;
+  disabledInvalid: boolean;
   resetToken: number;
+  /** UI locale for built-in labels and diagnostics inside components. */
+  locale: LocalLocale;
   /** Render this component's children at the inherited visibility. */
   renderChildren(nodes: LocalNode[] | undefined, visible: boolean): ReactNode;
+  /** Render projected children as inline content. */
+  renderInline(nodes: LocalNode[] | undefined, visible: boolean): ReactNode;
+  /** Plain text projection of nodes. */
+  renderToText(nodes: LocalNode[] | undefined): string;
   report(diagnostics: Diagnostic[]): void;
+  positionOf?(offset: number): { line: number; column: number };
+  definitionFor(name: string): LocalComponentDefinition | undefined;
+  validationField(node: LocalNode): { describedBy?: string; invalid: boolean };
+  validationHint(node: LocalNode): {
+    id: string;
+    failed: boolean;
+    error: boolean;
+    message: string;
+  } | null;
+  sourceAttributes(node: LocalNode, componentName?: string): Record<string, string>;
+  targetId(to: string): string | undefined;
+  anchorId(node: LocalNode): string | undefined;
+  jumpAllowed(to: string): boolean;
+  jumpTo(target: string): 'ok' | 'missing' | 'hidden';
+  urlPolicy?: LocalUrlPolicy;
+  imageResolver?: (url: string) => string | null;
 }
 
 export type LocalReactExtensionRenderer = (
@@ -108,6 +89,11 @@ export type LocalReactExtensionRenderer = (
 export interface CreateLocalReactConfigOptions {
   /** One implementation per external component declared by the config. */
   components: readonly LocalReactComponent[];
+  /**
+   * Additional installed component implementations grouped into presets.
+   * The default preset is always installed; duplicate names are rejected.
+   */
+  presets?: readonly LocalReactPreset[];
 }
 
 /**
@@ -126,113 +112,11 @@ export interface LocalReactConfig {
 
 /* ------------------------------------------------------------ definitions */
 
-const CAPABILITY_KEYS = ['interactive', 'static', 'ssr', 'offline'] as const;
-
-type LocalComponentCapabilities = Partial<
-  Record<(typeof CAPABILITY_KEYS)[number], boolean>
->;
-
-/** Read the manifest capabilities without trusting unvalidated objects. */
-function readCapabilities(
-  definition: Partial<LocalComponentDefinition>,
-): LocalComponentCapabilities | undefined {
-  const raw = (definition as { capabilities?: unknown }).capabilities;
-  if (raw === undefined) return undefined;
-  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    throw new TypeError('Component capabilities must be an object.');
-  }
-  const capabilities: LocalComponentCapabilities = {};
-  for (const key of CAPABILITY_KEYS) {
-    const value = (raw as Record<string, unknown>)[key];
-    if (value === undefined) continue;
-    if (typeof value !== 'boolean') {
-      throw new TypeError(`Component capability "${key}" must be a boolean.`);
-    }
-    capabilities[key] = value;
-  }
-  return capabilities;
-}
-
-/**
- * Reject capability combinations the React adapter cannot honour. The adapter
- * renders interactive and static output; SSR reuses the static implementation
- * in Node, and offline delivery is a host bundling concern. A manifest may not
- * claim SSR or offline without the corresponding static/interactive ability.
- */
-function assertSupportedCapabilities(
-  definition: Partial<LocalComponentDefinition>,
-  capabilities: LocalComponentCapabilities | undefined,
-  implementation: LocalReactComponentImplementation,
-): void {
-  if (!capabilities) return;
-  if (typeof implementation.render !== 'function') {
-    throw new TypeError('defineReactComponent requires a render function.');
-  }
-  if (
-    implementation.renderStatic !== undefined
-    && typeof implementation.renderStatic !== 'function'
-  ) {
-    throw new TypeError('defineReactComponent renderStatic must be a function.');
-  }
-  if (capabilities.static === false && capabilities.ssr === true) {
-    throw new TypeError(
-      `Component "${definition.id ?? ''}" declares SSR without static rendering.`,
-    );
-  }
-  if (capabilities.static === false && capabilities.offline === true) {
-    throw new TypeError(
-      `Component "${definition.id ?? ''}" declares offline output without a static implementation.`,
-    );
-  }
-  if (capabilities.interactive === false && capabilities.offline === true) {
-    throw new TypeError(
-      `Component "${definition.id ?? ''}" declares offline interaction without an interactive implementation.`,
-    );
-  }
-}
-
 function requireDefinition(definition: unknown): LocalComponentDefinition {
   if (!definition || typeof definition !== 'object' || Array.isArray(definition)) {
     throw new TypeError('defineReactComponent requires a component definition object.');
   }
-  // Revalidate into fresh frozen JSON so the stored digest always describes the
-  // normalized contract, not a caller-owned mutable object.
-  return defineLocalComponent(definition as LocalComponentDefinition);
-}
-
-/**
- * Bind a React implementation to a validated manifest. The manifest digest is
- * captured here and rechecked when the config is assembled, so a stale or
- * mismatched implementation cannot silently render another contract.
- */
-export function defineReactComponent(
-  definition: LocalComponentDefinition,
-  implementation: LocalReactComponentImplementation,
-): LocalReactComponent {
-  const manifest = requireDefinition(definition);
-  if (!implementation || typeof implementation !== 'object') {
-    throw new TypeError('defineReactComponent requires an implementation object.');
-  }
-  const capabilities = readCapabilities(manifest);
-  assertSupportedCapabilities(manifest, capabilities, implementation);
-  let digest: string;
-  try {
-    digest = localComponentDigest(manifest);
-  } catch (error) {
-    throw new TypeError(
-      `Cannot bind a React implementation to component "${manifest.id}": ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-  }
-  return Object.freeze({
-    definition: manifest,
-    digest,
-    render: implementation.render,
-    ...(implementation.renderStatic === undefined
-      ? {}
-      : { renderStatic: implementation.renderStatic }),
-  });
+  return definition as LocalComponentDefinition;
 }
 
 /* --------------------------------------------------------------- registry */
@@ -286,25 +170,64 @@ export function createReactConfig(
 ): LocalReactConfig {
   const config = readLocalConfig(input);
   const declaredById = new Map(
-    config.components.map((definition) => [definition.id, definition]),
+    config.registry.map((definition) => [definition.id, definition]),
   );
   const supplied = options?.components;
   if (!Array.isArray(supplied)) {
     throw new TypeError('createReactConfig requires a components array.');
   }
+  const presets = options?.presets ?? [];
+  if (!Array.isArray(presets)) {
+    throw new TypeError('createReactConfig presets must be an array.');
+  }
 
   const implementations: LocalReactComponent[] = [];
+  const externalImplementations: LocalReactComponent[] = [];
   const implementationsById = new Map<string, LocalReactComponent>();
   const names = new Map<string, LocalReactComponent>();
-  for (const value of supplied) {
-    const implementation = readReactComponent(value);
+
+  const addImplementation = (implementation: LocalReactComponent, preset: boolean): void => {
     const manifest = requireDefinition(implementation.definition);
     const digest = localComponentDigest(manifest);
+    const declared = declaredById.get(manifest.id);
+    if (!declared || declared.name !== manifest.name || declared.version !== manifest.version
+      || localComponentDigest(declared) !== digest) {
+      throw new TypeError(`React component "${manifest.id}" does not match the installed manifest contract.`);
+    }
     if (implementation.digest !== digest) {
       throw new TypeError(
         `React component "${manifest.id}" has a stale digest; create it with defineReactComponent.`,
       );
     }
+    const previousId = implementationsById.get(manifest.id);
+    if (previousId) {
+      throw new TypeError(`Component id "${manifest.id}" has more than one React implementation.`);
+    }
+    const previousName = names.get(manifest.name);
+    if (previousName) {
+      throw new TypeError(`Component tag <${manifest.name}> has more than one React implementation.`);
+    }
+    implementationsById.set(manifest.id, implementation);
+    names.set(manifest.name, implementation);
+    implementations.push(implementation);
+    if (!preset) externalImplementations.push(implementation);
+  };
+
+  const builtinPreset = createDefaultReactPreset();
+  for (const value of builtinPreset.components) addImplementation(readReactComponent(value), true);
+  for (const preset of presets) {
+    if (!preset || typeof preset !== 'object' || !Array.isArray(preset.components)) {
+      throw new TypeError('createReactConfig preset must expose a components array.');
+    }
+    for (const value of preset.components) {
+      addImplementation(readReactComponent(value), false);
+    }
+  }
+
+  for (const value of supplied) {
+    const implementation = readReactComponent(value);
+    const manifest = requireDefinition(implementation.definition);
+    const digest = localComponentDigest(manifest);
     const declared = declaredById.get(manifest.id);
     if (!declared) {
       throw new TypeError(
@@ -321,20 +244,10 @@ export function createReactConfig(
         `React component "${manifest.id}@${manifest.version}" does not match the installed manifest contract.`,
       );
     }
-    const previousId = implementationsById.get(manifest.id);
-    if (previousId) {
-      throw new TypeError(`Component id "${manifest.id}" has more than one React implementation.`);
-    }
-    const previousName = names.get(manifest.name);
-    if (previousName) {
-      throw new TypeError(`Component tag <${manifest.name}> has more than one React implementation.`);
-    }
-    implementationsById.set(manifest.id, implementation);
-    names.set(manifest.name, implementation);
-    implementations.push(implementation);
+    addImplementation(implementation, false);
   }
 
-  const missing = config.components
+  const missing = config.registry
     .filter((definition) => !implementationsById.has(definition.id))
     .map((definition) => `${definition.id}@${definition.version}`);
   if (missing.length > 0) {
@@ -350,7 +263,7 @@ export function createReactConfig(
   });
   const result: LocalReactConfig = Object.freeze({
     config,
-    components: Object.freeze(implementations.slice()),
+    components: Object.freeze(externalImplementations.slice()),
     themes,
     hostRenderer: createHostRenderer(index),
   });
@@ -476,13 +389,6 @@ class LocalReactBoundary extends Component<LocalReactBoundaryProps, { failed: bo
   }
 }
 
-function scalarValue(value: unknown): LocalComponentPropValue {
-  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return value;
-  }
-  return null;
-}
-
 function LocalExtensionView({
   implementation,
   node,
@@ -492,52 +398,38 @@ function LocalExtensionView({
   node: LocalNode;
   environment: LocalReactRenderEnvironment;
 }) {
+  const builtin = implementation.definition.id.startsWith('reactive-md/');
   const capability = environment.mode === 'static' ? 'static' : 'interactive';
-  if (!implementation.definition.capabilities[capability]) {
+  // A static-only component is still renderable inside an interactive
+  // document (it simply emits no interactive markup). External components
+  // keep the phase-one capability gate.
+  if (!builtin && !implementation.definition.capabilities[capability]) {
     throw new Error(`Component ${implementation.definition.id} does not support ${capability} rendering.`);
   }
-  const props = resolveLocalComponentProps(
-    implementation.definition,
-    node.attrs ?? {},
-    environment.runtime,
-  );
-  const readOnly = environment.mode === 'static';
-  const value = Object.freeze({
-    get(): LocalComponentPropValue {
-      try {
-        return scalarValue(environment.runtime.get(node));
-      } catch {
-        return null;
-      }
-    },
-    set(next: LocalComponentPropValue): LocalComponentSetResult {
-      if (readOnly) return { ok: false, diagnostics: [] };
-      try {
-        const diagnostics = environment.runtime.set(node, next);
-        if (diagnostics.length > 0) environment.report(diagnostics);
-        return { ok: diagnostics.length === 0, diagnostics };
-      } catch {
-        return { ok: false, diagnostics: [] };
-      }
-    },
-  });
-  const context: LocalComponentContext = Object.freeze({
-    props: Object.freeze({ ...props }),
-    bindings: Object.freeze({ value }),
-    children: Object.freeze({
-      render: (): ReactNode => environment.renderChildren(node.children, environment.visible),
-    }),
-    instance: Object.freeze({
-      id: node.id,
-      componentId: implementation.definition.id,
-      range: Object.freeze({ start: node.range.start, end: node.range.end }),
-    }),
+  const adapter: LocalComponentAdapterEnvironment = {
+    runtime: environment.runtime,
     mode: environment.mode,
+    locale: environment.locale,
     visible: environment.visible,
     disabled: environment.disabled,
+    disabledInvalid: environment.disabledInvalid,
     resetToken: environment.resetToken,
-    report: (diagnostics: Diagnostic[]) => environment.report(diagnostics),
-  });
+    definitionFor: environment.definitionFor,
+    validationFieldFor: environment.validationField,
+    validationHintFor: environment.validationHint,
+    sourceAttributes: environment.sourceAttributes,
+    renderChildren: (nodes, visible) => environment.renderChildren(nodes, visible),
+    renderInline: (nodes, visible) => environment.renderInline(nodes, visible),
+    renderToText: (nodes) => environment.renderToText(nodes),
+    report: environment.report,
+    targetId: environment.targetId,
+    anchorId: environment.anchorId,
+    jumpAllowed: environment.jumpAllowed,
+    jumpTo: environment.jumpTo,
+    urlPolicy: environment.urlPolicy,
+    imageResolver: environment.imageResolver,
+  };
+  const context: LocalComponentContext = createLocalComponentContext(node, adapter);
   const ComponentImpl = environment.mode === 'static' && implementation.renderStatic
     ? implementation.renderStatic
     : implementation.render;
@@ -559,6 +451,11 @@ function renderExtensionNode(
   } catch {
     source = undefined;
   }
+  const view = createElement(LocalExtensionView, { implementation, node, environment });
+  // Builtin views keep the document's historical error surface (the outer
+  // LocalErrorBoundary renders the same `local-error` span as before). SDK
+  // extension components keep their own isolated placeholder.
+  if (implementation.definition.id.startsWith('reactive-md/')) return view;
   return createElement(
     LocalReactBoundary,
     {
@@ -569,7 +466,7 @@ function renderExtensionNode(
       source,
       report: environment.report,
     },
-    createElement(LocalExtensionView, { implementation, node, environment }),
+    view,
   );
 }
 
@@ -584,6 +481,20 @@ export function localReactExtensionRenderer(
   return (node, environment) => renderExtensionNode(indexOf(config), node, environment);
 }
 
+function plainNodeText(nodes: LocalNode[] | undefined): string {
+  let text = '';
+  for (const node of nodes ?? []) {
+    if (node.type === 'text' || node.type === 'inlineCode' || node.type === 'code') {
+      text += node.value ?? '';
+    } else if (node.type === 'math' || node.type === 'inlineMath' || node.type === 'image') {
+      text += node.value ?? node.alt ?? '';
+    } else {
+      text += plainNodeText(node.children);
+    }
+  }
+  return text;
+}
+
 function createHostRenderer(index: LocalReactIndex): LocalHostRenderer {
   return (node: LocalNode, _data: unknown, ctx: LocalHostComponentContext): ReactNode =>
     renderExtensionNode(index, node, {
@@ -591,9 +502,21 @@ function createHostRenderer(index: LocalReactIndex): LocalHostRenderer {
       mode: ctx.mode,
       visible: ctx.visible,
       disabled: ctx.disabled,
+      disabledInvalid: false,
       resetToken: ctx.resetToken,
+      locale: 'en',
       renderChildren: (nodes, visible) => ctx.render(nodes, visible),
+      renderInline: (nodes, visible) => ctx.render(nodes, visible),
+      renderToText: (nodes) => plainNodeText(nodes),
       report: (diagnostics) => ctx.report(diagnostics),
+      definitionFor: (name) => index.byName.get(name)?.definition,
+      validationField: () => ({ invalid: false }),
+      validationHint: () => null,
+      sourceAttributes: () => ({}),
+      targetId: () => undefined,
+      anchorId: () => undefined,
+      jumpAllowed: () => false,
+      jumpTo: () => 'missing',
     });
 }
 

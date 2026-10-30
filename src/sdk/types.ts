@@ -1,4 +1,14 @@
-import type { LocalBindingFamily } from '../local/schema';
+import type { LocalValueKind } from '../local/types';
+import type {
+  KernelBindingConstraint,
+  KernelBindingSchema,
+  KernelChildRule,
+  KernelInitialRule,
+  KernelPropSchema,
+  KernelRule,
+  KernelSlotRelation,
+  KernelStructure,
+} from '../local/component-kernel';
 import {
   LOCAL_COMPONENT_PROTOCOL,
   LOCAL_CONFIG_PROTOCOL,
@@ -10,67 +20,71 @@ export * from './version';
 
 export type LocalComponentForm = 'leaf' | 'inline' | 'container';
 export type LocalComponentPropKind = 'string' | 'number' | 'boolean' | 'enum';
-export type LocalComponentBindingKind = 'string' | 'number' | 'boolean';
-export type LocalComponentInitialRule = 'empty' | 'false' | 'nearest-zero' | 'min' | 'first-option';
+
+/** Shared value kinds; bindings use the same vocabulary as runtime values. */
+export type LocalComponentBindingKind = LocalValueKind;
+export type LocalComponentInitialRule = KernelInitialRule;
+/** Body/child rule names shared by built-in and external components. */
+export type LocalChildRule = KernelChildRule;
+
+export type LocalBindingFamily =
+  | 'text'
+  | 'number'
+  | 'boolean'
+  | 'choice'
+  | 'date'
+  | 'timer'
+  | 'checklist'
+  | 'tabs'
+  | 'diagram'
+  | 'multi-select'
+  | 'selection'
+  | 'steps'
+  | 'collection';
 
 /** One declared attribute of a component manifest. */
-export interface LocalComponentProp {
+export interface LocalComponentProp extends Readonly<Omit<KernelPropSchema, 'enum'>> {
   readonly kind: LocalComponentPropKind;
-  readonly required?: boolean;
-  /** Reject `{{ ... }}` in this attribute. */
-  readonly static?: boolean;
-  /** Accept exactly one typed interpolation in place of a literal. */
-  readonly dynamic?: boolean;
   /** Value used only when the author omits the attribute. */
-  readonly default?: string | number | boolean;
+  readonly default?: string | number | boolean | null;
+  /** Allow an explicit `null` default. */
+  readonly nullable?: boolean;
   /** Allowed literals for `kind: 'enum'`. */
   readonly enum?: readonly string[];
-  /** Linear-time-safe RegExp source applied to string literals. */
-  readonly pattern?: string;
-  /** `number` only: inclusive lower bound. */
-  readonly min?: number;
-  /** `number` only: inclusive upper bound. */
-  readonly max?: number;
-  /** `number` only: require an integer value. */
-  readonly integer?: boolean;
   /** Optional locale-keyed help text; excluded from the semantic digest. */
   readonly description?: LocalComponentText;
 }
 
 /** A constraint that is either a fixed literal or a reference to a numeric prop. */
-export type LocalComponentBindingConstraint =
-  | { readonly literal: number }
-  | { readonly prop: string };
-
-export interface LocalComponentBindingConstraints {
-  readonly min?: LocalComponentBindingConstraint;
-  readonly max?: LocalComponentBindingConstraint;
-  readonly step?: LocalComponentBindingConstraint;
-}
+export type LocalComponentBindingConstraint = KernelBindingConstraint;
+export type LocalComponentBindingConstraints = Readonly<NonNullable<KernelBindingSchema['constraints']>>;
 
 /**
- * The single scalar binding slot of the phase-one contract. `bind` and
- * `initial` are fixed attribute names; named multi-slot support arrives in a
- * later phase with the same structure.
+ * One binding slot. `bind` and `initial` are authored attribute names; named
+ * slots may use different names (for example `bind-start`). Named slots use
+ * number/number and exclusive ownership in this preview. `required` requires
+ * an authored binding name. `value` may coexist with named slots.
  */
-export interface LocalComponentBinding {
-  readonly kind: LocalComponentBindingKind;
+export type LocalComponentBinding = Readonly<KernelBindingSchema> & {
   readonly family: LocalBindingFamily;
-  readonly bind: 'bind';
-  readonly initial: 'initial';
-  readonly initialRule: LocalComponentInitialRule;
-  /** `string`/`choice` only: the accepted literals, in display order. */
-  readonly options?: readonly string[];
-  readonly constraints?: LocalComponentBindingConstraints;
-}
+};
 
-export type LocalComponentChildrenKind = 'none' | 'inline' | 'markdown';
-
-/** Body-content rule for a container or inline component. */
+/** Legacy body-content rule; lowered to an equivalent `structure` rule. */
 export interface LocalComponentChildren {
-  readonly kind: LocalComponentChildrenKind;
+  readonly kind: 'none' | 'inline' | 'markdown';
   readonly required?: boolean;
 }
+
+/** Reusable child-structure declaration for a container or inline component. */
+export type LocalComponentStructure = Readonly<KernelStructure>;
+
+/**
+ * Bounded JSON primitives shared by every component and the kernel.
+ * Attribute-name strings refer to authored attributes.
+ */
+export type LocalComponentRule = Readonly<KernelRule>;
+
+export type LocalComponentSlotRelation = KernelSlotRelation;
 
 export interface LocalComponentCapabilities {
   readonly interactive: boolean;
@@ -113,8 +127,18 @@ export interface LocalComponentDefinition {
   readonly protocol: typeof LOCAL_COMPONENT_PROTOCOL;
   readonly form: LocalComponentForm;
   readonly props: Readonly<Record<string, LocalComponentProp>>;
-  readonly bindings?: Readonly<{ readonly value: LocalComponentBinding }>;
+  /** Public binding slots keyed by slot name; phase-one used only `value`. */
+  readonly bindings?: Readonly<Record<string, LocalComponentBinding>>;
+  /** Legacy body rule. Accepted when `structure` is absent. */
   readonly children?: LocalComponentChildren;
+  /** Public child-structure declaration. */
+  readonly structure?: LocalComponentStructure;
+  /** Public bounded semantic rules. */
+  readonly rules?: readonly LocalComponentRule[];
+  /** Order relations between named binding slots (range start <= end). */
+  readonly slotRelations?: readonly LocalComponentSlotRelation[];
+  /** True for phase-one host input adapters; selects legacy diagnostic wording. */
+  readonly legacyHost?: boolean;
   readonly capabilities: LocalComponentCapabilities;
   readonly authoring?: LocalComponentAuthoring;
   /** Export style-resource identities collected by the host build. */
@@ -145,14 +169,17 @@ export interface LocalPresetReference {
 
 /**
  * Immutable, serializable instance configuration. `components` holds external
- * manifests only; the built-in default preset is always implied in phase one.
+ * manifests only; the built-in default preset is carried in `registry`.
  * `key` is a deterministic semantic digest and is never trusted on input.
  */
 export interface LocalConfig {
   readonly protocol: typeof LOCAL_CONFIG_PROTOCOL;
   readonly key: string;
   readonly presets: readonly LocalPresetReference[];
+  /** External components only, preserving phase-one callers. */
   readonly components: readonly LocalComponentDefinition[];
+  /** Full validated snapshot: default preset followed by external components. */
+  readonly registry: readonly LocalComponentDefinition[];
   readonly themes: readonly LocalThemePackage[];
 }
 

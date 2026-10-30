@@ -26,6 +26,14 @@ import {
 } from './validation';
 import type { LocalStateRetentionDrop } from './retention';
 import { planLocalStateRetention } from './retention';
+import {
+  isKernelDate,
+  kernelDocumentMetadata,
+  kernelValueRules,
+  type KernelComponentSchema,
+  type KernelValueRule,
+} from './component-kernel';
+import { getLocalComponentDefinition } from '../sdk/registry';
 import { localKey, type LocalBinding, type LocalComputation, type LocalDocument, type LocalNode, type LocalRuntime, type LocalRuntimeOptions, type LocalValueKind, type LocalSnapshot, type LocalValidation, type LocalValue } from './types';
 
 const EPSILON = 1e-9;
@@ -123,51 +131,95 @@ function invalid(key: string, params?: Record<string, unknown>): ValidationResul
   return { ok: false, detail: localDiagnosticDetails(key, params) };
 }
 
+interface StringDynamic {
+  min?: string;
+  max?: string;
+  required?: boolean;
+}
+
+/** Static string attribute or declaration default, without interpolation. */
+function stringAttribute(node: LocalNode, name: string | undefined): string | undefined {
+  if (name === undefined) return undefined;
+  const raw = rawAttr(node, name);
+  return raw;
+}
+
+function numberAttribute(node: LocalNode, name: string | undefined): number | undefined {
+  if (name === undefined) return undefined;
+  return staticNumber(node, name);
+}
+
 /**
- * Validate one string binding against every registered control that shares the
- * binding. Compiler guarantees are not trusted here: a shared binding must be
- * writable only when all owners accept the value. Length is checked before the
- * email validator, whose shared implementation is linear and length-bounded.
+ * Validate one string binding against the compiled rules published on the
+ * document. Rules name the authored attributes, so a component needs no
+ * special runtime code of its own.
  */
-function validateStringControl(
+function validateKernelStringControl(
   node: LocalNode,
   value: string,
-  dynamic: { min?: string; max?: string; required?: boolean } = {},
+  rules: readonly KernelValueRule[],
+  dynamic: StringDynamic = {},
 ): ValidationResult {
-  if (node.name === 'date') {
-    if (!isValidDate(value)) return invalid('local.runtime.value.date-invalid');
-    const required = dynamic.required ?? (staticBoolean(node, 'required') === true);
-    if (value === '' && required) {
-      return invalid('local.runtime.value.date-required');
+  for (const rule of rules) {
+    if (rule.kind === 'date') {
+      if (!isKernelDate(value)) return invalid('local.runtime.value.date-invalid');
+      const required = dynamic.required
+        ?? (rule.required !== undefined && staticBoolean(node, rule.required) === true);
+      if (value === '' && required) return invalid('local.runtime.value.date-required');
+      const min = dynamic.min ?? stringAttribute(node, rule.min);
+      const max = dynamic.max ?? stringAttribute(node, rule.max);
+      if (value !== '' && min && value < min) return invalid('local.runtime.value.date-earlier', { min });
+      if (value !== '' && max && value > max) return invalid('local.runtime.value.date-later', { max });
+      continue;
     }
-    const min = dynamic.min ?? rawAttr(node, 'min');
-    const max = dynamic.max ?? rawAttr(node, 'max');
-    if (value !== '' && min && value < min) return invalid('local.runtime.value.date-earlier', { min });
-    if (value !== '' && max && value > max) return invalid('local.runtime.value.date-later', { max });
-    return { ok: true, value };
-  }
-  if (node.name === 'input' || node.name === 'textarea') {
-    const length = codePointLength(value);
-    const required = dynamic.required ?? (staticBoolean(node, 'required') === true);
-    if (value === '' && required) {
-      return invalid('local.runtime.value.field-required');
+    if (rule.kind === 'required') {
+      const required = dynamic.required
+        ?? (staticBoolean(node, rule.required) === true);
+      if (value === '' && required) return invalid('local.runtime.value.field-required');
+      continue;
     }
-    const minLength = staticNumber(node, 'min-length');
-    const maxLength = staticNumber(node, 'max-length');
-    if (minLength !== undefined && minLength > 0 && value !== '' && length < minLength) {
-      return invalid('local.runtime.value.min-length', { min: minLength });
-    }
-    if (maxLength !== undefined && length > maxLength) {
-      return invalid('local.runtime.value.max-length', { max: maxLength });
-    }
-    if (node.name === 'input' && rawAttr(node, 'type') === 'email' && value !== '') {
-      if (value.length > MAX_LOCAL_EMAIL_LENGTH) {
-        return invalid('local.runtime.value.email-length', { limit: MAX_LOCAL_EMAIL_LENGTH });
+    if (rule.kind === 'length') {
+      const length = codePointLength(value);
+      const minLength = numberAttribute(node, rule.min);
+      const maxLength = numberAttribute(node, rule.max);
+      if (minLength !== undefined && minLength > 0 && value !== '' && length < minLength) {
+        return invalid('local.runtime.value.min-length', { min: minLength });
       }
-      if (!isLocalEmail(value)) return invalid('local.runtime.value.email-invalid');
+      if (maxLength !== undefined && length > maxLength) {
+        return invalid('local.runtime.value.max-length', { max: maxLength });
+      }
+      continue;
+    }
+    if (rule.kind === 'email') {
+      const type = stringAttribute(node, rule.type) ?? 'text';
+      if (type === rule.value && value !== '') {
+        if (value.length > MAX_LOCAL_EMAIL_LENGTH) {
+          return invalid('local.runtime.value.email-length', { limit: MAX_LOCAL_EMAIL_LENGTH });
+        }
+        if (!isLocalEmail(value)) return invalid('local.runtime.value.email-invalid');
+      }
     }
   }
   return { ok: true, value };
+}
+
+const defaultDefinitionCache = new Map<string, readonly KernelValueRule[] | null>();
+
+/**
+ * Phase-one documents built by hand carry no kernel metadata. Resolve their
+ * value rules from the public default preset instead of maintaining a second
+ * built-in semantic list here.
+ */
+function legacyValueRules(node: LocalNode): readonly KernelValueRule[] {
+  if (!node.name) return EMPTY_VALUE_RULES;
+  const cached = defaultDefinitionCache.get(node.name);
+  if (cached !== undefined) return cached ?? EMPTY_VALUE_RULES;
+  const definition = getLocalComponentDefinition(node.name);
+  const rules = definition
+    ? kernelValueRules(definition as unknown as KernelComponentSchema)
+    : EMPTY_VALUE_RULES;
+  defaultDefinitionCache.set(node.name, definition ? rules : null);
+  return rules;
 }
 
 type DynamicRead =
@@ -175,11 +227,15 @@ type DynamicRead =
   | { present: true; ok: true; value: LocalValue }
   | { present: true; ok: false };
 
+const EMPTY_VALUE_RULES: readonly KernelValueRule[] = Object.freeze([]);
+
 function validateValue(
   binding: LocalBinding,
   nodes: LocalNode[],
   value: LocalValue,
   readDynamic: (node: LocalNode, attribute: 'min' | 'max' | 'required') => DynamicRead,
+  valueRules?: ReadonlyMap<string, readonly KernelValueRule[]>,
+  legacyMode = false,
 ): ValidationResult {
   switch (binding.type) {
     case 'number': {
@@ -232,32 +288,38 @@ function validateValue(
         return invalid('local.runtime.value.budget', { name: binding.name, detail: diagnosticEnglish(budget), detailKey: budget.key, ...budget.params });
       }
       for (const node of nodes) {
-        const dynamic: { min?: string; max?: string; required?: boolean } = {};
-        if (node.name === 'date') {
-          for (const attribute of ['min', 'max'] as const) {
-            const read = readDynamic(node, attribute);
-            if (!read.present) continue;
-            if (!read.ok || typeof read.value !== 'string' || !isValidDate(read.value)) {
-              return invalid('local.runtime.value.constraint-date', { name: binding.name, attribute });
+        const rules = valueRules?.get(node.id) ?? (legacyMode ? legacyValueRules(node) : EMPTY_VALUE_RULES);
+        if (!rules.length) continue;
+        const dynamic: StringDynamic = {};
+        for (const rule of rules) {
+          if (rule.kind === 'date') {
+            for (const attribute of ['min', 'max'] as const) {
+              if (rule[attribute] === undefined) continue;
+              const read = readDynamic(node, attribute);
+              if (!read.present) continue;
+              if (!read.ok || typeof read.value !== 'string' || !isKernelDate(read.value)) {
+                return invalid('local.runtime.value.constraint-date', { name: binding.name, attribute });
+              }
+              dynamic[attribute] = read.value;
             }
-            dynamic[attribute] = read.value;
+            const minValue = dynamic.min ?? stringAttribute(node, rule.min);
+            const maxValue = dynamic.max ?? stringAttribute(node, rule.max);
+            if (minValue && maxValue && isKernelDate(minValue) && isKernelDate(maxValue) && minValue > maxValue) {
+              return invalid('local.runtime.value.constraint-range', { name: binding.name });
+            }
           }
-          const minValue = dynamic.min ?? rawAttr(node, 'min');
-          const maxValue = dynamic.max ?? rawAttr(node, 'max');
-          if (minValue && maxValue && isValidDate(minValue) && isValidDate(maxValue) && minValue > maxValue) {
-            return invalid('local.runtime.value.constraint-range', { name: binding.name });
+          const requiredAttribute = rule.kind === 'date' || rule.kind === 'required' ? rule.required : undefined;
+          if (requiredAttribute !== undefined) {
+            const requiredRead = readDynamic(node, 'required');
+            if (requiredRead.present) {
+              if (!requiredRead.ok || typeof requiredRead.value !== 'boolean') {
+                return invalid('local.runtime.value.constraint', { name: binding.name, attribute: 'required' });
+              }
+              dynamic.required = requiredRead.value;
+            }
           }
         }
-        if (node.name === 'date' || node.name === 'input' || node.name === 'textarea') {
-          const requiredRead = readDynamic(node, 'required');
-          if (requiredRead.present) {
-            if (!requiredRead.ok || typeof requiredRead.value !== 'boolean') {
-              return invalid('local.runtime.value.constraint', { name: binding.name, attribute: 'required' });
-            }
-            dynamic.required = requiredRead.value;
-          }
-        }
-        const result = validateStringControl(node, value, dynamic);
+        const result = validateKernelStringControl(node, value, rules, dynamic);
         if (!result.ok) return result;
       }
       if (binding.options?.length && !binding.options.includes(value)) {
@@ -271,9 +333,17 @@ function validateValue(
       if (budget) {
         return invalid('local.runtime.value.budget', { name: binding.name, detail: diagnosticEnglish(budget), detailKey: budget.key, ...budget.params });
       }
-      const chosen = new Set<string>();
       for (const entry of value) {
         if (typeof entry !== 'string') return invalid('local.runtime.value.array-members', { name: binding.name });
+      }
+      if (binding.family === 'collection') {
+        if (binding.maxItems !== undefined && value.length > binding.maxItems) {
+          return invalid('local.runtime.value.max-items', { name: binding.name, max: binding.maxItems });
+        }
+        return { ok: true, value: (value as string[]).slice() };
+      }
+      const chosen = new Set<string>();
+      for (const entry of value as string[]) {
         if (binding.options && !binding.options.includes(entry)) {
           return invalid('local.runtime.value.checklist-option', { value: entry });
         }
@@ -287,8 +357,24 @@ function validateValue(
       }
       return { ok: true, value: ordered };
     }
+    case 'number-array': {
+      if (!Array.isArray(value)) return invalid('local.runtime.value.number-array', { name: binding.name });
+      const budget = localValueBudgetIssue(value);
+      if (budget) {
+        return invalid('local.runtime.value.budget', { name: binding.name, detail: diagnosticEnglish(budget), detailKey: budget.key, ...budget.params });
+      }
+      for (const entry of value) {
+        if (typeof entry !== 'number' || !Number.isFinite(entry)) {
+          return invalid('local.runtime.value.number-array-members', { name: binding.name });
+        }
+      }
+      if (binding.maxItems !== undefined && value.length > binding.maxItems) {
+        return invalid('local.runtime.value.max-items', { name: binding.name, max: binding.maxItems });
+      }
+      return { ok: true, value: (value as number[]).slice() };
+    }
     case 'null':
-      return { ok: true, value };
+      return value === null ? { ok: true, value } : invalid('local.runtime.value.null', { name: binding.name });
   }
   return invalid('local.runtime.value.unsupported-type', { name: binding.name });
 }
@@ -366,6 +452,14 @@ interface RuntimeCore {
   publicNames: readonly string[];
   publicSlotOwners: Map<string, Set<string>>;
   initial: Record<string, LocalValue>;
+  /** Compiled per-node string value rules; empty for hand-built documents. */
+  valueRules: ReadonlyMap<string, readonly KernelValueRule[]>;
+  /** True when the document has no kernel metadata (phase-one fixture). */
+  legacyValueRules: boolean;
+  /** Scalar binding key owned by a canonical node id (no multi-slot nodes). */
+  bindingByNode: ReadonlyMap<string, string>;
+  /** Node id -> declared ordered slot pairs, resolved to binding keys. */
+  slotRelations: ReadonlyMap<string, readonly { lower: string; upper: string }[]>;
   computationMetadata: Record<string, LocalComputation>;
   computationNames: string[];
   computationOrder: string[];
@@ -429,6 +523,43 @@ function loadRuntimeCore(document: LocalDocument, expressions: Map<string, Local
   const slotKeys = new Map<string, Record<string, string>>();
   for (const [id, slots] of Object.entries(document.bindingSlots ?? {})) {
     slotKeys.set(id, { ...slots });
+  }
+
+  const metadata = kernelDocumentMetadata(document);
+  const valueRules = new Map<string, readonly KernelValueRule[]>(
+    Object.entries(metadata?.valueRules ?? {}),
+  );
+  const legacyValueRules = metadata === undefined;
+  const slotRelations = new Map<string, { lower: string; upper: string }[]>();
+  if (metadata) {
+    for (const relation of metadata.slotRelations) {
+      const slots = slotKeys.get(relation.nodeId);
+      const lower = slots?.[relation.lower];
+      const upper = slots?.[relation.upper];
+      if (!lower || !upper) continue;
+      const list = slotRelations.get(relation.nodeId) ?? [];
+      list.push({ lower, upper });
+      slotRelations.set(relation.nodeId, list);
+    }
+  } else {
+    // Phase-one hand-built documents keep the conventional range slot names.
+    for (const [id, slots] of slotKeys) {
+      if (!slots.start || !slots.end) continue;
+      slotRelations.set(id, [{ lower: slots.start, upper: slots.end }]);
+    }
+  }
+
+  // Scalar binding key per owner node. Custom `bind` attribute names make the
+  // legacy `attrs.bind` convention insufficient.
+  const bindingByNode = new Map<string, string>();
+  for (const [key, binding] of Object.entries(document.bindings)) {
+    for (const id of binding.nodeIds) {
+      if (slotKeys.has(id)) continue;
+      const current = bindingByNode.get(id);
+      if (current === undefined || (current.startsWith('@') && !key.startsWith('@'))) {
+        bindingByNode.set(id, key);
+      }
+    }
   }
 
   const publicNames = Object.freeze(
@@ -515,6 +646,10 @@ function loadRuntimeCore(document: LocalDocument, expressions: Map<string, Local
     publicNames,
     publicSlotOwners,
     initial,
+    valueRules,
+    legacyValueRules,
+    slotRelations,
+    bindingByNode,
     computationMetadata,
     computationNames,
     computationOrder,
@@ -552,13 +687,15 @@ function valueDiagnosticFor(core: RuntimeCore, binding: LocalBinding, detail: Lo
     : parameterDiagnostic('local.runtime.value', diagnosticEnglish(detail));
 }
 
-/** Reject a range whose start would cross its end before any commit. */
+/** Reject a range whose lower slot would cross its upper slot before any commit. */
 function slotRelationError(core: RuntimeCore, nodeId: string, next: Record<string, LocalValue>): boolean {
-  const slots = core.slotKeys.get(nodeId);
-  if (!slots?.start || !slots?.end) return false;
-  const start = next[slots.start];
-  const end = next[slots.end];
-  return typeof start === 'number' && typeof end === 'number' && start > end;
+  const relations = core.slotRelations.get(nodeId);
+  if (!relations?.length) return false;
+  return relations.some(({ lower, upper }) => {
+    const lowerValue = next[lower];
+    const upperValue = next[upper];
+    return typeof lowerValue === 'number' && typeof upperValue === 'number' && lowerValue > upperValue;
+  });
 }
 
 function rangeOrderDiagnostic(core: RuntimeCore, nodeId: string): Diagnostic {
@@ -857,7 +994,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
         continue;
       }
       const binding = loaded.document.bindings[key];
-      const result = validateValue(binding, loaded.controls.get(key) ?? [], values[key], read);
+      const result = validateValue(binding, loaded.controls.get(key) ?? [], values[key], read, loaded.valueRules, loaded.legacyValueRules);
       if (!result.ok) {
         diagnostics.push(valueDiagnosticFor(loaded, binding, result.detail));
         continue;
@@ -989,7 +1126,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     for (const name of plan.retained) {
       const binding = next.bindings[name];
       if (!binding) continue;
-      const result = validateValue(binding, nextCore.controls.get(name) ?? [], plan.values[name], prospectiveReader(plan.values, nextCore, values));
+      const result = validateValue(binding, nextCore.controls.get(name) ?? [], plan.values[name], prospectiveReader(plan.values, nextCore, values), nextCore.valueRules, nextCore.legacyValueRules);
       if (!result.ok) {
         diagnostics.push(valueDiagnosticFor(nextCore, binding, result.detail));
         droppedByName.set(name, Object.freeze({ name, reason: 'invalid' }));
@@ -1043,17 +1180,17 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     // Final invariant: a hand-built document may still declare crossing
     // initials. Reset both slots to their authored defaults, and reject the
     // document if even those defaults cross.
-    for (const [nodeId, slots] of nextCore.slotKeys) {
+    for (const [nodeId, relations] of nextCore.slotRelations) {
       if (!slotRelationError(nextCore, nodeId, values)) continue;
-      for (const slot of ['start', 'end'] as const) {
-        const key = slots[slot];
-        if (!key) continue;
-        const binding = next.bindings[key];
-        if (!binding) continue;
-        values[key] = cloneValue(binding.initial);
-        const index = retained.indexOf(key);
-        if (index >= 0) retained.splice(index, 1);
-        droppedByName.set(key, Object.freeze({ name: key, reason: 'invalid' }));
+      for (const relation of relations) {
+        for (const key of [relation.lower, relation.upper]) {
+          const binding = next.bindings[key];
+          if (!binding) continue;
+          values[key] = cloneValue(binding.initial);
+          const index = retained.indexOf(key);
+          if (index >= 0) retained.splice(index, 1);
+          droppedByName.set(key, Object.freeze({ name: key, reason: 'invalid' }));
+        }
       }
       diagnostics.push(rangeOrderDiagnostic(nextCore, nodeId));
       if (slotRelationError(nextCore, nodeId, values)) {
@@ -1069,7 +1206,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
       const rejected: string[] = [];
       for (const name of retained) {
         const binding = next.bindings[name];
-        const checked = validateValue(binding, nextCore.controls.get(name) ?? [], values[name], read);
+        const checked = validateValue(binding, nextCore.controls.get(name) ?? [], values[name], read, nextCore.valueRules, nextCore.legacyValueRules);
         if (!checked.ok) {
           diagnostics.push(valueDiagnosticFor(nextCore, binding, checked.detail));
           rejected.push(name);
@@ -1167,7 +1304,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
       const canonical = loaded.nodeIndex.get(node.id);
       if (!canonical) return null;
       const key = slot === undefined
-        ? localKey(canonical)
+        ? (loaded.slotKeys.get(canonical.id)?.value ?? loaded.bindingByNode.get(canonical.id) ?? localKey(canonical))
         : loaded.slotKeys.get(canonical.id)?.[slot];
       if (!key) return null;
       return Object.hasOwn(state, key) ? cloneValue(state[key]) : null;
@@ -1183,10 +1320,10 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
       const slots = loaded.slotKeys.get(canonical.id);
       let key: string | undefined;
       if (slot === undefined) {
-        if (slots) {
+        if (slots && !slots.value) {
           return [diagnosticFor(loaded.document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.needs-slot'))];
         }
-        key = localKey(canonical);
+        key = slots?.value ?? loaded.bindingByNode.get(canonical.id) ?? localKey(canonical);
       } else {
         key = slots?.[slot];
         if (!key) {
@@ -1197,7 +1334,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
       if (!binding) {
         return [diagnosticFor(loaded.document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.no-writable'))];
       }
-      const result = validateValue(binding, loaded.controls.get(key) ?? [], value, prospectiveReader({ [key]: value }));
+      const result = validateValue(binding, loaded.controls.get(key) ?? [], value, prospectiveReader({ [key]: value }), loaded.valueRules, loaded.legacyValueRules);
       if (!result.ok) {
         return [diagnosticFor(loaded.document, canonical, 'local.runtime.value', result.detail)];
       }
@@ -1231,7 +1368,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
         if (!key || !Object.hasOwn(loaded.document.bindings, key)) {
           return [diagnosticFor(loaded.document, canonical, 'local.runtime.binding', localDiagnosticDetails('local.runtime.binding.unknown-slot', { slot }))];
         }
-        const result = validateValue(loaded.document.bindings[key], loaded.controls.get(key) ?? [], value, (target, attribute) => readDynamic(target, attribute, env));
+        const result = validateValue(loaded.document.bindings[key], loaded.controls.get(key) ?? [], value, (target, attribute) => readDynamic(target, attribute, env), loaded.valueRules, loaded.legacyValueRules);
         if (!result.ok) {
           return [diagnosticFor(loaded.document, canonical, 'local.runtime.value', result.detail)];
         }

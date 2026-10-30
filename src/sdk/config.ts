@@ -1,5 +1,5 @@
 import { LOCAL_HTML_NAMES } from '../local/html-names';
-import { LOCAL_COMPONENT_NAMES } from '../local/schema';
+import { DEFAULT_COMPONENT_NAMES } from '../presets/default-components';
 import defaultPreset from '../presets/default';
 import { localHash } from './hash';
 import {
@@ -29,7 +29,7 @@ export const MAX_LOCAL_SDK_THEMES = 16;
 export const MAX_LOCAL_SDK_CONFIG_BYTES = 16 * 1024 * 1024;
 
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-const CONFIG_KEYS = new Set(['protocol', 'key', 'presets', 'components', 'themes']);
+const CONFIG_KEYS = new Set(['protocol', 'key', 'presets', 'components', 'registry', 'themes']);
 const INPUT_KEYS = new Set(['presets', 'components', 'themes']);
 const THEME_KEYS = new Set(['id', 'name', 'version', 'protocol', 'colorSchemes', 'css']);
 
@@ -115,9 +115,9 @@ function readPresets(value: unknown): readonly LocalPresetReference[] {
 
 function builtinIds(): ReadonlySet<string> {
   const ids = new Set<string>();
-  for (const name of LOCAL_COMPONENT_NAMES) {
-    ids.add(name);
-    ids.add(`reactive-md/${name}`);
+  for (const component of defaultPreset.components) {
+    ids.add(component.name);
+    ids.add(component.id);
   }
   return ids;
 }
@@ -168,9 +168,9 @@ function readComponents(value: unknown): readonly LocalComponentDefinition[] {
   if (value.length > MAX_LOCAL_SDK_COMPONENTS) {
     fail('components', `accepts at most ${MAX_LOCAL_SDK_COMPONENTS} external components.`);
   }
-  const reserved = new Set<string>([...LOCAL_COMPONENT_NAMES, ...LOCAL_HTML_NAMES].map((name) => name.toLowerCase()));
+  const reserved = new Set<string>([...DEFAULT_COMPONENT_NAMES, 'computed', 'const', 'external', ...LOCAL_HTML_NAMES].map((name) => name.toLowerCase()));
   reserved.add('theme');
-  const ids = new Set<string>();
+  const ids = new Set(defaultPreset.components.map(component => component.id));
   const names = new Set<string>();
   const components: LocalComponentDefinition[] = [];
   for (let index = 0; index < value.length; index += 1) {
@@ -247,6 +247,7 @@ function buildConfig(input: unknown, path: string): LocalConfig {
     key: configKey(presets, components),
     presets,
     components,
+    registry: Object.freeze([...defaultPreset.components, ...components]),
     themes,
   });
   trustedConfigs.add(config);

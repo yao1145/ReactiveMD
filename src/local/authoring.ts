@@ -6,12 +6,10 @@ import { localLatexReferences } from './math';
 import { LOCAL_HTML_NAMES } from './html-names';
 import { HTML_TABLE_NAMES } from './html-table';
 import {
-  LOCAL_COMPONENT_NAMES,
-  getLocalComponent,
   type LocalComponentSchema,
   type LocalPropSchema,
 } from './schema';
-import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalHostComponentSchema, LocalNode, SourceRange } from './types';
+import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalNode, SourceRange } from './types';
 
 /**
  * DOM-free authoring services for the local interaction syntax.
@@ -123,9 +121,9 @@ function authoringOptionMode(options: LocalCompileOptions | undefined): 'markdow
  * option layer. Authoring must use the same list as the compiler so a tag it
  * completes actually compiles.
  */
-function authoringHostComponents(options: LocalCompileOptions | undefined): readonly LocalHostComponentSchema[] {
+function authoringHostComponents(options: LocalCompileOptions | undefined): readonly LocalComponentSchema[] {
   const check = readLocalCompileOptions(options);
-  return check.ok ? check.hostComponents : [];
+  return check.ok ? [...check.schemaByName.values()] : [];
 }
 
 /* ------------------------------------------------------------------ */
@@ -406,9 +404,7 @@ interface AnalysisData {
 }
 
 function isBindAttribute(component: LocalComponentSchema, name: string): boolean {
-  if (!Object.hasOwn(component.props, name)) return false;
-  if (name === 'bind') return true;
-  return Boolean(component.slots?.some((slot) => slot.bind === name));
+  return Object.values(component.bindings ?? {}).some(binding => binding.bind === name);
 }
 
 function collectInactive(nodes: LocalNode[], out: SourceRange[] = []): SourceRange[] {
@@ -451,25 +447,11 @@ function commentRanges(source: string, nodes: LocalNode[]): SourceRange[] {
   return result;
 }
 
-function authoringProps(name: string, hostComponents: readonly LocalHostComponentSchema[]): Readonly<Record<string, LocalPropSchema>> | undefined {
-  const builtin = getLocalComponent(name);
-  if (builtin) return builtin.props;
-  const host = hostComponents.find(component => component.name === name);
-  if (!host) return undefined;
-  const props: Record<string, LocalPropSchema> = Object.fromEntries(
-    Object.entries(host.props).map(([key, prop]) => [key, { ...prop, values: prop.enum }]),
-  );
-  // A host binding owns these attributes implicitly; expose them for
-  // completion and so interpolation handling matches the compiler.
-  if (host.binding) {
-    props.bind = { kind: 'string', static: true };
-    props.initial = { kind: host.binding.kind, static: true };
-    props.disabled = { kind: 'boolean', dynamic: true };
-  }
-  return props;
+function authoringProps(name: string, hostComponents: readonly LocalComponentSchema[]): Readonly<Record<string, LocalPropSchema>> | undefined {
+  return hostComponents.find(component => component.name === name)?.props;
 }
 
-function buildAnalysisData(source: string, nodes: LocalNode[], hostComponents: readonly LocalHostComponentSchema[],
+function buildAnalysisData(source: string, nodes: LocalNode[], hostComponents: readonly LocalComponentSchema[],
   metadata?: Pick<LocalDocument, 'computations' | 'themeRange'>): AnalysisData {
   // Rendering removes declarations from nodes. Their source ranges let author
   // tools recover the original tags without parsing the document again.
@@ -501,21 +483,18 @@ function buildAnalysisData(source: string, nodes: LocalNode[], hostComponents: r
     if (!tag || tag.closing) return;
     visitedTags.add(node.range.start);
     tokens.push({ kind: 'tag', range: sortedRange(tag.nameRange) });
-    const component = getLocalComponent(node.name ?? '');
-    const host = component ? undefined : hostComponents.find(entry => entry.name === node.name);
-    const hasKey = tag.attrs.some((attribute) => attribute.name === 'key');
+    const component = hostComponents.find(entry => entry.name === node.name);
     for (const attribute of tag.attrs) {
       tokens.push({ kind: 'attribute', range: sortedRange(attribute.nameRange) });
       if (!attribute.valueRange) continue;
       const prop = authoringProps(node.name ?? '', hostComponents)?.[attribute.name];
-      const bindAttribute = (component !== undefined
-        && isBindAttribute(component, attribute.name)
-        && !((node.name === 'table' || node.name === 'chart') && !hasKey))
-        || (host?.binding !== undefined && attribute.name === 'bind');
+      const bindAttribute = component !== undefined && isBindAttribute(component, attribute.name)
+        && Object.values(component.bindings ?? {}).some(binding => binding.bind === attribute.name
+          && (binding.requiresAttributes ?? []).every(name => tag.attrs.some(attr => attr.name === name)));
       const namedValue = (node.name === 'computed' || node.name === 'const' || node.name === 'external') && attribute.name === 'name';
       const rawValue = source.slice(attribute.valueRange.start, attribute.valueRange.end);
       const decoded = decodedAttribute(source, attribute.valueRange);
-      if (node.name === 'validation' && attribute.name === 'fields') {
+      if (component?.rules?.some(rule => rule.kind === 'validation-rule' && rule.fields === attribute.name)) {
         for (const match of decoded.text.matchAll(/\S+/g)) {
           if (!validBindingName(match[0])) continue;
           const range = { start: decoded.offsets[match.index], end: decoded.offsets[match.index + match[0].length] };
@@ -535,7 +514,9 @@ function buildAnalysisData(source: string, nodes: LocalNode[], hostComponents: r
           }
           tokens.push({ kind: 'expression', range: { start: decoded.offsets[segment.start], end: decoded.offsets[segment.end] } });
           for (const reference of expressionIdentifiers(decoded.text, segment.innerStart, segment.innerEnd)) {
-            if ((parent === 'data-table' && node.name === 'column' || node.name === 'data-table' && attribute.name === 'key')
+            if (component?.rules?.some(rule => rule.kind === 'scoped-expressions'
+              && rule.scope === 'row' && rule.attributes.includes(attribute.name)
+              || rule.kind === 'row-values' && rule.key === attribute.name)
               && (reference.name === 'item' || reference.name === 'index')) continue;
             references.push({ name: reference.name, range: {
               start: decoded.offsets[reference.range.start], end: decoded.offsets[reference.range.end],
@@ -567,7 +548,7 @@ function buildAnalysisData(source: string, nodes: LocalNode[], hostComponents: r
         addReference(node.range.start + 2, Math.max(node.range.start + 2, node.range.end - 2));
       } else if (node.type === 'math' || node.type === 'inlineMath') {
         tokens.push({ kind: 'math', range: sortedRange(node.range) });
-        if (parent === 'plot' && node.type === 'math') {
+        if (hostComponents.find(component => component.name === parent)?.rules?.some(rule => rule.kind === 'inline-math-reads') && node.type === 'math') {
           const start = node.range.start + 2;
           try {
             for (const reference of localLatexReferences(source.slice(start, node.range.end - 2))) {
@@ -902,7 +883,7 @@ function bindingCompletions(source: string, offset: number, context: RawInterpol
 }
 
 function valueCompletions(source: string, offset: number, prefix: TagPrefix,
-  hostComponents: readonly LocalHostComponentSchema[]): AuthorCompletion[] {
+  hostComponents: readonly LocalComponentSchema[]): AuthorCompletion[] {
   const attribute = prefix.currentAttribute;
   if (!attribute) return [];
   const prop = authoringProps(prefix.name, hostComponents)?.[attribute.name];
@@ -921,7 +902,7 @@ function valueCompletions(source: string, offset: number, prefix: TagPrefix,
 }
 
 function attributeCompletions(source: string, offset: number, prefix: TagPrefix,
-  hostComponents: readonly LocalHostComponentSchema[]): AuthorCompletion[] {
+  hostComponents: readonly LocalComponentSchema[]): AuthorCompletion[] {
   if (prefix.closing || prefix.inValue || prefix.partialStart < 0) return [];
   const props = authoringProps(prefix.name, hostComponents);
   if (!props) return [];
@@ -944,7 +925,7 @@ function attributeCompletions(source: string, offset: number, prefix: TagPrefix,
 }
 
 function tagCompletions(source: string, offset: number,
-  hostComponents: readonly LocalHostComponentSchema[]): AuthorCompletion[] {
+  hostComponents: readonly LocalComponentSchema[]): AuthorCompletion[] {
   const windowStart = Math.max(0, offset - 256);
   const slice = source.slice(windowStart, offset);
   const match = /<\/?([A-Za-z][A-Za-z0-9-]*)?$/.exec(slice);
@@ -955,12 +936,11 @@ function tagCompletions(source: string, offset: number,
   const nameStart = start + (closing ? 2 : 1);
   if (nameStart > offset) return [];
   const partial = match[1] ?? '';
-  // Config-derived containers and inline components get closing completion;
-  // leaves have no closing tag. Built-in behavior is unchanged.
+  // All names and shapes come from the same registry snapshot as parsing.
   const hostNames = closing
     ? hostComponents.filter((component) => component.form !== 'leaf').map((component) => component.name)
     : hostComponents.map((component) => component.name);
-  return [...LOCAL_COMPONENT_NAMES, ...hostNames]
+  return hostNames
     .filter((name) => name.startsWith(partial))
     .map((name) => ({
       label: name,

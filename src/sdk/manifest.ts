@@ -1,12 +1,24 @@
-import type { LocalBindingFamily } from '../local/schema';
 import { localHash } from './hash';
 import { isSafeLocalPattern } from './pattern';
 import {
+  MAX_LOCAL_ARRAY_LENGTH,
+  MAX_LOCAL_DATA_DOCUMENT_CELLS,
+  MAX_LOCAL_DATA_DOCUMENT_ROWS,
+  MAX_LOCAL_DATA_TABLE_COLUMNS,
+  MAX_LOCAL_DATA_TABLE_ROWS,
+  MAX_LOCAL_PLOT_CURVES,
+  MAX_LOCAL_PLOT_POINTS,
+  MAX_LOCAL_VALIDATIONS,
+} from '../local/limits';
+import {
   LOCAL_COMPONENT_PROTOCOL,
+  type LocalBindingFamily,
+  type LocalChildRule,
   type LocalComponentAuthoring,
   type LocalComponentBinding,
   type LocalComponentBindingConstraint,
   type LocalComponentBindingConstraints,
+  type LocalComponentBindingKind,
   type LocalComponentCapabilities,
   type LocalComponentChildren,
   type LocalComponentDefinition,
@@ -17,6 +29,9 @@ import {
   type LocalComponentPropKind,
   type LocalComponentRequirement,
   type LocalComponentRequires,
+  type LocalComponentRule,
+  type LocalComponentSlotRelation,
+  type LocalComponentStructure,
   type LocalComponentText,
 } from './types';
 import { parseLocalVersionRange } from './version';
@@ -45,26 +60,65 @@ const validatedDefinitions = new WeakSet<object>();
 
 const PROP_KINDS: ReadonlySet<string> = new Set(['string', 'number', 'boolean', 'enum']);
 const FORMS: ReadonlySet<string> = new Set(['leaf', 'inline', 'container']);
-const BINDING_KINDS: ReadonlySet<string> = new Set(['string', 'number', 'boolean']);
+const BINDING_KINDS: ReadonlySet<string> = new Set(['string', 'number', 'boolean', 'null', 'array', 'number-array']);
 const FAMILIES: ReadonlySet<string> = new Set([
   'text', 'number', 'boolean', 'choice', 'date', 'timer', 'checklist',
-  'tabs', 'diagram', 'multi-select', 'selection', 'steps',
+  'tabs', 'diagram', 'multi-select', 'selection', 'steps', 'collection',
 ]);
-const INITIAL_RULES: ReadonlySet<string> = new Set(['empty', 'false', 'nearest-zero', 'min', 'first-option']);
+const INITIAL_RULES: ReadonlySet<string> = new Set([
+  'empty', 'false', 'max-step', 'nearest-zero', 'min', 'first-option', 'first-tab',
+  'first-step', 'first-node', 'checked', 'duration', 'empty-array', 'none',
+]);
 const CHILD_KINDS: ReadonlySet<string> = new Set(['none', 'inline', 'markdown']);
+const CHILD_RULES: ReadonlySet<string> = new Set([
+  'none', 'any', 'inline', 'content', 'table', 'plot', 'diagram', 'quiz',
+  'options', 'tabs', 'steps', 'components',
+]);
+const RULE_KINDS: ReadonlySet<string> = new Set([
+  'numeric-range', 'text-length', 'date-bounds', 'nonempty', 'progress-bounds',
+  'timer-duration', 'option-count', 'selection-requires', 'inline-body',
+  'no-components', 'single-table', 'math-body', 'options-body', 'value-sequence',
+  'only-children', 'diagram-body', 'quiz-body', 'checklist-body',
+  'dynamic-constraints', 'require-full-interpolation', 'scoped-expressions',
+  'row-values', 'validation-rule', 'anchor', 'navigation', 'data-table',
+  'plot-math', 'chart-table', 'timeline-table', 'table-selection', 'retain',
+  'self-binding-read', 'inline-math-reads', 'value-date', 'value-length',
+  'value-required', 'value-email',
+]);
+const LABELS: ReadonlySet<string> = new Set(['none', 'required', 'optional']);
 const TOP_KEYS = new Set([
   'id', 'name', 'version', 'protocol', 'form', 'props', 'bindings',
-  'children', 'capabilities', 'authoring', 'dependencies', 'styles', 'requires',
+  'children', 'structure', 'rules', 'slotRelations', 'legacyHost',
+  'capabilities', 'authoring', 'dependencies', 'styles', 'requires',
 ]);
-const PROP_KEYS = new Set(['kind', 'required', 'static', 'dynamic', 'default', 'enum', 'pattern', 'min', 'max', 'integer', 'description']);
-const BINDING_KEYS = new Set(['kind', 'family', 'bind', 'initial', 'initialRule', 'constraints', 'options']);
+const PROP_KEYS = new Set([
+  'kind', 'required', 'static', 'dynamic', 'default', 'nullable', 'enum', 'values',
+  'pattern', 'min', 'max', 'integer', 'positive', 'color', 'coerce', 'description',
+]);
+const BINDING_KEYS = new Set([
+  'kind', 'family', 'bind', 'initial', 'initialRule', 'required', 'exclusive',
+  'constraints', 'options', 'maxItems', 'requiresAttributes', 'compare', 'retain',
+]);
 const CONSTRAINT_KEYS = new Set(['min', 'max', 'step']);
 const CAPABILITY_KEYS = new Set(['interactive', 'static', 'ssr', 'offline']);
 const AUTHORING_KEYS = new Set(['title', 'description', 'category', 'insertText']);
 const CHILD_KEYS = new Set(['kind', 'required']);
+const STRUCTURE_KEYS = new Set([
+  'rule', 'label', 'parents', 'child', 'children', 'min', 'max', 'inlineOnly',
+  'noComponents', 'valueAttribute', 'generatedPrefix', 'forbidSeparator',
+  'maxItems',
+]);
 const DEPENDENCY_KEYS = new Set(['id', 'version']);
 const REQUIRES_KEYS = new Set(['kernel']);
 const STYLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+/** Slot names and `setMany` are part of the public binding API. */
+const SLOT_NAME = /^[A-Za-z][A-Za-z0-9]*$/;
+const RESERVED_SLOT_NAMES: ReadonlySet<string> = new Set(['setMany']);
+/** Bounded public rule/slot counts for one manifest. */
+export const MAX_LOCAL_SDK_BINDINGS = 16;
+export const MAX_LOCAL_SDK_RULES = 32;
+export const MAX_LOCAL_SDK_RULE_SLOTS = 16;
+export const MAX_LOCAL_SDK_STRUCTURE_ITEMS = 32;
 
 /** Attributes owned implicitly by a declared binding. */
 export const LOCAL_BINDING_ATTRIBUTES: ReadonlySet<string> = new Set(['bind', 'initial', 'disabled']);
@@ -169,6 +223,402 @@ function readChildren(value: unknown, form: LocalComponentForm, path: string): L
   return { kind, ...(required ? { required: true } : {}) };
 }
 
+/** Map a legacy `children` declaration to the equivalent public structure. */
+export function localStructureFromChildren(children: LocalComponentChildren | undefined): LocalComponentStructure | undefined {
+  if (children === undefined) return undefined;
+  if (children.kind === 'none') {
+    return Object.freeze({ rule: 'none', label: 'none' });
+  }
+  if (children.kind === 'inline') {
+    return Object.freeze({ rule: 'inline', label: 'none', inlineOnly: true, noComponents: true, ...(children.required ? { min: 1 } : {}) });
+  }
+  return Object.freeze({ rule: 'any', label: 'none', ...(children.required ? { min: 1 } : {}) });
+}
+
+function readNameList(value: unknown, path: string): readonly string[] {
+  if (!Array.isArray(value)) fail(path, 'must be an array of component names.');
+  if (value.length > MAX_LOCAL_SDK_STRUCTURE_ITEMS) {
+    fail(path, `accepts at most ${MAX_LOCAL_SDK_STRUCTURE_ITEMS} names.`);
+  }
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const item of value) {
+    const name = readIdentifier(item, path);
+    if (seen.has(name)) fail(path, `name "${name}" is declared more than once.`);
+    seen.add(name);
+    names.push(name);
+  }
+  return Object.freeze(names);
+}
+
+function readPositiveCount(value: unknown, path: string): number {
+  const numeric = readFiniteNumber(value, path);
+  if (!Number.isInteger(numeric) || numeric < 0) fail(path, 'must be a nonnegative integer.');
+  return numeric;
+}
+
+function readStructure(value: unknown, form: LocalComponentForm, path: string): LocalComponentStructure {
+  if (!isPlainRecord(value)) fail(path, 'must be an object.');
+  checkKeys(value, STRUCTURE_KEYS, path);
+  const rawRule = value.rule;
+  if (typeof rawRule !== 'string' || !CHILD_RULES.has(rawRule)) fail(`${path}.rule`, 'is not a supported child rule.');
+  const rule = rawRule as LocalChildRule;
+  if (form === 'leaf' && rule !== 'none') fail(path, 'a leaf component cannot declare body content.');
+  if (form === 'inline' && rule !== 'none' && rule !== 'inline' && rule !== 'any') {
+    fail(path, 'an inline component only supports "none", "inline" or "any".');
+  }
+  const out: {
+    rule: LocalChildRule;
+    label?: 'none' | 'required' | 'optional';
+    parents?: readonly string[];
+    child?: string;
+    children?: readonly string[];
+    min?: number;
+    max?: number;
+    inlineOnly?: boolean;
+    noComponents?: boolean;
+    valueAttribute?: string;
+    generatedPrefix?: string;
+    forbidSeparator?: string;
+    maxItems?: number;
+  } = { rule };
+  if (value.label !== undefined) {
+    if (typeof value.label !== 'string' || !LABELS.has(value.label)) {
+      fail(`${path}.label`, 'must be "none", "required" or "optional".');
+    }
+    out.label = value.label as 'none' | 'required' | 'optional';
+  }
+  if (value.parents !== undefined) out.parents = readNameList(value.parents, `${path}.parents`);
+  if (value.child !== undefined) out.child = readIdentifier(value.child, `${path}.child`);
+  if (value.children !== undefined) out.children = readNameList(value.children, `${path}.children`);
+  if (value.min !== undefined) out.min = readBoundedCount(value.min, `${path}.min`, MAX_LOCAL_ARRAY_LENGTH);
+  if (value.max !== undefined) out.max = readBoundedCount(value.max, `${path}.max`, MAX_LOCAL_ARRAY_LENGTH);
+  if (out.min !== undefined && out.max !== undefined && out.min > out.max) {
+    fail(path, '"min" cannot exceed "max".');
+  }
+  if (value.inlineOnly !== undefined) out.inlineOnly = readBoolean(value.inlineOnly, `${path}.inlineOnly`);
+  if (value.noComponents !== undefined) out.noComponents = readBoolean(value.noComponents, `${path}.noComponents`);
+  if (value.valueAttribute !== undefined) out.valueAttribute = readIdentifier(value.valueAttribute, `${path}.valueAttribute`);
+  if (value.generatedPrefix !== undefined) {
+    const prefix = readString(value.generatedPrefix, `${path}.generatedPrefix`, MAX_LOCAL_SDK_NAME_LENGTH);
+    if (prefix.length === 0) fail(`${path}.generatedPrefix`, 'must not be empty.');
+    out.generatedPrefix = prefix;
+  }
+  if (value.forbidSeparator !== undefined) {
+    const separator = readString(value.forbidSeparator, `${path}.forbidSeparator`, 4);
+    if (separator.length === 0) fail(`${path}.forbidSeparator`, 'must not be empty.');
+    out.forbidSeparator = separator;
+  }
+  if (value.maxItems !== undefined) out.maxItems = readBoundedCount(value.maxItems, `${path}.maxItems`, MAX_LOCAL_ARRAY_LENGTH);
+  return Object.freeze(out);
+}
+
+function readRuleAttribute(value: unknown, path: string): string {
+  return readIdentifier(value, path);
+}
+
+function readRuleCount(value: unknown, path: string): number {
+  return readPositiveCount(value, path);
+}
+
+/** A declared budget may lower a kernel hard limit, never raise it. */
+function readBoundedCount(value: unknown, path: string, limit: number): number {
+  const numeric = readPositiveCount(value, path);
+  if (numeric > limit) fail(path, `cannot exceed the kernel limit ${limit}.`);
+  return numeric;
+}
+
+function readRuleStringList(value: unknown, path: string): readonly string[] {
+  return readNameList(value, path);
+}
+
+/** Display strings such as timeline headers; not identifiers. */
+function readPlainStringList(value: unknown, path: string): readonly string[] {
+  if (!Array.isArray(value)) fail(path, 'must be an array of strings.');
+  if (value.length > MAX_LOCAL_SDK_STRUCTURE_ITEMS) fail(path, `accepts at most ${MAX_LOCAL_SDK_STRUCTURE_ITEMS} values.`);
+  return Object.freeze(value.map((item) => readString(item, path, MAX_LOCAL_SDK_NAME_LENGTH)));
+}
+
+function readRule(value: unknown, path: string): LocalComponentRule {
+  if (!isPlainRecord(value)) fail(path, 'must be an object.');
+  const kind = value.kind;
+  if (typeof kind !== 'string' || !RULE_KINDS.has(kind)) fail(`${path}.kind`, 'is not a supported rule.');
+  const allow = (keys: readonly string[]): void => checkKeys(value, new Set(['kind', ...keys]), path);
+  const strings = (keys: readonly string[]): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const key of keys) {
+      if (value[key] !== undefined) out[key] = readRuleAttribute(value[key], `${path}.${key}`);
+    }
+    return out;
+  };
+  switch (kind) {
+    case 'numeric-range': {
+      allow(['min', 'max', 'step', 'order', 'integer', 'positiveInteger']);
+      let order: 'nondecreasing' | 'increasing' | undefined;
+      if (value.order !== undefined) {
+        if (value.order !== 'nondecreasing' && value.order !== 'increasing') {
+          fail(`${path}.order`, 'must be "nondecreasing" or "increasing".');
+        }
+        order = value.order;
+      }
+      return Object.freeze({
+        kind,
+        ...strings(['min', 'max', 'step', 'integer', 'positiveInteger']),
+        ...(order ? { order } : {}),
+      }) as LocalComponentRule;
+    }
+    case 'text-length':
+      allow(['min', 'max']);
+      return Object.freeze({ kind, ...strings(['min', 'max']) }) as LocalComponentRule;
+    case 'date-bounds':
+      allow(['min', 'max', 'required']);
+      return Object.freeze({ kind, ...strings(['min', 'max', 'required']) }) as LocalComponentRule;
+    case 'nonempty':
+      allow(['attribute']);
+      return Object.freeze({ kind, attribute: readRuleAttribute(value.attribute, `${path}.attribute`) }) as LocalComponentRule;
+    case 'progress-bounds':
+      allow(['value', 'max', 'defaultMax']);
+      return Object.freeze({
+        kind,
+        value: readRuleAttribute(value.value, `${path}.value`),
+        max: readRuleAttribute(value.max, `${path}.max`),
+        defaultMax: readFiniteNumber(value.defaultMax, `${path}.defaultMax`),
+      }) as LocalComponentRule;
+    case 'timer-duration':
+      allow(['attribute', 'default']);
+      return Object.freeze({
+        kind,
+        attribute: readRuleAttribute(value.attribute, `${path}.attribute`),
+        default: readFiniteNumber(value.default, `${path}.default`),
+      }) as LocalComponentRule;
+    case 'option-count':
+      allow(['max']);
+      return Object.freeze({
+        kind,
+        ...(value.max !== undefined ? { max: readRuleAttribute(value.max, `${path}.max`) } : {}),
+      }) as LocalComponentRule;
+    case 'selection-requires':
+      allow(['key', 'attributes']);
+      return Object.freeze({
+        kind,
+        key: readRuleAttribute(value.key, `${path}.key`),
+        attributes: readRuleStringList(value.attributes, `${path}.attributes`),
+      }) as LocalComponentRule;
+    case 'inline-body':
+      allow(['strict']);
+      return Object.freeze({
+        kind,
+        ...(value.strict !== undefined ? { strict: readBoolean(value.strict, `${path}.strict`) } : {}),
+      }) as LocalComponentRule;
+    case 'no-components':
+    case 'math-body':
+    case 'inline-math-reads':
+      allow([]);
+      return Object.freeze({ kind }) as LocalComponentRule;
+    case 'single-table':
+      allow(['fallbackSingle']);
+      return Object.freeze({ kind, ...(value.fallbackSingle === undefined ? {} : { fallbackSingle: readBoolean(value.fallbackSingle, `${path}.fallbackSingle`) }) });
+    case 'options-body': {
+      allow(['child', 'valueAttribute', 'unique', 'max', 'forbidSeparator']);
+      return Object.freeze({
+        kind,
+        child: readRuleAttribute(value.child, `${path}.child`),
+        valueAttribute: readRuleAttribute(value.valueAttribute, `${path}.valueAttribute`),
+        unique: value.unique === undefined ? true : readBoolean(value.unique, `${path}.unique`),
+        ...(value.max !== undefined ? { max: readBoundedCount(value.max, `${path}.max`, MAX_LOCAL_ARRAY_LENGTH) } : {}),
+        ...(value.forbidSeparator !== undefined ? { forbidSeparator: readString(value.forbidSeparator, `${path}.forbidSeparator`, 4) } : {}),
+      }) as LocalComponentRule;
+    }
+    case 'value-sequence':
+      allow(['child', 'valueAttribute', 'min', 'generatedPrefix', 'unique', 'duplicateCode']);
+      return Object.freeze({
+        kind,
+        child: readRuleAttribute(value.child, `${path}.child`),
+        valueAttribute: readRuleAttribute(value.valueAttribute, `${path}.valueAttribute`),
+        min: readRuleCount(value.min, `${path}.min`),
+        generatedPrefix: readString(value.generatedPrefix, `${path}.generatedPrefix`, MAX_LOCAL_SDK_NAME_LENGTH),
+        unique: value.unique === undefined ? true : readBoolean(value.unique, `${path}.unique`),
+        ...(value.duplicateCode === undefined ? {} : { duplicateCode: readString(value.duplicateCode, `${path}.duplicateCode`, MAX_LOCAL_SDK_NAME_LENGTH) }),
+      }) as LocalComponentRule;
+    case 'only-children':
+      allow(['children', 'min', 'max', 'maxCode', 'onlyCode']);
+      return Object.freeze({
+        kind,
+        children: readRuleStringList(value.children, `${path}.children`),
+        min: readRuleCount(value.min, `${path}.min`),
+        ...(value.max !== undefined ? { max: readBoundedCount(value.max, `${path}.max`, MAX_LOCAL_ARRAY_LENGTH) } : {}),
+        ...(value.maxCode !== undefined ? { maxCode: readString(value.maxCode, `${path}.maxCode`, MAX_LOCAL_SDK_NAME_LENGTH) } : {}),
+        ...(value.onlyCode !== undefined ? { onlyCode: readString(value.onlyCode, `${path}.onlyCode`, MAX_LOCAL_SDK_NAME_LENGTH) } : {}),
+      }) as LocalComponentRule;
+    case 'diagram-body':
+      allow(['node', 'edge', 'id', 'from', 'to', 'label']);
+      return Object.freeze({
+        kind,
+        node: readRuleAttribute(value.node, `${path}.node`),
+        edge: readRuleAttribute(value.edge, `${path}.edge`),
+        id: readRuleAttribute(value.id, `${path}.id`),
+        from: readRuleAttribute(value.from, `${path}.from`),
+        to: readRuleAttribute(value.to, `${path}.to`),
+        ...(value.label !== undefined ? { label: readRuleAttribute(value.label, `${path}.label`) } : {}),
+      }) as LocalComponentRule;
+    case 'quiz-body':
+      allow(['type', 'answer', 'tolerance', 'child', 'valueAttribute', 'max']);
+      return Object.freeze({
+        kind,
+        type: readRuleAttribute(value.type, `${path}.type`),
+        answer: readRuleAttribute(value.answer, `${path}.answer`),
+        tolerance: readRuleAttribute(value.tolerance, `${path}.tolerance`),
+        child: readRuleAttribute(value.child, `${path}.child`),
+        valueAttribute: readRuleAttribute(value.valueAttribute, `${path}.valueAttribute`),
+        ...(value.max !== undefined ? { max: readBoundedCount(value.max, `${path}.max`, MAX_LOCAL_ARRAY_LENGTH) } : {}),
+      }) as LocalComponentRule;
+    case 'checklist-body':
+      allow(['itemLimit']);
+      return Object.freeze({ kind, itemLimit: readBoundedCount(value.itemLimit, `${path}.itemLimit`, MAX_LOCAL_ARRAY_LENGTH) }) as LocalComponentRule;
+    case 'dynamic-constraints':
+    case 'require-full-interpolation':
+      allow(['attributes']);
+      return Object.freeze({ kind, attributes: readRuleStringList(value.attributes, `${path}.attributes`) }) as LocalComponentRule;
+    case 'scoped-expressions':
+      allow(['attributes', 'scope']);
+      if (value.scope !== 'row' && value.scope !== 'validation') fail(`${path}.scope`, 'must be "row" or "validation".');
+      return Object.freeze({
+        kind,
+        attributes: readRuleStringList(value.attributes, `${path}.attributes`),
+        scope: value.scope,
+      }) as LocalComponentRule;
+    case 'row-values':
+      allow(['rows', 'key', 'child', 'childValue']);
+      return Object.freeze({
+        kind,
+        rows: readRuleAttribute(value.rows, `${path}.rows`),
+        key: readRuleAttribute(value.key, `${path}.key`),
+        child: readRuleAttribute(value.child, `${path}.child`),
+        childValue: readRuleAttribute(value.childValue, `${path}.childValue`),
+      }) as LocalComponentRule;
+    case 'validation-rule':
+      allow(['when', 'fields', 'message', 'placement', 'max']);
+      if (value.placement !== 'container' && value.placement !== 'prose') fail(`${path}.placement`, 'must be "container" or "prose".');
+      return Object.freeze({
+        kind,
+        when: readRuleAttribute(value.when, `${path}.when`),
+        fields: readRuleAttribute(value.fields, `${path}.fields`),
+        message: readRuleAttribute(value.message, `${path}.message`),
+        placement: value.placement,
+        max: readBoundedCount(value.max, `${path}.max`, MAX_LOCAL_VALIDATIONS),
+      }) as LocalComponentRule;
+    case 'anchor':
+      allow(['id']);
+      return Object.freeze({ kind, id: readRuleAttribute(value.id, `${path}.id`) }) as LocalComponentRule;
+    case 'navigation':
+      allow(['target']);
+      return Object.freeze({ kind, target: readRuleAttribute(value.target, `${path}.target`) }) as LocalComponentRule;
+    case 'data-table':
+      allow(['rows', 'key', 'child', 'childValue', 'label', 'maxRows', 'defaultMaxRows', 'documentRows', 'documentCells', 'maxColumns']);
+      return Object.freeze({
+        kind,
+        rows: readRuleAttribute(value.rows, `${path}.rows`),
+        key: readRuleAttribute(value.key, `${path}.key`),
+        child: readRuleAttribute(value.child, `${path}.child`),
+        childValue: readRuleAttribute(value.childValue, `${path}.childValue`),
+        label: readRuleAttribute(value.label, `${path}.label`),
+        maxRows: readRuleAttribute(value.maxRows, `${path}.maxRows`),
+        defaultMaxRows: readBoundedCount(value.defaultMaxRows, `${path}.defaultMaxRows`, MAX_LOCAL_DATA_TABLE_ROWS),
+        documentRows: readBoundedCount(value.documentRows, `${path}.documentRows`, MAX_LOCAL_DATA_DOCUMENT_ROWS),
+        documentCells: readBoundedCount(value.documentCells, `${path}.documentCells`, MAX_LOCAL_DATA_DOCUMENT_CELLS),
+        maxColumns: readBoundedCount(value.maxColumns, `${path}.maxColumns`, MAX_LOCAL_DATA_TABLE_COLUMNS),
+      }) as LocalComponentRule;
+    case 'plot-math':
+      allow(['min', 'max', 'samples', 'curves', 'points']);
+      return Object.freeze({
+        kind,
+        min: readRuleAttribute(value.min, `${path}.min`),
+        max: readRuleAttribute(value.max, `${path}.max`),
+        samples: readRuleAttribute(value.samples, `${path}.samples`),
+        curves: readBoundedCount(value.curves, `${path}.curves`, MAX_LOCAL_PLOT_CURVES),
+        points: readBoundedCount(value.points, `${path}.points`, MAX_LOCAL_PLOT_POINTS),
+      }) as LocalComponentRule;
+    case 'chart-table':
+      allow(['chartKind', 'x', 'y']);
+      return Object.freeze({
+        kind,
+        chartKind: readRuleAttribute(value.chartKind, `${path}.chartKind`),
+        x: readRuleAttribute(value.x, `${path}.x`),
+        y: readRuleAttribute(value.y, `${path}.y`),
+      }) as unknown as LocalComponentRule;
+    case 'timeline-table': {
+      allow(['headerSets']);
+      if (!Array.isArray(value.headerSets)) fail(`${path}.headerSets`, 'must be an array.');
+      const headerSets = value.headerSets.map((entry, index) => readPlainStringList(entry, `${path}.headerSets[${index}]`));
+      return Object.freeze({ kind, headerSets: Object.freeze(headerSets) }) as LocalComponentRule;
+    }
+    case 'table-selection':
+      allow(['key', 'bindings']);
+      return Object.freeze({
+        kind,
+        key: readRuleAttribute(value.key, `${path}.key`),
+        bindings: readRuleStringList(value.bindings, `${path}.bindings`),
+      }) as LocalComponentRule;
+    case 'retain':
+      allow(['value']);
+      return Object.freeze({ kind, value: readBoolean(value.value, `${path}.value`) }) as LocalComponentRule;
+    case 'self-binding-read': {
+      allow(['mode', 'attribute']);
+      if (value.mode !== 'always' && value.mode !== 'attribute') fail(`${path}.mode`, 'must be "always" or "attribute".');
+      return Object.freeze({
+        kind,
+        mode: value.mode,
+        ...(value.attribute !== undefined ? { attribute: readRuleAttribute(value.attribute, `${path}.attribute`) } : {}),
+      }) as LocalComponentRule;
+    }
+    case 'value-date':
+      allow(['min', 'max', 'required']);
+      return Object.freeze({ kind, ...strings(['min', 'max', 'required']) }) as LocalComponentRule;
+    case 'value-length':
+      allow(['min', 'max', 'email', 'emailType']);
+      return Object.freeze({
+        kind,
+        ...strings(['min', 'max', 'email']),
+        ...(value.emailType !== undefined ? { emailType: readString(value.emailType, `${path}.emailType`, MAX_LOCAL_SDK_NAME_LENGTH) } : {}),
+      }) as LocalComponentRule;
+    case 'value-required':
+      allow(['required']);
+      return Object.freeze({ kind, required: readRuleAttribute(value.required, `${path}.required`) }) as LocalComponentRule;
+    case 'value-email':
+      allow(['type', 'value']);
+      return Object.freeze({ kind, ...strings(['type']), ...(value.value === undefined ? {} : { value: readString(value.value, `${path}.value`, MAX_LOCAL_SDK_NAME_LENGTH) }) });
+    default:
+      fail(`${path}.kind`, 'is not a supported rule.');
+  }
+}
+
+function readRules(value: unknown): readonly LocalComponentRule[] {
+  if (!Array.isArray(value)) fail('rules', 'must be an array.');
+  if (value.length > MAX_LOCAL_SDK_RULES) fail('rules', `accepts at most ${MAX_LOCAL_SDK_RULES} rules.`);
+  const rules: LocalComponentRule[] = [];
+  for (let index = 0; index < value.length; index += 1) {
+    rules.push(readRule(value[index], `rules[${index}]`));
+  }
+  return Object.freeze(rules);
+}
+
+function readSlotRelations(value: unknown): readonly LocalComponentSlotRelation[] {
+  if (!Array.isArray(value)) fail('slotRelations', 'must be an array.');
+  if (value.length > MAX_LOCAL_SDK_BINDINGS) fail('slotRelations', `accepts at most ${MAX_LOCAL_SDK_BINDINGS} relations.`);
+  const relations: LocalComponentSlotRelation[] = [];
+  for (let index = 0; index < value.length; index += 1) {
+    const raw = value[index];
+    const lead = `slotRelations[${index}]`;
+    if (!isPlainRecord(raw)) fail(lead, 'must be an object.');
+    checkKeys(raw, new Set(['lower', 'upper']), lead);
+    relations.push(Object.freeze({
+      lower: readIdentifier(raw.lower, `${lead}.lower`),
+      upper: readIdentifier(raw.upper, `${lead}.upper`),
+    }));
+  }
+  return Object.freeze(relations);
+}
+
 function readCapabilities(value: unknown, path: string): LocalComponentCapabilities {
   if (!isPlainRecord(value)) fail(path, 'must be an object.');
   checkKeys(value, CAPABILITY_KEYS, path);
@@ -195,34 +645,47 @@ function readProp(value: unknown, path: string): LocalComponentProp {
     required?: boolean;
     static?: boolean;
     dynamic?: boolean;
-    default?: string | number | boolean;
+    default?: string | number | boolean | null;
+    nullable?: boolean;
     enum?: readonly string[];
     pattern?: string;
     min?: number;
     max?: number;
     integer?: boolean;
+    positive?: boolean;
+    color?: boolean;
+    coerce?: 'text';
     description?: LocalComponentText;
   } = { kind: typedKind };
-  for (const flag of ['required', 'static', 'dynamic', 'integer'] as const) {
+  for (const flag of ['required', 'static', 'dynamic', 'integer', 'positive', 'color', 'nullable'] as const) {
     if (value[flag] === undefined) continue;
     out[flag] = readBoolean(value[flag], `${path}.${flag}`);
   }
   if (out.static === true && out.dynamic === true) {
     fail(path, 'cannot be both static and dynamic.');
   }
-  const hasEnum = value.enum !== undefined;
+  if (value.coerce !== undefined) {
+    if (value.coerce !== 'text') fail(`${path}.coerce`, 'must be "text".');
+    if (typedKind !== 'string') fail(`${path}.coerce`, 'is only valid for kind "string".');
+    out.coerce = 'text';
+  }
+  const rawEnum = value.enum !== undefined ? value.enum : value.values;
+  const hasEnum = rawEnum !== undefined;
   if (typedKind !== 'enum') {
     if (hasEnum) fail(path, `"enum" is only valid for kind "enum", not "${typedKind}".`);
   } else {
-    if (!Array.isArray(value.enum) || value.enum.length === 0) {
+    if (value.enum !== undefined && value.values !== undefined) {
+      fail(path, 'use "enum" or "values", not both.');
+    }
+    if (!Array.isArray(rawEnum) || rawEnum.length === 0) {
       fail(`${path}.enum`, 'must be a non-empty string array.');
     }
-    if (value.enum.length > MAX_LOCAL_SDK_ENUM_VALUES) {
+    if (rawEnum.length > MAX_LOCAL_SDK_ENUM_VALUES) {
       fail(`${path}.enum`, `accepts at most ${MAX_LOCAL_SDK_ENUM_VALUES} values.`);
     }
     const seen = new Set<string>();
     const values: string[] = [];
-    for (const item of value.enum) {
+    for (const item of rawEnum) {
       const text = readString(item, `${path}.enum`, MAX_LOCAL_SDK_NAME_LENGTH);
       if (seen.has(text)) fail(`${path}.enum`, `value "${text}" is declared more than once.`);
       seen.add(text);
@@ -253,6 +716,7 @@ function readProp(value: unknown, path: string): LocalComponentProp {
   if (typedKind !== 'number') {
     if (hasMin || hasMax) fail(path, '"min" and "max" are only valid for kind "number".');
     if (out.integer === true) fail(path, '"integer" is only valid for kind "number".');
+    if (out.positive === true) fail(path, '"positive" is only valid for kind "number".');
   } else {
     if (hasMin) out.min = readFiniteNumber(value.min, `${path}.min`);
     if (hasMax) out.max = readFiniteNumber(value.max, `${path}.max`);
@@ -260,18 +724,27 @@ function readProp(value: unknown, path: string): LocalComponentProp {
       fail(path, '"min" cannot exceed "max".');
     }
   }
+  if (out.color === true && typedKind !== 'string') {
+    fail(path, '"color" is only valid for kind "string".');
+  }
   if (value.description !== undefined) {
     out.description = readTextMap(value.description, `${path}.description`);
   }
   const hasDefault = value.default !== undefined;
   if (hasDefault) {
     const fallback = value.default;
-    if (typedKind === 'string') {
+    if (fallback === null) {
+      if (out.nullable !== true) fail(`${path}.default`, 'is null but the prop is not nullable.');
+      out.default = null;
+    } else if (typedKind === 'string') {
       out.default = readString(fallback, `${path}.default`);
     } else if (typedKind === 'number') {
       const numeric = readFiniteNumber(fallback, `${path}.default`);
       if (out.integer === true && !Number.isInteger(numeric)) {
         fail(`${path}.default`, 'must be an integer.');
+      }
+      if (out.positive === true && !(numeric > 0)) {
+        fail(`${path}.default`, 'must be greater than zero.');
       }
       if (out.min !== undefined && numeric < out.min) fail(`${path}.default`, `is below the minimum ${out.min}.`);
       if (out.max !== undefined && numeric > out.max) fail(`${path}.default`, `exceeds the maximum ${out.max}.`);
@@ -283,10 +756,10 @@ function readProp(value: unknown, path: string): LocalComponentProp {
       if (!out.enum?.includes(text)) fail(`${path}.default`, `"${text}" is not an allowed enum value.`);
       out.default = text;
     }
-    if (out.pattern !== undefined && typedKind === 'string') {
+    if (out.pattern !== undefined && typedKind === 'string' && typeof out.default === 'string') {
       let accepted = true;
       try {
-        accepted = new RegExp(out.pattern).test(String(out.default));
+        accepted = new RegExp(out.pattern).test(out.default);
       } catch {
         accepted = false;
       }
@@ -316,11 +789,16 @@ function readConstraint(value: unknown, path: string): LocalComponentBindingCons
 function readConstraints(
   value: unknown,
   props: Readonly<Record<string, LocalComponentProp>>,
+  kind: LocalComponentBindingKind,
   path: string,
 ): LocalComponentBindingConstraints {
   if (!isPlainRecord(value)) fail(path, 'must be an object.');
   checkKeys(value, CONSTRAINT_KEYS, path);
-  const out: { min?: LocalComponentBindingConstraint; max?: LocalComponentBindingConstraint; step?: LocalComponentBindingConstraint } = {};
+  const out: {
+    min?: LocalComponentBindingConstraint;
+    max?: LocalComponentBindingConstraint;
+    step?: LocalComponentBindingConstraint;
+  } = {};
   for (const key of ['min', 'max', 'step'] as const) {
     if (value[key] === undefined) continue;
     const constraint = readConstraint(value[key], `${path}.${key}`);
@@ -336,39 +814,74 @@ function readConstraints(
     }
     out[key] = constraint;
   }
+  if (kind !== 'number' && (out.min || out.max || out.step)) {
+    fail(path, '"min", "max" and "step" are only valid for number bindings.');
+  }
   if (out.min && 'literal' in out.min && out.max && 'literal' in out.max && out.min.literal > out.max.literal) {
     fail(path, '"min" cannot exceed "max".');
   }
   return out;
 }
 
+/** The initial rules a binding kind/family may declare. */
+function initialRulesFor(kind: LocalComponentBindingKind, family: LocalBindingFamily): ReadonlySet<string> {
+  if (kind === 'number') {
+    return family === 'timer'
+      ? new Set(['duration', 'min', 'nearest-zero'])
+      : new Set(['min', 'nearest-zero', 'max-step']);
+  }
+  if (kind === 'boolean') return new Set(['false']);
+  if (kind === 'null') return new Set(['empty']);
+  if (kind === 'array') {
+    if (family === 'checklist') return new Set(['checked', 'empty-array']);
+    return new Set(['empty-array']);
+  }
+  if (kind === 'number-array') return new Set(['empty-array']);
+  switch (family) {
+    case 'choice':
+    case 'selection':
+      return new Set(['first-option', 'none']);
+    case 'tabs': return new Set(['first-tab']);
+    case 'steps': return new Set(['first-step']);
+    case 'diagram': return new Set(['first-node']);
+    case 'date': return new Set(['empty']);
+    default: return new Set(['empty']);
+  }
+}
+
 function readBinding(
   value: unknown,
   props: Readonly<Record<string, LocalComponentProp>>,
   path: string,
+  structuralOptions = false,
 ): LocalComponentBinding {
   if (!isPlainRecord(value)) fail(path, 'must be an object.');
   checkKeys(value, BINDING_KEYS, path);
   const kind = value.kind;
   if (typeof kind !== 'string' || !BINDING_KINDS.has(kind)) {
-    fail(`${path}.kind`, 'must be "string", "number" or "boolean".');
+    fail(`${path}.kind`, 'must be "string", "number", "boolean", "array", "number-array" or "null".');
   }
-  const typedKind = kind as LocalComponentBinding['kind'];
+  const typedKind = kind as LocalComponentBindingKind;
   const family = value.family;
   if (typeof family !== 'string' || !FAMILIES.has(family)) {
     fail(`${path}.family`, 'must be a supported binding family.');
   }
-  if (typedKind === 'number' && family !== 'number') fail(`${path}.family`, 'must be "number" for a number binding.');
-  if (typedKind === 'boolean' && family !== 'boolean') fail(`${path}.family`, 'must be "boolean" for a boolean binding.');
-  if (typedKind === 'string') {
-    if (family !== 'text' && family !== 'choice') {
-      fail(`${path}.family`, `"${family}" is not supported for a phase-one string binding; use "text" or "choice".`);
-    }
+  const typedFamily = family as LocalBindingFamily;
+  const allowedFamilies: Readonly<Record<string, ReadonlySet<string>>> = {
+    number: new Set(['number', 'timer']),
+    boolean: new Set(['boolean']),
+    string: new Set(['text', 'choice', 'date', 'tabs', 'diagram', 'steps', 'selection']),
+    array: new Set(['multi-select', 'checklist', 'collection']),
+    'number-array': new Set(['collection']),
+    null: new Set(['text']),
+  };
+  if (!allowedFamilies[typedKind]?.has(typedFamily)) {
+    fail(`${path}.family`, `"${typedFamily}" is not supported for a ${typedKind} binding.`);
   }
   let options: readonly string[] | undefined;
   if (value.options !== undefined) {
     if (typedKind !== 'string') fail(`${path}.options`, 'is only valid for a string binding.');
-    if (family !== 'choice') fail(`${path}.options`, 'requires family "choice".');
+    if (typedFamily !== 'choice') fail(`${path}.options`, 'requires family "choice".');
     const rawOptions = value.options;
     if (!Array.isArray(rawOptions) || rawOptions.length === 0) {
       fail(`${path}.options`, 'must be a non-empty string array.');
@@ -387,46 +900,98 @@ function readBinding(
     }
     options = Object.freeze(values);
   }
-  if (typedKind === 'string' && family === 'choice' && options === undefined) {
+  if (typedKind === 'string' && typedFamily === 'choice' && options === undefined && !structuralOptions) {
     fail(`${path}.options`, 'is required for a choice binding.');
   }
-  if (value.bind !== 'bind') fail(`${path}.bind`, 'must be "bind" in phase one.');
-  if (value.initial !== 'initial') fail(`${path}.initial`, 'must be "initial" in phase one.');
-  const defaultRule: LocalComponentInitialRule = typedKind === 'number'
-    ? 'nearest-zero'
-    : typedKind === 'boolean'
-      ? 'false'
-      : family === 'choice' ? 'first-option' : 'empty';
-  let initialRule: LocalComponentInitialRule = defaultRule;
-  if (value.initialRule !== undefined) {
+  if (typedFamily !== 'choice' && options !== undefined) {
+    fail(`${path}.options`, 'is only valid for family "choice".');
+  }
+  const bind = readIdentifier(value.bind, `${path}.bind`);
+  const initial = readIdentifier(value.initial, `${path}.initial`);
+  if (bind === initial) fail(path, '"bind" and "initial" must name different attributes.');
+  if (RESERVED_SLOT_NAMES.has(bind) || RESERVED_SLOT_NAMES.has(initial)) {
+    fail(path, 'binding attributes cannot use a reserved slot name.');
+  }
+  if (Object.hasOwn(props, bind) || Object.hasOwn(props, initial)) {
+    fail(path, 'binding attributes are reserved and cannot be declared as props.');
+  }
+  const allowedRules = initialRulesFor(typedKind, typedFamily);
+  let initialRule: LocalComponentInitialRule;
+  if (value.initialRule === undefined) {
+    switch (typedKind) {
+      case 'number': initialRule = typedFamily === 'timer' ? 'duration' : 'nearest-zero'; break;
+      case 'boolean': initialRule = 'false'; break;
+      case 'array': initialRule = typedFamily === 'checklist' ? 'checked' : 'empty-array'; break;
+      case 'number-array': initialRule = 'empty-array'; break;
+      case 'null': initialRule = 'empty'; break;
+      default:
+        initialRule = typedFamily === 'choice' ? 'first-option'
+          : typedFamily === 'tabs' ? 'first-tab'
+            : typedFamily === 'steps' ? 'first-step'
+              : typedFamily === 'diagram' ? 'first-node'
+                : typedFamily === 'selection' ? 'none'
+                  : 'empty';
+    }
+  } else {
     if (typeof value.initialRule !== 'string' || !INITIAL_RULES.has(value.initialRule)) {
       fail(`${path}.initialRule`, 'is not a supported initial rule.');
     }
     initialRule = value.initialRule as LocalComponentInitialRule;
   }
-  if (typedKind === 'number' && initialRule !== 'min' && initialRule !== 'nearest-zero') {
-    fail(`${path}.initialRule`, 'must be "min" or "nearest-zero" for a number binding.');
+  if (!allowedRules.has(initialRule)) {
+    fail(`${path}.initialRule`, `is not supported for a ${typedKind} ${typedFamily} binding.`);
   }
-  if (typedKind === 'boolean' && initialRule !== 'false') {
-    fail(`${path}.initialRule`, 'must be "false" for a boolean binding.');
-  }
-  if (typedKind === 'string' && initialRule !== defaultRule) {
-    fail(`${path}.initialRule`, `must be "${defaultRule}" for a ${family} binding.`);
-  }
+  if (value.required !== undefined) readBoolean(value.required, `${path}.required`);
+  if (value.exclusive !== undefined) readBoolean(value.exclusive, `${path}.exclusive`);
+  if (value.retain !== undefined) readBoolean(value.retain, `${path}.retain`);
   let constraints: LocalComponentBindingConstraints | undefined;
   if (value.constraints !== undefined) {
-    if (typedKind !== 'number') fail(`${path}.constraints`, 'is only valid for a number binding.');
-    constraints = readConstraints(value.constraints, props, `${path}.constraints`);
+    constraints = readConstraints(value.constraints, props, typedKind, `${path}.constraints`);
   }
-  return {
+  let maxItems: LocalComponentBindingConstraint | undefined;
+  if (value.maxItems !== undefined) {
+    if (typedKind !== 'array' && typedKind !== 'number-array') {
+      fail(`${path}.maxItems`, 'is only valid for array or number-array bindings.');
+    }
+    maxItems = readConstraint(value.maxItems, `${path}.maxItems`);
+    if ('prop' in maxItems) {
+      const prop = props[maxItems.prop];
+      if (prop === undefined) fail(`${path}.maxItems`, `references undeclared prop "${maxItems.prop}".`);
+      if (prop.kind !== 'number') fail(`${path}.maxItems`, `references prop "${maxItems.prop}", which is not a number.`);
+      if (prop.dynamic === true) fail(`${path}.maxItems`, 'requires a static numeric property.');
+    } else if (!Number.isInteger(maxItems.literal) || maxItems.literal < 0) {
+      fail(`${path}.maxItems`, 'must be a nonnegative integer.');
+    }
+  }
+  let requiresAttributes: readonly string[] | undefined;
+  if (value.requiresAttributes !== undefined) {
+    requiresAttributes = readNameList(value.requiresAttributes, `${path}.requiresAttributes`);
+    for (const name of requiresAttributes) {
+      if (!Object.hasOwn(props, name)) fail(`${path}.requiresAttributes`, `references undeclared prop "${name}".`);
+    }
+  }
+  let compare: readonly string[] | undefined;
+  if (value.compare !== undefined) {
+    compare = readNameList(value.compare, `${path}.compare`);
+    for (const name of compare) {
+      if (!Object.hasOwn(props, name)) fail(`${path}.compare`, `references undeclared prop "${name}".`);
+    }
+  }
+  return Object.freeze({
     kind: typedKind,
-    family: family as LocalBindingFamily,
-    bind: 'bind',
-    initial: 'initial',
+    family: typedFamily,
+    bind,
+    initial,
     initialRule,
+    ...(value.required === true ? { required: true } : {}),
+    ...(value.exclusive === true ? { exclusive: true } : {}),
     ...(options ? { options } : {}),
-    ...(constraints ? { constraints } : {}),
-  };
+    ...(constraints ? { constraints: Object.freeze(constraints) } : {}),
+    ...(maxItems ? { maxItems } : {}),
+    ...(requiresAttributes ? { requiresAttributes } : {}),
+    ...(compare ? { compare } : {}),
+    ...(value.retain === false ? { retain: false } : {}),
+  });
 }
 
 function readDependency(value: unknown, path: string): LocalComponentDependency {
@@ -521,21 +1086,48 @@ export function readLocalComponentManifest(value: unknown): LocalComponentDefini
   if (value.bindings !== undefined) {
     if (!isPlainRecord(value.bindings)) fail('bindings', 'must be an object.');
     const bindingKeys = Object.keys(value.bindings);
+    if (bindingKeys.length === 0) fail('bindings', 'must declare at least one binding slot.');
+    if (bindingKeys.length > MAX_LOCAL_SDK_BINDINGS) {
+      fail('bindings', `accepts at most ${MAX_LOCAL_SDK_BINDINGS} slots.`);
+    }
+    const slots: Record<string, LocalComponentBinding> = {};
+    const attributes = new Set<string>();
     for (const key of bindingKeys) {
       if (DANGEROUS_KEYS.has(key)) fail('bindings', `field "${key}" is not allowed.`);
-      if (key !== 'value') fail('bindings', `unknown field "${key}"; phase one supports only "value".`);
-    }
-    if (bindingKeys.length === 0) fail('bindings', 'must declare "value".');
-    const binding = readBinding(value.bindings.value, props, 'bindings.value');
-    for (const attribute of LOCAL_BINDING_ATTRIBUTES) {
-      if (Object.hasOwn(props, attribute)) {
-        fail('props', `property "${attribute}" is reserved by the declared binding.`);
+      if (!SLOT_NAME.test(key)) fail('bindings', `slot "${key}" must be a letter followed by letters or digits.`);
+      if (RESERVED_SLOT_NAMES.has(key)) fail('bindings', `slot "${key}" is reserved by the runtime.`);
+      const binding = readBinding(value.bindings[key], props, `bindings.${key}`,
+        form === 'container' && Array.isArray(value.rules) && value.rules.some(rule => isPlainRecord(rule) && rule.kind === 'options-body'));
+      if (key !== 'value' && (binding.kind !== 'number' || binding.family !== 'number')) {
+        fail(
+          `bindings.${key}`,
+          'numeric named slots support kind "number" with family "number" in this contract.',
+        );
       }
+      if (key !== 'value' && isPlainRecord(value.bindings[key]) && value.bindings[key].exclusive === false) {
+        fail(`bindings.${key}.exclusive`, 'named slots require exclusive ownership in this contract.');
+      }
+      for (const attribute of [binding.bind, binding.initial]) {
+        if (attributes.has(attribute)) {
+          fail('bindings', `attribute "${attribute}" is claimed by more than one binding.`);
+        }
+        attributes.add(attribute);
+      }
+      slots[key] = key === 'value' ? binding : Object.freeze({ ...binding, exclusive: true });
     }
-    bindings = Object.freeze({ value: Object.freeze(binding) });
+    bindings = Object.freeze(slots);
   }
 
   const children = value.children === undefined ? undefined : readChildren(value.children, form, 'children');
+  if (value.children !== undefined && value.structure !== undefined) {
+    fail('manifest', 'cannot declare both "children" and "structure"; use "structure".');
+  }
+  const structure = value.structure !== undefined
+    ? readStructure(value.structure, form, 'structure')
+    : localStructureFromChildren(children);
+  const rules = value.rules === undefined ? undefined : readRules(value.rules);
+  const slotRelations = value.slotRelations === undefined ? undefined : readSlotRelations(value.slotRelations);
+  if (value.legacyHost !== undefined) readBoolean(value.legacyHost, 'legacyHost');
   const capabilities = readCapabilities(value.capabilities, 'capabilities');
   const authoring = value.authoring === undefined ? undefined : readAuthoring(value.authoring, 'authoring');
   const styles = value.styles === undefined ? undefined : readStyles(value.styles);
@@ -566,6 +1158,10 @@ export function readLocalComponentManifest(value: unknown): LocalComponentDefini
     props: Object.freeze(props),
     ...(bindings ? { bindings } : {}),
     ...(children ? { children: Object.freeze(children) } : {}),
+    ...(structure && !children ? { structure } : {}),
+    ...(rules ? { rules } : {}),
+    ...(slotRelations ? { slotRelations } : {}),
+    ...(value.legacyHost === true ? { legacyHost: true } : {}),
     capabilities: Object.freeze(capabilities),
     ...(authoring ? { authoring: Object.freeze(authoring) } : {}),
     ...(styles ? { styles } : {}),
@@ -600,16 +1196,28 @@ function canonicalProp(prop: LocalComponentProp): Record<string, unknown> {
     ...(prop.static === true ? { static: true } : {}),
     ...(prop.dynamic !== undefined ? { dynamic: prop.dynamic } : {}),
     ...(prop.default !== undefined ? { default: prop.default } : {}),
+    ...(prop.nullable === true ? { nullable: true } : {}),
     ...(prop.enum ? { enum: [...prop.enum] } : {}),
     ...(prop.pattern !== undefined ? { pattern: prop.pattern } : {}),
     ...(prop.min !== undefined ? { min: prop.min } : {}),
     ...(prop.max !== undefined ? { max: prop.max } : {}),
     ...(prop.integer === true ? { integer: true } : {}),
+    ...(prop.positive === true ? { positive: true } : {}),
+    ...(prop.color === true ? { color: true } : {}),
+    ...(prop.coerce !== undefined ? { coerce: prop.coerce } : {}),
   };
 }
 
 function canonicalConstraint(constraint: LocalComponentBindingConstraint): Record<string, unknown> {
   return 'literal' in constraint ? { literal: constraint.literal } : { prop: constraint.prop };
+}
+
+function canonicalConstraints(constraints: LocalComponentBindingConstraints): Record<string, unknown> {
+  return {
+    ...(constraints.min ? { min: canonicalConstraint(constraints.min) } : {}),
+    ...(constraints.max ? { max: canonicalConstraint(constraints.max) } : {}),
+    ...(constraints.step ? { step: canonicalConstraint(constraints.step) } : {}),
+  };
 }
 
 function canonicalBinding(binding: LocalComponentBinding): Record<string, unknown> {
@@ -620,17 +1228,46 @@ function canonicalBinding(binding: LocalComponentBinding): Record<string, unknow
     bind: binding.bind,
     initial: binding.initial,
     initialRule: binding.initialRule,
+    ...(binding.required === true ? { required: true } : {}),
+    ...(binding.exclusive === true ? { exclusive: true } : {}),
     ...(binding.options ? { options: [...binding.options] } : {}),
-    ...(constraints
-      ? {
-          constraints: {
-            ...(constraints.min ? { min: canonicalConstraint(constraints.min) } : {}),
-            ...(constraints.max ? { max: canonicalConstraint(constraints.max) } : {}),
-            ...(constraints.step ? { step: canonicalConstraint(constraints.step) } : {}),
-          },
-        }
-      : {}),
+    ...(constraints ? { constraints: canonicalConstraints(constraints) } : {}),
+    ...(binding.maxItems ? { maxItems: canonicalConstraint(binding.maxItems) } : {}),
+    ...(binding.requiresAttributes ? { requiresAttributes: [...binding.requiresAttributes] } : {}),
+    ...(binding.compare ? { compare: [...binding.compare] } : {}),
+    ...(binding.retain === false ? { retain: false } : {}),
   };
+}
+
+function canonicalStructure(structure: LocalComponentStructure): Record<string, unknown> {
+  return {
+    rule: structure.rule,
+    ...(structure.label !== undefined ? { label: structure.label } : {}),
+    ...(structure.parents ? { parents: [...structure.parents] } : {}),
+    ...(structure.child !== undefined ? { child: structure.child } : {}),
+    ...(structure.children ? { children: [...structure.children] } : {}),
+    ...(structure.min !== undefined ? { min: structure.min } : {}),
+    ...(structure.max !== undefined ? { max: structure.max } : {}),
+    ...(structure.inlineOnly !== undefined ? { inlineOnly: structure.inlineOnly } : {}),
+    ...(structure.noComponents !== undefined ? { noComponents: structure.noComponents } : {}),
+    ...(structure.valueAttribute !== undefined ? { valueAttribute: structure.valueAttribute } : {}),
+    ...(structure.generatedPrefix !== undefined ? { generatedPrefix: structure.generatedPrefix } : {}),
+    ...(structure.forbidSeparator !== undefined ? { forbidSeparator: structure.forbidSeparator } : {}),
+    ...(structure.maxItems !== undefined ? { maxItems: structure.maxItems } : {}),
+  };
+}
+
+function canonicalRule(rule: LocalComponentRule): Record<string, unknown> {
+  const source = rule as unknown as Record<string, unknown>;
+  const keys = Object.keys(source).sort();
+  const out: Record<string, unknown> = {};
+  for (const key of keys) {
+    const value = source[key];
+    out[key] = Array.isArray(value)
+      ? value.map((item) => Array.isArray(item) ? [...item] : item)
+      : value;
+  }
+  return out;
 }
 
 /**
@@ -642,6 +1279,12 @@ function canonicalBinding(binding: LocalComponentBinding): Record<string, unknow
 export function canonicalLocalComponent(definition: LocalComponentDefinition): unknown {
   const props: Record<string, unknown> = {};
   for (const name of Object.keys(definition.props).sort()) props[name] = canonicalProp(definition.props[name]);
+  const bindings: Record<string, unknown> = {};
+  if (definition.bindings) {
+    for (const name of Object.keys(definition.bindings).sort()) {
+      bindings[name] = canonicalBinding(definition.bindings[name]);
+    }
+  }
   return {
     protocol: definition.protocol,
     id: definition.id,
@@ -649,10 +1292,13 @@ export function canonicalLocalComponent(definition: LocalComponentDefinition): u
     version: definition.version,
     form: definition.form,
     props,
-    ...(definition.bindings ? { bindings: { value: canonicalBinding(definition.bindings.value) } } : {}),
+    ...(definition.bindings ? { bindings } : {}),
     ...(definition.children
       ? { children: { kind: definition.children.kind, ...(definition.children.required ? { required: true } : {}) } }
       : {}),
+    ...(definition.structure ? { structure: canonicalStructure(definition.structure) } : {}),
+    ...(definition.rules ? { rules: definition.rules.map(canonicalRule) } : {}),
+    ...(definition.slotRelations ? { slotRelations: definition.slotRelations.map((relation) => ({ ...relation })) } : {}),
     capabilities: {
       interactive: definition.capabilities.interactive,
       static: definition.capabilities.static,

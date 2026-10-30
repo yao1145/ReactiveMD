@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'vite';
 import { chromium, expect } from '@playwright/test';
+import { verifySdkPhaseTwo } from './sdk-phase2-consumer-checks.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const require = createRequire(import.meta.url);
@@ -255,6 +256,7 @@ window.sdkTest={config,source,requirements:compiled.document.extensions,set:(nam
     assert.equal(await behaviorPage.evaluate(()=>window.sdkTest.active()),0);
     await behaviorContext.close();
     report.checks.push('disabled, hiding, theme state retention, descendant error isolation, unmount cleanup');
+    await verifySdkPhaseTwo({ consumer, artifacts, build, run, browser, report });
   } finally { await browser.close(); }
   report.status = 'passed';
   console.log(`PASS isolated SDK consumer: ${report.checks.length} checks; ${consumer}`);

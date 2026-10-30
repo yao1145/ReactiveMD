@@ -13,10 +13,7 @@ import {
   useState,
   useSyncExternalStore,
   type CSSProperties,
-  type ChangeEvent,
-  type KeyboardEvent,
   type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type RefObject,
 } from 'react';
@@ -41,12 +38,14 @@ import type {
 } from './render-types';
 import {
   LocalReactExtensionMissingError,
+  createReactConfig,
   localReactExtensionRenderer,
-  validateLocalReactExtensions,
   type LocalReactConfig,
   type LocalReactRenderEnvironment,
 } from '../react/sdk';
-import { readLocalConfig } from '../sdk/config';
+import { createLocalConfig, readLocalConfig } from '../sdk/config';
+import { getLocalComponentRegistry } from '../sdk/registry';
+import type { LocalComponentDefinition } from '../sdk/types';
 import {
   collectNodeDependencies,
   collectSubtreeResetTokens,
@@ -66,20 +65,25 @@ import {
   validationProjectionKey,
   type DependencyLookup,
 } from './view-revision';
-import { DEFAULT_MAX_LOCAL_SYNTAX_NODES, MAX_LOCAL_STRING_LENGTH, isLocalEmail } from './limits';
+import { DEFAULT_MAX_LOCAL_SYNTAX_NODES } from './limits';
+import { LOCAL_COMPONENT_NAMES } from './schema';
 import { localCompileOptionsKey, readLocalCompileOptions } from './options';
-import { validateLocalExtensionRequirements } from '../export/requirements';
+import {
+  beginLocalComponentRender,
+} from '../react/component-api';
+import {
+  validateLocalComponentContracts,
+  validateLocalExtensionRequirements,
+} from '../export/requirements';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './html';
 import { localHtmlAlign, localHtmlLinkRel } from './html-names';
 import { TableSurface } from './table-surface';
 import { HTML_TABLE_NAMES } from './html-table';
 import { formatLocalDiagnostic } from './diagnostics';
-import { countLocalCodePoints } from './text-length';
 import { LatexView } from './math-view';
-import { LocalVisual, VisualFrame, tableNumericColumns } from './visuals';
+import { VisualFrame, tableNumericColumns } from './visuals';
 import { createHeadingAnchors } from './heading-anchors';
-import { isLocalColor } from './colors';
-import { DataTableView } from './data-table';
+import { textProblem as componentTextProblem } from '../components/controls';
 import { CodeBlockView } from './code-block';
 import { ZoomableImage } from './image-view';
 import {
@@ -245,7 +249,20 @@ function assertExtensionProps(
 
 /* --------------------------------------------------------------- contexts */
 
+/**
+ * One shared React config for documents that do not pass `reactConfig`. It is
+ * built lazily from the public preset so importing the document view never
+ * executes component manifests before they are needed.
+ */
+let builtinReactConfig: LocalReactConfig | null = null;
+function getBuiltinReactConfig(): LocalReactConfig {
+  builtinReactConfig ??= createReactConfig(createLocalConfig(), { components: [] });
+  return builtinReactConfig;
+}
+
 interface LocalViewContext extends LocalRenderContext {
+  definitions: ReadonlyMap<string, LocalComponentDefinition>;
+  locale: LocalLocale;
   report: (diagnostics: Diagnostic[]) => void;
   urlPolicy?: LocalUrlPolicy;
   imageResolver?: LocalImageResolver;
@@ -269,15 +286,6 @@ function useLocal(): LocalViewContext {
   const value = useContext(LocalViewContext);
   if (!value) throw new Error('LocalViewContext is not initialized');
   return value;
-}
-
-/** Source metadata for a control label, only when navigation is enabled. */
-function useSourceAttributes(node: LocalNode): Record<string, string> {
-  const { sourceNavigation } = useLocal();
-  const componentName = node.type === 'component' || node.type === 'hostComponent'
-    ? node.name
-    : undefined;
-  return sourceAttributes(sourceNavigation !== undefined, node, componentName);
 }
 
 /* ------------------------------------------------------------- validations */
@@ -411,34 +419,13 @@ function createValidationState(
   };
 }
 
-function useValidationField(node: LocalNode): LocalValidationField {
-  return useLocal().validation.fieldFor(node);
-}
-
 /* ------------------------------------------------------------- attributes */
 
 const FULL_EXPRESSION = /^\s*\{\{([\s\S]*)\}\}\s*$/;
 const EMPTY_SNAPSHOT: LocalSnapshot = { revision: 0, state: {} };
 
-type ReadAttr =
-  | { present: false }
-  | { present: true; ok: true; value: LocalValue }
-  | { present: true; ok: false };
-
 function rawAttr(node: LocalNode, name: string): string | undefined {
   return node.attrs?.[name];
-}
-
-function readAttr(runtime: LocalRuntime, node: LocalNode, name: string): ReadAttr {
-  const raw = rawAttr(node, name);
-  if (raw === undefined) return { present: false };
-  const full = FULL_EXPRESSION.exec(raw);
-  if (!full) return { present: true, ok: true, value: raw };
-  try {
-    return { present: true, ok: true, value: runtime.evaluate(full[1]) };
-  } catch {
-    return { present: true, ok: false };
-  }
 }
 
 function scalarText(value: LocalValue): string | null {
@@ -449,22 +436,16 @@ function scalarText(value: LocalValue): string | null {
   return null;
 }
 
-function textAttr(
-  runtime: LocalRuntime,
-  node: LocalNode,
-  name: string,
-  fallback = '',
-  t: Localize = defaultLocalize,
-): string {
-  const raw = rawAttr(node, name);
-  if (raw === undefined) return fallback;
-  const full = FULL_EXPRESSION.exec(raw);
-  try {
-    if (full) return scalarText(runtime.evaluate(full[1])) ?? t('Cannot compute', '无法计算');
-    return runtime.text(raw);
-  } catch {
-    return t('Cannot compute', '无法计算');
-  }
+function plainContentText(runtime: LocalRuntime, nodes: LocalNode[] | undefined, t: Localize): string {
+  return (nodes ?? []).map(node => {
+    if (node.type === 'interpolation') {
+      try { return scalarText(runtime.evaluate(node.value ?? '')) ?? t('Cannot compute', '无法计算'); }
+      catch { return t('Cannot compute', '无法计算'); }
+    }
+    if (node.type === 'image') return node.alt ?? '';
+    if (node.type === 'break') return ' ';
+    return node.children?.length ? plainContentText(runtime, node.children, t) : node.value ?? '';
+  }).join('');
 }
 
 function readBooleanAttr(
@@ -485,189 +466,12 @@ function readBooleanAttr(
   }
 }
 
-function boolAttr(runtime: LocalRuntime, node: LocalNode, name: string, fallback = false): boolean {
-  const read = readBooleanAttr(runtime, node, name, fallback);
-  return read.ok ? read.value : fallback;
-}
-
-/**
- * Controlled enum tones accept exactly one dynamic expression in addition to
- * the original static literals. Anything outside the enum falls back to the
- * default style; a dynamic failure is reported separately and never becomes a
- * class, style or color value.
- */
-function toneAttr<T extends string>(
-  runtime: LocalRuntime,
-  node: LocalNode,
-  name: string,
-  values: readonly T[],
-  fallback: T,
-): { tone: T; error: boolean } {
-  const raw = rawAttr(node, name);
-  if (raw === undefined) return { tone: fallback, error: false };
-  const full = FULL_EXPRESSION.exec(raw);
-  if (!full) {
-    const value = raw.trim();
-    return {
-      tone: (values as readonly string[]).includes(value) ? (value as T) : fallback,
-      error: false,
-    };
-  }
-  try {
-    const value = runtime.evaluate(full[1]);
-    if (typeof value === 'string' && (values as readonly string[]).includes(value)) {
-      return { tone: value as T, error: false };
-    }
-    return { tone: fallback, error: true };
-  } catch {
-    return { tone: fallback, error: true };
-  }
-}
-
 function runtimeRevision(runtime: LocalRuntime): number {
   try {
     return runtime.snapshot().revision;
   } catch {
     return 0;
   }
-}
-
-function numberAttr(runtime: LocalRuntime, node: LocalNode, name: string, fallback: number): number {
-  const raw = rawAttr(node, name);
-  if (raw === undefined) return fallback;
-  const full = FULL_EXPRESSION.exec(raw);
-  try {
-    const value = full ? runtime.evaluate(full[1]) : Number(raw);
-    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-type ConstraintRead<T> =
-  | { present: false; error: false }
-  | { present: true; error: true }
-  | { present: true; error: false; value: T };
-
-/** Read a numeric constraint and keep evaluation failures distinguishable. */
-function numberConstraint(runtime: LocalRuntime, node: LocalNode, name: string): ConstraintRead<number> {
-  const raw = rawAttr(node, name);
-  if (raw === undefined) return { present: false, error: false };
-  const full = FULL_EXPRESSION.exec(raw);
-  try {
-    const value = full ? runtime.evaluate(full[1]) : Number(raw);
-    return typeof value === 'number' && Number.isFinite(value)
-      ? { present: true, error: false, value }
-      : { present: true, error: true };
-  } catch {
-    return { present: true, error: true };
-  }
-}
-
-/** Read a date-bound constraint; an empty string means "no bound". */
-function dateConstraint(runtime: LocalRuntime, node: LocalNode, name: string): ConstraintRead<string> {
-  const raw = rawAttr(node, name);
-  if (raw === undefined) return { present: false, error: false };
-  const full = FULL_EXPRESSION.exec(raw);
-  try {
-    const value = full ? runtime.evaluate(full[1]) : raw;
-    return typeof value === 'string' ? { present: true, error: false, value } : { present: true, error: true };
-  } catch {
-    return { present: true, error: true };
-  }
-}
-
-function currentValue(runtime: LocalRuntime, node: LocalNode): LocalValue {
-  try {
-    return runtime.get(node);
-  } catch {
-    return null;
-  }
-}
-
-function displayValue(value: LocalValue): string {
-  return scalarText(value) ?? '';
-}
-
-/* ----------------------------------------------------------- static values */
-
-const EMPTY_STATIC_VALUE = '—';
-
-/** Empty or whitespace-only stored values read as an em dash in static mode. */
-function staticText(value: string): string {
-  return value.trim() === '' ? EMPTY_STATIC_VALUE : value;
-}
-
-interface StaticValueProps {
-  label: string;
-  value: ReactNode;
-  hint?: ReactNode;
-  className?: string;
-  multiline?: boolean;
-}
-
-/** Read-only label/value summary shared by static controls. */
-function StaticValue({ label, value, hint, className = '', multiline = false }: StaticValueProps) {
-  return (
-    <div className={`md-control local-static-control ${className}`.trim()}>
-      <span className="md-label">{label}</span>
-      <span
-        className={`local-static-value${multiline ? ' local-static-multiline' : ''}`}
-        data-local-static-value=""
-      >
-        {value}
-      </span>
-      {hint ? <span className="md-hint">{hint}</span> : null}
-    </div>
-  );
-}
-
-/**
- * Screen-reader hidden value used by interactive markup so Ctrl+P prints the
- * current runtime state without JavaScript. Print styles hide the form
- * controls and reveal this node.
- */
-function PrintValue({ value, block = false }: { value: ReactNode; block?: boolean }) {
-  if (block) {
-    return (
-      <div
-        className="local-print-value local-print-block"
-        aria-hidden="true"
-        data-local-print-value=""
-      >
-        {value}
-      </div>
-    );
-  }
-  return (
-    <span className="local-print-value" aria-hidden="true" data-local-print-value="">
-      {value}
-    </span>
-  );
-}
-
-/* ------------------------------------------------------------------ color */
-
-/**
- * The compiler already rejects anything outside the bounded color whitelist.
- * Re-check here so a hand-built or mutated `LocalDocument` can never smuggle
- * an arbitrary CSS value into the rendered style.
- */
-function localColor(node: LocalNode): string | undefined {
-  const raw = rawAttr(node, 'color');
-  if (raw === undefined) return undefined;
-  const value = raw.trim();
-  return value !== '' && isLocalColor(value) ? value : undefined;
-}
-
-/** Accent tokens consumed by local.css; absent colors fall back to the theme. */
-function accentStyle(color: string | undefined): CSSProperties | undefined {
-  if (!color) return undefined;
-  return {
-    '--local-accent': color,
-    '--local-accent-soft': `color-mix(in srgb, ${color} 14%, var(--surface))`,
-    '--local-accent-strong': color,
-  } as CSSProperties;
 }
 
 /* ---------------------------------------------------------------- theming */
@@ -829,45 +633,6 @@ function useResolvedColorScheme(
   return explicit ?? resolved;
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function snapToStep(value: number, min: number, max: number, step: number): number {
-  const size = Number.isFinite(step) && step > 0 ? step : 1;
-  const maximumSteps = Math.max(0, Math.floor((max - min) / size + 1e-9));
-  const steps = Math.max(0, Math.min(maximumSteps, Math.round((value - min) / size)));
-  const snapped = min + steps * size;
-  return Number(snapped.toPrecision(15));
-}
-
-function slotNumber(runtime: LocalRuntime, node: LocalNode, slot: string, fallback: number): number {
-  try {
-    const value = runtime.get(node, slot);
-    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function numericRange(
-  runtime: LocalRuntime,
-  node: LocalNode,
-  minName: string,
-  maxName: string,
-  minFallback: number,
-  maxFallback: number,
-  stepFallback = 1,
-): { min: number; max: number; step: number } {
-  let min = numberAttr(runtime, node, minName, minFallback);
-  let max = numberAttr(runtime, node, maxName, maxFallback);
-  if (min > max) [min, max] = [max, min];
-  const rawStep = numberAttr(runtime, node, 'step', stepFallback);
-  const step = Number.isFinite(rawStep) && rawStep > 0 ? rawStep : 1;
-  return { min, max, step };
-}
-
-
 /* ------------------------------------------------------------ state hooks */
 
 interface ProjectionCache<P, T> {
@@ -962,61 +727,6 @@ function useStableValidation(
     cache.current = entry;
   }
   return entry.value;
-}
-
-function useWriter(node: LocalNode) {
-  const { runtime, report } = useLocal();
-  const locale = useLocalLocale();
-  const t = useLocalize();
-  const [error, setError] = useState<string | null>(null);
-  const write = useCallback(
-    (value: LocalValue, slot?: string): boolean => {
-      try {
-        const diagnostics = runtime.set(node, value, slot);
-        if (diagnostics.length) {
-          // Keep structured diagnostics for host callbacks; only the visible
-          // field error is localized for the current renderer locale.
-          setError(diagnostics.map((item) => formatLocalDiagnostic(item, locale)).join('; '));
-          report(diagnostics);
-          return false;
-        }
-        setError(null);
-        return true;
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : t('Cannot write', '无法写入'));
-        return false;
-      }
-    },
-    [locale, node, report, runtime, t],
-  );
-  /** Multi-slot writes validate every value before committing one revision. */
-  const writeMany = useCallback(
-    (values: Record<string, LocalValue>): boolean => {
-      try {
-        const diagnostics = runtime.setMany(node, values);
-        if (diagnostics.length) {
-          setError(diagnostics.map((item) => formatLocalDiagnostic(item, locale)).join('; '));
-          report(diagnostics);
-          return false;
-        }
-        setError(null);
-        return true;
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : t('Cannot write', '无法写入'));
-        return false;
-      }
-    },
-    [locale, node, report, runtime, t],
-  );
-  return { write, writeMany, error, setError };
-}
-
-function useDisabled(node: LocalNode): { disabled: boolean; invalid: boolean } {
-  const { runtime } = useLocal();
-  const read = readBooleanAttr(runtime, node, 'disabled', false);
-  // An unevaluable disabled expression must fail closed: never leave the
-  // control editable just because the predicate could not be computed.
-  return read.ok ? { disabled: read.value, invalid: false } : { disabled: true, invalid: true };
 }
 
 function useResetToken(runtime: LocalRuntime, node: LocalNode, onReset: () => void) {
@@ -1135,8 +845,17 @@ interface RenderEnv {
    * nodes and does not require host data, so stateless leaves can render.
    */
   extensionRenderer?: (node: LocalNode, environment: LocalReactRenderEnvironment) => ReactNode;
+  /**
+   * Renderer for ordinary `component` nodes. It is always built from the
+   * unified manifest index (builtin preset plus installed externals), even
+   * when the host did not pass a `reactConfig`.
+   */
+  componentRenderer?: (node: LocalNode, environment: LocalReactRenderEnvironment) => ReactNode;
+  /** Validated manifests by tag name (builtins plus installed external ones). */
+  definitions: ReadonlyMap<string, LocalComponentDefinition>;
   anchors: ReturnType<typeof createHeadingAnchors>;
   t: Localize;
+  locale: LocalLocale;
   mode: LocalRenderMode;
   /** Binding keys per node subtree; an empty index makes every block a wildcard. */
   dependencies: DependencyLookup;
@@ -1144,6 +863,8 @@ interface RenderEnv {
   footnotes: LocalFootnoteIndex;
   /** When present, rendered targets carry source metadata and clicks report. */
   sourceNavigation?: (target: LocalSourceTarget) => void;
+  /** Advisory validation hints/field associations for this document instance. */
+  validation: LocalValidationState;
   /** Runtime diagnostics from host renderers and rejected writes. */
   report?: (diagnostics: Diagnostic[]) => void;
 }
@@ -1175,6 +896,116 @@ function sourceProps(
   componentName?: string,
 ): Record<string, string> {
   return sourceAttributes(env.sourceNavigation !== undefined, node, componentName);
+}
+
+/* ------------------------------------------------------- public adapter */
+
+/** Line/column for an adapter-owned diagnostic, clamped to the source. */
+function sourcePosition(env: RenderEnv, offset: number): { line: number; column: number } {
+  let source = '';
+  try {
+    source = env.runtime.document.source ?? '';
+  } catch {
+    source = '';
+  }
+  if (typeof source !== 'string' || source.length === 0) return { line: 1, column: 1 };
+  const limit = Math.max(0, Math.min(offset, source.length));
+  let line = 1;
+  let lineStart = 0;
+  for (let index = 0; index < limit; index += 1) {
+    if (source[index] === '\n') {
+      line += 1;
+      lineStart = index + 1;
+    }
+  }
+  return { line, column: limit - lineStart + 1 };
+}
+
+/** Focus and scroll to one rendered anchor inside this document instance. */
+function jumpWithinDocument(
+  root: HTMLElement | null,
+  target: string,
+): 'ok' | 'missing' | 'hidden' {
+  if (!root) return 'missing';
+  let element: HTMLElement | null = null;
+  try {
+    // Attribute lookup stays inside this document instance; never the page.
+    element = root.querySelector<HTMLElement>(`[id="${target}"]`);
+  } catch {
+    element = null;
+  }
+  if (!element) return 'missing';
+  if (element.closest('[hidden]')) return 'hidden';
+  if (!element.hasAttribute('tabindex')) element.tabIndex = -1;
+  try {
+    element.focus({ preventScroll: true });
+  } catch {
+    /* Focus support is best-effort. */
+  }
+  let behavior: ScrollBehavior = 'smooth';
+  try {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) behavior = 'auto';
+  } catch {
+    behavior = 'auto';
+  }
+  try {
+    element.scrollIntoView({ behavior, block: 'start' });
+  } catch {
+    /* Older engines may not support smooth scrolling. */
+  }
+  return 'ok';
+}
+
+/**
+ * Build the public render environment handed to one SDK component. The
+ * renderer owns the internal node graph; components receive adapter services
+ * only.
+ */
+function extensionEnvironment(
+  env: RenderEnv,
+  node: LocalNode,
+  visible: boolean,
+): LocalReactRenderEnvironment {
+  const disabledRead = readBooleanAttr(env.runtime, node, 'disabled', false);
+  let resetToken = 0;
+  try {
+    resetToken = env.runtime.resetToken(node);
+  } catch {
+    resetToken = 0;
+  }
+  return {
+    runtime: env.runtime,
+    mode: env.mode,
+    visible,
+    disabled: disabledRead.ok ? disabledRead.value : true,
+    disabledInvalid: !disabledRead.ok,
+    resetToken,
+    locale: env.locale,
+    renderChildren: (nodes, nextVisible) => renderNodes(env, nodes ?? [], nextVisible),
+    renderInline: (nodes, nextVisible) =>
+      renderInlineNodes(env, nodes ?? [], nextVisible),
+    renderToText: (nodes) => plainContentText(env.runtime, nodes, env.t),
+    report: (diagnostics) => env.report?.(diagnostics),
+    positionOf: (offset) => sourcePosition(env, offset),
+    definitionFor: (name) => env.definitions.get(name),
+    validationField: (target) => env.validation.fieldFor(target),
+    validationHint: (target) => env.validation.hintFor(target),
+    sourceAttributes: (target, componentName) => sourceProps(env, target, componentName),
+    targetId: (to) => env.anchors.targetId(to),
+    anchorId: (target) => env.anchors.anchorIds.get(target),
+    jumpAllowed: (to) => {
+      if (env.anchors.targetId(to) === undefined) return false;
+      if (env.urlPolicy === undefined) return true;
+      try {
+        return env.urlPolicy(`#${to}`, 'link') === true;
+      } catch {
+        return false;
+      }
+    },
+    jumpTo: (target) => jumpWithinDocument(env.rootRef.current, target),
+    urlPolicy: env.urlPolicy,
+    imageResolver: env.imageResolver,
+  };
 }
 
 /* ------------------------------------------------------- parameter bridge */
@@ -1496,23 +1327,11 @@ function renderHostComponent(
   // `kind`/`ref` host data never applies to them. Visibility travels into the
   // context and children render under that visibility.
   if (env.extensionRenderer) {
-    const disabledRead = readBooleanAttr(env.runtime, node, 'disabled', false);
-    let resetToken = 0;
     try {
-      resetToken = env.runtime.resetToken(node);
-    } catch {
-      resetToken = 0;
-    }
-    try {
-      return createElement(Fragment, { key }, env.extensionRenderer(node, {
-        runtime: env.runtime,
-        mode: env.mode,
-        visible,
-        disabled: disabledRead.ok ? disabledRead.value : true,
-        resetToken,
-        renderChildren: (children, nextVisible) => renderNodes(env, children ?? [], nextVisible),
-        report: (diagnostics) => env.report?.(diagnostics),
-      }));
+      return createElement(Fragment, { key }, env.extensionRenderer(
+        node,
+        extensionEnvironment(env, node, visible),
+      ));
     } catch (error) {
       return unavailable(error instanceof LocalReactExtensionMissingError ? 'renderer' : 'error', true);
     }
@@ -1635,7 +1454,7 @@ function renderNode(
   if (node.type === 'component') {
     return (
       <LocalErrorBoundary key={key} revision={runtimeRevision(env.runtime)}>
-        {renderComponent(node, visible, env.runtime, env.t)}
+        {renderComponent(env, node, visible)}
       </LocalErrorBoundary>
     );
   }
@@ -1965,1624 +1784,31 @@ function renderTableCells(
 }
 
 function renderComponent(
+  env: RenderEnv,
   node: LocalNode,
   visible: boolean,
-  runtime: LocalRuntime,
-  t: Localize,
 ): ReactNode {
   const name = node.name ?? '';
-  // Computed/const declarations are document metadata, not rendered controls.
-  if (name === 'computed' || name === 'const') return null;
-  if (name === 'data-table') {
-    return <DataTableView node={node} visible={visible} runtime={runtime} t={t} />;
+  // Computed/const/external declarations are document metadata, not rendered
+  // controls. They are also the only component names the renderer knows by
+  // name; every rendered builtin resolves through the same manifest index.
+  if (name === 'computed' || name === 'const' || name === 'external') return null;
+  const renderer = env.componentRenderer ?? env.extensionRenderer;
+  if (renderer) {
+    try {
+      return createElement(Fragment, {
+        key: node.id,
+      }, renderer(node, extensionEnvironment(env, node, visible)));
+    } catch (error) {
+      if (!(error instanceof LocalReactExtensionMissingError)) throw error;
+    }
   }
-  if (VISUAL_COMPONENTS.has(name)) {
-    return <VisualView node={node} visible={visible} />;
-  }
-  const View = COMPONENTS[name];
-  if (!View) {
-    return (
-      <span className="component-error">
-        {t('Unknown component "', '未知组件“')}
-        {name || t('(missing name)', '（缺少名称）')}
-        {t('"', '”')}
-      </span>
-    );
-  }
-  return <View node={node} visible={visible} />;
-}
-
-function VisualView({ node, visible }: LocalComponentProps) {
-  const { runtime, render, mode, sourceNavigation } = useLocal();
-  const t = useLocalize();
-  const validation = useValidationField(node);
-  const visual = (
-    <LocalVisual
-      node={node}
-      runtime={runtime}
-      render={render}
-      visible={visible}
-      mode={mode}
-    />
-  );
-  // Keep the wrapper stable across valid/invalid revisions so visual selection
-  // state survives a rule changing. Untargeted visuals keep their existing DOM.
-  const targeted = runtime.document.validations?.some(rule => rule.fields.some(name => (
-    Object.hasOwn(runtime.document.bindings, name)
-    && runtime.document.bindings[name].nodeIds.includes(node.id)
-  )));
-  const content = !targeted ? visual : (
-    <div role="group" aria-label={textAttr(runtime, node, 'label', textAttr(runtime, node, 'title', t('Selection', '选择'), t), t)} aria-invalid={validation.invalid || undefined} aria-describedby={validation.describedBy}>
-      {visual}
-    </div>
-  );
-  // Source navigation wrappers appear only when the host enabled it, so export
-  // and ordinary SSR output keep their previous DOM.
-  return sourceNavigation === undefined
-    ? content
-    : <div {...sourceAttributes(true, node)}>{content}</div>;
-}
-
-/**
- * One `<validation>` tag. The id exists in every state so field associations
- * stay stable; only a visible failing rule announces itself. Hidden rules
- * remain evaluated and associated through the runtime's document-wide pass.
- */
-function ValidationView({ node, visible }: LocalComponentProps) {
-  const { validation } = useLocal();
-  const hint = validation.hintFor(node);
-  if (!hint) return null;
-  const failed = hint.failed || hint.error;
-  const announce = visible && failed;
   return (
-    <span
-      id={hint.id}
-      className="local-validation-hint"
-      data-local-validation={hint.error ? 'error' : hint.failed ? 'failed' : 'passed'}
-      role={announce ? 'status' : undefined}
-      aria-live={announce ? 'polite' : undefined}
-    >
-      {failed ? hint.message : null}
+    <span className="component-error">
+      {env.t('Unknown component "', '未知组件“')}
+      {name || env.t('(missing name)', '（缺少名称）')}
+      {env.t('"', '”')}
     </span>
-  );
-}
-
-function ColumnView() {
-  return null;
-}
-
-/* ----------------------------------------------------------------- inputs */
-
-function FieldError({ message }: { message: string | null }) {
-  if (!message) return null;
-  return (
-    <span className="field-error" role="alert">
-      {message}
-    </span>
-  );
-}
-
-/**
- * Author-facing length validation. The defensive resource limit stays in
- * UTF-16 units (`value.length`), but `min-length`/`max-length` are code-point
- * counts, matching `len()` and the runtime write validator.
- */
-export function textProblem(
-  value: string,
-  options: {
-    required: boolean;
-    minLength?: number;
-    maxLength?: number;
-    email?: boolean;
-  },
-  t: Localize = defaultLocalize,
-): string | null {
-  if (options.required && value.length === 0) return t('This field is required', '请填写此字段');
-  // Check the shared hard limit before the linear email shape check, so a huge
-  // draft never reaches format validation.
-  if (value.length > MAX_LOCAL_STRING_LENGTH) {
-    return t(
-      `At most ${MAX_LOCAL_STRING_LENGTH} characters`,
-      `最多允许 ${MAX_LOCAL_STRING_LENGTH} 个字符`,
-    );
-  }
-  if (options.email && value !== '' && !isLocalEmail(value)) {
-    return t('Enter a valid email address', '请输入有效的邮箱地址');
-  }
-  const length = countLocalCodePoints(value);
-  if (options.minLength !== undefined && options.minLength > 0 && value !== '' && length < options.minLength) {
-    return t(`At least ${options.minLength} characters`, `至少需要 ${options.minLength} 个字符`);
-  }
-  if (options.maxLength !== undefined && options.maxLength >= 0 && length > options.maxLength) {
-    return t(`At most ${options.maxLength} characters`, `最多允许 ${options.maxLength} 个字符`);
-  }
-  return null;
-}
-
-function InputView({ node }: LocalComponentProps) {
-  const domId = useId();
-  const sourceAttrs = useSourceAttributes(node);
-  const { runtime, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error, setError } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', node.name ?? t('Input', '输入'), t);
-  const placeholder = textAttr(runtime, node, 'placeholder', '', t);
-  const typeRaw = rawAttr(node, 'type') ?? 'text';
-  const email = typeRaw === 'email';
-  const requiredRead = readBooleanAttr(runtime, node, 'required', false);
-  const required = requiredRead.ok ? requiredRead.value : false;
-  const requiredDynamic = (rawAttr(node, 'required') ?? '').includes('{{');
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const minLengthRaw = rawAttr(node, 'min-length');
-  const maxLengthRaw = rawAttr(node, 'max-length');
-  const minLength = minLengthRaw !== undefined
-    ? Math.max(0, Math.floor(numberAttr(runtime, node, 'min-length', 0)))
-    : undefined;
-  const maxLength = maxLengthRaw !== undefined
-    ? Math.max(0, Math.floor(numberAttr(runtime, node, 'max-length', 0)))
-    : undefined;
-  const display = displayValue(currentValue(runtime, node));
-
-  const [draft, setDraft] = useState(display);
-  const [focused, setFocused] = useState(false);
-  const [touched, setTouched] = useState(false);
-  const [draftError, setDraftError] = useState<string | null>(null);
-  const composing = useRef(false);
-  const lastDisplay = useRef(display);
-  const displayRef = useRef(display);
-  displayRef.current = display;
-
-  useEffect(() => {
-    if (lastDisplay.current !== display) {
-      lastDisplay.current = display;
-      if (!focused && !composing.current) setDraft(display);
-    }
-  }, [display, focused]);
-
-  useResetToken(runtime, node, () => {
-    composing.current = false;
-    setDraft(displayRef.current);
-    setTouched(false);
-    setDraftError(null);
-    setError(null);
-  });
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className={`local-input${email ? ' local-input-email' : ''}`}
-        label={label}
-        value={staticText(display)}
-      />
-    );
-  }
-
-  // Native minLength/maxLength count UTF-16 units and would reject a single
-  // astral code point at max-length="1"; textProblem validates code points on
-  // every change instead. Required is also a local rule: native required
-  // would block the enclosing host form's submission and Enter action.
-  const problemFor = (value: string) =>
-    textProblem(value, { required, minLength, maxLength, email }, t);
-
-  return (
-    <div className={`md-control local-input${email ? ' local-input-email' : ''}`} {...sourceAttrs}>
-      <label className="md-label" htmlFor={`${domId}-input`}>
-        {label}
-      </label>
-      <input
-        id={`${domId}-input`}
-        className="md-text-input"
-        type={email ? 'email' : 'text'}
-        value={draft}
-        placeholder={placeholder || undefined}
-        disabled={disabled}
-        aria-required={required || undefined}
-        aria-invalid={draftError || error || validation.invalid || !requiredRead.ok ? true : undefined}
-        aria-describedby={validation.describedBy}
-        onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false);
-          setTouched(true);
-          const problem = problemFor(draft);
-          setDraftError(problem);
-          if (!problem && draft !== display) write(draft);
-        }}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          const value = event.target.value;
-          setDraft(value);
-          setError(null);
-          if (touched) setDraftError(problemFor(value));
-          if (!composing.current && problemFor(value) === null) write(value);
-        }}
-        onCompositionStart={() => {
-          composing.current = true;
-        }}
-        onCompositionEnd={(event) => {
-          composing.current = false;
-          const value = event.currentTarget.value;
-          setDraft(value);
-          if (touched) setDraftError(problemFor(value));
-          if (problemFor(value) === null) write(value);
-        }}
-      />
-      <PrintValue value={staticText(display)} />
-      <FieldError message={disabledInvalid || !requiredRead.ok ? t('Cannot compute', '无法计算') : (draftError ?? error ?? (requiredDynamic && required && display === '' ? t('This field is required', '请填写此字段') : null))} />
-    </div>
-  );
-}
-
-function TextareaView({ node }: LocalComponentProps) {
-  const domId = useId();
-  const sourceAttrs = useSourceAttributes(node);
-  const { runtime, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error, setError } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Text', '文本'), t);
-  const placeholder = textAttr(runtime, node, 'placeholder', '', t);
-  const rows = Math.min(40, Math.max(1, Math.floor(numberAttr(runtime, node, 'rows', 4))));
-  const requiredRead = readBooleanAttr(runtime, node, 'required', false);
-  const required = requiredRead.ok ? requiredRead.value : false;
-  const requiredDynamic = (rawAttr(node, 'required') ?? '').includes('{{');
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const minLengthRaw = rawAttr(node, 'min-length');
-  const maxLengthRaw = rawAttr(node, 'max-length');
-  const minLength = minLengthRaw !== undefined
-    ? Math.max(0, Math.floor(numberAttr(runtime, node, 'min-length', 0)))
-    : undefined;
-  const maxLength = maxLengthRaw !== undefined
-    ? Math.max(0, Math.floor(numberAttr(runtime, node, 'max-length', 0)))
-    : undefined;
-  const display = displayValue(currentValue(runtime, node));
-
-  const [draft, setDraft] = useState(display);
-  const [focused, setFocused] = useState(false);
-  const [touched, setTouched] = useState(false);
-  const [draftError, setDraftError] = useState<string | null>(null);
-  const composing = useRef(false);
-  const lastDisplay = useRef(display);
-  const displayRef = useRef(display);
-  displayRef.current = display;
-
-  useEffect(() => {
-    if (lastDisplay.current !== display) {
-      lastDisplay.current = display;
-      if (!focused && !composing.current) setDraft(display);
-    }
-  }, [display, focused]);
-
-  useResetToken(runtime, node, () => {
-    composing.current = false;
-    setDraft(displayRef.current);
-    setTouched(false);
-    setDraftError(null);
-    setError(null);
-  });
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="local-textarea"
-        label={label}
-        value={staticText(display)}
-        multiline
-      />
-    );
-  }
-
-  // Code-point limits are enforced by textProblem, not the native UTF-16
-  // minLength/maxLength attributes.
-  const problemFor = (value: string) =>
-    textProblem(value, { required, minLength, maxLength }, t);
-
-  return (
-    <div className="md-control local-textarea" {...sourceAttrs}>
-      <label className="md-label" htmlFor={`${domId}-textarea`}>
-        {label}
-      </label>
-      <textarea
-        id={`${domId}-textarea`}
-        className="md-text-input"
-        rows={rows}
-        value={draft}
-        placeholder={placeholder || undefined}
-        disabled={disabled}
-        aria-required={required || undefined}
-        aria-invalid={draftError || error || validation.invalid || !requiredRead.ok ? true : undefined}
-        aria-describedby={validation.describedBy}
-        onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false);
-          setTouched(true);
-          const problem = problemFor(draft);
-          setDraftError(problem);
-          if (!problem && draft !== display) write(draft);
-        }}
-        onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
-          const value = event.target.value;
-          setDraft(value);
-          setError(null);
-          if (touched) setDraftError(problemFor(value));
-          if (!composing.current && problemFor(value) === null) write(value);
-        }}
-        onCompositionStart={() => {
-          composing.current = true;
-        }}
-        onCompositionEnd={(event) => {
-          composing.current = false;
-          const value = event.currentTarget.value;
-          setDraft(value);
-          if (touched) setDraftError(problemFor(value));
-          if (problemFor(value) === null) write(value);
-        }}
-      />
-      <PrintValue value={staticText(display)} block />
-      <FieldError message={disabledInvalid || !requiredRead.ok ? t('Cannot compute', '无法计算') : (draftError ?? error ?? (requiredDynamic && required && display === '' ? t('This field is required', '请填写此字段') : null))} />
-    </div>
-  );
-}
-
-type NumberDraft =
-  | { kind: 'empty' }
-  | { kind: 'invalid' }
-  | { kind: 'valid'; value: number };
-function parseNumberDraft(text: string): NumberDraft {
-  const trimmed = text.trim();
-  if (trimmed === '' || trimmed === '-' || trimmed === '+' || trimmed === '.' || trimmed === '-.') {
-    return { kind: 'empty' };
-  }
-  const value = Number(trimmed);
-  if (!Number.isFinite(value)) return { kind: 'invalid' };
-  return { kind: 'valid', value };
-}
-
-function numberProblem(
-  value: number,
-  min: number | undefined,
-  max: number | undefined,
-  step: number,
-  t: Localize = defaultLocalize,
-): string | null {
-  const tolerance = 1e-9 * Math.max(1, Math.abs(value));
-  if (min !== undefined && value < min - tolerance) {
-    return t(`Must be at least ${min}`, `不能小于 ${min}`);
-  }
-  if (max !== undefined && value > max + tolerance) {
-    return t(`Must be at most ${max}`, `不能大于 ${max}`);
-  }
-  if (!Number.isFinite(step) || step <= 0) {
-    return t('Step must be greater than 0', '步长必须大于 0');
-  }
-  const base = min ?? 0;
-  const quotient = (value - base) / step;
-  const nearest = Math.round(quotient);
-  if (Math.abs(quotient - nearest) > 1e-9 * Math.max(1, Math.abs(quotient))) {
-    return t(`Must be a multiple of ${step}`, `需要按步长 ${step} 取值`);
-  }
-  return null;
-}
-
-function NumberView({ node }: LocalComponentProps) {
-  const domId = useId();
-  const sourceAttrs = useSourceAttributes(node);
-  const { runtime, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error, setError } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Number', '数字'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const minRead = numberConstraint(runtime, node, 'min');
-  const maxRead = numberConstraint(runtime, node, 'max');
-  const min = minRead.present && !minRead.error ? minRead.value : undefined;
-  const max = maxRead.present && !maxRead.error ? maxRead.value : undefined;
-  const constraintError = minRead.error || maxRead.error;
-  const step = numberAttr(runtime, node, 'step', 1);
-  const stored = currentValue(runtime, node);
-  const display = typeof stored === 'number' && Number.isFinite(stored) ? String(stored) : '';
-  // A narrowed dynamic range never rewrites the stored value; it surfaces as a
-  // field error until the reader adjusts the value or the dependency.
-  const storedProblem = typeof stored === 'number' && Number.isFinite(stored)
-    ? numberProblem(stored, min, max, step, t)
-    : null;
-
-  const [draft, setDraft] = useState(display);
-  const [focused, setFocused] = useState(false);
-  const [touched, setTouched] = useState(false);
-  const [draftError, setDraftError] = useState<string | null>(null);
-  const composing = useRef(false);
-  const lastDisplay = useRef(display);
-  const displayRef = useRef(display);
-  displayRef.current = display;
-
-  useEffect(() => {
-    if (lastDisplay.current !== display) {
-      lastDisplay.current = display;
-      if (!focused && !composing.current) setDraft(display);
-    }
-  }, [display, focused]);
-
-  useResetToken(runtime, node, () => {
-    composing.current = false;
-    setDraft(displayRef.current);
-    setTouched(false);
-    setDraftError(null);
-    setError(null);
-  });
-
-  const hint = (
-    <>
-      {min !== undefined ? t(`Min ${min}`, `最小 ${min}`) : ''}
-      {min !== undefined && max !== undefined ? ' · ' : ''}
-      {max !== undefined ? t(`Max ${max}`, `最大 ${max}`) : ''}
-      {step !== undefined ? t(` · Step ${step}`, ` · 步长 ${step}`) : ''}
-    </>
-  );
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="local-number"
-        label={label}
-        value={staticText(display)}
-        hint={hint}
-      />
-    );
-  }
-
-  const commitText = (text: string, reportProblem: boolean): boolean => {
-    const parsed = parseNumberDraft(text);
-    if (parsed.kind !== 'valid') {
-      if (reportProblem) setDraftError(t('Enter a valid number', '请输入有效数字'));
-      return false;
-    }
-    const problem = numberProblem(parsed.value, min, max, step, t);
-    if (problem) {
-      if (reportProblem) setDraftError(problem);
-      return false;
-    }
-    setDraftError(null);
-    return write(parsed.value);
-  };
-
-  return (
-    <div className="md-control local-number" {...sourceAttrs}>
-      <label className="md-label" htmlFor={`${domId}-number`}>
-        {label}
-      </label>
-      <input
-        id={`${domId}-number`}
-        className="md-text-input"
-        type="text"
-        inputMode="decimal"
-        value={draft}
-        min={min}
-        max={max}
-        step={step}
-        disabled={disabled}
-        aria-invalid={draftError || error || validation.invalid || constraintError || (!focused && storedProblem) ? true : undefined}
-        aria-describedby={validation.describedBy}
-        onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false);
-          setTouched(true);
-          commitText(draft, true);
-        }}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          const text = event.target.value;
-          setDraft(text);
-          setError(null);
-          if (!composing.current) commitText(text, touched);
-        }}
-        onCompositionStart={() => {
-          composing.current = true;
-        }}
-        onCompositionEnd={(event) => {
-          composing.current = false;
-          commitText(event.currentTarget.value, touched);
-        }}
-      />
-      <PrintValue value={staticText(display)} />
-      {min !== undefined || max !== undefined || step !== undefined ? (
-        <span className="md-hint">{hint}</span>
-      ) : null}
-      <FieldError message={disabledInvalid || constraintError ? t('Cannot compute', '无法计算') : (draftError ?? error ?? (!focused ? storedProblem : null))} />
-    </div>
-  );
-}
-
-function SliderView({ node }: LocalComponentProps) {
-  const domId = useId();
-  const sourceAttrs = useSourceAttributes(node);
-  const { runtime, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Slider', '滑块'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const minRead = numberConstraint(runtime, node, 'min');
-  const maxRead = numberConstraint(runtime, node, 'max');
-  const min = minRead.present && !minRead.error ? minRead.value : 0;
-  const max = maxRead.present && !maxRead.error ? maxRead.value : 100;
-  const constraintError = minRead.error || maxRead.error;
-  const step = numberAttr(runtime, node, 'step', 1);
-  const stored = currentValue(runtime, node);
-  const rawValue = typeof stored === 'number' && Number.isFinite(stored) ? stored : min;
-  const value = Math.min(max, Math.max(min, rawValue));
-  const storedProblem = typeof stored === 'number' && Number.isFinite(stored)
-    ? (stored < min ? t(`Must be at least ${min}`, `不能小于 ${min}`)
-      : stored > max ? t(`Must be at most ${max}`, `不能大于 ${max}`)
-      : null)
-    : null;
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="md-slider local-slider"
-        label={label}
-        value={String(rawValue)}
-      />
-    );
-  }
-
-  return (
-    <div className="md-control md-slider local-slider" style={accentStyle(localColor(node))} {...sourceAttrs}>
-      <label className="md-label" htmlFor={`${domId}-slider`}>
-        <span>{label}</span>
-        <span className="md-slider-value" aria-hidden="true">
-          {rawValue}
-        </span>
-      </label>
-      <input
-        id={`${domId}-slider`}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        disabled={disabled}
-        aria-invalid={validation.invalid || storedProblem || constraintError ? true : undefined}
-        aria-describedby={validation.describedBy}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => write(Number(event.target.value))}
-      />
-      <PrintValue value={String(rawValue)} />
-      <FieldError message={disabledInvalid || constraintError ? t('Cannot compute', '无法计算') : (error ?? storedProblem)} />
-    </div>
-  );
-}
-
-function ToggleView({ node }: LocalComponentProps) {
-  const domId = useId();
-  const sourceAttrs = useSourceAttributes(node);
-  const { runtime, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Toggle', '开关'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const checked = currentValue(runtime, node) === true;
-  const stateLabel = checked ? t('On', '开') : t('Off', '关');
-
-  if (mode === 'static') {
-    return <StaticValue className="md-toggle local-toggle" label={label} value={stateLabel} />;
-  }
-
-  return (
-    <div className="md-control md-toggle local-toggle" style={accentStyle(localColor(node))} {...sourceAttrs}>
-      <label className="md-toggle-label" htmlFor={`${domId}-toggle`}>
-        <input
-          id={`${domId}-toggle`}
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          aria-invalid={validation.invalid || undefined}
-          aria-describedby={validation.describedBy}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => write(event.target.checked)}
-        />
-        <span>{label}</span>
-      </label>
-      <PrintValue value={stateLabel} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
-    </div>
-  );
-}
-
-function CheckboxView({ node }: LocalComponentProps) {
-  const domId = useId();
-  const sourceAttrs = useSourceAttributes(node);
-  const { runtime, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Checkbox', '勾选'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const checked = currentValue(runtime, node) === true;
-  const stateLabel = checked ? t('Checked', '已勾选') : t('Unchecked', '未勾选');
-
-  if (mode === 'static') {
-    return <StaticValue className="local-checkbox" label={label} value={stateLabel} />;
-  }
-
-  return (
-    <div className="md-control local-checkbox" style={accentStyle(localColor(node))} {...sourceAttrs}>
-      <label className="md-toggle-label" htmlFor={`${domId}-checkbox`}>
-        <input
-          id={`${domId}-checkbox`}
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          aria-invalid={validation.invalid || undefined}
-          aria-describedby={validation.describedBy}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => write(event.target.checked)}
-        />
-        <span>{label}</span>
-      </label>
-      <PrintValue value={stateLabel} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
-    </div>
-  );
-}
-
-function DateView({ node }: LocalComponentProps) {
-  const domId = useId();
-  const sourceAttrs = useSourceAttributes(node);
-  const { runtime, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Date', '日期'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const requiredRead = readBooleanAttr(runtime, node, 'required', false);
-  const required = requiredRead.ok ? requiredRead.value : false;
-  const requiredDynamic = (rawAttr(node, 'required') ?? '').includes('{{');
-  const minRead = dateConstraint(runtime, node, 'min');
-  const maxRead = dateConstraint(runtime, node, 'max');
-  const min = minRead.present && !minRead.error ? minRead.value : '';
-  const max = maxRead.present && !maxRead.error ? maxRead.value : '';
-  const constraintError = minRead.error || maxRead.error || !requiredRead.ok;
-  const stored = currentValue(runtime, node);
-  const value = typeof stored === 'string' ? stored : '';
-  const [touched, setTouched] = useState(false);
-  // A narrowed dynamic range never rewrites the stored date; it shows a field
-  // error until the reader changes the date or the dependency.
-  const rangeProblem = value !== '' && ((min !== '' && value < min) || (max !== '' && value > max))
-    ? t(`Date must be between ${min || '…'} and ${max || '…'}`, `日期必须在 ${min || '…'} 与 ${max || '…'} 之间`)
-    : null;
-  const missingProblem = required && value === '' && (touched || requiredDynamic)
-    ? t('Select a date', '请选择日期')
-    : null;
-  const problem = missingProblem ?? rangeProblem;
-
-  if (mode === 'static') {
-    return <StaticValue className="local-date" label={label} value={staticText(value)} />;
-  }
-
-  return (
-    <div className="md-control local-date" {...sourceAttrs}>
-      <label className="md-label" htmlFor={`${domId}-date`}>
-        {label}
-      </label>
-      <input
-        id={`${domId}-date`}
-        className="md-text-input"
-        type="date"
-        value={value}
-        min={min || undefined}
-        max={max || undefined}
-        aria-required={required || undefined}
-        disabled={disabled}
-        aria-invalid={problem || error || validation.invalid || constraintError ? true : undefined}
-        aria-describedby={validation.describedBy}
-        onBlur={() => setTouched(true)}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          setTouched(true);
-          write(event.target.value);
-        }}
-      />
-      <PrintValue value={staticText(value)} />
-      <FieldError message={disabledInvalid || constraintError ? t('Cannot compute', '无法计算') : (problem ?? error)} />
-    </div>
-  );
-}
-
-/* --------------------------------------------------------------- choices */
-
-interface ChoiceOption {
-  value: string;
-  node: LocalNode;
-}
-
-function readOptions(node: LocalNode): ChoiceOption[] {
-  return (node.children ?? [])
-    .filter((child) => child.type === 'component' && child.name === 'option')
-    .map((child, index) => ({
-      value: rawAttr(child, 'value') ?? `option-${index + 1}`,
-      node: child,
-    }));
-}
-
-function inlinePlainText(
-  runtime: LocalRuntime,
-  nodes: LocalNode[] | undefined,
-  t: Localize = defaultLocalize,
-): string {
-  if (!nodes) return '';
-  let text = '';
-  for (const node of nodes) {
-    if (node.type === 'text' || node.type === 'inlineCode') {
-      text += node.value ?? '';
-    } else if (node.type === 'fallback') {
-      text += node.value ?? '';
-    } else if (node.type === 'interpolation') {
-      try {
-        text += scalarText(runtime.evaluate(node.value ?? '')) ?? '';
-      } catch {
-        text += t('Cannot compute', '无法计算');
-      }
-    } else if (node.type === 'break') {
-      text += ' ';
-    } else {
-      text += inlinePlainText(runtime, node.children, t);
-    }
-  }
-  return text;
-}
-
-function optionLabel(runtime: LocalRuntime, node: LocalNode, t: Localize = defaultLocalize): string {
-  return inlinePlainText(runtime, node.children, t) || rawAttr(node, 'value') || '';
-}
-
-function OptionView() {
-  return null;
-}
-
-function SelectView({ node }: LocalComponentProps) {
-  const domId = useId();
-  const { runtime, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Select', '选择'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const options = readOptions(node);
-  const stored = currentValue(runtime, node);
-  const current = typeof stored === 'string' ? stored : '';
-  const active = options.some((option) => option.value === current)
-    ? current
-    : options[0]?.value ?? '';
-  const activeOption = options.find((option) => option.value === active);
-  const activeLabel = activeOption ? optionLabel(runtime, activeOption.node, t) || active : '';
-
-  if (options.length === 0) return <LocalError message={t('Missing options', '缺少选项')} />;
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="md-select local-select"
-        label={label}
-        value={staticText(activeLabel)}
-      />
-    );
-  }
-
-  return (
-    <div className="md-control md-select local-select" style={accentStyle(localColor(node))}>
-      <label className="md-label" htmlFor={`${domId}-select`}>
-        {label}
-      </label>
-      <select
-        id={`${domId}-select`}
-        className="md-select-input"
-        value={active}
-        disabled={disabled}
-        aria-invalid={validation.invalid || undefined}
-        aria-describedby={validation.describedBy}
-        onChange={(event: ChangeEvent<HTMLSelectElement>) => write(event.target.value)}
-      >
-        {options.map((option) => (
-          <option key={option.node.id} value={option.value}>
-            {optionLabel(runtime, option.node, t) || option.value}
-          </option>
-        ))}
-      </select>
-      <PrintValue value={staticText(activeLabel)} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
-    </div>
-  );
-}
-
-function ChoicesView({ node, visible }: LocalComponentProps) {
-  const domId = useId();
-  const local = useLocal();
-  const { runtime, mode } = local;
-  const t = useLocalize();
-  const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Options', '选项'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const options = readOptions(node);
-  const stored = currentValue(runtime, node);
-  const current = typeof stored === 'string' ? stored : '';
-  const selectedIndex = options.findIndex((option) => option.value === current);
-  const activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
-  const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : undefined;
-  const selectedLabel = selectedOption ? optionLabel(runtime, selectedOption.node, t) : '';
-  const refs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  if (options.length === 0) return <LocalError message={t('Missing options', '缺少选项')} />;
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="local-choices"
-        label={label}
-        value={staticText(selectedLabel)}
-      />
-    );
-  }
-
-  const choose = (index: number) => {
-    const option = options[index];
-    if (!option) return;
-    write(option.value);
-    refs.current[index]?.focus();
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    let next = -1;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % options.length;
-    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index - 1 + options.length) % options.length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = options.length - 1;
-    if (next < 0) return;
-    event.preventDefault();
-    choose(next);
-  };
-
-  return (
-    <div className="md-control local-choices" style={accentStyle(localColor(node))}>
-      <span className="md-label" id={`${domId}-choices-label`}>
-        {label}
-      </span>
-      <div
-        className="local-choice-list"
-        role="radiogroup"
-        aria-labelledby={`${domId}-choices-label`}
-        aria-disabled={disabled || undefined}
-        aria-invalid={validation.invalid || undefined}
-        aria-describedby={validation.describedBy}
-      >
-        {options.map((option, index) => {
-          const selected = option.value === current;
-          return (
-            <button
-              key={option.node.id}
-              ref={(element) => {
-                refs.current[index] = element;
-              }}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              tabIndex={index === activeIndex ? 0 : -1}
-              disabled={disabled}
-              className={`local-choice${selected ? ' is-selected' : ''}`}
-              onClick={() => write(option.value)}
-              onKeyDown={(event) => onKeyDown(event, index)}
-            >
-              {renderInlineNodes(local, option.node.children, visible)}
-            </button>
-          );
-        })}
-      </div>
-      <PrintValue value={staticText(selectedLabel)} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
-    </div>
-  );
-}
-
-function RadioGroupView({ node, visible }: LocalComponentProps) {
-  const domId = useId();
-  const local = useLocal();
-  const { runtime, mode } = local;
-  const t = useLocalize();
-  const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Options', '选项'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const options = readOptions(node);
-  const stored = currentValue(runtime, node);
-  const current = typeof stored === 'string' ? stored : '';
-  const name = domId;
-  const selectedOption = options.find((option) => option.value === current);
-  const selectedLabel = selectedOption ? optionLabel(runtime, selectedOption.node, t) : '';
-
-  if (options.length === 0) return <LocalError message={t('Missing options', '缺少选项')} />;
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="local-radio-group"
-        label={label}
-        value={staticText(selectedLabel)}
-      />
-    );
-  }
-
-  return (
-    <fieldset
-      className="md-control local-radio-group"
-      style={accentStyle(localColor(node))}
-      disabled={disabled}
-      aria-invalid={validation.invalid || undefined}
-      aria-describedby={validation.describedBy}
-    >
-      <legend className="md-label">{label}</legend>
-      {options.map((option) => (
-        <label className="local-radio-option" key={option.node.id}>
-          <input
-            type="radio"
-            name={name}
-            value={option.value}
-            checked={current === option.value}
-            onChange={() => write(option.value)}
-          />
-          <span>{renderInlineNodes(local, option.node.children, visible)}</span>
-        </label>
-      ))}
-      <PrintValue value={staticText(selectedLabel)} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
-    </fieldset>
-  );
-}
-
-/* -------------------------------------------------------------- checklist */
-
-interface ChecklistItem {
-  id: string;
-  node: LocalNode;
-}
-
-function readChecklistItems(node: LocalNode): ChecklistItem[] {
-  const list = (node.children ?? []).find((child) => child.type === 'list');
-  return (list?.children ?? [])
-    .filter((child) => child.type === 'listItem')
-    .map((child, index) => ({ id: `item-${index + 1}`, node: child }));
-}
-
-function ChecklistView({ node, visible }: LocalComponentProps) {
-  const domId = useId();
-  const local = useLocal();
-  const { runtime, mode } = local;
-  const t = useLocalize();
-  const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Checklist', '清单'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const items = readChecklistItems(node);
-  const stored = currentValue(runtime, node);
-  const selected = Array.isArray(stored)
-    ? stored.filter((value): value is string => typeof value === 'string')
-    : [];
-
-  if (items.length === 0) {
-    return <LocalError message={t('Checklist requires a task list', '清单需要任务列表')} />;
-  }
-
-  const stateFor = (checked: boolean) => (checked ? t('Checked', '已勾选') : t('Unchecked', '未勾选'));
-
-  if (mode === 'static') {
-    return (
-      <div
-        className="local-checklist local-static-checklist"
-        style={accentStyle(localColor(node))}
-        role="group"
-        aria-label={label}
-      >
-        <span className="md-label">{label}</span>
-        <ul className="local-static-list">
-          {items.map((item) => {
-            const checked = selected.includes(item.id);
-            return (
-              <li key={item.id} className="local-static-list-item">
-                <span className="local-static-state">{stateFor(checked)}</span>
-                <span className={`local-static-item${checked ? ' is-checked' : ''}`}>
-                  {renderInlineNodes(local, item.node.children, visible)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    );
-  }
-
-  const toggle = (id: string, checked: boolean) => {
-    const chosen = new Set(selected);
-    if (checked) chosen.add(id);
-    else chosen.delete(id);
-    write(items.filter((item) => chosen.has(item.id)).map((item) => item.id));
-  };
-
-  return (
-    <fieldset
-      className="local-checklist"
-      style={accentStyle(localColor(node))}
-      disabled={disabled}
-      aria-invalid={validation.invalid || undefined}
-      aria-describedby={validation.describedBy}
-    >
-      <legend className="md-label">{label}</legend>
-      {items.map((item) => {
-        const checked = selected.includes(item.id);
-        return (
-          <div className="local-checklist-item" key={item.id}>
-            <input
-              id={`${domId}-${item.id}`}
-              type="checkbox"
-              checked={checked}
-              onChange={(event) => toggle(item.id, event.target.checked)}
-            />
-            <label
-              className={`local-checklist-text${checked ? ' is-checked' : ''}`}
-              htmlFor={`${domId}-${item.id}`}
-            >
-              {renderInlineNodes(local, item.node.children, visible)}
-            </label>
-          </div>
-        );
-      })}
-      <PrintValue
-        block
-        value={
-          <ul className="local-static-list">
-            {items.map((item) => {
-              const checked = selected.includes(item.id);
-              return (
-                <li key={item.id} className="local-static-list-item">
-                  <span className="local-static-state">{stateFor(checked)}</span>
-                  <span className={`local-static-item${checked ? ' is-checked' : ''}`}>
-                    {inlinePlainText(runtime, item.node.children, t)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        }
-      />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
-    </fieldset>
-  );
-}
-
-/* ------------------------------------------------------- counter & timer */
-
-function formatSeconds(seconds: number, t: Localize = defaultLocalize): string {
-  const safe = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(safe / 60);
-  const rest = safe % 60;
-  if (minutes === 0) return t(`${rest} seconds`, `${rest} 秒`);
-  return `${minutes}:${String(rest).padStart(2, '0')}`;
-}
-
-function CounterView({ node }: LocalComponentProps) {
-  const { runtime, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Counter', '计数'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const min = numberAttr(runtime, node, 'min', 0);
-  const maxPresent = rawAttr(node, 'max') !== undefined;
-  const max = maxPresent ? numberAttr(runtime, node, 'max', 0) : undefined;
-  const step = numberAttr(runtime, node, 'step', 1);
-  const stored = currentValue(runtime, node);
-  const value = typeof stored === 'number' && Number.isFinite(stored) ? stored : min;
-  const safeStep = Number.isFinite(step) && step > 0 ? step : 1;
-  const tolerance = 1e-9 * Math.max(1, Math.abs(value));
-  const canDecrease = value - safeStep >= min - tolerance;
-  const canIncrease = max === undefined || value + safeStep <= max + tolerance;
-
-  if (mode === 'static') {
-    return <StaticValue className="local-counter" label={label} value={String(value)} />;
-  }
-
-  const change = (direction: 1 | -1) => {
-    const next = Number((value + direction * safeStep).toFixed(12));
-    write(next);
-  };
-
-  const reset = () => {
-    try {
-      runtime.reset(node);
-    } catch {
-      /* A disposed runtime has no state to restore. */
-    }
-  };
-
-  return (
-    <div
-      className="local-counter"
-      role="group"
-      aria-label={label}
-      aria-invalid={validation.invalid || undefined}
-      aria-describedby={validation.describedBy}
-    >
-      <span className="md-label">{label}</span>
-      <div className="local-counter-row">
-        <button
-          type="button"
-          className="md-button md-button-secondary local-counter-button"
-          aria-label={`${label} ${t('decrease', '减少')}`}
-          disabled={disabled || !canDecrease}
-          onClick={() => change(-1)}
-        >
-          −
-        </button>
-        <span className="local-counter-value" aria-live="polite">
-          {value}
-        </span>
-        <button
-          type="button"
-          className="md-button md-button-secondary local-counter-button"
-          aria-label={`${label} ${t('increase', '增加')}`}
-          disabled={disabled || !canIncrease}
-          onClick={() => change(1)}
-        >
-          +
-        </button>
-        <button
-          type="button"
-          className="md-button md-button-quiet local-counter-reset"
-          disabled={disabled}
-          onClick={reset}
-        >
-          {t('Reset', '恢复初值')}
-        </button>
-      </div>
-      <PrintValue value={String(value)} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
-    </div>
-  );
-}
-
-function TimerView({ node, visible }: LocalComponentProps) {
-  const { runtime, mode } = useLocal();
-  const locale = useLocalLocale();
-  const t = useLocalize();
-  const label = textAttr(runtime, node, 'label', t('Timer', '计时器'), t);
-  const validation = useValidationField(node);
-  const durationRaw = numberAttr(runtime, node, 'duration', 60);
-  const duration = Math.floor(durationRaw);
-  const stored = currentValue(runtime, node);
-  const remaining = typeof stored === 'number' && Number.isFinite(stored)
-    ? Math.max(0, Math.ceil(stored))
-    : duration;
-
-  const [running, setRunning] = useState(false);
-  const [completed, setCompleted] = useState(false);
-  const deadline = useRef(0);
-  const valueRef = useRef(remaining);
-  valueRef.current = remaining;
-  const [error, setError] = useState<string | null>(null);
-
-  const commit = useCallback(
-    (seconds: number) => {
-      try {
-        const diagnostics = runtime.set(node, seconds);
-        if (diagnostics.length) {
-          setError(diagnostics.map((item) => formatLocalDiagnostic(item, locale)).join('; '));
-        }
-      } catch {
-        /* A disposed runtime cannot accept more ticks. */
-      }
-    },
-    [locale, node, runtime],
-  );
-
-  useEffect(() => {
-    if (!running) return;
-    const id = window.setInterval(() => {
-      const next = Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000));
-      if (next !== valueRef.current) {
-        valueRef.current = next;
-        commit(next);
-      }
-      if (next <= 0) {
-        setRunning(false);
-        setCompleted(true);
-      }
-    }, 200);
-    return () => window.clearInterval(id);
-  }, [running, commit]);
-
-  useEffect(() => {
-    if (visible || !running) return;
-    const next = Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000));
-    valueRef.current = next;
-    commit(next);
-    setRunning(false);
-  }, [visible, running, commit]);
-
-  useResetToken(runtime, node, () => {
-    setRunning(false);
-    setCompleted(false);
-    setError(null);
-  });
-
-  if (!Number.isFinite(durationRaw) || duration <= 0) {
-    return (
-      <LocalError
-        message={t(
-          'Timer duration must be a positive number of seconds',
-          '计时时长必须是大于 0 的秒数',
-        )}
-      />
-    );
-  }
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="local-timer"
-        label={label}
-        value={formatSeconds(remaining, t)}
-      />
-    );
-  }
-
-  const start = () => {
-    if (running) return;
-    const base = remaining > 0 ? remaining : duration;
-    if (remaining <= 0) {
-      valueRef.current = duration;
-      commit(duration);
-    }
-    deadline.current = performance.now() + base * 1000;
-    setCompleted(false);
-    setError(null);
-    setRunning(true);
-  };
-
-  const pause = () => {
-    if (!running) return;
-    const next = Math.max(0, Math.ceil((deadline.current - performance.now()) / 1000));
-    valueRef.current = next;
-    commit(next);
-    setRunning(false);
-  };
-
-  const reset = () => {
-    setRunning(false);
-    setCompleted(false);
-    setError(null);
-    valueRef.current = duration;
-    try {
-      runtime.reset(node);
-    } catch {
-      /* A disposed runtime has no state to restore. */
-    }
-  };
-
-  return (
-    <div
-      className="local-timer"
-      role="group"
-      aria-label={label}
-      aria-invalid={validation.invalid || undefined}
-      aria-describedby={validation.describedBy}
-    >
-      <div className="local-timer-head">
-        <span className="md-label">{label}</span>
-        <span
-          className="local-timer-value"
-          role="timer"
-          aria-label={t(`${remaining} seconds remaining`, `剩余 ${remaining} 秒`)}
-        >
-          {formatSeconds(remaining, t)}
-        </span>
-      </div>
-      <div className="local-timer-controls">
-        <button
-          type="button"
-          className="md-button md-button-primary"
-          onClick={start}
-          disabled={running}
-        >
-          {t('Start', '开始')}
-        </button>
-        <button
-          type="button"
-          className="md-button md-button-secondary"
-          onClick={pause}
-          disabled={!running}
-        >
-          {t('Pause', '暂停')}
-        </button>
-        <button type="button" className="md-button md-button-quiet" onClick={reset}>
-          {t('Reset', '重置')}
-        </button>
-      </div>
-      <span className="local-timer-status" role="status" aria-live="polite">
-        {completed
-          ? t('Completed', '计时完成')
-          : running
-            ? t('Running', '计时中')
-            : t('Paused', '已暂停')}
-      </span>
-      <PrintValue value={formatSeconds(remaining, t)} />
-      <FieldError message={error} />
-    </div>
-  );
-}
-
-function ProgressView({ node }: LocalComponentProps) {
-  const { runtime } = useLocal();
-  const t = useLocalize();
-  const label = textAttr(runtime, node, 'label', t('Progress', '进度'), t);
-  const max = numberAttr(runtime, node, 'max', 100);
-  const read = readAttr(runtime, node, 'value');
-
-  if (!Number.isFinite(max) || max <= 0) {
-    return <LocalError message={t('Progress maximum must be positive', '进度上限必须是正数')} />;
-  }
-  if (!read.present || !read.ok) return <LocalError />;
-  const raw = read.value;
-  const numeric = typeof raw === 'number'
-    ? raw
-    : typeof raw === 'string' && raw.trim() !== ''
-      ? Number(raw)
-      : Number.NaN;
-  if (!Number.isFinite(numeric)) return <LocalError />;
-  if (numeric < 0 || numeric > max) {
-    return (
-      <LocalError
-        message={t(
-          `Progress value must be between 0 and ${max}`,
-          `进度值需要在 0 到 ${max} 之间`,
-        )}
-      />
-    );
-  }
-  const percent = (numeric / max) * 100;
-  const color = localColor(node);
-
-  return (
-    <div
-      className="local-progress"
-      style={color ? ({ '--local-progress-color': color } as CSSProperties) : undefined}
-    >
-      <div className="local-progress-head">
-        <span className="md-label">{label}</span>
-        <span className="local-progress-value">{Math.round(percent)}%</span>
-      </div>
-      <div
-        className="local-progress-track"
-        role="progressbar"
-        aria-label={label || t('Progress', '进度')}
-        aria-valuemin={0}
-        aria-valuemax={max}
-        aria-valuenow={numeric}
-      >
-        <div className="local-progress-fill" style={{ width: `${percent}%` }} />
-      </div>
-    </div>
-  );
-}
-
-/* ---------------------------------------------------------------- layout */
-
-function PanelView({ node, visible }: LocalComponentProps) {
-  const { runtime, render, mode } = useLocal();
-  const t = useLocalize();
-  const title = textAttr(runtime, node, 'title', '', t);
-  const resettable = boolAttr(runtime, node, 'reset', true);
-  const showReset = resettable && mode !== 'static';
-  const [error, setError] = useState<string | null>(null);
-
-  const reset = () => {
-    try {
-      runtime.reset(node);
-      setError(null);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('Cannot reset', '无法恢复默认'));
-    }
-  };
-
-  return (
-    <section className="local-panel" aria-label={title || t('Parameter panel', '参数面板')}>
-      {title || showReset ? (
-        <div className="local-panel-head">
-          {title ? <h3 className="local-panel-title">{title}</h3> : <span />}
-          {showReset ? (
-            <button
-              type="button"
-              className="md-button md-button-quiet local-panel-reset"
-              onClick={reset}
-              aria-label={title ? t(`Reset ${title}`, `${title} 恢复默认`) : t('Reset', '恢复默认')}
-            >
-              {t('Reset', '恢复默认')}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      <div className="local-panel-body">{render(node.children ?? [], visible)}</div>
-      <FieldError message={error} />
-    </section>
-  );
-}
-
-function CardView({ node, visible }: LocalComponentProps) {
-  const { runtime, render } = useLocal();
-  const t = useLocalize();
-  const title = textAttr(runtime, node, 'title', '', t);
-  return (
-    <section className="md-card local-card">
-      {title ? <h3 className="md-card-title">{title}</h3> : null}
-      <div className="md-card-body">{render(node.children ?? [], visible)}</div>
-    </section>
-  );
-}
-
-function GridView({ node, visible }: LocalComponentProps) {
-  const { runtime, render } = useLocal();
-  const columns = Math.min(4, Math.max(1, Math.floor(numberAttr(runtime, node, 'columns', 2))));
-  const style = { '--local-grid-columns': String(columns) } as CSSProperties;
-  return (
-    <div className="local-grid" style={style}>
-      {render(node.children ?? [], visible)}
-    </div>
-  );
-}
-
-function TabView({ node, visible }: LocalComponentProps) {
-  const { render } = useLocal();
-  return <div className="local-tabpanel-body">{render(node.children ?? [], visible)}</div>;
-}
-
-function EdgeView() {
-  return null;
-}
-
-function TabsView({ node, visible }: LocalComponentProps) {
-  const domId = useId();
-  const { runtime, render, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '', t);
-  const validation = useValidationField(node);
-  const tabs = (node.children ?? []).filter(
-    (child) => child.type === 'component' && child.name === 'tab',
-  );
-  const values = tabs.map((tab, index) => rawAttr(tab, 'value') ?? `tab-${index + 1}`);
-  const labels = tabs.map((tab, index) => textAttr(runtime, tab, 'label', values[index], t));
-  const initial = rawAttr(node, 'initial') ?? values[0] ?? '';
-  const bound = rawAttr(node, 'bind') !== undefined;
-  const stored = currentValue(runtime, node);
-  const boundValue = typeof stored === 'string' ? stored : '';
-  const [selected, setSelected] = useState(() => (values.includes(initial) ? initial : values[0] ?? ''));
-  const refs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  useResetToken(runtime, node, () => {
-    setSelected(values.includes(initial) ? initial : values[0] ?? '');
-  });
-
-  if (tabs.length === 0) {
-    return <LocalError message={t('Tabs requires at least one tab', '标签页至少需要一个 tab')} />;
-  }
-
-  // Static tabs render every panel under its own label. This keeps all content
-  // available to the reader/export instead of silently dropping inactive tabs;
-  // no tab buttons or tablist semantics remain.
-  if (mode === 'static') {
-    return (
-      <section className="local-tabs local-static-tabs" aria-label={label || t('Tabs', '选项卡')}>
-        {label ? <div className="local-tabs-label">{label}</div> : null}
-        {tabs.map((tab, index) => (
-          <section className="local-static-tab" key={tab.id}>
-            <h4 className="local-static-tab-label">{labels[index]}</h4>
-            <div className="local-static-tab-body">{render(tab.children ?? [], visible)}</div>
-          </section>
-        ))}
-      </section>
-    );
-  }
-
-  const current = bound
-    ? values.includes(boundValue) ? boundValue : values[0]
-    : values.includes(selected) ? selected : values[0];
-  const activeIndex = Math.max(0, values.indexOf(current));
-
-  const choose = (index: number) => {
-    const value = values[index];
-    if (value === undefined) return;
-    if (bound) write(value);
-    else setSelected(value);
-    refs.current[index]?.focus();
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    let next = -1;
-    if (event.key === 'ArrowRight') next = (activeIndex + 1) % tabs.length;
-    else if (event.key === 'ArrowLeft') next = (activeIndex - 1 + tabs.length) % tabs.length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = tabs.length - 1;
-    if (next < 0) return;
-    event.preventDefault();
-    choose(next);
-  };
-
-  return (
-    <section
-      className="local-tabs"
-      aria-label={label || t('Tabs', '选项卡')}
-      aria-invalid={validation.invalid || undefined}
-      aria-describedby={validation.describedBy}
-    >
-      {label ? <div className="local-tabs-label">{label}</div> : null}
-      <div
-        className="local-tablist"
-        role="tablist"
-        aria-label={label || t('Tabs', '选项卡')}
-        onKeyDown={onKeyDown}
-      >
-        {tabs.map((tab, index) => {
-          const value = values[index];
-          const active = value === current;
-          return (
-            <button
-              key={tab.id}
-              ref={(element) => {
-                refs.current[index] = element;
-              }}
-              id={`${domId}-tab-${index}`}
-              type="button"
-              role="tab"
-              className={`local-tab${active ? ' is-selected' : ''}`}
-              aria-selected={active}
-              aria-controls={`${domId}-panel-${index}`}
-              tabIndex={active ? 0 : -1}
-              onClick={() => {
-                if (bound) write(value);
-                else setSelected(value);
-              }}
-            >
-              {labels[index]}
-            </button>
-          );
-        })}
-      </div>
-      {tabs.map((tab, index) => {
-        const value = values[index];
-        const active = value === current;
-        return (
-          <div
-            key={tab.id}
-            id={`${domId}-panel-${index}`}
-            className="local-tabpanel"
-            role="tabpanel"
-            aria-labelledby={`${domId}-tab-${index}`}
-            tabIndex={0}
-            hidden={!active}
-          >
-            <PrintValue block value={labels[index]} />
-            {render(tab.children ?? [], visible && active)}
-          </div>
-        );
-      })}
-      <FieldError message={error} />
-    </section>
-  );
-}
-
-function AccordionView({ node, visible }: LocalComponentProps) {
-  const { runtime, render } = useLocal();
-  const t = useLocalize();
-  const label = textAttr(runtime, node, 'label', '', t);
-  return (
-    <div className="local-accordion" role="group" aria-label={label || t('Accordion', '折叠面板')}>
-      {label ? <div className="local-accordion-label">{label}</div> : null}
-      {render(node.children ?? [], visible)}
-    </div>
   );
 }
 
@@ -3652,1299 +1878,21 @@ function HtmlDetailsView({ node, visible }: LocalComponentProps) {
   );
 }
 
-function DisclosureView({ node, visible }: LocalComponentProps) {
-  const domId = useId();
-  const { runtime, render, mode } = useLocal();
-  const t = useLocalize();
-  const label = textAttr(runtime, node, 'label', t('Details', '折叠内容'), t);
-  const initialOpen = boolAttr(runtime, node, 'open', false);
-  const [open, setOpen] = useState(initialOpen);
 
-  useResetToken(runtime, node, () => {
-    setOpen(initialOpen);
-  });
-
-  // Static disclosures always expose their content; the trigger button and
-  // open/closed state are interaction-only.
-  if (mode === 'static') {
-    return (
-      <section className="local-disclosure local-static-disclosure">
-        <h3 className="local-disclosure-heading">{label}</h3>
-        <div className="local-disclosure-panel">{render(node.children ?? [], visible)}</div>
-      </section>
-    );
-  }
-
-  const triggerId = `${domId}-disclosure-trigger`;
-  const panelId = `${domId}-disclosure-panel`;
-
-  return (
-    <div className="local-disclosure">
-      <h3 className="local-disclosure-heading">
-        <button
-          id={triggerId}
-          type="button"
-          className="local-disclosure-trigger"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={() => setOpen((value) => !value)}
-        >
-          <span className={`local-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
-            ▸
-          </span>
-          <span>{label}</span>
-        </button>
-        <PrintValue value={label} />
-      </h3>
-      <div
-        id={panelId}
-        className="local-disclosure-panel"
-        role="region"
-        aria-labelledby={triggerId}
-        hidden={!open}
-      >
-        {render(node.children ?? [], visible && open)}
-      </div>
-    </div>
-  );
+/** Compatibility helper; controls use the public component implementation. */
+export function textProblem(value: string, options: Parameters<typeof componentTextProblem>[1], t: Localize = defaultLocalize): string | null {
+  return componentTextProblem(value, options, t);
 }
 
-function IfView({ node, visible }: LocalComponentProps) {
-  const { runtime, render } = useLocal();
-  const t = useLocalize();
-  const result = readBooleanAttr(runtime, node, 'when', false);
-  const when = result.ok ? result.value : false;
-  const conditionError = !result.ok;
-  const container = useRef<HTMLDivElement>(null);
-  const wasVisible = useRef(when);
-  const hadFocus = useRef(false);
-
-  useEffect(() => {
-    if (wasVisible.current && !when) {
-      if (hadFocus.current) {
-        const target = container.current?.closest('.local-document') as HTMLElement | null;
-        if (target) {
-          target.tabIndex = -1;
-          target.focus({ preventScroll: true });
-        }
-      }
-      hadFocus.current = false;
-    }
-    wasVisible.current = when;
-  }, [when]);
-
-  return (
-    <>
-      {conditionError ? <LocalError /> : null}
-      <div
-        ref={container}
-        className="local-if md-if"
-        role="group"
-        aria-label={t('Conditional content', '条件内容')}
-        tabIndex={-1}
-        hidden={!when}
-        aria-hidden={!when}
-        onFocus={() => {
-          hadFocus.current = true;
-        }}
-        onBlur={(event) => {
-          if (!container.current?.contains(event.relatedTarget as Node | null)) {
-            hadFocus.current = false;
-          }
-        }}
-      >
-        {render(node.children ?? [], visible && when)}
-      </div>
-    </>
-  );
-}
-
-/* --------------------------------------------------------------- feedback */
-
-function ToneProblem() {
-  const t = useLocalize();
-  return (
-    <span className="local-error local-tone-error" role="status">
-      {t('Invalid tone; using the default style', '色调无效，已使用默认样式')}
-    </span>
-  );
-}
-
-function AlertView({ node, visible }: LocalComponentProps) {
-  const { runtime, render } = useLocal();
-  const t = useLocalize();
-  const title = textAttr(runtime, node, 'title', '', t);
-  const { tone, error } = toneAttr(
-    runtime,
-    node,
-    'tone',
-    ['info', 'success', 'warning'] as const,
-    'info',
-  );
-  const role = tone === 'warning' ? 'alert' : 'status';
-  return (
-    <>
-      {error ? <ToneProblem /> : null}
-      <div className={`local-alert local-alert-${tone}`} role={role}>
-        {title ? <div className="local-alert-title">{title}</div> : null}
-        <div className="local-alert-body">{render(node.children ?? [], visible)}</div>
-      </div>
-    </>
-  );
-}
-
-function BadgeView({ node, visible }: LocalComponentProps) {
-  const local = useLocal();
-  const { runtime } = local;
-  const { tone, error } = toneAttr(
-    runtime,
-    node,
-    'tone',
-    ['neutral', 'success', 'warning'] as const,
-    'neutral',
-  );
-  const color = localColor(node);
-  return (
-    <>
-      {error ? <ToneProblem /> : null}
-      <span
-        className={`md-badge md-badge-${tone} local-badge`}
-        style={color ? { color } : undefined}
-      >
-        {renderInlineNodes(local, node.children, visible)}
-      </span>
-    </>
-  );
-}
-
-function TooltipView({ node, visible }: LocalComponentProps) {
-  const domId = useId();
-  const local = useLocal();
-  const { runtime, mode } = local;
-  const t = useLocalize();
-  const text = textAttr(runtime, node, 'text', t('Tooltip', '提示'), t);
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLSpanElement>(null);
-  const bubbleRef = useRef<HTMLSpanElement>(null);
-  const bubbleId = `${domId}-tooltip`;
-
-  useEffect(() => {
-    const bubble = bubbleRef.current;
-    const trigger = triggerRef.current;
-    if (!open || mode === 'static' || !bubble || !trigger) return;
-    const position = () => {
-      const rect = bubble.getBoundingClientRect();
-      const anchor = trigger.getBoundingClientRect();
-      const gap = Number.parseFloat(getComputedStyle(bubble).getPropertyValue('--space-2')) || 8;
-      const left = Math.max(8, Math.min(anchor.left, window.innerWidth - rect.width - 8));
-      const above = anchor.top - rect.height - gap;
-      const top = above >= 8 ? above : Math.max(8, Math.min(anchor.bottom + gap, window.innerHeight - rect.height - 8));
-      bubble.style.left = `${left}px`;
-      bubble.style.top = `${top}px`;
-    };
-    position();
-    window.addEventListener('resize', position);
-    window.addEventListener('scroll', position, { capture: true, passive: true });
-    const observer = new ResizeObserver(position);
-    observer.observe(trigger);
-    observer.observe(bubble);
-    return () => {
-      window.removeEventListener('resize', position);
-      window.removeEventListener('scroll', position, true);
-      observer.disconnect();
-    };
-  }, [open, text, mode]);
-
-  if (mode === 'static') {
-    return (
-      <span className="local-tooltip local-static-tooltip">
-        <span className="local-tooltip-trigger">
-          {renderInlineNodes(local, node.children, visible)}
-        </span>
-        <span className="local-tooltip-bubble is-visible" role="note">
-          {text}
-        </span>
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className="local-tooltip"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <span
-        className="local-tooltip-trigger"
-        ref={triggerRef}
-        tabIndex={0}
-        aria-describedby={bubbleId}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        onKeyDown={(event: KeyboardEvent<HTMLSpanElement>) => {
-          if (event.key === 'Escape') {
-            event.stopPropagation();
-            setOpen(false);
-          }
-        }}
-      >
-        {renderInlineNodes(local, node.children, visible)}
-      </span>
-      <span
-        id={bubbleId}
-        ref={bubbleRef}
-        role="tooltip"
-        className={`local-tooltip-bubble${open ? ' is-visible' : ''}`}
-      >
-        {text}
-      </span>
-      <PrintValue value={text} />
-    </span>
-  );
-}
-
-/* ------------------------------------------------------ inline additions */
-
-function JumpView({ node, visible }: LocalComponentProps) {
-  const domId = useId();
-  const local = useLocal();
-  const { anchors, rootRef, runtime, urlPolicy, mode } = local;
-  const t = useLocalize();
-  const feedbackId = `${domId}-jump-feedback`;
-  const [message, setMessage] = useState<string | null>(null);
-  const to = rawAttr(node, 'to') ?? '';
-  const target = anchors.targetId(to);
-  const appearance = rawAttr(node, 'appearance') === 'button' ? 'button' : 'link';
-  const color = localColor(node);
-  const href = target ? `#${target}` : '#';
-  let allowed = target !== undefined;
-  if (allowed && urlPolicy) {
-    try {
-      // Internal fragments still pass through the host's link allowlist.
-      allowed = urlPolicy(`#${to}`, 'link') === true;
-    } catch {
-      allowed = false;
-    }
-  }
-
-  useResetToken(runtime, node, () => setMessage(null));
-
-  // Static jumps keep native fragment navigation where the host policy allows
-  // it; blocked or missing targets degrade to plain inline text with no
-  // handler, no fake href and no button appearance.
-  if (mode === 'static') {
-    if (allowed && target) {
-      return (
-        <a
-          href={`#${target}`}
-          className="local-jump local-jump-link local-jump-static"
-          style={accentStyle(color)}
-        >
-          {renderInlineNodes(local, node.children, visible)}
-        </a>
-      );
-    }
-    return (
-      <span className="local-jump local-jump-static-blocked" style={accentStyle(color)}>
-        {renderInlineNodes(local, node.children, visible)}
-      </span>
-    );
-  }
-
-  const onJump = (event: ReactMouseEvent<HTMLAnchorElement>) => {
-    if (!allowed || !target) {
-      event.preventDefault();
-      setMessage(
-        target
-          ? t('Jump is blocked by the host', '跳转已被主机策略阻止')
-          : t('Jump target not found', '找不到跳转目标'),
-      );
-      return;
-    }
-    const root = rootRef.current;
-    if (!root) return;
-    // Modified clicks keep native link behavior (new tab, download, etc.).
-    if (
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey
-    ) {
-      return;
-    }
-    let element: HTMLElement | null = null;
-    try {
-      // Attribute lookup stays inside this document instance; never the page.
-      element = root.querySelector<HTMLElement>(`[id="${target}"]`);
-    } catch {
-      element = null;
-    }
-    if (!element) {
-      event.preventDefault();
-      setMessage(t('Jump target not found', '找不到跳转目标'));
-      return;
-    }
-    if (element.closest('[hidden]')) {
-      event.preventDefault();
-      setMessage(t('Jump target is hidden', '跳转目标当前隐藏'));
-      return;
-    }
-    event.preventDefault();
-    if (!element.hasAttribute('tabindex')) element.tabIndex = -1;
-    try {
-      element.focus({ preventScroll: true });
-    } catch {
-      /* Focus support is best-effort. */
-    }
-    let behavior: ScrollBehavior = 'smooth';
-    try {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) behavior = 'auto';
-    } catch {
-      behavior = 'auto';
-    }
-    try {
-      element.scrollIntoView({ behavior, block: 'start' });
-    } catch {
-      /* Older engines may not support smooth scrolling. */
-    }
-    setMessage(null);
-  };
-
-  return (
-    <>
-      <a
-        href={allowed ? href : '#'}
-        className={`local-jump local-jump-${appearance}`}
-        style={accentStyle(color)}
-        data-local-target-missing={target ? undefined : 'true'}
-        data-local-jump-blocked={target && !allowed ? 'true' : undefined}
-        aria-describedby={message ? feedbackId : undefined}
-        onClick={onJump}
-      >
-        {renderInlineNodes(local, node.children, visible)}
-      </a>
-      {message ? (
-        <span
-          id={feedbackId}
-          className="local-jump-feedback"
-          role="status"
-          aria-live="polite"
-        >
-          {message}
-        </span>
-      ) : null}
-    </>
-  );
-}
-
-function AnchorView({ node }: LocalComponentProps) {
-  const { anchors } = useLocal();
-  const id = anchors.anchorIds.get(node);
-  if (!id) return null;
-  return <span className="local-anchor" id={id} data-local-anchor="" />;
-}
-
-function TextView({ node, visible }: LocalComponentProps) {
-  const local = useLocal();
-  const color = localColor(node);
-  return (
-    <span className="local-text" style={color ? { color } : undefined}>
-      {renderInlineNodes(local, node.children, visible)}
-    </span>
-  );
-}
-
-function SectionView({ node, visible }: LocalComponentProps) {
-  const { render } = useLocal();
-  const color = localColor(node);
-  return (
-    <div className="local-section" style={color ? { color } : undefined}>
-      {render(node.children ?? [], visible)}
-    </div>
-  );
-}
-
-/* --------------------------------------------------------------- controls */
-
-function MultiSelectView({ node, visible }: LocalComponentProps) {
-  const domId = useId();
-  const local = useLocal();
-  const { runtime, mode } = local;
-  const t = useLocalize();
-  const { write, error, setError } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Multi select', '多选'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const options = readOptions(node);
-  const stored = currentValue(runtime, node);
-  const selected = Array.isArray(stored)
-    ? stored.filter((value): value is string => typeof value === 'string')
-    : [];
-  const selectedLabels = options
-    .filter((option) => selected.includes(option.value))
-    .map((option) => optionLabel(runtime, option.node, t) || option.value);
-  const maxRaw = numberAttr(runtime, node, 'max-selected', options.length);
-  const max = Number.isFinite(maxRaw) ? Math.max(0, Math.floor(maxRaw)) : options.length;
-  const [query, setQuery] = useState('');
-  useResetToken(runtime, node, () => {
-    setQuery('');
-    setError(null);
-  });
-
-  if (options.length === 0) {
-    return <LocalError message={t('Missing options', '缺少选项')} />;
-  }
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="local-multi-select"
-        label={label}
-        value={staticText(selectedLabels.join(', '))}
-      />
-    );
-  }
-
-  const chosen = new Set(selected);
-  const atMax = selected.length >= max;
-  const needle = query.trim().toLocaleLowerCase();
-  const matches = needle
-    ? options.filter((option) => {
-        const haystack = `${inlinePlainText(runtime, option.node.children, t)} ${option.value}`;
-        return haystack.toLocaleLowerCase().includes(needle);
-      })
-    : options;
-
-  const toggle = (value: string, checked: boolean) => {
-    const next = new Set(chosen);
-    if (checked) {
-      if (!next.has(value) && next.size >= max) return;
-      next.add(value);
-    } else {
-      // Every selected value stays removable, including at the maximum.
-      next.delete(value);
-    }
-    write(options.filter((option) => next.has(option.value)).map((option) => option.value));
-  };
-
-  const clear = () => {
-    setQuery('');
-    if (selected.length > 0) write([]);
-  };
-
-  return (
-    <fieldset
-      className="local-multi-select"
-      style={accentStyle(localColor(node))}
-      disabled={disabled}
-      aria-invalid={validation.invalid || undefined}
-      aria-describedby={validation.describedBy}
-    >
-      <legend className="md-label">{label}</legend>
-      <div className="local-multi-toolbar">
-        <input
-          id={`${domId}-multi-search`}
-          type="search"
-          className="md-text-input local-multi-search"
-          value={query}
-          placeholder={t('Search options', '搜索选项')}
-          aria-label={t(`Search ${label}`, `搜索${label}`)}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
-        />
-        <button
-          type="button"
-          className="md-button md-button-quiet local-multi-clear"
-          onClick={clear}
-        >
-          {t('Clear', '清除')}
-        </button>
-      </div>
-      <div className="local-multi-list" role="group" aria-label={label}>
-        {matches.length === 0 ? (
-          <span className="local-multi-empty">{t('No matching options', '没有匹配选项')}</span>
-        ) : (
-          matches.map((option) => {
-            const checked = chosen.has(option.value);
-            return (
-              <label
-                key={option.node.id}
-                className={`local-multi-option${checked ? ' is-selected' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={!checked && atMax}
-                  onChange={(event) => toggle(option.value, event.target.checked)}
-                />
-                <span>{renderInlineNodes(local, option.node.children, visible)}</span>
-              </label>
-            );
-          })
-        )}
-      </div>
-      <span className="local-multi-count" role="status" aria-live="polite">
-        {t(`${selected.length} of ${max} selected`, `已选 ${selected.length}/${max}`)}
-      </span>
-      <PrintValue value={staticText(selectedLabels.join(', '))} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
-    </fieldset>
-  );
-}
-
-function RangeSliderView({ node }: LocalComponentProps) {
-  const local = useLocal();
-  const { runtime, mode } = local;
-  const t = useLocalize();
-  const { write, error, setError } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Range', '范围'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const { min, max, step } = numericRange(runtime, node, 'min', 'max', 0, 100, 1);
-  const steps = Math.floor((max - min) / step + 1e-9);
-  const defaultStart = min;
-  const defaultEnd = clamp(min + Math.max(0, steps) * step, min, max);
-  let start = snapToStep(slotNumber(runtime, node, 'start', defaultStart), min, max, step);
-  let end = snapToStep(slotNumber(runtime, node, 'end', defaultEnd), min, max, step);
-  if (start > end) start = end;
-  const [crossing, setCrossing] = useState<string | null>(null);
-  useResetToken(runtime, node, () => {
-    setCrossing(null);
-    setError(null);
-  });
-
-  const startName = t('Start', '起点');
-  const endName = t('End', '终点');
-  const rangeSummary = `${startName}: ${start} · ${endName}: ${end}`;
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="local-range-slider"
-        label={label}
-        value={rangeSummary}
-      />
-    );
-  }
-
-  const commit = (slot: 'start' | 'end', raw: number) => {
-    const value = snapToStep(clamp(raw, min, max), min, max, step);
-    if (slot === 'start' && value > end) {
-      setCrossing(t('Start cannot exceed end', '起点不能超过终点'));
-      return;
-    }
-    if (slot === 'end' && value < start) {
-      setCrossing(t('End cannot be less than start', '终点不能小于起点'));
-      return;
-    }
-    setCrossing(null);
-    write(value, slot);
-  };
-
-  return (
-    <div
-      className="md-control local-range-slider"
-      style={accentStyle(localColor(node))}
-      role="group"
-      aria-label={label}
-      aria-invalid={validation.invalid || undefined}
-      aria-describedby={validation.describedBy}
-    >
-      <span className="md-label">{label}</span>
-      <div className="local-range-row">
-        <span className="local-range-name">{t('Start', '起点')}</span>
-        <input
-          type="range"
-          className="local-range-input"
-          min={min}
-          max={end}
-          step={step}
-          value={start}
-          disabled={disabled}
-          aria-label={`${label} ${t('Start', '起点')}`}
-          onChange={(event: ChangeEvent<HTMLInputElement>) =>
-            commit('start', Number(event.target.value))
-          }
-        />
-        <span className="local-range-value" aria-hidden="true">
-          {start}
-        </span>
-      </div>
-      <div className="local-range-row">
-        <span className="local-range-name">{t('End', '终点')}</span>
-        <input
-          type="range"
-          className="local-range-input"
-          min={start}
-          max={max}
-          step={step}
-          value={end}
-          disabled={disabled}
-          aria-label={`${label} ${t('End', '终点')}`}
-          onChange={(event: ChangeEvent<HTMLInputElement>) =>
-            commit('end', Number(event.target.value))
-          }
-        />
-        <span className="local-range-value" aria-hidden="true">
-          {end}
-        </span>
-      </div>
-      <PrintValue value={rangeSummary} />
-      <FieldError
-        message={disabledInvalid ? t('Cannot compute', '无法计算') : (crossing ?? error)}
-      />
-    </div>
-  );
-}
-
-interface NumberDraftFieldProps {
-  id: string;
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  disabled: boolean;
-  onCommit: (value: number) => void;
-  reset: number;
-}
-
-function NumberDraftField({
-  id,
-  label,
-  value,
-  min,
-  max,
-  step,
-  disabled,
-  onCommit,
-  reset,
-}: NumberDraftFieldProps) {
-  const [draft, setDraft] = useState(() => String(value));
-  const [focused, setFocused] = useState(false);
-  const last = useRef(value);
-  useEffect(() => {
-    setDraft(String(value));
-    setFocused(false);
-  }, [reset]);
-
-  useEffect(() => {
-    if (last.current !== value) {
-      last.current = value;
-      if (!focused) setDraft(String(value));
-    }
-  }, [value, focused]);
-
-  const parse = (text: string): number | null => {
-    const trimmed = text.trim();
-    if (trimmed === '' || trimmed === '-' || trimmed === '.' || trimmed === '-.') return null;
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed)) return null;
-    return snapToStep(clamp(parsed, min, max), min, max, step);
-  };
-
-  return (
-    <div className="local-number-field">
-      <label className="md-label" htmlFor={id}>
-        {label}
-      </label>
-      <input
-        id={id}
-        className="md-text-input"
-        type="text"
-        inputMode="decimal"
-        value={draft}
-        disabled={disabled}
-        onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false);
-          const parsed = parse(draft);
-          setDraft(String(parsed ?? value));
-        }}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          const text = event.target.value;
-          setDraft(text);
-          const parsed = parse(text);
-          if (parsed !== null) onCommit(parsed);
-        }}
-      />
-    </div>
-  );
-}
-
-function CoordinateView({ node }: LocalComponentProps) {
-  const domId = useId();
-  const local = useLocal();
-  const { runtime, mode } = local;
-  const t = useLocalize();
-  const { write, writeMany, error, setError } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', t('Coordinate', '坐标'), t);
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const validation = useValidationField(node);
-  const xRange = numericRange(runtime, node, 'x-min', 'x-max', -5, 5, 1);
-  const yRange = numericRange(runtime, node, 'y-min', 'y-max', -5, 5, 1);
-  const defaultX = snapToStep(0, xRange.min, xRange.max, xRange.step);
-  const defaultY = snapToStep(0, yRange.min, yRange.max, yRange.step);
-  const x = snapToStep(
-    slotNumber(runtime, node, 'x', defaultX),
-    xRange.min,
-    xRange.max,
-    xRange.step,
-  );
-  const y = snapToStep(
-    slotNumber(runtime, node, 'y', defaultY),
-    yRange.min,
-    yRange.max,
-    yRange.step,
-  );
-  const padRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
-  useResetToken(runtime, node, () => setError(null));
-
-  const coordinateSummary = `X: ${x} · Y: ${y}`;
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="local-coordinate"
-        label={label}
-        value={coordinateSummary}
-      />
-    );
-  }
-
-  const projectX = (value: number) => xRange.max > xRange.min
-    ? 40 + ((value - xRange.min) / (xRange.max - xRange.min)) * 320 : 200;
-  const projectY = (value: number) => yRange.max > yRange.min
-    ? 360 - ((value - yRange.min) / (yRange.max - yRange.min)) * 320 : 200;
-  const pointX = projectX(x);
-  const pointY = projectY(y);
-  const axisX = projectX(clamp(0, xRange.min, xRange.max));
-  const axisY = projectY(clamp(0, yRange.min, yRange.max));
-  const gridValues = (range: typeof xRange) => {
-    const stride = range.step * Math.max(1, Math.ceil((range.max - range.min) / (range.step * 10)));
-    const count = Math.min(11, Math.floor((range.max - range.min) / stride) + 1);
-    return Array.from({ length: count }, (_, index) => range.min + index * stride);
-  };
-
-  const pointValue = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const rect = padRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0 || rect.height === 0) return null;
-    // The grid occupies the inner 80% of the SVG, leaving room for arrows and labels.
-    const ratioX = clamp(((event.clientX - rect.left) / rect.width - 0.1) / 0.8, 0, 1);
-    const ratioY = clamp(((event.clientY - rect.top) / rect.height - 0.1) / 0.8, 0, 1);
-    return {
-      x: snapToStep(
-        xRange.min + ratioX * (xRange.max - xRange.min),
-        xRange.min,
-        xRange.max,
-        xRange.step,
-      ),
-      y: snapToStep(
-        yRange.min + (1 - ratioY) * (yRange.max - yRange.min),
-        yRange.min,
-        yRange.max,
-        yRange.step,
-      ),
-    };
-  };
-
-  const moveTo = (nextX: number, nextY: number) => {
-    if (nextX === x && nextY === y) return;
-    writeMany({ x: nextX, y: nextY });
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (disabled) return;
-    let nextX = x;
-    let nextY = y;
-    switch (event.key) {
-      case 'ArrowLeft':
-        nextX = snapToStep(x - xRange.step, xRange.min, xRange.max, xRange.step);
-        break;
-      case 'ArrowRight':
-        nextX = snapToStep(x + xRange.step, xRange.min, xRange.max, xRange.step);
-        break;
-      case 'ArrowDown':
-        nextY = snapToStep(y - yRange.step, yRange.min, yRange.max, yRange.step);
-        break;
-      case 'ArrowUp':
-        nextY = snapToStep(y + yRange.step, yRange.min, yRange.max, yRange.step);
-        break;
-      case 'Home':
-        nextX = xRange.min;
-        nextY = yRange.min;
-        break;
-      case 'End':
-        nextX = snapToStep(xRange.max, xRange.min, xRange.max, xRange.step);
-        nextY = snapToStep(yRange.max, yRange.min, yRange.max, yRange.step);
-        break;
-      default:
-        return;
-    }
-    event.preventDefault();
-    moveTo(nextX, nextY);
-  };
-
-  return (
-    <div
-      className="local-coordinate"
-      style={accentStyle(localColor(node))}
-      role="group"
-      aria-label={label}
-      aria-invalid={validation.invalid || undefined}
-      aria-describedby={validation.describedBy}
-    >
-      <span className="md-label">{label}</span>
-      <div className="local-coordinate-surface">
-      <div
-        ref={padRef}
-        className="local-coordinate-pad"
-        role="group"
-        aria-label={t(`${label} drag area`, `${label} 拖拽区`)}
-        aria-disabled={disabled || undefined}
-        tabIndex={disabled ? -1 : 0}
-        onKeyDown={onKeyDown}
-        onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
-          if (disabled) return;
-          event.preventDefault();
-          dragging.current = true;
-          padRef.current?.focus({ preventScroll: true });
-          try {
-            event.currentTarget.setPointerCapture(event.pointerId);
-          } catch {
-            /* Pointer capture is not available in every environment. */
-          }
-          const point = pointValue(event);
-          if (point) moveTo(point.x, point.y);
-        }}
-        onPointerMove={(event: ReactPointerEvent<HTMLDivElement>) => {
-          if (!dragging.current || disabled) return;
-          const point = pointValue(event);
-          if (point) moveTo(point.x, point.y);
-        }}
-        onPointerUp={(event: ReactPointerEvent<HTMLDivElement>) => {
-          dragging.current = false;
-          try {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-          } catch {
-            /* The pointer may already be released. */
-          }
-        }}
-        onPointerCancel={() => {
-          dragging.current = false;
-        }}
-      >
-        <svg className="local-coordinate-svg" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
-          <defs>
-            <marker id={`${domId}-coordinate-arrow`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" viewBox="0 0 8 8">
-              <path className="local-coordinate-arrow" d="M1 1 L6 4 L1 7" />
-            </marker>
-          </defs>
-          <g className="local-coordinate-grid">
-            <rect x="40" y="40" width="320" height="320" />
-            {gridValues(xRange).map((value, index) => <line key={`x-${index}`} x1={projectX(value)} y1="40" x2={projectX(value)} y2="360" />)}
-            {gridValues(yRange).map((value, index) => <line key={`y-${index}`} x1="40" y1={projectY(value)} x2="360" y2={projectY(value)} />)}
-          </g>
-          <g className="local-coordinate-axes">
-            <line className="local-coordinate-horizontal" x1="26" y1={axisY} x2="372" y2={axisY} markerEnd={`url(#${domId}-coordinate-arrow)`} />
-            <line className="local-coordinate-vertical" x1={axisX} y1="374" x2={axisX} y2="24" markerEnd={`url(#${domId}-coordinate-arrow)`} />
-          </g>
-          <g className="local-coordinate-axis-label">
-            <text x="358" y={axisY - 14}>x</text>
-            <text x={axisX + 12} y="40">y</text>
-          </g>
-          <g className="local-coordinate-projection">
-            <line x1={pointX} y1={pointY} x2={pointX} y2={axisY} />
-            <line x1={pointX} y1={pointY} x2={axisX} y2={pointY} />
-          </g>
-          <circle className="local-coordinate-dot" cx={pointX} cy={pointY} r="10" />
-          <text className="local-coordinate-value" x={pointX} y={pointY > 330 ? pointY - 22 : pointY + 30}
-            textAnchor={pointX < 80 ? 'start' : pointX > 320 ? 'end' : 'middle'}>{`(${x}, ${y})`}</text>
-        </svg>
-      </div>
-      <span className="local-coordinate-caption">{t('Draggable coordinate plane', '可拖动的坐标平面')}</span>
-      </div>
-      <span className="md-hint local-hint">
-        {t(
-          'Arrow keys adjust the point; Home and End jump to the lower or upper bounds.',
-          '方向键调整坐标；Home 和 End 跳到最小或最大边界。',
-        )}
-      </span>
-      <div className="local-coordinate-fields">
-        <NumberDraftField
-          id={`${domId}-coordinate-x`}
-          reset={runtime.resetToken(node)}
-          label={`${label} X`}
-          value={x}
-          min={xRange.min}
-          max={xRange.max}
-          step={xRange.step}
-          disabled={disabled}
-          onCommit={(value) => write(value, 'x')}
-        />
-        <NumberDraftField
-          id={`${domId}-coordinate-y`}
-          reset={runtime.resetToken(node)}
-          label={`${label} Y`}
-          value={y}
-          min={yRange.min}
-          max={yRange.max}
-          step={yRange.step}
-          disabled={disabled}
-          onCommit={(value) => write(value, 'y')}
-        />
-      </div>
-      <PrintValue value={coordinateSummary} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------- quiz */
-
-type QuizResult = 'correct' | 'incorrect' | 'incomplete';
-
-function QuizView({ node, visible }: LocalComponentProps) {
-  const domId = useId();
-  const local = useLocal();
-  const { runtime, mode } = local;
-  const t = useLocalize();
-  const label = textAttr(runtime, node, 'label', t('Quiz', '测验'), t);
-  const type = rawAttr(node, 'type') === 'number' ? 'number' : 'choice';
-  const answer = (rawAttr(node, 'answer') ?? '').trim();
-  const toleranceRaw = numberAttr(runtime, node, 'tolerance', 0);
-  const tolerance =
-    Number.isFinite(toleranceRaw) && toleranceRaw >= 0 ? toleranceRaw : 0;
-  const { disabled, invalid: disabledInvalid } = useDisabled(node);
-  const options = readOptions(node);
-  const explanation = textAttr(runtime, node, 'explanation', '', t);
-  const [draft, setDraft] = useState('');
-  const [result, setResult] = useState<QuizResult | null>(null);
-
-  useResetToken(runtime, node, () => {
-    setDraft('');
-    setResult(null);
-  });
-
-  const numericAnswer = type === 'number' ? Number(answer) : Number.NaN;
-  if (type === 'number' && !Number.isFinite(numericAnswer)) {
-    return <LocalError message={t('Quiz answer must be a number', '测验答案必须是数字')} />;
-  }
-  if (type === 'choice' && options.length === 0) {
-    return <LocalError message={t('Missing options', '缺少选项')} />;
-  }
-
-  const optionLabels = options.map((option) => optionLabel(runtime, option.node, t) || option.value);
-
-  // Static quizzes expose the prompt and options as readable text. Answers,
-  // checking actions and explanations only exist after interaction, so none of
-  // the action controls are rendered.
-  if (mode === 'static') {
-    return (
-      <div className="local-quiz local-static-quiz" role="group" aria-label={label}>
-        <span className="md-label">{label}</span>
-        {type === 'choice' ? (
-          <ul className="local-static-list local-static-quiz-options">
-            {options.map((option) => (
-              <li key={option.node.id} className="local-static-list-item">
-                {renderInlineNodes(local, option.node.children, visible)}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <span className="local-static-value">{t('Numeric answer', '数字作答')}</span>
-        )}
-      </div>
-    );
-  }
-
-  const check = () => {
-    if (type === 'choice') {
-      if (draft === '') {
-        setResult('incomplete');
-        return;
-      }
-      setResult(draft === answer ? 'correct' : 'incorrect');
-      return;
-    }
-    const trimmed = draft.trim();
-    const entered = trimmed === '' ? Number.NaN : Number(trimmed);
-    if (!Number.isFinite(entered)) {
-      setResult('incomplete');
-      return;
-    }
-    setResult(Math.abs(entered - numericAnswer) <= tolerance ? 'correct' : 'incorrect');
-  };
-
-  const tryAgain = () => {
-    setDraft('');
-    setResult(null);
-  };
-
-  const feedback =
-    result === null
-      ? null
-      : result === 'correct'
-        ? `${t('Correct', '回答正确')}`
-        : result === 'incorrect'
-          ? `${t('Not quite', '回答不正确')}`
-          : type === 'number'
-            ? t('Enter a number first', '请先输入数字')
-            : t('Choose an answer first', '请先选择答案');
-  const feedbackClass =
-    result === 'correct' ? ' is-correct' : result === 'incorrect' ? ' is-incorrect' : '';
-
-  return (
-    <div className="local-quiz" role="group" aria-label={label}>
-      {type === 'choice' ? (
-        <fieldset className="local-quiz-options" disabled={disabled}>
-          <legend className="md-label">{label}</legend>
-          {options.map((option) => (
-            <label className="local-radio-option" key={option.node.id}>
-              <input
-                type="radio"
-                name={`${domId}-quiz`}
-                value={option.value}
-                checked={draft === option.value}
-                onChange={() => {
-                  setDraft(option.value);
-                  setResult(null);
-                }}
-              />
-              <span>{renderInlineNodes(local, option.node.children, visible)}</span>
-            </label>
-          ))}
-        </fieldset>
-      ) : (
-        <div className="local-quiz-number">
-          <label className="md-label" htmlFor={`${domId}-quiz`}>
-            {label}
-          </label>
-          <input
-            id={`${domId}-quiz`}
-            className="md-text-input local-quiz-input"
-            type="text"
-            inputMode="decimal"
-            value={draft}
-            disabled={disabled}
-            aria-label={label}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => {
-              setDraft(event.target.value);
-              setResult(null);
-            }}
-          />
-        </div>
-      )}
-      <div className="local-quiz-actions">
-        <button
-          type="button"
-          className="md-button md-button-primary local-quiz-check"
-          disabled={disabled}
-          onClick={check}
-        >
-          {t('Check answer', '检查答案')}
-        </button>
-        <button
-          type="button"
-          className="md-button md-button-secondary local-quiz-again"
-          disabled={disabled}
-          onClick={tryAgain}
-        >
-          {t('Try again', '再试一次')}
-        </button>
-      </div>
-      <span
-        className={`local-quiz-feedback${feedbackClass}`}
-        role="status"
-        aria-live="polite"
-      >
-        {feedback ? `${result === 'correct' ? '✓ ' : result === 'incorrect' ? '✗ ' : ''}${feedback}` : ''}
-      </span>
-      {result !== null && explanation ? (
-        <div className="local-quiz-explanation">{explanation}</div>
-      ) : null}
-      <PrintValue
-        block
-        value={
-          type === 'choice'
-            ? `${feedback ? `${feedback} · ` : ''}${optionLabels.join(' · ')}`
-            : feedback || t('No answer yet', '尚未作答')
-        }
-      />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : null} />
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ steps */
-
-function StepsView({ node, visible }: LocalComponentProps) {
-  const domId = useId();
-  const { runtime, render, mode } = useLocal();
-  const t = useLocalize();
-  const { write, error, setError } = useWriter(node);
-  const label = textAttr(runtime, node, 'label', '', t);
-  const validation = useValidationField(node);
-  const steps = (node.children ?? []).filter(
-    (child) => child.type === 'component' && child.name === 'step',
-  );
-  const values = steps.map((step, index) => rawAttr(step, 'value') ?? `step-${index + 1}`);
-  const labels = steps.map((step, index) =>
-    textAttr(runtime, step, 'label', values[index], t),
-  );
-  const initial = rawAttr(node, 'initial') ?? '';
-  const first = values.includes(initial) ? initial : values[0] ?? '';
-  const stored = currentValue(runtime, node);
-  const boundValue = typeof stored === 'string' ? stored : '';
-  const panelRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const focusAfterNavigation = useRef(false);
-
-  useResetToken(runtime, node, () => {
-    setError(null);
-    focusAfterNavigation.current = false;
-  });
-
-  const current = values.includes(boundValue) ? boundValue : first;
-  const activeIndex = Math.max(0, values.indexOf(current));
-
-  useEffect(() => {
-    if (!focusAfterNavigation.current) return;
-    focusAfterNavigation.current = false;
-    panelRefs.current[activeIndex]?.focus({ preventScroll: true });
-  }, [activeIndex, current]);
-
-  if (steps.length === 0) {
-    return <LocalError message={t('Steps requires at least one step', '步骤至少需要一个 step')} />;
-  }
-
-  // Static steps show the current step and its position; navigation controls
-  // are interaction-only and have no read-only equivalent.
-  if (mode === 'static') {
-    const active = steps[activeIndex];
-    return (
-      <section className="local-steps local-static-steps" aria-label={label || t('Steps', '步骤')}>
-        {label ? <div className="local-steps-label">{label}</div> : null}
-        <div className="local-steps-nav local-static-steps-nav">
-          <span className="local-steps-status" role="status" aria-live="polite">
-            {t(`Step ${activeIndex + 1} of ${steps.length}`, `第 ${activeIndex + 1} 步，共 ${steps.length} 步`)}
-          </span>
-        </div>
-        <div className="local-steps-panel" role="group" aria-label={labels[activeIndex]}>
-          {render(active.children ?? [], visible)}
-        </div>
-      </section>
-    );
-  }
-
-  const go = (index: number) => {
-    const value = values[index];
-    if (value === undefined) return;
-    focusAfterNavigation.current = true;
-    write(value);
-  };
-
-  return (
-    <section
-      className="local-steps"
-      aria-label={label || t('Steps', '步骤')}
-      aria-invalid={validation.invalid || undefined}
-      aria-describedby={validation.describedBy}
-    >
-      {label ? <div className="local-steps-label">{label}</div> : null}
-      <div className="local-steps-nav">
-        <button
-          type="button"
-          className="md-button md-button-secondary local-steps-prev"
-          disabled={activeIndex <= 0}
-          onClick={() => go(activeIndex - 1)}
-        >
-          {t('Previous', '上一步')}
-        </button>
-        <span className="local-steps-status" role="status" aria-live="polite">
-          {t(`Step ${activeIndex + 1} of ${steps.length}`, `第 ${activeIndex + 1} 步，共 ${steps.length} 步`)}
-        </span>
-        <button
-          type="button"
-          className="md-button md-button-secondary local-steps-next"
-          disabled={activeIndex >= steps.length - 1}
-          onClick={() => go(activeIndex + 1)}
-        >
-          {t('Next', '下一步')}
-        </button>
-      </div>
-      {steps.map((step, index) => {
-        const active = index === activeIndex;
-        return (
-          <div
-            key={step.id}
-            id={`${domId}-step-${index}`}
-            ref={(element) => {
-              panelRefs.current[index] = element;
-            }}
-            className="local-steps-panel"
-            role="group"
-            aria-label={labels[index]}
-            tabIndex={-1}
-            hidden={!active}
-          >
-            {render(step.children ?? [], visible && active)}
-          </div>
-        );
-      })}
-      <FieldError message={error} />
-    </section>
-  );
-}
-
-function StepView() {
-  return null;
-}
-
-/* Exported for registry-coverage tests only; package entry points do not
- * re-export these registries. */
-export const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNode> = {
-  panel: PanelView,
-  card: CardView,
-  grid: GridView,
-  tabs: TabsView,
-  tab: TabView,
-  accordion: AccordionView,
-  disclosure: DisclosureView,
-  if: IfView,
-  alert: AlertView,
-  badge: BadgeView,
-  validation: ValidationView,
-  column: ColumnView,
-  tooltip: TooltipView,
-  input: InputView,
-  textarea: TextareaView,
-  number: NumberView,
-  slider: SliderView,
-  toggle: ToggleView,
-  checkbox: CheckboxView,
-  date: DateView,
-  select: SelectView,
-  choices: ChoicesView,
-  'radio-group': RadioGroupView,
-  option: OptionView,
-  node: TabView,
-  edge: EdgeView,
-  counter: CounterView,
-  timer: TimerView,
-  checklist: ChecklistView,
-  progress: ProgressView,
-  jump: JumpView,
-  anchor: AnchorView,
-  text: TextView,
-  section: SectionView,
-  'multi-select': MultiSelectView,
-  'range-slider': RangeSliderView,
-  coordinate: CoordinateView,
-  quiz: QuizView,
-  steps: StepsView,
-  step: StepView,
-};
+/* Derived compatibility data for older coverage tests. Active rendering uses
+ * the unified manifest index (`componentRenderer`), never this table. */
+const COMPATIBILITY_SPECIALS = new Set(['computed', 'const', 'external', 'data-table']);
+export const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNode> =
+  Object.freeze(Object.fromEntries(
+    LOCAL_COMPONENT_NAMES
+      .filter((name) => !VISUAL_COMPONENTS.has(name) && !COMPATIBILITY_SPECIALS.has(name))
+      .map((name) => [name, () => null]),
+  ));
 
 /* --------------------------------------------------------------- endnotes */
 
@@ -5066,6 +2014,9 @@ function LocalDocumentViewHtml({ document, mode = 'interactive', staticFirst = f
 /** Keep the two render paths in separate components so mode changes obey hook ordering. */
 export function LocalDocumentView(props: LocalDocumentViewProps) {
   assertExtensionProps(props.reactConfig, props);
+  // One render pass: static prop diagnostics are deduplicated inside it and
+  // reset for the next independent render/SSR pass.
+  beginLocalComponentRender(props.runtime);
   return props.document.html
     ? <LocalDocumentViewHtml {...props} />
     : <LocalDocumentViewLocal {...props} />;
@@ -5100,14 +2051,23 @@ function LocalDocumentViewLocal({
     () => (en: string, zh: string) => localize(locale, en, zh),
     [locale],
   );
+  // Installed contracts also own navigation semantics.
+  const effectiveReactConfig = useMemo(
+    () => reactConfig ?? getBuiltinReactConfig(),
+    [reactConfig],
+  );
+  const registry = useMemo(() => {
+    try { return getLocalComponentRegistry(effectiveReactConfig.config); }
+    catch { return []; }
+  }, [effectiveReactConfig]);
   // Anchor ids, footnote numbering and dependency analysis are projections of
   // the document: a prose-only edit keeps their identity, so the render
   // environment (and every memoized block) stays stable.
   const anchors = useProjectedMemo(
     document,
-    projectAnchors,
+    value => projectAnchors(value, registry),
     sameAnchorProjection,
-    () => createHeadingAnchors(document, `local-heading-${instanceId}`),
+    () => createHeadingAnchors(document, `local-heading-${instanceId}`, true, registry),
   );
   // Numbering and ids are instance-scoped: two documents on one page never
   // share footnote targets, and every reference keeps a stable id.
@@ -5127,22 +2087,49 @@ function LocalDocumentViewLocal({
     reportRef.current?.(diagnostics);
   }, []);
 
+  // Builtin components always render through the public manifest index. When
+  // the host supplies a React config it already carries the same preset, so
+  // one lookup path serves default and external components.
+  const definitions = useMemo(() => {
+    // Installed manifests own rendering semantics. Carried definitions are
+    // validated by the contract preflight below but never override the
+    // installed registry.
+    const map = new Map<string, LocalComponentDefinition>();
+    for (const definition of registry) map.set(definition.name, definition);
+    return map;
+  }, [registry]);
+
   // The document's extension requirements select installed implementations.
   // A mismatch is reported and keeps the placeholders visible instead of
   // executing a component whose manifest no longer matches. Requirements are
   // compared by content so an unchanged recompile keeps the renderer stable.
   const extensionKey = useMemo(() => {
     try {
-      return `${reactConfig?.config.key ?? 'none'}\u0000${JSON.stringify(document.extensions ?? null)}`;
+      return `${effectiveReactConfig.config.key}\u0000${JSON.stringify(document.extensions ?? null)}`;
     } catch {
-      return `${reactConfig?.config.key ?? 'none'}\u0000unreadable`;
+      return `${effectiveReactConfig.config.key}\u0000unreadable`;
     }
-  }, [reactConfig, document.extensions]);
+  }, [effectiveReactConfig, document.extensions]);
   const extensionCheck = useMemo(() => {
-    const diagnostics = validateLocalExtensionRequirements(document.extensions, reactConfig?.config);
+    const diagnostics = validateLocalExtensionRequirements(
+      document.extensions,
+      effectiveReactConfig.config,
+    );
     return { valid: diagnostics.length === 0, diagnostics };
-  }, [reactConfig, extensionKey]);
-  const extensionDiagnostics = extensionCheck.diagnostics;
+  }, [effectiveReactConfig, extensionKey]);
+  // Carried contracts are validated against the installed manifests. The
+  // installed registry still owns rendering semantics; mismatches surface as
+  // diagnostics before the component tree is mounted.
+  const contractCheck = useMemo(() => validateLocalComponentContracts({
+    document,
+    installed: registry,
+    externalNames: new Set(effectiveReactConfig.config.components.map(definition => definition.name)),
+  }), [document, registry, effectiveReactConfig]);
+  const extensionDiagnostics = useMemo(
+    () => [...extensionCheck.diagnostics, ...contractCheck],
+    [extensionCheck, contractCheck],
+  );
+  const extensionContractsValid = extensionDiagnostics.length === 0;
   const extensionReport = useRef('');
   useEffect(() => {
     const signature = diagnosticsSignature(extensionDiagnostics);
@@ -5151,11 +2138,15 @@ function LocalDocumentViewLocal({
     extensionReport.current = signature;
     if (extensionDiagnostics.length > 0 || hadPrevious) report(extensionDiagnostics);
   }, [extensionDiagnostics, report]);
+  const componentRenderer = useMemo(
+    () => localReactExtensionRenderer(extensionContractsValid ? effectiveReactConfig : getBuiltinReactConfig()),
+    [effectiveReactConfig, extensionContractsValid],
+  );
   const extensionRenderer = useMemo(
-    () => (reactConfig !== undefined && extensionCheck.valid
-      ? localReactExtensionRenderer(reactConfig)
+    () => (reactConfig !== undefined && extensionContractsValid
+      ? localReactExtensionRenderer(effectiveReactConfig)
       : undefined),
-    [reactConfig, extensionCheck.valid],
+    [reactConfig, effectiveReactConfig, extensionContractsValid],
   );
   const effectiveThemes = reactConfig?.themes ?? themes;
 
@@ -5286,17 +2277,21 @@ function LocalDocumentViewLocal({
       urlPolicy,
       imageResolver,
       hostData,
-      hostRenderer: extensionCheck.valid ? hostRenderer : undefined,
+      hostRenderer: extensionContractsValid ? hostRenderer : undefined,
       extensionRenderer,
+      componentRenderer,
+      definitions,
       anchors,
       t,
+      locale,
       mode: renderedMode,
       dependencies: dependencyIndex,
       footnotes,
       sourceNavigation,
+      validation,
       report,
     }),
-    [runtime, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, extensionCheck.valid, extensionRenderer, anchors, t, renderedMode, dependencyIndex, footnotes, sourceNavigation, report],
+    [runtime, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, extensionContractsValid, extensionRenderer, componentRenderer, definitions, anchors, t, locale, renderedMode, dependencyIndex, footnotes, sourceNavigation, validation, report],
   );
 
   // Revision-independent deps keep this closure and the provider value stable
@@ -5311,6 +2306,8 @@ function LocalDocumentViewLocal({
     () => ({
       runtime,
       render,
+      definitions,
+      locale,
       visible: true,
       mode: renderedMode,
       imageResolver,
@@ -5324,7 +2321,7 @@ function LocalDocumentViewLocal({
       footnotes,
       sourceNavigation,
     }),
-    [runtime, render, report, urlPolicy, imageResolver, renderedMode, anchors, rootRef, t, validation, dependencyIndex, footnotes, sourceNavigation],
+    [runtime, render, definitions, locale, report, urlPolicy, imageResolver, renderedMode, anchors, rootRef, t, validation, dependencyIndex, footnotes, sourceNavigation],
   );
 
   return (

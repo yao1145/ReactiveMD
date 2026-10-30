@@ -482,21 +482,21 @@ SSR HTML, class names and DOM structure in machine acceptance are evidence for t
 
 New components must check the following integration points and change the corresponding implementation according to their behavior; when reusing existing generic validation, explain it in the proposal:
 
-1. The `VOID`, `PAIRED` and `INLINE` shape sets in `src/local/parser.ts` (by shape).
-2. The declaration table in `src/local/schema.ts`.
-3. Structure, attribute, binding and initial-value validation in `src/local/compiler.ts`.
-4. Write constraints in `src/local/runtime.ts` (if a new public value or state is introduced).
-5. Reference rendering in `src/local/LocalDocumentView.tsx` and `src/local/visuals.tsx`.
+1. The public manifest's `form`; the parser reads shapes from instance configuration.
+2. Component definitions and registration. Default manifests live in `src/presets/default-components.ts`; `src/local/schema.ts` provides a compatibility projection.
+3. Manifest props, structures, bindings, initial values and rules, executed by the shared compiler.
+4. Generic kernel write constraints when existing public rules cannot express a new value or state.
+5. Implementations registered through the public React SDK. Default views live in `src/components/`.
 6. Budgets in `src/local/limits.ts` (if new computation or collections are introduced).
 7. Styles, tests, examples, syntax documentation, integration documentation and conformance data.
 
-Adding only a `schema.ts` entry does not automatically provide parsing, validation or rendering.
+Components that reuse public rules need a definition, implementation and registration. New kernel primitives also require a public contract and acceptance cases.
 
 ### CP-CORE-05 Extension interface boundary (boundary)
 
-This revision describes built-in components and the legacy host interface in section 14. `LOCAL_COMPONENTS` remains an internal frozen table. `hostComponents` accepts plain schema data for one compilation, with implementations supplied by the host.
+This revision describes contribution requirements and the legacy host interface in section 14. `LOCAL_COMPONENTS` is an internal compatibility projection of the default preset. `hostComponents` accepts plain schema data for one compilation and adapts it to the shared kernel, with implementations supplied by the host.
 
-The source tree's [extension SDK preview](../integration/extension-sdk-en.md) uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, authoring catalogs and a minimal offline export path. It ships with a later release; existing registry copies of `0.6.1` retain their original interfaces. SDK configuration and conformance tools define its version checks, budgets and acceptance. Built-in migration to the public SDK is the next phase. Hosts explicitly install component code; document declarations never load it, and instance configuration creates no global registrar.
+The source tree's [extension SDK preview](../integration/extension-sdk-en.md) uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, authoring catalogs and a minimal offline export path. All 46 default rendered and structural components now use this public contract; see the [phase-two record](extension-sdk-phase2-ch.md) for the inventory and evidence. The source SDK ships with a later release; existing registry copies of `0.6.1` retain their original interfaces. Hosts explicitly install component code; document declarations never load it.
 
 ## 10. Compatibility, name governance, revisions and migration
 

@@ -1104,6 +1104,18 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Parameter "{name}" members must be strings.',
     zh: '参数“{name}”的成员必须是字符串。',
   },
+  'runtime.numberArray': {
+    en: 'Parameter "{name}" requires an array of finite numbers.',
+    zh: '参数“{name}”需要有限数字数组。',
+  },
+  'runtime.numberArrayMembers': {
+    en: 'Parameter "{name}" members must be finite numbers.',
+    zh: '参数“{name}”的成员必须是有限数字。',
+  },
+  'runtime.null': {
+    en: 'Parameter "{name}" requires null.',
+    zh: '参数“{name}”需要 null。',
+  },
   'runtime.checklistOption': {
     en: 'Checklist item "{value}" does not exist.',
     zh: '清单项“{value}”不存在。',
@@ -1710,6 +1722,9 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.runtime.value.string': 'runtime.string',
   'local.runtime.value.array': 'runtime.array',
   'local.runtime.value.array-members': 'runtime.arrayMembers',
+  'local.runtime.value.number-array': 'runtime.numberArray',
+  'local.runtime.value.number-array-members': 'runtime.numberArrayMembers',
+  'local.runtime.value.null': 'runtime.null',
   'local.runtime.value.checklist-option': 'runtime.checklistOption',
   'local.runtime.value.max-items': 'runtime.maxItems',
   'local.runtime.value.unsupported-type': 'runtime.unsupportedType',

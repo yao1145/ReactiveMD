@@ -1,12 +1,20 @@
 import { createShareableHtml, type ShareableHtmlOptions } from '../shareable';
 import { readLocalConfig } from '../sdk/config';
 import { localComponentDigest } from '../sdk/manifest';
+import { getLocalComponentRegistry } from '../sdk/registry';
 import type { LocalStyleResource } from '../sdk/theme';
 import type { LocalConfig, LocalExtensionRequirements } from '../sdk/types';
 import type { Diagnostic, LocalDocument } from '../local/types';
-import { extensionDiagnostic, validateLocalExtensionRequirements } from './requirements';
+import {
+  extensionDiagnostic,
+  validateLocalComponentContracts,
+  validateLocalExtensionRequirements,
+} from './requirements';
 
-export { validateLocalExtensionRequirements } from './requirements';
+export {
+  validateLocalComponentContracts,
+  validateLocalExtensionRequirements,
+} from './requirements';
 
 export type LocalExportTarget = 'static' | 'ssr' | 'offline';
 
@@ -59,6 +67,11 @@ export function createLocalExportPlan(options: LocalExportPlanOptions): LocalExp
     protocol: 'reactive-md-extensions/v1', components: [],
   };
   const diagnostics = validateLocalExtensionRequirements(requirements, config);
+  diagnostics.push(...validateLocalComponentContracts({
+    document: options.document,
+    installed: getLocalComponentRegistry(config),
+    externalNames: new Set(config.components.map(definition => definition.name)),
+  }));
   const requiredResources = new Set(options.requiredResources ?? []);
   const target = options.target;
   if (!['static', 'ssr', 'offline'].includes(target)) throw new TypeError('Unknown export target.');

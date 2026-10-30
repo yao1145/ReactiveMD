@@ -90,6 +90,8 @@ export interface LocalComputation {
   value?: LocalValue;
 }
 export interface LocalBinding {
+  /** Kernel value semantics, including ordered generic collections. */
+  family?: import('../sdk/types').LocalBindingFamily;
   name: string;
   nodeIds: string[];
   type: LocalValueKind;
@@ -140,6 +142,37 @@ export interface LocalValidation {
   fields: string[];
   range: SourceRange;
 }
+/** One serialized runtime value rule lowered from a component manifest. */
+export type LocalCompiledValueRule =
+  | { kind: 'date'; min?: string; max?: string; required?: string }
+  | { kind: 'length'; min?: string; max?: string; email?: string; emailType?: string }
+  | { kind: 'required'; required: string }
+  | { kind: 'email'; type: string; value: string };
+
+/** One serialized slot order relation, e.g. range start <= end. */
+export interface LocalKernelSlotRelation {
+  nodeId: string;
+  lower: string;
+  upper: string;
+}
+
+/**
+ * Serializable kernel metadata lowered at compile time. Runtime consumers
+ * never read manifests; this record carries only bounded plain data.
+ */
+export interface LocalDocumentKernel {
+  valueRules: Readonly<Record<string, readonly LocalCompiledValueRule[]>>;
+  slotRelations: readonly LocalKernelSlotRelation[];
+  retentionExclusions: readonly string[];
+  bindingAttributes?: Readonly<Record<string, { bind: string; initial: string }>>;
+  dependencyRules?: Readonly<
+    Record<string, {
+      selfBinding?: { mode: 'always' | 'attribute'; attribute?: string };
+      inlineMathReads?: boolean;
+    }>
+  >;
+}
+
 /** Compiler-produced documents contain only plain records, arrays and primitives. */
 export interface LocalDocument {
   syntax: 'local';
@@ -214,6 +247,18 @@ export interface LocalDocument {
    * list describes requirements and never carries executable code.
    */
   extensions?: LocalExtensionRequirements;
+  /**
+   * Component contracts actually used by this document, including default
+   * preset manifests. Plain, serializable data; runtime semantics resolve from
+   * it with default-preset fallback for older hand-built documents.
+   */
+  componentDefinitions?: readonly import('../sdk/types').LocalComponentDefinition[];
+  /**
+   * Serializable component-semantics metadata lowered at compile time. Present
+   * only when at least one component contributes a runtime rule, slot relation
+   * or retention exclusion. Internal shape; consumers use the runtime API.
+   */
+  kernel?: LocalDocumentKernel;
 }
 /** Host-owned budgets for a single compilation. */
 export interface LocalCompileLimits {

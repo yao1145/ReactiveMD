@@ -7,12 +7,15 @@ import {
   MAX_LOCAL_HOST_NAME_LENGTH,
   MAX_LOCAL_HOST_PATTERN_LENGTH,
 } from './limits';
-import { LOCAL_COMPONENT_NAMES } from './schema';
+import { LOCAL_COMPONENT_NAMES, LOCAL_KERNEL_DECLARATIONS, type LocalComponentSchema } from './schema';
 import { LOCAL_HTML_NAMES } from './html-names';
 import { localConfigKey, readLocalConfig } from '../sdk/config';
 import { MAX_LOCAL_SDK_PATTERN_LENGTH } from '../sdk/manifest';
 import { isSafeLocalPattern } from '../sdk/pattern';
 import { localComponentHostBinding } from '../sdk/props';
+import { componentSchemaFromDefinition, getLocalComponentRegistry } from '../sdk/registry';
+import { DEFAULT_COMPONENT_NAMES } from '../presets/default-components';
+import defaultPreset from '../presets/default';
 import type { LocalComponentDefinition, LocalComponentProp, LocalConfig } from '../sdk/types';
 import type {
   LocalCompileOptions,
@@ -55,6 +58,20 @@ export type LocalOptionCheck =
        * and binding constraints that the host schema cannot express.
        */
       sdkByName: ReadonlyMap<string, LocalComponentDefinition>;
+      /** Full validated snapshot: default preset followed by external manifests. */
+      registry: readonly LocalComponentDefinition[];
+      /** Unified definition lookup (defaults + external manifests). */
+      componentByName: ReadonlyMap<string, LocalComponentDefinition>;
+      /** Unified schema lookup (defaults + external + kernel grammar declarations). */
+      schemaByName: ReadonlyMap<string, LocalComponentSchema>;
+      /** Names contributed by the default preset. */
+      defaultComponentNames: ReadonlySet<string>;
+      /** Names contributed by external manifests. */
+      externalComponentNames: ReadonlySet<string>;
+      /** Legacy `hostComponents` input adapter names. */
+      legacyHostNames: ReadonlySet<string>;
+      /** Preset actually honored by this compilation. */
+      preset: { readonly id: string; readonly version: string };
     }
   | { ok: false; message: string; key: string; detail?: string };
 
@@ -420,9 +437,9 @@ interface LoweredConfigComponents {
 }
 
 /**
- * Adapt external SDK manifests to the parser/compiler registry built for host
- * components. The original manifest is retained separately so compile-time
- * checks can still see typed widths, defaults and binding constraints.
+ * Adapt external SDK manifests to the phase-one parser/compiler host view.
+ * The unified registry is authoritative; this view only keeps legacy call
+ * sites (authoring, old host diagnostics) working.
  */
 function lowerConfigComponents(config: LocalConfig): LoweredConfigComponents {
   const hostComponents: LocalHostComponentSchema[] = [];
@@ -445,13 +462,42 @@ function lowerConfigComponents(config: LocalConfig): LoweredConfigComponents {
   return { hostComponents, hostByName, sdkByName };
 }
 
+const DEFAULT_NAMES: ReadonlySet<string> = new Set(DEFAULT_COMPONENT_NAMES);
+
+/** Build the unified definition/schema lookups from a resolved registry. */
+function unifiedRegistry(
+  registry: readonly LocalComponentDefinition[],
+  schemas: ReadonlyMap<string, LocalComponentSchema>,
+): {
+  componentByName: ReadonlyMap<string, LocalComponentDefinition>;
+  schemaByName: ReadonlyMap<string, LocalComponentSchema>;
+} {
+  const componentByName = new Map<string, LocalComponentDefinition>();
+  for (const definition of registry) componentByName.set(definition.name, definition);
+  const schemaByName = new Map<string, LocalComponentSchema>();
+  for (const schema of schemas.values()) schemaByName.set(schema.name, schema);
+  for (const schema of LOCAL_KERNEL_DECLARATIONS) {
+    if (!schemaByName.has(schema.name)) schemaByName.set(schema.name, schema);
+  }
+  return { componentByName, schemaByName };
+}
+
+function baseSchemas(registry: readonly LocalComponentDefinition[]): Map<string, LocalComponentSchema> {
+  const map = new Map<string, LocalComponentSchema>();
+  for (const definition of registry) map.set(definition.name, componentSchemaFromDefinition(definition));
+  return map;
+}
+
 /**
  * Read and validate host compile options once. Every call site (Markdown
  * parser, HTML compiler, worker and React component) uses the same rules so a
  * malformed flag can never silently fall back to the Markdown pipeline.
  */
 export function readLocalCompileOptions(options: LocalCompileOptions | undefined): LocalOptionCheck {
+  const defaults = getLocalComponentRegistry();
   if (options === undefined) {
+    const schemas = baseSchemas(defaults);
+    const unified = unifiedRegistry(defaults, schemas);
     return {
       ok: true,
       maxSyntaxNodes: DEFAULT_MAX_LOCAL_SYNTAX_NODES,
@@ -463,6 +509,12 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
       hostComponents: [],
       hostByName: new Map(),
       sdkByName: new Map(),
+      registry: defaults,
+      ...unified,
+      defaultComponentNames: DEFAULT_NAMES,
+      externalComponentNames: new Set(),
+      legacyHostNames: new Set(),
+      preset: { id: defaultPreset.id, version: defaultPreset.version },
     };
   }
   if (!isRecord(options)) {
@@ -550,6 +602,11 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
   let hostComponents: readonly LocalHostComponentSchema[];
   let hostByName: ReadonlyMap<string, LocalHostComponentSchema>;
   let sdkByName: ReadonlyMap<string, LocalComponentDefinition>;
+  let registry: readonly LocalComponentDefinition[];
+  let schemaByName: ReadonlyMap<string, LocalComponentSchema>;
+  let componentByName: ReadonlyMap<string, LocalComponentDefinition>;
+  let externalComponentNames: ReadonlySet<string>;
+  let legacyHostNames: ReadonlySet<string>;
   if (hasConfig) {
     try {
       config = readLocalConfig(options.config);
@@ -566,12 +623,38 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
     hostComponents = lowered.hostComponents;
     hostByName = lowered.hostByName;
     sdkByName = lowered.sdkByName;
-  } else {
+    registry = getLocalComponentRegistry(config);
+    const unified = unifiedRegistry(registry, baseSchemas(registry));
+    schemaByName = unified.schemaByName;
+    componentByName = unified.componentByName;
+    externalComponentNames = new Set(config.components.map((definition) => definition.name));
+    legacyHostNames = new Set();
+  } else if (hasHostComponents) {
     const hosts = readLocalHostComponents(options.hostComponents);
     if (!hosts.ok) return hosts;
     hostComponents = hosts.hostComponents;
     hostByName = hosts.hostByName;
     sdkByName = new Map();
+    registry = defaults;
+    const schemas = baseSchemas(defaults);
+    for (const [name, schema] of hosts.hostByName) {
+      schemas.set(name, Object.freeze({ ...(schema as unknown as LocalComponentSchema), legacyHost: true }));
+    }
+    const unified = unifiedRegistry(defaults, schemas);
+    schemaByName = unified.schemaByName;
+    componentByName = unified.componentByName;
+    externalComponentNames = new Set(hosts.hostByName.keys());
+    legacyHostNames = new Set(hosts.hostByName.keys());
+  } else {
+    hostComponents = [];
+    hostByName = new Map();
+    sdkByName = new Map();
+    registry = defaults;
+    const unified = unifiedRegistry(defaults, baseSchemas(defaults));
+    schemaByName = unified.schemaByName;
+    componentByName = unified.componentByName;
+    externalComponentNames = new Set();
+    legacyHostNames = new Set();
   }
 
   return {
@@ -586,6 +669,13 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
     hostByName,
     ...(config ? { config } : {}),
     sdkByName,
+    registry,
+    componentByName,
+    schemaByName,
+    defaultComponentNames: DEFAULT_NAMES,
+    externalComponentNames,
+    legacyHostNames,
+    preset: { id: defaultPreset.id, version: defaultPreset.version },
   };
 }
 

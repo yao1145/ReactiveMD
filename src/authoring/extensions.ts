@@ -9,7 +9,6 @@ import { RESERVED_NAMES } from '../local/expression';
 import { readLocalCompileOptions } from '../local/options';
 import { analyzeLocalSource, renameLocalBinding } from '../local/authoring';
 import {
-  LOCAL_COMPONENT_NAMES,
   getLocalComponent,
   type LocalComponentForm,
   type LocalPropKind,
@@ -17,8 +16,6 @@ import {
 } from '../local/schema';
 import type {
   LocalCompileOptions,
-  LocalHostComponentSchema,
-  LocalHostPropSchema,
   LocalValue,
 } from '../local/types';
 import { readLocalConfig } from '../sdk/config';
@@ -181,7 +178,7 @@ function manifestPropFromDefinition(prop: LocalComponentProp): ManifestProp {
     min: prop.min,
     max: prop.max,
     integer: prop.integer === true,
-    color: false,
+    color: prop.color === true,
     ...(prop.description !== undefined ? { description: prop.description } : {}),
   };
 }
@@ -321,6 +318,8 @@ function requiredSample(prop: ManifestProp, lead: string): string {
 }
 
 function manifestRequiresChildren(definition: LocalComponentDefinition): boolean {
+  if (definition.structure && definition.structure.rule !== 'none'
+    && definition.structure.rule !== 'any' && definition.structure.rule !== 'inline') return true;
   const children: unknown = (definition as unknown as { children?: unknown }).children;
   if (Array.isArray(children)) {
     return children.some((entry) => isRecord(entry)
@@ -344,18 +343,17 @@ function synthesizeInsertText(
   if (manifestRequiresChildren(definition)) {
     throw catalogError(`component "${name}" requires children; provide an authoring.insertText.`);
   }
-  const binding = definition.bindings?.value;
-  const bindAttribute = typeof binding?.bind === 'string' ? binding.bind : 'bind';
-  const initialAttribute = typeof binding?.initial === 'string' ? binding.initial : 'initial';
+  const bindings = Object.entries(definition.bindings ?? {});
+  const bindingAttributes = new Set(bindings.flatMap(([, binding]) => [binding.bind, binding.initial]));
   const attributes: string[] = [];
-  if (binding) {
+  for (const [slot, binding] of bindings) {
     // A literal, document-independent name keeps the synthesized template
     // directly compilable; insertion tools may rename it to avoid collisions.
-    attributes.push(`${bindAttribute}="${bindingName(name)}"`);
+    attributes.push(`${binding.bind}="${bindingName(slot === 'value' ? name : `${name}_${slot}`)}"`);
   }
   for (const [propName, prop] of Object.entries(props)) {
     if (!prop.required) continue;
-    if (binding && (propName === bindAttribute || propName === initialAttribute)) continue;
+    if (bindingAttributes.has(propName)) continue;
     attributes.push(`${propName}="${requiredSample(prop, `component "${name}" property "${propName}"`)}"`);
   }
   const head = `<${name}${attributes.length > 0 ? ` ${attributes.join(' ')}` : ''}`;
@@ -543,61 +541,6 @@ export function insertLocalComponent(
   return insertTemplate(source, selection, rewritten, { block: form !== 'inline' });
 }
 
-function hostAttribute(
-  name: string,
-  prop: LocalHostPropSchema,
-  locale: EditorLocale,
-  manifest?: ManifestProp,
-): LocalAttributeAuthoring {
-  const description = localizedOptional(manifest?.description, locale);
-  return Object.freeze({
-    name,
-    kind: prop.kind,
-    required: prop.required === true || manifest?.required === true,
-    static: prop.static === true,
-    dynamic: prop.static !== true,
-    ...(prop.enum ?? manifest?.values ? { values: Object.freeze([...(prop.enum ?? manifest?.values ?? [])]) } : {}),
-    ...(manifest?.defaultValue !== undefined ? { defaultValue: manifest.defaultValue } : {}),
-    ...(prop.pattern ?? manifest?.pattern ? { pattern: prop.pattern ?? manifest?.pattern } : {}),
-    ...(description !== undefined ? { description } : {}),
-  });
-}
-
-function hostAttributes(
-  host: LocalHostComponentSchema,
-  locale: EditorLocale,
-  manifest?: Readonly<Record<string, ManifestProp>>,
-): Record<string, LocalAttributeAuthoring> {
-  const attributes: Record<string, LocalAttributeAuthoring> = {};
-  for (const [name, prop] of Object.entries(host.props)) {
-    attributes[name] = hostAttribute(name, prop, locale, manifest?.[name]);
-  }
-  if (host.binding) {
-    attributes.bind = Object.freeze({
-      name: 'bind',
-      kind: 'string',
-      required: false,
-      static: true,
-      dynamic: false,
-    } as LocalAttributeAuthoring);
-    attributes.initial = Object.freeze({
-      name: 'initial',
-      kind: host.binding.kind,
-      required: false,
-      static: true,
-      dynamic: false,
-    } as LocalAttributeAuthoring);
-    attributes.disabled = Object.freeze({
-      name: 'disabled',
-      kind: 'boolean',
-      required: false,
-      static: false,
-      dynamic: true,
-    } as LocalAttributeAuthoring);
-  }
-  return attributes;
-}
-
 function builtinAttributes(schema: ReturnType<typeof getLocalComponent>): Record<string, LocalAttributeAuthoring> {
   const attributes: Record<string, LocalAttributeAuthoring> = {};
   if (!schema) return attributes;
@@ -676,33 +619,21 @@ export function createLocalAuthoringLookup(
   );
 
   const tags: LocalTagAuthoring[] = [];
-  for (const name of LOCAL_COMPONENT_NAMES) {
-    const schema = getLocalComponent(name);
-    if (!schema) continue;
+  for (const [name, schema] of check.schemaByName) {
     const nativeEntry = native.get(name);
+    const info = infoByName.get(name);
+    const props = builtinAttributes(schema);
+    for (const [attribute, prop] of Object.entries(info?.props ?? {})) {
+      props[attribute] = Object.freeze({ ...props[attribute], ...entryProp(attribute, prop, locale) });
+    }
     tags.push(freezeTag({
       name,
       form: schema.form,
-      title: nativeEntry?.label ?? name,
-      description: nativeEntry?.description ?? '',
-      category: nativeEntry?.group ?? 'component',
-      insertText: nativeEntry?.template ?? '',
-      props: builtinAttributes(schema),
-    }));
-  }
-
-  for (const host of check.hostComponents) {
-    const schema = getLocalComponent(host.name);
-    if (schema) continue; // host names never shadow built-ins after validation
-    const info = infoByName.get(host.name);
-    tags.push(freezeTag({
-      name: host.name,
-      form: host.form,
-      title: info?.title ?? host.name,
-      description: info?.description ?? '',
-      category: info?.category ?? 'extension',
-      insertText: info?.insertText ?? '',
-      props: hostAttributes(host, locale, info?.props),
+      title: info?.title ?? nativeEntry?.label ?? name,
+      description: info?.description ?? nativeEntry?.description ?? '',
+      category: info?.category ?? nativeEntry?.group ?? 'component',
+      insertText: info?.insertText ?? nativeEntry?.template ?? '',
+      props,
       requires: info?.requires,
       styles: info?.styles,
     }));

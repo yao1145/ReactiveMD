@@ -2,6 +2,8 @@ import { compileExpression, type LocalExpression } from './expression';
 import { evaluateComputations, orderComputations } from './computations';
 import type { LocalDocument, LocalNode, LocalValue } from './types';
 import {walkLocalNodes} from './node-walk';
+import { getLocalComponentRegistry } from '../sdk/registry';
+import type { LocalComponentDefinition } from '../sdk/types';
 
 function headingText(nodes: LocalNode[] | undefined, initialState: Record<string, LocalValue>): string {
   return (nodes ?? []).map((node): string => {
@@ -33,9 +35,23 @@ function headingSlug(text: string): string {
   return text.trim().toLowerCase().replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '').replace(/\s+/g, '-') || 'section';
 }
 
-function explicitAnchorId(node: LocalNode): string | undefined {
-  if (node.type !== 'component' || node.name !== 'anchor') return undefined;
-  const id = node.attrs?.id;
+/** Public anchor rules used by both navigation and its memo projection. */
+export function anchorRuleAttributes(document: LocalDocument, installed?: readonly LocalComponentDefinition[]): ReadonlyMap<string, string> {
+  const attributes = new Map<string, string>();
+  const definitions = installed ?? (Array.isArray(document.componentDefinitions) ? document.componentDefinitions : getLocalComponentRegistry());
+  for (const definition of definitions.slice(0, 192)) {
+    if (!definition || typeof definition.name !== 'string' || !Array.isArray(definition.rules)) continue;
+    const rule = definition.rules.find((rule: NonNullable<LocalComponentDefinition['rules']>[number]) => rule?.kind === 'anchor');
+    if (rule?.kind === 'anchor') attributes.set(definition.name, rule.id);
+  }
+  return attributes;
+}
+
+function explicitAnchorId(node: LocalNode, attributes: ReadonlyMap<string, string>): string | undefined {
+  if (node.type !== 'component' && node.type !== 'hostComponent') return undefined;
+  const attribute = attributes.get(node.name ?? '');
+  if (attribute === undefined) return undefined;
+  const id = node.attrs?.[attribute];
   if (typeof id !== 'string' || id.length === 0) return undefined;
   // The compiler rejects the malformed cases; this defensive shape check keeps
   // a hand-built tree from emitting an empty pool of colliding ids.
@@ -48,7 +64,7 @@ function explicitAnchorId(node: LocalNode): string | undefined {
  * on one page can never collide or steal each other's fragments.
  */
 function sourceHtmlId(node: LocalNode): string | undefined {
-  if (node.type === 'component') return undefined;
+  if (node.type === 'component' || node.type === 'hostComponent') return undefined;
   const id = node.attrs?.id;
   if (typeof id !== 'string') return undefined;
   const normalized = id
@@ -67,7 +83,8 @@ function sourceHtmlId(node: LocalNode): string | undefined {
  * Fragments use source initial values, so editing parameters preserves
  * navigation.
  */
-export function createHeadingAnchors(document: LocalDocument, namespace: string, includeExplicitAnchors = true) {
+export function createHeadingAnchors(document: LocalDocument, namespace: string, includeExplicitAnchors = true, installed?: readonly LocalComponentDefinition[]) {
+  const attributes = anchorRuleAttributes(document, installed);
   let initialState = document.initialState;
   if (document.computations) {
     const constants: Record<string, LocalValue> = {};
@@ -107,7 +124,7 @@ export function createHeadingAnchors(document: LocalDocument, namespace: string,
         ids.set(node, claim(base).id);
       } else {
         if (includeExplicitAnchors) {
-          const explicit = explicitAnchorId(node);
+          const explicit = explicitAnchorId(node, attributes);
           if (explicit) anchorIds.set(node, claim(explicit).id);
         }
         const sourceId = sourceHtmlId(node);

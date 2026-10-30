@@ -481,21 +481,21 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 新增组块必须检查以下接入点，按其行为修改对应实现；复用现有通用校验时，应在提案中说明：
 
-1. `src/local/parser.ts` 的 `VOID`、`PAIRED`、`INLINE` 形态集合（按形态）。
-2. `src/local/schema.ts` 的声明表。
-3. `src/local/compiler.ts` 的结构、属性、绑定和初值校验。
-4. `src/local/runtime.ts` 的写入约束（若引入新的公开值或状态）。
-5. `src/local/LocalDocumentView.tsx` 和 `src/local/visuals.tsx` 的参考渲染。
+1. 公开 manifest 的 `form`；解析器从实例配置读取形态。
+2. 组件定义与实例注册；默认组件定义位于 `src/presets/default-components.ts`，`src/local/schema.ts` 是其兼容投影。
+3. manifest 的属性、结构、绑定、初值与规则；编译器统一执行声明。
+4. 通用内核原语的写入约束（若现有公开规则无法表达新的值或状态）。
+5. 通过公开 React SDK 注册的实现；默认实现位于 `src/components/`。
 6. `src/local/limits.ts` 的预算（若引入新的计算或集合）。
 7. 样式、测试、示例、语法文档、集成文档和验收数据。
 
-只加 `schema.ts` 一项不会自动获得解析、校验或渲染能力。
+使用现有公开规则的组件只需定义、实现和注册。新增内核原语时，同时补充其公开契约与验收用例。
 
 ### CP-CORE-05 扩展接口边界（边界）
 
-本修订描述内置组件和第 14 节的旧宿主接口。`LOCAL_COMPONENTS` 继续是内部冻结表；`hostComponents` 为单次编译接受纯 schema 数据，组件实现由宿主提供。
+本修订描述组件贡献要求和第 14 节的旧宿主接口。`LOCAL_COMPONENTS` 是默认预设的内部兼容投影；`hostComponents` 为单次编译接受纯 schema 数据，并作为输入适配到统一内核，组件实现由宿主提供。
 
-源码新增的[扩展 SDK 预览](../integration/extension-sdk-ch.md)使用独立的 `reactive-md-component/v1` 数据契约和实例级配置，提供注册校验、React 实现绑定、作者目录及最小离线导出。它随后续版本发布；现有 registry 的 `0.6.1` 保持原接口。SDK 的版本、预算和验收通过其配置与合规工具维护，内置组件迁入公开 SDK 属于下一阶段。组件代码仍由宿主主动安装，文档声明不会装载代码；实例配置也不建立全局注册器。
+源码中的[扩展 SDK 预览](../integration/extension-sdk-ch.md)使用独立的 `reactive-md-component/v1` 数据契约和实例级配置，提供注册校验、React 实现绑定、作者目录及最小离线导出。46 个默认渲染与结构组件已经采用同一公开契约，迁移清单与证据见[第二阶段记录](extension-sdk-phase2-ch.md)。源码 SDK 随后续版本发布；现有 registry 的 `0.6.1` 保持原接口。组件代码由宿主主动安装，文档声明不会装载代码。
 
 ## 10. 兼容、名称治理、修订和迁移
 

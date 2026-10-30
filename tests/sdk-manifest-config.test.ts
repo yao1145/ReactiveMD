@@ -334,7 +334,7 @@ describe('SDK manifest validation', () => {
           initialRule: 'empty',
         },
       },
-    })).toThrow(/not supported/);
+    })).not.toThrow();
     expect(() => defineLocalComponent({
       ...choice,
       bindings: {
@@ -409,7 +409,9 @@ describe('SDK manifest validation', () => {
   });
 
   it('exposes the frozen default preset descriptor', () => {
-    expect(defaultPreset).toEqual({ id: 'reactive-md/default', version: '0.6.1' });
+    expect(defaultPreset).toMatchObject({ id: 'reactive-md/default', version: '0.6.1' });
+    expect(defaultPreset.components).toHaveLength(46);
+    expect(Object.isFrozen(defaultPreset.components)).toBe(true);
     expect(Object.isFrozen(defaultPreset)).toBe(true);
   });
 });

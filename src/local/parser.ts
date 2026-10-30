@@ -7,7 +7,7 @@ import type { LocalCompileOptions, LocalNode, LocalVersionDeclaration, SourceRan
 import { LOCAL_SYNTAX_VERSION } from './version';
 import { localDiagnosticDetails, renderLocalDiagnostic, type LocalDiagnosticDetails } from './diagnostics';
 import { HTML_TABLE_NAMES, HTML_TABLE_ATTRIBUTES, validHtmlTableValue, readHtmlTable } from './html-table';
-import { localComponentNames, suggestComponent } from './schema';
+import { closestName } from './schema';
 import { LOCAL_HTML_NAMES, LOCAL_HTML_ALIGN_ELEMENTS, LOCAL_HTML_ANCHOR_ATTRIBUTES, localHtmlAlign } from './html-names';
 import { isLocalThemeName } from './theme';
 import { normalizeFootnoteIdentifier } from './footnotes';
@@ -24,12 +24,8 @@ import { parseMarkdownBlocks,scanMarkdownStructure,markdownTreeFacts,type Markdo
 import { SourceContext, MappedSource } from './source-context';
 import { ParseBudgetError, ParseWorkBudget, type ParseSessionCache, type ParseSessionCounters } from './parse-budget';
 
-/* Tag shapes come from the component schema; tests/schema-shapes.test.ts
- * pins the accepted syntax against the original literal lists. */
-const VOID = new Set(localComponentNames('leaf'));
-const PAIRED = new Set([...localComponentNames('container'), ...localComponentNames('inline')]);
-const INLINE = new Set(localComponentNames('inline'));
-const KNOWN = new Set([...VOID, ...PAIRED]);
+/* Accepted tag shapes come from the unified registry snapshot passed through
+ * compile options; tests/schema-shapes.test.ts pins the default preset forms. */
 /** Private-use sentinels keep source tokens opaque while Markdown is parsed. */
 const MARK_OPEN = String.fromCharCode(0xe000);
 const MARK_CLOSE = String.fromCharCode(0xe001);
@@ -303,16 +299,14 @@ export function parseLocal(
   // Soft breaks only become nodes when the host opts in; the source string is
   // never normalized, so offsets keep pointing at the original code units.
   const markdownBreaks = optionCheck.markdownBreaks;
-  // Captured separately so per-parse closures keep the narrowed option shape.
-  const hostByName = optionCheck.hostByName;
-  /** Host inline forms behave like built-in inline tags for block placement. */
-  const isInlineName = (name: string): boolean =>
-    hostByName.has(name) ? hostByName.get(name)?.form === 'inline' : INLINE.has(name);
-  // Host names join the accepted tag set for this parse only. Without host
-  // schemas this is the module-level set, so behavior is unchanged.
-  const known = optionCheck.hostComponents.length
-    ? new Set([...KNOWN, ...optionCheck.hostComponents.map((component) => component.name)])
-    : KNOWN;
+  // The unified registry is the single source for accepted names and forms.
+  const schemaByName = optionCheck.schemaByName;
+  const externalNames = optionCheck.externalComponentNames;
+  const legacyHostNames = optionCheck.legacyHostNames;
+  /** Inline forms behave like built-in inline tags for block placement. */
+  const isInlineName = (name: string): boolean => schemaByName.get(name)?.form === 'inline';
+  const known = schemaByName;
+  const suggestionNames = [...schemaByName.keys()];
   const sourceContext = context?.source === source ? context : new SourceContext(source);
   const {lineStarts} = sourceContext;
   const work: ParserWork = {markdownCalls:0,fastBlocks:0,generalBlocks:0,fastCharacters:0,generalCharacters:0,mappingSegments:0,sourceLines:lineStarts.length,maxComponentDepth:0};
@@ -1636,7 +1630,7 @@ export function parseLocal(
             i = scanned.end;
             continue;
           }
-          const suggestion = suggestComponent(scanned.name);
+          const suggestion = closestName(scanned.name, suggestionNames);
           warning(
             'local.component.unknown',
             `Unknown component <${scanned.name}>. ${suggestion ? `Did you mean <${suggestion}>?` : 'This mode only accepts local interaction components.'}`,
@@ -1687,11 +1681,14 @@ export function parseLocal(
           }
           if (tag.closing) {
             if (tag.name === parent) return { tokens, end: tag.end, contentEnd: i, indent: commonIndent(start, i) };
-            if (hostByName.get(tag.name)?.form === 'leaf') {
-              error('local.host.structure', `Host component <${tag.name}> is a leaf and cannot have a closing tag.`, i, tag.end, {
-                key: 'local.host.structure.leaf',
-                params: { component: tag.name },
-              });
+            if (externalNames.has(tag.name) && schemaByName.get(tag.name)?.form === 'leaf') {
+              error(
+                'local.host.structure',
+                `Host component <${tag.name}> is a leaf and cannot have a closing tag.`,
+                i,
+                tag.end,
+                { key: 'local.host.structure.leaf', params: { component: tag.name } },
+              );
               i = tag.end;
               continue;
             }
@@ -1700,13 +1697,13 @@ export function parseLocal(
               params: parent ? { name: tag.name, parent } : { name: tag.name },
             }); i = tag.end; continue;
           }
-          // Host components follow their declared form: leaf tags are complete
-          // without a slash; inline and container tags are paired.
-          const hostSchema = hostByName.get(tag.name);
-          const isHost = hostSchema !== undefined;
-          const hostForm = hostSchema?.form;
-          const paired = isHost ? hostForm !== 'leaf' : PAIRED.has(tag.name);
-          const inline = isHost ? hostForm === 'inline' : INLINE.has(tag.name);
+          // Registry forms decide tag shape for builtins, external manifests and
+          // legacy host adapters alike.
+          const schema = schemaByName.get(tag.name);
+          const isHost = externalNames.has(tag.name);
+          const hostForm = isHost ? schema?.form : undefined;
+          const paired = schema !== undefined ? schema.form !== 'leaf' : true;
+          const inline = schema?.form === 'inline';
           const empty = !paired || tag.self;
           if (tag.self && paired) error('local.tag.shape', `<${tag.name}> requires a closing tag.`, i, tag.end, { key: 'local.tag.shape', params: { name: tag.name } });
           if (empty) { tokens.push({ start: i, end: tag.end, ...(isHost ? { block: beginsLine(i) } : {}), node: node(isHost ? 'hostComponent' : 'component', i, tag.end, { name: tag.name, attrs: tag.attrs, children: [], ...(isHost ? { hostForm } : {}) }) }); i = tag.end; continue; }

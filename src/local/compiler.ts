@@ -5,7 +5,7 @@ import { localDateTimestamp } from './dates';
 import { localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
 import { countLocalCodePoints } from './text-length';
 import { attachNodeDependencies } from './dependencies';
-import { compileExpression, LocalExpressionError, RESERVED_NAMES, type LocalExpression } from './expression';
+import { compileExpression, LocalExpressionError, localValueBudgetIssue, RESERVED_NAMES, type LocalExpression } from './expression';
 import {
   resolveComputationGraph,
   type ComputationInput,
@@ -18,6 +18,7 @@ import { LOCAL_SYNTAX_VERSION } from './version';
 import { DEFAULT_LOCAL_THEME } from './theme';
 import {
   isLocalEmail,
+  MAX_LOCAL_EMAIL_LENGTH,
   DEFAULT_LOCAL_DATA_TABLE_ROWS,
   MAX_LOCAL_DATA_DOCUMENT_CELLS,
   MAX_LOCAL_DATA_DOCUMENT_ROWS,
@@ -33,13 +34,48 @@ import {
   MAX_LOCAL_VALIDATIONS,
 } from './limits';
 import {
-  getLocalComponent,
-  suggestAttribute,
-  suggestComponent,
-  type LocalBindingFamily,
+  closestName,
   type LocalComponentSchema,
-  type LocalPropSchema,
 } from './schema';
+import {
+  isKernelAnchorId,
+  isKernelDate,
+  kernelAttributeIssues,
+  kernelDefaultInitial,
+  kernelDescribeConstraints,
+  kernelHasComponent,
+  kernelMeaningfulChildren,
+  kernelMaxItems,
+  kernelNearestZero,
+  kernelNavigationIssues,
+  kernelNumericConstraints,
+  kernelOnStep,
+  kernelProjectionForFamily,
+  kernelRule,
+  kernelRules,
+  kernelRulesOf,
+  kernelSameNumericBound,
+  kernelSchemaFor,
+  kernelSlotBindings,
+  kernelSlotRelations,
+  kernelStructure,
+  kernelUsesLegacyDiagnostics,
+  kernelValueBinding,
+  kernelValueRules,
+  type KernelAttrMap,
+  type KernelBindingSchema,
+  type KernelChildRule,
+  type KernelComponentSchema,
+  type KernelDefinitionFields,
+  type KernelDiagnosticIssue,
+  type KernelNumericConstraints,
+  type KernelProjectionKind,
+  type KernelPropSchema,
+  type KernelRule,
+  type KernelStructure,
+  type KernelValueRule,
+} from './component-kernel';
+import type { LocalBindingFamily } from './schema';
 import { parseValidationFields } from './validation';
 import { readLocalCompileOptions, type LocalOptionCheck } from './options';
 import { localComponentRequirement } from '../sdk/manifest';
@@ -231,11 +267,35 @@ function typeName(kind: LocalValueKind): string {
 /* Compiler implementation                                             */
 /* ------------------------------------------------------------------ */
 
-interface Entry {
-  node: LocalNode;
-  name: string;
-  schema: LocalComponentSchema;
-  parent: Entry | null;
+/** Fields the unified options/registry layer exposes in phase two. */
+interface UnifiedRegistryCheck {
+  schemaByName?: ReadonlyMap<string, KernelComponentSchema>;
+  componentByName?: ReadonlyMap<string, LocalComponentDefinition>;
+  legacyHostNames?: ReadonlySet<string>;
+}
+
+function registrySchemaMap(check: LocalOptionCheck & UnifiedRegistryCheck): ReadonlyMap<string, KernelComponentSchema> {
+  // The unified registry is authoritative; there is no second schema table.
+  return check.schemaByName ?? new Map();
+}
+
+function registryDefinitionMap(check: LocalOptionCheck & UnifiedRegistryCheck): ReadonlyMap<string, LocalComponentDefinition> {
+  return check.componentByName ?? new Map();
+}
+
+function kernelView(
+  schema: LocalComponentSchema,
+  definition: LocalComponentDefinition | undefined,
+): KernelComponentSchema {
+  return kernelSchemaFor(
+    schema as unknown as KernelComponentSchema,
+    definition as unknown as KernelDefinitionFields | undefined,
+  );
+}
+
+function suggestRegistryName(name: string, candidates: Iterable<string>): string | undefined {
+  if (name.length > MAX_LOCAL_NAME_LENGTH) return undefined;
+  return closestName(name, [...candidates]);
 }
 
 interface AttrState {
@@ -249,6 +309,16 @@ interface AttrState {
 
 type AttrMap = Record<string, AttrState>;
 
+interface Entry {
+  node: LocalNode;
+  name: string;
+  schema: LocalComponentSchema;
+  kernel: KernelComponentSchema;
+  definition?: LocalComponentDefinition;
+  legacy: boolean;
+  parent: Entry | null;
+}
+
 interface ChecklistInfo {
   ids: string[];
   checked: string[];
@@ -260,6 +330,9 @@ interface CompileState {
   lineStarts: number[];
   nodes: LocalNode[];
   diagnostics: Diagnostic[];
+  /** Unified registry used for every component node in this compile. */
+  schemaByName: ReadonlyMap<string, KernelComponentSchema>;
+  definitionsByName: ReadonlyMap<string, LocalComponentDefinition>;
   report: (
     code: string,
     message: string,
@@ -464,6 +537,8 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
     lineStarts,
     nodes: parsed.nodes,
     diagnostics,
+    schemaByName: registrySchemaMap(optionCheck),
+    definitionsByName: registryDefinitionMap(optionCheck),
     report,
     entries: [],
     attrs: new Map(),
@@ -489,6 +564,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   for (const entry of state.entries) {
     state.attrs.set(entry.node.id, validateAttributes(entry, state));
     validateAttributeRelations(entry, state);
+    validateBindingConstraintAttributes(entry, state);
   }
   mark?.('attributesMs');
   for (const entry of state.entries) validateChildren(entry, state);
@@ -496,7 +572,6 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   mark?.('structureMs');
 
   const bindings = resolveBindings(state);
-  resolveHostBindings(state, optionCheck.hostByName, optionCheck.sdkByName, bindings);
   state.bindingKinds = bindingKinds(bindings);
   mark?.('bindingsMs');
 
@@ -504,7 +579,6 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   resolveComputations(state);
   mark?.('computationsMs');
   collectDynamicConstraints(state);
-  collectSdkDynamicConstraints(state, optionCheck.sdkByName);
 
   validateExpressions(state);
   mark?.('expressionsMs');
@@ -520,7 +594,7 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   const initialState: Record<string, LocalValue> = {};
   for (const [key, binding] of Object.entries(bindings)) initialState[key] = cloneValue(binding.initial);
   validateNavigation(state, bindings, initialState);
-  validateHostComponents(parsed.nodes, optionCheck.hostByName, optionCheck.sdkByName, state);
+  reportUnmatchedHostComponents(parsed.nodes, state);
   mark?.('hostAndNavigationMs');
   const displayNodes = [...parsed.nodes];
   while (displayNodes.length && diagnostics.length < MAX_LOCAL_DIAGNOSTICS) {
@@ -549,6 +623,8 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
     ? state.dynamicConstraints
     : undefined;
   const extensions = extensionRequirements(parsed.nodes, optionCheck.sdkByName);
+  const kernelMetadata = compileKernelMetadata(state, bindings);
+  const usedDefinitions = componentDefinitionsFor(state);
   const document: LocalDocument = {
     syntax: 'local',
     source,
@@ -565,6 +641,8 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
     ...(dynamicConstraints ? { dynamicConstraints } : {}),
     ...(validations.length ? { validations } : {}),
     ...(extensions ? { extensions } : {}),
+    kernel: kernelMetadata,
+    ...(usedDefinitions.length ? { componentDefinitions: Object.freeze(usedDefinitions) } : {}),
   };
   attachNodeDependencies(document);
   attachTableShapes(document, state.tableShapes);
@@ -591,14 +669,28 @@ function collectEntries(nodes: LocalNode[], parent: Entry | null, out: Entry[], 
     if(frame.index===frame.nodes.length){pending.pop();continue;}
     const node=frame.nodes[frame.index++],parent=frame.parent;
     let nextParent=parent;
-    if (node.type === 'component' && node.name) {
-      const schema = getLocalComponent(node.name);
+    const isComponent = (node.type === 'component' || node.type === 'hostComponent') && !!node.name;
+    if (isComponent) {
+      const schema = state.schemaByName.get(node.name!);
       if (schema) {
-        const entry: Entry = { node, name: node.name, schema, parent };
+        const definition = state.definitionsByName.get(node.name!);
+        const kernel = kernelView(schema as LocalComponentSchema, definition);
+        // Phase-one external manifests (no phase-two rules) keep host wording.
+        const legacy = kernelUsesLegacyDiagnostics(kernel)
+          || (definition !== undefined && !definition.rules?.length && node.type === 'hostComponent');
+        const entry: Entry = {
+          node,
+          name: node.name!,
+          schema: schema as unknown as LocalComponentSchema,
+          kernel,
+          ...(definition ? { definition } : {}),
+          legacy,
+          parent,
+        };
         out.push(entry);
         nextParent = entry;
-      } else {
-        const suggestion = node.name.length <= MAX_LOCAL_NAME_LENGTH ? suggestComponent(node.name) : undefined;
+      } else if (node.type === 'component') {
+        const suggestion = suggestRegistryName(node.name!, state.schemaByName.keys());
         state.report(
           'local.component.unknown',
           `Unknown component <${node.name}>. ${suggestion ? `Did you mean <${suggestion}>?` : 'This mode only accepts local interaction components.'}`,
@@ -606,10 +698,12 @@ function collectEntries(nodes: LocalNode[], parent: Entry | null, out: Entry[], 
           node.range.end,
           {
             key: suggestion ? 'local.component.unknown.suggestion' : 'local.component.unknown',
-            params: suggestion ? { name: node.name, suggestion } : { name: node.name },
+            params: suggestion ? { name: node.name!, suggestion } : { name: node.name! },
           },
         );
       }
+      // An unmatched hostComponent warns in reportUnmatchedHostComponents; it
+      // owns no binding or runtime state.
     }
     if(node.children)pending.push({nodes:node.children,parent:nextParent,index:0});
   }
@@ -654,21 +748,49 @@ function validateAttributes(entry: Entry, state: CompileState): AttrMap {
 function validateAttributesUncached(entry: Entry, state: CompileState): AttrMap {
   const attrs: AttrMap = {};
   const rawAttrs = entry.node.attrs ?? {};
+  const props = entry.kernel.props;
+  const legacy = entry.legacy;
+  const bindingAttributes = legacy ? legacyBindingAttributes(entry) : undefined;
   for (const [name, raw] of Object.entries(rawAttrs)) {
-    const prop = entry.schema.props[name];
     const offset = attributeOffset(state, entry.node, name);
-    if (!prop) {
-      const suggestion = name.length <= MAX_LOCAL_NAME_LENGTH ? suggestAttribute(entry.schema, name) : undefined;
+    if (legacy && raw.length > MAX_LOCAL_STRING_LENGTH) {
       state.report(
-        'local.attribute.unknown',
-        `Component <${entry.name}> does not support attribute ${name}.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
+        'local.budget.attribute',
+        `Attribute ${name} on component <${entry.name}> exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`,
         offset,
         offset + name.length,
-        {
-          key: suggestion ? 'local.attribute.unknown.suggestion' : 'local.attribute.unknown',
-          params: suggestion ? { component: entry.name, name, suggestion } : { component: entry.name, name },
-        },
+        { key: 'local.budget.attribute', params: { name, component: entry.name, limit: MAX_LOCAL_STRING_LENGTH } },
       );
+      continue;
+    }
+    if (bindingAttributes?.bind.has(name) || bindingAttributes?.initial.has(name)) {
+      // The binding resolver owns these attributes and reports their rules.
+      attrs[name] = bindingAttributeInfo(entry, name, raw, offset);
+      continue;
+    }
+    const prop = props[name];
+    if (!prop) {
+      const suggestion = closestName(name, Object.keys(props));
+      if (legacy) {
+        state.report(
+          'local.host.attribute',
+          `Component <${entry.name}> does not support attribute ${name}.`,
+          offset,
+          offset + name.length,
+          { key: 'local.host.attribute.unknown', params: { component: entry.name, name } },
+        );
+      } else {
+        state.report(
+          'local.attribute.unknown',
+          `Component <${entry.name}> does not support attribute ${name}.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
+          offset,
+          offset + name.length,
+          {
+            key: suggestion ? 'local.attribute.unknown.suggestion' : 'local.attribute.unknown',
+            params: suggestion ? { component: entry.name, name, suggestion } : { component: entry.name, name },
+          },
+        );
+      }
       continue;
     }
     const info: AttrState = { raw, offset, dynamic: false };
@@ -682,7 +804,7 @@ function validateAttributesUncached(entry: Entry, state: CompileState): AttrMap 
       );
       info.raw = raw.slice(0, MAX_LOCAL_STRING_LENGTH);
     }
-    validatePropValue(entry, name, prop, info, state);
+    validatePropValue(entry, name, prop, info, state, legacy);
     if (prop.color) {
       const scanned = scanInterpolations(info.raw);
       if (!scanned.segments.length && !scanned.unterminated.length && !isLocalColor(info.raw)) {
@@ -697,18 +819,29 @@ function validateAttributesUncached(entry: Entry, state: CompileState): AttrMap 
     }
     attrs[name] = info;
   }
-  for (const [name, prop] of Object.entries(entry.schema.props)) {
-    if (prop.required && !Object.hasOwn(attrs, name)) {
-      state.report(
-        'local.attribute.required',
-        `Component <${entry.name}> is missing required attribute ${name}.`,
-        entry.node.range.start,
-        entry.node.range.end,
-        { key: 'local.attribute.required', params: { component: entry.name, name } },
-      );
+  for (const [name, prop] of Object.entries(props)) {
+    if (bindingAttributes?.bind.has(name) || bindingAttributes?.initial.has(name)) continue;
+    if (prop.required && prop.default === undefined && !Object.hasOwn(attrs, name)) {
+      if (legacy) {
+        state.report(
+          'local.host.attribute',
+          `Component <${entry.name}> is missing required attribute ${name}.`,
+          entry.node.range.start,
+          entry.node.range.end,
+          { key: 'local.host.attribute.required', params: { component: entry.name, name } },
+        );
+      } else {
+        state.report(
+          'local.attribute.required',
+          `Component <${entry.name}> is missing required attribute ${name}.`,
+          entry.node.range.start,
+          entry.node.range.end,
+          { key: 'local.attribute.required', params: { component: entry.name, name } },
+        );
+      }
     }
   }
-  if (entry.schema.label === 'required') {
+  if (kernelStructure(entry.kernel).label === 'required') {
     if (!Object.hasOwn(attrs, 'label')) {
       state.report('local.label.required', `Component <${entry.name}> requires a label.`, entry.node.range.start, entry.node.range.end, { key: 'local.label.required.missing', params: { component: entry.name } });
     } else if (!String(attrs.label.raw).trim()) {
@@ -718,13 +851,59 @@ function validateAttributesUncached(entry: Entry, state: CompileState): AttrMap 
   return attrs;
 }
 
+/** Attributes the declared bindings own; the binding resolver validates them. */
+function legacyBindingAttributes(entry: Entry): { bind: Set<string>; initial: Set<string> } | undefined {
+  const bind = new Set<string>();
+  const initial = new Set<string>();
+  const scalar = kernelValueBinding(entry.kernel);
+  if (scalar) {
+    bind.add(scalar.bind);
+    initial.add(scalar.initial);
+  }
+  for (const slot of kernelSlotBindings(entry.kernel)) {
+    bind.add(slot.bind);
+    initial.add(slot.initial);
+  }
+  return bind.size || initial.size ? { bind, initial } : undefined;
+}
+
+/** Decode one implicitly bound attribute for the binding resolver. */
+function bindingAttributeInfo(entry: Entry, name: string, raw: string, offset: number): AttrState {
+  const scalar = kernelValueBinding(entry.kernel);
+  const binding = scalar && scalar.bind === name
+    ? scalar
+    : kernelSlotBindings(entry.kernel).find((slot) => slot.bind === name || slot.initial === name)
+      ?? (scalar && scalar.initial === name ? scalar : undefined);
+  const info: AttrState = { raw, offset, dynamic: false };
+  if (!binding || binding.bind === name) {
+    info.value = raw;
+    return info;
+  }
+  if (binding.kind === 'number') {
+    const value = parseNumberText(raw);
+    if (value !== null) info.value = value;
+  } else if (binding.kind === 'boolean') {
+    if (raw === 'true' || raw === 'false') info.value = raw === 'true';
+  } else {
+    info.value = raw;
+  }
+  return info;
+}
+
+function kernelPropValues(prop: KernelPropSchema): readonly string[] {
+  return prop.values ?? prop.enum ?? [];
+}
+
 function validatePropValue(
   entry: Entry,
   name: string,
-  prop: LocalPropSchema,
+  prop: KernelPropSchema,
   info: AttrState,
   state: CompileState,
+  legacy: boolean,
 ): void {
+  const staticKey = legacy ? 'local.host.attribute.static' : 'local.attribute.static';
+  const staticCode = legacy ? 'local.host.attribute' : 'local.attribute.static';
   if (prop.kind === 'string') {
     // A dynamic string attribute (for example `date.min`) accepts one complete
     // interpolation that must evaluate to a string, or a literal fallback.
@@ -744,20 +923,87 @@ function validatePropValue(
       const scanned = scanInterpolations(info.raw);
       if (scanned.segments.length || scanned.unterminated.length) {
         state.report(
-          'local.attribute.static',
+          staticCode,
           `Attribute ${name} is static and cannot contain interpolations.`,
           info.offset,
           info.offset + info.raw.length,
-          { key: 'local.attribute.static', params: { name } },
+          { key: staticKey, params: { name } },
         );
       }
+      info.value = info.raw;
+      return;
+    }
+    if (prop.dynamic === false) {
+      const scanned = scanInterpolations(info.raw);
+      if (scanned.segments.length || scanned.unterminated.length) {
+        state.report(
+          legacy ? 'local.host.attribute' : 'local.attribute.interpolation',
+          `Attribute ${name} does not accept interpolations.`,
+          info.offset,
+          info.offset + info.raw.length,
+          { key: 'local.attribute.interpolation.dynamic', params: { name } },
+        );
+        return;
+      }
+    }
+    if (prop.pattern !== undefined) {
+      const scanned = scanInterpolations(info.raw);
+      const interpolated = scanned.segments.length > 0 || scanned.unterminated.length > 0;
+      if (interpolated) {
+        // A pattern constrains literal shape, so only one full interpolation may
+        // replace the literal. Mixed text and unterminated braces are rejected.
+        if (!singleFullInterpolation(info.raw)) {
+          state.report(
+            legacy ? 'local.host.attribute' : 'local.attribute.interpolation',
+            `Attribute ${name} must be a literal matching ${prop.pattern} or one full interpolation.`,
+            info.offset,
+            info.offset + info.raw.length,
+            {
+              key: legacy ? 'local.host.attribute.interpolation' : 'local.attribute.interpolation.pattern',
+              params: { name, pattern: prop.pattern },
+            },
+          );
+        }
+        info.value = info.raw;
+        return;
+      }
+      let accepted = true;
+      try {
+        accepted = new RegExp(prop.pattern).test(info.raw);
+      } catch {
+        // Options validation rejects invalid patterns; do not crash if a
+        // schema bypassed it.
+      }
+      if (!accepted) {
+        if (legacy) {
+          state.report(
+            'local.host.attribute',
+            `Attribute ${name} must match pattern ${prop.pattern}.`,
+            info.offset,
+            info.offset + info.raw.length,
+            { key: 'local.host.attribute.pattern', params: { name, pattern: prop.pattern } },
+          );
+        } else {
+          state.report(
+            'local.attribute.type',
+            `Attribute ${name} must match pattern ${prop.pattern}.`,
+            info.offset,
+            info.offset + info.raw.length,
+            { key: 'local.attribute.type.pattern', params: { name, pattern: prop.pattern } },
+          );
+        }
+      }
+      info.value = info.raw;
+      return;
     }
     info.value = info.raw;
     return;
   }
 
+  const dynamicAllowed = prop.static !== true && prop.dynamic !== false
+    && (prop.dynamic === true || legacy);
   if (prop.kind === 'number') {
-    const full = prop.dynamic ? fullInterpolation(info.raw) : null;
+    const full = dynamicAllowed ? fullInterpolation(info.raw) : null;
     if (full) {
       info.dynamic = true;
       info.expression = full.expression;
@@ -769,33 +1015,55 @@ function validatePropValue(
     }
     const value = parseNumberText(info.raw);
     if (value === null) {
-      state.report(
-        'local.attribute.type',
-        `Attribute ${name} requires a number${prop.dynamic ? ' or a full number interpolation' : ''}, got "${info.raw}".`,
-        info.offset,
-        info.offset + info.raw.length,
-        { key: prop.dynamic ? 'local.attribute.type.number-interpolation' : 'local.attribute.type.number', params: { name, value: info.raw } },
-      );
+      if (legacy) {
+        state.report(
+          'local.host.attribute',
+          `Attribute ${name} requires a number, got "${info.raw}".`,
+          info.offset,
+          info.offset + info.raw.length,
+          { key: 'local.host.attribute.type', params: { name, value: info.raw, kind: 'number' } },
+        );
+      } else {
+        state.report(
+          'local.attribute.type',
+          `Attribute ${name} requires a number${prop.dynamic ? ' or a full number interpolation' : ''}, got "${info.raw}".`,
+          info.offset,
+          info.offset + info.raw.length,
+          { key: prop.dynamic ? 'local.attribute.type.number-interpolation' : 'local.attribute.type.number', params: { name, value: info.raw } },
+        );
+      }
       return;
     }
     if (prop.integer && !Number.isInteger(value)) {
-      state.report('local.attribute.type', `Attribute ${name} requires an integer.`, info.offset, undefined, { key: 'local.attribute.type.integer', params: { name } });
+      if (legacy) {
+        state.report('local.host.attribute', `Attribute ${name} requires an integer, got "${info.raw}".`, info.offset, info.offset + info.raw.length, { key: 'local.attribute.type.integer', params: { name } });
+      } else {
+        state.report('local.attribute.type', `Attribute ${name} requires an integer.`, info.offset, undefined, { key: 'local.attribute.type.integer', params: { name } });
+      }
     }
     if (prop.positive && !(value > 0)) {
       state.report('local.attribute.type', `Attribute ${name} requires a positive number.`, info.offset, undefined, { key: 'local.attribute.type.positive', params: { name } });
     }
     if (prop.min !== undefined && value < prop.min) {
-      state.report('local.attribute.range', `Attribute ${name} must be at least ${prop.min}.`, info.offset, undefined, { key: 'local.attribute.range.min', params: { name, min: prop.min } });
+      if (legacy) {
+        state.report('local.host.attribute', `Attribute ${name} must be at least ${prop.min}, got "${info.raw}".`, info.offset, info.offset + info.raw.length, { key: 'local.attribute.range.min', params: { name, min: prop.min } });
+      } else {
+        state.report('local.attribute.range', `Attribute ${name} must be at least ${prop.min}.`, info.offset, undefined, { key: 'local.attribute.range.min', params: { name, min: prop.min } });
+      }
     }
     if (prop.max !== undefined && value > prop.max) {
-      state.report('local.attribute.range', `Attribute ${name} must be at most ${prop.max}.`, info.offset, undefined, { key: 'local.attribute.range.max', params: { name, max: prop.max } });
+      if (legacy) {
+        state.report('local.host.attribute', `Attribute ${name} must be at most ${prop.max}, got "${info.raw}".`, info.offset, info.offset + info.raw.length, { key: 'local.attribute.range.max', params: { name, max: prop.max } });
+      } else {
+        state.report('local.attribute.range', `Attribute ${name} must be at most ${prop.max}.`, info.offset, undefined, { key: 'local.attribute.range.max', params: { name, max: prop.max } });
+      }
     }
     info.value = value;
     return;
   }
 
   if (prop.kind === 'boolean') {
-    const full = prop.dynamic ? fullInterpolation(info.raw) : null;
+    const full = dynamicAllowed ? fullInterpolation(info.raw) : null;
     if (full) {
       info.dynamic = true;
       info.expression = full.expression;
@@ -809,18 +1077,28 @@ function validatePropValue(
       info.value = info.raw === 'true';
       return;
     }
-    state.report(
-      'local.attribute.type',
-      `Attribute ${name} requires true or false${prop.dynamic ? ', or a full boolean interpolation' : ''}.`,
-      info.offset,
-      info.offset + info.raw.length,
-      { key: prop.dynamic ? 'local.attribute.type.boolean-interpolation' : 'local.attribute.type.boolean', params: { name } },
-    );
+    if (legacy) {
+      state.report(
+        'local.host.attribute',
+        `Component <${entry.name}> attribute ${name} requires a boolean, got "${info.raw}".`,
+        info.offset,
+        info.offset + info.raw.length,
+        { key: 'local.host.attribute.type', params: { name, value: info.raw, kind: 'boolean' } },
+      );
+    } else {
+      state.report(
+        'local.attribute.type',
+        `Attribute ${name} requires true or false${prop.dynamic ? ', or a full boolean interpolation' : ''}.`,
+        info.offset,
+        info.offset + info.raw.length,
+        { key: prop.dynamic ? 'local.attribute.type.boolean-interpolation' : 'local.attribute.type.boolean', params: { name } },
+      );
+    }
     return;
   }
 
   // enum
-  const full = prop.dynamic ? fullInterpolation(info.raw) : null;
+  const full = dynamicAllowed ? fullInterpolation(info.raw) : null;
   if (full) {
     info.dynamic = true;
     info.expression = full.expression;
@@ -830,15 +1108,25 @@ function validatePropValue(
     }
     return;
   }
-  const values = prop.values ?? [];
+  const values = kernelPropValues(prop);
   if (!values.includes(info.raw)) {
-    state.report(
-      'local.attribute.type',
-      `Attribute ${name} must be one of ${values.join(' / ')}, got "${info.raw}".`,
-      info.offset,
-      info.offset + info.raw.length,
-      { key: 'local.attribute.type.enum', params: { name, values: values.join(' / '), value: info.raw } },
-    );
+    if (legacy) {
+      state.report(
+        'local.host.attribute',
+        `Attribute ${name} must be one of ${values.join(' / ')}, got "${info.raw}".`,
+        info.offset,
+        info.offset + info.raw.length,
+        { key: 'local.host.attribute.enum', params: { name, values: values.join(' / '), value: info.raw } },
+      );
+    } else {
+      state.report(
+        'local.attribute.type',
+        `Attribute ${name} must be one of ${values.join(' / ')}, got "${info.raw}".`,
+        info.offset,
+        info.offset + info.raw.length,
+        { key: 'local.attribute.type.enum', params: { name, values: values.join(' / '), value: info.raw } },
+      );
+    }
     return;
   }
   info.value = info.raw;
@@ -847,126 +1135,73 @@ function validatePropValue(
 function numberValue(entry: Entry, attrs: AttrMap, name: string): number | undefined {
   const info = attrs[name];
   if (info) return !info.dynamic && typeof info.value === 'number' ? info.value : undefined;
-  const fallback = entry.schema.props[name]?.default;
+  const fallback = entry.kernel.props[name]?.default;
   return typeof fallback === 'number' ? fallback : undefined;
+}
+
+/** A binding step referenced by a prop must be static and positive. */
+function validateBindingConstraintAttributes(entry: Entry, state: CompileState): void {
+  // Kernel manifests validate step props through their declared prop schema;
+  // only phase-one host adapters keep this extra adapter check.
+  if (!entry.legacy) return;
+  const binding = kernelValueBinding(entry.kernel);
+  const step = binding?.kind === 'number' ? binding.constraints?.step : undefined;
+  if (!step || !('prop' in step)) return;
+  const attrs = state.attrs.get(entry.node.id) ?? {};
+  const propName = step.prop;
+  const prop = entry.kernel.props[propName];
+  const info = attrs[propName];
+  const offset = info?.offset ?? attributeOffset(state, entry.node, propName);
+  if (!info) {
+    const fallback = prop?.default;
+    if (typeof fallback !== 'number') {
+      state.report(
+        'local.host.attribute',
+        `Attribute ${propName} is required by the step constraint.`,
+        entry.node.range.start,
+        entry.node.range.end,
+        { key: 'local.host.attribute.type', params: { name: propName, value: 'missing', kind: 'number' } },
+      );
+    } else if (!(fallback > 0)) {
+      state.report(
+        'local.host.attribute',
+        `Attribute ${propName} requires a positive number.`,
+        entry.node.range.start,
+        entry.node.range.end,
+        { key: 'local.attribute.type.positive', params: { name: propName } },
+      );
+    }
+    return;
+  }
+  if (info.dynamic) {
+    state.report(
+      'local.host.attribute',
+      `Attribute ${propName} is used as a step and must be a static number.`,
+      offset,
+      offset + info.raw.length,
+      { key: 'local.host.attribute.static', params: { name: propName } },
+    );
+  } else if (typeof info.value === 'number' && !(info.value > 0)) {
+    state.report(
+      'local.host.attribute',
+      `Attribute ${propName} requires a positive number.`,
+      offset,
+      offset + info.raw.length,
+      { key: 'local.attribute.type.positive', params: { name: propName } },
+    );
+  }
 }
 
 function validateAttributeRelations(entry: Entry, state: CompileState): void {
   const attrs = state.attrs.get(entry.node.id) ?? {};
-  const report = state.report;
-
-  if (entry.name === 'number' || entry.name === 'slider' || entry.name === 'counter') {
-    const min = numberValue(entry, attrs, 'min');
-    const max = numberValue(entry, attrs, 'max');
-    const step = numberValue(entry, attrs, 'step');
-    if (min !== undefined && max !== undefined && min > max) {
-      report('local.constraint', `Component <${entry.name}> min cannot exceed max.`, attrs.min?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.number-min-max', params: { component: entry.name } });
-    }
-    if (step !== undefined && !(step > 0)) {
-      report('local.constraint', `Component <${entry.name}> step must be greater than 0.`, attrs.step?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.number-step', params: { component: entry.name } });
-    }
-  }
-
-  if (entry.name === 'input' || entry.name === 'textarea') {
-    const minimum = numberValue(entry, attrs, 'min-length') ?? 0;
-    const maximum = numberValue(entry, attrs, 'max-length');
-    if (maximum !== undefined && maximum < minimum) {
-      report('local.constraint', 'max-length cannot be less than min-length.', attrs['max-length']?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.length-order' });
-    }
-  }
-
-  if (entry.name === 'date') {
-    const min = typeof attrs.min?.value === 'string' ? attrs.min.value : undefined;
-    const max = typeof attrs.max?.value === 'string' ? attrs.max.value : undefined;
-    if (min !== undefined && !isValidDate(min)) {
-      report('local.attribute.type', `Date lower bound ${min} is not a valid YYYY-MM-DD.`, attrs.min?.offset ?? entry.node.range.start, undefined, { key: 'local.attribute.type.date-lower', params: { value: min } });
-    }
-    if (max !== undefined && !isValidDate(max)) {
-      report('local.attribute.type', `Date upper bound ${max} is not a valid YYYY-MM-DD.`, attrs.max?.offset ?? entry.node.range.start, undefined, { key: 'local.attribute.type.date-upper', params: { value: max } });
-    }
-    if (min && max && min > max) {
-      report('local.constraint', 'Date min cannot be later than max.', attrs.min?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.date-order' });
-    }
-  }
-
-  if (entry.name === 'progress') {
-    const max = numberValue(entry, attrs, 'max') ?? 100;
-    const value = attrs.value;
-    if (value && !value.dynamic && typeof value.value === 'number') {
-      if (value.value < 0 || value.value > max) {
-        report(
-          'local.constraint',
-          `progress value must be between 0 and ${max}, got ${value.value}.`,
-          value.offset,
-          undefined,
-          { key: 'local.constraint.progress-range', params: { max, value: value.value } },
-        );
-      }
-    }
-  }
-
-  if (entry.name === 'plot') {
-    const min = numberValue(entry, attrs, 'min');
-    const max = numberValue(entry, attrs, 'max');
-    if (min !== undefined && max !== undefined && !(min < max)) {
-      report('local.constraint', 'plot min must be less than max.', attrs.min?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.plot-range' });
-    }
-  }
-
-  if (entry.name === 'timer') {
-    const duration = numberValue(entry, attrs, 'duration') ?? 60;
-    if (!Number.isInteger(duration) || duration <= 0) {
-      report('local.constraint', 'timer duration must be a positive whole number of seconds.', attrs.duration?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.timer-duration' });
-    }
-  }
-
-  if (entry.name === 'range-slider') {
-    const min = numberValue(entry, attrs, 'min') ?? 0;
-    const max = numberValue(entry, attrs, 'max') ?? 100;
-    const step = numberValue(entry, attrs, 'step') ?? 1;
-    if (!(min <= max)) {
-      report('local.constraint', 'range-slider min cannot exceed max.', attrs.min?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.range-slider-min-max' });
-    }
-    if (!(step > 0) || !Number.isFinite(step)) {
-      report('local.constraint', 'range-slider step must be a finite positive number.', attrs.step?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.range-slider-step' });
-    }
-  }
-
-  if (entry.name === 'coordinate') {
-    for (const axis of ['x', 'y'] as const) {
-      const min = numberValue(entry, attrs, `${axis}-min`) ?? -5;
-      const max = numberValue(entry, attrs, `${axis}-max`) ?? 5;
-      if (!(min <= max)) {
-        report('local.constraint', `coordinate ${axis}-min cannot exceed ${axis}-max.`, attrs[`${axis}-min`]?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.coordinate-axis', params: { axis } });
-      }
-    }
-    const step = numberValue(entry, attrs, 'step') ?? 1;
-    if (!(step > 0) || !Number.isFinite(step)) {
-      report('local.constraint', 'coordinate step must be a finite positive number.', attrs.step?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.coordinate-step' });
-    }
-  }
-
-  if (entry.name === 'multi-select') {
-    const maxSelected = numberValue(entry, attrs, 'max-selected');
-    if (maxSelected !== undefined && (!Number.isInteger(maxSelected) || maxSelected < 0)) {
-      report('local.constraint', 'multi-select max-selected must be a nonnegative whole number.', attrs['max-selected']?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.multi-select' });
-    }
-  }
-
-  if (entry.name === 'table' || entry.name === 'chart') {
-    if (!Object.hasOwn(attrs, 'key')) {
-      for (const name of ['bind', 'initial']) {
-        if (Object.hasOwn(attrs, name)) {
-          report(
-            'local.selection.key',
-            `<${entry.name}> ${name} requires a key attribute naming the selection column.`,
-            attrs[name].offset,
-            undefined,
-            { key: 'local.selection.key.required', params: { component: entry.name, name } },
-          );
-        }
-      }
-    }
+  for (const issue of kernelAttributeIssues(entry.kernel, attrs, entry.node.range)) {
+    state.report(
+      issue.code,
+      issue.message,
+      issue.start,
+      issue.end,
+      { key: issue.key, ...(issue.params ? { params: issue.params } : {}) },
+    );
   }
 }
 
@@ -974,169 +1209,139 @@ function validateAttributeRelations(entry: Entry, state: CompileState): void {
 /* Children                                                            */
 /* ------------------------------------------------------------------ */
 
-function componentChildren(entry: Entry): Entry[] {
-  return (entry.node.children ?? [])
-    .filter((node): node is LocalNode => node.type === 'component' && !!node.name)
-    .map((node) => ({
-      node,
-      name: node.name!,
-      schema: getLocalComponent(node.name!)!,
-      parent: entry,
-    }))
-    .filter((child) => !!child.schema);
+interface ChildComponent {
+  node: LocalNode;
+  name: string;
 }
 
-function validateChildren(entry: Entry, state: CompileState): void {
-  const attrs = state.attrs.get(entry.node.id) ?? {};
-  const kids = meaningful(entry.node.children);
-  const report = state.report;
-  const rule = entry.schema.childRule;
+function componentChildren(entry: Entry, state: CompileState): ChildComponent[] {
+  const children: ChildComponent[] = [];
+  for (const node of entry.node.children ?? []) {
+    if ((node.type === 'component' || node.type === 'hostComponent') && node.name && state.schemaByName.has(node.name)) {
+      children.push({ node, name: node.name });
+    }
+  }
+  return children;
+}
 
-  if (entry.schema.parent) {
-    if (!entry.parent || !entry.schema.parent.includes(entry.parent.name)) {
-      report(
-        'local.structure.parent',
-        `<${entry.name}> can only appear directly inside ${entry.schema.parent.map((name) => `<${name}>`).join(' or ')}.`,
+function projectionMap(
+  state: CompileState,
+  kind: 'options' | 'tabs' | 'steps' | 'diagram-nodes',
+): Map<string, string[]> {
+  switch (kind) {
+    case 'options':
+      return state.options;
+    case 'tabs':
+      return state.tabs;
+    case 'steps':
+      return state.steps;
+    case 'diagram-nodes':
+      return state.diagramNodes;
+  }
+}
+
+function setProjection(
+  state: CompileState,
+  entry: Entry,
+  kind: KernelProjectionKind,
+  values: string[],
+): void {
+  if (kind === 'selection') {
+    state.selections.set(entry.node.id, values);
+    return;
+  }
+  if (kind === 'checklist') return;
+  projectionMap(state, kind).set(entry.node.id, values);
+}
+
+/** Split a structural rule's child-name list into the canonical singular view. */
+function structureItems(structure: KernelStructure): readonly string[] {
+  return structure.children ?? structure.items ?? (structure.child ? [structure.child] : []);
+}
+
+function structureMinimum(structure: KernelStructure): number {
+  return structure.min ?? structure.minItems ?? 0;
+}
+
+/** True when a parent's declared structure/rules explicitly accept this child. */
+function parentDeclaresChild(parent: Entry, childName: string): boolean {
+  const structure = kernelStructure(parent.kernel);
+  if (structureItems(structure).includes(childName)) return true;
+  for (const rule of kernelRules(parent.kernel)) {
+    switch (rule.kind) {
+      case 'options-body':
+      case 'value-sequence':
+        if (rule.child === childName) return true;
+        break;
+      case 'only-children':
+        if (rule.children.includes(childName)) return true;
+        break;
+      case 'data-table':
+        if (rule.child === childName) return true;
+        break;
+      case 'quiz-body':
+        if (rule.child === childName) return true;
+        break;
+      case 'diagram-body':
+        if (rule.node === childName || rule.edge === childName) return true;
+        break;
+      default:
+        break;
+    }
+  }
+  return false;
+}
+
+function structureMaximum(structure: KernelStructure): number | undefined {
+  return structure.max ?? structure.maxItems ?? structure.maxItemsCount ?? structure.maxItems;
+}
+
+const KERNEL_INLINE_TYPES = new Set([
+  'text', 'emphasis', 'strong', 'delete', 'underline', 'mark', 'link', 'image',
+  'inlineCode', 'inlineMath', 'interpolation', 'break', 'comment', 'fallback',
+  'footnoteReference',
+]);
+
+function isInlineBody(node: LocalNode): boolean {
+  return KERNEL_INLINE_TYPES.has(node.type) && (node.children ?? []).every(isInlineBody);
+}
+
+function reportInlineBody(entry: Entry, kids: LocalNode[], state: CompileState, strict: boolean): void {
+  if (strict) {
+    const body = kids.length === 1 && kids[0].type === 'paragraph' ? kids[0].children ?? [] : kids;
+    if (!body.every(isInlineBody)) {
+      state.report(
+        'local.structure.children',
+        `<${entry.name}> only accepts inline Markdown.`,
         entry.node.range.start,
         entry.node.range.end,
-        { key: 'local.structure.parent', params: { name: entry.name, parents: entry.schema.parent.map((name) => `<${name}>`).join(' / ') } },
+        { key: 'local.structure.inline-only', params: { name: entry.name } },
       );
     }
   }
-
-  switch (rule) {
-    case 'none':
-      if (kids.length) {
-        report('local.structure.children', `<${entry.name}> does not accept body content.`, kids[0].range.start, kids[0].range.end, { key: 'local.structure.no-body', params: { name: entry.name } });
-      }
-      break;
-    case 'inline':
-      if (entry.name === 'text' || entry.name === 'jump') {
-        const inlineTypes = new Set(['text', 'emphasis', 'strong', 'delete', 'underline', 'mark', 'link', 'image', 'inlineCode', 'inlineMath', 'interpolation', 'break', 'comment', 'fallback', 'footnoteReference']);
-        const isInline = (node: LocalNode): boolean => inlineTypes.has(node.type) && (node.children ?? []).every(isInline);
-        const body = kids.length === 1 && kids[0].type === 'paragraph' ? kids[0].children ?? [] : kids;
-        if (!body.every(isInline)) {
-          report('local.structure.children', `<${entry.name}> only accepts inline Markdown.`, entry.node.range.start, entry.node.range.end, { key: 'local.structure.inline-only', params: { name: entry.name } });
-        }
-      }
-      for (const child of kids) {
-        if (hasComponent(child)) {
-          report('local.structure.children', `The body of <${entry.name}> cannot contain other interactive components.`, child.range.start, child.range.end, { key: 'local.structure.no-nested-components', params: { name: entry.name } });
-        }
-      }
-      break;
-    case 'content':
-      if (entry.name === 'node') validateNodeContent(entry, state);
-      break;
-    case 'any':
-      break;
-    case 'options':
-      validateOptions(entry, state, attrs);
-      break;
-    case 'tabs':
-      validateTabs(entry, state);
-      break;
-    case 'disclosures': {
-      const children = componentChildren(entry);
-      const allowed = children.filter((child) => child.name === 'disclosure');
-      if (!allowed.length) {
-        report('local.structure.children', '<accordion> requires at least one <disclosure>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.accordion.needs-disclosure' });
-      }
-      if (allowed.length !== children.length) {
-        for (const child of children) if (child.name !== 'disclosure') report('local.structure.children', '<accordion> can only contain <disclosure>.', child.node.range.start, child.node.range.end, { key: 'local.structure.accordion.only-disclosure' });
-      }
-      if (kids.some((kid) => kid.type !== 'component')) {
-        report('local.structure.children', '<accordion> can only contain <disclosure>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.accordion.only-disclosure' });
-      }
-      break;
-    }
-    case 'cards': {
-      const children = componentChildren(entry);
-      const allowed = children.filter((child) => child.name === 'card');
-      if (!allowed.length) {
-        report('local.structure.children', '<grid> requires at least one <card>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.grid.needs-card' });
-      }
-      if (allowed.length !== children.length) {
-        for (const child of children) if (child.name !== 'card') report('local.structure.children', 'Direct children of <grid> must be <card>.', child.node.range.start, child.node.range.end, { key: 'local.structure.grid.only-card' });
-      }
-      if (kids.some((kid) => kid.type !== 'component')) {
-        report('local.structure.children', 'Direct children of <grid> must be <card>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.grid.only-card' });
-      }
-      break;
-    }
-    case 'diagram':
-      validateDiagram(entry, state);
-      break;
-    case 'table': {
-      const tables = kids.filter((kid) => kid.type === 'table');
-      if (tables.length !== 1 || kids.length !== 1) {
-        report(
-          'local.structure.children',
-          `The body of <${entry.name}> must be exactly one Markdown table.`,
-          entry.node.range.start,
-          entry.node.range.end,
-          { key: 'local.structure.table.single', params: { name: entry.name } },
-        );
-      }
-      if (tables.length) state.tables.set(entry.node.id, tables[0]);
-      else if (entry.name === 'table' && kids.length === 1) state.tables.set(entry.node.id, kids[0]);
-      break;
-    }
-    case 'plot': {
-      const mathNodes = kids.filter((kid) => kid.type === 'math');
-      if (!mathNodes.length) {
-        report('local.structure.children', '<plot> requires at least one $$...$$ formula block.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.plot.needs-formula' });
-      }
-      for (const kid of kids) {
-        if (kid.type !== 'math') {
-          report('local.structure.children', 'The body of <plot> can only contain blank lines and $$...$$ formula blocks.', kid.range.start, kid.range.end, { key: 'local.structure.plot.only-formulas' });
-        }
-      }
-      break;
-    }
-    case 'steps':
-      validateSteps(entry, state);
-      break;
-    case 'quiz':
-      validateQuiz(entry, state, attrs);
-      break;
-    case 'columns': {
-      const children = componentChildren(entry);
-      const columns = children.filter((child) => child.name === 'column');
-      if (!columns.length) {
-        report('local.structure.children', '<data-table> requires at least one <column>.', entry.node.range.start, entry.node.range.end);
-      }
-      if (columns.length > MAX_LOCAL_DATA_TABLE_COLUMNS) {
-        report(
-          'local.budget.data-table.columns',
-          `<data-table> supports at most ${MAX_LOCAL_DATA_TABLE_COLUMNS} columns, but has ${columns.length}.`,
-          entry.node.range.start,
-          entry.node.range.end,
-        );
-      }
-      for (const child of children) {
-        if (child.name !== 'column') {
-          report('local.structure.children', '<data-table> can only contain <column>.', child.node.range.start, child.node.range.end);
-        }
-      }
-      if (kids.some((kid) => kid.type !== 'component')) {
-        report('local.structure.children', '<data-table> can only contain <column>.', entry.node.range.start, entry.node.range.end);
-      }
-      break;
+  for (const child of kids) {
+    if (hasComponent(child)) {
+      state.report(
+        'local.structure.children',
+        `The body of <${entry.name}> cannot contain other interactive components.`,
+        child.range.start,
+        child.range.end,
+        { key: 'local.structure.no-nested-components', params: { name: entry.name } },
+      );
     }
   }
 }
 
-function validateNodeContent(entry: Entry, state: CompileState): void {
+function reportNoComponents(entry: Entry, state: CompileState): void {
   const walk = (nodes: LocalNode[]) => {
     for (const node of nodes) {
-      if (node.type === 'component') {
+      if (node.type === 'component' || node.type === 'hostComponent') {
         state.report(
           'local.structure.children',
-          'The description of <node> cannot contain interactive components.',
+          `The body of <${entry.name}> cannot contain interactive components.`,
           node.range.start,
           node.range.end,
-          { key: 'local.structure.node.no-components' },
+          { key: 'local.structure.no-components', params: { name: entry.name } },
         );
         continue;
       }
@@ -1146,179 +1351,241 @@ function validateNodeContent(entry: Entry, state: CompileState): void {
   walk(entry.node.children ?? []);
 }
 
-function validateOptions(entry: Entry, state: CompileState, attrs: AttrMap): void {
-  const children = componentChildren(entry);
-  const options = children.filter((child) => child.name === 'option');
+function validateOptionsBody(
+  entry: Entry,
+  state: CompileState,
+  attrs: AttrMap,
+  child: string,
+  valueAttribute: string,
+  unique: boolean,
+  maxItems: number,
+  forbidSeparator: string | undefined,
+): void {
+  const children = componentChildren(entry, state);
+  const options = children.filter((candidate) => candidate.name === child);
   if (!options.length) {
     state.report(
       'local.structure.children',
-      `<${entry.name}> requires at least one <option value="...">.`,
+      `<${entry.name}> requires at least one <${child} value="...">.`,
       entry.node.range.start,
       entry.node.range.end,
       { key: 'local.structure.options.needed', params: { name: entry.name } },
     );
   }
-  for (const child of children) {
-    if (child.name !== 'option') {
-      state.report('local.structure.children', `<${entry.name}> can only contain <option>.`, child.node.range.start, child.node.range.end, { key: 'local.structure.options.only', params: { name: entry.name } });
+  for (const candidate of children) {
+    if (candidate.name !== child) {
+      state.report(
+        'local.structure.children',
+        `<${entry.name}> can only contain <${child}>.`,
+        candidate.node.range.start,
+        candidate.node.range.end,
+        { key: 'local.structure.options.only', params: { name: entry.name } },
+      );
     }
   }
-  if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', `<${entry.name}> can only contain <option>.`, entry.node.range.start, entry.node.range.end, { key: 'local.structure.options.only', params: { name: entry.name } });
-  }
-  if (options.length > MAX_LOCAL_ARRAY_LENGTH) {
+  if (meaningful(entry.node.children).some((kid) => !(
+    (kid.type === 'component' || kid.type === 'hostComponent') && kid.name === child
+  ))) {
     state.report(
-      'local.budget.array',
-      `<${entry.name}> options exceed the limit of ${MAX_LOCAL_ARRAY_LENGTH}.`,
+      'local.structure.children',
+      `<${entry.name}> can only contain <${child}>.`,
       entry.node.range.start,
       entry.node.range.end,
-      { key: 'local.budget.array.options', params: { name: entry.name, limit: MAX_LOCAL_ARRAY_LENGTH } },
+      { key: 'local.structure.options.only', params: { name: entry.name } },
+    );
+  }
+  if (options.length > maxItems) {
+    state.report(
+      'local.budget.array',
+      `<${entry.name}> options exceed the limit of ${maxItems}.`,
+      entry.node.range.start,
+      entry.node.range.end,
+      { key: 'local.budget.array.options', params: { name: entry.name, limit: maxItems } },
     );
   }
   const values: string[] = [];
   for (const option of options) {
     const optionAttrs = state.attrs.get(option.node.id) ?? {};
-    const value = typeof optionAttrs.value?.value === 'string' ? optionAttrs.value.value : '';
+    const value = typeof optionAttrs[valueAttribute]?.value === 'string' ? optionAttrs[valueAttribute].value : '';
     if (!value) {
-      state.report('local.option.value', '<option> requires a non-empty value.', option.node.range.start, option.node.range.end, { key: 'local.option.value.required' });
+      state.report('local.option.value', `<${child}> requires a non-empty ${valueAttribute}.`, option.node.range.start, option.node.range.end, { key: 'local.option.value.required' });
       continue;
     }
-    if (entry.name === 'multi-select' && value.includes(',')) {
+    if (forbidSeparator !== undefined && value.includes(forbidSeparator)) {
       state.report(
         'local.option.value',
-        `<multi-select> option values cannot contain commas: "${value}".`,
+        `<${entry.name}> option values cannot contain ${forbidSeparator}: "${value}".`,
         option.node.range.start,
         option.node.range.end,
         { key: 'local.option.value.comma', params: { value } },
       );
       continue;
     }
-    if (values.includes(value)) {
-      state.report('local.option.value', `Option values in <${entry.name}> must be unique; duplicate value "${value}".`, option.node.range.start, option.node.range.end, { key: 'local.option.value.duplicate', params: { name: entry.name, value } });
+    if (unique && values.includes(value)) {
+      state.report(
+        'local.option.value',
+        `Option values in <${entry.name}> must be unique; duplicate value "${value}".`,
+        option.node.range.start,
+        option.node.range.end,
+        { key: 'local.option.value.duplicate', params: { name: entry.name, value } },
+      );
       continue;
     }
     if ((option.node.children ?? []).some(hasComponent)) {
-      state.report('local.structure.children', 'The body of <option> cannot contain interactive components.', option.node.range.start, option.node.range.end, { key: 'local.structure.option.no-components' });
+      state.report('local.structure.children', `The body of <${child}> cannot contain interactive components.`, option.node.range.start, option.node.range.end, { key: 'local.structure.option.no-components' });
     }
     values.push(value);
   }
-  state.options.set(entry.node.id, values);
+  setProjection(state, entry, 'options', values);
+  void attrs;
 }
 
-function validateTabs(entry: Entry, state: CompileState): void {
-  const children = componentChildren(entry);
-  const tabs = children.filter((child) => child.name === 'tab');
-  if (!tabs.length) {
-    state.report('local.structure.children', '<tabs> requires at least one <tab>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.tabs.needs-tab' });
+function validateValueSequence(
+  entry: Entry,
+  state: CompileState,
+  child: string,
+  valueAttribute: string,
+  generatedPrefix: string,
+  duplicateCode: string,
+): void {
+  const children = componentChildren(entry, state);
+  const items = children.filter((candidate) => candidate.name === child);
+  if (!items.length) {
+    state.report(
+      'local.structure.children',
+      `<${entry.name}> requires at least one <${child}>.`,
+      entry.node.range.start,
+      entry.node.range.end,
+      { key: `local.structure.${entry.name}.needs-${child}` },
+    );
   }
-  for (const child of children) {
-    if (child.name !== 'tab') {
-      state.report('local.structure.children', '<tabs> can only contain <tab>.', child.node.range.start, child.node.range.end, { key: 'local.structure.tabs.only-tab' });
-    }
-  }
-  if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', '<tabs> can only contain <tab>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.tabs.only-tab' });
-  }
-  const values: string[] = [];
-  tabs.forEach((tab, index) => {
-    const tabAttrs = state.attrs.get(tab.node.id) ?? {};
-    const rawValue = typeof tabAttrs.value?.value === 'string' ? tabAttrs.value.value.trim() : '';
-    const value = rawValue || `tab-${index + 1}`;
-    if (values.includes(value)) {
-      state.report('local.tab.value', `Tab values in <tabs> must be unique; duplicate value "${value}".`, tab.node.range.start, tab.node.range.end, { key: 'local.tab.value.duplicate', params: { value } });
-      return;
-    }
-    values.push(value);
-  });
-  state.tabs.set(entry.node.id, values);
-}
-
-function validateSteps(entry: Entry, state: CompileState): void {
-  const children = componentChildren(entry);
-  const steps = children.filter((child) => child.name === 'step');
-  if (!steps.length) {
-    state.report('local.structure.children', '<steps> requires at least one <step>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.steps.needs-step' });
-  }
-  for (const child of children) {
-    if (child.name !== 'step') {
-      state.report('local.structure.children', '<steps> can only contain <step>.', child.node.range.start, child.node.range.end, { key: 'local.structure.steps.only-step' });
-    }
-  }
-  if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', '<steps> can only contain <step>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.steps.only-step' });
-  }
-  const values: string[] = [];
-  steps.forEach((step, index) => {
-    const stepAttrs = state.attrs.get(step.node.id) ?? {};
-    const rawValue = typeof stepAttrs.value?.value === 'string' ? stepAttrs.value.value.trim() : '';
-    const value = rawValue || `step-${index + 1}`;
-    if (values.includes(value)) {
-      state.report('local.step.value', `Step values in <steps> must be unique; duplicate value "${value}".`, step.node.range.start, step.node.range.end, { key: 'local.step.value.duplicate', params: { value } });
-      return;
-    }
-    values.push(value);
-  });
-  state.steps.set(entry.node.id, values);
-}
-
-function validateQuiz(entry: Entry, state: CompileState, attrs: AttrMap): void {
-  const type = typeof attrs.type?.value === 'string' ? attrs.type.value : 'choice';
-  const answer = typeof attrs.answer?.value === 'string' ? attrs.answer.value : '';
-  if (!answer.trim()) {
-    state.report('local.quiz.answer', '<quiz> requires a non-empty answer.', attrs.answer?.offset ?? entry.node.range.start, undefined, { key: 'local.quiz.answer.required' });
-  }
-  if (type === 'number') {
-    if (meaningful(entry.node.children).length) {
+  for (const candidate of children) {
+    if (candidate.name !== child) {
       state.report(
         'local.structure.children',
-        'A numeric <quiz> cannot have body content; use type="choice" for option-based quizzes.',
-        entry.node.range.start,
-        entry.node.range.end,
-        { key: 'local.structure.quiz.numeric-no-body' },
+        `<${entry.name}> can only contain <${child}>.`,
+        candidate.node.range.start,
+        candidate.node.range.end,
+        { key: `local.structure.${entry.name}.only-${child}` },
       );
     }
-    if (answer.trim() && parseNumberText(answer) === null) {
-      state.report('local.quiz.answer', 'A numeric <quiz> answer must be a finite number.', attrs.answer?.offset ?? entry.node.range.start, undefined, { key: 'local.quiz.answer.numeric' });
-    }
-    const tolerance = numberValue(entry, attrs, 'tolerance');
-    if (tolerance !== undefined && (!Number.isFinite(tolerance) || tolerance < 0)) {
-      state.report('local.constraint', '<quiz> tolerance must be a nonnegative finite number.', attrs.tolerance?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.quiz-tolerance' });
-    }
-    return;
   }
-  validateOptions(entry, state, attrs);
-  const options = state.options.get(entry.node.id) ?? [];
-  if (answer.trim() && options.length && !options.includes(answer)) {
+  if (meaningful(entry.node.children).some((kid) => !(
+    (kid.type === 'component' || kid.type === 'hostComponent') && kid.name === child
+  ))) {
     state.report(
-      'local.quiz.answer',
-      `<quiz> answer "${answer}" is not one of the option values: ${options.join(', ')}.`,
-      attrs.answer?.offset ?? entry.node.range.start,
-      undefined,
-      { key: 'local.quiz.answer.not-option', params: { answer, options: options.join(', ') } },
+      'local.structure.children',
+      `<${entry.name}> can only contain <${child}>.`,
+      entry.node.range.start,
+      entry.node.range.end,
+      { key: `local.structure.${entry.name}.only-${child}` },
+    );
+  }
+  const values: string[] = [];
+  items.forEach((item, index) => {
+    const itemAttrs = state.attrs.get(item.node.id) ?? {};
+    const rawValue = typeof itemAttrs[valueAttribute]?.value === 'string' ? itemAttrs[valueAttribute].value.trim() : '';
+    const value = rawValue || `${generatedPrefix}${index + 1}`;
+    if (values.includes(value)) {
+      state.report(
+        duplicateCode,
+        `Values in <${entry.name}> must be unique; duplicate value "${value}".`,
+        item.node.range.start,
+        item.node.range.end,
+        { key: `${duplicateCode}.duplicate`, params: { value } },
+      );
+      return;
+    }
+    values.push(value);
+  });
+  const family = kernelValueBinding(entry.kernel)?.family;
+  setProjection(state, entry, kernelProjectionForFamily(family ?? '') === 'tabs' ? 'tabs' : 'steps', values);
+}
+
+function validateOnlyChildren(
+  entry: Entry,
+  state: CompileState,
+  allowed: readonly string[],
+  min: number,
+  max: number | undefined,
+  onlyCode: string | undefined,
+  maxCode: string | undefined,
+): void {
+  const children = componentChildren(entry, state);
+  const matching = children.filter((candidate) => allowed.includes(candidate.name));
+  const label = allowed.map((name) => `<${name}>`).join(' or ');
+  const limit = max !== undefined && maxCode === 'local.budget.data-table.columns'
+    ? Math.min(max, MAX_LOCAL_DATA_TABLE_COLUMNS)
+    : max;
+  if (matching.length < min) {
+    state.report(
+      'local.structure.children',
+      `<${entry.name}> requires at least ${min} ${label}.`,
+      entry.node.range.start,
+      entry.node.range.end,
+      { key: `local.structure.${entry.name}.needs-${allowed[0]}` },
+    );
+  }
+  if (limit !== undefined && matching.length > limit) {
+    state.report(
+      maxCode ?? 'local.budget.array',
+      `<${entry.name}> supports at most ${limit} ${label}, but has ${matching.length}.`,
+      entry.node.range.start,
+      entry.node.range.end,
+    );
+  }
+  for (const candidate of children) {
+    if (!allowed.includes(candidate.name)) {
+      state.report(
+        'local.structure.children',
+        `Direct children of <${entry.name}> must be ${label}.`,
+        candidate.node.range.start,
+        candidate.node.range.end,
+        { key: onlyCode ?? `local.structure.${entry.name}.only` },
+      );
+    }
+  }
+  if (meaningful(entry.node.children).some((kid) => !(
+    (kid.type === 'component' || kid.type === 'hostComponent') && kid.name && state.schemaByName.has(kid.name)
+  ))) {
+    state.report(
+      'local.structure.children',
+      `Direct children of <${entry.name}> must be ${label}.`,
+      entry.node.range.start,
+      entry.node.range.end,
+      { key: onlyCode ?? `local.structure.${entry.name}.only` },
     );
   }
 }
 
-function validateDiagram(entry: Entry, state: CompileState): void {
-  const children = componentChildren(entry);
-  const nodes = children.filter((child) => child.name === 'node');
-  const edges = children.filter((child) => child.name === 'edge');
+function validateDiagramBody(
+  entry: Entry,
+  state: CompileState,
+  rule: Extract<KernelRule, { kind: 'diagram-body' }>,
+): void {
+  const children = componentChildren(entry, state);
+  const nodes = children.filter((child) => child.name === rule.node);
+  const edges = children.filter((child) => child.name === rule.edge);
   if (!nodes.length) {
-    state.report('local.diagram.node', '<diagram> requires at least one <node>.', entry.node.range.start, entry.node.range.end, { key: 'local.diagram.node.required' });
+    state.report('local.diagram.node', `<${entry.name}> requires at least one <${rule.node}>.`, entry.node.range.start, entry.node.range.end, { key: 'local.diagram.node.required' });
   }
   for (const child of children) {
-    if (child.name !== 'node' && child.name !== 'edge') {
-      state.report('local.structure.children', '<diagram> can only contain <node> and <edge>.', child.node.range.start, child.node.range.end, { key: 'local.structure.diagram.only' });
+    if (child.name !== rule.node && child.name !== rule.edge) {
+      state.report('local.structure.children', `<${entry.name}> can only contain <${rule.node}> and <${rule.edge}>.`, child.node.range.start, child.node.range.end, { key: 'local.structure.diagram.only' });
     }
   }
-  if (meaningful(entry.node.children).some((kid) => kid.type !== 'component')) {
-    state.report('local.structure.children', '<diagram> can only contain <node> and <edge>.', entry.node.range.start, entry.node.range.end, { key: 'local.structure.diagram.only' });
+  if (meaningful(entry.node.children).some((kid) => !(
+    (kid.type === 'component' || kid.type === 'hostComponent') && kid.name
+    && (kid.name === rule.node || kid.name === rule.edge)
+  ))) {
+    state.report('local.structure.children', `<${entry.name}> can only contain <${rule.node}> and <${rule.edge}>.`, entry.node.range.start, entry.node.range.end, { key: 'local.structure.diagram.only' });
   }
 
   const ids: string[] = [];
   for (const node of nodes) {
     const nodeAttrs = state.attrs.get(node.node.id) ?? {};
-    const id = typeof nodeAttrs.id?.value === 'string' ? nodeAttrs.id.value : '';
+    const rawId = nodeAttrs[rule.id]?.value;
+    const id = typeof rawId === 'string' ? rawId : '';
     if (!id) continue;
     if (!/^[A-Za-z_][A-Za-z0-9_-]*$/.test(id)) {
       state.report('local.diagram.node', `Node ID "${id}" may only contain letters, digits, underscores and hyphens, and cannot start with a digit.`, node.node.range.start, node.node.range.end, { key: 'local.diagram.node.invalid', params: { id } });
@@ -1329,14 +1596,17 @@ function validateDiagram(entry: Entry, state: CompileState): void {
     }
     ids.push(id);
   }
-  state.diagramNodes.set(entry.node.id, ids);
+  setProjection(state, entry, 'diagram-nodes', ids);
 
   const seen = new Set<string>();
   for (const edge of edges) {
     const edgeAttrs = state.attrs.get(edge.node.id) ?? {};
-    const from = typeof edgeAttrs.from?.value === 'string' ? edgeAttrs.from.value : '';
-    const to = typeof edgeAttrs.to?.value === 'string' ? edgeAttrs.to.value : '';
-    const label = typeof edgeAttrs.label?.value === 'string' ? edgeAttrs.label.value : '';
+    const rawFrom = edgeAttrs[rule.from]?.value;
+    const rawTo = edgeAttrs[rule.to]?.value;
+    const rawLabel = rule.label ? edgeAttrs[rule.label]?.value : undefined;
+    const from = typeof rawFrom === 'string' ? rawFrom : '';
+    const to = typeof rawTo === 'string' ? rawTo : '';
+    const label = typeof rawLabel === 'string' ? rawLabel : '';
     if (from && !ids.includes(from)) {
       state.report('local.diagram.edge', `Edge from references unknown node "${from}".`, edge.node.range.start, edge.node.range.end, { key: 'local.diagram.edge.from', params: { id: from } });
     }
@@ -1351,7 +1621,244 @@ function validateDiagram(entry: Entry, state: CompileState): void {
   }
 }
 
-function validateChecklist(entry: Entry, state: CompileState): ChecklistInfo {
+function validateQuizBody(
+  entry: Entry,
+  state: CompileState,
+  attrs: AttrMap,
+  rule: Extract<KernelRule, { kind: 'quiz-body' }>,
+): void {
+  const type = typeof attrs[rule.type]?.value === 'string' ? String(attrs[rule.type].value) : 'choice';
+  const answer = staticAttributeString(entry, attrs, rule.answer) ?? '';
+  if (!answer.trim()) {
+    state.report('local.quiz.answer', `<${entry.name}> requires a non-empty ${rule.answer}.`, attrs[rule.answer]?.offset ?? entry.node.range.start, undefined, { key: 'local.quiz.answer.required' });
+  }
+  if (type === 'number') {
+    if (meaningful(entry.node.children).length) {
+      state.report(
+        'local.structure.children',
+        `A numeric <${entry.name}> cannot have body content; use type="choice" for option-based quizzes.`,
+        entry.node.range.start,
+        entry.node.range.end,
+        { key: 'local.structure.quiz.numeric-no-body' },
+      );
+    }
+    if (answer.trim() && parseNumberText(answer) === null) {
+      state.report('local.quiz.answer', `A numeric <${entry.name}> answer must be a finite number.`, attrs[rule.answer]?.offset ?? entry.node.range.start, undefined, { key: 'local.quiz.answer.numeric' });
+    }
+    const tolerance = numberValue(entry, attrs, rule.tolerance);
+    if (tolerance !== undefined && (!Number.isFinite(tolerance) || tolerance < 0)) {
+      state.report('local.constraint', `<${entry.name}> tolerance must be a nonnegative finite number.`, attrs[rule.tolerance]?.offset ?? entry.node.range.start, undefined, { key: 'local.constraint.quiz-tolerance' });
+    }
+    return;
+  }
+  validateOptionsBody(entry, state, attrs, rule.child, rule.valueAttribute, true, Math.min(rule.max ?? MAX_LOCAL_ARRAY_LENGTH, MAX_LOCAL_ARRAY_LENGTH), undefined);
+  const options = state.options.get(entry.node.id) ?? [];
+  if (answer.trim() && options.length && !options.includes(answer)) {
+    state.report(
+      'local.quiz.answer',
+      `<${entry.name}> answer "${answer}" is not one of the option values: ${options.join(', ')}.`,
+      attrs[rule.answer]?.offset ?? entry.node.range.start,
+      undefined,
+      { key: 'local.quiz.answer.not-option', params: { answer, options: options.join(', ') } },
+    );
+  }
+}
+
+function validateChildren(entry: Entry, state: CompileState): void {
+  const attrs = state.attrs.get(entry.node.id) ?? {};
+  const kids = meaningful(entry.node.children);
+  const report = state.report;
+  const structure = kernelStructure(entry.kernel);
+  const rules = kernelRules(entry.kernel);
+
+  if (structure.parents) {
+    const accepted = entry.parent !== null && (
+      structure.parents.includes(entry.parent.name)
+      || parentDeclaresChild(entry.parent, entry.name)
+    );
+    if (!accepted) {
+      report(
+        'local.structure.parent',
+        `<${entry.name}> can only appear directly inside ${structure.parents.map((name) => `<${name}>`).join(' or ')}.`,
+        entry.node.range.start,
+        entry.node.range.end,
+        { key: 'local.structure.parent', params: { name: entry.name, parents: structure.parents.map((name) => `<${name}>`).join(' / ') } },
+      );
+    }
+  }
+
+  let consumedBody = false;
+  let countEnforced = false;
+  for (const rule of rules) {
+    switch (rule.kind) {
+      case 'inline-body':
+        consumedBody = true;
+        reportInlineBody(entry, kids, state, rule.strict === true || structure.inlineOnly === true);
+        break;
+      case 'no-components':
+        consumedBody = true;
+        reportNoComponents(entry, state);
+        break;
+      case 'single-table': {
+        consumedBody = true;
+        countEnforced = true;
+        const tables = kids.filter((kid) => kid.type === 'table');
+        if (tables.length !== 1 || kids.length !== 1) {
+          report(
+            'local.structure.children',
+            `The body of <${entry.name}> must be exactly one Markdown table.`,
+            entry.node.range.start,
+            entry.node.range.end,
+            { key: 'local.structure.table.single', params: { name: entry.name } },
+          );
+        }
+        if (tables.length) state.tables.set(entry.node.id, tables[0]);
+        else if (rule.fallbackSingle === true && kids.length === 1) state.tables.set(entry.node.id, kids[0]);
+        break;
+      }
+      case 'math-body': {
+        consumedBody = true;
+        countEnforced = true;
+        const mathNodes = kids.filter((kid) => kid.type === 'math');
+        if (!mathNodes.length) {
+          report('local.structure.children', `<${entry.name}> requires at least one $$...$$ formula block.`, entry.node.range.start, entry.node.range.end, { key: 'local.structure.plot.needs-formula' });
+        }
+        for (const kid of kids) {
+          if (kid.type !== 'math') {
+            report('local.structure.children', `The body of <${entry.name}> can only contain blank lines and $$...$$ formula blocks.`, kid.range.start, kid.range.end, { key: 'local.structure.plot.only-formulas' });
+          }
+        }
+        break;
+      }
+      case 'options-body':
+        consumedBody = true;
+        countEnforced = true;
+        validateOptionsBody(entry, state, attrs, rule.child, rule.valueAttribute, rule.unique, Math.min(rule.max ?? MAX_LOCAL_ARRAY_LENGTH, MAX_LOCAL_ARRAY_LENGTH), rule.forbidSeparator);
+        break;
+      case 'value-sequence':
+        consumedBody = true;
+        countEnforced = true;
+        validateValueSequence(entry, state, rule.child, rule.valueAttribute, rule.generatedPrefix, rule.duplicateCode ?? `local.${rule.child}.value`);
+        break;
+      case 'only-children':
+        consumedBody = true;
+        countEnforced = true;
+        validateOnlyChildren(entry, state, rule.children, rule.min, rule.max, rule.onlyCode, rule.maxCode);
+        break;
+      case 'diagram-body':
+        consumedBody = true;
+        countEnforced = true;
+        validateDiagramBody(entry, state, rule);
+        break;
+      case 'quiz-body':
+        consumedBody = true;
+        countEnforced = true;
+        validateQuizBody(entry, state, attrs, rule);
+        break;
+      case 'checklist-body':
+        consumedBody = true;
+        countEnforced = true;
+        validateChecklist(entry, state, Math.min(rule.itemLimit, MAX_LOCAL_ARRAY_LENGTH));
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (!consumedBody) {
+    switch (structure.rule) {
+      case 'none':
+        if (kids.length) {
+          if (entry.legacy) {
+            report('local.host.structure', `Host component <${entry.name}> is a leaf and cannot have body content.`, kids[0].range.start, kids[0].range.end, { key: 'local.host.structure.leaf', params: { component: entry.name } });
+          } else {
+            report('local.structure.children', `<${entry.name}> does not accept body content.`, kids[0].range.start, kids[0].range.end, { key: 'local.structure.no-body', params: { name: entry.name } });
+          }
+        }
+        break;
+      case 'inline':
+        reportInlineBody(entry, kids, state, structure.inlineOnly === true || structure.markdown === 'inline');
+        break;
+      case 'content':
+        if (structure.noComponents === true || structure.allowComponents === false) reportNoComponents(entry, state);
+        break;
+      case 'components': {
+        if (structure.noComponents === true || structure.allowComponents === false) reportNoComponents(entry, state);
+        const allowed = structureItems(structure);
+        if (allowed.length) {
+          countEnforced = true;
+          const rowRule = kernelRule(entry.kernel, 'data-table');
+          validateOnlyChildren(
+            entry,
+            state,
+            allowed,
+            structureMinimum(structure),
+            structureMaximum(structure),
+            undefined,
+            rowRule ? 'local.budget.data-table.columns' : undefined,
+          );
+        }
+        break;
+      }
+      case 'options':
+        countEnforced = true;
+        validateOptionsBody(entry, state, attrs, structureItems(structure)[0] ?? 'option', structure.valueAttribute ?? 'value', true, Math.min(structure.maxItems ?? MAX_LOCAL_ARRAY_LENGTH, MAX_LOCAL_ARRAY_LENGTH), structure.forbidSeparator);
+        break;
+      case 'tabs':
+      case 'steps':
+        countEnforced = true;
+        validateValueSequence(
+          entry,
+          state,
+          structureItems(structure)[0] ?? (structure.rule === 'tabs' ? 'tab' : 'step'),
+          structure.valueAttribute ?? 'value',
+          structure.generatedPrefix ?? structure.valuePrefix ?? `${structure.rule === 'tabs' ? 'tab' : 'step'}-`,
+          `local.${structure.rule === 'tabs' ? 'tab' : 'step'}.value`,
+        );
+        break;
+      case 'diagram':
+        break;
+      case 'quiz':
+        break;
+      case 'table':
+        break;
+      case 'plot':
+        break;
+      case 'any':
+      default:
+        break;
+    }
+  }
+
+  const minimum = structureMinimum(structure);
+  if (!countEnforced && minimum > 0 && kids.length < minimum) {
+    const code = entry.legacy ? 'local.host.structure' : 'local.structure.children';
+    report(
+      code,
+      `Component <${entry.name}> requires body content.`,
+      entry.node.range.start,
+      entry.node.range.end,
+      { key: entry.legacy ? 'local.host.structure.leaf' : 'local.structure.content-required', params: { component: entry.name } },
+    );
+  }
+  const maximum = structureMaximum(structure);
+  if (!countEnforced && maximum !== undefined && kids.length > maximum) {
+    report(
+      'local.structure.children',
+      `<${entry.name}> accepts at most ${maximum} body blocks.`,
+      entry.node.range.start,
+      entry.node.range.end,
+      { key: 'local.structure.body-max', params: { name: entry.name, max: maximum } },
+    );
+  }
+  void attrs;
+}
+
+function validateChecklist(
+  entry: Entry,
+  state: CompileState,
+  itemLimit: number = MAX_LOCAL_ARRAY_LENGTH,
+): ChecklistInfo {
   const cached = state.checklists.get(entry.node.id);
   if (cached) return cached;
   const kids = meaningful(entry.node.children);
@@ -1359,7 +1866,7 @@ function validateChecklist(entry: Entry, state: CompileState): ChecklistInfo {
   if (kids.length !== 1 || lists.length !== 1) {
     state.report(
       'local.checklist.body',
-      'The body of <checklist> must be exactly one single-level Markdown task list.',
+      `The body of <${entry.name}> must be exactly one single-level Markdown task list.`,
       entry.node.range.start,
       entry.node.range.end,
       { key: 'local.checklist.body.single' },
@@ -1374,27 +1881,27 @@ function validateChecklist(entry: Entry, state: CompileState): ChecklistInfo {
   }
   const items = list.children ?? [];
   if (!items.length) {
-    state.report('local.checklist.body', '<checklist> requires at least one task list item.', list.range.start, list.range.end, { key: 'local.checklist.body.item-required' });
+    state.report('local.checklist.body', `<${entry.name}> requires at least one task list item.`, list.range.start, list.range.end, { key: 'local.checklist.body.item-required' });
   }
-  if (items.length > MAX_LOCAL_ARRAY_LENGTH) {
+  if (items.length > itemLimit) {
     state.report(
       'local.budget.array',
-      `<checklist> items exceed the limit of ${MAX_LOCAL_ARRAY_LENGTH}.`,
+      `<${entry.name}> items exceed the limit of ${itemLimit}.`,
       list.range.start,
       list.range.end,
-      { key: 'local.checklist.body.items-limit', params: { limit: MAX_LOCAL_ARRAY_LENGTH } },
+      { key: 'local.checklist.body.items-limit', params: { limit: itemLimit } },
     );
   }
-  items.slice(0, MAX_LOCAL_ARRAY_LENGTH).forEach((item, index) => {
+  items.slice(0, itemLimit).forEach((item, index) => {
     if (item.type !== 'listItem' || item.checked === null || item.checked === undefined) {
-      state.report('local.checklist.body', '<checklist> can only contain task list items (- [ ] / - [x]).', item.range.start, item.range.end, { key: 'local.checklist.body.task-only' });
+      state.report('local.checklist.body', `<${entry.name}> can only contain task list items (- [ ] / - [x]).`, item.range.start, item.range.end, { key: 'local.checklist.body.task-only' });
       return;
     }
     if ((item.children ?? []).some((child) => child.type === 'list')) {
-      state.report('local.checklist.body', '<checklist> does not support nested lists.', item.range.start, item.range.end, { key: 'local.checklist.body.no-nested' });
+      state.report('local.checklist.body', `<${entry.name}> does not support nested lists.`, item.range.start, item.range.end, { key: 'local.checklist.body.no-nested' });
     }
     if (hasComponent(item)) {
-      state.report('local.checklist.body', '<checklist> items cannot contain interactive components.', item.range.start, item.range.end, { key: 'local.checklist.body.no-components' });
+      state.report('local.checklist.body', `<${entry.name}> items cannot contain interactive components.`, item.range.start, item.range.end, { key: 'local.checklist.body.no-components' });
     }
     const id = `item-${index + 1}`;
     ids.push(id);
@@ -1416,27 +1923,35 @@ interface GroupMember {
 
 interface Group {
   key: string;
-  schema: LocalComponentSchema;
+  binding: KernelBindingSchema;
   members: GroupMember[];
+}
+
+function requireBindingAttribute(entry: Entry, binding: KernelBindingSchema, attrs: AttrMap, state: CompileState): void {
+  if (!binding.required || Object.hasOwn(attrs, binding.bind)) return;
+  state.report('local.attribute.required', `Component <${entry.name}> requires attribute "${binding.bind}".`,
+    entry.node.range.start, entry.node.range.end,
+    { key: 'local.attribute.required', params: { component: entry.name, name: binding.bind } });
 }
 
 function resolveBindings(state: CompileState): Record<string, LocalBinding> {
   const groups = new Map<string, Group>();
   for (const entry of state.entries) {
-    const bindingSchema = entry.schema.binding;
-    if (!bindingSchema) continue;
+    const binding = kernelValueBinding(entry.kernel);
+    if (!binding) continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
-    // Table/chart selection only becomes a binding when the author supplies a
-    // key column; existing documents keep their renderer-local selection state.
-    if ((entry.name === 'table' || entry.name === 'chart') && !Object.hasOwn(attrs, 'key')) continue;
-    const rawBind = typeof attrs.bind?.value === 'string' ? attrs.bind.value : '';
+    // Activation attributes make the binding conditional (table/chart `key`).
+    if (binding.requiresAttributes?.some((attribute) => !Object.hasOwn(attrs, attribute))) continue;
+    requireBindingAttribute(entry, binding, attrs, state);
+    const rawBind = typeof attrs[binding.bind]?.value === 'string' ? String(attrs[binding.bind].value) : '';
     let key = rawBind ? rawBind : `@${entry.node.id}`;
-    if (attrs.bind) {
+    if (Object.hasOwn(attrs, binding.bind)) {
+      const offset = attrs[binding.bind].offset ?? entry.node.range.start;
       if (rawBind.length > MAX_LOCAL_NAME_LENGTH) {
         state.report(
           'local.budget.identifier',
           `Parameter name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`,
-          attrs.bind.offset ?? entry.node.range.start,
+          offset,
           undefined,
           { key: 'local.budget.identifier', params: { limit: MAX_LOCAL_NAME_LENGTH } },
         );
@@ -1445,7 +1960,7 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
         state.report(
           'local.binding.name',
           `Parameter name "${rawBind}" must match [A-Za-z_][A-Za-z0-9_]*.`,
-          attrs.bind.offset ?? entry.node.range.start,
+          offset,
           undefined,
           { key: 'local.binding.name', params: { name: rawBind } },
         );
@@ -1454,7 +1969,7 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
         state.report(
           'local.binding.reserved',
           `Parameter name "${rawBind}" is reserved; choose another name.`,
-          attrs.bind.offset ?? entry.node.range.start,
+          offset,
           undefined,
           { key: 'local.binding.reserved', params: { name: rawBind } },
         );
@@ -1463,21 +1978,29 @@ function resolveBindings(state: CompileState): Record<string, LocalBinding> {
     }
     const existing = groups.get(key);
     if (existing) existing.members.push({ entry, attrs });
-    else groups.set(key, { key, schema: entry.schema, members: [{ entry, attrs }] });
+    else groups.set(key, { key, binding, members: [{ entry, attrs }] });
   }
 
   const bindings: Record<string, LocalBinding> = {};
   for (const group of groups.values()) {
-    const family=group.schema.binding?.family;
+    const family = group.binding.family;
     // Checklist defaults populate a separate validation index and must keep
     // their original side effects. Other groups depend on their own members,
     // constraints and already-resolved option sets, not unrelated bindings.
-    const cacheKey=state.semantic&&family&&family!=='checklist'
-      ?JSON.stringify([group.key,group.members.map(({entry})=>[entry.name,entry.node.id,entry.node.attrs,bindingOptions(entry,state,entry.schema.binding!.family)])]):undefined;
-    const cached=cacheKey?state.semantic!.binding<LocalBinding>(cacheKey):undefined;
-    const count=state.diagnostics.length;
-    const binding = cached?plainCompiledData(cached):resolveGroup(group, state);
-    if(!cached&&binding&&cacheKey&&count<MAX_LOCAL_DIAGNOSTICS&&state.diagnostics.length===count)state.semantic!.rememberBinding(cacheKey,plainCompiledData(binding));
+    const cacheKey = state.semantic && family !== 'checklist'
+      ? JSON.stringify([group.key, group.members.map(({ entry }) => [
+          entry.name,
+          entry.node.id,
+          entry.node.attrs,
+          bindingOptions(entry, state, entry.kernel, family),
+        ])])
+      : undefined;
+    const cached = cacheKey ? state.semantic!.binding<LocalBinding>(cacheKey) : undefined;
+    const count = state.diagnostics.length;
+    const binding = cached ? plainCompiledData(cached) : resolveGroup(group, state);
+    if (!cached && binding && cacheKey && count < MAX_LOCAL_DIAGNOSTICS && state.diagnostics.length === count) {
+      state.semantic!.rememberBinding(cacheKey, plainCompiledData(binding));
+    }
     if (binding) bindings[group.key] = binding;
   }
   resolveSlotBindings(state, bindings);
@@ -1492,6 +2015,7 @@ function bindingKinds(bindings: Record<string, LocalBinding>): Record<string, Lo
   return kinds;
 }
 
+/** Flatten a node tree in document order. */
 function flattenNodes(nodes: LocalNode[], out: LocalNode[] = []): LocalNode[] {
   for (const node of nodes) {
     out.push(node);
@@ -1500,376 +2024,38 @@ function flattenNodes(nodes: LocalNode[], out: LocalNode[] = []): LocalNode[] {
   return out;
 }
 
-function hostBindingFamily(binding: LocalHostBindingSchema): LocalBindingFamily {
-  if (binding.kind === 'number') return 'number';
-  if (binding.kind === 'boolean') return 'boolean';
-  return binding.options?.length ? 'choice' : 'text';
-}
-
-/**
- * Effective binding of one SDK component node. Literal constraints come from
- * the lowered manifest; prop references are resolved from the node's own
- * literal attributes or their defaults.
+/*
+ * Phase one resolved host bindings in a second engine here. Phase two lowers
+ * every input adapter into the same manifest registry, so `resolveBindings`
+ * above is the only binding resolver.
  */
-function sdkBindingFor(
-  definition: LocalComponentDefinition,
-  attrs: Record<string, string>,
-): LocalHostBindingSchema | undefined {
-  const base = localComponentHostBinding(definition);
-  if (!base) return undefined;
-  const resolved = resolveLocalComponentBindingConstraints(definition, attrs);
-  return {
-    ...base,
-    ...(resolved.min !== undefined ? { min: resolved.min } : {}),
-    ...(resolved.max !== undefined ? { max: resolved.max } : {}),
-    ...(resolved.step !== undefined ? { step: resolved.step } : {}),
-  };
+
+
+type NumericConstraints = KernelNumericConstraints;
+
+function numericConstraints(entry: Entry, attrs: AttrMap): NumericConstraints {
+  const binding = kernelValueBinding(entry.kernel);
+  return binding ? kernelNumericConstraints(entry.kernel, binding, attrs) : { step: 1 };
 }
 
-type BoundView =
-  | { readonly kind: 'literal'; readonly value: number }
-  | { readonly kind: 'dynamic'; readonly source: string }
-  | { readonly kind: 'absent' }
-  | { readonly kind: 'missing' };
+const sameNumericBound = kernelSameNumericBound;
+const describeConstraints = kernelDescribeConstraints;
 
-/** How one SDK component expresses a numeric binding bound. */
-function sdkBoundView(
-  definition: LocalComponentDefinition,
-  attrs: Record<string, string>,
-  attribute: 'min' | 'max',
-): BoundView {
-  const binding = definition.bindings?.value;
-  if (!binding || binding.kind !== 'number') return { kind: 'missing' };
-  const constraint = binding.constraints?.[attribute];
-  if (constraint === undefined) return { kind: 'absent' };
-  if ('literal' in constraint) return { kind: 'literal', value: constraint.literal };
-  const prop = definition.props[constraint.prop];
-  if (prop === undefined || prop.kind !== 'number') return { kind: 'missing' };
-  const raw = attrs[constraint.prop];
-  if (raw === undefined) {
-    return typeof prop.default === 'number' ? { kind: 'literal', value: prop.default } : { kind: 'absent' };
-  }
-  const full = fullInterpolation(raw);
-  if (full) return { kind: 'dynamic', source: full.expression.trim() };
-  const literal = parseNumberText(raw);
-  return literal === null ? { kind: 'missing' } : { kind: 'literal', value: literal };
-}
-
-/** How an existing binding owner (built-in or SDK) expresses one bound. */
-function ownerBoundView(
-  state: CompileState,
-  nodeById: ReadonlyMap<string, LocalNode>,
-  sdkByName: ReadonlyMap<string, LocalComponentDefinition>,
-  id: string,
-  attribute: 'min' | 'max',
-  fallback: number | undefined,
-): BoundView {
-  const owner = nodeById.get(id);
-  const definition = owner?.name ? sdkByName.get(owner.name) : undefined;
-  if (owner && definition) return sdkBoundView(definition, owner.attrs ?? {}, attribute);
-  const info = state.attrs.get(id)?.[attribute];
-  if (info === undefined) {
-    return fallback === undefined ? { kind: 'absent' } : { kind: 'literal', value: fallback };
-  }
-  if (info.dynamic) return { kind: 'dynamic', source: (info.expression ?? '').trim() };
-  return typeof info.value === 'number' ? { kind: 'literal', value: info.value } : { kind: 'missing' };
-}
-
-/** Built-ins allow sharing only for an identical literal, expression or absence. */
-function sameBoundView(left: BoundView, right: BoundView): boolean {
-  if (left.kind === 'missing' || right.kind === 'missing') return false;
-  if (left.kind === 'absent' || right.kind === 'absent') return left.kind === 'absent' && right.kind === 'absent';
-  if (left.kind === 'dynamic') return right.kind === 'dynamic' && left.source === right.source;
-  return right.kind === 'literal' && left.value === right.value;
-}
-
-/**
- * Register public or internal bindings owned by host components. A host
- * binding shares the built-in families: when its name matches an existing
- * control binding, both owners must agree on family and static constraints.
- */
-function resolveHostBindings(
-  state: CompileState,
-  hostByName: ReadonlyMap<string, LocalHostComponentSchema>,
-  sdkByName: ReadonlyMap<string, LocalComponentDefinition>,
-  bindings: Record<string, LocalBinding>,
-): void {
-  if (hostByName.size === 0) return;
-  const nodes = flattenNodes(state.nodes);
-  const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const entryById = new Map(state.entries.map((entry) => [entry.node.id, entry]));
-  const ownerBinding = (id: string, key: string): { family: LocalBindingFamily; exclusive?: boolean } | undefined => {
-    const owner = nodeById.get(id);
-    const host = owner?.type === 'hostComponent' && owner.name ? hostByName.get(owner.name)?.binding : undefined;
-    if (host) return { family: hostBindingFamily(host), exclusive: host.exclusive };
-    const entry = entryById.get(id);
-    return entry?.schema.binding ?? entry?.schema.slots?.find((slot) => state.bindingSlots[id]?.[slot.name] === key);
-  };
-  for (const node of nodes) {
-    if (node.type !== 'hostComponent' || !node.name) continue;
-    const schema = hostByName.get(node.name);
-    const rawAttrs = node.attrs ?? {};
-    const definition = sdkByName.get(node.name);
-    const bindingSchema = definition ? sdkBindingFor(definition, rawAttrs) : schema?.binding;
-    if (!schema || !bindingSchema) continue;
-    const family = hostBindingFamily(bindingSchema);
-    const kind = bindingSchema.kind as LocalValueKind;
-    let key = `@${node.id}`;
-    const rawBind = rawAttrs.bind;
-    if (rawBind !== undefined) {
-      const offset = attributeOffset(state, node, 'bind');
-      if (rawBind.length > MAX_LOCAL_NAME_LENGTH) {
-        state.report(
-          'local.budget.identifier',
-          `Parameter name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`,
-          offset,
-          undefined,
-          { key: 'local.budget.identifier', params: { limit: MAX_LOCAL_NAME_LENGTH } },
-        );
-      } else if (!IDENTIFIER.test(rawBind)) {
-        state.report(
-          'local.binding.name',
-          `Parameter name "${rawBind}" must match [A-Za-z_][A-Za-z0-9_]*.`,
-          offset,
-          undefined,
-          { key: 'local.binding.name', params: { name: rawBind } },
-        );
-      } else if (RESERVED_NAMES.has(rawBind) || EXTRA_RESERVED.has(rawBind)) {
-        state.report(
-          'local.binding.reserved',
-          `Parameter name "${rawBind}" is reserved; choose another name.`,
-          offset,
-          undefined,
-          { key: 'local.binding.reserved', params: { name: rawBind } },
-        );
-      } else if (!rawBind.startsWith('@')) {
-        key = rawBind;
-      }
-    }
-
-    const min = bindingSchema.kind === 'number' ? bindingSchema.min : undefined;
-    const max = bindingSchema.kind === 'number' ? bindingSchema.max : undefined;
-    const step = bindingSchema.kind === 'number' ? bindingSchema.step ?? 1 : 1;
-    const options = bindingSchema.options ? [...bindingSchema.options] : [];
-
-    const explicit = rawAttrs.initial !== undefined;
-    let initial: LocalValue;
-    if (explicit) {
-      initial = parseHostBindingInitial(node, bindingSchema, rawAttrs.initial, state);
-    } else {
-      switch (bindingSchema.initialRule) {
-        case 'min': initial = min ?? 0; break;
-        case 'nearest-zero': initial = nearestZero(min, max, step) ?? 0; break;
-        case 'first-option': initial = options[0] ?? ''; break;
-        case 'false': initial = false; break;
-        case 'empty': default: initial = '';
-      }
-    }
-
-    const existing = bindings[key];
-    if (existing) {
-      const peerBindings = existing.nodeIds.map((id) => ownerBinding(id, key));
-      const explicitOwners = existing.nodeIds
-        .map((id) => nodeById.get(id))
-        .filter((owner): owner is LocalNode => owner !== undefined && owner.attrs?.initial !== undefined);
-      if (explicit && explicitOwners.length) {
-        state.report(
-          'local.initial.duplicate',
-          `Parameter "${key}" has multiple explicit initial values.`,
-          attributeOffset(state, node, 'initial'),
-          undefined,
-          { key: 'local.initial.duplicate', params: { key, count: explicitOwners.length + 1 } },
-        );
-      }
-      if (existing.type !== kind || peerBindings.some((binding) => binding && binding.family !== family)) {
-        state.report(
-          'local.binding.type',
-          `Parameter "${key}" is declared as ${typeName(existing.type)} and cannot also bind <${node.name}>.`,
-          node.range.start,
-          node.range.end,
-          { key: 'local.binding.type', params: { key, kind: typeName(existing.type), first: existing.owner ?? node.name, second: node.name } },
-        );
-      } else {
-        // The host declaration supplies the initial value when no earlier owner
-        // declared one explicitly.
-        if (explicit && explicitOwners.length === 0) {
-          existing.initial = cloneValue(initial);
-          // Host initials are resolved after built-in groups. Revalidate the
-          // final value against every built-in text owner it replaces.
-          const members = existing.nodeIds.flatMap((id): GroupMember[] => {
-            const entry = entryById.get(id);
-            return entry?.schema.binding?.family === 'text'
-              ? [{ entry, attrs: state.attrs.get(id) ?? {} }]
-              : [];
-          });
-          if (members.length) {
-            validateStaticInitial({ key, schema: members[0].entry.schema, members }, initial, state, attributeOffset(state, node, 'initial'));
-          }
-        }
-        if (bindingSchema.kind === 'number') {
-          let divergent: boolean;
-          if (definition) {
-            // SDK components follow the built-in sharing rule: bounds may be
-            // shared only when every owner has the same literal or the same
-            // expression source. Divergent or unresolved constraints fail.
-            const currentMin = sdkBoundView(definition, rawAttrs, 'min');
-            const currentMax = sdkBoundView(definition, rawAttrs, 'max');
-            divergent = (existing.step ?? 1) !== step
-              || existing.nodeIds.some((id) => (
-                !sameBoundView(ownerBoundView(state, nodeById, sdkByName, id, 'min', existing.min), currentMin)
-                || !sameBoundView(ownerBoundView(state, nodeById, sdkByName, id, 'max', existing.max), currentMax)
-              ));
-          } else {
-            const dynamicPeer = existing.nodeIds.some((id) => {
-              const attrs = state.attrs.get(id);
-              return attrs?.min?.dynamic || attrs?.max?.dynamic;
-            });
-            divergent = Boolean(dynamicPeer)
-              || existing.min !== min || existing.max !== max || (existing.step ?? 1) !== step;
-          }
-          if (divergent) {
-            state.report(
-              'local.binding.constraint',
-              `Parameter "${key}" must use the same numeric range and step as <${node.name}>.`,
-              node.range.start,
-              node.range.end,
-              { key: 'local.binding.constraint', params: { key, first: node.name, second: node.name, firstConstraints: describeConstraints({ min, max, step }), secondConstraints: describeConstraints({ min: existing.min, max: existing.max, step: existing.step ?? 1 }) } },
-            );
-          }
-        } else if (family === 'choice') {
-          if (existing.options?.join('\u0000') !== options.join('\u0000')) {
-            state.report(
-              'local.binding.option',
-              `Parameter "${key}" must use the same option set in the same order.`,
-              node.range.start,
-              node.range.end,
-              { key: 'local.binding.option', params: { key } },
-            );
-          }
-        }
-      }
-      if (bindingSchema.exclusive || peerBindings.some((binding) => binding?.exclusive)) {
-        state.report(
-          'local.binding.exclusive',
-          `Parameter "${key}" of <${node.name}> can only be owned by one component.`,
-          node.range.start,
-          node.range.end,
-          { key: 'local.binding.exclusive', params: { key, first: node.name, second: node.name } },
-        );
-      }
-      existing.nodeIds.push(node.id);
-      continue;
-    }
-
-    const binding: LocalBinding = {
-      name: key,
-      nodeIds: [node.id],
-      type: kind,
-      initial: cloneValue(initial),
-      owner: node.id,
-    };
-    if (bindingSchema.kind === 'number') {
-      if (min !== undefined) binding.min = min;
-      if (max !== undefined) binding.max = max;
-      binding.step = step;
-    }
-    if (options.length) binding.options = options;
-    bindings[key] = binding;
-  }
-}
-
-/** Parse a host component's static `initial` attribute against its binding. */
-function parseHostBindingInitial(
-  node: LocalNode,
-  binding: LocalHostBindingSchema,
-  raw: string,
-  state: CompileState,
-): LocalValue {
-  const offset = attributeOffset(state, node, 'initial');
-  const scanned = scanInterpolations(raw);
-  if (scanned.segments.length || scanned.unterminated.length) {
-    state.report(
-      'local.host.attribute',
-      'Attribute initial is static and cannot contain interpolations.',
-      offset,
-      offset + raw.length,
-      { key: 'local.host.attribute.static', params: { name: 'initial' } },
-    );
-    return binding.kind === 'number' ? 0 : binding.kind === 'boolean' ? false : '';
-  }
-  if (binding.kind === 'number') {
-    const value = parseNumberText(raw);
-    if (value === null) {
-      state.report('local.host.attribute', `Attribute initial requires a number, got "${raw}".`, offset, offset + raw.length, { key: 'local.host.attribute.type', params: { name: 'initial', value: raw, kind: 'number' } });
-      return 0;
-    }
-    const step = binding.step ?? 1;
-    if (binding.min !== undefined && value < binding.min) {
-      state.report('local.initial.range', `Initial value ${value} of <${node.name}> is below the minimum ${binding.min}.`, offset, undefined, { key: 'local.initial.range.min', params: { value, key: node.name ?? '', min: binding.min } });
-    }
-    if (binding.max !== undefined && value > binding.max) {
-      state.report('local.initial.range', `Initial value ${value} of <${node.name}> exceeds the maximum ${binding.max}.`, offset, undefined, { key: 'local.initial.range.max', params: { value, key: node.name ?? '', max: binding.max } });
-    }
-    if (!onStep(value, binding.min ?? 0, step)) {
-      state.report('local.initial.step', `Initial value ${value} of <${node.name}> is not on step ${step}.`, offset, undefined, { key: 'local.initial.range.step', params: { value, key: node.name ?? '', step, base: binding.min ?? 0 } });
-    }
-    return value;
-  }
-  if (binding.kind === 'boolean') {
-    if (raw !== 'true' && raw !== 'false') {
-      state.report('local.host.attribute', `Attribute initial requires true or false, got "${raw}".`, offset, offset + raw.length, { key: 'local.host.attribute.type', params: { name: 'initial', value: raw, kind: 'boolean' } });
-      return false;
-    }
-    return raw === 'true';
-  }
-  if (binding.options?.length && !binding.options.includes(raw)) {
-    state.report('local.initial.option', `Initial value "${raw}" is not an available option: ${binding.options.join(', ')}.`, offset, undefined, { key: 'local.initial.value.option', params: { value: raw, options: binding.options.join(', ') } });
-  }
-  return raw;
-}
-
-interface NumericConstraints {
-  min?: number;
-  max?: number;
-  step: number;
-  /** Trimmed expression sources for dynamic bounds; static bounds stay numbers. */
-  dynamicMin?: string;
-  dynamicMax?: string;
-}
-
-function numericConstraints(entry: Entry, attrs: AttrMap, family: string): NumericConstraints {
-  if (family === 'timer') {
-    const duration = numberValue(entry, attrs, 'duration') ?? 60;
-    return { min: 0, max: duration, step: 1 };
-  }
-  const minInfo = attrs.min;
-  const maxInfo = attrs.max;
-  return {
-    min: numberValue(entry, attrs, 'min'),
-    max: numberValue(entry, attrs, 'max'),
-    step: numberValue(entry, attrs, 'step') ?? 1,
-    ...(minInfo?.dynamic && minInfo.expression !== undefined ? { dynamicMin: minInfo.expression.trim() } : {}),
-    ...(maxInfo?.dynamic && maxInfo.expression !== undefined ? { dynamicMax: maxInfo.expression.trim() } : {}),
-  };
-}
-
-/** Bounds are compatible only when both sides are the same literal or the same expression. */
-function sameNumericBound(a: NumericConstraints, b: NumericConstraints, bound: 'min' | 'max'): boolean {
-  const dynamicA = bound === 'min' ? a.dynamicMin : a.dynamicMax;
-  const dynamicB = bound === 'min' ? b.dynamicMin : b.dynamicMax;
-  if (dynamicA !== undefined || dynamicB !== undefined) return dynamicA === dynamicB;
-  return a[bound] === b[bound];
+function comparedAttribute(member: GroupMember, name: string): string | undefined {
+  const info = member.attrs[name];
+  if (!info) return undefined;
+  if (info.dynamic) return `{{ ${(info.expression ?? '').trim()} }}`;
+  return typeof info.value === 'string' ? info.value : String(info.value ?? '');
 }
 
 function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
   const first = group.members[0];
-  const bindingSchema = first.entry.schema.binding;
-  if (!bindingSchema) return null;
+  const bindingSchema = group.binding;
   const family = bindingSchema.family;
 
   for (const member of group.members.slice(1)) {
-    const memberFamily = member.entry.schema.binding?.family;
-    if (memberFamily !== family) {
+    const memberBinding = kernelValueBinding(member.entry.kernel);
+    if (!memberBinding || memberBinding.family !== family || memberBinding.kind !== bindingSchema.kind) {
       state.report(
         'local.binding.type',
         `Parameter "${group.key}" is already declared as ${typeName(bindingSchema.kind)} by <${first.entry.name}> and cannot also bind <${member.entry.name}>.`,
@@ -1880,24 +2066,26 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
     }
   }
 
-  if (bindingSchema.exclusive && group.members.length > 1) {
-    for (const member of group.members.slice(1)) {
+  const exclusiveOwner = group.members.find((member) => kernelValueBinding(member.entry.kernel)?.exclusive === true);
+  if (exclusiveOwner && group.members.length > 1) {
+    for (const member of group.members) {
+      if (member === exclusiveOwner) continue;
       state.report(
         'local.binding.exclusive',
-        `Parameter "${group.key}" of <${first.entry.name}> can only be owned by one component and cannot be shared with <${member.entry.name}>.`,
+        `Parameter "${group.key}" of <${exclusiveOwner.entry.name}> can only be owned by one component and cannot be shared with <${member.entry.name}>.`,
         member.entry.node.range.start,
         member.entry.node.range.end,
-        { key: 'local.binding.exclusive', params: { key: group.key, first: first.entry.name, second: member.entry.name } },
+        { key: 'local.binding.exclusive', params: { key: group.key, first: exclusiveOwner.entry.name, second: member.entry.name } },
       );
     }
   }
 
-  const options = bindingOptions(first.entry, state, family);
+  const options = bindingOptions(first.entry, state, first.entry.kernel, family);
   let constraints: NumericConstraints | undefined;
   if (bindingSchema.kind === 'number') {
-    constraints = numericConstraints(first.entry, first.attrs, family);
+    constraints = numericConstraints(first.entry, first.attrs);
     for (const member of group.members.slice(1)) {
-      const other = numericConstraints(member.entry, member.attrs, family);
+      const other = numericConstraints(member.entry, member.attrs);
       if (
         !sameNumericBound(other, constraints, 'min')
         || !sameNumericBound(other, constraints, 'max')
@@ -1925,7 +2113,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
 
   if (family === 'choice' || family === 'selection') {
     for (const member of group.members.slice(1)) {
-      const other = bindingOptions(member.entry, state, family);
+      const other = bindingOptions(member.entry, state, member.entry.kernel, family);
       if (other.join('\u0000') !== options.join('\u0000')) {
         state.report(
           'local.binding.option',
@@ -1938,34 +2126,36 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
     }
   }
 
-  // Date bounds participate in shared writes. Require the same literal or the
-  // same dynamic expression so every owner enforces an identical range.
-  if (family === 'date') {
-    const boundOf = (member: GroupMember, name: 'min' | 'max'): string | undefined => {
-      const info = member.attrs[name];
-      if (!info) return undefined;
-      if (info.dynamic) return `{{ ${(info.expression ?? '').trim()} }}`;
-      return typeof info.value === 'string' ? info.value : undefined;
-    };
+  // Attributes declared comparable (date bounds) participate in shared writes.
+  const compare = new Set(bindingSchema.compare ?? []);
+  for (const rule of kernelRules(first.entry.kernel)) {
+    if (rule.kind !== 'date-bounds') continue;
+    if (rule.min) compare.add(rule.min);
+    if (rule.max) compare.add(rule.max);
+  }
+  for (const name of compare) {
+    const expected = comparedAttribute(first, name);
     for (const member of group.members.slice(1)) {
-      if (boundOf(member, 'min') !== boundOf(first, 'min') || boundOf(member, 'max') !== boundOf(first, 'max')) {
+      if (comparedAttribute(member, name) !== expected) {
         state.report(
           'local.binding.constraint',
-          `Parameter "${group.key}" must use the same date bounds: <${first.entry.name}> and <${member.entry.name}> differ.`,
+          `Parameter "${group.key}" must use the same ${name} bound: <${first.entry.name}> and <${member.entry.name}> differ.`,
           member.entry.node.range.start,
           member.entry.node.range.end,
-          { key: 'local.binding.constraint', params: { key: group.key, first: first.entry.name, second: member.entry.name, firstConstraints: 'date bounds', secondConstraints: 'date bounds' } },
+          { key: 'local.binding.constraint', params: { key: group.key, first: first.entry.name, second: member.entry.name, firstConstraints: `${name} bounds`, secondConstraints: `${name} bounds` } },
         );
       }
     }
   }
 
-  const maxSelected = family === 'multi-select' ? numberValue(first.entry, first.attrs, 'max-selected') : undefined;
-  const explicit = group.members.filter((member) => Object.hasOwn(member.attrs, 'initial'));
+  const maxItems = bindingSchema.maxItems
+    ? kernelMaxItems(first.entry.kernel, bindingSchema, first.attrs)
+    : undefined;
+  const explicit = group.members.filter((member) => Object.hasOwn(member.attrs, bindingSchema.initial));
   let initial: LocalValue;
   if (explicit.length > 1) {
     // Precompute lines once; report only a bounded sample of the conflicts.
-    const conflictLines = explicit.map((member) => lineAt(state, member.attrs.initial.offset));
+    const conflictLines = explicit.map((member) => lineAt(state, member.attrs[bindingSchema.initial].offset));
     const reported = Math.min(explicit.length, MAX_INITIAL_CONFLICT_DIAGNOSTICS);
     for (let index = 0; index < reported; index += 1) {
       const peers: number[] = [];
@@ -1975,7 +2165,7 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
       state.report(
         'local.initial.duplicate',
         `Parameter "${group.key}" has multiple explicit initial values (${explicit.length} in total${peers.length ? `; see also line ${peers.join(', ')}` : ''}).`,
-        explicit[index].attrs.initial.offset,
+        explicit[index].attrs[bindingSchema.initial].offset,
         undefined,
         peers.length
           ? { key: 'local.initial.duplicate-peers', params: { key: group.key, count: explicit.length, lines: peers.join(', ') } }
@@ -1985,19 +2175,24 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
   }
   if (family === 'multi-select') {
     initial = explicit.length
-      ? multiSelectInitial(explicit[0], options, maxSelected, state)
+      ? multiSelectInitial(explicit[0], options, maxItems, state, bindingSchema)
+      : [];
+  } else if (family === 'collection') {
+    initial = explicit.length
+      ? collectionInitial(explicit[0], state, bindingSchema)
       : [];
   } else if (explicit.length > 0) {
-    initial = memberInitial(explicit[0], state, family, options);
+    initial = memberInitial(explicit[0], state, bindingSchema, options);
   } else {
-    initial = defaultInitial(first, state, family, options, constraints);
+    initial = defaultInitial(first, state, bindingSchema, options, constraints);
   }
 
   if (family === 'checklist' && !Array.isArray(initial)) initial = [];
-  if (bindingSchema.kind !== 'array') validateInitialValue(group, first, initial, family, options, constraints, state);
-  if (family === 'text' || family === 'date') validateStaticInitial(group, initial, state);
+  validateInitialValue(group, first, initial, bindingSchema, options, constraints, state);
+  validateStaticInitial(group, initial, state);
 
   const binding: LocalBinding = {
+    family: bindingSchema.family as LocalBindingFamily,
     name: group.key,
     nodeIds: group.members.map((member) => member.entry.node.id),
     type: bindingSchema.kind,
@@ -2010,18 +2205,9 @@ function resolveGroup(group: Group, state: CompileState): LocalBinding | null {
     binding.step = constraints.step;
   }
   if (options.length) binding.options = [...options];
-  if (family === 'multi-select') binding.maxItems = maxSelected ?? options.length;
+  if (family === 'multi-select') binding.maxItems = maxItems ?? options.length;
+  else if (maxItems !== undefined) binding.maxItems = maxItems;
   return binding;
-}
-
-function describeConstraints(constraints: NumericConstraints): string {
-  const min = constraints.dynamicMin !== undefined
-    ? `{{ ${constraints.dynamicMin} }}`
-    : constraints.min === undefined ? '-∞' : String(constraints.min);
-  const max = constraints.dynamicMax !== undefined
-    ? `{{ ${constraints.dynamicMax} }}`
-    : constraints.max === undefined ? '∞' : String(constraints.max);
-  return `[${min}, ${max}] / ${constraints.step}`;
 }
 
 function lineAt(state: CompileState, offset: number): number {
@@ -2037,85 +2223,163 @@ function lineAt(state: CompileState, offset: number): number {
 }
 
 /**
- * A shared string binding must satisfy every owner's static constraints.
+ * A shared string binding must satisfy every owner's runtime value rules.
  * Empty values stay allowed at compile time so an optional required input can
  * still start empty; writes are enforced by the runtime.
  */
 function validateStaticInitial(group: Group, initial: LocalValue, state: CompileState, initialOffset?: number): void {
   if (typeof initial !== 'string' || initial === '') return;
   const first = group.members[0];
-  const offset = initialOffset ?? first.attrs.initial?.offset ?? first.entry.node.range.start;
+  const initialAttribute = kernelValueBinding(first.entry.kernel)?.initial ?? 'initial';
+  const offset = initialOffset ?? first.attrs[initialAttribute]?.offset ?? first.entry.node.range.start;
   const length = countLocalCodePoints(initial);
   for (const member of group.members) {
     const { entry, attrs } = member;
-    if (entry.name === 'input' || entry.name === 'textarea') {
-      const minLength = numberValue(entry, attrs, 'min-length') ?? 0;
-      const maxLength = numberValue(entry, attrs, 'max-length');
-      if (length < minLength) {
-        state.report(
-          'local.initial.length',
-          `Initial value of parameter "${group.key}" has length ${length}, below the minimum length ${minLength} required by <${entry.name}>.`,
-          offset,
-          undefined,
-          { key: 'local.initial.length.min', params: { key: group.key, length, min: minLength, name: entry.name } },
-        );
-      }
-      if (maxLength !== undefined && length > maxLength) {
-        state.report(
-          'local.initial.length',
-          `Initial value of parameter "${group.key}" has length ${length}, exceeding the maximum length ${maxLength} allowed by <${entry.name}>.`,
-          offset,
-          undefined,
-          { key: 'local.initial.length.max', params: { key: group.key, length, max: maxLength, name: entry.name } },
-        );
-      }
-      if (entry.name === 'input') {
-        const type = typeof attrs.type?.value === 'string' ? attrs.type.value : 'text';
-        if (type === 'email' && !isLocalEmail(initial)) {
-          state.report('local.initial.email', `Initial value of parameter "${group.key}" is not a valid email address.`, offset, undefined, { key: 'local.initial.email', params: { key: group.key } });
+    for (const rule of kernelValueRules(entry.kernel)) {
+      if (rule.kind === 'length') {
+        const minLength = staticAttributeNumber(entry, attrs, rule.min) ?? 0;
+        const maxLength = staticAttributeNumber(entry, attrs, rule.max);
+        if (minLength > 0 && length < minLength) {
+          state.report(
+            'local.initial.length',
+            `Initial value of parameter "${group.key}" has length ${length}, below the minimum length ${minLength} required by <${entry.name}>.`,
+            offset,
+            undefined,
+            { key: 'local.initial.length.min', params: { key: group.key, length, min: minLength, name: entry.name } },
+          );
         }
-      }
-    } else if (entry.name === 'date' && isValidDate(initial)) {
-      const min = typeof attrs.min?.value === 'string' && isValidDate(attrs.min.value) ? attrs.min.value : undefined;
-      const max = typeof attrs.max?.value === 'string' && isValidDate(attrs.max.value) ? attrs.max.value : undefined;
-      if (min && initial < min) {
-        state.report('local.initial.range', `Initial value ${initial} of parameter "${group.key}" is earlier than the minimum date ${min} of <date>.`, offset, undefined, { key: 'local.initial.date.min', params: { key: group.key, value: initial, min } });
-      }
-      if (max && initial > max) {
-        state.report('local.initial.range', `Initial value ${initial} of parameter "${group.key}" is later than the maximum date ${max} of <date>.`, offset, undefined, { key: 'local.initial.date.max', params: { key: group.key, value: initial, max } });
+        if (maxLength !== undefined && length > maxLength) {
+          state.report(
+            'local.initial.length',
+            `Initial value of parameter "${group.key}" has length ${length}, exceeding the maximum length ${maxLength} allowed by <${entry.name}>.`,
+            offset,
+            undefined,
+            { key: 'local.initial.length.max', params: { key: group.key, length, max: maxLength, name: entry.name } },
+          );
+        }
+      } else if (rule.kind === 'email') {
+        const type = staticAttributeString(entry, attrs, rule.type) ?? 'text';
+        if (type === rule.value) {
+          if (initial.length > MAX_LOCAL_EMAIL_LENGTH || !isLocalEmail(initial)) {
+            state.report('local.initial.email', `Initial value of parameter "${group.key}" is not a valid email address.`, offset, undefined, { key: 'local.initial.email', params: { key: group.key } });
+          }
+        }
+      } else if (rule.kind === 'date' && isKernelDate(initial)) {
+        const min = staticAttributeString(entry, attrs, rule.min);
+        const max = staticAttributeString(entry, attrs, rule.max);
+        if (min && isKernelDate(min) && initial < min) {
+          state.report('local.initial.range', `Initial value ${initial} of parameter "${group.key}" is earlier than the minimum date ${min} of <${entry.name}>.`, offset, undefined, { key: 'local.initial.date.min', params: { key: group.key, value: initial, min } });
+        }
+        if (max && isKernelDate(max) && initial > max) {
+          state.report('local.initial.range', `Initial value ${initial} of parameter "${group.key}" is later than the maximum date ${max} of <${entry.name}>.`, offset, undefined, { key: 'local.initial.date.max', params: { key: group.key, value: initial, max } });
+        }
       }
     }
   }
 }
 
-function bindingOptions(entry: Entry, state: CompileState, family: string): string[] {
-  switch (family) {
-    case 'choice':
-    case 'multi-select':
-      return state.options.get(entry.node.id) ?? [];
-    case 'tabs':
-      return state.tabs.get(entry.node.id) ?? [];
-    case 'steps':
-      return state.steps.get(entry.node.id) ?? [];
-    case 'selection':
-      return state.selections.get(entry.node.id) ?? [''];
-    case 'diagram':
-      return state.diagramNodes.get(entry.node.id) ?? [];
-    case 'checklist':
-      return validateChecklist(entry, state).ids;
-    default:
-      return [];
-  }
+function staticAttributeNumber(entry: Entry, attrs: AttrMap, name: string | undefined): number | undefined {
+  if (name === undefined) return undefined;
+  const info = attrs[name];
+  if (info) return !info.dynamic && typeof info.value === 'number' ? info.value : undefined;
+  const fallback = entry.kernel.props[name]?.default;
+  return typeof fallback === 'number' ? fallback : undefined;
 }
 
-/** Parse the comma-separated `initial` of `<multi-select>` into a set array. */
+function staticAttributeString(entry: Entry, attrs: AttrMap, name: string | undefined): string | undefined {
+  if (name === undefined) return undefined;
+  const info = attrs[name];
+  if (info) return !info.dynamic && typeof info.value === 'string' ? info.value : undefined;
+  const fallback = entry.kernel.props[name]?.default;
+  return typeof fallback === 'string' ? fallback : undefined;
+}
+
+function bindingOptions(
+  entry: Entry,
+  state: CompileState,
+  kernel: KernelComponentSchema,
+  family: string,
+): string[] {
+  const kind = kernelProjectionForFamily(family);
+  if (!kind) return [];
+  if (kind === 'checklist') {
+    const limit = kernelRule(kernel, 'checklist-body')?.itemLimit;
+    return validateChecklist(entry, state, limit).ids;
+  }
+  if (kind === 'selection') return state.selections.get(entry.node.id) ?? [''];
+  const projected = projectionMap(state, kind).get(entry.node.id);
+  if (projected !== undefined) return projected;
+  // Host/static choice bindings carry their options on the binding itself.
+  return [...(kernelValueBinding(kernel)?.options ?? [])];
+}
+
+/** Parse a JSON array literal for a `collection` family binding. */
+function collectionInitial(
+  member: GroupMember,
+  state: CompileState,
+  binding: KernelBindingSchema,
+): LocalValue {
+  const info = member.attrs[binding.initial];
+  if (!info) return [];
+  const raw = typeof info.value === 'string' ? info.value : String(info.value ?? '');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    state.report(
+      'local.initial.type',
+      `Initial value of parameter "${member.entry.node.id}" must be a JSON array.`,
+      info.offset,
+      undefined,
+      { key: 'local.initial.type.collection', params: { key: member.entry.node.id } },
+    );
+    return [];
+  }
+  if (!Array.isArray(parsed)) {
+    state.report(
+      'local.initial.type',
+      `Initial value of parameter "${member.entry.node.id}" must be a JSON array.`,
+      info.offset,
+      undefined,
+      { key: 'local.initial.type.collection', params: { key: member.entry.node.id } },
+    );
+    return [];
+  }
+  if (binding.kind === 'number-array') {
+    if (!parsed.every((entry) => typeof entry === 'number' && Number.isFinite(entry))) {
+      state.report(
+        'local.initial.type',
+        `Initial value of parameter "${member.entry.node.id}" must contain only finite numbers.`,
+        info.offset,
+        undefined,
+        { key: 'local.initial.type.number-array', params: { key: member.entry.node.id } },
+      );
+      return [];
+    }
+    return parsed as number[];
+  }
+  if (!parsed.every((entry) => typeof entry === 'string')) {
+    state.report(
+      'local.initial.type',
+      `Initial value of parameter "${member.entry.node.id}" must contain only strings.`,
+      info.offset,
+      undefined,
+      { key: 'local.initial.type.array', params: { key: member.entry.node.id } },
+    );
+    return [];
+  }
+  return parsed as string[];
+}
+
+/** Parse the comma-separated `initial` of a multi-select binding into an array. */
 function multiSelectInitial(
   member: GroupMember,
   options: string[],
   maxSelected: number | undefined,
   state: CompileState,
+  binding: KernelBindingSchema,
 ): string[] {
-  const info = member.attrs.initial;
+  const info = member.attrs[binding.initial];
   if (!info) return [];
   const raw = typeof info.value === 'string' ? info.value : String(info.value ?? '');
   const chosen: string[] = [];
@@ -2123,7 +2387,7 @@ function multiSelectInitial(
     if (!options.includes(part)) {
       state.report(
         'local.initial.option',
-        `Initial value "${part}" of parameter "${member.entry.node.id}" is not an option of <multi-select>.`,
+        `Initial value "${part}" of parameter "${member.entry.node.id}" is not an option of <${member.entry.name}>.`,
         info.offset,
         undefined,
         { key: 'local.initial.option.multi-select', params: { key: member.entry.node.id, value: part } },
@@ -2135,7 +2399,7 @@ function multiSelectInitial(
   if (maxSelected !== undefined && chosen.length > maxSelected) {
     state.report(
       'local.initial.range',
-      `Initial values of <multi-select> exceed max-selected ${maxSelected}.`,
+      `Initial values of <${member.entry.name}> exceed max-selected ${maxSelected}.`,
       info.offset,
       undefined,
       { key: 'local.initial.multi-select', params: { max: maxSelected } },
@@ -2147,23 +2411,46 @@ function multiSelectInitial(
 function memberInitial(
   member: GroupMember,
   state: CompileState,
-  family: string,
+  binding: KernelBindingSchema,
   options: string[],
 ): LocalValue {
-  const info = member.attrs.initial;
-  if (!info) return defaultInitial(member, state, family, options, undefined);
+  const info = member.attrs[binding.initial];
   const entry = member.entry;
-  if (family === 'number' && typeof info.value === 'number') return info.value;
-  if (family === 'boolean' && typeof info.value === 'boolean') return info.value;
-  if (family === 'number' || family === 'boolean') {
+  const constraints = numericConstraints(entry, member.attrs);
+  if (!info) return defaultInitial(member, state, binding, options, undefined);
+  if (binding.kind === 'null') {
+    if (info.raw.trim() !== 'null') state.report('local.initial.type', `Initial value of parameter "${entry.node.id}" must be null.`, info.offset, undefined, { key: 'local.initial.type', params: { name: entry.node.id } });
+    return null;
+  }
+  if (entry.legacy) {
+    const scanned = scanInterpolations(info.raw);
+    if (scanned.segments.length || scanned.unterminated.length) {
+      state.report(
+        'local.host.attribute',
+        'Attribute initial is static and cannot contain interpolations.',
+        info.offset,
+        info.offset + info.raw.length,
+        { key: 'local.host.attribute.static', params: { name: binding.initial } },
+      );
+      const derived = kernelDefaultInitial(binding.initialRule, constraints, options);
+      return 'value' in derived ? derived.value : '';
+    }
+  }
+  if (binding.kind === 'number') {
+    if (typeof info.value === 'number') return info.value;
     state.report('local.initial.type', `Initial value of parameter "${entry.node.id}" has the wrong type.`, info.offset, undefined, { key: 'local.initial.type', params: { name: entry.node.id } });
-    return family === 'number' ? 0 : false;
+    return 0;
+  }
+  if (binding.kind === 'boolean') {
+    if (typeof info.value === 'boolean') return info.value;
+    state.report('local.initial.type', `Initial value of parameter "${entry.node.id}" has the wrong type.`, info.offset, undefined, { key: 'local.initial.type', params: { name: entry.node.id } });
+    return false;
   }
   const value = typeof info.value === 'string' ? info.value : String(info.value ?? '');
-  if (family === 'date' && !isValidDate(value)) {
+  if (kernelValueRules(entry.kernel).some((rule) => rule.kind === 'date') && !isKernelDate(value)) {
     state.report('local.initial.date', `Initial date "${value}" is not a valid YYYY-MM-DD.`, info.offset, undefined, { key: 'local.initial.date', params: { value } });
   }
-  if (family === 'choice' && options.length && !options.includes(value)) {
+  if (options.length && !options.includes(value) && binding.family !== 'text' && binding.family !== 'date') {
     state.report('local.initial.option', `Initial value "${value}" is not an available option: ${options.join(', ')}.`, info.offset, undefined, { key: 'local.initial.value.option', params: { value, options: options.join(', ') } });
   }
   return value;
@@ -2172,49 +2459,27 @@ function memberInitial(
 function defaultInitial(
   member: GroupMember,
   state: CompileState,
-  family: string,
+  binding: KernelBindingSchema,
   options: string[],
   constraints: NumericConstraints | undefined,
 ): LocalValue {
   const entry = member.entry;
-  switch (family) {
-    case 'text':
-    case 'date':
-      return '';
-    case 'boolean':
-      return false;
-    case 'choice':
-      return options[0] ?? '';
-    case 'tabs':
-    case 'steps':
-    case 'diagram':
-      return options[0] ?? '';
-    case 'selection':
-      return '';
-    case 'multi-select':
-      return [];
-    case 'timer': {
-      const local = constraints ?? numericConstraints(entry, member.attrs, family);
-      return local.max ?? 60;
-    }
-    case 'checklist':
-      return [...validateChecklist(entry, state).checked];
-    case 'number': {
-      const local = constraints ?? numericConstraints(entry, member.attrs, family);
-      if (entry.schema.initialRule === 'min') return local.min ?? 0;
-      const value = nearestZero(local.min, local.max, local.step);
-      if (value === null) {
-        state.report(
-          'local.initial.range',
-          `Parameter "${entry.node.id}" has no valid step value within range [${local.min ?? '-∞'}, ${local.max ?? '∞'}].`,
-          entry.node.range.start,
-          entry.node.range.end,
-          { key: 'local.initial.no-step', params: { key: entry.node.id, min: local.min ?? '-∞', max: local.max ?? '∞' } },
-        );
-        return 0;
-      }
-      return value;
-    }
+  if (binding.kind === 'null') return null;
+  if (binding.family === 'checklist') {
+    return [...validateChecklist(entry, state, kernelRule(entry.kernel, 'checklist-body')?.itemLimit).checked];
+  }
+  const local = constraints ?? numericConstraints(entry, member.attrs);
+  const derived = kernelDefaultInitial(binding.initialRule, local, options);
+  if ('value' in derived && derived.value !== undefined) return derived.value;
+  if ('error' in derived && derived.error === 'no-step') {
+    state.report(
+      'local.initial.range',
+      `Parameter "${entry.node.id}" has no valid step value within range [${local.min ?? '-∞'}, ${local.max ?? '∞'}].`,
+      entry.node.range.start,
+      entry.node.range.end,
+      { key: 'local.initial.no-step', params: { key: entry.node.id, min: local.min ?? '-∞', max: local.max ?? '∞' } },
+    );
+    return 0;
   }
   state.report(
     'local.initial',
@@ -2230,23 +2495,58 @@ function validateInitialValue(
   group: Group,
   first: GroupMember,
   value: LocalValue,
-  family: string,
+  binding: KernelBindingSchema,
   options: string[],
   constraints: NumericConstraints | undefined,
   state: CompileState,
 ): void {
   const key = group.key;
-  if (family === 'number') {
+  const offset = first.attrs[binding.initial]?.offset ?? first.entry.node.range.start;
+  if (binding.kind === 'array' || binding.kind === 'number-array') {
+    if (!Array.isArray(value)) {
+      state.report('local.initial.type', `Initial value of parameter "${key}" must be an array.`, offset, undefined, { key: 'local.initial.type.array', params: { key } });
+      return;
+    }
+    const budget = localValueBudgetIssue(value);
+    if (budget) {
+      state.report('local.budget.array', `Initial value of parameter "${key}" exceeds the value budget.`, offset, undefined, { key: budget.key, params: { ...budget.params, key } });
+      return;
+    }
+    if (binding.kind === 'number-array') {
+      if (!value.every((entry) => typeof entry === 'number' && Number.isFinite(entry))) {
+        state.report('local.initial.type', `Initial value of parameter "${key}" must contain only finite numbers.`, offset, undefined, { key: 'local.initial.type.number-array', params: { key } });
+        return;
+      }
+    } else {
+      if (!value.every((entry) => typeof entry === 'string')) {
+        state.report('local.initial.type', `Initial value of parameter "${key}" must contain only strings.`, offset, undefined, { key: 'local.initial.type.array', params: { key } });
+        return;
+      }
+      if (options.length) {
+        for (const entry of value as string[]) {
+          if (!options.includes(entry)) {
+            state.report('local.initial.option', `Initial value "${entry}" is not an available option: ${options.join(', ')}.`, offset, undefined, { key: 'local.initial.value.option', params: { value: entry, options: options.join(', ') } });
+          }
+        }
+      }
+    }
+    const maxItems = kernelMaxItems(first.entry.kernel, binding, first.attrs);
+    if (maxItems !== undefined && value.length > maxItems) {
+      state.report('local.initial.range', `Initial value of parameter "${key}" exceeds the ${maxItems}-item limit.`, offset, undefined, { key: 'local.initial.value.max-items', params: { key, max: maxItems } });
+    }
+    return;
+  }
+  if (binding.kind === 'number') {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
       state.report('local.initial.type', `Initial value of parameter "${key}" must be a finite number.`, first.entry.node.range.start, undefined, { key: 'local.initial.type.number', params: { key } });
       return;
     }
-    const local = constraints ?? numericConstraints(first.entry, first.attrs, family);
+    const local = constraints ?? numericConstraints(first.entry, first.attrs);
     if (local.min !== undefined && value < local.min) {
       state.report(
         'local.initial.range',
         `Initial value ${value} of parameter "${key}" is below the minimum ${local.min}.`,
-        first.attrs.initial?.offset ?? first.entry.node.range.start,
+        offset,
         undefined,
         { key: 'local.initial.range.min', params: { value, key, min: local.min } },
       );
@@ -2255,31 +2555,33 @@ function validateInitialValue(
       state.report(
         'local.initial.range',
         `Initial value ${value} of parameter "${key}" exceeds the maximum ${local.max}.`,
-        first.attrs.initial?.offset ?? first.entry.node.range.start,
+        offset,
         undefined,
         { key: 'local.initial.range.max', params: { value, key, max: local.max } },
       );
     }
     const base = local.min ?? 0;
-    if (local.dynamicMin === undefined && value >= (local.min ?? Number.NEGATIVE_INFINITY) && value <= (local.max ?? Number.POSITIVE_INFINITY) && !onStep(value, base, local.step)) {
+    if (local.dynamicMin === undefined && value >= (local.min ?? Number.NEGATIVE_INFINITY) && value <= (local.max ?? Number.POSITIVE_INFINITY) && !kernelOnStep(value, base, local.step)) {
       state.report(
         'local.initial.step',
         `Initial value ${value} of parameter "${key}" is not on step ${local.step} (based at ${local.min ?? 0}).`,
-        first.attrs.initial?.offset ?? first.entry.node.range.start,
+        offset,
         undefined,
         { key: 'local.initial.range.step', params: { value, key, step: local.step, base: local.min ?? 0 } },
       );
     }
     return;
   }
-  if (family === 'boolean' && typeof value !== 'boolean') {
+  if (binding.kind === 'boolean' && typeof value !== 'boolean') {
     state.report('local.initial.type', `Initial value of parameter "${key}" must be a boolean.`, first.entry.node.range.start, undefined, { key: 'local.initial.type.boolean', params: { key } });
   }
-  if ((family === 'choice' || family === 'tabs' || family === 'steps' || family === 'diagram' || family === 'selection') && options.length && !options.includes(String(value))) {
+  const selectionFamily = binding.family === 'choice' || binding.family === 'tabs'
+    || binding.family === 'steps' || binding.family === 'diagram' || binding.family === 'selection';
+  if (selectionFamily && options.length && !options.includes(String(value))) {
     state.report(
-      family === 'diagram' ? 'local.initial.option' : 'local.initial.option',
+      'local.initial.option',
       `Initial value "${String(value)}" of parameter "${key}" is not among the available values ${options.join(', ')}.`,
-      first.attrs.initial?.offset ?? first.entry.node.range.start,
+      offset,
       undefined,
       { key: 'local.initial.value.options', params: { value: String(value), key, options: options.join(', ') } },
     );
@@ -2294,13 +2596,28 @@ function validateInitialValue(
  */
 function resolveSlotBindings(state: CompileState, bindings: Record<string, LocalBinding>): void {
   const used = new Set(Object.keys(bindings));
+  const primaryByNode = new Map<string, string>();
+  for (const [key, binding] of Object.entries(bindings)) {
+    for (const nodeId of binding.nodeIds) primaryByNode.set(nodeId, key);
+  }
   for (const entry of state.entries) {
-    const slots = entry.schema.slots;
-    if (!slots?.length) continue;
+    const slots = kernelSlotBindings(entry.kernel);
+    if (!slots.length) continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
     const map: Record<string, string> = Object.create(null);
     const keys = new Map<string, string>();
+    // Mixed contracts retain the primary value in the same transaction map.
+    const valueBinding = kernelValueBinding(entry.kernel);
+    if (valueBinding && !valueBinding.requiresAttributes?.some(attribute => !Object.hasOwn(attrs, attribute))) {
+      const scalar = primaryByNode.get(entry.node.id);
+      if (scalar) {
+        map.value = scalar;
+        keys.set('value', scalar);
+      }
+    }
     for (const slot of slots) {
+      if (slot.requiresAttributes?.some(attribute => !Object.hasOwn(attrs, attribute))) continue;
+      requireBindingAttribute(entry, slot, attrs, state);
       const bindInfo = attrs[slot.bind];
       let publicKey: string | undefined;
       if (bindInfo) {
@@ -2333,19 +2650,19 @@ function resolveSlotBindings(state: CompileState, bindings: Record<string, Local
           publicKey = raw;
         }
       }
-      let key = publicKey ?? `@${entry.node.id}:${slot.name}`;
+      let key = publicKey ?? `@${entry.node.id}:${slot.slot}`;
       if (publicKey && used.has(publicKey)) {
         state.report(
           'local.binding.exclusive',
-          `Parameter "${publicKey}" of the ${slot.name} slot of <${entry.name}> is exclusive and cannot be shared with another control.`,
+          `Parameter "${publicKey}" of the ${slot.slot} slot of <${entry.name}> is exclusive and cannot be shared with another control.`,
           bindInfo?.offset ?? entry.node.range.start,
           undefined,
-          { key: 'local.binding.exclusive.slot', params: { key: publicKey, slot: slot.name, name: entry.name } },
+          { key: 'local.binding.exclusive.slot', params: { key: publicKey, slot: slot.slot, name: entry.name } },
         );
-        key = `@${entry.node.id}:${slot.name}`;
+        key = `@${entry.node.id}:${slot.slot}`;
       }
       used.add(key);
-      const constraints = slotConstraints(entry, attrs, slot.name);
+      const constraints = kernelNumericConstraints(entry.kernel, slot, attrs);
       const initial = slotInitial(entry, attrs, slot, constraints, state);
       const binding: LocalBinding = {
         name: key,
@@ -2358,50 +2675,36 @@ function resolveSlotBindings(state: CompileState, bindings: Record<string, Local
       if (constraints.max !== undefined) binding.max = constraints.max;
       binding.step = constraints.step;
       bindings[key] = binding;
-      map[slot.name] = key;
-      keys.set(slot.name, key);
+      map[slot.slot] = key;
+      keys.set(slot.slot, key);
     }
-    const startKey = keys.get('start');
-    const endKey = keys.get('end');
-    if (startKey && endKey) {
-      const start = bindings[startKey].initial;
-      const end = bindings[endKey].initial;
-      if (typeof start === 'number' && typeof end === 'number' && start > end) {
+    for (const relation of kernelSlotRelations(entry.kernel)) {
+      const lowerKey = keys.get(relation.lower);
+      const upperKey = keys.get(relation.upper);
+      if (!lowerKey || !upperKey) continue;
+      const lower = bindings[lowerKey].initial;
+      const upper = bindings[upperKey].initial;
+      if (typeof lower === 'number' && typeof upper === 'number' && lower > upper) {
         state.report(
           'local.initial.range',
-          `<range-slider> start ${start} cannot be greater than end ${end}.`,
+          `<${entry.name}> ${relation.lower} ${lower} cannot be greater than ${relation.upper} ${upper}.`,
           entry.node.range.start,
           entry.node.range.end,
-          { key: 'local.initial.range-slider', params: { start, end } },
+          { key: 'local.initial.range-slider', params: { start: lower, end: upper } },
         );
       }
     }
-    state.bindingSlots[entry.node.id] = map;
+    if (Object.keys(map).length) state.bindingSlots[entry.node.id] = map;
   }
-}
-
-function slotConstraints(entry: Entry, attrs: AttrMap, slot: string): NumericConstraints {
-  if (entry.name === 'coordinate') {
-    return {
-      min: numberValue(entry, attrs, `${slot}-min`) ?? -5,
-      max: numberValue(entry, attrs, `${slot}-max`) ?? 5,
-      step: numberValue(entry, attrs, 'step') ?? 1,
-    };
-  }
-  return {
-    min: numberValue(entry, attrs, 'min') ?? 0,
-    max: numberValue(entry, attrs, 'max') ?? 100,
-    step: numberValue(entry, attrs, 'step') ?? 1,
-  };
 }
 
 function slotInitial(
   entry: Entry,
   attrs: AttrMap,
-  slot: { initial: string; initialRule: 'min' | 'max-step' | 'nearest-zero' },
+  slot: KernelBindingSchema,
   constraints: NumericConstraints,
   state: CompileState,
-): number {
+): LocalValue {
   const base = constraints.min ?? 0;
   const info = attrs[slot.initial];
   if (info && typeof info.value === 'number') {
@@ -2412,19 +2715,13 @@ function slotInitial(
     if (constraints.max !== undefined && value > constraints.max) {
       state.report('local.initial.range', `Initial value ${value} of <${entry.name}> ${slot.initial} exceeds the maximum ${constraints.max}.`, info.offset, undefined, { key: 'local.initial.slot.max', params: { value, name: entry.name, slot: slot.initial, max: constraints.max } });
     }
-    if (!onStep(value, base, constraints.step)) {
+    if (!kernelOnStep(value, base, constraints.step)) {
       state.report('local.initial.step', `Initial value ${value} of <${entry.name}> ${slot.initial} is not on step ${constraints.step} (based at ${base}).`, info.offset, undefined, { key: 'local.initial.slot.step', params: { value, name: entry.name, slot: slot.initial, step: constraints.step, base } });
     }
     return value;
   }
-  if (slot.initialRule === 'max-step') {
-    const span = (constraints.max ?? base) - base;
-    const index = Math.max(0, Math.floor(span / constraints.step + EPSILON));
-    const value = base + index * constraints.step;
-    return Math.min(constraints.max ?? value, Math.max(constraints.min ?? value, value));
-  }
-  if (slot.initialRule === 'min') return constraints.min ?? 0;
-  return nearestZero(constraints.min, constraints.max, constraints.step) ?? 0;
+  const derived = kernelDefaultInitial(slot.initialRule, constraints, []);
+  return 'value' in derived && derived.value !== undefined ? derived.value : 0;
 }
 
 function slotMap(state: CompileState): Record<string, Record<string, string>> | undefined {
@@ -2701,34 +2998,50 @@ function resolveExternals(state: CompileState): void {
   }
 }
 
-/** Attributes that may carry a dynamic constraint expression, by component. */
-const DYNAMIC_CONSTRAINT_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
-  number: ['min', 'max'],
-  slider: ['min', 'max'],
-  date: ['min', 'max', 'required'],
-  input: ['required'],
-  textarea: ['required'],
-};
-
 /**
- * Record dynamic `min`, `max` and `required` expressions for the runtime. The
- * compiler has already validated each expression's type, syntax and
- * dependencies; the runtime evaluates them against the current state.
+ * Record dynamic `min`, `max` and `required` expressions for the runtime. Any
+ * attribute named by a manifest `dynamic-constraints` rule or by a numeric
+ * binding constraint prop is eligible; tag names play no part.
  */
 function collectDynamicConstraints(state: CompileState): void {
   for (const entry of state.entries) {
-    const allowed = DYNAMIC_CONSTRAINT_ATTRIBUTES[entry.name];
-    if (!allowed) continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
     let collected: LocalDynamicConstraints | undefined;
-    for (const name of allowed) {
-      const info = attrs[name];
-      if (!info?.dynamic || info.expression === undefined) continue;
+    const record = (
+      attribute: 'min' | 'max' | 'required',
+      info: AttrState,
+      numeric?: { min?: number; max?: number; integer?: boolean },
+    ): void => {
+      if (!info.dynamic || info.expression === undefined) return;
       collected ??= {};
-      collected[name as 'min' | 'max' | 'required'] = {
+      collected[attribute] = {
         source: info.expression,
         offset: info.expressionOffset ?? info.offset,
+        ...(numeric ? { numeric } : {}),
       };
+    };
+    for (const rule of kernelRulesOf(entry.kernel, 'dynamic-constraints')) {
+      for (const name of rule.attributes) {
+        if (name === 'min' || name === 'max' || name === 'required') {
+          const info = attrs[name];
+          if (info) record(name, info);
+        }
+      }
+    }
+    const scalar = kernelValueBinding(entry.kernel);
+    if (scalar?.kind === 'number' && scalar.constraints) {
+      for (const attribute of ['min', 'max'] as const) {
+        const constraint = scalar.constraints[attribute];
+        if (!constraint || !('prop' in constraint)) continue;
+        const info = attrs[constraint.prop];
+        if (!info) continue;
+        const prop = entry.kernel.props[constraint.prop];
+        record(attribute, info, prop ? {
+          ...(prop.min === undefined ? {} : { min: prop.min }),
+          ...(prop.max === undefined ? {} : { max: prop.max }),
+          ...(prop.integer === true ? { integer: true } : {}),
+        } : undefined);
+      }
     }
     if (collected) state.dynamicConstraints[entry.node.id] = collected;
   }
@@ -2829,14 +3142,22 @@ function validateExpressions(state: CompileState): void {
     // validated by resolveComputations with their own dependency graph.
     if (entry.name === 'computed' || entry.name === 'const') continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
+    const scoped = new Set<string>();
+    const fullRequired = new Set<string>();
+    for (const rule of kernelRules(entry.kernel)) {
+      if (rule.kind === 'scoped-expressions') for (const name of rule.attributes) scoped.add(name);
+      else if (rule.kind === 'row-values') {
+        scoped.add(rule.rows);
+        scoped.add(rule.key);
+      } else if (rule.kind === 'validation-rule') scoped.add(rule.when);
+      else if (rule.kind === 'require-full-interpolation') for (const name of rule.attributes) fullRequired.add(name);
+    }
     for (const [name, info] of Object.entries(attrs)) {
-      const prop = entry.schema.props[name];
+      const prop = entry.kernel.props[name];
       if (!prop || prop.static) continue;
       // Row-scoped and rule attributes have their own environment and are
       // validated by validateDataTables / validateValidations.
-      if (entry.name === 'data-table' && (name === 'rows' || name === 'key')) continue;
-      if (entry.name === 'column' && name === 'value') continue;
-      if (entry.name === 'validation' && name === 'when') continue;
+      if (scoped.has(name)) continue;
       if (prop.kind === 'string') {
         if (prop.dynamic) {
           // A full interpolation is a typed string expression; a literal is a
@@ -2862,15 +3183,15 @@ function validateExpressions(state: CompileState): void {
         validate(info.expression ?? '', info.expressionOffset ?? info.offset, 'string');
       }
     }
-    if (entry.name === 'if') {
-      const when = attrs.when;
-      if (when && !when.dynamic) {
+    for (const name of fullRequired) {
+      const info = attrs[name];
+      if (info && !singleFullInterpolation(info.raw)) {
         state.report(
           'local.attribute.interpolation',
-          'The when attribute of if must be a full boolean interpolation, e.g. when="{{ seats >= 5 }}".',
-          when.offset,
+          `The ${name} attribute of <${entry.name}> must be a full interpolation.`,
+          info.offset,
           undefined,
-          { key: 'local.attribute.interpolation' },
+          { key: 'local.attribute.interpolation', params: { name, component: entry.name } },
         );
       }
     }
@@ -2905,12 +3226,13 @@ function validateNavigation(
 
   const explicit = new Set<string>();
   for (const entry of state.entries) {
-    if (entry.name !== 'anchor') continue;
+    const rule = kernelRule(entry.kernel, 'anchor');
+    if (!rule) continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
-    const info = attrs.id;
+    const info = attrs[rule.id];
     if (!info) continue;
     const id = typeof info.value === 'string' ? info.value : '';
-    if (!id || !IDENTIFIER_ANCHOR.test(id)) {
+    if (!id || !isKernelAnchorId(id)) {
       state.report(
         'local.anchor.id',
         `Anchor id "${id}" must match [A-Za-z_][A-Za-z0-9_-]*.`,
@@ -2936,35 +3258,27 @@ function validateNavigation(
     }
   }
 
+  const targets: { name: string; target: string; offset: number }[] = [];
   for (const entry of state.entries) {
-    if (entry.name !== 'jump') continue;
+    const rule = kernelRule(entry.kernel, 'navigation');
+    if (!rule) continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
-    const info = attrs.to;
+    const info = attrs[rule.target];
     if (!info) continue;
-    const to = typeof info.value === 'string' ? info.value : '';
-    if (!to) {
-      state.report('local.jump.target', '<jump> target cannot be empty.', info.offset, undefined, { key: 'local.jump.empty' });
-      continue;
-    }
-    if (to.startsWith('#') || /\s/.test(to)) {
-      state.report(
-        'local.jump.target',
-        `<jump> target "${to}" must be a bare heading slug or anchor id without "#" or whitespace.`,
-        info.offset,
-        undefined,
-        { key: 'local.jump.bad-target', params: { target: to } },
-      );
-      continue;
-    }
-    if (!explicit.has(to) && !headingSlugs.has(to)) {
-      state.report(
-        'local.jump.target',
-        `<jump> target "${to}" does not resolve to a heading or explicit anchor in this document.`,
-        info.offset,
-        undefined,
-        { key: 'local.jump.unresolved', params: { target: to } },
-      );
-    }
+    targets.push({
+      name: entry.name,
+      target: typeof info.value === 'string' ? info.value : '',
+      offset: info.offset,
+    });
+  }
+  for (const issue of kernelNavigationIssues(targets, explicit, headingSlugs)) {
+    state.report(
+      issue.code,
+      issue.message,
+      issue.start,
+      issue.end,
+      { key: issue.key, ...(issue.params ? { params: issue.params } : {}) },
+    );
   }
 }
 
@@ -3069,8 +3383,9 @@ function fullExpressionAttribute(
   return { expression: full.expression, base: info.offset + full.start };
 }
 
-function dataTableMaxRows(attrs: AttrMap): number {
-  const info = attrs['max-rows'];
+function dataTableMaxRows(attrs: AttrMap, rule: Extract<KernelRule, { kind: 'data-table' }>): number {
+  const info = attrs[rule.maxRows];
+  const fallback = Math.min(rule.defaultMaxRows, MAX_LOCAL_DATA_TABLE_ROWS);
   if (
     info && !info.dynamic
     && typeof info.value === 'number'
@@ -3078,16 +3393,20 @@ function dataTableMaxRows(attrs: AttrMap): number {
     && info.value > 0
     && info.value <= MAX_LOCAL_DATA_TABLE_ROWS
   ) return info.value;
-  return DEFAULT_LOCAL_DATA_TABLE_ROWS;
+  return fallback;
 }
 
 /**
- * Validate every `<data-table>` and sum document budgets. Rows use the
- * ordinary global environment; `key` and `column.value` additionally see the
- * immutable row locals `item`/`index`, which shadow same-named globals.
+ * Validate every component declaring a `data-table` rule and sum document
+ * budgets. Rows use the ordinary global environment; `key` and the child value
+ * attribute additionally see the immutable row locals `item`/`index`.
  */
 function validateDataTables(state: CompileState): void {
-  const dataTables = state.entries.filter((entry) => entry.name === 'data-table');
+  const dataTables: [Entry, Extract<KernelRule, { kind: 'data-table' }>][] = [];
+  for (const entry of state.entries) {
+    const rule = kernelRule(entry.kernel, 'data-table');
+    if (rule) dataTables.push([entry, rule]);
+  }
   if (!dataTables.length) return;
   const env = expressionEnv(state);
   let totalRows = 0;
@@ -3095,34 +3414,37 @@ function validateDataTables(state: CompileState): void {
   let rowsBudgetReported = false;
   let cellsBudgetReported = false;
 
-  for (const entry of dataTables) {
+  for (const [entry, rule] of dataTables) {
     const attrs = state.attrs.get(entry.node.id) ?? {};
     const columns = meaningful(entry.node.children)
-      .filter((child): child is LocalNode => child.type === 'component' && child.name === 'column');
-    const maxRows = dataTableMaxRows(attrs);
-    const columnCount = Math.min(columns.length, MAX_LOCAL_DATA_TABLE_COLUMNS);
+      .filter((child) => (child.type === 'component' || child.type === 'hostComponent') && child.name === rule.child);
+    const maxRows = dataTableMaxRows(attrs, rule);
+    const columnLimit = Math.min(rule.maxColumns, MAX_LOCAL_DATA_TABLE_COLUMNS);
+    const rowBudget = Math.min(rule.documentRows, MAX_LOCAL_DATA_DOCUMENT_ROWS);
+    const cellBudget = Math.min(rule.documentCells, MAX_LOCAL_DATA_DOCUMENT_CELLS);
+    const columnCount = Math.min(columns.length, columnLimit);
     totalRows += maxRows;
     totalCells += maxRows * columnCount;
-    if (!rowsBudgetReported && totalRows > MAX_LOCAL_DATA_DOCUMENT_ROWS) {
+    if (!rowsBudgetReported && totalRows > rowBudget) {
       rowsBudgetReported = true;
       state.report(
         'local.budget.data-table.rows',
-        `The document's generated row budget exceeds ${MAX_LOCAL_DATA_DOCUMENT_ROWS}; max-rows summed over every <data-table> must stay within it.`,
+        `The document's generated row budget exceeds ${rowBudget}; ${rule.maxRows} summed over every <${entry.name}> must stay within it.`,
         entry.node.range.start,
         entry.node.range.end,
       );
     }
-    if (!cellsBudgetReported && totalCells > MAX_LOCAL_DATA_DOCUMENT_CELLS) {
+    if (!cellsBudgetReported && totalCells > cellBudget) {
       cellsBudgetReported = true;
       state.report(
         'local.budget.data-table.cells',
-        `The document's generated cell budget exceeds ${MAX_LOCAL_DATA_DOCUMENT_CELLS}; max-rows multiplied by columns, summed over every <data-table>, must stay within it.`,
+        `The document's generated cell budget exceeds ${cellBudget}; ${rule.maxRows} multiplied by columns, summed over every <${entry.name}>, must stay within it.`,
         entry.node.range.start,
         entry.node.range.end,
       );
     }
 
-    const rows = fullExpressionAttribute(attrs.rows, 'local.data-table.rows', 'data-table', 'rows', state);
+    const rows = fullExpressionAttribute(attrs[rule.rows], 'local.data-table.rows', entry.name, rule.rows, state);
     let itemKind: LocalValueKind = 'string';
     let rowsInferred = false;
     if (rows) {
@@ -3136,29 +3458,29 @@ function validateDataTables(state: CompileState): void {
       } else if (result && result.kind !== null) {
         state.report(
           'local.data-table.rows',
-          `<data-table> rows must evaluate to an array, but the expression evaluates to ${typeName(result.kind)}.`,
+          `<${entry.name}> ${rule.rows} must evaluate to an array, but the expression evaluates to ${typeName(result.kind)}.`,
           rows.base,
         );
       }
     }
 
     const rowEnv: Record<string, LocalValueKind> = { ...env, item: itemKind, index: 'number' };
-    const key = fullExpressionAttribute(attrs.key, 'local.data-table.key', 'data-table', 'key', state);
+    const key = fullExpressionAttribute(attrs[rule.key], 'local.data-table.key', entry.name, rule.key, state);
     if (key) {
       const result = validateScopedExpression(state, key.expression, key.base, rowEnv, rowsInferred);
       if (result) {
         const dependencies = result.compiled.dependencies;
         if (!dependencies.includes('item')) {
-          state.report('local.data-table.key', '<data-table> key must depend on item.', key.base);
+          state.report('local.data-table.key', `<${entry.name}> key must depend on item.`, key.base);
         }
         for (const dependency of dependencies) {
           if (dependency === 'item') continue;
           if (dependency === 'index') {
-            state.report('local.data-table.key', '<data-table> key cannot depend on index; use a stable item identifier.', key.base);
+            state.report('local.data-table.key', `<${entry.name}> key cannot depend on index; use a stable item identifier.`, key.base);
           } else if (Object.hasOwn(env, dependency)) {
             state.report(
               'local.data-table.key',
-              `<data-table> key cannot depend on global parameter "${dependency}"; it must be derived from item only.`,
+              `<${entry.name}> key cannot depend on global parameter "${dependency}"; it must be derived from item only.`,
               key.base,
             );
           }
@@ -3166,7 +3488,7 @@ function validateDataTables(state: CompileState): void {
         if (result.kind !== null && result.kind !== 'string' && result.kind !== 'number') {
           state.report(
             'local.data-table.key',
-            `<data-table> key must evaluate to a string or number, got ${typeName(result.kind)}.`,
+            `<${entry.name}> key must evaluate to a string or number, got ${typeName(result.kind)}.`,
             key.base,
           );
         }
@@ -3175,17 +3497,17 @@ function validateDataTables(state: CompileState): void {
 
     for (const column of columns) {
       const columnAttrs = state.attrs.get(column.id) ?? {};
-      const label = columnAttrs.label;
+      const label = columnAttrs[rule.label];
       if (label && !String(label.value ?? '').trim()) {
-        state.report('local.data-table.column', '<column> label cannot be empty.', label.offset);
+        state.report('local.data-table.column', `<${rule.child}> ${rule.label} cannot be empty.`, label.offset);
       }
-      const value = fullExpressionAttribute(columnAttrs.value, 'local.data-table.value', 'column', 'value', state);
+      const value = fullExpressionAttribute(columnAttrs[rule.childValue], 'local.data-table.value', rule.child, rule.childValue, state);
       if (!value) continue;
       const result = validateScopedExpression(state, value.expression, value.base, rowEnv, rowsInferred);
       if (result && (result.kind === 'array' || result.kind === 'number-array')) {
         state.report(
           'local.data-table.value',
-          `<column> value must be a scalar string, number, boolean or null, got ${typeName(result.kind)}.`,
+          `<${rule.child}> ${rule.childValue} must be a scalar string, number, boolean or null, got ${typeName(result.kind)}.`,
           value.base,
         );
       }
@@ -3206,25 +3528,30 @@ function validateValidations(state: CompileState): LocalValidation[] {
   const env = expressionEnv(state);
 
   for (const entry of state.entries) {
-    if (entry.name !== 'validation') continue;
+    const rule = kernelRule(entry.kernel, 'validation-rule');
+    if (!rule) continue;
     declarations += 1;
     const node = entry.node;
-    if (declarations > MAX_LOCAL_VALIDATIONS) {
+    const maxRules = Math.min(rule.max, MAX_LOCAL_VALIDATIONS);
+    if (declarations > maxRules) {
       if (!budgetReported) {
         budgetReported = true;
         state.report(
           'local.validation.budget',
-          `The document declares more than ${MAX_LOCAL_VALIDATIONS} validation rules; rules in hidden regions count too.`,
+          `The document declares more than ${maxRules} validation rules; rules in hidden regions count too.`,
           node.range.start,
           node.range.end,
         );
       }
       continue;
     }
-    if (entry.parent && (entry.parent.schema.form !== 'container' || entry.parent.name === 'data-table')) {
+    if (
+      entry.parent
+      && (entry.parent.kernel.form !== 'container' || kernelRule(entry.parent.kernel, 'data-table') !== undefined)
+    ) {
       state.report(
         'local.validation.placement',
-        '<validation> can appear in normal prose or a container, but not inside inline content or a data table.',
+        `<${entry.name}> can appear in normal prose or a container, but not inside inline content or a data table.`,
         node.range.start,
         node.range.end,
       );
@@ -3233,13 +3560,13 @@ function validateValidations(state: CompileState): LocalValidation[] {
     const attrs = state.attrs.get(node.id) ?? {};
     let expression = '';
     let dependencies: string[] = [];
-    const when = attrs.when;
+    const when = attrs[rule.when];
     if (when) {
       const full = fullInterpolation(when.raw);
       if (!full) {
         state.report(
           'local.validation.when',
-          '<validation> when must be exactly one {{ boolean }} interpolation.',
+          `<${entry.name}> ${rule.when} must be exactly one {{ boolean }} interpolation.`,
           when.offset,
           when.offset + when.raw.length,
         );
@@ -3259,12 +3586,12 @@ function validateValidations(state: CompileState): LocalValidation[] {
       }
     }
 
-    const fieldsInfo = attrs.fields;
+    const fieldsInfo = attrs[rule.fields];
     const fields = fieldsInfo ? parseValidationFields(fieldsInfo.raw) : [];
     if (fieldsInfo && !fields.length) {
       state.report(
         'local.validation.fields',
-        '<validation> requires at least one field name.',
+        `<${entry.name}> requires at least one field name.`,
         fieldsInfo.offset,
         fieldsInfo.offset + fieldsInfo.raw.length,
       );
@@ -3274,7 +3601,7 @@ function validateValidations(state: CompileState): LocalValidation[] {
       if (seen.has(field)) {
         state.report(
           'local.validation.fields',
-          `Duplicate field "${field}" in <validation> fields.`,
+          `Duplicate field "${field}" in <${entry.name}> fields.`,
           fieldsInfo?.offset ?? node.range.start,
         );
         continue;
@@ -3290,14 +3617,14 @@ function validateValidations(state: CompileState): LocalValidation[] {
       }
     }
 
-    // `message` is an ordinary text template: validateExpressions checks its
+    // The message is an ordinary text template: validateExpressions checks its
     // interpolations. Rules without a usable `when` are already rejected.
     if (!expression) continue;
     validations.push({
       nodeId: node.id,
       expression,
       dependencies,
-      message: typeof attrs.message?.value === 'string' ? attrs.message.value : '',
+      message: typeof attrs[rule.message]?.value === 'string' ? String(attrs[rule.message].value) : '',
       fields: [...seen],
       range: { ...node.range },
     });
@@ -3337,10 +3664,10 @@ function editDistance(a: string, b: string): number {
 /* Plot math                                                           */
 /* ------------------------------------------------------------------ */
 
-function plotSamples(entry: Entry, attrs: AttrMap): number {
-  const fallback = entry.schema.props.samples?.default;
+function plotSamples(entry: Entry, attrs: AttrMap, rule: Extract<KernelRule, { kind: 'plot-math' }>): number {
+  const fallback = entry.kernel.props[rule.samples]?.default;
   const base = typeof fallback === 'number' ? fallback : 200;
-  return numberValue(entry, attrs, 'samples') ?? base;
+  return numberValue(entry, attrs, rule.samples) ?? base;
 }
 
 function validatePlots(state: CompileState): void {
@@ -3348,41 +3675,45 @@ function validatePlots(state: CompileState): void {
   let totalPoints = 0;
   let pointsBudgetExceeded = false;
   for (const entry of state.entries) {
-    if (entry.name !== 'plot') continue;
+    const rule = kernelRule(entry.kernel, 'plot-math');
+    if (!rule) continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
     const mathNodes = meaningful(entry.node.children).filter((node) => node.type === 'math');
-    const samples = plotSamples(entry, attrs);
-    if (mathNodes.length > MAX_LOCAL_PLOT_CURVES) {
+    const samples = plotSamples(entry, attrs, rule);
+    // Manifest rule counts can never raise the kernel's hard budgets.
+    const curveLimit = Math.min(rule.curves, MAX_LOCAL_PLOT_CURVES);
+    const pointLimit = Math.min(rule.points, MAX_LOCAL_PLOT_POINTS);
+    if (mathNodes.length > curveLimit) {
       state.report(
         'local.budget.plot.curves',
-        `<plot> supports at most ${MAX_LOCAL_PLOT_CURVES} curves, but has ${mathNodes.length}.`,
+        `<${entry.name}> supports at most ${curveLimit} curves, but has ${mathNodes.length}.`,
         entry.node.range.start,
         entry.node.range.end,
-        { key: 'local.budget.plot.curves', params: { limit: MAX_LOCAL_PLOT_CURVES, count: mathNodes.length } },
+        { key: 'local.budget.plot.curves', params: { limit: curveLimit, count: mathNodes.length } },
       );
     }
     const requested = mathNodes.length * samples;
     const nextTotal = totalPoints + requested;
-    if (!pointsBudgetExceeded && nextTotal > MAX_LOCAL_PLOT_POINTS) {
+    if (!pointsBudgetExceeded && nextTotal > pointLimit) {
       state.report(
         'local.budget.plot.points',
-        `The document's total plot sample count exceeds the limit of ${MAX_LOCAL_PLOT_POINTS}.`,
+        `The document's total plot sample count exceeds the limit of ${pointLimit}.`,
         entry.node.range.start,
         entry.node.range.end,
-        { key: 'local.budget.plot.points', params: { limit: MAX_LOCAL_PLOT_POINTS } },
+        { key: 'local.budget.plot.points', params: { limit: pointLimit } },
       );
       pointsBudgetExceeded = true;
     }
-    totalPoints = Math.min(MAX_LOCAL_PLOT_POINTS + 1, nextTotal);
+    totalPoints = Math.min(pointLimit + 1, nextTotal);
     // Once the shapes are known to exceed budget, do not spend work compiling
     // an unbounded number of formulas. The document is already rejected.
-    if (mathNodes.length > MAX_LOCAL_PLOT_CURVES || pointsBudgetExceeded) continue;
+    if (mathNodes.length > curveLimit || pointsBudgetExceeded) continue;
     for (const node of mathNodes) {
       const recipe = (node.value ?? '').trim();
       if (!/^y\s*=/u.test(recipe)) {
         state.report(
           'local.math.formula',
-          '<plot> formulas must be written explicitly as y = expression.',
+          `<${entry.name}> formulas must be written explicitly as y = expression.`,
           node.range.start,
           node.range.end,
           { key: 'local.math.formula.shape' },
@@ -3511,6 +3842,7 @@ function requireNumericColumn(
   label: string,
 ): void {
   const name = shape.header[column];
+  const timeline = kernelRule(component.kernel, 'timeline-table') !== undefined;
   shape.rows.forEach((row, rowIndex) => {
     const cell = row[column];
     if (!cell) return;
@@ -3520,11 +3852,11 @@ function requireNumericColumn(
       if (kind !== undefined && kind !== null && kind !== 'number') {
         state.report(
           'local.chart.numeric',
-          `${component.name === 'timeline' ? 'Timeline' : 'Chart'} column "${name}" requires a number in row ${rowIndex + 1}, but the expression evaluates to ${typeName(kind)}.`,
+          `${timeline ? 'Timeline' : 'Chart'} column "${name}" requires a number in row ${rowIndex + 1}, but the expression evaluates to ${typeName(kind)}.`,
           cell.range.start,
           cell.range.end,
           {
-            key: component.name === 'timeline' ? 'local.timeline.numeric.expression' : 'local.chart.numeric.expression',
+            key: timeline ? 'local.timeline.numeric.expression' : 'local.chart.numeric.expression',
             params: { name, row: rowIndex + 1, kind: typeName(kind) },
           },
         );
@@ -3534,11 +3866,11 @@ function requireNumericColumn(
     if (!cellNumeric(cell, state)) {
       state.report(
         'local.chart.numeric',
-        `${component.name === 'timeline' ? 'Timeline' : 'Chart'} column "${name}" requires a plain number in row ${rowIndex + 1}, got "${plainText(cell).trim() || 'empty'}".`,
+        `${timeline ? 'Timeline' : 'Chart'} column "${name}" requires a plain number in row ${rowIndex + 1}, got "${plainText(cell).trim() || 'empty'}".`,
         cell.range.start,
         cell.range.end,
         {
-          key: component.name === 'timeline' ? 'local.timeline.numeric.plain' : 'local.chart.numeric.plain',
+          key: timeline ? 'local.timeline.numeric.plain' : 'local.chart.numeric.plain',
           params: { name, row: rowIndex + 1, value: plainText(cell).trim() || 'empty' },
         },
       );
@@ -3553,15 +3885,17 @@ function columnIndex(header: string[], name: string): number {
 
 function validateTables(state: CompileState): void {
   for (const entry of state.entries) {
-    if (entry.name === 'table') {
+    if (!kernelRule(entry.kernel, 'single-table')) continue;
+    const chart = kernelRule(entry.kernel, 'chart-table');
+    const timeline = kernelRule(entry.kernel, 'timeline-table');
+    if (!chart && !timeline) {
       tableShapeFor(entry, state);
       continue;
     }
-    if (entry.name !== 'chart' && entry.name !== 'timeline') continue;
     const shape = tableShapeFor(entry, state);
     if (!shape) continue;
-    if (entry.name === 'chart') validateChart(entry, shape, state);
-    else validateTimeline(entry, shape, state);
+    if (chart) validateChart(entry, shape, state, chart);
+    else if (timeline) validateTimeline(entry, shape, state, timeline);
   }
 }
 
@@ -3604,9 +3938,10 @@ function attachTableShapes(document: LocalDocument, shapes: Map<string, TableSha
  */
 function computeSelections(state: CompileState): void {
   for (const entry of state.entries) {
-    if (entry.name !== 'table' && entry.name !== 'chart') continue;
+    const rule = kernelRule(entry.kernel, 'table-selection');
+    if (!rule) continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
-    const keyInfo = attrs.key;
+    const keyInfo = attrs[rule.key];
     if (!keyInfo) continue;
     const keyName = typeof keyInfo.value === 'string' ? keyInfo.value.trim() : '';
     if (!keyName) {
@@ -3684,29 +4019,34 @@ function computeSelections(state: CompileState): void {
   }
 }
 
-function validateChart(entry: Entry, shape: TableShape, state: CompileState): void {
+function validateChart(
+  entry: Entry,
+  shape: TableShape,
+  state: CompileState,
+  rule: Extract<KernelRule, { kind: 'chart-table' }>,
+): void {
   const attrs = state.attrs.get(entry.node.id) ?? {};
-  const kind = typeof attrs.kind?.value === 'string' ? attrs.kind.value : 'bar';
+  const kind = typeof attrs[rule.chartKind]?.value === 'string' ? String(attrs[rule.chartKind].value) : 'bar';
   const header = shape.header;
   for (const name of header) {
     if (name.includes(',')) {
       state.report('local.chart.column', `Chart column names cannot contain commas: "${name}".`, entry.node.range.start, entry.node.range.end, { key: 'local.chart.column.comma', params: { name } });
     }
   }
-  const xName = typeof attrs.x?.value === 'string' ? attrs.x.value.trim() : '';
-  const yRaw = typeof attrs.y?.value === 'string' ? attrs.y.value.trim() : '';
+  const xName = typeof attrs[rule.x]?.value === 'string' ? String(attrs[rule.x].value).trim() : '';
+  const yRaw = typeof attrs[rule.y]?.value === 'string' ? String(attrs[rule.y].value).trim() : '';
   if (xName && columnIndex(header, xName) < 0) {
-    state.report('local.chart.column', `Chart x column "${xName}" does not exist.`, attrs.x?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.x-missing', params: { name: xName } });
+    state.report('local.chart.column', `Chart x column "${xName}" does not exist.`, attrs[rule.x]?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.x-missing', params: { name: xName } });
   }
   let yNames: string[] = [];
   if (yRaw) {
     yNames = yRaw.split(',').map((name) => name.trim()).filter(Boolean);
     if (!yNames.length) {
-      state.report('local.chart.column', 'Chart y requires a column name.', attrs.y?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.y-required' });
+      state.report('local.chart.column', 'Chart y requires a column name.', attrs[rule.y]?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.y-required' });
     }
     for (const name of yNames) {
       if (columnIndex(header, name) < 0) {
-        state.report('local.chart.column', `Chart y column "${name}" does not exist.`, attrs.y?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.y-missing', params: { name } });
+        state.report('local.chart.column', `Chart y column "${name}" does not exist.`, attrs[rule.y]?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.y-missing', params: { name } });
       }
     }
   }
@@ -3742,7 +4082,7 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
       const index = columnIndex(header, yNames[0]);
       if (index >= 0) numeric = [index];
     } else if (yNames.length > 1) {
-      state.report('local.chart.column', 'Donut chart y can only specify one numeric column.', attrs.y?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.donut-y' });
+      state.report('local.chart.column', 'Donut chart y can only specify one numeric column.', attrs[rule.y]?.offset ?? entry.node.range.start, undefined, { key: 'local.chart.column.donut-y' });
     } else if (header.length > 2) {
       state.report('local.chart.column', 'A donut chart with more than two columns must use y to specify the single numeric column.', entry.node.range.start, entry.node.range.end, { key: 'local.chart.column.donut-need-y' });
     } else {
@@ -3774,18 +4114,25 @@ function validateChart(entry: Entry, shape: TableShape, state: CompileState): vo
   }
 }
 
-function validateTimeline(entry: Entry, shape: TableShape, state: CompileState): void {
-  const headerSets = [
-    { title: 'Task', start: 'Start', duration: 'Duration', notes: 'Notes' },
-    { title: '事项', start: '开始', duration: '时长', notes: '说明' },
-  ];
+function validateTimeline(
+  entry: Entry,
+  shape: TableShape,
+  state: CompileState,
+  rule: Extract<KernelRule, { kind: 'timeline-table' }>,
+): void {
+  const headerSets = rule.headerSets.map((set) => ({
+    title: set[0] ?? '',
+    start: set[1] ?? '',
+    duration: set[2] ?? '',
+    notes: set[3] ?? '',
+  }));
   const headers = headerSets.find((set) =>
     shape.header.includes(set.title) && shape.header.includes(set.start) && shape.header.includes(set.duration),
   );
   if (!headers) {
     state.report(
       'local.timeline.header',
-      'Timeline requires either Task, Start and Duration columns or 事项, 开始 and 时长 columns, with optional Notes or 说明.',
+      `<${entry.name}> requires title, start and duration columns, with an optional notes column.`,
       entry.node.range.start,
       entry.node.range.end,
       { key: 'local.timeline.header.missing' },
@@ -3885,486 +4232,17 @@ function extensionRequirements(
   return Object.freeze({ protocol: LOCAL_EXTENSIONS_PROTOCOL, components });
 }
 
-/**
- * Record dynamic SDK binding bounds (a `max`/`min` prop referenced by a binding
- * constraint and supplied as a full interpolation) in the same metadata the
- * runtime already evaluates for built-in controls. This makes writes through
- * `runtime.set`, `runtime.setParameter` and React binding setters obey the
- * component's current constraints.
+/*
+ * Phase-one host parameter and SDK binding adapters were removed in phase two.
+ * `readLocalCompileOptions` lowers both inputs into the unified registry above,
+ * so every component uses the same attribute, structure and binding engine.
  */
-function collectSdkDynamicConstraints(
-  state: CompileState,
-  sdkByName: ReadonlyMap<string, LocalComponentDefinition>,
-): void {
-  if (sdkByName.size === 0) return;
-  for (const node of walkLocalNodes(state.nodes)) {
-    if (node.type !== 'hostComponent' || !node.name) continue;
-    const definition = sdkByName.get(node.name);
-    const binding = definition?.bindings?.value;
-    if (!definition || !binding || binding.kind !== 'number') continue;
-    const constraints = binding.constraints;
-    if (!constraints) continue;
-    const rawAttrs = node.attrs ?? {};
-    let collected: LocalDynamicConstraints | undefined;
-    for (const attribute of ['min', 'max'] as const) {
-      const constraint = constraints[attribute];
-      if (!constraint || !('prop' in constraint)) continue;
-      const raw = rawAttrs[constraint.prop];
-      if (typeof raw !== 'string') continue;
-      const full = fullInterpolation(raw);
-      if (!full) continue;
-      const prop = definition.props[constraint.prop];
-      collected ??= {};
-      collected[attribute] = {
-        source: full.expression,
-        offset: attributeOffset(state, node, constraint.prop) + full.start,
-        numeric: {
-          ...(prop.min === undefined ? {} : { min: prop.min }),
-          ...(prop.max === undefined ? {} : { max: prop.max }),
-          ...(prop.integer === true ? { integer: true } : {}),
-        },
-      };
-    }
-    if (collected) {
-      const previous = state.dynamicConstraints[node.id];
-      state.dynamicConstraints[node.id] = previous ? { ...previous, ...collected } : collected;
-    }
-  }
-}
 
-/**
- * Validate host-defined leaf tags in place. They already count as parser syntax
- * nodes but never enter `state.entries`: they own no bindings, children or
- * runtime state, so only their literal attributes are checked here.
- */
-function validateHostComponents(
-  nodes: LocalNode[],
-  hostByName: ReadonlyMap<string, LocalHostComponentSchema>,
-  sdkByName: ReadonlyMap<string, LocalComponentDefinition>,
-  state: CompileState,
-): void {
-  for (const node of walkLocalNodes(nodes)) {
-    if (node.type === 'hostComponent') {
-      const schema = node.name ? hostByName.get(node.name) : undefined;
-      if (!schema) {
-        // The parser only creates these from the same option; an unmatched node
-        // means a mismatch between parser and compile options.
-        const name = node.name ?? '';
-        reportWarning(
-          state,
-          'local.component.unknown',
-          `Unknown component <${name}>. This mode only accepts local interaction components.`,
-          node.range.start,
-          node.range.end,
-          { key: 'local.component.unknown', params: { name } },
-        );
-      } else {
-        validateHostAttributes(node, schema, state);
-        const definition = node.name ? sdkByName.get(node.name) : undefined;
-        if (definition) validateSdkComponentAttributes(node, definition, state);
-      }
-    }
-  }
-}
-
-/**
- * Compile-time checks that need the typed manifest rather than the lowered
- * host schema: numeric prop widths, integer requirements and body rules.
- */
-function validateSdkComponentAttributes(
-  node: LocalNode,
-  definition: LocalComponentDefinition,
-  state: CompileState,
-): void {
-  const rawAttrs = node.attrs ?? {};
-  for (const [name, prop] of Object.entries(definition.props)) {
-    if (prop.kind !== 'number') continue;
-    const raw = rawAttrs[name];
-    if (raw === undefined) continue;
-    // Dynamic bounds are checked per revision by resolveLocalComponentProps.
-    if (fullInterpolation(raw)) continue;
-    const value = parseNumberText(raw);
-    if (value === null) continue;
-    const offset = attributeOffset(state, node, name);
-    if (prop.integer === true && !Number.isInteger(value)) {
-      state.report(
-        'local.host.attribute',
-        `Attribute ${name} requires an integer, got "${raw}".`,
-        offset,
-        offset + raw.length,
-        { key: 'local.attribute.type.integer', params: { name } },
-      );
-    }
-    if (prop.min !== undefined && value < prop.min) {
-      state.report(
-        'local.host.attribute',
-        `Attribute ${name} must be at least ${prop.min}, got "${raw}".`,
-        offset,
-        offset + raw.length,
-        { key: 'local.attribute.range.min', params: { name, min: prop.min } },
-      );
-    }
-    if (prop.max !== undefined && value > prop.max) {
-      state.report(
-        'local.host.attribute',
-        `Attribute ${name} must be at most ${prop.max}, got "${raw}".`,
-        offset,
-        offset + raw.length,
-        { key: 'local.attribute.range.max', params: { name, max: prop.max } },
-      );
-    }
-  }
-  // A dynamic step cannot be represented by the kernel's shared numeric checks
-  // yet, so it is rejected instead of silently falling back to 1.
-  const binding = definition.bindings?.value;
-  const stepConstraint = binding?.kind === 'number' ? binding.constraints?.step : undefined;
-  if (stepConstraint && 'prop' in stepConstraint) {
-    const prop = definition.props[stepConstraint.prop];
-    const raw = rawAttrs[stepConstraint.prop];
-    const offset = attributeOffset(state, node, stepConstraint.prop);
-    if (raw === undefined) {
-      const defaultValue = prop?.default;
-      if (typeof defaultValue !== 'number') {
-        state.report(
-          'local.host.attribute',
-          `Attribute ${stepConstraint.prop} is required by the step constraint.`,
-          node.range.start,
-          node.range.end,
-          { key: 'local.host.attribute.type', params: { name: stepConstraint.prop, value: 'missing', kind: 'number' } },
-        );
-      } else if (!(defaultValue > 0)) {
-        state.report(
-          'local.host.attribute',
-          `Attribute ${stepConstraint.prop} requires a positive number.`,
-          node.range.start,
-          node.range.end,
-          { key: 'local.attribute.type.positive', params: { name: stepConstraint.prop } },
-        );
-      }
-    } else if (fullInterpolation(raw)) {
-      state.report(
-        'local.host.attribute',
-        `Attribute ${stepConstraint.prop} is used as a step and must be a static number.`,
-        offset,
-        offset + raw.length,
-        { key: 'local.host.attribute.static', params: { name: stepConstraint.prop } },
-      );
-    } else {
-      const value = parseNumberText(raw);
-      if (value !== null && !(value > 0)) {
-        state.report(
-          'local.host.attribute',
-          `Attribute ${stepConstraint.prop} requires a positive number.`,
-          offset,
-          offset + raw.length,
-          { key: 'local.attribute.type.positive', params: { name: stepConstraint.prop } },
-        );
-      }
-    }
-  }
-  const children = definition.children;
-  if (children === undefined) return;
-  const body = meaningful(node.children);
-  if (children.kind === 'none' && body.length > 0) {
-    state.report(
-      'local.host.structure',
-      `Component <${definition.name}> cannot have body content.`,
-      body[0].range.start,
-      body[0].range.end,
-      { key: 'local.host.structure.leaf', params: { component: definition.name } },
-    );
-  } else if (children.required === true && body.length === 0) {
-    state.report(
-      'local.host.structure',
-      `Component <${definition.name}> requires body content.`,
-      node.range.start,
-      node.range.end,
-      { key: 'local.host.structure.leaf', params: { component: definition.name } },
-    );
-  }
-}
-
-function validateHostAttributes(
-  node: LocalNode,
-  schema: LocalHostComponentSchema,
-  state: CompileState,
-): void {
-  const component = schema.name;
-  const rawAttrs = node.attrs ?? {};
-  if (schema.form === 'leaf' && meaningful(node.children).length) {
-    const first = meaningful(node.children)[0];
-    state.report(
-      'local.host.structure',
-      `Host component <${component}> is a leaf and cannot have body content.`,
-      first.range.start,
-      first.range.end,
-      { key: 'local.host.structure.leaf', params: { component } },
-    );
-  }
-  const binding = schema.binding;
-  for (const [name, raw] of Object.entries(rawAttrs)) {
-    const offset = attributeOffset(state, node, name);
-    if (raw.length > MAX_LOCAL_STRING_LENGTH) {
-      state.report(
-        'local.budget.attribute',
-        `Attribute ${name} on component <${component}> exceeds the ${MAX_LOCAL_STRING_LENGTH}-character limit.`,
-        offset,
-        offset + name.length,
-        { key: 'local.budget.attribute', params: { name, component, limit: MAX_LOCAL_STRING_LENGTH } },
-      );
-      continue;
-    }
-    if (binding && name === 'bind') {
-      // resolveHostBindings already reported name rules; only shape is local.
-      continue;
-    }
-    if (binding && name === 'initial') {
-      // Static type and range are validated while resolving the binding.
-      continue;
-    }
-    if (binding && name === 'disabled') {
-      const scanned = scanInterpolations(raw);
-      if (scanned.unterminated.length) {
-        state.report('local.interpolation', 'Interpolation is missing }}.', offset, undefined, { key: 'local.interpolation.unclosed' });
-        continue;
-      }
-      if (scanned.segments.length) {
-        if (!singleFullInterpolation(raw)) {
-          state.report(
-            'local.host.attribute',
-            `Attribute ${name} must be true or false, or one full boolean interpolation.`,
-            offset,
-            offset + raw.length,
-            { key: 'local.host.attribute.type', params: { name, value: raw, kind: 'boolean' } },
-          );
-          continue;
-        }
-        const full = fullInterpolation(raw)!;
-        validateHostExpression(state, full.expression, offset + full.start, 'boolean');
-      } else if (raw !== 'true' && raw !== 'false') {
-        state.report(
-          'local.host.attribute',
-          `Attribute ${name} requires a boolean, got "${raw}".`,
-          offset,
-          offset + raw.length,
-          { key: 'local.host.attribute.type', params: { name, value: raw, kind: 'boolean' } },
-        );
-      }
-      continue;
-    }
-    const prop = schema.props[name];
-    if (!prop) {
-      state.report(
-        'local.host.attribute',
-        `Component <${component}> does not support attribute ${name}.`,
-        offset,
-        offset + name.length,
-        { key: 'local.host.attribute.unknown', params: { component, name } },
-      );
-      continue;
-    }
-    validateHostPropValue(name, prop, raw, offset, state);
-    validateHostPropExpressions(name, prop, raw, offset, state);
-  }
-  for (const [name, prop] of Object.entries(schema.props)) {
-    if (prop.required && !Object.hasOwn(rawAttrs, name)) {
-      state.report(
-        'local.host.attribute',
-        `Component <${component}> is missing required attribute ${name}.`,
-        node.range.start,
-        node.range.end,
-        { key: 'local.host.attribute.required', params: { component, name } },
-      );
-    }
-  }
-}
-
-/** Validate the expression inside a host property against the document environment. */
-function validateHostExpression(
-  state: CompileState,
-  expression: string,
-  offset: number,
-  expected: 'text' | 'number' | 'boolean' | 'string',
-): void {
-  if (!expression.trim()) {
-    state.report('local.expression.empty', 'Interpolation expression cannot be empty.', offset, undefined, { key: 'local.expression.empty' });
-    return;
-  }
-  let compiled: LocalExpression;
-  try {
-    compiled = compileExpression(expression);
-  } catch (error) {
-    if (error instanceof LocalExpressionError) {
-      state.report(
-        `local.expression.${error.code || 'invalid'}`,
-        `Expression error: ${error.message}`,
-        offset + (Number.isFinite(error.offset) ? error.offset : 0),
-        undefined,
-        { key: 'local.expression.error', params: { detail: error.message, code: error.code || 'invalid', near: state.source.slice(Math.max(offset, offset + error.offset - 16), offset + error.offset + 24) } },
-      );
-      return;
-    }
-    state.report('local.expression.invalid', `Expression error: ${error instanceof Error ? error.message : String(error)}`, offset, undefined, { key: 'local.expression.error', params: { detail: error instanceof Error ? error.message : String(error), code: 'invalid' } });
-    return;
-  }
-  const env = expressionEnv(state);
-  for (const dependency of compiled.dependencies) {
-    if (Object.hasOwn(env, dependency)) continue;
-    state.report(
-      'local.binding.unknown',
-      `Reference to undeclared parameter ${dependency}.`,
-      offset,
-      undefined,
-      { key: 'local.binding.unknown', params: { name: dependency } },
-    );
-    return;
-  }
-  let kind: LocalValueKind;
-  try {
-    kind = compiled.inferType(env);
-  } catch (error) {
-    state.report('local.expression.invalid', `Expression error: ${error instanceof Error ? error.message : String(error)}`, offset, undefined, { key: 'local.expression.error', params: { detail: error instanceof Error ? error.message : String(error), code: 'invalid' } });
-    return;
-  }
-  if (expected === 'number' && kind !== 'number') {
-    state.report('local.type', `Expected a number here, but the expression evaluates to ${typeName(kind)}.`, offset, undefined, { key: 'local.type.number', params: { kind: typeName(kind) } });
-  } else if (expected === 'boolean' && kind !== 'boolean') {
-    state.report('local.type', `Expected a boolean here, but the expression evaluates to ${typeName(kind)}.`, offset, undefined, { key: 'local.type.boolean', params: { kind: typeName(kind) } });
-  } else if (expected === 'string' && kind !== 'string') {
-    state.report('local.type', `Expected a string here, but the expression evaluates to ${typeName(kind)}.`, offset, undefined, { key: 'local.type.string', params: { kind: typeName(kind) } });
-  } else if (expected === 'text' && (kind === 'array' || kind === 'number-array')) {
-    state.report('local.type', 'Arrays cannot be displayed directly; convert them first with a function such as len.', offset, undefined, { key: 'local.type.array' });
-  }
-}
-
-function validateHostPropExpressions(
-  name: string,
-  prop: LocalHostPropSchema,
-  raw: string,
-  offset: number,
-  state: CompileState,
-): void {
-  if (prop.static) return;
-  if (prop.kind === 'string') {
-    const scanned = scanInterpolations(raw);
-    for (const start of scanned.unterminated) {
-      state.report('local.interpolation', 'Interpolation is missing }}.', offset + start, undefined, { key: 'local.interpolation.unclosed' });
-    }
-    for (const segment of scanned.segments) {
-      validateHostExpression(state, segment.expression, offset + segment.start, 'text');
-    }
-    return;
-  }
-  const full = fullInterpolation(raw);
-  if (!full) return;
-  const expected = prop.kind === 'number' ? 'number' : prop.kind === 'boolean' ? 'boolean' : 'string';
-  validateHostExpression(state, full.expression, offset + full.start, expected);
-}
 
 function singleFullInterpolation(value: string): boolean {
   if (!fullInterpolation(value)) return false;
   const scanned = scanInterpolations(value);
   return scanned.segments.length === 1 && scanned.unterminated.length === 0;
-}
-
-function validateHostPropValue(
-  name: string,
-  prop: LocalHostPropSchema,
-  raw: string,
-  offset: number,
-  state: CompileState,
-): void {
-  if (prop.static) {
-    const scanned = scanInterpolations(raw);
-    if (scanned.segments.length || scanned.unterminated.length) {
-      state.report(
-        'local.host.attribute',
-        `Attribute ${name} is static and cannot contain interpolations.`,
-        offset,
-        offset + raw.length,
-        { key: 'local.host.attribute.static', params: { name } },
-      );
-      return;
-    }
-  }
-
-  if (prop.kind === 'string') {
-    const scanned = scanInterpolations(raw);
-    const interpolated = scanned.segments.length > 0 || scanned.unterminated.length > 0;
-    if (interpolated) {
-      // A pattern constrains literal shape, so only one full interpolation may
-      // replace the literal. Mixed text and unterminated braces are rejected.
-      if (prop.pattern && !singleFullInterpolation(raw)) {
-        state.report(
-          'local.host.attribute',
-          `Attribute ${name} must be a literal matching ${prop.pattern} or one full interpolation.`,
-          offset,
-          offset + raw.length,
-          { key: 'local.host.attribute.interpolation', params: { name, pattern: prop.pattern } },
-        );
-      }
-      return;
-    }
-    if (prop.pattern) {
-      let accepted = true;
-      try {
-        accepted = new RegExp(prop.pattern).test(raw);
-      } catch {
-        // Options validation rejects invalid patterns; do not crash if a
-        // schema bypassed it.
-      }
-      if (!accepted) {
-        state.report(
-          'local.host.attribute',
-          `Attribute ${name} must match pattern ${prop.pattern}.`,
-          offset,
-          offset + raw.length,
-          { key: 'local.host.attribute.pattern', params: { name, pattern: prop.pattern } },
-        );
-      }
-    }
-    return;
-  }
-
-  // Dynamic kinds accept exactly one full interpolation unless declared static.
-  if (!prop.static && singleFullInterpolation(raw)) return;
-
-  if (prop.kind === 'number') {
-    if (parseNumberText(raw) === null) {
-      state.report(
-        'local.host.attribute',
-        `Attribute ${name} requires a number, got "${raw}".`,
-        offset,
-        offset + raw.length,
-        { key: 'local.host.attribute.type', params: { name, value: raw, kind: 'number' } },
-      );
-    }
-    return;
-  }
-
-  if (prop.kind === 'boolean') {
-    if (raw !== 'true' && raw !== 'false') {
-      state.report(
-        'local.host.attribute',
-        `Attribute ${name} requires a boolean, got "${raw}".`,
-        offset,
-        offset + raw.length,
-        { key: 'local.host.attribute.type', params: { name, value: raw, kind: 'boolean' } },
-      );
-    }
-    return;
-  }
-
-  const values = prop.enum ?? [];
-  if (!values.includes(raw)) {
-    state.report(
-      'local.host.attribute',
-      `Attribute ${name} must be one of ${values.join(' / ')}, got "${raw}".`,
-      offset,
-      offset + raw.length,
-      { key: 'local.host.attribute.enum', params: { name, values: values.join(' / '), value: raw } },
-    );
-  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -4373,4 +4251,120 @@ function validateHostPropValue(
 
 export function compileLocalDocument(source: string, options?: LocalCompileOptions): LocalCompileResult {
   return compileLocal(source, options);
+}
+
+/* ------------------------------------------------------------------ */
+/* Kernel metadata publication                                         */
+/* ------------------------------------------------------------------ */
+
+/** Lower manifest rules to the serializable metadata the runtime consumes. */
+function compileKernelMetadata(
+  state: CompileState,
+  bindings: Record<string, LocalBinding>,
+): {
+  valueRules: Record<string, readonly KernelValueRule[]>;
+  slotRelations: readonly { nodeId: string; lower: string; upper: string }[];
+  retentionExclusions: readonly string[];
+  bindingAttributes?: Record<string, { bind: string; initial: string }>;
+  dependencyRules?: Record<string, { selfBinding?: { mode: 'always' | 'attribute'; attribute?: string }; inlineMathReads?: boolean }>;
+} {
+  const valueRules: Record<string, readonly KernelValueRule[]> = {};
+  const dependencyRules: Record<string, { selfBinding?: { mode: 'always' | 'attribute'; attribute?: string }; inlineMathReads?: boolean }> = {};
+  const bindingAttributes: Record<string, { bind: string; initial: string }> = {};
+  const slotRelations: { nodeId: string; lower: string; upper: string }[] = [];
+  const entryById = new Map(state.entries.map((entry) => [entry.node.id, entry]));
+  const slotOwner = new Map<string, { entry: Entry; slot: string }>();
+  for (const [nodeId, map] of Object.entries(state.bindingSlots)) {
+    const entry = entryById.get(nodeId);
+    if (!entry) continue;
+    for (const [slot, key] of Object.entries(map)) slotOwner.set(key, { entry, slot });
+  }
+  for (const [key, binding] of Object.entries(bindings)) {
+    const slot = slotOwner.get(key);
+    if (slot) {
+      const definition = kernelSlotBindings(slot.entry.kernel).find((candidate) => candidate.slot === slot.slot);
+      if (definition) bindingAttributes[key] = { bind: definition.bind, initial: definition.initial };
+      continue;
+    }
+    const entry = entryById.get(binding.owner ?? binding.nodeIds[0] ?? '');
+    const scalar = entry ? kernelValueBinding(entry.kernel) : undefined;
+    if (scalar) bindingAttributes[key] = { bind: scalar.bind, initial: scalar.initial };
+  }
+  for (const entry of state.entries) {
+    const rules = kernelValueRules(entry.kernel);
+    if (rules.length) valueRules[entry.node.id] = Object.freeze([...rules]);
+    const self = kernelRule(entry.kernel, 'self-binding-read');
+    const inlineMath = kernelRule(entry.kernel, 'inline-math-reads');
+    if (self || inlineMath) {
+      dependencyRules[entry.node.id] = {
+        ...(self ? { selfBinding: { mode: self.mode, ...(self.attribute ? { attribute: self.attribute } : {}) } } : {}),
+        ...(inlineMath ? { inlineMathReads: true } : {}),
+      };
+    }
+    for (const relation of kernelSlotRelations(entry.kernel)) {
+      if (!state.bindingSlots[entry.node.id]?.[relation.lower]) continue;
+      if (!state.bindingSlots[entry.node.id]?.[relation.upper]) continue;
+      slotRelations.push({ nodeId: entry.node.id, lower: relation.lower, upper: relation.upper });
+    }
+  }
+  const retentionExclusions: string[] = [];
+  for (const [key, binding] of Object.entries(bindings)) {
+    if (binding.nodeIds.some((id) => {
+      const entry = entryById.get(id);
+      const scalar = entry ? kernelValueBinding(entry.kernel) : undefined;
+      return scalar?.retain === false;
+    })) retentionExclusions.push(key);
+  }
+  if (
+    Object.keys(valueRules).length === 0
+    && Object.keys(dependencyRules).length === 0
+    && Object.keys(bindingAttributes).length === 0
+    && slotRelations.length === 0
+    && retentionExclusions.length === 0
+  ) {
+    // Still publish an empty marker: a compiled document must never fall back
+    // to phase-one tag-name semantics, even when it has no state at all.
+    return { valueRules: Object.freeze({}), slotRelations: Object.freeze([]), retentionExclusions: Object.freeze([]) };
+  }
+  return {
+    valueRules: Object.freeze(valueRules),
+    slotRelations: Object.freeze(slotRelations.map((item) => Object.freeze(item))),
+    retentionExclusions: Object.freeze(retentionExclusions.sort()),
+    ...(Object.keys(bindingAttributes).length
+      ? { bindingAttributes: Object.freeze(bindingAttributes) }
+      : {}),
+    ...(Object.keys(dependencyRules).length
+      ? { dependencyRules: Object.freeze(dependencyRules) }
+      : {}),
+  };
+}
+
+/** Distinct manifests referenced by the compiled document, in first-use order. */
+function componentDefinitionsFor(state: CompileState): LocalComponentDefinition[] {
+  const seen = new Set<string>();
+  const definitions: LocalComponentDefinition[] = [];
+  for (const entry of state.entries) {
+    const definition = entry.definition;
+    if (!definition || seen.has(definition.id)) continue;
+    seen.add(definition.id);
+    definitions.push(definition);
+  }
+  return definitions;
+}
+
+/** Host-shaped nodes with no registry entry warn instead of failing the document. */
+function reportUnmatchedHostComponents(nodes: LocalNode[], state: CompileState): void {
+  for (const node of walkLocalNodes(nodes)) {
+    if (node.type !== 'hostComponent') continue;
+    if (node.name && state.schemaByName.has(node.name)) continue;
+    const name = node.name ?? '';
+    reportWarning(
+      state,
+      'local.component.unknown',
+      `Unknown component <${name}>. This mode only accepts local interaction components.`,
+      node.range.start,
+      node.range.end,
+      { key: 'local.component.unknown', params: { name } },
+    );
+  }
 }
