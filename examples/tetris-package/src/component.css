@@ -1,0 +1,172 @@
+/* Component structure styles. All selectors stay inside the document root. */
+.local-document .rmd-tetris {
+  --rmd-tetris-cell: clamp(0.85rem, 2.2vw, 1.25rem);
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  color: var(--ink, #e6edf3);
+  background: var(--surface, #111820);
+  border: 1px solid var(--border, #2c3a4a);
+  border-radius: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
+.local-document .rmd-tetris-head {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.local-document .rmd-tetris-title {
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.local-document .rmd-tetris-status {
+  color: var(--muted, #8fa3b8);
+}
+
+.local-document .rmd-tetris-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.local-document .rmd-tetris-board {
+  display: grid;
+  gap: 1px;
+  padding: 4px;
+  background: #0a0f15;
+  border: 1px solid #223041;
+  border-radius: 6px;
+}
+
+.local-document .rmd-tetris-board:focus-visible {
+  outline: 2px solid var(--accent, #59a6ff);
+  outline-offset: 2px;
+}
+
+.local-document .rmd-tetris-row {
+  display: contents;
+}
+
+.local-document .rmd-tetris-cell {
+  width: var(--rmd-tetris-cell);
+  height: var(--rmd-tetris-cell);
+  background: #121a23;
+  border-radius: 2px;
+}
+
+.local-document .rmd-tetris-cell[data-piece='I'] { background: #3ad1d4; }
+.local-document .rmd-tetris-cell[data-piece='O'] { background: #e8c547; }
+.local-document .rmd-tetris-cell[data-piece='T'] { background: #b487e8; }
+.local-document .rmd-tetris-cell[data-piece='S'] { background: #6bd06b; }
+.local-document .rmd-tetris-cell[data-piece='Z'] { background: #e86a6a; }
+.local-document .rmd-tetris-cell[data-piece='J'] { background: #5b8def; }
+.local-document .rmd-tetris-cell[data-piece='L'] { background: #e8a15a; }
+
+.local-document .rmd-tetris-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 8rem;
+}
+
+.local-document .rmd-tetris-stats {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 10px;
+  margin: 0;
+}
+
+.local-document .rmd-tetris-stats div {
+  display: contents;
+}
+
+.local-document .rmd-tetris-stats dt {
+  color: var(--muted, #8fa3b8);
+}
+
+.local-document .rmd-tetris-stats dd {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.local-document .rmd-tetris-next-label {
+  color: var(--muted, #8fa3b8);
+}
+
+.local-document .rmd-tetris-next {
+  display: flex;
+  gap: 8px;
+}
+
+.local-document .rmd-tetris-next-piece {
+  display: grid;
+  gap: 1px;
+}
+
+.local-document .rmd-tetris-next-row {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 1px;
+}
+
+.local-document .rmd-tetris-next-cell {
+  width: calc(var(--rmd-tetris-cell) * 0.6);
+  height: calc(var(--rmd-tetris-cell) * 0.6);
+  background: transparent;
+  border-radius: 1px;
+}
+
+.local-document .rmd-tetris-next-cell[data-filled='true'] {
+  background: var(--accent, #59a6ff);
+}
+
+.local-document .rmd-tetris-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.local-document .rmd-tetris-controls button {
+  min-width: 2.1rem;
+  min-height: 2rem;
+  padding: 2px 6px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border, #2c3a4a);
+  border-radius: 4px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.local-document .rmd-tetris-controls button:hover:not(:disabled) {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.local-document .rmd-tetris-controls button:focus-visible {
+  outline: 2px solid var(--accent, #59a6ff);
+  outline-offset: 1px;
+}
+
+.local-document .rmd-tetris-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.local-document .rmd-tetris-static {
+  opacity: 0.95;
+}
+
+.local-document .rmd-tetris-static-note {
+  margin: 0;
+  color: var(--muted, #8fa3b8);
+}

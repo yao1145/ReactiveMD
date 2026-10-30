@@ -1,0 +1,34 @@
+{
+  "name": "reactive-md-tetris-package",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A <tetris> component package for Reactive MD, built on the public extension SDK.",
+  "license": "MIT",
+  "files": ["dist/node", "dist/types", "src/component.css", "NOTICES.md", "README.md", "README-ch.md"],
+  "exports": {
+    ".": { "types": "./dist/types/manifests.d.ts", "import": "./dist/node/manifest.mjs" },
+    "./react": { "types": "./dist/types/node-entry.d.ts", "import": "./dist/node/entry.mjs" },
+    "./styles.css": "./src/component.css"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:export": "npm run build",
+    "test": "npm run build && node scripts/verify.mjs",
+    "test:node": "npm run build && node scripts/verify.mjs --no-browser",
+    "test:browser": "npm run build && node scripts/verify.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "reactive-md": "^0.6.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^7.0.0",
+    "vite": "^8.0.0"
+  }
+}
