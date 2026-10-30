@@ -43,7 +43,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | --- | --- |
 | Local mode integration | [English](integration/local-integration-en.md) |
 | Extension SDK preview | [English](integration/extension-sdk-en.md) |
-| SDK phase-two delivery and component inventory | [Delivery (Chinese)](development/extension-sdk-phase2-ch.md) · [Inventory (Chinese)](development/extension-sdk-phase2-inventory-ch.md) |
+| Default component migration inventory | [Chinese](development/extension-sdk-phase2-inventory-ch.md) |
 | React source editor | [English](integration/editor-en.md) |
 | Author tools | [English](integration/author-tools-en.md) |
 | Sharing and static export | [English](integration/shareable-export-en.md) |
@@ -59,9 +59,9 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 
 | Topic | English |
 | --- | --- |
-| Component development | [English](development/component-development-en.md) |
+| Component plugin development | [English](development/component-development-en.md) |
 | Component protocol | [English](development/component-protocol-en.md) |
-| SDK phase-three delivery and acceptance | [Delivery (Chinese)](development/extension-sdk-phase3-ch.md) |
+| SDK delivery and consolidated acceptance | [Chinese](development/extension-sdk-acceptance-ch.md) |
 | Performance | [English](development/performance-overview-en.md) |
 | Publishing | [English](development/releasing-en.md) |
 

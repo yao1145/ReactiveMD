@@ -373,7 +373,7 @@ npm test
 3. 创建一个 `LocalConfig` 和一个 `LocalReactConfig`，传给所有编译、作者工具、server 和导出调用。
 4. 重新编译文档并重建独立 bundle。配置摘要会变化，旧配置生成的 seal 或恢复要求不再匹配。
 
-[架构规划](../development/extension-sdk-plan-ch.md)记录后续稳定化与消费工具工作。
+开发步骤见[组件插件开发指南](../development/component-development-ch.md)；[架构规划](../development/extension-sdk-plan-ch.md)保留设计顺序，结果见[统一验收记录](../development/extension-sdk-acceptance-ch.md)。
 
 ## 完整样例与验证
 

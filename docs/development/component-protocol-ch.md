@@ -495,7 +495,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 本修订描述组件贡献要求和第 14 节的旧宿主接口。`LOCAL_COMPONENTS` 是默认预设的内部兼容投影；`hostComponents` 为单次编译接受纯 schema 数据，并作为输入适配到统一内核，组件实现由宿主提供。
 
-源码中的[扩展 SDK 预览](../integration/extension-sdk-ch.md)使用独立的 `reactive-md-component/v1` 数据契约和实例级配置，提供注册校验、React 实现绑定、编辑器目录、离线构建、版本恢复和公开合规工具。46 个默认渲染与结构组件采用同一公开契约，迁移清单见[第二阶段记录](extension-sdk-phase2-ch.md)，完整消费流程见[第三阶段记录](extension-sdk-phase3-ch.md)。源码 SDK 随后续版本发布；现有 registry 的 `0.6.1` 保持原接口。组件代码由宿主主动安装，文档声明不会装载代码。
+源码中的[扩展 SDK 预览](../integration/extension-sdk-ch.md)使用独立的 `reactive-md-component/v1` 数据契约和实例级配置，提供注册校验、React 实现绑定、编辑器目录、离线构建、版本恢复和公开合规工具。46 个默认渲染与结构组件采用同一公开契约，迁移与完整消费流程见[统一验收记录](extension-sdk-acceptance-ch.md)。源码 SDK 随后续版本发布；现有 registry 的 `0.6.1` 保持原接口。组件代码由宿主主动安装，文档声明不会装载代码。
 
 ## 10. 兼容、名称治理、修订和迁移
 

@@ -65,4 +65,4 @@
 - 各组件原有编译、运行时、React 与浏览器回归继续约束交互行为。
 - `examples/integration/extension-sdk/advanced.tsx`：独立消费项目中的坐标、集合和 Markdown 容器。`scripts/verify-sdk-consumer.mjs` 从真实安装包验收类型、SSR、静态模式及桌面/手机断网恢复。
 
-完整结果见[第二阶段交付记录](extension-sdk-phase2-ch.md)。每行的 manifest 由同名默认定义提供，结构与状态由通用内核规则执行；组件结构样式沿用公共 `src/styles.css`，无需新增内置专用分发。
+完整结果见[统一验收记录](extension-sdk-acceptance-ch.md)。每行的 manifest 由同名默认定义提供，结构与状态由通用内核规则执行；组件结构样式沿用公共 `src/styles.css`，无需新增内置专用分发。

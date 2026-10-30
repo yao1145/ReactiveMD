@@ -20,7 +20,7 @@
 - [React 源码编辑器](docs/integration/editor-ch.md)：受控编辑器、属性、ref 句柄、诊断、语言、主题与历史。
 - [独立接入示例](examples/integration/README.md)：可复制到仓库外运行的 Node 核心和 React 页面。
 - [版本与兼容性](docs/compatibility/compatibility-ch.md)：0.x 规则、迁移、诊断契约和平台范围。
-- [组块协议](docs/development/component-protocol-ch.md) · [组块开发指南](docs/development/component-development-ch.md)：新增组件的声明、行为契约和兼容性验收。
+- [组块协议](docs/development/component-protocol-ch.md) · [组件插件开发指南](docs/development/component-development-ch.md)：组件与主题插件的开发、集成、测试与打包。
 - [0.6.1 发布说明](docs/releases/release-0.6.1-ch.md)：KaTeX 公式排版、内嵌字体与离线公式。
 - [0.5.3 发布说明](docs/releases/release-0.5.3-ch.md)：宿主集成补丁与作者工具。
 - [0.5.1 发布说明](docs/releases/release-0.5.1-ch.md)：编辑器视图与主题，以及 HTML 兼容。
@@ -141,7 +141,7 @@ demo/          独立的 Playground 应用
 - [React 源码编辑器](docs/integration/editor-ch.md)：编辑 `.reactive.md` 源码的受控组件，使用独立样式表。
 - [版本与兼容性](docs/compatibility/compatibility-ch.md)、[0.6.1 发布说明](docs/releases/release-0.6.1-ch.md)与[0.5.1 发布说明](docs/releases/release-0.5.1-ch.md)。
 - [0.4.0 发布与迁移](docs/releases/release-0.4.0-ch.md)。
-- [组块协议](docs/development/component-protocol-ch.md)与[组块开发指南](docs/development/component-development-ch.md)。
+- [组块协议](docs/development/component-protocol-ch.md)与[组件插件开发指南](docs/development/component-development-ch.md)。
 - [性能说明](docs/development/performance-overview-ch.md)与[发布清单](docs/development/releasing-ch.md)。
 
 更多开发与测试命令见[贡献指南](CONTRIBUTING-ch.md)。

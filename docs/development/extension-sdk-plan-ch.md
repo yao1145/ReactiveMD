@@ -1,8 +1,8 @@
 # 扩展 SDK 与组件统一架构规划
 
-状态：三个阶段均已实施。日期：2026-10-30。交付与验证见[第一阶段验收](extension-sdk-phase1-ch.md)、[第二阶段记录](extension-sdk-phase2-ch.md)和[第三阶段验收](extension-sdk-phase3-ch.md)。SDK 使用源码构建的安装包预览，npm 发布单独安排。
+状态：三个阶段均已实施。日期：2026-10-30。交付与验证见[统一验收记录](extension-sdk-acceptance-ch.md)。SDK 使用源码构建的安装包预览，npm 发布单独安排。
 
-本文保留最初的架构设计、源码基线与实施顺序。已交付的入口和契约以 [SDK 指南](../integration/extension-sdk-ch.md)为准，实际实现与验收结果见各阶段记录。
+本文保留最初的架构设计、源码基线与实施顺序。已交付的入口和契约以 [SDK 指南](../integration/extension-sdk-ch.md)为准，实际实现与结果汇入统一验收记录。
 
 ## 1. 架构目标与交付边界
 

@@ -20,7 +20,7 @@ Local mode uses HTML-style tags, with parameters and table data written directly
 - [React source editor](docs/integration/editor-en.md): controlled editor, props, ref handle, diagnostics, locale, theme and history.
 - [Standalone integration examples](examples/integration/README.md): Node core and React pages you can copy and run outside the repository.
 - [Versions and compatibility](docs/compatibility/compatibility-en.md): 0.x rules, migration, the diagnostics contract and supported platforms.
-- [Component protocol](docs/development/component-protocol-en.md) · [Component development guide](docs/development/component-development-en.md): declarations, behavior contracts and compatibility acceptance for new components.
+- [Component protocol](docs/development/component-protocol-en.md) · [Component plugin development guide](docs/development/component-development-en.md): build, integrate, test and package third-party components and themes.
 - [0.6.1 release notes](docs/releases/release-0.6.1-en.md): KaTeX formula display, bundled fonts and offline math.
 - [0.5.3 release notes](docs/releases/release-0.5.3-en.md): host integration and authoring patches.
 - [0.5.1 release notes](docs/releases/release-0.5.1-en.md): editor views and themes, plus HTML compatibility.
@@ -162,7 +162,7 @@ demo/          Standalone Playground app
 - [0.5.1 release notes](docs/releases/release-0.5.1-en.md): editor views and themes, plus HTML compatibility.
 - [0.5.0 release notes](docs/releases/release-0.5.0-en.md): the editor entry and document rendering fixes.
 - [0.4.0 release and migration](docs/releases/release-0.4.0-en.md): the upgrade checklist for that minor series.
-- [Component protocol](docs/development/component-protocol-en.md) and [component development guide](docs/development/component-development-en.md): contribution contracts, a proposal template and acceptance cases.
+- [Component protocol](docs/development/component-protocol-en.md) and [component plugin development guide](docs/development/component-development-en.md): public SDK workflows and core contribution requirements.
 - [Performance measurements](docs/development/performance-overview-en.md) and [release checklist](docs/development/releasing-en.md).
 
 See the [contributing guide](CONTRIBUTING.md) for development and test commands.

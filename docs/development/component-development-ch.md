@@ -1,210 +1,209 @@
-# 组块开发指南
+# 组件插件开发指南
 
-本指南面向为 Reactive MD 新增或修改组件的贡献者。组块包括输入控件、容器、可视化和结构子项。共同契约见[组块协议](component-protocol-ch.md)，作者写法见[本地交互语法规范](../reference/local-interaction-syntax-ch.md)。
+[English](component-development-en.md)
 
-当前协议为 `component-protocol-2`，适用语法为 `local-draft-2`，当前包版本为 `0.5.2`，即发布在 `next` 渠道的预览版。这三个版本分别表示贡献契约、作者语法和 npm 发布。协议文档更新不自动改变语法或公开 API。
+这里的插件是宿主通过 npm 安装、显式导入并组合的组件包或主题包。组件声明、React 实现、编辑器信息与资源共同形成开发契约；宿主用 `createLocalConfig` 和 `createReactConfig` 装配它们。
 
-## 1. 提交什么
+SDK 当前以源码预览交付，包版本仍为 `0.6.1`。registry 中原有的 `0.6.1` 不含新增 SDK；以下流程使用当前源码构建的 tarball。完整类型与限制见 [SDK 指南](../integration/extension-sdk-ch.md)，实现和验证结果见[统一验收记录](extension-sdk-acceptance-ch.md)。
 
-一次完整的组块贡献包括声明、实现、示例和验收证据。先用第 5 节的模板说明行为，再按受影响的实现面修改代码。评审需要能回答：作者可以怎样写，读者怎样操作，错误时怎样表现，以及旧文档升级后会发生什么。
+## 1. 在仓库外开始
 
-当前项目通过仓库内代码扩展组块。没有公开的运行时注册器、可装载组件 JSON 或作者导入语法；`LocalComponentSchema`、`LOCAL_COMPONENTS` 和渲染器内部上下文也不是稳定的插件 SDK。验收 JSON 是源码与预期结果，不是组件安装包。
+准备 Node 22.12 或更高版本。React 适配器使用 React 19；模板的构建与浏览器测试依赖以它的 `package.json` 为准。
 
-组块继续遵守本地简单交互范围。输入通过 `bind` 命名，输出通过表达式读取。网络服务、作者脚本、任意 HTML、事件处理器、作者 CSS 和持久化状态不属于当前作者语言。图片与链接使用宿主控制的 URL 策略，详见[安全策略](../../SECURITY-ch.md)。
+在 ReactiveMD 仓库构建预览包：
 
-## 2. 从提案到验收
+```sh
+npm run build
+npm pack --ignore-scripts
+```
 
-1. 提交第 5 节的声明模板，写清用途、语法、状态、错误、预算和版本影响。与现有组块重叠时，说明现有组件或 Markdown 组合还缺少什么。
-2. 标出适用的 `CP-*` 条款。没有绑定、计时或计算的组块可把相应项标为“不适用”，同时说明理由。
-3. 检查下表中的实现位置。复用已有通用逻辑时，说明为何无需新增分支；需要新分支时，同步检查编译器和运行时的消费者。
-4. 添加最小正常示例、非法输入和边界用例。涉及状态时检查初始化、拒绝写入、共享、隐藏和重置；涉及计算时检查预算。
-5. 按第 6 节执行受影响的检查。保留命令、结果和浏览器观察记录，明确待补项。
-6. 更新语法、兼容说明、变更记录和相关示例。PR 中附声明与证据，由维护者核对版本和迁移影响。
+把 [examples/component-package](../../examples/component-package/README-ch.md) 复制到仓库之外的新目录，与 ReactiveMD 仓库并列，命名为 `my-reactivemd-plugin`。在新目录执行：
 
-| 实现面 | 位置 | 检查内容 |
-| --- | --- | --- |
-| 标签解析 | `src/local/parser.ts` | `VOID`、`PAIRED`、`INLINE` 及由其生成的 `KNOWN`；形态、嵌套、代码隔离和未知区域降级 |
-| 组块声明 | `src/local/schema.ts` | 名称、`form`、`childRule`、父级、属性类型与默认值、`binding`、`initialRule` |
-| 编译 | `src/local/compiler.ts` | 属性与子内容、表达式类型、绑定 family、共享约束、初值和预算 |
-| 状态运行时 | `src/local/runtime.ts` | 规范控件查找、写入类型与约束、原子提交、数组副本、重置和销毁 |
-| 控件与布局 | `src/local/LocalDocumentView.tsx` | `COMPONENTS`、输入草稿、可访问名称、键盘、可见性、重置 token 和 effect 清理 |
-| 可视化 | `src/local/visuals.tsx`、`src/local/math.ts` | `VISUAL_COMPONENTS`、绘图或表格语义、局部错误、计算预算、读数和重置 |
-| 样式 | `src/local/local.css`、`src/local/visuals.css`、`src/theme.css` | 主题变量、类名前缀、焦点、窄屏和文档外样式影响 |
-| 预算与类型 | `src/local/limits.ts`、`src/local/types.ts`、`src/local/render-types.ts` | 新增资源的边界；核心类型不依赖 React；内部节点不成为持久化格式 |
-| 证据与文档 | `tests/`、[验收数据](../../examples/conformance/README.md)、[语法规范](../reference/local-interaction-syntax-ch.md) | 具体行为用例、可复制示例、迁移和检查记录 |
+```sh
+npm install ../ReactiveMD/reactive-md-0.6.1.tgz
+npm run typecheck
+npm test
+```
 
-新增声明不会自动同步解析器、运行时和渲染器。反过来，已有通用校验足够时，也无需为了凑齐文件清单而添加分支。
+`npm test` 构建 JS、类型、静态与交互 HTML，再执行 Node、SSR 和离线浏览器检查。浏览器测试需要已安装的 Playwright 浏览器；Windows 可按实际安装设置 `PLAYWRIGHT_CHANNEL=msedge`。先让原模板通过，再修改功能和对应测试。
 
-## 3. 怎样判断兼容性
+## 2. 组织插件包
 
-按[兼容说明](../compatibility/compatibility-ch.md)和协议 CP-COMPAT 条款判断。项目当前要求作者可见的语法变化建立新语法修订，并提升包次版本；“旧的合法写法仍可用”不等于可以在原语法修订内增加新标签。
-
-| 变化 | 处理 |
+| 文件或出口 | 内容 |
 | --- | --- |
-| 新标签、新的作者可见属性 | 记录为能力新增，建立新语法修订，更新 `LOCAL_SYNTAX_VERSION`、包次版本、语法和验收数据 |
-| 改名、删除、改变默认值、绑定类型、子项或初值规则 | 记录破坏性变化，提供旧写法、新写法、影响范围和迁移检查 |
-| 实现修复、优化或样式调整，保持既有语义、可访问性和资源边界 | 按实际影响补回归证据；公开 API 或作者语义变化另行分类 |
-| 诊断码变化 | 更新对应验收数据和变更记录；遵守 0.x 的诊断码兼容约定，不依赖 message 文本 |
-| 改变本协议的 MUST 条款、必填声明或机器格式语义 | 提升协议修订；是否改变语法或 API 单独判断 |
+| `src/manifests.ts`，包出口 `.` | 数据 manifest；可由核心、Worker、作者工具读取 |
+| `src/components.tsx`，包出口 `./react` | React 与静态实现，绑定到同一 manifest |
+| `src/theme.ts`，包出口 `./theme` | 独立主题定义与资源身份 |
+| `src/component.css`，包出口 `./styles.css` | 组件默认结构样式，CSS 引用的资源一起随包提供 |
+| `scripts/build.mjs` | 生成 Node/浏览器产物与 `.d.ts`，完成示例导出 |
+| `scripts/verify.mjs` | 执行 manifest、绑定、SSR、评分与容器各自的浏览器场景 |
+| `LICENSE`、`NOTICES.md` | 本包及离线分发所需的许可与署名信息 |
 
-新标签还有一项迁移影响：旧实现会把完整的未知区域按惰性原文显示，新实现识别该名称后可能开始执行内部内容。必须在提案中记录这一点，并给出前后用例。名称是否加入核心组件集由维护者评审；不得覆盖现有名称的含义或偷偷添加别名。
+manifest 保持可序列化，React 函数留在实现入口。发布出口指向构建后的 JavaScript 和声明文件，普通消费者通过公开包入口导入。
 
-本协议自身不新增作者标签或属性，因此保持 `local-draft-2` 和当前包版本。
+## 3. 定义组件契约
 
-## 4. 用现有组块填写声明
+接下来的 `manifests.ts`、`components.tsx` 和 `host.tsx` 组成独立最小演示，`component.css` 见第 6 节。完整模板还有 note、主题与测试出口；在模板中修改组件时同步这些引用与验证场景。
 
-下面三种现有组块分别展示控件、容器和计算型可视化的契约。它们是可执行示例，不是新 API 的设计稿。
+以下评分契约保存为 `src/manifests.ts`：
 
-### slider：一个数值控件
+```ts
+import { defineLocalComponent } from 'reactive-md/sdk';
 
-```markdown
-<slider bind="seats" label="人数" initial="2" min="1" max="20">
-
-当前费用：{{ seats * 100 }} 元。
+export const rating = defineLocalComponent({
+  id: 'example/rating', name: 'rating', version: '1.0.0',
+  protocol: 'reactive-md-component/v1', form: 'leaf',
+  props: {
+    label: { kind: 'string', required: true },
+    max: { kind: 'number', dynamic: true, default: 5, min: 1, max: 10, integer: true },
+  },
+  bindings: {
+    value: {
+      kind: 'number', family: 'number', bind: 'bind', initial: 'initial',
+      initialRule: 'nearest-zero',
+      constraints: { min: { literal: 0 }, max: { prop: 'max' }, step: { literal: 1 } },
+    },
+  },
+  structure: { rule: 'none' },
+  capabilities: { interactive: true, static: true, ssr: true, offline: true },
+  authoring: {
+    title: { zh: '评分', en: 'Rating' }, category: 'input',
+    description: { zh: '与数字控件共享评分。', en: 'Share a rating with numeric controls.' },
+    insertText: '<rating bind="score" label="Score" max="5" initial="3">',
+  },
+  styles: ['example/component.css'],
+});
 ```
 
-声明重点：无正文，数值 family，可共享绑定；`min/max/step` 是静态约束，缺省为 `0/100/1`；省略 `initial` 时取 `min`。同名数值控件必须有一致约束，且最多出现一次显式初值。
+`id` 标识契约，`name` 是文档标签名，`version` 表示组件版本。注册时校验重复名称/id、协议、依赖、默认值与预算，默认拒绝覆盖内置名称。配置创建后冻结，变更组件集合时创建新配置。
 
-验收应证明初值为 2、合法写入改变费用、越界和不在步长上的写入被拒、拒绝时完整快照与 revision 不变、共享控件读取同一值。无 `bind` 时应检查独立的内部状态。面板重置恢复编译初值；真实拖动和键盘步进需要浏览器证据。对应协议 CP-STATE-03、04、06、08、10。
+声明为 number 的属性在校验后始终是数值；`max="5"` 与 `max="{{ 5 }}"` 的结果一致。实现读取归一化 props，绑定句柄负责把写入提交给内核。
 
-### tabs：有状态的容器
+形态支持 `leaf`、`inline`、`container`。容器在 manifest 中声明内容规则，由 `ctx.children.render()` 渲染 Markdown；有选项、表格或结构子项时使用对应公开内容投影。模板的 `note` 演示了容器实现。新增核心规则另见第 10 节。
 
-```markdown
-<panel title="方案">
-<tabs bind="page" label="方案页" initial="basic">
-<tab label="基本" value="basic">
-<slider bind="a" label="基本数量" initial="2" min="0" max="10">
-</tab>
-<tab label="高级" value="advanced">
-<slider bind="b" label="高级数量" initial="7" min="0" max="10">
-</tab>
-</tabs>
-</panel>
+## 4. 实现 React 和静态输出
+
+`src/components.tsx` 可以提供以下独立实现：
+
+```tsx
+import { defineReactComponent, type LocalComponentContext } from 'reactive-md/react';
+import { rating } from './manifests';
+
+export function RatingControl(ctx: LocalComponentContext) {
+  const value = ctx.bindings.value.get() as number;
+  const maximum = ctx.props.max as number;
+  return <button className="rmd-example-rating"
+    disabled={ctx.disabled || !ctx.visible || value >= maximum}
+    aria-label={String(ctx.props.label)}
+    onClick={() => ctx.bindings.value.set(value + 1)}>{value}</button>;
+}
+
+export function RatingStatic(ctx: LocalComponentContext) {
+  return <span>{String(ctx.props.label)}: {String(ctx.bindings.value.get())}</span>;
+}
+
+export const ratingImplementation = defineReactComponent(rating, {
+  render: RatingControl, renderStatic: RatingStatic,
+});
 ```
 
-声明重点：`tabs` 只接受 `tab` 子项，公开值为字符串，绑定独占。`tab.value` 唯一；省略时按源码顺序生成 `tab-1`、`tab-2`。未写 `initial` 时选择第一项。无 `bind` 时选择保留在组件内部。
+此处数值断言对应 manifest 中的 number 契约。静态实现显示当前值，交互实现通过内核绑定写入；非法更新保留原状态。多个数字槽位使用 `ctx.bindings.setMany` 原子提交，集合与槽位的支持范围见 SDK 指南。
 
-验收应证明非活动页的 `b` 仍初始化为 7、切换保留子内容状态、未知页面值被拒、第二个组块不能声明同名绑定、面板重置恢复页面和子控件。方向键、Home/End、焦点，以及隐藏计时器暂停后需由读者再次启动，须有相应浏览器检查。对应协议 CP-STATE-11、CP-VIS 和 CP-LIFE。
+局部 UI 状态可以使用 React state。计时器、订阅和事件监听在 effect 清理函数中释放；隐藏时按功能暂停工作，重置时响应 `resetToken`。静态模式下 setter 被拒绝，运行时服务忽略 reset。读者需要可访问名称、键盘操作、焦点和禁用反馈。
 
-### plot：受预算约束的计算
+## 5. 在宿主注册并接入编辑器
 
-```markdown
-<slider bind="a" label="振幅" initial="1" min="0" max="3" step="0.5">
-<slider bind="high" label="右边界" initial="3" min="1" max="10">
+宿主把同一配置交给编译、渲染、作者工具和导出。独立示例可在 `src/host.tsx` 装配：
 
-<plot label="正弦波" min="-2" max="{{ high }}">
-$$ y = a \sin x $$
-</plot>
+```tsx
+import { useState } from 'react';
+import { createLocalConfig } from 'reactive-md/sdk';
+import { createReactConfig, LocalReactiveDocument } from 'reactive-md/react';
+import { ReactiveMarkdownEditor } from 'reactive-md/editor';
+import { rating } from './manifests';
+import { ratingImplementation } from './components';
+import 'reactive-md/styles.css';
+import 'reactive-md/editor/styles.css';
+import './component.css';
+
+export const config = createLocalConfig({ components: [rating] });
+export const reactConfig = createReactConfig(config, { components: [ratingImplementation] });
+
+export function Playground() {
+  const [source, setSource] = useState(
+    '<number bind="score" label="Score" min="0" max="5" step="1" initial="3">\n'
+    + '<rating bind="score" label="Rating" max="5">',
+  );
+  return <ReactiveMarkdownEditor value={source} onChange={setSource}
+    compileOptions={{ config }} toolbar authoring
+    preview={<LocalReactiveDocument source={source} reactConfig={reactConfig} />} />;
+}
 ```
 
-声明重点：正文为一个或多个独立公式块，每块写 `y = 表达式`；`min/max` 可以动态，要求 `min < max`；`samples` 是静态整数，默认 200，范围 2 至 2000。公式参数必须是已声明的数字绑定。
+默认预设保持启用。此例的两个控件共享同一个数值绑定，仅一个控件写显式初值，约束保持一致。
 
-验收应覆盖合法 LaTeX、参数变化、动态范围、非数字参数和非法范围。每图最多 16 条曲线，整份文档请求的采样点累计最多 20,000，计算共享 2,000,000 步预算，隐藏区域也计入。出现无效采样应断开曲线；空数据和局部错误要有明确显示。指针与键盘读数、窄屏和图例交互另做浏览器检查。对应协议 CP-STATE-12、CP-DIAG-04、CP-SEC-03。
+编辑器从 `authoring` 读取标题、说明、分类和插入模板；属性的 `description` 提供属性帮助。外部模板在同一配置下校验，插入支持绑定名分配、选区、光标与撤销/重做。自建编辑器可使用 `createLocalComponentCatalog`、`insertLocalComponent` 和 `validateLocalComponentInsertTemplates`。
 
-## 5. 可复制的提案模板
+## 6. 样式与独立主题
 
-把下面内容复制到 issue、PR 正文或独立设计文档中。占位符必须替换成实际决定，不适用项说明原因。属性声明是评审材料，不是运行时可装载的 Schema。
+组件默认 CSS 负责结构和基础可读性，选择器限制在文档根节点内，使用包前缀：
 
-```markdown
-# 组块提案：<名称>
+```css
+.local-document .rmd-example-rating {
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  min-height: 44px;
+}
+```
 
-## 用途和边界
+组件专属变量使用 `--rmd-<包或组件前缀>-<用途>`。主题读取并覆盖共享语义变量，可在不知道所有组件的情况下改变基础视觉。主题包使用 `defineLocalTheme`，有序组合使用 `composeLocalTheme`，再放入配置的 `themes`；文档以 `<theme name="paper">` 选择主题。
 
-- 要解决的具体文档需求：
-- 读者触发的操作与可观察结果：
-- 现有组件或 Markdown 组合缺少的能力：
-- 本组块的非目标：
+模板的 `paper` 展示深浅模式与作用域；完整规则见[主题协议](../reference/theme-protocol-ch.md)。主题契约使用有作用域的内联 CSS/data 资源，全局字体命名和关键帧不属于当前主题定义。组件 CSS 中的本地文件引用由构建适配器收集，主题包交付前需将资源归一化为其接受的形式。
 
-## 版本与名称
+## 7. 构建、SSR 与离线分享
 
-| 项目 | 决定 |
+浏览器预览从宿主显式导入实现；离线分享使用宿主预构建的匹配 bundle。以模板的 `scripts/build-export.mjs` 为起点，Node 可加载的宿主 ESM 导出：
+
+| 字段 | 要求 |
 | --- | --- |
-| 包版本 | 当前值、目标值和理由 |
-| 语法修订 | 当前值、目标值和迁移影响 |
-| 协议修订 | component-protocol-2，或说明新修订 |
-| 名称 | 小写 kebab-case；冲突检查和维护者决定 |
-| 形态 | leaf / inline / container |
-| 父级、直接子项 | 允许范围、数量、嵌套及空白规则 |
+| `config`、`reactConfig` | 同一组声明与匹配实现 |
+| `root`、`allowlist` | 资源根目录与其内部允许读取的目录；宿主入口也在 root 内 |
+| `resources` | 与 manifest 的 styles 身份一致的 CSS，提供 inline CSS 或 root 相对文件路径 |
+| `notices` | 本包、ReactiveMD 与实际分发依赖的许可/署名文本 |
 
-## 语法
+先调用 `preflightLocalStandaloneBuild` 查看诊断，再由 `buildLocalStandaloneBundle` 生成单个 IIFE、内联资源、notices 和清单。Vite 8 是实际构建所需的可选 peer。远程资源、目录逃逸、循环引用、资源冲突、预算超限或不支持的离线实现会拒绝构建。
 
-给出最小可运行文档，以及一个必须被拒绝的写法。
+严格 SSR 使用 `renderLocalStaticDocument({ document, runtime, reactConfig, resources })`，结果先判断 `ok` 再取 `markup`。组件声明 styles 后，向 SSR、合规工具和导出器传同一份规范资源列表；构建结果的 `bundle.resources` 可直接使用。
 
-## 属性
+`createLocalShareableHtml` 接收编译文档、状态、严格 SSR markup、CSS 和 bundle。导出时检查能力、组件与主题契约、bundle seal 和资源；恢复在应用状态和挂载前检查版本与摘要。新主机提供已安装实现，文档声明不会下载代码。源码或契约改变后重新编译、校验状态并重建 bundle。
 
-| 属性 | 类型与单位 | 静态或动态 | 必填 | 默认值 | 约束及失败诊断 |
-| --- | --- | --- | --- | --- | --- |
-| 待填 | string/number/boolean/enum | 是否允许插值、如何保留类型 | 是/否 | 具体值或无 | 范围、枚举、长度、code |
+## 8. 为每项能力提供证据
 
-## 状态
-
-- 是否有 bind；值类型与 family；是否独占：
-- 显式初值与缺省初值如何产生：
-- 同名绑定允许共享的条件：
-- 合法写入、非法写入、原子性与订阅：
-- 输入草稿与内部 UI 状态：
-- 面板重置的作用范围、共享值及内部状态：
-- 隐藏、再次显示、源码变化、实例隔离：
-- 计时器、订阅、事件监听与销毁：
-
-## 诊断与降级
-
-| 触发条件 | 阶段 | severity 与 code | 定位 | 预期结果 |
-| --- | --- | --- | --- | --- |
-| 待填 | 编译/运行/渲染 | warning/error，具体 code | 源码范围 | 拒绝、保留旧状态或局部显示 |
-
-说明旧实现把未知标签按原文显示时的行为，以及新增识别后发生的变化。
-
-## 安全、预算与表现
-
-- 不可信输入如何校验；宿主可信代码的责任：
-- 输入长度、集合规模、计算次数、递归或采样的预算：
-- 预算由谁设置、在哪些阶段检查、超限结果：
-- 可访问名称、角色、状态、键盘和焦点：
-- 375px、触控目标、深色主题与样式作用域：
-- 新增或修改的样式文件及主题变量：
-
-## 兼容与迁移
-
-- 变化分类和理由：
-- 旧写法、旧结果：
-- 新写法、新结果：
-- 受影响的源码、宿主 API、诊断、预算或渲染行为：
-- 迁移方法和升级后的验证方式：
-
-## 文件与验收
-
-| 适用 CP-* 条款 | 要改的文件 | 用例或检查 | 实际结果及证据 |
-| --- | --- | --- | --- |
-| 待填 | 真实路径；无需修改则说明复用原因 | 正常、非法、边界、状态或浏览器检查 | 通过/失败/未运行 |
-
-- 可移植验收数据与组件专属测试：
-- 实际运行的命令及结果：
-- 浏览器、视口、具体操作与观察结果：
-- 待补证据；SHOULD 偏离的理由和替代证据：
-```
-
-提案必须满足适用的 MUST 条款。SHOULD 的偏离记录理由、影响和替代证据。已有组件不因模板出现而自动取得“已认证”状态。
-
-## 6. 按影响选择检查
-
-在根目录安装现有依赖后执行检查，环境和完整命令见[贡献指南](../../CONTRIBUTING-ch.md)。行为变更必须有直接覆盖该行为的测试；以下选择用于确定检查范围。
-
-| 改动 | 最小有用检查 |
+| 工具 | 执行内容 |
 | --- | --- |
-| 仅协议、指南或链接 | `npm run test:docs`；核对规则与当前语法、安全和兼容说明 |
-| 验收数据或运行器 | `npm run test:components`、`npm run typecheck` |
-| 解析、编译、绑定或运行时 | 对应组件的针对性测试、`npm run test:components`、`npm run build`；共享逻辑变化再跑相关回归或 `npm test` |
-| React、样式或交互 | 对应渲染器测试、`npm run build:demo`，以及受影响的浏览器操作 |
-| 公开入口、类型或分发文件 | 构建后执行 `npm run test:package`、`npm run test:packed` |
-| 文档、语法、示例或版本 | `npm run test:docs`，对应示例编译及迁移核对 |
-| 完整发布门禁 | `npm run verify:release`；覆盖 Node 端与浏览器检查、真实 tarball 消费和组合文档行为。发布前或改动横跨多行时使用 |
+| `runLocalManifestCompliance` | manifest 往返、默认值、非法值、字段与预算 |
+| `runLocalBehaviorCompliance` | 真实编译/运行时写入、拒绝回滚、revision、数组副本与 reset |
+| `runLocalReactCompliance` | 静态输出、确定性 SSR、已配置的服务器错误探针 |
+| `runLocalBrowserCompliance` | 挂载、编辑、隐藏/显示、禁用、重置、子树错误隔离和卸载；离线另要求 hydration、断网与零请求 |
+| `createLocalComplianceReport` | 同组件、版本与配置的结果汇总，缺失证据保持显式缺失 |
 
-`npm run test:components` 执行协议的 `slider`、`tabs`、`plot` 代表性用例和原有语言验收数据。文件格式、字段含义和运行顺序见[验收说明](../../examples/conformance/README.md)。新增组块继续补自己的用例；这个命令不证明全部 49 个标签名或全部浏览器行为已经认证。新增的 `tests/**/*.test.ts` 或 `.tsx` 也会由已有 `npm test` 和 CI 运行。
+`ok` 表示本次要求的检查通过；`complete` 表示所有声明能力都有实际证据。`npm run test:node` 会跳过浏览器并写 `complete:false`。评分与容器分别编写浏览器场景；容器应验证自己的内容、可见性和子项生命周期。
 
-浏览器检查须记录具体环境和操作。按组件适用性检查真实键盘与焦点、输入法草稿、375px 布局、触控、主题、重置、隐藏与再次显示、计时暂停和卸载清理。已有自动浏览器检查可以提供对应行为的证据；读屏体验等尚未覆盖的项目需要人工检查。静态 SSR 只能证明服务器输出，不能证明真实输入、effect 生命周期或水合。
+把模板中的示例测试替换成插件真实交互，保留失败、跳过与不支持的区别。对共享语义可用 `compareLocalComplianceParity` 比较内置组件和外部别名。浏览器证据记录实际引擎、宽度、键盘、焦点和无障碍观察。
 
-在 PR 中列出实际运行的命令和观察结果。未运行、失败、不适用分别写明，不把清单勾选当成验证证据。
+## 9. 打包与第二消费项目
 
+先运行 `npm run typecheck` 和 `npm test`，再执行 `npm pack --ignore-scripts`。把生成的插件 tarball 与 ReactiveMD SDK tarball 安装到另一个全新项目，通过插件的 `.`、`./react`、`./theme` 和 `./styles.css` 验证公开导入、NodeNext 类型、SSR、预览与离线 HTML。
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)。`0.5.2` 是 `next` 渠道的预览版。
+发布前更新包名、版本、LICENSE、NOTICES 和 exports，检查文件清单、CSS 引用资源及 JS/类型是否齐全。本地 `file:` SDK 依赖要换成实际包含这些 SDK 入口的已发布版本；随后移除模板的 `private`。发布插件前固定其支持的 ReactiveMD 范围，契约变化使用插件自己的版本并给出迁移说明。
+
+旧 `hostComponents`、`hostRenderer` 与 `hostData` 按 [SDK 迁移说明](../integration/extension-sdk-ch.md)转换，重新编译并重建 bundle。
+
+## 10. 向默认预设或内核贡献
+
+插件现有的公开规则足够时，只需要声明、实现和宿主装配。向默认预设贡献时，定义放入 `src/presets/default-components.ts`，实现放入 `src/components/`，作者信息放入默认作者数据；由预设走相同公开协议。
+
+新增表达式、状态 family、结构或预算原语时，再修改相应内核并建立公开契约。按[组件协议](component-protocol-ch.md)、[兼容规则](../compatibility/compatibility-ch.md)和[提案模板](component-protocol-ch.md#13-新组块提案模板)评审，分别判断组件版本、SDK 协议、语法修订与包版本。
+
+仓库文档修改运行 `npm run test:docs`；公开入口/类型修改构建后运行 `test:package` 和 `test:packed`；运行时行为修改运行相关测试，跨系统或发布使用 `verify:release`。已有架构与历史证据统一保存在[交付与验收记录](extension-sdk-acceptance-ch.md)。

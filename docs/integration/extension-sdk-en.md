@@ -360,7 +360,7 @@ To migrate:
 3. Create one `LocalConfig` and one `LocalReactConfig`, then pass them to every compiler, authoring, server and export call.
 4. Recompile documents and rebuild standalone bundles. The configuration key changes, and a sealed bundle or restoration requirement from the old configuration no longer matches.
 
-The [architecture plan](../development/extension-sdk-plan-ch.md) tracks subsequent stabilization and consumer tooling.
+Follow the [component plugin development guide](../development/component-development-en.md) for the workflow. The [architecture plan](../development/extension-sdk-plan-ch.md) retains the design sequence; results are in the [consolidated acceptance record](../development/extension-sdk-acceptance-ch.md).
 
 ## Verify a real consumer
 

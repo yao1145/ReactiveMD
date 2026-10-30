@@ -474,9 +474,11 @@ These limits bound the work for a single document; they do not replace host cont
 
 ## Features not provided
 
-The default ReactiveMD path supports P0 HTML. Host options for author CSS, JavaScript and extended HTML use the separate native HTML path described in [HTML compatibility](../reference/html-compatibility-en.md). Local mode still provides no automatic state persistence or unrestricted network access, plugins or custom component registration, author-issued network or storage calls, Vue support, React 18 support or a CommonJS entry. Host-provided values are explicit read-only declarations; the core never fetches them. State export and import are explicit host calls. `LocalReactiveDocument` starts from initial values when the source changes; use retention helpers or manage the runtime and document yourself.
+The default ReactiveMD path supports P0 HTML. Host options for author CSS, JavaScript and extended HTML use the separate native HTML path described in [HTML compatibility](../reference/html-compatibility-en.md). Automatic state persistence, unrestricted network/storage calls, Vue, React 18 and CommonJS remain outside the current API. Hosts declare read-only values and invoke state export/import explicitly.
+
+The source [extension SDK](extension-sdk-en.md) provides custom component and theme package registration; follow the [component plugin development guide](../development/component-development-en.md). Use a current source-built tarball for the preview; registry `0.6.1` retains its original interfaces. On ordinary source edits, `LocalReactiveDocument` tries to adopt the new document and retain compatible bindings. Use a new React `key` for independent documents, or manage documents and runtimes in the host.
 
 
-See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.6.0` is available on both the `latest` and `next` channels.
+See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist.
 
 0.5.3 adds compile-option-aware authoring and explicit screen/print styles. See [0.5.3 host integration](../releases/release-0.5.3-en.md). 0.6.0 makes `compileLocal` return plain data that can cross a React Server Components boundary; see the [0.6.0 release notes](../releases/release-0.6.0-en.md).
