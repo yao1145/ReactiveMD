@@ -21,6 +21,15 @@ try {
     await expect(code).toHaveCount(20);
     await expect(examples).toHaveCount(20);
     expect(await guide.locator('.local-host-unavailable, .local-error, .local-compile-error').count()).toBe(0);
+    await page.evaluate(() => scrollTo(0, 1600));
+    await page.waitForTimeout(100);
+    const toolbar = page.locator('.guide-toolbar');
+    const toolbarBox = await toolbar.boundingBox();
+    expect(toolbarBox.y).toBeGreaterThanOrEqual(0);
+    expect(toolbarBox.y).toBeLessThan(1);
+    await expect(toolbar.getByRole('button', {name: language === 'en' ? 'Back to Playground' : '返回 Playground', exact: true})).toBeInViewport();
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.waitForTimeout(100);
     const source = await readFile(new URL(`../../docs/guides/local-guide-${language === 'zh' ? 'ch' : 'en'}.md`, import.meta.url), 'utf8');
     const expected = [...source.matchAll(/```markdown\r?\n([\s\S]*?)\r?\n```/g)].map(match => match[1]);
     for (let index = 0; index < 20; index++) {
