@@ -1,0 +1,44 @@
+[data-rmd-theme="paper"] {
+  --surface: #fffdf7;
+  --document-bg: #fffdf7;
+  --ink: #24302c;
+  --accent: #216b54;
+  --surface-subtle: #f1f7f2;
+}
+
+[data-rmd-theme="paper"][data-color-scheme="dark"] {
+  --surface: #17231f;
+  --document-bg: #17231f;
+  --ink: #e6f1e9;
+  --accent: #8fd1ab;
+  --surface-subtle: #1d2e27;
+}
+
+.rmd-example-rating {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+  align-items: center;
+}
+
+.rmd-example-rating button {
+  padding: 6px 10px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+
+.rmd-example-rating button:disabled {
+  opacity: 0.5;
+}
+
+.rmd-example-note {
+  padding: var(--space-3, 12px);
+  background: var(--surface-subtle);
+  border-inline-start: 3px solid var(--accent);
+}
+
+.rmd-example-note[data-tone="warn"] {
+  border-inline-start-color: #a35a17;
+}

@@ -5,6 +5,8 @@ import { readLocalCompileOptions } from './local/options';
 import { portableCompileOptions } from './local/portable-options';
 import type { LocalExtensionRequirements } from './sdk/types';
 import { validateLocalExtensionRequirements } from './export/requirements';
+import { validateLocalRestorationRequirements, type LocalRestorationRequirements } from './export/restoration';
+import type { LocalStyleResource } from './sdk/theme';
 import {
   localSourceDigest,
   resolveLocalState,
@@ -15,12 +17,13 @@ import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalHtmlPolicy, L
 
 /** Version of the single-file HTML envelope, not of the document syntax. */
 export const SHAREABLE_HTML_FORMAT = 'reactive-md-html/v1' as const;
+export const SHAREABLE_HTML_FORMAT_V2 = 'reactive-md-html/v2' as const;
 
 export type ShareableHtmlMode = 'interactive' | 'static';
 export type ShareableAssetMode = 'inline' | 'omit';
 
 export interface ShareableMountPayload {
-  version: 1;
+  version: 1 | 2;
   target: string;
   source: string;
   state: LocalStateFile;
@@ -31,6 +34,8 @@ export interface ShareableMountPayload {
   compileOptions?: LocalCompileOptions;
   /** Installed component contracts required before applying saved state. */
   extensions?: LocalExtensionRequirements;
+  restoration?: LocalRestorationRequirements;
+  resources?: readonly LocalStyleResource[];
   /** Verified relative image URL -> inline raster data URL. */
   images?: Readonly<Record<string, string>>;
 }
@@ -65,6 +70,9 @@ export interface ShareableHtmlOptions {
   compileOptions?: LocalCompileOptions;
   /** Companion component requirements, separate from the v1 state format. */
   extensions?: LocalExtensionRequirements;
+  /** v2 envelopes verify these contracts and resources before state recovery. */
+  restoration?: LocalRestorationRequirements;
+  resources?: readonly LocalStyleResource[];
 }
 
 export interface LocalStateBaselineResult {
@@ -330,6 +338,9 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
 
   const compileOptions = normalizeCompileOptions(options.compileOptions);
   const extensionErrors = validateLocalExtensionRequirements(options.extensions, compileOptions?.config);
+  extensionErrors.push(...validateLocalRestorationRequirements(options.restoration, {
+    config: compileOptions?.config, source: options.source, resources: options.resources,
+  }));
   if (extensionErrors.length) throw new TypeError(extensionErrors.map(item => item.message).join(' '));
   const optionCheck = readLocalCompileOptions(compileOptions);
   if (!optionCheck.ok) {
@@ -375,7 +386,7 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
 
   const interactive = mode === 'interactive';
   const payload: ShareableMountPayload = {
-    version: 1,
+    version: options.restoration ? 2 : 1,
     target: targetId,
     source: options.source,
     state: options.state,
@@ -384,6 +395,7 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
     hydrate: true,
     ...(compileOptions === undefined ? {} : { compileOptions }),
     ...(options.extensions === undefined ? {} : { extensions: options.extensions }),
+    ...(options.restoration === undefined ? {} : { restoration: options.restoration, resources: options.resources ?? [] }),
     ...(images ? { images } : {}),
   };
 
@@ -408,7 +420,7 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
 <meta name="referrer" content="no-referrer">
 <meta http-equiv="Content-Security-Policy" content="${escapeMeta(policy)}">
 <meta name="generator" content="${escapeMeta(`${generator.name} ${generator.version}`)}">
-<meta name="reactive-md-html-format" content="${SHAREABLE_HTML_FORMAT}">
+<meta name="reactive-md-html-format" content="${options.restoration ? SHAREABLE_HTML_FORMAT_V2 : SHAREABLE_HTML_FORMAT}">
 <meta name="reactive-md-syntax" content="${escapeMeta(options.state.syntax)}">
 <meta name="reactive-md-output" content="${mode}">
 <meta name="reactive-md-state" content="${escapeMeta(options.state.sourceDigest)}">

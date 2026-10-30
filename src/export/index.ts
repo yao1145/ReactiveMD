@@ -1,10 +1,16 @@
-import { createShareableHtml, type ShareableHtmlOptions } from '../shareable';
+import { createShareableHtml, resolveLocalStateBaseline, type ShareableHtmlOptions } from '../shareable';
+import { parseLocalState } from '../local/state';
 import { readLocalConfig } from '../sdk/config';
 import { localComponentDigest } from '../sdk/manifest';
 import { getLocalComponentRegistry } from '../sdk/registry';
+import { LOCAL_SDK_VERSION } from '../sdk/version';
 import type { LocalStyleResource } from '../sdk/theme';
 import type { LocalConfig, LocalExtensionRequirements } from '../sdk/types';
 import type { Diagnostic, LocalDocument } from '../local/types';
+import { readLocalExportResources } from './resources';
+import { createLocalBundleManifest, createLocalRestorationRequirements, localExportContentDigest, localThemeContractDigest, type LocalStandaloneBundleManifest } from './restoration';
+export * from './restoration';
+export { readLocalExportResources } from './resources';
 import {
   extensionDiagnostic,
   validateLocalComponentContracts,
@@ -22,6 +28,8 @@ export type LocalExportTarget = 'static' | 'ssr' | 'offline';
 export interface LocalStandaloneBundle {
   readonly script: string;
   readonly extensions: LocalExtensionRequirements;
+  /** Present on bundles sealed by the public build/export API. */
+  readonly seal?: LocalStandaloneBundleManifest;
 }
 
 export interface LocalExportPlan {
@@ -51,6 +59,7 @@ export function defineLocalStandaloneBundle(script: string, config: LocalConfig)
   }
   return Object.freeze({
     script,
+    seal: createLocalBundleManifest(script, installed),
     extensions: Object.freeze({
       protocol: 'reactive-md-extensions/v1' as const,
       components: Object.freeze(installed.components.map(definition => Object.freeze({
@@ -91,6 +100,11 @@ export function createLocalExportPlan(options: LocalExportPlanOptions): LocalExp
       diagnostics.push(extensionDiagnostic('local.extension.bundle-missing', 'Offline output requires an explicitly built standalone bundle.'));
     } else {
       diagnostics.push(...validateLocalExtensionRequirements(options.bundle.extensions, config));
+      const manifest = options.bundle.seal;
+      if (manifest && (manifest.protocol !== 'reactive-md-bundle/v1' || manifest.sdkVersion !== LOCAL_SDK_VERSION || manifest.configKey !== config.key
+        || manifest.scriptDigest !== localExportContentDigest(options.bundle.script))) diagnostics.push(extensionDiagnostic(
+        'local.extension.bundle-integrity', 'The bundle script or installed configuration differs from its sealed build manifest.',
+      ));
       for (const entry of requirements.components) {
         if (!options.bundle.extensions.components.some(item => item.id === entry.id && item.digest === entry.digest)) {
           diagnostics.push(extensionDiagnostic('local.extension.bundle-mismatch', `The standalone bundle does not include ${entry.id}@${entry.version}.`));
@@ -100,49 +114,28 @@ export function createLocalExportPlan(options: LocalExportPlanOptions): LocalExp
   }
   const themeName = options.document.theme ?? 'default';
   const theme = config.themes.find(item => item.name === themeName);
+  if (target === 'offline' && theme && options.bundle?.seal) {
+    const sealedThemes = options.bundle.seal.themes;
+    if (!Array.isArray(sealedThemes) || !sealedThemes.some(item => item.id === theme.id && item.name === theme.name
+      && item.version === theme.version && item.digest === localThemeContractDigest(theme))) diagnostics.push(extensionDiagnostic(
+      'local.extension.bundle-theme', `Bundle theme ${theme.id}@${theme.version} differs from the selected export theme. Rebuild the bundle.`,
+    ));
+  }
   if (themeName !== 'default' && !theme) diagnostics.push(extensionDiagnostic(
     'local.extension.theme-missing', `Theme ${themeName} is not installed for export.`,
   ));
-  const resources = new Map<string, LocalStyleResource>();
-  let bytes = 0;
-  for (const resource of [...(options.resources ?? []), ...(theme?.css ?? [])]) {
-    if (!resource || typeof resource.id !== 'string' || !resource.id || resource.id.length > 256
-      || typeof resource.css !== 'string' || !isInlineExportCss(resource.css)) {
-      diagnostics.push(extensionDiagnostic('local.extension.resource-invalid', 'Export styles must be identified inline CSS without network resources.'));
-      continue;
-    }
-    const previous = resources.get(resource.id);
-    if (previous && previous.css !== resource.css) diagnostics.push(extensionDiagnostic(
-      'local.extension.resource-conflict', `Style resource ${resource.id} has conflicting contents.`,
-    ));
-    if (!previous) {
-      bytes += new TextEncoder().encode(resource.css).byteLength;
-      resources.set(resource.id, Object.freeze({ ...resource }));
-    }
-  }
+  const checked = readLocalExportResources([...(options.resources ?? []), ...(theme?.css ?? [])]);
+  diagnostics.push(...checked.diagnostics);
+  const resources = new Map(checked.resources.map(resource => [resource.id, resource]));
   for (const id of requiredResources) {
     if (!resources.has(id)) diagnostics.push(extensionDiagnostic('local.extension.resource-missing', `Required style resource ${id} is missing.`));
   }
-  if (resources.size > 128 || bytes > 4 * 1024 * 1024) diagnostics.push(extensionDiagnostic(
-    'local.extension.resource-budget', 'Export styles exceed 128 resources or 4 MiB.',
-  ));
   // Component defaults precede theme enhancements; each list retains its order.
   const collected = Object.freeze([...resources.values()]);
   return Object.freeze({
     target, extensions: requirements, resources: collected,
     css: collected.map(item => item.css).join('\n'), diagnostics: Object.freeze(diagnostics), ok: diagnostics.length === 0,
   });
-}
-
-function isInlineExportCss(css: string): boolean {
-  // Escaped CSS tokens can disguise imports and URL schemes. The phase-one
-  // resource contract accepts literal CSS tokens and inline data resources.
-  if (/\\|@import\b/i.test(css)) return false;
-  const plain = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  for (const match of plain.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/gi)) {
-    if (!/^data:/i.test((match[1] ?? match[2] ?? match[3]).trim())) return false;
-  }
-  return true;
 }
 
 export interface LocalExtensionShareableOptions extends Omit<ShareableHtmlOptions, 'runtimeScript' | 'extensions'> {
@@ -156,6 +149,10 @@ export interface LocalExtensionShareableOptions extends Omit<ShareableHtmlOption
 /** First-phase export: the host supplies its prebuilt implementation bundle. */
 export function createLocalShareableHtml(options: LocalExtensionShareableOptions): string {
   if (options.document.source !== options.source) throw new TypeError('The compiled document does not belong to this source.');
+  const state = parseLocalState(options.state);
+  if (!state.ok) throw new TypeError(state.diagnostics.map(item => `[${item.code}] ${item.message}`).join('\n'));
+  const baseline = resolveLocalStateBaseline(options.document, state.file);
+  if (!baseline.ok) throw new TypeError(baseline.diagnostics.map(item => `[${item.code}] ${item.message}`).join('\n'));
   const config = readLocalConfig(options.config);
   if (options.compileOptions?.hostComponents !== undefined
     || (options.compileOptions?.config && readLocalConfig(options.compileOptions.config).key !== config.key)) {
@@ -170,6 +167,8 @@ export function createLocalShareableHtml(options: LocalExtensionShareableOptions
     ...options,
     compileOptions: { ...options.compileOptions, config },
     extensions: plan.extensions,
+    restoration: createLocalRestorationRequirements(options.document, config, plan.target, plan.resources),
+    resources: plan.resources,
     runtimeScript: options.bundle?.script,
     css: `${options.css}\n${plan.css}`,
   });

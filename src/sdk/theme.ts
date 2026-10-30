@@ -239,7 +239,7 @@ function assertImageSetEntries(body: string, path: string): void {
  * Reject CSS that could escape the inline stylesheet or fetch a remote
  * resource. Only `data:` URLs are accepted in phase one.
  */
-function assertSafeCss(css: string, path: string): void {
+function assertSafeCss(css: string, path: string, allowFragments = false): void {
   if (css.toLowerCase().includes('</style')) {
     throw themeError(path, 'must not contain a closing style tag.');
   }
@@ -270,7 +270,7 @@ function assertSafeCss(css: string, path: string): void {
     }
     if ((character === 'u' || character === 'U') && /^url\s*\(/i.test(css.slice(index, index + 12))) {
       const url = readUrlValue(css, index, path);
-      if (!/^data:/i.test(url.value)) {
+      if (!/^data:/i.test(url.value) && !(allowFragments && url.value.startsWith('#'))) {
         throw themeError(path, 'may only reference data: URLs; network and file URLs are not allowed.');
       }
       index = url.end;
@@ -281,6 +281,12 @@ function assertSafeCss(css: string, path: string): void {
     }
     index += 1;
   }
+}
+
+/** Network-free literal CSS for component resources as well as theme packages. */
+export function isLocalInlineCss(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 4 * 1024 * 1024) return false;
+  try { assertSafeCss(value, 'css', true); return true; } catch { return false; }
 }
 
 function splitSelectors(prelude: string): string[] {

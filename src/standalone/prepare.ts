@@ -30,6 +30,7 @@ export function prepareStandaloneDocument(
   state?: LocalStateFile | string,
   theme?: string,
   compileOptions?: LocalCompileOptions,
+  beforeState?: (document: LocalDocument) => void,
 ): PreparedStandaloneDocument {
   if (typeof source !== 'string') {
     throw new ReactiveMDMountError(
@@ -59,6 +60,7 @@ export function prepareStandaloneDocument(
     document = compiled.document;
   }
 
+  beforeState?.(document);
   if (state !== undefined) {
     const parsed = parseLocalState(state);
     if (!parsed.ok) {

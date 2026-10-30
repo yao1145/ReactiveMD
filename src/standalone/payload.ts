@@ -2,6 +2,8 @@ import type { LocalStateFile } from '../local/state';
 import { readLocalCompileOptions } from '../local/options';
 import { portableCompileOptions } from '../local/portable-options';
 import { validateLocalExtensionRequirements } from '../export/requirements';
+import { validateLocalRestorationRequirements } from '../export/restoration';
+import { readLocalExportResources } from '../export/resources';
 import type { Diagnostic, LocalCompileOptions } from '../local/types';
 import type { ShareableMountPayload } from '../shareable';
 import { errorText, standaloneDiagnostic } from './diagnostics';
@@ -97,9 +99,11 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
     };
   }
 
-  if (value.version !== 1) {
-    fail('standalone.payload.version', 'The reactive-md payload must use version 1.');
+  if (value.version !== 1 && value.version !== 2) {
+    fail('standalone.payload.version', 'The reactive-md payload must use version 1 or 2.');
   }
+  if (value.version === 2 && value.restoration === undefined) fail('standalone.payload.requirements', 'Version 2 requires restoration contracts.');
+  if (value.version === 1 && (value.restoration !== undefined || value.resources !== undefined)) fail('standalone.payload.version', 'Restoration contracts require payload version 2.');
   const target = value.target;
   if (typeof target !== 'string' || target.length === 0 || target.length > MAX_TARGET_LENGTH) {
     fail('standalone.payload.target', `The payload target must be an element id of 1-${MAX_TARGET_LENGTH} characters.`);
@@ -136,13 +140,18 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
   }
   const compileOptions = parseCompileOptions(value.compileOptions, fail);
   diagnostics.push(...validateLocalExtensionRequirements(value.extensions, compileOptions?.config));
+  const resources = readLocalExportResources(value.resources ?? []);
+  diagnostics.push(...resources.diagnostics);
+  diagnostics.push(...validateLocalRestorationRequirements(value.restoration, {
+    config: compileOptions?.config, source: typeof source === 'string' ? source : '', resources: resources.resources,
+  }));
   const images = parseImages(value.images, fail);
 
   if (diagnostics.length > 0) return { ok: false, diagnostics };
 
   // Build a fresh object: unknown keys and inherited data never reach mount.
   const payload: ShareableMountPayload = {
-    version: 1,
+    version: value.version as 1 | 2,
     target: target as string,
     source: source as string,
     state: state as unknown as LocalStateFile,
@@ -151,6 +160,7 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
     hydrate: hydrate as boolean,
     ...(compileOptions === undefined ? {} : { compileOptions }),
     ...(value.extensions === undefined ? {} : { extensions: value.extensions as ShareableMountPayload['extensions'] }),
+    ...(value.restoration === undefined ? {} : { restoration: value.restoration as ShareableMountPayload['restoration'], resources: resources.resources }),
     ...(images && Object.keys(images).length > 0 ? { images } : {}),
   };
   return { ok: true, payload };

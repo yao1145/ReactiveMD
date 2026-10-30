@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'vite';
 import { chromium, expect } from '@playwright/test';
 import { verifySdkPhaseTwo } from './sdk-phase2-consumer-checks.mjs';
+import { verifySdkPhaseThree } from './sdk-phase3-consumer-checks.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const require = createRequire(import.meta.url);
@@ -54,12 +55,12 @@ try {
   await writeFile(path.join(coreConsumer,'package.json'),JSON.stringify({name:'sdk-core-consumer',private:true,type:'module'}));
   await npm(['install',tarball,'--offline','--ignore-scripts','--no-package-lock','--no-audit','--no-fund','--loglevel=error'],coreConsumer);
   assert.equal(existsSync(path.join(coreConsumer,'node_modules/react')),false);
-  await writeFile(path.join(coreConsumer,'core.mjs'), `import assert from 'node:assert/strict';import {createLocalConfig} from 'reactive-md/sdk';assert.ok(createLocalConfig().key);assert.throws(()=>import.meta.resolve('react'));console.log('PASS DOM-free SDK without React');`);
+  await writeFile(path.join(coreConsumer,'core.mjs'), `import assert from 'node:assert/strict';import {createLocalConfig} from 'reactive-md/sdk';import {runLocalManifestCompliance} from 'reactive-md/testing';import {createPlaywrightBrowserDriver} from 'reactive-md/testing/browser';assert.ok(createLocalConfig().key);assert.equal(typeof runLocalManifestCompliance,'function');assert.equal(typeof createPlaywrightBrowserDriver,'function');assert.throws(()=>import.meta.resolve('react'));console.log('PASS DOM-free SDK and compliance tools without React');`);
   await run(process.execPath,['core.mjs'],coreConsumer);
-  await writeFile(path.join(coreConsumer,'core.ts'), `import {createLocalConfig,type LocalConfig} from 'reactive-md/sdk';const config:LocalConfig=createLocalConfig();void config.key;`);
+  await writeFile(path.join(coreConsumer,'core.ts'), `import {createLocalConfig,type LocalConfig} from 'reactive-md/sdk';import {runLocalManifestCompliance,type LocalComplianceReport} from 'reactive-md/testing';import {createPlaywrightBrowserDriver,type LocalBrowserSpec} from 'reactive-md/testing/browser';const config:LocalConfig=createLocalConfig();void [config.key,runLocalManifestCompliance,createPlaywrightBrowserDriver];type Evidence=LocalComplianceReport|LocalBrowserSpec;`);
   await writeFile(path.join(coreConsumer,'tsconfig.json'),JSON.stringify({compilerOptions:{target:'ES2022',module:'NodeNext',moduleResolution:'NodeNext',strict:true,noEmit:true,lib:['ES2022'],types:[]},include:['core.ts']}));
   await run(process.execPath,[path.join(typescriptRoot,'bin/tsc'),'--project',path.join(coreConsumer,'tsconfig.json')],coreConsumer);
-  report.checks.push('SDK runtime and NodeNext types without React or DOM libraries');
+  report.checks.push('SDK and public compliance runtime and NodeNext types without React or DOM libraries');
   const peers = [];
   for (const name of ['react', 'react-dom', 'scheduler', '@types/react', '@types/react-dom', 'csstype']) {
     peers.push(await pack(path.dirname(require.resolve(`${name}/package.json`))));
@@ -257,6 +258,7 @@ window.sdkTest={config,source,requirements:compiled.document.extensions,set:(nam
     await behaviorContext.close();
     report.checks.push('disabled, hiding, theme state retention, descendant error isolation, unmount cleanup');
     await verifySdkPhaseTwo({ consumer, artifacts, build, run, browser, report });
+    await verifySdkPhaseThree({ root, artifacts, tarball, peers, npm, run, browser, report });
   } finally { await browser.close(); }
   report.status = 'passed';
   console.log(`PASS isolated SDK consumer: ${report.checks.length} checks; ${consumer}`);

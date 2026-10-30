@@ -57,7 +57,7 @@
     "dev:lib": "vite build --config vite.lib.config.ts --watch",
     "build": "npm run typecheck && npm run build:lib",
     "build:standalone": "vite build --config vite.standalone.config.ts",
-    "build:lib": "vite build --config vite.lib.config.ts && vite build --config vite.editor.config.ts && vite build --config vite.codemirror.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
+    "build:lib": "vite build --config vite.lib.config.ts && vite build --config vite.editor.config.ts && vite build --config vite.codemirror.config.ts && vite build --config vite.build.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
     "build:demo": "npm run build && npm run build --workspace=@reactive-md/demo",
     "preview": "npm run preview --workspace=@reactive-md/demo",
     "typecheck": "tsc --noEmit",
@@ -97,6 +97,22 @@
     "prepack": "npm run build && npm run notices"
   },
   "exports": {
+    "./build": {
+      "types": "./dist-library/types/build/index.d.ts",
+      "import": "./dist-library/reactive-md-build.js"
+    },
+    "./testing": {
+      "types": "./dist-library/types/testing/index.d.ts",
+      "import": "./dist-library/reactive-md-testing.js"
+    },
+    "./testing/react": {
+      "types": "./dist-library/types/testing/react.d.ts",
+      "import": "./dist-library/reactive-md-testing-react.js"
+    },
+    "./testing/browser": {
+      "types": "./dist-library/types/testing/browser.d.ts",
+      "import": "./dist-library/reactive-md-testing-browser.js"
+    },
     "./sdk": {
       "types": "./dist-library/types/sdk/index.d.ts",
       "import": "./dist-library/reactive-md-sdk.js"
@@ -148,10 +164,14 @@
     }
   },
   "peerDependencies": {
+    "vite": "^8.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    },
     "react": {
       "optional": true
     },

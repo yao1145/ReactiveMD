@@ -1,0 +1,40 @@
+.local-document .rmd-example-rating {
+  display: inline-flex;
+  gap: var(--space-2, 8px);
+  align-items: center;
+}
+
+.local-document .rmd-example-rating [data-rating-value] {
+  min-width: 2ch;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.local-document .rmd-example-rating button {
+  min-width: 2.25rem;
+  padding: 4px 8px;
+}
+
+.local-document .rmd-example-rating button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.local-document .rmd-example-note {
+  --rmd-template-note-icon: url('./assets/notice.svg');
+  margin-block: var(--space-3, 12px);
+  padding: var(--space-3, 12px);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 6px;
+}
+
+.local-document .rmd-example-note header {
+  display: flex;
+  gap: var(--space-2, 8px);
+  align-items: center;
+}
+
+.local-document .rmd-example-note [data-note-icon] {
+  width: 1rem;
+  height: 1rem;
+}

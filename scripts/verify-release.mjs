@@ -231,6 +231,7 @@ try {
         ['Demo browser suite', ['run', 'test:browser'], demoRoot, browserEnv],
         ['New component browser suite', ['run', 'test:v2'], demoRoot, browserEnv],
         ['Shareable export acceptance', ['run', 'test:shareable'], projectRoot, browserEnv],
+        ['Extension SDK package and offline compliance', ['run', 'test:sdk-consumer'], projectRoot, browserEnv],
         ['Computed values browser', ['run', 'test:computations-browser'], projectRoot, browserEnv],
         ['Constraints and collections browser', ['run', 'test:constraints-browser'], projectRoot, browserEnv],
         ['Theme browser', ['run', 'test:theme-browser'], projectRoot, browserEnv],

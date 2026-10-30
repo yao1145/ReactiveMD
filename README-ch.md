@@ -12,6 +12,7 @@
 - [新用户入门指南](docs/guides/local-guide-ch.md)：从 Markdown 过渡到交互文档，含完整练习与错误速查。
 - [本地交互语法规范](docs/reference/local-interaction-syntax-ch.md) · [功能演示与示例](examples/local/README.md)：49 个标签名、标签、就地参数与 LaTeX 绘图。
 - [本地模式集成](docs/integration/local-integration-ch.md)：`compileLocal`、状态运行时、React 嵌入、URL 策略与样式作用域。
+- [扩展 SDK 源码预览](docs/integration/extension-sdk-ch.md)：组件包、主题、编辑器注册、构建适配与合规工具。使用当前源码构建的 tarball；registry 中的 `0.6.1` 尚未包含这些 API。
 - [HTML 部分兼容](docs/reference/html-compatibility-ch.md)：P0 HTML 与下个发行版针对作者 CSS、JavaScript 和扩展 HTML 的暂时性分流政策。
 - [可分享文档与静态导出](docs/integration/shareable-export-ch.md)：单文件交互 HTML、静态输出、版本化状态文件、图片资源、CLI 与独立浏览器 API。
 - [主题协议](docs/reference/theme-protocol-ch.md)：文档主题选择、自定义 CSS 与深浅模式。

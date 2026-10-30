@@ -22,6 +22,9 @@ import type { LocalReactConfig } from '../react/sdk';
 import type { LocalExtensionRequirements } from '../sdk/types';
 import { readLocalConfig } from '../sdk/config';
 import { validateLocalExtensionRequirements } from '../export/requirements';
+import { validateLocalRestorationRequirements, type LocalRestorationRequirements } from '../export/restoration';
+import type { LocalStyleResource } from '../sdk/theme';
+import { readLocalExportResources } from '../export/resources';
 
 export interface ReactiveMDMountOptions {
   source: string;
@@ -46,6 +49,8 @@ export interface ReactiveMDMountOptions {
   reactConfig?: LocalReactConfig;
   /** Companion contracts checked before state restoration. */
   extensions?: LocalExtensionRequirements;
+  restoration?: LocalRestorationRequirements;
+  resources?: readonly LocalStyleResource[];
 }
 
 export interface ReactiveMDHandle {
@@ -185,11 +190,26 @@ export function createStandaloneMount(
   }
   const requirementErrors = validateLocalExtensionRequirements(options.extensions, options.reactConfig?.config);
   if (requirementErrors.length) throw new ReactiveMDMountError('Extension requirements are not satisfied.', requirementErrors);
+  const restorationErrors = validateLocalRestorationRequirements(options.restoration, {
+    config: options.reactConfig?.config ?? compileOptions?.config,
+    source: options.source, resources: options.resources,
+  });
+  if (restorationErrors.length) throw new ReactiveMDMountError('Restoration requirements are not satisfied.', restorationErrors);
+  const styleResources = readLocalExportResources(options.resources ?? []);
+  if (styleResources.diagnostics.length) throw new ReactiveMDMountError('Style resources are invalid.', styleResources.diagnostics);
   const prepared = prepareStandaloneDocument(
     options.source,
     options.state,
     hooks.theme,
     compileOptions,
+    document => {
+      const errors = validateLocalExtensionRequirements(document.extensions, options.reactConfig?.config);
+      errors.push(...validateLocalRestorationRequirements(options.restoration, {
+        config: options.reactConfig?.config ?? compileOptions?.config, source: options.source,
+        resources: options.resources, document,
+      }));
+      if (errors.length) throw new ReactiveMDMountError('Installed contracts must match before state recovery.', errors);
+    },
   );
   const compiledRequirements = validateLocalExtensionRequirements(prepared.document.extensions, options.reactConfig?.config);
   if (compiledRequirements.length) throw new ReactiveMDMountError('Installed extension implementations are required.', compiledRequirements);
@@ -256,10 +276,19 @@ export function createStandaloneMount(
   }
 
   let root: Root | null = null;
+  const installedStyles: HTMLStyleElement[] = [];
   try {
+    for (const resource of styleResources.resources) {
+      const style = element.ownerDocument.createElement('style');
+      style.setAttribute('data-reactive-md-resource', resource.id);
+      style.textContent = resource.css;
+      (element.ownerDocument.head ?? element.ownerDocument.documentElement).appendChild(style);
+      installedStyles.push(style);
+    }
     root = hydrating ? hydrateRoot(element, view) : createRoot(element);
     if (!hydrating) root.render(view);
   } catch (error) {
+    installedStyles.forEach(style => style.remove());
     try {
       root?.unmount();
     } catch {
@@ -300,6 +329,7 @@ export function createStandaloneMount(
     disposed = true;
     unsubscribe();
     cleanupStaticFirst();
+    installedStyles.forEach(style => style.remove());
     try {
       root?.unmount();
     } catch {
@@ -434,6 +464,8 @@ export function mountAll(root?: ParentNode, host: Pick<ReactiveMDMountOptions, '
         images: payload.images,
         compileOptions: payload.compileOptions,
         extensions: payload.extensions,
+        restoration: payload.restoration,
+        resources: payload.resources,
         reactConfig: host.reactConfig,
       }));
     } catch (error) {
