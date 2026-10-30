@@ -136,7 +136,6 @@
   display: none;
 }
 
-.app-shell.is-simple .pane-editor > .pane-head,
 .app-shell.is-simple .editor-note,
 .app-shell.is-simple .diagnostics-panel {
   display: none;
@@ -148,10 +147,6 @@
 
 .app-shell.is-simple .pane-preview {
   padding: clamp(20px, 4vw, 48px);
-}
-
-.app-shell.is-simple .pane-preview .pane-head {
-  display: none;
 }
 
 .app-shell.is-simple .preview-stage {

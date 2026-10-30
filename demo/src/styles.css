@@ -53,13 +53,93 @@ textarea {
 .masthead {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-2) var(--space-4);
 }
 
 .masthead-lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
   min-width: 0;
+}
+
+.masthead-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.language-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--neutral-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.language-toggle span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.language-toggle span.is-active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+[data-theme="dark"] .language-toggle span.is-active {
+  background: var(--line);
+}
+
+.theme-toggle,
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.theme-toggle:hover,
+.github-link:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.github-link {
+  width: 40px;
+  padding: 0;
 }
 
 .eyebrow {
@@ -429,42 +509,6 @@ textarea {
 
 .pane-preview {
   background: var(--paper);
-}
-
-.pane-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-
-.pane-head h2 {
-  margin: 0;
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-  letter-spacing: -0.01em;
-  line-height: var(--leading-tight);
-}
-
-.pane-subtitle {
-  margin: var(--space-1) 0 0;
-  color: var(--ink-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-snug);
-}
-
-.syntax-tag {
-  flex-shrink: 0;
-  padding: 2px var(--space-2);
-  background: var(--neutral-soft);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  color: var(--ink-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: var(--leading-snug);
-  white-space: nowrap;
 }
 
 /* Editor */
@@ -851,7 +895,7 @@ textarea {
 .guide-toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-3) var(--space-5);
   padding: var(--space-4) var(--space-5);
@@ -862,21 +906,10 @@ textarea {
 
 .guide-toolbar h2 {
   margin: 0;
-  font-size: var(--text-lg);
+  font-size: var(--text-2xl);
   font-weight: var(--weight-bold);
   letter-spacing: -0.01em;
   line-height: var(--leading-tight);
-}
-
-.guide-toolbar .eyebrow {
-  margin-bottom: 0;
-}
-
-.guide-toolbar p {
-  margin: var(--space-1) 0 0;
-  color: var(--ink-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-snug);
 }
 
 .guide-actions {
@@ -1047,6 +1080,9 @@ textarea {
 .button-secondary:focus-visible,
 .button-primary:focus-visible,
 .button-quiet:focus-visible,
+.language-toggle:focus-visible,
+.theme-toggle:focus-visible,
+.github-link:focus-visible,
 .bar-select:focus-visible,
 .view-switch button:focus-visible,
 .diagnostic-item:focus-visible,
@@ -1162,14 +1198,6 @@ textarea {
 
   .pane {
     padding: var(--space-3);
-  }
-
-  .pane-head {
-    align-items: center;
-  }
-
-  .pane-subtitle {
-    display: none;
   }
 
   .md-document h1 {

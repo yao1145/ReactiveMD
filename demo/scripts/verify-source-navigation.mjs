@@ -44,53 +44,71 @@ try {
     await page.addInitScript(() => { try { localStorage.clear(); } catch {} });
     await page.goto(`${baseURL}/?example=pricing`);
     const preview = page.locator('.pane-preview');
+    const source = page.locator('#source-editor');
     await expect(preview).toBeVisible();
+    await expect(source).toBeHidden();
 
     const interpolation = preview.locator('.local-interpolation').first();
     await expect(interpolation).toBeVisible();
-    const sourceRange = await interpolation.evaluate((node) => ({
-      start: Number(node.dataset.rmdSourceStart),
-      end: Number(node.dataset.rmdSourceEnd),
-      type: node.dataset.rmdSourceType,
-    }));
-    expect(sourceRange.type).toBe('interpolation');
+    // Preview mode is read-only for source navigation: no source ranges are
+    // emitted and a click must not open the editor or select anything.
+    await expect(preview.locator('[data-rmd-source-start]')).toHaveCount(0);
     await interpolation.click();
+    await page.waitForTimeout(100);
+    await expect(source).toBeHidden();
+    await expect(preview).toBeVisible();
+    const idle = await selection(page);
+    expect(idle.focused).toBe(false);
 
-    // Preview-only layouts switch to a view where the editor is visible.
-    await expect(page.locator('#source-editor')).toBeVisible();
-    const expectedStart = toViewOffset(pricingSource, sourceRange.start);
-    const expectedEnd = toViewOffset(pricingSource, sourceRange.end);
-    await expect.poll(async () => (await selection(page)).start).toBe(expectedStart);
-    const afterText = await selection(page);
-    expect(afterText.end).toBe(expectedEnd);
-    expect(afterText.value).toBe(rawSlice(pricingSource, sourceRange));
-    expect(afterText.focused).toBe(true);
+    // Only split view exposes the preview-to-source link.
+    if (width > 600) {
+      await page.locator('.editor-status-bar button[data-editor-view-option="split"]').click();
+      await expect(source).toBeVisible();
+      const sourceRange = await interpolation.evaluate((node) => ({
+        start: Number(node.dataset.rmdSourceStart),
+        end: Number(node.dataset.rmdSourceEnd),
+        type: node.dataset.rmdSourceType,
+      }));
+      expect(sourceRange.type).toBe('interpolation');
+      await interpolation.click();
 
-    // Clicking a control label targets the component tag, not its input.
-    if (width === 1440) {
+      const expectedStart = toViewOffset(pricingSource, sourceRange.start);
+      const expectedEnd = toViewOffset(pricingSource, sourceRange.end);
+      await expect.poll(async () => (await selection(page)).start).toBe(expectedStart);
+      const afterText = await selection(page);
+      expect(afterText.end).toBe(expectedEnd);
+      expect(afterText.value).toBe(rawSlice(pricingSource, sourceRange));
+      expect(afterText.focused).toBe(true);
+
+      // Clicking a control label targets the component tag, not its input.
       const label = preview.locator('.local-slider label').first();
-    const labelRange = await label.evaluate((node) => {
-      const target = node.closest('[data-rmd-source-start]');
-      return {
-        start: Number(target?.dataset.rmdSourceStart),
-        end: Number(target?.dataset.rmdSourceEnd),
-      };
-    });
-    await label.click();
-    await expect.poll(async () => (await selection(page)).start).toBe(toViewOffset(pricingSource, labelRange.start));
-    const labelSelection = await selection(page);
-    expect(labelSelection.value).toBe(rawSlice(pricingSource, labelRange));
-    expect(labelSelection.value).toContain('<slider');
-    expect(labelSelection.value).toContain('bind="seats"');
+      const labelRange = await label.evaluate((node) => {
+        const target = node.closest('[data-rmd-source-start]');
+        return {
+          start: Number(target?.dataset.rmdSourceStart),
+          end: Number(target?.dataset.rmdSourceEnd),
+        };
+      });
+      await label.click();
+      await expect.poll(async () => (await selection(page)).start).toBe(toViewOffset(pricingSource, labelRange.start));
+      const labelSelection = await selection(page);
+      expect(labelSelection.value).toBe(rawSlice(pricingSource, labelRange));
+      expect(labelSelection.value).toContain('<slider');
+      expect(labelSelection.value).toContain('bind="seats"');
 
-    // Dragging/filling the slider changes only the parameter.
-    const before = await selection(page);
-    await preview.locator('input[type="range"]').first().fill('7');
-    await page.waitForTimeout(50);
-    const after = await selection(page);
-    expect(after.start).toBe(before.start);
-    expect(after.end).toBe(before.end);
-    await expect(preview.locator('.md-slider-value')).toHaveText('7');
+      // Dragging/filling the slider changes only the parameter.
+      const before = await selection(page);
+      await preview.locator('input[type="range"]').first().fill('7');
+      await page.waitForTimeout(50);
+      const after = await selection(page);
+      expect(after.start).toBe(before.start);
+      expect(after.end).toBe(before.end);
+      await expect(preview.locator('.md-slider-value')).toHaveText('7');
+    } else {
+      // Narrow layouts have no split mode, so source navigation stays off.
+      await page.locator('.editor-status-bar button[data-editor-view-option="edit"]').click();
+      await expect(source).toBeVisible();
+      await expect(page.locator('.editor-status-bar button[data-editor-view-option="split"]')).toHaveCount(0);
     }
 
     expect(errors).toEqual([]);
