@@ -41,6 +41,8 @@ export class CodeEditorController {
   private listeners=new Set<()=>void>();
   private readonly configuration=new Compartment();
   private analysis:{source:string;value:AuthorAnalysis}|null=null;
+  private pendingAnalysis:{value:AuthorAnalysis|null;source:string;diagnostics:readonly Diagnostic[]}|null=null;
+  private analysisTimer:ReturnType<typeof setTimeout>|null=null;
   private readonly coordinates:StateField<SourceCoordinates>;
   constructor(parent:HTMLElement,options:ControllerOptions){
     this.options=options;this.seed=new SourceCoordinates(options.value);
@@ -102,7 +104,17 @@ export class CodeEditorController {
         }},indentWithTab,...defaultKeymap,...historyKeymap,...searchKeymap]),
       markdown(),syntaxHighlighting(sourceHighlightStyle),EditorView.lineWrapping,lintGutter(),visibleAnalysis,
       EditorView.updateListener.of(update=>this.updated(update)),
-      EditorView.domEventHandlers({keydown:event=>{if(event.key!=='Escape'&&event.key!=='Tab')this.escapeTab=false;return false;},focus:()=>{this.emit();return false;},blur:()=>{this.escapeTab=false;this.emit();return false;},compositionstart:()=>{this.escapeTab=false;return false;},compositionend:()=>{queueMicrotask(()=>{if(!this.disposed)this.emit();});return false;}}),
+      EditorView.domEventHandlers({keydown:event=>{if(event.key!=='Escape'&&event.key!=='Tab')this.escapeTab=false;return false;},focus:()=>{this.emit();return false;},blur:()=>{this.escapeTab=false;this.emit();return false;},compositionstart:()=>{this.escapeTab=false;return false;},compositionend:()=>{
+        queueMicrotask(()=>{if(!this.disposed)this.emit();});
+        if(this.analysisTimer!==null)clearTimeout(this.analysisTimer);
+        this.analysisTimer=setTimeout(()=>{
+          this.analysisTimer=null;
+          if(this.disposed)return;
+          const pending=this.pendingAnalysis;
+          if(pending)this.setAnalysis(pending.value,pending.source,pending.diagnostics);
+        },0);
+        return false;
+      }}),
       EditorView.theme({
         '&':{height:'100%',backgroundColor:'var(--code-bg)',color:'var(--code-ink)'},
         '.cm-scroller':{fontFamily:'var(--font-mono, ui-monospace, monospace)',lineHeight:'var(--leading-normal, 1.6)',overflow:'auto'},
@@ -194,6 +206,10 @@ export class CodeEditorController {
   redo(){if(!this.options.disabled&&!this.options.readOnly)redo(this.view);}
   setAnalysis(value:AuthorAnalysis|null,source:string,diagnostics:readonly Diagnostic[]=[]){
     if(this.disposed)return;
+    // Firefox starts a multiline composition by deleting the selection. Do not
+    // redraw decorations while its native replacement is still being inserted.
+    if(this.view.compositionStarted||this.analysisTimer!==null){this.pendingAnalysis={value,source,diagnostics};return;}
+    this.pendingAnalysis=null;
     this.analysis=value&&source===this.source?{source,value}:null;
     const model=this.model;
     const lint=source===model.source?diagnostics.map(d=>({from:model.toView(d.range.start),to:model.toView(d.range.end),severity:d.severity,message:d.message})):[];
@@ -214,5 +230,5 @@ export class CodeEditorController {
     }
     return Decoration.set(ranges,true);
   }
-  destroy(){if(this.disposed)return;this.disposed=true;this.listeners.clear();this.view.destroy();}
+  destroy(){if(this.disposed)return;this.disposed=true;if(this.analysisTimer!==null)clearTimeout(this.analysisTimer);this.pendingAnalysis=null;this.listeners.clear();this.view.destroy();}
 }

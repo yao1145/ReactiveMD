@@ -276,7 +276,7 @@ Collapsed body copy.
 
   await check('guide navigation uses library-generated anchors', async () => {
     await page.getByRole('button', { name: 'User Guide', exact: true }).click();
-    const guide = page.locator('.guide-paper .local-document');
+    const guide = page.locator('.guide-paper > .local-document');
     await expect(guide.getByRole('heading', { name: 'Reactive MD beginner guide', level: 1 })).toBeVisible();
     const broken = await guide.evaluate(article => [...article.querySelectorAll('a[href^="#"]')].flatMap(link => {
       const id = decodeURIComponent(link.getAttribute('href').slice(1));

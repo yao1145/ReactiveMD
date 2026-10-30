@@ -140,6 +140,8 @@ async function runCase(browser, engine, width, result, baseURL) {
     });
 
     await check('diagnostics recover after editing invalid source', async () => {
+      // Multiline replacement also guards the Firefox composition/analysis
+      // commit window: a decoration refresh must not clear the inserted text.
       await page.locator('[data-editor-view-option="edit"]').click();
       await replaceWorkbenchSource(page, `${source}\n{{ missing + }}`);
       await expect(page.locator('.status-chip')).toContainText('Compile failed');
