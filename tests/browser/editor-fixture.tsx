@@ -5,7 +5,53 @@ import {
   type ReactiveMarkdownEditorHandle,
   type EditorViewMode,
 } from 'reactive-md/editor';
+import { createLocalConfig, defineLocalComponent } from 'reactive-md/sdk';
 import 'reactive-md/editor/styles.css';
+
+// One registered external manifest. It exercises the real catalog path: the
+// menu must show its localized title/description/property help, insert its
+// template, and drop it again when the host removes the configuration.
+const EXTENSION_METER = defineLocalComponent({
+  id: 'fixture/ext-meter',
+  name: 'ext-meter',
+  version: '1.0.0',
+  protocol: 'reactive-md-component/v1',
+  form: 'leaf',
+  props: {
+    label: {
+      kind: 'string',
+      required: true,
+      description: { en: 'Meter label', zh: '仪表标签' },
+    },
+    max: {
+      kind: 'number',
+      default: 5,
+      min: 1,
+      max: 10,
+      integer: true,
+      description: { en: 'Upper bound', zh: '上限' },
+    },
+  },
+  bindings: {
+    value: {
+      kind: 'number',
+      family: 'number',
+      bind: 'bind',
+      initial: 'initial',
+      initialRule: 'nearest-zero',
+    },
+  },
+  capabilities: { interactive: true, static: true, ssr: true, offline: true },
+  authoring: {
+    title: { en: 'Meter', zh: '仪表' },
+    description: { en: 'Fixture external meter.', zh: '测试外部仪表。' },
+    category: 'input',
+    insertText: '<ext-meter bind="{{bind:meter}}" label="Meter" initial="2">',
+  },
+});
+
+const WITH_EXTENSION = { config: createLocalConfig({ components: [EXTENSION_METER] }) };
+const WITHOUT_EXTENSION = undefined;
 
 // Consumer fixture for the packaged editor entry. Both editors are controlled
 // by this host exactly as a product page would use them.
@@ -43,6 +89,7 @@ interface Harness {
   viewChanges(id: EditorId): readonly EditorViewMode[];
   setReadOnly(readOnly: boolean, target?: EditorId | 'both'): void;
   setDisabled(disabled: boolean, target?: EditorId | 'both'): void;
+  setExtension(enabled: boolean, target?: EditorId | 'both'): void;
   setDocumentKey(key: string): void;
   focusRange(id: EditorId, start: number, end: number): void;
   selectRange(id: EditorId, start: number, end: number): void;
@@ -71,6 +118,7 @@ function Fixture() {
   const [viewChanges, setViewChanges] = useState<Record<EditorId, EditorViewMode[]>>({ a: [], b: [] });
   const [readOnly, setReadOnly] = useState<Record<EditorId, boolean>>(perEditor(false));
   const [disabled, setDisabled] = useState<Record<EditorId, boolean>>(perEditor(false));
+  const [extension, setExtension] = useState<Record<EditorId, boolean>>({ a: true, b: false });
   const [documentKey, setDocumentKey] = useState('document-a');
   const [changes, setChanges] = useState<Record<EditorId, number>>(perEditor(0));
   const [exports, setExports] = useState(0);
@@ -95,6 +143,7 @@ function Fixture() {
     viewChanges: (id) => viewChanges[id],
     setReadOnly: apply<boolean>(setReadOnly),
     setDisabled: apply<boolean>(setDisabled),
+    setExtension: apply<boolean>(setExtension),
     setDocumentKey,
     focusRange: (id, start, end) => handles[id].current?.focus({ start, end }),
     selectRange: (id, start, end) => handles[id].current?.selectRange({ start, end }),
@@ -123,6 +172,7 @@ function Fixture() {
       height={380}
       readOnly={readOnly[id]}
       disabled={disabled[id]}
+      compileOptions={extension[id] ? WITH_EXTENSION : WITHOUT_EXTENSION}
       documentKey={id === 'a' ? documentKey : 'document-b'}
       onExport={() => setExports((count) => count + 1)}
       toolbar

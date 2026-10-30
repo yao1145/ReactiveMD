@@ -6,7 +6,7 @@ import {
   renderNativeSnippet,
   type NativeComponentDefinition,
   type NativeComponentGroupId,
-} from '../src/native-components';
+} from 'reactive-md/authoring';
 
 const BIND_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 

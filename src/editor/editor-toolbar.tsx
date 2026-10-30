@@ -39,16 +39,22 @@ import {
   insertTable,
   insertDivider,
   insertText,
-  insertTemplate,
   readFormatState,
   type EditorEdit,
   type EditorFormatState,
 } from './editor-commands';
 import {
-  getNativeComponentCatalog,
-  renderNativeSnippet,
-  type NativeComponentDefinition,
-} from './native-components';
+  createLocalComponentCatalogForOptions,
+  filterLocalComponentCatalog,
+  insertLocalComponentFromOptions,
+  localCatalogAncestors,
+  localComponentCatalogGroups,
+  localComponentCatalogKey,
+  localComponentHelp,
+  type LocalComponentCatalogEntry,
+} from '../authoring/extensions';
+import { localCompileOptionsKey } from '../local/options';
+import type { LocalCompileOptions } from '../local/types';
 import { useEditorLocale } from './locale';
 import { EDITOR_TOOLBAR_COPY } from './editor-i18n';
 import type { EditorLocale } from './types';
@@ -66,6 +72,8 @@ export interface EditorToolbarProps {
   showExport?: boolean;
   /** Read-only and disabled editors leave every action without effect. */
   disabled?: boolean;
+  /** Same compile options as the preview; drives the component catalog. */
+  compileOptions?: LocalCompileOptions;
 }
 
 type TextSelection = { start: number; end: number };
@@ -427,15 +435,6 @@ function readEditor(surface: EditorSurface) {
   return {value,selection,selectedText:value.slice(selection.start,selection.end)};
 }
 
-function matchesQuery(component: NativeComponentDefinition, term: string): boolean {
-  if (!term) return true;
-  return (
-    component.label.toLowerCase().includes(term) ||
-    component.description.toLowerCase().includes(term) ||
-    component.keywords.some((keyword) => keyword.toLowerCase().includes(term))
-  );
-}
-
 function sameFormatState(a: EditorFormatState, b: EditorFormatState): boolean {
   return (
     a.headingLevel === b.headingLevel &&
@@ -545,6 +544,7 @@ export function EditorToolbar({
   onExport,
   showExport = false,
   disabled = false,
+  compileOptions,
 }: EditorToolbarProps): ReactElement {
   const inputSurface=editorSurface;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -567,7 +567,25 @@ export function EditorToolbar({
   const nativeMenuId = `${idPrefix}-native-menu`;
   const locale = useEditorLocale();
   const copy = EDITOR_TOOLBAR_COPY[locale];
-  const catalog = useMemo(() => getNativeComponentCatalog(locale), [locale]);
+  const optionsKey = localCompileOptionsKey(compileOptions);
+  // Authoring copy is excluded from the compile-semantics key by design. The
+  // catalog key adds it so a metadata-only configuration change rebuilds the
+  // menu, while an equivalent options object reuses the memoized catalog.
+  const catalogKey = useMemo(
+    () => localComponentCatalogKey(compileOptions, locale),
+    [compileOptions, locale, optionsKey],
+  );
+  const catalog = useMemo(() => {
+    try {
+      return createLocalComponentCatalogForOptions(compileOptions, locale);
+    } catch {
+      // A deferred external template failed its conformance check. Keep the
+      // editor usable with the default catalog; the conformance helper reports
+      // the concrete issue.
+      return createLocalComponentCatalogForOptions(undefined, locale);
+    }
+  }, [catalogKey]);
+  const [catalogAncestors, setCatalogAncestors] = useState<readonly string[]>([]);
   const headingItems = HEADING_ITEMS.map((item) => ({
     ...item,
     label: copy.headingLabels[item.level],
@@ -585,17 +603,12 @@ export function EditorToolbar({
     label: copy.insertItems[item.labelKey],
   }));
 
-  const filteredGroups = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    return catalog.groups
-      .map((group) => ({
-        group,
-        components: catalog.components.filter(
-          (component) => component.group === group.id && matchesQuery(component, term),
-        ),
-      }))
-      .filter((entry) => entry.components.length > 0);
-  }, [catalog, query]);
+  const filteredGroups = useMemo(() => localComponentCatalogGroups(
+    filterLocalComponentCatalog(catalog, {
+      query,
+      ancestors: catalogAncestors,
+    }),
+  ), [catalog, catalogAncestors, query]);
 
   const syncFormatState = useCallback(() => {
     if (!inputSurface.element()) {
@@ -729,6 +742,14 @@ export function EditorToolbar({
     return () => window.cancelAnimationFrame(frame);
   }, [openMenu]);
 
+  // Structural context is read once when the picker opens, from the caret the
+  // same surface reports to analysis and completion.
+  useEffect(() => {
+    if (openMenu !== 'native') return;
+    const { value, selection } = readEditor(inputSurface);
+    setCatalogAncestors(localCatalogAncestors(value, selection.start, compileOptions));
+  }, [openMenu, inputSurface, compileOptions]);
+
   const syncTabStop = useCallback(() => {
     const items = getToolbarButtons(rootRef.current);
     if (items.length === 0) return;
@@ -776,11 +797,10 @@ export function EditorToolbar({
     commitEdit(insertText(value, selection, emoji));
   };
 
-  const applyNativeComponent = (component: NativeComponentDefinition) => {
+  const applyNativeComponent = (entry: LocalComponentCatalogEntry) => {
     if (disabled) return;
-    const { value, selection, selectedText } = readEditor(inputSurface);
-    const snippet = renderNativeSnippet(component, value, selectedText);
-    commitEdit(insertTemplate(value, selection, snippet, { block: !component.inline }));
+    const { value, selection } = readEditor(inputSurface);
+    commitEdit(insertLocalComponentFromOptions(compileOptions, entry.id, value, selection, locale));
   };
 
   const handleUndo = () => {
@@ -1196,7 +1216,7 @@ export function EditorToolbar({
               {filteredGroups.length === 0 ? (
                 <p className="editor-toolbar-menu-empty">{copy.noMatchingComponents}</p>
               ) : (
-                filteredGroups.map(({ group, components }) => (
+                filteredGroups.map((group) => (
                   <div
                     key={group.id}
                     className="editor-toolbar-native-group"
@@ -1206,30 +1226,35 @@ export function EditorToolbar({
                     <div className="editor-toolbar-native-group-title" aria-hidden="true">
                       {group.label}
                     </div>
-                    {components.map((component) => (
-                      <button
-                        key={component.id}
-                        type="button"
-                        role="menuitem"
-                        tabIndex={-1}
-                        className="editor-toolbar-native-item"
-                        onMouseDown={keepEditorFocus}
-                        onClick={() => applyNativeComponent(component)}
-                      >
-                        <span className="editor-toolbar-native-copy">
-                          <span className="editor-toolbar-native-label">
-                            {component.label}
-                            {component.inline ? (
-                              <span className="editor-toolbar-native-badge">{copy.inlineBadge}</span>
-                            ) : null}
+                    {group.entries.map((entry) => {
+                      const help = localComponentHelp(entry);
+                      return (
+                        <button
+                          key={entry.id}
+                          type="button"
+                          role="menuitem"
+                          tabIndex={-1}
+                          className="editor-toolbar-native-item"
+                          title={help === '' ? undefined : help}
+                          aria-description={help === '' ? undefined : help}
+                          onMouseDown={keepEditorFocus}
+                          onClick={() => applyNativeComponent(entry)}
+                        >
+                          <span className="editor-toolbar-native-copy">
+                            <span className="editor-toolbar-native-label">
+                              {entry.title}
+                              {entry.inline ? (
+                                <span className="editor-toolbar-native-badge">{copy.inlineBadge}</span>
+                              ) : null}
+                            </span>
+                            <span className="editor-toolbar-native-description">
+                              {entry.description}
+                            </span>
                           </span>
-                          <span className="editor-toolbar-native-description">
-                            {component.description}
-                          </span>
-                        </span>
-                        <Icon name="plus" className="editor-toolbar-native-add" />
-                      </button>
-                    ))}
+                          <Icon name="plus" className="editor-toolbar-native-add" />
+                        </button>
+                      );
+                    })}
                   </div>
                 ))
               )}

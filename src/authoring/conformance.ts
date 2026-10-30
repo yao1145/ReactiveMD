@@ -2,7 +2,8 @@ import type { EditorLocale } from '../editor/command-types';
 import { compileLocal } from '../local/compiler';
 import { readLocalConfig } from '../sdk/config';
 import type { LocalConfig } from '../sdk/types';
-import { createLocalComponentCatalog, insertLocalComponent } from './extensions';
+import { createLocalComponentCatalogUnchecked, localCatalogParentContext } from './catalog';
+import { insertCatalogEntryFromOptions } from './insert';
 
 /**
  * Insertion-template conformance for external components.
@@ -12,10 +13,8 @@ import { createLocalComponentCatalog, insertLocalComponent } from './extensions'
  * helper performs the deferred check against the *same* configuration that
  * editing uses, so a catalog never offers a snippet that fails immediately.
  *
- * The compiler import is a normal static ESM binding in this dedicated module.
- * The compiler does not import authoring, so there is no module-initialization
- * cycle; keeping it out of `extensions.ts` also keeps plain catalog/completion
- * users from loading the compiler through that module.
+ * Static compiler imports are shared with catalog validation. The compiler
+ * does not import authoring, so this dependency has no initialization cycle.
  */
 
 export interface LocalInsertTemplateIssue {
@@ -33,12 +32,18 @@ export function validateLocalComponentInsertTemplates(
   const validated = readLocalConfig(config);
   const external = new Set(validated.components.map((component) => component.name));
   const issues: LocalInsertTemplateIssue[] = [];
-  for (const entry of createLocalComponentCatalog(validated, locale)) {
+  const options = { config: validated };
+  const entries = createLocalComponentCatalogUnchecked(validated, locale);
+  for (const entry of entries) {
     if (!external.has(entry.name)) continue;
     // Validate the exact insertion output: binding tokens and selection/caret
-    // markers are resolved by the same pipeline the editor uses.
-    const edit = insertLocalComponent(validated, entry.id, '', { start: 0, end: 0 }, locale);
-    const result = compileLocal(edit.value, { config: validated });
+    // markers are resolved by the same pipeline the editor uses. Parent-only
+    // children are checked inside the same legal parent context the catalog
+    // uses, so a correctly registered child is not reported as broken.
+    const text = insertCatalogEntryFromOptions(entry, options, '', { start: 0, end: 0 }).value;
+    const context = localCatalogParentContext(entry, entries);
+    const source = context === undefined ? text : `${context.before}${text}${context.after}`;
+    const result = compileLocal(source, options);
     if (result.ok) continue;
     issues.push(Object.freeze({
       id: entry.id,

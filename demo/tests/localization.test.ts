@@ -18,7 +18,7 @@ import {
   getNativeComponentCatalog,
   renderNativeSnippet,
   type NativeComponentDefinition,
-} from '../src/native-components';
+} from 'reactive-md/authoring';
 
 const EMPTY = { start: 0, end: 0 };
 const CJK = /[\u3400-\u9fff]/;

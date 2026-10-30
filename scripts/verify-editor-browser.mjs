@@ -52,6 +52,33 @@ try{
    await expect.poll(()=>page.evaluate(()=>window.editorHarness.getSelection('a'))).toEqual({start:text.length,end:text.length});
    assert.ok(await root('a').locator('.cm-line').count()<200);await page.keyboard.type('Z');await expect.poll(()=>source('a')).toBe(text+'Z');
  });
+ await check('external component registers in the menu, localizes, inserts, undoes and removes',async()=>{
+   await page.evaluate(()=>{window.editorHarness.setLocale('en','a');window.editorHarness.setExtension(true,'a');});
+   await install('a','');await focus('a',0);
+   const trigger=root('a').locator('[data-toolbar-id="components"]'),panel=root('a').locator('.editor-toolbar-native-menu');
+   const item=()=>panel.locator('.editor-toolbar-native-item').filter({has:page.locator('.editor-toolbar-native-label',{hasText:/^Meter$/})});
+   await trigger.click();await expect(panel).toBeVisible();await expect(item()).toHaveCount(1);
+   await expect(item()).toHaveAttribute('aria-description',/Fixture external meter\./);
+   await expect(item()).toHaveAttribute('aria-description',/Meter label/);
+   await panel.getByRole('searchbox').fill('meter');await expect(item()).toHaveCount(1);
+   await focus('a',0);await item().click();
+   await expect.poll(()=>source('a')).toContain('<ext-meter bind="meter"');
+   await page.evaluate(()=>window.editorHarness.undo('a'));await expect.poll(()=>source('a')).toBe('');
+   await page.evaluate(()=>window.editorHarness.redo('a'));await expect.poll(()=>source('a')).toContain('<ext-meter bind="meter"');
+   await page.evaluate(()=>window.editorHarness.setLocale('zh','a'));
+   await trigger.click();await panel.getByRole('searchbox').fill('仪表');
+   const localized=()=>panel.locator('.editor-toolbar-native-item').filter({has:page.locator('.editor-toolbar-native-label',{hasText:/^仪表$/})});
+   await expect(localized()).toHaveCount(1);
+   await expect(localized()).toHaveAttribute('aria-description',/测试外部仪表。/);
+   await expect(localized()).toHaveAttribute('aria-description',/仪表标签/);
+   await page.keyboard.press('Escape');
+   await page.evaluate(()=>window.editorHarness.setExtension(false,'a'));
+   await trigger.click();await panel.getByRole('searchbox').fill('仪表');
+   await expect(panel.locator('.editor-toolbar-native-item')).toHaveCount(0);
+   await expect(panel.locator('.editor-toolbar-menu-empty')).toHaveText('没有匹配的组件');
+   await page.keyboard.press('Escape');
+   await page.evaluate(()=>window.editorHarness.setLocale('en','a'));
+ });
  await check('locale, themes, exports and narrow layout remain scoped',async()=>{
    await page.evaluate(()=>{window.editorHarness.setLocale('zh','a');window.editorHarness.setTheme('dark','a');});
    await expect(root('a')).toHaveAttribute('data-editor-theme','dark');await expect(root('b')).toHaveAttribute('data-editor-theme','light');

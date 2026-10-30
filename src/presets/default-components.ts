@@ -20,6 +20,7 @@ import {
   type LocalComponentStructure,
 } from '../sdk/types';
 import { LOCAL_SDK_VERSION } from '../sdk/version';
+import { defaultManifestAuthoring } from './default-authoring';
 
 const VERSION = LOCAL_SDK_VERSION;
 
@@ -99,6 +100,7 @@ function definition(
   form: LocalComponentDefinition['form'],
   value: Omit<LocalComponentDefinition, 'id' | 'name' | 'version' | 'protocol' | 'form' | 'capabilities'>,
 ): LocalComponentDefinition {
+  const authoring = defaultManifestAuthoring(name);
   return defineLocalComponent({
     id: `reactive-md/${name}`,
     name,
@@ -107,6 +109,7 @@ function definition(
     form,
     capabilities: caps(),
     ...value,
+    ...(authoring ? { authoring } : {}),
   });
 }
 

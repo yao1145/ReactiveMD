@@ -30,13 +30,22 @@ export type {
 export {
   createLocalAuthoringLookup,
   createLocalComponentCatalog,
+  createLocalComponentCatalogForOptions,
+  filterLocalComponentCatalog,
   insertLocalComponent,
+  insertLocalComponentFromOptions,
+  localCatalogAncestors,
+  localComponentCatalogGroups,
+  localComponentCatalogKey,
+  localComponentHelp,
 } from './extensions';
 export { validateLocalComponentInsertTemplates } from './conformance';
 export type {
   LocalAttributeAuthoring,
   LocalAuthoringLookup,
   LocalComponentCatalogEntry,
+  LocalComponentCatalogFilter,
+  LocalComponentCatalogGroup,
   LocalComponentCatalogProp,
   LocalTagAuthoring,
 } from './extensions';
@@ -80,8 +89,6 @@ export type {
 export {
   EXTENDED_NATIVE_COMPONENT_COPY_ZH,
   EXTENDED_NATIVE_COMPONENTS,
-} from '../editor/extended-native-components';
-export {
   NATIVE_COMPONENT_GROUPS,
   NATIVE_COMPONENT_GROUPS_ZH,
   NATIVE_COMPONENTS,

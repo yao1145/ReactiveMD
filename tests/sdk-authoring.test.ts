@@ -248,15 +248,17 @@ describe('insertLocalComponent', () => {
       version: '1.0.0',
       protocol: 'reactive-md-component/v1',
       form: 'container',
-      props: {},
+      props: { target: { kind: 'string', required: true } },
       capabilities: BOOLEAN_CAPABILITIES,
       authoring: {
-        insertText: '<link-pair bind="{{bind:target}}">\n<a bind="{{bind:target}}">x</a>\n</link-pair>',
+        insertText: '<link-pair target="{{bind:target}}">\n<number bind="{{bind:target}}" label="Target">\n</link-pair>',
       },
     });
     const sharedConfig = createLocalConfig({ components: [shared] });
     const sharedEdit = insertLocalComponent(sharedConfig, 'example/link-pair', '', { start: 0, end: 0 });
-    expect(sharedEdit.value.match(/bind="target"/g)).toHaveLength(2);
+    expect(sharedEdit.value).toContain('target="target"');
+    expect(sharedEdit.value).toContain('bind="target"');
+    expect(compileLocal(sharedEdit.value, { config: sharedConfig }).ok).toBe(true);
   });
 
   it('inserts synthesized templates and resolves selection/caret tokens', () => {

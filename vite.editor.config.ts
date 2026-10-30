@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 /** Keep editor CSS and its React graph separate from the document renderer. */
 export default defineConfig({
+  resolve: { alias: { 'decode-named-character-reference': fileURLToPath(import.meta.resolve('decode-named-character-reference')) } },
   worker: { format: 'es' },
   build: {
     outDir: 'dist-library',
