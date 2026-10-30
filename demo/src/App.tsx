@@ -714,6 +714,17 @@ export default function App() {
     beginPreviewSession();
   }, [library, resetHtmlOptions, beginPreviewSession]);
 
+  const deleteDocument = useCallback((id: string) => {
+    const wasSelected = library.getSnapshot().selectedId === id;
+    if (!library.remove(id) || !wasSelected) return;
+    const nextId = library.getSnapshot().selectedId;
+    const next = nextId ? library.getDocument(nextId) : null;
+    resetHtmlOptions();
+    setSource(next?.source ?? '');
+    setRuntimeDiagnostics([]);
+    beginPreviewSession();
+  }, [library, resetHtmlOptions, beginPreviewSession]);
+
   // Copy the example exactly as it currently appears in the editor, including
   // any unpublished edits in the draft.
   const copyExampleToDocuments = useCallback(() => {
@@ -896,6 +907,7 @@ export default function App() {
                 onCreate={createDocument}
                 onRename={renameDocument}
                 onDuplicate={duplicateDocument}
+                onDelete={deleteDocument}
                 onRetry={() => library.retry()}
               />
             )}

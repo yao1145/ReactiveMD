@@ -138,6 +138,29 @@ describe('document library persistence', () => {
     expect(document).toMatchObject({ id: created.id, name: 'After', source: 'body' });
     expect(library.rename(created.id, '   ')).toBe(false);
   });
+
+  it('deletes a document and selects the next one in list order', () => {
+    const { library, storage } = setup();
+    const first = library.createDocument({ name: 'First', source: 'one' })!;
+    const second = library.createDocument({ name: 'Second', source: 'two' })!;
+    const third = library.createDocument({ name: 'Third', source: 'three' })!;
+    library.select(second.id);
+
+    expect(library.remove(second.id)).toBe(true);
+    expect(library.getSnapshot().documents.map((item) => item.name)).toEqual(['First', 'Third']);
+    expect(library.getSnapshot().selectedId).toBe(third.id);
+    expect(reopen(storage).getSnapshot().documents.map((item) => item.name)).toEqual(['First', 'Third']);
+
+    // Deleting an unselected document keeps the current selection.
+    expect(library.remove(first.id)).toBe(true);
+    expect(library.getSnapshot().selectedId).toBe(third.id);
+
+    // Deleting the last document leaves an empty library.
+    expect(library.remove(third.id)).toBe(true);
+    expect(library.getSnapshot().documents).toEqual([]);
+    expect(library.getSnapshot().selectedId).toBeNull();
+    expect(library.remove('missing')).toBe(false);
+  });
 });
 
 describe('document library recovery', () => {

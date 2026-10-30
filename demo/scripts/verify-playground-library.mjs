@@ -212,6 +212,43 @@ try {
     }
   });
 
+  await check('delete removes the selected document, selects the next one and persists', async () => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    const before = await documents.locator('option').allTextContents();
+    expect(before.length).toBeGreaterThanOrEqual(2);
+    const ids = await documents.locator('option').evaluateAll(options => options.map(option => option.value));
+    await documents.selectOption(ids[1]);
+    const removedName = await documents.locator('option:checked').textContent();
+    await clickWorkbenchAction(page, 'Delete');
+    const confirm = page.locator('.doc-delete-confirm');
+    await expect(confirm).toBeVisible();
+    await expect(confirm).toContainText(removedName);
+    await confirm.getByRole('button', { name: 'Delete', exact: true }).click();
+    await expect(documents.locator('option')).toHaveCount(before.length - 1);
+    expect(await documents.locator('option').allTextContents()).not.toContain(removedName);
+    await page.reload();
+    await showSource();
+    expect(await documents.locator('option').allTextContents()).not.toContain(removedName);
+  });
+
+  await check('deleting the last document shows the empty library and allows a new one', async () => {
+    for (let guard = 0; guard < 10; guard += 1) {
+      const value = await documents.locator('option:checked').getAttribute('value');
+      if (!value) break;
+      await clickWorkbenchAction(page, 'Delete');
+      const confirm = page.locator('.doc-delete-confirm');
+      await confirm.getByRole('button', { name: 'Delete', exact: true }).click();
+      await expect(confirm).toHaveCount(0);
+    }
+    await expect(documents.locator('option:checked')).toHaveText('No documents yet');
+    await expect(documents).toBeDisabled();
+    await clickWorkbenchAction(page, 'New document');
+    await page.getByRole('textbox', { name: 'Document name', exact: true }).fill('Fresh start');
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(documents.locator('option:checked')).toHaveText('Fresh start');
+    await expect(documents).toBeEnabled();
+  });
+
   expect(errors).toEqual([]);
   await writeFile('artifacts/playground-library-report.json', JSON.stringify({ checks, errors }, null, 2));
 } finally {

@@ -286,9 +286,25 @@ export class DocumentLibrary {
     return document;
   }
 
+  /**
+   * Delete one document. When the removed document was selected, the next
+   * document in list order (or the previous one) becomes current.
+   */
+  remove(id: string): boolean {
+    const index = this.documents.findIndex((document) => document.id === id);
+    if (index < 0) return false;
+    this.flush();
+    this.documents = this.documents.filter((document) => document.id !== id);
+    if (this.selectedId === id) {
+      this.selectedId = this.documents[index]?.id ?? this.documents[index - 1]?.id ?? null;
+    }
+    this.dirty = true;
+    this.write();
+    return true;
+  }
+
   /** Mirror one editor change in memory immediately, then save after a pause. */
-  updateSource(id: string, source: string): boolean {
-    const document = this.getDocument(id);
+  updateSource(id: string, source: string): boolean {    const document = this.getDocument(id);
     if (!document || document.source === source) return false;
     this.documents = this.documents.map((item) => (
       item.id === id ? { ...item, source, updatedAt: this.now() } : item

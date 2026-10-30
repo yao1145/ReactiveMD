@@ -137,6 +137,51 @@
   font-size: var(--text-xs);
 }
 
+.doc-delete-button {
+  color: var(--danger);
+  border-color: var(--danger-line);
+}
+
+.doc-delete-button:hover:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.doc-delete-confirm {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-line);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.doc-delete-confirm > span {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.doc-delete-confirm .doc-delete-action {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--surface);
+  font-weight: var(--weight-semibold);
+}
+
+.doc-delete-confirm .doc-delete-action:hover:not(:disabled),
+.doc-delete-confirm .doc-delete-action:active:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 85%, var(--ink));
+  border-color: color-mix(in srgb, var(--danger) 85%, var(--ink));
+  color: var(--surface);
+}
+
 .workbench-options {
   position: static;
   flex: 0 1 auto;
