@@ -1,6 +1,6 @@
 # 扩展 SDK 第三阶段交付与验收
 
-状态：实现与整合中，集中验收待完成。基线：`2eadc8c5ea5afc14c685731f8b02e10079e01310`。包版本保持 `0.6.1`，新增入口随之后的 npm 版本发布。
+状态：P3.1 至 P3.5 已实施，全量验收项目分段通过。日期：2026-10-30。开发基线：`2eadc8c5ea5afc14c685731f8b02e10079e01310`；实现提交为 `8d35f6b`、`da8421d`，组合输入修复为 `9837cd1`。包版本保持 `0.6.1`，新增入口随之后的 npm 版本发布。
 
 本阶段完成第三方组件从注册、编辑、测试到离线分享的消费路径。[架构规划](extension-sdk-plan-ch.md)中的 P3.1 至 P3.5 为验收范围。公开用法见 [SDK 指南](../integration/extension-sdk-ch.md)，可复制项目见[组件包模板](../../examples/component-package/README-ch.md)。
 
@@ -79,12 +79,19 @@ SDK 导出使用 v2 HTML 载荷，记录 `reactive-md-restore/v1` 要求；普�
 
 ## 验证记录
 
-集中验收后填写实际命令、结果、包摘要、消费目录和浏览器覆盖。过程记录位于本地 `artifacts/sdk-phase3/`。在协调者补齐证据之前，本页不记录完整通过结论。
+验证环境为 Windows x64、Node 22.17.0、npm 10.9.2、Playwright 1.64.1。先执行 `npm run verify:release`，再针对发现的问题修正夹具和组合输入逻辑，集中补跑剩余项目及受影响的编辑器检查。全部 27 个门禁项目都有通过记录；执行方式是分段验收，原始失败记录与修复后的日志一并保留。
 
-| 检查项 | 待记录内容 |
+本地汇总为 `artifacts/sdk-phase3/verification.json`；原始门禁记录为 `artifacts/release-verification.json`，补验记录为 `artifacts/sdk-phase3/remainder.json` 和 `postfix.json`。产品代码修复后重新运行了构建、类型、编辑器单测、安装包、公共编辑器、CM6 与跨浏览器流程。
+
+| 检查项 | 实际结果 |
 | --- | --- |
-| 构建与类型 | `build:lib`、`typecheck` 的实际输出与包摘要。 |
-| 核心合规 | manifest、绑定、回滚、重置与集合副本用例。 |
-| SSR 与导出 | 严格 server 渲染、bundle seal、恢复预检。 |
-| 浏览器 | 桌面与手机宽度、离线、hydration、生命周期与错误隔离。 |
-| 外部消费 | 仓库外安装 tarball、模板 `npm test`、公开 JS 与类型入口。 |
+| 构建与类型 | `npm run build:demo` 通过，覆盖库、Node 构建入口、类型、standalone 和生产 Demo；产出 140 个 ESM 声明文件。 |
+| 核心与 Demo | 146 个核心测试文件、1,935 项测试通过；17 个 Demo 测试文件、257 项测试通过。组合输入修复后另有 4 个相关测试文件、28 项测试通过。 |
+| 公开作者工具 | 目录与模板契约测试通过；真实编辑器的 9 项检查覆盖外部注册、帮助、搜索、中英文、插入、撤销/重做和移除配置。 |
+| 公开合规工具 | 46 个默认 manifest 使用同一工具通过；外部别名比较、多槽位原子回滚、集合预算与副本、重置均有用例。无 React/DOM 的 Node 与 NodeNext 消费通过。 |
+| 组件包 | 仓库外模板 `npm test` 通过；再打包模板，在第二个项目消费 manifest、React、主题、CSS 和严格 NodeNext 类型入口。评分控件 74 项通过，提示容器 62 项通过；容器一项未配置的可选服务器错误探针跳过，四类声明能力均有执行证据。 |
+| 离线与恢复 | 1280px、390px 的交互 HTML，以及关闭 JavaScript 的静态 HTML 通过；CSS/SVG 资源与 5 项 notices 被收集，网络请求为零。资源、主题、版本和缺组件元数据的四种破坏均在挂载前失败。 |
+| 浏览器总回归 | 19 个门禁项目通过，覆盖编辑器、Markdown、数学、原生 HTML、媒体、Demo、新组件、导出、计算、约束、主题、渲染等价、组合场景、Firefox/WebKit、宿主表单与提示框。 |
+| 安装包 | `npm run test:packed` 通过：隔离离线安装、核心/React/编辑器类型、SSR、CLI、standalone、CSS 和打包文档链接。包摘要与 integrity 记录于 `artifacts/release-package/package-verification.json`。 |
+
+Firefox 检查发现多行组合替换时，分析装饰可能在原生输入提交前重绘并清空文档。现在分析更新在组合提交后执行，卸载时清理待执行任务；公共编辑器、CM6、Firefox 和 WebKit 回归均通过。指南锚点检查也改为定位外层文档，避免把嵌套交互示例一起交给单元素断言。

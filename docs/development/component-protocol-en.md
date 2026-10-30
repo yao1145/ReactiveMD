@@ -402,7 +402,7 @@ Each `LocalReactiveDocument` instance creates an independent runtime and state. 
 
 ### CP-LIFE-02 Source changes (existing)
 
-`LocalReactiveDocument` recompiles and creates a new runtime when `source` changes; old instance state is not kept. When the host manages the lifecycle itself, pass the compiled document and runtime to `LocalDocumentView` and dispose the runtime on unmount. Repeated mounts under React StrictMode are handled by deferred disposal logic, which does not release a runtime still in use.
+`LocalReactiveDocument` recompiles when `source` changes and tries to adopt the new document in its existing runtime, retaining bindings that still satisfy their contracts. Changed compilation semantics or an incompatible document create a new runtime; use a new React `key` when switching to an independent document. Hosts that manage the lifecycle pass the compiled document and runtime to `LocalDocumentView` and dispose the runtime on unmount. Deferred disposal under React StrictMode preserves runtimes still in use.
 
 ### CP-LIFE-03 Disposal (existing)
 
@@ -459,7 +459,7 @@ The host decides who may write, submit and share documents; limits request size,
 
 ### CP-SEC-05 Extension trust boundary (boundary)
 
-This language does not provide a sandbox for trusted host extension code. If the host registers or wraps components itself, the host is responsible for the security boundary; `disabled`, conditional visibility or client state in author documents must not be treated as permission control. The `hostComponents` option registers plain schema data for one compilation only and carries no executable code. A host renderer is trusted host code outside the document sandbox, so the host remains responsible for its security boundary; a fuller SDK would need a separately defined trust model.
+This language does not provide a sandbox for trusted host extension code. Hosts control the security boundary of components they register or wrap; `disabled`, conditional visibility and client state are not permission controls. The legacy `hostComponents` option registers plain schema data for one compilation and carries no executable code. The SDK likewise separates data manifests from explicitly imported implementations. Hosts control the code permissions of render callbacks and SDK implementations.
 
 ## 9. Core and renderer separation
 
@@ -496,7 +496,7 @@ Components that reuse public rules need a definition, implementation and registr
 
 This revision describes contribution requirements and the legacy host interface in section 14. `LOCAL_COMPONENTS` is an internal compatibility projection of the default preset. `hostComponents` accepts plain schema data for one compilation and adapts it to the shared kernel, with implementations supplied by the host.
 
-The source tree's [extension SDK preview](../integration/extension-sdk-en.md) uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, authoring catalogs and a minimal offline export path. All 46 default rendered and structural components now use this public contract; see the [phase-two record](extension-sdk-phase2-ch.md) for the inventory and evidence. The source SDK ships with a later release; existing registry copies of `0.6.1` retain their original interfaces. Hosts explicitly install component code; document declarations never load it.
+The source tree's [extension SDK preview](../integration/extension-sdk-en.md) uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, editor catalogs, offline builds, versioned restoration and public compliance tools. All 46 default rendered and structural components use this contract; see the [phase-two inventory](extension-sdk-phase2-ch.md) and [phase-three consumer record](extension-sdk-phase3-ch.md). The source SDK ships with a later release; registry copies of `0.6.1` retain their original interfaces. Hosts explicitly install component code; document declarations never load it.
 
 ## 10. Compatibility, name governance, revisions and migration
 
@@ -637,14 +637,9 @@ The current implementation covers parsing, declarations, compilation, runtime, R
 
 ### CP-IMPL-03 Extension interfaces (boundary)
 
-Beyond the compile-time schema and React renderer axis in section 14, a fuller SDK would need separately defined:
+Section 14 retains the legacy schema and renderer interfaces. New components use the [extension SDK](../integration/extension-sdk-en.md) manifest, instance configuration and adapters. The SDK protocol, component versions, theme protocol, restoration payload and `local-draft-3` syntax revision are managed separately.
 
-- Machine format and version negotiation for component declarations.
-- Trust model and sandbox boundary for the host registration API.
-- Budgets, accessibility and acceptance gates for new components.
-- Relationship to the `local-draft-2` syntax revision.
-
-These capabilities are future work; they cannot be used as current acceptance evidence and must not be documented as already provided.
+Use `reactive-md/testing` for manifest and binding checks, and `testing/react` and `testing/browser` for rendering and lifecycle evidence. Components must meet this protocol's budget, accessibility and behavior requirements. Hosts install implementations explicitly and control their code permissions; SDK contract and resource validation does not sandbox third-party code.
 
 ## 13. New component proposal template
 

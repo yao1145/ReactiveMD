@@ -1,6 +1,8 @@
 # Reactive MD theme protocol
 
-Protocol revision: `reactive-md-theme-1`. This feature was introduced in `0.4.0` and remains available in `0.6.0` on both `latest` and `next`. The built-in `default` preserves the existing appearance.
+Protocol revision: `reactive-md-theme-1`, introduced in `0.4.0`. The built-in `default` preserves the existing appearance.
+
+The source [extension SDK preview](../integration/extension-sdk-en.md) provides `defineLocalTheme`, `composeLocalTheme` and theme package resource conventions. Its build adapter includes theme CSS, fonts and images in offline exports. The semantic variables and scope rules below still apply. Use a tarball built from the current source for the SDK preview.
 
 ## Selecting a theme
 

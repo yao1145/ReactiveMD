@@ -401,7 +401,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-LIFE-02 源码变化（现有）
 
-`LocalReactiveDocument` 在 `source` 变化时重新编译并创建新运行时，旧实例状态不保留。宿主自行管理生命周期时，用 `LocalDocumentView` 传入已编译文档和运行时，并负责在卸载时销毁运行时。React StrictMode 下的重复挂载由延迟销毁逻辑处理，不重复释放仍在使用的运行时。
+`LocalReactiveDocument` 在 `source` 变化时重新编译，并尝试在原运行时中采用新文档，保留仍符合契约的绑定状态。影响编译语义的选项变化或文档无法采用时创建新运行时；切换为独立文档时可更换 React `key`。宿主自行管理生命周期时，用 `LocalDocumentView` 传入已编译文档和运行时，并在卸载时销毁运行时。React StrictMode 下的重复挂载由延迟销毁逻辑处理，不重复释放仍在使用的运行时。
 
 ### CP-LIFE-03 销毁（现有）
 
@@ -458,7 +458,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-SEC-05 扩展信任边界（边界）
 
-本语言不为可信宿主扩展代码提供沙箱。若宿主自行注册或包装组块，安全边界由宿主负责，不能把作者文档中的 `disabled`、条件显示或客户端状态当作权限控制。`hostComponents` 选项只为单次编译登记纯 schema 数据，不携带可执行代码。宿主 renderer 是文档沙箱之外的可信宿主代码，安全边界仍由宿主负责；更完整的 SDK 需要单独定义信任模型。
+本语言不为可信宿主扩展代码提供沙箱。若宿主自行注册或包装组块，安全边界由宿主负责，不能把作者文档中的 `disabled`、条件显示或客户端状态当作权限控制。`hostComponents` 选项只为单次编译登记纯 schema 数据，不携带可执行代码。SDK 同样将数据 manifest 与宿主显式导入的实现分开；宿主 renderer 和 SDK 实现都由宿主管理代码权限。
 
 ## 9. 核心与渲染器分离
 
@@ -495,7 +495,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 本修订描述组件贡献要求和第 14 节的旧宿主接口。`LOCAL_COMPONENTS` 是默认预设的内部兼容投影；`hostComponents` 为单次编译接受纯 schema 数据，并作为输入适配到统一内核，组件实现由宿主提供。
 
-源码中的[扩展 SDK 预览](../integration/extension-sdk-ch.md)使用独立的 `reactive-md-component/v1` 数据契约和实例级配置，提供注册校验、React 实现绑定、作者目录及最小离线导出。46 个默认渲染与结构组件已经采用同一公开契约，迁移清单与证据见[第二阶段记录](extension-sdk-phase2-ch.md)。源码 SDK 随后续版本发布；现有 registry 的 `0.6.1` 保持原接口。组件代码由宿主主动安装，文档声明不会装载代码。
+源码中的[扩展 SDK 预览](../integration/extension-sdk-ch.md)使用独立的 `reactive-md-component/v1` 数据契约和实例级配置，提供注册校验、React 实现绑定、编辑器目录、离线构建、版本恢复和公开合规工具。46 个默认渲染与结构组件采用同一公开契约，迁移清单见[第二阶段记录](extension-sdk-phase2-ch.md)，完整消费流程见[第三阶段记录](extension-sdk-phase3-ch.md)。源码 SDK 随后续版本发布；现有 registry 的 `0.6.1` 保持原接口。组件代码由宿主主动安装，文档声明不会装载代码。
 
 ## 10. 兼容、名称治理、修订和迁移
 
@@ -636,14 +636,9 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 ### CP-IMPL-03 扩展接口（边界）
 
-除第 14 节的编译期 schema 和 React renderer 扩展轴外，更完整的 SDK 还需要单独定义：
+第 14 节保留旧 schema 与 renderer 接口；新组件使用[扩展 SDK](../integration/extension-sdk-ch.md)的 manifest、实例配置和适配器。SDK 协议、组件版本、主题协议、恢复载荷与 `local-draft-3` 语法修订分别管理。
 
-- 组块声明的机器格式和版本协商。
-- 宿主注册 API 的信任模型和沙箱边界。
-- 新增组块的预算、可访问性和验收门槛。
-- 与 `local-draft-3` 语法修订的关系。
-
-这些能力属于后续工作，不能作为当前验收依据，也不能在文档中写成已经提供。
+manifest 与绑定测试使用 `reactive-md/testing`，渲染与生命周期证据分别使用 `testing/react` 和 `testing/browser`。组件仍须满足本协议的预算、可访问性与行为要求。宿主显式安装实现并负责其代码权限；SDK 校验契约和资源，不提供第三方代码沙箱。
 
 ## 13. 新组块提案模板
 
