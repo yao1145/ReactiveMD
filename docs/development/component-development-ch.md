@@ -2,18 +2,14 @@
 
 [English](component-development-en.md) · [完整开发契约](component-development-reference-ch.md)
 
-先用一个可以展开 Markdown 的提示容器跑通预览。SDK 当前为源码预览，registry 中的旧版 0.6.1 不含本页新增入口；请安装当前源码构建的 tarball。
+先用一个可以展开 Markdown 的提示容器跑通预览。扩展 SDK 随 `reactive-md@0.7.0` 发布，直接安装即可。
 
 ## 创建并启动
 
-在 ReactiveMD 仓库根目录构建 SDK 并生成项目：
-
 ```sh
-npm run build:lib
-npm pack --ignore-scripts
-node bin/reactive-md.mjs init component ../my-note --name my-note --id acme/my-note --form container --props '{"label":{"kind":"string","default":"Note"}}' --yes
+npx reactive-md init component ../my-note --name my-note --id acme/my-note --form container --props '{"label":{"kind":"string","default":"Note"}}' --yes
 cd ../my-note
-npm install ../ReactiveMD/reactive-md-0.6.1.tgz
+npm install reactive-md@0.7.0 react@^19 react-dom@^19
 npm run dev
 ```
 

@@ -17,7 +17,7 @@
 
 - **编写文档**：先读[入门指南](guides/local-guide-ch.md)，再查语法参考；可运行的示例见 [examples/local](../examples/local/README.md)。
 - **接入项目**：从[本地模式集成](integration/local-integration-ch.md)开始，独立项目示例见 [examples/integration](../examples/integration/README.md)。
-- **升级版本**：先查[兼容性](compatibility/compatibility-ch.md)，再读目标版本的发布记录。当前文档版本为 0.6.1；各版本记录保留当时的行为与迁移说明。
+- **升级版本**：先查[兼容性](compatibility/compatibility-ch.md)，再读目标版本的发布记录。当前文档版本为 0.7.0；各版本记录保留当时的行为与迁移说明。
 
 ## 入门
 
@@ -67,6 +67,7 @@
 
 | 版本 | 中文 |
 | --- | --- |
+| 0.7.0 | [中文](releases/release-0.7.0-ch.md) |
 | 0.6.1 | [中文](releases/release-0.6.1-ch.md) |
 | 0.6.0 | [中文](releases/release-0.6.0-ch.md) |
 | 0.5.3 | [中文](releases/release-0.5.3-ch.md) |

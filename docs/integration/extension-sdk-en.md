@@ -1,16 +1,14 @@
-# Extension SDK preview
+# Extension SDK
 
 [中文](extension-sdk-ch.md)
 
-The source tree includes an SDK preview covering public extensions and unified default components. The package version remains `0.6.1`; the new entries will ship with a later release. Existing registry copies of `0.6.1` do not include the SDK. Build and install a local tarball to use this preview.
+The `0.7.0` package includes the extension SDK for public extensions and unified default components. Install the published package; use a source-built tarball only when testing unreleased changes.
 
 ```sh
-npm run build:lib
-npm pack
-npm install ../reactive-md-0.6.1.tgz
+npm install reactive-md@0.7.0
 ```
 
-Use a tarball packed from the current source tree after `build:lib` completes. The npm registry copy of `0.6.1` predates `reactive-md/build`, `reactive-md/testing` and the phase-three entries. The consumer checks install that packed file outside the repository, so the public import surface is exercised as published rather than through source aliases. Version ranges still name `0.6.1`, so the preview does not require a different version string.
+The registry package contains `reactive-md/build`, `reactive-md/testing` and the other phase-three entries. The consumer checks install the published package outside the repository, so the public import surface is exercised as published rather than through source aliases. Version ranges name `^0.7.0`.
 
 Component manifests and instance configuration are plain data. React implementations remain explicitly imported host code. The compiler, Worker, authoring tools, build adapter and exporter use the same validated configuration.
 
@@ -50,7 +48,7 @@ The default preset remains enabled. `reactive-md/presets/default` exports `defau
 
 Registration validates identities, names, protocol, dependencies and budgets, then copies and freezes the data. `readLocalConfig` revalidates serialized configuration and recomputes its semantic key. React implementations must match their registered manifests.
 
-`requires: { kernel: '^0.6.1' }` declares kernel compatibility. Dependencies use `{ id, version }`. Ranges support complete versions, `^`, `~` and whitespace-separated comparisons such as `>=0.6.1 <0.7.0`. Unsupported syntax is rejected.
+`requires: { kernel: '^0.7.0' }` declares kernel compatibility. Dependencies use `{ id, version }`. Ranges support complete versions, `^`, `~` and whitespace-separated comparisons such as `>=0.7.0 <0.8.0`. Unsupported syntax is rejected.
 
 ## Props, bindings and lifecycle
 
@@ -251,7 +249,7 @@ Bundle this entry into an IIFE before export. The generated build entry also exp
 
 SDK exports use a v2 HTML payload that records `reactive-md-restore/v1` requirements. Plain exports keep the existing v1 default behavior. The `reactive-md-state/v1` parameter file is unchanged.
 
-`createLocalRestorationRequirements(document, config, target, resources)` records the SDK range (`^0.6.1`), configuration key, source digest, target, the components the document actually uses with version, range and contract digest, the selected theme, and style resource digests.
+`createLocalRestorationRequirements(document, config, target, resources)` records the SDK range (`^0.7.0`), configuration key, source digest, target, the components the document actually uses with version, range and contract digest, the selected theme, and style resource digests.
 
 `validateLocalRestorationRequirements(value, { config, source, resources, document })` runs before any state is applied or React is mounted. It checks the restoration protocol and size bounds, SDK range, configuration key, source digest, installed component identity and version range, contract digest, target capabilities, theme contract, and resource presence and digest. Missing or mismatched entries block restoration.
 

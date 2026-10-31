@@ -10,7 +10,7 @@ it('consumes a copied npm distribution with built entries and packaged resources
   const root = new URL('../../', entry);
   expect((await lstat(fileURLToPath(root))).isSymbolicLink()).toBe(false);
   const metadata = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
-  expect(metadata.peerDependencies['reactive-md']).toBe('^0.6.1');
+  expect(metadata.peerDependencies['reactive-md']).toBe('^0.7.0');
   expect(metadata.dependencies?.['reactive-md']).toBeUndefined();
   await access(new URL('dist/types/node-entry.d.ts', root));
   await access(new URL('LICENSE', root));
@@ -23,7 +23,10 @@ it('consumes a copied npm distribution with built entries and packaged resources
   expect(tetrisPackage.resources.map(resource => resource.id)).toContain('example/tetris.css');
   const repository = new URL('../../', import.meta.url);
   const lock = JSON.parse(await readFile(new URL('package-lock.json', repository), 'utf8'));
-  const installed = lock.packages['node_modules/reactive-md-tetris-package'];
+  const installedKey = Object.keys(lock.packages)
+    .find(key => key.endsWith('node_modules/reactive-md-tetris-package'));
+  if (!installedKey) throw new Error('The lockfile is missing the installed Tetris package.');
+  const installed = lock.packages[installedKey];
   expect(installed.link).not.toBe(true);
   expect(installed.resolved).toMatch(/^file:demo\/vendor\/reactive-md-tetris-package-.*\.tgz$/);
   const archive = await readFile(new URL(installed.resolved.slice('file:'.length), repository));

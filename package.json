@@ -1,6 +1,6 @@
 {
   "name": "reactive-md",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Author interactive local documents in Markdown, with expression-bound inputs, charts and diagrams.",
   "keywords": [
     "markdown",
@@ -104,7 +104,9 @@
       "types": "./dist-library/types/vite/index.d.ts",
       "import": "./dist-library/reactive-md-vite.js"
     },
-    "./vite/client": { "types": "./dist-library/types/vite/client.d.ts" },
+    "./vite/client": {
+      "types": "./dist-library/types/vite/client.d.ts"
+    },
     "./build": {
       "types": "./dist-library/types/build/index.d.ts",
       "import": "./dist-library/reactive-md-build.js"

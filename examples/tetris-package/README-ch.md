@@ -19,7 +19,7 @@ npm pack ./examples/tetris-package --ignore-scripts
 再在宿主项目中安装生成的两个 `.tgz`：
 
 ```sh
-npm install ../ReactiveMD/reactive-md-0.6.1.tgz ../ReactiveMD/reactive-md-tetris-package-0.1.0.tgz
+npm install reactive-md@0.7.0 ../ReactiveMD/reactive-md-tetris-package-0.1.0.tgz
 ```
 
 ReactiveMD、React 和 React DOM 声明为 peer dependencies，由宿主提供同一份实例。

@@ -1,6 +1,6 @@
 # React 源码编辑器
 
-当前工作区已将 `reactive-md/editor` 统一为 CodeMirror 6 编辑器，删除旧 textarea 源码编辑器。本轮变化尚未发布。CM6 的事务、共享分析和坐标约定见 [CM6 集成](codemirror-ch.md)。
+`0.7.0` 已将 `reactive-md/editor` 统一为 CodeMirror 6 编辑器，并删除旧 textarea 源码编辑器。CM6 的事务、共享分析和坐标约定见 [CM6 集成](codemirror-ch.md)。
 
 `reactive-md/editor` 是用于 Reactive MD 源码的受控 React 19 编辑器，由 Playground 编辑器抽出。它提供源码高亮、格式与插入工具栏、补全、绑定导航、重命名与格式化、撤销重做、行号及滚动同步。编辑器内置字数底栏及编辑、并排、预览三种视图。宿主保存源码，并提供预览内容、持久化和导出。
 

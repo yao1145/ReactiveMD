@@ -1,11 +1,34 @@
 # 变更记录
 
-## 未发布
+## 0.7.0（2026-10-31，latest 与 next 渠道）
 
-- `reactive-md/editor` 统一使用 CM6，`/editor/codemirror` 保留为共用运行时和样式的别名。删除 `textareaRef`、`getTextarea`，通过编辑器 ref 访问源码、选区和 DOM；文档中的 textarea 表单组件继续受支持。
+参见 [0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)。语法修订升级为 `local-draft-3`，组块协议升级为 `component-protocol-3`；主题协议 `reactive-md-theme-1` 保持不变。
+
+### 新增
+
+- 新增 `<external>` 只读声明。宿主通过 `LocalReactiveDocument` 的 `externalValues` 或 `runtime.setExternalValues()` 提供值；缺失值只让依赖它的表达式失败，不会被转换为 `0`、`false` 或空字符串。
+- `number`、`slider`、`date`、`input` 和 `textarea` 支持动态 `min`、`max` 与 `required`。约束在写入和显示时检查；已存值失效时报告错误，不会静默截断。
+- 正式发布扩展 SDK 入口：`reactive-md/sdk`、`/vite`、`/build`、`/testing`、`/testing/react`、`/testing/browser`、`/authoring`、`/export`、`/standalone` 与 `/react/server`。
+- 新增 `defineLocalComponent`、`defineReactComponentPackage`、`createLocalConfig`、`createReactConfig`、`createReactHost`、`defineLocalTheme`、`composeLocalTheme` 以及 `reactiveMd({ extensions })` Vite 适配器。
+- 新增从 manifest 派生的作者目录、组件与主题包、离线构建与恢复、合规工具和配置不匹配诊断。
+- 新增 `<tetris>` 与 `<game-2048>` 组件包示例，并以随仓库提交的 npm tarball 安装到 Demo。
+
+### 调整
+
+- `reactive-md/editor` 统一使用 CM6，`/editor/codemirror` 保留为共用运行时和样式的别名。删除 `textareaRef`、`getTextarea`，通过编辑器 ref 访问源码、选区和 DOM；文档中的 textarea 表单组件继续受支持。新增预览到源码的定位。
+- 46 个默认组件迁移到公开扩展契约；外部组件与默认组件共用同一校验器、编译器和渲染器。
+- `component-protocol-3` 新增宿主 inline/container 形态与标量绑定。旧版 `hostComponents`、`hostRenderer` 和 `hostData` 仍可用于迁移。
 - 连续编辑时复用扁平列表、表格的行解析计划及未修改行的节点身份，支持整篇只有一个巨大列表或表格；正确更新移位后的 UTF-16 范围，并分别统计计划和节点复用。
 - Worker 在结果补丁成本过高时直接返回同一修订的完整成功结果，继续后续补丁链；为行内缓存复制短字符串，避免保留旧版全文。
 - 将优化历史、当前复测和复现命令归并到[性能总览](docs/development/performance-overview-ch.md)。
+
+### 兼容性
+
+- 显式声明 `local-draft-1` 或 `local-draft-2` 的文档会被拒绝。使用 `reactive-md migrate` 迁移，或继续用旧包版本渲染。
+- 从 `local-draft-2` 迁移时，新激活的 `<external>` 标签会被阻止；先把字面示例移入代码块。
+- `LOCAL_SDK_VERSION` 改变配置键。携带旧 `componentConfigKey` 的文档会报告 `local.extension.config-mismatch`，需要重新编译。
+- 编辑器 textarea ref 字段已移除，请改用 `getSource()`、`getSelection()`、`selectRange()` 和 `getEditorElement()`。
+- 迁移会改变源码摘要；迁移后应重新导出 `reactive-md-state/v1` 文件。
 
 ## 0.6.1（2026-10-27，latest 与 next 渠道）
 

@@ -1,6 +1,6 @@
 # Performance optimization and current measurement overview
 
-Re-tested 2026-10-29. The full matrix records the row reuse, patch cost selection and CM6 single-editor migration of commit `4a8f1ea`; this round continues optimizing dynamic interpolation rows and deep nesting on top of that commit, with the targeted re-measurements listed separately in part two. The package version is still 0.6.1, and this round has not been released.
+Re-tested 2026-10-29. The full matrix records the row reuse, patch cost selection and CM6 single-editor migration of commit `4a8f1ea`; this round continues optimizing dynamic interpolation rows and deep nesting on top of that commit, with the targeted re-measurements listed separately in part two. The measurements were taken on the 0.6.1 codebase before the 0.7.0 release.
 
 ## 1. Direction and outcome of each optimization round
 

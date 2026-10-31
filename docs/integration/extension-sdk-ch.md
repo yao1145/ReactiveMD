@@ -1,16 +1,14 @@
-# 扩展 SDK 预览
+# 扩展 SDK
 
 [English](extension-sdk-en.md)
 
-本页描述源码中的扩展 SDK 预览，覆盖公开扩展与默认组件统一。包版本仍为 `0.6.1`；新增入口随下一次发布提供，现有 registry 中的 `0.6.1` 不因此获得这些功能。开发与验收使用本地构建的 tarball。
+`0.7.0` 包正式包含扩展 SDK，覆盖公开扩展与默认组件统一。安装公开包即可；只有测试尚未发布的改动时才需要从源码打包 tarball。
 
 ```sh
-npm run build:lib
-npm pack
-npm install ../reactive-md-0.6.1.tgz
+npm install reactive-md@0.7.0
 ```
 
-tarball 必须在 `build:lib` 完成后由当前源码打包。registry 中的 `0.6.1` 早于 `reactive-md/build`、`reactive-md/testing` 和第三阶段入口。仓库内消费检查在源码树之外安装这个打包文件，公开导入面因此按发布形态接受检查，而不是依赖源码别名。版本范围仍写 `0.6.1`，预览不需要更换版本号。
+registry 包包含 `reactive-md/build`、`reactive-md/testing` 和第三阶段的其他入口。仓库内消费检查在源码树之外安装公开包，因此公开导入面按发布形态接受检查，而不是依赖源码别名。版本范围写 `^0.7.0`。
 
 SDK 把组件声明、实例配置、React 实现和主题资源分开。声明和配置都是可序列化数据；组件代码由宿主显式安装和导入。编译器、Worker、作者工具、构建适配器和导出器消费同一配置。
 
@@ -52,7 +50,7 @@ export function Reader({ source }: { source: string }) {
 
 配置创建时检查重复名称与 id、保留名称、协议、依赖和预算，并复制、冻结数据。`readLocalConfig` 对 Worker 或导出载荷中的配置重新校验，重新计算语义摘要。React 实现的 manifest 摘要必须与配置匹配。组件集合变化时创建新配置。
 
-组件可声明 `requires: { kernel: '^0.6.1' }`，依赖项使用 `{ id, version }` 指定兼容范围。范围支持完整版本、`^`、`~` 和以空格连接的比较条件，例如 `>=0.6.1 <0.7.0`；不支持的写法会在注册时被拒绝。
+组件可声明 `requires: { kernel: '^0.7.0' }`，依赖项使用 `{ id, version }` 指定兼容范围。范围支持完整版本、`^`、`~` 和以空格连接的比较条件，例如 `>=0.7.0 <0.8.0`；不支持的写法会在注册时被拒绝。
 
 ## 属性与子内容
 
@@ -264,7 +262,7 @@ mountAll(document, { reactConfig });
 
 SDK 导出使用 v2 HTML 载荷，记录 `reactive-md-restore/v1` 要求；普通导出保持原有 v1 默认行为。`reactive-md-state/v1` 参数文件不变。
 
-`createLocalRestorationRequirements(document, config, target, resources)` 记录 SDK 范围（`^0.6.1`）、配置摘要、源码摘要、目标、文档实际使用的组件及其版本、范围与契约摘要、所选主题，以及样式资源摘要。
+`createLocalRestorationRequirements(document, config, target, resources)` 记录 SDK 范围（`^0.7.0`）、配置摘要、源码摘要、目标、文档实际使用的组件及其版本、范围与契约摘要、所选主题，以及样式资源摘要。
 
 `validateLocalRestorationRequirements(value, { config, source, resources, document })` 在应用状态或挂载 React 之前运行。它检查恢复协议与大小上限、SDK 范围、配置摘要、源码摘要、已安装组件的身份与版本范围、契约摘要、目标能力、主题契约以及资源是否存在且摘要一致。缺失或不匹配会阻止恢复。
 

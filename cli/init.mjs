@@ -669,7 +669,7 @@ function packageJsonSource(plan) {
       test: 'node scripts/build.mjs && node scripts/verify.mjs',
     },
     peerDependencies: {
-      'reactive-md': '0.6.1',
+      'reactive-md': '^0.7.0',
       react: '^19.0.0',
       'react-dom': '^19.0.0',
     },
@@ -894,11 +894,12 @@ package layout or preview entry needs to move.
 
 ## Install
 
-Reactive MD 0.6.1 is a source preview. Install the current SDK tarball together
-with the React peers, then install the remaining development dependencies:
+Reactive MD 0.7.0 includes the extension SDK. Install the published package
+together with the React peers, then install the remaining development
+dependencies:
 
 \`\`\`sh
-npm install ../reactive-md-0.6.1.tgz react@^19 react-dom@^19
+npm install reactive-md@0.7.0 react@^19 react-dom@^19
 npm install
 \`\`\`
 

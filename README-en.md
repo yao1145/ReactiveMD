@@ -188,15 +188,15 @@ Reactive MD requires Node.js 22.12 or newer and ships only ESM entries:
 npm install reactive-md
 ```
 
-`latest` and `next` both resolve to `0.6.1`:
+`latest` and `next` both resolve to `0.7.0`:
 
 ```sh
 npm install reactive-md
 # or pin the version
-npm install reactive-md@0.6.1
+npm install reactive-md@0.7.0
 ```
 
-Read the [0.6.1 release notes](docs/releases/release-0.6.1-en.md) for this release, and the [migration guide](docs/releases/release-0.4.0-en.md) before upgrading from `0.3.1` / `local-draft-1`.
+Read the [0.7.0 release notes](docs/releases/release-0.7.0-en.md) for this release, and the [compatibility guide](docs/compatibility/compatibility-en.md) before upgrading from `0.6.x` / `local-draft-2`.
 
 The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`. The `reactive-md/editor` entry provides the source editor with its own stylesheet at `reactive-md/editor/styles.css`.
 
@@ -286,14 +286,14 @@ benchmarks/    Condensed performance measurements with provenance
 - [Component protocol](docs/development/component-protocol-en.md) and [component plugin development guide](docs/development/component-development-en.md).
 - [Versions and compatibility](docs/compatibility/compatibility-en.md).
 - [Performance measurements](docs/development/performance-overview-en.md) and [release checklist](docs/development/releasing-en.md).
-- [0.6.1 release notes](docs/releases/release-0.6.1-en.md) and earlier release records in [docs/releases](docs/releases).
+- [0.7.0 release notes](docs/releases/release-0.7.0-en.md) and earlier release records in [docs/releases](docs/releases).
 
 ## Support and status
 
 - CI targets Node 22.12 and Node 24 with Playwright Chromium for the full browser gate and Firefox/WebKit for core workflows; local browser checks use Microsoft Edge. The packed check covers static SSR, and `npm run test:shareable` covers the single-file export's static-first hydration. General SSR hydration outside that path and the full Firefox/WebKit interaction suites remain unverified.
 - 0.x minor releases may contain breaking changes. Persist the original `.reactive.md` source, not the runtime AST or in-memory state.
-- `latest` and `next` are both `0.6.1`. Security fixes may ship in minor releases.
-- The extension SDK is a source preview: registry copies of `0.6.1` predate the component-package APIs. Use a tarball built from the current source.
+- `latest` and `next` are both `0.7.0`. Security fixes may ship in minor releases.
+- The extension SDK ships in `0.7.0`: component packages, themes, the Vite adapter, offline builds and compliance tools use the public entries.
 
 ## Contributing and security
 

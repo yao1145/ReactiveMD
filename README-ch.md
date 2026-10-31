@@ -188,15 +188,15 @@ Reactive MD 需要 Node.js 22.12 或更新版本，包只提供 ESM 入口：
 npm install reactive-md
 ```
 
-`latest` 与 `next` 当前都指向 `0.6.1`：
+`latest` 与 `next` 当前都指向 `0.7.0`：
 
 ```sh
 npm install reactive-md
 # 或固定版本
-npm install reactive-md@0.6.1
+npm install reactive-md@0.7.0
 ```
 
-本版本说明见[0.6.1 发布说明](docs/releases/release-0.6.1-ch.md)；从 `0.3.1` / `local-draft-1` 升级前请阅读[迁移说明](docs/releases/release-0.4.0-ch.md)。
+本版本说明见[0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)；从 `0.6.x` / `local-draft-2` 升级前请阅读[兼容性说明](docs/compatibility/compatibility-ch.md)。
 
 `reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。`reactive-md/editor` 提供源码编辑器，并使用独立样式 `reactive-md/editor/styles.css`。
 
@@ -286,14 +286,14 @@ benchmarks/    带来源说明的精简性能数据
 - [组块协议](docs/development/component-protocol-ch.md)与[组件插件开发指南](docs/development/component-development-ch.md)。
 - [版本与兼容性](docs/compatibility/compatibility-ch.md)。
 - [性能说明](docs/development/performance-overview-ch.md)与[发布清单](docs/development/releasing-ch.md)。
-- [0.6.1 发布说明](docs/releases/release-0.6.1-ch.md)以及 [docs/releases](docs/releases) 中的历史记录。
+- [0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)以及 [docs/releases](docs/releases) 中的历史记录。
 
 ## 支持与状态
 
 - CI 使用 Node 22.12 与 Node 24，以 Playwright Chromium 运行完整浏览器门禁，并使用 Firefox/WebKit 运行核心工作流；本机浏览器检查使用 Microsoft Edge。打包检查覆盖静态 SSR，`npm run test:shareable` 覆盖单文件导出的静态首屏水合。该路径之外的通用 SSR 水合，以及 Firefox/WebKit 的完整交互套件仍未验证。
 - 0.x 次版本可能包含破坏性变更。请保存原始 `.reactive.md` 源码，而不是运行时 AST 或内存状态。
-- `latest` 与 `next` 当前都是 `0.6.1`。安全修复可能随次版本发布。
-- 扩展 SDK 目前为源码预览：registry 中的 `0.6.1` 尚不包含组件包 API。请使用当前源码构建的 tarball。
+- `latest` 与 `next` 当前都是 `0.7.0`。安全修复可能随次版本发布。
+- 扩展 SDK 随 `0.7.0` 发布：组件包、主题、Vite 适配器、离线构建和合规工具均使用公开入口。
 
 ## 贡献与安全
 

@@ -4,7 +4,7 @@
  * These revisions are independent from each other and from the document
  * syntax revision: a package release may move one without changing the others.
  */
-export const LOCAL_SDK_VERSION = '0.6.1' as const;
+export const LOCAL_SDK_VERSION = '0.7.0' as const;
 export const LOCAL_COMPONENT_PROTOCOL = 'reactive-md-component/v1' as const;
 export const LOCAL_CONFIG_PROTOCOL = 'reactive-md-config/v1' as const;
 export const LOCAL_EXTENSIONS_PROTOCOL = 'reactive-md-extensions/v1' as const;

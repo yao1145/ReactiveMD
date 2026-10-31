@@ -166,7 +166,7 @@ describe('reactive-md init component', () => {
     expect(packageInfo.scripts.build).toContain('scripts/build.mjs');
 
     const readme = read(root, 'README.md');
-    expect(readme).toContain('reactive-md-0.6.1.tgz');
+    expect(readme).toContain('reactive-md@0.7.0');
     expect(readme).toContain('npm run dev');
     expect(readme).toContain('src/example-counter.tsx');
     expect(readme).toContain('## Edit these files');

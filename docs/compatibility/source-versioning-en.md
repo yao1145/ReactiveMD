@@ -157,4 +157,4 @@ The command migrates one source at a time. This build has no `--write` mode, no 
 
 Migration handles the declared metadata change and checks whether the body can cross the revision boundary. It is not a legacy reader: it does not interpret YAML `state`/`data`/`computed`/`actions` blocks, directives or other pre-draft syntax, and it does not rewrite the body. Source that already fails to compile under `local-draft-3` stays blocked until the author fixes the reported positions.
 
-`0.6.0` is available on both the `latest` and `next` channels. `local-draft-3` adds `<external>` and dynamic constraints; migrating a `local-draft-2` document blocks newly active `<external>` tags and requires the author to preserve them as literal code first.
+`0.7.0` is available on both the `latest` and `next` channels. `local-draft-3` adds `<external>` and dynamic constraints; migrating a `local-draft-2` document blocks newly active `<external>` tags and requires the author to preserve them as literal code first.

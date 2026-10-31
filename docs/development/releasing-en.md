@@ -1,19 +1,19 @@
 # Release checklist
 
-This file is the maintainers' manual release process. This checklist covers `0.6.1`, which updates both `latest` and `next`. See [Versions and compatibility](../compatibility/compatibility-en.md) for version rules and the [0.6.1 release notes](../releases/release-0.6.1-en.md) for the user-facing summary.
+This file is the maintainers' manual release process. This checklist covers `0.7.0`, which updates both `latest` and `next`. See [Versions and compatibility](../compatibility/compatibility-en.md) for version rules and the [0.7.0 release notes](../releases/release-0.7.0-en.md) for the user-facing summary.
 
 ## Before release
 
 ### Package identity and metadata
 
-The unscoped name `reactive-md` is already established by the published `0.3.0` and `0.3.1` releases, together with the `reactive-md/react` and `reactive-md/styles.css` subpaths. `0.5.0` adds `reactive-md/editor` and `reactive-md/editor/styles.css`; `0.5.1` through `0.6.1` keep those entries. Do not treat a rename as routine release preparation: changing the name is a breaking change for imports, state tooling and documentation.
+The unscoped name `reactive-md` is already established by the published `0.3.0` and `0.3.1` releases, together with the `reactive-md/react` and `reactive-md/styles.css` subpaths. `0.5.0` adds `reactive-md/editor` and `reactive-md/editor/styles.css`; `0.5.1` through `0.6.1` keep those entries. `0.7.0` adds the extension SDK entries `reactive-md/sdk`, `reactive-md/vite`, `reactive-md/build`, `reactive-md/testing`, `reactive-md/testing/react`, `reactive-md/testing/browser`, `reactive-md/authoring`, `reactive-md/export`, `reactive-md/standalone` and `reactive-md/react/server`. Do not treat a rename as routine release preparation: changing the name is a breaking change for imports, state tooling and documentation.
 
 1. Keep `reactive-md` unless maintainers explicitly decide on a scoped rename. A scope requires the corresponding npm account or organization permissions.
 2. If renaming, update `name` in `package.json`, import statements in the documentation, tarball filename references, examples and the relevant subpaths, then record the change as breaking in the changelog.
 3. Check release metadata in `package.json`: `repository`, `homepage`, `bugs`, `license`, `engines` and similar fields. They are currently set; before releasing, confirm the URLs and minimum Node version are still correct and that `private` remains removed.
 4. Confirm `files` covers what needs to be published. It currently includes `dist-library`, `dist-standalone`, `bin`, `cli`, the READMEs (`README.md`, `README-en.md`, `README-ch.md`), the contributing, changelog and security guides in both languages, `THIRD_PARTY_NOTICES.md`, `docs` and `examples`; add any new documentation or notices to `files` as well.
 
-The package name and version determine the tarball name. The expected filename for `0.6.1` is `reactive-md-0.6.1.tgz`; after renaming or changing the version, use the actual output of `npm pack`.
+The package name and version determine the tarball name. The expected filename for `0.7.0` is `reactive-md-0.7.0.tgz`; after renaming or changing the version, use the actual output of `npm pack`.
 
 ### Third-party notices
 
@@ -51,7 +51,7 @@ npm pack
 mkdir /tmp/reactive-md-consumer
 cd /tmp/reactive-md-consumer
 npm init -y
-npm install /path/to/reactive-md-0.6.1.tgz
+npm install /path/to/reactive-md-0.7.0.tgz
 ```
 
 The core entry can be checked directly in Node:
@@ -86,7 +86,7 @@ Release notes are for users and must include at least:
 
 - The package version, `LOCAL_SYNTAX_VERSION`, component protocol revision and theme protocol revision; these are different version numbers.
 - The install command `npm install reactive-md`, `npm install reactive-md@next`, or `npm install reactive-md@<version>` to pin the release, with a downloadable tarball as an offline installation option.
-- User-visible changes, breaking changes and migration steps; link directly to the [changelog](../../CHANGELOG.md) and the [0.6.1 release notes](../releases/release-0.6.1-en.md) for this cycle.
+- User-visible changes, breaking changes and migration steps; link directly to the [changelog](../../CHANGELOG.md) and the [0.7.0 release notes](../releases/release-0.7.0-en.md) for this cycle.
 - Verified platforms, plus unverified browsers, general SSR hydration and other scope.
 - Known limitations and a link to [SECURITY.md](../../SECURITY.md).
 
@@ -96,12 +96,12 @@ Do not write results for checks that have not run, and do not present the existe
 
 1. Confirm the working tree is clean, changes have been reviewed, and `npm ci` installs successfully from the lockfile.
 2. On Node 22.12 and a supported newer LTS (currently 24), run `npm run verify:release`. This is the same complete gate local maintainers and CI use; do not replace it with a list of hand-picked commands.
-3. Confirm the version number, `CHANGELOG.md` and the release notes agree. `0.6.1` switches formula display to KaTeX with bundled math fonts; syntax revision `local-draft-2`, component protocol `component-protocol-2` and theme protocol `reactive-md-theme-1` are unchanged. Update a version axis only when its own contract changes.
+3. Confirm the version number, `CHANGELOG.md` and the release notes agree. `0.7.0` publishes the extension SDK, moves the syntax to `local-draft-3` and the component protocol to `component-protocol-3`, makes CM6 the only editor and includes the incremental-compilation performance round. Theme protocol `reactive-md-theme-1` is unchanged. Update a version axis only when its own contract changes.
 4. Inspect the verified archive retained by the gate, including its file list, size and license files. A fresh manual `npm pack` produces a new candidate that needs its own installation verification.
 5. Compare the archive's SHA256 with `artifacts/release-package/package-verification.json` and record it in the release notes or an internal release record.
 6. Merge the release commit and wait for all CI on `main` to pass.
-7. Create and push the tag manually, for example `v0.6.1`. Do not store npm tokens in an automated release workflow.
-8. Attach the verified tarball, `package-verification.json` and a `release-manifest.json` containing `version`, source `commit`, `sha256` and `integrity` to a draft GitHub Release for the tag. Trigger `publish.yml` with `ref=v0.6.1`, `dist_tag=next`, `update_latest=true` and `use_verified_release=true`. npm trusted publishing uses OIDC; local npm login and OTP are not required. The workflow validates the source commit and archive hashes before publishing the attached file. Wait for success and confirm both dist-tags. When `latest` is outside the authorized scope, pass `update_latest=false`.
+7. Create and push the tag manually, for example `v0.7.0`. Do not store npm tokens in an automated release workflow.
+8. Attach the verified tarball, `package-verification.json` and a `release-manifest.json` containing `version`, source `commit`, `sha256` and `integrity` to a draft GitHub Release for the tag. Trigger `publish.yml` with `ref=v0.7.0`, `dist_tag=next`, `update_latest=true` and `use_verified_release=true`. npm trusted publishing uses OIDC; local npm login and OTP are not required. The workflow validates the source commit and archive hashes before publishing the attached file. Wait for success and confirm both dist-tags. When `latest` is outside the authorized scope, pass `update_latest=false`.
 9. Verify the package contents, version, README, license and release notes on npm and GitHub Releases; reinstall once from the public registry.
 10. Verify that the install command in the README works from the registry, and that the registry integrity digest matches the released tarball.
 

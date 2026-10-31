@@ -1,6 +1,6 @@
 # CodeMirror 6 editor integration
 
-The current workspace uses CM6 throughout; this change is unreleased. Prefer `ReactiveMarkdownEditor` from [`reactive-md/editor`](editor-en.md). The `/editor/codemirror` path remains a compatibility alias for the same component.
+`0.7.0` uses CM6 throughout. Prefer `ReactiveMarkdownEditor` from [`reactive-md/editor`](editor-en.md). The `/editor/codemirror` path remains a compatibility alias for the same component.
 
 ```tsx
 import { useState } from 'react';

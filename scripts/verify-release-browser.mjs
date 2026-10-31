@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium, expect } from '@playwright/test';
 import react from '@vitejs/plugin-react';
 import { createServer } from 'vite';
+import { reactiveMd } from 'reactive-md/vite';
 
 /**
  * Release combination check.
@@ -213,7 +214,7 @@ async function equivalenceChecks() {
   const server = await createServer({
     configFile: false,
     root,
-    plugins: [react()],
+    plugins: [react(), reactiveMd({ extensions: './demo/extensions.ts' })],
     server: { host: '127.0.0.1', port: 0, fs: { allow: [root] } },
     logLevel: 'error',
   });

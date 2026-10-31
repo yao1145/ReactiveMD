@@ -17,7 +17,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 
 - **Authors**: read the [beginner guide](guides/local-guide-en.md), then the syntax reference. Runnable examples are in [examples/local](../examples/local/README.md).
 - **Integrators**: start with [local mode integration](integration/local-integration-en.md). Copyable projects are in [examples/integration](../examples/integration/README.md).
-- **Upgrading**: check [compatibility](compatibility/compatibility-en.md), then the release notes for the target version. The current documentation baseline is 0.6.1; older release pages keep the behavior and migration notes of their release.
+- **Upgrading**: check [compatibility](compatibility/compatibility-en.md), then the release notes for the target version. The current documentation baseline is 0.7.0; older release pages keep the behavior and migration notes of their release.
 
 ## Guides
 
@@ -67,6 +67,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 
 | Version | English |
 | --- | --- |
+| 0.7.0 | [English](releases/release-0.7.0-en.md) |
 | 0.6.1 | [English](releases/release-0.6.1-en.md) |
 | 0.6.0 | [English](releases/release-0.6.0-en.md) |
 | 0.5.3 | [English](releases/release-0.5.3-en.md) |

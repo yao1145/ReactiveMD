@@ -454,7 +454,7 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 默认 ReactiveMD 路径支持 P0 HTML。作者 CSS、JavaScript 和扩展 HTML 的宿主开关使用独立的原生 HTML 路径，见 [HTML 部分兼容](../reference/html-compatibility-ch.md)。自动状态持久化、不受限的网络或存储调用、Vue、React 18 和 CommonJS 仍不在当前接口范围内。宿主数据使用显式只读声明，状态导出与导入由宿主调用。
 
-源码中的[扩展 SDK](extension-sdk-ch.md)已提供自定义组件和主题包注册，开发流程见[组件插件开发指南](../development/component-development-ch.md)。SDK 预览使用当前源码构建的 tarball，原 registry `0.6.1` 保留原接口。`LocalReactiveDocument` 在普通源码编辑中尝试采用新文档并保留兼容绑定；切换独立文档时更换 React `key`，或由宿主管理文档与运行时。
+[扩展 SDK](extension-sdk-ch.md)随 `reactive-md@0.7.0` 提供自定义组件和主题包注册，开发流程见[组件插件开发指南](../development/component-development-ch.md)。`LocalReactiveDocument` 在普通源码编辑中尝试采用新文档并保留兼容绑定；切换独立文档时更换 React `key`，或由宿主管理文档与运行时。
 
 
 新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。

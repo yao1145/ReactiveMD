@@ -1,11 +1,34 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (2026-10-31, latest and next channels)
 
-- Use CM6 as the only source editor at `reactive-md/editor`; retain `/editor/codemirror` as an alias sharing the same runtime and styles. Remove `textareaRef` and `getTextarea`; use the editor ref for source, selection and DOM access. Document textarea controls remain supported.
+See the [0.7.0 release notes](docs/releases/release-0.7.0-en.md). Syntax revision `local-draft-3` and component protocol `component-protocol-3` replace their previous revisions; theme protocol `reactive-md-theme-1` is unchanged.
+
+### Added
+
+- Add `<external>` read-only declarations. Hosts supply `externalValues` through `LocalReactiveDocument` or `runtime.setExternalValues()`; missing values fail only dependent expressions and are never converted to `0`, `false` or an empty string.
+- Add dynamic `min`, `max` and `required` constraints on number, slider, date, input and textarea controls. Constraints are checked on write and display; invalid stored values are reported, not clamped.
+- Publish the extension SDK entries: `reactive-md/sdk`, `/vite`, `/build`, `/testing`, `/testing/react`, `/testing/browser`, `/authoring`, `/export`, `/standalone` and `/react/server`.
+- Add `defineLocalComponent`, `defineReactComponentPackage`, `createLocalConfig`, `createReactConfig`, `createReactHost`, `defineLocalTheme`, `composeLocalTheme` and the `reactiveMd({ extensions })` Vite adapter.
+- Add manifest-derived authoring catalogs, component/theme packages, offline build and restoration, compliance tools and configuration-mismatch diagnostics.
+- Add component package examples for `<tetris>` and `<game-2048>`, installed as committed npm tarballs in the Demo.
+
+### Changed
+
+- Use CM6 as the only source editor at `reactive-md/editor`; retain `/editor/codemirror` as an alias sharing the same runtime and styles. Remove `textareaRef` and `getTextarea`; use the editor ref for source, selection and DOM access. Document textarea controls remain supported. Add preview-to-source navigation.
+- Migrate the 46 default components to the public extension contract; external and default components share the same validator, compiler and renderer.
+- `component-protocol-3` adds host inline/container forms and scalar bindings. Legacy `hostComponents`, `hostRenderer` and `hostData` remain available for migration.
 - Reuse flat list/table row plans and unchanged node identities across edits, including documents containing a single large list or table. Keep shifted UTF-16 ranges accurate and count plan reuse separately from node reuse.
 - Return a complete successful Worker result when a result patch costs too much, retaining the negotiated revision chain. Copy short inline-cache strings so they cannot retain old full document strings.
 - Consolidate performance history, current measurements and reproduction commands into the [performance overview](docs/development/performance-overview-en.md).
+
+### Compatibility
+
+- Explicit `local-draft-1` and `local-draft-2` declarations are rejected. Migrate with `reactive-md migrate`, or keep rendering with the old package version.
+- Migration from `local-draft-2` blocks newly active `<external>` tags; move literal examples into code first.
+- `LOCAL_SDK_VERSION` changes the configuration key. Documents carrying an old `componentConfigKey` report `local.extension.config-mismatch` and must be recompiled.
+- The editor textarea ref fields are removed. Use `getSource()`, `getSelection()`, `selectRange()` and `getEditorElement()`.
+- Migration changes the source digest; export a fresh `reactive-md-state/v1` file afterwards.
 
 ## 0.6.1 (2026-10-27, latest and next channels)
 

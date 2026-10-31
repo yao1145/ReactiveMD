@@ -168,7 +168,7 @@ try {
   await expect(nativeMenu.locator('.editor-toolbar-native-title')).toHaveText('Insert component');
   const groupCount = await nativeMenu.locator('.editor-toolbar-native-group').count();
   const itemCount = await nativeMenu.locator('.editor-toolbar-native-item').count();
-  if (groupCount !== 5 || itemCount !== 34) {
+  if (groupCount !== 6 || itemCount !== 36) {
     throw new Error(`Unexpected native catalog: ${groupCount} groups, ${itemCount} items`);
   }
   await page.waitForTimeout(180);

@@ -1,14 +1,14 @@
 # Versions and compatibility
 
-Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](../integration/local-integration-en.md) for the public API and style integration, the [0.6.1 release notes](../releases/release-0.6.1-en.md) for the current release, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for that minor series.
+Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](../integration/local-integration-en.md) for the public API and style integration, the [0.7.0 release notes](../releases/release-0.7.0-en.md) for the current release, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for that minor series.
 
 ## Version mapping
 
 | Item | Current value | Notes |
 | --- | --- | --- |
-| Package version | `0.6.1` | 0.x preview; 0.6.1 is available on both `latest` and `next` |
-| Distribution tags | `latest` → `0.6.1`; `next` → `0.6.1` | Default installs use `latest` |
-| Syntax version | `local-draft-3` | `LOCAL_SYNTAX_VERSION`; the working tree accepts only this revision. The published `0.6.1` package still ships `local-draft-2` until the next release |
+| Package version | `0.7.0` | 0.x preview; 0.7.0 is available on both `latest` and `next` |
+| Distribution tags | `latest` → `0.7.0`; `next` → `0.7.0` | Default installs use `latest` |
+| Syntax version | `local-draft-3` | `LOCAL_SYNTAX_VERSION`; this revision is the only one accepted by the package |
 | Source revision directive | Optional `<!-- reactive-md: local-draft-3 -->` | One line in the document prologue; unversioned source keeps current-revision behavior |
 | Component protocol | `component-protocol-3` | Contribution and acceptance contract, see [Component protocol](../development/component-protocol-en.md); not a runtime version selection parameter |
 | Theme protocol | `reactive-md-theme-1` | Document themes and host CSS integration |
@@ -57,7 +57,7 @@ Regression data in [the historical corpus](../../examples/conformance/history/v0
 
 `0.6.1` switches formula display to KaTeX with bundled WOFF2 fonts and accessible MathML. Plot evaluation and protocol revisions are unchanged. Invalid formulas fall back to bounded source text with a warning. `align` now numbers rows; use `align*` or `aligned` to omit automatic numbers. See the [0.6.1 release notes](../releases/release-0.6.1-en.md).
 
-**Working tree (next release):** `local-draft-3` adds `<external>` read-only declarations and dynamic `min`/`max`/`required` constraints; `component-protocol-3` adds host inline/container forms and scalar bindings. Migration from `local-draft-2` blocks newly active `<external>` tags. The package version is not bumped in this working tree; the published `0.6.1` still accepts only `local-draft-2`.
+`0.7.0` establishes `local-draft-3` and raises the component protocol to `component-protocol-3`. `local-draft-3` adds `<external>` read-only declarations and dynamic `min`/`max`/`required` constraints; `component-protocol-3` adds host inline/container forms and scalar bindings. Explicit `local-draft-1` and `local-draft-2` declarations are rejected; use `reactive-md migrate` before upgrading, and note that migration from `local-draft-2` blocks newly active `<external>` tags. The editor uses CM6 only, removes `textareaRef` / `getTextarea`, and keeps `reactive-md/editor/codemirror` as an alias. The public extension SDK ships in this release. See the [0.7.0 release notes](../releases/release-0.7.0-en.md).
 
 `0.6.0` adds native HTML tables, `align` and link `target`/`rel`, more math environments and commands, mhchem chemistry and expanded code highlighting, and switches diagrams to a layered layout. Unparseable native HTML now falls back to source. `compileLocal` returns only plain objects and arrays, and the editor adds `insertText`. Syntax, component and theme revisions remain unchanged, and existing imports keep working. See the [0.6.0 release notes](../releases/release-0.6.0-en.md).
 
@@ -120,4 +120,4 @@ Node-side consumption means importing `reactive-md` in Node and calling `compile
 See the [syntax specification](../reference/local-interaction-syntax-en.md) for the language scope, and the [security policy](../../SECURITY.md) for the security boundary and host responsibilities.
 
 
-See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. 0.6.1 is available on both `latest` and `next`.
+See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. 0.7.0 is available on both `latest` and `next`.

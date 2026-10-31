@@ -476,7 +476,7 @@ These limits bound the work for a single document; they do not replace host cont
 
 The default ReactiveMD path supports P0 HTML. Host options for author CSS, JavaScript and extended HTML use the separate native HTML path described in [HTML compatibility](../reference/html-compatibility-en.md). Automatic state persistence, unrestricted network/storage calls, Vue, React 18 and CommonJS remain outside the current API. Hosts declare read-only values and invoke state export/import explicitly.
 
-The source [extension SDK](extension-sdk-en.md) provides custom component and theme package registration; follow the [component plugin development guide](../development/component-development-en.md). Use a current source-built tarball for the preview; registry `0.6.1` retains its original interfaces. On ordinary source edits, `LocalReactiveDocument` tries to adopt the new document and retain compatible bindings. Use a new React `key` for independent documents, or manage documents and runtimes in the host.
+The source [extension SDK](extension-sdk-en.md) provides custom component and theme package registration in `reactive-md@0.7.0`; follow the [component plugin development guide](../development/component-development-en.md). On ordinary source edits, `LocalReactiveDocument` tries to adopt the new document and retain compatible bindings. Use a new React `key` for independent documents, or manage documents and runtimes in the host.
 
 
 See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist.

@@ -1,14 +1,14 @@
 # 版本与兼容性
 
-Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。显式修订声明、迁移 API 与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，公开 API 与样式接入见[本地模式集成](../integration/local-integration-ch.md)，当前版本见[0.6.1 发布说明](../releases/release-0.6.1-ch.md)，该 minor 系列见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
+Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。显式修订声明、迁移 API 与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，公开 API 与样式接入见[本地模式集成](../integration/local-integration-ch.md)，当前版本见[0.7.0 发布说明](../releases/release-0.7.0-ch.md)，该 minor 系列见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
 ## 版本对应
 
 | 项目 | 当前值 | 说明 |
 | --- | --- | --- |
-| 包版本 | `0.6.1` | 0.x 预览版；0.6.1 同时提供于 `latest` 与 `next` |
-| 分发标签 | `latest` → `0.6.1`；`next` → `0.6.1` | 默认安装使用 `latest` |
-| 语法版本 | `local-draft-3` | `LOCAL_SYNTAX_VERSION`；当前工作区只接受这一修订。已发布的 `0.6.1` 包在下次发布前仍为 `local-draft-2` |
+| 包版本 | `0.7.0` | 0.x 预览版；0.7.0 同时提供于 `latest` 与 `next` |
+| 分发标签 | `latest` → `0.7.0`；`next` → `0.7.0` | 默认安装使用 `latest` |
+| 语法版本 | `local-draft-3` | `LOCAL_SYNTAX_VERSION`；本包只接受这一修订 |
 | 源码修订指令 | 可选 `<!-- reactive-md: local-draft-3 -->` | 文档前导区中的一行；无指令源码继续按当前修订解析 |
 | 组块协议 | `component-protocol-3` | 贡献与验收契约，见[组块协议](../development/component-protocol-ch.md)；不是运行时版本选择参数 |
 | 主题协议 | `reactive-md-theme-1` | 文档主题与宿主 CSS 接入 |
@@ -57,7 +57,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 `0.6.1` 将公式展示改为 KaTeX，随包提供 WOFF2 数学字体和用于辅助技术的 MathML。绘图求值与协议修订保持不变。无效公式给出警告，并回退为有界原文。`align` 现在自动按行编号；使用 `align*` 或 `aligned` 可省略自动编号。见[0.6.1 发布说明](../releases/release-0.6.1-ch.md)。
 
-**当前工作区（下次发布）：** `local-draft-3` 新增 `<external>` 只读声明和动态 `min`/`max`/`required` 约束；`component-protocol-3` 新增宿主 inline/container 形态与标量绑定。从 `local-draft-2` 迁移时，新激活的 `<external>` 标签会被阻止。当前工作区未提升包版本；已发布的 `0.6.1` 仍只接受 `local-draft-2`。
+`0.7.0` 建立 `local-draft-3`，并把组块协议提升为 `component-protocol-3`。`local-draft-3` 新增 `<external>` 只读声明和动态 `min`/`max`/`required` 约束；`component-protocol-3` 新增宿主 inline/container 形态与标量绑定。显式声明 `local-draft-1` 或 `local-draft-2` 的文档会被拒绝，升级前请使用 `reactive-md migrate`；从 `local-draft-2` 迁移时，新激活的 `<external>` 标签会被阻止。编辑器只使用 CM6，移除 `textareaRef` / `getTextarea`，`reactive-md/editor/codemirror` 保留为别名。公开扩展 SDK 随本版本发布。见[0.7.0 发布说明](../releases/release-0.7.0-ch.md)。
 
 `0.6.0` 新增原生 HTML 表格、`align` 与链接 `target`/`rel`、更多数学环境与命令、mhchem 化学式和扩展代码高亮，并把图解改为分层布局。无法解析的原生 HTML 改为按原文回退。`compileLocal` 的返回值只包含普通对象和数组，编辑器新增 `insertText`。语法、组块和主题修订均保持不变，现有导入继续有效。见[0.6.0 发布说明](../releases/release-0.6.0-ch.md)。
 
@@ -120,4 +120,4 @@ Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `c
 语言范围见[语法规范](../reference/local-interaction-syntax-ch.md)，安全边界与宿主责任见[安全策略](../../SECURITY-ch.md)。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。0.6.1 同时提供于 `latest` 与 `next`。
+新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。0.7.0 同时提供于 `latest` 与 `next`。

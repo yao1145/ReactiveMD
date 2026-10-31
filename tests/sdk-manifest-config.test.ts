@@ -351,8 +351,8 @@ describe('SDK manifest validation', () => {
   });
 
   it('parses bounded version ranges and rejects unsupported syntax', () => {
-    expect(localVersionSatisfies(LOCAL_SDK_VERSION, '^0.6.0')).toBe(true);
-    expect(localVersionSatisfies('1.0.0', '^0.6.0')).toBe(false);
+    expect(localVersionSatisfies(LOCAL_SDK_VERSION, '^0.7.0')).toBe(true);
+    expect(localVersionSatisfies('1.0.0', '^0.7.0')).toBe(false);
     expect(localVersionSatisfies('0.6.5', '~0.6.1')).toBe(true);
     expect(localVersionSatisfies('0.7.0', '~0.6.1')).toBe(false);
     expect(localVersionSatisfies('0.9.9', '>=0.6.0 <1.0.0')).toBe(true);
@@ -409,7 +409,7 @@ describe('SDK manifest validation', () => {
   });
 
   it('exposes the frozen default preset descriptor', () => {
-    expect(defaultPreset).toMatchObject({ id: 'reactive-md/default', version: '0.6.1' });
+    expect(defaultPreset).toMatchObject({ id: 'reactive-md/default', version: '0.7.0' });
     expect(defaultPreset.components).toHaveLength(46);
     expect(Object.isFrozen(defaultPreset.components)).toBe(true);
     expect(Object.isFrozen(defaultPreset)).toBe(true);
@@ -420,7 +420,7 @@ describe('SDK configuration', () => {
   it('defaults to the default preset and freezes the snapshot', () => {
     const config = createLocalConfig({ components: [ratingManifest()] });
     expect(config.protocol).toBe('reactive-md-config/v1');
-    expect(config.presets).toEqual([{ id: 'reactive-md/default', version: '0.6.1' }]);
+    expect(config.presets).toEqual([{ id: 'reactive-md/default', version: '0.7.0' }]);
     expect(config.themes).toEqual([]);
     expect(config.key).toMatch(/^rmd-[0-9a-f]{16}$/);
     expect(Object.isFrozen(config)).toBe(true);

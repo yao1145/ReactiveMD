@@ -7,11 +7,7 @@ container, ships a package theme and an inlined SVG asset, and runs the public
 compliance tools against the installed package. Every import comes from a
 public `reactive-md` entry.
 
-The SDK is a source preview on package version 0.6.1. Registry copies of 0.6.1
-do not include these entries. Copy this folder outside the repository, then
-install a freshly packed tarball built from the current source. The consumer
-checks install that file outside the tree, so the package imports are exercised
-as published.
+The extension SDK ships in `reactive-md@0.7.0` and is available from the public registry. Copy this folder outside the repository and run `npm install`. When testing unreleased SDK changes, install a freshly packed tarball built from the current source instead.
 
 ## Public entries
 

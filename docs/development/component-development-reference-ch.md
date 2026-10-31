@@ -4,7 +4,7 @@
 
 这里的插件是宿主通过 npm 安装、显式导入并组合的组件包或主题包。组件声明、React 实现、编辑器信息与资源共同形成开发契约；宿主用 `createLocalConfig` 和 `createReactConfig` 装配它们。
 
-SDK 当前以源码预览交付，包版本仍为 `0.6.1`。registry 中原有的 `0.6.1` 不含新增 SDK；以下流程使用当前源码构建的 tarball。完整类型与限制见 [SDK 指南](../integration/extension-sdk-ch.md)。历史实现与验收记录已归档，不再随文档维护。
+扩展 SDK 随 `reactive-md@0.7.0` 发布。以下流程安装公开包；只有测试尚未发布的 SDK 改动时才需要从当前源码打包 tarball。完整类型与限制见 [SDK 指南](../integration/extension-sdk-ch.md)。历史实现与验收记录已归档，不再随文档维护。
 
 
 ## 便捷定义与宿主组合
@@ -51,20 +51,15 @@ export default { plugins: [reactiveMd({ extensions: './extensions.ts' })] };
 
 准备 Node 22.12 或更高版本。React 适配器使用 React 19；模板的构建与浏览器测试依赖以它的 `package.json` 为准。
 
-在 ReactiveMD 仓库构建预览包：
+把 [examples/component-package](../../examples/component-package/README-ch.md) 复制到仓库之外的新目录，与 ReactiveMD 仓库并列，命名为 `my-reactivemd-plugin`。模板依赖已发布的 `reactive-md@0.7.0`。在新目录执行：
 
 ```sh
-npm run build
-npm pack --ignore-scripts
-```
-
-把 [examples/component-package](../../examples/component-package/README-ch.md) 复制到仓库之外的新目录，与 ReactiveMD 仓库并列，命名为 `my-reactivemd-plugin`。在新目录执行：
-
-```sh
-npm install ../ReactiveMD/reactive-md-0.6.1.tgz
+npm install
 npm run typecheck
 npm test
 ```
+
+测试尚未发布的 SDK 改动时，改为从当前源码打包并安装 tarball。
 
 `npm test` 构建 JS、类型、静态与交互 HTML，再执行 Node、SSR 和离线浏览器检查。浏览器测试需要已安装的 Playwright 浏览器；Windows 可按实际安装设置 `PLAYWRIGHT_CHANNEL=msedge`。先让原模板通过，再修改功能和对应测试。
 

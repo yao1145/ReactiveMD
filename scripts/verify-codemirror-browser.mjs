@@ -3,11 +3,12 @@ import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {createServer} from 'node:http';
 import {resolve,sep,extname} from 'node:path';
 import {build} from 'vite';
+import {reactiveMd} from 'reactive-md/vite';
 import {chromium,expect} from '@playwright/test';
 
 const root=resolve('artifacts/cm6'),dist=resolve(root,'browser-dist');
 await mkdir(root,{recursive:true});
-await build({configFile:false,base:'./',logLevel:'error',worker:{format:'es'},build:{outDir:dist,rollupOptions:{input:resolve('tests/browser/codemirror-fixture.html')}}});
+await build({configFile:false,base:'./',logLevel:'error',plugins:[reactiveMd({extensions:'./demo/extensions.ts'})],worker:{format:'es'},build:{outDir:dist,rollupOptions:{input:resolve('tests/browser/codemirror-fixture.html')}}});
 const server=createServer(async(req,res)=>{
   if(req.url==='/favicon.ico'){res.writeHead(204).end();return;}
   const pathname=new URL(req.url,'http://localhost').pathname;

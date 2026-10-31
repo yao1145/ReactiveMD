@@ -1,7 +1,7 @@
 {
   "name": "@reactive-md/demo",
   "private": true,
-  "version": "0.6.1",
+  "version": "0.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
@@ -25,8 +25,8 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "reactive-md": "file:..",
-    "reactive-md-game-2048-package": "file:vendor/reactive-md-game-2048-package-0.1.0-4008aa8ed66c.tgz",
-    "reactive-md-tetris-package": "file:vendor/reactive-md-tetris-package-0.1.0-a5a8e54d74bc.tgz"
+    "reactive-md-game-2048-package": "file:vendor/reactive-md-game-2048-package-0.1.0-811733537169.tgz",
+    "reactive-md-tetris-package": "file:vendor/reactive-md-tetris-package-0.1.0-1d7d5c9bd55d.tgz"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

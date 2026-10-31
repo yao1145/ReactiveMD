@@ -25,7 +25,7 @@ npm pack ./examples/game-2048-package --ignore-scripts
 Then install both tarballs in the host project:
 
 ```sh
-npm install ../ReactiveMD/reactive-md-0.6.1.tgz ../ReactiveMD/reactive-md-game-2048-package-0.1.0.tgz
+npm install reactive-md@0.7.0 ../ReactiveMD/reactive-md-game-2048-package-0.1.0.tgz
 ```
 
 ReactiveMD, React and React DOM are peer dependencies supplied by the host.

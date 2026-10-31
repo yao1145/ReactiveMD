@@ -416,7 +416,7 @@ describe('unified registry and compile options', () => {
     expect(options.schemaByName.get('computed')?.form).toBe('leaf');
     expect(options.defaultComponentNames.has('slider')).toBe(true);
     expect(options.externalComponentNames.size).toBe(0);
-    expect(options.preset).toEqual({ id: 'reactive-md/default', version: '0.6.1' });
+    expect(options.preset).toEqual({ id: 'reactive-md/default', version: '0.7.0' });
   });
 
   it('adapts legacy host input into the same schema map', () => {
