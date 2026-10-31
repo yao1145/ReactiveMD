@@ -53,7 +53,7 @@ try {
   const coreConsumer = await mkdtemp(path.join(os.tmpdir(), 'reactive-md-sdk-core-'));
   report.coreConsumer = coreConsumer;
   await writeFile(path.join(coreConsumer,'package.json'),JSON.stringify({name:'sdk-core-consumer',private:true,type:'module'}));
-  await npm(['install',tarball,'--offline','--ignore-scripts','--no-package-lock','--no-audit','--no-fund','--loglevel=error'],coreConsumer);
+  await npm(['install',tarball,'--ignore-scripts','--no-package-lock','--no-audit','--no-fund','--loglevel=error'],coreConsumer);
   assert.equal(existsSync(path.join(coreConsumer,'node_modules/react')),false);
   await writeFile(path.join(coreConsumer,'core.mjs'), `import assert from 'node:assert/strict';import {createLocalConfig} from 'reactive-md/sdk';import {runLocalManifestCompliance} from 'reactive-md/testing';import {createPlaywrightBrowserDriver} from 'reactive-md/testing/browser';assert.ok(createLocalConfig().key);assert.equal(typeof runLocalManifestCompliance,'function');assert.equal(typeof createPlaywrightBrowserDriver,'function');assert.throws(()=>import.meta.resolve('react'));console.log('PASS DOM-free SDK and compliance tools without React');`);
   await run(process.execPath,['core.mjs'],coreConsumer);
@@ -68,7 +68,7 @@ try {
   // The fixture dev tool versions are examples; this check uses the coordinating
   // toolchain and only installs the library and its real runtime/type peers.
   await writeFile(path.join(consumer, 'package.json'), JSON.stringify({ name: 'sdk-isolated-consumer', version: '0.0.0', private: true, type: 'module' }));
-  await npm(['install', tarball, ...peers, '--offline', '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund', '--loglevel=error'], consumer);
+  await npm(['install', tarball, ...peers, '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund', '--loglevel=error'], consumer);
   report.tarball = tarball;
   report.sha256 = createHash('sha256').update(await readFile(tarball)).digest('hex');
   report.checks.push('isolated tarball install');

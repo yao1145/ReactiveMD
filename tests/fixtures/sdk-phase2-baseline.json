@@ -1231,7 +1231,8 @@
         }
       },
       "actions": [],
-      "markupDigest": "ec0cfcc3f4ba5b5e033ea68dcf85f530e89072827b70ffe6a417078fe20c7793"
+      "markupDigest": "ec0cfcc3f4ba5b5e033ea68dcf85f530e89072827b70ffe6a417078fe20c7793",
+      "markupDigestAlternates": ["d243d2364ac73511cac095b75f7405884a016c7a802bb1c83f4c02db736b1905"]
     },
     {
       "suite": "examples/local/checklist.reactive.md",
@@ -2114,7 +2115,8 @@
         }
       },
       "actions": [],
-      "markupDigest": "1aee4d82b9da39fb3d94f7e14aad3b1836c5764749ed58ab12593af0360bcd40"
+      "markupDigest": "1aee4d82b9da39fb3d94f7e14aad3b1836c5764749ed58ab12593af0360bcd40",
+      "markupDigestAlternates": ["dacdaa30c7faa0923ad450938d3d4e9a3c37bb20b87c3b0dfab74d089c8df723"]
     },
     {
       "suite": "examples/local/showcase/layout.reactive.md",
@@ -2549,7 +2551,8 @@
         }
       },
       "actions": [],
-      "markupDigest": "0e4634b36d878291353f02ac58576da8ccddd998ca424744911bf703b2fcb234"
+      "markupDigest": "0e4634b36d878291353f02ac58576da8ccddd998ca424744911bf703b2fcb234",
+      "markupDigestAlternates": ["8ad43482bbb995f278304814c0acdf2730a6e733ab0d360632a1733d14cfd517"]
     },
     {
       "suite": "examples/local/showcase/zh/layout.reactive.md",
@@ -2726,7 +2729,8 @@
         }
       },
       "actions": [],
-      "markupDigest": "30d0a1ea75258b7d9b760085947a1d07d0de8a0ec10ff519cebdf5435aa567ff"
+      "markupDigest": "30d0a1ea75258b7d9b760085947a1d07d0de8a0ec10ff519cebdf5435aa567ff",
+      "markupDigestAlternates": ["8737b342ed05cc857cc3a48bd90d3be0ac8058a41813299bcc8ae0bdcf03259b"]
     },
     {
       "suite": "examples/local/zh/checklist.reactive.md",

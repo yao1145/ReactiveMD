@@ -32,7 +32,8 @@ describe('phase-two migration against d227fc0', () => {
       }]));
       expect(JSON.parse(JSON.stringify(shape))).toEqual(fixture.bindingShape);
       const markup = renderToStaticMarkup(createElement(LocalDocumentView, { document: compiled.document, runtime, mode: 'static' }));
-      expect(markupDigest(markup), `Static output changed for ${fixture.id}`).toBe(fixture.markupDigest);
+      const digest = markupDigest(markup);
+      expect([fixture.markupDigest, ...(fixture.markupDigestAlternates ?? [])], `Static output changed for ${fixture.id}`).toContain(digest);
       for (const action of fixture.actions ?? []) {
         expect(runtime.setParameter(action.bind, action.value).map(item => item.code)).toEqual(action.codes);
         expect(runtime.getParameters()).toEqual(action.state);

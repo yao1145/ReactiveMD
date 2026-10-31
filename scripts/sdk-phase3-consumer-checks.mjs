@@ -14,7 +14,7 @@ export async function verifySdkPhaseThree({ root, artifacts, tarball, peers, npm
   await cp(path.join(root, 'examples/component-package'), consumer, { recursive: true });
   const version = name => require(`${name}/package.json`).version;
   await npm(['install', tarball, ...peers, `vite@${version('vite')}`, `typescript@${version('typescript')}`,
-    `@playwright/test@${version('@playwright/test')}`, '--include=dev', '--offline', '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund', '--loglevel=error'], consumer);
+    `@playwright/test@${version('@playwright/test')}`, '--include=dev', '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund', '--loglevel=error'], consumer);
   await run(process.execPath, [path.join(consumer, 'node_modules/typescript/bin/tsc'), '--noEmit'], consumer);
   await writeFile(path.join(consumer, 'verify-defaults.mjs'), `
 import assert from 'node:assert/strict';
