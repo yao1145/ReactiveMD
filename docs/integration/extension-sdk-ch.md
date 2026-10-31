@@ -14,6 +14,9 @@ tarball 必须在 `build:lib` 完成后由当前源码打包。registry 中的 `
 
 SDK 把组件声明、实例配置、React 实现和主题资源分开。声明和配置都是可序列化数据；组件代码由宿主显式安装和导入。编译器、Worker、作者工具、构建适配器和导出器消费同一配置。
 
+
+便捷定义、createReactHost、Vite 适配和配置错接诊断见[完整开发契约](../development/component-development-reference-ch.md)，首次使用从[五分钟入门](../development/component-development-ch.md)开始。
+
 ## 定义与装配
 
 组件声明从 `reactive-md/sdk` 导入，React 实现从 `reactive-md/react` 导入：

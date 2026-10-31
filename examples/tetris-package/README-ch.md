@@ -27,16 +27,11 @@ ReactiveMD、React 和 React DOM 声明为 peer dependencies，由宿主提供�
 使用公开入口装配宿主：
 
 ```tsx
-import { createLocalConfig } from 'reactive-md/sdk';
-import { createReactConfig } from 'reactive-md/react';
-import { tetris } from 'reactive-md-tetris-package';
-import { tetrisImplementation } from 'reactive-md-tetris-package/react';
-import 'reactive-md-tetris-package/styles.css';
+import { createReactHost } from 'reactive-md/react';
+import { tetrisPackage } from 'reactive-md-tetris-package/react';
 
-export const config = createLocalConfig({ components: [tetris] });
-export const reactConfig = createReactConfig(config, {
-  components: [tetrisImplementation],
-});
+export const host = createReactHost({ packages: [tetrisPackage] });
+export const { config, reactConfig } = host;
 ```
 
 然后在 Markdown 中写标签：
@@ -60,7 +55,7 @@ export const reactConfig = createReactConfig(config, {
 
 ## 在本仓库 Demo 中体验
 
-组件已登记在 [demo/extensions.ts](../../demo/extensions.ts)。Demo 通过依赖声明安装 `demo/vendor/` 中的 npm tarball，从 `reactive-md-tetris-package/react` 读取实现、CSS 文本与样例，通过 `reactive-md-tetris-package/notices?raw` 读取署名。修改本包源码后，在仓库根目录运行 `npm run update:demo-tetris`，重新构建、打包和安装；更新后的 tarball、依赖声明和锁文件一起提交。预览、编辑器目录和离线 HTML 共用这份清单，具体字段见 [Demo 说明](../../demo/README.md)。
+组件已登记在 [demo/extensions.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/extensions.ts)。Demo 通过依赖声明安装 `demo/vendor/` 中的 npm tarball，从 `reactive-md-tetris-package/react` 读取实现、CSS 文本与样例，通过 `reactive-md-tetris-package/notices?raw` 读取署名。修改本包源码后，在仓库根目录运行 `npm run update:demo-tetris`，重新构建、打包和安装；更新后的 tarball、依赖声明和锁文件一起提交。预览、编辑器目录和离线 HTML 共用这份清单，具体字段见 [Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。
 
 从仓库根目录运行 `npm run build:demo`，然后运行 `node demo/scripts/verify-extensions.mjs`。加 `--dev` 可复验 Vite 开发模式；脚本会自行启停测试服务，并在断网环境中打开导出的游戏。
 
@@ -90,3 +85,5 @@ npm run typecheck
 
 浏览器套件证明挂载、编辑（暂停/继续）、隐藏/显示、禁用、重置、子组件错误
 隔离与卸载。离线证据还要求 hydration、断网上下文与零网络请求。
+
+Vite 项目通过公开 reactive-md/vite 插件读取该 host，预览、样式、编辑器和离线运行时共用一份配置。其他宿主可使用 host.css 或包的 styles.css 入口加载样式。Tetris 保留单独的静态棋盘版式；普通组件可以省略 renderStatic，在 render 中使用 ctx.mode 判断静态模式。

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { createLocalConfig } from 'reactive-md/sdk';
 import {
   createReactConfig,
+  createReactHost,
   defineReactComponent,
+  defineReactComponentPackage,
   type LocalComponentContext,
 } from 'reactive-md/react';
-import { defaultPreset } from 'reactive-md/presets/default';
 import componentCssText from './component.css?raw';
 import { tetris } from './manifests';
 import {
@@ -300,19 +300,23 @@ export function TetrisStatic(context: LocalComponentContext) {
   );
 }
 
-export const tetrisImplementation = defineReactComponent(tetris, {
+/**
+ * The component package is the authoring declaration consumed by every host.
+ * Preview, authoring, SSR and offline export compose it once.
+ */
+export const tetrisPackage = defineReactComponentPackage({
+  ...tetris,
+  css: componentCss,
   render: Tetris,
   renderStatic: TetrisStatic,
 });
 
-export const config = createLocalConfig({
-  presets: [defaultPreset],
-  components: [tetris],
-});
+const tetrisHost = createReactHost({ packages: [tetrisPackage] });
 
-export const reactConfig = createReactConfig(config, {
-  components: [tetrisImplementation],
-});
+/** Compatibility exits derived from the package and its single host. */
+export const tetrisImplementation = tetrisPackage.components[0];
+export const config = tetrisHost.config;
+export const reactConfig = tetrisHost.reactConfig;
 
 /**
  * Used only by the SSR error probe: the static implementation throws so the

@@ -528,7 +528,19 @@ export function validateLocalReactExtensions(
   config: LocalReactConfig,
   requirements: unknown,
 ): Diagnostic[] {
-  return validateLocalExtensionRequirements(requirements, config.config);
+  const diagnostics = validateLocalExtensionRequirements(requirements, config.config);
+  if (diagnostics.length || !requirements || typeof requirements !== 'object') return diagnostics;
+  const components = (requirements as LocalExtensionRequirements).components;
+  if (!Array.isArray(components)) return diagnostics;
+  const installed = indexOf(config);
+  for (const requirement of components) {
+    if (!installed.byId.has(requirement.id)) diagnostics.push({
+      code: 'local.extension.renderer-missing', severity: 'error',
+      message: new LocalReactExtensionMissingError(requirement.name).message,
+      range: { start: 0, end: 0 }, line: 1, column: 1,
+    });
+  }
+  return diagnostics;
 }
 
 /* ---------------------------------------------------------------- helpers */

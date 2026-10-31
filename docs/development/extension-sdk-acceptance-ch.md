@@ -130,7 +130,7 @@ npm.cmd run test:sdk-consumer
 
 ## 7. Demo 单入口接入补验（2026-10-31）
 
-本节记录提交 `ef89377` 的验收结果。Tetris 在后续改为消费安装包，当前接入及更新流程见 [Demo 说明](../../demo/README.md)。
+本节记录提交 `ef89377` 的验收结果。Tetris 在后续改为消费安装包，当前接入及更新流程见 [Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。
 
 Demo 现在从 `demo/extensions.ts` 统一装配组件实现、样式、主题、样例和 notices。Tetris 直接复用包内源码与样例，编译器、Worker、预览、编辑器目录和导出使用同一配置。离线运行时由公开 `buildLocalStandaloneBundle` 构建；开发模式的中间 JSX 转换固定为生产模式，避免导出文件调用不可用的 `jsxDEV`。
 
@@ -150,3 +150,13 @@ Demo 现在从 `demo/extensions.ts` 统一装配组件实现、样式、主题�
 Demo 改为安装 `demo/vendor/` 中的 Tetris npm tarball，并从包的公开入口读取实现、样式、样例和 notices。包使用宿主提供的 ReactiveMD、React 与 React DOM peer dependencies。`npm run update:demo-tetris` 构建组件、生成带内容摘要的安装包并更新 Demo 依赖及锁文件。
 
 本轮 Demo 构建、根项目类型检查、21 个文件中的 267 项 Demo 测试和文档链接检查通过。新增安装边界测试确认组件来自展开后的 `node_modules` 分发包，包含声明及许可、不含 `src/components.tsx`，且 tarball 的 SHA512 与锁文件 integrity 一致。生产与开发模式各 6 项浏览器验收通过，覆盖 Worker、预览交互、编辑器目录、手机布局及静态和交互离线文件；导出的游戏可在断网时继续操作。
+
+## 9. 易用入口与独立接入验收（2026-10-31）
+
+新增 defineReactComponentPackage 与 createReactHost，便捷入口补齐协议、形态和样式身份默认值，底层 manifest 读取仍严格校验。公开 reactive-md/vite 统一虚拟宿主、样式、依赖预构建、React 去重及离线运行时。新增 reactive-md init component 脚手架与中英文快速开始，原长指南保留为完整契约页。renderStatic 保持已有可选语义，本轮通过示例展示 ctx.mode 与静态绑定限制。
+
+编译结果携带 componentConfigKey，Worker 和增量补丁保留该值。编译配置错接报告 local.extension.config-mismatch；manifest 存在但 React 实现缺失时报告 local.extension.renderer-missing，严格 SSR 在执行组件前拒绝。旧文档和旧宿主路径保持兼容。
+
+按用户要求启动全新的 Claude Code 会话重新接入 Tetris；会话只修改分配的实现和 Demo 接线，主代理审查、重建安装包并执行验收。Tetris 继续从 demo/vendor 的 npm tarball 安装，通过公共组件包和 Vite 插件接入；旧私有适配器及别名已移除。
+
+用户要求停止测试前，已完成：核心 150 个文件、1975 项测试，Demo 21 个文件、267 项测试；库及 Demo 构建、公开包边界和真实 tarball 消费检查；Tetris 开发/生产各 6 项浏览器检查；真实安装 SDK 后运行 CLI、两种语言的相同示例、类型与 Node/SSR 合规、生产预览、静态/交互离线 HTML、开发时样式更新共 6 项消费检查。验收日志位于 artifacts/sdk-ease/ 与 artifacts/demo-extensions/。随后按用户指示停止新增测试，仅整理记录与提交。

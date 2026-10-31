@@ -47,23 +47,20 @@ Register packages in [extensions.ts](extensions.ts). The Demo derives its compil
 
 Tetris 通过 `demo/vendor/` 中随仓库提交的 npm tarball 安装，版本与 integrity 记录在依赖锁文件中。实现、CSS 文本和样例从 `reactive-md-tetris-package/react` 导入，notices 从包的公开资源入口读取。新检出执行 `npm install` 即可安装该快照。修改 Tetris 源码后，从仓库根目录执行 `npm run update:demo-tetris`，重新构建、打包并安装，再提交替换后的 tarball、依赖声明和锁文件；后续预览及导出使用更新后的安装包。
 
-新增包只需修改 `demo/extensions.ts`。安装 npm 包后导入组件实现与 CSS 文本，再向现有 `createDemoExtensions([...])` 数组追加一项：
+新增包只需修改 `demo/extensions.ts`，把安装包导出的组件包加入公共宿主：
 
 ```ts
-import { tetrisImplementation, componentCss } from 'reactive-md-tetris-package/react';
+import { createReactHost } from 'reactive-md/react';
+import { tetrisPackage } from 'reactive-md-tetris-package/react';
 
-// An entry in createDemoExtensions([...]):
-const tetrisPackage = {
-  components: [tetrisImplementation],
-  resources: [{ id: 'example/tetris.css', css: componentCss }],
-};
+export const host = createReactHost({ packages: [tetrisPackage] });
 ```
 
-清单从实现的 `definition` 读取 manifest，生成供编译器与渲染器共用的配置；编辑器从 manifest 的 `authoring` 获得支持。`resources` 自动进入预览、静态 HTML 与交互 HTML，无需再单独导入 CSS。资源 ID 必须与 manifest 的 `styles` 一致，CSS 中的字体和图片需预先内联为 data URL。仅提供 CSS 文件的包可通过 Vite 的 `?inline` 导入 CSS 文本。
+组件包已包含规范 manifest、React 实现与 CSS 资源。宿主生成同源的编译与渲染配置，编辑器读取 manifest 的 `authoring`。Vite 配置只需 `reactiveMd({ extensions: './extensions.ts' })`；虚拟模块自动加载组件和主题样式，插件统一处理依赖预构建、React 去重及离线运行时，Demo 不再维护私有构建适配器或手工创建 style 元素。
 
-可选字段包括 `themes`、`notices` 和 `examples`。样例项使用现有 `PlaygroundExample` 的中英文标题、说明和源码，可直接读取包内样例，自动进入目录；不用再复制到 `examples/local/` 或修改 `src/examples.ts`。名称、资源和样例 ID 冲突会在装配时报告。此清单位于 Demo 根目录，集中承接本地源码包或 npm 包；应用代码继续通过公开 SDK 消费它们。
+可选 `themes`、`resources` 和 `notices` 交给 `createReactHost`。样例作为同一清单的额外 `examples` 导出，使用 `PlaygroundExample` 的中英文元数据与包内源码，自动进入目录。应用通过 `virtual:reactive-md/host` 的 `extensions` 命名空间读取这些元数据；它们不会发送给 Worker。资源 ID 冲突和样例 ID 冲突会明确报告。
 
-Vite 对 React 去重，并统一排除 ReactiveMD 的 JavaScript 子入口预构建。新增组件包沿用这些设置。生产构建自动生成离线扩展运行时；开发服务器在首次交互导出时生成。离线包覆盖全部已登记组件，登记仅支持预览的组件时，预览仍可用，交互导出报告缺少的能力。
+CSS 中的字体与图片需内联为 data URL。生产构建自动输出 `reactive-md-standalone.js` 与 `reactive-md-export.json`，浏览器导出通过 `virtual:reactive-md/bundle` 取得对应运行时。只支持预览的组件继续提供预览，交互导出报告缺少的能力。编译配置漏传或错接时显示 `local.extension.config-mismatch`；自建 Worker 应使用 `host.compileOptions`。
 
 从仓库根目录验证：
 

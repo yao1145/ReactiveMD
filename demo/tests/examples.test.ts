@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileLatex, compileLocal, createLocalRuntime, type LocalValue } from 'reactive-md';
 import { EXAMPLES, DEFAULT_EXAMPLE_ID, localizedExample, localizedExamples } from '../src/examples';
-import { config, examples as extensionExamples } from '#demo-extensions';
+import { host, examples as extensionExamples } from '../extensions';
 
 function exampleSource(id: string) {
   const example = EXAMPLES.find((item) => item.id === id);
@@ -34,7 +34,7 @@ describe('playground local documents consumed through the public package', () =>
 
   for (const example of EXAMPLES) {
     it(`${example.id}: ${example.id === 'diagnostics' ? 'reports intentional errors' : 'compiles and starts'}`, () => {
-      const result = compileLocal(example.source, { config });
+      const result = compileLocal(example.source, { config: host.config });
       if (example.id === 'diagnostics') {
         expect(result.ok).toBe(false);
         expect(result.diagnostics.length).toBeGreaterThanOrEqual(8);
@@ -140,7 +140,7 @@ describe('localized playground examples', () => {
 
   for (const example of EXAMPLES) {
     it(`zh ${example.id}: ${example.id === 'diagnostics' ? 'reports intentional errors' : 'compiles and starts'}`, () => {
-      const result = compileLocal(example.sourceZh, { config });
+      const result = compileLocal(example.sourceZh, { config: host.config });
       if (example.id === 'diagnostics') {
         expect(result.ok).toBe(false);
         if (result.ok) return;

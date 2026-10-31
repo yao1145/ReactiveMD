@@ -10,6 +10,7 @@ export {
   Tetris,
   TetrisStatic,
   tetrisImplementation,
+  tetrisPackage,
 } from './components';
 export { tetris } from './manifests';
 export { source } from './sample';

@@ -1,6 +1,6 @@
 import { createShareableHtml, resolveLocalStateBaseline, type ShareableHtmlOptions } from '../shareable';
 import { parseLocalState } from '../local/state';
-import { readLocalConfig } from '../sdk/config';
+import { readLocalConfig, validateLocalDocumentConfig } from '../sdk/config';
 import { localComponentDigest } from '../sdk/manifest';
 import { getLocalComponentRegistry } from '../sdk/registry';
 import { LOCAL_SDK_VERSION } from '../sdk/version';
@@ -76,6 +76,7 @@ export function createLocalExportPlan(options: LocalExportPlanOptions): LocalExp
     protocol: 'reactive-md-extensions/v1', components: [],
   };
   const diagnostics = validateLocalExtensionRequirements(requirements, config);
+  diagnostics.push(...validateLocalDocumentConfig(options.document, config));
   diagnostics.push(...validateLocalComponentContracts({
     document: options.document,
     installed: getLocalComponentRegistry(config),

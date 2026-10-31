@@ -5,6 +5,7 @@ dist-standalone/
 .tasks/
 .qoder/
 artifacts/
+.reactive-md/
 *.log
 .npm-cache/
 *.tgz

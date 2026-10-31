@@ -14,6 +14,9 @@ Use a tarball packed from the current source tree after `build:lib` completes. T
 
 Component manifests and instance configuration are plain data. React implementations remain explicitly imported host code. The compiler, Worker, authoring tools, build adapter and exporter use the same validated configuration.
 
+
+See the [development contract](../development/component-development-reference-en.md) for convenience packages, createReactHost, Vite integration and configuration diagnostics, or start with the [five-minute guide](../development/component-development-en.md).
+
 ## Define and register a component
 
 ```tsx

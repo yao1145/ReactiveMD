@@ -2,6 +2,7 @@ import { parseBuildArgs } from './args.mjs';
 import { runBuild } from './build.mjs';
 import { EXIT, usageError } from './errors.mjs';
 import { buildHelp, mainHelp } from './help.mjs';
+import { runInit } from './init.mjs';
 import { runLint } from './lint.mjs';
 import { runMigrate } from './migrate.mjs';
 import { readPackageInfo } from './package.mjs';
@@ -11,7 +12,7 @@ import { readPackageInfo } from './package.mjs';
  * CLI stays testable without touching process state.
  *
  * @param {string[]} argv
- * @param {{packageRoot: string, stdout: NodeJS.WritableStream, stderr: NodeJS.WritableStream}} context
+ * @param {{packageRoot: string, stdin?: NodeJS.ReadableStream, stdout: NodeJS.WritableStream, stderr: NodeJS.WritableStream}} context
  */
 export async function runCli(argv, context) {
   const [command, ...rest] = argv;
@@ -49,6 +50,10 @@ export async function runCli(argv, context) {
 
   if (command === 'migrate') {
     return runMigrate(rest, context);
+  }
+
+  if (command === 'init') {
+    return runInit(rest, context);
   }
 
   throw usageError(`Unknown command "${command}". Run "reactive-md --help" for usage.`);

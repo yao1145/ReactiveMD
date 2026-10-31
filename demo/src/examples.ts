@@ -1,5 +1,5 @@
 import type { Language } from './i18n';
-import { examples as extensionExamples } from '#demo-extensions';
+import { extensions as installedExtensions } from 'virtual:reactive-md/host';
 import functionsSource from '../../examples/local/showcase/functions.reactive.md?raw';
 import formsSource from '../../examples/local/showcase/forms.reactive.md?raw';
 import statisticsSource from '../../examples/local/showcase/statistics.reactive.md?raw';
@@ -39,6 +39,7 @@ export interface LocalizedExample {
 }
 
 /** All playground documents use the explicit local-draft-3 syntax. */
+const extensionExamples = (installedExtensions.examples ?? []) as readonly PlaygroundExample[];
 export const EXAMPLES: PlaygroundExample[] = [
   {
     id: 'pricing',

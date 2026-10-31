@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { formatLocalDiagnostic, notifyLocalRuntime, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
 import { LocalDocumentView } from 'reactive-md/react';
-import { config as demoConfig, reactConfig as demoReactConfig } from '#demo-extensions';
+import { config as demoConfig, reactConfig as demoReactConfig } from 'virtual:reactive-md/host';
 import type { LocalSourceTarget } from 'reactive-md/react';
 import {
   ReactiveMarkdownEditor,

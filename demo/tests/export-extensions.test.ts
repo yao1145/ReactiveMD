@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalStateFile } from 'reactive-md';
-import { config } from '#demo-extensions';
+import { host } from '../extensions';
 import { buildShareableHtml } from '../src/export-html';
+
+const { config } = host;
 
 describe('registered Demo extensions in static export', () => {
   it('uses the installed renderer, CSS and attribution without caller wiring', async () => {

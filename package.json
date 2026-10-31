@@ -66,6 +66,7 @@
     "lint": "node bin/reactive-md.mjs lint",
     "test:components": "vitest run --config vitest.config.ts tests/component-protocol.test.ts tests/conformance.test.ts",
     "test:sdk-consumer": "node scripts/verify-sdk-consumer.mjs",
+    "test:component-scaffold": "node scripts/verify-component-scaffold.mjs",
     "test:demo": "npm run build:lib && npm run test --workspace=@reactive-md/demo",
     "test:browser": "npm run test:browser --workspace=@reactive-md/demo && npm run build --workspace=@reactive-md/demo && node scripts/verify-codemirror-browser.mjs --skip-performance --demo",
     "test:browser:core": "node scripts/verify-browser-core.mjs",
@@ -98,6 +99,11 @@
     "prepack": "npm run build && npm run notices"
   },
   "exports": {
+    "./vite": {
+      "types": "./dist-library/types/vite/index.d.ts",
+      "import": "./dist-library/reactive-md-vite.js"
+    },
+    "./vite/client": { "types": "./dist-library/types/vite/client.d.ts" },
     "./build": {
       "types": "./dist-library/types/build/index.d.ts",
       "import": "./dist-library/reactive-md-build.js"

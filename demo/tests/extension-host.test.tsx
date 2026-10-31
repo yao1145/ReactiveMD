@@ -1,16 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime } from 'reactive-md';
+import { createReactHost, defineReactComponentPackage } from 'reactive-md/react';
 import { renderLocalStaticDocument } from 'reactive-md/react/server';
-import { createDemoExtensions } from '../src/extension-host';
-import { componentCss, tetrisImplementation } from 'reactive-md-tetris-package/react';
+import { tetrisPackage } from 'reactive-md-tetris-package/react';
 
-const tetris = { components: [tetrisImplementation], resources: [{ id: 'example/tetris.css', css: componentCss }] };
-
-describe('Demo extension assembly', () => {
+describe('Demo extension host composition', () => {
   it('shares one configuration and supplies styles for real external SSR', () => {
-    const host = createDemoExtensions([tetris]);
+    const host = createReactHost({ packages: [tetrisPackage] });
     expect(host.reactConfig.config).toBe(host.config);
-    const compiled = compileLocal('<tetris width="8">', { config: host.config });
+    expect(host.compileOptions.config).toBe(host.config);
+    const compiled = compileLocal('<tetris width="8">', host.compileOptions);
     if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics));
     const runtime = createLocalRuntime(compiled.document);
     try {
@@ -21,21 +20,27 @@ describe('Demo extension assembly', () => {
     } finally { runtime.dispose(); }
   });
 
-  it('rejects duplicate components, missing styles and conflicting resources at registration', () => {
-    expect(() => createDemoExtensions([tetris, tetris])).toThrow();
-    expect(() => createDemoExtensions([{ components: [tetrisImplementation] }])).toThrow('example/tetris.css');
-    expect(() => createDemoExtensions([tetris, { resources: [{ id: 'example/tetris.css', css: '.different {}' }] }])).toThrow('conflicting');
+  it('rejects duplicate packages, missing styles and conflicting resources at registration', () => {
+    expect(() => createReactHost({ packages: [tetrisPackage, tetrisPackage] })).toThrow();
+    expect(() => defineReactComponentPackage({ ...tetrisPackage.definition, render: () => null })).toThrow('example/tetris.css');
+    expect(() => createReactHost({
+      packages: [tetrisPackage],
+      resources: [{ id: 'example/tetris.css', css: '.different {}' }],
+    })).toThrow('conflicting');
   });
 
   it('rejects CSS that would require a network request', () => {
-    expect(() => createDemoExtensions([{ resources: [{ id: 'unsafe', css: '@import "https://example.com/a.css";' }] }])).toThrow();
+    expect(() => createReactHost({
+      resources: [{ id: 'unsafe', css: '@import "https://example.com/a.css";' }],
+    })).toThrow();
   });
 
   it('keeps the default preset when no extensions are registered', () => {
-    const host = createDemoExtensions([]);
-    const result = compileLocal('<slider bind="n" label="Count" initial="2" min="0" max="10">', { config: host.config });
+    const host = createReactHost();
+    const result = compileLocal('<slider bind="n" label="Count" initial="2" min="0" max="10">', host.compileOptions);
     expect(result.diagnostics).toEqual([]);
     expect(result.ok).toBe(true);
-    expect(host.examples).toEqual([]);
+    expect(host.resources).toEqual([]);
+    expect(host.notices).toEqual([]);
   });
 });

@@ -177,6 +177,8 @@ export interface LocalDocumentKernel {
 export interface LocalDocument {
   syntax: 'local';
   source: string;
+  /** Registry fingerprint carried through compilation, Worker cloning and patches. */
+  componentConfigKey?: string;
   /** Effective syntax revision; absent on older hand-built runtime documents. */
   syntaxVersion?: 'local-draft-3';
   /**

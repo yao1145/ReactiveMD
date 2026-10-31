@@ -3,9 +3,6 @@
   "private": true,
   "version": "0.6.1",
   "type": "module",
-  "imports": {
-    "#demo-extensions": "./extensions.ts"
-  },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "tsc --noEmit && vite build",
@@ -28,7 +25,7 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "reactive-md": "file:..",
-    "reactive-md-tetris-package": "file:vendor/reactive-md-tetris-package-0.1.0-894f2d82d754.tgz"
+    "reactive-md-tetris-package": "file:vendor/reactive-md-tetris-package-0.1.0-a5a8e54d74bc.tgz"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

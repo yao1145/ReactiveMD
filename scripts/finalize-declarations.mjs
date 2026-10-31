@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // TypeScript's Bundler resolution keeps extensionless source imports in .d.ts.
 // Published ESM declarations also need to resolve for NodeNext consumers.
 const root = fileURLToPath(new URL('../dist-library/types/', import.meta.url));
+await copyFile(new URL('../src/vite/client.d.ts', import.meta.url), join(root, 'vite/client.d.ts'));
 async function declarations(directory) {
   const files = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {

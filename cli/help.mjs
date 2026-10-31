@@ -13,23 +13,27 @@ Usage:
   reactive-md build <doc.reactive.md> -o <doc.html> [options]
   reactive-md lint [--json] [--warnings-as-errors] [--locale en|zh] <file... | ->
   reactive-md migrate <file | -> [options]
+  reactive-md init component <directory> [options]
   reactive-md build --help
   reactive-md lint --help
   reactive-md migrate --help
+  reactive-md init --help
   reactive-md --version
 
 Commands:
   build    Compile one local document into a single, self-contained HTML file.
   lint     Compile documents and report diagnostics.
   migrate  Migrate a document's syntax revision metadata.
+  init     Create a React component package scaffold.
 
-Run "reactive-md build --help", "reactive-md lint --help" or
-"reactive-md migrate --help" for the options and the document diagnostic
-format. "format" is not part of this release.
+Run "reactive-md build --help", "reactive-md lint --help",
+"reactive-md migrate --help" or "reactive-md init --help" for the options and
+the document diagnostic format. "format" is not part of this release.
 
 Build ${EXIT_CODES.toLowerCase()}
 Lint exit codes: 0 clean, 1 diagnostics, 2 usage or file-read error.
 Migrate exit codes: 0 success, 1 migration needed or blocked, 2 usage or I/O error.
+Init exit codes: 0 success, 2 usage error, 4 I/O error.
 `;
 }
 
@@ -135,4 +139,48 @@ Exit codes: 0 success, 1 migration needed or blocked, 2 usage or I/O error.
 /** @param {'en'|'zh'} [locale] */
 export function migrateHelp(locale = 'en') {
   return MIGRATE_HELP[locale === 'zh' ? 'zh' : 'en'];
+}
+
+export function initHelp() {
+  return `Usage: reactive-md init component <directory> [options]
+
+Create a runnable React component package: a pure-data manifest, a React view,
+scoped CSS, a Vite extension host, a browser preview, declaration and package
+build scripts, and a Node/SSR compliance check.
+
+The target directory must not exist. Validation runs before anything is
+written, and a failed write leaves the directory in place for inspection.
+
+Options:
+      --name <tag>                 Component tag name in lowercase kebab-case.
+                                   Defaults to a name derived from the
+                                   directory.
+      --id <namespace/name>        Component id such as "example/counter".
+                                   Defaults to "local/<name>".
+      --form <leaf|inline|container>
+                                   Component form (default leaf). Inline and
+                                   container forms render their children.
+      --props <json>               JSON object of prop declarations, for
+                                   example '{"label":{"kind":"string","default":"Count"}}'.
+                                   Defaults to {}.
+      --capabilities <list>        Comma-separated subset of interactive, static,
+                                   ssr and offline (default all four). At least
+                                   one of interactive or static is required.
+  -y, --yes                        Accept defaults without prompting.
+  -h, --help                       Show this help.
+
+On a terminal, a missing name, id or form is asked interactively. Without a
+terminal, the documented defaults apply; an invalid value is a usage error.
+
+Generated layout:
+  src/manifest.ts       pure-data component manifest
+  src/<name>.tsx        React view and defineReactComponentPackage
+  src/<name>.css        scoped component styles
+  extensions.ts         export const host = createReactHost({ packages })
+  main/index.html       browser preview
+  scripts/build.mjs     dist/node entries and dist/types declarations
+  scripts/verify.mjs    manifest and React/SSR compliance
+
+Exit codes: 0 success, 2 usage error, 4 I/O error.
+`;
 }

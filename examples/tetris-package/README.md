@@ -29,16 +29,11 @@ ReactiveMD, React and React DOM are peer dependencies supplied by the host.
 Assemble the host with the public entries:
 
 ```tsx
-import { createLocalConfig } from 'reactive-md/sdk';
-import { createReactConfig } from 'reactive-md/react';
-import { tetris } from 'reactive-md-tetris-package';
-import { tetrisImplementation } from 'reactive-md-tetris-package/react';
-import 'reactive-md-tetris-package/styles.css';
+import { createReactHost } from 'reactive-md/react';
+import { tetrisPackage } from 'reactive-md-tetris-package/react';
 
-export const config = createLocalConfig({ components: [tetris] });
-export const reactConfig = createReactConfig(config, {
-  components: [tetrisImplementation],
-});
+export const host = createReactHost({ packages: [tetrisPackage] });
+export const { config, reactConfig } = host;
 ```
 
 Then author the tag in Markdown:
@@ -63,7 +58,7 @@ the same piece sequence, so static rendering and hydration stay reproducible.
 
 ## Try it in the repository Demo
 
-[demo/extensions.ts](../../demo/extensions.ts) registers the npm tarball installed from `demo/vendor/`. It reads implementations, CSS text and the example from `reactive-md-tetris-package/react`, and attribution from `reactive-md-tetris-package/notices?raw`. After editing this package, run `npm run update:demo-tetris` from the repository root to build, pack and install the replacement. Commit the tarball, dependency declaration and lockfile together. Preview, the editor catalog and offline HTML use that same registration; see the [Demo guide](../../demo/README.md) for fields.
+[demo/extensions.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/extensions.ts) registers the npm tarball installed from `demo/vendor/`. It reads implementations, CSS text and the example from `reactive-md-tetris-package/react`, and attribution from `reactive-md-tetris-package/notices?raw`. After editing this package, run `npm run update:demo-tetris` from the repository root to build, pack and install the replacement. Commit the tarball, dependency declaration and lockfile together. Preview, the editor catalog and offline HTML use that same registration; see the [Demo guide](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md) for fields.
 
 From the repository root, run `npm run build:demo`, then `node demo/scripts/verify-extensions.mjs`. Add `--dev` to check Vite development mode. The script starts and stops its own test server and opens the exported game offline.
 
@@ -94,3 +89,5 @@ npm run typecheck
 The browser suite proves mount, edit (pause/resume), hide/show, disabled,
 reset, descendant error isolation and unmount. Offline evidence additionally
 requires hydration, an offline context and zero network requests.
+
+Use the public reactive-md/vite adapter to read this host in Vite projects. Preview, styles, authoring and offline output share its configuration. Other hosts can load host.css or the package styles.css entry. Tetris retains a separate static board layout; ordinary components can omit renderStatic and branch on ctx.mode in render.

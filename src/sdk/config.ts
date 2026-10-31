@@ -18,6 +18,7 @@ import {
 import { LOCAL_SDK_VERSION, localVersionSatisfies } from './version';
 import { defineLocalTheme } from './theme';
 import type { LocalThemeInput, LocalThemePackage } from './theme';
+import type { Diagnostic, LocalDocument } from '../local/types';
 
 /** Identifiers the default preset contributes in phase one. */
 export const DEFAULT_PRESET_ID = defaultPreset.id;
@@ -257,6 +258,23 @@ function buildConfig(input: unknown, path: string): LocalConfig {
 /** Create an immutable, validated instance configuration. */
 export function createLocalConfig(input: LocalConfigInput = {}): LocalConfig {
   return buildConfig(input, 'config');
+}
+
+let defaultComponentConfigKey: string | undefined;
+
+/** Fingerprint of the manifests that the compiler actually used. */
+export function localComponentConfigKey(config?: LocalConfig): string {
+  return config === undefined
+    ? defaultComponentConfigKey ??= createLocalConfig().key
+    : readLocalConfig(config).key;
+}
+
+/** Older compiled documents have no fingerprint and retain contract-based checks. */
+export function validateLocalDocumentConfig(document: LocalDocument, config?: LocalConfig): Diagnostic[] {
+  if (document.componentConfigKey === undefined || document.componentConfigKey === localComponentConfigKey(config)) return [];
+  return [{ code: 'local.extension.config-mismatch', severity: 'error',
+    message: 'The document compiler configuration differs from the installed renderer. Recompile with the same host.config used by host.reactConfig (including Worker requests).',
+    range: { start: 0, end: 0 }, line: 1, column: 1 }];
 }
 
 /**

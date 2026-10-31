@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { access, lstat, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { componentCss, source, tetrisImplementation } from 'reactive-md-tetris-package/react';
+import { componentCss, source, tetrisImplementation, tetrisPackage } from 'reactive-md-tetris-package/react';
 
 it('consumes a copied npm distribution with built entries and packaged resources', async () => {
   const entry = new URL(import.meta.resolve('reactive-md-tetris-package/react'));
@@ -18,6 +18,9 @@ it('consumes a copied npm distribution with built entries and packaged resources
   expect(componentCss).toContain('.rmd-tetris');
   expect(source).toContain('<tetris');
   expect(tetrisImplementation.definition.id).toBe('example/tetris');
+  expect(tetrisPackage.definition.id).toBe('example/tetris');
+  expect(tetrisPackage.components[0]).toBe(tetrisImplementation);
+  expect(tetrisPackage.resources.map(resource => resource.id)).toContain('example/tetris.css');
   const repository = new URL('../../', import.meta.url);
   const lock = JSON.parse(await readFile(new URL('package-lock.json', repository), 'utf8'));
   const installed = lock.packages['node_modules/reactive-md-tetris-package'];

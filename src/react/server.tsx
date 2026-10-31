@@ -10,6 +10,8 @@ import {
 import { getLocalComponentRegistry } from '../sdk/registry';
 import type { Diagnostic } from '../local/types';
 import type { LocalStyleResource } from '../sdk/theme';
+import { validateLocalDocumentConfig } from '../sdk/config';
+import { validateLocalReactExtensions } from './sdk';
 
 export type LocalStaticRenderResult =
   | { readonly ok: true; readonly markup: string; readonly diagnostics: readonly Diagnostic[] }
@@ -19,8 +21,10 @@ export type LocalStaticRenderResult =
 export function renderLocalStaticDocument(
   options: Omit<LocalDocumentViewProps, 'mode' | 'staticFirst'> & { readonly resources?: readonly LocalStyleResource[] },
 ): LocalStaticRenderResult {
-  const diagnostics: Diagnostic[] = [];
-  diagnostics.push(...validateLocalExtensionRequirements(options.document.extensions, options.reactConfig?.config));
+  const diagnostics: Diagnostic[] = validateLocalDocumentConfig(options.document, options.reactConfig?.config);
+  diagnostics.push(...(options.reactConfig
+    ? validateLocalReactExtensions(options.reactConfig, options.document.extensions)
+    : validateLocalExtensionRequirements(options.document.extensions, undefined)));
   diagnostics.push(...validateLocalComponentContracts({
     document: options.document,
     installed: getLocalComponentRegistry(options.reactConfig?.config),

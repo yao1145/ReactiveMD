@@ -40,10 +40,11 @@ import {
   LocalReactExtensionMissingError,
   createReactConfig,
   localReactExtensionRenderer,
+  validateLocalReactExtensions,
   type LocalReactConfig,
   type LocalReactRenderEnvironment,
 } from '../react/sdk';
-import { createLocalConfig, readLocalConfig } from '../sdk/config';
+import { createLocalConfig, readLocalConfig, validateLocalDocumentConfig } from '../sdk/config';
 import { getLocalComponentRegistry } from '../sdk/registry';
 import type { LocalComponentDefinition } from '../sdk/types';
 import {
@@ -73,7 +74,6 @@ import {
 } from '../react/component-api';
 import {
   validateLocalComponentContracts,
-  validateLocalExtensionRequirements,
 } from '../export/requirements';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './html';
 import { localHtmlAlign, localHtmlLinkRel } from './html-names';
@@ -2111,12 +2111,10 @@ function LocalDocumentViewLocal({
     }
   }, [effectiveReactConfig, document.extensions]);
   const extensionCheck = useMemo(() => {
-    const diagnostics = validateLocalExtensionRequirements(
-      document.extensions,
-      effectiveReactConfig.config,
-    );
+    const diagnostics = validateLocalReactExtensions(effectiveReactConfig, document.extensions);
+    diagnostics.push(...validateLocalDocumentConfig(document, effectiveReactConfig.config));
     return { valid: diagnostics.length === 0, diagnostics };
-  }, [effectiveReactConfig, extensionKey]);
+  }, [effectiveReactConfig, extensionKey, document.componentConfigKey]);
   // Carried contracts are validated against the installed manifests. The
   // installed registry still owns rendering semantics; mismatches surface as
   // diagnostics before the component tree is mounted.

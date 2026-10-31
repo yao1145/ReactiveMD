@@ -1,217 +1,76 @@
-# 组件插件开发指南
+# 五分钟跑通组件插件
 
-[English](component-development-en.md)
+[English](component-development-en.md) · [完整开发契约](component-development-reference-ch.md)
 
-这里的插件是宿主通过 npm 安装、显式导入并组合的组件包或主题包。组件声明、React 实现、编辑器信息与资源共同形成开发契约；宿主用 `createLocalConfig` 和 `createReactConfig` 装配它们。
+先用一个可以展开 Markdown 的提示容器跑通预览。SDK 当前为源码预览，registry 中的旧版 0.6.1 不含本页新增入口；请安装当前源码构建的 tarball。
 
-SDK 当前以源码预览交付，包版本仍为 `0.6.1`。registry 中原有的 `0.6.1` 不含新增 SDK；以下流程使用当前源码构建的 tarball。完整类型与限制见 [SDK 指南](../integration/extension-sdk-ch.md)，实现和验证结果见[统一验收记录](extension-sdk-acceptance-ch.md)。
+## 创建并启动
 
-## 1. 在仓库外开始
-
-准备 Node 22.12 或更高版本。React 适配器使用 React 19；模板的构建与浏览器测试依赖以它的 `package.json` 为准。
-
-在 ReactiveMD 仓库构建预览包：
+在 ReactiveMD 仓库根目录构建 SDK 并生成项目：
 
 ```sh
-npm run build
+npm run build:lib
 npm pack --ignore-scripts
-```
-
-把 [examples/component-package](../../examples/component-package/README-ch.md) 复制到仓库之外的新目录，与 ReactiveMD 仓库并列，命名为 `my-reactivemd-plugin`。在新目录执行：
-
-```sh
+node bin/reactive-md.mjs init component ../my-note --name my-note --id acme/my-note --form container --props '{"label":{"kind":"string","default":"Note"}}' --yes
+cd ../my-note
 npm install ../ReactiveMD/reactive-md-0.6.1.tgz
-npm run typecheck
-npm test
+npm run dev
 ```
 
-`npm test` 构建 JS、类型、静态与交互 HTML，再执行 Node、SSR 和离线浏览器检查。浏览器测试需要已安装的 Playwright 浏览器；Windows 可按实际安装设置 `PLAYWRIGHT_CHANNEL=msedge`。先让原模板通过，再修改功能和对应测试。
+打开 Vite 打印的地址。你会看到提示容器和其中的 Markdown。可省略字段进入终端问答；`--yes` 使用非交互默认值，`init component --help` 列出选项。
 
-## 2. 组织插件包
+## 改一个文件
 
-| 文件或出口 | 内容 |
-| --- | --- |
-| `src/manifests.ts`，包出口 `.` | 数据 manifest；可由核心、Worker、作者工具读取 |
-| `src/components.tsx`，包出口 `./react` | React 与静态实现，绑定到同一 manifest |
-| `src/theme.ts`，包出口 `./theme` | 独立主题定义与资源身份 |
-| `src/component.css`，包出口 `./styles.css` | 组件默认结构样式，CSS 引用的资源一起随包提供 |
-| `scripts/build.mjs` | 生成 Node/浏览器产物与 `.d.ts`，完成示例导出 |
-| `scripts/verify.mjs` | 执行 manifest、绑定、SSR、评分与容器各自的浏览器场景 |
-| `LICENSE`、`NOTICES.md` | 本包及离线分发所需的许可与署名信息 |
-
-manifest 保持可序列化，React 函数留在实现入口。发布出口指向构建后的 JavaScript 和声明文件，普通消费者通过公开包入口导入。
-
-## 3. 定义组件契约
-
-接下来的 `manifests.ts`、`components.tsx` 和 `host.tsx` 组成独立最小演示，`component.css` 见第 6 节。完整模板还有 note、主题与测试出口；在模板中修改组件时同步这些引用与验证场景。
-
-以下评分契约保存为 `src/manifests.ts`：
-
-```ts
-import { defineLocalComponent } from 'reactive-md/sdk';
-
-export const rating = defineLocalComponent({
-  id: 'example/rating', name: 'rating', version: '1.0.0',
-  protocol: 'reactive-md-component/v1', form: 'leaf',
-  props: {
-    label: { kind: 'string', required: true },
-    max: { kind: 'number', dynamic: true, default: 5, min: 1, max: 10, integer: true },
-  },
-  bindings: {
-    value: {
-      kind: 'number', family: 'number', bind: 'bind', initial: 'initial',
-      initialRule: 'nearest-zero',
-      constraints: { min: { literal: 0 }, max: { prop: 'max' }, step: { literal: 1 } },
-    },
-  },
-  structure: { rule: 'none' },
-  capabilities: { interactive: true, static: true, ssr: true, offline: true },
-  authoring: {
-    title: { zh: '评分', en: 'Rating' }, category: 'input',
-    description: { zh: '与数字控件共享评分。', en: 'Share a rating with numeric controls.' },
-    insertText: '<rating bind="score" label="Score" max="5" initial="3">',
-  },
-  styles: ['example/component.css'],
-});
-```
-
-`id` 标识契约，`name` 是文档标签名，`version` 表示组件版本。注册时校验重复名称/id、协议、依赖、默认值与预算，默认拒绝覆盖内置名称。配置创建后冻结，变更组件集合时创建新配置。
-
-声明为 number 的属性在校验后始终是数值；`max="5"` 与 `max="{{ 5 }}"` 的结果一致。实现读取归一化 props，绑定句柄负责把写入提交给内核。
-
-形态支持 `leaf`、`inline`、`container`。容器在 manifest 中声明内容规则，由 `ctx.children.render()` 渲染 Markdown；有选项、表格或结构子项时使用对应公开内容投影。模板的 `note` 演示了容器实现。新增核心规则另见第 10 节。
-
-## 4. 实现 React 和静态输出
-
-`src/components.tsx` 可以提供以下独立实现：
-
-```tsx
-import { defineReactComponent, type LocalComponentContext } from 'reactive-md/react';
-import { rating } from './manifests';
-
-export function RatingControl(ctx: LocalComponentContext) {
-  const value = ctx.bindings.value.get() as number;
-  const maximum = ctx.props.max as number;
-  return <button className="rmd-example-rating"
-    disabled={ctx.disabled || !ctx.visible || value >= maximum}
-    aria-label={String(ctx.props.label)}
-    onClick={() => ctx.bindings.value.set(value + 1)}>{value}</button>;
-}
-
-export function RatingStatic(ctx: LocalComponentContext) {
-  return <span>{String(ctx.props.label)}: {String(ctx.bindings.value.get())}</span>;
-}
-
-export const ratingImplementation = defineReactComponent(rating, {
-  render: RatingControl, renderStatic: RatingStatic,
-});
-```
-
-此处数值断言对应 manifest 中的 number 契约。静态实现显示当前值，交互实现通过内核绑定写入；非法更新保留原状态。多个数字槽位使用 `ctx.bindings.setMany` 原子提交，集合与槽位的支持范围见 SDK 指南。
-
-局部 UI 状态可以使用 React state。计时器、订阅和事件监听在 effect 清理函数中释放；隐藏时按功能暂停工作，重置时响应 `resetToken`。静态模式下 setter 被拒绝，运行时服务忽略 reset。读者需要可访问名称、键盘操作、焦点和禁用反馈。
-
-## 5. 在宿主注册并接入编辑器
-
-宿主把同一配置交给编译、渲染、作者工具和导出。独立示例可在 `src/host.tsx` 装配：
+把生成的 `src/my-note.tsx` 改为：
 
 ```tsx
 import { useState } from 'react';
-import { createLocalConfig } from 'reactive-md/sdk';
-import { createReactConfig, LocalReactiveDocument } from 'reactive-md/react';
-import { ReactiveMarkdownEditor } from 'reactive-md/editor';
-import { rating } from './manifests';
-import { ratingImplementation } from './components';
-import 'reactive-md/styles.css';
-import 'reactive-md/editor/styles.css';
-import './component.css';
+import { defineReactComponentPackage, type LocalComponentContext } from 'reactive-md/react';
+import { manifest } from './manifest.js';
 
-export const config = createLocalConfig({ components: [rating] });
-export const reactConfig = createReactConfig(config, { components: [ratingImplementation] });
-
-export function Playground() {
-  const [source, setSource] = useState(
-    '<number bind="score" label="Score" min="0" max="5" step="1" initial="3">\n'
-    + '<rating bind="score" label="Rating" max="5">',
-  );
-  return <ReactiveMarkdownEditor value={source} onChange={setSource}
-    compileOptions={{ config }} toolbar authoring
-    preview={<LocalReactiveDocument source={source} reactConfig={reactConfig} />} />;
+function Note(ctx: LocalComponentContext) {
+  const [open, setOpen] = useState(true);
+  const title = String(ctx.props.label);
+  if (ctx.mode === 'static') {
+    return <aside className="my-note" data-my-note>
+      <strong>{title}</strong>{ctx.children.render()}
+    </aside>;
+  }
+  return <aside className="my-note" data-my-note>
+    <button disabled={ctx.disabled} onClick={() => setOpen(value => !value)}>
+      {title}
+    </button>
+    {open ? ctx.children.render() : null}
+  </aside>;
 }
+
+export const componentPackage = defineReactComponentPackage({
+  ...manifest,
+  render: Note,
+  css: '.local-document .my-note { padding: 12px; color: var(--ink); border: 1px solid var(--accent); }',
+});
 ```
 
-默认预设保持启用。此例的两个控件共享同一个数值绑定，仅一个控件写显式初值，约束保持一致。
+点击标题可展开或收起 Markdown。组件通过 `ctx.mode` 复用同一个渲染函数完成静态输出，`renderStatic` 只在需要不同版式时提供。局部 React 状态和计时器由组件管理；共享绑定的写入由内核校验，静态模式拒绝写入。计时器 effect 应在静态模式直接返回，并在卸载时清理。
 
-编辑器从 `authoring` 读取标题、说明、分类和插入模板；属性的 `description` 提供属性帮助。外部模板在同一配置下校验，插入支持绑定名分配、选区、光标与撤销/重做。自建编辑器可使用 `createLocalComponentCatalog`、`insertLocalComponent` 和 `validateLocalComponentInsertTemplates`。
+## 宿主只装配一次
 
-### 接入本仓库 Demo
+脚手架已生成以下接线。新包在 `extensions.ts` 的数组中登记：
 
-在 [demo/extensions.ts](../../demo/extensions.ts) 的现有数组中登记插件。每项可提供 `components`（React 实现数组）、`resources`（`{ id, css }` 数组）、`themes`、`notices` 和 `examples`。清单从实现读取 manifest，一次生成共享的编译与 React 配置，自动接入预览、编辑器目录、样式、样例导航与离线导出。Tetris 展示真实安装包消费：Demo 安装 `demo/vendor/` 中的 npm tarball，代码从包的公开入口读取实现与资源。修改组件源码后运行 `npm run update:demo-tetris`，构建并安装新的快照，更新依赖锁文件。
-
-`resources.id` 与 manifest 的 `styles` 对应。Demo 接受内联 CSS 和 data URL；包可导出 CSS 文本，或由 Vite 通过 `?inline` 读取 CSS 文件。样例源码可以直接由包导出，登记中英文元数据后自动进入目录。Vite 去重和编译选项由宿主统一设置，新增包沿用这些设置。
-
-从仓库根目录运行 `npm run build:demo`，再运行 `node demo/scripts/verify-extensions.mjs`；加 `--dev` 复验开发模式。脚本覆盖真实 Worker、目录、控制操作与断网导出。此装配层属于 Demo，插件的公共契约仍是 manifest、React 实现、主题与资源；独立宿主按本节前面的示例装配。完整字段和限制见 [Demo 说明](../../demo/README.md)。
-
-## 6. 样式与独立主题
-
-组件默认 CSS 负责结构和基础可读性，选择器限制在文档根节点内，使用包前缀：
-
-```css
-.local-document .rmd-example-rating {
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--accent);
-  min-height: 44px;
-}
+```ts
+import { createReactHost } from 'reactive-md/react';
+import { componentPackage } from './src/my-note.js';
+export const host = createReactHost({ packages: [componentPackage] });
 ```
 
-组件专属变量使用 `--rmd-<包或组件前缀>-<用途>`。主题读取并覆盖共享语义变量，可在不知道所有组件的情况下改变基础视觉。主题包使用 `defineLocalTheme`，有序组合使用 `composeLocalTheme`，再放入配置的 `themes`；文档以 `<theme name="paper">` 选择主题。
+`reactiveMd({ extensions: './extensions.ts' })` 为 Vite 配置样式、依赖去重和离线运行时。应用从 `virtual:reactive-md/host` 读取 `host`，向预览传 `host.reactConfig`；自建编译器或 Worker 使用 `host.compileOptions`。形态、属性和能力在 `src/manifest.ts` 中修改。简单组件也可直接在便捷工厂中内联声明，协议和 leaf 形态有默认值；CSS 资源 ID 可从组件 ID 派生。
 
-模板的 `paper` 展示深浅模式与作用域；完整规则见[主题协议](../reference/theme-protocol-ch.md)。主题契约使用有作用域的内联 CSS/data 资源，全局字体命名和关键帧不属于当前主题定义。组件 CSS 中的本地文件引用由构建适配器收集，主题包交付前需将资源归一化为其接受的形式。
+## 验证和打包
 
-## 7. 构建、SSR 与离线分享
+```sh
+npm run typecheck
+npm test
+npm pack --ignore-scripts
+```
 
-浏览器预览从宿主显式导入实现；离线分享使用宿主预构建的匹配 bundle。以模板的 `scripts/build-export.mjs` 为起点，Node 可加载的宿主 ESM 导出：
-
-| 字段 | 要求 |
-| --- | --- |
-| `config`、`reactConfig` | 同一组声明与匹配实现 |
-| `root`、`allowlist` | 资源根目录与其内部允许读取的目录；宿主入口也在 root 内 |
-| `resources` | 与 manifest 的 styles 身份一致的 CSS，提供 inline CSS 或 root 相对文件路径 |
-| `notices` | 本包、ReactiveMD 与实际分发依赖的许可/署名文本 |
-
-先调用 `preflightLocalStandaloneBuild` 查看诊断，再由 `buildLocalStandaloneBundle` 生成单个 IIFE、内联资源、notices 和清单。Vite 8 是实际构建所需的可选 peer。远程资源、目录逃逸、循环引用、资源冲突、预算超限或不支持的离线实现会拒绝构建。
-
-严格 SSR 使用 `renderLocalStaticDocument({ document, runtime, reactConfig, resources })`，结果先判断 `ok` 再取 `markup`。组件声明 styles 后，向 SSR、合规工具和导出器传同一份规范资源列表；构建结果的 `bundle.resources` 可直接使用。
-
-`createLocalShareableHtml` 接收编译文档、状态、严格 SSR markup、CSS 和 bundle。导出时检查能力、组件与主题契约、bundle seal 和资源；恢复在应用状态和挂载前检查版本与摘要。新主机提供已安装实现，文档声明不会下载代码。源码或契约改变后重新编译、校验状态并重建 bundle。
-
-## 8. 为每项能力提供证据
-
-| 工具 | 执行内容 |
-| --- | --- |
-| `runLocalManifestCompliance` | manifest 往返、默认值、非法值、字段与预算 |
-| `runLocalBehaviorCompliance` | 真实编译/运行时写入、拒绝回滚、revision、数组副本与 reset |
-| `runLocalReactCompliance` | 静态输出、确定性 SSR、已配置的服务器错误探针 |
-| `runLocalBrowserCompliance` | 挂载、编辑、隐藏/显示、禁用、重置、子树错误隔离和卸载；离线另要求 hydration、断网与零请求 |
-| `createLocalComplianceReport` | 同组件、版本与配置的结果汇总，缺失证据保持显式缺失 |
-
-`ok` 表示本次要求的检查通过；`complete` 表示所有声明能力都有实际证据。`npm run test:node` 会跳过浏览器并写 `complete:false`。评分与容器分别编写浏览器场景；容器应验证自己的内容、可见性和子项生命周期。
-
-把模板中的示例测试替换成插件真实交互，保留失败、跳过与不支持的区别。对共享语义可用 `compareLocalComplianceParity` 比较内置组件和外部别名。浏览器证据记录实际引擎、宽度、键盘、焦点和无障碍观察。
-
-## 9. 打包与第二消费项目
-
-先运行 `npm run typecheck` 和 `npm test`，再执行 `npm pack --ignore-scripts`。把生成的插件 tarball 与 ReactiveMD SDK tarball 安装到另一个全新项目，通过插件的 `.`、`./react`、`./theme` 和 `./styles.css` 验证公开导入、NodeNext 类型、SSR、预览与离线 HTML。
-
-发布前更新包名、版本、LICENSE、NOTICES 和 exports，检查文件清单、CSS 引用资源及 JS/类型是否齐全。本地 `file:` SDK 依赖要换成实际包含这些 SDK 入口的已发布版本；随后移除模板的 `private`。发布插件前固定其支持的 ReactiveMD 范围，契约变化使用插件自己的版本并给出迁移说明。
-
-旧 `hostComponents`、`hostRenderer` 与 `hostData` 按 [SDK 迁移说明](../integration/extension-sdk-ch.md)转换，重新编译并重建 bundle。
-
-## 10. 向默认预设或内核贡献
-
-插件现有的公开规则足够时，只需要声明、实现和宿主装配。向默认预设贡献时，定义放入 `src/presets/default-components.ts`，实现放入 `src/components/`，作者信息放入默认作者数据；由预设走相同公开协议。
-
-新增表达式、状态 family、结构或预算原语时，再修改相应内核并建立公开契约。按[组件协议](component-protocol-ch.md)、[兼容规则](../compatibility/compatibility-ch.md)和[提案模板](component-protocol-ch.md#13-新组块提案模板)评审，分别判断组件版本、SDK 协议、语法修订与包版本。
-
-仓库文档修改运行 `npm run test:docs`；公开入口/类型修改构建后运行 `test:package` 和 `test:packed`；运行时行为修改运行相关测试，跨系统或发布使用 `verify:release`。已有架构与历史证据统一保存在[交付与验收记录](extension-sdk-acceptance-ch.md)。
+将安装包交给另一个宿主，通过包的公开入口导入。能力声明、绑定与容器契约、纯声明入口、离线导出、样式资源和合规证据见[完整开发契约](component-development-reference-ch.md)。当前 Demo 的安装包试验见 [Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。

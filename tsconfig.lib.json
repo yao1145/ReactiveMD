@@ -7,5 +7,5 @@
     "outDir": "dist-library/types",
     "rootDir": "src"
   },
-  "include": ["src/index.ts", "src/react/index.ts", "src/react/server.tsx", "src/editor/index.ts", "src/editor/codemirror/index.ts", "src/authoring/index.ts", "src/sdk/index.ts", "src/presets/default.ts", "src/export/index.ts", "src/standalone/library.ts", "src/build/index.ts", "src/testing/index.ts", "src/testing/react.tsx", "src/testing/browser.ts"]
+  "include": ["src/index.ts", "src/react/index.ts", "src/react/server.tsx", "src/editor/index.ts", "src/editor/codemirror/index.ts", "src/authoring/index.ts", "src/sdk/index.ts", "src/presets/default.ts", "src/export/index.ts", "src/standalone/library.ts", "src/build/index.ts", "src/testing/index.ts", "src/testing/react.tsx", "src/testing/browser.ts", "src/vite/index.ts"]
 }

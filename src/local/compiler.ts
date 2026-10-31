@@ -16,6 +16,7 @@ import { inspectLocalMathDisplay } from './math-display';
 import { parseLocal } from './parser';
 import { LOCAL_SYNTAX_VERSION } from './version';
 import { DEFAULT_LOCAL_THEME } from './theme';
+import { localComponentConfigKey } from '../sdk/config';
 import {
   isLocalEmail,
   MAX_LOCAL_EMAIL_LENGTH,
@@ -628,6 +629,8 @@ function compileLocalInternal(source: string, options?: LocalCompileOptions, cap
   const document: LocalDocument = {
     syntax: 'local',
     source,
+    ...((optionCheck.config || !options?.hostComponents)
+      ? { componentConfigKey: localComponentConfigKey(optionCheck.config) } : {}),
     syntaxVersion: LOCAL_SYNTAX_VERSION,
     ...(parsed.versionDeclaration ? { versionDeclaration: parsed.versionDeclaration } : {}),
     nodes: stripDeclarationNodes(parsed.nodes),

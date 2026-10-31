@@ -16,6 +16,8 @@ export type {
 } from '../local/render-types';
 export type { LocalLocale } from '../local/locale';
 export type { LocalColorScheme, LocalThemeDefinition } from '../local/theme';
+export { defineReactComponentPackage, createReactHost } from './package';
+export type { LocalReactComponentPackageInput, LocalReactComponentPackage, LocalReactPackage, LocalReactHostInput, LocalReactHost, LocalPackageNotice } from './package';
 
 export {
   LocalReactExtensionMissingError,

@@ -1,4 +1,3 @@
-/// <reference path="./extension-bundle.d.ts" />
 import { createElement } from 'react';
 import {
   compileLocal,
@@ -14,8 +13,10 @@ import {
 } from 'reactive-md';
 import { LocalDocumentView, type LocalDocumentViewProps } from 'reactive-md/react';
 import { createLocalShareableHtml, type LocalStandaloneBundle } from 'reactive-md/export';
-import { config as demoConfig, reactConfig, resources, notices } from '#demo-extensions';
+import { host } from 'virtual:reactive-md/host';
 import { imagePolicy, resolveDocumentImages, validateImageManifest, type ImageAsset } from './image-assets';
+
+const { config: demoConfig, reactConfig, resources, notices } = host;
 
 export const DEMO_GENERATOR_NAME = 'reactive-md-demo';
 export const FALLBACK_DOCUMENT_TITLE = 'Reactive MD document';
@@ -318,7 +319,7 @@ export async function buildShareableHtml(
     ? notices.map(notice => [notice.id, notice.license, notice.text].filter(Boolean).join('\n')).join('\n\n')
     : '';
   if (usesExtensions && mode === 'interactive') {
-    const built = (await import('virtual:demo-extension-bundle')).default;
+    const built = (await import('virtual:reactive-md/bundle')).default;
     if ('error' in built) throw new ShareableHtmlBuildError(built.error, built.diagnostics);
     if (built.configKey !== demoConfig.key) {
       throw new ShareableAssetsError('The extension bundle is stale. Restart or rebuild the Demo.');
