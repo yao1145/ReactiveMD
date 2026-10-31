@@ -60,9 +60,6 @@
 | --- | --- |
 | 组件插件开发 | [中文](development/component-development-ch.md) |
 | 组件协议 | [中文](development/component-protocol-ch.md) |
-| 扩展 SDK 与组件统一架构规划 | [中文](development/extension-sdk-plan-ch.md) |
-| 扩展 SDK 交付与统一验收 | [中文](development/extension-sdk-acceptance-ch.md) |
-| 第二阶段组件逐项迁移清单 | [中文](development/extension-sdk-phase2-inventory-ch.md) |
 | 性能 | [优化历史与当前复测总览](development/performance-overview-ch.md) |
 | 发布流程 | [中文](development/releasing-ch.md) |
 

@@ -10,3 +10,6 @@ artifacts/
 .npm-cache/
 *.tgz
 !demo/vendor/*.tgz
+
+# Archived development records kept locally only
+docs/archive/extension-sdk-*.md

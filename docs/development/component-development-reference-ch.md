@@ -4,7 +4,7 @@
 
 这里的插件是宿主通过 npm 安装、显式导入并组合的组件包或主题包。组件声明、React 实现、编辑器信息与资源共同形成开发契约；宿主用 `createLocalConfig` 和 `createReactConfig` 装配它们。
 
-SDK 当前以源码预览交付，包版本仍为 `0.6.1`。registry 中原有的 `0.6.1` 不含新增 SDK；以下流程使用当前源码构建的 tarball。完整类型与限制见 [SDK 指南](../integration/extension-sdk-ch.md)，实现和验证结果见[统一验收记录](extension-sdk-acceptance-ch.md)。
+SDK 当前以源码预览交付，包版本仍为 `0.6.1`。registry 中原有的 `0.6.1` 不含新增 SDK；以下流程使用当前源码构建的 tarball。完整类型与限制见 [SDK 指南](../integration/extension-sdk-ch.md)。历史实现与验收记录已归档，不再随文档维护。
 
 
 ## 便捷定义与宿主组合
@@ -255,4 +255,4 @@ export function Playground() {
 
 新增表达式、状态 family、结构或预算原语时，再修改相应内核并建立公开契约。按[组件协议](component-protocol-ch.md)、[兼容规则](../compatibility/compatibility-ch.md)和[提案模板](component-protocol-ch.md#13-新组块提案模板)评审，分别判断组件版本、SDK 协议、语法修订与包版本。
 
-仓库文档修改运行 `npm run test:docs`；公开入口/类型修改构建后运行 `test:package` 和 `test:packed`；运行时行为修改运行相关测试，跨系统或发布使用 `verify:release`。已有架构与历史证据统一保存在[交付与验收记录](extension-sdk-acceptance-ch.md)。
+仓库文档修改运行 `npm run test:docs`；公开入口/类型修改构建后运行 `test:package` 和 `test:packed`；运行时行为修改运行相关测试，跨系统或发布使用 `verify:release`。历史架构与验收证据已归档，不再随文档维护。

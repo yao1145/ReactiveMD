@@ -88,7 +88,7 @@ Use `family: 'collection'` with `kind: 'array'` or `'number-array'` for general 
 
 The React context exposes public content projections through `content` and `children.items()`. Use `children.render()`, `children.options()` and `children.table()` for child content, plus `validation`, `navigation`, `source` and `locale` for shared services. Runtime services expose evaluation, state writes and resets. The adapter owns internal AST access.
 
-`examples/integration/extension-sdk/advanced.tsx` implements an external coordinate control, collection control and Markdown container. The [phase-two inventory](../development/extension-sdk-phase2-inventory-ch.md) tracks each default component.
+`examples/integration/extension-sdk/advanced.tsx` implements an external coordinate control, collection control and Markdown container.
 
 ## Authoring and themes
 
@@ -363,7 +363,7 @@ To migrate:
 3. Create one `LocalConfig` and one `LocalReactConfig`, then pass them to every compiler, authoring, server and export call.
 4. Recompile documents and rebuild standalone bundles. The configuration key changes, and a sealed bundle or restoration requirement from the old configuration no longer matches.
 
-Follow the [component plugin development guide](../development/component-development-en.md) for the workflow. The [architecture plan](../development/extension-sdk-plan-ch.md) retains the design sequence; results are in the [consolidated acceptance record](../development/extension-sdk-acceptance-ch.md).
+Follow the [component plugin development guide](../development/component-development-en.md) for the workflow.
 
 ## Verify a real consumer
 

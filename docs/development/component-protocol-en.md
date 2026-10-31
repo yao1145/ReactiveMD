@@ -496,7 +496,7 @@ Components that reuse public rules need a definition, implementation and registr
 
 This revision describes contribution requirements and the legacy host interface in section 14. `LOCAL_COMPONENTS` is an internal compatibility projection of the default preset. `hostComponents` accepts plain schema data for one compilation and adapts it to the shared kernel, with implementations supplied by the host.
 
-The source tree's [extension SDK preview](../integration/extension-sdk-en.md) uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, editor catalogs, offline builds, versioned restoration and public compliance tools. All 46 default rendered and structural components use this contract; see the [consolidated delivery and acceptance record](extension-sdk-acceptance-ch.md). The source SDK ships with a later release; registry copies of `0.6.1` retain their original interfaces. Hosts explicitly install component code; document declarations never load it.
+The source tree's [extension SDK preview](../integration/extension-sdk-en.md) uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, editor catalogs, offline builds, versioned restoration and public compliance tools. All 46 default rendered and structural components use this contract. The source SDK ships with a later release; registry copies of `0.6.1` retain their original interfaces. Hosts explicitly install component code; document declarations never load it.
 
 ## 10. Compatibility, name governance, revisions and migration
 

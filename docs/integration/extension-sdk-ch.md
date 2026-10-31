@@ -102,7 +102,7 @@ const result = ctx.bindings.setMany({ x: 2, y: 3 });
 
 React 上下文的 `content` 与 `children.items()` 提供公开内容投影。组件通过 `children.render()`、`children.options()`、`children.table()` 等方法消费子内容，通过 `validation`、`navigation`、`source` 和 `locale` 使用通用服务。运行时服务提供求值、状态读写与重置；内部 AST 保留在适配器中。
 
-`examples/integration/extension-sdk/advanced.tsx` 展示了自定义坐标、集合和 Markdown 容器。逐项迁移情况见[第二阶段清单](../development/extension-sdk-phase2-inventory-ch.md)。
+`examples/integration/extension-sdk/advanced.tsx` 展示了自定义坐标、集合和 Markdown 容器。
 
 ## 作者工具
 
@@ -376,7 +376,7 @@ npm test
 3. 创建一个 `LocalConfig` 和一个 `LocalReactConfig`，传给所有编译、作者工具、server 和导出调用。
 4. 重新编译文档并重建独立 bundle。配置摘要会变化，旧配置生成的 seal 或恢复要求不再匹配。
 
-开发步骤见[组件插件开发指南](../development/component-development-ch.md)；[架构规划](../development/extension-sdk-plan-ch.md)保留设计顺序，结果见[统一验收记录](../development/extension-sdk-acceptance-ch.md)。
+开发步骤见[组件插件开发指南](../development/component-development-ch.md)。
 
 ## 完整样例与验证
 

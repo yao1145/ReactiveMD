@@ -4,7 +4,7 @@
 
 A plugin is an npm component or theme package that a host installs, imports and composes explicitly. Its contract consists of data manifests, React implementations, authoring information and resources. Hosts assemble it with `createLocalConfig` and `createReactConfig`.
 
-The SDK is a source preview on package version `0.6.1`. Registry copies of `0.6.1` predate these APIs. Use a tarball built from the current source for this workflow. See the [SDK reference](../integration/extension-sdk-en.md) for types and limits and the [consolidated acceptance record](extension-sdk-acceptance-ch.md) for delivery evidence.
+The SDK is a source preview on package version `0.6.1`. Registry copies of `0.6.1` predate these APIs. Use a tarball built from the current source for this workflow. See the [SDK reference](../integration/extension-sdk-en.md) for types and limits. Historical delivery evidence is archived outside the published documentation.
 
 
 ## Convenience packages and host composition
@@ -240,4 +240,4 @@ Public rules usually require only a definition, implementation and host assembly
 
 Add kernel code when introducing expression, state-family, structure or budget primitives, and define their public contracts. Review them through the [component protocol](component-protocol-en.md), [compatibility rules](../compatibility/compatibility-en.md) and [proposal template](component-protocol-en.md#13-new-component-proposal-template). Component version, SDK protocol, syntax revision and package version are separate decisions.
 
-Run `npm run test:docs` for repository documentation. Build before `test:package`/`test:packed` when public entries or types change. Exercise affected runtime behavior with focused tests, and use `verify:release` for cross-system work or releases. The [delivery and acceptance record](extension-sdk-acceptance-ch.md) retains architecture evidence.
+Run `npm run test:docs` for repository documentation. Build before `test:package`/`test:packed` when public entries or types change. Exercise affected runtime behavior with focused tests, and use `verify:release` for cross-system work or releases. Historical architecture evidence is archived outside the published documentation.
