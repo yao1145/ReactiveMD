@@ -144,6 +144,14 @@ The default preset stays enabled. These controls share a numeric binding with ma
 
 The editor reads titles, descriptions, category and insertion template from `authoring`; prop `description` supplies help. Supplied templates are validated under the same configuration. Insertion supports fresh binding names, selections, caret placement and undo/redo. Custom editors can use `createLocalComponentCatalog`, `insertLocalComponent` and `validateLocalComponentInsertTemplates`.
 
+### Use the repository Demo
+
+Add the package to the existing array in [demo/extensions.ts](../../demo/extensions.ts). Contributions accept `components` (React implementations), `resources` (`{ id, css }` records), `themes`, `notices` and `examples`. The Demo reads manifests from implementations and assembles shared compiler and React configuration, preview styles, the editor catalog, example navigation and offline exports. Tetris is registered this way. To consume an installed package, change its local source imports to public package entries in that file.
+
+Resource IDs match manifest `styles`. Supply inline CSS with data URLs, either exported by the package or imported from a CSS file with Vite's `?inline`. Example source can come directly from the package; bilingual metadata registers it in the catalog. The host maintains Vite deduplication and compiler options for every package.
+
+From the repository root, run `npm run build:demo`, then `node demo/scripts/verify-extensions.mjs`. Add `--dev` to exercise development mode. The script checks the real Worker, catalog, controls and exports opened offline. This assembly layer belongs to the Demo; packages retain the public manifest, React, theme and resource contracts. Independent hosts use the assembly example above. See the [Demo guide](../../demo/README.md) for fields and limits.
+
 ## 6. Styles and independent themes
 
 Default component CSS supplies structure and readable basics. Scope selectors to the document and use a package prefix:

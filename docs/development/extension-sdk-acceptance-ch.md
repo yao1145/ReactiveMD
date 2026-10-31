@@ -127,3 +127,18 @@ npm.cmd run test:sdk-consumer
 旧 `hostComponents`、`hostRenderer`、`hostData` 保持兼容输入路径；新配置与对应旧注册参数混用时拒绝冲突。迁移后重新编译文档并重建 bundle。默认组件同名覆盖、运行中修改注册表、文档内自动装载插件和第三方代码沙箱仍不在此 SDK 契约内。
 
 后续新增组件先扩展公共契约与合规用例，再由默认组件和仓库外组件共同验证。组件、主题、SDK、语法和发布版本分别管理。
+
+## 7. Demo 单入口接入补验（2026-10-31）
+
+Demo 现在从 `demo/extensions.ts` 统一装配组件实现、样式、主题、样例和 notices。Tetris 直接复用包内源码与样例，编译器、Worker、预览、编辑器目录和导出使用同一配置。离线运行时由公开 `buildLocalStandaloneBundle` 构建；开发模式的中间 JSX 转换固定为生产模式，避免导出文件调用不可用的 `jsxDEV`。
+
+本轮检查：
+
+- `npm run build:demo`：库类型、库产物与 Demo 构建通过。
+- Demo 单元测试：20 个文件、266 项通过，含真实外部组件 SSR/静态导出、缺失及冲突样式、嵌套 npm 安装和离线能力诊断。
+- `npm run test:package`：公开入口和核心、React 消费边界通过。
+- `npm run test:docs`：76 份文档、812 个本地链接与锚点通过。
+- `node demo/scripts/verify-extensions.mjs` 及 `--dev`：Edge 生产和开发模式各 6 项通过，覆盖真实 Worker、游戏操作、编辑器目录、手机布局，以及断网打开并操作导出的交互 HTML；静态 HTML 包含组件样式且不含脚本。两轮均无页面错误和离线 HTTP 请求。
+- 原有 `demo/scripts/verify-export.mjs`：内置组件的当前值、状态下载、交互离线 HTML 和静态 HTML 共 4 项通过。
+
+本轮浏览器记录与示例文件位于 `artifacts/demo-extensions/`。这些结果属于本次 Demo 接入补验，与前面三阶段的历史发布门禁分别记录。

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { compileLocal, createLocalStateFile, type LocalCompileOptions } from 'reactive-md';
 import { buildShareableHtml } from '../src/export-html';
+import { config } from '#demo-extensions';
 
 const spies = vi.hoisted(() => ({
   compileLocal: vi.fn(),
@@ -64,16 +65,17 @@ describe('shareable HTML build option propagation', () => {
       compileOptions: COMPILE_OPTIONS,
     });
 
-    expect(spies.compileLocal).toHaveBeenLastCalledWith(SOURCE, COMPILE_OPTIONS);
+    const expected = { ...COMPILE_OPTIONS, config };
+    expect(spies.compileLocal).toHaveBeenLastCalledWith(SOURCE, expected);
     expect(spies.createShareableHtml).toHaveBeenCalledTimes(1);
     const envelope = spies.createShareableHtml.mock.calls[0][0] as {
       compileOptions?: LocalCompileOptions;
     };
-    expect(envelope.compileOptions).toEqual(COMPILE_OPTIONS);
+    expect(envelope.compileOptions).toEqual(expected);
     expect(result.html).toContain('reactive-md-html-format');
   });
 
-  it('leaves the compile options undefined for the default ReactiveMD route', async () => {
+  it('supplies the installed config without granting extra HTML capabilities', async () => {
     const initial = compileLocal('# Safe route');
     if (!initial.ok) throw new Error(JSON.stringify(initial.diagnostics));
     const state = createLocalStateFile(
@@ -91,10 +93,10 @@ describe('shareable HTML build option propagation', () => {
       colorScheme: 'light',
     });
 
-    expect(spies.compileLocal).toHaveBeenLastCalledWith('# Safe route', undefined);
+    expect(spies.compileLocal).toHaveBeenLastCalledWith('# Safe route', { config });
     const envelope = spies.createShareableHtml.mock.calls[0][0] as {
       compileOptions?: LocalCompileOptions;
     };
-    expect(envelope.compileOptions).toBeUndefined();
+    expect(envelope.compileOptions).toEqual({ config });
   });
 });

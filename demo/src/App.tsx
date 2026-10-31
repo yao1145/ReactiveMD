@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { formatLocalDiagnostic, notifyLocalRuntime, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
 import { LocalDocumentView } from 'reactive-md/react';
+import { config as demoConfig, reactConfig as demoReactConfig } from '#demo-extensions';
 import type { LocalSourceTarget } from 'reactive-md/react';
 import {
   ReactiveMarkdownEditor,
@@ -271,6 +272,7 @@ export const LocalPreview = memo(function LocalPreview({ document, session, onDi
   }
   return (
     <LocalDocumentView
+      reactConfig={demoReactConfig}
       {...imageProps}
       document={instance.document}
       runtime={instance.runtime}
@@ -465,7 +467,7 @@ export default function App() {
   } | null>(null);
   const sourceWriteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const compileOptions = useMemo(() => ({ ...toCompileOptions(htmlOptions), markdownBreaks: true }), [htmlOptions]);
+  const compileOptions = useMemo(() => ({ ...toCompileOptions(htmlOptions), markdownBreaks: true, config: demoConfig }), [htmlOptions]);
   const compilation = useLocalCompilation(source, compileOptions, true, editHint.current);
   const currentExample = localizedExample(
     EXAMPLES.find((item) => item.id === selectedExample) ?? DEFAULT_EXAMPLE,

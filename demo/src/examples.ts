@@ -1,4 +1,5 @@
 import type { Language } from './i18n';
+import { examples as extensionExamples } from '#demo-extensions';
 import functionsSource from '../../examples/local/showcase/functions.reactive.md?raw';
 import formsSource from '../../examples/local/showcase/forms.reactive.md?raw';
 import statisticsSource from '../../examples/local/showcase/statistics.reactive.md?raw';
@@ -101,7 +102,12 @@ export const EXAMPLES: PlaygroundExample[] = [
     hintZh: '故意写错的源码',
     sourceZh: diagnosticsZhSource,
   },
+  ...extensionExamples,
 ];
+
+if (new Set(EXAMPLES.map(example => example.id)).size !== EXAMPLES.length) {
+  throw new Error('Demo extensions conflict with a built-in example ID.');
+}
 
 export const DEFAULT_EXAMPLE_ID = 'pricing';
 

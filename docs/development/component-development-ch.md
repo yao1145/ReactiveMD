@@ -144,6 +144,14 @@ export function Playground() {
 
 编辑器从 `authoring` 读取标题、说明、分类和插入模板；属性的 `description` 提供属性帮助。外部模板在同一配置下校验，插入支持绑定名分配、选区、光标与撤销/重做。自建编辑器可使用 `createLocalComponentCatalog`、`insertLocalComponent` 和 `validateLocalComponentInsertTemplates`。
 
+### 接入本仓库 Demo
+
+在 [demo/extensions.ts](../../demo/extensions.ts) 的现有数组中登记插件。每项可提供 `components`（React 实现数组）、`resources`（`{ id, css }` 数组）、`themes`、`notices` 和 `examples`。清单从实现读取 manifest，一次生成共享的编译与 React 配置，自动接入预览、编辑器目录、样式、样例导航与离线导出。Tetris 已按此方式接入，可参考它的登记项；改用 npm 包时，将该文件中的本地源码导入改为包的公开入口。
+
+`resources.id` 与 manifest 的 `styles` 对应。Demo 接受内联 CSS 和 data URL；包可导出 CSS 文本，或由 Vite 通过 `?inline` 读取 CSS 文件。样例源码可以直接由包导出，登记中英文元数据后自动进入目录。Vite 去重和编译选项由宿主统一设置，新增包沿用这些设置。
+
+从仓库根目录运行 `npm run build:demo`，再运行 `node demo/scripts/verify-extensions.mjs`；加 `--dev` 复验开发模式。脚本覆盖真实 Worker、目录、控制操作与断网导出。此装配层属于 Demo，插件的公共契约仍是 manifest、React 实现、主题与资源；独立宿主按本节前面的示例装配。完整字段和限制见 [Demo 说明](../../demo/README.md)。
+
 ## 6. 样式与独立主题
 
 组件默认 CSS 负责结构和基础可读性，选择器限制在文档根节点内，使用包前缀：

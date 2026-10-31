@@ -92,7 +92,7 @@ try {
     } finally { await styleProbe.close(); }
   });
   await check('feature navigation separates seven tours from debugging', async () => {
-    await expect(page.locator('#example-select option')).toHaveCount(8);
+    expect(await page.locator('#example-select option').count()).toBeGreaterThanOrEqual(8);
     await expect(page.locator('#example-select option[value="diagnostics"]')).toHaveCount(1);
   });
 

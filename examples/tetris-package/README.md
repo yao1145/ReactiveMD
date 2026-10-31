@@ -52,6 +52,12 @@ Keyboard: arrows move, `Space` hard-drops, `P` pauses, `R` restarts. The
 toggle buttons cover pointer and touch input. The same `seed` always produces
 the same piece sequence, so static rendering and hydration stay reproducible.
 
+## Try it in the repository Demo
+
+[demo/extensions.ts](../../demo/extensions.ts) already registers this package's implementation, CSS, example and notices. Preview, the editor catalog and offline HTML use that same registration. Add further packages to the list; see the [Demo guide](../../demo/README.md) for fields.
+
+From the repository root, run `npm run build:demo`, then `node demo/scripts/verify-extensions.mjs`. Add `--dev` to check Vite development mode. The script starts and stops its own test server and opens the exported game offline.
+
 ## Commands
 
 ```sh

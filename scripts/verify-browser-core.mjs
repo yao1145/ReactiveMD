@@ -94,7 +94,7 @@ async function runCase(browser, engine, width, result, baseURL) {
   try {
     await openWorkbench(page,baseURL);
     await check('example navigation and reactive controls', async () => {
-      await expect(page.locator('#example-select option')).toHaveCount(8);
+      expect(await page.locator('#example-select option').count()).toBeGreaterThanOrEqual(8);
       const people = stage.getByRole('slider', { name: 'People', exact: true });
       await expect(people).toHaveValue('2');
       await people.focus();

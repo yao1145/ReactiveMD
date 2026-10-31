@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileLatex, compileLocal, createLocalRuntime, type LocalValue } from 'reactive-md';
 import { EXAMPLES, DEFAULT_EXAMPLE_ID, localizedExample, localizedExamples } from '../src/examples';
+import { config, examples as extensionExamples } from '#demo-extensions';
 
 function exampleSource(id: string) {
   const example = EXAMPLES.find((item) => item.id === id);
@@ -13,14 +14,16 @@ function flatten<T extends { children?: T[] }>(nodes: T[]): T[] {
 }
 
 describe('playground local documents consumed through the public package', () => {
-  it('ships a quick start, six feature tours and one diagnostics document', () => {
-    expect(EXAMPLES).toHaveLength(8);
-    expect(new Set(EXAMPLES.map((example) => example.id)).size).toBe(8);
-    expect(EXAMPLES.filter((example) => example.section === 'quickstart').map((example) => example.id)).toEqual(['pricing']);
-    expect(EXAMPLES.filter((example) => example.section === 'feature').map((example) => example.id))
+  it('ships the built-in tours and registered plugin examples', () => {
+    expect(EXAMPLES).toHaveLength(8 + extensionExamples.length);
+    expect(new Set(EXAMPLES.map((example) => example.id)).size).toBe(EXAMPLES.length);
+    const contributedIds = new Set(extensionExamples.map(example => example.id));
+    const builtins = EXAMPLES.filter(example => !contributedIds.has(example.id));
+    expect(builtins.filter((example) => example.section === 'quickstart').map((example) => example.id)).toEqual(['pricing']);
+    expect(builtins.filter((example) => example.section === 'feature').map((example) => example.id))
       .toEqual(['functions', 'forms', 'statistics', 'layout', 'flow', 'tasks']);
-    expect(EXAMPLES.filter((example) => example.section === 'reference').map((example) => example.id)).toEqual([]);
-    expect(EXAMPLES.filter((example) => example.section === 'debug').map((example) => example.id)).toEqual(['diagnostics']);
+    expect(builtins.filter((example) => example.section === 'reference').map((example) => example.id)).toEqual([]);
+    expect(builtins.filter((example) => example.section === 'debug').map((example) => example.id)).toEqual(['diagnostics']);
     expect(EXAMPLES.some((example) => example.id === DEFAULT_EXAMPLE_ID)).toBe(true);
     for (const example of EXAMPLES) {
       expect(example.source.trim().length).toBeGreaterThan(0);
@@ -31,7 +34,7 @@ describe('playground local documents consumed through the public package', () =>
 
   for (const example of EXAMPLES) {
     it(`${example.id}: ${example.id === 'diagnostics' ? 'reports intentional errors' : 'compiles and starts'}`, () => {
-      const result = compileLocal(example.source);
+      const result = compileLocal(example.source, { config });
       if (example.id === 'diagnostics') {
         expect(result.ok).toBe(false);
         expect(result.diagnostics.length).toBeGreaterThanOrEqual(8);
@@ -88,7 +91,7 @@ describe('playground local documents consumed through the public package', () =>
 
 describe('localized playground examples', () => {
   it('ships English and Chinese metadata and sources for every tour', () => {
-    expect(EXAMPLES).toHaveLength(8);
+    expect(EXAMPLES).toHaveLength(8 + extensionExamples.length);
     for (const example of EXAMPLES) {
       expect(example.title.trim().length, example.id).toBeGreaterThan(0);
       expect(example.hint.trim().length, example.id).toBeGreaterThan(0);
@@ -137,7 +140,7 @@ describe('localized playground examples', () => {
 
   for (const example of EXAMPLES) {
     it(`zh ${example.id}: ${example.id === 'diagnostics' ? 'reports intentional errors' : 'compiles and starts'}`, () => {
-      const result = compileLocal(example.sourceZh);
+      const result = compileLocal(example.sourceZh, { config });
       if (example.id === 'diagnostics') {
         expect(result.ok).toBe(false);
         if (result.ok) return;

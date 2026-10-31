@@ -1,3 +1,4 @@
+/// <reference path="./extension-bundle.d.ts" />
 import { createElement } from 'react';
 import {
   compileLocal,
@@ -12,6 +13,8 @@ import {
   type LocalValue,
 } from 'reactive-md';
 import { LocalDocumentView, type LocalDocumentViewProps } from 'reactive-md/react';
+import { createLocalShareableHtml, type LocalStandaloneBundle } from 'reactive-md/export';
+import { config as demoConfig, reactConfig, resources, notices } from '#demo-extensions';
 import { imagePolicy, resolveDocumentImages, validateImageManifest, type ImageAsset } from './image-assets';
 
 export const DEMO_GENERATOR_NAME = 'reactive-md-demo';
@@ -235,9 +238,9 @@ function loadRuntimeScript(): Promise<string> {
   return runtimeScriptPromise;
 }
 
-async function loadAssets(mode: ShareableHtmlMode): Promise<LoadedAssets> {
+async function loadAssets(mode: ShareableHtmlMode, defaultRuntime = true): Promise<LoadedAssets> {
   const base = await loadBaseAssets();
-  const runtimeScript = mode === 'interactive' ? await loadRuntimeScript() : '';
+  const runtimeScript = mode === 'interactive' && defaultRuntime ? await loadRuntimeScript() : '';
   return { ...base, runtimeScript };
 }
 
@@ -279,14 +282,20 @@ export async function buildShareableHtml(
   options: ShareableHtmlBuildOptions,
 ): Promise<ShareableHtmlBuildResult> {
   const { source, state, mode } = options;
-  const locale = options.locale === 'zh' ? 'zh' : 'en';
+  const locale: 'en' | 'zh' = options.locale === 'zh' ? 'zh' : 'en';
   const colorScheme: ShareableColorScheme = options.colorScheme ?? 'auto';
 
-  const compiled = compileLocal(source, options.compileOptions);
+  const compileOptions = { ...options.compileOptions, config: options.compileOptions?.config ?? demoConfig };
+  const compiled = compileLocal(source, compileOptions);
   if (!compiled.ok) {
     throw new ShareableHtmlBuildError('The document does not compile.', compiled.diagnostics);
   }
   const document = compiled.document;
+  const usesExtensions = Boolean(document.extensions?.components.length
+    || demoConfig.themes.some(theme => theme.name === document.theme));
+  if (usesExtensions && compileOptions.config.key !== demoConfig.key) {
+    throw new ShareableHtmlBuildError('This document requires an extension configuration that is not installed in the Demo.');
+  }
   const imageCount = countDocumentImages(document);
   const resolved = resolveDocumentImages(document, validateImageManifest(options.imageAssets ?? []));
   if (resolved.missing.length > 0) {
@@ -303,7 +312,20 @@ export async function buildShareableHtml(
     );
   }
 
-  const assets = await loadAssets(mode);
+  const assets = await loadAssets(mode, !usesExtensions);
+  let bundle: LocalStandaloneBundle | undefined;
+  let extensionNotices = usesExtensions
+    ? notices.map(notice => [notice.id, notice.license, notice.text].filter(Boolean).join('\n')).join('\n\n')
+    : '';
+  if (usesExtensions && mode === 'interactive') {
+    const built = (await import('virtual:demo-extension-bundle')).default;
+    if ('error' in built) throw new ShareableHtmlBuildError(built.error, built.diagnostics);
+    if (built.configKey !== demoConfig.key) {
+      throw new ShareableAssetsError('The extension bundle is stale. Restart or rebuild the Demo.');
+    }
+    bundle = built;
+    extensionNotices = built.notices;
+  }
   const title = options.title?.trim() || deriveDocumentTitle(document);
   const runtime = createLocalRuntime(baseline.baseline.document);
   let staticMarkup: string;
@@ -320,12 +342,19 @@ export async function buildShareableHtml(
       locale,
       colorScheme,
     };
-    staticMarkup = renderToString(createElement(LocalDocumentView, viewProps));
+    if (usesExtensions) {
+      const { renderLocalStaticDocument } = await import('reactive-md/react/server');
+      const rendered = renderLocalStaticDocument({ ...viewProps, reactConfig, resources });
+      if (!rendered.ok) throw new ShareableHtmlBuildError('Extension static rendering failed.', rendered.diagnostics);
+      staticMarkup = rendered.markup;
+    } else {
+      staticMarkup = renderToString(createElement(LocalDocumentView, viewProps));
+    }
   } finally {
     runtime.dispose();
   }
 
-  const html = createShareableHtml({
+  const htmlOptions = {
     title,
     source,
     state,
@@ -335,13 +364,16 @@ export async function buildShareableHtml(
     runtimeScript: mode === 'interactive' ? assets.runtimeScript : undefined,
     locale,
     colorScheme,
-    compileOptions: options.compileOptions,
+    compileOptions,
     generator: { name: DEMO_GENERATOR_NAME, version: assets.packageVersion },
-    assets: 'inline',
+    assets: 'inline' as const,
     imageCount,
     images: resolved.images,
-    notices: assets.notices,
-  });
+    notices: `${assets.notices}\n${extensionNotices}`,
+  };
+  const html = usesExtensions
+    ? createLocalShareableHtml({ ...htmlOptions, document, config: demoConfig, resources, bundle })
+    : createShareableHtml(htmlOptions);
 
   return { html, title, imageCount, document: baseline.baseline.document };
 }

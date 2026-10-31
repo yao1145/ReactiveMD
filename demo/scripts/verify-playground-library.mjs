@@ -177,7 +177,7 @@ try {
   await check('examples stay separate, and copying an example and importing create independent documents', async () => {
     await page.getByRole('button', { name: 'Try examples', exact: true }).click();
     const examples = page.locator('#example-select');
-    await expect(examples.locator('option')).toHaveCount(8);
+    expect(await examples.locator('option').count()).toBeGreaterThanOrEqual(8);
     await examples.selectOption('functions');
     const exampleSource = await readEditor(editor);
     const options = page.locator('.workbench-options');

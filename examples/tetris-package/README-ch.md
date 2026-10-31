@@ -48,6 +48,12 @@ export const reactConfig = createReactConfig(config, {
 键盘：方向键移动，`Space` 落底，`P` 暂停，`R` 重开。按钮覆盖鼠标与触屏。
 同一种子始终产生相同方块序列，因此静态渲染与水合结果可复现。
 
+## 在本仓库 Demo 中体验
+
+组件已登记在 [demo/extensions.ts](../../demo/extensions.ts)，直接从本包读取实现、CSS、样例与 notices。预览、编辑器目录和离线 HTML 共用这份清单。新增其他包时在清单中追加登记项即可，具体字段见 [Demo 说明](../../demo/README.md)。
+
+从仓库根目录运行 `npm run build:demo`，然后运行 `node demo/scripts/verify-extensions.mjs`。加 `--dev` 可复验 Vite 开发模式；脚本会自行启停测试服务，并在断网环境中打开导出的游戏。
+
 ## 命令
 
 ```sh

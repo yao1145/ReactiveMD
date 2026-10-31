@@ -41,6 +41,38 @@ npm run dev
 
 Open `http://127.0.0.1:5173`. The embed example is at `/embed.html` and shows two independent in-memory document instances. If the library is already built, you can run `npm run dev` inside `demo/`.
 
+## External packages / 外部组件包
+
+Register packages in [extensions.ts](extensions.ts). The Demo derives its compiler and React configuration, editor catalog, styles, example navigation and offline bundle from this file. The Tetris package is already registered as a working example.
+
+新增包只需修改 `demo/extensions.ts`。安装 npm 包后导入组件实现与 CSS 文本，再向现有 `createDemoExtensions([...])` 数组追加一项：
+
+```ts
+import { tetrisImplementation, componentCss } from 'reactive-md-tetris-package/react';
+
+// An entry in createDemoExtensions([...]):
+const tetrisPackage = {
+  components: [tetrisImplementation],
+  resources: [{ id: 'example/tetris.css', css: componentCss }],
+};
+```
+
+清单从实现的 `definition` 读取 manifest，生成供编译器与渲染器共用的配置；编辑器从 manifest 的 `authoring` 获得支持。`resources` 自动进入预览、静态 HTML 与交互 HTML，无需再单独导入 CSS。资源 ID 必须与 manifest 的 `styles` 一致，CSS 中的字体和图片需预先内联为 data URL。仅提供 CSS 文件的包可通过 Vite 的 `?inline` 导入 CSS 文本。
+
+可选字段包括 `themes`、`notices` 和 `examples`。样例项使用现有 `PlaygroundExample` 的中英文标题、说明和源码，可直接读取包内样例，自动进入目录；不用再复制到 `examples/local/` 或修改 `src/examples.ts`。名称、资源和样例 ID 冲突会在装配时报告。此清单位于 Demo 根目录，集中承接本地源码包或 npm 包；应用代码继续通过公开 SDK 消费它们。
+
+Vite 对 React 去重，并统一排除 ReactiveMD 的 JavaScript 子入口预构建。新增组件包沿用这些设置。生产构建自动生成离线扩展运行时；开发服务器在首次交互导出时生成。离线包覆盖全部已登记组件，登记仅支持预览的组件时，预览仍可用，交互导出报告缺少的能力。
+
+从仓库根目录验证：
+
+```sh
+npm run build:demo
+node demo/scripts/verify-extensions.mjs
+node demo/scripts/verify-extensions.mjs --dev
+```
+
+脚本自行启动并关闭 `127.0.0.1:5187`，覆盖 Worker 编译、游戏控制、编辑器目录、手机布局，以及断网打开静态和交互 HTML。结果保存在 `artifacts/demo-extensions/`。插件包开发流程见[组件插件开发指南](../docs/development/component-development-ch.md)。
+
 ## Examples
 
 Start with Quick start, then choose a feature in the navigation:
