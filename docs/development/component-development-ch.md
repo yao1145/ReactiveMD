@@ -73,4 +73,4 @@ npm test
 npm pack --ignore-scripts
 ```
 
-将安装包交给另一个宿主，通过包的公开入口导入。能力声明、绑定与容器契约、纯声明入口、离线导出、样式资源和合规证据见[完整开发契约](component-development-reference-ch.md)。当前 Demo 的安装包试验见 [Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。
+将安装包交给另一个宿主，通过包的公开入口导入。能力声明、绑定与容器契约、纯声明入口、离线导出、样式资源和合规证据见[完整开发契约](component-development-reference-ch.md)。`<tetris>` 与 `<game-2048>` 的真实安装包案例见 [Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。

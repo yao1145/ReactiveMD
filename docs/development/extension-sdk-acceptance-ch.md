@@ -160,3 +160,11 @@ Demo 改为安装 `demo/vendor/` 中的 Tetris npm tarball，并从包的公开�
 按用户要求启动全新的 Claude Code 会话重新接入 Tetris；会话只修改分配的实现和 Demo 接线，主代理审查、重建安装包并执行验收。Tetris 继续从 demo/vendor 的 npm tarball 安装，通过公共组件包和 Vite 插件接入；旧私有适配器及别名已移除。
 
 用户要求停止测试前，已完成：核心 150 个文件、1975 项测试，Demo 21 个文件、267 项测试；库及 Demo 构建、公开包边界和真实 tarball 消费检查；Tetris 开发/生产各 6 项浏览器检查；真实安装 SDK 后运行 CLI、两种语言的相同示例、类型与 Node/SSR 合规、生产预览、静态/交互离线 HTML、开发时样式更新共 6 项消费检查。验收日志位于 artifacts/sdk-ease/ 与 artifacts/demo-extensions/。随后按用户指示停止新增测试，仅整理记录与提交。
+
+## 10. 2048 组件安装包接入（2026-10-31）
+
+新增 `examples/game-2048-package`，以 `<game-2048>` 标签提供带种子的 2048 组件，包含纯函数引擎、React 实现、静态/SSR 预览、样式、样例与合规脚本。标签名必须符合 SDK 的字母开头规则，因此不使用 `<2048>`；包文档同时记录了这一限制及其原因。
+
+接入方式与 Tetris 一致：`npm run update:demo-2048` 构建、打包并安装 `demo/vendor/` 中的 tarball；`demo/extensions.ts` 从公开的 `./react` 与 `./notices` 入口读取实现、CSS、样例和署名，与 `tetrisPackage` 一起交给同一个 `createReactHost`。样例通过扩展的 `examples` 元数据进入目录。Demo 生产与开发模式各 7 项浏览器检查通过，覆盖两个插件的 Worker 编译、预览交互、编辑器目录、手机布局及断网导出，其中新增 2048 的目录、渲染、移动与锁定场景。
+
+包内 `npm test` 的 Node、SSR、浏览器生命周期与断网导出检查全部通过（74 项），`interactive / static / ssr / offline` 四项能力均有执行证据。根项目 `package.json` 新增 `update:demo-2048`，`demo/vendor/README.md` 记录两个安装包的更新命令。

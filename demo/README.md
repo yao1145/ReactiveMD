@@ -43,18 +43,36 @@ Open `http://127.0.0.1:5173`. The embed example is at `/embed.html` and shows tw
 
 ## External packages / 外部组件包
 
-Register packages in [extensions.ts](extensions.ts). The Demo derives its compiler and React configuration, editor catalog, styles, example navigation and offline bundle from this file. The Tetris package is already registered as a working example.
+Register packages in [extensions.ts](extensions.ts). The Demo derives its compiler and React configuration, editor catalog, styles, example navigation and offline bundle from this file. Two installed plugins are registered as working cases:
 
-Tetris 通过 `demo/vendor/` 中随仓库提交的 npm tarball 安装，版本与 integrity 记录在依赖锁文件中。实现、CSS 文本和样例从 `reactive-md-tetris-package/react` 导入，notices 从包的公开资源入口读取。新检出执行 `npm install` 即可安装该快照。修改 Tetris 源码后，从仓库根目录执行 `npm run update:demo-tetris`，重新构建、打包并安装，再提交替换后的 tarball、依赖声明和锁文件；后续预览及导出使用更新后的安装包。
+| Package | Tag | Source | Update command |
+| --- | --- | --- | --- |
+| `reactive-md-tetris-package` | `<tetris>` | `examples/tetris-package` | `npm run update:demo-tetris` |
+| `reactive-md-game-2048-package` | `<game-2048>` | `examples/game-2048-package` | `npm run update:demo-2048` |
 
-新增包只需修改 `demo/extensions.ts`，把安装包导出的组件包加入公共宿主：
+Both packages arrive as npm tarballs committed under `demo/vendor/`; versions and integrity values are recorded in the dependency lockfile. Implementations, CSS text and samples are imported from each package's `./react` entry, and notices from `./notices`. A fresh checkout installs both snapshots with `npm install`. The 2048 tag is `<game-2048>` because component names must start with a letter, so `<2048>` is not a valid tag.
+
+两个插件均已登记，作为真实安装包案例：
 
 ```ts
 import { createReactHost } from 'reactive-md/react';
 import { tetrisPackage } from 'reactive-md-tetris-package/react';
+import { game2048Package } from 'reactive-md-game-2048-package/react';
+import tetrisNotices from 'reactive-md-tetris-package/notices?raw';
+import game2048Notices from 'reactive-md-game-2048-package/notices?raw';
 
-export const host = createReactHost({ packages: [tetrisPackage] });
+export const host = createReactHost({
+  packages: [tetrisPackage, game2048Package],
+  notices: [
+    { id: 'reactive-md-tetris-package', license: 'MIT', text: tetrisNotices },
+    { id: 'reactive-md-game-2048-package', license: 'MIT', text: game2048Notices },
+  ],
+});
 ```
+
+新增包只需修改 `demo/extensions.ts`，把安装包导出的组件包加入 `packages`；`themes`、`resources` 和 `notices` 仅在包提供时传入。样例通过同一文件的 `examples` 导出登记，使用 `PlaygroundExample` 的中英文元数据与包内源码。
+
+修改任一插件源码后，从仓库根目录执行对应更新命令，重新构建、打包并安装，再提交替换后的 tarball、依赖声明和锁文件；后续预览及导出使用更新后的安装包。
 
 组件包已包含规范 manifest、React 实现与 CSS 资源。宿主生成同源的编译与渲染配置，编辑器读取 manifest 的 `authoring`。Vite 配置只需 `reactiveMd({ extensions: './extensions.ts' })`；虚拟模块自动加载组件和主题样式，插件统一处理依赖预构建、React 去重及离线运行时，Demo 不再维护私有构建适配器或手工创建 style 元素。
 

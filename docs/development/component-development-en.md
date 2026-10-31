@@ -73,4 +73,4 @@ npm test
 npm pack --ignore-scripts
 ```
 
-Install the tarball in another host and import its public entries. See the [full development contract](component-development-reference-en.md) for bindings, containers, pure manifest entries, capabilities, resources, offline export and compliance evidence. The [Demo guide](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md) describes the installed-package experiment.
+Install the tarball in another host and import its public entries. See the [full development contract](component-development-reference-en.md) for bindings, containers, pure manifest entries, capabilities, resources, offline export and compliance evidence. The [Demo guide](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md) describes the installed-package cases for `<tetris>` and `<game-2048>`.

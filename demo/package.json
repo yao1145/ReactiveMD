@@ -25,6 +25,7 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "reactive-md": "file:..",
+    "reactive-md-game-2048-package": "file:vendor/reactive-md-game-2048-package-0.1.0-4008aa8ed66c.tgz",
     "reactive-md-tetris-package": "file:vendor/reactive-md-tetris-package-0.1.0-a5a8e54d74bc.tgz"
   },
   "devDependencies": {

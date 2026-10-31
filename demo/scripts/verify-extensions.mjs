@@ -59,7 +59,26 @@ try {
     await page.locator('[data-editor-view-option="edit"]').click();
     await page.locator('[data-toolbar-id="components"]').click();
     await expect(page.getByRole('menuitem', { name: /Tetris/ })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /2048/ })).toBeVisible();
     await page.keyboard.press('Escape');
+  });
+  await check('the 2048 plugin renders and responds to pointer and lock controls', async () => {
+    await page.locator('[data-editor-view-option="preview"]').click();
+    await page.locator('#example-select').selectOption('game-2048');
+    const board = page.locator('[data-game-2048]');
+    await expect(board).toBeVisible();
+    await expect(page.locator('[data-game-2048-board] .rmd-2048-cell')).toHaveCount(16);
+    const before = Number(await board.getAttribute('data-moves'));
+    for (const direction of ['left', 'up', 'right', 'down']) {
+      await page.locator(`[data-game-2048-${direction}]`).click();
+    }
+    await expect.poll(async () => Number(await board.getAttribute('data-moves'))).toBeGreaterThan(before);
+    await page.getByRole('checkbox', { name: 'Lock 2048', exact: true }).check();
+    await expect(page.locator('[data-game-2048-left]')).toBeDisabled();
+    await page.getByRole('checkbox', { name: 'Lock 2048', exact: true }).uncheck();
+    await expect(page.locator('[data-game-2048-left]')).toBeEnabled();
+    await page.locator('#example-select').selectOption('tetris');
+    await expect(game).toBeVisible();
   });
 
   for (const mode of ['interactive', 'static']) {
