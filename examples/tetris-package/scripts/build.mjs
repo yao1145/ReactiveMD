@@ -25,6 +25,7 @@ await build({
   root,
   configFile: false,
   logLevel: 'warn',
+  oxc: { jsx: { development: false } },
   build: {
     ssr: path.join(root, 'src/node-entry.ts'),
     outDir: path.join(dist, 'node'),

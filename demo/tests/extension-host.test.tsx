@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime } from 'reactive-md';
 import { renderLocalStaticDocument } from 'reactive-md/react/server';
 import { createDemoExtensions } from '../src/extension-host';
-import { componentCss, tetrisImplementation } from '../../examples/tetris-package/src/components';
+import { componentCss, tetrisImplementation } from 'reactive-md-tetris-package/react';
 
 const tetris = { components: [tetrisImplementation], resources: [{ id: 'example/tetris.css', css: componentCss }] };
 

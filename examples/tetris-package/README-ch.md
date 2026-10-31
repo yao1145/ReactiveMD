@@ -7,12 +7,22 @@
 
 ## 使用
 
-先在 ReactiveMD 仓库构建 SDK 预览包，再在宿主项目中安装：
+先在 ReactiveMD 仓库构建 SDK 和组件安装包：
 
 ```sh
-npm install ../ReactiveMD/reactive-md-0.6.1.tgz
-npm install ../ReactiveMD/examples/tetris-package
+npm run build:lib
+npm pack --ignore-scripts
+npm --prefix examples/tetris-package run build
+npm pack ./examples/tetris-package --ignore-scripts
 ```
+
+再在宿主项目中安装生成的两个 `.tgz`：
+
+```sh
+npm install ../ReactiveMD/reactive-md-0.6.1.tgz ../ReactiveMD/reactive-md-tetris-package-0.1.0.tgz
+```
+
+ReactiveMD、React 和 React DOM 声明为 peer dependencies，由宿主提供同一份实例。
 
 使用公开入口装配宿主：
 
@@ -50,7 +60,7 @@ export const reactConfig = createReactConfig(config, {
 
 ## 在本仓库 Demo 中体验
 
-组件已登记在 [demo/extensions.ts](../../demo/extensions.ts)，直接从本包读取实现、CSS、样例与 notices。预览、编辑器目录和离线 HTML 共用这份清单。新增其他包时在清单中追加登记项即可，具体字段见 [Demo 说明](../../demo/README.md)。
+组件已登记在 [demo/extensions.ts](../../demo/extensions.ts)。Demo 通过依赖声明安装 `demo/vendor/` 中的 npm tarball，从 `reactive-md-tetris-package/react` 读取实现、CSS 文本与样例，通过 `reactive-md-tetris-package/notices?raw` 读取署名。修改本包源码后，在仓库根目录运行 `npm run update:demo-tetris`，重新构建、打包和安装；更新后的 tarball、依赖声明和锁文件一起提交。预览、编辑器目录和离线 HTML 共用这份清单，具体字段见 [Demo 说明](../../demo/README.md)。
 
 从仓库根目录运行 `npm run build:demo`，然后运行 `node demo/scripts/verify-extensions.mjs`。加 `--dev` 可复验 Vite 开发模式；脚本会自行启停测试服务，并在断网环境中打开导出的游戏。
 

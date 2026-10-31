@@ -9,13 +9,22 @@ a React implementation, a static/SSR preview and a local compliance suite.
 
 ## Usage
 
-Build the SDK preview in the ReactiveMD repository, then install this package
-in a host project:
+Build the SDK preview and component tarballs in the ReactiveMD repository:
 
 ```sh
-npm install ../ReactiveMD/reactive-md-0.6.1.tgz
-npm install ../ReactiveMD/examples/tetris-package
+npm run build:lib
+npm pack --ignore-scripts
+npm --prefix examples/tetris-package run build
+npm pack ./examples/tetris-package --ignore-scripts
 ```
+
+Then install both tarballs in the host project:
+
+```sh
+npm install ../ReactiveMD/reactive-md-0.6.1.tgz ../ReactiveMD/reactive-md-tetris-package-0.1.0.tgz
+```
+
+ReactiveMD, React and React DOM are peer dependencies supplied by the host.
 
 Assemble the host with the public entries:
 
@@ -54,7 +63,7 @@ the same piece sequence, so static rendering and hydration stay reproducible.
 
 ## Try it in the repository Demo
 
-[demo/extensions.ts](../../demo/extensions.ts) already registers this package's implementation, CSS, example and notices. Preview, the editor catalog and offline HTML use that same registration. Add further packages to the list; see the [Demo guide](../../demo/README.md) for fields.
+[demo/extensions.ts](../../demo/extensions.ts) registers the npm tarball installed from `demo/vendor/`. It reads implementations, CSS text and the example from `reactive-md-tetris-package/react`, and attribution from `reactive-md-tetris-package/notices?raw`. After editing this package, run `npm run update:demo-tetris` from the repository root to build, pack and install the replacement. Commit the tarball, dependency declaration and lockfile together. Preview, the editor catalog and offline HTML use that same registration; see the [Demo guide](../../demo/README.md) for fields.
 
 From the repository root, run `npm run build:demo`, then `node demo/scripts/verify-extensions.mjs`. Add `--dev` to check Vite development mode. The script starts and stops its own test server and opens the exported game offline.
 

@@ -146,7 +146,7 @@ export function Playground() {
 
 ### 接入本仓库 Demo
 
-在 [demo/extensions.ts](../../demo/extensions.ts) 的现有数组中登记插件。每项可提供 `components`（React 实现数组）、`resources`（`{ id, css }` 数组）、`themes`、`notices` 和 `examples`。清单从实现读取 manifest，一次生成共享的编译与 React 配置，自动接入预览、编辑器目录、样式、样例导航与离线导出。Tetris 已按此方式接入，可参考它的登记项；改用 npm 包时，将该文件中的本地源码导入改为包的公开入口。
+在 [demo/extensions.ts](../../demo/extensions.ts) 的现有数组中登记插件。每项可提供 `components`（React 实现数组）、`resources`（`{ id, css }` 数组）、`themes`、`notices` 和 `examples`。清单从实现读取 manifest，一次生成共享的编译与 React 配置，自动接入预览、编辑器目录、样式、样例导航与离线导出。Tetris 展示真实安装包消费：Demo 安装 `demo/vendor/` 中的 npm tarball，代码从包的公开入口读取实现与资源。修改组件源码后运行 `npm run update:demo-tetris`，构建并安装新的快照，更新依赖锁文件。
 
 `resources.id` 与 manifest 的 `styles` 对应。Demo 接受内联 CSS 和 data URL；包可导出 CSS 文本，或由 Vite 通过 `?inline` 读取 CSS 文件。样例源码可以直接由包导出，登记中英文元数据后自动进入目录。Vite 去重和编译选项由宿主统一设置，新增包沿用这些设置。
 

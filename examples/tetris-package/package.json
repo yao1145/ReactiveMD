@@ -9,7 +9,8 @@
   "exports": {
     ".": { "types": "./dist/types/manifests.d.ts", "import": "./dist/node/manifest.mjs" },
     "./react": { "types": "./dist/types/node-entry.d.ts", "import": "./dist/node/entry.mjs" },
-    "./styles.css": "./src/component.css"
+    "./styles.css": "./src/component.css",
+    "./notices": "./NOTICES.md"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -19,7 +20,7 @@
     "test:browser": "npm run build && node scripts/verify.mjs",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
+  "peerDependencies": {
     "reactive-md": "^0.6.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

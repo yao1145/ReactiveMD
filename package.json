@@ -59,6 +59,7 @@
     "build:standalone": "vite build --config vite.standalone.config.ts",
     "build:lib": "vite build --config vite.lib.config.ts && vite build --config vite.editor.config.ts && vite build --config vite.codemirror.config.ts && vite build --config vite.build.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
     "build:demo": "npm run build && npm run build --workspace=@reactive-md/demo",
+    "update:demo-tetris": "npm run build:lib && node scripts/update-demo-tetris.mjs",
     "preview": "npm run preview --workspace=@reactive-md/demo",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",

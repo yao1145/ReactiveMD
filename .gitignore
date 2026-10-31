@@ -8,3 +8,4 @@ artifacts/
 *.log
 .npm-cache/
 *.tgz
+!demo/vendor/*.tgz

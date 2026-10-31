@@ -146,7 +146,7 @@ The editor reads titles, descriptions, category and insertion template from `aut
 
 ### Use the repository Demo
 
-Add the package to the existing array in [demo/extensions.ts](../../demo/extensions.ts). Contributions accept `components` (React implementations), `resources` (`{ id, css }` records), `themes`, `notices` and `examples`. The Demo reads manifests from implementations and assembles shared compiler and React configuration, preview styles, the editor catalog, example navigation and offline exports. Tetris is registered this way. To consume an installed package, change its local source imports to public package entries in that file.
+Add the package to the existing array in [demo/extensions.ts](../../demo/extensions.ts). Contributions accept `components` (React implementations), `resources` (`{ id, css }` records), `themes`, `notices` and `examples`. The Demo reads manifests from implementations and assembles shared compiler and React configuration, preview styles, the editor catalog, example navigation and offline exports. Tetris demonstrates installed-package consumption: the Demo installs its npm tarball from `demo/vendor/` and imports implementations and resources through public package entries. After source changes, run `npm run update:demo-tetris` to build and install a new snapshot and update the dependency lockfile.
 
 Resource IDs match manifest `styles`. Supply inline CSS with data URLs, either exported by the package or imported from a CSS file with Vite's `?inline`. Example source can come directly from the package; bilingual metadata registers it in the catalog. The host maintains Vite deduplication and compiler options for every package.
 

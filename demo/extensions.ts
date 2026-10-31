@@ -1,8 +1,7 @@
 /** Register packages here. Preview, authoring and export use this same list. */
 import { createDemoExtensions } from './src/extension-host';
-import { componentCss, tetrisImplementation } from '../examples/tetris-package/src/components';
-import { source } from '../examples/tetris-package/src/sample';
-import tetrisNotices from '../examples/tetris-package/NOTICES.md?raw';
+import { componentCss, tetrisImplementation, source } from 'reactive-md-tetris-package/react';
+import tetrisNotices from 'reactive-md-tetris-package/notices?raw';
 
 export const { config, reactConfig, resources, css, examples, notices } = createDemoExtensions([
   {

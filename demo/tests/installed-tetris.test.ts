@@ -1,0 +1,28 @@
+import { expect, it } from 'vitest';
+import { access, lstat, readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+import { componentCss, source, tetrisImplementation } from 'reactive-md-tetris-package/react';
+
+it('consumes a copied npm distribution with built entries and packaged resources', async () => {
+  const entry = new URL(import.meta.resolve('reactive-md-tetris-package/react'));
+  expect(entry.pathname).toContain('/node_modules/reactive-md-tetris-package/dist/node/entry.mjs');
+  const root = new URL('../../', entry);
+  expect((await lstat(fileURLToPath(root))).isSymbolicLink()).toBe(false);
+  const metadata = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
+  expect(metadata.peerDependencies['reactive-md']).toBe('^0.6.1');
+  expect(metadata.dependencies?.['reactive-md']).toBeUndefined();
+  await access(new URL('dist/types/node-entry.d.ts', root));
+  await access(new URL('LICENSE', root));
+  await expect(access(new URL('src/components.tsx', root))).rejects.toThrow();
+  expect(componentCss).toContain('.rmd-tetris');
+  expect(source).toContain('<tetris');
+  expect(tetrisImplementation.definition.id).toBe('example/tetris');
+  const repository = new URL('../../', import.meta.url);
+  const lock = JSON.parse(await readFile(new URL('package-lock.json', repository), 'utf8'));
+  const installed = lock.packages['node_modules/reactive-md-tetris-package'];
+  expect(installed.link).not.toBe(true);
+  expect(installed.resolved).toMatch(/^file:demo\/vendor\/reactive-md-tetris-package-.*\.tgz$/);
+  const archive = await readFile(new URL(installed.resolved.slice('file:'.length), repository));
+  expect(`sha512-${createHash('sha512').update(archive).digest('base64')}`).toBe(installed.integrity);
+});

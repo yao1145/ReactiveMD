@@ -130,6 +130,8 @@ npm.cmd run test:sdk-consumer
 
 ## 7. Demo 单入口接入补验（2026-10-31）
 
+本节记录提交 `ef89377` 的验收结果。Tetris 在后续改为消费安装包，当前接入及更新流程见 [Demo 说明](../../demo/README.md)。
+
 Demo 现在从 `demo/extensions.ts` 统一装配组件实现、样式、主题、样例和 notices。Tetris 直接复用包内源码与样例，编译器、Worker、预览、编辑器目录和导出使用同一配置。离线运行时由公开 `buildLocalStandaloneBundle` 构建；开发模式的中间 JSX 转换固定为生产模式，避免导出文件调用不可用的 `jsxDEV`。
 
 本轮检查：
@@ -142,3 +144,9 @@ Demo 现在从 `demo/extensions.ts` 统一装配组件实现、样式、主题�
 - 原有 `demo/scripts/verify-export.mjs`：内置组件的当前值、状态下载、交互离线 HTML 和静态 HTML 共 4 项通过。
 
 本轮浏览器记录与示例文件位于 `artifacts/demo-extensions/`。这些结果属于本次 Demo 接入补验，与前面三阶段的历史发布门禁分别记录。
+
+## 8. Tetris 安装包接入补验（2026-10-31）
+
+Demo 改为安装 `demo/vendor/` 中的 Tetris npm tarball，并从包的公开入口读取实现、样式、样例和 notices。包使用宿主提供的 ReactiveMD、React 与 React DOM peer dependencies。`npm run update:demo-tetris` 构建组件、生成带内容摘要的安装包并更新 Demo 依赖及锁文件。
+
+本轮 Demo 构建、根项目类型检查、21 个文件中的 267 项 Demo 测试和文档链接检查通过。新增安装边界测试确认组件来自展开后的 `node_modules` 分发包，包含声明及许可、不含 `src/components.tsx`，且 tarball 的 SHA512 与锁文件 integrity 一致。生产与开发模式各 6 项浏览器验收通过，覆盖 Worker、预览交互、编辑器目录、手机布局及静态和交互离线文件；导出的游戏可在断网时继续操作。
