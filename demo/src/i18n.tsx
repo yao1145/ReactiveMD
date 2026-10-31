@@ -41,13 +41,12 @@ export interface DemoCopy {
     viewSwitcher: string;
     playground: string;
     guide: string;
+    themeLight: string;
+    themeDark: string;
+    repository: string;
   };
   guide: {
-    eyebrow: string;
     title: string;
-    intro: string;
-    lightTheme: string;
-    darkTheme: string;
     back: string;
     /** Repository documentation file this view renders. */
     documentFile: string;
@@ -130,10 +129,7 @@ export interface DemoCopy {
   };
   editor: {
     region: string;
-    heading: string;
-    subtitle: string;
     sourceLabel: string;
-    note: string;
     stateNote: string;
     diagnosticsRegion: string;
     diagnosticsHeading: string;
@@ -141,7 +137,6 @@ export interface DemoCopy {
     diagnosticsCount: (count: number) => string;
     diagnosticsNone: string;
     diagnosticsEmptyCompiling: string;
-    diagnosticsEmpty: string;
     locate: string;
     warning: string;
     error: string;
@@ -211,14 +206,12 @@ const ENGLISH: DemoCopy = {
     viewSwitcher: 'View switcher',
     playground: 'Playground',
     guide: 'User Guide',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    repository: 'GitHub repository',
   },
   guide: {
-    eyebrow: 'Documentation',
     title: 'User Guide',
-    intro:
-      'Read the source, then try the live example below each code block. Each example runs independently.',
-    lightTheme: 'Light theme',
-    darkTheme: 'Dark theme',
     back: 'Back to Playground',
     documentFile: 'docs/guides/local-guide-en.md',
   },
@@ -311,19 +304,15 @@ const ENGLISH: DemoCopy = {
   },
   editor: {
     region: 'Source editor',
-    heading: 'Source',
-    subtitle: 'Markdown, local tags and expressions',
     sourceLabel: 'Reactive MD source',
-    note: 'Edits are briefly coalesced, then compiled with the local syntax.',
     stateNote:
-      'With retention on, editing prose, tags and formulas keeps compatible named parameters; values reset to initial when initial values change or constraints no longer hold. Checklists and timers reset after every compile. With retention off, the next compile starts from initial values; running again, switching or restoring examples, importing, and refreshing clear the trial state.',
+      'Compatible values carry across edits; rerunning, switching examples, importing or refreshing resets them.',
     diagnosticsRegion: 'Compile and runtime diagnostics',
     diagnosticsHeading: 'Diagnostics',
     diagnosticsCompiling: 'Compiling',
     diagnosticsCount: (count) => `${count}`,
     diagnosticsNone: 'None',
     diagnosticsEmptyCompiling: 'Compiling the latest source…',
-    diagnosticsEmpty: 'The current source has no compile or runtime diagnostics.',
     locate: 'Locate in editor',
     warning: 'Warning',
     error: 'Error',
@@ -358,12 +347,10 @@ const ENGLISH: DemoCopy = {
     bindBefore: 'Name parameters with ',
     bindBetween: ' and read them in prose with ',
     expression: '{{ }}',
-    afterExpression:
-      '; charts use Markdown tables and function curves use LaTeX — no config blocks, events or service calls required.',
+    afterExpression: ' in prose.',
     guideBefore: 'The guide content matches ',
     guideAfter: ' in the repository.',
-    trial:
-      "Trial values live only in this editing session; the browser saves each example's source, and refreshing or running again returns to initial values.",
+    trial: 'Trial values stay in this session; rerunning or refreshing resets them.',
   },
   embed: {
     documentTitle: 'Reactive MD embed example',
@@ -401,13 +388,12 @@ const CHINESE: DemoCopy = {
     viewSwitcher: '页面切换',
     playground: 'Playground',
     guide: '使用指南',
+    themeLight: '浅色',
+    themeDark: '深色',
+    repository: 'GitHub 仓库',
   },
   guide: {
-    eyebrow: '阅读文档',
     title: '使用指南',
-    intro: '阅读源码后，直接操作每个代码块下方的实际示例。各示例独立运行，可以分别调整和重置。',
-    lightTheme: '浅色主题',
-    darkTheme: '深色主题',
     back: '返回 Playground',
     documentFile: 'docs/guides/local-guide-ch.md',
   },
@@ -491,19 +477,14 @@ const CHINESE: DemoCopy = {
   },
   editor: {
     region: '源码编辑器',
-    heading: '源码',
-    subtitle: 'Markdown、本地标签与表达式',
     sourceLabel: 'Reactive MD 源码',
-    note: '编辑会短暂合并后再按本地语法编译。',
-    stateNote:
-      '开启保留后，编辑正文、标签和公式会沿用兼容的命名参数；修改初值或不再满足约束时恢复初值。清单和计时器每次编译后重置。关闭保留后，下次编译使用初值；重新运行、切换或恢复示例、导入和刷新会清空试算。',
+    stateNote: '编辑时沿用兼容参数；重新运行、切换示例、导入或刷新会重置。',
     diagnosticsRegion: '编译与运行诊断',
     diagnosticsHeading: '诊断',
     diagnosticsCompiling: '编译中',
     diagnosticsCount: (count) => `${count} 条`,
     diagnosticsNone: '无',
     diagnosticsEmptyCompiling: '正在编译最新源码…',
-    diagnosticsEmpty: '当前源码没有编译或运行诊断。',
     locate: '在编辑器中定位',
     warning: '警告',
     error: '错误',
@@ -537,12 +518,10 @@ const CHINESE: DemoCopy = {
     bindBefore: '参数用 ',
     bindBetween: ' 命名，正文用 ',
     expression: '{{ }}',
-    afterExpression:
-      ' 读取；图表使用 Markdown 表格，函数曲线使用 LaTeX，不需要配置块、事件或服务调用。',
+    afterExpression: ' 读取。',
     guideBefore: '指南内容与仓库 ',
     guideAfter: ' 保持一致。',
-    trial:
-      '试算只保存在本次编辑会话；浏览器保存各示例的源码，刷新或重新运行会回到初值。',
+    trial: '试算仅保存在当前会话，重新运行或刷新即重置。',
   },
   embed: {
     documentTitle: 'Reactive MD 嵌入示例',

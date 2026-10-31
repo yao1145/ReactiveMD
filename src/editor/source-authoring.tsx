@@ -125,8 +125,7 @@ const ENGLISH: AuthoringCopy = {
   renamePlaceholder: 'New name',
   renameAction: 'Rename',
   renameTitle: 'Rename this binding everywhere it is declared or read',
-  renameHint:
-    'Updates declarations, expressions and plot parameters. Literal text and display formulas keep their source.',
+  renameHint: 'Updates declarations, references and plot parameters.',
   renameEmpty: 'Enter a new name.',
   renameSame: 'The new name is the current name.',
   renameDone: (from, to) => `Renamed ${from} to ${to}.`,
@@ -171,7 +170,7 @@ const CHINESE: AuthoringCopy = {
   renamePlaceholder: '新名称',
   renameAction: '重命名',
   renameTitle: '重命名所有声明与引用位置',
-  renameHint: '修改绑定声明、表达式引用与绘图参数，保留普通文字和展示公式。',
+  renameHint: '同时更新声明、引用与绘图参数。',
   renameEmpty: '请输入新名称。',
   renameSame: '新名称与当前名称相同。',
   renameDone: (from, to) => `已将 ${from} 重命名为 ${to}。`,

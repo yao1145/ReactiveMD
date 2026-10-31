@@ -9,7 +9,7 @@ import {
   useSyncExternalStore,
   type ChangeEvent,
 } from 'react';
-import { formatLocalDiagnostic, notifyLocalRuntime, LOCAL_SYNTAX_VERSION, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
+import { formatLocalDiagnostic, notifyLocalRuntime, type Diagnostic, type LocalRuntime, type SourceRange } from 'reactive-md';
 import { LocalDocumentView } from 'reactive-md/react';
 import type { LocalSourceTarget } from 'reactive-md/react';
 import {
@@ -282,26 +282,38 @@ export const LocalPreview = memo(function LocalPreview({ document, session, onDi
 });
 
 interface GuideViewProps {
-  dark: boolean;
-  onTheme(): void;
   onBack(): void;
 }
 
-function GuideView({ dark, onTheme, onBack }: GuideViewProps) {
+function SunIcon() {
+  return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+  </svg>;
+}
+
+function MoonIcon() {
+  return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z" />
+  </svg>;
+}
+
+function GitHubIcon() {
+  return <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+    <path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.69 5.41-5.25 5.69.41.35.77 1.05.77 2.12 0 1.53-.01 2.76-.01 3.14 0 .31.21.67.8.56A10.52 10.52 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z" />
+  </svg>;
+}
+
+function GuideView({ onBack }: GuideViewProps) {
   const language = useLanguage();
   const copy = useCopy();
   return (
     <main className="guide-view">
       <div className="guide-toolbar">
         <div>
-          <p className="eyebrow">{copy.guide.eyebrow}</p>
           <h2>{copy.guide.title}</h2>
-          <p>{copy.guide.intro}</p>
         </div>
         <div className="guide-actions">
-          <button type="button" className="button button-secondary" onClick={onTheme}>
-            {dark ? copy.guide.lightTheme : copy.guide.darkTheme}
-          </button>
           <button type="button" className="button button-secondary" onClick={onBack}>
             {copy.guide.back}
           </button>
@@ -371,23 +383,10 @@ export default function App() {
     const end=transaction.source.length-(transaction.previousSource.length-to);
     editHint.current={baseSource:transaction.previousSource,edit:{from,to,insert:transaction.source.slice(from,end)}};
   },[]);
-  /** Source range clicked in the preview while the editor pane was hidden. */
-  const pendingSourceRange = useRef<SourceRange | null>(null);
+  /** Preview clicks select the matching source range; only split view exposes it. */
   const revealSource = useCallback((target: LocalSourceTarget) => {
-    if (editorView === 'preview') {
-      pendingSourceRange.current = target.range;
-      setEditorView('split');
-      return;
-    }
     editorHandle.current?.selectRange(target.range);
-  }, [editorView]);
-  useEffect(() => {
-    if (editorView === 'preview') return;
-    const range = pendingSourceRange.current;
-    if (!range) return;
-    pendingSourceRange.current = null;
-    editorHandle.current?.selectRange(range);
-  }, [editorView]);
+  }, []);
   const imageKey = `${language}:${selectedExample}`;
   const documentImages = useDocumentImages(imageKey);
   const imageContext = useRef({ key: imageKey, assets: documentImages.assets, ready: documentImages.ready });
@@ -715,6 +714,17 @@ export default function App() {
     beginPreviewSession();
   }, [library, resetHtmlOptions, beginPreviewSession]);
 
+  const deleteDocument = useCallback((id: string) => {
+    const wasSelected = library.getSnapshot().selectedId === id;
+    if (!library.remove(id) || !wasSelected) return;
+    const nextId = library.getSnapshot().selectedId;
+    const next = nextId ? library.getDocument(nextId) : null;
+    resetHtmlOptions();
+    setSource(next?.source ?? '');
+    setRuntimeDiagnostics([]);
+    beginPreviewSession();
+  }, [library, resetHtmlOptions, beginPreviewSession]);
+
   // Copy the example exactly as it currently appears in the editor, including
   // any unpublished edits in the draft.
   const copyExampleToDocuments = useCallback(() => {
@@ -809,6 +819,41 @@ export default function App() {
         <header className="masthead">
           <div className="masthead-lead">
             <h1>Reactive MD</h1>
+            <div className="masthead-actions">
+              <button
+                type="button"
+                className="language-toggle"
+                data-testid="language-toggle"
+                aria-label={copy.languageToggle.ariaLabel}
+                title={copy.languageToggle.ariaLabel}
+                lang={copy.languageToggle.labelLang}
+                onClick={switchLanguage}
+              >
+                <span className={language === 'zh' ? 'is-active' : ''} lang="zh-CN">中文</span>
+                <span className={language === 'en' ? 'is-active' : ''} lang="en">EN</span>
+              </button>
+              <button
+                type="button"
+                className="theme-toggle"
+                aria-pressed={dark}
+                aria-label={dark ? copy.authorTools.lightTheme : copy.authorTools.darkTheme}
+                title={dark ? copy.authorTools.lightTheme : copy.authorTools.darkTheme}
+                onClick={() => setDark(value => !value)}
+              >
+                {dark ? <SunIcon /> : <MoonIcon />}
+                <span>{dark ? copy.masthead.themeLight : copy.masthead.themeDark}</span>
+              </button>
+              <a
+                className="github-link"
+                href="https://github.com/yao1145/ReactiveMD"
+                target="_blank"
+                rel="noreferrer noopener"
+                aria-label={copy.masthead.repository}
+                title={copy.masthead.repository}
+              >
+                <GitHubIcon />
+              </a>
+            </div>
           </div>
           <nav className="view-switch" aria-label={copy.masthead.viewSwitcher}>
             <button
@@ -825,27 +870,11 @@ export default function App() {
             >
               {copy.masthead.guide}
             </button>
-            <button
-              type="button"
-              className="language-toggle"
-              data-testid="language-toggle"
-              aria-label={copy.languageToggle.ariaLabel}
-              title={copy.languageToggle.ariaLabel}
-              lang={copy.languageToggle.labelLang}
-              style={{ minWidth: 40 }}
-              onClick={switchLanguage}
-            >
-              {copy.languageToggle.label}
-            </button>
           </nav>
         </header>
 
         {view === 'guide' ? (
-          <GuideView
-            dark={dark}
-            onTheme={() => setDark((value) => !value)}
-            onBack={() => setView('playground')}
-          />
+          <GuideView onBack={() => setView('playground')} />
         ) : (
         <main className="workbench">
           <div className="workbench-bar library-workbench">
@@ -878,6 +907,7 @@ export default function App() {
                 onCreate={createDocument}
                 onRename={renameDocument}
                 onDuplicate={duplicateDocument}
+                onDelete={deleteDocument}
                 onRetry={() => library.retry()}
               />
             )}
@@ -885,9 +915,6 @@ export default function App() {
               <ImageAssetsPanel compact assets={documentImages.assets} references={[]}
                 busy={imageBusy || !documentImages.ready} error={imageError} storageError={documentImages.storageError}
                 onFiles={addImages} onRemove={removeImage} />
-              <button type="button" className="button button-quiet" aria-pressed={dark} onClick={() => setDark(value => !value)}>
-                {dark ? copy.authorTools.lightTheme : copy.authorTools.darkTheme}
-              </button>
             </div>
             <details ref={optionsRef} className="workbench-options" key={documentKey}
               onKeyDown={event => {
@@ -972,14 +999,6 @@ export default function App() {
                 event.preventDefault();
                 void addImages(files);
               }}>
-              <div className="pane-head">
-                <div>
-                  <h2>{copy.editor.heading}</h2>
-                  <p className="pane-subtitle">{copy.editor.subtitle}</p>
-                </div>
-                <span className="syntax-tag">{LOCAL_SYNTAX_VERSION}</span>
-              </div>
-
               <ReactiveMarkdownEditor
                 compileOptions={compileOptions}
                 ref={(handle:ReactiveMarkdownEditorHandle|null)=>{editorHandle.current=handle;}}
@@ -1007,7 +1026,7 @@ export default function App() {
                         <DiagnosticList diagnostics={compiled.diagnostics} focusDiagnostic={focusDiagnostic} />
                       </div>
                     ) : previewDocument ? (
-                      <LocalPreview key={instanceKey} document={previewDocument} session={previewSession} onDiagnostics={report} images={documentImages.assets} onSourceNavigate={revealSource} />
+                      <LocalPreview key={instanceKey} document={previewDocument} session={previewSession} onDiagnostics={report} images={documentImages.assets} onSourceNavigate={editorView === 'split' ? revealSource : undefined} />
                     ) : (
                       <div className="preview-loading" role="status"><p>{copy.preview.preparing}</p></div>
                     )}
@@ -1023,9 +1042,6 @@ export default function App() {
                 toolbar
               />
 
-              <p className="editor-note" id="editor-note">
-                {copy.editor.note}
-              </p>
               <p className="editor-note" id="preview-state-note">
                 {copy.editor.stateNote}
               </p>
@@ -1044,9 +1060,7 @@ export default function App() {
                 <DiagnosticList
                   diagnostics={currentDiagnostics}
                   focusDiagnostic={focusDiagnostic}
-                  emptyText={compiling
-                    ? copy.editor.diagnosticsEmptyCompiling
-                    : copy.editor.diagnosticsEmpty}
+                  emptyText={compiling ? copy.editor.diagnosticsEmptyCompiling : undefined}
                 />
               </section>
             </section>

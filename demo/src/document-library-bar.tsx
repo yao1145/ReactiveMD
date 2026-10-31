@@ -28,6 +28,10 @@ export interface DocumentLibraryCopy {
   rename: string;
   duplicate: string;
   duplicateConfirm: string;
+  delete: string;
+  deleteHeading: string;
+  deleteMessage: (name: string) => string;
+  deleteConfirm: string;
   cancel: string;
   saving: string;
   saved: string;
@@ -61,6 +65,10 @@ export const LIBRARY_COPY: Record<Language, DocumentLibraryCopy> = {
     rename: 'Rename',
     duplicate: 'Duplicate',
     duplicateConfirm: 'Create copy',
+    delete: 'Delete',
+    deleteHeading: 'Delete document',
+    deleteMessage: (name) => `Delete “${name}”? This cannot be undone.`,
+    deleteConfirm: 'Delete',
     cancel: 'Cancel',
     saving: 'Saving…',
     saved: 'Saved',
@@ -91,6 +99,10 @@ export const LIBRARY_COPY: Record<Language, DocumentLibraryCopy> = {
     rename: '重命名',
     duplicate: '复制',
     duplicateConfirm: '创建副本',
+    delete: '删除',
+    deleteHeading: '删除文档',
+    deleteMessage: (name) => `删除“${name}”？此操作无法撤销。`,
+    deleteConfirm: '确认删除',
     cancel: '取消',
     saving: '保存中…',
     saved: '已保存',
@@ -151,6 +163,7 @@ export interface DocumentLibraryBarProps {
   onCreate(name: string): void;
   onRename(id: string, name: string): void;
   onDuplicate(id: string, name: string): void;
+  onDelete(id: string): void;
   onRetry(): void;
 }
 
@@ -162,13 +175,24 @@ export interface DocumentLibraryBarProps {
 export function DocumentLibraryBar(props: DocumentLibraryBarProps) {
   const copy = LIBRARY_COPY[useLanguage()];
   const [form, setForm] = useState<NameFormState | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const deleteRef = useRef<HTMLButtonElement>(null);
   const formTrigger = useRef<HTMLElement | null>(null);
   const selectId = useId();
   const nameId = useId();
   const errorId = useId();
+  const deleteMessageId = useId();
   const selected = props.documents.find((document) => document.id === props.selectedId) ?? null;
+
+  useEffect(() => {
+    setConfirmingDelete(false);
+  }, [props.selectedId]);
+
+  useEffect(() => {
+    if (confirmingDelete) deleteRef.current?.focus();
+  }, [confirmingDelete]);
 
   useEffect(() => {
     if (!form) return;
@@ -184,6 +208,7 @@ export function DocumentLibraryBar(props: DocumentLibraryBarProps) {
     formTrigger.current = menu?.querySelector('summary') ?? active;
     if (menu) menu.open = false;
     setError(null);
+    setConfirmingDelete(false);
     setForm(next);
   };
 
@@ -248,6 +273,25 @@ export function DocumentLibraryBar(props: DocumentLibraryBarProps) {
         >
           {copy.duplicate}
         </button>
+        <button
+          type="button"
+          className="button button-secondary doc-delete-button"
+          disabled={!selected}
+          onClick={event => {
+            // Portalled actions bubble through the React tree, so close the
+            // host menu here instead of relying on its DOM click handler.
+            const menu = event.currentTarget.closest('details');
+            if (menu) {
+              menu.open = false;
+              menu.querySelector('summary')?.focus();
+            }
+            setError(null);
+            setForm(null);
+            setConfirmingDelete(true);
+          }}
+        >
+          {copy.delete}
+        </button>
   </>;
 
   return (
@@ -279,6 +323,27 @@ export function DocumentLibraryBar(props: DocumentLibraryBarProps) {
           </button>
         ) : null}
       </div>
+
+      {confirmingDelete && selected ? (
+        <div className="doc-delete-confirm" role="group" aria-label={copy.deleteHeading}>
+          <span id={deleteMessageId} role="alert">{copy.deleteMessage(selected.name)}</span>
+          <button
+            ref={deleteRef}
+            type="button"
+            className="button doc-delete-action"
+            aria-describedby={deleteMessageId}
+            onClick={() => {
+              props.onDelete(selected.id);
+              setConfirmingDelete(false);
+            }}
+          >
+            {copy.deleteConfirm}
+          </button>
+          <button type="button" className="button button-quiet" onClick={() => setConfirmingDelete(false)}>
+            {copy.cancel}
+          </button>
+        </div>
+      ) : null}
 
       {props.problem ? (
         <p className="doc-library-problem" role="alert">
