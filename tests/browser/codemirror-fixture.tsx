@@ -36,9 +36,10 @@ function Fixture(){
   const handle=useRef<ReactiveMarkdownCodeEditorHandle|null>(null);
   const compilation=useLocalCompilation(source,options,!privateAnalysis);
   const sourceRef=useRef(source);sourceRef.current=source;
+  const keyRef=useRef(key);keyRef.current=key;
   const update=(next:string)=>{probe.events.push({at:performance.now(),name:'change',source:next});if(deferred)pending.current.push(next);else setSource(next);};
   useEffect(()=>{
-    probe.install=(value:string)=>setSource(value);probe.reset=(key:string)=>setKey(key);
+    probe.install=(value:string)=>setSource(value);probe.reset=(key:string)=>setKey(key);probe.key=()=>keyRef.current;
     probe.lock=setReadOnly;probe.disable=setDisabled;probe.locale=setLocale;probe.view=setView;probe.theme=setTheme;probe.mount=setMounted;
     probe.toolbar=setToolbar;
     probe.defer=setDeferred;probe.ack=()=>{const value=pending.current.shift();if(value!==undefined)setSource(value);};

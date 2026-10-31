@@ -57,6 +57,7 @@ try{
     await install('word');await focus(0,4);await page.getByRole('button',{name:'Bold',exact:true}).click();
     await expect.poll(source).toBe('**word**');await page.evaluate(()=>window.cmProbe.undo());await expect.poll(source).toBe('word');
     await page.evaluate(()=>window.cmProbe.insert('fresh'));await page.evaluate(()=>window.cmProbe.reset('next-document'));
+    await page.waitForFunction(()=>window.cmProbe.key()==='next-document');
     const before=await source();await page.evaluate(()=>window.cmProbe.undo());assert.equal(await source(),before);
     await install('replacement');await page.evaluate(()=>window.cmProbe.undo());assert.equal(await source(),'replacement');
     await focus(0);await page.keyboard.press('Escape');await page.keyboard.press('Tab');await expect(page.locator('.editor-toolbar')).toContainText('Body');
