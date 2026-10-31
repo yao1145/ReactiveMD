@@ -7,8 +7,20 @@
     "paths": {
       "reactive-md": ["./src/index.ts"],
       "reactive-md/react": ["./src/react/index.ts"],
+      "reactive-md/react/server": ["./src/react/server.tsx"],
+      "reactive-md/react/unstyled": ["./src/react/index.ts"],
       "reactive-md/editor": ["./src/editor/index.ts"],
-      "reactive-md/editor/codemirror": ["./src/editor/codemirror/index.ts"]
+      "reactive-md/editor/codemirror": ["./src/editor/codemirror/index.ts"],
+      "reactive-md/sdk": ["./src/sdk/index.ts"],
+      "reactive-md/presets/default": ["./src/presets/default.ts"],
+      "reactive-md/build": ["./src/build/index.ts"],
+      "reactive-md/testing": ["./src/testing/index.ts"],
+      "reactive-md/testing/react": ["./src/testing/react.tsx"],
+      "reactive-md/testing/browser": ["./src/testing/browser.ts"],
+      "reactive-md/export": ["./src/export/index.ts"],
+      "reactive-md/standalone": ["./src/standalone/index.tsx"],
+      "reactive-md/authoring": ["./src/authoring/index.ts"],
+      "reactive-md/vite": ["./src/vite/index.ts"]
     },
     "jsx": "react-jsx",
     "strict": true,
