@@ -142,6 +142,14 @@ export interface DemoCopy {
     error: string;
     position: (line: number, column: number) => string;
   };
+  outline: {
+    heading: string;
+    empty: string;
+    untitled: string;
+    close: string;
+    expand: (title: string) => string;
+    collapse: (title: string) => string;
+  };
   preview: {
     region: string;
     heading: string;
@@ -150,8 +158,6 @@ export interface DemoCopy {
     preparing: string;
     disabledTitle: string;
     disabledBody: string;
-    veilTitle: string;
-    veilBody: string;
   };
   status: {
     compileFailed: string;
@@ -318,6 +324,14 @@ const ENGLISH: DemoCopy = {
     error: 'Error',
     position: (line, column) => `Line ${line} · Column ${column}`,
   },
+  outline: {
+    heading: 'Outline',
+    empty: 'No headings yet',
+    untitled: 'Untitled heading',
+    close: 'Close outline',
+    expand: (title) => `Expand ${title}`,
+    collapse: (title) => `Collapse ${title}`,
+  },
   preview: {
     region: 'Live preview',
     heading: 'Preview',
@@ -327,8 +341,6 @@ const ENGLISH: DemoCopy = {
     disabledTitle: 'Preview disabled',
     disabledBody:
       'Fix the errors marked on the left; the preview returns automatically once compilation succeeds.',
-    veilTitle: 'Compiling the latest source',
-    veilBody: 'The preview keeps the last successful result until the new one is ready.',
   },
   status: {
     compileFailed: 'Compile failed',
@@ -490,6 +502,14 @@ const CHINESE: DemoCopy = {
     error: '错误',
     position: (line, column) => `第 ${line} 行 · 第 ${column} 列`,
   },
+  outline: {
+    heading: '大纲',
+    empty: '暂无标题',
+    untitled: '未命名标题',
+    close: '关闭大纲',
+    expand: (title) => `展开 ${title}`,
+    collapse: (title) => `折叠 ${title}`,
+  },
   preview: {
     region: '实时预览',
     heading: '预览',
@@ -498,8 +518,6 @@ const CHINESE: DemoCopy = {
     preparing: '正在准备交互文档…',
     disabledTitle: '预览已停用',
     disabledBody: '请修正左侧标记的错误，编译成功后预览会自动恢复。',
-    veilTitle: '正在编译最新源码',
-    veilBody: '预览暂时保留上一次成功的结果，完成后会自动替换。',
   },
   status: {
     compileFailed: '编译失败',

@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run --config vitest.config.ts",
-    "test:browser": "node scripts/verify-grid-layout.mjs && node scripts/verify-showcase.mjs && node scripts/verify-local-browser.mjs && node scripts/verify-document-usability.mjs && node scripts/verify-playground-library.mjs && node scripts/verify-author-tools.mjs && node scripts/verify-diagnostics.mjs && node scripts/verify-export.mjs && node scripts/verify-image-assets.mjs",
+    "test:browser": "node scripts/verify-grid-layout.mjs && node scripts/verify-showcase.mjs && node scripts/verify-local-browser.mjs && node scripts/verify-document-usability.mjs && node scripts/verify-playground-library.mjs && node scripts/verify-author-tools.mjs && node scripts/verify-diagnostics.mjs && node scripts/verify-export.mjs && node scripts/verify-image-assets.mjs && node scripts/verify-outline.mjs",
     "test:diagnostics": "node scripts/verify-diagnostics.mjs",
     "test:extensions": "node scripts/verify-extensions.mjs",
     "test:documents": "node scripts/verify-playground-library.mjs",
@@ -18,6 +18,7 @@
     "test:showcase": "node scripts/verify-showcase.mjs",
     "test:toolbar": "node scripts/verify-editor-toolbar.mjs && node scripts/verify-editor-scroll.mjs && node scripts/verify-editor-views.mjs",
     "test:views": "node scripts/verify-editor-views.mjs",
+    "test:outline": "node scripts/verify-outline.mjs",
     "test:navigation": "node scripts/verify-source-navigation.mjs",
     "test:workbench": "node scripts/verify-compact-workbench.mjs"
   },

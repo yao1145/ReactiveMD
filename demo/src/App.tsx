@@ -30,6 +30,7 @@ import {
   type LibraryMode,
 } from './document-library';
 import { DocumentLibraryBar, LibraryModeSwitch, LIBRARY_COPY } from './document-library-bar';
+import { OutlineIcon, OutlineWorkspace } from './document-outline';
 import { ExportDialog } from './export-dialog';
 import { ImageAssetsPanel } from './image-assets-panel';
 import { createImageAsset, documentImageUrls, imagePolicy, ImageAssetError, MAX_IMAGE_BYTES, MAX_IMAGE_TOTAL_BYTES, validateImageManifest, type ImageAsset } from './image-assets';
@@ -355,6 +356,7 @@ export default function App() {
   const [editorView, setEditorView] = useState<EditorViewMode>(() =>
     initial.mode === 'documents' || EXAMPLES.find((item) => item.id === selectedExample)?.section === 'debug' ? 'split' : 'preview');
   const simple = editorView === 'preview';
+  const [outlineOpen, setOutlineOpen] = useState(() => window.matchMedia('(min-width: 1100px)').matches);
   const [instanceKey, setInstanceKey] = useState(0);
   const [retainPreviewState, setRetainPreviewState] = useState(true);
   const [previewSession, setPreviewSession] = useState(() => new PreviewStateSession());
@@ -914,6 +916,10 @@ export default function App() {
               />
             )}
             <div className="workbench-quick-actions">
+              <button id="outline-toggle" type="button" className="button button-secondary outline-toggle"
+                aria-expanded={outlineOpen} aria-controls="document-outline" onClick={() => setOutlineOpen(open => !open)}>
+                <OutlineIcon />{copy.outline.heading}
+              </button>
               <ImageAssetsPanel compact assets={documentImages.assets} references={[]}
                 busy={imageBusy || !documentImages.ready} error={imageError} storageError={documentImages.storageError}
                 onFiles={addImages} onRemove={removeImage} />
@@ -991,7 +997,9 @@ export default function App() {
             </span>
           </div>
 
-          <div className="workspace has-editor">
+          <OutlineWorkspace document={previewDocument} source={source} documentKey={documentKey}
+            mode={editorView} onModeChange={setEditorView} editor={editorHandle}
+            open={outlineOpen} onOpenChange={setOutlineOpen}>
             <section id="source-pane" className="pane pane-editor" aria-label={copy.editor.region}
               onPasteCapture={event => {
                 if (!(event.target instanceof HTMLTextAreaElement)
@@ -1032,12 +1040,6 @@ export default function App() {
                     ) : (
                       <div className="preview-loading" role="status"><p>{copy.preview.preparing}</p></div>
                     )}
-                    {compiling && previewDocument && !previewFailed ? (
-                      <div className="preview-veil" role="status">
-                        <strong>{copy.preview.veilTitle}</strong>
-                        <span>{copy.preview.veilBody}</span>
-                      </div>
-                    ) : null}
                   </div>
                 </section>}
                 authoring
@@ -1067,7 +1069,7 @@ export default function App() {
               </section>
             </section>
 
-          </div>
+          </OutlineWorkspace>
         </main>
         )}
 

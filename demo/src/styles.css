@@ -684,33 +684,6 @@ textarea {
   filter: saturate(0.6);
 }
 
-.preview-veil {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  padding: var(--space-5);
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-card);
-  text-align: center;
-}
-
-.preview-veil strong {
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-}
-
-.preview-veil span {
-  max-width: 320px;
-  color: var(--ink-muted);
-  font-size: var(--text-xs);
-  line-height: var(--leading-snug);
-}
-
 .preview-loading {
   display: flex;
   min-height: 420px;
