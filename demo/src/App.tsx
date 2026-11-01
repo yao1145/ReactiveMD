@@ -46,6 +46,7 @@ import {
   DEFAULT_EXAMPLE_ID,
   EXAMPLES,
   exampleSource,
+  isFeatureExample,
   localizedExample,
   localizedExamples,
   resolveExampleId,
@@ -889,13 +890,18 @@ export default function App() {
                 <select
                   id="example-select"
                   className="bar-select example-select"
-                  value={selectedExample}
+                  value={isFeatureExample(currentExample) ? 'features' : selectedExample}
                   title={currentExample.hint}
                   onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-                    if (event.target.value !== selectedExample) loadExample(event.target.value);
+                    const id = resolveExampleId(event.target.value);
+                    if (id && id !== selectedExample) loadExample(id);
                   }}
                 >
-                  {exampleOptions.map((example) => (
+                  {exampleOptions.filter(example => example.section === 'scenario').map((example) => (
+                    <option key={example.id} value={example.id}>{example.title}</option>
+                  ))}
+                  <option value="features">{copy.showcase.features}</option>
+                  {exampleOptions.filter(example => example.section !== 'scenario' && !isFeatureExample(example)).map(example => (
                     <option key={example.id} value={example.id}>{example.title}</option>
                   ))}
                 </select>

@@ -37,7 +37,7 @@ try {
   await openWorkbench(page, baseURL);
   const examplesButton = page.getByRole('button', { name: 'Try examples', exact: true });
   if (await examplesButton.isVisible()) await examplesButton.click();
-  await page.locator('#example-select').selectOption('tetris');
+  await page.locator('#example-select').selectOption('games');
   const game = page.locator('[data-tetris]');
   await check('registered sample compiles through the worker and renders with CSS', async () => {
     await expect(game).toBeVisible();
@@ -64,7 +64,7 @@ try {
   });
   await check('the 2048 plugin renders and responds to pointer and lock controls', async () => {
     await page.locator('[data-editor-view-option="preview"]').click();
-    await page.locator('#example-select').selectOption('game-2048');
+    await page.locator('#example-select').selectOption('games');
     const board = page.locator('[data-game-2048]');
     await expect(board).toBeVisible();
     await expect(page.locator('[data-game-2048-board] .rmd-2048-cell')).toHaveCount(16);
@@ -77,7 +77,7 @@ try {
     await expect(page.locator('[data-game-2048-left]')).toBeDisabled();
     await page.getByRole('checkbox', { name: 'Lock 2048', exact: true }).uncheck();
     await expect(page.locator('[data-game-2048-left]')).toBeEnabled();
-    await page.locator('#example-select').selectOption('tetris');
+    await page.locator('#example-select').selectOption('games');
     await expect(game).toBeVisible();
   });
 
@@ -104,6 +104,7 @@ try {
         exported.on('request', request => { if (/^https?:/.test(request.url())) requests.push(request.url()); });
         await exported.goto(pathToFileURL(file).href);
         await expect(exported.locator(mode === 'interactive' ? '[data-tetris]' : '[data-tetris-static]')).toBeVisible();
+        await expect(exported.locator(mode === 'interactive' ? '[data-game-2048]' : '[data-game-2048-static]')).toBeVisible();
         expect(await exported.locator('[data-tetris-board]').evaluate(element => getComputedStyle(element).display)).toBe('grid');
         if (mode === 'interactive') {
           const offlineGame = exported.locator('[data-tetris]');

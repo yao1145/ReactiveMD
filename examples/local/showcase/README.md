@@ -1,8 +1,12 @@
-# Feature tours / 功能演示
+# Feature demo / 功能演示
 
-The Playground has a short [Quick start](../pricing.reactive.md) and six feature tours. Each tour opens with a suggested interaction, develops one example and ends with expandable source snippets. Choose Show source to edit the whole document. Controls, calculations, validation, layout and visualizations appear within these six scenarios. [Errors & debugging](../diagnostics.reactive.md) is available from the auxiliary menu.
+The Playground opens with a [Fourier series lesson](../scenarios/classroom.reactive.md). The other everyday documents are a [reading corner proposal](../scenarios/proposal.reactive.md), a [weekend survey](../scenarios/survey.reactive.md) and a [literary blog](../scenarios/blog.reactive.md). The six sources below form one continuous [feature demo](features.reactive.md), reached through a single menu entry. Use its outline to navigate; there is no category selector.
 
-Playground 按“快速体验 + 六个场景”组织。每个场景开头给出明确操作，围绕一个案例展开，结尾可以查看关键源码。点击“显示源码”可编辑完整文档。控件、计算、校验、布局和可视化分布在这六个场景中，“错误与调试”保留在辅助菜单。
+Playground 默认打开[傅里叶级数课堂](../scenarios/classroom-zh.reactive.md)，另有[社区阅读角提案](../scenarios/proposal-zh.reactive.md)、[活动意向调研](../scenarios/survey-zh.reactive.md)和[文学博客](../scenarios/blog-zh.reactive.md)。下表六份源文件合成一篇[功能演示](zh/features.reactive.md)，从单个菜单入口打开，通过大纲浏览，不再分类切换。
+
+Run `npm run update:feature-demo --workspace=@reactive-md/demo` after changing these six sources. The generator renames active bindings through the SDK, keeps code snippets literal and checks that the combined document compiles. Historical source IDs remain available for old links and saved drafts.
+
+修改这六份源文件后，运行 `npm run update:feature-demo --workspace=@reactive-md/demo`。生成器通过 SDK 重命名活动绑定，保留代码示例原文，并检查合并文档能否编译。历史示例 ID 继续支持旧链接和草稿。
 
 | Feature / 功能 | English source | 中文源码 | Try this / 操作提示 |
 | --- | --- | --- | --- |

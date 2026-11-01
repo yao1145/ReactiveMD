@@ -1,11 +1,29 @@
 import {expect} from '@playwright/test';
 import {installEditorProbe,readEditorSource} from './editor-probe.mjs';
 
-/** Open the real workbench and attach the test-only CM6 adapter. */
+/** Open the workbench with a stable editor fixture, unless the URL selects one. */
 export async function openWorkbench(page,value) {
   const url=new URL(value);url.searchParams.delete('editor');
+  if (!url.searchParams.has('example')) await page.addInitScript(() => {
+    if (!localStorage.getItem('reactive-md:selection')) localStorage.setItem('reactive-md:selection', 'pricing');
+  });
   await page.goto(url.href);
   await installEditorProbe(page);
+}
+
+/** The old component examples now live under one feature-demo menu entry. */
+export async function selectWorkbenchExample(page, id) {
+  if (['pricing', 'functions', 'forms', 'statistics', 'layout', 'flow', 'tasks'].includes(id)) {
+    const url = new URL(page.url());
+    url.searchParams.set('example', id);
+    await openWorkbench(page, url.href);
+    await page.evaluate(() => {
+      const url = new URL(location.href); url.searchParams.delete('example');
+      history.replaceState(null, '', url.href);
+    });
+  } else {
+    await page.locator('#example-select').selectOption(id);
+  }
 }
 
 /** Actions kept behind More options in the compact workbench. */

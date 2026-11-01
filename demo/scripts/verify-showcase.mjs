@@ -1,4 +1,4 @@
-import { openWorkbench, clickWorkbenchAction } from './workbench-ui.mjs';
+import {openWorkbench, clickWorkbenchAction, selectWorkbenchExample } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { gridOverflows } from './grid-layout-assertions.mjs';
@@ -27,7 +27,7 @@ try {
     });
     const preview = page.locator('.preview-stage');
     const pick = async (id) => {
-      await page.locator('#example-select').selectOption(id);
+      await selectWorkbenchExample(page, id);
       await page.locator('.workbench-options').evaluate(node => { node.open = true; });
       await clickWorkbenchAction(page, t('Restore example', '恢复示例'));
       await page.locator('.workbench-options').evaluate(node => { node.open = false; });
@@ -43,11 +43,12 @@ try {
     const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
     try {
       await openWorkbench(page,baseURL);
-      await check(`${language}: opens in presentation mode with seven distinct feature entries`, async () => {
+      await check(`${language}: legacy fixtures stay outside the single feature menu entry`, async () => {
         await expect(page.locator('#source-editor')).toBeHidden();
         const choices = await page.locator('#example-select option').evaluateAll(options => options.map(option => option.value));
-        expect(choices.filter(id => ids.includes(id))).toEqual(ids);
-        expect(choices).toContain('diagnostics');
+        expect(choices.filter(id => ids.includes(id))).toEqual([]);
+        expect(choices).toContain('features');
+        await expect(page.locator('#example-select option[value="diagnostics"]')).toHaveCount(1);
         await expect(preview.getByRole('slider', { name: t('People', '人数'), exact: true })).toHaveValue('2');
       });
 

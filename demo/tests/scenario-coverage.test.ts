@@ -7,10 +7,10 @@ function componentNames(nodes: LocalNode[]): string[] {
   return nodes.flatMap(node => [ ...(node.type === 'component' && node.name ? [node.name] : []), ...componentNames(node.children ?? []) ]);
 }
 
-describe('components distributed across six scenarios', () => {
-  it('keeps six feature scenarios without separate gallery or new-component pages', () => {
+describe('consolidated feature document', () => {
+  it('combines the six tours into one feature document', () => {
     expect(EXAMPLES.filter(example => example.section === 'feature').map(example => example.id))
-      .toEqual(['functions', 'forms', 'statistics', 'layout', 'flow', 'tasks']);
+      .toEqual(['features']);
     expect(EXAMPLES.some(example => ['explore','gallery'].includes(example.id))).toBe(false);
   });
 
@@ -22,7 +22,7 @@ describe('components distributed across six scenarios', () => {
   });
 
   for (const language of ['en','zh'] as const) {
-    it(`${language}: all ${names.length} component names occur as working components in the six scenarios`, () => {
+    it(`${language}: all ${names.length} component names work in one document`, () => {
       const found = new Set<string>();
       for (const example of EXAMPLES.filter(example => example.section === 'feature')) {
         const result = compileLocal(localizedExample(example, language).source);

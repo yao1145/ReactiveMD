@@ -1,4 +1,4 @@
-import { fillEditor, openWorkbench, clickWorkbenchAction, expectEditorSource } from './workbench-ui.mjs';
+import {fillEditor, openWorkbench, clickWorkbenchAction, expectEditorSource, selectWorkbenchExample } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { article } from '../../scripts/benchmark-large-documents.mjs';
@@ -38,14 +38,14 @@ try {
   });
   await check('switching examples discards old work and flushes each source separately', async () => {
     await fillSource(article(300) + '\n\nSaved pricing edit.');
-    await page.locator('#example-select').selectOption('forms');
+    await selectWorkbenchExample(page, 'forms');
     await clickWorkbenchAction(page, 'Restore example');
     await expect(page.locator('.status-chip')).toContainText('Compiled');
     await expect(preview).not.toContainText('Saved pricing edit.');
     await fillSource('# Counter edit\n\nSaved counter edit.');
-    await page.locator('#example-select').selectOption('pricing');
+    await selectWorkbenchExample(page, 'pricing');
     await expectEditorSource(editor,article(300) + '\n\nSaved pricing edit.');
-    await page.locator('#example-select').selectOption('forms');
+    await selectWorkbenchExample(page, 'forms');
     await expectEditorSource(editor,'# Counter edit\n\nSaved counter edit.');
     await page.reload();
     await clickWorkbenchAction(page, 'Show source');

@@ -1,7 +1,7 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { gridOverflows } from './grid-layout-assertions.mjs';
-import { openWorkbench, clickWorkbenchAction, replaceWorkbenchSource } from './workbench-ui.mjs';
+import {openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, selectWorkbenchExample } from './workbench-ui.mjs';
 
 const baseURL = process.env.DEMO_URL ?? 'http://127.0.0.1:5173';
 const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge';
@@ -13,7 +13,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.addInitScript(() => localStorage.setItem('reactive-md:language', 'zh'));
   await openWorkbench(page,baseURL);
-  await page.locator('#example-select').selectOption('statistics');
+  await selectWorkbenchExample(page, 'statistics');
   await clickWorkbenchAction(page, '显示源码');
   const preview = page.locator('.preview-stage');
   await expect(preview.getByRole('heading', { name: '一份预算，多种观察方式', exact: true })).toBeVisible();

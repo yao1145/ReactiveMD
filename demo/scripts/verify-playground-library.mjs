@@ -1,4 +1,4 @@
-import { openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, readEditor, expectEditorSource } from './workbench-ui.mjs';
+import {openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, readEditor, expectEditorSource, selectWorkbenchExample } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -177,8 +177,8 @@ try {
   await check('examples stay separate, and copying an example and importing create independent documents', async () => {
     await page.getByRole('button', { name: 'Try examples', exact: true }).click();
     const examples = page.locator('#example-select');
-    expect(await examples.locator('option').count()).toBeGreaterThanOrEqual(8);
-    await examples.selectOption('functions');
+    expect(await examples.locator('option').count()).toBeGreaterThanOrEqual(7);
+    await selectWorkbenchExample(page, 'functions');
     const exampleSource = await readEditor(editor);
     const options = page.locator('.workbench-options');
     await options.locator(':scope > summary').click();
@@ -193,7 +193,8 @@ try {
     await expect(documents.locator('option')).toHaveCount(count + 1);
     await expectEditorSource(editor,'# Imported work\n\nIndependent source.');
     await page.getByRole('button', { name: 'Try examples', exact: true }).click();
-    await expect(examples).toHaveValue('functions');
+    await expect(examples).toHaveValue('features');
+    await expect(page.locator('#feature-example-select')).toHaveCount(0);
     await expectEditorSource(editor,exampleSource);
     await page.getByRole('button', { name: 'My documents', exact: true }).click();
     await expectEditorSource(editor,'# Imported work\n\nIndependent source.');

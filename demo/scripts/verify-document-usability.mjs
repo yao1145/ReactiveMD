@@ -1,4 +1,4 @@
-import { openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, readEditor, expectEditorSource } from './workbench-ui.mjs';
+import {openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, readEditor, expectEditorSource, selectWorkbenchExample } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
@@ -267,7 +267,7 @@ Collapsed body copy.
     await expect(preview.getByRole('slider', { name: 'Trial count', exact: true })).toHaveValue('2');
     await maxSlider('Trial count');
     await page.getByRole('button', { name: 'Try examples', exact: true }).click();
-    await page.locator('#example-select').selectOption('forms');
+    await selectWorkbenchExample(page, 'forms');
     await page.locator('.workbench-options').evaluate(node => { node.open = true; });
     await clickWorkbenchAction(page, 'Restore example');
     await edit(trialSource);

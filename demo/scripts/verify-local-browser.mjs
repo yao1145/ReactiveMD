@@ -1,4 +1,4 @@
-import { openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, expectEditorSource } from './workbench-ui.mjs';
+import {openWorkbench, clickWorkbenchAction, replaceWorkbenchSource, expectEditorSource, selectWorkbenchExample } from './workbench-ui.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
@@ -29,7 +29,7 @@ async function check(name, run) {
 
 async function pick(id) {
   if (id === 'pricing') {
-    await page.locator('#example-select').selectOption('pricing');
+    await selectWorkbenchExample(page, 'pricing');
     await page.locator('.workbench-options').evaluate(node => { node.open = true; });
     await clickWorkbenchAction(page, 'Restore example');
   } else if (id === 'diagnostics') {
@@ -51,7 +51,7 @@ async function pick(id) {
 
 try {
   await openWorkbench(page,baseURL);
-  await expect(page.locator('#example-select')).toHaveValue('pricing');
+  await expect(page.locator('#example-select')).toHaveValue('features');
   await clickWorkbenchAction(page, 'Show source');
   await expect(page.getByRole('slider', { name: 'People', exact: true })).toBeVisible();
   await check('library styles preserve host elements with common class names', async () => {
@@ -92,7 +92,7 @@ try {
     } finally { await styleProbe.close(); }
   });
   await check('feature navigation separates seven tours from debugging', async () => {
-    expect(await page.locator('#example-select option').count()).toBeGreaterThanOrEqual(8);
+    expect(await page.locator('#example-select option').count()).toBeGreaterThanOrEqual(7);
     await expect(page.locator('#example-select option[value="diagnostics"]')).toHaveCount(1);
   });
 
@@ -118,7 +118,7 @@ try {
 
   await check('reload resets interaction state and keeps the selected source', async () => {
     await page.reload();
-    await expect(page.locator('#example-select')).toHaveValue('pricing');
+    await expect(page.locator('#example-select')).toHaveValue('features');
     await expect(paragraph('Monthly total:')).toContainText('200');
     await expect(page.getByRole('slider', { name: 'People', exact: true })).toHaveValue('2');
   });
@@ -500,8 +500,8 @@ Independent calculation: {{ n + 2 }}.`);
       await clickWorkbenchAction(localized, 'Show source');
       await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
       await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
-      await expect(localized.locator('#example-select')).toHaveValue('pricing');
-      await expect(localized.locator('#example-select option:checked')).toHaveText('Quick start');
+      await expect(localized.locator('#example-select')).toHaveValue('features');
+      await expect(localized.locator('#example-select option:checked')).toHaveText('Feature demo');
       await expectEditorSource(localized.locator('#source-editor'),/# Plan calculator/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: 'Plan calculator', level: 1 }))
         .toBeVisible();
@@ -509,8 +509,8 @@ Independent calculation: {{ n + 2 }}.`);
       await localized.getByTestId('language-toggle').click();
       await expect(localized.locator('html')).toHaveAttribute('lang', 'zh-CN');
       await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
-      await expect(localized.locator('#example-select')).toHaveValue('pricing');
-      await expect(localized.locator('#example-select option:checked')).toHaveText('快速体验');
+      await expect(localized.locator('#example-select')).toHaveValue('features');
+      await expect(localized.locator('#example-select option:checked')).toHaveText('功能演示');
       await expectEditorSource(localized.locator('#source-editor'),/# 方案计算器/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: '方案计算器', level: 1 }))
         .toBeVisible();
@@ -531,7 +531,7 @@ Independent calculation: {{ n + 2 }}.`);
       await clickWorkbenchAction(localized, '显示源码');
       await expect(localized.locator('html')).toHaveAttribute('lang', 'zh-CN');
       await expect(localized).toHaveTitle('Reactive MD · 交互文档实验室');
-      await expect(localized.locator('#example-select')).toHaveValue('pricing');
+      await expect(localized.locator('#example-select')).toHaveValue('features');
       await expectEditorSource(localized.locator('#source-editor'),/# 方案计算器/);
       await expect(localized.getByRole('button', { name: '切换到英文', exact: true })).toBeVisible();
       await expect(localized.getByRole('button', { name: '你的方案 恢复默认', exact: true })).toBeVisible();
@@ -539,8 +539,8 @@ Independent calculation: {{ n + 2 }}.`);
       await localized.getByRole('button', { name: '切换到英文', exact: true }).click();
       await expect(localized.locator('html')).toHaveAttribute('lang', 'en');
       await expect(localized).toHaveTitle('Reactive MD · Interactive Document Lab');
-      await expect(localized.locator('#example-select')).toHaveValue('pricing');
-      await expect(localized.locator('#example-select option:checked')).toHaveText('Quick start');
+      await expect(localized.locator('#example-select')).toHaveValue('features');
+      await expect(localized.locator('#example-select option:checked')).toHaveText('Feature demo');
       await expectEditorSource(localized.locator('#source-editor'),/# Plan calculator/);
       await expect(localized.locator('.preview-stage').getByRole('heading', { name: 'Plan calculator', level: 1 }))
         .toBeVisible();

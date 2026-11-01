@@ -9,7 +9,7 @@
   border-color: var(--line-strong);
 }
 
-.workspace.has-editor.has-outline {
+.app-shell .workspace.has-editor.has-outline {
   grid-template-columns: 236px minmax(0, 1fr);
   align-items: start;
 }
@@ -152,7 +152,7 @@
 }
 
 @media (max-width: 1099px) {
-  .workspace.has-editor.has-outline {
+  .app-shell .workspace.has-editor.has-outline {
     grid-template-columns: minmax(0, 1fr);
   }
 

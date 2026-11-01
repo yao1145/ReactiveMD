@@ -20,6 +20,7 @@ export interface DemoCopy {
   showcase: {
     intro: string;
     navigation: string;
+    features: string;
     reference: string;
     more: string;
     footer: string;
@@ -191,8 +192,9 @@ const ENGLISH: DemoCopy = {
   htmlLang: 'en',
   documentTitle: 'Reactive MD · Interactive Document Lab',
   showcase: {
-    intro: 'Explore what an interactive document can do. Choose a feature, try a change, then open the source.',
-    navigation: 'Explore features',
+    intro: 'Try a lesson, discuss a proposal, fill in a survey or read a personal essay. The controls are part of each document.',
+    navigation: 'Choose an example',
+    features: 'Feature demo',
     reference: 'Reference',
     more: 'Open diagnostics',
     footer: 'Try the controls in each document. Open the source to explore or change how it works.',
@@ -380,8 +382,9 @@ const CHINESE: DemoCopy = {
   htmlLang: 'zh-CN',
   documentTitle: 'Reactive MD · 交互文档实验室',
   showcase: {
-    intro: '按功能探索交互文档。选一个主题，动手调整，再展开源码看看写法。',
-    navigation: '探索功能',
+    intro: '上一堂课，讨论一份方案，填写活动意向，或读一篇生活随笔。直接操作文档中的内容。',
+    navigation: '选择示例',
+    features: '功能演示',
     reference: '查阅',
     more: '打开调试示例',
     footer: '直接操作文档中的控件；展开源码，可以查看或修改它的写法。',
