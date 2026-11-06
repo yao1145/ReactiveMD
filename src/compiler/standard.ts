@@ -2,9 +2,10 @@
  * Standard single-pass compiler entry.
  *
  * Same result contract as the minimal factory, but wired to the full
- * experience: the default component preset is supplied explicitly and the
- * KaTeX display precheck stays on. It is the single-pass counterpart of the
- * legacy `compileLocal` without sessions, workers, React or theme loading.
+ * experience: the default component preset, GFM syntax, native HTML support,
+ * Lezer block planning, the KaTeX display precheck and plot formula semantics
+ * are supplied explicitly. It is the single-pass counterpart of the legacy
+ * `compileLocal` without sessions, workers, React or theme loading.
  */
 import type { LocalCompileOptions } from '../local/contracts/types';
 import type { LocalOptionCheck } from '../local/configuration/options-core';

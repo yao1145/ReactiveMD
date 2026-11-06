@@ -2,9 +2,12 @@
  * Minimal single-pass compiler entry.
  *
  * The minimal factory installs no default component preset: only the kernel
- * language declarations (theme/computed/const/external), Markdown/RMD body,
- * semantic checks and budgets remain. The KaTeX display precheck is omitted;
- * `compiler/standard` keeps the full experience.
+ * language declarations (theme/computed/const/external), CommonMark/RMD body,
+ * semantic checks and budgets remain. GFM syntax, native HTML parsing and
+ * repair, Lezer block planning, the KaTeX display precheck, plot formula
+ * semantics and the whole-document HTML branch are standard-assembly
+ * capabilities; requesting one here produces an explicit capability
+ * diagnostic. `compiler/standard` keeps the full experience.
  *
  * The factory validates options once and snapshots them. `compile` performs
  * only the semantic pass: it creates no runtime, session, worker, timer or
