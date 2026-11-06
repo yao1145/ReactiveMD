@@ -89,6 +89,12 @@ describe('strict option key', () => {
     expect(loose).toContain(`recovery=${LOCAL_RECOVERY_STRATEGY_VERSION}`);
     expect(localCompileOptionsKey({ strict: true })).not.toContain('recovery=');
   });
+
+  it('pins the current recovery strategy version and leaves strict identity unchanged', () => {
+    expect(LOCAL_RECOVERY_STRATEGY_VERSION).toBe('2');
+    expect(localCompileOptionsKey({ strict: false })).toContain('recovery=2');
+    expect(localCompileOptionsKey({ strict: true })).toBe(localCompileOptionsKey());
+  });
 });
 
 describe('factory result contract', () => {

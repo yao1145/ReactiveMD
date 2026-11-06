@@ -163,7 +163,7 @@ For the first round, Program continues to reuse the existing model and adapter a
 
 | Input condition | `strict: true` | `strict: false` |
 | --- | --- | --- |
-| Missing RMD close, mismatched closing tags, stray end tags | Keep current error/warning and ranges | Emit literal text according to the range rules below, and record a recovery |
+| Missing RMD close, mismatched closing tags, stray end tags | Keep current error/warning and ranges | Emit literal text according to the range rules below, and record a recovery and warning |
 | Local native HTML is recoverable | Keep existing handling | Parse the HTML fragment with context and convert it to allowed nodes |
 | HTML boundary is uncertain or outside supported scope | Keep existing handling | Downgrade the affected fragment and continue the body outside its range |
 | Tags in code, existing ordinary text | Keep text | Keep text; generate no recovery noise |
@@ -173,7 +173,7 @@ For the first round, Program continues to reuse the existing model and adapter a
 
 The first-version allowlist handles only tag structure problems. Unterminated attribute lexing, such as a missing quote or `>`, may be downgraded but must use a more conservative container boundary. Component attribute types, required fields and leaf/container shape constraints continue to be checked per contract; extending recovery categories adds separate behavior rules and cases.
 
-Silent means recovery itself shows no modal, inserts no inline error block in the body, and generates no batch of warnings. Recovery information goes into `recoveries` and can be viewed in the editor's author check panel; existing unrelated warnings remain. A recovered program must still pass the remaining semantic checks before returning `recovered`.
+Successful local repairs are recorded in `recoveries` and emit at most one warning at each cause range, explaining the HTML repair or literal fallback. Recovery adds no inline error block. The diagnostic budget may omit excess warnings. Remaining semantic, configuration, version and budget failures stay errors; the program must pass those checks before returning `recovered`.
 
 If a normal region references a declaration that was revoked inside a downgraded fragment, that reference remains an unknown-binding error; the first version does not guess or delete its dependencies. "The rest of the article continues rendering" applies to isolatable structural recovery; when other semantic errors exist, the result still returns `failed`.
 

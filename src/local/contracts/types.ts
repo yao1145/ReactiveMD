@@ -388,8 +388,9 @@ export interface LocalCompileOptions extends LocalHtmlOptions {
   /**
    * Strict structural checking. Defaults to `true`, which keeps the historical
    * behavior. `false` lets the parser recover isolated structural damage and
-   * report each repair through `recoveries`; every other semantic check still
-   * applies. Only booleans are accepted.
+   * report successful repairs through `recoveries` and bounded warning
+   * diagnostics. Unrecoverable semantic, configuration, version and budget
+   * errors remain errors. Only booleans are accepted.
    */
   readonly strict?: boolean;
 }

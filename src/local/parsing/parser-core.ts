@@ -55,6 +55,14 @@ const HTML_BLOCK = new Set([
   'div', 'details', 'blockquote', 'pre', 'ul', 'ol', 'li',
 ]);
 const BLOCK_HTML_RESULTS = new Set(['paragraph', 'heading', 'div', 'details', 'blockquote', 'code', 'list', 'listItem', 'thematicBreak', 'htmlTable']);
+/** Structural recoveries that explain partial rendering with one warning each. */
+const RECOVERY_DIAGNOSTIC_CODES = new Set([
+  'local.recovery.unclosed',
+  'local.recovery.mismatch',
+  'local.recovery.stray-close',
+  'local.html.repair',
+  'local.html.literal',
+]);
 const HTML_GLOBAL_ATTRIBUTES = new Set(['id', 'title', 'lang', 'dir']);
 const NATIVE_HTML_NAMES = new Set<string>(Object.values(nativeHtml.TAG_NAMES));
 const NATIVE_HTML_VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
@@ -2012,6 +2020,28 @@ export function parseLocalCore(
         if (item.children) for (const child of item.children) pending.push(child);
     }
   }
+  /**
+   * Emit one warning per distinct recovery after parsing completes. Later
+   * semantic failures retain these warnings. An aborted parse may retain
+   * recovery plans, but must not claim those plans were rendered.
+   */
+  function emitRecoveryWarnings(): void {
+    if (strict || recoveries.length === 0) return;
+    const seen = new Set<string>();
+    let emitted = false;
+    for (const recovery of recoveries) {
+      if (!RECOVERY_DIAGNOSTIC_CODES.has(recovery.code)) continue;
+      const { causeRange, affectedRange } = recovery;
+      const identity = `${recovery.code}:${causeRange.start}:${causeRange.end}:${affectedRange.start}:${affectedRange.end}:${recovery.boundary}`;
+      if (seen.has(identity)) continue;
+      seen.add(identity);
+      warning(recovery.code, renderLocalDiagnostic(recovery.code, 'en'), causeRange.start, causeRange.end, { key: recovery.code });
+      emitted = true;
+    }
+    // Recovery warnings merge into the parser's source order. Normal sources
+    // and strict parses never take this path.
+    if (emitted) diagnostics.sort((left, right) => left.range.start - right.range.start || left.range.end - right.range.end);
+  }
   try {
     if (!strict && source.includes('<')) {
       // Decide every structure recovery before the region scanner allocates
@@ -2062,6 +2092,7 @@ export function parseLocalCore(
     recoveries.sort((left, right) => left.causeRange.start - right.causeRange.start
       || left.causeRange.end - right.causeRange.end || left.affectedRange.start - right.affectedRange.start
       || left.affectedRange.end - right.affectedRange.end || left.code.localeCompare(right.code));
+    emitRecoveryWarnings();
     finishWork();
     return {
       nodes,

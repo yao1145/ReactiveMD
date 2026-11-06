@@ -50,6 +50,24 @@ const RECOVERY: LocalRecovery = {
   boundary: 'fragment',
 };
 
+/** One structural repair: the unclosed <card> is literal until the next heading. */
+const RECOVERED_SOURCE = '<card>\n正文\n\n## 后续\n\n后文 **粗体**';
+
+function expectSingleRecovery(result: LocalCompileResult): LocalRecovery {
+  if (!result.ok || !result.recoveries || result.recoveries.length !== 1) {
+    throw new Error('expected exactly one recovery from the recovered source');
+  }
+  return result.recoveries[0];
+}
+
+/** The warning the parser adds for one recovery: same code and cause range. */
+function warningsFor(result: LocalCompileResult, recovery: LocalRecovery) {
+  return result.diagnostics.filter((diagnostic) => diagnostic.code === recovery.code
+    && diagnostic.severity === 'warning'
+    && diagnostic.range.start === recovery.causeRange.start
+    && diagnostic.range.end === recovery.causeRange.end);
+}
+
 function node(id: string, source: string): LocalNode {
   return {
     type: 'paragraph',
@@ -369,6 +387,105 @@ describe('worker strict transport', () => {
     expect(response.ok && 'flatResult' in response).toBe(true);
     if (!response.ok || !('flatResult' in response)) return;
     expect(decodeFlatCompiledData(structuredClone(response.flatResult))).toEqual(result);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Recovered warnings                                                 */
+/* ------------------------------------------------------------------ */
+
+describe('recovered warning transport', () => {
+  const options: LocalCompileOptions = { strict: false };
+
+  it('carries recovered warnings through the complete compile session', () => {
+    const reference = compileLocal(RECOVERED_SOURCE, options);
+    expect(reference.ok).toBe(true);
+    const recovery = expectSingleRecovery(reference);
+    const warnings = warningsFor(reference, recovery);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatchObject({
+      code: recovery.code,
+      severity: 'warning',
+      range: recovery.causeRange,
+    });
+    expect(reference.diagnostics.some((item) => item.severity === 'error')).toBe(false);
+
+    const session = createLocalCompileSession();
+    try {
+      expect(session.compile(RECOVERED_SOURCE, options)).toEqual(reference);
+    } finally {
+      session.dispose();
+    }
+  });
+
+  it('returns recovered warnings unchanged in a full worker frame', () => {
+    const reference = compileLocal(RECOVERED_SOURCE, options);
+    expect(reference.ok).toBe(true);
+    const scope = createScope();
+    const control = startLocalCompileWorker(scope);
+    try {
+      scope.onmessage!(requestEvent({
+        id: 1,
+        source: RECOVERED_SOURCE,
+        options: { strict: false },
+        protocol: LOCAL_RESULT_PATCH_PROTOCOL,
+        revision: 1,
+      }));
+      const response = fullResponse(scope, 0);
+      expect(response.result.ok).toBe(true);
+      expect(response.result.diagnostics).toEqual(reference.diagnostics);
+      expect(response.result.recoveries).toEqual(reference.recoveries);
+    } finally {
+      control.dispose();
+    }
+  });
+
+  it('carries recovered warnings through a result patch', () => {
+    const base = compileLocal('alpha', options);
+    const next = compileLocal(RECOVERED_SOURCE, options);
+    expect(base.ok).toBe(true);
+    expect(next.ok).toBe(true);
+    const recovery = expectSingleRecovery(next);
+    expect(warningsFor(next, recovery)).toHaveLength(1);
+
+    const patch = encodeLocalResultPatch(base, next)!;
+    expect(patch.diagnostics).toEqual(next.diagnostics);
+    const applied = applyLocalResultPatch(base, patch)!;
+    expect(applied.ok).toBe(true);
+    expect(applied.recoveries).toEqual(next.recoveries);
+    expect(applied.diagnostics).toEqual(next.diagnostics);
+    expect(applied).toEqual(next);
+  });
+
+  it('round trips recovered warnings in a flat frame', () => {
+    const compiled = compileLocal(RECOVERED_SOURCE, options);
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) throw new Error('expected recovered source to compile');
+    expectSingleRecovery(compiled);
+    const deep: LocalCompileResult = {
+      ...compiled,
+      document: { ...compiled.document, nodes: [deepNode('recovered-root', RECOVERED_SOURCE)] },
+    };
+    expect(needsFlatCompileResult(deep)).toBe(true);
+    const decoded = decodeFlatCompiledData(structuredClone(encodeFlatCompiledData(deep))) as LocalCompileResult;
+    expect(decoded).toEqual(deep);
+    expect(decoded.diagnostics).toEqual(compiled.diagnostics);
+    expect(decoded.recoveries).toEqual(compiled.recoveries);
+  });
+
+  it('keeps strict as the default and still fails the same source', () => {
+    const strict = compileLocal(RECOVERED_SOURCE);
+    expect(strict.ok).toBe(false);
+    expect('recoveries' in strict).toBe(false);
+    expect(strict.diagnostics.some((item) => item.severity === 'error')).toBe(true);
+
+    expect(compileLocal(RECOVERED_SOURCE, options).ok).toBe(true);
+  });
+
+  it('keeps semantic errors failed in loose mode', () => {
+    const failed = compileLocal('<counter bind="1bad" label="Count" initial="1">', options);
+    expect(failed.ok).toBe(false);
+    expect(failed.diagnostics.some((item) => item.severity === 'error')).toBe(true);
   });
 });
 

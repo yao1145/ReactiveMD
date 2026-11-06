@@ -35,7 +35,7 @@ export type LocalHtmlFlag = (typeof LOCAL_HTML_FLAGS)[number];
  * key only when `strict` is false, so changing recovery ranges invalidates
  * caches without perturbing strict identities.
  */
-export const LOCAL_RECOVERY_STRATEGY_VERSION = '1';
+export const LOCAL_RECOVERY_STRATEGY_VERSION = '2';
 
 export type LocalOptionCheck =
   | {

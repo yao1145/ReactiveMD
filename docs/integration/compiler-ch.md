@@ -25,6 +25,8 @@ if (interactive.ok) {
 
 工厂接受 `LocalCompileOptions`，创建时校验并固定有效配置。无效配置抛出 `CompilerConfigurationError`。编译结果用 `status` 区分 `valid`、`recovered` 和 `failed`，同时保留任务 1 的 `ok/document/diagnostics` 读取方式。成功时还提供独立且逐层冻结的 `program`、恢复记录 `recoveries` 与检查覆盖 `checks`；失败时不包含 program。每次 `compile` 都重新编译当前源码，前一次的绑定、诊断和节点不会成为下一次的输入。
 
+宽松模式下，每个最终恢复在 `causeRange` 上产生至多一条 warning，使用与记录相同的稳定 `code`，并说明片段被降级为惰性源文本或经过 HTML 修复。warning 受现有诊断预算约束；预算已满时可以省略 warning，`recoveries` 仍保留记录。`valid` 不包含恢复 warning；`recovered` 成功结果包含 program 和这些 warning。无法恢复的语义、类型、绑定、选项、版本和预算错误仍为 error：无效工厂配置抛出 `CompilerConfigurationError`，编译期错误返回 `failed`。失败结果可同时包含此前恢复产生的 warning 和导致失败的 error。严格模式仍为默认，诊断形状不变。恢复记录的字段和公共结果类型不变，恢复策略身份版本为 2。
+
 ```ts
 import { createCompiler, CompilerConfigurationError } from 'reactive-md/compiler';
 
@@ -38,7 +40,7 @@ try {
 }
 ```
 
-旧根入口的 `compileLocal(source, options)`、编辑会话和 Worker 默认保持严格语义，并保留原有返回类型。有恢复时会附加 `recoveries`。显式传入 `strict: false` 可启用[局部恢复](../reference/tolerance-ch.md)。
+旧根入口的 `compileLocal(source, options)`、编辑会话和 Worker 默认保持严格语义，并保留原有返回类型。有恢复时会附加 `recoveries` 及对应 warning。显式传入 `strict: false` 可启用[局部恢复](../reference/tolerance-ch.md)。
 
 这次交付建立 M1 的独立编译路径。Markdown 前端仍加载 Lezer、GFM 和 parse5；standard 的数学预检加载 KaTeX。共享辅助模块仍保留默认组件定义的回退，声明图仍可达现有 SDK 主题协议类型。能力拆分、完整 `.d.ts` 精简及默认预设隐藏依赖的最终移除属于 M4。
 

@@ -310,6 +310,26 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Author {feature} was disabled by the compile options.',
     zh: '编译选项已禁用作者提供的{feature}。',
   },
+  'recovery.unclosed': {
+    en: 'An unclosed RMD fragment was rendered as literal source; its components and expressions are inactive.',
+    zh: '未闭合的 RMD 片段已按原文显示，片段中的组件和表达式不执行。',
+  },
+  'recovery.mismatch': {
+    en: 'A fragment with mismatched tags was rendered as literal source; its components and expressions are inactive.',
+    zh: '标签不匹配的片段已按原文显示，片段中的组件和表达式不执行。',
+  },
+  'recovery.strayClose': {
+    en: 'A stray closing tag was rendered as literal source.',
+    zh: '孤立的结束标签已按原文显示。',
+  },
+  'recovery.htmlRepair': {
+    en: 'Malformed native HTML was structurally repaired for display.',
+    zh: 'HTML 结构已修复后显示。',
+  },
+  'recovery.htmlLiteral': {
+    en: 'Native HTML could not be safely repaired and was rendered as literal source.',
+    zh: 'HTML 片段无法安全恢复，已按原文显示。',
+  },
   'options.htmlFlag': {
     en: 'Compile option {name} must be a boolean.',
     zh: '编译选项 {name} 必须是布尔值。',
@@ -1273,6 +1293,11 @@ const LOCAL_PARSER_CODES = [
   'local.html',
   'local.html.fallback',
   'local.html.table',
+  'local.html.repair',
+  'local.html.literal',
+  'local.recovery.unclosed',
+  'local.recovery.mismatch',
+  'local.recovery.stray-close',
 ] as const;
 
 const LOCAL_COMPILER_CODES = [
@@ -1528,6 +1553,11 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.html.attribute': 'html.attribute',
   'local.html.unsafe-url': 'html.unsafeUrl',
   'local.html.capability': 'html.capability',
+  'local.recovery.unclosed': 'recovery.unclosed',
+  'local.recovery.mismatch': 'recovery.mismatch',
+  'local.recovery.stray-close': 'recovery.strayClose',
+  'local.html.repair': 'recovery.htmlRepair',
+  'local.html.literal': 'recovery.htmlLiteral',
   'local.options.invalid.html-flag': 'options.htmlFlag',
   'local.options.invalid.markdown-breaks': 'options.markdownBreaks',
   'local.options.invalid.strict': 'options.strict',

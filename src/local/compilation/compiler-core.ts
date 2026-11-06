@@ -512,8 +512,14 @@ export function compileLocalCore(
   // Never evaluate const declarations or construct an executable document
   // after an explicit syntax-version mismatch or malformed version header.
   if (diagnostics.some(item => item.severity === 'error' && item.code.startsWith('local.version.'))) {
+    // Parsing may have completed a loose-mode recovery before the version
+    // gate. Retain only its matching warnings alongside the fatal version
+    // diagnostics; semantic evaluation still does not run.
+    const recoveredWarnings = new Set((recoveries ?? []).map(recovery =>
+      `${recovery.code}:${recovery.causeRange.start}:${recovery.causeRange.end}`));
     return withRecoveries(
-      { ok: false, diagnostics: diagnostics.filter(item => item.code.startsWith('local.version.')) },
+      { ok: false, diagnostics: diagnostics.filter(item => item.code.startsWith('local.version.')
+        || (item.severity === 'warning' && recoveredWarnings.has(`${item.code}:${item.range.start}:${item.range.end}`))) },
       recoveries,
     );
   }
