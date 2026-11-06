@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { LocalDocument } from 'reactive-md';
-import type { EditorViewMode, ReactiveMarkdownEditorHandle } from 'reactive-md/editor';
+import type { EditorViewMode, ReactiveMarkdownEditorHandle } from 'reactive-md-editor';
 import { documentOutline, flattenOutline, outlineHeadingAt, type OutlineHeading } from './document-outline-model';
 import { useCopy } from './i18n';
 import './document-outline.css';

@@ -91,8 +91,7 @@ jobs:
       - name: Test, build and refresh notices
         if: steps.registry.outputs.published != 'true'
         run: |
-          npm run build
-          npm test
+          npm run check
           npm run notices
           git diff --exit-code -- THIRD_PARTY_NOTICES.md
 

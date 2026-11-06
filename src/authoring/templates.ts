@@ -1,7 +1,7 @@
 import { compileLocal } from '../local/compiler';
 import { RESERVED_NAMES } from '../local/expression';
-import { insertTemplate } from '../editor/editor-commands';
-import { renderNativeSnippet, type NativeComponentDefinition } from '../editor/native-components';
+import { insertTemplate } from './editor-commands';
+import { renderNativeSnippet, type NativeComponentDefinition } from './native-components';
 import type { LocalComponentDefinition } from '../sdk/types';
 import type { LocalCompileOptions } from '../local/types';
 import type { LocalPropKind } from '../local/schema';

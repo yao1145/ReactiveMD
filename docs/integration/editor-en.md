@@ -1,10 +1,10 @@
 # React source editor
 
-`0.7.0` uses CodeMirror 6 for `reactive-md/editor` and removes the old textarea source editor. See [CM6 integration](codemirror-en.md) for transactions, shared analysis and source coordinates.
+`0.7.0` uses CodeMirror 6 for `reactive-md-editor` and removes the old textarea source editor. See [CM6 integration](codemirror-en.md) for transactions, shared analysis and source coordinates.
 
-`reactive-md/editor` is a controlled React 19 editor for Reactive MD source. It comes from the Playground editor and provides source highlighting, a formatting and insertion toolbar, completion, binding navigation, rename and format commands, undo and redo, line numbers and scroll synchronization. Its built-in status bar provides a character count and Edit, Split and Preview views. The host keeps the source text and supplies preview content, persistence and export.
+`reactive-md-editor` is a controlled React 19 editor for Reactive MD source. It comes from the Playground editor and provides source highlighting, a formatting and insertion toolbar, completion, binding navigation, rename and format commands, undo and redo, line numbers and scroll synchronization. Its built-in status bar provides a character count and Edit, Split and Preview views. The host keeps the source text and supplies preview content, persistence and export.
 
-The editor has its own stylesheet at `reactive-md/editor/styles.css`. It is separate from `reactive-md/styles.css`, so a page that only edits source does not load document rendering styles.
+The editor has its own stylesheet at `reactive-md-editor/styles.css`. It is separate from `reactive-md/styles.css`, so a page that only edits source does not load document rendering styles.
 
 The editor is part of the `0.6.0` release, available on both `latest` and `next`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports are unchanged.
 
@@ -21,8 +21,8 @@ Pin the version with `npm install reactive-md@0.6.0`. The package ships ESM only
 
 ```tsx
 import { useState } from 'react';
-import { ReactiveMarkdownEditor } from 'reactive-md/editor';
-import 'reactive-md/editor/styles.css';
+import { ReactiveMarkdownEditor } from 'reactive-md-editor';
+import 'reactive-md-editor/styles.css';
 
 const initialSource = `# Cost estimate
 
@@ -49,8 +49,8 @@ export function SourceEditor() {
 
 | Entry | Contents | Dependency |
 | --- | --- | --- |
-| `reactive-md/editor` | `ReactiveMarkdownEditor` and its types | React 19 |
-| `reactive-md/editor/styles.css` | Editor styles, scoped to the editor root | Imported explicitly by the host |
+| `reactive-md-editor` | `ReactiveMarkdownEditor` and its types | React 19 |
+| `reactive-md-editor/styles.css` | Editor styles, scoped to the editor root | Imported explicitly by the host |
 
 Import the stylesheet once in the application or in the component module that renders the editor. A bundler or framework that handles CSS imports can place it with the editor module.
 
@@ -61,7 +61,7 @@ import { useRef, useState } from 'react';
 import {
   ReactiveMarkdownEditor,
   type ReactiveMarkdownEditorHandle,
-} from 'reactive-md/editor';
+} from 'reactive-md-editor';
 
 export function SourceEditor() {
   const [source, setSource] = useState('');
@@ -252,12 +252,12 @@ The editor entry has no top-level `window` or `document` access. Server renderin
 
 ## Styles and scope
 
-`reactive-md/editor/styles.css` contains the editor's own tokens and rules. All selectors are scoped to `.reactive-md-editor` or its descendants, so the stylesheet does not restyle host buttons, inputs or the page body. The theme comes from the instance attribute described above.
+`reactive-md-editor/styles.css` contains the editor's own tokens and rules. All selectors are scoped to `.reactive-md-editor` or its descendants, so the stylesheet does not restyle host buttons, inputs or the page body. The theme comes from the instance attribute described above.
 
 If the same page also renders a document preview, import `reactive-md/styles.css` as well. The two stylesheets are independent and can be loaded in either order.
 
 ## Compatibility
 
-To migrate from the textarea editor, remove `textareaRef`. Use the ref's `getSource()`, `getSelection()` and `selectRange()` for source and selection, and `getEditorElement()` for DOM access. `reactive-md/editor/codemirror` remains a compatibility alias for the same component, stylesheet and runtime. Document `<textarea>` form controls remain supported.
+To migrate from the textarea editor, remove `textareaRef`. Use the ref's `getSource()`, `getSelection()` and `selectRange()` for source and selection, and `getEditorElement()` for DOM access. `reactive-md-editor/codemirror` remains a compatibility alias for the same component, stylesheet and runtime. Document `<textarea>` form controls remain supported.
 
 0.5.3 adds compile-option-aware authoring and explicit screen/print styles. See [0.5.3 host integration](../releases/release-0.5.3-en.md). 0.6.0 adds `insertText` to the ref handle; see the [0.6.0 release notes](../releases/release-0.6.0-en.md).

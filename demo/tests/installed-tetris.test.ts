@@ -21,14 +21,14 @@ it('consumes a copied npm distribution with built entries and packaged resources
   expect(tetrisPackage.definition.id).toBe('example/tetris');
   expect(tetrisPackage.components[0]).toBe(tetrisImplementation);
   expect(tetrisPackage.resources.map(resource => resource.id)).toContain('example/tetris.css');
-  const repository = new URL('../../', import.meta.url);
+  const repository = new URL('../', import.meta.url);
   const lock = JSON.parse(await readFile(new URL('package-lock.json', repository), 'utf8'));
   const installedKey = Object.keys(lock.packages)
     .find(key => key.endsWith('node_modules/reactive-md-tetris-package'));
   if (!installedKey) throw new Error('The lockfile is missing the installed Tetris package.');
   const installed = lock.packages[installedKey];
   expect(installed.link).not.toBe(true);
-  expect(installed.resolved).toMatch(/^file:demo\/vendor\/reactive-md-tetris-package-.*\.tgz$/);
+  expect(installed.resolved).toMatch(/^file:vendor\/reactive-md-tetris-package-.*\.tgz$/);
   const archive = await readFile(new URL(installed.resolved.slice('file:'.length), repository));
   expect(`sha512-${createHash('sha512').update(archive).digest('base64')}`).toBe(installed.integrity);
 });

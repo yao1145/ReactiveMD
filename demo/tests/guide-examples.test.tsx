@@ -8,7 +8,7 @@ const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(node => [node
 
 describe('user guide live examples', () => {
   for (const language of ['en', 'zh'] as const) {
-    const source = readFileSync(new URL(`../../docs/guides/local-guide-${language === 'zh' ? 'ch' : 'en'}.md`, import.meta.url), 'utf8');
+    const source = readFileSync(new URL(`../content/guides/local-guide-${language === 'zh' ? 'ch' : 'en'}.md`, import.meta.url), 'utf8');
     it(`${language}: retains every code block and adds a working independent document immediately after it`, () => {
       const guide = buildGuideExamples(source);
       const result = compileLocal(guide.source, GUIDE_COMPILE_OPTIONS);

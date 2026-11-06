@@ -6,7 +6,7 @@ import { resolveConfig } from 'vite';
 import { reactiveMd } from 'reactive-md/vite';
 
 it('keeps a preview-only package usable and reports its missing offline capability', async () => {
-  const artifacts = fileURLToPath(new URL('../../artifacts/demo-extensions/', import.meta.url));
+  const artifacts = fileURLToPath(new URL('../artifacts/demo-extensions/', import.meta.url));
   await mkdir(artifacts, { recursive: true });
   const directory = await mkdtemp(path.join(artifacts, 'capabilities-'));
   const packageDirectory = path.join(directory, 'node_modules', 'preview-only-package');

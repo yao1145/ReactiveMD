@@ -1,5 +1,8 @@
 # Reactive MD
 
+> Repository split: this checkout is the language engine. The [editor](https://github.com/yao1145/ReactiveMD-Editor) and [Demo](https://github.com/yao1145/ReactiveMD-Demo) build independently. Engine 0.8 uses the separate reactive-md-editor package. See the [migration guide](docs/integration/repository-split-en.md).
+
+
 [English](README-en.md) · [中文](README-ch.md)
 
 [![npm](https://img.shields.io/npm/v/reactive-md.svg)](https://www.npmjs.com/package/reactive-md)
@@ -93,14 +96,14 @@ See [Performance measurements](docs/development/performance-overview-en.md) for 
 
 Live demo: [yaozi.raricy.com](https://yaozi.raricy.com/)
 
-From the repository root:
+From the ReactiveMD-Demo repository root:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-This builds the language package, then starts the standalone app at `http://127.0.0.1:5173`. `/embed.html` shows the embedding path. The language toggle in the masthead switches the whole Demo between English and Chinese and remembers the choice.
+This installs the locked engine/editor candidates and starts the standalone app at `http://127.0.0.1:5173`. `/embed.html` shows the embedding path. The language toggle in the masthead switches the whole Demo between English and Chinese and remembers the choice.
 
 What to try:
 
@@ -111,12 +114,12 @@ What to try:
 - Open the Tetris and 2048 plugin examples to see timer-driven and turn-based external components.
 - Export the current preview as a single-file interactive HTML or a static snapshot, then open it offline.
 
-Check the integration from the repository root:
+Check the integration from the ReactiveMD-Demo repository root:
 
 ```sh
-npm run build:demo
-node demo/scripts/verify-extensions.mjs
-node demo/scripts/verify-extensions.mjs --dev
+npm run build
+node scripts/verify-extensions.mjs
+node scripts/verify-extensions.mjs --dev
 ```
 
 The script starts and stops its own server, exercises the real Worker, both plugin examples, the editor catalog, mobile layout and offline exports, and writes results to `artifacts/demo-extensions/`.
@@ -163,7 +166,7 @@ The Demo ships two complete installed-package cases:
 | `reactive-md-tetris-package` | `<tetris>` | Timer-driven game, keyboard and pointer input, seeded pieces, offline export | `npm run update:demo-tetris` |
 | `reactive-md-game-2048-package` | `<game-2048>` | Turn-based state, deterministic spawns, keyboard and pointer input, static preview | `npm run update:demo-2048` |
 
-Both are packed into npm tarballs under `demo/vendor/`, installed as Demo dependencies and read through their public `./react` and `./notices` entries. Their authoring metadata feeds the editor catalog, and their capability evidence supports offline export.
+Both are packed into npm tarballs under `ReactiveMD-Demo/vendor/`, installed as Demo dependencies and read through their public `./react` and `./notices` entries. Their authoring metadata feeds the editor catalog, and their capability evidence supports offline export.
 
 Component tags must start with a letter, so the 2048 plugin registers `<game-2048>` rather than `<2048>`. See the [component plugin development guide](docs/development/component-development-en.md) and the [full development contract](docs/development/component-development-reference-en.md) for manifests, bindings, themes, resources, compliance tools and packaging.
 
@@ -198,7 +201,7 @@ npm install reactive-md@0.7.0
 
 Read the [0.7.0 release notes](docs/releases/release-0.7.0-en.md) for this release, and the [compatibility guide](docs/compatibility/compatibility-en.md) before upgrading from `0.6.x` / `local-draft-2`.
 
-The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`. The `reactive-md/editor` entry provides the source editor with its own stylesheet at `reactive-md/editor/styles.css`.
+The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`. The `reactive-md-editor` entry provides the source editor with its own stylesheet at `reactive-md-editor/styles.css`.
 
 The core entry does not depend on React:
 
@@ -236,12 +239,12 @@ export function Article({ source }: { source: string }) {
 
 ## Edit source with React
 
-The reusable source editor lives at `reactive-md/editor`, with its own stylesheet. The component is controlled and requires React 19:
+The reusable source editor lives at `reactive-md-editor`, with its own stylesheet. The component is controlled and requires React 19:
 
 ```tsx
 import { useState } from 'react';
-import { ReactiveMarkdownEditor } from 'reactive-md/editor';
-import 'reactive-md/editor/styles.css';
+import { ReactiveMarkdownEditor } from 'reactive-md-editor';
+import 'reactive-md-editor/styles.css';
 
 export function Editor() {
   const [source, setSource] = useState('# Notes');
@@ -272,7 +275,7 @@ src/           Local syntax compilation, expressions, runtime and React renderer
 examples/      Copyable local interactive examples and component packages
 docs/          Syntax specification, integration, development and release documentation
 tests/         Language and renderer tests
-demo/          Standalone Playground app and plugin integrations
+ReactiveMD-Demo/  Separate repository: website and plugin integrations
 benchmarks/    Condensed performance measurements with provenance
 ```
 

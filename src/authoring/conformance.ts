@@ -1,4 +1,4 @@
-import type { EditorLocale } from '../editor/command-types';
+import type { EditorLocale } from './command-types';
 import { compileLocal } from '../local/compiler';
 import { readLocalConfig } from '../sdk/config';
 import type { LocalConfig } from '../sdk/types';

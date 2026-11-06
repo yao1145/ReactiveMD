@@ -1,5 +1,5 @@
-import { insertTemplate } from '../editor/editor-commands';
-import type { EditorEdit, EditorLocale, EditorSelection } from '../editor/command-types';
+import { insertTemplate } from './editor-commands';
+import type { EditorEdit, EditorLocale, EditorSelection } from './command-types';
 import { RESERVED_NAMES } from '../local/expression';
 import { analyzeLocalSource, renameLocalBinding } from '../local/authoring';
 import { readLocalCompileOptions } from '../local/options';
@@ -10,7 +10,7 @@ import {
   createLocalComponentCatalogForOptions,
   type LocalComponentCatalogEntry,
 } from './catalog';
-import { renderNativeSnippet, type NativeComponentDefinition } from '../editor/native-components';
+import { renderNativeSnippet, type NativeComponentDefinition } from './native-components';
 
 /**
  * Insert one catalog component with the same configuration the editor uses.

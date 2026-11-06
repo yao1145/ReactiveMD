@@ -1,9 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalStateFile } from 'reactive-md';
 import { buildShareableHtml } from '../src/export-html';
 import { parseFragment } from 'parse5';
 
-vi.mock('../../dist-library/reactive-md.css?raw', () => ({ default: '.md-document{}' }));
 const elements = (n: any, tag: string): any[] => [...(n.tagName === tag ? [n] : []), ...(n.childNodes ?? []).flatMap((c: any) => elements(c, tag))];
 
 describe('browser export of HTML tables', () => {

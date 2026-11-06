@@ -7,7 +7,7 @@ import { openWorkbench, clickWorkbenchAction } from './workbench-ui.mjs';
 
 const dev = process.argv.includes('--dev');
 const root = fileURLToPath(new URL('../', import.meta.url));
-const artifacts = fileURLToPath(new URL('../../artifacts/demo-extensions/', import.meta.url));
+const artifacts = fileURLToPath(new URL('../artifacts/demo-extensions/', import.meta.url));
 await mkdir(artifacts, { recursive: true });
 const config = { root, configFile: path.join(root, 'vite.config.ts'), server: { host: '127.0.0.1', port: 5187, strictPort: true }, preview: { host: '127.0.0.1', port: 5187, strictPort: true } };
 const server = dev ? await createServer(config) : await preview(config);

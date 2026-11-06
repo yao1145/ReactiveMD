@@ -1,5 +1,7 @@
 # Implementation and verification notes
 
+> Historical record from the monorepo. Current install, build, test and deployment commands are in [README.md](README.md) and [AGENTS.md](AGENTS.md). Links to `../docs/` and `examples/local/` describe the earlier repository layout.
+
 ## Current release: 0.4.0 / local-draft-2
 
 The current source combines read-only calculations, formatting, arrays and bounded data tables, advisory validation, author tools, portable parameter state, HTML export and dependency-aware rendering. The [syntax specification](../docs/reference/local-interaction-syntax-en.md), [compatibility notes](../docs/compatibility/compatibility-en.md) and [release checklist](../docs/development/releasing-en.md) describe the current contracts.

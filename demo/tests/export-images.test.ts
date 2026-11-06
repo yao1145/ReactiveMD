@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalStateFile } from 'reactive-md';
 import { buildShareableHtml } from '../src/export-html';
 import { createImageAsset } from '../src/image-assets';
@@ -14,7 +14,6 @@ function renderedImageTags(html: string): string[] {
   return visit(parse(html));
 }
 
-vi.mock('../../dist-library/reactive-md.css?raw', () => ({ default: '.md-document{}' }));
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
 const source = '# With images\n\n![Photo](images/photo.png)\n\n![Again](images/photo.png)';
 const compiled = compileLocal(source);

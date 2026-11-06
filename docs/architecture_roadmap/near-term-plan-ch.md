@@ -1,6 +1,6 @@
 # ReactiveMD 近期规划：编译内核、宽松恢复与仓库拆分
 
-更新日期：2026-11-06。状态：任务 1 已提交为 `8540086`；任务 2 的 strict、局部恢复及 details 修复已在工作区实现，未提交或发布；任务 3 待实施。任务 2 基线为 `8540086`，当前包版本 `0.7.0`。
+更新日期：2026-11-06。任务 1 已提交为 8540086；任务 2 已提交并推送为 eeea87e；任务 3 已完成公开包消费验证，进入三仓库历史与目录迁移。引擎候选版本 0.8.0-next.0，编辑器 0.1.0-next.0，Demo 0.1.0；均未执行 npm 发布或站点部署。
 
 本文合并原《精简编译内核与可选能力架构设计》，并收拢原长期路线图中与本轮有关的任务。本文是本轮实施规则的唯一维护位置；已实现入口见第 6.1 节，其他新增类型、恢复行为和仓库名称仍为目标设计。实施者从第 1 节进入，按第 6 节逐阶段交付。
 
@@ -269,7 +269,17 @@ M4 尚需拆分 Lezer、GFM、parse5 与默认组件回退依赖。KaTeX 随 sta
 
 details 使用共享的 summary/body 拆分，修复无空行时标题丢失；按单个 disclosure 的空标题 accordion 呈现。桌面 1280 和手机 375 宽度的折叠、键盘、嵌套、初始 open、HTML 修复及范围外控件交互已通过，见 `artifacts/tolerance/browser/report.json`。
 
-已有全套 `npm.cmd test -- --maxWorkers=4` 通过 157 个文件、2,101 项测试；之后补充的原始 HTML 区域保护修复通过针对性回归。构建、类型、生产入口隔离、离线 tarball 安装及无 DOM 类型库的 NodeNext 消费通过。最后一轮追加全量/浏览器验证及独立只读审查，按用户“快点结束，不用做更多验证了”的要求停止，不宣称取得最终审查结论。记录位于 `artifacts/claude-task2/`；详细行为见[严格模式与局部恢复](../reference/tolerance-ch.md)。本轮未提交、推送或发布。
+已有全套 `npm.cmd test -- --maxWorkers=4` 通过 157 个文件、2,101 项测试；之后补充的原始 HTML 区域保护修复通过针对性回归。构建、类型、生产入口隔离、离线 tarball 安装及无 DOM 类型库的 NodeNext 消费通过。最后一轮追加全量/浏览器验证及独立只读审查，按用户“快点结束，不用做更多验证了”的要求停止，不宣称取得最终审查结论。记录位于 `artifacts/claude-task2/`；详细行为见[严格模式与局部恢复](../reference/tolerance-ch.md)。任务 2 随后提交并推送为 eeea87e，未执行 npm 发布或部署。
+
+### 6.3 任务 3：独立仓库交付
+
+语言引擎继续维护 ReactiveMD，编辑器迁至 [ReactiveMD-Editor](https://github.com/yao1145/ReactiveMD-Editor)，网站迁至 [ReactiveMD-Demo](https://github.com/yao1145/ReactiveMD-Demo)。本地工作目录以原 ReactiveMD 目录为容器，下面三个同名目录分别具有独立 .git、package.json、锁文件、AGENTS.md 与工作流。迁移通过 Git subtree 提取原编辑器和 Demo 历史，保留引擎完整历史；旧 linked worktrees 随主仓库路径修复。
+
+引擎纯作者服务迁入 src/authoring；编辑器通过 reactive-md 与 reactive-md/authoring 消费引擎，Demo 通过实际 tarball 安装两者。导出 CSS、notice、元数据和独立 HTML runtime 均通过公开 exports 读取。候选包文件名包含 SHA256 前缀，锁文件记录完整 integrity；不使用相邻源码链接。版本兼容矩阵、导入迁移和候选更新流程见[三仓库迁移](../integration/repository-split-ch.md)。
+
+旧 editor 子路径采用明确的 0.8 破坏性迁移：已发布的 0.7 保持旧 API，新候选改用 reactive-md-editor，不建立引擎与编辑器互相依赖的转发循环。任务 1 中尚未完成的 Lezer/GFM/parse5 可选能力进一步精简继续列为后续工作；本次仓库拆分不把它们标为完成。
+
+验证基线：引擎类型、构建和 119 个测试文件 / 1,704 项回归通过；编辑器类型、构建和 4 个文件 / 35 项回归通过。两包的实际 tarball 均在独立临时消费者完成安装、SSR/公开入口和 NodeNext 声明检查。Demo 独立构建通过；桌面 1440 / 手机 390 的参数联动、源码编辑后 Worker/预览更新、真实 HTML 导出及离线打开通过。删减 Demo 重复的引擎命令、目录和调度测试后保留网站自身回归。旧阶段验收和浏览器矩阵已移除，CI 各保留一个 Node24 必要验证作业；手动 npm OIDC 和站点产物工作流分别维护。迁移记录保留于工作容器 artifacts/claude-task3。
 
 ## 7. 验证与完成标准
 
@@ -277,7 +287,7 @@ details 使用共享的 summary/body 拆分，修复无空行时标题丢失；�
 
 | 范围 | 现有测试/脚本入口 | 本轮新增断言 |
 | --- | --- | --- |
-| 解析与选项 | `tests/local-parser.test.ts`、`local-compile-options.test.ts`、`local-tolerance-acceptance.test.tsx`、`parse-budget.test.ts` | strict 默认/非法值、恢复范围、Unicode/CRLF、代码保护、深嵌套、无可靠边界、不可恢复错误 |
+| 解析与选项 | `tests/local-parser.test.ts`、`local-compile-options.test.ts`、`rmd-recovery.test.ts`、`parse-budget.test.ts` | strict 默认/非法值、恢复范围、Unicode/CRLF、代码保护、深嵌套、无可靠边界、不可恢复错误 |
 | HTML | `tests/html-fallback-contract.test.ts`、`html-source-fallback.test.tsx`、`html-table.test.tsx` | 可省略标签、错配、表格上下文、局部树重排、混合 RMD 惰性及合成节点范围 |
 | 增量与 Worker | `tests/local-incremental.test.ts`、`local-compile-worker.test.ts`、`deep-worker.test.ts`、`compiler-cache.test.ts` | 模式切换、乱序、失败修订、完整/补丁帧、恢复边界前后插删和新闭合标签 |
 | 运行与呈现 | `tests/local-retention.test.ts`、`runtime-document-update.test.ts`、`local-renderer.test.tsx`、`sdk-server.test.tsx` | 降级区域不执行，范围外组件行为不变，迁移/reset 正确，SSR 与客户端一致 |

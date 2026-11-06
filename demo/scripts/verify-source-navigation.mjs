@@ -11,7 +11,7 @@ await mkdir('artifacts/source-navigation', { recursive: true });
 // Public ranges address the raw document source. CodeMirror stores its document
 // with LF endings, so tests must convert an expected raw offset to the CM view
 // position exactly as SourceCoordinates does.
-const pricingSource = readFileSync(new URL('../../examples/local/pricing.reactive.md', import.meta.url), 'utf8');
+const pricingSource = readFileSync(new URL('../content/examples/local/pricing.reactive.md', import.meta.url), 'utf8');
 function toViewOffset(raw, offset) {
   let view = Math.max(0, Math.min(raw.length, offset));
   for (let index = 0; index < offset; index += 1) {

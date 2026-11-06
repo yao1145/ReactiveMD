@@ -1,5 +1,9 @@
 # 变更记录
 
+## 0.8.0-next.0（未发布）
+
+编辑器拆为 reactive-md-editor，Demo 独立维护。旧 reactive-md/editor 导入迁移至 reactive-md-editor，这是 0.8 的包 API 破坏性变更。新增独立编译入口、strict/局部恢复与 HTML details 映射；包、语法和数据协议分别管理版本。
+
 ## 0.7.0（2026-10-31，latest 与 next 渠道）
 
 参见 [0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)。语法修订升级为 `local-draft-3`，组块协议升级为 `component-protocol-3`；主题协议 `reactive-md-theme-1` 保持不变。

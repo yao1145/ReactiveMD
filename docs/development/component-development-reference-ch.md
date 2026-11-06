@@ -155,11 +155,11 @@ export const ratingImplementation = defineReactComponent(rating, {
 import { useState } from 'react';
 import { createLocalConfig } from 'reactive-md/sdk';
 import { createReactConfig, LocalReactiveDocument } from 'reactive-md/react';
-import { ReactiveMarkdownEditor } from 'reactive-md/editor';
+import { ReactiveMarkdownEditor } from 'reactive-md-editor';
 import { rating } from './manifests';
 import { ratingImplementation } from './components';
 import 'reactive-md/styles.css';
-import 'reactive-md/editor/styles.css';
+import 'reactive-md-editor/styles.css';
 import './component.css';
 
 export const config = createLocalConfig({ components: [rating] });

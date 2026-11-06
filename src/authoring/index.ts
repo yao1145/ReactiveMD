@@ -95,13 +95,13 @@ export {
   NATIVE_COMPONENTS_ZH,
   getNativeComponentCatalog,
   renderNativeSnippet,
-} from '../editor/native-components';
+} from './native-components';
 export type {
   NativeComponentCatalog,
   NativeComponentDefinition,
   NativeComponentGroup,
   NativeComponentGroupId,
-} from '../editor/native-components';
+} from './native-components';
 
 export {
   formatBold,
@@ -123,12 +123,12 @@ export {
   insertText,
   outdentSelection,
   readFormatState,
-} from '../editor/editor-commands';
+} from './editor-commands';
 export type {
   EditorEdit,
   EditorFormatState,
   EditorListType,
   EditorSelection,
   InsertTemplateOptions,
-} from '../editor/editor-commands';
-export type { EditorLocale } from '../editor/command-types';
+} from './editor-commands';
+export type { EditorLocale } from './command-types';

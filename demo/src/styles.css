@@ -514,7 +514,7 @@ textarea {
 /* Editor */
 
 /* The editor frame, gutter, highlight and toolbar styling lives in the
-   public editor package (reactive-md/editor/styles.css); the demo only owns
+   public editor package (reactive-md-editor/styles.css); the demo only owns
    the surrounding pane and the note under the editor. */
 
 .editor-note {

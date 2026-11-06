@@ -1,28 +1,62 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "reactive-md": ["./src/index.ts"],
-      "reactive-md/compiler": ["./src/compiler/index.ts"],
-      "reactive-md/compiler/standard": ["./src/compiler/standard.ts"],
-      "reactive-md/react": ["./src/react/index.ts"],
-      "reactive-md/react/server": ["./src/react/server.tsx"],
-      "reactive-md/react/unstyled": ["./src/react/index.ts"],
-      "reactive-md/editor": ["./src/editor/index.ts"],
-      "reactive-md/editor/codemirror": ["./src/editor/codemirror/index.ts"],
-      "reactive-md/sdk": ["./src/sdk/index.ts"],
-      "reactive-md/presets/default": ["./src/presets/default.ts"],
-      "reactive-md/build": ["./src/build/index.ts"],
-      "reactive-md/testing": ["./src/testing/index.ts"],
-      "reactive-md/testing/react": ["./src/testing/react.tsx"],
-      "reactive-md/testing/browser": ["./src/testing/browser.ts"],
-      "reactive-md/export": ["./src/export/index.ts"],
-      "reactive-md/standalone": ["./src/standalone/index.tsx"],
-      "reactive-md/authoring": ["./src/authoring/index.ts"],
-      "reactive-md/vite": ["./src/vite/index.ts"]
+      "reactive-md": [
+        "./src/index.ts"
+      ],
+      "reactive-md/compiler": [
+        "./src/compiler/index.ts"
+      ],
+      "reactive-md/compiler/standard": [
+        "./src/compiler/standard.ts"
+      ],
+      "reactive-md/react": [
+        "./src/react/index.ts"
+      ],
+      "reactive-md/react/server": [
+        "./src/react/server.tsx"
+      ],
+      "reactive-md/react/unstyled": [
+        "./src/react/index.ts"
+      ],
+      "reactive-md/sdk": [
+        "./src/sdk/index.ts"
+      ],
+      "reactive-md/presets/default": [
+        "./src/presets/default.ts"
+      ],
+      "reactive-md/build": [
+        "./src/build/index.ts"
+      ],
+      "reactive-md/testing": [
+        "./src/testing/index.ts"
+      ],
+      "reactive-md/testing/react": [
+        "./src/testing/react.tsx"
+      ],
+      "reactive-md/testing/browser": [
+        "./src/testing/browser.ts"
+      ],
+      "reactive-md/export": [
+        "./src/export/index.ts"
+      ],
+      "reactive-md/standalone": [
+        "./src/standalone/index.tsx"
+      ],
+      "reactive-md/authoring": [
+        "./src/authoring/index.ts"
+      ],
+      "reactive-md/vite": [
+        "./src/vite/index.ts"
+      ]
     },
     "jsx": "react-jsx",
     "strict": true,
@@ -30,7 +64,21 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "noEmit": true,
-    "types": ["vite/client", "node"]
+    "types": [
+      "vite/client",
+      "node"
+    ]
   },
-  "include": ["src", "tests", "vite.lib.config.ts", "vite.editor.config.ts", "vite.codemirror.config.ts", "vite.standalone.config.ts", "vite.build.config.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "vite.lib.config.ts",
+    "vite.standalone.config.ts",
+    "vite.build.config.ts",
+    "vitest.config.ts",
+    "tests/**/*.test.ts",
+    "tests/**/*.test.tsx"
+  ],
+  "exclude": [
+    "src/editor"
+  ]
 }

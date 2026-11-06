@@ -18,7 +18,7 @@ import {
   type ReactiveMarkdownEditorHandle,
   type EditorTransaction,
   type EditorViewMode,
-} from 'reactive-md/editor';
+} from 'reactive-md-editor';
 import type {LocalCompileEditHint} from 'reactive-md';
 import { AuthorTools } from './author-tools';
 import {
@@ -63,8 +63,8 @@ import {
 import { useLocalCompilation, type LocalCompiledDocument } from './use-local-compilation';
 import { PreviewStateSession } from './preview-state';
 import { GuideDocument } from './guide-examples';
-import guideEnSource from '../../docs/guides/local-guide-en.md?raw';
-import guideZhSource from '../../docs/guides/local-guide-ch.md?raw';
+import guideEnSource from '../content/guides/local-guide-en.md?raw';
+import guideZhSource from '../content/guides/local-guide-ch.md?raw';
 
 type LocalRuntimeInstance = LocalRuntime;
 

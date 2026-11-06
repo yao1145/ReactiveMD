@@ -221,7 +221,7 @@ const ENGLISH: DemoCopy = {
   guide: {
     title: 'User Guide',
     back: 'Back to Playground',
-    documentFile: 'docs/guides/local-guide-en.md',
+    documentFile: 'content/guides/local-guide-en.md',
   },
   workbench: {
     example: 'Example',
@@ -410,7 +410,7 @@ const CHINESE: DemoCopy = {
   guide: {
     title: '使用指南',
     back: '返回 Playground',
-    documentFile: 'docs/guides/local-guide-ch.md',
+    documentFile: 'content/guides/local-guide-ch.md',
   },
   workbench: {
     example: '示例',

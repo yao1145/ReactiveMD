@@ -16,11 +16,11 @@ Reactive MD is currently a 0.x preview. This page covers package versions, synta
 | Unstyled React entry | `reactive-md/react/unstyled` | React renderer without a stylesheet dependency |
 | Core entry | `reactive-md` | Compilation, expressions and runtime, without loading React |
 | React entry | `reactive-md/react` | `LocalReactiveDocument`, `LocalDocumentView` |
-| Editor entry | `reactive-md/editor` | `ReactiveMarkdownEditor` and its types; requires React 19 |
+| Editor entry | `reactive-md-editor` | `ReactiveMarkdownEditor` and its types; requires React 19 |
 | Renderer style entry | `reactive-md/styles.css` | Document and component styles, explicitly imported by the host |
 | Screen style entry | `reactive-md/screen.css` | Alias of `reactive-md/styles.css` |
 | Print style entry | `reactive-md/print.css` | Optional document print layout and page margins |
-| Editor style entry | `reactive-md/editor/styles.css` | Independent editor styles, scoped to the editor root |
+| Editor style entry | `reactive-md-editor/styles.css` | Independent editor styles, scoped to the editor root |
 
 One package version corresponds to exactly one syntax revision. Before upgrading the package, record the `LOCAL_SYNTAX_VERSION` your application uses. If document sources come from another syntax revision, keep rendering them with the old package version or rewrite them according to the migration notes below. `compileLocal(source, options?)` has no syntax version parameter; hosts can adjust the syntax node budget for a single compilation through `options.limits.maxSyntaxNodes`, see [Local mode integration](../integration/local-integration-en.md).
 
@@ -53,11 +53,11 @@ Regression data in [the historical corpus](../../examples/conformance/history/v0
 
 ## Breaking changes and migration
 
-`0.5.0` added the `reactive-md/editor` entry and its independent stylesheet. `0.5.1` adds editor views, theme palettes and HTML compatibility. They keep `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports keep working, and documents written for 0.4.x need no migration. The editor requires React 19; see the [editor guide](../integration/editor-en.md) for its history and rendering boundaries.
+`0.5.0` added the `reactive-md-editor` entry and its independent stylesheet. `0.5.1` adds editor views, theme palettes and HTML compatibility. They keep `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports keep working, and documents written for 0.4.x need no migration. The editor requires React 19; see the [editor guide](../integration/editor-en.md) for its history and rendering boundaries.
 
 `0.6.1` switches formula display to KaTeX with bundled WOFF2 fonts and accessible MathML. Plot evaluation and protocol revisions are unchanged. Invalid formulas fall back to bounded source text with a warning. `align` now numbers rows; use `align*` or `aligned` to omit automatic numbers. See the [0.6.1 release notes](../releases/release-0.6.1-en.md).
 
-`0.7.0` establishes `local-draft-3` and raises the component protocol to `component-protocol-3`. `local-draft-3` adds `<external>` read-only declarations and dynamic `min`/`max`/`required` constraints; `component-protocol-3` adds host inline/container forms and scalar bindings. Explicit `local-draft-1` and `local-draft-2` declarations are rejected; use `reactive-md migrate` before upgrading, and note that migration from `local-draft-2` blocks newly active `<external>` tags. The editor uses CM6 only, removes `textareaRef` / `getTextarea`, and keeps `reactive-md/editor/codemirror` as an alias. The public extension SDK ships in this release. See the [0.7.0 release notes](../releases/release-0.7.0-en.md).
+`0.7.0` establishes `local-draft-3` and raises the component protocol to `component-protocol-3`. `local-draft-3` adds `<external>` read-only declarations and dynamic `min`/`max`/`required` constraints; `component-protocol-3` adds host inline/container forms and scalar bindings. Explicit `local-draft-1` and `local-draft-2` declarations are rejected; use `reactive-md migrate` before upgrading, and note that migration from `local-draft-2` blocks newly active `<external>` tags. The editor uses CM6 only, removes `textareaRef` / `getTextarea`, and keeps `reactive-md-editor/codemirror` as an alias. The public extension SDK ships in this release. See the [0.7.0 release notes](../releases/release-0.7.0-en.md).
 
 `0.6.0` adds native HTML tables, `align` and link `target`/`rel`, more math environments and commands, mhchem chemistry and expanded code highlighting, and switches diagrams to a layered layout. Unparseable native HTML now falls back to source. `compileLocal` returns only plain objects and arrays, and the editor adds `insertText`. Syntax, component and theme revisions remain unchanged, and existing imports keep working. See the [0.6.0 release notes](../releases/release-0.6.0-en.md).
 
@@ -106,7 +106,7 @@ See [Diagnostics and counting rules](../reference/diagnostics-counting-en.md) fo
 | --- | --- |
 | Node.js 22.12+ | Minimum for development and Node-side consumption; CI targets both 22.12 and 24 |
 | ESM | The only module format; no CommonJS entry |
-| React 19 | Required by `reactive-md/react` and `reactive-md/editor`; the core entry does not depend on React |
+| React 19 | Required by `reactive-md/react` and `reactive-md-editor`; the core entry does not depend on React |
 | Microsoft Edge (Chromium-based) | Local browser verification has used Edge |
 | Playwright Chromium | Full Linux CI browser suite |
 | Playwright Firefox and WebKit | Core workflows at 1280px and 375px, including personal documents and interactive HTML export; included in the browser release gate and CI |

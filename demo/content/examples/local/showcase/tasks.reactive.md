@@ -1,0 +1,89 @@
+<const name="preparationCount" value="{{ 3 }}">
+<computed name="readyCount" value="{{ len(done) }}">
+<computed name="completion" value="{{ readyCount / preparationCount }}">
+<computed name="readyToShare" value="{{ readyCount == preparationCount }}">
+
+# Run a focused workshop
+
+Check off the preparation steps, count the participants and start a short focus timer. This page keeps the plan, progress and timing together.
+
+<panel title="Workshop readiness">
+<checklist color="#167875" bind="done" label="Prepare together">
+- [x] Choose one question to explore
+- [ ] Open the document and adjust a parameter
+- [ ] Explain the result to a partner
+</checklist>
+
+Ready: **{{ readyCount }} / {{ preparationCount }}**. Checking an item adds its reflection prompt below.
+
+<progress color="#167875" label="Preparation progress" value="{{ completion * 100 }}">
+
+<badge tone="{{ readyToShare ? 'success' : 'neutral' }}">{{ formatPercent(completion, 0, 'en-US') }} complete</badge>
+
+<data-table label="Completed preparation" rows="{{ done }}" key="{{ item }}" max-rows="3">
+<column label="Task" value="{{ item == 'item-1' ? 'Choose a question' : item == 'item-2' ? 'Adjust a parameter' : 'Explain to a partner' }}">
+<column label="Reflection" value="{{ item == 'item-1' ? 'What do we want to learn?' : item == 'item-2' ? 'What changed?' : 'How can we explain it?' }}">
+</data-table>
+
+<if when="{{ readyToShare }}">
+<alert tone="success" title="Ready to share">Everyone has a question, a working example and a result to discuss.</alert>
+</if>
+</panel>
+
+<grid>
+<card title="People in the room">
+<counter bind="count" label="Participants present" initial="0" min="0" max="20">
+Present: **{{ count }}**.
+</card>
+<card title="One minute to explore">
+<timer label="Focus timer" duration="60">
+Start when you are ready. Pause to discuss a result, or reset for another round.
+</card>
+</grid>
+
+## See the whole session
+
+<timeline title="A 45-minute workshop">
+| Task | Start | Duration | Notes |
+| --- | ---: | ---: | --- |
+| Choose a question | 0 | 10 | Agree on one thing to explore |
+| Build and explore | 10 | 25 | Try the controls and compare results |
+| Collect observations | 15 | 15 | Take notes while exploring |
+| Share back | 35 | 10 | Explain one useful finding |
+</timeline>
+
+Reset Workshop readiness to restore its checklist. The participant counter and timer are outside that panel and keep their own state.
+
+## Keep track of the follow-up
+
+Checked tasks are crossed out. Hide and reopen this list to see that your completed items stay checked.
+
+<toggle bind="followUp" label="Show follow-up tasks" initial="true">
+<if when="{{ followUp }}">
+<checklist label="After sharing" color="#167875">
+- [ ] Save a useful observation
+- [ ] Share the document with a partner
+</checklist>
+</if>
+
+## How it is written
+
+<accordion>
+<disclosure label="Show the key source">
+
+```markdown
+<checklist bind="done" label="Preparation">
+- [x] Choose a question
+- [ ] Explore a result
+</checklist>
+<computed name="completion" value="{{ len(done) / 2 }}">
+<progress label="Progress" value="{{ completion * 100 }}">
+{{ formatPercent(completion, 0) }}
+
+<data-table label="Completed tasks" rows="{{ done }}" key="{{ item }}" max-rows="2">
+<column label="Task" value="{{ item == 'item-1' ? 'Choose a question' : 'Explore a result' }}">
+</data-table>
+```
+
+</disclosure>
+</accordion>

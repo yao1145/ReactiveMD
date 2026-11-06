@@ -1,5 +1,8 @@
 # Reactive MD
 
+> 仓库已拆分：本仓库维护语言引擎；[编辑器](https://github.com/yao1145/ReactiveMD-Editor)与 [Demo](https://github.com/yao1145/ReactiveMD-Demo) 独立构建。引擎 0.8 使用独立 reactive-md-editor 包，见[迁移说明](docs/integration/repository-split-ch.md)。
+
+
 [English](README.md)
 
 [![npm](https://img.shields.io/npm/v/reactive-md.svg)](https://www.npmjs.com/package/reactive-md)
@@ -114,9 +117,9 @@ npm run dev
 在仓库根目录验证集成：
 
 ```sh
-npm run build:demo
-node demo/scripts/verify-extensions.mjs
-node demo/scripts/verify-extensions.mjs --dev
+npm run build
+node scripts/verify-extensions.mjs
+node scripts/verify-extensions.mjs --dev
 ```
 
 脚本会自行启停服务，覆盖真实 Worker、两个插件示例、编辑器目录、移动端布局和离线导出，结果写入 `artifacts/demo-extensions/`。
@@ -163,7 +166,7 @@ Demo 提供两个完整的安装包案例：
 | `reactive-md-tetris-package` | `<tetris>` | 定时驱动游戏、键盘与按钮输入、种子方块、离线导出 | `npm run update:demo-tetris` |
 | `reactive-md-game-2048-package` | `<game-2048>` | 回合制状态、确定性生成、键盘与按钮输入、静态预览 | `npm run update:demo-2048` |
 
-两者都以 npm tarball 的形式放在 `demo/vendor/`，作为 Demo 依赖安装，并通过公开的 `./react` 与 `./notices` 入口读取。它们的作者信息进入编辑器目录，能力证据支撑离线导出。
+两者都以 npm tarball 的形式放在 `ReactiveMD-Demo/vendor/`，作为 Demo 依赖安装，并通过公开的 `./react` 与 `./notices` 入口读取。它们的作者信息进入编辑器目录，能力证据支撑离线导出。
 
 组件标签必须以字母开头，因此 2048 插件注册为 `<game-2048>`，而不是 `<2048>`。manifest、绑定、主题、资源、合规工具与打包流程见[组件插件开发指南](docs/development/component-development-ch.md)和[完整开发契约](docs/development/component-development-reference-ch.md)。
 
@@ -198,7 +201,7 @@ npm install reactive-md@0.7.0
 
 本版本说明见[0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)；从 `0.6.x` / `local-draft-2` 升级前请阅读[兼容性说明](docs/compatibility/compatibility-ch.md)。
 
-`reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。`reactive-md/editor` 提供源码编辑器，并使用独立样式 `reactive-md/editor/styles.css`。
+`reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。`reactive-md-editor` 提供源码编辑器，并使用独立样式 `reactive-md-editor/styles.css`。
 
 核心入口不依赖 React：
 
@@ -236,12 +239,12 @@ export function Article({ source }: { source: string }) {
 
 ## 用 React 编辑源码
 
-可复用的源码编辑器位于 `reactive-md/editor`，使用独立样式表。组件是受控的，需要 React 19：
+可复用的源码编辑器位于 `reactive-md-editor`，使用独立样式表。组件是受控的，需要 React 19：
 
 ```tsx
 import { useState } from 'react';
-import { ReactiveMarkdownEditor } from 'reactive-md/editor';
-import 'reactive-md/editor/styles.css';
+import { ReactiveMarkdownEditor } from 'reactive-md-editor';
+import 'reactive-md-editor/styles.css';
 
 export function Editor() {
   const [source, setSource] = useState('# 笔记');

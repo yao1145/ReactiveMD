@@ -1,6 +1,6 @@
 {
   "name": "reactive-md",
-  "version": "0.7.0",
+  "version": "0.8.0-next.0",
   "description": "Author interactive local documents in Markdown, with expression-bound inputs, charts and diagrams.",
   "keywords": [
     "markdown",
@@ -25,9 +25,6 @@
     "node": ">=22.12.0"
   },
   "type": "module",
-  "workspaces": [
-    "demo"
-  ],
   "files": [
     "dist-library",
     "dist-standalone",
@@ -53,51 +50,15 @@
     "**/*.css"
   ],
   "scripts": {
-    "dev": "npm run build:lib && npm run dev --workspace=@reactive-md/demo",
     "dev:lib": "vite build --config vite.lib.config.ts --watch",
     "build": "npm run typecheck && npm run build:lib",
+    "build:lib": "vite build --config vite.lib.config.ts && vite build --config vite.build.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
     "build:standalone": "vite build --config vite.standalone.config.ts",
-    "build:lib": "vite build --config vite.lib.config.ts && vite build --config vite.editor.config.ts && vite build --config vite.codemirror.config.ts && vite build --config vite.build.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
-    "build:demo": "npm run build && npm run build --workspace=@reactive-md/demo",
-    "update:demo-tetris": "npm run build:lib && node scripts/update-demo-tetris.mjs",
-    "update:demo-2048": "node scripts/update-demo-2048.mjs",
-    "preview": "npm run preview --workspace=@reactive-md/demo",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config vitest.config.ts",
-    "lint": "node bin/reactive-md.mjs lint",
-    "test:components": "vitest run --config vitest.config.ts tests/component-protocol.test.ts tests/conformance.test.ts",
-    "test:compiler-entry": "vitest run --config vitest.config.ts tests/compiler-entry.test.ts && node scripts/verify-compiler-entry.mjs",
-    "test:sdk-consumer": "node scripts/verify-sdk-consumer.mjs",
-    "test:component-scaffold": "node scripts/verify-component-scaffold.mjs",
-    "test:demo": "npm run build:lib && npm run test --workspace=@reactive-md/demo",
-    "test:browser": "npm run test:browser --workspace=@reactive-md/demo && npm run build --workspace=@reactive-md/demo && node scripts/verify-codemirror-browser.mjs --skip-performance --demo",
-    "test:browser:core": "node scripts/verify-browser-core.mjs",
-    "test:required-browser": "node scripts/verify-required-form-browser.mjs",
-    "test:tooltip-browser": "node scripts/verify-tooltip-browser.mjs",
-    "test:shareable": "node scripts/verify-shareable.mjs",
-    "test:toolbar": "npm run test:toolbar --workspace=@reactive-md/demo",
-    "test:package": "node scripts/verify-package.mjs",
-    "test:packed": "node scripts/verify-packed.mjs",
-    "test:docs": "node scripts/verify-docs.mjs",
-    "test:theme-browser": "node scripts/verify-theme-browser.mjs",
-    "test:date-browser": "node scripts/verify-date-input-browser.mjs",
-    "test:editor-browser": "node scripts/verify-editor-browser.mjs",
-    "test:codemirror-browser": "node scripts/verify-codemirror-browser.mjs",
-    "test:markdown-browser": "node scripts/verify-markdown-browser.mjs",
-    "test:math-browser": "node scripts/verify-math-browser.mjs",
-    "test:html-browser": "node scripts/verify-html-compat-browser.mjs && node scripts/verify-html-table-browser.mjs",
-    "test:tolerance-browser": "node scripts/verify-tolerance-browser.mjs",
-    "test:media-browser": "node scripts/verify-media-browser.mjs",
-    "test:computations-browser": "node scripts/verify-computations-browser.mjs",
-    "test:constraints-browser": "node scripts/verify-constraints-browser.mjs",
-    "test:dynamic-browser": "node scripts/verify-dynamic-browser.mjs",
-    "verify:memo": "node scripts/verify-memo-browser.mjs",
-    "verify:release": "node scripts/verify-release.mjs",
-    "verify:release:node": "node scripts/verify-release.mjs --node",
-    "verify:release:browser": "node scripts/verify-release.mjs --browser",
-    "test:release-browser": "node scripts/verify-release-browser.mjs",
-    "benchmark": "node scripts/benchmark.mjs",
-    "benchmark:stages": "node scripts/benchmark-stages.mjs",
+    "test": "vitest run --config vitest.config.ts --maxWorkers=4",
+    "check": "npm run build && npm test && npm run test:boundary",
+    "test:boundary": "node scripts/verify-public-package.mjs",
+    "test:compiler-entry": "node scripts/verify-compiler-entry.mjs",
     "notices": "node scripts/generate-notices.mjs",
     "prepack": "npm run build && npm run notices"
   },
@@ -162,16 +123,6 @@
       "import": "./dist-library/reactive-md-react.js"
     },
     "./styles.css": "./dist-library/reactive-md.css",
-    "./editor": {
-      "types": "./dist-library/types/editor/index.d.ts",
-      "import": "./dist-library/reactive-md-editor.js"
-    },
-    "./editor/styles.css": "./dist-library/reactive-md-editor.css",
-    "./editor/codemirror": {
-      "types": "./dist-library/types/editor/codemirror/index.d.ts",
-      "import": "./dist-library/reactive-md-codemirror.js"
-    },
-    "./editor/codemirror/styles.css": "./dist-library/reactive-md-editor.css",
     "./react/unstyled": {
       "types": "./dist-library/types/react/index.d.ts",
       "import": "./dist-library/reactive-md-react-unstyled.js"
@@ -181,7 +132,10 @@
     "./authoring": {
       "types": "./dist-library/types/authoring/index.d.ts",
       "import": "./dist-library/reactive-md-authoring.js"
-    }
+    },
+    "./package.json": "./package.json",
+    "./notices": "./THIRD_PARTY_NOTICES.md",
+    "./assets/standalone.js": "./dist-standalone/reactive-md-standalone.js"
   },
   "peerDependencies": {
     "vite": "^8.0.0",
@@ -200,14 +154,6 @@
     }
   },
   "devDependencies": {
-    "@codemirror/autocomplete": "6.20.4",
-    "@codemirror/commands": "6.11.1",
-    "@codemirror/lang-markdown": "6.5.2",
-    "@codemirror/language": "6.13.1",
-    "@codemirror/lint": "6.9.7",
-    "@codemirror/search": "6.7.2",
-    "@codemirror/state": "6.7.6",
-    "@codemirror/view": "6.43.15",
     "@lezer/common": "1.5.4",
     "@lezer/highlight": "1.2.5",
     "@lezer/markdown": "1.8.1",

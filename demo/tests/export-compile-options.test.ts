@@ -16,7 +16,6 @@ vi.mock('react-dom/server', () => ({
 
 // Vitest's CSS loader is inert; this unit checks option transport. The browser
 // acceptance opens a real exported file with the generated stylesheet/runtime.
-vi.mock('../../dist-library/reactive-md.css?raw', () => ({ default: 'body{}' }));
 
 vi.mock('reactive-md', async (importOriginal) => {
   const actual = await importOriginal<typeof import('reactive-md')>();

@@ -1,10 +1,10 @@
 # React 源码编辑器
 
-`0.7.0` 已将 `reactive-md/editor` 统一为 CodeMirror 6 编辑器，并删除旧 textarea 源码编辑器。CM6 的事务、共享分析和坐标约定见 [CM6 集成](codemirror-ch.md)。
+`0.7.0` 已将 `reactive-md-editor` 统一为 CodeMirror 6 编辑器，并删除旧 textarea 源码编辑器。CM6 的事务、共享分析和坐标约定见 [CM6 集成](codemirror-ch.md)。
 
-`reactive-md/editor` 是用于 Reactive MD 源码的受控 React 19 编辑器，由 Playground 编辑器抽出。它提供源码高亮、格式与插入工具栏、补全、绑定导航、重命名与格式化、撤销重做、行号及滚动同步。编辑器内置字数底栏及编辑、并排、预览三种视图。宿主保存源码，并提供预览内容、持久化和导出。
+`reactive-md-editor` 是用于 Reactive MD 源码的受控 React 19 编辑器，由 Playground 编辑器抽出。它提供源码高亮、格式与插入工具栏、补全、绑定导航、重命名与格式化、撤销重做、行号及滚动同步。编辑器内置字数底栏及编辑、并排、预览三种视图。宿主保存源码，并提供预览内容、持久化和导出。
 
-编辑器有独立样式表 `reactive-md/editor/styles.css`，与 `reactive-md/styles.css` 分开。只编辑源码的页面不会加载文档渲染样式。
+编辑器有独立样式表 `reactive-md-editor/styles.css`，与 `reactive-md/styles.css` 分开。只编辑源码的页面不会加载文档渲染样式。
 
 编辑器属于 `0.6.0`，同时提供于 `latest` 与 `next` 渠道。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入保持不变。
 
@@ -21,8 +21,8 @@ npm install react@19 react-dom@19
 
 ```tsx
 import { useState } from 'react';
-import { ReactiveMarkdownEditor } from 'reactive-md/editor';
-import 'reactive-md/editor/styles.css';
+import { ReactiveMarkdownEditor } from 'reactive-md-editor';
+import 'reactive-md-editor/styles.css';
 
 const initialSource = `# 费用估算
 
@@ -49,8 +49,8 @@ export function SourceEditor() {
 
 | 入口 | 内容 | 依赖 |
 | --- | --- | --- |
-| `reactive-md/editor` | `ReactiveMarkdownEditor` 及其类型 | React 19 |
-| `reactive-md/editor/styles.css` | 编辑器样式，作用域限定在编辑器根节点 | 由宿主显式引入 |
+| `reactive-md-editor` | `ReactiveMarkdownEditor` 及其类型 | React 19 |
+| `reactive-md-editor/styles.css` | 编辑器样式，作用域限定在编辑器根节点 | 由宿主显式引入 |
 
 样式表在应用或渲染编辑器的组件模块中引入一次即可。支持 CSS 导入的构建工具或框架可以把它放在编辑器模块旁边。
 
@@ -61,7 +61,7 @@ import { useRef, useState } from 'react';
 import {
   ReactiveMarkdownEditor,
   type ReactiveMarkdownEditorHandle,
-} from 'reactive-md/editor';
+} from 'reactive-md-editor';
 
 export function SourceEditor() {
   const [source, setSource] = useState('');
@@ -252,12 +252,12 @@ const result = compileLocal(source);
 
 ## 样式与作用域
 
-`reactive-md/editor/styles.css` 包含编辑器自己的 token 和规则，所有选择器限定在 `.reactive-md-editor` 及其后代，不会改写宿主的按钮、输入框或页面正文。主题由上面的实例属性提供。
+`reactive-md-editor/styles.css` 包含编辑器自己的 token 和规则，所有选择器限定在 `.reactive-md-editor` 及其后代，不会改写宿主的按钮、输入框或页面正文。主题由上面的实例属性提供。
 
 同一页面还渲染文档预览时，再引入 `reactive-md/styles.css`。两份样式表彼此独立，加载顺序不限。
 
 ## 兼容性
 
-从 textarea 编辑器迁移时，移除 `textareaRef`，以 ref 的 `getSource()` 读取完整源码、`getSelection()` 读取选区、`selectRange()` 设置选区。`getEditorElement()` 提供可编辑 DOM 元素。`reactive-md/editor/codemirror` 保留为同一组件的兼容别名，共用样式和运行时代码。文档中的 `<textarea>` 表单组件继续受支持。
+从 textarea 编辑器迁移时，移除 `textareaRef`，以 ref 的 `getSource()` 读取完整源码、`getSelection()` 读取选区、`selectRange()` 设置选区。`getEditorElement()` 提供可编辑 DOM 元素。`reactive-md-editor/codemirror` 保留为同一组件的兼容别名，共用样式和运行时代码。文档中的 `<textarea>` 表单组件继续受支持。
 
 0.5.3 新增接受编译配置的作者工具及显式屏幕、打印样式入口，见 [0.5.3 宿主集成](../releases/release-0.5.3-ch.md)。0.6.0 为 ref 句柄新增 `insertText`，见 [0.6.0 发布说明](../releases/release-0.6.0-ch.md)。

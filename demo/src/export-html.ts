@@ -188,10 +188,10 @@ function loadBaseAssets(): Promise<BaseAssets> {
   if (!baseAssetsPromise) {
     baseAssetsPromise = resetFailed(
       Promise.all([
-        import('../../dist-library/reactive-md.css?raw'),
-        import('../../THIRD_PARTY_NOTICES.md?raw'),
-        import('../../package.json?raw'),
-        import('../../dist-library/reactive-md-print.css?raw'),
+        import('virtual:reactive-md-assets/base-css'),
+        import('virtual:reactive-md-assets/notices'),
+        import('virtual:reactive-md-assets/package-json'),
+        import('virtual:reactive-md-assets/print-css'),
       ])
         .then(([css, notices, packageJson, printCss]) => {
           if (!css.default.trim()) {
@@ -219,7 +219,7 @@ function loadBaseAssets(): Promise<BaseAssets> {
 function loadRuntimeScript(): Promise<string> {
   if (!runtimeScriptPromise) {
     runtimeScriptPromise = resetFailed(
-      import('../../dist-standalone/reactive-md-standalone.js?raw')
+      import('virtual:reactive-md-assets/runtime')
         .then((module) => {
           if (!module.default.trim()) {
             throw new ShareableAssetsError('The generated standalone runtime is empty.');

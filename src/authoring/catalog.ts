@@ -1,4 +1,4 @@
-import type { EditorLocale } from '../editor/command-types';
+import type { EditorLocale } from './command-types';
 import type { LocalCompileOptions, LocalNode, LocalValue } from '../local/types';
 import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../local/options';
 import { parseLocal } from '../local/parser';

@@ -1,67 +1,9 @@
-# 贡献指南
+# 参与开发
 
-Reactive MD 是 `local-draft-2` 的 0.x 预览实现。贡献可以包括语法、编译器、运行时、React 渲染器、文档、示例和 Demo。开始前先读[版本与兼容性](docs/compatibility/compatibility-ch.md)和[本地交互语法规范](docs/reference/local-interaction-syntax-ch.md)。
+本仓库维护语言引擎、运行时、SDK 与渲染适配器；[编辑器](https://github.com/yao1145/ReactiveMD-Editor)和 [Demo](https://github.com/yao1145/ReactiveMD-Demo) 分别维护。先阅读[迁移说明](docs/integration/repository-split-ch.md)与[语法规范](docs/reference/local-interaction-syntax-ch.md)。
 
-新增或修改组块时，按[组块协议](docs/development/component-protocol-ch.md)明确行为，使用[开发指南中的提案模板](docs/development/component-development-ch.md)记录声明、兼容性和验收证据。这里的组块包括控件、容器、可视化和结构子项。
+使用 Node >=22.12，CI 使用 Node24。在本仓库运行 npm ci、npm run check，完成类型、构建、保留的回归和实际 tarball 消费验证。局部修改先运行直接相关检查；编译入口依赖变化时补充 npm run test:compiler-entry。
 
-## 环境
+引擎公共 API 独立于编辑器 UI，纯目录、插入命令和分析服务放在 reactive-md/authoring。行为变化补针对性回归，保留安全与资源预算，更新公开文档。包版本、语法版本、状态协议与主题版本分别管理。
 
-- Node.js 22.12 或更新版本。
-- 仓库使用 npm workspaces；在根目录执行 `npm ci`。
-- 不提交 `node_modules/`、`dist-library/`、`demo/dist/`、`demo/artifacts/` 或 `.tasks/`。
-
-## 开发与检查
-
-```sh
-npm ci
-npm run verify:release
-```
-
-| 命令 | 覆盖内容 |
-| --- | --- |
-| `npm run build` | 类型检查与语言包构建 |
-| `npm test` | 编译器、表达式、LaTeX、运行时和渲染器测试 |
-| `npm run test:components` | 组块协议的代表性用例和已有语言验收数据；新增组块还需自己的针对性测试 |
-| `npm run test:package` | 公开入口、示例可编译和样式边界；需先构建 |
-| `npm run test:packed` | 真实 tarball 的独立离线安装、核心和 React 严格类型检查、CSS 导出与静态 SSR |
-| `npm run notices` | 从已安装依赖生成第三方许可证清单 |
-| `npm run benchmark` | Node 编译、运行时和绘图性能；报告写入 `artifacts/benchmark.json` |
-| `npm run test:docs` | 文档相对链接和标题锚点 |
-| `npm run build:demo`、`npm run test:demo` | Demo 构建与示例索引 |
-| `npm run test:browser:core` | Firefox 与 WebKit 在 1280px、375px 下的核心流程；使用已构建 Demo，并自行管理预览服务 |
-| `npm run verify:release` | 完整发布门禁：核心与 Demo 测试、类型、第三方声明、包与文档检查、仓库外真实 tarball 消费，以及计算、集合、作者工具、状态恢复、HTML 导出和渲染等价的浏览器检查。自行管理预览服务生命周期 |
-
-CI 通过 `npm run verify:release:node` 和 `npm run verify:release:browser` 分片运行同一门禁。汇总与逐步日志写入 `artifacts/release-verification.json` 和 `artifacts/release-verification/`；经过验证的原始 tarball 及 SHA256 记录保留在 `artifacts/release-package/`。本机需已安装浏览器，门禁不会自动安装。
-
-浏览器检查需要先启动 Demo，并准备本机浏览器。完整门禁会自行管理这些依赖；单独运行浏览器脚本时，默认地址是 `http://127.0.0.1:5173`，可用 `DEMO_URL` 指向其他地址。报告写入 `demo/artifacts/`。本地默认使用 Edge，CI 在 Linux 上使用 Playwright 的 Chromium（`PLAYWRIGHT_CHANNEL=chromium`）。
-
-浏览器发布门禁保留 Chromium 完整验证，并增加 Playwright Firefox、WebKit 的核心流程。通过 `npm exec --workspace=@reactive-md/demo -- playwright install firefox webkit` 安装匹配的运行时；CI 使用 `--with-deps` 安装三个引擎。先运行 `npm run build:demo`，再运行 `npm run test:browser:core`；也可用 `node scripts/verify-browser-core.mjs --browser=webkit` 选择单个引擎，或用 `DEMO_URL` 复用已有服务。报告、截图与下载的 HTML 按引擎写入 `artifacts/browser-core/`。缺少浏览器或检查失败时，命令会失败。
-
-核心流程覆盖示例、控件与计算、条件、日期、表格、图表、图解、编辑与诊断、个人文档保存与副本、语言切换、指南代码块主题、键盘菜单，以及 Markdown 和交互 HTML 下载。导出的 HTML 从磁盘重新打开，在阻止外部请求的条件下验证交互。WebKit 引擎检查不等同于 Apple 设备上的 Safari 实机测试。
-
-```sh
-npm run dev
-# 另一个终端
-npm run test:browser
-```
-
-修改语言包后重新运行 `npm run build:lib`，或使用 `npm run dev:lib` 监听重建。
-
-性能测量条件与当前基线见[性能说明](docs/development/performance-overview-ch.md)，跨实现可复用的输入与预期结果见[语言验收数据](examples/conformance/README.md)。
-
-## 改动要求
-
-- 保持改动聚焦。行为变化附带测试；用户可见变化更新文档和相关示例。
-- 语法或公开 API 的破坏性变化先更新[版本与兼容性](docs/compatibility/compatibility-ch.md)和[变更记录](CHANGELOG-ch.md)，说明旧写法、新写法和迁移方式。不要在没有语法修订的情况下悄悄改变作者语法。
-- 新组件或新属性必须同时实现编译校验、运行时约束、渲染、可访问名称和资源边界。不要只加展示样式。
-- 组块提案须给出属性与子内容声明、状态与生命周期规则、诊断、资源预算、兼容分类和对应验收结果；参考 `slider`、`tabs`、`plot` 的[协议验收数据](examples/conformance/README.md)。协议修订不自动改变包版本、语法修订或公开 API。
-- 资源上限集中在 `src/local/limits.ts`；新增无界输入、循环、递归或绘图计算时，先定义预算。
-- 不引入网络请求、任意 HTML、事件处理器、作者 CSS 或持久化状态。这些不在当前范围内。
-- 更新中文文档时保持与现有术语一致；英文 README 保持简洁，不重复工程细节。
-- 不要提交凭据、`.npmrc` token 或个人路径。不要手工修改 `dist-library/`；它由构建生成。
-
-## 提交与 PR
-
-- PR 说明写清目的、受影响范围和验证命令及结果。没有运行的检查要明确写出，不要写成已通过。
-- 涉及安全的问题不要开公开 issue，按[安全策略](SECURITY-ch.md)处理。
-- 发布是维护者的手工流程，见[发布清单](docs/development/releasing-ch.md)。贡献者不需要接触 npm 凭据。
+不提交 dist、依赖或凭据，保留无关改动。PR 描述实际行为和已运行检查。引擎发包仅在授权后使用手动 OIDC 工作流，见[发布流程](docs/development/releasing-ch.md)；站点部署由 Demo 仓库负责。

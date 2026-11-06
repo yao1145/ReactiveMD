@@ -16,11 +16,11 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | 无样式 React 入口 | `reactive-md/react/unstyled` | 不依赖样式表的 React 渲染器 |
 | 核心入口 | `reactive-md` | 编译、表达式与运行时，不加载 React |
 | React 入口 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` |
-| 编辑器入口 | `reactive-md/editor` | `ReactiveMarkdownEditor` 及其类型；需要 React 19 |
+| 编辑器入口 | `reactive-md-editor` | `ReactiveMarkdownEditor` 及其类型；需要 React 19 |
 | 渲染器样式入口 | `reactive-md/styles.css` | 文档与组块样式，由宿主显式引入 |
 | 屏幕样式入口 | `reactive-md/screen.css` | `reactive-md/styles.css` 的别名 |
 | 打印样式入口 | `reactive-md/print.css` | 可选的文档打印布局与页边距 |
-| 编辑器样式入口 | `reactive-md/editor/styles.css` | 独立编辑器样式，作用域限定在编辑器根节点 |
+| 编辑器样式入口 | `reactive-md-editor/styles.css` | 独立编辑器样式，作用域限定在编辑器根节点 |
 
 一个包版本只对应一个语法修订。升级包之前，记录应用使用的 `LOCAL_SYNTAX_VERSION`。如果文档源码来自另一个语法修订，保留旧包版本渲染，或按下面的迁移说明改写。`compileLocal(source, options?)` 不提供语法版本参数；宿主可以通过 `options.limits.maxSyntaxNodes` 调整单次编译的语法节点预算，见[本地模式集成](../integration/local-integration-ch.md)。
 
@@ -53,11 +53,11 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 ## 破坏性变更与迁移
 
-`0.5.0` 新增 `reactive-md/editor` 入口及其独立样式表；`0.5.1` 新增编辑器视图、主题配色和 HTML 兼容。`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 保持不变。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入继续有效，为 0.4.x 编写的文档无需迁移。编辑器需要 React 19；历史与渲染边界见[编辑器指南](../integration/editor-ch.md)。
+`0.5.0` 新增 `reactive-md-editor` 入口及其独立样式表；`0.5.1` 新增编辑器视图、主题配色和 HTML 兼容。`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 保持不变。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入继续有效，为 0.4.x 编写的文档无需迁移。编辑器需要 React 19；历史与渲染边界见[编辑器指南](../integration/editor-ch.md)。
 
 `0.6.1` 将公式展示改为 KaTeX，随包提供 WOFF2 数学字体和用于辅助技术的 MathML。绘图求值与协议修订保持不变。无效公式给出警告，并回退为有界原文。`align` 现在自动按行编号；使用 `align*` 或 `aligned` 可省略自动编号。见[0.6.1 发布说明](../releases/release-0.6.1-ch.md)。
 
-`0.7.0` 建立 `local-draft-3`，并把组块协议提升为 `component-protocol-3`。`local-draft-3` 新增 `<external>` 只读声明和动态 `min`/`max`/`required` 约束；`component-protocol-3` 新增宿主 inline/container 形态与标量绑定。显式声明 `local-draft-1` 或 `local-draft-2` 的文档会被拒绝，升级前请使用 `reactive-md migrate`；从 `local-draft-2` 迁移时，新激活的 `<external>` 标签会被阻止。编辑器只使用 CM6，移除 `textareaRef` / `getTextarea`，`reactive-md/editor/codemirror` 保留为别名。公开扩展 SDK 随本版本发布。见[0.7.0 发布说明](../releases/release-0.7.0-ch.md)。
+`0.7.0` 建立 `local-draft-3`，并把组块协议提升为 `component-protocol-3`。`local-draft-3` 新增 `<external>` 只读声明和动态 `min`/`max`/`required` 约束；`component-protocol-3` 新增宿主 inline/container 形态与标量绑定。显式声明 `local-draft-1` 或 `local-draft-2` 的文档会被拒绝，升级前请使用 `reactive-md migrate`；从 `local-draft-2` 迁移时，新激活的 `<external>` 标签会被阻止。编辑器只使用 CM6，移除 `textareaRef` / `getTextarea`，`reactive-md-editor/codemirror` 保留为别名。公开扩展 SDK 随本版本发布。见[0.7.0 发布说明](../releases/release-0.7.0-ch.md)。
 
 `0.6.0` 新增原生 HTML 表格、`align` 与链接 `target`/`rel`、更多数学环境与命令、mhchem 化学式和扩展代码高亮，并把图解改为分层布局。无法解析的原生 HTML 改为按原文回退。`compileLocal` 的返回值只包含普通对象和数组，编辑器新增 `insertText`。语法、组块和主题修订均保持不变，现有导入继续有效。见[0.6.0 发布说明](../releases/release-0.6.0-ch.md)。
 
@@ -106,7 +106,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | --- | --- |
 | Node.js 22.12+ | 开发和 Node 端消费的最低版本；CI 目标为 22.12 与 24 |
 | ESM | 唯一模块格式；不提供 CommonJS 入口 |
-| React 19 | `reactive-md/react` 和 `reactive-md/editor` 的要求；核心入口不依赖 React |
+| React 19 | `reactive-md/react` 和 `reactive-md-editor` 的要求；核心入口不依赖 React |
 | Microsoft Edge（Chromium 内核） | 本地浏览器验证使用 Edge |
 | Playwright Chromium | Linux CI 的完整浏览器验证 |
 | Playwright Firefox、WebKit | 1280px、375px 核心流程，包含个人文档和交互 HTML 导出；纳入浏览器发布门禁与 CI |

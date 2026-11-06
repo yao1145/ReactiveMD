@@ -5,7 +5,7 @@ let bundle;
 /** Browser-test adapter using CM6's documented DOM lookup, never private React state. */
 export async function installEditorProbe(page) {
   if(await page.evaluate(()=>Boolean(window.rmdEditorProbe)))return;
-  bundle??=build({configFile:false,root:fileURLToPath(new URL('../../',import.meta.url)),logLevel:'silent',
+  bundle??=build({configFile:false,root:fileURLToPath(new URL('../',import.meta.url)),logLevel:'silent',
     plugins:[{name:'editor-probe',resolveId:id=>id.endsWith('editor-probe-entry.mjs')?id:null,load:id=>id.endsWith('editor-probe-entry.mjs')?`
       import {EditorView} from '@codemirror/view';
       const view = element => EditorView.findFromDOM(element.closest('.cm-editor') || element);
