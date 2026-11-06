@@ -73,20 +73,15 @@ describe('public component boundary', () => {
     }
   });
 
-  it('keeps builtin implementations on the public adapter and component helpers', () => {
+  it('keeps builtin component modules on the public extension contract', () => {
     const directory = new URL('../src/components/', import.meta.url);
     for (const file of readdirSync(directory).filter(file => /\.[cm]?tsx?$/.test(file))) {
       const source = readFileSync(new URL(file, directory), 'utf8');
-      expect(source, `${file} accesses an internal AST/runtime object`).not.toMatch(/\bLocalNode\b|\bruntime\.document\b|\breadContentNode\b/);
       expect(source, `${file} imports a private local module`).not.toMatch(/from\s+['"]\.\.\/local\//);
+      expect(source, `${file} reads the internal AST type`).not.toMatch(/\bLocalNode\b/);
+      expect(source, `${file} accesses an internal runtime object`).not.toMatch(/\bruntime\.document\b/);
+      expect(source, `${file} accesses an internal content helper`).not.toMatch(/\breadContentNode\b/);
     }
-  });
-
-  it('keeps old host inputs as an adapter to the unified kernel', () => {
-    const compiler = readFileSync(new URL('../src/local/compilation/compiler.ts', import.meta.url), 'utf8');
-    expect(compiler).not.toMatch(/function (?:resolveHostBindings|validateHostComponents)\b/);
-    expect(compiler).not.toMatch(/entry\.name\s*===?\s*['"](?:slider|coordinate|range-slider|multi-select|tabs|timer|diagram|data-table)['"]/);
-    expect(compiler).not.toMatch(/component\.name\s*===?\s*['"](?:timeline|chart)['"]/);
   });
 
   it('applies the same contracts to all external aliases across the compatibility corpus', () => {

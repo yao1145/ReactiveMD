@@ -5,7 +5,7 @@ import {
   LOCAL_COMPONENT_NAMES,
   localComponentNames,
 } from '../src/local/configuration/schema';
-import { COMPONENTS, VISUAL_COMPONENTS } from '../src/local/rendering/LocalDocumentView';
+import { DEFAULT_COMPONENT_VIEWS } from '../src/components/default-preset';
 import type { LocalNode } from '../src/local/contracts/types';
 
 /*
@@ -77,19 +77,25 @@ describe('schema component forms', () => {
 });
 
 describe('schema and renderer registry coverage', () => {
+  const kernelDeclarations = ['computed', 'const', 'external'] as const;
+
   it('registers every schema component in exactly one view registry', () => {
-    // renderComponent handles declarations and the generated table directly.
-    const specialViews = ['computed', 'const', 'external', 'data-table'];
-    const registered = new Set([...Object.keys(COMPONENTS), ...VISUAL_COMPONENTS, ...specialViews]);
+    expect(Object.keys(DEFAULT_COMPONENT_VIEWS).sort()).toEqual([...LOCAL_COMPONENT_NAMES].sort());
     for (const name of LOCAL_COMPONENT_NAMES) {
-      expect(registered.has(name), `<${name}> is declared in the schema but has no view`).toBe(true);
+      expect(typeof DEFAULT_COMPONENT_VIEWS[name], `<${name}> has no view implementation`).toBe('function');
     }
-    for (const name of registered) {
-      expect(LOCAL_COMPONENTS[name], `<${name}> has a view but is not declared in the schema`).toBeDefined();
+  });
+
+  it('shares the null placeholder only among kernel declarations', () => {
+    for (const name of kernelDeclarations) {
+      expect(DEFAULT_COMPONENT_VIEWS[name], `<${name}> must use the shared null placeholder`)
+        .toBe(DEFAULT_COMPONENT_VIEWS.computed);
     }
-    expect(registered.size).toBe(LOCAL_COMPONENT_NAMES.length);
-    for (const name of VISUAL_COMPONENTS) {
-      expect(COMPONENTS[name], `<${name}> is registered twice`).toBeUndefined();
+    const declarations = new Set<string>(kernelDeclarations);
+    for (const name of LOCAL_COMPONENT_NAMES) {
+      if (declarations.has(name)) continue;
+      expect(DEFAULT_COMPONENT_VIEWS[name], `<${name}> must have a real implementation`)
+        .not.toBe(DEFAULT_COMPONENT_VIEWS.computed);
     }
   });
 });

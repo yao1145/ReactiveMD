@@ -20,15 +20,19 @@ import {
   startLocalCompileWorker,
   type LocalCompileMode,
   type LocalCompileOutcome,
-  type LocalCompilePatchRequest,
   type LocalCompileRequest,
   type LocalCompileResponse,
-  type LocalCompileWorker,
-  type LocalCompileWorkerRequest,
   type LocalCompileWorkerResponse,
   type LocalCompileWorkerScope,
 } from '../src/local/transport/worker';
 import type { LocalCompileOptions, LocalCompileResult, LocalNode, LocalRecovery } from '../src/local/contracts/types';
+import {
+  FakeWorker,
+  fullRequest,
+  negotiatedResponse,
+  okResult,
+  patchRequest,
+} from './fixtures/compile-worker';
 
 // The worker analysis path must see the same options snapshot as the compile.
 const analyzeLocalSource = vi.hoisted(() => vi.fn((
@@ -83,15 +87,6 @@ function deepNode(id: string, source: string, depth = 101): LocalNode {
     current = { type: 'paragraph', id: `${id}-${index}`, range: { start: 0, end: source.length }, children: [current] };
   }
   return current;
-}
-
-function okResult(source: string, recoveries?: LocalRecovery[], nodes: LocalNode[] = []): LocalCompileResult {
-  return {
-    ok: true,
-    document: { syntax: 'local', source, nodes, initialState: {}, bindings: {} },
-    diagnostics: [],
-    ...(recoveries === undefined ? {} : { recoveries }),
-  };
 }
 
 function failedResult(recoveries?: LocalRecovery[]): LocalCompileResult {
@@ -493,30 +488,6 @@ describe('recovered warning transport', () => {
 /* Scheduler transport                                                */
 /* ------------------------------------------------------------------ */
 
-class FakeWorker implements LocalCompileWorker {
-  onmessage: ((event: any) => void) | null = null;
-  onerror: ((event: any) => void) | null = null;
-  onmessageerror: ((event: any) => void) | null = null;
-  readonly requests: LocalCompileWorkerRequest[] = [];
-  terminated = false;
-
-  postMessage(message: LocalCompileWorkerRequest): void {
-    this.requests.push(message);
-  }
-
-  terminate(): void {
-    this.terminated = true;
-  }
-
-  receive(response: LocalCompileWorkerResponse): void {
-    this.onmessage?.({ data: response });
-  }
-
-  fail(message: string): void {
-    this.onerror?.({ message });
-  }
-}
-
 function setup() {
   const worker = new FakeWorker();
   const results: LocalCompileOutcome[] = [];
@@ -530,30 +501,6 @@ function setup() {
     delay: LOCAL_COMPILE_DELAY_MS,
   });
   return { worker, results, modes, fallbackCompile, scheduler };
-}
-
-function fullRequest(request: LocalCompileWorkerRequest): LocalCompileRequest {
-  if (!('source' in request)) throw new Error('expected a complete-source request');
-  return request;
-}
-
-function patchRequest(request: LocalCompileWorkerRequest): LocalCompilePatchRequest {
-  if (!('edit' in request)) throw new Error('expected a result-patch request');
-  return request;
-}
-
-function negotiatedResponse(
-  request: LocalCompileRequest,
-  result: LocalCompileResult,
-): LocalCompileWorkerResponse {
-  return {
-    id: request.id,
-    ok: true,
-    result,
-    duration: 1,
-    protocol: LOCAL_RESULT_PATCH_PROTOCOL,
-    revision: request.revision!,
-  };
 }
 
 describe('scheduler strict transport', () => {

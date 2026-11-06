@@ -12,6 +12,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { moduleDependencies, moduleSpecifiers } from './module-specifiers.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const src = path.join(root, 'src');
@@ -62,16 +63,6 @@ function resolveRelative(from, specifier) {
   return null;
 }
 
-function importsOf(file) {
-  const source = readFileSync(file, 'utf8');
-  const found = [];
-  for (const match of source.matchAll(/\b(?:import|export)\s+(?:type\s+)?(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g)) {
-    found.push(match[1]);
-  }
-  for (const match of source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g)) found.push(match[1]);
-  return found;
-}
-
 function reachable(entry) {
   const seen = new Set();
   const pending = [entry];
@@ -79,8 +70,9 @@ function reachable(entry) {
     const file = pending.pop();
     if (seen.has(file) || !existsSync(file)) continue;
     seen.add(file);
-    for (const specifier of importsOf(file)) {
-      if (!specifier.startsWith('.')) continue;
+    const source = readFileSync(file, 'utf8');
+    for (const { specifier, typeOnly } of moduleDependencies(source, path.basename(file))) {
+      if (typeOnly || !specifier.startsWith('.')) continue;
       const target = resolveRelative(file, specifier);
       if (target) pending.push(target);
     }
@@ -97,8 +89,9 @@ function bundleFiles(entry) {
     if (seen.has(file) || !existsSync(file)) continue;
     seen.add(file);
     const source = readFileSync(file, 'utf8');
-    for (const match of source.matchAll(/from\s*["'](\.\/[^"']+)["']/g)) {
-      pending.push(path.resolve(path.dirname(file), match[1]));
+    for (const specifier of moduleSpecifiers(source, path.basename(file))) {
+      if (!specifier.startsWith('.')) continue;
+      pending.push(path.resolve(path.dirname(file), specifier));
     }
   }
   const files = [...seen].sort();

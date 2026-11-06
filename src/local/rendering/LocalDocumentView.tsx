@@ -67,7 +67,6 @@ import {
   type DependencyLookup,
 } from './view-revision';
 import { DEFAULT_MAX_LOCAL_SYNTAX_NODES } from '../configuration/limits';
-import { LOCAL_COMPONENT_NAMES } from '../configuration/schema';
 import { localCompileOptionsKey, readLocalCompileOptions } from '../configuration/options';
 import {
   beginLocalComponentRender,
@@ -801,8 +800,6 @@ interface LocalComponentProps {
   node: LocalNode;
   visible: boolean;
 }
-
-export const VISUAL_COMPONENTS = new Set(['table', 'chart', 'plot', 'timeline', 'diagram']);
 
 function safeUrl(
   raw: string | undefined,
@@ -1895,16 +1892,6 @@ function HtmlDetailsView({ node, visible }: LocalComponentProps) {
 export function textProblem(value: string, options: Parameters<typeof componentTextProblem>[1], t: Localize = defaultLocalize): string | null {
   return componentTextProblem(value, options, t);
 }
-
-/* Derived compatibility data for older coverage tests. Active rendering uses
- * the unified manifest index (`componentRenderer`), never this table. */
-const COMPATIBILITY_SPECIALS = new Set(['computed', 'const', 'external', 'data-table']);
-export const COMPONENTS: Record<string, (props: LocalComponentProps) => ReactNode> =
-  Object.freeze(Object.fromEntries(
-    LOCAL_COMPONENT_NAMES
-      .filter((name) => !VISUAL_COMPONENTS.has(name) && !COMPATIBILITY_SPECIALS.has(name))
-      .map((name) => [name, () => null]),
-  ));
 
 /* --------------------------------------------------------------- endnotes */
 

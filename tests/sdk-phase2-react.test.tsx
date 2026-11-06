@@ -1,5 +1,3 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -16,7 +14,6 @@ import {
 } from '../src/react/sdk';
 
 const PROTOCOL = 'reactive-md-component/v1';
-const COMPONENTS_DIR = fileURLToPath(new URL('../src/components/', import.meta.url));
 
 describe('React preset composition', () => {
   it('keeps static context writes and resets read-only and freezes public values', () => {
@@ -311,16 +308,6 @@ describe('external clones use the same public primitives', () => {
 });
 
 describe('builtin renderer boundary', () => {
-  it('keeps component modules off private AST/local imports', () => {
-    for (const file of readdirSync(COMPONENTS_DIR)) {
-      if (!file.endsWith('.ts') && !file.endsWith('.tsx')) continue;
-      const source = readFileSync(`${COMPONENTS_DIR}${file}`, 'utf8');
-      expect(source.includes("from '../local/"), `${file} imports a private local module`).toBe(false);
-      expect(source.includes('runtime.document'), `${file} reads runtime.document`).toBe(false);
-      expect(source.includes('type LocalNode'), `${file} reads the internal AST type`).toBe(false);
-    }
-  });
-
   it('renders default builtins without an explicit reactConfig', () => {
     const compiled = compileLocal('<slider bind="n" label="Amount" initial="3">');
     expect(compiled.ok, JSON.stringify(compiled.diagnostics)).toBe(true);

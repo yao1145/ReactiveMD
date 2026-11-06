@@ -6,7 +6,15 @@ import {
   encodeLocalResultPatch,
   LOCAL_RESULT_PATCH_PROTOCOL,
 } from '../src/local/transport/compile-patch';
-import type { LocalCompileResult, LocalNode,LocalCompileOptions } from '../src/local/contracts/types';
+import type { LocalCompileResult, LocalCompileOptions } from '../src/local/contracts/types';
+import {
+  FakeWorker,
+  fullRequest,
+  negotiatedResponse,
+  nodeResult,
+  okResult,
+  patchRequest,
+} from './fixtures/compile-worker';
 import {
   LOCAL_COMPILE_DELAY_MS,
   LocalCompileScheduler,
@@ -23,70 +31,6 @@ import {
   type LocalCompileWorkerResponse,
   type LocalCompileWorkerScope,
 } from '../src/local/transport/worker';
-
-function okResult(source: string): LocalCompileResult {
-  return {
-    ok: true,
-    document: {
-      syntax: 'local',
-      source,
-      nodes: [],
-      initialState: {},
-      bindings: {},
-    },
-    diagnostics: [],
-  };
-}
-
-function nodeResult(source: string, value: string): LocalCompileResult {
-  const text: LocalNode = {
-    type: 'text',
-    id: 'p-text',
-    range: { start: 0, end: source.length },
-    value,
-  };
-  return {
-    ok: true,
-    document: {
-      syntax: 'local',
-      source,
-      nodes: [{ type: 'paragraph', id: 'p', range: { start: 0, end: source.length }, children: [text] }],
-      initialState: {},
-      bindings: {},
-    },
-    diagnostics: [],
-  };
-}
-
-class FakeWorker implements LocalCompileWorker {
-  onmessage: ((event: MessageEvent<LocalCompileResponse>) => void) | null = null;
-  onerror: ((event: ErrorEvent) => void) | null = null;
-  onmessageerror: ((event: Event) => void) | null = null;
-  /** Every post, including incremental requests without a source. */
-  readonly requests: LocalCompileWorkerRequest[] = [];
-  /** Complete-source requests, for backwards-compatible assertions. */
-  readonly messages: LocalCompileRequest[] = [];
-  terminated = false;
-
-  postMessage(message: LocalCompileWorkerRequest): void {
-    this.requests.push(message);
-    if ('source' in message && typeof message.source === 'string') {
-      this.messages.push(message);
-    }
-  }
-
-  terminate(): void {
-    this.terminated = true;
-  }
-
-  receive(response: LocalCompileWorkerResponse): void {
-    this.onmessage?.({ data: response } as unknown as MessageEvent<LocalCompileResponse>);
-  }
-
-  fail(message: string): void {
-    this.onerror?.({ message } as unknown as ErrorEvent);
-  }
-}
 
 function setup(options: { delay?: number; createWorker?: () => LocalCompileWorker; shareResults?: boolean } = {}) {
   const worker = new FakeWorker();
@@ -358,27 +302,6 @@ describe('LocalCompileScheduler', () => {
     expect(results[0].options).toEqual({ markdownBreaks: false });
   });
 });
-
-function fullRequest(request: LocalCompileWorkerRequest): LocalCompileRequest {
-  if (!('source' in request)) throw new Error('expected a complete-source request');
-  return request;
-}
-
-function patchRequest(request: LocalCompileWorkerRequest): LocalCompilePatchRequest {
-  if (!('edit' in request)) throw new Error('expected an incremental request');
-  return request;
-}
-
-function negotiatedResponse(request: LocalCompileRequest, result: LocalCompileResult): LocalCompileResponse {
-  return {
-    id: request.id,
-    ok: true,
-    result,
-    duration: 1,
-    protocol: LOCAL_RESULT_PATCH_PROTOCOL,
-    revision: request.revision ?? 1,
-  };
-}
 
 function resultPatchResponse(
   request: LocalCompilePatchRequest,

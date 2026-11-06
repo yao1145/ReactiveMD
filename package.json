@@ -56,7 +56,7 @@
     "build:standalone": "vite build --config vite.standalone.config.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts --maxWorkers=4",
-    "check": "npm run build && npm test && npm run test:boundary",
+    "check": "npm run build && npm test && npm run test:boundary && npm run test:compiler-entry",
     "test:boundary": "node scripts/verify-public-package.mjs",
     "test:compiler-entry": "node scripts/verify-compiler-entry.mjs",
     "notices": "node scripts/generate-notices.mjs",

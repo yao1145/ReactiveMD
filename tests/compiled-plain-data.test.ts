@@ -26,8 +26,8 @@ const source = `<slider bind="n" label="Number" initial="2" min="0" max="10">
 </table>`;
 
 describe('public compiled data for React Server Components', () => {
-  it.each([compileLocal, compileLocalDocument])('returns only ordinary records and arrays at every depth', compile => {
-    const result = compile(source);
+  it('returns only ordinary records and arrays at every depth', () => {
+    const result = compileLocal(source);
     expect(result.ok, JSON.stringify(result.diagnostics)).toBe(true);
     expectPlainData(result);
     if (!result.ok) return;
@@ -44,6 +44,12 @@ describe('public compiled data for React Server Components', () => {
     const restored = JSON.parse(JSON.stringify(result.document));
     const restoredRuntime = createLocalRuntime(restored);
     try { expect(restoredRuntime.evaluate('total')).toBe(3); } finally { restoredRuntime.dispose(); }
+  });
+
+  it('forwards compileLocalDocument to compileLocal with the same result', () => {
+    expect(compileLocalDocument(source)).toEqual(compileLocal(source));
+    expect(compileLocalDocument(source, { markdownBreaks: true }))
+      .toEqual(compileLocal(source, { markdownBreaks: true }));
   });
 
   it('normalizes native HTML and failed results as well', () => {
