@@ -7,9 +7,20 @@ import type { LocalNode, LocalVersionDeclaration, SourceRange, LocalRecovery } f
 import type { LocalOptionCheck } from '../configuration/options-core';
 import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
 import { localDiagnosticDetails, renderLocalDiagnostic, type LocalDiagnosticDetails } from '../configuration/diagnostics';
-import { HTML_TABLE_NAMES, HTML_TABLE_ATTRIBUTES, validHtmlTableValue, readHtmlTable } from '../html/html-table';
+import { HTML_TABLE_NAMES, readHtmlTable } from '../html/html-table';
 import { closestName } from '../configuration/schema-core';
-import { LOCAL_HTML_NAMES, LOCAL_HTML_ALIGN_ELEMENTS, LOCAL_HTML_ANCHOR_ATTRIBUTES, localHtmlAlign } from '../html/html-names';
+import { LOCAL_HTML_NAMES, LOCAL_HTML_ALIGN_ELEMENTS } from '../html/html-names';
+import {
+  HTML_INLINE_NODE_TYPES,
+  HTML_VOID_ELEMENTS,
+  HTML_RAW_TEXT_ELEMENTS,
+  htmlCommentEnd,
+  htmlTagEnd,
+  htmlAlignValue,
+  isHtmlAttributeNameAllowed,
+  isValidHtmlAttributeValue,
+} from '../html/html-policy';
+import { scanInterpolationEnd } from './lexical';
 import { isLocalThemeName } from '../theme/theme-name';
 import { normalizeFootnoteIdentifier } from '../markdown/footnotes';
 import {
@@ -23,7 +34,7 @@ import type { FastMarkdownPlan, InlinePlanLookup, FastMarkdownContext } from '..
 import { parseMarkdownBlocks,scanMarkdownStructure,markdownTreeFacts,type MarkdownStructure } from '../markdown/markdown-blocks';
 import { SourceContext, MappedSource } from '../source/source-context';
 import { ParseBudgetError, ParseWorkBudget, type ParseSessionCache, type ParseSessionCounters } from './parse-budget';
-import { planRmdRecovery, RAW_TEXT } from './rmd-recovery';
+import { planRmdRecovery } from './rmd-recovery';
 import { recoverLocalHtml } from '../html/html-recovery';
 import { normalizeHtmlDetailsChildren } from '../html/html-details';
 
@@ -34,22 +45,8 @@ const MARK_OPEN = String.fromCharCode(0xe000);
 const MARK_CLOSE = String.fromCharCode(0xe001);
 const TAG_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const ATTR_NAME = TAG_NAME;
-/** The only basic HTML names accepted, mapped to ordinary Markdown node types. */
-const HTML_INLINE: Readonly<Record<string, string>> = {
-  b: 'strong',
-  strong: 'strong',
-  i: 'emphasis',
-  em: 'emphasis',
-  s: 'delete',
-  del: 'delete',
-  u: 'underline',
-  mark: 'mark',
-  sup: 'sup',
-  sub: 'sub',
-};
 /** P0 native HTML accepted inline in Markdown documents. */
 const HTML_NAMES = LOCAL_HTML_NAMES;
-const HTML_VOID = new Set(['br', 'hr', 'img']);
 const HTML_BLOCK = new Set([
   'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'div', 'details', 'blockquote', 'pre', 'ul', 'ol', 'li',
@@ -63,16 +60,9 @@ const RECOVERY_DIAGNOSTIC_CODES = new Set([
   'local.html.repair',
   'local.html.literal',
 ]);
-const HTML_GLOBAL_ATTRIBUTES = new Set(['id', 'title', 'lang', 'dir']);
 const NATIVE_HTML_NAMES = new Set<string>(Object.values(nativeHtml.TAG_NAMES));
 const NATIVE_HTML_VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
-const HTML_TAG_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
-  a: LOCAL_HTML_ANCHOR_ATTRIBUTES,
-  img: new Set(['src', 'alt', 'width', 'height']),
-  ol: new Set(['start']),
-  details: new Set(['open']),
-  ...HTML_TABLE_ATTRIBUTES,
-};
+
 /**
  * Decode character references with the same grammar the browser uses. Literal
  * `<` is escaped first so tag-looking code stays text, while every named and
@@ -764,24 +754,19 @@ export function parseLocalCore(
       const newline = source.indexOf('\n', head);
       if (newline >= 0) scanLimit = Math.min(limit, newline);
     }
-    let quote = '', end = head;
-    for (; end < scanLimit; end++) {
-      const c = source[end];
-      if (quote) { if (c === quote) quote = ''; }
-      else if (c === '"' || c === "'") quote = c;
-      else if (c === '>') break;
-    }
+    const close = htmlTagEnd(source, head, scanLimit);
     const name = match[2];
-    if (end >= scanLimit) return { name, closing: !!match[1], self: false, start, end: scanLimit, attrs: {}, head, unclosed: true };
+    if (close < 0) return { name, closing: !!match[1], self: false, start, end: scanLimit, attrs: {}, head, unclosed: true };
+    const end = close - 1;
     if (name.length > MAX_LOCAL_NAME_LENGTH) {
       error('local.budget.name', `Tag name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`, start, start + 1 + name.length, { key: 'local.budget.name.tag', params: { limit: MAX_LOCAL_NAME_LENGTH } });
     }
     const rest = source.slice(head, end);
     if (match[1]) {
-      if (rest.trim()) error('local.tag.closing', `Closing tag </${name}> cannot have attributes.`, start, end + 1, { key: 'local.tag.closing', params: { name } });
-      return { name, closing: true, self: false, start, end: end + 1, attrs: {}, head, unclosed: false };
+      if (rest.trim()) error('local.tag.closing', `Closing tag </${name}> cannot have attributes.`, start, close, { key: 'local.tag.closing', params: { name } });
+      return { name, closing: true, self: false, start, end: close, attrs: {}, head, unclosed: false };
     }
-    return { name, closing: false, self: /\/\s*$/.test(rest), start, end: end + 1, attrs: known.has(name.toLowerCase()) ? attributes(rest, head) : {}, head, unclosed: false };
+    return { name, closing: false, self: /\/\s*$/.test(rest), start, end: close, attrs: known.has(name.toLowerCase()) ? attributes(rest, head) : {}, head, unclosed: false };
   }
   /**
    * Silent tag boundary reader used for unknown components. Their attributes
@@ -798,20 +783,14 @@ export function parseLocalCore(
       const newline = source.indexOf('\n', head);
       if (newline >= 0) scanLimit = Math.min(limit, newline);
     }
-    let quote = '', end = head;
-    for (; end < scanLimit; end++) {
-      const c = source[end];
-      if (quote) { if (c === quote) quote = ''; }
-      else if (c === '"' || c === "'") quote = c;
-      else if (c === '>') break;
-    }
-    if (end >= scanLimit) return null;
-    const rest = source.slice(head, end);
-    return { name: match[2], closing: !!match[1], self: !match[1] && /\/\s*$/.test(rest), end: end + 1 };
+    const close = htmlTagEnd(source, head, scanLimit);
+    if (close < 0) return null;
+    const rest = source.slice(head, close - 1);
+    return { name: match[2], closing: !!match[1], self: !match[1] && /\/\s*$/.test(rest), end: close };
   }
   /** Keep an unclosed HTML fragment local to its paragraph. */
   function htmlLiteralEnd(start: number, limit: number, parent?: string, rawName?: string): number {
-    if (!strict && rawName && RAW_TEXT.has(rawName.toLowerCase())) return limit;
+    if (!strict && rawName && HTML_RAW_TEXT_ELEMENTS.has(rawName.toLowerCase())) return limit;
     const boundary = /\r?\n[\t ]*\r?\n/.exec(source.slice(start, limit));
     let stop = boundary ? start + boundary.index : limit;
     if (parent) {
@@ -856,14 +835,9 @@ export function parseLocalCore(
     const lower = match[2].toLowerCase();
     if (!HTML_NAMES.has(lower) && !(tableContext && HTML_TABLE_NAMES.has(lower))) return null;
     const head = start + match[0].length;
-    let quote = '', end = head;
-    for (; end < limit; end++) {
-      const c = source[end];
-      if (quote) { if (c === quote) quote = ''; }
-      else if (c === '"' || c === "'") quote = c;
-      else if (c === '>') break;
-    }
-    if (end >= limit) return null;
+    const close = htmlTagEnd(source, head, limit);
+    if (close < 0) return null;
+    const end = close - 1;
     const rest = source.slice(head, end);
     const closing = Boolean(match[1]);
     const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head);
@@ -891,8 +865,7 @@ export function parseLocalCore(
       const shield = protectedEnd(i, limit, insideContainer);
       if (shield !== null) { i = shield; continue; }
       if (source.startsWith('<!--', i)) {
-        const close = source.indexOf('-->', i + 4);
-        i = close < 0 || close + 3 > limit ? limit : close + 3;
+        i = htmlCommentEnd(source, i, limit);
         continue;
       }
       if (source[i] === '<') {
@@ -902,10 +875,10 @@ export function parseLocalCore(
             if (tag.closing) {
               depth -= 1;
               if (depth === 0) return { start: i, end: tag.end };
-            } else if (!tag.self && !HTML_VOID.has(name)) {
+            } else if (!tag.self && !HTML_VOID_ELEMENTS.has(name)) {
               depth += 1;
             }
-          } else if (!tag.closing && (tag.lower === 'pre' || tag.lower === 'code') && !HTML_VOID.has(tag.lower)) {
+          } else if (!tag.closing && (tag.lower === 'pre' || tag.lower === 'code') && !HTML_VOID_ELEMENTS.has(tag.lower)) {
             // Raw code content is inert: tags inside it never change the
             // nesting of the surrounding HTML container.
             const inner = htmlCloseEnd(tag.end, tag.lower, limit, insideContainer);
@@ -926,35 +899,14 @@ export function parseLocalCore(
     if (tag.invalid.length) return { ok: false, attr: tag.invalid[0].name };
     for (const entry of tag.entries) {
       const name = entry.name;
+      if (!isHtmlAttributeNameAllowed(lower, name)) return { ok: false, attr: name };
       if (name === 'align' && LOCAL_HTML_ALIGN_ELEMENTS.has(lower)) {
-        const align = localHtmlAlign(entry.value);
+        const align = htmlAlignValue(lower, entry.value);
         if (!align) return { ok: false, attr: name };
         attrs.align = align;
         continue;
       }
-      if (name === 'class' || name === 'style' || /^on[a-z]/.test(name)) return { ok: false, attr: name };
-      const global = HTML_GLOBAL_ATTRIBUTES.has(name);
-      const aria = /^aria-[a-z0-9_.-]+$/.test(name);
-      const data = /^data-[a-z0-9_.-]+$/.test(name);
-      const specific = HTML_TAG_ATTRIBUTES[lower]?.has(name) ?? false;
-      if (!global && !aria && !data && !specific) return { ok: false, attr: name };
-      if (name === 'dir' && !['ltr', 'rtl', 'auto'].includes(entry.value.trim().toLowerCase())) return { ok: false, attr: name };
-      if (name === 'id' && entry.value.trim() === '') return { ok: false, attr: name };
-      if (name === 'width' || name === 'height') {
-        if (!/^\d{1,6}$/.test(entry.value.trim())) return { ok: false, attr: name };
-      }
-      if (name === 'start' && !/^-?\d{1,9}$/.test(entry.value.trim())) return { ok: false, attr: name };
-      if (!validHtmlTableValue(name, entry.value)) return { ok: false, attr: name };
-      if ((name === 'href' || name === 'src')) {
-        const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(entry.value.trim().replace(/[\u0000- ]+/g, ''));
-        if (scheme) {
-          const kind = name === 'src' ? 'image' : 'link';
-          const allowed = kind === 'image'
-            ? scheme[1].toLowerCase() === 'http' || scheme[1].toLowerCase() === 'https'
-            : ['http', 'https', 'mailto', 'tel'].includes(scheme[1].toLowerCase());
-          if (!allowed) return { ok: false, attr: name };
-        }
-      }
+      if (!isValidHtmlAttributeValue(name, entry.value)) return { ok: false, attr: name };
       attrs[name] = entry.value;
     }
     if (lower === 'details' && Object.hasOwn(attrs, 'open')) attrs.open = 'true';
@@ -1088,7 +1040,7 @@ export function parseLocalCore(
       case 'span':
         return node('span', start, end, { attrs, children: inline() });
       default:
-        return node(HTML_INLINE[tag.lower] ?? tag.lower, start, end, {
+        return node(HTML_INLINE_NODE_TYPES[tag.lower] ?? tag.lower, start, end, {
           attrs,
           children: inline(),
         });
@@ -1138,8 +1090,7 @@ export function parseLocalCore(
       const shield = protectedEnd(i, limit, insideContainer);
       if (shield !== null) { i = shield; continue; }
       if (source.startsWith('<!--', i)) {
-        const close = source.indexOf('-->', i + 4);
-        i = close < 0 || close + 3 > limit ? limit : close + 3;
+        i = htmlCommentEnd(source, i, limit);
         continue;
       }
       if (source[i] === '<') {
@@ -1162,14 +1113,7 @@ export function parseLocalCore(
     return null;
   }
   function interpolationEnd(start: number, end: number) {
-    let quote = '';
-    for (let i = start + 2; i < end - 1; i++) {
-      const c = source[i];
-      if (quote) { if (c === '\\') i++; else if (c === quote) quote = ''; }
-      else if (c === '"' || c === "'") quote = c;
-      else if (c === '}' && source[i + 1] === '}') return i + 2;
-    }
-    return -1;
+    return scanInterpolationEnd(source, start, end);
   }
   /**
    * Common leading indentation of the lines owned by a container. Fenced code
@@ -1353,7 +1297,7 @@ export function parseLocalCore(
       const shield = protectedEnd(i, end, insideContainer);
       if (shield !== null) { i = shield; continue; }
       if (source.startsWith('<!--', i)) {
-        const close = source.indexOf('-->', i + 4), stop = close < 0 ? end : Math.min(end, close + 3);
+        const stop = htmlCommentEnd(source, i, end);
         const comment = source.slice(i, stop);
         if (!footnoteMode && /^<!--\s*reactive-md(?=[\s:]|-->|$)/i.test(comment)) {
           versionHeaders += 1;
@@ -1364,7 +1308,7 @@ export function parseLocalCore(
           const match = /^<!--[ \t]*reactive-md:[ \t]*(local-draft-[1-9][0-9]*)[ \t]*-->$/.exec(comment);
           if (versionHeaders > 1) {
             error('local.version.duplicate', 'Only one source syntax declaration is allowed.', i, stop);
-          } else if (!match || close < 0 || /[\r\n]/.test(comment)) {
+          } else if (!match || /[\r\n]/.test(comment)) {
             error('local.version.malformed', `Use <!-- reactive-md: ${LOCAL_SYNTAX_VERSION} --> on one line.`, i, stop);
           } else {
             versionDeclaration = { version: match[1], range: { start: i, end: stop } };
@@ -1532,7 +1476,7 @@ export function parseLocalCore(
           }
           const selection = selectHtmlAttributes(html.lower, html);
           if (!selection.ok) {
-            const stop = html.self || HTML_VOID.has(html.lower)
+            const stop = html.self || HTML_VOID_ELEMENTS.has(html.lower)
               ? html.end
               : (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? htmlLiteralEnd(html.end, end, parent, html.lower));
             warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback.attribute', 'en', {name: selection.attr}), i, stop, {key: 'local.html.fallback.attribute', params: {name: selection.attr}});
@@ -1541,7 +1485,7 @@ export function parseLocalCore(
             continue;
           }
           const attrs = selection.attrs;
-          if (HTML_VOID.has(html.lower)) {
+          if (HTML_VOID_ELEMENTS.has(html.lower)) {
             if (html.lower === 'br') {
               tokens.push({ start: i, end: html.end, node: node('break', i, html.end, { attrs }) });
             } else if (html.lower === 'hr') {
@@ -1648,7 +1592,7 @@ export function parseLocalCore(
         if (scanned && !known.has(scanned.name.toLowerCase()) && NATIVE_HTML_NAMES.has(scanned.name.toLowerCase())) {
           const paired = !scanned.closing && !scanned.self && !NATIVE_HTML_VOID.has(scanned.name.toLowerCase())
             ? unknownTagEnd(scanned.end, scanned.name, end, insideContainer, true) : null;
-          const rawFallback = !strict && !scanned.closing && !scanned.self && RAW_TEXT.has(scanned.name.toLowerCase())
+          const rawFallback = !strict && !scanned.closing && !scanned.self && HTML_RAW_TEXT_ELEMENTS.has(scanned.name.toLowerCase())
             && (!paired || scanned.name.toLowerCase() === 'plaintext');
           const stop = scanned.closing || scanned.self || NATIVE_HTML_VOID.has(scanned.name.toLowerCase())
             ? scanned.end : rawFallback ? end : (paired?.end ?? htmlLiteralEnd(scanned.end, end, parent, scanned.name));
@@ -1703,7 +1647,7 @@ export function parseLocalCore(
           if (tag.unclosed) {
             if (!known.has(tag.name.toLowerCase()) && NATIVE_HTML_NAMES.has(tag.name.toLowerCase())) {
               const stop = htmlLiteralEnd(tag.head, end, parent, tag.name);
-              if (!strict && RAW_TEXT.has(tag.name.toLowerCase())) recoveries.push({ code: 'local.html.literal',
+              if (!strict && HTML_RAW_TEXT_ELEMENTS.has(tag.name.toLowerCase())) recoveries.push({ code: 'local.html.literal',
                 causeRange: { start: i, end: tag.head }, affectedRange: { start: i, end: stop },
                 action: 'literal-fallback', boundary: stop === source.length ? 'eof' : 'fragment' });
               else warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
@@ -2056,7 +2000,7 @@ export function parseLocalCore(
           return schema === undefined || schema.form !== 'leaf';
         },
         isHtmlName: (name) => HTML_NAMES.has(name) || NATIVE_HTML_NAMES.has(name),
-        isVoidHtml: (name) => NATIVE_HTML_VOID.has(name) || HTML_VOID.has(name),
+        isVoidHtml: (name) => NATIVE_HTML_VOID.has(name) || HTML_VOID_ELEMENTS.has(name),
         rawHtmlEnd: (name, bodyStart, insideContainer) => {
           if (name === 'plaintext') return source.length;
           if (name === 'pre' || name === 'code') {

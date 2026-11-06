@@ -3,11 +3,18 @@ import type { DefaultTreeAdapterTypes } from 'parse5';
 import type { LocalNode, LocalRecovery, SourceRange } from '../contracts/types';
 import {
   LOCAL_HTML_ALIGN_ELEMENTS,
-  LOCAL_HTML_ANCHOR_ATTRIBUTES,
   LOCAL_HTML_NAMES,
-  localHtmlAlign,
 } from './html-names';
 import { HTML_TABLE_ATTRIBUTES, HTML_TABLE_NAMES, validHtmlTableValue } from './html-table';
+import {
+  HTML_INLINE_NODE_TYPES,
+  HTML_VOID_ELEMENTS,
+  htmlAlignValue,
+  htmlCommentEnd,
+  htmlTagEnd,
+  isHtmlAttributeNameAllowed,
+  isValidHtmlAttributeValue,
+} from './html-policy';
 
 type PElement = DefaultTreeAdapterTypes.Element;
 type PChild = DefaultTreeAdapterTypes.ChildNode;
@@ -27,34 +34,6 @@ type RecoveryNodeExtra = Partial<LocalNode> & {
 const HTML_NS = parse5Html.NS.HTML;
 
 const WRAPPER_ELEMENTS = new Set(['html', 'head', 'body']);
-
-/** Inline P0 names share the Markdown parser's mapping. */
-const HTML_INLINE: Readonly<Record<string, string>> = {
-  b: 'strong',
-  strong: 'strong',
-  i: 'emphasis',
-  em: 'emphasis',
-  s: 'delete',
-  del: 'delete',
-  u: 'underline',
-  mark: 'mark',
-  sup: 'sup',
-  sub: 'sub',
-};
-
-/** Elements with no end tag in HTML. */
-const VOID_ELEMENTS = new Set(['br', 'hr', 'img', 'col']);
-
-const GLOBAL_ATTRIBUTES = new Set(['id', 'title', 'lang', 'dir']);
-
-/** The same P0 attribute surface as the embedded native-HTML parser. */
-const P0_TAG_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
-  a: LOCAL_HTML_ANCHOR_ATTRIBUTES,
-  img: new Set(['src', 'alt', 'width', 'height']),
-  ol: new Set(['start']),
-  details: new Set(['open']),
-  ...HTML_TABLE_ATTRIBUTES,
-};
 
 const TABLE_CONTEXT_NAMES: ReadonlySet<string> = HTML_TABLE_NAMES;
 
@@ -83,30 +62,6 @@ interface ScanResult {
   contextTag: string | null;
   strayClose: ScannedTag | null;
   unclosed: ScannedTag | null;
-}
-
-function tagEndAt(source: string, from: number, limit: number): number {
-  let quote = '';
-  for (let index = from; index < limit; index += 1) {
-    const character = source[index];
-    if (quote) {
-      if (character === quote) quote = '';
-    } else if (character === '"' || character === "'") {
-      quote = character;
-    } else if (character === '>') {
-      return index + 1;
-    }
-  }
-  return -1;
-}
-
-function commentEndAt(source: string, start: number, limit: number): number {
-  // `<!-->` and `<!--->` are empty comments that end at their first `>`;
-  // searching only for `-->` would hide following markup from the validator.
-  if (source.startsWith('<!-->', start)) return Math.min(limit, start + 5);
-  if (source.startsWith('<!--->', start)) return Math.min(limit, start + 6);
-  const close = source.indexOf('-->', start + 4);
-  return close < 0 || close + 3 > limit ? limit : close + 3;
 }
 
 /**
@@ -139,7 +94,7 @@ function scanFragment(
     index = next;
 
     if (source.startsWith('<!--', index)) {
-      index = commentEndAt(source, index, end);
+      index = htmlCommentEnd(source, index, end);
       continue;
     }
 
@@ -157,7 +112,7 @@ function scanFragment(
 
     const name = head[2].toLowerCase();
     const closing = head[1] === '/';
-    const tagEnd = tagEndAt(source, afterName, end);
+    const tagEnd = htmlTagEnd(source, afterName, end);
     if (tagEnd < 0) return null;
     const tag: ScannedTag = {
       name,
@@ -194,7 +149,7 @@ function scanFragment(
     }
     if (WRAPPER_ELEMENTS.has(name)) return null;
 
-    if (!VOID_ELEMENTS.has(name) && !tag.self) {
+    if (!HTML_VOID_ELEMENTS.has(name) && !tag.self) {
       if (name === 'code' || name === 'pre') {
         // The whole body is inert source text; nothing inside may activate.
         const close = new RegExp(`</${name}\\s*>`, 'gi');
@@ -238,19 +193,7 @@ function decodeHtmlEntities(value: string): string {
   }
 }
 
-function normalizedUrl(value: string): string {
-  return value.trim().replace(/[\u0000- ]+/g, '');
-}
-
-function unsafeUrl(value: string, kind: 'link' | 'image'): boolean {
-  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(normalizedUrl(value));
-  if (!scheme) return false;
-  const name = scheme[1].toLowerCase();
-  if (kind === 'image') return name !== 'http' && name !== 'https';
-  return name !== 'http' && name !== 'https' && name !== 'mailto' && name !== 'tel';
-}
-
-/** Attribute validation mirrors the embedded P0 policy; any doubt rejects the fragment. */
+/** Attribute validation shares the embedded P0 policy; any doubt rejects the fragment. */
 function readAttributes(tag: string, element: PElement): Record<string, string> | null {
   const attrs: Record<string, string> = {};
   for (const attribute of element.attrs) {
@@ -259,24 +202,14 @@ function readAttributes(tag: string, element: PElement): Record<string, string> 
     // the fragment as HTML would silently turn it into a literal string.
     if (attribute.value.includes('{{')) return null;
     const name = attribute.name.toLowerCase();
-    if (name === 'class' || name === 'style' || /^on[a-z]/i.test(name)) return null;
+    if (!isHtmlAttributeNameAllowed(tag, name)) return null;
     if (name === 'align' && LOCAL_HTML_ALIGN_ELEMENTS.has(tag)) {
-      const align = localHtmlAlign(attribute.value);
+      const align = htmlAlignValue(tag, attribute.value);
       if (!align) return null;
       attrs.align = align;
       continue;
     }
-    const global = GLOBAL_ATTRIBUTES.has(name);
-    const aria = /^aria-[a-z0-9_.-]+$/.test(name);
-    const data = /^data-[a-z0-9_.-]+$/.test(name);
-    const specific = P0_TAG_ATTRIBUTES[tag]?.has(name) ?? false;
-    if (!global && !aria && !data && !specific) return null;
-    if (name === 'dir' && !['ltr', 'rtl', 'auto'].includes(attribute.value.trim().toLowerCase())) return null;
-    if (name === 'id' && attribute.value.trim() === '') return null;
-    if ((name === 'width' || name === 'height') && !/^\d{1,6}$/.test(attribute.value.trim())) return null;
-    if (name === 'start' && !/^-?\d{1,9}$/.test(attribute.value.trim())) return null;
-    if (!validHtmlTableValue(name, attribute.value)) return null;
-    if ((name === 'href' || name === 'src') && unsafeUrl(attribute.value, name === 'src' ? 'image' : 'link')) return null;
+    if (!isValidHtmlAttributeValue(name, attribute.value)) return null;
     attrs[name] = attribute.value;
   }
   if (tag === 'details' && Object.hasOwn(attrs, 'open')) attrs.open = 'true';
@@ -445,7 +378,7 @@ export function recoverLocalHtml(
     else if (tag === 'blockquote') extra.type = 'blockquote';
     else if (tag === 'details') extra.type = 'details';
     else if (tag === 'li') extra.type = 'listItem';
-    else extra.type = HTML_INLINE[tag] ?? tag;
+    else extra.type = HTML_INLINE_NODE_TYPES[tag] ?? tag;
     return extra;
   }
 
@@ -576,7 +509,7 @@ export function recoverLocalHtml(
       const measured = locationRange(location as ElementLocation);
       if (measured === null) return null;
       range = measured;
-      if (!location?.endTag && !VOID_ELEMENTS.has(tag) && location?.startTag) {
+      if (!location?.endTag && !HTML_VOID_ELEMENTS.has(tag) && location?.startTag) {
         evidence.push({ start: absolute(location.startTag.startOffset), end: absolute(location.startTag.endOffset) });
       }
     }

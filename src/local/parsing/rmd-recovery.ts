@@ -1,5 +1,7 @@
 import type { SourceFacts } from '../source/source-context';
 import type { LocalRecovery, SourceRange } from '../contracts/types';
+import { HTML_RAW_TEXT_ELEMENTS, htmlCommentEnd } from '../html/html-policy';
+import { mathTokenEnd, scanInterpolationEnd } from './lexical';
 
 /**
  * One tag-shaped token found by the tolerant structural planner. `complete`
@@ -48,10 +50,6 @@ type Boundary = LocalRecovery['boundary'];
 const RMD_TAG_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 /** Mirrors the parser's tag-name budget; longer names stay fatal. */
 const MAX_TAG_NAME = 128;
-/** Raw-text elements: RMD-looking text inside them is not structural. */
-export const RAW_TEXT = new Set([
-  'pre', 'code', 'script', 'style', 'textarea', 'title', 'xmp', 'iframe', 'noembed', 'noframes', 'plaintext',
-]);
 const RECOVERY_UNCLOSED = 'local.recovery.unclosed';
 const RECOVERY_MISMATCH = 'local.recovery.mismatch';
 const RECOVERY_STRAY_CLOSE = 'local.recovery.stray-close';
@@ -85,73 +83,8 @@ function factLineIndex(facts: SourceFacts, offset: number): number {
 
 /** Mirror of the parser's `{{ ... }}` shield; an unclosed opener skips two units. */
 function interpolationEnd(source: string, start: number): number {
-  let quote = '';
-  for (let index = start + 2; index < source.length - 1; index += 1) {
-    const character = source[index];
-    if (quote) {
-      if (character === '\\') index += 1;
-      else if (character === quote) quote = '';
-    } else if (character === '"' || character === "'") {
-      quote = character;
-    } else if (character === '}' && source[index + 1] === '}') {
-      return index + 2;
-    }
-  }
-  return start + 2;
-}
-
-function escapedPairEnd(source: string, from: number, end: number, close: string): number | null {
-  for (let index = from; index + 1 < end; index += 1) {
-    if (source[index] !== '\\') continue;
-    if (source[index + 1] === close) return index + 2;
-    index += 1;
-  }
-  return null;
-}
-
-function escapedDisplayEnd(source: string, from: number, end: number): number | null {
-  for (let index = from; index + 2 < end; index += 1) {
-    if (source[index] !== '\\') continue;
-    // A padded `\\]` wrapper closes the formula; the preceding space is the
-    // same guard the strict lexical reader uses.
-    if (source[index + 1] === '\\' && source[index + 2] === ']'
-      && /\s/.test(source[index - 1] ?? '')) return index + 3;
-    index += 1;
-  }
-  return null;
-}
-
-/** Formula spans are opaque so tags inside TeX never look structural. */
-function mathEnd(source: string, start: number, end: number): number | null {
-  if (source.startsWith('\\\\[', start)) {
-    return escapedDisplayEnd(source, start + 3, end) ?? start + 3;
-  }
-  if (source[start] === '\\' && source[start + 1] === '(') {
-    return escapedPairEnd(source, start + 2, end, ')') ?? start + 2;
-  }
-  if (source[start] === '\\' && source[start + 1] === '[') {
-    return escapedPairEnd(source, start + 2, end, ']') ?? start + 2;
-  }
-  if (source[start] !== '$') return null;
-  if (source[start + 1] === '$') {
-    for (let index = start + 2; index + 1 < end; index += 1) {
-      if (source[index] === '\\') index += 1;
-      else if (source[index] === '$' && source[index + 1] === '$') return index + 2;
-    }
-    return start + 2;
-  }
-  for (let index = start + 1; index < end; index += 1) {
-    const character = source[index];
-    if (character === '\\') { index += 1; continue; }
-    if (character === '\n' || character === '\r') break;
-    if (character !== '$') continue;
-    const value = source.slice(start + 1, index);
-    const after = source[index + 1];
-    if (!value.trim()) break;
-    if (after !== undefined && after >= '0' && after <= '9') break;
-    return index + 1;
-  }
-  return start + 1;
+  const end = scanInterpolationEnd(source, start, source.length);
+  return end < 0 ? start + 2 : end;
 }
 
 /** ATX heading at the content start of a physical line (container prefixes removed). */
@@ -257,13 +190,12 @@ export function planRmdRecovery(source: string, hooks: RmdRecoveryHooks): RmdRec
     }
     // TeX delimiters precede the generic backslash escape guard: `\\[` and
     // `\(` must hide their whole formula, not just the first two units.
-    const math = mathEnd(source, index, source.length);
+    const math = mathTokenEnd(source, index, source.length);
     if (math !== null) { index = math; continue; }
     const shield = hooks.protectedEnd(index, insideContainer);
     if (shield !== null && shield > index) { index = Math.min(shield, source.length); continue; }
     if (source.startsWith('<!--', index)) {
-      const close = source.indexOf('-->', index + 4);
-      index = close < 0 ? source.length : close + 3;
+      index = htmlCommentEnd(source, index, source.length);
       continue;
     }
     if (source.startsWith('{{', index)) { index = interpolationEnd(source, index); continue; }
@@ -331,7 +263,7 @@ export function planRmdRecovery(source: string, hooks: RmdRecoveryHooks): RmdRec
         continue;
       }
       if (tag.self || hooks.isVoidHtml(lower)) { index = next; continue; }
-      if (RAW_TEXT.has(lower)) {
+      if (HTML_RAW_TEXT_ELEMENTS.has(lower)) {
         // Raw text and P0 `<pre>`/`<code>` bodies never expose RMD structure.
         const stop = hooks.rawHtmlEnd(lower, tag.end, insideContainer);
         index = stop === null ? source.length : Math.max(stop, next);
@@ -481,13 +413,12 @@ function findHeadingSync(
     const insideContainer = line !== undefined && line.depth > 0;
     const codeEnd = hooks.codeEndAt(index);
     if (codeEnd !== null && codeEnd > index) { index = Math.min(codeEnd, source.length); continue; }
-    const math = mathEnd(source, index, source.length);
+    const math = mathTokenEnd(source, index, source.length);
     if (math !== null) { index = math; continue; }
     const shield = hooks.protectedEnd(index, insideContainer);
     if (shield !== null && shield > index) { index = Math.min(shield, source.length); continue; }
     if (source.startsWith('<!--', index)) {
-      const close = source.indexOf('-->', index + 4);
-      index = close < 0 ? source.length : close + 3;
+      index = htmlCommentEnd(source, index, source.length);
       continue;
     }
     if (source.startsWith('{{', index)) { index = interpolationEnd(source, index); continue; }
@@ -497,7 +428,7 @@ function findHeadingSync(
       // An unterminated tag (open quote) makes every later heading unsafe.
       if (!tag.complete) return null;
       const lower = tag.name.toLowerCase();
-      if (!tag.closing && RAW_TEXT.has(lower) && hooks.isHtmlName(lower) && !tag.self) {
+      if (!tag.closing && HTML_RAW_TEXT_ELEMENTS.has(lower) && hooks.isHtmlName(lower) && !tag.self) {
         const stop = hooks.rawHtmlEnd(lower, tag.end, insideContainer);
         if (stop === null) return null;
         index = Math.max(stop, index + 1);
