@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { CompilerConfigurationError, createCompiler } from '../src/compiler/index';
 import { createStandardCompiler } from '../src/compiler/standard';
+import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
 import { createLocalConfig } from '../src/sdk/config';
 import { defineLocalComponent } from '../src/sdk/manifest';
 import type { LocalCompileOptions, LocalCompileResult, LocalNode } from '../src/local/contracts/types';
@@ -188,6 +189,15 @@ describe('standard compiler entry', () => {
     if (result.ok) expect(result.document.bindings.score).toMatchObject({ initial: 3, max: 5 });
     expect(compatibilityResult(standard.compile(source))).toEqual(compileLocal(source, { config }));
     expect(minimal.compile('<rating bind="score" initial="8">').ok).toBe(false);
+  });
+
+  it('diagnoses capabilities the minimal assembly does not install', () => {
+    const minimal = createCompiler({ enableCss: true }).compile('<p>Hello</p>');
+    expect(minimal.ok).toBe(false);
+    expect(minimal.diagnostics[0]?.code).toBe('local.capability.html');
+    expect(formatLocalDiagnostic(minimal.diagnostics[0], 'en')).toContain('native HTML');
+    expect(formatLocalDiagnostic(minimal.diagnostics[0], 'zh')).toMatch(/[㐀-鿿]/);
+    expect(createStandardCompiler({ enableCss: true }).compile('<p>Hello</p>').ok).toBe(true);
   });
 
   it('uses the same semantic identity with or without host theme assets', () => {

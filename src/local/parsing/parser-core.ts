@@ -5,7 +5,7 @@ import type { Diagnostic } from '../contracts/types';
 import type { LocalNode, LocalVersionDeclaration, SourceRange, LocalRecovery } from '../contracts/types';
 import type { LocalOptionCheck } from '../configuration/options-core';
 import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
-import { localDiagnosticDetails, renderLocalDiagnostic, type LocalDiagnosticDetails } from '../configuration/diagnostics';
+import { diagnosticEnglish, localDiagnosticDetails, renderLocalDiagnostic, type LocalDiagnosticDetails } from '../configuration/diagnostics';
 import { HTML_TABLE_NAMES } from '../html/html-table-names';
 import { closestName } from '../configuration/schema-core';
 import { LOCAL_HTML_NAMES, LOCAL_HTML_ALIGN_ELEMENTS } from '../html/html-names';
@@ -491,7 +491,7 @@ export function parseLocalCore(
       error(cause.code,cause.message,cause.start,cause.end,{key:cause.key,params:cause.params});
       return {nodes:[],diagnostics,work};
     }
-    error('local.parse', 'Cannot parse the Markdown document.', 0, undefined, { key: 'local.parse.markdown' });
+    error('local.parse', { key: 'local.parse.markdown' }, 0, undefined);
     return { nodes: [], diagnostics };
   }
   rootDefinitions.sort((a, b) => a.start - b.start || b.end - a.end);
@@ -560,34 +560,36 @@ export function parseLocalCore(
       ...(bounded.params ? { params: bounded.params } : {}),
     });
   }
+  /** Key-first calls derive the English text from the registered template. */
+  function resolveDiagnosticMessage(
+    message: string | LocalDiagnosticDetails,
+  ): { text: string; details?: LocalDiagnosticDetails } {
+    return typeof message === 'string' ? { text: message } : { text: diagnosticEnglish(message), details: message };
+  }
   function error(
     code: string,
-    message: string,
+    message: string | LocalDiagnosticDetails,
     start: number,
     end = start + 1,
     details?: LocalDiagnosticDetails,
   ) {
-    diagnostic(code, message, 'error', start, end, details);
+    const resolved = resolveDiagnosticMessage(message);
+    diagnostic(code, resolved.text, 'error', start, end, resolved.details ?? details);
   }
   function warning(
     code: string,
-    message: string,
+    message: string | LocalDiagnosticDetails,
     start: number,
     end = start + 1,
     details?: LocalDiagnosticDetails,
   ) {
-    diagnostic(code, message, 'warning', start, end, details);
+    const resolved = resolveDiagnosticMessage(message);
+    diagnostic(code, resolved.text, 'warning', start, end, resolved.details ?? details);
   }
   /** Convert a deterministic budget failure into a localized parse diagnostic. */
   function reportParseBudget(cause: ParseBudgetError): void {
     const key = cause.kind === 'parse-work' ? 'local.budget.parse-work' : 'local.budget.markdown-depth';
-    error(
-      'local.budget',
-      renderLocalDiagnostic(key, 'en', { limit: cause.limit }),
-      cause.start,
-      cause.end,
-      { key, params: { limit: cause.limit } },
-    );
+    error('local.budget', { key, params: { limit: cause.limit } }, cause.start, cause.end);
   }
 
   /* ---------------------------------------------------------- theme header */
@@ -719,29 +721,29 @@ export function parseLocalCore(
       const start = i;
       const match = /^[A-Za-z][A-Za-z0-9_-]*/.exec(raw.slice(i));
       if (!match) {
-        error('local.attribute', 'Attribute names must use lowercase kebab-case.', offset + i, undefined, { key: 'local.attribute.format' });
+        error('local.attribute', { key: 'local.attribute.format' }, offset + i, undefined);
         while (i < raw.length && !/\s/.test(raw[i])) i++;
         continue;
       }
       const name = match[0]; i += name.length;
       if (name.length > MAX_LOCAL_NAME_LENGTH) {
-        error('local.budget.name', `Attribute name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`, offset + start, offset + i, { key: 'local.budget.name.attribute', params: { limit: MAX_LOCAL_NAME_LENGTH } });
+        error('local.budget.name', { key: 'local.budget.name.attribute', params: { limit: MAX_LOCAL_NAME_LENGTH } }, offset + start, offset + i);
       } else if (!ATTR_NAME.test(name)) {
-        error('local.attribute.name', `Attribute name ${name} must use lowercase kebab-case.`, offset + start, offset + i, { key: 'local.attribute.name', params: { name } });
+        error('local.attribute.name', { key: 'local.attribute.name', params: { name } }, offset + start, offset + i);
       }
       while (i < raw.length && /\s/.test(raw[i])) i++;
       let value = 'true';
       if (raw[i] === '=') {
         i++; while (i < raw.length && /\s/.test(raw[i])) i++;
         const quote = raw[i++];
-        if (quote !== '"' && quote !== "'") { error('local.attribute', `Attribute ${name} value must be quoted.`, offset + Math.max(0, i - 1), undefined, { key: 'local.attribute.value-quoted', params: { name } }); break; }
+        if (quote !== '"' && quote !== "'") { error('local.attribute', { key: 'local.attribute.value-quoted', params: { name } }, offset + Math.max(0, i - 1), undefined); break; }
         const end = raw.indexOf(quote, i);
-        if (end < 0) { error('local.attribute', `Attribute ${name} is missing a closing quote.`, offset + Math.max(0, i - 1), undefined, { key: 'local.attribute.closing-quote', params: { name } }); break; }
+        if (end < 0) { error('local.attribute', { key: 'local.attribute.closing-quote', params: { name } }, offset + Math.max(0, i - 1), undefined); break; }
         value = decode(raw.slice(i, end)); i = end + 1;
       }
-      if (Object.hasOwn(attrs, name)) error('local.attribute.duplicate', `Duplicate attribute ${name}.`, offset + start, offset + i, { key: 'local.attribute.duplicate', params: { name } });
+      if (Object.hasOwn(attrs, name)) error('local.attribute.duplicate', { key: 'local.attribute.duplicate', params: { name } }, offset + start, offset + i);
       else attrs[name] = value;
-      if (i < raw.length && !/\s|\//.test(raw[i])) { error('local.attribute', 'Attributes must be separated by whitespace.', offset + i, undefined, { key: 'local.attribute.separator' }); break; }
+      if (i < raw.length && !/\s|\//.test(raw[i])) { error('local.attribute', { key: 'local.attribute.separator' }, offset + i, undefined); break; }
     }
     return attrs;
   }
@@ -764,11 +766,11 @@ export function parseLocalCore(
     if (close < 0) return { name, closing: !!match[1], self: false, start, end: scanLimit, attrs: {}, head, unclosed: true };
     const end = close - 1;
     if (name.length > MAX_LOCAL_NAME_LENGTH) {
-      error('local.budget.name', `Tag name exceeds the ${MAX_LOCAL_NAME_LENGTH}-character limit.`, start, start + 1 + name.length, { key: 'local.budget.name.tag', params: { limit: MAX_LOCAL_NAME_LENGTH } });
+      error('local.budget.name', { key: 'local.budget.name.tag', params: { limit: MAX_LOCAL_NAME_LENGTH } }, start, start + 1 + name.length);
     }
     const rest = source.slice(head, end);
     if (match[1]) {
-      if (rest.trim()) error('local.tag.closing', `Closing tag </${name}> cannot have attributes.`, start, close, { key: 'local.tag.closing', params: { name } });
+      if (rest.trim()) error('local.tag.closing', { key: 'local.tag.closing', params: { name } }, start, close);
       return { name, closing: true, self: false, start, end: close, attrs: {}, head, unclosed: false };
     }
     return { name, closing: false, self: /\/\s*$/.test(rest), start, end: close, attrs: known.has(name.toLowerCase()) ? attributes(rest, head) : {}, head, unclosed: false };
@@ -1286,14 +1288,14 @@ export function parseLocalCore(
           } else stop++;
         }
         if (stop >= end) {
-          error('local.math.unclosed', 'Formula is missing its closing delimiter.', i, end, { key: 'local.math.unclosed' });
+          error('local.math.unclosed', { key: 'local.math.unclosed' }, i, end);
           i = end;
           continue;
         }
         const finish = stop + delimiterLength;
         let value = source.slice(i + delimiterLength, stop);
         if (value.length > MAX_DISPLAY_MATH_SOURCE) {
-          error('local.budget.math', `Formula exceeds the ${MAX_DISPLAY_MATH_SOURCE}-character limit.`, i, finish, { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } });
+          error('local.budget.math', { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } }, i, finish);
           value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
         }
         tokens.push({ start: i, end: finish, node: node(display ? 'math' : 'inlineMath', i, finish, { value }) });
@@ -1321,9 +1323,9 @@ export function parseLocalCore(
             if (parent !== undefined || !standalone || skipThemePrefix(0, i) !== i) {
               error('local.version.placement', 'The syntax declaration must be on its own line before the theme and document body.', i, stop);
             } else if (match[1] !== LOCAL_SYNTAX_VERSION) {
-              error('local.version.unsupported', `This reader accepts ${LOCAL_SYNTAX_VERSION}; migrate ${match[1]} or use a compatible reader.`, i, stop, {
+              error('local.version.unsupported', {
                 key: 'local.version.unsupported', params: { declared: match[1], supported: LOCAL_SYNTAX_VERSION },
-              });
+              }, i, stop);
             }
           }
         }
@@ -1331,7 +1333,7 @@ export function parseLocalCore(
       }
       if (!footnoteMode && source.startsWith('{{', i)) {
         const stop = interpolationEnd(i, end);
-        if (stop < 0) { error('local.interpolation', 'Interpolation is missing }}.', i, end, { key: 'local.interpolation.unclosed' }); i += 2; continue; }
+        if (stop < 0) { error('local.interpolation', { key: 'local.interpolation.unclosed' }, i, end); i += 2; continue; }
         tokens.push({ start: i, end: stop, node: node('interpolation', i, stop, { value: source.slice(i + 2, stop - 2).trim() }) }); i = stop; continue;
       }
       if (!footnoteMode && source[i] === '$') {
@@ -1342,10 +1344,10 @@ export function parseLocalCore(
             if (source[stop] === '\\') { stop++; continue; }
             if (source.startsWith(delimiter, stop)) break;
           }
-          if (stop >= end || !source.startsWith(delimiter, stop)) { error('local.math.unclosed', 'Formula is missing its closing delimiter.', i, undefined, { key: 'local.math.unclosed' }); i += delimiter.length; continue; }
+          if (stop >= end || !source.startsWith(delimiter, stop)) { error('local.math.unclosed', { key: 'local.math.unclosed' }, i, undefined); i += delimiter.length; continue; }
           let value = source.slice(i + delimiter.length, stop);
           if (value.length > MAX_DISPLAY_MATH_SOURCE) {
-            error('local.budget.math', `Formula exceeds the ${MAX_DISPLAY_MATH_SOURCE}-character limit.`, i, stop + delimiter.length, { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } });
+            error('local.budget.math', { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } }, i, stop + delimiter.length);
             value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
           }
           const finish = stop + delimiter.length;
@@ -1376,7 +1378,7 @@ export function parseLocalCore(
         if (close < 0) { i += 1; continue; }
         let value = source.slice(i + 1, close);
         if (value.length > MAX_DISPLAY_MATH_SOURCE) {
-          error('local.budget.math', `Formula exceeds the ${MAX_DISPLAY_MATH_SOURCE}-character limit.`, i, close + 1, { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } });
+          error('local.budget.math', { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } }, i, close + 1);
           value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
         }
         const finish = close + 1;
@@ -1429,7 +1431,7 @@ export function parseLocalCore(
             invalidNativeTable = true;
             const key = `html.table.${kind}`;
             const params = { tag: tag ?? 'table', name: name ?? '' };
-            warning('local.html.fallback', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
+            warning('local.html.fallback', { key, params }, from, to);
           },
           attributes: (name: string, from: number, to: number) => {
             const tag = htmlTagAt(from, to, true);
@@ -1439,7 +1441,7 @@ export function parseLocalCore(
               const attribute = selected && !selected.ok ? selected.attr : '';
               const key = `html.table.${['colspan', 'rowspan', 'span', 'scope', 'align'].includes(attribute) ? 'value' : 'attribute'}`;
               const params = { tag: name, name: attribute };
-              warning('local.html.fallback', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
+              warning('local.html.fallback', { key, params }, from, to);
               return {};
             }
             return selected.attrs;
@@ -1456,7 +1458,7 @@ export function parseLocalCore(
           const stop = unknownTagEnd(opening.end, opening.name, end, insideContainer, true)?.end ?? htmlLiteralEnd(opening.end, end, parent);
           const retained = diagnostics.slice(htmlDiagnosticStart).filter(d => d.code.startsWith('local.budget'));
           diagnostics.splice(htmlDiagnosticStart, diagnostics.length - htmlDiagnosticStart, ...retained);
-          warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
+          warning('local.html.fallback', {key: 'local.html.fallback'}, i, stop);
           nativeTable = {node: node('fallback', i, stop, {value: source.slice(i, stop)}), end: stop};
           invalidNativeTable = false;
         }
@@ -1477,7 +1479,7 @@ export function parseLocalCore(
         if (html) {
           if (html.closing) {
             // A stray closing tag is inert source, never a structural error.
-            warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, html.end, {key: 'local.html.fallback'});
+            warning('local.html.fallback', {key: 'local.html.fallback'}, i, html.end);
             tokens.push({ start: i, end: html.end, block: false, node: node('fallback', i, html.end, { value: source.slice(i, html.end) }) });
             i = html.end;
             continue;
@@ -1487,7 +1489,7 @@ export function parseLocalCore(
             const stop = html.self || HTML_VOID_ELEMENTS.has(html.lower)
               ? html.end
               : (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? htmlLiteralEnd(html.end, end, parent, html.lower));
-            warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback.attribute', 'en', {name: selection.attr}), i, stop, {key: 'local.html.fallback.attribute', params: {name: selection.attr}});
+            warning('local.html.fallback', {key: 'local.html.fallback.attribute', params: {name: selection.attr}}, i, stop);
             tokens.push({ start: i, end: stop, block: false, node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
             i = stop;
             continue;
@@ -1538,7 +1540,7 @@ export function parseLocalCore(
               i = stop;
               continue;
             }
-            warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
+            warning('local.html.fallback', {key: 'local.html.fallback'}, i, stop);
             tokens.push({ start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
             i = stop;
             continue;
@@ -1563,13 +1565,13 @@ export function parseLocalCore(
             themeHeaders += 1;
             if (themeHeaders === 1) themeRange = { start: metadata.start, end: metadata.end };
             if (metadata.unclosed) {
-              warning('local.theme.malformed', 'Theme declaration is missing >.', i, metadata.end, { key: 'local.theme.malformed.unclosed' });
+              warning('local.theme.malformed', { key: 'local.theme.malformed.unclosed' }, i, metadata.end);
             } else if (metadata.closing) {
-              warning('local.theme.malformed', 'A theme declaration cannot be a closing tag.', i, metadata.end, { key: 'local.theme.malformed.closing' });
+              warning('local.theme.malformed', { key: 'local.theme.malformed.closing' }, i, metadata.end);
             } else if (!standaloneTheme(metadata)) {
-              warning('local.theme.malformed', 'A theme declaration must be on its own line before the document content.', i, metadata.end, { key: 'local.theme.malformed.placement' });
+              warning('local.theme.malformed', { key: 'local.theme.malformed.placement' }, i, metadata.end);
             } else if (themeHeaders > 1) {
-              warning('local.theme.duplicate', 'Only one theme declaration is allowed before the document content; this declaration is ignored.', i, metadata.end, { key: 'local.theme.duplicate.declaration' });
+              warning('local.theme.duplicate', { key: 'local.theme.duplicate.declaration' }, i, metadata.end);
             } else {
               const parsedTheme = themeNameFrom(metadata.rest);
               if (parsedTheme.code) warning(parsedTheme.code, parsedTheme.message ?? 'Invalid theme declaration.', i, metadata.end, {
@@ -1606,7 +1608,7 @@ export function parseLocalCore(
             ? scanned.end : rawFallback ? end : (paired?.end ?? htmlLiteralEnd(scanned.end, end, parent, scanned.name));
           if (rawFallback) recoveries.push({ code: 'local.html.literal', causeRange: { start: i, end: scanned.end },
             affectedRange: { start: i, end: stop }, action: 'literal-fallback', boundary: stop === source.length ? 'eof' : 'fragment' });
-          else warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
+          else warning('local.html.fallback', {key: 'local.html.fallback'}, i, stop);
           tokens.push({start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, {value: source.slice(i, stop)})});
           i = stop;
           continue;
@@ -1626,21 +1628,15 @@ export function parseLocalCore(
             }
             // A line-leading unknown tag without a reliable same-name boundary
             // stays fatal.
-            error('local.tag.unclosed', `<${scanned.name}> is missing </${scanned.name}>.`, i, scanned.end, { key: 'local.tag.unclosed.pair', params: { name: scanned.name } });
+            error('local.tag.unclosed', { key: 'local.tag.unclosed.pair', params: { name: scanned.name } }, i, scanned.end);
             i = scanned.end;
             continue;
           }
           const suggestion = closestName(scanned.name, suggestionNames);
-          warning(
-            'local.component.unknown',
-            `Unknown component <${scanned.name}>. ${suggestion ? `Did you mean <${suggestion}>?` : 'This mode only accepts local interaction components.'}`,
-            i,
-            stop,
-            {
+          warning('local.component.unknown', {
               key: suggestion ? 'local.component.unknown.suggestion' : 'local.component.unknown',
               params: suggestion ? { name: scanned.name, suggestion } : { name: scanned.name },
-            },
-          );
+            }, i, stop);
           tokens.push({
             start: i,
             end: stop,
@@ -1658,7 +1654,7 @@ export function parseLocalCore(
               if (!strict && HTML_RAW_TEXT_ELEMENTS.has(tag.name.toLowerCase())) recoveries.push({ code: 'local.html.literal',
                 causeRange: { start: i, end: tag.head }, affectedRange: { start: i, end: stop },
                 action: 'literal-fallback', boundary: stop === source.length ? 'eof' : 'fragment' });
-              else warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
+              else warning('local.html.fallback', {key: 'local.html.fallback'}, i, stop);
               tokens.push({start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, {value: source.slice(i, stop)})});
               i = stop;
               continue;
@@ -1669,7 +1665,7 @@ export function parseLocalCore(
               i = tag.head;
               continue;
             }
-            error('local.tag.unclosed', `Tag ${tag.name} is missing >.`, i, end, { key: 'local.tag.unclosed.open', params: { name: tag.name } });
+            error('local.tag.unclosed', { key: 'local.tag.unclosed.open', params: { name: tag.name } }, i, end);
             i = end;
             continue;
           }
@@ -1680,25 +1676,19 @@ export function parseLocalCore(
             continue;
           }
           if (!TAG_NAME.test(tag.name)) {
-            error('local.tag.name', `Tag name ${tag.name} must use lowercase kebab-case.`, i, i + 1 + tag.name.length, { key: 'local.tag.name', params: { name: tag.name } });
+            error('local.tag.name', { key: 'local.tag.name', params: { name: tag.name } }, i, i + 1 + tag.name.length);
           }
           if (tag.closing) {
             if (tag.name === parent) return { tokens, end: tag.end, contentEnd: i, indent: commonIndent(start, i) };
             if (externalNames.has(tag.name) && schemaByName.get(tag.name)?.form === 'leaf') {
-              error(
-                'local.host.structure',
-                `Host component <${tag.name}> is a leaf and cannot have a closing tag.`,
-                i,
-                tag.end,
-                { key: 'local.host.structure.leaf', params: { component: tag.name } },
-              );
+              error('local.host.structure', { key: 'local.host.structure.leaf', params: { component: tag.name } }, i, tag.end);
               i = tag.end;
               continue;
             }
-            error('local.tag.mismatch', `Closing tag </${tag.name}> does not match ${parent ? `<${parent}>` : 'the document root'}.`, i, tag.end, {
+            error('local.tag.mismatch', {
               key: parent ? 'local.tag.mismatch.parent' : 'local.tag.mismatch.root',
               params: parent ? { name: tag.name, parent } : { name: tag.name },
-            }); i = tag.end; continue;
+            }, i, tag.end); i = tag.end; continue;
           }
           // Registry forms decide tag shape for builtins, external manifests and
           // legacy host adapters alike.
@@ -1708,7 +1698,7 @@ export function parseLocalCore(
           const paired = schema !== undefined ? schema.form !== 'leaf' : true;
           const inline = schema?.form === 'inline';
           const empty = !paired || tag.self;
-          if (tag.self && paired) error('local.tag.shape', `<${tag.name}> requires a closing tag.`, i, tag.end, { key: 'local.tag.shape', params: { name: tag.name } });
+          if (tag.self && paired) error('local.tag.shape', { key: 'local.tag.shape', params: { name: tag.name } }, i, tag.end);
           if (empty) { tokens.push({ start: i, end: tag.end, ...(isHost ? { block: beginsLine(i) } : {}), node: node(isHost ? 'hostComponent' : 'component', i, tag.end, { name: tag.name, attrs: tag.attrs, children: [], ...(isHost ? { hostForm } : {}) }) }); i = tag.end; continue; }
           const nested = region(tag.end, end, tag.name, i, tag.end, depth + 1);
           const children = convert(tag.end, nested.contentEnd, nested.tokens, inline ? 0 : nested.indent);
@@ -1718,7 +1708,7 @@ export function parseLocalCore(
       }
       i++;
     }
-    if (parent) error('local.tag.unclosed', `<${parent}> is missing </${parent}>.`, openStart, Math.min(source.length, Math.max(openEnd, openStart + 1)), { key: 'local.tag.unclosed.pair', params: { name: parent } });
+    if (parent) error('local.tag.unclosed', { key: 'local.tag.unclosed.pair', params: { name: parent } }, openStart, Math.min(source.length, Math.max(openEnd, openStart + 1)));
     return { tokens, end, contentEnd: end, indent: parent ? commonIndent(start, end) : 0 };
   }
   function convert(start: number, end: number, tokens: Token[], indent = 0, options: ConvertOptions = {}): LocalNode[] {
@@ -1918,7 +1908,7 @@ export function parseLocalCore(
             ? [node('text', from, to, { value: raw.value })]
             : [];
         }
-        error('local.html', 'Raw HTML is not part of the local interaction syntax.', from, to, { key: 'local.html' });
+        error('local.html', { key: 'local.html' }, from, to);
         return [];
       }
       const result = node(raw.type, from, to);
@@ -2071,10 +2061,10 @@ export function parseLocalCore(
       finishWork();
       return { nodes: [], diagnostics, work, ...(recoveries.length ? { recoveries } : {}) };
     }
-    error('local.parse', `Cannot parse document: ${cause instanceof Error ? cause.message : String(cause)}`, 0, undefined, {
+    error('local.parse', {
       key: 'local.parse.document',
       params: { detail: cause instanceof Error ? cause.message : String(cause) },
-    });
+    }, 0, undefined);
     return { nodes: [], diagnostics, ...(recoveries.length ? { recoveries } : {}) };
   }
 }
