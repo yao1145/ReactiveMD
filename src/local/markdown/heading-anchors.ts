@@ -2,7 +2,6 @@ import { compileExpression, type LocalExpression } from '../evaluation/expressio
 import { evaluateComputations, orderComputations } from '../evaluation/computations';
 import type { LocalDocument, LocalNode, LocalValue } from '../contracts/types';
 import {walkLocalNodes} from '../source/node-walk';
-import { DEFAULT_COMPONENT_DEFINITIONS } from '../../presets/default-components';
 import type { LocalComponentDefinition } from '../../sdk/types';
 
 function headingText(nodes: LocalNode[] | undefined, initialState: Record<string, LocalValue>): string {
@@ -35,10 +34,18 @@ function headingSlug(text: string): string {
   return text.trim().toLowerCase().replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '').replace(/\s+/g, '-') || 'section';
 }
 
-/** Public anchor rules used by both navigation and its memo projection. */
+/**
+ * Public anchor rules used by both navigation and its memo projection.
+ *
+ * The caller supplies the component semantics installed for this document
+ * (compiled documents carry their own `componentDefinitions`). This module
+ * never fills in a default preset: a document compiled without components
+ * contributes no explicit anchor rules.
+ */
 export function anchorRuleAttributes(document: LocalDocument, installed?: readonly LocalComponentDefinition[]): ReadonlyMap<string, string> {
   const attributes = new Map<string, string>();
-  const definitions = installed ?? (Array.isArray(document.componentDefinitions) ? document.componentDefinitions : DEFAULT_COMPONENT_DEFINITIONS);
+  const definitions = installed
+    ?? (Array.isArray(document.componentDefinitions) ? document.componentDefinitions : []);
   for (const definition of definitions.slice(0, 192)) {
     if (!definition || typeof definition.name !== 'string' || !Array.isArray(definition.rules)) continue;
     const rule = definition.rules.find((rule: NonNullable<LocalComponentDefinition['rules']>[number]) => rule?.kind === 'anchor');

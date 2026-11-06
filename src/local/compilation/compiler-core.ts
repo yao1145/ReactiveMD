@@ -657,7 +657,7 @@ export function compileLocalCore(
     kernel: kernelMetadata,
     ...(usedDefinitions.length ? { componentDefinitions: Object.freeze(usedDefinitions) } : {}),
   };
-  attachNodeDependencies(document);
+  attachNodeDependencies(document, optionCheck.registry);
   attachTableShapes(document, state.tableShapes);
   mark?.('publicationMs');
   return withRecoveries({ ok: true, document, diagnostics }, recoveries);

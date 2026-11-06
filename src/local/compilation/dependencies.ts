@@ -3,8 +3,8 @@ import { localKey } from '../contracts/types';
 import { compileExpression, templateDependencies } from '../evaluation/expression';
 import { compileLatex } from '../evaluation/math';
 import { kernelDocumentMetadata, kernelRules, type KernelComponentSchema, type KernelRule } from './component-kernel';
-import { DEFAULT_COMPONENT_DEFINITIONS } from '../../presets/default-components';
 import {walkLocalNodes} from '../source/node-walk';
+import type { LocalComponentDefinition } from '../../sdk/types';
 
 /**
  * Binding keys a node subtree reads. `null` marks nodes whose reads cannot be
@@ -20,12 +20,16 @@ export type DependencyIndex = ReadonlyMap<string, NodeDependencies>;
 export const EMPTY_DEPENDENCY_INDEX: DependencyIndex = new Map();
 
 /**
- * Dependency analysis reads only public document metadata. Hand-built
- * documents without metadata resolve the default manifest by name; there is no
- * parallel built-in name table here.
+ * Dependency analysis reads only public document metadata. Compiled documents
+ * carry kernel metadata; hand-built documents resolve their component rules
+ * from the semantics supplied by the caller (or the ones recorded on the
+ * document), never from an implicit default preset.
  */
 
-const dependencyIndexCache = new WeakMap<LocalDocument, DependencyIndex>();
+const dependencyIndexCache = new WeakMap<LocalDocument, {
+  readonly definitions: readonly LocalComponentDefinition[] | undefined;
+  readonly index: DependencyIndex;
+}>();
 
 const subtreeResetCache = new WeakMap<LocalRuntime, {
   revision: number;
@@ -64,16 +68,22 @@ function addAll(target: Set<string>, values: readonly string[]): void {
  * descendants. `null` marks a subtree whose reads cannot be decided statically
  * (own analysis failure or any undecidable descendant).
  */
-export function collectNodeDependencies(document: LocalDocument): DependencyIndex {
+export function collectNodeDependencies(
+  document: LocalDocument,
+  installed?: readonly LocalComponentDefinition[],
+): DependencyIndex {
   const cached = dependencyIndexCache.get(document);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined && cached.definitions === installed) return cached.index;
 
   const persisted = document.dependencies;
   if (persisted !== undefined) {
     const stored = new Map<string, NodeDependencies>(Object.entries(persisted));
-    dependencyIndexCache.set(document, stored);
+    dependencyIndexCache.set(document, { definitions: installed, index: stored });
     return stored;
   }
+
+  const definitions = installed
+    ?? (Array.isArray(document.componentDefinitions) ? document.componentDefinitions : []);
 
   const index = new Map<string, NodeDependencies>();
   const kernelMetadata = kernelDocumentMetadata(document);
@@ -161,9 +171,9 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
             addSlots(dependencies, node);
           }
         } else {
-          // Hand-built document without kernel metadata: resolve the default
-          // manifest and read its public dependency capabilities.
-          const definition = node.name ? DEFAULT_COMPONENT_DEFINITIONS.find(definition => definition.name === node.name) : undefined;
+          // Hand-built document without kernel metadata: resolve the rule set
+          // from the semantics this compilation was given.
+          const definition = node.name ? definitions.find(definition => definition.name === node.name) : undefined;
           const rules = definition ? kernelRules(definition as unknown as KernelComponentSchema) : [];
           const self = rules.find((rule): rule is Extract<KernelRule, { kind: 'self-binding-read' }> => rule.kind === 'self-binding-read');
           const inlineMath = rules.some((rule) => rule.kind === 'inline-math-reads');
@@ -202,7 +212,7 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
     index.set(node.id, entry);
     values.set(node,entry);
   }
-  dependencyIndexCache.set(document, index);
+  dependencyIndexCache.set(document, { definitions: installed, index });
   return index;
 }
 
@@ -211,9 +221,12 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
  * the analysis as data. Documents built by hand keep working: the renderer
  * falls back to running the same analysis on first use.
  */
-export function attachNodeDependencies(document: LocalDocument): void {
+export function attachNodeDependencies(
+  document: LocalDocument,
+  installed?: readonly LocalComponentDefinition[],
+): void {
   if (document.dependencies !== undefined) return;
-  const index = collectNodeDependencies(document);
+  const index = collectNodeDependencies(document, installed);
   const record: Record<string, NodeDependencies> = Object.create(null);
   for (const [id, dependencies] of index) {
     record[id] = dependencies === null ? null : Object.freeze([...dependencies]);

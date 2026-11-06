@@ -232,6 +232,34 @@ for (const [name, entry] of Object.entries(declarationEntries)) {
   declarationGraph[name] = (await inspectDeclarationGraph(entry)).map(relative);
 }
 
+/**
+ * The minimal entry installs no preset. Its runtime and type graph must not
+ * reach the default component manifests or authoring copy; the standard entry
+ * keeps both, proving the markers are meaningful.
+ */
+const minimalPresetMarkers = [
+  ['reactive-md/${', 'default component manifest ids'],
+  ['Input controls', 'default authoring copy'],
+];
+for (const [marker, label] of minimalPresetMarkers) {
+  assert.ok(
+    !runtimeSources.compiler.includes(marker),
+    `Minimal compiler runtime graph must not include ${label} (found "${marker}")`,
+  );
+}
+assert.ok(
+  runtimeSources.standard.includes('reactive-md/${') && runtimeSources.standard.includes('Input controls'),
+  'The standard compiler must still carry the default preset and its authoring copy',
+);
+const presetDeclarationFiles = declarationGraph.compiler.filter(
+  (file) => /(?:^|\/)presets\//.test(file) || /default-(?:components|semantics|authoring)\.d\.ts$/.test(file),
+);
+assert.deepEqual(
+  presetDeclarationFiles,
+  [],
+  `Minimal compiler declaration graph must not include default presets: ${presetDeclarationFiles.join(', ')}`,
+);
+
 const browser = await verifyBrowserConsumption();
 
 async function expectBlocked(specifier) {

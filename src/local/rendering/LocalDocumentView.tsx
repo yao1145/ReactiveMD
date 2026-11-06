@@ -671,6 +671,7 @@ function useProjectedMemo<P, T>(
 
 interface DependencyIndexCache {
   document: LocalDocument | null;
+  installed: readonly LocalComponentDefinition[] | null;
   index: DependencyIndex;
   lookup: DependencyLookup;
 }
@@ -680,26 +681,31 @@ interface DependencyIndexCache {
  * from `env` identity on purpose: recompiling one block changes node ids in
  * the index without changing what any other block reads.
  */
-function useDependencyIndex(document: LocalDocument): DependencyLookup {
+function useDependencyIndex(
+  document: LocalDocument,
+  installed: readonly LocalComponentDefinition[],
+): DependencyLookup {
   const cache = useRef<DependencyIndexCache | null>(null);
   let entry = cache.current;
   if (!entry) {
     entry = {
       document: null,
+      installed: null,
       index: EMPTY_DEPENDENCY_INDEX,
       lookup: { get: (nodeId) => cache.current?.index.get(nodeId) },
     };
     cache.current = entry;
   }
-  if (entry.document !== document) {
+  if (entry.document !== document || entry.installed !== installed) {
     let index: DependencyIndex;
     try {
-      index = collectNodeDependencies(document);
+      index = collectNodeDependencies(document, installed);
     } catch {
       index = EMPTY_DEPENDENCY_INDEX;
     }
     entry.index = index;
     entry.document = document;
+    entry.installed = installed;
   }
   return entry.lookup;
 }
@@ -2085,7 +2091,7 @@ function LocalDocumentViewLocal({
   );
   // A failing collector degrades to the wildcard index, so the view stays
   // correct (every block re-renders) instead of losing content.
-  const dependencyIndex = useDependencyIndex(document);
+  const dependencyIndex = useDependencyIndex(document, registry);
   const reportRef = useRef(onDiagnostics);
   reportRef.current = onDiagnostics;
   const rootRef = useRef<HTMLElement>(null);
