@@ -1,6 +1,5 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
-import type { Plugin } from 'unified';
 import type { Diagnostic } from '../contracts/types';
 import type { LocalNode, LocalVersionDeclaration, SourceRange, LocalRecovery } from '../contracts/types';
 import type { LocalOptionCheck } from '../configuration/options-core';
@@ -158,7 +157,7 @@ function markdownFor(capabilities?: LocalParserCapabilities): any {
   let processor = markdownCache.get(capabilities as object);
   if (processor === undefined) {
     processor = unified().use(remarkParse);
-    for (const plugin of plugins) processor.use(plugin as Plugin);
+    for (const plugin of plugins) processor.use(plugin as any);
     markdownCache.set(capabilities as object, processor);
   }
   return processor;

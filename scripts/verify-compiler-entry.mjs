@@ -328,6 +328,7 @@ assert.ok(Object.isFrozen(recovered.program));
 assert.equal(standardEntry.createStandardCompiler().compile(damagedSource).status, 'failed');
 
 const residual = residualDependencies(Object.values(runtimeSources));
+const minimalResidual = residualDependencies([runtimeSources.compiler]);
 const report = {
   status: 'passed',
   createdAt: new Date().toISOString(),
@@ -346,11 +347,11 @@ const report = {
   residualM1Dependencies: residual,
   residualByEntry: Object.fromEntries(Object.entries(runtimeSources).map(([name, source]) => [name, residualDependencies([source])])),
   m4Todos: [
-    'Remove M1-residual Lezer/KaTeX/parse5/GFM dependencies from the single-pass compiler bundle.',
-    'Split the default preset and remaining SDK/theme protocol declarations from the compiler type graph.',
+    'CommonMark (unified/remark-parse) stays in the core body parser by design.',
+    'GFM syntax, native HTML, Lezer planning, KaTeX display and plot sampling stay in the standard assembly.',
     'Verify the final packed tarball in a clean consumer and repeat the declaration graph check.',
   ],
 };
 await mkdir(artifacts, { recursive: true });
 await writeFile(path.join(artifacts, 'compiler-entry-report.json'), JSON.stringify(report, null, 2));
-console.log(`PASS compiler entry packaging and isolation (browser bundle ${browser.bytes} bytes, M1 residual: ${residual.join(', ') || 'none'})`);
+console.log(`PASS compiler entry packaging and isolation (browser bundle ${browser.bytes} bytes, minimal residual: ${minimalResidual.join(', ') || 'none'}, all entries residual: ${residual.join(', ') || 'none'})`);

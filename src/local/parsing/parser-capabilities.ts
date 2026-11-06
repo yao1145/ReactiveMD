@@ -1,4 +1,3 @@
-import type { Plugin } from 'unified';
 import type { MarkdownStructure } from '../markdown/markdown-blocks';
 import type { LocalNode, LocalRecovery } from '../contracts/types';
 
@@ -40,9 +39,12 @@ export interface LocalParserHtmlCapability {
   readonly recoverFragment: LocalHtmlFragmentRecovery;
 }
 
+/** A remark plugin attached to the core CommonMark processor. */
+export type LocalMarkdownPlugin = (...args: any[]) => unknown;
+
 export interface LocalParserCapabilities {
   /** remark plugins beyond CommonMark; the standard assembly adds GFM. */
-  readonly markdownPlugins?: readonly Plugin[];
+  readonly markdownPlugins?: readonly LocalMarkdownPlugin[];
   readonly html?: LocalParserHtmlCapability;
   /** Advisory top-level block planning; omitted assemblies parse one block. */
   readonly markdownStructure?: (source: string) => MarkdownStructure;
