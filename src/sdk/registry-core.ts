@@ -1,4 +1,5 @@
 import type { KernelBindingSchema, KernelComponentSchema, KernelPropSchema } from '../local/compilation/component-kernel';
+import { normalizeComponent, type NormalizedComponent } from '../local/compilation/component-kernel';
 import type { LocalComponentSchema, LocalBindingSlotSchema, LocalPropSchema } from '../local/configuration/schema-core';
 import { localStructureFromChildren } from './manifest';
 import type {
@@ -135,4 +136,32 @@ export function componentSchemaFromDefinition(definition: LocalComponentDefiniti
 /** Cached alias used by callers that already hold a manifest. */
 export function localComponentSchema(definition: LocalComponentDefinition): LocalComponentSchema {
   return componentSchemaFromDefinition(definition);
+}
+
+const normalizedCache = new WeakMap<object, NormalizedComponent>();
+
+/**
+ * Normalize a public manifest exactly once for compilation.
+ *
+ * Unlike `componentSchemaFromDefinition`, which projects the legacy public
+ * schema view, this returns the single internal model: structure derived once,
+ * bindings normalized, and no compatibility aliases left for later stages to
+ * reinterpret.
+ */
+export function normalizedComponentFromDefinition(definition: LocalComponentDefinition): NormalizedComponent {
+  const cached = normalizedCache.get(definition);
+  if (cached !== undefined) return cached;
+  const structure = definition.structure ?? localStructureFromChildren(definition.children);
+  const normalized = normalizeComponent(
+    { name: definition.name, form: definition.form, props: definition.props },
+    {
+      ...(structure ? { structure } : {}),
+      ...(definition.rules ? { rules: definition.rules } : {}),
+      ...(definition.bindings ? { bindings: definition.bindings } : {}),
+      ...(definition.slotRelations ? { slotRelations: definition.slotRelations } : {}),
+      ...(definition.legacyHost ? { legacyHost: true } : {}),
+    },
+  );
+  normalizedCache.set(definition, normalized);
+  return normalized;
 }

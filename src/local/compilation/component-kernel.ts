@@ -292,6 +292,26 @@ export interface KernelComponentSchema {
   legacyHost?: boolean;
 }
 
+/**
+ * The single component model the compiler and runtime consume.
+ *
+ * Every field is explicit: bindings are normalized (`family`, `bind`,
+ * `initial`, `initialRule`), structure and rules are always present, and
+ * attributes owned by bindings are synthesized. Inputs are converted once at
+ * the configuration entry, so later stages never have to check whether a new
+ * field exists before falling back to a legacy one.
+ */
+export interface NormalizedComponent {
+  readonly name: string;
+  readonly form: KernelComponentForm;
+  readonly props: Readonly<Record<string, KernelPropSchema>>;
+  readonly bindings: Readonly<Record<string, KernelBindingSchema>>;
+  readonly structure: KernelStructure;
+  readonly rules: readonly KernelRule[];
+  readonly slotRelations: readonly KernelSlotRelation[];
+  readonly legacyHost: boolean;
+}
+
 /* ------------------------------------------------------------------ */
 /* Schema accessors                                                    */
 /* ------------------------------------------------------------------ */
@@ -337,45 +357,30 @@ function normalizeBinding(
   };
 }
 
-/** The scalar `value` binding, from the record or the compatibility view. */
-export function kernelValueBinding(schema: KernelComponentSchema): KernelBindingSchema | undefined {
-  const fromRecord = schema.bindings?.value;
-  const fallbackRule = schema.initialRule as KernelInitialRule | undefined;
-  return normalizeBinding(fromRecord ?? schema.binding, 'value', fallbackRule);
+/** The scalar `value` binding of a normalized component. */
+export function kernelValueBinding(schema: NormalizedComponent): KernelBindingSchema | undefined {
+  return schema.bindings.value;
 }
 
 /** Named slot bindings in declaration order, excluding `value`. */
 export function kernelSlotBindings(
-  schema: KernelComponentSchema,
+  schema: NormalizedComponent,
 ): readonly (KernelBindingSchema & { slot: string })[] {
-  if (schema.bindings) {
-    const slots: (KernelBindingSchema & { slot: string })[] = [];
-    for (const [name, binding] of Object.entries(schema.bindings)) {
-      if (name === 'value') continue;
-      const normalized = normalizeBinding(binding, name);
-      if (normalized) slots.push({ ...normalized, slot: name });
-    }
-    return slots;
+  const slots: (KernelBindingSchema & { slot: string })[] = [];
+  for (const [name, binding] of Object.entries(schema.bindings)) {
+    if (name === 'value') continue;
+    slots.push({ ...binding, slot: name });
   }
-  return (schema.slots ?? []).map((slot) => ({
-    kind: slot.kind,
-    family: slot.family,
-    bind: slot.bind,
-    initial: slot.initial,
-    initialRule: (slot.initialRule as KernelInitialRule | undefined) ?? 'nearest-zero',
-    exclusive: slot.exclusive,
-    slot: slot.name,
-  }));
+  return slots;
 }
 
 /** Declared order relations between slots (e.g. range start <= end). */
-export function kernelSlotRelations(schema: KernelComponentSchema): readonly KernelSlotRelation[] {
-  if (schema.slotRelations) return schema.slotRelations;
-  return [];
+export function kernelSlotRelations(schema: NormalizedComponent): readonly KernelSlotRelation[] {
+  return schema.slotRelations;
 }
 
-/** Derived structure view; legacy schemas lower through their old fields. */
-export function kernelStructure(schema: KernelComponentSchema): KernelStructure {
+/** Derived structure view for legacy inputs, used only during normalization. */
+function legacyKernelStructure(schema: KernelComponentSchema): KernelStructure {
   if (schema.structure) return schema.structure;
   const rule = (schema.childRule as KernelChildRule | undefined)
     ?? (schema.form === 'leaf' ? 'none' : schema.form === 'inline' ? 'inline' : 'any');
@@ -384,6 +389,11 @@ export function kernelStructure(schema: KernelComponentSchema): KernelStructure 
     label: schema.label ?? 'none',
     ...(schema.parent ? { parents: schema.parent } : {}),
   };
+}
+
+/** Structure of a normalized component. */
+export function kernelStructure(schema: NormalizedComponent): KernelStructure {
+  return schema.structure;
 }
 
 export function kernelRules(schema: KernelComponentSchema): readonly KernelRule[] {
@@ -479,6 +489,70 @@ export function kernelSchemaFor(
       : {}),
     ...(definition?.legacyHost === true || schema.legacyHost === true ? { legacyHost: true } : {}),
   };
+}
+
+/**
+ * Normalize one component at the configuration entry.
+ *
+ * This is the only place that reads legacy compatibility fields (`binding`,
+ * `slots`, `childRule`, `label`, `parent`, `initialRule`) and the only place
+ * that fills defaults for `structure`, `rules` and `bindings`. Compilers and
+ * runtimes receive the normalized model and read fields directly.
+ */
+export function normalizeComponent(
+  schema: KernelComponentSchema,
+  definition?: KernelDefinitionFields,
+): NormalizedComponent {
+  const merged = kernelSchemaFor(schema, definition);
+  const bindings: Record<string, KernelBindingSchema> = {};
+  const inputBindings = definition?.bindings ?? schema.bindings;
+  if (inputBindings) {
+    for (const [name, binding] of Object.entries(inputBindings)) {
+      const normalized = normalizeBinding(
+        binding,
+        name,
+        name === 'value' ? (schema.initialRule as KernelInitialRule | undefined) : undefined,
+      );
+      if (normalized) bindings[name] = normalized;
+    }
+  } else if (schema.binding) {
+    const normalized = normalizeBinding(schema.binding, 'value', schema.initialRule as KernelInitialRule | undefined);
+    if (normalized) bindings.value = normalized;
+  }
+  for (const slot of schema.slots ?? []) {
+    if (bindings[slot.name] !== undefined) continue;
+    const normalized = normalizeBinding({
+      kind: slot.kind,
+      family: slot.family,
+      bind: slot.bind,
+      initial: slot.initial,
+      ...(slot.exclusive !== undefined ? { exclusive: slot.exclusive } : {}),
+      ...(slot.initialRule !== undefined ? { initialRule: slot.initialRule as KernelInitialRule } : {}),
+    } as KernelBindingSchema, slot.name);
+    if (normalized) bindings[slot.name] = normalized;
+  }
+  // Public manifests spell allowed literals as `enum`; the kernel uses
+  // `values`. Normalize once here instead of making every reader check both.
+  const props: Record<string, KernelPropSchema> = {};
+  for (const [name, prop] of Object.entries(merged.props)) {
+    const values = prop.values ?? prop.enum;
+    if (values === undefined) {
+      props[name] = prop;
+      continue;
+    }
+    const { enum: _enum, ...rest } = prop;
+    props[name] = { ...rest, values };
+  }
+  return Object.freeze({
+    name: merged.name,
+    form: merged.form,
+    props: Object.freeze(props),
+    bindings: Object.freeze(bindings),
+    structure: legacyKernelStructure(merged),
+    rules: merged.rules ?? [],
+    slotRelations: merged.slotRelations ?? [],
+    legacyHost: merged.legacyHost === true,
+  });
 }
 
 /* ------------------------------------------------------------------ */

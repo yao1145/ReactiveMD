@@ -12,7 +12,8 @@ import { LOCAL_HTML_NAMES } from '../html/html-names';
 import { MAX_LOCAL_SDK_PATTERN_LENGTH } from '../../sdk/manifest';
 import { isSafeLocalPattern } from '../../sdk/pattern';
 import { localComponentHostBinding } from '../../sdk/props';
-import { componentSchemaFromDefinition } from '../../sdk/registry-core';
+import { normalizedComponentFromDefinition } from '../../sdk/registry-core';
+import { normalizeComponent, type NormalizedComponent } from '../compilation/component-kernel';
 import { DEFAULT_COMPILER_PRESET, compilerConfigKey, readCompilerConfig } from '../../sdk/compiler-config';
 import type { LocalComponentDefinition, LocalComponentProp, LocalConfig } from '../../sdk/types';
 import type {
@@ -73,7 +74,7 @@ export type LocalOptionCheck =
       /** Unified definition lookup (defaults + external manifests). */
       componentByName: ReadonlyMap<string, LocalComponentDefinition>;
       /** Unified schema lookup (defaults + external + kernel grammar declarations). */
-      schemaByName: ReadonlyMap<string, LocalComponentSchema>;
+      schemaByName: ReadonlyMap<string, NormalizedComponent>;
       /** Names contributed by the assembled defaults. */
       defaultComponentNames: ReadonlySet<string>;
       /** Names contributed by external manifests. */
@@ -505,24 +506,24 @@ function lowerConfigComponents(config: LocalConfig): LoweredConfigComponents {
 /** Build the unified definition/schema lookups from a resolved registry. */
 function unifiedRegistry(
   registry: readonly LocalComponentDefinition[],
-  schemas: ReadonlyMap<string, LocalComponentSchema>,
+  schemas: ReadonlyMap<string, NormalizedComponent>,
 ): {
   componentByName: ReadonlyMap<string, LocalComponentDefinition>;
-  schemaByName: ReadonlyMap<string, LocalComponentSchema>;
+  schemaByName: ReadonlyMap<string, NormalizedComponent>;
 } {
   const componentByName = new Map<string, LocalComponentDefinition>();
   for (const definition of registry) componentByName.set(definition.name, definition);
-  const schemaByName = new Map<string, LocalComponentSchema>();
+  const schemaByName = new Map<string, NormalizedComponent>();
   for (const schema of schemas.values()) schemaByName.set(schema.name, schema);
   for (const schema of LOCAL_KERNEL_DECLARATIONS) {
-    if (!schemaByName.has(schema.name)) schemaByName.set(schema.name, schema);
+    if (!schemaByName.has(schema.name)) schemaByName.set(schema.name, normalizeComponent(schema));
   }
   return { componentByName, schemaByName };
 }
 
-function baseSchemas(registry: readonly LocalComponentDefinition[]): Map<string, LocalComponentSchema> {
-  const map = new Map<string, LocalComponentSchema>();
-  for (const definition of registry) map.set(definition.name, componentSchemaFromDefinition(definition));
+function baseModels(registry: readonly LocalComponentDefinition[]): Map<string, NormalizedComponent> {
+  const map = new Map<string, NormalizedComponent>();
+  for (const definition of registry) map.set(definition.name, normalizedComponentFromDefinition(definition));
   return map;
 }
 
@@ -640,7 +641,7 @@ export function readOptionCheck(
   let hostByName: ReadonlyMap<string, LocalHostComponentSchema>;
   let sdkByName: ReadonlyMap<string, LocalComponentDefinition>;
   let registry: readonly LocalComponentDefinition[];
-  let schemaByName: ReadonlyMap<string, LocalComponentSchema>;
+  let schemaByName: ReadonlyMap<string, NormalizedComponent>;
   let componentByName: ReadonlyMap<string, LocalComponentDefinition>;
   let externalComponentNames: ReadonlySet<string>;
   let legacyHostNames: ReadonlySet<string>;
@@ -661,7 +662,7 @@ export function readOptionCheck(
     hostByName = lowered.hostByName;
     sdkByName = lowered.sdkByName;
     registry = config.registry;
-    const unified = unifiedRegistry(registry, baseSchemas(registry));
+    const unified = unifiedRegistry(registry, baseModels(registry));
     schemaByName = unified.schemaByName;
     componentByName = unified.componentByName;
     externalComponentNames = new Set(config.components.map((definition) => definition.name));
@@ -673,9 +674,11 @@ export function readOptionCheck(
     hostByName = hosts.hostByName;
     sdkByName = new Map();
     registry = defaults;
-    const schemas = baseSchemas(defaults);
+    const schemas = baseModels(defaults);
     for (const [name, schema] of hosts.hostByName) {
-      schemas.set(name, Object.freeze({ ...(schema as unknown as LocalComponentSchema), legacyHost: true }));
+      schemas.set(name, normalizeComponent(
+        { ...(schema as unknown as LocalComponentSchema), legacyHost: true },
+      ));
     }
     const unified = unifiedRegistry(defaults, schemas);
     schemaByName = unified.schemaByName;
@@ -687,7 +690,7 @@ export function readOptionCheck(
     hostByName = new Map();
     sdkByName = new Map();
     registry = defaults;
-    const unified = unifiedRegistry(defaults, baseSchemas(defaults));
+    const unified = unifiedRegistry(defaults, baseModels(defaults));
     schemaByName = unified.schemaByName;
     componentByName = unified.componentByName;
     externalComponentNames = new Set();

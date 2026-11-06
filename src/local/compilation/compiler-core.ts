@@ -55,7 +55,6 @@ import {
   kernelRules,
   kernelRulesOf,
   kernelSameNumericBound,
-  kernelSchemaFor,
   kernelSlotBindings,
   kernelSlotRelations,
   kernelStructure,
@@ -65,14 +64,13 @@ import {
   type KernelAttrMap,
   type KernelBindingSchema,
   type KernelChildRule,
-  type KernelComponentSchema,
-  type KernelDefinitionFields,
   type KernelDiagnosticIssue,
   type KernelNumericConstraints,
   type KernelProjectionKind,
   type KernelPropSchema,
   type KernelRule,
   type KernelStructure,
+  type NormalizedComponent,
   type KernelValueRule,
 } from './component-kernel';
 import { parseValidationFields } from '../evaluation/validation';
@@ -287,28 +285,18 @@ function withRecoveries(
 
 /** Fields the unified options/registry layer exposes in phase two. */
 interface UnifiedRegistryCheck {
-  schemaByName?: ReadonlyMap<string, KernelComponentSchema>;
+  schemaByName?: ReadonlyMap<string, NormalizedComponent>;
   componentByName?: ReadonlyMap<string, LocalComponentDefinition>;
   legacyHostNames?: ReadonlySet<string>;
 }
 
-function registrySchemaMap(check: LocalOptionCheck & UnifiedRegistryCheck): ReadonlyMap<string, KernelComponentSchema> {
+function registrySchemaMap(check: LocalOptionCheck & UnifiedRegistryCheck): ReadonlyMap<string, NormalizedComponent> {
   // The unified registry is authoritative; there is no second schema table.
   return check.schemaByName ?? new Map();
 }
 
 function registryDefinitionMap(check: LocalOptionCheck & UnifiedRegistryCheck): ReadonlyMap<string, LocalComponentDefinition> {
   return check.componentByName ?? new Map();
-}
-
-function kernelView(
-  schema: LocalComponentSchema,
-  definition: LocalComponentDefinition | undefined,
-): KernelComponentSchema {
-  return kernelSchemaFor(
-    schema as unknown as KernelComponentSchema,
-    definition as unknown as KernelDefinitionFields | undefined,
-  );
 }
 
 function suggestRegistryName(name: string, candidates: Iterable<string>): string | undefined {
@@ -330,8 +318,7 @@ type AttrMap = Record<string, AttrState>;
 interface Entry {
   node: LocalNode;
   name: string;
-  schema: LocalComponentSchema;
-  kernel: KernelComponentSchema;
+  kernel: NormalizedComponent;
   definition?: LocalComponentDefinition;
   legacy: boolean;
   parent: Entry | null;
@@ -351,7 +338,7 @@ interface CompileState {
   nodes: LocalNode[];
   diagnostics: Diagnostic[];
   /** Unified registry used for every component node in this compile. */
-  schemaByName: ReadonlyMap<string, KernelComponentSchema>;
+  schemaByName: ReadonlyMap<string, NormalizedComponent>;
   definitionsByName: ReadonlyMap<string, LocalComponentDefinition>;
   report: (
     code: string,
@@ -684,17 +671,15 @@ function collectEntries(nodes: LocalNode[], parent: Entry | null, out: Entry[], 
     let nextParent=parent;
     const isComponent = (node.type === 'component' || node.type === 'hostComponent') && !!node.name;
     if (isComponent) {
-      const schema = state.schemaByName.get(node.name!);
-      if (schema) {
+      const kernel = state.schemaByName.get(node.name!);
+      if (kernel) {
         const definition = state.definitionsByName.get(node.name!);
-        const kernel = kernelView(schema as LocalComponentSchema, definition);
         // Phase-one external manifests (no phase-two rules) keep host wording.
         const legacy = kernelUsesLegacyDiagnostics(kernel)
           || (definition !== undefined && !definition.rules?.length && node.type === 'hostComponent');
         const entry: Entry = {
           node,
           name: node.name!,
-          schema: schema as unknown as LocalComponentSchema,
           kernel,
           ...(definition ? { definition } : {}),
           legacy,
@@ -2310,7 +2295,7 @@ function staticAttributeString(entry: Entry, attrs: AttrMap, name: string | unde
 function bindingOptions(
   entry: Entry,
   state: CompileState,
-  kernel: KernelComponentSchema,
+  kernel: NormalizedComponent,
   family: string,
 ): string[] {
   const kind = kernelProjectionForFamily(family);

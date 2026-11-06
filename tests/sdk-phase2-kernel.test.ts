@@ -17,6 +17,7 @@ import {
   type KernelComponentSchema,
   type KernelRule,
 } from '../src/local/compilation/component-kernel';
+import { normalizedComponentFromDefinition } from '../src/sdk/registry-core';
 
 const CAPABILITIES = { interactive: true, static: true, ssr: true, offline: true };
 
@@ -415,6 +416,34 @@ describe('external structural aliases', () => {
 });
 
 describe('kernel schema conversion', () => {
+  it('normalizes a manifest once into the single internal model', () => {
+    const definition = manifest({
+      name: 'probe-model',
+      form: 'leaf',
+      props: { type: { kind: 'enum', enum: ['a', 'b'], static: true } },
+      bindings: {
+        value: {
+          kind: 'number', family: 'number', bind: 'bind-x', initial: 'initial-x',
+          initialRule: 'min', constraints: { min: { literal: 0 } },
+        },
+      },
+      rules: [{ kind: 'value-required', required: 'required' } satisfies KernelRule],
+    });
+    const model = normalizedComponentFromDefinition(definition);
+    // Implicit binding attributes are synthesized, and structure/rules are
+    // always present rather than resolved by later fallbacks.
+    expect(model.props['bind-x']).toEqual({ kind: 'string', static: true });
+    expect(model.props['initial-x']).toEqual({ kind: 'number', static: true });
+    expect(model.props.disabled).toEqual({ kind: 'boolean', dynamic: true, default: false });
+    // `enum` is the public spelling; the internal model uses `values`.
+    expect(model.props.type.values).toEqual(['a', 'b']);
+    expect(model.props.type.enum).toBeUndefined();
+    expect(model.bindings.value.initialRule).toBe('min');
+    expect(model.structure).toEqual({ rule: 'none', label: 'none' });
+    expect(model.rules[0]?.kind).toBe('value-required');
+    expect(normalizedComponentFromDefinition(definition)).toBe(model);
+  });
+
   it('synthesizes implicit binding attributes for the compiler', () => {
     const schema = kernelSchemaFor(
       {
