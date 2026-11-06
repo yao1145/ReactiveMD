@@ -1,8 +1,0 @@
-node_modules/
-dist/
-artifacts/
-.reactive-md/
-*.log
-*.tgz
-!vendor/*.tgz
-.DS_Store
