@@ -12,3 +12,7 @@ artifacts/
 
 # Archived development records kept locally only
 docs/archive/extension-sdk-*.md
+
+# Agent instructions stay local
+AGENTS.md
+AGENTS-ch.md
