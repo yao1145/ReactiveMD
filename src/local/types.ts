@@ -65,6 +65,29 @@ export interface LocalNode {
   identifier?: string;
   /** Original footnote label as written, preserved for display. */
   label?: string;
+  /**
+   * True for a node created by HTML recovery rather than written in source.
+   * Synthetic nodes own no original tag offsets.
+   */
+  synthetic?: boolean;
+  /**
+   * Source boundary that justified a synthetic node. Only meaningful together
+   * with `synthetic`; it never replaces `range`.
+   */
+  syntheticBoundary?: SourceRange;
+}
+/**
+ * One structural repair the tolerant parser applied in loose mode. Ranges are
+ * original-source UTF-16 half-open intervals: `causeRange` marks the problem
+ * and `affectedRange` marks what was actually recovered. Strict compilation
+ * never produces records; older results simply omit the field.
+ */
+export interface LocalRecovery {
+  code: string;
+  causeRange: SourceRange;
+  affectedRange: SourceRange;
+  action: 'html-repair' | 'literal-fallback';
+  boundary: 'token' | 'fragment' | 'container-end' | 'heading' | 'eof';
 }
 /**
  * One read-only document value declared by a top-level `<computed>` or
@@ -362,9 +385,18 @@ export interface LocalCompileOptions extends LocalHtmlOptions {
    * registry shape, while their typed defaults and constraints stay enforced.
    */
   readonly config?: LocalConfig;
+  /**
+   * Strict structural checking. Defaults to `true`, which keeps the historical
+   * behavior. `false` lets the parser recover isolated structural damage and
+   * report each repair through `recoveries`; every other semantic check still
+   * applies. Only booleans are accepted.
+   */
+  readonly strict?: boolean;
 }
 /** Public compiler output is plain data, including nested attributes and dependencies. */
-export type LocalCompileResult = { ok: true; document: LocalDocument; diagnostics: Diagnostic[] } | { ok: false; diagnostics: Diagnostic[] };
+export type LocalCompileResult =
+  | { ok: true; document: LocalDocument; diagnostics: Diagnostic[]; recoveries?: LocalRecovery[] }
+  | { ok: false; diagnostics: Diagnostic[]; recoveries?: LocalRecovery[] };
 /**
  * Frozen state of the current revision. It contains controls, successful
  * computed values and currently available external values. Use

@@ -96,6 +96,7 @@ import type {
   LocalDynamicConstraints,
   LocalExternal,
   LocalNode,
+  LocalRecovery,
   LocalValidation,
   LocalValue,
   LocalValueKind,
@@ -257,6 +258,27 @@ function typeName(kind: LocalValueKind): string {
     case 'number-array':
       return 'number-array';
   }
+}
+
+/**
+ * The parser owns recovery detection. Until its optional field is part of the
+ * shared `ParsedLocal` shape, read it structurally so the compiler works with
+ * both halves of the migration.
+ */
+type ParsedLocalWithRecoveries = ParsedLocal & { recoveries?: LocalRecovery[] };
+
+/**
+ * Attach parser recovery records to a result. An empty list or a strict pass
+ * that recovered nothing leaves the result shape untouched, preserving the
+ * historical snapshots. Recoveries never turn a failure into a success: the
+ * caller decides `ok` from the remaining diagnostics alone.
+ */
+function withRecoveries(
+  result: LocalCompileResult,
+  recoveries: readonly LocalRecovery[] | undefined,
+): LocalCompileResult {
+  if (!recoveries || recoveries.length === 0) return result;
+  return { ...result, recoveries: [...recoveries] };
 }
 
 /* ------------------------------------------------------------------ */
@@ -426,7 +448,8 @@ export function compileLocalCore(
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     // Source-shape diagnostics come from the kernel parser; a session parser
     // is never asked to compile a non-string or oversized revision.
-    return { ok: false, diagnostics: parseLocalCore(source, optionCheck).diagnostics };
+    const shape = parseLocalCore(source, optionCheck) as ParsedLocalWithRecoveries;
+    return withRecoveries({ ok: false, diagnostics: shape.diagnostics }, shape.recoveries);
   }
   const diagnostics: Diagnostic[] = [];
   const sourceContext = new SourceContext(source);
@@ -485,10 +508,14 @@ export function compileLocalCore(
     return { ok: false, diagnostics };
   }
   diagnostics.push(...parsed.diagnostics);
+  const recoveries = (parsed as ParsedLocalWithRecoveries).recoveries;
   // Never evaluate const declarations or construct an executable document
   // after an explicit syntax-version mismatch or malformed version header.
   if (diagnostics.some(item => item.severity === 'error' && item.code.startsWith('local.version.'))) {
-    return { ok: false, diagnostics: diagnostics.filter(item => item.code.startsWith('local.version.')) };
+    return withRecoveries(
+      { ok: false, diagnostics: diagnostics.filter(item => item.code.startsWith('local.version.')) },
+      recoveries,
+    );
   }
 
   // A fenced `reactive-md` block keeps the legacy configuration language name
@@ -590,7 +617,7 @@ export function compileLocalCore(
 
   diagnostics.sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
   const hasError = diagnostics.some((diagnostic) => diagnostic.severity === 'error');
-  if (hasError) return { ok: false, diagnostics };
+  if (hasError) return withRecoveries({ ok: false, diagnostics }, recoveries);
 
   const bindingSlots = slotMap(state);
   const computationNames = Object.keys(state.computations);
@@ -627,7 +654,7 @@ export function compileLocalCore(
   attachNodeDependencies(document);
   attachTableShapes(document, state.tableShapes);
   mark?.('publicationMs');
-  return { ok: true, document, diagnostics };
+  return withRecoveries({ ok: true, document, diagnostics }, recoveries);
 }
 
 /* ------------------------------------------------------------------ */

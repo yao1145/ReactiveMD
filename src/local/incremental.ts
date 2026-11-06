@@ -13,6 +13,23 @@ import { getLocalComponent } from './schema';
 import { MAX_LOCAL_DOCUMENT_LENGTH } from './limits';
 import type { LocalCompileOptions, LocalCompileResult, LocalDocument, LocalNode, SourceRange } from './types';
 
+/**
+ * Recovery mode disables incremental block assembly. Repaired regions have
+ * boundaries and synthetic nodes that a block-level reuse decision cannot
+ * validate, so loose mode always runs the same complete reference compile.
+ * The identity still comes from `localCompileOptionsKey`, which carries the
+ * recovery strategy version for `strict: false`.
+ */
+function isRecoveryMode(options: LocalCompileOptions | undefined): boolean {
+  return typeof options === 'object' && options !== null
+    && (options as { strict?: unknown }).strict === false;
+}
+
+/** Any present recovery list, including an explicit empty one, disables block reuse. */
+function hasRecoveries(result: LocalCompileResult): boolean {
+  return Object.hasOwn(result, 'recoveries') && result.recoveries !== undefined;
+}
+
 const markdown = parser.configure(GFM);
 const separator = '\n\n<!-- incremental-boundary -->\n\n';
 type Dependencies = Record<string, readonly string[] | null>;
@@ -139,6 +156,7 @@ export class LocalCompileSession {
   private readonly services:LocalCompilerServices={parser:this.parseSession,semantic:this.semantic};
   private shared:LocalCompileResult|null=null;
   private sharedKey:string|undefined;
+  private sharedMode:boolean|undefined;
   private epoch=0;
   private cacheBuilds = 0;
   private serial = 0;
@@ -155,7 +173,10 @@ export class LocalCompileSession {
     if(this.disposed)throw new Error('Local compile session is disposed');
     this.epoch++;
     const key=localCompileOptionsKey(options);
-    if(key!==this.sharedKey){this.shared=null;this.sharedKey=key;}
+    // A mode switch must never be answered from a result produced under the
+    // other strategy, even if another key component happens to collide.
+    const mode=isRecoveryMode(options);
+    if(key!==this.sharedKey||mode!==this.sharedMode){this.shared=null;this.sharedKey=key;this.sharedMode=mode;}
     const result=this.compileCore(source,options),start=performance.now(),previous=this.shared;
     const persistent=shareCompiledData(previous??undefined,result).value;
     this.shared=persistent;
@@ -168,11 +189,15 @@ export class LocalCompileSession {
     if (this.disposed) throw new Error('Local compile session is disposed');
     this.cacheBuilds = 0;
     const key = localCompileOptionsKey(options), check = readLocalCompileOptions(options);
-    let reason = 'initial';
+    // Loose mode reuses no block index: repaired boundaries, withdrawn nodes
+    // and synthetic nodes must come from one complete reference compile so the
+    // recovered result keeps exactly the strict pass's budgets and ranges.
+    const recoveryMode = isRecoveryMode(options);
+    let reason = recoveryMode ? 'recovery-reference' : 'initial';
     let defer = false;
     const pending = this.deferred;
     this.deferred = null;
-    if (pending && pending.key === key && check.ok && !check.htmlActive && typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH) {
+    if (!recoveryMode && pending && pending.key === key && check.ok && !check.htmlActive && typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH) {
       if (source === pending.source) {
         this.deferred = pending;
         this.lastStats = {mode: 'cached', totalBlocks: this.lastStats.totalBlocks, compiledBlocks: 0, reusedBlocks: this.lastStats.totalBlocks, compiledCharacters: 0};
@@ -191,9 +216,9 @@ export class LocalCompileSession {
         try { this.snapshot = this.seed(pending.source, key, pending.tracked, options); }
         catch { this.snapshot = null; }
       }
-    } else if (pending) reason = 'options-or-limits';
+    } else if (pending) reason = recoveryMode ? 'recovery-reference' : 'options-or-limits';
     const previous = this.snapshot;
-    if (previous && previous.key === key && check.ok && !check.htmlActive && typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH) {
+    if (!recoveryMode && previous && previous.key === key && check.ok && !check.htmlActive && typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH) {
       if (source === previous.source) {
         this.lastStats = {mode: 'cached', totalBlocks: previous.blocks.length, compiledBlocks: 0, reusedBlocks: previous.blocks.length, compiledCharacters: 0};
         return this.publish(previous);
@@ -204,11 +229,11 @@ export class LocalCompileSession {
       if (updated) { this.snapshot = updated; return this.publish(updated); }
       reason = 'scope-or-boundary';
       defer = true;
-    } else if (previous) reason = 'options-or-limits';
+    } else if (previous) reason = recoveryMode ? 'recovery-reference' : 'options-or-limits';
     this.snapshot = null;
     const tracked = compileLocalTracked(source, options,this.services);
     this.lastStats = {mode: 'full', totalBlocks: tracked.parsed?.nodes.length ?? 0, compiledBlocks: tracked.parsed?.nodes.length ?? 0, reusedBlocks: 0, compiledCharacters: typeof source === 'string' ? source.length : 0, fallbackReason: reason,semantic:tracked.semantic,stages:tracked.timings};
-    if (tracked.result.ok && tracked.result.diagnostics.length === 0 && check.ok && !check.htmlActive && key !== 'invalid') {
+    if (!recoveryMode && tracked.result.ok && tracked.result.diagnostics.length === 0 && !hasRecoveries(tracked.result) && check.ok && !check.htmlActive && key !== 'invalid') {
       if (defer) {
         const deferredOptions = options === undefined ? undefined : plainCompiledData(options);
         // Keep the validated, frozen config so per-block compile keys do not
@@ -233,7 +258,7 @@ export class LocalCompileSession {
   }
   private seed(source: string, key: string, tracked: Tracked, options?: LocalCompileOptions,preparedTree?:Tree): Snapshot | null {
     this.cacheBuilds++;
-    if (!tracked.result.ok || !tracked.parsed || source.includes('[^') || source.includes('\ufeff')) return null;
+    if (!tracked.result.ok || !tracked.parsed || hasRecoveries(tracked.result) || source.includes('[^') || source.includes('\ufeff')) return null;
     const roots = tracked.parsed.nodes, kinds = roots.map(contextKind);
     // A plain single-block document normally has nothing to reuse. One huge
     // flat list or table is the exception: row-level reuse makes the
@@ -345,7 +370,7 @@ export class LocalCompileSession {
         const services = previous?.rowPlans ? {...this.services, rowPlans: previous.rowPlans} : this.services;
         const tracked = compileLocalTracked(old.prefix + text, options, services);
         characters += from + text.length; compiled++;
-        if (!tracked.result.ok || tracked.result.diagnostics.length || !tracked.parsed) return null;
+        if (!tracked.result.ok || tracked.result.diagnostics.length || !tracked.parsed || hasRecoveries(tracked.result)) return null;
         const parsed = tracked.parsed.nodes.filter(n => n.range.start >= from);
         if (!parsed.length || parsed.some(n => contextKind(n) !== 'fragment')) return null;
         const fresh = tracked.result.document.nodes.filter(n => n.range.start >= from);
@@ -470,7 +495,7 @@ export class LocalCompileSession {
       this.snapshot=snapshot;this.deferred=null;return snapshot!==null;
     } catch {return false;} finally {this.cacheBuilds=builds;}
   }
-  clear(): void { this.epoch++;this.snapshot = null; this.deferred = null; this.serial = 0; this.cacheBuilds = 0;this.shared=null;this.sharedKey=undefined;this.parseSession.clear();this.semantic.clear(); }
+  clear(): void { this.epoch++;this.snapshot = null; this.deferred = null; this.serial = 0; this.cacheBuilds = 0;this.shared=null;this.sharedKey=undefined;this.sharedMode=undefined;this.parseSession.clear();this.semantic.clear(); }
   dispose(): void { this.clear(); this.parseSession.dispose();this.disposed = true; }
 }
 

@@ -86,6 +86,7 @@
     "test:markdown-browser": "node scripts/verify-markdown-browser.mjs",
     "test:math-browser": "node scripts/verify-math-browser.mjs",
     "test:html-browser": "node scripts/verify-html-compat-browser.mjs && node scripts/verify-html-table-browser.mjs",
+    "test:tolerance-browser": "node scripts/verify-tolerance-browser.mjs",
     "test:media-browser": "node scripts/verify-media-browser.mjs",
     "test:computations-browser": "node scripts/verify-computations-browser.mjs",
     "test:constraints-browser": "node scripts/verify-constraints-browser.mjs",

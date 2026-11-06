@@ -318,6 +318,10 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Compile option markdownBreaks must be a boolean.',
     zh: '编译选项 markdownBreaks 必须为布尔值。',
   },
+  'options.strict': {
+    en: 'Compile option strict must be a boolean.',
+    zh: '编译选项 strict 必须为布尔值。',
+  },
   'component.unknownSuggestion': {
     en: 'Unknown component <{name}>. Did you mean <{suggestion}>?',
     zh: '未知组件 <{name}>。是否想使用 <{suggestion}>？',
@@ -1526,6 +1530,7 @@ const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.html.capability': 'html.capability',
   'local.options.invalid.html-flag': 'options.htmlFlag',
   'local.options.invalid.markdown-breaks': 'options.markdownBreaks',
+  'local.options.invalid.strict': 'options.strict',
   'local.component.unknown.suggestion': 'component.unknownSuggestion',
   'local.component.unknown': 'component.unknownPlain',
   'local.attribute.format': 'attribute.lowercase',

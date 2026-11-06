@@ -37,6 +37,7 @@
 | 约束与集合 | [中文](reference/constraints-collections-ch.md) |
 | 诊断与计数 | [中文](reference/diagnostics-counting-ch.md) |
 | HTML 兼容 | [中文](reference/html-compatibility-ch.md) |
+| 严格模式与局部恢复 | [中文](reference/tolerance-ch.md) |
 | 主题协议 | [中文](reference/theme-protocol-ch.md) |
 
 ## 接入

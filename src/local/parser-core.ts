@@ -3,7 +3,7 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import { parseFragment, html as nativeHtml } from 'parse5';
 import type { Diagnostic } from './types';
-import type { LocalNode, LocalVersionDeclaration, SourceRange } from './types';
+import type { LocalNode, LocalVersionDeclaration, SourceRange, LocalRecovery } from './types';
 import type { LocalOptionCheck } from './options-core';
 import { LOCAL_SYNTAX_VERSION } from './version';
 import { localDiagnosticDetails, renderLocalDiagnostic, type LocalDiagnosticDetails } from './diagnostics';
@@ -23,6 +23,9 @@ import type { FastMarkdownPlan, InlinePlanLookup, FastMarkdownContext } from './
 import { parseMarkdownBlocks,scanMarkdownStructure,markdownTreeFacts,type MarkdownStructure } from './markdown-blocks';
 import { SourceContext, MappedSource } from './source-context';
 import { ParseBudgetError, ParseWorkBudget, type ParseSessionCache, type ParseSessionCounters } from './parse-budget';
+import { planRmdRecovery, RAW_TEXT } from './rmd-recovery';
+import { recoverLocalHtml } from './html-recovery';
+import { normalizeHtmlDetailsChildren } from './html-details';
 
 /* Accepted tag shapes come from the unified registry snapshot passed through
  * compile options; tests/schema-shapes.test.ts pins the default preset forms. */
@@ -213,6 +216,11 @@ export interface ParsedLocal {
    * block can skip re-scanning unchanged rows.
    */
   plans?: FastMarkdownPlan[];
+  /**
+   * Structural repairs applied in non-strict mode, in stable source order.
+   * Strict parsing omits the field entirely.
+   */
+  recoveries?: LocalRecovery[];
 }
 
 export interface ParserWork {
@@ -291,6 +299,8 @@ export function parseLocalCore(
     }] };
   }
   const maxSyntaxNodes = optionCheck.maxSyntaxNodes;
+  // `strict` defaults to true; only the loose path plans structure recovery.
+  const strict = optionCheck.strict !== false;
   const budget = new ParseWorkBudget({
     maxParseWork: optionCheck.maxParseWork,
     maxMarkdownDepth: optionCheck.maxMarkdownDepth,
@@ -412,6 +422,10 @@ export function parseLocalCore(
   }
   const reservedMarkers = new Set(source.match(new RegExp(MARK_OPEN + '[0-9]+' + MARK_CLOSE, 'g')) ?? []);
   const codeRanges: { start: number; end: number }[] = [];
+  // Non-strict structural recovery. Ranges are merged, literal source spans;
+  // the region scanner consumes each as one fallback token.
+  let recoveryRanges: readonly SourceRange[] = [];
+  let recoveries: LocalRecovery[] = [];
   const rootMathLiterals: SourceRange[] = [];
   // Markdown destinations use backslashes to escape parentheses/brackets.
   // Only labels are prose; a destination, title, or image is never TeX.
@@ -788,7 +802,8 @@ export function parseLocalCore(
     return { name: match[2], closing: !!match[1], self: !match[1] && /\/\s*$/.test(rest), end: end + 1 };
   }
   /** Keep an unclosed HTML fragment local to its paragraph. */
-  function htmlLiteralEnd(start: number, limit: number, parent?: string): number {
+  function htmlLiteralEnd(start: number, limit: number, parent?: string, rawName?: string): number {
+    if (!strict && rawName && RAW_TEXT.has(rawName.toLowerCase())) return limit;
     const boundary = /\r?\n[\t ]*\r?\n/.exec(source.slice(start, limit));
     let stop = boundary ? start + boundary.index : limit;
     if (parent) {
@@ -1013,23 +1028,9 @@ export function parseLocalCore(
       case 'summary':
         return node('summary', start, end, { attrs, children: inline() });
       case 'details': {
-        const children = bodyNodes();
-        let summary: LocalNode | null = null;
-        let index = children.findIndex((child) => child.type === 'summary');
-        if (index < 0) {
-          index = children.findIndex((child) => child.type === 'paragraph'
-            && child.children?.length === 1 && child.children[0].type === 'summary');
-          if (index >= 0) {
-            summary = children[index].children![0];
-            children.splice(index, 1);
-          }
-        } else {
-          summary = children[index];
-          children.splice(index, 1);
-        }
         return node('details', start, end, {
           attrs,
-          children: summary ? [summary, ...children] : children,
+          children: normalizeHtmlDetailsChildren(bodyNodes()),
         });
       }
       case 'p':
@@ -1239,7 +1240,24 @@ export function parseLocalCore(
       mathLiterals = literals.sort((a, b) => a.start - b.start);
     }
     let definitionIndex = 0;
+    // Recovery spans are single literal tokens: their content is never
+    // re-parsed for components, bindings, interpolation, math or Markdown.
+    let recoveryIndex = 0;
+    while (recoveryIndex < recoveryRanges.length && recoveryRanges[recoveryIndex].end <= start) recoveryIndex += 1;
     for (let i = start; i < end;) {
+      while (recoveryIndex < recoveryRanges.length && recoveryRanges[recoveryIndex].end <= i) recoveryIndex += 1;
+      const recovery = recoveryRanges[recoveryIndex];
+      if (recovery && recovery.start <= i && i < recovery.end) {
+        const stop = Math.min(end, recovery.end);
+        tokens.push({
+          start: i,
+          end: stop,
+          block: beginsLine(i),
+          node: node('fallback', i, stop, { value: source.slice(i, stop) }),
+        });
+        i = stop;
+        continue;
+      }
       if (!insideContainer) {
         while (codeRanges[codeIndex]?.end <= i) codeIndex++;
         const code = codeRanges[codeIndex];
@@ -1508,7 +1526,7 @@ export function parseLocalCore(
           if (!selection.ok) {
             const stop = html.self || HTML_VOID.has(html.lower)
               ? html.end
-              : (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? htmlLiteralEnd(html.end, end, parent));
+              : (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? htmlLiteralEnd(html.end, end, parent, html.lower));
             warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback.attribute', 'en', {name: selection.attr}), i, stop, {key: 'local.html.fallback.attribute', params: {name: selection.attr}});
             tokens.push({ start: i, end: stop, block: false, node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
             i = stop;
@@ -1542,7 +1560,24 @@ export function parseLocalCore(
           }
           const close = htmlCloseEnd(html.end, html.lower, end, insideContainer);
           if (!close) {
-            const stop = htmlLiteralEnd(html.end, end, parent);
+            const stop = htmlLiteralEnd(html.end, end, parent, html.lower);
+            if (!strict) {
+              budget.charge(stop - i, i, stop);
+              const repaired = recoverLocalHtml(source, i, stop, node, new Set(known.keys()));
+              if (repaired) {
+                recoveries.push(repaired.recovery);
+                for (const child of repaired.nodes) tokens.push({
+                  start: child.range.start, end: child.range.end,
+                  block: HTML_BLOCK.has(html.lower) || BLOCK_HTML_RESULTS.has(child.type), node: child,
+                });
+              } else {
+                recoveries.push({ code: 'local.html.literal', causeRange: { start: i, end: html.end },
+                  affectedRange: { start: i, end: stop }, action: 'literal-fallback', boundary: 'fragment' });
+                tokens.push({ start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
+              }
+              i = stop;
+              continue;
+            }
             warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
             tokens.push({ start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
             i = stop;
@@ -1603,9 +1638,15 @@ export function parseLocalCore(
         }
         const scanned = scanTag(i, end);
         if (scanned && !known.has(scanned.name.toLowerCase()) && NATIVE_HTML_NAMES.has(scanned.name.toLowerCase())) {
+          const paired = !scanned.closing && !scanned.self && !NATIVE_HTML_VOID.has(scanned.name.toLowerCase())
+            ? unknownTagEnd(scanned.end, scanned.name, end, insideContainer, true) : null;
+          const rawFallback = !strict && !scanned.closing && !scanned.self && RAW_TEXT.has(scanned.name.toLowerCase())
+            && (!paired || scanned.name.toLowerCase() === 'plaintext');
           const stop = scanned.closing || scanned.self || NATIVE_HTML_VOID.has(scanned.name.toLowerCase())
-            ? scanned.end : (unknownTagEnd(scanned.end, scanned.name, end, insideContainer, true)?.end ?? htmlLiteralEnd(scanned.end, end, parent));
-          warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
+            ? scanned.end : rawFallback ? end : (paired?.end ?? htmlLiteralEnd(scanned.end, end, parent, scanned.name));
+          if (rawFallback) recoveries.push({ code: 'local.html.literal', causeRange: { start: i, end: scanned.end },
+            affectedRange: { start: i, end: stop }, action: 'literal-fallback', boundary: stop === source.length ? 'eof' : 'fragment' });
+          else warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
           tokens.push({start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, {value: source.slice(i, stop)})});
           i = stop;
           continue;
@@ -1653,8 +1694,11 @@ export function parseLocalCore(
         if (tag) {
           if (tag.unclosed) {
             if (!known.has(tag.name.toLowerCase()) && NATIVE_HTML_NAMES.has(tag.name.toLowerCase())) {
-              const stop = htmlLiteralEnd(tag.head, end, parent);
-              warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
+              const stop = htmlLiteralEnd(tag.head, end, parent, tag.name);
+              if (!strict && RAW_TEXT.has(tag.name.toLowerCase())) recoveries.push({ code: 'local.html.literal',
+                causeRange: { start: i, end: tag.head }, affectedRange: { start: i, end: stop },
+                action: 'literal-fallback', boundary: stop === source.length ? 'eof' : 'fragment' });
+              else warning('local.html.fallback', renderLocalDiagnostic('local.html.fallback', 'en'), i, stop, {key: 'local.html.fallback'});
               tokens.push({start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, {value: source.slice(i, stop)})});
               i = stop;
               continue;
@@ -1969,6 +2013,45 @@ export function parseLocalCore(
     }
   }
   try {
+    if (!strict && source.includes('<')) {
+      // Decide every structure recovery before the region scanner allocates
+      // component, declaration or interpolation nodes. The planner shares the
+      // code/comment/raw-HTML shields used below and charges one work budget.
+      const plan = planRmdRecovery(source, {
+        facts: sourceContext.facts,
+        definitions: rootDefinitionRanges,
+        isKnown: (name) => known.has(name),
+        isPaired: (name) => {
+          const schema = known.get(name);
+          return schema === undefined || schema.form !== 'leaf';
+        },
+        isHtmlName: (name) => HTML_NAMES.has(name) || NATIVE_HTML_NAMES.has(name),
+        isVoidHtml: (name) => NATIVE_HTML_VOID.has(name) || HTML_VOID.has(name),
+        rawHtmlEnd: (name, bodyStart, insideContainer) => {
+          if (name === 'plaintext') return source.length;
+          if (name === 'pre' || name === 'code') {
+            return htmlCloseEnd(bodyStart, name, source.length, insideContainer)?.end ?? null;
+          }
+          const close = new RegExp(`</${name}\\s*>`, 'i').exec(source.slice(bodyStart));
+          return close ? bodyStart + close.index + close[0].length : null;
+        },
+        protectedEnd: (offset, insideContainer) => protectedEnd(offset, source.length, insideContainer),
+        codeEndAt: (offset) => codeEndAt(offset),
+        readTag: (offset) => {
+          const scanned = scanTag(offset, source.length);
+          if (scanned) {
+            return { name: scanned.name, closing: scanned.closing, self: scanned.self, end: scanned.end, complete: true };
+          }
+          const head = /^<(\/?)([A-Za-z][A-Za-z0-9_-]*)(?=[\s/>])/.exec(source.slice(offset, Math.min(source.length, offset + 256)));
+          if (!head) return null;
+          return { name: head[2], closing: Boolean(head[1]), self: false, end: offset + head[0].length, complete: false };
+        },
+        beginsLine,
+        charge: (units, from, to) => budget.charge(units, from, to),
+      });
+      recoveryRanges = plan.ranges;
+      recoveries = [...plan.recoveries];
+    }
     const regionStart = clock();
     const result = region(0, source.length);
     regionPhaseMs = clock() - regionStart;
@@ -1976,6 +2059,9 @@ export function parseLocalCore(
     const nodes = convert(0, source.length, result.tokens);
     convertPhaseMs = clock() - convertStart;
     resolveFootnoteReferences(nodes);
+    recoveries.sort((left, right) => left.causeRange.start - right.causeRange.start
+      || left.causeRange.end - right.causeRange.end || left.affectedRange.start - right.affectedRange.start
+      || left.affectedRange.end - right.affectedRange.end || left.code.localeCompare(right.code));
     finishWork();
     return {
       nodes,
@@ -1986,12 +2072,13 @@ export function parseLocalCore(
       ...(versionDeclaration ? { versionDeclaration } : {}),
       ...(theme !== undefined ? { theme } : {}),
       ...(themeRange ? { themeRange } : {}),
+      ...(recoveries.length ? { recoveries } : {}),
     };
   } catch (cause) {
     if (cause instanceof ParseBudgetError) {
       reportParseBudget(cause);
       finishWork();
-      return { nodes: [], diagnostics, work };
+      return { nodes: [], diagnostics, work, ...(recoveries.length ? { recoveries } : {}) };
     }
     if (cause instanceof LocalBudgetError) {
       error(cause.code, cause.message, cause.start, cause.end, {
@@ -1999,12 +2086,12 @@ export function parseLocalCore(
         params: cause.params,
       });
       finishWork();
-      return { nodes: [], diagnostics, work };
+      return { nodes: [], diagnostics, work, ...(recoveries.length ? { recoveries } : {}) };
     }
     error('local.parse', `Cannot parse document: ${cause instanceof Error ? cause.message : String(cause)}`, 0, undefined, {
       key: 'local.parse.document',
       params: { detail: cause instanceof Error ? cause.message : String(cause) },
     });
-    return { nodes: [], diagnostics };
+    return { nodes: [], diagnostics, ...(recoveries.length ? { recoveries } : {}) };
   }
 }

@@ -1,12 +1,12 @@
 import { MAX_LOCAL_HOST_COMPONENTS } from './limits';
-import { LOCAL_HTML_FLAGS, readOptionCheck } from './options-core';
+import { LOCAL_HTML_FLAGS, LOCAL_RECOVERY_STRATEGY_VERSION, readOptionCheck } from './options-core';
 import type { LocalOptionCheck } from './options-core';
 import type { LocalCompileOptions } from './types';
 import { localComponentConfigKey, localConfigKey, readLocalConfig } from '../sdk/config';
 import { getLocalComponentRegistry } from '../sdk/registry';
 import defaultPreset from '../presets/default';
 
-export { LOCAL_HTML_FLAGS };
+export { LOCAL_HTML_FLAGS, LOCAL_RECOVERY_STRATEGY_VERSION };
 export type { LocalHtmlFlag, LocalOptionCheck } from './options-core';
 
 /**
@@ -135,7 +135,7 @@ function hostComponentsSignature(value: unknown): string {
  * the source text. Unknown keys are deliberately ignored.
  */
 export function localCompileOptionsKey(options?: LocalCompileOptions): string {
-  if (options === undefined) return 'default';
+  if (options === undefined) options = {};
   if (!isRecord(options)) return 'invalid';
   const flags = LOCAL_HTML_FLAGS.map((flag) => {
     if (!Object.hasOwn(options, flag)) return '-';
@@ -182,10 +182,20 @@ export function localCompileOptionsKey(options?: LocalCompileOptions): string {
       : options.markdownBreaks === false
         ? '0'
         : '!';
+  // Omitted, explicit `undefined` and `true` are the same strict identity.
+  // Loose mode additionally carries the recovery strategy version, so a
+  // strategy change cannot reuse results produced by different ranges.
+  const strict = !Object.hasOwn(options, 'strict') || options.strict === undefined
+    ? 'strict=1'
+    : options.strict === true
+      ? 'strict=1'
+      : options.strict === false
+        ? `strict=0:recovery=${LOCAL_RECOVERY_STRATEGY_VERSION}`
+        : 'strict=!';
   let configKey = '';
   if (Object.hasOwn(options, 'config') && options.config !== undefined) {
     // Recompute from contents; a supplied key or digest is never trusted.
     configKey = `:config=${localConfigKey(options.config)}`;
   }
-  return `${flags}:${limitsKey}:${breaks}${hostSignature}${configKey}`;
+  return `${flags}:${limitsKey}:${breaks}:${strict}${hostSignature}${configKey}`;
 }

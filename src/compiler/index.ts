@@ -10,16 +10,26 @@
  * only the semantic pass: it creates no runtime, session, worker, timer or
  * cross-source cache.
  */
-import type { LocalCompileOptions, LocalCompileResult } from '../local/types';
+import type { LocalCompileOptions } from '../local/types';
 import type { LocalOptionCheck } from '../local/options-core';
 import { compileLocalCore } from '../local/compiler-core';
-import { plainCompiledData } from '../local/compiled-data';
 import { readCompilerOptions } from '../local/options-core';
-import { CompilerConfigurationError, type Compiler } from './types';
+import { MINIMAL_CHECKS, toCompileResult } from './result';
+import { CompilerConfigurationError, type CompileResult, type Compiler } from './types';
 
 export { CompilerConfigurationError } from './types';
-export type { Compiler, CompilerConfigurationErrorOptions } from './types';
-export type { LocalCompileOptions, LocalCompileResult } from '../local/types';
+export type {
+  CheckCoverage,
+  CompileFailure,
+  CompileResult,
+  CompileSuccess,
+  Compiler,
+  CompilerConfigurationErrorOptions,
+  OptionalCheck,
+  Program,
+} from './types';
+export type { DeepReadonly } from './types';
+export type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../local/types';
 
 /** Validate once; invalid options never reach a compile call. */
 function requireOptions(options?: LocalCompileOptions): Extract<LocalOptionCheck, { ok: true }> {
@@ -34,7 +44,7 @@ function requireOptions(options?: LocalCompileOptions): Extract<LocalOptionCheck
 /**
  * Freeze the caller's option shape so later mutation of the original object
  * cannot change the presence checks the pass still performs. Semantic values
- * (limits, HTML flags, components, config) live in the validated check.
+ * (limits, HTML flags, components, config, strict) live in the validated check.
  */
 function snapshotOptions(options?: LocalCompileOptions): LocalCompileOptions | undefined {
   return options === undefined ? undefined : Object.freeze({ ...options });
@@ -44,8 +54,8 @@ export function createCompiler(options?: LocalCompileOptions): Compiler {
   const optionCheck = requireOptions(options);
   const snapshot = snapshotOptions(options);
   return {
-    compile(source: string): LocalCompileResult {
-      return plainCompiledData(compileLocalCore(source, snapshot, optionCheck));
+    compile(source: string): CompileResult {
+      return toCompileResult(compileLocalCore(source, snapshot, optionCheck), MINIMAL_CHECKS);
     },
   };
 }

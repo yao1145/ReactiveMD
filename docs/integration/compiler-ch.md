@@ -21,7 +21,7 @@ if (interactive.ok) {
 
 接入现有 React/SSR 宿主时使用 standard。最小入口只采用 `config.components`，`config.presets` 不会隐式安装默认预设；依赖默认组件的扩展应选择 standard。最小结果具有独立的 `componentConfigKey`，直接交给现有默认配置的渲染器会报告 `local.extension.config-mismatch`。支持无预设宿主配置属于后续宿主边界工作。
 
-工厂接受 `LocalCompileOptions`，创建时校验并固定有效配置。无效配置抛出 `CompilerConfigurationError`；作者源码错误返回 `{ ok: false, diagnostics }`。成功结果为 `{ ok: true, document, diagnostics }`，与现有 `LocalCompileResult` 相同。每次 `compile` 都重新编译当前源码，前一次的绑定、诊断和节点不会成为下一次的输入。
+工厂接受 `LocalCompileOptions`，创建时校验并固定有效配置。无效配置抛出 `CompilerConfigurationError`。编译结果用 `status` 区分 `valid`、`recovered` 和 `failed`，同时保留任务 1 的 `ok/document/diagnostics` 读取方式。成功时还提供独立且逐层冻结的 `program`、恢复记录 `recoveries` 与检查覆盖 `checks`；失败时不包含 program。每次 `compile` 都重新编译当前源码，前一次的绑定、诊断和节点不会成为下一次的输入。
 
 ```ts
 import { createCompiler, CompilerConfigurationError } from 'reactive-md/compiler';
@@ -36,7 +36,7 @@ try {
 }
 ```
 
-旧根入口的 `compileLocal(source, options)`、编辑会话和 Worker 继续使用原有默认配置及返回类型。本次保持严格语义；`strict: false` 和局部恢复属于[近期规划](../architecture_roadmap/near-term-plan-ch.md)的任务 2。
+旧根入口的 `compileLocal(source, options)`、编辑会话和 Worker 默认保持严格语义，并保留原有返回类型。有恢复时会附加 `recoveries`。显式传入 `strict: false` 可启用[局部恢复](../reference/tolerance-ch.md)。
 
 这次交付建立 M1 的独立编译路径。Markdown 前端仍加载 Lezer、GFM 和 parse5；standard 的数学预检加载 KaTeX。共享辅助模块仍保留默认组件定义的回退，声明图仍可达现有 SDK 主题协议类型。能力拆分、完整 `.d.ts` 精简及默认预设隐藏依赖的最终移除属于 M4。
 

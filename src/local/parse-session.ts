@@ -15,6 +15,12 @@ const MAX_INLINE_KEY_LENGTH = 128 * 1024;
 // Own the small cache strings so recent changed rows cannot pin old revisions.
 const ownString = (text: string): string => JSON.parse(JSON.stringify(text));
 
+/** Recovery mode changes the parser's structural output for the same text. */
+function isRecoveryMode(options: LocalCompileOptions | undefined): boolean {
+  return typeof options === 'object' && options !== null
+    && (options as { strict?: unknown }).strict === false;
+}
+
 /**
  * Small insertion-ordered LRU. Values may themselves be `undefined` (a cached
  * rejection), so entries are wrapped to keep `has` semantics exact. Both entry
@@ -75,6 +81,7 @@ class LruMap<T> {
 export class LocalParseSession implements ParseSessionCache {
   private disposed = false;
   private optionKey: string | undefined;
+  private recoveryMode: boolean | undefined;
   private readonly plans = new LruMap<FastMarkdownPlan | undefined>(MAX_PLAN_ENTRIES, 512 * 1024);
   private readonly inline = new LruMap<InlinePlan | undefined>(MAX_INLINE_ENTRIES, 256 * 1024);
   private readonly trees = new LruMap<unknown>(MAX_TREE_ENTRIES, 512 * 1024);
@@ -92,9 +99,13 @@ export class LocalParseSession implements ParseSessionCache {
   parse(source: string, options?: LocalCompileOptions, context?: SourceContext, rowPlans?: InlinePlanLookup): ParsedLocal {
     if (this.disposed) throw new Error('Local parse session is disposed');
     const key = localCompileOptionsKey(options);
-    // Options, capability flags and budgets all fold into this key.
-    if (key !== this.optionKey) {
+    // Options, capability flags and budgets all fold into this key. Recovery
+    // mode is tracked separately so a strategy switch never reuses plans that
+    // were produced for the other structural output.
+    const recoveryMode = isRecoveryMode(options);
+    if (key !== this.optionKey || recoveryMode !== this.recoveryMode) {
       this.optionKey = key;
+      this.recoveryMode = recoveryMode;
       this.reset();
     }
     return parseLocal(source, options, context, this, rowPlans);
@@ -102,6 +113,7 @@ export class LocalParseSession implements ParseSessionCache {
 
   clear(): void {
     this.optionKey = undefined;
+    this.recoveryMode = undefined;
     this.reset();
   }
 

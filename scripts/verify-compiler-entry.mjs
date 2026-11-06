@@ -269,6 +269,14 @@ assert.equal(minimal.document.syntax, 'local');
 const standard = standardEntry.createStandardCompiler().compile('<number bind="count" label="Count" initial="2">');
 assert.equal(standard.ok, true, JSON.stringify(standard.diagnostics));
 assert.equal(standard.document.bindings.count.initial, 2);
+assert.equal(standard.status, 'valid');
+assert.ok(Object.isFrozen(standard.program.nodes));
+const damagedSource = '<alert>\n{{ missing }}\n\n## After\n\nReadable';
+const recovered = standardEntry.createStandardCompiler({ strict: false }).compile(damagedSource);
+assert.equal(recovered.status, 'recovered', JSON.stringify(recovered.diagnostics));
+assert.ok(recovered.recoveries.length > 0);
+assert.ok(Object.isFrozen(recovered.program));
+assert.equal(standardEntry.createStandardCompiler().compile(damagedSource).status, 'failed');
 
 const residual = residualDependencies(Object.values(runtimeSources));
 const report = {

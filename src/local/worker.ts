@@ -37,9 +37,11 @@ export interface LocalCompileRequest {
   id: number;
   source: string;
   /**
-   * Capability flags, Markdown break handling, limits and host component
-   * schemas for this compile. `hostComponents` selects the host leaf tags the
-   * parser may build; `markdownBreaks` turns soft breaks into `break` nodes.
+   * Capability flags, Markdown break handling, strict recovery mode, limits
+   * and host component schemas for this compile. `hostComponents` selects the
+   * host leaf tags the parser may build; `markdownBreaks` turns soft breaks
+   * into `break` nodes; `strict: false` selects the complete tolerant-recovery
+   * reference path.
    */
   options?: LocalCompileOptions;
   /**
@@ -332,6 +334,11 @@ function snapshotCompileOptions(options: LocalCompileOptions | undefined): Local
     if (Object.hasOwn(source, 'markdownBreaks')) {
       copy.markdownBreaks = source.markdownBreaks;
     }
+    // Preserve the raw value, including invalid ones that the compiler must
+    // report. Only an explicit `false` changes the recovery identity.
+    if (Object.hasOwn(source, 'strict')) {
+      copy.strict = source.strict;
+    }
     if (Object.hasOwn(source, 'limits')) {
       const limits = source.limits;
       if (limits && typeof limits === 'object' && !Array.isArray(limits)) {
@@ -391,6 +398,8 @@ function baseOptionsKey(options: LocalCompileOptions | undefined): string {
 /**
  * Canonical job/transport signature. Extends the compiler's public key with
  * the newer per-compile budgets once they exist, without modifying options.ts.
+ * Strict identity, including the recovery-strategy version for `strict:false`,
+ * comes from `localCompileOptionsKey`; both sides key the same snapshot.
  */
 export function localWorkerOptionsKey(options: LocalCompileOptions | undefined): string {
   return `${baseOptionsKey(options)}${limitsKeyPart(options)}`;
@@ -1145,7 +1154,9 @@ export function startLocalCompileWorker(
       cancelPreparation();
       const full = request as LocalCompileRequest;
       const snapshot = snapshotCompileOptions(full.options);
-      const optionsKey = localWorkerOptionsKey(full.options);
+      // Key the snapshot that is actually compiled and returned to analysis;
+      // the scheduler keys the same copied object on its side.
+      const optionsKey = localWorkerOptionsKey(snapshot);
       const negotiated = full.protocol === LOCAL_RESULT_PATCH_PROTOCOL;
       const revision = resolveRevision(full.revision);
       const started = now();

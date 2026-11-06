@@ -37,6 +37,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | Constraints and collections | [English](reference/constraints-collections-en.md) |
 | Diagnostics and counting | [English](reference/diagnostics-counting-en.md) |
 | HTML compatibility | [English](reference/html-compatibility-en.md) |
+| Strict parsing and local recovery | [English](reference/tolerance-en.md) |
 | Theme protocol | [English](reference/theme-protocol-en.md) |
 
 ## Integration

@@ -30,6 +30,13 @@ export const LOCAL_HTML_FLAGS = ['enableCss', 'enableJavaScript', 'enableExtende
 
 export type LocalHtmlFlag = (typeof LOCAL_HTML_FLAGS)[number];
 
+/**
+ * Identity of the tolerance strategy. It participates in the canonical option
+ * key only when `strict` is false, so changing recovery ranges invalidates
+ * caches without perturbing strict identities.
+ */
+export const LOCAL_RECOVERY_STRATEGY_VERSION = '1';
+
 export type LocalOptionCheck =
   | {
       ok: true;
@@ -45,6 +52,11 @@ export type LocalOptionCheck =
       htmlActive: boolean;
       /** Render ordinary Markdown soft line breaks as `break` nodes. */
       markdownBreaks: boolean;
+      /**
+       * Effective structural mode. Defaults to `true`; `false` enables the
+       * parser's isolated recovery strategy.
+       */
+      strict: boolean;
       /** Validated host component schemas; empty when the option is absent. */
       hostComponents: readonly LocalHostComponentSchema[];
       /** Host tag name lookup; names are already lowercase kebab-case. */
@@ -566,6 +578,22 @@ export function readOptionCheck(
     }
   }
 
+  let strict = true;
+  if (Object.hasOwn(record, 'strict')) {
+    const value = record.strict;
+    // An explicit `undefined` is the same as omitting the optional flag.
+    if (value !== undefined) {
+      if (typeof value !== 'boolean') {
+        return {
+          ok: false,
+          message: 'Compile option strict must be a boolean.',
+          key: 'local.options.invalid.strict',
+        };
+      }
+      strict = value;
+    }
+  }
+
   const limits = record.limits;
   let maxSyntaxNodes = DEFAULT_MAX_LOCAL_SYNTAX_NODES;
   let maxParseWork = DEFAULT_MAX_LOCAL_PARSE_WORK;
@@ -674,6 +702,7 @@ export function readOptionCheck(
     html,
     htmlActive: html.enableCss || html.enableJavaScript || html.enableExtendedHtml,
     markdownBreaks,
+    strict,
     hostComponents,
     hostByName,
     ...(config ? { config } : {}),

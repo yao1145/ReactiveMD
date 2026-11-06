@@ -11,6 +11,7 @@ export function portableCompileOptions(input?: LocalCompileOptions): LocalCompil
     enableCss: check.html.enableCss,
     enableJavaScript: check.html.enableJavaScript,
     enableExtendedHtml: check.html.enableExtendedHtml,
+    ...(Object.hasOwn(input, 'strict') && input.strict !== undefined ? { strict: check.strict } : {}),
     ...(input.markdownBreaks === undefined ? {} : { markdownBreaks: check.markdownBreaks }),
     ...(input.config === undefined
       ? check.hostComponents.length ? { hostComponents: check.hostComponents } : {}

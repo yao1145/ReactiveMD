@@ -77,6 +77,8 @@ import {
 } from '../export/requirements';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './html';
 import { localHtmlAlign, localHtmlLinkRel } from './html-names';
+import { splitHtmlDetailsChildren } from './html-details';
+import { PrintValue } from '../react/component-utils';
 import { TableSurface } from './table-surface';
 import { HTML_TABLE_NAMES } from './html-table';
 import { formatLocalDiagnostic } from './diagnostics';
@@ -1813,22 +1815,20 @@ function renderComponent(
 }
 
 /**
- * P0 `<details>`/`<summary>`. It deliberately reuses the existing disclosure
- * classes and accessibility pattern, but the summary body is rich inline
- * content rather than a plain attribute. Static mode exposes every body;
- * nested details recurse naturally.
+ * P0 `<details>`/`<summary>`. One element renders as one single-disclosure
+ * accordion: the summary is the trigger content (rich inline Markdown stays
+ * intact), the remaining children are the panel, and an author `open`
+ * attribute starts it expanded by boolean presence. Static mode exposes the
+ * body and keeps the same disclosure structure; nested details recurse.
  */
 function HtmlDetailsView({ node, visible }: LocalComponentProps) {
   const domId = useId();
   const local = useLocal();
   const { render, mode } = local;
   const t = useLocalize();
-  const children = node.children ?? [];
-  const direct = children.find((child) => child.type === 'summary');
-  const wrappedIndex = children.findIndex((child) => child.type === 'paragraph'
-    && child.children?.length === 1 && child.children[0].type === 'summary');
-  const summary = direct ?? (wrappedIndex >= 0 ? children[wrappedIndex].children![0] : undefined);
-  const body = children.filter((child, index) => child !== summary && index !== wrappedIndex);
+  // The parser stores a normalized list, but this split also repairs documents
+  // parsed before normalization and keeps both paths on one rule.
+  const { summary, body } = splitHtmlDetailsChildren(node.children ?? []);
   const summaryContent = summary
     ? <span {...safeHtmlProps(local, summary)}>{renderInlineNodes(local, summary.children, visible)}</span>
     : t('Details', '折叠内容');
@@ -1836,43 +1836,49 @@ function HtmlDetailsView({ node, visible }: LocalComponentProps) {
   const initialOpen = node.attrs !== undefined && Object.hasOwn(node.attrs, 'open');
   const [open, setOpen] = useState(initialOpen);
   useResetToken(local.runtime, node, () => setOpen(initialOpen));
+  const groupLabel = t('Accordion', '折叠面板');
 
   if (mode === 'static') {
     return (
-      <section className="local-disclosure local-static-disclosure local-html-details" {...safeHtmlProps(local, node)}>
-        <h3 className="local-disclosure-heading">{summaryContent}</h3>
-        <div className="local-disclosure-panel">{render(body, visible)}</div>
-      </section>
+      <div className="local-accordion" role="group" aria-label={groupLabel}>
+        <section className="local-disclosure local-static-disclosure local-html-details" {...safeHtmlProps(local, node)}>
+          <h3 className="local-disclosure-heading">{summaryContent}</h3>
+          <div className="local-disclosure-panel">{render(body, visible)}</div>
+        </section>
+      </div>
     );
   }
 
   const triggerId = `${domId}-html-details-trigger`;
   const panelId = `${domId}-html-details-panel`;
   return (
-    <div className="local-disclosure local-html-details" {...safeHtmlProps(local, node)}>
-      <h3 className="local-disclosure-heading">
-        <button
-          id={triggerId}
-          type="button"
-          className="local-disclosure-trigger"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={() => setOpen((value) => !value)}
+    <div className="local-accordion" role="group" aria-label={groupLabel}>
+      <div className="local-disclosure local-html-details" {...safeHtmlProps(local, node)}>
+        <h3 className="local-disclosure-heading">
+          <button
+            id={triggerId}
+            type="button"
+            className="local-disclosure-trigger"
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <span className={`local-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
+              ▸
+            </span>
+            <span>{summaryContent}</span>
+          </button>
+          <PrintValue value={summaryContent} />
+        </h3>
+        <div
+          id={panelId}
+          className="local-disclosure-panel"
+          role="region"
+          aria-labelledby={triggerId}
+          hidden={!open}
         >
-          <span className={`local-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
-            ▸
-          </span>
-          <span>{summaryContent}</span>
-        </button>
-      </h3>
-      <div
-        id={panelId}
-        className="local-disclosure-panel"
-        role="region"
-        aria-labelledby={triggerId}
-        hidden={!open}
-      >
-        {render(body, visible && open)}
+          {render(body, visible && open)}
+        </div>
       </div>
     </div>
   );

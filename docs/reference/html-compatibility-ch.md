@@ -2,6 +2,8 @@
 
 此功能面向下个发行版。默认文档继续使用 Markdown、ReactiveMD 控件和表达式，并支持下表中的 P0 HTML。CSS、JavaScript 和扩展 HTML 由宿主分别开启，默认全部关闭。
 
+`strict: false` 可在默认文档路径中启用[局部结构恢复](tolerance-ch.md)，无需开启上述能力。`details` 的 `summary` 与正文可连续换行，呈现为单个 disclosure 的 accordion，支持富文本标题和键盘切换。
+
 ## 暂时性分流政策
 
 为了避开作者 CSS、JavaScript、扩展 HTML 与 ReactiveMD 之间的混合解析和渲染冲突，本版采用整篇分流：

@@ -1519,7 +1519,10 @@
         }
       },
       "actions": [],
-      "markupDigest": "140a51648836b5a565249e8c3f52fb6cce557a5ce925f2dff640938971498b22"
+      "markupDigest": "140a51648836b5a565249e8c3f52fb6cce557a5ce925f2dff640938971498b22",
+      "markupDigestAlternates": [
+        "4cc89d9fe05b825a02a8e207f8aa2399a6167db0a264cf19b3ecac5f0d3d116a"
+      ]
     },
     {
       "suite": "examples/local/parameters.reactive.md",

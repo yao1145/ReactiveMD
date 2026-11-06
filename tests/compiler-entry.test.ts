@@ -39,6 +39,13 @@ function canonicalize(value: unknown): unknown {
   return walk(value);
 }
 
+function compatibilityResult(result: ReturnType<ReturnType<typeof createStandardCompiler>['compile']>): LocalCompileResult {
+  const recoveries = result.recoveries.length ? { recoveries: [...result.recoveries] } : {};
+  return result.ok
+    ? { ok: true, document: result.document, diagnostics: result.diagnostics, ...recoveries }
+    : { ok: false, diagnostics: result.diagnostics, ...recoveries };
+}
+
 const STRICT_CORPUS: string[] = [
   '# Heading\n\nA **bold** paragraph with a [link](https://example.com).',
   '<number bind="count" label="Count" min="0" max="10" initial="2">\n\nValue: {{ count }}',
@@ -179,7 +186,7 @@ describe('standard compiler entry', () => {
     const result = minimal.compile(source);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.document.bindings.score).toMatchObject({ initial: 3, max: 5 });
-    expect(standard.compile(source)).toEqual(compileLocal(source, { config }));
+    expect(compatibilityResult(standard.compile(source))).toEqual(compileLocal(source, { config }));
     expect(minimal.compile('<rating bind="score" initial="8">').ok).toBe(false);
   });
 
@@ -193,7 +200,7 @@ describe('standard compiler entry', () => {
       themes: [{ id: 'host-only', css: 'host-owned resource' }],
     } as unknown as typeof config }).compile(source);
     expect(themed).toEqual(ordinary);
-    expect(ordinary).toEqual(compileLocal(source, { config }));
+    expect(compatibilityResult(ordinary)).toEqual(compileLocal(source, { config }));
   });
 
   it('keys the minimal assembly independently of the standard preset', () => {
@@ -235,7 +242,7 @@ describe('standard compiler entry', () => {
     const compiler = createStandardCompiler();
     for (const source of STRICT_CORPUS) {
       const expected = canonicalize(compileLocal(source));
-      const actual = canonicalize(compiler.compile(source) as LocalCompileResult);
+      const actual = canonicalize(compatibilityResult(compiler.compile(source)));
       expect(actual).toEqual(expected);
     }
   });

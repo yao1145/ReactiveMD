@@ -1,4 +1,4 @@
-import type { Diagnostic, LocalCompileResult, LocalDocument, LocalNode, SourceRange } from './types';
+import type { Diagnostic, LocalCompileResult, LocalDocument, LocalNode, LocalRecovery, SourceRange } from './types';
 import { plainCompiledData } from './compiled-data';
 
 /**
@@ -75,6 +75,13 @@ export interface LocalResultPatch {
   readonly protocol: LocalResultPatchProtocol;
   readonly document: LocalDocumentPatch;
   readonly diagnostics?: Diagnostic[];
+  /**
+   * Result-level recovery records. Omitted when the baseline already carries
+   * an equal list; `null` removes records that the previous revision had, so
+   * closing a repaired construct cannot leave stale recoveries in the applied
+   * baseline. An empty array is distinct from absence and is transmitted as-is.
+   */
+  readonly recoveries?: readonly LocalRecovery[] | null;
 }
 
 /**
@@ -524,6 +531,22 @@ export function encodeLocalResultPatchWithCost(
   return patch?{patch,cost:measureResultPatchCost(patch,next)}:null;
 }
 
+/**
+ * Recovery records travel as one result-level list. An equal list is omitted;
+ * a missing next list removes the baseline's records; an empty list stays an
+ * explicit empty array so absence is never invented for strict results.
+ */
+function recoveriesPatch(
+  base: LocalCompileResult,
+  next: LocalCompileResult,
+): { recoveries?: readonly LocalRecovery[] | null } {
+  const before = base.recoveries;
+  const after = next.recoveries;
+  if (before === undefined) return after === undefined ? {} : { recoveries: after };
+  if (after !== undefined && localDataEqual(before, after)) return {};
+  return { recoveries: after === undefined ? null : after };
+}
+
 function encodeResultPatch(base: LocalCompileResult,next: LocalCompileResult):LocalResultPatch|null {
   try {
     if (!base.ok || !next.ok) return null;
@@ -614,6 +637,7 @@ function encodeResultPatch(base: LocalCompileResult,next: LocalCompileResult):Lo
       protocol: LOCAL_RESULT_PATCH_PROTOCOL,
       document,
       ...(localDataEqual(base.diagnostics, next.diagnostics) ? {} : { diagnostics: next.diagnostics }),
+      ...recoveriesPatch(base, next),
     };
     return patch;
   } catch {
@@ -830,7 +854,23 @@ export function applyLocalResultPatch(base: LocalCompileResult, patch: LocalResu
     const diagnostics = patch.diagnostics === undefined
       ? base.diagnostics
       : (Array.isArray(patch.diagnostics) ? cloneLocalCompileResult(patch.diagnostics) : invalidPatch());
-    return { ok: true, document: document as unknown as LocalDocument, diagnostics };
+    if (patch.recoveries !== undefined && patch.recoveries !== null && !Array.isArray(patch.recoveries)) {
+      return null;
+    }
+    // `null` removes records the baseline carried; omission keeps an equal
+    // baseline list. A result that never had recoveries stays without the key.
+    if (patch.recoveries === null) {
+      return { ok: true, document: document as unknown as LocalDocument, diagnostics };
+    }
+    const recoveries = patch.recoveries === undefined
+      ? base.recoveries
+      : cloneLocalCompileResult([...patch.recoveries]);
+    return {
+      ok: true,
+      document: document as unknown as LocalDocument,
+      diagnostics,
+      ...(recoveries === undefined ? {} : { recoveries }),
+    };
   } catch {
     return null;
   }
