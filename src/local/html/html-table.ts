@@ -1,28 +1,8 @@
 import { parseFragment } from 'parse5';
 import type { LocalNode, SourceRange } from '../contracts/types';
-import { localHtmlAlign } from './html-names';
 
-/** Contextual names: they do not reserve new component names globally. */
-export const HTML_TABLE_NAMES: ReadonlySet<string> = new Set([
-  'table', 'caption', 'colgroup', 'col', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
-]);
-
-export const HTML_TABLE_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
-  colgroup: new Set(['span']), col: new Set(['span']),
-  td: new Set(['colspan', 'rowspan', 'headers', 'align']),
-  th: new Set(['colspan', 'rowspan', 'headers', 'scope', 'abbr', 'align']),
-};
-
-export function validHtmlTableValue(name: string, value: string): boolean {
-  const text = value.trim();
-  if (['colspan', 'rowspan', 'span'].includes(name)) {
-    return /^\d{1,5}$/.test(text) && Number(text) <= (name === 'rowspan' ? 65534 : 1000)
-      && Number(text) >= (name === 'rowspan' ? 0 : 1);
-  }
-  if (name === 'align') return localHtmlAlign(value) !== null;
-  if (name === 'scope') return ['row', 'col', 'rowgroup', 'colgroup'].includes(text.toLowerCase());
-  return true;
-}
+export { HTML_TABLE_NAMES, HTML_TABLE_ATTRIBUTES, validHtmlTableValue } from './html-table-names';
+import { HTML_TABLE_NAMES } from './html-table-names';
 
 const CHILDREN: Readonly<Record<string, readonly string[]>> = {
   table: ['caption', 'colgroup', 'thead', 'tbody', 'tfoot'], colgroup: ['col'],

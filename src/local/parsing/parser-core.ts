@@ -1,13 +1,12 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import { parseFragment, html as nativeHtml } from 'parse5';
+import type { Plugin } from 'unified';
 import type { Diagnostic } from '../contracts/types';
 import type { LocalNode, LocalVersionDeclaration, SourceRange, LocalRecovery } from '../contracts/types';
 import type { LocalOptionCheck } from '../configuration/options-core';
 import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
 import { localDiagnosticDetails, renderLocalDiagnostic, type LocalDiagnosticDetails } from '../configuration/diagnostics';
-import { HTML_TABLE_NAMES, readHtmlTable } from '../html/html-table';
+import { HTML_TABLE_NAMES } from '../html/html-table-names';
 import { closestName } from '../configuration/schema-core';
 import { LOCAL_HTML_NAMES, LOCAL_HTML_ALIGN_ELEMENTS } from '../html/html-names';
 import {
@@ -31,11 +30,11 @@ import {
 } from '../configuration/limits';
 import { parsePlainParagraphs } from '../markdown/plain-paragraphs';
 import type { FastMarkdownPlan, InlinePlanLookup, FastMarkdownContext } from '../markdown/fast-markdown';
-import { parseMarkdownBlocks,scanMarkdownStructure,markdownTreeFacts,type MarkdownStructure } from '../markdown/markdown-blocks';
+import { parseMarkdownBlocks,markdownTreeFacts,type MarkdownStructure } from '../markdown/markdown-blocks';
+import type { LocalParserCapabilities } from './parser-capabilities';
 import { SourceContext, MappedSource } from '../source/source-context';
 import { ParseBudgetError, ParseWorkBudget, type ParseSessionCache, type ParseSessionCounters } from './parse-budget';
 import { planRmdRecovery } from './rmd-recovery';
-import { recoverLocalHtml } from '../html/html-recovery';
 import { normalizeHtmlDetailsChildren } from '../html/html-details';
 
 /* Accepted tag shapes come from the unified registry snapshot passed through
@@ -60,33 +59,8 @@ const RECOVERY_DIAGNOSTIC_CODES = new Set([
   'local.html.repair',
   'local.html.literal',
 ]);
-const NATIVE_HTML_NAMES = new Set<string>(Object.values(nativeHtml.TAG_NAMES));
 const NATIVE_HTML_VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
-/**
- * Decode character references with the same grammar the browser uses. Literal
- * `<` is escaped first so tag-looking code stays text, while every named and
- * numeric reference (including invalid code points) follows parse5's rules.
- */
-function decodeHtmlEntities(value: string): string {
-  if (!value.includes('&')) return value;
-  try {
-    const fragment = parseFragment(value.replace(/</g, '&lt;'), { scriptingEnabled: false });
-    let text = '';
-    const walk = (node: any): void => {
-      if (node.nodeName === '#text') {
-        text += node.value;
-        return;
-      }
-      for (const child of node.childNodes ?? []) walk(child);
-      if (node.content?.childNodes) for (const child of node.content.childNodes) walk(child);
-    };
-    for (const child of fragment.childNodes) walk(child);
-    return text;
-  } catch {
-    return value;
-  }
-}
 interface HtmlAttributeValue {
   name: string;
   value: string;
@@ -99,7 +73,7 @@ interface HtmlAttributeScan {
   invalid: HtmlAttributeValue[];
 }
 /** Attribute values are raw decoded strings; the source is never executed. */
-function scanHtmlAttributes(raw: string, offset: number): HtmlAttributeScan {
+function scanHtmlAttributes(raw: string, offset: number, decode: (value: string) => string): HtmlAttributeScan {
   const attrs: Record<string, string> = Object.create(null);
   const entries: HtmlAttributeValue[] = [];
   const invalid: HtmlAttributeValue[] = [];
@@ -128,12 +102,12 @@ function scanHtmlAttributes(raw: string, offset: number): HtmlAttributeScan {
           invalid.push({ name, value: '', start: offset + start, end: offset + raw.length });
           break;
         }
-        value = decodeHtmlEntities(raw.slice(index, end));
+        value = decode(raw.slice(index, end));
         index = end + 1;
       } else {
         const begin = index;
         while (index < raw.length && !/[\s>]/.test(raw[index])) index += 1;
-        value = decodeHtmlEntities(raw.slice(begin, index));
+        value = decode(raw.slice(begin, index));
       }
     }
     const entry = { name, value, start: offset + start, end: offset + index };
@@ -174,7 +148,21 @@ function mayHaveContainer(source: string): boolean {
   return CONTAINER_HINT.test(source)
     || (source.charCodeAt(0) === 0xfeff && CONTAINER_HINT.test(source.slice(1)));
 }
-const markdown = unified().use(remarkParse).use(remarkGfm);
+const coreMarkdown: any = unified().use(remarkParse);
+const markdownCache = new WeakMap<object, any>();
+
+/** CommonMark is core; GFM and other syntax arrive as assembly capabilities. */
+function markdownFor(capabilities?: LocalParserCapabilities): any {
+  const plugins = capabilities?.markdownPlugins;
+  if (!plugins?.length) return coreMarkdown;
+  let processor = markdownCache.get(capabilities as object);
+  if (processor === undefined) {
+    processor = unified().use(remarkParse);
+    for (const plugin of plugins) processor.use(plugin as Plugin);
+    markdownCache.set(capabilities as object, processor);
+  }
+  return processor;
+}
 interface Token { start: number; end: number; block?: boolean; node: LocalNode }
 interface RegionResult { tokens: Token[]; end: number; contentEnd: number; indent: number }
 /** Source range of one `[^label]:` definition block. */
@@ -314,6 +302,14 @@ export function parseLocalCore(
   const isInlineName = (name: string): boolean => schemaByName.get(name)?.form === 'inline';
   const known = schemaByName;
   const suggestionNames = [...schemaByName.keys()];
+  // Assembly capabilities: core Markdown always works; GFM, native HTML and
+  // Lezer planning are installed only by the full assembly.
+  const capabilities = optionCheck.capabilities;
+  const htmlSupport = capabilities?.html;
+  const scanStructure = capabilities?.markdownStructure;
+  const nativeHtmlNames: ReadonlySet<string> = htmlSupport?.nativeTagNames ?? new Set<string>();
+  const decodeEntities = htmlSupport?.decodeEntities ?? ((value: string): string => value);
+  const markdown = markdownFor(capabilities);
   const sourceContext = context?.source === source ? context : new SourceContext(source);
   const {lineStarts} = sourceContext;
   const work: ParserWork = {markdownCalls:0,fastBlocks:0,generalBlocks:0,fastCharacters:0,generalCharacters:0,mappingSegments:0,sourceLines:lineStarts.length,maxComponentDepth:0};
@@ -332,7 +328,12 @@ export function parseLocalCore(
     // Raw prefixes are only an upper-bound hint. Resolve deep-looking code,
     // comments and same-line nested containers through the shared block scan.
     if(facts.potentialDepth>optionCheck.maxMarkdownDepth||depth>optionCheck.maxMarkdownDepth) {
-      const structure=scanMarkdownStructure(text);structures.set(text,structure);depth=structure.maxDepth;
+      if(scanStructure){
+        const structure=scanStructure(text);structures.set(text,structure);depth=structure.maxDepth;
+      } else {
+        // No advisory planner: keep the budget fail-closed on the raw hint.
+        depth=Math.max(depth,facts.potentialDepth);
+      }
     }
     budget.observeDepth(depth,0,Math.max(1,text.length));
   };
@@ -377,7 +378,11 @@ export function parseLocalCore(
       work.markdownCalls++;work.generalBlocks+=tree.children.length;work.generalCharacters+=text.length;
       return tree;
     }
-    const {tree,stats}=parseMarkdownBlocks(text, generalParse, sourceContext, cache,structures.get(text),rowPlans,fastContext);
+    let structure=structures.get(text);
+    if(structure===undefined&&scanStructure){
+      structure=scanStructure(text);structures.set(text,structure);
+    }
+    const {tree,stats}=parseMarkdownBlocks(text, generalParse, sourceContext, cache,structure,rowPlans,fastContext);
     work.markdownCalls++;
     work.fastBlocks+=stats.fastBlocks;work.generalBlocks+=stats.generalBlocks;
     work.fastCharacters+=stats.fastCharacters;work.generalCharacters+=stats.generalCharacters;
@@ -830,6 +835,7 @@ export function parseLocalCore(
   }
   /** Basic HTML tag shape (name only); attributes are validated by the caller. */
   function htmlTagAt(start: number, limit: number, tableContext = false) {
+    if (htmlSupport === undefined) return null;
     const match = /^<(\/?)([A-Za-z][A-Za-z0-9]*)(?=[\s/>])/.exec(source.slice(start, Math.min(limit, start + 64)));
     if (!match) return null;
     const lower = match[2].toLowerCase();
@@ -840,7 +846,7 @@ export function parseLocalCore(
     const end = close - 1;
     const rest = source.slice(head, end);
     const closing = Boolean(match[1]);
-    const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head);
+    const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head, decodeEntities);
     return {
       lower,
       closing,
@@ -975,13 +981,13 @@ export function parseLocalCore(
     switch (tag.lower) {
       case 'code': {
         // Raw content: `{{ }}`, Markdown and tags stay literal; entities decode.
-        return node('inlineCode', start, end, { value: decodeHtmlEntities(source.slice(tag.end, close.start)) });
+        return node('inlineCode', start, end, { value: decodeEntities(source.slice(tag.end, close.start)) });
       }
       case 'pre': {
         const raw = source.slice(tag.end, close.start);
         const wrapped = /^<code(?:\s[^>]*)?>([\s\S]*)<\/code>$/.exec(raw);
         return node('code', start, end, {
-          value: decodeHtmlEntities(wrapped ? wrapped[1] : raw),
+          value: decodeEntities(wrapped ? wrapped[1] : raw),
           attrs,
         });
       }
@@ -1394,12 +1400,13 @@ export function parseLocalCore(
         }
       }
       if (source[i] === '<') {
+        if (htmlSupport) {
         const htmlDiagnosticStart = diagnostics.length;
         let invalidNativeTable = false;
-        let nativeTable: ReturnType<typeof readHtmlTable>;
+        let nativeTable: ReturnType<NonNullable<LocalParserCapabilities['html']>['readTable']>;
         try {
-          nativeTable = readHtmlTable(source, i, end, {
-          shield: (offset, limit) => {
+          nativeTable = htmlSupport.readTable(source, i, end, {
+          shield: (offset: number, limit: number) => {
             if (source.startsWith('{{', offset)) {
               const finish = interpolationEnd(offset, limit);
               if (finish >= 0) return finish;
@@ -1414,17 +1421,17 @@ export function parseLocalCore(
             }
             return protectedEnd(offset, limit, insideContainer);
           },
-          budget: (offset, count) => {
+          budget: (offset: number, count: number) => {
             if (count > maxSyntaxNodes * 2) throw new LocalBudgetError('local.budget', `Syntax nodes exceed the limit of ${maxSyntaxNodes}.`, offset, offset + 1, 'local.budget.nodes', { limit: maxSyntaxNodes });
           },
           node,
-          problem: (kind, from, to, tag, name) => {
+          problem: (kind: string, from: number, to: number, tag?: string, name?: string) => {
             invalidNativeTable = true;
             const key = `html.table.${kind}`;
             const params = { tag: tag ?? 'table', name: name ?? '' };
             warning('local.html.fallback', renderLocalDiagnostic(key, 'en', params), from, to, { key, params });
           },
-          attributes: (name, from, to) => {
+          attributes: (name: string, from: number, to: number) => {
             const tag = htmlTagAt(from, to, true);
             const selected = tag && selectHtmlAttributes(name, tag);
             if (!selected || !selected.ok) {
@@ -1437,7 +1444,7 @@ export function parseLocalCore(
             }
             return selected.attrs;
           },
-          content: (from, to) => {
+          content: (from: number, to: number) => {
             const body = region(from, to, undefined, from, from, depth + 1, { ...options, definitions: [] });
             return convert(from, to, body.tokens, commonIndent(from, to), { literalHtml: footnoteMode, stripBlockquote: options.stripBlockquote === true });
           },
@@ -1464,6 +1471,7 @@ export function parseLocalCore(
             ? node('fallback', i, nativeTable.end, {value: source.slice(i, nativeTable.end)}) : nativeTable.node });
           i = nativeTable.end;
           continue;
+        }
         }
         const html = htmlTagAt(i, end);
         if (html) {
@@ -1513,9 +1521,9 @@ export function parseLocalCore(
           const close = htmlCloseEnd(html.end, html.lower, end, insideContainer);
           if (!close) {
             const stop = htmlLiteralEnd(html.end, end, parent, html.lower);
-            if (!strict) {
+            if (!strict && htmlSupport) {
               budget.charge(stop - i, i, stop);
-              const repaired = recoverLocalHtml(source, i, stop, node, new Set(known.keys()));
+              const repaired = htmlSupport.recoverFragment(source, i, stop, node, new Set(known.keys()));
               if (repaired) {
                 recoveries.push(repaired.recovery);
                 for (const child of repaired.nodes) tokens.push({
@@ -1589,7 +1597,7 @@ export function parseLocalCore(
           continue;
         }
         const scanned = scanTag(i, end);
-        if (scanned && !known.has(scanned.name.toLowerCase()) && NATIVE_HTML_NAMES.has(scanned.name.toLowerCase())) {
+        if (scanned && !known.has(scanned.name.toLowerCase()) && nativeHtmlNames.has(scanned.name.toLowerCase())) {
           const paired = !scanned.closing && !scanned.self && !NATIVE_HTML_VOID.has(scanned.name.toLowerCase())
             ? unknownTagEnd(scanned.end, scanned.name, end, insideContainer, true) : null;
           const rawFallback = !strict && !scanned.closing && !scanned.self && HTML_RAW_TEXT_ELEMENTS.has(scanned.name.toLowerCase())
@@ -1645,7 +1653,7 @@ export function parseLocalCore(
         const tag = tagAt(i, end);
         if (tag) {
           if (tag.unclosed) {
-            if (!known.has(tag.name.toLowerCase()) && NATIVE_HTML_NAMES.has(tag.name.toLowerCase())) {
+            if (!known.has(tag.name.toLowerCase()) && nativeHtmlNames.has(tag.name.toLowerCase())) {
               const stop = htmlLiteralEnd(tag.head, end, parent, tag.name);
               if (!strict && HTML_RAW_TEXT_ELEMENTS.has(tag.name.toLowerCase())) recoveries.push({ code: 'local.html.literal',
                 causeRange: { start: i, end: tag.head }, affectedRange: { start: i, end: stop },
@@ -1999,7 +2007,7 @@ export function parseLocalCore(
           const schema = known.get(name);
           return schema === undefined || schema.form !== 'leaf';
         },
-        isHtmlName: (name) => HTML_NAMES.has(name) || NATIVE_HTML_NAMES.has(name),
+        isHtmlName: (name) => htmlSupport !== undefined && (HTML_NAMES.has(name) || nativeHtmlNames.has(name)),
         isVoidHtml: (name) => NATIVE_HTML_VOID.has(name) || HTML_VOID_ELEMENTS.has(name),
         rawHtmlEnd: (name, bodyStart, insideContainer) => {
           if (name === 'plaintext') return source.length;

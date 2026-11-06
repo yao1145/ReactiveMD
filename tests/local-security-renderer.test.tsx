@@ -8,7 +8,8 @@ import {
   LocalReactiveDocument,
   type LocalUrlPolicy,
 } from '../src/local/rendering/LocalDocumentView';
-import { compileLatex, LatexError, samplePlot } from '../src/local/evaluation/math';
+import { compileLatex, LatexError } from '../src/local/evaluation/math';
+import { samplePlot } from '../src/local/evaluation/math-sample';
 import { LatexView } from '../src/local/widgets/math-view';
 import { LocalVisual } from '../src/local/widgets/visuals';
 import { MAX_LOCAL_PLOT_POINTS } from '../src/local/configuration/limits';

@@ -8,11 +8,11 @@
  * only drops cross-revision reuse and the optional KaTeX display precheck.
  */
 import type { LocalExpression } from '../evaluation/expression';
-import type { LatexExpression } from '../evaluation/math';
+import type { CompiledPlotFormula, LatexExpression, PlotFormulaKind } from '../evaluation/math';
 import type { InlinePlanLookup } from '../markdown/fast-markdown';
 import type { ParsedLocal } from '../parsing/parser-core';
 import type { SourceContext } from '../source/source-context';
-import type { LocalCompileOptions, LocalMathDisplayIssue, LocalValueKind } from '../contracts/types';
+import type { Diagnostic, LocalCompileOptions, LocalHtmlPolicy, LocalMathDisplayIssue, LocalValueKind } from '../contracts/types';
 
 /** Parser entry used by tracked compiles; the session owns the cache. */
 export interface LocalCompilerParserService {
@@ -45,6 +45,20 @@ export type LocalMathDisplayInspector = (
   block: boolean,
 ) => readonly LocalMathDisplayIssue[];
 
+/** Optional whole-document HTML sanitizer for the native HTML branch. */
+export type LocalHtmlDocumentSanitizer = (
+  source: string,
+  policy: LocalHtmlPolicy,
+  maxSyntaxNodes: number,
+) => { markup: string; diagnostics: Diagnostic[] };
+
+/** Optional plot-formula compiler; omitted assemblies reject plot formulas. */
+export interface LocalCompilerPlotMath {
+  kind(source: string): PlotFormulaKind | null;
+  gridSize(samples: number): number;
+  compile(source: string): CompiledPlotFormula;
+}
+
 /** Optional execution goods for one compile; all fields are independent. */
 export interface LocalCompilerCoreServices {
   parser?: LocalCompilerParserService;
@@ -55,4 +69,8 @@ export interface LocalCompilerCoreServices {
    */
   rowPlans?: InlinePlanLookup;
   display?: LocalMathDisplayInspector;
+  /** Whole-document HTML branch; absent in the minimal assembly. */
+  htmlDocument?: LocalHtmlDocumentSanitizer;
+  /** Plot formula semantics; absent in the minimal assembly. */
+  plotMath?: LocalCompilerPlotMath;
 }

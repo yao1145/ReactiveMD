@@ -1,4 +1,3 @@
-import { GFM, parser as lezerParser } from '@lezer/markdown';
 import { planFastMarkdown, type FastMarkdownCache, type FastMarkdownPlan, type InlinePlanLookup, type FastMarkdownContext } from './fast-markdown';
 import type { SourceContext } from '../source/source-context';
 
@@ -15,7 +14,6 @@ export interface Candidate { from: number; to: number; type: string }
 export interface MarkdownStructure {candidates:Candidate[];maxDepth:number;codeRanges:{start:number;end:number}[]}
 interface FastRegion { from: number; to: number; plan: FastMarkdownPlan }
 
-const lezer = lezerParser.configure(GFM);
 const FAST_BLOCK = 'rmdFastBlock';
 /** Footnote definitions are containers and can continue lazily on the next line. */
 const FOOTNOTE_LABEL = '[^';
@@ -58,7 +56,7 @@ export function parseMarkdownBlocks(
     };
   }
 
-  const candidates = (structure??scanMarkdownStructure(source)).candidates;
+  const candidates = structure?.candidates ?? [];
   const regions: FastRegion[] = [];
   let floor = 0;
   for (let index = 0; index < candidates.length; index++) {
@@ -134,29 +132,6 @@ function generalResult(
       lines,
     },
   };
-}
-
-/** Lezer is advisory only: its top-level nodes seed candidate ranges. */
-export function scanMarkdownStructure(source: string):MarkdownStructure {
-  let parsed: any;
-  try {
-    // Lezer's line reader is LF-oriented. Normalize only isolated CRs in its
-    // advisory view; this keeps every UTF-16 offset and the real source intact.
-    parsed = lezer.parse(source.replace(/\r(?!\n)/g, '\n'));
-  } catch {
-    return {candidates:[],maxDepth:0,codeRanges:[]};
-  }
-  const result: Candidate[] = [];
-  for (let node = parsed.topNode.firstChild; node; node = node.nextSibling) {
-    result.push({from: node.from, to: node.to, type: node.type.name});
-  }
-  let depth=0,maxDepth=0;const codeRanges:{start:number;end:number}[]=[];
-  const containers=new Set(['Blockquote','BulletList','OrderedList']);
-  parsed.iterate({enter(node:any){
-    if(containers.has(node.name)){depth++;maxDepth=Math.max(maxDepth,depth);}
-    if(node.name==='FencedCode'||node.name==='CodeBlock')codeRanges.push({start:node.from,end:node.to});
-  },leave(node:any){if(containers.has(node.name))depth--;}});
-  return {candidates:result,maxDepth,codeRanges};
 }
 
 export interface MarkdownTreeFacts {

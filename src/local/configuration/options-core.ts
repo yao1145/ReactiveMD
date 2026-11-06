@@ -14,6 +14,7 @@ import { isSafeLocalPattern } from '../../sdk/pattern';
 import { localComponentHostBinding } from '../../sdk/props';
 import { normalizedComponentFromDefinition } from '../../sdk/registry-core';
 import { normalizeComponent, type NormalizedComponent } from '../compilation/component-kernel';
+import { NO_PARSER_CAPABILITIES, type LocalParserCapabilities } from '../parsing/parser-capabilities';
 import { DEFAULT_COMPILER_PRESET, compilerConfigKey, readCompilerConfig } from '../../sdk/compiler-config';
 import type { LocalComponentDefinition, LocalComponentProp, LocalConfig } from '../../sdk/types';
 import type {
@@ -89,6 +90,8 @@ export type LocalOptionCheck =
       componentConfigKey: string;
       /** Preset actually honored by this compilation, when one is assembled. */
       preset?: { readonly id: string; readonly version: string };
+      /** Optional parser abilities installed by this assembly. */
+      capabilities: LocalParserCapabilities;
     }
   | { ok: false; message: string; key: string; detail?: string };
 
@@ -110,6 +113,8 @@ export interface LocalOptionSources {
   readonly readConfig: (value: unknown, defaults: readonly LocalComponentDefinition[]) => LocalConfig;
   /** Semantic key of a validated configuration. */
   readonly configKey: (config: LocalConfig) => string;
+  /** Optional parser abilities; omitted means core Markdown only. */
+  readonly capabilities?: LocalParserCapabilities;
 }
 
 /** Preset identity used by the standard assembly, kept as protocol data. */
@@ -717,6 +722,7 @@ export function readOptionCheck(
     externalComponentNames,
     legacyHostNames,
     componentConfigKey: config ? sources.configKey(config) : sources.defaultConfigKey,
+    capabilities: sources.capabilities ?? NO_PARSER_CAPABILITIES,
     ...(sources.preset ? { preset: sources.preset } : {}),
   };
 }
@@ -731,15 +737,17 @@ export function readOptionCheck(
 export function readCompilerOptions(
   options?: LocalCompileOptions,
   defaults: readonly LocalComponentDefinition[] = [],
+  capabilities?: LocalParserCapabilities,
 ): LocalOptionCheck {
   const preset = defaults.length > 0 ? STANDARD_PRESET : undefined;
   const presets = preset ? [preset] : [];
   return readOptionCheck(options, {
     defaults,
-    ...(preset ? { preset } : {}),
+    ...(preset ? { preset: preset } : {}),
     defaultConfigKey: compilerConfigKey(presets, []),
     readConfig: readCompilerConfig,
     configKey: (config) => config.key,
+    ...(capabilities ? { capabilities } : {}),
   });
 }
 

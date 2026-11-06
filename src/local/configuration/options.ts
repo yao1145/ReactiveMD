@@ -5,6 +5,7 @@ import type { LocalCompileOptions } from '../contracts/types';
 import { localComponentConfigKey, localConfigKey, readLocalConfig } from '../../sdk/config';
 import { getLocalComponentRegistry } from '../../sdk/registry';
 import defaultPreset from '../../presets/default';
+import { STANDARD_PARSER_CAPABILITIES } from '../parsing/parser-standard';
 
 export { LOCAL_HTML_FLAGS, LOCAL_RECOVERY_STRATEGY_VERSION };
 export type { LocalHtmlFlag, LocalOptionCheck } from './options-core';
@@ -21,6 +22,7 @@ export function readLocalCompileOptions(options: LocalCompileOptions | undefined
     defaultConfigKey: localComponentConfigKey(),
     readConfig: (value) => readLocalConfig(value),
     configKey: (config) => localComponentConfigKey(config),
+    capabilities: STANDARD_PARSER_CAPABILITIES,
   });
 }
 

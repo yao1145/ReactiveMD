@@ -3,10 +3,17 @@ import {unified} from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import {parseMarkdownBlocks} from '../src/local/markdown/markdown-blocks';
+import {scanMarkdownStructure} from '../src/local/markdown/markdown-structure';
 import type {FastMarkdownCache} from '../src/local/markdown/fast-markdown';
 
 const markdown = unified().use(remarkParse).use(remarkGfm);
 const parseGeneral = (source: string): any => markdown.parse(source);
+
+/** The full assembly supplies the advisory block planner explicitly. */
+function planBlocks(...args: Parameters<typeof parseMarkdownBlocks>) {
+  const [source, parse, context, cache, _structure, rowPlans, fastContext] = args;
+  return parseMarkdownBlocks(source, parse, context, cache, scanMarkdownStructure(source), rowPlans, fastContext);
+}
 
 function comparable(node: any): any {
   const result: any = {type: node.type};
@@ -58,7 +65,7 @@ function walk(nodes: any[], visit: (node: any) => void): void {
 }
 
 function expectMatchesRemark(source: string): {tree: any; stats: any} {
-  const result = parseMarkdownBlocks(source, parseGeneral);
+  const result = planBlocks(source, parseGeneral);
   const expected = markdown.parse(source).children.map(comparable);
   expect(expand(result.tree).map(comparable)).toEqual(expected);
   return result;
@@ -254,9 +261,9 @@ describe('block-local Markdown planning', () => {
   });
 
   it('reports total source lines, including CR and CRLF variants', () => {
-    expect(parseMarkdownBlocks('a\nb\nc', parseGeneral).stats.lines).toBe(3);
-    expect(parseMarkdownBlocks('a\r\nb\r\nc', parseGeneral).stats.lines).toBe(3);
-    expect(parseMarkdownBlocks('a\rb\rc', parseGeneral).stats.lines).toBe(3);
+    expect(planBlocks('a\nb\nc', parseGeneral).stats.lines).toBe(3);
+    expect(planBlocks('a\r\nb\r\nc', parseGeneral).stats.lines).toBe(3);
+    expect(planBlocks('a\rb\rc', parseGeneral).stats.lines).toBe(3);
   });
 
   it('never gives fast wrappers children', () => {
@@ -278,7 +285,7 @@ describe('block-local Markdown planning', () => {
       readInline() { return {hit: false}; },
       writeInline() {},
     };
-    const {tree, stats} = parseMarkdownBlocks(source, parseGeneral, undefined, cache);
+    const {tree, stats} = planBlocks(source, parseGeneral, undefined, cache);
     expect(seen).toContain(source);
     expect(stats.fastCharacters).toBeGreaterThan(0);
     expect(fastBlocks(tree).length).toBeGreaterThan(0);

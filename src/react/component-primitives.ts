@@ -29,15 +29,13 @@ export {
   MAX_IMPLICIT_GRID,
   MIN_IMPLICIT_GRID,
   plotFormulaKind,
-  sampleImplicit,
-  sampleParametric,
-  samplePlot,
   type CompiledPlotFormula,
   type LatexEvaluationBudget,
   type PlotFormulaKind,
   type PlotPoint,
   type PlotSample,
 } from '../local/evaluation/math';
+export { sampleImplicit, sampleParametric, samplePlot } from '../local/evaluation/math-sample';
 export { LatexView } from '../local/widgets/math-view';
 export { TableSurface } from '../local/widgets/table-surface';
 export {

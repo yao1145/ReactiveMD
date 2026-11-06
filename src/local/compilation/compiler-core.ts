@@ -11,7 +11,6 @@ import {
   type ComputationInput,
 } from '../evaluation/computations';
 import { createHeadingAnchors } from '../markdown/heading-anchors';
-import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../evaluation/math';
 import { parseLocalCore, type ParsedLocal } from '../parsing/parser-core';
 import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
 import { compilerComponentConfigKey, type LocalOptionCheck } from '../configuration/options-core';
@@ -76,13 +75,14 @@ import {
 import { parseValidationFields } from '../evaluation/validation';
 import { localComponentRequirement } from '../../sdk/manifest';
 import { LOCAL_EXTENSIONS_PROTOCOL, type LocalComponentDefinition, type LocalComponentRequirement, type LocalExtensionRequirements } from '../../sdk/types';
-import { sanitizeLocalHtmlDocument } from '../html/html';
 import { plainCompiledData } from '../transport/compiled-data';
 import {walkLocalNodes} from '../source/node-walk';
 import { SourceContext } from '../source/source-context';
 import type {
   LocalCompilerCoreServices,
+  LocalCompilerPlotMath,
   LocalCompilerSemanticService,
+  LocalHtmlDocumentSanitizer,
   LocalMathDisplayInspector,
 } from './compiler-services';
 import type {
@@ -333,6 +333,10 @@ interface CompileState {
   semantic?: LocalCompilerSemanticService;
   /** Optional KaTeX display precheck; absent in the minimal core entry. */
   display?: LocalMathDisplayInspector;
+  /** Optional native HTML document branch; absent in the minimal core entry. */
+  htmlDocument?: LocalHtmlDocumentSanitizer;
+  /** Optional plot formula semantics; absent in the minimal core entry. */
+  plotMath?: LocalCompilerPlotMath;
   source: string;
   lineStarts: number[];
   nodes: LocalNode[];
@@ -372,7 +376,11 @@ interface CompileState {
  * expressions, computations and bindings are all bypassed; the source only
  * becomes grammar-aware sanitized HTML for an isolated `srcdoc` iframe.
  */
-function compileHtmlLocal(source: string, check: Extract<LocalOptionCheck, { ok: true }>): LocalCompileResult {
+function compileHtmlLocal(
+  source: string,
+  check: Extract<LocalOptionCheck, { ok: true }>,
+  sanitize: LocalHtmlDocumentSanitizer,
+): LocalCompileResult {
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     return {
       ok: false,
@@ -391,7 +399,7 @@ function compileHtmlLocal(source: string, check: Extract<LocalOptionCheck, { ok:
     };
   }
 
-  const sanitized = sanitizeLocalHtmlDocument(source, check.html, check.maxSyntaxNodes);
+  const sanitized = sanitize(source, check.html, check.maxSyntaxNodes);
   if (sanitized.diagnostics.some((item) => item.severity === 'error')) {
     return { ok: false, diagnostics: sanitized.diagnostics };
   }
@@ -431,7 +439,22 @@ export function compileLocalCore(
   capture?: (tree: ParsedLocal) => void,
   mark?: (name: string) => void,
 ): LocalCompileResult {
-  if (optionCheck.htmlActive) return compileHtmlLocal(source, optionCheck);
+  if (optionCheck.htmlActive) {
+    if (!services?.htmlDocument) {
+      return {
+        ok: false,
+        diagnostics: [{
+          code: 'local.capability.html',
+          message: 'This compiler assembly does not include the native HTML document branch.',
+          severity: 'error',
+          range: { start: 0, end: 0 },
+          line: 1,
+          column: 1,
+        }],
+      };
+    }
+    return compileHtmlLocal(source, optionCheck, services.htmlDocument);
+  }
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     // Source-shape diagnostics come from the kernel parser; a session parser
     // is never asked to compile a non-string or oversized revision.
@@ -527,6 +550,8 @@ export function compileLocalCore(
   const state: CompileState = {
     semantic: services?.semantic,
     display: services?.display,
+    htmlDocument: services?.htmlDocument,
+    plotMath: services?.plotMath,
     source,
     lineStarts,
     nodes: parsed.nodes,
@@ -3675,6 +3700,16 @@ function validatePlots(state: CompileState): void {
   for (const entry of state.entries) {
     const rule = kernelRule(entry.kernel, 'plot-math');
     if (!rule) continue;
+    const plotMath = state.plotMath;
+    if (!plotMath) {
+      state.report(
+        'local.capability.plot',
+        'This compiler assembly does not include plot formula support.',
+        entry.node.range.start,
+        entry.node.range.end,
+      );
+      continue;
+    }
     const attrs = state.attrs.get(entry.node.id) ?? {};
     const mathNodes = meaningful(entry.node.children).filter((node) => node.type === 'math');
     const samples = plotSamples(entry, attrs, rule);
@@ -3690,9 +3725,9 @@ function validatePlots(state: CompileState): void {
         { key: 'local.budget.plot.curves', params: { limit: curveLimit, count: mathNodes.length } },
       );
     }
-    const kinds = mathNodes.map((node) => plotFormulaKind(node.value ?? ''));
+    const kinds = mathNodes.map((node) => plotMath.kind(node.value ?? ''));
     const requested = kinds.reduce(
-      (sum, kind) => sum + (kind === 'implicit' ? implicitGridSize(samples) ** 2 : samples),
+      (sum, kind) => sum + (kind === 'implicit' ? plotMath.gridSize(samples) ** 2 : samples),
       0,
     );
     const nextTotal = totalPoints + requested;
@@ -3723,9 +3758,9 @@ function validatePlots(state: CompileState): void {
         );
         continue;
       }
-      let compiled: ReturnType<typeof compilePlotFormula> | null = null;
+      let compiled: ReturnType<LocalCompilerPlotMath['compile']> | null = null;
       try {
-        compiled = compilePlotFormula(recipe);
+        compiled = plotMath.compile(recipe);
       } catch (error) {
         state.report(
           'local.math',

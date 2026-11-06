@@ -1,7 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { compileLatex, compilePlotFormula, LatexError, sampleImplicit, sampleParametric, samplePlot } from '../src/local/evaluation/math';
+import { compileLatex, compilePlotFormula, LatexError } from '../src/local/evaluation/math';
+import { sampleImplicit, sampleParametric, samplePlot } from '../src/local/evaluation/math-sample';
 import { LatexView } from '../src/local/widgets/math-view';
 
 const near = (actual: number, expected: number, tolerance = 1e-12) => {

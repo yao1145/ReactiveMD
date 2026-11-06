@@ -5,7 +5,8 @@ import {
   LOCAL_HTML_ALIGN_ELEMENTS,
   LOCAL_HTML_NAMES,
 } from './html-names';
-import { HTML_TABLE_ATTRIBUTES, HTML_TABLE_NAMES, validHtmlTableValue } from './html-table';
+import { HTML_TABLE_ATTRIBUTES, HTML_TABLE_NAMES, validHtmlTableValue } from './html-table-names';
+import { decodeLocalHtmlEntities } from './html-entities';
 import {
   HTML_INLINE_NODE_TYPES,
   HTML_VOID_ELEMENTS,
@@ -170,27 +171,6 @@ function scanFragment(
 
   if (stack.length > 0) return { tableMode, contextTag: context, strayClose, unclosed: stack[0] };
   return { tableMode, contextTag: context, strayClose, unclosed: null };
-}
-
-/** Decode character references with browser grammar, never activating markup. */
-function decodeHtmlEntities(value: string): string {
-  if (!value.includes('&')) return value.replace(/\u0000/g, '�');
-  try {
-    const fragment = parseFragment(value.replace(/</g, '&lt;'), { scriptingEnabled: false });
-    let text = '';
-    const walk = (node: any): void => {
-      if (node.nodeName === '#text') {
-        text += node.value;
-        return;
-      }
-      for (const child of node.childNodes ?? []) walk(child);
-      if (node.content?.childNodes) for (const child of node.content.childNodes) walk(child);
-    };
-    for (const child of fragment.childNodes) walk(child);
-    return text.replace(/\u0000/g, '�');
-  } catch {
-    return value.replace(/\u0000/g, '�');
-  }
 }
 
 /** Attribute validation shares the embedded P0 policy; any doubt rejects the fragment. */
@@ -427,10 +407,10 @@ export function recoverLocalHtml(
         const wrapped = /^<code(?:\s[^>]*)?>([\s\S]*)<\/code>$/.exec(raw);
         return createNode('code', range.start, range.end, {
           attrs,
-          value: decodeHtmlEntities(wrapped ? wrapped[1] : raw),
+          value: decodeLocalHtmlEntities(wrapped ? wrapped[1] : raw, true),
         });
       }
-      return createNode('inlineCode', range.start, range.end, { attrs, value: decodeHtmlEntities(raw) });
+      return createNode('inlineCode', range.start, range.end, { attrs, value: decodeLocalHtmlEntities(raw, true) });
     }
 
     if (HTML_TABLE_NAMES.has(tag)) return convertTableElement(element, tag, attrs, depth, anchor, location);

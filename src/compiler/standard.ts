@@ -10,6 +10,9 @@ import type { LocalCompileOptions } from '../local/contracts/types';
 import type { LocalOptionCheck } from '../local/configuration/options-core';
 import { compileLocalCore } from '../local/compilation/compiler-core';
 import { inspectLocalMathDisplay } from '../local/evaluation/math-display';
+import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../local/evaluation/math';
+import { sanitizeLocalHtmlDocument } from '../local/html/html';
+import { STANDARD_PARSER_CAPABILITIES } from '../local/parsing/parser-standard';
 import { readCompilerOptions } from '../local/configuration/options-core';
 import { defaultPreset } from '../presets/default';
 import { STANDARD_CHECKS, toCompileResult } from './result';
@@ -30,7 +33,7 @@ export type { DeepReadonly } from './types';
 export type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../local/contracts/types';
 
 function requireOptions(options?: LocalCompileOptions): Extract<LocalOptionCheck, { ok: true }> {
-  const check = readCompilerOptions(options, defaultPreset.components);
+  const check = readCompilerOptions(options, defaultPreset.components, STANDARD_PARSER_CAPABILITIES);
   if (check.ok) return check;
   throw new CompilerConfigurationError(check.message, {
     code: check.key,
@@ -45,8 +48,13 @@ function snapshotOptions(options?: LocalCompileOptions): LocalCompileOptions | u
 export function createStandardCompiler(options?: LocalCompileOptions): Compiler {
   const optionCheck = requireOptions(options);
   const snapshot = snapshotOptions(options);
-  // A stable inspector object: the precheck is pure and has no session state.
-  const services = { display: inspectLocalMathDisplay };
+  // Stable service objects: the precheck is pure, and the HTML sanitizer and
+  // plot semantics are value-free functions.
+  const services = {
+    display: inspectLocalMathDisplay,
+    htmlDocument: sanitizeLocalHtmlDocument,
+    plotMath: { kind: plotFormulaKind, gridSize: implicitGridSize, compile: compilePlotFormula },
+  };
   return {
     compile(source: string): CompileResult {
       return toCompileResult(compileLocalCore(source, snapshot, optionCheck, services), STANDARD_CHECKS);

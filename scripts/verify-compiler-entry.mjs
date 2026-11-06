@@ -251,6 +251,27 @@ assert.ok(
   runtimeSources.standard.includes('reactive-md/${') && runtimeSources.standard.includes('Input controls'),
   'The standard compiler must still carry the default preset and its authoring copy',
 );
+/**
+ * Specialized abilities are installed by the full assembly only. The minimal
+ * core keeps CommonMark, RMD structure, expressions, bindings and budgets.
+ */
+const minimalCapabilityMarkers = [
+  ['@lezer', 'Lezer block planning'],
+  ['parse5', 'native HTML parsing'],
+  ['remark-gfm', 'GFM syntax'],
+  ['katex', 'KaTeX display'],
+  ['sampleImplicit', 'plot curve sampling'],
+];
+for (const [marker, label] of minimalCapabilityMarkers) {
+  assert.ok(
+    !runtimeSources.compiler.toLowerCase().includes(marker),
+    `Minimal compiler runtime graph must not include ${label} (found "${marker}")`,
+  );
+}
+assert.ok(
+  runtimeSources.standard.toLowerCase().includes('@lezer') && runtimeSources.standard.toLowerCase().includes('parse5'),
+  'The standard compiler must still carry GFM, native HTML and Lezer planning',
+);
 const presetDeclarationFiles = declarationGraph.compiler.filter(
   (file) => /(?:^|\/)presets\//.test(file) || /default-(?:components|semantics|authoring)\.d\.ts$/.test(file),
 );
