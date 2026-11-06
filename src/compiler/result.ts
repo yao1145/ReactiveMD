@@ -59,21 +59,28 @@ function plainRecoveries(recoveries: readonly LocalRecovery[] | undefined): read
  * cannot be reported as recoveries by construction.
  */
 export function toCompileResult(result: LocalCompileResult, checks: CheckCoverage): CompileResult {
-  const plain = plainCompiledData(result);
-  const recoveries = plainRecoveries(plain.recoveries);
-  if (!plain.ok) {
-    return { ok: false, status: 'failed', diagnostics: plain.diagnostics, recoveries };
+  const diagnostics = plainCompiledData(result.diagnostics);
+  const recoveries = plainRecoveries(result.recoveries);
+  if (!result.ok) {
+    return { ok: false, status: 'failed', diagnostics, recoveries };
   }
-  // `document` stays the mutable plain-data alias task-one consumers read.
-  // `program` is a second, independent copy that is frozen for every holder.
-  const document: LocalDocument = plain.document;
-  const program = freezeProgram(plainCompiledData(document)) as Program;
+  // `program` is the publication copy: independent from the compiler-owned
+  // document and frozen for every holder.
+  const sourceDocument = result.document;
+  const program = freezeProgram(plainCompiledData(sourceDocument)) as Program;
+  // `document` stays the mutable plain-data alias task-one consumers read. It
+  // is materialized only when requested, so program-only consumers pay one
+  // document copy instead of two while both fields stay independent.
+  let documentCopy: LocalDocument | undefined;
   return {
     ok: true,
     status: recoveries.length > 0 ? 'recovered' : 'valid',
-    document,
+    get document(): LocalDocument {
+      documentCopy ??= plainCompiledData(sourceDocument);
+      return documentCopy;
+    },
     program,
-    diagnostics: plain.diagnostics,
+    diagnostics,
     recoveries,
     checks,
   };
