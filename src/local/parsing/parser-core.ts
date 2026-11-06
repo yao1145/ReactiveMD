@@ -296,7 +296,6 @@ export function parseLocalCore(
   // The unified registry is the single source for accepted names and forms.
   const schemaByName = optionCheck.schemaByName;
   const externalNames = optionCheck.externalComponentNames;
-  const legacyHostNames = optionCheck.legacyHostNames;
   /** Inline forms behave like built-in inline tags for block placement. */
   const isInlineName = (name: string): boolean => schemaByName.get(name)?.form === 'inline';
   const known = schemaByName;

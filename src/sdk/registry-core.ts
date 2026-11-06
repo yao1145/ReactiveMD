@@ -1,4 +1,4 @@
-import type { KernelBindingSchema, KernelComponentSchema, KernelPropSchema } from '../local/compilation/component-kernel';
+import type { KernelBindingSchema, KernelComponentSchema } from '../local/compilation/component-kernel';
 import { normalizeComponent, type NormalizedComponent } from '../local/compilation/component-kernel';
 import type { LocalComponentSchema, LocalBindingSlotSchema, LocalPropSchema } from '../local/configuration/schema-core';
 import { localStructureFromChildren } from './manifest';

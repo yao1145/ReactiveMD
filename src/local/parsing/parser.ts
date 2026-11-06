@@ -2,7 +2,7 @@ import type { LocalCompileOptions } from '../contracts/types';
 import { MAX_LOCAL_DOCUMENT_LENGTH } from '../configuration/limits';
 import type { LocalOptionCheck } from '../configuration/options-core';
 import { readLocalCompileOptions } from '../configuration/options';
-import { parseLocalCore, type ParsedLocal, type ParserWork } from './parser-core';
+import { parseLocalCore, type ParsedLocal } from './parser-core';
 import type { SourceContext } from '../source/source-context';
 import type { ParseSessionCache } from './parse-budget';
 import type { InlinePlanLookup } from '../markdown/fast-markdown';

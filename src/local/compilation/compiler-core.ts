@@ -1,6 +1,5 @@
 import type { Diagnostic } from '../contracts/types';
 import { isLocalColor } from '../theme/colors';
-import { localDateTimestamp } from '../evaluation/dates';
 
 import { diagnosticEnglish, localDiagnosticDetails, type LocalDiagnosticDetails } from '../configuration/diagnostics';
 import { countLocalCodePoints } from '../source/text-length';
@@ -17,7 +16,6 @@ import { compilerComponentConfigKey, type LocalOptionCheck } from '../configurat
 import {
   isLocalEmail,
   MAX_LOCAL_EMAIL_LENGTH,
-  DEFAULT_LOCAL_DATA_TABLE_ROWS,
   MAX_LOCAL_DATA_DOCUMENT_CELLS,
   MAX_LOCAL_DATA_DOCUMENT_ROWS,
   MAX_LOCAL_DATA_TABLE_COLUMNS,
@@ -34,7 +32,6 @@ import {
 import {
   closestName,
   type LocalBindingFamily,
-  type LocalComponentSchema,
 } from '../configuration/schema-core';
 import {
   isKernelAnchorId,
@@ -42,10 +39,7 @@ import {
   kernelAttributeIssues,
   kernelDefaultInitial,
   kernelDescribeConstraints,
-  kernelHasComponent,
-  kernelMeaningfulChildren,
   kernelMaxItems,
-  kernelNearestZero,
   kernelNavigationIssues,
   kernelNumericConstraints,
   kernelOnStep,
@@ -60,10 +54,7 @@ import {
   kernelUsesLegacyDiagnostics,
   kernelValueBinding,
   kernelValueRules,
-  type KernelAttrMap,
   type KernelBindingSchema,
-  type KernelChildRule,
-  type KernelDiagnosticIssue,
   type KernelNumericConstraints,
   type KernelProjectionKind,
   type KernelPropSchema,
@@ -124,42 +115,8 @@ function parseNumberText(raw: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-function isValidDate(value: string): boolean {
-  return value === '' || localDateTimestamp(value) !== null;
-}
-
 function cloneValue(value: LocalValue): LocalValue {
   return Array.isArray(value) ? value.slice() : value;
-}
-
-function onStep(value: number, base: number, step: number): boolean {
-  const quotient = (value - base) / step;
-  return Math.abs(quotient - Math.round(quotient)) <= EPSILON * Math.max(1, Math.abs(quotient));
-}
-
-function nearestZero(min: number | undefined, max: number | undefined, step: number): number | null {
-  const base = min ?? 0;
-  const lower = min === undefined ? Number.NEGATIVE_INFINITY : Math.ceil((min - base) / step);
-  const upper = max === undefined ? Number.POSITIVE_INFINITY : Math.floor((max - base) / step);
-  if (lower > upper) return null;
-  const target = -base / step;
-  let best: number | null = null;
-  for (const candidate of [Math.floor(target), Math.ceil(target)]) {
-    const index = Math.min(upper, Math.max(lower, candidate));
-    if (!Number.isFinite(index)) continue;
-    if (best === null) {
-      best = index;
-      continue;
-    }
-    const value = base + index * step;
-    const current = base + best * step;
-    if (Math.abs(value) < Math.abs(current) || (Math.abs(value) === Math.abs(current) && value < current)) {
-      best = index;
-    }
-  }
-  if (best === null) return null;
-  const value = base + best * step;
-  return min !== undefined && value < min ? null : max !== undefined && value > max ? null : value;
 }
 
 interface ScanSegment {
@@ -802,7 +759,7 @@ function validateAttributesUncached(entry: Entry, state: CompileState): AttrMap 
       state.report('local.budget.attribute', { key: 'local.budget.attribute', params: { name, component: entry.name, limit: MAX_LOCAL_STRING_LENGTH } }, offset, offset + name.length);
       info.raw = raw.slice(0, MAX_LOCAL_STRING_LENGTH);
     }
-    validatePropValue(entry, name, prop, info, state, legacy);
+    validatePropValue(name, prop, info, state, legacy);
     if (prop.color) {
       const scanned = scanInterpolations(info.raw);
       if (!scanned.segments.length && !scanned.unterminated.length && !isLocalColor(info.raw)) {
@@ -875,7 +832,6 @@ function kernelPropValues(prop: KernelPropSchema): readonly string[] {
 }
 
 function validatePropValue(
-  entry: Entry,
   name: string,
   prop: KernelPropSchema,
   info: AttrState,
@@ -1787,15 +1743,6 @@ function bindingKinds(bindings: Record<string, LocalBinding>): Record<string, Lo
     if (!key.startsWith('@')) kinds[key] = binding.type;
   }
   return kinds;
-}
-
-/** Flatten a node tree in document order. */
-function flattenNodes(nodes: LocalNode[], out: LocalNode[] = []): LocalNode[] {
-  for (const node of nodes) {
-    out.push(node);
-    if (node.children) flattenNodes(node.children, out);
-  }
-  return out;
 }
 
 /*
@@ -2827,8 +2774,6 @@ function validateNavigation(
     );
   }
 }
-
-const IDENTIFIER_ANCHOR = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 
 /* ------------------------------------------------------------------ */
 /* Cross-field rules and generated data tables                         */
