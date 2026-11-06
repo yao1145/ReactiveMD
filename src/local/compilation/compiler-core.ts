@@ -780,9 +780,9 @@ function validateAttributesUncached(entry: Entry, state: CompileState): AttrMap 
   }
   if (kernelStructure(entry.kernel).label === 'required') {
     if (!Object.hasOwn(attrs, 'label')) {
-      state.report('local.label.required', { key: 'local.label.required.missing', params: { component: entry.name } }, entry.node.range.start, entry.node.range.end);
+      state.report('local.label.required', { key: 'local.label.required.missing', params: { name: entry.name } }, entry.node.range.start, entry.node.range.end);
     } else if (!String(attrs.label.raw).trim()) {
-      state.report('local.label.required', { key: 'local.label.required.empty', params: { component: entry.name } }, attrs.label.offset, undefined);
+      state.report('local.label.required', { key: 'local.label.required.empty', params: { name: entry.name } }, attrs.label.offset, undefined);
     }
   }
   return attrs;
@@ -1261,17 +1261,17 @@ function validateValueSequence(
   const children = componentChildren(entry, state);
   const items = children.filter((candidate) => candidate.name === child);
   if (!items.length) {
-    state.report('local.structure.children', { key: `local.structure.${entry.name}.needs-${child}` }, entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', { key: 'local.structure.sequence.minimum', params: { name: entry.name, child } }, entry.node.range.start, entry.node.range.end);
   }
   for (const candidate of children) {
     if (candidate.name !== child) {
-      state.report('local.structure.children', { key: `local.structure.${entry.name}.only-${child}` }, candidate.node.range.start, candidate.node.range.end);
+      state.report('local.structure.children', { key: 'local.structure.sequence.only', params: { name: entry.name, child } }, candidate.node.range.start, candidate.node.range.end);
     }
   }
   if (meaningful(entry.node.children).some((kid) => !(
     (kid.type === 'component' || kid.type === 'hostComponent') && kid.name === child
   ))) {
-    state.report('local.structure.children', { key: `local.structure.${entry.name}.only-${child}` }, entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', { key: 'local.structure.sequence.only', params: { name: entry.name, child } }, entry.node.range.start, entry.node.range.end);
   }
   const values: string[] = [];
   items.forEach((item, index) => {
@@ -1310,7 +1310,7 @@ function validateOnlyChildren(
     ? Math.min(max, MAX_LOCAL_DATA_TABLE_COLUMNS)
     : max;
   if (matching.length < min) {
-    state.report('local.structure.children', { key: `local.structure.${entry.name}.needs-${allowed[0]}` }, entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', { key: 'local.structure.children.minimum', params: { name: entry.name, min, children: label } }, entry.node.range.start, entry.node.range.end);
   }
   if (limit !== undefined && matching.length > limit) {
     state.report(
@@ -1322,13 +1322,13 @@ function validateOnlyChildren(
   }
   for (const candidate of children) {
     if (!allowed.includes(candidate.name)) {
-      state.report('local.structure.children', { key: onlyCode ?? `local.structure.${entry.name}.only` }, candidate.node.range.start, candidate.node.range.end);
+      state.report('local.structure.children', { key: onlyCode ?? 'local.structure.children.only', params: { name: entry.name, children: label } }, candidate.node.range.start, candidate.node.range.end);
     }
   }
   if (meaningful(entry.node.children).some((kid) => !(
     (kid.type === 'component' || kid.type === 'hostComponent') && kid.name && state.schemaByName.has(kid.name)
   ))) {
-    state.report('local.structure.children', { key: onlyCode ?? `local.structure.${entry.name}.only` }, entry.node.range.start, entry.node.range.end);
+    state.report('local.structure.children', { key: onlyCode ?? 'local.structure.children.only', params: { name: entry.name, children: label } }, entry.node.range.start, entry.node.range.end);
   }
 }
 

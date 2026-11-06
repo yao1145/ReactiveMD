@@ -329,8 +329,17 @@ export function parseLocalCore(
       if(scanStructure){
         const structure=scanStructure(text);structures.set(text,structure);depth=structure.maxDepth;
       } else {
-        // No advisory planner: keep the budget fail-closed on the raw hint.
-        depth=Math.max(depth,facts.potentialDepth);
+        // Resolve the hint with the core CommonMark tree when no advisory
+        // planner is installed. Code and HTML leaves contribute no depth.
+        depth=0;
+        const pending=[{node:generalParse(text),depth:0}];
+        while(pending.length){
+          const current=pending.pop()!;
+          const nested=current.depth+(current.node.type==='blockquote'||current.node.type==='list'?1:0);
+          depth=Math.max(depth,nested);
+          if(depth>optionCheck.maxMarkdownDepth)break;
+          for(const child of current.node.children??[])pending.push({node:child,depth:nested});
+        }
       }
     }
     budget.observeDepth(depth,0,Math.max(1,text.length));

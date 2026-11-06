@@ -475,6 +475,26 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'The body of <{name}> cannot contain other interactive components.',
     zh: '<{name}> 的正文不能包含其他交互组件。',
   },
+  'structure.noComponents': {
+    en: 'The body of <{name}> cannot contain interactive components.',
+    zh: '<{name}> 的正文不能包含交互组件。',
+  },
+  'structure.childrenMinimum': {
+    en: '<{name}> requires at least {min} {children}.',
+    zh: '<{name}> 至少需要 {min} 个 {children}。',
+  },
+  'structure.childrenOnly': {
+    en: 'Direct children of <{name}> must be {children}.',
+    zh: '<{name}> 的直接子元素必须是 {children}。',
+  },
+  'structure.sequenceMinimum': {
+    en: '<{name}> requires at least one <{child}>.',
+    zh: '<{name}> 至少需要一个 <{child}>。',
+  },
+  'structure.sequenceOnly': {
+    en: '<{name}> can only contain <{child}>.',
+    zh: '<{name}> 只能包含 <{child}>。',
+  },
   'structure.accordionNeedsDisclosure': {
     en: '<accordion> requires at least one <disclosure>.',
     zh: '<accordion> 至少需要一个 <disclosure>。',
@@ -703,6 +723,22 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Initial value of parameter "{name}" has the wrong type.',
     zh: '参数“{name}”的初值类型不正确。',
   },
+  'initial.typeCollection': {
+    en: 'Initial value of parameter "{key}" must be a JSON array.',
+    zh: '参数“{key}”的初值必须是 JSON 数组。',
+  },
+  'initial.typeStringArray': {
+    en: 'Initial value of parameter "{key}" must be an array of strings.',
+    zh: '参数“{key}”的初值必须是字符串数组。',
+  },
+  'initial.typeNumberArray': {
+    en: 'Initial value of parameter "{key}" must be an array of finite numbers.',
+    zh: '参数“{key}”的初值必须是有限数字组成的数组。',
+  },
+  'initial.maxItems': {
+    en: 'Initial value of parameter "{key}" exceeds the limit of {max} items.',
+    zh: '参数“{key}”的初值超过 {max} 项的上限。',
+  },
   'initial.dateInvalid': {
     en: 'Initial date "{value}" is not a valid YYYY-MM-DD.',
     zh: '初值日期“{value}”不是有效的 YYYY-MM-DD。',
@@ -783,9 +819,9 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Arrays cannot be displayed directly; convert them first with a function such as len.',
     zh: '数组不能直接显示；请先用 len 等函数转换。',
   },
-  'attribute.whenInterpolation': {
-    en: 'The when attribute of if must be a full boolean interpolation, e.g. when="{{ seats >= 5 }}".',
-    zh: 'if 的 when 属性必须是完整的布尔插值，例如 when="{{ seats >= 5 }}"。',
+  'attribute.fullInterpolation': {
+    en: 'The {name} attribute of <{component}> must be a full interpolation.',
+    zh: '<{component}> 的 {name} 属性必须是完整插值。',
   },
   'anchor.idInvalid': {
     en: 'Anchor id "{id}" must match [A-Za-z_][A-Za-z0-9_-]*.',
@@ -1310,7 +1346,7 @@ export const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.attribute.type.date-upper': 'attribute.dateUpper',
   'local.attribute.range.min': 'attribute.rangeMin',
   'local.attribute.range.max': 'attribute.rangeMax',
-  'local.attribute.interpolation': 'attribute.whenInterpolation',
+  'local.attribute.interpolation': 'attribute.fullInterpolation',
   'local.label.required.missing': 'label.requiredMissing',
   'local.label.required.empty': 'label.requiredEmpty',
   'local.expression.empty.attribute': 'expression.emptyAttribute',
@@ -1340,6 +1376,11 @@ export const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.structure.no-body': 'structure.noBody',
   'local.structure.inline-only': 'structure.inlineOnly',
   'local.structure.no-nested-components': 'structure.noNestedComponents',
+  'local.structure.no-components': 'structure.noComponents',
+  'local.structure.children.minimum': 'structure.childrenMinimum',
+  'local.structure.children.only': 'structure.childrenOnly',
+  'local.structure.sequence.minimum': 'structure.sequenceMinimum',
+  'local.structure.sequence.only': 'structure.sequenceOnly',
   'local.structure.accordion.needs-disclosure': 'structure.accordionNeedsDisclosure',
   'local.structure.accordion.only-disclosure': 'structure.accordionOnly',
   'local.structure.grid.needs-card': 'structure.gridNeedsCard',
@@ -1393,6 +1434,10 @@ export const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.initial.type.number': 'initial.typeFiniteNumber',
   'local.initial.type.boolean': 'initial.typeBoolean',
   'local.initial.type': 'initial.typeWrong',
+  'local.initial.type.collection': 'initial.typeCollection',
+  'local.initial.type.array': 'initial.typeStringArray',
+  'local.initial.type.number-array': 'initial.typeNumberArray',
+  'local.initial.value.max-items': 'initial.maxItems',
   'local.initial.range.min': 'initial.belowMin',
   'local.initial.range.max': 'initial.aboveMax',
   'local.initial.range.step': 'initial.offStep',

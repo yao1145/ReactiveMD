@@ -153,7 +153,7 @@ export function normalizedComponentFromDefinition(definition: LocalComponentDefi
   if (cached !== undefined) return cached;
   const structure = definition.structure ?? localStructureFromChildren(definition.children);
   const normalized = normalizeComponent(
-    { name: definition.name, form: definition.form, props: definition.props },
+    { name: definition.name, form: definition.form, props: definition.props, childRule: childRuleOf(structure, definition.form) },
     {
       ...(structure ? { structure } : {}),
       ...(definition.rules ? { rules: definition.rules } : {}),
