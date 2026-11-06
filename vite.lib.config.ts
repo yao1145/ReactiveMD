@@ -27,6 +27,8 @@ export default defineConfig({
         'reactive-md-export': fileURLToPath(new URL('./src/export/index.ts', import.meta.url)),
         'reactive-md-react-server': fileURLToPath(new URL('./src/react/server.tsx', import.meta.url)),
         'reactive-md-standalone-host': fileURLToPath(new URL('./src/standalone/library.ts', import.meta.url)),
+        'reactive-md-compiler': fileURLToPath(new URL('./src/compiler/index.ts', import.meta.url)),
+        'reactive-md-compiler-standard': fileURLToPath(new URL('./src/compiler/standard.ts', import.meta.url)),
       },
       formats: ['es'], fileName: (_format, name) => `${name}.js`, cssFileName: 'reactive-md',
     },

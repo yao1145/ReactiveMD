@@ -1,5 +1,9 @@
 import type { Diagnostic, SourceRange } from './types';
 import { diagnosticEnglish, localDiagnosticDetails, type LocalDiagnosticDetails } from './diagnostics';
+import { MAX_THEME_NAME_LENGTH, isLocalThemeName } from './theme-name';
+
+/** Theme name grammar lives in a dependency-free module for the compiler kernel. */
+export { isLocalThemeName } from './theme-name';
 
 /**
  * Versioned theme contract. A host registers CSS for a theme name and declares
@@ -21,19 +25,6 @@ export const DEFAULT_LOCAL_THEME: LocalThemeDefinition = Object.freeze({
   protocol: LOCAL_THEME_PROTOCOL,
   colorSchemes: Object.freeze(['light', 'dark'] as const),
 });
-
-const THEME_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
-const MAX_THEME_NAME_LENGTH = 64;
-
-/** Bounded, URL-free theme identifier used by documents and host manifests. */
-export function isLocalThemeName(value: unknown): value is string {
-  return (
-    typeof value === 'string'
-    && value.length > 0
-    && value.length <= MAX_THEME_NAME_LENGTH
-    && THEME_NAME.test(value)
-  );
-}
 
 export interface LocalThemeResolution {
   name: string;

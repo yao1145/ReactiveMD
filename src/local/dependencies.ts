@@ -3,7 +3,7 @@ import { localKey } from './types';
 import { compileExpression, templateDependencies } from './expression';
 import { compileLatex } from './math';
 import { kernelDocumentMetadata, kernelRules, type KernelComponentSchema, type KernelRule } from './component-kernel';
-import { getLocalComponentDefinition } from '../sdk/registry';
+import { DEFAULT_COMPONENT_DEFINITIONS } from '../presets/default-components';
 import {walkLocalNodes} from './node-walk';
 
 /**
@@ -163,7 +163,7 @@ export function collectNodeDependencies(document: LocalDocument): DependencyInde
         } else {
           // Hand-built document without kernel metadata: resolve the default
           // manifest and read its public dependency capabilities.
-          const definition = node.name ? getLocalComponentDefinition(node.name) : undefined;
+          const definition = node.name ? DEFAULT_COMPONENT_DEFINITIONS.find(definition => definition.name === node.name) : undefined;
           const rules = definition ? kernelRules(definition as unknown as KernelComponentSchema) : [];
           const self = rules.find((rule): rule is Extract<KernelRule, { kind: 'self-binding-read' }> => rule.kind === 'self-binding-read');
           const inlineMath = rules.some((rule) => rule.kind === 'inline-math-reads');

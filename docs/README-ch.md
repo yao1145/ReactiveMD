@@ -11,10 +11,12 @@
 | [integration/](integration/) | 宿主集成、编辑器、作者工具与导出 |
 | [compatibility/](compatibility/) | 版本兼容、迁移与源码版本标记 |
 | [development/](development/) | 组件开发、协议、性能与发布流程 |
+| [architecture_roadmap/README-ch.md](architecture_roadmap/README-ch.md) | 近期实施规划与后续架构方向 |
 | [releases/](releases/) | 各版本发布记录 |
 
 ## 从这里开始
 
+- **接手近期开发**：阅读[编译内核、宽松恢复与仓库拆分规划](architecture_roadmap/near-term-plan-ch.md)，按源码导览定位任务，再查看阶段验收条件。
 - **编写文档**：先读[入门指南](guides/local-guide-ch.md)，再查语法参考；可运行的示例见 [examples/local](../examples/local/README.md)。
 - **接入项目**：从[本地模式集成](integration/local-integration-ch.md)开始，独立项目示例见 [examples/integration](../examples/integration/README.md)。
 - **升级版本**：先查[兼容性](compatibility/compatibility-ch.md)，再读目标版本的发布记录。当前文档版本为 0.7.0；各版本记录保留当时的行为与迁移说明。
@@ -42,6 +44,7 @@
 | 主题 | 中文 |
 | --- | --- |
 | 本地模式集成 | [中文](integration/local-integration-ch.md) |
+| 单次编译入口（工作区新增） | [中文](integration/compiler-ch.md) |
 | 扩展 SDK 预览 | [中文](integration/extension-sdk-ch.md) |
 | React 源码编辑器 | [中文](integration/editor-ch.md) |
 | 作者工具 | [中文](integration/author-tools-ch.md) |

@@ -2,7 +2,7 @@ import { compileExpression, type LocalExpression } from './expression';
 import { evaluateComputations, orderComputations } from './computations';
 import type { LocalDocument, LocalNode, LocalValue } from './types';
 import {walkLocalNodes} from './node-walk';
-import { getLocalComponentRegistry } from '../sdk/registry';
+import { DEFAULT_COMPONENT_DEFINITIONS } from '../presets/default-components';
 import type { LocalComponentDefinition } from '../sdk/types';
 
 function headingText(nodes: LocalNode[] | undefined, initialState: Record<string, LocalValue>): string {
@@ -38,7 +38,7 @@ function headingSlug(text: string): string {
 /** Public anchor rules used by both navigation and its memo projection. */
 export function anchorRuleAttributes(document: LocalDocument, installed?: readonly LocalComponentDefinition[]): ReadonlyMap<string, string> {
   const attributes = new Map<string, string>();
-  const definitions = installed ?? (Array.isArray(document.componentDefinitions) ? document.componentDefinitions : getLocalComponentRegistry());
+  const definitions = installed ?? (Array.isArray(document.componentDefinitions) ? document.componentDefinitions : DEFAULT_COMPONENT_DEFINITIONS);
   for (const definition of definitions.slice(0, 192)) {
     if (!definition || typeof definition.name !== 'string' || !Array.isArray(definition.rules)) continue;
     const rule = definition.rules.find((rule: NonNullable<LocalComponentDefinition['rules']>[number]) => rule?.kind === 'anchor');

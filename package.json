@@ -66,6 +66,7 @@
     "test": "vitest run --config vitest.config.ts",
     "lint": "node bin/reactive-md.mjs lint",
     "test:components": "vitest run --config vitest.config.ts tests/component-protocol.test.ts tests/conformance.test.ts",
+    "test:compiler-entry": "vitest run --config vitest.config.ts tests/compiler-entry.test.ts && node scripts/verify-compiler-entry.mjs",
     "test:sdk-consumer": "node scripts/verify-sdk-consumer.mjs",
     "test:component-scaffold": "node scripts/verify-component-scaffold.mjs",
     "test:demo": "npm run build:lib && npm run test --workspace=@reactive-md/demo",
@@ -110,6 +111,14 @@
     "./build": {
       "types": "./dist-library/types/build/index.d.ts",
       "import": "./dist-library/reactive-md-build.js"
+    },
+    "./compiler": {
+      "types": "./dist-library/types/compiler/index.d.ts",
+      "import": "./dist-library/reactive-md-compiler.js"
+    },
+    "./compiler/standard": {
+      "types": "./dist-library/types/compiler/standard.d.ts",
+      "import": "./dist-library/reactive-md-compiler-standard.js"
     },
     "./testing": {
       "types": "./dist-library/types/testing/index.d.ts",
