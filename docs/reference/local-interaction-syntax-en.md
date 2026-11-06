@@ -402,9 +402,19 @@ $$ y = a \sin x + \frac{x^2}{10} $$
 </plot>
 ```
 
-The plot body may contain only whitespace and one or more display formula blocks. Each block writes `y = expression` and computes only explicit real functions y(x). Use multiple formula blocks for multiple curves; do not use plain line breaks as separators.
+The plot body may contain only whitespace and one or more display formula blocks. Each block defines one curve in one of three forms:
 
-plot supports min=-10, max=10 (dynamic allowed, requiring min < max), samples=200 (static integer 2–2000), optional label, x-label="x" and y-label="y". Each plot has at most 16 curves; the sum of curves multiplied by their sample counts across the whole document is at most 20,000, including hidden regions. Curves share a computation budget, and exceeding it stops computation and reports an error. The vertical axis is determined automatically from finite sample values in the current range; if there are no valid values, an empty state is shown. Constant curves should add visible vertical-axis headroom.
+```markdown
+<plot min="-10" max="10">
+$$ y = a \sin x + \frac{x^2}{10} $$
+$$ \begin{cases} x = t - \sin t \\ y = 1 - \cos t \end{cases} $$
+$$ (x^2 + y^2)^2 = 2a^2(x^2 - y^2) $$
+</plot>
+```
+
+The first block is explicit `y = f(x)`. The second is parametric: `x` and `y` are written as functions of `t`, and `t` runs from `min` to `max`; both axes fit the sampled points. Any other equation in `x` and `y` is implicit and is traced as a contour over `min` to `max` on both axes; the axes then fit the traced curve. Use multiple formula blocks for multiple curves; do not use plain line breaks as separators.
+
+plot supports min=-10, max=10 (dynamic allowed, requiring min < max), samples=200 (static integer 2–2000), optional label, x-label="x" and y-label="y". Each plot has at most 16 curves. An explicit or parametric curve requests `samples` points; an implicit curve uses a `samples`×`samples` grid per axis, capped at 100 and raised to at least 32, and requests the corresponding grid area. The whole document may request at most 20,000 points across all curves, including hidden regions. Curves share a computation budget, and exceeding it stops computation and reports an error. The vertical axis is determined automatically from finite sample values in the current range; if there are no valid values, an empty state is shown. Constant curves should add visible vertical-axis headroom.
 
 ### 10.2 Computable LaTeX
 
@@ -434,7 +444,7 @@ A function without parentheses reads the product of the following term and ends 
 
 `\left`, `\right`, the math spacing commands `\,`, `\;`, `\!`, `\quad` and `%` comments to end of line do not change computation. In piecewise functions, `&` separates values from conditions and `\\` separates branches; the first branch whose condition is true is used. `\text{otherwise}` may serve as the final default branch; if no branch matches, the point is undefined. Conditions support only a single comparison; express complex piecewise behavior with multiple branches.
 
-Implicit equations, parametric curves, matrices, sums, integrals, derivatives and custom macros are not in the first version's computable set. When these structures are encountered, keep displaying the formula and point out the command or structure that cannot be computed; do not guess a plot from another formula. The math renderer must disable file, network, HTML and macro execution entry points.
+Matrices, sums, integrals, derivatives and custom macros are not in the computable set. When these structures are encountered, keep displaying the formula and point out the command or structure that cannot be computed; do not guess a plot from another formula. Within a parametric `cases` block, `t` is the parameter and the branches may not read `x`. The math renderer must disable file, network, HTML and macro execution entry points.
 
 ### 10.3 Parameter name mapping
 

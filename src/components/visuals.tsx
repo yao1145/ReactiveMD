@@ -15,17 +15,23 @@ import {
   LatexView,
   TableSurface,
   compileLatex,
+  compilePlotFormula,
   createDiagramLayoutFallback,
   diagramEdgePath,
   diagramLayoutKey,
   formatLocalDiagnostic,
+  implicitGridSize,
   layoutDiagram,
+  plotFormulaKind,
+  sampleImplicit,
+  sampleParametric,
   samplePlot,
   type DiagramLayoutInput,
   type DiagramLayoutResult,
   type LatexEvaluationBudget,
   type LocalRenderMode,
   type LocalValue,
+  type PlotPoint,
 } from '../react/component-utils';
 import type {
   LocalComponentContext,
@@ -1508,8 +1514,14 @@ interface PlotMath {
 
 interface PlotCurve {
   source: string;
+  kind: 'explicit' | 'parametric' | 'implicit';
+  /** Explicit y(x), parametric x(t), or implicit F(x, y). */
   expression: ReturnType<typeof compileLatex> | null;
-  points: { x: number; y: number | null }[];
+  /** Parametric y(t). */
+  yExpression: ReturnType<typeof compileLatex> | null;
+  points: PlotPoint[];
+  /** Implicit contour polylines; empty for point-sampled curves. */
+  segments: { x: number; y: number }[][];
   endpoint: number | null;
   error: string | null;
 }
@@ -1570,11 +1582,9 @@ function plotEnvironmentKey(
 ): string {
   return mathItems
     .map((child) => {
-      const match = /^y\s*=\s*([\s\S]+)$/.exec(child.source.trim());
-      if (!match) return `\u0003${revision}`;
       try {
-        const expression = compileLatex(match[1].trim());
-        return JSON.stringify(expression.dependencies.map((name) => environment[name] ?? null));
+        const formula = compilePlotFormula(child.source);
+        return JSON.stringify(formula.dependencies.map((name) => environment[name] ?? null));
       } catch {
         return `\u0003${revision}`;
       }
@@ -1612,7 +1622,10 @@ function sampleDocumentPlot(
     ));
   }
 
-  const requested = mathItems.length * samples;
+  const requested = mathItems.reduce((sum, item) => {
+    const kind = plotFormulaKind(item.source) ?? 'explicit';
+    return sum + (kind === 'implicit' ? implicitGridSize(samples) ** 2 : samples);
+  }, 0);
   budget.requestedPoints.set(nodeId, requested);
   let total = 0;
   for (const value of budget.requestedPoints.values()) total += value;
@@ -1627,28 +1640,54 @@ function sampleDocumentPlot(
   const budgetFailure: { message: string | null } = { message: null };
   const curves: PlotCurve[] = mathItems.map((mathItem, index) => {
     const source = mathItem.source.trim();
-    const match = /^y\s*=\s*([\s\S]+)$/.exec(source);
-    if (!match) {
-      notes.push(t(
-        `Curve ${index + 1}: cannot compute (each formula block must be written as y = expression).`,
-        `曲线 ${index + 1}：无法计算（每块公式需写成 y = 表达式）。`,
-      ));
-      return { source, expression: null, points: [], endpoint: null, error: 'formula' };
-    }
-    try {
-      const expression = compileLatex(match[1].trim());
-      const result = samplePlot(expression, environment, min, max, samples, budget.evaluation);
-      return { source, expression, points: result.points, endpoint: result.endpoint, error: null };
-    } catch (cause) {
+    const failed = (cause: unknown): PlotCurve => {
       if (cause instanceof LatexError && cause.code === 'latex-budget') {
         budgetFailure.message = cause.message;
-        return { source, expression: null, points: [], endpoint: null, error: cause.message };
+        return {
+          source, kind: 'explicit', expression: null, yExpression: null,
+          points: [], segments: [], endpoint: null, error: cause.message,
+        };
       }
       notes.push(t(
         `Curve ${index + 1}: cannot compute (${errorMessage(cause)}).`,
         `曲线 ${index + 1}：无法计算（${errorMessage(cause)}）。`,
       ));
-      return { source, expression: null, points: [], endpoint: null, error: errorMessage(cause) };
+      return {
+        source, kind: 'explicit', expression: null, yExpression: null,
+        points: [], segments: [], endpoint: null, error: errorMessage(cause),
+      };
+    };
+    try {
+      const formula = compilePlotFormula(source);
+      if (formula.kind === 'parametric') {
+        if (!formula.yExpression) {
+          throw new LatexError('latex-syntax', 'Parametric formulas need both x(t) and y(t).', 0);
+        }
+        const result = sampleParametric(
+          formula.expression, formula.yExpression, environment, min, max, samples, budget.evaluation,
+        );
+        return {
+          source, kind: 'parametric', expression: formula.expression, yExpression: formula.yExpression,
+          points: result.points, segments: [], endpoint: result.endpoint, error: null,
+        };
+      }
+      if (formula.kind === 'implicit') {
+        const segments = sampleImplicit(
+          formula.expression, environment, min, max, min, max,
+          implicitGridSize(samples), budget.evaluation,
+        );
+        return {
+          source, kind: 'implicit', expression: formula.expression, yExpression: null,
+          points: [], segments, endpoint: null, error: null,
+        };
+      }
+      const result = samplePlot(formula.expression, environment, min, max, samples, budget.evaluation);
+      return {
+        source, kind: 'explicit', expression: formula.expression, yExpression: null,
+        points: result.points, segments: [], endpoint: result.endpoint, error: null,
+      };
+    } catch (cause) {
+      return failed(cause);
     }
   });
   if (budgetFailure.message !== null) {
@@ -1692,6 +1731,45 @@ function plotSegments(
     const next = { x: point.x, y: point.y };
     const previous = current[current.length - 1];
     if (previous && shouldBreak(previous, next)) {
+      segments.push(current);
+      current = [];
+    }
+    current.push(next);
+  }
+  if (current.length > 0) segments.push(current);
+  return segments;
+}
+
+function parametricSegments(
+  points: PlotPoint[],
+  xDomain: { min: number; max: number },
+  yDomain: { min: number; max: number },
+): { x: number; y: number }[][] {
+  const xSpan = xDomain.max - xDomain.min || 1;
+  const ySpan = yDomain.max - yDomain.min || 1;
+  const distances: number[] = [];
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    if (previous.y === null || current.y === null) continue;
+    if (!Number.isFinite(previous.x) || !Number.isFinite(current.x)) continue;
+    distances.push(Math.hypot(
+      (current.x - previous.x) / xSpan,
+      (current.y - previous.y) / ySpan,
+    ));
+  }
+  const threshold = Math.max(median(distances) * 6, 0.35);
+  const segments: { x: number; y: number }[][] = [];
+  let current: { x: number; y: number }[] = [];
+  for (const point of points) {
+    if (point.y === null || !Number.isFinite(point.x)) {
+      if (current.length > 0) segments.push(current);
+      current = [];
+      continue;
+    }
+    const next = { x: point.x, y: point.y };
+    const previous = current[current.length - 1];
+    if (previous && Math.hypot((next.x - previous.x) / xSpan, (next.y - previous.y) / ySpan) > threshold) {
       segments.push(current);
       current = [];
     }
@@ -1781,9 +1859,18 @@ export function PlotView(context: LocalComponentContext) {
   }
 
   const { curves, notes } = sampled;
-  const finitePoints = curves.flatMap((curve) =>
-    curve.points.filter((point): point is { x: number; y: number } => point.y !== null && Number.isFinite(point.y)),
-  );
+  const finitePoints = curves
+    .flatMap((curve) => [...curve.points, ...curve.segments.flat()])
+    .filter((point): point is PlotPoint & { y: number } =>
+      point.y !== null && Number.isFinite(point.y) && Number.isFinite(point.x));
+  const hasFittedCurves = curves.some((curve) => curve.kind !== 'explicit');
+  const hasExplicitCurves = curves.some((curve) => curve.kind === 'explicit');
+  const xDomain = hasFittedCurves
+    ? chartDomain(
+        [...finitePoints.map((point) => point.x), ...(hasExplicitCurves ? [min, max] : [])],
+        false,
+      )
+    : { min, max };
 
   const legend = (
     <div className="local-visual-plot-legend" role="list" aria-label={t('Curve legend', '曲线图例')}>
@@ -1813,19 +1900,25 @@ export function PlotView(context: LocalComponentContext) {
   const yValues = finitePoints.map((point) => point.y);
   const yDomain = chartDomain(yValues, false);
   const yTicks = niceTicks(yDomain.min, yDomain.max, 5);
-  const xTicks = niceTicks(min, max, 5);
+  const xTicks = niceTicks(xDomain.min, xDomain.max, 5);
   const plotLeft = axisLeft(yTicks, Boolean(yLabel));
   const plotRight = PLOT_WIDTH - 14;
   const plotTop = 16;
   const plotBottom = PLOT_HEIGHT - 46;
   const plotWidth = plotRight - plotLeft;
   const plotHeight = plotBottom - plotTop;
-  const xOf = (x: number) => plotLeft + ((x - min) / (max - min)) * plotWidth;
+  const xOf = (x: number) => plotLeft + ((x - xDomain.min) / (xDomain.max - xDomain.min)) * plotWidth;
   const yOf = (y: number) => plotTop + ((yDomain.max - y) / (yDomain.max - yDomain.min)) * plotHeight;
 
-  const medianAbs = median(finitePoints.map((point) => Math.abs(point.y)));
+  const explicitPoints = curves
+    .filter((curve) => curve.kind === 'explicit')
+    .flatMap((curve) => curve.points)
+    .filter((point): point is PlotPoint & { y: number } =>
+      point.y !== null && Number.isFinite(point.y) && Number.isFinite(point.x));
+  const medianAbs = median(explicitPoints.map((point) => Math.abs(point.y)));
   const consecutiveDeltas: number[] = [];
   for (const curve of curves) {
+    if (curve.kind !== 'explicit') continue;
     for (let index = 1; index < curve.points.length; index += 1) {
       const previous = curve.points[index - 1];
       const current = curve.points[index];
@@ -1836,11 +1929,15 @@ export function PlotView(context: LocalComponentContext) {
   }
   const medianDelta = median(consecutiveDeltas);
   const ySpan = yDomain.max - yDomain.min;
-  const curveSegments = curves.map((curve) => plotSegments(curve.points, ySpan, medianAbs, medianDelta));
+  const curveSegments = curves.map((curve) => {
+    if (curve.kind === 'implicit') return curve.segments;
+    if (curve.kind === 'parametric') return parametricSegments(curve.points, xDomain, yDomain);
+    return plotSegments(curve.points, ySpan, medianAbs, medianDelta);
+  });
 
   const readoutBudget: LatexEvaluationBudget = { steps: 0, limit: MAX_LOCAL_PLOT_STEPS };
   const valueAt = (curve: PlotCurve, x: number): number | null => {
-    if (!curve.expression) return null;
+    if (!curve.expression || curve.kind !== 'explicit') return null;
     try {
       const value = curve.expression.evaluate(x, environment, readoutBudget);
       return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -1848,24 +1945,39 @@ export function PlotView(context: LocalComponentContext) {
       return null;
     }
   };
+  const nearestPoint = (curve: PlotCurve, x: number): PlotPoint | null => {
+    let best: PlotPoint | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    const consider = (point: PlotPoint): void => {
+      if (point.y === null || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+      const distance = Math.abs(point.x - x);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = point;
+      }
+    };
+    for (const point of curve.points) consider(point);
+    for (const segment of curve.segments) for (const point of segment) consider(point);
+    return best;
+  };
 
-  const clampX = (value: number) => Math.max(min, Math.min(max, value));
-  const step = (max - min) / 100;
+  const clampX = (value: number) => Math.max(xDomain.min, Math.min(xDomain.max, value));
+  const step = (xDomain.max - xDomain.min) / 100;
 
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width === 0) return;
     const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    setActiveX(min + ratio * (max - min));
+    setActiveX(xDomain.min + ratio * (xDomain.max - xDomain.min));
   };
 
   const handleKeyDown = (event: ReactKeyboardEvent<SVGSVGElement>) => {
     const multiplier = event.shiftKey ? 10 : 1;
     let next: number | null = activeX;
-    if (event.key === 'ArrowRight') next = (activeX ?? (min + max) / 2) + step * multiplier;
-    else if (event.key === 'ArrowLeft') next = (activeX ?? (min + max) / 2) - step * multiplier;
-    else if (event.key === 'Home') next = min;
-    else if (event.key === 'End') next = max;
+    if (event.key === 'ArrowRight') next = (activeX ?? (xDomain.min + xDomain.max) / 2) + step * multiplier;
+    else if (event.key === 'ArrowLeft') next = (activeX ?? (xDomain.min + xDomain.max) / 2) - step * multiplier;
+    else if (event.key === 'Home') next = xDomain.min;
+    else if (event.key === 'End') next = xDomain.max;
     else return;
     event.preventDefault();
     setActiveX(clampX(next));
@@ -1879,7 +1991,9 @@ export function PlotView(context: LocalComponentContext) {
       )
     : `${t(`x = ${formatNumber(readX)}; `, `x = ${formatNumber(readX)}；`)}${curves
         .map((curve, index) => {
-          const value = valueAt(curve, readX);
+          const explicitValue = valueAt(curve, readX);
+          const point = explicitValue === null ? nearestPoint(curve, readX) : null;
+          const value = explicitValue ?? point?.y ?? null;
           const status = curve.error
             ? t('cannot compute', '无法计算')
             : value === null
@@ -1892,13 +2006,16 @@ export function PlotView(context: LocalComponentContext) {
   const activeMarks = readX === null
     ? null
     : curves.map((curve, index) => {
-        const value = valueAt(curve, readX);
-        if (value === null || !curve.expression) return null;
+        const explicitValue = valueAt(curve, readX);
+        const point = explicitValue === null ? nearestPoint(curve, readX) : null;
+        const value = explicitValue ?? point?.y ?? null;
+        if (value === null) return null;
+        const markX = point && explicitValue === null ? point.x : readX;
         return (
           <circle
             key={`active-${index}`}
             className="local-visual-active-point"
-            cx={xOf(readX)}
+            cx={xOf(markX)}
             cy={yOf(value)}
             r={4.5}
             style={{ fill: SERIES_COLORS[index % SERIES_COLORS.length], stroke: 'var(--surface)' }}
@@ -1928,7 +2045,7 @@ export function PlotView(context: LocalComponentContext) {
             tabIndex={staticMode ? undefined : 0}
             onPointerMove={staticMode ? undefined : handlePointerMove}
             onPointerLeave={staticMode ? undefined : () => setActiveX(null)}
-            onFocus={staticMode ? undefined : () => setActiveX((current) => current ?? (min + max) / 2)}
+            onFocus={staticMode ? undefined : () => setActiveX((current) => current ?? (xDomain.min + xDomain.max) / 2)}
             onBlur={staticMode ? undefined : () => setActiveX(null)}
             onKeyDown={staticMode ? undefined : handleKeyDown}
           >

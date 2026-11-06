@@ -101,6 +101,33 @@ describe('decoded string and name limits', () => {
 });
 
 describe('plot work budgets', () => {
+  it('accepts explicit, parametric and implicit plot formulas', () => {
+    expect(compileLocal(plot(1)).ok).toBe(true);
+    const parametric = compileLocal(
+      String.raw`<plot min="0" max="6">$$\begin{cases} x = t - \sin t \\ y = 1 - \cos t \end{cases}$$</plot>`,
+    );
+    expect(parametric.ok).toBe(true);
+    const implicit = compileLocal('<plot min="-2" max="2">$$ x^2 + y^2 = 1 $$</plot>');
+    expect(implicit.ok).toBe(true);
+  });
+
+  it('rejects formulas that are not equations', () => {
+    const result = compileLocal('<plot>$$ \\sin x $$</plot>');
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'local.math.formula')).toBe(true);
+  });
+
+  it('charges implicit curves by grid area', () => {
+    expect(compileLocal(
+      `<plot samples="200">\n$$ x^2 + y^2 = 1 $$\n$$ x^2 - y^2 = 1 $$\n</plot>`,
+    ).ok).toBe(true);
+    const three = compileLocal(
+      `<plot samples="200">\n$$ x^2 + y^2 = 1 $$\n$$ x^2 - y^2 = 1 $$\n$$ x y = 1 $$\n</plot>`,
+    );
+    expect(three.ok).toBe(false);
+    expect(three.diagnostics.some((diagnostic) => diagnostic.code === 'local.budget.plot.points')).toBe(true);
+  });
+
   it('allows the curve and point boundaries', () => {
     expect(compileLocal(plot(MAX_LOCAL_PLOT_CURVES)).ok).toBe(true);
     expect(compileLocal(plot(10, 2_000)).ok).toBe(true);

@@ -11,7 +11,7 @@ import {
   type ComputationInput,
 } from '../evaluation/computations';
 import { createHeadingAnchors } from '../markdown/heading-anchors';
-import { compileLatex } from '../evaluation/math';
+import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../evaluation/math';
 import { parseLocalCore, type ParsedLocal } from '../parsing/parser-core';
 import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
 import { compilerComponentConfigKey, type LocalOptionCheck } from '../configuration/options-core';
@@ -3705,7 +3705,11 @@ function validatePlots(state: CompileState): void {
         { key: 'local.budget.plot.curves', params: { limit: curveLimit, count: mathNodes.length } },
       );
     }
-    const requested = mathNodes.length * samples;
+    const kinds = mathNodes.map((node) => plotFormulaKind(node.value ?? ''));
+    const requested = kinds.reduce(
+      (sum, kind) => sum + (kind === 'implicit' ? implicitGridSize(samples) ** 2 : samples),
+      0,
+    );
     const nextTotal = totalPoints + requested;
     if (!pointsBudgetExceeded && nextTotal > pointLimit) {
       state.report(
@@ -3721,21 +3725,22 @@ function validatePlots(state: CompileState): void {
     // Once the shapes are known to exceed budget, do not spend work compiling
     // an unbounded number of formulas. The document is already rejected.
     if (mathNodes.length > curveLimit || pointsBudgetExceeded) continue;
-    for (const node of mathNodes) {
+    for (let index = 0; index < mathNodes.length; index += 1) {
+      const node = mathNodes[index];
       const recipe = (node.value ?? '').trim();
-      if (!/^y\s*=/u.test(recipe)) {
+      if (kinds[index] === null) {
         state.report(
           'local.math.formula',
-          `<${entry.name}> formulas must be written explicitly as y = expression.`,
+          `<${entry.name}> formulas must be an equation: y = f(x), a parametric cases block, or an implicit equation in x and y.`,
           node.range.start,
           node.range.end,
           { key: 'local.math.formula.shape' },
         );
         continue;
       }
-      let compiled: ReturnType<typeof compileLatex> | null = null;
+      let compiled: ReturnType<typeof compilePlotFormula> | null = null;
       try {
-        compiled = state.semantic?.latex(recipe) ?? compileLatex(recipe);
+        compiled = compilePlotFormula(recipe);
       } catch (error) {
         state.report(
           'local.math',
@@ -3756,7 +3761,7 @@ function validatePlots(state: CompileState): void {
       }
       if (!compiled) continue;
       for (const dependency of compiled.dependencies) {
-        if (dependency === 'x' || dependency === 'y') continue;
+        if (dependency === 'x' || dependency === 'y' || dependency === 't') continue;
         if (!Object.hasOwn(env, dependency)) {
           state.report(
             'local.math.binding',

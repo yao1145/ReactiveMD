@@ -23,9 +23,20 @@ export { formatLocalDiagnostic } from '../local/configuration/diagnostics';
 export { compileExpression, type LocalExpression } from '../local/evaluation/expression';
 export {
   compileLatex,
+  compilePlotFormula,
+  implicitGridSize,
   LatexError,
+  MAX_IMPLICIT_GRID,
+  MIN_IMPLICIT_GRID,
+  plotFormulaKind,
+  sampleImplicit,
+  sampleParametric,
   samplePlot,
+  type CompiledPlotFormula,
   type LatexEvaluationBudget,
+  type PlotFormulaKind,
+  type PlotPoint,
+  type PlotSample,
 } from '../local/evaluation/math';
 export { LatexView } from '../local/widgets/math-view';
 export { TableSurface } from '../local/widgets/table-surface';

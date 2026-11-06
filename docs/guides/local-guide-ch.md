@@ -217,7 +217,7 @@
 
 ### 函数曲线
 
-函数曲线使用 LaTeX。每个 `$$...$$` 公式块定义一条 `y = 表达式` 曲线。
+绘图使用 LaTeX。每个 `$$...$$` 公式块定义一条曲线，可以是显式 `y = f(x)`、参数方程 `cases` 块，或关于 `x` 和 `y` 的隐式方程。
 
 ```markdown
 <slider bind="a" label="振幅" initial="1" min="0" max="3" step="0.5">
@@ -229,7 +229,23 @@ $$ y = a \sin x $$
 
 公式中的参数直接使用数学名称，不写 `{{ }}`。单个字母对应同名 `bind`，例如 `a` 对应 `bind="a"`。多字母参数写成 `\mathrm{amplitude}`，对应 `bind="amplitude"`。
 
-`x` 是绘图自变量，`y` 是输出标记，两者不能绑定到控件。`plot` 的 `min` 和 `max` 控制横轴范围。
+`x` 是绘图自变量，`y` 是输出标记，两者不能绑定到控件。参数方程写在 `cases` 块中，用 `t` 作参数：
+
+```markdown
+<plot min="0" max="12.566" label="摆线">
+$$ \begin{cases} x = t - \sin t \\ y = 1 - \cos t \end{cases} $$
+</plot>
+```
+
+隐式方程把两个变量写进同一个方程。`min` 和 `max` 同时决定追踪用的方形区域：
+
+```markdown
+<plot min="-2" max="2" label="双纽线">
+$$ (x^2 + y^2)^2 = 2a^2(x^2 - y^2) $$
+</plot>
+```
+
+`plot` 的 `min` 和 `max` 对显式曲线是横轴范围，对参数方程是 `t` 的范围，对隐式方程决定方形追踪区域。
 
 ## 7. 模块化布局
 
@@ -509,7 +525,7 @@ $$ y = a \sin x $$
 
 以上共 49 个标签。`option`、`tab`、`disclosure`、`node`、`edge`、`step`、`column` 是结构子项，只能放在对应父容器内，不能单独使用。
 
-`table` 和 `chart` 的 `bind`、`initial` 需要同时提供 `key`，用于公开选中行的稳定标识。`plot` 的每个 `$$...$$` 块定义一条 `y = 表达式` 曲线，每个 `plot` 最多 16 条曲线。
+`table` 和 `chart` 的 `bind`、`initial` 需要同时提供 `key`，用于公开选中行的稳定标识。`plot` 的每个 `$$...$$` 块定义一条显式、参数或隐式曲线，每个 `plot` 最多 16 条曲线。
 
 另有 `<theme name="default">`，写在正文之前，用于选择整份文档的主题。它是文档级元数据，不计入 49 个标签。
 

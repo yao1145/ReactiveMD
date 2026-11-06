@@ -217,7 +217,7 @@ Charts update automatically. For search, sorting and paging, place the same Mark
 
 ### Function curves
 
-Function curves use LaTeX. Each `$$...$$` block defines one `y = expression` curve.
+Plots use LaTeX. Each `$$...$$` block defines one curve: explicit `y = f(x)`, a parametric `cases` block, or an implicit equation in `x` and `y`.
 
 ```markdown
 <slider bind="a" label="Amplitude" initial="1" min="0" max="3" step="0.5">
@@ -229,7 +229,23 @@ $$ y = a \sin x $$
 
 Use math parameter names directly in formulas, without `{{ }}`. A single letter maps to the same `bind`, so `a` maps to `bind="a"`. Write a multi-letter parameter as `\mathrm{amplitude}`, which maps to `bind="amplitude"`.
 
-`x` is the plot variable and `y` is the output marker; neither can bind to a control. `plot`'s `min` and `max` set the horizontal range.
+`x` is the plot variable and `y` is the output marker; neither can bind to a control. For a parametric curve, write a `cases` block and use `t` as the parameter:
+
+```markdown
+<plot min="0" max="12.566" label="Cycloid">
+$$ \begin{cases} x = t - \sin t \\ y = 1 - \cos t \end{cases} $$
+</plot>
+```
+
+For an implicit curve, write both variables in one equation. `min` and `max` set the square region used to trace it:
+
+```markdown
+<plot min="-2" max="2" label="Lemniscate">
+$$ (x^2 + y^2)^2 = 2a^2(x^2 - y^2) $$
+</plot>
+```
+
+`plot`'s `min` and `max` set the horizontal range for explicit curves, the `t` range for parametric curves, and the square tracing region for implicit curves.
 
 ## 7. Modular layout
 
@@ -509,7 +525,7 @@ Most interactive controls support `label`, optional `bind`, optional `initial` a
 
 These 49 tags are the full set. `option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children; they must appear inside their matching parent and cannot be used alone.
 
-`table` and `chart` require `key` together with `bind` or `initial`; `key` identifies the selected row. Each `$$...$$` block in a `plot` defines one `y = expression` curve, with up to 16 curves per plot.
+`table` and `chart` require `key` together with `bind` or `initial`; `key` identifies the selected row. Each `$$...$$` block in a `plot` defines one explicit, parametric or implicit curve, with up to 16 curves per plot.
 
 In addition, `<theme name="default">` before the body selects the document theme. It is document metadata and is not counted among the 49 tags.
 

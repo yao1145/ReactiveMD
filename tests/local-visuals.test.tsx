@@ -247,6 +247,20 @@ it('wraps long diagram edge labels and keeps their full description accessible',
   expect(html.match(/<tspan/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
 });
 
+it('renders parametric and implicit plot curves', () => {
+  const runtime = createRuntime();
+  const visual = component('plot', { min: '-2', max: '2', samples: '80' }, [
+    node('math', { value: String.raw`\begin{cases} x = t \\ y = t^2 \end{cases}` }),
+    node('math', { value: 'x^2 + y^2 = 1' }),
+  ]);
+
+  const html = mount(visual, runtime);
+  expect(html).toContain('<svg');
+  expect(html).toContain('local-visual-plot-legend');
+  expect(html.match(/local-visual-plot-line/g)?.length ?? 0).toBeGreaterThan(1);
+  expect(html).not.toContain('No plottable values');
+});
+
 it('renders plots with a lightweight curve legend and no endpoint readout', () => {
   const runtime = createRuntime();
   const visual = component('plot', { min: '0', max: '2', samples: '20' }, [

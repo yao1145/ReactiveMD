@@ -183,6 +183,23 @@ describe('analyzeLocalSource', () => {
     expect(tokensOf(source, 'math')).toHaveLength(1);
   });
 
+  it('tracks parameters in parametric and implicit plot formulas', () => {
+    const source = [
+      '<slider bind="a" label="a" initial="1" min="0" max="5">',
+      '<slider bind="b" label="b" initial="1" min="0" max="5">',
+      '<plot min="0" max="6">',
+      '$$ \\begin{cases} x = a t \\\\ y = t \\end{cases} $$',
+      '$$ x^2 + b y^2 = 1 $$',
+      '</plot>',
+    ].join('\n');
+    expect(compileLocal(source).diagnostics).toEqual([]);
+    const analysis = analyzeLocalSource(source);
+    const a = binding(analysis, 'a')!;
+    const b = binding(analysis, 'b')!;
+    expect(slices(source, a.references)).toEqual(['a']);
+    expect(slices(source, b.references)).toEqual(['b']);
+  });
+
   it('returns compiler diagnostics and never declares invalid names', () => {
     const invalid = '<input bind="9bad" label="A">';
     const analysis = analyzeLocalSource(invalid);

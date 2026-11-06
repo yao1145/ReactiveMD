@@ -884,8 +884,8 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     zh: '文档的绘图采样点总数超过上限 {limit}。',
   },
   'math.formulaShape': {
-    en: '<plot> formulas must be written explicitly as y = expression.',
-    zh: '<plot> 的公式必须显式写成 y = expression。',
+    en: '<plot> formulas must be an equation: y = f(x), a parametric cases block, or an implicit equation in x and y.',
+    zh: '<plot> 的公式必须是方程：y = f(x)、参数方程 cases 块，或关于 x 和 y 的隐式方程。',
   },
   'math.computeFailed': {
     en: 'Cannot compute plot formula: {detail}',

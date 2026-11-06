@@ -452,11 +452,14 @@ const AUTHORING_DATA = {
     plot: {
       title: { en: 'Function plot', zh: '函数曲线' },
       description: {
-        en: 'Plot a function curve from a LaTeX formula.',
-        zh: '用 LaTeX 公式绘制一条函数曲线。',
+        en: 'Plot explicit, parametric or implicit curves from LaTeX formulas.',
+        zh: '用 LaTeX 公式绘制显式、参数方程或隐函数曲线。',
       },
       category: 'data',
-      keywords: { en: ['plot', 'curve', 'function', 'formula', 'latex', 'math'], zh: ['曲线', '函数', '公式', '数学', '绘图'] },
+      keywords: {
+        en: ['plot', 'curve', 'function', 'parametric', 'implicit', 'formula', 'latex', 'math'],
+        zh: ['曲线', '函数', '参数方程', '隐函数', '公式', '数学', '绘图'],
+      },
       insertText: {
         en: '<plot min="-5" max="5" label="Function plot">\n$$ y = x^2 $$\n</plot>',
         zh: '<plot min="-5" max="5" label="函数曲线">\n$$ y = x^2 $$\n</plot>',

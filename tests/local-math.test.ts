@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { compileLatex, LatexError, samplePlot } from '../src/local/evaluation/math';
+import { compileLatex, compilePlotFormula, LatexError, sampleImplicit, sampleParametric, samplePlot } from '../src/local/evaluation/math';
 import { LatexView } from '../src/local/widgets/math-view';
 
 const near = (actual: number, expected: number, tolerance = 1e-12) => {
@@ -152,6 +152,64 @@ P\left(1+\frac{r}{1200}\right)^{12x}
     expect(() => samplePlot(expression, {}, 1, 0)).toThrow(LatexError);
     expect(() => samplePlot(expression, {}, 0, 1, 1)).toThrow(LatexError);
     expect(() => samplePlot(expression, {}, 0, 1, 2001)).toThrow(LatexError);
+  });
+});
+
+describe('plot formula kinds', () => {
+  it('classifies explicit, parametric and implicit formulas', () => {
+    expect(compilePlotFormula('y = x^2').kind).toBe('explicit');
+    const parametric = compilePlotFormula(
+      String.raw`\begin{cases} x = t - \sin t \\ y = 1 - \cos t \end{cases}`,
+    );
+    expect(parametric.kind).toBe('parametric');
+    expect(parametric.yExpression).not.toBeNull();
+    expect(parametric.dependencies).toEqual([]);
+    const implicit = compilePlotFormula('(x^2 + y^2)^2 = 2a^2(x^2 - y^2)');
+    expect(implicit.kind).toBe('implicit');
+    expect(implicit.dependencies).toEqual(['a']);
+  });
+
+  it('samples a cycloid parametrically', () => {
+    const formula = compilePlotFormula(
+      String.raw`\begin{cases} x = t - \sin t \\ y = 1 - \cos t \end{cases}`,
+    );
+    const sample = sampleParametric(formula.expression, formula.yExpression!, {}, 0, 2 * Math.PI, 101);
+    expect(sample.points).toHaveLength(101);
+    near(sample.points[0].x, 0);
+    near(sample.points[0].y!, 0);
+    const middle = sample.points[50];
+    near(middle.x, Math.PI);
+    near(middle.y!, 2);
+    expect(sample.points.every((point) => point.y !== null)).toBe(true);
+    near(sample.endpoint!, 0);
+  });
+
+  it('traces a lemniscate implicitly', () => {
+    const formula = compilePlotFormula('(x^2 + y^2)^2 = 2a^2(x^2 - y^2)');
+    const segments = sampleImplicit(formula.expression, { a: 1 }, -1.6, 1.6, -1.6, 1.6, 100);
+    const points = segments.flat();
+    expect(segments.length).toBeGreaterThan(0);
+    expect(points.length).toBeGreaterThan(100);
+    const maxX = Math.max(...points.map((point) => Math.abs(point.x)));
+    expect(maxX).toBeGreaterThan(1.3);
+    expect(maxX).toBeLessThan(1.5);
+    const maxY = Math.max(...points.map((point) => Math.abs(point.y)));
+    expect(maxY).toBeGreaterThan(0.3);
+    expect(maxY).toBeLessThan(0.6);
+  });
+
+  it('keeps implicit and parametric sampling inside a shared budget', () => {
+    const parametric = compilePlotFormula(
+      String.raw`\begin{cases} x = \sin t \\ y = \cos t \end{cases}`,
+    );
+    const shared = { steps: 0, limit: 2_000_000 };
+    const sample = sampleParametric(parametric.expression, parametric.yExpression!, {}, 0, 1, 50, shared);
+    expect(sample.points).toHaveLength(50);
+    expect(shared.steps).toBeGreaterThan(0);
+
+    const implicit = compilePlotFormula('x^2 + y^2 = 1');
+    const exhausted = { steps: 2_000_000, limit: 2_000_000 };
+    expect(() => sampleImplicit(implicit.expression, {}, -1, 1, -1, 1, 20, exhausted)).toThrow(LatexError);
   });
 });
 
