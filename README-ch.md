@@ -163,7 +163,7 @@ Demo 提供两个完整的安装包案例：
 
 | 包 | 标签 | 展示能力 | 更新命令 |
 | --- | --- | --- | --- |
-| `reactive-md-tetris-package` | `<tetris>` | 定时驱动游戏、键盘与按钮输入、种子方块、离线导出 | `npm run update:demo-tetris` |
+| `reactive-md-tetris-package` | `<tetris>` | 定时驱动游戏、键盘与按钮输入、种子方块、离线导出 | `npm pack (in examples/tetris-package), then update the vendor dependency and lockfile in ReactiveMD-Demo` |
 | `reactive-md-game-2048-package` | `<game-2048>` | 回合制状态、确定性生成、键盘与按钮输入、静态预览 | `npm run update:demo-2048` |
 
 两者都以 npm tarball 的形式放在 `ReactiveMD-Demo/vendor/`，作为 Demo 依赖安装，并通过公开的 `./react` 与 `./notices` 入口读取。它们的作者信息进入编辑器目录，能力证据支撑离线导出。
@@ -275,7 +275,7 @@ src/           本地语法编译、表达式、运行时和 React 渲染器
 examples/      可复制的本地交互示例与组件包
 docs/          语法规范、集成、开发和发布文档
 tests/         语言与渲染器测试
-demo/          独立的 Playground 应用与插件集成
+ReactiveMD-Demo/  独立仓库：Playground 应用与插件集成
 benchmarks/    带来源说明的精简性能数据
 ```
 

@@ -4,9 +4,9 @@ The Playground opens with a [Fourier series lesson](../scenarios/classroom.react
 
 Playground 默认打开[傅里叶级数课堂](../scenarios/classroom-zh.reactive.md)，另有[社区阅读角提案](../scenarios/proposal-zh.reactive.md)、[活动意向调研](../scenarios/survey-zh.reactive.md)和[文学博客](../scenarios/blog-zh.reactive.md)。下表六份源文件合成一篇[功能演示](zh/features.reactive.md)，从单个菜单入口打开，通过大纲浏览，不再分类切换。
 
-Run `npm run update:feature-demo --workspace=@reactive-md/demo` after changing these six sources. The generator renames active bindings through the SDK, keeps code snippets literal and checks that the combined document compiles. Historical source IDs remain available for old links and saved drafts.
+Run `npm run update:feature-demo (in ReactiveMD-Demo)` after changing these six sources. The generator renames active bindings through the SDK, keeps code snippets literal and checks that the combined document compiles. Historical source IDs remain available for old links and saved drafts.
 
-修改这六份源文件后，运行 `npm run update:feature-demo --workspace=@reactive-md/demo`。生成器通过 SDK 重命名活动绑定，保留代码示例原文，并检查合并文档能否编译。历史示例 ID 继续支持旧链接和草稿。
+修改这六份源文件后，运行 `npm run update:feature-demo (in ReactiveMD-Demo)`。生成器通过 SDK 重命名活动绑定，保留代码示例原文，并检查合并文档能否编译。历史示例 ID 继续支持旧链接和草稿。
 
 | Feature / 功能 | English source | 中文源码 | Try this / 操作提示 |
 | --- | --- | --- | --- |

@@ -55,9 +55,9 @@ export const { config, reactConfig } = host;
 
 ## 在本仓库 Demo 中体验
 
-组件已登记在 [demo/extensions.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/extensions.ts)。Demo 通过依赖声明安装 `demo/vendor/` 中的 npm tarball，从 `reactive-md-tetris-package/react` 读取实现、CSS 文本与样例，通过 `reactive-md-tetris-package/notices?raw` 读取署名。修改本包源码后，在仓库根目录运行 `npm run update:demo-tetris`，重新构建、打包和安装；更新后的 tarball、依赖声明和锁文件一起提交。预览、编辑器目录和离线 HTML 共用这份清单，具体字段见 [Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。
+组件已登记在 [demo/extensions.ts](https://github.com/yao1145/ReactiveMD-Demo/blob/main/extensions.ts)。Demo 通过依赖声明安装 `demo/vendor/` 中的 npm tarball，从 `reactive-md-tetris-package/react` 读取实现、CSS 文本与样例，通过 `reactive-md-tetris-package/notices?raw` 读取署名。修改本包源码后，在仓库根目录运行 `npm pack (in examples/tetris-package), then update the vendor dependency and lockfile in ReactiveMD-Demo`，重新构建、打包和安装；更新后的 tarball、依赖声明和锁文件一起提交。预览、编辑器目录和离线 HTML 共用这份清单，具体字段见 [Demo 说明](https://github.com/yao1145/ReactiveMD-Demo/blob/main/README.md)。
 
-从仓库根目录运行 `npm run build:demo`，然后运行 `node demo/scripts/verify-extensions.mjs`。加 `--dev` 可复验 Vite 开发模式；脚本会自行启停测试服务，并在断网环境中打开导出的游戏。
+从仓库根目录运行 `npm run build (in ReactiveMD-Demo)`，然后运行 `node scripts/verify-extensions.mjs`。加 `--dev` 可复验 Vite 开发模式；脚本会自行启停测试服务，并在断网环境中打开导出的游戏。
 
 ## 命令
 

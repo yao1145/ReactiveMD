@@ -61,14 +61,14 @@ position, so static rendering and hydration stay reproducible.
 
 ## Try it in the repository Demo
 
-[demo/extensions.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/extensions.ts)
+[demo/extensions.ts](https://github.com/yao1145/ReactiveMD-Demo/blob/main/extensions.ts)
 registers the npm tarball installed from `demo/vendor/`. It reads the
 implementation, CSS text and example from `reactive-md-game-2048-package/react`,
 and attribution from `reactive-md-game-2048-package/notices?raw`. After editing
 this package, run `npm run update:demo-2048` from the repository root to build,
 pack and install the replacement. Commit the tarball, dependency declaration
 and lockfile together. Preview, the editor catalog and offline HTML use that
-same registration; see the [Demo guide](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)
+same registration; see the [Demo guide](https://github.com/yao1145/ReactiveMD-Demo/blob/main/README.md)
 for fields.
 
 ## Commands
