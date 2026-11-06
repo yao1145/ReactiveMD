@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime } from '../src/local';
-import type { LocalDocument, LocalNode } from '../src/local/types';
+import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

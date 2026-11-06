@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { recoverLocalHtml } from '../src/local/html-recovery';
-import type { LocalNode, SourceRange } from '../src/local/types';
+import { recoverLocalHtml } from '../src/local/html/html-recovery';
+import type { LocalNode, SourceRange } from '../src/local/contracts/types';
 
 type RecoveryNode = LocalNode & { synthetic?: boolean; syntheticBoundary?: SourceRange };
 type Recovery = {

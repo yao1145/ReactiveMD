@@ -1,9 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
-import type { LocalDocument } from '../src/local/types';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import type { LocalDocument } from '../src/local/contracts/types';
 
 function plain(html: string): string {
   return html

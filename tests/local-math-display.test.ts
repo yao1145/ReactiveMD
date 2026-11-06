@@ -11,13 +11,13 @@ import {
   MAX_LOCAL_MATH_DISPLAY_TOKENS,
   MATH_DISPLAY_DIAGNOSTIC_CODE,
   MATH_DISPLAY_MESSAGE_KEYS,
-} from '../src/local/math-display';
-import { LatexView } from '../src/local/math-view';
+} from '../src/local/evaluation/math-display';
+import { LatexView } from '../src/local/widgets/math-view';
 import {
   isLocalDiagnosticCode,
   localDiagnosticTemplate,
   renderLocalDiagnostic,
-} from '../src/local/diagnostics';
+} from '../src/local/configuration/diagnostics';
 
 describe('math display inspection', () => {
   it('accepts display math that KaTeX supports but cannot compute', () => {

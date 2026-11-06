@@ -1,4 +1,4 @@
-import type { Diagnostic } from '../local/types';
+import type { Diagnostic } from '../local/contracts/types';
 import { buildDiagnostic } from './diagnostics';
 import { sha256, utf8ByteLength } from './digest';
 

@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { compileExpression, expressionValue, interpolate } from '../src/local/expression';
-import { createLocalRuntime } from '../src/local/runtime';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { compileExpression, expressionValue, interpolate } from '../src/local/evaluation/expression';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
 import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
-} from '../src/local/limits';
-import type { LocalDocument, LocalNode } from '../src/local/types';
+} from '../src/local/configuration/limits';
+import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

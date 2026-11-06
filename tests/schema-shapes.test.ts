@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { parseLocal } from '../src/local/parser';
+import { parseLocal } from '../src/local/parsing/parser';
 import {
   LOCAL_COMPONENTS,
   LOCAL_COMPONENT_NAMES,
   localComponentNames,
-} from '../src/local/schema';
-import { COMPONENTS, VISUAL_COMPONENTS } from '../src/local/LocalDocumentView';
-import type { LocalNode } from '../src/local/types';
+} from '../src/local/configuration/schema';
+import { COMPONENTS, VISUAL_COMPONENTS } from '../src/local/rendering/LocalDocumentView';
+import type { LocalNode } from '../src/local/contracts/types';
 
 /*
  * These literal lists are the tag sets parser.ts hardcoded before deriving

@@ -22,11 +22,11 @@
 
 | 要理解的部分 | 优先阅读 | 需要回答的问题 |
 | --- | --- | --- |
-| 编译全链路 | [compiler-core.ts](../../src/local/compiler-core.ts)：`compileLocalCore`；[兼容门面](../../src/local/compiler.ts)：`compileLocalInternal`、`LocalCompilerServices`；[types.ts](../../src/local/types.ts)：`LocalCompileOptions`、`LocalCompileResult` | 输入在哪里校验，解析错误如何汇总，何时产出可执行文档？ |
-| 标签与恢复 | [parser-core.ts](../../src/local/parser-core.ts)：`region`、`htmlCloseEnd`、`htmlLiteralEnd`、`convert`；[source-context.ts](../../src/local/source-context.ts) | 如何保护代码，如何确定组件范围，缺少闭合时读到了哪里？ |
-| 配置与扩展 | [options-core.ts](../../src/local/options-core.ts)：`readCompilerOptions`、`readOptionCheck`；[options.ts](../../src/local/options.ts)：兼容配置与身份；[语义配置](../../src/sdk/compiler-config.ts)、[SDK config](../../src/sdk/config.ts) | 默认预设如何进入编译器，哪些配置真正影响语义？ |
-| 连续编辑 | [incremental.ts](../../src/local/incremental.ts)、[parse-session.ts](../../src/local/parse-session.ts)、[compiler-cache.ts](../../src/local/compiler-cache.ts)、[worker.ts](../../src/local/worker.ts) | 哪些是优化，源码修订、完整帧与补丁如何对应？ |
-| 运行与呈现 | [runtime.ts](../../src/local/runtime.ts)、[retention.ts](../../src/local/retention.ts)、[React 入口](../../src/react/index.ts) | 参数如何更新，换源码时如何迁移状态，如何渲染惰性文本？ |
+| 编译全链路 | [compiler-core.ts](../../src/local/compilation/compiler-core.ts)：`compileLocalCore`；[兼容门面](../../src/local/compilation/compiler.ts)：`compileLocalInternal`、`LocalCompilerServices`；[types.ts](../../src/local/contracts/types.ts)：`LocalCompileOptions`、`LocalCompileResult` | 输入在哪里校验，解析错误如何汇总，何时产出可执行文档？ |
+| 标签与恢复 | [parser-core.ts](../../src/local/parsing/parser-core.ts)：`region`、`htmlCloseEnd`、`htmlLiteralEnd`、`convert`；[source-context.ts](../../src/local/source/source-context.ts) | 如何保护代码，如何确定组件范围，缺少闭合时读到了哪里？ |
+| 配置与扩展 | [options-core.ts](../../src/local/configuration/options-core.ts)：`readCompilerOptions`、`readOptionCheck`；[options.ts](../../src/local/configuration/options.ts)：兼容配置与身份；[语义配置](../../src/sdk/compiler-config.ts)、[SDK config](../../src/sdk/config.ts) | 默认预设如何进入编译器，哪些配置真正影响语义？ |
+| 连续编辑 | [incremental.ts](../../src/local/session/incremental.ts)、[parse-session.ts](../../src/local/session/parse-session.ts)、[compiler-cache.ts](../../src/local/session/compiler-cache.ts)、[worker.ts](../../src/local/transport/worker.ts) | 哪些是优化，源码修订、完整帧与补丁如何对应？ |
+| 运行与呈现 | [runtime.ts](../../src/local/runtime/runtime.ts)、[retention.ts](../../src/local/runtime/retention.ts)、[React 入口](../../src/react/index.ts) | 参数如何更新，换源码时如何迁移状态，如何渲染惰性文本？ |
 | 编辑器与 Demo | [工具栏](../../src/editor/editor-toolbar.tsx)、[编辑器 Worker](../../src/editor/codemirror/analysis-worker.ts)、[Demo 配置](../../demo/extensions.ts)、[Demo 依赖](../../demo/package.json) | 哪些内部导入必须改为公开服务，组件与 CSS 在哪里装配？ |
 | 打包与验收 | [package.json](../../package.json)、[库构建配置](../../vite.lib.config.ts)、[包检查](../../scripts/verify-package.mjs)、[消费检查](../../scripts/verify-packed.mjs) | 运行时代码和类型声明最终依赖了什么？ |
 
@@ -35,9 +35,9 @@
 ```powershell
 git status --short
 git rev-parse HEAD
-rg -n 'compileLocalInternal|LocalCompilerServices' src/local/compiler.ts
-rg -n 'local.tag.unclosed|local.tag.mismatch|htmlLiteralEnd' src/local/parser-core.ts
-rg -n 'localCompileOptionsKey|readLocalCompileOptions' src/local/options.ts
+rg -n 'compileLocalInternal|LocalCompilerServices' src/local/compilation/compiler.ts
+rg -n 'local.tag.unclosed|local.tag.mismatch|htmlLiteralEnd' src/local/parsing/parser-core.ts
+rg -n 'localCompileOptionsKey|readLocalCompileOptions' src/local/configuration/options.ts
 ```
 
 随后运行负责模块的现有测试，记录基线结果，再添加行为用例。当前 Demo 依赖 `file:..`，编辑器存在对 `src/local` 的相对导入；当前公开选项没有 `strict`。这些是待迁移现状，不能当作目标已经完成的证据。

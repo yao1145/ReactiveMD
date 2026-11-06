@@ -39,7 +39,7 @@ When this protocol restates existing behavior, the following files are authorita
 - Versions, diagnostics contract and platform scope: [Versions and compatibility](../compatibility/compatibility-en.md).
 - Implementation code: the parser, declaration table, compiler, runtime and renderer under `src/local/`.
 
-This protocol does not copy the full attribute tables. Attribute defaults, allowed values and static/dynamic markers follow `src/local/schema.ts` and the syntax specification.
+This protocol does not copy the full attribute tables. Attribute defaults, allowed values and static/dynamic markers follow `src/local/configuration/schema.ts` and the syntax specification.
 
 ### CP-SCOPE-03 Normative terms (required)
 
@@ -114,7 +114,7 @@ A component proposal declaration contains at least the following information; it
 | Compatibility classification | Capability addition, breaking change or implementation/editorial change |
 | Acceptance evidence | Automated tests, machine conformance data and manual browser checks |
 
-The current declaration table is `src/local/schema.ts`; the tag lexical sets are in `src/local/parser.ts`, semantic validation in `src/local/compiler.ts`, write constraints in `src/local/runtime.ts`, and rendering in `src/local/LocalDocumentView.tsx` and `src/local/visuals.tsx`. Changing only the declaration table does not automatically provide parsing, validation or rendering.
+The current declaration table is `src/local/configuration/schema.ts`; the tag lexical sets are in `src/local/parsing/parser.ts`, semantic validation in `src/local/compilation/compiler.ts`, write constraints in `src/local/runtime/runtime.ts`, and rendering in `src/local/rendering/LocalDocumentView.tsx` and `src/local/widgets/visuals.tsx`. Changing only the declaration table does not automatically provide parsing, validation or rendering.
 
 ### CP-MODEL-04 Name set (existing)
 
@@ -485,11 +485,11 @@ SSR HTML, class names and DOM structure in machine acceptance are evidence for t
 New components must check the following integration points and change the corresponding implementation according to their behavior; when reusing existing generic validation, explain it in the proposal:
 
 1. The public manifest's `form`; the parser reads shapes from instance configuration.
-2. Component definitions and registration. Default manifests live in `src/presets/default-components.ts`; `src/local/schema.ts` provides a compatibility projection.
+2. Component definitions and registration. Default manifests live in `src/presets/default-components.ts`; `src/local/configuration/schema.ts` provides a compatibility projection.
 3. Manifest props, structures, bindings, initial values and rules, executed by the shared compiler.
 4. Generic kernel write constraints when existing public rules cannot express a new value or state.
 5. Implementations registered through the public React SDK. Default views live in `src/components/`.
-6. Budgets in `src/local/limits.ts` (if new computation or collections are introduced).
+6. Budgets in `src/local/configuration/limits.ts` (if new computation or collections are introduced).
 7. Styles, tests, examples, syntax documentation, integration documentation and conformance data.
 
 Components that reuse public rules need a definition, implementation and registration. New kernel primitives also require a public contract and acceptance cases.
@@ -621,15 +621,15 @@ Only SHOULD clauses can be exempted; exemptions must record the rationale, alter
 
 | Contract surface | Main location | Notes |
 | --- | --- | --- |
-| Tag lexing and shapes | `src/local/parser.ts` | `VOID`, `PAIRED`, `INLINE`, unknown-tag fallback, footnote shielding |
-| Component declarations | `src/local/schema.ts` | Names, shapes, child rules, attributes, bindings, initial-value rules |
-| Compile validation | `src/local/compiler.ts` | Structure, attributes, initial values, shared constraints, expressions, table and plot budgets |
-| Runtime | `src/local/runtime.ts` | `get`, `set`, `evaluate`, `text`, `reset`, `resetToken`, `dispose` |
-| React reference adapter | `src/local/LocalDocumentView.tsx` | Document container, controls, layout, accessible names, reset and lifecycle |
-| Visualization adapter | `src/local/visuals.tsx`, `src/local/math.ts`, `src/local/math-view.tsx` | Tables, charts, plots, timelines, diagrams and math rendering |
-| Styles | `src/styles.css`, `src/theme.css`, `src/base.css`, `src/local/local.css`, `src/local/visuals.css` | Global stylesheet, theme variables and component styles |
-| Budgets | `src/local/limits.ts` | Shared resource limits |
-| Versions | `src/local/version.ts`, `package.json` | Syntax revision and package version |
+| Tag lexing and shapes | `src/local/parsing/parser.ts` | `VOID`, `PAIRED`, `INLINE`, unknown-tag fallback, footnote shielding |
+| Component declarations | `src/local/configuration/schema.ts` | Names, shapes, child rules, attributes, bindings, initial-value rules |
+| Compile validation | `src/local/compilation/compiler.ts` | Structure, attributes, initial values, shared constraints, expressions, table and plot budgets |
+| Runtime | `src/local/runtime/runtime.ts` | `get`, `set`, `evaluate`, `text`, `reset`, `resetToken`, `dispose` |
+| React reference adapter | `src/local/rendering/LocalDocumentView.tsx` | Document container, controls, layout, accessible names, reset and lifecycle |
+| Visualization adapter | `src/local/widgets/visuals.tsx`, `src/local/evaluation/math.ts`, `src/local/widgets/math-view.tsx` | Tables, charts, plots, timelines, diagrams and math rendering |
+| Styles | `src/styles.css`, `src/theme.css`, `src/base.css`, `src/local/rendering/local.css`, `src/local/widgets/visuals.css` | Global stylesheet, theme variables and component styles |
+| Budgets | `src/local/configuration/limits.ts` | Shared resource limits |
+| Versions | `src/local/contracts/version.ts`, `package.json` | Syntax revision and package version |
 | Acceptance | `tests/`, `examples/conformance/` | Language tests and machine conformance data |
 | Documentation | `docs/`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | Syntax, integration, compatibility, security and contribution rules |
 

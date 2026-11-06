@@ -5,8 +5,8 @@ import {
   diffSourceEdit,
   encodeLocalResultPatch,
   LOCAL_RESULT_PATCH_PROTOCOL,
-} from '../src/local/compile-patch';
-import type { LocalCompileResult, LocalNode,LocalCompileOptions } from '../src/local/types';
+} from '../src/local/transport/compile-patch';
+import type { LocalCompileResult, LocalNode,LocalCompileOptions } from '../src/local/contracts/types';
 import {
   LOCAL_COMPILE_DELAY_MS,
   LocalCompileScheduler,
@@ -22,7 +22,7 @@ import {
   type LocalCompileWorkerRequest,
   type LocalCompileWorkerResponse,
   type LocalCompileWorkerScope,
-} from '../src/local/worker';
+} from '../src/local/transport/worker';
 
 function okResult(source: string): LocalCompileResult {
   return {

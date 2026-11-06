@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { compileLatex, LatexError, samplePlot } from '../src/local/math';
-import { LatexView } from '../src/local/math-view';
+import { compileLatex, LatexError, samplePlot } from '../src/local/evaluation/math';
+import { LatexView } from '../src/local/widgets/math-view';
 
 const near = (actual: number, expected: number, tolerance = 1e-12) => {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);

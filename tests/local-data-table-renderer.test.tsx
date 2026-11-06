@@ -5,9 +5,9 @@ import {
   DataTableView,
   encodeDataTableKey,
   evaluateDataTableRows,
-} from '../src/local/data-table';
-import { defaultLocalize } from '../src/local/i18n';
-import type { LocalNode, LocalRuntime, LocalValue } from '../src/local/types';
+} from '../src/local/widgets/data-table';
+import { defaultLocalize } from '../src/local/theme/i18n';
+import type { LocalNode, LocalRuntime, LocalValue } from '../src/local/contracts/types';
 
 /* ------------------------------------------------------------- fixtures */
 

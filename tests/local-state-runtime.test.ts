@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
 import {
   LOCAL_STATE_FORMAT,
   exportLocalState,
@@ -10,9 +10,9 @@ import {
   resolveLocalState,
   serializeLocalState,
   type LocalStateFile,
-} from '../src/local/state';
-import { LOCAL_SYNTAX_VERSION } from '../src/local/version';
-import type { LocalDocument, LocalNode, LocalValue } from '../src/local/types';
+} from '../src/local/runtime/state';
+import { LOCAL_SYNTAX_VERSION } from '../src/local/contracts/version';
+import type { LocalDocument, LocalNode, LocalValue } from '../src/local/contracts/types';
 
 const SOURCE = [
   '<slider bind="count" label="Count" initial="2" min="0" max="10" step="1">',

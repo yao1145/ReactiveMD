@@ -1,10 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView, type LocalUrlPolicy } from '../src/local/LocalDocumentView';
-import type { LocalDocument, LocalNode } from '../src/local/types';
-import type { LocalLocale } from '../src/local/i18n';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalDocumentView, type LocalUrlPolicy } from '../src/local/rendering/LocalDocumentView';
+import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
+import type { LocalLocale } from '../src/local/theme/i18n';
 
 function compile(source: string): { document: LocalDocument; runtime: ReturnType<typeof createLocalRuntime> } {
   const result = compileLocal(source);

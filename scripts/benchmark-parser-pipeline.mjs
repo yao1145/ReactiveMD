@@ -75,7 +75,7 @@ else {
   }
   const {createServer}=await import('vite');const server=await createServer({configFile:false,appType:'custom',server:{middlewareMode:true}});
   try {
-    const {parseLocal}=await server.ssrLoadModule('/src/local/parser.ts');
+    const {parseLocal}=await server.ssrLoadModule('/src/local/parsing/parser.ts');
     report.parserWork=selected.map(c=>({id:`${c.kind}-${c.size}`,work:parseLocal(fixture(c)).work}));
   } finally {await server.close();}
   await writeFile(output,JSON.stringify(report,null,2)+'\n');console.log(`Report: ${output}`);

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { compileLocal } from '../src/local/compiler';
-import { parseLocal } from '../src/local/parser';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
-import type { LocalNode } from '../src/local/types';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { parseLocal } from '../src/local/parsing/parser';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import type { LocalNode } from '../src/local/contracts/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flatten(n.children ?? [])]);
 const formulas = (nodes: LocalNode[]) => flatten(nodes).filter(n => n.type === 'math' || n.type === 'inlineMath');

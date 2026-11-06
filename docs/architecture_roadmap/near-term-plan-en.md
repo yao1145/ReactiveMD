@@ -22,11 +22,11 @@ First verify the actual checkout, HEAD, working-tree changes and the plan in thi
 
 | What to understand | Read first | Questions to answer |
 | --- | --- | --- |
-| Full compilation path | [compiler-core.ts](../../src/local/compiler-core.ts): `compileLocalCore`; [compatibility facade](../../src/local/compiler.ts): `compileLocalInternal`, `LocalCompilerServices`; [types.ts](../../src/local/types.ts): `LocalCompileOptions`, `LocalCompileResult` | Where is input validated, how are parse errors aggregated, and when is an executable document produced? |
-| Tags and recovery | [parser-core.ts](../../src/local/parser-core.ts): `region`, `htmlCloseEnd`, `htmlLiteralEnd`, `convert`; [source-context.ts](../../src/local/source-context.ts) | How is code protected, how is component scope determined, and where does reading stop when a close is missing? |
-| Configuration and extensions | [options-core.ts](../../src/local/options-core.ts): `readCompilerOptions`, `readOptionCheck`; [options.ts](../../src/local/options.ts): compatibility configuration and identity; [semantic configuration](../../src/sdk/compiler-config.ts), [SDK config](../../src/sdk/config.ts) | How does the default preset enter the compiler, and which configuration actually affects semantics? |
-| Continuous editing | [incremental.ts](../../src/local/incremental.ts), [parse-session.ts](../../src/local/parse-session.ts), [compiler-cache.ts](../../src/local/compiler-cache.ts), [worker.ts](../../src/local/worker.ts) | Which parts are optimizations, and how do source revisions, full frames and patches correspond? |
-| Execution and presentation | [runtime.ts](../../src/local/runtime.ts), [retention.ts](../../src/local/retention.ts), [React entry](../../src/react/index.ts) | How are parameters updated, how is state migrated when the source changes, and how is literal text rendered? |
+| Full compilation path | [compiler-core.ts](../../src/local/compilation/compiler-core.ts): `compileLocalCore`; [compatibility facade](../../src/local/compilation/compiler.ts): `compileLocalInternal`, `LocalCompilerServices`; [types.ts](../../src/local/contracts/types.ts): `LocalCompileOptions`, `LocalCompileResult` | Where is input validated, how are parse errors aggregated, and when is an executable document produced? |
+| Tags and recovery | [parser-core.ts](../../src/local/parsing/parser-core.ts): `region`, `htmlCloseEnd`, `htmlLiteralEnd`, `convert`; [source-context.ts](../../src/local/source/source-context.ts) | How is code protected, how is component scope determined, and where does reading stop when a close is missing? |
+| Configuration and extensions | [options-core.ts](../../src/local/configuration/options-core.ts): `readCompilerOptions`, `readOptionCheck`; [options.ts](../../src/local/configuration/options.ts): compatibility configuration and identity; [semantic configuration](../../src/sdk/compiler-config.ts), [SDK config](../../src/sdk/config.ts) | How does the default preset enter the compiler, and which configuration actually affects semantics? |
+| Continuous editing | [incremental.ts](../../src/local/session/incremental.ts), [parse-session.ts](../../src/local/session/parse-session.ts), [compiler-cache.ts](../../src/local/session/compiler-cache.ts), [worker.ts](../../src/local/transport/worker.ts) | Which parts are optimizations, and how do source revisions, full frames and patches correspond? |
+| Execution and presentation | [runtime.ts](../../src/local/runtime/runtime.ts), [retention.ts](../../src/local/runtime/retention.ts), [React entry](../../src/react/index.ts) | How are parameters updated, how is state migrated when the source changes, and how is literal text rendered? |
 | Editor and Demo | [toolbar](../../src/editor/editor-toolbar.tsx), [editor Worker](../../src/editor/codemirror/analysis-worker.ts), [Demo configuration](../../demo/extensions.ts), [Demo dependencies](../../demo/package.json) | Which internal imports must become public services, and where are components and CSS assembled? |
 | Packaging and acceptance | [package.json](../../package.json), [library build configuration](../../vite.lib.config.ts), [package check](../../scripts/verify-package.mjs), [consumption check](../../scripts/verify-packed.mjs) | What do runtime code and type declarations ultimately depend on? |
 
@@ -35,9 +35,9 @@ At the project root, first run read-only orientation:
 ```powershell
 git status --short
 git rev-parse HEAD
-rg -n 'compileLocalInternal|LocalCompilerServices' src/local/compiler.ts
-rg -n 'local.tag.unclosed|local.tag.mismatch|htmlLiteralEnd' src/local/parser-core.ts
-rg -n 'localCompileOptionsKey|readLocalCompileOptions' src/local/options.ts
+rg -n 'compileLocalInternal|LocalCompilerServices' src/local/compilation/compiler.ts
+rg -n 'local.tag.unclosed|local.tag.mismatch|htmlLiteralEnd' src/local/parsing/parser-core.ts
+rg -n 'localCompileOptionsKey|readLocalCompileOptions' src/local/configuration/options.ts
 ```
 
 Then run the existing tests for the responsible module, record baseline results, and only then add behavior cases. The current Demo depends on `file:..`, and the editor has relative imports of `src/local`; current public options do not have `strict`. These are migration-status facts and cannot be taken as evidence that the target is complete.

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { portableCompileOptions } from '../src/local/portable-options';
-import { compileLocal } from '../src/local/compiler';
-import { analyzeLocalSource } from '../src/local/authoring';
-import { createLocalStateFile } from '../src/local/state';
+import { portableCompileOptions } from '../src/local/configuration/portable-options';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { analyzeLocalSource } from '../src/local/source/authoring';
+import { createLocalStateFile } from '../src/local/runtime/state';
 import { parseMountPayload } from '../src/standalone/payload';
 import { prepareStandaloneDocument } from '../src/standalone/prepare';
 import { createShareableHtml } from '../src/shareable';
-import type { LocalCompileOptions } from '../src/local/types';
+import type { LocalCompileOptions } from '../src/local/contracts/types';
 
 describe('portable strict semantics', () => {
   it('retains the selected mode in normalized and standalone payload options', () => {

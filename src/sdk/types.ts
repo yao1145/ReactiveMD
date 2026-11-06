@@ -1,4 +1,4 @@
-import type { LocalValueKind } from '../local/types';
+import type { LocalValueKind } from '../local/contracts/types';
 import type {
   KernelBindingConstraint,
   KernelBindingSchema,
@@ -8,7 +8,7 @@ import type {
   KernelRule,
   KernelSlotRelation,
   KernelStructure,
-} from '../local/component-kernel';
+} from '../local/compilation/component-kernel';
 import {
   LOCAL_COMPONENT_PROTOCOL,
   LOCAL_CONFIG_PROTOCOL,

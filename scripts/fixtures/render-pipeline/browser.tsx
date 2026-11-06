@@ -5,7 +5,7 @@ import {LocalPreview} from '../../../demo/src/App';
 import {useLocalCompilation} from '../../../demo/src/use-local-compilation';
 import {PreviewStateSession} from '../../../demo/src/preview-state';
 import '../../../src/theme.css';
-import '../../../src/local/local.css';
+import '../../../src/local/rendering/local.css';
 import 'reactive-md/editor/styles.css';
 
 const probe:any={ready:false,events:[],reactPhases:[],reactRenders:[],editorRenders:[],outcomes:[],responses:[],mutations:[],renderedSource:'',articleReplacements:0,errors:[]};

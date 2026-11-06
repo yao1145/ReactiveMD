@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { parseFragment } from 'parse5';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView, type LocalUrlPolicy } from '../src/local/LocalDocumentView';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalDocumentView, type LocalUrlPolicy } from '../src/local/rendering/LocalDocumentView';
 
 const elements = (node: any, tag: string): any[] => [
   ...(node.tagName === tag ? [node] : []), ...(node.childNodes ?? []).flatMap((child: any) => elements(child, tag)),

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
-import type { LocalCompileOptions } from '../src/local/types';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import type { LocalCompileOptions } from '../src/local/contracts/types';
 import { parseFragment } from 'parse5';
 
 describe('temporary HTML routing contract', () => {

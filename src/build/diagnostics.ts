@@ -1,4 +1,4 @@
-import type { Diagnostic } from '../local/types';
+import type { Diagnostic } from '../local/contracts/types';
 
 /** Build-side diagnostics use the same shape as compile and export diagnostics. */
 export function buildDiagnostic(code: string, message: string): Diagnostic {

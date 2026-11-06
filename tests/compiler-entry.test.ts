@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
+import { compileLocal } from '../src/local/compilation/compiler';
 import { CompilerConfigurationError, createCompiler } from '../src/compiler/index';
 import { createStandardCompiler } from '../src/compiler/standard';
 import { createLocalConfig } from '../src/sdk/config';
 import { defineLocalComponent } from '../src/sdk/manifest';
-import type { LocalCompileOptions, LocalCompileResult, LocalNode } from '../src/local/types';
+import type { LocalCompileOptions, LocalCompileResult, LocalNode } from '../src/local/contracts/types';
 
 function flatten(nodes: readonly LocalNode[]): LocalNode[] {
   return nodes.flatMap((node) => [node, ...flatten(node.children ?? [])]);

@@ -39,7 +39,7 @@ Reactive MD 分别维护以下版本轴：
 - 版本、诊断契约与平台范围：[版本与兼容性](../compatibility/compatibility-ch.md)。
 - 实现代码：`src/local/` 下的解析器、声明表、编译器、运行时和渲染器。
 
-本协议不复制完整属性表。属性默认值、允许值和静态/动态标记以 `src/local/schema.ts` 和语法规范为准。
+本协议不复制完整属性表。属性默认值、允许值和静态/动态标记以 `src/local/configuration/schema.ts` 和语法规范为准。
 
 ### CP-SCOPE-03 规范用词（要求）
 
@@ -114,7 +114,7 @@ Reactive MD 分别维护以下版本轴：
 | 兼容分类 | 能力新增、破坏性变更或实现/编辑性变更 |
 | 验收证据 | 自动测试、机器验收数据和人工浏览器检查 |
 
-当前声明表是 `src/local/schema.ts`，标签词法集合在 `src/local/parser.ts`，语义校验在 `src/local/compiler.ts`，写入约束在 `src/local/runtime.ts`，渲染在 `src/local/LocalDocumentView.tsx` 和 `src/local/visuals.tsx`。只改声明表不会自动获得解析、校验或渲染能力。
+当前声明表是 `src/local/configuration/schema.ts`，标签词法集合在 `src/local/parsing/parser.ts`，语义校验在 `src/local/compilation/compiler.ts`，写入约束在 `src/local/runtime/runtime.ts`，渲染在 `src/local/rendering/LocalDocumentView.tsx` 和 `src/local/widgets/visuals.tsx`。只改声明表不会自动获得解析、校验或渲染能力。
 
 ### CP-MODEL-04 名称集合（现有）
 
@@ -484,11 +484,11 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 新增组块必须检查以下接入点，按其行为修改对应实现；复用现有通用校验时，应在提案中说明：
 
 1. 公开 manifest 的 `form`；解析器从实例配置读取形态。
-2. 组件定义与实例注册；默认组件定义位于 `src/presets/default-components.ts`，`src/local/schema.ts` 是其兼容投影。
+2. 组件定义与实例注册；默认组件定义位于 `src/presets/default-components.ts`，`src/local/configuration/schema.ts` 是其兼容投影。
 3. manifest 的属性、结构、绑定、初值与规则；编译器统一执行声明。
 4. 通用内核原语的写入约束（若现有公开规则无法表达新的值或状态）。
 5. 通过公开 React SDK 注册的实现；默认实现位于 `src/components/`。
-6. `src/local/limits.ts` 的预算（若引入新的计算或集合）。
+6. `src/local/configuration/limits.ts` 的预算（若引入新的计算或集合）。
 7. 样式、测试、示例、语法文档、集成文档和验收数据。
 
 使用现有公开规则的组件只需定义、实现和注册。新增内核原语时，同时补充其公开契约与验收用例。
@@ -620,15 +620,15 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 | 契约面 | 主要位置 | 说明 |
 | --- | --- | --- |
-| 标签词法与形态 | `src/local/parser.ts` | `VOID`、`PAIRED`、`INLINE`，未知标签降级，脚注屏蔽 |
-| 组块声明 | `src/local/schema.ts` | 名称、形态、子项规则、属性、绑定、初值规则 |
-| 编译校验 | `src/local/compiler.ts` | 结构、属性、初值、共享约束、表达式、表格和绘图预算 |
-| 运行时 | `src/local/runtime.ts` | `get`、`set`、`evaluate`、`text`、`reset`、`resetToken`、`dispose` |
-| React 参考适配器 | `src/local/LocalDocumentView.tsx` | 文档容器、控件、布局、可访问名称、重置和生命周期 |
-| 可视化适配器 | `src/local/visuals.tsx`、`src/local/math.ts`、`src/local/math-view.tsx` | 表格、图表、绘图、时间轴、图解和数学渲染 |
-| 样式 | `src/styles.css`、`src/theme.css`、`src/base.css`、`src/local/local.css`、`src/local/visuals.css` | 全局样式表、主题变量和组件样式 |
-| 预算 | `src/local/limits.ts` | 共享资源上限 |
-| 版本 | `src/local/version.ts`、`package.json` | 语法修订和包版本 |
+| 标签词法与形态 | `src/local/parsing/parser.ts` | `VOID`、`PAIRED`、`INLINE`，未知标签降级，脚注屏蔽 |
+| 组块声明 | `src/local/configuration/schema.ts` | 名称、形态、子项规则、属性、绑定、初值规则 |
+| 编译校验 | `src/local/compilation/compiler.ts` | 结构、属性、初值、共享约束、表达式、表格和绘图预算 |
+| 运行时 | `src/local/runtime/runtime.ts` | `get`、`set`、`evaluate`、`text`、`reset`、`resetToken`、`dispose` |
+| React 参考适配器 | `src/local/rendering/LocalDocumentView.tsx` | 文档容器、控件、布局、可访问名称、重置和生命周期 |
+| 可视化适配器 | `src/local/widgets/visuals.tsx`、`src/local/evaluation/math.ts`、`src/local/widgets/math-view.tsx` | 表格、图表、绘图、时间轴、图解和数学渲染 |
+| 样式 | `src/styles.css`、`src/theme.css`、`src/base.css`、`src/local/rendering/local.css`、`src/local/widgets/visuals.css` | 全局样式表、主题变量和组件样式 |
+| 预算 | `src/local/configuration/limits.ts` | 共享资源上限 |
+| 版本 | `src/local/contracts/version.ts`、`package.json` | 语法修订和包版本 |
 | 验收 | `tests/`、`examples/conformance/` | 语言测试和机器验收数据 |
 | 文档 | `docs/`、`README.md`、`CONTRIBUTING-ch.md`、`SECURITY-ch.md` | 语法、集成、兼容、安全和贡献规则 |
 

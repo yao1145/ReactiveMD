@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {shareCompiledData} from '../src/local/shared-data';
+import {shareCompiledData} from '../src/local/transport/shared-data';
 describe('persistent compiled-data publication',()=>{
   it('retains unchanged subtrees without mutating older snapshots',()=>{
     const first={nodes:[{id:'a',range:{start:0,end:3},value:'one'},{id:'b',range:{start:5,end:8},value:'two'}],source:'one\n\ntwo'};

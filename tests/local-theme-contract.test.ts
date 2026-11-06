@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
+import { compileLocal } from '../src/local/compilation/compiler';
 
 it('consumes a document theme declaration and preserves original body offsets', () => {
   const source = '<theme name="paper">\r\n\r\n# Title\r\n\r\n<counter bind="n" label="Count" initial="2">';

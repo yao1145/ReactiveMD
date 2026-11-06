@@ -64,6 +64,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | --- | --- |
 | Component plugin development | [English](development/component-development-en.md) |
 | Component protocol | [English](development/component-protocol-en.md) |
+| Local module layout | [English](development/local-module-layout-en.md) |
 | Performance | [English](development/performance-overview-en.md) |
 | Publishing | [English](development/releasing-en.md) |
 

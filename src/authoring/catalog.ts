@@ -1,8 +1,8 @@
 import type { EditorLocale } from './command-types';
-import type { LocalCompileOptions, LocalNode, LocalValue } from '../local/types';
-import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../local/options';
-import { parseLocal } from '../local/parser';
-import type { LocalComponentForm, LocalPropKind, LocalPropSchema } from '../local/schema';
+import type { LocalCompileOptions, LocalNode, LocalValue } from '../local/contracts/types';
+import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../local/configuration/options';
+import { parseLocal } from '../local/parsing/parser';
+import type { LocalComponentForm, LocalPropKind, LocalPropSchema } from '../local/configuration/schema';
 import {
   DEFAULT_AUTHORING_GROUPS,
   DEFAULT_AUTHORING_ORDER,

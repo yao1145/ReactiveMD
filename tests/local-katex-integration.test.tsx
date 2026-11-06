@@ -1,9 +1,9 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { LocalReactiveDocument } from '../src/local/LocalDocumentView';
-import { compileLatex } from '../src/local/math';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { LocalReactiveDocument } from '../src/local/rendering/LocalDocumentView';
+import { compileLatex } from '../src/local/evaluation/math';
 
 describe('KaTeX document integration', () => {
   it('typesets the circulation formula with visible HTML and accessible source MathML', () => {

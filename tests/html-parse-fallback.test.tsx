@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { parseFragment } from 'parse5';
-import { compileLocal } from '../src/local/compiler';
-import { sanitizeLocalHtmlDocument } from '../src/local/html';
-import { LocalDocumentView, LocalReactiveDocument } from '../src/local/LocalDocumentView';
-import { createLocalRuntime } from '../src/local/runtime';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { sanitizeLocalHtmlDocument } from '../src/local/html/html';
+import { LocalDocumentView, LocalReactiveDocument } from '../src/local/rendering/LocalDocumentView';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
 
 // parse5 normally repairs malformed HTML. Inject actual parser/serializer
 // failures to exercise the error boundary rather than its repair behavior.

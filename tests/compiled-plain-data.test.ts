@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime } from '../src/local';
-import { compileLocalDocument } from '../src/local/compiler';
-import { plainCompiledData } from '../src/local/compiled-data';
+import { compileLocalDocument } from '../src/local/compilation/compiler';
+import { plainCompiledData } from '../src/local/transport/compiled-data';
 
 function expectPlainData(value: unknown, path = 'result', seen = new Set<object>()): void {
   expect(typeof value, path).not.toBe('function');

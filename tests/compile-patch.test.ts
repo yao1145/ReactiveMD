@@ -8,8 +8,8 @@ import {
   encodeLocalResultPatchWithCost,
   LOCAL_RESULT_PATCH_PROTOCOL,
   type LocalResultPatch,
-} from '../src/local/compile-patch';
-import type { LocalCompileResult, LocalDocument, LocalNode } from '../src/local/types';
+} from '../src/local/transport/compile-patch';
+import type { LocalCompileResult, LocalDocument, LocalNode } from '../src/local/contracts/types';
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {

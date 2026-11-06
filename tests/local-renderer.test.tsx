@@ -1,11 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
 import {
   LocalDocumentView,
   LocalReactiveDocument,
-} from '../src/local/LocalDocumentView';
+} from '../src/local/rendering/LocalDocumentView';
 
 function mount(source: string): { html: string; text: string } {
   const result = compileLocal(source);

@@ -5,8 +5,8 @@ import {
   insertLocalComponent,
   validateLocalComponentInsertTemplates,
 } from '../src/authoring';
-import { completeLocalSource } from '../src/local/authoring';
-import { compileLocal } from '../src/local/compiler';
+import { completeLocalSource } from '../src/local/source/authoring';
+import { compileLocal } from '../src/local/compilation/compiler';
 import type { LocalCompileOptions } from '../src/local';
 import { createLocalConfig } from '../src/sdk/config';
 import { defineLocalComponent } from '../src/sdk/manifest';

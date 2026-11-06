@@ -1,4 +1,4 @@
-import { LOCAL_HTML_NAMES } from '../local/html-names';
+import { LOCAL_HTML_NAMES } from '../local/html/html-names';
 import { DEFAULT_COMPONENT_NAMES } from '../presets/default-components';
 import defaultPreset from '../presets/default';
 import { localHash } from './hash';
@@ -18,7 +18,7 @@ import {
 import { LOCAL_SDK_VERSION, localVersionSatisfies } from './version';
 import { defineLocalTheme } from './theme';
 import type { LocalThemeInput, LocalThemePackage } from './theme';
-import type { Diagnostic, LocalDocument } from '../local/types';
+import type { Diagnostic, LocalDocument } from '../local/contracts/types';
 
 /** Identifiers the default preset contributes in phase one. */
 export const DEFAULT_PRESET_ID = defaultPreset.id;

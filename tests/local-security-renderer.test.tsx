@@ -1,18 +1,18 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
 import {
   LocalDocumentView,
   LocalReactiveDocument,
   type LocalUrlPolicy,
-} from '../src/local/LocalDocumentView';
-import { compileLatex, LatexError, samplePlot } from '../src/local/math';
-import { LatexView } from '../src/local/math-view';
-import { LocalVisual } from '../src/local/visuals';
-import { MAX_LOCAL_PLOT_POINTS } from '../src/local/limits';
-import type { LocalDocument, LocalNode, LocalRuntime, LocalValue } from '../src/local/types';
+} from '../src/local/rendering/LocalDocumentView';
+import { compileLatex, LatexError, samplePlot } from '../src/local/evaluation/math';
+import { LatexView } from '../src/local/widgets/math-view';
+import { LocalVisual } from '../src/local/widgets/visuals';
+import { MAX_LOCAL_PLOT_POINTS } from '../src/local/configuration/limits';
+import type { LocalDocument, LocalNode, LocalRuntime, LocalValue } from '../src/local/contracts/types';
 
 /* --------------------------------------------------------------- helpers */
 

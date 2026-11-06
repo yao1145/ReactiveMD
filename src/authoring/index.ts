@@ -17,7 +17,7 @@ export {
   completeLocalSource,
   formatLocalSource,
   renameLocalBinding,
-} from '../local/authoring';
+} from '../local/source/authoring';
 export type {
   AuthorAnalysis,
   AuthorBinding,
@@ -25,7 +25,7 @@ export type {
   AuthorCompletionKind,
   AuthorRename,
   AuthorToken,
-} from '../local/authoring';
+} from '../local/source/authoring';
 
 export {
   createLocalAuthoringLookup,
@@ -60,7 +60,7 @@ export {
   localComponentNames,
   suggestAttribute,
   suggestComponent,
-} from '../local/schema';
+} from '../local/configuration/schema';
 export type {
   LocalBindingFamily,
   LocalBindingSchema,
@@ -71,7 +71,7 @@ export type {
   LocalInitialRule,
   LocalPropKind,
   LocalPropSchema,
-} from '../local/schema';
+} from '../local/configuration/schema';
 
 export type {
   Diagnostic,
@@ -84,7 +84,7 @@ export type {
   LocalHtmlPolicy,
   LocalValue,
   SourceRange,
-} from '../local/types';
+} from '../local/contracts/types';
 
 export {
   EXTENDED_NATIVE_COMPONENT_COPY_ZH,

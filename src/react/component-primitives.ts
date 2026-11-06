@@ -17,18 +17,18 @@ export {
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
   isLocalEmail,
-} from '../local/limits';
-export { countLocalCodePoints } from '../local/text-length';
-export { formatLocalDiagnostic } from '../local/diagnostics';
-export { compileExpression, type LocalExpression } from '../local/expression';
+} from '../local/configuration/limits';
+export { countLocalCodePoints } from '../local/source/text-length';
+export { formatLocalDiagnostic } from '../local/configuration/diagnostics';
+export { compileExpression, type LocalExpression } from '../local/evaluation/expression';
 export {
   compileLatex,
   LatexError,
   samplePlot,
   type LatexEvaluationBudget,
-} from '../local/math';
-export { LatexView } from '../local/math-view';
-export { TableSurface } from '../local/table-surface';
+} from '../local/evaluation/math';
+export { LatexView } from '../local/widgets/math-view';
+export { TableSurface } from '../local/widgets/table-surface';
 export {
   createDiagramLayoutFallback,
   diagramEdgePath,
@@ -36,8 +36,8 @@ export {
   layoutDiagram,
   type DiagramLayoutInput,
   type DiagramLayoutResult,
-} from '../local/diagram-layout';
-export { isLocalColor } from '../local/colors';
-export type { Diagnostic, LocalValue } from '../local/types';
-export type { LocalRenderMode } from '../local/render-types';
-export type { LocalLocale, Localize } from '../local/i18n';
+} from '../local/widgets/diagram-layout';
+export { isLocalColor } from '../local/theme/colors';
+export type { Diagnostic, LocalValue } from '../local/contracts/types';
+export type { LocalRenderMode } from '../local/rendering/render-types';
+export type { LocalLocale, Localize } from '../local/theme/i18n';

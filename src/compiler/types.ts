@@ -8,7 +8,7 @@
  * changing their read path, and adds the strict/recovery contract from the
  * roadmap.
  */
-import type { Diagnostic, LocalCompileResult, LocalDocument, LocalRecovery } from '../local/types';
+import type { Diagnostic, LocalCompileResult, LocalDocument, LocalRecovery } from '../local/contracts/types';
 
 /** Structural, recursively read-only projection of plain compiler data. */
 export type DeepReadonly<T> = T extends (...args: never[]) => unknown

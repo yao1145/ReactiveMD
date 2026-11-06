@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { compileExpression, compileLocal } from '../src/local';
 import { createLocalRuntime } from '../src/local';
-import { buildDataTableModel } from '../src/local/data-table';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
+import { buildDataTableModel } from '../src/local/widgets/data-table';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 describe('constraint and generated-content boundaries', () => {

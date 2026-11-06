@@ -1,9 +1,9 @@
 import { insertTemplate } from './editor-commands';
 import type { EditorEdit, EditorLocale, EditorSelection } from './command-types';
-import { RESERVED_NAMES } from '../local/expression';
-import { analyzeLocalSource, renameLocalBinding } from '../local/authoring';
-import { readLocalCompileOptions } from '../local/options';
-import type { LocalCompileOptions } from '../local/types';
+import { RESERVED_NAMES } from '../local/evaluation/expression';
+import { analyzeLocalSource, renameLocalBinding } from '../local/source/authoring';
+import { readLocalCompileOptions } from '../local/configuration/options';
+import type { LocalCompileOptions } from '../local/contracts/types';
 import { readLocalConfig } from '../sdk/config';
 import type { LocalConfig } from '../sdk/types';
 import {

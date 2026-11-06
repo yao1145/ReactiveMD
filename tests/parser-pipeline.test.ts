@@ -2,8 +2,8 @@ import {describe, expect, it} from 'vitest';
 import {unified} from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import {parseLocal} from '../src/local/parser';
-import type {LocalCompileOptions, LocalNode} from '../src/local/types';
+import {parseLocal} from '../src/local/parsing/parser';
+import type {LocalCompileOptions, LocalNode} from '../src/local/contracts/types';
 
 const markdown=unified().use(remarkParse).use(remarkGfm);
 function ordinary(source: string): {nodes:LocalNode[];order:LocalNode[]} {

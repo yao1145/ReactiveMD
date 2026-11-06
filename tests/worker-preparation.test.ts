@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LocalCompileSession, LocalIncrementalStats } from '../src/local/incremental';
-import type { LocalCompileResult } from '../src/local/types';
+import type { LocalCompileSession, LocalIncrementalStats } from '../src/local/session/incremental';
+import type { LocalCompileResult } from '../src/local/contracts/types';
 import {
   startLocalCompileWorker,
   type LocalCompileRequest,
   type LocalCompileWorkerControl,
   type LocalCompileWorkerResponse,
   type LocalCompileWorkerScope,
-} from '../src/local/worker';
+} from '../src/local/transport/worker';
 
 function okResult(source: string): LocalCompileResult {
   return {

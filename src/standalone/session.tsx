@@ -3,16 +3,16 @@ import {
   LocalDocumentView,
   type LocalImageResolver,
   type LocalUrlPolicy,
-} from '../local/LocalDocumentView';
-import type { LocalLocale } from '../local/locale';
-import { createLocalRuntime } from '../local/runtime';
+} from '../local/rendering/LocalDocumentView';
+import type { LocalLocale } from '../local/contracts/locale';
+import { createLocalRuntime } from '../local/runtime/runtime';
 import {
   exportLocalState,
   type LocalStateFile,
   type LocalStateGenerator,
-} from '../local/state';
-import type { LocalColorScheme, LocalThemeDefinition } from '../local/theme';
-import type { Diagnostic, LocalCompileOptions, LocalRuntime } from '../local/types';
+} from '../local/runtime/state';
+import type { LocalColorScheme, LocalThemeDefinition } from '../local/theme/theme';
+import type { Diagnostic, LocalCompileOptions, LocalRuntime } from '../local/contracts/types';
 import { diagnosticsFromError, errorText, ReactiveMDMountError, standaloneDiagnostic } from './diagnostics';
 import { REACTIVE_MD_DIAGNOSTICS_EVENT } from './events';
 import { parseMountPayload } from './payload';

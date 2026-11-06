@@ -1,4 +1,4 @@
-import type { Diagnostic } from '../local/types';
+import type { Diagnostic } from '../local/contracts/types';
 import { defineLocalStandaloneBundle, localThemeContractDigest, type LocalStandaloneBundle } from '../export';
 import { localComponentRequirement } from '../sdk/manifest';
 import type { LocalComponentRequirement, LocalConfig } from '../sdk/types';

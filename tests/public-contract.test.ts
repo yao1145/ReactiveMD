@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { LOCAL_SYNTAX_VERSION } from '../src/local/version';
+import { LOCAL_SYNTAX_VERSION } from '../src/local/contracts/version';
 
 it('publishes the local-draft-3 syntax revision as a literal constant', () => {
   const revision: 'local-draft-3' = LOCAL_SYNTAX_VERSION;

@@ -1,8 +1,8 @@
 import { defaultTreeAdapter, parseFragment, serializeOuter } from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
-import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './local/html';
-import { readLocalCompileOptions } from './local/options';
-import { portableCompileOptions } from './local/portable-options';
+import { localHtmlSandbox, sanitizeLocalHtmlDocument } from './local/html/html';
+import { readLocalCompileOptions } from './local/configuration/options';
+import { portableCompileOptions } from './local/configuration/portable-options';
 import type { LocalExtensionRequirements } from './sdk/types';
 import { validateLocalExtensionRequirements } from './export/requirements';
 import { validateLocalRestorationRequirements, type LocalRestorationRequirements } from './export/restoration';
@@ -12,8 +12,8 @@ import {
   resolveLocalState,
   type LocalStateFile,
   type LocalStateGenerator,
-} from './local/state';
-import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalHtmlPolicy, LocalValue } from './local/types';
+} from './local/runtime/state';
+import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalHtmlPolicy, LocalValue } from './local/contracts/types';
 
 /** Version of the single-file HTML envelope, not of the document syntax. */
 export const SHAREABLE_HTML_FORMAT = 'reactive-md-html/v1' as const;

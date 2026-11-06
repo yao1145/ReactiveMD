@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { LocalReactiveDocument } from '../../src/local/LocalDocumentView';
-import type { LocalCompileOptions, Diagnostic } from '../../src/local/types';
+import { LocalReactiveDocument } from '../../src/local/rendering/LocalDocumentView';
+import type { LocalCompileOptions, Diagnostic } from '../../src/local/contracts/types';
 import '../../src/styles.css';
 
 declare global {

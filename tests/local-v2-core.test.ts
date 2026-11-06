@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { isLocalColor } from '../src/local/colors';
-import { createLocalRuntime } from '../src/local/runtime';
-import type { LocalDocument, LocalNode } from '../src/local/types';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { isLocalColor } from '../src/local/theme/colors';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
 
 function all(nodes: LocalNode[]): LocalNode[] {
   return nodes.flatMap((node) => [node, ...all(node.children ?? [])]);

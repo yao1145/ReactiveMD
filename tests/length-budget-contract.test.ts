@@ -5,12 +5,12 @@ import {
   countLocalCodePoints,
   createLocalRuntime,
 } from '../src/local';
-import { localValueBudgetError } from '../src/local/expression';
+import { localValueBudgetError } from '../src/local/evaluation/expression';
 import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_DIAGNOSTICS,
   MAX_LOCAL_STRING_LENGTH,
-} from '../src/local/limits';
+} from '../src/local/configuration/limits';
 
 const AUTHOR_TEXT_CASES: [string, number][] = [
   ['😀', 1],

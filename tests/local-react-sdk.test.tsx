@@ -1,9 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime } from '../src/index';
-import type { LocalHostComponentContext } from '../src/local/render-types';
-import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/types';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
+import type { LocalHostComponentContext } from '../src/local/rendering/render-types';
+import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/contracts/types';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
 import { LocalReactiveDocument } from '../src/react/index';
 import { createLocalConfig, defineLocalComponent } from '../src/sdk';
 import {

@@ -1,4 +1,4 @@
-import type { Diagnostic } from '../local/types';
+import type { Diagnostic } from '../local/contracts/types';
 import { buildDiagnostic } from './diagnostics';
 import { createLocalStandaloneEntrySource, VIRTUAL_HOST_ENTRY, VIRTUAL_HOST_MODULE } from './entry';
 import { utf8ByteLength } from './digest';

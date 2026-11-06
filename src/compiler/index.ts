@@ -10,10 +10,10 @@
  * only the semantic pass: it creates no runtime, session, worker, timer or
  * cross-source cache.
  */
-import type { LocalCompileOptions } from '../local/types';
-import type { LocalOptionCheck } from '../local/options-core';
-import { compileLocalCore } from '../local/compiler-core';
-import { readCompilerOptions } from '../local/options-core';
+import type { LocalCompileOptions } from '../local/contracts/types';
+import type { LocalOptionCheck } from '../local/configuration/options-core';
+import { compileLocalCore } from '../local/compilation/compiler-core';
+import { readCompilerOptions } from '../local/configuration/options-core';
 import { MINIMAL_CHECKS, toCompileResult } from './result';
 import { CompilerConfigurationError, type CompileResult, type Compiler } from './types';
 
@@ -29,7 +29,7 @@ export type {
   Program,
 } from './types';
 export type { DeepReadonly } from './types';
-export type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../local/types';
+export type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../local/contracts/types';
 
 /** Validate once; invalid options never reach a compile call. */
 function requireOptions(options?: LocalCompileOptions): Extract<LocalOptionCheck, { ok: true }> {

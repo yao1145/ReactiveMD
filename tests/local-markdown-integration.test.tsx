@@ -1,10 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
-import { completeLocalSource, formatLocalSource, renameLocalBinding } from '../src/local/authoring';
-import type { LocalNode } from '../src/local/types';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import { completeLocalSource, formatLocalSource, renameLocalBinding } from '../src/local/source/authoring';
+import type { LocalNode } from '../src/local/contracts/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
 

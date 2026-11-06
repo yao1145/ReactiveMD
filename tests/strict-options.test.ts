@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { CompilerConfigurationError, createCompiler } from '../src/compiler/index';
 import { createStandardCompiler } from '../src/compiler/standard';
 import { MINIMAL_CHECKS, toCompileResult } from '../src/compiler/result';
-import { compileLocal } from '../src/local/compiler';
-import { localCompileOptionsKey, readLocalCompileOptions } from '../src/local/options';
-import { LOCAL_RECOVERY_STRATEGY_VERSION } from '../src/local/options-core';
-import { formatLocalDiagnostic } from '../src/local/diagnostics';
-import type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../src/local/types';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { localCompileOptionsKey, readLocalCompileOptions } from '../src/local/configuration/options';
+import { LOCAL_RECOVERY_STRATEGY_VERSION } from '../src/local/configuration/options-core';
+import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
+import type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../src/local/contracts/types';
 
 function effectiveStrict(options?: LocalCompileOptions): boolean {
   const check = readLocalCompileOptions(options);

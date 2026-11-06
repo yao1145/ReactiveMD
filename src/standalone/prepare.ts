@@ -1,10 +1,10 @@
-import { compileLocal } from '../local/compiler';
-import { parseLocalState, type LocalStateFile } from '../local/state';
-import type { Diagnostic, LocalCompileOptions, LocalDocument } from '../local/types';
+import { compileLocal } from '../local/compilation/compiler';
+import { parseLocalState, type LocalStateFile } from '../local/runtime/state';
+import type { Diagnostic, LocalCompileOptions, LocalDocument } from '../local/contracts/types';
 import { resolveLocalStateBaseline } from '../shareable';
 import { ReactiveMDMountError, standaloneDiagnostic } from './diagnostics';
-import { readLocalCompileOptions } from '../local/options';
-import { LOCAL_SYNTAX_VERSION } from '../local/version';
+import { readLocalCompileOptions } from '../local/configuration/options';
+import { LOCAL_SYNTAX_VERSION } from '../local/contracts/version';
 
 export interface PreparedStandaloneDocument {
   document: LocalDocument;

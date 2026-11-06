@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { createLocalConfig, defineLocalComponent } from '../src/sdk';
 import type { LocalComponentDefinition } from '../src/sdk';
 import defaultPreset from '../src/presets/default';

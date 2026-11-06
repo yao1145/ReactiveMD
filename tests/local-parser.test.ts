@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseLocal } from '../src/local/parser';
-import type { LocalNode } from '../src/local/types';
+import { parseLocal } from '../src/local/parsing/parser';
+import type { LocalNode } from '../src/local/contracts/types';
 const flat = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flat(n.children ?? [])]);
 
 it('parses nested containers, Markdown, inline tags and quoted greater-than characters', () => {

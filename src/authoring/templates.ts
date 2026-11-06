@@ -1,10 +1,10 @@
-import { compileLocal } from '../local/compiler';
-import { RESERVED_NAMES } from '../local/expression';
+import { compileLocal } from '../local/compilation/compiler';
+import { RESERVED_NAMES } from '../local/evaluation/expression';
 import { insertTemplate } from './editor-commands';
 import { renderNativeSnippet, type NativeComponentDefinition } from './native-components';
 import type { LocalComponentDefinition } from '../sdk/types';
-import type { LocalCompileOptions } from '../local/types';
-import type { LocalPropKind } from '../local/schema';
+import type { LocalCompileOptions } from '../local/contracts/types';
+import type { LocalPropKind } from '../local/configuration/schema';
 
 /**
  * Minimal legal insertion-template synthesis for manifests that do not supply

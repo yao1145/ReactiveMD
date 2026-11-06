@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { parseLocal } from '../src/local/parser';
-import { compileLocal } from '../src/local/compiler';
+import { parseLocal } from '../src/local/parsing/parser';
+import { compileLocal } from '../src/local/compilation/compiler';
 import {
   DEFAULT_LOCAL_THEME,
   LOCAL_THEME_PROTOCOL,
   resolveLocalTheme,
   type LocalThemeDefinition,
-} from '../src/local/theme';
-import type { LocalNode } from '../src/local/types';
+} from '../src/local/theme/theme';
+import type { LocalNode } from '../src/local/contracts/types';
 
 const flat = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap((node) => [node, ...flat(node.children ?? [])]);
 

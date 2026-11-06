@@ -3,8 +3,8 @@ import {
   LocalExpressionError,
   RESERVED_NAMES,
   compileExpression,
-} from '../src/local/expression';
-import type { LocalValue, LocalValueKind } from '../src/local/types';
+} from '../src/local/evaluation/expression';
+import type { LocalValue, LocalValueKind } from '../src/local/contracts/types';
 
 function evaluate(source: string, env: Record<string, LocalValue> = {}): LocalValue {
   return compileExpression(source).evaluate(env);

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalVisual } from '../src/local/visuals';
-import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/types';
-import type { LocalRenderContext, LocalRenderMode } from '../src/local/render-types';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalVisual } from '../src/local/widgets/visuals';
+import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/contracts/types';
+import type { LocalRenderContext, LocalRenderMode } from '../src/local/rendering/render-types';
 
 function compile(source: string): { document: LocalDocument; runtime: LocalRuntime } {
   const result = compileLocal(source);

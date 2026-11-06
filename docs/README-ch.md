@@ -66,6 +66,7 @@
 | 组件协议 | [中文](development/component-protocol-ch.md) |
 | 性能 | [优化历史与当前复测总览](development/performance-overview-ch.md) |
 | 发布流程 | [中文](development/releasing-ch.md) |
+| local 模块目录与归属 | [中文](development/local-module-layout-ch.md) |
 
 ## 发布记录
 

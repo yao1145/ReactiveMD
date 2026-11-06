@@ -1,4 +1,4 @@
-import type { Diagnostic, LocalDocument } from '../local/types';
+import type { Diagnostic, LocalDocument } from '../local/contracts/types';
 import { createLocalConfig, readLocalConfig } from '../sdk/config';
 import { localHash } from '../sdk/hash';
 import { localComponentDigest, localJsonByteLength } from '../sdk/manifest';

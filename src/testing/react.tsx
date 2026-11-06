@@ -1,9 +1,9 @@
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
-import { compileLocal } from '../local/compiler';
-import { LocalDocumentView } from '../local/LocalDocumentView';
-import { createLocalRuntime } from '../local/runtime';
-import type { Diagnostic, LocalNode } from '../local/types';
+import { compileLocal } from '../local/compilation/compiler';
+import { LocalDocumentView } from '../local/rendering/LocalDocumentView';
+import { createLocalRuntime } from '../local/runtime/runtime';
+import type { Diagnostic, LocalNode } from '../local/contracts/types';
 import { readLocalConfig } from '../sdk/config';
 import { getLocalComponentRegistry } from '../sdk/registry';
 import type { LocalComponentDefinition, LocalConfig } from '../sdk/types';

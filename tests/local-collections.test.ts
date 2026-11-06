@@ -5,12 +5,12 @@ import {
   expressionValue,
   interpolate,
   localValueBudgetError,
-} from '../src/local/expression';
+} from '../src/local/evaluation/expression';
 import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
-} from '../src/local/limits';
+} from '../src/local/configuration/limits';
 import type { LocalValue } from '../src/local';
 
 function failure(run: () => unknown): LocalExpressionError {

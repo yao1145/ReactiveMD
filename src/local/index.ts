@@ -1,30 +1,30 @@
-export { analyzeLocalSource, completeLocalSource, renameLocalBinding, formatLocalSource } from './authoring';
-export type { AuthorToken, AuthorBinding, AuthorAnalysis, AuthorCompletion, AuthorCompletionKind, AuthorRename } from './authoring';
-export { compileLocal } from './compiler';
-export { createLocalCompileSession, LocalCompileSession } from './incremental';
-export type { LocalIncrementalStats } from './incremental';
-export { localCompileOptionsKey } from './options';
+export { analyzeLocalSource, completeLocalSource, renameLocalBinding, formatLocalSource } from './source/authoring';
+export type { AuthorToken, AuthorBinding, AuthorAnalysis, AuthorCompletion, AuthorCompletionKind, AuthorRename } from './source/authoring';
+export { compileLocal } from './compilation/compiler';
+export { createLocalCompileSession, LocalCompileSession } from './session/incremental';
+export type { LocalIncrementalStats } from './session/incremental';
+export { localCompileOptionsKey } from './configuration/options';
 export {
   formatLocalDiagnostic,
   LOCAL_DIAGNOSTIC_CODES,
   isLocalDiagnosticCode,
   localDiagnosticTemplate,
   localDiagnosticTemplateKeys,
-} from './diagnostics';
-export type { LocalDiagnosticDetails } from './diagnostics';
-export { countLocalCodePoints } from './text-length';
-export { createLocalRuntime,updateLocalRuntime,notifyLocalRuntime } from './runtime';
-export type {LocalRuntimeUpdateOptions,LocalRuntimeDocumentUpdate} from './runtime';
-export { compileExpression, LocalExpressionError } from './expression';
-export { compileLatex, samplePlot } from './math';
-export { LOCAL_SYNTAX_VERSION } from './version';
-export { inspectLocalSourceVersion, checkLocalUpgrade, migrateLocalSource } from './source-migration';
-export type { LocalSourceVersion, LocalUpgradeOptions, LocalUpgradeReport, LocalMigrationResult } from './source-migration';
-export type { LocalVersionDeclaration } from './types';
-export type { LocalLocale } from './locale';
-export { LOCAL_THEME_PROTOCOL, DEFAULT_LOCAL_THEME, resolveLocalTheme, isLocalThemeName } from './theme';
-export type { LocalColorScheme, LocalThemeDefinition, LocalThemeResolution } from './theme';
-export type { Diagnostic, LocalDiagnosticParam, LocalDiagnosticParams, SourceRange, LocalRecovery, LocalValue, LocalValueKind, LocalNode, LocalBinding, LocalComputation, LocalExternal, LocalDynamicConstraint, LocalDynamicConstraints, LocalValidation, LocalDocument, LocalHtmlOptions, LocalHtmlPolicy, LocalCompileLimits, LocalCompileOptions, LocalCompileResult, LocalRuntime, LocalRuntimeOptions, LocalSnapshot, LocalHostPropKind, LocalHostPropSchema, LocalHostComponentForm, LocalHostBindingSchema, LocalHostComponentSchema } from './types';
+} from './configuration/diagnostics';
+export type { LocalDiagnosticDetails } from './configuration/diagnostics';
+export { countLocalCodePoints } from './source/text-length';
+export { createLocalRuntime,updateLocalRuntime,notifyLocalRuntime } from './runtime/runtime';
+export type {LocalRuntimeUpdateOptions,LocalRuntimeDocumentUpdate} from './runtime/runtime';
+export { compileExpression, LocalExpressionError } from './evaluation/expression';
+export { compileLatex, samplePlot } from './evaluation/math';
+export { LOCAL_SYNTAX_VERSION } from './contracts/version';
+export { inspectLocalSourceVersion, checkLocalUpgrade, migrateLocalSource } from './source/source-migration';
+export type { LocalSourceVersion, LocalUpgradeOptions, LocalUpgradeReport, LocalMigrationResult } from './source/source-migration';
+export type { LocalVersionDeclaration } from './contracts/types';
+export type { LocalLocale } from './contracts/locale';
+export { LOCAL_THEME_PROTOCOL, DEFAULT_LOCAL_THEME, resolveLocalTheme, isLocalThemeName } from './theme/theme';
+export type { LocalColorScheme, LocalThemeDefinition, LocalThemeResolution } from './theme/theme';
+export type { Diagnostic, LocalDiagnosticParam, LocalDiagnosticParams, SourceRange, LocalRecovery, LocalValue, LocalValueKind, LocalNode, LocalBinding, LocalComputation, LocalExternal, LocalDynamicConstraint, LocalDynamicConstraints, LocalValidation, LocalDocument, LocalHtmlOptions, LocalHtmlPolicy, LocalCompileLimits, LocalCompileOptions, LocalCompileResult, LocalRuntime, LocalRuntimeOptions, LocalSnapshot, LocalHostPropKind, LocalHostPropSchema, LocalHostComponentForm, LocalHostBindingSchema, LocalHostComponentSchema } from './contracts/types';
 export {
   LOCAL_STATE_FORMAT,
   localSourceDigest,
@@ -35,21 +35,21 @@ export {
   exportLocalState,
   importLocalState,
   serializeLocalState,
-} from './state';
+} from './runtime/state';
 export type {
   LocalStateGenerator,
   LocalStateFile,
   LocalStateParseResult,
   LocalStateResolution,
-} from './state';
-export { planLocalStateRetention, applyLocalStateRetention } from './retention';
+} from './runtime/state';
+export { planLocalStateRetention, applyLocalStateRetention } from './runtime/retention';
 export type {
   LocalStateRetentionReason,
   LocalStateRetentionDrop,
   LocalStateRetentionInput,
   LocalRetainedState,
   LocalStateRetentionResult,
-} from './retention';
+} from './runtime/retention';
 export {
   LOCAL_COMPILE_DELAY_MS,
   LOCAL_COMPILE_PREPARATION_DELAY_MS,
@@ -57,7 +57,7 @@ export {
   LocalCompileScheduler,
   compileFailureDiagnostic,
   startLocalCompileWorker,
-} from './worker';
+} from './transport/worker';
 export type {
   LocalCompileRequest,
   LocalCompileEditHint,
@@ -70,6 +70,6 @@ export type {
   LocalCompilePatchRequest,LocalCompileWorkerRequest,LocalCompilePatchResponse,
   LocalCompileWorkerResponse,LocalCompileFlatResponse,LocalCompileWorkerMetrics,LocalCompileMetrics,
   LocalCompileWorkerControl,LocalCompileWorkerControlMessage,LocalCompileWorkerOptions,
-} from './worker';
-export {LOCAL_RESULT_PATCH_PROTOCOL,diffSourceEdit,applySourceEdit,encodeLocalResultPatch,applyLocalResultPatch} from './compile-patch';
-export type {LocalSourceEdit,LocalResultPatch,LocalNodePatch,LocalDocumentPatch,LocalRecordPatch} from './compile-patch';
+} from './transport/worker';
+export {LOCAL_RESULT_PATCH_PROTOCOL,diffSourceEdit,applySourceEdit,encodeLocalResultPatch,applyLocalResultPatch} from './transport/compile-patch';
+export type {LocalSourceEdit,LocalResultPatch,LocalNodePatch,LocalDocumentPatch,LocalRecordPatch} from './transport/compile-patch';

@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime } from '../src/local';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
 import { createLocalConfig, defineLocalComponent } from '../src/sdk';
 import { getLocalComponentRegistry } from '../src/sdk/registry';
 import defaultPreset from '../src/presets/default';

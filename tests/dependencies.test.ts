@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
+import { compileLocal } from '../src/local/compilation/compiler';
 import {
   EMPTY_DEPENDENCY_INDEX,
   collectNodeDependencies,
   collectSubtreeResetTokens,
   type NodeDependencies,
-} from '../src/local/dependencies';
-import { LocalExpressionError, templateDependencies } from '../src/local/expression';
-import { createLocalRuntime } from '../src/local/runtime';
-import type { LocalDocument, LocalNode } from '../src/local/types';
+} from '../src/local/compilation/dependencies';
+import { LocalExpressionError, templateDependencies } from '../src/local/evaluation/expression';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

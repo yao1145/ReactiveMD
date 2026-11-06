@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from 'parse5';
-import * as html from '../src/local/html';
-import type { LocalHtmlPolicy } from '../src/local/types';
+import * as html from '../src/local/html/html';
+import type { LocalHtmlPolicy } from '../src/local/contracts/types';
 
 const policy = (overrides: Partial<LocalHtmlPolicy> = {}): LocalHtmlPolicy => ({
   enableCss: false, enableJavaScript: false, enableExtendedHtml: false, ...overrides,

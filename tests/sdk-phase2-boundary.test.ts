@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime, createLocalCompileSession, encodeLocalResultPatch, applyLocalResultPatch, exportLocalState, parseLocalState, applyLocalState } from '../src/local';
 import { createLocalConfig, defineLocalComponent, type LocalComponentDefinition } from '../src/sdk';
 import { defaultPreset } from '../src/presets/default';
-import { createHeadingAnchors } from '../src/local/heading-anchors';
-import { parseLocal } from '../src/local/parser';
+import { createHeadingAnchors } from '../src/local/markdown/heading-anchors';
+import { parseLocal } from '../src/local/parsing/parser';
 
 const baseline = JSON.parse(readFileSync(new URL('./fixtures/sdk-phase2-baseline.json', import.meta.url), 'utf8'));
 const alias = (name: string) => `custom-${name}`;
@@ -83,7 +83,7 @@ describe('public component boundary', () => {
   });
 
   it('keeps old host inputs as an adapter to the unified kernel', () => {
-    const compiler = readFileSync(new URL('../src/local/compiler.ts', import.meta.url), 'utf8');
+    const compiler = readFileSync(new URL('../src/local/compilation/compiler.ts', import.meta.url), 'utf8');
     expect(compiler).not.toMatch(/function (?:resolveHostBindings|validateHostComponents)\b/);
     expect(compiler).not.toMatch(/entry\.name\s*===?\s*['"](?:slider|coordinate|range-slider|multi-select|tabs|timer|diagram|data-table)['"]/);
     expect(compiler).not.toMatch(/component\.name\s*===?\s*['"](?:timeline|chart)['"]/);

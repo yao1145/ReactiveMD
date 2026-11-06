@@ -32,7 +32,7 @@ Reactive MD 渲染作者编写的本地交互文档。文档是不可信输入�
 
 ### 资源上限
 
-`src/local/limits.ts` 定义共享上限，编译、运行时和可视化共同使用：
+`src/local/configuration/limits.ts` 定义共享上限，编译、运行时和可视化共同使用：
 
 | 限制 | 值 |
 | --- | --- |

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOCAL_THEME_PROTOCOL } from '../src/local/theme';
+import { LOCAL_THEME_PROTOCOL } from '../src/local/theme/theme';
 import {
   collectLocalThemeCss,
   composeLocalTheme,

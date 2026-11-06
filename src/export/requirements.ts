@@ -10,7 +10,7 @@ import type {
   LocalConfig,
   LocalExtensionRequirements,
 } from '../sdk/types';
-import type { Diagnostic, LocalDocument, LocalNode } from '../local/types';
+import type { Diagnostic, LocalDocument, LocalNode } from '../local/contracts/types';
 
 /** A carried contract list must stay bounded like a configuration. */
 const MAX_CARRIED_DEFINITIONS = MAX_LOCAL_SDK_COMPONENTS + 64;

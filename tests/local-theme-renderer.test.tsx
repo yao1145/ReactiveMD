@@ -1,10 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView, LocalReactiveDocument } from '../src/local/LocalDocumentView';
-import { LOCAL_THEME_PROTOCOL, type LocalThemeDefinition } from '../src/local/theme';
-import type { Diagnostic, LocalDocument } from '../src/local/types';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalDocumentView, LocalReactiveDocument } from '../src/local/rendering/LocalDocumentView';
+import { LOCAL_THEME_PROTOCOL, type LocalThemeDefinition } from '../src/local/theme/theme';
+import type { Diagnostic, LocalDocument } from '../src/local/contracts/types';
 
 function manifest(
   name: string,

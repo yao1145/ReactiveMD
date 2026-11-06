@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {encodeFlatCompiledData,decodeFlatCompiledData} from '../src/local/flat-compiled-data';
+import {encodeFlatCompiledData,decodeFlatCompiledData} from '../src/local/transport/flat-compiled-data';
 
 describe('flat compiler transport',()=>{
   it('round trips 6000 levels and aliases through a shallow structured clone',()=>{

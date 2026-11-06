@@ -9,7 +9,7 @@ import {
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
   MAX_LOCAL_VALIDATIONS,
-} from '../local/limits';
+} from '../local/configuration/limits';
 import {
   LOCAL_COMPONENT_PROTOCOL,
   type LocalBindingFamily,

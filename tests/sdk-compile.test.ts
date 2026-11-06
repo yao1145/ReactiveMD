@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
+import { compileLocal } from '../src/local/compilation/compiler';
 import {
   LOCAL_COMPILE_DELAY_MS,
   LocalCompileScheduler,
@@ -8,10 +8,10 @@ import {
   type LocalCompileResponse,
   type LocalCompileWorker,
   type LocalCompileWorkerScope,
-} from '../src/local/worker';
-import { localCompileOptionsKey } from '../src/local/options';
-import { createLocalRuntime } from '../src/local/runtime';
-import type { LocalCompileOptions, LocalNode } from '../src/local/types';
+} from '../src/local/transport/worker';
+import { localCompileOptionsKey } from '../src/local/configuration/options';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import type { LocalCompileOptions, LocalNode } from '../src/local/contracts/types';
 import { createLocalConfig } from '../src/sdk/config';
 import { defineLocalComponent, localComponentDigest } from '../src/sdk/manifest';
 import type { LocalConfig } from '../src/sdk/types';

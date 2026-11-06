@@ -4,9 +4,9 @@ import { describe, expect, it } from 'vitest';
 import {
   inspectLocalMathDisplay,
   renderLocalMathDisplay,
-} from '../src/local/math-display';
-import { LatexView } from '../src/local/math-view';
-import { compileLocal } from '../src/local/compiler';
+} from '../src/local/evaluation/math-display';
+import { LatexView } from '../src/local/widgets/math-view';
+import { compileLocal } from '../src/local/compilation/compiler';
 
 function render(source: string, display = true): string {
   const result = renderLocalMathDisplay(source, display);

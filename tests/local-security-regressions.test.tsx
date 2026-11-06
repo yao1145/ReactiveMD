@@ -1,13 +1,13 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { compileExpression } from '../src/local/expression';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalReactiveDocument } from '../src/local/LocalDocumentView';
-import { parseLocal } from '../src/local/parser';
-import { isLocalEmail, MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_STRING_LENGTH } from '../src/local/limits';
-import type { LocalNode } from '../src/local/types';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { compileExpression } from '../src/local/evaluation/expression';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalReactiveDocument } from '../src/local/rendering/LocalDocumentView';
+import { parseLocal } from '../src/local/parsing/parser';
+import { isLocalEmail, MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_STRING_LENGTH } from '../src/local/configuration/limits';
+import type { LocalNode } from '../src/local/contracts/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
 

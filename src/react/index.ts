@@ -1,10 +1,10 @@
-export { LocalDocumentView, LocalReactiveDocument } from '../local/LocalDocumentView';
+export { LocalDocumentView, LocalReactiveDocument } from '../local/rendering/LocalDocumentView';
 export type {
   LocalDocumentViewProps,
   LocalReactiveDocumentProps,
   LocalUrlPolicy,
   LocalImageResolver,
-} from '../local/LocalDocumentView';
+} from '../local/rendering/LocalDocumentView';
 export type {
   LocalRenderMode,
   LocalRenderContext,
@@ -13,9 +13,9 @@ export type {
   LocalHostComponentContext,
   LocalHostPropValue,
   LocalSourceTarget,
-} from '../local/render-types';
-export type { LocalLocale } from '../local/locale';
-export type { LocalColorScheme, LocalThemeDefinition } from '../local/theme';
+} from '../local/rendering/render-types';
+export type { LocalLocale } from '../local/contracts/locale';
+export type { LocalColorScheme, LocalThemeDefinition } from '../local/theme/theme';
 export { defineReactComponentPackage, createReactHost } from './package';
 export type { LocalReactComponentPackageInput, LocalReactComponentPackage, LocalReactPackage, LocalReactHostInput, LocalReactHost, LocalPackageNotice } from './package';
 

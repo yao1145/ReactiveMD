@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { exportLocalState } from '../src/local/state';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { exportLocalState } from '../src/local/runtime/state';
 import { createLocalConfig } from '../src/sdk/config';
 import { defineLocalComponent, localComponentDigest } from '../src/sdk/manifest';
 import { defineLocalTheme } from '../src/sdk/theme';
 import { createLocalExportPlan, createLocalShareableHtml, defineLocalStandaloneBundle, validateLocalExtensionRequirements } from '../src/export';
 import { parseMountPayload } from '../src/standalone/payload';
-import { portableCompileOptions } from '../src/local/portable-options';
-import type { LocalDocument } from '../src/local/types';
+import { portableCompileOptions } from '../src/local/configuration/portable-options';
+import type { LocalDocument } from '../src/local/contracts/types';
 
 const component = defineLocalComponent({
   id: 'test/note', name: 'sdk-note', version: '1.0.0', protocol: 'reactive-md-component/v1', form: 'container',

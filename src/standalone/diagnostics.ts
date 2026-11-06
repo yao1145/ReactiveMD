@@ -1,4 +1,4 @@
-import type { Diagnostic } from '../local/types';
+import type { Diagnostic } from '../local/contracts/types';
 
 /** Build a host-level diagnostic for payload, fetch and mount failures. */
 export function standaloneDiagnostic(code: string, message: string): Diagnostic {

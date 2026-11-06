@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
-import { createLocalRuntime } from '../src/local/runtime';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
 
 it('server-renders the static pass before interactive enhancement', () => {
   const result = compileLocal('<input bind="name" label="Name" initial="Ada">\n\nHello {{ name }}.');

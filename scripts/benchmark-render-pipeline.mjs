@@ -36,7 +36,7 @@ async function bundle(variant){
     name:'baseline-demo-snapshot',enforce:'pre',async load(id){
       const file=id.replaceAll('\\','/');
       if(variant==='before'&&['App.tsx','preview-state.ts','use-local-compilation.ts'].some(name=>file===resolve('demo/src',name).replaceAll('\\','/')))return await readFile(resolve(root,'before-demo',basename(file)),'utf8');
-      if(variant==='before'&&file===resolve('src/local/local.css').replaceAll('\\','/'))return await readFile(resolve(root,'before-local.css'),'utf8');
+      if(variant==='before'&&file===resolve('src/local/rendering/local.css').replaceAll('\\','/'))return await readFile(resolve(root,'before-local.css'),'utf8');
     },
   },instrumentReact()],resolve:{alias:[
     {find:'react-dom/client',replacement:'react-dom/profiling'},

@@ -2,8 +2,8 @@ import {describe, expect, it} from 'vitest';
 import {unified} from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import {parseFastMarkdown, planFastMarkdown, type FastMarkdownCache} from '../src/local/fast-markdown';
-import {parseLocal} from '../src/local/parser';
+import {parseFastMarkdown, planFastMarkdown, type FastMarkdownCache} from '../src/local/markdown/fast-markdown';
+import {parseLocal} from '../src/local/parsing/parser';
 
 const markdown = unified().use(remarkParse).use(remarkGfm);
 function comparable(node: any): any {

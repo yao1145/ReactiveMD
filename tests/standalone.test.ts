@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { createLocalStateFile } from '../src/local/state';
-import type { LocalNode } from '../src/local/types';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { createLocalStateFile } from '../src/local/runtime/state';
+import type { LocalNode } from '../src/local/contracts/types';
 import { ReactiveMDMountError } from '../src/standalone/diagnostics';
 import { parseMountPayload } from '../src/standalone/payload';
 import { prepareStandaloneDocument } from '../src/standalone/prepare';

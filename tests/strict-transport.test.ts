@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalCompileSession, type LocalCompileSession } from '../src/local/incremental';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalCompileSession, type LocalCompileSession } from '../src/local/session/incremental';
 import {
   applyLocalResultPatch,
   encodeLocalResultPatch,
   LOCAL_RESULT_PATCH_PROTOCOL,
   type LocalResultPatch,
-} from '../src/local/compile-patch';
+} from '../src/local/transport/compile-patch';
 import {
   decodeFlatCompiledData,
   encodeFlatCompiledData,
   FLAT_COMPILED_DATA_PROTOCOL,
   needsFlatCompileResult,
-} from '../src/local/flat-compiled-data';
+} from '../src/local/transport/flat-compiled-data';
 import {
   LOCAL_COMPILE_DELAY_MS,
   LocalCompileScheduler,
@@ -27,8 +27,8 @@ import {
   type LocalCompileWorkerRequest,
   type LocalCompileWorkerResponse,
   type LocalCompileWorkerScope,
-} from '../src/local/worker';
-import type { LocalCompileOptions, LocalCompileResult, LocalNode, LocalRecovery } from '../src/local/types';
+} from '../src/local/transport/worker';
+import type { LocalCompileOptions, LocalCompileResult, LocalNode, LocalRecovery } from '../src/local/contracts/types';
 
 // The worker analysis path must see the same options snapshot as the compile.
 const analyzeLocalSource = vi.hoisted(() => vi.fn((
@@ -40,7 +40,7 @@ const analyzeLocalSource = vi.hoisted(() => vi.fn((
   bindings: [],
   diagnostics: [],
 })));
-vi.mock('../src/local/authoring', () => ({ analyzeLocalSource }));
+vi.mock('../src/local/source/authoring', () => ({ analyzeLocalSource }));
 
 const RECOVERY: LocalRecovery = {
   code: 'local.recovery.test',

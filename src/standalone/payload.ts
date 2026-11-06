@@ -1,10 +1,10 @@
-import type { LocalStateFile } from '../local/state';
-import { readLocalCompileOptions } from '../local/options';
-import { portableCompileOptions } from '../local/portable-options';
+import type { LocalStateFile } from '../local/runtime/state';
+import { readLocalCompileOptions } from '../local/configuration/options';
+import { portableCompileOptions } from '../local/configuration/portable-options';
 import { validateLocalExtensionRequirements } from '../export/requirements';
 import { validateLocalRestorationRequirements } from '../export/restoration';
 import { readLocalExportResources } from '../export/resources';
-import type { Diagnostic, LocalCompileOptions } from '../local/types';
+import type { Diagnostic, LocalCompileOptions } from '../local/contracts/types';
 import type { ShareableMountPayload } from '../shareable';
 import { errorText, standaloneDiagnostic } from './diagnostics';
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal, formatLocalDiagnostic, isLocalDiagnosticCode } from '../src/local';
-import { sanitizeLocalHtmlDocument } from '../src/local/html';
+import { sanitizeLocalHtmlDocument } from '../src/local/html/html';
 
 describe('native HTML fallback diagnostic contract', () => {
   it.each([

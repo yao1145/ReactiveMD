@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { compileLocal } from '../src/local/compiler';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
-import { createLocalRuntime, updateLocalRuntime } from '../src/local/runtime';
-import { collectNodeDependencies } from '../src/local/dependencies';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import { createLocalRuntime, updateLocalRuntime } from '../src/local/runtime/runtime';
+import { collectNodeDependencies } from '../src/local/compilation/dependencies';
 import {
   blockInputsEqual,
   dependencyIndexEqual,
@@ -12,8 +12,8 @@ import {
   sameAnchorProjection,
   sameFootnoteProjection,
   validationProjectionKey,
-} from '../src/local/view-revision';
-import type { LocalDocument, LocalNode } from '../src/local/types';
+} from '../src/local/rendering/view-revision';
+import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

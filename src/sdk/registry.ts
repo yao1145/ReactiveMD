@@ -1,5 +1,5 @@
 import { DEFAULT_COMPONENT_DEFINITIONS, DEFAULT_COMPONENT_NAMES } from '../presets/default-components';
-import type { LocalComponentSchema } from '../local/schema';
+import type { LocalComponentSchema } from '../local/configuration/schema';
 import type { LocalComponentDefinition, LocalConfig } from './types';
 import { readLocalConfig } from './config';
 import { componentSchemaFromDefinition } from './registry-core';

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { parseFragment } from 'parse5';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
-import type { LocalNode } from '../src/local/types';
-import { formatLocalDiagnostic } from '../src/local/diagnostics';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import type { LocalNode } from '../src/local/contracts/types';
+import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
 
 const flat = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flat(n.children ?? [])]);
 const elements = (n: any, tag: string): any[] => [...(n.tagName === tag ? [n] : []), ...(n.childNodes ?? []).flatMap((c: any) => elements(c, tag))];

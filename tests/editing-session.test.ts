@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
-import {createLocalCompileSession} from '../src/local/incremental';
-import {compileLocal} from '../src/local/compiler';
+import {createLocalCompileSession} from '../src/local/session/incremental';
+import {compileLocal} from '../src/local/compilation/compiler';
 
 describe('persistent editing sessions',()=>{
   const source=(n:number)=>`<slider bind="n" label="N" initial="${n}">\n\nFirst paragraph\n\nValue {{ n * 2 }}\n\nLast paragraph`;

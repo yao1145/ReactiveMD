@@ -2,7 +2,7 @@ import {
   LOCAL_THEME_PROTOCOL,
   isLocalThemeName,
   type LocalThemeDefinition,
-} from '../local/theme';
+} from '../local/theme/theme';
 
 /**
  * Preview theme-package contract.

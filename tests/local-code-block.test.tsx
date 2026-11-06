@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { CodeBlockView, MAX_HIGHLIGHT_CHARS } from '../src/local/code-block';
-import { LocalLocaleProvider, type LocalLocale } from '../src/local/i18n';
+import { CodeBlockView, MAX_HIGHLIGHT_CHARS } from '../src/local/widgets/code-block';
+import { LocalLocaleProvider, type LocalLocale } from '../src/local/theme/i18n';
 
 function render(
   value: string,
@@ -211,7 +211,7 @@ describe('CodeBlockView modes', () => {
 });
 
 describe('CodeBlockView stylesheet', () => {
-  const css = readFileSync(new URL('../src/local/code-block.css', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../src/local/widgets/code-block.css', import.meta.url), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, '');
 
   it('scopes every selector to .md-document', () => {

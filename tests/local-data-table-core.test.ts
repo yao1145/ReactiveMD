@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local';
-import type { LocalDocument, LocalNode } from '../src/local/types';
+import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
 
 const SUBJECTS = [
   '<multi-select bind="subjects" label="Subjects">',

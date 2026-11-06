@@ -3,15 +3,15 @@ import {
   createElement,
   type ReactNode,
 } from 'react';
-import type { Diagnostic, LocalNode, LocalRuntime, SourceRange } from '../local/types';
+import type { Diagnostic, LocalNode, LocalRuntime, SourceRange } from '../local/contracts/types';
 import type {
   LocalHostComponentContext,
   LocalHostRenderer,
   LocalRenderMode,
   LocalSourceTarget,
-} from '../local/render-types';
-import type { LocalUrlPolicy } from '../local/LocalDocumentView';
-import type { LocalLocale } from '../local/i18n';
+} from '../local/rendering/render-types';
+import type { LocalUrlPolicy } from '../local/rendering/LocalDocumentView';
+import type { LocalLocale } from '../local/theme/i18n';
 import type { LocalThemePackage } from '../sdk/theme';
 import { readLocalConfig } from '../sdk/config';
 import { localComponentDigest } from '../sdk/manifest';

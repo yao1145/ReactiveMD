@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
+import { compileLocal } from '../src/local/compilation/compiler';
 
 /**
  * The CLI modules are plain ESM and intentionally have no TypeScript

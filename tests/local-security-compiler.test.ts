@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { parseLocal } from '../src/local/parser';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { parseLocal } from '../src/local/parsing/parser';
 import {
   MAX_LOCAL_DIAGNOSTICS,
   MAX_LOCAL_DIAGNOSTIC_LENGTH,
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
   MAX_LOCAL_STRING_LENGTH,
-} from '../src/local/limits';
-import type { LocalNode } from '../src/local/types';
+} from '../src/local/configuration/limits';
+import type { LocalNode } from '../src/local/contracts/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] =>
   nodes.flatMap((node) => [node, ...flatten(node.children ?? [])]);

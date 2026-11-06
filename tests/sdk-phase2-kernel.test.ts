@@ -16,7 +16,7 @@ import {
   kernelSchemaFor,
   type KernelComponentSchema,
   type KernelRule,
-} from '../src/local/component-kernel';
+} from '../src/local/compilation/component-kernel';
 
 const CAPABILITIES = { interactive: true, static: true, ssr: true, offline: true };
 

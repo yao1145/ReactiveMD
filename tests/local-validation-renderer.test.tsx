@@ -1,14 +1,14 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
 import type {
   Diagnostic,
   LocalDocument,
   LocalNode,
   LocalRuntime,
   LocalValidation,
-} from '../src/local/types';
+} from '../src/local/contracts/types';
 
 /* ------------------------------------------------------------- fixtures */
 

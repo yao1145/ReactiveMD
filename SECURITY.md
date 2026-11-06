@@ -32,7 +32,7 @@ The guarantees below are covered by compiler, runtime and renderer tests; capabi
 
 ### Resource limits
 
-`src/local/limits.ts` defines shared limits used by compilation, the runtime and visualizations:
+`src/local/configuration/limits.ts` defines shared limits used by compilation, the runtime and visualizations:
 
 | Limit | Value |
 | --- | --- |

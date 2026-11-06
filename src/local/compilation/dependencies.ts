@@ -1,0 +1,222 @@
+import type { LocalDocument, LocalNode, LocalRuntime } from '../contracts/types';
+import { localKey } from '../contracts/types';
+import { compileExpression, templateDependencies } from '../evaluation/expression';
+import { compileLatex } from '../evaluation/math';
+import { kernelDocumentMetadata, kernelRules, type KernelComponentSchema, type KernelRule } from './component-kernel';
+import { DEFAULT_COMPONENT_DEFINITIONS } from '../../presets/default-components';
+import {walkLocalNodes} from '../source/node-walk';
+
+/**
+ * Binding keys a node subtree reads. `null` marks nodes whose reads cannot be
+ * decided statically; their memo boundary must re-render on every revision.
+ */
+export type NodeDependencies = readonly string[] | null;
+export type DependencyIndex = ReadonlyMap<string, NodeDependencies>;
+
+/**
+ * Wildcard index used when no analysis is available: a missing entry means the
+ * node reads cannot be decided, so it must re-render on every revision.
+ */
+export const EMPTY_DEPENDENCY_INDEX: DependencyIndex = new Map();
+
+/**
+ * Dependency analysis reads only public document metadata. Hand-built
+ * documents without metadata resolve the default manifest by name; there is no
+ * parallel built-in name table here.
+ */
+
+const dependencyIndexCache = new WeakMap<LocalDocument, DependencyIndex>();
+
+const subtreeResetCache = new WeakMap<LocalRuntime, {
+  revision: number;
+  tokens: ReadonlyMap<string, number>;
+}>();
+
+/**
+ * Memo boundaries must observe resets anywhere below them. Keep these sums
+ * separate from runtime.resetToken: a descendant reset must not reset the
+ * ancestor's own UI state. One traversal per revision also keeps nested block
+ * rendering from repeatedly walking the same subtrees.
+ */
+export function collectSubtreeResetTokens(runtime: LocalRuntime): ReadonlyMap<string, number> {
+  const revision = runtime.snapshot().revision;
+  const cached = subtreeResetCache.get(runtime);
+  if (cached?.revision === revision) return cached.tokens;
+
+  const tokens = new Map<string, number>();
+  const values=new WeakMap<LocalNode,number>();
+  for(const node of walkLocalNodes(runtime.document.nodes,true)){
+    let token = runtime.resetToken(node);
+    for (const child of node.children ?? []) token += values.get(child)!;
+    tokens.set(node.id, token);
+    values.set(node,token);
+  }
+  subtreeResetCache.set(runtime, { revision, tokens });
+  return tokens;
+}
+
+function addAll(target: Set<string>, values: readonly string[]): void {
+  for (const value of values) target.add(value);
+}
+
+/**
+ * Collects, for every node, the union of binding keys read by the node and its
+ * descendants. `null` marks a subtree whose reads cannot be decided statically
+ * (own analysis failure or any undecidable descendant).
+ */
+export function collectNodeDependencies(document: LocalDocument): DependencyIndex {
+  const cached = dependencyIndexCache.get(document);
+  if (cached !== undefined) return cached;
+
+  const persisted = document.dependencies;
+  if (persisted !== undefined) {
+    const stored = new Map<string, NodeDependencies>(Object.entries(persisted));
+    dependencyIndexCache.set(document, stored);
+    return stored;
+  }
+
+  const index = new Map<string, NodeDependencies>();
+  const kernelMetadata = kernelDocumentMetadata(document);
+  const bindingByNode = new Map<string, string[]>();
+  const nodesWithBinding = new Set<string>();
+  for (const [key, binding] of Object.entries(document.bindings)) {
+    for (const id of binding.nodeIds) nodesWithBinding.add(id);
+    if (key.startsWith('@')) continue;
+    for (const id of binding.nodeIds) {
+      const list = bindingByNode.get(id) ?? [];
+      list.push(key);
+      bindingByNode.set(id, list);
+    }
+  }
+  const selfRead = (node: LocalNode): string[] => bindingByNode.get(node.id) ?? [localKey(node)];
+  const addSlots = (target: Set<string>, node: LocalNode): void => {
+    const slots = document.bindingSlots?.[node.id];
+    if (slots === undefined) return;
+    // Multi-slot controls also expose the compiler-generated anonymous key.
+    target.add(localKey(node));
+    for (const key of Object.values(slots)) target.add(key);
+  };
+
+  const values=new WeakMap<LocalNode,NodeDependencies>();
+  for(const node of walkLocalNodes(document.nodes,true)){
+    const dependencies = new Set<string>();
+    let undecidable = false;
+
+    // Text interpolations are parsed into `interpolation` child nodes, so
+    // attributes are the remaining template site. Any malformed template makes
+    // the whole node undecidable.
+    if (node.attrs !== undefined) {
+      for (const value of Object.values(node.attrs)) {
+        try {
+          addAll(dependencies, templateDependencies(value));
+        } catch {
+          undecidable = true;
+          break;
+        }
+      }
+    }
+
+    if (!undecidable) {
+      if (node.type === 'interpolation') {
+        try {
+          addAll(dependencies, compileExpression(node.value ?? '').dependencies);
+        } catch {
+          undecidable = true;
+        }
+      } else if (node.type === 'math') {
+        try {
+          addAll(dependencies, compileLatex(node.value ?? '').dependencies);
+        } catch {
+          undecidable = true;
+        }
+      } else if (node.name !== undefined) {
+        if (kernelMetadata) {
+          // Compiled documents publish their display-read capabilities.
+          const rules = kernelMetadata.dependencyRules?.[node.id];
+          if (rules?.selfBinding) {
+            const attribute = rules.selfBinding.attribute;
+            const present = rules.selfBinding.mode === 'always'
+              || (attribute !== undefined && (node.attrs?.[attribute] ?? '').trim() !== '');
+            if (present) addAll(dependencies, selfRead(node));
+          }
+          if (rules?.inlineMathReads) {
+            for (const child of node.children ?? []) {
+              if (child.type !== 'inlineMath') continue;
+              const source = (child.value ?? '').trim();
+              if (!/^y\s*=/u.test(source)) continue;
+              try {
+                addAll(dependencies, compileLatex(source).dependencies);
+              } catch {
+                // The renderer shows the same formula failure without state.
+              }
+            }
+          }
+          if (!rules) {
+            // Ordinary controls display their own value; static containers do
+            // not own a binding and therefore read nothing. Multi-slot
+            // controls also expose their anonymous key.
+            const slots = document.bindingSlots?.[node.id];
+            if (slots !== undefined) dependencies.add(localKey(node));
+            if (nodesWithBinding.has(node.id)) addAll(dependencies, selfRead(node));
+            addSlots(dependencies, node);
+          }
+        } else {
+          // Hand-built document without kernel metadata: resolve the default
+          // manifest and read its public dependency capabilities.
+          const definition = node.name ? DEFAULT_COMPONENT_DEFINITIONS.find(definition => definition.name === node.name) : undefined;
+          const rules = definition ? kernelRules(definition as unknown as KernelComponentSchema) : [];
+          const self = rules.find((rule): rule is Extract<KernelRule, { kind: 'self-binding-read' }> => rule.kind === 'self-binding-read');
+          const inlineMath = rules.some((rule) => rule.kind === 'inline-math-reads');
+          if (self) {
+            const present = self.mode === 'always'
+              || (self.attribute !== undefined && (node.attrs?.[self.attribute] ?? '').trim() !== '');
+            if (present) addAll(dependencies, selfRead(node));
+          } else if (!inlineMath && nodesWithBinding.has(node.id)) {
+            addAll(dependencies, selfRead(node));
+          }
+          if (inlineMath) {
+            for (const child of node.children ?? []) {
+              if (child.type !== 'inlineMath') continue;
+              const source = (child.value ?? '').trim();
+              if (!/^y\s*=/u.test(source)) continue;
+              try {
+                addAll(dependencies, compileLatex(source).dependencies);
+              } catch {
+                // The renderer shows the same formula failure without state.
+              }
+            }
+          }
+          addSlots(dependencies, node);
+        }
+      }
+    }
+
+    let descendantUndecidable = false;
+    for (const child of node.children ?? []) {
+      const childDependencies = values.get(child)!;
+      if (childDependencies === null) descendantUndecidable = true;
+      else addAll(dependencies, childDependencies);
+    }
+
+    const entry = undecidable || descendantUndecidable ? null : [...dependencies];
+    index.set(node.id, entry);
+    values.set(node,entry);
+  }
+  dependencyIndexCache.set(document, index);
+  return index;
+}
+
+/**
+ * Persists the dependency index on the document so compiled documents carry
+ * the analysis as data. Documents built by hand keep working: the renderer
+ * falls back to running the same analysis on first use.
+ */
+export function attachNodeDependencies(document: LocalDocument): void {
+  if (document.dependencies !== undefined) return;
+  const index = collectNodeDependencies(document);
+  const record: Record<string, NodeDependencies> = Object.create(null);
+  for (const [id, dependencies] of index) {
+    record[id] = dependencies === null ? null : Object.freeze([...dependencies]);
+  }
+  document.dependencies = Object.freeze(record);
+}

@@ -1,7 +1,7 @@
 import { realpath, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { Diagnostic } from '../local/types';
+import type { Diagnostic } from '../local/contracts/types';
 import type { LocalReactConfig } from '../react/sdk';
 import { readLocalConfig } from '../sdk/config';
 import { localComponentDigest } from '../sdk/manifest';

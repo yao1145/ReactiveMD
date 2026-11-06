@@ -5,9 +5,9 @@ import {
   LOCAL_KERNEL_DECLARATIONS,
   getLocalComponent,
   localComponentNames,
-} from '../src/local/schema';
-import { readLocalCompileOptions } from '../src/local/options';
-import { parseLocal } from '../src/local/parser';
+} from '../src/local/configuration/schema';
+import { readLocalCompileOptions } from '../src/local/configuration/options';
+import { parseLocal } from '../src/local/parsing/parser';
 import {
   DEFAULT_COMPONENT_DEFINITIONS,
   DEFAULT_COMPONENT_NAMES,

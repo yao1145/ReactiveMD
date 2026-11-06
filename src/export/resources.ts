@@ -1,4 +1,4 @@
-import type { Diagnostic } from '../local/types';
+import type { Diagnostic } from '../local/contracts/types';
 import type { LocalStyleResource } from '../sdk/theme';
 import { isLocalInlineCss } from '../sdk/theme';
 

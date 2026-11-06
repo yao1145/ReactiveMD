@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
-import { formatLocalDiagnostic } from '../src/local/diagnostics';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
 import {
   MAX_LOCAL_HOST_COMPONENTS,
   MAX_LOCAL_STRING_LENGTH,
-} from '../src/local/limits';
-import { localCompileOptionsKey } from '../src/local/options';
+} from '../src/local/configuration/limits';
+import { localCompileOptionsKey } from '../src/local/configuration/options';
 import {
   LOCAL_COMPILE_DELAY_MS,
   LocalCompileScheduler,
@@ -15,14 +15,14 @@ import {
   type LocalCompileResponse,
   type LocalCompileWorker,
   type LocalCompileWorkerScope,
-} from '../src/local/worker';
+} from '../src/local/transport/worker';
 import type {
   LocalCompileOptions,
   LocalCompileResult,
   LocalHostComponentSchema,
   LocalHostPropSchema,
   LocalNode,
-} from '../src/local/types';
+} from '../src/local/contracts/types';
 
 type HostProps = LocalHostComponentSchema['props'];
 

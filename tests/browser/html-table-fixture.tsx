@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { LocalReactiveDocument } from '../../src/react/index';
-import type { Diagnostic } from '../../src/local/types';
+import type { Diagnostic } from '../../src/local/contracts/types';
 import '../../src/styles.css';
 
 const columns = Array.from({ length: 12 }, (_, i) => `Column ${i + 1}`);

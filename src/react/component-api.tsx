@@ -9,14 +9,14 @@ import type {
   LocalSnapshot,
   LocalValue,
   SourceRange,
-} from '../local/types';
+} from '../local/contracts/types';
 import type {
   LocalRenderMode,
   LocalSourceTarget,
-} from '../local/render-types';
-import type { LocalUrlPolicy } from '../local/LocalDocumentView';
-import type { LocalLocale, Localize } from '../local/i18n';
-import type { LocalBindingFamily } from '../local/schema';
+} from '../local/rendering/render-types';
+import type { LocalUrlPolicy } from '../local/rendering/LocalDocumentView';
+import type { LocalLocale, Localize } from '../local/theme/i18n';
+import type { LocalBindingFamily } from '../local/configuration/schema';
 import { localComponentDigest } from '../sdk/manifest';
 import { resolveLocalComponentProp } from '../sdk/props';
 import type {

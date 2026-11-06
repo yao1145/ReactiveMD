@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { compileLocal } from '../src/local/compiler';
+import { compileLocal } from '../src/local/compilation/compiler';
 import {
   applyLocalStateRetention,
   planLocalStateRetention,
   type LocalStateRetentionDrop,
-} from '../src/local/retention';
-import { createLocalRuntime } from '../src/local/runtime';
-import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/types';
+} from '../src/local/runtime/retention';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/contracts/types';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

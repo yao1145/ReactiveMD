@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { parseFragment } from 'parse5';
-import { compileLocal } from '../src/local/compiler';
-import { createLocalRuntime } from '../src/local/runtime';
-import { LocalDocumentView } from '../src/local/LocalDocumentView';
+import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
 import {
   normalizeHtmlDetailsChildren,
   splitHtmlDetailsChildren,
-} from '../src/local/html-details';
-import type { LocalNode } from '../src/local/types';
+} from '../src/local/html/html-details';
+import type { LocalNode } from '../src/local/contracts/types';
 
 type Mode = 'interactive' | 'static';
 

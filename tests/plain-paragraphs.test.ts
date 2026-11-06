@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import { parsePlainParagraphs } from '../src/local/plain-paragraphs';
-import { parseLocal } from '../src/local/parser';
-import type { LocalNode } from '../src/local/types';
+import { parsePlainParagraphs } from '../src/local/markdown/plain-paragraphs';
+import { parseLocal } from '../src/local/parsing/parser';
+import type { LocalNode } from '../src/local/contracts/types';
 
 const markdown = unified().use(remarkParse).use(remarkGfm);
 function factory() {

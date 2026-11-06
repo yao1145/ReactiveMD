@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ParseBudgetError, ParseWorkBudget } from '../src/local/parse-budget';
-import {parseLocal} from '../src/local/parser';
+import { ParseBudgetError, ParseWorkBudget } from '../src/local/parsing/parse-budget';
+import {parseLocal} from '../src/local/parsing/parser';
 
 describe('deterministic parse budgets', () => {
   it('resolves deep-looking HTML and quoted code before rejecting depth',()=>{

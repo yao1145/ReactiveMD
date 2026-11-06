@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {SourceContext, MappedSource} from '../src/local/source-context';
+import {SourceContext, MappedSource} from '../src/local/source/source-context';
 
 describe('source indexing and segmented mappings', () => {
   it('keeps LF diagnostic coordinates and seeks non-monotonically', () => {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { LocalVisual } from '../src/local/visuals';
-import type { LocalDocument, LocalNode, LocalRuntime, LocalValue } from '../src/local/types';
+import { LocalVisual } from '../src/local/widgets/visuals';
+import type { LocalDocument, LocalNode, LocalRuntime, LocalValue } from '../src/local/contracts/types';
 
 let serial = 0;
 const range = { start: 0, end: 0 };
