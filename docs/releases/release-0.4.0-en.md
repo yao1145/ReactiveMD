@@ -1,5 +1,7 @@
 # 0.4.0 preview and migration
 
+**English** · [中文](release-0.4.0-ch.md)
+
 Status: 0.x preview available on both `latest` and `next`. Package version `0.4.0`, syntax revision `local-draft-2`, component protocol `component-protocol-1`, theme protocol `reactive-md-theme-1`. These are separate version axes; `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1` are not package versions.
 
 Install with `npm install reactive-md`, or pin it with `npm install reactive-md@0.4.0`. Both `latest` and `next` resolve to `0.4.0`.

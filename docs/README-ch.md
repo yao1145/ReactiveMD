@@ -17,8 +17,8 @@
 ## 从这里开始
 
 - **接手近期开发**：阅读[编译内核、宽松恢复与仓库拆分规划](architecture_roadmap/near-term-plan-ch.md)，按源码导览定位任务，再查看阶段验收条件。
-- **编写文档**：先读[入门指南](guides/local-guide-ch.md)，再查语法参考；可运行的示例见 [examples/local](../examples/local/README.md)。
-- **接入项目**：从[本地模式集成](integration/local-integration-ch.md)开始，独立项目示例见 [examples/integration](../examples/integration/README.md)。
+- **编写文档**：先读[入门指南](guides/local-guide-ch.md)，再查语法参考；可运行的示例见 [examples/local](../examples/local/README-ch.md)。
+- **接入项目**：从[本地模式集成](integration/local-integration-ch.md)开始，独立项目示例见 [examples/integration](../examples/integration/README-ch.md)。
 - **升级版本**：先查[兼容性](compatibility/compatibility-ch.md)，再读目标版本的发布记录。当前文档版本为 0.7.0；各版本记录保留当时的行为与迁移说明。
 
 ## 入门
@@ -86,6 +86,6 @@
 - 项目概览：[中文](../README-ch.md)
 - 更新日志：[中文](../CHANGELOG-ch.md)
 - 贡献指南：[中文](../CONTRIBUTING-ch.md)
-- 一致性用例：[examples/conformance](../examples/conformance/README.md)
+- 一致性用例：[examples/conformance](../examples/conformance/README-ch.md)
 
 新增文档时放入对应目录，在本页补充中文链接，并运行 `npm run test:docs` 检查本地链接和标题锚点。

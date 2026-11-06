@@ -1,6 +1,6 @@
 # Reactive MD 组件包模板
 
-[English](README.md)
+**中文** · [English](README.md)
 
 这是一个可复制的 npm 组件包，定义评分控件与 Markdown 提示容器，附带主题包和内联 SVG 资源，并用公开合规工具验证安装后的包。所有导入都来自公开的 `reactive-md` 入口。
 

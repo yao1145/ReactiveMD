@@ -1,5 +1,7 @@
 # Reactive MD beginner guide
 
+**English** · [中文](local-guide-ch.md)
+
 Add controls to Markdown, and the prose, calculations and charts update as the reader changes them. Open the [online Playground](https://yaozi.raricy.com/) and paste an example into the editor to try it in the preview.
 
 This guide uses the current working tree with syntax revision `local-draft-3`. Each section starts with a runnable example, then explains it. The complete tag reference is at the end.

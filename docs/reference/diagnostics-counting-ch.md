@@ -1,6 +1,6 @@
 # 诊断与计数规则
 
-[English](diagnostics-counting-en.md)
+**中文** · [English](diagnostics-counting-en.md)
 
 本页定义诊断契约、字符长度单位与资源预算作用域。
 

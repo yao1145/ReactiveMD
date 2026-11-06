@@ -1,6 +1,6 @@
 # 作者工具
 
-[English](author-tools-en.md)
+**中文** · [English](author-tools-en.md)
 
 安装 `reactive-md@0.6.0` 即可使用 CLI 和不依赖 React 的 `reactive-md/authoring` 入口。从本仓库开发时，先构建语言包：
 

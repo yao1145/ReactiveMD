@@ -1,5 +1,7 @@
 # 源码修订与迁移
 
+**中文** · [English](source-versioning-en.md)
+
 本文说明 `0.4.0` 中的显式源码修订、编译器的处理方式，以及纯核心 API 与 CLI 迁移工具。语法规则见[语法规范](../reference/local-interaction-syntax-ch.md)，包版本与 API 兼容规则见[版本与兼容性](compatibility-ch.md)，组块升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
 ## 声明修订

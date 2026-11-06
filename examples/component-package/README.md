@@ -1,6 +1,6 @@
 # Reactive MD component package template
 
-[中文](README-ch.md)
+**English** · [中文](README-ch.md)
 
 A copyable npm package that defines a rating control and a Markdown note
 container, ships a package theme and an inlined SVG asset, and runs the public

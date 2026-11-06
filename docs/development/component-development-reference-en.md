@@ -1,6 +1,6 @@
 # Component plugin development contract
 
-[中文](component-development-reference-ch.md) · [Five-minute quick start](component-development-en.md)
+**English** · [中文](component-development-reference-ch.md) · [Five-minute quick start](component-development-en.md)
 
 A plugin is an npm component or theme package that a host installs, imports and composes explicitly. Its contract consists of data manifests, React implementations, authoring information and resources. Hosts assemble it with `createLocalConfig` and `createReactConfig`.
 

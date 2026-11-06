@@ -1,5 +1,7 @@
 # Versions and compatibility
 
+**English** · [中文](compatibility-ch.md)
+
 Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](../integration/local-integration-en.md) for the public API and style integration, the [0.7.0 release notes](../releases/release-0.7.0-en.md) for the current release, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for that minor series.
 
 ## Version mapping

@@ -1,6 +1,6 @@
 # 组件插件完整开发契约
 
-[English](component-development-reference-en.md) · [五分钟入门](component-development-ch.md)
+**中文** · [English](component-development-reference-en.md) · [五分钟入门](component-development-ch.md)
 
 这里的插件是宿主通过 npm 安装、显式导入并组合的组件包或主题包。组件声明、React 实现、编辑器信息与资源共同形成开发契约；宿主用 `createLocalConfig` 和 `createReactConfig` 装配它们。
 

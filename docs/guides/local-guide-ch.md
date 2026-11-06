@@ -1,5 +1,7 @@
 # Reactive MD 新用户指南
 
+**中文** · [English](local-guide-en.md)
+
 在 Markdown 中加入控件，正文、计算结果和图表就会随读者的操作更新。打开[在线 Playground](https://yaozi.raricy.com/)，把示例粘贴到编辑器，在预览中直接试用。
 
 本文对应当前工作区，语法修订为 `local-draft-3`。每一节先给一份可运行的示例，再解释其中的写法；文末汇总全部组块。

@@ -1,5 +1,7 @@
 # 编译内核架构方案已合并
 
+**中文** · [English](compiler-kernel-modularization-en.md)
+
 更新日期：2026-11-05。
 
 原《ReactiveMD 精简编译内核与可选能力架构设计》已精简并合并到[近期规划：编译内核、宽松恢复与仓库拆分](near-term-plan-ch.md)。

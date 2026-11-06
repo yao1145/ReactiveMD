@@ -1,5 +1,7 @@
 # New components and migration: local-draft-2
 
+**English** · [中文](local-components-v2-ch.md)
+
 This page describes the new components in `0.4.0` and the `local-draft-2` syntax. It supplements the [syntax reference](local-interaction-syntax-en.md). The contribution protocol remains component-protocol-1; its portable fixture format is unchanged.
 
 ## Navigation and text color

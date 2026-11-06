@@ -1,5 +1,7 @@
 # Changelog
 
+**English** · [中文](CHANGELOG-ch.md)
+
 ## 0.8.0-next.0 (unreleased)
 
 Split the editor into reactive-md-editor and the Demo into independent repositories. Replace reactive-md/editor imports with reactive-md-editor. Add standalone compiler entries, strict/local recovery and HTML details mapping. Package, syntax and data protocols retain independent versioning.

@@ -1,5 +1,7 @@
 # 0.6.0 release
 
+**English** · [中文](release-0.6.0-ch.md)
+
 `reactive-md@0.6.0` is a 0.x preview that updates both `latest` and `next`. It keeps syntax revision `local-draft-2`, component protocol `component-protocol-2` and theme protocol `reactive-md-theme-1`. Existing imports and documents need no migration.
 
 ```sh

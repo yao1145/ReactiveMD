@@ -1,5 +1,7 @@
 # Security policy
 
+**English** · [中文](SECURITY-ch.md)
+
 Reactive MD renders local interactive documents written by authors. When document content is untrusted input, the renderer, expressions and math evaluation all stay within the boundaries below. The host remains responsible for authorization, network policy and server-side data.
 
 ## Supported versions

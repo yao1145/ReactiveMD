@@ -1,6 +1,6 @@
 # 扩展 SDK
 
-[English](extension-sdk-en.md)
+**中文** · [English](extension-sdk-en.md)
 
 `0.7.0` 包正式包含扩展 SDK，覆盖公开扩展与默认组件统一。安装公开包即可；只有测试尚未发布的改动时才需要从源码打包 tarball。
 

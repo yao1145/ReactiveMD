@@ -1,5 +1,7 @@
 # Reactive MD Tetris component package
 
+**English** · [中文](README-ch.md)
+
 A `<tetris>` component package built on the public Reactive MD extension SDK.
 It demonstrates a self-contained interactive component: a seeded game engine,
 a React implementation, a static/SSR preview and a local compliance suite.

@@ -1,5 +1,7 @@
 # Language conformance data
 
+**English** · [中文](README-ch.md)
+
 [local-draft-2.json](local-draft-2.json) is a copyable minimal semantic conformance suite containing source documents, compilation results, initial parameters, state writes and expected text. The data is distributed with the npm package so other tools or implementations can read the same JSON.
 
 - `syntaxVersion` matches the core export `LOCAL_SYNTAX_VERSION`.

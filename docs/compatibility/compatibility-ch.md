@@ -1,5 +1,7 @@
 # 版本与兼容性
 
+**中文** · [English](compatibility-en.md)
+
 Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。显式修订声明、迁移 API 与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，公开 API 与样式接入见[本地模式集成](../integration/local-integration-ch.md)，当前版本见[0.7.0 发布说明](../releases/release-0.7.0-ch.md)，该 minor 系列见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
 ## 版本对应

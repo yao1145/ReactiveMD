@@ -1,5 +1,7 @@
 # CodeMirror 6 编辑器集成
 
+**中文** · [English](codemirror-en.md)
+
 `0.7.0` 已统一使用 CM6。推荐从 [`reactive-md-editor`](editor-ch.md) 导入 `ReactiveMarkdownEditor`；本页的 `/editor/codemirror` 路径保留为同一组件的兼容别名。CM6 按视口创建源码行 DOM，使用原生历史和搜索，并提供工具栏、作者面板及视图切换。
 
 ```tsx

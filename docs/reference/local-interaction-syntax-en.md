@@ -1,5 +1,7 @@
 # Reactive MD local interaction syntax specification
 
+**English** · [中文](local-interaction-syntax-ch.md)
+
 Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with the syntax, read the [beginner guide](../guides/local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](../integration/local-integration-en.md). See [Versions and compatibility](../compatibility/compatibility-en.md) for package version relationships, 0.x compatibility rules and migration, [Source revisions and migration](../compatibility/source-versioning-en.md) for the optional revision directive and `reactive-md migrate`, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade from `0.3.1` / `local-draft-1`. Complete examples are in the [example index](../../examples/local/README.md).
 
 ## 1. Positioning and scope

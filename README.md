@@ -1,9 +1,8 @@
 # Reactive MD
 
+**English** · [中文](README-ch.md)
+
 > Repository split: this checkout is the language engine. The [editor](https://github.com/yao1145/ReactiveMD-Editor) and [Demo](https://github.com/yao1145/ReactiveMD-Demo) build independently. Engine 0.8 uses the separate reactive-md-editor package. See the [migration guide](docs/integration/repository-split-en.md).
-
-
-[English](README-en.md) · [中文](README-ch.md)
 
 [![npm](https://img.shields.io/npm/v/reactive-md.svg)](https://www.npmjs.com/package/reactive-md)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

@@ -1,5 +1,7 @@
 # 0.4.1 发布说明
 
+**中文** · [English](release-0.4.1-en.md)
+
 `reactive-md@0.4.1` 是兼容 0.4.0 的补丁版。语法仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`；现有 0.4.0 文档无需迁移。
 
 ```sh

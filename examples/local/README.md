@@ -1,5 +1,7 @@
 # Local interaction syntax demo
 
+**English** · [中文](README-ch.md)
+
 These are standalone authoring examples for `local-draft-2`, described in the [local interaction syntax specification](../../docs/reference/local-interaction-syntax-en.md). The Playground starts with a [quick calculator](pricing.reactive.md), followed by six focused [feature tours](showcase/README.md). Components are distributed across these six scenarios; diagnostics has an auxiliary menu. Hosts can compile and render every document through the [local mode API](../../docs/integration/local-integration-en.md).
 
 The original eleven working examples and one intentionally broken diagnostics document remain in this directory, with Chinese versions in [zh/](zh/). The six feature tours live in [showcase/](showcase/README.md), with Chinese sources in [showcase/zh/](showcase/zh/). Each file runs independently. Controls, expressions and visualizations use local state.

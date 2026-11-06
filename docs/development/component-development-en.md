@@ -1,6 +1,6 @@
 # Build a component plugin in five minutes
 
-[中文](component-development-ch.md) · [Full development contract](component-development-reference-en.md)
+**English** · [中文](component-development-ch.md) · [Full development contract](component-development-reference-en.md)
 
 Start with a note container that can expand Markdown. The extension SDK ships in `reactive-md@0.7.0`; install the published package.
 

@@ -1,5 +1,7 @@
 # Source revisions and migration
 
+**English** · [中文](source-versioning-ch.md)
+
 This page covers explicit source revisions, how the compiler treats them, and the pure core and CLI migration tools in `0.4.0`. Syntax rules are in the [syntax specification](../reference/local-interaction-syntax-en.md); package and API compatibility rules are in [Versions and compatibility](compatibility-en.md); the component upgrade checklist is in [0.4.0 release and migration](../releases/release-0.4.0-en.md).
 
 ## Declaring a revision

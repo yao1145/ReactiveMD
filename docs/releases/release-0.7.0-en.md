@@ -1,5 +1,7 @@
 # 0.7.0 release
 
+**English** · [中文](release-0.7.0-ch.md)
+
 `reactive-md@0.7.0` moves both `latest` and `next` to the first release that ships the public extension SDK, the `local-draft-3` syntax revision and the CM6-only editor. It also includes a large compilation and rendering performance round. Existing imports keep working, but documents with an explicit older revision and host integrations using removed editor fields need the migration steps below.
 
 ```sh

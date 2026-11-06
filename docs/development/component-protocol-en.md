@@ -1,5 +1,7 @@
 # Reactive MD component protocol
 
+**English** · [中文](component-protocol-ch.md)
+
 Protocol revision `component-protocol-3` · applicable syntax `local-draft-3` · current package version `0.7.0`
 
 Components are the building blocks of the Reactive MD language. This protocol defines the shared contract for contribution, implementation and acceptance, connecting author syntax, the compiler, the runtime, the React reference adapter and machine conformance data. Authors writing documents follow the [local interaction syntax specification](../reference/local-interaction-syntax-en.md); hosts integrating follow [local mode integration](../integration/local-integration-en.md); this document is for contributors, reviewers and tests.

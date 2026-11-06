@@ -1,5 +1,7 @@
 # Contributing
 
+**English** · [中文](CONTRIBUTING-ch.md)
+
 This repository owns the ReactiveMD language engine, runtime, SDK and rendering adapters. The [editor](https://github.com/yao1145/ReactiveMD-Editor) and [Demo](https://github.com/yao1145/ReactiveMD-Demo) are separate projects. Read the [migration guide](docs/integration/repository-split-en.md) and [syntax specification](docs/reference/local-interaction-syntax-en.md).
 
 Use Node >=22.12 (CI uses Node24). Run npm ci, then npm run check. This checks types, builds the library, runs the retained regressions and verifies the actual package in a fresh consumer. Local changes need the directly affected checks; changes to compiler entry dependencies also need npm run test:compiler-entry.

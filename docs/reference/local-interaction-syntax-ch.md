@@ -1,5 +1,7 @@
 # Reactive MD 本地交互语法规范
 
+**中文** · [English](local-interaction-syntax-en.md)
+
 本次新增的跳转、正文颜色、多选、区间、坐标、练习题、分步阅读和选择联动，见[新增组块与迁移](local-components-v2-ch.md)。
 
 语法标识：`local-draft-2`，2026-10-23。第一次接触这套语法，建议先读 [新用户入门指南](../guides/local-guide-ch.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](../integration/local-integration-ch.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](../compatibility/compatibility-ch.md)，可选修订指令与 `reactive-md migrate` 见[源码修订与迁移](../compatibility/source-versioning-ch.md)，从 `0.3.1` / `local-draft-1` 升级见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。完整示例见 [示例索引](../../examples/local/README.md)。

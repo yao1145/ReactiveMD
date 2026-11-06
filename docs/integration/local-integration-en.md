@@ -1,5 +1,7 @@
 # Local mode integration
 
+**English** · [中文](local-integration-ch.md)
+
 Local interaction mode uses HTML-style tags, in-place parameters and `{{ expressions }}`. Author rules are in the [beginner guide](../guides/local-guide-en.md) and the [syntax specification](../reference/local-interaction-syntax-en.md); complete documents are in the [example index](../../examples/local/README.md). Hosts explicitly select this mode through the `Local` APIs. See [Source revisions and migration](../compatibility/source-versioning-en.md) for the optional revision directive, upgrade checks and `migrateLocalSource`, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist.
 
 ## Runtime and entries

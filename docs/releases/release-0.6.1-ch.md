@@ -1,5 +1,7 @@
 # 0.6.1 发布说明
 
+**中文** · [English](release-0.6.1-en.md)
+
 `reactive-md@0.6.1` 将公式展示从原生 MathML 切换为 KaTeX，同时更新 `latest` 与 `next`。语法修订 `local-draft-2`、组块协议 `component-protocol-2` 和主题协议 `reactive-md-theme-1` 保持不变。
 
 ```sh

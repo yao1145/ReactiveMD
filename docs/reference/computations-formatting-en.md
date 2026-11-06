@@ -1,5 +1,7 @@
 # Reusing calculations and formatting values
 
+**English** · [中文](computations-formatting-ch.md)
+
 These additions belong to `0.4.0`, which uses `local-draft-2`. See the [syntax specification](local-interaction-syntax-en.md), [integration API](../integration/local-integration-en.md) and [working example](../../examples/local/recipes/invoice.reactive.md).
 
 ## Named values

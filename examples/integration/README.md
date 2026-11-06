@@ -1,5 +1,7 @@
 # Standalone integration examples
 
+**English** · [中文](README-ch.md)
+
 These directories use the package's public entry points and can be copied outside the repository. The commands below start from the current directory.
 
 These examples target `reactive-md@0.6.0`, published on both `latest` and `next`. Copy the desired example directory outside the repository, then install the pinned version from npm as shown below. React and Vite are installed from the example's own dependencies where needed.

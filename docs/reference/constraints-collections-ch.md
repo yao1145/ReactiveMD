@@ -1,5 +1,7 @@
 # 条件、校验与本地集合
 
+**中文** · [English](constraints-collections-en.md)
+
 这些能力扩展 `0.4.0`，并在 `local-draft-3` 中可用。[工作坊示例](../../examples/local/recipes/workshop-zh.reactive.md)把人数预算、日期区间和已选主题表格放在同一份文档里，[命名计算](computations-formatting-ch.md)保存其中间结果。
 
 ## 跨字段校验

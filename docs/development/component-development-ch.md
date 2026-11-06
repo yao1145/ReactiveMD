@@ -1,6 +1,6 @@
 # 五分钟跑通组件插件
 
-[English](component-development-en.md) · [完整开发契约](component-development-reference-ch.md)
+**中文** · [English](component-development-en.md) · [完整开发契约](component-development-reference-ch.md)
 
 先用一个可以展开 Markdown 的提示容器跑通预览。扩展 SDK 随 `reactive-md@0.7.0` 发布，直接安装即可。
 

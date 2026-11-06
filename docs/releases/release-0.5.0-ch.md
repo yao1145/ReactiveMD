@@ -1,5 +1,7 @@
 # 0.5.0 预览版发布说明
 
+**中文** · [English](release-0.5.0-en.md)
+
 `reactive-md@0.5.0` 是目标渠道为 `next` 的 0.x 预览版。语法修订仍为 `local-draft-2`，组块协议为 `component-protocol-1`，主题协议为 `reactive-md-theme-1`。现有 0.4.x 导入和文档无需迁移，`latest` 仍为 `0.4.0`。
 
 ```sh

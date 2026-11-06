@@ -1,9 +1,8 @@
 # Reactive MD
 
+**中文** · [English](README.md)
+
 > 仓库已拆分：本仓库维护语言引擎；[编辑器](https://github.com/yao1145/ReactiveMD-Editor)与 [Demo](https://github.com/yao1145/ReactiveMD-Demo) 独立构建。引擎 0.8 使用独立 reactive-md-editor 包，见[迁移说明](docs/integration/repository-split-ch.md)。
-
-
-[English](README.md)
 
 [![npm](https://img.shields.io/npm/v/reactive-md.svg)](https://www.npmjs.com/package/reactive-md)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

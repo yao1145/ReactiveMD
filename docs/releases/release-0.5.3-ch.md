@@ -1,5 +1,7 @@
 # 0.5.3 预览版
 
+**中文** · [English](release-0.5.3-en.md)
+
 使用 `npm install reactive-md@0.5.3` 或 `npm install reactive-md@next` 安装。语法修订保持 `local-draft-2`，组块协议保持 `component-protocol-2`，主题协议保持 `reactive-md-theme-1`。`latest` 渠道仍为 `0.4.0`。
 
 ## 宿主集成

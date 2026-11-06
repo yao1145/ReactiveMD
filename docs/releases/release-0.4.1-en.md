@@ -1,5 +1,7 @@
 # 0.4.1 release notes
 
+**English** · [中文](release-0.4.1-ch.md)
+
 `reactive-md@0.4.1` is a compatible patch for 0.4.0. It keeps `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`; existing 0.4.0 documents need no migration.
 
 ```sh

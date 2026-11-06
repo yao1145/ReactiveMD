@@ -1,5 +1,7 @@
 # 引擎发布
 
+**中文** · [English](releasing-en.md)
+
 reactive-md 独立维护版本；编辑器从自己的仓库发布 reactive-md-editor，Demo 独立构建站点。候选包更新与导入迁移见[三仓库迁移](../integration/repository-split-ch.md)。
 
 1. 核对分支、本次 diff、目标版本与 registry 状态。更新 package.json、package-lock.json、变更记录及兼容说明；包版本与语法、协议版本分别管理。

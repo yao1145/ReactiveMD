@@ -1,5 +1,7 @@
 # CodeMirror 6 editor integration
 
+**English** · [中文](codemirror-ch.md)
+
 `0.7.0` uses CM6 throughout. Prefer `ReactiveMarkdownEditor` from [`reactive-md-editor`](editor-en.md). The `/editor/codemirror` path remains a compatibility alias for the same component.
 
 ```tsx

@@ -1,5 +1,7 @@
 # Reactive MD 2048 component package
 
+**English** · [中文](README-ch.md)
+
 A `<game-2048>` component package built on the public Reactive MD extension
 SDK. It is a self-contained interactive component: a seeded engine, a React
 implementation, a static/SSR preview and a local compliance suite.

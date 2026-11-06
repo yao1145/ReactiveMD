@@ -1,5 +1,7 @@
 # Reactive MD 主题协议
 
+**中文** · [English](theme-protocol-en.md)
+
 协议修订：`reactive-md-theme-1`。本功能从 `0.4.0` 起提供；现有外观作为内置 `default` 保留。
 
 源码中的[扩展 SDK 预览](../integration/extension-sdk-ch.md)提供 `defineLocalTheme`、`composeLocalTheme` 和主题包资源约定，构建适配器可将主题 CSS、字体与图片纳入离线导出。语义变量和下述作用域规则继续适用。SDK 预览使用当前源码构建的 tarball。

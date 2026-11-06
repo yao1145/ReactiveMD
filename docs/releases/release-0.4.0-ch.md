@@ -1,5 +1,7 @@
 # 0.4.0 预览与迁移
 
+**中文** · [English](release-0.4.0-en.md)
+
 状态：同时提供于 `latest` 和 `next` 渠道的 0.x 预览版。包版本 `0.4.0`，语法修订 `local-draft-2`，组块协议 `component-protocol-1`，主题协议 `reactive-md-theme-1`。这些是彼此独立的版本轴；`local-draft-2`、`component-protocol-1` 和 `reactive-md-theme-1` 都不是包版本。
 
 使用 `npm install reactive-md` 安装，或用 `npm install reactive-md@0.4.0` 固定版本。`latest` 和 `next` 均指向 `0.4.0`。

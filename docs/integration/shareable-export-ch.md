@@ -1,5 +1,7 @@
 # 可分享文档与静态导出
 
+**中文** · [English](shareable-export-en.md)
+
 本文说明 `local-draft-2` 新增的单文件 HTML 导出能力。编译与运行时接口见[本地模式集成](local-integration-ch.md)，语法见[交互语法规范](../reference/local-interaction-syntax-ch.md)，修订声明与迁移见[源码修订与迁移](../compatibility/source-versioning-ch.md)，升级说明见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
 ## 两种产物

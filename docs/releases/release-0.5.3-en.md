@@ -1,5 +1,7 @@
 # 0.5.3 preview release
 
+**English** · [中文](release-0.5.3-ch.md)
+
 Install with `npm install reactive-md@0.5.3` or `npm install reactive-md@next`. This preview keeps syntax revision `local-draft-2`, component protocol `component-protocol-2` and theme protocol `reactive-md-theme-1`. The `latest` channel remains `0.4.0`.
 
 ## Host integration

@@ -1,5 +1,7 @@
 # 0.5.2 预览版发布
 
+**中文** · [English](release-0.5.2-en.md)
+
 `reactive-md@0.5.2` 是面向 `next` 渠道的 0.x 预览版。语法修订仍为 `local-draft-2`，主题协议仍为 `reactive-md-theme-1`；因新增宿主组件扩展轴，组块协议提升到 `component-protocol-2`。现有 0.5.x 导入和文档无需迁移。`latest` 仍为 `0.4.0`。
 
 ```sh

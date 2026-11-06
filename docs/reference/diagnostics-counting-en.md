@@ -1,6 +1,6 @@
 # Diagnostics and counting rules
 
-[中文](diagnostics-counting-ch.md)
+**English** · [中文](diagnostics-counting-ch.md)
 
 This page defines the diagnostics contract, text-length units and resource-budget scopes.
 

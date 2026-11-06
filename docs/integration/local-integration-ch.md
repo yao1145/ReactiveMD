@@ -1,5 +1,7 @@
 # 本地交互文档集成
 
+**中文** · [English](local-integration-en.md)
+
 本地交互模式使用 HTML 风格标签、就地参数和 `{{ 表达式 }}`。作者规则见 [新用户入门指南](../guides/local-guide-ch.md) 和 [语法规范](../reference/local-interaction-syntax-ch.md)，完整文档见[示例索引](../../examples/local/README.md)。宿主通过带 `Local` 的 API 明确选择此模式。可选修订指令、升级检查与 `migrateLocalSource` 见[源码修订与迁移](../compatibility/source-versioning-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
 ## 运行环境与入口

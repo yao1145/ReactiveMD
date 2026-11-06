@@ -1,5 +1,7 @@
 # Shareable documents and static export
 
+**English** · [中文](shareable-export-ch.md)
+
 This guide covers the single-file HTML exporter introduced with `local-draft-2`. It complements [Local mode integration](local-integration-en.md), the [syntax reference](../reference/local-interaction-syntax-en.md), [Source revisions and migration](../compatibility/source-versioning-en.md) and the [0.4.0 release notes](../releases/release-0.4.0-en.md).
 
 ## Output modes

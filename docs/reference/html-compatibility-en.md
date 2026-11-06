@@ -1,5 +1,7 @@
 # Partial HTML compatibility and temporary routing policy
 
+**English** · [中文](html-compatibility-ch.md)
+
 Pass `strict: false` to enable [local structural recovery](tolerance-en.md) in the default document path. It grants no additional HTML capability. A details summary and body can use consecutive lines without blank separators; they render as a single disclosure in an accordion, with rich summary text and keyboard support.
 
 This feature targets the next release. Documents use Markdown, ReactiveMD controls and expressions by default, with the P0 HTML subset below. Host applications can enable author CSS, JavaScript and extended HTML separately. All three options default to `false`.

@@ -1,5 +1,7 @@
 # Repository migration
 
+**English** · [中文](repository-split-ch.md)
+
 The language engine, editor and website have independent repositories, versions and release workflows:
 
 | Repository | Candidate | Responsibility |

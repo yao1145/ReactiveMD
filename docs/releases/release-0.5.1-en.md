@@ -1,5 +1,7 @@
 # 0.5.1 preview release
 
+**English** · [中文](release-0.5.1-ch.md)
+
 `reactive-md@0.5.1` is a 0.x preview that targets the `next` channel. It keeps syntax revision `local-draft-2`, component protocol `component-protocol-1` and theme protocol `reactive-md-theme-1`. Existing 0.5.x imports and documents need no migration. `latest` remains `0.4.0`.
 
 ```sh

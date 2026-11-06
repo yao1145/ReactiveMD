@@ -1,5 +1,7 @@
 # 新增组块与迁移：local-draft-2
 
+**中文** · [English](local-components-v2-en.md)
+
 本页说明 `0.4.0` 的新增组块与 `local-draft-2` 语法。它是[本地交互语法规范](local-interaction-syntax-ch.md)的补充。贡献与验收继续使用 `component-protocol-1`，机器格式保持不变。
 
 ## 跳转与正文颜色

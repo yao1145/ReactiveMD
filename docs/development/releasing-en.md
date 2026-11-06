@@ -1,5 +1,7 @@
 # Engine release
 
+**English** · [中文](releasing-ch.md)
+
 reactive-md has an independent version. The editor publishes reactive-md-editor from its own repository and the Demo builds its own website artifact. See [repository migration](../integration/repository-split-en.md) for candidate updates and import changes.
 
 1. Confirm branch, clean intended diff, target version and registry state. Update package.json, package-lock.json, changelog and relevant compatibility notes. Package and syntax/protocol versions are independent.

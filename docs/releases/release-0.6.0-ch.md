@@ -1,5 +1,7 @@
 # 0.6.0 发布说明
 
+**中文** · [English](release-0.6.0-en.md)
+
 `reactive-md@0.6.0` 是同时更新 `latest` 与 `next` 的 0.x 预览版。语法修订保持 `local-draft-2`，组块协议保持 `component-protocol-2`，主题协议保持 `reactive-md-theme-1`。现有导入和文档无需迁移。
 
 ```sh

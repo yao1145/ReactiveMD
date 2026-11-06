@@ -1,5 +1,7 @@
 # 严格模式与局部恢复
 
+**中文** · [English](tolerance-en.md)
+
 `strict` 控制单次编译、旧 `compileLocal`、编辑会话和 Worker 的结构恢复行为。默认值为 `true`；省略和显式 `undefined` 使用相同默认值。其他非布尔值是配置错误。
 
 ```ts

@@ -1,6 +1,6 @@
 # Extension SDK
 
-[中文](extension-sdk-ch.md)
+**English** · [中文](extension-sdk-ch.md)
 
 The `0.7.0` package includes the extension SDK for public extensions and unified default components. Install the published package; use a source-built tarball only when testing unreleased changes.
 

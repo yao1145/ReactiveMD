@@ -1,5 +1,7 @@
 # Feature demo / 功能演示
 
+**English** · [中文](README-ch.md)
+
 The Playground opens with a [Fourier series lesson](../scenarios/classroom.reactive.md). The other everyday documents are a [reading corner proposal](../scenarios/proposal.reactive.md), a [weekend survey](../scenarios/survey.reactive.md) and a [literary blog](../scenarios/blog.reactive.md). The six sources below form one continuous [feature demo](features.reactive.md), reached through a single menu entry. Use its outline to navigate; there is no category selector.
 
 Playground 默认打开[傅里叶级数课堂](../scenarios/classroom-zh.reactive.md)，另有[社区阅读角提案](../scenarios/proposal-zh.reactive.md)、[活动意向调研](../scenarios/survey-zh.reactive.md)和[文学博客](../scenarios/blog-zh.reactive.md)。下表六份源文件合成一篇[功能演示](zh/features.reactive.md)，从单个菜单入口打开，通过大纲浏览，不再分类切换。

@@ -1,5 +1,7 @@
 # Strict parsing and local recovery
 
+**English** · [中文](tolerance-ch.md)
+
 The `strict` option controls structural recovery in compiler factories, `compileLocal`, editing sessions and Workers. It defaults to `true`; omission and explicit `undefined` use the same default. Other non-boolean values are configuration errors.
 
 ```ts

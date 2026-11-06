@@ -1,5 +1,7 @@
 # 复用计算与格式化数值
 
+**中文** · [English](computations-formatting-en.md)
+
 这些能力属于使用 `local-draft-2` 的 `0.4.0`。完整语法见[语法规范](local-interaction-syntax-ch.md)，宿主接口见[集成说明](../integration/local-integration-ch.md)，可运行文档见[账单示例](../../examples/local/recipes/invoice-zh.reactive.md)。
 
 ## 命名值

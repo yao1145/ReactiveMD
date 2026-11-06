@@ -1,5 +1,7 @@
 # Reactive MD 组块协议
 
+**中文** · [English](component-protocol-en.md)
+
 协议修订 `component-protocol-3` · 适用语法 `local-draft-3` · 当前包版本 `0.7.0`
 
 Reactive MD 的组块就是语言中的组件。本协议规定组块在贡献、实现和验收中的共同契约，连接作者语法、编译器、运行时、React 参考适配器和机器验收数据。作者写文档时以[本地交互语法规范](../reference/local-interaction-syntax-ch.md)为准；宿主接入以[本地模式集成](../integration/local-integration-ch.md)为准；本文供贡献者、评审和测试使用。

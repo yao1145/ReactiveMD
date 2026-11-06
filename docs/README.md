@@ -11,12 +11,12 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | [integration/](integration/) | Integration, editor, author tools and export |
 | [compatibility/](compatibility/) | Compatibility, migration and source versioning |
 | [development/](development/) | Development, protocols, performance and publishing |
-| [Architecture and roadmap (Chinese)](architecture_roadmap/README-ch.md) | Near-term implementation plan and future directions |
+| [Architecture and roadmap](architecture_roadmap/README-en.md) | Near-term implementation plan and future directions ([中文](architecture_roadmap/README-ch.md)) |
 | [releases/](releases/) | Release notes |
 
 ## Start here
 
-- **Contributors taking over development**: read the [compiler, recovery and repository separation plan (Chinese)](architecture_roadmap/near-term-plan-ch.md) for source entry points, implementation rules and acceptance criteria.
+- **Contributors taking over development**: read the [compiler, recovery and repository separation plan](architecture_roadmap/near-term-plan-en.md) for source entry points, implementation rules and acceptance criteria.
 - **Authors**: read the [beginner guide](guides/local-guide-en.md), then the syntax reference. Runnable examples are in [examples/local](../examples/local/README.md).
 - **Integrators**: start with [local mode integration](integration/local-integration-en.md). Copyable projects are in [examples/integration](../examples/integration/README.md).
 - **Upgrading**: check [compatibility](compatibility/compatibility-en.md), then the release notes for the target version. The current documentation baseline is 0.7.0; older release pages keep the behavior and migration notes of their release.

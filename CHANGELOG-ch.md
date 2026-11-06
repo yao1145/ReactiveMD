@@ -1,5 +1,7 @@
 # 变更记录
 
+**中文** · [English](CHANGELOG.md)
+
 ## 0.8.0-next.0（未发布）
 
 编辑器拆为 reactive-md-editor，Demo 独立维护。旧 reactive-md/editor 导入迁移至 reactive-md-editor，这是 0.8 的包 API 破坏性变更。新增独立编译入口、strict/局部恢复与 HTML details 映射；包、语法和数据协议分别管理版本。

@@ -1,5 +1,7 @@
 # 0.6.1 release
 
+**English** · [中文](release-0.6.1-ch.md)
+
 `reactive-md@0.6.1` replaces native MathML formula display with KaTeX. It updates both `latest` and `next`. Syntax revision `local-draft-2`, component protocol `component-protocol-2` and theme protocol `reactive-md-theme-1` stay unchanged.
 
 ```sh

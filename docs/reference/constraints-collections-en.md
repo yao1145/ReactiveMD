@@ -1,5 +1,7 @@
 # Constraints, conditional tones and local collections
 
+**English** · [中文](constraints-collections-ch.md)
+
 These additions extend `0.4.0` and are available in `local-draft-3`. The [workshop example](../../examples/local/recipes/workshop.reactive.md) combines a participant budget, a date interval and a selected-subject table. [Named calculations](computations-formatting-en.md) hold its intermediate results.
 
 ## Cross-field validation

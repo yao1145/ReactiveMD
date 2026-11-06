@@ -1,5 +1,7 @@
 # Reactive MD 俄罗斯方块组件包
 
+**中文** · [English](README.md)
+
 基于公开扩展 SDK 的 `<tetris>` 组件包。它演示一个自包含交互组件：带种子的
 游戏引擎、React 实现、静态/SSR 预览与本地合规套件。
 
