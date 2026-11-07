@@ -1,4 +1,5 @@
 import type { LocalConfig, LocalExtensionRequirements } from '../../sdk/types';
+import type { LocalRuntimeServices } from '../../runtime-services/runtime';
 
 export interface SourceRange { start: number; end: number }
 /** A source-level syntax declaration; offsets use original UTF-16 units. */
@@ -411,9 +412,22 @@ export interface LocalRuntimeOptions {
    * without a valid value stay unavailable until a later `setExternalValues`.
    */
   readonly externalValues?: Readonly<Record<string, LocalValue>>;
+  /** Stable host identity for component-scoped state. Defaults to the source digest. */
+  readonly documentId?: string;
+  /** Document-level seed for component randomness. */
+  readonly randomSeed?: number;
+  /** Component-state sidecar to restore before the first render. */
+  readonly componentState?: unknown;
+  /** Inject scheduler/clock/state services; the runtime owns them only when omitted. */
+  readonly services?: LocalRuntimeServices;
 }
 export interface LocalRuntime {
   document: LocalDocument;
+  /**
+   * Runtime-scoped services (clock, scheduler, component state). Hand-built
+   * runtimes in tests may omit them; contexts fall back to detached services.
+   */
+  readonly services?: LocalRuntimeServices;
   snapshot(): LocalSnapshot;
   /** Read a control value; `slot` is required for multi-slot components. */
   get(node: LocalNode, slot?: string): LocalValue;

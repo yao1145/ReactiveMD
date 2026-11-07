@@ -35,6 +35,8 @@ import {
 } from '../compilation/component-kernel';
 import { getLocalComponentDefinition } from '../../sdk/registry';
 import { localKey, type LocalBinding, type LocalComputation, type LocalDocument, type LocalNode, type LocalRuntime, type LocalRuntimeOptions, type LocalValueKind, type LocalSnapshot, type LocalValidation, type LocalValue } from '../contracts/types';
+import { createLocalRuntimeServices, type LocalRuntimeServices } from '../../runtime-services/runtime';
+import { componentStateKey, localSourceDigest } from '../../runtime-services/identity';
 
 const EPSILON = 1e-9;
 const RUNTIME_EXPRESSION_CACHE_LIMIT = 200;
@@ -773,6 +775,9 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
   const problem = runtimeDocumentProblem(document);
   if (problem) throw new Error(problem);
 
+  const ownsServices = options?.services === undefined;
+  const sourceDigest = localSourceDigest(document.source);
+
   /** Source-keyed cache shared by control expressions and document metadata. */
   const expressions = new Map<string, LocalExpression>();
   const metadataExpressions = new Map<string, LocalExpression>();
@@ -780,6 +785,27 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
 
   /** Internal reads always go through the core of the current document. */
   const current = (): RuntimeCore => core;
+
+  const knownStateKeys = (): ReadonlySet<string> => {
+    const keys = new Set<string>();
+    for (const node of walkLocalNodes(core.document.nodes)) {
+      if (node.name === undefined) continue;
+      keys.add(componentStateKey({
+        documentId: options?.documentId,
+        sourceDigest,
+        nodeId: node.id,
+        stateKey: node.attrs?.['state-key'],
+      }));
+    }
+    return keys;
+  };
+  const services: LocalRuntimeServices = options?.services ?? createLocalRuntimeServices({
+    documentId: options?.documentId,
+    sourceDigest,
+    randomSeed: options?.randomSeed,
+    componentState: options?.componentState,
+    ...(ownsServices ? { knownStateKeys } : {}),
+  });
 
   const externalState: Record<string, LocalValue> = {};
   for (const [name, meta] of Object.entries(document.externals ?? {})) {
@@ -1293,6 +1319,8 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
       return core.document;
     },
 
+    services,
+
     snapshot(): LocalSnapshot {
       ensure();
       return snapshot;
@@ -1497,6 +1525,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     dispose(): void {
       if (disposed) return;
       disposed = true;
+      if (ownsServices) services.scheduler.dispose();
       listeners.clear();
       expressions.clear();
       metadataExpressions.clear();

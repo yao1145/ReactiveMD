@@ -52,12 +52,14 @@ export type {
   LocalComponentNavigationApi,
   LocalComponentOption,
   LocalComponentRuntime,
+  LocalComponentServices,
   LocalComponentSetResult as LocalComponentWriteResult,
   LocalComponentTableCell,
   LocalComponentTableCellKind,
   LocalComponentTableProjection,
   LocalComponentUrlApi,
   LocalComponentValue,
+  LocalRandomService,
 } from './component-api';
 export type {
   LocalComponentDefinition,
@@ -65,6 +67,12 @@ export type {
   LocalConfig,
   LocalExtensionRequirements,
 } from '../sdk/types';
+export type {
+  LocalComponentStateDocument,
+  LocalComponentStateRecord,
+  LocalComponentStateSaveResult,
+} from '../runtime-services/component-state';
+export type { LocalRuntimeServices } from '../runtime-services/runtime';
 
 /* Public adapter primitives shared by builtin and external components. */
 export {

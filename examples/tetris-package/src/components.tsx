@@ -6,6 +6,7 @@ import {
   defineReactComponentPackage,
   type LocalComponentContext,
 } from 'reactive-md/react';
+import { useTicker } from 'reactive-md/react/runtime';
 import componentCssText from './component.css?raw';
 import { tetris } from './manifests';
 import {
@@ -144,11 +145,10 @@ export function Tetris(context: LocalComponentContext) {
     setGame(createTetrisState(options));
   }, [context.resetToken, options.width, options.height, options.seed]);
 
-  useEffect(() => {
-    if (locked || !context.visible || game.status !== 'playing') return;
-    const timer = window.setInterval(() => setGame((previous) => tick(previous)), speed);
-    return () => window.clearInterval(timer);
-  }, [locked, context.visible, game.status, speed]);
+  useTicker(context, speed, () => setGame((previous) => tick(previous)), {
+    enabled: !locked && context.visible && game.status === 'playing',
+    background: 'pause',
+  });
 
   if (exploded) {
     throw new Error('tetris exploded during render');

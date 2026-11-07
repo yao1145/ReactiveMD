@@ -56,6 +56,7 @@ import {
 } from '../compilation/dependencies';
 import { createLocalCompileSession, type LocalCompileSession } from '../session/incremental';
 import { createLocalRuntime, notifyLocalRuntime, updateLocalRuntime } from '../runtime/runtime';
+import type { LocalComponentStateDocument } from '../../runtime-services/component-state';
 import {
   blockInputsEqual,
   projectAnchors,
@@ -201,6 +202,14 @@ export interface LocalReactiveDocumentProps {
   reactConfig?: LocalReactConfig;
   /** Read-only host values for `<external>` declarations. */
   externalValues?: Readonly<Record<string, LocalValue>>;
+  /** Stable host identity for component-scoped state. Defaults to the source digest. */
+  documentId?: string;
+  /** Document-level seed for component randomness. */
+  randomSeed?: number;
+  /** Component-state sidecar restored before the first render. */
+  componentState?: unknown;
+  /** Called when a component explicitly saves or clears its state. */
+  onComponentStateChange?: (state: LocalComponentStateDocument) => void;
   /**
    * Public parameter values applied once after each new runtime is created,
    * before the reader can interact. Invalid sets are rejected atomically and
@@ -980,6 +989,7 @@ function extensionEnvironment(
   }
   return {
     runtime: env.runtime,
+    services: env.runtime.services,
     mode: env.mode,
     visible,
     disabled: disabledRead.ok ? disabledRead.value : true,
@@ -2389,6 +2399,10 @@ export function LocalReactiveDocument({
   hostRenderer,
   reactConfig,
   externalValues,
+  documentId,
+  randomSeed,
+  componentState,
+  onComponentStateChange,
   initialParameters,
   onParametersChange,
   onSourceNavigate,
@@ -2417,10 +2431,19 @@ export function LocalReactiveDocument({
     : { ...(compileOptions ?? {}), config: reactConfig.config };
   const effectiveThemes = reactConfig?.themes ?? themes;
   const optionsKey = localCompileOptionsKey(effectiveCompileOptions);
+  const runtimeKey = `${optionsKey}|${documentId ?? ''}|${randomSeed ?? ''}`;
   // The latest external values seed a newly created runtime; later changes go
   // through the view's update effect without recompiling or resetting state.
   const externalRef = useRef(externalValues);
   externalRef.current = externalValues;
+  const documentIdRef = useRef(documentId);
+  documentIdRef.current = documentId;
+  const randomSeedRef = useRef(randomSeed);
+  randomSeedRef.current = randomSeed;
+  const componentStateRef = useRef(componentState);
+  componentStateRef.current = componentState;
+  const onComponentStateChangeRef = useRef(onComponentStateChange);
+  onComponentStateChangeRef.current = onComponentStateChange;
   const initialParametersRef = useRef(initialParameters);
   initialParametersRef.current = initialParameters;
   const onParametersChangeRef = useRef(onParametersChange);
@@ -2428,7 +2451,12 @@ export function LocalReactiveDocument({
   /** Diagnostics from applying initial parameters to the current runtime. */
   const initialDiagnosticsRef = useRef<Diagnostic[]>([]);
   const initializeRuntime = (document: LocalDocument): LocalRuntime => {
-    const created = createLocalRuntime(document, externalRef.current === undefined ? undefined : { externalValues: externalRef.current });
+    const created = createLocalRuntime(document, {
+      externalValues: externalRef.current,
+      documentId: documentIdRef.current,
+      randomSeed: randomSeedRef.current,
+      componentState: componentStateRef.current,
+    });
     const initial = initialParametersRef.current;
     initialDiagnosticsRef.current = initial && Object.keys(initial).length
       ? created.setParameters(cloneParameterValues(initial)) : [];
@@ -2468,7 +2496,7 @@ export function LocalReactiveDocument({
     runtime = null;
   } else {
     const nextDocument = result.document;
-    if (runtime && runtimeOptionsKey.current !== optionsKey) {
+    if (runtime && runtimeOptionsKey.current !== runtimeKey) {
       // Host options (including HTML capabilities) may change document
       // semantics, so the previous runtime is released rather than migrated.
       retiredRuntimes.current.push(runtime);
@@ -2505,7 +2533,7 @@ export function LocalReactiveDocument({
         runtimeRef.current = replacement;
       }
     }
-    runtimeOptionsKey.current = optionsKey;
+    runtimeOptionsKey.current = runtimeKey;
   }
 
   const reportRef = useRef(onDiagnostics);
@@ -2539,16 +2567,29 @@ export function LocalReactiveDocument({
     reportRef.current?.(diagnostics);
   }, []);
   const viewDiagnostics = useRef<Diagnostic[]>([]);
+  const stateDiagnostics = useRef<Diagnostic[]>([]);
   const flush = useCallback(() => {
     emit(composeDiagnostics(
       result.diagnostics,
       themeDiagnostics,
       initialDiagnosticsRef.current,
       viewDiagnostics.current,
+      stateDiagnostics.current,
     ));
   }, [result, themeDiagnostics, emit]);
   const flushRef = useRef(flush);
   flushRef.current = flush;
+
+  useEffect(() => {
+    const services = runtime?.services;
+    const next = services === undefined ? [] : services.state.diagnostics();
+    const previous = stateDiagnostics.current;
+    const same = next.length === previous.length
+      && next.every((item, index) => item === previous[index]);
+    if (same) return;
+    stateDiagnostics.current = [...next];
+    flushRef.current();
+  });
 
   useEffect(() => {
     viewDiagnostics.current = [];
@@ -2683,6 +2724,14 @@ export function LocalReactiveDocument({
       if (current) notifyLocalRuntime(current);
     }
   });
+
+  useEffect(() => {
+    const services = runtime?.services;
+    if (!services || onComponentStateChange === undefined) return;
+    return services.state.subscribe(() => {
+      onComponentStateChangeRef.current?.(services.state.snapshot());
+    });
+  }, [runtime, onComponentStateChange]);
 
   if (!result.ok || !runtime) {
     const options = readLocalCompileOptions(effectiveCompileOptions);

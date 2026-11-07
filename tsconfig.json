@@ -21,6 +21,12 @@
       "reactive-md/react": [
         "./src/react/index.ts"
       ],
+      "reactive-md/react/runtime": [
+        "./src/react/runtime/index.ts"
+      ],
+      "reactive-md/runtime": [
+        "./src/runtime-services/index.ts"
+      ],
       "reactive-md/react/server": [
         "./src/react/server.tsx"
       ],

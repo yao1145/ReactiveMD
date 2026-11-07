@@ -24,6 +24,11 @@ import type {
   LocalComponentRequirement,
 } from '../sdk/types';
 import type { LocalExtensionRequirements } from '../sdk/types';
+import type { LocalRuntimeServices } from '../runtime-services/runtime';
+import { createDetachedRuntimeServices } from '../runtime-services/runtime';
+import { deriveSeed, localSourceDigest, normalizeStateKey, resolveComponentSeed } from '../runtime-services/identity';
+import type { LocalComponentStateHandle } from '../runtime-services/component-state';
+import type { LocalClock, LocalScheduler } from '../runtime-services/scheduler';
 
 /* ------------------------------------------------------------------ values */
 
@@ -206,10 +211,26 @@ export interface LocalComponentLocaleApi {
   formatNumber(value: number): string;
 }
 
+export interface LocalRandomService {
+  /** Resolved seed for this component instance. */
+  readonly seed: number;
+  /** Derive an independent stream seed from this component seed. */
+  derive(label: string): number;
+}
+
+/** Per-instance runtime services exposed to component implementations. */
+export interface LocalComponentServices {
+  readonly random: LocalRandomService;
+  readonly clock: LocalClock;
+  readonly scheduler: LocalScheduler;
+  readonly state: LocalComponentStateHandle;
+}
+
 /** Context passed to every SDK component. It contains no AST. */
 export interface LocalComponentContext {
   readonly props: Readonly<Record<string, LocalComponentValue>>;
   readonly content: LocalComponentContent;
+  readonly services: LocalComponentServices;
   readonly bindings: {
     readonly value: LocalComponentBindingHandle;
     readonly slots: Readonly<Record<string, LocalComponentBindingHandle>>;
@@ -271,6 +292,8 @@ export interface LocalReactPreset {
  */
 export interface LocalComponentAdapterEnvironment {
   readonly runtime: LocalRuntime;
+  /** Optional runtime-scoped services. Falls back to detached services. */
+  readonly services?: LocalRuntimeServices;
   readonly mode: LocalRenderMode;
   readonly locale: LocalLocale;
   readonly visible: boolean;
@@ -898,6 +921,42 @@ function buildTableProjection(
   });
 }
 
+function componentStateKeyFrom(
+  props: Readonly<Record<string, LocalComponentValue>>,
+  attrs: Readonly<Record<string, string>>,
+): string | undefined {
+  const declared = props['state-key'];
+  if (typeof declared === 'string') return normalizeStateKey(declared);
+  return normalizeStateKey(attrs['state-key']);
+}
+
+function runtimeSource(runtime: LocalRuntime): string {
+  try {
+    return runtime.document.source;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Hand-built runtimes have no service container. Cache one detached container
+ * per runtime so component state survives re-renders and no browser listener
+ * is installed by the inert fallback scheduler.
+ */
+const detachedServices = new WeakMap<LocalRuntime, LocalRuntimeServices>();
+
+function runtimeServicesFor(runtime: LocalRuntime): LocalRuntimeServices {
+  if (runtime.services !== undefined) return runtime.services;
+  let services = detachedServices.get(runtime);
+  if (services === undefined) {
+    services = createDetachedRuntimeServices({
+      sourceDigest: localSourceDigest(runtimeSource(runtime)),
+    });
+    detachedServices.set(runtime, services);
+  }
+  return services;
+}
+
 /**
  * Build the public context for one component node. Called by the renderer;
  * external implementations receive exactly this object.
@@ -910,6 +969,43 @@ export function createLocalComponentContext(
   const cache = new Map<LocalNode, LocalComponentContent>();
   const content = projectionFor(node, environment, environment.visible, cache);
   const runtime = contentRuntime(environment.runtime, environment.mode, environment.report);
+  const runtimeServices = environment.services ?? runtimeServicesFor(environment.runtime);
+  const componentId = definition?.id ?? node.name ?? node.type;
+  const stateKey = componentStateKeyFrom(content.props, content.attrs);
+  let stateHandle: LocalComponentStateHandle | null = null;
+  const stateHandleFor = (): LocalComponentStateHandle => {
+    if (stateHandle === null) {
+      stateHandle = runtimeServices.state.handle({
+        nodeId: node.id,
+        component: componentId,
+        componentVersion: definition?.version ?? '0.0.0',
+        stateKey,
+        stateVersion: 0,
+      });
+    }
+    return stateHandle;
+  };
+  const explicitSeed = typeof content.props.seed === 'number' && Number.isFinite(content.props.seed)
+    ? content.props.seed
+    : undefined;
+  const seed = resolveComponentSeed({
+    explicitSeed,
+    documentSeed: runtimeServices.randomSeed,
+    componentId,
+    nodeId: node.id,
+    stateKey,
+  });
+  const services: LocalComponentServices = Object.freeze({
+    random: Object.freeze({
+      seed,
+      derive: (label: string): number => deriveSeed(seed, label),
+    }),
+    clock: runtimeServices.clock,
+    scheduler: runtimeServices.scheduler,
+    get state(): LocalComponentStateHandle {
+      return stateHandleFor();
+    },
+  });
   const readOnly = environment.mode === 'static';
   const slots = readBindingSlots(definition);
   const handles: Record<string, LocalComponentBindingHandle> = {};
@@ -1031,6 +1127,7 @@ export function createLocalComponentContext(
   return Object.freeze({
     props: content.props,
     content,
+    services,
     bindings,
     children,
     runtime,

@@ -6,6 +6,19 @@
 
 Split the editor into reactive-md-editor and the Demo into independent repositories. Replace reactive-md/editor imports with reactive-md-editor. Add standalone compiler entries, strict/local recovery and HTML details mapping. Package, syntax and data protocols retain independent versioning.
 
+### Added
+
+- `reactive-md/runtime`: document and component identity, serializable seeded randomness, injected clock/scheduler, and the component-state protocol with budgets.
+- `reactive-md/react/runtime`: `useTicker`, `useFrame`, `useSwipe`, `useKeys` and `useComponentState`.
+- `LocalRuntimeOptions` accepts `documentId`, `randomSeed`, `componentState` and injected `services`; `LocalReactiveDocument` exposes matching props plus `onComponentStateChange`.
+- Component contexts gain `services.random`, `services.clock`, `services.scheduler` and `services.state`. Random state stays saveable and replayable; the scheduler handles page visibility.
+- The Tetris example uses `useTicker`; the 2048 example uses `useSwipe`.
+
+### Compatibility
+
+- The new services are additive; existing components can ignore them. Component state uses a separate `reactive-md-component-state/v1` sidecar and does not change `reactive-md-state/v1`.
+- Cross-edit restore requires an explicit `state-key`; without it, restore is limited to the same source and session.
+
 ## 0.7.0 (2026-10-31, latest and next channels)
 
 See the [0.7.0 release notes](docs/releases/release-0.7.0-en.md). Syntax revision `local-draft-3` and component protocol `component-protocol-3` replace their previous revisions; theme protocol `reactive-md-theme-1` is unchanged.

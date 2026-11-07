@@ -122,6 +122,14 @@
       "types": "./dist-library/types/react/index.d.ts",
       "import": "./dist-library/reactive-md-react.js"
     },
+    "./react/runtime": {
+      "types": "./dist-library/types/react/runtime/index.d.ts",
+      "import": "./dist-library/reactive-md-react-runtime.js"
+    },
+    "./runtime": {
+      "types": "./dist-library/types/runtime-services/index.d.ts",
+      "import": "./dist-library/reactive-md-runtime.js"
+    },
     "./styles.css": "./dist-library/reactive-md.css",
     "./react/unstyled": {
       "types": "./dist-library/types/react/index.d.ts",

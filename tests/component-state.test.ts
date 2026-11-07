@@ -1,0 +1,198 @@
+import { describe, expect, it } from 'vitest';
+import {
+  LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+  LOCAL_COMPONENT_STATE_FORMAT,
+  MAX_COMPONENT_STATE_BYTES,
+  createLocalComponentStateRegistry,
+} from '../src/runtime-services';
+import { createRandom } from '../src/runtime-services';
+
+const sourceDigest = 'fnv1a32:12345678';
+
+function record(key: string, data: unknown = { score: 1 }): unknown {
+  return {
+    format: LOCAL_COMPONENT_STATE_FORMAT,
+    component: 'example/game',
+    componentVersion: '1.0.0',
+    stateVersion: 1,
+    key,
+    data,
+  };
+}
+
+describe('component state registry', () => {
+  it('saves, loads and snapshots one component', () => {
+    const registry = createLocalComponentStateRegistry({ documentId: 'doc', sourceDigest });
+    const handle = registry.handle({
+      nodeId: 'local-1',
+      component: 'example/game',
+      componentVersion: '1.0.0',
+      stateVersion: 1,
+    });
+    expect(handle.load()).toBeNull();
+    const saved = handle.save({ score: 7, random: createRandom(9) }, { version: 1 });
+    expect(saved.ok).toBe(true);
+    expect(handle.load()?.data).toEqual({ score: 7, random: createRandom(9) });
+    expect(registry.snapshot().format).toBe(LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT);
+    expect(Object.keys(registry.snapshot().records)).toEqual([handle.key]);
+  });
+
+  it('restores valid records and skips invalid ones without failing the document', () => {
+    const registry = createLocalComponentStateRegistry({ documentId: 'doc', sourceDigest });
+    const goodKey = registry.key({ nodeId: 'local-1' });
+    const badKey = registry.key({ nodeId: 'local-2' });
+    const result = registry.restore({
+      format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      records: {
+        [goodKey]: record(goodKey, { score: 3 }),
+        [badKey]: { ...(record(badKey) as Record<string, unknown>), data: { nested: undefined } },
+      },
+    });
+    expect(result.accepted).toEqual([goodKey]);
+    expect(result.skipped).toEqual([badKey]);
+    expect(result.diagnostics.some((item) => item.code.startsWith('local.runtime.state'))).toBe(true);
+    expect(registry.load(goodKey)?.data).toEqual({ score: 3 });
+    expect(registry.load(badKey)).toBeNull();
+  });
+
+  it('rejects non-JSON data and oversized records', () => {
+    const registry = createLocalComponentStateRegistry({ documentId: 'doc', sourceDigest });
+    const handle = registry.handle({
+      nodeId: 'local-1',
+      component: 'example/game',
+      componentVersion: '1.0.0',
+    });
+    expect(handle.save({ value: Number.POSITIVE_INFINITY }).ok).toBe(false);
+    expect(handle.save({ value: () => 1 }).ok).toBe(false);
+    expect(handle.save(JSON.parse('{"__proto__":{"x":1}}')).ok).toBe(false);
+    const huge = 'x'.repeat(MAX_COMPONENT_STATE_BYTES);
+    expect(handle.save({ value: huge }).ok).toBe(false);
+  });
+
+  it('detects duplicate explicit state keys', () => {
+    const registry = createLocalComponentStateRegistry({ documentId: 'doc', sourceDigest });
+    const first = registry.handle({
+      nodeId: 'local-1',
+      component: 'example/game',
+      componentVersion: '1.0.0',
+      stateKey: 'demo',
+    });
+    const second = registry.handle({
+      nodeId: 'local-2',
+      component: 'example/game',
+      componentVersion: '1.0.0',
+      stateKey: 'demo',
+    });
+    expect(second.duplicate).toBe(true);
+    expect(second.load()).toBeNull();
+    const result = second.save({ score: 1 });
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics[0]?.code).toBe('local.runtime.state.duplicate-key');
+    expect(first.save({ score: 2 }).ok).toBe(true);
+    second.clear();
+    expect(first.load()?.data).toEqual({ score: 2 });
+  });
+
+  it('skips records that do not match a component in the document', () => {
+    const registry = createLocalComponentStateRegistry({
+      documentId: 'doc',
+      sourceDigest,
+      knownKeys: new Set(['doc:doc:state:known']),
+    });
+    const result = registry.restore({
+      format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      records: {
+        'doc:doc:state:known': record('doc:doc:state:known', { score: 1 }),
+        'doc:doc:state:missing': record('doc:doc:state:missing', { score: 2 }),
+      },
+    });
+    expect(result.accepted).toEqual(['doc:doc:state:known']);
+    expect(result.skipped).toEqual(['doc:doc:state:missing']);
+    expect(result.diagnostics.some((item) => item.code === 'local.runtime.state.unknown-component')).toBe(true);
+  });
+
+  it('skips records that belong to another document', () => {
+    const registry = createLocalComponentStateRegistry({ documentId: 'doc', sourceDigest });
+    const key = registry.key({ nodeId: 'local-1' });
+    const result = registry.restore({
+      format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      records: {
+        [key]: { ...(record(key) as Record<string, unknown>), documentId: 'other' },
+      },
+    });
+    expect(result.accepted).toEqual([]);
+    expect(result.skipped).toEqual([key]);
+    expect(result.diagnostics.some((item) => item.code === 'local.runtime.state.document-mismatch')).toBe(true);
+  });
+
+  it('re-evaluates known keys on each restore', () => {
+    const known = new Set(['doc:doc:state:first']);
+    const registry = createLocalComponentStateRegistry({
+      documentId: 'doc',
+      sourceDigest,
+      knownKeys: () => known,
+    });
+    const second = 'doc:doc:state:second';
+    const payload = {
+      format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      records: {
+        'doc:doc:state:first': record('doc:doc:state:first', { score: 1 }),
+        [second]: record(second, { score: 2 }),
+      },
+    };
+    expect(registry.restore(payload).accepted).toEqual(['doc:doc:state:first']);
+    known.add(second);
+    expect(registry.restore(payload).accepted).toEqual(['doc:doc:state:first', second]);
+  });
+
+  it('notifies subscribers on save and clear', () => {
+    const registry = createLocalComponentStateRegistry({ documentId: 'doc', sourceDigest });
+    let changes = 0;
+    const unsubscribe = registry.subscribe(() => { changes += 1; });
+    const handle = registry.handle({
+      nodeId: 'local-1',
+      component: 'example/game',
+      componentVersion: '1.0.0',
+    });
+    handle.save({ score: 1 });
+    handle.save({ score: 2 });
+    handle.clear();
+    expect(changes).toBe(3);
+    unsubscribe();
+    handle.save({ score: 3 });
+    expect(changes).toBe(3);
+  });
+
+  it('accepts a JSON string sidecar', () => {
+    const registry = createLocalComponentStateRegistry({ documentId: 'doc', sourceDigest });
+    const key = registry.key({ nodeId: 'local-1' });
+    const payload = JSON.stringify({
+      format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      records: { [key]: record(key, { score: 1 }) },
+    });
+    expect(registry.restore(payload).accepted).toEqual([key]);
+  });
+
+  it('keeps explicit keys stable across node id changes', () => {
+    const first = createLocalComponentStateRegistry({ documentId: 'doc', sourceDigest });
+    const firstHandle = first.handle({
+      nodeId: 'local-1',
+      component: 'example/game',
+      componentVersion: '1.0.0',
+      stateKey: 'demo',
+    });
+    firstHandle.save({ score: 4 });
+    const restored = createLocalComponentStateRegistry({
+      documentId: 'doc',
+      sourceDigest,
+      initial: first.snapshot(),
+    });
+    const secondHandle = restored.handle({
+      nodeId: 'local-99',
+      component: 'example/game',
+      componentVersion: '1.0.0',
+      stateKey: 'demo',
+    });
+    expect(secondHandle.load()?.data).toEqual({ score: 4 });
+  });
+});

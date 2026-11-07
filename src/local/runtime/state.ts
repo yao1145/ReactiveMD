@@ -1,6 +1,7 @@
 import { MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../configuration/limits';
 import { createLocalRuntime } from './runtime';
 import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
+import { localSourceDigest } from '../../runtime-services/identity';
 import type {
   Diagnostic,
   LocalBinding,
@@ -10,6 +11,8 @@ import type {
   LocalValue,
 } from '../contracts/types';
 
+export { localSourceDigest };
+
 /** Version tag for the portable, shareable parameter state format. */
 export const LOCAL_STATE_FORMAT = 'reactive-md-state/v1' as const;
 
@@ -18,8 +21,6 @@ const DEFAULT_MAX_STATE_LENGTH = 1024 * 1024;
 
 /** FNV-1a is an integrity check, not a security signature. */
 const DIGEST_PATTERN = /^fnv1a32:[0-9a-f]{8}$/;
-const FNV_OFFSET_BASIS = 0x811c9dc5;
-const FNV_PRIME = 0x01000193;
 
 const TOP_LEVEL_KEYS = new Set(['format', 'syntax', 'sourceDigest', 'parameters', 'generator']);
 const GENERATOR_KEYS = new Set(['name', 'version']);
@@ -91,20 +92,6 @@ function isWellFormedText(value: string): boolean {
     if (code >= 0xdc00 && code <= 0xdfff) return false;
   }
   return true;
-}
-
-/** FNV-1a over the UTF-8 bytes of the source. */
-export function localSourceDigest(source: string): string {
-  if (typeof source !== 'string') {
-    throw new TypeError('localSourceDigest requires a source string.');
-  }
-  const bytes = textEncoder.encode(source);
-  let hash = FNV_OFFSET_BASIS;
-  for (let index = 0; index < bytes.length; index += 1) {
-    hash ^= bytes[index];
-    hash = Math.imul(hash, FNV_PRIME) >>> 0;
-  }
-  return `fnv1a32:${hash.toString(16).padStart(8, '0')}`;
 }
 
 type NormalizedValue = { ok: true; value: LocalValue } | { ok: false; message: string };

@@ -17,6 +17,8 @@ export default defineConfig({
       entry: {
         'reactive-md': fileURLToPath(new URL('./src/index.ts', import.meta.url)),
         'reactive-md-react': fileURLToPath(new URL('./src/react/library.ts', import.meta.url)),
+        'reactive-md-react-runtime': fileURLToPath(new URL('./src/react/runtime/index.ts', import.meta.url)),
+        'reactive-md-runtime': fileURLToPath(new URL('./src/runtime-services/index.ts', import.meta.url)),
         'reactive-md-react-unstyled': fileURLToPath(new URL('./src/react/index.ts', import.meta.url)),
         'reactive-md-authoring': fileURLToPath(new URL('./src/authoring/index.ts', import.meta.url)),
         'reactive-md-sdk': fileURLToPath(new URL('./src/sdk/index.ts', import.meta.url)),

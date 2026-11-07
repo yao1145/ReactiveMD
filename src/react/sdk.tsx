@@ -13,6 +13,7 @@ import type {
 import type { LocalUrlPolicy } from '../local/rendering/LocalDocumentView';
 import type { LocalLocale } from '../local/theme/i18n';
 import type { LocalThemePackage } from '../sdk/theme';
+import type { LocalRuntimeServices } from '../runtime-services/runtime';
 import { readLocalConfig } from '../sdk/config';
 import { localComponentDigest } from '../sdk/manifest';
 import type {
@@ -49,6 +50,8 @@ export {
 /** Everything a renderer needs from the document view. */
 export interface LocalReactRenderEnvironment {
   runtime: LocalRuntime;
+  /** Runtime-scoped services; omitted only by hand-built render environments. */
+  services?: LocalRuntimeServices;
   mode: LocalRenderMode;
   visible: boolean;
   disabled: boolean;
@@ -408,6 +411,7 @@ function LocalExtensionView({
   }
   const adapter: LocalComponentAdapterEnvironment = {
     runtime: environment.runtime,
+    services: environment.services ?? environment.runtime.services,
     mode: environment.mode,
     locale: environment.locale,
     visible: environment.visible,

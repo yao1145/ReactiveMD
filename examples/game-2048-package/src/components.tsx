@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import {
   createReactConfig,
   createReactHost,
@@ -6,6 +6,7 @@ import {
   defineReactComponentPackage,
   type LocalComponentContext,
 } from 'reactive-md/react';
+import { useSwipe } from 'reactive-md/react/runtime';
 import componentCssText from './component.css?raw';
 import { game2048 } from './manifest';
 import {
@@ -61,6 +62,7 @@ function BoardView(props: {
   readonly label: string;
   readonly interactive: boolean;
   readonly tabIndex: number;
+  readonly boardRef?: RefObject<HTMLDivElement | null>;
   readonly spawned?: readonly Cell2048[];
   readonly merged?: readonly Cell2048[];
   readonly onKeyDown?: (event: KeyboardEvent<HTMLDivElement>) => void;
@@ -69,6 +71,7 @@ function BoardView(props: {
   const merged = new Set((props.merged ?? []).map(cellKey));
   return (
     <div
+      ref={props.boardRef}
       className="rmd-2048-board"
       data-game-2048-board
       role="grid"
@@ -151,6 +154,16 @@ export function Game2048(context: LocalComponentContext) {
     setGame(createGameState(options));
   };
 
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  useSwipe(boardRef, {
+    onSwipe: (direction) => apply(direction),
+  }, {
+    threshold: 24,
+    axis: 'both',
+    preventScroll: true,
+    disabled: locked,
+  });
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (locked) return;
     switch (event.key) {
@@ -207,12 +220,13 @@ export function Game2048(context: LocalComponentContext) {
           board={game.board}
           interactive
           label={`${label}: ${t(
-            'Use arrow keys or W A S D to move tiles, and R to restart.',
-            '使用方向键或 W A S D 移动方块，R 重开。',
+            'Use arrow keys, W A S D or swipe to move tiles, and R to restart.',
+            '使用方向键、W A S D 或滑动来移动方块，R 重开。',
           )}`}
           tabIndex={locked ? -1 : 0}
           spawned={game.spawned}
           merged={game.merged}
+          boardRef={boardRef}
           onKeyDown={onKeyDown}
         />
         <aside className="rmd-2048-side" aria-label={t('Game information', '游戏信息')}>

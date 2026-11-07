@@ -6,6 +6,19 @@
 
 编辑器拆为 reactive-md-editor，Demo 独立维护。旧 reactive-md/editor 导入迁移至 reactive-md-editor，这是 0.8 的包 API 破坏性变更。新增独立编译入口、strict/局部恢复与 HTML details 映射；包、语法和数据协议分别管理版本。
 
+### 新增
+
+- 新增 `reactive-md/runtime`：文档与组件身份、可序列化种子随机、注入式时钟/调度器、组件状态协议与预算。
+- 新增 `reactive-md/react/runtime`：`useTicker`、`useFrame`、`useSwipe`、`useKeys`、`useComponentState`。
+- `LocalRuntimeOptions` 支持 `documentId`、`randomSeed`、`componentState` 与注入的 `services`；`LocalReactiveDocument` 对应新增同名属性和 `onComponentStateChange`。
+- 组件上下文新增 `services.random`、`services.clock`、`services.scheduler` 和 `services.state`。随机状态保持可保存、可重放；调度器处理页面可见性。
+- Tetris 示例改用 `useTicker`，2048 示例改用 `useSwipe`。
+
+### 兼容性
+
+- 新服务为增量字段，旧组件可忽略。组件状态使用独立的 `reactive-md-component-state/v1` sidecar，不改变 `reactive-md-state/v1`。
+- 跨编辑恢复需要显式 `state-key`；没有该属性时只保证同一源码和同一会话内可恢复。
+
 ## 0.7.0（2026-10-31，latest 与 next 渠道）
 
 参见 [0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)。语法修订升级为 `local-draft-3`，组块协议升级为 `component-protocol-3`；主题协议 `reactive-md-theme-1` 保持不变。
