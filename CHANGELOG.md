@@ -13,6 +13,7 @@ Split the editor into reactive-md-editor and the Demo into independent repositor
 - `LocalRuntimeOptions` accepts `documentId`, `randomSeed`, `componentState` and injected `services`; `LocalReactiveDocument` exposes matching props plus `onComponentStateChange`.
 - Component contexts gain `services.random`, `services.clock`, `services.scheduler` and `services.state`. Random state stays saveable and replayable; the scheduler handles page visibility.
 - The Tetris example uses `useTicker`; the 2048 example uses `useSwipe`.
+- Add `examples/sci-fi-theme`: a hard-sci-fi theme package with three-layer tokens, light/dark modes, component styling for panels, tables, forms, navigation and chart containers, a live gallery, design specification and screenshot verification.
 
 ### Compatibility
 

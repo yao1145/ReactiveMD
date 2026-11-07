@@ -1,0 +1,5 @@
+/* Convenience entry for direct <link>/import usage.
+   The registry path in theme.ts imports the two files separately so it can
+   ship them as independent, cacheable style resources. */
+@import './tokens.css';
+@import './components.css';

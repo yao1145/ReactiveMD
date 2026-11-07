@@ -1,0 +1,408 @@
+/* ==========================================================================
+   SCI-FI / SF-01 — design tokens
+   --------------------------------------------------------------------------
+   Layer 1  primitives  raw palette, scale and geometry values
+   Layer 2  semantics   purpose-named values; light is the default block
+   Layer 3  components  panel / table / form / navigation / chart contracts
+   --------------------------------------------------------------------------
+   Every selector is scoped to [data-rmd-theme="sci-fi"] so the theme can be
+   imported directly or registered through defineLocalTheme().
+   Radius contract: 0-4px. No pill geometry. No blur shadows.
+   ========================================================================== */
+
+[data-rmd-theme="sci-fi"] {
+  color-scheme: light;
+
+  /* ---------------------------------------------------------- L1 primitives */
+
+  /* Neutral ramp — cold graphite, never warm. */
+  --sf-neutral-0: #ffffff;
+  --sf-neutral-25: #fbfcfd;
+  --sf-neutral-50: #f7f9fb;
+  --sf-neutral-100: #eef2f5;
+  --sf-neutral-150: #e6ecf1;
+  --sf-neutral-200: #dde5ec;
+  --sf-neutral-300: #ccd6df;
+  --sf-neutral-400: #a7b5c2;
+  --sf-neutral-500: #7d8fa1;
+  --sf-neutral-600: #5f7183;
+  --sf-neutral-700: #47596b;
+  --sf-neutral-800: #2c3d4d;
+  --sf-neutral-900: #14212d;
+  --sf-neutral-950: #0a121a;
+  --sf-neutral-1000: #05090d;
+
+  /* Signal ramp — the only saturated family in the system. */
+  --sf-cyan-100: #d8f5fc;
+  --sf-cyan-200: #a8eaf7;
+  --sf-cyan-300: #6cdcf0;
+  --sf-cyan-400: #2ec9e6;
+  --sf-cyan-500: #12b0cf;
+  --sf-cyan-600: #0a89a5;
+  --sf-cyan-700: #096b87;
+  --sf-cyan-800: #0b566d;
+  --sf-cyan-900: #0d4557;
+
+  /* Status primitives. */
+  --sf-teal-600: #076b4f;
+  --sf-teal-400: #3ddc97;
+  --sf-amber-700: #8a5a00;
+  --sf-amber-400: #f4b942;
+  --sf-red-700: #b0253b;
+  --sf-red-400: #ff6b81;
+  --sf-violet-600: #6d4aa1;
+  --sf-violet-400: #b394ea;
+  --sf-blue-600: #2f5f9e;
+  --sf-blue-400: #7fb2ff;
+
+  /* Geometry — 4px base grid, heavy rules, square corners. */
+  --sf-unit: 4px;
+  --sf-grid-gutter: 16px;
+  --sf-grid-max: 1120px;
+  --sf-hairline: 1px;
+  --sf-rule: 2px;
+  --sf-radius-0: 0px;
+  --sf-radius-1: 2px;
+  --sf-radius-2: 4px;
+
+  --sf-duration-1: 80ms;
+  --sf-duration-2: 120ms;
+  --sf-duration-3: 180ms;
+  --sf-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Type scale — condensed reading scale, mono for all machine text. */
+  --sf-type-micro: 10.5px;
+  --sf-type-label: 11.5px;
+  --sf-type-body: 15px;
+  --sf-type-title: 20px;
+  --sf-type-display: 30px;
+  --sf-track-micro: 0.16em;
+  --sf-track-label: 0.1em;
+  --sf-track-title: 0.02em;
+
+  --sf-font-display: var(--font-sans);
+  --sf-font-ui: var(--font-sans);
+  --sf-font-data: var(--font-mono);
+
+  /* ---------------------------------------------------- L2 semantic: light */
+
+  /* Surfaces */
+  --paper: #e8edf1;
+  --surface: #f7f9fb;
+  --surface-subtle: #eef2f5;
+  --surface-hover: #e6ecf1;
+  --surface-active: #dde5ec;
+  --document-bg: #f7f9fb;
+
+  /* Text */
+  --ink: #0a121a;
+  --ink-soft: #354555;
+  --ink-muted: #5f7183;
+
+  /* Borders */
+  --line: #ccd6df;
+  --line-strong: #a7b5c2;
+
+  /* Accent: a cold instrument blue. Filled controls use white ink. */
+  --accent: #096b87;
+  --accent-hover: #075a72;
+  --accent-soft: #e1f2f7;
+  --accent-line: #9fcfdd;
+  --accent-ink: #ffffff;
+  --accent-text: #055f79;
+  --info: var(--accent);
+  --info-soft: var(--accent-soft);
+
+  /* Backwards-compatible aliases. */
+  --blue: var(--accent);
+  --blue-deep: var(--accent-hover);
+  --blue-soft: var(--accent-soft);
+  --blue-line: var(--accent-line);
+
+  /* Status */
+  --teal: #076b4f;
+  --success: #076b4f;
+  --success-soft: #e2f4ed;
+  --success-line: #9fd8c4;
+  --warning: #8a5a00;
+  --warning-soft: #fbf1dc;
+  --warning-line: #e3c98e;
+  --danger: #b0253b;
+  --danger-soft: #fbe9ec;
+  --danger-line: #e6b3bd;
+  --neutral-soft: #e7edf2;
+
+  /* Focus — a hard double rule, never a soft glow. */
+  --focus: var(--accent-text);
+  --focus-outline: 2px solid var(--focus);
+  --focus-ring: 0 0 0 1px var(--surface), 0 0 0 3px var(--focus);
+
+  /* Data series — cold, print-safe, distinguishable in both modes. */
+  --chart-1: #0a6b87;
+  --chart-2: #2f5f9e;
+  --chart-3: #0f766e;
+  --chart-4: #7a5aa6;
+  --chart-5: #9a6a12;
+  --chart-6: #9b3a62;
+  --chart-7: #4a6b1f;
+  --chart-8: #176b7a;
+  --chart-grid: #d3dde6;
+  --chart-axis: #5f7183;
+
+  --coordinate-surface: #f1f5f8;
+  --coordinate-grid: #ccd9e4;
+  --coordinate-axis: #47596b;
+  --coordinate-point: var(--accent);
+
+  /* Code — dark terminal glass even in light mode. */
+  --code-bg: #0a1017;
+  --code-bg-deep: #060b11;
+  --code-ink: #dce8f4;
+  --md-code-token-comment: #7e93a6;
+  --md-code-token-keyword: #8fc7ff;
+  --md-code-token-string: #8fe3c8;
+  --md-code-token-number: #f2c879;
+  --md-code-token-title: #6cdcf0;
+  --md-code-token-attr: #ffb3c0;
+  --md-code-token-meta: #b394ea;
+  --md-code-token-addition: #8fe3c8;
+  --md-code-token-deletion: #ff9daa;
+
+  /* Type */
+  --text-xs: 11.5px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-lg: 16.5px;
+  --text-xl: 21px;
+  --text-2xl: 28px;
+  --text-block-title: 12.5px;
+  --text-block-subtitle: 11.5px;
+  --leading-tight: 1.15;
+  --leading-snug: 1.4;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.7;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --field-gap: var(--space-4);
+
+  /* Radius */
+  --radius-control: var(--sf-radius-0);
+  --radius-card: var(--sf-radius-0);
+  --radius-panel: var(--sf-radius-0);
+  --radius-pill: var(--sf-radius-0);
+  --radius-field: var(--sf-radius-0);
+  --radius-field-multiline: var(--sf-radius-0);
+  --radius-sm: var(--sf-radius-0);
+  --radius-md: var(--sf-radius-0);
+  --radius-lg: var(--sf-radius-0);
+
+  /* Controls */
+  --control-height-sm: 28px;
+  --control-height: 34px;
+  --control-height-lg: 40px;
+  --control-padding-x: 10px;
+  --control-padding-y: 7px;
+  --control-inset-x: 12px;
+  --disabled-opacity: 0.38;
+  --control-selected: var(--accent);
+  --control-selected-ink: var(--accent-ink);
+  --control-track: #dbe3ea;
+  --control-thumb: var(--accent);
+
+  /* Motion and elevation — mechanical, no soft depth. */
+  --motion-fast: var(--sf-duration-1);
+  --motion-base: var(--sf-duration-2);
+  --motion-slow: var(--sf-duration-3);
+  --ease-standard: var(--sf-ease);
+  --shadow-sm: 0 0 0 1px var(--line);
+  --shadow-md: 0 0 0 1px var(--line-strong);
+
+  --font-sans: "Inter", "IBM Plex Sans", "Segoe UI Variable", "Segoe UI",
+    ui-sans-serif, system-ui, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans SC", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "Cascadia Mono", "Consolas",
+    "SFMono-Regular", "Menlo", "Liberation Mono", monospace;
+
+  --formula-ink: #000000;
+
+  /* ------------------------------------------------ L3 component: light */
+
+  --sf-canvas: var(--paper);
+  --sf-grid-line: rgb(10 30 45 / 5%);
+  --sf-label-ink: var(--ink-muted);
+  --sf-meta-ink: var(--ink-muted);
+  --sf-corner-ink: var(--accent);
+  --sf-signal-ink: var(--accent-text);
+
+  --sf-panel-bg: var(--surface);
+  --sf-panel-head-bg: var(--surface-subtle);
+  --sf-panel-border: var(--line-strong);
+  --sf-panel-rule: var(--line);
+
+  --sf-table-bg: var(--surface);
+  --sf-table-head-bg: #e8eef3;
+  --sf-table-row-hover: var(--surface-hover);
+  --sf-table-row-selected: var(--accent-soft);
+
+  --sf-field-bg: #fbfcfd;
+  --sf-field-border: var(--line-strong);
+  --sf-field-hover: var(--accent-line);
+
+  --sf-nav-bg: var(--surface-subtle);
+  --sf-nav-active-bg: var(--accent-soft);
+
+  --sf-chart-frame: var(--surface);
+  --sf-chart-head: var(--surface-subtle);
+
+  --sf-glow: 0 0 0 1px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  --sf-hatch: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ink) 7%, transparent) 0 1px,
+    transparent 1px 6px
+  );
+}
+
+/* ------------------------------------------------------------ semantic: dark */
+
+[data-rmd-theme="sci-fi"][data-color-scheme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --paper: #070b10;
+  --surface: #0b1118;
+  --surface-subtle: #0e1620;
+  --surface-hover: #111c28;
+  --surface-active: #16232f;
+  --document-bg: #070b10;
+
+  /* Text */
+  --ink: #e5edf4;
+  --ink-soft: #a8b9c8;
+  --ink-muted: #74889a;
+
+  /* Borders */
+  --line: #1f2c3a;
+  --line-strong: #32475c;
+
+  /* Accent: instrument cyan. Filled controls use near-black ink. */
+  --accent: #17c3e6;
+  --accent-hover: #45d6f2;
+  --accent-soft: #072231;
+  --accent-line: #1d5566;
+  --accent-ink: #03161c;
+  --accent-text: #5fdcf5;
+  --info: var(--accent);
+  --info-soft: var(--accent-soft);
+
+  --blue: var(--accent);
+  --blue-deep: var(--accent-hover);
+  --blue-soft: var(--accent-soft);
+  --blue-line: var(--accent-line);
+
+  /* Status */
+  --teal: #3ddc97;
+  --success: #3ddc97;
+  --success-soft: #06251b;
+  --success-line: #1d5c45;
+  --warning: #f4b942;
+  --warning-soft: #241a06;
+  --warning-line: #6b5220;
+  --danger: #ff6b81;
+  --danger-soft: #2a0c12;
+  --danger-line: #6e2836;
+  --neutral-soft: #111a24;
+
+  /* Focus */
+  --focus: var(--accent-text);
+  --focus-outline: 2px solid var(--focus);
+  --focus-ring: 0 0 0 1px var(--surface), 0 0 0 3px var(--focus);
+
+  /* Data series */
+  --chart-1: #4fd6ec;
+  --chart-2: #7fb2ff;
+  --chart-3: #5fe0b4;
+  --chart-4: #b394ea;
+  --chart-5: #f2c879;
+  --chart-6: #ff9db1;
+  --chart-7: #b7d47a;
+  --chart-8: #8fe0e8;
+  --chart-grid: #243443;
+  --chart-axis: #8fa3b5;
+
+  --coordinate-surface: #0d151e;
+  --coordinate-grid: #243443;
+  --coordinate-axis: #8fa3b5;
+  --coordinate-point: var(--accent);
+
+  /* Code */
+  --code-bg: #05090e;
+  --code-bg-deep: #030609;
+  --code-ink: #dce8f4;
+  --md-code-token-comment: #74889a;
+  --md-code-token-keyword: #8fc7ff;
+  --md-code-token-string: #8fe3c8;
+  --md-code-token-number: #f2c879;
+  --md-code-token-title: #6cdcf0;
+  --md-code-token-attr: #ffb3c0;
+  --md-code-token-meta: #b394ea;
+  --md-code-token-addition: #8fe3c8;
+  --md-code-token-deletion: #ff9daa;
+
+  /* Controls */
+  --control-selected: var(--accent);
+  --control-selected-ink: var(--accent-ink);
+  --control-track: #243443;
+  --control-thumb: var(--accent);
+
+  --formula-ink: #ffffff;
+
+  --shadow-sm: 0 0 0 1px var(--line);
+  --shadow-md: 0 0 0 1px var(--line-strong);
+
+  /* ------------------------------------------------- L3 component: dark */
+
+  --sf-canvas: var(--paper);
+  --sf-grid-line: rgb(110 190 220 / 4%);
+  --sf-label-ink: var(--ink-muted);
+  --sf-meta-ink: var(--ink-muted);
+  --sf-corner-ink: var(--accent);
+  --sf-signal-ink: var(--accent-text);
+
+  --sf-panel-bg: #0b1118;
+  --sf-panel-head-bg: #0e1822;
+  --sf-panel-border: var(--line-strong);
+  --sf-panel-rule: var(--line);
+
+  --sf-table-bg: #0b1118;
+  --sf-table-head-bg: #0d1721;
+  --sf-table-row-hover: #101a25;
+  --sf-table-row-selected: var(--accent-soft);
+
+  --sf-field-bg: #080e15;
+  --sf-field-border: var(--line-strong);
+  --sf-field-hover: var(--accent-line);
+
+  --sf-nav-bg: #0e1620;
+  --sf-nav-active-bg: var(--accent-soft);
+
+  --sf-chart-frame: #0b1118;
+  --sf-chart-head: #0d1721;
+
+  --sf-glow: 0 0 0 1px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  --sf-hatch: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ink) 8%, transparent) 0 1px,
+    transparent 1px 6px
+  );
+}
