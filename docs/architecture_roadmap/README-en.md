@@ -2,7 +2,38 @@
 
 **English** · [中文](README-ch.md)
 
-Updated: 2026-11-05.
+Updated: 2026-11-07.
+
+## Status overview
+
+### Complete
+
+| Item | Evidence |
+| --- | --- |
+| Standalone compilation entries | `reactive-md/compiler` and `reactive-md/compiler/standard`, with package boundaries and independent-consumer checks |
+| `strict` and local recovery | RMD text fallback and local HTML repair across sessions, Workers, patches and export |
+| Three-repository split | Engine, editor and Demo maintain independent versions and consume tarballs with lockfiles |
+| Component runtime services core | Identity, seeded randomness, scheduler, component-state protocol and React hooks; see [component runtime services](component-runtime-services-ch.md) |
+| Game example migration | Tetris uses `useTicker`; 2048 uses `useSwipe`; the Demo is updated |
+
+### Partial
+
+| Item | Remaining |
+| --- | --- |
+| One-shot reference path and phase split | Independent runtime entry and further phase separation |
+| Independent package boundaries | Lezer, GFM, parse5 and other optional capabilities are not fully separated |
+| Component runtime services | Component-state sidecar in the export CLI, game save UI, background/touch browser acceptance, storage backend, size measurement and announcements |
+
+### Not started
+
+- Host recovery display and language capability reduction.
+- Theme semantic tokens, base controls and narrow-screen/offline polish.
+- Daily authoring tools: VS Code, templates, save and resource import.
+- Component and theme catalogs.
+- 1.0 stabilization and ecosystem work.
+- Cloud sync, multi-user collaboration, open marketplace, more renderers and AI writing.
+
+## Reading entry
 
 The current implementation entry is the [near-term plan: compiler kernel, local recovery and repository split](near-term-plan-en.md). That document consolidates the original compiler kernel design and folds in the original long-term roadmap; implementation rules and phase status are maintained there.
 
