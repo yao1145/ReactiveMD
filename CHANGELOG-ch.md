@@ -13,6 +13,7 @@
 - `LocalRuntimeOptions` 支持 `documentId`、`randomSeed`、`componentState` 与注入的 `services`；`LocalReactiveDocument` 对应新增同名属性和 `onComponentStateChange`。
 - 组件上下文新增 `services.random`、`services.clock`、`services.scheduler` 和 `services.state`。随机状态保持可保存、可重放；调度器处理页面可见性。
 - Tetris 示例改用 `useTicker`，2048 示例改用 `useSwipe`。
+- 新增 `examples/sci-fi-theme`：硬科幻主题包，包含三层 tokens、亮暗模式、面板/表格/表单/导航/图表容器组件样式、现场示例、设计规范与截图验证。
 
 ### 兼容性
 

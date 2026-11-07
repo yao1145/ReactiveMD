@@ -43,7 +43,7 @@ export function Article({ source }: { source: string }) {
 }
 ```
 
-This demonstrates registration. The repository includes only `default`; it does not include a `paper` design or stylesheet.
+This demonstrates registration. The repository includes only `default` as a built-in theme; it does not include a `paper` design or stylesheet. A complete reference package with tokens, component styling, both colour schemes and a live gallery is in [examples/sci-fi-theme](../../examples/sci-fi-theme/README.md).
 
 | Field | Requirement |
 | --- | --- |

@@ -59,6 +59,11 @@
     "check": "npm run build && npm test && npm run test:boundary && npm run test:compiler-entry",
     "test:boundary": "node scripts/verify-public-package.mjs",
     "test:compiler-entry": "node scripts/verify-compiler-entry.mjs",
+    "sci-fi:dev": "vite --config examples/sci-fi-theme/vite.config.ts",
+    "sci-fi:build": "vite build --config examples/sci-fi-theme/vite.config.ts",
+    "sci-fi:typecheck": "tsc -p examples/sci-fi-theme/tsconfig.json --noEmit",
+    "sci-fi:test": "vitest run tests/sci-fi-theme.test.ts --maxWorkers=1",
+    "sci-fi:screenshot": "node examples/sci-fi-theme/scripts/screenshot.mjs",
     "notices": "node scripts/generate-notices.mjs",
     "prepack": "npm run build && npm run notices"
   },

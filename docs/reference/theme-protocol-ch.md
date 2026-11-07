@@ -43,7 +43,7 @@ export function Article({ source }: { source: string }) {
 }
 ```
 
-此示例说明登记方式；仓库仅内置 `default`，不提供 `paper` 的设计或 CSS。
+此示例说明登记方式；仓库仅将 `default` 作为内置主题，不提供 `paper` 的设计或 CSS。完整参考包包含 tokens、组件样式、亮暗两套模式与现场示例，见 [examples/sci-fi-theme](../../examples/sci-fi-theme/README-ch.md)。
 
 | 字段 | 要求 |
 | --- | --- |
