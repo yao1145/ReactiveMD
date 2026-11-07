@@ -263,3 +263,70 @@ describe('theme font boundary regressions', () => {
     expect(css).toContain('--label: "Brand"');
   });
 });
+
+describe('font reference syntax regressions', () => {
+  function scoped(source: string): LocalThemePackage {
+    return defineLocalTheme({ id: 'example/references', name: 'references', version: '1.0.0',
+      css: [{ id: 'main', css: fontFace('Brand') + source }] });
+  }
+
+  it.each(['clamp(1rem, 2vw, 2rem)', 'calc(1rem + 2px)', 'min(2rem, 4vw)', 'max(1rem, 2vw)'])(
+    'rewrites font shorthand with %s and no line-height', size => {
+      const theme = scoped(`.card { font: italic 700 ${size} Brand, sans-serif; }`);
+      const css = collectLocalThemeCss(theme);
+      expect(css).toContain(`font: italic 700 ${size} "${uniqueFamilies(css)[0]}", sans-serif;`);
+      expect(defineLocalTheme(theme).css).toEqual(theme.css);
+    },
+  );
+
+  it('rewrites recursive var() fallback lists and preserves variable names and trivia', () => {
+    const theme = scoped('.card { font-family: var(--Brand, /* keep Brand */ var(--backup, Brand, serif)), sans-serif !important; }');
+    const css = collectLocalThemeCss(theme);
+    expect(css).toContain(`font-family: var(--Brand, /* keep Brand */ var(--backup, "${uniqueFamilies(css)[0]}", serif)), sans-serif !important;`);
+    expect(defineLocalTheme(theme).css).toEqual(theme.css);
+  });
+
+  it('rewrites nested selectors, conditional rules and declarations after nested blocks', () => {
+    const theme = scoped(`.card {
+      &:hover { font-family: Brand; }
+      @media (width > 400px) { font: clamp(1rem, 2vw, 2rem) Brand; .child:hover { font-family: var(--brand, Brand); } }
+      font-family: Brand;
+      --payload: { font-family: Brand; };
+      content: 'font-family: Brand';
+    }`);
+    const css = collectLocalThemeCss(theme);
+    const family = uniqueFamilies(css)[0];
+    expect(css).toContain(`&:hover { font-family: "${family}"; }`);
+    expect(css).toContain(`font: clamp(1rem, 2vw, 2rem) "${family}";`);
+    expect(css).toContain(`.child:hover { font-family: var(--brand, "${family}"); }`);
+    expect(css).toContain(`\n      font-family: "${family}";`);
+    expect(css).toContain('--payload: { font-family: Brand; };');
+    expect(css).toContain("content: 'font-family: Brand';");
+    expect(defineLocalTheme(theme).css).toEqual(theme.css);
+    const composed = composeLocalTheme({ id: 'example/composed-references', name: 'composed-references', version: '1.0.0', base: theme, overrides: [] });
+    expect(collectLocalThemeCss(composed)).not.toContain('rmd-theme-references-font-');
+  });
+
+  it('handles function sizes and line-heights after an oblique angle', () => {
+    const theme = scoped('.card { font: oblique 12deg clamp(1rem, 2vw, 2rem) / calc(1 + .2) var(--brand, Brand), serif; }');
+    const css = collectLocalThemeCss(theme);
+    expect(css).toContain('font: oblique 12deg clamp(1rem, 2vw, 2rem) / calc(1 + .2) var(--brand, "' + uniqueFamilies(css)[0] + '"), serif;');
+  });
+
+  it('recognizes property-name trivia and keeps unrelated custom property case intact', () => {
+    const css = collectLocalThemeCss(scoped('.card { font-family/**/: Brand; --Font-Sans: Brand; font: var(--all); }'));
+    expect(css).toContain('font-family/**/: "' + uniqueFamilies(css)[0] + '";');
+    expect(css).toContain('--Font-Sans: Brand;');
+    expect(css).toContain('font: var(--all);');
+  });
+
+  it('reports excessive variable fallback and rule nesting explicitly', () => {
+    expect(() => scoped('.card { font-family: ' + 'var(--x,'.repeat(66) + 'Brand' + ')'.repeat(66) + '; }')).toThrow(/fallback nesting/);
+    expect(() => scoped('.card {' + '&:hover {'.repeat(66) + 'font-family: Brand;' + '}'.repeat(67))).toThrow(/nested font declarations/);
+  });
+
+  it('rejects ambiguous shorthand and unsupported family functions instead of retaining renamed references', () => {
+    expect(() => scoped('.card { font: var(--size) Brand; }')).toThrow(/font.*shorthand/i);
+    expect(() => scoped('.card { font-family: attr(data-font, Brand); }')).toThrow(/font-family/);
+  });
+});

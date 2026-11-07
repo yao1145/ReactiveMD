@@ -123,6 +123,8 @@ const stylesheet = collectLocalThemeCss(highContrast);
 
 Theme CSS accepts inline `data:` URLs and rejects network references, `@import` and CSS escapes outside strings. Theme packages namespace `@font-face` names and matching literal `font-family` and `font` references. `@keyframes` remains unsupported. The directory loader inlines local fonts and images as `data:` resources before theme validation.
 
+Font reference rewriting covers nested rules, `var()` family-list fallbacks, and `font` shorthands with `calc()`, `min()`, `max()` or `clamp()` sizes. With local font declarations, ambiguous shorthands such as `font: var(--size) Brand` and unsupported family functions raise a theme error. Use an explicit size and `font-family` in those cases.
+
 `composeLocalTheme` appends overrides after the base stylesheet. An override must use a resource id the base does not declare. `collectLocalThemeCss` concatenates resources in stylesheet order.
 
 Components declare required resource ids through `styles`; the host supplies corresponding `{ id, css }` resources to build and export. Component defaults precede theme enhancements.

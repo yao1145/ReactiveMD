@@ -137,6 +137,8 @@ const stylesheet = collectLocalThemeCss(highContrast);
 
 主题 CSS 只接受内联 `data:` 资源，拒绝网络引用、`@import` 和字符串之外的 CSS 转义。`@font-face` 的字体名与字面量 `font-family`、`font` 引用按主题命名空间重写；`@keyframes` 仍被拒绝。目录加载器先把本地字体与图片内联为 `data:`，再调用主题校验。
 
+字体引用改写覆盖嵌套规则、`var()` 字体列表回退，以及用 `calc()`、`min()`、`max()` 或 `clamp()` 声明字号的 `font` 简写。声明了本地字体时，无法可靠定位字体列表的简写（如 `font: var(--size) Brand`）和不支持的字体函数会明确报错；可改用明确字号与 `font-family`。
+
 `composeLocalTheme` 把覆盖层追加在基础样式之后。覆盖层不得复用基础主题已声明的资源 id。`collectLocalThemeCss` 按样式表顺序拼接资源。
 
 组件通过 `styles: ['example/rating.css']` 声明必需资源 id，宿主在构建和导出时提供对应 `{ id, css }`。组件默认样式先于主题增强样式输出。组件结构样式使用公共语义变量，与主题增强相互独立。

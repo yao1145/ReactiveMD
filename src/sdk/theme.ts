@@ -709,14 +709,14 @@ interface ParsedFamily {
   readonly end: number;
 }
 
-function isWhitespaceOnly(value: string): boolean {
-  return value.trim() === '';
+function isCssTrivia(value: string): boolean {
+  return skipTrivia(value, 0) === value.length;
 }
 
 /**
  * Read one `<family-name>`: a quoted string or an unquoted ident sequence.
  * Returns null for system/generic/CSS-wide keywords and for syntax this
- * validator cannot resolve (var(), mixed tokens, comments inside the name).
+ * validator cannot resolve (functions and mixed token kinds).
  */
 function parseCssFamily(segment: string): ParsedFamily | null {
   const tokens = tokenizeCssValue(segment);
@@ -729,7 +729,7 @@ function parseCssFamily(segment: string): ParsedFamily | null {
   if (tokens[0].type === 'string') return null;
   for (let index = 0; index < tokens.length; index += 1) {
     if (tokens[index].type !== 'ident') return null;
-    if (index > 0 && !isWhitespaceOnly(segment.slice(tokens[index - 1].end, tokens[index].start))) {
+    if (index > 0 && !isCssTrivia(segment.slice(tokens[index - 1].end, tokens[index].start))) {
       return null;
     }
   }
@@ -787,7 +787,7 @@ function splitTrailingImportant(value: string): { body: string; important: strin
   const marker = tokens[tokens.length - 2];
   if (last.type !== 'ident' || last.name !== 'important') return { body: value, important: '' };
   if (marker.type !== 'delimiter' || marker.text !== '!') return { body: value, important: '' };
-  if (!isWhitespaceOnly(value.slice(marker.end, last.start))) {
+  if (!isCssTrivia(value.slice(marker.end, last.start))) {
     return { body: value, important: '' };
   }
   return { body: value.slice(0, marker.start), important: value.slice(marker.start) };
@@ -817,20 +817,50 @@ function quotedFamily(family: string): string {
 }
 
 /** Rewrite only family entries that are declared by this theme. */
-function rewriteFontFamilyList(value: string, families: ReadonlyMap<string, string>): string {
+function rewriteFontFamilyList(value: string, families: ReadonlyMap<string, string>, depth = 0): string {
+  if (families.size === 0) return value;
+  if (depth > 64) throw themeError('theme.css', 'font-family fallback nesting exceeds 64 levels.');
   const { body, important } = splitTrailingImportant(value);
-  const segments = splitValueSegments(body);
   const replacements: TextReplacement[] = [];
-  for (const segment of segments) {
-    const parsed = parseCssFamily(body.slice(segment.start, segment.end));
-    if (!parsed) continue;
-    const target = families.get(parsed.key);
-    if (!target) continue;
-    replacements.push({
-      start: segment.start + parsed.start,
-      end: segment.start + parsed.end,
-      text: quotedFamily(target),
-    });
+  for (const segment of splitValueSegments(body)) {
+    const part = body.slice(segment.start, segment.end);
+    const parsed = parseCssFamily(part);
+    if (parsed) {
+      const target = families.get(parsed.key);
+      if (target) {
+        replacements.push({
+          start: segment.start + parsed.start,
+          end: segment.start + parsed.end,
+          text: quotedFamily(target),
+        });
+      }
+      continue;
+    }
+    const tokens = tokenizeCssValue(part);
+    if (tokens.length === 0) continue; // Empty var() fallback.
+    if (tokens.length === 1 && tokens[0].type === 'ident'
+      && (GENERIC_FONT_FAMILIES.has(tokens[0].name) || CSS_WIDE_KEYWORDS.has(tokens[0].name))) continue;
+    if (tokens.length === 1 && tokens[0].type === 'function' && tokens[0].name === 'var') {
+      const token = tokens[0];
+      const open = token.text.indexOf('(');
+      const argumentsText = token.text.slice(open + 1, -1);
+      const argumentsList = splitValueSegments(argumentsText);
+      const variable = tokenizeCssValue(argumentsText.slice(0, argumentsList[0].end));
+      if (!token.text.endsWith(')') || variable.length !== 1 || variable[0].type !== 'ident' || !variable[0].text.startsWith('--')) {
+        throw themeError('theme.css', 'font-family var() must start with a custom property name.');
+      }
+      if (argumentsList.length > 1) {
+        const fallbackStart = argumentsList[0].end + 1;
+        const fallback = argumentsText.slice(fallbackStart);
+        replacements.push({
+          start: segment.start + token.start + open + 1 + fallbackStart,
+          end: segment.start + token.end - 1,
+          text: rewriteFontFamilyList(fallback, families, depth + 1),
+        });
+      }
+      continue;
+    }
+    throw themeError('theme.css', 'unsupported font-family syntax; use literal families or var() with a family-list fallback.');
   }
   return applyReplacements(body, replacements) + important;
 }
@@ -849,7 +879,7 @@ function findFontFamilyStart(value: string): number | null {
   let sizeIndex = -1;
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
-    if (token.type === 'dimension' || token.type === 'percentage') {
+    if ((token.type === 'dimension' && !/(?:deg|grad|rad|turn)$/i.test(token.text)) || token.type === 'percentage') {
       sizeIndex = index;
       break;
     }
@@ -863,7 +893,8 @@ function findFontFamilyStart(value: string): number | null {
     }
     if (token.type === 'function') {
       const next = tokens[index + 1];
-      if (next?.type === 'delimiter' && next.text === '/') {
+      if (['calc', 'min', 'max', 'clamp'].includes(token.name)
+        || (token.name === 'var' && next?.type === 'delimiter' && next.text === '/')) {
         sizeIndex = index;
         break;
       }
@@ -877,12 +908,20 @@ function findFontFamilyStart(value: string): number | null {
   return tokens[familyIndex].start;
 }
 
-function rewriteFontShorthand(value: string, families: ReadonlyMap<string, string>): string | null {
+function rewriteFontShorthand(value: string, families: ReadonlyMap<string, string>): string {
+  if (families.size === 0) return value;
   const { body, important } = splitTrailingImportant(value);
   const familyStart = findFontFamilyStart(body);
-  if (familyStart === null) return null;
+  if (familyStart === null) {
+    const tokens = tokenizeCssValue(body);
+    if (tokens.length === 1 && tokens[0].type === 'ident'
+      && (SYSTEM_FONT_KEYWORDS.has(tokens[0].name) || CSS_WIDE_KEYWORDS.has(tokens[0].name))) return value;
+    if (tokens.length === 1 && tokens[0].type === 'function' && tokens[0].name === 'var'
+      && splitValueSegments(tokens[0].text.slice(tokens[0].text.indexOf('(') + 1, -1)).length === 1) return value;
+    throw themeError('theme.css', 'unsupported font shorthand; use an explicit font size (including calc/min/max/clamp) and a family list.');
+  }
   const family = rewriteFontFamilyList(body.slice(familyStart), families);
-  return `${body.slice(0, familyStart)}${family}${important}`;
+  return body.slice(0, familyStart) + family + important;
 }
 
 interface DeclarationSpan {
@@ -891,23 +930,29 @@ interface DeclarationSpan {
   readonly valueEnd: number;
 }
 
-/** Read top-level declarations of a rule body; nested blocks stay untouched. */
-function scanDeclarations(body: string): DeclarationSpan[] {
+/** Read declaration spans, optionally descending into nested rules with original offsets. */
+function scanDeclarations(body: string, includeNested = false, depth = 0): DeclarationSpan[] {
+  if (depth > 64) throw themeError('theme.css', 'nested font declarations exceed 64 levels.');
   const declarations: DeclarationSpan[] = [];
+  const nested = (open: number): number => {
+    const end = findBlockEnd(body, open + 1);
+    if (includeNested) {
+      for (const item of scanDeclarations(body.slice(open + 1, end), true, depth + 1)) {
+        declarations.push({ name: item.name, valueStart: open + 1 + item.valueStart, valueEnd: open + 1 + item.valueEnd });
+      }
+    }
+    return Math.min(end + 1, body.length);
+  };
   let index = 0;
   while (index < body.length) {
-    const character = body[index];
-    if (/\s/.test(character) || character === ';' || character === '}') {
+    index = skipTrivia(body, index);
+    if (index >= body.length) break;
+    if (body[index] === ';' || body[index] === '}') {
       index += 1;
       continue;
     }
-    if (character === '/' && body[index + 1] === '*') {
-      const end = body.indexOf('*/', index + 2);
-      index = end < 0 ? body.length : end + 2;
-      continue;
-    }
-    if (character === '{') {
-      index = findBlockEnd(body, index + 1) + 1;
+    if (body[index] === '{') {
+      index = nested(index);
       continue;
     }
     const declarationStart = index;
@@ -919,8 +964,7 @@ function scanDeclarations(body: string): DeclarationSpan[] {
         continue;
       }
       if (current === '/' && body[cursor + 1] === '*') {
-        const end = body.indexOf('*/', cursor + 2);
-        cursor = end < 0 ? body.length : end + 2;
+        cursor = skipTrivia(body, cursor);
         continue;
       }
       if (current === '(' || current === '[') {
@@ -932,14 +976,13 @@ function scanDeclarations(body: string): DeclarationSpan[] {
     }
     if (cursor >= body.length) break;
     if (body[cursor] !== ':') {
-      if (body[cursor] === '{') {
-        index = findBlockEnd(body, cursor + 1) + 1;
-      } else {
-        index = cursor + 1;
-      }
+      index = body[cursor] === '{' ? nested(cursor) : cursor + 1;
       continue;
     }
-    const name = body.slice(declarationStart, cursor).trim().toLowerCase();
+    const propertyTokens = tokenizeCssValue(body.slice(declarationStart, cursor));
+    const property = propertyTokens.length === 1 && propertyTokens[0].type === 'ident' ? propertyTokens[0] : undefined;
+    const authoredName = property?.text ?? '';
+    const name = authoredName.startsWith('--') ? authoredName : authoredName.toLowerCase();
     const valueStart = cursor + 1;
     let valueEnd = valueStart;
     while (valueEnd < body.length) {
@@ -949,34 +992,44 @@ function scanDeclarations(body: string): DeclarationSpan[] {
         continue;
       }
       if (current === '/' && body[valueEnd + 1] === '*') {
-        const end = body.indexOf('*/', valueEnd + 2);
-        valueEnd = end < 0 ? body.length : end + 2;
+        valueEnd = skipTrivia(body, valueEnd);
         continue;
       }
       if (current === '(' || current === '[') {
         valueEnd = skipBalanced(body, valueEnd, current, current === '(' ? ')' : ']');
         continue;
       }
+      // A custom property can carry arbitrary balanced blocks. These are values, not nested rules.
+      if (current === '{' && authoredName.startsWith('--')) {
+        valueEnd = findBlockEnd(body, valueEnd + 1) + 1;
+        continue;
+      }
       if (current === ';' || current === '{' || current === '}') break;
       valueEnd += 1;
     }
-    if (name !== '') declarations.push({ name, valueStart, valueEnd });
+    if (body[valueEnd] === '{') {
+      index = nested(valueEnd);
+      continue;
+    }
+    // A colon in a nested pseudo-selector is not a declaration separator.
+    if (property) declarations.push({ name, valueStart, valueEnd });
     index = valueEnd;
-    if (body[valueEnd] === ';') index = valueEnd + 1;
+    if (body[valueEnd] === ';') index += 1;
   }
   return declarations;
 }
 
 function rewriteDeclarationBody(body: string, families: ReadonlyMap<string, string>): string {
+  if (families.size === 0) return body;
   const replacements: TextReplacement[] = [];
-  for (const declaration of scanDeclarations(body)) {
+  for (const declaration of scanDeclarations(body, true)) {
     const familyProperty = declaration.name === 'font-family' || declaration.name === '--font-sans' || declaration.name === '--font-mono';
     if (!familyProperty && declaration.name !== 'font') continue;
     const value = body.slice(declaration.valueStart, declaration.valueEnd);
     const rewritten = familyProperty
       ? rewriteFontFamilyList(value, families)
       : rewriteFontShorthand(value, families);
-    if (rewritten === null || rewritten === value) continue;
+    if (rewritten === value) continue;
     replacements.push({ start: declaration.valueStart, end: declaration.valueEnd, text: rewritten });
   }
   return applyReplacements(body, replacements);
