@@ -52,6 +52,6 @@ Factory success results include `status: 'valid' | 'recovered'`, a deeply frozen
 
 `compileLocal` keeps its existing result type and adds `recoveries` only when present. Strict results retain their historical field shape. Export options preserve the selected mode so standalone replay compiles the same source with that mode.
 
-Loose editing sessions use the full reference path to avoid reusing blocks across recovery boundaries. Strict mode keeps its existing optimizations. Configuration identity includes strict mode and recovery strategy version 2. Demo and editor defaults remain strict; Demo preview defaults and author checks belong to the later host phase in the [near-term plan](../architecture_roadmap/near-term-plan-ch.md).
+Loose editing sessions use the full reference path to avoid reusing blocks across recovery boundaries. Strict mode keeps its existing optimizations. Configuration identity includes strict mode and recovery strategy version 2. Demo and editor defaults remain strict; Demo preview defaults and author checks belong to a later host phase.
 
 See [one-shot compilation](../integration/compiler-en.md) and [HTML compatibility](html-compatibility-en.md).

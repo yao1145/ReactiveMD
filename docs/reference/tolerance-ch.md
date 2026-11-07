@@ -59,6 +59,6 @@ if (result.status === 'recovered') {
 
 旧 `compileLocal` 保留原有返回类型，并在有恢复时附加 `recoveries`。默认严格结果保持既有字段形状。运行时、SSR 和 standalone 接收同一源码对应的编译结果；导出选项保留所选 strict 模式，重新挂载时使用同一模式。
 
-编辑会话在宽松模式下使用完整参考路径，避免复用跨越恢复边界的旧块；恢复策略版本 2 与 strict 模式参与配置身份。严格模式保留现有优化。Demo 和编辑器默认仍为严格模式；Demo 的宽松预览默认设置和作者检查面板按[近期规划](../architecture_roadmap/near-term-plan-ch.md)后续宿主阶段推进。
+编辑会话在宽松模式下使用完整参考路径，避免复用跨越恢复边界的旧块；恢复策略版本 2 与 strict 模式参与配置身份。严格模式保留现有优化。Demo 和编辑器默认仍为严格模式；Demo 的宽松预览默认设置和作者检查面板属于后续宿主阶段。
 
 参见[单次编译入口](../integration/compiler-ch.md)和 [HTML 兼容](html-compatibility-ch.md)。
