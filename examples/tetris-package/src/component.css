@@ -5,10 +5,6 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  color: var(--ink, #e6edf3);
-  background: var(--surface, #111820);
-  border: 1px solid var(--border, #2c3a4a);
-  border-radius: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85rem;
 }
@@ -24,10 +20,6 @@
   font-size: 0.95rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.local-document .rmd-tetris-status {
-  color: var(--muted, #8fa3b8);
 }
 
 .local-document .rmd-tetris-body {
@@ -89,7 +81,7 @@
 }
 
 .local-document .rmd-tetris-stats dt {
-  color: var(--muted, #8fa3b8);
+  color: var(--ink-muted);
 }
 
 .local-document .rmd-tetris-stats dd {
@@ -100,7 +92,7 @@
 }
 
 .local-document .rmd-tetris-next-label {
-  color: var(--muted, #8fa3b8);
+  color: var(--ink-muted);
 }
 
 .local-document .rmd-tetris-next {
@@ -140,26 +132,7 @@
   min-width: 2.1rem;
   min-height: 2rem;
   padding: 2px 6px;
-  color: inherit;
-  background: transparent;
-  border: 1px solid var(--border, #2c3a4a);
-  border-radius: 4px;
   font: inherit;
-  cursor: pointer;
-}
-
-.local-document .rmd-tetris-controls button:hover:not(:disabled) {
-  background: color-mix(in srgb, currentColor 14%, transparent);
-}
-
-.local-document .rmd-tetris-controls button:focus-visible {
-  outline: 2px solid var(--accent, #59a6ff);
-  outline-offset: 1px;
-}
-
-.local-document .rmd-tetris-controls button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .local-document .rmd-tetris-static {
@@ -168,5 +141,5 @@
 
 .local-document .rmd-tetris-static-note {
   margin: 0;
-  color: var(--muted, #8fa3b8);
+  color: var(--ink-muted);
 }

@@ -10,10 +10,6 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  color: var(--ink, #e6edf3);
-  background: var(--surface, #111820);
-  border: 1px solid var(--border, #2c3a4a);
-  border-radius: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.85rem;
   max-width: 100%;
@@ -30,10 +26,6 @@
   font-size: 0.95rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.local-document .rmd-2048-status {
-  color: var(--muted, #8fa3b8);
 }
 
 .local-document .rmd-2048-body {
@@ -118,7 +110,7 @@
 }
 
 .local-document .rmd-2048-stats dt {
-  color: var(--muted, #8fa3b8);
+  color: var(--ink-muted);
 }
 
 .local-document .rmd-2048-stats dd {
@@ -138,26 +130,7 @@
   min-width: 2.1rem;
   min-height: 2rem;
   padding: 2px 6px;
-  color: inherit;
-  background: transparent;
-  border: 1px solid var(--border, #2c3a4a);
-  border-radius: 4px;
   font: inherit;
-  cursor: pointer;
-}
-
-.local-document .rmd-2048-controls button:hover:not(:disabled) {
-  background: color-mix(in srgb, currentColor 14%, transparent);
-}
-
-.local-document .rmd-2048-controls button:focus-visible {
-  outline: 2px solid var(--accent, #59a6ff);
-  outline-offset: 1px;
-}
-
-.local-document .rmd-2048-controls button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .local-document .rmd-2048-static {
@@ -166,7 +139,7 @@
 
 .local-document .rmd-2048-static-note {
   margin: 0;
-  color: var(--muted, #8fa3b8);
+  color: var(--ink-muted);
 }
 
 @keyframes rmd-2048-pop {

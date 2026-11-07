@@ -38,6 +38,7 @@
   --accent-text: var(--blue-deep);
   --info: var(--blue);
   --info-soft: var(--blue-soft);
+  --info-line: var(--accent-line);
 
   /* Status */
   --teal: #167875;
@@ -192,6 +193,7 @@
   --blue-line: #37445a;
   --accent-ink: #ffffff;
   --accent-text: #a9bce3;
+  --info: var(--accent-text);
 
   --control-selected: #e7e6e1;
   --control-selected-ink: #1b1b1d;

@@ -1,0 +1,553 @@
+/* Native selection and value controls.
+   Checkbox, radio, range, progress and meter keep their native element
+   behavior: platform shape for selections, keyboard operation, pickers,
+   form participation and writing-mode orientation. Every shared rule sits
+   inside :where() so an ordinary component class overrides any property in
+   either load order. data-rmd-appearance="custom" removes one element from
+   this skin, including its pseudo-elements, while theme variables remain. */
+
+/* Checkbox and radio ------------------------------------------------ */
+
+/* The platform control keeps its shape. accent-color paints checked and
+   indeterminate marks in both color schemes. */
+:where(.md-document) :where(
+  input[type="checkbox"]:not([data-rmd-appearance="custom"]),
+  input[type="radio"]:not([data-rmd-appearance="custom"])
+) {
+  accent-color: var(--control-selected, var(--accent));
+  cursor: pointer;
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:not([data-rmd-appearance="custom"]):where(:checked, :indeterminate),
+  input[type="radio"]:not([data-rmd-appearance="custom"]):where(:checked)
+) {
+  accent-color: var(--control-selected, var(--accent));
+}
+
+/* :disabled also matches descendants of a disabled fieldset. */
+:where(.md-document) :where(
+  input[type="checkbox"]:not([data-rmd-appearance="custom"]),
+  input[type="radio"]:not([data-rmd-appearance="custom"])
+):where(:disabled) {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:not([data-rmd-appearance="custom"]),
+  input[type="radio"]:not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid) {
+  accent-color: var(--danger);
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:not([data-rmd-appearance="custom"]),
+  input[type="radio"]:not([data-rmd-appearance="custom"])
+):where(:focus-visible) {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:not([data-rmd-appearance="custom"]),
+  input[type="radio"]:not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid):where(:focus-visible) {
+  outline-color: var(--danger);
+}
+
+/* Switch ------------------------------------------------------------ */
+
+/* A native checkbox with .md-switch or role="switch" renders as a track.
+   The input remains the control: Space toggles it, labels activate it, and
+   form submission is unchanged. Gradients draw the knob because pseudo-
+   elements on input elements are unreliable. */
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+) {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  inline-size: 40px;
+  block-size: 22px;
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background-color: var(--control-track, var(--neutral-soft));
+  background-image: radial-gradient(
+    circle at center,
+    var(--control-thumb, var(--surface)) 0 8px,
+    color-mix(in srgb, var(--ink) 18%, var(--line)) 8.5px 9px,
+    transparent 9.5px
+  );
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: 20px 20px;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    background-position var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+):where(:checked) {
+  border-color: transparent;
+  background-color: var(--control-selected, var(--accent));
+  background-image: radial-gradient(
+    circle at center,
+    var(--control-selected-ink, var(--surface)) 0 8px,
+    transparent 8.5px
+  );
+  background-position: right center;
+}
+
+/* Mixed state keeps the knob on the left and draws a dash across it. */
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+):where(:indeterminate) {
+  background-color: var(--control-track, var(--neutral-soft));
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 0 7px,
+      var(--ink-soft) 7px 13px,
+      transparent 13px 20px
+    ),
+    radial-gradient(
+      circle at center,
+      var(--control-thumb, var(--surface)) 0 8px,
+      color-mix(in srgb, var(--ink) 18%, var(--line)) 8.5px 9px,
+      transparent 9.5px
+    );
+  background-position: left center, left center;
+  background-size: 20px 20px, 20px 20px;
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+):where(:hover:not(:disabled)):where(:not(:checked)) {
+  border-color: color-mix(in srgb, var(--ink) 24%, var(--line-strong));
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+):where(:checked):where(:hover:not(:disabled)) {
+  background-color: color-mix(
+    in srgb,
+    var(--control-selected, var(--accent)) 88%,
+    var(--ink)
+  );
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+):where(:active:not(:disabled)) {
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 20%, transparent);
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+):where(:focus-visible) {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+):where(:disabled) {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid) {
+  border-color: var(--danger);
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid):where(:checked) {
+  background-color: var(--danger);
+}
+
+:where(.md-document) :where(
+  input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid):where(:focus-visible) {
+  outline-color: var(--danger);
+}
+
+/* Range ------------------------------------------------------------- */
+
+/* The input keeps keyboard, touch and writing-mode behavior. WebKit and
+   Firefox receive matching tracks and thumbs; invalid values move the
+   accent and thumb to the danger color. */
+:where(.md-document) :where(input[type="range"]:not([data-rmd-appearance="custom"])) {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  block-size: var(--control-height);
+  background: transparent;
+  accent-color: var(--control-selected, var(--accent));
+  cursor: pointer;
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+)::-webkit-slider-runnable-track {
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--control-track, var(--neutral-soft));
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+)::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin-top: calc((var(--space-2) - 18px) / 2);
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, var(--line));
+  border-radius: 50%;
+  background: var(--control-thumb, var(--surface));
+  box-shadow: var(--shadow-sm);
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+)::-moz-range-track {
+  height: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--control-track, var(--neutral-soft));
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+)::-moz-range-progress {
+  height: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+)::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, var(--line));
+  border-radius: 50%;
+  background: var(--control-thumb, var(--surface));
+  box-shadow: var(--shadow-sm);
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+):where(:focus-visible) {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+  border-radius: var(--radius-pill);
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+):where(:disabled) {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid) {
+  accent-color: var(--danger);
+  outline-color: var(--danger);
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid)::-webkit-slider-thumb {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid)::-moz-range-progress {
+  background: var(--danger);
+}
+
+:where(.md-document) :where(
+  input[type="range"]:not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid)::-moz-range-thumb {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
+/* Progress ---------------------------------------------------------- */
+
+/* Determinate values use the accent; the track uses the shared control
+   track. Indeterminate progress keeps a moving band until reduced motion
+   replaces the animation with a static band. */
+:where(.md-document) :where(progress:not([data-rmd-appearance="custom"])) {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  block-size: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--control-track, var(--neutral-soft));
+  accent-color: var(--accent);
+  vertical-align: middle;
+}
+
+:where(.md-document) :where(
+  progress:not([data-rmd-appearance="custom"])
+)::-webkit-progress-bar {
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--control-track, var(--neutral-soft));
+}
+
+:where(.md-document) :where(
+  progress:not([data-rmd-appearance="custom"])
+)::-webkit-progress-value {
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+:where(.md-document) :where(
+  progress:not([data-rmd-appearance="custom"])
+)::-moz-progress-bar {
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+:where(.md-document) :where(
+  progress:not([data-rmd-appearance="custom"])
+):where(:indeterminate) {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0 35%,
+    color-mix(in srgb, var(--accent) 32%, transparent) 35% 55%,
+    transparent 55% 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 200% 100%;
+  animation: rmd-native-progress-slide calc(var(--motion-slow) * 5) linear infinite;
+}
+
+:where(.md-document) :where(
+  progress:not([data-rmd-appearance="custom"])
+):where(:indeterminate)::-webkit-progress-bar {
+  background: transparent;
+}
+
+:where(.md-document) :where(
+  progress:not([data-rmd-appearance="custom"])
+):where(:indeterminate)::-moz-progress-bar {
+  background: transparent;
+}
+
+@keyframes rmd-native-progress-slide {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* Meter ------------------------------------------------------------- */
+
+/* WebKit exposes the optimum, suboptimum and even-less-good regions, so
+   the semantic status colors map onto the shared success, warning and
+   danger tokens. Firefox keeps its native semantic bar colors; only the
+   radius is shared. */
+:where(.md-document) :where(meter:not([data-rmd-appearance="custom"])) {
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  block-size: var(--space-2);
+  vertical-align: middle;
+}
+
+:where(.md-document) :where(
+  meter:not([data-rmd-appearance="custom"])
+)::-moz-meter-bar {
+  border-radius: var(--radius-pill);
+}
+
+:where(.md-document) :where(
+  meter:not([data-rmd-appearance="custom"])
+)::-webkit-meter-bar {
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--control-track, var(--neutral-soft));
+}
+
+:where(.md-document) :where(
+  meter:not([data-rmd-appearance="custom"])
+)::-webkit-meter-optimum-value {
+  border-radius: var(--radius-pill);
+  background: var(--success);
+}
+
+:where(.md-document) :where(
+  meter:not([data-rmd-appearance="custom"])
+)::-webkit-meter-suboptimum-value {
+  border-radius: var(--radius-pill);
+  background: var(--warning);
+}
+
+:where(.md-document) :where(
+  meter:not([data-rmd-appearance="custom"])
+)::-webkit-meter-even-less-good-value {
+  border-radius: var(--radius-pill);
+  background: var(--danger);
+}
+
+@supports selector(::-webkit-meter-bar) {
+  :where(.md-document) :where(meter:not([data-rmd-appearance="custom"])) {
+    -webkit-appearance: none;
+    appearance: none;
+    border: 0;
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    background: var(--control-track, var(--neutral-soft));
+  }
+}
+
+/* Reduced motion ---------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.md-document) :where(
+    input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+  ) {
+    transition: none;
+  }
+
+  :where(.md-document) :where(
+    progress:not([data-rmd-appearance="custom"])
+  ):where(:indeterminate) {
+    animation: none;
+    background-position: 0 0;
+  }
+}
+
+/* Forced colors and print ------------------------------------------- */
+
+/* System palettes and paper output use the native widgets, which keep
+   their platform contrast and semantic meter colors. */
+@media (forced-colors: active), print {
+  :where(.md-document) :where(
+    input[type="checkbox"]:is(.md-switch, [role="switch"]):not([data-rmd-appearance="custom"])
+  ) {
+    -webkit-appearance: auto;
+    appearance: auto;
+    inline-size: auto;
+    block-size: auto;
+    margin: initial;
+    border: initial;
+    border-radius: initial;
+    background: initial;
+    box-shadow: none;
+    transition: none;
+  }
+
+  :where(.md-document) :where(
+    input[type="checkbox"]:not([data-rmd-appearance="custom"]),
+    input[type="radio"]:not([data-rmd-appearance="custom"])
+  ) {
+    accent-color: auto;
+    opacity: 1;
+  }
+
+  :where(.md-document) :where(input[type="range"]:not([data-rmd-appearance="custom"])) {
+    -webkit-appearance: auto;
+    appearance: auto;
+    block-size: auto;
+    background: transparent;
+    accent-color: auto;
+  }
+
+  :where(.md-document) :where(
+    input[type="range"]:not([data-rmd-appearance="custom"])
+  )::-webkit-slider-runnable-track,
+  :where(.md-document) :where(
+    input[type="range"]:not([data-rmd-appearance="custom"])
+  )::-webkit-slider-thumb,
+  :where(.md-document) :where(
+    input[type="range"]:not([data-rmd-appearance="custom"])
+  )::-moz-range-track,
+  :where(.md-document) :where(
+    input[type="range"]:not([data-rmd-appearance="custom"])
+  )::-moz-range-progress,
+  :where(.md-document) :where(
+    input[type="range"]:not([data-rmd-appearance="custom"])
+  )::-moz-range-thumb {
+    -webkit-appearance: auto;
+    appearance: auto;
+    inline-size: auto;
+    block-size: auto;
+    margin: initial;
+    border: initial;
+    border-radius: initial;
+    background: initial;
+    box-shadow: none;
+  }
+
+  :where(.md-document) :where(
+    progress:not([data-rmd-appearance="custom"])
+  ),
+  :where(.md-document) :where(meter:not([data-rmd-appearance="custom"])) {
+    -webkit-appearance: auto;
+    appearance: auto;
+    block-size: auto;
+    border: initial;
+    border-radius: initial;
+    overflow: visible;
+    background: initial;
+    animation: none;
+  }
+
+  :where(.md-document) :where(
+    progress:not([data-rmd-appearance="custom"])
+  )::-webkit-progress-bar,
+  :where(.md-document) :where(
+    progress:not([data-rmd-appearance="custom"])
+  )::-webkit-progress-value,
+  :where(.md-document) :where(
+    progress:not([data-rmd-appearance="custom"])
+  )::-moz-progress-bar,
+  :where(.md-document) :where(
+    meter:not([data-rmd-appearance="custom"])
+  )::-webkit-meter-bar,
+  :where(.md-document) :where(
+    meter:not([data-rmd-appearance="custom"])
+  )::-webkit-meter-optimum-value,
+  :where(.md-document) :where(
+    meter:not([data-rmd-appearance="custom"])
+  )::-webkit-meter-suboptimum-value,
+  :where(.md-document) :where(
+    meter:not([data-rmd-appearance="custom"])
+  )::-webkit-meter-even-less-good-value,
+  :where(.md-document) :where(
+    meter:not([data-rmd-appearance="custom"])
+  )::-moz-meter-bar {
+    border: initial;
+    border-radius: initial;
+    background: initial;
+  }
+}

@@ -321,6 +321,7 @@ function ChartLegend({
             key={`${item.name}-${index}`}
             type="button"
             className={`local-visual-legend-item${off ? ' is-off' : ''}`}
+            data-rmd-appearance="custom"
             aria-pressed={!off}
             disabled={item.disabled}
             onClick={() => onToggle(index)}
@@ -559,6 +560,7 @@ export function TableView(context: LocalComponentContext) {
                     <button
                       type="button"
                       className={`local-visual-sort-button${sort && sort.column === index ? ' is-sorted' : ''}`}
+                      data-rmd-appearance="custom"
                       onClick={() => cycleSort(index)}
                       title={t(
                         'Click to cycle ascending, descending and original order',
@@ -588,6 +590,7 @@ export function TableView(context: LocalComponentContext) {
                       <button
                         type="button"
                         className={`local-visual-select-button${selected ? ' is-selected' : ''}`}
+                        data-rmd-appearance="custom"
                         aria-pressed={selected}
                         aria-label={t(`Select row ${rowKey}`, `选择行 ${rowKey}`)}
                         title={t(`Select row ${rowKey}`, `选择行 ${rowKey}`)}
@@ -655,7 +658,7 @@ export function TableView(context: LocalComponentContext) {
           ) : null}
           {totalPages > 1 ? (
             <nav className="local-visual-pagination" aria-label={t('Table pagination', '表格分页')}>
-              <button type="button" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+              <button type="button" data-rmd-appearance="custom" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
                 {t('Previous', '上一页')}
               </button>
               <span>
@@ -664,7 +667,7 @@ export function TableView(context: LocalComponentContext) {
                   `第 ${currentPage} / ${totalPages} 页 · 共 ${ordered.length} 行`,
                 )}
               </span>
-              <button type="button" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
+              <button type="button" data-rmd-appearance="custom" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
                 {t('Next', '下一页')}
               </button>
             </nav>

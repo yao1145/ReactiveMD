@@ -1,0 +1,125 @@
+/* Shared button skin.
+   Native buttons and button inputs inside .md-document default to the
+   secondary appearance. The md-button, md-button-primary, md-button-secondary
+   and md-button-quiet classes share this skin inside the document.
+   Every selector, including states, sits inside :where() so component CSS
+   overrides any declared property at class specificity, whatever the load
+   order. data-rmd-appearance="custom" removes an element from the shared skin
+   and leaves the theme variables in place for its own CSS. */
+
+/* Base ------------------------------------------------------------- */
+
+:where(
+  .md-document :is(button, input[type="button"], input[type="submit"], input[type="reset"]):not([data-rmd-appearance="custom"]),
+  .md-document :is(.md-button, .md-button-primary, .md-button-secondary, .md-button-quiet):not([data-rmd-appearance="custom"])
+) {
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height);
+  padding: var(--control-padding-y) var(--control-inset-x);
+  border: 1px solid transparent;
+  border-radius: var(--radius-field);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+/* Hidden controls keep the platform display behavior, including
+   hidden="until-found", which relies on content-visibility. Only the display
+   assignment skips them; the remaining skin properties still apply. */
+:where(
+  .md-document :is(button, input[type="button"], input[type="submit"], input[type="reset"]):not([data-rmd-appearance="custom"]),
+  .md-document :is(.md-button, .md-button-primary, .md-button-secondary, .md-button-quiet):not([data-rmd-appearance="custom"])
+):where(:not([hidden])) {
+  display: inline-flex;
+}
+
+/* Variants --------------------------------------------------------- */
+
+/* Native document controls take the secondary appearance unless a variant
+   class below replaces it. */
+:where(
+  .md-document :is(button, input[type="button"], input[type="submit"], input[type="reset"]):not([data-rmd-appearance="custom"]),
+  .md-document :is(.md-button, .md-button-secondary):not([data-rmd-appearance="custom"])
+) {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+:where(.md-document .md-button-primary:not([data-rmd-appearance="custom"])) {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink, #ffffff);
+}
+
+:where(.md-document .md-button-quiet:not([data-rmd-appearance="custom"])) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent-text, var(--accent));
+}
+
+/* States ----------------------------------------------------------- */
+
+:where(
+  .md-document :is(button, input[type="button"], input[type="submit"], input[type="reset"]):not([data-rmd-appearance="custom"]),
+  .md-document :is(.md-button, .md-button-secondary):not([data-rmd-appearance="custom"])
+):where(:hover:not(:disabled)) {
+  background: var(--surface-hover);
+}
+
+:where(
+  .md-document :is(button, input[type="button"], input[type="submit"], input[type="reset"]):not([data-rmd-appearance="custom"]),
+  .md-document :is(.md-button, .md-button-secondary):not([data-rmd-appearance="custom"])
+):where(:active:not(:disabled)) {
+  background: var(--surface-active);
+}
+
+:where(.md-document .md-button-primary:not([data-rmd-appearance="custom"])):where(:hover:not(:disabled)) {
+  background: var(--accent-hover);
+}
+
+:where(.md-document .md-button-primary:not([data-rmd-appearance="custom"])):where(:active:not(:disabled)) {
+  background: var(--accent-hover);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 14%);
+}
+
+:where(.md-document .md-button-quiet:not([data-rmd-appearance="custom"])):where(:hover:not(:disabled)) {
+  background: var(--surface-hover);
+}
+
+:where(.md-document .md-button-quiet:not([data-rmd-appearance="custom"])):where(:active:not(:disabled)) {
+  background: var(--surface-active);
+}
+
+:where(
+  .md-document :is(button, input[type="button"], input[type="submit"], input[type="reset"]):not([data-rmd-appearance="custom"]),
+  .md-document :is(.md-button, .md-button-primary, .md-button-secondary, .md-button-quiet):not([data-rmd-appearance="custom"])
+):where(:disabled) {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+:where(
+  .md-document :is(button, input[type="button"], input[type="submit"], input[type="reset"]):not([data-rmd-appearance="custom"]),
+  .md-document :is(.md-button, .md-button-primary, .md-button-secondary, .md-button-quiet):not([data-rmd-appearance="custom"])
+):where(:focus-visible) {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    .md-document :is(button, input[type="button"], input[type="submit"], input[type="reset"]):not([data-rmd-appearance="custom"]),
+    .md-document :is(.md-button, .md-button-primary, .md-button-secondary, .md-button-quiet):not([data-rmd-appearance="custom"])
+  ) {
+    transition: none;
+  }
+}

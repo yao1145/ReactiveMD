@@ -205,6 +205,7 @@ export function ZoomableImage({
               <button
                 type="button"
                 className="md-image-zoom-close"
+                data-rmd-appearance="custom"
                 aria-label={t('Close image preview', '关闭图片预览')}
                 onClick={closePreview}
               >

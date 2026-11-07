@@ -340,6 +340,7 @@ export function CodeBlockView({ value, language, mode, htmlProps }: CodeBlockVie
             <button
               type="button"
               className="md-code-block-copy"
+              data-rmd-appearance="custom"
               aria-label={t('Copy code', '复制代码')}
               onClick={() => {
                 void copy();

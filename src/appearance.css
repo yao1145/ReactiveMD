@@ -1,0 +1,25 @@
+/* Explicit density overrides the root's default tokens at attribute
+   specificity. The control skins themselves remain zero specificity. */
+:where(.md-document)[data-rmd-density="compact"],
+:where(.md-document) [data-rmd-density="compact"] {
+  --control-height-sm: 28px;
+  --control-height: 32px;
+  --control-height-lg: 36px;
+  --control-padding-y: 5px;
+  --control-inset-x: 12px;
+  --field-gap: 8px;
+  --table-cell-padding-y: 6px;
+  --table-cell-padding-x: 12px;
+}
+
+:where(.md-document)[data-rmd-density="comfortable"],
+:where(.md-document) [data-rmd-density="comfortable"] {
+  --control-height-sm: 36px;
+  --control-height: 44px;
+  --control-height-lg: 48px;
+  --control-padding-y: 10px;
+  --control-inset-x: 20px;
+  --field-gap: 16px;
+  --table-cell-padding-y: 12px;
+  --table-cell-padding-x: 16px;
+}

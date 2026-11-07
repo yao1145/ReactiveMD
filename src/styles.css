@@ -1,6 +1,15 @@
 @import 'katex/dist/katex.min.css';
 @import './theme.css';
 @import './base.css';
+@import './content.css';
+@import './controls.css';
+@import './native-fields.css';
+@import './native-selection.css';
+@import './surfaces.css';
+@import './navigation.css';
+@import './overlays.css';
+@import './data-display.css';
+@import './appearance.css';
 @import './local/widgets/code-block.css';
 @import './local/widgets/image-view.css';
 @import './local/rendering/local.css';

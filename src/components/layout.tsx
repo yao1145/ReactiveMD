@@ -46,10 +46,10 @@ export function PanelView(context: LocalComponentContext) {
   };
 
   return (
-    <section className="local-panel" aria-label={title || t('Parameter panel', '参数面板')}>
+    <section className="md-panel local-panel" aria-label={title || t('Parameter panel', '参数面板')}>
       {title || showReset ? (
         <div className="local-panel-head">
-          {title ? <h3 className="local-panel-title">{title}</h3> : <span />}
+          {title ? <h3 className="md-panel-title local-panel-title">{title}</h3> : <span />}
           {showReset ? (
             <button
               type="button"
@@ -62,7 +62,7 @@ export function PanelView(context: LocalComponentContext) {
           ) : null}
         </div>
       ) : null}
-      <div className="local-panel-body">{view.render()}</div>
+      <div className="md-panel-body local-panel-body">{view.render()}</div>
       <FieldError message={error} />
     </section>
   );
@@ -178,14 +178,14 @@ export function TabsView(context: LocalComponentContext) {
 
   return (
     <section
-      className="local-tabs"
+      className="md-tabs local-tabs"
       aria-label={label || t('Tabs', '选项卡')}
       aria-invalid={validation.invalid || undefined}
       aria-describedby={validation.describedBy}
     >
       {label ? <div className="local-tabs-label">{label}</div> : null}
       <div
-        className="local-tablist"
+        className="md-tablist local-tablist"
         role="tablist"
         aria-label={label || t('Tabs', '选项卡')}
         onKeyDown={onKeyDown}
@@ -202,7 +202,7 @@ export function TabsView(context: LocalComponentContext) {
               id={`${domId}-tab-${index}`}
               type="button"
               role="tab"
-              className={`local-tab${active ? ' is-selected' : ''}`}
+              className={`md-tab local-tab${active ? ' is-selected' : ''}`}
               aria-selected={active}
               aria-controls={`${domId}-panel-${index}`}
               tabIndex={active ? 0 : -1}
@@ -223,7 +223,7 @@ export function TabsView(context: LocalComponentContext) {
           <div
             key={tab.id}
             id={`${domId}-panel-${index}`}
-            className="local-tabpanel"
+            className="md-tabpanel local-tabpanel"
             role="tabpanel"
             aria-labelledby={`${domId}-tab-${index}`}
             tabIndex={0}
@@ -399,6 +399,7 @@ export function DisclosureView(context: LocalComponentContext) {
           id={triggerId}
           type="button"
           className="local-disclosure-trigger"
+          data-rmd-appearance="custom"
           aria-expanded={open}
           aria-controls={panelId}
           onClick={() => setOpen((value) => !value)}
@@ -489,9 +490,9 @@ export function AlertView(context: LocalComponentContext) {
   return (
     <>
       {error ? <ToneProblem message={view.t('Invalid tone; using the default style', '色调无效，已使用默认样式')} /> : null}
-      <div className={`local-alert local-alert-${tone}`} role={role}>
-        {title ? <div className="local-alert-title">{title}</div> : null}
-        <div className="local-alert-body">{view.render()}</div>
+      <div className={`md-alert md-alert-${tone} local-alert local-alert-${tone}`} role={role}>
+        {title ? <div className="md-alert-title local-alert-title">{title}</div> : null}
+        <div className="md-alert-body local-alert-body">{view.render()}</div>
       </div>
     </>
   );
@@ -560,7 +561,7 @@ export function TooltipView(context: LocalComponentContext) {
     return (
       <span className="local-tooltip local-static-tooltip">
         <span className="local-tooltip-trigger">{view.renderInline()}</span>
-        <span className="local-tooltip-bubble is-visible" role="note">
+        <span className="md-tooltip local-tooltip-bubble is-visible" role="note">
           {text}
         </span>
       </span>
@@ -593,7 +594,7 @@ export function TooltipView(context: LocalComponentContext) {
         id={bubbleId}
         ref={bubbleRef}
         role="tooltip"
-        className={`local-tooltip-bubble${open ? ' is-visible' : ''}`}
+        className={`md-tooltip local-tooltip-bubble${open ? ' is-visible' : ''}`}
       >
         {text}
       </span>

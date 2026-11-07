@@ -205,7 +205,7 @@ export function Tetris(context: LocalComponentContext) {
 
   return (
     <div
-      className="rmd-tetris"
+      className="rmd-tetris md-panel"
       data-tetris
       data-tetris-state={game.status}
       data-tetris-points={game.score}
@@ -214,7 +214,7 @@ export function Tetris(context: LocalComponentContext) {
     >
       <div className="rmd-tetris-head">
         <strong className="rmd-tetris-title">{label}</strong>
-        <output className="rmd-tetris-status" data-tetris-status>
+        <output className={`rmd-tetris-status md-badge md-badge-${game.status === 'over' ? 'danger' : game.status === 'paused' ? 'warning' : 'neutral'}`} data-tetris-status>
           {statusText(context, game.status)}
         </output>
       </div>
@@ -256,7 +256,7 @@ export function Tetris(context: LocalComponentContext) {
             <button type="button" data-tetris-pause disabled={locked} onClick={() => setGame((previous) => togglePause(previous))}>
               {paused ? t('Resume', '继续') : t('Pause', '暂停')}
             </button>
-            <button type="button" data-tetris-new disabled={locked} onClick={() => setGame(createTetrisState(options))}>
+            <button type="button" className="md-button-primary" data-tetris-new disabled={locked} onClick={() => setGame(createTetrisState(options))}>
               {t('New', '新局')}
             </button>
             <button type="button" data-tetris-reset onClick={resetGame}>{t('Reset', '重置')}</button>
@@ -279,10 +279,10 @@ export function TetrisStatic(context: LocalComponentContext) {
   const board = renderBoard(initial);
   const t = context.locale.t;
   return (
-    <div className="rmd-tetris rmd-tetris-static" data-tetris-static>
+    <div className="rmd-tetris rmd-tetris-static md-panel" data-tetris-static>
       <div className="rmd-tetris-head">
         <strong className="rmd-tetris-title">{label}</strong>
-        <span className="rmd-tetris-status">
+        <span className="rmd-tetris-status md-badge md-badge-neutral">
           {options.width} × {options.height}
         </span>
       </div>

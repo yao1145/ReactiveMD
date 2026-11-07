@@ -71,7 +71,8 @@
   }
 
   /* Remove document chrome that only makes sense on screen. */
-  .md-document button {
+  .md-document button,
+  .md-document input:is([type="button"], [type="submit"], [type="reset"]) {
     display: none !important;
   }
 
@@ -86,8 +87,16 @@
     cursor: default;
   }
 
-  .md-document :is(input, select, textarea):not(.md-task-checkbox) {
+  /* Built-ins provide print summaries; external native fields retain their
+     current values and browser rendering. */
+  .md-document .md-control:has(.local-print-value) :is(input, select, textarea):not(.md-task-checkbox) {
     display: none !important;
+  }
+
+  :where(.md-document :is(input, select, textarea):not([data-rmd-appearance="custom"])) {
+    box-shadow: none;
+    background-color: transparent;
+    color: var(--ink);
   }
 
   .md-document .md-task-checkbox {
@@ -163,7 +172,7 @@
   }
 
   /* Cards and media should not break across sheets where practical. */
-  .md-document :is(.md-card, .local-panel, .local-checklist, .local-timer,
+  .md-document :is(.md-card, .md-panel, .md-alert, .md-empty-state, .local-panel, .local-checklist, .local-timer,
     .local-quiz, .local-multi-select, .local-alert, .local-progress,
     .local-coordinate, .local-counter, .local-tooltip) {
     background: #ffffff !important;

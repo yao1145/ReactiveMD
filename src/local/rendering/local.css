@@ -30,7 +30,7 @@
   --local-check-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20fill-rule='evenodd'%20d='M12%200a12%2012%200%201%201%200%2024%2012%2012%200%200%201%200-24ZM5%2012l5.2%205.2%208.7-10.2-1.98-1.69-6.87%208.06-3.21-3.21z'/%3E%3C/svg%3E");
 }
 
-.local-document :is(.local-panel-body, .md-card-body, .local-tabpanel,
+.local-document :is(.local-panel-body, .local-tabpanel,
   .local-disclosure-panel, .local-alert-body) {
   --local-block-title-size: var(--text-block-subtitle);
   font-size: var(--text-md);
@@ -43,7 +43,7 @@
   --local-block-title-size: var(--text-block-subtitle);
 }
 
-.local-document :is(.local-panel-title, .md-card-title, .local-tabs-label,
+.local-document :is(.local-panel-title, .local-tabs-label,
   .local-accordion-label, .local-disclosure-heading, .local-alert-title,
   .local-visual-title, .local-steps-label) {
   font-size: var(--local-block-title-size);
@@ -225,57 +225,7 @@
   margin: var(--space-1) 0;
 }
 
-/* Shared form controls inherit the base token set. Local documents only
-   enlarge the input type for Chinese text and keep focus/invalid states
-   aligned with the rest of the local component set. */
-
-.local-document .md-text-input,
-.local-document .md-select-input {
-  font-size: var(--text-md);
-}
-
-.local-document textarea.md-text-input {
-  line-height: var(--leading-normal);
-  resize: vertical;
-}
-
-.local-document .md-select-input:not(:disabled) {
-  cursor: pointer;
-}
-
-.local-document .md-text-input::placeholder {
-  color: var(--ink-muted);
-  opacity: 1;
-}
-
-.local-document .md-text-input[aria-invalid="true"],
-.local-document .md-select-input[aria-invalid="true"] {
-  border-color: var(--danger-line);
-}
-
-.local-document .md-text-input[aria-invalid="true"]:hover:not(:disabled),
-.local-document .md-select-input[aria-invalid="true"]:hover:not(:disabled) {
-  border-color: var(--danger-line);
-}
-
-.local-document .md-text-input:focus-visible:not(:disabled),
-.local-document .md-select-input:focus-visible:not(:disabled) {
-  outline: var(--focus-outline);
-  outline-offset: 1px;
-  border-color: var(--accent);
-  box-shadow: none;
-}
-
-.local-document .md-text-input:disabled,
-.local-document .md-select-input:disabled {
-  border-color: var(--line);
-}
-
-.local-document .md-text-input[aria-invalid="true"]:focus-visible,
-.local-document .md-select-input[aria-invalid="true"]:focus-visible {
-  outline-color: var(--danger);
-  border-color: var(--danger);
-}
+/* Native fields share their skin and mobile-readable type in native-fields.css. */
 
 /* Slider. The rail itself carries the author color when one is set and stays
    neutral otherwise. A floating light thumb rides on top of the full-height
@@ -490,8 +440,8 @@
   mask-repeat: no-repeat;
 }
 
-.local-document .local-select .md-select-input:focus-visible:not(:disabled) {
-  border-color: var(--local-accent, var(--accent));
+:where(.local-document .local-select .md-select-input:not([data-rmd-appearance="custom"]):focus-visible:not(:disabled, [aria-invalid="true"], :user-invalid)) {
+  border-color: var(--local-accent, var(--focus));
 }
 
 /* ----------------------------------------------------------------- layout */
@@ -499,9 +449,6 @@
 .local-panel {
   margin: 0.9em 0;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-panel);
-  background: var(--surface);
 }
 
 .local-panel-head {
@@ -559,6 +506,7 @@
 
 .local-document .local-card .md-card-title {
   margin: 0;
+  font-size: var(--local-block-title-size);
   padding-bottom: 0;
   border-bottom: 0;
 }
@@ -574,66 +522,12 @@
   margin-bottom: var(--space-2);
 }
 
-.local-tablist {
-  display: flex;
-  gap: var(--space-1);
-  max-width: 100%;
-  border-bottom: 1px solid var(--line);
-  overflow-x: auto;
-}
-
-.local-tab {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--control-height);
-  padding: 0 var(--space-3);
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  color: var(--ink-muted);
-  cursor: pointer;
-  transition: border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
-}
-
-.local-document .local-tab {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-}
-
-.local-tab:hover {
-  color: var(--ink);
-}
-
-.local-tab:active {
-  color: var(--ink);
-}
-
-.local-tab.is-selected {
-  background: transparent;
-  border-bottom-color: var(--ink);
-  color: var(--ink);
-}
-
-.local-tab:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: -2px;
-}
-
 .local-tabpanel {
   padding: var(--space-3) 2px 2px;
-  border-radius: var(--radius-control);
 }
 
 .local-tabpanel[hidden] {
   display: none;
-}
-
-.local-tabpanel:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: 2px;
 }
 
 /* ------------------------------------------------------------ accordion */
@@ -1019,20 +913,6 @@
 .local-alert {
   margin: 0.8em 0;
   padding: var(--space-3);
-  border: 0;
-  border-inline-start: 3px solid var(--info);
-  border-radius: var(--radius-control);
-  background: var(--info-soft);
-}
-
-.local-alert-success {
-  border-inline-start-color: var(--success);
-  background: var(--success-soft);
-}
-
-.local-alert-warning {
-  border-inline-start-color: var(--warning);
-  background: var(--warning-soft);
 }
 
 .local-alert-title {
@@ -1081,11 +961,6 @@
   width: max-content;
   max-width: min(280px, calc(100vw - 16px));
   padding: var(--space-2) var(--space-3);
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-control);
-  box-shadow: var(--shadow-md);
-  color: var(--ink);
   writing-mode: horizontal-tb;
   white-space: normal;
   overflow-wrap: anywhere;

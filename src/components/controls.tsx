@@ -782,6 +782,7 @@ export function ChoicesView(context: LocalComponentContext) {
               tabIndex={index === activeIndex ? 0 : -1}
               disabled={disabled}
               className={`local-choice${selected ? ' is-selected' : ''}`}
+              data-rmd-appearance="custom"
               onClick={() => write(option.value)}
               onKeyDown={(event) => onKeyDown(event, index)}
             >

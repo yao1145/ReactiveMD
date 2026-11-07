@@ -574,6 +574,9 @@ export function ${componentName}(ctx: LocalComponentContext) {
       <${bodyElement} className="${plan.name}-body">
         Edit <code>src/${plan.name}.tsx</code> and <code>src/${plan.name}.css</code> to build this component.
       </${bodyElement}>
+      <button type="button" className="${plan.name}-action" data-${plan.name}-action disabled={ctx.mode !== 'interactive' || ctx.disabled} onClick={() => ctx.runtime.reset(ctx.content)}>
+        Reset example
+      </button>
 ${children}    </${element}>
   );
 }
@@ -614,6 +617,12 @@ function cssSource(plan) {
 .local-document .${plan.name}-children {
   display: grid;
   gap: var(--space-2, 8px);
+}
+
+.local-document .${plan.name}-action {
+  justify-self: start;
+  min-width: 6rem;
+  min-height: 2.25rem;
 }
 `;
 }
@@ -891,6 +900,85 @@ A minimal component package scaffolded by \`reactive-md init component\`.
 The remaining files are build plumbing: \`extensions.ts\`, \`vite.config.ts\`,
 \`main/\`, \`scripts/\`, \`tsconfig.json\` and \`package.json\`. Change them when the
 package layout or preview entry needs to move.
+
+## Buttons
+
+Buttons inside the document use the theme controls by default. A plain native
+button renders as the secondary variant:
+
+\`\`\`html
+<button type="button">Action</button>
+\`\`\`
+
+Add a semantic class to choose another variant. \`md-button-primary\`,
+\`md-button-secondary\` and \`md-button-quiet\` work on their own; the older
+\`md-button\` class stays compatible and can sit beside a variant:
+
+\`\`\`html
+<button type="button" class="md-button-primary">Primary</button>
+\`\`\`
+
+Component CSS overrides the properties it declares. Other properties keep the
+theme, regardless of stylesheet order:
+
+\`\`\`css
+.local-document .${plan.name}-action {
+  min-width: 8rem;
+}
+\`\`\`
+
+Set \`data-rmd-appearance="custom"\` to opt one element out of the shared button
+skin. Its component then owns all interaction states. The element keeps theme
+variables such as \`--accent\`, \`--surface\` and \`--ink\`:
+
+\`\`\`html
+<button type="button" data-rmd-appearance="custom">Custom</button>
+\`\`\`
+
+Native buttons outside \`.md-document\` are not styled.
+
+## Native controls
+
+Native fields inside \`.md-document\` use the theme without extra classes:
+
+\`\`\`html
+<span class="md-field">
+  <label class="md-label" for="email">Email</label>
+  <input id="email" type="email" placeholder="you@example.com" />
+  <span class="md-hint">Used for receipts.</span>
+</span>
+\`\`\`
+
+\`textarea\`, single and multiple \`select\`, checkbox, radio, range, progress and
+meter use the same skin. A native checkbox shows switch appearance with
+\`class="md-switch"\` or \`role="switch"\`. Native date and time pickers, number
+spinners and select arrows stay available. Use native \`disabled\` and
+\`readonly\` on fields; read-only fields stay focusable and disabled fields keep
+the disabled appearance.
+
+Cards, badges and other public UI share the theme too:
+
+\`\`\`html
+<div class="md-card">
+  <h3 class="md-card-title">Build status</h3>
+  <div class="md-card-body">
+    <p>The latest export succeeded.</p>
+    <span class="md-badge md-badge-success">Passing</span>
+  </div>
+</div>
+\`\`\`
+
+Shared classes provide appearance. Behavior, ARIA, focus order and positioning
+stay with your component or page. \`data-rmd-appearance="custom"\` opts one
+element out of the shared skin and keeps the theme variables available. Set
+\`data-rmd-density="compact"\` or \`"comfortable"\` on the document root or a
+subtree to resize controls and table cells.
+
+### Inline components
+
+An inline component renders inside a paragraph. Keep its markup to phrasing
+content: spans, labels, inputs and inline elements. Do not emit \`div\`, \`p\` or
+block containers; the field classes work on spans.
 
 ## Install
 

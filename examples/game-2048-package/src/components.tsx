@@ -203,7 +203,7 @@ export function Game2048(context: LocalComponentContext) {
 
   return (
     <div
-      className="rmd-2048"
+      className="rmd-2048 md-panel"
       data-game-2048
       data-state={game.status}
       data-points={game.score}
@@ -211,7 +211,7 @@ export function Game2048(context: LocalComponentContext) {
     >
       <div className="rmd-2048-head">
         <strong className="rmd-2048-title">{label}</strong>
-        <output className="rmd-2048-status" data-game-2048-status>
+        <output className={`rmd-2048-status md-badge md-badge-${game.status === 'won' ? 'success' : game.status === 'over' ? 'danger' : 'neutral'}`} data-game-2048-status>
           {statusText(context, game.status)}
         </output>
       </div>
@@ -249,7 +249,7 @@ export function Game2048(context: LocalComponentContext) {
             <button type="button" data-game-2048-up disabled={locked} onClick={() => apply('up')} aria-label={t('Move up', '上移')}>↑</button>
             <button type="button" data-game-2048-right disabled={locked} onClick={() => apply('right')} aria-label={t('Move right', '右移')}>→</button>
             <button type="button" data-game-2048-down disabled={locked} onClick={() => apply('down')} aria-label={t('Move down', '下移')}>↓</button>
-            <button type="button" data-game-2048-new disabled={locked} onClick={() => setGame(createGameState(options))}>
+            <button type="button" className="md-button-primary" data-game-2048-new disabled={locked} onClick={() => setGame(createGameState(options))}>
               {t('New', '新局')}
             </button>
             <button type="button" data-game-2048-reset onClick={resetGame}>{t('Reset', '重置')}</button>
@@ -271,10 +271,10 @@ export function Game2048Static(context: LocalComponentContext) {
   const initial = createGameState(options);
   const t = context.locale.t;
   return (
-    <div className="rmd-2048 rmd-2048-static" data-game-2048-static data-state={initial.status}>
+    <div className="rmd-2048 rmd-2048-static md-panel" data-game-2048-static data-state={initial.status}>
       <div className="rmd-2048-head">
         <strong className="rmd-2048-title">{label}</strong>
-        <span className="rmd-2048-status">
+        <span className="rmd-2048-status md-badge md-badge-neutral">
           {options.size} × {options.size}
         </span>
       </div>

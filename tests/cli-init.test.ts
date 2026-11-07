@@ -114,6 +114,20 @@ describe('reactive-md init component', () => {
     expect(component).toContain('data-example-counter');
     expect(component).toContain('ctx.children.render()');
     expect(component).toContain('export const { definition, components, resources } = componentPackage;');
+    expect(component).toContain('type="button"');
+    expect(component).toContain('className="example-counter-action"');
+    expect(component).toContain('data-example-counter-action');
+    expect(component).toContain('ctx.runtime.reset(ctx.content)');
+    expect(component).not.toContain('md-button');
+
+    const componentCss = read(root, 'src/example-counter.css');
+    expect(componentCss).toContain('.local-document .example-counter-action {');
+    const actionRule = componentCss.slice(componentCss.indexOf('.local-document .example-counter-action'));
+    expect(actionRule).toContain('justify-self: start');
+    expect(actionRule).toContain('min-width: 6rem');
+    expect(actionRule).not.toContain('background');
+    expect(actionRule).not.toContain('border');
+    expect(actionRule).not.toContain('cursor');
 
     const extensions = read(root, 'extensions.ts');
     expect(extensions).toContain("import { createReactHost } from 'reactive-md/react';");
@@ -171,6 +185,23 @@ describe('reactive-md init component', () => {
     expect(readme).toContain('src/example-counter.tsx');
     expect(readme).toContain('## Edit these files');
     expect(readme).toContain('build plumbing');
+    expect(readme).toContain('## Buttons');
+    expect(readme).toContain('secondary variant');
+    expect(readme).toContain('md-button-primary');
+    expect(readme).toContain('md-button-quiet');
+    expect(readme).toContain('data-rmd-appearance="custom"');
+    expect(readme).toContain('stylesheet order');
+    expect(readme).toContain('outside `.md-document` are not styled');
+    expect(readme).toContain('## Native controls');
+    expect(readme).toContain('md-field');
+    expect(readme).toContain('md-hint');
+    expect(readme).toContain('md-switch');
+    expect(readme).toContain('readonly');
+    expect(readme).toContain('md-card-body');
+    expect(readme).toContain('md-badge-success');
+    expect(readme).toContain('data-rmd-density');
+    expect(readme).toContain('### Inline components');
+    expect(readme).toMatch(/phrasing\s+content/);
   });
 
   it('uses documented defaults and derives the tag from the directory', () => {

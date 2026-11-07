@@ -85,20 +85,86 @@ export function Article({ source }: { source: string }) {
 
 | 用途 | 公共变量 |
 | --- | --- |
-| 背景 | `--paper`、`--surface`、`--document-bg`（默认跟随 `--surface`）、`--surface-subtle`、`--surface-hover`、`--surface-active` |
+| 背景 | `--paper`、`--surface`、`--document-bg`（默认跟随 `--surface`）、`--surface-subtle`、`--surface-hover`、`--surface-active`、`--image-zoom-backdrop` |
 | 文字与边框 | `--ink`、`--ink-soft`、`--ink-muted`、`--line`、`--line-strong` |
-| 强调色 | `--accent`、`--accent-hover`、`--accent-soft`、`--accent-line` |
+| 强调色 | `--accent`、`--accent-hover`、`--accent-soft`、`--accent-line`、`--accent-ink`（填充强调色上的文字）、`--accent-text`（作为文字使用的强调色） |
 | 状态 | `--info`、`--info-soft`、`--success`、`--success-soft`、`--success-line`、`--warning`、`--warning-soft`、`--warning-line`、`--danger`、`--danger-soft`、`--danger-line`、`--neutral-soft` |
 | 焦点 | `--focus`、`--focus-outline`、`--focus-ring` |
 | 数据与代码 | `--chart-1` 至 `--chart-8`、`--chart-grid`、`--chart-axis`、`--code-bg`、`--code-bg-deep`、`--code-ink` |
 | 字体 | `--font-sans`、`--font-mono`、`--text-xs` 至 `--text-xl`、`--text-2xl`、`--text-block-title`、`--text-block-subtitle` |
 | 行高与字重 | `--leading-tight`、`--leading-snug`、`--leading-normal`、`--leading-relaxed`、`--weight-regular`、`--weight-medium`、`--weight-semibold`、`--weight-bold` |
 | 间距 | `--space-1` 至 `--space-7`、`--field-gap` |
-| 圆角 | `--radius-control`、`--radius-card`、`--radius-panel`、`--radius-pill` |
-| 控件 | `--control-height-sm`、`--control-height`、`--control-height-lg`、`--control-padding-x`、`--control-padding-y`、`--disabled-opacity` |
+| 圆角 | `--radius-control`、`--radius-card`、`--radius-panel`、`--radius-pill`、`--radius-field`、`--radius-field-multiline` |
+| 控件 | `--control-height-sm`、`--control-height`、`--control-height-lg`、`--control-padding-x`、`--control-padding-y`、`--control-inset-x`、`--control-selected`、`--control-selected-ink`、`--control-track`、`--control-thumb`、`--disabled-opacity` |
+| 表格 | `--table-cell-padding-y`、`--table-cell-padding-x` |
 | 动效与阴影 | `--motion-fast`、`--motion-base`、`--motion-slow`、`--ease-standard`、`--shadow-sm`、`--shadow-md` |
 
 已有 `--blue`、`--blue-deep`、`--blue-soft`、`--blue-line` 保留兼容；新主题优先使用强调色变量。组件的局部 `color` 属性覆盖对应局部颜色，其余样式继续使用主题。数据序列、状态提示等保留各自的语义颜色。
+
+## 主题化原生按钮
+
+`reactive-md/styles.css` 包含 `controls.css` 公共按钮样式。组件作者在 `.md-document` 内输出原生 `<button>` 或 `type` 为 `button`、`submit`、`reset` 的 `<input>`，即可获得当前文档的 secondary 外观：
+
+```tsx
+<button type="button">暂停</button>
+<button type="button" className="md-button-primary">开始</button>
+<button type="button" className="game-direction">←</button>
+<button type="button" data-rmd-appearance="custom">特殊按钮</button>
+```
+
+| 用法 | 外观责任 |
+| --- | --- |
+| 普通原生按钮、兼容类 `md-button` | 默认 secondary，包含 hover、active、focus-visible 和 disabled |
+| `md-button-primary`、`md-button-secondary`、`md-button-quiet` | 显式选择语义变体，可单独使用 |
+| 组件自己的 CSS 类 | 按属性覆盖；只改宽度时，颜色、禁用态与焦点仍跟随公共样式 |
+| `data-rmd-appearance="custom"` | 当前元素退出公共按钮皮肤，组件负责完整外观与交互状态，仍可读取主题变量 |
+
+`data-rmd-appearance` 是组件输出的 DOM 属性，无须修改 RMD 语法，也不影响后代按钮。公共规则以 `:where()` 保持零选择器权重，不使用 `!important`；组件的普通类选择器可覆盖声明过的属性，包括交互状态中的同一属性。公共按钮不设置外边距，间距由容器 `gap` 或组件布局决定，并保留 `[hidden]` 的隐藏行为。禁用态也适用于禁用 `fieldset` 内的按钮。
+
+主题通过 `--surface`、`--surface-hover`、`--surface-active`、`--ink`、`--line-strong`、`--accent`、`--accent-hover`、`--accent-ink`、`--control-height`、`--control-inset-x`、`--control-padding-y`、`--radius-field`、`--focus-outline` 和现有字体、动效变量调整按钮。棋盘、方块颜色和游戏动画由组件包维护；内置与外部按钮使用同一公共实现。
+
+宿主按公共样式、主题资源、组件资源的顺序加载。SSR 页面应在首屏加载同一 `reactive-md/styles.css`；离线 HTML 应包含公共样式、所选主题和组件 CSS。各文档根节点的变量决定实例外观，切换主题保留组件运行状态。纯编译器入口保持无 CSS 依赖。
+
+自动匹配只作用于文档内的原生按钮。`[role="button"]` 由组件自行设计；文档外的导航、工具栏及宿主按钮保持各自样式。Portal、Shadow DOM 和 iframe 内容需要宿主单独接入主题。下文列出的原生控件和组件类同样使用自动皮肤。
+
+## 主题化原生控件
+
+公共样式对 `.md-document` 内的下列原生控件提供皮肤。匹配依据是真实元素和 input 类型，不从 role、容器类或 `div` 推断控件。键盘操作、校验时机、日期选择器、数字步进和平台交互保持原生；标签、ARIA、状态和行为由组件负责。在匹配元素上设置 `data-rmd-appearance="custom"` 可让该元素退出公共皮肤，主题变量仍可使用。
+
+**输入字段。** 省略 `type` 或类型为 `text`、`search`、`email`、`url`、`tel`、`password`、`number`、`date`、`time`、`datetime-local`、`month`、`week` 的输入、`textarea`，以及单选和多选 `select`，使用主题背景、边框、圆角和控件高度。焦点使用 `--focus` 与 `--focus-ring`。`aria-invalid="true"` 和平台 `:user-invalid` 显示危险色边框；公共样式不处理裸 `:invalid`，校验时机仍由作者控制。只读字段保留主题和焦点；禁用字段使用 `--disabled-opacity`，禁用 `fieldset` 内的控件同样生效。原生日期时间选择器、数字步进和下拉箭头保持可用。字段占满容器宽度、上限 420px，并可在 375px 下收缩。
+
+`.md-field` 与兼容的 `.md-control` 以纵向间距组合标签、控件、提示与错误。`.md-label`、`.md-hint`、`.md-error`、`.md-required` 分别设置这些部分；原生 `label` 和 `legend` 获得基础排版。`required` 或 `aria-required` 由作者写在控件上。`.md-text-input`、`.md-select-input` 作为兼容类继续使用同一皮肤。
+
+**选择与进度。** 原生 `input[type="checkbox"]`、`input[type="radio"]` 保留平台形状，选中标记使用 `--control-selected`，缺失时回退到 `--accent`。原生 checkbox 可通过 `.md-switch`，或在该 checkbox 上设置 `role="switch"` 来选择开关外观；公共样式不会把容器或普通 `div` 变成开关。`input[type="range"]` 在 WebKit 和 Firefox 中设置轨道与滑块，同时保留原生输入语义。`progress` 支持确定与不确定进度；`meter` 保留 low、high、optimum 语义并用状态色显示。`.md-progress`、`.md-meter` 是同一原生元素上的可选类。各类控件分别设置尺寸。
+
+**折叠内容。** 原生 `details`、`summary` 获得基础外观；标记、键盘行为和关闭状态保持原生，公共样式不对关闭元素设置 `display`。`.md-disclosure`、`.md-disclosure-title`、`.md-disclosure-panel` 是作者自有折叠结构上的可选外观类。
+
+**对话框与浮层。** 原生 `dialog` 仅在打开时设置外观，原生 `[popover]` 仅在 `:popover-open` 时设置。公共样式不设置 display、定位或指针行为。`dialog::backdrop` 使用 `--image-zoom-backdrop`，缺失时使用中性回退色。`.md-dialog`、`.md-popover`、`.md-tooltip`、`.md-menu`、`.md-menu-item`、`.md-menu-separator` 为作者自有结构提供外观；打开状态、位置、焦点、键盘处理和挂载位置由作者负责。这些类不会显示已关闭的 dialog 或 popover，尺寸约束保证 375px 下可用。
+
+## 主题化组件类
+
+其余公共 UI 由共享类覆盖。共享类提供外观；语义、行为、焦点和位置由作者负责。
+
+| 区域 | 公共类 |
+| --- | --- |
+| 容器 | `md-card`、`md-card-title`、`md-card-body`、`md-panel`、`md-panel-title`、`md-panel-body`、`md-group` |
+| 状态 | `md-badge`、`md-status`，以及 `md-badge-neutral`、`md-badge-success`、`md-badge-warning`、`md-badge-danger`、`md-badge-info` 和对应的 `md-status-*` 变体 |
+| 反馈 | `md-alert` 及 `md-alert-success`、`md-alert-warning`、`md-alert-danger`、`md-alert-info`、`md-alert-title`、`md-alert-body`；`md-empty-state`、`md-empty-state-title`、`md-empty-state-description`；`md-spinner`、`md-loading`、`md-skeleton` |
+| 导航 | `md-tabs`、`md-tablist`、`md-tab`、`md-tabpanel`、`md-pagination`、`md-page`、`md-steps`、`md-step` |
+| 正文 | 标题、段落、链接、列表、引用、分隔线、`kbd`、行内代码和代码块的文档排版；原生表格和 `md-table` |
+| 图表 | `md-chart`、`md-chart-axis`、`md-chart-grid`、`md-chart-legend`、`md-chart-node`、`md-chart-edge`、`md-chart-series-line`、`md-chart-series-area` |
+
+标签页和步骤根据 `aria-selected`、`aria-current`、`aria-expanded` 及禁用状态显示外观；`aria-current="step"` 和 `data-state="complete"` 标记步骤进度。表格使用 `md-table-striped` 显示斑马行，使用 `aria-selected="true"` 或 `data-state="selected"` 标记选中行。单元格内边距读取 `--table-cell-padding-y` 和 `--table-cell-padding-x`。
+
+图表序列元素设置 `--series-color`，缺失时回退到 `--chart-1`。`data-series="1"` 至 `"8"` 映射现有 `--chart-1` 至 `--chart-8` 调色板。SVG 几何、可访问名称和交互由作者提供。
+
+文档排版使用共享的字体、间距和行高变量。行内代码和代码块使用 `--code-bg`、`--code-bg-deep`、`--code-ink`；`kbd` 使用控件背景和边框。原生表格与 `md-table` 共用单元格内边距和边框。专用组件保持各自外观。
+
+所有新增皮肤都限制在 `.md-document` 内，基础和状态选择器主体统一用 `:where()` 保持零权重；伪元素追加在该主体之后，不新增 `!important`。组件的普通类选择器无论样式表加载顺序如何，都能覆盖其声明的属性。`[data-rmd-appearance="custom"]` 只让标记的元素退出皮肤，后代仍保留皮肤。隐藏元素保持隐藏。打印保留原生控件值和现有内置打印摘要。
+
+## 密度
+
+在文档根节点或子树上设置 `data-rmd-density="compact"` 或 `"comfortable"`，可通过共享变量调整控件高度和表格单元格内边距。组件和主题仍可覆盖单个尺寸。
 
 ## 组件 CSS 与验收
 

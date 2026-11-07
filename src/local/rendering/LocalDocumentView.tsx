@@ -1872,6 +1872,7 @@ function HtmlDetailsView({ node, visible }: LocalComponentProps) {
             id={triggerId}
             type="button"
             className="local-disclosure-trigger"
+            data-rmd-appearance="custom"
             aria-expanded={open}
             aria-controls={panelId}
             onClick={() => setOpen((value) => !value)}
