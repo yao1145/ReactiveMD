@@ -26,7 +26,7 @@
   line-height: var(--leading-relaxed);
 }
 
-[data-rmd-theme="sci-fi"] .md-document:focus-visible {
+[data-rmd-theme="sci-fi"].md-document:focus-visible {
   outline: var(--focus-outline);
   outline-offset: 2px;
   border-radius: 0;
@@ -34,19 +34,19 @@
 
 /* ----------------------------------------------------------- 2. typography */
 
-[data-rmd-theme="sci-fi"] .md-document h1,
-[data-rmd-theme="sci-fi"] .md-document h2,
-[data-rmd-theme="sci-fi"] .md-document h3,
-[data-rmd-theme="sci-fi"] .md-document h4,
-[data-rmd-theme="sci-fi"] .md-document h5,
-[data-rmd-theme="sci-fi"] .md-document h6 {
+[data-rmd-theme="sci-fi"].md-document h1,
+[data-rmd-theme="sci-fi"].md-document h2,
+[data-rmd-theme="sci-fi"].md-document h3,
+[data-rmd-theme="sci-fi"].md-document h4,
+[data-rmd-theme="sci-fi"].md-document h5,
+[data-rmd-theme="sci-fi"].md-document h6 {
   color: var(--ink);
   font-weight: var(--weight-bold);
   letter-spacing: var(--sf-track-title);
   line-height: var(--leading-tight);
 }
 
-[data-rmd-theme="sci-fi"] .md-document h1 {
+[data-rmd-theme="sci-fi"].md-document h1 {
   position: relative;
   margin: 0 0 var(--space-5);
   padding-bottom: var(--space-3);
@@ -57,7 +57,7 @@
   text-transform: uppercase;
 }
 
-[data-rmd-theme="sci-fi"] .md-document h1::after {
+[data-rmd-theme="sci-fi"].md-document h1::after {
   content: "";
   position: absolute;
   left: 0;
@@ -67,7 +67,7 @@
   background: var(--accent);
 }
 
-[data-rmd-theme="sci-fi"] .md-document h2 {
+[data-rmd-theme="sci-fi"].md-document h2 {
   margin: var(--space-6) 0 var(--space-3);
   padding-left: var(--space-3);
   border-left: var(--sf-rule) solid var(--accent);
@@ -76,7 +76,7 @@
   text-transform: uppercase;
 }
 
-[data-rmd-theme="sci-fi"] .md-document h3 {
+[data-rmd-theme="sci-fi"].md-document h3 {
   margin: var(--space-5) 0 var(--space-2);
   padding-bottom: var(--space-1);
   border-bottom: 1px solid var(--line);
@@ -88,9 +88,9 @@
   text-transform: uppercase;
 }
 
-[data-rmd-theme="sci-fi"] .md-document h4,
-[data-rmd-theme="sci-fi"] .md-document h5,
-[data-rmd-theme="sci-fi"] .md-document h6 {
+[data-rmd-theme="sci-fi"].md-document h4,
+[data-rmd-theme="sci-fi"].md-document h5,
+[data-rmd-theme="sci-fi"].md-document h6 {
   color: var(--ink-muted);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
@@ -99,36 +99,36 @@
   text-transform: uppercase;
 }
 
-[data-rmd-theme="sci-fi"] .md-document p {
+[data-rmd-theme="sci-fi"].md-document p {
   margin: 0.7em 0;
   letter-spacing: 0.004em;
 }
 
-[data-rmd-theme="sci-fi"] .md-document strong {
+[data-rmd-theme="sci-fi"].md-document strong {
   color: var(--ink);
   font-weight: var(--weight-semibold);
 }
 
-[data-rmd-theme="sci-fi"] .md-document a {
+[data-rmd-theme="sci-fi"].md-document a {
   color: var(--accent-text);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
 
-[data-rmd-theme="sci-fi"] .md-document a:hover {
+[data-rmd-theme="sci-fi"].md-document a:hover {
   background: var(--accent-soft);
   box-shadow: 0 0 0 2px var(--accent-soft);
   color: var(--accent-text);
 }
 
-[data-rmd-theme="sci-fi"] .md-document a:focus-visible {
+[data-rmd-theme="sci-fi"].md-document a:focus-visible {
   outline: var(--focus-outline);
   outline-offset: 2px;
   border-radius: 0;
 }
 
-[data-rmd-theme="sci-fi"] .md-document blockquote {
+[data-rmd-theme="sci-fi"].md-document blockquote {
   margin: var(--space-4) 0;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--line);
@@ -138,15 +138,15 @@
   font-style: normal;
 }
 
-[data-rmd-theme="sci-fi"] .md-document blockquote p:first-child {
+[data-rmd-theme="sci-fi"].md-document blockquote p:first-child {
   margin-top: 0;
 }
 
-[data-rmd-theme="sci-fi"] .md-document blockquote p:last-child {
+[data-rmd-theme="sci-fi"].md-document blockquote p:last-child {
   margin-bottom: 0;
 }
 
-[data-rmd-theme="sci-fi"] .md-document hr {
+[data-rmd-theme="sci-fi"].md-document hr {
   position: relative;
   height: 1px;
   margin: var(--space-6) 0;
@@ -154,7 +154,7 @@
   background: var(--line-strong);
 }
 
-[data-rmd-theme="sci-fi"] .md-document hr::after {
+[data-rmd-theme="sci-fi"].md-document hr::after {
   content: "";
   position: absolute;
   left: 0;
@@ -164,27 +164,27 @@
   background: var(--accent);
 }
 
-[data-rmd-theme="sci-fi"] .md-document ul > li::marker {
+[data-rmd-theme="sci-fi"].md-document ul > li::marker {
   color: var(--accent);
   font-family: var(--sf-font-data);
 }
 
-[data-rmd-theme="sci-fi"] .md-document ol > li::marker {
+[data-rmd-theme="sci-fi"].md-document ol > li::marker {
   color: var(--accent-text);
   font-family: var(--sf-font-data);
   font-size: 0.88em;
   font-variant-numeric: tabular-nums;
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-list {
+[data-rmd-theme="sci-fi"].md-document .md-list {
   padding-left: 1.4em;
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-list-item {
+[data-rmd-theme="sci-fi"].md-document .md-list-item {
   margin: 0.3em 0;
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-inline-code {
+[data-rmd-theme="sci-fi"].md-document .md-inline-code {
   padding: 0.06em 0.38em;
   border: 1px solid var(--line);
   border-radius: 0;
@@ -195,7 +195,7 @@
   letter-spacing: 0.01em;
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-image {
+[data-rmd-theme="sci-fi"].md-document .md-image {
   border: 1px solid var(--line-strong);
   border-radius: 0;
 }
@@ -241,7 +241,7 @@
   background: var(--sf-panel-head-bg);
 }
 
-[data-rmd-theme="sci-fi"] .local-document .local-panel-title,
+[data-rmd-theme="sci-fi"].local-document .local-panel-title,
 [data-rmd-theme="sci-fi"] .local-panel-title {
   color: var(--ink-soft);
   font-family: var(--sf-font-data);
@@ -266,7 +266,7 @@
   padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
-[data-rmd-theme="sci-fi"] .local-document .md-button.local-panel-reset,
+[data-rmd-theme="sci-fi"].local-document .md-button.local-panel-reset,
 [data-rmd-theme="sci-fi"] .local-panel .local-panel-reset {
   min-height: var(--control-height-sm);
   padding: 0 var(--space-2);
@@ -320,12 +320,12 @@
   margin-bottom: 0;
 }
 
-[data-rmd-theme="sci-fi"] .local-document .local-card {
+[data-rmd-theme="sci-fi"].local-document .local-card {
   border: 0;
   background: var(--sf-panel-bg);
 }
 
-[data-rmd-theme="sci-fi"] .local-document .local-card .md-card-title {
+[data-rmd-theme="sci-fi"].local-document .local-card .md-card-title {
   border-bottom: 0;
 }
 
@@ -429,7 +429,7 @@
   background: transparent;
 }
 
-[data-rmd-theme="sci-fi"] .local-document .local-visual-title,
+[data-rmd-theme="sci-fi"].local-document .local-visual-title,
 [data-rmd-theme="sci-fi"] .local-visual-title {
   margin: 0 0 var(--space-3);
   padding: 0 0 var(--space-2);
@@ -645,7 +645,7 @@
 
 /* ------------------------------------------------------------- 5. buttons */
 
-[data-rmd-theme="sci-fi"] .md-document .md-button,
+[data-rmd-theme="sci-fi"].md-document .md-button,
 [data-rmd-theme="sci-fi"] .md-button {
   min-height: var(--control-height);
   margin: 0 var(--space-1) var(--space-1) 0;
@@ -722,8 +722,8 @@
   cursor: not-allowed;
 }
 
-[data-rmd-theme="sci-fi"] .local-document .md-button.local-counter-button,
-[data-rmd-theme="sci-fi"] .local-document .md-button.local-counter-reset {
+[data-rmd-theme="sci-fi"].local-document .md-button.local-counter-button,
+[data-rmd-theme="sci-fi"].local-document .md-button.local-counter-reset {
   min-height: var(--control-height);
   padding: 0 var(--space-3);
   border-radius: 0;
@@ -746,7 +746,7 @@
   margin: var(--space-3) 0;
 }
 
-[data-rmd-theme="sci-fi"] .local-document .md-label,
+[data-rmd-theme="sci-fi"].local-document .md-label,
 [data-rmd-theme="sci-fi"] .md-label,
 [data-rmd-theme="sci-fi"] .local-radio-group legend,
 [data-rmd-theme="sci-fi"] .local-checklist legend,
@@ -760,8 +760,8 @@
   text-transform: uppercase;
 }
 
-[data-rmd-theme="sci-fi"] .local-document .md-text-input,
-[data-rmd-theme="sci-fi"] .local-document .md-select-input,
+[data-rmd-theme="sci-fi"].local-document .md-text-input,
+[data-rmd-theme="sci-fi"].local-document .md-select-input,
 [data-rmd-theme="sci-fi"] .md-text-input,
 [data-rmd-theme="sci-fi"] .md-select-input {
   max-width: 100%;
@@ -804,8 +804,8 @@
 
 [data-rmd-theme="sci-fi"] .md-text-input[aria-invalid="true"],
 [data-rmd-theme="sci-fi"] .md-select-input[aria-invalid="true"],
-[data-rmd-theme="sci-fi"] .local-document .md-text-input[aria-invalid="true"],
-[data-rmd-theme="sci-fi"] .local-document .md-select-input[aria-invalid="true"] {
+[data-rmd-theme="sci-fi"].local-document .md-text-input[aria-invalid="true"],
+[data-rmd-theme="sci-fi"].local-document .md-select-input[aria-invalid="true"] {
   border-color: var(--danger);
   box-shadow: inset 0 0 0 1px var(--danger);
 }
@@ -949,25 +949,25 @@
   background-size: 6px 6px;
 }
 
-[data-rmd-theme="sci-fi"] .local-document .md-task-checkbox {
+[data-rmd-theme="sci-fi"].local-document .md-task-checkbox {
   width: 14px;
   height: 14px;
   border: 1px solid var(--line-strong);
   border-radius: 0;
 }
 
-[data-rmd-theme="sci-fi"] .local-document .md-task-checkbox:checked {
+[data-rmd-theme="sci-fi"].local-document .md-task-checkbox:checked {
   border-color: var(--accent);
   background-color: var(--accent);
 }
 
-[data-rmd-theme="sci-fi"] .local-document .md-toggle-label {
+[data-rmd-theme="sci-fi"].local-document .md-toggle-label {
   padding: var(--space-1) var(--space-2);
   border: 1px solid transparent;
   border-radius: 0;
 }
 
-[data-rmd-theme="sci-fi"] .local-document .md-toggle-label:hover:has(input:not(:disabled)) {
+[data-rmd-theme="sci-fi"].local-document .md-toggle-label:hover:has(input:not(:disabled)) {
   border-color: var(--line);
   background: var(--surface-hover);
 }
@@ -1116,7 +1116,7 @@
   background: var(--line);
 }
 
-[data-rmd-theme="sci-fi"] .local-document .local-steps-nav .md-button {
+[data-rmd-theme="sci-fi"].local-document .local-steps-nav .md-button {
   min-height: var(--control-height);
   margin: 0;
   border: 0;
@@ -1150,7 +1150,7 @@
   border-top: 0;
 }
 
-[data-rmd-theme="sci-fi"] .local-document .local-disclosure-trigger {
+[data-rmd-theme="sci-fi"].local-document .local-disclosure-trigger {
   min-height: var(--control-height-lg);
   padding: var(--space-2) var(--space-3);
   border-radius: 0;
@@ -1318,7 +1318,7 @@
 
 /* ---------------------------------------------------------- 9. code & math */
 
-[data-rmd-theme="sci-fi"] .md-document .md-code {
+[data-rmd-theme="sci-fi"].md-document .md-code {
   margin: var(--space-4) 0;
   padding: var(--space-2) var(--space-3);
   border: 1px solid color-mix(in srgb, var(--code-ink) 20%, var(--code-bg));
@@ -1330,47 +1330,47 @@
   line-height: var(--leading-normal);
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-code-block {
+[data-rmd-theme="sci-fi"].md-document .md-code-block {
   border: 1px solid color-mix(in srgb, var(--code-ink) 20%, var(--code-bg));
   border-radius: 0;
   background: var(--code-bg);
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-code-block-toolbar {
+[data-rmd-theme="sci-fi"].md-document .md-code-block-toolbar {
   min-height: 34px;
   padding: 0 var(--space-1) 0 var(--space-3);
   border-bottom: 1px solid color-mix(in srgb, var(--code-ink) 18%, var(--code-bg-deep));
   background: var(--code-bg-deep);
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-code-block-language,
-[data-rmd-theme="sci-fi"] .md-document .md-code-block-copy,
-[data-rmd-theme="sci-fi"] .md-document .md-code-block-feedback {
+[data-rmd-theme="sci-fi"].md-document .md-code-block-language,
+[data-rmd-theme="sci-fi"].md-document .md-code-block-copy,
+[data-rmd-theme="sci-fi"].md-document .md-code-block-feedback {
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
   letter-spacing: var(--sf-track-label);
   text-transform: uppercase;
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-code-block-language::before {
+[data-rmd-theme="sci-fi"].md-document .md-code-block-language::before {
   content: "◆ ";
   color: var(--accent);
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-code-block-copy {
+[data-rmd-theme="sci-fi"].md-document .md-code-block-copy {
   border-radius: 0;
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-code-block-copy:hover {
+[data-rmd-theme="sci-fi"].md-document .md-code-block-copy:hover {
   background: color-mix(in srgb, var(--code-ink) 16%, transparent);
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-code-block-copy:focus-visible {
+[data-rmd-theme="sci-fi"].md-document .md-code-block-copy:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
-[data-rmd-theme="sci-fi"] .md-document .md-code-block > .md-code {
+[data-rmd-theme="sci-fi"].md-document .md-code-block > .md-code {
   margin: 0;
   border: 0;
   border-radius: 0;
@@ -1385,7 +1385,7 @@
 
 /* -------------------------------------------------------- 10. misc & print */
 
-[data-rmd-theme="sci-fi"] .local-document .local-fallback-block {
+[data-rmd-theme="sci-fi"].local-document .local-fallback-block {
   border: 1px dashed var(--line-strong);
   border-radius: 0;
   background: var(--surface-subtle);
@@ -1396,8 +1396,8 @@
   border-top: 1px solid var(--line-strong);
 }
 
-[data-rmd-theme="sci-fi"] .local-document .local-footnote-ref-link,
-[data-rmd-theme="sci-fi"] .local-document .local-footnote-backlink {
+[data-rmd-theme="sci-fi"].local-document .local-footnote-ref-link,
+[data-rmd-theme="sci-fi"].local-document .local-footnote-backlink {
   color: var(--accent-text);
   font-family: var(--font-mono);
 }
@@ -1421,7 +1421,7 @@
     background-size: 32px 32px;
   }
 
-  [data-rmd-theme="sci-fi"] .md-document h1 {
+  [data-rmd-theme="sci-fi"].md-document h1 {
     font-size: 24px;
   }
 
