@@ -19,6 +19,8 @@ Reactive MD 把普通 Markdown 变成一个小型应用：命名输入、实时�
 - **可扩展。** 发布一个包含 manifest、React 实现和 CSS 的 npm 组件包；它会自动进入编辑器目录，并可参与离线导出。
 - **一个文件即可分享。** 构建自包含的交互 HTML，或不含脚本的静态快照。
 
+启用 `reactiveMd()` 后，主题和组件可通过 `theme/` 与 `plugin/` 目录接入，详见[目录接入规则](docs/integration/directory-discovery-ch.md)。
+
 ## 一览
 
 | 方面 | 能力 |

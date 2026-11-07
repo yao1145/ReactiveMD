@@ -140,7 +140,6 @@ describe('defineLocalTheme', () => {
       '[data-rmd-theme="paper"] ~ .host { color: red; }',
       '[data-rmd-theme="paper"]:has(+ .host) { color: red; }',
       '+ .host { color: red; }',
-      '@font-face { font-family: x; src: url("data:font/woff2;base64,AA=="); }',
       '@keyframes spin { from { opacity: 0; } to { opacity: 1; } }',
       '@-webkit-keyframes spin { from { opacity: 0; } }',
     ];
@@ -152,6 +151,22 @@ describe('defineLocalTheme', () => {
         css: [{ id: 'main', css }],
       }), css).toThrow(/Invalid local theme/);
     }
+  });
+
+  it('accepts @font-face with an automatically namespaced family', () => {
+    const theme = defineLocalTheme({
+      id: 'example/font-face',
+      name: 'font-face',
+      version: '1.0.0',
+      css: [{
+        id: 'main',
+        css: '@font-face { font-family: "Local"; src: url("data:font/woff2;base64,AA=="); }\n.x { font-family: "Local", serif; }',
+      }],
+    });
+    const css = collectLocalThemeCss(theme);
+    expect(css).toContain('@font-face {');
+    expect(css).toMatch(/rmd-theme-font-face-font-[0-9a-f]+/);
+    expect(css).not.toContain('font-family: "Local"');
   });
 
   it('keeps scoped child selectors, descendant :has() and data image-set entries', () => {

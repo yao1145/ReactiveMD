@@ -51,15 +51,9 @@ export const componentPackage = defineReactComponentPackage({
 
 ## 宿主只装配一次
 
-脚手架已生成以下接线。新包在 `extensions.ts` 的数组中登记：
+在宿主项目启用 `reactiveMd()`，把包入口放入 `plugin/my-note/index.ts`，默认导出 `componentPackage`。主题放入 `theme/<名称>/theme.css`。新增目录即可接入，CSS 和离线资源由插件收集。应用继续从 `virtual:reactive-md/host` 读取 `host`，预览使用 `host.reactConfig`，编译器与 Worker 使用 `host.compileOptions`。详见[目录接入规则](../integration/directory-discovery-ch.md)。
 
-```ts
-import { createReactHost } from 'reactive-md/react';
-import { componentPackage } from './src/my-note.js';
-export const host = createReactHost({ packages: [componentPackage] });
-```
-
-`reactiveMd({ extensions: './extensions.ts' })` 为 Vite 配置样式、依赖去重和离线运行时。应用从 `virtual:reactive-md/host` 读取 `host`，向预览传 `host.reactConfig`；自建编译器或 Worker 使用 `host.compileOptions`。形态、属性和能力在 `src/manifest.ts` 中修改。简单组件也可直接在便捷工厂中内联声明，协议和 leaf 形态有默认值；CSS 资源 ID 可从组件 ID 派生。
+高级宿主可继续使用 `reactiveMd({ extensions: './extensions.ts' })` 和 `createReactHost` 手动组合。
 
 ## 验证和打包
 

@@ -136,8 +136,9 @@ describe('reactive-md init component', () => {
 
     const vite = read(root, 'vite.config.ts');
     expect(vite).toContain("import { reactiveMd } from 'reactive-md/vite';");
-    expect(vite).toContain('reactiveMd({ extensions })');
-    expect(vite).toContain('./extensions.ts');
+    expect(vite).toContain('reactiveMd()');
+    expect(vite).not.toContain('./extensions.ts');
+    expect(read(root, 'main/plugin/example-counter/index.ts')).toContain("export { componentPackage as default } from '../../../src/example-counter.js'");
 
     const main = read(root, 'main/main.tsx');
     expect(main).toContain("from 'virtual:reactive-md/host'");

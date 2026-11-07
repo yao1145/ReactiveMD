@@ -19,6 +19,8 @@ Reactive MD turns ordinary Markdown into a small application: named inputs, live
 - **Extensible.** Ship an npm component package with a manifest, a React renderer and CSS; it appears in the editor catalog and can be exported offline.
 - **One file to share.** Build a self-contained interactive HTML file or a script-free static snapshot.
 
+Themes and components can be loaded from `theme/` and `plugin/` with `reactiveMd()`. See [directory integration](docs/integration/directory-discovery-en.md).
+
 ## At a glance
 
 | Area | What you get |

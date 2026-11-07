@@ -36,10 +36,10 @@ Vite 项目使用公开 Node 入口：
 
 ```ts
 import { reactiveMd } from 'reactive-md/vite';
-export default { plugins: [reactiveMd({ extensions: './extensions.ts' })] };
+export default { plugins: [reactiveMd()] };
 ```
 
-注册模块导出 `host = createReactHost(...)`。应用从 `virtual:reactive-md/host` 获取 `host`，不再维护专属别名、组件样式注入或依赖排除表。虚拟入口也导出配置与资源字段，以及 `extensions` 命名空间，供宿主读取样例等自定义元数据；这些元数据不会进入 Worker。类型入口为 `reactive-md/vite/client`。
+默认发现宿主的 `theme/` 与 `plugin/`。完整约定见[目录接入](../integration/directory-discovery-ch.md)。手动模式 `reactiveMd({ extensions: './extensions.ts' })` 仍接受导出 `host = createReactHost(...)` 的模块。应用从 `virtual:reactive-md/host` 获取 `host`，不再维护专属别名、组件样式注入或依赖排除表。虚拟入口也导出配置与资源字段，以及 `extensions` 命名空间，供宿主读取样例等自定义元数据；这些元数据不会进入 Worker。类型入口为 `reactive-md/vite/client`。
 
 插件合并已有 Vite 设置，排除 ReactiveMD JS 子入口的预构建并对 React 去重。组件默认样式先于主题样式注入；配置变化触发重载并清理旧样式。应用仍显式向预览提供 `host.reactConfig`，向编译器、作者工具及 Worker 提供 `host.compileOptions`，以支持多个独立宿主实例。核心基础样式由应用导入 `reactive-md/styles.css`，脚手架已包含这一步。
 
@@ -182,7 +182,7 @@ export function Playground() {
 
 ### 接入本仓库 Demo
 
-在 [demo/extensions.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/extensions.ts) 的现有数组中登记插件。每项可提供 `components`（React 实现数组）、`resources`（`{ id, css }` 数组）、`themes`、`notices` 和 `examples`。清单从实现读取 manifest，一次生成共享的编译与 React 配置，自动接入预览、编辑器目录、样式、样例导航与离线导出。仓库提供两个完整的安装包案例：`examples/tetris-package` 登记 `<tetris>`，`examples/game-2048-package` 登记 `<game-2048>`。两者都打包为 `demo/vendor/` 中的 npm tarball，作为 Demo 依赖安装，并通过公开的 `./react` 与 `./notices` 入口导入。2048 案例同时记录了标签规则：组件名必须以字母开头，因此熟悉的 `<2048>` 不是合法标签。修改任一包的源码后，运行 `npm run update:demo-tetris` 或 `npm run update:demo-2048`，构建并安装新的快照，更新依赖锁文件。
+把包的公开 React 入口转出到宿主 `plugin/<名称>/index.ts`，默认导出组件包。Demo 的 `plugin/tetris/` 与 `plugin/game-2048/` 展示了现有 npm tarball 的目录接入，主题放在 `theme/`。预览、编辑器目录和离线导出共用生成的 host。修改包源码后重新构建与打包，使用带内容摘要的 vendor 文件名更新 Demo 依赖及 lockfile。
 
 `resources.id` 与 manifest 的 `styles` 对应。Demo 接受内联 CSS 和 data URL；包可导出 CSS 文本，或由 Vite 通过 `?inline` 读取 CSS 文件。样例源码可以直接由包导出，登记中英文元数据后自动进入目录。Vite 去重和编译选项由宿主统一设置，新增包沿用这些设置。
 

@@ -177,6 +177,7 @@ Generated layout:
   src/<name>.tsx        React view and defineReactComponentPackage
   src/<name>.css        scoped component styles
   extensions.ts         export const host = createReactHost({ packages })
+  main/plugin/<name>/index.ts  automatically discovered preview package
   main/index.html       browser preview
   scripts/build.mjs     dist/node entries and dist/types declarations
   scripts/verify.mjs    manifest and React/SSR compliance

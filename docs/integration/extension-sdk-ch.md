@@ -135,7 +135,7 @@ const highContrast = composeLocalTheme({
 const stylesheet = collectLocalThemeCss(highContrast);
 ```
 
-主题 CSS 只接受内联 `data:` 资源，拒绝网络引用、`@import` 和字符串之外的 CSS 转义。主题包本阶段拒绝带全局名称的 `@font-face` 和 `@keyframes`；可使用系统字体、过渡和公共动效变量。
+主题 CSS 只接受内联 `data:` 资源，拒绝网络引用、`@import` 和字符串之外的 CSS 转义。`@font-face` 的字体名与字面量 `font-family`、`font` 引用按主题命名空间重写；`@keyframes` 仍被拒绝。目录加载器先把本地字体与图片内联为 `data:`，再调用主题校验。
 
 `composeLocalTheme` 把覆盖层追加在基础样式之后。覆盖层不得复用基础主题已声明的资源 id。`collectLocalThemeCss` 按样式表顺序拼接资源。
 

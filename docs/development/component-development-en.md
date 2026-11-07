@@ -51,15 +51,9 @@ Click the title to expand or collapse its Markdown. The same renderer handles st
 
 ## Assemble the host once
 
-The scaffold supplies this wiring. Register packages in `extensions.ts`:
+Enable `reactiveMd()` in the consuming project and put a default `componentPackage` export in `plugin/my-note/index.ts`. Put themes in `theme/<name>/theme.css`. The plugin discovers added directories and collects CSS and offline resources. Read `host` from `virtual:reactive-md/host`; use `host.reactConfig` for React and `host.compileOptions` for compilation and Workers. See the [directory integration rules](../integration/directory-discovery-en.md).
 
-```ts
-import { createReactHost } from 'reactive-md/react';
-import { componentPackage } from './src/my-note.js';
-export const host = createReactHost({ packages: [componentPackage] });
-```
-
-`reactiveMd({ extensions: './extensions.ts' })` configures styles, deduplication and the offline runtime in Vite. The app reads `host` from `virtual:reactive-md/host` and passes `host.reactConfig` to the preview. Custom compilers and Workers use `host.compileOptions`. Edit form, props and capabilities in `src/manifest.ts`. Simple components may inline their manifest in the convenience factory, which defaults the protocol and leaf form and derives a CSS resource ID from the component ID.
+Advanced hosts can keep `reactiveMd({ extensions: './extensions.ts' })` and compose packages with `createReactHost`.
 
 ## Check and pack
 

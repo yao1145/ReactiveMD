@@ -21,10 +21,10 @@ Distributable packages retain a pure manifest entry. A separate manifest can be 
 
 ```ts
 import { reactiveMd } from 'reactive-md/vite';
-export default { plugins: [reactiveMd({ extensions: './extensions.ts' })] };
+export default { plugins: [reactiveMd()] };
 ```
 
-The registration module exports `host = createReactHost(...)`. Applications import it from `virtual:reactive-md/host`, which supplies styles without a private alias or manual injection. It also exposes configuration/resource fields and an `extensions` namespace for host-owned metadata such as examples. Metadata never enters the Worker. Reference `reactive-md/vite/client` for virtual-module types.
+The plugin discovers the host project's `theme/` and `plugin/` directories. See [directory integration](../integration/directory-discovery-en.md). Manual mode, `reactiveMd({ extensions: './extensions.ts' })`, still accepts a module exporting `host = createReactHost(...)`. Applications import it from `virtual:reactive-md/host`, which supplies styles without a private alias or manual injection. It also exposes configuration/resource fields and an `extensions` namespace for host-owned metadata such as examples. Metadata never enters the Worker. Reference `reactive-md/vite/client` for virtual-module types.
 
 The adapter merges Vite settings, excludes ReactiveMD JS entries from prebundling and deduplicates React. Component defaults precede theme CSS; configuration changes reload the host and dispose old styles. Applications explicitly pass `host.reactConfig` to views and `host.compileOptions` to compilers, editors and Workers. Import the core stylesheet `reactive-md/styles.css`; the scaffold includes it.
 
@@ -167,7 +167,7 @@ The editor reads titles, descriptions, category and insertion template from `aut
 
 ### Use the repository Demo
 
-Add the package to the existing array in [demo/extensions.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/extensions.ts). Contributions accept `components` (React implementations), `resources` (`{ id, css }` records), `themes`, `notices` and `examples`. The Demo reads manifests from implementations and assembles shared compiler and React configuration, preview styles, the editor catalog, example navigation and offline exports. The repository ships two complete installed-package cases: `examples/tetris-package` registers `<tetris>` and `examples/game-2048-package` registers `<game-2048>`. Both are packed into npm tarballs under `demo/vendor/`, installed as Demo dependencies, and imported through their public `./react` and `./notices` entries. The 2048 case also records the tag rule: component names must start with a letter, so the familiar `<2048>` spelling is not valid. After editing either package, run `npm run update:demo-tetris` or `npm run update:demo-2048` to build and install a new snapshot and update the dependency lockfile.
+Forward the package's public React entry from the host project's `plugin/<name>/index.ts` as the default package export. The Demo's `plugin/tetris/` and `plugin/game-2048/` directories consume its existing npm tarballs, with CSS themes under `theme/`. Preview, authoring and offline export share the generated host. After changing a package, rebuild and pack it, then update the Demo vendor dependency and lockfile using a content-addressed filename.
 
 Resource IDs match manifest `styles`. Supply inline CSS with data URLs, either exported by the package or imported from a CSS file with Vite's `?inline`. Example source can come directly from the package; bilingual metadata registers it in the catalog. The host maintains Vite deduplication and compiler options for every package.
 
@@ -188,7 +188,7 @@ Default component CSS supplies structure and readable basics. Scope selectors to
 
 Use `--rmd-<package-or-component>-<purpose>` for component variables. Themes override shared semantic variables without needing to know every component. Define a theme with `defineLocalTheme`, compose ordered overrides with `composeLocalTheme`, and include the result in configuration `themes`. Documents select it with `<theme name="paper">`.
 
-The template's `paper` demonstrates light/dark modes and scope; see the [theme protocol](../reference/theme-protocol-en.md). Theme definitions accept scoped inline CSS/data resources. Global font names and keyframes are outside that contract. The build adapter resolves local files referenced by component CSS; normalize theme resources into the accepted form before distributing a theme package.
+The template's `paper` demonstrates light/dark modes and scope; see the [theme protocol](../reference/theme-protocol-en.md). Theme definitions accept scoped inline CSS/data resources. Font-face names and matching literal references are scoped to the theme; keyframes remain unsupported. The build adapter resolves local files referenced by component CSS; normalize theme resources into the accepted form before distributing a theme package.
 
 ## 7. Build, SSR and offline sharing
 

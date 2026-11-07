@@ -18,6 +18,12 @@ import {
  * selector is retargeted to the composed theme name. `collectLocalThemeCss`
  * returns the concatenated stylesheet in resource order, ready for a `<style>`
  * element or an export asset list.
+ *
+ * `@font-face` is supported without leaking a global family name: every
+ * declared family is rewritten to a deterministic family that includes the
+ * theme name, and matching `font-family` / `font` references in every resource
+ * are rewritten to the same family. Composing under a new name redirects the
+ * generated families as well.
  */
 
 export interface LocalStyleResource {
@@ -74,6 +80,47 @@ const CONDITIONAL_AT_RULES = new Set([
   'scope',
   'starting-style',
 ]);
+const MAX_FONT_FAMILY_NAME_BYTES = 256;
+const GENERIC_FONT_FAMILIES = new Set([
+  'serif',
+  'sans-serif',
+  'monospace',
+  'cursive',
+  'fantasy',
+  'system-ui',
+  'ui-serif',
+  'ui-sans-serif',
+  'ui-monospace',
+  'ui-rounded',
+  'math',
+  'emoji',
+  'fangsong',
+  '-apple-system',
+  'blinkmacsystemfont',
+]);
+const CSS_WIDE_KEYWORDS = new Set(['inherit', 'initial', 'unset', 'revert', 'revert-layer']);
+const SYSTEM_FONT_KEYWORDS = new Set([
+  'caption',
+  'icon',
+  'menu',
+  'message-box',
+  'small-caption',
+  'status-bar',
+]);
+const FONT_SIZE_KEYWORDS = new Set([
+  'xx-small',
+  'x-small',
+  'small',
+  'medium',
+  'large',
+  'x-large',
+  'xx-large',
+  'xxx-large',
+  'smaller',
+  'larger',
+]);
+/** Generated family names carry the theme name and an injective encoding. */
+const GENERATED_FONT_FAMILY = /^rmd-theme-([a-z][a-z0-9-]*)-font-([0-9a-f]+)$/;
 
 function themeError(path: string, message: string): Error {
   return new Error(`Invalid local theme ${path}: ${message}`);
@@ -444,7 +491,649 @@ function findBlockEnd(css: string, start: number): number {
   return css.length;
 }
 
-function transformCss(css: string, name: string): string {
+function normalizeFontFamily(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function utf8Bytes(value: string): number[] {
+  const bytes: number[] = [];
+  for (const character of value) {
+    const code = character.codePointAt(0) as number;
+    if (code <= 0x7f) {
+      bytes.push(code);
+    } else if (code <= 0x7ff) {
+      bytes.push(0xc0 | (code >> 6), 0x80 | (code & 0x3f));
+    } else if (code <= 0xffff) {
+      bytes.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 0x3f), 0x80 | (code & 0x3f));
+    } else {
+      bytes.push(
+        0xf0 | (code >> 18),
+        0x80 | ((code >> 12) & 0x3f),
+        0x80 | ((code >> 6) & 0x3f),
+        0x80 | (code & 0x3f),
+      );
+    }
+  }
+  return bytes;
+}
+
+function utf8String(bytes: readonly number[]): string | null {
+  let result = '';
+  let index = 0;
+  while (index < bytes.length) {
+    const first = bytes[index];
+    let code: number;
+    let length: number;
+    if (first <= 0x7f) {
+      code = first;
+      length = 1;
+    } else if (first >= 0xc2 && first <= 0xdf) {
+      code = first & 0x1f;
+      length = 2;
+    } else if (first >= 0xe0 && first <= 0xef) {
+      code = first & 0x0f;
+      length = 3;
+    } else if (first >= 0xf0 && first <= 0xf4) {
+      code = first & 0x07;
+      length = 4;
+    } else {
+      return null;
+    }
+    if (index + length > bytes.length) return null;
+    for (let offset = 1; offset < length; offset += 1) {
+      const continuation = bytes[index + offset];
+      if ((continuation & 0xc0) !== 0x80) return null;
+      code = (code << 6) | (continuation & 0x3f);
+    }
+    if (length === 3 && (code < 0x800 || (code >= 0xd800 && code <= 0xdfff))) return null;
+    if (length === 4 && (code < 0x10000 || code > 0x10ffff)) return null;
+    result += String.fromCodePoint(code);
+    index += length;
+  }
+  return result;
+}
+
+/** A deterministic, theme-scoped family name; the hex suffix is invertible. */
+function generatedFontFamily(themeName: string, family: string): string {
+  const hex = utf8Bytes(family).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `rmd-theme-${themeName}-font-${hex}`;
+}
+
+/** Recognise a family produced here and recover its original normalized name. */
+function readGeneratedFontFamily(value: string): { themeName: string; original: string } | null {
+  const match = GENERATED_FONT_FAMILY.exec(value);
+  if (!match || match[2].length % 2 !== 0) return null;
+  const bytes: number[] = [];
+  for (let index = 0; index < match[2].length; index += 2) {
+    bytes.push(Number.parseInt(match[2].slice(index, index + 2), 16));
+  }
+  const original = utf8String(bytes);
+  if (original === null || original.length === 0) return null;
+  // Only our own canonical encoding counts; an author's lookalike stays literal.
+  if (normalizeFontFamily(original) !== original) return null;
+  return { themeName: match[1], original };
+}
+
+interface CssValueToken {
+  readonly type: 'ident' | 'string' | 'function' | 'number' | 'dimension' | 'percentage' | 'delimiter' | 'comma';
+  readonly text: string;
+  readonly start: number;
+  readonly end: number;
+  readonly name: string;
+  readonly stringValue: string;
+}
+
+function isIdentChar(character: string | undefined): boolean {
+  if (character === undefined) return false;
+  return /[A-Za-z0-9_-]/.test(character) || (character.codePointAt(0) as number) >= 0x80;
+}
+
+function isIdentStart(css: string, index: number): boolean {
+  const character = css[index];
+  if (character === undefined) return false;
+  if (/[A-Za-z_]/.test(character)) return true;
+  if ((character.codePointAt(0) as number) >= 0x80) return true;
+  if (character === '-') {
+    const next = css[index + 1];
+    return next !== undefined && (isIdentChar(next) || next === '-');
+  }
+  return false;
+}
+
+function startsNumber(css: string, index: number): boolean {
+  const character = css[index];
+  if (character === undefined) return false;
+  if (character >= '0' && character <= '9') return true;
+  const next = css[index + 1];
+  if (character === '+' || character === '-') {
+    return next !== undefined && ((next >= '0' && next <= '9') || next === '.');
+  }
+  if (character === '.') return next !== undefined && next >= '0' && next <= '9';
+  return false;
+}
+
+/** Tokenize a declaration value without interpreting functions other than URL. */
+function tokenizeCssValue(value: string): CssValueToken[] {
+  const tokens: CssValueToken[] = [];
+  let index = 0;
+  while (index < value.length) {
+    const character = value[index];
+    if (/\s/.test(character)) {
+      index += 1;
+      continue;
+    }
+    if (character === '/' && value[index + 1] === '*') {
+      const end = value.indexOf('*/', index + 2);
+      index = end < 0 ? value.length : end + 2;
+      continue;
+    }
+    const start = index;
+    if (character === '"' || character === "'") {
+      const end = skipString(value, index);
+      tokens.push({
+        type: 'string',
+        text: value.slice(start, end),
+        start,
+        end,
+        name: '',
+        stringValue: value.slice(start + 1, Math.max(start + 1, end - 1)),
+      });
+      index = end;
+      continue;
+    }
+    if (character === ',') {
+      tokens.push({ type: 'comma', text: ',', start, end: index + 1, name: '', stringValue: '' });
+      index += 1;
+      continue;
+    }
+    if (startsNumber(value, index)) {
+      let end = index;
+      if (value[end] === '+' || value[end] === '-') end += 1;
+      while (value[end] >= '0' && value[end] <= '9') end += 1;
+      if (value[end] === '.') {
+        end += 1;
+        while (value[end] >= '0' && value[end] <= '9') end += 1;
+      }
+      if (value[end] === 'e' || value[end] === 'E') {
+        const exponentStart = end;
+        end += 1;
+        if (value[end] === '+' || value[end] === '-') end += 1;
+        const digitsStart = end;
+        while (value[end] >= '0' && value[end] <= '9') end += 1;
+        if (end === digitsStart) end = exponentStart;
+      }
+      let type: CssValueToken['type'] = 'number';
+      if (value[end] === '%') {
+        end += 1;
+        type = 'percentage';
+      } else if (isIdentStart(value, end)) {
+        end += 1;
+        while (isIdentChar(value[end])) end += 1;
+        type = 'dimension';
+      }
+      tokens.push({ type, text: value.slice(start, end), start, end, name: '', stringValue: '' });
+      index = end;
+      continue;
+    }
+    if (isIdentStart(value, index)) {
+      let end = index + 1;
+      while (isIdentChar(value[end])) end += 1;
+      const name = value.slice(index, end).toLowerCase();
+      if (value[end] === '(') {
+        const close = skipBalanced(value, end, '(', ')');
+        const tokenEnd = Math.min(close, value.length);
+        tokens.push({ type: 'function', text: value.slice(index, tokenEnd), start, end: tokenEnd, name, stringValue: '' });
+        index = tokenEnd;
+        continue;
+      }
+      tokens.push({ type: 'ident', text: value.slice(index, end), start, end, name, stringValue: '' });
+      index = end;
+      continue;
+    }
+    if (character === '(') {
+      const close = skipBalanced(value, index, '(', ')');
+      const end = Math.min(close, value.length);
+      tokens.push({ type: 'function', text: value.slice(index, end), start, end, name: '', stringValue: '' });
+      index = end;
+      continue;
+    }
+    tokens.push({ type: 'delimiter', text: character, start, end: index + 1, name: '', stringValue: '' });
+    index += 1;
+  }
+  return tokens;
+}
+
+interface ParsedFamily {
+  readonly key: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+function isWhitespaceOnly(value: string): boolean {
+  return value.trim() === '';
+}
+
+/**
+ * Read one `<family-name>`: a quoted string or an unquoted ident sequence.
+ * Returns null for system/generic/CSS-wide keywords and for syntax this
+ * validator cannot resolve (var(), mixed tokens, comments inside the name).
+ */
+function parseCssFamily(segment: string): ParsedFamily | null {
+  const tokens = tokenizeCssValue(segment);
+  if (tokens.length === 0) return null;
+  if (tokens.length === 1 && tokens[0].type === 'string') {
+    const key = normalizeFontFamily(tokens[0].stringValue);
+    if (key === '') return null;
+    return { key, start: tokens[0].start, end: tokens[0].end };
+  }
+  if (tokens[0].type === 'string') return null;
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (tokens[index].type !== 'ident') return null;
+    if (index > 0 && !isWhitespaceOnly(segment.slice(tokens[index - 1].end, tokens[index].start))) {
+      return null;
+    }
+  }
+  if (tokens.length === 1) {
+    if (CSS_WIDE_KEYWORDS.has(tokens[0].name) || GENERIC_FONT_FAMILIES.has(tokens[0].name)) return null;
+  }
+  const key = normalizeFontFamily(tokens.map((token) => token.text).join(' '));
+  if (key === '') return null;
+  return {
+    key,
+    start: tokens[0].start,
+    end: tokens[tokens.length - 1].end,
+  };
+}
+
+interface ValueSegment {
+  readonly start: number;
+  readonly end: number;
+}
+
+/** Split a declaration value on top-level commas, preserving offsets. */
+function splitValueSegments(value: string): ValueSegment[] {
+  const segments: ValueSegment[] = [];
+  let start = 0;
+  let index = 0;
+  while (index < value.length) {
+    const character = value[index];
+    if (character === '"' || character === "'") {
+      index = skipString(value, index);
+      continue;
+    }
+    if (character === '/' && value[index + 1] === '*') {
+      const end = value.indexOf('*/', index + 2);
+      index = end < 0 ? value.length : end + 2;
+      continue;
+    }
+    if (character === '(' || character === '[') {
+      index = skipBalanced(value, index, character, character === '(' ? ')' : ']');
+      continue;
+    }
+    if (character === ',') {
+      segments.push({ start, end: index });
+      start = index + 1;
+    }
+    index += 1;
+  }
+  segments.push({ start, end: value.length });
+  return segments;
+}
+
+function splitTrailingImportant(value: string): { body: string; important: string } {
+  const tokens = tokenizeCssValue(value);
+  if (tokens.length < 2) return { body: value, important: '' };
+  const last = tokens[tokens.length - 1];
+  const marker = tokens[tokens.length - 2];
+  if (last.type !== 'ident' || last.name !== 'important') return { body: value, important: '' };
+  if (marker.type !== 'delimiter' || marker.text !== '!') return { body: value, important: '' };
+  if (!isWhitespaceOnly(value.slice(marker.end, last.start))) {
+    return { body: value, important: '' };
+  }
+  return { body: value.slice(0, marker.start), important: value.slice(marker.start) };
+}
+
+interface TextReplacement {
+  readonly start: number;
+  readonly end: number;
+  readonly text: string;
+}
+
+function applyReplacements(value: string, replacements: readonly TextReplacement[]): string {
+  if (replacements.length === 0) return value;
+  const ordered = [...replacements].sort((left, right) => left.start - right.start);
+  let result = '';
+  let index = 0;
+  for (const replacement of ordered) {
+    if (replacement.start < index) continue;
+    result += value.slice(index, replacement.start) + replacement.text;
+    index = replacement.end;
+  }
+  return result + value.slice(index);
+}
+
+function quotedFamily(family: string): string {
+  return `"${family}"`;
+}
+
+/** Rewrite only family entries that are declared by this theme. */
+function rewriteFontFamilyList(value: string, families: ReadonlyMap<string, string>): string {
+  const { body, important } = splitTrailingImportant(value);
+  const segments = splitValueSegments(body);
+  const replacements: TextReplacement[] = [];
+  for (const segment of segments) {
+    const parsed = parseCssFamily(body.slice(segment.start, segment.end));
+    if (!parsed) continue;
+    const target = families.get(parsed.key);
+    if (!target) continue;
+    replacements.push({
+      start: segment.start + parsed.start,
+      end: segment.start + parsed.end,
+      text: quotedFamily(target),
+    });
+  }
+  return applyReplacements(body, replacements) + important;
+}
+
+/** Locate the family list inside a `font` shorthand, or null if unsupported. */
+function findFontFamilyStart(value: string): number | null {
+  const tokens = tokenizeCssValue(value);
+  if (tokens.length === 0) return null;
+  if (
+    tokens.length === 1
+    && tokens[0].type === 'ident'
+    && (SYSTEM_FONT_KEYWORDS.has(tokens[0].name) || CSS_WIDE_KEYWORDS.has(tokens[0].name))
+  ) {
+    return null;
+  }
+  let sizeIndex = -1;
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.type === 'dimension' || token.type === 'percentage') {
+      sizeIndex = index;
+      break;
+    }
+    if (token.type === 'ident' && FONT_SIZE_KEYWORDS.has(token.name)) {
+      sizeIndex = index;
+      break;
+    }
+    if (token.type === 'number' && Number(token.text) === 0) {
+      sizeIndex = index;
+      break;
+    }
+    if (token.type === 'function') {
+      const next = tokens[index + 1];
+      if (next?.type === 'delimiter' && next.text === '/') {
+        sizeIndex = index;
+        break;
+      }
+    }
+  }
+  if (sizeIndex < 0) return null;
+  let familyIndex = sizeIndex + 1;
+  const slash = tokens[familyIndex];
+  if (slash?.type === 'delimiter' && slash.text === '/') familyIndex += 2;
+  if (familyIndex >= tokens.length) return null;
+  return tokens[familyIndex].start;
+}
+
+function rewriteFontShorthand(value: string, families: ReadonlyMap<string, string>): string | null {
+  const { body, important } = splitTrailingImportant(value);
+  const familyStart = findFontFamilyStart(body);
+  if (familyStart === null) return null;
+  const family = rewriteFontFamilyList(body.slice(familyStart), families);
+  return `${body.slice(0, familyStart)}${family}${important}`;
+}
+
+interface DeclarationSpan {
+  readonly name: string;
+  readonly valueStart: number;
+  readonly valueEnd: number;
+}
+
+/** Read top-level declarations of a rule body; nested blocks stay untouched. */
+function scanDeclarations(body: string): DeclarationSpan[] {
+  const declarations: DeclarationSpan[] = [];
+  let index = 0;
+  while (index < body.length) {
+    const character = body[index];
+    if (/\s/.test(character) || character === ';' || character === '}') {
+      index += 1;
+      continue;
+    }
+    if (character === '/' && body[index + 1] === '*') {
+      const end = body.indexOf('*/', index + 2);
+      index = end < 0 ? body.length : end + 2;
+      continue;
+    }
+    if (character === '{') {
+      index = findBlockEnd(body, index + 1) + 1;
+      continue;
+    }
+    const declarationStart = index;
+    let cursor = index;
+    while (cursor < body.length) {
+      const current = body[cursor];
+      if (current === '"' || current === "'") {
+        cursor = skipString(body, cursor);
+        continue;
+      }
+      if (current === '/' && body[cursor + 1] === '*') {
+        const end = body.indexOf('*/', cursor + 2);
+        cursor = end < 0 ? body.length : end + 2;
+        continue;
+      }
+      if (current === '(' || current === '[') {
+        cursor = skipBalanced(body, cursor, current, current === '(' ? ')' : ']');
+        continue;
+      }
+      if (current === ':' || current === ';' || current === '{' || current === '}') break;
+      cursor += 1;
+    }
+    if (cursor >= body.length) break;
+    if (body[cursor] !== ':') {
+      if (body[cursor] === '{') {
+        index = findBlockEnd(body, cursor + 1) + 1;
+      } else {
+        index = cursor + 1;
+      }
+      continue;
+    }
+    const name = body.slice(declarationStart, cursor).trim().toLowerCase();
+    const valueStart = cursor + 1;
+    let valueEnd = valueStart;
+    while (valueEnd < body.length) {
+      const current = body[valueEnd];
+      if (current === '"' || current === "'") {
+        valueEnd = skipString(body, valueEnd);
+        continue;
+      }
+      if (current === '/' && body[valueEnd + 1] === '*') {
+        const end = body.indexOf('*/', valueEnd + 2);
+        valueEnd = end < 0 ? body.length : end + 2;
+        continue;
+      }
+      if (current === '(' || current === '[') {
+        valueEnd = skipBalanced(body, valueEnd, current, current === '(' ? ')' : ']');
+        continue;
+      }
+      if (current === ';' || current === '{' || current === '}') break;
+      valueEnd += 1;
+    }
+    if (name !== '') declarations.push({ name, valueStart, valueEnd });
+    index = valueEnd;
+    if (body[valueEnd] === ';') index = valueEnd + 1;
+  }
+  return declarations;
+}
+
+function rewriteDeclarationBody(body: string, families: ReadonlyMap<string, string>): string {
+  const replacements: TextReplacement[] = [];
+  for (const declaration of scanDeclarations(body)) {
+    const familyProperty = declaration.name === 'font-family' || declaration.name === '--font-sans' || declaration.name === '--font-mono';
+    if (!familyProperty && declaration.name !== 'font') continue;
+    const value = body.slice(declaration.valueStart, declaration.valueEnd);
+    const rewritten = familyProperty
+      ? rewriteFontFamilyList(value, families)
+      : rewriteFontShorthand(value, families);
+    if (rewritten === null || rewritten === value) continue;
+    replacements.push({ start: declaration.valueStart, end: declaration.valueEnd, text: rewritten });
+  }
+  return applyReplacements(body, replacements);
+}
+
+/** Walk every `@font-face` block, including those nested in conditional rules. */
+function visitFontFaces(
+  css: string,
+  path: string,
+  visit: (body: string, path: string) => void,
+): void {
+  let index = 0;
+  while (index < css.length) {
+    const character = css[index];
+    if (/\s/.test(character) || character === ';' || character === '}') {
+      index += 1;
+      continue;
+    }
+    if (character === '/' && css[index + 1] === '*') {
+      const end = css.indexOf('*/', index + 2);
+      index = end < 0 ? css.length : end + 2;
+      continue;
+    }
+    if (character === '{') {
+      index = findBlockEnd(css, index + 1) + 1;
+      continue;
+    }
+    const start = index;
+    let cursor = index;
+    while (cursor < css.length) {
+      const current = css[cursor];
+      if (current === '"' || current === "'") {
+        cursor = skipString(css, cursor);
+        continue;
+      }
+      if (current === '/' && css[cursor + 1] === '*') {
+        const end = css.indexOf('*/', cursor + 2);
+        cursor = end < 0 ? css.length : end + 2;
+        continue;
+      }
+      if (current === '(' || current === '[') {
+        cursor = skipBalanced(css, cursor, current, current === '(' ? ')' : ']');
+        continue;
+      }
+      if (current === '{' || current === ';' || current === '}') break;
+      cursor += 1;
+    }
+    if (cursor >= css.length) break;
+    if (css[cursor] !== '{') {
+      index = cursor + 1;
+      continue;
+    }
+    const end = findBlockEnd(css, cursor + 1);
+    const head = css.slice(start, cursor).trim();
+    if (head.startsWith('@')) {
+      const atName = (/^@([A-Za-z-]+)/.exec(head)?.[1] ?? '').toLowerCase();
+      if (atName === 'font-face') {
+        visit(css.slice(cursor + 1, end), path);
+      } else if (CONDITIONAL_AT_RULES.has(atName)) {
+        visitFontFaces(css.slice(cursor + 1, end), path, visit);
+      }
+    }
+    index = Math.min(end + 1, css.length);
+  }
+}
+
+/** Validate and return the single declared family name of one `@font-face`. */
+function readFontFaceFamily(body: string, path: string): string {
+  const declarations = scanDeclarations(body).filter((declaration) => declaration.name === 'font-family');
+  if (declarations.length === 0) {
+    throw themeError(path, '@font-face must declare a font-family descriptor.');
+  }
+  if (declarations.length > 1) {
+    throw themeError(path, '@font-face may declare font-family only once.');
+  }
+  const value = body.slice(declarations[0].valueStart, declarations[0].valueEnd);
+  const { body: core, important } = splitTrailingImportant(value);
+  if (important !== '') {
+    throw themeError(path, '@font-face descriptors must not use !important.');
+  }
+  if (splitValueSegments(core).length !== 1) {
+    throw themeError(path, '@font-face font-family must be a single family name, not a list.');
+  }
+  const parsed = parseCssFamily(core);
+  if (!parsed) {
+    throw themeError(
+      path,
+      '@font-face font-family must be one quoted or unquoted family name; generic families, keywords, var() and other functions are not allowed.',
+    );
+  }
+  if (utf8Bytes(readGeneratedFontFamily(parsed.key)?.original ?? parsed.key).length > MAX_FONT_FAMILY_NAME_BYTES) {
+    throw themeError(path, `@font-face font-family must not exceed ${MAX_FONT_FAMILY_NAME_BYTES} UTF-8 bytes.`);
+  }
+  return parsed.key;
+}
+
+/**
+ * Build the family mapping for a whole package. Declared families are read
+ * from every resource first, so a reference in one resource resolves against a
+ * `@font-face` declared in another.
+ */
+function buildFontFamilyMap(
+  resources: readonly LocalStyleResource[],
+  themeName: string,
+  path: string,
+): ReadonlyMap<string, string> {
+  const families = new Map<string, string>();
+  for (const resource of resources) {
+    visitFontFaces(resource.css, path, (body, facePath) => {
+      const declared = readFontFaceFamily(body, facePath);
+      const generated = readGeneratedFontFamily(declared);
+      const original = generated ? generated.original : declared;
+      const target = generatedFontFamily(themeName, original);
+      const existing = families.get(declared);
+      if (existing !== undefined && existing !== target) {
+        throw themeError(facePath, `@font-face family "${declared}" maps to more than one name.`);
+      }
+      families.set(declared, target);
+      families.set(original, target);
+    });
+  }
+  return families;
+}
+
+function rewriteFontFaceBody(
+  body: string,
+  families: ReadonlyMap<string, string>,
+  path: string,
+): string {
+  const declarations = scanDeclarations(body).filter((declaration) => declaration.name === 'font-family');
+  if (declarations.length !== 1) {
+    throw themeError(path, '@font-face must declare exactly one font-family descriptor.');
+  }
+  const declaration = declarations[0];
+  const value = body.slice(declaration.valueStart, declaration.valueEnd);
+  const { body: core } = splitTrailingImportant(value);
+  if (splitValueSegments(core).length !== 1) {
+    throw themeError(path, '@font-face font-family must be a single family name, not a list.');
+  }
+  const parsed = parseCssFamily(core);
+  if (!parsed) {
+    throw themeError(path, '@font-face has an unsupported font-family descriptor.');
+  }
+  const target = families.get(parsed.key);
+  if (target === undefined) {
+    throw themeError(path, `@font-face family "${parsed.key}" was not registered.`);
+  }
+  return applyReplacements(body, [{
+    start: declaration.valueStart + parsed.start,
+    end: declaration.valueStart + parsed.end,
+    text: quotedFamily(target),
+  }]);
+}
+
+const EMPTY_FONT_FAMILIES: ReadonlyMap<string, string> = new Map();
+
+function transformCss(css: string, name: string, families: ReadonlyMap<string, string> = EMPTY_FONT_FAMILIES): string {
   let result = '';
   let index = 0;
   while (index < css.length) {
@@ -502,16 +1191,20 @@ function transformCss(css: string, name: string): string {
     if (head.startsWith('@')) {
       const atName = (/^@([A-Za-z-]+)/.exec(head)?.[1] ?? '').toLowerCase();
       if (atName === 'import') throw themeError('theme.css', 'must not use @import.');
-      if (atName === 'font-face' || atName === 'keyframes' || atName.endsWith('-keyframes')) {
+      if (atName === 'keyframes' || atName.endsWith('-keyframes')) {
         throw themeError(
           'theme.css',
           `@${atName} declares a global name; phase one only supports document-scoped CSS.`,
         );
       }
-      const inner = CONDITIONAL_AT_RULES.has(atName) ? transformCss(body, name) : body;
-      result += `${head} {${inner}}`;
+      if (atName === 'font-face') {
+        result += `${head} {${rewriteFontFaceBody(body, families, 'theme.css')}}`;
+      } else {
+        const inner = CONDITIONAL_AT_RULES.has(atName) ? transformCss(body, name, families) : body;
+        result += `${head} {${inner}}`;
+      }
     } else {
-      result += `${scopeSelectorList(head, name)} {${body}}`;
+      result += `${scopeSelectorList(head, name)} {${rewriteDeclarationBody(body, families)}}`;
     }
     index = Math.min(end + 1, css.length);
   }
@@ -519,8 +1212,12 @@ function transformCss(css: string, name: string): string {
 }
 
 /** Scope every rule in `css` to the document root that selects `name`. */
-function scopeCss(css: string, name: string): string {
-  return transformCss(css, name);
+function scopeCss(
+  css: string,
+  name: string,
+  families: ReadonlyMap<string, string> = EMPTY_FONT_FAMILIES,
+): string {
+  return transformCss(css, name, families);
 }
 
 interface ReadResources {
@@ -528,7 +1225,7 @@ interface ReadResources {
   readonly totalLength: number;
 }
 
-function readStyleResources(value: unknown, path: string, themeName: string | null): ReadResources {
+function readStyleResources(value: unknown, path: string): ReadResources {
   if (!Array.isArray(value)) throw themeError(path, 'must be an array of { id, css } resources.');
   if (value.length > MAX_THEME_RESOURCE_COUNT) {
     throw themeError(path, `may contain at most ${MAX_THEME_RESOURCE_COUNT} resources.`);
@@ -562,10 +1259,7 @@ function readStyleResources(value: unknown, path: string, themeName: string | nu
       throw themeError(path, `must not exceed ${MAX_THEME_TOTAL_CSS_LENGTH} characters in total.`);
     }
     assertSafeCss(css, `${lead}.css`);
-    resources.push(Object.freeze({
-      id,
-      css: themeName === null ? css : scopeCss(css, themeName),
-    }));
+    resources.push(Object.freeze({ id, css }));
   }
   return { resources: Object.freeze(resources), totalLength };
 }
@@ -600,7 +1294,7 @@ function readPackage(value: unknown, path: string): LocalThemePackage {
     throw themeError(`${path}.protocol`, `must be "${LOCAL_THEME_PROTOCOL}".`);
   }
   const colorSchemes = readColorSchemes(record.colorSchemes, `${path}.colorSchemes`);
-  const { resources } = readStyleResources(record.css, `${path}.css`, null);
+  const { resources } = readStyleResources(record.css, `${path}.css`);
   return freezePackage({
     id,
     name,
@@ -625,14 +1319,19 @@ export function defineLocalTheme(input: LocalThemeInput): LocalThemePackage {
     throw themeError('theme.protocol', `must be "${LOCAL_THEME_PROTOCOL}".`);
   }
   const colorSchemes = readColorSchemes(record.colorSchemes, 'theme.colorSchemes');
-  const { resources } = readStyleResources(record.css, 'theme.css', name);
+  const { resources } = readStyleResources(record.css, 'theme.css');
+  const families = buildFontFamilyMap(resources, name, 'theme.css');
+  const scoped = resources.map((resource) => Object.freeze({
+    id: resource.id,
+    css: scopeCss(resource.css, name, families),
+  }));
   return freezePackage({
     id,
     name,
     version,
     protocol: LOCAL_THEME_PROTOCOL,
     colorSchemes,
-    css: resources,
+    css: scoped,
   });
 }
 
@@ -650,7 +1349,12 @@ export function composeLocalTheme(input: LocalThemeCompositionInput): LocalTheme
   const name = readThemeName(record.name, 'theme.name');
   const version = readThemeVersion(record.version, 'theme.version');
   const base = readPackage(record.base, 'theme.base');
-  const overrides = readStyleResources(record.overrides, 'theme.overrides', name);
+  const overrides = readStyleResources(record.overrides, 'theme.overrides');
+  const families = buildFontFamilyMap(
+    [...base.css, ...overrides.resources],
+    name,
+    'theme.css',
+  );
 
   const ids = new Set(base.css.map((resource) => resource.id));
   for (const resource of overrides.resources) {
@@ -666,9 +1370,12 @@ export function composeLocalTheme(input: LocalThemeCompositionInput): LocalTheme
   const css = [
     ...base.css.map((resource) => Object.freeze({
       id: resource.id,
-      css: scopeCss(resource.css, name),
+      css: scopeCss(resource.css, name, families),
     })),
-    ...overrides.resources,
+    ...overrides.resources.map((resource) => Object.freeze({
+      id: resource.id,
+      css: scopeCss(resource.css, name, families),
+    })),
   ];
   let total = 0;
   for (const resource of css) {
@@ -694,6 +1401,6 @@ export function composeLocalTheme(input: LocalThemeCompositionInput): LocalTheme
  */
 export function collectLocalThemeCss(theme: LocalThemePackage): string {
   const record = requireRecord(theme as unknown, 'theme');
-  const { resources } = readStyleResources(record.css, 'theme.css', null);
+  const { resources } = readStyleResources(record.css, 'theme.css');
   return resources.map((resource) => resource.css).join('\n');
 }

@@ -121,7 +121,7 @@ const highContrast = composeLocalTheme({
 const stylesheet = collectLocalThemeCss(highContrast);
 ```
 
-Theme CSS accepts inline `data:` URLs and rejects network references, `@import` and CSS escapes outside strings. Theme packages reject globally named `@font-face` and `@keyframes` in this phase; system fonts, transitions and shared motion variables remain available.
+Theme CSS accepts inline `data:` URLs and rejects network references, `@import` and CSS escapes outside strings. Theme packages namespace `@font-face` names and matching literal `font-family` and `font` references. `@keyframes` remains unsupported. The directory loader inlines local fonts and images as `data:` resources before theme validation.
 
 `composeLocalTheme` appends overrides after the base stylesheet. An override must use a resource id the base does not declare. `collectLocalThemeCss` concatenates resources in stylesheet order.
 

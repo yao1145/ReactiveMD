@@ -729,11 +729,10 @@ import { defineConfig } from 'vite';
 import { reactiveMd } from 'reactive-md/vite';
 
 const root = fileURLToPath(new URL('./main', import.meta.url));
-const extensions = fileURLToPath(new URL('./extensions.ts', import.meta.url));
 
 export default defineConfig({
   root,
-  plugins: [reactiveMd({ extensions })],
+  plugins: [reactiveMd()],
 });
 `;
 }
@@ -781,7 +780,7 @@ function sampleDocumentSource(plan) {
   return `# ${pascalCase(plan.name)} preview
 
 This preview serves ${'`'}main/sample.reactive.md${'`'} through the Vite plugin.
-The component below is registered by ${'`'}extensions.ts${'`'}.
+The component below is discovered in ${'`'}main/plugin/${plan.name}/index.ts${'`'}.
 
 ${previewSource(plan)}
 `;
@@ -897,7 +896,7 @@ A minimal component package scaffolded by \`reactive-md init component\`.
 - \`src/${plan.name}.tsx\` - the React view passed to \`defineReactComponentPackage\`.
 - \`src/${plan.name}.css\` - component styles, scoped under \`.local-document\`.
 
-The remaining files are build plumbing: \`extensions.ts\`, \`vite.config.ts\`,
+The preview discovers the component through \`main/plugin/${plan.name}/index.ts\`.\n\nThe remaining files are build plumbing: \`extensions.ts\`, \`vite.config.ts\`,
 \`main/\`, \`scripts/\`, \`tsconfig.json\` and \`package.json\`. Change them when the
 package layout or preview entry needs to move.
 
@@ -1042,6 +1041,7 @@ function renderFiles(plan) {
     ['tsconfig.build.json', tsconfigBuildSource()],
     ['vite.config.ts', viteConfigSource()],
     ['extensions.ts', extensionsSource(plan)],
+    [`main/plugin/${plan.name}/index.ts`, `export { componentPackage as default } from '../../../src/${plan.name}.js';\n`],
     ['main/index.html', htmlSource(plan)],
     ['main/main.tsx', previewMainSource(plan)],
     ['main/sample.reactive.md', sampleDocumentSource(plan)],
