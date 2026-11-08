@@ -103,11 +103,40 @@ export interface LocalComponentStateRegistry {
   subscribe(listener: () => void): () => void;
 }
 
-function diagnostic(code: string, message: string): Diagnostic {
+/**
+ * Persistence port. The registry owns the save protocol and calls this after
+ * every successful save or clear; it never syncs across tabs and never reads
+ * after creation. Implementations may be in-memory, browser storage or a host
+ * service.
+ */
+export interface LocalComponentStateStorage {
+  /**
+   * Return the persisted sidecar (JSON text or a JSON-safe value), or `null`
+   * when nothing is stored. The registry validates the payload like any other
+   * sidecar and skips what does not match.
+   */
+  read(): unknown;
+  /** Persist one complete sidecar. Throwing leaves the in-memory state intact. */
+  write(document: LocalComponentStateDocument): void;
+  /** Delete the persisted sidecar. */
+  remove(): void;
+}
+
+export type LocalComponentStateParseResult =
+  | {
+    readonly ok: true;
+    readonly document: LocalComponentStateDocument;
+    readonly records: Readonly<Record<string, LocalComponentStateRecord>>;
+    readonly diagnostics: Diagnostic[];
+    readonly skipped: readonly string[];
+  }
+  | { readonly ok: false; readonly diagnostics: Diagnostic[] };
+
+function diagnostic(code: string, message: string, severity: 'error' | 'warning' = 'error'): Diagnostic {
   return {
     code,
     message,
-    severity: 'error',
+    severity,
     range: { start: 0, end: 0 },
     line: 1,
     column: 1,
@@ -359,11 +388,38 @@ function parseDocumentInput(input: unknown): {
   return { ok: true, records, diagnostics, skipped };
 }
 
+/**
+ * Validate a sidecar without creating a registry. Individual records that fail
+ * validation are skipped and reported; a payload that is not a sidecar at all
+ * returns `ok: false`.
+ */
+export function parseLocalComponentStateDocument(input: unknown): LocalComponentStateParseResult {
+  const parsed = parseDocumentInput(input);
+  if (!parsed.ok) return parsed;
+  const records: Record<string, LocalComponentStateRecord> = {};
+  for (const [key, record] of Object.entries(parsed.records)) records[key] = record;
+  return {
+    ok: true,
+    document: Object.freeze({
+      format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      records: Object.freeze(records),
+    }),
+    records: Object.freeze(records),
+    diagnostics: parsed.diagnostics,
+    skipped: parsed.skipped,
+  };
+}
+
 export interface CreateLocalComponentStateRegistryOptions {
   readonly documentId?: string;
   readonly sourceDigest: string;
   /** Sidecar payload to restore before the first render. */
   readonly initial?: unknown;
+  /**
+   * Persistence port. When set and `initial` is omitted, the registry restores
+   * the stored sidecar; later saves and clears write the complete sidecar back.
+   */
+  readonly storage?: LocalComponentStateStorage;
   /**
    * Keys currently present in the document. A function is evaluated at each
    * restore so live document updates are reflected.
@@ -382,10 +438,32 @@ export function createLocalComponentStateRegistry(
   const duplicateKeys = new Set<string>();
   const listeners = new Set<() => void>();
   const diagnostics: Diagnostic[] = [];
+  const storage = options.storage;
+  /** Last storage failure; repeating the same message does not add diagnostics. */
+  let storageFailure: string | null = null;
 
   const notify = (): void => {
     for (const listener of listeners) listener();
   };
+
+  function persistSidecar(): void {
+    if (storage === undefined) return;
+    try {
+      const document = registry.snapshot();
+      if (Object.keys(document.records).length === 0) storage.remove();
+      else storage.write(document);
+      storageFailure = null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message === storageFailure) return;
+      storageFailure = message;
+      diagnostics.push(diagnostic(
+        'local.runtime.state.storage',
+        `The component state could not be persisted: ${message}`,
+        'warning',
+      ));
+    }
+  }
 
   const totalBytes = (excluding?: string): number => {
     let total = 0;
@@ -470,11 +548,15 @@ export function createLocalComponentStateRegistry(
           }
           records.set(key, normalized.record);
           notify();
+          persistSidecar();
           return { ok: true, diagnostics: [], record: cloneRecord(normalized.record) };
         },
         clear(): void {
           if (duplicate) return;
-          if (records.delete(key)) notify();
+          if (records.delete(key)) {
+            notify();
+            persistSidecar();
+          }
         },
       };
       return Object.freeze(handle);
@@ -486,7 +568,10 @@ export function createLocalComponentStateRegistry(
     },
 
     clear(key): void {
-      if (records.delete(key)) notify();
+      if (records.delete(key)) {
+        notify();
+        persistSidecar();
+      }
     },
 
     snapshot(): LocalComponentStateDocument {
@@ -547,9 +632,22 @@ export function createLocalComponentStateRegistry(
     },
   };
 
-  if (options.initial !== undefined) {
-    const restored = registry.restore(options.initial);
-    if (restored.accepted.length) notify();
+  let initial = options.initial;
+  if (initial === undefined && storage !== undefined) {
+    try {
+      const stored = storage.read();
+      if (stored !== null) initial = stored;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      diagnostics.push(diagnostic(
+        'local.runtime.state.storage',
+        `The component state could not be read: ${message}`,
+        'warning',
+      ));
+    }
+  }
+  if (initial !== undefined) {
+    registry.restore(initial);
   }
 
   return Object.freeze(registry);

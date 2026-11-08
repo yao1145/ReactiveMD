@@ -24,6 +24,7 @@
 reactive-md build doc.reactive.md -o doc.html
 reactive-md build doc.reactive.md -o doc.html --mode static
 reactive-md build doc.reactive.md -o doc.html --state-file doc.state.json
+reactive-md build doc.reactive.md -o doc.html --component-state-file game.state.json
 reactive-md build doc.reactive.md -o doc.html --assets omit
 reactive-md lint "docs/**/*.reactive.md"
 reactive-md lint "docs/**/*.reactive.md" --json --strict
@@ -34,6 +35,9 @@ reactive-md lint "docs/**/*.reactive.md" --json --strict
 | `-o, --output <file>` | 必填输出路径；父目录必须已存在。 |
 | `--mode interactive\|static` | 输出模式，默认 `interactive`。 |
 | `--state-file <json>` | 使用经过校验的 `reactive-md-state/v1` 文件作为打开和重置基线。 |
+| `--component-state-file <json>` | 将经过校验的 `reactive-md-component-state/v1` sidecar 写入交互式 HTML；静态导出拒绝该选项。 |
+| `--document-id <id>` | 组件状态的稳定文档身份；默认使用源码摘要。 |
+| `--random-seed <uint32>` | 文档级组件随机种子。 |
 | `--assets inline\|omit` | 内联已验证的本地位图（默认），或保留渲染器的替代文本降级。 |
 | `--asset-root <dir>` | 额外允许相对图片路径解析的本地目录。 |
 | `--locale en\|zh` | 渲染标签与校验信息语言，默认 `en`。 |
@@ -105,6 +109,38 @@ const diagnostics = importLocalState(runtime, saved);
 `exportLocalState` 只读取公开参数。`importLocalState` 校验源码摘要、语法、参数集合和槽位约束后应用；导入失败时运行时状态不变。两者都是宿主显式调用，运行时本身仍不会保存或发送状态。只做校验、不改动运行中实例时使用 `resolveLocalState(document, input)`。
 
 Demo 导出对话框可以把当前预览参数下载为状态文件，供后续 CLI 构建使用。较低层的 `createLocalStateFile`、`parseLocalState`、`applyLocalState` 和 `serializeLocalState` 仍可从 `reactive-md` 使用。
+
+## 组件状态 sidecar
+
+参数状态文件只覆盖公开参数。游戏、清单和自定义组件的内部进度使用独立的 `reactive-md-component-state/v1` sidecar：
+
+```json
+{
+  "format": "reactive-md-component-state-document/v1",
+  "records": {
+    "doc:fnv1a32%3A0123abcd:state:game": {
+      "format": "reactive-md-component-state/v1",
+      "component": "example/game",
+      "componentVersion": "1.0.0",
+      "stateVersion": 1,
+      "key": "doc:fnv1a32%3A0123abcd:state:game",
+      "documentId": "fnv1a32:0123abcd",
+      "data": { "score": 12 },
+      "random": { "algorithm": "mulberry32", "version": 1, "state": 123 }
+    }
+  }
+}
+```
+
+交互式导出把 sidecar 写入自动挂载载荷；读者打开 HTML 时，运行时在首次渲染前恢复它。构建时的静态首屏也使用同一状态，因此水合前后看到的内容一致。
+
+- 默认文档身份是源码摘要；编辑源码后，旧 sidecar 的记录会因身份不匹配而跳过。需要跨编辑恢复时，给组件加 `state-key`，并用 `--document-id` 指定稳定身份。
+- 只嵌入当前文档中存在的组件记录。未知组件和身份不匹配的记录产生警告并从导出中移除；`--strict` 把警告视为失败。
+- 结构无效的 sidecar 或记录是错误，构建以退出码 `3` 失败。
+- 静态导出不运行组件，`--component-state-file` 与 `--mode static` 互斥。
+- 单独使用 `--document-id` 或 `--random-seed` 不需要 sidecar；它们同样作用于导出 HTML 的组件身份和随机流。
+
+宿主可以用 `reactive-md/runtime` 的 `createLocalComponentStateRegistry` 生成或校验 sidecar，用 `resolveLocalComponentStateExport` 按导出的文档身份过滤记录。持久化后端是可替换的端口：`reactive-md/runtime/browser` 提供 Web Storage 实现，宿主也可以传入自己的 `componentStateStorage`。
 
 ## 外部数据与宿主组件
 
@@ -191,7 +227,7 @@ IIFE 会注册一个 Light DOM 自定义元素。简单选项通过属性传递�
 ```
 
 - 属性：`src`、`source`、`locale`、`color-scheme`、`theme`。
-- Property：`source`、`state`、`urlPolicy`、`imageResolver`、`themes`。
+- Property：`source`、`state`、`documentId`、`randomSeed`、`componentState`、`urlPolicy`、`imageResolver`、`themes`。
 - 事件：`reactive-md-diagnostics`、`reactive-md-state-change`。
 - `src` 通过可取消的 `fetch` 加载；显式 source 不会产生请求。
 - 断开连接时中止请求、移除订阅、卸载 React root 并释放运行时。两个相同 source 的元素拥有独立状态。
@@ -222,7 +258,7 @@ IIFE 会注册一个 Light DOM 自定义元素。简单选项通过属性传递�
 
 ## 当前范围
 
-已实现：CLI 的 `build`/`lint`/`migrate`、交互与静态 HTML、状态文件、本地位图内联、打印输出、standalone 挂载 API、自动挂载和 Web Component。
+已实现：CLI 的 `build`/`lint`/`migrate`、交互与静态 HTML、状态文件、组件状态 sidecar、本地位图内联、打印输出、standalone 挂载 API、自动挂载和 Web Component。
 
 本版本不包含：`format`、UMD、远程图片抓取、SVG 内联、框架插件（Vite、Astro、Docusaurus、Next.js）、Shadow DOM，以及单文件导出之外的通用 SSR 水合保证。
 

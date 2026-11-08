@@ -50,6 +50,7 @@ export async function runBuild(options, context) {
     'createLocalRuntime',
     'createLocalStateFile',
     'resolveLocalStateBaseline',
+    'resolveLocalComponentStateExport',
     'createShareableHtml',
   ]);
 
@@ -142,6 +143,51 @@ export async function runBuild(options, context) {
     );
   }
 
+  /* --------------------------------------------------- component state sidecar */
+  let componentState;
+  if (options.componentStateFile !== undefined) {
+    const componentStatePath = path.resolve(options.componentStateFile);
+    const componentStateLabel = displayPath(componentStatePath);
+    const componentStateText = await readTextFile(componentStatePath, {
+      label: 'Cannot read component state file',
+      exitCode: EXIT.IO,
+    });
+    let componentOutcome;
+    try {
+      componentOutcome = core.resolveLocalComponentStateExport(
+        baseline.document,
+        componentStateText,
+        { documentId: options.documentId },
+      );
+    } catch (error) {
+      throw new CliError(
+        `Cannot read the component state for "${fileLabel}": ${errorText(error)}`,
+        EXIT.DOCUMENT,
+        { cause: error },
+      );
+    }
+    const componentDiagnostics = Array.isArray(componentOutcome?.diagnostics)
+      ? componentOutcome.diagnostics
+      : [];
+    const componentErrors = componentDiagnostics.filter((diagnostic) => diagnostic?.severity === 'error');
+    const componentWarnings = componentDiagnostics.filter((diagnostic) => diagnostic?.severity !== 'error');
+    if (componentOutcome?.ok !== true || componentErrors.length > 0) {
+      writeDiagnostics(stderr, componentStateLabel, componentDiagnostics);
+      if (componentDiagnostics.length === 0) {
+        stderr.write(`reactive-md: error: the component state could not be resolved for "${fileLabel}".\n`);
+      }
+      throw new CliError('', EXIT.DOCUMENT, { reported: true });
+    }
+    if (componentWarnings.length > 0) {
+      writeDiagnostics(stderr, componentStateLabel, componentWarnings);
+      if (options.strict) {
+        stderr.write('reactive-md: error: warnings are treated as errors because --strict is set.\n');
+        throw new CliError('', EXIT.DOCUMENT, { reported: true });
+      }
+    }
+    componentState = componentOutcome.componentState;
+  }
+
   /* ------------------------------------------------------------------- assets */
   const imageNodes = collectImageNodes(baseline.document.nodes);
   /** @type {Map<string, string>} */
@@ -193,7 +239,11 @@ export async function runBuild(options, context) {
   /* -------------------------------------------------------------------- render */
   let runtime;
   try {
-    runtime = core.createLocalRuntime(baseline.document);
+    runtime = core.createLocalRuntime(baseline.document, {
+      documentId: options.documentId,
+      randomSeed: options.randomSeed,
+      componentState,
+    });
   } catch (error) {
     throw new CliError(
       `Cannot create the document runtime for "${fileLabel}": ${errorText(error)}`,
@@ -252,6 +302,9 @@ export async function runBuild(options, context) {
       assets: options.assets,
       imageCount,
       ...(embeddedImages === undefined ? {} : { images: embeddedImages }),
+      ...(options.documentId === undefined ? {} : { documentId: options.documentId }),
+      ...(options.randomSeed === undefined ? {} : { randomSeed: options.randomSeed }),
+      ...(componentState === undefined ? {} : { componentState }),
       notices,
     });
   } catch (error) {

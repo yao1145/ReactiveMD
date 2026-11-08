@@ -10,6 +10,7 @@ import type { Diagnostic, LocalDocument } from '../local/contracts/types';
 import { readLocalExportResources } from './resources';
 import { createLocalBundleManifest, createLocalRestorationRequirements, localExportContentDigest, localThemeContractDigest, type LocalStandaloneBundleManifest } from './restoration';
 export * from './restoration';
+export * from './component-state';
 export { readLocalExportResources } from './resources';
 import {
   extensionDiagnostic,

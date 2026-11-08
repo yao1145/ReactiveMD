@@ -24,6 +24,7 @@ The package exposes the `reactive-md` command. HTML builds require React 19 and 
 reactive-md build doc.reactive.md -o doc.html
 reactive-md build doc.reactive.md -o doc.html --mode static
 reactive-md build doc.reactive.md -o doc.html --state-file doc.state.json
+reactive-md build doc.reactive.md -o doc.html --component-state-file game.state.json
 reactive-md build doc.reactive.md -o doc.html --assets omit
 reactive-md lint "docs/**/*.reactive.md"
 reactive-md lint "docs/**/*.reactive.md" --json --strict
@@ -36,6 +37,9 @@ Build options:
 | `-o, --output <file>` | Required output path. Its parent directory must already exist. |
 | `--mode interactive\|static` | Output mode. Default: `interactive`. |
 | `--state-file <json>` | Use a validated `reactive-md-state/v1` file as the starting and reset baseline. |
+| `--component-state-file <json>` | Embed a validated `reactive-md-component-state/v1` sidecar in interactive HTML. Static output rejects it. |
+| `--document-id <id>` | Stable document identity used to scope component state. Default: the source digest. |
+| `--random-seed <uint32>` | Document-level component random seed. |
 | `--assets inline\|omit` | Inline verified local raster images (default) or leave the renderer's alt fallback. |
 | `--asset-root <dir>` | Additional local directory that relative image paths may resolve inside. |
 | `--locale en\|zh` | Renderer labels and validation messages. Default: `en`. |
@@ -107,6 +111,38 @@ const diagnostics = importLocalState(runtime, saved);
 `exportLocalState` reads public parameters only. `importLocalState` validates the source digest, syntax, parameter set and constraints, then applies the values; a failed import leaves the runtime unchanged. Both are explicit host calls: the runtime still does not save or send state by itself. Use `resolveLocalState(document, input)` to validate without touching a live runtime.
 
 The demo's export dialog can download the current preview parameters as a state file for a later CLI build. The lower-level `createLocalStateFile`, `parseLocalState`, `applyLocalState` and `serializeLocalState` remain available from `reactive-md`.
+
+## Component state sidecar
+
+A parameter state file covers public parameters only. Games, checklists and custom components keep internal progress in a separate `reactive-md-component-state/v1` sidecar:
+
+```json
+{
+  "format": "reactive-md-component-state-document/v1",
+  "records": {
+    "doc:fnv1a32%3A0123abcd:state:game": {
+      "format": "reactive-md-component-state/v1",
+      "component": "example/game",
+      "componentVersion": "1.0.0",
+      "stateVersion": 1,
+      "key": "doc:fnv1a32%3A0123abcd:state:game",
+      "documentId": "fnv1a32:0123abcd",
+      "data": { "score": 12 },
+      "random": { "algorithm": "mulberry32", "version": 1, "state": 123 }
+    }
+  }
+}
+```
+
+An interactive export embeds the sidecar in the auto-mount payload; the runtime restores it before the first render. The static first screen is built from the same state, so hydration matches what the reader already sees.
+
+- The default document identity is the source digest. After a source edit, records from an older sidecar are skipped because the identity no longer matches. To keep state across edits, give the component a `state-key` and pass a stable `--document-id`.
+- Only records for components present in this document are embedded. Unknown components and identity mismatches produce warnings and are removed from the export; `--strict` turns warnings into failures.
+- A structurally invalid sidecar or record is an error; the build exits with code `3`.
+- Static output runs no component runtime, so `--component-state-file` cannot be combined with `--mode static`.
+- `--document-id` and `--random-seed` also work without a sidecar; they set the identity and random stream of the exported HTML.
+
+Hosts can produce or validate a sidecar with `createLocalComponentStateRegistry` from `reactive-md/runtime`, and filter records for one export identity with `resolveLocalComponentStateExport`. Persistence is a replaceable port: `reactive-md/runtime/browser` provides a Web Storage backend, and hosts may pass their own `componentStateStorage`.
 
 ## External data and host components
 
@@ -193,7 +229,7 @@ The IIFE registers a light-DOM custom element. Simple options are attributes; co
 ```
 
 - Attributes: `src`, `source`, `locale`, `color-scheme`, `theme`.
-- Properties: `source`, `state`, `urlPolicy`, `imageResolver`, `themes`.
+- Properties: `source`, `state`, `documentId`, `randomSeed`, `componentState`, `urlPolicy`, `imageResolver`, `themes`.
 - Events: `reactive-md-diagnostics` and `reactive-md-state-change`.
 - `src` uses `fetch` with cancellation; an explicit source avoids network access.
 - Disconnecting aborts fetches, removes subscriptions and the React root, and disposes the runtime. Two elements with the same source have independent state.
@@ -224,7 +260,7 @@ Sizes vary slightly with the minifier and React patch release. The alarm is inte
 
 ## Current scope
 
-Included: CLI `build`/`lint`/`migrate`, interactive and static HTML, state files, local raster inlining, print output, standalone mount APIs, auto-mount, and the Web Component.
+Included: CLI `build`/`lint`/`migrate`, interactive and static HTML, state files, component-state sidecars, local raster inlining, print output, standalone mount APIs, auto-mount, and the Web Component.
 
 Not included in this release: `format`, UMD, remote image fetching, SVG inlining, framework plugins (Vite, Astro, Docusaurus, Next.js), Shadow DOM, and general SSR hydration guarantees outside the single-file export path.
 

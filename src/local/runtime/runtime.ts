@@ -804,6 +804,9 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     sourceDigest,
     randomSeed: options?.randomSeed,
     componentState: options?.componentState,
+    ...(options?.componentStateStorage === undefined
+      ? {}
+      : { componentStateStorage: options.componentStateStorage }),
     ...(ownsServices ? { knownStateKeys } : {}),
   });
 

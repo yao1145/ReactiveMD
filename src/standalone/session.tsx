@@ -51,6 +51,12 @@ export interface ReactiveMDMountOptions {
   extensions?: LocalExtensionRequirements;
   restoration?: LocalRestorationRequirements;
   resources?: readonly LocalStyleResource[];
+  /** Stable document identity used to scope component state. */
+  documentId?: string;
+  /** Document-level seed for component randomness. */
+  randomSeed?: number;
+  /** Validated component-state sidecar restored before the first render. */
+  componentState?: unknown;
 }
 
 export interface ReactiveMDHandle {
@@ -216,7 +222,11 @@ export function createStandaloneMount(
 
   let runtime: LocalRuntime;
   try {
-    runtime = createLocalRuntime(prepared.document);
+    runtime = createLocalRuntime(prepared.document, {
+      documentId: options.documentId,
+      randomSeed: options.randomSeed,
+      componentState: options.componentState,
+    });
   } catch (error) {
     throw new ReactiveMDMountError(
       'Cannot mount a Reactive MD document: the interactive runtime could not be created.',
@@ -251,6 +261,14 @@ export function createStandaloneMount(
     if (disposed) return;
     safeInvoke(hooks.onDiagnostics ? () => hooks.onDiagnostics!(diagnostics) : undefined);
   };
+  /** Restore/persistence problems reported by the component-state registry. */
+  const serviceDiagnostics = (() => {
+    try {
+      return runtime.services?.state.diagnostics() ?? [];
+    } catch {
+      return [];
+    }
+  })();
 
   const hydrating = options.hydrate === true && element.hasChildNodes();
   const view = (
@@ -321,6 +339,7 @@ export function createStandaloneMount(
   const unsubscribe = hooks.onStateChange ? runtime.subscribe(emitState) : () => {};
   safeInvoke(hooks.onStateChange ? () => hooks.onStateChange!(initialState) : undefined);
   if (prepared.diagnostics.length > 0) handleDiagnostics(prepared.diagnostics);
+  if (serviceDiagnostics.length > 0) handleDiagnostics([...serviceDiagnostics]);
 
   const cleanupStaticFirst = hydrating ? clearStaticFirstMarkers(element) : () => {};
 
@@ -455,7 +474,7 @@ export function mountAll(root?: ParentNode, host: Pick<ReactiveMDMountOptions, '
     if (isReactiveMDMounted(target)) continue;
 
     try {
-      handles.push(mount(target, {
+      handles.push(createStandaloneMount(target, {
         source: payload.source,
         state: payload.state,
         locale: payload.locale,
@@ -466,7 +485,12 @@ export function mountAll(root?: ParentNode, host: Pick<ReactiveMDMountOptions, '
         extensions: payload.extensions,
         restoration: payload.restoration,
         resources: payload.resources,
+        documentId: payload.documentId,
+        randomSeed: payload.randomSeed,
+        componentState: payload.componentState,
         reactConfig: host.reactConfig,
+      }, {
+        onDiagnostics: (diagnostics) => reportAutoDiagnostics(doc, target, diagnostics),
       }));
     } catch (error) {
       reportAutoDiagnostics(doc, target, diagnosticsFromError(error));

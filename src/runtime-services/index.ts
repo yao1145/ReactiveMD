@@ -55,6 +55,7 @@ export {
   MAX_COMPONENT_STATE_STRING,
   MAX_COMPONENT_STATE_TOTAL_BYTES,
   createLocalComponentStateRegistry,
+  parseLocalComponentStateDocument,
 } from './component-state';
 export type {
   CreateLocalComponentStateRegistryOptions,
@@ -62,10 +63,12 @@ export type {
   LocalComponentStateDocument,
   LocalComponentStateHandle,
   LocalComponentStateHandleInput,
+  LocalComponentStateParseResult,
   LocalComponentStateRecord,
   LocalComponentStateRegistry,
   LocalComponentStateRestoreResult,
   LocalComponentStateSaveResult,
+  LocalComponentStateStorage,
 } from './component-state';
 
 export {

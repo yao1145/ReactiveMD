@@ -10,6 +10,8 @@
 
 - 新增 `reactive-md/runtime`：文档与组件身份、可序列化种子随机、注入式时钟/调度器、组件状态协议与预算。
 - 新增 `reactive-md/react/runtime`：`useTicker`、`useFrame`、`useSwipe`、`useKeys`、`useComponentState`。
+- 新增 `reactive-md/runtime/browser`：基于 Web Storage 的持久化后端；组件状态注册表接受任意 `LocalComponentStateStorage`，并在保存或清除后写入。
+- `reactive-md build` 新增 `--component-state-file`、`--document-id` 与 `--random-seed`。交互式导出把经过校验的组件状态 sidecar 写入自动挂载载荷；静态导出拒绝该选项。
 - `LocalRuntimeOptions` 支持 `documentId`、`randomSeed`、`componentState` 与注入的 `services`；`LocalReactiveDocument` 对应新增同名属性和 `onComponentStateChange`。
 - 组件上下文新增 `services.random`、`services.clock`、`services.scheduler` 和 `services.state`。随机状态保持可保存、可重放；调度器处理页面可见性。
 - Tetris 示例改用 `useTicker`，2048 示例改用 `useSwipe`。

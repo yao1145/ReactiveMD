@@ -1,5 +1,6 @@
 import type { LocalConfig, LocalExtensionRequirements } from '../../sdk/types';
 import type { LocalRuntimeServices } from '../../runtime-services/runtime';
+import type { LocalComponentStateStorage } from '../../runtime-services/component-state';
 
 export interface SourceRange { start: number; end: number }
 /** A source-level syntax declaration; offsets use original UTF-16 units. */
@@ -418,6 +419,11 @@ export interface LocalRuntimeOptions {
   readonly randomSeed?: number;
   /** Component-state sidecar to restore before the first render. */
   readonly componentState?: unknown;
+  /**
+   * Persistence port for component state. Applied only when the runtime owns
+   * its services; omitted keeps state in memory.
+   */
+  readonly componentStateStorage?: LocalComponentStateStorage;
   /** Inject scheduler/clock/state services; the runtime owns them only when omitted. */
   readonly services?: LocalRuntimeServices;
 }

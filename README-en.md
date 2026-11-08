@@ -265,7 +265,7 @@ npx reactive-md build examples/local/counter.reactive.md -o counter.html
 npx reactive-md build examples/local/counter.reactive.md -o counter-static.html --mode static
 ```
 
-The interactive file embeds the original source, React 19, the runtime, styles and any verified local images. It hydrates a static first screen, so it remains readable with JavaScript disabled. Use `--state-file doc.state.json` to export a saved `reactive-md-state/v1` baseline; without it, the author initial values are used and become the reader's reset baseline. The Demo export dialog can save the current preview parameters as such a file.
+The interactive file embeds the original source, React 19, the runtime, styles and any verified local images. It hydrates a static first screen, so it remains readable with JavaScript disabled. Use `--state-file doc.state.json` to export a saved `reactive-md-state/v1` baseline; without it, the author initial values are used and become the reader's reset baseline. Use `--component-state-file game.state.json` to embed component progress, and `--document-id` or `--random-seed` to set its identity and random stream. The Demo export dialog can save the current preview parameters as such a file.
 
 See [Shareable documents and static export](docs/integration/shareable-export-en.md) for image limits, CSP/security, printing, exit codes, `ReactiveMD.mount`/`mountAll` and `<reactive-md-doc>`.
 

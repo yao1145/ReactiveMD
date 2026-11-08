@@ -6,6 +6,11 @@ import { validateLocalRestorationRequirements } from '../export/restoration';
 import { readLocalExportResources } from '../export/resources';
 import type { Diagnostic, LocalCompileOptions } from '../local/contracts/types';
 import type { ShareableMountPayload } from '../shareable';
+import {
+  parseLocalComponentStateDocument,
+  type LocalComponentStateDocument,
+} from '../runtime-services/component-state';
+import { normalizeDocumentId } from '../runtime-services/identity';
 import { errorText, standaloneDiagnostic } from './diagnostics';
 
 /**
@@ -83,6 +88,50 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null;
 }
 
+function parseDocumentId(
+  value: unknown,
+  fail: (code: string, message: string) => void,
+): string | undefined {
+  if (value === undefined) return undefined;
+  const normalized = normalizeDocumentId(value);
+  if (typeof value !== 'string' || normalized !== value) {
+    fail('standalone.payload.document-id', 'The payload documentId must be a canonical 1-256 character string.');
+    return undefined;
+  }
+  return normalized;
+}
+
+function parseRandomSeed(
+  value: unknown,
+  fail: (code: string, message: string) => void,
+): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 0xffffffff) {
+    fail('standalone.payload.random-seed', 'The payload randomSeed must be a 32-bit unsigned integer.');
+    return undefined;
+  }
+  return value;
+}
+
+function parseComponentState(
+  value: unknown,
+  fail: (code: string, message: string) => void,
+): LocalComponentStateDocument | undefined {
+  if (value === undefined) return undefined;
+  const parsed = parseLocalComponentStateDocument(value);
+  if (!parsed.ok || parsed.diagnostics.length > 0) {
+    const diagnostics = parsed.diagnostics;
+    if (diagnostics.length === 0) {
+      fail('standalone.payload.component-state', 'The payload component state is invalid.');
+    }
+    for (const diagnostic of diagnostics) {
+      fail('standalone.payload.component-state', diagnostic.message);
+    }
+    return undefined;
+  }
+  return parsed.document;
+}
+
 function parseUnsafe(value: unknown): MountPayloadParseResult {
   const diagnostics: Diagnostic[] = [];
   const fail = (code: string, message: string): void => {
@@ -146,6 +195,9 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
     config: compileOptions?.config, source: typeof source === 'string' ? source : '', resources: resources.resources,
   }));
   const images = parseImages(value.images, fail);
+  const documentId = parseDocumentId(value.documentId, fail);
+  const randomSeed = parseRandomSeed(value.randomSeed, fail);
+  const componentState = parseComponentState(value.componentState, fail);
 
   if (diagnostics.length > 0) return { ok: false, diagnostics };
 
@@ -162,6 +214,9 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
     ...(value.extensions === undefined ? {} : { extensions: value.extensions as ShareableMountPayload['extensions'] }),
     ...(value.restoration === undefined ? {} : { restoration: value.restoration as ShareableMountPayload['restoration'], resources: resources.resources }),
     ...(images && Object.keys(images).length > 0 ? { images } : {}),
+    ...(documentId === undefined ? {} : { documentId }),
+    ...(randomSeed === undefined ? {} : { randomSeed }),
+    ...(componentState === undefined ? {} : { componentState }),
   };
   return { ok: true, payload };
 }

@@ -265,7 +265,7 @@ npx reactive-md build examples/local/counter.reactive.md -o counter.html
 npx reactive-md build examples/local/counter.reactive.md -o counter-static.html --mode static
 ```
 
-交互文件内嵌原始源码、React 19、运行时、样式以及经过校验的本地图片。它先渲染静态首屏，因此禁用 JavaScript 时仍可阅读。使用 `--state-file doc.state.json` 导出已保存的 `reactive-md-state/v1` 基线；省略时使用作者初值，并把它作为读者的重置基线。Demo 导出对话框可以把当前预览参数保存成此类状态文件。
+交互文件内嵌原始源码、React 19、运行时、样式以及经过校验的本地图片。它先渲染静态首屏，因此禁用 JavaScript 时仍可阅读。使用 `--state-file doc.state.json` 导出已保存的 `reactive-md-state/v1` 基线；省略时使用作者初值，并把它作为读者的重置基线。使用 `--component-state-file game.state.json` 把组件内部进度写入交互文件，`--document-id` 和 `--random-seed` 指定其身份与随机流。Demo 导出对话框可以把当前预览参数保存成此类状态文件。
 
 图片上限、CSP/安全、打印、退出码、`ReactiveMD.mount`/`mountAll` 与 `<reactive-md-doc>` 见[可分享文档与静态导出](docs/integration/shareable-export-ch.md)。
 

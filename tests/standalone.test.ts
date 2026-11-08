@@ -6,6 +6,10 @@ import type { LocalNode } from '../src/local/contracts/types';
 import { ReactiveMDMountError } from '../src/standalone/diagnostics';
 import { parseMountPayload } from '../src/standalone/payload';
 import { prepareStandaloneDocument } from '../src/standalone/prepare';
+import {
+  LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+  LOCAL_COMPONENT_STATE_FORMAT,
+} from '../src/runtime-services/component-state';
 
 function findComponent(nodes: LocalNode[], name: string): LocalNode {
   for (const node of nodes) {
@@ -125,6 +129,49 @@ describe('standalone mount payload', () => {
     }
     expect(parseMountPayload(null).ok).toBe(false);
     expect(parseMountPayload('{"version":1}').ok).toBe(false);
+  });
+
+  it('accepts document identity and a validated component state sidecar', () => {
+    const key = 'doc:doc:state:demo';
+    const result = parseMountPayload(validPayload({
+      documentId: 'doc',
+      randomSeed: 7,
+      componentState: {
+        format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+        records: {
+          [key]: {
+            format: LOCAL_COMPONENT_STATE_FORMAT,
+            component: 'example/game',
+            componentVersion: '1.0.0',
+            stateVersion: 1,
+            key,
+            documentId: 'doc',
+            data: { score: 4 },
+          },
+        },
+      },
+    }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.payload.documentId).toBe('doc');
+    expect(result.payload.randomSeed).toBe(7);
+    expect(result.payload.componentState?.records[key].data).toEqual({ score: 4 });
+  });
+
+  it('rejects invalid identity and component state fields', () => {
+    const cases: Record<string, unknown>[] = [
+      validPayload({ documentId: ' doc' }),
+      validPayload({ documentId: '' }),
+      validPayload({ documentId: 7 }),
+      validPayload({ randomSeed: -1 }),
+      validPayload({ randomSeed: 4294967296 }),
+      validPayload({ randomSeed: 1.5 }),
+      validPayload({ componentState: '{"format":"nope"}' }),
+      validPayload({ componentState: { format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT, records: { bad: {} } } }),
+    ];
+    for (const payload of cases) {
+      expect(parseMountPayload(payload).ok).toBe(false);
+    }
   });
 
   it('never executes or rewrites source text', () => {

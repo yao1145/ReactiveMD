@@ -121,6 +121,74 @@ describe('shareable HTML envelope', () => {
     }
   });
 
+  it('embeds document identity and a validated component state sidecar', () => {
+    const { runtime, file } = fixture();
+    const key = 'doc:doc:state:demo';
+    const componentState = {
+      format: 'reactive-md-component-state-document/v1' as const,
+      records: {
+        [key]: {
+          format: 'reactive-md-component-state/v1' as const,
+          component: 'example/game',
+          componentVersion: '1.0.0',
+          stateVersion: 1,
+          key,
+          documentId: 'doc',
+          data: { score: 4 },
+        },
+      },
+    };
+    try {
+      const html = createShareableHtml({
+        title: 'Share',
+        source: runtime.document.source,
+        state: file,
+        staticMarkup: '<article class="md-document"></article>',
+        css: 'body{}',
+        mode: 'interactive',
+        runtimeScript: 'globalThis.mounted = true;',
+        documentId: 'doc',
+        randomSeed: 7,
+        componentState,
+      });
+      expect(html).toContain('"documentId":"doc"');
+      expect(html).toContain('"randomSeed":7');
+      expect(html).toContain('"componentState":{"format":"reactive-md-component-state-document/v1"');
+      expect(() => createShareableHtml({
+        title: 'Share',
+        source: runtime.document.source,
+        state: file,
+        staticMarkup: '<article class="md-document"></article>',
+        css: 'body{}',
+        mode: 'interactive',
+        runtimeScript: 'globalThis.mounted = true;',
+        documentId: 'bad\u0000id',
+      })).toThrow(/documentId/);
+      expect(() => createShareableHtml({
+        title: 'Share',
+        source: runtime.document.source,
+        state: file,
+        staticMarkup: '<article class="md-document"></article>',
+        css: 'body{}',
+        mode: 'interactive',
+        runtimeScript: 'globalThis.mounted = true;',
+        randomSeed: -1,
+      })).toThrow(/randomSeed/);
+      expect(() => createShareableHtml({
+        title: 'Share',
+        source: runtime.document.source,
+        state: file,
+        staticMarkup: '<article class="md-document"></article>',
+        css: 'body{}',
+        mode: 'interactive',
+        runtimeScript: 'globalThis.mounted = true;',
+        componentState: { format: 'nope', records: {} } as never,
+      })).toThrow(/invalid component state/);
+    } finally {
+      runtime.dispose();
+    }
+  });
+
   it('rejects state files from another source and missing interactive runtime code', () => {
     const { runtime, file } = fixture();
     try {

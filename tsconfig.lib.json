@@ -12,6 +12,7 @@
     "src/react/index.ts",
     "src/react/runtime/index.ts",
     "src/runtime-services/index.ts",
+    "src/runtime-services/browser/index.ts",
     "src/react/server.tsx",
     "src/authoring/index.ts",
     "src/sdk/index.ts",

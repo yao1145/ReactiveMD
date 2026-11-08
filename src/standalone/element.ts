@@ -33,6 +33,9 @@ export class ReactiveMDDocElement extends HTMLElementBase {
 
   private _source: string | undefined;
   private _state: LocalStateFile | string | undefined;
+  private _documentId: string | undefined;
+  private _randomSeed: number | undefined;
+  private _componentState: unknown;
   private _urlPolicy: LocalUrlPolicy | undefined;
   private _imageResolver: LocalImageResolver | undefined;
   private _themes: readonly LocalThemeDefinition[] | undefined;
@@ -109,6 +112,41 @@ export class ReactiveMDDocElement extends HTMLElementBase {
   set state(value: LocalStateFile | string | undefined) {
     if (value === this._state) return;
     this._state = value;
+    this._requestRestart();
+  }
+
+  /** Stable identity for component-scoped state. */
+  get documentId(): string | undefined {
+    return this._documentId;
+  }
+
+  set documentId(value: string | undefined) {
+    const next = typeof value === 'string' ? value : undefined;
+    if (next === this._documentId) return;
+    this._documentId = next;
+    this._requestRestart();
+  }
+
+  /** Document-level component random seed. */
+  get randomSeed(): number | undefined {
+    return this._randomSeed;
+  }
+
+  set randomSeed(value: number | undefined) {
+    const next = typeof value === 'number' ? value : undefined;
+    if (next === this._randomSeed) return;
+    this._randomSeed = next;
+    this._requestRestart();
+  }
+
+  /** Validated `reactive-md-component-state/v1` sidecar. */
+  get componentState(): unknown {
+    return this._componentState;
+  }
+
+  set componentState(value: unknown) {
+    if (value === this._componentState) return;
+    this._componentState = value;
     this._requestRestart();
   }
 
@@ -225,6 +263,9 @@ export class ReactiveMDDocElement extends HTMLElementBase {
       const session = createStandaloneMount(this, {
         source,
         state: this._state,
+        documentId: this._documentId,
+        randomSeed: this._randomSeed,
+        componentState: this._componentState,
         locale: this._locale,
         colorScheme: this._colorScheme,
         themes: this._themes,

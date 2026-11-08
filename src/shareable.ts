@@ -14,6 +14,11 @@ import {
   type LocalStateGenerator,
 } from './local/runtime/state';
 import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalHtmlPolicy, LocalValue } from './local/contracts/types';
+import {
+  parseLocalComponentStateDocument,
+  type LocalComponentStateDocument,
+} from './runtime-services/component-state';
+import { normalizeDocumentId } from './runtime-services/identity';
 
 /** Version of the single-file HTML envelope, not of the document syntax. */
 export const SHAREABLE_HTML_FORMAT = 'reactive-md-html/v1' as const;
@@ -38,6 +43,12 @@ export interface ShareableMountPayload {
   resources?: readonly LocalStyleResource[];
   /** Verified relative image URL -> inline raster data URL. */
   images?: Readonly<Record<string, string>>;
+  /** Stable document identity used to scope component state. */
+  documentId?: string;
+  /** Document-level seed for component randomness. */
+  randomSeed?: number;
+  /** Validated component-state sidecar restored by the standalone runtime. */
+  componentState?: LocalComponentStateDocument;
 }
 
 export interface ShareableHtmlOptions {
@@ -60,6 +71,12 @@ export interface ShareableHtmlOptions {
   imageCount?: number;
   /** Verified relative image URLs and their inline raster data URLs. */
   images?: Readonly<Record<string, string>>;
+  /** Stable document identity used to scope component state in interactive output. */
+  documentId?: string;
+  /** Document-level seed for component randomness in interactive output. */
+  randomSeed?: number;
+  /** Component-state sidecar embedded for interactive output. */
+  componentState?: LocalComponentStateDocument;
   notices?: string;
   targetId?: string;
   /**
@@ -349,6 +366,29 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
   }
   const native = optionCheck.htmlActive;
 
+  const documentId = options.documentId === undefined
+    ? undefined
+    : normalizeDocumentId(options.documentId);
+  if (options.documentId !== undefined && documentId === undefined) {
+    throw new TypeError('createShareableHtml received an invalid documentId.');
+  }
+  let randomSeed: number | undefined;
+  if (options.randomSeed !== undefined) {
+    if (!Number.isInteger(options.randomSeed) || options.randomSeed < 0 || options.randomSeed > 0xffffffff) {
+      throw new TypeError('createShareableHtml received an invalid randomSeed; expected a 32-bit unsigned integer.');
+    }
+    randomSeed = options.randomSeed;
+  }
+  let componentState: LocalComponentStateDocument | undefined;
+  if (options.componentState !== undefined) {
+    const parsed = parseLocalComponentStateDocument(options.componentState);
+    if (!parsed.ok || parsed.diagnostics.length > 0) {
+      const detail = parsed.diagnostics.map((item) => item.message).join(' ');
+      throw new TypeError(`createShareableHtml received an invalid component state${detail ? `: ${detail}` : '.'}`);
+    }
+    componentState = parsed.document;
+  }
+
   let staticMarkup = options.staticMarkup;
   if (native && (mode === 'static' || !optionCheck.html.enableJavaScript)) {
     // Static native exports keep the native route but never run author code.
@@ -397,6 +437,9 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
     ...(options.extensions === undefined ? {} : { extensions: options.extensions }),
     ...(options.restoration === undefined ? {} : { restoration: options.restoration, resources: options.resources ?? [] }),
     ...(images ? { images } : {}),
+    ...(documentId === undefined ? {} : { documentId }),
+    ...(randomSeed === undefined ? {} : { randomSeed }),
+    ...(componentState === undefined ? {} : { componentState }),
   };
 
   const policy = envelopePolicy(interactive, native ? optionCheck.html : undefined);

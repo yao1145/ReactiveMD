@@ -154,6 +154,61 @@ describe('CLI build arguments', () => {
     });
   });
 
+  it('accepts component state options for interactive output', async () => {
+    const { parseBuildArgs } = await loadCli('args.mjs');
+    const options = parseBuildArgs([
+      'doc.reactive.md',
+      '-o',
+      'doc.html',
+      '--component-state-file',
+      'game.state.json',
+      '--document-id',
+      'stable-doc',
+      '--random-seed',
+      '4294967295',
+    ]);
+    expect(options).toMatchObject({
+      mode: 'interactive',
+      componentStateFile: 'game.state.json',
+      documentId: 'stable-doc',
+      randomSeed: 4294967295,
+    });
+  });
+
+  it('rejects component state with static output and invalid identity values', async () => {
+    const { parseBuildArgs } = await loadCli('args.mjs');
+    expect(() => parseBuildArgs([
+      'doc.reactive.md',
+      '-o',
+      'doc.html',
+      '--mode',
+      'static',
+      '--component-state-file',
+      'game.state.json',
+    ])).toThrow(/requires "--mode interactive"/);
+    expect(() => parseBuildArgs([
+      'doc.reactive.md',
+      '-o',
+      'doc.html',
+      '--document-id',
+      '',
+    ])).toThrow(/--document-id/);
+    expect(() => parseBuildArgs([
+      'doc.reactive.md',
+      '-o',
+      'doc.html',
+      '--random-seed',
+      '4294967296',
+    ])).toThrow(/32-bit unsigned integer/);
+    expect(() => parseBuildArgs([
+      'doc.reactive.md',
+      '-o',
+      'doc.html',
+      '--random-seed',
+      '-1',
+    ])).toThrow(/32-bit unsigned integer/);
+  });
+
   it('rejects invalid modes and URL asset roots with usage errors', async () => {
     const { parseBuildArgs } = await loadCli('args.mjs');
     expect(() => parseBuildArgs(['doc.reactive.md', '-o', 'doc.html', '--mode', 'print']))

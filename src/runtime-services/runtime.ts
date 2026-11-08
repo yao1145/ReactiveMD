@@ -12,6 +12,7 @@ import {
   createLocalComponentStateRegistry,
   type LocalComponentStateDocument,
   type LocalComponentStateRegistry,
+  type LocalComponentStateStorage,
 } from './component-state';
 import {
   createLocalScheduler,
@@ -38,6 +39,8 @@ export interface CreateLocalRuntimeServicesOptions {
   readonly randomSeed?: number;
   /** Restore a component-state sidecar before the first render. */
   readonly componentState?: unknown;
+  /** Persistence port for component state; omitted keeps everything in memory. */
+  readonly componentStateStorage?: LocalComponentStateStorage;
   /** Keys currently present in the document; unknown saved keys are skipped. */
   readonly knownStateKeys?: ReadonlySet<string> | (() => ReadonlySet<string>);
   /** Inject a scheduler, for example a fake clock in tests. */
@@ -73,6 +76,7 @@ export function createLocalRuntimeServices(
       documentId,
       sourceDigest: options.sourceDigest,
       initial: options.componentState,
+      ...(options.componentStateStorage === undefined ? {} : { storage: options.componentStateStorage }),
       ...(options.knownStateKeys === undefined ? {} : { knownKeys: options.knownStateKeys }),
     }),
   });

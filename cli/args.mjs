@@ -86,6 +86,9 @@ const BUILD_SPEC = new Map([
   ['--output', { key: 'output' }],
   ['--mode', { key: 'mode' }],
   ['--state-file', { key: 'stateFile' }],
+  ['--component-state-file', { key: 'componentStateFile' }],
+  ['--document-id', { key: 'documentId' }],
+  ['--random-seed', { key: 'randomSeed' }],
   ['--assets', { key: 'assets' }],
   ['--asset-root', { key: 'assetRoot' }],
   ['--locale', { key: 'locale' }],
@@ -107,7 +110,8 @@ const LINT_SPEC = new Map([
  * @param {string[]} argv
  * @returns {{
  *   help: boolean, input?: string, output?: string, mode?: 'interactive'|'static',
- *   stateFile?: string, assets?: 'inline'|'omit', assetRoot?: string,
+ *   stateFile?: string, componentStateFile?: string, documentId?: string,
+ *   randomSeed?: number, assets?: 'inline'|'omit', assetRoot?: string,
  *   locale?: 'en'|'zh', colorScheme?: 'auto'|'light'|'dark', title?: string,
  *   strict?: boolean
  * }}
@@ -136,6 +140,31 @@ export function parseBuildArgs(argv) {
 
   let stateFile;
   if (options.stateFile !== undefined) stateFile = requireText(options.stateFile, '--state-file');
+  let componentStateFile;
+  if (options.componentStateFile !== undefined) {
+    componentStateFile = requireText(options.componentStateFile, '--component-state-file');
+    if (mode !== 'interactive') {
+      throw usageError('Option "--component-state-file" requires "--mode interactive"; static output has no runtime.');
+    }
+  }
+  let documentId;
+  if (options.documentId !== undefined) {
+    documentId = requireText(options.documentId, '--document-id');
+    if (!/^[^\u0000-\u001f\u007f]{1,256}$/.test(documentId)) {
+      throw usageError('Option "--document-id" must be 1-256 characters without control characters.');
+    }
+  }
+  let randomSeed;
+  if (options.randomSeed !== undefined) {
+    const text = requireText(options.randomSeed, '--random-seed');
+    if (!/^\d{1,10}$/.test(text)) {
+      throw usageError('Option "--random-seed" must be a 32-bit unsigned integer.');
+    }
+    randomSeed = Number(text);
+    if (!Number.isSafeInteger(randomSeed) || randomSeed > 0xffffffff) {
+      throw usageError('Option "--random-seed" must be a 32-bit unsigned integer.');
+    }
+  }
   let assetRoot;
   if (options.assetRoot !== undefined) {
     assetRoot = requireText(options.assetRoot, '--asset-root');
@@ -150,6 +179,9 @@ export function parseBuildArgs(argv) {
     output,
     mode,
     stateFile,
+    componentStateFile,
+    documentId,
+    randomSeed,
     assets,
     assetRoot,
     locale,

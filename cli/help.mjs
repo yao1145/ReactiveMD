@@ -54,6 +54,13 @@ Options:
                                    auto-mount payload.
       --state-file <file.json>     Export this validated state as the baseline
                                    instead of the document's initial values.
+      --component-state-file <file.json>
+                                   Embed a reactive-md-component-state/v1
+                                   sidecar for interactive output. Requires
+                                   --mode interactive.
+      --document-id <id>           Stable document identity used to scope
+                                   component state (default: source digest).
+      --random-seed <uint32>       Document-level component random seed.
       --assets <inline|omit>       Image handling (default inline). "omit"
                                    skips all image reads and leaves the
                                    renderer's normal alt fallback.

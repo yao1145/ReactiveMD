@@ -56,7 +56,10 @@ import {
 } from '../compilation/dependencies';
 import { createLocalCompileSession, type LocalCompileSession } from '../session/incremental';
 import { createLocalRuntime, notifyLocalRuntime, updateLocalRuntime } from '../runtime/runtime';
-import type { LocalComponentStateDocument } from '../../runtime-services/component-state';
+import type {
+  LocalComponentStateDocument,
+  LocalComponentStateStorage,
+} from '../../runtime-services/component-state';
 import {
   blockInputsEqual,
   projectAnchors,
@@ -208,6 +211,12 @@ export interface LocalReactiveDocumentProps {
   randomSeed?: number;
   /** Component-state sidecar restored before the first render. */
   componentState?: unknown;
+  /**
+   * Persistence port applied when this document creates a runtime. Changing it
+   * later does not migrate an existing runtime; pass a new `componentState`
+   * sidecar or remount instead.
+   */
+  componentStateStorage?: LocalComponentStateStorage;
   /** Called when a component explicitly saves or clears its state. */
   onComponentStateChange?: (state: LocalComponentStateDocument) => void;
   /**
@@ -2403,6 +2412,7 @@ export function LocalReactiveDocument({
   documentId,
   randomSeed,
   componentState,
+  componentStateStorage,
   onComponentStateChange,
   initialParameters,
   onParametersChange,
@@ -2443,6 +2453,8 @@ export function LocalReactiveDocument({
   randomSeedRef.current = randomSeed;
   const componentStateRef = useRef(componentState);
   componentStateRef.current = componentState;
+  const componentStateStorageRef = useRef(componentStateStorage);
+  componentStateStorageRef.current = componentStateStorage;
   const onComponentStateChangeRef = useRef(onComponentStateChange);
   onComponentStateChangeRef.current = onComponentStateChange;
   const initialParametersRef = useRef(initialParameters);
@@ -2457,6 +2469,9 @@ export function LocalReactiveDocument({
       documentId: documentIdRef.current,
       randomSeed: randomSeedRef.current,
       componentState: componentStateRef.current,
+      ...(componentStateStorageRef.current === undefined
+        ? {}
+        : { componentStateStorage: componentStateStorageRef.current }),
     });
     const initial = initialParametersRef.current;
     initialDiagnosticsRef.current = initial && Object.keys(initial).length
