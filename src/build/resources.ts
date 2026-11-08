@@ -808,7 +808,7 @@ export async function collectLocalBuildResources(
     origins.set(id, origin);
     order.push(id);
   };
-  for (const component of input.config.components) {
+  for (const component of input.config.registry) {
     for (const style of component.styles ?? []) {
       required.push(style);
       push(style, 'component');

@@ -1,5 +1,6 @@
 import type { Diagnostic, LocalDocument } from '../local/contracts/types';
 import { createLocalConfig, readLocalConfig } from '../sdk/config';
+import { localAssemblyIdentity, localAssemblySeal, localConfigKeyMatches, type LocalAssemblyIdentity } from '../sdk/assembly';
 import { localHash } from '../sdk/hash';
 import { localComponentDigest, localJsonByteLength } from '../sdk/manifest';
 import type { LocalConfig, LocalComponentRequirement } from '../sdk/types';
@@ -19,6 +20,8 @@ export interface LocalRestorationRequirements {
   readonly components: readonly LocalVersionedComponentRequirement[];
   readonly themes: readonly LocalThemeRequirement[];
   readonly resources: readonly LocalResourceRequirement[];
+  /** Transportable identity of the assembly that produced the export. */
+  readonly assembly?: LocalAssemblyIdentity;
 }
 export interface LocalStandaloneBundleManifest {
   readonly protocol: 'reactive-md-bundle/v1';
@@ -26,6 +29,10 @@ export interface LocalStandaloneBundleManifest {
   readonly configKey: string;
   readonly scriptDigest: string;
   readonly themes: readonly LocalThemeRequirement[];
+  /** Assembly identity embedded by new bundles; older bundles omit it. */
+  readonly assembly?: LocalAssemblyIdentity;
+  /** Digest over the assembly identity; new bundles always carry it. */
+  readonly seal?: string;
 }
 
 /** Content identities detect mismatches; they are not a code sandbox or signature. */
@@ -37,8 +44,10 @@ export function localThemeContractDigest(theme: LocalThemePackage): string {
 
 export function createLocalBundleManifest(script: string, config: LocalConfig): LocalStandaloneBundleManifest {
   const installed = readLocalConfig(config);
+  const assembly = localAssemblyIdentity(installed);
   return Object.freeze({ protocol: 'reactive-md-bundle/v1', sdkVersion: LOCAL_SDK_VERSION,
-    configKey: installed.key, scriptDigest: localHash(script), themes: Object.freeze(installed.themes.map(theme => Object.freeze({
+    configKey: installed.key, scriptDigest: localHash(script), assembly,
+    seal: localAssemblySeal(installed), themes: Object.freeze(installed.themes.map(theme => Object.freeze({
       id: theme.id, name: theme.name, version: theme.version, digest: localThemeContractDigest(theme),
     }))) });
 }
@@ -62,6 +71,7 @@ export function createLocalRestorationRequirements(document: LocalDocument, conf
   return Object.freeze({ protocol: 'reactive-md-restore/v1', sdk: `^${LOCAL_SDK_VERSION}`,
     configKey: installed.key, sourceDigest: localHash(document.source), target,
     components: Object.freeze(components), themes: Object.freeze(themes),
+    assembly: localAssemblyIdentity(installed),
     resources: Object.freeze(resources.map(resource => Object.freeze({ id: resource.id, digest: localHash(resource.css) }))),
   });
 }
@@ -92,11 +102,18 @@ export function validateLocalRestorationRequirements(value: unknown, options: {
       fail('metadata', 'Invalid or oversized restoration requirements.');
       return diagnostics;
     }
-    const allowed = new Set(['protocol', 'sdk', 'configKey', 'sourceDigest', 'target', 'components', 'themes', 'resources']);
+    const allowed = new Set(['protocol', 'sdk', 'configKey', 'sourceDigest', 'target', 'components', 'themes', 'resources', 'assembly']);
     if (Object.keys(value).some(key => !allowed.has(key))) fail('metadata', 'Unknown restoration requirement field.');
     const config = options.config === undefined ? createLocalConfig() : readLocalConfig(options.config);
     if (!parseLocalVersionRange(value.sdk) || !localVersionSatisfies(LOCAL_SDK_VERSION, value.sdk)) fail('sdk', `SDK ${LOCAL_SDK_VERSION} does not satisfy ${value.sdk}.`);
-    if (config.key !== value.configKey) fail('config', 'The installed configuration differs from the exported configuration.');
+    if (!localConfigKeyMatches(config, value.configKey as string)) fail('config', 'The installed configuration differs from the exported configuration.');
+    if (value.assembly !== undefined) {
+      if (!record(value.assembly) || value.assembly.protocol !== 'reactive-md-assembly-seal/v1'
+        || !boundedString(value.assembly.configKey)
+        || !localConfigKeyMatches(config, value.assembly.configKey as string)) {
+        fail('assembly', 'The exported assembly identity is invalid or belongs to another configuration.');
+      }
+    }
     if (localHash(options.source) !== value.sourceDigest) fail('source', 'The source differs from the exported source. Recompile before restoring state.');
     const seen = new Set<string>();
     for (const entry of value.components) {

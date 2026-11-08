@@ -1,6 +1,7 @@
 import { createShareableHtml, resolveLocalStateBaseline, type ShareableHtmlOptions } from '../shareable';
 import { parseLocalState } from '../local/runtime/state';
 import { readLocalConfig, validateLocalDocumentConfig } from '../sdk/config';
+import { localAssemblyIdentity, localAssemblySeal, localConfigKeyMatches } from '../sdk/assembly';
 import { localComponentDigest } from '../sdk/manifest';
 import { getLocalComponentRegistry } from '../sdk/registry';
 import { LOCAL_SDK_VERSION } from '../sdk/version';
@@ -63,7 +64,7 @@ export function defineLocalStandaloneBundle(script: string, config: LocalConfig)
     seal: createLocalBundleManifest(script, installed),
     extensions: Object.freeze({
       protocol: 'reactive-md-extensions/v1' as const,
-      components: Object.freeze(installed.components.map(definition => Object.freeze({
+      components: Object.freeze(installed.registry.map(definition => Object.freeze({
         id: definition.id, name: definition.name, version: definition.version, digest: localComponentDigest(definition),
       }))),
     }),
@@ -87,7 +88,7 @@ export function createLocalExportPlan(options: LocalExportPlanOptions): LocalExp
   const target = options.target;
   if (!['static', 'ssr', 'offline'].includes(target)) throw new TypeError('Unknown export target.');
   for (const requirement of requirements.components) {
-    const component = config.components.find(item => item.id === requirement.id);
+    const component = config.registry.find(item => item.id === requirement.id);
     if (!component) continue;
     for (const id of component.styles ?? []) requiredResources.add(id);
     const needed = target === 'offline' ? ['static', 'interactive', 'offline'] as const : [target] as const;
@@ -103,10 +104,18 @@ export function createLocalExportPlan(options: LocalExportPlanOptions): LocalExp
     } else {
       diagnostics.push(...validateLocalExtensionRequirements(options.bundle.extensions, config));
       const manifest = options.bundle.seal;
-      if (manifest && (manifest.protocol !== 'reactive-md-bundle/v1' || manifest.sdkVersion !== LOCAL_SDK_VERSION || manifest.configKey !== config.key
+      if (manifest && (manifest.protocol !== 'reactive-md-bundle/v1' || manifest.sdkVersion !== LOCAL_SDK_VERSION
+        || !localConfigKeyMatches(config, manifest.configKey)
         || manifest.scriptDigest !== localExportContentDigest(options.bundle.script))) diagnostics.push(extensionDiagnostic(
         'local.extension.bundle-integrity', 'The bundle script or installed configuration differs from its sealed build manifest.',
       ));
+      if (manifest?.assembly !== undefined) {
+        const expected = localAssemblyIdentity(config);
+        if (JSON.stringify(manifest.assembly) !== JSON.stringify(expected)
+          || (manifest.seal !== undefined && manifest.seal !== localAssemblySeal(config))) diagnostics.push(extensionDiagnostic(
+          'local.extension.bundle-assembly', 'The bundle assembly identity differs from the installed assembly.',
+        ));
+      }
       for (const entry of requirements.components) {
         if (!options.bundle.extensions.components.some(item => item.id === entry.id && item.digest === entry.digest)) {
           diagnostics.push(extensionDiagnostic('local.extension.bundle-mismatch', `The standalone bundle does not include ${entry.id}@${entry.version}.`));

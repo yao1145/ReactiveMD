@@ -53,7 +53,7 @@ export function validateLocalExtensionRequirements(
         continue;
       }
       seen.add(entry.id);
-      const definition = installed?.components.find(item => item.id === entry.id);
+      const definition = installed?.registry.find(item => item.id === entry.id);
       if (!definition) {
         fail(`Component ${entry.id}@${entry.version} is not installed in this host.`);
       } else if (definition.name !== entry.name || definition.version !== entry.version

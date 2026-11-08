@@ -107,6 +107,10 @@
       "types": "./dist-library/types/presets/default.d.ts",
       "import": "./dist-library/reactive-md-default-preset.js"
     },
+    "./presets/default/packs": {
+      "types": "./dist-library/types/presets/packs.d.ts",
+      "import": "./dist-library/reactive-md-default-packs.js"
+    },
     "./export": {
       "types": "./dist-library/types/export/index.d.ts",
       "import": "./dist-library/reactive-md-export.js"

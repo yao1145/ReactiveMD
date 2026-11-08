@@ -27,6 +27,7 @@ export default defineConfig({
         'reactive-md-testing-react': fileURLToPath(new URL('./src/testing/react.tsx', import.meta.url)),
         'reactive-md-testing-browser': fileURLToPath(new URL('./src/testing/browser.ts', import.meta.url)),
         'reactive-md-default-preset': fileURLToPath(new URL('./src/presets/default.ts', import.meta.url)),
+        'reactive-md-default-packs': fileURLToPath(new URL('./src/presets/packs.ts', import.meta.url)),
         'reactive-md-export': fileURLToPath(new URL('./src/export/index.ts', import.meta.url)),
         'reactive-md-react-server': fileURLToPath(new URL('./src/react/server.tsx', import.meta.url)),
         'reactive-md-standalone-host': fileURLToPath(new URL('./src/standalone/library.ts', import.meta.url)),

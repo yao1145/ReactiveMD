@@ -57,9 +57,14 @@ describe('React preset composition', () => {
     expect(() => createReactConfig(createLocalConfig(), { components: [], presets: [{ id: 'example/override', version: '1.0.0', components: [replacement] }] })).toThrow(/more than one/);
   });
 
-  it('checks preset implementations against the installed contracts', () => {
+  it('ignores preset implementations that are not active in the registry', () => {
     const implementation = defineReactComponent(sliderAlias(), { render: SliderAliasView });
-    expect(() => createReactConfig(createLocalConfig(), { components: [], presets: [{ id: 'example/uninstalled', version: '1.0.0', components: [implementation] }] })).toThrow(/installed manifest/);
+    const reactConfig = createReactConfig(createLocalConfig(), {
+      components: [],
+      presets: [{ id: 'example/uninstalled', version: '1.0.0', components: [implementation] }],
+    });
+    expect(reactConfig.components).toEqual([]);
+    expect(reactConfig.implementations.some((item) => item.definition.name === 'slider-alias')).toBe(false);
   });
 });
 

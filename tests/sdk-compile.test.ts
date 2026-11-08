@@ -140,7 +140,11 @@ describe('SDK compile integration', () => {
   });
 
   it('rejects a tampered config with a descriptive option diagnostic', () => {
-    const config = { ...configFor(ratingDefinition()), protocol: 'reactive-md-config/v2' } as unknown as LocalConfig;
+    const config = {
+      ...configFor(ratingDefinition()),
+      protocol: 'reactive-md-config/v2',
+      assembly: undefined,
+    } as unknown as LocalConfig;
     const result = compileLocal('x', { config });
     expect(result.ok).toBe(false);
     if (result.ok) return;

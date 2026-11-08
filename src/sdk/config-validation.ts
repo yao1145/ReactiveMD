@@ -1,13 +1,10 @@
 import { LOCAL_HTML_NAMES } from '../local/html/html-names';
 import { LOCAL_KERNEL_DECLARATIONS } from '../local/configuration/schema-core';
-import { localHash } from './hash';
 import {
   MAX_LOCAL_SDK_COMPONENTS,
-  localComponentDigest,
   readLocalComponentManifest,
 } from './manifest';
 import {
-  LOCAL_CONFIG_PROTOCOL,
   LOCAL_SDK_VERSION,
   localVersionSatisfies,
 } from './version';
@@ -31,7 +28,8 @@ export const MAX_LOCAL_SDK_CONFIG_BYTES = 16 * 1024 * 1024;
 
 export const DANGEROUS_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
 export const CONFIG_KEYS: ReadonlySet<string> = new Set([
-  'protocol', 'key', 'presets', 'components', 'registry', 'themes',
+  'protocol', 'key', 'assembly', 'presets', 'components', 'replacements',
+  'registry', 'themes', 'legacyKeys',
 ]);
 
 export function fail(path: string, message: string): never {
@@ -182,31 +180,4 @@ export function readComponents(
   }
   validateDependencies(components, defaults);
   return Object.freeze(components);
-}
-
-/** Canonical preset references, sorted by id. */
-export function canonicalPresets(presets: readonly LocalPresetReference[]): unknown {
-  return [...presets]
-    .map((preset) => ({ id: preset.id, version: preset.version }))
-    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-}
-
-/**
- * Semantic configuration key shared by both configuration readers.
- *
- * Themes and authoring copy are excluded so restyling never changes the
- * compiled identity.
- */
-export function componentConfigKey(
-  presets: readonly LocalPresetReference[],
-  components: readonly LocalComponentDefinition[],
-): string {
-  const canonical = JSON.stringify({
-    protocol: LOCAL_CONFIG_PROTOCOL,
-    presets: canonicalPresets(presets),
-    components: [...components]
-      .map((component) => ({ id: component.id, version: component.version, digest: localComponentDigest(component) }))
-      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
-  });
-  return localHash(canonical);
 }

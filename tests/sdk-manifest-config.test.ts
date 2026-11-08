@@ -419,8 +419,9 @@ describe('SDK manifest validation', () => {
 describe('SDK configuration', () => {
   it('defaults to the default preset and freezes the snapshot', () => {
     const config = createLocalConfig({ components: [ratingManifest()] });
-    expect(config.protocol).toBe('reactive-md-config/v1');
-    expect(config.presets).toEqual([{ id: 'reactive-md/default', version: '0.7.0' }]);
+    expect(config.protocol).toBe('reactive-md-config/v2');
+    expect(config.presets).toMatchObject([{ id: 'reactive-md/default', version: '0.7.0' }]);
+    expect(config.presets[0].digest).toMatch(/^rmd-/);
     expect(config.themes).toEqual([]);
     expect(config.key).toMatch(/^rmd-[0-9a-f]{16}$/);
     expect(Object.isFrozen(config)).toBe(true);

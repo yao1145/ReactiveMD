@@ -1,6 +1,8 @@
+import { defineLocalPreset } from '../sdk/preset-core';
+import { LOCAL_PRESET_PROTOCOL } from '../sdk/version';
+import type { LocalPresetPackage } from '../sdk/types';
 import { DEFAULT_COMPONENT_DEFINITIONS } from './default-components';
-import { LOCAL_SDK_VERSION } from '../sdk/version';
-import type { LocalComponentDefinition } from '../sdk/types';
+import { DEFAULT_PRESET_ID, DEFAULT_PRESET_VERSION } from './identity';
 
 /**
  * The default component preset. Its components are ordinary public SDK
@@ -8,15 +10,12 @@ import type { LocalComponentDefinition } from '../sdk/types';
  * declarations (`theme`, `computed`, `const`, `external`) remain kernel grammar
  * metadata and are not preset components.
  */
-export interface LocalDefaultPreset {
-  readonly id: string;
-  readonly version: string;
-  readonly components: readonly LocalComponentDefinition[];
-}
+export interface LocalDefaultPreset extends LocalPresetPackage {}
 
-export const defaultPreset: LocalDefaultPreset = Object.freeze({
-  id: 'reactive-md/default',
-  version: LOCAL_SDK_VERSION,
+export const defaultPreset: LocalDefaultPreset = defineLocalPreset({
+  protocol: LOCAL_PRESET_PROTOCOL,
+  id: DEFAULT_PRESET_ID,
+  version: DEFAULT_PRESET_VERSION,
   components: DEFAULT_COMPONENT_DEFINITIONS,
 });
 

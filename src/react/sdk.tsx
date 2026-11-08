@@ -106,7 +106,10 @@ export interface CreateLocalReactConfigOptions {
  */
 export interface LocalReactConfig {
   readonly config: LocalConfig;
+  /** Selected implementations that are not supplied by the default React preset. */
   readonly components: readonly LocalReactComponent[];
+  /** Every implementation selected for the active registry, in registry order. */
+  readonly implementations: readonly LocalReactComponent[];
   /** Derived from `config.themes`; pass straight to the document view. */
   readonly themes: readonly LocalThemePackage[];
   /** Compatibility bridge for the legacy `hostRenderer` prop. */
@@ -164,17 +167,16 @@ function readReactComponent(value: unknown): LocalReactComponent {
 
 /**
  * Validate implementations against an immutable config and expose the bridge
- * used by the document views. Duplicate ids/tags, stale digests, missing
- * implementations and mismatched versions all fail before rendering starts.
+ * used by the document views. Implementations are selected by manifest
+ * identity (id, name, version and semantic digest), not by preset identity.
+ * Candidates that are not active in the registry are ignored, so packs and
+ * replacements can ship a superset without duplicating implementations.
  */
 export function createReactConfig(
   input: LocalConfig,
   options: CreateLocalReactConfigOptions,
 ): LocalReactConfig {
   const config = readLocalConfig(input);
-  const declaredById = new Map(
-    config.registry.map((definition) => [definition.id, definition]),
-  );
   const supplied = options?.components;
   if (!Array.isArray(supplied)) {
     throw new TypeError('createReactConfig requires a components array.');
@@ -184,81 +186,73 @@ export function createReactConfig(
     throw new TypeError('createReactConfig presets must be an array.');
   }
 
-  const implementations: LocalReactComponent[] = [];
-  const externalImplementations: LocalReactComponent[] = [];
-  const implementationsById = new Map<string, LocalReactComponent>();
-  const names = new Map<string, LocalReactComponent>();
-
-  const addImplementation = (implementation: LocalReactComponent, preset: boolean): void => {
+  const candidates: LocalReactComponent[] = [];
+  const explicitCandidates: LocalReactComponent[] = [];
+  const builtinImplementations = new Set<LocalReactComponent>();
+  const addCandidate = (value: unknown, source: string): LocalReactComponent => {
+    const implementation = readReactComponent(value);
     const manifest = requireDefinition(implementation.definition);
     const digest = localComponentDigest(manifest);
-    const declared = declaredById.get(manifest.id);
-    if (!declared || declared.name !== manifest.name || declared.version !== manifest.version
-      || localComponentDigest(declared) !== digest) {
-      throw new TypeError(`React component "${manifest.id}" does not match the installed manifest contract.`);
-    }
     if (implementation.digest !== digest) {
       throw new TypeError(
-        `React component "${manifest.id}" has a stale digest; create it with defineReactComponent.`,
+        `React component "${manifest.id}" from ${source} has a stale digest; create it with defineReactComponent.`,
       );
     }
-    const previousId = implementationsById.get(manifest.id);
-    if (previousId) {
-      throw new TypeError(`Component id "${manifest.id}" has more than one React implementation.`);
-    }
-    const previousName = names.get(manifest.name);
-    if (previousName) {
-      throw new TypeError(`Component tag <${manifest.name}> has more than one React implementation.`);
-    }
-    implementationsById.set(manifest.id, implementation);
-    names.set(manifest.name, implementation);
-    implementations.push(implementation);
-    if (!preset) externalImplementations.push(implementation);
+    candidates.push(implementation);
+    return implementation;
   };
 
   const builtinPreset = createDefaultReactPreset();
-  for (const value of builtinPreset.components) addImplementation(readReactComponent(value), true);
+  for (const value of builtinPreset.components) {
+    const implementation = addCandidate(value, 'the default React preset');
+    builtinImplementations.add(implementation);
+  }
   for (const preset of presets) {
     if (!preset || typeof preset !== 'object' || !Array.isArray(preset.components)) {
       throw new TypeError('createReactConfig preset must expose a components array.');
     }
-    for (const value of preset.components) {
-      addImplementation(readReactComponent(value), false);
-    }
+    for (const value of preset.components) explicitCandidates.push(addCandidate(value, `preset "${preset.id ?? ''}"`));
   }
+  for (const value of supplied) explicitCandidates.push(addCandidate(value, 'components'));
 
-  for (const value of supplied) {
-    const implementation = readReactComponent(value);
-    const manifest = requireDefinition(implementation.definition);
-    const digest = localComponentDigest(manifest);
-    const declared = declaredById.get(manifest.id);
-    if (!declared) {
-      throw new TypeError(
-        `React component "${manifest.name}" (${manifest.id}) is not declared by this local config.`,
-      );
+  const selected: LocalReactComponent[] = [];
+  const missing: string[] = [];
+  for (const definition of config.registry) {
+    const digest = localComponentDigest(definition);
+    const matches = candidates.filter((candidate) => candidate.definition.id === definition.id
+      && candidate.definition.name === definition.name
+      && candidate.definition.version === definition.version
+      && candidate.digest === digest);
+    if (matches.length === 0) {
+      if (candidates.some((candidate) => candidate.definition.id === definition.id)) {
+        throw new TypeError(
+          `React component "${definition.id}@${definition.version}" does not match the installed manifest contract.`,
+        );
+      }
+      missing.push(`${definition.id}@${definition.version}`);
+      continue;
     }
-    if (declared.name !== manifest.name || declared.version !== manifest.version) {
-      throw new TypeError(
-        `React component "${manifest.id}" does not match the declared name/version.`,
-      );
+    if (matches.length > 1) {
+      throw new TypeError(`Component id "${definition.id}" has more than one matching React implementation.`);
     }
-    if (localComponentDigest(declared) !== digest) {
-      throw new TypeError(
-        `React component "${manifest.id}@${manifest.version}" does not match the installed manifest contract.`,
-      );
-    }
-    addImplementation(implementation, false);
+    selected.push(matches[0]);
   }
-
-  const missing = config.registry
-    .filter((definition) => !implementationsById.has(definition.id))
-    .map((definition) => `${definition.id}@${definition.version}`);
   if (missing.length > 0) {
+    const declaredIds = new Set(config.registry.map((definition) => definition.id));
+    const unused = [...new Set(explicitCandidates
+      .filter((candidate) => !declaredIds.has(candidate.definition.id))
+      .map((candidate) => `${candidate.definition.id}@${candidate.definition.version}`))];
     throw new TypeError(
-      `createReactConfig is missing implementations for: ${missing.join(', ')}.`,
+      `createReactConfig is missing implementations for: ${missing.join(', ')}.`
+      + (unused.length === 0
+        ? ''
+        : ` Supplied implementation(s) ${unused.join(', ')} are not declared by this local config.`),
     );
   }
 
+  const implementationsById = new Map(selected.map((implementation) => [implementation.definition.id, implementation]));
+  const names = new Map(selected.map((implementation) => [implementation.definition.name, implementation]));
+  const external = selected.filter((implementation) => !builtinImplementations.has(implementation));
   const themes = Object.freeze(config.themes.slice()) as readonly LocalThemePackage[];
   const index: LocalReactIndex = Object.freeze({
     byName: new Map(names),
@@ -266,7 +260,8 @@ export function createReactConfig(
   });
   const result: LocalReactConfig = Object.freeze({
     config,
-    components: Object.freeze(externalImplementations.slice()),
+    components: Object.freeze(external),
+    implementations: Object.freeze(selected),
     themes,
     hostRenderer: createHostRenderer(index),
   });

@@ -368,14 +368,24 @@ describe('registry validation and rule budgets', () => {
       ...config,
       components: [{ ...rating(), form: 'nope' }],
     } as unknown as LocalConfig;
-    expect(() => getLocalComponentRegistry(forged)).toThrow(/form/);
+    // Derived fields are ignored; the validated assembly remains authoritative.
+    expect(getLocalComponentRegistry(forged)).toEqual(config.registry);
 
-    const duplicate = { ...config, components: [rating(), rating()] } as unknown as LocalConfig;
+    const invalid = {
+      ...config,
+      assembly: { ...config.assembly, components: [{ ...rating(), form: 'nope' }] },
+    } as unknown as LocalConfig;
+    expect(() => getLocalComponentRegistry(invalid)).toThrow(/form/);
+
+    const duplicate = {
+      ...config,
+      assembly: { ...config.assembly, components: [rating(), rating()] },
+    } as unknown as LocalConfig;
     expect(() => getLocalComponentRegistry(duplicate)).toThrow(/declared more than once/);
 
     const reserved = {
       ...config,
-      components: [{ ...rating(), id: 'example/number', name: 'number' }],
+      assembly: { ...config.assembly, components: [{ ...rating(), id: 'example/number', name: 'number' }] },
     } as unknown as LocalConfig;
     expect(() => getLocalComponentRegistry(reserved)).toThrow(/conflicts with a built-in/);
   });

@@ -6,7 +6,13 @@
  */
 export const LOCAL_SDK_VERSION = '0.7.0' as const;
 export const LOCAL_COMPONENT_PROTOCOL = 'reactive-md-component/v1' as const;
+/** Legacy configuration protocol. Readable through the v1 compatibility profile. */
 export const LOCAL_CONFIG_PROTOCOL = 'reactive-md-config/v1' as const;
+/** Assembly-based configuration protocol. New configs are written in this form. */
+export const LOCAL_CONFIG_PROTOCOL_V2 = 'reactive-md-config/v2' as const;
+export const LOCAL_PRESET_PROTOCOL = 'reactive-md-preset/v1' as const;
+export const LOCAL_REACT_PRESET_PROTOCOL = 'reactive-md-react-preset/v1' as const;
+export const LOCAL_ASSEMBLY_PROTOCOL = 'reactive-md-assembly/v1' as const;
 export const LOCAL_EXTENSIONS_PROTOCOL = 'reactive-md-extensions/v1' as const;
 
 /** Bounded range syntax: exact, `^`, `~`, `=`, `>`, `>=`, `<`, `<=`. */

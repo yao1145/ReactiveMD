@@ -15,7 +15,7 @@ import { localComponentHostBinding } from '../../sdk/props';
 import { normalizedComponentFromDefinition } from '../../sdk/registry-core';
 import { normalizeComponent, type NormalizedComponent } from '../compilation/component-kernel';
 import { NO_PARSER_CAPABILITIES, type LocalParserCapabilities } from '../parsing/parser-capabilities';
-import { DEFAULT_COMPILER_PRESET, compilerConfigKey, readCompilerConfig } from '../../sdk/compiler-config';
+import { DEFAULT_COMPILER_PRESET, compilerDefaultConfigKey, readCompilerConfig } from '../../sdk/compiler-config';
 import type { LocalComponentDefinition, LocalComponentProp, LocalConfig } from '../../sdk/types';
 import type {
   LocalCompileOptions,
@@ -740,11 +740,10 @@ export function readCompilerOptions(
   capabilities?: LocalParserCapabilities,
 ): LocalOptionCheck {
   const preset = defaults.length > 0 ? STANDARD_PRESET : undefined;
-  const presets = preset ? [preset] : [];
   return readOptionCheck(options, {
     defaults,
     ...(preset ? { preset: preset } : {}),
-    defaultConfigKey: compilerConfigKey(presets, []),
+    defaultConfigKey: compilerDefaultConfigKey(defaults),
     readConfig: readCompilerConfig,
     configKey: (config) => config.key,
     ...(capabilities ? { capabilities } : {}),

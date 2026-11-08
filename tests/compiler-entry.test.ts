@@ -220,8 +220,8 @@ describe('standard compiler entry', () => {
     const standard = createStandardCompiler({ config }).compile('# Title');
     expect(minimal.ok && configured.ok && standard.ok).toBe(true);
     if (minimal.ok && configured.ok && standard.ok) {
-      expect(configured.document.componentConfigKey).toBe(minimal.document.componentConfigKey);
-      expect(configured.document.componentConfigKey).not.toBe(standard.document.componentConfigKey);
+      expect(configured.document.componentConfigKey).toBe(standard.document.componentConfigKey);
+      expect(configured.document.componentConfigKey).not.toBe(minimal.document.componentConfigKey);
     }
   });
 

@@ -5,6 +5,7 @@ import type { LocalComponentRequirement, LocalConfig } from '../sdk/types';
 import { LOCAL_SDK_VERSION } from '../sdk/version';
 import { buildDiagnostic, LocalBuildError } from './diagnostics';
 import { sha256, utf8ByteLength } from './digest';
+import { localAssemblyIdentity, localAssemblySeal, type LocalAssemblyIdentity } from '../sdk/assembly';
 import { readLocalBuildHost, type LocalBuildHostOptions } from './host';
 import {
   collectLocalBuildNotices,
@@ -77,6 +78,10 @@ export interface LocalStandaloneBuildManifest {
   readonly protocol: typeof LOCAL_BUILD_PROTOCOL;
   readonly sdkVersion: typeof LOCAL_SDK_VERSION;
   readonly configKey: string;
+  /** Assembly identity; includes presets, registry and replacement edges. */
+  readonly assembly: LocalAssemblyIdentity;
+  /** Digest over `assembly`; independent from the script digest. */
+  readonly seal: string;
   readonly format: 'iife';
   readonly script: { readonly digest: string; readonly bytes: number };
   readonly resources: readonly {
@@ -115,7 +120,7 @@ const OFFLINE_CAPABILITIES = ['static', 'interactive', 'offline'] as const;
 
 function capabilityDiagnostics(config: LocalConfig): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  for (const component of config.components) {
+  for (const component of config.registry) {
     for (const capability of OFFLINE_CAPABILITIES) {
       if (!component.capabilities[capability]) {
         diagnostics.push(buildDiagnostic(
@@ -195,6 +200,8 @@ function createManifest(
     protocol: LOCAL_BUILD_PROTOCOL,
     sdkVersion: LOCAL_SDK_VERSION,
     configKey: preflight.configKey,
+    assembly: localAssemblyIdentity(config),
+    seal: localAssemblySeal(config),
     format: 'iife' as const,
     script: Object.freeze({ digest: sha256(script), bytes: utf8ByteLength(script) }),
     resources: Object.freeze(preflight.resources.map((resource) => Object.freeze({
@@ -204,7 +211,7 @@ function createManifest(
       bytes: resource.bytes,
     }))),
     inlinedAssets: preflight.assets,
-    components: Object.freeze(config.components.map(localComponentRequirement)),
+    components: Object.freeze(config.registry.map(localComponentRequirement)),
     themes: Object.freeze(config.themes.map((theme) => Object.freeze({
       id: theme.id,
       name: theme.name,

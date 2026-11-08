@@ -27,6 +27,7 @@ import {
   type LocalComponentInitialRule,
   type LocalComponentProp,
   type LocalComponentPropKind,
+  type LocalComponentReplacement,
   type LocalComponentRequirement,
   type LocalComponentRequires,
   type LocalComponentRule,
@@ -89,7 +90,7 @@ const LABELS: ReadonlySet<string> = new Set(['none', 'required', 'optional']);
 const TOP_KEYS = new Set([
   'id', 'name', 'version', 'protocol', 'form', 'props', 'bindings',
   'children', 'structure', 'rules', 'slotRelations', 'legacyHost',
-  'capabilities', 'authoring', 'dependencies', 'styles', 'requires',
+  'capabilities', 'authoring', 'dependencies', 'styles', 'requires', 'replaces',
 ]);
 const PROP_KEYS = new Set([
   'kind', 'required', 'static', 'dynamic', 'default', 'nullable', 'enum', 'values',
@@ -110,6 +111,7 @@ const STRUCTURE_KEYS = new Set([
 ]);
 const DEPENDENCY_KEYS = new Set(['id', 'version']);
 const REQUIRES_KEYS = new Set(['kernel']);
+const REPLACEMENT_KEYS = new Set(['id', 'version']);
 const STYLE_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 /** Slot names and `setMany` are part of the public binding API. */
 const SLOT_NAME = /^[A-Za-z][A-Za-z0-9]*$/;
@@ -1027,6 +1029,28 @@ function readRequires(value: unknown): LocalComponentRequires {
   return { ...(kernel ? { kernel } : {}) };
 }
 
+/** Replacement declarations are bounded plain data and stay on the manifest. */
+function readReplacement(value: unknown, ownId: string): LocalComponentReplacement {
+  if (!isPlainRecord(value)) fail('replaces', 'must be an object.');
+  checkKeys(value, REPLACEMENT_KEYS, 'replaces');
+  const id = value.id;
+  if (typeof id !== 'string' || !ID.test(id) || id.length > MAX_LOCAL_SDK_ID_LENGTH) {
+    fail('replaces.id', 'must be a lowercase namespaced id.');
+  }
+  if (id !== ownId) {
+    fail('replaces.id', 'must equal the declaring manifest id.');
+  }
+  let version: string | undefined;
+  if (value.version !== undefined) {
+    const parsed = parseLocalVersionRange(value.version);
+    if (parsed === null) {
+      fail('replaces.version', 'must be an exact version or a supported range (exact, ^, ~, >=, <=, >, <).');
+    }
+    version = parsed.source;
+  }
+  return Object.freeze({ id, ...(version ? { version } : {}) });
+}
+
 function readStyles(value: unknown): readonly string[] {
   if (!Array.isArray(value)) fail('styles', 'must be an array of style-resource ids.');
   if (value.length > MAX_LOCAL_SDK_STYLES) fail('styles', `accepts at most ${MAX_LOCAL_SDK_STYLES} resources.`);
@@ -1051,6 +1075,9 @@ function readStyles(value: unknown): readonly string[] {
  * result is fresh, bounded, JSON-only data.
  */
 export function readLocalComponentManifest(value: unknown): LocalComponentDefinition {
+  if (typeof value === 'object' && value !== null && validatedDefinitions.has(value as object)) {
+    return value as LocalComponentDefinition;
+  }
   if (!isPlainRecord(value)) fail('manifest', 'must be an object.');
   checkKeys(value, TOP_KEYS, 'manifest');
   const id = value.id;
@@ -1132,6 +1159,7 @@ export function readLocalComponentManifest(value: unknown): LocalComponentDefini
   const authoring = value.authoring === undefined ? undefined : readAuthoring(value.authoring, 'authoring');
   const styles = value.styles === undefined ? undefined : readStyles(value.styles);
   const requires = value.requires === undefined ? undefined : readRequires(value.requires);
+  const replaces = value.replaces === undefined ? undefined : readReplacement(value.replaces, id);
   let dependencies: readonly LocalComponentDependency[] | undefined;
   if (value.dependencies !== undefined) {
     if (!Array.isArray(value.dependencies)) fail('dependencies', 'must be an array.');
@@ -1167,6 +1195,7 @@ export function readLocalComponentManifest(value: unknown): LocalComponentDefini
     ...(styles ? { styles } : {}),
     ...(requires ? { requires: Object.freeze(requires) } : {}),
     ...(dependencies ? { dependencies } : {}),
+    ...(replaces ? { replaces } : {}),
   };
   if (localJsonByteLength(definition) > MAX_LOCAL_SDK_MANIFEST_BYTES) {
     fail('manifest', `serialized size exceeds the ${MAX_LOCAL_SDK_MANIFEST_BYTES}-byte budget.`);
@@ -1310,6 +1339,9 @@ export function canonicalLocalComponent(definition: LocalComponentDefinition): u
     ...(definition.dependencies
       ? { dependencies: [...definition.dependencies].map((item) => ({ ...item })).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)) }
       : {}),
+    ...(definition.replaces
+      ? { replaces: { id: definition.replaces.id, ...(definition.replaces.version ? { version: definition.replaces.version } : {}) } }
+      : {}),
   };
 }
 
@@ -1338,4 +1370,9 @@ export function localComponentRequirement(definition: LocalComponentDefinition):
 /** Read-only check used by registry validation and tests. */
 export function isLocalComponentName(value: unknown): value is string {
   return typeof value === 'string' && value.length <= MAX_LOCAL_SDK_NAME_LENGTH && NAME.test(value);
+}
+
+/** Read-only namespaced-id check shared by presets and replacement records. */
+export function isLocalComponentId(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= MAX_LOCAL_SDK_ID_LENGTH && ID.test(value);
 }

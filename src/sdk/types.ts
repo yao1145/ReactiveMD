@@ -10,9 +10,12 @@ import type {
   KernelStructure,
 } from '../local/compilation/component-kernel';
 import {
+  LOCAL_ASSEMBLY_PROTOCOL,
   LOCAL_COMPONENT_PROTOCOL,
   LOCAL_CONFIG_PROTOCOL,
+  LOCAL_CONFIG_PROTOCOL_V2,
   LOCAL_EXTENSIONS_PROTOCOL,
+  LOCAL_PRESET_PROTOCOL,
 } from './version';
 import type { LocalThemePackage } from './theme';
 
@@ -116,6 +119,18 @@ export interface LocalComponentRequires {
 }
 
 /**
+ * One explicit replacement declaration. The replacing manifest keeps the
+ * target id and tag name; the version range identifies the base versions it
+ * may replace. Assembly rejects implicit or ambiguous overrides.
+ */
+export interface LocalComponentReplacement {
+  /** Must equal the declaring manifest's id. */
+  readonly id: string;
+  /** Base version range; omitted matches any base version. */
+  readonly version?: string;
+}
+
+/**
  * One component manifest: bounded JSON data only. It never contains functions,
  * React objects, cycles or host resources, so it can cross a Worker boundary
  * and be attached to a compiled document's requirement list.
@@ -145,6 +160,8 @@ export interface LocalComponentDefinition {
   readonly styles?: readonly string[];
   readonly requires?: LocalComponentRequires;
   readonly dependencies?: readonly LocalComponentDependency[];
+  /** Explicit replacement declaration; see `LocalComponentReplacement`. */
+  readonly replaces?: LocalComponentReplacement;
 }
 
 /** One component required to reproduce a compiled document. */
@@ -167,25 +184,97 @@ export interface LocalPresetReference {
   readonly version: string;
 }
 
+/** One authoring override contributed by a preset package. */
+export interface LocalPresetAuthoring {
+  readonly componentId: string;
+  readonly authoring: LocalComponentAuthoring;
+}
+
 /**
- * Immutable, serializable instance configuration. `components` holds external
- * manifests only; the built-in default preset is carried in `registry`.
- * `key` is a deterministic semantic digest and is never trusted on input.
+ * Versioned, plain-data preset package. Components are ordinary manifests;
+ * authoring and themes are excluded from the semantic configuration key.
  */
-export interface LocalConfig {
-  readonly protocol: typeof LOCAL_CONFIG_PROTOCOL;
-  readonly key: string;
-  readonly presets: readonly LocalPresetReference[];
-  /** External components only, preserving phase-one callers. */
+export interface LocalPresetPackage {
+  readonly protocol: typeof LOCAL_PRESET_PROTOCOL;
+  readonly id: string;
+  readonly version: string;
   readonly components: readonly LocalComponentDefinition[];
-  /** Full validated snapshot: default preset followed by external components. */
-  readonly registry: readonly LocalComponentDefinition[];
+  readonly authoring?: readonly LocalPresetAuthoring[];
+  readonly themes?: readonly LocalThemePackage[];
+  readonly dependencies?: readonly LocalPresetReference[];
+  readonly metadata?: {
+    readonly title?: LocalComponentText;
+    readonly description?: LocalComponentText;
+  };
+}
+
+/**
+ * Normalized, frozen, transportable assembly input. Every derived field on
+ * `LocalConfig` is rebuilt from this snapshot; a receiver never trusts a
+ * supplied key, registry or replacement record.
+ */
+export interface LocalAssemblySnapshot {
+  readonly protocol: typeof LOCAL_ASSEMBLY_PROTOCOL;
+  readonly presets: readonly LocalPresetPackage[];
+  /** Pre-replacement explicit contributions, including replaced bases. */
+  readonly components: readonly LocalComponentDefinition[];
+  readonly replacementPolicy: 'allow' | 'forbid';
+  /** Host-supplied themes; preset themes remain inside `presets`. */
   readonly themes: readonly LocalThemePackage[];
 }
 
+export interface LocalResolvedPreset {
+  readonly id: string;
+  readonly version: string;
+  readonly digest: string;
+}
+
+export interface LocalReplacementRecord {
+  readonly id: string;
+  readonly name: string;
+  readonly fromVersion: string;
+  readonly toVersion: string;
+  readonly fromDigest: string;
+  readonly toDigest: string;
+  /** Omitted for an external (explicit) contribution. */
+  readonly fromPreset?: string;
+  /** Omitted for an external (explicit) contribution. */
+  readonly toPreset?: string;
+}
+
+export interface LocalLegacyConfigKey {
+  readonly profile: string;
+  readonly key: string;
+}
+
+/**
+ * Immutable, serializable instance configuration. `assembly` is the input of
+ * record; key, presets, components, replacements, registry and themes are
+ * derived and revalidated on every read.
+ */
+export interface LocalConfig {
+  readonly protocol: typeof LOCAL_CONFIG_PROTOCOL_V2;
+  readonly assembly: LocalAssemblySnapshot;
+  readonly key: string;
+  readonly presets: readonly LocalResolvedPreset[];
+  /** Active components that came from the explicit `components` input. */
+  readonly components: readonly LocalComponentDefinition[];
+  readonly replacements: readonly LocalReplacementRecord[];
+  /** Full active registry in stable position order. */
+  readonly registry: readonly LocalComponentDefinition[];
+  readonly themes: readonly LocalThemePackage[];
+  /** Supported legacy identity aliases, e.g. the v1 config key. */
+  readonly legacyKeys: readonly LocalLegacyConfigKey[];
+}
+
+/** Preset inputs accepted by `createLocalConfig`. */
+export type LocalPresetInput = LocalPresetPackage | string | LocalPresetReference;
+
 /** Input accepted by `createLocalConfig` before validation. */
 export interface LocalConfigInput {
-  readonly presets?: readonly (LocalPresetReference | string)[];
+  readonly presets?: readonly LocalPresetInput[];
   readonly components?: readonly LocalComponentDefinition[];
+  /** Defaults to `'allow'`; only explicit `replaces` declarations apply. */
+  readonly replacements?: 'allow' | 'forbid';
   readonly themes?: readonly LocalThemePackage[];
 }

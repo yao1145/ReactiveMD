@@ -172,7 +172,8 @@ describe('createLocalComponentCatalog', () => {
       ...config,
       components: [{ ...rating, extra: 'not-allowed' }],
     } as unknown as LocalConfig;
-    expect(() => createLocalComponentCatalog(tampered, 'en')).toThrow(/unknown field/);
+    // Derived fields are ignored; the validated assembly remains authoritative.
+    expect(createLocalComponentCatalog(tampered, 'en')).toEqual(createLocalComponentCatalog(config, 'en'));
     expect(() => createLocalComponentCatalog({
       protocol: 'reactive-md-config/v1',
       components: 'nope',
