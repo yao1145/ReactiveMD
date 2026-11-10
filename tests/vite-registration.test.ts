@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertUniqueRegistration,
+  classifyLocalEntryPackage,
   createDirectoryRegistration,
   mergeDiscoveredAssets,
   readLocalReactPackage,
 } from '../src/vite/registration';
+
+const PROTOCOL = 'reactive-md-react-preset/v1';
 
 const themePackage = {
   id: 'local/theme/paper',
@@ -23,6 +26,12 @@ const component = {
 
 const packageA = { components: [component] };
 const packageB = { components: [{ ...component, definition: { id: 'example.other', name: 'other', version: '1.0.0' } }] };
+const presetPackage = {
+  protocol: PROTOCOL,
+  preset: { id: 'acme/preset', version: '1.0.0' },
+  components: [component],
+  resources: [{ id: 'preset/a.css', css: '.a{}' }],
+};
 
 function discovery() {
   return {
@@ -61,6 +70,41 @@ describe('directory registration source', () => {
       .toThrow(/must export a LocalReactPackage/);
   });
 
+  it('classifies preset packages by protocol before component packages', () => {
+    expect(classifyLocalEntryPackage({ default: presetPackage }, 'dir/index.ts', PROTOCOL))
+      .toEqual({ kind: 'preset', value: presetPackage });
+    expect(classifyLocalEntryPackage({ default: packageA }, 'dir/index.ts', PROTOCOL))
+      .toEqual({ kind: 'package', value: packageA });
+    expect(classifyLocalEntryPackage({ base: presetPackage }, 'dir/index.ts', PROTOCOL))
+      .toEqual({ kind: 'preset', value: presetPackage });
+    expect(classifyLocalEntryPackage({ base: presetPackage, alias: presetPackage }, 'dir/index.ts', PROTOCOL))
+      .toEqual({ kind: 'preset', value: presetPackage });
+    expect(() => classifyLocalEntryPackage({ base: presetPackage, other: { ...presetPackage } }, 'dir/index.ts', PROTOCOL))
+      .toThrow(/more than one distinct LocalReactPresetPackage/);
+  });
+
+  it('rejects an entry that provides both package kinds', () => {
+    expect(() => classifyLocalEntryPackage({ default: presetPackage, card: packageA }, 'dir/index.ts', PROTOCOL))
+      .toThrow(/exports both a LocalReactPresetPackage.*LocalReactPackage/);
+    expect(() => classifyLocalEntryPackage({ default: packageA, base: presetPackage }, 'dir/index.ts', PROTOCOL))
+      .toThrow(/exports both a LocalReactPresetPackage.*LocalReactPackage/);
+  });
+
+  it('rejects preset-like exports with a missing or unsupported protocol', () => {
+    expect(() => classifyLocalEntryPackage({
+      default: { ...presetPackage, protocol: 'reactive-md-react-preset/v2' },
+    }, 'dir/index.ts', PROTOCOL)).toThrow(/unsupported React preset protocol "reactive-md-react-preset\/v2"/);
+    expect(() => classifyLocalEntryPackage({
+      default: { preset: presetPackage.preset, components: [component] },
+    }, 'dir/index.ts', PROTOCOL)).toThrow(/unsupported React preset protocol undefined/);
+    expect(() => classifyLocalEntryPackage({
+      default: { protocol: 'reactive-md-react-preset/v2', components: [component] },
+    }, 'dir/index.ts', PROTOCOL)).toThrow(/unsupported React preset protocol "reactive-md-react-preset\/v2"/);
+    expect(() => classifyLocalEntryPackage({
+      default: { protocol: PROTOCOL, components: [component] },
+    }, 'dir/index.ts', PROTOCOL)).toThrow(/not a valid LocalReactPresetPackage/);
+  });
+
   it('names both entries for duplicate component and theme identities', () => {
     expect(() => assertUniqueRegistration([
       { file: '/root/plugin/a/index.ts', id: 'example.card', name: 'card' },
@@ -92,6 +136,19 @@ describe('directory registration source', () => {
     expect(registration.code).not.toContain('node:fs');
     expect(registration.code).not.toContain("from 'node:");
     expect(registration.files).toEqual(['/root/theme/paper/theme.css', '/root/plugin/a/index.ts']);
+  });
+
+  it('emits preset routing and the default preset switch', () => {
+    const defaults = createDirectoryRegistration(discovery(), 'style-id');
+    expect(defaults.code).toContain('const __rmdInstallDefaultPreset = true;');
+    expect(defaults.code).toContain('const __rmdPresetProtocol = "reactive-md-react-preset/v1";');
+    expect(defaults.code).toContain('const presets = __rmdInstallDefaultPreset ? ["default"] : [];');
+    expect(defaults.code).toContain('presets.push({ ...preset, resources: [...(preset.resources ?? []), ...entry.resources] });');
+    expect(defaults.code).toContain('createReactHost({ packages, themes, notices, presets })');
+
+    const bare = createDirectoryRegistration(discovery(), 'style-id', { defaultPreset: false });
+    expect(bare.code).toContain('const __rmdInstallDefaultPreset = false;');
+    expect(bare.code).not.toContain('const __rmdReadPackage');
   });
 
   it('merges discovered assets without replacing collector assets', () => {

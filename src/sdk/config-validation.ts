@@ -2,6 +2,7 @@ import { LOCAL_HTML_NAMES } from '../local/html/html-names';
 import { LOCAL_KERNEL_DECLARATIONS } from '../local/configuration/schema-core';
 import {
   MAX_LOCAL_SDK_COMPONENTS,
+  localComponentDigest,
   readLocalComponentManifest,
 } from './manifest';
 import {
@@ -12,6 +13,7 @@ import type {
   LocalComponentDefinition,
   LocalPresetReference,
 } from './types';
+import type { LocalCompatProfile } from './compat-profile';
 
 /**
  * Theme-free SDK configuration validation shared by the full SDK entry and the
@@ -50,16 +52,25 @@ export function checkKeys(record: Record<string, unknown>, allowed: ReadonlySet<
 }
 
 /**
- * Read the selected preset references against one supported preset identity.
- * Omitting `presets` selects that identity; `"default"` normalizes to it.
+ * Read the selected preset references against the current default identity and
+ * any legacy identities supported by compatibility profiles. Omitting
+ * `presets` selects the current default; `"default"` normalizes to it. A
+ * declared identity must match a profile exactly, including its version.
  */
 export function readPresetReferences(
   value: unknown,
   preset: LocalPresetReference,
+  profiles: readonly LocalCompatProfile[] = [],
 ): readonly LocalPresetReference[] {
   if (value === undefined) return Object.freeze([preset]);
   if (!Array.isArray(value)) fail('presets', 'must be an array.');
   if (value.length === 0) fail('presets', 'must select at least the default preset.');
+  const candidates: LocalPresetReference[] = [];
+  for (const candidate of [preset, ...profiles.map((profile) => profile.preset)]) {
+    if (!candidates.some((entry) => entry.id === candidate.id && entry.version === candidate.version)) {
+      candidates.push(candidate);
+    }
+  }
   const seen = new Set<string>();
   const presets: LocalPresetReference[] = [];
   for (let index = 0; index < value.length; index += 1) {
@@ -79,17 +90,51 @@ export function readPresetReferences(
       fail(`presets[${index}]`, 'must be a preset id or preset reference.');
     }
     const normalized = id === 'default' ? preset.id : id;
-    if (normalized !== preset.id) {
-      fail(`presets[${index}]`, `unsupported preset "${id}"; phase one accepts only "${preset.id}".`);
+    const matches = candidates.filter((candidate) => candidate.id === normalized);
+    if (matches.length === 0) {
+      fail(
+        `presets[${index}]`,
+        `unsupported preset "${id}"; local.config.migration-unsupported: no compatibility profile matches this identity.`,
+      );
     }
-    if (version !== undefined && version !== preset.version) {
-      fail(`presets[${index}].version`, `must be "${preset.version}".`);
+    const match = version === undefined
+      ? matches.length === 1
+        ? matches[0]
+        : undefined
+      : matches.find((candidate) => candidate.version === version);
+    if (match === undefined) {
+      fail(
+        `presets[${index}]`,
+        `unsupported preset "${id}"${version === undefined ? '' : ` version "${version}"`}; local.config.migration-unsupported: no compatibility profile matches this identity.`,
+      );
     }
-    if (seen.has(preset.id)) fail('presets', `"${preset.id}" is selected more than once.`);
-    seen.add(preset.id);
-    presets.push(preset);
+    if (seen.has(match.id)) fail('presets', `"${match.id}" is selected more than once.`);
+    if (presets.length > 0 && presets[0].id !== match.id) {
+      fail('presets', 'reactive-md-config/v1 selects exactly one default preset identity.');
+    }
+    seen.add(match.id);
+    presets.push(match);
   }
   return Object.freeze(presets);
+}
+
+/** Verify the optional legacy component snapshot against installed manifests. */
+export function validateCompatProfileComponents(
+  profile: LocalCompatProfile,
+  installed: readonly LocalComponentDefinition[],
+): void {
+  if (profile.components === undefined) return;
+  const byId = new Map(installed.map((component) => [component.id, component]));
+  for (const expected of profile.components) {
+    const actual = byId.get(expected.id);
+    if (!actual || actual.name !== expected.name || actual.version !== expected.version
+      || localComponentDigest(actual) !== expected.digest) {
+      fail(
+        'presets',
+        `local.config.migration-unsupported: profile "${profile.name}" cannot map legacy component "${expected.id}".`,
+      );
+    }
+  }
 }
 
 function builtinIds(defaults: readonly LocalComponentDefinition[]): ReadonlySet<string> {

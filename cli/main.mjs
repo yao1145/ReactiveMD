@@ -1,5 +1,6 @@
 import { parseBuildArgs } from './args.mjs';
 import { runBuild } from './build.mjs';
+import { runCheck } from './check.mjs';
 import { EXIT, usageError } from './errors.mjs';
 import { buildHelp, mainHelp } from './help.mjs';
 import { runInit } from './init.mjs';
@@ -50,6 +51,10 @@ export async function runCli(argv, context) {
 
   if (command === 'migrate') {
     return runMigrate(rest, context);
+  }
+
+  if (command === 'check') {
+    return runCheck(rest, context);
   }
 
   if (command === 'init') {

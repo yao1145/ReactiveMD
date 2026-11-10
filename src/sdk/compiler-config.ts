@@ -3,9 +3,14 @@ import {
   readLocalAssemblySnapshot,
   resolveLocalAssembly,
 } from './assembly';
+import {
+  findLocalCompatProfile,
+  localCompatProfiles,
+} from './compat-profile';
+import type { LocalCompatProfile } from './compat-profile';
 import { localJsonByteLength } from './manifest';
 import { defineLocalPreset } from './preset-core';
-import { CONFIG_KEYS, MAX_LOCAL_SDK_CONFIG_BYTES, checkKeys, fail, isPlainRecord, readComponents, readPresetReferences } from './config-validation';
+import { CONFIG_KEYS, MAX_LOCAL_SDK_CONFIG_BYTES, checkKeys, fail, isPlainRecord, readComponents, readPresetReferences, validateCompatProfileComponents } from './config-validation';
 import { LOCAL_ASSEMBLY_PROTOCOL, LOCAL_CONFIG_PROTOCOL, LOCAL_CONFIG_PROTOCOL_V2, LOCAL_PRESET_PROTOCOL } from './version';
 import { DEFAULT_PRESET_ID, DEFAULT_PRESET_VERSION } from '../presets/identity';
 import type {
@@ -37,32 +42,41 @@ export const DEFAULT_COMPILER_PRESET = Object.freeze({
 const presetCache = new WeakMap<object, LocalPresetPackage>();
 const keyCache = new WeakMap<object, string>();
 
-function presetFor(defaults: readonly LocalComponentDefinition[]): LocalPresetPackage | undefined {
+function presetFor(
+  defaults: readonly LocalComponentDefinition[],
+  identity: { readonly id: string; readonly version: string } = DEFAULT_COMPILER_PRESET,
+): LocalPresetPackage | undefined {
   if (defaults.length === 0) return undefined;
-  const cached = presetCache.get(defaults);
-  if (cached) return cached;
+  const isDefaultIdentity = identity.id === DEFAULT_COMPILER_PRESET.id
+    && identity.version === DEFAULT_COMPILER_PRESET.version;
+  if (isDefaultIdentity) {
+    const cached = presetCache.get(defaults);
+    if (cached) return cached;
+  }
   const preset = defineLocalPreset({
     protocol: LOCAL_PRESET_PROTOCOL,
-    id: DEFAULT_COMPILER_PRESET.id,
-    version: DEFAULT_COMPILER_PRESET.version,
+    id: identity.id,
+    version: identity.version,
     components: defaults,
   });
-  presetCache.set(defaults, preset);
+  if (isDefaultIdentity) presetCache.set(defaults, preset);
   return preset;
 }
 
 function configFromAssembly(
   assembly: LocalAssemblySnapshot,
   defaults: readonly LocalComponentDefinition[],
+  profiles: readonly LocalCompatProfile[],
   legacyKey?: string,
+  legacyKeyProfile = 'reactive-md-config/v1',
 ): LocalConfig {
   const resolved = resolveLocalAssembly(assembly, {
-    ...(defaults.length > 0 ? { legacyDefaultPreset: DEFAULT_COMPILER_PRESET } : {}),
+    legacyProfiles: defaults.length > 0 ? profiles : [],
   });
   const legacyKeys = [
     ...resolved.legacyKeys,
     ...(legacyKey !== undefined && !resolved.legacyKeys.some((entry) => entry.key === legacyKey)
-      ? [Object.freeze({ profile: 'reactive-md-config/v1', key: legacyKey })]
+      ? [Object.freeze({ profile: legacyKeyProfile, key: legacyKey })]
       : []),
   ];
   return Object.freeze({
@@ -98,12 +112,14 @@ function readAssembly(input: unknown): LocalAssemblySnapshot {
 export function readCompilerConfig(
   value: unknown,
   defaults: readonly LocalComponentDefinition[] = [],
+  additionalProfiles: readonly LocalCompatProfile[] = [],
 ): LocalConfig {
+  const profiles = localCompatProfiles(additionalProfiles);
   if (!isPlainRecord(value)) fail('config', 'must be an object.');
   checkKeys(value, CONFIG_KEYS, 'config');
   if (value.protocol === LOCAL_CONFIG_PROTOCOL_V2) {
     const assembly = readAssembly(value.assembly);
-    const config = configFromAssembly(assembly, defaults);
+    const config = configFromAssembly(assembly, defaults, profiles);
     if (localJsonByteLength(assembly) > MAX_LOCAL_SDK_CONFIG_BYTES) {
       fail('config', `serialized size exceeds the ${MAX_LOCAL_SDK_CONFIG_BYTES}-byte budget.`);
     }
@@ -112,12 +128,28 @@ export function readCompilerConfig(
   if (value.protocol !== LOCAL_CONFIG_PROTOCOL) {
     fail('config.protocol', `must be "${LOCAL_CONFIG_PROTOCOL_V2}" (or legacy "${LOCAL_CONFIG_PROTOCOL}").`);
   }
-  const requested = readPresetReferences(value.presets, DEFAULT_COMPILER_PRESET);
+  const requested = readPresetReferences(value.presets, DEFAULT_COMPILER_PRESET, profiles);
+  const selected = requested[0] ?? DEFAULT_COMPILER_PRESET;
+  const profile = findLocalCompatProfile(selected, profiles);
+  if (profile === undefined) {
+    fail(
+      'presets',
+      `local.config.migration-unsupported: no compatibility profile matches preset "${selected.id}" ${selected.version}.`,
+    );
+  }
+  const legacyRule = profile.legacyKeys[0];
+  if (legacyRule === undefined) {
+    fail(
+      'presets',
+      `local.config.migration-unsupported: profile "${profile.name}" has no legacy key mapping.`,
+    );
+  }
+  validateCompatProfileComponents(profile, defaults);
   const components = readComponents(value.components, defaults);
   if (components.some((component) => component.replaces !== undefined)) {
     fail('config', 'replaces is not supported by reactive-md-config/v1.');
   }
-  const preset = presetFor(defaults);
+  const preset = presetFor(defaults, profile.preset);
   const assembly: LocalAssemblySnapshot = Object.freeze({
     protocol: LOCAL_ASSEMBLY_PROTOCOL,
     presets: Object.freeze(preset ? [preset] : []),
@@ -126,12 +158,9 @@ export function readCompilerConfig(
     themes: Object.freeze([]),
   });
   const legacyKey = defaults.length > 0
-    ? localLegacyV1Key(
-      { id: requested[0]?.id ?? DEFAULT_COMPILER_PRESET.id, version: requested[0]?.version ?? DEFAULT_COMPILER_PRESET.version },
-      components,
-    )
+    ? localLegacyV1Key(profile.preset, components)
     : undefined;
-  const config = configFromAssembly(assembly, defaults, legacyKey);
+  const config = configFromAssembly(assembly, defaults, profiles, legacyKey, legacyRule.profile);
   if (localJsonByteLength(assembly) > MAX_LOCAL_SDK_CONFIG_BYTES) {
     fail('config', `serialized size exceeds the ${MAX_LOCAL_SDK_CONFIG_BYTES}-byte budget.`);
   }

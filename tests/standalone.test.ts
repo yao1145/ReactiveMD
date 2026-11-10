@@ -10,6 +10,7 @@ import {
   LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
   LOCAL_COMPONENT_STATE_FORMAT,
 } from '../src/runtime-services/component-state';
+import { componentStateKey, localSourceDigest } from '../src/runtime-services/identity';
 
 function findComponent(nodes: LocalNode[], name: string): LocalNode {
   for (const node of nodes) {
@@ -138,6 +139,7 @@ describe('standalone mount payload', () => {
       randomSeed: 7,
       componentState: {
         format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+        configKey: 'rmd-current',
         records: {
           [key]: {
             format: LOCAL_COMPONENT_STATE_FORMAT,
@@ -155,6 +157,7 @@ describe('standalone mount payload', () => {
     if (!result.ok) return;
     expect(result.payload.documentId).toBe('doc');
     expect(result.payload.randomSeed).toBe(7);
+    expect(result.payload.componentState?.configKey).toBe('rmd-current');
     expect(result.payload.componentState?.records[key].data).toEqual({ score: 4 });
   });
 
@@ -168,6 +171,19 @@ describe('standalone mount payload', () => {
       validPayload({ randomSeed: 1.5 }),
       validPayload({ componentState: '{"format":"nope"}' }),
       validPayload({ componentState: { format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT, records: { bad: {} } } }),
+      validPayload({
+        componentState: { format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT, configKey: 7, records: {} },
+      }),
+      validPayload({
+        componentState: { format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT, configKey: '', records: {} },
+      }),
+      validPayload({
+        componentState: {
+          format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+          configKey: `rmd-${'a'.repeat(125)}`,
+          records: {},
+        },
+      }),
     ];
     for (const payload of cases) {
       expect(parseMountPayload(payload).ok).toBe(false);
@@ -192,6 +208,54 @@ describe('standalone mount payload', () => {
     const result = parseMountPayload(payload);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.diagnostics[0].code).toBe('standalone.payload.invalid');
+  });
+});
+
+describe('standalone runtime component state identity', () => {
+  it('skips a sidecar from another configuration and restores a matching one', () => {
+    const compiled = compileLocal(SOURCE);
+    if (!compiled.ok) throw new Error(compiled.diagnostics.map((item) => item.message).join('; '));
+    const documentId = localSourceDigest(compiled.document.source);
+    const node = findComponent(compiled.document.nodes, 'slider');
+    const key = componentStateKey({ documentId, sourceDigest: documentId, nodeId: node.id });
+    const componentRecord = {
+      format: LOCAL_COMPONENT_STATE_FORMAT,
+      component: 'example/game',
+      componentVersion: '1.0.0',
+      stateVersion: 1,
+      key,
+      data: { score: 1 },
+    };
+
+    const mismatched = createLocalRuntime(compiled.document, {
+      configKey: 'rmd-current',
+      componentState: {
+        format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+        configKey: 'rmd-other',
+        records: { [key]: componentRecord },
+      },
+    });
+    try {
+      expect(mismatched.services?.state.load(key)).toBeNull();
+      expect(mismatched.services?.state.diagnostics()
+        .some((item) => item.code === 'local.runtime.state.config-mismatch')).toBe(true);
+    } finally {
+      mismatched.dispose();
+    }
+
+    const matching = createLocalRuntime(compiled.document, {
+      configKey: 'rmd-current',
+      componentState: {
+        format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+        configKey: 'rmd-current',
+        records: { [key]: componentRecord },
+      },
+    });
+    try {
+      expect(matching.services?.state.load(key)?.data).toEqual({ score: 1 });
+    } finally {
+      matching.dispose();
+    }
   });
 });
 

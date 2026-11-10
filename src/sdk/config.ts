@@ -1,5 +1,11 @@
 import defaultPreset from '../presets/default';
 import {
+  LOCAL_COMPAT_PROFILES,
+  findLocalCompatProfile,
+  localCompatProfiles,
+} from './compat-profile';
+import type { LocalCompatProfile } from './compat-profile';
+import {
   localLegacyV1Key,
   readLocalAssemblySnapshot,
   resolveLocalAssembly,
@@ -33,6 +39,7 @@ import {
   isPlainRecord,
   readComponents,
   readPresetReferences,
+  validateCompatProfileComponents,
 } from './config-validation';
 
 /** Identifiers the default preset contributes in phase one. */
@@ -181,7 +188,7 @@ function buildConfigFromAssembly(assembly: LocalAssemblySnapshot): LocalConfig {
   const normalized = normalizeAssembly(assembly);
   const resolved: ResolvedLocalAssembly & { readonly legacyKeys: readonly LocalLegacyConfigKey[] } =
     resolveLocalAssembly(normalized, {
-      legacyDefaultPreset: { id: defaultPreset.id, version: defaultPreset.version },
+      legacyProfiles: LOCAL_COMPAT_PROFILES,
     });
   const config: LocalConfig = Object.freeze({
     protocol: LOCAL_CONFIG_PROTOCOL_V2,
@@ -228,12 +235,48 @@ export function validateLocalDocumentConfig(document: LocalDocument, config?: Lo
 }
 
 /**
- * Read a v1 configuration through the compatibility profile. v1 never carried
+ * Build the semantic preset for a profile hit. The current built-in package is
+ * reused only when the profile identity is the current default; otherwise the
+ * profile identity names the same verified default semantics.
+ */
+function presetForCompatProfile(profile: LocalCompatProfile): LocalPresetPackage {
+  if (profile.preset.id === defaultPreset.id && profile.preset.version === defaultPreset.version) {
+    return defaultPreset;
+  }
+  return readLocalPresetPackage({
+    ...defaultPreset,
+    id: profile.preset.id,
+    version: profile.preset.version,
+  });
+}
+
+/**
+ * Read a v1 configuration through a compatibility profile. v1 never carried
  * replacements or custom presets; both become migration errors instead of
  * being silently accepted.
  */
-function readLegacyConfig(value: Record<string, unknown>): LocalConfig {
-  const requested = readPresetReferences(value.presets, DEFAULT_PRESET_IDENTITY);
+function readLegacyConfig(
+  value: Record<string, unknown>,
+  profiles: readonly LocalCompatProfile[],
+): LocalConfig {
+  const requested = readPresetReferences(value.presets, DEFAULT_PRESET_IDENTITY, profiles);
+  const selected = requested[0] ?? DEFAULT_PRESET_IDENTITY;
+  const profile = findLocalCompatProfile(selected, profiles);
+  if (profile === undefined) {
+    fail(
+      'presets',
+      `local.config.migration-unsupported: no compatibility profile matches preset "${selected.id}" ${selected.version}.`,
+    );
+  }
+  const legacyRule = profile.legacyKeys[0];
+  if (legacyRule === undefined) {
+    fail(
+      'presets',
+      `local.config.migration-unsupported: profile "${profile.name}" has no legacy key mapping.`,
+    );
+  }
+  validateCompatProfileComponents(profile, defaultPreset.components);
+  const preset = presetForCompatProfile(profile);
   const components = readComponents(value.components, defaultPreset.components);
   if (components.some((component) => component.replaces !== undefined)) {
     fail('config', 'replaces is not supported by reactive-md-config/v1.');
@@ -241,18 +284,13 @@ function readLegacyConfig(value: Record<string, unknown>): LocalConfig {
   const themes = readInputThemes(value.themes);
   const assembly: LocalAssemblySnapshot = Object.freeze({
     protocol: LOCAL_ASSEMBLY_PROTOCOL,
-    presets: Object.freeze([defaultPreset]),
+    presets: Object.freeze([preset]),
     components,
     replacementPolicy: 'forbid',
     themes,
   });
-  const resolved = resolveLocalAssembly(assembly, {
-    legacyDefaultPreset: { id: defaultPreset.id, version: defaultPreset.version },
-  });
-  const legacyKey = localLegacyV1Key(
-    { id: requested[0]?.id ?? defaultPreset.id, version: requested[0]?.version ?? defaultPreset.version },
-    resolved.components,
-  );
+  const resolved = resolveLocalAssembly(assembly, { legacyProfiles: profiles });
+  const legacyKey = localLegacyV1Key(profile.preset, resolved.components);
   const config: LocalConfig = Object.freeze({
     protocol: LOCAL_CONFIG_PROTOCOL_V2,
     assembly,
@@ -266,7 +304,7 @@ function readLegacyConfig(value: Record<string, unknown>): LocalConfig {
       ...resolved.legacyKeys,
       ...(resolved.legacyKeys.some((entry) => entry.key === legacyKey)
         ? []
-        : [Object.freeze({ profile: 'reactive-md-config/v1', key: legacyKey })]),
+        : [Object.freeze({ profile: legacyRule.profile, key: legacyKey })]),
     ]),
   });
   trustedConfigs.add(config);
@@ -277,15 +315,22 @@ function readLegacyConfig(value: Record<string, unknown>): LocalConfig {
  * Revalidate arbitrary configuration data, including a Worker snapshot or a
  * hand-built payload. Supplied derived fields are ignored and rebuilt from the
  * assembly snapshot.
+ *
+ * `additionalProfiles` extends the SDK-built-in compatibility table with
+ * explicit data. It never infers a legacy identity from the current SDK
+ * version.
  */
-export function readLocalConfig(value: unknown): LocalConfig {
+export function readLocalConfig(
+  value: unknown,
+  additionalProfiles: readonly LocalCompatProfile[] = [],
+): LocalConfig {
   if (typeof value === 'object' && value !== null && trustedConfigs.has(value)) {
     return value as LocalConfig;
   }
   if (!isPlainRecord(value)) fail('config', 'must be an object.');
   checkKeys(value, CONFIG_KEYS, 'config');
   if (value.protocol === LOCAL_CONFIG_PROTOCOL) {
-    return readLegacyConfig(value);
+    return readLegacyConfig(value, localCompatProfiles(additionalProfiles));
   }
   if (value.protocol !== LOCAL_CONFIG_PROTOCOL_V2) {
     fail('config.protocol', `must be "${LOCAL_CONFIG_PROTOCOL_V2}" (or legacy "${LOCAL_CONFIG_PROTOCOL}").`);

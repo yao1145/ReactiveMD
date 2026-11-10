@@ -6,6 +6,13 @@ import { initHelp } from './help.mjs';
 
 const COMPONENT_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const COMPONENT_ID = /^[a-z0-9][a-z0-9._-]*(?:\/[a-z0-9][a-z0-9._-]*)*$/;
+const SEMANTIC_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const SCAFFOLD_PACKAGE_VERSION = '0.1.0';
+// Kept in sync with src/sdk/version.ts by scripts/check-versions.mjs.
+const SCAFFOLD_SDK_VERSION = '0.7.0';
+const SCAFFOLD_COMPONENT_PROTOCOL = 'reactive-md-component/v1';
+const SCAFFOLD_PRESET_PROTOCOL = 'reactive-md-preset/v1';
+const SCAFFOLD_REACT_PRESET_PROTOCOL = 'reactive-md-react-preset/v1';
 const MAX_NAME_LENGTH = 128;
 const MAX_ID_LENGTH = 160;
 const MAX_PROPS = 64;
@@ -27,6 +34,8 @@ const INIT_SPEC = new Map([
   ['--form', { key: 'form' }],
   ['--props', { key: 'props' }],
   ['--capabilities', { key: 'capabilities' }],
+  ['--version', { key: 'version' }],
+  ['--locale', { key: 'locale' }],
   ['-y', { key: 'yes', boolean: true }],
   ['--yes', { key: 'yes', boolean: true }],
   ['-h', { key: 'help', boolean: true }],
@@ -215,6 +224,14 @@ function validateName(value) {
 }
 
 /** @param {string} value */
+function validatePresetName(value) {
+  if (value.length > MAX_NAME_LENGTH || !COMPONENT_NAME.test(value)) {
+    throw usageError(`Invalid preset name "${value}". Use lowercase kebab-case, for example "my-preset".`);
+  }
+  return value;
+}
+
+/** @param {string} value */
 function validateId(value) {
   if (value.length > MAX_ID_LENGTH || !COMPONENT_ID.test(value)) {
     throw usageError(`Invalid component id "${value}". Use a lowercase namespaced id such as "example/my-widget".`);
@@ -227,6 +244,25 @@ function validateForm(value) {
   const normalized = String(value).trim().toLowerCase();
   if (!FORMS.includes(normalized)) {
     throw usageError(`Invalid value for "--form": "${value}". Expected leaf, inline or container.`);
+  }
+  return normalized;
+}
+
+/** @param {unknown} value */
+function validatePresetVersion(value) {
+  const text = requireText(value, '--version').trim();
+  if (!SEMANTIC_VERSION.test(text)) {
+    throw usageError(`Invalid preset version "${text}". Use a semantic version such as "0.1.0".`);
+  }
+  return text;
+}
+
+/** @param {unknown} value */
+function parseLocale(value) {
+  if (value === undefined) return 'en';
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized !== 'en' && normalized !== 'zh') {
+    throw usageError(`Invalid value for "--locale": "${value}". Expected en or zh.`);
   }
   return normalized;
 }
@@ -527,8 +563,8 @@ const id = ${JSON.stringify(plan.id)};
 export const manifest = defineLocalComponent({
   id,
   name: ${JSON.stringify(plan.name)},
-  version: '0.1.0',
-  protocol: 'reactive-md-component/v1',
+  version: '${SCAFFOLD_PACKAGE_VERSION}',
+  protocol: '${SCAFFOLD_COMPONENT_PROTOCOL}',
   form: ${JSON.stringify(plan.form)},
   props: ${jsonBlock(plan.props, 2)},
   styles: [id + '.css'],
@@ -648,7 +684,7 @@ export default host;
 function packageJsonSource(plan) {
   return `${JSON.stringify({
     name: `reactive-md-${plan.name}-component`,
-    version: '0.1.0',
+    version: SCAFFOLD_PACKAGE_VERSION,
     private: true,
     type: 'module',
     description: `A <${plan.name}> component package for Reactive MD.`,
@@ -676,9 +712,11 @@ function packageJsonSource(plan) {
       preview: 'vite preview',
       typecheck: 'tsc --noEmit',
       test: 'node scripts/build.mjs && node scripts/verify.mjs',
+      check: 'reactive-md check .',
+      export: 'node scripts/build-export.mjs',
     },
     peerDependencies: {
-      'reactive-md': '^0.7.0',
+      'reactive-md': `^${SCAFFOLD_SDK_VERSION}`,
       react: '^19.0.0',
       'react-dom': '^19.0.0',
     },
@@ -884,6 +922,22 @@ if (nodeCapabilities.length === 0) {
 }
 
 /** @param {{name: string, form: string, props: Record<string, any>, capabilities: string[], id: string}} plan */
+function componentExportScriptSource(plan) {
+  return `import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { build } from 'vite';
+import { reactiveMd } from 'reactive-md/vite';
+
+// The preview build is the package export: the Vite plugin writes
+// main/dist/reactive-md-export.json together with the standalone runtime.
+const root = path.resolve(fileURLToPath(new URL('../main', import.meta.url)));
+
+await build({ root, configFile: false, plugins: [reactiveMd()] });
+console.log('Exported ${plan.name} preview assets through the public Vite API.');
+`;
+}
+
+/** @param {{name: string, form: string, props: Record<string, any>, capabilities: string[], id: string}} plan */
 function readmeSource(plan) {
   const tag = sampleTag(plan);
   return `# ${pascalCase(plan.name)} Reactive MD component
@@ -981,12 +1035,12 @@ block containers; the field classes work on spans.
 
 ## Install
 
-Reactive MD 0.7.0 includes the extension SDK. Install the published package
+Reactive MD ${SCAFFOLD_SDK_VERSION} includes the extension SDK. Install the published package
 together with the React peers, then install the remaining development
 dependencies:
 
 \`\`\`sh
-npm install reactive-md@0.7.0 react@^19 react-dom@^19
+npm install reactive-md@${SCAFFOLD_SDK_VERSION} react@^19 react-dom@^19
 npm install
 \`\`\`
 
@@ -996,6 +1050,8 @@ npm install
 npm run dev       # preview served from main/index.html
 npm test          # build, then run manifest and React/SSR compliance
 npm run build     # dist/node entries and dist/types declarations
+npm run check     # verify exports, config round-trip, registry and resources
+npm run export    # preview build exported through the public Vite API
 npm run typecheck
 \`\`\`
 
@@ -1025,6 +1081,211 @@ that.
 `;
 }
 
+/** @param {{name: string, id: string, version: string}} plan */
+function presetSource(plan) {
+  return `import { defineLocalPreset } from 'reactive-md/sdk';
+
+/**
+ * Pure semantic preset. Component declarations are ordinary manifests created
+ * with defineLocalComponent; keep this entry free of React and CSS imports.
+ */
+/** @type {import('reactive-md/sdk').LocalPresetPackage} */
+export const preset = defineLocalPreset({
+  protocol: '${SCAFFOLD_PRESET_PROTOCOL}',
+  id: ${JSON.stringify(plan.id)},
+  version: ${JSON.stringify(plan.version)},
+  components: [],
+});
+
+export default preset;
+`;
+}
+
+function presetDeclarationSource() {
+  return `import type { LocalPresetPackage } from 'reactive-md/sdk';
+
+export declare const preset: LocalPresetPackage;
+export default preset;
+`;
+}
+
+/** @param {{name: string}} plan */
+function reactPresetSource(plan) {
+  return `import { defineReactPreset } from 'reactive-md/react';
+import preset from './preset.js';
+
+/**
+ * React implementations paired with the semantic preset by manifest identity.
+ * Add one defineReactComponent result per preset component.
+ */
+export const reactPreset = defineReactPreset({
+  protocol: '${SCAFFOLD_REACT_PRESET_PROTOCOL}',
+  preset,
+  components: [],
+});
+
+export default reactPreset;
+`;
+}
+
+function reactPresetDeclarationSource() {
+  return `import type { LocalReactPresetPackage } from 'reactive-md/react';
+
+export declare const reactPreset: LocalReactPresetPackage;
+export default reactPreset;
+`;
+}
+
+/** @param {{name: string, version: string}} plan */
+function presetPackageJsonSource(plan) {
+  return `${JSON.stringify({
+    name: `reactive-md-${plan.name}-preset`,
+    version: plan.version,
+    private: true,
+    type: 'module',
+    description: `A Reactive MD preset package for ${plan.name}.`,
+    license: 'MIT',
+    files: ['src', 'dist', 'README.md'],
+    exports: {
+      '.': {
+        types: './src/preset.d.ts',
+        import: './src/preset.js',
+      },
+      './react': {
+        types: './src/react.d.ts',
+        import: './src/react.js',
+      },
+      './package.json': './package.json',
+    },
+    scripts: {
+      typecheck: 'tsc --noEmit',
+      check: 'reactive-md check .',
+      export: 'node scripts/build-export.mjs',
+    },
+    peerDependencies: {
+      'reactive-md': `^${SCAFFOLD_SDK_VERSION}`,
+      react: '^19.0.0',
+      'react-dom': '^19.0.0',
+    },
+    devDependencies: {
+      typescript: '^7.0.0',
+    },
+  }, null, 2)}\n`;
+}
+
+function presetTsconfigSource() {
+  return `${JSON.stringify({
+    compilerOptions: {
+      target: 'ES2022',
+      lib: ['ES2022', 'DOM', 'DOM.Iterable'],
+      module: 'ESNext',
+      moduleResolution: 'Bundler',
+      strict: true,
+      skipLibCheck: true,
+      noEmit: true,
+      allowJs: true,
+      checkJs: true,
+    },
+    include: ['src'],
+  }, null, 2)}\n`;
+}
+
+function presetExportScriptSource() {
+  return `import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { readLocalConfig } from 'reactive-md/sdk';
+import { createReactHost } from 'reactive-md/react';
+import reactPreset from '../src/react.js';
+
+// Compose the public host APIs and write the export identity the package
+// advertises. No repository aliases or sibling source trees are used.
+const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const packageInfo = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+const host = createReactHost({ presets: [reactPreset] });
+const config = readLocalConfig(host.config);
+const report = {
+  package: packageInfo.name,
+  version: packageInfo.version,
+  configKey: config.key,
+  presets: config.presets.map(({ id, version }) => ({ id, version })),
+  components: config.registry.map(({ id, name, version }) => ({ id, name, version })),
+  resources: host.resources.map(({ id }) => id),
+};
+
+await mkdir(path.join(root, 'dist'), { recursive: true });
+await writeFile(path.join(root, 'dist', 'export.json'), \`\${JSON.stringify(report, null, 2)}\\n\`);
+console.log(\`Wrote dist/export.json (\${report.components.length} components, \${report.resources.length} resources).\`);
+`;
+}
+
+/** @param {{name: string, id: string, version: string}} plan */
+function presetReadmeSource(plan) {
+  return `# ${pascalCase(plan.name)} Reactive MD preset
+
+A minimal preset package scaffolded by \`reactive-md init preset\`.
+
+## Edit these files
+
+- \`src/preset.js\` - the semantic preset built with \`defineLocalPreset\`.
+  Add \`defineLocalComponent\` manifests to \`components\`.
+- \`src/react.js\` - the React pairing built with \`defineReactPreset\`.
+  Add one implementation per semantic component.
+- \`src/*.d.ts\` - declarations for both public entries.
+
+Keep the semantic entry free of React and CSS imports so Node consumers can
+read the preset without a bundler.
+
+## Commands
+
+\`\`\`sh
+npm run typecheck
+npm run check     # exports, config round-trip, registry and resources
+npm run export    # dist/export.json through the public host APIs
+\`\`\`
+
+\`npm run check\` loads the semantic entry and the React pairing, rebuilds the
+configuration, round-trips it through structuredClone and JSON, and verifies
+that every declared implementation and style resource is present. Browser
+evidence for interactive or offline capabilities still needs a separate run.
+
+## Install
+
+\`\`\`sh
+npm install reactive-md@${SCAFFOLD_SDK_VERSION} react@^19 react-dom@^19
+npm install
+\`\`\`
+
+## Use in a host
+
+\`\`\`ts
+import { createReactHost } from 'reactive-md/react';
+import { reactPreset } from './src/react.js';
+
+export const host = createReactHost({ presets: [reactPreset] });
+\`\`\`
+
+Preset id: \`${plan.id}\`. Version: \`${plan.version}\`.
+`;
+}
+
+/**
+ * @param {{directory: string, name: string, id: string, version: string}} plan
+ */
+function renderPresetFiles(plan) {
+  return [
+    ['.gitignore', 'node_modules/\ndist/\n*.tgz\n'],
+    ['package.json', presetPackageJsonSource(plan)],
+    ['README.md', presetReadmeSource(plan)],
+    ['tsconfig.json', presetTsconfigSource()],
+    ['src/preset.js', presetSource(plan)],
+    ['src/preset.d.ts', presetDeclarationSource()],
+    ['src/react.js', reactPresetSource(plan)],
+    ['src/react.d.ts', reactPresetDeclarationSource()],
+    ['scripts/build-export.mjs', presetExportScriptSource()],
+  ];
+}
+
 /**
  * @param {{
  *   directory: string, name: string, id: string, form: string,
@@ -1051,6 +1312,7 @@ function renderFiles(plan) {
     ['src/env.d.ts', envSource()],
     ['scripts/build.mjs', buildScriptSource(plan)],
     ['scripts/verify.mjs', verifyScriptSource(plan)],
+    ['scripts/build-export.mjs', componentExportScriptSource(plan)],
   ];
 }
 
@@ -1071,22 +1333,141 @@ async function assertTargetAvailable(targetPath) {
 }
 
 /**
+ * @param {string[]} directories
+ * @param {Record<string, any>} options
+ * @param {{packageRoot: string, stdin?: NodeJS.ReadableStream, stdout: NodeJS.WritableStream, stderr: NodeJS.WritableStream}} context
+ */
+async function runInitPreset(directories, options, context) {
+  for (const [option, value] of [
+    ['--form', options.form],
+    ['--props', options.props],
+    ['--capabilities', options.capabilities],
+  ]) {
+    if (value !== undefined) {
+      throw usageError(`Option "${option}" is only supported by "reactive-md init component".`);
+    }
+  }
+  if (directories.length === 0) {
+    throw usageError('Missing preset directory. Usage: reactive-md init preset <directory>.');
+  }
+  if (directories.length > 1) {
+    throw usageError(`Expected one preset directory, received ${directories.length}.`);
+  }
+
+  const directory = requireText(directories[0], 'directory');
+  const targetPath = path.resolve(directory);
+  await assertTargetAvailable(targetPath);
+
+  const interactive = options.yes !== true && canPrompt(context);
+  let reader;
+  const ask = async (label, fallback) => {
+    if (!reader) return fallback;
+    const hint = fallback === undefined || fallback === '' ? '' : ` [${fallback}]`;
+    const answer = (await reader.question(`${label}${hint}: `)).trim();
+    return answer === '' ? fallback : answer;
+  };
+
+  let name;
+  let id;
+  let version = options.version;
+  try {
+    if (interactive) {
+      reader = createInterface({ input: context.stdin ?? process.stdin, output: context.stdout });
+    }
+
+    if (options.name !== undefined) {
+      name = requireText(options.name, '--name').trim();
+    } else if (interactive) {
+      name = await ask('Preset name', deriveComponentName(path.basename(targetPath)) ?? '');
+    } else {
+      name = deriveComponentName(path.basename(targetPath));
+    }
+    if (name === undefined || name === null || name === '') {
+      throw usageError('Cannot derive a preset name from the directory. Pass "--name <name>".');
+    }
+    validatePresetName(name);
+
+    if (options.id !== undefined) {
+      id = requireText(options.id, '--id').trim();
+    } else if (interactive) {
+      id = await ask('Preset id', `local/${name}`);
+    } else {
+      id = `local/${name}`;
+    }
+    validateId(id);
+
+    if (version === undefined) version = interactive ? await ask('Preset version', SCAFFOLD_PACKAGE_VERSION) : SCAFFOLD_PACKAGE_VERSION;
+  } finally {
+    reader?.close();
+  }
+
+  const presetVersion = validatePresetVersion(version);
+  const plan = { directory: targetPath, name, id, version: presetVersion };
+
+  // Validate through the owning SDK before creating any directory so the
+  // generated entries are registrable and round-trip cleanly.
+  const { defineLocalPreset, createLocalConfig } = await import(new URL('../dist-library/reactive-md-sdk.js', import.meta.url).href);
+  try {
+    const preset = defineLocalPreset({
+      protocol: SCAFFOLD_PRESET_PROTOCOL,
+      id,
+      version: presetVersion,
+      components: [],
+    });
+    createLocalConfig({ presets: [preset] });
+  } catch (error) {
+    throw usageError(`Invalid preset: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const files = renderPresetFiles(plan);
+  files.push(['LICENSE', await readFile(path.join(context.packageRoot, 'LICENSE'), 'utf8')]);
+
+  try {
+    await mkdir(path.dirname(targetPath), { recursive: true });
+    await mkdir(targetPath);
+  } catch (error) {
+    throw fsFailure('Cannot create scaffold directory', targetPath, error, EXIT.IO);
+  }
+
+  for (const [relative, content] of files) {
+    const file = path.join(targetPath, ...relative.split('/'));
+    try {
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, content, { encoding: 'utf8', flag: 'wx' });
+    } catch (error) {
+      throw fsFailure('Cannot write scaffold file', file, error, EXIT.IO);
+    }
+  }
+
+  context.stdout.write(`Created preset scaffold "${name}" in "${targetPath}".\n`);
+  context.stdout.write('Next: install the Reactive MD tarball, then run "npm run check".\n');
+  return EXIT.OK;
+}
+
+/**
  * @param {string[]} argv
  * @param {{packageRoot?: string, stdin?: NodeJS.ReadableStream, stdout: NodeJS.WritableStream, stderr: NodeJS.WritableStream}} context
  */
 export async function runInit(argv, context) {
   const { positionals, options } = parseInitOptions(argv);
+  const locale = parseLocale(options.locale);
   if (options.help) {
-    context.stdout.write(initHelp());
+    context.stdout.write(initHelp(locale));
     return EXIT.OK;
   }
 
   if (positionals.length === 0) {
-    throw usageError('Missing init target. Usage: reactive-md init component <directory>.');
+    throw usageError('Missing init target. Usage: reactive-md init <component|preset> <directory>.');
   }
   const [target, ...directories] = positionals;
+  if (target === 'preset') {
+    return runInitPreset(directories, options, context);
+  }
   if (target !== 'component') {
-    throw usageError(`Unknown init target "${target}". Usage: reactive-md init component <directory>.`);
+    throw usageError(`Unknown init target "${target}". Usage: reactive-md init <component|preset> <directory>.`);
+  }
+  if (options.version !== undefined) {
+    throw usageError('Option "--version" is only supported by "reactive-md init preset".');
   }
   if (directories.length === 0) {
     throw usageError('Missing component directory. Usage: reactive-md init component <directory>.');
@@ -1162,7 +1543,7 @@ export async function runInit(argv, context) {
   // before creating any directory. The generated project must be registrable.
   const { defineLocalComponent, createLocalConfig } = await import(new URL('../dist-library/reactive-md-sdk.js', import.meta.url).href);
   try {
-    const definition = defineLocalComponent({ id, name, version: '0.1.0', protocol: 'reactive-md-component/v1',
+    const definition = defineLocalComponent({ id, name, version: SCAFFOLD_PACKAGE_VERSION, protocol: SCAFFOLD_COMPONENT_PROTOCOL,
       form, props, capabilities: Object.fromEntries(CAPABILITY_ORDER.map(key => [key, capabilities.includes(key)])) });
     createLocalConfig({ components: [definition] });
   } catch (error) { throw usageError(`Invalid component: ${error instanceof Error ? error.message : String(error)}`); }

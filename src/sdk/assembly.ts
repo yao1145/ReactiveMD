@@ -1,4 +1,6 @@
 import { localHash } from './hash';
+import { findLocalCompatProfile } from './compat-profile';
+import type { LocalCompatProfile } from './compat-profile';
 import {
   isLocalComponentId,
   localComponentDigest,
@@ -66,6 +68,8 @@ interface Contribution {
 
 interface ActiveContribution extends Contribution {
   readonly position: number;
+  /** Authoring after preset overrides and replacement fallback. */
+  readonly authoring?: LocalComponentAuthoring;
 }
 
 const SNAPSHOT_KEYS = new Set(['protocol', 'presets', 'components', 'replacementPolicy', 'themes']);
@@ -337,9 +341,69 @@ function collectContributions(
   return contributions;
 }
 
+type PresetAuthoringIndex = ReadonlyMap<string, ReadonlyMap<string, LocalComponentAuthoring>>;
+
+/** Preset authoring entries indexed by preset id and component id. */
+function indexPresetAuthoring(
+  presets: readonly import('./types').LocalPresetPackage[],
+): PresetAuthoringIndex {
+  const index = new Map<string, ReadonlyMap<string, LocalComponentAuthoring>>();
+  for (const preset of presets) {
+    if (preset.authoring === undefined || preset.authoring.length === 0) continue;
+    index.set(
+      preset.id,
+      new Map(preset.authoring.map((entry) => [entry.componentId, entry.authoring] as const)),
+    );
+  }
+  return index;
+}
+
+/**
+ * Field-level authoring merge. Fields present on the override win; missing
+ * fields keep the base value. Authoring never enters digests or keys.
+ */
+function mergeAuthoring(
+  base: LocalComponentAuthoring | undefined,
+  override: LocalComponentAuthoring | undefined,
+): LocalComponentAuthoring | undefined {
+  if (override === undefined) return base;
+  if (base === undefined) return override;
+  return Object.freeze({
+    ...(base.title !== undefined ? { title: base.title } : {}),
+    ...(base.description !== undefined ? { description: base.description } : {}),
+    ...(base.category !== undefined ? { category: base.category } : {}),
+    ...(base.insertText !== undefined ? { insertText: base.insertText } : {}),
+    ...(override.title !== undefined ? { title: override.title } : {}),
+    ...(override.description !== undefined ? { description: override.description } : {}),
+    ...(override.category !== undefined ? { category: override.category } : {}),
+    ...(override.insertText !== undefined ? { insertText: override.insertText } : {}),
+  });
+}
+
+/** Manifest authoring with the contributing preset's override applied. */
+function effectiveAuthoring(
+  contribution: Contribution,
+  presetAuthoring: PresetAuthoringIndex,
+): LocalComponentAuthoring | undefined {
+  const presetOverride = contribution.origin.kind === 'preset'
+    ? presetAuthoring.get(contribution.origin.id)?.get(contribution.definition.id)
+    : undefined;
+  return mergeAuthoring(contribution.definition.authoring, presetOverride);
+}
+
+/** Revalidate and freeze a manifest carrying merged authoring. */
+function withResolvedAuthoring(
+  definition: LocalComponentDefinition,
+  authoring: LocalComponentAuthoring | undefined,
+): LocalComponentDefinition {
+  if (authoring === undefined || authoring === definition.authoring) return definition;
+  return readLocalComponentManifest({ ...definition, authoring });
+}
+
 function resolveContributions(
   contributions: readonly Contribution[],
   replacementPolicy: 'allow' | 'forbid',
+  presetAuthoring: PresetAuthoringIndex,
 ): {
   readonly active: readonly ActiveContribution[];
   readonly replacements: readonly LocalReplacementRecord[];
@@ -361,7 +425,12 @@ function resolveContributions(
         }
         fail('assembly.replacements', `replacement for "${only.definition.id}" has no base contribution.`);
       }
-      active.push({ ...only, position: only.index });
+      const authoring = effectiveAuthoring(only, presetAuthoring);
+      active.push({
+        ...only,
+        position: only.index,
+        ...(authoring !== undefined ? { authoring } : {}),
+      });
       continue;
     }
     const replacers = group.filter((item) => item.definition.replaces !== undefined);
@@ -394,7 +463,15 @@ function resolveContributions(
       );
     }
     assertReplacementCompatible(target, replacement);
-    active.push({ ...replacement, position: target.index });
+    const authoring = mergeAuthoring(
+      effectiveAuthoring(target, presetAuthoring),
+      effectiveAuthoring(replacement, presetAuthoring),
+    );
+    active.push({
+      ...replacement,
+      position: target.index,
+      ...(authoring !== undefined ? { authoring } : {}),
+    });
     replacements.push(replacementRecord(target, replacement));
   }
   active.sort((left, right) => left.position - right.position);
@@ -528,8 +605,8 @@ export function localLegacyV1Key(
 }
 
 export interface ResolveAssemblyOptions {
-  /** Default preset identity used for the v1 compatibility alias. */
-  readonly legacyDefaultPreset?: { readonly id: string; readonly version: string };
+  /** Compatibility profiles that may claim a single-preset v1 alias. */
+  readonly legacyProfiles?: readonly LocalCompatProfile[];
 }
 
 /** Resolve a validated snapshot into a frozen registry and semantic identity. */
@@ -539,9 +616,14 @@ export function resolveLocalAssembly(
 ): ResolvedLocalAssembly & { readonly legacyKeys: readonly LocalLegacyConfigKey[] } {
   const ordered = orderPresets(snapshot.presets);
   const contributions = collectContributions(ordered, snapshot.components);
-  const resolved = resolveContributions(contributions, snapshot.replacementPolicy);
+  const resolved = resolveContributions(
+    contributions,
+    snapshot.replacementPolicy,
+    indexPresetAuthoring(ordered),
+  );
   validateActiveRegistry(resolved.active);
-  const registry = Object.freeze(resolved.active.map((item) => item.definition));
+  const registry = Object.freeze(resolved.active.map((item) =>
+    withResolvedAuthoring(item.definition, item.authoring)));
   const components = Object.freeze(sortById(
     resolved.active.filter((item) => item.origin.kind === 'external').map((item) => item.definition),
     (item) => item.id,
@@ -550,12 +632,16 @@ export function resolveLocalAssembly(
   const themes = mergeThemes(ordered, snapshot.themes);
   const key = localAssemblyKey(presets, registry, resolved.replacements);
   const legacyKeys: LocalLegacyConfigKey[] = [];
-  const legacyPreset = options.legacyDefaultPreset;
-  if (legacyPreset && ordered.length === 1 && resolved.replacements.length === 0
-    && ordered[0].id === legacyPreset.id && ordered[0].version === legacyPreset.version) {
+  const legacyProfile = options.legacyProfiles === undefined
+    || ordered.length !== 1
+    || resolved.replacements.length !== 0
+    ? undefined
+    : findLocalCompatProfile({ id: ordered[0].id, version: ordered[0].version }, options.legacyProfiles);
+  const legacyRule = legacyProfile?.legacyKeys[0];
+  if (legacyProfile !== undefined && legacyRule !== undefined) {
     legacyKeys.push(Object.freeze({
-      profile: 'reactive-md-config/v1',
-      key: localLegacyV1Key(legacyPreset, components),
+      profile: legacyRule.profile,
+      key: localLegacyV1Key(legacyProfile.preset, components),
     }));
   }
   return Object.freeze({

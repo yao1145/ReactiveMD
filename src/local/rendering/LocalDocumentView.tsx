@@ -2463,6 +2463,10 @@ export function LocalReactiveDocument({
   onParametersChangeRef.current = onParametersChange;
   /** Diagnostics from applying initial parameters to the current runtime. */
   const initialDiagnosticsRef = useRef<Diagnostic[]>([]);
+  /** Compile configuration identity used to verify and stamp component state. */
+  const runtimeConfig = effectiveCompileOptions?.config;
+  const runtimeConfigKey = runtimeConfig?.key;
+  const runtimeLegacyConfigKeys = runtimeConfig?.legacyKeys.map((entry) => entry.key) ?? [];
   const initializeRuntime = (document: LocalDocument): LocalRuntime => {
     const created = createLocalRuntime(document, {
       externalValues: externalRef.current,
@@ -2472,6 +2476,12 @@ export function LocalReactiveDocument({
       ...(componentStateStorageRef.current === undefined
         ? {}
         : { componentStateStorage: componentStateStorageRef.current }),
+      ...((runtimeConfigKey ?? document.componentConfigKey) === undefined
+        ? {}
+        : { configKey: runtimeConfigKey ?? document.componentConfigKey }),
+      ...(runtimeLegacyConfigKeys.length === 0
+        ? {}
+        : { legacyConfigKeys: runtimeLegacyConfigKeys }),
     });
     const initial = initialParametersRef.current;
     initialDiagnosticsRef.current = initial && Object.keys(initial).length

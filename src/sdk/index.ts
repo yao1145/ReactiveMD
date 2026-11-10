@@ -1,5 +1,6 @@
 export * from './types';
 export * from './manifest';
+export * from './compat-profile';
 export * from './config';
 export * from './preset';
 export { localAssemblyIdentity, localAssemblySeal, localConfigKeyMatches } from './assembly';

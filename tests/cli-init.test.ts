@@ -83,7 +83,7 @@ describe('reactive-md init component', () => {
     for (const relative of [
       'src/manifest.ts', 'src/example-counter.tsx', 'src/example-counter.css', 'src/env.d.ts',
       'extensions.ts', 'main/index.html', 'main/main.tsx', 'main/sample.reactive.md',
-      'scripts/build.mjs', 'scripts/verify.mjs', 'tsconfig.json',
+      'scripts/build.mjs', 'scripts/verify.mjs', 'scripts/build-export.mjs', 'tsconfig.json',
       'tsconfig.build.json', 'vite.config.ts', 'README.md',
     ]) {
       expect(existsSync(join(root, relative)), relative).toBe(true);
@@ -158,6 +158,11 @@ describe('reactive-md init component', () => {
     expect(build).toContain("'src', 'example-counter.tsx'");
     expect(build).toContain('tsconfig.build.json');
 
+    const exportScript = read(root, 'scripts/build-export.mjs');
+    expect(exportScript).toContain("from 'vite'");
+    expect(exportScript).toContain("from 'reactive-md/vite'");
+    expect(exportScript).toContain('reactiveMd()');
+
     const sample = read(root, 'main/sample.reactive.md');
     expect(sample).toContain('<example-counter limit="1">');
     expect(sample).toContain('**Markdown** children render here.');
@@ -179,6 +184,8 @@ describe('reactive-md init component', () => {
       .toEqual(['react', 'react-dom', 'reactive-md']);
     expect(packageInfo.scripts.test).toContain('scripts/verify.mjs');
     expect(packageInfo.scripts.build).toContain('scripts/build.mjs');
+    expect(packageInfo.scripts.export).toBe('node scripts/build-export.mjs');
+    expect(packageInfo.scripts.check).toBe('reactive-md check .');
 
     const readme = read(root, 'README.md');
     expect(readme).toContain('reactive-md@0.7.0');
@@ -344,5 +351,109 @@ describe('reactive-md init component', () => {
     const result = run(['init', 'component', '--', root]);
     expect(result.status, result.stderr).toBe(0);
     expect(existsSync(join(root, 'src/manifest.ts'))).toBe(true);
+  });
+});
+
+describe('reactive-md init preset', () => {
+  it('creates a semantic preset and its React pairing', () => {
+    const root = target('example-preset');
+    const result = run([
+      'init', 'preset', root,
+      '--name', 'example-preset',
+      '--id', 'acme/example-preset',
+      '--version', '1.2.3',
+      '--yes',
+    ]);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('Created preset scaffold "example-preset"');
+
+    const expectedTop = ['.gitignore', 'LICENSE', 'README.md', 'package.json', 'scripts', 'src', 'tsconfig.json'];
+    expect(readdirSync(root).sort()).toEqual(expectedTop.sort());
+    for (const relative of [
+      'src/preset.js', 'src/preset.d.ts', 'src/react.js', 'src/react.d.ts',
+      'scripts/build-export.mjs', 'README.md', 'tsconfig.json',
+    ]) {
+      expect(existsSync(join(root, relative)), relative).toBe(true);
+    }
+
+    const preset = read(root, 'src/preset.js');
+    expect(preset).toContain("from 'reactive-md/sdk'");
+    expect(preset).toContain('defineLocalPreset({');
+    expect(preset).toContain("protocol: 'reactive-md-preset/v1'");
+    expect(preset).toContain('id: "acme/example-preset"');
+    expect(preset).toContain('version: "1.2.3"');
+    expect(preset).toContain('components: []');
+    expect(preset).not.toContain("from 'react'");
+
+    const react = read(root, 'src/react.js');
+    expect(react).toContain("from 'reactive-md/react'");
+    expect(react).toContain('defineReactPreset({');
+    expect(react).toContain("protocol: 'reactive-md-react-preset/v1'");
+    expect(react).toContain("import preset from './preset.js'");
+
+    const declaration = read(root, 'src/preset.d.ts');
+    expect(declaration).toContain('LocalPresetPackage');
+    expect(read(root, 'src/react.d.ts')).toContain('LocalReactPresetPackage');
+
+    const packageInfo = JSON.parse(read(root, 'package.json'));
+    expect(packageInfo).toMatchObject({
+      name: 'reactive-md-example-preset-preset',
+      version: '1.2.3',
+      type: 'module',
+      private: true,
+    });
+    expect(packageInfo.exports).toMatchObject({
+      '.': { types: './src/preset.d.ts', import: './src/preset.js' },
+      './react': { types: './src/react.d.ts', import: './src/react.js' },
+    });
+    expect(packageInfo.scripts).toMatchObject({
+      typecheck: 'tsc --noEmit',
+      check: 'reactive-md check .',
+      export: 'node scripts/build-export.mjs',
+    });
+
+    const exportScript = read(root, 'scripts/build-export.mjs');
+    expect(exportScript).toContain("from 'reactive-md/sdk'");
+    expect(exportScript).toContain("from 'reactive-md/react'");
+    expect(exportScript).toContain('createReactHost({ presets: [reactPreset] })');
+    expect(exportScript).toContain('readLocalConfig');
+
+    const tsconfig = JSON.parse(read(root, 'tsconfig.json'));
+    expect(tsconfig.compilerOptions).toMatchObject({ strict: true, noEmit: true, checkJs: true });
+  });
+
+  it('prints preset help in both languages and rejects unsupported options', () => {
+    const english = run(['init', 'preset', '--help']);
+    expect(english.status).toBe(0);
+    expect(english.stdout).toContain('reactive-md init preset <directory>');
+    expect(english.stdout).toContain('defineLocalPreset');
+    expect(english.stdout).toContain('--version <semver>');
+
+    const chinese = run(['init', '--help', '--locale', 'zh']);
+    expect(chinese.status).toBe(0);
+    expect(chinese.stdout).toContain('reactive-md init preset');
+    expect(chinese.stdout).toContain('预设');
+
+    const unsupported = run(['init', 'preset', target('preset-props'), '--props', '{}']);
+    expect(unsupported.status).toBe(2);
+    expect(unsupported.stderr).toContain('only supported by "reactive-md init component"');
+
+    const componentVersion = run(['init', 'component', target('component-version'), '--version', '1.0.0']);
+    expect(componentVersion.status).toBe(2);
+    expect(componentVersion.stderr).toContain('only supported by "reactive-md init preset"');
+  });
+
+  it('refuses an existing preset target and invalid versions before writing', () => {
+    const root = target('existing-preset');
+    mkdirSync(root);
+    writeFileSync(join(root, 'keep.txt'), 'keep me');
+    const existing = run(['init', 'preset', root, '--name', 'thing']);
+    expect(existing.status).toBe(2);
+    expect(existing.stderr).toContain('Refusing to overwrite existing path');
+    expect(readdirSync(root)).toEqual(['keep.txt']);
+
+    const invalidVersion = run(['init', 'preset', target('bad-version'), '--name', 'thing', '--version', 'v1']);
+    expect(invalidVersion.status).toBe(2);
+    expect(existsSync(target('bad-version'))).toBe(false);
   });
 });

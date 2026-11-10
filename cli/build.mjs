@@ -157,7 +157,12 @@ export async function runBuild(options, context) {
       componentOutcome = core.resolveLocalComponentStateExport(
         baseline.document,
         componentStateText,
-        { documentId: options.documentId },
+        {
+          documentId: options.documentId,
+          ...(compiled.document.componentConfigKey === undefined
+            ? {}
+            : { configKey: compiled.document.componentConfigKey }),
+        },
       );
     } catch (error) {
       throw new CliError(
@@ -243,6 +248,9 @@ export async function runBuild(options, context) {
       documentId: options.documentId,
       randomSeed: options.randomSeed,
       componentState,
+      ...(compiled.document.componentConfigKey === undefined
+        ? {}
+        : { configKey: compiled.document.componentConfigKey }),
     });
   } catch (error) {
     throw new CliError(

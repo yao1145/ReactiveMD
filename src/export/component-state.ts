@@ -56,6 +56,14 @@ function documentStateKeys(document: LocalDocument, documentId: string): Set<str
 export interface ResolveLocalComponentStateExportOptions {
   /** Host identity for this export; defaults to the source digest. */
   readonly documentId?: string;
+  /**
+   * Current semantic configuration key. When supplied, matching records are
+   * stamped with it and records from another configuration are dropped.
+   * Omitted leaves the sidecar's own `configKey` untouched.
+   */
+  readonly configKey?: string;
+  /** Legacy configuration identities accepted while resolving. */
+  readonly legacyConfigKeys?: readonly string[];
 }
 
 /**
@@ -79,6 +87,26 @@ export function resolveLocalComponentStateExport(
   const diagnostics: Diagnostic[] = [...parsed.diagnostics];
   const records: Record<string, LocalComponentStateRecord> = {};
 
+  const configKey = options?.configKey;
+  const savedConfigKey = parsed.document.configKey;
+  const legacyConfigKeys = options?.legacyConfigKeys ?? [];
+  if (savedConfigKey !== undefined && configKey !== undefined
+    && savedConfigKey !== configKey && !legacyConfigKeys.includes(savedConfigKey)) {
+    diagnostics.push(warning(
+      'local.runtime.state.config-mismatch',
+      `Saved component state belongs to configuration "${savedConfigKey}", not "${configKey}".`,
+    ));
+    return {
+      ok: true,
+      componentState: Object.freeze({
+        format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+        configKey,
+        records: Object.freeze({}),
+      }),
+      diagnostics,
+    };
+  }
+
   for (const [key, record] of Object.entries(parsed.records)) {
     if (record.documentId !== undefined && record.documentId !== documentId) {
       diagnostics.push(warning(
@@ -101,6 +129,7 @@ export function resolveLocalComponentStateExport(
     ok: true,
     componentState: Object.freeze({
       format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      ...((configKey ?? savedConfigKey) === undefined ? {} : { configKey: configKey ?? savedConfigKey }),
       records: Object.freeze(records),
     }),
     diagnostics,

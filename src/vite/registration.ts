@@ -1,6 +1,7 @@
 import type { LocalBuildAsset, LocalStandaloneBuild } from '../build';
-import type { LocalReactPackage } from '../react/package';
+import type { LocalReactPackage, LocalReactPresetPackage } from '../react/package';
 import type { LocalThemePackage } from '../sdk/theme';
+import { LOCAL_REACT_PRESET_PROTOCOL } from '../sdk/version';
 import type { DirectoryDiscovery } from './discovery';
 
 /**
@@ -101,6 +102,117 @@ export function readLocalReactPackage(namespace: unknown, file: string): LocalRe
   );
 }
 
+/** One plugin entry resolved to either a component package or a React preset package. */
+export type LocalEntryPackage =
+  | { readonly kind: 'package'; readonly value: LocalReactPackage }
+  | { readonly kind: 'preset'; readonly value: LocalReactPresetPackage };
+
+/**
+ * Resolve the package exported by one `plugin/` entry module and classify it.
+ *
+ * A `LocalReactPresetPackage` is recognized by its protocol before ordinary
+ * package validation, so its implementation array is not mistaken for explicit
+ * components. An entry that provides both kinds, or a preset-like export with a
+ * wrong or missing protocol, is an error instead of a guess. The same default
+ * and single-named-export precedence as {@link readLocalReactPackage} applies.
+ *
+ * The protocol is a parameter so the generated registration module can inline
+ * this function without depending on module scope.
+ */
+export function classifyLocalEntryPackage(
+  namespace: unknown,
+  file: string,
+  presetProtocol: string,
+): LocalEntryPackage {
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+  const isComponent = (value: unknown): boolean => isRecord(value)
+    && isRecord(value.definition)
+    && typeof value.definition.id === 'string'
+    && typeof value.definition.name === 'string'
+    && typeof value.render === 'function';
+  const isPreset = (value: unknown): value is LocalReactPresetPackage => isRecord(value)
+    && value.protocol === presetProtocol
+    && isRecord(value.preset)
+    && Array.isArray(value.components)
+    && value.components.every(isComponent)
+    && (value.resources === undefined || Array.isArray(value.resources))
+    && (value.notices === undefined || Array.isArray(value.notices));
+  const isPackage = (value: unknown): value is LocalReactPackage => isRecord(value)
+    && Array.isArray(value.components)
+    && value.components.every(isComponent)
+    && (value.resources === undefined || Array.isArray(value.resources))
+    && (value.themes === undefined || Array.isArray(value.themes))
+    && (value.notices === undefined || Array.isArray(value.notices));
+  if (!isRecord(namespace)) {
+    throw new Error(`ReactiveMD package entry ${file} did not provide a module namespace.`);
+  }
+  const entries: { readonly name: string; readonly value: unknown }[] = [];
+  if (Object.hasOwn(namespace, 'default')) entries.push({ name: 'default', value: namespace.default });
+  for (const key of Object.keys(namespace)) {
+    if (key !== 'default') entries.push({ name: key, value: namespace[key] });
+  }
+  const distinct: { readonly name: string; readonly value: unknown }[] = [];
+  const seen = new Set<object>();
+  for (const entry of entries) {
+    const value = entry.value;
+    if (typeof value !== 'object' || value === null) continue;
+    if (seen.has(value)) continue;
+    seen.add(value);
+    distinct.push(entry);
+  }
+  for (const entry of distinct) {
+    const value = entry.value;
+    if (!isRecord(value)) continue;
+    const declaresPreset = Object.hasOwn(value, 'preset')
+      || (Object.hasOwn(value, 'protocol') && Array.isArray(value.components));
+    if (!declaresPreset && value.protocol !== presetProtocol) continue;
+    if (value.protocol !== presetProtocol) {
+      throw new Error(
+        `ReactiveMD package entry ${file} export "${entry.name}" declares unsupported React preset protocol `
+        + `${JSON.stringify(value.protocol)}; expected "${presetProtocol}".`,
+      );
+    }
+    if (!isPreset(value)) {
+      throw new Error(
+        `ReactiveMD package entry ${file} export "${entry.name}" declares protocol "${presetProtocol}" `
+        + 'but is not a valid LocalReactPresetPackage.',
+      );
+    }
+  }
+  const presets = distinct.filter((entry) => isPreset(entry.value));
+  const packages = distinct.filter((entry) => !isPreset(entry.value) && isPackage(entry.value));
+  if (presets.length > 0 && packages.length > 0) {
+    throw new Error(
+      `ReactiveMD package entry ${file} exports both a LocalReactPresetPackage `
+      + `("${presets[0].name}") and a LocalReactPackage ("${packages[0].name}"); `
+      + 'export exactly one package or preset package.',
+    );
+  }
+  const candidates = presets.length > 0 ? presets : packages;
+  const preferred = distinct.find((entry) => entry.name === 'default');
+  const chosen = preferred !== undefined && candidates.includes(preferred)
+    ? preferred
+    : candidates.length === 1 ? candidates[0] : undefined;
+  if (chosen !== undefined) {
+    return presets.length > 0
+      ? { kind: 'preset', value: chosen.value as LocalReactPresetPackage }
+      : { kind: 'package', value: chosen.value as LocalReactPackage };
+  }
+  if (candidates.length > 1) {
+    const kind = presets.length > 0 ? 'LocalReactPresetPackage' : 'LocalReactPackage';
+    throw new Error(
+      `ReactiveMD package entry ${file} exports more than one distinct ${kind} `
+      + `(${candidates.map((entry) => entry.name).join(', ')}); export one default package `
+      + 'or exactly one distinct named package.',
+    );
+  }
+  throw new Error(
+    `ReactiveMD package entry ${file} must export a LocalReactPackage or LocalReactPresetPackage `
+    + 'as its default export or as exactly one distinct named export.',
+  );
+}
+
 /**
  * Reject duplicate component identities and theme identities across entries.
  *
@@ -164,19 +276,28 @@ export function discoveryMetadata(discovery: DirectoryDiscovery): DiscoveryMetad
   };
 }
 
+export interface DirectoryRegistrationOptions {
+  /** Install the built-in default preset. Defaults to true. */
+  readonly defaultPreset?: boolean;
+}
+
 /**
  * Generate the single registration module used by every consumer.
  *
  * Themes are plain data, so the snapshot is embedded directly. Plugin entry
  * modules are imported so their packages and implementations stay live under
- * the normal Vite dependency graph. The generated module exports mutable
- * bindings so a theme stylesheet refresh can replace the host without
- * rebuilding the document runtime; the SDK host itself stays frozen.
+ * the normal Vite dependency graph. Preset entries go to `host.presets`; the
+ * built-in default is prepended unless `defaultPreset` is false. The generated
+ * module exports mutable bindings so a theme stylesheet refresh can replace the
+ * host without rebuilding the document runtime; the SDK host itself stays
+ * frozen.
  */
 export function createDirectoryRegistration(
   discovery: DirectoryDiscovery,
   styleId: string,
+  options: DirectoryRegistrationOptions = {},
 ): DirectoryRegistrationSource {
+  const installDefaultPreset = options.defaultPreset !== false;
   const themes = discovery.themes.map((item) => Object.freeze({
     file: normalize(item.file),
     theme: item.theme,
@@ -192,15 +313,17 @@ export function createDirectoryRegistration(
     .map((item, index) => `  { file: ${JSON.stringify(item.file)}, namespace: __rmdPlugin${index}, resources: ${JSON.stringify(item.resources)} }`)
     .join(',\n');
   const metadata = discoveryMetadata(discovery);
-  const readerSource = readLocalReactPackage.toString().replace(/^export\s+/, '');
+  const readerSource = classifyLocalEntryPackage.toString().replace(/^export\s+/, '');
   const ownerSource = assertUniqueRegistration.toString().replace(/^export\s+/, '');
   const code = `${imports}
 import { createReactHost } from "reactive-md/react";
 
-const __rmdReadPackage = ${readerSource};
+const __rmdClassifyEntry = ${readerSource};
 
 const __rmdAssertUnique = ${ownerSource};
 
+const __rmdInstallDefaultPreset = ${JSON.stringify(installDefaultPreset)};
+const __rmdPresetProtocol = ${JSON.stringify(LOCAL_REACT_PRESET_PROTOCOL)};
 const __rmdThemeEntries = ${JSON.stringify(themes)};
 const __rmdPluginEntries = [
 ${pluginTable}
@@ -210,10 +333,24 @@ export const extensions = Object.freeze({});
 
 function __rmdCompose(directoryEntries) {
   const packages = [];
+  const presets = __rmdInstallDefaultPreset ? ["default"] : [];
   const components = [];
   const themeOwners = [];
   for (const entry of __rmdPluginEntries) {
-    const pkg = __rmdReadPackage(entry.namespace, entry.file);
+    const found = __rmdClassifyEntry(entry.namespace, entry.file, __rmdPresetProtocol);
+    if (found.kind === "preset") {
+      const preset = found.value;
+      presets.push({ ...preset, resources: [...(preset.resources ?? []), ...entry.resources] });
+      for (const component of preset.components) {
+        const definition = component && component.definition;
+        if (!definition || typeof definition.id !== "string" || typeof definition.name !== "string") {
+          throw new Error("ReactiveMD preset entry " + entry.file + " contains a component without a manifest id and name.");
+        }
+        components.push({ file: entry.file, id: definition.id, name: definition.name });
+      }
+      continue;
+    }
+    const pkg = found.value;
     const resources = [...(pkg.resources ?? []), ...entry.resources];
     packages.push({ ...pkg, resources });
     for (const component of pkg.components) {
@@ -236,7 +373,7 @@ function __rmdCompose(directoryEntries) {
     if (Array.isArray(entry.namespace.notices)) notices.push(...entry.namespace.notices);
   }
   const themes = directoryEntries.map((entry) => entry.theme);
-  const host = createReactHost({ packages, themes, notices });
+  const host = createReactHost({ packages, themes, notices, presets });
   return { host };
 }
 

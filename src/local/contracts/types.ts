@@ -424,6 +424,14 @@ export interface LocalRuntimeOptions {
    * its services; omitted keeps state in memory.
    */
   readonly componentStateStorage?: LocalComponentStateStorage;
+  /**
+   * Current semantic configuration key. It is written into component-state
+   * snapshots and a restored sidecar must match it or one of
+   * `legacyConfigKeys`. Omitted keeps the sidecar identity unverified.
+   */
+  readonly configKey?: string;
+  /** Legacy configuration identities accepted when restoring a sidecar. */
+  readonly legacyConfigKeys?: readonly string[];
   /** Inject scheduler/clock/state services; the runtime owns them only when omitted. */
   readonly services?: LocalRuntimeServices;
 }

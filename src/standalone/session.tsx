@@ -220,12 +220,18 @@ export function createStandaloneMount(
   const compiledRequirements = validateLocalExtensionRequirements(prepared.document.extensions, options.reactConfig?.config);
   if (compiledRequirements.length) throw new ReactiveMDMountError('Installed extension implementations are required.', compiledRequirements);
 
+  const mountedConfig = compileOptions?.config;
+  const runtimeConfigKey = mountedConfig?.key ?? prepared.document.componentConfigKey;
+  const legacyConfigKeys = mountedConfig?.legacyKeys.map((entry) => entry.key) ?? [];
+
   let runtime: LocalRuntime;
   try {
     runtime = createLocalRuntime(prepared.document, {
       documentId: options.documentId,
       randomSeed: options.randomSeed,
       componentState: options.componentState,
+      ...(runtimeConfigKey === undefined ? {} : { configKey: runtimeConfigKey }),
+      ...(legacyConfigKeys.length === 0 ? {} : { legacyConfigKeys }),
     });
   } catch (error) {
     throw new ReactiveMDMountError(

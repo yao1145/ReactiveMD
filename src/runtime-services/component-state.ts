@@ -29,6 +29,8 @@ const MAX_COMPONENT_NAME = 128;
 const MAX_COMPONENT_VERSION = 64;
 const MAX_STATE_KEY = 512;
 const MAX_STATE_VERSION = 1_000_000;
+const MAX_CONFIG_KEY = 128;
+const CONTROL_TEXT = /[\u0000-\u001f\u007f-\u009f]/;
 
 const textEncoder = new TextEncoder();
 
@@ -53,6 +55,13 @@ export interface LocalComponentStateRecord {
 
 export interface LocalComponentStateDocument {
   readonly format: typeof LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT;
+  /**
+   * Semantic configuration that produced these records. Sidecars written
+   * before this field existed restore through the existing record checks; a
+   * present value must match the current config key or one of its legacy
+   * aliases.
+   */
+  readonly configKey?: string;
   readonly records: Readonly<Record<string, LocalComponentStateRecord>>;
 }
 
@@ -163,6 +172,24 @@ function isWellFormedText(value: string): boolean {
     if (code >= 0xdc00 && code <= 0xdfff) return false;
   }
   return true;
+}
+
+/** A configuration key is an opaque, bounded identity string. */
+function isConfigKey(value: unknown): value is string {
+  return typeof value === 'string'
+    && value.length > 0
+    && value.length <= MAX_CONFIG_KEY
+    && !CONTROL_TEXT.test(value)
+    && isWellFormedText(value);
+}
+
+function configKeyAccepted(
+  saved: string,
+  current: string | undefined,
+  legacy: readonly string[],
+): boolean {
+  if (current === undefined) return true;
+  return saved === current || legacy.includes(saved);
 }
 
 function cloneData(value: unknown, depth: number): LocalComponentStateData {
@@ -313,6 +340,7 @@ function normalizeRecord(value: unknown): {
 
 function parseDocumentInput(input: unknown): {
   ok: true;
+  configKey?: string;
   records: Record<string, LocalComponentStateRecord>;
   diagnostics: Diagnostic[];
   skipped: string[];
@@ -347,6 +375,13 @@ function parseDocumentInput(input: unknown): {
     return {
       ok: false,
       diagnostics: [diagnostic('local.runtime.state.document-format', `Unsupported component state document format; expected "${LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT}".`)],
+    };
+  }
+  const configKey = payload.configKey;
+  if (configKey !== undefined && !isConfigKey(configKey)) {
+    return {
+      ok: false,
+      diagnostics: [diagnostic('local.runtime.state.config-key', 'The component state configKey must be a non-empty bounded string.')],
     };
   }
   if (!isPlainRecord(payload.records)) {
@@ -385,7 +420,7 @@ function parseDocumentInput(input: unknown): {
     }
     records[key] = normalized.record;
   }
-  return { ok: true, records, diagnostics, skipped };
+  return { ok: true, ...(configKey === undefined ? {} : { configKey }), records, diagnostics, skipped };
 }
 
 /**
@@ -402,6 +437,7 @@ export function parseLocalComponentStateDocument(input: unknown): LocalComponent
     ok: true,
     document: Object.freeze({
       format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      ...(parsed.configKey === undefined ? {} : { configKey: parsed.configKey }),
       records: Object.freeze(records),
     }),
     records: Object.freeze(records),
@@ -425,6 +461,13 @@ export interface CreateLocalComponentStateRegistryOptions {
    * restore so live document updates are reflected.
    */
   readonly knownKeys?: ReadonlySet<string> | (() => ReadonlySet<string>);
+  /**
+   * Current semantic configuration key. When set, snapshots and persisted
+   * sidecars carry it and restore skips records written by another config.
+   */
+  readonly configKey?: string;
+  /** Legacy configuration identities accepted during restore. */
+  readonly legacyConfigKeys?: readonly string[];
 }
 
 export function createLocalComponentStateRegistry(
@@ -433,6 +476,11 @@ export function createLocalComponentStateRegistry(
   const documentId = resolveDocumentId(options);
   const sourceDigest = options.sourceDigest;
   const knownKeys = options.knownKeys;
+  const configKey = options.configKey;
+  if (configKey !== undefined && !isConfigKey(configKey)) {
+    throw new TypeError('configKey must be a non-empty bounded string.');
+  }
+  const legacyConfigKeys = Object.freeze((options.legacyConfigKeys ?? []).filter(isConfigKey));
   const records = new Map<string, LocalComponentStateRecord>();
   const owners = new Map<string, string>();
   const duplicateKeys = new Set<string>();
@@ -579,6 +627,7 @@ export function createLocalComponentStateRegistry(
       for (const [key, record] of records) output[key] = cloneRecord(record);
       return Object.freeze({
         format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+        ...(configKey === undefined ? {} : { configKey }),
         records: Object.freeze(output),
       });
     },
@@ -588,6 +637,16 @@ export function createLocalComponentStateRegistry(
       if (!parsed.ok) {
         diagnostics.push(...parsed.diagnostics);
         return { accepted: [], skipped: [], diagnostics: parsed.diagnostics };
+      }
+      if (parsed.configKey !== undefined && !configKeyAccepted(parsed.configKey, configKey, legacyConfigKeys)) {
+        const skipped = [...new Set([...parsed.skipped, ...Object.keys(parsed.records)])];
+        parsed.diagnostics.push(diagnostic(
+          'local.runtime.state.config-mismatch',
+          `Saved component state belongs to configuration "${parsed.configKey}", not "${configKey}".`,
+          'warning',
+        ));
+        diagnostics.push(...parsed.diagnostics);
+        return { accepted: [], skipped, diagnostics: parsed.diagnostics };
       }
       const accepted: string[] = [];
       const known = typeof knownKeys === 'function' ? knownKeys() : knownKeys;

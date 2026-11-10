@@ -807,6 +807,8 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     ...(options?.componentStateStorage === undefined
       ? {}
       : { componentStateStorage: options.componentStateStorage }),
+    ...(options?.configKey === undefined ? {} : { configKey: options.configKey }),
+    ...(options?.legacyConfigKeys === undefined ? {} : { legacyConfigKeys: options.legacyConfigKeys }),
     ...(ownsServices ? { knownStateKeys } : {}),
   });
 

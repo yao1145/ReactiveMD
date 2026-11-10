@@ -196,6 +196,95 @@ describe('component state registry', () => {
     });
     expect(secondHandle.load()?.data).toEqual({ score: 4 });
   });
+
+  it('writes the current config key into snapshots and restores its own sidecar', () => {
+    const registry = createLocalComponentStateRegistry({
+      documentId: 'doc',
+      sourceDigest,
+      configKey: 'rmd-current',
+    });
+    const handle = registry.handle({
+      nodeId: 'local-1',
+      component: 'example/game',
+      componentVersion: '1.0.0',
+    });
+    handle.save({ score: 5 });
+    expect(registry.snapshot().configKey).toBe('rmd-current');
+
+    const restored = createLocalComponentStateRegistry({
+      documentId: 'doc',
+      sourceDigest,
+      configKey: 'rmd-current',
+      initial: registry.snapshot(),
+    });
+    expect(restored.load(handle.key)?.data).toEqual({ score: 5 });
+    expect(restored.diagnostics()).toEqual([]);
+  });
+
+  it('accepts a sidecar that matches a legacy config key and re-stamps the current one', () => {
+    const key = 'doc:doc:state:demo';
+    const registry = createLocalComponentStateRegistry({
+      documentId: 'doc',
+      sourceDigest,
+      configKey: 'rmd-current',
+      legacyConfigKeys: ['rmd-legacy'],
+    });
+    const result = registry.restore({
+      format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      configKey: 'rmd-legacy',
+      records: { [key]: record(key, { score: 6 }) },
+    });
+    expect(result.accepted).toEqual([key]);
+    expect(result.diagnostics).toEqual([]);
+    expect(registry.snapshot().configKey).toBe('rmd-current');
+  });
+
+  it('skips every record written by another configuration with one warning', () => {
+    const key = 'doc:doc:state:demo';
+    const registry = createLocalComponentStateRegistry({
+      documentId: 'doc',
+      sourceDigest,
+      configKey: 'rmd-current',
+    });
+    const result = registry.restore({
+      format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      configKey: 'rmd-other',
+      records: { [key]: record(key, { score: 7 }) },
+    });
+    expect(result.accepted).toEqual([]);
+    expect(result.skipped).toEqual([key]);
+    expect(result.diagnostics.filter((item) => item.code === 'local.runtime.state.config-mismatch')).toHaveLength(1);
+    expect(result.diagnostics[0]?.severity).toBe('warning');
+    expect(registry.load(key)).toBeNull();
+  });
+
+  it('keeps old sidecars without a config key readable', () => {
+    const key = 'doc:doc:state:demo';
+    const registry = createLocalComponentStateRegistry({
+      documentId: 'doc',
+      sourceDigest,
+      configKey: 'rmd-current',
+    });
+    const result = registry.restore({
+      format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      records: { [key]: record(key, { score: 8 }) },
+    });
+    expect(result.accepted).toEqual([key]);
+    expect(result.diagnostics).toEqual([]);
+    expect(registry.snapshot().configKey).toBe('rmd-current');
+  });
+
+  it('rejects a malformed config key in a sidecar document', () => {
+    const parsed = parseLocalComponentStateDocument({
+      format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+      configKey: 7,
+      records: {},
+    });
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.diagnostics[0]?.code).toBe('local.runtime.state.config-key');
+    }
+  });
 });
 
 describe('component state sidecar parsing', () => {
@@ -262,6 +351,23 @@ describe('component state persistence port', () => {
     handle.clear();
     expect(storage.removes).toBe(1);
     expect(storage.value).toBeNull();
+  });
+
+  it('persists the current config key with every save', () => {
+    const storage = memoryStorage();
+    const registry = createLocalComponentStateRegistry({
+      documentId: 'doc',
+      sourceDigest,
+      configKey: 'rmd-current',
+      storage,
+    });
+    const handle = registry.handle({
+      nodeId: 'local-1',
+      component: 'example/game',
+      componentVersion: '1.0.0',
+    });
+    handle.save({ score: 4 });
+    expect(JSON.parse(storage.value ?? '{}').configKey).toBe('rmd-current');
   });
 
   it('restores a stored sidecar before the first render', () => {

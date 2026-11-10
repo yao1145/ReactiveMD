@@ -20,6 +20,11 @@ export interface ReactiveMdDirectoryOptions {
   readonly themeDir?: string;
   /** Package entry root relative to the Vite root. Defaults to `plugin`. */
   readonly pluginDir?: string;
+  /**
+   * Install the built-in default preset. Defaults to true. Discovered preset
+   * packages are installed in both modes; `false` installs no built-in preset.
+   */
+  readonly defaultPreset?: boolean;
 }
 
 /** Manual mode: one local module exporting `host = createReactHost(...)`. */
@@ -44,9 +49,14 @@ const messageOf = (error: unknown): string => error instanceof Error ? error.mes
 
 type RegistrationMode =
   | { readonly kind: 'manual'; readonly entry: string }
-  | { readonly kind: 'directories'; readonly themeDir?: string; readonly pluginDir?: string };
+  | {
+    readonly kind: 'directories';
+    readonly themeDir?: string;
+    readonly pluginDir?: string;
+    readonly defaultPreset?: boolean;
+  };
 
-const OPTION_KEYS = new Set(['extensions', 'themeDir', 'pluginDir']);
+const OPTION_KEYS = new Set(['extensions', 'themeDir', 'pluginDir', 'defaultPreset']);
 
 function readLocalModule(value: unknown): string {
   if (typeof value !== 'string' || !value.trim() || /^[a-z]+:\/\//i.test(value)) {
@@ -81,14 +91,21 @@ function readOptions(value: unknown): RegistrationMode {
   const hasExtensions = Object.hasOwn(record, 'extensions');
   const hasThemeDir = Object.hasOwn(record, 'themeDir');
   const hasPluginDir = Object.hasOwn(record, 'pluginDir');
-  if (hasExtensions && (hasThemeDir || hasPluginDir)) {
-    throw new TypeError('reactiveMd options cannot mix "extensions" with "themeDir" or "pluginDir".');
+  const hasDefaultPreset = Object.hasOwn(record, 'defaultPreset');
+  if (hasExtensions && (hasThemeDir || hasPluginDir || hasDefaultPreset)) {
+    throw new TypeError(
+      'reactiveMd options cannot mix "extensions" with "themeDir", "pluginDir" or "defaultPreset".',
+    );
+  }
+  if (hasDefaultPreset && typeof record.defaultPreset !== 'boolean') {
+    throw new TypeError('reactiveMd defaultPreset must be a boolean.');
   }
   if (hasExtensions) return { kind: 'manual', entry: readLocalModule(record.extensions) };
   const directory: RegistrationMode = {
     kind: 'directories',
     ...(hasThemeDir ? { themeDir: readRelativeDirectory(record.themeDir, 'themeDir') } : {}),
     ...(hasPluginDir ? { pluginDir: readRelativeDirectory(record.pluginDir, 'pluginDir') } : {}),
+    ...(hasDefaultPreset ? { defaultPreset: record.defaultPreset as boolean } : {}),
   };
   return directory;
 }
@@ -186,6 +203,7 @@ function insidePath(file: string, directory: string): boolean {
  */
 export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
   const mode = readOptions(options);
+  const installDefaultPreset = mode.kind === 'directories' ? mode.defaultPreset !== false : true;
   let config: ResolvedConfig;
   let manualEntry: string | undefined;
   let themeOption: string | undefined;
@@ -216,7 +234,11 @@ export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
       ...(themeOption === undefined ? {} : { themeDir: themeOption }),
       ...(pluginOption === undefined ? {} : { pluginDir: pluginOption }),
     }));
-    const registration = createDirectoryRegistration(discovery, createHash('sha256').update(config.root).digest('hex').slice(0, 16));
+    const registration = createDirectoryRegistration(
+      discovery,
+      createHash('sha256').update(config.root).digest('hex').slice(0, 16),
+      { defaultPreset: installDefaultPreset },
+    );
     const value: DirectoryState = Object.freeze({
       discovery,
       registration,

@@ -23,8 +23,12 @@ function probeDefinition() {
   });
 }
 
+function configFixture() {
+  return createLocalConfig({ components: [probeDefinition()] });
+}
+
 function compile(source = '<probe state-key="demo">') {
-  const config = createLocalConfig({ components: [probeDefinition()] });
+  const config = configFixture();
   const result = compileLocal(source, { config });
   if (!result.ok) throw new Error(result.diagnostics.map((item) => item.message).join('; '));
   return result.document;
@@ -51,8 +55,12 @@ function record(key: string, documentId?: string, data: unknown = { score: 1 }):
   };
 }
 
-function sidecar(records: Record<string, unknown>): unknown {
-  return { format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT, records };
+function sidecar(records: Record<string, unknown>, configKey?: string): unknown {
+  return {
+    format: LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
+    ...(configKey === undefined ? {} : { configKey }),
+    records,
+  };
 }
 
 describe('component state export resolution', () => {
@@ -140,5 +148,93 @@ describe('component state export resolution', () => {
     const document = compile();
     expect(resolveLocalComponentStateExport(document, '{"format":"nope"}').ok).toBe(false);
     expect(resolveLocalComponentStateExport(document, 'not json').ok).toBe(false);
+  });
+
+  it('stamps the current config key onto an old sidecar', () => {
+    const config = configFixture();
+    const document = compile();
+    const documentId = localSourceDigest(document.source);
+    const key = componentStateKey({
+      documentId,
+      sourceDigest: documentId,
+      nodeId: probeNode(document.nodes).id,
+      stateKey: 'demo',
+    });
+    const result = resolveLocalComponentStateExport(
+      document,
+      sidecar({ [key]: record(key, documentId) }),
+      { configKey: config.key },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.diagnostics).toEqual([]);
+    expect(result.componentState.configKey).toBe(config.key);
+    expect(Object.keys(result.componentState.records)).toEqual([key]);
+  });
+
+  it('accepts a legacy config key and re-stamps the current one', () => {
+    const config = configFixture();
+    const legacy = config.legacyKeys[0]?.key;
+    expect(legacy).toBeDefined();
+    const document = compile();
+    const documentId = localSourceDigest(document.source);
+    const key = componentStateKey({
+      documentId,
+      sourceDigest: documentId,
+      nodeId: probeNode(document.nodes).id,
+      stateKey: 'demo',
+    });
+    const result = resolveLocalComponentStateExport(
+      document,
+      sidecar({ [key]: record(key, documentId) }, legacy),
+      { configKey: config.key, legacyConfigKeys: [legacy as string] },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.diagnostics).toEqual([]);
+    expect(result.componentState.configKey).toBe(config.key);
+    expect(Object.keys(result.componentState.records)).toEqual([key]);
+  });
+
+  it('drops every record written by another configuration with a warning', () => {
+    const config = configFixture();
+    const document = compile();
+    const documentId = localSourceDigest(document.source);
+    const key = componentStateKey({
+      documentId,
+      sourceDigest: documentId,
+      nodeId: probeNode(document.nodes).id,
+      stateKey: 'demo',
+    });
+    const result = resolveLocalComponentStateExport(
+      document,
+      sidecar({ [key]: record(key, documentId) }, 'rmd-other'),
+      { configKey: config.key },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.componentState.records).toEqual({});
+    expect(result.componentState.configKey).toBe(config.key);
+    expect(result.diagnostics.map((item) => item.code)).toEqual(['local.runtime.state.config-mismatch']);
+    expect(result.diagnostics[0]?.severity).toBe('warning');
+  });
+
+  it('preserves the sidecar config key when no current key is supplied', () => {
+    const document = compile();
+    const documentId = localSourceDigest(document.source);
+    const key = componentStateKey({
+      documentId,
+      sourceDigest: documentId,
+      nodeId: probeNode(document.nodes).id,
+      stateKey: 'demo',
+    });
+    const result = resolveLocalComponentStateExport(
+      document,
+      sidecar({ [key]: record(key, documentId) }, 'rmd-saved'),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.componentState.configKey).toBe('rmd-saved');
+    expect(Object.keys(result.componentState.records)).toEqual([key]);
   });
 });

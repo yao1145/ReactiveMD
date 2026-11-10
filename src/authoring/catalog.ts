@@ -9,11 +9,13 @@ import {
   defaultAuthoringGroupLabel,
   defaultAuthoringKeywords,
   defaultComponentAuthoring,
+  defaultManifestAuthoring,
   pickDefaultAuthoringText,
 } from '../presets/default-authoring';
 import { readLocalConfig } from '../sdk/config';
 import { componentSchemaFromDefinition } from '../sdk/registry';
 import type {
+  LocalComponentAuthoring,
   LocalComponentDefinition,
   LocalComponentRequires,
   LocalComponentText,
@@ -245,14 +247,65 @@ function structuralFields(schema: ReturnType<typeof componentSchemaFromDefinitio
   };
 }
 
+function sameLocalizedText(
+  left: LocalComponentText | undefined,
+  right: LocalComponentText | undefined,
+): boolean {
+  if (left === right) return true;
+  if (left === undefined || right === undefined) return false;
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key, index) => key === rightKeys[index] && left[key] === right[key]);
+}
+
+/**
+ * Authoring fields that differ from the default preset's canonical manifest
+ * copy. Assembly normalizes preset overrides and replacement fallback into
+ * `definition.authoring`; for default components those values start from the
+ * static authoring table, so only real overrides replace the richer localized
+ * data (for example the Chinese insertion templates).
+ */
+function authoringOverride(
+  definition: LocalComponentDefinition,
+): LocalComponentAuthoring | undefined {
+  const authoring = definition.authoring;
+  if (authoring === undefined) return undefined;
+  if (defaultComponentAuthoring(definition.name) === undefined) return authoring;
+  const baseline = defaultManifestAuthoring(definition.name);
+  const out: {
+    title?: LocalComponentText;
+    description?: LocalComponentText;
+    category?: string;
+    insertText?: string;
+  } = {};
+  if (authoring.title !== undefined && !sameLocalizedText(authoring.title, baseline?.title)) {
+    out.title = authoring.title;
+  }
+  if (authoring.description !== undefined
+    && !sameLocalizedText(authoring.description, baseline?.description)) {
+    out.description = authoring.description;
+  }
+  if (authoring.category !== undefined && authoring.category !== baseline?.category) {
+    out.category = authoring.category;
+  }
+  if (authoring.insertText !== undefined && authoring.insertText !== baseline?.insertText) {
+    out.insertText = authoring.insertText;
+  }
+  return Object.keys(out).length === 0 ? undefined : Object.freeze(out);
+}
+
 /** Localized preset template, or the manifest's declared `authoring.insertText`. */
 function declaredInsertText(definition: LocalComponentDefinition, locale: EditorLocale): string | undefined {
   const data = defaultComponentAuthoring(definition.name);
+  const override = authoringOverride(definition);
   if (data) {
+    const supplied = override?.insertText;
+    if (supplied !== undefined) return supplied.trim() !== '' ? supplied : undefined;
     const text = localized(data.insertText, locale, data.insertText.en ?? '');
     return text === '' ? undefined : text;
   }
-  const declared = definition.authoring?.insertText;
+  const declared = override?.insertText;
   return declared !== undefined && declared.trim() !== '' ? declared : undefined;
 }
 
@@ -318,18 +371,19 @@ function entryFromDefinition(
   const schema = componentSchemaFromDefinition(definition);
   const data = defaultComponentAuthoring(definition.name);
   const authoring = definition.authoring;
+  const override = authoringOverride(definition);
 
   const title = data
-    ? localized(data.title, locale, definition.name)
+    ? localized(override?.title ?? data.title, locale, definition.name)
     : localized(authoring?.title, locale, definition.name);
   const description = data
-    ? localized(data.description, locale, title)
+    ? localized(override?.description ?? data.description, locale, title)
     : localized(authoring?.description, locale, title);
-  const declaredCategory = authoring?.category;
-  const category = data?.category
-    ?? (declaredCategory !== undefined && declaredCategory.trim() !== ''
-      ? declaredCategory
-      : 'extension');
+  const category = data
+    ? override?.category ?? data.category
+    : authoring?.category !== undefined && authoring.category.trim() !== ''
+      ? authoring.category
+      : 'extension';
   const categoryLabel = defaultAuthoringGroupLabel(category, locale);
 
   const supplied = declaredInsertText(definition, locale);
@@ -429,6 +483,7 @@ type LocalOptionSuccess = Extract<LocalOptionCheck, { ok: true }>;
 function catalogMetadataKey(definition: LocalComponentDefinition, locale: EditorLocale): string {
   const data = defaultComponentAuthoring(definition.name);
   const authoring = definition.authoring;
+  const override = authoringOverride(definition);
   const descriptions: Record<string, LocalComponentText | undefined> = {};
   for (const [name, prop] of Object.entries(definition.props)) {
     descriptions[name] = prop.description;
@@ -438,13 +493,18 @@ function catalogMetadataKey(definition: LocalComponentDefinition, locale: Editor
     id: definition.id,
     form: definition.form,
     title: data
-      ? localized(data.title, locale, definition.name)
+      ? localized(override?.title ?? data.title, locale, definition.name)
       : localized(authoring?.title, locale, definition.name),
     description: data
-      ? localized(data.description, locale, '')
+      ? localized(override?.description ?? data.description, locale, '')
       : localized(authoring?.description, locale, ''),
-    category: data?.category ?? authoring?.category ?? '',
-    categoryLabel: defaultAuthoringGroupLabel(data?.category ?? authoring?.category ?? 'extension', locale),
+    category: data
+      ? override?.category ?? data.category
+      : authoring?.category ?? '',
+    categoryLabel: defaultAuthoringGroupLabel(
+      data ? override?.category ?? data.category : authoring?.category ?? 'extension',
+      locale,
+    ),
     insertText: declaredInsertText(definition, locale) ?? null,
     inline: data ? data.inline === true : definition.form === 'inline',
     keywords: defaultAuthoringKeywords(definition.name) ?? null,

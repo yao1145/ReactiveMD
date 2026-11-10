@@ -43,6 +43,10 @@ export interface CreateLocalRuntimeServicesOptions {
   readonly componentStateStorage?: LocalComponentStateStorage;
   /** Keys currently present in the document; unknown saved keys are skipped. */
   readonly knownStateKeys?: ReadonlySet<string> | (() => ReadonlySet<string>);
+  /** Current semantic configuration key written to and checked against sidecars. */
+  readonly configKey?: string;
+  /** Legacy configuration identities accepted when restoring a sidecar. */
+  readonly legacyConfigKeys?: readonly string[];
   /** Inject a scheduler, for example a fake clock in tests. */
   readonly scheduler?: LocalScheduler;
   readonly schedulerOptions?: LocalSchedulerOptions;
@@ -78,6 +82,8 @@ export function createLocalRuntimeServices(
       initial: options.componentState,
       ...(options.componentStateStorage === undefined ? {} : { storage: options.componentStateStorage }),
       ...(options.knownStateKeys === undefined ? {} : { knownKeys: options.knownStateKeys }),
+      ...(options.configKey === undefined ? {} : { configKey: options.configKey }),
+      ...(options.legacyConfigKeys === undefined ? {} : { legacyConfigKeys: options.legacyConfigKeys }),
     }),
   });
 }

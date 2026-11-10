@@ -70,8 +70,12 @@ describe('ReactiveMD Vite adapter', () => {
     expect(() => reactiveMd()).not.toThrow();
     expect(() => reactiveMd({})).not.toThrow();
     expect(() => reactiveMd({ themeDir: 'themes', pluginDir: 'plugins' })).not.toThrow();
+    expect(() => reactiveMd({ defaultPreset: false })).not.toThrow();
+    expect(() => reactiveMd({ defaultPreset: true, pluginDir: 'plugin' })).not.toThrow();
     expect(() => reactiveMd({ extensions: './extensions.ts', themeDir: 'theme' })).toThrow(/cannot mix/);
     expect(() => reactiveMd({ extensions: './extensions.ts', pluginDir: 'plugin' })).toThrow(/cannot mix/);
+    expect(() => reactiveMd({ extensions: './extensions.ts', defaultPreset: false })).toThrow(/cannot mix/);
+    expect(() => reactiveMd({ defaultPreset: 'no' } as never)).toThrow(/must be a boolean/);
     expect(() => reactiveMd({ unknown: true } as never)).toThrow(/does not accept/);
     expect(() => reactiveMd({ themeDir: '' })).toThrow(/non-empty/);
     expect(() => reactiveMd({ themeDir: '../outside' })).toThrow(/relative directory/);
@@ -94,9 +98,17 @@ describe('ReactiveMD Vite adapter', () => {
       expect(registration).toContain('directory-plugin/card.css');
       expect(registration).toContain('directory-theme/paper.css');
       expect(registration).toContain('createReactHost');
+      expect(registration).toContain('const __rmdInstallDefaultPreset = true;');
       expect(registration).toContain('reactive-md:themes');
       expect(addWatchFile).toHaveBeenCalledWith(expect.stringContaining('theme'));
       expect(await load.call({ addWatchFile }, 'unrelated')).toBeNull();
+
+      const bare = reactiveMd({ defaultPreset: false });
+      await resolveConfig({ configFile: false, root, plugins: [bare] }, 'serve');
+      const bareLoad = bare.load as (this: { addWatchFile(file: string): void }, id: string) => Promise<string | null>;
+      const bareRegistration = await bareLoad.call({ addWatchFile: vi.fn() }, REGISTRATION);
+      expect(bareRegistration).toContain('const __rmdInstallDefaultPreset = false;');
+      expect(bareRegistration).toContain('__rmdPresetProtocol');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
