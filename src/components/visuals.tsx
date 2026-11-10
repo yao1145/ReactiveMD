@@ -40,9 +40,7 @@ import type {
   LocalComponentTableCell,
 } from '../react/component-api';
 import {
-  PrintValue,
   formatNumber,
-  localColor,
   numberAttr,
   rawAttr,
   textAttr,
@@ -2150,7 +2148,7 @@ function timelineHeaderSet(header: string[]): TimelineHeaderSet | null {
 
 export function TimelineView(context: LocalComponentContext) {
   const view = useComponentView(context);
-  const { content, mode, t } = view;
+  const { mode, t } = view;
   const interactive = mode !== 'static';
   const [activeKey, setActiveKey] = useState<string | null>(null);
   useResetToken(context, () => setActiveKey(null));

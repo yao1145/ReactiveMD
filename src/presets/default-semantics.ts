@@ -260,13 +260,6 @@ const dateDef = definition('date', 'leaf', {
   ),
 });
 
-const optionStructure = structure({
-  rule: 'inline',
-  label: 'none',
-  inlineOnly: true,
-  noComponents: true,
-});
-
 function optionsComponent(name: string, def: LocalComponentDefinition['form'] = 'container'): LocalComponentDefinition {
   return definition(name, def, {
     props: { label: label(), disabled: disabled(), color: color() },

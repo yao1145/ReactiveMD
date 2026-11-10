@@ -20,12 +20,6 @@ function all(nodes: LocalNode[]): LocalNode[] {
   return nodes.flatMap((node) => [node, ...all(node.children ?? [])]);
 }
 
-function control(document: LocalDocument, bind: string): LocalNode {
-  const node = all(document.nodes).find((candidate) => candidate.attrs?.bind === bind);
-  if (!node) throw new Error(`Missing control bound to ${bind}`);
-  return node;
-}
-
 function planFrom(previous: LocalDocument, runtime: LocalRuntime, next: LocalDocument) {
   return planLocalStateRetention({ previous, state: runtime.snapshot().state, next });
 }

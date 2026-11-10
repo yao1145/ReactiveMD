@@ -6,10 +6,10 @@ import {
 } from './compat-profile';
 import type { LocalCompatProfile } from './compat-profile';
 import {
+  localConfigFromAssembly,
   localLegacyV1Key,
   readLocalAssemblySnapshot,
   resolveLocalAssembly,
-  type ResolvedLocalAssembly,
 } from './assembly';
 import { localHash } from './hash';
 import { localJsonByteLength, readLocalComponentManifest } from './manifest';
@@ -25,7 +25,6 @@ import type {
   LocalAssemblySnapshot,
   LocalConfig,
   LocalConfigInput,
-  LocalLegacyConfigKey,
   LocalPresetInput,
   LocalPresetPackage,
   LocalPresetReference,
@@ -186,21 +185,10 @@ function normalizeAssembly(assembly: LocalAssemblySnapshot): LocalAssemblySnapsh
 
 function buildConfigFromAssembly(assembly: LocalAssemblySnapshot): LocalConfig {
   const normalized = normalizeAssembly(assembly);
-  const resolved: ResolvedLocalAssembly & { readonly legacyKeys: readonly LocalLegacyConfigKey[] } =
-    resolveLocalAssembly(normalized, {
-      legacyProfiles: LOCAL_COMPAT_PROFILES,
-    });
-  const config: LocalConfig = Object.freeze({
-    protocol: LOCAL_CONFIG_PROTOCOL_V2,
-    assembly: normalized,
-    key: resolved.key,
-    presets: resolved.presets,
-    components: resolved.components,
-    replacements: resolved.replacements,
-    registry: resolved.registry,
-    themes: resolved.themes,
-    legacyKeys: resolved.legacyKeys,
+  const resolved = resolveLocalAssembly(normalized, {
+    legacyProfiles: LOCAL_COMPAT_PROFILES,
   });
+  const config = localConfigFromAssembly(normalized, resolved);
   trustedConfigs.add(config);
   return config;
 }
@@ -291,22 +279,13 @@ function readLegacyConfig(
   });
   const resolved = resolveLocalAssembly(assembly, { legacyProfiles: profiles });
   const legacyKey = localLegacyV1Key(profile.preset, resolved.components);
-  const config: LocalConfig = Object.freeze({
-    protocol: LOCAL_CONFIG_PROTOCOL_V2,
-    assembly,
-    key: resolved.key,
-    presets: resolved.presets,
-    components: resolved.components,
-    replacements: resolved.replacements,
-    registry: resolved.registry,
-    themes: resolved.themes,
-    legacyKeys: Object.freeze([
-      ...resolved.legacyKeys,
-      ...(resolved.legacyKeys.some((entry) => entry.key === legacyKey)
-        ? []
-        : [Object.freeze({ profile: legacyRule.profile, key: legacyKey })]),
-    ]),
-  });
+  const legacyKeys = [
+    ...resolved.legacyKeys,
+    ...(resolved.legacyKeys.some((entry) => entry.key === legacyKey)
+      ? []
+      : [Object.freeze({ profile: legacyRule.profile, key: legacyKey })]),
+  ];
+  const config = localConfigFromAssembly(assembly, resolved, legacyKeys);
   trustedConfigs.add(config);
   return config;
 }

@@ -165,7 +165,7 @@ function propFromSchema(name: string, schema: LocalPropSchema): LocalComponentCa
 
 function schemaProps(
   schema: Readonly<Record<string, LocalPropSchema>>,
-  locale: EditorLocale,
+  _locale: EditorLocale,
 ): Record<string, LocalComponentCatalogProp> {
   const props: Record<string, LocalComponentCatalogProp> = {};
   for (const [name, prop] of Object.entries(schema)) {

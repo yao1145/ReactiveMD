@@ -4,7 +4,6 @@ import type {
   LocalReactPreset,
 } from '../react/component-api';
 import { defineReactComponent } from '../react/component-api';
-import { getLocalComponentRegistry } from '../sdk/registry';
 import defaultPreset from '../presets/default';
 import {
   CheckboxView,
@@ -126,7 +125,7 @@ let cached: LocalReactPreset | null = null;
 export function createDefaultReactPreset(): LocalReactPreset {
   if (cached) return cached;
   const components: LocalReactComponent[] = [];
-  for (const definition of getLocalComponentRegistry()) {
+  for (const definition of defaultPreset.components) {
     const implementation = DEFAULT_COMPONENT_VIEWS[definition.name];
     if (!implementation) {
       throw new Error(

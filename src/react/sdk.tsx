@@ -8,7 +8,6 @@ import type {
   LocalHostComponentContext,
   LocalHostRenderer,
   LocalRenderMode,
-  LocalSourceTarget,
 } from '../local/rendering/render-types';
 import type { LocalUrlPolicy } from '../local/rendering/LocalDocumentView';
 import type { LocalLocale } from '../local/theme/i18n';

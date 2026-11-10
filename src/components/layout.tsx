@@ -371,7 +371,7 @@ export function AccordionView(context: LocalComponentContext) {
 export function DisclosureView(context: LocalComponentContext) {
   const view = useComponentView(context);
   const domId = useId();
-  const { content, mode, visible, t } = view;
+  const { mode, visible, t } = view;
   const label = textAttr(context, 'label', t('Details', '折叠内容'));
   const initialOpen = boolAttr(context, 'open', false);
   const [open, setOpen] = useState(initialOpen);

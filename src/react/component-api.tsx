@@ -15,8 +15,7 @@ import type {
   LocalSourceTarget,
 } from '../local/rendering/render-types';
 import type { LocalUrlPolicy } from '../local/rendering/LocalDocumentView';
-import type { LocalLocale, Localize } from '../local/theme/i18n';
-import type { LocalBindingFamily } from '../local/configuration/schema';
+import type { LocalLocale } from '../local/theme/i18n';
 import { localComponentDigest } from '../sdk/manifest';
 import { resolveLocalComponentProp } from '../sdk/props';
 import type {
@@ -327,19 +326,7 @@ export interface LocalComponentAdapterEnvironment {
 
 /* -------------------------------------------------------- prop resolution */
 
-const FULL_INTERPOLATION = /^\s*\{\{([\s\S]*)\}\}\s*$/;
 const NUMBER_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
-
-function hasInterpolation(raw: string): boolean {
-  for (let index = 0; index < raw.length - 1; index += 1) {
-    if (raw[index] === '\\') {
-      index += 1;
-      continue;
-    }
-    if (raw[index] === '{' && raw[index + 1] === '{') return true;
-  }
-  return false;
-}
 
 function scalarText(value: LocalValue): string | null {
   if (value === null) return '';

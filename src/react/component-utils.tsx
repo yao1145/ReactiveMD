@@ -230,7 +230,7 @@ export function itemText(
 
 /** Boolean prop of a projected child component. */
 export function itemBool(
-  context: LocalComponentContext,
+  _context: LocalComponentContext,
   item: LocalComponentContent,
   name: string,
   fallback = false,

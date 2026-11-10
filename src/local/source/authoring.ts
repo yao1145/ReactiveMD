@@ -477,7 +477,7 @@ function buildAnalysisData(source: string, nodes: LocalNode[], hostComponents: r
     else declarations.set(name, [sortedRange(range)]);
   };
 
-  const visitComponent = (node: LocalNode, parent?: string): void => {
+  const visitComponent = (node: LocalNode, _parent?: string): void => {
     if (visitedTags.has(node.range.start)) return;
     const tag = readTagAt(source, node.range.start);
     if (!tag || tag.closing) return;

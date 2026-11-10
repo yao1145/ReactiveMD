@@ -250,7 +250,7 @@ function readNameList(value: unknown, path: string): readonly string[] {
     seen.add(name);
     names.push(name);
   }
-  return Object.freeze(names);
+  return names;
 }
 
 function readPositiveCount(value: unknown, path: string): number {
@@ -312,7 +312,7 @@ function readStructure(value: unknown, form: LocalComponentForm, path: string): 
     out.forbidSeparator = separator;
   }
   if (value.maxItems !== undefined) out.maxItems = readBoundedCount(value.maxItems, `${path}.maxItems`, MAX_LOCAL_ARRAY_LENGTH);
-  return Object.freeze(out);
+  return out;
 }
 
 function readRuleAttribute(value: unknown, path: string): string {
@@ -338,7 +338,7 @@ function readRuleStringList(value: unknown, path: string): readonly string[] {
 function readPlainStringList(value: unknown, path: string): readonly string[] {
   if (!Array.isArray(value)) fail(path, 'must be an array of strings.');
   if (value.length > MAX_LOCAL_SDK_STRUCTURE_ITEMS) fail(path, `accepts at most ${MAX_LOCAL_SDK_STRUCTURE_ITEMS} values.`);
-  return Object.freeze(value.map((item) => readString(item, path, MAX_LOCAL_SDK_NAME_LENGTH)));
+  return value.map((item) => readString(item, path, MAX_LOCAL_SDK_NAME_LENGTH));
 }
 
 function readRule(value: unknown, path: string): LocalComponentRule {
@@ -363,77 +363,77 @@ function readRule(value: unknown, path: string): LocalComponentRule {
         }
         order = value.order;
       }
-      return Object.freeze({
+      return {
         kind,
         ...strings(['min', 'max', 'step', 'integer', 'positiveInteger']),
         ...(order ? { order } : {}),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     }
     case 'text-length':
       allow(['min', 'max']);
-      return Object.freeze({ kind, ...strings(['min', 'max']) }) as LocalComponentRule;
+      return { kind, ...strings(['min', 'max']) } as LocalComponentRule;
     case 'date-bounds':
       allow(['min', 'max', 'required']);
-      return Object.freeze({ kind, ...strings(['min', 'max', 'required']) }) as LocalComponentRule;
+      return { kind, ...strings(['min', 'max', 'required']) } as LocalComponentRule;
     case 'nonempty':
       allow(['attribute']);
-      return Object.freeze({ kind, attribute: readRuleAttribute(value.attribute, `${path}.attribute`) }) as LocalComponentRule;
+      return { kind, attribute: readRuleAttribute(value.attribute, `${path}.attribute`) } as LocalComponentRule;
     case 'progress-bounds':
       allow(['value', 'max', 'defaultMax']);
-      return Object.freeze({
+      return {
         kind,
         value: readRuleAttribute(value.value, `${path}.value`),
         max: readRuleAttribute(value.max, `${path}.max`),
         defaultMax: readFiniteNumber(value.defaultMax, `${path}.defaultMax`),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'timer-duration':
       allow(['attribute', 'default']);
-      return Object.freeze({
+      return {
         kind,
         attribute: readRuleAttribute(value.attribute, `${path}.attribute`),
         default: readFiniteNumber(value.default, `${path}.default`),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'option-count':
       allow(['max']);
-      return Object.freeze({
+      return {
         kind,
         ...(value.max !== undefined ? { max: readRuleAttribute(value.max, `${path}.max`) } : {}),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'selection-requires':
       allow(['key', 'attributes']);
-      return Object.freeze({
+      return {
         kind,
         key: readRuleAttribute(value.key, `${path}.key`),
         attributes: readRuleStringList(value.attributes, `${path}.attributes`),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'inline-body':
       allow(['strict']);
-      return Object.freeze({
+      return {
         kind,
         ...(value.strict !== undefined ? { strict: readBoolean(value.strict, `${path}.strict`) } : {}),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'no-components':
     case 'math-body':
     case 'inline-math-reads':
       allow([]);
-      return Object.freeze({ kind }) as LocalComponentRule;
+      return { kind } as LocalComponentRule;
     case 'single-table':
       allow(['fallbackSingle']);
-      return Object.freeze({ kind, ...(value.fallbackSingle === undefined ? {} : { fallbackSingle: readBoolean(value.fallbackSingle, `${path}.fallbackSingle`) }) });
+      return { kind, ...(value.fallbackSingle === undefined ? {} : { fallbackSingle: readBoolean(value.fallbackSingle, `${path}.fallbackSingle`) }) } as LocalComponentRule;
     case 'options-body': {
       allow(['child', 'valueAttribute', 'unique', 'max', 'forbidSeparator']);
-      return Object.freeze({
+      return {
         kind,
         child: readRuleAttribute(value.child, `${path}.child`),
         valueAttribute: readRuleAttribute(value.valueAttribute, `${path}.valueAttribute`),
         unique: value.unique === undefined ? true : readBoolean(value.unique, `${path}.unique`),
         ...(value.max !== undefined ? { max: readBoundedCount(value.max, `${path}.max`, MAX_LOCAL_ARRAY_LENGTH) } : {}),
         ...(value.forbidSeparator !== undefined ? { forbidSeparator: readString(value.forbidSeparator, `${path}.forbidSeparator`, 4) } : {}),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     }
     case 'value-sequence':
       allow(['child', 'valueAttribute', 'min', 'generatedPrefix', 'unique', 'duplicateCode']);
-      return Object.freeze({
+      return {
         kind,
         child: readRuleAttribute(value.child, `${path}.child`),
         valueAttribute: readRuleAttribute(value.valueAttribute, `${path}.valueAttribute`),
@@ -441,20 +441,20 @@ function readRule(value: unknown, path: string): LocalComponentRule {
         generatedPrefix: readString(value.generatedPrefix, `${path}.generatedPrefix`, MAX_LOCAL_SDK_NAME_LENGTH),
         unique: value.unique === undefined ? true : readBoolean(value.unique, `${path}.unique`),
         ...(value.duplicateCode === undefined ? {} : { duplicateCode: readString(value.duplicateCode, `${path}.duplicateCode`, MAX_LOCAL_SDK_NAME_LENGTH) }),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'only-children':
       allow(['children', 'min', 'max', 'maxCode', 'onlyCode']);
-      return Object.freeze({
+      return {
         kind,
         children: readRuleStringList(value.children, `${path}.children`),
         min: readRuleCount(value.min, `${path}.min`),
         ...(value.max !== undefined ? { max: readBoundedCount(value.max, `${path}.max`, MAX_LOCAL_ARRAY_LENGTH) } : {}),
         ...(value.maxCode !== undefined ? { maxCode: readString(value.maxCode, `${path}.maxCode`, MAX_LOCAL_SDK_NAME_LENGTH) } : {}),
         ...(value.onlyCode !== undefined ? { onlyCode: readString(value.onlyCode, `${path}.onlyCode`, MAX_LOCAL_SDK_NAME_LENGTH) } : {}),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'diagram-body':
       allow(['node', 'edge', 'id', 'from', 'to', 'label']);
-      return Object.freeze({
+      return {
         kind,
         node: readRuleAttribute(value.node, `${path}.node`),
         edge: readRuleAttribute(value.edge, `${path}.edge`),
@@ -462,10 +462,10 @@ function readRule(value: unknown, path: string): LocalComponentRule {
         from: readRuleAttribute(value.from, `${path}.from`),
         to: readRuleAttribute(value.to, `${path}.to`),
         ...(value.label !== undefined ? { label: readRuleAttribute(value.label, `${path}.label`) } : {}),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'quiz-body':
       allow(['type', 'answer', 'tolerance', 'child', 'valueAttribute', 'max']);
-      return Object.freeze({
+      return {
         kind,
         type: readRuleAttribute(value.type, `${path}.type`),
         answer: readRuleAttribute(value.answer, `${path}.answer`),
@@ -473,51 +473,51 @@ function readRule(value: unknown, path: string): LocalComponentRule {
         child: readRuleAttribute(value.child, `${path}.child`),
         valueAttribute: readRuleAttribute(value.valueAttribute, `${path}.valueAttribute`),
         ...(value.max !== undefined ? { max: readBoundedCount(value.max, `${path}.max`, MAX_LOCAL_ARRAY_LENGTH) } : {}),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'checklist-body':
       allow(['itemLimit']);
-      return Object.freeze({ kind, itemLimit: readBoundedCount(value.itemLimit, `${path}.itemLimit`, MAX_LOCAL_ARRAY_LENGTH) }) as LocalComponentRule;
+      return { kind, itemLimit: readBoundedCount(value.itemLimit, `${path}.itemLimit`, MAX_LOCAL_ARRAY_LENGTH) } as LocalComponentRule;
     case 'dynamic-constraints':
     case 'require-full-interpolation':
       allow(['attributes']);
-      return Object.freeze({ kind, attributes: readRuleStringList(value.attributes, `${path}.attributes`) }) as LocalComponentRule;
+      return { kind, attributes: readRuleStringList(value.attributes, `${path}.attributes`) } as LocalComponentRule;
     case 'scoped-expressions':
       allow(['attributes', 'scope']);
       if (value.scope !== 'row' && value.scope !== 'validation') fail(`${path}.scope`, 'must be "row" or "validation".');
-      return Object.freeze({
+      return {
         kind,
         attributes: readRuleStringList(value.attributes, `${path}.attributes`),
         scope: value.scope,
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'row-values':
       allow(['rows', 'key', 'child', 'childValue']);
-      return Object.freeze({
+      return {
         kind,
         rows: readRuleAttribute(value.rows, `${path}.rows`),
         key: readRuleAttribute(value.key, `${path}.key`),
         child: readRuleAttribute(value.child, `${path}.child`),
         childValue: readRuleAttribute(value.childValue, `${path}.childValue`),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'validation-rule':
       allow(['when', 'fields', 'message', 'placement', 'max']);
       if (value.placement !== 'container' && value.placement !== 'prose') fail(`${path}.placement`, 'must be "container" or "prose".');
-      return Object.freeze({
+      return {
         kind,
         when: readRuleAttribute(value.when, `${path}.when`),
         fields: readRuleAttribute(value.fields, `${path}.fields`),
         message: readRuleAttribute(value.message, `${path}.message`),
         placement: value.placement,
         max: readBoundedCount(value.max, `${path}.max`, MAX_LOCAL_VALIDATIONS),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'anchor':
       allow(['id']);
-      return Object.freeze({ kind, id: readRuleAttribute(value.id, `${path}.id`) }) as LocalComponentRule;
+      return { kind, id: readRuleAttribute(value.id, `${path}.id`) } as LocalComponentRule;
     case 'navigation':
       allow(['target']);
-      return Object.freeze({ kind, target: readRuleAttribute(value.target, `${path}.target`) }) as LocalComponentRule;
+      return { kind, target: readRuleAttribute(value.target, `${path}.target`) } as LocalComponentRule;
     case 'data-table':
       allow(['rows', 'key', 'child', 'childValue', 'label', 'maxRows', 'defaultMaxRows', 'documentRows', 'documentCells', 'maxColumns']);
-      return Object.freeze({
+      return {
         kind,
         rows: readRuleAttribute(value.rows, `${path}.rows`),
         key: readRuleAttribute(value.key, `${path}.key`),
@@ -529,66 +529,66 @@ function readRule(value: unknown, path: string): LocalComponentRule {
         documentRows: readBoundedCount(value.documentRows, `${path}.documentRows`, MAX_LOCAL_DATA_DOCUMENT_ROWS),
         documentCells: readBoundedCount(value.documentCells, `${path}.documentCells`, MAX_LOCAL_DATA_DOCUMENT_CELLS),
         maxColumns: readBoundedCount(value.maxColumns, `${path}.maxColumns`, MAX_LOCAL_DATA_TABLE_COLUMNS),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'plot-math':
       allow(['min', 'max', 'samples', 'curves', 'points']);
-      return Object.freeze({
+      return {
         kind,
         min: readRuleAttribute(value.min, `${path}.min`),
         max: readRuleAttribute(value.max, `${path}.max`),
         samples: readRuleAttribute(value.samples, `${path}.samples`),
         curves: readBoundedCount(value.curves, `${path}.curves`, MAX_LOCAL_PLOT_CURVES),
         points: readBoundedCount(value.points, `${path}.points`, MAX_LOCAL_PLOT_POINTS),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'chart-table':
       allow(['chartKind', 'x', 'y']);
-      return Object.freeze({
+      return {
         kind,
         chartKind: readRuleAttribute(value.chartKind, `${path}.chartKind`),
         x: readRuleAttribute(value.x, `${path}.x`),
         y: readRuleAttribute(value.y, `${path}.y`),
-      }) as unknown as LocalComponentRule;
+      } as unknown as LocalComponentRule;
     case 'timeline-table': {
       allow(['headerSets']);
       if (!Array.isArray(value.headerSets)) fail(`${path}.headerSets`, 'must be an array.');
       const headerSets = value.headerSets.map((entry, index) => readPlainStringList(entry, `${path}.headerSets[${index}]`));
-      return Object.freeze({ kind, headerSets: Object.freeze(headerSets) }) as LocalComponentRule;
+      return { kind, headerSets } as LocalComponentRule;
     }
     case 'table-selection':
       allow(['key', 'bindings']);
-      return Object.freeze({
+      return {
         kind,
         key: readRuleAttribute(value.key, `${path}.key`),
         bindings: readRuleStringList(value.bindings, `${path}.bindings`),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'retain':
       allow(['value']);
-      return Object.freeze({ kind, value: readBoolean(value.value, `${path}.value`) }) as LocalComponentRule;
+      return { kind, value: readBoolean(value.value, `${path}.value`) } as LocalComponentRule;
     case 'self-binding-read': {
       allow(['mode', 'attribute']);
       if (value.mode !== 'always' && value.mode !== 'attribute') fail(`${path}.mode`, 'must be "always" or "attribute".');
-      return Object.freeze({
+      return {
         kind,
         mode: value.mode,
         ...(value.attribute !== undefined ? { attribute: readRuleAttribute(value.attribute, `${path}.attribute`) } : {}),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     }
     case 'value-date':
       allow(['min', 'max', 'required']);
-      return Object.freeze({ kind, ...strings(['min', 'max', 'required']) }) as LocalComponentRule;
+      return { kind, ...strings(['min', 'max', 'required']) } as LocalComponentRule;
     case 'value-length':
       allow(['min', 'max', 'email', 'emailType']);
-      return Object.freeze({
+      return {
         kind,
         ...strings(['min', 'max', 'email']),
         ...(value.emailType !== undefined ? { emailType: readString(value.emailType, `${path}.emailType`, MAX_LOCAL_SDK_NAME_LENGTH) } : {}),
-      }) as LocalComponentRule;
+      } as LocalComponentRule;
     case 'value-required':
       allow(['required']);
-      return Object.freeze({ kind, required: readRuleAttribute(value.required, `${path}.required`) }) as LocalComponentRule;
+      return { kind, required: readRuleAttribute(value.required, `${path}.required`) } as LocalComponentRule;
     case 'value-email':
       allow(['type', 'value']);
-      return Object.freeze({ kind, ...strings(['type']), ...(value.value === undefined ? {} : { value: readString(value.value, `${path}.value`, MAX_LOCAL_SDK_NAME_LENGTH) }) });
+      return { kind, ...strings(['type']), ...(value.value === undefined ? {} : { value: readString(value.value, `${path}.value`, MAX_LOCAL_SDK_NAME_LENGTH) }) } as LocalComponentRule;
     default:
       fail(`${path}.kind`, 'is not a supported rule.');
   }
@@ -601,7 +601,7 @@ function readRules(value: unknown): readonly LocalComponentRule[] {
   for (let index = 0; index < value.length; index += 1) {
     rules.push(readRule(value[index], `rules[${index}]`));
   }
-  return Object.freeze(rules);
+  return rules;
 }
 
 function readSlotRelations(value: unknown): readonly LocalComponentSlotRelation[] {
@@ -613,12 +613,12 @@ function readSlotRelations(value: unknown): readonly LocalComponentSlotRelation[
     const lead = `slotRelations[${index}]`;
     if (!isPlainRecord(raw)) fail(lead, 'must be an object.');
     checkKeys(raw, new Set(['lower', 'upper']), lead);
-    relations.push(Object.freeze({
+    relations.push({
       lower: readIdentifier(raw.lower, `${lead}.lower`),
       upper: readIdentifier(raw.upper, `${lead}.upper`),
-    }));
+    });
   }
-  return Object.freeze(relations);
+  return relations;
 }
 
 function readCapabilities(value: unknown, path: string): LocalComponentCapabilities {
@@ -900,7 +900,7 @@ function readBinding(
       seen.add(text);
       values.push(text);
     }
-    options = Object.freeze(values);
+    options = values;
   }
   if (typedKind === 'string' && typedFamily === 'choice' && options === undefined && !structuralOptions) {
     fail(`${path}.options`, 'is required for a choice binding.');
@@ -979,7 +979,7 @@ function readBinding(
       if (!Object.hasOwn(props, name)) fail(`${path}.compare`, `references undeclared prop "${name}".`);
     }
   }
-  return Object.freeze({
+  return {
     kind: typedKind,
     family: typedFamily,
     bind,
@@ -988,12 +988,12 @@ function readBinding(
     ...(value.required === true ? { required: true } : {}),
     ...(value.exclusive === true ? { exclusive: true } : {}),
     ...(options ? { options } : {}),
-    ...(constraints ? { constraints: Object.freeze(constraints) } : {}),
+    ...(constraints ? { constraints } : {}),
     ...(maxItems ? { maxItems } : {}),
     ...(requiresAttributes ? { requiresAttributes } : {}),
     ...(compare ? { compare } : {}),
     ...(value.retain === false ? { retain: false } : {}),
-  });
+  };
 }
 
 function readDependency(value: unknown, path: string): LocalComponentDependency {
@@ -1048,7 +1048,7 @@ function readReplacement(value: unknown, ownId: string): LocalComponentReplaceme
     }
     version = parsed.source;
   }
-  return Object.freeze({ id, ...(version ? { version } : {}) });
+  return { id, ...(version ? { version } : {}) };
 }
 
 function readStyles(value: unknown): readonly string[] {
@@ -1066,7 +1066,7 @@ function readStyles(value: unknown): readonly string[] {
     seen.add(raw);
     styles.push(raw);
   }
-  return Object.freeze(styles);
+  return styles;
 }
 
 /**
@@ -1140,9 +1140,9 @@ export function readLocalComponentManifest(value: unknown): LocalComponentDefini
         }
         attributes.add(attribute);
       }
-      slots[key] = key === 'value' ? binding : Object.freeze({ ...binding, exclusive: true });
+      slots[key] = key === 'value' ? binding : { ...binding, exclusive: true };
     }
-    bindings = Object.freeze(slots);
+    bindings = slots;
   }
 
   const children = value.children === undefined ? undefined : readChildren(value.children, form, 'children');
@@ -1172,9 +1172,9 @@ export function readLocalComponentManifest(value: unknown): LocalComponentDefini
       const dependency = readDependency(value.dependencies[index], `dependencies[${index}]`);
       if (seen.has(dependency.id)) fail('dependencies', `"${dependency.id}" is declared more than once.`);
       seen.add(dependency.id);
-      list.push(Object.freeze(dependency));
+      list.push(dependency);
     }
-    dependencies = Object.freeze(list);
+    dependencies = list;
   }
 
   const definition: LocalComponentDefinition = {
@@ -1183,17 +1183,17 @@ export function readLocalComponentManifest(value: unknown): LocalComponentDefini
     version,
     protocol: LOCAL_COMPONENT_PROTOCOL,
     form,
-    props: Object.freeze(props),
+    props,
     ...(bindings ? { bindings } : {}),
-    ...(children ? { children: Object.freeze(children) } : {}),
+    ...(children ? { children } : {}),
     ...(structure && !children ? { structure } : {}),
     ...(rules ? { rules } : {}),
     ...(slotRelations ? { slotRelations } : {}),
     ...(value.legacyHost === true ? { legacyHost: true } : {}),
-    capabilities: Object.freeze(capabilities),
-    ...(authoring ? { authoring: Object.freeze(authoring) } : {}),
+    capabilities,
+    ...(authoring ? { authoring } : {}),
     ...(styles ? { styles } : {}),
-    ...(requires ? { requires: Object.freeze(requires) } : {}),
+    ...(requires ? { requires } : {}),
     ...(dependencies ? { dependencies } : {}),
     ...(replaces ? { replaces } : {}),
   };

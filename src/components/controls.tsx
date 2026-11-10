@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
   type ChangeEvent,
+  type CompositionEvent,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
@@ -15,19 +16,14 @@ import {
   PrintValue,
   FieldError,
   LocalError,
-  MAX_LOCAL_STRING_LENGTH,
   accentStyle,
-  boolAttr,
   clamp,
-  countLocalCodePoints,
   currentValue,
   dateConstraint,
   displayValue,
   formatLocalDiagnostic,
-  formatNumber,
   formatSeconds,
   inlinePlainText,
-  isLocalEmail,
   localColor,
   numberAttr,
   numberConstraint,
@@ -35,12 +31,10 @@ import {
   optionLabel,
   rawAttr,
   readBooleanAttr,
-  scalarText,
   slotNumber,
   snapToStep,
   staticText,
   textAttr,
-  toneAttr,
   useComponentView,
   useDisabled,
   useResetToken,
@@ -48,38 +42,13 @@ import {
   useValidationField,
   useWriter,
 } from '../react/component-utils';
+import { textProblem } from '../react/field-validation';
+import { useDraftField } from '../react/use-draft-field';
+
+/** Re-exported for compatibility; the pure validation lives in the React layer. */
+export { textProblem };
 
 /* ----------------------------------------------------------------- inputs */
-
-export function textProblem(
-  value: string,
-  options: {
-    required: boolean;
-    minLength?: number;
-    maxLength?: number;
-    email?: boolean;
-  },
-  t: (en: string, zh: string) => string,
-): string | null {
-  if (options.required && value.length === 0) return t('This field is required', '请填写此字段');
-  if (value.length > MAX_LOCAL_STRING_LENGTH) {
-    return t(
-      `At most ${MAX_LOCAL_STRING_LENGTH} characters`,
-      `最多允许 ${MAX_LOCAL_STRING_LENGTH} 个字符`,
-    );
-  }
-  if (options.email && value !== '' && !isLocalEmail(value)) {
-    return t('Enter a valid email address', '请输入有效的邮箱地址');
-  }
-  const length = countLocalCodePoints(value);
-  if (options.minLength !== undefined && options.minLength > 0 && value !== '' && length < options.minLength) {
-    return t(`At least ${options.minLength} characters`, `至少需要 ${options.minLength} 个字符`);
-  }
-  if (options.maxLength !== undefined && options.maxLength >= 0 && length > options.maxLength) {
-    return t(`At most ${options.maxLength} characters`, `最多允许 ${options.maxLength} 个字符`);
-  }
-  return null;
-}
 
 function lengthProp(context: LocalComponentContext, name: string): number | undefined {
   if (context.content.attrs[name] === undefined) return undefined;
@@ -88,14 +57,42 @@ function lengthProp(context: LocalComponentContext, name: string): number | unde
 
 export function InputView(context: LocalComponentContext) {
   const view = useComponentView(context);
+  const label = textAttr(context, 'label', view.content.name || view.t('Input', '输入'));
+  const email = (rawAttr(view.content, 'type') ?? 'text') === 'email';
+  return <TextFieldView context={context} label={label} email={email} />;
+}
+
+export function TextareaView(context: LocalComponentContext) {
+  const view = useComponentView(context);
+  const label = textAttr(context, 'label', view.t('Text', '文本'));
+  const rows = Math.min(40, Math.max(1, Math.floor(numberAttr(context, 'rows', 4))));
+  return <TextFieldView context={context} label={label} multiline rows={rows} />;
+}
+
+/**
+ * Shared single-line and multiline text field. The public views only choose
+ * the label fallback, email type and textarea rows; draft state, validation
+ * and event timing are identical, so they live here once.
+ */
+function TextFieldView({
+  context,
+  label,
+  email = false,
+  multiline = false,
+  rows,
+}: {
+  context: LocalComponentContext;
+  label: string;
+  email?: boolean;
+  multiline?: boolean;
+  rows?: number;
+}) {
+  const view = useComponentView(context);
   const domId = useId();
   const sourceAttrs = useSourceAttributes(context);
-  const { content, runtime, mode, t } = view;
+  const { content, mode, t } = view;
   const { write, error, setError } = useWriter(context);
-  const label = textAttr(context, 'label', content.name || t('Input', '输入'));
   const placeholder = textAttr(context, 'placeholder', '');
-  const typeRaw = rawAttr(content, 'type') ?? 'text';
-  const email = typeRaw === 'email';
   const requiredRead = readBooleanAttr(context, 'required', false);
   const required = requiredRead.ok ? requiredRead.value : false;
   const requiredDynamic = (rawAttr(content, 'required') ?? '').includes('{{');
@@ -104,37 +101,23 @@ export function InputView(context: LocalComponentContext) {
   const minLength = lengthProp(context, 'min-length');
   const maxLength = lengthProp(context, 'max-length');
   const display = displayValue(currentValue(context));
+  const className = multiline ? 'local-textarea' : `local-input${email ? ' local-input-email' : ''}`;
 
-  const [draft, setDraft] = useState(display);
-  const [focused, setFocused] = useState(false);
-  const [touched, setTouched] = useState(false);
-  const [draftError, setDraftError] = useState<string | null>(null);
-  const composing = useRef(false);
-  const lastDisplay = useRef(display);
-  const displayRef = useRef(display);
-  displayRef.current = display;
-
-  useEffect(() => {
-    if (lastDisplay.current !== display) {
-      lastDisplay.current = display;
-      if (!focused && !composing.current) setDraft(display);
-    }
-  }, [display, focused]);
-
-  useResetToken(context, () => {
-    composing.current = false;
-    setDraft(displayRef.current);
-    setTouched(false);
-    setDraftError(null);
-    setError(null);
-  });
+  const {
+    draft, setDraft,
+    setFocused,
+    touched, setTouched,
+    draftError, setDraftError,
+    composing,
+  } = useDraftField(context, display, setError);
 
   if (mode === 'static') {
     return (
       <StaticValue
-        className={`local-input${email ? ' local-input-email' : ''}`}
+        className={className}
         label={label}
         value={staticText(display)}
+        multiline={multiline}
       />
     );
   }
@@ -142,151 +125,51 @@ export function InputView(context: LocalComponentContext) {
   const problemFor = (value: string) =>
     textProblem(value, { required, minLength, maxLength, email }, t);
 
-  return (
-    <div className={`md-control local-input${email ? ' local-input-email' : ''}`} {...sourceAttrs}>
-      <label className="md-label" htmlFor={`${domId}-input`}>
-        {label}
-      </label>
-      <input
-        id={`${domId}-input`}
-        className="md-text-input"
-        type={email ? 'email' : 'text'}
-        value={draft}
-        placeholder={placeholder || undefined}
-        disabled={disabled}
-        aria-required={required || undefined}
-        aria-invalid={draftError || error || validation.invalid || !requiredRead.ok ? true : undefined}
-        aria-describedby={validation.describedBy}
-        onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false);
-          setTouched(true);
-          const problem = problemFor(draft);
-          setDraftError(problem);
-          if (!problem && draft !== display) write(draft);
-        }}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-          const value = event.target.value;
-          setDraft(value);
-          setError(null);
-          if (touched) setDraftError(problemFor(value));
-          if (!composing.current && problemFor(value) === null) write(value);
-        }}
-        onCompositionStart={() => {
-          composing.current = true;
-        }}
-        onCompositionEnd={(event) => {
-          composing.current = false;
-          const value = event.currentTarget.value;
-          setDraft(value);
-          if (touched) setDraftError(problemFor(value));
-          if (problemFor(value) === null) write(value);
-        }}
-      />
-      <PrintValue value={staticText(display)} />
-      <FieldError message={disabledInvalid || !requiredRead.ok ? t('Cannot compute', '无法计算') : (draftError ?? error ?? (requiredDynamic && required && display === '' ? t('This field is required', '请填写此字段') : null))} />
-    </div>
-  );
-}
-
-export function TextareaView(context: LocalComponentContext) {
-  const view = useComponentView(context);
-  const domId = useId();
-  const sourceAttrs = useSourceAttributes(context);
-  const { content, mode, t } = view;
-  const { write, error, setError } = useWriter(context);
-  const label = textAttr(context, 'label', t('Text', '文本'));
-  const placeholder = textAttr(context, 'placeholder', '');
-  const rows = Math.min(40, Math.max(1, Math.floor(numberAttr(context, 'rows', 4))));
-  const requiredRead = readBooleanAttr(context, 'required', false);
-  const required = requiredRead.ok ? requiredRead.value : false;
-  const requiredDynamic = (rawAttr(content, 'required') ?? '').includes('{{');
-  const { disabled, invalid: disabledInvalid } = useDisabled(context);
-  const validation = useValidationField(context);
-  const minLength = lengthProp(context, 'min-length');
-  const maxLength = lengthProp(context, 'max-length');
-  const display = displayValue(currentValue(context));
-
-  const [draft, setDraft] = useState(display);
-  const [focused, setFocused] = useState(false);
-  const [touched, setTouched] = useState(false);
-  const [draftError, setDraftError] = useState<string | null>(null);
-  const composing = useRef(false);
-  const lastDisplay = useRef(display);
-  const displayRef = useRef(display);
-  displayRef.current = display;
-
-  useEffect(() => {
-    if (lastDisplay.current !== display) {
-      lastDisplay.current = display;
-      if (!focused && !composing.current) setDraft(display);
-    }
-  }, [display, focused]);
-
-  useResetToken(context, () => {
-    composing.current = false;
-    setDraft(displayRef.current);
-    setTouched(false);
-    setDraftError(null);
-    setError(null);
-  });
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="local-textarea"
-        label={label}
-        value={staticText(display)}
-        multiline
-      />
-    );
-  }
-
-  const problemFor = (value: string) =>
-    textProblem(value, { required, minLength, maxLength }, t);
+  const fieldProps = {
+    id: `${domId}-${multiline ? 'textarea' : 'input'}`,
+    className: 'md-text-input',
+    value: draft,
+    placeholder: placeholder || undefined,
+    disabled,
+    'aria-required': required || undefined,
+    'aria-invalid': draftError || error || validation.invalid || !requiredRead.ok ? true : undefined,
+    'aria-describedby': validation.describedBy,
+    onFocus: () => setFocused(true),
+    onBlur: () => {
+      setFocused(false);
+      setTouched(true);
+      const problem = problemFor(draft);
+      setDraftError(problem);
+      if (!problem && draft !== display) write(draft);
+    },
+    onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const value = event.target.value;
+      setDraft(value);
+      setError(null);
+      if (touched) setDraftError(problemFor(value));
+      if (!composing.current && problemFor(value) === null) write(value);
+    },
+    onCompositionStart: () => {
+      composing.current = true;
+    },
+    onCompositionEnd: (event: CompositionEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      composing.current = false;
+      const value = event.currentTarget.value;
+      setDraft(value);
+      if (touched) setDraftError(problemFor(value));
+      if (problemFor(value) === null) write(value);
+    },
+  };
 
   return (
-    <div className="md-control local-textarea" {...sourceAttrs}>
-      <label className="md-label" htmlFor={`${domId}-textarea`}>
+    <div className={`md-control ${className}`} {...sourceAttrs}>
+      <label className="md-label" htmlFor={fieldProps.id}>
         {label}
       </label>
-      <textarea
-        id={`${domId}-textarea`}
-        className="md-text-input"
-        rows={rows}
-        value={draft}
-        placeholder={placeholder || undefined}
-        disabled={disabled}
-        aria-required={required || undefined}
-        aria-invalid={draftError || error || validation.invalid || !requiredRead.ok ? true : undefined}
-        aria-describedby={validation.describedBy}
-        onFocus={() => setFocused(true)}
-        onBlur={() => {
-          setFocused(false);
-          setTouched(true);
-          const problem = problemFor(draft);
-          setDraftError(problem);
-          if (!problem && draft !== display) write(draft);
-        }}
-        onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
-          const value = event.target.value;
-          setDraft(value);
-          setError(null);
-          if (touched) setDraftError(problemFor(value));
-          if (!composing.current && problemFor(value) === null) write(value);
-        }}
-        onCompositionStart={() => {
-          composing.current = true;
-        }}
-        onCompositionEnd={(event) => {
-          composing.current = false;
-          const value = event.currentTarget.value;
-          setDraft(value);
-          if (touched) setDraftError(problemFor(value));
-          if (problemFor(value) === null) write(value);
-        }}
-      />
-      <PrintValue value={staticText(display)} block />
+      {multiline
+        ? <textarea {...fieldProps} rows={rows} />
+        : <input {...fieldProps} type={email ? 'email' : 'text'} />}
+      <PrintValue value={staticText(display)} block={multiline} />
       <FieldError message={disabledInvalid || !requiredRead.ok ? t('Cannot compute', '无法计算') : (draftError ?? error ?? (requiredDynamic && required && display === '' ? t('This field is required', '请填写此字段') : null))} />
     </div>
   );
@@ -354,29 +237,13 @@ export function NumberView(context: LocalComponentContext) {
     ? numberProblem(stored, min, max, step, t)
     : null;
 
-  const [draft, setDraft] = useState(display);
-  const [focused, setFocused] = useState(false);
-  const [touched, setTouched] = useState(false);
-  const [draftError, setDraftError] = useState<string | null>(null);
-  const composing = useRef(false);
-  const lastDisplay = useRef(display);
-  const displayRef = useRef(display);
-  displayRef.current = display;
-
-  useEffect(() => {
-    if (lastDisplay.current !== display) {
-      lastDisplay.current = display;
-      if (!focused && !composing.current) setDraft(display);
-    }
-  }, [display, focused]);
-
-  useResetToken(context, () => {
-    composing.current = false;
-    setDraft(displayRef.current);
-    setTouched(false);
-    setDraftError(null);
-    setError(null);
-  });
+  const {
+    draft, setDraft,
+    focused, setFocused,
+    touched, setTouched,
+    draftError, setDraftError,
+    composing,
+  } = useDraftField(context, display, setError);
 
   const hint = (
     <>

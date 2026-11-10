@@ -12,7 +12,6 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type RefObject,
@@ -88,7 +87,7 @@ import { formatLocalDiagnostic } from '../configuration/diagnostics';
 import { LatexView } from '../widgets/math-view';
 import { VisualFrame, tableNumericColumns } from '../widgets/visuals';
 import { createHeadingAnchors } from '../markdown/heading-anchors';
-import { textProblem as componentTextProblem } from '../../components/controls';
+import { textProblem as componentTextProblem } from '../../react/field-validation';
 import { CodeBlockView } from '../widgets/code-block';
 import { ZoomableImage } from '../widgets/image-view';
 import {
@@ -108,7 +107,6 @@ import {
   defaultLocalize,
   localize,
   useLocalize,
-  useLocalLocale,
   type LocalLocale,
   type Localize,
 } from '../theme/i18n';
@@ -1908,7 +1906,7 @@ function HtmlDetailsView({ node, visible }: LocalComponentProps) {
 }
 
 
-/** Compatibility helper; controls use the public component implementation. */
+/** Compatibility helper; controls and the renderer share the React-layer validation. */
 export function textProblem(value: string, options: Parameters<typeof componentTextProblem>[1], t: Localize = defaultLocalize): string | null {
   return componentTextProblem(value, options, t);
 }

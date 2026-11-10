@@ -1,4 +1,5 @@
 import {
+  localConfigFromAssembly,
   localLegacyV1Key,
   readLocalAssemblySnapshot,
   resolveLocalAssembly,
@@ -79,17 +80,7 @@ function configFromAssembly(
       ? [Object.freeze({ profile: legacyKeyProfile, key: legacyKey })]
       : []),
   ];
-  return Object.freeze({
-    protocol: LOCAL_CONFIG_PROTOCOL_V2,
-    assembly,
-    key: resolved.key,
-    presets: resolved.presets,
-    components: resolved.components,
-    replacements: resolved.replacements,
-    registry: resolved.registry,
-    themes: resolved.themes,
-    legacyKeys: Object.freeze(legacyKeys),
-  });
+  return localConfigFromAssembly(assembly, resolved, legacyKeys);
 }
 
 function readAssembly(input: unknown): LocalAssemblySnapshot {

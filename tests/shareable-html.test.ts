@@ -64,7 +64,7 @@ describe('shareable HTML envelope', () => {
   });
 
   it('escapes JSON, runtime and notices so script elements cannot be terminated', () => {
-    const { runtime, file } = fixture();
+    const { runtime } = fixture();
     try {
       const marker = '</script><script>alert("x")</script>\u2028';
       const html = createShareableHtml({

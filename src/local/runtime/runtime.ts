@@ -1,6 +1,5 @@
 import type { Diagnostic } from '../contracts/types';
 import {walkLocalNodes} from '../source/node-walk';
-import { localDateTimestamp } from '../evaluation/dates';
 import {
   compileExpression,
   interpolate,
@@ -55,10 +54,6 @@ function valuesEqual(a: LocalValue | undefined, b: LocalValue | undefined): bool
     return a.every((entry, index) => entry === b[index]);
   }
   return a === b;
-}
-
-function isValidDate(value: string): boolean {
-  return value === '' || localDateTimestamp(value) !== null;
 }
 
 function onStep(value: number, base: number, step: number): boolean {
@@ -847,8 +842,6 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
 
   let state: Record<string, LocalValue> = core.initial;
   let revision = 0;
-  let computationValues: Record<string, LocalValue> = {};
-  let computationErrors = new Map<string, LocalExpressionError>();
   /** Controls plus the current revision's readable computation values. */
   let evaluationEnv: Record<string, LocalValue> = {};
   let snapshotState: Record<string, LocalValue> = {};
@@ -874,8 +867,6 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     loaded: RuntimeCore,
     controlsState: Record<string, LocalValue>,
   ): {
-    values: Record<string, LocalValue>;
-    errors: Map<string, LocalExpressionError>;
     environment: Record<string, LocalValue>;
     snapshotState: Record<string, LocalValue>;
   } => {
@@ -924,13 +915,11 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     for (const [key, value] of Object.entries(controlsState)) merged[key] = value;
     for (const [key, value] of Object.entries(externalValues)) merged[key] = value;
     for (const [key, value] of Object.entries(values)) merged[key] = value;
-    return { values, errors, environment, snapshotState: merged };
+    return { environment, snapshotState: merged };
   };
 
   const refreshComputations = (): void => {
     const layer = computeLayer(current(), state);
-    computationValues = layer.values;
-    computationErrors = layer.errors;
     evaluationEnv = layer.environment;
     snapshotState = layer.snapshotState;
   };
@@ -1291,8 +1280,6 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     Object.assign(externalState, nextExternals);
     core = nextCore;
     state = migrated.values;
-    computationValues = layer.values;
-    computationErrors = layer.errors;
     evaluationEnv = layer.environment;
     snapshotState = layer.snapshotState;
     validationCache = null;

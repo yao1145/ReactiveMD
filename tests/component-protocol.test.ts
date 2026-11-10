@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import {
   compileLocal,
   createLocalRuntime,
-  LOCAL_SYNTAX_VERSION,
   type Diagnostic,
   type LocalDocument,
   type LocalNode,

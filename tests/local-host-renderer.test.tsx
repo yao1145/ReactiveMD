@@ -85,7 +85,7 @@ describe('host component rendering', () => {
     const { document } = compile();
     const runtime = createLocalRuntime(document);
     const modes: string[] = [];
-    const hostRenderer = (node: LocalNode, value: unknown, ctx: { mode: string }) => {
+    const hostRenderer = (_node: LocalNode, value: unknown, ctx: { mode: string }) => {
       modes.push(ctx.mode);
       return <span className="host-static">{(value as { label: string }).label}</span>;
     };

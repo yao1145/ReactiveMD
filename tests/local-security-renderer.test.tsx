@@ -32,10 +32,6 @@ function node(type: string, extra: Partial<LocalNode> = {}): LocalNode {
   return { type, id: `security-${serial++}`, range, ...extra };
 }
 
-function component(name: string, attrs: Record<string, string>, children: LocalNode[] = []): LocalNode {
-  return node('component', { name, attrs, children });
-}
-
 function createRuntime(initial: Record<string, LocalValue> = {}): LocalRuntime {
   return {
     document: {

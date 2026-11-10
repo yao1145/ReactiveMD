@@ -457,7 +457,7 @@ class LatexParser {
     return this.parseUnary(depth + 1, false);
   }
 
-  private parseAtom(depth: number, suppressFunction: boolean): Ast {
+  private parseAtom(depth: number, _suppressFunction: boolean): Ast {
     const token = this.peek();
 
     if (token.kind === 'number') {

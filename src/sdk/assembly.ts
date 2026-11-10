@@ -2,7 +2,6 @@ import { localHash } from './hash';
 import { findLocalCompatProfile } from './compat-profile';
 import type { LocalCompatProfile } from './compat-profile';
 import {
-  isLocalComponentId,
   localComponentDigest,
   localComponentRequirement,
   localStructureFromChildren,
@@ -26,6 +25,7 @@ import type {
   LocalComponentProp,
   LocalComponentReplacement,
   LocalComponentRequirement,
+  LocalConfig,
   LocalLegacyConfigKey,
   LocalReplacementRecord,
   LocalResolvedPreset,
@@ -223,10 +223,6 @@ function orderPresets(
   };
   for (const id of [...byId.keys()].sort(compareText)) visit(id);
   return Object.freeze(ordered);
-}
-
-function defineOrigin(contribution: Contribution): string {
-  return contribution.origin.kind === 'preset' ? `preset:${contribution.origin.id}` : 'external';
 }
 
 function propSemantics(prop: LocalComponentProp): unknown {
@@ -656,6 +652,29 @@ export function resolveLocalAssembly(
 }
 
 /**
+ * Build the frozen public configuration view from one resolved assembly.
+ * Readers keep their own normalization, profile selection and legacy-key
+ * rules; this function owns only the shared result shape.
+ */
+export function localConfigFromAssembly(
+  assembly: LocalAssemblySnapshot,
+  resolved: ResolvedLocalAssembly & { readonly legacyKeys: readonly LocalLegacyConfigKey[] },
+  legacyKeys: readonly LocalLegacyConfigKey[] = resolved.legacyKeys,
+): LocalConfig {
+  return Object.freeze({
+    protocol: LOCAL_CONFIG_PROTOCOL_V2,
+    assembly,
+    key: resolved.key,
+    presets: resolved.presets,
+    components: resolved.components,
+    replacements: resolved.replacements,
+    registry: resolved.registry,
+    themes: resolved.themes,
+    legacyKeys: Object.freeze(legacyKeys),
+  });
+}
+
+/**
  * Compact, transportable identity of one resolved assembly. It is safe to
  * embed in bundle seals, restoration requirements and state sidecars; it
  * contains no React functions, CSS or file paths.
@@ -696,17 +715,6 @@ export function localAssemblySeal(input: AssemblyIdentityInput): string {
 /** Accept both the primary v2 key and its supported legacy aliases. */
 export function localConfigKeyMatches(input: AssemblyIdentityInput, key: string): boolean {
   return input.key === key || input.legacyKeys.some((entry) => entry.key === key);
-}
-
-/** Apply the active registry to authoring metadata, keeping manifest identity. */
-export function localAssemblyAuthoring(
-  registry: readonly LocalComponentDefinition[],
-): ReadonlyMap<string, LocalComponentAuthoring> {
-  const authoring = new Map<string, LocalComponentAuthoring>();
-  for (const component of registry) {
-    if (component.authoring) authoring.set(component.id, component.authoring);
-  }
-  return authoring;
 }
 
 export type { LocalStyleResource };

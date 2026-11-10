@@ -1,0 +1,1197 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`component structure contract, strict=false > checklist 1`] = `
+{
+  "bindings": {
+    "tasks": {
+      "family": "checklist",
+      "initial": [
+        "item-1",
+      ],
+      "name": "tasks",
+      "nodeIds": [
+        "node-0",
+      ],
+      "options": [
+        "item-1",
+        "item-2",
+      ],
+      "owner": "node-0",
+      "type": "array",
+    },
+  },
+  "componentConfigKey": "rmd-a2bac31a50f89952",
+  "diagnostics": [],
+  "extensions": undefined,
+  "initialState": {
+    "tasks": [
+      "item-1",
+    ],
+  },
+  "kernel": {
+    "bindingAttributes": {
+      "tasks": {
+        "bind": "bind",
+        "initial": "initial",
+      },
+    },
+    "retentionExclusions": [
+      "tasks",
+    ],
+    "slotRelations": [],
+    "valueRules": {},
+  },
+  "ok": true,
+  "recoveries": [],
+  "status": "valid",
+}
+`;
+
+exports[`component structure contract, strict=false > checklist mixed body 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.checklist.body",
+      "column": 1,
+      "line": 1,
+      "message": "The body of <checklist> must be exactly one single-level Markdown task list.",
+      "messageKey": "local.checklist.body.single",
+      "range": {
+        "end": 96,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.checklist.body",
+      "column": 1,
+      "line": 4,
+      "message": "<checklist> does not support nested lists.",
+      "messageKey": "local.checklist.body.no-nested",
+      "range": {
+        "end": 72,
+        "start": 46,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.checklist.body",
+      "column": 1,
+      "line": 6,
+      "message": "<checklist> can only contain task list items (- [ ] / - [x]).",
+      "messageKey": "local.checklist.body.task-only",
+      "range": {
+        "end": 83,
+        "start": 73,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=false > choices 1`] = `
+{
+  "bindings": {
+    "choice": {
+      "family": "choice",
+      "initial": "a",
+      "name": "choice",
+      "nodeIds": [
+        "node-0",
+      ],
+      "options": [
+        "a",
+        "b",
+      ],
+      "owner": "node-0",
+      "type": "string",
+    },
+  },
+  "componentConfigKey": "rmd-a2bac31a50f89952",
+  "diagnostics": [],
+  "extensions": undefined,
+  "initialState": {
+    "choice": "a",
+  },
+  "kernel": {
+    "bindingAttributes": {
+      "choice": {
+        "bind": "bind",
+        "initial": "initial",
+      },
+    },
+    "retentionExclusions": [],
+    "slotRelations": [],
+    "valueRules": {},
+  },
+  "ok": true,
+  "recoveries": [],
+  "status": "valid",
+}
+`;
+
+exports[`component structure contract, strict=false > choices invalid children 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "<choices> can only contain <option>.",
+      "messageKey": "local.structure.options.only",
+      "params": {
+        "name": "choices",
+      },
+      "range": {
+        "end": 175,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.option.value",
+      "column": 1,
+      "line": 4,
+      "message": "Option values in <choices> must be unique; duplicate value "a".",
+      "messageKey": "local.option.value.duplicate",
+      "params": {
+        "name": "choices",
+        "value": "a",
+      },
+      "range": {
+        "end": 113,
+        "start": 77,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.attribute.required",
+      "column": 1,
+      "line": 5,
+      "message": "Component <option> is missing required attribute value.",
+      "messageKey": "local.attribute.required",
+      "params": {
+        "component": "option",
+        "name": "value",
+      },
+      "range": {
+        "end": 138,
+        "start": 114,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.option.value",
+      "column": 1,
+      "line": 5,
+      "message": "<option> requires a non-empty value.",
+      "messageKey": "local.option.value.required",
+      "range": {
+        "end": 138,
+        "start": 114,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=false > diagram 1`] = `
+{
+  "bindings": {
+    "selected": {
+      "family": "diagram",
+      "initial": "a",
+      "name": "selected",
+      "nodeIds": [
+        "node-0",
+      ],
+      "options": [
+        "a",
+        "b",
+      ],
+      "owner": "node-0",
+      "type": "string",
+    },
+  },
+  "componentConfigKey": "rmd-a2bac31a50f89952",
+  "diagnostics": [],
+  "extensions": undefined,
+  "initialState": {
+    "selected": "a",
+  },
+  "kernel": {
+    "bindingAttributes": {
+      "selected": {
+        "bind": "bind",
+        "initial": "initial",
+      },
+    },
+    "dependencyRules": {
+      "node-0": {
+        "selfBinding": {
+          "mode": "always",
+        },
+      },
+    },
+    "retentionExclusions": [],
+    "slotRelations": [],
+    "valueRules": {},
+  },
+  "ok": true,
+  "recoveries": [],
+  "status": "valid",
+}
+`;
+
+exports[`component structure contract, strict=false > diagram invalid references 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "<diagram> can only contain <node> and <edge>.",
+      "messageKey": "local.structure.diagram.only",
+      "range": {
+        "end": 193,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.diagram.node",
+      "column": 1,
+      "line": 3,
+      "message": "Duplicate node ID "a".",
+      "messageKey": "local.diagram.node.duplicate",
+      "params": {
+        "id": "a",
+      },
+      "range": {
+        "end": 113,
+        "start": 75,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.diagram.edge",
+      "column": 1,
+      "line": 4,
+      "message": "Edge from references unknown node "missing".",
+      "messageKey": "local.diagram.edge.from",
+      "params": {
+        "id": "missing",
+      },
+      "range": {
+        "end": 142,
+        "start": 114,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.diagram.edge",
+      "column": 1,
+      "line": 5,
+      "message": "Edge from references unknown node "missing".",
+      "messageKey": "local.diagram.edge.from",
+      "params": {
+        "id": "missing",
+      },
+      "range": {
+        "end": 171,
+        "start": 143,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.diagram.edge",
+      "column": 1,
+      "line": 5,
+      "message": "Duplicate edge: missing → a.",
+      "messageKey": "local.diagram.edge.duplicate",
+      "params": {
+        "from": "missing",
+        "label": "",
+        "to": "a",
+      },
+      "range": {
+        "end": 171,
+        "start": 143,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=false > grid invalid children 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "<grid> requires at least 1 <card>.",
+      "messageKey": "local.structure.children.minimum",
+      "params": {
+        "children": "<card>",
+        "min": 1,
+        "name": "grid",
+      },
+      "range": {
+        "end": 58,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "Direct children of <grid> must be <card>.",
+      "messageKey": "local.structure.children.only",
+      "params": {
+        "children": "<card>",
+        "name": "grid",
+      },
+      "range": {
+        "end": 58,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 3,
+      "message": "Direct children of <grid> must be <card>.",
+      "messageKey": "local.structure.children.only",
+      "params": {
+        "children": "<card>",
+        "name": "grid",
+      },
+      "range": {
+        "end": 50,
+        "start": 12,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=false > quiz choice 1`] = `
+{
+  "bindings": {},
+  "componentConfigKey": "rmd-a2bac31a50f89952",
+  "diagnostics": [],
+  "extensions": undefined,
+  "initialState": {},
+  "kernel": {
+    "retentionExclusions": [],
+    "slotRelations": [],
+    "valueRules": {},
+  },
+  "ok": true,
+  "recoveries": [],
+  "status": "valid",
+}
+`;
+
+exports[`component structure contract, strict=false > quiz invalid answer 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.quiz.answer",
+      "column": 24,
+      "line": 1,
+      "message": "<quiz> answer "missing" is not one of the option values: a.",
+      "messageKey": "local.quiz.answer.not-option",
+      "params": {
+        "answer": "missing",
+        "options": "a",
+      },
+      "range": {
+        "end": 24,
+        "start": 23,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.option.value",
+      "column": 1,
+      "line": 3,
+      "message": "Option values in <quiz> must be unique; duplicate value "a".",
+      "messageKey": "local.option.value.duplicate",
+      "params": {
+        "name": "quiz",
+        "value": "a",
+      },
+      "range": {
+        "end": 110,
+        "start": 74,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=false > quiz numeric body 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "A numeric <quiz> cannot have body content; use type="choice" for option-based quizzes.",
+      "messageKey": "local.structure.quiz.numeric-no-body",
+      "range": {
+        "end": 84,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.quiz.answer",
+      "column": 38,
+      "line": 1,
+      "message": "A numeric <quiz> answer must be a finite number.",
+      "messageKey": "local.quiz.answer.numeric",
+      "range": {
+        "end": 38,
+        "start": 37,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.attribute.range",
+      "column": 51,
+      "line": 1,
+      "message": "Attribute tolerance must be at least 0.",
+      "messageKey": "local.attribute.range.min",
+      "params": {
+        "min": 0,
+        "name": "tolerance",
+      },
+      "range": {
+        "end": 51,
+        "start": 50,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.constraint",
+      "column": 51,
+      "line": 1,
+      "message": "<quiz> tolerance must be a nonnegative finite number.",
+      "messageKey": "local.constraint.quiz-tolerance",
+      "range": {
+        "end": 51,
+        "start": 50,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=false > tabs 1`] = `
+{
+  "bindings": {
+    "tab": {
+      "family": "tabs",
+      "initial": "tab-1",
+      "name": "tab",
+      "nodeIds": [
+        "node-0",
+      ],
+      "options": [
+        "tab-1",
+        "second",
+      ],
+      "owner": "node-0",
+      "type": "string",
+    },
+  },
+  "componentConfigKey": "rmd-a2bac31a50f89952",
+  "diagnostics": [],
+  "extensions": undefined,
+  "initialState": {
+    "tab": "tab-1",
+  },
+  "kernel": {
+    "bindingAttributes": {
+      "tab": {
+        "bind": "bind",
+        "initial": "initial",
+      },
+    },
+    "retentionExclusions": [],
+    "slotRelations": [],
+    "valueRules": {},
+  },
+  "ok": true,
+  "recoveries": [],
+  "status": "valid",
+}
+`;
+
+exports[`component structure contract, strict=false > tabs duplicate values 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "<tabs> can only contain <tab>.",
+      "messageKey": "local.structure.sequence.only",
+      "params": {
+        "child": "tab",
+        "name": "tabs",
+      },
+      "range": {
+        "end": 134,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.tab.value",
+      "column": 1,
+      "line": 3,
+      "message": "Values in <tabs> must be unique; duplicate value "same".",
+      "messageKey": "local.tab.value.duplicate",
+      "params": {
+        "value": "same",
+      },
+      "range": {
+        "end": 115,
+        "start": 73,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=true > checklist 1`] = `
+{
+  "bindings": {
+    "tasks": {
+      "family": "checklist",
+      "initial": [
+        "item-1",
+      ],
+      "name": "tasks",
+      "nodeIds": [
+        "node-0",
+      ],
+      "options": [
+        "item-1",
+        "item-2",
+      ],
+      "owner": "node-0",
+      "type": "array",
+    },
+  },
+  "componentConfigKey": "rmd-a2bac31a50f89952",
+  "diagnostics": [],
+  "extensions": undefined,
+  "initialState": {
+    "tasks": [
+      "item-1",
+    ],
+  },
+  "kernel": {
+    "bindingAttributes": {
+      "tasks": {
+        "bind": "bind",
+        "initial": "initial",
+      },
+    },
+    "retentionExclusions": [
+      "tasks",
+    ],
+    "slotRelations": [],
+    "valueRules": {},
+  },
+  "ok": true,
+  "recoveries": [],
+  "status": "valid",
+}
+`;
+
+exports[`component structure contract, strict=true > checklist mixed body 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.checklist.body",
+      "column": 1,
+      "line": 1,
+      "message": "The body of <checklist> must be exactly one single-level Markdown task list.",
+      "messageKey": "local.checklist.body.single",
+      "range": {
+        "end": 96,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.checklist.body",
+      "column": 1,
+      "line": 4,
+      "message": "<checklist> does not support nested lists.",
+      "messageKey": "local.checklist.body.no-nested",
+      "range": {
+        "end": 72,
+        "start": 46,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.checklist.body",
+      "column": 1,
+      "line": 6,
+      "message": "<checklist> can only contain task list items (- [ ] / - [x]).",
+      "messageKey": "local.checklist.body.task-only",
+      "range": {
+        "end": 83,
+        "start": 73,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=true > choices 1`] = `
+{
+  "bindings": {
+    "choice": {
+      "family": "choice",
+      "initial": "a",
+      "name": "choice",
+      "nodeIds": [
+        "node-0",
+      ],
+      "options": [
+        "a",
+        "b",
+      ],
+      "owner": "node-0",
+      "type": "string",
+    },
+  },
+  "componentConfigKey": "rmd-a2bac31a50f89952",
+  "diagnostics": [],
+  "extensions": undefined,
+  "initialState": {
+    "choice": "a",
+  },
+  "kernel": {
+    "bindingAttributes": {
+      "choice": {
+        "bind": "bind",
+        "initial": "initial",
+      },
+    },
+    "retentionExclusions": [],
+    "slotRelations": [],
+    "valueRules": {},
+  },
+  "ok": true,
+  "recoveries": [],
+  "status": "valid",
+}
+`;
+
+exports[`component structure contract, strict=true > choices invalid children 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "<choices> can only contain <option>.",
+      "messageKey": "local.structure.options.only",
+      "params": {
+        "name": "choices",
+      },
+      "range": {
+        "end": 175,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.option.value",
+      "column": 1,
+      "line": 4,
+      "message": "Option values in <choices> must be unique; duplicate value "a".",
+      "messageKey": "local.option.value.duplicate",
+      "params": {
+        "name": "choices",
+        "value": "a",
+      },
+      "range": {
+        "end": 113,
+        "start": 77,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.attribute.required",
+      "column": 1,
+      "line": 5,
+      "message": "Component <option> is missing required attribute value.",
+      "messageKey": "local.attribute.required",
+      "params": {
+        "component": "option",
+        "name": "value",
+      },
+      "range": {
+        "end": 138,
+        "start": 114,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.option.value",
+      "column": 1,
+      "line": 5,
+      "message": "<option> requires a non-empty value.",
+      "messageKey": "local.option.value.required",
+      "range": {
+        "end": 138,
+        "start": 114,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=true > diagram 1`] = `
+{
+  "bindings": {
+    "selected": {
+      "family": "diagram",
+      "initial": "a",
+      "name": "selected",
+      "nodeIds": [
+        "node-0",
+      ],
+      "options": [
+        "a",
+        "b",
+      ],
+      "owner": "node-0",
+      "type": "string",
+    },
+  },
+  "componentConfigKey": "rmd-a2bac31a50f89952",
+  "diagnostics": [],
+  "extensions": undefined,
+  "initialState": {
+    "selected": "a",
+  },
+  "kernel": {
+    "bindingAttributes": {
+      "selected": {
+        "bind": "bind",
+        "initial": "initial",
+      },
+    },
+    "dependencyRules": {
+      "node-0": {
+        "selfBinding": {
+          "mode": "always",
+        },
+      },
+    },
+    "retentionExclusions": [],
+    "slotRelations": [],
+    "valueRules": {},
+  },
+  "ok": true,
+  "recoveries": [],
+  "status": "valid",
+}
+`;
+
+exports[`component structure contract, strict=true > diagram invalid references 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "<diagram> can only contain <node> and <edge>.",
+      "messageKey": "local.structure.diagram.only",
+      "range": {
+        "end": 193,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.diagram.node",
+      "column": 1,
+      "line": 3,
+      "message": "Duplicate node ID "a".",
+      "messageKey": "local.diagram.node.duplicate",
+      "params": {
+        "id": "a",
+      },
+      "range": {
+        "end": 113,
+        "start": 75,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.diagram.edge",
+      "column": 1,
+      "line": 4,
+      "message": "Edge from references unknown node "missing".",
+      "messageKey": "local.diagram.edge.from",
+      "params": {
+        "id": "missing",
+      },
+      "range": {
+        "end": 142,
+        "start": 114,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.diagram.edge",
+      "column": 1,
+      "line": 5,
+      "message": "Edge from references unknown node "missing".",
+      "messageKey": "local.diagram.edge.from",
+      "params": {
+        "id": "missing",
+      },
+      "range": {
+        "end": 171,
+        "start": 143,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.diagram.edge",
+      "column": 1,
+      "line": 5,
+      "message": "Duplicate edge: missing → a.",
+      "messageKey": "local.diagram.edge.duplicate",
+      "params": {
+        "from": "missing",
+        "label": "",
+        "to": "a",
+      },
+      "range": {
+        "end": 171,
+        "start": 143,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=true > grid invalid children 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "<grid> requires at least 1 <card>.",
+      "messageKey": "local.structure.children.minimum",
+      "params": {
+        "children": "<card>",
+        "min": 1,
+        "name": "grid",
+      },
+      "range": {
+        "end": 58,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "Direct children of <grid> must be <card>.",
+      "messageKey": "local.structure.children.only",
+      "params": {
+        "children": "<card>",
+        "name": "grid",
+      },
+      "range": {
+        "end": 58,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 3,
+      "message": "Direct children of <grid> must be <card>.",
+      "messageKey": "local.structure.children.only",
+      "params": {
+        "children": "<card>",
+        "name": "grid",
+      },
+      "range": {
+        "end": 50,
+        "start": 12,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=true > quiz choice 1`] = `
+{
+  "bindings": {},
+  "componentConfigKey": "rmd-a2bac31a50f89952",
+  "diagnostics": [],
+  "extensions": undefined,
+  "initialState": {},
+  "kernel": {
+    "retentionExclusions": [],
+    "slotRelations": [],
+    "valueRules": {},
+  },
+  "ok": true,
+  "recoveries": [],
+  "status": "valid",
+}
+`;
+
+exports[`component structure contract, strict=true > quiz invalid answer 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.quiz.answer",
+      "column": 24,
+      "line": 1,
+      "message": "<quiz> answer "missing" is not one of the option values: a.",
+      "messageKey": "local.quiz.answer.not-option",
+      "params": {
+        "answer": "missing",
+        "options": "a",
+      },
+      "range": {
+        "end": 24,
+        "start": 23,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.option.value",
+      "column": 1,
+      "line": 3,
+      "message": "Option values in <quiz> must be unique; duplicate value "a".",
+      "messageKey": "local.option.value.duplicate",
+      "params": {
+        "name": "quiz",
+        "value": "a",
+      },
+      "range": {
+        "end": 110,
+        "start": 74,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=true > quiz numeric body 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "A numeric <quiz> cannot have body content; use type="choice" for option-based quizzes.",
+      "messageKey": "local.structure.quiz.numeric-no-body",
+      "range": {
+        "end": 84,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.quiz.answer",
+      "column": 38,
+      "line": 1,
+      "message": "A numeric <quiz> answer must be a finite number.",
+      "messageKey": "local.quiz.answer.numeric",
+      "range": {
+        "end": 38,
+        "start": 37,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.attribute.range",
+      "column": 51,
+      "line": 1,
+      "message": "Attribute tolerance must be at least 0.",
+      "messageKey": "local.attribute.range.min",
+      "params": {
+        "min": 0,
+        "name": "tolerance",
+      },
+      "range": {
+        "end": 51,
+        "start": 50,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.constraint",
+      "column": 51,
+      "line": 1,
+      "message": "<quiz> tolerance must be a nonnegative finite number.",
+      "messageKey": "local.constraint.quiz-tolerance",
+      "range": {
+        "end": 51,
+        "start": 50,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;
+
+exports[`component structure contract, strict=true > tabs 1`] = `
+{
+  "bindings": {
+    "tab": {
+      "family": "tabs",
+      "initial": "tab-1",
+      "name": "tab",
+      "nodeIds": [
+        "node-0",
+      ],
+      "options": [
+        "tab-1",
+        "second",
+      ],
+      "owner": "node-0",
+      "type": "string",
+    },
+  },
+  "componentConfigKey": "rmd-a2bac31a50f89952",
+  "diagnostics": [],
+  "extensions": undefined,
+  "initialState": {
+    "tab": "tab-1",
+  },
+  "kernel": {
+    "bindingAttributes": {
+      "tab": {
+        "bind": "bind",
+        "initial": "initial",
+      },
+    },
+    "retentionExclusions": [],
+    "slotRelations": [],
+    "valueRules": {},
+  },
+  "ok": true,
+  "recoveries": [],
+  "status": "valid",
+}
+`;
+
+exports[`component structure contract, strict=true > tabs duplicate values 1`] = `
+{
+  "diagnostics": [
+    {
+      "code": "local.structure.children",
+      "column": 1,
+      "line": 1,
+      "message": "<tabs> can only contain <tab>.",
+      "messageKey": "local.structure.sequence.only",
+      "params": {
+        "child": "tab",
+        "name": "tabs",
+      },
+      "range": {
+        "end": 134,
+        "start": 0,
+      },
+      "severity": "error",
+    },
+    {
+      "code": "local.tab.value",
+      "column": 1,
+      "line": 3,
+      "message": "Values in <tabs> must be unique; duplicate value "same".",
+      "messageKey": "local.tab.value.duplicate",
+      "params": {
+        "value": "same",
+      },
+      "range": {
+        "end": 115,
+        "start": 73,
+      },
+      "severity": "error",
+    },
+  ],
+  "ok": false,
+  "recoveries": [],
+  "status": "failed",
+}
+`;

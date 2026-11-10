@@ -187,7 +187,7 @@ describe('diagnostic localization in the renderer', () => {
     expect(countLocalCodePoints('\ud800')).toBe(1);
 
     expect(textProblem('😀', { required: false, maxLength: 1, minLength: 1 })).toBeNull();
-    expect(textProblem('😀', { required: false, maxLength: 1 }, (en, zh) => zh)).toBeNull();
+    expect(textProblem('😀', { required: false, maxLength: 1 }, (_en, zh) => zh)).toBeNull();
     expect(textProblem('😀😀', { required: false, maxLength: 1 })).toContain('At most 1');
     expect(textProblem('中文', { required: false, maxLength: 2, minLength: 2 })).toBeNull();
     expect(textProblem('é', { required: false, maxLength: 1 })).toContain('At most 1');
