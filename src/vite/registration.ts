@@ -373,7 +373,9 @@ function __rmdCompose(directoryEntries) {
     if (Array.isArray(entry.namespace.notices)) notices.push(...entry.namespace.notices);
   }
   const themes = directoryEntries.map((entry) => entry.theme);
-  const host = createReactHost({ packages, themes, notices, presets });
+  // Directory styles are host resources; manifests need not reference them.
+  const resources = __rmdPluginEntries.flatMap(entry => entry.resources);
+  const host = createReactHost({ packages, themes, notices, presets, resources });
   return { host };
 }
 
