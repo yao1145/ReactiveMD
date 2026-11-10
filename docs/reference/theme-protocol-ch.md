@@ -2,7 +2,7 @@
 
 **中文** · [English](theme-protocol-en.md)
 
-协议修订：`reactive-md-theme-1`。本功能从 `0.4.0` 起提供；现有外观作为内置 `default` 保留。
+协议修订：`reactive-md-theme-1`。本功能从 `0.4.0` 起提供；内置 `default` 主题使用产品界面外观。其他主题（包括保留本包原始外观的 `soft` 示例）都属于外部主题，必须由宿主登记。
 
 源码中的[扩展 SDK 预览](../integration/extension-sdk-ch.md)提供 `defineLocalTheme`、`composeLocalTheme` 和主题包资源约定，构建适配器可将主题 CSS、字体与图片纳入离线导出。语义变量和下述作用域规则继续适用。SDK 预览使用当前源码构建的 tarball。
 
@@ -17,6 +17,8 @@
 ```
 
 也接受 `<theme name="default" />`。省略声明时使用 `default`。声明前允许空白、BOM 和注释；声明只允许出现一次，不能嵌入组件。`name` 是静态字符串，使用小写 kebab-case，首字符为字母，最多 64 个字符。声明不接受表达式或其他属性。
+
+只有 `default` 是内置主题。文档要选择其他主题，宿主必须已经登记该名称，例如产品界面示例中保留原始外观的 `<theme name="soft">`，或宿主自定义设计 `<theme name="paper">`。登记方式见下文。
 
 声明是文档元数据，不属于组块，不生成可见组件。编译结果的 `document.theme` 保存选择，`document.themeRange` 保存声明在原文中的位置；正文节点继续使用原始源码位置。代码围栏、行内代码、注释和转义中的示例保持字面含义。
 
@@ -43,7 +45,7 @@ export function Article({ source }: { source: string }) {
 }
 ```
 
-此示例说明登记方式；仓库仅将 `default` 作为内置主题，不提供 `paper` 的设计或 CSS。完整参考包包含 tokens、组件样式、亮暗两套模式与现场示例，见 [examples/sci-fi-theme](../../examples/sci-fi-theme/README-ch.md)。
+此示例说明登记方式；仓库仅将 `default` 作为内置主题，宿主定义不能替换它。其余主题都是外部主题：保留原始外观的 [`soft` 主题](../../examples/soft-theme/README.md) 与完整的 sci-fi 参考包都需要宿主登记；产品界面示例只登记 `soft` 名称，外观由核心基线 CSS 提供。上文 `paper` 示例没有配套设计或 CSS，完整参考包包含 tokens、组件样式、亮暗两套模式与现场示例，见 [examples/sci-fi-theme](../../examples/sci-fi-theme/README-ch.md)。
 
 | 字段 | 要求 |
 | --- | --- |
@@ -53,7 +55,7 @@ export function Article({ source }: { source: string }) {
 
 宿主负责加载 CSS；登记信息不触发下载或注入样式。文档按名称选择宿主允许的主题，不接受 CSS、样式地址或脚本。主题 CSS 属于宿主信任的代码，宿主负责审查其作用域和资源引用。
 
-未知主题、所选名称重复、所选登记信息无效、协议不兼容或缺少深浅模式时，渲染器警告并回退到 `default`。纯核心宿主可调用 `resolveLocalTheme(name, themes, range?, source?)`，得到 `{ name, diagnostics }`。编译器只处理声明，不查询宿主的主题列表。
+未知主题、所选名称重复、所选登记信息无效、协议不兼容或缺少深浅模式时，渲染器警告并回退到 `default`。内置 `default` 始终可用；未登记就选择 `soft` 或其他外部名称时，同样回退到 `default`。纯核心宿主可调用 `resolveLocalTheme(name, themes, range?, source?)`，得到 `{ name, diagnostics }`。编译器只处理声明，不查询宿主的主题列表。
 
 ## 深浅模式与实例作用域
 

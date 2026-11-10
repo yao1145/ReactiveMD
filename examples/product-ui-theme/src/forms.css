@@ -1,0 +1,1034 @@
+/* ==========================================================================
+   PRODUCT UI — forms and controls
+   --------------------------------------------------------------------------
+   Field, switch, counter, range, segmented choice and progress treatments.
+   Every selector is scoped to the product-ui document root. Semantic values
+   come from tokens.css. Native select arrows, number spinners, date pickers
+   and the underlying input elements are never reset.
+   ========================================================================== */
+
+/* ------------------------------------------------------------- 1. fields */
+
+[data-rmd-theme="product-ui"].md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+) {
+  box-sizing: border-box;
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field, 8px);
+  color: var(--ink);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  textarea,
+  .md-text-input
+)[readonly] {
+  background-color: var(--surface-subtle);
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):hover:not(:disabled, [readonly], :focus-visible) {
+  border-color: var(--line-strong);
+}
+
+/* Two-pixel accent edge plus a soft halo, replacing the generic outline. */
+[data-rmd-theme="product-ui"].md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):focus-visible {
+  border: 2px solid var(--accent);
+  outline: none;
+  box-shadow: var(
+    --pu-focus-halo,
+    0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent)
+  );
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):is([aria-invalid="true"], :user-invalid) {
+  border-color: var(--danger);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):is([aria-invalid="true"], :user-invalid):hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):is([aria-invalid="true"], :user-invalid):focus-visible {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):disabled {
+  background-color: var(--surface-subtle);
+  border-color: var(--line);
+  color: var(--ink-muted);
+  opacity: var(--disabled-opacity, 0.55);
+  cursor: not-allowed;
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  input,
+  textarea,
+  .md-text-input
+)::placeholder {
+  color: var(--ink-muted);
+  opacity: 1;
+}
+
+/* Select arrows and number spinners stay native: only the field shell and
+   the focus treatment are themed. */
+[data-rmd-theme="product-ui"].md-document select:not(:disabled) {
+  cursor: pointer;
+}
+
+
+/* ------------------------------------------------------------- 2. toggle */
+
+/* `.md-toggle-label input` in base.css sets a 16px box. The switch overrides
+   that with a 42x24 track and an 18px thumb drawn as a radial gradient, since
+   pseudo-elements on input elements are unreliable. The input remains the
+   real checkbox: Space, labels and form submission keep working. */
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+) {
+  -webkit-appearance: none;
+  appearance: none;
+  /* Core masks a checked .md-toggle-label checkbox into a tick. The switch
+     track draws its own thumb, so the mask must be removed in every state. */
+  -webkit-mask-image: none;
+  mask-image: none;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  inline-size: 42px;
+  block-size: 24px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background-color: var(--control-track, var(--surface-active));
+  background-image: radial-gradient(
+    circle at center,
+    var(--control-thumb, var(--surface)) 0 8px,
+    var(--line-strong) 8.5px 9px,
+    transparent 9.5px
+  );
+  background-repeat: no-repeat;
+  background-size: 20px 20px;
+  background-position: left 2px center;
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent);
+  cursor: pointer;
+  transition:
+    background-color 180ms var(--ease-standard),
+    background-position 180ms var(--ease-standard),
+    border-color 180ms var(--ease-standard),
+    box-shadow 180ms var(--ease-standard);
+}
+
+[data-rmd-theme="product-ui"][data-color-scheme="dark"].md-document :where(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):not(:checked) {
+  background-color: var(--surface-active);
+  border-color: var(--line-strong);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):checked {
+  border-color: transparent;
+  background-color: var(--control-selected, var(--accent));
+  background-image: radial-gradient(
+    circle at center,
+    var(--control-selected-ink, var(--accent-ink, var(--surface))) 0 9px,
+    transparent 9.5px
+  );
+  background-position: right 2px center;
+  box-shadow: none;
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):hover:not(:disabled):not(:checked) {
+  border-color: var(--line-strong);
+  background-color: var(--surface-hover);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):checked:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):focus-visible {
+  outline: none;
+  box-shadow: var(
+    --pu-focus-halo,
+    0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent)
+  );
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):active:not(:disabled) {
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):disabled {
+  opacity: var(--disabled-opacity, 0.55);
+  cursor: not-allowed;
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):is([aria-invalid="true"], :user-invalid) {
+  border-color: var(--danger);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):is([aria-invalid="true"], :user-invalid):checked {
+  background-color: var(--danger);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):is([aria-invalid="true"], :user-invalid):hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):is([aria-invalid="true"], :user-invalid):checked:hover:not(:disabled) {
+  background-color: var(--danger);
+}
+
+/* ------------------------------------------------------------ 3. counter */
+
+[data-rmd-theme="product-ui"].md-document .local-counter-value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Core remounts the changing value inside .local-counter-value-pop so the
+   pop replays without moving the surrounding row. @starting-style supplies
+   the enlarged first frame; the transition settles it at rest size. */
+[data-rmd-theme="product-ui"].md-document .local-counter-value-pop {
+  display: inline-block;
+  transform: scale(1);
+  transform-origin: center;
+  opacity: 1;
+  font-variant-numeric: tabular-nums;
+  transition:
+    transform 160ms var(--ease-standard),
+    opacity 160ms var(--ease-standard);
+}
+
+@starting-style {
+  [data-rmd-theme="product-ui"].md-document .local-counter-value-pop {
+    transform: scale(1.12);
+    opacity: 0.65;
+  }
+}
+
+[data-rmd-theme="product-ui"].md-document .local-counter-button {
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+[data-rmd-theme="product-ui"].md-document .local-counter-button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* -------------------------------------------------------------- 4. range */
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+) {
+  accent-color: var(--accent);
+  background: transparent;
+}
+
+/* WebKit */
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+)::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+)::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--control-thumb, var(--surface));
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 18%, transparent);
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):hover:not(:disabled)::-webkit-slider-thumb,
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):focus-visible::-webkit-slider-thumb {
+  transform: scale(1.08);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):active:not(:disabled)::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):focus-visible {
+  outline: none;
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    var(--pu-focus-halo, 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent)),
+    0 1px 3px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+/* Firefox */
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+)::-moz-range-track {
+  height: 8px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+)::-moz-range-progress {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-line);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+)::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--control-thumb, var(--surface));
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 18%, transparent);
+  transition:
+    transform var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):hover:not(:disabled)::-moz-range-thumb,
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):focus-visible::-moz-range-thumb {
+  transform: scale(1.08);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):active:not(:disabled)::-moz-range-thumb {
+  transform: scale(1.15);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):focus-visible::-moz-range-thumb {
+  box-shadow:
+    var(--pu-focus-halo, 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent)),
+    0 1px 3px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):disabled {
+  opacity: var(--disabled-opacity, 0.55);
+  cursor: not-allowed;
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):disabled::-webkit-slider-runnable-track {
+  background: var(--surface-active);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):disabled::-moz-range-track {
+  background: var(--surface-active);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):disabled::-webkit-slider-thumb {
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):disabled::-moz-range-thumb {
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):is([aria-invalid="true"], :user-invalid)::-webkit-slider-thumb {
+  border-color: var(--danger);
+}
+
+[data-rmd-theme="product-ui"].md-document :is(
+  .md-slider input,
+  .local-range-input
+):is([aria-invalid="true"], :user-invalid)::-moz-range-thumb {
+  border-color: var(--danger);
+}
+
+/* Dual-handle range. Core supplies the overlay geometry; the theme paints a
+   single rail with a blue selected span, two circular handles and value
+   bubbles. */
+[data-rmd-theme="product-ui"].md-document .local-range-slider {
+  --local-range-thumb: 22px;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-bubble-row {
+  height: 32px;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-rail {
+  left: calc(var(--local-range-thumb, 22px) / 2);
+  right: calc(var(--local-range-thumb, 22px) / 2);
+  height: 6px;
+  background: var(--pu-rail-track, var(--line));
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-fill {
+  left: calc(
+    var(--local-range-thumb, 22px) / 2
+    + (100% - var(--local-range-thumb, 22px)) * var(--local-range-start, 50) / 100
+  );
+  width: calc(
+    (100% - var(--local-range-thumb, 22px))
+    * (var(--local-range-end, 50) - var(--local-range-start, 50))
+    / 100
+  );
+  height: 6px;
+  background: var(--pu-rail-fill, var(--accent));
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-bubble {
+  padding: 3px 9px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-control);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent);
+  color: var(--accent-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  line-height: 1.25;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  border-right: 1px solid var(--accent-line);
+  border-bottom: 1px solid var(--accent-line);
+  background: var(--accent-soft);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-bound-row {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-slider .local-range-input::-webkit-slider-runnable-track {
+  height: 0;
+  border: 0;
+  background: transparent;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-slider .local-range-input::-moz-range-track {
+  height: 0;
+  border: 0;
+  background: transparent;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-slider .local-range-input::-moz-range-progress {
+  height: 0;
+  background: transparent;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-slider .local-range-input::-webkit-slider-thumb {
+  box-sizing: border-box;
+  width: var(--local-range-thumb, 22px);
+  height: var(--local-range-thumb, 22px);
+  margin-top: calc(var(--local-range-thumb, 22px) / -2);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--control-thumb, var(--surface));
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 18%, transparent);
+  pointer-events: auto;
+  cursor: grab;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-slider .local-range-input::-moz-range-thumb {
+  box-sizing: border-box;
+  width: var(--local-range-thumb, 22px);
+  height: var(--local-range-thumb, 22px);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--control-thumb, var(--surface));
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 18%, transparent);
+  pointer-events: auto;
+  cursor: grab;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-range-slider .local-range-input:active::-webkit-slider-thumb,
+[data-rmd-theme="product-ui"].md-document .local-range-slider .local-range-input:active::-moz-range-thumb {
+  cursor: grabbing;
+}
+
+/* ------------------------------------------------------------ 5. choices */
+
+[data-rmd-theme="product-ui"].md-document .local-choice-list {
+  --pu-choice-index: 0;
+  position: relative;
+  isolation: isolate;
+  min-inline-size: 0;
+}
+
+/* Exactly two, three or four choices become a segmented control. */
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(2):last-child) {
+  --pu-choice-count: 2;
+}
+
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(3):last-child) {
+  --pu-choice-count: 3;
+}
+
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(4):last-child) {
+  --pu-choice-count: 4;
+}
+
+/* The selected item drives the sliding highlight. */
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(1).is-selected) {
+  --pu-choice-index: 0;
+}
+
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(2).is-selected) {
+  --pu-choice-index: 1;
+}
+
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(3).is-selected) {
+  --pu-choice-index: 2;
+}
+
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(4).is-selected) {
+  --pu-choice-index: 3;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) {
+  display: grid;
+  grid-template-columns: repeat(var(--pu-choice-count), minmax(0, 1fr));
+  gap: 0;
+  inline-size: 100%;
+  max-inline-size: 420px;
+  padding: 4px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--pu-radius-md, 10px);
+  background: var(--pu-segmented-track, var(--surface-subtle));
+}
+
+[data-rmd-theme="product-ui"].md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+)::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset-block: 4px;
+  left: 0;
+  box-sizing: border-box;
+  width: calc(100% / var(--pu-choice-count));
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-control, 8px);
+  background: var(--pu-segmented-thumb, var(--surface));
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 12%, transparent);
+  transform: translateX(calc(var(--pu-choice-index) * 100%));
+  transition:
+    transform 220ms var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+  pointer-events: none;
+}
+
+[data-rmd-theme="product-ui"][data-color-scheme="dark"].md-document
+  .local-choice-list:is(
+    :has(> .local-choice:nth-child(2):last-child),
+    :has(> .local-choice:nth-child(3):last-child),
+    :has(> .local-choice:nth-child(4):last-child)
+  )::before {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 45%);
+}
+
+[data-rmd-theme="product-ui"].md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice {
+  position: relative;
+  z-index: 1;
+  justify-content: center;
+  min-inline-size: 0;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3, 12px);
+  border: 0;
+  border-radius: var(--radius-control, 8px);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
+}
+
+[data-rmd-theme="product-ui"].md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+  color: var(--ink);
+}
+
+/* The thumb, not the button, carries the selected fill. */
+[data-rmd-theme="product-ui"].md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice.is-selected,
+[data-rmd-theme="product-ui"].md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice.is-selected:hover:not(:disabled),
+[data-rmd-theme="product-ui"].md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice.is-selected:active:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+}
+
+[data-rmd-theme="product-ui"].md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice:disabled {
+  cursor: not-allowed;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+)[aria-disabled="true"]::before {
+  opacity: var(--disabled-opacity, 0.55);
+}
+
+/* Five or more choices fall back to wrapped pills with an individual fill. */
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(5)) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+  inline-size: auto;
+  max-inline-size: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice {
+  background: var(--pu-chip-bg, var(--surface));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+}
+
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--line-strong);
+}
+
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice.is-selected {
+  background: var(--pu-chip-selected-bg, var(--accent-soft));
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+[data-rmd-theme="product-ui"].md-document
+  .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice.is-selected:hover:not(:disabled) {
+  background: var(--pu-chip-selected-bg, var(--accent-soft));
+  border-color: var(--accent-line);
+}
+
+/* ----------------------------------------------------------- 6. progress */
+
+[data-rmd-theme="product-ui"].md-document .local-progress-value {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-rmd-theme="product-ui"].md-document .local-progress-track {
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--control-track, var(--surface-active));
+}
+
+[data-rmd-theme="product-ui"].md-document .local-progress-fill {
+  background: var(--local-progress-color, var(--accent));
+  border-radius: inherit;
+  transition: width 300ms var(--ease-standard);
+}
+
+[data-rmd-theme="product-ui"].md-document progress {
+  accent-color: var(--accent);
+}
+
+[data-rmd-theme="product-ui"].md-document progress::-webkit-progress-value {
+  background: var(--accent);
+}
+
+[data-rmd-theme="product-ui"].md-document progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
+/* --------------------------------------------------------- 7. conditions */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-rmd-theme="product-ui"].md-document :is(
+    .local-toggle .md-toggle-label input[type="checkbox"],
+    .md-toggle-label input.md-switch
+  ) {
+    transition: none;
+  }
+
+  [data-rmd-theme="product-ui"].md-document .local-counter-value-pop {
+    transition: none;
+  }
+
+  @starting-style {
+    [data-rmd-theme="product-ui"].md-document .local-counter-value-pop {
+      transform: none;
+      opacity: 1;
+    }
+  }
+
+  [data-rmd-theme="product-ui"].md-document .local-counter-button {
+    transition: none;
+  }
+
+  [data-rmd-theme="product-ui"].md-document .local-counter-button:active:not(:disabled) {
+    transform: none;
+  }
+
+  [data-rmd-theme="product-ui"].md-document .local-choice,
+  [data-rmd-theme="product-ui"].md-document .local-choice-list::before {
+    transition: none;
+  }
+
+  [data-rmd-theme="product-ui"].md-document :is(
+    .md-slider input,
+    .local-range-input
+  )::-webkit-slider-thumb {
+    transition: none;
+  }
+
+  [data-rmd-theme="product-ui"].md-document :is(
+    .md-slider input,
+    .local-range-input
+  ):hover:not(:disabled)::-webkit-slider-thumb,
+  [data-rmd-theme="product-ui"].md-document :is(
+    .md-slider input,
+    .local-range-input
+  ):focus-visible::-webkit-slider-thumb,
+  [data-rmd-theme="product-ui"].md-document :is(
+    .md-slider input,
+    .local-range-input
+  ):active:not(:disabled)::-webkit-slider-thumb {
+    transform: none;
+  }
+
+  [data-rmd-theme="product-ui"].md-document :is(
+    .md-slider input,
+    .local-range-input
+  )::-moz-range-thumb {
+    transition: none;
+  }
+
+  [data-rmd-theme="product-ui"].md-document :is(
+    .md-slider input,
+    .local-range-input
+  ):hover:not(:disabled)::-moz-range-thumb,
+  [data-rmd-theme="product-ui"].md-document :is(
+    .md-slider input,
+    .local-range-input
+  ):focus-visible::-moz-range-thumb,
+  [data-rmd-theme="product-ui"].md-document :is(
+    .md-slider input,
+    .local-range-input
+  ):active:not(:disabled)::-moz-range-thumb {
+    transform: none;
+  }
+
+  [data-rmd-theme="product-ui"].md-document .local-progress-fill {
+    transition: none;
+  }
+}
+
+/* Product actions use a 10px corner. Navigation, menu items and the segmented
+   choice buttons keep their own radius so a row of controls stays coherent. */
+[data-rmd-theme="product-ui"].md-document :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .md-button,
+  .md-button-primary,
+  .md-button-secondary,
+  .md-button-quiet
+):not(.local-tab, .local-choice, .md-menu-item, .md-page, .md-step) {
+  border-radius: var(--pu-radius-md, 10px);
+}

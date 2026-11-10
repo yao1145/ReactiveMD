@@ -2062,6 +2062,7 @@ export function PlotView(context: LocalComponentContext) {
               <line className="local-visual-zero-line" x1={plotLeft} x2={plotRight} y1={yOf(0)} y2={yOf(0)} />
             ) : null}
             <line className="local-visual-axis-line" x1={plotLeft} x2={plotRight} y1={plotBottom} y2={plotBottom} />
+            <line className="local-visual-axis-line" x1={plotLeft} x2={plotLeft} y1={plotTop} y2={plotBottom} />
             {xTicks.map((tick) => (
               <g key={`x-${tick}`}>
                 <line className="local-visual-tick" x1={xOf(tick)} x2={xOf(tick)} y1={plotBottom} y2={plotBottom + 5} />

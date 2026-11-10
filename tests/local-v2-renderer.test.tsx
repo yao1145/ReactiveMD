@@ -264,8 +264,10 @@ describe('range-slider', () => {
     expect(inputTagByLabel(html, 'Band Start')).toContain('value="2"');
     expect(inputTagByLabel(html, 'Band End')).toContain('value="8"');
     expect(html).toContain('--local-accent:#2563eb');
-    expect(html).toContain('>Start<');
-    expect(html).toContain('>End<');
+    expect(html).toContain('local-range-bubble-start">2<');
+    expect(html).toContain('local-range-bubble-end">8<');
+    expect(html).toContain('--local-range-start:20');
+    expect(html).toContain('--local-range-end:80');
   });
 
   it('defaults start to min and end to the largest legal step', () => {

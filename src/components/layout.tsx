@@ -281,6 +281,17 @@ export function StepsView(context: LocalComponentContext) {
     return (
       <section className="local-steps local-static-steps" aria-label={label || t('Steps', '步骤')}>
         {label ? <div className="local-steps-label">{label}</div> : null}
+        <ol
+          className="local-steps-rail"
+          aria-hidden="true"
+          style={{ '--local-steps-progress': `${steps.length <= 1 ? 100 : (activeIndex / (steps.length - 1)) * 100}%` } as CSSProperties}
+        >
+          {steps.map((step, index) => (
+            <li key={step.id} className={`local-steps-dot${index < activeIndex ? ' is-complete' : index === activeIndex ? ' is-current' : ''}`}>
+              <span>{index + 1}</span>
+            </li>
+          ))}
+        </ol>
         <div className="local-steps-nav local-static-steps-nav">
           <span className="local-steps-status" role="status" aria-live="polite">
             {t(`Step ${activeIndex + 1} of ${steps.length}`, `第 ${activeIndex + 1} 步，共 ${steps.length} 步`)}
@@ -308,6 +319,17 @@ export function StepsView(context: LocalComponentContext) {
       aria-describedby={validation.describedBy}
     >
       {label ? <div className="local-steps-label">{label}</div> : null}
+      <ol
+        className="local-steps-rail"
+        aria-hidden="true"
+        style={{ '--local-steps-progress': `${steps.length <= 1 ? 100 : (activeIndex / (steps.length - 1)) * 100}%` } as CSSProperties}
+      >
+        {steps.map((step, index) => (
+          <li key={step.id} className={`local-steps-dot${index < activeIndex ? ' is-complete' : index === activeIndex ? ' is-current' : ''}`}>
+            <span>{index + 1}</span>
+          </li>
+        ))}
+      </ol>
       <div className="local-steps-nav">
         <button
           type="button"
@@ -417,8 +439,9 @@ export function DisclosureView(context: LocalComponentContext) {
         role="region"
         aria-labelledby={triggerId}
         hidden={!open}
+        inert={!open}
       >
-        {view.render(undefined, visible && open)}
+        {view.render(undefined, visible)}
       </div>
     </div>
   );

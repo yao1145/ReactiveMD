@@ -1,0 +1,12 @@
+/* PRODUCT UI / PU-01 — direct-import convenience stylesheet.
+   Import this file when the host loads the theme itself. Registered packages
+   pass the six resources to defineLocalTheme in this same order instead;
+   this file is never part of the package definition because @import is not
+   allowed inside validated theme resources. */
+
+@import './tokens.css';
+@import './overlays.css';
+@import './forms.css';
+@import './navigation.css';
+@import './feedback.css';
+@import './spacing.css';

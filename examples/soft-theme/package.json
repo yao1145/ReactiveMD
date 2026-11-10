@@ -1,0 +1,20 @@
+{
+  "name": "reactive-md-soft-theme",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SOFT — a host-registered theme for Reactive MD's original default appearance.",
+  "license": "MIT",
+  "files": ["src", "README.md"],
+  "exports": {
+    ".": "./src/index.ts",
+    "./theme": "./src/theme.ts",
+    "./definition": "./src/definition.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "reactive-md": "^0.8.0"
+  }
+}

@@ -1,0 +1,234 @@
+/* PRODUCT UI — overlays.
+   Native dialog and popover motion, the explicit dialog/popover/menu classes,
+   and the local tooltip skin. Every rule is scoped to the default document
+   root so the theme never reaches a host page or another document instance.
+
+   Core owns sizing (max-width, max-height, padding, overflow) and the image
+   zoom dialog owns its own frame and backdrop; this file deliberately leaves
+   those declarations untouched and only layers product colour, radius,
+   shadow and motion on top. */
+
+/* Native dialog ------------------------------------------------------ */
+
+[data-rmd-theme="default"].md-document dialog:not([data-rmd-appearance="custom"]) {
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard),
+    display var(--motion-base) var(--ease-standard),
+    overlay var(--motion-base) var(--ease-standard);
+  transition-behavior: allow-discrete;
+}
+
+/* The open state ends at transform: none so the top-layer dialog does not
+   become a containing block for fixed descendants. */
+[data-rmd-theme="default"].md-document dialog[open]:not([data-rmd-appearance="custom"]) {
+  opacity: 1;
+  transform: none;
+}
+
+/* The image zoom dialog supplies its own transparent frame and figure skin. */
+[data-rmd-theme="default"].md-document dialog[open]:not(.md-image-zoom):not([data-rmd-appearance="custom"]) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--ink);
+}
+
+[data-rmd-theme="default"].md-document dialog:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+  background: color-mix(in srgb, #171a1f 42%, transparent);
+  opacity: 0;
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    display var(--motion-base) var(--ease-standard),
+    overlay var(--motion-base) var(--ease-standard);
+  transition-behavior: allow-discrete;
+}
+
+[data-rmd-theme="default"].md-document dialog[open]:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+  opacity: 1;
+}
+
+[data-rmd-theme="default"][data-color-scheme="dark"].md-document dialog:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+  background: color-mix(in srgb, #000000 64%, transparent);
+}
+
+@starting-style {
+  [data-rmd-theme="default"].md-document dialog[open]:not([data-rmd-appearance="custom"]) {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  [data-rmd-theme="default"].md-document dialog[open]:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Native popover ----------------------------------------------------- */
+
+/* Scale only: placement is author-owned, so no directional translate. */
+[data-rmd-theme="default"].md-document [popover]:not([data-rmd-appearance="custom"]) {
+  opacity: 0;
+  transform: scale(0.98);
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard),
+    display var(--motion-base) var(--ease-standard),
+    overlay var(--motion-base) var(--ease-standard);
+  transition-behavior: allow-discrete;
+}
+
+[data-rmd-theme="default"].md-document [popover]:popover-open:not([data-rmd-appearance="custom"]) {
+  opacity: 1;
+  transform: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--ink);
+}
+
+@starting-style {
+  [data-rmd-theme="default"].md-document [popover]:popover-open:not([data-rmd-appearance="custom"]) {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* Explicit overlay classes ------------------------------------------- */
+
+[data-rmd-theme="default"].md-document .md-dialog:not([data-rmd-appearance="custom"]) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--ink);
+}
+
+[data-rmd-theme="default"].md-document .md-popover:not([data-rmd-appearance="custom"]) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--ink);
+}
+
+[data-rmd-theme="default"].md-document .md-menu:not([data-rmd-appearance="custom"]) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--ink);
+}
+
+/* Menu --------------------------------------------------------------- */
+
+[data-rmd-theme="default"].md-document .md-menu-item:not([data-rmd-appearance="custom"]) {
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+[data-rmd-theme="default"].md-document .md-menu-item:hover:not(:disabled):not([aria-disabled="true"]):not([data-rmd-appearance="custom"]) {
+  background: var(--surface-subtle);
+  color: var(--ink);
+}
+
+[data-rmd-theme="default"].md-document .md-menu-item:active:not(:disabled):not([aria-disabled="true"]):not([data-rmd-appearance="custom"]) {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+[data-rmd-theme="default"].md-document .md-menu-item[aria-selected="true"]:not([data-rmd-appearance="custom"]),
+[data-rmd-theme="default"].md-document .md-menu-item[aria-checked="true"]:not([data-rmd-appearance="custom"]),
+[data-rmd-theme="default"].md-document .md-menu-item[data-selected="true"]:not([data-rmd-appearance="custom"]),
+[data-rmd-theme="default"].md-document .md-menu-item.is-selected:not([data-rmd-appearance="custom"]) {
+  background: var(--accent-soft);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+[data-rmd-theme="default"].md-document .md-menu-item:focus-visible:not([data-rmd-appearance="custom"]) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+[data-rmd-theme="default"].md-document .md-menu-separator:not([data-rmd-appearance="custom"]) {
+  height: 1px;
+  border: 0;
+  background: var(--line);
+}
+
+/* Tooltip ------------------------------------------------------------ */
+
+/* The static fallback keeps its own inline presentation: the :not() guard
+   keeps these declarations away from .local-static-tooltip bubbles. */
+[data-rmd-theme="default"] .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble {
+  background: #26282c;
+  border: 0;
+  border-radius: var(--radius-control);
+  box-shadow: var(--pu-overlay-shadow);
+  color: #f5f6f8;
+  opacity: 0;
+  transform: translateY(6px);
+  /* Tooltip timing is intentionally shorter than --motion-base (220ms). */
+  transition:
+    opacity 170ms var(--ease-standard),
+    transform 170ms var(--ease-standard),
+    display 170ms var(--ease-standard);
+  transition-behavior: allow-discrete;
+}
+
+[data-rmd-theme="default"] .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@starting-style {
+  [data-rmd-theme="default"] .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble.is-visible {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Reduced motion ----------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-rmd-theme="default"].md-document dialog:not([data-rmd-appearance="custom"]),
+  [data-rmd-theme="default"].md-document [popover]:not([data-rmd-appearance="custom"]),
+  [data-rmd-theme="default"].md-document .md-menu-item:not([data-rmd-appearance="custom"]),
+  [data-rmd-theme="default"] .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble {
+    transition: none;
+  }
+
+  [data-rmd-theme="default"].md-document dialog:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+    transition: none;
+  }
+}
+
+/* Print -------------------------------------------------------------- */
+
+@media print {
+  [data-rmd-theme="default"].md-document dialog:not([data-rmd-appearance="custom"]),
+  [data-rmd-theme="default"].md-document [popover]:not([data-rmd-appearance="custom"]),
+  [data-rmd-theme="default"].md-document .md-dialog:not([data-rmd-appearance="custom"]),
+  [data-rmd-theme="default"].md-document .md-popover:not([data-rmd-appearance="custom"]),
+  [data-rmd-theme="default"].md-document .md-menu:not([data-rmd-appearance="custom"]) {
+    max-height: none;
+    overflow: visible;
+    box-shadow: none;
+    transition: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  [data-rmd-theme="default"].md-document dialog:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+    background: transparent;
+  }
+
+  [data-rmd-theme="default"] .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble {
+    transition: none;
+  }
+}

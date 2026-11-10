@@ -2,7 +2,7 @@
 
 **English** · [中文](theme-protocol-ch.md)
 
-Protocol revision: `reactive-md-theme-1`, introduced in `0.4.0`. The built-in `default` preserves the existing appearance.
+Protocol revision: `reactive-md-theme-1`, introduced in `0.4.0`. The built-in `default` theme uses the product-UI appearance. Every other theme, including a `soft` example that preserves the package's original look, is external and must be registered by the host.
 
 The source [extension SDK preview](../integration/extension-sdk-en.md) provides `defineLocalTheme`, `composeLocalTheme` and theme package resource conventions. Its build adapter includes theme CSS, fonts and images in offline exports. The semantic variables and scope rules below still apply. Use a tarball built from the current source for the SDK preview.
 
@@ -17,6 +17,8 @@ Place a declaration before the document body:
 ```
 
 `<theme name="default" />` is also accepted. Omission selects `default`. Whitespace, a BOM and comments may precede the declaration. Declare it once, outside components. The static `name` uses lowercase kebab-case, starts with a letter and has at most 64 characters. Expressions and additional attributes are invalid.
+
+Only `default` is built in. A document selects any other theme by name only when the host has registered that name, for example `<theme name="soft">` for the original-look example in the product-UI gallery or `<theme name="paper">` for a host design. Registration is described below.
 
 The declaration is document metadata, does not count as a component and produces no visible element. Compilation stores `document.theme` and the original declaration's `document.themeRange`. Body nodes retain their original source positions. Fenced code, inline code, comments and escaped examples remain literal.
 
@@ -43,7 +45,7 @@ export function Article({ source }: { source: string }) {
 }
 ```
 
-This demonstrates registration. The repository includes only `default` as a built-in theme; it does not include a `paper` design or stylesheet. A complete reference package with tokens, component styling, both colour schemes and a live gallery is in [examples/sci-fi-theme](../../examples/sci-fi-theme/README.md).
+This demonstrates registration. The repository includes only `default` as a built-in theme, and a host definition cannot replace it. Everything else is external: the original-look [`soft` theme](../../examples/soft-theme/README.md) and the complete sci-fi reference package both require host registration, and the product-UI gallery registers `soft` with a plain definition while the core baseline CSS supplies its appearance. The repository's `paper` example above has no design or stylesheet; a complete reference package with tokens, component styling, both colour schemes and a live gallery is in [examples/sci-fi-theme](../../examples/sci-fi-theme/README.md).
 
 | Field | Requirement |
 | --- | --- |
@@ -53,7 +55,7 @@ This demonstrates registration. The repository includes only `default` as a buil
 
 The host loads the CSS. Registration does not fetch or inject styles. Documents select a registered name and cannot provide CSS, stylesheet URLs or scripts. Theme CSS is trusted host code; the host reviews its scope and resource references.
 
-An unknown name, duplicate selected name, invalid selected registration, unsupported protocol or missing mode produces a renderer warning and falls back to `default`. Core-only hosts can call `resolveLocalTheme(name, themes, range?, source?)` to obtain `{ name, diagnostics }`. Compilation parses declarations independently of host registrations.
+An unknown name, duplicate selected name, invalid selected registration, unsupported protocol or missing mode produces a renderer warning and falls back to `default`. Built-in `default` is always available; selecting `soft` or any other external name without registering it falls back to `default` in the same way. Core-only hosts can call `resolveLocalTheme(name, themes, range?, source?)` to obtain `{ name, diagnostics }`. Compilation parses declarations independently of host registrations.
 
 ## Color schemes and instance scope
 

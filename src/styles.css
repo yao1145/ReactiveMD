@@ -9,8 +9,16 @@
 @import './navigation.css';
 @import './overlays.css';
 @import './data-display.css';
-@import './appearance.css';
 @import './local/widgets/code-block.css';
 @import './local/widgets/image-view.css';
 @import './local/rendering/local.css';
 @import './local/widgets/visuals.css';
+@import './themes/default/tokens.css';
+@import './themes/default/overlays.css';
+@import './themes/default/forms.css';
+@import './themes/default/navigation.css';
+@import './themes/default/feedback.css';
+@import './themes/default/spacing.css';
+/* Load density last so explicit data-rmd-density overrides the default theme
+   token block at equal attribute specificity. */
+@import './appearance.css';

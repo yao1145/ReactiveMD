@@ -67,6 +67,10 @@
     "sci-fi:typecheck": "tsc -p examples/sci-fi-theme/tsconfig.json --noEmit",
     "sci-fi:test": "vitest run tests/sci-fi-theme.test.ts --maxWorkers=1",
     "sci-fi:screenshot": "node examples/sci-fi-theme/scripts/screenshot.mjs",
+    "product:dev": "vite --config examples/product-ui-theme/vite.config.ts",
+    "product:build": "vite build --config examples/product-ui-theme/vite.config.ts",
+    "product:typecheck": "tsc -p examples/product-ui-theme/tsconfig.json --noEmit",
+    "product:test": "vitest run tests/product-ui-theme.test.ts --maxWorkers=1",
     "notices": "node scripts/generate-notices.mjs",
     "prepack": "npm run build && npm run notices"
   },

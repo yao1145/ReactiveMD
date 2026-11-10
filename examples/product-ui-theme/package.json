@@ -1,0 +1,29 @@
+{
+  "name": "reactive-md-product-ui-theme",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PRODUCT UI / PU-01 — a warm product-interface design system theme for Reactive MD.",
+  "license": "MIT",
+  "files": ["src", "docs", "README.md", "README-ch.md"],
+  "exports": {
+    ".": "./src/index.ts",
+    "./theme": "./src/theme.ts",
+    "./styles.css": "./src/product-ui.css",
+    "./tokens.css": "./src/tokens.css",
+    "./overlays.css": "./src/overlays.css",
+    "./forms.css": "./src/forms.css",
+    "./navigation.css": "./src/navigation.css",
+    "./feedback.css": "./src/feedback.css"
+  },
+  "scripts": {
+    "dev": "vite --config vite.config.ts",
+    "build": "vite build --config vite.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "reactive-md": "^0.8.0"
+  }
+}

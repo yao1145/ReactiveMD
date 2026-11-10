@@ -1,0 +1,352 @@
+/* ==========================================================================
+   PRODUCT UI / PU-01 — design tokens
+   --------------------------------------------------------------------------
+   Layer 1  primitives  raw palette, scale and geometry values
+   Layer 2  semantics   purpose-named values; light is the default block
+   Layer 3  components  product component contracts (controls, chips, rails)
+   --------------------------------------------------------------------------
+   Every selector is scoped to [data-rmd-theme="default"] so the theme can
+   be imported directly or registered through defineLocalTheme().
+   Radius contract: rounded rectangles, not pills — 8px fields and controls,
+   10px buttons, 12px cards, 14px panels; pills only for badges and switches.
+   ========================================================================== */
+
+[data-rmd-theme="default"] {
+  color-scheme: light;
+
+  /* ---------------------------------------------------------- L1 primitives */
+
+  /* Warm neutral ramp — paper, not slate. */
+  --pu-paper: #f5f3f1;
+  --pu-white: #ffffff;
+  --pu-neutral-50: #faf9f7;
+  --pu-neutral-100: #f3f1ee;
+  --pu-neutral-150: #ebe8e4;
+  --pu-neutral-200: #e6e4e3;
+  --pu-neutral-300: #d6d4d2;
+  --pu-neutral-400: #b8b5b1;
+  --pu-neutral-500: #7b7975;
+  --pu-neutral-600: #55524e;
+  --pu-neutral-700: #3a3835;
+  --pu-neutral-900: #111111;
+
+  /* Vivid blue accent. */
+  --pu-blue-50: #eef3fe;
+  --pu-blue-100: #cad9f9;
+  --pu-blue-500: #1f5ae8;
+  --pu-blue-600: #1a4fd0;
+
+  /* Geometry and rhythm. */
+  --pu-radius-xs: 6px;
+  --pu-radius-sm: 8px;
+  --pu-radius-md: 10px;
+  --pu-radius-lg: 12px;
+  --pu-radius-xl: 14px;
+
+  /* ---------------------------------------------------- L2 semantic: light */
+
+  /* Surfaces */
+  --paper: #f5f3f1;
+  --surface: #ffffff;
+  --document-bg: var(--surface);
+  --image-zoom-backdrop: rgb(17 17 17 / 55%);
+  --surface-subtle: #faf9f7;
+  --surface-hover: #f3f1ee;
+  --surface-active: #ebe8e4;
+
+  /* Text */
+  --ink: #111111;
+  --ink-soft: #55524e;
+  --ink-muted: #6f6c68;
+
+  /* Borders */
+  --line: #e6e4e3;
+  --line-strong: #d6d4d2;
+
+  /* Accent: one vivid blue. Filled controls use white ink. */
+  --accent: #1f5ae8;
+  --accent-hover: #1a4fd0;
+  --accent-soft: #eef3fe;
+  --accent-line: #cad9f9;
+  --accent-ink: #ffffff;
+  --accent-text: #1f5ae8;
+  --info: var(--accent);
+  --info-soft: var(--accent-soft);
+  --info-line: var(--accent-line);
+
+  /* Backwards-compatible aliases. */
+  --blue: var(--accent);
+  --blue-deep: var(--accent-hover);
+  --blue-soft: var(--accent-soft);
+  --blue-line: var(--accent-line);
+
+  /* Status */
+  --teal: var(--success);
+  --success: #18794e;
+  --success-soft: #e8f5ee;
+  --success-line: #bfe3cf;
+  --warning: #9a6700;
+  --warning-soft: #fff6dd;
+  --warning-line: #f0dca8;
+  --danger: #c4323f;
+  --danger-soft: #fff0f1;
+  --danger-line: #f3c6cb;
+  --neutral-soft: #f3f1ee;
+
+  /* Focus */
+  --focus: #1f5ae8;
+  --focus-outline: 2px solid var(--focus);
+  --focus-ring: 0 0 0 3px rgb(31 90 232 / 16%);
+
+  /* Data series — warm, print-safe, distinguishable in both modes. */
+  --chart-1: #1f5ae8;
+  --chart-2: #d97757;
+  --chart-3: #2f9e7e;
+  --chart-4: #b07d2b;
+  --chart-5: #7a5af8;
+  --chart-6: #2f8fa8;
+  --chart-7: #7f8f3a;
+  --chart-8: #b45f8a;
+  --chart-grid: #eceae7;
+  --chart-axis: var(--ink-muted);
+
+  --coordinate-surface: #faf9f7;
+  --coordinate-grid: #e6e4e3;
+  --coordinate-axis: #55524e;
+  --coordinate-point: var(--accent);
+
+  /* Code — a clean, light code surface with dark ink. */
+  --code-bg: #ffffff;
+  --code-bg-deep: #ffffff;
+  --code-ink: #253247;
+  --md-code-token-comment: #6a7482;
+  --md-code-token-keyword: #1f5ae8;
+  --md-code-token-string: #18794e;
+  --md-code-token-number: #9a6700;
+  --md-code-token-title: #1a4fd0;
+  --md-code-token-attr: #b0355e;
+  --md-code-token-meta: #6a4fb6;
+  --md-code-token-addition: #18794e;
+  --md-code-token-deletion: #c4323f;
+
+  /* Type */
+  --text-xs: 12px;
+  --text-sm: 13.5px;
+  --text-md: 15px;
+  --text-lg: 19px;
+  --text-xl: 23px;
+  --text-2xl: 27px;
+  --text-block-title: var(--text-lg);
+  --text-block-subtitle: var(--text-md);
+  --leading-tight: 1.25;
+  --leading-snug: 1.45;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.7;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --field-gap: var(--space-3);
+
+  /* Document rhythm — the two-level spacing contract applied by spacing.css.
+     These inherit into the dark scope, so they are declared once on the root. */
+  --pu-gap-section: var(--space-6, 32px);
+  --pu-gap-block: var(--space-4, 16px);
+  --pu-gap-inline: var(--space-3, 12px);
+
+  /* Radius — rounded rectangles, never capsule fields. */
+  --radius-control: 8px;
+  --radius-field: 8px;
+  --radius-field-multiline: 14px;
+  --radius-card: 12px;
+  --radius-panel: 14px;
+  --radius-pill: 999px;
+  --radius-sm: var(--radius-field);
+  --radius-md: var(--radius-card);
+  --radius-lg: var(--radius-panel);
+
+  /* Controls */
+  --control-height-sm: 30px;
+  --control-height: 38px;
+  --control-height-lg: 44px;
+  --control-padding-x: 12px;
+  --control-padding-y: 8px;
+  --control-inset-x: 16px;
+  --disabled-opacity: 0.45;
+  --control-selected: #1f5ae8;
+  --control-selected-ink: #ffffff;
+  --control-track: #eceae7;
+  --control-thumb: #ffffff;
+
+  /* Tables */
+  --table-cell-padding-y: 10px;
+  --table-cell-padding-x: 12px;
+
+  /* Formula ink follows body ink in each mode. */
+  --formula-ink: #111111;
+
+  /* Motion — the motion-prompt `ui` pack timing scale. */
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-slow: 300ms;
+  --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* Elevation — soft, short shadows on white surfaces. */
+  --shadow-sm: 0 1px 2px rgb(17 17 17 / 6%);
+  --shadow-md: 0 8px 24px rgb(17 17 17 / 10%);
+  --pu-overlay-shadow: 0 24px 64px rgb(17 17 17 / 18%);
+
+  --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", "Consolas",
+    "Liberation Mono", monospace;
+
+  /* ------------------------------------------------ L3 component: light */
+
+  --pu-focus-halo: 0 0 0 3px rgb(31 90 232 / 16%);
+  --pu-segmented-track: #f0efed;
+  --pu-segmented-thumb: #ffffff;
+  --pu-chip-bg: #f7f6f4;
+  --pu-chip-selected-bg: #eef3fe;
+  --pu-rail-track: #e6e4e3;
+  --pu-rail-fill: #1f5ae8;
+}
+
+/* ------------------------------------------------------------ semantic: dark */
+
+[data-rmd-theme="default"][data-color-scheme="dark"] {
+  color-scheme: dark;
+
+  /* L1 primitives that differ in the dark ramp. */
+  --pu-paper: #141517;
+  --pu-white: #1c1d20;
+  --pu-neutral-50: #232428;
+  --pu-neutral-100: #2a2b30;
+  --pu-neutral-150: #32343a;
+  --pu-neutral-200: #34363b;
+  --pu-neutral-300: #4a4c52;
+  --pu-neutral-400: #6f7178;
+  --pu-neutral-500: #9b9792;
+  --pu-neutral-600: #c9c6c1;
+  --pu-neutral-700: #e2dfda;
+  --pu-neutral-900: #f4f2ef;
+  --pu-blue-50: #1e2a44;
+  --pu-blue-100: #344a75;
+  --pu-blue-500: #7aa2ff;
+  --pu-blue-600: #9ab8ff;
+
+  /* Surfaces */
+  --paper: #141517;
+  --surface: #1c1d20;
+  --document-bg: var(--surface);
+  --image-zoom-backdrop: rgb(0 0 0 / 70%);
+  --surface-subtle: #232428;
+  --surface-hover: #2a2b30;
+  --surface-active: #32343a;
+
+  /* Text */
+  --ink: #f4f2ef;
+  --ink-soft: #c9c6c1;
+  --ink-muted: #9b9792;
+
+  /* Borders */
+  --line: #34363b;
+  --line-strong: #4a4c52;
+
+  /* Accent: light blue fill with dark ink; lighter blue as ink. */
+  --accent: #7aa2ff;
+  --accent-hover: #9ab8ff;
+  --accent-soft: #1e2a44;
+  --accent-line: #344a75;
+  --accent-ink: #0b1220;
+  --accent-text: #9ab8ff;
+  --info: var(--accent-text);
+  --info-soft: var(--accent-soft);
+  --info-line: var(--accent-line);
+
+  --blue: var(--accent);
+  --blue-deep: var(--accent-hover);
+  --blue-soft: var(--accent-soft);
+  --blue-line: var(--accent-line);
+
+  /* Status */
+  --teal: var(--success);
+  --success: #6fce9f;
+  --success-soft: #173326;
+  --success-line: #2f5b45;
+  --warning: #e8b75a;
+  --warning-soft: #33270f;
+  --warning-line: #5c4a22;
+  --danger: #ff9aa5;
+  --danger-soft: #3a1b1f;
+  --danger-line: #794853;
+  --neutral-soft: #2a2b30;
+
+  /* Focus */
+  --focus: #9ab8ff;
+  --focus-outline: 2px solid var(--focus);
+  --focus-ring: 0 0 0 3px rgb(122 162 255 / 22%);
+
+  /* Data series */
+  --chart-1: #7aa2ff;
+  --chart-2: #e59a7d;
+  --chart-3: #63c7a6;
+  --chart-4: #d8ab5e;
+  --chart-5: #a78bfa;
+  --chart-6: #6ec3d8;
+  --chart-7: #b4c46a;
+  --chart-8: #d98cb2;
+  --chart-grid: #2c2e33;
+  --chart-axis: var(--ink-muted);
+
+  --coordinate-surface: #1c1d20;
+  --coordinate-grid: #34363b;
+  --coordinate-axis: #c9c6c1;
+  --coordinate-point: var(--accent);
+
+  /* Code */
+  --code-bg: #17181b;
+  --code-bg-deep: #17181b;
+  --code-ink: #e6e3de;
+  --md-code-token-comment: #8f9298;
+  --md-code-token-keyword: #9ab8ff;
+  --md-code-token-string: #6fce9f;
+  --md-code-token-number: #e8b75a;
+  --md-code-token-title: #7aa2ff;
+  --md-code-token-attr: #ff9aa5;
+  --md-code-token-meta: #c4a7ff;
+  --md-code-token-addition: #6fce9f;
+  --md-code-token-deletion: #ff9aa5;
+
+  /* Controls */
+  --control-selected: #7aa2ff;
+  --control-selected-ink: #0b1220;
+  --control-track: #2c2e33;
+  --control-thumb: #f4f2ef;
+
+  --formula-ink: #f4f2ef;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-md: 0 8px 24px rgb(0 0 0 / 38%);
+  --pu-overlay-shadow: 0 24px 64px rgb(0 0 0 / 55%);
+
+  /* ------------------------------------------------ L3 component: dark */
+
+  --pu-focus-halo: 0 0 0 3px rgb(122 162 255 / 22%);
+  --pu-segmented-track: #26282c;
+  --pu-segmented-thumb: #3a3d43;
+  --pu-chip-bg: #232428;
+  --pu-chip-selected-bg: #1e2a44;
+  --pu-rail-track: #34363b;
+  --pu-rail-fill: #7aa2ff;
+}
