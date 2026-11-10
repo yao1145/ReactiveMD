@@ -463,17 +463,6 @@
   box-shadow: none;
 }
 
-[data-rmd-theme="product-ui"] .local-checklist legend {
-  display: block;
-  width: auto;
-  margin: 0 0 var(--space-1, 4px);
-  padding: 0;
-  color: var(--ink-soft);
-  font-size: var(--text-sm, 14px);
-  font-weight: var(--weight-semibold, 600);
-  line-height: var(--leading-snug, 1.5);
-}
-
 [data-rmd-theme="product-ui"] .local-checklist.local-static-checklist {
   display: block;
 }
@@ -535,17 +524,6 @@
   border: 0;
   background: transparent;
   box-shadow: none;
-}
-
-[data-rmd-theme="product-ui"] .local-multi-select legend {
-  display: block;
-  width: auto;
-  margin: 0 0 var(--space-1, 4px);
-  padding: 0;
-  color: var(--ink-soft);
-  font-size: var(--text-sm, 14px);
-  font-weight: var(--weight-semibold, 600);
-  line-height: var(--leading-snug, 1.5);
 }
 
 [data-rmd-theme="product-ui"] .local-multi-toolbar {

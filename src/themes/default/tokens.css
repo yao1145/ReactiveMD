@@ -129,13 +129,15 @@
   --md-code-token-addition: #18794e;
   --md-code-token-deletion: #c4323f;
 
-  /* Type */
-  --text-xs: 12px;
-  --text-sm: 13.5px;
-  --text-md: 15px;
-  --text-lg: 19px;
-  --text-xl: 23px;
-  --text-2xl: 27px;
+  /* Type — 16px body; every step scales with it at roughly the same ratios
+     as the previous 15px scale. */
+  --text-xs: 13px;
+  --text-sm: 14.5px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 25px;
+  --text-2xl: 29px;
+  --text-group-label: 18px;
   --text-block-title: var(--text-lg);
   --text-block-subtitle: var(--text-md);
   --leading-tight: 1.25;

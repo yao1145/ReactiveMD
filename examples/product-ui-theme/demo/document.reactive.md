@@ -134,8 +134,6 @@ Use the <tooltip text="Readiness combines checked pre-launch items with the rele
 Check the pre-launch items, choose the audiences and answer the quiz. The readiness meter and the badge in section 05 follow the checklist and the notification toggle.
 
 <section color="#111111">
-### Pre-launch checks
-
 <checklist bind="done" label="Pre-launch checks">
 - [x] Freeze the release branch
 - [ ] Review the customer notes

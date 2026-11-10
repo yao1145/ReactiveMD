@@ -687,7 +687,30 @@
   cursor: grabbing;
 }
 
-/* ------------------------------------------------------------ 5. choices */
+/* ------------------------------------------------------- 5. group labels */
+
+/* A component `label` attribute is the heading of its control group, not a
+   field caption. It sits one type step above body text so the question,
+   checklist title or fieldset legend outranks the options beneath it. */
+[data-rmd-theme="product-ui"].md-document :is(
+  .local-radio-group > legend,
+  .local-quiz-options > legend,
+  .local-checklist > legend,
+  .local-multi-select > legend,
+  .local-choices > .md-label
+) {
+  display: block;
+  width: auto;
+  margin: 0 0 var(--space-2, 8px);
+  padding: 0;
+  color: var(--ink);
+  font-size: var(--text-group-label, 18px);
+  font-weight: var(--weight-semibold, 600);
+  letter-spacing: -0.01em;
+  line-height: var(--leading-snug, 1.45);
+}
+
+/* ------------------------------------------------------------ 6. choices */
 
 [data-rmd-theme="product-ui"].md-document .local-choice-list {
   --pu-choice-index: 0;
@@ -904,7 +927,7 @@
   border-color: var(--accent-line);
 }
 
-/* ----------------------------------------------------------- 6. progress */
+/* ----------------------------------------------------------- 7. progress */
 
 [data-rmd-theme="product-ui"].md-document .local-progress-value {
   color: var(--ink-soft);
@@ -935,7 +958,7 @@
   background: var(--accent);
 }
 
-/* --------------------------------------------------------- 7. conditions */
+/* --------------------------------------------------------- 8. conditions */
 
 @media (prefers-reduced-motion: reduce) {
   [data-rmd-theme="product-ui"].md-document :is(

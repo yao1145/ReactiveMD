@@ -32,7 +32,7 @@ explicitly as `product-ui`.
 | Soft depth | One border per nesting level. Shadows belong to overlays and the optional demo window; content surfaces use rules, dividers and background steps. |
 | Controls stay controls | Fields, toggles, ranges, segmented choices and buttons keep the borders they need; they are never promoted to cards. |
 | Short motion | 150–300ms transitions with one shared easing curve; entrances use small scale changes rather than slides. |
-| Readable density | 38px control height, 4px spacing unit, 15px body, tabular numerals. |
+| Readable density | 38px control height, 4px spacing unit, 16px body, tabular numerals. |
 
 The references are modern product workspaces, settings surfaces and data tools —
 not neon dashboards, terminal consoles or editorial print.
@@ -132,6 +132,21 @@ menu and tooltip use `--pu-overlay-shadow`.
 Charts use `--chart-1` through `--chart-8`; series 1 is the accent blue, and the
 remaining series are warm, distinguishable hues. Grid lines use `--chart-grid`;
 axis text uses `--chart-axis`.
+
+### 2.4 Type scale
+
+| Token | Size | Use |
+| --- | --- | --- |
+| `--text-xs` | `13px` | Meta, badges, step dots, dense controls |
+| `--text-sm` | `14.5px` | Secondary copy, tabs, list rows, alerts |
+| `--text-md` | `16px` | Body text, disclosure labels, field values |
+| `--text-lg` | `20px` | Block titles, `h3` |
+| `--text-group-label` | `18px` | Component group labels (checklist, multi-select, quiz, radio-group, choices) |
+| `--text-xl` | `25px` | `h2` |
+| `--text-2xl` | `29px` | `h1` |
+
+Body text is `16px` with a `1.7` line height. Every component step is derived
+from this scale, so a change to `--text-md` moves the whole document together.
 
 ---
 
@@ -238,6 +253,7 @@ focus and keyboard behaviour.
 | Part | Contract |
 | --- | --- |
 | Field | 38px height, 8px radius, 1px `--line`, `--surface` fill |
+| Group label | The component `label` attribute is a group heading at `--text-group-label` (18px); individual field captions stay `--text-sm` |
 | Hover | `--line-strong` or `--accent-line` stroke; no movement |
 | Focus | `--accent` stroke plus `--pu-focus-halo` or `--focus-ring` |
 | Invalid | `--danger` stroke; error text in `--danger` |
