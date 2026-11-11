@@ -2823,7 +2823,7 @@ function validateChart(
     if (!numeric.length) {
       state.report('local.chart.column', { key: 'local.chart.column.scatter-needs-numeric' }, entry.node.range.start, entry.node.range.end);
     }
-  } else if (kind === 'donut') {
+  } else if (kind === 'donut' || kind === 'pie') {
     if (header.length < 2) {
       state.report('local.chart.column', { key: 'local.chart.column.donut-columns' }, entry.node.range.start, entry.node.range.end);
       return;
@@ -2842,7 +2842,7 @@ function validateChart(
 
   numeric = [...new Set(numeric)];
   for (const column of numeric) requireNumericColumn(shape, column, state, entry, 'y');
-  if (kind === 'donut') {
+  if (kind === 'donut' || kind === 'pie') {
     for (const column of numeric) {
       shape.rows.forEach((row, rowIndex) => {
         const cell = row[column];

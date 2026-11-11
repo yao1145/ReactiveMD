@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useDefaultTheme } from '../react/default-theme';
+import { DefaultChart } from './default-chart';
 import {
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
@@ -689,8 +690,8 @@ export function TableView(context: LocalComponentContext) {
 /* Chart                                                               */
 /* ------------------------------------------------------------------ */
 
-type ChartKind = 'bar' | 'line' | 'area' | 'scatter' | 'donut';
-const CHART_KINDS: ChartKind[] = ['bar', 'line', 'area', 'scatter', 'donut'];
+type ChartKind = 'bar' | 'line' | 'area' | 'scatter' | 'donut' | 'pie';
+const CHART_KINDS: ChartKind[] = ['bar', 'line', 'area', 'scatter', 'donut', 'pie'];
 
 interface ChartRow {
   index: number;
@@ -723,6 +724,7 @@ function donutPath(cx: number, cy: number, outer: number, inner: number, start: 
   const [x2, y2] = point(inner, end);
   const [x3, y3] = point(inner, start);
   const large = end - start > Math.PI ? 1 : 0;
+  if (inner === 0) return `M ${cx} ${cy} L ${x0} ${y0} A ${outer} ${outer} 0 ${large} 1 ${x1} ${y1} Z`;
   return [
     `M ${x0} ${y0}`,
     `A ${outer} ${outer} 0 ${large} 1 ${x1} ${y1}`,
@@ -736,12 +738,15 @@ export function ChartView(context: LocalComponentContext) {
   const view = useComponentView(context);
   const { content, mode, t } = view;
   const staticMode = mode === 'static';
+  const defaultTheme = useDefaultTheme();
+  const [chartResetToken, setChartResetToken] = useState(0);
   const [hiddenSeries, setHiddenSeries] = useState<Set<number>>(new Set());
   const [hiddenSlices, setHiddenSlices] = useState<Set<number>>(new Set());
   const [active, setActive] = useState<ChartPoint | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const { write, error } = useWriter(context);
   useResetToken(context, () => {
+    setChartResetToken(token => token + 1);
     setHiddenSeries(new Set());
     setHiddenSlices(new Set());
     setActive(null);
@@ -819,7 +824,7 @@ export function ChartView(context: LocalComponentContext) {
     .filter(Boolean);
 
   let yIndexes: number[] = [];
-  if (kind === 'donut') {
+  if (kind === 'donut' || kind === 'pie') {
     if (yNames.length > 1) {
       errors.push(t('donut can only use one numeric column; specify a single column in y.', 'donut 只能使用一个数值列，请在 y 中指定唯一列。'));
     } else if (yNames.length === 1) {
@@ -874,7 +879,7 @@ export function ChartView(context: LocalComponentContext) {
         invalidValues += 1;
         return null;
       }
-      if (kind === 'donut' && cell.numeric < 0) negativeValues += 1;
+      if ((kind === 'donut' || kind === 'pie') && cell.numeric < 0) negativeValues += 1;
       return cell.numeric;
     });
     return { index: source.index, label, xValue, values, cells: source.cells, keyValue: source.keyValue };
@@ -894,7 +899,7 @@ export function ChartView(context: LocalComponentContext) {
       ));
     }
   }
-  if (kind === 'donut' && negativeValues > 0) {
+  if ((kind === 'donut' || kind === 'pie') && negativeValues > 0) {
     notes.push(t(
       `Donut values must be non-negative; ignored ${negativeValues} negative values.`,
       `环形图数值必须非负，已忽略 ${negativeValues} 个负值。`,
@@ -905,6 +910,24 @@ export function ChartView(context: LocalComponentContext) {
       `scatter horizontal axis column "${header[xIndex]}" requires numeric values.`,
       `scatter 的横轴列“${header[xIndex]}”需要数值。`,
     ));
+  }
+
+  if (defaultTheme && !staticMode) {
+    const numericX = kind === 'scatter' || ((kind === 'line' || kind === 'area') && columnIsNumeric(table, xIndex));
+    if (numericX && rows.some(row => row.xValue === null)) {
+      const skipped = rows.filter(row => row.xValue === null).length;
+      notes.push(t(`${skipped} rows have an empty or non-numeric horizontal axis and are not plotted.`, `${skipped} 行横轴为空或不是数值，未参与绘制。`));
+    }
+    return <VisualShell context={context}>
+      <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
+        <DefaultChart kind={kind} title={title} xLabel={xLabel} yLabel={yLabel}
+          rows={rows} seriesNames={seriesNames} numericX={numericX}
+          selectionEnabled={selectionEnabled} selectedRowKey={selectedRowKey}
+          onSelect={writeSelection} resetToken={chartResetToken} t={t} />
+        {selectionError ? <VisualMessage message={selectionError} kind="alert" /> : null}
+        <Notes notes={notes} />
+      </VisualFrame>
+    </VisualShell>;
   }
 
   const toggleSeries = (position: number) => {
@@ -931,7 +954,7 @@ export function ChartView(context: LocalComponentContext) {
     color: SERIES_COLORS[position % SERIES_COLORS.length],
   }));
 
-  if (kind === 'donut') {
+  if (kind === 'donut' || kind === 'pie') {
     const values = rows.map((row) => row.values[0]);
     const positive = values.map((value) => (value !== null && value >= 0 ? value : 0));
     const visibleTotal = positive.reduce(
@@ -948,7 +971,7 @@ export function ChartView(context: LocalComponentContext) {
     if (visibleTotal <= 0) {
       return (
         <VisualShell context={context}>
-          <VisualFrame className="local-visual-chart local-visual-chart-donut" label={title}>
+          <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
             <VisualMessage message={t('No share to display', '暂无占比')} />
             <Notes notes={notes} />
             <ChartLegend
@@ -967,7 +990,7 @@ export function ChartView(context: LocalComponentContext) {
     const cx = 170;
     const cy = 120;
     const outer = 92;
-    const inner = 62;
+    const inner = kind === 'pie' ? 0 : 62;
     let angle = -Math.PI / 2;
     const slices: {
       key: string;
@@ -1008,7 +1031,7 @@ export function ChartView(context: LocalComponentContext) {
     return (
       <VisualShell context={context}>
         <VisualFrame
-          className={`local-visual-chart local-visual-chart-donut${staticMode ? ' local-static-chart' : ''}`}
+          className={`local-visual-chart local-visual-chart-${kind}${staticMode ? ' local-static-chart' : ''}`}
           label={title}
         >
           {staticMode ? null : (
@@ -1021,17 +1044,17 @@ export function ChartView(context: LocalComponentContext) {
               className="local-visual-svg"
               viewBox="0 0 340 240"
               role="group"
-              aria-label={t(`${title}, donut chart, ${rows.length} items`, `${title}，环形图，共 ${rows.length} 项`)}
+              aria-label={t(`${title}, ${kind} chart, ${rows.length} items`, `${title}，${kind === 'pie' ? '饼图' : '环形图'}，共 ${rows.length} 项`)}
               aria-describedby={staticMode ? undefined : readoutId}
             >
-              <g className="local-visual-donut-center" aria-hidden="true">
+              {kind === 'donut' ? <g className="local-visual-donut-center" aria-hidden="true">
                 <text x={cx} y={cy - 2} textAnchor="middle" className="local-visual-donut-total">
                   {formatNumber(visibleTotal)}
                 </text>
                 <text x={cx} y={cy + 18} textAnchor="middle" className="local-visual-donut-caption">
                   {truncate(seriesNames[0], 14)}
                 </text>
-              </g>
+              </g> : null}
               {slices.map((slice) => {
                 const selectable = selectionEnabled && slice.rowKey !== '';
                 const selected = selectable && slice.rowKey === selectedRowKey;
@@ -1081,10 +1104,10 @@ export function ChartView(context: LocalComponentContext) {
                       className={sliceClass}
                       cx={cx}
                       cy={cy}
-                      r={(outer + inner) / 2}
+                      r={kind === 'pie' ? outer : (outer + inner) / 2}
                       fill="none"
-                      style={{ stroke: slice.color }}
-                      strokeWidth={outer - inner}
+                      style={{ stroke: slice.color, fill: kind === 'pie' ? slice.color : 'none' }}
+                      strokeWidth={kind === 'pie' ? 0 : outer - inner}
                       {...markProps}
                     >
                       <title>{t(`${slice.label}: ${formatNumber(slice.value)}`, `${slice.label}：${formatNumber(slice.value)}`)}</title>

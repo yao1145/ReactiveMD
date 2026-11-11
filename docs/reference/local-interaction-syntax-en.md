@@ -353,15 +353,18 @@ Search is a case-insensitive substring match over the displayed text of all colu
 </chart>
 ```
 
-chart.kind defaults to bar and supports bar, line, area, scatter and donut. Supports optional title, x, y, x-label and y-label. x/y are static header names; y may be a comma-separated list of column names, so column names cannot contain commas.
+chart.kind defaults to bar and supports bar, line, area, scatter, donut and pie. Supports optional title, x, y, x-label and y-label. x/y are static header names; y may be a comma-separated list of column names, so column names cannot contain commas.
 
 | Type | Default column rules |
 | --- | --- |
 | bar, line, area | First column is the horizontal axis; other columns are numeric series |
 | scatter | First column is the numeric horizontal axis and the rest are numeric vertical axes; x/y may also specify them |
 | donut | First column is the label and second is the value; with more than two columns, y must specify the single numeric column |
+| pie | Uses the same table rules as donut, with solid slices to show shares |
 
-line/area determine the horizontal axis as numeric or categorical from the full column type and connect in source order. donut values must be non-negative, and a zero total shows "No share to display". Series names become legends automatically; pointer and keyboard readouts are provided by default without event logic.
+line/area determine the horizontal axis as numeric or categorical from the full column type and connect in source order. donut/pie values must be non-negative, and a zero total shows "No share to display". Series names become legends automatically; pointer and keyboard readouts are provided by default without event logic.
+
+Interactive default-theme charts provide themed tooltips, legend highlighting and 200ms data transitions. Line and area charts read visible series in the same row; bars read one hovered bar; scatter charts find the nearest point; pie and donut charts show values and shares of the visible total. Static mode keeps the data graphics and removes hover interaction and animation.
 
 Numeric columns update with parameters. Calculation errors display in the corresponding chart and are not replaced with 0. With `key`, a chart can expose selection through `bind`, using the same stable row-key rules as `table`; a table and chart may share that binding only when their ordered keys match.
 

@@ -1,0 +1,26 @@
+body { margin: 0; }
+.rmd-chart-acceptance { box-sizing: border-box; min-height: 100vh; padding: 36px 24px; background: var(--paper); color: var(--ink); font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
+.rmd-chart-acceptance * { box-sizing: border-box; }
+.acceptance-wrap { max-width: 1100px; margin: auto; }
+.acceptance-header { display: flex; align-items: center; justify-content: space-between; gap: 28px; margin-bottom: 28px; }
+.eyebrow { margin: 0 0 12px; color: var(--accent-text); font-size: 11px; font-weight: 650; letter-spacing: .13em; }
+.acceptance-header h1 { margin: 0; font-size: clamp(25px, 3vw, 34px); font-weight: 650; letter-spacing: -.03em; }
+.intro { margin: 12px 0 0; font-size: 13px; line-height: 1.8; color: var(--ink-muted); }
+.host-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.host-actions button { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px 13px; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.host-actions button:hover { background: var(--surface-hover); }
+.host-actions button:focus-visible, .source-panel summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.document-shell { min-width: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); padding: clamp(18px, 3vw, 32px); }
+.document-shell article.md-document { max-width: none; }
+.document-shell .local-panel { margin-top: 0; }
+.acceptance-hints { display: flex; flex-wrap: wrap; gap: 12px 26px; margin: 20px 0; font-size: 12px; color: var(--ink-muted); }
+.source-panel { color: var(--ink-muted); font-size: 12px; }
+.source-panel summary { cursor: pointer; width: fit-content; }
+.source-panel pre { overflow: auto; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; line-height: 1.8; }
+@media (max-width: 700px) {
+  .rmd-chart-acceptance { padding: 24px 12px; }
+  .acceptance-header { flex-direction: column; align-items: flex-start; gap: 18px; }
+  .document-shell { padding: 14px; } .intro { font-size: 12px; }
+  .document-shell .local-tablist { overflow-x: auto; scrollbar-width: thin; }
+  .document-shell .local-tab { flex: 0 0 auto; min-inline-size: 76px; }
+}

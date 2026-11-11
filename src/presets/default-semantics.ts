@@ -652,7 +652,7 @@ const tableDef = definition('table', 'container', {
 
 const chartDef = definition('chart', 'container', {
   props: {
-    kind: props.choice(['bar', 'line', 'area', 'scatter', 'donut'], { static: true, default: 'bar' }),
+    kind: props.choice(['bar', 'line', 'area', 'scatter', 'donut', 'pie'], { static: true, default: 'bar' }),
     title: optionalTitle(),
     x: props.staticText(),
     y: props.staticText(),

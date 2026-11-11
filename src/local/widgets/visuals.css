@@ -486,16 +486,19 @@ table.local-visual-table {
 /* Donut: a centred ring rendered at about 184px across in a 340px-wide box.
    Its dedicated 340x240 viewBox leaves the wide cartesian charts untouched and
    keeps the centre total and caption readable inside the ring. */
-.local-visual-chart-donut .local-visual-svg-wrap {
+.local-visual-chart-donut .local-visual-svg-wrap,
+.local-visual-chart-pie .local-visual-svg-wrap {
   display: flex;
   justify-content: center;
 }
 
-.local-visual-chart-donut .local-visual-svg {
+.local-visual-chart-donut .local-visual-svg,
+.local-visual-chart-pie .local-visual-svg {
   max-width: 340px;
 }
 
-.local-visual-chart-donut .local-visual-legend {
+.local-visual-chart-donut .local-visual-legend,
+.local-visual-chart-pie .local-visual-legend {
   justify-content: center;
 }
 

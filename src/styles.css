@@ -22,6 +22,7 @@
 @import './themes/default/spacing.css';
 @import './themes/default/uiarc-refinements.css';
 @import './themes/default/text-overflow.css';
+@import './themes/default/chart-interactions.css';
 /* Load density last so explicit data-rmd-density overrides the default theme
    token block at equal attribute specificity. */
 @import './appearance.css';
