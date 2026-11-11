@@ -41,6 +41,11 @@ export interface CreateLocalRuntimeServicesOptions {
   readonly componentState?: unknown;
   /** Persistence port for component state; omitted keeps everything in memory. */
   readonly componentStateStorage?: LocalComponentStateStorage;
+  /**
+   * Coalesce component-state writes; see
+   * `CreateLocalComponentStateRegistryOptions.writeDelayMs`.
+   */
+  readonly componentStateWriteDelayMs?: number;
   /** Keys currently present in the document; unknown saved keys are skipped. */
   readonly knownStateKeys?: ReadonlySet<string> | (() => ReadonlySet<string>);
   /** Current semantic configuration key written to and checked against sidecars. */
@@ -81,6 +86,9 @@ export function createLocalRuntimeServices(
       sourceDigest: options.sourceDigest,
       initial: options.componentState,
       ...(options.componentStateStorage === undefined ? {} : { storage: options.componentStateStorage }),
+      ...(options.componentStateWriteDelayMs === undefined
+        ? {}
+        : { writeDelayMs: options.componentStateWriteDelayMs }),
       ...(options.knownStateKeys === undefined ? {} : { knownKeys: options.knownStateKeys }),
       ...(options.configKey === undefined ? {} : { configKey: options.configKey }),
       ...(options.legacyConfigKeys === undefined ? {} : { legacyConfigKeys: options.legacyConfigKeys }),

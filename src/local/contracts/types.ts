@@ -425,6 +425,13 @@ export interface LocalRuntimeOptions {
    */
   readonly componentStateStorage?: LocalComponentStateStorage;
   /**
+   * Coalesce component-state writes. Memory updates immediately; a positive
+   * delay writes the stored sidecar at most once per window. Call
+   * `runtime.services.state.flush()` when the page is hidden. Defaults to 0
+   * (write after every save or clear).
+   */
+  readonly componentStateWriteDelayMs?: number;
+  /**
    * Current semantic configuration key. It is written into component-state
    * snapshots and a restored sidecar must match it or one of
    * `legacyConfigKeys`. Omitted keeps the sidecar identity unverified.

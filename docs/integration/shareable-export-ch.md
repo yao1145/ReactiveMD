@@ -140,7 +140,7 @@ Demo 导出对话框可以把当前预览参数下载为状态文件，供后续
 - 静态导出不运行组件，`--component-state-file` 与 `--mode static` 互斥。
 - 单独使用 `--document-id` 或 `--random-seed` 不需要 sidecar；它们同样作用于导出 HTML 的组件身份和随机流。
 
-宿主可以用 `reactive-md/runtime` 的 `createLocalComponentStateRegistry` 生成或校验 sidecar，用 `resolveLocalComponentStateExport` 按导出的文档身份过滤记录。持久化后端是可替换的端口：`reactive-md/runtime/browser` 提供 Web Storage 实现，宿主也可以传入自己的 `componentStateStorage`。
+宿主可以用 `reactive-md/runtime` 的 `createLocalComponentStateRegistry` 生成或校验 sidecar，用 `resolveLocalComponentStateExport` 按导出的文档身份过滤记录。持久化后端是可替换的端口：`reactive-md/runtime/browser` 提供 Web Storage 实现，宿主也可以传入自己的 `componentStateStorage`。高频保存可传入 `componentStateWriteDelayMs`（例如 `200`）：内存状态立即更新，完整 sidecar 在每个时间窗内最多序列化并写入一次。页面隐藏或运行时被替换时调用 `runtime.services.state.flush()` 补写；`reactive-md/runtime/browser` 的 `flushComponentStateOnPageHide` 可以绑定浏览器事件。
 
 ## 外部数据与宿主组件
 

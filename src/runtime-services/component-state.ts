@@ -108,15 +108,17 @@ export interface LocalComponentStateRegistry {
   clear(key: string): void;
   snapshot(): LocalComponentStateDocument;
   restore(input: unknown): LocalComponentStateRestoreResult;
+  /** Write any pending sidecar now instead of waiting for `writeDelayMs`. */
+  flush(): void;
   diagnostics(): readonly Diagnostic[];
   subscribe(listener: () => void): () => void;
 }
 
 /**
  * Persistence port. The registry owns the save protocol and calls this after
- * every successful save or clear; it never syncs across tabs and never reads
- * after creation. Implementations may be in-memory, browser storage or a host
- * service.
+ * every successful save or clear; with `writeDelayMs` it may call once for
+ * several changes. It never syncs across tabs and never reads after creation.
+ * Implementations may be in-memory, browser storage or a host service.
  */
 export interface LocalComponentStateStorage {
   /**
@@ -457,6 +459,14 @@ export interface CreateLocalComponentStateRegistryOptions {
    */
   readonly storage?: LocalComponentStateStorage;
   /**
+   * Coalesce persistence writes. Memory always updates immediately; with a
+   * positive delay the complete sidecar is written at most once per window, so
+   * high-frequency saves do not serialize and store on every change. Call
+   * `flush()` to write pending state now, for example on `pagehide`. Defaults
+   * to 0, which writes synchronously after every save or clear.
+   */
+  readonly writeDelayMs?: number;
+  /**
    * Keys currently present in the document. A function is evaluated at each
    * restore so live document updates are reflected.
    */
@@ -481,6 +491,10 @@ export function createLocalComponentStateRegistry(
     throw new TypeError('configKey must be a non-empty bounded string.');
   }
   const legacyConfigKeys = Object.freeze((options.legacyConfigKeys ?? []).filter(isConfigKey));
+  const writeDelayMs = options.writeDelayMs ?? 0;
+  if (typeof writeDelayMs !== 'number' || !Number.isFinite(writeDelayMs) || writeDelayMs < 0) {
+    throw new TypeError('writeDelayMs must be a non-negative finite number.');
+  }
   const records = new Map<string, LocalComponentStateRecord>();
   const owners = new Map<string, string>();
   const duplicateKeys = new Set<string>();
@@ -489,29 +503,64 @@ export function createLocalComponentStateRegistry(
   const storage = options.storage;
   /** Last storage failure; repeating the same message does not add diagnostics. */
   let storageFailure: string | null = null;
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let persistPending = false;
 
   const notify = (): void => {
     for (const listener of listeners) listener();
   };
 
-  function persistSidecar(): void {
-    if (storage === undefined) return;
+  function persistSidecar(): boolean {
+    if (storage === undefined) return true;
     try {
       const document = registry.snapshot();
       if (Object.keys(document.records).length === 0) storage.remove();
       else storage.write(document);
       storageFailure = null;
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (message === storageFailure) return;
-      storageFailure = message;
-      diagnostics.push(diagnostic(
-        'local.runtime.state.storage',
-        `The component state could not be persisted: ${message}`,
-        'warning',
-      ));
+      if (message !== storageFailure) {
+        storageFailure = message;
+        diagnostics.push(diagnostic(
+          'local.runtime.state.storage',
+          `The component state could not be persisted: ${message}`,
+          'warning',
+        ));
+      }
+      return false;
     }
   }
+
+  const clearPersistTimer = (): void => {
+    if (persistTimer === null) return;
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  };
+
+  /**
+   * Write pending state now. A failed backend keeps the pending flag so the
+   * next save, flush or disposal retries instead of dropping the last save.
+   */
+  function flushPersist(): void {
+    if (!persistPending) return;
+    clearPersistTimer();
+    if (persistSidecar()) persistPending = false;
+  }
+
+  const schedulePersist = (): void => {
+    if (storage === undefined) return;
+    if (writeDelayMs <= 0) {
+      persistSidecar();
+      return;
+    }
+    persistPending = true;
+    if (persistTimer !== null) return;
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      flushPersist();
+    }, Math.min(writeDelayMs, 2_147_483_647));
+  };
 
   const totalBytes = (excluding?: string): number => {
     let total = 0;
@@ -595,15 +644,17 @@ export function createLocalComponentStateRegistry(
             };
           }
           records.set(key, normalized.record);
+          // Mark the write first: a subscriber may replace this runtime and
+          // flush or dispose it before notify() returns.
+          schedulePersist();
           notify();
-          persistSidecar();
           return { ok: true, diagnostics: [], record: cloneRecord(normalized.record) };
         },
         clear(): void {
           if (duplicate) return;
           if (records.delete(key)) {
+            schedulePersist();
             notify();
-            persistSidecar();
           }
         },
       };
@@ -617,8 +668,8 @@ export function createLocalComponentStateRegistry(
 
     clear(key): void {
       if (records.delete(key)) {
+        schedulePersist();
         notify();
-        persistSidecar();
       }
     },
 
@@ -677,6 +728,10 @@ export function createLocalComponentStateRegistry(
         skipped: parsed.skipped,
         diagnostics: parsed.diagnostics,
       };
+    },
+
+    flush(): void {
+      flushPersist();
     },
 
     diagnostics(): readonly Diagnostic[] {

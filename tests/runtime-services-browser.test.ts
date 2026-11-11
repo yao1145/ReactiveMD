@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LOCAL_COMPONENT_STATE_STORAGE_PREFIX,
   createLocalBrowserStateStorage,
+  flushComponentStateOnPageHide,
 } from '../src/runtime-services/browser';
 import {
   LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
@@ -90,5 +91,59 @@ describe('browser component state storage', () => {
   it('leaves an unavailable default storage to the caller', () => {
     expect(() => createLocalBrowserStateStorage({ documentId: 'doc' }))
       .toThrow(/localStorage is unavailable/);
+  });
+});
+
+function lifecycleTarget(initialVisibility = 'visible') {
+  const listeners = new Map<string, Set<() => void>>();
+  return {
+    visibilityState: initialVisibility,
+    addEventListener(type: string, listener: () => void): void {
+      const set = listeners.get(type) ?? new Set();
+      set.add(listener);
+      listeners.set(type, set);
+    },
+    removeEventListener(type: string, listener: () => void): void {
+      listeners.get(type)?.delete(listener);
+    },
+    dispatch(type: string): void {
+      for (const listener of listeners.get(type) ?? []) listener();
+    },
+    count(type: string): number {
+      return listeners.get(type)?.size ?? 0;
+    },
+  };
+}
+
+describe('component state page lifecycle', () => {
+  it('flushes on pagehide and when the page becomes hidden', () => {
+    const page = lifecycleTarget();
+    const document = lifecycleTarget();
+    let flushes = 0;
+    const dispose = flushComponentStateOnPageHide({ flush: () => { flushes += 1; } }, { page, document });
+
+    page.dispatch('pagehide');
+    expect(flushes).toBe(1);
+
+    document.visibilityState = 'visible';
+    document.dispatch('visibilitychange');
+    expect(flushes).toBe(1);
+    document.visibilityState = 'hidden';
+    document.dispatch('visibilitychange');
+    expect(flushes).toBe(2);
+
+    dispose();
+    page.dispatch('pagehide');
+    document.dispatch('visibilitychange');
+    expect(flushes).toBe(2);
+    expect(page.count('pagehide')).toBe(0);
+    expect(document.count('visibilitychange')).toBe(0);
+    dispose();
+  });
+
+  it('does nothing without a browser document', () => {
+    const dispose = flushComponentStateOnPageHide({ flush: () => {} });
+    expect(typeof dispose).toBe('function');
+    dispose();
   });
 });

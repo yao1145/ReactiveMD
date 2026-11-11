@@ -802,6 +802,9 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     ...(options?.componentStateStorage === undefined
       ? {}
       : { componentStateStorage: options.componentStateStorage }),
+    ...(options?.componentStateWriteDelayMs === undefined
+      ? {}
+      : { componentStateWriteDelayMs: options.componentStateWriteDelayMs }),
     ...(options?.configKey === undefined ? {} : { configKey: options.configKey }),
     ...(options?.legacyConfigKeys === undefined ? {} : { legacyConfigKeys: options.legacyConfigKeys }),
     ...(ownsServices ? { knownStateKeys } : {}),
@@ -1517,6 +1520,8 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     dispose(): void {
       if (disposed) return;
       disposed = true;
+      // Coalesced saves would otherwise be dropped when a preview is replaced.
+      services.state.flush();
       if (ownsServices) services.scheduler.dispose();
       listeners.clear();
       expressions.clear();

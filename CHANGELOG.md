@@ -10,7 +10,7 @@ Split the editor into reactive-md-editor and the Demo into independent repositor
 
 - `reactive-md/runtime`: document and component identity, serializable seeded randomness, injected clock/scheduler, and the component-state protocol with budgets.
 - `reactive-md/react/runtime`: `useTicker`, `useFrame`, `useSwipe`, `useKeys` and `useComponentState`.
-- `reactive-md/runtime/browser`: a Web Storage persistence backend; the component-state registry accepts any `LocalComponentStateStorage` and persists after save or clear.
+- `reactive-md/runtime/browser`: a Web Storage persistence backend; the component-state registry accepts any `LocalComponentStateStorage` and persists after save or clear. Pass `componentStateWriteDelayMs` to coalesce high-frequency saves; `state.flush()` writes pending state, and `flushComponentStateOnPageHide` flushes on `pagehide` and `visibilitychange`. Runtime disposal also flushes pending state; a failed backend keeps the latest state pending so the next save, flush or disposal retries it.
 - `reactive-md build` gains `--component-state-file`, `--document-id` and `--random-seed`. Interactive exports embed the validated component-state sidecar in the auto-mount payload; static output rejects it.
 - `LocalRuntimeOptions` accepts `documentId`, `randomSeed`, `componentState` and injected `services`; `LocalReactiveDocument` exposes matching props plus `onComponentStateChange`.
 - Component contexts gain `services.random`, `services.clock`, `services.scheduler` and `services.state`. Random state stays saveable and replayable; the scheduler handles page visibility.

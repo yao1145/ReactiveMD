@@ -215,6 +215,13 @@ export interface LocalReactiveDocumentProps {
    * sidecar or remount instead.
    */
   componentStateStorage?: LocalComponentStateStorage;
+  /**
+   * Coalesce component-state writes. Memory updates immediately; a positive
+   * delay writes the stored sidecar at most once per window and flushes it when
+   * the page is hidden or the runtime is disposed. Defaults to 0 (write after
+   * every save or clear).
+   */
+  componentStateWriteDelayMs?: number;
   /** Called when a component explicitly saves or clears its state. */
   onComponentStateChange?: (state: LocalComponentStateDocument) => void;
   /**
@@ -2411,6 +2418,7 @@ export function LocalReactiveDocument({
   randomSeed,
   componentState,
   componentStateStorage,
+  componentStateWriteDelayMs,
   onComponentStateChange,
   initialParameters,
   onParametersChange,
@@ -2453,6 +2461,8 @@ export function LocalReactiveDocument({
   componentStateRef.current = componentState;
   const componentStateStorageRef = useRef(componentStateStorage);
   componentStateStorageRef.current = componentStateStorage;
+  const componentStateWriteDelayMsRef = useRef(componentStateWriteDelayMs);
+  componentStateWriteDelayMsRef.current = componentStateWriteDelayMs;
   const onComponentStateChangeRef = useRef(onComponentStateChange);
   onComponentStateChangeRef.current = onComponentStateChange;
   const initialParametersRef = useRef(initialParameters);
@@ -2474,6 +2484,9 @@ export function LocalReactiveDocument({
       ...(componentStateStorageRef.current === undefined
         ? {}
         : { componentStateStorage: componentStateStorageRef.current }),
+      ...(componentStateWriteDelayMsRef.current === undefined
+        ? {}
+        : { componentStateWriteDelayMs: componentStateWriteDelayMsRef.current }),
       ...((runtimeConfigKey ?? document.componentConfigKey) === undefined
         ? {}
         : { configKey: runtimeConfigKey ?? document.componentConfigKey }),
@@ -2523,6 +2536,8 @@ export function LocalReactiveDocument({
     if (runtime && runtimeOptionsKey.current !== runtimeKey) {
       // Host options (including HTML capabilities) may change document
       // semantics, so the previous runtime is released rather than migrated.
+      // Flush before the replacement reads storage again.
+      try { runtime.services?.state.flush(); } catch { /* Disposal is best-effort. */ }
       retiredRuntimes.current.push(runtime);
       runtime = null;
       runtimeRef.current = null;
@@ -2546,6 +2561,7 @@ export function LocalReactiveDocument({
         adopted = false;
       }
       if (!adopted) {
+        try { runtime.services?.state.flush(); } catch { /* Disposal is best-effort. */ }
         retiredRuntimes.current.push(runtime);
         let replacement: LocalRuntime | null = null;
         try {
@@ -2756,6 +2772,21 @@ export function LocalReactiveDocument({
       onComponentStateChangeRef.current?.(services.state.snapshot());
     });
   }, [runtime, onComponentStateChange]);
+
+  useEffect(() => {
+    const state = runtime?.services?.state;
+    if (state === undefined) return;
+    const flush = (): void => state.flush();
+    const onVisibilityChange = (): void => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [runtime]);
 
   if (!result.ok || !runtime) {
     const options = readLocalCompileOptions(effectiveCompileOptions);

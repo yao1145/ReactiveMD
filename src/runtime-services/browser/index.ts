@@ -42,6 +42,62 @@ export const LOCAL_COMPONENT_STATE_STORAGE_PREFIX = 'reactive-md:component-state
 
 const MAX_KEY_PREFIX_LENGTH = 128;
 
+/** Anything that can write pending component state now. */
+export interface ComponentStateFlushTarget {
+  flush(): void;
+}
+
+interface PageLifecycleTarget {
+  addEventListener(type: string, listener: () => void): void;
+  removeEventListener(type: string, listener: () => void): void;
+}
+
+interface VisibilityLifecycleTarget extends PageLifecycleTarget {
+  readonly visibilityState: string;
+}
+
+export interface ComponentStatePageLifecycle {
+  /** Window-like object that receives `pagehide`; defaults to the global window. */
+  readonly page?: PageLifecycleTarget;
+  /** Document-like object that receives `visibilitychange`; defaults to the global document. */
+  readonly document?: VisibilityLifecycleTarget;
+}
+
+/**
+ * Flush pending component-state writes when the page is hidden or unloaded.
+ * Timers stop in the background, so the last coalesced save would otherwise
+ * wait for the next visible frame. Returns a disposer that only unsubscribes;
+ * the runtime flushes on disposal.
+ */
+export function flushComponentStateOnPageHide(
+  target: ComponentStateFlushTarget,
+  lifecycle: ComponentStatePageLifecycle = {},
+): () => void {
+  const scope = globalThis as unknown as Partial<PageLifecycleTarget> & {
+    readonly document?: VisibilityLifecycleTarget;
+  };
+  const page = lifecycle.page
+    ?? (typeof scope.addEventListener === 'function' ? scope as PageLifecycleTarget : undefined);
+  const document_ = lifecycle.document
+    ?? (typeof scope.document?.addEventListener === 'function' ? scope.document : undefined);
+  if (page === undefined || document_ === undefined) return () => {};
+  const flush = (): void => {
+    target.flush();
+  };
+  const onVisibilityChange = (): void => {
+    if (document_.visibilityState === 'hidden') flush();
+  };
+  page.addEventListener('pagehide', flush);
+  document_.addEventListener('visibilitychange', onVisibilityChange);
+  let disposed = false;
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    page.removeEventListener('pagehide', flush);
+    document_.removeEventListener('visibilitychange', onVisibilityChange);
+  };
+}
+
 function browserStorage(): LocalWebStorageLike {
   let candidate: unknown;
   try {
@@ -66,7 +122,8 @@ function browserStorage(): LocalWebStorageLike {
 /**
  * Persist one document's component-state sidecar in Web Storage. The backend
  * performs no cross-tab synchronization: the registry reads once at creation
- * and writes the complete sidecar after each save or clear.
+ * and hands this backend a complete sidecar whenever it writes. Create the
+ * registry with `writeDelayMs` to coalesce high-frequency saves.
  */
 export function createLocalBrowserStateStorage(
   options: CreateLocalBrowserStateStorageOptions,

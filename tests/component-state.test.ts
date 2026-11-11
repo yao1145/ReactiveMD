@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
   LOCAL_COMPONENT_STATE_FORMAT,
   MAX_COMPONENT_STATE_BYTES,
   createLocalComponentStateRegistry,
   parseLocalComponentStateDocument,
+  type LocalComponentStateDocument,
 } from '../src/runtime-services';
 import { createRandom } from '../src/runtime-services';
 
@@ -351,6 +352,158 @@ describe('component state persistence port', () => {
     handle.clear();
     expect(storage.removes).toBe(1);
     expect(storage.value).toBeNull();
+  });
+
+  it('coalesces rapid saves into one write when a delay is configured', () => {
+    vi.useFakeTimers();
+    try {
+      const storage = memoryStorage();
+      const registry = createLocalComponentStateRegistry({
+        documentId: 'doc',
+        sourceDigest,
+        storage,
+        writeDelayMs: 200,
+      });
+      const handle = registry.handle({
+        nodeId: 'local-1',
+        component: 'example/game',
+        componentVersion: '1.0.0',
+      });
+      handle.save({ score: 1 });
+      handle.save({ score: 2 });
+      handle.save({ score: 3 });
+      expect(handle.load()?.data).toEqual({ score: 3 });
+      expect(storage.writes).toBe(0);
+
+      vi.advanceTimersByTime(199);
+      expect(storage.writes).toBe(0);
+      vi.advanceTimersByTime(1);
+      expect(storage.writes).toBe(1);
+      expect(JSON.parse(storage.value ?? '{}').records[handle.key].data).toEqual({ score: 3 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('flushes pending writes immediately and coalesces clears', () => {
+    vi.useFakeTimers();
+    try {
+      const storage = memoryStorage();
+      const registry = createLocalComponentStateRegistry({
+        documentId: 'doc',
+        sourceDigest,
+        storage,
+        writeDelayMs: 200,
+      });
+      const handle = registry.handle({
+        nodeId: 'local-1',
+        component: 'example/game',
+        componentVersion: '1.0.0',
+      });
+      handle.save({ score: 1 });
+      registry.flush();
+      expect(storage.writes).toBe(1);
+      vi.advanceTimersByTime(200);
+      expect(storage.writes).toBe(1);
+      expect(registry.flush()).toBeUndefined();
+
+      handle.save({ score: 2 });
+      handle.clear();
+      expect(storage.removes).toBe(0);
+      vi.advanceTimersByTime(200);
+      expect(storage.removes).toBe(1);
+      expect(storage.value).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries a failed write on the next flush', () => {
+    vi.useFakeTimers();
+    try {
+      let fail = true;
+      let writes = 0;
+      const values = new Map<string, string>();
+      const storage = {
+        read: () => null,
+        write(document: LocalComponentStateDocument): void {
+          writes += 1;
+          if (fail) throw new Error('quota exceeded');
+          values.set('sidecar', JSON.stringify(document));
+        },
+        remove(): void {
+          values.delete('sidecar');
+        },
+      };
+      const registry = createLocalComponentStateRegistry({
+        documentId: 'doc',
+        sourceDigest,
+        storage,
+        writeDelayMs: 200,
+      });
+      const handle = registry.handle({
+        nodeId: 'local-1',
+        component: 'example/game',
+        componentVersion: '1.0.0',
+      });
+      handle.save({ score: 1 });
+      vi.advanceTimersByTime(200);
+      expect(writes).toBe(1);
+      expect(values.size).toBe(0);
+
+      // The backend recovers; the pending flag must survive the failure.
+      fail = false;
+      registry.flush();
+      expect(writes).toBe(2);
+      expect(JSON.parse(values.get('sidecar') ?? '{}').records[handle.key].data).toEqual({ score: 1 });
+      registry.flush();
+      expect(writes).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('persists a save before notifying subscribers', () => {
+    vi.useFakeTimers();
+    try {
+      const storage = memoryStorage();
+      const registry = createLocalComponentStateRegistry({
+        documentId: 'doc',
+        sourceDigest,
+        storage,
+        writeDelayMs: 200,
+      });
+      const handle = registry.handle({
+        nodeId: 'local-1',
+        component: 'example/game',
+        componentVersion: '1.0.0',
+      });
+      let restoredData: unknown;
+      registry.subscribe(() => {
+        // A host may replace the runtime from a notification.
+        registry.flush();
+        restoredData = createLocalComponentStateRegistry({ documentId: 'doc', sourceDigest, storage })
+          .load(handle.key)?.data;
+      });
+
+      handle.save({ score: 2 });
+      expect(storage.writes).toBe(1);
+      expect(restoredData).toEqual({ score: 2 });
+      vi.advanceTimersByTime(200);
+      expect(storage.writes).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rejects an invalid write delay', () => {
+    for (const writeDelayMs of [-1, Number.NaN, Number.POSITIVE_INFINITY, '200']) {
+      expect(() => createLocalComponentStateRegistry({
+        documentId: 'doc',
+        sourceDigest,
+        writeDelayMs: writeDelayMs as unknown as number,
+      })).toThrow(/writeDelayMs/);
+    }
   });
 
   it('persists the current config key with every save', () => {

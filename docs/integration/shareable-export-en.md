@@ -142,7 +142,7 @@ An interactive export embeds the sidecar in the auto-mount payload; the runtime 
 - Static output runs no component runtime, so `--component-state-file` cannot be combined with `--mode static`.
 - `--document-id` and `--random-seed` also work without a sidecar; they set the identity and random stream of the exported HTML.
 
-Hosts can produce or validate a sidecar with `createLocalComponentStateRegistry` from `reactive-md/runtime`, and filter records for one export identity with `resolveLocalComponentStateExport`. Persistence is a replaceable port: `reactive-md/runtime/browser` provides a Web Storage backend, and hosts may pass their own `componentStateStorage`.
+Hosts can produce or validate a sidecar with `createLocalComponentStateRegistry` from `reactive-md/runtime`, and filter records for one export identity with `resolveLocalComponentStateExport`. Persistence is a replaceable port: `reactive-md/runtime/browser` provides a Web Storage backend, and hosts may pass their own `componentStateStorage`. For high-frequency saves, pass `componentStateWriteDelayMs` (for example `200`): memory updates immediately, but the complete sidecar is serialized and stored at most once per window. Call `runtime.services.state.flush()` when the page is hidden or the runtime is replaced; `flushComponentStateOnPageHide` from `reactive-md/runtime/browser` wires the browser events.
 
 ## External data and host components
 
