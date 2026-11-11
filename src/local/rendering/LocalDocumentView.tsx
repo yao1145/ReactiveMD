@@ -1,3 +1,5 @@
+import { DefaultThemeProvider } from '../../react/default-theme';
+import { OverflowTextTooltip } from '../../react/overflow-text-tooltip';
 import {
   Component,
   createContext,
@@ -1891,10 +1893,22 @@ function HtmlDetailsView({ node, visible }: LocalComponentProps) {
             aria-controls={panelId}
             onClick={() => setOpen((value) => !value)}
           >
-            <span className={`local-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
-              ▸
-            </span>
-            <span>{summaryContent}</span>
+            <span className="local-disclosure-label">{summaryContent}</span>
+            <svg
+              className={`local-chevron${open ? ' is-open' : ''}`}
+              viewBox="0 0 24 24"
+              width="17"
+              height="17"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </button>
           <PrintValue value={summaryContent} />
         </h3>
@@ -1905,7 +1919,7 @@ function HtmlDetailsView({ node, visible }: LocalComponentProps) {
           aria-labelledby={triggerId}
           hidden={!open}
         >
-          {render(body, visible && open)}
+          <div className="local-disclosure-body">{render(body, visible && open)}</div>
         </div>
       </div>
     </div>
@@ -2209,7 +2223,7 @@ function LocalDocumentViewLocal({
     if (event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const origin = event.target;
     if (!(origin instanceof Element)) return;
-    if (origin.closest('input, textarea, select, button, a, summary, [contenteditable="true"], [role="button"]')) return;
+    if (origin.closest('input, textarea, select, button, a, summary, [contenteditable="true"], [role="button"], [role="listbox"], [role="option"], [role="menu"], [role="dialog"]')) return;
     const target = origin.closest<HTMLElement>('[data-rmd-source-start]');
     if (!target || !rootRef.current?.contains(target)) return;
     const selection = typeof window === 'undefined' ? null : window.getSelection();
@@ -2348,6 +2362,7 @@ function LocalDocumentViewLocal({
 
   return (
     <LocalLocaleProvider locale={locale}>
+      <DefaultThemeProvider name={theme.name}>
       <article
         ref={rootRef}
         className={`md-document local-document${renderedMode === 'static' ? ' local-static' : ''}`}
@@ -2385,8 +2400,10 @@ function LocalDocumentViewLocal({
               titleId={`${instanceId}-footnotes-title`}
             />
           ) : null}
+          <OverflowTextTooltip rootRef={rootRef} enabled={theme.name === 'default' && renderedMode !== 'static'} />
         </LocalViewContext.Provider>
       </article>
+      </DefaultThemeProvider>
     </LocalLocaleProvider>
   );
 }

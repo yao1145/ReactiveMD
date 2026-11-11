@@ -89,7 +89,13 @@
 
   /* Built-ins provide print summaries; external native fields retain their
      current values and browser rendering. */
-  .md-document .md-control:has(.local-print-value) :is(input, select, textarea):not(.md-task-checkbox) {
+  .md-document .md-control:has(.local-print-value) :is(input, select, textarea, button):not(.md-task-checkbox) {
+    display: none !important;
+  }
+
+  /* Open menus and calendar popovers never belong on paper. */
+  .md-document [data-radix-popper-content-wrapper],
+  .md-document [data-rmd-date-popover] {
     display: none !important;
   }
 

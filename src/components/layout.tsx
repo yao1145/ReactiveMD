@@ -426,10 +426,22 @@ export function DisclosureView(context: LocalComponentContext) {
           aria-controls={panelId}
           onClick={() => setOpen((value) => !value)}
         >
-          <span className={`local-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
-            ▸
-          </span>
-          <span>{label}</span>
+          <span className="local-disclosure-label">{label}</span>
+          <svg
+            className={`local-chevron${open ? ' is-open' : ''}`}
+            viewBox="0 0 24 24"
+            width="17"
+            height="17"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
         </button>
         <PrintValue value={label} />
       </h3>
@@ -441,7 +453,7 @@ export function DisclosureView(context: LocalComponentContext) {
         hidden={!open}
         inert={!open}
       >
-        {view.render(undefined, visible)}
+        <div className="local-disclosure-body">{view.render(undefined, visible)}</div>
       </div>
     </div>
   );
@@ -537,7 +549,7 @@ export function BadgeView(context: LocalComponentContext) {
         className={`md-badge md-badge-${tone} local-badge`}
         style={color ? { color } : undefined}
       >
-        {view.renderInline()}
+        <span className="md-badge-label">{view.renderInline()}</span>
       </span>
     </>
   );

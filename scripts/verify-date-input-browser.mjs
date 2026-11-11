@@ -15,14 +15,23 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`${server.resolvedUrls.local[0]}tests/browser/date-input-fixture.html`);
-  await expect(page.getByLabel('活动日期', { exact: true })).toHaveValue('2026-11-01');
 
+  const trigger = (label) => page.getByLabel(label, { exact: true });
+  const field = trigger('活动日期');
+  await expect(field).toHaveAttribute('aria-haspopup', 'dialog');
+  await expect(field).toContainText('2026');
+  await expect(trigger('Disabled date')).toBeDisabled();
+
+  // The default theme renders the UIArc date picker: a button trigger with a
+  // calendar dialog instead of a native date input.
   const assertLayout = async (label) => {
-    const overflows = await page.locator('input[type="date"]').evaluateAll(inputs => inputs.flatMap(input => {
-      const field = input.parentElement.getBoundingClientRect();
-      const rect = input.getBoundingClientRect();
-      return rect.left < field.left - 1 || rect.right > field.right + 1
-        ? [{ label: input.labels[0].textContent, width: rect.width, available: field.width }] : [];
+    const overflows = await page.locator('button[aria-haspopup="dialog"]').evaluateAll(buttons => buttons.flatMap(button => {
+      const control = button.closest('.md-control');
+      if (!control) return [];
+      const available = control.getBoundingClientRect();
+      const rect = button.getBoundingClientRect();
+      return rect.left < available.left - 1 || rect.right > available.right + 1
+        ? [{ label: button.getAttribute('aria-label') ?? button.textContent, width: rect.width, available: available.width }] : [];
     }));
     assert.deepEqual(overflows, [], label);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${label}: page overflow`);
@@ -38,22 +47,32 @@ try {
     await assertLayout(`${engine} host ${width}`);
   }
   await page.locator('#root').evaluate(root => { root.style.removeProperty('width'); });
-  const date = page.getByLabel('Empty date', { exact: true });
-  await expect(date).toHaveAttribute('min', '2026-01-01');
-  await expect(date).toHaveAttribute('max', '2026-12-31');
-  await expect(page.getByLabel('Disabled date', { exact: true })).toBeDisabled();
-  await date.fill('2026-10-24');
-  await expect(page.locator('article')).toContainText('Selected date: 2026-10-24');
+
+  const empty = trigger('Empty date');
+  await expect(empty).toContainText('请选择日期');
+  await empty.click();
+  await expect(page.getByRole('dialog', { name: 'Empty date calendar' })).toBeVisible();
+  await page.getByRole('button', { name: /^今天/ }).click();
+  const today = await page.evaluate(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
+  await expect(page.getByRole('dialog', { name: 'Empty date calendar' })).toBeHidden();
+  await expect(page.locator('article')).toContainText(`Selected date: ${today}`);
   await assertLayout('populated date');
-  await date.fill('');
-  await expect(date).toHaveValue('');
+
+  await empty.click();
+  await page.getByRole('button', { name: '清除', exact: true }).click();
+  await expect(page.locator('article')).toContainText('Selected date:');
+  await expect(empty).toContainText('请选择日期');
   await assertLayout('cleared date');
-  await date.focus();
-  await expect(date).toBeFocused();
+
+  await empty.focus();
+  await expect(empty).toBeFocused();
   await page.emulateMedia({ colorScheme: 'dark' });
   await assertLayout('dark mode');
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.getByLabel('活动日期', { exact: true }).scrollIntoViewIfNeeded();
+  await field.scrollIntoViewIfNeeded();
   await mkdir('artifacts/date-input', { recursive: true });
   await page.screenshot({ path: `artifacts/date-input/${engine}-375.png` });
   assert.deepEqual(errors, []);

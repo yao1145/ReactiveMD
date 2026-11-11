@@ -242,6 +242,37 @@
   color: var(--ink-muted);
 }
 
+/* Copy feedback is quick and quiet: the new word rises 2px out of a short
+   blur while the old word leaves at once. The inner span remounts per state,
+   so @starting-style supplies the entrance without a global keyframe. */
+[data-rmd-theme="default"] .md-code-block-feedback {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+[data-rmd-theme="default"] .md-code-block-feedback-text {
+  display: inline-flex;
+  align-items: center;
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard),
+    filter var(--motion-base) var(--ease-standard);
+}
+
+@starting-style {
+  [data-rmd-theme="default"] .md-code-block-feedback-text {
+    opacity: 0;
+    transform: translateY(.25em);
+    filter: blur(2px);
+  }
+}
+
 [data-rmd-theme="default"] .md-code-block-feedback[data-state="success"] {
   color: var(--success);
 }
@@ -251,18 +282,80 @@
 }
 
 [data-rmd-theme="default"] .md-code-block-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  /* UIArc's small control is 36px; keep that touch height even though the
+     RMD sm token is tighter. */
+  min-height: 36px;
+  padding: 0 var(--space-3, 12px);
+  border: 1px solid transparent;
+  border-radius: var(--pu-radius-md, 10px);
+  background-color: transparent;
   color: var(--ink-soft);
-  border-radius: var(--radius-control, 8px);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: 1.2;
+  letter-spacing: var(--rmd-uiarc-tracking, 0);
+  scale: 1;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
 }
 
-[data-rmd-theme="default"] .md-code-block-copy:hover {
-  background: var(--surface-hover);
+@media (hover: hover) and (pointer: fine) {
+  [data-rmd-theme="default"] .md-code-block-copy:hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    color: var(--ink);
+  }
+}
+
+[data-rmd-theme="default"] .md-code-block-copy:active:not(:disabled) {
+  background-color: var(--surface-active);
   color: var(--ink);
+  scale: .97;
 }
 
 [data-rmd-theme="default"] .md-code-block-copy:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  outline-offset: 2px;
+}
+
+[data-rmd-theme="default"] .md-code-block-copy:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+[data-rmd-theme="default"] .md-code-block-copy-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    scale var(--motion-base) var(--ease-standard);
+}
+
+@starting-style {
+  [data-rmd-theme="default"] .md-code-block-copy-icon {
+    opacity: 0;
+    scale: .85;
+  }
+}
+
+[data-rmd-theme="default"] .md-code-block-copy[data-copy-state="success"] .md-code-block-copy-icon {
+  color: var(--success);
+}
+
+[data-rmd-theme="default"] .md-code-block-copy[data-copy-state="error"] .md-code-block-copy-icon {
+  color: var(--danger);
 }
 
 [data-rmd-theme="default"] .md-code-block > :is(pre, .md-code) {
@@ -640,5 +733,28 @@
 @media (prefers-reduced-motion: reduce) {
   [data-rmd-theme="default"] :is(.md-badge, .md-status, .local-checklist-item, .local-multi-option) {
     transition: none;
+  }
+
+  [data-rmd-theme="default"] :is(
+    .md-code-block-feedback-text,
+    .md-code-block-copy,
+    .md-code-block-copy-icon
+  ) {
+    transition: none;
+  }
+
+  [data-rmd-theme="default"] .md-code-block-copy:active:not(:disabled) {
+    scale: 1;
+  }
+
+  [data-rmd-theme="default"] .md-code-block-copy-icon {
+    opacity: 1;
+    scale: 1;
+  }
+
+  [data-rmd-theme="default"] .md-code-block-feedback-text {
+    opacity: 1;
+    transform: none;
+    filter: none;
   }
 }

@@ -10,7 +10,12 @@ import {
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
+import { animate, motion, useMotionValue, useReducedMotion, type MotionStyle } from 'motion/react';
 import type { LocalComponentContext, LocalComponentContent } from '../react/component-api';
+import { useDefaultTheme } from '../react/default-theme';
+import { DatePicker as UiarcDatePicker } from './uiarc/date-picker/date-picker';
+import { rmdMotion } from './uiarc/rmd-motion';
+import { Select as UiarcSelect } from './uiarc/select/select';
 import {
   StaticValue,
   PrintValue,
@@ -326,65 +331,7 @@ export function NumberView(context: LocalComponentContext) {
   );
 }
 
-export function SliderView(context: LocalComponentContext) {
-  const view = useComponentView(context);
-  const domId = useId();
-  const sourceAttrs = useSourceAttributes(context);
-  const { content, mode, t } = view;
-  const { write, error } = useWriter(context);
-  const label = textAttr(context, 'label', t('Slider', '滑块'));
-  const { disabled, invalid: disabledInvalid } = useDisabled(context);
-  const validation = useValidationField(context);
-  const minRead = numberConstraint(context, 'min');
-  const maxRead = numberConstraint(context, 'max');
-  const min = minRead.present && !minRead.error ? minRead.value : 0;
-  const max = maxRead.present && !maxRead.error ? maxRead.value : 100;
-  const constraintError = minRead.error || maxRead.error;
-  const step = numberAttr(context, 'step', 1);
-  const stored = currentValue(context);
-  const rawValue = typeof stored === 'number' && Number.isFinite(stored) ? stored : min;
-  const value = Math.min(max, Math.max(min, rawValue));
-  const storedProblem = typeof stored === 'number' && Number.isFinite(stored)
-    ? (stored < min ? t(`Must be at least ${min}`, `不能小于 ${min}`)
-      : stored > max ? t(`Must be at most ${max}`, `不能大于 ${max}`)
-      : null)
-    : null;
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="md-slider local-slider"
-        label={label}
-        value={String(rawValue)}
-      />
-    );
-  }
-
-  return (
-    <div className="md-control md-slider local-slider" style={accentStyle(localColor(content))} {...sourceAttrs}>
-      <label className="md-label" htmlFor={`${domId}-slider`}>
-        <span>{label}</span>
-        <span className="md-slider-value" aria-hidden="true">
-          {rawValue}
-        </span>
-      </label>
-      <input
-        id={`${domId}-slider`}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        disabled={disabled}
-        aria-invalid={validation.invalid || storedProblem || constraintError ? true : undefined}
-        aria-describedby={validation.describedBy}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => write(Number(event.target.value))}
-      />
-      <PrintValue value={String(rawValue)} />
-      <FieldError message={disabledInvalid || constraintError ? t('Cannot compute', '无法计算') : (error ?? storedProblem)} />
-    </div>
-  );
-}
+export { SliderView, RangeSliderView } from './numeric-sliders';
 
 export function ToggleView(context: LocalComponentContext) {
   const view = useComponentView(context);
@@ -458,11 +405,33 @@ export function CheckboxView(context: LocalComponentContext) {
   );
 }
 
+/** ISO date strings stay keyed to the reader's local calendar, never UTC. */
+const DATE_VALUE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function parseDateValue(text: string): Date | undefined {
+  const match = DATE_VALUE.exec(text);
+  if (!match) return undefined;
+  const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  if (year < 1 || year > 9999) return undefined;
+  const date = new Date(0);
+  date.setFullYear(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  // Date normalizes impossible days, so reject values that moved.
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+    ? date
+    : undefined;
+}
+
+function dateValueKey(date: Date): string {
+  return `${String(date.getFullYear()).padStart(4, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 export function DateView(context: LocalComponentContext) {
   const view = useComponentView(context);
   const domId = useId();
   const sourceAttrs = useSourceAttributes(context);
-  const { content, mode, t } = view;
+  const defaultTheme = useDefaultTheme();
+  const { content, mode, locale, t } = view;
   const { write, error } = useWriter(context);
   const label = textAttr(context, 'label', t('Date', '日期'));
   const { disabled, invalid: disabledInvalid } = useDisabled(context);
@@ -478,6 +447,7 @@ export function DateView(context: LocalComponentContext) {
   const stored = currentValue(context);
   const value = typeof stored === 'string' ? stored : '';
   const [touched, setTouched] = useState(false);
+  useResetToken(context, () => setTouched(false));
   const rangeProblem = value !== '' && ((min !== '' && value < min) || (max !== '' && value > max))
     ? t(`Date must be between ${min || '…'} and ${max || '…'}`, `日期必须在 ${min || '…'} 与 ${max || '…'} 之间`)
     : null;
@@ -488,6 +458,47 @@ export function DateView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return <StaticValue className="local-date" label={label} value={staticText(value)} />;
+  }
+
+  if (defaultTheme) {
+    const message = disabledInvalid || constraintError
+      ? t('Cannot compute', '无法计算')
+      : (problem ?? error);
+    const errorId = message ? `${domId}-date-error` : undefined;
+    return (
+      <div className="md-control local-date local-date-picker" {...sourceAttrs}>
+        <UiarcDatePicker
+          key={view.resetToken}
+          id={`${domId}-date`}
+          label={label}
+          value={parseDateValue(value)}
+          onChange={(date) => {
+            setTouched(true);
+            write(date ? dateValueKey(date) : '');
+          }}
+          onBlur={() => setTouched(true)}
+          minDate={parseDateValue(min)}
+          maxDate={parseDateValue(max)}
+          locale={locale === 'zh' ? 'zh-CN' : 'en-US'}
+          placeholder={t('Select a date', '请选择日期')}
+          todayLabel={t('Today', '今天')}
+          previousMonthLabel={t('Previous month', '上个月')}
+          nextMonthLabel={t('Next month', '下个月')}
+          clearLabel={t('Clear', '清除')}
+          calendarLabel={t(`${label} calendar`, `${label} 日历`)}
+          statusLabel={(formatted) => (formatted
+            ? t(`Selected ${formatted}`, `已选择 ${formatted}`)
+            : t('Choose a day', '请选择日期'))}
+          showToday
+          disabled={disabled}
+          aria-required={required || undefined}
+          invalid={Boolean(message) || validation.invalid}
+          describedBy={[validation.describedBy, errorId].filter(Boolean).join(' ') || undefined}
+        />
+        <FieldError id={errorId} message={message} />
+        <PrintValue value={staticText(value)} />
+      </div>
+    );
   }
 
   return (
@@ -523,6 +534,7 @@ export function DateView(context: LocalComponentContext) {
 export function SelectView(context: LocalComponentContext) {
   const view = useComponentView(context);
   const domId = useId();
+  const defaultTheme = useDefaultTheme();
   const { content, mode, t } = view;
   const { write, error } = useWriter(context);
   const label = textAttr(context, 'label', t('Select', '选择'));
@@ -546,6 +558,40 @@ export function SelectView(context: LocalComponentContext) {
         label={label}
         value={staticText(activeLabel)}
       />
+    );
+  }
+
+  if (defaultTheme) {
+    // Map every option to an internal key: empty values and authored strings
+    // that resemble a sentinel remain distinct without changing stored values.
+    const uiOptions = options.map((option, index) => ({
+      value: `${domId}-option-${index}`,
+      label: optionLabel(context, option) || option.value,
+    }));
+    const uiValue = uiOptions[Math.max(0, options.findIndex(option => option.value === active))]?.value ?? '';
+    const message = disabledInvalid ? t('Cannot compute', '无法计算') : error;
+    const errorId = message ? `${domId}-select-error` : undefined;
+    return (
+      <div className="md-control md-select local-select" style={accentStyle(localColor(content))}>
+        <UiarcSelect
+          key={view.resetToken}
+          id={`${domId}-select`}
+          label={label}
+          options={uiOptions}
+          value={uiValue}
+          placeholder={t('Select an option', '请选择选项')}
+          onValueChange={(next) => {
+            const index = uiOptions.findIndex((option) => option.value === next);
+            const option = options[index];
+            if (option) write(option.value);
+          }}
+          disabled={disabled}
+          invalid={Boolean(message) || validation.invalid}
+          describedBy={[validation.describedBy, errorId].filter(Boolean).join(' ') || undefined}
+        />
+        <FieldError id={errorId} message={message} />
+        <PrintValue value={staticText(activeLabel)} />
+      </div>
     );
   }
 
@@ -591,6 +637,22 @@ export function ChoicesView(context: LocalComponentContext) {
   const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : undefined;
   const selectedLabel = selectedOption ? optionLabel(context, selectedOption) : '';
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const defaultTheme = useDefaultTheme();
+  const reduceMotion = useReducedMotion() ?? false;
+  // The default theme draws a segmented control for two to four choices; the
+  // highlight follows the original default theme's short transition timing.
+  const segmented = defaultTheme && options.length >= 2 && options.length <= 4;
+  const choiceIndex = useMotionValue(activeIndex);
+
+  useEffect(() => {
+    const target = selectedIndex >= 0 ? selectedIndex : 0;
+    if (!segmented || reduceMotion) {
+      choiceIndex.jump(target);
+      return;
+    }
+    const controls = animate(choiceIndex, target, rmdMotion.base);
+    return () => controls.stop();
+  }, [choiceIndex, reduceMotion, segmented, selectedIndex]);
 
   if (options.length === 0) return <LocalError message={t('Missing options', '缺少选项')} />;
 
@@ -627,13 +689,15 @@ export function ChoicesView(context: LocalComponentContext) {
       <span className="md-label" id={`${domId}-choices-label`}>
         {label}
       </span>
-      <div
+      <motion.div
         className="local-choice-list"
         role="radiogroup"
         aria-labelledby={`${domId}-choices-label`}
         aria-disabled={disabled || undefined}
         aria-invalid={validation.invalid || undefined}
         aria-describedby={validation.describedBy}
+        data-rmd-choices={segmented ? 'uiarc' : undefined}
+        style={segmented ? ({ '--pu-choice-index': choiceIndex } as MotionStyle) : undefined}
       >
         {options.map((option, index) => {
           const selected = option.value === current;
@@ -657,7 +721,7 @@ export function ChoicesView(context: LocalComponentContext) {
             </button>
           );
         })}
-      </div>
+      </motion.div>
       <PrintValue value={staticText(selectedLabel)} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </div>
@@ -1251,164 +1315,6 @@ export function MultiSelectView(context: LocalComponentContext) {
       <PrintValue value={staticText(selectedLabels.join(', '))} />
       <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </fieldset>
-  );
-}
-
-export function RangeSliderView(context: LocalComponentContext) {
-  const view = useComponentView(context);
-  const { content, mode, t } = view;
-  const { write, error, setError } = useWriter(context);
-  const label = textAttr(context, 'label', t('Range', '范围'));
-  const { disabled, invalid: disabledInvalid } = useDisabled(context);
-  const validation = useValidationField(context);
-  const { min, max, step } = numericRange(context, 'min', 'max', 0, 100, 1);
-  const steps = Math.floor((max - min) / step + 1e-9);
-  const defaultStart = min;
-  const defaultEnd = clamp(min + Math.max(0, steps) * step, min, max);
-  let start = snapToStep(slotNumber(context, 'start', defaultStart), min, max, step);
-  let end = snapToStep(slotNumber(context, 'end', defaultEnd), min, max, step);
-  if (start > end) start = end;
-  const [crossing, setCrossing] = useState<string | null>(null);
-  const [draggingRange, setDraggingRange] = useState<'start' | 'end' | null>(null);
-  useResetToken(context, () => {
-    setCrossing(null);
-    setError(null);
-  });
-
-  const startName = t('Start', '起点');
-  const endName = t('End', '终点');
-  const rangeSummary = `${startName}: ${start} · ${endName}: ${end}`;
-  const rangeSpan = max - min;
-  const startPercent = rangeSpan > 0 ? ((start - min) / rangeSpan) * 100 : 0;
-  const endPercent = rangeSpan > 0 ? ((end - min) / rangeSpan) * 100 : 100;
-
-  if (mode === 'static') {
-    return (
-      <StaticValue
-        className="local-range-slider"
-        label={label}
-        value={rangeSummary}
-      />
-    );
-  }
-
-  const commit = (slot: 'start' | 'end', raw: number) => {
-    const value = snapToStep(clamp(raw, min, max), min, max, step);
-    if (slot === 'start' && value > end) {
-      setCrossing(t('Start cannot exceed end', '起点不能超过终点'));
-      return;
-    }
-    if (slot === 'end' && value < start) {
-      setCrossing(t('End cannot be less than start', '终点不能小于起点'));
-      return;
-    }
-    setCrossing(null);
-    write(value, slot);
-  };
-
-  const rangeThumbSize = (element: HTMLElement) => {
-    const size = Number.parseFloat(
-      getComputedStyle(element).getPropertyValue('--local-range-thumb'),
-    );
-    return Number.isFinite(size) && size > 0 ? size : 22;
-  };
-
-  const rangeValueAt = (element: HTMLElement, clientX: number) => {
-    const rect = element.getBoundingClientRect();
-    const thumb = rangeThumbSize(element);
-    const usable = Math.max(1, rect.width - thumb);
-    const ratio = clamp((clientX - rect.left - thumb / 2) / usable, 0, 1);
-    return min + ratio * (max - min);
-  };
-
-  const beginRangeDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (disabled) return;
-    const value = rangeValueAt(event.currentTarget, event.clientX);
-    const slot = Math.abs(value - start) <= Math.abs(value - end) ? 'start' : 'end';
-    setDraggingRange(slot);
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.currentTarget.parentElement
-      ?.querySelector<HTMLInputElement>(
-        slot === 'start' ? '.local-range-input-start' : '.local-range-input-end',
-      )
-      ?.focus({ preventScroll: true });
-    commit(slot, value);
-  };
-
-  const moveRangeDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (disabled || !draggingRange) return;
-    commit(draggingRange, rangeValueAt(event.currentTarget, event.clientX));
-  };
-
-  const endRangeDrag = () => setDraggingRange(null);
-
-  return (
-    <div
-      className={`md-control local-range-slider${disabled ? ' is-disabled' : ''}`}
-      style={{
-        ...(accentStyle(localColor(content)) ?? {}),
-        '--local-range-start': startPercent,
-        '--local-range-end': endPercent,
-      } as CSSProperties}
-      role="group"
-      aria-label={label}
-      aria-invalid={validation.invalid || undefined}
-      aria-describedby={validation.describedBy}
-    >
-      <span className="md-label">{label}</span>
-      <div className="local-range-track-wrap">
-        <div className="local-range-bubble-row" aria-hidden="true">
-          <span className="local-range-bubble local-range-bubble-start">{start}</span>
-          <span className="local-range-bubble local-range-bubble-end">{end}</span>
-        </div>
-        <div className="local-range-track-area">
-          <div className="local-range-rail" aria-hidden="true" />
-          <div className="local-range-fill" aria-hidden="true" />
-          <input
-            type="range"
-            className="local-range-input local-range-input-start"
-            min={min}
-            max={max}
-            step={step}
-            value={start}
-            disabled={disabled}
-            aria-label={`${label} ${t('Start', '起点')}`}
-            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-              commit('start', Number(event.target.value))
-            }
-          />
-          <input
-            type="range"
-            className="local-range-input local-range-input-end"
-            min={min}
-            max={max}
-            step={step}
-            value={end}
-            disabled={disabled}
-            aria-label={`${label} ${t('End', '终点')}`}
-            onChange={(event: ChangeEvent<HTMLInputElement>) =>
-              commit('end', Number(event.target.value))
-            }
-          />
-          <div
-            className="local-range-hit"
-            aria-hidden="true"
-            onPointerDown={beginRangeDrag}
-            onPointerMove={moveRangeDrag}
-            onPointerUp={endRangeDrag}
-            onPointerCancel={endRangeDrag}
-          />
-        </div>
-        <div className="local-range-bound-row" aria-hidden="true">
-          <span className="local-range-bound local-range-bound-min">{min}</span>
-          <span className="local-range-bound local-range-bound-max">{max}</span>
-        </div>
-      </div>
-      <PrintValue value={rangeSummary} />
-      <FieldError
-        message={disabledInvalid ? t('Cannot compute', '无法计算') : (crossing ?? error)}
-      />
-    </div>
   );
 }
 

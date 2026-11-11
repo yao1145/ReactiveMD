@@ -435,10 +435,10 @@ export function PrintValue({ value, block = false }: { value: ReactNode; block?:
   );
 }
 
-export function FieldError({ message }: { message: string | null }) {
+export function FieldError({ message, id }: { message: string | null; id?: string }) {
   if (!message) return null;
   return (
-    <span className="field-error" role="alert">
+    <span id={id} className="field-error" role="alert">
       {message}
     </span>
   );

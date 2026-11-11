@@ -209,7 +209,7 @@
 
 [data-rmd-theme="default"] .local-accordion {
   gap: 0;
-  border-top: 0;
+  border-top: 1px solid var(--line);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -224,7 +224,11 @@
 }
 
 [data-rmd-theme="default"] .local-disclosure-trigger {
-  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  min-height: var(--control-height-lg);
   padding: 10px 0;
   border: 0;
   border-radius: 0;
@@ -232,29 +236,31 @@
   color: var(--ink);
   font: inherit;
   font-size: var(--text-md);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
   text-align: start;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
 }
 
-[data-rmd-theme="default"] .local-disclosure-trigger:hover {
-  background: transparent;
-  color: var(--accent-text);
+@media (hover: hover) and (pointer: fine) {
+  [data-rmd-theme="default"] .local-disclosure-trigger:hover {
+    background: transparent;
+    color: var(--ink-soft);
+  }
 }
 
 [data-rmd-theme="default"] .local-disclosure-trigger:active {
   background: transparent;
-  color: var(--accent-text);
+  color: var(--ink-soft);
 }
 
 [data-rmd-theme="default"] .local-disclosure-trigger[aria-expanded="true"] {
   background: transparent;
   box-shadow: none;
-  color: var(--accent-text);
 }
 
 [data-rmd-theme="default"] .local-disclosure-trigger:focus-visible {
@@ -262,9 +268,16 @@
   outline-offset: -2px;
 }
 
-/* Chevron: only the color and timing are themed; the renderer owns the
-   rotation direction through .local-chevron.is-open. */
+[data-rmd-theme="default"] .local-disclosure-label {
+  min-width: 0;
+}
+
+/* Chevron: UIArc keeps the mark on the trailing edge and turns it from down
+   to up; the renderer owns the is-open state. */
 [data-rmd-theme="default"] .local-chevron {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
   color: var(--ink-muted);
   transform-origin: center;
   transition:
@@ -273,7 +286,8 @@
 }
 
 [data-rmd-theme="default"] .local-chevron.is-open {
-  color: var(--accent-text);
+  transform: rotate(180deg);
+  color: var(--ink);
 }
 
 /* The panel stays display:block in both states so height can animate on open
@@ -283,10 +297,12 @@
 [data-rmd-theme="default"] .local-disclosure-panel {
   display: block;
   height: auto;
-  padding: 4px 0 12px;
+  padding-block: 0 var(--space-5);
+  padding-inline: 0 var(--rmd-uiarc-space-8, 32px);
   border: 0;
   border-radius: 0;
   background: transparent;
+  color: var(--ink-soft);
   overflow: clip;
   opacity: 1;
   visibility: visible;
@@ -296,6 +312,21 @@
     opacity var(--motion-base) var(--ease-standard),
     padding-block var(--motion-base) var(--ease-standard),
     visibility 0s;
+}
+
+/* The answer settles down into place and pulls focus as the panel opens. */
+[data-rmd-theme="default"] .local-disclosure-body {
+  display: flow-root;
+  transform: translateY(0);
+  filter: none;
+  transition:
+    transform var(--motion-base) var(--ease-standard),
+    filter var(--motion-base) var(--ease-standard);
+}
+
+[data-rmd-theme="default"] .local-disclosure-panel[hidden] .local-disclosure-body {
+  transform: translateY(-6px);
+  filter: blur(2px);
 }
 
 [data-rmd-theme="default"] .local-disclosure-panel[hidden] {
@@ -327,22 +358,34 @@
 }
 
 [data-rmd-theme="default"] details > summary {
-  padding: 10px 0;
+  position: relative;
+  display: block;
+  min-height: var(--control-height-lg);
+  padding-block: 10px;
+  padding-inline: 0 var(--rmd-uiarc-space-8, 32px);
   border-radius: 0;
   background: transparent;
   color: var(--ink);
   font-size: var(--text-md);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
+  list-style: none;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard);
 }
 
-[data-rmd-theme="default"] details > summary:hover {
-  background: transparent;
-  color: var(--accent-text);
+[data-rmd-theme="default"] details > summary::-webkit-details-marker {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-rmd-theme="default"] details > summary:hover {
+    background: transparent;
+    color: var(--ink-soft);
+  }
 }
 
 [data-rmd-theme="default"] details[open] > summary {
@@ -350,7 +393,6 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: var(--accent-text);
 }
 
 [data-rmd-theme="default"] details > summary:focus-visible {
@@ -358,8 +400,37 @@
   outline-offset: -2px;
 }
 
+/* Native details has no renderer-owned chevron element, so the disclosure
+   mark is drawn on the summary's trailing edge and turns with the state. */
 [data-rmd-theme="default"] details > summary::marker {
-  color: var(--accent-text);
+  content: "";
+}
+
+[data-rmd-theme="default"] details > summary::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 4px;
+  width: 7px;
+  height: 7px;
+  border-right: 1.75px solid var(--ink-muted);
+  border-bottom: 1.75px solid var(--ink-muted);
+  transform: translateY(-50%) rotate(45deg);
+  transform-origin: center;
+  transition:
+    transform var(--motion-base) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-rmd-theme="default"] details > summary:hover::after {
+    border-color: var(--ink-soft);
+  }
+}
+
+[data-rmd-theme="default"] details[open] > summary::after {
+  border-color: var(--ink);
+  transform: translateY(-50%) rotate(225deg);
 }
 
 /* Graceful fallback: browsers without ::details-content drop the whole rule
@@ -494,10 +565,12 @@
   color: var(--ink);
   font-size: var(--text-sm);
   font-weight: 600;
+  scale: 1;
   transition:
     background-color var(--motion-fast) var(--ease-standard),
     border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard);
+    color var(--motion-fast) var(--ease-standard),
+    scale var(--motion-base) var(--ease-standard);
 }
 
 [data-rmd-theme="default"] .local-steps-nav .md-button:hover:not(:disabled) {
@@ -572,6 +645,14 @@
     min-height: 34px;
     padding-inline: 12px;
   }
+
+  [data-rmd-theme="default"] .local-disclosure-panel {
+    padding-inline-end: var(--space-5);
+  }
+
+  [data-rmd-theme="default"] details > summary {
+    padding-inline-end: var(--space-5);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -594,6 +675,12 @@
   [data-rmd-theme="default"] .local-disclosure-panel:not([hidden]) {
     height: auto;
     opacity: 1;
+  }
+
+  [data-rmd-theme="default"] .local-disclosure-body,
+  [data-rmd-theme="default"] .local-disclosure-panel[hidden] .local-disclosure-body {
+    transform: none;
+    filter: none;
   }
 }
 

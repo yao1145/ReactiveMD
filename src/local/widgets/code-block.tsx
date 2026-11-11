@@ -335,17 +335,38 @@ export function CodeBlockView({ value, language, mode, htmlProps }: CodeBlockVie
               role="status"
               aria-live="polite"
             >
-              {feedbackText}
+              <span key={feedbackState} className="md-code-block-feedback-text">
+                {feedbackText}
+              </span>
             </span>
             <button
               type="button"
               className="md-code-block-copy"
               data-rmd-appearance="custom"
+              data-copy-state={feedbackState}
               aria-label={t('Copy code', '复制代码')}
               onClick={() => {
                 void copy();
               }}
             >
+              <span key={feedbackState} className="md-code-block-copy-icon" aria-hidden="true">
+                {feedbackState === 'success' ? (
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" focusable="false">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                ) : feedbackState === 'error' ? (
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" focusable="false">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 8v5" />
+                    <path d="M12 16.5h.01" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" focusable="false">
+                    <rect x="9" y="9" width="11" height="11" rx="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                )}
+              </span>
               {t('Copy', '复制')}
             </button>
           </>

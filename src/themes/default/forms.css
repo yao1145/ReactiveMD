@@ -1,7 +1,8 @@
 /* ==========================================================================
    PRODUCT UI — forms and controls
    --------------------------------------------------------------------------
-   Field, switch, counter, range, segmented choice and progress treatments.
+   Field, checkbox, switch, counter, range, segmented choice, progress and
+   action-button treatments.
    Every selector is scoped to the default document root. Semantic values
    come from tokens.css. Native select arrows, number spinners, date pickers
    and the underlying input elements are never reset.
@@ -238,10 +239,10 @@
   border-radius: var(--radius-pill);
   background-color: var(--control-track, var(--surface-active));
   background-image: radial-gradient(
-    circle at center,
-    var(--control-thumb, var(--surface)) 0 8px,
-    var(--line-strong) 8.5px 9px,
-    transparent 9.5px
+    ellipse 50% 50% at center,
+    var(--control-thumb, var(--surface)) 0 80%,
+    var(--line-strong) 85% 90%,
+    transparent 95%
   );
   background-repeat: no-repeat;
   background-size: 20px 20px;
@@ -249,10 +250,11 @@
   box-shadow: inset 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent);
   cursor: pointer;
   transition:
-    background-color 180ms var(--ease-standard),
-    background-position 180ms var(--ease-standard),
-    border-color 180ms var(--ease-standard),
-    box-shadow 180ms var(--ease-standard);
+    background-color var(--motion-fast) var(--ease-standard),
+    background-position var(--motion-base) var(--ease-standard),
+    background-size var(--motion-base) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="default"][data-color-scheme="dark"].md-document :where(
@@ -270,9 +272,9 @@
   border-color: transparent;
   background-color: var(--control-selected, var(--accent));
   background-image: radial-gradient(
-    circle at center,
-    var(--control-selected-ink, var(--accent-ink, var(--surface))) 0 9px,
-    transparent 9.5px
+    ellipse 50% 50% at center,
+    var(--control-selected-ink, var(--accent-ink, var(--surface))) 0 90%,
+    transparent 95%
   );
   background-position: right 2px center;
   box-shadow: none;
@@ -283,7 +285,7 @@
   .md-toggle-label input.md-switch
 ):hover:not(:disabled):not(:checked) {
   border-color: var(--line-strong);
-  background-color: var(--surface-hover);
+  background-color: var(--rmd-uiarc-track-hover, var(--surface-hover));
 }
 
 [data-rmd-theme="default"].md-document :is(
@@ -308,7 +310,14 @@
   .local-toggle .md-toggle-label input[type="checkbox"],
   .md-toggle-label input.md-switch
 ):active:not(:disabled) {
+  /* The thumb widens toward the far edge, as if it carried the press. */
+  background-size: 26px 20px;
   box-shadow: inset 0 1px 3px color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+/* Pressing the label is the same press as pressing the track. */
+[data-rmd-theme="default"].md-document .local-toggle .md-toggle-label:active input[type="checkbox"]:not(:disabled) {
+  background-size: 26px 20px;
 }
 
 [data-rmd-theme="default"].md-document :is(
@@ -347,6 +356,122 @@
   background-color: var(--danger);
 }
 
+/* ---------------------------------------------------------- 2b. checkbox */
+
+/* UIArc's checkbox is an 18px rounded square inside the label's 44px row.
+   Core draws a circular mask; the theme supplies the square, the fill and the
+   mask-free check so the mark can follow the selected control's ink. */
+[data-rmd-theme="default"].md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"]
+) {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  inline-size: var(--rmd-uiarc-checkbox-size, 18px);
+  block-size: var(--rmd-uiarc-checkbox-size, 18px);
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--rmd-uiarc-checkbox-radius, 5px);
+  background-color: var(--surface);
+  background-image: none;
+  background-position: center;
+  background-size: 0 0;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  scale: 1;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    background-size var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
+}
+
+[data-rmd-theme="default"].md-document .md-task-checkbox {
+  box-sizing: border-box;
+  inline-size: var(--rmd-uiarc-checkbox-size, 18px);
+  block-size: var(--rmd-uiarc-checkbox-size, 18px);
+  margin: 0 var(--space-2) 0 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--rmd-uiarc-checkbox-radius, 5px);
+  background-color: var(--surface);
+  background-image: none;
+  background-position: center;
+  background-size: 0 0;
+  background-repeat: no-repeat;
+  vertical-align: -4px;
+  cursor: default;
+  scale: 1;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    background-size var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
+}
+
+[data-rmd-theme="default"].md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"],
+  .md-task-checkbox
+):checked {
+  border-color: transparent;
+  background-color: var(--local-accent, var(--control-selected, var(--accent)));
+  background-image: var(
+    --rmd-uiarc-check-image,
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2018%2018'%3E%3Cpath%20d='M4.25%209.25%207.25%2012.25%2013.75%205.75'%20fill='none'%20stroke='%23ffffff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E")
+  );
+  background-position: center;
+  background-size: var(--rmd-uiarc-checkbox-size, 18px) var(--rmd-uiarc-checkbox-size, 18px);
+  background-repeat: no-repeat;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+[data-rmd-theme="default"].md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"]
+):not(:checked):hover:not(:disabled) {
+  border-color: var(--ink-muted);
+}
+
+[data-rmd-theme="default"].md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"]
+):active:not(:disabled) {
+  scale: .95;
+}
+
+[data-rmd-theme="default"].md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"],
+  .md-task-checkbox
+):disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+[data-rmd-theme="default"].md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"],
+  .md-task-checkbox
+):is([aria-invalid="true"], :user-invalid) {
+  border-color: var(--danger);
+}
+
+[data-rmd-theme="default"].md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"],
+  .md-task-checkbox
+):is([aria-invalid="true"], :user-invalid):checked {
+  background-color: var(--danger);
+}
+
 /* ------------------------------------------------------------ 3. counter */
 
 [data-rmd-theme="default"].md-document .local-counter-value {
@@ -374,18 +499,7 @@
   }
 }
 
-[data-rmd-theme="default"].md-document .local-counter-button {
-  transition:
-    transform var(--motion-fast) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard),
-    border-color var(--motion-fast) var(--ease-standard),
-    color var(--motion-fast) var(--ease-standard),
-    box-shadow var(--motion-fast) var(--ease-standard);
-}
-
-[data-rmd-theme="default"].md-document .local-counter-button:active:not(:disabled) {
-  transform: scale(0.96);
-}
+/* Counter actions use the shared button press (section 9). */
 
 /* -------------------------------------------------------------- 4. range */
 
@@ -805,6 +919,36 @@
   box-shadow: 0 1px 3px rgb(0 0 0 / 45%);
 }
 
+/* The React view animates the same thumb position on the UIArc spring, so the
+   CSS transition would fight it. The :is() group repeats the segmented rule so
+   this override carries more specificity than the transform transition above. */
+[data-rmd-theme="default"].md-document
+  .local-choice-list[data-rmd-choices="uiarc"]:is(
+    :has(> .local-choice:nth-child(2):last-child),
+    :has(> .local-choice:nth-child(3):last-child),
+    :has(> .local-choice:nth-child(4):last-child)
+  )::before {
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-rmd-theme="default"].md-document
+    .local-choice-list[data-rmd-choices="uiarc"]:is(
+      :has(> .local-choice:nth-child(2):last-child),
+      :has(> .local-choice:nth-child(3):last-child),
+      :has(> .local-choice:nth-child(4):last-child)
+    )::before {
+    transition: none;
+  }
+}
+
+/* The date picker trigger is a field: cap it like the native date input. */
+[data-rmd-theme="default"].md-document .local-date-picker {
+  max-width: 420px;
+}
+
 [data-rmd-theme="default"].md-document .local-choice-list:is(
   :has(> .local-choice:nth-child(2):last-child),
   :has(> .local-choice:nth-child(3):last-child),
@@ -1039,10 +1183,42 @@
   [data-rmd-theme="default"].md-document .local-progress-fill {
     transition: none;
   }
+
+  [data-rmd-theme="default"].md-document :is(
+    .local-toggle .md-toggle-label input[type="checkbox"],
+    .md-toggle-label input.md-switch
+  ):active:not(:disabled) {
+    background-size: 20px 20px;
+  }
+
+  [data-rmd-theme="default"].md-document .local-toggle .md-toggle-label:active input[type="checkbox"]:not(:disabled) {
+    background-size: 20px 20px;
+  }
+
+  [data-rmd-theme="default"].md-document :is(
+    .local-checkbox .md-toggle-label input[type="checkbox"],
+    .local-checklist-item input[type="checkbox"],
+    .local-multi-option input[type="checkbox"],
+    .md-task-checkbox
+  ) {
+    transition: none;
+    scale: 1;
+  }
+
+  [data-rmd-theme="default"].md-document :is(
+    .local-checkbox .md-toggle-label input[type="checkbox"],
+    .local-checklist-item input[type="checkbox"],
+    .local-multi-option input[type="checkbox"]
+  ):active:not(:disabled) {
+    scale: 1;
+  }
 }
 
-/* Product actions use a 10px corner. Navigation, menu items and the segmented
-   choice buttons keep their own radius so a row of controls stays coherent. */
+/* ------------------------------------------------------- 9. action buttons */
+
+/* UIArc buttons: a 500-weight label, a quiet fill on hover and a short press
+   that scales in place. `scale` is used instead of `transform` so a host or a
+   component that already transforms the button keeps its own transform. */
 [data-rmd-theme="default"].md-document :is(
   button,
   input[type="button"],
@@ -1052,6 +1228,205 @@
   .md-button-primary,
   .md-button-secondary,
   .md-button-quiet
-):not(.local-tab, .local-choice, .md-menu-item, .md-page, .md-step) {
+):not(
+  [data-rmd-appearance="custom"],
+  .md-control button,
+  .local-tab,
+  .local-choice,
+  .md-menu-item,
+  .md-page,
+  .md-step
+) {
   border-radius: var(--pu-radius-md, 10px);
+  font-weight: var(--weight-medium, 500);
+  letter-spacing: var(--rmd-uiarc-tracking, 0);
+  -webkit-tap-highlight-color: transparent;
+  scale: 1;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
+}
+
+/* The outlined action uses the same hairline as fields; the filled action
+   keeps its transparent edge. */
+[data-rmd-theme="default"].md-document :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .md-button,
+  .md-button-secondary
+):not(
+  [data-rmd-appearance="custom"],
+  .md-control button,
+  .md-button-primary,
+  .md-button-quiet,
+  .local-tab,
+  .local-choice,
+  .md-menu-item,
+  .md-page,
+  .md-step
+):not(:disabled) {
+  border-color: var(--line);
+}
+
+/* Triggers that anchor a floating layer must keep their rect still: Radix and
+   similar libraries measure the trigger on pointerdown. */
+[data-rmd-theme="default"].md-document :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .md-button,
+  .md-button-primary,
+  .md-button-secondary,
+  .md-button-quiet
+):not(
+  [data-rmd-appearance="custom"],
+  .md-control button,
+  .local-tab,
+  .local-choice,
+  .md-menu-item,
+  .md-page,
+  .md-step
+):is(
+  [aria-haspopup]:not([aria-haspopup="false"]),
+  [role="combobox"],
+  [data-state]
+):active:not(:disabled) {
+  scale: 1;
+}
+
+[data-rmd-theme="default"].md-document :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .md-button,
+  .md-button-primary,
+  .md-button-secondary,
+  .md-button-quiet
+):not(
+  [data-rmd-appearance="custom"],
+  .md-control button,
+  .local-tab,
+  .local-choice,
+  .md-menu-item,
+  .md-page,
+  .md-step
+):active:not(:disabled) {
+  scale: var(--rmd-uiarc-press-scale, .97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-rmd-theme="default"].md-document :is(
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    .md-button,
+    .md-button-secondary
+  ):not(
+    [data-rmd-appearance="custom"],
+    .md-control button,
+    .md-button-primary,
+    .md-button-quiet,
+    .local-tab,
+    .local-choice,
+    .md-menu-item,
+    .md-page,
+    .md-step
+  ):hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    box-shadow: var(--shadow-sm);
+  }
+
+  [data-rmd-theme="default"].md-document .md-button-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+    box-shadow: var(--shadow-sm);
+  }
+
+  [data-rmd-theme="default"].md-document .md-button-quiet:hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    color: var(--ink);
+  }
+}
+
+[data-rmd-theme="default"].md-document .md-button-primary:active:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+[data-rmd-theme="default"].md-document .md-button-quiet:active:not(:disabled) {
+  background-color: var(--surface-active);
+  color: var(--ink);
+}
+
+/* A disabled outlined button keeps its shape and only its label fades, so it
+   still reads as a button that is off rather than as plain text. */
+[data-rmd-theme="default"].md-document :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .md-button,
+  .md-button-secondary
+):not(
+  [data-rmd-appearance="custom"],
+  .md-control button,
+  .md-button-primary,
+  .md-button-quiet,
+  .local-tab,
+  .local-choice,
+  .md-menu-item,
+  .md-page,
+  .md-step
+):disabled {
+  opacity: 1;
+  border-color: var(--line);
+  background-color: var(--surface-subtle);
+  color: var(--ink-muted);
+}
+
+[data-rmd-theme="default"].md-document .md-button-quiet:disabled {
+  opacity: 1;
+  background-color: transparent;
+  color: var(--ink-muted);
+}
+
+/* The filled action keeps the platform's disabled fade. */
+[data-rmd-theme="default"].md-document .md-button-primary:disabled {
+  opacity: .52;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-rmd-theme="default"].md-document :is(
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    .md-button,
+    .md-button-primary,
+    .md-button-secondary,
+    .md-button-quiet
+  ) {
+    transition: none;
+    scale: 1;
+  }
+
+  [data-rmd-theme="default"].md-document :is(
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    .md-button,
+    .md-button-primary,
+    .md-button-secondary,
+    .md-button-quiet
+  ):active:not(:disabled) {
+    scale: 1;
+  }
 }

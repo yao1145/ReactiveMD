@@ -1,0 +1,61 @@
+// Small acceptance smoke check. Keep detailed visual and interaction review in
+// the browser example; do not duplicate the full component regression suites.
+import { chromium, expect } from '@playwright/test';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+const output = fileURLToPath(new URL('../artifacts/uiarc-integration-2026-11-11/', import.meta.url));
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL ?? 'msedge', headless: true });
+const result = { checks: [], errors: [] };
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
+  page.on('pageerror', error => result.errors.push(error.message));
+  await page.goto(process.env.DEFAULT_UI_URL ?? 'http://127.0.0.1:5200/');
+  const document = page.locator('#document article');
+  const slider = document.getByRole('slider', { name: '完成进度', exact: true });
+  await expect(slider).toHaveAttribute('aria-valuenow', '40');
+  await expect(document.getByRole('radio', { name: '学习', exact: true })).toBeChecked();
+  await expect(page.locator('#other-theme input[type="range"]')).toHaveCount(1);
+  result.checks.push('Real default controls render; other themes retain native controls.');
+  await page.getByRole('button', { name: '加载一组实验参数' }).click();
+  await expect(slider).toHaveAttribute('aria-valuenow', '65');
+  await expect(document.getByRole('radio', { name: '探索', exact: true })).toBeChecked();
+  await document.getByRole('button', { name: '实验参数 恢复默认', exact: true }).click();
+  await expect(slider).toHaveAttribute('aria-valuenow', '40');
+  await expect(document.getByRole('radio', { name: '学习', exact: true })).toBeChecked();
+  await slider.focus(); await page.keyboard.press('ArrowRight');
+  await expect.poll(() => page.evaluate(() => window.defaultUiAcceptance.runtime.getParameter('progress'))).toBe(41);
+  result.checks.push('External updates, panel reset and keyboard changes reach the real runtime.');
+  await page.screenshot({ path: `${output}acceptance-light.png`, fullPage: true });
+  await page.getByRole('button', { name: '切换深色', exact: true }).click();
+  await expect(document).toHaveAttribute('data-color-scheme', 'dark');
+  await expect(page.locator('#isolated-document article')).toHaveAttribute('data-color-scheme', 'light');
+  await document.getByRole('combobox', { name: '课程类型', exact: true }).click();
+  const listbox = document.getByRole('listbox');
+  await expect(listbox).toBeVisible();
+  const menu = await listbox.evaluate(node => ({ scoped: Boolean(node.closest('[data-rmd-theme="default"]')), ink: getComputedStyle(node).getPropertyValue('--ink').trim() }));
+  if (!menu.scoped || !menu.ink) throw new Error('Select menu escaped its document theme.');
+  await listbox.getByRole('option', { name: '实验课程', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.defaultUiAcceptance.runtime.getParameter('course'))).toBe('lab');
+  result.checks.push('Dark selection menu stays scoped; independent documents keep their scheme.');
+  await document.locator('.local-date button[aria-haspopup="dialog"]').click();
+  await expect(document.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(document.getByRole('dialog')).toHaveCount(0);
+  await page.screenshot({ path: `${output}acceptance-dark.png`, fullPage: true });
+  await page.getByRole('button', { name: '静态预览', exact: true }).click();
+  await expect(document).toHaveAttribute('data-render-mode', 'static');
+  await expect(document.getByRole('slider')).toHaveCount(0);
+  await expect(document).toContainText('41');
+  await page.getByRole('button', { name: '返回交互', exact: true }).click();
+  await expect(slider).toHaveAttribute('aria-valuenow', '41');
+  result.checks.push('Calendar opens/closes; static view preserves values and returns to interaction.');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: `${output}acceptance-mobile.png`, fullPage: true });
+  if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error('Example overflows horizontally at 390px.');
+  if (result.errors.length) throw new Error(result.errors.join('\n'));
+  console.log(JSON.stringify(result, null, 2));
+} finally {
+  await writeFile(`${output}acceptance-results.json`, JSON.stringify(result, null, 2) + '\n');
+  await browser.close();
+}

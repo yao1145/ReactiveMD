@@ -1,0 +1,26 @@
+body { margin: 0; background: #f5f3f1; }
+.acceptance-page { --demo-paper: #f5f3f1; --demo-surface: #fff; --demo-ink: #111; --demo-muted: #64615d; --demo-line: #e6e4e3; min-height: 100vh; padding: clamp(24px, 4vw, 64px); background: var(--demo-paper); color: var(--demo-ink); font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
+.acceptance-page[data-demo-scheme="dark"] { --demo-paper: #141517; --demo-surface: #1c1d20; --demo-ink: #f4f2ef; --demo-muted: #b4b1ac; --demo-line: #34363b; }
+.acceptance-page, .acceptance-page * { box-sizing: border-box; }
+.page-header { max-width: 1380px; margin: 0 auto 36px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.eyebrow { color: #366ae6; font-size: 12px; font-weight: 650; letter-spacing: .14em; margin: 0 0 18px; }
+.page-header h1 { margin: 0 0 16px; font-size: clamp(28px, 3vw, 42px); font-weight: 650; letter-spacing: -.04em; }
+.page-intro { color: var(--demo-muted); margin: 0; font-size: 15px; line-height: 1.7; }
+.host-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.host-actions button, .aside-card > button { font: inherit; font-size: 14px; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--demo-line); color: var(--demo-ink); background: var(--demo-surface); cursor: pointer; }
+.host-actions button:focus-visible, .aside-card > button:focus-visible { outline: 2px solid #1f5ae8; outline-offset: 3px; }
+.acceptance-layout { max-width: 1380px; margin: auto; display: grid; grid-template-columns: minmax(0, 1fr) 330px; align-items: start; gap: 24px; }
+.document-shell { min-width: 0; border: 1px solid var(--demo-line); border-radius: 16px; background: var(--demo-surface); }
+.document-shell > .md-document { padding: clamp(24px, 3vw, 44px); border-radius: 16px; }
+.acceptance-aside { min-width: 0; display: grid; gap: 20px; }
+.aside-card { min-width: 0; border: 1px solid var(--demo-line); border-radius: 14px; padding: 22px; background: var(--demo-surface); }
+.aside-index { font-size: 11px; letter-spacing: .06em; color: var(--demo-muted); }
+.aside-card h2 { margin: 14px 0 10px; font-size: 19px; }
+.aside-card p { margin: 0 0 18px; color: var(--demo-muted); font-size: 13px; line-height: 1.8; }
+.aside-card pre { margin: 0 0 20px; font-family: 'Cascadia Code', Consolas, monospace; color: var(--demo-muted); font-size: 12px; line-height: 1.8; overflow: auto; }
+#isolated-document, #other-theme { padding: 12px; border-radius: 10px; background: #fff; }
+#isolated-document .md-document, #other-theme .md-document { font-size: 14px; }
+.page-footer { max-width: 1380px; margin: 28px auto 0; color: var(--demo-muted); font-size: 12px; line-height: 1.8; }
+.document-shell .long-label-button { inline-size: 260px; max-inline-size: 100%; }
+@media (max-width: 1000px) { .acceptance-layout { grid-template-columns: minmax(0, 1fr); } .acceptance-aside { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .page-header { flex-direction: column; align-items: flex-start; } .acceptance-aside { grid-template-columns: minmax(0, 1fr); } .acceptance-page { padding: 20px 14px; } }

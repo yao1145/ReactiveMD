@@ -14,11 +14,14 @@
 @import './local/rendering/local.css';
 @import './local/widgets/visuals.css';
 @import './themes/default/tokens.css';
+@import './themes/default/uiarc-tokens.css';
 @import './themes/default/overlays.css';
 @import './themes/default/forms.css';
 @import './themes/default/navigation.css';
 @import './themes/default/feedback.css';
 @import './themes/default/spacing.css';
+@import './themes/default/uiarc-refinements.css';
+@import './themes/default/text-overflow.css';
 /* Load density last so explicit data-rmd-density overrides the default theme
    token block at equal attribute specificity. */
 @import './appearance.css';

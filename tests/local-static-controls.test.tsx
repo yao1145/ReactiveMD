@@ -263,7 +263,7 @@ describe('static rendering mode', () => {
       const html = render(compiled.document, compiled.runtime);
 
       expect(html).toMatch(/<input\b/);
-      expect(html).toMatch(/<select\b/);
+      expect(html).toContain('role="combobox"');
       expect(html).toMatch(/<textarea\b/);
       expect(html).toMatch(/<button\b/);
       expect(html).toContain('local-panel-reset');

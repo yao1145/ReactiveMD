@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 // Markdown is bundled by core; renderer code highlighting bundles lowlight.
 // The standalone IIFE also bundles React/DOM.
-const roots = ['remark-gfm', 'remark-parse', 'unified', '@lezer/markdown', '@lezer/common', 'parse5', 'lowlight', 'elkjs', 'katex', 'react', 'react-dom'];
+const roots = ['remark-gfm', 'remark-parse', 'unified', '@lezer/markdown', '@lezer/common', 'parse5', 'lowlight', 'elkjs', 'katex', 'react', 'react-dom', 'motion', 'lucide-react', '@radix-ui/react-select'];
 const visited = new Map();
 async function findPackage(name, from) {
   let current = from;
@@ -22,8 +22,14 @@ async function collect(name, from) {
   if (visited.has(directory)) return;
   const pkg = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8'));
   const licenseFiles = (await readdir(directory)).filter(file => /^(?:licen[cs]e|copying)(?:\.|$)/i.test(file)).sort();
-  if (!licenseFiles.length) throw new Error(`No license text found for ${pkg.name}@${pkg.version}`);
-  const texts = await Promise.all(licenseFiles.map(file => readFile(join(directory, file), 'utf8')));
+  // react-remove-scroll-bar@2.3.8 declares MIT but omits LICENSE from its npm
+  // tarball. Preserve the text from its owning repository explicitly.
+  const fallback = pkg.name === 'react-remove-scroll-bar' && pkg.version === '2.3.8'
+    ? join(root, 'scripts/licenses/react-remove-scroll-bar-MIT.txt') : null;
+  if (!licenseFiles.length && !fallback) throw new Error(`No license text found for ${pkg.name}@${pkg.version}`);
+  const texts = licenseFiles.length
+    ? await Promise.all(licenseFiles.map(file => readFile(join(directory, file), 'utf8')))
+    : [await readFile(fallback, 'utf8')];
   visited.set(directory, { name: pkg.name, version: pkg.version, license: pkg.license, texts });
   for (const dependency of Object.keys(pkg.dependencies ?? {}).sort()) await collect(dependency, directory);
 }
@@ -40,6 +46,11 @@ const notice = [
   '',
   'Regenerate after dependency updates with `node scripts/generate-notices.mjs`.',
   '',
+  '## Arc UI adapted source',
+  '',
+  'Default-theme controls adapt free components from https://github.com/kuratlielia/arc-library and https://uiarc.dev. The original copyright and MIT license follow.',
+  '',
+  '```text', (await readFile(join(root, 'src/components/uiarc/LICENSE.txt'), 'utf8')).trim(), '```', '',
   ...packages.flatMap(pkg => [
     `## ${pkg.name}@${pkg.version}`,
     '',

@@ -7,6 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
+import { useDefaultTheme } from '../react/default-theme';
 import {
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
@@ -93,6 +94,14 @@ function errorMessage(cause: unknown): string {
 
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text;
+}
+
+function AxisTitleLabel({ text, max }: { text: string; max: number }) {
+  const defaultTheme = useDefaultTheme();
+  const characters = Array.from(text);
+  const shown = defaultTheme && characters.length > max
+    ? `${characters.slice(0, Math.max(1, max - 1)).join('')}…` : text;
+  return <tspan aria-label={text} data-rmd-overflow-text={shown !== text ? text : undefined}>{shown}</tspan>;
 }
 
 function wrapLabel(text: string, maxChars = 8, maxLines = 2): string[] {
@@ -1477,7 +1486,7 @@ export function ChartView(context: LocalComponentContext) {
             })}
             {xLabel ? (
               <text className="local-visual-axis-title" x={(plotLeft + plotRight) / 2} y={CHART_HEIGHT - 2} textAnchor="middle">
-                {xLabel}
+                <AxisTitleLabel text={xLabel} max={Math.max(8, Math.floor((plotRight - plotLeft) / 12))} />
               </text>
             ) : null}
             {yLabel ? (
@@ -1486,7 +1495,7 @@ export function ChartView(context: LocalComponentContext) {
                 transform={`translate(12 ${(plotTop + plotBottom) / 2}) rotate(-90)`}
                 textAnchor="middle"
               >
-                {yLabel}
+                <AxisTitleLabel text={yLabel} max={Math.max(8, Math.floor((plotBottom - plotTop) / 12))} />
               </text>
             ) : null}
             {areaMarks}
@@ -2073,7 +2082,7 @@ export function PlotView(context: LocalComponentContext) {
             ))}
             {xLabel ? (
               <text className="local-visual-axis-title" x={(plotLeft + plotRight) / 2} y={PLOT_HEIGHT - 2} textAnchor="middle">
-                {xLabel}
+                <AxisTitleLabel text={xLabel} max={Math.max(8, Math.floor((plotRight - plotLeft) / 12))} />
               </text>
             ) : null}
             {yLabel ? (
@@ -2082,7 +2091,7 @@ export function PlotView(context: LocalComponentContext) {
                 transform={`translate(12 ${(plotTop + plotBottom) / 2}) rotate(-90)`}
                 textAnchor="middle"
               >
-                {yLabel}
+                <AxisTitleLabel text={yLabel} max={Math.max(8, Math.floor((plotBottom - plotTop) / 12))} />
               </text>
             ) : null}
             {curveSegments.map((segments, curveIndex) =>
