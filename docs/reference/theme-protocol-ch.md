@@ -45,7 +45,7 @@ export function Article({ source }: { source: string }) {
 }
 ```
 
-此示例说明登记方式；仓库仅将 `default` 作为内置主题，宿主定义不能替换它。其余主题都是外部主题：保留原始外观的 [`soft` 主题](../../examples/soft-theme/README.md) 与完整的 sci-fi 参考包都需要宿主登记；产品界面示例只登记 `soft` 名称，外观由核心基线 CSS 提供。上文 `paper` 示例没有配套设计或 CSS，完整参考包包含 tokens、组件样式、亮暗两套模式与现场示例，见 [examples/sci-fi-theme](../../examples/sci-fi-theme/README-ch.md)。
+此示例说明登记方式；仓库仅将 `default` 作为内置主题，宿主定义不能替换它。其余主题都是外部主题：保留原始外观的 `soft` 名称与完整的 sci-fi 参考包都需要宿主登记；`soft` 没有独立样式表，产品界面示例只登记名称，外观由核心基线 CSS 提供。上文 `paper` 示例没有配套设计或 CSS，完整参考包包含 tokens、组件样式、亮暗两套模式与现场示例，见 [examples/sci-fi-theme](../../examples/sci-fi-theme/README-ch.md)。
 
 | 字段 | 要求 |
 | --- | --- |

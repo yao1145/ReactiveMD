@@ -103,8 +103,9 @@ const softTheme = {
 ```
 
 `soft` has no separate stylesheet. The core baseline CSS used by every document
-provides the old look; registration only makes the name selectable. A standalone
-definition package is available in [examples/soft-theme](../soft-theme/README.md).
+provides the old look; registration only makes the name selectable. The demo
+registers the name from a local definition in
+[`demo/soft-theme-definition.ts`](demo/soft-theme-definition.ts).
 
 ### Explicit product-ui registration
 

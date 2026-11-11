@@ -78,7 +78,7 @@ const softTheme = {
 # 产品工作区
 ```
 
-`soft` 没有独立样式表。所有文档共用的核心基线 CSS 提供旧外观；登记只负责让该名称可选。独立定义包见 [examples/soft-theme](../soft-theme/README.md)。
+`soft` 没有独立样式表。所有文档共用的核心基线 CSS 提供旧外观；登记只负责让该名称可选。示例在 [`demo/soft-theme-definition.ts`](demo/soft-theme-definition.ts) 中本地登记该定义。
 
 ### 显式注册 product-ui
 

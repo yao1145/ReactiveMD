@@ -4,15 +4,15 @@ import { LocalReactiveDocument, type LocalColorScheme } from 'reactive-md/react'
 import 'reactive-md/styles.css';
 import './demo.css';
 import baseSource from './document.reactive.md?raw';
-import { softThemeDefinition } from '../../soft-theme/src/definition';
+import { softThemeDefinition } from './soft-theme-definition';
 
 type ThemeMode = 'default' | 'soft';
 
 /**
- * `soft` is an external example theme in `examples/soft-theme`. It has no
- * stylesheet of its own: the core baseline in `reactive-md/styles.css` supplies
- * the original appearance, so the host only registers the definition. The
- * built-in `default` needs no registration.
+ * `soft` is registration-only. It has no stylesheet of its own: the core
+ * baseline in `reactive-md/styles.css` supplies the original appearance, so
+ * the host only registers the definition. The built-in `default` needs no
+ * registration.
  */
 
 const SWATCHES = [

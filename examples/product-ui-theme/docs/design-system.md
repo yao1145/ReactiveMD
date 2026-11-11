@@ -396,8 +396,9 @@ Omitting a declaration selects it; `<theme name="default">` is equivalent.
 ### External soft example
 
 `soft` is an external example theme, registered like any host theme. It has no
-stylesheet: the core baseline CSS supplies the original appearance. A standalone
-definition package is in [examples/soft-theme](../../soft-theme/README.md).
+stylesheet: the core baseline CSS supplies the original appearance. The demo
+registers the name from a local definition in
+[`demo/soft-theme-definition.ts`](../demo/soft-theme-definition.ts).
 
 ```tsx
 import { LOCAL_THEME_PROTOCOL } from 'reactive-md';

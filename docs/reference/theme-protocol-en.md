@@ -45,7 +45,7 @@ export function Article({ source }: { source: string }) {
 }
 ```
 
-This demonstrates registration. The repository includes only `default` as a built-in theme, and a host definition cannot replace it. Everything else is external: the original-look [`soft` theme](../../examples/soft-theme/README.md) and the complete sci-fi reference package both require host registration, and the product-UI gallery registers `soft` with a plain definition while the core baseline CSS supplies its appearance. The repository's `paper` example above has no design or stylesheet; a complete reference package with tokens, component styling, both colour schemes and a live gallery is in [examples/sci-fi-theme](../../examples/sci-fi-theme/README.md).
+This demonstrates registration. The repository includes only `default` as a built-in theme, and a host definition cannot replace it. Everything else is external: the original-look `soft` name and the complete sci-fi reference package both require host registration; `soft` has no separate stylesheet, so the product-UI gallery registers the name with a plain definition while the core baseline CSS supplies its appearance. The repository's `paper` example above has no design or stylesheet; a complete reference package with tokens, component styling, both colour schemes and a live gallery is in [examples/sci-fi-theme](../../examples/sci-fi-theme/README.md).
 
 | Field | Requirement |
 | --- | --- |
