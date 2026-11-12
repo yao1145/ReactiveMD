@@ -18,7 +18,7 @@ const CONTROL_NAMES = new Set([
 const LAYOUT_NAMES = new Set([
   'jump', 'anchor', 'text', 'section', 'panel', 'card', 'grid', 'column',
   'tabs', 'tab', 'steps', 'step', 'accordion', 'disclosure', 'if', 'alert',
-  'badge', 'tooltip', 'validation',
+  'badge', 'tooltip', 'validation', 'gallery', 'gallery-item',
 ]);
 
 const DATA_NAMES = new Set(['data-table', 'table', 'column', 'timeline']);

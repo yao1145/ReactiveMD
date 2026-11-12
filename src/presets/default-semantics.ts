@@ -458,6 +458,20 @@ const gridDef = definition('grid', 'container', {
   rules: rules({ kind: 'only-children', children: ['card'], min: 1 }),
 });
 
+const galleryDef = definition('gallery', 'container', {
+  props: {
+    label: label({ required: true }),
+    'item-width': props.number({ dynamic: true, integer: true, default: 280, min: 180, max: 480 }),
+  },
+  structure: structure({ rule: 'components', label: 'required', child: 'gallery-item', children: ['gallery-item'], min: 1 }),
+  rules: rules({ kind: 'only-children', children: ['gallery-item'], min: 1 }),
+});
+
+const galleryItemDef = definition('gallery-item', 'container', {
+  props: { label: optionalLabel() },
+  structure: structure({ rule: 'any', label: 'none' }),
+});
+
 const tabsDef = definition('tabs', 'container', {
   props: { label: optionalLabel() },
   bindings: { value: binding('string', 'tabs', 'first-tab', { exclusive: true }) },
@@ -753,8 +767,8 @@ const edgeDef = definition('edge', 'leaf', {
 });
 
 /**
- * The 46 rendered/structural components of the default preset, in the original
- * declaration order. `computed`, `const` and `external` stay kernel grammar
+ * The rendered/structural components of the default preset, in declaration
+ * order. `computed`, `const` and `external` stay kernel grammar
  * metadata in `src/local/configuration/schema.ts`.
  */
 export const DEFAULT_SEMANTIC_COMPONENTS: readonly LocalComponentDefinition[] = Object.freeze([
@@ -784,6 +798,8 @@ export const DEFAULT_SEMANTIC_COMPONENTS: readonly LocalComponentDefinition[] = 
   panelDef,
   cardDef,
   gridDef,
+  galleryDef,
+  galleryItemDef,
   tabsDef,
   tabDef,
   stepsDef,

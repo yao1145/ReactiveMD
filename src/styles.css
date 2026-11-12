@@ -10,6 +10,7 @@
 @import './navigation.css';
 @import './overlays.css';
 @import './data-display.css';
+@import './gallery.css';
 @import './local/widgets/code-block.css';
 @import './local/widgets/image-view.css';
 @import './local/rendering/local.css';
@@ -25,6 +26,7 @@
 @import './themes/default/text-overflow.css';
 @import './themes/default/chart-interactions.css';
 @import './themes/default/mafs.css';
+@import './themes/default/diagram-interactions.css';
 /* Load density last so explicit data-rmd-density overrides the default theme
    token block at equal attribute specificity. */
 @import './appearance.css';

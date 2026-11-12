@@ -1,0 +1,342 @@
+/* ReactiveMD Gallery: styles for <gallery> and <gallery-item>.
+   All rules are scoped to .rmd-gallery and follow the active RMD theme
+   variables, with plain fallbacks when a theme omits them. */
+
+.rmd-gallery {
+  --rmd-gallery-item-width: 280px;
+  --rmd-gallery-gap: 16px;
+  --rmd-gallery-edge-space: 32px;
+  --rmd-gallery-radius: var(--radius-card, 10px);
+  position: relative;
+  display: grid;
+  gap: 18px;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  color: var(--ink, inherit);
+}
+
+.rmd-gallery-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-inline-size: 0;
+}
+
+.rmd-gallery-title {
+  margin: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1.35;
+  flex: 1 1 8rem;
+}
+
+.rmd-gallery-controls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+
+.rmd-gallery-count {
+  font-size: 0.8125em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted, var(--ink, currentColor));
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.rmd-gallery-button {
+  box-sizing: border-box;
+  inline-size: 44px;
+  block-size: 44px;
+  flex: 0 0 44px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1.5px solid var(--line-strong, rgba(127, 127, 127, 0.35));
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink, inherit);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.rmd-gallery-button svg {
+  transition: transform 150ms ease;
+}
+
+.rmd-gallery-button[data-direction="previous"] { --rmd-gallery-arrow-shift: -2px; }
+.rmd-gallery-button[data-direction="next"] { --rmd-gallery-arrow-shift: 2px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .rmd-gallery-button:hover:not(:disabled) svg {
+    transform: translateX(var(--rmd-gallery-arrow-shift));
+  }
+}
+
+.rmd-gallery-button:active:not(:disabled) {
+  transform: scale(var(--rmd-uiarc-press-scale, .97));
+}
+
+.rmd-gallery-button:hover:not(:disabled) {
+  border-color: var(--ink-muted, currentColor);
+  background: var(--surface-hover, rgba(127, 127, 127, .08));
+}
+
+.rmd-gallery-button:focus-visible {
+  outline: 2px solid var(--accent, currentColor);
+  outline-offset: 2px;
+}
+
+.rmd-gallery-button:disabled {
+  opacity: var(--disabled-opacity, 0.4);
+  cursor: default;
+}
+
+/* Native overflow is the scroller. The mask only fades an edge while more
+   content remains there; it never intercepts pointer events. */
+.rmd-gallery-viewport {
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  gap: max(24px, var(--rmd-gallery-gap));
+  margin: 0;
+  padding: 12px var(--rmd-gallery-edge-space) 24px;
+  list-style: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Match UIArc's horizontal snap example: every completed scroll settles
+     on an item, including wheel, touch and thumb release. */
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--rmd-gallery-edge-space);
+  scrollbar-width: thin;
+  scrollbar-color: var(--line, rgba(127, 127, 127, 0.4)) transparent;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 var(--rmd-gallery-fade-left, 0px),
+    #000 calc(100% - var(--rmd-gallery-fade-right, 0px)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 var(--rmd-gallery-fade-left, 0px),
+    #000 calc(100% - var(--rmd-gallery-fade-right, 0px)),
+    transparent 100%
+  );
+}
+
+.rmd-gallery-viewport:focus-visible {
+  outline: 2px solid var(--accent, currentColor);
+  outline-offset: -2px;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+/* Before the strip is measured (SSR, no JavaScript) the native scrollbar
+   stays available. Once ready, the thin overlay track replaces it. */
+.rmd-gallery[data-rmd-gallery-ready] .rmd-gallery-viewport {
+  scrollbar-width: none;
+}
+
+.rmd-gallery[data-rmd-gallery-ready] .rmd-gallery-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.rmd-gallery-item {
+  flex: 0 0 auto;
+  inline-size: min(var(--rmd-gallery-item-width), 100%);
+  min-inline-size: 0;
+  scroll-snap-align: start;
+}
+
+.rmd-gallery-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-inline-size: 0;
+}
+
+.rmd-gallery-caption {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-lg, 1.12em);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink, inherit);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  padding-inline: 4px;
+}
+
+.rmd-gallery-body {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+
+.rmd-gallery-body :is(p, li, blockquote, a) {
+  overflow-wrap: anywhere;
+}
+
+.rmd-gallery-body .md-card-title {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rmd-gallery-body :not(pre) > code {
+  white-space: break-spaces;
+  overflow-wrap: anywhere;
+}
+
+.rmd-gallery-body :is(pre, table) {
+  max-inline-size: 100%;
+  overflow-x: auto;
+}
+
+/* Content styles stay with their own components. Images get a bounded width
+   and theme radius; alt text, links and any document image zoom stay intact. */
+.rmd-gallery-body img {
+  max-inline-size: 100%;
+  block-size: auto;
+  border-radius: var(--rmd-gallery-radius);
+}
+
+/* Thin overlay track: visible on hover, focus, scroll or drag. */
+.rmd-gallery-track {
+  position: absolute;
+  inset-inline: var(--rmd-gallery-edge-space);
+  inset-block-end: 2px;
+  block-size: 8px;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.rmd-gallery:hover .rmd-gallery-track,
+.rmd-gallery:focus-within .rmd-gallery-track,
+.rmd-gallery[data-rmd-gallery-scrolling] .rmd-gallery-track,
+.rmd-gallery[data-rmd-gallery-dragging] .rmd-gallery-track {
+  opacity: 1;
+}
+
+.rmd-gallery-track[data-hidden] {
+  display: none;
+}
+
+.rmd-gallery-thumb {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 0;
+  inline-size: 48px;
+  block-size: 4px;
+  border-radius: 999px;
+  background: var(--line-strong, var(--ink, currentColor));
+  opacity: 0.55;
+  cursor: grab;
+  touch-action: none;
+}
+
+.rmd-gallery-thumb:hover,
+.rmd-gallery[data-rmd-gallery-dragging] .rmd-gallery-thumb {
+  opacity: 0.8;
+}
+
+.rmd-gallery-thumb:active {
+  cursor: grabbing;
+}
+
+/* Static and print output: every item wraps in a grid, no clipping and no
+   interactive chrome. */
+.rmd-gallery-static-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--rmd-gallery-item-width)), 1fr));
+  gap: var(--rmd-gallery-gap);
+}
+
+.rmd-gallery-static-item {
+  min-inline-size: 0;
+}
+
+.rmd-gallery-static :is(.rmd-gallery-title, .rmd-gallery-caption, .md-card-title) {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.rmd-gallery-item-standalone {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-inline-size: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rmd-gallery-track,
+  .rmd-gallery-button,
+  .rmd-gallery-button svg {
+    transition: none;
+  }
+  .rmd-gallery-button:active:not(:disabled),
+  .rmd-gallery-button:hover:not(:disabled) svg {
+    transform: none;
+  }
+}
+
+@media print {
+  .rmd-gallery :is(.rmd-gallery-title, .rmd-gallery-caption, .md-card-title) {
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+  }
+  .rmd-gallery {
+    display: block;
+  }
+
+  .rmd-gallery-controls,
+  .rmd-gallery-track {
+    display: none !important;
+  }
+
+  .rmd-gallery-viewport {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--rmd-gallery-item-width)), 1fr));
+    gap: var(--rmd-gallery-gap);
+    overflow: visible;
+    padding: 0;
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+
+  .rmd-gallery-item {
+    inline-size: auto;
+    max-inline-size: none;
+    scroll-snap-align: none;
+    break-inside: avoid;
+  }
+
+  .rmd-gallery-static-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--rmd-gallery-item-width)), 1fr));
+  }
+}

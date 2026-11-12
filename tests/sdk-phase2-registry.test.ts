@@ -110,11 +110,11 @@ function container(): LocalComponentDefinition {
 }
 
 describe('default preset manifests', () => {
-  it('exposes 46 rendered/structural manifests and 3 kernel declarations', () => {
-    expect(DEFAULT_COMPONENT_DEFINITIONS).toHaveLength(46);
-    expect(DEFAULT_COMPONENT_NAMES).toHaveLength(46);
+  it('exposes 48 rendered/structural manifests and 3 kernel declarations', () => {
+    expect(DEFAULT_COMPONENT_DEFINITIONS).toHaveLength(48);
+    expect(DEFAULT_COMPONENT_NAMES).toHaveLength(48);
     expect(LOCAL_KERNEL_DECLARATIONS.map((schema) => schema.name)).toEqual(['computed', 'const', 'external']);
-    expect(LOCAL_COMPONENT_NAMES).toHaveLength(49);
+    expect(LOCAL_COMPONENT_NAMES).toHaveLength(51);
   });
 
   it('builds every default manifest through defineLocalComponent with shared ids', () => {
@@ -421,7 +421,7 @@ describe('unified registry and compile options', () => {
     const options = readLocalCompileOptions(undefined);
     expect(options.ok).toBe(true);
     if (!options.ok) return;
-    expect(options.registry).toHaveLength(46);
+    expect(options.registry).toHaveLength(48);
     expect(options.componentByName.get('number')?.name).toBe('number');
     expect(options.schemaByName.get('computed')?.form).toBe('leaf');
     expect(options.defaultComponentNames.has('slider')).toBe(true);

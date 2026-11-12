@@ -371,6 +371,26 @@ const AUTHORING_DATA = {
         zh: '<if when="{{ {{select:true}} }}">\n{{selection:示例内容}}\n</if>',
       },
     },
+    gallery: {
+      title: { en: 'Gallery', zh: '横向画廊' },
+      description: { en: 'Browse images, cards and Markdown in a horizontal strip.', zh: '横向浏览图片、卡片与 Markdown 内容。' },
+      category: 'layout',
+      keywords: { en: ['gallery', 'images', 'cards', 'scroll'], zh: ['画廊', '图片', '卡片', '横向滚动'] },
+      insertText: {
+        en: '<gallery label="Gallery" item-width="280">\n<gallery-item label="First item">\n{{selection:Sample content}}\n</gallery-item>\n<gallery-item label="Second item">\nMore content.\n</gallery-item>\n</gallery>',
+        zh: '<gallery label="横向画廊" item-width="280">\n<gallery-item label="项目一">\n{{selection:示例内容}}\n</gallery-item>\n<gallery-item label="项目二">\n更多内容。\n</gallery-item>\n</gallery>',
+      },
+    },
+    'gallery-item': {
+      title: { en: 'Gallery item', zh: '画廊项目' },
+      description: { en: 'One gallery item with Markdown or nested components.', zh: '一项画廊内容，可包含 Markdown 和子组件。' },
+      category: 'layout',
+      keywords: { en: ['gallery', 'item', 'slide'], zh: ['画廊', '项目', '切片'] },
+      insertText: {
+        en: '<gallery-item label="Item">\n{{selection:Sample content}}\n</gallery-item>',
+        zh: '<gallery-item label="项目">\n{{selection:示例内容}}\n</gallery-item>',
+      },
+    },
     tabs: {
       title: { en: 'Tabs', zh: '标签页' },
       description: {
@@ -439,8 +459,8 @@ const AUTHORING_DATA = {
     diagram: {
       title: { en: 'Interactive diagram', zh: '交互图解' },
       description: {
-        en: 'Show a flow with nodes and edges; click a node to read its notes.',
-        zh: '用节点和连线展示流程，可点击查看说明。',
+        en: 'Show a flow with nodes and edges; hover or focus a node to read its notes.',
+        zh: '用节点和连线展示流程，悬浮或聚焦节点查看说明。',
       },
       category: 'data',
       keywords: { en: ['diagram', 'flow', 'node', 'edge', 'graph'], zh: ['图解', '流程', '节点', '连线', '关系图'] },

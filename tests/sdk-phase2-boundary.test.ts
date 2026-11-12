@@ -67,7 +67,7 @@ describe('public component boundary', () => {
     } finally { runtime.dispose(); }
   });
   it('constructs every default manifest with the public validator', () => {
-    expect(defaultPreset.components).toHaveLength(46);
+    expect(defaultPreset.components).toHaveLength(48);
     for (const component of defaultPreset.components) {
       expect(defineLocalComponent(JSON.parse(JSON.stringify(component)))).toEqual(component);
     }

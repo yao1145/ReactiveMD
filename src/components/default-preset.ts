@@ -49,6 +49,7 @@ import {
   ValidationView,
 } from './layout';
 import { DataTableView } from './data-table';
+import { GalleryView, GalleryItemView } from './gallery';
 import {
   ChartView,
   DiagramView,
@@ -90,6 +91,8 @@ export const DEFAULT_COMPONENT_VIEWS: Readonly<Record<string, LocalComponentRend
   panel: PanelView,
   card: CardView,
   grid: GridView,
+  gallery: GalleryView,
+  'gallery-item': GalleryItemView,
   tabs: TabsView,
   tab: TabView,
   steps: StepsView,

@@ -410,7 +410,7 @@ describe('SDK manifest validation', () => {
 
   it('exposes the frozen default preset descriptor', () => {
     expect(defaultPreset).toMatchObject({ id: 'reactive-md/default', version: '0.7.0' });
-    expect(defaultPreset.components).toHaveLength(46);
+    expect(defaultPreset.components).toHaveLength(48);
     expect(Object.isFrozen(defaultPreset.components)).toBe(true);
     expect(Object.isFrozen(defaultPreset)).toBe(true);
   });

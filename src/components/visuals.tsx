@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useDefaultTheme } from '../react/default-theme';
 import { DefaultChart } from './default-chart';
+import { DiagramInspector, useDiagramInspector } from './diagram-inspector';
 import { MafsPlotSurface, type PlotSurfaceSegment } from './mafs-visuals';
 import { useHydrated } from './use-hydrated';
 import {
@@ -2483,21 +2484,21 @@ function estimateDiagramTextWidth(text: string): number {
   return em * DIAGRAM_EDGE_LABEL_FONT_SIZE;
 }
 
-function fitDiagramLabelLine(text: string, maxWidth: number): string {
-  if (estimateDiagramTextWidth(text) <= maxWidth) return text;
+function fitDiagramLabelLine(text: string, maxWidth: number, fontScale = 1): string {
+  if (estimateDiagramTextWidth(text) * fontScale <= maxWidth) return text;
   let line = '';
   for (const char of text) {
-    if (estimateDiagramTextWidth(`${line}${char}…`) > maxWidth) break;
+    if (estimateDiagramTextWidth(`${line}${char}…`) * fontScale > maxWidth) break;
     line += char;
   }
   return `${line.trimEnd()}…`;
 }
 
-function wrapDiagramLabel(label: string): string[] {
+function wrapDiagramLabel(label: string, maxWidth = DIAGRAM_EDGE_LABEL_MAX_WIDTH, fontScale = 1): string[] {
   const lines: string[] = [];
   let line = '';
   for (const char of label) {
-    if (line && estimateDiagramTextWidth(line + char) > DIAGRAM_EDGE_LABEL_MAX_WIDTH) {
+    if (line && estimateDiagramTextWidth(line + char) * fontScale > maxWidth) {
       lines.push(line);
       line = char;
     } else {
@@ -2509,7 +2510,8 @@ function wrapDiagramLabel(label: string): string[] {
   const kept = lines.slice(0, DIAGRAM_EDGE_LABEL_MAX_LINES);
   kept[DIAGRAM_EDGE_LABEL_MAX_LINES - 1] = fitDiagramLabelLine(
     lines.slice(DIAGRAM_EDGE_LABEL_MAX_LINES - 1).join(''),
-    DIAGRAM_EDGE_LABEL_MAX_WIDTH,
+    maxWidth,
+    fontScale,
   );
   return kept;
 }
@@ -2534,9 +2536,15 @@ export function DiagramView(context: LocalComponentContext) {
   const view = useComponentView(context);
   const { content, mode, t } = view;
   const interactive = mode !== 'static';
+  const modern = useDefaultTheme() && interactive;
+  const [inspectorReset, setInspectorReset] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const inspector = useDiagramInspector(modern && context.visible, inspectorReset);
   const [localSelected, setLocalSelected] = useState<string | null>(null);
   const [writeError, setWriteError] = useState<string | null>(null);
   useResetToken(context, () => {
+    setInspectorReset(value => value + 1);
+    setZoom(1);
     setLocalSelected(null);
     setWriteError(null);
   });
@@ -2544,6 +2552,7 @@ export function DiagramView(context: LocalComponentContext) {
   const instanceId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const markerId = `local-diagram-arrow-${instanceId}`;
   const descriptionId = `local-diagram-description-${instanceId}`;
+  const tooltipId = `local-diagram-tooltip-${instanceId}`;
   const title = textAttr(context, 'label', '') || t('Diagram', '图解');
   const directionRaw = String(context.props.direction ?? 'right').trim().toLowerCase();
   const direction = directionRaw === 'down' ? 'down' : 'right';
@@ -2594,7 +2603,7 @@ export function DiagramView(context: LocalComponentContext) {
 
   const layoutInput: DiagramLayoutInput = {
     direction,
-    nodes: nodes.map((entry) => ({ id: entry.id, width: DIAGRAM_NODE_WIDTH, height: DIAGRAM_NODE_HEIGHT })),
+    nodes: nodes.map((entry) => ({ id: entry.id, width: modern ? 164 : DIAGRAM_NODE_WIDTH, height: modern ? 64 : DIAGRAM_NODE_HEIGHT })),
     edges: edges.map((edge) => {
       const metrics = edge.label ? diagramLabelMetrics(edge.label) : null;
       return {
@@ -2654,6 +2663,16 @@ export function DiagramView(context: LocalComponentContext) {
         ? localSelected
         : fallbackId;
   const selectedNode = nodes.find((entry) => entry.id === selectedId) ?? nodes[0];
+  const inspectedNode = modern ? nodes.find(entry => entry.id === inspector.active?.id) : undefined;
+  const relatedIds = new Set<string>();
+  if (inspectedNode) {
+    relatedIds.add(inspectedNode.id);
+    for (const edge of edges) {
+      if (edge.from === inspectedNode.id || edge.to === inspectedNode.id) {
+        relatedIds.add(edge.from); relatedIds.add(edge.to);
+      }
+    }
+  }
   const staticSelectedId =
     runtimeSelected && ids.has(runtimeSelected)
       ? runtimeSelected
@@ -2677,13 +2696,15 @@ export function DiagramView(context: LocalComponentContext) {
     const edgeLayout = layout.edges.get(edge.key);
     if (!edgeLayout || edgeLayout.sections.length === 0) continue;
     const path = diagramEdgePath(edgeLayout.sections);
+    const related = inspectedNode && (edge.from === inspectedNode.id || edge.to === inspectedNode.id);
+    const edgeClass = inspectedNode ? related ? ' is-related' : ' is-muted' : '';
     edgePaths.push(
-      <g key={`edge-${edge.key}`} className="local-visual-edge">
+      <g key={`edge-${edge.key}`} className={`local-visual-edge${edgeClass}`}>
         <path
           d={path}
           fill="none"
-          style={{ stroke: 'var(--ink-muted)' }}
-          strokeWidth={1.6}
+          style={{ stroke: related ? 'var(--accent)' : 'var(--ink-muted)' }}
+          strokeWidth={related ? 2 : 1.6}
           markerEnd={`url(#${markerId})`}
         />
       </g>,
@@ -2695,7 +2716,7 @@ export function DiagramView(context: LocalComponentContext) {
     const labelX = labelBox.x + labelBox.width / 2;
     const labelY = labelBox.y + labelBox.height / 2;
     edgeLabels.push(
-      <g key={`edge-label-${edge.key}`} className="local-visual-edge-label-group">
+      <g key={`edge-label-${edge.key}`} className={`local-visual-edge-label-group${edgeClass}`}>
         <text className="local-visual-edge-label" x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle">
           {label.lines.map((line, index) => (
             <tspan
@@ -2714,19 +2735,28 @@ export function DiagramView(context: LocalComponentContext) {
   return (
     <VisualShell context={context}>
       <VisualFrame
-        className={`local-visual-diagram${interactive ? '' : ' local-static-diagram'}`}
+        className={`local-visual-diagram${interactive ? '' : ' local-static-diagram'}${modern ? ' rmd-diagram' : ''}`}
         label={title}
       >
-        <div className="local-visual-svg-wrap">
+        {modern ? <div className="rmd-diagram-toolbar">
+          <span>{t(`${nodes.length} nodes · ${edges.length} connections`, `${nodes.length} 个节点 · ${edges.length} 条连线`)}</span>
+          <div className="rmd-diagram-zoom" role="group" aria-label={t('Diagram zoom', '图解缩放')}>
+            <button type="button" data-rmd-appearance="custom" aria-label={t('Zoom out', '缩小图解')} disabled={zoom <= .2} onClick={() => { inspector.close(); setZoom(value => Math.max(.2, Math.round((value - .15) * 100) / 100)); }}>−</button>
+            <button type="button" data-rmd-appearance="custom" aria-label={t('Reset zoom', '重置缩放')} onClick={() => { inspector.close(); setZoom(1); }}>{Math.round(zoom * 100)}%</button>
+            <button type="button" data-rmd-appearance="custom" aria-label={t('Zoom in', '放大图解')} disabled={zoom >= 1.6} onClick={() => { inspector.close(); setZoom(value => Math.min(1.6, Math.round((value + .15) * 100) / 100)); }}>+</button>
+            <button type="button" data-rmd-appearance="custom" onClick={event => { inspector.close(); const available = event.currentTarget.closest('figure')?.querySelector('.rmd-diagram-stage')?.clientWidth ?? layout.width; setZoom(Math.max(.2, Math.min(1.25, (available - 24) / layout.width))); }}>{t('Fit', '适应宽度')}</button>
+          </div>
+        </div> : null}
+        <div className={`local-visual-svg-wrap${modern ? ' rmd-diagram-stage' : ''}`}>
           <svg
             className="local-visual-svg local-visual-diagram-svg"
             viewBox={`0 0 ${layout.width} ${layout.height}`}
-            width={layout.width}
-            height={layout.height}
+            width={modern ? layout.width * zoom : layout.width}
+            height={modern ? layout.height * zoom : layout.height}
             role="group"
             aria-label={
               interactive
-                ? `${title}, with ${nodes.length} nodes and ${edges.length} edges; press Tab to focus a node and Enter to select`
+                ? t(`${title}, with ${nodes.length} nodes and ${edges.length} edges; focus a node to inspect and press Enter to select`, `${title}，共 ${nodes.length} 个节点、${edges.length} 条连线；聚焦查看说明，回车选择节点`)
                 : t(
                     `${title}, with ${nodes.length} nodes and ${edges.length} edges`,
                     `${title}，共 ${nodes.length} 个节点、${edges.length} 条连线`,
@@ -2755,24 +2785,35 @@ export function DiagramView(context: LocalComponentContext) {
               const selected = interactive
                 ? entry.id === selectedId
                 : staticSelectedId !== null && entry.id === staticSelectedId;
-              const lines = wrapLabel(entry.label, 8, 2);
+              const lines = modern
+                ? wrapDiagramLabel(entry.label.replace(/\s+/gu, ' ').trim(), position.width - 32, 13 / DIAGRAM_EDGE_LABEL_FONT_SIZE)
+                : wrapLabel(entry.label, 8, 2);
               return (
                 <g
                   key={`node-${entry.id}`}
-                  className={`local-visual-node local-visual-node-${entry.tone}${selected ? ' is-selected' : ''}`}
+                  className={`local-visual-node local-visual-node-${entry.tone}${selected ? ' is-selected' : ''}${inspectedNode?.id === entry.id ? ' is-active' : ''}${inspectedNode && !relatedIds.has(entry.id) ? ' is-muted' : ''}`}
                   data-diagram-node={interactive ? '' : undefined}
                   transform={`translate(${position.x} ${position.y})`}
                   role={interactive ? 'button' : undefined}
                   tabIndex={interactive ? 0 : undefined}
                   aria-pressed={interactive ? selected : undefined}
                   aria-label={interactive ? entry.label : undefined}
-                  onClick={interactive ? () => select(entry.id) : undefined}
+                  aria-haspopup={modern ? 'dialog' : undefined}
+                  aria-expanded={modern ? inspectedNode?.id === entry.id : undefined}
+                  aria-controls={modern && inspectedNode?.id === entry.id ? tooltipId : undefined}
+                  aria-describedby={modern && inspectedNode?.id === entry.id ? `${tooltipId}-body` : undefined}
+                  onPointerEnter={modern ? event => inspector.show(entry.id, event.currentTarget, 'pointer') : undefined}
+                  onPointerLeave={modern ? () => inspector.leave() : undefined}
+                  onFocus={modern ? event => inspector.show(entry.id, event.currentTarget, 'focus') : undefined}
+                  onBlur={modern ? () => inspector.leave('focus') : undefined}
+                  onClick={interactive ? event => { select(entry.id); if (modern) inspector.show(entry.id, event.currentTarget, 'click'); } : undefined}
                   onKeyDown={
                     interactive
                       ? (event: ReactKeyboardEvent<SVGElement>) => {
                           if (activationKey(event)) {
                             event.preventDefault();
                             select(entry.id);
+                            if (modern) inspector.show(entry.id, event.currentTarget, 'click');
                             return;
                           }
                           if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
@@ -2784,14 +2825,14 @@ export function DiagramView(context: LocalComponentContext) {
                       : undefined
                   }
                 >
-                  <title>{entry.label}</title>
+                  {modern ? null : <title>{entry.label}</title>}
                   <rect
                     className="local-visual-node-shape"
                     x={-position.width / 2}
                     y={-position.height / 2}
                     width={position.width}
                     height={position.height}
-                    rx={10}
+                    rx={modern ? 12 : 10}
                   />
                   <text className="local-visual-node-text" textAnchor="middle">
                     {lines.map((line, lineIndex) => (
@@ -2806,7 +2847,12 @@ export function DiagramView(context: LocalComponentContext) {
             {edgeLabels}
           </svg>
         </div>
-        {interactive ? (
+        {modern ? <>
+          <p className="rmd-diagram-hint">{t('Hover or focus to inspect · Click to select · Esc to close', '悬浮或聚焦查看说明 · 点击选择 · Esc 关闭')}</p>
+          {inspectedNode ? <DiagramInspector inspector={inspector} id={tooltipId} title={inspectedNode.label} tone={inspectedNode.tone} closeLabel={t('Close node details', '关闭节点说明')}>
+            {inspectedNode.children.length ? view.render(inspectedNode.children) : <p>{t('This node has no description.', '此节点没有说明。')}</p>}
+          </DiagramInspector> : null}
+        </> : interactive ? (
           <div className="local-visual-diagram-detail" aria-live="polite">
             {selectedNode ? (
               <>
