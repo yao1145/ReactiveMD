@@ -7,7 +7,7 @@ The language engine, editor and website have independent repositories, versions 
 | Repository | Prepared release | Responsibility |
 | --- | --- | --- |
 | [ReactiveMD](https://github.com/yao1145/ReactiveMD) | reactive-md@0.8.0 | Compiler, runtime, sessions, Worker, authoring services, SDK, React/SSR, export |
-| [ReactiveMD-Editor](https://github.com/yao1145/ReactiveMD-Editor) | reactive-md-editor@0.1.0 (unpublished) | CodeMirror, toolbar, navigation, diagnostics, editor Worker |
+| [ReactiveMD-Editor](https://github.com/yao1145/ReactiveMD-Editor) | reactive-md-editor@0.1.0 | CodeMirror, toolbar, navigation, diagnostics, editor Worker |
 | [ReactiveMD-Demo](https://github.com/yao1145/ReactiveMD-Demo) | Private website package 0.1.0 | Website, examples, extension assembly, deployment |
 
 Engine 0.8 removes the old editor exports. Replace reactive-md/editor with reactive-md-editor, reactive-md/editor/codemirror with reactive-md-editor/codemirror, and the corresponding styles.css imports with the new package paths. Published 0.7 packages retain their original exports. The language syntax and state protocol keep their existing revisions.

@@ -7,7 +7,7 @@
 | 仓库 | 准备发布的版本 | 交付 |
 | --- | --- | --- |
 | [ReactiveMD](https://github.com/yao1145/ReactiveMD) | reactive-md@0.8.0 | 编译器、运行时、语言服务、SDK、React/SSR、导出 |
-| [ReactiveMD-Editor](https://github.com/yao1145/ReactiveMD-Editor) | reactive-md-editor@0.1.0（未发布） | CodeMirror、工具栏、导航、诊断呈现、编辑器 Worker |
+| [ReactiveMD-Editor](https://github.com/yao1145/ReactiveMD-Editor) | reactive-md-editor@0.1.0 | CodeMirror、工具栏、导航、诊断呈现、编辑器 Worker |
 | [ReactiveMD-Demo](https://github.com/yao1145/ReactiveMD-Demo) | 私有网站包 0.1.0 | 示例网站、组件装配、静态资源和部署 |
 
 ## 导入路径

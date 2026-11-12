@@ -58,7 +58,7 @@ import { createCompiler } from 'reactive-md/compiler';
 import { createStandardCompiler } from 'reactive-md/compiler/standard';
 
 const minimal = createCompiler().compile('# Notes');
-const standard = createStandardCompiler().compile('<number bind="n" initial="2">\n\n{{ n * 3 }}');
+const standard = createStandardCompiler().compile('<number bind="n" label="数量" initial="2">\n\n{{ n * 3 }}');
 ```
 
 `createCompiler` 不注册组件，保留 CommonMark、RMD 结构、表达式、绑定和预算。`createStandardCompiler` 安装默认预设和 KaTeX 展示检查。编译不创建编辑会话、Worker 或运行时，也不加载 React、主题实现或 CSS。结果使用 `status: 'valid' | 'recovered' | 'failed'`，并保留 `ok`、`document` 读取方式。最小入口的结果带有自己的组件配置键，把它交给使用默认配置的现有渲染器会报告 `local.extension.config-mismatch`；现有 React 与 SSR 宿主应使用标准入口。

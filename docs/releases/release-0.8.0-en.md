@@ -58,7 +58,7 @@ import { createCompiler } from 'reactive-md/compiler';
 import { createStandardCompiler } from 'reactive-md/compiler/standard';
 
 const minimal = createCompiler().compile('# Notes');
-const standard = createStandardCompiler().compile('<number bind="n" initial="2">\n\n{{ n * 3 }}');
+const standard = createStandardCompiler().compile('<number bind="n" label="Count" initial="2">\n\n{{ n * 3 }}');
 ```
 
 `createCompiler` registers no components and keeps CommonMark, RMD structure, expressions, bindings and budgets. `createStandardCompiler` installs the default preset and the KaTeX display checks. Compilation creates no editing session, Worker or runtime and loads no React, theme implementation or CSS. Results use `status: 'valid' | 'recovered' | 'failed'` and keep the `ok` and `document` read path. A minimal result carries its own component configuration key, so passing it to the existing renderer with its default configuration reports `local.extension.config-mismatch`; use the standard entry for the existing React and SSR hosts.
