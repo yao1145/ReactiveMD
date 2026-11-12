@@ -140,7 +140,9 @@ jobs:
           DIST_TAG: ${{ inputs.dist_tag }}
         run: |
           set -euo pipefail
-          npm dist-tag add "reactive-md@$VERSION" "$DIST_TAG"
+          if [ "$(npm view "reactive-md@$DIST_TAG" version --prefer-online)" != "$VERSION" ]; then
+            npm dist-tag add "reactive-md@$VERSION" "$DIST_TAG"
+          fi
 
       - name: Move latest when requested
         if: inputs.update_latest && inputs.dist_tag != 'latest'
@@ -157,5 +159,13 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          npm view "reactive-md@$VERSION" version dist.integrity dist.tarball --json
-          npm view reactive-md dist-tags --json
+          for attempt in $(seq 1 30); do
+            if npm view "reactive-md@$VERSION" version dist.integrity dist.tarball --json --prefer-online --fetch-retries=0 --fetch-timeout=15000; then
+              npm view reactive-md dist-tags --json --prefer-online
+              exit 0
+            fi
+            echo "Waiting for npm processing ($attempt/30)"
+            sleep 10
+          done
+          echo "npm accepted the upload but the version is still unavailable; inspect registry processing before retrying publication" >&2
+          exit 1
