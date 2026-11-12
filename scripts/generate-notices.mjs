@@ -66,5 +66,5 @@ const notice = [
   '```text', chemistryAttribution.trim(), '```', '',
   '```text', (await readFile(join(root, 'scripts/licenses/Apache-2.0.txt'), 'utf8')).trim(), '```', '',
 ].join('\n');
-await writeFile(resolve(root, 'THIRD_PARTY_NOTICES.md'), notice.replace(/[\t ]+$/gm, ''));
+await writeFile(resolve(root, 'THIRD_PARTY_NOTICES.md'), notice.replace(/\r\n?/g, '\n').replace(/[\t ]+$/gm, ''));
 console.log(`Preserved third-party license texts for ${packages.length} packages.`);
