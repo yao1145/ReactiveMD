@@ -17,6 +17,7 @@ import {
   useTransformContext,
   vec,
 } from 'mafs';
+import { plotGridLayout } from './mafs-plot-grid';
 
 export interface MafsRange {
   min: number;
@@ -49,18 +50,27 @@ function axisLabel(value: number): string {
 
 /**
  * Draws the coordinate grid and ticks. Labels are hidden right at the visible
- * edges, where the halved text would be clipped.
+ * edges, where the halved text would be clipped, and thinned out when the
+ * grid lines are closer together than the readable minimum.
  */
 function MafsAxes({
-  spacing,
+  xSpacing,
+  ySpacing,
   subdivisions,
   width,
   height,
+  xLabelMinGap,
+  yLabelMinGap,
 }: {
-  spacing: number;
+  xSpacing: number;
+  ySpacing?: number;
   subdivisions?: number | false;
   width: number;
   height: number;
+  /** Pixel gap below which x labels are shown on every n-th grid line. */
+  xLabelMinGap?: number;
+  /** Pixel gap below which y labels are shown on every n-th grid line. */
+  yLabelMinGap?: number;
 }) {
   const { viewTransform } = useTransformContext();
   const groupRef = useRef<SVGGElement>(null);
@@ -72,13 +82,20 @@ function MafsAxes({
     if (!viewBox || viewBox.length < 2 || !Number.isFinite(viewBox[0]) || !Number.isFinite(viewBox[1])) return;
     setOrigin((current) => (current && current[0] === viewBox[0] && current[1] === viewBox[1] ? current : [viewBox[0], viewBox[1]]));
   });
+  const spacingY = ySpacing ?? xSpacing;
+  const pixelCellX = Math.abs(viewTransform[0] * xSpacing);
+  const pixelCellY = Math.abs(viewTransform[4] * spacingY);
+  const xEvery = labelEvery(pixelCellX, xLabelMinGap);
+  const yEvery = labelEvery(pixelCellY, yLabelMinGap);
   const margin = 14;
   const xLabel = (value: number): string => {
+    if (!onEveryGridLine(value, xSpacing, xEvery)) return '';
     if (!origin) return axisLabel(value);
     const px = vec.transform([value, 0], viewTransform)[0] - origin[0];
     return px < margin || px > width - margin ? '' : axisLabel(value);
   };
   const yLabel = (value: number): string => {
+    if (!onEveryGridLine(value, spacingY, yEvery)) return '';
     if (!origin) return axisLabel(value);
     const py = vec.transform([0, value], viewTransform)[1] - origin[1];
     return py < margin || py > height - margin ? '' : axisLabel(value);
@@ -86,11 +103,25 @@ function MafsAxes({
   return (
     <g ref={groupRef}>
       <Coordinates.Cartesian
-        xAxis={{ lines: spacing, subdivisions, labels: xLabel }}
-        yAxis={{ lines: spacing, subdivisions, labels: yLabel }}
+        xAxis={{ lines: xSpacing, subdivisions, labels: xLabel }}
+        yAxis={{ lines: spacingY, subdivisions, labels: yLabel }}
       />
     </g>
   );
+}
+
+/** How many grid lines to skip between labels to keep them readable. */
+function labelEvery(pixelCell: number, minGap: number | undefined): number {
+  if (!minGap || !(pixelCell > 0) || minGap <= pixelCell) return 1;
+  return Math.ceil(minGap / pixelCell - 1e-9);
+}
+
+function onEveryGridLine(value: number, spacing: number, every: number): boolean {
+  if (every <= 1) return true;
+  if (!(spacing > 0)) return true;
+  const position = value / spacing;
+  const rounded = Math.round(position);
+  return Math.abs(position - rounded) < 1e-6 && ((rounded % every) + every) % every === 0;
 }
 
 function useElementWidth(ref: { current: HTMLElement | null }): number {
@@ -192,7 +223,7 @@ export function MafsCoordinatePlane({
       preserveAspectRatio="contain"
       viewBox={{ x: [xRange.min, xRange.max], y: [yRange.min, yRange.max], padding: Math.max(spanX, spanY) * 0.09 }}
     >
-      <MafsAxes spacing={spacing} subdivisions={subdivisions} width={width} height={420} />
+      <MafsAxes xSpacing={spacing} subdivisions={subdivisions} width={width} height={420} />
       <Line.Segment point1={[x, axisY]} point2={[x, y]} color={accent} opacity={0.5} style="dashed" weight={1.5} />
       <Line.Segment point1={[axisX, y]} point2={[x, y]} color={accent} opacity={0.5} style="dashed" weight={1.5} />
       <MovablePoint
@@ -216,8 +247,6 @@ export interface MafsPlotSurfaceProps {
   readoutId?: string;
   xDomain: MafsRange;
   yDomain: MafsRange;
-  xTicks: number[];
-  yTicks: number[];
   segments: PlotSurfaceSegment[];
   colors: readonly string[];
   focused: number | null;
@@ -228,6 +257,9 @@ export interface MafsPlotSurfaceProps {
   onFocus?: () => void;
   onBlur?: () => void;
 }
+
+const PLOT_SURFACE_HEIGHT = 360;
+const PLOT_SURFACE_FALLBACK_WIDTH = 560;
 
 interface ViewSyncProps {
   viewRef: { current: vec.Matrix | null };
@@ -250,8 +282,6 @@ export function MafsPlotSurface({
   readoutId,
   xDomain,
   yDomain,
-  xTicks,
-  yTicks,
   segments,
   colors,
   focused,
@@ -272,14 +302,18 @@ export function MafsPlotSurface({
     surfaceRef.current?.querySelector<HTMLElement>('.MafsView')?.setAttribute('tabindex', '-1');
   }, []);
 
-  const xSpacing = xTicks.length > 1 ? Math.abs(xTicks[1] - xTicks[0]) : undefined;
-  const ySpacing = yTicks.length > 1 ? Math.abs(yTicks[1] - yTicks[0]) : undefined;
-  // One shared spacing keeps grid cells square on both axes.
-  const spanX = Math.max(1e-9, xDomain.max - xDomain.min);
-  const spanY = Math.max(1e-9, yDomain.max - yDomain.min);
-  const spacing = xSpacing || ySpacing
-    ? sharedSpacing(spanX, spanY, xSpacing ?? ySpacing ?? 1, ySpacing ?? xSpacing ?? 1)
-    : undefined;
+  // Each axis gets its own "nice" spacing and visible range; the ranges are
+  // adjusted so that a screen grid cell is square even though the x and y
+  // units differ by orders of magnitude.
+  const grid = plotGridLayout({
+    xDomain,
+    yDomain,
+    width: width > 0 ? width : PLOT_SURFACE_FALLBACK_WIDTH,
+    height: PLOT_SURFACE_HEIGHT,
+  });
+  // Reserve enough pixels for the longest tick label before thinning labels.
+  const xLabelChars = Math.max(axisLabel(xDomain.min).length, axisLabel(xDomain.max).length, 1);
+  const xLabelMinGap = 16 + xLabelChars * 8;
 
   const pointerToMath = (event: ReactPointerEvent<HTMLElement>): [number, number] | null => {
     const matrix = viewRef.current;
@@ -380,16 +414,27 @@ export function MafsPlotSurface({
       onBlur={onBlur}
     >
       <Mafs
-        height={360}
+        height={PLOT_SURFACE_HEIGHT}
         width="auto"
         pan
         zoom={{ min: 0.4, max: 4 }}
-        preserveAspectRatio="contain"
-        viewBox={{ x: [xDomain.min, xDomain.max], y: [yDomain.min, yDomain.max], padding: Math.max(spanX, spanY) * 0.05 }}
+        preserveAspectRatio={false}
+        viewBox={{
+          x: [grid.xRange.min, grid.xRange.max],
+          y: [grid.yRange.min, grid.yRange.max],
+          padding: 0,
+        }}
         onClick={handleClick}
       >
         <ViewSync viewRef={viewRef} />
-        {spacing ? <MafsAxes spacing={spacing} width={width} height={360} /> : <Coordinates.Cartesian />}
+        <MafsAxes
+          xSpacing={grid.xLines}
+          ySpacing={grid.yLines}
+          width={width > 0 ? width : PLOT_SURFACE_FALLBACK_WIDTH}
+          height={PLOT_SURFACE_HEIGHT}
+          xLabelMinGap={xLabelMinGap}
+          yLabelMinGap={24}
+        />
         {segments.map((segment, index) =>
           segment.points.length > 1 ? (
             <Polyline

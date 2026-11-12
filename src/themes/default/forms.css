@@ -970,9 +970,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  scale: 1;
   transition:
     color var(--motion-base) var(--ease-standard),
-    background-color var(--motion-fast) var(--ease-standard);
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="default"].md-document .local-choice-list:is(
@@ -1050,6 +1053,12 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   color: var(--ink);
+  scale: 1;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="default"].md-document
@@ -1069,6 +1078,13 @@
   .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice.is-selected:hover:not(:disabled) {
   background: var(--pu-chip-selected-bg, var(--accent-soft));
   border-color: var(--accent-line);
+}
+
+/* Every choice shape shares the short UIArc press, so touching a chip or a
+   segment answers before the selection settles. */
+[data-rmd-theme="default"].md-document
+  .local-choice:active:not(:disabled) {
+  scale: var(--rmd-uiarc-press-scale, .97);
 }
 
 /* ----------------------------------------------------------- 7. progress */
@@ -1134,6 +1150,11 @@
   [data-rmd-theme="default"].md-document .local-choice,
   [data-rmd-theme="default"].md-document .local-choice-list::before {
     transition: none;
+  }
+
+  [data-rmd-theme="default"].md-document .local-choice,
+  [data-rmd-theme="default"].md-document .local-choice:active:not(:disabled) {
+    scale: 1;
   }
 
   [data-rmd-theme="default"].md-document :is(
@@ -1215,6 +1236,42 @@
 }
 
 /* ------------------------------------------------------- 9. action buttons */
+
+/* The shared skin's inks live at zero specificity in controls.css. A host
+   reset scoped with a class and an element (`... button { color: inherit }`)
+   can still win over that, and a filled primary then shows body ink on the
+   accent: black on the light blue, near-white on the dark one. The default
+   theme therefore restates the inks one step higher. A component can still
+   opt out with data-rmd-appearance="custom", and a component rule with
+   matching specificity wins by load order because components load last. */
+[data-rmd-theme="default"].md-document
+  :is(.md-button, .md-button-secondary):not([data-rmd-appearance="custom"]) {
+  color: var(--ink);
+}
+
+[data-rmd-theme="default"].md-document
+  .md-button-quiet:not([data-rmd-appearance="custom"]) {
+  color: var(--accent-text, var(--accent));
+}
+
+/* Later than the two rules above: primary also carries md-button. */
+[data-rmd-theme="default"].md-document
+  .md-button-primary:not([data-rmd-appearance="custom"]) {
+  color: var(--accent-ink, #ffffff);
+}
+
+/* A nested span or link belongs to the button, not to the prose around it. */
+[data-rmd-theme="default"].md-document
+  :is(.md-button, .md-button-primary, .md-button-secondary, .md-button-quiet):not([data-rmd-appearance="custom"])
+  :where(span, a, strong, em, b, i, small, code, svg) {
+  color: inherit;
+}
+
+[data-rmd-theme="default"].md-document
+  :is(.md-button, .md-button-primary, .md-button-secondary, .md-button-quiet):not([data-rmd-appearance="custom"])
+  :where(a) {
+  text-decoration: none;
+}
 
 /* UIArc buttons: a 500-weight label, a quiet fill on hover and a short press
    that scales in place. `scale` is used instead of `transform` so a host or a

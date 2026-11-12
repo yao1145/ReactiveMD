@@ -1,9 +1,18 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type RefObject } from 'react';
+import { useTooltipLayoutEffect, useTooltipPopover } from './tooltip-layer';
 
 interface TruncatedText { anchor: Element; text: string }
 
 function textOf(element: Element): string {
-  return (element.getAttribute('data-rmd-overflow-text') ?? element.textContent ?? '').trim();
+  const explicit = element.getAttribute('data-rmd-overflow-text');
+  if (explicit !== null) return explicit.trim();
+  // innerText follows rendering, so display:none descendants (for example a
+  // closed tooltip bubble inside a clipped tab label) never leak their hidden
+  // text into the overflow tooltip.
+  if (typeof HTMLElement !== 'undefined' && element instanceof HTMLElement) {
+    return element.innerText.trim();
+  }
+  return (element.textContent ?? '').trim();
 }
 
 function truncated(element: Element): boolean {
@@ -15,6 +24,9 @@ function truncated(element: Element): boolean {
 
 function findText(root: HTMLElement, target: EventTarget | null): TruncatedText | null {
   if (!(target instanceof Element) || !root.contains(target)) return null;
+  // The tooltip component owns its own bubble; a delegated overflow bubble
+  // would repeat that text and compete with the local popover.
+  if (target.closest('.local-tooltip')) return null;
   if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
     for (const label of target.labels ?? []) {
       for (const candidate of [label, ...label.querySelectorAll('*')]) {
@@ -43,6 +55,8 @@ export function OverflowTextTooltip({ rootRef, enabled }: {
   const bubbleRef = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<TruncatedText | null>(null);
   const [position, setPosition] = useState({ left: 8, top: 8, ready: false });
+  // Show the top-layer bubble before the layout effect measures it.
+  useTooltipPopover(bubbleRef, enabled && tip !== null);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -136,9 +150,9 @@ export function OverflowTextTooltip({ rootRef, enabled }: {
       hide();
     };
     const observer = new MutationObserver(() => {
-      if (active && (!root.contains(active.anchor) || textOf(active.anchor) !== active.text)) hide();
+      if (active && (!root.contains(active.anchor) || active.anchor.getClientRects().length === 0 || textOf(active.anchor) !== active.text)) hide();
     });
-    observer.observe(root, { childList: true, characterData: true, subtree: true });
+    observer.observe(root, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden'] });
     root.addEventListener('mouseover', onOver);
     root.addEventListener('mousemove', onMove);
     root.addEventListener('mouseout', onMouseOut);
@@ -162,7 +176,7 @@ export function OverflowTextTooltip({ rootRef, enabled }: {
     };
   }, [enabled, id, rootRef]);
 
-  useLayoutEffect(() => {
+  useTooltipLayoutEffect(() => {
     if (!tip || !bubbleRef.current) return;
     const anchor = tip.anchor.getBoundingClientRect();
     const bubble = bubbleRef.current.getBoundingClientRect();
@@ -173,6 +187,8 @@ export function OverflowTextTooltip({ rootRef, enabled }: {
   }, [tip]);
 
   if (!enabled || !tip) return null;
-  return <div ref={bubbleRef} id={id} role="tooltip" className="rmd-overflow-tooltip" data-rmd-overflow-tooltip=""
+  // `popover="manual"` promotes the bubble out of clipped ancestors while
+  // leaving it in this document's DOM tree, so tokens and author rules apply.
+  return <div ref={bubbleRef} id={id} role="tooltip" popover="manual" className="rmd-overflow-tooltip" data-rmd-overflow-tooltip=""
     style={{ left: position.left, top: position.top, visibility: position.ready ? 'visible' : 'hidden' }}>{tip.text}</div>;
 }

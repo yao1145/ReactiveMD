@@ -8,6 +8,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import type { LocalComponentContext } from '../react/component-api';
+import { useTooltipLayoutEffect, useTooltipPopover } from '../react/tooltip-layer';
 import {
   FieldError,
   LocalError,
@@ -564,11 +565,14 @@ export function TooltipView(context: LocalComponentContext) {
   const triggerRef = useRef<HTMLSpanElement>(null);
   const bubbleRef = useRef<HTMLSpanElement>(null);
   const bubbleId = `${domId}-tooltip`;
+  const shown = open && context.visible && mode !== 'static';
+  useTooltipPopover(bubbleRef, shown);
+  useEffect(() => setOpen(false), [context.visible, context.resetToken, mode]);
 
-  useEffect(() => {
+  useTooltipLayoutEffect(() => {
     const bubble = bubbleRef.current;
     const trigger = triggerRef.current;
-    if (!open || mode === 'static' || !bubble || !trigger) return;
+    if (!shown || !bubble || !trigger) return;
     const position = () => {
       const rect = bubble.getBoundingClientRect();
       const anchor = trigger.getBoundingClientRect();
@@ -590,7 +594,7 @@ export function TooltipView(context: LocalComponentContext) {
       window.removeEventListener('scroll', position, true);
       observer.disconnect();
     };
-  }, [open, text, mode]);
+  }, [shown, text]);
 
   if (mode === 'static') {
     return (
@@ -625,11 +629,17 @@ export function TooltipView(context: LocalComponentContext) {
       >
         {view.renderInline()}
       </span>
+      {/* The manual popover keeps the bubble in the top layer, so a transformed
+          or scroll-clipped tab, panel, card, accordion, step or gallery ancestor
+          cannot hide it. The element stays in the .local-tooltip subtree, so
+          theme tokens, density, colour scheme, author rules and print keep
+          working per document. */}
       <span
         id={bubbleId}
         ref={bubbleRef}
         role="tooltip"
-        className={`md-tooltip local-tooltip-bubble${open ? ' is-visible' : ''}`}
+        popover="manual"
+        className={`md-tooltip local-tooltip-bubble${shown ? ' is-visible' : ''}`}
       >
         {text}
       </span>
@@ -712,8 +722,13 @@ export function JumpView(context: LocalComponentContext) {
     <>
       <a
         href={allowed ? href : '#'}
-        className={`local-jump local-jump-${appearance}`}
+        className={
+          appearance === 'button'
+            ? 'local-jump local-jump-button md-button md-button-secondary'
+            : 'local-jump local-jump-link'
+        }
         style={accentStyle(color)}
+        data-local-custom-color={color ? 'true' : undefined}
         data-local-target-missing={target ? undefined : 'true'}
         data-local-jump-blocked={target && !allowed ? 'true' : undefined}
         aria-describedby={message ? feedbackId : undefined}

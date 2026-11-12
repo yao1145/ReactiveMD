@@ -2123,8 +2123,6 @@ export function PlotView(context: LocalComponentContext) {
               readoutId={readoutId}
               xDomain={xDomain}
               yDomain={yDomain}
-              xTicks={xTicks}
-              yTicks={yTicks}
               segments={surfaceSegments}
               colors={SERIES_COLORS}
               focused={focusedCurve}

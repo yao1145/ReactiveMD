@@ -68,8 +68,13 @@
 
 /* Native popover ----------------------------------------------------- */
 
-/* Scale only: placement is author-owned, so no directional translate. */
-[data-rmd-theme="default"].md-document [popover]:not([data-rmd-appearance="custom"]) {
+/* Scale only: placement is author-owned, so no directional translate.
+   Tooltip bubbles reuse the Popover API for its top layer, not this skin. */
+[data-rmd-theme="default"].md-document [popover]:not(
+  [data-rmd-appearance="custom"],
+  .local-tooltip-bubble,
+  .rmd-overflow-tooltip
+) {
   opacity: 0;
   transform: scale(0.98);
   transition:
@@ -80,7 +85,11 @@
   transition-behavior: allow-discrete;
 }
 
-[data-rmd-theme="default"].md-document [popover]:popover-open:not([data-rmd-appearance="custom"]) {
+[data-rmd-theme="default"].md-document [popover]:popover-open:not(
+  [data-rmd-appearance="custom"],
+  .local-tooltip-bubble,
+  .rmd-overflow-tooltip
+) {
   opacity: 1;
   transform: none;
   background: var(--surface);
@@ -91,7 +100,11 @@
 }
 
 @starting-style {
-  [data-rmd-theme="default"].md-document [popover]:popover-open:not([data-rmd-appearance="custom"]) {
+  [data-rmd-theme="default"].md-document [popover]:popover-open:not(
+    [data-rmd-appearance="custom"],
+    .local-tooltip-bubble,
+    .rmd-overflow-tooltip
+  ) {
     opacity: 0;
     transform: scale(0.98);
   }

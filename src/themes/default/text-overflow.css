@@ -1,9 +1,21 @@
+/* Tooltip bubbles are native manual popovers: the top layer escapes an
+   ancestor's overflow, transform or contain clip without moving the element
+   out of its document tree, so theme tokens, density, colour scheme, author
+   rules and print stay intact. Only the user-agent popover box needs resetting
+   so the component keeps owning its own offsets. */
+.md-document [popover].local-tooltip-bubble,
+.md-document [popover].rmd-overflow-tooltip {
+  inset: auto;
+  margin: 0;
+}
+
 /* Ellipsis needs a line box. Anonymous text in inline-flex buttons otherwise
    keeps its full intrinsic width and is clipped without an ellipsis. Component
    classes still own custom flex/grid layouts; the native skin stays overridable. */
 .md-document .rmd-overflow-tooltip {
   position: fixed;
   z-index: 1001;
+  display: block;
   box-sizing: border-box;
   inline-size: max-content;
   max-inline-size: min(360px, calc(100vw - 16px));

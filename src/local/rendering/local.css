@@ -1056,7 +1056,7 @@
   outline-offset: 2px;
 }
 
-.local-document .local-jump-button {
+.local-document .local-jump-button:not(.md-button) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1077,7 +1077,7 @@
   transition: background-color var(--motion-fast) var(--ease-standard);
 }
 
-.local-document .local-jump-button:hover {
+.local-document .local-jump-button:not(.md-button):hover {
   background: color-mix(
     in srgb,
     var(--local-accent-soft, var(--surface)) 76%,

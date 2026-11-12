@@ -697,6 +697,41 @@
   cursor: not-allowed;
 }
 
+/* Option rows ------------------------------------------------------- */
+
+/* Radio, checklist and multi-select options are labels around a native input.
+   The control owns the mark; the row supplies the same short press and quiet
+   selected tint as the checkbox, so checked/unchecked answers read at one
+   speed. Only these interactive rows are covered: native <option> elements in
+   a select keep the platform's dropdown list and get no animation. */
+[data-rmd-theme="default"].md-document :is(
+  .local-radio-option,
+  .local-checklist-item,
+  .local-multi-option
+) {
+  scale: 1;
+  transition:
+    background-color var(--motion-fast, 150ms) var(--ease-standard),
+    color var(--motion-fast, 150ms) var(--ease-standard),
+    scale var(--motion-fast, 150ms) var(--ease-standard);
+}
+
+[data-rmd-theme="default"].md-document :is(
+  .local-radio-option,
+  .local-checklist-item,
+  .local-multi-option
+):is(.is-selected, :has(input:checked)) {
+  background-color: var(--local-accent-soft, var(--accent-soft));
+}
+
+[data-rmd-theme="default"].md-document :is(
+  .local-radio-option,
+  .local-checklist-item,
+  .local-multi-option
+):active:has(input:not(:disabled)) {
+  scale: 0.99;
+}
+
 /* Timer and quiz: content, not nested cards. */
 
 [data-rmd-theme="default"] .local-timer {
@@ -731,8 +766,27 @@
 /* -------------------------------------------------- 7. reduced motion */
 
 @media (prefers-reduced-motion: reduce) {
-  [data-rmd-theme="default"] :is(.md-badge, .md-status, .local-checklist-item, .local-multi-option) {
+  [data-rmd-theme="default"] :is(
+    .md-badge,
+    .md-status,
+    .local-checklist-item,
+    .local-multi-option,
+    .local-radio-option
+  ) {
     transition: none;
+  }
+
+  [data-rmd-theme="default"] :is(
+    .local-checklist-item,
+    .local-multi-option,
+    .local-radio-option
+  ),
+  [data-rmd-theme="default"] :is(
+    .local-checklist-item,
+    .local-multi-option,
+    .local-radio-option
+  ):active:has(input:not(:disabled)) {
+    scale: 1;
   }
 
   [data-rmd-theme="default"] :is(

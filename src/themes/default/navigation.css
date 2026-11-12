@@ -605,6 +605,33 @@
   outline-offset: 2px;
 }
 
+/* Jump buttons use the shared md-button skin. Only authored accents and
+   unavailable-target feedback need component-specific rules. */
+[data-rmd-theme="default"].md-document .local-jump-button {
+  text-decoration: none;
+  background-image: none;
+}
+
+[data-rmd-theme="default"].md-document .local-jump-button[data-local-custom-color] {
+  background: var(--local-accent-soft);
+  border-color: var(--local-accent);
+  color: var(--local-accent-strong);
+}
+[data-rmd-theme="default"].md-document .local-jump-button[data-local-custom-color]:hover {
+  background: color-mix(in srgb, var(--local-accent-soft) 76%, var(--surface-hover));
+}
+[data-rmd-theme="default"].md-document .local-jump-button:is(
+  [data-local-jump-blocked="true"], [data-local-target-missing="true"]
+) {
+  border-color: var(--line);
+  background: var(--surface-subtle);
+  color: var(--ink-muted);
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+  box-shadow: none;
+  scale: 1;
+}
+
 /* ==================================================== document link motion */
 
 [data-rmd-theme="default"] a:not(.md-button):not(.md-page) {
@@ -715,5 +742,26 @@
   [data-rmd-theme="default"] .local-disclosure,
   [data-rmd-theme="default"] details {
     box-shadow: none;
+  }
+
+  /* Button-shaped jumps become ordinary underlined links on paper; this
+     restates the print sheet's intent at the specificity of the screen
+     button rule above so the box does not survive the page. */
+  [data-rmd-theme="default"].md-document
+    .local-jump-button:not([data-rmd-appearance="custom"]) {
+    display: inline;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #1d4ed8;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    text-align: inherit;
+    text-decoration: underline;
+    box-shadow: none;
+    scale: 1;
   }
 }
