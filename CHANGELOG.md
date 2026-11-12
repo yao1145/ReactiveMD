@@ -8,7 +8,7 @@ Split the editor into reactive-md-editor and the Demo into independent repositor
 
 ### Added
 
-- Add `<gallery>` and `<gallery-item>` to the default preset, layout pack and insertion catalog: mixed images/cards/Markdown, native mandatory snapping, wheel/keyboard/thumb navigation, h3 captions and complete static output. See [Gallery](docs/reference/gallery-en.md).
+- Add `<gallery>` and `<gallery-item>` to the default preset, layout pack and insertion catalog: mixed images/cards/Markdown, native mandatory snapping, wheel/keyboard/thumb navigation, h3 captions and complete static output.
 - Default-theme diagrams show node notes in hover/focus popovers, with zoom/fit controls, related-path highlighting, full-frame status colors and long-label handling. Static output retains all node descriptions.
 - `reactive-md/runtime`: document and component identity, serializable seeded randomness, injected clock/scheduler, and the component-state protocol with budgets.
 - `reactive-md/react/runtime`: `useTicker`, `useFrame`, `useSwipe`, `useKeys` and `useComponentState`.

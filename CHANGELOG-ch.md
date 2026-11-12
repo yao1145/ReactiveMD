@@ -8,7 +8,7 @@
 
 ### 新增
 
-- 默认预设新增 `<gallery>` 与 `<gallery-item>`，支持图片、卡片和 Markdown 混排、原生强制停靠、滚轮/键盘/拖动浏览、h3 切片标题及完整静态输出，布局包与编辑器插入目录同步支持。用法见[横向画廊](docs/reference/gallery-ch.md)。
+- 默认预设新增 `<gallery>` 与 `<gallery-item>`，支持图片、卡片和 Markdown 混排、原生强制停靠、滚轮/键盘/拖动浏览、h3 切片标题及完整静态输出，布局包与编辑器插入目录同步支持。
 - 默认主题图解改为悬浮或聚焦节点时显示说明浮层，增加缩放与适应宽度、关联路径高亮、整框状态配色和长标题适配；静态输出保留全部节点说明。
 - 新增 `reactive-md/runtime`：文档与组件身份、可序列化种子随机、注入式时钟/调度器、组件状态协议与预算。
 - 新增 `reactive-md/react/runtime`：`useTicker`、`useFrame`、`useSwipe`、`useKeys`、`useComponentState`。
