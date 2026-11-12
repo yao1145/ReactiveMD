@@ -16,6 +16,7 @@
 - 组件上下文新增 `services.random`、`services.clock`、`services.scheduler` 和 `services.state`。随机状态保持可保存、可重放；调度器处理页面可见性。
 - Tetris 示例改用 `useTicker`，2048 示例改用 `useSwipe`。
 - 新增 `examples/sci-fi-theme`：硬科幻主题包，包含三层 tokens、亮暗模式、面板/表格/表单/导航/图表容器组件样式、现场示例、设计规范与截图验证。
+- 默认主题的交互式 `<coordinate>` 与 `<plot>` 改用 Mafs：坐标点拖拽与吸附、平移缩放、点击曲线聚焦并淡化其余曲线、聚焦曲线上的鼠标跟随点。服务端渲染、静态导出与打印仍保留原有 SVG 输出。
 
 ### 兼容性
 

@@ -49,6 +49,8 @@ import {
 } from '../react/component-utils';
 import { textProblem } from '../react/field-validation';
 import { useDraftField } from '../react/use-draft-field';
+import { MafsCoordinatePlane } from './mafs-visuals';
+import { useHydrated } from './use-hydrated';
 
 /** Re-exported for compatibility; the pure validation lives in the React layer. */
 export { textProblem };
@@ -1409,6 +1411,9 @@ export function CoordinateView(context: LocalComponentContext) {
   const y = snapToStep(slotNumber(context, 'y', defaultY), yRange.min, yRange.max, yRange.step);
   const padRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
+  const hydrated = useHydrated();
+  const defaultTheme = useDefaultTheme();
+  const useMafs = hydrated && defaultTheme;
   useResetToken(context, () => setError(null));
 
   const coordinateSummary = `X: ${x} · Y: ${y}`;
@@ -1492,8 +1497,11 @@ export function CoordinateView(context: LocalComponentContext) {
         return;
     }
     event.preventDefault();
+    event.stopPropagation();
     moveTo(nextX, nextY);
   };
+
+  const accent = 'var(--local-accent, var(--coordinate-point))';
 
   return (
     <div
@@ -1508,13 +1516,13 @@ export function CoordinateView(context: LocalComponentContext) {
       <div className="local-coordinate-surface">
         <div
           ref={padRef}
-          className="local-coordinate-pad"
+          className={`local-coordinate-pad${useMafs ? ' local-mafs-coordinate' : ''}`}
           role="group"
           aria-label={t(`${label} drag area`, `${label} 拖拽区`)}
           aria-disabled={disabled || undefined}
           tabIndex={disabled ? -1 : 0}
-          onKeyDown={onKeyDown}
-          onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
+          onKeyDownCapture={onKeyDown}
+          onPointerDown={useMafs ? undefined : (event: ReactPointerEvent<HTMLDivElement>) => {
             if (disabled) return;
             event.preventDefault();
             dragging.current = true;
@@ -1527,12 +1535,12 @@ export function CoordinateView(context: LocalComponentContext) {
             const point = pointValue(event);
             if (point) moveTo(point.x, point.y);
           }}
-          onPointerMove={(event: ReactPointerEvent<HTMLDivElement>) => {
+          onPointerMove={useMafs ? undefined : (event: ReactPointerEvent<HTMLDivElement>) => {
             if (!dragging.current || disabled) return;
             const point = pointValue(event);
             if (point) moveTo(point.x, point.y);
           }}
-          onPointerUp={(event: ReactPointerEvent<HTMLDivElement>) => {
+          onPointerUp={useMafs ? undefined : (event: ReactPointerEvent<HTMLDivElement>) => {
             dragging.current = false;
             try {
               event.currentTarget.releasePointerCapture(event.pointerId);
@@ -1540,37 +1548,50 @@ export function CoordinateView(context: LocalComponentContext) {
               /* The pointer may already be released. */
             }
           }}
-          onPointerCancel={() => {
+          onPointerCancel={useMafs ? undefined : () => {
             dragging.current = false;
           }}
         >
-          <svg className="local-coordinate-svg" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
-            <defs>
-              <marker id={`${domId}-coordinate-arrow`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" viewBox="0 0 8 8">
-                <path className="local-coordinate-arrow" d="M1 1 L6 4 L1 7" />
-              </marker>
-            </defs>
-            <g className="local-coordinate-grid">
-              <rect x="40" y="40" width="320" height="320" />
-              {gridValues(xRange).map((value, index) => <line key={`x-${index}`} x1={projectX(value)} y1="40" x2={projectX(value)} y2="360" />)}
-              {gridValues(yRange).map((value, index) => <line key={`y-${index}`} x1="40" y1={projectY(value)} x2="360" y2={projectY(value)} />)}
-            </g>
-            <g className="local-coordinate-axes">
-              <line className="local-coordinate-horizontal" x1="26" y1={axisY} x2="372" y2={axisY} markerEnd={`url(#${domId}-coordinate-arrow)`} />
-              <line className="local-coordinate-vertical" x1={axisX} y1="374" x2={axisX} y2="24" markerEnd={`url(#${domId}-coordinate-arrow)`} />
-            </g>
-            <g className="local-coordinate-axis-label">
-              <text x="358" y={axisY - 14}>x</text>
-              <text x={axisX + 12} y="40">y</text>
-            </g>
-            <g className="local-coordinate-projection">
-              <line x1={pointX} y1={pointY} x2={pointX} y2={axisY} />
-              <line x1={pointX} y1={pointY} x2={axisX} y2={pointY} />
-            </g>
-            <circle className="local-coordinate-dot" cx={pointX} cy={pointY} r="10" />
-            <text className="local-coordinate-value" x={pointX} y={pointY > 330 ? pointY - 22 : pointY + 30}
-              textAnchor={pointX < 80 ? 'start' : pointX > 320 ? 'end' : 'middle'}>{`(${x}, ${y})`}</text>
-          </svg>
+          {useMafs ? (
+            <MafsCoordinatePlane
+              x={x}
+              y={y}
+              xRange={xRange}
+              yRange={yRange}
+              step={xRange.step}
+              disabled={disabled}
+              accent={accent}
+              onMove={moveTo}
+            />
+          ) : (
+            <svg className="local-coordinate-svg" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
+              <defs>
+                <marker id={`${domId}-coordinate-arrow`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" viewBox="0 0 8 8">
+                  <path className="local-coordinate-arrow" d="M1 1 L6 4 L1 7" />
+                </marker>
+              </defs>
+              <g className="local-coordinate-grid">
+                <rect x="40" y="40" width="320" height="320" />
+                {gridValues(xRange).map((value, index) => <line key={`x-${index}`} x1={projectX(value)} y1="40" x2={projectX(value)} y2="360" />)}
+                {gridValues(yRange).map((value, index) => <line key={`y-${index}`} x1="40" y1={projectY(value)} x2="360" y2={projectY(value)} />)}
+              </g>
+              <g className="local-coordinate-axes">
+                <line className="local-coordinate-horizontal" x1="26" y1={axisY} x2="372" y2={axisY} markerEnd={`url(#${domId}-coordinate-arrow)`} />
+                <line className="local-coordinate-vertical" x1={axisX} y1="374" x2={axisX} y2="24" markerEnd={`url(#${domId}-coordinate-arrow)`} />
+              </g>
+              <g className="local-coordinate-axis-label">
+                <text x="358" y={axisY - 14}>x</text>
+                <text x={axisX + 12} y="40">y</text>
+              </g>
+              <g className="local-coordinate-projection">
+                <line x1={pointX} y1={pointY} x2={pointX} y2={axisY} />
+                <line x1={pointX} y1={pointY} x2={axisX} y2={pointY} />
+              </g>
+              <circle className="local-coordinate-dot" cx={pointX} cy={pointY} r="10" />
+              <text className="local-coordinate-value" x={pointX} y={pointY > 330 ? pointY - 22 : pointY + 30}
+                textAnchor={pointX < 80 ? 'start' : pointX > 320 ? 'end' : 'middle'}>{`(${x}, ${y})`}</text>
+            </svg>
+          )}
         </div>
         <span className="local-coordinate-caption">{t('Draggable coordinate plane', '可拖动的坐标平面')}</span>
       </div>

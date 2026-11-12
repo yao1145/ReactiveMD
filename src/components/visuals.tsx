@@ -9,6 +9,8 @@ import {
 } from 'react';
 import { useDefaultTheme } from '../react/default-theme';
 import { DefaultChart } from './default-chart';
+import { MafsPlotSurface, type PlotSurfaceSegment } from './mafs-visuals';
+import { useHydrated } from './use-hydrated';
 import {
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
@@ -1816,8 +1818,15 @@ export function PlotView(context: LocalComponentContext) {
   const view = useComponentView(context);
   const { content, mode, locale, t } = view;
   const staticMode = mode === 'static';
+  const hydrated = useHydrated();
+  const defaultTheme = useDefaultTheme();
+  const useMafs = hydrated && !staticMode && defaultTheme;
   const [activeX, setActiveX] = useState<number | null>(null);
-  useResetToken(context, () => setActiveX(null));
+  const [focusedCurve, setFocusedCurve] = useState<number | null>(null);
+  useResetToken(context, () => {
+    setActiveX(null);
+    setFocusedCurve(null);
+  });
 
   const readoutId = useId();
   const label = textAttr(context, 'label', '') || t('Function plot', '函数图');
@@ -1908,11 +1917,29 @@ export function PlotView(context: LocalComponentContext) {
   const legend = (
     <div className="local-visual-plot-legend" role="list" aria-label={t('Curve legend', '曲线图例')}>
       {curves.map((curve, index) => (
-        <div key={`curve-legend-${index}`} className="local-visual-plot-legend-item" role="listitem">
+        <div
+          key={`curve-legend-${index}`}
+          className={`local-visual-plot-legend-item${focusedCurve === index ? ' is-focused' : ''}`}
+          role="listitem"
+        >
           <span className="local-visual-swatch" style={{ backgroundColor: SERIES_COLORS[index % SERIES_COLORS.length] }} aria-hidden="true" />
-          <span className="local-visual-plot-legend-text">
-            <span className="local-visual-plot-formula"><LatexView source={curve.source} /></span>
-          </span>
+          {useMafs ? (
+            <button
+              type="button"
+              className="local-visual-plot-legend-button"
+              aria-pressed={focusedCurve === index}
+              title={t('Focus this curve', '聚焦这条曲线')}
+              onClick={() => setFocusedCurve((current) => (current === index ? null : index))}
+            >
+              <span className="local-visual-plot-legend-text">
+                <span className="local-visual-plot-formula"><LatexView source={curve.source} /></span>
+              </span>
+            </button>
+          ) : (
+            <span className="local-visual-plot-legend-text">
+              <span className="local-visual-plot-formula"><LatexView source={curve.source} /></span>
+            </span>
+          )}
         </div>
       ))}
     </div>
@@ -2004,7 +2031,7 @@ export function PlotView(context: LocalComponentContext) {
     setActiveX(xDomain.min + ratio * (xDomain.max - xDomain.min));
   };
 
-  const handleKeyDown = (event: ReactKeyboardEvent<SVGSVGElement>) => {
+  const handleKeyDown = (event: ReactKeyboardEvent<Element>) => {
     const multiplier = event.shiftKey ? 10 : 1;
     let next: number | null = activeX;
     if (event.key === 'ArrowRight') next = (activeX ?? (xDomain.min + xDomain.max) / 2) + step * multiplier;
@@ -2013,10 +2040,29 @@ export function PlotView(context: LocalComponentContext) {
     else if (event.key === 'End') next = xDomain.max;
     else return;
     event.preventDefault();
+    event.stopPropagation();
     setActiveX(clampX(next));
   };
 
   const readX = staticMode || activeX === null ? null : clampX(activeX);
+  const surfaceSegments: PlotSurfaceSegment[] = [];
+  for (let curveIndex = 0; curveIndex < curveSegments.length; curveIndex += 1) {
+    for (const points of curveSegments[curveIndex]) {
+      if (points.length > 1) surfaceSegments.push({ curve: curveIndex, points });
+    }
+  }
+  const curvePointAt = (curveIndex: number, x: number): { x: number; y: number } | null => {
+    const curve = curves[curveIndex];
+    if (!curve) return null;
+    const explicitValue = valueAt(curve, x);
+    if (explicitValue !== null) return { x, y: explicitValue };
+    const nearest = nearestPoint(curve, x);
+    return nearest && nearest.y !== null ? { x: nearest.x, y: nearest.y } : null;
+  };
+  const plotLabel = t(
+    `${label}, range ${formatNumber(min)} to ${formatNumber(max)}, ${samples} samples`,
+    `${label}，区间 ${formatNumber(min)} 到 ${formatNumber(max)}，${samples} 个采样点`,
+  );
   const readout = readX === null
     ? t(
         `Range [${formatNumber(min)}, ${formatNumber(max)}] · ${samples} samples; use arrow keys or pointer to read values`,
@@ -2066,14 +2112,32 @@ export function PlotView(context: LocalComponentContext) {
           </div>
         )}
         <div className="local-visual-svg-wrap">
+          {useMafs ? (
+            <MafsPlotSurface
+              label={plotLabel}
+              readoutId={readoutId}
+              xDomain={xDomain}
+              yDomain={yDomain}
+              xTicks={xTicks}
+              yTicks={yTicks}
+              xLabel={xLabel}
+              yLabel={yLabel}
+              segments={surfaceSegments}
+              colors={SERIES_COLORS}
+              focused={focusedCurve}
+              onFocusedChange={setFocusedCurve}
+              onActiveXChange={setActiveX}
+              curvePointAt={curvePointAt}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setActiveX((current) => current ?? (xDomain.min + xDomain.max) / 2)}
+              onBlur={() => setActiveX(null)}
+            />
+          ) : (
           <svg
             className="local-visual-svg"
             viewBox={`0 0 ${PLOT_WIDTH} ${PLOT_HEIGHT}`}
             role="group"
-            aria-label={t(
-              `${label}, range ${formatNumber(min)} to ${formatNumber(max)}, ${samples} samples`,
-              `${label}，区间 ${formatNumber(min)} 到 ${formatNumber(max)}，${samples} 个采样点`,
-            )}
+            aria-label={plotLabel}
             aria-describedby={staticMode ? undefined : readoutId}
             tabIndex={staticMode ? undefined : 0}
             onPointerMove={staticMode ? undefined : handlePointerMove}
@@ -2140,6 +2204,7 @@ export function PlotView(context: LocalComponentContext) {
             ) : null}
             {activeMarks}
           </svg>
+          )}
         </div>
         <Notes notes={notes} />
         {legend}

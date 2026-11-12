@@ -1,0 +1,89 @@
+/* ==========================================================================
+   Default theme — Mafs-backed coordinate plane and function plot
+   --------------------------------------------------------------------------
+   Mafs supplies the pointer gestures, viewport, grid and tick drawing. This
+   file maps its CSS variables onto the semantic theme tokens and keeps the
+   local component shell consistent with the rest of the default theme.
+   ========================================================================== */
+
+[data-rmd-theme="default"] :is(.local-mafs-coordinate, .local-mafs-plot) .MafsView {
+  --mafs-bg: var(--surface);
+  --mafs-fg: var(--ink-soft);
+  --mafs-origin-color: var(--line-strong);
+  --mafs-line-color: var(--chart-grid);
+  --grid-line-subdivision-color: color-mix(in srgb, var(--chart-grid) 55%, transparent);
+  --mafs-axis-stroke-width: 1px;
+
+  border-radius: var(--radius-card);
+  color: var(--ink-soft);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-rmd-theme="default"] .local-mafs-coordinate .MafsView {
+  --mafs-bg: var(--coordinate-surface);
+}
+
+[data-rmd-theme="default"] :is(.local-mafs-coordinate, .local-mafs-plot) .MafsView:focus-visible {
+  border-radius: var(--radius-control);
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+[data-rmd-theme="default"] :is(.local-mafs-coordinate, .local-mafs-plot) .MafsView text {
+  font-family: inherit;
+}
+
+[data-rmd-theme="default"] .local-coordinate-pad.local-mafs-coordinate {
+  aspect-ratio: auto;
+  touch-action: auto;
+}
+
+[data-rmd-theme="default"] .local-coordinate-pad[aria-disabled="true"] .MafsView {
+  pointer-events: none;
+  opacity: var(--disabled-opacity);
+}
+
+[data-rmd-theme="default"] .local-mafs-plot {
+  min-width: 0;
+  max-width: 100%;
+  border-radius: var(--radius-card);
+}
+
+[data-rmd-theme="default"] .local-mafs-plot:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+/* The legend doubles as the focus control for one curve at a time. */
+
+[data-rmd-theme="default"] .local-visual-plot-legend-button {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+[data-rmd-theme="default"] .local-visual-plot-legend-button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
+}
+
+[data-rmd-theme="default"] .local-visual-plot-legend-button:hover .local-visual-plot-formula {
+  color: var(--ink);
+}
+
+[data-rmd-theme="default"] .local-visual-plot-legend-item.is-focused .local-visual-plot-formula {
+  color: var(--ink);
+}
+
+[data-rmd-theme="default"] .local-visual-plot-legend-item.is-focused .local-visual-swatch {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--accent);
+}

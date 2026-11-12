@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 // Markdown is bundled by core; renderer code highlighting bundles lowlight.
 // The standalone IIFE also bundles React/DOM.
-const roots = ['remark-gfm', 'remark-parse', 'unified', '@lezer/markdown', '@lezer/common', 'parse5', 'lowlight', 'elkjs', 'katex', 'react', 'react-dom', 'motion', 'lucide-react', '@radix-ui/react-select'];
+const roots = ['remark-gfm', 'remark-parse', 'unified', '@lezer/markdown', '@lezer/common', 'parse5', 'lowlight', 'elkjs', 'katex', 'mafs', 'react', 'react-dom', 'motion', 'lucide-react', '@radix-ui/react-select'];
 const visited = new Map();
 async function findPackage(name, from) {
   let current = from;
@@ -21,7 +21,7 @@ async function collect(name, from) {
   const directory = await findPackage(name, from);
   if (visited.has(directory)) return;
   const pkg = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8'));
-  const licenseFiles = (await readdir(directory)).filter(file => /^(?:licen[cs]e|copying)(?:\.|$)/i.test(file)).sort();
+  const licenseFiles = (await readdir(directory)).filter(file => /^(?:licen[cs]e|copying|ofl)(?:\.|$)/i.test(file)).sort();
   // react-remove-scroll-bar@2.3.8 declares MIT but omits LICENSE from its npm
   // tarball. Preserve the text from its owning repository explicitly.
   const fallback = pkg.name === 'react-remove-scroll-bar' && pkg.version === '2.3.8'

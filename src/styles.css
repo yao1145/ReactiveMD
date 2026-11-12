@@ -1,4 +1,5 @@
 @import 'katex/dist/katex.min.css';
+@import 'mafs/core.css';
 @import './theme.css';
 @import './base.css';
 @import './content.css';
@@ -23,6 +24,7 @@
 @import './themes/default/uiarc-refinements.css';
 @import './themes/default/text-overflow.css';
 @import './themes/default/chart-interactions.css';
+@import './themes/default/mafs.css';
 /* Load density last so explicit data-rmd-density overrides the default theme
    token block at equal attribute specificity. */
 @import './appearance.css';

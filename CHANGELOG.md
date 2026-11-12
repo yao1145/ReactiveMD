@@ -16,6 +16,7 @@ Split the editor into reactive-md-editor and the Demo into independent repositor
 - Component contexts gain `services.random`, `services.clock`, `services.scheduler` and `services.state`. Random state stays saveable and replayable; the scheduler handles page visibility.
 - The Tetris example uses `useTicker`; the 2048 example uses `useSwipe`.
 - Add `examples/sci-fi-theme`: a hard-sci-fi theme package with three-layer tokens, light/dark modes, component styling for panels, tables, forms, navigation and chart containers, a live gallery, design specification and screenshot verification.
+- The default theme renders interactive `<coordinate>` and `<plot>` with Mafs: draggable snapped points, pan and zoom, click-to-focus curves with dimmed backgrounds, and a pointer-tracked point on the focused curve. Server rendering, static export and print keep the existing SVG output.
 
 ### Compatibility
 
