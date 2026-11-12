@@ -21,7 +21,12 @@
 }
 
 [data-rmd-theme="default"] .local-mafs-coordinate .MafsView {
-  --mafs-bg: var(--coordinate-surface);
+  --mafs-bg: transparent;
+}
+
+/* Mafs draws its own surface, so the coordinate shell loses its tinted card. */
+[data-rmd-theme="default"] .local-coordinate-surface.local-mafs-surface {
+  background: transparent;
 }
 
 [data-rmd-theme="default"] :is(.local-mafs-coordinate, .local-mafs-plot) .MafsView:focus-visible {
@@ -37,6 +42,36 @@
 [data-rmd-theme="default"] .local-coordinate-pad.local-mafs-coordinate {
   aspect-ratio: auto;
   touch-action: auto;
+}
+/* Keep the drag handle close to its resting size instead of the default
+   ring-derived hover size, and leave room for the handle at the edges. */
+[data-rmd-theme="default"] .local-mafs-coordinate .MafsView {
+  overflow: visible;
+}
+
+[data-rmd-theme="default"] .local-coordinate-pad.local-mafs-coordinate {
+  overflow: visible;
+}
+
+[data-rmd-theme="default"] .local-mafs-coordinate .mafs-movable-point-point {
+  r: 5px;
+}
+
+[data-rmd-theme="default"] .local-mafs-coordinate .mafs-movable-point-ring {
+  r: 12px;
+  fill-opacity: 0.16;
+}
+
+[data-rmd-theme="default"] .local-mafs-coordinate .mafs-movable-point:hover .mafs-movable-point-point,
+[data-rmd-theme="default"] .local-mafs-coordinate .mafs-movable-point:focus-visible .mafs-movable-point-point,
+[data-rmd-theme="default"] .local-mafs-coordinate .mafs-movable-point.mafs-movable-point-dragging .mafs-movable-point-point {
+  r: 6px;
+}
+
+[data-rmd-theme="default"] .local-mafs-coordinate .mafs-movable-point:hover .mafs-movable-point-ring,
+[data-rmd-theme="default"] .local-mafs-coordinate .mafs-movable-point:focus-visible .mafs-movable-point-ring,
+[data-rmd-theme="default"] .local-mafs-coordinate .mafs-movable-point.mafs-movable-point-dragging .mafs-movable-point-ring {
+  r: 13px;
 }
 
 [data-rmd-theme="default"] .local-coordinate-pad[aria-disabled="true"] .MafsView {

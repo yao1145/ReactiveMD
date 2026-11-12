@@ -1513,7 +1513,7 @@ export function CoordinateView(context: LocalComponentContext) {
       aria-describedby={validation.describedBy}
     >
       <span className="md-label">{label}</span>
-      <div className="local-coordinate-surface">
+      <div className={`local-coordinate-surface${useMafs ? ' local-mafs-surface' : ''}`}>
         <div
           ref={padRef}
           className={`local-coordinate-pad${useMafs ? ' local-mafs-coordinate' : ''}`}

@@ -2108,7 +2108,11 @@ export function PlotView(context: LocalComponentContext) {
     <VisualShell context={context}>
       <VisualFrame className="local-visual-plot" label={label}>
         {staticMode ? null : (
-          <div className="local-visual-readout" id={readoutId} aria-live="polite">
+          <div
+            className={useMafs ? 'local-visual-readout local-visual-sr-only' : 'local-visual-readout'}
+            id={readoutId}
+            aria-live="polite"
+          >
             {readout}
           </div>
         )}
@@ -2121,8 +2125,6 @@ export function PlotView(context: LocalComponentContext) {
               yDomain={yDomain}
               xTicks={xTicks}
               yTicks={yTicks}
-              xLabel={xLabel}
-              yLabel={yLabel}
               segments={surfaceSegments}
               colors={SERIES_COLORS}
               focused={focusedCurve}

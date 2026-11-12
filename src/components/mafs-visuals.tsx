@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -46,10 +47,91 @@ function axisLabel(value: number): string {
   return Math.abs(value) < 1e-9 ? '' : formatNumber(value);
 }
 
-function gridSpacing(range: MafsRange, step: number): number {
-  const span = range.max - range.min;
-  if (!(span > 0) || !(step > 0)) return 1;
-  return step * Math.max(1, Math.ceil(span / (step * 8)));
+/**
+ * Draws the coordinate grid and ticks. Labels are hidden right at the visible
+ * edges, where the halved text would be clipped.
+ */
+function MafsAxes({
+  spacing,
+  subdivisions,
+  width,
+  height,
+}: {
+  spacing: number;
+  subdivisions?: number | false;
+  width: number;
+  height: number;
+}) {
+  const { viewTransform } = useTransformContext();
+  const groupRef = useRef<SVGGElement>(null);
+  const [origin, setOrigin] = useState<[number, number] | null>(null);
+  // Mafs renders into a shifted viewBox, so read its corner to convert the
+  // projected position back into viewport coordinates before clipping labels.
+  useLayoutEffect(() => {
+    const viewBox = groupRef.current?.ownerSVGElement?.getAttribute('viewBox')?.split(/\s+/).map(Number);
+    if (!viewBox || viewBox.length < 2 || !Number.isFinite(viewBox[0]) || !Number.isFinite(viewBox[1])) return;
+    setOrigin((current) => (current && current[0] === viewBox[0] && current[1] === viewBox[1] ? current : [viewBox[0], viewBox[1]]));
+  });
+  const margin = 14;
+  const xLabel = (value: number): string => {
+    if (!origin) return axisLabel(value);
+    const px = vec.transform([value, 0], viewTransform)[0] - origin[0];
+    return px < margin || px > width - margin ? '' : axisLabel(value);
+  };
+  const yLabel = (value: number): string => {
+    if (!origin) return axisLabel(value);
+    const py = vec.transform([0, value], viewTransform)[1] - origin[1];
+    return py < margin || py > height - margin ? '' : axisLabel(value);
+  };
+  return (
+    <g ref={groupRef}>
+      <Coordinates.Cartesian
+        xAxis={{ lines: spacing, subdivisions, labels: xLabel }}
+        yAxis={{ lines: spacing, subdivisions, labels: yLabel }}
+      />
+    </g>
+  );
+}
+
+function useElementWidth(ref: { current: HTMLElement | null }): number {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    setWidth(element.getBoundingClientRect().width);
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => setWidth(entries[0].contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+  return width;
+}
+
+function gridSpacing(span: number, step: number): number {
+  const size = step > 0 ? step : 1;
+  const target = span / 8;
+  for (const multiplier of [1, 2, 5, 10, 20, 50, 100]) {
+    if (size * multiplier >= target) return size * multiplier;
+  }
+  return size * 100;
+}
+
+function nextNice(value: number): number {
+  const exponent = Math.floor(Math.log10(value));
+  const base = value / 10 ** exponent;
+  const next = base < 1.5 ? 2 : base < 3.5 ? 5 : 10;
+  return next * 10 ** exponent;
+}
+
+/**
+ * Keep one grid spacing on both axes so each grid cell renders square. Mafs
+ * keeps equal pixel-per-unit scales, so equal math spacing means square cells.
+ */
+function sharedSpacing(spanX: number, spanY: number, spacingX: number, spacingY: number): number {
+  let spacing = Math.min(spacingX || spacingY, spacingY || spacingX) || 1;
+  const span = Math.max(spanX, spanY);
+  for (let step = 0; step < 12 && span / spacing > 10; step += 1) spacing = nextNice(spacing * 1.01);
+  return spacing;
 }
 
 /* ------------------------------------------------------------ coordinate */
@@ -83,14 +165,17 @@ export function MafsCoordinatePlane({
   accent,
   onMove,
 }: MafsCoordinatePlaneProps) {
-  const spacingX = gridSpacing(xRange, step);
-  const spacingY = gridSpacing(yRange, step);
-  const subdivisions = (spacing: number): number | false => {
+  const spanX = Math.max(1e-9, xRange.max - xRange.min);
+  const spanY = Math.max(1e-9, yRange.max - yRange.min);
+  const spacing = sharedSpacing(spanX, spanY, gridSpacing(spanX, step), gridSpacing(spanY, step));
+  const subdivisions = ((): number | false => {
     const count = Math.round(spacing / (step > 0 ? step : 1)) - 1;
     return count > 0 ? count : false;
-  };
+  })();
   const axisX = clamp(0, xRange.min, xRange.max);
   const axisY = clamp(0, yRange.min, yRange.max);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const width = useElementWidth(wrapperRef);
 
   const constrain = ([nextX, nextY]: [number, number]): [number, number] => {
     if (disabled) return [x, y];
@@ -98,18 +183,16 @@ export function MafsCoordinatePlane({
   };
 
   return (
+    <div ref={wrapperRef}>
     <Mafs
       height={420}
       width="auto"
       pan={false}
       zoom={false}
       preserveAspectRatio="contain"
-      viewBox={{ x: [xRange.min, xRange.max], y: [yRange.min, yRange.max], padding: 0.14 }}
+      viewBox={{ x: [xRange.min, xRange.max], y: [yRange.min, yRange.max], padding: Math.max(spanX, spanY) * 0.09 }}
     >
-      <Coordinates.Cartesian
-        xAxis={{ lines: spacingX, subdivisions: subdivisions(spacingX), labels: axisLabel }}
-        yAxis={{ lines: spacingY, subdivisions: subdivisions(spacingY), labels: axisLabel }}
-      />
+      <MafsAxes spacing={spacing} subdivisions={subdivisions} width={width} height={420} />
       <Line.Segment point1={[x, axisY]} point2={[x, y]} color={accent} opacity={0.5} style="dashed" weight={1.5} />
       <Line.Segment point1={[axisX, y]} point2={[x, y]} color={accent} opacity={0.5} style="dashed" weight={1.5} />
       <MovablePoint
@@ -118,16 +201,11 @@ export function MafsCoordinatePlane({
         constrain={constrain}
         color={accent}
       />
-      <Text x={x} y={y} attach="s" attachDistance={20} color={accent} size={17} svgTextProps={{ textAnchor: 'middle' }}>
+      <Text x={x} y={y} attach="s" attachDistance={24} color={accent} size={17} svgTextProps={{ textAnchor: 'middle' }}>
         ({formatNumber(x)}, {formatNumber(y)})
       </Text>
-      <Text x={xRange.max} y={axisY} attach="w" attachDistance={8} color="var(--coordinate-axis)" size={15}>
-        x
-      </Text>
-      <Text x={axisX} y={yRange.max} attach="n" attachDistance={8} color="var(--coordinate-axis)" size={15}>
-        y
-      </Text>
     </Mafs>
+    </div>
   );
 }
 
@@ -140,8 +218,6 @@ export interface MafsPlotSurfaceProps {
   yDomain: MafsRange;
   xTicks: number[];
   yTicks: number[];
-  xLabel: string;
-  yLabel: string;
   segments: PlotSurfaceSegment[];
   colors: readonly string[];
   focused: number | null;
@@ -176,8 +252,6 @@ export function MafsPlotSurface({
   yDomain,
   xTicks,
   yTicks,
-  xLabel,
-  yLabel,
   segments,
   colors,
   focused,
@@ -191,6 +265,7 @@ export function MafsPlotSurface({
   const surfaceRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<vec.Matrix | null>(null);
   const [tracker, setTracker] = useState<TrackerState | null>(null);
+  const width = useElementWidth(surfaceRef);
 
   // The wrapper owns the keyboard readout; keep Mafs from adding a second tab stop.
   useEffect(() => {
@@ -199,6 +274,12 @@ export function MafsPlotSurface({
 
   const xSpacing = xTicks.length > 1 ? Math.abs(xTicks[1] - xTicks[0]) : undefined;
   const ySpacing = yTicks.length > 1 ? Math.abs(yTicks[1] - yTicks[0]) : undefined;
+  // One shared spacing keeps grid cells square on both axes.
+  const spanX = Math.max(1e-9, xDomain.max - xDomain.min);
+  const spanY = Math.max(1e-9, yDomain.max - yDomain.min);
+  const spacing = xSpacing || ySpacing
+    ? sharedSpacing(spanX, spanY, xSpacing ?? ySpacing ?? 1, ySpacing ?? xSpacing ?? 1)
+    : undefined;
 
   const pointerToMath = (event: ReactPointerEvent<HTMLElement>): [number, number] | null => {
     const matrix = viewRef.current;
@@ -304,14 +385,11 @@ export function MafsPlotSurface({
         pan
         zoom={{ min: 0.4, max: 4 }}
         preserveAspectRatio="contain"
-        viewBox={{ x: [xDomain.min, xDomain.max], y: [yDomain.min, yDomain.max], padding: 0.08 }}
+        viewBox={{ x: [xDomain.min, xDomain.max], y: [yDomain.min, yDomain.max], padding: Math.max(spanX, spanY) * 0.05 }}
         onClick={handleClick}
       >
         <ViewSync viewRef={viewRef} />
-        <Coordinates.Cartesian
-          xAxis={xSpacing ? { lines: xSpacing, labels: axisLabel } : undefined}
-          yAxis={ySpacing ? { lines: ySpacing, labels: axisLabel } : undefined}
-        />
+        {spacing ? <MafsAxes spacing={spacing} width={width} height={360} /> : <Coordinates.Cartesian />}
         {segments.map((segment, index) =>
           segment.points.length > 1 ? (
             <Polyline
@@ -333,13 +411,13 @@ export function MafsPlotSurface({
               style="dashed"
               weight={1.2}
             />
-            <Point x={tracker.x} y={tracker.y} color={trackerColor} opacity={0.18} svgCircleProps={{ r: 10 }} />
-            <Point x={tracker.x} y={tracker.y} color={trackerColor} svgCircleProps={{ r: 4.5 }} />
+            <Point x={tracker.x} y={tracker.y} color={trackerColor} opacity={0.18} svgCircleProps={{ r: 9 }} />
+            <Point x={tracker.x} y={tracker.y} color={trackerColor} svgCircleProps={{ r: 4 }} />
             <Text
               x={tracker.x}
               y={tracker.y}
               attach={labelBelow ? 'n' : 's'}
-              attachDistance={16}
+              attachDistance={labelBelow ? 12 : 20}
               color={trackerColor}
               size={14}
               svgTextProps={{ textAnchor: 'middle' }}
@@ -347,16 +425,6 @@ export function MafsPlotSurface({
               ({formatNumber(tracker.x)}, {formatNumber(tracker.y)})
             </Text>
           </>
-        ) : null}
-        {xLabel ? (
-          <Text x={xDomain.max} y={yDomain.min} attach="sw" attachDistance={10} color="var(--ink-muted)" size={12}>
-            {xLabel}
-          </Text>
-        ) : null}
-        {yLabel ? (
-          <Text x={xDomain.min} y={yDomain.max} attach="ne" attachDistance={10} color="var(--ink-muted)" size={12}>
-            {yLabel}
-          </Text>
         ) : null}
       </Mafs>
     </div>
