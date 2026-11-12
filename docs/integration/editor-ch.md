@@ -2,22 +2,22 @@
 
 **中文** · [English](editor-en.md)
 
-`0.7.0` 已将 `reactive-md-editor` 统一为 CodeMirror 6 编辑器，并删除旧 textarea 源码编辑器。CM6 的事务、共享分析和坐标约定见 [CM6 集成](codemirror-ch.md)。
+`reactive-md@0.8.0` 将编辑器拆分到独立的 `reactive-md-editor@0.1.0`，引擎先发布，编辑器随后发布。原 0.7 包已统一为 CodeMirror 6 编辑器；CM6 的事务、共享分析和坐标约定见 [CM6 集成](codemirror-ch.md)。
 
 `reactive-md-editor` 是用于 Reactive MD 源码的受控 React 19 编辑器，由 Playground 编辑器抽出。它提供源码高亮、格式与插入工具栏、补全、绑定导航、重命名与格式化、撤销重做、行号及滚动同步。编辑器内置字数底栏及编辑、并排、预览三种视图。宿主保存源码，并提供预览内容、持久化和导出。
 
 编辑器有独立样式表 `reactive-md-editor/styles.css`，与 `reactive-md/styles.css` 分开。只编辑源码的页面不会加载文档渲染样式。
 
-编辑器属于 `0.6.0`，同时提供于 `latest` 与 `next` 渠道。现有 `reactive-md`、`reactive-md/react` 和 `reactive-md/styles.css` 导入保持不变。
+升级时将旧的 `reactive-md/editor` 子路径及其样式导入换成独立包入口，见[三仓库迁移](repository-split-ch.md)。文档渲染仍使用 `reactive-md/react` 和 `reactive-md/styles.css`。
 
 ## 安装
 
 ```sh
-npm install reactive-md
+npm install reactive-md@0.8.0 reactive-md-editor@0.1.0
 npm install react@19 react-dom@19
 ```
 
-需要固定版本时使用 `npm install reactive-md@0.6.0`。包只提供 ESM，工具和服务端渲染需要 Node.js 22.12 或更新版本。
+以上命令用于两个正式版本发布之后；准备期间安装各自经过验证的本地 tarball。包只提供 ESM，工具和服务端渲染需要 Node.js 22.12 或更新版本。
 
 ## 最小受控编辑器
 

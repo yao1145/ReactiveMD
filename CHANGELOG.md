@@ -2,12 +2,16 @@
 
 **English** · [中文](CHANGELOG-ch.md)
 
-## 0.8.0-next.0 (unreleased)
+## 0.8.0 (2026-11-12, latest channel)
 
-Split the editor into reactive-md-editor and the Demo into independent repositories. Replace reactive-md/editor imports with reactive-md-editor. Add standalone compiler entries, strict/local recovery and HTML details mapping. Package, syntax and data protocols retain independent versioning.
+The release splits the editor into `reactive-md-editor` and the Demo into independent repositories. Replace `reactive-md/editor` imports with `reactive-md-editor`. Add one-shot compiler entries, strict/local recovery and HTML details mapping. Package, syntax and data protocols retain independent versioning.
 
 ### Added
 
+- Add `reactive-md/compiler` and `reactive-md/compiler/standard`. The minimal entry registers no components; the standard entry installs the default preset and the KaTeX display checks. Both return plain data, enforce source, expression, structure and budget limits, and use `status: 'valid' | 'recovered' | 'failed'` results while keeping the existing `ok` and `document` read path.
+- Add `strict` and local recovery to compiler factories, `compileLocal`, editing sessions and Workers. Strict mode remains the default. With `strict: false`, a damaged region stays as literal source, each finalized recovery produces one stable warning, and compilation resumes at the next reliable boundary. Both modes map a blank-line-free `<details>` / `<summary>` fragment to one disclosure.
+- The Vite adapter discovers `theme/<folder>/theme.css` (optional `theme.json`) and `plugin/<folder>/index.*` (optional `component.css`) under the Vite root when `reactiveMd()` has no `extensions` module. Discovered local CSS and assets are resolved and inlined through the bounded build-resource collector.
+- Default charts give each bar its own hover and focus target, show each visible donut slice's share in the legend, and let legend items toggle series or slices. Bars, lines, points and arcs animate geometry changes, with reduced-motion preferences respected.
 - Refine default-theme UI: fit function plots to their axis ranges with square screen-space grids, let tooltip layers escape nested clipping, restore primary-button text contrast, align Jump buttons with standard buttons and add brief selection feedback to interactive options.
 - Add `<gallery>` and `<gallery-item>` to the default preset, layout pack and insertion catalog: mixed images/cards/Markdown, native mandatory snapping, wheel/keyboard/thumb navigation, h3 captions and complete static output.
 - Default-theme diagrams show node notes in hover/focus popovers, with zoom/fit controls, related-path highlighting, full-frame status colors and long-label handling. Static output retains all node descriptions.
@@ -21,8 +25,14 @@ Split the editor into reactive-md-editor and the Demo into independent repositor
 - Add `examples/sci-fi-theme`: a hard-sci-fi theme package with three-layer tokens, light/dark modes, component styling for panels, tables, forms, navigation and chart containers, a live gallery, design specification and screenshot verification.
 - The default theme renders interactive `<coordinate>` and `<plot>` with Mafs: draggable snapped points, pan and zoom, click-to-focus curves with dimmed backgrounds, and a pointer-tracked point on the focused curve. Server rendering, static export and print keep the existing SVG output.
 
+### Removed
+
+- Remove `reactive-md/editor`, `reactive-md/editor/codemirror` and their stylesheet exports. Install `reactive-md-editor@0.1.0` and use `reactive-md-editor`, `reactive-md-editor/codemirror` and the matching stylesheets. Published 0.7 packages keep the old entries.
+
 ### Compatibility
 
+- The engine and editor publish separately. Publish `reactive-md@0.8.0` first, then `reactive-md-editor@0.1.0`.
+- `0.8.0` keeps syntax `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1`, `reactive-md-state/v1` and the `0.7.0` SDK contract. Document sources and state files need no migration for this package update.
 - The new services are additive; existing components can ignore them. Component state uses a separate `reactive-md-component-state/v1` sidecar and does not change `reactive-md-state/v1`.
 - Cross-edit restore requires an explicit `state-key`; without it, restore is limited to the same source and session.
 

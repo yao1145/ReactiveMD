@@ -23,7 +23,7 @@ on:
       update_latest:
         description: Also move latest to this version
         required: true
-        default: true
+        default: false
         type: boolean
       use_verified_release:
         description: Publish the exact verified tarball attached to the version's GitHub Release
@@ -131,6 +131,16 @@ jobs:
           set -euo pipefail
           npm publish "artifacts/release-package/reactive-md-$VERSION.tgz" \
             --access public --tag "$DIST_TAG" --ignore-scripts
+
+      - name: Apply the requested dist-tag to an existing version
+        if: steps.registry.outputs.published == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: |
+          set -euo pipefail
+          npm dist-tag add "reactive-md@$VERSION" "$DIST_TAG"
 
       - name: Move latest when requested
         if: inputs.update_latest && inputs.dist_tag != 'latest'

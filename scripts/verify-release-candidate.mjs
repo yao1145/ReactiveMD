@@ -17,6 +17,10 @@ assert.equal(verification.filename, filename);
 assert.ok(Array.isArray(verification.checks) && verification.checks.length > 0);
 assert.equal(manifest.version, pkg.version);
 assert.equal(manifest.commit, execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim());
+// An archive built from a dirty worktree has no committed source to bind to.
+// Older manifests omit dirty; absence keeps the existing committed-release meaning.
+assert.ok(manifest.dirty === undefined || typeof manifest.dirty === 'boolean', 'release manifest dirty field must be a boolean when present');
+assert.notEqual(manifest.dirty, true, 'release manifest marks its source worktree dirty; publish a committed release asset instead');
 const archive = await readFile(path.join(directory, filename));
 const sha256 = createHash('sha256').update(archive).digest('hex');
 const integrity = `sha512-${createHash('sha512').update(archive).digest('base64')}`;

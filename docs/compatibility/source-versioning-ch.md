@@ -159,4 +159,4 @@ reactive-md migrate old.reactive.md --from local-draft-1 --accept-semantic-chang
 
 迁移处理声明的元数据变化，并检查正文能否跨越修订边界。它不是旧版读取器：不解释 YAML `state`/`data`/`computed`/`actions` 配置块、directive 或其他 draft 之前的语法，也不改写正文。在 `local-draft-3` 下已经无法编译的源码会保持阻止状态，直到作者修复报告的位置。
 
-`0.7.0` 同时提供于 `latest` 与 `next` 渠道。本页说明从 `0.4.0` 起提供的迁移工具。`local-draft-3` 新增 `<external>` 和动态约束；迁移 `local-draft-2` 文档时会阻止新激活的 `<external>` 标签，作者需要先把它们保存为字面代码。
+`0.8.0` 继续以 `local-draft-3` 作为唯一接受的修订，不新增源码修订。本页的指令规则、迁移 API 和 CLI 选项保持不变，因此在 `0.7.0` 下可编译的文档无需为 `0.8.0` 迁移。从 `local-draft-1` 或 `local-draft-2` 迁移仍以 `local-draft-3` 为目标；迁移 `local-draft-2` 文档时仍会阻止新激活的 `<external>` 标签，作者需要先把它们保存为字面代码。`0.8.0` 使用 `latest` 渠道。

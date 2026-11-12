@@ -2,12 +2,16 @@
 
 **中文** · [English](CHANGELOG.md)
 
-## 0.8.0-next.0（未发布）
+## 0.8.0（2026-11-12，latest 渠道）
 
-编辑器拆为 reactive-md-editor，Demo 独立维护。旧 reactive-md/editor 导入迁移至 reactive-md-editor，这是 0.8 的包 API 破坏性变更。新增独立编译入口、strict/局部恢复与 HTML details 映射；包、语法和数据协议分别管理版本。
+编辑器拆为 `reactive-md-editor`，Demo 独立维护；旧 `reactive-md/editor` 导入迁移至 `reactive-md-editor`，这是 0.8 的包 API 破坏性变更。新增单次编译入口、严格模式与局部恢复、HTML details 映射；包、语法和数据协议分别管理版本。
 
 ### 新增
 
+- 新增 `reactive-md/compiler` 与 `reactive-md/compiler/standard`。最小入口默认不注册组件；标准入口安装默认预设与 KaTeX 展示检查。两者只返回普通数据，执行源码、表达式、结构和预算限制，结果使用 `status: 'valid' | 'recovered' | 'failed'`，并保留原有 `ok`、`document` 读取方式。
+- 编译工厂、`compileLocal`、编辑会话和 Worker 新增 `strict` 与局部恢复。严格模式仍是默认值。设置 `strict: false` 后，损坏区域保留为原始文本，每个最终恢复产生一条稳定 warning，编译在下一个可靠边界继续。两种模式都把无空行的 `<details>` / `<summary>` 片段映射为单个 disclosure。
+- 当 `reactiveMd()` 未传入 `extensions` 模块时，Vite 适配器扫描 Vite 根目录下的 `theme/<folder>/theme.css`（可选 `theme.json`）和 `plugin/<folder>/index.*`（可选 `component.css`）。发现的本地 CSS 与资源通过有界构建资源收集器解析并内联。
+- 默认图表为每个柱子提供独立的悬浮与聚焦目标，在环形图图例中显示每个可见扇区的占比，并允许图例开关系列或扇区。柱、线、点和弧的几何变化带有动画，并遵循减少动态效果偏好。
 - 默认主题 UI 修订：函数图按各轴范围适配并保持屏幕网格正方形；tooltip 浮层避开嵌套容器裁剪；修复主按钮文字对比度，统一 Jump 按钮样式，并为可交互选项增加短促的选中反馈。
 - 默认预设新增 `<gallery>` 与 `<gallery-item>`，支持图片、卡片和 Markdown 混排、原生强制停靠、滚轮/键盘/拖动浏览、h3 切片标题及完整静态输出，布局包与编辑器插入目录同步支持。
 - 默认主题图解改为悬浮或聚焦节点时显示说明浮层，增加缩放与适应宽度、关联路径高亮、整框状态配色和长标题适配；静态输出保留全部节点说明。
@@ -21,8 +25,14 @@
 - 新增 `examples/sci-fi-theme`：硬科幻主题包，包含三层 tokens、亮暗模式、面板/表格/表单/导航/图表容器组件样式、现场示例、设计规范与截图验证。
 - 默认主题的交互式 `<coordinate>` 与 `<plot>` 改用 Mafs：坐标点拖拽与吸附、平移缩放、点击曲线聚焦并淡化其余曲线、聚焦曲线上的鼠标跟随点。服务端渲染、静态导出与打印仍保留原有 SVG 输出。
 
+### 移除
+
+- 移除 `reactive-md/editor`、`reactive-md/editor/codemirror` 及其样式表导出。安装 `reactive-md-editor@0.1.0`，改用 `reactive-md-editor`、`reactive-md-editor/codemirror` 和对应样式表。已发布的 0.7 包仍保留旧入口。
+
 ### 兼容性
 
+- 引擎与编辑器分别发布：先发布 `reactive-md@0.8.0`，再发布 `reactive-md-editor@0.1.0`。
+- `0.8.0` 保持语法 `local-draft-3`、`component-protocol-3`、`reactive-md-theme-1`、`reactive-md-state/v1` 以及 `0.7.0` SDK 契约。文档源码和状态文件无需因本次包升级而迁移。
 - 新服务为增量字段，旧组件可忽略。组件状态使用独立的 `reactive-md-component-state/v1` sidecar，不改变 `reactive-md-state/v1`。
 - 跨编辑恢复需要显式 `state-key`；没有该属性时只保证同一源码和同一会话内可恢复。
 

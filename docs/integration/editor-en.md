@@ -2,22 +2,22 @@
 
 **English** · [中文](editor-ch.md)
 
-`0.7.0` uses CodeMirror 6 for `reactive-md-editor` and removes the old textarea source editor. See [CM6 integration](codemirror-en.md) for transactions, shared analysis and source coordinates.
+`reactive-md@0.8.0` moves the editor into the independent `reactive-md-editor@0.1.0` package; the engine publishes before the editor. The old 0.7 package already used CodeMirror 6. See [CM6 integration](codemirror-en.md) for transactions, shared analysis and source coordinates.
 
 `reactive-md-editor` is a controlled React 19 editor for Reactive MD source. It comes from the Playground editor and provides source highlighting, a formatting and insertion toolbar, completion, binding navigation, rename and format commands, undo and redo, line numbers and scroll synchronization. Its built-in status bar provides a character count and Edit, Split and Preview views. The host keeps the source text and supplies preview content, persistence and export.
 
 The editor has its own stylesheet at `reactive-md-editor/styles.css`. It is separate from `reactive-md/styles.css`, so a page that only edits source does not load document rendering styles.
 
-The editor is part of the `0.6.0` release, available on both `latest` and `next`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports are unchanged.
+Replace the old `reactive-md/editor` subpaths and styles with the independent package entries; see [repository migration](repository-split-en.md). Document rendering continues to use `reactive-md/react` and `reactive-md/styles.css`.
 
 ## Install
 
 ```sh
-npm install reactive-md
+npm install reactive-md@0.8.0 reactive-md-editor@0.1.0
 npm install react@19 react-dom@19
 ```
 
-Pin the version with `npm install reactive-md@0.6.0`. The package ships ESM only and needs Node.js 22.12 or newer for tooling and server rendering.
+Use these commands after both stable versions are published; during preparation, install their verified local tarballs. The packages ship ESM only and need Node.js 22.12 or newer for tooling and server rendering.
 
 ## Minimal controlled editor
 

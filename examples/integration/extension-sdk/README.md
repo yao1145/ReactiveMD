@@ -6,7 +6,7 @@ This fixture defines a rating control, a Markdown hint container, and a light/da
 
 `advanced.tsx` adds a coordinate control, string collection, numeric collection and Markdown container. The coordinate, multi-select and card contracts come from `defaultPreset.components`; the project supplies its own React implementations. Its acceptance checks cover atomic rollback, array limits and copies, reset, disabled/hidden states, static output, SSR and offline desktop/mobile restoration. `advanced-standalone.ts` bundles the same installed implementations for that export.
 
-The extension SDK ships in `reactive-md@0.7.0`. The verifier installs the published package and peer dependencies in a separate directory; when testing unreleased changes, it uses a freshly packed tarball instead.
+This fixture targets `reactive-md@0.8.0`; its SDK contract remains at `0.7.0`. The verifier installs the engine and peer dependencies in a separate directory. Use a freshly packed engine tarball while preparing the release, then the published package after 0.8.0 is available.
 
 From the repository root:
 

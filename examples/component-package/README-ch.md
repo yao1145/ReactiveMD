@@ -4,7 +4,7 @@
 
 这是一个可复制的 npm 组件包，定义评分控件与 Markdown 提示容器，附带主题包和内联 SVG 资源，并用公开合规工具验证安装后的包。所有导入都来自公开的 `reactive-md` 入口。
 
-扩展 SDK 随 `reactive-md@0.7.0` 发布，可从公开 registry 安装。把本目录复制到仓库之外并运行 `npm install`。测试尚未发布的 SDK 改动时，改为安装由当前源码新打包出的 tarball。
+本模板依赖 `reactive-md@^0.8.0`。把本目录复制到仓库之外；0.8.0 发布前，安装由当前源码新打包出的引擎 tarball，发布后可运行 `npm install` 从 registry 安装。SDK 契约仍为 `0.7.0`。
 
 ## 公开入口
 

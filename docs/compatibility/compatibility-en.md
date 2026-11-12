@@ -2,14 +2,15 @@
 
 **English** · [中文](compatibility-ch.md)
 
-Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](../integration/local-integration-en.md) for the public API and style integration, the [0.7.0 release notes](../releases/release-0.7.0-en.md) for the current release, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for that minor series.
+Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](../integration/local-integration-en.md) for the public API and style integration, the [0.8.0 release notes](../releases/release-0.8.0-en.md) for this release, the [0.7.0 release notes](../releases/release-0.7.0-en.md) for the previous release, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for that minor series.
 
 ## Version mapping
 
 | Item | Current value | Notes |
 | --- | --- | --- |
-| Package version | `0.7.0` | 0.x preview; 0.7.0 is available on both `latest` and `next` |
-| Distribution tags | `latest` → `0.7.0`; `next` → `0.7.0` | Default installs use `latest` |
+| Package version | `0.8.0` | Stable release, 2026-11-12 |
+| Distribution tags | `latest`: `0.8.0` | `next` is maintained independently; query npm when selecting that channel |
+| SDK contract | `0.7.0` | `LOCAL_SDK_VERSION`; independent of the package version and unchanged by `0.8.0` |
 | Syntax version | `local-draft-3` | `LOCAL_SYNTAX_VERSION`; this revision is the only one accepted by the package |
 | Source revision directive | Optional `<!-- reactive-md: local-draft-3 -->` | One line in the document prologue; unversioned source keeps current-revision behavior |
 | Component protocol | `component-protocol-3` | Contribution and acceptance contract, see [Component protocol](../development/component-protocol-en.md); not a runtime version selection parameter |
@@ -18,7 +19,7 @@ Reactive MD is currently a 0.x preview. This page covers package versions, synta
 | Unstyled React entry | `reactive-md/react/unstyled` | React renderer without a stylesheet dependency |
 | Core entry | `reactive-md` | Compilation, expressions and runtime, without loading React |
 | React entry | `reactive-md/react` | `LocalReactiveDocument`, `LocalDocumentView` |
-| Editor entry | `reactive-md-editor` | `ReactiveMarkdownEditor` and its types; requires React 19 |
+| Editor entry | `reactive-md-editor` | `ReactiveMarkdownEditor` and its types in the separate `0.1.0` package; requires React 19. Engine 0.8 no longer exports `reactive-md/editor` |
 | Renderer style entry | `reactive-md/styles.css` | Document and component styles, explicitly imported by the host |
 | Screen style entry | `reactive-md/screen.css` | Alias of `reactive-md/styles.css` |
 | Print style entry | `reactive-md/print.css` | Optional document print layout and page margins |
@@ -55,11 +56,13 @@ Regression data in [the historical corpus](../../examples/conformance/history/v0
 
 ## Breaking changes and migration
 
-`0.5.0` added the `reactive-md-editor` entry and its independent stylesheet. `0.5.1` adds editor views, theme palettes and HTML compatibility. They keep `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports keep working, and documents written for 0.4.x need no migration. The editor requires React 19; see the [editor guide](../integration/editor-en.md) for its history and rendering boundaries.
+`0.5.0` added the `reactive-md/editor` entry and its independent stylesheet. `0.5.1` adds editor views, theme palettes and HTML compatibility. They keep `local-draft-2`, `component-protocol-1` and `reactive-md-theme-1`. Existing `reactive-md`, `reactive-md/react` and `reactive-md/styles.css` imports keep working, and documents written for 0.4.x need no migration. The editor requires React 19; see the [editor guide](../integration/editor-en.md) for its history and rendering boundaries.
 
 `0.6.1` switches formula display to KaTeX with bundled WOFF2 fonts and accessible MathML. Plot evaluation and protocol revisions are unchanged. Invalid formulas fall back to bounded source text with a warning. `align` now numbers rows; use `align*` or `aligned` to omit automatic numbers. See the [0.6.1 release notes](../releases/release-0.6.1-en.md).
 
-`0.7.0` establishes `local-draft-3` and raises the component protocol to `component-protocol-3`. `local-draft-3` adds `<external>` read-only declarations and dynamic `min`/`max`/`required` constraints; `component-protocol-3` adds host inline/container forms and scalar bindings. Explicit `local-draft-1` and `local-draft-2` declarations are rejected; use `reactive-md migrate` before upgrading, and note that migration from `local-draft-2` blocks newly active `<external>` tags. The editor uses CM6 only, removes `textareaRef` / `getTextarea`, and keeps `reactive-md-editor/codemirror` as an alias. The public extension SDK ships in this release. See the [0.7.0 release notes](../releases/release-0.7.0-en.md).
+`0.8.0` moves the source editor out of the engine package. Replace `reactive-md/editor` with `reactive-md-editor`, `reactive-md/editor/codemirror` with `reactive-md-editor/codemirror`, and the matching `styles.css` imports. Install `reactive-md-editor@0.1.0` separately; it requires React 19 and is published after the engine. Syntax `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1`, `reactive-md-state/v1` and the `0.7.0` SDK contract are unchanged, so document sources and state files need no migration. The new compiler entries, runtime services and Vite directory discovery are additive. See the [0.8.0 release notes](../releases/release-0.8.0-en.md).
+
+`0.7.0` establishes `local-draft-3` and raises the component protocol to `component-protocol-3`. `local-draft-3` adds `<external>` read-only declarations and dynamic `min`/`max`/`required` constraints; `component-protocol-3` adds host inline/container forms and scalar bindings. Explicit `local-draft-1` and `local-draft-2` declarations are rejected; use `reactive-md migrate` before upgrading, and note that migration from `local-draft-2` blocks newly active `<external>` tags. The editor uses CM6 only, removes `textareaRef` / `getTextarea`, and keeps `reactive-md/editor/codemirror` as an alias. The public extension SDK ships in this release. See the [0.7.0 release notes](../releases/release-0.7.0-en.md).
 
 `0.6.0` adds native HTML tables, `align` and link `target`/`rel`, more math environments and commands, mhchem chemistry and expanded code highlighting, and switches diagrams to a layered layout. Unparseable native HTML now falls back to source. `compileLocal` returns only plain objects and arrays, and the editor adds `insertText`. Syntax, component and theme revisions remain unchanged, and existing imports keep working. See the [0.6.0 release notes](../releases/release-0.6.0-en.md).
 
@@ -108,7 +111,8 @@ See [Diagnostics and counting rules](../reference/diagnostics-counting-en.md) fo
 | --- | --- |
 | Node.js 22.12+ | Minimum for development and Node-side consumption; CI targets both 22.12 and 24 |
 | ESM | The only module format; no CommonJS entry |
-| React 19 | Required by `reactive-md/react` and `reactive-md-editor`; the core entry does not depend on React |
+| React 19 | Required by `reactive-md/react` and the separate `reactive-md-editor` package; the core entry does not depend on React |
+| Vite 8 | Optional peer of `reactive-md`, required only when using `reactive-md/vite` |
 | Microsoft Edge (Chromium-based) | Local browser verification has used Edge |
 | Playwright Chromium | Full Linux CI browser suite |
 | Playwright Firefox and WebKit | Core workflows at 1280px and 375px, including personal documents and interactive HTML export; included in the browser release gate and CI |
@@ -122,4 +126,4 @@ Node-side consumption means importing `reactive-md` in Node and calling `compile
 See the [syntax specification](../reference/local-interaction-syntax-en.md) for the language scope, and the [security policy](../../SECURITY.md) for the security boundary and host responsibilities.
 
 
-See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. 0.7.0 is available on both `latest` and `next`.
+See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.8.0` uses the `latest` channel.

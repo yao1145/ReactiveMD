@@ -21,6 +21,13 @@ try {
   assert.ok(!packed.files.some(f => /^(?:src|demo|editor|tests)\//.test(f.path)), 'Package contains repository source');
   assert.ok(!packed.files.some(f => /(?:types\/editor\/|reactive-md-(?:editor|codemirror))/.test(f.path)), 'Package still contains editor artifacts');
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const exportTargets = (target) => typeof target === 'string' ? [target]
+    : target && typeof target === 'object' ? Object.values(target).flatMap(exportTargets) : [];
+  const packedFiles = new Set(packed.files.map(file => file.path));
+  for (const target of exportTargets(pkg.exports)) {
+    assert.ok(packedFiles.has(target.replace(/^\.\//, '')), `Package export is missing: ${target}`);
+  }
+  assert.ok(!packed.files.some(file => /^docs\/(?:archive|architecture_roadmap)\//.test(file.path)), 'Package contains local archived development documents');
   writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies: {
     'reactive-md': `file:${join(consumer, packed.filename).replaceAll('\\', '/')}`,
     react: pkg.devDependencies.react, 'react-dom': pkg.devDependencies['react-dom'],
@@ -37,6 +44,7 @@ import { analyzeLocalSource, insertTemplate, getNativeComponentCatalog } from 'r
 import { createRandom } from 'reactive-md/runtime';
 import { createLocalBrowserStateStorage } from 'reactive-md/runtime/browser';
 import { useSwipe } from 'reactive-md/react/runtime';
+import { layoutPack } from 'reactive-md/presets/default/packs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as server from 'reactive-md/react/server';
 assert.equal(createStandardCompiler().compile('# Package boundary').status, 'valid');
@@ -50,13 +58,14 @@ assert.ok(getNativeComponentCatalog());
 assert.equal(createRandom(7).state, 7);
 assert.equal(typeof createLocalBrowserStateStorage, 'function');
 assert.equal(typeof useSwipe, 'function');
+assert.equal(layoutPack.id, 'reactive-md/default-layout');
 assert.ok(Object.keys(server).length);
 assert.equal(typeof renderToStaticMarkup, 'function');
 for (const entry of ['reactive-md/sdk','reactive-md/presets/default','reactive-md/export']) await import(entry);
 console.log('Packed public compiler, authoring, Worker, SDK, React/SSR and export boundaries passed.');
 `);
   process.stdout.write(run(process.execPath, ['smoke.mjs'], consumer));
-  writeFileSync(join(consumer, 'consumer.ts'), `import {createCompiler} from 'reactive-md/compiler';\nimport {createStandardCompiler} from 'reactive-md/compiler/standard';\nimport {analyzeLocalSource, insertTemplate} from 'reactive-md/authoring';\nimport {startLocalCompileWorker} from 'reactive-md';\ncreateCompiler().compile('hello'); createStandardCompiler().compile('hello'); analyzeLocalSource('hello'); void insertTemplate; void startLocalCompileWorker;\n`);
+  writeFileSync(join(consumer, 'consumer.ts'), `import {createCompiler} from 'reactive-md/compiler';\nimport {createStandardCompiler} from 'reactive-md/compiler/standard';\nimport {analyzeLocalSource, insertTemplate} from 'reactive-md/authoring';\nimport {startLocalCompileWorker} from 'reactive-md';\nimport {layoutPack} from 'reactive-md/presets/default/packs';\ncreateCompiler().compile('hello'); createStandardCompiler().compile('hello'); analyzeLocalSource('hello'); void insertTemplate; void startLocalCompileWorker; void layoutPack;\n`);
   writeFileSync(join(consumer, 'tsconfig.json'), JSON.stringify({compilerOptions:{target:'ES2022', module:'NodeNext',moduleResolution:'NodeNext',strict:true,noEmit:true,skipLibCheck:false},include:['consumer.ts']}));
   run(process.execPath, [resolve(consumer, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.json'], consumer);
   console.log('Packed NodeNext declarations passed in an independent consumer.');

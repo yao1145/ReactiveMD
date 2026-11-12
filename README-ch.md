@@ -27,7 +27,7 @@ Reactive MD 把普通 Markdown 变成一个小型应用：命名输入、实时�
 | --- | --- |
 | 写作 | `.reactive.md`，HTML 风格标签与 `{{ 表达式 }}` |
 | 运行 | 本地优先状态；无需后端 |
-| 视图 | 49 个内置标签、5 种图表、表格、曲线、图解、步骤与测验 |
+| 视图 | 51 个内置标签、5 种图表、表格、曲线、图解、画廊、步骤与测验 |
 | 集成 | TypeScript 核心、React 19 渲染器、CM6 源码编辑器、CLI |
 | 扩展 | npm 组件包、主题、编辑器目录、离线包 |
 | 分享 | 单文件交互 HTML、静态 HTML、版本化状态文件 |
@@ -192,17 +192,28 @@ Reactive MD 需要 Node.js 22.12 或更新版本，包只提供 ESM 入口：
 npm install reactive-md
 ```
 
-`latest` 与 `next` 当前都指向 `0.7.0`：
+0.8.0 稳定版使用 `latest` 渠道：
 
 ```sh
 npm install reactive-md
 # 或固定版本
-npm install reactive-md@0.7.0
+npm install reactive-md@0.8.0
 ```
 
-本版本说明见[0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)；从 `0.6.x` / `local-draft-2` 升级前请阅读[兼容性说明](docs/compatibility/compatibility-ch.md)。
+本版本说明见[0.8.0 发布说明](docs/releases/release-0.8.0-ch.md)；从 `0.6.x` / `local-draft-2` 升级前请阅读[兼容性说明](docs/compatibility/compatibility-ch.md)。
 
-`reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。`reactive-md-editor` 提供源码编辑器，并使用独立样式 `reactive-md-editor/styles.css`。
+### 升级到 0.8.0
+
+`reactive-md@0.8.0` 把源码编辑器迁到独立的 `reactive-md-editor@0.1.0` 包。分别安装引擎和编辑器：
+
+```sh
+npm install reactive-md@0.8.0
+npm install reactive-md-editor@0.1.0
+```
+
+替换 `reactive-md/editor` 导入前，请阅读[0.8.0 发布说明](docs/releases/release-0.8.0-ch.md)和[三仓库迁移说明](docs/integration/repository-split-ch.md)。`0.8.0` 保持语法 `local-draft-3`、`0.7.0` SDK 契约和现有状态协议，文档源码无需迁移。
+
+`reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。`reactive-md-editor` 提供源码编辑器，并使用独立样式 `reactive-md-editor/styles.css`。引擎 0.8 移除旧 `reactive-md/editor` 入口；已发布的 0.7 包仍保留它们。
 
 核心入口不依赖 React：
 
@@ -240,7 +251,7 @@ export function Article({ source }: { source: string }) {
 
 ## 用 React 编辑源码
 
-可复用的源码编辑器位于 `reactive-md-editor`，使用独立样式表。组件是受控的，需要 React 19：
+可复用的源码编辑器位于独立包 `reactive-md-editor`（0.8 发布中为 `0.1.0`），使用独立样式表，发布后与引擎一起安装。0.7 中它以 `reactive-md/editor` 提供。组件是受控的，需要 React 19：
 
 ```tsx
 import { useState } from 'react';
@@ -290,14 +301,14 @@ benchmarks/    带来源说明的精简性能数据
 - [组块协议](docs/development/component-protocol-ch.md)与[组件插件开发指南](docs/development/component-development-ch.md)。
 - [版本与兼容性](docs/compatibility/compatibility-ch.md)。
 - [性能说明](docs/development/performance-overview-ch.md)与[发布清单](docs/development/releasing-ch.md)。
-- [0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)以及 [docs/releases](docs/releases) 中的历史记录。
+- [0.8.0 发布说明](docs/releases/release-0.8.0-ch.md)、[0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)以及 [docs/releases](docs/releases) 中的历史记录。
 
 ## 支持与状态
 
 - CI 使用 Node 22.12 与 Node 24，以 Playwright Chromium 运行完整浏览器门禁，并使用 Firefox/WebKit 运行核心工作流；本机浏览器检查使用 Microsoft Edge。打包检查覆盖静态 SSR，`npm run test:shareable` 覆盖单文件导出的静态首屏水合。该路径之外的通用 SSR 水合，以及 Firefox/WebKit 的完整交互套件仍未验证。
 - 0.x 次版本可能包含破坏性变更。请保存原始 `.reactive.md` 源码，而不是运行时 AST 或内存状态。
-- `latest` 与 `next` 当前都是 `0.7.0`。安全修复可能随次版本发布。
-- 扩展 SDK 随 `0.7.0` 发布：组件包、主题、Vite 适配器、离线构建和合规工具均使用公开入口。
+- `0.8.0` 是 `latest` 渠道的稳定版本。安全修复可能随次版本发布。
+- 扩展 SDK 契约为 `0.7.0`，`0.8.0` 保持不变。组件包、主题、Vite 适配器、离线构建和合规工具均使用公开入口。
 
 ## 贡献与安全
 

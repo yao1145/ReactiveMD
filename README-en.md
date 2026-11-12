@@ -27,7 +27,7 @@ Themes and components can be loaded from `theme/` and `plugin/` with `reactiveMd
 | --- | --- |
 | Authoring | `.reactive.md` with HTML-style tags and `{{ expressions }}` |
 | Runtime | Local-first state; no backend required |
-| Views | 49 built-in tags, 5 chart kinds, tables, plots, diagrams, steps and quizzes |
+| Views | 51 built-in tags, 5 chart kinds, tables, plots, diagrams, galleries, steps and quizzes |
 | Integration | TypeScript core, React 19 renderer, CM6 source editor, CLI |
 | Extensions | npm component packages, themes, authoring catalog, offline bundles |
 | Sharing | Single-file interactive HTML, static HTML, versioned state files |
@@ -192,17 +192,28 @@ Reactive MD requires Node.js 22.12 or newer and ships only ESM entries:
 npm install reactive-md
 ```
 
-`latest` and `next` both resolve to `0.7.0`:
+The 0.8.0 stable release uses the `latest` channel:
 
 ```sh
 npm install reactive-md
 # or pin the version
-npm install reactive-md@0.7.0
+npm install reactive-md@0.8.0
 ```
 
-Read the [0.7.0 release notes](docs/releases/release-0.7.0-en.md) for this release, and the [compatibility guide](docs/compatibility/compatibility-en.md) before upgrading from `0.6.x` / `local-draft-2`.
+Read the [0.8.0 release notes](docs/releases/release-0.8.0-en.md) for this release, and the [compatibility guide](docs/compatibility/compatibility-en.md) before upgrading from `0.6.x` / `local-draft-2`.
 
-The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`. The `reactive-md-editor` entry provides the source editor with its own stylesheet at `reactive-md-editor/styles.css`.
+### Upgrade to 0.8.0
+
+`reactive-md@0.8.0` moves the source editor to the separate `reactive-md-editor@0.1.0` package. Install the engine and editor separately:
+
+```sh
+npm install reactive-md@0.8.0
+npm install reactive-md-editor@0.1.0
+```
+
+Read the [0.8.0 release notes](docs/releases/release-0.8.0-en.md) and the [repository migration guide](docs/integration/repository-split-en.md) before replacing `reactive-md/editor` imports. `0.8.0` keeps syntax `local-draft-3`, the `0.7.0` SDK contract and the existing state protocols, so document sources need no migration.
+
+The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`. The `reactive-md-editor` entry provides the source editor with its own stylesheet at `reactive-md-editor/styles.css`. Engine 0.8 removes the old `reactive-md/editor` entries; published 0.7 packages keep them.
 
 The core entry does not depend on React:
 
@@ -240,7 +251,7 @@ export function Article({ source }: { source: string }) {
 
 ## Edit source with React
 
-The reusable source editor lives at `reactive-md-editor`, with its own stylesheet. The component is controlled and requires React 19:
+The reusable source editor lives in the separate `reactive-md-editor` package (`0.1.0` in the 0.8 release), with its own stylesheet. Install it alongside the engine after publication. In 0.7 it shipped as `reactive-md/editor`. The component is controlled and requires React 19:
 
 ```tsx
 import { useState } from 'react';
@@ -290,14 +301,14 @@ benchmarks/    Condensed performance measurements with provenance
 - [Component protocol](docs/development/component-protocol-en.md) and [component plugin development guide](docs/development/component-development-en.md).
 - [Versions and compatibility](docs/compatibility/compatibility-en.md).
 - [Performance measurements](docs/development/performance-overview-en.md) and [release checklist](docs/development/releasing-en.md).
-- [0.7.0 release notes](docs/releases/release-0.7.0-en.md) and earlier release records in [docs/releases](docs/releases).
+- [0.8.0 release notes](docs/releases/release-0.8.0-en.md), [0.7.0 release notes](docs/releases/release-0.7.0-en.md) and earlier release records in [docs/releases](docs/releases).
 
 ## Support and status
 
 - CI targets Node 22.12 and Node 24 with Playwright Chromium for the full browser gate and Firefox/WebKit for core workflows; local browser checks use Microsoft Edge. The packed check covers static SSR, and `npm run test:shareable` covers the single-file export's static-first hydration. General SSR hydration outside that path and the full Firefox/WebKit interaction suites remain unverified.
 - 0.x minor releases may contain breaking changes. Persist the original `.reactive.md` source, not the runtime AST or in-memory state.
-- `latest` and `next` are both `0.7.0`. Security fixes may ship in minor releases.
-- The extension SDK ships in `0.7.0`: component packages, themes, the Vite adapter, offline builds and compliance tools use the public entries.
+- `0.8.0` is the stable release on `latest`. Security fixes may ship in minor releases.
+- The extension SDK contract is `0.7.0`; `0.8.0` keeps it unchanged. Component packages, themes, the Vite adapter, offline builds and compliance tools use the public entries.
 
 ## Contributing and security
 

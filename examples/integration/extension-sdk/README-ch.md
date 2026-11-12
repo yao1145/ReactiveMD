@@ -6,7 +6,7 @@
 
 `advanced.tsx` 增加了坐标控件、字符串集合、数字集合和 Markdown 容器。坐标、多选和卡片契约来自 `defaultPreset.components`；项目提供自己的 React 实现。其验收检查覆盖原子回滚、数组限制与复制、重置、禁用/隐藏状态、静态输出、SSR，以及离线桌面/移动端恢复。`advanced-standalone.ts` 为该项导出打包同一组已安装实现。
 
-扩展 SDK 随 `reactive-md@0.7.0` 发布。验证器在独立目录中安装已发布的包和 peer 依赖；测试未发布的改动时，改用新打包的 tarball。
+本 fixture 面向`reactive-md@0.8.0`，SDK 契约仍为 `0.7.0`。验证器在独立目录中安装引擎和 peer 依赖；准备发布时使用新打包的引擎 tarball，0.8.0 发布后再使用公开包。
 
 在仓库根目录：
 

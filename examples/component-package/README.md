@@ -7,7 +7,7 @@ container, ships a package theme and an inlined SVG asset, and runs the public
 compliance tools against the installed package. Every import comes from a
 public `reactive-md` entry.
 
-The extension SDK ships in `reactive-md@0.7.0` and is available from the public registry. Copy this folder outside the repository and run `npm install`. When testing unreleased SDK changes, install a freshly packed tarball built from the current source instead.
+This template targets `reactive-md@^0.8.0`. Copy this folder outside the repository. Before 0.8.0 is published, install a freshly packed engine tarball from the current source; after publication, run `npm install` against the registry. The SDK contract remains at `0.7.0`.
 
 ## Public entries
 

@@ -8,7 +8,11 @@ const COMPONENT_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const COMPONENT_ID = /^[a-z0-9][a-z0-9._-]*(?:\/[a-z0-9][a-z0-9._-]*)*$/;
 const SEMANTIC_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const SCAFFOLD_PACKAGE_VERSION = '0.1.0';
-// Kept in sync with src/sdk/version.ts by scripts/check-versions.mjs.
+// The published engine package version used for generated npm dependencies and
+// install instructions. Kept in sync with package.json by check-versions.
+const SCAFFOLD_ENGINE_VERSION = '0.8.0';
+// The SDK data contract version, independent of the engine release. Kept in
+// sync with src/sdk/version.ts by scripts/check-versions.mjs.
 const SCAFFOLD_SDK_VERSION = '0.7.0';
 const SCAFFOLD_COMPONENT_PROTOCOL = 'reactive-md-component/v1';
 const SCAFFOLD_PRESET_PROTOCOL = 'reactive-md-preset/v1';
@@ -716,7 +720,7 @@ function packageJsonSource(plan) {
       export: 'node scripts/build-export.mjs',
     },
     peerDependencies: {
-      'reactive-md': `^${SCAFFOLD_SDK_VERSION}`,
+      'reactive-md': `^${SCAFFOLD_ENGINE_VERSION}`,
       react: '^19.0.0',
       'react-dom': '^19.0.0',
     },
@@ -1035,12 +1039,12 @@ block containers; the field classes work on spans.
 
 ## Install
 
-Reactive MD ${SCAFFOLD_SDK_VERSION} includes the extension SDK. Install the published package
+Reactive MD ${SCAFFOLD_ENGINE_VERSION} includes the extension SDK. Install the published package
 together with the React peers, then install the remaining development
 dependencies:
 
 \`\`\`sh
-npm install reactive-md@${SCAFFOLD_SDK_VERSION} react@^19 react-dom@^19
+npm install reactive-md@${SCAFFOLD_ENGINE_VERSION} react@^19 react-dom@^19
 npm install
 \`\`\`
 
@@ -1163,7 +1167,7 @@ function presetPackageJsonSource(plan) {
       export: 'node scripts/build-export.mjs',
     },
     peerDependencies: {
-      'reactive-md': `^${SCAFFOLD_SDK_VERSION}`,
+      'reactive-md': `^${SCAFFOLD_ENGINE_VERSION}`,
       react: '^19.0.0',
       'react-dom': '^19.0.0',
     },
@@ -1252,7 +1256,7 @@ evidence for interactive or offline capabilities still needs a separate run.
 ## Install
 
 \`\`\`sh
-npm install reactive-md@${SCAFFOLD_SDK_VERSION} react@^19 react-dom@^19
+npm install reactive-md@${SCAFFOLD_ENGINE_VERSION} react@^19 react-dom@^19
 npm install
 \`\`\`
 

@@ -91,6 +91,12 @@ if (sdkVersion !== undefined && packageInfo.version !== undefined) {
 }
 
 const initSource = await read('cli/init.mjs');
+const scaffoldEngineVersion = cliConstant(initSource, 'SCAFFOLD_ENGINE_VERSION');
+if (scaffoldEngineVersion !== packageInfo.version) {
+  fail(`cli/init.mjs scaffolds reactive-md@${scaffoldEngineVersion}, but package.json is ${packageInfo.version}.`);
+} else if (scaffoldEngineVersion !== undefined) {
+  pass(`scaffold engine reference ${scaffoldEngineVersion} matches the package version.`);
+}
 const scaffoldSdkVersion = cliConstant(initSource, 'SCAFFOLD_SDK_VERSION');
 if (scaffoldSdkVersion !== sdkVersion) {
   fail(`cli/init.mjs scaffolds reactive-md@${scaffoldSdkVersion}, but LOCAL_SDK_VERSION is ${sdkVersion}.`);

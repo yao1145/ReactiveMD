@@ -4,15 +4,15 @@
 
 三个仓库独立安装、构建、维护版本和发布：
 
-| 仓库 | 当前候选版本 | 交付 |
+| 仓库 | 准备发布的版本 | 交付 |
 | --- | --- | --- |
-| [ReactiveMD](https://github.com/yao1145/ReactiveMD) | reactive-md@0.8.0-next.0 | 编译器、运行时、语言服务、SDK、React/SSR、导出 |
-| [ReactiveMD-Editor](https://github.com/yao1145/ReactiveMD-Editor) | reactive-md-editor@0.1.0-next.0 | CodeMirror、工具栏、导航、诊断呈现、编辑器 Worker |
+| [ReactiveMD](https://github.com/yao1145/ReactiveMD) | reactive-md@0.8.0 | 编译器、运行时、语言服务、SDK、React/SSR、导出 |
+| [ReactiveMD-Editor](https://github.com/yao1145/ReactiveMD-Editor) | reactive-md-editor@0.1.0（未发布） | CodeMirror、工具栏、导航、诊断呈现、编辑器 Worker |
 | [ReactiveMD-Demo](https://github.com/yao1145/ReactiveMD-Demo) | 私有网站包 0.1.0 | 示例网站、组件装配、静态资源和部署 |
 
 ## 导入路径
 
-引擎 0.8 的预发布版本移除了旧 editor 子路径。这是包 API 的破坏性迁移；文档语法和状态协议版本保持原值。已发布的 0.7 包仍保留原入口。
+引擎 0.8 移除了旧 editor 子路径。这是包 API 的破坏性迁移；文档语法和状态协议版本保持原值。已发布的 0.7 包仍保留原入口。
 
 | 原路径 | 新路径 |
 | --- | --- |
@@ -25,7 +25,7 @@
 
 ## 独立消费与更新
 
-迁移时先在原仓库暂存独立编辑器包，以实际引擎 tarball 完成构建，再让 Demo 安装两个实际 tarball。验证通过后提取 Git 历史、迁出目录。编辑器保留引擎的精确候选 peer 版本，Demo 用 vendor 中的候选包及 lockfile integrity 固定组合。候选包尚未发布到 npm。
+三个仓库已独立维护。发布准备使用真实引擎 tarball 构建编辑器，再让 Demo 安装两个实际 tarball。编辑器按公共 API 的兼容性声明引擎 peer 范围；开发安装与 Demo 用内容哈希 vendor 文件名及 lockfile integrity 固定候选组合。发布顺序为先引擎 0.8.0，再编辑器 0.1.0。
 
 更新候选组合时，在引擎运行 npm run check、npm run notices，然后 npm pack --ignore-scripts。将生成包复制到编辑器和 Demo 的 vendor 目录，在各自目录 npm install 更新锁文件。运行编辑器 npm run check，打包编辑器并复制到 Demo/vendor；最后在 Demo npm install、npm test、npm run build，并运行本次涉及的浏览器检查。候选包内容变化时要更新实际 tarball 和锁文件，不能只修改版本字符串。
 

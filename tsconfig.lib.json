@@ -17,6 +17,7 @@
     "src/authoring/index.ts",
     "src/sdk/index.ts",
     "src/presets/default.ts",
+    "src/presets/packs.ts",
     "src/export/index.ts",
     "src/standalone/library.ts",
     "src/build/index.ts",

@@ -6,7 +6,7 @@
 
 这些示例面向 `reactive-md@0.6.0`，该版本同时发布在 `latest` 和 `next` 渠道。把所需的示例目录复制到仓库之外，然后按下面的方式从 npm 安装固定版本。React 和 Vite 在需要时从示例自身的依赖安装。
 
-[扩展 SDK 使用方](extension-sdk/README-ch.md)面向 `reactive-md@0.7.0` 中发布的 SDK，通过公开导出验证静态分享和离线交互分享。未发布的 SDK 改动使用本地构建的 tarball 测试。
+[扩展 SDK 使用方](extension-sdk/README-ch.md)面向`reactive-md@0.8.0`，通过公开导出验证静态分享和离线交互分享。准备发布时使用本地构建的 tarball，SDK 契约仍为 `0.7.0`。以下较早的示例保留其 0.6.0 固定版本。
 
 ## Node 核心
 
