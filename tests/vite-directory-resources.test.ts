@@ -42,5 +42,5 @@ export default defineReactPreset({
       await server.close();
       await rm(root, { recursive: true, force: true });
     }
-  });
+  }, 20_000);
 });

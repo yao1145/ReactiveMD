@@ -16,7 +16,7 @@ import type { LocalNode } from '../src/local/contracts/types';
  * lists in the same change and treat it as a syntax change, not a refactor.
  */
 const LEGACY_VOID = 'input textarea number slider range-slider coordinate toggle checkbox date counter timer progress edge anchor computed const external validation column'.split(' ');
-const LEGACY_PAIRED = 'panel card grid tabs tab steps step accordion disclosure if alert badge tooltip select choices radio-group multi-select quiz checklist table chart plot timeline diagram node option jump text section data-table'.split(' ');
+const LEGACY_PAIRED = 'panel card grid tabs tab steps step accordion disclosure if alert badge tooltip select choices radio-group multi-select quiz checklist table chart plot timeline diagram node option jump text section data-table gallery gallery-item'.split(' ');
 const LEGACY_INLINE = ['badge', 'tooltip', 'jump', 'text'];
 
 const sorted = (values: readonly string[]): string[] => [...values].sort();

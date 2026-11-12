@@ -264,8 +264,14 @@ describe('range-slider', () => {
     expect(inputTagByLabel(html, 'Band Start')).toContain('value="2"');
     expect(inputTagByLabel(html, 'Band End')).toContain('value="8"');
     expect(html).toContain('--local-accent:#2563eb');
-    expect(html).toContain('local-range-bubble-start">2<');
-    expect(html).toContain('local-range-bubble-end">8<');
+    expect(html).toContain('local-slider-arc');
+    expect(html).toContain('aria-valuenow="2"');
+    expect(html).toContain('aria-valuenow="8"');
+    expect(html).toContain('2 – 8');
+    // The Arc slider only mounts its value bubbles while dragging or focused,
+    // so the initial markup keeps only their anchors and positions.
+    expect(html).toContain('--at:20');
+    expect(html).toContain('--at:80');
     expect(html).toContain('--local-range-start:20');
     expect(html).toContain('--local-range-end:80');
   });
