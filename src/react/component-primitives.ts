@@ -35,7 +35,7 @@ export {
   type PlotPoint,
   type PlotSample,
 } from '../local/evaluation/math';
-export { sampleImplicit, sampleParametric, samplePlot } from '../local/evaluation/math-sample';
+export { sampleImplicit, sampleParametric, samplePlot, samplePolar } from '../local/evaluation/math-sample';
 export { LatexView } from '../local/widgets/math-view';
 export { TableSurface } from '../local/widgets/table-surface';
 export {

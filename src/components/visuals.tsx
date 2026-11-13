@@ -31,6 +31,7 @@ import {
   sampleImplicit,
   sampleParametric,
   samplePlot,
+  samplePolar,
   type DiagramLayoutInput,
   type DiagramLayoutResult,
   type LatexEvaluationBudget,
@@ -1550,8 +1551,8 @@ interface PlotMath {
 
 interface PlotCurve {
   source: string;
-  kind: 'explicit' | 'parametric' | 'implicit';
-  /** Explicit y(x), parametric x(t), or implicit F(x, y). */
+  kind: 'explicit' | 'parametric' | 'polar' | 'implicit';
+  /** Explicit y(x), parametric x(t), polar r(theta), or implicit F(x, y). */
   expression: ReturnType<typeof compileLatex> | null;
   /** Parametric y(t). */
   yExpression: ReturnType<typeof compileLatex> | null;
@@ -1695,6 +1696,13 @@ function sampleDocumentPlot(
     };
     try {
       const formula = compilePlotFormula(source);
+      if (formula.kind === 'polar') {
+        const result = samplePolar(formula.expression, environment, min, max, samples, budget.evaluation);
+        return {
+          source, kind: 'polar', expression: formula.expression, yExpression: null,
+          points: result.points, segments: [], endpoint: result.endpoint, error: null,
+        };
+      }
       if (formula.kind === 'parametric') {
         if (!formula.yExpression) {
           throw new LatexError('latex-syntax', 'Parametric formulas need both x(t) and y(t).', 0);
@@ -1835,7 +1843,7 @@ export function PlotView(context: LocalComponentContext) {
   const yLabel = textAttr(context, 'y-label', 'y');
   const min = context.content.attrs.min === undefined ? -10 : numberAttr(context, 'min', -10);
   const max = context.content.attrs.max === undefined ? 10 : numberAttr(context, 'max', 10);
-  const samples = Math.min(2000, Math.max(2, Math.floor(numberAttr(context, 'samples', 200))));
+  const samples = Math.min(2000, Math.max(2, Math.floor(numberAttr(context, 'points', numberAttr(context, 'samples', 200)))));
   const mathItems: PlotMath[] = context.children.math().map((item) => ({
     id: item.id,
     source: item.text,
@@ -1992,7 +2000,7 @@ export function PlotView(context: LocalComponentContext) {
   const ySpan = yDomain.max - yDomain.min;
   const curveSegments = curves.map((curve) => {
     if (curve.kind === 'implicit') return curve.segments;
-    if (curve.kind === 'parametric') return parametricSegments(curve.points, xDomain, yDomain);
+    if (curve.kind === 'parametric' || curve.kind === 'polar') return parametricSegments(curve.points, xDomain, yDomain);
     return plotSegments(curve.points, ySpan, medianAbs, medianDelta);
   });
 

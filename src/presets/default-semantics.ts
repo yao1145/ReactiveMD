@@ -693,6 +693,7 @@ const plotDef = definition('plot', 'container', {
     min: props.number({ dynamic: true, default: -10 }),
     max: props.number({ dynamic: true, default: 10 }),
     samples: props.number({ integer: true, min: 2, max: 2000, static: true, default: 200 }),
+    points: props.number({ integer: true, min: 2, max: 2000, static: true }),
     'x-label': props.text({ default: 'x' }),
     'y-label': props.text({ default: 'y' }),
   },
@@ -700,7 +701,7 @@ const plotDef = definition('plot', 'container', {
   rules: rules(
     { kind: 'math-body' },
     { kind: 'numeric-range', min: 'min', max: 'max', order: 'increasing' },
-    { kind: 'plot-math', min: 'min', max: 'max', samples: 'samples', curves: MAX_LOCAL_PLOT_CURVES, points: MAX_LOCAL_PLOT_POINTS },
+    { kind: 'plot-math', min: 'min', max: 'max', samples: 'samples', samplesAlias: 'points', curves: MAX_LOCAL_PLOT_CURVES, points: MAX_LOCAL_PLOT_POINTS },
     { kind: 'inline-math-reads' },
   ),
 });

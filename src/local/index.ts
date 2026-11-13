@@ -17,7 +17,7 @@ export { createLocalRuntime,updateLocalRuntime,notifyLocalRuntime } from './runt
 export type {LocalRuntimeUpdateOptions,LocalRuntimeDocumentUpdate} from './runtime/runtime';
 export { compileExpression, LocalExpressionError } from './evaluation/expression';
 export { compileLatex, compilePlotFormula, implicitGridSize, plotFormulaKind } from './evaluation/math';
-export { sampleImplicit, sampleParametric, samplePlot } from './evaluation/math-sample';
+export { sampleImplicit, sampleParametric, samplePlot, samplePolar } from './evaluation/math-sample';
 export type { CompiledPlotFormula, PlotFormulaKind, PlotPoint, PlotSample } from './evaluation/math';
 export { LOCAL_SYNTAX_VERSION } from './contracts/version';
 export { inspectLocalSourceVersion, checkLocalUpgrade, migrateLocalSource } from './source/source-migration';

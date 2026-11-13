@@ -315,12 +315,12 @@ Intermediate input in number and text fields that is not yet valid is kept in a 
 
 `plot` represents a computational visualization:
 
-- The body may contain only whitespace and one or more `$$...$$` formula blocks. Each block defines one explicit `y = expression` curve, one parametric `\begin{cases} x = f(t) \\ y = g(t) \end{cases}` curve, or one implicit equation in `x` and `y`.
-- `min` and `max` may be dynamic and require `min < max`; static ranges are validated at compile time and dynamic ranges at render time. Invalid ranges show a local error instead of being silently clamped. They set the horizontal range for explicit curves, the `t` range for parametric curves, and the square tracing region for implicit curves.
-- `samples` is a static integer from 2 to 2000; each `plot` has at most 16 curves.
-- An explicit or parametric curve requests `samples` points. An implicit curve traces a `samples`×`samples` grid per axis (capped at 100, raised to at least 32) and requests the grid area.
+- The body may contain only whitespace and one or more `$$...$$` formula blocks. Each block defines one explicit `y = expression` curve, one parametric `\begin{cases} x = f(t) \\ y = g(t) \end{cases}` curve, one polar `r = f(\theta)` curve, or one implicit equation in `x` and `y`.
+- `min` and `max` may be dynamic and require `min < max`; static ranges are validated at compile time and dynamic ranges at render time. Invalid ranges show a local error instead of being silently clamped. They set the horizontal range for explicit curves, the `t` range for parametric curves, the angle interval in radians for polar curves, and the square tracing region for implicit curves.
+- `points` is a static integer from 2 to 2000. The existing `samples` attribute remains supported; `points` takes precedence when both are supplied, and the default is 200 when both are omitted. Each `plot` has at most 16 curves.
+- An explicit, parametric or polar curve requests the specified number of points, including both endpoints. An implicit curve uses the specified number of grid points per axis (capped at 100, raised to at least 32) and requests the grid area.
 - The whole document has at most 20,000 curve sample points, including hidden regions; plotting computation shares a budget of 2,000,000 steps.
-- Formulas may reference only declared numeric parameters; undeclared or non-numeric parameters are diagnosed at compile time. `t` is local to a parametric block and cannot be read as a document parameter there.
+- Formulas may reference only declared numeric parameters; undeclared or non-numeric parameters are diagnosed at compile time. `t` is local to a parametric block, and `\theta` is local to a polar equation; neither reads the same-named document parameter in its curve. Polar samples use `x = r cos(θ)`, `y = r sin(θ)` and preserve the direction of negative radii.
 - Non-finite samples form breaks, and the two sides of a break are not connected directly; when there are no valid values, an empty state is shown.
 - The reference adapter provides legends and pointer/keyboard readouts; real pointer, keyboard and narrow-screen behavior is checked manually as described in section 11.
 

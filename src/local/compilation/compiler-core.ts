@@ -2486,7 +2486,7 @@ function editDistance(a: string, b: string): number {
 function plotSamples(entry: Entry, attrs: AttrMap, rule: Extract<KernelRule, { kind: 'plot-math' }>): number {
   const fallback = entry.kernel.props[rule.samples]?.default;
   const base = typeof fallback === 'number' ? fallback : 200;
-  return numberValue(entry, attrs, rule.samples) ?? base;
+  return numberValue(entry, attrs, rule.samplesAlias) ?? numberValue(entry, attrs, rule.samples) ?? base;
 }
 
 function validatePlots(state: CompileState): void {
@@ -2553,7 +2553,7 @@ function validatePlots(state: CompileState): void {
       }
       if (!compiled) continue;
       for (const dependency of compiled.dependencies) {
-        if (dependency === 'x' || dependency === 'y' || dependency === 't') continue;
+        if (dependency === 'x' || dependency === 'y' || (dependency === 't' && compiled.kind !== 'polar')) continue;
         if (!Object.hasOwn(env, dependency)) {
           state.report('local.math.binding', { key: 'local.math.binding.unknown', params: { name: dependency } }, node.range.start, node.range.end);
         } else if (env[dependency] !== 'number') {

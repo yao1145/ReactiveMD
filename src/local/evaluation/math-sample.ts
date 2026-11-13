@@ -319,6 +319,44 @@ export function sampleParametric(
   return { points, endpoint: last && last.y !== null ? last.y : null };
 }
 
+/** Samples r(theta) in radians and projects each finite radius to x/y. */
+export function samplePolar(
+  expression: LatexExpression,
+  env: Record<string, LocalValue>,
+  min: number,
+  max: number,
+  samples = 200,
+  sharedBudget?: LatexEvaluationBudget,
+): PlotSample {
+  validatePlotShape(min, max, samples, MAX_SAMPLES);
+  const localBudget: LatexEvaluationBudget = {
+    steps: 0,
+    limit: Math.max(MIN_PLOT_STEPS, samples * 1024),
+  };
+  const step = (max - min) / (samples - 1);
+  const points: PlotPoint[] = [];
+  for (let index = 0; index < samples; index += 1) {
+    const theta = index === samples - 1 ? max : min + index * step;
+    const evaluation = takeEvaluationBudget(localBudget, sharedBudget);
+    let radius: number | null;
+    try {
+      radius = safeValue(expression, theta, { ...env, theta }, evaluation);
+    } finally {
+      recordEvaluationBudget(localBudget, sharedBudget, evaluation);
+    }
+    if (radius === null || !Number.isFinite(radius) || !Number.isFinite(theta)) {
+      points.push({ x: Number.NaN, y: null, theta });
+      continue;
+    }
+    points.push({
+      x: radius * Math.cos(theta),
+      y: radius * Math.sin(theta),
+      theta,
+    });
+  }
+  return { points, endpoint: points.at(-1)?.y ?? null };
+}
+
 /* ------------------------------------------------------------------ */
 /* Implicit curves                                                     */
 /* ------------------------------------------------------------------ */

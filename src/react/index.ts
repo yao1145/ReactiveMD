@@ -106,6 +106,7 @@ export {
   sampleImplicit,
   sampleParametric,
   samplePlot,
+  samplePolar,
 } from './component-primitives';
 export type {
   CompiledPlotFormula,

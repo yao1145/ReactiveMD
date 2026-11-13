@@ -531,12 +531,13 @@ function readRule(value: unknown, path: string): LocalComponentRule {
         maxColumns: readBoundedCount(value.maxColumns, `${path}.maxColumns`, MAX_LOCAL_DATA_TABLE_COLUMNS),
       } as LocalComponentRule;
     case 'plot-math':
-      allow(['min', 'max', 'samples', 'curves', 'points']);
+      allow(['min', 'max', 'samples', 'samplesAlias', 'curves', 'points']);
       return {
         kind,
         min: readRuleAttribute(value.min, `${path}.min`),
         max: readRuleAttribute(value.max, `${path}.max`),
         samples: readRuleAttribute(value.samples, `${path}.samples`),
+        ...(value.samplesAlias !== undefined ? { samplesAlias: readRuleAttribute(value.samplesAlias, `${path}.samplesAlias`) } : {}),
         curves: readBoundedCount(value.curves, `${path}.curves`, MAX_LOCAL_PLOT_CURVES),
         points: readBoundedCount(value.points, `${path}.points`, MAX_LOCAL_PLOT_POINTS),
       } as LocalComponentRule;

@@ -232,6 +232,8 @@ export type KernelRule =
       min: string;
       max: string;
       samples: string;
+      /** Optional higher-priority attribute for the requested sample count. */
+      samplesAlias?: string;
       curves: number;
       points: number;
     }

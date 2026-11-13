@@ -405,19 +405,28 @@ $$ y = a \sin x + \frac{x^2}{10} $$
 </plot>
 ```
 
-The plot body may contain only whitespace and one or more display formula blocks. Each block defines one curve in one of three forms:
+The plot body may contain only whitespace and one or more display formula blocks. Each block defines one curve in one of four forms:
 
 ```markdown
 <plot min="-10" max="10">
 $$ y = a \sin x + \frac{x^2}{10} $$
 $$ \begin{cases} x = t - \sin t \\ y = 1 - \cos t \end{cases} $$
+$$ r = a(1 + \cos\theta) $$
 $$ (x^2 + y^2)^2 = 2a^2(x^2 - y^2) $$
 </plot>
 ```
 
 The first block is explicit `y = f(x)`. The second is parametric: `x` and `y` are written as functions of `t`, and `t` runs from `min` to `max`; both axes fit the sampled points. Any other equation in `x` and `y` is implicit and is traced as a contour over `min` to `max` on both axes; the axes then fit the traced curve. Use multiple formula blocks for multiple curves; do not use plain line breaks as separators.
 
-plot supports min=-10, max=10 (dynamic allowed, requiring min < max), samples=200 (static integer 2–2000), optional label, x-label="x" and y-label="y". Each plot has at most 16 curves. An explicit or parametric curve requests `samples` points; an implicit curve uses a `samples`×`samples` grid per axis, capped at 100 and raised to at least 32, and requests the corresponding grid area. The whole document may request at most 20,000 points across all curves, including hidden regions. Curves share a computation budget, and exceeding it stops computation and reports an error. The vertical axis is determined automatically from finite sample values in the current range; if there are no valid values, an empty state is shown. Constant curves should add visible vertical-axis headroom.
+The third block is polar, `r = f(\theta)`: `min` and `max` set the angle interval in radians. Directly typed `θ` and `\theta` are equivalent and may be mixed. Both spellings are local to the curve, while other numeric parameters can read document bindings. Samples are projected to `x = r cos(θ)`, `y = r sin(θ)`, and both axes fit the result. Negative radii preserve direction; undefined radii form breaks. This example samples 1000 evenly spaced points over one full turn:
+
+```markdown
+<plot min="0" max="{{ 2 * pi }}" points="1000">
+$$ r = 1 + \cos\theta $$
+</plot>
+```
+
+plot supports min=-10, max=10 (dynamic allowed, requiring min < max), points=200 (static integer 2–2000), optional label, x-label="x" and y-label="y". Quote attribute values, as in `points="1000"`. The existing `samples` attribute remains supported; `points` takes precedence when both are supplied, and the default is 200 when both are omitted. Each plot has at most 16 curves. An explicit, parametric or polar curve requests the specified number of sample points, including both endpoints. An implicit curve uses the specified number of grid points per axis, capped at 100 and raised to at least 32, and requests the corresponding grid area. The whole document may request at most 20,000 points across all curves, including hidden regions. Curves share a computation budget, and exceeding it stops computation and reports an error. The vertical axis is determined automatically from finite sample values in the current range; if there are no valid values, an empty state is shown. Constant curves should add visible vertical-axis headroom.
 
 ### 10.2 Computable LaTeX
 

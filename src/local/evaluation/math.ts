@@ -38,6 +38,8 @@ export interface PlotPoint {
   y: number | null;
   /** Parameter value for parametric curves; absent for explicit and implicit curves. */
   t?: number;
+  /** Angle in radians for polar curves. */
+  theta?: number;
 }
 
 export interface PlotSample {
@@ -52,16 +54,16 @@ export interface PlotSegmentPoint {
 }
 
 /** One formula block inside a plot, ready for sampling. */
-export type PlotFormulaKind = 'explicit' | 'parametric' | 'implicit';
+export type PlotFormulaKind = 'explicit' | 'parametric' | 'polar' | 'implicit';
 
 export interface CompiledPlotFormula {
   kind: PlotFormulaKind;
   source: string;
-  /** Explicit y(x), parametric x(t), or implicit F(x, y). */
+  /** Explicit y(x), parametric x(t), polar r(theta), or implicit F(x, y). */
   expression: LatexExpression;
   /** Parametric y(t); null for the other kinds. */
   yExpression: LatexExpression | null;
-  /** Parameters only; independent variables x and y are removed. */
+  /** Document parameters only; each curve's independent variables are removed. */
   dependencies: string[];
 }
 
@@ -193,6 +195,13 @@ function lex(source: string): Token[] {
       }
       push('command', next, i);
       i += 2;
+      continue;
+    }
+
+    // Keep the original one-character offset while sharing \theta semantics.
+    if (ch === 'θ') {
+      push('command', 'theta', i);
+      i += 1;
       continue;
     }
 
@@ -879,6 +888,13 @@ export function localLatexReferences(source: string): { name: string; range: Sou
   const trimmed = source.trim();
   const leading = source.length - source.trimStart().length;
 
+  if (plotFormulaKind(trimmed) === 'polar') {
+    compilePlotFormula(trimmed);
+    const { right } = new LatexParser(trimmed, lex(trimmed), { allowY: true }).parseEquation();
+    return collectAstReferences(trimmed, right, leading, new Set(['theta']))
+      .sort((a, b) => a.range.start - b.range.start);
+  }
+
   const parametric = readParametricCases(trimmed);
   if (parametric) {
     const skip = new Set(['x', 'y', 't']);
@@ -1251,6 +1267,7 @@ export function plotFormulaKind(source: string): PlotFormulaKind | null {
   if (/^\\begin\{cases\}/u.test(text)) return 'parametric';
   const equals = topLevelEquals(text);
   if (equals < 0) return null;
+  if (text.slice(0, equals).trim() === 'r') return 'polar';
   if (text.slice(0, equals).trim() !== 'y') return 'implicit';
   try {
     const parser = new LatexParser(text, lex(text), { allowY: true });
@@ -1266,6 +1283,7 @@ export function plotFormulaKind(source: string): PlotFormulaKind | null {
  *
  * - `y = f(x)` is an explicit curve.
  * - `\begin{cases} x = f(t) \\ y = g(t) \end{cases}` is a parametric curve.
+ * - `r = f(\theta)` is a polar curve, with theta local to the curve.
  * - Any other equation in x and y is implicit and traced as `left - right = 0`.
  */
 export function compilePlotFormula(source: string): CompiledPlotFormula {
@@ -1303,6 +1321,23 @@ export function compilePlotFormula(source: string): CompiledPlotFormula {
 
   const parser = new LatexParser(text, lex(text), { allowY: true });
   const { left, right } = parser.parseEquation();
+  if (isVariableNode(left, 'r') && plotFormulaKind(text) === 'polar') {
+    for (const name of ['x', 'y', 'r']) {
+      if (astContainsVariable(right, name)) {
+        throw new LatexError('latex-variable', `Polar formulas use theta and cannot read ${name}.`, right.offset);
+      }
+    }
+    const found = new Set<string>();
+    collectDependencies(right, found);
+    found.delete('theta');
+    return {
+      kind: 'polar',
+      source: text,
+      expression: buildExpression(text, right, [...found]),
+      yExpression: null,
+      dependencies: [...found],
+    };
+  }
   if (isVariableNode(left, 'y') && !astContainsVariable(right, 'y')) {
     const expression = compileLatex(text);
     return {
