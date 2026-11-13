@@ -21,6 +21,26 @@ function render(source: string) {
 }
 
 describe('ordinary Markdown compatibility', () => {
+  it('renders bold interpolations against Chinese prose after state changes', () => {
+    const source = '<toggle bind="annual" label="启用选项">\n\n<slider bind="amount" label="数量" initial="10">\n\n当前按**{{ annual ? \'年\' : \'月\' }}**计费。今天你有**{{amount}}**元。';
+    const result = compileLocal(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Compilation failed');
+    const runtime = createLocalRuntime(result.document);
+    const markup = () => renderToStaticMarkup(<LocalDocumentView document={result.document} runtime={runtime} />);
+    try {
+      expect(markup()).toMatch(/<strong><span class="local-interpolation">月<\/span><\/strong>/);
+      expect(markup()).toMatch(/<strong><span class="local-interpolation">10<\/span><\/strong>/);
+      expect(runtime.setParameter('annual', true)).toEqual([]);
+      expect(runtime.setParameter('amount', 25)).toEqual([]);
+      expect(markup()).toMatch(/<strong><span class="local-interpolation">年<\/span><\/strong>/);
+      expect(markup()).toMatch(/<strong><span class="local-interpolation">25<\/span><\/strong>/);
+      expect(markup()).not.toContain('**');
+    } finally {
+      runtime.dispose();
+    }
+  });
+
   it.each(['Array<T>', 'Array<T extends U>', 'Map<string, number>', '比较 x<y 成立', '价格 $5、$10', '价格 $5 and $10', '售价 $5'])('preserves prose: %s', source => {
     const { result } = render(source);
     expect(result.diagnostics).toEqual([]);

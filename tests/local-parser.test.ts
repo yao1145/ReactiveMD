@@ -3,6 +3,51 @@ import { parseLocal } from '../src/local/parsing/parser';
 import type { LocalNode } from '../src/local/contracts/types';
 const flat = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flat(n.children ?? [])]);
 
+describe('emphasis around interpolations', () => {
+  it.each([
+    ['当前按**{{ annual ? \'年\' : \'月\' }}**计费。', 'strong'],
+    ['今天你有**{{amount}}**元。', 'strong'],
+    ['**{{ amount }}**元', 'strong'],
+    ['金额**{{ amount }}**', 'strong'],
+    ['金额**{{ amount }}元**整', 'strong'],
+    ['金额**人民币{{ amount }}**整', 'strong'],
+    ['金额**{{ amount }}{{ amount }}**整', 'strong'],
+    ['今天你有*{{ amount }}*元。', 'emphasis'],
+    ['今天你有***{{ amount }}***元。', 'strong'],
+    ['[今天你有**{{ amount }}**元。](/safe)', 'strong'],
+    ['<card>\n    今天你有**{{ amount }}**元。\n</card>', 'strong'],
+    ['| 金额 |\n| --- |\n| 今天你有**{{ amount }}**元。 |', 'strong'],
+  ])('keeps interpolation inside %s', (source, type) => {
+    const parsed = parseLocal(source);
+    expect(parsed.diagnostics).toEqual([]);
+    const all = flat(parsed.nodes);
+    const emphasis = all.find(node => node.type === type);
+    expect(emphasis).toBeDefined();
+    expect(source.slice(emphasis!.range.start, emphasis!.range.end)).toMatch(/^\*.*\*$/);
+    const interpolation = flat(emphasis?.children ?? []).find(node => node.type === 'interpolation');
+    expect(interpolation).toBeDefined();
+    expect(source.slice(interpolation!.range.start, interpolation!.range.end)).toMatch(/^\{\{.*\}\}$/);
+    expect(all.filter(node => node.type === 'text').map(node => node.value).join('')).not.toMatch(/[\uE000-\uE002*]/);
+  });
+
+  it('keeps ordinary brace text under CommonMark delimiter rules', () => {
+    const parsed = parseLocal('今天你有**{}**元。');
+    expect(flat(parsed.nodes).some(node => node.type === 'strong')).toBe(false);
+    expect(flat(parsed.nodes).find(node => node.type === 'text')?.value).toBe('今天你有**{}**元。');
+  });
+
+  it('removes only generated guards and preserves literal guards and decoded entities', () => {
+    const source = '\uE002&#57346;&amp;金额**{{ amount }}**元&#57346;\uE002';
+    const parsed = parseLocal(source);
+    expect(parsed.diagnostics).toEqual([]);
+    const texts = flat(parsed.nodes).filter(node => node.type === 'text');
+    expect(texts.map(node => node.value)).toEqual(['\uE002\uE002&金额', '元\uE002\uE002']);
+    expect(texts.map(node => source.slice(node.range.start, node.range.end))).toEqual([
+      '\uE002&#57346;&amp;金额', '元&#57346;\uE002',
+    ]);
+  });
+});
+
 it('parses nested containers, Markdown, inline tags and quoted greater-than characters', () => {
   const source = '<panel\n title="a > b">\n# 标题\n\n**当前** {{ people }} <badge>状态</badge>\n\n<slider bind="people" label="人数">\n</panel>';
   const parsed = parseLocal(source);

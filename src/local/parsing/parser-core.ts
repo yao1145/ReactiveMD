@@ -41,6 +41,7 @@ import { normalizeHtmlDetailsChildren } from '../html/html-details';
 /** Private-use sentinels keep source tokens opaque while Markdown is parsed. */
 const MARK_OPEN = String.fromCharCode(0xe000);
 const MARK_CLOSE = String.fromCharCode(0xe001);
+const MARK_BOUNDARY = String.fromCharCode(0xe002);
 const TAG_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const ATTR_NAME = TAG_NAME;
 /** P0 native HTML accepted inline in Markdown documents. */
@@ -1731,6 +1732,11 @@ export function parseLocalCore(
     const sourceAt = (offset: number, fallback: number): number =>
       reuseRoot ? offset + sourceBomOffset : mapped.at(offset, fallback);
     const markers = new Map<number, { marker: string; end: number; node: LocalNode }>();
+    const emphasisBoundaries = new Set<number>();
+    function appendEmphasisBoundary(at: number) {
+      emphasisBoundaries.add(mapped.length);
+      append(MARK_BOUNDARY, at, false);
+    }
     function append(text: string, from: number, linear: boolean) {
       // Remove a file BOM before calculating generated marker indices. remark
       // ignores it, while this mapping retains original source coordinates.
@@ -1753,11 +1759,17 @@ export function parseLocalCore(
         do { marker = MARK_OPEN + markerSerial++ + MARK_CLOSE; } while (reservedMarkers.has(marker));
         const block = token.block ?? (token.node.type === 'math' || ((token.node.type === 'component' || token.node.type === 'hostComponent') && !isInlineName(token.node.name!)));
         if (block) append('\n\n', token.start, false);
+        // An interpolation is a value, so adjacent emphasis delimiters must see
+        // a non-punctuation boundary. The image surrogate's `!` and `)` would
+        // otherwise prevent intraword emphasis such as 中文**{{ value }}**中文.
+        const interpolation = token.node.type === 'interpolation';
+        if (interpolation && /[*_]/.test(source[token.start - 1] ?? '')) appendEmphasisBoundary(token.start);
         const markerStart = mapped.length;
         // A generated Markdown image has its own source range. Restore only this
         // exact range; entity decoding and adjacent code cannot forge a node.
         append(`![${marker}](rmd-internal:placeholder)`, token.start, false);
         markers.set(markerStart, { marker, end: mapped.length, node: token.node });
+        if (interpolation && /[*_]/.test(source[token.end] ?? '')) appendEmphasisBoundary(token.end);
         if (block) append('\n\n', token.end, false);
         cursor = token.end;
       }
@@ -1892,6 +1904,17 @@ export function parseLocalCore(
         }
       }
       if (raw.type === 'text') {
+        // Boundary guards are always at text-node edges beside the generated
+        // image. Remove only guards at parser-owned offsets; identical literal
+        // or entity-decoded characters in the source remain ordinary text.
+        let begin = raw.position.start.offset, finish = raw.position.end.offset;
+        let value = raw.value as string;
+        while (begin < finish && emphasisBoundaries.has(begin)) { begin++; value = value.slice(1); }
+        while (finish > begin && emphasisBoundaries.has(finish - 1)) { finish--; value = value.slice(0, -1); }
+        if (begin !== raw.position.start.offset || finish !== raw.position.end.offset) {
+          raw = { ...raw, value, position: { start: { offset: begin }, end: { offset: finish } } };
+          return textNodes(raw, sourceAt(begin, from), sourceAt(finish, to));
+        }
         return textNodes(raw, from, to);
       }
       // Footnote nodes normally arrive through lexical tokens. This branch only
