@@ -917,14 +917,16 @@ export function parseLocalCore(
     for (const entry of tag.entries) {
       const name = entry.name;
       if (!isHtmlAttributeNameAllowed(lower, name)) return { ok: false, attr: name };
+      // Duplicates are still validated, but the first occurrence wins as in HTML.
+      const first = !Object.hasOwn(attrs, name);
       if (name === 'align' && LOCAL_HTML_ALIGN_ELEMENTS.has(lower)) {
         const align = htmlAlignValue(lower, entry.value);
         if (!align) return { ok: false, attr: name };
-        attrs.align = align;
+        if (first) attrs.align = align;
         continue;
       }
       if (!isValidHtmlAttributeValue(name, entry.value)) return { ok: false, attr: name };
-      attrs[name] = entry.value;
+      if (first) attrs[name] = entry.value;
     }
     if (lower === 'details' && Object.hasOwn(attrs, 'open')) attrs.open = 'true';
     return { ok: true, attrs };

@@ -139,4 +139,16 @@ describe('P0 HTML attribute decoding', () => {
       expect(compileLocal(source).diagnostics.map(d => d.code)).toContain('local.html.fallback');
       expect(elements(render(source, undefined, true).tree, 'a')).toHaveLength(0);
     });
+
+  it('keeps the first of duplicate attributes, as HTML does', () => {
+    const { tree } = render('<a href="https://a.example/" href="https://b.example/" title="one" title="two">x</a>\n\n<p align="left" align="right">y</p>');
+    expect(attrs(elements(tree, 'a')[0])).toMatchObject({ href: 'https://a.example/', title: 'one' });
+    expect(elements(tree, 'p').map(node => attrs(node).align).filter(Boolean)).toEqual(['left']);
+  });
+
+  it('still rejects an unsafe duplicate attribute value', () => {
+    const source = '<a href="https://a.example/" href="javascript:alert(1)">x</a>';
+    expect(compileLocal(source).diagnostics.map(d => d.code)).toContain('local.html.fallback');
+    expect(elements(render(source, undefined, true).tree, 'a')).toHaveLength(0);
+  });
 });
