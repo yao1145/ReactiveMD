@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseLocal } from '../src/local/parsing/parser';
+import { compileLocal } from '../src/local/compilation/compiler';
 import type { LocalNode } from '../src/local/contracts/types';
 const flat = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flat(n.children ?? [])]);
 
@@ -151,6 +152,18 @@ it('decodes escaped table pipes before expressions reach the evaluator', () => {
   expect(flat(table?.children ?? []).find(n => n.type === 'interpolation')?.value).toBe('a || b');
   const text = flat(table?.children ?? []).filter(n => n.type === 'text').map(n => n.value).join('');
   expect(text).toContain('a | b');
+});
+
+it('decodes escaped table pipes on the fast Markdown path too', () => {
+  // 单元格里只有插值、没有普通文本的 `\|` 时，表格走快速路径而不是 remark。
+  const source = '| 条件 | 结果 |\n| --- | --- |\n| 或 | {{ a \\|\\| b }} |';
+  const parsed = parseLocal(source);
+  expect(parsed.diagnostics).toEqual([]);
+  const table = flat(parsed.nodes).find(n => n.type === 'table');
+  expect(flat(table?.children ?? []).find(n => n.type === 'interpolation')?.value).toBe('a || b');
+  const compiled = compileLocal(`<toggle bind="a" label="a">\n<toggle bind="b" label="b">\n\n${source}`);
+  expect(compiled.diagnostics).toEqual([]);
+  expect(compiled.ok).toBe(true);
 });
 
 it('parses display and inline math without touching interpolations', () => {

@@ -1886,7 +1886,7 @@ export function parseLocalCore(
         fastPlans.add(plan);
         const overflow=plan.overflowAt(maxSyntaxNodes-nodeCount);
         if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,sourceAt(base+overflow.start,from),sourceAt(base+overflow.end,to),'local.budget.nodes',{limit:maxSyntaxNodes});
-        return plan.emit((type,begin,finish,extra)=>{
+        const emitted=plan.emit((type,begin,finish,extra)=>{
           if(type==='rmdOpaque'){
             const slot=markers.get(base+begin);
             if(!slot||slot.node.type!=='interpolation'||slot.end!==base+finish||slot.marker!==extra?.value)throw new Error('Invalid interpolation placeholder');
@@ -1894,6 +1894,9 @@ export function parseLocalCore(
           }
           return node(type,sourceAt(base+begin,from),sourceAt(base+finish,to),extra);
         });
+        // 与 remark 路径一致：表格单元格内插值的 `\|` 还原为 `|`。
+        for(const block of emitted)if(block.type==='table'&&block.children)unescapeTablePipes(block.children);
+        return emitted;
       }
       if (raw.type === 'image') {
         const slot = markers.get(raw.position?.start?.offset);
