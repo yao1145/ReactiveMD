@@ -2,6 +2,32 @@
 
 **English** · [中文](CHANGELOG-ch.md)
 
+## Unreleased
+
+Parser, state restoration and incremental editing edge cases, with no protocol or API change.
+
+### Fixed
+
+- Unescape `\|` inside GFM table cells on the fast Markdown path as well as the remark path, so `{{ a \|\| b }}` compiles inside a table.
+- Follow the Markdown parse in lexical shielding: a backtick in a fence info string no longer opens a fence, indented code inside a container is no longer scanned for interpolations, tags or renames, image alt text keeps its source text instead of private-use markers, and text at the list marker column after a blank line closes the list level.
+- Decode basic HTML attributes with attribute-value rules: a legacy named reference without `;` stays literal before `=` or an alphanumeric (`href="?a=1&copy=2"`), the first duplicate attribute wins while duplicates are still validated, and NUL becomes U+FFFD on every path.
+- Validate a restored state file against the whole parameter set in one atomic write, so a constraint that reads another parameter no longer depends on declaration order; the retention fallback repeats its pass until it stops accepting values.
+- Keep a value that a dynamic constraint has narrowed out of range across unrelated document edits in live preview; a changed constraint definition or value rule still revalidates and falls back to the new initial value.
+- Decide the sign of zero from the rounded result, so a value within one decimal rounding step of zero no longer prints `-0.0000`.
+- Skip the dependents of a constant that failed static evaluation instead of reporting a second, misleading "Variable ... is not declared" diagnostic.
+- Report unknown-reference and const-violation diagnostics at the identifier token rather than at the first textual match, which could sit inside a string literal.
+- Truncate diagnostic, state-sample, chart-label and CLI text without leaving an unpaired high surrogate.
+
+### Changed
+
+- An incremental editing session validates the boundaries next to a recompiled block against the local parser and falls back to a full compile when they disagree, so a session result always matches `compileLocal`. Sources with a lone `\r`, or a context block followed directly by Markdown, always use the full path.
+- Block planning keeps ambiguous inputs on the general parser: a bare `1.` / `2)`, lazy continuation after a fast list, interruption after a masked paragraph, lists Lezer ends early, loose lists joined across masked lines, indented code, and lists ending in an empty item. Those edge inputs now parse as remark does.
+- A container that may contain indented code makes one extra Markdown parse of its body; plain containers do no extra work.
+
+### Compatibility
+
+- No syntax, component or state protocol change. `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1` and `reactive-md-state/v1` are unchanged.
+
 ## 0.8.0 (2026-11-12, latest channel)
 
 The release splits the editor into `reactive-md-editor` and the Demo into independent repositories. Replace `reactive-md/editor` imports with `reactive-md-editor`. Add one-shot compiler entries, strict/local recovery and HTML details mapping. Package, syntax and data protocols retain independent versioning.
