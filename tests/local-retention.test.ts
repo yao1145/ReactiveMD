@@ -328,3 +328,34 @@ describe('local state retention planning', () => {
     }
   });
 });
+
+describe('retention fallback with dependent values', () => {
+  const source = (option: string) => [
+    '<number bind="b" label="B" initial="1" min="0" max="{{ z }}">',
+    '<slider bind="z" label="Z" initial="5" min="0" max="10">',
+    '<select bind="c" label="C">',
+    '<option value="x">X</option>',
+    `<option value="${option}">O</option>`,
+    '</select>',
+  ].join('\n');
+
+  it('keeps a value whose constraint depends on another retained value', () => {
+    // c 在新文档中失效，原子写入整体失败后进入逐个回退；b 不应因为先于 z 写入而被丢弃。
+    const first = compile(source('y'));
+    const next = compile(source('w'));
+    const before = createLocalRuntime(first);
+    const after = createLocalRuntime(next);
+    try {
+      expect(before.setParameter('z', 10)).toEqual([]);
+      expect(before.setParameter('b', 9)).toEqual([]);
+      expect(before.setParameter('c', 'y')).toEqual([]);
+      const result = applyLocalStateRetention(after, planFrom(first, before, next));
+      expect(result.retained).toEqual(['b', 'z']);
+      expect(result.dropped).toEqual([{ name: 'c', reason: 'invalid' }]);
+      expect(after.getParameters()).toEqual({ b: 9, c: 'x', z: 10 });
+    } finally {
+      before.dispose();
+      after.dispose();
+    }
+  });
+});
