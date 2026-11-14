@@ -100,6 +100,15 @@ describe('shared source facts', () => {
     expect(facts.fenceSpans[0].from).toBe(0);
   });
 
+  it('does not open a fence on a backtick line whose info string contains a backtick', () => {
+    const facts = new SourceContext('```js `x`\n> quoted\n').facts;
+    expect(facts.fenceSpans).toEqual([]);
+    expect(facts.lines[0].fenced).toBe(false);
+    expect(facts.lines[1].quoteDepth).toBe(1);
+    // 波浪线围栏不受此限制。
+    expect(new SourceContext('~~~js `x`\n> code\n~~~').facts.fenceSpans.length).toBe(1);
+  });
+
   it('ignores a leading BOM when reading the first line', () => {
     const facts = new SourceContext('﻿> > quoted').facts;
     expect(facts.maxMarkdownDepth).toBe(2);

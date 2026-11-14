@@ -91,8 +91,10 @@ function computeFacts(source: string): SourceFacts {
       }
       fenced = true;
     } else {
-      const open = fenceRunAt(source.slice(probe, to), 0);
-      if (open) {
+      const rest = source.slice(probe, to);
+      const open = fenceRunAt(rest, 0);
+      // CommonMark: a backtick fence's info string cannot contain a backtick.
+      if (open && (open.char !== '`' || rest.indexOf('`', open.length) < 0)) {
         fence = { char: open.char, length: open.length };
         fenced = true;
         fenceSpans.push({ from, to: source.length });

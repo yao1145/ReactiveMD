@@ -1071,10 +1071,13 @@ export function parseLocalCore(
     // Recognize fenced code at a Markdown line boundary, including container indentation.
     const lineStart = sourceContext.lineStartAt(i);
     if ((insideContainer ? CONTAINER_FENCE_LINE : ROOT_FENCE_LINE).test(source.slice(lineStart, i))) {
-      const fence = /^(`{3,}|~{3,})[^\n]*(?:\n|$)/.exec(source.slice(i, end));
+      // CommonMark: a backtick fence's info string cannot contain a backtick;
+      // such a line is ordinary paragraph text (a code span at most).
+      const fence = /^(?:(`{3,})[^`\n]*|(~{3,})[^\n]*)(?:\n|$)/.exec(source.slice(i, end));
       if (fence) {
+        const run = fence[1] ?? fence[2];
         const prefix = insideContainer ? '[ \\t]*' : ' {0,3}';
-        const close = new RegExp(`^${prefix}${fence[1][0]}{${fence[1].length},}[ \\t]*\\r?$`, 'gm');
+        const close = new RegExp(`^${prefix}${run[0]}{${run.length},}[ \\t]*\\r?$`, 'gm');
         close.lastIndex = i + fence[0].length;
         const match = close.exec(source);
         return match && match.index < end ? Math.min(end, match.index + match[0].length) : end;
@@ -1148,7 +1151,7 @@ export function parseLocalCore(
         if (fenceChar) {
           if (new RegExp(`^[ \\t]*${fenceChar}{${fenceLength},}[ \\t]*\\r?$`).test(text)) fenceChar = '';
         } else {
-          const open = /^([ \t]*)(`{3,}|~{3,})/.exec(text);
+          const open = /^([ \t]*)(`{3,}(?=[^`]*$)|~{3,})/.exec(text);
           if (open) {
             indent = Math.min(indent, open[1].length);
             fenceChar = open[2][0]; fenceLength = open[2].length;
