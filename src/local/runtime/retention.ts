@@ -184,19 +184,29 @@ export function applyLocalStateRetention(
   }
 
   // The atomic write was rejected as a whole. Reapply each value on its own so
-  // one stale value cannot block every other retained parameter.
+  // one stale value cannot block every other retained parameter. A value can
+  // depend on another retained value (`max="{{ z }}"`), so repeat the pass
+  // while it makes progress instead of letting alphabetical order decide.
   const applied: string[] = [];
-  const dropped: LocalStateRetentionDrop[] = [...retained.dropped];
-  const failures: Diagnostic[] = [];
-  for (const name of names) {
-    const result = runtime.setParameter(name, retained.values[name]);
-    if (result.length) {
-      dropped.push(drop(name, 'invalid'));
-      failures.push(...result);
-    } else {
-      applied.push(name);
+  let pending = names;
+  let failures: Diagnostic[] = [];
+  while (pending.length) {
+    const rejected: string[] = [];
+    failures = [];
+    for (const name of pending) {
+      const result = runtime.setParameter(name, retained.values[name]);
+      if (result.length) {
+        rejected.push(name);
+        failures.push(...result);
+      } else {
+        applied.push(name);
+      }
     }
+    if (rejected.length === pending.length) break;
+    pending = rejected;
   }
+  applied.sort();
+  const dropped: LocalStateRetentionDrop[] = [...retained.dropped, ...pending.map((name) => drop(name, 'invalid'))];
   dropped.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   return freezeResult(applied, dropped, failures);
 }

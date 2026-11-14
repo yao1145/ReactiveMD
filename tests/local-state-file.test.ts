@@ -464,3 +464,45 @@ describe('local state application', () => {
     runtime.dispose();
   });
 });
+
+describe('state files with dynamic constraints', () => {
+  // b 的上限取决于后声明的 a；逐个写入时 b 会先按 a 的初值校验而被拒。
+  const source = [
+    '<number bind="b" label="B" initial="1" min="0" max="{{ a }}">',
+    '<slider bind="a" label="A" initial="5" min="0" max="10">',
+  ].join('\n');
+
+  it('validates imported values against the complete incoming set', () => {
+    const compiled = compileLocal(source);
+    if (!compiled.ok) throw new Error('compile failed');
+    const document = compiled.document;
+    const runtime = createLocalRuntime(document);
+    try {
+      expect(runtime.setParameter('a', 10)).toEqual([]);
+      expect(runtime.setParameter('b', 9)).toEqual([]);
+      const text = serializeLocalState(createLocalStateFile(document, runtime.getParameters()));
+
+      expect(resolveLocalState(document, text)).toMatchObject({ ok: true, state: { a: 10, b: 9 } });
+      expect(applyLocalState(runtime, JSON.parse(text))).toEqual([]);
+
+      const fresh = createLocalRuntime(document);
+      try {
+        expect(applyLocalState(fresh, JSON.parse(text))).toEqual([]);
+        expect(fresh.getParameters()).toEqual({ a: 10, b: 9 });
+      } finally {
+        fresh.dispose();
+      }
+    } finally {
+      runtime.dispose();
+    }
+  });
+
+  it('still rejects a value that breaks the imported constraint', () => {
+    const compiled = compileLocal(source);
+    if (!compiled.ok) throw new Error('compile failed');
+    const document = compiled.document;
+    const file = createLocalStateFile(document, { a: 4, b: 9 });
+    const result = resolveLocalState(document, file);
+    expect(result.ok).toBe(false);
+  });
+});
