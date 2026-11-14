@@ -199,6 +199,24 @@ describe('ordinary Markdown compatibility', () => {
     },
   );
 
+  it('shields indented code inside a container exactly like at the root', () => {
+    // 容器内容先按共同缩进去缩进，再按 Markdown 解析；缩进代码块保持原文。
+    for (const body of ['{{ zz }}', '<toggle bind="q" label="q">']) {
+      const root = parseLocal(`text\n\n    ${body}\n`);
+      const container = parseLocal(`<card title="t">\ntext\n\n    ${body}\n\n</card>`);
+      const indented = parseLocal(`<card title="t">\n  text\n\n      ${body}\n\n</card>`);
+      for (const parsed of [root, container, indented]) {
+        expect(parsed.diagnostics).toEqual([]);
+        const all = flat(parsed.nodes);
+        expect(all.filter(n => n.type === 'code').map(n => n.value)).toEqual([body]);
+        expect(all.some(n => n.type === 'interpolation' || n.name === 'toggle')).toBe(false);
+      }
+    }
+    // 容器内引用块里的围栏代码同样被屏蔽。
+    const quoted = parseLocal('<card>\n> ```\n> {{ zz }}\n> ```\n</card>');
+    expect(flat(quoted.nodes).filter(n => n.type === 'code').map(n => n.value)).toEqual(['{{ zz }}']);
+  });
+
   it('keeps valid inline and display math working', () => {
     const parsed = parseLocal('$5$ 与 $x^2$，以及 $$ y = x $$');
     expect(parsed.diagnostics).toEqual([]);

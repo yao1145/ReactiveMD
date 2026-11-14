@@ -1180,6 +1180,9 @@ export function parseLocalCore(
     // a definition inside a container still becomes a real footnote node.
     let regionDefinitions: readonly DefinitionRange[] = options.definitions ?? rootDefinitionRanges;
     let mathLiterals: readonly SourceRange[] = rootMathLiterals;
+    // 根层代码块来自全文 Markdown 解析；容器正文被组件标签遮住，需按去缩进
+    // 后的正文重新确定代码块（缩进代码、引用/列表里的围栏），使其保持原文。
+    let containerCode: readonly SourceRange[] = [];
     if (parent) {
       const bodyEnd = unknownTagEnd(start, parent, end, true)?.start ?? end;
       const indent = commonIndent(start, bodyEnd);
@@ -1189,18 +1192,23 @@ export function parseLocalCore(
       work.mappingSegments+=mapped.segmentCount;
       const text = mapped.text();
       // Definitions/images need `[`, autolinks need a protocol, `www.` or an
-      // email `@`. Without these features there are no inline facts to find.
+      // email `@`. Code blocks need four columns of indentation or a fence
+      // after a quote/list prefix (line-leading fences are already shielded
+      // lexically). Without these features there are no facts to find.
       // Retain the same deterministic work/depth charges on this shortcut.
-      let facts:{definitions:SourceRange[];mathLiterals:SourceRange[]};
-      if(!/[\[:@]|www\./i.test(text)){
+      let facts:{definitions:SourceRange[];mathLiterals:SourceRange[];codeRanges:SourceRange[]};
+      if(!/[\[:@]|www\./i.test(text)&&!/^[ \t>*+\-0-9.)]*(?: {4}|\t|`{3}|~{3})/m.test(text)){
         budget.charge(text.length+1,0,Math.max(1,text.length));
         ensureDepth(text);
-        facts={definitions:[],mathLiterals:[]};
+        facts={definitions:[],mathLiterals:[],codeRanges:[]};
       }else facts=markdownTreeFacts(parseMarkdown(text),false);
       const translate=(range:SourceRange):SourceRange=>({start:mapped.at(range.start,bodyEnd),end:mapped.at(range.end,bodyEnd)});
       const found=facts.definitions.map(translate).filter(range=>range.end>range.start);
       const literals=facts.mathLiterals.map(translate);
       mathLiterals = literals.sort((a, b) => a.start - b.start);
+      containerCode = facts.codeRanges.map(translate)
+        .filter(range => range.end > range.start && range.start >= start && range.end <= bodyEnd)
+        .sort((a, b) => a.start - b.start);
       regionDefinitions = found
         .filter(range => range.start >= start && range.end <= bodyEnd)
         .sort((a, b) => a.start - b.start || b.end - a.end);
@@ -1211,6 +1219,7 @@ export function parseLocalCore(
       mathLiterals = literals.sort((a, b) => a.start - b.start);
     }
     let definitionIndex = 0;
+    let containerCodeIndex = 0;
     // Recovery spans are single literal tokens: their content is never
     // re-parsed for components, bindings, interpolation, math or Markdown.
     let recoveryIndex = 0;
@@ -1232,6 +1241,10 @@ export function parseLocalCore(
       if (!insideContainer) {
         while (codeRanges[codeIndex]?.end <= i) codeIndex++;
         const code = codeRanges[codeIndex];
+        if (code && code.start <= i) { i = code.end; continue; }
+      } else if (containerCode.length) {
+        while (containerCode[containerCodeIndex]?.end <= i) containerCodeIndex++;
+        const code = containerCode[containerCodeIndex];
         if (code && code.start <= i) { i = code.end; continue; }
       }
       // Definitions are real Markdown blocks even when the surrounding
