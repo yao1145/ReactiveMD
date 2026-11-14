@@ -1,0 +1,201 @@
+/* Native data display skin: tables and chart hooks. Selectors target native
+   table elements inside .md-document plus the md-* classes the renderer emits
+   for compatibility, and the explicit chart class hooks. Every selector,
+   states included, sits inside :where() so ordinary component classes and
+   business series override any declared property in either stylesheet order.
+   An element marked data-rmd-appearance="custom" opts out of the shared skin;
+   its descendants keep theirs. Values come from theme.css. */
+
+@layer rmd.components {
+/* Tables ----------------------------------------------------------- */
+
+:where(.md-document table:not([data-rmd-appearance="custom"])),
+:where(.md-document .md-table:not([data-rmd-appearance="custom"])) {
+  width: 100%;
+  max-width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* The wrapper scrolls wide tables without changing the table's native
+   formatting context. */
+:where(.md-document .md-table-scroll:not([data-rmd-appearance="custom"])) {
+  margin: var(--space-4) 0;
+  overflow-x: auto;
+}
+
+:where(.md-document :is(table, .md-table) caption:not([data-rmd-appearance="custom"])) {
+  caption-side: top;
+  padding-bottom: var(--space-2);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+}
+
+:where(.md-document :is(table, .md-table) :is(th, td):not([data-rmd-appearance="custom"])) {
+  padding: var(--table-cell-padding-y, var(--space-2)) var(--table-cell-padding-x, var(--space-4));
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+:where(.md-document :is(table, .md-table) th:not([data-rmd-appearance="custom"])) {
+  border-bottom-color: var(--line-strong);
+  color: var(--ink-soft);
+  font-weight: var(--weight-semibold);
+}
+
+:where(.md-document :is(table, .md-table) tbody tr:last-child > td:not([data-rmd-appearance="custom"])) {
+  border-bottom: 0;
+}
+
+/* Opt-in zebra rows via .md-table-striped on the table or its wrapper. */
+:where(.md-document .md-table-striped tbody tr:nth-child(even) > :is(th, td):not([data-rmd-appearance="custom"])) {
+  background: var(--surface-subtle);
+}
+
+/* Selected rows are declared after zebra so the accent wins at equal
+   specificity. Both ARIA-selected and data-state markers are supported. */
+:where(.md-document :is(table, .md-table) tr:is([aria-selected="true"], [data-state="selected"]) > :is(th, td):not([data-rmd-appearance="custom"])) {
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+
+:where(.md-document :is(table, .md-table) tr:is([aria-selected="true"], [data-state="selected"]) > :is(th, td):first-child:not([data-rmd-appearance="custom"])) {
+  box-shadow: var(--rmd-accent-edge-shadow-geometry) var(--accent);
+}
+
+/* Charts ----------------------------------------------------------- */
+
+:where(.md-document .md-chart:not([data-rmd-appearance="custom"])) {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+:where(.md-document .md-chart:not([data-rmd-appearance="custom"]):not([hidden])) {
+  display: block;
+}
+
+:where(.md-document .md-chart-axis:not([data-rmd-appearance="custom"])) {
+  stroke: var(--chart-axis);
+  stroke-width: 1;
+  fill: var(--chart-axis);
+}
+
+:where(.md-document .md-chart-axis text:not([data-rmd-appearance="custom"])) {
+  fill: var(--chart-axis);
+  stroke: none;
+}
+
+:where(.md-document .md-chart-grid:not([data-rmd-appearance="custom"])) {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+:where(.md-document .md-chart-legend:not([data-rmd-appearance="custom"])) {
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  margin: var(--space-3) 0 var(--space-1);
+  color: var(--ink-soft);
+  fill: var(--ink-soft);
+  font-size: var(--text-xs);
+}
+
+:where(.md-document .md-chart-legend:not([data-rmd-appearance="custom"]):not([hidden])) {
+  display: flex;
+}
+
+:where(.md-document .md-chart-node:not([data-rmd-appearance="custom"])) {
+  fill: var(--rmd-chart-node-background, var(--surface));
+  stroke: var(--rmd-chart-node-border, var(--line-strong));
+  stroke-width: var(--rmd-chart-node-border-width, 1.5);
+}
+
+:where(.md-document .md-chart-edge:not([data-rmd-appearance="custom"])) {
+  fill: none;
+  stroke: var(--rmd-chart-edge, var(--line-strong));
+  stroke-width: var(--rmd-chart-edge-width, 1.5);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:where(.md-document .md-chart-series-line:not([data-rmd-appearance="custom"])) {
+  fill: none;
+  stroke: var(--series-color, var(--chart-1));
+  stroke-width: var(--rmd-chart-series-line-width, 2);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+:where(.md-document .md-chart-series-area:not([data-rmd-appearance="custom"])) {
+  fill: var(--series-color, var(--chart-1));
+  stroke: none;
+  opacity: var(--rmd-chart-series-area-opacity, 0.16);
+}
+
+/* Selected and keyboard-focused marks take the shared focus accent. */
+:where(.md-document .md-chart-node:is([aria-selected="true"], [data-state="selected"]):not([data-rmd-appearance="custom"])) {
+  stroke: var(--focus);
+  stroke-width: 2.4;
+  filter: drop-shadow(var(--rmd-diagram-selection-shadow, var(--rmd-diagram-selection-shadow-geometry) color-mix(in srgb, var(--focus) var(--rmd-diagram-selection-shadow-opacity), transparent)));
+}
+
+:where(.md-document .md-chart-node:focus-visible:not([data-rmd-appearance="custom"])) {
+  outline: none;
+  stroke: var(--focus);
+  stroke-width: 2.4;
+}
+
+:where(.md-document :is(.md-chart-series-line, .md-chart-series-area):is([aria-selected="true"], [data-state="selected"]):not([data-rmd-appearance="custom"])) {
+  stroke: var(--focus);
+  stroke-width: 2.4;
+}
+
+:where(.md-document :is(.md-chart-series-line, .md-chart-series-area):focus-visible:not([data-rmd-appearance="custom"])) {
+  outline: none;
+  stroke: var(--focus);
+  stroke-width: 2.4;
+}
+
+/* Series palette. A business series overrides --series-color with its own
+   class or inline value; the fallback in the series rules stays chart-1. */
+:where(.md-document .md-chart [data-series="1"]:not([data-rmd-appearance="custom"])) {
+  --series-color: var(--chart-1);
+}
+
+:where(.md-document .md-chart [data-series="2"]:not([data-rmd-appearance="custom"])) {
+  --series-color: var(--chart-2);
+}
+
+:where(.md-document .md-chart [data-series="3"]:not([data-rmd-appearance="custom"])) {
+  --series-color: var(--chart-3);
+}
+
+:where(.md-document .md-chart [data-series="4"]:not([data-rmd-appearance="custom"])) {
+  --series-color: var(--chart-4);
+}
+
+:where(.md-document .md-chart [data-series="5"]:not([data-rmd-appearance="custom"])) {
+  --series-color: var(--chart-5);
+}
+
+:where(.md-document .md-chart [data-series="6"]:not([data-rmd-appearance="custom"])) {
+  --series-color: var(--chart-6);
+}
+
+:where(.md-document .md-chart [data-series="7"]:not([data-rmd-appearance="custom"])) {
+  --series-color: var(--chart-7);
+}
+
+:where(.md-document .md-chart [data-series="8"]:not([data-rmd-appearance="custom"])) {
+  --series-color: var(--chart-8);
+}
+}

@@ -183,6 +183,16 @@ describe('static chart', () => {
 });
 
 describe('static timeline and diagram', () => {
+  it('preserves compact static diagram geometry and its two-line labels', () => {
+    const source = `<diagram label="Long label"><node id="a" label="AlphaBetaGammaDeltaEpsilon">Description.</node></diagram>`;
+    const html = mount(source, 'diagram', 'static');
+    expect(html).toMatch(/class="local-visual-node-shape"[^>]*width="120" height="46" rx="10"/);
+    expect(html).toContain('<tspan x="0" y="-4">AlphaBet</tspan>');
+    expect(html).toContain('<tspan x="0" y="12">aGammaD…</tspan>');
+    const interactive = mount(source, 'diagram', 'interactive');
+    expect(interactive).toMatch(/class="local-visual-node-shape"[^>]*width="164" height="64" rx="12"/);
+  });
+
   it('renders timeline notes inline without focus or hover instructions', () => {
     const html = mount(TIMELINE_SOURCE, 'timeline', 'static');
     const text = visible(html);
@@ -238,11 +248,11 @@ describe('interactive visuals', () => {
     const html = mount(CHART_SOURCE, 'chart', 'interactive');
 
     expect(html).toContain('<button');
-    expect(html).toContain('local-visual-legend-item');
+    expect(html).toContain('rmd-chart-legend-item');
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('data-chart-selectable');
     expect(html).toContain('data-chart-mark');
-    expect(html).toContain('Focus or point at a mark');
+    expect(html).toContain('Hover or focus a single bar');
     expect(html).toContain('tabindex="0"');
     expect(html).not.toContain('local-static-legend-item');
   });

@@ -214,7 +214,7 @@ export function MafsCoordinatePlane({
   };
 
   return (
-    <div ref={wrapperRef}>
+    <div ref={wrapperRef} data-rmd-part="plane">
     <Mafs
       height={420}
       width="auto"
@@ -406,6 +406,7 @@ export function MafsPlotSurface({
       aria-label={label}
       aria-describedby={readoutId}
       tabIndex={0}
+      data-rmd-part="plane"
       onPointerDown={() => surfaceRef.current?.focus({ preventScroll: true })}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}

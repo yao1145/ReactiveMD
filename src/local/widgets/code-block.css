@@ -2,6 +2,8 @@
    Every selector stays inside .md-document so a host page keeps its own
    styles. Colors follow the document's light or dark theme. */
 
+@layer rmd.components {
+
 .md-document .md-code-block {
   margin: var(--space-4) 0;
   border: 1px solid color-mix(in srgb, var(--code-ink) 14%, var(--code-bg));
@@ -85,8 +87,6 @@
   outline: 2px solid var(--code-ink);
   outline-offset: -2px;
 }
-
-/* The wrapper owns the card edge; the pre keeps its own scrolling surface. */
 .md-document .md-code-block > .md-code {
   margin: 0;
   padding: var(--space-3) var(--space-4);
@@ -96,8 +96,6 @@
   color: var(--code-ink);
   tab-size: 4;
 }
-
-/* Tokens */
 .md-document .md-code-block .hljs-comment,
 .md-document .md-code-block .hljs-quote {
   color: var(--md-code-token-comment);
@@ -166,8 +164,6 @@
 .md-document .md-code-block .hljs-strong {
   font-weight: var(--weight-semibold);
 }
-
-/* Paper: no toolbar and one readable ink colour for every token. */
 @media print {
   .md-document .md-code-block-toolbar {
     display: none !important;
@@ -191,3 +187,10 @@
     font-weight: inherit !important;
   }
 }
+}
+
+/* The wrapper owns the card edge; the pre keeps its own scrolling surface. */
+
+/* Tokens */
+
+/* Paper: no toolbar and one readable ink colour for every token. */

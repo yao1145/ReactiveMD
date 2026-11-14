@@ -1,3 +1,6 @@
+@layer rmd.reset, rmd.defaults, rmd.components, rmd.themes, rmd.overrides;
+
+@layer rmd.themes {
 /* ==========================================================================
    SCI-FI / SF-01 — design tokens
    --------------------------------------------------------------------------
@@ -265,6 +268,17 @@
   --sf-chart-frame: var(--surface);
   --sf-chart-head: var(--surface-subtle);
 
+  /* Shared slider contract: a square block on a hairline rail. */
+  --rmd-slider-thumb-width: 14px;
+  --rmd-slider-thumb-height: 14px;
+  --rmd-slider-thumb-radius: 0px;
+  --rmd-slider-track-height: 4px;
+  --rmd-slider-track-radius: 0px;
+  --rmd-slider-thumb-border-width: 2px;
+  --rmd-slider-thumb-background: var(--accent);
+  --rmd-slider-thumb-border-color: var(--surface);
+  --rmd-slider-thumb-shadow: 0 0 0 1px var(--accent);
+
   --sf-glow: 0 0 0 1px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
   --sf-hatch: repeating-linear-gradient(
     135deg,
@@ -400,9 +414,31 @@
   --sf-chart-head: #0d1721;
 
   --sf-glow: 0 0 0 1px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+
+  /* Shared slider contract in the dark scheme. */
+  --rmd-slider-thumb-background: var(--accent);
+  --rmd-slider-thumb-border-color: var(--surface);
+
   --sf-hatch: repeating-linear-gradient(
     135deg,
     color-mix(in srgb, var(--ink) 8%, transparent) 0 1px,
     transparent 1px 6px
   );
+}
+
+/* Native fields use the theme's slider design through their own contract. */
+[data-rmd-theme="sci-fi"] {
+  --rmd-native-range-thumb-width: var(--rmd-slider-thumb-width);
+  --rmd-native-range-thumb-height: var(--rmd-slider-thumb-height);
+  --rmd-native-range-thumb-radius: var(--rmd-slider-thumb-radius);
+  --rmd-native-range-thumb-border-width: var(--rmd-slider-thumb-border-width);
+  --rmd-native-range-thumb-background: var(--rmd-slider-thumb-background);
+  --rmd-native-range-thumb-border-color: var(--rmd-slider-thumb-border-color);
+  --rmd-native-range-thumb-shadow: var(--rmd-slider-thumb-shadow);
+  --rmd-native-range-track-height: var(--rmd-slider-track-height);
+  --rmd-native-range-track-radius: var(--rmd-slider-track-radius);
+  --rmd-native-range-track-background: var(--rmd-slider-track-background);
+  --rmd-native-range-fill-background: var(--rmd-slider-fill-background);
+}
+
 }

@@ -1,0 +1,1145 @@
+/* ==========================================================================
+   PRODUCT UI — forms and controls
+   --------------------------------------------------------------------------
+   Field, checkbox, switch, counter, range, segmented choice, progress and
+   action-button treatments.
+   Every selector is scoped to every document root. Semantic values
+   come from tokens.css. Native select arrows, number spinners, date pickers
+   and the underlying input elements are never reset.
+   ========================================================================== */
+
+/* ------------------------------------------------------------- 1. fields */
+
+@layer rmd.components {
+
+.md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+) {
+  box-sizing: border-box;
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field);
+  color: var(--ink);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  textarea,
+  .md-text-input
+)[readonly] {
+  background-color: var(--surface-subtle);
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+.md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):hover:not(:disabled, [readonly], :focus-visible) {
+  border-color: var(--line-strong);
+}
+.md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):focus-visible {
+  border: 2px solid var(--accent);
+  outline: none;
+  box-shadow: var(--pu-focus-halo);
+}
+
+.md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):is([aria-invalid="true"], :user-invalid) {
+  border-color: var(--danger);
+}
+
+.md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):is([aria-invalid="true"], :user-invalid):hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+.md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):is([aria-invalid="true"], :user-invalid):focus-visible {
+  border-color: var(--danger);
+  box-shadow: var(--rmd-field-invalid-shadow, var(--rmd-field-invalid-shadow-geometry) color-mix(in srgb, var(--danger) var(--rmd-field-invalid-shadow-opacity), transparent));
+}
+
+.md-document :is(
+  input:not(
+    [type="checkbox"],
+    [type="radio"],
+    [type="range"],
+    [type="file"],
+    [type="color"],
+    [type="hidden"],
+    [type="submit"],
+    [type="button"],
+    [type="reset"],
+    [type="image"]
+  ),
+  select,
+  textarea,
+  .md-text-input,
+  .md-select-input
+):disabled {
+  background-color: var(--surface-subtle);
+  border-color: var(--line);
+  color: var(--ink-muted);
+  opacity: var(--disabled-opacity, 0.55);
+  cursor: not-allowed;
+}
+
+.md-document :is(
+  input,
+  textarea,
+  .md-text-input
+)::placeholder {
+  color: var(--ink-muted);
+  opacity: 1;
+}
+.md-document select:not(:disabled) {
+  cursor: pointer;
+}
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+) {
+  -webkit-appearance: none;
+  appearance: none;
+  /* Core masks a checked .md-toggle-label checkbox into a tick. The switch
+     track draws its own thumb, so the mask must be removed in every state. */
+  -webkit-mask-image: none;
+  mask-image: none;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  inline-size: 42px;
+  block-size: 24px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background-color: var(--control-track, var(--surface-active));
+  background-image: radial-gradient(
+    ellipse 50% 50% at center,
+    var(--control-thumb, var(--surface)) 0 80%,
+    var(--line-strong) 85% 90%,
+    transparent 95%
+  );
+  background-repeat: no-repeat;
+  background-size: 20px 20px;
+  background-position: left 2px center;
+  box-shadow: var(--rmd-switch-shadow, var(--rmd-switch-shadow-geometry) color-mix(in srgb, var(--ink) var(--rmd-switch-shadow-opacity), transparent));
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    background-position var(--motion-base) var(--ease-standard),
+    background-size var(--motion-base) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.md-document[data-color-scheme="dark"].md-document :where(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):not(:checked) {
+  background-color: var(--surface-active);
+  border-color: var(--line-strong);
+}
+
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):checked {
+  border-color: transparent;
+  background-color: var(--control-selected, var(--accent));
+  background-image: radial-gradient(
+    ellipse 50% 50% at center,
+    var(--control-selected-ink, var(--accent-ink, var(--surface))) 0 90%,
+    transparent 95%
+  );
+  background-position: right 2px center;
+  box-shadow: none;
+}
+
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):hover:not(:disabled):not(:checked) {
+  border-color: var(--line-strong);
+  background-color: var(--rmd-uiarc-track-hover, var(--surface-hover));
+}
+
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):checked:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):focus-visible {
+  outline: none;
+  box-shadow: var(--pu-focus-halo);
+}
+
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):active:not(:disabled) {
+  /* The thumb widens toward the far edge, as if it carried the press. */
+  background-size: 26px 20px;
+  box-shadow: var(--rmd-switch-press-shadow, var(--rmd-switch-press-shadow-geometry) color-mix(in srgb, var(--ink) var(--rmd-switch-press-shadow-opacity), transparent));
+}
+.md-document .local-toggle .md-toggle-label:active input[type="checkbox"]:not(:disabled) {
+  background-size: 26px 20px;
+}
+
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):disabled {
+  opacity: var(--disabled-opacity, 0.55);
+  cursor: not-allowed;
+}
+
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):is([aria-invalid="true"], :user-invalid) {
+  border-color: var(--danger);
+}
+
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):is([aria-invalid="true"], :user-invalid):checked {
+  background-color: var(--danger);
+}
+
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):is([aria-invalid="true"], :user-invalid):hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+.md-document :is(
+  .local-toggle .md-toggle-label input[type="checkbox"],
+  .md-toggle-label input.md-switch
+):is([aria-invalid="true"], :user-invalid):checked:hover:not(:disabled) {
+  background-color: var(--danger);
+}
+.md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"]
+) {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  inline-size: var(--rmd-uiarc-checkbox-size, 18px);
+  block-size: var(--rmd-uiarc-checkbox-size, 18px);
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--rmd-uiarc-checkbox-radius);
+  background-color: var(--surface);
+  background-image: none;
+  background-position: center;
+  background-size: 0 0;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  scale: 1;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    background-size var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
+}
+
+.md-document .md-task-checkbox {
+  box-sizing: border-box;
+  inline-size: var(--rmd-uiarc-checkbox-size, 18px);
+  block-size: var(--rmd-uiarc-checkbox-size, 18px);
+  margin: 0 var(--space-2) 0 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--rmd-uiarc-checkbox-radius);
+  background-color: var(--surface);
+  background-image: none;
+  background-position: center;
+  background-size: 0 0;
+  background-repeat: no-repeat;
+  vertical-align: -4px;
+  cursor: default;
+  scale: 1;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    background-size var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
+}
+
+.md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"],
+  .md-task-checkbox
+):checked {
+  border-color: transparent;
+  background-color: var(--local-accent, var(--control-selected, var(--accent)));
+  background-image: var(
+    --rmd-uiarc-check-image,
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2018%2018'%3E%3Cpath%20d='M4.25%209.25%207.25%2012.25%2013.75%205.75'%20fill='none'%20stroke='%23ffffff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E")
+  );
+  background-position: center;
+  background-size: var(--rmd-uiarc-checkbox-size, 18px) var(--rmd-uiarc-checkbox-size, 18px);
+  background-repeat: no-repeat;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"]
+):not(:checked):hover:not(:disabled) {
+  border-color: var(--ink-muted);
+}
+
+.md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"]
+):active:not(:disabled) {
+  scale: .95;
+}
+
+.md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"],
+  .md-task-checkbox
+):disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"],
+  .md-task-checkbox
+):is([aria-invalid="true"], :user-invalid) {
+  border-color: var(--danger);
+}
+
+.md-document :is(
+  .local-checkbox .md-toggle-label input[type="checkbox"],
+  .local-checklist-item input[type="checkbox"],
+  .local-multi-option input[type="checkbox"],
+  .md-task-checkbox
+):is([aria-invalid="true"], :user-invalid):checked {
+  background-color: var(--danger);
+}
+
+.md-document .local-counter-value {
+  font-variant-numeric: tabular-nums;
+}
+.md-document .local-counter-value-pop {
+  display: inline-block;
+  transform: scale(1);
+  transform-origin: center;
+  opacity: 1;
+  font-variant-numeric: tabular-nums;
+  transition:
+    transform 160ms var(--ease-standard),
+    opacity 160ms var(--ease-standard);
+}
+
+@starting-style {
+  .md-document .local-counter-value-pop {
+    transform: scale(1.12);
+    opacity: 0.65;
+  }
+}
+.md-document .local-range-slider {
+}
+.md-document :is(
+  .local-radio-group > legend,
+  .local-quiz-options > legend,
+  .local-checklist > legend,
+  .local-multi-select > legend,
+  .local-choices > .md-label
+) {
+  display: block;
+  width: auto;
+  margin: 0 0 var(--space-2, 8px);
+  padding: 0;
+  color: var(--ink);
+  font-size: var(--text-group-label, 18px);
+  font-weight: var(--weight-semibold, 600);
+  letter-spacing: -0.01em;
+  line-height: var(--leading-snug, 1.45);
+}
+
+.md-document .local-choice-list {
+  --pu-choice-index: 0;
+  position: relative;
+  isolation: isolate;
+  min-inline-size: 0;
+}
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(2):last-child) {
+  --pu-choice-count: 2;
+}
+
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(3):last-child) {
+  --pu-choice-count: 3;
+}
+
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(4):last-child) {
+  --pu-choice-count: 4;
+}
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(1).is-selected) {
+  --pu-choice-index: 0;
+}
+
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(2).is-selected) {
+  --pu-choice-index: 1;
+}
+
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(3).is-selected) {
+  --pu-choice-index: 2;
+}
+
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(4).is-selected) {
+  --pu-choice-index: 3;
+}
+
+.md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) {
+  display: grid;
+  grid-template-columns: repeat(var(--pu-choice-count), minmax(0, 1fr));
+  gap: 0;
+  inline-size: 100%;
+  max-inline-size: 420px;
+  padding: 4px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--pu-radius-md);
+  background: var(--pu-segmented-track, var(--surface-subtle));
+}
+
+.md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+)::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset-block: 4px;
+  left: 0;
+  box-sizing: border-box;
+  width: calc(100% / var(--pu-choice-count));
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-control);
+  background: var(--pu-segmented-thumb, var(--surface));
+  box-shadow: var(--rmd-choice-thumb-shadow, var(--rmd-choice-thumb-shadow-geometry) color-mix(in srgb, var(--ink) var(--rmd-choice-thumb-shadow-opacity), transparent));
+  transform: translateX(calc(var(--pu-choice-index) * 100%));
+  transition:
+    transform 220ms var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+  pointer-events: none;
+}
+.md-document
+  .local-choice-list[data-rmd-choices="uiarc"]:is(
+    :has(> .local-choice:nth-child(2):last-child),
+    :has(> .local-choice:nth-child(3):last-child),
+    :has(> .local-choice:nth-child(4):last-child)
+  )::before {
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-document
+    .local-choice-list[data-rmd-choices="uiarc"]:is(
+      :has(> .local-choice:nth-child(2):last-child),
+      :has(> .local-choice:nth-child(3):last-child),
+      :has(> .local-choice:nth-child(4):last-child)
+    )::before {
+    transition: none;
+  }
+}
+.md-document .local-date-picker {
+  max-width: 420px;
+}
+
+.md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice {
+  position: relative;
+  z-index: 1;
+  justify-content: center;
+  min-inline-size: 0;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3, 12px);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  scale: 1;
+  transition:
+    color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
+}
+
+.md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+  color: var(--ink);
+}
+.md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice.is-selected,
+  .md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice.is-selected:hover:not(:disabled),
+  .md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice.is-selected:active:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+) .local-choice:disabled {
+  cursor: not-allowed;
+}
+
+.md-document .local-choice-list:is(
+  :has(> .local-choice:nth-child(2):last-child),
+  :has(> .local-choice:nth-child(3):last-child),
+  :has(> .local-choice:nth-child(4):last-child)
+)[aria-disabled="true"]::before {
+  opacity: var(--disabled-opacity, 0.55);
+}
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(5)) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+  inline-size: auto;
+  max-inline-size: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice {
+  background: var(--pu-chip-bg, var(--surface));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  scale: 1;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
+}
+
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--line-strong);
+}
+
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice.is-selected {
+  background: var(--pu-chip-selected-bg, var(--accent-soft));
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
+.md-document
+  .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice.is-selected:hover:not(:disabled) {
+  background: var(--pu-chip-selected-bg, var(--accent-soft));
+  border-color: var(--accent-line);
+}
+.md-document
+  .local-choice:active:not(:disabled) {
+  scale: var(--rmd-uiarc-press-scale, .97);
+}
+
+.md-document .local-progress-value {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.md-document .local-progress-track {
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--control-track, var(--surface-active));
+}
+
+.md-document .local-progress-fill {
+  background: var(--local-progress-color, var(--accent));
+  border-radius: inherit;
+  transition: width 300ms var(--ease-standard);
+}
+
+.md-document progress {
+  accent-color: var(--accent);
+}
+
+.md-document progress::-webkit-progress-value {
+  background: var(--accent);
+}
+
+.md-document progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-document :is(
+    .local-toggle .md-toggle-label input[type="checkbox"],
+    .md-toggle-label input.md-switch
+  ) {
+    transition: none;
+  }
+
+  .md-document .local-counter-value-pop {
+    transition: none;
+  }
+
+  @starting-style {
+    .md-document .local-counter-value-pop {
+      transform: none;
+      opacity: 1;
+    }
+  }
+
+  .md-document .local-counter-button {
+    transition: none;
+  }
+
+  .md-document .local-counter-button:active:not(:disabled) {
+    transform: none;
+  }
+
+  .md-document .local-choice,
+  .md-document .local-choice-list::before {
+    transition: none;
+  }
+
+  .md-document .local-choice,
+  .md-document .local-choice:active:not(:disabled) {
+    scale: 1;
+  }
+
+  .md-document .local-progress-fill {
+    transition: none;
+  }
+
+  .md-document :is(
+    .local-toggle .md-toggle-label input[type="checkbox"],
+    .md-toggle-label input.md-switch
+  ):active:not(:disabled) {
+    background-size: 20px 20px;
+  }
+
+  .md-document .local-toggle .md-toggle-label:active input[type="checkbox"]:not(:disabled) {
+    background-size: 20px 20px;
+  }
+
+  .md-document :is(
+    .local-checkbox .md-toggle-label input[type="checkbox"],
+    .local-checklist-item input[type="checkbox"],
+    .local-multi-option input[type="checkbox"],
+    .md-task-checkbox
+  ) {
+    transition: none;
+    scale: 1;
+  }
+
+  .md-document :is(
+    .local-checkbox .md-toggle-label input[type="checkbox"],
+    .local-checklist-item input[type="checkbox"],
+    .local-multi-option input[type="checkbox"]
+  ):active:not(:disabled) {
+    scale: 1;
+  }
+}
+.md-document
+  :is(.md-button, .md-button-secondary):not([data-rmd-appearance="custom"]) {
+  color: var(--ink);
+}
+
+.md-document
+  .md-button-quiet:not([data-rmd-appearance="custom"]) {
+  color: var(--accent-text, var(--accent));
+}
+.md-document
+  .md-button-primary:not([data-rmd-appearance="custom"]) {
+  color: var(--accent-ink);
+}
+.md-document
+  :is(.md-button, .md-button-primary, .md-button-secondary, .md-button-quiet):not([data-rmd-appearance="custom"])
+  :where(span, a, strong, em, b, i, small, code, svg) {
+  color: inherit;
+}
+
+.md-document
+  :is(.md-button, .md-button-primary, .md-button-secondary, .md-button-quiet):not([data-rmd-appearance="custom"])
+  :where(a) {
+  text-decoration: none;
+}
+.md-document :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .md-button,
+  .md-button-primary,
+  .md-button-secondary,
+  .md-button-quiet
+):not(
+  [data-rmd-appearance="custom"],
+  .md-control button,
+  .local-tab,
+  .local-choice,
+  .md-menu-item,
+  .md-page,
+  .md-step
+) {
+  border-radius: var(--pu-radius-md);
+  font-weight: var(--weight-medium, 500);
+  letter-spacing: var(--rmd-uiarc-tracking, 0);
+  -webkit-tap-highlight-color: transparent;
+  scale: 1;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard),
+    scale var(--motion-fast) var(--ease-standard);
+}
+.md-document :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .md-button,
+  .md-button-secondary
+):not(
+  [data-rmd-appearance="custom"],
+  .md-control button,
+  .md-button-primary,
+  .md-button-quiet,
+  .local-tab,
+  .local-choice,
+  .md-menu-item,
+  .md-page,
+  .md-step
+):not(:disabled) {
+  border-color: var(--line);
+}
+.md-document :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .md-button,
+  .md-button-primary,
+  .md-button-secondary,
+  .md-button-quiet
+):not(
+  [data-rmd-appearance="custom"],
+  .md-control button,
+  .local-tab,
+  .local-choice,
+  .md-menu-item,
+  .md-page,
+  .md-step
+):is(
+  [aria-haspopup]:not([aria-haspopup="false"]),
+  [role="combobox"],
+  [data-state]
+):active:not(:disabled) {
+  scale: 1;
+}
+
+.md-document :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .md-button,
+  .md-button-primary,
+  .md-button-secondary,
+  .md-button-quiet
+):not(
+  [data-rmd-appearance="custom"],
+  .md-control button,
+  .local-tab,
+  .local-choice,
+  .md-menu-item,
+  .md-page,
+  .md-step
+):active:not(:disabled) {
+  scale: var(--rmd-uiarc-press-scale, .97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .md-document :is(
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    .md-button,
+    .md-button-secondary
+  ):not(
+    [data-rmd-appearance="custom"],
+    .md-control button,
+    .md-button-primary,
+    .md-button-quiet,
+    .local-tab,
+    .local-choice,
+    .md-menu-item,
+    .md-page,
+    .md-step
+  ):hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .md-document .md-button-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .md-document .md-button-quiet:hover:not(:disabled) {
+    background-color: var(--surface-hover);
+    color: var(--ink);
+  }
+}
+
+.md-document .md-button-primary:active:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.md-document .md-button-quiet:active:not(:disabled) {
+  background-color: var(--surface-active);
+  color: var(--ink);
+}
+.md-document :is(
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .md-button,
+  .md-button-secondary
+):not(
+  [data-rmd-appearance="custom"],
+  .md-control button,
+  .md-button-primary,
+  .md-button-quiet,
+  .local-tab,
+  .local-choice,
+  .md-menu-item,
+  .md-page,
+  .md-step
+):disabled {
+  opacity: 1;
+  border-color: var(--line);
+  background-color: var(--surface-subtle);
+  color: var(--ink-muted);
+}
+
+.md-document .md-button-quiet:disabled {
+  opacity: 1;
+  background-color: transparent;
+  color: var(--ink-muted);
+}
+.md-document .md-button-primary:disabled {
+  opacity: .52;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-document :is(
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    .md-button,
+    .md-button-primary,
+    .md-button-secondary,
+    .md-button-quiet
+  ) {
+    transition: none;
+    scale: 1;
+  }
+
+  .md-document :is(
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    .md-button,
+    .md-button-primary,
+    .md-button-secondary,
+    .md-button-quiet
+  ):active:not(:disabled) {
+    scale: 1;
+  }
+}
+}
+
+/* Two-pixel accent edge plus a soft halo, replacing the generic outline. */
+
+/* Select arrows and number spinners stay native: only the field shell and
+   the focus treatment are themed. */
+
+
+/* ------------------------------------------------------------- 2. toggle */
+
+/* `.md-toggle-label input` in base.css sets a 16px box. The switch overrides
+   that with a 42x24 track and an 18px thumb drawn as a radial gradient, since
+   pseudo-elements on input elements are unreliable. The input remains the
+   real checkbox: Space, labels and form submission keep working. */
+
+/* Pressing the label is the same press as pressing the track. */
+
+/* ---------------------------------------------------------- 2b. checkbox */
+
+/* UIArc's checkbox is an 18px rounded square inside the label's 44px row.
+   Core draws a circular mask; the theme supplies the square, the fill and the
+   mask-free check so the mark can follow the selected control's ink. */
+
+/* ------------------------------------------------------------ 3. counter */
+
+/* Core remounts the changing value inside .local-counter-value-pop so the
+   pop replays without moving the surrounding row. @starting-style supplies
+   the enlarged first frame; the transition settles it at rest size. */
+
+/* Counter actions use the shared button press (section 9). */
+
+/* -------------------------------------------------------------- 4. range */
+
+/* WebKit */
+
+/* Firefox */
+
+/* Dual-handle range. Core supplies the overlay geometry; the theme paints a
+   single rail with a blue selected span, two circular handles and value
+   bubbles. */
+
+/* ------------------------------------------------------- 5. group labels */
+
+/* A component `label` attribute is the heading of its control group, not a
+   field caption. It sits one type step above body text so the question,
+   checklist title or fieldset legend outranks the options beneath it. */
+
+/* ------------------------------------------------------------ 6. choices */
+
+/* Exactly two, three or four choices become a segmented control. */
+
+/* The selected item drives the sliding highlight. */
+
+/* The React view animates the same thumb position on the UIArc spring, so the
+   CSS transition would fight it. The :is() group repeats the segmented rule so
+   this override carries more specificity than the transform transition above. */
+
+/* The date picker trigger is a field: cap it like the native date input. */
+
+/* The thumb, not the button, carries the selected fill. */
+
+/* Five or more choices fall back to wrapped pills with an individual fill. */
+
+/* Every choice shape shares the short UIArc press, so touching a chip or a
+   segment answers before the selection settles. */
+
+/* ----------------------------------------------------------- 7. progress */
+
+/* --------------------------------------------------------- 8. conditions */
+
+/* ------------------------------------------------------- 9. action buttons */
+
+/* The shared skin's inks live at zero specificity in controls.css. A host
+   reset scoped with a class and an element (`... button { color: inherit }`)
+   can still win over that, and a filled primary then shows body ink on the
+   accent: black on the light blue, near-white on the dark one. The default
+   theme therefore restates the inks one step higher. A component can still
+   opt out with data-rmd-appearance="custom", and a component rule with
+   matching specificity wins by load order because components load last. */
+
+/* Later than the two rules above: primary also carries md-button. */
+
+/* A nested span or link belongs to the button, not to the prose around it. */
+
+/* UIArc buttons: a 500-weight label, a quiet fill on hover and a short press
+   that scales in place. `scale` is used instead of `transform` so a host or a
+   component that already transforms the button keeps its own transform. */
+
+/* The outlined action uses the same hairline as fields; the filled action
+   keeps its transparent edge. */
+
+/* Triggers that anchor a floating layer must keep their rect still: Radix and
+   similar libraries measure the trigger on pointerdown. */
+
+/* A disabled outlined button keeps its shape and only its label fades, so it
+   still reads as a button that is off rather than as plain text. */
+
+/* The filled action keeps the platform's disabled fade. */

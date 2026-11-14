@@ -16,6 +16,7 @@ export type {
 } from '../local/rendering/render-types';
 export type { LocalLocale } from '../local/contracts/locale';
 export type { LocalColorScheme, LocalThemeDefinition } from '../local/theme/theme';
+export { LOCAL_STYLE_CONTRACT, LOCAL_STYLE_LAYERS, LOCAL_THEME_STYLE_LAYER, LOCAL_STYLE_LAYER_ORDER } from '../themes/contract';
 export { defineReactComponentPackage, createReactHost, defineReactPreset, defaultReactPresetPackage } from './package';
 export type { LocalReactComponentPackageInput, LocalReactComponentPackage, LocalReactPackage, LocalReactPresetPackage, LocalReactHostInput, LocalReactHost, LocalPackageNotice } from './package';
 

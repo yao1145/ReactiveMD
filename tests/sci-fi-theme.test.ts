@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { defineLocalTheme } from '../src/sdk/theme';
+import { LOCAL_STYLE_LAYER_ORDER } from '../src/themes/contract';
 
 const tokensCss = readFileSync(new URL('../examples/sci-fi-theme/src/tokens.css', import.meta.url), 'utf8');
 const componentsCss = readFileSync(new URL('../examples/sci-fi-theme/src/components.css', import.meta.url), 'utf8');
@@ -119,6 +120,12 @@ const COMPONENT_TOKENS = [
 ] as const;
 
 describe('sci-fi theme package', () => {
+  it('bootstraps the same public cascade for direct CSS imports', () => {
+    for (const css of [tokensCss, componentsCss]) {
+      expect(css.startsWith(LOCAL_STYLE_LAYER_ORDER)).toBe(true);
+      expect(css).toContain('@layer rmd.themes {');
+    }
+  });
   it('scopes every rule to the sci-fi document root', () => {
     assertScoped(tokensCss);
     assertScoped(componentsCss);

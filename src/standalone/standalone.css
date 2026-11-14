@@ -1,3 +1,7 @@
-reactive-md-doc {
-  display: block;
+@import '../themes/layers.css';
+
+@layer rmd.components {
+  reactive-md-doc {
+    display: block;
+  }
 }

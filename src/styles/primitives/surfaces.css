@@ -1,0 +1,345 @@
+/* Shared surface and status skin.
+   Cards, panels, groups, badges, statuses, alerts, empty states and loading
+   placeholders inside .md-document take their appearance from here. Every
+   selector, including states and pseudo-elements, sits inside :where() so an
+   ordinary component class overrides any declared property at class
+   specificity, whatever the CSS load order.
+   data-rmd-appearance="custom" removes an element from the shared skin and
+   leaves the theme variables in place for its own CSS. Descendants of a custom
+   element keep the shared skin.
+   These classes provide appearance only. The author owns semantics,
+   behavior, positioning and focus; no rule infers a role from a div. */
+
+@layer rmd.components {
+/* Shared display --------------------------------------------------- */
+
+:where(
+  .md-document :is(.md-card, .md-panel, .md-group, .md-alert, .md-empty-state):not([data-rmd-appearance="custom"])
+):where(:not([hidden])) {
+  display: flex;
+  flex-direction: column;
+}
+
+:where(
+  .md-document :is(.md-badge, .md-status, .md-loading):not([data-rmd-appearance="custom"])
+):where(:not([hidden])) {
+  display: inline-flex;
+  align-items: center;
+}
+
+:where(.md-document .md-spinner:not([data-rmd-appearance="custom"])):where(:not([hidden])) {
+  display: inline-block;
+}
+
+:where(.md-document .md-skeleton:not([data-rmd-appearance="custom"])):where(:not([hidden])) {
+  display: block;
+}
+
+/* Card ------------------------------------------------------------- */
+
+:where(.md-document .md-card:not([data-rmd-appearance="custom"])) {
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-subtle);
+  border: 0;
+  border-radius: var(--radius-card);
+}
+
+:where(
+  .md-document :is(.md-card-title, .md-panel-title):not([data-rmd-appearance="custom"])
+) {
+  margin: 0;
+  font-size: var(--text-block-title, var(--text-md));
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--leading-snug);
+}
+
+/* A custom body leaves its descendants unaffected, so only the child itself
+   opts out of the first/last margin reset. */
+:where(
+  .md-document :is(.md-card-body, .md-panel-body, .md-alert-body)
+) > :where(:first-child:not([data-rmd-appearance="custom"])) {
+  margin-top: 0;
+}
+
+:where(
+  .md-document :is(.md-card-body, .md-panel-body, .md-alert-body)
+) > :where(:last-child:not([data-rmd-appearance="custom"])) {
+  margin-bottom: 0;
+}
+
+/* Panel ------------------------------------------------------------ */
+
+:where(.md-document .md-panel:not([data-rmd-appearance="custom"])) {
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Group ------------------------------------------------------------ */
+
+/* A fieldset or div takes the group skin only when it carries md-group. */
+:where(.md-document .md-group:not([data-rmd-appearance="custom"])) {
+  gap: var(--space-3);
+  min-width: 0;
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+/* Badge and status ------------------------------------------------- */
+
+:where(
+  .md-document :is(.md-badge, .md-status):not([data-rmd-appearance="custom"])
+) {
+  padding: 1px var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-normal);
+  white-space: nowrap;
+}
+
+:where(.md-document .md-status:not([data-rmd-appearance="custom"])) {
+  gap: var(--space-1);
+}
+
+:where(.md-document .md-status:not([data-rmd-appearance="custom"]))::before {
+  content: "";
+  flex: none;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+/* Variants are shared by badges and statuses; the semantic palette stays
+   semantic. --info-line is an optional theme extension. */
+:where(
+  .md-document :is(.md-badge-neutral, .md-status-neutral):not([data-rmd-appearance="custom"])
+) {
+  background: var(--surface-subtle);
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+:where(
+  .md-document :is(.md-badge-success, .md-status-success):not([data-rmd-appearance="custom"])
+) {
+  background: var(--success-soft);
+  border-color: var(--success-line);
+  color: var(--success);
+}
+
+:where(
+  .md-document :is(.md-badge-warning, .md-status-warning):not([data-rmd-appearance="custom"])
+) {
+  background: var(--warning-soft);
+  border-color: var(--warning-line);
+  color: var(--warning);
+}
+
+:where(
+  .md-document :is(.md-badge-danger, .md-status-danger):not([data-rmd-appearance="custom"])
+) {
+  background: var(--danger-soft);
+  border-color: var(--danger-line);
+  color: var(--danger);
+}
+
+:where(
+  .md-document :is(.md-badge-info, .md-status-info):not([data-rmd-appearance="custom"])
+) {
+  background: var(--info-soft, var(--accent-soft));
+  border-color: var(--info-line, var(--accent-line));
+  color: var(--accent-text, var(--info, var(--accent)));
+}
+
+/* Alert ------------------------------------------------------------ */
+
+:where(.md-document .md-alert:not([data-rmd-appearance="custom"])) {
+  gap: var(--space-1);
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid transparent;
+  border-left-width: 3px;
+  border-radius: var(--radius-card);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+:where(.md-document .md-alert-title:not([data-rmd-appearance="custom"])) {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+}
+
+:where(.md-document .md-alert-body:not([data-rmd-appearance="custom"])) {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+:where(.md-document .md-alert-success:not([data-rmd-appearance="custom"])) {
+  background: var(--success-soft);
+  border-color: var(--success-line);
+  color: var(--success);
+}
+
+:where(.md-document .md-alert-warning:not([data-rmd-appearance="custom"])) {
+  background: var(--warning-soft);
+  border-color: var(--warning-line);
+  color: var(--warning);
+}
+
+:where(.md-document .md-alert-danger:not([data-rmd-appearance="custom"])) {
+  background: var(--danger-soft);
+  border-color: var(--danger-line);
+  color: var(--danger);
+}
+
+:where(.md-document .md-alert-info:not([data-rmd-appearance="custom"])) {
+  background: var(--info-soft, var(--accent-soft));
+  border-color: var(--info-line, var(--accent-line));
+  color: var(--accent-text, var(--info, var(--accent)));
+}
+
+/* Empty state ------------------------------------------------------ */
+
+:where(.md-document .md-empty-state:not([data-rmd-appearance="custom"])) {
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+  padding: var(--space-6) var(--space-4);
+  background: var(--surface-subtle);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-card);
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+:where(.md-document .md-empty-state-title:not([data-rmd-appearance="custom"])) {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-block-subtitle, var(--text-md));
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+}
+
+:where(.md-document .md-empty-state-description:not([data-rmd-appearance="custom"])) {
+  max-width: 48ch;
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* Loading ---------------------------------------------------------- */
+
+:where(.md-document .md-spinner:not([data-rmd-appearance="custom"])) {
+  flex: none;
+  width: var(--space-5);
+  height: var(--space-5);
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: var(--radius-pill);
+  animation: md-surfaces-spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+
+:where(.md-document .md-loading:not([data-rmd-appearance="custom"])) {
+  gap: var(--space-2);
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+:where(.md-document .md-skeleton:not([data-rmd-appearance="custom"])) {
+  width: 100%;
+  min-height: 1em;
+  background-color: var(--surface-subtle);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--surface-hover) 50%,
+    transparent 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 200% 100%;
+  border-radius: var(--radius-control);
+  color: transparent;
+  user-select: none;
+  animation: md-surfaces-shimmer 1.4s linear infinite;
+}
+
+@keyframes md-surfaces-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes md-surfaces-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* Responsive ------------------------------------------------------- */
+
+@media (max-width: 620px) {
+  :where(
+    .md-document :is(.md-card, .md-panel):not([data-rmd-appearance="custom"])
+  ) {
+    padding: var(--space-4);
+  }
+
+  :where(.md-document .md-empty-state:not([data-rmd-appearance="custom"])) {
+    padding: var(--space-4) var(--space-3);
+  }
+}
+
+/* Reduced motion --------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.md-document .md-spinner:not([data-rmd-appearance="custom"])) {
+    animation: none;
+  }
+
+  :where(.md-document .md-skeleton:not([data-rmd-appearance="custom"])) {
+    background-image: none;
+    animation: none;
+  }
+}
+
+/* Print ------------------------------------------------------------ */
+
+@media print {
+  :where(
+    .md-document :is(.md-spinner, .md-skeleton):not([data-rmd-appearance="custom"])
+  ) {
+    animation: none;
+  }
+
+  :where(.md-document .md-skeleton:not([data-rmd-appearance="custom"])) {
+    background-image: none;
+  }
+
+  :where(.md-document .md-panel:not([data-rmd-appearance="custom"])) {
+    box-shadow: none;
+  }
+}
+}

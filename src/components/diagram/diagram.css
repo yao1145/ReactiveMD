@@ -1,0 +1,104 @@
+@layer rmd.components {
+.md-document .rmd-diagram {
+  --diagram-dot: color-mix(in srgb, var(--line-strong) 65%, transparent);
+}
+.md-document .rmd-diagram > .local-visual-title {
+  min-inline-size: 0; max-inline-size: 100%; padding-inline: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.md-document .rmd-diagram-toolbar {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  gap: 10px 16px; margin: 6px 0 14px; color: var(--ink-muted); font-size: var(--text-xs);
+}
+.md-document .rmd-diagram-zoom {
+  display: flex; align-items: center; gap: 3px; padding: 3px;
+  border: 1px solid var(--line); border-radius: var(--radius-toolbar); background: var(--surface);
+}
+.md-document .rmd-diagram-zoom button {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 30px; min-height: 30px; padding: 4px 8px; border: 0; border-radius: var(--radius-inset);
+  background: transparent; color: var(--ink-soft); font: inherit; cursor: pointer;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  transition: background 150ms var(--ease-standard), color 150ms var(--ease-standard);
+}
+.md-document .rmd-diagram-zoom button:hover:not(:disabled) { background: var(--surface-hover); color: var(--ink); }
+.md-document .rmd-diagram-zoom button:disabled { opacity: .35; cursor: default; }
+.md-document .rmd-diagram-zoom button:focus-visible,
+.md-document .rmd-diagram-tooltip-close:focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
+.md-document .rmd-diagram .rmd-diagram-stage {
+  padding: 18px 12px; border: 1px solid var(--line); border-radius: var(--radius-card);
+  background-color: var(--surface-subtle);
+  background-image: radial-gradient(var(--diagram-dot) .8px, transparent .8px);
+  background-size: 20px 20px; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent;
+}
+.md-document .rmd-diagram .local-visual-node {
+  --diagram-node-fill: var(--surface);
+  --diagram-node-border: var(--line-strong);
+  --diagram-node-ink: var(--ink);
+  --diagram-node-accent: var(--accent);
+  --diagram-node-selected-fill: var(--accent-soft);
+  --diagram-node-selected-border: var(--accent-line);
+  transition: opacity 150ms var(--ease-standard);
+}
+.md-document .rmd-diagram .local-visual-node-success {
+  --diagram-node-fill: var(--success-soft);
+  --diagram-node-border: var(--success);
+  --diagram-node-ink: var(--success);
+  --diagram-node-accent: var(--success);
+  --diagram-node-selected-fill: color-mix(in srgb, var(--success-soft) 88%, var(--success));
+  --diagram-node-selected-border: var(--success);
+}
+.md-document .rmd-diagram .local-visual-node-warning {
+  --diagram-node-fill: var(--warning-soft);
+  --diagram-node-border: var(--warning);
+  --diagram-node-ink: var(--warning);
+  --diagram-node-accent: var(--warning);
+  --diagram-node-selected-fill: color-mix(in srgb, var(--warning-soft) 88%, var(--warning));
+  --diagram-node-selected-border: var(--warning);
+}
+.md-document .rmd-diagram .local-visual-node-shape {
+  fill: var(--diagram-node-fill); stroke: var(--diagram-node-border); stroke-width: 1;
+  filter: drop-shadow(var(--rmd-diagram-node-shadow));
+  transition: fill 150ms var(--ease-standard), stroke 150ms var(--ease-standard), filter 150ms var(--ease-standard);
+}
+.md-document .rmd-diagram .local-visual-node.is-selected .local-visual-node-shape {
+  fill: var(--diagram-node-selected-fill); stroke: var(--diagram-node-selected-border); stroke-width: 1.5;
+}
+.md-document .rmd-diagram .local-visual-node.is-active .local-visual-node-shape,
+.md-document .rmd-diagram .local-visual-node:focus-visible .local-visual-node-shape {
+  stroke: var(--diagram-node-accent); stroke-width: 1.8;
+  filter: drop-shadow(var(--rmd-diagram-node-active-shadow, var(--rmd-diagram-node-active-shadow-geometry) color-mix(in srgb, var(--diagram-node-accent) var(--rmd-diagram-node-active-shadow-opacity), transparent)));
+}
+.md-document .rmd-diagram .local-visual-node-text { fill: var(--diagram-node-ink); font-size: 13px; font-weight: 600; }
+.md-document .rmd-diagram :is(.local-visual-edge, .local-visual-edge-label-group) { transition: opacity 150ms var(--ease-standard); }
+.md-document .rmd-diagram .local-visual-edge path { transition: stroke 150ms var(--ease-standard); }
+.md-document .rmd-diagram .is-muted { opacity: .25; }
+.md-document .rmd-diagram-hint { margin: 12px 0 0; color: var(--ink-muted); font-size: 11px; }
+
+.md-document .rmd-diagram-tooltip {
+  --diagram-tone: var(--accent);
+  position: fixed; z-index: 1000; display: flex; flex-direction: column; box-sizing: border-box;
+  width: 340px; max-width: calc(100vw - 24px); max-height: min(440px, calc(100dvh - 24px));
+  padding: 16px; border: 1px solid var(--line-strong); border-radius: var(--radius-card);
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg);
+  font-size: 13px; line-height: 1.7; overflow-wrap: anywhere;
+}
+.md-document .rmd-diagram-tooltip[data-tone="success"] { --diagram-tone: var(--success); }
+.md-document .rmd-diagram-tooltip[data-tone="warning"] { --diagram-tone: var(--warning); }
+.md-document .rmd-diagram-tooltip-head { display: flex; align-items: flex-start; gap: 9px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+.md-document .rmd-diagram-tooltip-head strong { flex: 1; min-width: 0; font-size: 14px; line-height: 1.7; }
+.md-document .rmd-diagram-tone-dot { flex: none; width: 7px; height: 7px; margin-top: 8px; border-radius: var(--radius-circle); background: var(--diagram-tone); }
+.md-document .rmd-diagram-tooltip-close { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 5px; border: 0; border-radius: var(--radius-inset); background: transparent; color: var(--ink-muted); cursor: pointer; }
+.md-document .rmd-diagram-tooltip-close:hover { background: var(--surface-hover); color: var(--ink); }
+.md-document .rmd-diagram-tooltip-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.md-document .rmd-diagram-tooltip-body :is(p,li,blockquote,a) { overflow-wrap: anywhere; }
+.md-document .rmd-diagram-tooltip-body :not(pre) > code { white-space: break-spaces; overflow-wrap: anywhere; }
+.md-document .rmd-diagram-tooltip-body :is(pre,table) { max-inline-size: 100%; overflow-x: auto; }
+.md-document .rmd-diagram-tooltip-body > :first-child { margin-top: 0; }
+.md-document .rmd-diagram-tooltip-body > :last-child { margin-bottom: 0; }
+.md-document .rmd-diagram-tooltip-body p { margin-block: 8px; }
+.md-document .rmd-diagram-tooltip-body :is(h1,h2,h3,h4) { font-size: 15px; margin-block: 12px 6px; }
+.md-document .rmd-diagram-tooltip-body :is(ul,ol) { padding-inline-start: 20px; margin-block: 8px; }
+@media print { .md-document :is(.rmd-diagram-tooltip,.rmd-diagram-toolbar,.rmd-diagram-hint) { display: none !important; } }
+@media (prefers-reduced-motion: reduce) { .md-document .rmd-diagram *, .md-document .rmd-diagram-tooltip * { transition: none !important; } }
+}

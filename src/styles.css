@@ -1,32 +1,3 @@
-@import 'katex/dist/katex.min.css';
-@import 'mafs/core.css';
-@import './theme.css';
-@import './base.css';
-@import './content.css';
-@import './controls.css';
-@import './native-fields.css';
-@import './native-selection.css';
-@import './surfaces.css';
-@import './navigation.css';
-@import './overlays.css';
-@import './data-display.css';
-@import './gallery.css';
-@import './local/widgets/code-block.css';
-@import './local/widgets/image-view.css';
-@import './local/rendering/local.css';
-@import './local/widgets/visuals.css';
-@import './themes/default/tokens.css';
-@import './themes/default/uiarc-tokens.css';
-@import './themes/default/overlays.css';
-@import './themes/default/forms.css';
-@import './themes/default/navigation.css';
-@import './themes/default/feedback.css';
-@import './themes/default/spacing.css';
-@import './themes/default/uiarc-refinements.css';
-@import './themes/default/text-overflow.css';
-@import './themes/default/chart-interactions.css';
-@import './themes/default/mafs.css';
-@import './themes/default/diagram-interactions.css';
-/* Load density last so explicit data-rmd-density overrides the default theme
-   token block at equal attribute specificity. */
-@import './appearance.css';
+/* Compatibility entry. The public stylesheet now lives in styles/index.css;
+   existing `reactive-md/styles.css` imports keep working unchanged. */
+@import './styles/index.css';

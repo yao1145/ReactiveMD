@@ -25,8 +25,19 @@ const SERIES_COLORS = [
   'var(--chart-8)',
 ];
 
-const DIM_OPACITY = 0.22;
+const DIM_OPACITY = 'var(--rmd-chart-dim-opacity)';
 const FALLBACK_WIDTH = 640;
+
+/** Paint values a theme may override; geometry stays in data coordinates. */
+const LINE_WIDTH = 'var(--rmd-chart-line-width)';
+const HIGHLIGHT_LINE_WIDTH = 'max(var(--rmd-chart-line-width), var(--rmd-chart-line-highlight-width))';
+const POINT_STROKE_WIDTH = 'var(--rmd-chart-point-stroke-width)';
+const AREA_OPACITY = 'var(--rmd-chart-area-opacity)';
+const SURFACE_STROKE = 'var(--rmd-chart-mark-stroke, var(--surface))';
+const AXIS_FILL = 'var(--rmd-chart-axis, var(--chart-axis))';
+const GRID_STROKE = 'var(--rmd-chart-grid, var(--chart-grid))';
+const AXIS_TITLE_FILL = 'var(--rmd-chart-axis-title, var(--ink-soft))';
+const GUIDE_STROKE = 'var(--rmd-chart-guide, var(--line-strong))';
 
 type ActiveSource = 'keyboard' | 'pointer';
 
@@ -344,6 +355,7 @@ export function DefaultChart(props: DefaultChartProps) {
       className="rmd-chart-legend"
       role="group"
       aria-label={label}
+      data-rmd-part="legend"
       style={{ display: 'flex', flexWrap: 'wrap', minWidth: 0 }}
     >
       {legendItems.map((item) => {
@@ -393,14 +405,20 @@ export function DefaultChart(props: DefaultChartProps) {
   );
 
   const renderShell = (stage: ReactNode, emptyMessage: string | null, readoutText: string) => (
-    <div ref={rootRef} className={`rmd-chart rmd-chart-${kind}`} data-rmd-chart-kind={kind} style={{ minWidth: 0, maxWidth: '100%' }}>
+    <div
+      ref={rootRef}
+      className={`rmd-chart rmd-chart-${kind}`}
+      data-rmd-chart-kind={kind}
+      data-rmd-component="chart"
+      style={{ minWidth: 0, maxWidth: '100%' }}
+    >
       {renderLegend(isSliceKind
         ? t('Legend, toggle items', '图例，可开关项')
         : t('Legend, toggle series', '图例，可开关系列'))}
       {emptyMessage ? (
         <p className="rmd-chart-empty" role="status">{emptyMessage}</p>
       ) : (
-        <div className="rmd-chart-stage" style={{ position: 'relative', width: '100%', minWidth: 0 }}>
+        <div className="rmd-chart-stage" data-rmd-part="plot" style={{ position: 'relative', width: '100%', minWidth: 0 }}>
           {stage}
         </div>
       )}
@@ -409,6 +427,7 @@ export function DefaultChart(props: DefaultChartProps) {
         className="rmd-chart-readout"
         aria-live={active?.source === 'keyboard' ? 'polite' : 'off'}
         aria-atomic="true"
+        data-rmd-part="readout"
       >
         {readoutText}
       </div>
@@ -532,7 +551,7 @@ export function DefaultChart(props: DefaultChartProps) {
           cy={anchorY}
           r={4}
           fill={seriesColor(activeSlice.index)}
-          stroke="var(--surface)"
+          stroke={SURFACE_STROKE}
           strokeWidth={2}
           pointerEvents="none"
         />
@@ -620,9 +639,10 @@ export function DefaultChart(props: DefaultChartProps) {
                 startAngle={slice.start}
                 endAngle={slice.end}
                 fill={color}
-                stroke="var(--surface)"
-                strokeWidth={1.5}
+                stroke={SURFACE_STROKE}
+                strokeWidth={POINT_STROKE_WIDTH}
                 className={className}
+                data-rmd-part="slice"
                 data-series={slice.index}
                 style={{
                   opacity: dimmed(slice.index),
@@ -725,7 +745,7 @@ export function DefaultChart(props: DefaultChartProps) {
         x2={plotRight}
         y1={yOf(tick)}
         y2={yOf(tick)}
-        style={{ stroke: 'var(--chart-grid)', strokeWidth: 1 }}
+        style={{ stroke: GRID_STROKE, strokeWidth: 1 }}
       />
       <text
         className="rmd-chart-axis-label"
@@ -733,7 +753,7 @@ export function DefaultChart(props: DefaultChartProps) {
         y={yOf(tick)}
         textAnchor="end"
         dominantBaseline="middle"
-        style={{ fill: 'var(--chart-axis)' }}
+        style={{ fill: AXIS_FILL }}
       >
         {formatAxisNumber(tick)}
       </text>
@@ -983,13 +1003,14 @@ export function DefaultChart(props: DefaultChartProps) {
           <ChartMotionRect
             key={`bar-${position}-${row.index}`}
             className={`local-visual-bar${selected ? ' is-selected' : ''}`}
+            data-rmd-part="bar"
             x={bar.x}
             y={bar.y}
             width={bar.width}
             height={bar.height}
             rx={Math.min(4, bar.width / 2, bar.height / 2)}
             data-series={position}
-            style={{ fill: seriesColor(position), opacity: dimmed(position) }}
+            style={{ fill: seriesColor(position), opacity: dimmed(position), rx: `min(var(--rmd-chart-bar-radius), ${Math.min(bar.width, bar.height) / 2}px)` }}
             {...mark}
             onPointerEnter={activate}
             onPointerMove={activate}
@@ -1028,11 +1049,12 @@ export function DefaultChart(props: DefaultChartProps) {
             <ChartMotionPath
               key={`line-${position}-${segment[0].row.index}`}
               className="local-visual-line"
+              data-rmd-part="line"
               d={d}
               fill="none"
               data-series={position}
               style={{ stroke: seriesColor(position), opacity: dimmed(position) }}
-              strokeWidth={focused === position ? 3 : 2.2}
+              strokeWidth={focused === position ? HIGHLIGHT_LINE_WIDTH : LINE_WIDTH}
               strokeLinejoin="round"
               strokeLinecap="round"
             />,
@@ -1045,9 +1067,10 @@ export function DefaultChart(props: DefaultChartProps) {
               <ChartMotionPath
                 key={`area-${position}-${first.row.index}`}
                 className="local-visual-area"
+                data-rmd-part="area"
                 d={area}
                 data-series={position}
-                style={{ fill: seriesColor(position), fillOpacity: 0.12, opacity: dimmed(position) }}
+                style={{ fill: seriesColor(position), fillOpacity: AREA_OPACITY, opacity: dimmed(position) }}
               />,
             );
           }
@@ -1071,6 +1094,7 @@ export function DefaultChart(props: DefaultChartProps) {
             <g key={`point-${position}-${entry.row.index}`}>
               <circle
                 className={`local-visual-hit${selected ? ' is-selected' : ''}`}
+                data-rmd-part="hit"
                 cx={entry.x}
                 cy={entry.y}
                 r={12}
@@ -1080,14 +1104,15 @@ export function DefaultChart(props: DefaultChartProps) {
               />
               <ChartMotionCircle
                 className={`local-visual-point${selected ? ' is-selected' : ''}`}
+                data-rmd-part="point"
                 cx={entry.x}
                 cy={entry.y}
                 r={3.4}
                 data-series={position}
                 style={{
                   fill: seriesColor(position),
-                  stroke: 'var(--surface)',
-                  strokeWidth: 1.5,
+                  stroke: SURFACE_STROKE,
+                  strokeWidth: POINT_STROKE_WIDTH,
                   opacity: dimmed(position),
                 }}
                 pointerEvents="none"
@@ -1100,9 +1125,16 @@ export function DefaultChart(props: DefaultChartProps) {
   }
 
   if (kind === 'scatter') {
+    // A numeric x column becomes the row label, so the stable row key would
+    // disappear from the spoken name. Keep the key plus both coordinates.
+    const xName = xLabel || t('x', 'x');
     for (const row of plotRows) {
       const x = xOfRow(row);
       if (x === null) continue;
+      const xText = row.xValue === null ? row.label : formatValue(row.xValue);
+      const keyPart = row.keyValue !== '' && row.keyValue !== row.label && row.keyValue !== xText
+        ? `, ${row.keyValue}`
+        : '';
       for (const position of visibleSeries) {
         const value = valueOf(row, position);
         if (value === null) continue;
@@ -1110,8 +1142,8 @@ export function DefaultChart(props: DefaultChartProps) {
         const mark = markProps(
           row,
           t(
-            `${seriesNames[position]}, ${row.label}: ${formatValue(value)}`,
-            `${seriesNames[position]}，${row.label}：${formatValue(value)}`,
+            `${seriesNames[position]}, ${row.label}${keyPart} (${xName} ${xText}): ${formatValue(value)}`,
+            `${seriesNames[position]}，${row.label}${keyPart}（${xName} ${xText}）：${formatValue(value)}`,
           ),
           () => setActive((current) => selectActive(current, {
             mode: 'point',
@@ -1124,6 +1156,7 @@ export function DefaultChart(props: DefaultChartProps) {
           <g key={`scatter-${position}-${row.index}`}>
             <circle
               className={`local-visual-hit${selected ? ' is-selected' : ''}`}
+              data-rmd-part="hit"
               cx={x}
               cy={yOf(value)}
               r={15}
@@ -1133,6 +1166,7 @@ export function DefaultChart(props: DefaultChartProps) {
             />
             <ChartMotionCircle
               className={`local-visual-point${selected ? ' is-selected' : ''}`}
+              data-rmd-part="point"
               cx={x}
               cy={yOf(value)}
               r={
@@ -1146,8 +1180,8 @@ export function DefaultChart(props: DefaultChartProps) {
               data-series={position}
               style={{
                 fill: seriesColor(position),
-                stroke: 'var(--surface)',
-                strokeWidth: 1.5,
+                stroke: SURFACE_STROKE,
+                strokeWidth: POINT_STROKE_WIDTH,
                 opacity: dimmed(position),
               }}
               pointerEvents="none"
@@ -1199,7 +1233,7 @@ export function DefaultChart(props: DefaultChartProps) {
                 cy={yOf(value)}
                 r={4.5}
                 fill={seriesColor(position)}
-                stroke="var(--surface)"
+                stroke={SURFACE_STROKE}
                 strokeWidth={2}
               />
             );
@@ -1245,7 +1279,7 @@ export function DefaultChart(props: DefaultChartProps) {
               x2={plotRight}
               y1={zeroY}
               y2={zeroY}
-              style={{ stroke: 'var(--line-strong)', strokeWidth: 1 }}
+              style={{ stroke: GUIDE_STROKE, strokeWidth: 1 }}
             />
           ) : null}
           <line
@@ -1253,7 +1287,7 @@ export function DefaultChart(props: DefaultChartProps) {
             x2={plotRight}
             y1={plotBottom}
             y2={plotBottom}
-            style={{ stroke: 'var(--line-strong)', strokeWidth: 1 }}
+            style={{ stroke: GUIDE_STROKE, strokeWidth: 1 }}
           />
           {xTicks.map((tick) => (
             <g key={tick.key}>
@@ -1262,14 +1296,14 @@ export function DefaultChart(props: DefaultChartProps) {
                 x2={tick.x}
                 y1={plotBottom}
                 y2={plotBottom + 5}
-                style={{ stroke: 'var(--line-strong)', strokeWidth: 1 }}
+                style={{ stroke: GUIDE_STROKE, strokeWidth: 1 }}
               />
               <text
                 className="rmd-chart-axis-label"
                 x={tick.x}
                 y={plotBottom + 19}
                 textAnchor="middle"
-                style={{ fill: 'var(--chart-axis)' }}
+                style={{ fill: AXIS_FILL }}
               >
                 {tick.label}
                 {tick.full !== tick.label ? <title>{tick.full}</title> : null}
@@ -1282,7 +1316,7 @@ export function DefaultChart(props: DefaultChartProps) {
               x={(plotLeft + plotRight) / 2}
               y={height - 3}
               textAnchor="middle"
-              style={{ fill: 'var(--ink-soft)' }}
+              style={{ fill: AXIS_TITLE_FILL }}
             >
               {truncate(xLabel, Math.max(8, Math.floor((plotRight - plotLeft) / 12)))}
               <title>{xLabel}</title>
@@ -1293,7 +1327,7 @@ export function DefaultChart(props: DefaultChartProps) {
               className="rmd-chart-axis-title"
               transform={`translate(12 ${(plotTop + plotBottom) / 2}) rotate(-90)`}
               textAnchor="middle"
-              style={{ fill: 'var(--ink-soft)' }}
+              style={{ fill: AXIS_TITLE_FILL }}
             >
               {truncate(yLabel, Math.max(8, Math.floor(plotHeight / 12)))}
               <title>{yLabel}</title>

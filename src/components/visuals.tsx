@@ -7,7 +7,6 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
-import { useDefaultTheme } from '../react/default-theme';
 import { DefaultChart } from './default-chart';
 import { DiagramInspector, useDiagramInspector } from './diagram-inspector';
 import { MafsPlotSurface, type PlotSurfaceSegment } from './mafs-visuals';
@@ -102,9 +101,8 @@ function truncate(text: string, max: number): string {
 }
 
 function AxisTitleLabel({ text, max }: { text: string; max: number }) {
-  const defaultTheme = useDefaultTheme();
   const characters = Array.from(text);
-  const shown = defaultTheme && characters.length > max
+  const shown = characters.length > max
     ? `${characters.slice(0, Math.max(1, max - 1)).join('')}…` : text;
   return <tspan aria-label={text} data-rmd-overflow-text={shown !== text ? text : undefined}>{shown}</tspan>;
 }
@@ -244,15 +242,22 @@ export function VisualFrame({
   className,
   label,
   children,
+  component,
 }: {
   className: string;
   label: ReactNode;
   children: ReactNode;
+  /** Stable component hook consumed by theme CSS; omitted for plain frames. */
+  component?: string;
 }) {
   const titleId = useId();
   return (
-    <figure className={`local-visual ${className}`} aria-labelledby={titleId}>
-      <figcaption id={titleId} className="local-visual-title">
+    <figure
+      className={`local-visual ${className}`}
+      aria-labelledby={titleId}
+      data-rmd-component={component}
+    >
+      <figcaption id={titleId} className="local-visual-title" data-rmd-part="title">
         {label}
       </figcaption>
       {children}
@@ -307,6 +312,7 @@ function ChartLegend({
       className={`local-visual-legend${interactive ? '' : ' local-static-legend'}`}
       role="group"
       aria-label={interactive ? label : t('Legend', '图例')}
+      data-rmd-part="legend"
     >
       {items.map((item, index) => {
         const off = hidden.has(index);
@@ -420,7 +426,7 @@ export function TableView(context: LocalComponentContext) {
   if (!table || table.header.length === 0) {
     return (
       <VisualShell context={context}>
-        <VisualFrame className="local-visual-table-block" label={label}>
+        <VisualFrame className="local-visual-table-block" label={label} component="table">
           <VisualMessage
             message={t(
               'Table requires a non-empty Markdown table.',
@@ -640,14 +646,14 @@ export function TableView(context: LocalComponentContext) {
   return (
     <VisualShell context={context}>
       {mode === 'static' ? (
-        <VisualFrame className="local-visual-table-block local-static-table-block" label={label}>
+        <VisualFrame className="local-visual-table-block local-static-table-block" label={label} component="table">
           {tableBody}
           {table.rows.length === 0 ? (
             <VisualMessage message={t('No rows to display', '没有可显示的行')} />
           ) : null}
         </VisualFrame>
       ) : (
-        <VisualFrame className="local-visual-table-block" label={label}>
+        <VisualFrame className="local-visual-table-block" label={label} component="table">
           {searchable ? (
             <label className="local-visual-search">
               <span>{t('Search', '搜索')}</span>
@@ -706,17 +712,9 @@ interface ChartRow {
   keyValue: string;
 }
 
-interface ChartPoint {
-  key: string;
-  series: string;
-  label: string;
-  value: number;
-  x: number;
-  y: number;
-  rowKey: string;
-  selectable: boolean;
-  selected: boolean;
-}
+/** Static charts never toggle a series, so the legend gets a fixed empty set. */
+const EMPTY_HIDDEN = new Set<number>();
+function noopToggle(): void {}
 
 function donutPath(cx: number, cy: number, outer: number, inner: number, start: number, end: number): string {
   const point = (radius: number, angle: number): [number, number] => [
@@ -742,22 +740,14 @@ export function ChartView(context: LocalComponentContext) {
   const view = useComponentView(context);
   const { content, mode, t } = view;
   const staticMode = mode === 'static';
-  const defaultTheme = useDefaultTheme();
   const [chartResetToken, setChartResetToken] = useState(0);
-  const [hiddenSeries, setHiddenSeries] = useState<Set<number>>(new Set());
-  const [hiddenSlices, setHiddenSlices] = useState<Set<number>>(new Set());
-  const [active, setActive] = useState<ChartPoint | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const { write, error } = useWriter(context);
   useResetToken(context, () => {
     setChartResetToken(token => token + 1);
-    setHiddenSeries(new Set());
-    setHiddenSlices(new Set());
-    setActive(null);
     setSelectionError(null);
   });
 
-  const readoutId = useId();
   const title =
     textAttr(context, 'title', '') ||
     textAttr(context, 'label', '') ||
@@ -916,13 +906,15 @@ export function ChartView(context: LocalComponentContext) {
     ));
   }
 
-  if (defaultTheme && !staticMode) {
+  if (!staticMode) {
     const numericX = kind === 'scatter' || ((kind === 'line' || kind === 'area') && columnIsNumeric(table, xIndex));
     if (numericX && rows.some(row => row.xValue === null)) {
       const skipped = rows.filter(row => row.xValue === null).length;
       notes.push(t(`${skipped} rows have an empty or non-numeric horizontal axis and are not plotted.`, `${skipped} 行横轴为空或不是数值，未参与绘制。`));
     }
     return <VisualShell context={context}>
+      {/* `DefaultChart` owns the `data-rmd-component="chart"` hook, so the
+          wrapping figure only carries its layout class. */}
       <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
         <DefaultChart kind={kind} title={title} xLabel={xLabel} yLabel={yLabel}
           rows={rows} seriesNames={seriesNames} numericX={numericX}
@@ -934,25 +926,8 @@ export function ChartView(context: LocalComponentContext) {
     </VisualShell>;
   }
 
-  const toggleSeries = (position: number) => {
-    setActive(null);
-    setHiddenSeries((current) => {
-      const next = new Set(current);
-      if (next.has(position)) next.delete(position);
-      else next.add(position);
-      return next;
-    });
-  };
-  const toggleSlice = (index: number) => {
-    setActive(null);
-    setHiddenSlices((current) => {
-      const next = new Set(current);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  };
-
+  // Static output keeps the plain data graphic: no legend buttons, no marks
+  // that take focus, and no hover readout.
   const legendItems: LegendItem[] = seriesNames.map((name, position) => ({
     name,
     color: SERIES_COLORS[position % SERIES_COLORS.length],
@@ -961,10 +936,7 @@ export function ChartView(context: LocalComponentContext) {
   if (kind === 'donut' || kind === 'pie') {
     const values = rows.map((row) => row.values[0]);
     const positive = values.map((value) => (value !== null && value >= 0 ? value : 0));
-    const visibleTotal = positive.reduce(
-      (sum, value, index) => (!staticMode && hiddenSlices.has(index) ? sum : sum + value),
-      0,
-    );
+    const visibleTotal = positive.reduce((sum, value) => sum + value, 0);
     const sliceLegend: LegendItem[] = rows.map((row, index) => ({
       name: row.label,
       color: SERIES_COLORS[index % SERIES_COLORS.length],
@@ -975,13 +947,13 @@ export function ChartView(context: LocalComponentContext) {
     if (visibleTotal <= 0) {
       return (
         <VisualShell context={context}>
-          <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
+          <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title} component="chart">
             <VisualMessage message={t('No share to display', '暂无占比')} />
             <Notes notes={notes} />
             <ChartLegend
               items={sliceLegend}
-              hidden={hiddenSlices}
-              onToggle={toggleSlice}
+              hidden={EMPTY_HIDDEN}
+              onToggle={noopToggle}
               label={t('Legend', '图例')}
               mode={mode}
               t={t}
@@ -1003,12 +975,8 @@ export function ChartView(context: LocalComponentContext) {
       start: number;
       end: number;
       color: string;
-      x: number;
-      y: number;
-      rowKey: string;
     }[] = [];
     rows.forEach((row, index) => {
-      if (!staticMode && hiddenSlices.has(index)) return;
       const value = positive[index];
       if (value <= 0) return;
       const sweep = (value / visibleTotal) * Math.PI * 2;
@@ -1022,34 +990,22 @@ export function ChartView(context: LocalComponentContext) {
         start,
         end,
         color: SERIES_COLORS[index % SERIES_COLORS.length],
-        x: cx,
-        y: cy,
-        rowKey: row.keyValue,
       });
     });
-
-    const readout = active
-      ? t(`${active.label}: ${formatNumber(active.value)}`, `${active.label}：${formatNumber(active.value)}`)
-      : t('Focus a slice or legend to view values', '聚焦扇区或图例查看数值');
 
     return (
       <VisualShell context={context}>
         <VisualFrame
-          className={`local-visual-chart local-visual-chart-${kind}${staticMode ? ' local-static-chart' : ''}`}
+          className={`local-visual-chart local-visual-chart-${kind} local-static-chart`}
           label={title}
+          component="chart"
         >
-          {staticMode ? null : (
-            <div className="local-visual-readout" id={readoutId} aria-live="polite">
-              {readout}
-            </div>
-          )}
-          <div className="local-visual-svg-wrap">
+          <div className="local-visual-svg-wrap" data-rmd-part="plot">
             <svg
               className="local-visual-svg"
               viewBox="0 0 340 240"
               role="group"
               aria-label={t(`${title}, ${kind} chart, ${rows.length} items`, `${title}，${kind === 'pie' ? '饼图' : '环形图'}，共 ${rows.length} 项`)}
-              aria-describedby={staticMode ? undefined : readoutId}
             >
               {kind === 'donut' ? <g className="local-visual-donut-center" aria-hidden="true">
                 <text x={cx} y={cy - 2} textAnchor="middle" className="local-visual-donut-total">
@@ -1060,47 +1016,7 @@ export function ChartView(context: LocalComponentContext) {
                 </text>
               </g> : null}
               {slices.map((slice) => {
-                const selectable = selectionEnabled && slice.rowKey !== '';
-                const selected = selectable && slice.rowKey === selectedRowKey;
-                const point: ChartPoint = {
-                  key: slice.key,
-                  series: seriesNames[0],
-                  label: slice.label,
-                  value: slice.value,
-                  x: slice.x,
-                  y: slice.y,
-                  rowKey: slice.rowKey,
-                  selectable,
-                  selected,
-                };
-                const markProps = staticMode
-                  ? {}
-                  : {
-                      'data-chart-mark': '',
-                      ...(selectable ? { 'data-chart-selectable': '' } : {}),
-                      tabIndex: 0,
-                      role: selectable ? ('button' as const) : ('img' as const),
-                      ...(selectable ? { 'aria-pressed': selected } : {}),
-                      'aria-label': t(`${slice.label}: ${formatNumber(slice.value)}`, `${slice.label}：${formatNumber(slice.value)}`),
-                      onFocus: () => setActive(point),
-                      onBlur: () => setActive(null),
-                      onPointerEnter: () => setActive(point),
-                      onPointerLeave: () => setActive(null),
-                      onClick: selectable ? () => writeSelection(slice.rowKey) : undefined,
-                      onKeyDown: (event: ReactKeyboardEvent<SVGElement>) => {
-                        if (selectable && activationKey(event)) {
-                          event.preventDefault();
-                          writeSelection(slice.rowKey);
-                          return;
-                        }
-                        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-                          focusNeighbor(event, '[data-chart-mark]', 1);
-                        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-                          focusNeighbor(event, '[data-chart-mark]', -1);
-                        }
-                      },
-                    };
-                const sliceClass = `local-visual-donut-slice${selected ? ' is-selected' : ''}`;
+                const sliceClass = 'local-visual-donut-slice';
                 if (slice.end - slice.start >= Math.PI * 2 - 1e-6) {
                   return (
                     <circle
@@ -1112,7 +1028,6 @@ export function ChartView(context: LocalComponentContext) {
                       fill="none"
                       style={{ stroke: slice.color, fill: kind === 'pie' ? slice.color : 'none' }}
                       strokeWidth={kind === 'pie' ? 0 : outer - inner}
-                      {...markProps}
                     >
                       <title>{t(`${slice.label}: ${formatNumber(slice.value)}`, `${slice.label}：${formatNumber(slice.value)}`)}</title>
                     </circle>
@@ -1124,7 +1039,6 @@ export function ChartView(context: LocalComponentContext) {
                     className={sliceClass}
                     d={donutPath(cx, cy, outer, inner, slice.start, slice.end)}
                     style={{ fill: slice.color }}
-                    {...markProps}
                   >
                     <title>{t(`${slice.label}: ${formatNumber(slice.value)}`, `${slice.label}：${formatNumber(slice.value)}`)}</title>
                   </path>
@@ -1134,33 +1048,19 @@ export function ChartView(context: LocalComponentContext) {
           </div>
           <ChartLegend
             items={sliceLegend}
-            hidden={hiddenSlices}
-            onToggle={toggleSlice}
-            label={t('Legend, toggle slices', '图例，可开关扇区')}
+            hidden={EMPTY_HIDDEN}
+            onToggle={noopToggle}
+            label={t('Legend', '图例')}
             mode={mode}
             t={t}
           />
-          {selectionError ? <VisualMessage message={selectionError} kind="alert" /> : null}
           <Notes notes={notes} />
         </VisualFrame>
       </VisualShell>
     );
   }
 
-  const visiblePositions = seriesNames
-    .map((_name, position) => position)
-    .filter((position) => staticMode || !hiddenSeries.has(position));
-
-  if (visiblePositions.length === 0) {
-    return (
-      <VisualShell context={context}>
-        <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
-          <VisualMessage message={t('All series are hidden in the legend', '所有系列已在图例中关闭')} />
-          <ChartLegend items={legendItems} hidden={hiddenSeries} onToggle={toggleSeries} label={t('Legend, toggle series', '图例，可开关系列')} mode={mode} t={t} />
-        </VisualFrame>
-      </VisualShell>
-    );
-  }
+  const visiblePositions = seriesNames.map((_name, position) => position);
 
   const numericColumnX = columnIsNumeric(table, xIndex);
   const useNumericX = kind === 'scatter' ? true : kind === 'line' || kind === 'area' ? numericColumnX : false;
@@ -1183,10 +1083,10 @@ export function ChartView(context: LocalComponentContext) {
   if (plottableRows.length === 0) {
     return (
       <VisualShell context={context}>
-        <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
+        <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title} component="chart">
           <VisualMessage message={t('No data rows to plot', '没有可绘制的数据行')} />
           <Notes notes={notes} />
-          <ChartLegend items={legendItems} hidden={hiddenSeries} onToggle={toggleSeries} label={t('Legend, toggle series', '图例，可开关系列')} mode={mode} t={t} />
+          <ChartLegend items={legendItems} hidden={EMPTY_HIDDEN} onToggle={noopToggle} label={t('Legend', '图例')} mode={mode} t={t} />
         </VisualFrame>
       </VisualShell>
     );
@@ -1194,10 +1094,10 @@ export function ChartView(context: LocalComponentContext) {
   if (allValues.length === 0) {
     return (
       <VisualShell context={context}>
-        <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title}>
+        <VisualFrame className={`local-visual-chart local-visual-chart-${kind}`} label={title} component="chart">
           <VisualMessage message={t('No values to read', '没有可读取的数值')} />
           <Notes notes={notes} />
-          <ChartLegend items={legendItems} hidden={hiddenSeries} onToggle={toggleSeries} label={t('Legend, toggle series', '图例，可开关系列')} mode={mode} t={t} />
+          <ChartLegend items={legendItems} hidden={EMPTY_HIDDEN} onToggle={noopToggle} label={t('Legend', '图例')} mode={mode} t={t} />
         </VisualFrame>
       </VisualShell>
     );
@@ -1250,62 +1150,8 @@ export function ChartView(context: LocalComponentContext) {
       ? plotLeft + ((tick - xDomain.min) / (xDomain.max - xDomain.min)) * plotWidth
       : categoryX(tick);
 
-  const activeGuide = staticMode || !active ? null : !xDomain ? null : (
-    <line
-      className="local-visual-guide"
-      x1={Math.max(plotLeft, Math.min(plotRight, active.x))}
-      x2={Math.max(plotLeft, Math.min(plotRight, active.x))}
-      y1={plotTop}
-      y2={plotBottom}
-    />
-  );
-
-  const markProps = (point: ChartPoint) =>
-    staticMode
-      ? {}
-      : {
-          'data-chart-mark': '',
-          ...(point.selectable ? { 'data-chart-selectable': '' } : {}),
-          tabIndex: 0,
-          role: point.selectable ? ('button' as const) : ('img' as const),
-          ...(point.selectable ? { 'aria-pressed': point.selected } : {}),
-          'aria-label': t(
-            `${point.series}, ${point.label}${point.selectable && point.rowKey !== point.label ? `, ${point.rowKey}` : ''}: ${formatNumber(point.value)}`,
-            `${point.series}，${point.label}${point.selectable && point.rowKey !== point.label ? `，${point.rowKey}` : ''}：${formatNumber(point.value)}`,
-          ),
-          onFocus: () => setActive(point),
-          onBlur: () => setActive(null),
-          onPointerEnter: () => setActive(point),
-          onPointerLeave: () => setActive(null),
-          onClick: point.selectable ? () => writeSelection(point.rowKey) : undefined,
-          onKeyDown: (event: ReactKeyboardEvent<SVGElement>) => {
-            if (point.selectable && activationKey(event)) {
-              event.preventDefault();
-              writeSelection(point.rowKey);
-              return;
-            }
-            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-              focusNeighbor(event, '[data-chart-mark]', 1);
-            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-              focusNeighbor(event, '[data-chart-mark]', -1);
-            }
-          },
-        };
-
-  const makePoint = (position: number, row: ChartRow, value: number, x: number, y: number): ChartPoint => {
-    const selectable = selectionEnabled && row.keyValue !== '';
-    return {
-      key: `${position}:${row.index}`,
-      series: seriesNames[position],
-      label: row.label,
-      value,
-      x,
-      y,
-      rowKey: row.keyValue,
-      selectable,
-      selected: selectable && row.keyValue === selectedRowKey,
-    };
-  };
+  const selectedRow = (row: ChartRow) =>
+    selectionEnabled && row.keyValue !== '' && row.keyValue === selectedRowKey;
 
   const barMarks: ReactNode[] = [];
   if (kind === 'bar') {
@@ -1320,20 +1166,20 @@ export function ChartView(context: LocalComponentContext) {
         const y = value >= 0 ? zeroY - height : zeroY;
         const width = Math.max(1.5, barWidth - 1);
         const radius = Math.min(4, width / 2, height / 2);
-        const point = makePoint(position, row, value, x + barWidth / 2, y + height / 2);
+        const selected = selectedRow(row);
         barMarks.push(
           <rect
             key={`bar-${position}-${row.index}`}
-            className={`local-visual-bar${point.selected ? ' is-selected' : ''}`}
+            className={`local-visual-bar${selected ? ' is-selected' : ''}`}
             x={x}
             y={y}
             width={width}
             height={height}
             rx={radius}
-            style={{ fill: SERIES_COLORS[position % SERIES_COLORS.length] }}
-            {...markProps(point)}
+            data-rmd-part="mark"
+            style={{ fill: SERIES_COLORS[position % SERIES_COLORS.length], rx: `min(var(--rmd-chart-bar-radius), ${Math.min(width, height) / 2}px)` }}
           >
-            <title>{t(`${point.series}, ${point.label}: ${formatNumber(point.value)}`, `${point.series}，${point.label}：${formatNumber(point.value)}`)}</title>
+            <title>{t(`${seriesNames[position]}, ${row.label}: ${formatNumber(value)}`, `${seriesNames[position]}，${row.label}：${formatNumber(value)}`)}</title>
           </rect>,
         );
       });
@@ -1394,25 +1240,28 @@ export function ChartView(context: LocalComponentContext) {
           }
         }
         for (const entry of segment) {
-          const point = makePoint(position, entry.row, entry.value, entry.x, entry.y);
+          const selected = selectedRow(entry.row);
           pointMarks.push(
             <g key={`point-${position}-${entry.row.index}`} className="local-visual-point-group">
               <circle
-                className={`local-visual-hit${point.selected ? ' is-selected' : ''}`}
+                className="local-visual-hit"
                 cx={entry.x}
                 cy={entry.y}
                 r={12}
                 fill="transparent"
-                {...markProps(point)}
               >
-                <title>{t(`${point.series}, ${point.label}: ${formatNumber(point.value)}`, `${point.series}，${point.label}：${formatNumber(point.value)}`)}</title>
+                <title>{t(`${seriesNames[position]}, ${entry.row.label}: ${formatNumber(entry.value)}`, `${seriesNames[position]}，${entry.row.label}：${formatNumber(entry.value)}`)}</title>
               </circle>
               <circle
-                className={`local-visual-point${point.selected ? ' is-selected' : ''}`}
+                className={`local-visual-point${selected ? ' is-selected' : ''}`}
                 cx={entry.x}
                 cy={entry.y}
                 r={4.5}
-                style={{ fill: SERIES_COLORS[position % SERIES_COLORS.length], stroke: 'var(--surface)' }}
+                data-rmd-part="mark"
+                style={{
+                  fill: SERIES_COLORS[position % SERIES_COLORS.length],
+                  stroke: 'var(--rmd-chart-mark-stroke, var(--surface))',
+                }}
                 strokeWidth={1.5}
                 pointerEvents="none"
               />
@@ -1431,25 +1280,28 @@ export function ChartView(context: LocalComponentContext) {
         const value = row.values[position];
         if (value === null) return;
         const y = yOf(value);
-        const point = makePoint(position, row, value, x, y);
+        const selected = selectedRow(row);
         pointMarks.push(
           <g key={`scatter-${position}-${row.index}`} className="local-visual-point-group">
             <circle
-              className={`local-visual-hit${point.selected ? ' is-selected' : ''}`}
+              className="local-visual-hit"
               cx={x}
               cy={y}
               r={15}
               fill="transparent"
-              {...markProps(point)}
             >
-              <title>{t(`${point.series}, ${point.label}: ${formatNumber(point.value)}`, `${point.series}，${point.label}：${formatNumber(point.value)}`)}</title>
+              <title>{t(`${seriesNames[position]}, ${row.label}: ${formatNumber(value)}`, `${seriesNames[position]}，${row.label}：${formatNumber(value)}`)}</title>
             </circle>
             <circle
-              className={`local-visual-point${point.selected ? ' is-selected' : ''}`}
+              className={`local-visual-point${selected ? ' is-selected' : ''}`}
               cx={x}
               cy={y}
               r={6}
-              style={{ fill: SERIES_COLORS[position % SERIES_COLORS.length], stroke: 'var(--surface)' }}
+              data-rmd-part="mark"
+              style={{
+                fill: SERIES_COLORS[position % SERIES_COLORS.length],
+                stroke: 'var(--rmd-chart-mark-stroke, var(--surface))',
+              }}
               strokeWidth={1.5}
               pointerEvents="none"
             />
@@ -1459,9 +1311,6 @@ export function ChartView(context: LocalComponentContext) {
     });
   }
 
-  const readout = active
-    ? t(`${active.series} · ${active.label}: ${formatNumber(active.value)}`, `${active.series} · ${active.label}：${formatNumber(active.value)}`)
-    : t('Focus or point at a mark; use arrow keys to change the readout', '聚焦或指向图形，用方向键切换读数');
   const ariaLabel = t(
     `${title}, ${kind} chart, ${rows.length} items, ${visiblePositions.length} series`,
     `${title}，${kind} 图，共 ${rows.length} 项，${visiblePositions.length} 个系列`,
@@ -1470,21 +1319,16 @@ export function ChartView(context: LocalComponentContext) {
   return (
     <VisualShell context={context}>
       <VisualFrame
-        className={`local-visual-chart local-visual-chart-${kind}${staticMode ? ' local-static-chart' : ''}`}
+        className={`local-visual-chart local-visual-chart-${kind} local-static-chart`}
         label={title}
+        component="chart"
       >
-        {staticMode ? null : (
-          <div className="local-visual-readout" id={readoutId} aria-live="polite">
-            {readout}
-          </div>
-        )}
-        <div className="local-visual-svg-wrap">
+        <div className="local-visual-svg-wrap" data-rmd-part="plot">
           <svg
             className="local-visual-svg"
             viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
             role="group"
             aria-label={ariaLabel}
-            aria-describedby={staticMode ? undefined : readoutId}
           >
             {yTicks.map((tick) => (
               <g key={`y-${tick}`}>
@@ -1527,13 +1371,11 @@ export function ChartView(context: LocalComponentContext) {
             ) : null}
             {areaMarks}
             {lineMarks}
-            {activeGuide}
             {barMarks}
             {pointMarks}
           </svg>
         </div>
-        <ChartLegend items={legendItems} hidden={hiddenSeries} onToggle={toggleSeries} label={t('Legend, toggle series', '图例，可开关系列')} mode={mode} t={t} />
-        {selectionError ? <VisualMessage message={selectionError} kind="alert" /> : null}
+        <ChartLegend items={legendItems} hidden={EMPTY_HIDDEN} onToggle={noopToggle} label={t('Legend', '图例')} mode={mode} t={t} />
         <Notes notes={notes} />
       </VisualFrame>
     </VisualShell>
@@ -1828,8 +1670,10 @@ export function PlotView(context: LocalComponentContext) {
   const { content, mode, locale, t } = view;
   const staticMode = mode === 'static';
   const hydrated = useHydrated();
-  const defaultTheme = useDefaultTheme();
-  const useMafs = hydrated && !staticMode && defaultTheme;
+  // Mafs keeps pointer and grid work in the browser. Server rendering, the
+  // hydration pass and static output keep the SVG plot, which also carries the
+  // same legend and readout.
+  const useMafs = hydrated && !staticMode;
   const [activeX, setActiveX] = useState<number | null>(null);
   const [focusedCurve, setFocusedCurve] = useState<number | null>(null);
   useResetToken(context, () => {
@@ -2106,7 +1950,10 @@ export function PlotView(context: LocalComponentContext) {
             cx={xOf(markX)}
             cy={yOf(value)}
             r={4.5}
-            style={{ fill: SERIES_COLORS[index % SERIES_COLORS.length], stroke: 'var(--surface)' }}
+            style={{
+              fill: SERIES_COLORS[index % SERIES_COLORS.length],
+              stroke: 'var(--rmd-chart-mark-stroke, var(--surface))',
+            }}
             strokeWidth={1.5}
           />
         );
@@ -2114,17 +1961,18 @@ export function PlotView(context: LocalComponentContext) {
 
   return (
     <VisualShell context={context}>
-      <VisualFrame className="local-visual-plot" label={label}>
+      <VisualFrame className="local-visual-plot" label={label} component="plot">
         {staticMode ? null : (
           <div
             className={useMafs ? 'local-visual-readout local-visual-sr-only' : 'local-visual-readout'}
             id={readoutId}
             aria-live="polite"
+            data-rmd-part="readout"
           >
             {readout}
           </div>
         )}
-        <div className="local-visual-svg-wrap">
+        <div className="local-visual-svg-wrap" data-rmd-part="plot">
           {useMafs ? (
             <MafsPlotSurface
               label={plotLabel}
@@ -2351,6 +2199,7 @@ export function TimelineView(context: LocalComponentContext) {
       <VisualFrame
         className={`local-visual-timeline${interactive ? '' : ' local-static-timeline'}`}
         label={title}
+        component="timeline"
       >
         <div className="local-visual-timeline-axis" aria-hidden="true">
           {ticks.map((tick, index) => {
@@ -2544,10 +2393,11 @@ export function DiagramView(context: LocalComponentContext) {
   const view = useComponentView(context);
   const { content, mode, t } = view;
   const interactive = mode !== 'static';
-  const modern = useDefaultTheme() && interactive;
+  // Every interactive diagram shares one implementation and one inspector; the
+  // static pass keeps the plain node/edge list without focusable marks.
   const [inspectorReset, setInspectorReset] = useState(0);
   const [zoom, setZoom] = useState(1);
-  const inspector = useDiagramInspector(modern && context.visible, inspectorReset);
+  const inspector = useDiagramInspector(interactive && context.visible, inspectorReset);
   const [localSelected, setLocalSelected] = useState<string | null>(null);
   const [writeError, setWriteError] = useState<string | null>(null);
   useResetToken(context, () => {
@@ -2611,7 +2461,7 @@ export function DiagramView(context: LocalComponentContext) {
 
   const layoutInput: DiagramLayoutInput = {
     direction,
-    nodes: nodes.map((entry) => ({ id: entry.id, width: modern ? 164 : DIAGRAM_NODE_WIDTH, height: modern ? 64 : DIAGRAM_NODE_HEIGHT })),
+    nodes: nodes.map((entry) => ({ id: entry.id, width: interactive ? 164 : DIAGRAM_NODE_WIDTH, height: interactive ? 64 : DIAGRAM_NODE_HEIGHT })),
     edges: edges.map((edge) => {
       const metrics = edge.label ? diagramLabelMetrics(edge.label) : null;
       return {
@@ -2670,8 +2520,7 @@ export function DiagramView(context: LocalComponentContext) {
       : localSelected && ids.has(localSelected)
         ? localSelected
         : fallbackId;
-  const selectedNode = nodes.find((entry) => entry.id === selectedId) ?? nodes[0];
-  const inspectedNode = modern ? nodes.find(entry => entry.id === inspector.active?.id) : undefined;
+  const inspectedNode = interactive ? nodes.find(entry => entry.id === inspector.active?.id) : undefined;
   const relatedIds = new Set<string>();
   if (inspectedNode) {
     relatedIds.add(inspectedNode.id);
@@ -2743,10 +2592,11 @@ export function DiagramView(context: LocalComponentContext) {
   return (
     <VisualShell context={context}>
       <VisualFrame
-        className={`local-visual-diagram${interactive ? '' : ' local-static-diagram'}${modern ? ' rmd-diagram' : ''}`}
+        className={`local-visual-diagram${interactive ? ' rmd-diagram' : ' local-static-diagram'}`}
         label={title}
+        component="diagram"
       >
-        {modern ? <div className="rmd-diagram-toolbar">
+        {interactive ? <div className="rmd-diagram-toolbar" data-rmd-part="toolbar">
           <span>{t(`${nodes.length} nodes · ${edges.length} connections`, `${nodes.length} 个节点 · ${edges.length} 条连线`)}</span>
           <div className="rmd-diagram-zoom" role="group" aria-label={t('Diagram zoom', '图解缩放')}>
             <button type="button" data-rmd-appearance="custom" aria-label={t('Zoom out', '缩小图解')} disabled={zoom <= .2} onClick={() => { inspector.close(); setZoom(value => Math.max(.2, Math.round((value - .15) * 100) / 100)); }}>−</button>
@@ -2755,12 +2605,12 @@ export function DiagramView(context: LocalComponentContext) {
             <button type="button" data-rmd-appearance="custom" onClick={event => { inspector.close(); const available = event.currentTarget.closest('figure')?.querySelector('.rmd-diagram-stage')?.clientWidth ?? layout.width; setZoom(Math.max(.2, Math.min(1.25, (available - 24) / layout.width))); }}>{t('Fit', '适应宽度')}</button>
           </div>
         </div> : null}
-        <div className={`local-visual-svg-wrap${modern ? ' rmd-diagram-stage' : ''}`}>
+        <div className={`local-visual-svg-wrap${interactive ? ' rmd-diagram-stage' : ''}`} data-rmd-part="plot">
           <svg
             className="local-visual-svg local-visual-diagram-svg"
             viewBox={`0 0 ${layout.width} ${layout.height}`}
-            width={modern ? layout.width * zoom : layout.width}
-            height={modern ? layout.height * zoom : layout.height}
+            width={interactive ? layout.width * zoom : layout.width}
+            height={interactive ? layout.height * zoom : layout.height}
             role="group"
             aria-label={
               interactive
@@ -2793,7 +2643,7 @@ export function DiagramView(context: LocalComponentContext) {
               const selected = interactive
                 ? entry.id === selectedId
                 : staticSelectedId !== null && entry.id === staticSelectedId;
-              const lines = modern
+              const lines = interactive
                 ? wrapDiagramLabel(entry.label.replace(/\s+/gu, ' ').trim(), position.width - 32, 13 / DIAGRAM_EDGE_LABEL_FONT_SIZE)
                 : wrapLabel(entry.label, 8, 2);
               return (
@@ -2801,27 +2651,28 @@ export function DiagramView(context: LocalComponentContext) {
                   key={`node-${entry.id}`}
                   className={`local-visual-node local-visual-node-${entry.tone}${selected ? ' is-selected' : ''}${inspectedNode?.id === entry.id ? ' is-active' : ''}${inspectedNode && !relatedIds.has(entry.id) ? ' is-muted' : ''}`}
                   data-diagram-node={interactive ? '' : undefined}
+                  data-rmd-part="node"
                   transform={`translate(${position.x} ${position.y})`}
                   role={interactive ? 'button' : undefined}
                   tabIndex={interactive ? 0 : undefined}
                   aria-pressed={interactive ? selected : undefined}
                   aria-label={interactive ? entry.label : undefined}
-                  aria-haspopup={modern ? 'dialog' : undefined}
-                  aria-expanded={modern ? inspectedNode?.id === entry.id : undefined}
-                  aria-controls={modern && inspectedNode?.id === entry.id ? tooltipId : undefined}
-                  aria-describedby={modern && inspectedNode?.id === entry.id ? `${tooltipId}-body` : undefined}
-                  onPointerEnter={modern ? event => inspector.show(entry.id, event.currentTarget, 'pointer') : undefined}
-                  onPointerLeave={modern ? () => inspector.leave() : undefined}
-                  onFocus={modern ? event => inspector.show(entry.id, event.currentTarget, 'focus') : undefined}
-                  onBlur={modern ? () => inspector.leave('focus') : undefined}
-                  onClick={interactive ? event => { select(entry.id); if (modern) inspector.show(entry.id, event.currentTarget, 'click'); } : undefined}
+                  aria-haspopup={interactive ? 'dialog' : undefined}
+                  aria-expanded={interactive ? inspectedNode?.id === entry.id : undefined}
+                  aria-controls={interactive && inspectedNode?.id === entry.id ? tooltipId : undefined}
+                  aria-describedby={interactive && inspectedNode?.id === entry.id ? `${tooltipId}-body` : undefined}
+                  onPointerEnter={interactive ? event => inspector.show(entry.id, event.currentTarget, 'pointer') : undefined}
+                  onPointerLeave={interactive ? () => inspector.leave() : undefined}
+                  onFocus={interactive ? event => inspector.show(entry.id, event.currentTarget, 'focus') : undefined}
+                  onBlur={interactive ? () => inspector.leave('focus') : undefined}
+                  onClick={interactive ? event => { select(entry.id); inspector.show(entry.id, event.currentTarget, 'click'); } : undefined}
                   onKeyDown={
                     interactive
                       ? (event: ReactKeyboardEvent<SVGElement>) => {
                           if (activationKey(event)) {
                             event.preventDefault();
                             select(entry.id);
-                            if (modern) inspector.show(entry.id, event.currentTarget, 'click');
+                            inspector.show(entry.id, event.currentTarget, 'click');
                             return;
                           }
                           if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
@@ -2833,14 +2684,14 @@ export function DiagramView(context: LocalComponentContext) {
                       : undefined
                   }
                 >
-                  {modern ? null : <title>{entry.label}</title>}
+                  {interactive ? null : <title>{entry.label}</title>}
                   <rect
                     className="local-visual-node-shape"
                     x={-position.width / 2}
                     y={-position.height / 2}
                     width={position.width}
                     height={position.height}
-                    rx={modern ? 12 : 10}
+                    rx={interactive ? 12 : 10}
                   />
                   <text className="local-visual-node-text" textAnchor="middle">
                     {lines.map((line, lineIndex) => (
@@ -2855,27 +2706,12 @@ export function DiagramView(context: LocalComponentContext) {
             {edgeLabels}
           </svg>
         </div>
-        {modern ? <>
+        {interactive ? <>
           <p className="rmd-diagram-hint">{t('Hover or focus to inspect · Click to select · Esc to close', '悬浮或聚焦查看说明 · 点击选择 · Esc 关闭')}</p>
           {inspectedNode ? <DiagramInspector inspector={inspector} id={tooltipId} title={inspectedNode.label} tone={inspectedNode.tone} closeLabel={t('Close node details', '关闭节点说明')}>
             {inspectedNode.children.length ? view.render(inspectedNode.children) : <p>{t('This node has no description.', '此节点没有说明。')}</p>}
           </DiagramInspector> : null}
-        </> : interactive ? (
-          <div className="local-visual-diagram-detail" aria-live="polite">
-            {selectedNode ? (
-              <>
-                <strong>{selectedNode.label}</strong>
-                {selectedNode.children.length > 0 ? (
-                  view.render(selectedNode.children)
-                ) : (
-                  <span>{t('This node has no description.', '此节点没有说明。')}</span>
-                )}
-              </>
-            ) : (
-              <span>{t('Click a node, or focus it with Tab and press Enter, to view its description.', '点击节点，或用 Tab 聚焦后按 Enter 查看说明。')}</span>
-            )}
-          </div>
-        ) : (
+        </> : (
           <div className="local-visual-diagram-detail local-static-diagram-detail">
             <dl className="local-static-diagram-nodes">
               {nodes.map((entry) => (

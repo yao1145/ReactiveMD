@@ -45,7 +45,7 @@ export function Article({ source }: { source: string }) {
 }
 ```
 
-此示例说明登记方式；仓库仅将 `default` 作为内置主题，宿主定义不能替换它。其余主题都是外部主题：保留原始外观的 `soft` 名称与完整的 sci-fi 参考包都需要宿主登记；`soft` 没有独立样式表，产品界面示例只登记名称，外观由核心基线 CSS 提供。上文 `paper` 示例没有配套设计或 CSS，完整参考包包含 tokens、组件样式、亮暗两套模式与现场示例，见 [examples/sci-fi-theme](../../examples/sci-fi-theme/README-ch.md)。
+此示例说明登记方式；仓库仅将 `default` 作为内置主题，宿主定义不能替换它。其他主题都需要宿主登记并加载相应 CSS。`soft` 通过独立主题资源保存原有外观；只登记名称而不加载 CSS 时，组件使用完整的 default 基线。上文 `paper` 示例没有配套设计或 CSS，完整参考包包含变量、组件样式、亮暗两套模式与现场示例，见 [examples/sci-fi-theme](../../examples/sci-fi-theme/README-ch.md)。
 
 | 字段 | 要求 |
 | --- | --- |
@@ -85,9 +85,20 @@ export function Article({ source }: { source: string }) {
 
 公共组件 CSS 提供结构、交互与默认样式。自定义主题继承完整的默认变量，按需覆盖；浅色和深色规则必须分别设计与验收。
 
+所有主题共用组件实现。主题名称只影响样式；静态输出和 hydration 根据运行能力选择视图。有效但没有 CSS 的主题获得与 default 相同的完整基线。切换主题不会因为名称不同而改用另一套滑块或图表。
+
+样式契约为 `reactive-md-styles-1`，可从 `reactive-md/sdk` 或 `reactive-md/react` 导入 `LOCAL_STYLE_CONTRACT`。层叠顺序为 `rmd.reset`、`rmd.defaults`、`rmd.components`、`rmd.themes`、`rmd.overrides`。SDK 将主题资源放入 `rmd.themes`，重复校验和主题组合保留这一边界。直接导入的主题 CSS 同样应使用 `@layer rmd.themes { ... }`。公共样式提供完整默认值，组件 CSS 消费这些值，主题覆盖需要修改的属性。
+
+直接导入的主题样式表应先声明 `@layer rmd.reset, rmd.defaults, rmd.components, rmd.themes, rmd.overrides;`，再定义主题规则，保证主题先加载时也有正确优先级。JS 宿主可以导入 `LOCAL_STYLE_LAYER_ORDER` 输出同一声明；SDK 生成的资源已包含它。
+
+现有语义变量继续作为公共接口。组件级变量使用 `--rmd-` 前缀，例如 `--rmd-slider-thumb-width`、`--rmd-slider-thumb-height`、`--rmd-slider-thumb-radius`、`--rmd-slider-track-height` 和 `--rmd-slider-track-radius`。宽度参与水平端点与轨道计算，高度参与垂直对齐与气泡位置计算，因此主题可以独立改变滑块宽高。原生 range 输入通过对应的 `--rmd-native-range-*` 变量控制，默认保留自身较小的 18px 滑块。
+
+组件通过 `data-rmd-component` 与 `data-rmd-part` 提供稳定的样式部件入口；主题可针对这些入口增加特殊装饰。ARIA 属性继续表示禁用、选中和展开状态。内部 CSS Modules 类名与节点嵌套由组件维护。
+
 | 用途 | 公共变量 |
 | --- | --- |
-| 背景 | `--paper`、`--surface`、`--document-bg`（默认跟随 `--surface`）、`--surface-subtle`、`--surface-hover`、`--surface-active`、`--image-zoom-backdrop` |
+| 背景 | `--paper`、`--surface`、`--document-bg`（默认跟随 `--surface`）、`--surface-subtle`、`--surface-hover`、`--surface-active`、`--image-zoom-backdrop`、`--dialog-backdrop` |
+| 提示气泡 | `--tooltip-bg`、`--tooltip-ink` |
 | 文字与边框 | `--ink`、`--ink-soft`、`--ink-muted`、`--line`、`--line-strong` |
 | 强调色 | `--accent`、`--accent-hover`、`--accent-soft`、`--accent-line`、`--accent-ink`（填充强调色上的文字）、`--accent-text`（作为文字使用的强调色） |
 | 状态 | `--info`、`--info-soft`、`--success`、`--success-soft`、`--success-line`、`--warning`、`--warning-soft`、`--warning-line`、`--danger`、`--danger-soft`、`--danger-line`、`--neutral-soft` |
@@ -99,13 +110,21 @@ export function Article({ source }: { source: string }) {
 | 圆角 | `--radius-control`、`--radius-card`、`--radius-panel`、`--radius-pill`、`--radius-field`、`--radius-field-multiline` |
 | 控件 | `--control-height-sm`、`--control-height`、`--control-height-lg`、`--control-padding-x`、`--control-padding-y`、`--control-inset-x`、`--control-selected`、`--control-selected-ink`、`--control-track`、`--control-thumb`、`--disabled-opacity` |
 | 表格 | `--table-cell-padding-y`、`--table-cell-padding-x` |
-| 动效与阴影 | `--motion-fast`、`--motion-base`、`--motion-slow`、`--ease-standard`、`--shadow-sm`、`--shadow-md` |
+| 动效与阴影 | `--motion-fast`、`--motion-base`、`--motion-slow`、`--ease-standard`、`--shadow-sm`、`--shadow-md`、`--shadow-lg` |
+
+小圆角使用 `--radius-hairline`、`--radius-2xs`、`--radius-xs`、
+`--radius-inset`；较大的表面与圆形使用 `--radius-xl`、`--radius-pill`、
+`--radius-circle`。`--radius-toolbar` 控制紧凑工具栏。
+按压、选择指示器和节点阴影可分别通过 `--rmd-button-press-shadow`、
+`--rmd-choice-thumb-shadow`、`--rmd-diagram-node-shadow` 覆盖。
+动态阴影的默认几何与强度由基线中的 `*-shadow-geometry`、`*-shadow-opacity`
+提供，消费端再结合局部语义颜色；节点 tone 或后代文字颜色变化时，阴影仍会跟随。
 
 已有 `--blue`、`--blue-deep`、`--blue-soft`、`--blue-line` 保留兼容；新主题优先使用强调色变量。组件的局部 `color` 属性覆盖对应局部颜色，其余样式继续使用主题。数据序列、状态提示等保留各自的语义颜色。
 
 ## 主题化原生按钮
 
-`reactive-md/styles.css` 包含 `controls.css` 公共按钮样式。组件作者在 `.md-document` 内输出原生 `<button>` 或 `type` 为 `button`、`submit`、`reset` 的 `<input>`，即可获得当前文档的 secondary 外观：
+`reactive-md/styles.css` 包含公共原生按钮样式。组件作者在 `.md-document` 内输出原生 `<button>` 或 `type` 为 `button`、`submit`、`reset` 的 `<input>`，即可获得当前文档的 secondary 外观：
 
 ```tsx
 <button type="button">暂停</button>

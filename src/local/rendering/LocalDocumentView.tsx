@@ -1,4 +1,3 @@
-import { DefaultThemeProvider } from '../../react/default-theme';
 import { OverflowTextTooltip } from '../../react/overflow-text-tooltip';
 import {
   Component,
@@ -2362,7 +2361,6 @@ function LocalDocumentViewLocal({
 
   return (
     <LocalLocaleProvider locale={locale}>
-      <DefaultThemeProvider name={theme.name}>
       <article
         ref={rootRef}
         className={`md-document local-document${renderedMode === 'static' ? ' local-static' : ''}`}
@@ -2400,10 +2398,9 @@ function LocalDocumentViewLocal({
               titleId={`${instanceId}-footnotes-title`}
             />
           ) : null}
-          <OverflowTextTooltip rootRef={rootRef} enabled={theme.name === 'default' && renderedMode !== 'static'} />
+          <OverflowTextTooltip rootRef={rootRef} enabled={renderedMode !== 'static'} />
         </LocalViewContext.Provider>
       </article>
-      </DefaultThemeProvider>
     </LocalLocaleProvider>
   );
 }

@@ -1,39 +1,62 @@
-/* Set --slider-thumb and --slider-track to resize. The track is inset by half a thumb, so a thumb at either limit stays inside the box. */
-.root { --slider-thumb: 22px; --slider-track: 6px; display: grid; width: 100%; min-width: 0; color: var(--ink); font-size: var(--text-sm); line-height: var(--leading-normal); letter-spacing: var(--rmd-uiarc-tracking); user-select: none; -webkit-user-select: none; }
+/* The adapted slider reads geometry, color and shadows from component tokens at
+   the element that uses them, each falling back to its semantic value. Horizontal
+   insets use thumb width; vertical alignment and the bubble use thumb height, so
+   a theme can change either axis alone. The document baseline declares the
+   geometry defaults; this module declares none, which keeps subtree overrides
+   effective. */
+/* Declared before any component rule so a bundle that emits this module first
+   still orders the shared layers the same way as the public stylesheet. */
+@import '../../../themes/layers.css';
+@layer rmd.components {
+.root { display: grid; width: 100%; min-width: 0; color: var(--rmd-slider-ink, var(--ink)); font-size: var(--rmd-slider-font-size, var(--text-sm)); line-height: var(--leading-normal); letter-spacing: var(--rmd-slider-tracking, var(--rmd-uiarc-tracking)); user-select: none; -webkit-user-select: none; }
 .header { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: var(--space-4); }
 .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-.readout { display: inline-flex; flex: none; align-items: center; gap: .3em; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.dash { color: var(--ink-muted); }
+.readout { display: inline-flex; flex: none; align-items: center; gap: .3em; color: var(--rmd-slider-readout-ink, var(--ink-soft)); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dash { color: var(--rmd-slider-dash-ink, var(--ink-muted)); }
 /* Adornments carry their own space, so an empty column costs nothing. */
 .body { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
 .start { display: flex; grid-area: 1 / 1; margin-right: var(--space-3); }
 .end { display: flex; grid-area: 1 / 3; margin-left: var(--space-3); }
-/* The whole row takes the press; vertical pans still scroll the page on touch. */
-.control { position: relative; grid-area: 1 / 2; height: var(--control-height); cursor: pointer; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
-.track { position: absolute; top: 50%; right: calc(var(--slider-thumb) / 2); left: calc(var(--slider-thumb) / 2); height: var(--slider-track); margin-top: calc(var(--slider-track) / -2); border-radius: var(--radius-pill); background: var(--control-track); }
+/* The whole row takes the press; vertical pans still scroll the page on touch.
+   The row is never shorter than the thumb, so a tall thumb keeps its place instead
+   of hanging over the header or the marks. */
+.control { position: relative; grid-area: 1 / 2; height: var(--rmd-slider-height, max(var(--control-height), var(--rmd-slider-thumb-height))); cursor: pointer; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
+.track { position: absolute; top: 50%; right: calc(var(--rmd-slider-thumb-width) / 2); left: calc(var(--rmd-slider-thumb-width) / 2); height: var(--rmd-slider-track-height); margin-top: calc(var(--rmd-slider-track-height) / -2); border-radius: var(--rmd-slider-track-radius); background: var(--rmd-slider-track-background, var(--control-track)); }
 /* The fill spans the track and is revealed by a clip that follows the thumbs on the same frame. Ticks inside it are the "on" set, cut exactly at the thumb. */
-.fill { position: absolute; inset: 0; border-radius: inherit; background: var(--control-selected); }
-.tick { position: absolute; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: var(--radius-pill); background: color-mix(in oklab, var(--ink) 30%, transparent); }
-.fill .tick { background: color-mix(in oklab, var(--control-selected-ink) 60%, transparent); }
-.thumbs { position: absolute; inset: 0 calc(var(--slider-thumb) / 2); container-type: inline-size; pointer-events: none; }
+.fill { position: absolute; inset: 0; border-radius: inherit; background: var(--rmd-slider-fill-background, var(--control-selected)); }
+.tick { position: absolute; top: 50%; width: var(--rmd-slider-tick-size); height: var(--rmd-slider-tick-size); margin: calc(var(--rmd-slider-tick-size) / -2) 0 0 calc(var(--rmd-slider-tick-size) / -2); border-radius: var(--rmd-slider-tick-radius, var(--radius-pill)); background: var(--rmd-slider-tick-background, color-mix(in oklab, var(--ink) 30%, transparent)); }
+.fill .tick { background: var(--rmd-slider-fill-tick-background, color-mix(in oklab, var(--control-selected-ink) 60%, transparent)); }
+.thumbs { position: absolute; inset: 0 calc(var(--rmd-slider-thumb-width) / 2); container-type: inline-size; pointer-events: none; }
 /* Each layer is as wide as the track and slides by a percentage of itself; it only ever overflows to the left, which never scrolls. */
 .thumbLayer { position: absolute; inset: 0; }
 /* Centering uses the translate property, so Motion's scale on transform composes with it instead of replacing it. */
-.thumb { position: absolute; top: 50%; right: 0; box-sizing: border-box; width: var(--slider-thumb); height: var(--slider-thumb); translate: 50% -50%; border: 2px solid var(--accent); border-radius: var(--radius-pill); background: var(--control-thumb); box-shadow: var(--rmd-uiarc-thumb-shadow); pointer-events: auto; cursor: grab; transition: box-shadow var(--motion-fast) var(--ease-standard); }
-.thumb::after { content: ""; position: absolute; inset: -11px; border-radius: inherit; }
+.thumb { position: absolute; top: 50%; right: 0; box-sizing: border-box; width: var(--rmd-slider-thumb-width); height: var(--rmd-slider-thumb-height); translate: 50% -50%; border: var(--rmd-slider-thumb-border-width) solid var(--rmd-slider-thumb-border-color, var(--accent)); border-radius: var(--rmd-slider-thumb-radius); background: var(--rmd-slider-thumb-background, var(--control-thumb)); box-shadow: var(--rmd-slider-thumb-shadow, var(--rmd-uiarc-thumb-shadow, var(--shadow-sm))); pointer-events: auto; cursor: grab; transition: box-shadow var(--motion-fast) var(--ease-standard); }
+/* Keep the larger pointer target inside the field at either endpoint. The
+   target shifts inward while the visual thumb stays centered on the rail. */
+.thumb::after {
+  --hit-width: min(calc(100cqw + var(--rmd-slider-thumb-width)), max(var(--rmd-slider-thumb-width), var(--rmd-slider-hit-size)));
+  --hit-height: max(var(--rmd-slider-thumb-height), var(--rmd-slider-hit-size));
+  content: "";
+  position: absolute;
+  top: calc((var(--rmd-slider-thumb-height) - var(--hit-height)) / 2 - var(--rmd-slider-thumb-border-width));
+  height: var(--hit-height);
+  width: var(--hit-width);
+  left: calc(clamp(calc(var(--at, 0) * -1cqw), calc((var(--rmd-slider-thumb-width) - var(--hit-width)) / 2), calc((100 - var(--at, 0)) * 1cqw + var(--rmd-slider-thumb-width) - var(--hit-width))) - var(--rmd-slider-thumb-border-width));
+  border-radius: inherit;
+}
 .root[data-dragging], .root[data-dragging] .control, .root[data-dragging] .thumb { cursor: grabbing; }
 /* The bubble centers on the thumb until it would pass the component's edge, then holds there. --at is the thumb position in percent of
    the track, written each frame, and cqw measures the track, so the clamp needs no JavaScript measuring. It floats higher on touch so a fingertip never hides it. */
-.bubbleAnchor { --edge: calc(var(--slider-thumb) / 2); --x: calc(var(--at, 0) * 1cqw); position: absolute; right: 0; bottom: calc(50% + var(--slider-thumb) / 2 + 8px); display: flex; translate: clamp(calc(100% - var(--edge) - var(--x)), 50%, calc(100cqw + var(--edge) - var(--x))) 0; pointer-events: none; }
-@media (pointer: coarse) { .bubbleAnchor { bottom: calc(50% + var(--slider-thumb) / 2 + 18px); } }
-.bubble { display: inline-flex; min-height: 1.75rem; align-items: center; padding: 0 var(--space-3); border: 1px solid color-mix(in oklab, var(--document-bg) 14%, var(--ink)); border-radius: var(--radius-pill); background: var(--ink); color: var(--document-bg); box-shadow: var(--shadow-md); font-size: var(--text-sm); font-weight: 500; white-space: nowrap; transform-origin: 50% 100%; }
+.bubbleAnchor { --edge: calc(var(--rmd-slider-thumb-width) / 2); --x: calc(var(--at, 0) * 1cqw); position: absolute; right: 0; bottom: calc(50% + var(--rmd-slider-thumb-height) / 2 + 8px); display: flex; translate: clamp(calc(100% - var(--edge) - var(--x)), 50%, calc(100cqw + var(--edge) - var(--x))) 0; pointer-events: none; }
+@media (pointer: coarse) { .bubbleAnchor { bottom: calc(50% + var(--rmd-slider-thumb-height) / 2 + 18px); } }
+.bubble { display: inline-flex; min-height: 1.75rem; align-items: center; padding: 0 var(--space-3); border: 1px solid var(--rmd-slider-bubble-border-color, color-mix(in oklab, var(--document-bg) 14%, var(--ink))); border-radius: var(--rmd-slider-bubble-radius, var(--radius-pill)); background: var(--rmd-slider-bubble-background, var(--ink)); color: var(--rmd-slider-bubble-ink, var(--document-bg)); box-shadow: var(--rmd-slider-bubble-shadow, var(--shadow-md)); font-size: var(--text-sm); font-weight: 500; white-space: nowrap; transform-origin: 50% 100%; }
 /* Mark labels sit on their ticks; one at a limit keeps its outer edge inside the component. */
-.marks { position: relative; grid-area: 2 / 2; height: 1.25rem; margin: calc(var(--space-1) * -1) calc(var(--slider-thumb) / 2) 0; color: var(--ink-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.marks { position: relative; grid-area: 2 / 2; height: 1.25rem; margin: calc(var(--space-1) * -1) calc(var(--rmd-slider-thumb-width) / 2) 0; color: var(--rmd-slider-mark-ink, var(--ink-muted)); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .markLabel { position: absolute; top: 0; translate: -50% 0; white-space: nowrap; cursor: pointer; transition: color var(--motion-fast) var(--ease-standard); }
-.markLabel[data-edge="start"] { translate: max(-50%, calc(var(--slider-thumb) / -2)) 0; }
-.markLabel[data-edge="end"] { translate: min(-50%, calc(-100% + var(--slider-thumb) / 2)) 0; }
-.markLabel[data-on] { color: var(--ink-soft); }
-@media (hover: hover) and (pointer: fine) { .markLabel:hover { color: var(--ink); } }
+.markLabel[data-edge="start"] { translate: max(-50%, calc(var(--rmd-slider-thumb-width) / -2)) 0; }
+.markLabel[data-edge="end"] { translate: min(-50%, calc(-100% + var(--rmd-slider-thumb-width) / 2)) 0; }
+.markLabel[data-on] { color: var(--rmd-slider-mark-active-ink, var(--ink-soft)); }
+@media (hover: hover) and (pointer: fine) { .markLabel:hover { color: var(--rmd-slider-mark-hover-ink, var(--ink)); } }
 .root[data-disabled] .control, .root[data-disabled] .thumb, .root[data-disabled] .markLabel { cursor: not-allowed; }
 /* Numeric values update directly, without digit wheels or text transitions. */
 .number { display: inline-flex; align-items: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -42,6 +65,7 @@
    the `.md-document` prefix outranks the local control stylesheet. */
 :global(.md-document) .root .readout :global(.md-slider-value) { color: inherit; font-family: inherit; font-size: inherit; font-weight: inherit; letter-spacing: inherit; }
 .thumb:focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
-.root[data-invalid] .thumb { border-color: var(--danger); }
-.root[data-disabled] { opacity: var(--disabled-opacity, .5); }
+.root[data-invalid] .thumb { border-color: var(--rmd-slider-invalid-color, var(--danger)); }
+.root[data-disabled] { opacity: var(--disabled-opacity); }
 @media (prefers-reduced-motion: reduce) { .thumb, .markLabel { transition: none; } }
+}

@@ -1,0 +1,37 @@
+/* Document reset and shared element normalization.
+   Every document root, whatever theme it selects, starts from this file.
+   Rules use :where() so components override without specificity tricks. */
+
+@layer rmd.reset {
+  .md-document,
+  .md-document *,
+  .md-document *::before,
+  .md-document *::after {
+    box-sizing: border-box;
+  }
+
+  .md-document {
+    font-family: var(--font-sans);
+  }
+
+  /* Button-like inputs take the shared button skin from the component layer,
+     so their typography stays at zero specificity here. */
+  :where(.md-document button,
+    .md-document input[type="button"],
+    .md-document input[type="submit"],
+    .md-document input[type="reset"]) {
+    color: inherit;
+    font: inherit;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .md-document *,
+    .md-document *::before,
+    .md-document *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

@@ -627,7 +627,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 | 运行时 | `src/local/runtime/runtime.ts` | `get`、`set`、`evaluate`、`text`、`reset`、`resetToken`、`dispose` |
 | React 参考适配器 | `src/local/rendering/LocalDocumentView.tsx` | 文档容器、控件、布局、可访问名称、重置和生命周期 |
 | 可视化适配器 | `src/local/widgets/visuals.tsx`、`src/local/evaluation/math.ts`、`src/local/widgets/math-view.tsx` | 表格、图表、绘图、时间轴、图解和数学渲染 |
-| 样式 | `src/styles.css`、`src/theme.css`、`src/base.css`、`src/local/rendering/local.css`、`src/local/widgets/visuals.css` | 全局样式表、主题变量和组件样式 |
+| 样式 | `src/styles/index.css`、`src/themes/default/`、`src/components/` 中的 CSS、`src/local/rendering/local.css` | 公共入口、完整默认值和组件样式 |
 | 预算 | `src/local/configuration/limits.ts` | 共享资源上限 |
 | 版本 | `src/local/contracts/version.ts`、`package.json` | 语法修订和包版本 |
 | 验收 | `tests/`、`examples/conformance/` | 语言测试和机器验收数据 |

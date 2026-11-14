@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import postcss from 'postcss';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const consumer = mkdtempSync(join(tmpdir(), 'reactive-md-boundary-'));
@@ -17,6 +18,20 @@ function run(command, args, cwd = root) {
   return r.stdout;
 }
 try {
+  const expectedLayers = ['rmd.reset', 'rmd.defaults', 'rmd.components', 'rmd.themes', 'rmd.overrides'];
+  for (const cssFile of ['dist-library/reactive-md.css', 'dist-standalone/reactive-md-standalone.css']) {
+    const actualLayers = [];
+    // Minifiers may replace a redundant order statement with equivalent
+    // ordered blocks. Both forms must create the same public layer order.
+    for (const node of postcss.parse(readFileSync(join(root, cssFile), 'utf8')).nodes) {
+      if (node.type !== 'atrule' || node.name !== 'layer') continue;
+      for (const name of node.params.split(',').map(value => value.trim())) {
+        if (expectedLayers.includes(name) && !actualLayers.includes(name)) actualLayers.push(name);
+      }
+    }
+    assert.deepEqual(actualLayers, expectedLayers, `${cssFile}: built CSS changed the public cascade order`);
+  }
+  console.log('Built library and standalone CSS preserve the public cascade order.');
   const packed = JSON.parse(run(npm, ['pack', '--ignore-scripts', '--json', '--pack-destination', consumer]))[0];
   assert.ok(!packed.files.some(f => /^(?:src|demo|editor|tests)\//.test(f.path)), 'Package contains repository source');
   assert.ok(!packed.files.some(f => /(?:types\/editor\/|reactive-md-(?:editor|codemirror))/.test(f.path)), 'Package still contains editor artifacts');
@@ -28,6 +43,7 @@ try {
     assert.ok(packedFiles.has(target.replace(/^\.\//, '')), `Package export is missing: ${target}`);
   }
   assert.ok(!packed.files.some(file => /^docs\/(?:archive|architecture_roadmap)\//.test(file.path)), 'Package contains local archived development documents');
+  assert.ok(!packed.files.some(file => /^examples\/sci-fi-theme\/(?:dist|screenshots)\//.test(file.path)), 'Package contains generated theme preview output');
   writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies: {
     'reactive-md': `file:${join(consumer, packed.filename).replaceAll('\\', '/')}`,
     react: pkg.devDependencies.react, 'react-dom': pkg.devDependencies['react-dom'],

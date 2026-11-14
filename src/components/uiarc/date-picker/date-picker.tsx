@@ -111,31 +111,31 @@ export function DatePicker({ label, value, onChange, description, placeholder = 
     if (open && next && !rootRef.current?.contains(next)) { window.clearTimeout(closeTimer.current); setOpen(false); }
   };
 
-  return <div className={[styles.field, className].filter(Boolean).join(" ")} ref={rootRef} onBlur={onBlur}>
-    <label className={styles.label} htmlFor={controlId}>{label}</label>
-    <div className={styles.anchor}>
-      <button {...buttonProps} ref={triggerRef} id={controlId} type="button" disabled={disabled} aria-haspopup="dialog" aria-expanded={open} aria-describedby={described} aria-invalid={invalid || undefined} className={styles.trigger} onClick={() => (open ? close() : show())} onKeyDown={onTriggerKeyDown}>
+  return <div className={[styles.field, className].filter(Boolean).join(" ")} ref={rootRef} onBlur={onBlur} data-rmd-component="date-picker" data-rmd-part="field">
+    <label className={styles.label} htmlFor={controlId} data-rmd-part="label">{label}</label>
+    <div className={styles.anchor} data-rmd-part="anchor">
+      <button {...buttonProps} ref={triggerRef} id={controlId} type="button" disabled={disabled} aria-haspopup="dialog" aria-expanded={open} aria-describedby={described} aria-invalid={invalid || undefined} data-rmd-part="trigger" className={styles.trigger} onClick={() => (open ? close() : show())} onKeyDown={onTriggerKeyDown}>
         <CalendarDays size={16} strokeWidth={1.75} aria-hidden="true" />
         <span className={styles.srOnly}>{shown}</span>
-        <span className={styles.valueText} aria-hidden="true">
+        <span className={styles.valueText} data-rmd-part="value" aria-hidden="true">
           <AnimatePresence mode="popLayout" initial={false} custom={1}>
             {value ? <motion.span key={time} className={styles.value} custom={direction} variants={reduce ? valueFade : valueRoll} initial="enter" animate="center" exit="exit">
               {shown}
             </motion.span> : <motion.span key="placeholder" className={styles.placeholder} custom={-1} variants={reduce ? valueFade : valueRoll} initial="enter" animate="center" exit="exit">{placeholder}</motion.span>}
           </AnimatePresence>
         </span>
-        <ChevronDown className={styles.chevron} size={16} strokeWidth={1.75} aria-hidden="true" />
+        <ChevronDown className={styles.chevron} data-rmd-part="chevron" size={16} strokeWidth={1.75} aria-hidden="true" />
       </button>
       <AnimatePresence>
-        {open && <motion.div ref={popoverRef} className={styles.popover} role="dialog" data-rmd-date-popover="" aria-label={calendarLabel ?? `${label} calendar`} onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); close(); } }}
+        {open && <motion.div ref={popoverRef} className={styles.popover} data-rmd-part="popover" role="dialog" data-rmd-date-popover="" aria-label={calendarLabel ?? `${label} calendar`} onKeyDown={(event) => { if (event.key === "Escape") { event.stopPropagation(); close(); } }}
           initial={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: .95 }}
           animate={{ opacity: 1, y: 0, scale: 1, transition: reduce ? instant : { ...spring.snappy, opacity: { duration: duration.fast, ease: ease.enter } } }}
           exit={{ opacity: 0, ...(reduce ? {} : { y: -6, scale: .97 }), transition: { duration: 0.14, ease: ease.standard } }}>
           <Calendar value={value} onChange={selectDate} month={month} onMonthChange={setMonth} minDate={minDate} maxDate={maxDate} disabledDates={disabledDates} locale={locale} showToday={showToday} todayLabel={todayLabel} previousMonthLabel={previousMonthLabel} nextMonthLabel={nextMonthLabel} />
-          <div className={styles.footer}><button type="button" onClick={() => selectDate(undefined)} disabled={!value}>{clearLabel}</button><span className={styles.status}><AnimatePresence initial={false}><motion.span key={time ?? "none"} variants={reduce ? valueFade : statusRise} initial="enter" animate="center" exit="exit">{statusLabel ? statusLabel(formatted) : (formatted ? `Selected ${formatted}` : "Choose a day")}</motion.span></AnimatePresence></span></div>
+          <div className={styles.footer} data-rmd-part="footer"><button type="button" data-rmd-part="clear" onClick={() => selectDate(undefined)} disabled={!value}>{clearLabel}</button><span className={styles.status} data-rmd-part="status"><AnimatePresence initial={false}><motion.span key={time ?? "none"} variants={reduce ? valueFade : statusRise} initial="enter" animate="center" exit="exit">{statusLabel ? statusLabel(formatted) : (formatted ? `Selected ${formatted}` : "Choose a day")}</motion.span></AnimatePresence></span></div>
         </motion.div>}
       </AnimatePresence>
     </div>
-    {description && <span id={hintId} className={styles.description}>{description}</span>}
+    {description && <span id={hintId} className={styles.description} data-rmd-part="description">{description}</span>}
   </div>;
 }

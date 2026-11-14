@@ -1,0 +1,367 @@
+/* Shared native field skin.
+   Text-like inputs, textareas and selects inside .md-document default to the
+   document field appearance. The md-text-input and md-select-input classes
+   receive the same skin, so the legacy component markup needs no extra
+   rules. Every selector, including states, sits inside :where() so ordinary
+   component classes override any declared property at class specificity,
+   whatever the load order. data-rmd-appearance="custom" removes an element
+   from the shared skin and leaves the theme variables in place.
+   Native pickers, spinners and select arrows stay untouched: no appearance
+   is reset anywhere in this file. */
+
+@layer rmd.components {
+/* Base ------------------------------------------------------------- */
+
+:where(
+  .md-document :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
+    textarea,
+    select,
+    .md-text-input,
+    .md-select-input
+  ):not([data-rmd-appearance="custom"])
+) {
+  width: 100%;
+  max-width: min(100%, 420px);
+  min-width: 0;
+  padding: var(--control-padding-y) var(--control-inset-x);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-field);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+/* Single-line fields share one fixed height. Multiple selects keep their
+   native list height and the textarea rule below restores its own box. */
+:where(
+  .md-document :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
+    select:not([multiple]),
+    .md-text-input,
+    .md-select-input
+  ):not([data-rmd-appearance="custom"])
+):where(:not(textarea, [multiple])) {
+  height: var(--control-height);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+:where(.md-document textarea:not([data-rmd-appearance="custom"])) {
+  height: auto;
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--control-inset-x);
+  border-radius: var(--radius-field-multiline);
+  line-height: var(--leading-normal);
+  resize: vertical;
+}
+
+:where(.md-document :is(select, .md-select-input):not([data-rmd-appearance="custom"])):where(:not(:disabled)) {
+  cursor: pointer;
+}
+
+/* Field groups, labels, hints and errors --------------------------- */
+
+:where(.md-document :is(.md-control, .md-field):not([data-rmd-appearance="custom"])) {
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: var(--space-3) 0;
+}
+
+/* A hidden wrapper keeps the platform display behavior. */
+:where(.md-document :is(.md-control, .md-field):not([data-rmd-appearance="custom"])):where(:not([hidden])) {
+  display: flex;
+}
+
+:where(.md-document :is(.md-label, label, legend):not([data-rmd-appearance="custom"])) {
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+}
+
+:where(.md-document .md-hint:not([data-rmd-appearance="custom"])) {
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.md-document :is(.md-error, .field-error):not([data-rmd-appearance="custom"])) {
+  color: var(--danger);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+}
+
+:where(.md-document :is(.md-error, .field-error):not([data-rmd-appearance="custom"]):not([hidden])) {
+  display: block;
+}
+
+:where(.md-document .md-required:not([data-rmd-appearance="custom"])) {
+  margin-inline-start: 0.15em;
+  color: var(--danger);
+  font-weight: var(--weight-semibold);
+}
+
+/* States ----------------------------------------------------------- */
+
+/* Read-only fields stay focusable and keep full contrast; the subtle fill and
+   line border separate them from editable fields without the disabled
+   opacity. This rule sits before hover and focus so those states still read
+   on a focused read-only field. */
+:where(
+  .md-document :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
+    textarea,
+    .md-text-input
+  ):not([data-rmd-appearance="custom"])
+):where([readonly]) {
+  background: var(--surface-subtle);
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+:where(
+  .md-document :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
+    textarea,
+    select,
+    .md-text-input,
+    .md-select-input
+  ):not([data-rmd-appearance="custom"])
+):where(:hover:not(:disabled, [readonly])) {
+  border-color: color-mix(in srgb, var(--ink-muted) 25%, var(--line-strong));
+}
+
+:where(
+  .md-document :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
+    textarea,
+    select,
+    .md-text-input,
+    .md-select-input
+  ):not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid) {
+  border-color: var(--danger);
+}
+
+:where(
+  .md-document :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
+    textarea,
+    select,
+    .md-text-input,
+    .md-select-input
+  ):not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid):where(:hover:not(:disabled)) {
+  border-color: var(--danger);
+}
+
+:where(
+  .md-document :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
+    textarea,
+    select,
+    .md-text-input,
+    .md-select-input
+  ):not([data-rmd-appearance="custom"])
+):where(:focus-visible) {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
+  border-color: var(--focus);
+  box-shadow: none;
+}
+
+:where(
+  .md-document :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
+    textarea,
+    select,
+    .md-text-input,
+    .md-select-input
+  ):not([data-rmd-appearance="custom"])
+):where([aria-invalid="true"], :user-invalid):where(:focus-visible) {
+  outline-color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* :disabled also covers controls inside a disabled fieldset, including the
+   first-legend exception, so no fieldset-level rule is needed. */
+:where(
+  .md-document :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"],
+    textarea,
+    select,
+    .md-text-input,
+    .md-select-input
+  ):not([data-rmd-appearance="custom"])
+):where(:disabled) {
+  background: var(--surface-subtle);
+  border-color: var(--line);
+  color: var(--ink-muted);
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* Placeholders ----------------------------------------------------- */
+
+:where(
+  .md-document :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="number"],
+    textarea,
+    .md-text-input
+  ):not([data-rmd-appearance="custom"])
+)::placeholder {
+  color: var(--ink-muted);
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    .md-document :is(
+      input:not([type]),
+      input[type="text"],
+      input[type="search"],
+      input[type="email"],
+      input[type="url"],
+      input[type="tel"],
+      input[type="password"],
+      input[type="number"],
+      input[type="date"],
+      input[type="time"],
+      input[type="datetime-local"],
+      input[type="month"],
+      input[type="week"],
+      textarea,
+      select,
+      .md-text-input,
+      .md-select-input
+    ):not([data-rmd-appearance="custom"])
+  ) {
+    transition: none;
+  }
+}
+}
+

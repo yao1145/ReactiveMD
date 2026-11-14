@@ -3,6 +3,7 @@ import {
   isLocalThemeName,
   type LocalThemeDefinition,
 } from '../local/theme/theme';
+import { LOCAL_STYLE_LAYER_ORDER, LOCAL_THEME_STYLE_LAYER } from '../themes/contract';
 
 /**
  * Preview theme-package contract.
@@ -17,7 +18,8 @@ import {
  * derives a new theme from a base package plus ordered overrides; every base
  * selector is retargeted to the composed theme name. `collectLocalThemeCss`
  * returns the concatenated stylesheet in resource order, ready for a `<style>`
- * element or an export asset list.
+ * element or an export asset list. Every resource declares the public layer
+ * order and participates in `rmd.themes`, including older unlayered packages.
  *
  * `@font-face` is supported without leaking a global family name: every
  * declared family is rewritten to a deterministic family that includes the
@@ -1186,7 +1188,17 @@ function rewriteFontFaceBody(
 
 const EMPTY_FONT_FAMILIES: ReadonlyMap<string, string> = new Map();
 
-function transformCss(css: string, name: string, families: ReadonlyMap<string, string> = EMPTY_FONT_FAMILIES): string {
+function layerPrelude(prelude: string): string {
+  return prelude.replace(/\/\*[\s\S]*?\*\//g, ' ').trim()
+    .replace(/^@layer\b/i, '@layer').replace(/\s+/g, ' ').replace(/\s*,\s*/g, ', ');
+}
+
+function transformCss(
+  css: string,
+  name: string,
+  families: ReadonlyMap<string, string> = EMPTY_FONT_FAMILIES,
+  nestedLayer = false,
+): string {
   let result = '';
   let index = 0;
   while (index < css.length) {
@@ -1234,6 +1246,14 @@ function transformCss(css: string, name: string, families: ReadonlyMap<string, s
     const prelude = css.slice(preludeStart, cursor);
     const delimiter = css[cursor];
     if (delimiter === ';' || delimiter === '}') {
+      // The SDK owns the outer public layer. Re-declarations inside it would
+      // create an unrelated nested layer when a package is validated again.
+      const layer = layerPrelude(prelude);
+      if (!nestedLayer && (layer === '@layer rmd.themes'
+        || `${layer};` === LOCAL_STYLE_LAYER_ORDER)) {
+        index = cursor + 1;
+        continue;
+      }
       result += prelude + delimiter;
       index = cursor + 1;
       continue;
@@ -1252,8 +1272,11 @@ function transformCss(css: string, name: string, families: ReadonlyMap<string, s
       }
       if (atName === 'font-face') {
         result += `${head} {${rewriteFontFaceBody(body, families, 'theme.css')}}`;
+      } else if (atName === 'layer' && !nestedLayer && layerPrelude(head) === '@layer rmd.themes') {
+        result += transformCss(body, name, families, true).trim();
       } else {
-        const inner = CONDITIONAL_AT_RULES.has(atName) ? transformCss(body, name, families) : body;
+        const inner = CONDITIONAL_AT_RULES.has(atName)
+          ? transformCss(body, name, families, nestedLayer || atName === 'layer') : body;
         result += `${head} {${inner}}`;
       }
     } else {
@@ -1270,7 +1293,7 @@ function scopeCss(
   name: string,
   families: ReadonlyMap<string, string> = EMPTY_FONT_FAMILIES,
 ): string {
-  return transformCss(css, name, families);
+  return `${LOCAL_STYLE_LAYER_ORDER}\n@layer ${LOCAL_THEME_STYLE_LAYER} {\n${transformCss(css, name, families).trim()}\n}`;
 }
 
 interface ReadResources {
@@ -1315,6 +1338,19 @@ function readStyleResources(value: unknown, path: string): ReadResources {
     resources.push(Object.freeze({ id, css }));
   }
   return { resources: Object.freeze(resources), totalLength };
+}
+
+function assertScopedStyleBudgets(resources: readonly LocalStyleResource[]): void {
+  let total = 0;
+  for (const [index, resource] of resources.entries()) {
+    if (resource.css.length > MAX_THEME_RESOURCE_CSS_LENGTH) {
+      throw themeError(`theme.css[${index}].css`, `scoped CSS must not exceed ${MAX_THEME_RESOURCE_CSS_LENGTH} characters.`);
+    }
+    total += resource.css.length;
+  }
+  if (total > MAX_THEME_TOTAL_CSS_LENGTH) {
+    throw themeError('theme.css', `scoped CSS must not exceed ${MAX_THEME_TOTAL_CSS_LENGTH} characters in total.`);
+  }
 }
 
 function freezePackage(input: {
@@ -1378,6 +1414,7 @@ export function defineLocalTheme(input: LocalThemeInput): LocalThemePackage {
     id: resource.id,
     css: scopeCss(resource.css, name, families),
   }));
+  assertScopedStyleBudgets(scoped);
   return freezePackage({
     id,
     name,
@@ -1430,13 +1467,7 @@ export function composeLocalTheme(input: LocalThemeCompositionInput): LocalTheme
       css: scopeCss(resource.css, name, families),
     })),
   ];
-  let total = 0;
-  for (const resource of css) {
-    total += resource.css.length;
-    if (total > MAX_THEME_TOTAL_CSS_LENGTH) {
-      throw themeError('theme.css', `must not exceed ${MAX_THEME_TOTAL_CSS_LENGTH} characters in total.`);
-    }
-  }
+  assertScopedStyleBudgets(css);
 
   return freezePackage({
     id,
@@ -1449,11 +1480,9 @@ export function composeLocalTheme(input: LocalThemeCompositionInput): LocalTheme
 }
 
 /**
- * Concatenate the package stylesheet in resource order. The returned text has
- * already been scoped at define/compose time.
+ * Validate and concatenate the package stylesheet in resource order. Serialized
+ * packages receive the same scope, font isolation and layer boundary as inputs.
  */
 export function collectLocalThemeCss(theme: LocalThemePackage): string {
-  const record = requireRecord(theme as unknown, 'theme');
-  const { resources } = readStyleResources(record.css, 'theme.css');
-  return resources.map((resource) => resource.css).join('\n');
+  return defineLocalTheme(theme).css.map((resource) => resource.css).join('\n');
 }

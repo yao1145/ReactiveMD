@@ -1,0 +1,246 @@
+/* PRODUCT UI — overlays.
+   Native dialog and popover motion, the explicit dialog/popover/menu classes,
+   and the local tooltip skin. Every rule is scoped to the default document
+   root so the theme never reaches a host page or another document instance.
+
+   Core owns sizing (max-width, max-height, padding, overflow) and the image
+   zoom dialog owns its own frame and backdrop; this file deliberately leaves
+   those declarations untouched and only layers product colour, radius,
+   shadow and motion on top. */
+
+/* Native dialog ------------------------------------------------------ */
+
+@layer rmd.components {
+
+.md-document dialog:not([data-rmd-appearance="custom"]) {
+  opacity: 0;
+  transform: scale(0.96);
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard),
+    display var(--motion-base) var(--ease-standard),
+    overlay var(--motion-base) var(--ease-standard);
+  transition-behavior: allow-discrete;
+}
+.md-document dialog[open]:not([data-rmd-appearance="custom"]) {
+  opacity: 1;
+  transform: none;
+}
+.md-document dialog[open]:not(.md-image-zoom):not([data-rmd-appearance="custom"]) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--ink);
+}
+
+.md-document dialog:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+  background: var(--dialog-backdrop);
+  opacity: 0;
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    display var(--motion-base) var(--ease-standard),
+    overlay var(--motion-base) var(--ease-standard);
+  transition-behavior: allow-discrete;
+}
+
+.md-document dialog[open]:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+  opacity: 1;
+}
+
+@starting-style {
+  .md-document dialog[open]:not([data-rmd-appearance="custom"]) {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  .md-document dialog[open]:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+    opacity: 0;
+  }
+}
+.md-document [popover]:not(
+  [data-rmd-appearance="custom"],
+  .local-tooltip-bubble,
+  .rmd-overflow-tooltip
+) {
+  opacity: 0;
+  transform: scale(0.98);
+  transition:
+    opacity var(--motion-base) var(--ease-standard),
+    transform var(--motion-base) var(--ease-standard),
+    display var(--motion-base) var(--ease-standard),
+    overlay var(--motion-base) var(--ease-standard);
+  transition-behavior: allow-discrete;
+}
+
+.md-document [popover]:popover-open:not(
+  [data-rmd-appearance="custom"],
+  .local-tooltip-bubble,
+  .rmd-overflow-tooltip
+) {
+  opacity: 1;
+  transform: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--ink);
+}
+
+@starting-style {
+  .md-document [popover]:popover-open:not(
+    [data-rmd-appearance="custom"],
+    .local-tooltip-bubble,
+    .rmd-overflow-tooltip
+  ) {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.md-document .md-dialog:not([data-rmd-appearance="custom"]) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--ink);
+}
+
+.md-document .md-popover:not([data-rmd-appearance="custom"]) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--ink);
+}
+
+.md-document .md-menu:not([data-rmd-appearance="custom"]) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--ink);
+}
+
+.md-document .md-menu-item:not([data-rmd-appearance="custom"]) {
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
+}
+
+.md-document .md-menu-item:hover:not(:disabled):not([aria-disabled="true"]):not([data-rmd-appearance="custom"]) {
+  background: var(--surface-subtle);
+  color: var(--ink);
+}
+
+.md-document .md-menu-item:active:not(:disabled):not([aria-disabled="true"]):not([data-rmd-appearance="custom"]) {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+.md-document .md-menu-item[aria-selected="true"]:not([data-rmd-appearance="custom"]),
+.md-document .md-menu-item[aria-checked="true"]:not([data-rmd-appearance="custom"]),
+.md-document .md-menu-item[data-selected="true"]:not([data-rmd-appearance="custom"]),
+.md-document .md-menu-item.is-selected:not([data-rmd-appearance="custom"]) {
+  background: var(--accent-soft);
+  color: var(--ink);
+  box-shadow: var(--rmd-menu-selected-shadow-geometry) var(--accent-line);
+}
+
+.md-document .md-menu-item:focus-visible:not([data-rmd-appearance="custom"]) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.md-document .md-menu-separator:not([data-rmd-appearance="custom"]) {
+  height: 1px;
+  border: 0;
+  background: var(--line);
+}
+.md-document .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble {
+  background: var(--tooltip-bg);
+  border: 0;
+  border-radius: var(--radius-control);
+  box-shadow: var(--pu-overlay-shadow);
+  color: var(--tooltip-ink);
+  opacity: 0;
+  transform: translateY(6px);
+  /* Tooltip timing is intentionally shorter than --motion-base (220ms). */
+  transition:
+    opacity 170ms var(--ease-standard),
+    transform 170ms var(--ease-standard),
+    display 170ms var(--ease-standard);
+  transition-behavior: allow-discrete;
+}
+
+.md-document .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@starting-style {
+  .md-document .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble.is-visible {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-document dialog:not([data-rmd-appearance="custom"]),
+  .md-document [popover]:not([data-rmd-appearance="custom"]),
+  .md-document .md-menu-item:not([data-rmd-appearance="custom"]),
+  .md-document .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble {
+    transition: none;
+  }
+
+  .md-document dialog:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+    transition: none;
+  }
+}
+
+@media print {
+  .md-document dialog:not([data-rmd-appearance="custom"]),
+  .md-document [popover]:not([data-rmd-appearance="custom"]),
+  .md-document .md-dialog:not([data-rmd-appearance="custom"]),
+  .md-document .md-popover:not([data-rmd-appearance="custom"]),
+  .md-document .md-menu:not([data-rmd-appearance="custom"]) {
+    max-height: none;
+    overflow: visible;
+    box-shadow: none;
+    transition: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .md-document dialog:not(.md-image-zoom):not([data-rmd-appearance="custom"])::backdrop {
+    background: transparent;
+  }
+
+  .md-document .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble {
+    transition: none;
+  }
+}
+}
+
+/* The open state ends at transform: none so the top-layer dialog does not
+   become a containing block for fixed descendants. */
+
+/* The image zoom dialog supplies its own transparent frame and figure skin. */
+
+/* Native popover ----------------------------------------------------- */
+
+/* Scale only: placement is author-owned, so no directional translate.
+   Tooltip bubbles reuse the Popover API for its top layer, not this skin. */
+
+/* Explicit overlay classes ------------------------------------------- */
+
+/* Menu --------------------------------------------------------------- */
+
+/* Tooltip ------------------------------------------------------------ */
+
+/* The static fallback keeps its own inline presentation: the :not() guard
+   keeps these declarations away from .local-static-tooltip bubbles. */
+
+/* Reduced motion ----------------------------------------------------- */
+
+/* Print -------------------------------------------------------------- */

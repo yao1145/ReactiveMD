@@ -65,49 +65,50 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   if (previousIndex !== index) { setPreviousIndex(index); setDirection(index > previousIndex ? 1 : -1); }
 
   return (
-    <div className={styles.field} ref={setField}>
-      <label htmlFor={controlId}>{label}</label>
+    <div className={styles.field} ref={setField} data-rmd-component="select" data-rmd-part="field">
+      <label htmlFor={controlId} data-rmd-part="label">{label}</label>
       <SelectPrimitive.Root {...rootProps} disabled={disabled} open={!disabled && (controlledOpen ?? open)} onOpenChange={(next) => { setOpen(next); onOpenChange?.(next); }} onValueChange={(next) => { setUncontrolledValue(next); onValueChange?.(next); }}>
         <SelectPrimitive.Trigger
           ref={ref}
           id={controlId}
           aria-describedby={described}
           aria-invalid={invalid || undefined}
+          data-rmd-part="trigger"
           className={[styles.trigger, className].filter(Boolean).join(" ")}
         >
           {/* Radix keeps the real value for assistive tech; the visible copy below animates between values. It gets the label up front so server markup names the current option without waiting for the menu to mount. */}
           <span className={styles.srOnly}><SelectPrimitive.Value placeholder={placeholder}>{currentValue ? shown : undefined}</SelectPrimitive.Value></span>
-          <span className={styles.valueText} aria-hidden="true">
+          <span className={styles.valueText} data-rmd-part="value" aria-hidden="true">
             <AnimatePresence initial={false} custom={direction}>
               <motion.span key={currentValue ? `value-${currentValue}` : "placeholder"} data-placeholder={currentValue ? undefined : ""} custom={direction} variants={reduceMotion ? valueFade : valueRoll} initial="enter" animate="center" exit="exit">{shown}</motion.span>
             </AnimatePresence>
           </span>
-          <SelectPrimitive.Icon className={styles.chevron}>
+          <SelectPrimitive.Icon className={styles.chevron} data-rmd-part="chevron">
             <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
           </SelectPrimitive.Icon>
         </SelectPrimitive.Trigger>
         <SelectPrimitive.Portal container={container}>
-          <SelectPrimitive.Content className={styles.content} position="popper" sideOffset={4} collisionPadding={12}>
-            <SelectPrimitive.ScrollUpButton className={styles.scrollButton}>
+          <SelectPrimitive.Content className={styles.content} data-rmd-part="menu" position="popper" sideOffset={4} collisionPadding={12}>
+            <SelectPrimitive.ScrollUpButton className={styles.scrollButton} data-rmd-part="scroll-up">
               <ChevronUp size={16} strokeWidth={1.75} aria-hidden="true" />
             </SelectPrimitive.ScrollUpButton>
-            <SelectPrimitive.Viewport className={styles.viewport}>
+            <SelectPrimitive.Viewport className={styles.viewport} data-rmd-part="viewport">
               {options.map((option) => (
-                <SelectPrimitive.Item key={option.value} value={option.value} disabled={option.disabled} className={styles.item}>
+                <SelectPrimitive.Item key={option.value} value={option.value} disabled={option.disabled} className={styles.item} data-rmd-part="item">
                   <SelectPrimitive.ItemText><span className={styles.itemLabel}>{option.label}</span></SelectPrimitive.ItemText>
-                  <SelectPrimitive.ItemIndicator className={styles.indicator}>
+                  <SelectPrimitive.ItemIndicator className={styles.indicator} data-rmd-part="indicator">
                     <Check size={16} strokeWidth={1.75} aria-hidden="true" />
                   </SelectPrimitive.ItemIndicator>
                 </SelectPrimitive.Item>
               ))}
             </SelectPrimitive.Viewport>
-            <SelectPrimitive.ScrollDownButton className={styles.scrollButton}>
+            <SelectPrimitive.ScrollDownButton className={styles.scrollButton} data-rmd-part="scroll-down">
               <ChevronDown size={16} strokeWidth={1.75} aria-hidden="true" />
             </SelectPrimitive.ScrollDownButton>
           </SelectPrimitive.Content>
         </SelectPrimitive.Portal>
       </SelectPrimitive.Root>
-      {description && <span id={hintId} className={styles.hint}>{description}</span>}
+      {description && <span id={hintId} className={styles.hint} data-rmd-part="hint">{description}</span>}
     </div>
   );
 });

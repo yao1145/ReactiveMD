@@ -3,20 +3,27 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { createServer } from 'vite';
 const output = fileURLToPath(new URL('../artifacts/uiarc-integration-2026-11-11/', import.meta.url));
 await mkdir(output, { recursive: true });
+const server = process.env.DEFAULT_UI_URL ? undefined : await createServer({
+  configFile: false,
+  optimizeDeps: { entries: ['tests/browser/default-ui-fixture.html'] },
+  server: { host: '127.0.0.1', port: 0 }, appType: 'mpa',
+});
+await server?.listen();
 const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL ?? 'msedge', headless: true });
 const result = { checks: [], errors: [] };
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
   page.on('pageerror', error => result.errors.push(error.message));
-  await page.goto(process.env.DEFAULT_UI_URL ?? 'http://127.0.0.1:5200/');
+  await page.goto(process.env.DEFAULT_UI_URL ?? `${server.resolvedUrls.local[0]}tests/browser/default-ui-fixture.html`);
   const document = page.locator('#document article');
   const slider = document.getByRole('slider', { name: '完成进度', exact: true });
   await expect(slider).toHaveAttribute('aria-valuenow', '40');
   await expect(document.getByRole('radio', { name: '学习', exact: true })).toBeChecked();
-  await expect(page.locator('#other-theme input[type="range"]')).toHaveCount(1);
-  result.checks.push('Real default controls render; other themes retain native controls.');
+  await expect(page.locator('#other-theme [role="slider"]')).toHaveCount(1);
+  result.checks.push('All themes share the adapted controls.');
   await page.getByRole('button', { name: '加载一组实验参数' }).click();
   await expect(slider).toHaveAttribute('aria-valuenow', '65');
   await expect(document.getByRole('radio', { name: '探索', exact: true })).toBeChecked();
@@ -58,4 +65,5 @@ try {
 } finally {
   await writeFile(`${output}acceptance-results.json`, JSON.stringify(result, null, 2) + '\n');
   await browser.close();
+  await server?.close();
 }

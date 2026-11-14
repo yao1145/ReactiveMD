@@ -1,0 +1,127 @@
+/* ==========================================================================
+   Default theme — Mafs-backed coordinate plane and function plot
+   --------------------------------------------------------------------------
+   Mafs supplies the pointer gestures, viewport, grid and tick drawing. This
+   file maps its CSS variables onto the semantic theme tokens and keeps the
+   local component shell consistent with the rest of the default theme.
+   ========================================================================== */
+
+@layer rmd.components {
+
+.md-document :is(.local-mafs-coordinate, .local-mafs-plot) .MafsView {
+  --mafs-bg: var(--surface);
+  --mafs-fg: var(--ink-soft);
+  --mafs-origin-color: var(--line-strong);
+  --mafs-line-color: var(--chart-grid);
+  --grid-line-subdivision-color: color-mix(in srgb, var(--chart-grid) 55%, transparent);
+  --mafs-axis-stroke-width: 1px;
+
+  border-radius: var(--radius-card);
+  color: var(--ink-soft);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.md-document .local-mafs-coordinate .MafsView {
+  --mafs-bg: transparent;
+}
+.md-document .local-coordinate-surface.local-mafs-surface {
+  background: transparent;
+}
+
+.md-document :is(.local-mafs-coordinate, .local-mafs-plot) .MafsView:focus-visible {
+  border-radius: var(--radius-control);
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.md-document :is(.local-mafs-coordinate, .local-mafs-plot) .MafsView text {
+  font-family: inherit;
+}
+
+.md-document .local-coordinate-pad.local-mafs-coordinate {
+  aspect-ratio: auto;
+  touch-action: auto;
+}
+.md-document .local-mafs-coordinate .MafsView {
+  overflow: visible;
+}
+
+.md-document .local-coordinate-pad.local-mafs-coordinate {
+  overflow: visible;
+}
+
+.md-document .local-mafs-coordinate .mafs-movable-point-point {
+  r: 5px;
+}
+
+.md-document .local-mafs-coordinate .mafs-movable-point-ring {
+  r: 12px;
+  fill-opacity: 0.16;
+}
+
+.md-document .local-mafs-coordinate .mafs-movable-point:hover .mafs-movable-point-point,
+.md-document .local-mafs-coordinate .mafs-movable-point:focus-visible .mafs-movable-point-point,
+.md-document .local-mafs-coordinate .mafs-movable-point.mafs-movable-point-dragging .mafs-movable-point-point {
+  r: 6px;
+}
+
+.md-document .local-mafs-coordinate .mafs-movable-point:hover .mafs-movable-point-ring,
+.md-document .local-mafs-coordinate .mafs-movable-point:focus-visible .mafs-movable-point-ring,
+.md-document .local-mafs-coordinate .mafs-movable-point.mafs-movable-point-dragging .mafs-movable-point-ring {
+  r: 13px;
+}
+
+.md-document .local-coordinate-pad[aria-disabled="true"] .MafsView {
+  pointer-events: none;
+  opacity: var(--disabled-opacity);
+}
+
+.md-document .local-mafs-plot {
+  min-width: 0;
+  max-width: 100%;
+  border-radius: var(--radius-card);
+}
+
+.md-document .local-mafs-plot:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.md-document .local-visual-plot-legend-button {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.md-document .local-visual-plot-legend-button:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
+}
+
+.md-document .local-visual-plot-legend-button:hover .local-visual-plot-formula {
+  color: var(--ink);
+}
+
+.md-document .local-visual-plot-legend-item.is-focused .local-visual-plot-formula {
+  color: var(--ink);
+}
+
+.md-document .local-visual-plot-legend-item.is-focused .local-visual-swatch {
+  box-shadow: var(--rmd-mafs-surface-shadow-geometry) var(--surface), var(--rmd-mafs-accent-shadow-geometry) var(--accent);
+}
+}
+
+/* Mafs draws its own surface, so the coordinate shell loses its tinted card. */
+/* Keep the drag handle close to its resting size instead of the default
+   ring-derived hover size, and leave room for the handle at the edges. */
+
+/* The legend doubles as the focus control for one curve at a time. */

@@ -1,3 +1,4 @@
+@layer rmd.reset, rmd.defaults, rmd.components, rmd.themes, rmd.overrides;
 /* Convenience entry for direct <link>/import usage.
    The registry path in theme.ts imports the two files separately so it can
    ship them as independent, cacheable style resources. */

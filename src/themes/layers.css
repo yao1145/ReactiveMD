@@ -1,0 +1,3 @@
+/* Shared bootstrap for stylesheets that may load before the public CSS entry.
+   Keep this order aligned with LOCAL_STYLE_LAYER_ORDER in contract.ts. */
+@layer rmd.reset, rmd.defaults, rmd.components, rmd.themes, rmd.overrides;

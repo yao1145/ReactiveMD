@@ -65,6 +65,9 @@ const STRETCH = 9, BUMP_PX = 150, SNAP_PX = 12;
 const rubber = (distance: number, limit = STRETCH) => Math.sign(distance) * (1 - 1 / (Math.abs(distance) * .55 / limit + 1)) * limit;
 /** Where a release is heading, from a scroll-like deceleration (rate .99), in the same units as the velocity. */
 const project = (velocity: number) => velocity * .099;
+/** The fill is cut on the same frame as the thumbs. Its corner follows the track radius
+ *  token, so a squared track is not revealed with a capsule cut. */
+const fillClip = (from: number, to: number) => `inset(0 ${(100 - to).toFixed(3)}% 0 ${from.toFixed(3)}% round var(--rmd-slider-track-radius))`;
 const decimalsOf = (value: number) => (String(value).split(".")[1] ?? "").length;
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
 const bubbleIn = { opacity: 0, scale: .6, y: 6, filter: `blur(${blur.subtle}px)` };
@@ -78,12 +81,12 @@ interface ThumbProps { quiet: boolean; index: number; shown: MotionValue<number>
 function Thumb({ quiet, index, shown, value, text, low, high, ariaLabel, labelledBy, describedBy, invalid, active, lifted, bubble, disabled, onKeyDown, onFocus, onBlur }: ThumbProps) {
   const reduced = useReducedMotion();
   const x = useTransform(shown, current => `${current - 100}%`);
-  return <motion.div className={styles.thumbLayer} style={{ x, zIndex: active ? 2 : 1 }}>
-    <motion.div role="slider" data-thumb="" data-index={index} data-active={lifted || undefined} data-quiet={quiet || undefined} className={styles.thumb} tabIndex={disabled ? -1 : 0}
+  return <motion.div className={styles.thumbLayer} data-rmd-part="thumb-layer" style={{ x, zIndex: active ? 2 : 1, "--at": shown } as MotionStyle}>
+    <motion.div role="slider" data-rmd-part="thumb" data-thumb="" data-index={index} data-active={lifted || undefined} data-quiet={quiet || undefined} className={styles.thumb} tabIndex={disabled ? -1 : 0}
       aria-label={ariaLabel} aria-labelledby={ariaLabel ? undefined : labelledBy} aria-valuemin={low} aria-valuemax={high} aria-valuenow={value} aria-valuetext={text} aria-orientation="horizontal" aria-disabled={disabled || undefined} aria-describedby={describedBy} aria-invalid={invalid || undefined}
       initial={false} animate={{ scale: lifted ? 1.16 : 1 }} transition={reduced ? { duration: 0 } : spring.snappy} onKeyDown={onKeyDown} onFocus={onFocus} onBlur={onBlur} />
-    <motion.span className={styles.bubbleAnchor} style={{ "--at": shown } as MotionStyle}>
-      <AnimatePresence>{bubble && <motion.span key="bubble" className={styles.bubble} aria-hidden="true" initial={reduced ? { opacity: 0 } : bubbleIn} animate={bubbleRest} exit={reduced ? { opacity: 0, transition: { duration: duration.instant } } : bubbleOut} transition={reduced ? { duration: duration.instant } : bubbleEnter}>
+    <motion.span className={styles.bubbleAnchor} data-rmd-part="bubble-anchor">
+      <AnimatePresence>{bubble && <motion.span key="bubble" className={styles.bubble} data-rmd-part="bubble" aria-hidden="true" initial={reduced ? { opacity: 0 } : bubbleIn} animate={bubbleRest} exit={reduced ? { opacity: 0, transition: { duration: duration.instant } } : bubbleOut} transition={reduced ? { duration: duration.instant } : bubbleEnter}>
         <span className={styles.number}>{text}</span>
       </motion.span>}</AnimatePresence>
     </motion.span>
@@ -133,7 +136,7 @@ export function Slider<T extends SliderValue = number>({ label, value, defaultVa
   const lag0 = useMotionValue(0), lag1 = useMotionValue(0);
   const shown0 = useTransform(() => pos0.get() + lag0.get());
   const shown1 = useTransform(() => pos1.get() + lag1.get());
-  const clipPath = useTransform(() => { const from = isRange ? clamp(shown0.get(), 0, 100) : 0; const to = clamp((isRange ? shown1 : shown0).get(), 0, 100); return `inset(0 ${(100 - to).toFixed(3)}% 0 ${from.toFixed(3)}% round 999px)`; });
+  const clipPath = useTransform(() => { const from = isRange ? clamp(shown0.get(), 0, 100) : 0; const to = clamp((isRange ? shown1 : shown0).get(), 0, 100); return fillClip(from, to); });
   const thumbs = [{ pos: pos0, lag: lag0, shown: shown0 }, { pos: pos1, lag: lag1, shown: shown1 }];
 
   const emit = (next: number[]) => (isRange ? [next[0], next[1]] : next[0]) as T;
@@ -211,6 +214,9 @@ export function Slider<T extends SliderValue = number>({ label, value, defaultVa
     const from = thumb.pos.get() + thumb.lag.get();
     state.index = index;
     state.grab = press ? 0 : at - from;
+    // A release without a move keeps the grabbed thumb's value, including when
+    // the pointer lands in the larger invisible target beside the thumb.
+    state.raw = from;
     thumb.lag.jump(0);
     thumb.pos.jump(from);
     setDragging(index);
@@ -354,10 +360,10 @@ export function Slider<T extends SliderValue = number>({ label, value, defaultVa
   const inRange = (mark: number) => isRange ? mark >= values[0]! && mark <= values[1]! : mark <= values[0]!;
   const names = thumbLabels ?? [`${label}, minimum`, `${label}, maximum`];
 
-  return <div className={[styles.root, className].filter(Boolean).join(" ")} data-rmd-slider="arc" data-disabled={disabled || undefined} data-dragging={dragging !== null || undefined} data-invalid={invalid || undefined} data-marks={labelled.length > 0 || undefined}>
-    <div className={styles.header}>
-      <span id={labelId} className={styles.label}>{label}</span>
-      {(readout !== undefined || showValue) && <span className={styles.readout} aria-hidden="true">
+  return <div className={[styles.root, className].filter(Boolean).join(" ")} data-rmd-component="slider" data-rmd-part="root" data-rmd-slider="arc" data-disabled={disabled || undefined} data-dragging={dragging !== null || undefined} data-invalid={invalid || undefined} data-marks={labelled.length > 0 || undefined}>
+    <div className={styles.header} data-rmd-part="header">
+      <span id={labelId} className={styles.label} data-rmd-part="label">{label}</span>
+      {(readout !== undefined || showValue) && <span className={styles.readout} data-rmd-part="readout" aria-hidden="true">
         {readout ?? (<>
           <span className={styles.number}>{formatValue(values[0]!)}</span>
           {isRange && <><span className={styles.dash}>–</span><span className={styles.number}>{formatValue(values[1]!)}</span></>}
@@ -365,21 +371,21 @@ export function Slider<T extends SliderValue = number>({ label, value, defaultVa
       </span>}
     </div>
     <div className={styles.body}>
-      {start && <div className={styles.start}>{start}</div>}
-      <div className={styles.control} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} onLostPointerCapture={onPointerEnd} onMouseDown={event => event.preventDefault()}>
-        <div ref={trackRef} className={styles.track}>
-          {ticks.map(mark => <span key={mark.value} className={styles.tick} style={{ left: `${pct(mark.value)}%` }} />)}
-          <motion.div className={styles.fill} style={{ clipPath }}>{ticks.map(mark => <span key={mark.value} className={styles.tick} style={{ left: `${pct(mark.value)}%` }} />)}</motion.div>
+      {start && <div className={styles.start} data-rmd-part="start">{start}</div>}
+      <div className={styles.control} data-rmd-part="control" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} onLostPointerCapture={onPointerEnd} onMouseDown={event => event.preventDefault()}>
+        <div ref={trackRef} className={styles.track} data-rmd-part="track">
+          {ticks.map(mark => <span key={mark.value} className={styles.tick} data-rmd-part="tick" style={{ left: `${pct(mark.value)}%` }} />)}
+          <motion.div className={styles.fill} data-rmd-part="fill" style={{ clipPath }}>{ticks.map(mark => <span key={mark.value} className={styles.tick} data-rmd-part="tick" style={{ left: `${pct(mark.value)}%` }} />)}</motion.div>
         </div>
-        <div ref={thumbsRef} className={styles.thumbs}>
+        <div ref={thumbsRef} className={styles.thumbs} data-rmd-part="thumbs">
           {values.map((item, index) => <Thumb key={index} quiet={quiet === index} index={index} shown={thumbs[index]!.shown} value={item} text={formatValue(item)} low={lowOf(index, values)} high={highOf(index, values)}
             ariaLabel={isRange ? names[index] : undefined} labelledBy={labelId} describedBy={describedBy} invalid={invalid} active={lastActive === index} lifted={dragging === index} bubble={dragging === index || keyFocus === index || linger === index} disabled={disabled}
             onKeyDown={event => onKeyDown(index, event)} onFocus={event => { if (!pointerFocus.current && event.currentTarget.matches(":focus-visible")) setKeyFocus(index); }} onBlur={() => { setKeyFocus(current => current === index ? null : current); setQuiet(current => current === index ? null : current); }} />)}
         </div>
       </div>
-      {end && <div className={styles.end}>{end}</div>}
-      {labelled.length > 0 && <div className={styles.marks} aria-hidden="true">
-        {labelled.map(mark => <span key={mark.value} className={styles.markLabel} data-on={inRange(mark.value) || undefined} data-edge={mark.value === min ? "start" : mark.value === max ? "end" : undefined} style={{ left: `${pct(mark.value)}%` }} onClick={() => jumpTo(mark.value)}>{mark.label}</span>)}
+      {end && <div className={styles.end} data-rmd-part="end">{end}</div>}
+      {labelled.length > 0 && <div className={styles.marks} data-rmd-part="marks" aria-hidden="true">
+        {labelled.map(mark => <span key={mark.value} className={styles.markLabel} data-rmd-part="mark" data-on={inRange(mark.value) || undefined} data-edge={mark.value === min ? "start" : mark.value === max ? "end" : undefined} style={{ left: `${pct(mark.value)}%` }} onClick={() => jumpTo(mark.value)}>{mark.label}</span>)}
       </div>}
     </div>
     {name && values.map((item, index) => <input key={index} type="hidden" name={name} value={item} disabled={disabled} />)}

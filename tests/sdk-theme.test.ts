@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LOCAL_THEME_PROTOCOL } from '../src/local/theme/theme';
+import { LOCAL_STYLE_LAYER_ORDER } from '../src/themes/contract';
 import {
   collectLocalThemeCss,
   composeLocalTheme,
@@ -60,8 +61,8 @@ describe('defineLocalTheme', () => {
       ],
     });
     expect(collectLocalThemeCss(theme)).toBe(
-      `[data-rmd-theme="icons"] .icon { background: url("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="); }\n`
-      + '[data-rmd-theme="icons"] .label { font-weight: 600; }',
+      `${LOCAL_STYLE_LAYER_ORDER}\n@layer rmd.themes {\n[data-rmd-theme="icons"] .icon { background: url("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="); }\n}\n`
+      + `${LOCAL_STYLE_LAYER_ORDER}\n@layer rmd.themes {\n[data-rmd-theme="icons"] .label { font-weight: 600; }\n}`,
     );
   });
 

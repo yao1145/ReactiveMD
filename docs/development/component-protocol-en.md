@@ -628,7 +628,7 @@ Only SHOULD clauses can be exempted; exemptions must record the rationale, alter
 | Runtime | `src/local/runtime/runtime.ts` | `get`, `set`, `evaluate`, `text`, `reset`, `resetToken`, `dispose` |
 | React reference adapter | `src/local/rendering/LocalDocumentView.tsx` | Document container, controls, layout, accessible names, reset and lifecycle |
 | Visualization adapter | `src/local/widgets/visuals.tsx`, `src/local/evaluation/math.ts`, `src/local/widgets/math-view.tsx` | Tables, charts, plots, timelines, diagrams and math rendering |
-| Styles | `src/styles.css`, `src/theme.css`, `src/base.css`, `src/local/rendering/local.css`, `src/local/widgets/visuals.css` | Global stylesheet, theme variables and component styles |
+| Styles | `src/styles/index.css`, `src/themes/default/`, component CSS under `src/components/`, `src/local/rendering/local.css` | Public entry, complete defaults and component styles |
 | Budgets | `src/local/configuration/limits.ts` | Shared resource limits |
 | Versions | `src/local/contracts/version.ts`, `package.json` | Syntax revision and package version |
 | Acceptance | `tests/`, `examples/conformance/` | Language tests and machine conformance data |

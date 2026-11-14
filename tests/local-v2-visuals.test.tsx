@@ -219,7 +219,7 @@ describe('chart selection', () => {
       expect(html).toContain(selectedClass);
       // Selection is read by key, so the second row (index 1) is selected by "B"
       // rather than by its position.
-      expect(markup(html)).toMatch(/aria-label="[^"]*B[^"]*: 20"/);
+      expect(markup(html)).toMatch(/aria-label="[^"]*B[^"]*: 20(?:,[^"]*)?"/);
     });
   }
 
@@ -232,7 +232,7 @@ describe('chart selection', () => {
 
     expect(html).toContain('local-visual-donut-slice is-selected');
     expect(count(html, /data-chart-selectable=""[^>]*aria-pressed="true"/g)).toBe(1);
-    expect(markup(html)).toMatch(/aria-pressed="true"[^>]*aria-label="A: 10"/);
+    expect(markup(html)).toMatch(/aria-pressed="true"[^>]*aria-label="A: 10, 16\.7%"/);
   });
 
   it('does not activate selection when the key names a missing column', () => {

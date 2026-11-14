@@ -1,3 +1,6 @@
+@layer rmd.reset, rmd.defaults, rmd.components, rmd.themes, rmd.overrides;
+
+@layer rmd.themes {
 /* ==========================================================================
    SCI-FI / SF-01 — component layer
    --------------------------------------------------------------------------
@@ -850,62 +853,38 @@
   text-align: right;
 }
 
-/* Square track and thumb: a rail with a sliding block. */
-[data-rmd-theme="sci-fi"] .md-slider input[type="range"],
-[data-rmd-theme="sci-fi"] .local-range-input {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 18px;
-  background: transparent;
-  cursor: pointer;
+/* Square track and thumb: a rail with a sliding block. Geometry is declared
+   once in tokens.css; this layer supplies the square corners and hairline. */
+[data-rmd-theme="sci-fi"] .local-slider [data-rmd-part="track"],
+[data-rmd-theme="sci-fi"] .local-range-slider [data-rmd-part="track"],
+[data-rmd-theme="sci-fi"] .local-slider [data-rmd-part="fill"],
+[data-rmd-theme="sci-fi"] .local-range-slider [data-rmd-part="fill"],
+[data-rmd-theme="sci-fi"] .local-slider [data-rmd-part="thumb"],
+[data-rmd-theme="sci-fi"] .local-range-slider [data-rmd-part="thumb"],
+[data-rmd-theme="sci-fi"] .local-slider [data-rmd-slider="arc"] [role="slider"],
+[data-rmd-theme="sci-fi"] .local-range-slider [data-rmd-slider="arc"] [role="slider"] {
+  border-radius: 0;
 }
 
-[data-rmd-theme="sci-fi"] .md-slider input[type="range"]::-webkit-slider-runnable-track,
-[data-rmd-theme="sci-fi"] .local-range-input::-webkit-slider-runnable-track {
-  height: 4px;
+[data-rmd-theme="sci-fi"] .local-slider [data-rmd-part="track"],
+[data-rmd-theme="sci-fi"] .local-range-slider [data-rmd-part="track"] {
   border: 1px solid var(--line-strong);
-  border-radius: 0;
-  background: var(--control-track);
+  background: var(--rmd-slider-track-background, var(--control-track));
 }
 
-[data-rmd-theme="sci-fi"] .md-slider input[type="range"]::-webkit-slider-thumb,
-[data-rmd-theme="sci-fi"] .local-range-input::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  box-sizing: border-box;
-  width: 14px;
-  height: 14px;
-  margin-top: -6px;
-  border: 2px solid var(--surface);
-  border-radius: 0;
-  background: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+[data-rmd-theme="sci-fi"] .local-slider [data-rmd-part="fill"],
+[data-rmd-theme="sci-fi"] .local-range-slider [data-rmd-part="fill"] {
+  background: var(--rmd-slider-fill-background, var(--accent));
 }
 
-[data-rmd-theme="sci-fi"] .md-slider input[type="range"]::-moz-range-track,
-[data-rmd-theme="sci-fi"] .local-range-input::-moz-range-track {
-  height: 4px;
-  border: 1px solid var(--line-strong);
-  border-radius: 0;
-  background: var(--control-track);
-}
-
-[data-rmd-theme="sci-fi"] .md-slider input[type="range"]::-moz-range-thumb,
-[data-rmd-theme="sci-fi"] .local-range-input::-moz-range-thumb {
-  box-sizing: border-box;
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--surface);
-  border-radius: 0;
-  background: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
-
-[data-rmd-theme="sci-fi"] .md-slider input[type="range"]:focus-visible,
-[data-rmd-theme="sci-fi"] .local-range-input:focus-visible {
-  outline: var(--focus-outline);
-  outline-offset: 2px;
-  border-radius: 0;
+[data-rmd-theme="sci-fi"] .local-slider [data-rmd-part="thumb"],
+[data-rmd-theme="sci-fi"] .local-range-slider [data-rmd-part="thumb"],
+[data-rmd-theme="sci-fi"] .local-slider [data-rmd-slider="arc"] [role="slider"],
+[data-rmd-theme="sci-fi"] .local-range-slider [data-rmd-slider="arc"] [role="slider"] {
+  border: var(--rmd-slider-thumb-border-width, 2px) solid
+    var(--rmd-slider-thumb-border-color, var(--surface));
+  background: var(--rmd-slider-thumb-background, var(--accent));
+  box-shadow: var(--rmd-slider-thumb-shadow, 0 0 0 1px var(--accent));
 }
 
 /* Square selection marks. Checked boxes keep the box; the tick is drawn in
@@ -1383,6 +1362,265 @@
   border-bottom: 1px solid var(--line);
 }
 
+/* -------------------------------------------- 9b. shared control shells */
+
+/* Arc select and date picker. The outer component classes and the
+   data-rmd-part="trigger" hook are the stable interfaces; internal class
+   hashes stay implementation details. Square shells, mono labels. */
+
+[data-rmd-theme="sci-fi"] .local-select [data-rmd-part="trigger"],
+[data-rmd-theme="sci-fi"] .local-select [role="combobox"] {
+  border: 1px solid var(--sf-field-border, var(--line-strong));
+  border-radius: 0;
+  background: var(--sf-field-bg, var(--surface));
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  box-shadow: none;
+}
+
+[data-rmd-theme="sci-fi"] .local-select [data-rmd-part="trigger"]:hover:not([data-disabled]):not(:disabled),
+[data-rmd-theme="sci-fi"] .local-select [role="combobox"]:hover:not([data-disabled]):not(:disabled) {
+  border-color: var(--sf-field-hover, var(--accent-line));
+  background: var(--sf-field-bg, var(--surface));
+}
+
+[data-rmd-theme="sci-fi"] .local-select [data-rmd-part="trigger"]:focus-visible,
+[data-rmd-theme="sci-fi"] .local-select [data-rmd-part="trigger"][data-state="open"],
+[data-rmd-theme="sci-fi"] .local-select [role="combobox"]:focus-visible,
+[data-rmd-theme="sci-fi"] .local-select [role="combobox"][data-state="open"] {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: var(--sf-glow);
+}
+
+[data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="trigger"],
+[data-rmd-theme="sci-fi"] .local-date-picker button[aria-haspopup="dialog"] {
+  border: 1px solid var(--sf-field-border, var(--line-strong));
+  border-radius: 0;
+  background: var(--sf-field-bg, var(--surface));
+  color: var(--ink);
+  box-shadow: none;
+}
+
+[data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="trigger"]:hover:not(:disabled),
+[data-rmd-theme="sci-fi"] .local-date-picker button[aria-haspopup="dialog"]:hover:not(:disabled) {
+  border-color: var(--sf-field-hover, var(--accent-line));
+  background: var(--sf-field-bg, var(--surface));
+}
+
+[data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="trigger"]:focus-visible,
+[data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="trigger"][aria-expanded="true"],
+[data-rmd-theme="sci-fi"] .local-date-picker button[aria-haspopup="dialog"]:focus-visible,
+[data-rmd-theme="sci-fi"] .local-date-picker button[aria-haspopup="dialog"][aria-expanded="true"] {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+  box-shadow: var(--sf-glow);
+}
+
+[data-rmd-theme="sci-fi"] .local-select [data-rmd-part="menu"],
+[data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="popover"] {
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  font-family: var(--font-mono);
+}
+
+/* -------------------------------------------------- 9c. shared chart hooks */
+
+[data-rmd-theme="sci-fi"] .rmd-chart {
+  color: var(--ink);
+  font-family: var(--font-mono);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-grid {
+  stroke: var(--chart-grid);
+  stroke-dasharray: 2 3;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-axis-label {
+  fill: var(--chart-axis);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-axis-title {
+  fill: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: var(--sf-type-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--sf-track-label);
+  text-transform: uppercase;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-guide {
+  stroke: var(--accent);
+  stroke-dasharray: 3 3;
+  opacity: 0.8;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-readout {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--sf-type-micro);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-empty {
+  border: 1px dashed var(--line-strong);
+  border-radius: 0;
+  background: var(--surface-subtle);
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-legend {
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: var(--sf-type-micro);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-legend-item {
+  border: 1px solid transparent;
+  border-radius: 0;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-legend-item.is-highlighted {
+  border-color: var(--line);
+  background: var(--surface-hover);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-legend-item.is-selected {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-legend-item:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-swatch {
+  border-radius: 0;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-tooltip {
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  font-family: var(--font-mono);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-tooltip-title {
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ------------------------------------------------- 9d. shared diagram hooks */
+
+[data-rmd-theme="sci-fi"] .rmd-diagram {
+  --diagram-dot: color-mix(in srgb, var(--line-strong) 60%, transparent);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-stage {
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background-color: var(--surface-subtle);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-toolbar {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--sf-type-micro);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-zoom {
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--surface);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-zoom button {
+  border-radius: 0;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-zoom button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--accent-text);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-hint {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--sf-type-micro);
+  letter-spacing: 0.04em;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-tooltip {
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  font-family: var(--font-mono);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-tooltip-head {
+  border-bottom: 1px solid var(--line);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-tooltip-close {
+  border-radius: 0;
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-tooltip-close:hover {
+  background: var(--surface-hover);
+}
+
+/* ------------------------------------------------------- 9e. Mafs surface */
+
+[data-rmd-theme="sci-fi"] .local-mafs-coordinate .MafsView,
+[data-rmd-theme="sci-fi"] .local-mafs-plot .MafsView {
+  --mafs-bg: transparent;
+  --mafs-fg: var(--ink-soft);
+  --mafs-origin-color: var(--line-strong);
+  --mafs-line-color: var(--chart-grid);
+  --grid-line-subdivision-color: color-mix(in srgb, var(--chart-grid) 55%, transparent);
+  --mafs-axis-stroke-width: 1px;
+
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-rmd-theme="sci-fi"] .local-coordinate-surface.local-mafs-surface {
+  background: transparent;
+}
+
+[data-rmd-theme="sci-fi"] .local-coordinate-pad.local-mafs-coordinate {
+  aspect-ratio: auto;
+  touch-action: auto;
+  overflow: visible;
+}
+
 /* -------------------------------------------------------- 10. misc & print */
 
 [data-rmd-theme="sci-fi"].local-document .local-fallback-block {
@@ -1457,4 +1695,6 @@
   [data-rmd-theme="sci-fi"] .local-alert {
     break-inside: avoid;
   }
+}
+
 }

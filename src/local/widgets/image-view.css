@@ -1,6 +1,8 @@
 /* Markdown image zoom. Every selector stays inside a document root so the
    published stylesheet never styles a host image, button or overlay. */
 
+@layer rmd.components {
+
 .md-document img.md-image[data-zoomable="true"] {
   cursor: zoom-in;
 }
@@ -9,9 +11,6 @@
   outline: var(--focus-outline);
   outline-offset: 3px;
 }
-
-/* The dialog is portalled into the document article, so it inherits that
-   document's theme tokens and sits in the top layer. */
 .md-document .md-image-zoom {
   box-sizing: border-box;
   width: fit-content;
@@ -75,8 +74,6 @@
   color: var(--ink-muted);
   font-size: var(--text-xs);
 }
-
-/* 44px square keeps the close target usable on touch screens. */
 .md-document .md-image-zoom-close {
   position: absolute;
   z-index: 1;
@@ -135,3 +132,9 @@
     display: none !important;
   }
 }
+}
+
+/* The dialog is portalled into the document article, so it inherits that
+   document's theme tokens and sits in the top layer. */
+
+/* 44px square keeps the close target usable on touch screens. */

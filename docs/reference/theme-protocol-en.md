@@ -45,7 +45,7 @@ export function Article({ source }: { source: string }) {
 }
 ```
 
-This demonstrates registration. The repository includes only `default` as a built-in theme, and a host definition cannot replace it. Everything else is external: the original-look `soft` name and the complete sci-fi reference package both require host registration; `soft` has no separate stylesheet, so the product-UI gallery registers the name with a plain definition while the core baseline CSS supplies its appearance. The repository's `paper` example above has no design or stylesheet; a complete reference package with tokens, component styling, both colour schemes and a live gallery is in [examples/sci-fi-theme](../../examples/sci-fi-theme/README.md).
+This demonstrates registration. Only `default` is built in, and a host definition cannot replace it. Other themes require host registration and their CSS resources. The `soft` package supplies explicit resources for the original appearance. Registering a name without CSS gives that theme the complete default baseline. The `paper` example above has no design or stylesheet; a complete reference package with tokens, component styling, both colour schemes and a live gallery is in [examples/sci-fi-theme](../../examples/sci-fi-theme/README.md).
 
 | Field | Requirement |
 | --- | --- |
@@ -85,9 +85,37 @@ Changing `themes` or `colorScheme` does not create a runtime. Changing `LocalRea
 
 Shared component CSS supplies structure, interaction and defaults. Custom themes inherit a complete default variable set and override the values they need. Both light and dark variants must be designed and checked.
 
+Every theme uses the same component implementations. Theme names select CSS;
+static output and hydration select views by rendering capability. A registered
+theme with no CSS receives the complete default appearance and interactions.
+
+The styling contract is `reactive-md-styles-1`, exported as `LOCAL_STYLE_CONTRACT`
+from `reactive-md/sdk` and `reactive-md/react`. The cascade order is `rmd.reset`,
+`rmd.defaults`, `rmd.components`, `rmd.themes`, `rmd.overrides`. The SDK puts theme
+resources in `rmd.themes` and preserves that boundary across validation and
+composition. Directly imported theme CSS should also use `@layer rmd.themes`.
+
+Direct stylesheets must declare `@layer rmd.reset, rmd.defaults, rmd.components,
+rmd.themes, rmd.overrides;` before defining any RMD layer, including when a theme
+loads before the public stylesheet. JS hosts can emit the exported
+`LOCAL_STYLE_LAYER_ORDER`; SDK resources already include this declaration.
+
+Existing semantic variables remain public. Component variables use the `--rmd-`
+prefix. Slider variables include `--rmd-slider-thumb-width`,
+`--rmd-slider-thumb-height`, `--rmd-slider-thumb-radius`,
+`--rmd-slider-track-height` and `--rmd-slider-track-radius`. Horizontal geometry
+uses thumb width; vertical alignment and bubble placement use thumb height.
+Native range inputs use the corresponding `--rmd-native-range-*` variables,
+preserving their smaller 18px thumbs by default.
+
+Stable `data-rmd-component` and `data-rmd-part` hooks support additional theme
+decoration. ARIA attributes retain their state semantics. CSS module hashes and
+internal DOM nesting remain component implementation details.
+
 | Purpose | Public variables |
 | --- | --- |
-| Surfaces | `--paper`, `--surface`, `--document-bg` (defaults to `--surface`), `--surface-subtle`, `--surface-hover`, `--surface-active`, `--image-zoom-backdrop` |
+| Surfaces | `--paper`, `--surface`, `--document-bg` (defaults to `--surface`), `--surface-subtle`, `--surface-hover`, `--surface-active`, `--image-zoom-backdrop`, `--dialog-backdrop` |
+| Tooltips | `--tooltip-bg`, `--tooltip-ink` |
 | Text and borders | `--ink`, `--ink-soft`, `--ink-muted`, `--line`, `--line-strong` |
 | Accent | `--accent`, `--accent-hover`, `--accent-soft`, `--accent-line`, `--accent-ink` (text on accent fills), `--accent-text` (accent used as ink) |
 | Status | `--info`, `--info-soft`, `--success`, `--success-soft`, `--success-line`, `--warning`, `--warning-soft`, `--warning-line`, `--danger`, `--danger-soft`, `--danger-line`, `--neutral-soft` |
@@ -99,13 +127,23 @@ Shared component CSS supplies structure, interaction and defaults. Custom themes
 | Radius | `--radius-control`, `--radius-card`, `--radius-panel`, `--radius-pill`, `--radius-field`, `--radius-field-multiline` |
 | Controls | `--control-height-sm`, `--control-height`, `--control-height-lg`, `--control-padding-x`, `--control-padding-y`, `--control-inset-x`, `--control-selected`, `--control-selected-ink`, `--control-track`, `--control-thumb`, `--disabled-opacity` |
 | Tables | `--table-cell-padding-y`, `--table-cell-padding-x` |
-| Motion and elevation | `--motion-fast`, `--motion-base`, `--motion-slow`, `--ease-standard`, `--shadow-sm`, `--shadow-md` |
+| Motion and elevation | `--motion-fast`, `--motion-base`, `--motion-slow`, `--ease-standard`, `--shadow-sm`, `--shadow-md`, `--shadow-lg` |
+
+Small corners use `--radius-hairline`, `--radius-2xs`, `--radius-xs` and
+`--radius-inset`; larger surfaces and circles use `--radius-xl`, `--radius-pill`
+and `--radius-circle`. `--radius-toolbar` controls compact toolbars.
+Override pressed button, choice indicator and node shadows with
+`--rmd-button-press-shadow`, `--rmd-choice-thumb-shadow` and
+`--rmd-diagram-node-shadow`, respectively. Dynamic shadows take their default
+geometry and opacity from baseline `*-shadow-geometry` and `*-shadow-opacity`
+variables, then combine them with local semantic colors at the consuming element.
+This keeps shadows aligned with node tones and descendant text colors.
 
 Existing `--blue`, `--blue-deep`, `--blue-soft` and `--blue-line` remain compatible. New themes should use the accent variables. Explicit component `color` attributes override their corresponding local color; other properties continue to use the theme. Series and status colors retain their semantic roles.
 
 ## Themed native buttons
 
-`reactive-md/styles.css` includes the shared `controls.css` button skin. A component that renders a native `<button>` or an `input` with type `button`, `submit` or `reset` inside `.md-document` receives the current document's secondary appearance:
+`reactive-md/styles.css` includes the shared native button skin. A component that renders a native `<button>` or an `input` with type `button`, `submit` or `reset` inside `.md-document` receives the current document's secondary appearance:
 
 ```tsx
 <button type="button">Pause</button>

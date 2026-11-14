@@ -1,0 +1,50 @@
+/* Default palette and geometric scales. Semantic and component values consume these. */
+@layer rmd.defaults {
+  .reactive-md-theme,
+.md-document {
+    --pu-paper: #f5f3f1;
+    --pu-white: #ffffff;
+    --pu-neutral-50: #faf9f7;
+    --pu-neutral-100: #f3f1ee;
+    --pu-neutral-150: #ebe8e4;
+    --pu-neutral-200: #e6e4e3;
+    --pu-neutral-300: #d6d4d2;
+    --pu-neutral-400: #b8b5b1;
+    --pu-neutral-500: #7b7975;
+    --pu-neutral-600: #55524e;
+    --pu-neutral-700: #3a3835;
+    --pu-neutral-900: #111111;
+    --pu-blue-50: #eef3fe;
+    --pu-blue-100: #cad9f9;
+    --pu-blue-500: #1f5ae8;
+    --pu-blue-600: #1a4fd0;
+    --pu-radius-xs: 6px;
+    --pu-radius-sm: 8px;
+    --pu-radius-md: 10px;
+    --pu-radius-lg: 12px;
+    --pu-radius-xl: 14px;
+  }
+
+  :where([data-theme="dark"] .md-document):not([data-color-scheme="light"]),
+  .md-document[data-theme="dark"]:not([data-color-scheme="light"]),
+  .md-document[data-color-scheme="dark"],
+.reactive-md-theme[data-color-scheme="dark"],
+.reactive-md-theme[data-theme="dark"]:not([data-color-scheme="light"]) {
+    --pu-paper: #141517;
+    --pu-white: #1c1d20;
+    --pu-neutral-50: #232428;
+    --pu-neutral-100: #2a2b30;
+    --pu-neutral-150: #32343a;
+    --pu-neutral-200: #34363b;
+    --pu-neutral-300: #4a4c52;
+    --pu-neutral-400: #6f7178;
+    --pu-neutral-500: #9b9792;
+    --pu-neutral-600: #c9c6c1;
+    --pu-neutral-700: #e2dfda;
+    --pu-neutral-900: #f4f2ef;
+    --pu-blue-50: #1e2a44;
+    --pu-blue-100: #344a75;
+    --pu-blue-500: #7aa2ff;
+    --pu-blue-600: #9ab8ff;
+  }
+}

@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 import { createServer } from 'vite';
 
-const server = await createServer({ configFile: false, server: { host: '127.0.0.1', port: 0 }, appType: 'mpa' });
+const server = await createServer({ configFile: false, optimizeDeps: { entries: ['tests/browser/theme-fixture.html'] }, server: { host: '127.0.0.1', port: 0 }, appType: 'mpa' });
 let browser;
 const checks = [];
 try {
@@ -22,8 +22,8 @@ try {
     await expect.poll(() => page.evaluate(() => window.themeHarness.cleanDiagnosticCalls)).toBe(1);
     await expect(primary).toHaveAttribute('data-color-scheme', 'dark');
     await expect(page.locator('#forced-light article')).toHaveAttribute('data-color-scheme', 'light');
-    await expect(page.locator('#forced-light article')).toHaveCSS('color', 'rgb(35, 35, 35)');
-    await expect(primary).toHaveCSS('color', 'rgb(236, 235, 231)');
+    await expect(page.locator('#forced-light article')).toHaveCSS('color', 'rgb(17, 17, 17)');
+    await expect(primary).toHaveCSS('color', 'rgb(244, 242, 239)');
     await expect(primary).toHaveCSS('background-color', 'rgb(40, 25, 35)');
     await expect(page.locator('#forced-light article')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
     await expect(page.locator('#other input[type="range"]')).toHaveCount(0);
@@ -31,8 +31,11 @@ try {
     await expect(page.locator('#host-sentinel')).toHaveCSS('color', 'rgb(0, 0, 0)');
   });
   await check('custom styles reach controls, cards and SVG series', async () => {
-    await expect(primary.getByRole('slider', { name: 'Accent', exact: true })).toHaveCSS('accent-color', 'rgb(250, 170, 200)');
-    await expect(primary.getByRole('slider', { name: 'Explicit color', exact: true })).toHaveCSS('accent-color', 'rgb(255, 0, 0)');
+    await expect(primary.getByRole('slider', { name: 'Accent', exact: true })).toHaveCSS('border-top-color', 'rgb(250, 170, 200)');
+    // This theme maps author color to the public readout token; the thumb
+    // border keeps following its theme independently.
+    await expect(primary.locator('.local-slider').filter({ has: page.getByRole('slider', { name: 'Explicit color', exact: true }) }).locator('.md-slider-value')).toHaveCSS('color', 'rgb(255, 0, 0)');
+    await expect(primary.getByRole('slider', { name: 'Explicit color', exact: true })).toHaveCSS('border-top-color', 'rgb(250, 170, 200)');
     await expect(primary.locator('.md-card')).toHaveCSS('border-radius', '19px');
     await expect(primary.locator('.local-panel')).toHaveCSS('background-color', 'rgb(40, 25, 35)');
     const fills = await primary.locator('svg rect').evaluateAll(elements => elements.map(element => getComputedStyle(element).fill));
@@ -81,7 +84,14 @@ try {
   await check('375px layout and reduced-motion preferences', async () => {
     await page.setViewportSize({ width: 375, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    const overflow = await page.evaluate(() => ({
+      viewport: innerWidth, width: document.documentElement.scrollWidth,
+      elements: [...document.querySelectorAll('body *')].map(node => {
+        const box = node.getBoundingClientRect(), css = getComputedStyle(node);
+        return { tag: node.tagName, class: node.className?.baseVal ?? node.className, right: box.right, width: box.width, overflow: css.overflowX };
+      }).filter(node => node.right > innerWidth + 1).slice(0, 12),
+    }));
+    assert.ok(overflow.width <= overflow.viewport + 1, JSON.stringify(overflow));
     await mkdir('artifacts/theme', { recursive: true });
     await primary.screenshot({ path: 'artifacts/theme/light-375.png' });
     await page.evaluate(() => window.themeHarness.scheme('dark'));

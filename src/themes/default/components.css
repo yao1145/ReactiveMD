@@ -1,0 +1,159 @@
+/* Complete default component design values. Semantic fallbacks remain at their consumers. */
+@layer rmd.defaults {
+  .reactive-md-theme,
+  .md-document {
+    --rmd-button-press-shadow: inset 0 1px 2px rgb(0 0 0 / 14%);
+    --rmd-diagram-node-shadow: 0 2px 3px rgb(0 0 0 / 4%);
+
+    /* Resolve semantic colours at the consumer, including per-node tones. */
+    --rmd-native-switch-press-shadow-geometry: inset 0 1px 2px;
+    --rmd-native-switch-press-shadow-opacity: 20%;
+    --rmd-field-invalid-shadow-geometry: 0 0 0 3px;
+    --rmd-field-invalid-shadow-opacity: 20%;
+    --rmd-switch-shadow-geometry: inset 0 1px 2px;
+    --rmd-switch-shadow-opacity: 8%;
+    --rmd-switch-press-shadow-geometry: inset 0 1px 3px;
+    --rmd-switch-press-shadow-opacity: 22%;
+    --rmd-choice-thumb-shadow-geometry: 0 1px 2px;
+    --rmd-choice-thumb-shadow-opacity: 12%;
+    --rmd-diagram-node-active-shadow-geometry: 0 2px 5px;
+    --rmd-diagram-node-active-shadow-opacity: 14%;
+    --rmd-visual-selected-shadow-geometry: 0 0 2px;
+    --rmd-visual-selected-shadow-opacity: 55%;
+    --rmd-visual-focus-shadow-geometry: 0 0 3px;
+    --rmd-visual-focus-shadow-opacity: 65%;
+    --rmd-diagram-selection-shadow-geometry: 0 0 2px;
+    --rmd-diagram-selection-shadow-opacity: 30%;
+    --rmd-accent-edge-shadow-geometry: inset 2px 0;
+    --rmd-feedback-edge-shadow-geometry: inset 3px 0;
+    --rmd-bottom-rule-shadow-geometry: inset 0 -1px 0;
+    --rmd-steps-active-shadow-geometry: 0 0 0 4px;
+    --rmd-menu-selected-shadow-geometry: inset 0 0 0 1px;
+    --rmd-mafs-surface-shadow-geometry: 0 0 0 2px;
+    --rmd-mafs-accent-shadow-geometry: 0 0 0 3px;
+    --rmd-select-menu-radius-offset: 2px;
+    --rmd-select-item-radius-offset: 4px;
+  }
+
+  :where([data-theme="dark"] .reactive-md-theme,
+         [data-theme="dark"] .md-document,
+         .reactive-md-theme[data-theme="dark"],
+         .md-document[data-theme="dark"],
+         .reactive-md-theme[data-color-scheme="dark"],
+         .md-document[data-color-scheme="dark"]):not([data-color-scheme="light"]) {
+    --rmd-choice-thumb-shadow: 0 1px 3px rgb(0 0 0 / 45%);
+  }
+}
+
+@layer rmd.defaults {
+  .reactive-md-theme,
+  .md-document {
+    --rmd-chart-dim-opacity: .22;
+    --rmd-chart-line-width: 2.2;
+    --rmd-chart-line-highlight-width: 3;
+    --rmd-chart-point-stroke-width: 1.5;
+    --rmd-chart-area-opacity: .12;
+    --rmd-chart-bar-radius: 4px;
+  }
+}
+@layer rmd.defaults {
+  .reactive-md-theme,
+.md-document {
+    --pu-gap-section: var(--space-6, 32px);
+    --pu-gap-block: var(--space-4, 16px);
+    --pu-gap-inline: var(--space-3, 12px);
+
+    --pu-overlay-shadow: 0 24px 64px rgb(17 17 17 / 18%);
+    --pu-focus-halo: 0 0 0 3px rgb(31 90 232 / 16%);
+    --pu-segmented-track: #f0efed;
+    --pu-segmented-thumb: #ffffff;
+    --pu-chip-bg: #f7f6f4;
+    --pu-chip-selected-bg: #eef3fe;
+    --pu-rail-track: #e6e4e3;
+    --pu-rail-fill: var(--accent);
+  }
+
+  :where([data-theme="dark"] .md-document):not([data-color-scheme="light"]),
+  .md-document[data-theme="dark"]:not([data-color-scheme="light"]),
+  .md-document[data-color-scheme="dark"],
+.reactive-md-theme[data-color-scheme="dark"],
+.reactive-md-theme[data-theme="dark"]:not([data-color-scheme="light"]) {
+
+    --pu-overlay-shadow: 0 24px 64px rgb(0 0 0 / 55%);
+    --pu-focus-halo: 0 0 0 3px rgb(122 162 255 / 22%);
+    --pu-segmented-track: #26282c;
+    --pu-segmented-thumb: #3a3d43;
+    --pu-chip-bg: #232428;
+    --pu-chip-selected-bg: #1e2a44;
+    --pu-rail-track: #34363b;
+    --pu-rail-fill: var(--accent);
+  }
+}
+
+@layer rmd.defaults {
+  .reactive-md-theme,
+.md-document {
+    --rmd-uiarc-tracking: 0em;
+    --rmd-uiarc-tracking-display: -.03em;
+    --rmd-uiarc-instant: 0ms;
+    --rmd-uiarc-space-8: 32px;
+    --rmd-uiarc-space-10: 40px;
+    --rmd-uiarc-space-12: 48px;
+    --rmd-uiarc-space-16: 64px;
+    --rmd-uiarc-space-20: 80px;
+    --rmd-uiarc-space-24: 96px;
+    --rmd-uiarc-press-scale: .97;
+    --rmd-uiarc-checkbox-size: 18px;
+    --rmd-uiarc-checkbox-radius: 5px;
+    --rmd-uiarc-track-hover: color-mix(in srgb, var(--ink) 8%, var(--control-track));
+    --rmd-uiarc-check-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2018%2018'%3E%3Cpath%20d='M4.25%209.25%207.25%2012.25%2013.75%205.75'%20fill='none'%20stroke='%23ffffff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+
+  :where([data-theme="dark"] .md-document):not([data-color-scheme="light"]),
+  .md-document[data-theme="dark"]:not([data-color-scheme="light"]),
+  .md-document[data-color-scheme="dark"] {
+    --rmd-uiarc-track-hover: color-mix(in srgb, var(--ink) 10%, var(--control-track));
+    --rmd-uiarc-check-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2018%2018'%3E%3Cpath%20d='M4.25%209.25%207.25%2012.25%2013.75%205.75'%20fill='none'%20stroke='%230b1220'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+}
+
+@layer rmd.defaults {
+  .reactive-md-theme,
+.md-document {
+    --rmd-slider-thumb-width: 22px;
+    --rmd-slider-thumb-height: 22px;
+    --rmd-slider-thumb-radius: 999px;
+    --rmd-slider-track-height: 6px;
+    --rmd-slider-track-radius: 999px;
+    --rmd-slider-thumb-border-width: 2px;
+    --rmd-native-range-thumb-width: 18px;
+    --rmd-native-range-thumb-height: 18px;
+    --rmd-native-range-thumb-radius: 50%;
+    --rmd-native-range-thumb-border-width: 1px;
+  }
+}
+
+@layer rmd.defaults {
+  .reactive-md-theme,
+.md-document {
+    --rmd-calendar-day-radius: 50%;
+    --rmd-calendar-gap: 4px;
+    --rmd-calendar-nav-disabled-opacity: .36;
+    --rmd-calendar-nav-press-scale: .96;
+    --rmd-calendar-press-scale: .94;
+    --rmd-calendar-width: 328px;
+    --rmd-date-picker-action-background: transparent;
+    --rmd-date-picker-border-width: 1px;
+    --rmd-date-picker-field-gap: 7px;
+    --rmd-date-picker-popover-border-width: 1px;
+    --rmd-date-picker-popover-padding: 16px;
+    --rmd-date-picker-popover-width: 320px;
+    --rmd-select-border-width: 1px;
+    --rmd-select-item-disabled-opacity: .45;
+    --rmd-select-item-height: 36px;
+    --rmd-select-label-ink: inherit;
+    --rmd-select-menu-border-width: 1px;
+    --rmd-slider-hit-size: 44px;
+    --rmd-slider-tick-size: 4px;
+  }
+}

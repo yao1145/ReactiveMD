@@ -84,8 +84,9 @@ function SelectionDisc({ cell, reduced }: { cell: number; reduced: boolean }) {
   const row = useMotionValue(visible ? Math.floor(cell / 7) : 0);
   const opacity = useMotionValue(visible ? 1 : 0);
   const scale = useMotionValue(visible ? 1 : 0.6);
-  // Each step is one cell plus the 4px gap; percentages resolve against the disc's own size, which matches a cell.
-  const transform = useTransform(() => `translate(calc(${col.get()} * (100% + 4px)), calc(${row.get()} * (100% + 4px))) scale(${scale.get()})`);
+  // Each step is one cell plus the grid gap; percentages resolve against the disc's own size, which matches a cell.
+  // The gap is read from its component token in the same declaration, so a themed gap keeps the disc on its cell.
+  const transform = useTransform(() => `translate(calc(${col.get()} * (100% + var(--rmd-calendar-gap))), calc(${row.get()} * (100% + var(--rmd-calendar-gap)))) scale(${scale.get()})`);
   const hidden = useRef(!visible);
   useLayoutEffect(() => {
     if (!visible) {
@@ -102,7 +103,7 @@ function SelectionDisc({ cell, reduced }: { cell: number; reduced: boolean }) {
     controls.push(animate(opacity, 1, reduced ? { duration: 0 } : { duration: duration.fast, ease: ease.enter }), animate(scale, 1, reduced ? { duration: 0 } : spring.snappy));
     return () => controls.forEach((control) => control.stop());
   }, [cell, visible, reduced, col, row, opacity, scale]);
-  return <motion.span className={styles.highlight} style={{ transform, opacity }} aria-hidden="true"><span className={styles.highlightFill} /></motion.span>;
+  return <motion.span className={styles.highlight} data-rmd-part="selection" style={{ transform, opacity }} aria-hidden="true"><span className={styles.highlightFill} /></motion.span>;
 }
 
 /** One month on the strip. Only the month being navigated to is focusable and exposed; the one sliding past is inert. */
@@ -271,8 +272,8 @@ export function Calendar({
 
   const renderMonth = (paneMonth: Date, present: boolean) => <>
     <SelectionDisc cell={cellOf(paneMonth)} reduced={reducedMotion} />
-    <div className={styles.grid} role="grid" aria-label={formatter.format(paneMonth)}>
-    {makeWeeks(paneMonth).map((week) => <div key={dateKey(week[0]!)} className={styles.week} role="row">
+    <div className={styles.grid} role="grid" aria-label={formatter.format(paneMonth)} data-rmd-part="grid">
+    {makeWeeks(paneMonth).map((week) => <div key={dateKey(week[0]!)} className={styles.week} role="row" data-rmd-part="week">
       {week.map((date) => {
         const key = dateKey(date);
         const selected = sameDay(date, value);
@@ -282,6 +283,7 @@ export function Calendar({
           type="button"
           role="gridcell"
           data-date={key}
+          data-rmd-part="day"
           aria-label={date.toLocaleDateString(locale, { dateStyle: "full" })}
           aria-selected={selected}
           aria-current={isToday ? "date" : undefined}
@@ -292,15 +294,15 @@ export function Calendar({
           onFocus={() => setFocusedDate(date)}
           onKeyDown={(event) => onDayKeyDown(event, date)}
           onClick={() => onChange?.(date)}
-        ><span className={styles.dayNumber}>{date.getDate()}</span></button>;
+        ><span className={styles.dayNumber} data-rmd-part="day-number">{date.getDate()}</span></button>;
       })}
     </div>)}
     </div>
   </>;
 
-  return <section className={cx(styles.calendar, className)} aria-labelledby={titleId}>
-      <div className={styles.header}>
-        <h2 id={titleId} className={styles.heading}>
+  return <section className={cx(styles.calendar, className)} aria-labelledby={titleId} data-rmd-component="calendar" data-rmd-part="root">
+      <div className={styles.header} data-rmd-part="header">
+        <h2 id={titleId} className={styles.heading} data-rmd-part="heading">
           <span className={styles.srOnly}>{monthLabel}</span>
           <span className={styles.title} aria-hidden="true">
             <AnimatePresence initial={false} custom={direction}>
@@ -309,14 +311,14 @@ export function Calendar({
           </span>
         </h2>
         <span className={styles.srOnly} aria-live="polite">{direction ? monthLabel : ""}</span>
-        <div className={styles.navigation}>
-          {showToday && <button type="button" className={styles.todayButton} aria-disabled={todayIdle || undefined} aria-label={today ? `${todayLabel}, ${today.toLocaleDateString(locale, { dateStyle: "full" })}` : todayLabel} onClick={goToToday}>{todayLabel}</button>}
-          <button type="button" className={styles.navButton} aria-label={previousMonthLabel} aria-disabled={previousDisabled || undefined} onClick={() => { if (!previousDisabled && previousMonth) changeMonth(previousMonth); }}><ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" /></button>
-          <button type="button" className={styles.navButton} aria-label={nextMonthLabel} aria-disabled={nextDisabled || undefined} onClick={() => { if (!nextDisabled && nextMonth) changeMonth(nextMonth); }}><ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" /></button>
+        <div className={styles.navigation} data-rmd-part="navigation">
+          {showToday && <button type="button" className={styles.todayButton} data-rmd-part="today" aria-disabled={todayIdle || undefined} aria-label={today ? `${todayLabel}, ${today.toLocaleDateString(locale, { dateStyle: "full" })}` : todayLabel} onClick={goToToday}>{todayLabel}</button>}
+          <button type="button" className={styles.navButton} data-rmd-part="previous-month" aria-label={previousMonthLabel} aria-disabled={previousDisabled || undefined} onClick={() => { if (!previousDisabled && previousMonth) changeMonth(previousMonth); }}><ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" /></button>
+          <button type="button" className={styles.navButton} data-rmd-part="next-month" aria-label={nextMonthLabel} aria-disabled={nextDisabled || undefined} onClick={() => { if (!nextDisabled && nextMonth) changeMonth(nextMonth); }}><ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" /></button>
         </div>
       </div>
-      <div className={styles.weekdays} aria-hidden="true">{weekdays.map((day, index) => <span key={`${day}-${index}`}>{day.slice(0, 2)}</span>)}</div>
-      <div className={styles.monthViewport} ref={viewportRef}>
+      <div className={styles.weekdays} data-rmd-part="weekdays" aria-hidden="true">{weekdays.map((day, index) => <span key={`${day}-${index}`}>{day.slice(0, 2)}</span>)}</div>
+      <div className={styles.monthViewport} data-rmd-part="viewport" ref={viewportRef}>
         {month ? paneIndexes.map((index) => <MonthPane key={index} index={index} position={position} present={index === target}>{renderMonth(fromIndex(index), index === target)}</MonthPane>)
           : <div className={styles.monthBody} aria-hidden="true"><div className={styles.grid}>{Array.from({ length: 6 }, (_, week) => <div key={week} className={styles.week}>{Array.from({ length: 7 }, (_, day) => <span key={day} className={styles.placeholderDay} />)}</div>)}</div></div>}
       </div>

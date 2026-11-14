@@ -8,3 +8,4 @@ export type { LocalAssemblyIdentity } from './assembly';
 export * from './props';
 export * from './registry';
 export * from './theme';
+export { LOCAL_STYLE_CONTRACT, LOCAL_STYLE_LAYERS, LOCAL_THEME_STYLE_LAYER, LOCAL_STYLE_LAYER_ORDER } from '../themes/contract';

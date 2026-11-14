@@ -147,7 +147,7 @@ it('renders bar charts with series legend and keyboard marks', () => {
   expect(html).toContain('费用与预算');
   expect(html).toContain('实际');
   expect(html).toContain('预算');
-  expect(html).toContain('Focus or point at a mark; use arrow keys to change the readout');
+  expect(html).toContain('Hover or focus a single bar to read it; arrow keys move between bars.');
   expect(html).toContain('data-chart-mark');
   expect(html).not.toContain('View data table');
 });
@@ -187,7 +187,7 @@ it('sorts timeline items by start time and shows the configured unit', () => {
   expect(html).toContain('Focus or point at an item to view its notes.');
 });
 
-it('reads diagram selection from the runtime and shows the selected node detail', () => {
+it('reads diagram selection from the runtime and exposes node inspection', () => {
   const runtime = createRuntime({ selected: 'compute' });
   const visual = component('diagram', { bind: 'selected', label: '状态流' }, [
     component('node', { id: 'input', label: '输入' }, [paragraph(text('读者改变参数。'))]),
@@ -199,8 +199,9 @@ it('reads diagram selection from the runtime and shows the selected node detail'
 
   const html = mount(visual, runtime);
   expect(html).toContain('<svg');
-  expect(html).toContain('重新计算公式与结果。');
-  expect(html).toContain('aria-pressed="true"');
+  expect(html).toMatch(/class="local-visual-node[^\"]*is-selected"[^>]*aria-pressed="true"[^>]*aria-label="计算"/);
+  expect(html).toContain('aria-haspopup="dialog"');
+  expect(html).toContain('Hover or focus to inspect');
   expect(html).toContain('状态变化');
   expect(html).toContain('data-diagram-node');
 });

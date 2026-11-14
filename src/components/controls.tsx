@@ -12,7 +12,6 @@ import {
 } from 'react';
 import { animate, motion, useMotionValue, useReducedMotion, type MotionStyle } from 'motion/react';
 import type { LocalComponentContext, LocalComponentContent } from '../react/component-api';
-import { useDefaultTheme } from '../react/default-theme';
 import { DatePicker as UiarcDatePicker } from './uiarc/date-picker/date-picker';
 import { rmdMotion } from './uiarc/rmd-motion';
 import { Select as UiarcSelect } from './uiarc/select/select';
@@ -169,7 +168,11 @@ function TextFieldView({
   };
 
   return (
-    <div className={`md-control ${className}`} {...sourceAttrs}>
+    <div
+      className={`md-control ${className}`}
+      data-rmd-component={multiline ? 'textarea' : 'input'}
+      {...sourceAttrs}
+    >
       <label className="md-label" htmlFor={fieldProps.id}>
         {label}
       </label>
@@ -288,7 +291,7 @@ export function NumberView(context: LocalComponentContext) {
   };
 
   return (
-    <div className="md-control local-number" {...sourceAttrs}>
+    <div className="md-control local-number" data-rmd-component="number" {...sourceAttrs}>
       <label className="md-label" htmlFor={`${domId}-number`}>
         {label}
       </label>
@@ -352,7 +355,12 @@ export function ToggleView(context: LocalComponentContext) {
   }
 
   return (
-    <div className="md-control md-toggle local-toggle" style={accentStyle(localColor(content))} {...sourceAttrs}>
+    <div
+      className="md-control md-toggle local-toggle"
+      style={accentStyle(localColor(content))}
+      data-rmd-component="toggle"
+      {...sourceAttrs}
+    >
       <label className="md-toggle-label" htmlFor={`${domId}-toggle`}>
         <input
           id={`${domId}-toggle`}
@@ -388,7 +396,12 @@ export function CheckboxView(context: LocalComponentContext) {
   }
 
   return (
-    <div className="md-control local-checkbox" style={accentStyle(localColor(content))} {...sourceAttrs}>
+    <div
+      className="md-control local-checkbox"
+      style={accentStyle(localColor(content))}
+      data-rmd-component="checkbox"
+      {...sourceAttrs}
+    >
       <label className="md-toggle-label" htmlFor={`${domId}-checkbox`}>
         <input
           id={`${domId}-checkbox`}
@@ -432,7 +445,6 @@ export function DateView(context: LocalComponentContext) {
   const view = useComponentView(context);
   const domId = useId();
   const sourceAttrs = useSourceAttributes(context);
-  const defaultTheme = useDefaultTheme();
   const { content, mode, locale, t } = view;
   const { write, error } = useWriter(context);
   const label = textAttr(context, 'label', t('Date', '日期'));
@@ -462,71 +474,46 @@ export function DateView(context: LocalComponentContext) {
     return <StaticValue className="local-date" label={label} value={staticText(value)} />;
   }
 
-  if (defaultTheme) {
-    const message = disabledInvalid || constraintError
-      ? t('Cannot compute', '无法计算')
-      : (problem ?? error);
-    const errorId = message ? `${domId}-date-error` : undefined;
-    return (
-      <div className="md-control local-date local-date-picker" {...sourceAttrs}>
-        <UiarcDatePicker
-          key={view.resetToken}
-          id={`${domId}-date`}
-          label={label}
-          value={parseDateValue(value)}
-          onChange={(date) => {
-            setTouched(true);
-            write(date ? dateValueKey(date) : '');
-          }}
-          onBlur={() => setTouched(true)}
-          minDate={parseDateValue(min)}
-          maxDate={parseDateValue(max)}
-          locale={locale === 'zh' ? 'zh-CN' : 'en-US'}
-          placeholder={t('Select a date', '请选择日期')}
-          todayLabel={t('Today', '今天')}
-          previousMonthLabel={t('Previous month', '上个月')}
-          nextMonthLabel={t('Next month', '下个月')}
-          clearLabel={t('Clear', '清除')}
-          calendarLabel={t(`${label} calendar`, `${label} 日历`)}
-          statusLabel={(formatted) => (formatted
-            ? t(`Selected ${formatted}`, `已选择 ${formatted}`)
-            : t('Choose a day', '请选择日期'))}
-          showToday
-          disabled={disabled}
-          aria-required={required || undefined}
-          invalid={Boolean(message) || validation.invalid}
-          describedBy={[validation.describedBy, errorId].filter(Boolean).join(' ') || undefined}
-        />
-        <FieldError id={errorId} message={message} />
-        <PrintValue value={staticText(value)} />
-      </div>
-    );
-  }
-
+  const message = disabledInvalid || constraintError
+    ? t('Cannot compute', '无法计算')
+    : (problem ?? error);
+  const errorId = message ? `${domId}-date-error` : undefined;
   return (
-    <div className="md-control local-date" {...sourceAttrs}>
-      <label className="md-label" htmlFor={`${domId}-date`}>
-        {label}
-      </label>
-      <input
+    <div
+      className="md-control local-date local-date-picker"
+      data-rmd-part="control"
+      {...sourceAttrs}
+    >
+      <UiarcDatePicker
+        key={view.resetToken}
         id={`${domId}-date`}
-        className="md-text-input"
-        type="date"
-        value={value}
-        min={min || undefined}
-        max={max || undefined}
-        aria-required={required || undefined}
-        disabled={disabled}
-        aria-invalid={problem || error || validation.invalid || constraintError ? true : undefined}
-        aria-describedby={validation.describedBy}
-        onBlur={() => setTouched(true)}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+        label={label}
+        value={parseDateValue(value)}
+        onChange={(date) => {
           setTouched(true);
-          write(event.target.value);
+          write(date ? dateValueKey(date) : '');
         }}
+        onBlur={() => setTouched(true)}
+        minDate={parseDateValue(min)}
+        maxDate={parseDateValue(max)}
+        locale={locale === 'zh' ? 'zh-CN' : 'en-US'}
+        placeholder={t('Select a date', '请选择日期')}
+        todayLabel={t('Today', '今天')}
+        previousMonthLabel={t('Previous month', '上个月')}
+        nextMonthLabel={t('Next month', '下个月')}
+        clearLabel={t('Clear', '清除')}
+        calendarLabel={t(`${label} calendar`, `${label} 日历`)}
+        statusLabel={(formatted) => (formatted
+          ? t(`Selected ${formatted}`, `已选择 ${formatted}`)
+          : t('Choose a day', '请选择日期'))}
+        showToday
+        disabled={disabled}
+        aria-required={required || undefined}
+        invalid={Boolean(message) || validation.invalid}
+        describedBy={[validation.describedBy, errorId].filter(Boolean).join(' ') || undefined}
       />
+      <FieldError id={errorId} message={message} />
       <PrintValue value={staticText(value)} />
-      <FieldError message={disabledInvalid || constraintError ? t('Cannot compute', '无法计算') : (problem ?? error)} />
     </div>
   );
 }
@@ -536,7 +523,6 @@ export function DateView(context: LocalComponentContext) {
 export function SelectView(context: LocalComponentContext) {
   const view = useComponentView(context);
   const domId = useId();
-  const defaultTheme = useDefaultTheme();
   const { content, mode, t } = view;
   const { write, error } = useWriter(context);
   const label = textAttr(context, 'label', t('Select', '选择'));
@@ -563,62 +549,39 @@ export function SelectView(context: LocalComponentContext) {
     );
   }
 
-  if (defaultTheme) {
-    // Map every option to an internal key: empty values and authored strings
-    // that resemble a sentinel remain distinct without changing stored values.
-    const uiOptions = options.map((option, index) => ({
-      value: `${domId}-option-${index}`,
-      label: optionLabel(context, option) || option.value,
-    }));
-    const uiValue = uiOptions[Math.max(0, options.findIndex(option => option.value === active))]?.value ?? '';
-    const message = disabledInvalid ? t('Cannot compute', '无法计算') : error;
-    const errorId = message ? `${domId}-select-error` : undefined;
-    return (
-      <div className="md-control md-select local-select" style={accentStyle(localColor(content))}>
-        <UiarcSelect
-          key={view.resetToken}
-          id={`${domId}-select`}
-          label={label}
-          options={uiOptions}
-          value={uiValue}
-          placeholder={t('Select an option', '请选择选项')}
-          onValueChange={(next) => {
-            const index = uiOptions.findIndex((option) => option.value === next);
-            const option = options[index];
-            if (option) write(option.value);
-          }}
-          disabled={disabled}
-          invalid={Boolean(message) || validation.invalid}
-          describedBy={[validation.describedBy, errorId].filter(Boolean).join(' ') || undefined}
-        />
-        <FieldError id={errorId} message={message} />
-        <PrintValue value={staticText(activeLabel)} />
-      </div>
-    );
-  }
-
+  // Map every option to an internal key: empty values and authored strings
+  // that resemble a sentinel remain distinct without changing stored values.
+  const uiOptions = options.map((option, index) => ({
+    value: `${domId}-option-${index}`,
+    label: optionLabel(context, option) || option.value,
+  }));
+  const uiValue = uiOptions[Math.max(0, options.findIndex(option => option.value === active))]?.value ?? '';
+  const message = disabledInvalid ? t('Cannot compute', '无法计算') : error;
+  const errorId = message ? `${domId}-select-error` : undefined;
   return (
-    <div className="md-control md-select local-select" style={accentStyle(localColor(content))}>
-      <label className="md-label" htmlFor={`${domId}-select`}>
-        {label}
-      </label>
-      <select
+    <div
+      className="md-control md-select local-select"
+      style={accentStyle(localColor(content))}
+      data-rmd-part="control"
+    >
+      <UiarcSelect
+        key={view.resetToken}
         id={`${domId}-select`}
-        className="md-select-input"
-        value={active}
+        label={label}
+        options={uiOptions}
+        value={uiValue}
+        placeholder={t('Select an option', '请选择选项')}
+        onValueChange={(next) => {
+          const index = uiOptions.findIndex((option) => option.value === next);
+          const option = options[index];
+          if (option) write(option.value);
+        }}
         disabled={disabled}
-        aria-invalid={validation.invalid || undefined}
-        aria-describedby={validation.describedBy}
-        onChange={(event: ChangeEvent<HTMLSelectElement>) => write(event.target.value)}
-      >
-        {options.map((option) => (
-          <option key={option.content.id} value={option.value}>
-            {optionLabel(context, option) || option.value}
-          </option>
-        ))}
-      </select>
+        invalid={Boolean(message) || validation.invalid}
+        describedBy={[validation.describedBy, errorId].filter(Boolean).join(' ') || undefined}
+      />
+      <FieldError id={errorId} message={message} />
       <PrintValue value={staticText(activeLabel)} />
-      <FieldError message={disabledInvalid ? t('Cannot compute', '无法计算') : error} />
     </div>
   );
 }
@@ -639,11 +602,9 @@ export function ChoicesView(context: LocalComponentContext) {
   const selectedOption = selectedIndex >= 0 ? options[selectedIndex] : undefined;
   const selectedLabel = selectedOption ? optionLabel(context, selectedOption) : '';
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
-  const defaultTheme = useDefaultTheme();
   const reduceMotion = useReducedMotion() ?? false;
-  // The default theme draws a segmented control for two to four choices; the
-  // highlight follows the original default theme's short transition timing.
-  const segmented = defaultTheme && options.length >= 2 && options.length <= 4;
+  // Two to four choices share one sliding highlight; wider lists stay buttons.
+  const segmented = options.length >= 2 && options.length <= 4;
   const choiceIndex = useMotionValue(activeIndex);
 
   useEffect(() => {
@@ -687,7 +648,11 @@ export function ChoicesView(context: LocalComponentContext) {
   };
 
   return (
-    <div className="md-control local-choices" style={accentStyle(localColor(content))}>
+    <div
+      className="md-control local-choices"
+      style={accentStyle(localColor(content))}
+      data-rmd-component="choices"
+    >
       <span className="md-label" id={`${domId}-choices-label`}>
         {label}
       </span>
@@ -699,6 +664,8 @@ export function ChoicesView(context: LocalComponentContext) {
         aria-invalid={validation.invalid || undefined}
         aria-describedby={validation.describedBy}
         data-rmd-choices={segmented ? 'uiarc' : undefined}
+        data-rmd-part="list"
+        data-rmd-segments={segmented ? '' : undefined}
         style={segmented ? ({ '--pu-choice-index': choiceIndex } as MotionStyle) : undefined}
       >
         {options.map((option, index) => {
@@ -716,6 +683,7 @@ export function ChoicesView(context: LocalComponentContext) {
               disabled={disabled}
               className={`local-choice${selected ? ' is-selected' : ''}`}
               data-rmd-appearance="custom"
+              data-rmd-part="segment"
               onClick={() => write(option.value)}
               onKeyDown={(event) => onKeyDown(event, index)}
             >
@@ -761,6 +729,7 @@ export function RadioGroupView(context: LocalComponentContext) {
     <fieldset
       className="md-control local-radio-group"
       style={accentStyle(localColor(content))}
+      data-rmd-component="radio-group"
       disabled={disabled}
       aria-invalid={validation.invalid || undefined}
       aria-describedby={validation.describedBy}
@@ -855,6 +824,7 @@ export function ChecklistView(context: LocalComponentContext) {
     <fieldset
       className="local-checklist"
       style={accentStyle(localColor(content))}
+      data-rmd-component="checklist"
       disabled={disabled}
       aria-invalid={validation.invalid || undefined}
       aria-describedby={validation.describedBy}
@@ -940,6 +910,7 @@ export function CounterView(context: LocalComponentContext) {
       className="local-counter"
       role="group"
       aria-label={label}
+      data-rmd-component="counter"
       aria-invalid={validation.invalid || undefined}
       aria-describedby={validation.describedBy}
     >
@@ -1095,6 +1066,7 @@ export function TimerView(context: LocalComponentContext) {
       className="local-timer"
       role="group"
       aria-label={label}
+      data-rmd-component="timer"
       aria-invalid={validation.invalid || undefined}
       aria-describedby={validation.describedBy}
     >
@@ -1175,6 +1147,7 @@ export function ProgressView(context: LocalComponentContext) {
   return (
     <div
       className="local-progress"
+      data-rmd-component="progress"
       style={color ? ({ '--local-progress-color': color } as CSSProperties) : undefined}
     >
       <div className="local-progress-head">
@@ -1265,6 +1238,7 @@ export function MultiSelectView(context: LocalComponentContext) {
     <fieldset
       className="local-multi-select"
       style={accentStyle(localColor(content))}
+      data-rmd-component="multi-select"
       disabled={disabled}
       aria-invalid={validation.invalid || undefined}
       aria-describedby={validation.describedBy}
@@ -1412,8 +1386,9 @@ export function CoordinateView(context: LocalComponentContext) {
   const padRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const hydrated = useHydrated();
-  const defaultTheme = useDefaultTheme();
-  const useMafs = hydrated && defaultTheme;
+  // Mafs is client-only; the static and server passes keep the plain SVG plane
+  // so the first client render matches the server markup.
+  const useMafs = hydrated;
   useResetToken(context, () => setError(null));
 
   const coordinateSummary = `X: ${x} · Y: ${y}`;
@@ -1509,6 +1484,7 @@ export function CoordinateView(context: LocalComponentContext) {
       style={accentStyle(localColor(content))}
       role="group"
       aria-label={label}
+      data-rmd-component="coordinate"
       aria-invalid={validation.invalid || undefined}
       aria-describedby={validation.describedBy}
     >
@@ -1721,7 +1697,7 @@ export function QuizView(context: LocalComponentContext) {
     result === 'correct' ? ' is-correct' : result === 'incorrect' ? ' is-incorrect' : '';
 
   return (
-    <div className="local-quiz" role="group" aria-label={label}>
+    <div className="local-quiz" role="group" aria-label={label} data-rmd-component="quiz">
       {type === 'choice' ? (
         <fieldset className="local-quiz-options" disabled={disabled}>
           <legend className="md-label">{label}</legend>

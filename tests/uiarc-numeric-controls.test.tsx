@@ -112,25 +112,27 @@ describe('default theme UIArc slider', () => {
   });
 });
 
-describe('non-default themes keep native sliders', () => {
-  it('renders the native single slider outside the default theme', () => {
+describe('all themes share slider implementations', () => {
+  it('renders the adapted single slider with the selected theme', () => {
     const html = render('<theme name="paper" />\n\n<slider bind="n" label="Level" initial="4">', {
       themes: [manifest('paper')],
     });
     expect(html).toContain('data-rmd-theme="paper"');
-    expect(html).not.toContain('data-rmd-slider="arc"');
-    expect(html).not.toContain('data-rmd-native-proxy=""');
+    expect(html).toContain('data-rmd-slider="arc"');
+    expect(html).toContain('data-rmd-native-proxy=""');
+    expect(html).toContain('role="slider"');
     expect(html).toContain('class="md-control md-slider local-slider"');
     expect(html).toContain('type="range"');
   });
 
-  it('renders the native range slider outside the default theme', () => {
+  it('renders both adapted range thumbs with the selected theme', () => {
     const html = render(
       '<theme name="paper" />\n\n<range-slider label="Span" bind-start="lo" bind-end="hi" initial-start="20" initial-end="60">',
       { themes: [manifest('paper')] },
     );
     expect(html).toContain('data-rmd-theme="paper"');
-    expect(html).not.toContain('data-rmd-slider="arc"');
+    expect(html).toContain('data-rmd-slider="arc"');
+    expect(html.match(/role="slider"/g)).toHaveLength(2);
     expect(html.match(/class="local-range-input /g)).toHaveLength(2);
   });
 });
