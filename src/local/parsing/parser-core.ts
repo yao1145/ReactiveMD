@@ -1893,6 +1893,21 @@ export function parseLocalCore(
       }
       return result;
     }
+    /**
+     * remark derives an image alt from its label text, so lexical tokens in the
+     * label leave their generated surrogate (and emphasis guards) in the alt.
+     * Restore each parser-owned marker to the token's original source text;
+     * literal source markers are reserved and never match a generated slot.
+     */
+    let markerSlots: Map<string, { node: LocalNode }> | undefined;
+    function restoreAlt(alt: string): string {
+      if (alt.indexOf(MARK_OPEN) < 0) return alt;
+      markerSlots ??= new Map([...markers.values()].map(slot => [slot.marker, slot]));
+      return alt.replace(new RegExp(`${MARK_BOUNDARY}?(${MARK_OPEN}[0-9]+${MARK_CLOSE})${MARK_BOUNDARY}?`, 'g'), (whole, marker: string) => {
+        const slot = markerSlots!.get(marker);
+        return slot ? source.slice(slot.node.range.start, slot.node.range.end) : whole;
+      });
+    }
     function transform(raw: any, children?: LocalNode[]): LocalNode[] {
       const from = sourceAt(raw.position?.start?.offset ?? 0, start);
       const to = sourceAt(raw.position?.end?.offset ?? masked.length, end);
@@ -1959,6 +1974,7 @@ export function parseLocalCore(
       }
       const result = node(raw.type, from, to);
       for (const key of ['value', 'depth', 'ordered', 'start', 'checked', 'url', 'title', 'alt', 'lang', 'align'] as const) if (raw[key] !== undefined) (result as any)[key] = raw[key];
+      if (typeof result.alt === 'string') result.alt = restoreAlt(result.alt);
       if (children) result.children = children;
       if (raw.type === 'table' && result.children) unescapeTablePipes(result.children);
       return [result];
