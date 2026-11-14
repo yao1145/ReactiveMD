@@ -308,6 +308,7 @@ export function parseLocalCore(
   const scanStructure = capabilities?.markdownStructure;
   const nativeHtmlNames: ReadonlySet<string> = htmlSupport?.nativeTagNames ?? new Set<string>();
   const decodeEntities = htmlSupport?.decodeEntities ?? ((value: string): string => value);
+  const decodeAttribute = htmlSupport?.decodeAttribute ?? decodeEntities;
   const markdown = markdownFor(capabilities);
   const sourceContext = context?.source === source ? context : new SourceContext(source);
   const {lineStarts} = sourceContext;
@@ -856,7 +857,7 @@ export function parseLocalCore(
     const end = close - 1;
     const rest = source.slice(head, end);
     const closing = Boolean(match[1]);
-    const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head, decodeEntities);
+    const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head, decodeAttribute);
     return {
       lower,
       closing,
@@ -916,14 +917,16 @@ export function parseLocalCore(
     for (const entry of tag.entries) {
       const name = entry.name;
       if (!isHtmlAttributeNameAllowed(lower, name)) return { ok: false, attr: name };
+      // Duplicates are still validated, but the first occurrence wins as in HTML.
+      const first = !Object.hasOwn(attrs, name);
       if (name === 'align' && LOCAL_HTML_ALIGN_ELEMENTS.has(lower)) {
         const align = htmlAlignValue(lower, entry.value);
         if (!align) return { ok: false, attr: name };
-        attrs.align = align;
+        if (first) attrs.align = align;
         continue;
       }
       if (!isValidHtmlAttributeValue(name, entry.value)) return { ok: false, attr: name };
-      attrs[name] = entry.value;
+      if (first) attrs[name] = entry.value;
     }
     if (lower === 'details' && Object.hasOwn(attrs, 'open')) attrs.open = 'true';
     return { ok: true, attrs };
@@ -1071,10 +1074,13 @@ export function parseLocalCore(
     // Recognize fenced code at a Markdown line boundary, including container indentation.
     const lineStart = sourceContext.lineStartAt(i);
     if ((insideContainer ? CONTAINER_FENCE_LINE : ROOT_FENCE_LINE).test(source.slice(lineStart, i))) {
-      const fence = /^(`{3,}|~{3,})[^\n]*(?:\n|$)/.exec(source.slice(i, end));
+      // CommonMark: a backtick fence's info string cannot contain a backtick;
+      // such a line is ordinary paragraph text (a code span at most).
+      const fence = /^(?:(`{3,})[^`\n]*|(~{3,})[^\n]*)(?:\n|$)/.exec(source.slice(i, end));
       if (fence) {
+        const run = fence[1] ?? fence[2];
         const prefix = insideContainer ? '[ \\t]*' : ' {0,3}';
-        const close = new RegExp(`^${prefix}${fence[1][0]}{${fence[1].length},}[ \\t]*\\r?$`, 'gm');
+        const close = new RegExp(`^${prefix}${run[0]}{${run.length},}[ \\t]*\\r?$`, 'gm');
         close.lastIndex = i + fence[0].length;
         const match = close.exec(source);
         return match && match.index < end ? Math.min(end, match.index + match[0].length) : end;
@@ -1148,7 +1154,7 @@ export function parseLocalCore(
         if (fenceChar) {
           if (new RegExp(`^[ \\t]*${fenceChar}{${fenceLength},}[ \\t]*\\r?$`).test(text)) fenceChar = '';
         } else {
-          const open = /^([ \t]*)(`{3,}|~{3,})/.exec(text);
+          const open = /^([ \t]*)(`{3,}(?=[^`]*$)|~{3,})/.exec(text);
           if (open) {
             indent = Math.min(indent, open[1].length);
             fenceChar = open[2][0]; fenceLength = open[2].length;
@@ -1177,6 +1183,9 @@ export function parseLocalCore(
     // a definition inside a container still becomes a real footnote node.
     let regionDefinitions: readonly DefinitionRange[] = options.definitions ?? rootDefinitionRanges;
     let mathLiterals: readonly SourceRange[] = rootMathLiterals;
+    // 根层代码块来自全文 Markdown 解析；容器正文被组件标签遮住，需按去缩进
+    // 后的正文重新确定代码块（缩进代码、引用/列表里的围栏），使其保持原文。
+    let containerCode: readonly SourceRange[] = [];
     if (parent) {
       const bodyEnd = unknownTagEnd(start, parent, end, true)?.start ?? end;
       const indent = commonIndent(start, bodyEnd);
@@ -1186,18 +1195,23 @@ export function parseLocalCore(
       work.mappingSegments+=mapped.segmentCount;
       const text = mapped.text();
       // Definitions/images need `[`, autolinks need a protocol, `www.` or an
-      // email `@`. Without these features there are no inline facts to find.
+      // email `@`. Code blocks need four columns of indentation or a fence
+      // after a quote/list prefix (line-leading fences are already shielded
+      // lexically). Without these features there are no facts to find.
       // Retain the same deterministic work/depth charges on this shortcut.
-      let facts:{definitions:SourceRange[];mathLiterals:SourceRange[]};
-      if(!/[\[:@]|www\./i.test(text)){
+      let facts:{definitions:SourceRange[];mathLiterals:SourceRange[];codeRanges:SourceRange[]};
+      if(!/[\[:@]|www\./i.test(text)&&!/^[ \t>*+\-0-9.)]*(?: {4}|\t|`{3}|~{3})/m.test(text)){
         budget.charge(text.length+1,0,Math.max(1,text.length));
         ensureDepth(text);
-        facts={definitions:[],mathLiterals:[]};
+        facts={definitions:[],mathLiterals:[],codeRanges:[]};
       }else facts=markdownTreeFacts(parseMarkdown(text),false);
       const translate=(range:SourceRange):SourceRange=>({start:mapped.at(range.start,bodyEnd),end:mapped.at(range.end,bodyEnd)});
       const found=facts.definitions.map(translate).filter(range=>range.end>range.start);
       const literals=facts.mathLiterals.map(translate);
       mathLiterals = literals.sort((a, b) => a.start - b.start);
+      containerCode = facts.codeRanges.map(translate)
+        .filter(range => range.end > range.start && range.start >= start && range.end <= bodyEnd)
+        .sort((a, b) => a.start - b.start);
       regionDefinitions = found
         .filter(range => range.start >= start && range.end <= bodyEnd)
         .sort((a, b) => a.start - b.start || b.end - a.end);
@@ -1208,6 +1222,7 @@ export function parseLocalCore(
       mathLiterals = literals.sort((a, b) => a.start - b.start);
     }
     let definitionIndex = 0;
+    let containerCodeIndex = 0;
     // Recovery spans are single literal tokens: their content is never
     // re-parsed for components, bindings, interpolation, math or Markdown.
     let recoveryIndex = 0;
@@ -1229,6 +1244,10 @@ export function parseLocalCore(
       if (!insideContainer) {
         while (codeRanges[codeIndex]?.end <= i) codeIndex++;
         const code = codeRanges[codeIndex];
+        if (code && code.start <= i) { i = code.end; continue; }
+      } else if (containerCode.length) {
+        while (containerCode[containerCodeIndex]?.end <= i) containerCodeIndex++;
+        const code = containerCode[containerCodeIndex];
         if (code && code.start <= i) { i = code.end; continue; }
       }
       // Definitions are real Markdown blocks even when the surrounding
@@ -1877,6 +1896,21 @@ export function parseLocalCore(
       }
       return result;
     }
+    /**
+     * remark derives an image alt from its label text, so lexical tokens in the
+     * label leave their generated surrogate (and emphasis guards) in the alt.
+     * Restore each parser-owned marker to the token's original source text;
+     * literal source markers are reserved and never match a generated slot.
+     */
+    let markerSlots: Map<string, { node: LocalNode }> | undefined;
+    function restoreAlt(alt: string): string {
+      if (alt.indexOf(MARK_OPEN) < 0) return alt;
+      markerSlots ??= new Map([...markers.values()].map(slot => [slot.marker, slot]));
+      return alt.replace(new RegExp(`${MARK_BOUNDARY}?(${MARK_OPEN}[0-9]+${MARK_CLOSE})${MARK_BOUNDARY}?`, 'g'), (whole, marker: string) => {
+        const slot = markerSlots!.get(marker);
+        return slot ? source.slice(slot.node.range.start, slot.node.range.end) : whole;
+      });
+    }
     function transform(raw: any, children?: LocalNode[]): LocalNode[] {
       const from = sourceAt(raw.position?.start?.offset ?? 0, start);
       const to = sourceAt(raw.position?.end?.offset ?? masked.length, end);
@@ -1886,7 +1920,7 @@ export function parseLocalCore(
         fastPlans.add(plan);
         const overflow=plan.overflowAt(maxSyntaxNodes-nodeCount);
         if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,sourceAt(base+overflow.start,from),sourceAt(base+overflow.end,to),'local.budget.nodes',{limit:maxSyntaxNodes});
-        return plan.emit((type,begin,finish,extra)=>{
+        const emitted=plan.emit((type,begin,finish,extra)=>{
           if(type==='rmdOpaque'){
             const slot=markers.get(base+begin);
             if(!slot||slot.node.type!=='interpolation'||slot.end!==base+finish||slot.marker!==extra?.value)throw new Error('Invalid interpolation placeholder');
@@ -1894,6 +1928,9 @@ export function parseLocalCore(
           }
           return node(type,sourceAt(base+begin,from),sourceAt(base+finish,to),extra);
         });
+        // 与 remark 路径一致：表格单元格内插值的 `\|` 还原为 `|`。
+        for(const block of emitted)if(block.type==='table'&&block.children)unescapeTablePipes(block.children);
+        return emitted;
       }
       if (raw.type === 'image') {
         const slot = markers.get(raw.position?.start?.offset);
@@ -1943,6 +1980,7 @@ export function parseLocalCore(
       }
       const result = node(raw.type, from, to);
       for (const key of ['value', 'depth', 'ordered', 'start', 'checked', 'url', 'title', 'alt', 'lang', 'align'] as const) if (raw[key] !== undefined) (result as any)[key] = raw[key];
+      if (typeof result.alt === 'string') result.alt = restoreAlt(result.alt);
       if (children) result.children = children;
       if (raw.type === 'table' && result.children) unescapeTablePipes(result.children);
       return [result];

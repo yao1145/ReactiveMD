@@ -56,6 +56,8 @@ function computeFacts(source: string): SourceFacts {
   const fenceSpans: { from: number; to: number }[] = [];
   const listColumns: number[] = [];
   let fence: { char: string; length: number } | null = null;
+  // 上一行是否为空行（或只有引用标记）；空行后的非列表行不再是懒续行。
+  let afterBlank = false;
   let maxMarkdownDepth = 0;
   let potentialDepth=0;
   for (let index = 0; index < starts.length; index++) {
@@ -91,8 +93,10 @@ function computeFacts(source: string): SourceFacts {
       }
       fenced = true;
     } else {
-      const open = fenceRunAt(source.slice(probe, to), 0);
-      if (open) {
+      const rest = source.slice(probe, to);
+      const open = fenceRunAt(rest, 0);
+      // CommonMark: a backtick fence's info string cannot contain a backtick.
+      if (open && (open.char !== '`' || rest.indexOf('`', open.length) < 0)) {
         fence = { char: open.char, length: open.length };
         fenced = true;
         fenceSpans.push({ from, to: source.length });
@@ -122,11 +126,16 @@ function computeFacts(source: string): SourceFacts {
         listColumns.push(column);
       } else {
         const indentAfterQuote = markerCursor - quoteCursor;
-        while (listColumns.length && indentAfterQuote < listColumns[listColumns.length - 1]) listColumns.pop();
+        // After a blank line, text at or left of the marker column cannot be
+        // item content (the content column is always right of the marker), so
+        // the item closes. Without a blank line it may be a lazy continuation.
+        while (listColumns.length && (indentAfterQuote < listColumns[listColumns.length - 1]
+          || (afterBlank && indentAfterQuote <= listColumns[listColumns.length - 1]))) listColumns.pop();
       }
       depth = quoteDepth + listColumns.length;
       if (depth > maxMarkdownDepth) maxMarkdownDepth = depth;
     }
+    afterBlank = !fenced && (blank || /^[ \t]*(?:>[ \t]*)*$/.test(text));
     lines.push({ from, to, text, blank, indent, quoteDepth, fenced, depth });
   }
   return { lines, maxMarkdownDepth,potentialDepth, fenceSpans };

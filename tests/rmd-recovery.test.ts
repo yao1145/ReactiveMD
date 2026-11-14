@@ -100,6 +100,15 @@ describe('loose RMD structure recovery', () => {
     expect(all.some((node) => node.type === 'strong')).toBe(true);
   });
 
+  it('resynchronizes at a root heading after a list that the blank line closed', () => {
+    const source = '<alert>\nx\n\n- item\n\n## real\n\nok';
+    const parsed = parseLocal(source, loose);
+    expect(parsed.recoveries).toHaveLength(1);
+    expect(parsed.recoveries?.[0].boundary).toBe('heading');
+    expect(parsed.recoveries?.[0].affectedRange).toEqual({ start: 0, end: source.indexOf('## real') });
+    expect(flat(parsed.nodes).find((node) => node.type === 'heading')?.depth).toBe(2);
+  });
+
   it('keeps a legally paired container that spans headings', () => {
     const source = '<card>\n\n## 内部\n\n正文\n\n</card>\n\n后文';
     const parsed = parseLocal(source, loose);

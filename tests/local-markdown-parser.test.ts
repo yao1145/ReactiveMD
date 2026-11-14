@@ -150,6 +150,22 @@ describe('markdown compatibility boundaries stay intact', () => {
     expect(ofType(parsed.nodes, 'inlineMath')).toEqual([]);
   });
 
+  it('does not treat a backtick line whose info string contains a backtick as a fence', () => {
+    // CommonMark：反引号围栏的信息串不能含反引号，这一行只是普通段落。
+    const result = compileLocal('```js `x`\n**粗** {{ missing }}\n');
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map(diagnostic => diagnostic.code)).toContain('local.binding.unknown');
+    expect(ofType(parseLocal('```js `x`\n**粗**\n').nodes, 'code')).toEqual([]);
+
+    const container = compileLocal('<card>\n  ```js `x`\n  **粗** {{ missing }}\n</card>');
+    expect(container.diagnostics.map(diagnostic => diagnostic.code)).toContain('local.binding.unknown');
+
+    // 波浪线围栏的信息串可以含反引号，仍然屏蔽内容。
+    const tilde = parseLocal('~~~js `x`\n{{ missing }}\n~~~\n');
+    expect(tilde.diagnostics).toEqual([]);
+    expect(ofType(tilde.nodes, 'code').map(node => node.value)).toEqual(['{{ missing }}']);
+  });
+
   it('still diagnoses misspelled known components and unknown line-leading tags', () => {
     const cases = compileLocal('<Card/>');
     expect(cases.ok).toBe(false);
