@@ -470,6 +470,29 @@ interface RuntimeCore {
 }
 
 /**
+ * Position-free fingerprint of everything that constrains one binding: the
+ * binding facts, each control's tag and attributes, its dynamic bound
+ * expressions and its compiled value rules. Two documents with the same
+ * fingerprint for a name validate that name identically given the same reads.
+ */
+function constraintDefinition(loaded: RuntimeCore, name: string): string | undefined {
+  const binding = loaded.document.bindings[name];
+  if (!binding) return undefined;
+  // nodeIds 与 owner 是按位置分配的节点 ID，前置正文就会改变它们。
+  const { nodeIds: _nodeIds, owner: _owner, ...facts } = binding;
+  const controls = (loaded.controls.get(name) ?? []).map((node) => {
+    const dynamic = loaded.document.dynamicConstraints?.[node.id] ?? {};
+    return {
+      name: node.name ?? null,
+      attrs: node.attrs ?? {},
+      dynamic: Object.fromEntries(Object.entries(dynamic).map(([key, item]) => [key, item ? { source: item.source, numeric: item.numeric ?? null } : null])),
+      rules: loaded.valueRules.get(node.id) ?? null,
+    };
+  });
+  return JSON.stringify({ facts, legacy: loaded.legacyValueRules, controls });
+}
+
+/**
  * Compile a metadata expression through the runtime-wide source cache. A
  * failed compile returns its error without caching it, so fixing the source
  * recovers on the next document adoption.
@@ -1127,6 +1150,10 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
    * Migrate control state onto a new document. The retention plan decides what
    * is comparable at all; each surviving value is revalidated against the new
    * bindings and shared controls exactly like a parameter write would be.
+   * Values the new constraints reject fall back to the new initial value,
+   * except a value that a dependency had already narrowed out of range in the
+   * previous document while the binding's constraint definition is unchanged:
+   * dynamic constraints never reset such a value, so a migration must not either.
    */
   const migrateState = (next: LocalDocument, nextCore: RuntimeCore): {
     values: Record<string, LocalValue>;
@@ -1146,9 +1173,27 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     const accepted: Record<string, LocalValue> = {};
     const acceptedNames: string[] = [];
 
+    // 动态约束收窄后保留的已有值：旧文档中已失效、且约束定义未变时原样保留。
+    const narrowed = new Set<string>();
+    let previousRead: ReturnType<typeof prospectiveReader> | undefined;
+    const keepsNarrowedValue = (name: string): boolean => {
+      const previous = core.document.bindings[name];
+      const controls = core.controls.get(name) ?? [];
+      if (!previous || !controls.some((node) => core.document.dynamicConstraints?.[node.id])) return false;
+      previousRead ??= prospectiveReader({}, core, state);
+      if (validateValue(previous, controls, plan.values[name], previousRead, core.valueRules, core.legacyValueRules).ok) return false;
+      return constraintDefinition(core, name) === constraintDefinition(nextCore, name);
+    };
+
     for (const name of plan.retained) {
       const binding = next.bindings[name];
       if (!binding) continue;
+      if (keepsNarrowedValue(name)) {
+        narrowed.add(name);
+        accepted[name] = cloneValue(plan.values[name]);
+        acceptedNames.push(name);
+        continue;
+      }
       const result = validateValue(binding, nextCore.controls.get(name) ?? [], plan.values[name], prospectiveReader(plan.values, nextCore, values), nextCore.valueRules, nextCore.legacyValueRules);
       if (!result.ok) {
         diagnostics.push(valueDiagnosticFor(nextCore, binding, result.detail));
@@ -1228,6 +1273,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
       const read = prospectiveReader({}, nextCore, values);
       const rejected: string[] = [];
       for (const name of retained) {
+        if (narrowed.has(name)) continue;
         const binding = next.bindings[name];
         const checked = validateValue(binding, nextCore.controls.get(name) ?? [], values[name], read, nextCore.valueRules, nextCore.legacyValueRules);
         if (!checked.ok) {

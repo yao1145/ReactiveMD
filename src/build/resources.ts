@@ -1,6 +1,7 @@
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import type { Diagnostic } from '../local/contracts/types';
+import { localCodeUnitPrefix } from '../local/source/text-length';
 import type { LocalConfig } from '../sdk/types';
 import type { LocalStyleResource, LocalThemePackage } from '../sdk/theme';
 import { buildDiagnostic } from './diagnostics';
@@ -573,7 +574,7 @@ async function resolveUrl(
   if (REMOTE_SCHEME.test(value)) {
     ctx.diagnostics.push(buildDiagnostic(
       'local.build.resource-remote',
-      `${label} references the remote resource "${value.length > 160 ? `${value.slice(0, 160)}…` : value}".`,
+      `${label} references the remote resource "${value.length > 160 ? `${localCodeUnitPrefix(value, 160)}…` : value}".`,
     ));
     return null;
   }

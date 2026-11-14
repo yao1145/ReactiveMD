@@ -135,6 +135,20 @@ describe('computed declaration diagnostics', () => {
     expect(codes('<computed name="a">')).toContain('local.attribute.required');
   });
 
+  it('points reference diagnostics at the identifier token, not at string literal text', () => {
+    const unknownSource = '<computed name="t" value="{{ \'q: \' + q }}">\n\n{{ t }}';
+    const unknown = diagnostics(unknownSource).find((diagnostic) => diagnostic.code === 'local.computation.unknown');
+    expect(unknown?.range.start).toBe(unknownSource.indexOf('q }}'));
+
+    const controlSource = '<const name="c" value="{{ \'n\' + n }}">\n<number bind="n" label="N">';
+    const control = diagnostics(controlSource).find((diagnostic) => diagnostic.code === 'local.computation.const');
+    expect(control?.range.start).toBe(controlSource.indexOf('n }}'));
+
+    const computedSource = '<const name="c" value="{{ \'r\' + r }}">\n<computed name="r" value="{{ 1 }}">';
+    const computed = diagnostics(computedSource).find((diagnostic) => diagnostic.code === 'local.computation.const');
+    expect(computed?.range.start).toBe(computedSource.indexOf('r }}'));
+  });
+
   it('requires a standalone top-level line and one complete interpolation', () => {
     expect(codes('Text <computed name="result" value="{{ 1 }}">')).toContain('local.computation.placement');
     expect(
@@ -170,6 +184,29 @@ describe('const restrictions and static evaluation', () => {
     expect(codes('<const name="c" value="{{ sqrt(-1) }}">')).toContain('local.computation.expression');
     const result = compileLocal('<computed name="r" value="{{ 1 / 0 }}">');
     expect(result.ok).toBe(true);
+  });
+
+  it('reports a failed constant once and skips constants that read it', () => {
+    const chain = diagnostics(
+      [
+        '<const name="a" value="{{ 1/0 }}">',
+        '<const name="b" value="{{ a + 1 }}">',
+        '<const name="c" value="{{ b * 2 }}">',
+        '',
+        'x',
+      ].join('\n'),
+    );
+    expect(chain.map((diagnostic) => diagnostic.message)).toEqual([
+      'Constant "a" cannot be evaluated: Division by zero.',
+    ]);
+
+    // A branch that never reads the failed constant still evaluates.
+    const result = compileLocal(
+      '<const name="a" value="{{ 1/0 }}">\n<const name="b" value="{{ false ? a : 1 }}">\n<const name="c" value="{{ b + 1 }}">',
+    );
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
+      'Constant "a" cannot be evaluated: Division by zero.',
+    ]);
   });
 });
 

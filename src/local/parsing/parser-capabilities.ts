@@ -33,6 +33,11 @@ export interface LocalParserHtmlCapability {
   readonly nativeTagNames: ReadonlySet<string>;
   /** Decode character references without activating markup. */
   decodeEntities(value: string): string;
+  /**
+   * Decode character references in an attribute value (attribute grammar).
+   * Optional; capabilities without it fall back to `decodeEntities`.
+   */
+  decodeAttribute?(value: string): string;
   /** Raw HTML table reader used before Markdown table handling. */
   readonly readTable: LocalHtmlTableReader;
   /** Isolated fragment repair for non-strict mode. */

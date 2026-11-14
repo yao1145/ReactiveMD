@@ -401,6 +401,7 @@ class Parser {
   private nodeCount = 0;
   private readonly dependencyNames: string[] = [];
   private readonly dependencySet = new Set<string>();
+  private readonly dependencyStarts = new Map<string, number>();
 
   constructor(source: string) {
     this.tokens = lex(source);
@@ -408,6 +409,11 @@ class Parser {
 
   get dependencies(): string[] {
     return this.dependencyNames;
+  }
+
+  /** Source offset of the first reference token for each dependency. */
+  get dependencyOffsets(): ReadonlyMap<string, number> {
+    return this.dependencyStarts;
   }
 
   parse(): Ast {
@@ -619,6 +625,7 @@ class Parser {
       if (!this.dependencySet.has(name)) {
         this.dependencySet.add(name);
         this.dependencyNames.push(name);
+        this.dependencyStarts.set(name, token.start);
       }
       return this.node({ kind: 'reference', name, start: token.start }, depth, token.start);
     }
@@ -1413,6 +1420,17 @@ function evalNode(
 /* ------------------------------------------------------------------ */
 
 const compilationCache = new Map<string, LocalExpression>();
+const dependencyOffsetTable = new WeakMap<LocalExpression, ReadonlyMap<string, number>>();
+
+/**
+ * Offset, relative to `expression.source`, of the first reference token that
+ * reads `name`. Unlike a text search it never lands inside a string literal.
+ * Returns `undefined` for names that are not dependencies or for expressions
+ * not created by `compileExpression`. Internal; not part of the package API.
+ */
+export function expressionDependencyOffset(expression: LocalExpression, name: string): number | undefined {
+  return dependencyOffsetTable.get(expression)?.get(name);
+}
 
 export function compileExpression(source: string): LocalExpression {
   if (typeof source !== 'string') {
@@ -1442,6 +1460,7 @@ export function compileExpression(source: string): LocalExpression {
     const oldest = compilationCache.keys().next().value;
     if (oldest !== undefined) compilationCache.delete(oldest);
   }
+  dependencyOffsetTable.set(expression, parser.dependencyOffsets);
   compilationCache.set(source, expression);
   return expression;
 }

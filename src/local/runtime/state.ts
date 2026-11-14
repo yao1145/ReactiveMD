@@ -1,6 +1,7 @@
 import { MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../configuration/limits';
 import { createLocalRuntime } from './runtime';
 import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
+import { localCodeUnitPrefix } from '../source/text-length';
 import { localSourceDigest } from '../../runtime-services/identity';
 import type {
   Diagnostic,
@@ -57,7 +58,7 @@ export type LocalStateResolution =
 
 function diagnostic(code: string, message: string): Diagnostic {
   const text = message.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
-    ? `${message.slice(0, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
+    ? `${localCodeUnitPrefix(message, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
     : message;
   return {
     code,
@@ -150,7 +151,7 @@ function normalizeGenerator(generator: LocalStateGenerator): LocalStateGenerator
 
 function describeValue(value: unknown): string {
   if (typeof value === 'string') {
-    const sample = value.length > 48 ? `${value.slice(0, 48)}…` : value;
+    const sample = value.length > 48 ? `${localCodeUnitPrefix(value, 48)}…` : value;
     return `"${sample}"`;
   }
   if (value === null) return 'null';
@@ -470,13 +471,21 @@ function collectBindingPlans(document: LocalDocument): BindingPlans {
   return { plans, groups };
 }
 
-/** Write a value map through the runtime, batching multi-slot components. */
+/**
+ * Write a value map through the runtime. Single-value parameters go through
+ * one atomic `setParameters` call, so every value is validated against the
+ * complete incoming set: a dynamic constraint such as `max="{{ a }}"` sees the
+ * imported `a`, not whatever value happened to be written first. Multi-slot
+ * components are then written with `setMany`, which also restores their
+ * internal `@` slots atomically with the public ones.
+ */
 function writeValues(
   runtime: LocalRuntime,
   plans: BindingPlans,
   values: Readonly<Record<string, LocalValue>>,
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
+  const scalars: Record<string, LocalValue> = Object.create(null);
 
   for (const plan of plans.plans) {
     if (plan.slot !== undefined) continue;
@@ -492,8 +501,10 @@ function writeValues(
     // Preserve values already present in the runtime without treating state
     // restoration as a new user write that must satisfy required validation.
     if (Object.is(runtime.get(plan.node), values[plan.key])) continue;
-    diagnostics.push(...runtime.set(plan.node, values[plan.key]));
+    scalars[plan.key] = values[plan.key];
   }
+  if (diagnostics.length) return diagnostics;
+  diagnostics.push(...runtime.setParameters(scalars));
 
   for (const group of plans.groups) {
     const payload: Record<string, LocalValue> = {};

@@ -80,6 +80,7 @@ import {
 } from '../../export/requirements';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from '../html/html';
 import { localHtmlAlign, localHtmlLinkRel } from '../html/html-names';
+import { localCodeUnitPrefix } from '../source/text-length';
 import { splitHtmlDetailsChildren } from '../html/html-details';
 import { PrintValue } from '../../react/component-utils';
 import { TableSurface } from '../widgets/table-surface';
@@ -352,7 +353,7 @@ function validationRangeKey(range: { start: number; end: number }): string {
 
 function boundedValidationText(message: string): string {
   return message.length > VALIDATION_MESSAGE_BUDGET
-    ? `${message.slice(0, VALIDATION_MESSAGE_BUDGET - 1)}…`
+    ? `${localCodeUnitPrefix(message, VALIDATION_MESSAGE_BUDGET - 1)}…`
     : message;
 }
 

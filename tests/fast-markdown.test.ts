@@ -72,6 +72,7 @@ describe('conservative list and table scanning', () => {
     '| A |\n|---|\n| &amp; |', '| A |\n|---|\n| {{ n }} |', 'A\n---', '- a@b.com',
     '- www.example.com', '- ** open**', '- **closed **', '- **a**b', '- a**b**',
     '- a\tvalue', '- one  \n- two', '- one\n \n- two', '\ufeff- one',
+    '- 1.', '1. 2)',
   ])('delegates ambiguous syntax to remark for %j', source => {
     expect(parseFastMarkdown(source)).toBeUndefined();
   });
@@ -179,6 +180,7 @@ describe('fast markdown plan', () => {
     '- one\n\n- two', '- one\n  - nested', '- one\ncontinued', '- [x] done', '- # heading',
     'one\n- two', 'A *emphasis* line.', 'x < y', 'a | b', '{{ n }}', '$x$',
     '# heading', 'line  ', '    code', '- a\\*b', '- a_underscore', 'a\tvalue',
+    '1.', '2)', '123456789.', 'Before\n\n1.', '- 1.',
   ])('never exposes a plan for unsupported syntax %j', source => {
     expect(planFastMarkdown(source)).toBeUndefined();
   });

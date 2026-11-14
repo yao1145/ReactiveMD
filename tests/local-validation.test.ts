@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime } from '../src/local';
 import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
+import { boundLocalDiagnosticMessage } from '../src/local/evaluation/validation';
+import { formatLocalDiagnostic, localDiagnosticDetails } from '../src/local/configuration/diagnostics';
+import { localCodeUnitPrefix } from '../src/local/source/text-length';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);
@@ -216,5 +219,44 @@ describe('cross-field validation rules', () => {
     } finally {
       runtime.dispose();
     }
+  });
+});
+
+describe('diagnostic text truncation', () => {
+  const unpairedSurrogate = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+  it('never splits a surrogate pair at the diagnostic message budget', () => {
+    const bounded = boundLocalDiagnosticMessage('x'.repeat(1998) + '😀' + 'tail'.repeat(10));
+    expect(bounded.length).toBeLessThanOrEqual(2000);
+    expect(bounded.endsWith('…')).toBe(true);
+    expect(unpairedSurrogate.test(bounded)).toBe(false);
+    expect(bounded).toBe(`${'x'.repeat(1998)}…`);
+
+    const kept = boundLocalDiagnosticMessage('x'.repeat(1997) + '😀' + 'tail');
+    expect(kept).toBe(`${'x'.repeat(1997)}😀…`);
+  });
+
+  it('keeps bounded diagnostic params and rendered text well-formed', () => {
+    const details = localDiagnosticDetails('local.binding.unknown', { name: 'x'.repeat(254) + '😀' + 'tail' });
+    const name = String(details.params?.name);
+    expect(name).toBe(`${'x'.repeat(254)}…`);
+    expect(unpairedSurrogate.test(name)).toBe(false);
+
+    const formatted = formatLocalDiagnostic({
+      code: 'host.custom',
+      message: 'x'.repeat(1998) + '😀' + 'tail',
+      severity: 'error',
+      line: 1,
+      column: 1,
+      range: { start: 0, end: 0 },
+    });
+    expect(formatted).toBe(`${'x'.repeat(1998)}…`);
+  });
+
+  it('drops only a trailing high surrogate from a code-unit prefix', () => {
+    expect(localCodeUnitPrefix('a😀b', 2)).toBe('a');
+    expect(localCodeUnitPrefix('a😀b', 3)).toBe('a😀');
+    expect(localCodeUnitPrefix('abc', 10)).toBe('abc');
+    expect(localCodeUnitPrefix('abc', 0)).toBe('');
   });
 });

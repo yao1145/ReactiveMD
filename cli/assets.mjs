@@ -22,7 +22,12 @@ const WINDOWS_DRIVE_PATH = /^[a-z]:[\\/]/i;
  */
 export function displayAssetUrl(value) {
   const text = typeof value === 'string' ? value : String(value ?? '');
-  const clipped = text.length > 200 ? `${text.slice(0, 197)}...` : text;
+  let clipped = text;
+  if (text.length > 200) {
+    // Do not leave half of a surrogate pair before the ellipsis.
+    const end = /[\uD800-\uDBFF]/.test(text[196]) ? 196 : 197;
+    clipped = `${text.slice(0, end)}...`;
+  }
   return clipped.replace(CONTROL_CHARACTERS, (character) => (
     `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`
   ));

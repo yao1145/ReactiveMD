@@ -1,5 +1,6 @@
 import {
   compileExpression,
+  expressionDependencyOffset,
   localValueBudgetError,
   LocalExpressionError,
   type LocalExpression,
@@ -39,6 +40,12 @@ export interface ResolvedComputations {
   order: string[];
   expressions: Map<string, LocalExpression>;
   constValues: Record<string, LocalValue>;
+}
+
+/** Absolute offset of the first reference to `dependency` in the declaration. */
+function dependencyStart(input: ComputationInput, compiled: LocalExpression | undefined, dependency: string): number {
+  const offset = compiled ? expressionDependencyOffset(compiled, dependency) : undefined;
+  return input.expressionOffset + (offset ?? Math.max(0, input.source.indexOf(dependency)));
 }
 
 function expressionError(
@@ -167,7 +174,7 @@ export function resolveComputationGraph(
       report(
         'local.computation.unknown',
         `Reference to undeclared parameter ${dependency} in computation "${name}".`,
-        (byName.get(name)!.expressionOffset) + Math.max(0, byName.get(name)!.source.indexOf(dependency)),
+        dependencyStart(byName.get(name)!, expressions.get(name), dependency),
       );
       failed.add(name);
       break;
@@ -188,14 +195,14 @@ export function resolveComputationGraph(
         report(
           'local.computation.const',
           `Constant "${name}" cannot depend on ${externalNames.has(dependency) ? 'external data' : 'control parameter'} "${dependency}".`,
-          input.expressionOffset + Math.max(0, input.source.indexOf(dependency)),
+          dependencyStart(input, expressions.get(name), dependency),
         );
         invalidConst.add(name);
       } else if (dependencyKind === 'computed') {
         report(
           'local.computation.const',
           `Constant "${name}" cannot depend on computed value "${dependency}".`,
-          input.expressionOffset + Math.max(0, input.source.indexOf(dependency)),
+          dependencyStart(input, expressions.get(name), dependency),
         );
         invalidConst.add(name);
       }
@@ -273,6 +280,20 @@ export function resolveComputationGraph(
   // division by zero or an out-of-domain function is a compile diagnostic.
   const constValues: Record<string, LocalValue> = {};
   const constEnv: Record<string, LocalValue> = {};
+  // A constant that fails is already reported. Later constants read it
+  // through a getter that throws this marker so they are skipped silently,
+  // while branches that never read it still evaluate.
+  const failedConstRead = new Error('failed constant read');
+  const markFailedConst = (name: string) => {
+    failed.add(name);
+    Object.defineProperty(constEnv, name, {
+      enumerable: true,
+      configurable: true,
+      get() {
+        throw failedConstRead;
+      },
+    });
+  };
   for (const name of order) {
     if (failed.has(name) || byName.get(name)!.kind !== 'const' || invalidConst.has(name)) continue;
     const input = byName.get(name)!;
@@ -282,19 +303,23 @@ export function resolveComputationGraph(
       const budget = localValueBudgetError(value);
       if (budget) {
         report('local.computation.budget', `Constant "${name}": ${budget}`, input.expressionOffset);
-        failed.add(name);
+        markFailedConst(name);
         continue;
       }
       constValues[name] = Array.isArray(value) ? value.slice() : value;
       constEnv[name] = constValues[name];
     } catch (error) {
+      if (error === failedConstRead) {
+        markFailedConst(name);
+        continue;
+      }
       const normalized = normalizeError(error);
       report(
         'local.computation.expression',
         `Constant "${name}" cannot be evaluated: ${normalized.message}`,
         input.expressionOffset + (Number.isFinite(normalized.offset) ? normalized.offset : 0),
       );
-      failed.add(name);
+      markFailedConst(name);
     }
   }
 

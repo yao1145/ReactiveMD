@@ -1,5 +1,6 @@
 import { MAX_LOCAL_DIAGNOSTIC_LENGTH } from './limits';
 import type { Diagnostic, LocalDiagnosticParams } from '../contracts/types';
+import { localCodeUnitPrefix } from '../source/text-length';
 import {
   LOCAL_DIAGNOSTIC_MESSAGES,
   LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES,
@@ -30,7 +31,7 @@ const MAX_DIAGNOSTIC_PARAM_TOTAL = 2_000;
 function boundedParam(value: unknown): string | number | boolean | null {
   if (typeof value === 'string') {
     return value.length > MAX_DIAGNOSTIC_PARAM_LENGTH
-      ? `${value.slice(0, MAX_DIAGNOSTIC_PARAM_LENGTH - 1)}…`
+      ? `${localCodeUnitPrefix(value, MAX_DIAGNOSTIC_PARAM_LENGTH - 1)}…`
       : value;
   }
   if (typeof value === 'number') return Number.isFinite(value) ? value : String(value);
@@ -39,10 +40,10 @@ function boundedParam(value: unknown): string | number | boolean | null {
   try {
     const text = JSON.stringify(value) ?? String(value);
     return text.length > MAX_DIAGNOSTIC_PARAM_LENGTH
-      ? `${text.slice(0, MAX_DIAGNOSTIC_PARAM_LENGTH - 1)}…`
+      ? `${localCodeUnitPrefix(text, MAX_DIAGNOSTIC_PARAM_LENGTH - 1)}…`
       : text;
   } catch {
-    return String(value).slice(0, MAX_DIAGNOSTIC_PARAM_LENGTH);
+    return localCodeUnitPrefix(String(value), MAX_DIAGNOSTIC_PARAM_LENGTH);
   }
 }
 
@@ -396,6 +397,6 @@ export function formatLocalDiagnostic(
     : renderTemplate(template, params);
   const safe = typeof text === 'string' ? text : String(text ?? '');
   return safe.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
-    ? `${safe.slice(0, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
+    ? `${localCodeUnitPrefix(safe, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
     : safe;
 }
