@@ -4,6 +4,12 @@ import {
   RESERVED_NAMES,
   compileExpression,
 } from '../src/local/evaluation/expression';
+import {
+  formatCurrency,
+  formatNumber,
+  formatPercent,
+  formatScientific,
+} from '../src/local/evaluation/formatting';
 import type { LocalValue, LocalValueKind } from '../src/local/contracts/types';
 
 function evaluate(source: string, env: Record<string, LocalValue> = {}): LocalValue {
@@ -68,6 +74,20 @@ describe('formatting built-ins', () => {
     expect(evaluate('formatScientific(-0)')).toBe('0.00E0');
     expect(evaluate('formatCurrency(-0)')).toBe('$0.00');
     expect(evaluate('formatCurrency(-0.001)')).toBe('$0.00');
+  });
+
+  it('decides the zero sign from the decimal rounding result near the midpoint', () => {
+    // -0.5 * 10 ** -4 is -0.0000499999…, which rounds to zero and must not keep a minus sign.
+    expect(formatNumber(-0.5 * 10 ** -4, 4)).toBe('0.0000');
+    expect(formatCurrency(-0.5 * 10 ** -4, 'USD', 4)).toBe('$0.0000');
+    expect(formatPercent(-0.5 * 10 ** -4, 2)).toBe('0.00%');
+    expect(formatNumber(-0.5 * 10 ** -4, 4, 'de-DE')).toBe('0,0000');
+
+    // Decimal midpoints below the old binary threshold still round away from zero.
+    expect(formatNumber(-5e-21, 20)).toBe('-0.00000000000000000001');
+    expect(formatPercent(-5e-21, 18)).toBe('-0.000000000000000001%');
+    expect(formatCurrency(-0.00005, 'USD', 4)).toBe('-$0.0001');
+    expect(formatScientific(-5e-21, 2)).toBe('-5.00E-21');
   });
 
   it('formats percentages from ratios', () => {

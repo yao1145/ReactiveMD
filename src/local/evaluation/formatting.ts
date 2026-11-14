@@ -25,10 +25,17 @@ const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 const MAX_FRACTION_DIGITS = 20;
 
 /**
- * `roundingMode` is part of ECMA-402 but was added after the ES2022 type
- * library this package targets, so it is declared explicitly here.
+ * `roundingMode` and `signDisplay: 'negative'` are part of ECMA-402 but were
+ * added after the ES2022 type library this package targets, so they are
+ * declared explicitly here.
  */
 type FormatOptions = Intl.NumberFormatOptions & { roundingMode: 'halfExpand' };
+
+/**
+ * Intl decides the sign after its own decimal rounding, so zero (including
+ * `-0` and negative values that round to zero) never shows a minus sign.
+ */
+const NEGATIVE_SIGN_ONLY = { signDisplay: 'negative' } as unknown as Intl.NumberFormatOptions;
 
 function domain(message: string): never {
   throw new LocalFunctionError('expression-domain', message);
@@ -68,28 +75,6 @@ function finiteNumber(value: number): number {
   return value;
 }
 
-/** Render both signed zeros as positive zero. */
-function normalizeSignedZero(value: number): number {
-  return value === 0 ? 0 : value;
-}
-
-/**
- * A negative value that rounds to zero at the requested fraction digits must
- * not keep a minus sign (`-0.001` with two digits renders `0.00`).
- */
-function normalizeFixed(value: number, digits: number): number {
-  const number = finiteNumber(value);
-  if (number === 0) return 0;
-  return Math.abs(number) < 0.5 * 10 ** -digits ? 0 : number;
-}
-
-/** Percent formatting rounds `value * 100`, so the midpoint shifts by two digits. */
-function normalizePercent(value: number, digits: number): number {
-  const number = finiteNumber(value);
-  if (number === 0) return 0;
-  return Math.abs(number) < 0.5 * 10 ** -(digits + 2) ? 0 : number;
-}
-
 function formatWith(
   locale: string,
   options: FormatOptions,
@@ -99,7 +84,7 @@ function formatWith(
 ): string {
   let formatter: Intl.NumberFormat | undefined;
   try {
-    formatter = new Intl.NumberFormat(locale, options);
+    formatter = new Intl.NumberFormat(locale, { ...options, ...NEGATIVE_SIGN_ONLY });
   } catch {
     formatter = undefined;
   }
@@ -129,7 +114,7 @@ export function formatNumber(
       maximumFractionDigits: validDigits,
       roundingMode: 'halfExpand',
     },
-    normalizeFixed(value, validDigits),
+    finiteNumber(value),
     'Formatted number',
     `Cannot format a number for locale "${validLocale}".`,
   );
@@ -151,7 +136,7 @@ export function formatPercent(value: number | null, digits = 0, locale = 'en-US'
       maximumFractionDigits: validDigits,
       roundingMode: 'halfExpand',
     },
-    normalizePercent(value, validDigits),
+    finiteNumber(value),
     'Formatted percentage',
     `Cannot format a percentage for locale "${validLocale}".`,
   );
@@ -173,7 +158,7 @@ export function formatScientific(value: number | null, digits = 2, locale = 'en-
       maximumFractionDigits: validDigits,
       roundingMode: 'halfExpand',
     },
-    normalizeSignedZero(finiteNumber(value)),
+    finiteNumber(value),
     'Formatted number',
     `Cannot format a number for locale "${validLocale}".`,
   );
@@ -207,7 +192,7 @@ export function formatCurrency(
       maximumFractionDigits: validDigits,
       roundingMode: 'halfExpand',
     },
-    normalizeFixed(value, validDigits),
+    finiteNumber(value),
     'Formatted currency',
     `Currency code "${currency}" is not accepted by Intl.`,
   );
