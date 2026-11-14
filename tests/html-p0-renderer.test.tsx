@@ -152,3 +152,29 @@ describe('P0 HTML attribute decoding', () => {
     expect(elements(render(source, undefined, true).tree, 'a')).toHaveLength(0);
   });
 });
+
+describe('P0 HTML raw code NUL handling', () => {
+  const compiledNodes = (source: string): any[] => {
+    const result = compileLocal(source);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const walk = (node: any): any[] => [node, ...(node.children ?? []).flatMap(walk)];
+    return result.document.nodes.flatMap(walk);
+  };
+  const codeValues = (source: string): string[] =>
+    compiledNodes(source).filter(node => node.type === 'inlineCode' || node.type === 'code').map(node => node.value);
+
+  it.each([
+    ['<code>a\0b</code>', 'a�b'],
+    ['<code>a\0b&amp;</code>', 'a�b&'],
+    ['<code>a&#0;b</code>', 'a�b'],
+    ['<pre>a\0b</pre>', 'a�b'],
+    ['<pre><code>a\0b&amp;</code></pre>', 'a�b&'],
+  ])('replaces NUL with U+FFFD in %j', (source, expected) => {
+    expect(codeValues(source)).toEqual([expected]);
+  });
+
+  it.each(['<span title="a\0b">x</span>', '<span title="a\0b&amp;">x</span>'])('replaces NUL with U+FFFD in attribute %j', source => {
+    const title = compiledNodes(source).find(node => node.attrs?.title)?.attrs.title;
+    expect(title?.startsWith('a\uFFFDb')).toBe(true);
+  });
+});

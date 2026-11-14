@@ -15,7 +15,7 @@ export const STANDARD_PARSER_CAPABILITIES: LocalParserCapabilities = Object.free
   markdownPlugins: Object.freeze([remarkGfm]),
   html: Object.freeze({
     nativeTagNames: new Set<string>(Object.values(nativeHtml.TAG_NAMES)),
-    decodeEntities: (value: string) => decodeLocalHtmlEntities(value, false),
+    decodeEntities: (value: string) => decodeLocalHtmlEntities(value, true),
     decodeAttribute: decodeLocalHtmlAttribute,
     readTable: readHtmlTable,
     recoverFragment: recoverLocalHtml,
