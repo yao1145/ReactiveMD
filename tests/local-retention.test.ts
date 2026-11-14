@@ -5,7 +5,7 @@ import {
   planLocalStateRetention,
   type LocalStateRetentionDrop,
 } from '../src/local/runtime/retention';
-import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { createLocalRuntime, updateLocalRuntime } from '../src/local/runtime/runtime';
 import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/contracts/types';
 
 function compile(source: string): LocalDocument {
@@ -325,6 +325,76 @@ describe('local state retention planning', () => {
       }
     } finally {
       runtime.dispose();
+    }
+  });
+});
+
+describe('document updates with dynamically narrowed values', () => {
+  const NARROWED = [
+    '<slider bind="a" label="A" initial="5" min="0" max="10">',
+    '<number bind="b" label="B" initial="1" min="0" max="{{ a }}">',
+    'para',
+  ].join('\n');
+
+  function narrowedRuntime(): LocalRuntime {
+    const runtime = createLocalRuntime(compile(NARROWED));
+    expect(runtime.setParameter('a', 10)).toEqual([]);
+    expect(runtime.setParameter('b', 9)).toEqual([]);
+    expect(runtime.setParameter('a', 5)).toEqual([]);
+    // 依赖收窄范围后保留已有值，见约束文档。
+    expect(runtime.getParameter('b')).toBe(9);
+    return runtime;
+  }
+
+  it('keeps a value narrowed by a dependency across a prose-only edit', () => {
+    const runtime = narrowedRuntime();
+    try {
+      const report = updateLocalRuntime(runtime, compile(`${NARROWED}\n\nmore prose`), { notify: false });
+      expect(report.ok).toBe(true);
+      expect(report.dropped).toEqual([]);
+      expect(report.retained).toEqual(['a', 'b']);
+      expect(runtime.getParameters()).toMatchObject({ a: 5, b: 9 });
+    } finally {
+      runtime.dispose();
+    }
+  });
+
+  it('keeps a narrowed value when prose is inserted before the controls', () => {
+    // 前置正文会改变节点 ID 与源码位置；约束指纹不应依赖它们。
+    const runtime = narrowedRuntime();
+    try {
+      const report = updateLocalRuntime(runtime, compile(`# Title\n\nIntro **text** {{ a }}\n\n${NARROWED}`), { notify: false });
+      expect(report.ok).toBe(true);
+      expect(report.dropped).toEqual([]);
+      expect(runtime.getParameters()).toMatchObject({ a: 5, b: 9 });
+    } finally {
+      runtime.dispose();
+    }
+  });
+
+  it('still resets values when the constraint definition itself changes', () => {
+    const runtime = narrowedRuntime();
+    try {
+      // b 的约束从动态改为静态：按新约束校验并回退到新初值。
+      const staticMax = NARROWED.replace('max="{{ a }}"', 'max="5"');
+      const report = updateLocalRuntime(runtime, compile(staticMax), { notify: false });
+      expect(report.ok).toBe(true);
+      expect(report.dropped).toEqual([{ name: 'b', reason: 'invalid' }]);
+      expect(runtime.getParameters()).toMatchObject({ a: 5, b: 1 });
+    } finally {
+      runtime.dispose();
+    }
+
+    const literal = createLocalRuntime(compile(NARROWED));
+    try {
+      expect(literal.setParameter('a', 9)).toEqual([]);
+      // 字面量 max 从 10 改为 5：值 9 回退。
+      const report = updateLocalRuntime(literal, compile(NARROWED.replace('max="10"', 'max="5"')), { notify: false });
+      expect(report.ok).toBe(true);
+      expect(report.dropped).toEqual([{ name: 'a', reason: 'invalid' }]);
+      expect(literal.getParameters()).toMatchObject({ a: 5, b: 1 });
+    } finally {
+      literal.dispose();
     }
   });
 });
