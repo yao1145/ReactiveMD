@@ -135,6 +135,20 @@ describe('computed declaration diagnostics', () => {
     expect(codes('<computed name="a">')).toContain('local.attribute.required');
   });
 
+  it('points reference diagnostics at the identifier token, not at string literal text', () => {
+    const unknownSource = '<computed name="t" value="{{ \'q: \' + q }}">\n\n{{ t }}';
+    const unknown = diagnostics(unknownSource).find((diagnostic) => diagnostic.code === 'local.computation.unknown');
+    expect(unknown?.range.start).toBe(unknownSource.indexOf('q }}'));
+
+    const controlSource = '<const name="c" value="{{ \'n\' + n }}">\n<number bind="n" label="N">';
+    const control = diagnostics(controlSource).find((diagnostic) => diagnostic.code === 'local.computation.const');
+    expect(control?.range.start).toBe(controlSource.indexOf('n }}'));
+
+    const computedSource = '<const name="c" value="{{ \'r\' + r }}">\n<computed name="r" value="{{ 1 }}">';
+    const computed = diagnostics(computedSource).find((diagnostic) => diagnostic.code === 'local.computation.const');
+    expect(computed?.range.start).toBe(computedSource.indexOf('r }}'));
+  });
+
   it('requires a standalone top-level line and one complete interpolation', () => {
     expect(codes('Text <computed name="result" value="{{ 1 }}">')).toContain('local.computation.placement');
     expect(

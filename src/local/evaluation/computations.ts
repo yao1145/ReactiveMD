@@ -1,5 +1,6 @@
 import {
   compileExpression,
+  expressionDependencyOffset,
   localValueBudgetError,
   LocalExpressionError,
   type LocalExpression,
@@ -39,6 +40,12 @@ export interface ResolvedComputations {
   order: string[];
   expressions: Map<string, LocalExpression>;
   constValues: Record<string, LocalValue>;
+}
+
+/** Absolute offset of the first reference to `dependency` in the declaration. */
+function dependencyStart(input: ComputationInput, compiled: LocalExpression | undefined, dependency: string): number {
+  const offset = compiled ? expressionDependencyOffset(compiled, dependency) : undefined;
+  return input.expressionOffset + (offset ?? Math.max(0, input.source.indexOf(dependency)));
 }
 
 function expressionError(
@@ -167,7 +174,7 @@ export function resolveComputationGraph(
       report(
         'local.computation.unknown',
         `Reference to undeclared parameter ${dependency} in computation "${name}".`,
-        (byName.get(name)!.expressionOffset) + Math.max(0, byName.get(name)!.source.indexOf(dependency)),
+        dependencyStart(byName.get(name)!, expressions.get(name), dependency),
       );
       failed.add(name);
       break;
@@ -188,14 +195,14 @@ export function resolveComputationGraph(
         report(
           'local.computation.const',
           `Constant "${name}" cannot depend on ${externalNames.has(dependency) ? 'external data' : 'control parameter'} "${dependency}".`,
-          input.expressionOffset + Math.max(0, input.source.indexOf(dependency)),
+          dependencyStart(input, expressions.get(name), dependency),
         );
         invalidConst.add(name);
       } else if (dependencyKind === 'computed') {
         report(
           'local.computation.const',
           `Constant "${name}" cannot depend on computed value "${dependency}".`,
-          input.expressionOffset + Math.max(0, input.source.indexOf(dependency)),
+          dependencyStart(input, expressions.get(name), dependency),
         );
         invalidConst.add(name);
       }
