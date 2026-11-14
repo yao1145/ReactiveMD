@@ -15,6 +15,7 @@
 import type { LocalMathDisplayIssue, LocalDiagnosticParams } from '../contracts/types';
 export type { LocalMathDisplayIssue } from '../contracts/types';
 import { renderLocalDiagnostic } from '../configuration/diagnostics';
+import { localCodeUnitPrefix } from '../source/text-length';
 import katex from 'katex';
 import 'katex/contrib/mhchem';
 
@@ -160,7 +161,7 @@ function budgetIssue(
 }
 
 function boundedDisplayName(name: string): string {
-  return name.length > MAX_DISPLAY_NAME ? `${name.slice(0, MAX_DISPLAY_NAME - 1)}…` : name;
+  return name.length > MAX_DISPLAY_NAME ? `${localCodeUnitPrefix(name, MAX_DISPLAY_NAME - 1)}…` : name;
 }
 
 /* ------------------------------------------------------------------ */
@@ -597,7 +598,7 @@ function issueFromRenderError(
 /** Bounded literal text used when the whole formula cannot be rendered. */
 export function boundedLocalMathLiteral(source: string): string {
   return source.length > MAX_LOCAL_MATH_DISPLAY_FALLBACK
-    ? `${source.slice(0, MAX_LOCAL_MATH_DISPLAY_FALLBACK)}…`
+    ? `${localCodeUnitPrefix(source, MAX_LOCAL_MATH_DISPLAY_FALLBACK)}…`
     : source;
 }
 

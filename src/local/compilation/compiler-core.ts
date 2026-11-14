@@ -2,7 +2,7 @@ import type { Diagnostic } from '../contracts/types';
 import { isLocalColor } from '../theme/colors';
 
 import { diagnosticEnglish, localDiagnosticDetails, type LocalDiagnosticDetails } from '../configuration/diagnostics';
-import { countLocalCodePoints } from '../source/text-length';
+import { countLocalCodePoints, localCodeUnitPrefix } from '../source/text-length';
 import { attachNodeDependencies } from './dependencies';
 import { compileExpression, LocalExpressionError, localValueBudgetIssue, RESERVED_NAMES, type LocalExpression } from '../evaluation/expression';
 import {
@@ -398,7 +398,7 @@ export function compileLocalCore(
     diagnostics.push({
       code,
       message: text.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
-        ? `${text.slice(0, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
+        ? `${localCodeUnitPrefix(text, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
         : text,
       severity: 'error',
       range: { start: safeStart, end: safeEnd },
@@ -2932,7 +2932,7 @@ function reportWarning(
   state.diagnostics.push({
     code,
     message: text.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
-      ? `${text.slice(0, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
+      ? `${localCodeUnitPrefix(text, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
       : text,
     severity: 'warning',
     range: { start: safeStart, end: safeEnd },

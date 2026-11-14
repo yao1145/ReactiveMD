@@ -32,6 +32,7 @@ import type { FastMarkdownPlan, InlinePlanLookup, FastMarkdownContext } from '..
 import { parseMarkdownBlocks,markdownTreeFacts,type MarkdownStructure } from '../markdown/markdown-blocks';
 import type { LocalParserCapabilities } from './parser-capabilities';
 import { SourceContext, MappedSource } from '../source/source-context';
+import { localCodeUnitPrefix } from '../source/text-length';
 import { ParseBudgetError, ParseWorkBudget, type ParseSessionCache, type ParseSessionCounters } from './parse-budget';
 import { planRmdRecovery } from './rmd-recovery';
 import { normalizeHtmlDetailsChildren } from '../html/html-details';
@@ -555,7 +556,7 @@ export function parseLocalCore(
     }
     const line = low + 1;
     const text = message.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
-      ? `${message.slice(0, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
+      ? `${localCodeUnitPrefix(message, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
       : message;
     const bounded = localDiagnosticDetails(details?.key ?? code, details?.params);
     diagnostics.push({

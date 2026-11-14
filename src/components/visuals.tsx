@@ -97,8 +97,15 @@ function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
+/** UTF-16 prefix that never ends with half of a surrogate pair. */
+function codeUnitPrefix(text: string, end: number): string {
+  const prefix = text.slice(0, end);
+  const last = prefix.charCodeAt(prefix.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? prefix.slice(0, -1) : prefix;
+}
+
 function truncate(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text;
+  return text.length > max ? `${codeUnitPrefix(text, Math.max(1, max - 1))}…` : text;
 }
 
 function AxisTitleLabel({ text, max }: { text: string; max: number }) {
@@ -118,7 +125,7 @@ function wrapLabel(text: string, maxChars = 8, maxLines = 2): string[] {
     rest = rest.slice(maxChars);
   }
   if (rest || lines.length === 0) {
-    lines.push(rest.length > maxChars ? `${rest.slice(0, Math.max(1, maxChars - 1))}…` : rest);
+    lines.push(rest.length > maxChars ? `${codeUnitPrefix(rest, Math.max(1, maxChars - 1))}…` : rest);
   }
   return lines;
 }
