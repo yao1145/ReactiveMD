@@ -273,6 +273,20 @@ export function resolveComputationGraph(
   // division by zero or an out-of-domain function is a compile diagnostic.
   const constValues: Record<string, LocalValue> = {};
   const constEnv: Record<string, LocalValue> = {};
+  // A constant that fails is already reported. Later constants read it
+  // through a getter that throws this marker so they are skipped silently,
+  // while branches that never read it still evaluate.
+  const failedConstRead = new Error('failed constant read');
+  const markFailedConst = (name: string) => {
+    failed.add(name);
+    Object.defineProperty(constEnv, name, {
+      enumerable: true,
+      configurable: true,
+      get() {
+        throw failedConstRead;
+      },
+    });
+  };
   for (const name of order) {
     if (failed.has(name) || byName.get(name)!.kind !== 'const' || invalidConst.has(name)) continue;
     const input = byName.get(name)!;
@@ -282,19 +296,23 @@ export function resolveComputationGraph(
       const budget = localValueBudgetError(value);
       if (budget) {
         report('local.computation.budget', `Constant "${name}": ${budget}`, input.expressionOffset);
-        failed.add(name);
+        markFailedConst(name);
         continue;
       }
       constValues[name] = Array.isArray(value) ? value.slice() : value;
       constEnv[name] = constValues[name];
     } catch (error) {
+      if (error === failedConstRead) {
+        markFailedConst(name);
+        continue;
+      }
       const normalized = normalizeError(error);
       report(
         'local.computation.expression',
         `Constant "${name}" cannot be evaluated: ${normalized.message}`,
         input.expressionOffset + (Number.isFinite(normalized.offset) ? normalized.offset : 0),
       );
-      failed.add(name);
+      markFailedConst(name);
     }
   }
 

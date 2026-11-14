@@ -171,6 +171,29 @@ describe('const restrictions and static evaluation', () => {
     const result = compileLocal('<computed name="r" value="{{ 1 / 0 }}">');
     expect(result.ok).toBe(true);
   });
+
+  it('reports a failed constant once and skips constants that read it', () => {
+    const chain = diagnostics(
+      [
+        '<const name="a" value="{{ 1/0 }}">',
+        '<const name="b" value="{{ a + 1 }}">',
+        '<const name="c" value="{{ b * 2 }}">',
+        '',
+        'x',
+      ].join('\n'),
+    );
+    expect(chain.map((diagnostic) => diagnostic.message)).toEqual([
+      'Constant "a" cannot be evaluated: Division by zero.',
+    ]);
+
+    // A branch that never reads the failed constant still evaluates.
+    const result = compileLocal(
+      '<const name="a" value="{{ 1/0 }}">\n<const name="b" value="{{ false ? a : 1 }}">\n<const name="c" value="{{ b + 1 }}">',
+    );
+    expect(result.diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
+      'Constant "a" cannot be evaluated: Division by zero.',
+    ]);
+  });
 });
 
 describe('computed runtime behavior', () => {
