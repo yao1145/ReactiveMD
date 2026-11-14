@@ -2227,7 +2227,11 @@ function LocalDocumentViewLocal({
     const target = origin.closest<HTMLElement>('[data-rmd-source-start]');
     if (!target || !rootRef.current?.contains(target)) return;
     const selection = typeof window === 'undefined' ? null : window.getSelection();
-    if (selection && selection.toString().trim()) return;
+    // A text selection inside the document means this click finished a drag, so
+    // it must not navigate. A selection elsewhere (a host editor keeps its own)
+    // is not a preview drag and must not suppress navigation: controls that set
+    // `user-select: none` never collapse it on mousedown.
+    if (selection && selection.toString().trim() && selection.anchorNode && rootRef.current?.contains(selection.anchorNode)) return;
     const start = Number(target.dataset.rmdSourceStart);
     const end = Number(target.dataset.rmdSourceEnd);
     if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start) return;
