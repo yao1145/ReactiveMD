@@ -308,6 +308,7 @@ export function parseLocalCore(
   const scanStructure = capabilities?.markdownStructure;
   const nativeHtmlNames: ReadonlySet<string> = htmlSupport?.nativeTagNames ?? new Set<string>();
   const decodeEntities = htmlSupport?.decodeEntities ?? ((value: string): string => value);
+  const decodeAttribute = htmlSupport?.decodeAttribute ?? decodeEntities;
   const markdown = markdownFor(capabilities);
   const sourceContext = context?.source === source ? context : new SourceContext(source);
   const {lineStarts} = sourceContext;
@@ -856,7 +857,7 @@ export function parseLocalCore(
     const end = close - 1;
     const rest = source.slice(head, end);
     const closing = Boolean(match[1]);
-    const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head, decodeEntities);
+    const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head, decodeAttribute);
     return {
       lower,
       closing,
@@ -916,14 +917,16 @@ export function parseLocalCore(
     for (const entry of tag.entries) {
       const name = entry.name;
       if (!isHtmlAttributeNameAllowed(lower, name)) return { ok: false, attr: name };
+      // Duplicates are still validated, but the first occurrence wins as in HTML.
+      const first = !Object.hasOwn(attrs, name);
       if (name === 'align' && LOCAL_HTML_ALIGN_ELEMENTS.has(lower)) {
         const align = htmlAlignValue(lower, entry.value);
         if (!align) return { ok: false, attr: name };
-        attrs.align = align;
+        if (first) attrs.align = align;
         continue;
       }
       if (!isValidHtmlAttributeValue(name, entry.value)) return { ok: false, attr: name };
-      attrs[name] = entry.value;
+      if (first) attrs[name] = entry.value;
     }
     if (lower === 'details' && Object.hasOwn(attrs, 'open')) attrs.open = 'true';
     return { ok: true, attrs };

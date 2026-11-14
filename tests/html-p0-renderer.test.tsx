@@ -123,3 +123,58 @@ describe('P0 HTML renderer', () => {
     expect(image.referrerpolicy).toBe('no-referrer');
   });
 });
+
+describe('P0 HTML attribute decoding', () => {
+  it('decodes attribute values with the attribute-value grammar', () => {
+    const { tree } = render('<a href="https://e.example/?a=1&copy=2&not=3&lang=zh" title="&amp;&#x26;&copy;&copy &lt;&quot;">x</a> <a href=\'https://e.example/?q="&amp;x\'>y</a>');
+    const [first, second] = elements(tree, 'a');
+    expect(attrs(first).href).toBe('https://e.example/?a=1&copy=2&not=3&lang=zh');
+    expect(attrs(first).title).toBe('&&©© <"');
+    expect(attrs(second).href).toBe('https://e.example/?q="&x');
+  });
+
+  it.each(['jav&#x61;script:alert(1)', 'javascript&colon;alert(1)', '&#x6A;avascript:alert(1)', 'java&#x09;script:alert(1)'])(
+    'still rejects an unsafe URL hidden behind character references: %s', href => {
+      const source = `<a href="${href}">x</a>`;
+      expect(compileLocal(source).diagnostics.map(d => d.code)).toContain('local.html.fallback');
+      expect(elements(render(source, undefined, true).tree, 'a')).toHaveLength(0);
+    });
+
+  it('keeps the first of duplicate attributes, as HTML does', () => {
+    const { tree } = render('<a href="https://a.example/" href="https://b.example/" title="one" title="two">x</a>\n\n<p align="left" align="right">y</p>');
+    expect(attrs(elements(tree, 'a')[0])).toMatchObject({ href: 'https://a.example/', title: 'one' });
+    expect(elements(tree, 'p').map(node => attrs(node).align).filter(Boolean)).toEqual(['left']);
+  });
+
+  it('still rejects an unsafe duplicate attribute value', () => {
+    const source = '<a href="https://a.example/" href="javascript:alert(1)">x</a>';
+    expect(compileLocal(source).diagnostics.map(d => d.code)).toContain('local.html.fallback');
+    expect(elements(render(source, undefined, true).tree, 'a')).toHaveLength(0);
+  });
+});
+
+describe('P0 HTML raw code NUL handling', () => {
+  const compiledNodes = (source: string): any[] => {
+    const result = compileLocal(source);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const walk = (node: any): any[] => [node, ...(node.children ?? []).flatMap(walk)];
+    return result.document.nodes.flatMap(walk);
+  };
+  const codeValues = (source: string): string[] =>
+    compiledNodes(source).filter(node => node.type === 'inlineCode' || node.type === 'code').map(node => node.value);
+
+  it.each([
+    ['<code>a\0b</code>', 'a�b'],
+    ['<code>a\0b&amp;</code>', 'a�b&'],
+    ['<code>a&#0;b</code>', 'a�b'],
+    ['<pre>a\0b</pre>', 'a�b'],
+    ['<pre><code>a\0b&amp;</code></pre>', 'a�b&'],
+  ])('replaces NUL with U+FFFD in %j', (source, expected) => {
+    expect(codeValues(source)).toEqual([expected]);
+  });
+
+  it.each(['<span title="a\0b">x</span>', '<span title="a\0b&amp;">x</span>'])('replaces NUL with U+FFFD in attribute %j', source => {
+    const title = compiledNodes(source).find(node => node.attrs?.title)?.attrs.title;
+    expect(title?.startsWith('a\uFFFDb')).toBe(true);
+  });
+});
