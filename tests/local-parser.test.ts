@@ -212,6 +212,39 @@ describe('ordinary Markdown compatibility', () => {
     },
   );
 
+  it('shields indented code inside a container exactly like at the root', () => {
+    // 容器内容先按共同缩进去缩进，再按 Markdown 解析；缩进代码块保持原文。
+    for (const body of ['{{ zz }}', '<toggle bind="q" label="q">']) {
+      const root = parseLocal(`text\n\n    ${body}\n`);
+      const container = parseLocal(`<card title="t">\ntext\n\n    ${body}\n\n</card>`);
+      const indented = parseLocal(`<card title="t">\n  text\n\n      ${body}\n\n</card>`);
+      for (const parsed of [root, container, indented]) {
+        expect(parsed.diagnostics).toEqual([]);
+        const all = flat(parsed.nodes);
+        expect(all.filter(n => n.type === 'code').map(n => n.value)).toEqual([body]);
+        expect(all.some(n => n.type === 'interpolation' || n.name === 'toggle')).toBe(false);
+      }
+    }
+    // 容器内引用块里的围栏代码同样被屏蔽。
+    const quoted = parseLocal('<card>\n> ```\n> {{ zz }}\n> ```\n</card>');
+    expect(flat(quoted.nodes).filter(n => n.type === 'code').map(n => n.value)).toEqual(['{{ zz }}']);
+  });
+
+  it('keeps image alt text free of internal placeholder markers', () => {
+    const alts = (source: string) => flat(parseLocal(source).nodes)
+      .filter(n => n.type === 'image' || n.type === 'imageReference').map(n => n.alt);
+    // alt 与普通 remark 一致：保留原文，行内代码只取内容。
+    expect(alts('![alt {{ zz }}](https://e.com/a.png)')).toEqual(['alt {{ zz }}']);
+    expect(alts('![$x$ and `c`](u.png)')).toEqual(['$x$ and c']);
+    expect(alts('![*a* and `c`](u.png)')).toEqual(['a and c']);
+    expect(alts('![**{{ zz }}**](u.png)')).toEqual(['{{ zz }}']);
+    expect(alts('![ref {{ zz }}][r]\n\n[r]: u.png')).toEqual(['ref {{ zz }}']);
+    expect(alts('<card>\n![in {{ zz }}](u.png)\n</card>')).toEqual(['in {{ zz }}']);
+    for (const alt of [
+      ...alts('![alt {{ zz }}](u.png)'), ...alts('![$x$](u.png)'), ...alts('![**{{ zz }}**](u.png)'),
+    ]) expect(alt).not.toMatch(/[-]/);
+  });
+
   it('keeps valid inline and display math working', () => {
     const parsed = parseLocal('$5$ 与 $x^2$，以及 $$ y = x $$');
     expect(parsed.diagnostics).toEqual([]);

@@ -100,6 +100,26 @@ describe('shared source facts', () => {
     expect(facts.fenceSpans[0].from).toBe(0);
   });
 
+  it('closes a list when a blank line is followed by text at or left of the marker', () => {
+    expect(new SourceContext('- item\n\npara').facts.lines.map(line => line.depth)).toEqual([1, 0, 0]);
+    expect(new SourceContext('1. item\n\n## heading').facts.lines[2].depth).toBe(0);
+    expect(new SourceContext('- a\n  - b\n\n  para').facts.lines[3].depth).toBe(1);
+    // 列表项内容（缩进到内容列）和懒续行仍属于列表。
+    expect(new SourceContext('- item\n\n  more').facts.lines[2].depth).toBe(1);
+    expect(new SourceContext('- item\nlazy').facts.lines[1].depth).toBe(1);
+    // 列表关闭后，同列的新标记开启新的第一层列表。
+    expect(new SourceContext('- a\n\npara\n  - b').facts.lines[3].depth).toBe(1);
+  });
+
+  it('does not open a fence on a backtick line whose info string contains a backtick', () => {
+    const facts = new SourceContext('```js `x`\n> quoted\n').facts;
+    expect(facts.fenceSpans).toEqual([]);
+    expect(facts.lines[0].fenced).toBe(false);
+    expect(facts.lines[1].quoteDepth).toBe(1);
+    // 波浪线围栏不受此限制。
+    expect(new SourceContext('~~~js `x`\n> code\n~~~').facts.fenceSpans.length).toBe(1);
+  });
+
   it('ignores a leading BOM when reading the first line', () => {
     const facts = new SourceContext('﻿> > quoted').facts;
     expect(facts.maxMarkdownDepth).toBe(2);

@@ -326,6 +326,23 @@ describe('renameLocalBinding', () => {
     expect(result.source).not.toContain('<input bind="seats"');
   });
 
+  it('leaves indented code inside a container untouched', () => {
+    const nested = [
+      '<input bind="seats" label="Seats">',
+      '',
+      '<card title="t">',
+      'text',
+      '',
+      '    {{ seats }}',
+      '    <input bind="seats" label="Code">',
+      '',
+      '</card>',
+    ].join('\n');
+    const result = renameLocalBinding(nested, 'seats', 'count');
+    expect(result.edits.map((edit) => edit.range.start)).toEqual([nested.indexOf('seats')]);
+    expect(result.source).toContain('    {{ seats }}\n    <input bind="seats" label="Code">');
+  });
+
   it('rejects invalid names, reserved names, collisions and unknown bindings', () => {
     expect(() => renameLocalBinding(source, 'seats', '9bad')).toThrow();
     expect(() => renameLocalBinding(source, 'seats', 'min')).toThrow();
