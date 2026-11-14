@@ -221,7 +221,8 @@ function scan<N>(source: string, lines: readonly Line[], build: ScanCreate<N>, i
   }
   function prose(from: number, to: number, kind?: 'row' | 'item'): N | undefined {
     const text = source.slice(from, to);
-    if (!text || /^[ >+=-]/.test(text) || itemMarker.test(text) || text.includes('|')) return;
+    // A bare ordered marker (`1.`, `2)`) is an empty list item in remark.
+    if (!text || /^[ >+=-]/.test(text) || itemMarker.test(text) || /^\d{1,9}[.)]$/.test(text) || text.includes('|')) return;
     // Standalone lexical blocks may remove their paragraph wrapper. Leave that
     // decision to the normal transform; list interpolation paragraphs are safe.
     if(!kind&&text.startsWith('!['))return;
