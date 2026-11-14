@@ -1,6 +1,6 @@
 import remarkGfm from 'remark-gfm';
 import { html as nativeHtml } from 'parse5';
-import { decodeLocalHtmlEntities } from '../html/html-entities';
+import { decodeLocalHtmlAttribute, decodeLocalHtmlEntities } from '../html/html-entities';
 import { readHtmlTable } from '../html/html-table';
 import { recoverLocalHtml } from '../html/html-recovery';
 import { scanMarkdownStructure } from '../markdown/markdown-structure';
@@ -16,6 +16,7 @@ export const STANDARD_PARSER_CAPABILITIES: LocalParserCapabilities = Object.free
   html: Object.freeze({
     nativeTagNames: new Set<string>(Object.values(nativeHtml.TAG_NAMES)),
     decodeEntities: (value: string) => decodeLocalHtmlEntities(value, false),
+    decodeAttribute: decodeLocalHtmlAttribute,
     readTable: readHtmlTable,
     recoverFragment: recoverLocalHtml,
   }),

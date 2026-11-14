@@ -308,6 +308,7 @@ export function parseLocalCore(
   const scanStructure = capabilities?.markdownStructure;
   const nativeHtmlNames: ReadonlySet<string> = htmlSupport?.nativeTagNames ?? new Set<string>();
   const decodeEntities = htmlSupport?.decodeEntities ?? ((value: string): string => value);
+  const decodeAttribute = htmlSupport?.decodeAttribute ?? ((value: string): string => value);
   const markdown = markdownFor(capabilities);
   const sourceContext = context?.source === source ? context : new SourceContext(source);
   const {lineStarts} = sourceContext;
@@ -856,7 +857,7 @@ export function parseLocalCore(
     const end = close - 1;
     const rest = source.slice(head, end);
     const closing = Boolean(match[1]);
-    const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head, decodeEntities);
+    const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head, decodeAttribute);
     return {
       lower,
       closing,

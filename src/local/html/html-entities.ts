@@ -26,3 +26,21 @@ export function decodeLocalHtmlEntities(value: string, replaceNul = false): stri
     return clean(value);
   }
 }
+
+/**
+ * Decode an attribute value with the attribute-value grammar: a legacy named
+ * reference without `;` followed by `=` or an ASCII alphanumeric stays literal
+ * (`?a=1&copy=2` keeps `&copy`). The raw value comes from a quoted or unquoted
+ * attribute; `"` is re-encoded so the probe element always parses as one
+ * double-quoted attribute and reference boundaries are unchanged.
+ */
+export function decodeLocalHtmlAttribute(value: string): string {
+  if (!value.includes('&')) return value;
+  try {
+    const fragment = parseFragment(`<x a="${value.replace(/"/g, '&quot;')}">`, { scriptingEnabled: false });
+    const element = fragment.childNodes[0] as { attrs?: { name: string; value: string }[] } | undefined;
+    return element?.attrs?.find((attr) => attr.name === 'a')?.value ?? value;
+  } catch {
+    return value;
+  }
+}

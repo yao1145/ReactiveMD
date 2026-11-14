@@ -123,3 +123,20 @@ describe('P0 HTML renderer', () => {
     expect(image.referrerpolicy).toBe('no-referrer');
   });
 });
+
+describe('P0 HTML attribute decoding', () => {
+  it('decodes attribute values with the attribute-value grammar', () => {
+    const { tree } = render('<a href="https://e.example/?a=1&copy=2&not=3&lang=zh" title="&amp;&#x26;&copy;&copy &lt;&quot;">x</a> <a href=\'https://e.example/?q="&amp;x\'>y</a>');
+    const [first, second] = elements(tree, 'a');
+    expect(attrs(first).href).toBe('https://e.example/?a=1&copy=2&not=3&lang=zh');
+    expect(attrs(first).title).toBe('&&©© <"');
+    expect(attrs(second).href).toBe('https://e.example/?q="&x');
+  });
+
+  it.each(['jav&#x61;script:alert(1)', 'javascript&colon;alert(1)', '&#x6A;avascript:alert(1)', 'java&#x09;script:alert(1)'])(
+    'still rejects an unsafe URL hidden behind character references: %s', href => {
+      const source = `<a href="${href}">x</a>`;
+      expect(compileLocal(source).diagnostics.map(d => d.code)).toContain('local.html.fallback');
+      expect(elements(render(source, undefined, true).tree, 'a')).toHaveLength(0);
+    });
+});
