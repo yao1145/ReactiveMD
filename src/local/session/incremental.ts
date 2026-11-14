@@ -5,7 +5,7 @@ import {LocalSemanticCache,type SemanticCacheStats} from './compiler-cache';
 import {LocalParseSession} from './parse-session';
 import {shareCompiledData,countSharedNodes} from '../transport/shared-data';
 import {reuseFlatRows} from './row-reuse';
-import type {InlinePlan} from '../markdown/fast-markdown';
+import type {InlinePlan,InlinePlanLookup} from '../markdown/fast-markdown';
 import { plainCompiledData } from '../transport/compiled-data';
 import { localCompileOptionsKey, readLocalCompileOptions } from '../configuration/options';
 import { readLocalConfig } from '../../sdk/config';
@@ -108,6 +108,55 @@ function boundaries(tree: Tree, context: Block[], source: string): SourceRange[]
     ranges.push({start, end});
   }
   return ranges;
+}
+/**
+ * Lezer only breaks lines at `\n`; the local parser also accepts a lone `\r`.
+ * Their line models then disagree, so such sources keep the full path.
+ */
+function hasLoneCarriageReturn(source: string): boolean {
+  return /\r(?!\n)/.test(source);
+}
+function lineStart(source: string, at: number): number {
+  while (at > 0 && source[at-1] !== '\n' && source[at-1] !== '\r') at--;
+  return at;
+}
+/**
+ * The parser's shielding pass hands the raw source to remark, which reads a
+ * component line as an HTML block running to the next blank line. Content it
+ * swallows is shielded differently from the same content compiled after the
+ * incremental prefix, so every context block must be followed by a blank
+ * line, the end of the source or another context block.
+ */
+function contextRunsOn(source: string, context: readonly Block[]): boolean {
+  const starts = new Set(context.map(block => block.from));
+  for (const block of context) {
+    let at = block.to;
+    while (source[at] === ' ' || source[at] === '\t') at++;
+    if (at >= source.length) continue;
+    if (source[at] === '\r' && source[at+1] === '\n') at += 2;
+    else if (source[at] === '\n' || source[at] === '\r') at++;
+    else return true;
+    while (source[at] === ' ' || source[at] === '\t') at++;
+    if (at < source.length && source[at] !== '\n' && source[at] !== '\r' && !starts.has(at)) return true;
+  }
+  return false;
+}
+/** Structural equality of two nodes at their source offsets, ignoring generated ids. */
+function sameNode(a: LocalNode, aDelta: number, b: LocalNode, bDelta: number): boolean {
+  if (a.type !== b.type || a.range.start + aDelta !== b.range.start + bDelta || a.range.end + aDelta !== b.range.end + bDelta) return false;
+  let fields = 0;
+  for (const [key, value] of Object.entries(a)) {
+    if (value === undefined || key === 'id' || key === 'range') continue;
+    fields++;
+    const other = (b as unknown as Record<string, unknown>)[key];
+    if (key === 'children') {
+      const children = value as LocalNode[], others = other as LocalNode[] | undefined;
+      if (!others || children.length !== others.length) return false;
+      for (let index = 0; index < children.length; index++) if (!sameNode(children[index], aDelta, others[index], bDelta)) return false;
+    } else if (value !== other && JSON.stringify(value) !== JSON.stringify(other)) return false;
+  }
+  for (const [key, value] of Object.entries(b)) if (value !== undefined && key !== 'id' && key !== 'range') fields--;
+  return fields === 0;
 }
 function change(before: string, after: string) {
   let from = 0, oldTo = before.length, newTo = after.length;
@@ -258,7 +307,8 @@ export class LocalCompileSession {
   }
   private seed(source: string, key: string, tracked: Tracked, options?: LocalCompileOptions,preparedTree?:Tree): Snapshot | null {
     this.cacheBuilds++;
-    if (!tracked.result.ok || !tracked.parsed || hasRecoveries(tracked.result) || source.includes('[^') || source.includes('\ufeff')) return null;
+    if (!tracked.result.ok || !tracked.parsed || hasRecoveries(tracked.result) || source.includes('[^') || source.includes('\ufeff')
+      || hasLoneCarriageReturn(source)) return null;
     const roots = tracked.parsed.nodes, kinds = roots.map(contextKind);
     // A plain single-block document normally has nothing to reuse. One huge
     // flat list or table is the exception: row-level reuse makes the
@@ -286,6 +336,7 @@ export class LocalCompileSession {
       }
     }
     context.sort((a,b) => a.from-b.from);
+    if (contextRunsOn(source, context)) return null;
     const masked = mask(source, context);
     // The local HTML scanner and Markdown's HTML lexer have different block
     // boundaries. Keep their whole-document shielding on the full path.
@@ -321,7 +372,7 @@ export class LocalCompileSession {
     return {source, key, tree, metadata: doc, blocks, context, contextCost, prefix, prefixCost: prefixResult?.syntaxNodes ?? 0};
   }
   private update(old: Snapshot, source: string, options: LocalCompileOptions | undefined, budget: number): Snapshot | null {
-    if (source.includes('[^') || source.includes('\ufeff')) return null;
+    if (source.includes('[^') || source.includes('\ufeff') || hasLoneCarriageReturn(source)) return null;
     const edit = change(old.source, source);
     // Local code shielding can extend beyond a Markdown leaf block. Changing
     // its delimiters invalidates that lexical context, even if Lezer kept a
@@ -335,6 +386,7 @@ export class LocalCompileSession {
       if (source.slice(next.from, next.to) !== b.text) return null;
       context.push(next);
     }
+    if (contextRunsOn(source, context)) return null;
     const fragments = TreeFragment.applyChanges(TreeFragment.addTree(old.tree), [{fromA: edit.from, toA: edit.oldTo, fromB: edit.from, toB: edit.newTo}], 0);
     const masked = mask(source, context);
     if (masked.includes('<')) return null;
@@ -345,6 +397,8 @@ export class LocalCompileSession {
     const blocks: Block[] = [];
     /** IDs already claimed by this revision; prevents a split block from duplicating them. */
     const claimed = new Set<string>();
+    /** Blocks compiled in isolation during this revision. */
+    const recompiled = new Set<Block>();
     let reused = 0, compiled = 0, characters = 0, cost = old.contextCost;
     for (const range of ranges) {
       const delta = range.start >= edit.newTo ? edit.delta : 0;
@@ -407,15 +461,70 @@ export class LocalCompileSession {
           }
           for (let reusedIndex = 0; reusedIndex < outcome.reused; reusedIndex++) this.parseSession.noteRowReuse(outcome.kind);
         }
-        blocks.push({from: range.start, to: range.end, origin: from, text, nodes,
-          dependencies: deps, cost: count, rowPlans: rowPlansFor(tracked, text)});
+        const block: Block = {from: range.start, to: range.end, origin: from, text, nodes,
+          dependencies: deps, cost: count, rowPlans: rowPlansFor(tracked, text)};
+        blocks.push(block); recompiled.add(block);
         cost += count;
       }
       if (cost > budget) return null;
     }
     if (cost > budget) return null;
+    if (!this.sameBoundaries(source, blocks, context, recompiled, edit, options)) return null;
     this.lastStats = {mode: 'incremental', totalBlocks: blocks.length, compiledBlocks: compiled, reusedBlocks: reused, compiledCharacters: characters};
     return {...old, source, tree, context, blocks};
+  }
+  /**
+   * Lezer only proposes block boundaries. The local parser can keep one node
+   * across them (a lazy continuation line after an empty nested list item) or
+   * read a block differently after its predecessor (`+` after indented code is
+   * a paragraph, not a list). Every boundary next to a recompiled block or in
+   * the edited gap is therefore re-parsed by the local parser in one window:
+   * from the last top-level node before the boundary to the first one after
+   * it. The window must reproduce exactly the nodes of the assembled blocks.
+   * Matching edge nodes leave the parser in the same state as the complete
+   * document, so untouched boundaries keep the result of earlier revisions.
+   */
+  private sameBoundaries(source: string, blocks: Block[], context: Block[], recompiled: ReadonlySet<Block>,
+    edit: ReturnType<typeof change>, options: LocalCompileOptions | undefined): boolean {
+    const contextBlocks = new Set(context);
+    const all = [...blocks, ...context].sort((a,b) => a.from - b.from);
+    const dirty = (k: number) => recompiled.has(all[k]) || recompiled.has(all[k+1])
+      || (edit.from <= all[k+1].from && edit.newTo >= all[k].to);
+    for (let k = 0; k + 1 < all.length; k++) {
+      if (!dirty(k)) continue;
+      let m = k;
+      while (m + 2 < all.length && dirty(m + 1)) m++;
+      /** Expected top-level nodes in source coordinates; a context block only fixes its range. */
+      const expected: ({node: LocalNode; delta: number} | Block)[] = [];
+      for (let index = k; index <= m + 1; index++) {
+        const block = all[index];
+        if (contextBlocks.has(block)) { expected.push(block); continue; }
+        const delta = block.from - block.origin;
+        const nodes = index === k ? block.nodes.slice(-1) : index === m + 1 ? block.nodes.slice(0, 1) : block.nodes;
+        if (!nodes.length) return false;
+        for (const node of nodes) expected.push({node, delta});
+      }
+      const head = expected[0], tail = expected[expected.length - 1];
+      const start = 'node' in head ? Math.max(all[k].from, lineStart(source, head.node.range.start + head.delta)) : head.from;
+      const end = 'node' in tail ? tail.node.range.end + tail.delta : tail.to;
+      // Reuse the neighbours' per-row inline plans so a long list or table
+      // next to the edit is not rescanned row by row.
+      const plans = all.slice(k, m + 2).flatMap(block => block.rowPlans ? [block.rowPlans] : []);
+      const rowPlans: InlinePlanLookup | undefined = plans.length < 2 ? plans[0] : {
+        has: (text: string) => plans.some(map => map.has(text)),
+        get: (text: string) => plans.find(map => map.has(text))?.get(text),
+      } as InlinePlanLookup;
+      const parsed = this.parseSession.parse(source.slice(start, end), options, undefined, rowPlans);
+      if (parsed.diagnostics.length || parsed.recoveries?.length || parsed.nodes.length !== expected.length) return false;
+      for (let index = 0; index < expected.length; index++) {
+        const want = expected[index], got = parsed.nodes[index];
+        if ('node' in want) {
+          if (!sameNode(got, start, want.node, want.delta)) return false;
+        } else if (got.range.start + start !== want.from || got.range.end + start !== want.to) return false;
+      }
+      k = m;
+    }
+    return true;
   }
   private publish(snapshot: Snapshot): LocalCompileResult {
     const doc = plainCompiledData(snapshot.metadata);
