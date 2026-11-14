@@ -308,7 +308,7 @@ export function parseLocalCore(
   const scanStructure = capabilities?.markdownStructure;
   const nativeHtmlNames: ReadonlySet<string> = htmlSupport?.nativeTagNames ?? new Set<string>();
   const decodeEntities = htmlSupport?.decodeEntities ?? ((value: string): string => value);
-  const decodeAttribute = htmlSupport?.decodeAttribute ?? ((value: string): string => value);
+  const decodeAttribute = htmlSupport?.decodeAttribute ?? decodeEntities;
   const markdown = markdownFor(capabilities);
   const sourceContext = context?.source === source ? context : new SourceContext(source);
   const {lineStarts} = sourceContext;
