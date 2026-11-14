@@ -1,6 +1,7 @@
 import { MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../configuration/limits';
 import { createLocalRuntime } from './runtime';
 import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
+import { localCodeUnitPrefix } from '../source/text-length';
 import { localSourceDigest } from '../../runtime-services/identity';
 import type {
   Diagnostic,
@@ -57,7 +58,7 @@ export type LocalStateResolution =
 
 function diagnostic(code: string, message: string): Diagnostic {
   const text = message.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
-    ? `${message.slice(0, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
+    ? `${localCodeUnitPrefix(message, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
     : message;
   return {
     code,
@@ -150,7 +151,7 @@ function normalizeGenerator(generator: LocalStateGenerator): LocalStateGenerator
 
 function describeValue(value: unknown): string {
   if (typeof value === 'string') {
-    const sample = value.length > 48 ? `${value.slice(0, 48)}…` : value;
+    const sample = value.length > 48 ? `${localCodeUnitPrefix(value, 48)}…` : value;
     return `"${sample}"`;
   }
   if (value === null) return 'null';

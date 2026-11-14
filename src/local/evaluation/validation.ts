@@ -1,4 +1,5 @@
 import { MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../configuration/limits';
+import { localCodeUnitPrefix } from '../source/text-length';
 import type { Diagnostic, LocalValidation, SourceRange } from '../contracts/types';
 
 /**
@@ -21,7 +22,7 @@ export const LOCAL_VALIDATION_FALLBACK_MESSAGE = 'Validation failed.';
 /** Apply the shared diagnostic message budget with the existing ellipsis style. */
 export function boundLocalDiagnosticMessage(message: string): string {
   return message.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
-    ? `${message.slice(0, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
+    ? `${localCodeUnitPrefix(message, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
     : message;
 }
 

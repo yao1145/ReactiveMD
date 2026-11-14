@@ -1,4 +1,5 @@
 import type { Diagnostic } from '../local/contracts/types';
+import { localCodeUnitPrefix } from '../local/source/text-length';
 
 /** Build-side diagnostics use the same shape as compile and export diagnostics. */
 export function buildDiagnostic(code: string, message: string): Diagnostic {
@@ -15,7 +16,7 @@ export function buildDiagnostic(code: string, message: string): Diagnostic {
 function summary(diagnostics: readonly Diagnostic[]): string {
   return diagnostics
     .slice(0, 12)
-    .map((item) => `[${item.code}] ${item.message.length > 400 ? `${item.message.slice(0, 400)}…` : item.message}`)
+    .map((item) => `[${item.code}] ${item.message.length > 400 ? `${localCodeUnitPrefix(item.message, 400)}…` : item.message}`)
     .join('\n');
 }
 
