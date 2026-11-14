@@ -228,6 +228,26 @@ describe('block-local Markdown planning', () => {
     }
   });
 
+  it('keeps the context that a masked fast block gives its neighbours', () => {
+    for (const source of [
+      // A table line continues the list item lazily; Lezer starts a table.
+      '* q\n| a | b |\n| --- | --- |\n| 1 | 2 |',
+      'Intro\n\np\n* q\n| a | b |\n| --- | --- |\n| 1 | 2 |',
+      // `2)` cannot interrupt the paragraph that the list item interrupted.
+      'p\n* 2) q\n- a\n  -b\n- + c',
+      // Lezer ends the list before the lazy `p`, so `* q` is still an item.
+      '* |one\n  * \np\n* q\n\np',
+      // Lists separated by a blank line form one loose list.
+      'p\n* first\n2. second\n\n1. first\n2. second',
+      // After indented code, even across blank lines, `- ` and `2.` stay text.
+      '    code\n\np\n* q\n\n- \n  - b\n- c',
+      '    code\n\n2. x',
+      // A masked line after an empty item is read differently from real text.
+      '+\n\ntail line\n\n    indent\n\n    code',
+      '*    one\n\ntail line\n\n    code\n    ',
+    ]) expectMatchesRemark(source);
+  });
+
   it('allows a fast list immediately after a heading', () => {
     const source = '# Heading\n- one\n- two\n\nSimple tail.';
     const {tree} = expectMatchesRemark(source);
