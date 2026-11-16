@@ -32,7 +32,7 @@ const SWATCHES = [
 
 const TYPE_ROWS = [
   { className: 'sf-type-display', sample: 'Aa', label: 'DISPLAY / 28' },
-  { className: 'sf-type-title', sample: 'Aa', label: 'TITLE / 20' },
+  { className: 'sf-type-title', sample: 'Aa', label: 'TITLE / 21' },
   { className: 'sf-type-body', sample: 'Aa', label: 'BODY / 14' },
   { className: 'sf-type-data', sample: '0x41', label: 'DATA / MONO' },
 ];

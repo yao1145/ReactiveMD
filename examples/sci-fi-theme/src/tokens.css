@@ -77,15 +77,20 @@
   --sf-ease: cubic-bezier(0.2, 0, 0, 1);
 
   /* Type scale — four reading levels plus machine micro text. */
-  --sf-type-micro: 11px;
+  --sf-type-micro: 12px;
   --sf-type-label: 12px;
   --sf-type-body: 14px;
-  --sf-type-title: 20px;
+  --sf-type-title: 21px;
   --sf-type-display: 28px;
   --sf-track-micro: 0.14em;
   --sf-track-label: 0.1em;
   --sf-track-title: 0.02em;
   --sf-track-component: 0.08em;
+  /* Sentence-case machine prose: hints, readouts, notes. */
+  --sf-track-aux: 0.05em;
+  /* Bilingual tracking factor — 1 for English, tightened under :lang(zh).
+     Every machine letter-spacing multiplies its token by this factor. */
+  --sf-track-scale: 1;
 
   --sf-font-display: var(--font-sans);
   --sf-font-ui: var(--font-sans);
@@ -195,7 +200,7 @@
   --text-sm: 13px;
   --text-md: 14px;
   --text-lg: 16px;
-  --text-xl: 20px;
+  --text-xl: 21px;
   --text-2xl: 28px;
   --text-block-title: 13px;
   --text-block-subtitle: 12px;

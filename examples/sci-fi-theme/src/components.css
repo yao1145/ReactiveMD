@@ -45,7 +45,7 @@
 [data-rmd-theme="sci-fi"].md-document h6 {
   color: var(--ink);
   font-weight: var(--weight-bold);
-  letter-spacing: var(--sf-track-title);
+  letter-spacing: calc(var(--sf-track-title) * var(--sf-track-scale));
   line-height: var(--leading-tight);
 }
 
@@ -56,7 +56,7 @@
   border-bottom: 1px solid var(--line-strong);
   font-size: var(--text-2xl);
   font-weight: var(--weight-bold);
-  letter-spacing: 0.015em;
+  letter-spacing: calc(0.015em * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -76,7 +76,7 @@
   border-left: var(--sf-rule) solid var(--accent);
   font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
-  letter-spacing: 0.02em;
+  letter-spacing: calc(0.02em * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -85,10 +85,10 @@
   padding-bottom: var(--space-1);
   border-bottom: 1px solid var(--line);
   color: var(--ink-soft);
-  font-family: var(--sf-font-data);
-  font-size: var(--text-block-title);
+  font-family: var(--sf-font-ui);
+  font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-component);
+  letter-spacing: calc(var(--sf-track-title) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -99,7 +99,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-micro);
+  letter-spacing: calc(var(--sf-track-micro) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -196,12 +196,22 @@
   color: var(--accent-text);
   font-family: var(--font-mono);
   font-size: 0.86em;
-  letter-spacing: 0.01em;
+  letter-spacing: calc(0.01em * var(--sf-track-scale));
 }
 
 [data-rmd-theme="sci-fi"].md-document .md-image {
   border: 1px solid var(--line);
   border-radius: 0;
+}
+
+/* Bilingual tracking: CJK glyphs are full-width, so the wide English machine
+   tracking collapses to a tight fraction (0.14em -> 0.028, 0.1 -> 0.02,
+   0.08 -> 0.016, 0.05 -> 0.01). Every scaled letter-spacing above reads this
+   factor. :lang() also matches an ancestor lang, so a host-level lang attribute
+   reaches the whole document; the engine sets lang on the theme root itself. */
+[data-rmd-theme="sci-fi"]:lang(zh),
+[data-rmd-theme="sci-fi"] :lang(zh) {
+  --sf-track-scale: 0.2;
 }
 
 /* ------------------------------------------------------- 3. panels & cards */
@@ -251,7 +261,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--text-block-title);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-component);
+  letter-spacing: calc(var(--sf-track-component) * var(--sf-track-scale));
   line-height: var(--leading-snug);
   text-transform: uppercase;
   /* The baseline ellipsizes panel titles on one line; a module name is content,
@@ -285,7 +295,7 @@
   color: var(--ink-muted);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
   transition:
     background-color var(--motion-base) var(--ease-standard),
@@ -323,7 +333,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--text-block-title);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-component);
+  letter-spacing: calc(var(--sf-track-component) * var(--sf-track-scale));
   line-height: var(--leading-snug);
   text-transform: uppercase;
   overflow-wrap: anywhere;
@@ -408,7 +418,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -459,7 +469,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--text-block-title);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-component);
+  letter-spacing: calc(var(--sf-track-component) * var(--sf-track-scale));
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
@@ -480,7 +490,7 @@
 
 [data-rmd-theme="sci-fi"] .local-visual-svg text {
   font-family: var(--sf-font-data);
-  letter-spacing: 0.02em;
+  letter-spacing: calc(0.02em * var(--sf-track-scale));
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-axis-label {
@@ -491,7 +501,7 @@
 [data-rmd-theme="sci-fi"] .local-visual-axis-title {
   font-size: var(--sf-type-micro);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -502,7 +512,7 @@
 [data-rmd-theme="sci-fi"] .local-visual-legend-item {
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.04em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -527,7 +537,7 @@
 [data-rmd-theme="sci-fi"] .local-visual-node-text {
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.04em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -541,7 +551,7 @@
   color: var(--ink-soft);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -585,21 +595,21 @@
   color: var(--ink-muted);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.04em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
   line-height: var(--leading-snug);
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-diagram-detail > strong {
   color: var(--ink-soft);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-edge-label {
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.08em;
+  letter-spacing: calc(var(--sf-track-component) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -609,7 +619,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
   transition:
     background-color var(--motion-base) var(--ease-standard),
@@ -642,7 +652,7 @@
   color: var(--ink-muted);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.06em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
   line-height: 1.6;
   text-transform: uppercase;
 }
@@ -655,7 +665,7 @@
   color: var(--ink-soft);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-decoration: none;
   text-transform: uppercase;
   transition:
@@ -711,7 +721,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-label);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
   box-shadow: none;
 }
@@ -813,7 +823,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-micro);
+  letter-spacing: calc(var(--sf-track-micro) * var(--sf-track-scale));
   line-height: var(--leading-snug);
   text-transform: uppercase;
 }
@@ -828,7 +838,7 @@
   color: var(--ink);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  letter-spacing: 0.01em;
+  letter-spacing: calc(0.01em * var(--sf-track-scale));
   box-shadow: none;
   transition:
     border-color var(--motion-base) var(--ease-standard),
@@ -888,7 +898,7 @@
   color: var(--ink-muted);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.05em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
   line-height: var(--leading-snug);
 }
 
@@ -1158,7 +1168,7 @@
   color: var(--ink-soft);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-label);
-  letter-spacing: 0.03em;
+  letter-spacing: calc(0.03em * var(--sf-track-scale));
   transition:
     background-color var(--motion-base) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard),
@@ -1181,7 +1191,7 @@
   color: var(--ink);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-label);
-  letter-spacing: 0.03em;
+  letter-spacing: calc(0.03em * var(--sf-track-scale));
   transition:
     background-color var(--motion-base) var(--ease-standard),
     border-color var(--motion-base) var(--ease-standard),
@@ -1269,7 +1279,7 @@
 [data-rmd-theme="sci-fi"] .local-multi-empty {
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.05em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1296,7 +1306,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-micro);
+  letter-spacing: calc(var(--sf-track-micro) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1332,7 +1342,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-align: center;
   text-transform: uppercase;
   transition:
@@ -1388,7 +1398,7 @@
   color: var(--ink-soft);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1423,7 +1433,7 @@
 [data-rmd-theme="sci-fi"] .local-visual-timeline-tick {
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
 }
 
 [data-rmd-theme="sci-fi"] .local-accordion {
@@ -1455,7 +1465,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-label);
   font-weight: var(--weight-semibold);
-  letter-spacing: 0.05em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
   text-transform: uppercase;
   transition:
     background-color var(--motion-base) var(--ease-standard),
@@ -1505,7 +1515,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   line-height: var(--leading-snug);
   text-transform: uppercase;
 }
@@ -1541,7 +1551,7 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-label);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1582,7 +1592,7 @@
   color: var(--accent-text);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.06em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1627,7 +1637,7 @@
 [data-rmd-theme="sci-fi"] .local-timer-value {
   color: var(--accent-text);
   font-family: var(--font-mono);
-  letter-spacing: 0.08em;
+  letter-spacing: calc(var(--sf-track-component) * var(--sf-track-scale));
 }
 
 [data-rmd-theme="sci-fi"] .local-counter-value,
@@ -1681,7 +1691,7 @@
 [data-rmd-theme="sci-fi"].md-document .md-code-block-feedback {
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-micro);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1862,7 +1872,7 @@
 [data-rmd-theme="sci-fi"] .rmd-chart-axis-label {
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.04em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1872,7 +1882,7 @@
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1890,7 +1900,7 @@
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
   font-variant-numeric: tabular-nums;
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1906,7 +1916,7 @@
   color: var(--ink-soft);
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1946,7 +1956,7 @@
 [data-rmd-theme="sci-fi"] .rmd-chart-legend-label {
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -1990,7 +2000,7 @@
   border-bottom: 1px solid var(--line);
   color: var(--ink-soft);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
 }
 
 /* D4 §2.4.3: label/value rows keep an 8px gap and 4px vertical rhythm. */
@@ -2041,7 +2051,7 @@
   color: var(--ink-muted);
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.05em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -2083,7 +2093,7 @@
   color: var(--ink-muted);
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.04em;
+  letter-spacing: calc(var(--sf-track-aux) * var(--sf-track-scale));
 }
 
 [data-rmd-theme="sci-fi"] .rmd-diagram-tooltip {
@@ -2192,7 +2202,7 @@
 [data-rmd-theme="sci-fi"] .rmd-gallery-count,
 [data-rmd-theme="sci-fi"] .rmd-gallery-caption {
   font-family: var(--font-mono);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
@@ -2243,7 +2253,7 @@
   background: transparent;
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
-  letter-spacing: var(--sf-track-label);
+  letter-spacing: calc(var(--sf-track-label) * var(--sf-track-scale));
   text-transform: uppercase;
 }
 
