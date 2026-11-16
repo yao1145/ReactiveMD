@@ -104,7 +104,7 @@ export function Article({ source }: { source: string }) {
 | 状态 | `--info`、`--info-soft`、`--success`、`--success-soft`、`--success-line`、`--warning`、`--warning-soft`、`--warning-line`、`--danger`、`--danger-soft`、`--danger-line`、`--neutral-soft` |
 | 焦点 | `--focus`、`--focus-outline`、`--focus-ring` |
 | 数据与代码 | `--chart-1` 至 `--chart-8`、`--chart-grid`、`--chart-axis`、`--code-bg`、`--code-bg-deep`、`--code-ink` |
-| 字体 | `--font-sans`、`--font-mono`、`--text-xs` 至 `--text-xl`、`--text-2xl`、`--text-block-title`、`--text-block-subtitle` |
+| 字体 | `--font-sans`、`--font-mono`、`--text-xs` 至 `--text-xl`、`--text-2xl`、`--text-h5`、`--text-h6`、`--text-block-title`、`--text-block-subtitle` |
 | 行高与字重 | `--leading-tight`、`--leading-snug`、`--leading-normal`、`--leading-relaxed`、`--weight-regular`、`--weight-medium`、`--weight-semibold`、`--weight-bold` |
 | 间距 | `--space-1` 至 `--space-7`、`--field-gap` |
 | 圆角 | `--radius-control`、`--radius-card`、`--radius-panel`、`--radius-pill`、`--radius-field`、`--radius-field-multiline` |
@@ -179,7 +179,7 @@ export function Article({ source }: { source: string }) {
 
 图表序列元素设置 `--series-color`，缺失时回退到 `--chart-1`。`data-series="1"` 至 `"8"` 映射现有 `--chart-1` 至 `--chart-8` 调色板。SVG 几何、可访问名称和交互由作者提供。
 
-文档排版使用共享的字体、间距和行高变量。行内代码和代码块使用 `--code-bg`、`--code-bg-deep`、`--code-ink`；`kbd` 使用控件背景和边框。原生表格与 `md-table` 共用单元格内边距和边框。专用组件保持各自外观。
+文档排版使用共享的字体、间距和行高变量。`h5` 和 `h6` 读取 `--text-h5` 和 `--text-h6`；主题未定义时，它们以正文的 1em 为基准回退到 `0.83em` 和 `0.75em`。行内代码和代码块使用 `--code-bg`、`--code-bg-deep`、`--code-ink`；`kbd` 使用控件背景和边框。原生表格与 `md-table` 共用单元格内边距和边框。专用组件保持各自外观。
 
 所有新增皮肤都限制在 `.md-document` 内，基础和状态选择器主体统一用 `:where()` 保持零权重；伪元素追加在该主体之后，不新增 `!important`。组件的普通类选择器无论样式表加载顺序如何，都能覆盖其声明的属性。`[data-rmd-appearance="custom"]` 只让标记的元素退出皮肤，后代仍保留皮肤。隐藏元素保持隐藏。打印保留原生控件值和现有内置打印摘要。
 

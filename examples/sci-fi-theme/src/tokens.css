@@ -202,6 +202,8 @@
   --text-lg: 16px;
   --text-xl: 21px;
   --text-2xl: 28px;
+  --text-h5: 0.83em;
+  --text-h6: 0.75em;
   --text-block-title: 13px;
   --text-block-subtitle: 12px;
   --leading-tight: 1.15;

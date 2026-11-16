@@ -32,9 +32,14 @@
   font-size: var(--text-md);
 }
 
-:where(.md-document :is(h5, h6):not([data-rmd-appearance="custom"])) {
+:where(.md-document h5:not([data-rmd-appearance="custom"])) {
   color: var(--ink-soft);
-  font-size: var(--text-sm);
+  font-size: var(--text-h5, 0.83em);
+}
+
+:where(.md-document h6:not([data-rmd-appearance="custom"])) {
+  color: var(--ink-soft);
+  font-size: var(--text-h6, 0.75em);
 }
 
 /* Prose ------------------------------------------------------------ */

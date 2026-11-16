@@ -108,6 +108,8 @@
     --text-lg: 19px;
     --text-xl: 23px;
     --text-2xl: 28px;
+    --text-h5: 0.83em;
+    --text-h6: 0.75em;
     --text-group-label: 14px;
     --text-block-title: 17px;
     --text-block-subtitle: var(--text-sm);

@@ -103,6 +103,14 @@
   text-transform: uppercase;
 }
 
+[data-rmd-theme="sci-fi"].md-document h5 {
+  font-size: var(--text-h5);
+}
+
+[data-rmd-theme="sci-fi"].md-document h6 {
+  font-size: var(--text-h6);
+}
+
 [data-rmd-theme="sci-fi"].md-document p {
   margin: 0.7em 0;
   letter-spacing: normal;

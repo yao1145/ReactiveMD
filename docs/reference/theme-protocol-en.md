@@ -121,7 +121,7 @@ internal DOM nesting remain component implementation details.
 | Status | `--info`, `--info-soft`, `--success`, `--success-soft`, `--success-line`, `--warning`, `--warning-soft`, `--warning-line`, `--danger`, `--danger-soft`, `--danger-line`, `--neutral-soft` |
 | Focus | `--focus`, `--focus-outline`, `--focus-ring` |
 | Data and code | `--chart-1` through `--chart-8`, `--chart-grid`, `--chart-axis`, `--code-bg`, `--code-bg-deep`, `--code-ink` |
-| Fonts | `--font-sans`, `--font-mono`, `--text-xs` through `--text-xl`, `--text-2xl`, `--text-block-title`, `--text-block-subtitle` |
+| Fonts | `--font-sans`, `--font-mono`, `--text-xs` through `--text-xl`, `--text-2xl`, `--text-h5`, `--text-h6`, `--text-block-title`, `--text-block-subtitle` |
 | Line height and weight | `--leading-tight`, `--leading-snug`, `--leading-normal`, `--leading-relaxed`, `--weight-regular`, `--weight-medium`, `--weight-semibold`, `--weight-bold` |
 | Spacing | `--space-1` through `--space-7`, `--field-gap` |
 | Radius | `--radius-control`, `--radius-card`, `--radius-panel`, `--radius-pill`, `--radius-field`, `--radius-field-multiline` |
@@ -198,7 +198,7 @@ Tabs and steps read `aria-selected`, `aria-current`, `aria-expanded` and disable
 
 A chart series element sets `--series-color`, falling back to `--chart-1`. `data-series="1"` through `"8"` map the existing `--chart-1` to `--chart-8` palette. The author supplies SVG geometry, accessible names and interaction.
 
-Document typography uses the shared type, spacing and line-height variables. Inline code and code blocks use `--code-bg`, `--code-bg-deep` and `--code-ink`; `kbd` uses the control surface and border. Native tables and `md-table` share cell padding and borders. Specialized widgets keep their own appearance.
+Document typography uses the shared type, spacing and line-height variables. `h5` and `h6` read `--text-h5` and `--text-h6`, falling back to `0.83em` and `0.75em` against the 1em body when a theme leaves them undefined. Inline code and code blocks use `--code-bg`, `--code-bg-deep` and `--code-ink`; `kbd` uses the control surface and border. Native tables and `md-table` share cell padding and borders. Specialized widgets keep their own appearance.
 
 Every new skin is scoped to `.md-document`. Base and state selector bodies use `:where()` for zero specificity; pseudo-elements follow that body. The new skins add no `!important`. An ordinary component class overrides any property it declares in either stylesheet order. `[data-rmd-appearance="custom"]` opts out only the element it marks; descendants keep their skin. Hidden elements stay hidden. Print keeps native control values and the existing built-in print summaries.
 
