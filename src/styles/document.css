@@ -205,14 +205,4 @@
   font-size: var(--text-sm);
   line-height: var(--leading-snug);
 }
-
-@media (max-width: 620px) {
-  :where(.md-document h1:not([data-rmd-appearance="custom"])) {
-    font-size: var(--text-xl);
-  }
-
-  :where(.md-document h2:not([data-rmd-appearance="custom"])) {
-    font-size: var(--text-lg);
-  }
-}
 }
