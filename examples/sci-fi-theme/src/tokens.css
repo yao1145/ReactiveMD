@@ -10,7 +10,10 @@
    --------------------------------------------------------------------------
    Every selector is scoped to [data-rmd-theme="sci-fi"] so the theme can be
    imported directly or registered through defineLocalTheme().
-   Radius contract: 0-4px. No pill geometry. No blur shadows.
+   Radius contract: 0-2px. No pill geometry. No blur shadows.
+   Surface contract: page < surface > inset in light, page < surface > inset
+   reversed luminance in dark; both modes share the same semantic names.
+   Border contract: --line structural (weaker), --line-strong controls.
    ========================================================================== */
 
 [data-rmd-theme="sci-fi"] {
@@ -64,9 +67,6 @@
   --sf-grid-max: 1120px;
   --sf-hairline: 1px;
   --sf-rule: 2px;
-  /* Radius ladder for the tightened 0-2px contract. Three steps are kept so
-     the scale still reads as a scale; the top step folds back onto 2px
-     because nothing above that is allowed any more. */
   --sf-radius-0: 0px;
   --sf-radius-1: 2px;
   --sf-radius-2: 2px;
@@ -76,15 +76,16 @@
   --sf-duration-3: 180ms;
   --sf-ease: cubic-bezier(0.2, 0, 0, 1);
 
-  /* Type scale — condensed reading scale, mono for all machine text. */
-  --sf-type-micro: 10.5px;
-  --sf-type-label: 11.5px;
-  --sf-type-body: 15px;
+  /* Type scale — four reading levels plus machine micro text. */
+  --sf-type-micro: 11px;
+  --sf-type-label: 12px;
+  --sf-type-body: 14px;
   --sf-type-title: 20px;
-  --sf-type-display: 30px;
-  --sf-track-micro: 0.16em;
+  --sf-type-display: 28px;
+  --sf-track-micro: 0.14em;
   --sf-track-label: 0.1em;
   --sf-track-title: 0.02em;
+  --sf-track-component: 0.08em;
 
   --sf-font-display: var(--font-sans);
   --sf-font-ui: var(--font-sans);
@@ -92,28 +93,28 @@
 
   /* ---------------------------------------------------- L2 semantic: light */
 
-  /* Surfaces */
-  --paper: #e8edf1;
-  --surface: #f7f9fb;
-  --surface-subtle: #eef2f5;
-  --surface-hover: #e6ecf1;
-  --surface-active: #dde5ec;
-  --document-bg: #f7f9fb;
+  /* Surfaces — page / surface / inset, three distinct levels. */
+  --paper: #f4f8fb;
+  --surface: #ffffff;
+  --surface-subtle: #e8f0f5;
+  --surface-hover: #eff4f8;
+  --surface-active: #e2ebf2;
+  --document-bg: var(--surface);
 
   /* Text */
-  --ink: #0a121a;
-  --ink-soft: #354555;
-  --ink-muted: #5f7183;
+  --ink: #142837;
+  --ink-soft: #475c6e;
+  --ink-muted: #5a6f80;
 
-  /* Borders */
-  --line: #ccd6df;
-  --line-strong: #a7b5c2;
+  /* Borders — structural weaker than control borders. */
+  --line: #d9e3eb;
+  --line-strong: #6e8496;
 
   /* Accent: a cold instrument blue. Filled controls use white ink. */
-  --accent: #096b87;
-  --accent-hover: #075a72;
-  --accent-soft: #e1f2f7;
-  --accent-line: #9fcfdd;
+  --accent: #087d9b;
+  --accent-hover: #066a85;
+  --accent-soft: #e1f0f5;
+  --accent-line: #7fb6c9;
   --accent-ink: #ffffff;
   --accent-text: #055f79;
   --info: var(--accent);
@@ -136,7 +137,7 @@
   --danger: #b0253b;
   --danger-soft: #fbe9ec;
   --danger-line: #e6b3bd;
-  --neutral-soft: #e7edf2;
+  --neutral-soft: #e8f0f5;
 
   /* Focus — a hard double rule, never a soft glow. The kernel never reads
      --focus-ring; the real hook is --pu-focus-halo (§2.5). */
@@ -144,20 +145,20 @@
   --focus-outline: 2px solid var(--focus);
   --pu-focus-halo: 0 0 0 1px var(--surface), 0 0 0 3px var(--focus);
 
-  /* Data series — cold, print-safe, distinguishable in both modes. */
-  --chart-1: #0a6b87;
+  /* Data series — cyan dominant, then blue / green / violet / amber only. */
+  --chart-1: #087d9b;
   --chart-2: #2f5f9e;
   --chart-3: #0f766e;
-  --chart-4: #7a5aa6;
+  --chart-4: #6d4aa1;
   --chart-5: #9a6a12;
-  --chart-6: #9b3a62;
-  --chart-7: #4a6b1f;
-  --chart-8: #176b7a;
+  --chart-6: #4c7dc0;
+  --chart-7: #4e8a3a;
+  --chart-8: #8a63c9;
   --chart-grid: #d3dde6;
-  --chart-axis: #5f7183;
+  --chart-axis: #5a6f80;
 
-  /* §2.4.1: the interactive chart consumes these through inline styles, so
-     theme stroke/fill rules can never win — only the variables can. */
+  /* The interactive chart consumes these through inline styles, so theme
+     stroke/fill rules can never win — only the variables can. */
   --rmd-chart-bar-radius: 0px;
   --rmd-chart-line-width: 1.6;
   --rmd-chart-line-highlight-width: 2.4;
@@ -170,14 +171,12 @@
   --rmd-chart-axis-title: var(--ink-soft);
   --rmd-chart-guide: var(--accent);
 
-  --coordinate-surface: #f1f5f8;
+  --coordinate-surface: #e8f0f5;
   --coordinate-grid: #ccd9e4;
   --coordinate-axis: #47596b;
   --coordinate-point: var(--accent);
 
-  /* Code — a cool instrument panel that follows the mode. Light mode is a
-     near-white surface one step below --surface; every token colour is drawn
-     from the light signal/status primitives and clears 4.5:1 on --code-bg. */
+  /* Code — an inset instrument surface; every token clears 4.5:1 on it. */
   --code-bg: #edf2f7;
   --code-bg-deep: #dde5ec;
   --code-ink: #16232f;
@@ -192,14 +191,14 @@
   --md-code-token-deletion: #b0253b;
 
   /* Type */
-  --text-xs: 11.5px;
+  --text-xs: 12px;
   --text-sm: 13px;
-  --text-md: 15px;
-  --text-lg: 16.5px;
-  --text-xl: 21px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
   --text-2xl: 28px;
-  --text-block-title: 12.5px;
-  --text-block-subtitle: 11.5px;
+  --text-block-title: 13px;
+  --text-block-subtitle: 12px;
   --leading-tight: 1.15;
   --leading-snug: 1.4;
   --leading-normal: 1.6;
@@ -229,10 +228,6 @@
   --radius-sm: var(--sf-radius-0);
   --radius-md: var(--sf-radius-0);
   --radius-lg: var(--sf-radius-0);
-
-  /* §2.3.1: the shared baseline declares more named radii than this theme
-     used to. A missing name lets the default roundness through, so every
-     one is pinned to the 0-2px contract here by construction. */
   --radius-xl: var(--sf-radius-0);
   --radius-circle: var(--sf-radius-0);
   --radius-hairline: var(--sf-radius-1);
@@ -241,8 +236,7 @@
   --radius-inset: var(--sf-radius-0);
   --radius-toolbar: var(--sf-radius-0);
 
-  /* §2.3.1: baseline primitives consumed directly by native buttons and
-     some surfaces (the plot legend button inherited 10px before this). */
+  /* Baseline primitives consumed directly by native buttons and surfaces. */
   --pu-radius-xs: var(--sf-radius-1);
   --pu-radius-sm: var(--sf-radius-1);
   --pu-radius-md: var(--sf-radius-1);
@@ -256,7 +250,7 @@
   --control-padding-x: 10px;
   --control-padding-y: 7px;
   --control-inset-x: 12px;
-  --disabled-opacity: 0.38;
+  --disabled-opacity: 0.45;
   --control-selected: var(--accent);
   --control-selected-ink: var(--accent-ink);
   --control-track: #dbe3ea;
@@ -281,7 +275,8 @@
   /* ------------------------------------------------ L3 component: light */
 
   --sf-canvas: var(--paper);
-  --sf-grid-line: rgb(10 30 45 / 5%);
+  /* Background texture only: weaker than chart grid, borders and all text. */
+  --sf-grid-line: rgb(10 30 45 / 4%);
   --sf-label-ink: var(--ink-muted);
   --sf-meta-ink: var(--ink-muted);
   --sf-corner-ink: var(--accent);
@@ -289,15 +284,15 @@
 
   --sf-panel-bg: var(--surface);
   --sf-panel-head-bg: var(--surface-subtle);
-  --sf-panel-border: var(--line-strong);
+  --sf-panel-border: var(--line);
   --sf-panel-rule: var(--line);
 
   --sf-table-bg: var(--surface);
-  --sf-table-head-bg: #e8eef3;
+  --sf-table-head-bg: #e8f0f5;
   --sf-table-row-hover: var(--surface-hover);
   --sf-table-row-selected: var(--accent-soft);
 
-  --sf-field-bg: #fbfcfd;
+  --sf-field-bg: #e8f0f5;
   --sf-field-border: var(--line-strong);
   --sf-field-hover: var(--accent-line);
 
@@ -317,11 +312,11 @@
   --rmd-slider-thumb-background: var(--accent);
   --rmd-slider-thumb-border-color: var(--surface);
   --rmd-slider-thumb-shadow: 0 0 0 1px var(--accent);
+  --rmd-slider-track-background: var(--control-track);
+  --rmd-slider-fill-background: var(--accent);
 
-  /* §2.6.2: UIArc calendar / date-picker / select / slider-bubble radii are
-     component variables, not classic radius tokens, so they have to be
-     declared separately or the default roundness leaks through. Component
-     layer only; the dark scheme inherits them. */
+  /* UIArc calendar / date-picker / select / slider-bubble radii are component
+     variables, not classic radius tokens; pinned to the 0-2px contract. */
   --rmd-calendar-day-radius: 0px;
   --rmd-calendar-nav-radius: 0px;
   --rmd-date-picker-radius: 0px;
@@ -335,12 +330,7 @@
   --rmd-slider-bubble-radius: 0px;
   --rmd-slider-tick-radius: 0px;
 
-  /* W1-4: checkbox geometry (baseline default 18px/5px) and switch elevation.
-     The baseline composes --rmd-switch-shadow/-press-shadow from a blur
-     geometry + colour-mix; supplying a complete value here replaces that
-     fallback, so the switch keeps a hard 1px ring and never blurs. The
-     *-geometry / *-opacity primitives are intentionally left alone — they
-     are inert once the composed values resolve. */
+  /* Checkbox geometry and switch elevation: hard 1px rings, never blur. */
   --rmd-uiarc-checkbox-size: 16px;
   --rmd-uiarc-checkbox-radius: 0px;
   --rmd-switch-shadow: 0 0 0 1px var(--line);
@@ -359,30 +349,30 @@
 [data-rmd-theme="sci-fi"][data-color-scheme="dark"] {
   color-scheme: dark;
 
-  /* Surfaces */
-  --paper: #070b10;
-  --surface: #0b1118;
-  --surface-subtle: #0e1620;
-  --surface-hover: #111c28;
-  --surface-active: #16232f;
-  --document-bg: #070b10;
+  /* Surfaces — lifted one step from black so levels stay separable. */
+  --paper: #0c121a;
+  --surface: #141f2b;
+  --surface-subtle: #101923;
+  --surface-hover: #1b2938;
+  --surface-active: #223243;
+  --document-bg: var(--surface);
 
   /* Text */
-  --ink: #e5edf4;
-  --ink-soft: #a8b9c8;
-  --ink-muted: #74889a;
+  --ink: #e2eaf2;
+  --ink-soft: #a2b3c2;
+  --ink-muted: #8ca0b3;
 
   /* Borders */
-  --line: #1f2c3a;
-  --line-strong: #32475c;
+  --line: #223140;
+  --line-strong: #527089;
 
   /* Accent: instrument cyan. Filled controls use near-black ink. */
-  --accent: #17c3e6;
-  --accent-hover: #45d6f2;
-  --accent-soft: #072231;
-  --accent-line: #1d5566;
-  --accent-ink: #03161c;
-  --accent-text: #5fdcf5;
+  --accent: #45c3d7;
+  --accent-hover: #63d2e4;
+  --accent-soft: #0e2c3a;
+  --accent-line: #2a6e82;
+  --accent-ink: #062028;
+  --accent-text: #45c3d7;
   --info: var(--accent);
   --info-soft: var(--accent-soft);
 
@@ -394,46 +384,45 @@
   /* Status */
   --teal: #3ddc97;
   --success: #3ddc97;
-  --success-soft: #06251b;
+  --success-soft: #0a2b21;
   --success-line: #1d5c45;
   --warning: #f4b942;
-  --warning-soft: #241a06;
+  --warning-soft: #2b2008;
   --warning-line: #6b5220;
   --danger: #ff6b81;
-  --danger-soft: #2a0c12;
+  --danger-soft: #331119;
   --danger-line: #6e2836;
-  --neutral-soft: #111a24;
+  --neutral-soft: #101923;
 
   /* Focus */
   --focus: var(--accent-text);
   --focus-outline: 2px solid var(--focus);
 
-  /* Data series */
-  --chart-1: #4fd6ec;
+  /* Data series — same controlled families as light, luminance-lifted. */
+  --chart-1: #45c3d7;
   --chart-2: #7fb2ff;
   --chart-3: #5fe0b4;
   --chart-4: #b394ea;
   --chart-5: #f2c879;
-  --chart-6: #ff9db1;
-  --chart-7: #b7d47a;
-  --chart-8: #8fe0e8;
-  --chart-grid: #243443;
-  --chart-axis: #8fa3b5;
+  --chart-6: #5b8def;
+  --chart-7: #7ed491;
+  --chart-8: #c9a8f5;
+  --chart-grid: #223140;
+  --chart-axis: #8ca0b3;
 
-  /* §2.4.1: dimmed series need 0.45 in the dark scheme to reach 3:1 against
-     the surface (the baseline 0.22 lands at 1.61:1). The rest inherit. */
+  /* Dimmed series need 0.45 in the dark scheme to stay legible. */
   --rmd-chart-dim-opacity: 0.45;
 
-  --coordinate-surface: #0d151e;
-  --coordinate-grid: #243443;
-  --coordinate-axis: #8fa3b5;
+  --coordinate-surface: #101923;
+  --coordinate-grid: #223140;
+  --coordinate-axis: #8ca0b3;
   --coordinate-point: var(--accent);
 
   /* Code */
-  --code-bg: #05090e;
-  --code-bg-deep: #030609;
+  --code-bg: #0a1219;
+  --code-bg-deep: #070d14;
   --code-ink: #dce8f4;
-  --md-code-token-comment: #74889a;
+  --md-code-token-comment: #8ca0b3;
   --md-code-token-keyword: #8fc7ff;
   --md-code-token-string: #8fe3c8;
   --md-code-token-number: #f2c879;
@@ -446,7 +435,7 @@
   /* Controls */
   --control-selected: var(--accent);
   --control-selected-ink: var(--accent-ink);
-  --control-track: #243443;
+  --control-track: #223140;
   --control-thumb: var(--accent);
 
   --formula-ink: #ffffff;
@@ -457,37 +446,39 @@
   /* ------------------------------------------------- L3 component: dark */
 
   --sf-canvas: var(--paper);
-  --sf-grid-line: rgb(110 190 220 / 4%);
+  --sf-grid-line: rgb(110 190 220 / 3%);
   --sf-label-ink: var(--ink-muted);
   --sf-meta-ink: var(--ink-muted);
   --sf-corner-ink: var(--accent);
   --sf-signal-ink: var(--accent-text);
 
-  --sf-panel-bg: #0b1118;
-  --sf-panel-head-bg: #0e1822;
-  --sf-panel-border: var(--line-strong);
+  --sf-panel-bg: var(--surface);
+  --sf-panel-head-bg: var(--surface-subtle);
+  --sf-panel-border: var(--line);
   --sf-panel-rule: var(--line);
 
-  --sf-table-bg: #0b1118;
-  --sf-table-head-bg: #0d1721;
-  --sf-table-row-hover: #101a25;
+  --sf-table-bg: var(--surface);
+  --sf-table-head-bg: #101923;
+  --sf-table-row-hover: #1b2938;
   --sf-table-row-selected: var(--accent-soft);
 
-  --sf-field-bg: #080e15;
+  --sf-field-bg: #101923;
   --sf-field-border: var(--line-strong);
   --sf-field-hover: var(--accent-line);
 
-  --sf-nav-bg: #0e1620;
+  --sf-nav-bg: #101923;
   --sf-nav-active-bg: var(--accent-soft);
 
-  --sf-chart-frame: #0b1118;
-  --sf-chart-head: #0d1721;
+  --sf-chart-frame: var(--surface);
+  --sf-chart-head: #101923;
 
   --sf-glow: 0 0 0 1px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 
   /* Shared slider contract in the dark scheme. */
   --rmd-slider-thumb-background: var(--accent);
   --rmd-slider-thumb-border-color: var(--surface);
+  --rmd-slider-track-background: var(--control-track);
+  --rmd-slider-fill-background: var(--accent);
 
   --sf-hatch: repeating-linear-gradient(
     135deg,
@@ -511,4 +502,4 @@
   --rmd-native-range-fill-background: var(--rmd-slider-fill-background);
 }
 
-}
+}

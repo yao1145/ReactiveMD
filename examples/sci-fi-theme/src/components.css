@@ -55,7 +55,7 @@
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--line-strong);
   font-size: var(--text-2xl);
-  font-weight: 650;
+  font-weight: var(--weight-bold);
   letter-spacing: 0.015em;
   text-transform: uppercase;
 }
@@ -75,7 +75,8 @@
   padding-left: var(--space-3);
   border-left: var(--sf-rule) solid var(--accent);
   font-size: var(--text-xl);
-  letter-spacing: 0.04em;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
@@ -85,9 +86,9 @@
   border-bottom: 1px solid var(--line);
   color: var(--ink-soft);
   font-family: var(--sf-font-data);
-  font-size: var(--sf-type-label);
+  font-size: var(--text-block-title);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-micro);
+  letter-spacing: var(--sf-track-component);
   text-transform: uppercase;
 }
 
@@ -104,7 +105,7 @@
 
 [data-rmd-theme="sci-fi"].md-document p {
   margin: 0.7em 0;
-  letter-spacing: 0.004em;
+  letter-spacing: normal;
 }
 
 [data-rmd-theme="sci-fi"].md-document strong {
@@ -154,7 +155,7 @@
   height: 1px;
   margin: var(--space-6) 0;
   border: 0;
-  background: var(--line-strong);
+  background: var(--line);
 }
 
 [data-rmd-theme="sci-fi"].md-document hr::after {
@@ -199,7 +200,7 @@
 }
 
 [data-rmd-theme="sci-fi"].md-document .md-image {
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: 0;
 }
 
@@ -248,11 +249,16 @@
 [data-rmd-theme="sci-fi"] .local-panel-title {
   color: var(--ink-soft);
   font-family: var(--sf-font-data);
-  font-size: var(--sf-type-label);
+  font-size: var(--text-block-title);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-micro);
+  letter-spacing: var(--sf-track-component);
   line-height: var(--leading-snug);
   text-transform: uppercase;
+  /* The baseline ellipsizes panel titles on one line; a module name is content,
+     so it wraps instead of truncating. */
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
 }
 
 [data-rmd-theme="sci-fi"] .local-panel-title::before {
@@ -281,10 +287,21 @@
   font-size: var(--sf-type-micro);
   letter-spacing: var(--sf-track-label);
   text-transform: uppercase;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-panel .local-panel-reset:hover:not(:disabled) {
   border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+[data-rmd-theme="sci-fi"] .local-panel .local-panel-reset:active:not(:disabled),
+[data-rmd-theme="sci-fi"].local-document .md-button.local-panel-reset:active:not(:disabled) {
+  border-color: var(--accent-line);
+  background: var(--surface-active);
   color: var(--accent-text);
 }
 
@@ -304,11 +321,12 @@
   background: var(--sf-panel-head-bg);
   color: var(--ink-soft);
   font-family: var(--sf-font-data);
-  font-size: var(--sf-type-micro);
+  font-size: var(--text-block-title);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-micro);
+  letter-spacing: var(--sf-track-component);
   line-height: var(--leading-snug);
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 [data-rmd-theme="sci-fi"] .md-card-body {
@@ -337,7 +355,7 @@
   gap: 1px;
   margin: var(--space-4) 0;
   padding: 1px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   background: var(--line);
 }
 
@@ -366,7 +384,7 @@
 
 [data-rmd-theme="sci-fi"] .md-table-scroll {
   margin: var(--space-4) 0;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   background: var(--sf-table-bg);
 }
 
@@ -415,7 +433,7 @@
   position: relative;
   margin: var(--space-4) 0;
   padding: var(--space-3) var(--space-4) var(--space-4);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: 0;
   background: var(--sf-chart-frame);
 }
@@ -439,10 +457,11 @@
   border-bottom: 1px solid var(--line);
   color: var(--ink-soft);
   font-family: var(--sf-font-data);
-  font-size: var(--sf-type-micro);
+  font-size: var(--text-block-title);
   font-weight: var(--weight-semibold);
-  letter-spacing: var(--sf-track-micro);
+  letter-spacing: var(--sf-track-component);
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-title::before {
@@ -465,7 +484,7 @@
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-axis-label {
-  font-size: 10px;
+  font-size: var(--sf-type-micro);
   text-transform: uppercase;
 }
 
@@ -547,12 +566,16 @@
   background: var(--sf-field-bg);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+  transition:
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-search input:focus-visible {
   border-color: var(--accent);
-  outline: 1px solid var(--accent);
+  outline: var(--focus-outline);
   outline-offset: 1px;
+  box-shadow: none;
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-readout,
@@ -588,12 +611,27 @@
   font-weight: var(--weight-semibold);
   letter-spacing: var(--sf-track-label);
   text-transform: uppercase;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-sort-button:hover,
 [data-rmd-theme="sci-fi"] .local-visual-sort-button.is-sorted {
   color: var(--accent-text);
   text-decoration-color: var(--accent-line);
+}
+
+[data-rmd-theme="sci-fi"] .local-visual-sort-button:active:not(:disabled) {
+  background: var(--surface-active);
+  color: var(--accent-text);
+}
+
+[data-rmd-theme="sci-fi"] .local-visual-sort-button:disabled {
+  border-color: var(--line);
+  color: var(--ink-muted);
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-pagination {
@@ -620,6 +658,10 @@
   letter-spacing: var(--sf-track-label);
   text-decoration: none;
   text-transform: uppercase;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-pagination button:not(:disabled):hover {
@@ -628,9 +670,18 @@
   color: var(--accent-text);
 }
 
+[data-rmd-theme="sci-fi"] .local-visual-pagination button:active:not(:disabled) {
+  border-color: var(--accent-line);
+  background: var(--surface-active);
+  color: var(--accent-text);
+}
+
 [data-rmd-theme="sci-fi"] .local-visual-pagination button:disabled {
+  border-color: var(--line);
+  color: var(--ink-muted);
   opacity: var(--disabled-opacity);
   text-decoration: none;
+  cursor: not-allowed;
 }
 
 [data-rmd-theme="sci-fi"] .local-visual-pagination button:focus-visible {
@@ -779,6 +830,10 @@
   font-size: var(--text-sm);
   letter-spacing: 0.01em;
   box-shadow: none;
+  transition:
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .md-text-input {
@@ -799,15 +854,20 @@
 
 [data-rmd-theme="sci-fi"] .md-text-input:focus-visible {
   border-color: var(--accent);
-  outline: 1px solid var(--accent);
+  outline: var(--focus-outline);
   outline-offset: 1px;
-  box-shadow: var(--sf-glow);
+  box-shadow: none;
 }
 
 [data-rmd-theme="sci-fi"] .md-text-input[aria-invalid="true"],
 [data-rmd-theme="sci-fi"].local-document .md-text-input[aria-invalid="true"] {
   border-color: var(--danger);
   box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+[data-rmd-theme="sci-fi"] .md-text-input[aria-invalid="true"]:focus-visible,
+[data-rmd-theme="sci-fi"].local-document .md-text-input[aria-invalid="true"]:focus-visible {
+  outline-color: var(--danger);
 }
 
 [data-rmd-theme="sci-fi"] .md-text-input:disabled {
@@ -893,6 +953,9 @@
   border: 1px solid var(--line-strong);
   border-radius: 0;
   background-color: var(--sf-field-bg);
+  transition:
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-checkbox .md-toggle-label input[type="checkbox"]:checked,
@@ -1002,6 +1065,30 @@
   background-size: 6px 6px;
 }
 
+/* One focus language for every square selection mark: the same 2px ring the
+   buttons and fields use, offset so it never clips the 1px control border. */
+[data-rmd-theme="sci-fi"] .local-checkbox .md-toggle-label input:focus-visible,
+[data-rmd-theme="sci-fi"] .local-checklist-item input:focus-visible,
+[data-rmd-theme="sci-fi"] .local-multi-option input:focus-visible,
+[data-rmd-theme="sci-fi"] .local-radio-option input:focus-visible,
+[data-rmd-theme="sci-fi"].local-document .md-task-checkbox:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+/* Disabled marks keep their glyph (background-image is not reset) so a locked
+   selection still reads as checked; the shared opacity carries the state. */
+[data-rmd-theme="sci-fi"] .local-checkbox .md-toggle-label input[type="checkbox"]:disabled,
+[data-rmd-theme="sci-fi"] .local-checklist-item input:disabled,
+[data-rmd-theme="sci-fi"] .local-multi-option input:disabled,
+[data-rmd-theme="sci-fi"] .local-radio-option input:disabled,
+[data-rmd-theme="sci-fi"].local-document .md-task-checkbox:disabled {
+  border-color: var(--line);
+  color: var(--ink-muted);
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
 [data-rmd-theme="sci-fi"].local-document .md-task-checkbox {
   width: 14px;
   height: 14px;
@@ -1072,6 +1159,10 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-label);
   letter-spacing: 0.03em;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(2):last-child) .local-choice.is-selected,
@@ -1091,12 +1182,27 @@
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-label);
   letter-spacing: 0.03em;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice.is-selected {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent-text);
+}
+
+/* Pressed: a segment must stay transparent so the sliding thumb shows through,
+   so both shapes take the hairline ring and only the chips add the active fill. */
+[data-rmd-theme="sci-fi"] .local-choice:active:not(:disabled) {
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice:active:not(:disabled) {
+  background: var(--surface-active);
 }
 
 [data-rmd-theme="sci-fi"] .local-radio-group {
@@ -1136,6 +1242,15 @@
   background: var(--sf-field-bg);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
+}
+
+/* The search field is the input itself in the current DOM; the descendant
+   selector keeps the ring if a wrapper is ever introduced. */
+[data-rmd-theme="sci-fi"] .local-multi-search:focus-visible,
+[data-rmd-theme="sci-fi"] .local-multi-search input:focus-visible {
+  border-color: var(--accent);
+  outline: var(--focus-outline);
+  outline-offset: 2px;
 }
 
 [data-rmd-theme="sci-fi"] .local-multi-option {
@@ -1186,15 +1301,27 @@
 }
 
 [data-rmd-theme="sci-fi"] .local-tablist {
-  gap: 1px;
-  padding: 1px;
-  border: 1px solid var(--line-strong);
-  background: var(--line);
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: var(--sf-nav-bg);
   overflow-x: auto;
 }
 
+/* The baseline underline slides in equal shares of the padding box; gaps or
+   content-sized tabs break that geometry, so separators live on the tabs. */
+[data-rmd-theme="sci-fi"] .local-tab + .local-tab {
+  border-left: 1px solid var(--line);
+}
+
+[data-rmd-theme="sci-fi"] .local-tablist::after {
+  height: 2px;
+  border-radius: 0;
+}
+
 [data-rmd-theme="sci-fi"] .local-tab {
-  flex: 1 0 auto;
+  flex: 1 1 0;
+  min-width: 0;
   min-height: var(--control-height);
   padding: 0 var(--space-3);
   border: 0;
@@ -1208,6 +1335,9 @@
   letter-spacing: var(--sf-track-label);
   text-align: center;
   text-transform: uppercase;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-tab:hover {
@@ -1215,10 +1345,14 @@
   color: var(--ink);
 }
 
+[data-rmd-theme="sci-fi"] .local-tab:active:not(:disabled) {
+  background: var(--surface-active);
+  color: var(--accent-text);
+}
+
 [data-rmd-theme="sci-fi"] .local-tab.is-selected {
   background: var(--sf-nav-active-bg);
   color: var(--accent-text);
-  box-shadow: inset 0 2px 0 var(--accent);
 }
 
 [data-rmd-theme="sci-fi"] .local-tab:focus-visible {
@@ -1228,7 +1362,7 @@
 
 [data-rmd-theme="sci-fi"] .local-tabpanel {
   padding: var(--space-3);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-top: 0;
   border-radius: 0;
   background: var(--surface);
@@ -1237,7 +1371,7 @@
 [data-rmd-theme="sci-fi"] .local-steps-nav {
   gap: 1px;
   padding: 1px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   background: var(--line);
 }
 
@@ -1260,7 +1394,7 @@
 
 [data-rmd-theme="sci-fi"] .local-steps-panel {
   padding: var(--space-3);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: 0;
   background: var(--surface);
 }
@@ -1292,6 +1426,18 @@
   letter-spacing: var(--sf-track-label);
 }
 
+[data-rmd-theme="sci-fi"] .local-accordion {
+  border-top: 0;
+}
+
+/* The disclosure heading is an h3; the document h3 rhythm must not leak
+   into the trigger row as empty bands and double rules. */
+[data-rmd-theme="sci-fi"].md-document .local-disclosure-heading {
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+
 [data-rmd-theme="sci-fi"] .local-disclosure {
   border: 1px solid var(--line);
   border-radius: 0;
@@ -1311,6 +1457,10 @@
   font-weight: var(--weight-semibold);
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-disclosure-trigger[aria-expanded="true"] {
@@ -1323,9 +1473,21 @@
   background: var(--surface-hover);
 }
 
+[data-rmd-theme="sci-fi"] .local-disclosure-trigger:active:not(:disabled) {
+  background: var(--surface-active);
+  box-shadow: inset 2px 0 0 var(--accent-line);
+}
+
 [data-rmd-theme="sci-fi"] .local-disclosure-panel {
   padding: var(--space-2) var(--space-3) var(--space-3);
   border-top: 1px solid var(--line);
+}
+
+[data-rmd-theme="sci-fi"] .local-disclosure:has(.local-disclosure-trigger[aria-expanded="false"]) .local-disclosure-panel {
+  height: 0;
+  padding: 0;
+  border-top: 0;
+  visibility: hidden;
 }
 
 [data-rmd-theme="sci-fi"] .local-chevron {
@@ -1457,7 +1619,7 @@
 
 [data-rmd-theme="sci-fi"] .local-timer {
   padding: var(--space-3);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: 0;
   background: var(--surface);
 }
@@ -1474,10 +1636,14 @@
   font-variant-numeric: tabular-nums;
 }
 
-[data-rmd-theme="sci-fi"] .local-tooltip-bubble {
+/* The baseline paints the floating bubble with constant --tooltip-ink at
+   higher specificity; own the whole paint contract or light mode inherits
+   white text on a white surface. */
+[data-rmd-theme="sci-fi"].md-document .local-tooltip:not(.local-static-tooltip) .local-tooltip-bubble {
   border: 1px solid var(--line-strong);
   border-radius: 0;
   background: var(--surface);
+  color: var(--ink);
   box-shadow: none;
 }
 
@@ -1574,6 +1740,10 @@
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   box-shadow: none;
+  transition:
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-select [data-rmd-part="trigger"]:hover:not([data-disabled]):not(:disabled),
@@ -1587,9 +1757,9 @@
 [data-rmd-theme="sci-fi"] .local-select [role="combobox"]:focus-visible,
 [data-rmd-theme="sci-fi"] .local-select [role="combobox"][data-state="open"] {
   border-color: var(--accent);
-  outline: 1px solid var(--accent);
+  outline: var(--focus-outline);
   outline-offset: 1px;
-  box-shadow: var(--sf-glow);
+  box-shadow: none;
 }
 
 [data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="trigger"],
@@ -1599,6 +1769,10 @@
   background: var(--sf-field-bg, var(--surface));
   color: var(--ink);
   box-shadow: none;
+  transition:
+    border-color var(--motion-base) var(--ease-standard),
+    background-color var(--motion-base) var(--ease-standard),
+    box-shadow var(--motion-base) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="trigger"]:hover:not(:disabled),
@@ -1612,9 +1786,45 @@
 [data-rmd-theme="sci-fi"] .local-date-picker button[aria-haspopup="dialog"]:focus-visible,
 [data-rmd-theme="sci-fi"] .local-date-picker button[aria-haspopup="dialog"][aria-expanded="true"] {
   border-color: var(--accent);
-  outline: 1px solid var(--accent);
+  outline: var(--focus-outline);
   outline-offset: 1px;
-  box-shadow: var(--sf-glow);
+  box-shadow: none;
+}
+
+/* Invalid triggers carry the danger stroke on the shell itself; the inset ring
+   keeps the 1px border from reading as a double line. Placed after the focus
+   and open rules so the error stroke survives both states. */
+[data-rmd-theme="sci-fi"] .local-select [data-rmd-part="trigger"][aria-invalid="true"],
+[data-rmd-theme="sci-fi"] .local-select [role="combobox"][aria-invalid="true"],
+[data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="trigger"][aria-invalid="true"],
+[data-rmd-theme="sci-fi"] .local-date-picker button[aria-haspopup="dialog"][aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+[data-rmd-theme="sci-fi"] .local-select [data-rmd-part="trigger"][aria-invalid="true"]:focus-visible,
+[data-rmd-theme="sci-fi"] .local-select [role="combobox"][aria-invalid="true"]:focus-visible,
+[data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="trigger"][aria-invalid="true"]:focus-visible,
+[data-rmd-theme="sci-fi"] .local-date-picker button[aria-haspopup="dialog"][aria-invalid="true"]:focus-visible {
+  outline-color: var(--danger);
+}
+
+/* One disabled skin for every trigger shape: the structural border, muted ink
+   and the shared opacity, whether the kernel writes :disabled or data-disabled. */
+[data-rmd-theme="sci-fi"] .local-select [data-rmd-part="trigger"]:disabled,
+[data-rmd-theme="sci-fi"] .local-select [data-rmd-part="trigger"][data-disabled],
+[data-rmd-theme="sci-fi"] .local-select [role="combobox"]:disabled,
+[data-rmd-theme="sci-fi"] .local-select [role="combobox"][data-disabled],
+[data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="trigger"]:disabled,
+[data-rmd-theme="sci-fi"] .local-date-picker [data-rmd-part="trigger"][data-disabled],
+[data-rmd-theme="sci-fi"] .local-date-picker button[aria-haspopup="dialog"]:disabled,
+[data-rmd-theme="sci-fi"] .local-date-picker button[aria-haspopup="dialog"][data-disabled] {
+  border-color: var(--line);
+  background: var(--sf-field-bg, var(--surface));
+  color: var(--ink-muted);
+  opacity: var(--disabled-opacity);
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
 [data-rmd-theme="sci-fi"] .local-select [data-rmd-part="menu"],
@@ -1651,7 +1861,7 @@
    tokens.css; only the label typography belongs to the theme. */
 [data-rmd-theme="sci-fi"] .rmd-chart-axis-label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--sf-type-micro);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -1703,6 +1913,10 @@
 [data-rmd-theme="sci-fi"] .rmd-chart-legend-item {
   border: 1px solid transparent;
   border-radius: 0;
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    border-color var(--motion-base) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .rmd-chart-legend-item.is-highlighted {
@@ -1714,6 +1928,11 @@
   border-color: var(--accent-line);
   background: var(--accent-soft);
   color: var(--accent-text);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-chart-legend-item:active:not(:disabled) {
+  border-color: var(--accent-line);
+  background: var(--surface-active);
 }
 
 [data-rmd-theme="sci-fi"] .rmd-chart-legend-item:focus-visible {
@@ -1794,6 +2013,7 @@
    on the baseline auto margin alone. */
 [data-rmd-theme="sci-fi"] .rmd-chart-tooltip-value {
   font-family: var(--font-mono);
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   text-align: end;
 }
@@ -1837,11 +2057,26 @@
   border-radius: 0;
   color: var(--ink-soft);
   font-family: var(--font-mono);
+  transition:
+    background-color var(--motion-base) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .rmd-diagram-zoom button:hover:not(:disabled) {
   background: var(--surface-hover);
   color: var(--accent-text);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-zoom button:active:not(:disabled) {
+  background: var(--surface-active);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+
+[data-rmd-theme="sci-fi"] .rmd-diagram-zoom button:disabled {
+  border-color: var(--line);
+  color: var(--ink-muted);
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
 }
 
 [data-rmd-theme="sci-fi"] .rmd-diagram-hint {
@@ -1910,7 +2145,7 @@
 }
 
 [data-rmd-theme="sci-fi"] .local-footnotes {
-  border-top: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line);
 }
 
 [data-rmd-theme="sci-fi"].local-document .local-footnote-ref-link,
@@ -2074,6 +2309,17 @@
 
   [data-rmd-theme="sci-fi"] .local-tab {
     padding: 0 var(--space-2);
+  }
+}
+
+/* Touch pointers get the 44px target family: the control heights are the only
+   geometry the components read, so every button, field, tab and trigger grows
+   from these three values without restating any component rule. */
+@media (pointer: coarse) {
+  [data-rmd-theme="sci-fi"] {
+    --control-height-sm: 36px;
+    --control-height: 44px;
+    --control-height-lg: 48px;
   }
 }
 

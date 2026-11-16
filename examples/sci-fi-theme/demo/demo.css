@@ -20,6 +20,8 @@
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) var(--surface-subtle);
 }
 
 .sf-app ::selection {
@@ -55,7 +57,7 @@
   align-items: center;
   min-height: 62px;
   padding: 0 20px;
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
   background: var(--surface);
   box-shadow: inset 0 -2px 0 var(--accent);
 }
@@ -98,7 +100,7 @@
 .sf-brand-sub {
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.12em;
   line-height: 1.4;
   text-transform: uppercase;
@@ -123,7 +125,7 @@
 .sf-status > span {
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.14em;
   line-height: 1.3;
   text-transform: uppercase;
@@ -132,7 +134,7 @@
 .sf-status > strong {
   color: var(--ink-soft);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.08em;
   line-height: 1.3;
@@ -152,7 +154,7 @@
   background: transparent;
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -168,6 +170,10 @@
 .sf-scheme button:hover {
   background: var(--surface-hover);
   color: var(--ink);
+}
+
+.sf-scheme button:active {
+  background: var(--surface-active);
 }
 
 .sf-scheme button[aria-pressed="true"] {
@@ -189,7 +195,7 @@
   display: flex;
   gap: 1px;
   padding: 1px;
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
   background: var(--line);
 }
 
@@ -204,7 +210,7 @@
   background: var(--surface-subtle);
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-align: left;
@@ -217,6 +223,10 @@
 .sf-doc-switch button:hover {
   background: var(--surface-hover);
   color: var(--ink);
+}
+
+.sf-doc-switch button:active {
+  background: var(--surface-active);
 }
 
 .sf-doc-switch button[aria-pressed="true"] {
@@ -232,7 +242,7 @@
 
 .sf-doc-switch-file {
   color: var(--ink-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.06em;
   text-transform: none;
@@ -252,7 +262,7 @@
 
 .sf-rail {
   padding: 14px 16px 24px;
-  border-right: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line);
   background: var(--surface);
 }
 
@@ -268,7 +278,7 @@
 .sf-rail-index,
 .sf-rail-foot {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
@@ -295,7 +305,7 @@
   margin: 0 0 10px;
   color: var(--ink-soft);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.14em;
   line-height: 1.3;
@@ -326,7 +336,7 @@
   overflow: hidden;
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -364,26 +374,26 @@
 .sf-type-list li > span:last-child {
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .sf-type-display {
-  font-size: 25px;
+  font-size: 28px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.01em;
 }
 
 .sf-type-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   line-height: 1;
 }
 
 .sf-type-body {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -416,7 +426,7 @@
   margin: 0;
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   line-height: 1.6;
 }
@@ -441,6 +451,12 @@
   background: var(--surface-hover);
 }
 
+.sf-state-chip.is-active {
+  border-color: var(--accent);
+  background: var(--surface-active);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 .sf-state-chip.is-focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -458,10 +474,15 @@
   opacity: 0.38;
 }
 
+.sf-state-chip.is-error {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
 .sf-state-name {
   color: var(--ink-soft);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
 }
@@ -469,7 +490,7 @@
 .sf-state-note {
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 8.5px;
+  font-size: 10px;
   letter-spacing: 0.04em;
 }
 
@@ -496,12 +517,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 7px 12px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-bottom: 0;
   background: var(--surface-subtle);
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
@@ -528,7 +549,7 @@
   margin: 10px auto 0;
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -566,13 +587,13 @@
   }
 
   .sf-brand-name {
-    font-size: 10.5px;
+    font-size: 11px;
     letter-spacing: 0.12em;
   }
 
   .sf-scheme button {
     padding: 0 10px;
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .sf-stage {
@@ -590,5 +611,15 @@
   .sf-stage-foot > span:nth-child(2),
   .sf-stage-foot > span:nth-child(4) {
     display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .sf-scheme button {
+    min-height: 44px;
+  }
+
+  .sf-doc-switch button {
+    min-height: 48px;
   }
 }

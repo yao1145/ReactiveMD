@@ -39,7 +39,7 @@
 
 /* §3.6.2 A + §3.6.3: the visual frame background is theme-owned and does not
    change with chart hover or selection, so the single-layer treatment holds.
-   The hairline matches the frame's --line-strong border.
+   The hairline matches the frame's --line structural border.
 
    Safe to clip: the chart tooltip is the only overflowing descendant. It is
    position: absolute inside .rmd-chart-stage (default-chart.tsx:421, 459)
@@ -60,7 +60,7 @@
   background-image: linear-gradient(
     to bottom right,
     transparent calc(50% - 0.5px),
-    var(--line-strong) calc(50% - 0.5px) calc(50% + 0.5px),
+    var(--line) calc(50% - 0.5px) calc(50% + 0.5px),
     transparent calc(50% + 0.5px)
   );
   background-origin: border-box;

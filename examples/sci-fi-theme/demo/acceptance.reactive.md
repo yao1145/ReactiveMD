@@ -12,7 +12,7 @@ top to bottom against `docs/theme-upgrade-design-ch.md`.
 <computed name="burnMinutes" value="{{ deltaV / 12 }}">
 <const name="exhaustVelocity" value="{{ 4400 }}">
 
-## 01 / Decisive pair: toggle and checkbox
+## SYS / 01 · Decisive pair: toggle and checkbox
 
 This is the defect the upgrade exists for. These two controls share the same inner markup
 (`label.md-toggle-label > input[type=checkbox] + span`) and were previously flattened into
@@ -31,7 +31,7 @@ The toggle is a 40x20 square switch with a 14px sliding block and no pill geomet
 The checkboxes are 16px squares. If both look like small squares, the theme regressed.
 </alert>
 
-## 02 / Full form inventory
+## SYS / 02 · Full form inventory
 
 <panel title="Text and number entry">
 <input bind="callsign" label="Callsign" placeholder="ENTER CALLSIGN">
@@ -61,7 +61,7 @@ every segment transparent. Selection must read from the thumb, not from a filled
 <option value="burn">Burn to depletion</option>
 </choices>
 
-Five options cross the threshold into the chip shape, where every chip carries its own
+Six options cross the threshold into the chip shape, where every chip carries its own
 surface. Both shapes must keep square corners and the mono label.
 
 <choices bind="recoveryPlan" label="Recovery plan" initial="reentry">
@@ -70,6 +70,7 @@ surface. Both shapes must keep square corners and the mono label.
 <option value="lunar">Lunar free return</option>
 <option value="depot">Depot rendezvous</option>
 <option value="abort">Abort to surface</option>
+<option value="contingency">Contingency abort to surface with residual propellant reserve</option>
 </choices>
 
 
@@ -86,7 +87,7 @@ surface. Both shapes must keep square corners and the mono label.
 </checklist>
 </panel>
 
-<panel title="Sliders">
+<panel title="Propellant loading and throttle window configuration">
 <slider bind="payloadSlider" label="Payload mass / t" initial="18" min="1" max="40">
 <range-slider label="Throttle window" bind-start="low" bind-end="high" initial-start="20" initial-end="80" min="0" max="100" step="1">
 </panel>
@@ -96,7 +97,7 @@ surface. Both shapes must keep square corners and the mono label.
 <timer label="Burn timer" duration="90">
 </panel>
 
-## 03 / Feedback and status
+## SYS / 03 · Feedback and status
 
 <badge tone="success">System nominal</badge> <badge tone="warning">Thermal watch</badge> <badge tone="neutral">Telemetry</badge> <badge tone="warning">Fault</badge> <badge>Draft 3</badge>
 
@@ -120,7 +121,7 @@ The filter stage is rejecting outliers; the shared data bus is clean.
 
 Checked: {{ len(checks) }} / 3 · subsystems: {{ len(subsystems) }}
 
-## 04 / Navigation
+## SYS / 04 · Navigation
 
 <tabs label="Flight plan">
 <tab label="Ascent">
@@ -163,7 +164,7 @@ Solar array B is producing 3% below prediction. Bus voltage remains within limit
 </disclosure>
 </accordion>
 
-## 05 / Structure: panels, cards, grid, sections
+## SYS / 05 · Structure: panels, cards, grid, sections
 
 <grid columns="3">
 <card title="Delta-v budget">
@@ -190,7 +191,7 @@ notch target, so the cut corner and the left signal rule should coexist.
 
 </section>
 
-## 06 / Charts: all six kinds
+## SYS / 06 · Charts: all six kinds
 
 <chart kind="bar" title="Delta-v by stage" x-label="Stage" y-label="m/s">
 | Stage | Planned | Actual |
@@ -220,6 +221,24 @@ notch target, so the cut corner and the left signal rule should coexist.
 | 4 | 3 | 9 |
 </chart>
 
+<grid columns="3">
+<card title="Readout / peak">
+**14 deg C**
+
+Radiator B, orbit 3
+</card>
+<card title="Readout / current">
+**9 deg C**
+
+Radiator B, orbit 4
+</card>
+<card title="Readout / delta">
+**5 deg C**
+
+peak − current
+</card>
+</grid>
+
 <chart kind="scatter" title="Drift versus temperature" x-label="deg C" y-label="arcsec">
 | Index | Drift | Temperature |
 | --- | ---: | ---: |
@@ -248,7 +267,7 @@ notch target, so the cut corner and the left signal rule should coexist.
 | Payload | 18 |
 </chart>
 
-## 07 / Tables: Markdown, enhanced, and bound
+## SYS / 07 · Tables: Markdown, enhanced, and bound
 
 Markdown table:
 
@@ -291,7 +310,7 @@ declared with `<column>` and each value is evaluated in row scope:
 <column label="Posture" value="{{ burn ? 'Burn ready' : 'Hold' }}">
 </data-table>
 
-## 08 / Timeline, diagram, gallery
+## SYS / 08 · Timeline, diagram, gallery
 
 <timeline title="A 90-minute burn sequence">
 | Task | Start | Duration | Notes |
@@ -338,7 +357,7 @@ Perigee kick at 400 km, radiator panels deployed.
 </gallery-item>
 </gallery>
 
-## 09 / Quiz
+## SYS / 09 · Quiz
 
 One of each kind, plus an explanation that must inherit the theme.
 
@@ -350,7 +369,7 @@ One of each kind, plus an explanation that must inherit the theme.
 
 <quiz type="number" label="Approximate pi" answer="3.14" tolerance="0.01" explanation="Any value within 0.01 of 3.14 is accepted."></quiz>
 
-## 10 / Coordinates and plots
+## SYS / 10 · Coordinates and plots
 
 <coordinate label="Point position" bind-x="px" bind-y="py" initial-x="1" initial-y="2" x-min="-5" x-max="5" y-min="-5" y-max="5">
 
@@ -362,7 +381,7 @@ $$ y = \sin x $$
 $$ y = x^2 $$
 </plot>
 
-## 11 / Conditional content and validation
+## SYS / 11 · Conditional content and validation
 
 The three sliders and the limit below drive a live validation rule. Raise payload until the
 budget breaks and the inline error must appear in theme colours.
@@ -377,13 +396,13 @@ budget breaks and the inline error must appear in theme colours.
 <alert tone="info" title="Prograde on hold">Authorise the burn in section 01 to arm guidance.</alert>
 </if>
 
-## 12 / Typography, code, math, quotes
+## SYS / 12 · Typography, code, math, quotes
 
-Inline code such as `normalize(target.sub(position))`, a [link to the protocol notes](#01-decisive-pair-toggle-and-checkbox), and **bold**, *italic*, and ~~struck~~ text.
+Inline code such as `normalize(target.sub(position))`, a [link to the protocol notes](#sys-01-decisive-pair-toggle-and-checkbox), and **bold**, *italic*, and ~~struck~~ text.
 
-Coloured inline runs use `<text>`, which is the only way to carry a foreground colour
-without a stylesheet hook: <text color="#096b87">telemetry channel nominal</text> and
-<text color="#8a5a00">thermal watch active</text>.
+Inline status runs use semantic `<badge>` tones rather than hardcoded foreground colours, so
+contrast holds in both schemes: <badge tone="success">Telemetry nominal</badge> and
+<badge tone="warning">Thermal watch</badge>.
 
 ```ts
 const vector = normalize(target.sub(position));
@@ -417,7 +436,7 @@ Task list:
 - [ ] Life support certification
 - [ ] Range clearance
 
-## 13 / Jump links and anchors
+## SYS / 13 · Jump links and anchors
 
 <jump to="acceptance-anchor" appearance="button">Jump to the anchor</jump>
 
@@ -427,7 +446,7 @@ You arrived at the anchor. Scroll back up to section 01 for the decisive pair.
 
 <tooltip text="Token contract: surface, ink, line, accent, focus, chart and code families.">SF-01 token contract</tooltip> · rendered in {{ len(checks) + len(subsystems) }} live states.
 
-## 14 / Component coverage note
+## SYS / 14 · Component coverage note
 
 The design document also specifies skins for `md-status`, `md-spinner`, `md-skeleton` and
 `md-loading`. Those classes ship in the shared baseline CSS but no current component emits

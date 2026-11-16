@@ -9,8 +9,9 @@ Hard-sci-fi design system · theme `sci-fi` · token set SF-01. Every control on
 <const name="exhaustVelocity" value="{{ 4400 }}">
 <computed name="deltaV" value="{{ payload * 9.81 * 1.25 }}">
 <computed name="burnMinutes" value="{{ deltaV / 12 }}">
+<computed name="thrustPeak" value="{{ payload * 2.6 }}">
 
-## 01 / Mission parameters
+## SYS / 01 · Mission parameters
 
 <panel title="Transfer parameters">
 <slider bind="payload" label="Payload mass / t" initial="18" min="1" max="40">
@@ -40,7 +41,7 @@ Prograde: {{ burn ? 'AUTHORIZED' : 'HOLD' }}
 </card>
 </grid>
 
-## 02 / Telemetry
+## SYS / 02 · Telemetry
 
 <chart kind="line" title="Thrust profile" x-label="T+ min" y-label="kN">
 | T+ | Thrust | Chamber |
@@ -53,6 +54,24 @@ Prograde: {{ burn ? 'AUTHORIZED' : 'HOLD' }}
 | 5 | 0 | 0 |
 </chart>
 
+<grid columns="3">
+<card title="Readout / peak">
+**{{ formatNumber(thrustPeak, 0) }} kN**
+
+T+2 apex
+</card>
+<card title="Readout / current">
+**{{ formatNumber(payload * 1.2, 0) }} kN**
+
+T+4 throttle
+</card>
+<card title="Readout / delta">
+**{{ formatNumber(thrustPeak - payload * 1.2, 0) }} kN**
+
+peak − current
+</card>
+</grid>
+
 <table label="Ground stations" page-size="4">
 | Station | Band | Uplink | Status |
 | --- | --- | ---: | --- |
@@ -63,7 +82,7 @@ Prograde: {{ burn ? 'AUTHORIZED' : 'HOLD' }}
 | Santiago | S | 21 | Standby |
 </table>
 
-## 03 / Flight plan
+## SYS / 03 · Flight plan
 
 <tabs label="Flight plan">
 <tab label="Ascent">
@@ -89,7 +108,7 @@ Ignition at T-0. Throttle ramps to 100% over four seconds.
 </step>
 </steps>
 
-## 04 / System state
+## SYS / 04 · System state
 
 <alert tone="warning" title="Thermal loop B">
 Radiator outlet is 4.2 C above the modelled curve. Reduce duty cycle until the next ground pass.
@@ -107,7 +126,7 @@ Solar array B is producing 3% below prediction. Bus voltage remains within limit
 </disclosure>
 </accordion>
 
-## 05 / Crew registry
+## SYS / 05 · Crew registry
 
 <panel title="Crew manifest">
 <input bind="callsign" label="Callsign" placeholder="ENTER CALLSIGN">
@@ -123,6 +142,8 @@ Solar array B is producing 3% below prediction. Bus voltage remains within limit
 </checklist>
 <progress label="Checklist completion" value="{{ len(checks) / 3 * 100 }}">
 </panel>
+
+<validation when="{{ crew <= 8 }}" message="Crew above 8 exceeds life-support margin: {{ crew }} registered." fields="crew">
 
 <grid columns="2">
 <card title="Selection state">
@@ -144,7 +165,7 @@ Selected: {{ len(subsystems) }}
 <counter bind="corrections" label="Correction burns" initial="2" min="0" max="9">
 <timer label="Burn timer" duration="90">
 
-## 06 / Diagnostics
+## SYS / 06 · Diagnostics
 
 | Channel | Limit | State |
 | --- | ---: | --- |

@@ -31,18 +31,20 @@ const SWATCHES = [
 ];
 
 const TYPE_ROWS = [
-  { className: 'sf-type-display', sample: 'Aa', label: 'DISPLAY / 30' },
+  { className: 'sf-type-display', sample: 'Aa', label: 'DISPLAY / 28' },
   { className: 'sf-type-title', sample: 'Aa', label: 'TITLE / 20' },
-  { className: 'sf-type-body', sample: 'Aa', label: 'BODY / 15' },
+  { className: 'sf-type-body', sample: 'Aa', label: 'BODY / 14' },
   { className: 'sf-type-data', sample: '0x41', label: 'DATA / MONO' },
 ];
 
 const STATES = [
   { className: 'is-default', label: 'DEFAULT', note: '1px line' },
   { className: 'is-hover', label: 'HOVER', note: 'accent stroke' },
+  { className: 'is-active', label: 'ACTIVE', note: 'inset ring' },
   { className: 'is-focus', label: 'FOCUS', note: '2px outline' },
   { className: 'is-selected', label: 'SELECTED', note: 'left signal' },
-  { className: 'is-disabled', label: 'DISABLED', note: 'hatch / 38%' },
+  { className: 'is-disabled', label: 'DISABLED', note: 'hatch / 45%' },
+  { className: 'is-error', label: 'ERROR', note: 'danger + text' },
 ];
 
 function SchemeToggle({ value, onChange }: { value: 'light' | 'dark'; onChange: (value: 'light' | 'dark') => void }) {
