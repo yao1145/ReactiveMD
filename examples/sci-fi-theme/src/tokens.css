@@ -64,9 +64,12 @@
   --sf-grid-max: 1120px;
   --sf-hairline: 1px;
   --sf-rule: 2px;
+  /* Radius ladder for the tightened 0-2px contract. Three steps are kept so
+     the scale still reads as a scale; the top step folds back onto 2px
+     because nothing above that is allowed any more. */
   --sf-radius-0: 0px;
   --sf-radius-1: 2px;
-  --sf-radius-2: 4px;
+  --sf-radius-2: 2px;
 
   --sf-duration-1: 80ms;
   --sf-duration-2: 120ms;
@@ -135,10 +138,11 @@
   --danger-line: #e6b3bd;
   --neutral-soft: #e7edf2;
 
-  /* Focus — a hard double rule, never a soft glow. */
+  /* Focus — a hard double rule, never a soft glow. The kernel never reads
+     --focus-ring; the real hook is --pu-focus-halo (§2.5). */
   --focus: var(--accent-text);
   --focus-outline: 2px solid var(--focus);
-  --focus-ring: 0 0 0 1px var(--surface), 0 0 0 3px var(--focus);
+  --pu-focus-halo: 0 0 0 1px var(--surface), 0 0 0 3px var(--focus);
 
   /* Data series — cold, print-safe, distinguishable in both modes. */
   --chart-1: #0a6b87;
@@ -152,24 +156,40 @@
   --chart-grid: #d3dde6;
   --chart-axis: #5f7183;
 
+  /* §2.4.1: the interactive chart consumes these through inline styles, so
+     theme stroke/fill rules can never win — only the variables can. */
+  --rmd-chart-bar-radius: 0px;
+  --rmd-chart-line-width: 1.6;
+  --rmd-chart-line-highlight-width: 2.4;
+  --rmd-chart-point-stroke-width: 1.5;
+  --rmd-chart-area-opacity: 0.1;
+  --rmd-chart-dim-opacity: 0.45;
+  --rmd-chart-mark-stroke: var(--surface);
+  --rmd-chart-grid: var(--chart-grid);
+  --rmd-chart-axis: var(--chart-axis);
+  --rmd-chart-axis-title: var(--ink-soft);
+  --rmd-chart-guide: var(--accent);
+
   --coordinate-surface: #f1f5f8;
   --coordinate-grid: #ccd9e4;
   --coordinate-axis: #47596b;
   --coordinate-point: var(--accent);
 
-  /* Code — dark terminal glass even in light mode. */
-  --code-bg: #0a1017;
-  --code-bg-deep: #060b11;
-  --code-ink: #dce8f4;
-  --md-code-token-comment: #7e93a6;
-  --md-code-token-keyword: #8fc7ff;
-  --md-code-token-string: #8fe3c8;
-  --md-code-token-number: #f2c879;
-  --md-code-token-title: #6cdcf0;
-  --md-code-token-attr: #ffb3c0;
-  --md-code-token-meta: #b394ea;
-  --md-code-token-addition: #8fe3c8;
-  --md-code-token-deletion: #ff9daa;
+  /* Code — a cool instrument panel that follows the mode. Light mode is a
+     near-white surface one step below --surface; every token colour is drawn
+     from the light signal/status primitives and clears 4.5:1 on --code-bg. */
+  --code-bg: #edf2f7;
+  --code-bg-deep: #dde5ec;
+  --code-ink: #16232f;
+  --md-code-token-comment: #4f6071;
+  --md-code-token-keyword: #2f5f9e;
+  --md-code-token-string: #076b4f;
+  --md-code-token-number: #8a5a00;
+  --md-code-token-title: #096b87;
+  --md-code-token-attr: #b0253b;
+  --md-code-token-meta: #6d4aa1;
+  --md-code-token-addition: #076b4f;
+  --md-code-token-deletion: #b0253b;
 
   /* Type */
   --text-xs: 11.5px;
@@ -209,6 +229,25 @@
   --radius-sm: var(--sf-radius-0);
   --radius-md: var(--sf-radius-0);
   --radius-lg: var(--sf-radius-0);
+
+  /* §2.3.1: the shared baseline declares more named radii than this theme
+     used to. A missing name lets the default roundness through, so every
+     one is pinned to the 0-2px contract here by construction. */
+  --radius-xl: var(--sf-radius-0);
+  --radius-circle: var(--sf-radius-0);
+  --radius-hairline: var(--sf-radius-1);
+  --radius-2xs: var(--sf-radius-1);
+  --radius-xs: var(--sf-radius-1);
+  --radius-inset: var(--sf-radius-0);
+  --radius-toolbar: var(--sf-radius-0);
+
+  /* §2.3.1: baseline primitives consumed directly by native buttons and
+     some surfaces (the plot legend button inherited 10px before this). */
+  --pu-radius-xs: var(--sf-radius-1);
+  --pu-radius-sm: var(--sf-radius-1);
+  --pu-radius-md: var(--sf-radius-1);
+  --pu-radius-lg: var(--sf-radius-1);
+  --pu-radius-xl: var(--sf-radius-1);
 
   /* Controls */
   --control-height-sm: 28px;
@@ -279,6 +318,34 @@
   --rmd-slider-thumb-border-color: var(--surface);
   --rmd-slider-thumb-shadow: 0 0 0 1px var(--accent);
 
+  /* §2.6.2: UIArc calendar / date-picker / select / slider-bubble radii are
+     component variables, not classic radius tokens, so they have to be
+     declared separately or the default roundness leaks through. Component
+     layer only; the dark scheme inherits them. */
+  --rmd-calendar-day-radius: 0px;
+  --rmd-calendar-nav-radius: 0px;
+  --rmd-date-picker-radius: 0px;
+  --rmd-date-picker-popover-radius: 0px;
+  --rmd-date-picker-action-radius: 0px;
+  --rmd-select-radius: 0px;
+  --rmd-select-menu-radius: 0px;
+  --rmd-select-item-radius: 0px;
+  --rmd-select-menu-radius-offset: 0px;
+  --rmd-select-item-radius-offset: 0px;
+  --rmd-slider-bubble-radius: 0px;
+  --rmd-slider-tick-radius: 0px;
+
+  /* W1-4: checkbox geometry (baseline default 18px/5px) and switch elevation.
+     The baseline composes --rmd-switch-shadow/-press-shadow from a blur
+     geometry + colour-mix; supplying a complete value here replaces that
+     fallback, so the switch keeps a hard 1px ring and never blurs. The
+     *-geometry / *-opacity primitives are intentionally left alone — they
+     are inert once the composed values resolve. */
+  --rmd-uiarc-checkbox-size: 16px;
+  --rmd-uiarc-checkbox-radius: 0px;
+  --rmd-switch-shadow: 0 0 0 1px var(--line);
+  --rmd-switch-press-shadow: 0 0 0 1px var(--line-strong);
+
   --sf-glow: 0 0 0 1px var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
   --sf-hatch: repeating-linear-gradient(
     135deg,
@@ -340,7 +407,6 @@
   /* Focus */
   --focus: var(--accent-text);
   --focus-outline: 2px solid var(--focus);
-  --focus-ring: 0 0 0 1px var(--surface), 0 0 0 3px var(--focus);
 
   /* Data series */
   --chart-1: #4fd6ec;
@@ -353,6 +419,10 @@
   --chart-8: #8fe0e8;
   --chart-grid: #243443;
   --chart-axis: #8fa3b5;
+
+  /* §2.4.1: dimmed series need 0.45 in the dark scheme to reach 3:1 against
+     the surface (the baseline 0.22 lands at 1.61:1). The rest inherit. */
+  --rmd-chart-dim-opacity: 0.45;
 
   --coordinate-surface: #0d151e;
   --coordinate-grid: #243443;

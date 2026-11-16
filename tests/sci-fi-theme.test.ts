@@ -5,6 +5,14 @@ import { LOCAL_STYLE_LAYER_ORDER } from '../src/themes/contract';
 
 const tokensCss = readFileSync(new URL('../examples/sci-fi-theme/src/tokens.css', import.meta.url), 'utf8');
 const componentsCss = readFileSync(new URL('../examples/sci-fi-theme/src/components.css', import.meta.url), 'utf8');
+const notchCss = readFileSync(new URL('../examples/sci-fi-theme/src/notch.css', import.meta.url), 'utf8');
+
+/** Every shipped resource, in load order. */
+const RESOURCES: readonly [string, string][] = [
+  ['tokens.css', tokensCss],
+  ['components.css', componentsCss],
+  ['notch.css', notchCss],
+];
 
 const ROOT = '[data-rmd-theme="sci-fi"]';
 const DARK = '[data-rmd-theme="sci-fi"][data-color-scheme="dark"]';
@@ -119,6 +127,29 @@ const COMPONENT_TOKENS = [
   'sf-glow',
 ] as const;
 
+/** Every radius name the theme must pin so no default roundness leaks. */
+const RADIUS_TOKENS = [
+  'sf-radius-1',
+  'sf-radius-2',
+  'radius-control',
+  'radius-card',
+  'radius-panel',
+  'radius-pill',
+  'radius-field',
+  'radius-xl',
+  'radius-circle',
+  'radius-toolbar',
+  'radius-inset',
+  'radius-hairline',
+  'radius-2xs',
+  'radius-xs',
+  'pu-radius-xs',
+  'pu-radius-sm',
+  'pu-radius-md',
+  'pu-radius-lg',
+  'pu-radius-xl',
+] as const;
+
 describe('sci-fi theme package', () => {
   it('bootstraps the same public cascade for direct CSS imports', () => {
     for (const css of [tokensCss, componentsCss]) {
@@ -137,14 +168,11 @@ describe('sci-fi theme package', () => {
       name: 'sci-fi',
       version: '1.0.0',
       colorSchemes: ['light', 'dark'],
-      css: [
-        { id: 'tokens.css', css: tokensCss },
-        { id: 'components.css', css: componentsCss },
-      ],
+      css: RESOURCES.map(([id, css]) => ({ id, css })),
     });
     expect(theme.name).toBe('sci-fi');
     expect(theme.colorSchemes).toEqual(['light', 'dark']);
-    expect(theme.css).toHaveLength(2);
+    expect(theme.css).toHaveLength(3);
     expect(theme.css.every((resource) => resource.css.includes(ROOT))).toBe(true);
     expect(theme.css.every((resource) => !/@import|url\(\s*['\"]?https?:/i.test(resource.css))).toBe(true);
   });
@@ -172,16 +200,33 @@ describe('sci-fi theme package', () => {
     }
   });
 
-  it('keeps the radius contract at or below 4px and spacing on the 4px grid', () => {
+  it('keeps the radius contract at or below 2px and spacing on the 4px grid', () => {
     const radius = block(tokensCss, ROOT);
-    for (const name of ['sf-radius-1', 'sf-radius-2', 'radius-control', 'radius-card', 'radius-panel', 'radius-pill', 'radius-field']) {
-      const px = Number.parseFloat(resolve(name, radius));
-      expect(Number.isFinite(px), `--${name}`).toBe(true);
-      expect(px, `--${name}`).toBeLessThanOrEqual(4);
+    for (const name of RADIUS_TOKENS) {
+      const value = resolve(name, radius);
+      // A percentage radius is the leak this contract exists to stop.
+      expect(value, `--${name}`).not.toContain('%');
+      const px = Number.parseFloat(value);
+      expect(Number.isFinite(px), `--${name} resolved to "${value}"`).toBe(true);
+      expect(px, `--${name}`).toBeLessThanOrEqual(2);
     }
     for (let step = 1; step <= 7; step += 1) {
       const px = Number.parseFloat(resolve(`space-${step}`, radius));
       expect(px % 4, `--space-${step}`).toBe(0);
+    }
+  });
+
+  it('keeps every literal border-radius in the stylesheets at or below 2px', () => {
+    for (const [name, css] of RESOURCES) {
+      const source = css.replace(/\/\*[\s\S]*?\*\//g, '');
+      for (const match of source.matchAll(/border-radius\s*:\s*([^;}]+)/g)) {
+        const value = match[1].trim();
+        if (value.includes('var(')) continue;
+        expect(value, `${name}: border-radius ${value}`).not.toMatch(/%|999px/);
+        for (const px of value.matchAll(/(\d+(?:\.\d+)?)px/g)) {
+          expect(Number(px[1]), `${name}: border-radius ${value}`).toBeLessThanOrEqual(2);
+        }
+      }
     }
   });
 });

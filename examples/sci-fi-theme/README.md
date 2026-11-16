@@ -21,9 +21,11 @@ colour washes are removed at the token level.
 | --- | --- | --- |
 | Primitive + semantic + component tokens | `src/tokens.css` | Light and dark contract for every surface, state and component family |
 | Component layer | `src/components.css` | Styling for the Reactive MD `.md-*` and `.local-*` component set |
-| Direct-import stylesheet | `src/sci-fi.css` | Convenience entry that imports both layers |
+| Notch layer | `src/notch.css` | 8px 45-degree corner cut on panels, cards and the chart frame; a separate resource a host may omit |
+| Direct-import stylesheet | `src/sci-fi.css` | Convenience entry that imports all three layers |
 | Registered theme package | `src/theme.ts` | `defineLocalTheme` validation, scoping and frozen resources |
 | Live gallery source | `demo/document.reactive.md` | A control-console document exercising every component family |
+| Acceptance document | `demo/acceptance.reactive.md` | Full component sweep, sectioned by work package, for walk-through review |
 | Gallery host | `demo/main.tsx`, `demo/demo.css` | Reuses the same tokens outside the document root |
 | Design specification | `docs/design-system.md` | Token tables, component contracts, state model and accessibility |
 | Screenshots | `screenshots/` | Dark, light, close-ups and 390px layout |
@@ -80,7 +82,7 @@ the same result.
 
 Key contracts:
 
-- Radius: `0px` by default, `2px` for micro marks, `4px` maximum.
+- Radius: `0px` by default, `2px` for micro marks, `2px` maximum.
 - Spacing: 4px unit; `4 / 8 / 12 / 16 / 24 / 32 / 48`.
 - Controls: 28 / 34 / 40px heights.
 - Borders: 1px structural, 2px signal.

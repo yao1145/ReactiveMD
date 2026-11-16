@@ -1,6 +1,7 @@
 import { defineLocalTheme, type LocalThemePackage } from 'reactive-md/sdk';
 import tokensCss from './tokens.css?raw';
 import componentsCss from './components.css?raw';
+import notchCss from './notch.css?raw';
 
 /**
  * SCI-FI / SF-01 — a hard-sci-fi theme package for Reactive MD.
@@ -21,6 +22,7 @@ export const sciFiTheme = defineLocalTheme({
   css: [
     { id: 'reactive-md/theme-sci-fi.tokens.css', css: tokensCss },
     { id: 'reactive-md/theme-sci-fi.components.css', css: componentsCss },
+    { id: 'reactive-md/theme-sci-fi.notch.css', css: notchCss },
   ],
 });
 

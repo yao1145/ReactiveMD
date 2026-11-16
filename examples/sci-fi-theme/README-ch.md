@@ -16,9 +16,11 @@
 | --- | --- | --- |
 | 三层 tokens | `src/tokens.css` | 亮暗两套语义与组件变量 |
 | 组件层 | `src/components.css` | 覆盖 Reactive MD 的 `.md-*` / `.local-*` 组件 |
-| 直接引入样式表 | `src/sci-fi.css` | 依次引入上述两层 |
+| 角切层 | `src/notch.css` | 面板、卡片与图表容器的 8px 45° 切角，独立资源，可按需省略 |
+| 直接引入样式表 | `src/sci-fi.css` | 依次引入上述三层 |
 | 主题包 | `src/theme.ts` | 通过 `defineLocalTheme` 校验、作用域化并冻结资源 |
 | 现场示例文档 | `demo/document.reactive.md` | 用控制台式文档覆盖全部组件族 |
+| 验收文档 | `demo/acceptance.reactive.md` | 全组件扫描，按工作包分节，供逐节对照验收 |
 | 示例宿主 | `demo/main.tsx`、`demo/demo.css` | 在文档根之外复用同一套 tokens |
 | 设计规范 | `docs/design-system.md` | token 表、组件契约、状态模型与可访问性 |
 | 截图 | `screenshots/` | 暗色、亮色、组件特写与 390px 布局 |
@@ -71,7 +73,7 @@ import { sciFiTheme, sciFiThemeResources } from './src/theme';
 
 核心约定：
 
-- 圆角默认 `0px`，微型标记 `2px`，上限 `4px`。
+- 圆角默认 `0px`，微型标记 `2px`，上限 `2px`。
 - 间距基数为 4px：`4 / 8 / 12 / 16 / 24 / 32 / 48`。
 - 控件高度：28 / 34 / 40px。
 - 边框：1px 结构线，2px 信号线。

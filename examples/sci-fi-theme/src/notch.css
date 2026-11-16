@@ -1,0 +1,142 @@
+@layer rmd.reset, rmd.defaults, rmd.components, rmd.themes, rmd.overrides;
+
+@layer rmd.themes {
+/* ==========================================================================
+   SCI-FI / SF-01 — notch layer
+   --------------------------------------------------------------------------
+   §3.6 corner-cut system, shipped as a third independent style resource.
+   Load order matters: notch.css must come after components.css, because the
+   bracket repairs below override rules from that file inside rmd.themes.
+   · cut size is 8px everywhere (§3.6.4), so it lands on the 4px grid
+   · technique A: one layer + diagonal gradient hairline
+   · technique B: two-layer frame for a surface whose background changes
+   · no keyframes, no !important, colours only from tokens.css
+   · clip-path clips portalled and absolutely positioned descendants, so the
+     cut is confined to surfaces that never host a popover (see section 1)
+   ========================================================================== */
+
+/* ------------------------- 1. released surfaces (host popovers — no clip) */
+
+/* The cut is NOT applied to panels or cards. clip-path clips the element's
+   entire rendered subtree, not just its own background, so any popover,
+   menu or calendar inside a clipped container is chopped at the container
+   boundary and outside its polygon. Both containers are form surfaces:
+   · panel — demo/document.reactive.md and demo/acceptance.reactive.md put
+     <select> and <date> inside a <panel>. The select menu is portalled to
+     the nearest .local-select (select.tsx:48-51) inside that panel, and the
+     date popover renders inline inside .local-date-picker (date-picker.tsx:130),
+     also inside the panel. Either one would be clipped by an ancestor cut.
+   · card — <card> is a generic container (structure rule "any"), so hosts
+     put the same controls in it; it must not clip either.
+   Panels and cards therefore render as plain rectangles. Their corner
+   brackets come straight from components.css, so the ::before/::after
+   repairs that existed only to survive the clip are gone too.
+
+   Alerts and the chart frame keep the cut: neither is a popover host in the
+   default preset, and the framework-owned content below never portals out. */
+
+/* ------------------------------- 2. chart / enhanced-table frame (technique A) */
+
+/* §3.6.2 A + §3.6.3: the visual frame background is theme-owned and does not
+   change with chart hover or selection, so the single-layer treatment holds.
+   The hairline matches the frame's --line-strong border.
+
+   Safe to clip: the chart tooltip is the only overflowing descendant. It is
+   position: absolute inside .rmd-chart-stage (default-chart.tsx:421, 459)
+   and clamped to [8, stage width - tip width - 8] and
+   [8, stage height - tip height - 8] (default-chart.tsx:437-448). The stage
+   is inset by the frame's 16px right / 16px bottom padding, so the tooltip
+   always ends at least 24px from the frame's border box — well clear of the
+   8px bottom-right cut. Enhanced tables only add an in-flow search field and
+   pagination buttons; nothing portals out of the frame. */
+[data-rmd-theme="sci-fi"] .local-visual {
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%
+  );
+  background-image: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 0.5px),
+    var(--line-strong) calc(50% - 0.5px) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  );
+  background-origin: border-box;
+  background-size: 8px 8px;
+  background-position: bottom right;
+  background-repeat: no-repeat;
+}
+
+/* §3.6.3: the existing .local-visual::after bracket sits in the cut corner and
+   would be truncated, so it is removed. */
+[data-rmd-theme="sci-fi"] .local-visual::after {
+  content: none;
+}
+
+/* §3.6.3: the frame had no ::before, so the bracket language is re-drawn at
+   top-left, opposite the cut, with the same 8x8 geometry as the panel mark.
+   top/left are 0, not -1, so the mark survives its own clip-path. */
+[data-rmd-theme="sci-fi"] .local-visual::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid var(--sf-corner-ink);
+  border-left: 1px solid var(--sf-corner-ink);
+  pointer-events: none;
+}
+
+/* ---------------------------------------- 3. alerts (technique A, 8px cut) */
+
+/* §3.6.2 A + §3.6.3: the alert background is tone-owned but static — no
+   interaction ever repaints it — so it keeps the single-layer treatment.
+   The diagonal hairline uses --line-strong, matching the alert border; the
+   2px left signal line is untouched. Alerts hold prose in the default preset
+   and host no popover, so the cut is safe here. */
+[data-rmd-theme="sci-fi"] .local-alert,
+[data-rmd-theme="sci-fi"] .md-alert {
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 8px),
+    calc(100% - 8px) 100%,
+    0 100%
+  );
+  background-image: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 0.5px),
+    var(--line-strong) calc(50% - 0.5px) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  );
+  background-origin: border-box;
+  background-size: 8px 8px;
+  background-position: bottom right;
+  background-repeat: no-repeat;
+}
+
+/* ----------------------------------------------- 4. choice (not notched) */
+
+/* A <choices> element with 2-4 options is the baseline segmented variant: one
+   sliding thumb on .local-choice-list::before, every segment transparent.
+   Notching each segment would paint an opaque inner layer over the thumb, so
+   this component keeps the plain rectangle and the cut is confined to the
+   framed modules above. Recorded here so the omission reads as a decision. */
+
+/* ---------------------------------------------------------- 5. print escape */
+
+@media print {
+  /* §3.6.5 + §4.3 W5-4: clip paths can push large blank areas into print
+     output, so every notched surface drops the cut and its hairline. */
+  [data-rmd-theme="sci-fi"] .local-visual,
+  [data-rmd-theme="sci-fi"] .local-alert,
+  [data-rmd-theme="sci-fi"] .md-alert {
+    clip-path: none;
+    background-image: none;
+  }
+}
+
+}

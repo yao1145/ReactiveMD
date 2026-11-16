@@ -357,6 +357,13 @@
 
 /* ------------------------------------------------------ 4. tables & data */
 
+/* D6 §2.6.6: 基线表格内边距变量必须落在文档根上，:where(.md-document ...) 才能取到。 */
+[data-rmd-theme="sci-fi"].md-document,
+[data-rmd-theme="sci-fi"] .md-document {
+  --table-cell-padding-y: 8px;
+  --table-cell-padding-x: 12px;
+}
+
 [data-rmd-theme="sci-fi"] .md-table-scroll {
   margin: var(--space-4) 0;
   border: 1px solid var(--line-strong);
@@ -423,13 +430,6 @@
   border-right: 1px solid var(--sf-corner-ink);
   border-bottom: 1px solid var(--sf-corner-ink);
   pointer-events: none;
-}
-
-[data-rmd-theme="sci-fi"] .local-visual .local-visual {
-  margin: var(--space-3) 0;
-  padding: var(--space-2) var(--space-3);
-  border-color: var(--line);
-  background: transparent;
 }
 
 [data-rmd-theme="sci-fi"].local-document .local-visual-title,
@@ -742,6 +742,10 @@
   min-height: var(--control-height);
 }
 
+/* D3: baseline gives every bare <button> --pu-radius-md (10px); the theme's
+   .md-button skin does not reach them, so the plot legend button stayed round. */
+[data-rmd-theme="sci-fi"] button:not(.md-button) { border-radius: 0; }
+
 /* --------------------------------------------------------------- 6. forms */
 
 [data-rmd-theme="sci-fi"] .md-control {
@@ -764,9 +768,7 @@
 }
 
 [data-rmd-theme="sci-fi"].local-document .md-text-input,
-[data-rmd-theme="sci-fi"].local-document .md-select-input,
-[data-rmd-theme="sci-fi"] .md-text-input,
-[data-rmd-theme="sci-fi"] .md-select-input {
+[data-rmd-theme="sci-fi"] .md-text-input {
   max-width: 100%;
   padding: 0 var(--space-2);
   border: 1px solid var(--sf-field-border);
@@ -779,8 +781,7 @@
   box-shadow: none;
 }
 
-[data-rmd-theme="sci-fi"] .md-text-input,
-[data-rmd-theme="sci-fi"] .md-select-input {
+[data-rmd-theme="sci-fi"] .md-text-input {
   height: var(--control-height);
 }
 
@@ -792,13 +793,11 @@
   resize: vertical;
 }
 
-[data-rmd-theme="sci-fi"] .md-text-input:hover:not(:disabled),
-[data-rmd-theme="sci-fi"] .md-select-input:hover:not(:disabled) {
+[data-rmd-theme="sci-fi"] .md-text-input:hover:not(:disabled) {
   border-color: var(--sf-field-hover);
 }
 
-[data-rmd-theme="sci-fi"] .md-text-input:focus-visible,
-[data-rmd-theme="sci-fi"] .md-select-input:focus-visible {
+[data-rmd-theme="sci-fi"] .md-text-input:focus-visible {
   border-color: var(--accent);
   outline: 1px solid var(--accent);
   outline-offset: 1px;
@@ -806,15 +805,12 @@
 }
 
 [data-rmd-theme="sci-fi"] .md-text-input[aria-invalid="true"],
-[data-rmd-theme="sci-fi"] .md-select-input[aria-invalid="true"],
-[data-rmd-theme="sci-fi"].local-document .md-text-input[aria-invalid="true"],
-[data-rmd-theme="sci-fi"].local-document .md-select-input[aria-invalid="true"] {
+[data-rmd-theme="sci-fi"].local-document .md-text-input[aria-invalid="true"] {
   border-color: var(--danger);
   box-shadow: inset 0 0 0 1px var(--danger);
 }
 
-[data-rmd-theme="sci-fi"] .md-text-input:disabled,
-[data-rmd-theme="sci-fi"] .md-select-input:disabled {
+[data-rmd-theme="sci-fi"] .md-text-input:disabled {
   border-color: var(--line);
   background: var(--sf-hatch);
   color: var(--ink-muted);
@@ -840,8 +836,7 @@
   gap: var(--space-2);
 }
 
-[data-rmd-theme="sci-fi"] .md-slider-value,
-[data-rmd-theme="sci-fi"] .local-range-value {
+[data-rmd-theme="sci-fi"] .md-slider-value {
   min-width: 5ch;
   padding: 1px var(--space-1);
   border: 1px solid var(--line);
@@ -889,18 +884,18 @@
 
 /* Square selection marks. Checked boxes keep the box; the tick is drawn in
    accent ink, so light and dark modes need separate glyph colours. */
-[data-rmd-theme="sci-fi"] .md-toggle-label input,
+[data-rmd-theme="sci-fi"] .local-checkbox .md-toggle-label input,
 [data-rmd-theme="sci-fi"] .local-checklist-item input,
 [data-rmd-theme="sci-fi"] .local-multi-option input,
 [data-rmd-theme="sci-fi"] .local-radio-option input {
-  width: 16px;
-  height: 16px;
+  width: var(--rmd-uiarc-checkbox-size, 16px);
+  height: var(--rmd-uiarc-checkbox-size, 16px);
   border: 1px solid var(--line-strong);
   border-radius: 0;
   background-color: var(--sf-field-bg);
 }
 
-[data-rmd-theme="sci-fi"] .md-toggle-label input[type="checkbox"]:checked,
+[data-rmd-theme="sci-fi"] .local-checkbox .md-toggle-label input[type="checkbox"]:checked,
 [data-rmd-theme="sci-fi"] .local-checklist-item input:checked,
 [data-rmd-theme="sci-fi"] .local-multi-option input:checked {
   -webkit-mask-image: none;
@@ -913,10 +908,89 @@
   background-size: 12px 12px;
 }
 
-[data-rmd-theme="sci-fi"][data-color-scheme="dark"] .md-toggle-label input[type="checkbox"]:checked,
+[data-rmd-theme="sci-fi"][data-color-scheme="dark"] .local-checkbox .md-toggle-label input[type="checkbox"]:checked,
 [data-rmd-theme="sci-fi"][data-color-scheme="dark"] .local-checklist-item input:checked,
 [data-rmd-theme="sci-fi"][data-color-scheme="dark"] .local-multi-option input:checked {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3.2 3.2L13 4.5' fill='none' stroke='%2303161c' stroke-width='2'/%3E%3C/svg%3E");
+}
+
+/* D2 / §2.2.2: <toggle> 与 <checkbox> 的 DOM 相同，上面的勾选规则已收窄到
+   .local-checkbox，这里为真正的开关补回独立皮肤：40×20 方形轨道 + 14px 滑块。
+   几何推导：travel = 40(轨道) − 2×1(边框) − 14(滑块) − 2×2(两侧间隙) = 20px。
+   两端用 left/right 2px 表达，不写 20px 魔法数。 */
+[data-rmd-theme="sci-fi"] .local-toggle .md-toggle-label input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  inline-size: 40px;
+  block-size: 20px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background-color: var(--sf-field-bg);
+  /* 一层画滑块；轨道颜色由 background-color 承担 */
+  background-image: linear-gradient(var(--control-thumb), var(--control-thumb));
+  background-repeat: no-repeat;
+  background-size: 14px 14px;
+  background-position: left 2px center;
+  /* tokens.css supplies --rmd-switch-shadow as a hard 1px ring, which
+     replaces the baseline's blurred inset shadow. The fallback here is the
+     same ring written out, so the declaration cannot resolve to nothing. */
+  box-shadow: var(--rmd-switch-shadow, 0 0 0 1px var(--line));
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    background-position var(--motion-base) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+
+[data-rmd-theme="sci-fi"] .local-toggle .md-toggle-label input[type="checkbox"]:checked {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  background-image: linear-gradient(var(--accent-ink), var(--accent-ink));
+  background-position: right 2px center;
+}
+
+[data-rmd-theme="sci-fi"] .local-toggle .md-toggle-label:hover
+  input[type="checkbox"]:not(:disabled):not(:checked) {
+  border-color: var(--sf-field-hover, var(--accent-line));
+}
+
+[data-rmd-theme="sci-fi"] .local-toggle .md-toggle-label
+  input[type="checkbox"]:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+[data-rmd-theme="sci-fi"] .local-toggle .md-toggle-label
+  input[type="checkbox"]:disabled {
+  border-color: var(--line);
+  /* §2.2.2 写的是 background-color: var(--sf-hatch)，但 --sf-hatch 是
+     repeating-linear-gradient，放在 background-color 里整条声明会被丢弃。
+     这里不覆盖背景：未选中继承 --sf-field-bg，选中保留 accent，统一由
+     opacity 压暗，滑块（background-image）也不会被抹掉。 */
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* N1 / §3.1: 主题用 background-image 覆盖了 :checked，基线靠 accent-color
+   表达的混合态因此失效；这里补一条居中的 2px 信号线。
+   与 §3.1 的 :is(...) 写法等价，展开为三条以便 lint 逐条校验根作用域。 */
+[data-rmd-theme="sci-fi"] .local-checkbox .md-toggle-label input[type="checkbox"]:indeterminate,
+[data-rmd-theme="sci-fi"] .local-checklist-item input[type="checkbox"]:indeterminate,
+[data-rmd-theme="sci-fi"] .local-multi-option input[type="checkbox"]:indeterminate {
+  -webkit-mask-image: none;
+  mask-image: none;
+  border-color: var(--accent);
+  background-color: var(--accent);
+  background-image: linear-gradient(var(--accent-ink), var(--accent-ink));
+  background-size: 8px 2px;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 [data-rmd-theme="sci-fi"] .local-radio-option input[type="radio"]:checked {
@@ -951,21 +1025,77 @@
   background: var(--surface-hover);
 }
 
-[data-rmd-theme="sci-fi"] .local-choice {
+/* D8: <choices> renders in three shapes and only one of them is segmented.
+
+   2-4 options  -> segmented: the baseline paints ONE sliding thumb on
+                   .local-choice-list::before and keeps every segment
+                   transparent. An opaque segment would cover the thumb.
+   >=5 options  -> chips: every chip carries its own background and border.
+   radio-group  -> a different component entirely.
+
+   The rules below are scoped to the segmented shape only. The chip shape
+   keeps the baseline surface and gains the theme's square corners in the
+   96-additions block instead. */
+
+/* The track that holds the thumb. */
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(2):last-child),
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(3):last-child),
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(4):last-child) {
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--surface-subtle);
+}
+
+/* The sliding thumb is the only filled surface: a hairline square that the
+   kernel translates onto the selected segment. `--pu-choice-count` and
+   `--pu-choice-index` are set by the component. */
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(2):last-child)::before,
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(3):last-child)::before,
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(4):last-child)::before {
+  border: 1px solid var(--accent);
+  border-radius: 0;
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+
+/* Segments stay transparent so the thumb shows through, and the selection is
+   read from the thumb plus the accent label. */
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(2):last-child) .local-choice,
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(3):last-child) .local-choice,
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(4):last-child) .local-choice {
   min-height: var(--control-height);
   padding: 0 var(--space-3);
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 0;
-  background: var(--surface);
+  background: transparent;
+  color: var(--ink-soft);
   font-family: var(--sf-font-data);
   font-size: var(--sf-type-label);
   letter-spacing: 0.03em;
 }
 
-[data-rmd-theme="sci-fi"] .local-choice.is-selected {
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(2):last-child) .local-choice.is-selected,
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(3):last-child) .local-choice.is-selected,
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(4):last-child) .local-choice.is-selected {
+  background: transparent;
+  color: var(--accent-text);
+}
+
+/* The >=5 chip shape keeps the baseline surface but takes the theme's corners
+   and mono label, so it reads as the same family as the segmented track. */
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice {
+  border-radius: 0;
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--ink);
+  font-family: var(--sf-font-data);
+  font-size: var(--sf-type-label);
+  letter-spacing: 0.03em;
+}
+
+[data-rmd-theme="sci-fi"] .local-choice-list:has(> .local-choice:nth-child(5)) .local-choice.is-selected {
   border-color: var(--accent);
   background: var(--accent-soft);
-  box-shadow: inset 2px 0 0 var(--accent);
   color: var(--accent-text);
 }
 
@@ -993,7 +1123,9 @@
   background: var(--surface);
 }
 
+/* Bug 5: multi-select options hugged the fieldset edge; add the checklist fieldset inset so the checkbox column lines up. */
 [data-rmd-theme="sci-fi"] .local-multi-select {
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--line);
   border-radius: 0;
   background: var(--surface);
@@ -1026,6 +1158,20 @@
   text-transform: uppercase;
 }
 
+/* Bug 4: jump button is an <a>, so the link skin left it underlined and start-aligned; centre the label and drop the rule. */
+[data-rmd-theme="sci-fi"] a.local-jump-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  text-align: center;
+  text-decoration: none;
+}
+
+/* Bug 4: the document link hover halo leaked onto the jump button; keep the plain button hover. */
+[data-rmd-theme="sci-fi"] .md-document a.local-jump-button:hover {
+  box-shadow: none;
+}
 /* ---------------------------------------------------------- 7. navigation */
 
 [data-rmd-theme="sci-fi"] .local-tabs-label,
@@ -1117,6 +1263,33 @@
   border: 1px solid var(--line-strong);
   border-radius: 0;
   background: var(--surface);
+}
+
+/* D6.1: square step nodes — 20px dot on the 4px grid. The baseline circle
+   already squares off through --radius-circle: 0 in tokens.css. */
+[data-rmd-theme="sci-fi"] .local-steps-rail {
+  --pu-rail-dot: 20px;
+  --pu-rail-track: var(--line);
+  --pu-rail-fill: var(--accent);
+}
+
+/* D6.1: 1px structural ring outside the 20px dot; numerals in mono. */
+[data-rmd-theme="sci-fi"] .local-steps-dot {
+  border-width: 1px;
+  font-family: var(--font-mono);
+  font-size: var(--sf-type-micro);
+}
+
+/* N3b: one hairline under the tick row replaces the tiled bar-code gradient. */
+[data-rmd-theme="sci-fi"] .local-visual-timeline-axis {
+  border-bottom: 1px solid var(--line);
+}
+
+/* N3b: tick labels take the mono micro data voice; 0.1em tracking stays clear of overlap. */
+[data-rmd-theme="sci-fi"] .local-visual-timeline-tick {
+  font-family: var(--sf-font-data);
+  font-size: var(--sf-type-micro);
+  letter-spacing: var(--sf-track-label);
 }
 
 [data-rmd-theme="sci-fi"] .local-disclosure {
@@ -1259,14 +1432,27 @@
   background: var(--control-track);
 }
 
+/* N2: nine-domain segmented meter drawn as one overlay; the fill underneath
+   is a flat accent bar (the 45-degree hatch is removed below), so the two
+   fill languages are never combined. */
+[data-rmd-theme="sci-fi"] .local-progress-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(10% - 1px),
+    var(--surface) calc(10% - 1px) 10%
+  );
+}
+
+/* N2 + D6.7: flat accent fill on a square bar; baseline width transition is
+   300ms, outside the 80/120/180 contract, so it moves to --motion-slow. */
 [data-rmd-theme="sci-fi"] .local-progress-fill {
   border-radius: 0;
-  background-image: repeating-linear-gradient(
-    90deg,
-    var(--local-progress-color, var(--accent)) 0 6px,
-    color-mix(in srgb, var(--local-progress-color, var(--accent)) 45%, transparent) 6px 8px
-  );
-  background-color: transparent;
+  background: var(--local-progress-color, var(--accent));
+  transition: width var(--motion-slow) var(--ease-standard);
 }
 
 [data-rmd-theme="sci-fi"] .local-timer {
@@ -1302,7 +1488,9 @@
   padding: var(--space-2) var(--space-3);
   border: 1px solid color-mix(in srgb, var(--code-ink) 20%, var(--code-bg));
   border-radius: 0;
-  background: var(--code-bg);
+  /* One surface per code container: .md-code-block owns the fill, this
+     element stays transparent so no line can band against a second layer. */
+  background: transparent;
   color: var(--code-ink);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -1354,6 +1542,15 @@
   border: 0;
   border-radius: 0;
   background: transparent;
+}
+
+/* The baseline paints `code` with the inline-code fill. Inside a block that
+   fill repeats on every line box, which is what reads as a per-line band.
+   Cancel it here so the container fill is the only surface, and inherit the
+   container ink so plain text matches the code tokens. */
+[data-rmd-theme="sci-fi"].md-document .md-code-block .md-code code {
+  background: transparent;
+  color: inherit;
 }
 
 [data-rmd-theme="sci-fi"] .local-math-display {
@@ -1437,21 +1634,31 @@
   font-family: var(--font-mono);
 }
 
+/* D4 §2.4.3: the plot surface inherited the baseline sans stack; all chart
+   text is machine data, so the SVG itself carries the mono font. */
+[data-rmd-theme="sci-fi"] .rmd-chart-svg {
+  font-family: var(--font-mono);
+}
+
+/* §2.4.2: the view writes stroke inline from --rmd-chart-grid, so a stroke
+   declaration here is dead. Paint lives in tokens.css; this rule owns only
+   the dash pattern. */
 [data-rmd-theme="sci-fi"] .rmd-chart-grid {
-  stroke: var(--chart-grid);
   stroke-dasharray: 2 3;
 }
 
+/* §2.4.2: fill is written inline from --rmd-chart-axis, so paint is set in
+   tokens.css; only the label typography belongs to the theme. */
 [data-rmd-theme="sci-fi"] .rmd-chart-axis-label {
-  fill: var(--chart-axis);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
+/* §2.4.2: the view writes fill inline from --rmd-chart-axis-title, so this
+   rule carries typography only; the ink colour lives in tokens.css. */
 [data-rmd-theme="sci-fi"] .rmd-chart-axis-title {
-  fill: var(--ink-soft);
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
   font-weight: var(--weight-semibold);
@@ -1459,17 +1666,21 @@
   text-transform: uppercase;
 }
 
+/* §2.4.2: stroke is written inline from --rmd-chart-guide, so the accent is
+   configured in tokens.css; keep only the dash pattern and opacity. */
 [data-rmd-theme="sci-fi"] .rmd-chart-guide {
-  stroke: var(--accent);
   stroke-dasharray: 3 3;
   opacity: 0.8;
 }
 
+/* D4 §4.3 W3-4: readout and legend share one mono uppercase label voice;
+   tabular numerals keep changing values from shifting the line. */
 [data-rmd-theme="sci-fi"] .rmd-chart-readout {
   color: var(--ink-muted);
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--sf-track-label);
   text-transform: uppercase;
 }
 
@@ -1485,7 +1696,7 @@
   color: var(--ink-soft);
   font-family: var(--font-mono);
   font-size: var(--sf-type-micro);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--sf-track-label);
   text-transform: uppercase;
 }
 
@@ -1510,16 +1721,49 @@
   outline-offset: 2px;
 }
 
+/* D4 §2.4.3 / §4.3 W3-4: legend labels repeat the readout voice. The
+   baseline legend button resets to --text-xs, so the micro size is restated
+   on the label to match .rmd-chart-readout; ellipsis behaviour is untouched. */
+[data-rmd-theme="sci-fi"] .rmd-chart-legend-label {
+  font-family: var(--font-mono);
+  font-size: var(--sf-type-micro);
+  letter-spacing: var(--sf-track-label);
+  text-transform: uppercase;
+}
+
+/* D4 §2.4.3: shares are data, so they use tabular numerals and muted ink at
+   the same micro size as the label beside them. */
+[data-rmd-theme="sci-fi"] .rmd-chart-legend-share {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--sf-type-micro);
+  font-variant-numeric: tabular-nums;
+}
+
 [data-rmd-theme="sci-fi"] .rmd-chart-swatch {
   border-radius: 0;
 }
 
+/* N4 §3.4 + §3.6.4: cut the bottom-right corner to 8px so it lands on the
+   4px grid, and redraw that edge with a 45-degree gradient hairline because
+   clip-path clips both the border and any outward shadow there. The view
+   sets position: absolute inline, so no position is repeated here. */
 [data-rmd-theme="sci-fi"] .rmd-chart-tooltip {
   border: 1px solid var(--line-strong);
   border-radius: 0;
-  background: var(--surface);
+  background-color: var(--surface);
+  background-image: linear-gradient(
+    to top right,
+    transparent calc(50% - 0.5px),
+    var(--line-strong) calc(50% - 0.5px) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  );
+  background-size: 8px 8px;
+  background-position: bottom right;
+  background-repeat: no-repeat;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  box-shadow: none;
   color: var(--ink);
-  box-shadow: 0 0 0 1px var(--line-strong);
   font-family: var(--font-mono);
 }
 
@@ -1528,6 +1772,37 @@
   color: var(--ink-soft);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* D4 §2.4.3: label/value rows keep an 8px gap and 4px vertical rhythm. */
+[data-rmd-theme="sci-fi"] .rmd-chart-tooltip-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-1) 0;
+}
+
+/* D4 §2.4.3: dot and label sit together with a 4px gap and top alignment. */
+[data-rmd-theme="sci-fi"] .rmd-chart-tooltip-label {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+/* D4 §2.4.3: values read as a data column; mono tabular numerals keep digits
+   from shifting, and trailing alignment is stated here so it does not depend
+   on the baseline auto margin alone. */
+[data-rmd-theme="sci-fi"] .rmd-chart-tooltip-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* D4 §2.4.3: foot notes are secondary machine text; mono, micro, muted. */
+[data-rmd-theme="sci-fi"] .rmd-chart-tooltip-foot {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--sf-type-micro);
 }
 
 /* ------------------------------------------------- 9d. shared diagram hooks */
@@ -1550,6 +1825,8 @@
   text-transform: uppercase;
 }
 
+/* D3 §2.3.3: 该圆角同时由 --radius-toolbar（tokens.css）归零；
+   显式 border-radius 保留作双保险，避免依赖跨文件变量。 */
 [data-rmd-theme="sci-fi"] .rmd-diagram-zoom {
   border: 1px solid var(--line-strong);
   border-radius: 0;
@@ -1587,6 +1864,8 @@
   border-bottom: 1px solid var(--line);
 }
 
+/* D3 §2.3.3: 同上，--radius-inset 已在 tokens.css 归零；
+   显式 border-radius 保留作双保险，不重复声明。 */
 [data-rmd-theme="sci-fi"] .rmd-diagram-tooltip-close {
   border-radius: 0;
 }
@@ -1649,6 +1928,132 @@
   border-radius: 0;
 }
 
+/* ---------------------------------------------- 12. component gap fill */
+/* Blocks here fill parts of the design system that previously inherited the
+   default skin. Order: steps already in §7; calendar / gallery / quiz /
+   status / loading below. */
+
+/* D6.2: the twelve UIArc component radii are declared in tokens.css. They are
+   component variables rather than classic radius tokens, so they cannot be
+   derived from --radius-*; see the "UIArc component radius" block there. */
+
+/* D6.3: gallery arrows drop from the default 44px circle to a 32px square
+   on the 4px grid, with a 1px structural ring. */
+[data-rmd-theme="sci-fi"] .rmd-gallery-button {
+  border-radius: 0;
+  inline-size: 32px;
+  block-size: 32px;
+  flex-basis: 32px;
+  border-width: 1px;
+}
+
+/* D6.3: the scroll thumb becomes a 2px signal line rather than a pill. */
+[data-rmd-theme="sci-fi"] .rmd-gallery-thumb {
+  border-radius: 0;
+  block-size: 2px;
+}
+
+/* D6.3: position counter and captions join the mono uppercase data voice. */
+[data-rmd-theme="sci-fi"] .rmd-gallery-count,
+[data-rmd-theme="sci-fi"] .rmd-gallery-caption {
+  font-family: var(--font-mono);
+  letter-spacing: var(--sf-track-label);
+  text-transform: uppercase;
+}
+
+/* D6.4: quiz frame picks up the accent rule and square shell used by alerts
+   and panels; structure is untouched. */
+[data-rmd-theme="sci-fi"] .local-quiz {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-left: var(--sf-rule) solid var(--accent);
+  border-radius: 0;
+  background: var(--surface-subtle);
+}
+
+/* D6.4: correct / incorrect feedback use the semantic fill plus mono text so
+   the verdict reads as machine output. */
+[data-rmd-theme="sci-fi"] .local-quiz-feedback.is-correct {
+  border-color: var(--success-line);
+  background: var(--success-soft);
+  color: var(--success);
+  font-family: var(--font-mono);
+}
+
+[data-rmd-theme="sci-fi"] .local-quiz-feedback.is-incorrect {
+  border-color: var(--danger-line);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-family: var(--font-mono);
+}
+
+/* D6.4: the explanation stays secondary text. */
+[data-rmd-theme="sci-fi"] .local-quiz-explanation {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+/* D6.5: the status dot is a 2px square, keeping its 1:1 ratio; the chip
+   itself drops the pill radius and takes the label type. */
+[data-rmd-theme="sci-fi"] .md-status::before {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 0;
+}
+
+[data-rmd-theme="sci-fi"] .md-status {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--sf-type-micro);
+  letter-spacing: var(--sf-track-label);
+  text-transform: uppercase;
+}
+
+/* D6.5: loading text uses the data voice at reading size. */
+[data-rmd-theme="sci-fi"] .md-loading {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* D6.5: spinner is a square with a 1px ring and one accent edge; no glow. */
+[data-rmd-theme="sci-fi"] .md-spinner {
+  border-width: 1px;
+  border-radius: 0;
+  border-color: var(--line);
+  border-top-color: var(--accent);
+}
+
+/* D6.5: skeleton uses static surface tones only. The baseline shimmer is an
+   animation, which a theme cannot re-author (no keyframes), so it is off. */
+[data-rmd-theme="sci-fi"] .md-skeleton {
+  border-radius: 0;
+  background-color: var(--surface-subtle);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--surface-hover) 50%,
+    transparent 100%
+  );
+  animation: none;
+}
+
+/* D6.8: browser autofill would repaint the field with its own yellow; the
+   inset shadow keeps the themed field colour and the text ink. */
+[data-rmd-theme="sci-fi"] .md-text-input:-webkit-autofill,
+[data-rmd-theme="sci-fi"] .md-text-input:-webkit-autofill:hover,
+[data-rmd-theme="sci-fi"] .md-text-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--sf-field-bg) inset;
+  -webkit-text-fill-color: var(--ink);
+}
+
+/* D6.8: the caret is an accent tick rather than the platform default. */
+[data-rmd-theme="sci-fi"] .md-text-input {
+  caret-color: var(--accent);
+}
 /* --------------------------------------------------------- 11. adaptation */
 
 @media (max-width: 720px) {

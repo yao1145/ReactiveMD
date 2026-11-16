@@ -2,11 +2,22 @@ import { useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { LocalReactiveDocument, type LocalColorScheme } from 'reactive-md/react';
 import 'reactive-md/styles.css';
-import '../src/tokens.css';
-import '../src/components.css';
+import '../src/sci-fi.css';
 import './demo.css';
 import source from './document.reactive.md?raw';
+import acceptanceSource from './acceptance.reactive.md?raw';
 import { sciFiTheme } from '../src/theme';
+
+/**
+ * Two documents share one host so the theme can be reviewed on the compact
+ * control-console page and on the full component sweep without a restart.
+ */
+const DOCUMENTS = [
+  { id: 'console', label: 'Console', file: 'document.reactive.md', source },
+  { id: 'acceptance', label: 'Acceptance', file: 'acceptance.reactive.md', source: acceptanceSource },
+] as const;
+
+type DocumentId = (typeof DOCUMENTS)[number]['id'];
 
 const SWATCHES = [
   { token: '--surface', label: 'SURFACE' },
@@ -54,7 +65,10 @@ function SchemeToggle({ value, onChange }: { value: 'light' | 'dark'; onChange: 
 
 function App() {
   const [scheme, setScheme] = useState<'light' | 'dark'>('dark');
+  const [documentId, setDocumentId] = useState<DocumentId>('console');
   const [diagnostics, setDiagnostics] = useState(0);
+
+  const activeDocument = DOCUMENTS.find((entry) => entry.id === documentId) ?? DOCUMENTS[0];
 
   const onDiagnostics = useCallback((items: readonly { severity: string }[]) => {
     setDiagnostics(items.length);
@@ -80,13 +94,31 @@ function App() {
         <div className="sf-status-strip" aria-hidden="true">
           <span className="sf-status"><span>Mode</span><strong>{scheme}</strong></span>
           <span className="sf-status"><span>Grid</span><strong>12 / 4px</strong></span>
-          <span className="sf-status"><span>Radius</span><strong>0–4px</strong></span>
+          <span className="sf-status"><span>Radius</span><strong>0–2px</strong></span>
           <span className="sf-status"><span>Contrast</span><strong>AA</strong></span>
           <span className="sf-status"><span>Diagnostics</span><strong>{String(diagnostics).padStart(2, '0')}</strong></span>
         </div>
 
         <SchemeToggle value={scheme} onChange={setScheme} />
       </header>
+
+      <nav className="sf-doc-switch" aria-label="Document">
+        {DOCUMENTS.map((entry) => (
+          <button
+            key={entry.id}
+            type="button"
+            data-document={entry.id}
+            aria-pressed={documentId === entry.id}
+            onClick={() => {
+              setDocumentId(entry.id);
+              setDiagnostics(0);
+            }}
+          >
+            {entry.label}
+            <span className="sf-doc-switch-file">{entry.file}</span>
+          </button>
+        ))}
+      </nav>
 
       <main className="sf-shell">
         <aside className="sf-rail" aria-label="Design system index">
@@ -154,11 +186,12 @@ function App() {
         <section className="sf-stage">
           <div className="sf-chassis">
             <div className="sf-chassis-head">
-              <span>Doc / live instance</span>
+              <span>Doc / {activeDocument.label.toLowerCase()} instance</span>
               <span className="sf-live"><span aria-hidden="true" />Live</span>
             </div>
             <LocalReactiveDocument
-              source={source}
+              key={activeDocument.id}
+              source={activeDocument.source}
               themes={[sciFiTheme]}
               colorScheme={colorScheme}
               locale="en"
@@ -169,7 +202,7 @@ function App() {
             <span>Theme · sci-fi</span>
             <span>Tokens · 3 layers</span>
             <span>Scheme · {scheme}</span>
-            <span>Source · document.reactive.md</span>
+            <span>Source · {activeDocument.file}</span>
           </div>
         </section>
       </main>
