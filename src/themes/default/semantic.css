@@ -102,15 +102,15 @@
     --md-code-token-deletion: #c4323f;
 
     /* Type: 16px body; every step scales with it. */
-    --text-xs: 13px;
-    --text-sm: 14.5px;
+    --text-xs: 12px;
+    --text-sm: 14px;
     --text-md: 16px;
-    --text-lg: 20px;
-    --text-xl: 25px;
-    --text-2xl: 29px;
-    --text-group-label: 18px;
-    --text-block-title: var(--text-lg);
-    --text-block-subtitle: var(--text-md);
+    --text-lg: 19px;
+    --text-xl: 23px;
+    --text-2xl: 28px;
+    --text-group-label: 14px;
+    --text-block-title: 17px;
+    --text-block-subtitle: var(--text-sm);
     --leading-tight: 1.25;
     --leading-snug: 1.45;
     --leading-normal: 1.6;

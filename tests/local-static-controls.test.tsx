@@ -269,7 +269,7 @@ describe('static rendering mode', () => {
       expect(html).toContain('local-panel-reset');
       expect(html).toContain('>Reset<');
       expect(html).toContain('data-render-mode="interactive"');
-      expect(html).toContain('<article class="md-document local-document" data-rmd-theme');
+      expect(html).toContain('<article class="md-document local-document" lang="en" data-rmd-theme');
       expect(html).not.toContain('class="md-document local-document local-static"');
 
       // Print-only values carry the current runtime state.

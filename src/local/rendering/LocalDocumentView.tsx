@@ -2369,6 +2369,7 @@ function LocalDocumentViewLocal({
       <article
         ref={rootRef}
         className={`md-document local-document${renderedMode === 'static' ? ' local-static' : ''}`}
+        lang={locale === 'zh' ? 'zh-CN' : 'en'}
         data-rmd-theme={theme.name}
         data-color-scheme={resolvedScheme}
         data-render-mode={renderedMode}
