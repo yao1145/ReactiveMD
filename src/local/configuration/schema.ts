@@ -1,6 +1,6 @@
 import type { LocalComponentForm, LocalComponentSchema } from './schema-core';
 import type { LocalValue } from '../contracts/types';
-import { DEFAULT_COMPONENT_DEFINITIONS } from '../../presets/default-components';
+import { DEFAULT_SEMANTIC_COMPONENTS } from '../../presets/default-semantics';
 import { componentSchemaFromDefinition } from '../../sdk/registry-core';
 import { LOCAL_KERNEL_DECLARATIONS, closestName } from './schema-core';
 
@@ -22,7 +22,7 @@ export { LOCAL_KERNEL_DECLARATIONS, closestName } from './schema-core';
  * default preset manifests. The compatibility fields (`childRule`, `label`,
  * `parent`, `binding`, `slots`, `initialRule`) are projections of `structure`
  * and `bindings`; the authoritative declarations live in
- * `src/presets/default-components.ts`.
+ * `src/presets/default-semantics.ts`. Authoring copy is assembled separately.
  *
  * The theme-free vocabulary and the manifest projection live in
  * `schema-core.ts` / `sdk/registry-core.ts`; this module keeps the preset
@@ -34,7 +34,7 @@ export { LOCAL_KERNEL_DECLARATIONS, closestName } from './schema-core';
 /* ------------------------------------------------------------------ */
 
 function buildComponents(): readonly LocalComponentSchema[] {
-  const projected = DEFAULT_COMPONENT_DEFINITIONS.map(componentSchemaFromDefinition);
+  const projected = DEFAULT_SEMANTIC_COMPONENTS.map(componentSchemaFromDefinition);
   const validationIndex = projected.findIndex((component) => component.name === 'validation');
   const insertAt = validationIndex < 0 ? projected.length : validationIndex;
   return Object.freeze([

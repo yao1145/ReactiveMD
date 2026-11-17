@@ -1,3 +1,4 @@
+import { scanHtmlAttributes } from './html-attributes';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import type { Diagnostic } from '../contracts/types';
@@ -19,7 +20,7 @@ import {
   isValidHtmlAttributeValue,
 } from '../html/html-policy';
 import { scanInterpolationEnd } from './lexical';
-import { isLocalThemeName } from '../theme/theme-name';
+import { isThemeTagAt, themeTagAt, skipThemePrefix, standaloneTheme, themeNameFrom } from './theme-declaration';
 import { normalizeFootnoteIdentifier } from '../markdown/footnotes';
 import {
   MAX_LOCAL_DOCUMENT_LENGTH,
@@ -62,66 +63,6 @@ const RECOVERY_DIAGNOSTIC_CODES = new Set([
 ]);
 const NATIVE_HTML_VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
-interface HtmlAttributeValue {
-  name: string;
-  value: string;
-  start: number;
-  end: number;
-}
-interface HtmlAttributeScan {
-  attrs: Record<string, string>;
-  entries: HtmlAttributeValue[];
-  invalid: HtmlAttributeValue[];
-}
-/** Attribute values are raw decoded strings; the source is never executed. */
-function scanHtmlAttributes(raw: string, offset: number, decode: (value: string) => string): HtmlAttributeScan {
-  const attrs: Record<string, string> = Object.create(null);
-  const entries: HtmlAttributeValue[] = [];
-  const invalid: HtmlAttributeValue[] = [];
-  let index = 0;
-  while (index < raw.length) {
-    while (index < raw.length && /\s/.test(raw[index])) index += 1;
-    if (index >= raw.length || raw[index] === '/') break;
-    const start = index;
-    const match = /^[A-Za-z_:][A-Za-z0-9_.:-]*/.exec(raw.slice(index));
-    if (!match) {
-      index += 1;
-      continue;
-    }
-    const name = match[0].toLowerCase();
-    index += match[0].length;
-    while (index < raw.length && /\s/.test(raw[index])) index += 1;
-    let value = 'true';
-    if (raw[index] === '=') {
-      index += 1;
-      while (index < raw.length && /\s/.test(raw[index])) index += 1;
-      const quote = raw[index];
-      if (quote === '"' || quote === "'") {
-        index += 1;
-        const end = raw.indexOf(quote, index);
-        if (end < 0) {
-          invalid.push({ name, value: '', start: offset + start, end: offset + raw.length });
-          break;
-        }
-        value = decode(raw.slice(index, end));
-        index = end + 1;
-      } else {
-        const begin = index;
-        while (index < raw.length && !/[\s>]/.test(raw[index])) index += 1;
-        value = decode(raw.slice(begin, index));
-      }
-    }
-    const entry = { name, value, start: offset + start, end: offset + index };
-    if (Object.hasOwn(attrs, name)) {
-      // HTML keeps the first occurrence; duplicates are inert.
-      entries.push(entry);
-      continue;
-    }
-    attrs[name] = value;
-    entries.push(entry);
-  }
-  return { attrs, entries, invalid };
-}
 /** Names longer than this are rejected and never fed to suggestion search. */
 const MAX_LOCAL_NAME_LENGTH = 128;
 /** Displayed math source, in UTF-16 code units, per formula. */
@@ -617,107 +558,6 @@ export function parseLocalCore(
   let headerCursor = 0;
   let versionDeclaration: LocalVersionDeclaration | undefined;
   let versionHeaders = 0;
-
-  interface ThemeTag { start: number; end: number; rest: string; closing: boolean; selfClosing: boolean; unclosed: boolean }
-
-  /** Cheap pre-check so ordinary `<` characters never pay for a tag scan. */
-  function isThemeTagAt(index: number): boolean {
-    const closing = source.startsWith('</theme', index);
-    const opening = !closing && source.startsWith('<theme', index);
-    if (!closing && !opening) return false;
-    const boundary = source[index + (closing ? 7 : 6)];
-    return boundary !== undefined && (boundary === '>' || boundary === '/' || /\s/.test(boundary));
-  }
-
-  function themeTagAt(start: number, limit: number): ThemeTag | null {
-    const match = /^<(\/?)theme(?=[\s/>])/.exec(source.slice(start, limit));
-    if (!match) return null;
-    const nameEnd = start + match[0].length;
-    // Metadata occupies one source line. A missing bracket must never borrow
-    // the next component's closing bracket and consume that component.
-    const newline = source.indexOf('\n', nameEnd);
-    const lineEnd = newline < 0 ? limit : Math.min(limit, newline);
-    let quote = '';
-    let index = nameEnd;
-    for (; index < lineEnd; index += 1) {
-      const character = source[index];
-      if (quote) { if (character === quote) quote = ''; }
-      else if (character === '"' || character === "'") quote = character;
-      else if (character === '>') break;
-    }
-    const closing = Boolean(match[1]);
-    if (index >= lineEnd) {
-      // An unclosed declaration only claims its own line so the following
-      // controls survive the malformed metadata.
-      const stop = lineEnd;
-      return { start, end: stop, rest: source.slice(nameEnd, stop), closing, selfClosing: false, unclosed: true };
-    }
-    const rest = source.slice(nameEnd, index);
-    return { start, end: index + 1, rest, closing, selfClosing: /\/\s*$/.test(rest), unclosed: false };
-  }
-
-  /** Whitespace, BOM and leading comments may precede the declaration. */
-  function skipThemePrefix(from: number, to: number): number {
-    let index = from;
-    while (index < to) {
-      const character = source[index];
-      if (character.charCodeAt(0) === 0xfeff || character === ' ' || character === '\t' || character === '\r' || character === '\n') {
-        index += 1;
-        continue;
-      }
-      if (source.startsWith('<!--', index)) {
-        const close = source.indexOf('-->', index + 4);
-        if (close < 0 || close + 3 > to) return -1;
-        index = close + 3;
-        continue;
-      }
-      break;
-    }
-    return index;
-  }
-
-  function standaloneTheme(tag: ThemeTag): boolean {
-    if (tag.unclosed) return false;
-    let index = tag.end;
-    while (index < source.length && (source[index] === ' ' || source[index] === '\t' || source[index] === '\r')) index += 1;
-    return index >= source.length || source[index] === '\n';
-  }
-
-  function themeNameFrom(rest: string): { name?: string; code?: string; key?: string; params?: Record<string, string | number>; message?: string } {
-    if (/\{\{|\}\}/.test(rest)) {
-      return {
-        code: 'local.theme.expression',
-        key: 'local.theme.expression',
-        message: 'Theme names must be static text, not expressions.',
-      };
-    }
-    const body = rest.replace(/\/\s*$/, '');
-    const match = /^\s*name\s*=\s*(?:"([^"]*)"|'([^']*)')\s*$/.exec(body);
-    if (!match) {
-      if (!/\bname\s*=/.test(body)) {
-        return {
-          code: 'local.theme.name',
-          key: 'local.theme.name.missing',
-          message: 'A theme declaration requires a quoted name attribute.',
-        };
-      }
-      return {
-        code: 'local.theme.attribute',
-        key: 'local.theme.attribute',
-        message: 'Theme declarations only accept a quoted name attribute.',
-      };
-    }
-    const name = match[1] ?? match[2] ?? '';
-    if (!isLocalThemeName(name)) {
-      return {
-        code: 'local.theme.name',
-        key: 'local.theme.name.invalid',
-        params: { name, limit: 64 },
-        message: `Theme name "${name}" must use lowercase letters, digits and single hyphens (maximum 64 characters).`,
-      };
-    }
-    return { name };
-  }
 
   function decode(value: string) {
     return value.replace(/&(quot|apos|amp|lt|gt);/g, (_, key: string) => ({ quot: '"', apos: "'", amp: '&', lt: '<', gt: '>' })[key]!);
@@ -1348,7 +1188,7 @@ export function parseLocalCore(
             error('local.version.malformed', `Use <!-- reactive-md: ${LOCAL_SYNTAX_VERSION} --> on one line.`, i, stop);
           } else {
             versionDeclaration = { version: match[1], range: { start: i, end: stop } };
-            if (parent !== undefined || !standalone || skipThemePrefix(0, i) !== i) {
+            if (parent !== undefined || !standalone || skipThemePrefix(source, 0, i) !== i) {
               error('local.version.placement', 'The syntax declaration must be on its own line before the theme and document body.', i, stop);
             } else if (match[1] !== LOCAL_SYNTAX_VERSION) {
               error('local.version.unsupported', {
@@ -1586,9 +1426,9 @@ export function parseLocalCore(
           continue;
         }
         if (footnoteMode) { i += 1; continue; }
-        const metadata = isThemeTagAt(i) ? themeTagAt(i, end) : null;
+        const metadata = isThemeTagAt(source, i) ? themeTagAt(source, i, end) : null;
         if (metadata) {
-          const inHeader = parent === undefined && skipThemePrefix(headerCursor, i) === i;
+          const inHeader = parent === undefined && skipThemePrefix(source, headerCursor, i) === i;
           if (inHeader) {
             themeHeaders += 1;
             if (themeHeaders === 1) themeRange = { start: metadata.start, end: metadata.end };
@@ -1596,7 +1436,7 @@ export function parseLocalCore(
               warning('local.theme.malformed', { key: 'local.theme.malformed.unclosed' }, i, metadata.end);
             } else if (metadata.closing) {
               warning('local.theme.malformed', { key: 'local.theme.malformed.closing' }, i, metadata.end);
-            } else if (!standaloneTheme(metadata)) {
+            } else if (!standaloneTheme(source, metadata)) {
               warning('local.theme.malformed', { key: 'local.theme.malformed.placement' }, i, metadata.end);
             } else if (themeHeaders > 1) {
               warning('local.theme.duplicate', { key: 'local.theme.duplicate.declaration' }, i, metadata.end);

@@ -1,4 +1,4 @@
-import type { LocalNode } from '../contracts/types';
+import type { LocalNode, LocalValueKind } from '../contracts/types';
 import type { AttrMap, Entry } from './compiler-structure';
 
 const NUMBER_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
@@ -51,4 +51,33 @@ export function staticAttributeString(
   if (info) return !info.dynamic && typeof info.value === 'string' ? info.value : undefined;
   const fallback = entry.kernel.props[name]?.default;
   return typeof fallback === 'string' ? fallback : undefined;
+}
+
+export function plainText(node: LocalNode): string {
+  if (node.type === 'text' || node.type === 'inlineCode' || node.type === 'fallback') return node.value ?? '';
+  if (node.type === 'interpolation') return '\u0000';
+  if (node.type === 'break') return ' ';
+  return (node.children ?? []).map(plainText).join('');
+}
+
+export function hasInterpolation(node: LocalNode): boolean {
+  if (node.type === 'interpolation') return true;
+  return (node.children ?? []).some(hasInterpolation);
+}
+
+export function typeName(kind: LocalValueKind): string {
+  switch (kind) {
+    case 'string':
+      return 'string';
+    case 'number':
+      return 'number';
+    case 'boolean':
+      return 'boolean';
+    case 'null':
+      return 'null';
+    case 'array':
+      return 'array';
+    case 'number-array':
+      return 'number-array';
+  }
 }

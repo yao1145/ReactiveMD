@@ -7,6 +7,8 @@ import {
 } from '../src/local/configuration/schema';
 import { DEFAULT_COMPONENT_VIEWS } from '../src/components/default-preset';
 import type { LocalNode } from '../src/local/contracts/types';
+import { DEFAULT_COMPONENT_DEFINITIONS } from '../src/presets/default-components';
+import { componentSchemaFromDefinition } from '../src/sdk/registry-core';
 
 /*
  * These literal lists are the tag sets parser.ts hardcoded before deriving
@@ -27,6 +29,12 @@ const findComponent = (nodes: LocalNode[], name: string): LocalNode | undefined 
     .find((node) => node.type === 'component' && node.name === name);
 
 describe('schema component forms', () => {
+  it('matches the complete schema projection of the authored preset', () => {
+    for (const definition of DEFAULT_COMPONENT_DEFINITIONS) {
+      expect(LOCAL_COMPONENTS[definition.name], definition.name)
+        .toEqual(componentSchemaFromDefinition(definition));
+    }
+  });
   it('derive tag sets that match the previously hardcoded parser lists', () => {
     expect(sorted(localComponentNames('leaf'))).toEqual(sorted(LEGACY_VOID));
     expect(sorted([...localComponentNames('container'), ...localComponentNames('inline')]))

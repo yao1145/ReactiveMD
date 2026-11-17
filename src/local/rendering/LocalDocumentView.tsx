@@ -1,3 +1,4 @@
+import { useResolvedColorScheme } from './use-color-scheme';
 import { OverflowTextTooltip } from '../../react/overflow-text-tooltip';
 import {
   Component,
@@ -80,7 +81,6 @@ import {
 } from '../../export/requirements';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from '../html/html';
 import { localHtmlAlign, localHtmlLinkRel } from '../html/html-names';
-import { localCodeUnitPrefix } from '../source/text-length';
 import { splitHtmlDetailsChildren } from '../html/html-details';
 import { PrintValue } from '../../react/component-utils';
 import { TableSurface } from '../widgets/table-surface';
@@ -112,6 +112,10 @@ import {
   type LocalLocale,
   type Localize,
 } from '../theme/i18n';
+import {
+  createValidationState,
+  type LocalValidationState,
+} from './validation-state';
 
 /* ------------------------------------------------------------------ props */
 
@@ -314,137 +318,6 @@ function useLocal(): LocalViewContext {
   return value;
 }
 
-/* ------------------------------------------------------------- validations */
-
-const LOCAL_VALIDATION_FAILED_CODE = 'local.validation.failed';
-const LOCAL_VALIDATION_EXPRESSION_CODE = 'local.validation.expression';
-const VALIDATION_MESSAGE_BUDGET = 2_000;
-
-interface LocalValidationHint {
-  /** Per-document-instance id, kept stable for every rule state. */
-  id: string;
-  failed: boolean;
-  error: boolean;
-  message: string;
-}
-
-interface LocalValidationField {
-  describedBy?: string;
-  invalid: boolean;
-}
-
-interface LocalValidationState {
-  /** The hint for a rendered `<validation>` tag, matched by tag range. */
-  hintFor(node: LocalNode): LocalValidationHint | null;
-  /** Current failing hints attached to a bound control/slot group. */
-  fieldFor(node: LocalNode): LocalValidationField;
-}
-
-const NO_VALIDATION_FIELD: LocalValidationField = { invalid: false };
-
-const NO_VALIDATIONS: LocalValidationState = {
-  hintFor: () => null,
-  fieldFor: () => NO_VALIDATION_FIELD,
-};
-
-function validationRangeKey(range: { start: number; end: number }): string {
-  return `${range.start}:${range.end}`;
-}
-
-function boundedValidationText(message: string): string {
-  return message.length > VALIDATION_MESSAGE_BUDGET
-    ? `${localCodeUnitPrefix(message, VALIDATION_MESSAGE_BUDGET - 1)}…`
-    : message;
-}
-
-/**
- * Rules are advisory and identified by the range of their `<validation>` tag.
- * A failed rule contributes one hint id to every bound control of its fields;
- * hidden rules keep their association even though their hint is not announced.
- */
-function createValidationState(
-  document: LocalDocument,
-  runtime: LocalRuntime,
-  instanceId: string,
-  t: Localize,
-): LocalValidationState {
-  const rules = Array.isArray(document.validations) ? document.validations : [];
-  if (rules.length === 0) return NO_VALIDATIONS;
-
-  let diagnostics: Diagnostic[] | null = null;
-  try {
-    // Hand-built runtimes may predate the advisory API; treat the absent or
-    // throwing call as an evaluation failure instead of silently passing.
-    if (typeof runtime.validate === 'function') diagnostics = runtime.validate();
-  } catch {
-    diagnostics = null;
-  }
-
-  const byRange = new Map<string, Diagnostic>();
-  for (const diagnostic of diagnostics ?? []) {
-    if (
-      diagnostic.code !== LOCAL_VALIDATION_FAILED_CODE
-      && diagnostic.code !== LOCAL_VALIDATION_EXPRESSION_CODE
-    ) {
-      continue;
-    }
-    byRange.set(validationRangeKey(diagnostic.range), diagnostic);
-  }
-
-  const hintsByNode = new Map<string, LocalValidationHint>();
-  const hintsByRange = new Map<string, LocalValidationHint>();
-  const fields = new Map<string, string[]>();
-  const errorMessage = t('This rule cannot be evaluated', '无法计算此规则');
-  const fallbackMessage = t('Validation failed.', '校验未通过。');
-
-  for (const [index, rule] of rules.entries()) {
-    const key = validationRangeKey(rule.range);
-    const diagnostic = byRange.get(key);
-    const error = diagnostics === null || diagnostic?.code === LOCAL_VALIDATION_EXPRESSION_CODE;
-    const failed = diagnostic?.code === LOCAL_VALIDATION_FAILED_CODE;
-    const message = failed
-      ? boundedValidationText(diagnostic?.message || rule.message || fallbackMessage)
-      : error
-        ? diagnostic?.message
-          ? `${errorMessage}: ${boundedValidationText(diagnostic.message)}`
-          : errorMessage
-        : '';
-    const hint: LocalValidationHint = {
-      id: `${instanceId}-validation-${index}`,
-      failed,
-      error,
-      message,
-    };
-    hintsByNode.set(rule.nodeId, hint);
-    hintsByRange.set(key, hint);
-    if (!failed && !error) continue;
-
-    for (const name of rule.fields ?? []) {
-      const binding = Object.hasOwn(document.bindings, name)
-        ? document.bindings[name]
-        : undefined;
-      if (!binding) continue;
-      for (const nodeId of binding.nodeIds ?? []) {
-        const current = fields.get(nodeId);
-        if (!current) fields.set(nodeId, [hint.id]);
-        else if (!current.includes(hint.id)) current.push(hint.id);
-      }
-    }
-  }
-
-  return {
-    hintFor(node: LocalNode): LocalValidationHint | null {
-      return hintsByRange.get(validationRangeKey(node.range)) ?? hintsByNode.get(node.id) ?? null;
-    },
-    fieldFor(node: LocalNode): LocalValidationField {
-      const ids = fields.get(node.id);
-      return ids && ids.length > 0
-        ? { describedBy: ids.join(' '), invalid: true }
-        : NO_VALIDATION_FIELD;
-    },
-  };
-}
-
 /* ------------------------------------------------------------- attributes */
 
 const FULL_EXPRESSION = /^\s*\{\{([\s\S]*)\}\}\s*$/;
@@ -502,10 +375,6 @@ function runtimeRevision(runtime: LocalRuntime): number {
 
 /* ---------------------------------------------------------------- theming */
 
-const DARK_QUERY = '(prefers-color-scheme: dark)';
-
-type ResolvedColorScheme = 'light' | 'dark';
-
 /**
  * Stable content signature for the host manifest. Hosts frequently construct
  * a fresh array on every render; resolving by content keeps the theme memo
@@ -547,116 +416,6 @@ function composeDiagnostics(...groups: Diagnostic[][]): Diagnostic[] {
     }
   }
   return merged;
-}
-
-function explicitColorScheme(value: string | null | undefined): ResolvedColorScheme | null {
-  return value === 'light' || value === 'dark' ? value : null;
-}
-
-/**
- * Nearest host preference. The renderer owns `data-color-scheme` on the root,
- * so only the legacy `data-theme` attribute is read from the root itself; a
- * host script that still toggles that attribute keeps working.
- */
-function hostColorScheme(root: HTMLElement): ResolvedColorScheme | null {
-  const own = explicitColorScheme(root.getAttribute('data-theme'));
-  if (own) return own;
-  let element: Element | null = root.parentElement;
-  while (element) {
-    const scheme =
-      explicitColorScheme(element.getAttribute('data-color-scheme')) ??
-      explicitColorScheme(element.getAttribute('data-theme'));
-    if (scheme) return scheme;
-    element = element.parentElement;
-  }
-  return null;
-}
-
-function systemColorScheme(): ResolvedColorScheme | null {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
-  try {
-    return window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light';
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Resolve the effective mode for one document instance. Server rendering and
- * the hydration pass always start light so markup matches; the client effect
- * then follows the nearest host attribute and the OS, observing both.
- */
-function useResolvedColorScheme(
-  rootRef: RefObject<HTMLElement | null>,
-  requested: LocalColorScheme,
-): ResolvedColorScheme {
-  const explicit = explicitColorScheme(requested);
-  const [resolved, setResolved] = useState<ResolvedColorScheme>('light');
-
-  useEffect(() => {
-    if (explicit) {
-      setResolved(explicit);
-      return;
-    }
-    const root = rootRef.current;
-    if (!root || typeof window === 'undefined') {
-      setResolved('light');
-      return;
-    }
-    const update = () => setResolved(hostColorScheme(root) ?? systemColorScheme() ?? 'light');
-    update();
-
-    let observers: MutationObserver[] = [];
-    if (typeof MutationObserver === 'function') {
-      try {
-        const watch = (target: Element, filter: string[]) => {
-          const observer = new MutationObserver(update);
-          observer.observe(target, { attributes: true, attributeFilter: filter });
-          observers.push(observer);
-        };
-        // A host script may still toggle the legacy attribute on the document
-        // element itself; the renderer-owned data-color-scheme is not observed
-        // there so its own writes never re-enter the resolver.
-        watch(root, ['data-theme']);
-        let element: Element | null = root.parentElement;
-        while (element) {
-          watch(element, ['data-color-scheme', 'data-theme']);
-          element = element.parentElement;
-        }
-      } catch {
-        for (const observer of observers) observer.disconnect();
-        observers = [];
-      }
-    }
-
-    const onMediaChange = () => update();
-    let query: MediaQueryList | null = null;
-    if (typeof window.matchMedia === 'function') {
-      try {
-        query = window.matchMedia(DARK_QUERY);
-        if (typeof query.addEventListener === 'function') {
-          query.addEventListener('change', onMediaChange);
-        } else if (typeof query.addListener === 'function') {
-          query.addListener(onMediaChange);
-        }
-      } catch {
-        query = null;
-      }
-    }
-
-    return () => {
-      for (const observer of observers) observer.disconnect();
-      if (!query) return;
-      if (typeof query.removeEventListener === 'function') {
-        query.removeEventListener('change', onMediaChange);
-      } else if (typeof query.removeListener === 'function') {
-        query.removeListener(onMediaChange);
-      }
-    };
-  }, [explicit, rootRef]);
-
-  // Explicit props apply during server rendering too; `auto` starts light.
-  return explicit ?? resolved;
 }
 
 /* ------------------------------------------------------------ state hooks */
@@ -2873,4 +2632,3 @@ export function LocalReactiveDocument({
     />
   );
 }
-
