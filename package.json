@@ -120,6 +120,10 @@
       "types": "./dist-library/types/export/index.d.ts",
       "import": "./dist-library/reactive-md-export.js"
     },
+    "./export-assets": {
+      "types": "./dist-library/types/export-assets/index.d.ts",
+      "import": "./dist-library/reactive-md-export-assets.js"
+    },
     "./standalone": {
       "types": "./dist-library/types/standalone/library.d.ts",
       "import": "./dist-library/reactive-md-standalone-host.js"

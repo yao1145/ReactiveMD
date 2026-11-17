@@ -8,6 +8,7 @@ export default defineConfig({
     lib: { entry: {
       'reactive-md-build': fileURLToPath(new URL('./src/build/index.ts', import.meta.url)),
       'reactive-md-vite': fileURLToPath(new URL('./src/vite/index.ts', import.meta.url)),
+      'reactive-md-export-assets': fileURLToPath(new URL('./src/export-assets/index.ts', import.meta.url)),
     }, formats: ['es'], fileName: (_format, name) => `${name}.js` },
     rolldownOptions: { external: [/^node:/, 'vite', 'react', 'react-dom', 'react-dom/server', 'react/jsx-runtime'],
       output: { entryFileNames: '[name].js', chunkFileNames: 'build-[name]-[hash].js' } },

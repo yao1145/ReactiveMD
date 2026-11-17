@@ -60,6 +60,7 @@
 
 | 主题 | 中文 |
 | --- | --- |
+| 扩展作者教程（定义到离线导出） | [中文](development/extension-tutorial-ch.md) |
 | 组件插件开发 | [中文](development/component-development-ch.md) |
 | 组件协议 | [中文](development/component-protocol-ch.md) |
 | 性能 | [优化历史与当前复测总览](development/performance-overview-ch.md) |

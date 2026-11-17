@@ -354,6 +354,8 @@ const browser = await runLocalBrowserCompliance({
 
 ## 可复制的组件包
 
+[扩展作者教程](../development/extension-tutorial-ch.md)从更小的 [minimal-extension](../../examples/minimal-extension/README-ch.md) 模板出发，依次走完定义、预览、SSR、离线导出和发布；需要主题、编译后类型声明和浏览器证据时再使用下面的组件包模板。
+
 [组件包模板](../../examples/component-package/README-ch.md)是完整的外部消费样例。它定义评分控件、Markdown 提示容器、主题包和内联 SVG，再对安装后的 tarball 运行公开合规工具。
 
 ```sh
