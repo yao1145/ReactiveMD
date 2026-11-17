@@ -60,6 +60,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 
 | Topic | English |
 | --- | --- |
+| Extension author tutorial (definition to offline export) | [English](development/extension-tutorial-en.md) |
 | Component plugin development | [English](development/component-development-en.md) |
 | Component protocol | [English](development/component-protocol-en.md) |
 | Local module layout | [English](development/local-module-layout-en.md) |

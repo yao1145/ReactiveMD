@@ -236,6 +236,37 @@ The IIFE registers a light-DOM custom element. Simple options are attributes; co
 
 The element uses Light DOM so the existing document CSS, heading anchors and print styles apply. Shadow DOM is intentionally out of scope for this release.
 
+## Export assets for hosts
+
+Hosts that assemble exported or standalone HTML need the engine files themselves. `reactive-md/export-assets` is the supported way to find and read them:
+
+```ts
+import { listExportAssets, readExportAsset, resolveExportAsset } from 'reactive-md/export-assets';
+
+for (const asset of listExportAssets().assets) {
+  console.log(asset.id, asset.specifier, asset.description);
+}
+
+const css = readExportAsset('base-css');
+const runtimeUrl = resolveExportAsset('runtime'); // file URL
+```
+
+The manifest reports `protocol: 'reactive-md-export-assets/v1'` and a frozen entry list. Ids stay stable across releases:
+
+| Id | Public specifier | Content |
+| --- | --- | --- |
+| `base-css` | `reactive-md/styles.css` | Document stylesheet |
+| `print-css` | `reactive-md/print.css` | Print stylesheet |
+| `notices` | `reactive-md/notices` | Third-party license notices |
+| `package-json` | `reactive-md/package.json` | Package metadata, including the version exports record |
+| `runtime` | `reactive-md/assets/standalone.js` | Standalone browser runtime |
+
+`resolveExportAsset(id)` resolves the installed package through `import.meta.resolve` and returns a file URL; `readExportAsset(id)` returns the UTF-8 contents. Unknown ids throw a `TypeError`.
+
+The stability contract covers the protocol string, the ids and the meaning of `specifier`. Tarball layout and the files behind an entry change between releases, so build tooling reads assets through this entry point instead of walking `node_modules/reactive-md`. The entry uses `node:fs` and belongs to Vite, build and CLI tooling; no browser, React, compiler or root entry imports it.
+
+The demo's `vite.export-assets.ts` uses it to expose the stylesheet, print stylesheet, notices, package metadata and standalone runtime as build-time string modules.
+
 ## Security boundaries
 
 - Core and React entry points keep React external. Only the standalone IIFE bundles React.

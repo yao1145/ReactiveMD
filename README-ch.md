@@ -97,10 +97,10 @@ Reactive MD 面向长文档和连续编辑。当前测量日期为 2026-10-29，
 
 在线 Demo：[yaozi.raricy.com](https://yaozi.raricy.com/)
 
-在仓库根目录运行：
+在 `ReactiveMD-Demo` 仓库根目录运行：
 
 ```sh
-npm ci
+npm ci --legacy-peer-deps
 npm run dev
 ```
 
@@ -115,12 +115,12 @@ npm run dev
 - 打开俄罗斯方块与 2048 插件示例，分别体验定时驱动和回合制的外部组件。
 - 把当前预览导出为单文件交互 HTML 或静态快照，然后在断网状态下打开。
 
-在仓库根目录验证集成：
+在 ReactiveMD-Demo 仓库根目录验证集成：
 
 ```sh
 npm run build
-node scripts/verify-extensions.mjs
-node scripts/verify-extensions.mjs --dev
+npm run test:runtime-extensions
+npm run test:runtime-extensions -- --dev
 ```
 
 脚本会自行启停服务，覆盖真实 Worker、两个插件示例、编辑器目录、移动端布局和离线导出，结果写入 `artifacts/demo-extensions/`。
@@ -162,12 +162,12 @@ export default { plugins: [reactiveMd({ extensions: './extensions.ts' })] };
 
 Demo 提供两个完整的安装包案例：
 
-| 包 | 标签 | 展示能力 | 更新命令 |
+| 包 | 标签 | 展示能力 | 更新流程 |
 | --- | --- | --- | --- |
-| `reactive-md-tetris-package` | `<tetris>` | 定时驱动游戏、键盘与按钮输入、种子方块、离线导出 | `npm pack (in examples/tetris-package), then update the vendor dependency and lockfile in ReactiveMD-Demo` |
-| `reactive-md-game-2048-package` | `<game-2048>` | 回合制状态、确定性生成、键盘与按钮输入、静态预览 | `npm run update:demo-2048` |
+| `reactive-md-tetris-package` | `<tetris>` | 定时驱动游戏、键盘与按钮输入、种子方块、离线导出 | [Demo 候选包更新流程](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-ch.md) |
+| `reactive-md-game-2048-package` | `<game-2048>` | 回合制状态、确定性生成、键盘与按钮输入、静态预览 | [Demo 候选包更新流程](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-ch.md) |
 
-两者都以 npm tarball 的形式放在 `ReactiveMD-Demo/vendor/`，作为 Demo 依赖安装，并通过公开的 `./react` 与 `./notices` 入口读取。它们的作者信息进入编辑器目录，能力证据支撑离线导出。
+Demo 站点运行 `ReactiveMD-Demo/plugin/` 下的本地副本；`vendor/` 中提交的 tarball 是兼容性测试使用的安装包夹具。两个包的入口都通过公开的 `./react` 与 `./notices` 读取。它们的作者信息进入编辑器目录，能力证据支撑离线导出。
 
 组件标签必须以字母开头，因此 2048 插件注册为 `<game-2048>`，而不是 `<2048>`。manifest、绑定、主题、资源、合规工具与打包流程见[组件插件开发指南](docs/development/component-development-ch.md)和[完整开发契约](docs/development/component-development-reference-ch.md)。
 
@@ -229,6 +229,112 @@ if (result.ok) {
 ```
 
 完整的编译与运行时 API、宿主 URL 策略、生命周期和样式覆盖见[本地模式集成](docs/integration/local-integration-ch.md)。
+
+## 按任务选择入口
+
+每个子路径都是 ESM 入口，并带有自己的声明文件。按要做的事情选择；可选 peer 只出现在最后一列。
+
+| 任务 | 入口 | 提供什么 | 刻意不包含 | React / Vite |
+| --- | --- | --- | --- | --- |
+| 单次编译并在内存中运行 | `reactive-md` | `compileLocal`、`createLocalCompileSession`、`createLocalRuntime`、表达式与曲线采样、状态导入导出与保留、宿主提供的 Worker 协议（`startLocalCompileWorker`、`LocalCompileScheduler`）、`createShareableHtml`、默认预设 | React、CSS、Vite、组件目录与工具栏命令、导出规划 | — |
+| 在 Worker 或体积敏感包中编译 | `reactive-md/compiler` | `createCompiler` 与 `CompileResult` 契约：CommonMark、ReactiveMD 结构、表达式、绑定、预算 | React、CSS、编译 Worker 协议、会话、保留、共享/导出代码、默认预设、GFM、原生 HTML、Lezer 块规划、KaTeX 显示、曲线采样 | — |
+| 单次编译保留完整语言能力 | `reactive-md/compiler/standard` | `createStandardCompiler`：在轻入口上增加 GFM、原生 HTML、Lezer 块规划、KaTeX 显示检查、曲线公式采样和默认预设 | React、CSS、编译 Worker 协议、会话、保留、共享/导出代码 | — |
+| 用 React 渲染 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView`、`defineReactComponentPackage`、`createReactHost`；构建把样式表提取为独立文件，不在导入时注入 | Node 构建与导出工具、编辑器 | React 19 与 `reactive-md/styles.css` |
+| 在服务端渲染 | `reactive-md/react/server` | 带能力预检和诊断的 `renderLocalStaticDocument` | 客户端运行时、DOM、样式表 | React 19 + react-dom 19 |
+| 渲染但不自动引入样式 | `reactive-md/react/unstyled` | 同样的组件，不带 CSS 副作用 | `styles.css` | React 19 |
+| 编写交互组件 | `reactive-md/react/runtime` | `useTicker`、`useFrame`、`useSwipe`、`useKeys`、`useComponentState` | 文档渲染器、编译器 | React 19 |
+| 发布组件包 | `reactive-md/sdk` | `defineLocalComponent`、`defineLocalPreset`，manifest、config、registry 与主题契约及校验 | React 实现、文档渲染、DOM | — |
+| 驱动编辑器 | `reactive-md/authoring` | `analyzeLocalSource`、`completeLocalSource`、`formatLocalSource`、`renameLocalBinding`、组件目录与工具栏插入命令 | React、CSS、DOM、编译会话 | — |
+| 导出前预检 | `reactive-md/export` | `createLocalExportPlan`、`createLocalShareableHtml`、恢复要求、组件状态文件、样式资源 | Vite 构建、React 渲染（标记由调用方提供）、CLI | — |
+| 构建离线包 | `reactive-md/build` | `buildLocalStandaloneBundle`、预检、manifest 与封印、资源与 notice 收集 | 浏览器渲染、CLI | Vite 8（可选 peer，按需加载）、Node |
+| 解析导出要内嵌的文件 | `reactive-md/export-assets` | `listExportAssets`、`resolveExportAsset`、`readExportAsset`，覆盖样式表、notice、包元数据与独立运行时 | 编译器、React、浏览器代码 | Node |
+| 接入 Vite | `reactive-md/vite` | `reactiveMd()` 注册、开发期 host、`reactive-md-standalone.js` 与 `reactive-md-export.json` 产物 | 运行时 API、浏览器代码 | Vite 8、Node |
+| 挂载导出的文档 | `reactive-md/standalone` | `mount`、`mountAll`、`isReactiveMDMounted`、载荷解析、挂载诊断与事件 | 编译入口、自动挂载、构建工具 | React 19 与 `reactive-md/styles.css` |
+| 共享标识、随机、计时与组件状态 | `reactive-md/runtime` | 文档标识与种子、可复现随机、调度器、组件状态注册表与运行时服务 | 渲染、Web 存储、网络 | — |
+| 在浏览器中保存组件状态 | `reactive-md/runtime/browser` | `createLocalBrowserStateStorage`、`flushComponentStateOnPageHide` | Node 持久化、运行时入口本身 | 浏览器存储对象 |
+| 验证组件包 | `reactive-md/testing` | manifest 与行为一致性运行器、报告与对照工具 | React、DOM、浏览器 | — |
+| 验证 SSR 输出 | `reactive-md/testing/react` | `runLocalReactCompliance`、`readLocalReactSpec`、错误探针、`checkLocalComplianceMarkup` | 浏览器驱动 | React 19 + react-dom 19 |
+| 验证浏览器生命周期 | `reactive-md/testing/browser` | `runLocalBrowserCompliance`、驱动契约、`createPlaywrightBrowserDriver` | 对 Playwright 的依赖 | 真实浏览器上下文 |
+| 安装内置组件 | `reactive-md/presets/default` | `defaultPreset`：内置标签的 manifest 数据 | 引擎运行时、React 实现 | — |
+| 只安装其中一部分 | `reactive-md/presets/default/packs` | `controlsPack`、`layoutPack`、`dataPack`、`visualsPack` | 包外的组件 | — |
+| 设置文档样式 | `reactive-md/styles.css` | 按已发布层叠顺序组织的组件、主题与文档层 | JavaScript | — |
+| 打印文档 | `reactive-md/print.css` | 隐藏控件、显示 `.local-print-value` 的打印规则 | 屏幕布局 | 在 `styles.css` 之后引入 |
+| 随包分发第三方声明 | `reactive-md/notices` | 生成的 `THIRD_PARTY_NOTICES.md` 文本 | 代码 | — |
+| 直接放入预构建运行时 | `reactive-md/assets/standalone.js` | 带 `ReactiveMD.mount`、`mountAll` 和导出载荷自动挂载的 IIFE 构建 | ESM 导入、tree shaking、编译器 | 一个 script 标签与 `reactive-md/styles.css` |
+
+`reactive-md`（根入口）是完整核心面：默认预设、增量会话、状态与保留工具、Worker 协议和共享 HTML 封装。`reactive-md/compiler` 是轻入口，不含 React、CSS、Worker、会话和默认预设。`reactive-md/compiler/standard` 在此基础上加入 GFM、原生 HTML、Lezer 块规划、KaTeX 显示检查、曲线采样和默认预设，仍然不含 React、CSS、Worker 和会话。`npm run test:compiler-entry` 每次构建都检查这条分界：遍历根、compiler 与 standard 三个依赖图，记录各自文件数和字节数；编译入口一旦触及 Worker、会话、保留、共享、导出、React、standalone 或预设模块、样式表或主题协议，检查即失败。
+
+### 最小可用代码
+
+**编译并在内存中运行**
+
+```js
+import { compileLocal, createLocalRuntime } from 'reactive-md';
+
+const result = compileLocal('<number bind="n" label="数量" initial="2">');
+if (!result.ok) throw new Error(result.diagnostics.map(item => item.message).join('\n'));
+
+const runtime = createLocalRuntime(result.document);
+try { console.log(runtime.text('合计：{{ n * 100 }}')); }
+finally { runtime.dispose(); }
+```
+
+**只编译，不创建运行时**
+
+```js
+import { createCompiler } from 'reactive-md/compiler';
+import { createStandardCompiler } from 'reactive-md/compiler/standard';
+
+console.log(createCompiler().compile('# 标题\n\n普通 **Markdown**。').status);          // 'valid'
+console.log(createStandardCompiler().compile('| a | b |\n| - | - |\n| 1 | 2 |').status); // 'valid'
+```
+
+**用 React 渲染**
+
+```tsx
+import { LocalReactiveDocument } from 'reactive-md/react';
+import 'reactive-md/styles.css';
+
+export function Article({ source }: { source: string }) {
+  return <LocalReactiveDocument source={source} />;
+}
+```
+
+**在编辑器中提供作者工具**
+
+```ts
+import { analyzeLocalSource, insertLocalComponentFromOptions } from 'reactive-md/authoring';
+
+const analysis = analyzeLocalSource(source);
+const edit = insertLocalComponentFromOptions(undefined, 'chart', source, { start: 0, end: 0 });
+console.log(analysis.bindings, edit.value);
+```
+
+**导出与构建**
+
+```ts
+import { buildLocalStandaloneBundle } from 'reactive-md/build';
+import { createLocalExportPlan } from 'reactive-md/export';
+
+const bundle = await buildLocalStandaloneBundle({ entry: '.reactive-md/host.mjs' });
+const plan = createLocalExportPlan({ document, config, target: 'offline', bundle });
+if (!plan.ok) throw new Error(plan.diagnostics.map(item => item.message).join('\n'));
+```
+
+**测试组件包**
+
+```ts
+import { LOCAL_BEHAVIOR_SPEC_PROTOCOL, runLocalBehaviorCompliance, runLocalManifestCompliance } from 'reactive-md/testing';
+
+const manifest = runLocalManifestCompliance(widgetManifest);
+const behavior = runLocalBehaviorCompliance({
+  protocol: LOCAL_BEHAVIOR_SPEC_PROTOCOL,
+  component: 'my-widget',
+  source,
+  binding: 'value',
+}, config);
+console.log([...manifest.cases, ...behavior.cases].filter(item => item.status === 'failed'));
+```
 
 ## 在 React 中使用
 
@@ -299,6 +405,7 @@ benchmarks/    带来源说明的精简性能数据
 - [可分享文档与静态导出](docs/integration/shareable-export-ch.md)：CLI build/lint、状态文件、本地图片内联、打印与独立浏览器运行时。
 - [React 源码编辑器](docs/integration/editor-ch.md)与[作者工具](docs/integration/author-tools-ch.md)。
 - [组块协议](docs/development/component-protocol-ch.md)与[组件插件开发指南](docs/development/component-development-ch.md)。
+- [扩展开发教程](docs/development/extension-tutorial-ch.md)：选择入口、编写组件包并验证。
 - [版本与兼容性](docs/compatibility/compatibility-ch.md)。
 - [性能说明](docs/development/performance-overview-ch.md)与[发布清单](docs/development/releasing-ch.md)。
 - [0.8.0 发布说明](docs/releases/release-0.8.0-ch.md)、[0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)以及 [docs/releases](docs/releases) 中的历史记录。

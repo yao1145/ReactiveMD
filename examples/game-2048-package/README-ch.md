@@ -60,14 +60,8 @@ export const { config, reactConfig } = host;
 
 ## 在本仓库 Demo 中体验
 
-组件已登记在
-[demo/extensions.ts](https://github.com/yao1145/ReactiveMD/blob/main/demo/extensions.ts)。
-Demo 通过依赖声明安装 `demo/vendor/` 中的 npm tarball，从
-`reactive-md-game-2048-package/react` 读取实现、CSS 文本与样例，通过
-`reactive-md-game-2048-package/notices?raw` 读取署名。修改本包源码后，在仓库
-根目录运行 `npm run update:demo-2048`，重新构建、打包和安装；更新后的 tarball、
-依赖声明和锁文件一起提交。预览、编辑器目录和离线 HTML 共用这份清单，具体字段见
-[Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。
+Demo 站点运行 `plugin/game-2048/` 下的本地副本；`vendor/` 中提交的 tarball 是安装包兼容性夹具。修改本包源码后，重新构建与打包，再按
+[Demo 候选包流程](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-ch.md)替换 vendor tarball、依赖路径和锁文件。
 
 ## 命令
 

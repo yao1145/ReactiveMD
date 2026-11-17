@@ -1,0 +1,26 @@
+{
+  "name": "reactive-md-minimal-extension",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal copyable Reactive MD extension: one leaf component, Vite preview, Node/SSR checks and offline export.",
+  "license": "MIT",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "preview": "vite",
+    "test": "npm run build && node scripts/test-node.mjs",
+    "export": "npm run build && node scripts/export.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "reactive-md": "^0.8.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^7.0.0",
+    "vite": "^8.0.0"
+  }
+}

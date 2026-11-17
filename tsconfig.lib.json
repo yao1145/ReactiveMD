@@ -19,6 +19,7 @@
     "src/presets/default.ts",
     "src/presets/packs.ts",
     "src/export/index.ts",
+    "src/export-assets/index.ts",
     "src/standalone/library.ts",
     "src/build/index.ts",
     "src/testing/index.ts",

@@ -341,6 +341,8 @@ Every report separates `passed`, `failed`, `skipped` and `unsupported`. A declar
 
 ## Copyable component package
 
+The [extension author tutorial](../development/extension-tutorial-en.md) starts from the smaller [minimal-extension](../../examples/minimal-extension/README.md) template and walks through definition, preview, SSR, offline export and publishing. Use the component package template below when you need a theme, compiled type declarations and browser evidence.
+
 The [component package template](../../examples/component-package/README.md) is a complete external consumer. It defines a rating control, a Markdown note container, a package theme and an inlined SVG, then runs the public compliance tools against the installed tarball.
 
 ```sh

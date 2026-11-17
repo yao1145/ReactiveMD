@@ -13,13 +13,17 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = path.join(root, 'dist-library');
 const artifacts = path.join(root, 'artifacts', 'claude-task1');
 const runtimeEntries = {
+  root: path.join(dist, 'reactive-md.js'),
   compiler: path.join(dist, 'reactive-md-compiler.js'),
   standard: path.join(dist, 'reactive-md-compiler-standard.js'),
 };
 const declarationEntries = {
+  root: path.join(dist, 'types', 'index.d.ts'),
   compiler: path.join(dist, 'types', 'compiler', 'index.d.ts'),
   standard: path.join(dist, 'types', 'compiler', 'standard.d.ts'),
 };
+/** Entries that promise the light compiler surface. The root entry owns the rest. */
+const compilerEntries = ['compiler', 'standard'];
 const m1ResidualMarkers = [
   ['@lezer', 'Lezer'],
   ['katex', 'KaTeX'],
@@ -40,9 +44,12 @@ function relative(file) {
   return path.relative(root, file).split(path.sep).join('/');
 }
 
-async function inspectRuntimeGraph(entry) {
+async function inspectRuntimeGraph(entry, label) {
   const files = [];
   const externals = [];
+  const cssImports = [];
+  let workerConstruction = 0;
+  let themeProtocol = 0;
   const pending = [entry];
   const seen = new Set();
   while (pending.length) {
@@ -51,8 +58,8 @@ async function inspectRuntimeGraph(entry) {
     seen.add(file);
     files.push(file);
     const source = await readFile(file, 'utf8');
-    assert.ok(!/\bnew\s+(?:Shared)?Worker\b/.test(source), `Worker construction leaked into ${relative(file)}`);
-    assert.ok(!source.includes('data-rmd-theme'), `Theme CSS protocol leaked into ${relative(file)}`);
+    if (/\bnew\s+(?:Shared)?Worker\b/.test(source)) workerConstruction += 1;
+    if (source.includes('data-rmd-theme')) themeProtocol += 1;
     assert.ok(!/import\s*\(\s*(?!["'`])/.test(source), `Unresolvable dynamic import in ${relative(file)}`);
     const specifiers = moduleSpecifiers(source, path.basename(file));
     for (const specifier of specifiers) {
@@ -60,17 +67,68 @@ async function inspectRuntimeGraph(entry) {
         externals.push({ file: relative(file), specifier });
         continue;
       }
-      assert.ok(!specifier.endsWith('.css'), `CSS import ${specifier} reached ${relative(file)}`);
+      if (specifier.endsWith('.css')) {
+        cssImports.push({ file: relative(file), specifier });
+        continue;
+      }
       const target = path.resolve(path.dirname(file), specifier);
-      assert.ok(existsSync(target), `Missing shared chunk ${specifier} imported by ${relative(file)}`);
+      assert.ok(existsSync(target), `Missing shared chunk ${specifier} imported by ${relative(file)} (${label})`);
       assert.ok(target.startsWith(dist + path.sep), `Bundle import ${specifier} leaves dist-library (${relative(file)})`);
       pending.push(target);
     }
   }
-  assert.deepEqual(externals, [], `Compiler bundle must be self-contained, found ${JSON.stringify(externals)}`);
   files.sort();
-  return files;
+  return { files, externals, cssImports, workerConstruction, themeProtocol };
 }
+
+/** Compiler entries are self-contained and cannot reach a root-only domain. */
+function assertCompilerRuntimeBoundaries(name, graph) {
+  assert.deepEqual(graph.externals, [], `Compiler ${name} bundle must be self-contained, found ${JSON.stringify(graph.externals)}`);
+  assert.deepEqual(graph.cssImports, [], `CSS import reached the compiler ${name} graph: ${JSON.stringify(graph.cssImports)}`);
+  assert.equal(graph.workerConstruction, 0, `Worker construction leaked into the compiler ${name} graph`);
+  assert.equal(graph.themeProtocol, 0, `Theme CSS protocol leaked into the compiler ${name} graph`);
+}
+
+/**
+ * The root entry is the full core surface, so it carries the theme protocol and
+ * the rest of the root-only domains. Its packaging shape is still checked: one
+ * styleless, self-contained ESM graph. Domain presence is reported, not denied.
+ */
+function assertRootRuntimeBoundaries(graph) {
+  assert.deepEqual(graph.externals, [], `Root bundle must be self-contained, found ${JSON.stringify(graph.externals)}`);
+  assert.deepEqual(graph.cssImports, [], `CSS import reached the root graph: ${JSON.stringify(graph.cssImports)}`);
+}
+
+/**
+ * Root-only domains, detected through literals that survive bundling. Each
+ * marker is unique to one root domain in `src/`; the root graph reports which
+ * ones it carries, so the compiler assertions cannot pass on dead strings.
+ */
+const rootOnlyDomains = [
+  [/compile worker/, 'compile worker protocol'],
+  [/["']incremental["']/, 'incremental compile session'],
+  [/unretainable/, 'state retention'],
+  [/reactive-md-html\/v1/, 'shareable HTML envelope'],
+  [/local\.extension\.contract-metadata/, 'export validation'],
+  [/local\.extension\.bundle-integrity/, 'export bundle planning'],
+  [/md-document local-document/, 'React document renderer'],
+  [/reactive-md-mounted/, 'standalone host mount'],
+];
+
+/** The same domains in the declaration graph, where module paths are visible. */
+const rootOnlyDeclarationPaths = [
+  [/(?:^|\/)transport\/worker\.d\.ts$/, 'compile worker protocol'],
+  [/(?:^|\/)session\//, 'incremental compile session'],
+  [/(?:^|\/)runtime\/retention\.d\.ts$/, 'state retention'],
+  [/(?:^|\/)shareable\.d\.ts$/, 'shareable HTML envelope'],
+  [/(?:^|\/)export\//, 'export planning'],
+  [/(?:^|\/)react\//, 'React entry'],
+  [/(?:^|\/)standalone\//, 'standalone host'],
+];
+/** The standard assembly installs the default preset; only the minimal entry may not. */
+const minimalCompilerDeclarationPaths = [
+  [/(?:^|\/)(?:presets\/|default-(?:components|semantics|authoring)\.d\.ts$)/, 'default preset'],
+];
 
 function declarationCandidates(specifier, from) {
   return [
@@ -87,7 +145,12 @@ function forbiddenTypeSpecifier(specifier) {
     || /(^|\/)react(\/|\.|$)/.test(specifier);
 }
 
-async function inspectDeclarationGraph(entry) {
+/**
+ * `strict` applies the compiler promise per specifier. The root entry keeps the
+ * same walker for its dependency list; its domain paths are asserted once against
+ * the collected file set instead.
+ */
+async function inspectDeclarationGraph(entry, strict) {
   const files = [];
   const externals = [];
   const pending = [pathToFileURL(entry)];
@@ -99,7 +162,10 @@ async function inspectDeclarationGraph(entry) {
     files.push(fileURLToPath(url));
     const source = await readFile(fileURLToPath(url), 'utf8');
     for (const specifier of moduleSpecifiers(source, 'module.d.ts')) {
-      assert.ok(!forbiddenTypeSpecifier(specifier), `Forbidden type dependency ${specifier} in ${relative(fileURLToPath(url))}`);
+      assert.ok(
+        !strict || !forbiddenTypeSpecifier(specifier),
+        `Forbidden type dependency ${specifier} in ${relative(fileURLToPath(url))}`,
+      );
       if (!specifier.startsWith('.')) {
         externals.push({ file: relative(fileURLToPath(url)), specifier });
         continue;
@@ -112,7 +178,7 @@ async function inspectDeclarationGraph(entry) {
     }
   }
   files.sort();
-  return files;
+  return { files, externals };
 }
 
 function residualDependencies(sources) {
@@ -180,7 +246,7 @@ async function verifyBrowserConsumption() {
   assert.ok(compiled, 'Browser production bundle did not run');
   assert.equal(compiled.minimal.ok, true, JSON.stringify(compiled.minimal.diagnostics));
   assert.equal(compiled.standard.ok, true, JSON.stringify(compiled.standard.diagnostics));
-  return { bytes: code.length, consumer };
+  return { bytes: code.length };
 }
 
 const blockedLoader = await mkdtemp(path.join(os.tmpdir(), 'reactive-md-compiler-loader-'));
@@ -217,20 +283,71 @@ assert.deepEqual(pkg.exports['./compiler/standard'], {
   types: './dist-library/types/compiler/standard.d.ts',
   import: './dist-library/reactive-md-compiler-standard.js',
 });
-for (const [name, file] of Object.entries(runtimeEntries)) requireFile(file, `Compiler ${name} runtime entry`);
-for (const [name, file] of Object.entries(declarationEntries)) requireFile(file, `Compiler ${name} declaration entry`);
+assert.deepEqual(pkg.exports['.'], {
+  types: './dist-library/types/index.d.ts',
+  import: './dist-library/reactive-md.js',
+});
+for (const [name, file] of Object.entries(runtimeEntries)) requireFile(file, `${name} runtime entry`);
+for (const [name, file] of Object.entries(declarationEntries)) requireFile(file, `${name} declaration entry`);
 
+const runtimeFiles = {};
+const runtimeGraphs = {};
 const runtimeGraph = {};
 const runtimeSources = {};
 for (const [name, entry] of Object.entries(runtimeEntries)) {
-  const files = await inspectRuntimeGraph(entry);
-  runtimeGraph[name] = files.map(relative);
-  runtimeSources[name] = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n');
+  const graph = await inspectRuntimeGraph(entry, `${name} runtime`);
+  if (compilerEntries.includes(name)) assertCompilerRuntimeBoundaries(name, graph);
+  else assertRootRuntimeBoundaries(graph);
+  runtimeFiles[name] = graph.files;
+  runtimeGraphs[name] = graph;
+  runtimeGraph[name] = graph.files.map(relative);
+  runtimeSources[name] = (await Promise.all(graph.files.map((file) => readFile(file, 'utf8')))).join('\n');
 }
+const declarationFiles = {};
+const declarationExternals = {};
 const declarationGraph = {};
 for (const [name, entry] of Object.entries(declarationEntries)) {
-  declarationGraph[name] = (await inspectDeclarationGraph(entry)).map(relative);
+  const graph = await inspectDeclarationGraph(entry, compilerEntries.includes(name));
+  declarationFiles[name] = graph.files;
+  declarationExternals[name] = graph.externals;
+  declarationGraph[name] = graph.files.map(relative);
 }
+
+/**
+ * The full assembly owns the worker protocol, the incremental session,
+ * retention, shareable HTML, export code, React rendering, the standalone host
+ * and the default preset. Each marker below is unique to one of those domains
+ * in `src/`, so a hit in a compiler graph means the light split has regressed.
+ */
+for (const name of compilerEntries) {
+  for (const [pattern, label] of rootOnlyDomains) {
+    assert.ok(
+      !pattern.test(runtimeSources[name]),
+      `Compiler ${name} runtime graph must not include the ${label} (matched ${pattern})`,
+    );
+  }
+}
+for (const name of compilerEntries) {
+  const domains = name === 'compiler'
+    ? [...rootOnlyDeclarationPaths, ...minimalCompilerDeclarationPaths]
+    : rootOnlyDeclarationPaths;
+  const forbidden = declarationGraph[name].filter((file) =>
+    domains.some(([pattern]) => pattern.test(file)));
+  assert.deepEqual(
+    forbidden,
+    [],
+    `Compiler ${name} declaration graph must not include root-only domains: ${forbidden.join(', ')}`,
+  );
+}
+/** The root graph reports the markers it carries, proving they detect real code. */
+const rootMarkerEvidence = rootOnlyDomains
+  .filter(([pattern]) => pattern.test(runtimeSources.root))
+  .map(([, label]) => label);
+assert.ok(
+  rootMarkerEvidence.includes('compile worker protocol')
+    && rootMarkerEvidence.includes('shareable HTML envelope'),
+  `Root graph is missing expected core markers: ${rootMarkerEvidence.join(', ') || 'none'}`,
+);
 
 /**
  * The minimal entry installs no preset. Its runtime and type graph must not
@@ -271,14 +388,6 @@ for (const [marker, label] of minimalCapabilityMarkers) {
 assert.ok(
   runtimeSources.standard.toLowerCase().includes('@lezer') && runtimeSources.standard.toLowerCase().includes('parse5'),
   'The standard compiler must still carry GFM, native HTML and Lezer planning',
-);
-const presetDeclarationFiles = declarationGraph.compiler.filter(
-  (file) => /(?:^|\/)presets\//.test(file) || /default-(?:components|semantics|authoring)\.d\.ts$/.test(file),
-);
-assert.deepEqual(
-  presetDeclarationFiles,
-  [],
-  `Minimal compiler declaration graph must not include default presets: ${presetDeclarationFiles.join(', ')}`,
 );
 
 const browser = await verifyBrowserConsumption();
@@ -329,6 +438,29 @@ assert.equal(standardEntry.createStandardCompiler().compile(damagedSource).statu
 
 const residual = residualDependencies(Object.values(runtimeSources));
 const minimalResidual = residualDependencies([runtimeSources.compiler]);
+
+function graphBytes(files) {
+  return files.reduce((total, file) => total + statSync(file).size, 0);
+}
+const sizes = Object.fromEntries(Object.keys(runtimeEntries).map((name) => [name, {
+  runtime: {
+    files: runtimeFiles[name].length,
+    bytes: graphBytes(runtimeFiles[name]),
+    entryBytes: statSync(runtimeEntries[name]).size,
+  },
+  declarations: {
+    files: declarationFiles[name].length,
+    bytes: graphBytes(declarationFiles[name]),
+  },
+}]));
+const boundaries = Object.fromEntries(Object.keys(runtimeEntries).map((name) => [name, {
+  workerConstruction: runtimeGraphs[name].workerConstruction,
+  themeProtocol: runtimeGraphs[name].themeProtocol,
+  cssImports: runtimeGraphs[name].cssImports,
+  externalImports: runtimeGraphs[name].externals,
+  declarationExternalImports: declarationExternals[name],
+}]));
+
 const report = {
   status: 'passed',
   createdAt: new Date().toISOString(),
@@ -336,6 +468,7 @@ const report = {
     runtime: Object.fromEntries(Object.entries(runtimeEntries).map(([name, file]) => [name, relative(file)])),
     declarations: Object.fromEntries(Object.entries(declarationEntries).map(([name, file]) => [name, relative(file)])),
   },
+  sizes,
   runtimeGraph,
   declarationGraph,
   browser,
@@ -343,6 +476,13 @@ const report = {
     dom: false,
     blockedModules: ['react', 'react-dom', 'scheduler', '@codemirror/*', 'node:*', 'CSS', 'worker/session/theme modules'],
     directEsmCompile: true,
+  },
+  boundaries: {
+    rootOnlyDomains: rootOnlyDomains.map(([, label]) => label),
+    rootOnlyDeclarationPaths: rootOnlyDeclarationPaths.map(([, label]) => label),
+    minimalCompilerDeclarationPaths: minimalCompilerDeclarationPaths.map(([, label]) => label),
+    rootEvidence: rootMarkerEvidence,
+    observed: boundaries,
   },
   residualM1Dependencies: residual,
   residualByEntry: Object.fromEntries(Object.entries(runtimeSources).map(([name, source]) => [name, residualDependencies([source])])),
@@ -354,4 +494,5 @@ const report = {
 };
 await mkdir(artifacts, { recursive: true });
 await writeFile(path.join(artifacts, 'compiler-entry-report.json'), JSON.stringify(report, null, 2));
-console.log(`PASS compiler entry packaging and isolation (browser bundle ${browser.bytes} bytes, minimal residual: ${minimalResidual.join(', ') || 'none'}, all entries residual: ${residual.join(', ') || 'none'})`);
+const kib = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
+console.log(`PASS compiler entry packaging and isolation (graphs: root ${sizes.root.runtime.files} files/${kib(sizes.root.runtime.bytes)}, compiler ${sizes.compiler.runtime.files} files/${kib(sizes.compiler.runtime.bytes)}, standard ${sizes.standard.runtime.files} files/${kib(sizes.standard.runtime.bytes)}; browser bundle ${browser.bytes} bytes, minimal residual: ${minimalResidual.join(', ') || 'none'}, all entries residual: ${residual.join(', ') || 'none'})`);

@@ -100,7 +100,7 @@ Live demo: [yaozi.raricy.com](https://yaozi.raricy.com/)
 From the ReactiveMD-Demo repository root:
 
 ```sh
-npm ci
+npm ci --legacy-peer-deps
 npm run dev
 ```
 
@@ -119,8 +119,8 @@ Check the integration from the ReactiveMD-Demo repository root:
 
 ```sh
 npm run build
-node scripts/verify-extensions.mjs
-node scripts/verify-extensions.mjs --dev
+npm run test:runtime-extensions
+npm run test:runtime-extensions -- --dev
 ```
 
 The script starts and stops its own server, exercises the real Worker, both plugin examples, the editor catalog, mobile layout and offline exports, and writes results to `artifacts/demo-extensions/`.
@@ -162,12 +162,12 @@ export default { plugins: [reactiveMd({ extensions: './extensions.ts' })] };
 
 The Demo ships two complete installed-package cases:
 
-| Package | Tag | Demonstrates | Update |
+| Package | Tag | Demonstrates | Update guide |
 | --- | --- | --- | --- |
-| `reactive-md-tetris-package` | `<tetris>` | Timer-driven game, keyboard and pointer input, seeded pieces, offline export | `npm run update:demo-tetris` |
-| `reactive-md-game-2048-package` | `<game-2048>` | Turn-based state, deterministic spawns, keyboard and pointer input, static preview | `npm run update:demo-2048` |
+| `reactive-md-tetris-package` | `<tetris>` | Timer-driven game, keyboard and pointer input, seeded pieces, offline export | [Demo candidate guide](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-en.md) |
+| `reactive-md-game-2048-package` | `<game-2048>` | Turn-based state, deterministic spawns, keyboard and pointer input, static preview | [Demo candidate guide](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-en.md) |
 
-Both are packed into npm tarballs under `ReactiveMD-Demo/vendor/`, installed as Demo dependencies and read through their public `./react` and `./notices` entries. Their authoring metadata feeds the editor catalog, and their capability evidence supports offline export.
+The Demo site runs local copies under `ReactiveMD-Demo/plugin/`; the committed tarballs under `vendor/` are installed-package fixtures for compatibility tests. Both package entries are read through their public `./react` and `./notices` entries. Their authoring metadata feeds the editor catalog, and their capability evidence supports offline export.
 
 Component tags must start with a letter, so the 2048 plugin registers `<game-2048>` rather than `<2048>`. See the [component plugin development guide](docs/development/component-development-en.md) and the [full development contract](docs/development/component-development-reference-en.md) for manifests, bindings, themes, resources, compliance tools and packaging.
 
@@ -229,6 +229,112 @@ if (result.ok) {
 ```
 
 See [Local mode integration](docs/integration/local-integration-en.md) for the full compile and runtime APIs, host URL policy, lifecycle and style overrides.
+
+## Choose an entry point by task
+
+Every subpath is an ESM entry with its own declarations. Pick the one that matches the job; optional peers appear only in the last column.
+
+| Task | Entry | What it gives you | What it leaves out | React / Vite |
+| --- | --- | --- | --- | --- |
+| Compile once and run in memory | `reactive-md` | `compileLocal`, `createLocalCompileSession`, `createLocalRuntime`, expressions and plot sampling, state import/export and retention, the host-supplied Worker protocol (`startLocalCompileWorker`, `LocalCompileScheduler`), `createShareableHtml`, the default preset | React, CSS, Vite, the component catalog and toolbar commands, export planning | — |
+| Compile in a Worker or a size-sensitive bundle | `reactive-md/compiler` | `createCompiler` and the `CompileResult` contract: CommonMark, ReactiveMD structure, expressions, bindings, budgets | React, CSS, the compile-worker protocol, session, retention, shareable/export code, default preset, GFM, native HTML, Lezer planning, KaTeX display, plot sampling | — |
+| Keep the full language in one pass | `reactive-md/compiler/standard` | `createStandardCompiler`: adds GFM, native HTML, Lezer block planning, the KaTeX display check, plot formula sampling and the default preset | React, CSS, the compile-worker protocol, session, retention, shareable/export code | — |
+| Render in React | `reactive-md/react` | `LocalReactiveDocument`, `LocalDocumentView`, `defineReactComponentPackage`, `createReactHost`; the build extracts the stylesheet instead of injecting it | Node build and export tooling, the editor | React 19, plus `reactive-md/styles.css` |
+| Render on a server | `reactive-md/react/server` | `renderLocalStaticDocument` with capability preflight and diagnostics | client runtime, DOM, stylesheet | React 19 + react-dom 19 |
+| Render without the stylesheet import | `reactive-md/react/unstyled` | the same components without the CSS side effect | `styles.css` | React 19 |
+| Build interactive components | `reactive-md/react/runtime` | `useTicker`, `useFrame`, `useSwipe`, `useKeys`, `useComponentState` | the document renderer, the compiler | React 19 |
+| Publish a component package | `reactive-md/sdk` | `defineLocalComponent`, `defineLocalPreset`, manifest, config, registry and theme contracts with validation | React renderers, document rendering, DOM | — |
+| Drive an editor | `reactive-md/authoring` | `analyzeLocalSource`, `completeLocalSource`, `formatLocalSource`, `renameLocalBinding`, the component catalog and toolbar insert commands | React, CSS, DOM, compile sessions | — |
+| Preflight an export | `reactive-md/export` | `createLocalExportPlan`, `createLocalShareableHtml`, restoration requirements, component-state files, style resources | Vite build, React rendering (the caller supplies markup), the CLI | — |
+| Build an offline bundle | `reactive-md/build` | `buildLocalStandaloneBundle`, preflight, manifest and seal, resource and notice collection | browser rendering, the CLI | Vite 8 (optional peer, loaded on demand), Node |
+| Resolve the files an export embeds | `reactive-md/export-assets` | `listExportAssets`, `resolveExportAsset`, `readExportAsset` for the stylesheets, notices, package metadata and standalone runtime | the compiler, React, browser code | Node |
+| Wire Vite | `reactive-md/vite` | `reactiveMd()` registration, the dev host, `reactive-md-standalone.js` and `reactive-md-export.json` assets | the runtime API, browser code | Vite 8, Node |
+| Mount an exported document | `reactive-md/standalone` | `mount`, `mountAll`, `isReactiveMDMounted`, payload parsing, mount diagnostics and events | the compiler surface, automatic mounting, build tooling | React 19, plus `reactive-md/styles.css` |
+| Share identity, randomness, timers and component state | `reactive-md/runtime` | document identity and seeds, seeded random, the scheduler, the component-state registry and runtime services | rendering, web storage, network | — |
+| Persist component state in a browser | `reactive-md/runtime/browser` | `createLocalBrowserStateStorage`, `flushComponentStateOnPageHide` | Node persistence, the runtime entry | a browser storage object |
+| Verify a component package | `reactive-md/testing` | manifest and behavior compliance runners, report and parity helpers | React, DOM, a browser | — |
+| Verify SSR output | `reactive-md/testing/react` | `runLocalReactCompliance`, `readLocalReactSpec`, error probes, `checkLocalComplianceMarkup` | a browser driver | React 19 + react-dom 19 |
+| Verify the browser lifecycle | `reactive-md/testing/browser` | `runLocalBrowserCompliance`, the driver contract, `createPlaywrightBrowserDriver` | Playwright as a dependency | a browser context |
+| Install the built-in components | `reactive-md/presets/default` | `defaultPreset`: manifest data for the built-in tags | the engine runtime, React renderers | — |
+| Install a subset of them | `reactive-md/presets/default/packs` | `controlsPack`, `layoutPack`, `dataPack`, `visualsPack` | the components outside the pack | — |
+| Style a document | `reactive-md/styles.css` | component, theme and document layers in the published cascade order | JavaScript | — |
+| Print a document | `reactive-md/print.css` | print rules that hide controls and reveal `.local-print-value` | screen layout | load after `styles.css` |
+| Ship third-party notices | `reactive-md/notices` | the generated `THIRD_PARTY_NOTICES.md` text | code | — |
+| Drop in a prebuilt runtime | `reactive-md/assets/standalone.js` | the IIFE build with `ReactiveMD.mount`, `mountAll` and auto-mount for exported payloads | ESM imports, tree shaking, the compiler | a script tag, plus `reactive-md/styles.css` |
+
+`reactive-md` (root) is the full core surface: default preset, incremental session, state and retention tools, the Worker protocol and the shareable HTML envelope. `reactive-md/compiler` is the light entry, with no React, CSS, Worker, session or default preset. `reactive-md/compiler/standard` adds GFM, native HTML, Lezer block planning, the KaTeX display check, plot sampling and the default preset, and keeps React, CSS, Worker and session out. `npm run test:compiler-entry` enforces that split on every build: it walks the root, compiler and standard graphs, records file count and byte size per entry, and fails when a compiler graph reaches a worker, session, retention, shareable, export, React, standalone or preset module, a stylesheet or the theme protocol.
+
+### Smallest useful code
+
+**Compile and run in memory**
+
+```js
+import { compileLocal, createLocalRuntime } from 'reactive-md';
+
+const result = compileLocal('<number bind="n" label="Count" initial="2">');
+if (!result.ok) throw new Error(result.diagnostics.map(item => item.message).join('\n'));
+
+const runtime = createLocalRuntime(result.document);
+try { console.log(runtime.text('Total: {{ n * 100 }}')); }
+finally { runtime.dispose(); }
+```
+
+**Compile without a runtime**
+
+```js
+import { createCompiler } from 'reactive-md/compiler';
+import { createStandardCompiler } from 'reactive-md/compiler/standard';
+
+console.log(createCompiler().compile('# Title\n\nPlain **Markdown**.').status);          // 'valid'
+console.log(createStandardCompiler().compile('| a | b |\n| - | - |\n| 1 | 2 |').status); // 'valid'
+```
+
+**Render in React**
+
+```tsx
+import { LocalReactiveDocument } from 'reactive-md/react';
+import 'reactive-md/styles.css';
+
+export function Article({ source }: { source: string }) {
+  return <LocalReactiveDocument source={source} />;
+}
+```
+
+**Author in an editor**
+
+```ts
+import { analyzeLocalSource, insertLocalComponentFromOptions } from 'reactive-md/authoring';
+
+const analysis = analyzeLocalSource(source);
+const edit = insertLocalComponentFromOptions(undefined, 'chart', source, { start: 0, end: 0 });
+console.log(analysis.bindings, edit.value);
+```
+
+**Export and build**
+
+```ts
+import { buildLocalStandaloneBundle } from 'reactive-md/build';
+import { createLocalExportPlan } from 'reactive-md/export';
+
+const bundle = await buildLocalStandaloneBundle({ entry: '.reactive-md/host.mjs' });
+const plan = createLocalExportPlan({ document, config, target: 'offline', bundle });
+if (!plan.ok) throw new Error(plan.diagnostics.map(item => item.message).join('\n'));
+```
+
+**Test a component package**
+
+```ts
+import { LOCAL_BEHAVIOR_SPEC_PROTOCOL, runLocalBehaviorCompliance, runLocalManifestCompliance } from 'reactive-md/testing';
+
+const manifest = runLocalManifestCompliance(widgetManifest);
+const behavior = runLocalBehaviorCompliance({
+  protocol: LOCAL_BEHAVIOR_SPEC_PROTOCOL,
+  component: 'my-widget',
+  source,
+  binding: 'value',
+}, config);
+console.log([...manifest.cases, ...behavior.cases].filter(item => item.status === 'failed'));
+```
 
 ## Use with React
 
@@ -299,6 +405,7 @@ benchmarks/    Condensed performance measurements with provenance
 - [Shareable documents and static export](docs/integration/shareable-export-en.md): CLI build/lint, state files, local image inlining, printing and the standalone browser runtime.
 - [React source editor](docs/integration/editor-en.md) and [author tools](docs/integration/author-tools-en.md).
 - [Component protocol](docs/development/component-protocol-en.md) and [component plugin development guide](docs/development/component-development-en.md).
+- [Extension tutorial](docs/development/extension-tutorial-en.md): choose an entry, build a component package and verify it.
 - [Versions and compatibility](docs/compatibility/compatibility-en.md).
 - [Performance measurements](docs/development/performance-overview-en.md) and [release checklist](docs/development/releasing-en.md).
 - [0.8.0 release notes](docs/releases/release-0.8.0-en.md), [0.7.0 release notes](docs/releases/release-0.7.0-en.md) and earlier release records in [docs/releases](docs/releases).

@@ -234,6 +234,37 @@ IIFE 会注册一个 Light DOM 自定义元素。简单选项通过属性传递�
 
 元素使用 Light DOM，以复用现有文档样式、标题锚点和打印样式。本版本不提供 Shadow DOM。
 
+## 导出资源清单
+
+需要引擎文件本身来生成导出 HTML 或独立页面时，使用 `reactive-md/export-assets`：
+
+```ts
+import { listExportAssets, readExportAsset, resolveExportAsset } from 'reactive-md/export-assets';
+
+for (const asset of listExportAssets().assets) {
+  console.log(asset.id, asset.specifier, asset.description);
+}
+
+const css = readExportAsset('base-css');
+const runtimeUrl = resolveExportAsset('runtime'); // 文件 URL
+```
+
+清单的 `protocol` 为 `reactive-md-export-assets/v1`，条目列表冻结，id 在版本之间保持稳定：
+
+| id | 公开 specifier | 内容 |
+| --- | --- | --- |
+| `base-css` | `reactive-md/styles.css` | 文档样式表 |
+| `print-css` | `reactive-md/print.css` | 打印样式表 |
+| `notices` | `reactive-md/notices` | 第三方许可证声明 |
+| `package-json` | `reactive-md/package.json` | 包元数据，包含导出记录使用的版本号 |
+| `runtime` | `reactive-md/assets/standalone.js` | 独立浏览器运行时 |
+
+`resolveExportAsset(id)` 通过 `import.meta.resolve` 解析已安装包并返回文件 URL，`readExportAsset(id)` 返回 UTF-8 内容，未知 id 抛出 `TypeError`。
+
+稳定性范围包括协议字符串、id 和 `specifier` 的含义。tarball 内部布局与条目背后的文件数量会随发布变化，因此构建工具通过这个入口读取资源，而不去遍历 `node_modules/reactive-md`。该入口使用 `node:fs`，服务于 Vite、构建和 CLI 工具；浏览器、React、编译器和根入口都不引用它。
+
+Demo 的 `vite.export-assets.ts` 用它把样式表、打印样式表、notices、包元数据和独立运行时暴露为构建期字符串模块。
+
 ## 安全边界
 
 - 核心与 React 入口继续保持 React external；只有 standalone IIFE 打包 React。

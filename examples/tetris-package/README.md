@@ -58,11 +58,11 @@ Keyboard: arrows move, `Space` hard-drops, `P` pauses, `R` restarts. The
 toggle buttons cover pointer and touch input. The same `seed` always produces
 the same piece sequence, so static rendering and hydration stay reproducible.
 
-## Try it in the repository Demo
+## Try it in the Demo
 
-[demo/extensions.ts](https://github.com/yao1145/ReactiveMD-Demo/blob/main/extensions.ts) registers the npm tarball installed from `demo/vendor/`. It reads implementations, CSS text and the example from `reactive-md-tetris-package/react`, and attribution from `reactive-md-tetris-package/notices?raw`. After editing this package, run `npm pack (in examples/tetris-package), then update the vendor dependency and lockfile in ReactiveMD-Demo` from the repository root to build, pack and install the replacement. Commit the tarball, dependency declaration and lockfile together. Preview, the editor catalog and offline HTML use that same registration; see the [Demo guide](https://github.com/yao1145/ReactiveMD-Demo/blob/main/README.md) for fields.
+The Demo site runs the local copy under `plugin/tetris/`; the committed tarball in `vendor/` is an installed-package compatibility fixture. After editing this package, rebuild and pack it, then follow the [Demo candidate guide](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-en.md) to replace the vendor tarball, dependency path and lockfile.
 
-From the repository root, run `npm run build (in ReactiveMD-Demo)`, then `node scripts/verify-extensions.mjs`. Add `--dev` to check Vite development mode. The script starts and stops its own test server and opens the exported game offline.
+In the `ReactiveMD-Demo` repository, run `npm run build`, then `npm run test:runtime-extensions`. Add `-- --dev` to check Vite development mode. The script starts and stops its own test server and opens the exported game offline.
 
 ## Commands
 

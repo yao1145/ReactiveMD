@@ -53,6 +53,8 @@ try {
   run(npm, ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--legacy-peer-deps'], consumer);
   writeFileSync(join(consumer, 'smoke.mjs'), `
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { createStandardCompiler } from 'reactive-md/compiler/standard';
 import { createCompiler } from 'reactive-md/compiler';
 import { compileLocal, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
@@ -61,6 +63,7 @@ import { createRandom } from 'reactive-md/runtime';
 import { createLocalBrowserStateStorage } from 'reactive-md/runtime/browser';
 import { useSwipe } from 'reactive-md/react/runtime';
 import { layoutPack } from 'reactive-md/presets/default/packs';
+import { listExportAssets, readExportAsset, resolveExportAsset } from 'reactive-md/export-assets';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as server from 'reactive-md/react/server';
 assert.equal(createStandardCompiler().compile('# Package boundary').status, 'valid');
@@ -78,10 +81,22 @@ assert.equal(layoutPack.id, 'reactive-md/default-layout');
 assert.ok(Object.keys(server).length);
 assert.equal(typeof renderToStaticMarkup, 'function');
 for (const entry of ['reactive-md/sdk','reactive-md/presets/default','reactive-md/export']) await import(entry);
-console.log('Packed public compiler, authoring, Worker, SDK, React/SSR and export boundaries passed.');
+const manifest = listExportAssets();
+assert.equal(manifest.protocol, 'reactive-md-export-assets/v1');
+assert.ok(Object.isFrozen(manifest) && Object.isFrozen(manifest.assets), 'Export-asset manifest is not frozen');
+assert.deepEqual(manifest.assets.map(asset => asset.id), ['base-css', 'print-css', 'notices', 'package-json', 'runtime']);
+for (const asset of manifest.assets) {
+  const file = resolveExportAsset(asset.id);
+  assert.equal(file.protocol, 'file:', 'Export asset is not a file URL: ' + asset.id);
+  assert.ok(existsSync(fileURLToPath(file)), 'Export asset is missing: ' + asset.id);
+  assert.ok(readExportAsset(asset.id).trim(), 'Export asset is empty: ' + asset.id);
+}
+assert.equal(JSON.parse(readExportAsset('package-json')).name, 'reactive-md');
+assert.throws(() => readExportAsset('not-an-asset'), TypeError, 'Unknown export assets must throw a TypeError');
+console.log('Packed public compiler, authoring, Worker, SDK, React/SSR, export and export-asset boundaries passed.');
 `);
   process.stdout.write(run(process.execPath, ['smoke.mjs'], consumer));
-  writeFileSync(join(consumer, 'consumer.ts'), `import {createCompiler} from 'reactive-md/compiler';\nimport {createStandardCompiler} from 'reactive-md/compiler/standard';\nimport {analyzeLocalSource, insertTemplate} from 'reactive-md/authoring';\nimport {startLocalCompileWorker} from 'reactive-md';\nimport {layoutPack} from 'reactive-md/presets/default/packs';\ncreateCompiler().compile('hello'); createStandardCompiler().compile('hello'); analyzeLocalSource('hello'); void insertTemplate; void startLocalCompileWorker; void layoutPack;\n`);
+  writeFileSync(join(consumer, 'consumer.ts'), `import {createCompiler} from 'reactive-md/compiler';\nimport {createStandardCompiler} from 'reactive-md/compiler/standard';\nimport {analyzeLocalSource, insertTemplate} from 'reactive-md/authoring';\nimport {startLocalCompileWorker} from 'reactive-md';\nimport {layoutPack} from 'reactive-md/presets/default/packs';\nimport {listExportAssets, readExportAsset, resolveExportAsset} from 'reactive-md/export-assets';\ncreateCompiler().compile('hello'); createStandardCompiler().compile('hello'); analyzeLocalSource('hello'); void insertTemplate; void startLocalCompileWorker; void layoutPack;\nfor (const asset of listExportAssets().assets) { void resolveExportAsset(asset.id); }\nvoid readExportAsset;\n`);
   writeFileSync(join(consumer, 'tsconfig.json'), JSON.stringify({compilerOptions:{target:'ES2022', module:'NodeNext',moduleResolution:'NodeNext',strict:true,noEmit:true,skipLibCheck:false},include:['consumer.ts']}));
   run(process.execPath, [resolve(consumer, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.json'], consumer);
   console.log('Packed NodeNext declarations passed in an independent consumer.');
