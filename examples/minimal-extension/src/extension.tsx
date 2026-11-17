@@ -52,7 +52,8 @@ export function RatingCard(context: LocalComponentContext) {
   const value = currentValue(context);
   const maximum = typeof context.props.max === 'number' ? context.props.max : 5;
   const label = String(context.props.label ?? 'Rating');
-  const locked = context.disabled || !context.visible || value >= maximum;
+  const unavailable = context.disabled || !context.visible;
+  const locked = unavailable || value >= maximum;
   return (
     <div className="rating-card" data-rating-card data-value={String(value)} role="group" aria-label={label}>
       <output data-rating-card-value>{String(value)}</output>
@@ -60,7 +61,7 @@ export function RatingCard(context: LocalComponentContext) {
       <button type="button" data-rating-card-up disabled={locked} onClick={() => context.bindings.value.set(value + 1)}>
         Add one
       </button>
-      <button type="button" data-rating-card-reset onClick={() => context.runtime.reset(context.content)}>
+      <button type="button" data-rating-card-reset disabled={unavailable} onClick={() => context.runtime.reset(context.content)}>
         Reset
       </button>
     </div>

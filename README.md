@@ -100,7 +100,7 @@ Live demo: [yaozi.raricy.com](https://yaozi.raricy.com/)
 From the ReactiveMD-Demo repository root:
 
 ```sh
-npm ci
+npm ci --legacy-peer-deps
 npm run dev
 ```
 
@@ -119,8 +119,8 @@ Check the integration from the ReactiveMD-Demo repository root:
 
 ```sh
 npm run build
-node scripts/verify-extensions.mjs
-node scripts/verify-extensions.mjs --dev
+npm run test:runtime-extensions
+npm run test:runtime-extensions -- --dev
 ```
 
 The script starts and stops its own server, exercises the real Worker, both plugin examples, the editor catalog, mobile layout and offline exports, and writes results to `artifacts/demo-extensions/`.
@@ -162,12 +162,12 @@ export default { plugins: [reactiveMd({ extensions: './extensions.ts' })] };
 
 The Demo ships two complete installed-package cases:
 
-| Package | Tag | Demonstrates | Update |
+| Package | Tag | Demonstrates | Update guide |
 | --- | --- | --- | --- |
-| `reactive-md-tetris-package` | `<tetris>` | Timer-driven game, keyboard and pointer input, seeded pieces, offline export | `npm run update:demo-tetris` |
-| `reactive-md-game-2048-package` | `<game-2048>` | Turn-based state, deterministic spawns, keyboard and pointer input, static preview | `npm run update:demo-2048` |
+| `reactive-md-tetris-package` | `<tetris>` | Timer-driven game, keyboard and pointer input, seeded pieces, offline export | [Demo candidate guide](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-en.md) |
+| `reactive-md-game-2048-package` | `<game-2048>` | Turn-based state, deterministic spawns, keyboard and pointer input, static preview | [Demo candidate guide](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-en.md) |
 
-Both are packed into npm tarballs under `ReactiveMD-Demo/vendor/`, installed as Demo dependencies and read through their public `./react` and `./notices` entries. Their authoring metadata feeds the editor catalog, and their capability evidence supports offline export.
+The Demo site runs local copies under `ReactiveMD-Demo/plugin/`; the committed tarballs under `vendor/` are installed-package fixtures for compatibility tests. Both package entries are read through their public `./react` and `./notices` entries. Their authoring metadata feeds the editor catalog, and their capability evidence supports offline export.
 
 Component tags must start with a letter, so the 2048 plugin registers `<game-2048>` rather than `<2048>`. See the [component plugin development guide](docs/development/component-development-en.md) and the [full development contract](docs/development/component-development-reference-en.md) for manifests, bindings, themes, resources, compliance tools and packaging.
 

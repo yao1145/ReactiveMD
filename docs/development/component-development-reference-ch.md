@@ -182,11 +182,11 @@ export function Playground() {
 
 ### 接入本仓库 Demo
 
-把包的公开 React 入口转出到宿主 `plugin/<名称>/index.ts`，默认导出组件包。Demo 的 `plugin/tetris/` 与 `plugin/game-2048/` 展示了现有 npm tarball 的目录接入，主题放在 `theme/`。预览、编辑器目录和离线导出共用生成的 host。修改包源码后重新构建与打包，使用带内容摘要的 vendor 文件名更新 Demo 依赖及 lockfile。
+把包的公开 React 入口转出到宿主 `plugin/<名称>/index.ts`，默认导出组件包。Demo 的 `plugin/tetris/` 与 `plugin/game-2048/` 是站点直接运行的本地实现；对应提交的 tarball 是安装包测试夹具，主题放在 `theme/`。预览、编辑器目录和离线导出共用生成的 host。修改包源码后重新构建与打包，使用带内容摘要的 vendor 文件名更新 Demo 依赖及 lockfile。
 
 `resources.id` 与 manifest 的 `styles` 对应。Demo 接受内联 CSS 和 data URL；包可导出 CSS 文本，或由 Vite 通过 `?inline` 读取 CSS 文件。样例源码可以直接由包导出，登记中英文元数据后自动进入目录。Vite 去重和编译选项由宿主统一设置，新增包沿用这些设置。
 
-从仓库根目录运行 `npm run build:demo`，再运行 `node demo/scripts/verify-extensions.mjs`；加 `--dev` 复验开发模式。脚本覆盖真实 Worker、目录、控制操作与断网导出。此装配层属于 Demo，插件的公共契约仍是 manifest、React 实现、主题与资源；独立宿主按本节前面的示例装配。完整字段和限制见 [Demo 说明](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md)。
+在 `ReactiveMD-Demo` 仓库运行 `npm run build`，再运行 `npm run test:runtime-extensions`；加 `-- --dev` 复验开发模式。脚本覆盖真实 Worker、目录、控制操作与断网导出。此装配层属于 Demo，插件的公共契约仍是 manifest、React 实现、主题与资源；独立宿主按本节前面的示例装配。完整字段和限制见 [Demo 说明](https://github.com/yao1145/ReactiveMD-Demo/blob/main/README.md)。
 
 ## 6. 样式与独立主题
 

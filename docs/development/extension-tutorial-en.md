@@ -105,13 +105,14 @@ The second half of the file implements the interactive and static views and bind
 export function RatingCard(context: LocalComponentContext) {
   const value = currentValue(context);
   const maximum = typeof context.props.max === 'number' ? context.props.max : 5;
-  const locked = context.disabled || !context.visible || value >= maximum;
+  const unavailable = context.disabled || !context.visible;
+  const locked = unavailable || value >= maximum;
   return (
     <div className="rating-card" data-rating-card role="group" aria-label={String(context.props.label)}>
       <output data-rating-card-value>{String(value)}</output>
       <button type="button" data-rating-card-up disabled={locked}
         onClick={() => context.bindings.value.set(value + 1)}>Add one</button>
-      <button type="button" data-rating-card-reset
+      <button type="button" data-rating-card-reset disabled={unavailable}
         onClick={() => context.runtime.reset(context.content)}>Reset</button>
     </div>
   );
@@ -134,7 +135,7 @@ const ratingCardImplementation = defineReactComponent(ratingCard, {
 Implementation notes:
 
 - `context.bindings.value.get()` reads the shared parameter and `.set(next)` submits a write to the kernel. Out-of-range, mistyped or off-step writes are rejected and keep the value and revision unchanged.
-- `context.disabled` and `context.visible` come from the parent and document state. The interactive view uses them to disable controls or stop rendering.
+- `context.disabled` and `context.visible` come from the parent and document state. The interactive view disables both buttons while the component is disabled or hidden; reset changes shared state, so it must honor the same gate.
 - `context.runtime.reset(context.content)` restores authored initial values. In static mode the runtime ignores resets, so the component needs no extra branch.
 - `renderStatic` uses read-only bindings and produces text-equivalent output. Provide it when the static layout differs; the adapter enforces read-only bindings, while your own state and timers still need their own guards.
 

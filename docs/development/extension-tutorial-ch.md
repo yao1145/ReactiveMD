@@ -105,13 +105,14 @@ export const ratingCard = defineLocalComponent({
 export function RatingCard(context: LocalComponentContext) {
   const value = currentValue(context);
   const maximum = typeof context.props.max === 'number' ? context.props.max : 5;
-  const locked = context.disabled || !context.visible || value >= maximum;
+  const unavailable = context.disabled || !context.visible;
+  const locked = unavailable || value >= maximum;
   return (
     <div className="rating-card" data-rating-card role="group" aria-label={String(context.props.label)}>
       <output data-rating-card-value>{String(value)}</output>
       <button type="button" data-rating-card-up disabled={locked}
         onClick={() => context.bindings.value.set(value + 1)}>Add one</button>
-      <button type="button" data-rating-card-reset
+      <button type="button" data-rating-card-reset disabled={unavailable}
         onClick={() => context.runtime.reset(context.content)}>Reset</button>
     </div>
   );
@@ -134,7 +135,7 @@ const ratingCardImplementation = defineReactComponent(ratingCard, {
 实现要点：
 
 - `context.bindings.value.get()` 读取共享参数，`.set(next)` 交给内核校验。越界、类型错误或步长不符的写入被拒绝，状态和 revision 保持不变。
-- `context.disabled` 与 `context.visible` 由父层和文档状态传入，交互实现据此禁用按钮或停止渲染。
+- `context.disabled` 与 `context.visible` 由父层和文档状态传入。组件被禁用或隐藏时，两个按钮都要禁用；Reset 会修改共享状态，同样不能绕过这个开关。
 - `context.runtime.reset(context.content)` 恢复作者声明的初值。静态模式下运行时服务忽略重置，组件不需要额外分支。
 - `renderStatic` 使用只读绑定，输出纯文本等价内容。需要不同静态版式时才单独提供；只读能力由适配器保证，组件自己的 state 和计时器仍需自行约束。
 

@@ -167,11 +167,11 @@ The editor reads titles, descriptions, category and insertion template from `aut
 
 ### Use the repository Demo
 
-Forward the package's public React entry from the host project's `plugin/<name>/index.ts` as the default package export. The Demo's `plugin/tetris/` and `plugin/game-2048/` directories consume its existing npm tarballs, with CSS themes under `theme/`. Preview, authoring and offline export share the generated host. After changing a package, rebuild and pack it, then update the Demo vendor dependency and lockfile using a content-addressed filename.
+Forward the package's public React entry from the host project's `plugin/<name>/index.ts` as the default package export. The Demo's `plugin/tetris/` and `plugin/game-2048/` directories hold local implementations that the site runs directly; their committed tarballs are installed-package fixtures, and CSS themes live under `theme/`. Preview, authoring and offline export share the generated host. After changing a package, rebuild and pack it, then update the Demo vendor dependency and lockfile using a content-addressed filename.
 
 Resource IDs match manifest `styles`. Supply inline CSS with data URLs, either exported by the package or imported from a CSS file with Vite's `?inline`. Example source can come directly from the package; bilingual metadata registers it in the catalog. The host maintains Vite deduplication and compiler options for every package.
 
-From the repository root, run `npm run build:demo`, then `node demo/scripts/verify-extensions.mjs`. Add `--dev` to exercise development mode. The script checks the real Worker, catalog, controls and exports opened offline. This assembly layer belongs to the Demo; packages retain the public manifest, React, theme and resource contracts. Independent hosts use the assembly example above. See the [Demo guide](https://github.com/yao1145/ReactiveMD/blob/main/demo/README.md) for fields and limits.
+In the `ReactiveMD-Demo` repository, run `npm run build`, then `npm run test:runtime-extensions`; add `-- --dev` to exercise development mode. The script checks the real Worker, catalog, controls and exports opened offline. This assembly layer belongs to the Demo; packages retain the public manifest, React, theme and resource contracts. Independent hosts use the assembly example above. See the [Demo guide](https://github.com/yao1145/ReactiveMD-Demo/blob/main/README.md) for fields and limits.
 
 ## 6. Styles and independent themes
 

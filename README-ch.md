@@ -97,10 +97,10 @@ Reactive MD 面向长文档和连续编辑。当前测量日期为 2026-10-29，
 
 在线 Demo：[yaozi.raricy.com](https://yaozi.raricy.com/)
 
-在仓库根目录运行：
+在 `ReactiveMD-Demo` 仓库根目录运行：
 
 ```sh
-npm ci
+npm ci --legacy-peer-deps
 npm run dev
 ```
 
@@ -115,12 +115,12 @@ npm run dev
 - 打开俄罗斯方块与 2048 插件示例，分别体验定时驱动和回合制的外部组件。
 - 把当前预览导出为单文件交互 HTML 或静态快照，然后在断网状态下打开。
 
-在仓库根目录验证集成：
+在 ReactiveMD-Demo 仓库根目录验证集成：
 
 ```sh
 npm run build
-node scripts/verify-extensions.mjs
-node scripts/verify-extensions.mjs --dev
+npm run test:runtime-extensions
+npm run test:runtime-extensions -- --dev
 ```
 
 脚本会自行启停服务，覆盖真实 Worker、两个插件示例、编辑器目录、移动端布局和离线导出，结果写入 `artifacts/demo-extensions/`。
@@ -162,12 +162,12 @@ export default { plugins: [reactiveMd({ extensions: './extensions.ts' })] };
 
 Demo 提供两个完整的安装包案例：
 
-| 包 | 标签 | 展示能力 | 更新命令 |
+| 包 | 标签 | 展示能力 | 更新流程 |
 | --- | --- | --- | --- |
-| `reactive-md-tetris-package` | `<tetris>` | 定时驱动游戏、键盘与按钮输入、种子方块、离线导出 | `npm pack (in examples/tetris-package), then update the vendor dependency and lockfile in ReactiveMD-Demo` |
-| `reactive-md-game-2048-package` | `<game-2048>` | 回合制状态、确定性生成、键盘与按钮输入、静态预览 | `npm run update:demo-2048` |
+| `reactive-md-tetris-package` | `<tetris>` | 定时驱动游戏、键盘与按钮输入、种子方块、离线导出 | [Demo 候选包更新流程](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-ch.md) |
+| `reactive-md-game-2048-package` | `<game-2048>` | 回合制状态、确定性生成、键盘与按钮输入、静态预览 | [Demo 候选包更新流程](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-ch.md) |
 
-两者都以 npm tarball 的形式放在 `ReactiveMD-Demo/vendor/`，作为 Demo 依赖安装，并通过公开的 `./react` 与 `./notices` 入口读取。它们的作者信息进入编辑器目录，能力证据支撑离线导出。
+Demo 站点运行 `ReactiveMD-Demo/plugin/` 下的本地副本；`vendor/` 中提交的 tarball 是兼容性测试使用的安装包夹具。两个包的入口都通过公开的 `./react` 与 `./notices` 读取。它们的作者信息进入编辑器目录，能力证据支撑离线导出。
 
 组件标签必须以字母开头，因此 2048 插件注册为 `<game-2048>`，而不是 `<2048>`。manifest、绑定、主题、资源、合规工具与打包流程见[组件插件开发指南](docs/development/component-development-ch.md)和[完整开发契约](docs/development/component-development-reference-ch.md)。
 
