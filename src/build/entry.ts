@@ -13,7 +13,7 @@ export function createLocalStandaloneEntrySource(configKey: string): string {
   if (!CONFIG_KEY.test(configKey)) {
     throw new TypeError('A standalone build entry requires a valid LocalConfig key.');
   }
-  return `import { mountAll } from "reactive-md/standalone";
+  return `import { mountAll } from "reactive-md/standalone/host";
 import {
   config as __reactiveMDConfig,
   reactConfig as __reactiveMDReactConfig,

@@ -9,7 +9,6 @@ import {
   CheckboxView,
   ChoicesView,
   ChecklistView,
-  CoordinateView,
   CounterView,
   DateView,
   InputView,
@@ -24,7 +23,8 @@ import {
   TextareaView,
   TimerView,
   ToggleView,
-} from './controls';
+} from './controls/controls';
+import { CoordinateView } from './plot/coordinate';
 import {
   AccordionView,
   AlertView,
@@ -47,9 +47,9 @@ import {
   TextView,
   TooltipView,
   ValidationView,
-} from './layout';
-import { DataTableView } from './data-table';
-import { GalleryView, GalleryItemView } from './gallery';
+} from './layout/layout';
+import { DataTableView } from './table/data-table';
+import { GalleryView, GalleryItemView } from './gallery/gallery';
 import {
   ChartView,
   DiagramView,
@@ -57,7 +57,7 @@ import {
   PlotView,
   TableView,
   TimelineView,
-} from './visuals';
+} from './shared/visuals';
 
 function NullView() {
   return null;

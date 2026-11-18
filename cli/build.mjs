@@ -5,7 +5,7 @@ import { CliError, EXIT, errorText } from './errors.mjs';
 import {
   assertDistinctPaths,
   assertOutputDirectory,
-  atomicWriteUtf8,
+  atomicWriteFile,
   readTextFile,
 } from './fs-utils.mjs';
 import {
@@ -22,6 +22,42 @@ function writeDiagnostics(stream, file, diagnostics) {
   for (const diagnostic of diagnostics) {
     stream.write(`${formatDiagnostic(file, diagnostic)}\n`);
   }
+}
+
+/**
+ * PDF adapter diagnostics carry a code and message but no document position.
+ * Print one line each so a relaxed build still explains the dropped image and
+ * a strict build reports the same problem as an error. Exported for the CLI
+ * regression test; not part of the package API.
+ *
+ * @param {NodeJS.WritableStream} stream
+ * @param {string} file
+ * @param {{code: string, message: string}[]} diagnostics
+ * @param {'warning'|'error'} severity
+ */
+export function reportPdfDiagnostics(stream, file, diagnostics, severity) {
+  for (const diagnostic of diagnostics) {
+    stream.write(`reactive-md: ${severity}: ${file}: ${diagnostic.code}: ${diagnostic.message}\n`);
+  }
+}
+
+/** Adapter messages are printed verbatim; keep one bounded line per diagnostic. */
+const MAX_PDF_DIAGNOSTIC_LENGTH = 500;
+
+/** @param {unknown} diagnostic @returns {{code: string, message: string}} */
+export function readPdfDiagnostic(diagnostic) {
+  const record = diagnostic && typeof diagnostic === 'object' ? diagnostic : {};
+  const rawCode = typeof record.code === 'string' ? record.code.trim() : '';
+  const code = rawCode === '' ? 'local.pdf.diagnostic' : rawCode.slice(0, 128);
+  const rawMessage = typeof record.message === 'string'
+    ? record.message.replace(/\s*\r?\n\s*/g, ' ').trim()
+    : '';
+  const message = rawMessage === ''
+    ? 'The PDF adapter reported a problem without a message.'
+    : rawMessage.length > MAX_PDF_DIAGNOSTIC_LENGTH
+      ? `${rawMessage.slice(0, MAX_PDF_DIAGNOSTIC_LENGTH)}...`
+      : rawMessage;
+  return { code, message };
 }
 
 /**
@@ -44,6 +80,20 @@ export async function runBuild(options, context) {
 
   const packageInfo = await readPackageInfo(packageRoot);
   const generator = { name: 'reactive-md', version: packageInfo.version };
+  let project;
+  if (options.projectRoot !== undefined) {
+    try {
+      const { loadLocalDirectoryHost } = await import('reactive-md/vite');
+      project = await loadLocalDirectoryHost(options.projectRoot, {
+        defaultPreset: 'minimal', interactive: options.mode === 'interactive',
+      });
+    } catch (error) {
+      throw new CliError(
+        `Cannot assemble project plugins: ${errorText(error)}. Directory export requires the optional Vite peer.`,
+        EXIT.DOCUMENT, { cause: error },
+      );
+    }
+  }
 
   const core = await loadCore(packageRoot, [
     'compileLocal',
@@ -56,7 +106,7 @@ export async function runBuild(options, context) {
 
   let compiled;
   try {
-    compiled = core.compileLocal(source);
+    compiled = core.compileLocal(source, project?.host.compileOptions);
   } catch (error) {
     throw new CliError(
       `The compiler failed on "${fileLabel}": ${errorText(error)}`,
@@ -226,9 +276,9 @@ export async function runBuild(options, context) {
   const { urlPolicy, imageResolver } = createAssetPolicy(byUrl);
 
   /* ------------------------------------------------------------- build inputs */
-  const css = `${await readArtifactText(packageRoot, 'css')}\n${await readArtifactText(packageRoot, 'printCss')}`;
+  const css = `${await readArtifactText(packageRoot, project ? 'minimalCss' : 'css')}\n${await readArtifactText(packageRoot, 'printCss')}`;
   let runtimeScript;
-  if (options.mode === 'interactive') {
+  if (options.mode === 'interactive' && project === undefined) {
     runtimeScript = await readArtifactText(packageRoot, 'standalone');
   }
   // The shared shell records verified image URLs in the auto-mount payload so
@@ -270,10 +320,22 @@ export async function runBuild(options, context) {
       colorScheme: options.colorScheme,
       urlPolicy,
       imageResolver,
+      ...(project === undefined ? {} : { reactConfig: project.host.reactConfig }),
     };
-    if (options.mode === 'interactive') props.staticFirst = true;
-    staticMarkup = renderToString(createElement(LocalDocumentView, props));
+    if (project !== undefined || options.format === 'pdf') {
+      const { renderLocalStaticDocument } = await import('reactive-md/react/server');
+      const rendered = renderLocalStaticDocument({ ...props, resources: project?.host.resources });
+      writeDiagnostics(stderr, fileLabel, rendered.diagnostics);
+      if (!rendered.ok || (options.strict && rendered.diagnostics.length > 0)) {
+        throw new CliError('', EXIT.DOCUMENT, { reported: true });
+      }
+      staticMarkup = rendered.markup;
+    } else {
+      if (options.mode === 'interactive') props.staticFirst = true;
+      staticMarkup = renderToString(createElement(LocalDocumentView, props));
+    }
   } catch (error) {
+    if (error instanceof CliError) throw error;
     throw new CliError(
       `HTML rendering failed for "${fileLabel}": ${errorText(error)}`,
       EXIT.DOCUMENT,
@@ -296,7 +358,7 @@ export async function runBuild(options, context) {
 
   let html;
   try {
-    html = core.createShareableHtml({
+    const htmlOptions = {
       title,
       source: baseline.document.source,
       state: stateFile,
@@ -314,7 +376,20 @@ export async function runBuild(options, context) {
       ...(options.randomSeed === undefined ? {} : { randomSeed: options.randomSeed }),
       ...(componentState === undefined ? {} : { componentState }),
       notices,
-    });
+    };
+    if (project === undefined) {
+      html = core.createShareableHtml(htmlOptions);
+    } else {
+      const { createLocalShareableHtml } = await import('reactive-md/export');
+      html = createLocalShareableHtml({
+        ...htmlOptions,
+        document: baseline.document,
+        config: project.host.config,
+        resources: project.host.resources,
+        bundle: project.bundle,
+        notices: [notices, ...project.host.notices.map((notice) => notice.text ?? notice.name ?? notice.id)].filter(Boolean).join('\n\n'),
+      });
+    }
   } catch (error) {
     throw new CliError(
       `Cannot assemble the shareable HTML for "${fileLabel}": ${errorText(error)}`,
@@ -323,7 +398,47 @@ export async function runBuild(options, context) {
     );
   }
 
-  await atomicWriteUtf8(outputPath, html);
+  let output = html;
+  if (options.format === 'pdf') {
+    /** @type {{code: string, message: string}[]} */
+    const pdfDiagnostics = [];
+    // Image-decode failures are warnings in a relaxed build and errors under
+    // --strict. The adapter reports them through `onDiagnostic`; the CLI also
+    // re-checks the collected list so a strict build never writes a PDF even
+    // if the adapter returns bytes.
+    const pdfOptions = {
+      ...options.pdf,
+      strict: options.strict,
+      onDiagnostic(diagnostic) {
+        pdfDiagnostics.push(readPdfDiagnostic(diagnostic));
+      },
+    };
+    try {
+      const { renderLocalPdf } = await import('reactive-md/pdf');
+      output = await renderLocalPdf(html, pdfOptions);
+    } catch (error) {
+      // An adapter that fails after reporting keeps the same code. Under
+      // --strict its own rejection is already fatal, so print the collected
+      // diagnostics as errors and let the failure message name the cause.
+      if (pdfDiagnostics.length > 0) {
+        reportPdfDiagnostics(stderr, fileLabel, pdfDiagnostics, options.strict ? 'error' : 'warning');
+      }
+      throw new CliError(
+        `PDF export failed for "${fileLabel}": ${errorText(error)}`,
+        EXIT.DOCUMENT,
+        { cause: error },
+      );
+    }
+    if (pdfDiagnostics.length > 0) {
+      if (options.strict) {
+        reportPdfDiagnostics(stderr, fileLabel, pdfDiagnostics, 'error');
+        stderr.write('reactive-md: error: PDF warnings are treated as errors because --strict is set.\n');
+        throw new CliError('', EXIT.DOCUMENT, { reported: true });
+      }
+      reportPdfDiagnostics(stderr, fileLabel, pdfDiagnostics, 'warning');
+    }
+  }
+  await atomicWriteFile(outputPath, output);
   stdout.write(`Wrote ${options.output}\n`);
   return EXIT.OK;
 }

@@ -242,6 +242,7 @@ export function parseLocalCore(
   /** Inline forms behave like built-in inline tags for block placement. */
   const isInlineName = (name: string): boolean => schemaByName.get(name)?.form === 'inline';
   const known = schemaByName;
+  const unmountedLeafNames = optionCheck.unmountedLeafNames;
   const suggestionNames = [...schemaByName.keys()];
   // Assembly capabilities: core Markdown always works; GFM, native HTML and
   // Lezer planning are installed only by the full assembly.
@@ -1485,7 +1486,9 @@ export function parseLocalCore(
           scanned && !scanned.closing && TAG_NAME.test(scanned.name)
           && scanned.name.length <= MAX_LOCAL_NAME_LENGTH && !known.has(scanned.name)
         ) {
-          const stop = scanned.self ? scanned.end : (unknownTagEnd(scanned.end, scanned.name, end, insideContainer)?.end ?? null);
+          const stop = scanned.self || unmountedLeafNames.has(scanned.name)
+            ? scanned.end
+            : (unknownTagEnd(scanned.end, scanned.name, end, insideContainer)?.end ?? null);
           if (stop === null) {
             if (!beginsLine(i)) {
               // A lone `<name>` inside running prose is ordinary text, not a
@@ -1904,7 +1907,7 @@ export function parseLocalCore(
         isKnown: (name) => known.has(name),
         isPaired: (name) => {
           const schema = known.get(name);
-          return schema === undefined || schema.form !== 'leaf';
+          return schema === undefined ? !unmountedLeafNames.has(name) : schema.form !== 'leaf';
         },
         isHtmlName: (name) => htmlSupport !== undefined && (HTML_NAMES.has(name) || nativeHtmlNames.has(name)),
         isVoidHtml: (name) => NATIVE_HTML_VOID.has(name) || HTML_VOID_ELEMENTS.has(name),

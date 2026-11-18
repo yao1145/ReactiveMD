@@ -19,7 +19,7 @@ function run(command, args, cwd = root) {
 }
 try {
   const expectedLayers = ['rmd.reset', 'rmd.defaults', 'rmd.components', 'rmd.themes', 'rmd.overrides'];
-  for (const cssFile of ['dist-library/reactive-md.css', 'dist-standalone/reactive-md-standalone.css']) {
+  for (const cssFile of ['dist-library/reactive-md.css', 'dist-library/reactive-md-minimal.css', 'dist-standalone/reactive-md-standalone.css']) {
     const actualLayers = [];
     // Minifiers may replace a redundant order statement with equivalent
     // ordered blocks. Both forms must create the same public layer order.
@@ -32,6 +32,9 @@ try {
     assert.deepEqual(actualLayers, expectedLayers, `${cssFile}: built CSS changed the public cascade order`);
   }
   console.log('Built library and standalone CSS preserve the public cascade order.');
+  const minimalCss = readFileSync(join(root, 'dist-library/reactive-md-minimal.css'), 'utf8');
+  assert.match(minimalCss, /\._thumb_/, 'Minimal stylesheet is missing the slider CSS module');
+  assert.match(minimalCss, /\._calendar_/, 'Minimal stylesheet is missing the calendar CSS module');
   const packed = JSON.parse(run(npm, ['pack', '--ignore-scripts', '--json', '--pack-destination', consumer]))[0];
   assert.ok(!packed.files.some(f => /^(?:src|demo|editor|tests)\//.test(f.path)), 'Package contains repository source');
   assert.ok(!packed.files.some(f => /(?:types\/editor\/|reactive-md-(?:editor|codemirror))/.test(f.path)), 'Package still contains editor artifacts');
@@ -63,6 +66,11 @@ import { createRandom } from 'reactive-md/runtime';
 import { createLocalBrowserStateStorage } from 'reactive-md/runtime/browser';
 import { useSwipe } from 'reactive-md/react/runtime';
 import { layoutPack } from 'reactive-md/presets/default/packs';
+import { createReactHost as createMinimalHost } from 'reactive-md/react/minimal';
+import { minimalReactPresetPackage } from 'reactive-md/presets/minimal/react';
+import navigation from 'reactive-md/plugins/navigation';
+import { renderLocalPdf } from 'reactive-md/pdf';
+import { prepareLocalPrintHtml, waitForLocalPrintImages } from 'reactive-md/export';
 import { listExportAssets, readExportAsset, resolveExportAsset } from 'reactive-md/export-assets';
 import { renderToStaticMarkup } from 'react-dom/server';
 import * as server from 'reactive-md/react/server';
@@ -78,6 +86,11 @@ assert.equal(createRandom(7).state, 7);
 assert.equal(typeof createLocalBrowserStateStorage, 'function');
 assert.equal(typeof useSwipe, 'function');
 assert.equal(layoutPack.id, 'reactive-md/default-layout');
+assert.equal(createMinimalHost().config.registry.length, 18);
+assert.ok(createMinimalHost({ presets: [minimalReactPresetPackage, navigation] }).config.registry.some(item => item.name === 'tabs'));
+await assert.rejects(renderLocalPdf('<h1>PDF</h1>'), /PDF export requires Playwright/);
+assert.equal(prepareLocalPrintHtml('<h1>PDF</h1>'), '<h1>PDF</h1>');
+assert.equal(typeof waitForLocalPrintImages, 'function');
 assert.ok(Object.keys(server).length);
 assert.equal(typeof renderToStaticMarkup, 'function');
 for (const entry of ['reactive-md/sdk','reactive-md/presets/default','reactive-md/export']) await import(entry);

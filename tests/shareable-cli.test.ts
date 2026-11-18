@@ -53,6 +53,77 @@ describe('CLI asset URL policy', () => {
   });
 });
 
+describe('CLI PDF arguments', () => {
+  it('selects static output and validates print options', async () => {
+    const { parseBuildArgs } = await loadCli('args.mjs');
+    const args = ['budget.reactive.md', '-o', 'budget.pdf'];
+    expect(parseBuildArgs([...args, '--format', 'pdf', '--pdf-landscape', '--pdf-margin', '12mm'])).toMatchObject({
+      mode: 'static', format: 'pdf', pdf: { landscape: true, margin: { top: '12mm' } },
+    });
+    expect(() => parseBuildArgs([...args, '--format', 'pdf', '--mode', 'interactive'])).toThrow('static mode');
+    expect(() => parseBuildArgs([...args, '--pdf-landscape'])).toThrow('--format pdf');
+  });
+
+  it('accepts paper names in any case and passes the canonical spelling to Playwright', async () => {
+    const { parseBuildArgs } = await loadCli('args.mjs');
+    const args = ['budget.reactive.md', '-o', 'budget.pdf', '--format', 'pdf'];
+    const expected: Record<string, string> = {
+      a4: 'A4', letter: 'Letter', legal: 'Legal', a5: 'A5',
+    };
+    for (const value of ['A4', 'a4', 'A4 ', 'Letter', 'letter', 'LETTER', 'legal', 'a5']) {
+      const parsed = parseBuildArgs([...args, '--pdf-paper', value]);
+      expect(parsed.pdf.format, value).toBe(expected[value.trim().toLowerCase()]);
+    }
+    expect(parseBuildArgs(args).pdf.format).toBe('A4');
+  });
+
+  it('rejects unknown and empty paper names', async () => {
+    const { parseBuildArgs } = await loadCli('args.mjs');
+    const args = ['budget.reactive.md', '-o', 'budget.pdf', '--format', 'pdf'];
+    expect(() => parseBuildArgs([...args, '--pdf-paper', 'A9'])).toThrow(/"--pdf-paper"/);
+    expect(() => parseBuildArgs([...args, '--pdf-paper', 'A4x'])).toThrow(/"--pdf-paper"/);
+    expect(() => parseBuildArgs([...args, '--pdf-paper', ''])).toThrow(/"--pdf-paper"/);
+    expect(() => parseBuildArgs([...args, '--pdf-paper', '   '])).toThrow(/"--pdf-paper"/);
+    // Paper sizes are still PDF-only options.
+    expect(() => parseBuildArgs(['budget.reactive.md', '-o', 'budget.html', '--pdf-paper', 'A4']))
+      .toThrow('--format pdf');
+  });
+});
+
+describe('CLI PDF diagnostics', () => {
+  it('prints adapter diagnostics as warnings by default', async () => {
+    const { reportPdfDiagnostics } = await loadCli('build.mjs');
+    const lines: string[] = [];
+    reportPdfDiagnostics({ write: (line: string) => lines.push(line) }, 'doc.reactive.md', [
+      { code: 'local.pdf.image-decode', message: 'broken.png could not be decoded.' },
+    ], 'warning');
+    expect(lines).toEqual([
+      'reactive-md: warning: doc.reactive.md: local.pdf.image-decode: broken.png could not be decoded.\n',
+    ]);
+  });
+
+  it('keeps the strict severity so the same diagnostic reads as an error', async () => {
+    const { reportPdfDiagnostics } = await loadCli('build.mjs');
+    const lines: string[] = [];
+    reportPdfDiagnostics({ write: (line: string) => lines.push(line) }, 'doc.reactive.md', [
+      { code: 'local.pdf.image-decode', message: 'broken.png could not be decoded.' },
+    ], 'error');
+    expect(lines[0]).toMatch(/^reactive-md: error: .*local\.pdf\.image-decode/);
+  });
+
+  it('normalizes adapter diagnostics and bounds missing fields', async () => {
+    const { readPdfDiagnostic } = await loadCli('build.mjs');
+    expect(readPdfDiagnostic({ code: 'local.pdf.image-decode', message: 'line one\nline two' }))
+      .toEqual({ code: 'local.pdf.image-decode', message: 'line one line two' });
+    expect(readPdfDiagnostic({ code: '  local.pdf.image-decode  ' }))
+      .toEqual({ code: 'local.pdf.image-decode', message: 'The PDF adapter reported a problem without a message.' });
+    expect(readPdfDiagnostic(undefined))
+      .toEqual({ code: 'local.pdf.diagnostic', message: 'The PDF adapter reported a problem without a message.' });
+    expect(readPdfDiagnostic({ code: '', message: '   ' }))
+      .toEqual({ code: 'local.pdf.diagnostic', message: 'The PDF adapter reported a problem without a message.' });
+  });
+});
+
 describe('CLI image magic detection', () => {
   it('recognizes PNG, JPEG, GIF and WebP from bytes', async () => {
     const { detectImageMime } = await loadCli('assets.mjs');

@@ -2,7 +2,7 @@ import {
   useId,
   type CSSProperties,
 } from 'react';
-import type { LocalComponentContext } from '../react/component-api';
+import type { LocalComponentContext } from '../../react/component-api';
 import {
   StaticValue,
   PrintValue,
@@ -23,8 +23,8 @@ import {
   useSourceAttributes,
   useValidationField,
   useWriter,
-} from '../react/component-utils';
-import { Slider } from './uiarc/slider/slider';
+} from '../../react/component-utils';
+import { Slider } from '../uiarc/slider/slider';
 
 /** Plain numeric text: no digit wheels, and no binary noise from repeated steps. */
 function sliderNumber(value: number): string {

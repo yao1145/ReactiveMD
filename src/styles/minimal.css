@@ -1,0 +1,27 @@
+/* Document styles for the minimal preset. Optional packs supply visual resources. */
+@import '../themes/layers.css';
+@import 'katex/dist/katex.min.css' layer(rmd.reset);
+@import './reset.css';
+@import '../themes/default/index.css';
+@import './density.css';
+@import './document-shell.css';
+@import './document.css';
+@import './native-buttons.css';
+@import './native-fields.css';
+@import './native-selection.css';
+@import './primitives/surfaces.css';
+@import './primitives/navigation.css';
+@import './primitives/overlays.css';
+@import './primitives/data-display.css';
+@import '../local/widgets/code-block.css';
+@import '../local/widgets/image-view.css';
+@import '../local/rendering/local.css';
+@import '../components/controls/controls.css';
+@import './components/overlays.css';
+@import './components/forms.css';
+@import './components/navigation.css';
+@import './components/feedback.css';
+@import './components/native-refinements.css';
+@import '../components/shared/text-overflow.css';
+@import './document-rhythm.css';
+@import '../standalone/standalone.css';

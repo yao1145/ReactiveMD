@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type {
   LocalComponentContext,
   LocalComponentContent,
-} from '../react/component-api';
+} from '../../react/component-api';
 import {
   DEFAULT_LOCAL_DATA_TABLE_ROWS,
   MAX_LOCAL_DATA_TABLE_COLUMNS,
@@ -14,7 +14,7 @@ import {
   type LocalExpression,
   type LocalValue,
   type Localize,
-} from '../react/component-utils';
+} from '../../react/component-utils';
 
 /**
  * `<data-table>` renders generated rows from a list expression. Everything in

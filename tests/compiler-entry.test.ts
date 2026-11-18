@@ -5,6 +5,7 @@ import { createStandardCompiler } from '../src/compiler/standard';
 import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
 import { createLocalConfig } from '../src/sdk/config';
 import { defineLocalComponent } from '../src/sdk/manifest';
+import { minimalPreset } from '../src/presets/minimal';
 import type { LocalCompileOptions, LocalCompileResult, LocalNode } from '../src/local/contracts/types';
 
 function flatten(nodes: readonly LocalNode[]): LocalNode[] {
@@ -223,6 +224,34 @@ describe('standard compiler entry', () => {
       expect(configured.document.componentConfigKey).toBe(standard.document.componentConfigKey);
       expect(configured.document.componentConfigKey).not.toBe(minimal.document.componentConfigKey);
     }
+  });
+
+  it('treats an unmounted leaf tag the same way in both entries for one minimal config', () => {
+    // The same explicit minimal config reaches both factories. An official leaf
+    // tag the preset does not mount must stay literal source with one
+    // `local.component.unknown` diagnostic, not a missing close tag.
+    const config = createLocalConfig({ presets: [minimalPreset] });
+    const source = '<counter label="Extra">\n\nAfter';
+    const minimal = createCompiler({ config }).compile(source);
+    const standard = createStandardCompiler({ config }).compile(source);
+    for (const result of [minimal, standard]) {
+      expect(result.ok).toBe(true);
+      expect(result.diagnostics.filter((item) => item.code === 'local.component.unknown')).toHaveLength(1);
+      expect(result.diagnostics.some((item) => item.code === 'local.tag.unclosed')).toBe(false);
+      if (result.ok) {
+        expect(flatten(result.document.nodes).some((node) => node.type === 'fallback'
+          && node.value?.includes('<counter'))).toBe(true);
+      }
+    }
+  });
+
+  it('keeps the bare entry’s unknown-tag behavior unchanged', () => {
+    // Only a config that names the minimal preset opts into the shared leaf
+    // list. A factory with no preset keeps its historical failure.
+    const withoutPreset = createCompiler().compile('<counter label="Extra">');
+    expect(withoutPreset.ok).toBe(false);
+    expect(withoutPreset.diagnostics.some((item) => item.code === 'local.tag.unclosed')).toBe(true);
+    expect(createStandardCompiler().compile('<counter label="Extra">').ok).toBe(true);
   });
 
   it('registers the default components and keeps the math precheck', () => {

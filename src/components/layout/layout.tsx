@@ -7,8 +7,8 @@ import {
   type KeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-import type { LocalComponentContext } from '../react/component-api';
-import { useTooltipLayoutEffect, useTooltipPopover } from '../react/tooltip-layer';
+import type { LocalComponentContext } from '../../react/component-api';
+import { useTooltipLayoutEffect, useTooltipPopover } from '../../react/tooltip-layer';
 import {
   FieldError,
   LocalError,
@@ -25,7 +25,7 @@ import {
   useResetToken,
   useValidationField,
   useWriter,
-} from '../react/component-utils';
+} from '../../react/component-utils';
 
 /* ------------------------------------------------------------------ layout */
 

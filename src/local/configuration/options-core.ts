@@ -15,6 +15,8 @@ import { localComponentHostBinding } from '../../sdk/props';
 import { normalizedComponentFromDefinition } from '../../sdk/registry-core';
 import { normalizeComponent, type NormalizedComponent } from '../compilation/component-kernel';
 import { NO_PARSER_CAPABILITIES, type LocalParserCapabilities } from '../parsing/parser-capabilities';
+import { MINIMAL_PRESET_ID } from '../../presets/identity';
+import { unmountedOfficialLeafTags } from './official-leaf-syntax';
 import { DEFAULT_COMPILER_PRESET, compilerDefaultConfigKey, readCompilerConfig } from '../../sdk/compiler-config';
 import type { LocalComponentDefinition, LocalComponentProp, LocalConfig } from '../../sdk/types';
 import type {
@@ -78,6 +80,8 @@ export type LocalOptionCheck =
       schemaByName: ReadonlyMap<string, NormalizedComponent>;
       /** Names contributed by the assembled defaults. */
       defaultComponentNames: ReadonlySet<string>;
+      /** Known official leaf syntax that remains literal in a custom config. */
+      unmountedLeafNames: ReadonlySet<string>;
       /** Names contributed by external manifests. */
       externalComponentNames: ReadonlySet<string>;
       /** Legacy `hostComponents` input adapter names. */
@@ -719,6 +723,12 @@ export function readOptionCheck(
     componentByName,
     schemaByName,
     defaultComponentNames: defaultNames,
+    // A minimal preset leaves official leaf tags unmounted. Both assemblies
+    // share the lightweight list so the same config keeps the same literal
+    // fallback; only an explicitly selected minimal preset asks for it.
+    unmountedLeafNames: config?.presets.some((preset) => preset.id === MINIMAL_PRESET_ID)
+      ? unmountedOfficialLeafTags((name) => schemaByName.has(name))
+      : new Set<string>(),
     externalComponentNames,
     legacyHostNames,
     componentConfigKey: config ? sources.configKey(config) : sources.defaultConfigKey,

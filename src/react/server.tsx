@@ -7,6 +7,7 @@ import {
   validateLocalComponentContracts,
   validateLocalExtensionRequirements,
 } from '../export/requirements';
+import { findUnavailableExtensionMarkup, unavailableExtensionMessage } from '../export/render-markup';
 import { getLocalComponentRegistry } from '../sdk/registry';
 import type { Diagnostic } from '../local/contracts/types';
 import type { LocalStyleResource } from '../sdk/theme';
@@ -45,8 +46,9 @@ export function renderLocalStaticDocument(
       ...options, mode: 'static', staticFirst: false,
       onDiagnostics(items) { diagnostics.push(...items); options.onDiagnostics?.(items); },
     }));
-    if (/data-rmd-extension-error\s*=|local-sdk-unavailable/.test(markup)) {
-      diagnostics.push(extensionDiagnostic('local.extension.ssr-render', 'Server output contains an unavailable extension component.'));
+    const unavailable = findUnavailableExtensionMarkup(markup);
+    if (unavailable) {
+      diagnostics.push(extensionDiagnostic('local.extension.ssr-render', unavailableExtensionMessage(unavailable)));
     }
     if (diagnostics.some(item => item.severity === 'error')) return { ok: false, diagnostics };
     return { ok: true, markup, diagnostics };

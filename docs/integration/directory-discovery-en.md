@@ -9,9 +9,13 @@ plugin/tetris/index.ts
 plugin/tetris/component.css # optional
 ```
 
+For a minimal host, set `reactiveMd({ defaultPreset: 'minimal' })`, import the renderer from `reactive-md/react/minimal`, and load `reactive-md/styles/minimal.css`. Add official components by forwarding a package from `plugin/<name>/index.ts`. For example, use `export { default } from 'reactive-md/plugins/chart'`. Calling `reactiveMd()` keeps the complete preset.
+
+Run `reactive-md build ... --project-root .` to discover plugins and themes from the same project for HTML or PDF export.
+
 A theme needs only `theme.css`. Its directory supplies the name, `local/theme/<directory>` supplies the package ID, and the version defaults to `0.0.0`. Optional `theme.json` can set `id`, `name`, `version`, `protocol` and `colorSchemes`. The loader calls `defineLocalTheme` for validation, scoping and freezing. Write both color schemes using the theme protocol. A document selects a discovered theme with `<theme name="paper">`.
 
-A component entry exports a `LocalReactPackage`, preferably as its default export. A single distinct named package export also works; aliases of the same object count once. Continue using `defineReactComponentPackage` to declare the tag, props, capabilities and React implementation. An installed package can be forwarded through its public entry:
+A component entry exports a `LocalReactPackage` or `LocalReactPresetPackage`, preferably as its default export. One distinct named package export also works, and aliases of the same object count once. Use `defineReactComponentPackage` to declare the tag, props, capabilities, and React implementation. An entry can forward an installed package.
 
 ```ts
 // plugin/tetris/index.ts

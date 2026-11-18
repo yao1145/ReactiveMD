@@ -104,13 +104,13 @@ export async function assertOutputDirectory(outputPath) {
 }
 
 /**
- * Write UTF-8 through a unique temporary file in the destination directory and
+ * Write through a unique temporary file in the destination directory and
  * rename it into place. The temporary file is removed on every failure path.
  *
  * @param {string} outputPath
- * @param {string} content
+ * @param {string | Uint8Array} content
  */
-export async function atomicWriteUtf8(outputPath, content) {
+export async function atomicWriteFile(outputPath, content) {
   const absolute = path.resolve(outputPath);
   await assertOutputDirectory(absolute);
   const directory = path.dirname(absolute);

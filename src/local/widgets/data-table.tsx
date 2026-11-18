@@ -18,7 +18,7 @@ export {
   dataTableFailureMessage,
   encodeDataTableKey,
   evaluateDataTableRows,
-} from '../../components/data-table';
+} from '../../components/table/data-table';
 export type {
   DataTableBuildOptions,
   DataTableBuildResult,
@@ -27,7 +27,7 @@ export type {
   DataTableFailure,
   DataTableModel,
   DataTableRow,
-} from '../../components/data-table';
+} from '../../components/table/data-table';
 
 export interface DataTableViewProps {
   node: LocalNode;

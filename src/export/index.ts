@@ -13,11 +13,13 @@ import { createLocalBundleManifest, createLocalRestorationRequirements, localExp
 export * from './restoration';
 export * from './component-state';
 export { readLocalExportResources } from './resources';
+export { prepareLocalPrintHtml, waitForLocalPrintImages } from './print-document';
 import {
   extensionDiagnostic,
   validateLocalComponentContracts,
   validateLocalExtensionRequirements,
 } from './requirements';
+import { findUnavailableExtensionMarkup, unavailableExtensionMessage } from './render-markup';
 
 export {
   validateLocalComponentContracts,
@@ -171,8 +173,9 @@ export function createLocalShareableHtml(options: LocalExtensionShareableOptions
   }
   const plan = createLocalExportPlan({ ...options, target: options.mode === 'static' ? 'static' : 'offline' });
   if (!plan.ok) throw new TypeError(plan.diagnostics.map(item => `[${item.code}] ${item.message}`).join('\n'));
-  if (/data-rmd-extension-error\s*=|local-sdk-unavailable/.test(options.staticMarkup)) {
-    throw new TypeError('Static output contains an unavailable extension component.');
+  const unavailable = findUnavailableExtensionMarkup(options.staticMarkup);
+  if (unavailable) {
+    throw new TypeError(unavailableExtensionMessage(unavailable));
   }
   const html = createShareableHtml({
     ...options,

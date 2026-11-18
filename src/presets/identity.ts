@@ -6,4 +6,5 @@ import { LOCAL_SDK_VERSION } from '../sdk/version';
  * without importing the preset implementation or its component table.
  */
 export const DEFAULT_PRESET_ID = 'reactive-md/default';
+export const MINIMAL_PRESET_ID = 'reactive-md/minimal';
 export const DEFAULT_PRESET_VERSION = LOCAL_SDK_VERSION;

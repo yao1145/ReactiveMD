@@ -81,10 +81,34 @@ function choice(value, option, choices) {
   return normalized;
 }
 
+/** Playwright paper names are case-sensitive, so accept any case and spell them canonically. */
+const PDF_PAPER_SIZES = Object.freeze([
+  'Letter', 'Legal', 'Tabloid', 'Ledger', 'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6',
+]);
+
+/** @param {unknown} value */
+function paperSize(value) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw usageError('Option "--pdf-paper" requires a paper size such as "A4" or "Letter".');
+  }
+  const normalized = value.trim().toLowerCase();
+  const match = PDF_PAPER_SIZES.find((size) => size.toLowerCase() === normalized);
+  if (!match) {
+    throw usageError(`Invalid value for "--pdf-paper": "${value}". Expected ${PDF_PAPER_SIZES.join(', ')}.`);
+  }
+  return match;
+}
+
 const BUILD_SPEC = new Map([
   ['-o', { key: 'output' }],
   ['--output', { key: 'output' }],
   ['--mode', { key: 'mode' }],
+  ['--format', { key: 'format' }],
+  ['--project-root', { key: 'projectRoot' }],
+  ['--pdf-paper', { key: 'pdfPaper' }],
+  ['--pdf-landscape', { key: 'pdfLandscape', boolean: true }],
+  ['--pdf-margin', { key: 'pdfMargin' }],
+  ['--pdf-background', { key: 'pdfBackground' }],
   ['--state-file', { key: 'stateFile' }],
   ['--component-state-file', { key: 'componentStateFile' }],
   ['--document-id', { key: 'documentId' }],
@@ -110,6 +134,7 @@ const LINT_SPEC = new Map([
  * @param {string[]} argv
  * @returns {{
  *   help: boolean, input?: string, output?: string, mode?: 'interactive'|'static',
+ *   format?: 'html'|'pdf', projectRoot?: string, pdf?: import('../dist-library/types/pdf.js').LocalPdfOptions,
  *   stateFile?: string, componentStateFile?: string, documentId?: string,
  *   randomSeed?: number, assets?: 'inline'|'omit', assetRoot?: string,
  *   locale?: 'en'|'zh', colorScheme?: 'auto'|'light'|'dark', title?: string,
@@ -131,7 +156,29 @@ export function parseBuildArgs(argv) {
     throw usageError('Missing required option "--output" (-o). Usage: reactive-md build <doc.reactive.md> -o <doc.html>.');
   }
   const output = requireText(options.output, '--output');
-  const mode = options.mode === undefined ? 'interactive' : choice(options.mode, '--mode', ['interactive', 'static']);
+  const format = options.format === undefined ? 'html' : choice(options.format, '--format', ['html', 'pdf']);
+  const mode = options.mode === undefined
+    ? (format === 'pdf' ? 'static' : 'interactive')
+    : choice(options.mode, '--mode', ['interactive', 'static']);
+  if (format === 'pdf' && mode !== 'static') throw usageError('PDF output requires static mode.');
+  const pdfKeys = ['pdfPaper', 'pdfLandscape', 'pdfMargin', 'pdfBackground'];
+  if (format !== 'pdf' && pdfKeys.some((key) => options[key] !== undefined)) {
+    throw usageError('PDF layout options require "--format pdf".');
+  }
+  const projectRoot = options.projectRoot === undefined ? undefined : requireText(options.projectRoot, '--project-root');
+  if (projectRoot !== undefined && isUrlLike(projectRoot)) throw usageError('Option "--project-root" must be a local directory path.');
+  const pdfMargin = options.pdfMargin === undefined ? undefined : requireText(options.pdfMargin, '--pdf-margin');
+  if (pdfMargin !== undefined && !/^(?:\d+(?:\.\d+)?)(?:px|in|cm|mm)?$/i.test(pdfMargin)) {
+    throw usageError('Option "--pdf-margin" requires a non-negative length such as "12mm".');
+  }
+  const pdf = format === 'pdf' ? {
+    format: options.pdfPaper === undefined ? 'A4' : paperSize(options.pdfPaper),
+    landscape: options.pdfLandscape === true,
+    margin: pdfMargin === undefined ? undefined : { top: pdfMargin, right: pdfMargin, bottom: pdfMargin, left: pdfMargin },
+    printBackground: options.pdfBackground === undefined
+      ? true
+      : choice(options.pdfBackground, '--pdf-background', ['on', 'off']) === 'on',
+  } : undefined;
   const assets = options.assets === undefined ? 'inline' : choice(options.assets, '--assets', ['inline', 'omit']);
   const locale = options.locale === undefined ? 'en' : choice(options.locale, '--locale', ['en', 'zh']);
   const colorScheme = options.colorScheme === undefined
@@ -178,6 +225,9 @@ export function parseBuildArgs(argv) {
     input,
     output,
     mode,
+    format,
+    projectRoot,
+    pdf,
     stateFile,
     componentStateFile,
     documentId,

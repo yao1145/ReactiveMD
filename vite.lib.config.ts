@@ -2,6 +2,12 @@ import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
+const pluginEntries = Object.fromEntries(
+  ['forms', 'navigation', 'data', 'chart', 'plot', 'diagram', 'gallery'].map((name) => [
+    `reactive-md-plugin-${name}`, fileURLToPath(new URL(`./src/components/plugins/${name}.ts`, import.meta.url)),
+  ]),
+);
+
 export default defineConfig({
   plugins: [{
     name: 'optional-print-css',
@@ -21,6 +27,7 @@ export default defineConfig({
         'reactive-md-runtime': fileURLToPath(new URL('./src/runtime-services/index.ts', import.meta.url)),
         'reactive-md-runtime-browser': fileURLToPath(new URL('./src/runtime-services/browser/index.ts', import.meta.url)),
         'reactive-md-react-unstyled': fileURLToPath(new URL('./src/react/index.ts', import.meta.url)),
+        'reactive-md-react-minimal': fileURLToPath(new URL('./src/react/minimal.tsx', import.meta.url)),
         'reactive-md-authoring': fileURLToPath(new URL('./src/authoring/index.ts', import.meta.url)),
         'reactive-md-sdk': fileURLToPath(new URL('./src/sdk/index.ts', import.meta.url)),
         'reactive-md-testing': fileURLToPath(new URL('./src/testing/index.ts', import.meta.url)),
@@ -28,9 +35,13 @@ export default defineConfig({
         'reactive-md-testing-browser': fileURLToPath(new URL('./src/testing/browser.ts', import.meta.url)),
         'reactive-md-default-preset': fileURLToPath(new URL('./src/presets/default.ts', import.meta.url)),
         'reactive-md-default-packs': fileURLToPath(new URL('./src/presets/packs.ts', import.meta.url)),
+        'reactive-md-minimal-preset': fileURLToPath(new URL('./src/presets/minimal.ts', import.meta.url)),
+        'reactive-md-minimal-react-preset': fileURLToPath(new URL('./src/components/minimal-preset.ts', import.meta.url)),
+        ...pluginEntries,
         'reactive-md-export': fileURLToPath(new URL('./src/export/index.ts', import.meta.url)),
         'reactive-md-react-server': fileURLToPath(new URL('./src/react/server.tsx', import.meta.url)),
         'reactive-md-standalone-host': fileURLToPath(new URL('./src/standalone/library.ts', import.meta.url)),
+        'reactive-md-standalone-configured': fileURLToPath(new URL('./src/standalone/host.tsx', import.meta.url)),
         'reactive-md-compiler': fileURLToPath(new URL('./src/compiler/index.ts', import.meta.url)),
         'reactive-md-compiler-standard': fileURLToPath(new URL('./src/compiler/standard.ts', import.meta.url)),
       },

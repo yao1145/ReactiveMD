@@ -52,7 +52,7 @@
   "scripts": {
     "dev:lib": "vite build --config vite.lib.config.ts --watch",
     "build": "npm run typecheck && npm run build:lib",
-    "build:lib": "vite build --config vite.lib.config.ts && vite build --config vite.build.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
+    "build:lib": "vite build --config vite.lib.config.ts && vite build --config vite.minimal.config.ts && vite build --config vite.build.config.ts && npm run build:standalone && tsc -p tsconfig.lib.json && node scripts/finalize-declarations.mjs",
     "build:standalone": "vite build --config vite.standalone.config.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts --maxWorkers=4",
@@ -61,6 +61,7 @@
     "test:theme:browser": "node scripts/verify-shared-theme-browser.mjs",
     "test:boundary": "node scripts/verify-public-package.mjs",
     "test:compiler-entry": "node scripts/verify-compiler-entry.mjs",
+    "test:pdf": "node scripts/verify-pdf.mjs",
     "test:preset-scaffold": "node scripts/verify-preset-scaffold.mjs",
     "check:versions": "node scripts/check-versions.mjs",
     "check:loc": "node scripts/check-loc.mjs",
@@ -116,6 +117,46 @@
       "types": "./dist-library/types/presets/packs.d.ts",
       "import": "./dist-library/reactive-md-default-packs.js"
     },
+    "./presets/minimal": {
+      "types": "./dist-library/types/presets/minimal.d.ts",
+      "import": "./dist-library/reactive-md-minimal-preset.js"
+    },
+    "./presets/minimal/react": {
+      "types": "./dist-library/types/components/minimal-preset.d.ts",
+      "import": "./dist-library/reactive-md-minimal-react-preset.js"
+    },
+    "./plugins/forms": {
+      "types": "./dist-library/types/components/plugins/forms.d.ts",
+      "import": "./dist-library/reactive-md-plugin-forms.js"
+    },
+    "./plugins/navigation": {
+      "types": "./dist-library/types/components/plugins/navigation.d.ts",
+      "import": "./dist-library/reactive-md-plugin-navigation.js"
+    },
+    "./plugins/data": {
+      "types": "./dist-library/types/components/plugins/data.d.ts",
+      "import": "./dist-library/reactive-md-plugin-data.js"
+    },
+    "./plugins/chart": {
+      "types": "./dist-library/types/components/plugins/chart.d.ts",
+      "import": "./dist-library/reactive-md-plugin-chart.js"
+    },
+    "./plugins/plot": {
+      "types": "./dist-library/types/components/plugins/plot.d.ts",
+      "import": "./dist-library/reactive-md-plugin-plot.js"
+    },
+    "./plugins/diagram": {
+      "types": "./dist-library/types/components/plugins/diagram.d.ts",
+      "import": "./dist-library/reactive-md-plugin-diagram.js"
+    },
+    "./plugins/gallery": {
+      "types": "./dist-library/types/components/plugins/gallery.d.ts",
+      "import": "./dist-library/reactive-md-plugin-gallery.js"
+    },
+    "./pdf": {
+      "types": "./dist-library/types/pdf.d.ts",
+      "import": "./dist-library/reactive-md-pdf.js"
+    },
     "./export": {
       "types": "./dist-library/types/export/index.d.ts",
       "import": "./dist-library/reactive-md-export.js"
@@ -127,6 +168,10 @@
     "./standalone": {
       "types": "./dist-library/types/standalone/library.d.ts",
       "import": "./dist-library/reactive-md-standalone-host.js"
+    },
+    "./standalone/host": {
+      "types": "./dist-library/types/standalone/host.d.ts",
+      "import": "./dist-library/reactive-md-standalone-configured.js"
     },
     "./react/server": {
       "types": "./dist-library/types/react/server.d.ts",
@@ -144,6 +189,10 @@
       "types": "./dist-library/types/react/runtime/index.d.ts",
       "import": "./dist-library/reactive-md-react-runtime.js"
     },
+    "./react/minimal": {
+      "types": "./dist-library/types/react/minimal.d.ts",
+      "import": "./dist-library/reactive-md-react-minimal.js"
+    },
     "./runtime": {
       "types": "./dist-library/types/runtime-services/index.d.ts",
       "import": "./dist-library/reactive-md-runtime.js"
@@ -153,6 +202,7 @@
       "import": "./dist-library/reactive-md-runtime-browser.js"
     },
     "./styles.css": "./dist-library/reactive-md.css",
+    "./styles/minimal.css": "./dist-library/reactive-md-minimal.css",
     "./react/unstyled": {
       "types": "./dist-library/types/react/index.d.ts",
       "import": "./dist-library/reactive-md-react-unstyled.js"

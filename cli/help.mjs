@@ -44,17 +44,23 @@ Init exit codes: 0 success, 2 usage error, 4 I/O error.
 }
 
 export function buildHelp() {
-  return `Usage: reactive-md build <doc.reactive.md> -o <doc.html> [options]
+  return `Usage: reactive-md build <doc.reactive.md> -o <output> [options]
 
 Compile one document with the packaged core, optionally validate a parameter
 state file, verify and inline local images, server-render the document with
-React 19, and write one UTF-8 HTML file. The output is assembled through the
-same shareable-HTML shell used by the interactive runtime (CSP, escaped JSON,
-notices and print styles included).
+React 19, and write shareable HTML or a static PDF.
 
 Options:
-  -o, --output <file>              Output HTML path (required). The parent
+  -o, --output <file>              Output path (required). The parent
                                    directory must already exist.
+      --format <html|pdf>          Output format (default html). PDF uses
+                                   static rendering and optional Playwright.
+      --project-root <dir>         Use the minimal preset and discover the
+                                   trusted project's plugin/ and theme/ entries.
+      --pdf-paper <A4|Letter|...>  Paper size (default A4).
+      --pdf-landscape              Use landscape orientation.
+      --pdf-margin <length>        Set every page margin (for example 12mm).
+      --pdf-background <on|off>    Print backgrounds (default on).
       --mode <interactive|static>  Output mode (default interactive). Static
                                    output has no runtime script and no
                                    auto-mount payload.
@@ -85,6 +91,7 @@ Options:
 
 Interactive HTML requires React 19 and react-dom, plus the prebuilt
 dist-standalone IIFE. Every build requires the prebuilt dist-library artifacts.
+PDF output requires "npm install playwright" and "npx playwright install chromium".
 From a source checkout, run "npm run build" before building documents.
 
 ${EXIT_CODES}

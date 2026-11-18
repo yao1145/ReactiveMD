@@ -3,7 +3,7 @@ import {
   normalizeGridRange,
   plotGridLayout,
   type PlotGridLayout,
-} from '../src/components/mafs-plot-grid';
+} from '../src/components/plot/mafs-plot-grid';
 
 function cellSizes(layout: PlotGridLayout, width: number, height: number): { x: number; y: number } {
   return {

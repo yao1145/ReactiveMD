@@ -11,7 +11,7 @@ import {
 import type {
   LocalComponentContext,
   LocalComponentContent,
-} from '../react/component-api';
+} from '../../react/component-api';
 
 const DEFAULT_WIDTH = 280;
 const MIN_WIDTH = 180;

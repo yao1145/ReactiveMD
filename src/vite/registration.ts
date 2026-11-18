@@ -277,8 +277,8 @@ export function discoveryMetadata(discovery: DirectoryDiscovery): DiscoveryMetad
 }
 
 export interface DirectoryRegistrationOptions {
-  /** Install the built-in default preset. Defaults to true. */
-  readonly defaultPreset?: boolean;
+  /** Select the complete (true), empty (false), or minimal base preset. */
+  readonly defaultPreset?: boolean | 'minimal';
 }
 
 /**
@@ -297,7 +297,8 @@ export function createDirectoryRegistration(
   styleId: string,
   options: DirectoryRegistrationOptions = {},
 ): DirectoryRegistrationSource {
-  const installDefaultPreset = options.defaultPreset !== false;
+  const installDefaultPreset = options.defaultPreset === undefined || options.defaultPreset === true;
+  const minimal = options.defaultPreset === 'minimal';
   const themes = discovery.themes.map((item) => Object.freeze({
     file: normalize(item.file),
     theme: item.theme,
@@ -316,7 +317,8 @@ export function createDirectoryRegistration(
   const readerSource = classifyLocalEntryPackage.toString().replace(/^export\s+/, '');
   const ownerSource = assertUniqueRegistration.toString().replace(/^export\s+/, '');
   const code = `${imports}
-import { createReactHost } from "reactive-md/react";
+import { createReactHost } from "${minimal ? 'reactive-md/react/minimal' : 'reactive-md/react'}";
+${minimal ? 'import { minimalReactPresetPackage } from "reactive-md/presets/minimal/react";' : ''}
 
 const __rmdClassifyEntry = ${readerSource};
 
@@ -333,8 +335,8 @@ export const extensions = Object.freeze({});
 
 function __rmdCompose(directoryEntries) {
   const packages = [];
-  const presets = __rmdInstallDefaultPreset ? ["default"] : [];
-  const components = [];
+  const presets = ${minimal ? '[minimalReactPresetPackage]' : '__rmdInstallDefaultPreset ? ["default"] : []'};
+  const components = ${minimal ? 'minimalReactPresetPackage.components.map(({ definition }) => ({ file: "reactive-md/presets/minimal/react", id: definition.id, name: definition.name }))' : '[]'};
   const themeOwners = [];
   for (const entry of __rmdPluginEntries) {
     const found = __rmdClassifyEntry(entry.namespace, entry.file, __rmdPresetProtocol);

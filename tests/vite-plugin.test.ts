@@ -72,6 +72,9 @@ describe('ReactiveMD Vite adapter', () => {
     expect(() => reactiveMd({ themeDir: 'themes', pluginDir: 'plugins' })).not.toThrow();
     expect(() => reactiveMd({ defaultPreset: false })).not.toThrow();
     expect(() => reactiveMd({ defaultPreset: true, pluginDir: 'plugin' })).not.toThrow();
+    expect(() => reactiveMd({ includeMinimal: true })).not.toThrow();
+    expect(() => reactiveMd({ includeMinimal: 'yes' } as never)).toThrow(/includeMinimal must be a boolean/);
+    expect(() => reactiveMd({ extensions: './extensions.ts', includeMinimal: true })).toThrow(/cannot mix/);
     expect(() => reactiveMd({ extensions: './extensions.ts', themeDir: 'theme' })).toThrow(/cannot mix/);
     expect(() => reactiveMd({ extensions: './extensions.ts', pluginDir: 'plugin' })).toThrow(/cannot mix/);
     expect(() => reactiveMd({ extensions: './extensions.ts', defaultPreset: false })).toThrow(/cannot mix/);
@@ -109,6 +112,30 @@ describe('ReactiveMD Vite adapter', () => {
       const bareRegistration = await bareLoad.call({ addWatchFile: vi.fn() }, REGISTRATION);
       expect(bareRegistration).toContain('const __rmdInstallDefaultPreset = false;');
       expect(bareRegistration).toContain('__rmdPresetProtocol');
+
+      const minimal = reactiveMd({ defaultPreset: 'minimal' });
+      await resolveConfig({ configFile: false, root, plugins: [minimal] }, 'serve');
+      const minimalRegistration = await (minimal.load as typeof load).call({ addWatchFile: vi.fn() }, REGISTRATION);
+      expect(minimalRegistration).toContain('minimalReactPresetPackage');
+      expect(minimalRegistration).toContain('plugin/card/index.ts');
+      expect(minimalRegistration).toContain('const __rmdInstallDefaultPreset = false;');
+
+      // `includeMinimal` serves a second reuse of the same discovery snapshot.
+      const dual = reactiveMd({ includeMinimal: true });
+      await resolveConfig({ configFile: false, root, plugins: [dual] }, 'serve');
+      const dualLoad = dual.load as typeof load;
+      const defaultRegistration = await dualLoad.call({ addWatchFile: vi.fn() }, REGISTRATION);
+      const dualMinimal = await dualLoad.call({ addWatchFile: vi.fn() }, '\0virtual:reactive-md/registration-minimal');
+      expect(defaultRegistration).toContain('const __rmdInstallDefaultPreset = true;');
+      expect(dualMinimal).toContain('minimalReactPresetPackage');
+      expect(dualMinimal).toContain('plugin/card/index.ts');
+      expect(dualMinimal).toContain('directory-theme/paper.css');
+      const dualResolve = dual.resolveId as (id: string) => string | null;
+      expect(dualResolve('virtual:reactive-md-minimal-host')).toBe('\0virtual:reactive-md-minimal-host');
+      expect(dualResolve('virtual:reactive-md-minimal-bundle')).toBe('\0virtual:reactive-md-minimal-bundle');
+      const plainResolve = reactiveMd().resolveId as (id: string) => string | null;
+      expect(plainResolve('virtual:reactive-md-minimal-host')).toBeNull();
+      expect(dualResolve('virtual:reactive-md/host')).toBe('\0virtual:reactive-md/host');
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

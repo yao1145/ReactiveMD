@@ -7,10 +7,11 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
-import { DefaultChart } from './default-chart';
-import { DiagramInspector, useDiagramInspector } from './diagram-inspector';
-import { MafsPlotSurface, type PlotSurfaceSegment } from './mafs-visuals';
+import { DefaultChart } from '../chart/default-chart';
+import { DiagramInspector, useDiagramInspector } from '../diagram/diagram-inspector';
+import { MafsPlotSurface, type PlotSurfaceSegment } from '../plot/mafs-visuals';
 import { useHydrated } from './use-hydrated';
+import { VisualFrame } from './visual-frame';
 import {
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
@@ -37,13 +38,13 @@ import {
   type LocalRenderMode,
   type LocalValue,
   type PlotPoint,
-} from '../react/component-utils';
+} from '../../react/component-utils';
 import type {
   LocalComponentContext,
   LocalComponentContent,
   LocalComponentTableProjection,
   LocalComponentTableCell,
-} from '../react/component-api';
+} from '../../react/component-api';
 import {
   formatNumber,
   numberAttr,
@@ -53,7 +54,7 @@ import {
   useResetToken,
   useValidationField,
   useWriter,
-} from '../react/component-utils';
+} from '../../react/component-utils';
 
 /* ------------------------------------------------------------------ */
 /* Shared helpers                                                      */
@@ -244,33 +245,6 @@ function rowSelectionKey(
 /* ------------------------------------------------------------------ */
 /* Shared visual pieces                                                */
 /* ------------------------------------------------------------------ */
-
-export function VisualFrame({
-  className,
-  label,
-  children,
-  component,
-}: {
-  className: string;
-  label: ReactNode;
-  children: ReactNode;
-  /** Stable component hook consumed by theme CSS; omitted for plain frames. */
-  component?: string;
-}) {
-  const titleId = useId();
-  return (
-    <figure
-      className={`local-visual ${className}`}
-      aria-labelledby={titleId}
-      data-rmd-component={component}
-    >
-      <figcaption id={titleId} className="local-visual-title" data-rmd-part="title">
-        {label}
-      </figcaption>
-      {children}
-    </figure>
-  );
-}
 
 function VisualMessage({ message, kind = 'status' }: { message: string; kind?: 'status' | 'alert' }) {
   return (

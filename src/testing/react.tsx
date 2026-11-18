@@ -1,5 +1,6 @@
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
+import { findUnavailableExtensionMarkup } from '../export/render-markup';
 import { compileLocal } from '../local/compilation/compiler';
 import { LocalDocumentView } from '../local/rendering/LocalDocumentView';
 import { createLocalRuntime } from '../local/runtime/runtime';
@@ -64,7 +65,6 @@ const SPEC_KEYS = new Set([
 ]);
 const ERROR_KEYS = new Set(['source', 'config', 'reactConfig', 'code', 'messageIncludes']);
 const COMPONENT_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
-const UNAVAILABLE = /data-rmd-extension-error\s*=|local-sdk-unavailable/;
 
 function readPatterns(value: unknown, path: string): readonly string[] | undefined {
   if (value === undefined) return undefined;
@@ -161,7 +161,7 @@ function checkMarkup(
 ): string[] {
   const issues: string[] = [];
   if (markup.trim() === '') issues.push(`${label} markup is empty.`);
-  if (UNAVAILABLE.test(markup)) issues.push(`${label} markup contains an unavailable component placeholder.`);
+  if (findUnavailableExtensionMarkup(markup)) issues.push(`${label} markup contains an unavailable component placeholder.`);
   for (const pattern of includes ?? []) {
     if (!markup.includes(pattern)) issues.push(`${label} markup does not include ${JSON.stringify(pattern)}.`);
   }

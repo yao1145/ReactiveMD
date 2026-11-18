@@ -3,13 +3,125 @@ import { portableCompileOptions } from '../src/local/configuration/portable-opti
 import { compileLocal } from '../src/local/compilation/compiler';
 import { analyzeLocalSource } from '../src/local/source/authoring';
 import { createLocalStateFile } from '../src/local/runtime/state';
+import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { parseMountPayload } from '../src/standalone/payload';
 import { prepareStandaloneDocument } from '../src/standalone/prepare';
 import { createShareableHtml } from '../src/shareable';
+import { createLocalShareableHtml } from '../src/export';
+import { findUnavailableExtensionMarkup, unavailableExtensionMessage } from '../src/export/render-markup';
+import { renderLocalStaticDocument } from '../src/react/server';
+import { createLocalConfig } from '../src/sdk/config';
 import type { LocalCompileOptions } from '../src/local/contracts/types';
 
 /** One structural repair: the unclosed <card> is literal until the next heading. */
 const RECOVERED_SOURCE = '<card>\n正文\n\n## 后续\n\n后文 **粗体**';
+
+describe('unavailable extension markup detection', () => {
+  it('ignores the marker strings in prose, code and attribute-like text', () => {
+    const cases = [
+      '<p>Set local-sdk-unavailable on the span.</p>',
+      '<pre><code>data-rmd-extension-error="true"</code></pre>',
+      '<p>&lt;span data-rmd-extension-error="x"&gt;broken&lt;/span&gt;</p>',
+      '<p><code>class="local-sdk-unavailable"</code></p>',
+      '<p title="local-sdk-unavailable">An attribute value, not a class.</p>',
+      '<span class="local-sdk-unavailable">Author class without the host marker.</span>',
+      '<p>local-sdk-unavailable</p>',
+      '<!-- <div data-rmd-extension-error="quoted"></div> -->',
+      '<iframe srcdoc="&lt;span class=&quot;local-sdk-unavailable&quot;&gt;&lt;/span&gt;"></iframe>',
+    ];
+    for (const markup of cases) {
+      expect(findUnavailableExtensionMarkup(markup), markup).toBeNull();
+    }
+  });
+
+  it('finds real renderer markers regardless of quoting or class order', () => {
+    expect(findUnavailableExtensionMarkup('<div data-rmd-extension-error="Extended components are unavailable."></div>'))
+      .toMatchObject({ reason: 'extension-error', detail: 'Extended components are unavailable.' });
+    expect(findUnavailableExtensionMarkup("<div data-rmd-extension-error='single quoted'></div>"))
+      .toMatchObject({ reason: 'extension-error', detail: 'single quoted' });
+    expect(findUnavailableExtensionMarkup('<div data-rmd-extension-error></div>'))
+      .toMatchObject({ reason: 'extension-error' });
+    expect(findUnavailableExtensionMarkup('<div data-rmd-extension-error=unquoted></div>'))
+      .toMatchObject({ reason: 'extension-error', detail: 'unquoted' });
+    expect(findUnavailableExtensionMarkup('<DIV DATA-RMD-EXTENSION-ERROR="upper"></DIV>'))
+      .toMatchObject({ reason: 'extension-error', detail: 'upper' });
+    expect(findUnavailableExtensionMarkup('<div data-local-extension-error=""></div>'))
+      .toMatchObject({ reason: 'extension-error' });
+    expect(findUnavailableExtensionMarkup(
+      '<span class="local-host-component local-sdk-unavailable" data-local-host-component="note"></span>',
+    )).toMatchObject({ reason: 'sdk-unavailable', component: 'note' });
+    expect(findUnavailableExtensionMarkup(
+      '<span data-local-host-component=card class=md-other></span><span class=local-sdk-unavailable></span>',
+    )).toBeNull();
+    expect(findUnavailableExtensionMarkup(
+      '<span class=" md-other local-sdk-unavailable " data-local-host-component="note">x</span>',
+    )).toMatchObject({ reason: 'sdk-unavailable' });
+    expect(findUnavailableExtensionMarkup(
+      '<template><span class="local-sdk-unavailable" data-local-host-component="card"></span></template>',
+    )).toMatchObject({ reason: 'sdk-unavailable', component: 'card' });
+  });
+});
+
+describe('strict static rendering and export ignore marker text', () => {
+  const SOURCE = '# Markers\n\nProse mentions local-sdk-unavailable.\n\n'
+    + '`data-rmd-extension-error="true"`\n\n```html\n<span class="local-sdk-unavailable"></span>\n```\n';
+
+  it('renders static markup that only quotes the marker names', () => {
+    const compiled = compileLocal(SOURCE);
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) return;
+    const runtime = createLocalRuntime(compiled.document);
+    try {
+      const rendered = renderLocalStaticDocument({ document: compiled.document, runtime });
+      expect(rendered.diagnostics.filter(item => item.code === 'local.extension.ssr-render')).toEqual([]);
+      expect(rendered.ok).toBe(true);
+    } finally {
+      runtime.dispose();
+    }
+  });
+
+  it('still reports renderer markers instead of trusting the string check', () => {
+    const marker = findUnavailableExtensionMarkup('<div data-rmd-extension-error="Extended components are unavailable."></div>');
+    expect(marker?.reason).toBe('extension-error');
+    if (!marker) return;
+    expect(unavailableExtensionMessage(marker)).toContain('Extended components are unavailable.');
+    const placeholder = findUnavailableExtensionMarkup(
+      '<span class="local-sdk-unavailable" data-local-host-component="note"></span>',
+    );
+    expect(placeholder).toMatchObject({ reason: 'sdk-unavailable', component: 'note' });
+    if (placeholder) expect(unavailableExtensionMessage(placeholder)).toContain('<note>');
+  });
+
+  it('exports markup that quotes marker names and rejects a real marker', () => {
+    const config = createLocalConfig();
+    const compiled = compileLocal(SOURCE, { config });
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) return;
+    const state = createLocalStateFile(compiled.document, {});
+    const quoted = '<article><p>Prose mentions local-sdk-unavailable.</p>'
+      + '<pre><code>data-rmd-extension-error="true"</code></pre></article>';
+    expect(() => createLocalShareableHtml({
+      document: compiled.document,
+      config,
+      source: SOURCE,
+      state,
+      title: 'Markers',
+      staticMarkup: quoted,
+      css: '.md-document{}',
+      mode: 'static',
+    })).not.toThrow();
+    expect(() => createLocalShareableHtml({
+      document: compiled.document,
+      config,
+      source: SOURCE,
+      state,
+      title: 'Markers',
+      staticMarkup: '<article><span class="local-sdk-unavailable" data-local-host-component="note"></span></article>',
+      css: '.md-document{}',
+      mode: 'static',
+    })).toThrow(/unavailable/);
+  });
+});
 
 describe('portable strict semantics', () => {
   it('retains the selected mode in normalized and standalone payload options', () => {

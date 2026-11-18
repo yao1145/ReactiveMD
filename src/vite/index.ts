@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build, type Plugin, type ResolvedConfig, type ViteDevServer } from 'vite';
 import { buildLocalStandaloneBundle, LocalBuildError } from '../build';
+import type { LocalReactHost } from '../react/package';
 import { discoverDirectories, type DirectoryDiscovery } from './discovery';
 import {
   createDirectoryRegistration,
@@ -21,10 +22,17 @@ export interface ReactiveMdDirectoryOptions {
   /** Package entry root relative to the Vite root. Defaults to `plugin`. */
   readonly pluginDir?: string;
   /**
-   * Install the built-in default preset. Defaults to true. Discovered preset
-   * packages are installed in both modes; `false` installs no built-in preset.
+   * Select the base preset. `true` (default) keeps the complete compatibility
+   * preset, `minimal` installs the core set, and `false` starts with no preset.
    */
-  readonly defaultPreset?: boolean;
+  readonly defaultPreset?: boolean | 'minimal';
+  /**
+   * Also expose `virtual:reactive-md-minimal-host` and
+   * `virtual:reactive-md-minimal-bundle` from the same discovery snapshot.
+   * They install the minimal base preset but keep every discovered package,
+   * preset identity, dependency and resource in the normal order.
+   */
+  readonly includeMinimal?: boolean;
 }
 
 /** Manual mode: one local module exporting `host = createReactHost(...)`. */
@@ -42,7 +50,14 @@ export type ReactiveMdViteOptions = ReactiveMdDirectoryOptions | ReactiveMdExten
 const HOST = 'virtual:reactive-md/host';
 const BUNDLE = 'virtual:reactive-md/bundle';
 const REGISTRATION = 'virtual:reactive-md/registration';
+const MINIMAL_HOST = 'virtual:reactive-md-minimal-host';
+const MINIMAL_BUNDLE = 'virtual:reactive-md-minimal-bundle';
+const MINIMAL_REGISTRATION = 'virtual:reactive-md/registration-minimal';
 const RESOLVED = (id: string): string => `\0${id}`;
+/** Virtual modules a dependency edit must rebuild before the page reloads. */
+const VIRTUAL_MODULES: readonly string[] = [
+  HOST, BUNDLE, REGISTRATION, MINIMAL_HOST, MINIMAL_BUNDLE, MINIMAL_REGISTRATION,
+];
 const PLUGIN_ENTRY = /^index\.(?:ts|tsx|js|jsx|mts|mjs)$/;
 const normalize = (file: string): string => file.replaceAll('\\', '/');
 const messageOf = (error: unknown): string => error instanceof Error ? error.message : String(error);
@@ -53,10 +68,11 @@ type RegistrationMode =
     readonly kind: 'directories';
     readonly themeDir?: string;
     readonly pluginDir?: string;
-    readonly defaultPreset?: boolean;
+    readonly defaultPreset?: boolean | 'minimal';
+    readonly includeMinimal?: boolean;
   };
 
-const OPTION_KEYS = new Set(['extensions', 'themeDir', 'pluginDir', 'defaultPreset']);
+const OPTION_KEYS = new Set(['extensions', 'themeDir', 'pluginDir', 'defaultPreset', 'includeMinimal']);
 
 function readLocalModule(value: unknown): string {
   if (typeof value !== 'string' || !value.trim() || /^[a-z]+:\/\//i.test(value)) {
@@ -92,20 +108,25 @@ function readOptions(value: unknown): RegistrationMode {
   const hasThemeDir = Object.hasOwn(record, 'themeDir');
   const hasPluginDir = Object.hasOwn(record, 'pluginDir');
   const hasDefaultPreset = Object.hasOwn(record, 'defaultPreset');
-  if (hasExtensions && (hasThemeDir || hasPluginDir || hasDefaultPreset)) {
+  const hasIncludeMinimal = Object.hasOwn(record, 'includeMinimal');
+  if (hasExtensions && (hasThemeDir || hasPluginDir || hasDefaultPreset || hasIncludeMinimal)) {
     throw new TypeError(
-      'reactiveMd options cannot mix "extensions" with "themeDir", "pluginDir" or "defaultPreset".',
+      'reactiveMd options cannot mix "extensions" with "themeDir", "pluginDir", "defaultPreset" or "includeMinimal".',
     );
   }
-  if (hasDefaultPreset && typeof record.defaultPreset !== 'boolean') {
-    throw new TypeError('reactiveMd defaultPreset must be a boolean.');
+  if (hasDefaultPreset && typeof record.defaultPreset !== 'boolean' && record.defaultPreset !== 'minimal') {
+    throw new TypeError('reactiveMd defaultPreset must be a boolean or "minimal".');
+  }
+  if (hasIncludeMinimal && typeof record.includeMinimal !== 'boolean') {
+    throw new TypeError('reactiveMd includeMinimal must be a boolean.');
   }
   if (hasExtensions) return { kind: 'manual', entry: readLocalModule(record.extensions) };
   const directory: RegistrationMode = {
     kind: 'directories',
     ...(hasThemeDir ? { themeDir: readRelativeDirectory(record.themeDir, 'themeDir') } : {}),
     ...(hasPluginDir ? { pluginDir: readRelativeDirectory(record.pluginDir, 'pluginDir') } : {}),
-    ...(hasDefaultPreset ? { defaultPreset: record.defaultPreset as boolean } : {}),
+    ...(hasDefaultPreset ? { defaultPreset: record.defaultPreset as boolean | 'minimal' } : {}),
+    ...(hasIncludeMinimal ? { includeMinimal: record.includeMinimal as boolean } : {}),
   };
   return directory;
 }
@@ -131,10 +152,10 @@ interface HostBuildSource {
   readonly registration?: DirectoryRegistrationSource;
 }
 
-async function buildHost(config: ResolvedConfig, source: HostBuildSource, watch: (file: string) => void) {
+async function buildNodeHost(root: string, source: HostBuildSource, watch?: (file: string) => void) {
   const registration = source.registration;
   const nodeBuild = await build({
-    root: config.root, configFile: false, logLevel: 'warn', publicDir: false,
+    root, configFile: false, logLevel: 'warn', publicDir: false,
     ssr: { noExternal: true }, oxc: { jsx: { development: false } },
     plugins: [{
       name: 'reactive-md-node-host',
@@ -148,11 +169,12 @@ async function buildHost(config: ResolvedConfig, source: HostBuildSource, watch:
         if (id !== '\0rmd-node-host') return null;
         const entry = registration ? REGISTRATION : normalize(source.entry ?? '');
         return `import {host} from ${JSON.stringify(entry)};
+export {host};
 export const {config,reactConfig,resources,notices}=host;
-export const root=${JSON.stringify(config.root)};
+export const root=${JSON.stringify(root)};
 export const allowlist=[root];`;
       },
-      moduleParsed(info) { if (!info.id.startsWith('\0')) watch(normalize(info.id.split('?')[0])); },
+      moduleParsed(info) { if (!info.id.startsWith('\0')) watch?.(normalize(info.id.split('?')[0])); },
     }],
     build: {
       write: false, ssr: true, minify: false,
@@ -166,7 +188,11 @@ export const allowlist=[root];`;
   if (Array.isArray(nodeBuild) || !('output' in nodeBuild)) throw new Error('Unexpected ReactiveMD host build output.');
   const chunks = nodeBuild.output.filter(item => item.type === 'chunk');
   if (chunks.length !== 1 || nodeBuild.output.length !== 1) throw new Error('The host must build to one ESM module with inline resources.');
-  const code = chunks[0].code;
+  return chunks[0].code;
+}
+
+async function buildHost(config: ResolvedConfig, source: HostBuildSource, watch: (file: string) => void) {
+  const code = await buildNodeHost(config.root, source, watch);
   const digest = createHash('sha256').update(code).digest('hex');
   const directory = join(config.root, '.reactive-md');
   await mkdir(directory, { recursive: true });
@@ -183,9 +209,43 @@ export const allowlist=[root];`;
   }
 }
 
+/** Load the same directory registration in a trusted Node project for CLI export. */
+export async function loadLocalDirectoryHost(
+  projectRoot: string,
+  options: ReactiveMdDirectoryOptions & { readonly interactive?: boolean } = {},
+) {
+  const { interactive, ...directoryOptions } = options;
+  const mode = readOptions(directoryOptions);
+  if (mode.kind !== 'directories') throw new TypeError('A directory host requires directory options.');
+  const root = resolve(projectRoot);
+  const discovery = await discoverDirectories(root, mode);
+  const registration = createDirectoryRegistration(discovery, 'export', { defaultPreset: mode.defaultPreset });
+  const code = await buildNodeHost(root, { registration });
+  const directory = await mkdtemp(join(root, '.reactive-md-host-'));
+  const entry = join(directory, 'index.mjs');
+  try {
+    await writeFile(entry, code);
+    const { host } = await import(pathToFileURL(entry).href) as { host: LocalReactHost };
+    const bundle = interactive
+      ? mergeDiscoveredAssets(await buildLocalStandaloneBundle({ entry }), discovery.assets)
+      : undefined;
+    return { host, bundle };
+  } finally {
+    try {
+      await unlink(entry);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    } finally {
+      await rmdir(directory);
+    }
+  }
+}
+
 interface DirectoryState {
   readonly discovery: DirectoryDiscovery;
   readonly registration: DirectoryRegistrationSource;
+  /** Generated only with `includeMinimal`; same snapshot, minimal base preset. */
+  readonly minimalRegistration?: DirectoryRegistrationSource;
   readonly themeRoot: string;
   readonly pluginRoot: string;
   readonly files: ReadonlySet<string>;
@@ -203,7 +263,6 @@ function insidePath(file: string, directory: string): boolean {
  */
 export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
   const mode = readOptions(options);
-  const installDefaultPreset = mode.kind === 'directories' ? mode.defaultPreset !== false : true;
   let config: ResolvedConfig;
   let manualEntry: string | undefined;
   let themeOption: string | undefined;
@@ -215,7 +274,9 @@ export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
   let generation = 0;
   let inflight: { readonly generation: number; readonly promise: Promise<DirectoryState> } | undefined;
   let pending: Promise<Awaited<ReturnType<typeof buildHost>>> | undefined;
+  let minimalPending: Promise<Awaited<ReturnType<typeof buildHost>>> | undefined;
   const watched = new Set<string>();
+  const includeMinimal = mode.kind === 'directories' && mode.includeMinimal === true;
 
   if (mode.kind === 'directories') {
     themeOption = mode.themeDir;
@@ -227,6 +288,7 @@ export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
     state = undefined;
     inflight = undefined;
     pending = undefined;
+    minimalPending = undefined;
   }
 
   async function loadSnapshot(): Promise<DirectoryState> {
@@ -234,14 +296,22 @@ export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
       ...(themeOption === undefined ? {} : { themeDir: themeOption }),
       ...(pluginOption === undefined ? {} : { pluginDir: pluginOption }),
     }));
+    const base = createHash('sha256').update(config.root).digest('hex').slice(0, 16);
     const registration = createDirectoryRegistration(
       discovery,
-      createHash('sha256').update(config.root).digest('hex').slice(0, 16),
-      { defaultPreset: installDefaultPreset },
+      base,
+      { defaultPreset: mode.kind === 'directories' ? mode.defaultPreset : undefined },
     );
+    // The minimal variant is the same discovery through a different base
+    // preset: preset identities, dependencies, order and resources are
+    // produced by one shared assembly, so they cannot drift.
+    const minimalRegistration = includeMinimal
+      ? createDirectoryRegistration(discovery, `${base}-minimal`, { defaultPreset: 'minimal' })
+      : undefined;
     const value: DirectoryState = Object.freeze({
       discovery,
       registration,
+      ...(minimalRegistration === undefined ? {} : { minimalRegistration }),
       themeRoot: resolve(config.root, themeOption ?? 'theme'),
       pluginRoot: resolve(config.root, pluginOption ?? 'plugin'),
       files: new Set(discovery.files.map(normalize)),
@@ -296,7 +366,18 @@ export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
 
   function fullReload(server: ViteDevServer): void {
     invalidateAll();
-    invalidateVirtualModules(server, [HOST, REGISTRATION, BUNDLE]);
+    invalidateVirtualModules(server, VIRTUAL_MODULES);
+    server.ws.send({ type: 'full-reload' });
+  }
+
+  /**
+   * Implementation edits outside the discovered roots reach the host only
+   * through `buildNodeHost`'s `moduleParsed` tracking. Rebuild every virtual
+   * module from that record instead of relying on the Vite config key.
+   */
+  function reloadDependencies(server: ViteDevServer): void {
+    invalidateAll();
+    invalidateVirtualModules(server, VIRTUAL_MODULES);
     server.ws.send({ type: 'full-reload' });
   }
 
@@ -314,7 +395,7 @@ export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
       return;
     }
     server.watcher.add([...current.discovery.files]);
-    invalidateVirtualModules(server, [HOST, REGISTRATION, BUNDLE]);
+    invalidateVirtualModules(server, VIRTUAL_MODULES);
     server.ws.send({
       type: 'custom',
       event: 'reactive-md:themes',
@@ -322,6 +403,8 @@ export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
     });
     const bundleModule = server.moduleGraph.getModuleById(RESOLVED(BUNDLE));
     if (bundleModule) await server.reloadModule(bundleModule);
+    const minimalBundleModule = server.moduleGraph.getModuleById(RESOLVED(MINIMAL_BUNDLE));
+    if (minimalBundleModule) await server.reloadModule(minimalBundleModule);
   }
 
   async function bundle() {
@@ -337,6 +420,23 @@ export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
     })();
     pending = task;
     task.catch(() => { if (pending === task) pending = undefined; });
+    return task;
+  }
+
+  /** Minimal standalone bundle from the same discovery snapshot. */
+  async function minimalBundle() {
+    if (minimalPending) return minimalPending;
+    const task = (async () => {
+      const current = await snapshot();
+      if (current.minimalRegistration === undefined) {
+        throw new Error('reactiveMd includeMinimal is required for the minimal bundle.');
+      }
+      for (const file of current.discovery.files) watched.add(normalize(file));
+      const built = await buildHost(config, { registration: current.minimalRegistration }, file => watched.add(file));
+      return 'error' in built ? built : mergeDiscoveredAssets(built, current.discovery.assets);
+    })();
+    minimalPending = task;
+    task.catch(() => { if (minimalPending === task) minimalPending = undefined; });
     return task;
   }
 
@@ -388,7 +488,12 @@ export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
     },
     resolveId(id) {
       if (id === HOST || id === BUNDLE) return RESOLVED(id);
-      return mode.kind === 'directories' && id === REGISTRATION ? RESOLVED(id) : null;
+      if (mode.kind !== 'directories') return null;
+      if (id === REGISTRATION) return RESOLVED(id);
+      if (includeMinimal && (id === MINIMAL_HOST || id === MINIMAL_BUNDLE || id === MINIMAL_REGISTRATION)) {
+        return RESOLVED(id);
+      }
+      return null;
     },
     async load(id) {
       if (id === RESOLVED(HOST)) {
@@ -410,13 +515,26 @@ if(import.meta.hot)import.meta.hot.dispose(()=>style?.remove());`;
         for (const file of current.discovery.files) if (existsSync(file)) this.addWatchFile(normalize(file));
         return `export { host, config, reactConfig, resources, css, notices, discovery, extensions } from ${JSON.stringify(REGISTRATION)};`;
       }
+      if (mode.kind === 'directories' && includeMinimal && id === RESOLVED(MINIMAL_HOST)) {
+        const current = await snapshot();
+        for (const file of current.discovery.files) if (existsSync(file)) this.addWatchFile(normalize(file));
+        return `export { host, config, reactConfig, resources, css, notices, discovery, extensions } from ${JSON.stringify(MINIMAL_REGISTRATION)};`;
+      }
       if (mode.kind === 'directories' && id === RESOLVED(REGISTRATION)) {
         const current = await snapshot();
         for (const file of current.discovery.files) if (existsSync(file)) this.addWatchFile(normalize(file));
         return current.registration.code;
       }
-      if (id !== RESOLVED(BUNDLE)) return null;
-      const built = await bundle();
+      if (mode.kind === 'directories' && id === RESOLVED(MINIMAL_REGISTRATION)) {
+        const current = await snapshot();
+        if (current.minimalRegistration === undefined) {
+          return `throw new Error("reactiveMd includeMinimal is not enabled; the minimal host is unavailable.");`;
+        }
+        for (const file of current.discovery.files) if (existsSync(file)) this.addWatchFile(normalize(file));
+        return current.minimalRegistration.code;
+      }
+      if (id !== RESOLVED(BUNDLE) && id !== RESOLVED(MINIMAL_BUNDLE)) return null;
+      const built = id === RESOLVED(MINIMAL_BUNDLE) ? await minimalBundle() : await bundle();
       for (const file of watched) if (existsSync(file)) this.addWatchFile(normalize(file));
       if (mode.kind === 'manual') return `export default ${JSON.stringify(built)};`;
       return `let bundle=${JSON.stringify(built)};
@@ -436,7 +554,12 @@ if(import.meta.hot)import.meta.hot.accept(next=>{if(next)bundle=next.default;});
     watchChange(id) {
       const file = normalize(id);
       if (mode.kind === 'directories' && classify(file) !== 'none') invalidateAll();
-      else if (watched.has(file)) pending = undefined;
+      else if (watched.has(file)) {
+        // An implementation edit can keep the same config key while changing
+        // the emitted code, so both bundles are rebuilt, not just re-checked.
+        pending = undefined;
+        minimalPending = undefined;
+      }
     },
     async handleHotUpdate(context): Promise<void | []> {
       if (mode.kind === 'manual') {
@@ -450,13 +573,22 @@ if(import.meta.hot)import.meta.hot.accept(next=>{if(next)bundle=next.default;});
         return [];
       }
       const kind = classify(context.file);
-      if (kind === 'none') return;
       if (kind === 'structure') {
         fullReload(context.server);
         return [];
       }
-      await refreshThemeStyles(context.server);
-      return [];
+      if (kind === 'style') {
+        await refreshThemeStyles(context.server);
+        return [];
+      }
+      // Transitive implementation dependencies recorded by `buildNodeHost`
+      // never live in the discovery snapshot; their edits still change the
+      // host and both export bundles.
+      if (watched.has(normalize(context.file))) {
+        reloadDependencies(context.server);
+        return [];
+      }
+      return;
     },
   };
 }

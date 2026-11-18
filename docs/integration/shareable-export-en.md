@@ -14,7 +14,7 @@ The first rendered pass is static. After the embedded runtime hydrates it, contr
 
 **Static HTML** (`--mode static`) contains read-only values and no executable script cargo. It is intended for archives, static sites and email attachments. Interactive action buttons, form widgets and the reset action are removed.
 
-Both modes use the same renderer as the React integration, so conditional content, interpolation, tables, formulas, charts and layout follow the runtime state.
+**Static PDF** (`--format pdf`) prints the static HTML through Chromium. All three formats use the same React renderer and evaluate conditional content, interpolations, tables, formulas, and charts against the selected state.
 
 ## CLI
 
@@ -35,7 +35,9 @@ Build options:
 | Option | Meaning |
 | --- | --- |
 | `-o, --output <file>` | Required output path. Its parent directory must already exist. |
-| `--mode interactive\|static` | Output mode. Default: `interactive`. |
+| `--mode interactive\|static` | HTML defaults to `interactive`. PDF uses `static`. |
+| `--format html\|pdf` | File format. Defaults to HTML. |
+| `--project-root <dir>` | Use the minimal preset and discover `plugin/` and `theme/` in a trusted project directory. Requires Vite. |
 | `--state-file <json>` | Use a validated `reactive-md-state/v1` file as the starting and reset baseline. |
 | `--component-state-file <json>` | Embed a validated `reactive-md-component-state/v1` sidecar in interactive HTML. Static output rejects it. |
 | `--document-id <id>` | Stable document identity used to scope component state. Default: the source digest. |
@@ -57,7 +59,17 @@ Exit codes are separate so build automation can distinguish failures:
 | `4` | Input/output file failure |
 | `5` | Asset or security-policy failure |
 
-The CLI does not use a current preview implicitly. `--state-file` is the only way to select a non-initial baseline. `format` is not part of this release.
+Pass `--state-file` to select the export state. Install the optional print engine to build a PDF.
+
+```sh
+npm install playwright
+npx playwright install chromium
+reactive-md build doc.reactive.md -o doc.pdf --format pdf --pdf-margin 12mm
+```
+
+PDF output defaults to A4 portrait with backgrounds. Use `--pdf-paper Letter`, `--pdf-landscape`, or `--pdf-background off` to change those settings. In Node, pass static HTML to `renderLocalPdf` from `reactive-md/pdf` to get the PDF bytes.
+
+Use `--pdf-margin` to override the default page margins. The CLI warns when Chromium cannot decode an image. With `--strict`, it stops the export.
 
 ## Migrating source
 
@@ -291,8 +303,7 @@ Sizes vary slightly with the minifier and React patch release. The alarm is inte
 
 ## Current scope
 
-Included: CLI `build`/`lint`/`migrate`, interactive and static HTML, state files, component-state sidecars, local raster inlining, print output, standalone mount APIs, auto-mount, and the Web Component.
+The CLI provides `build`, `lint`, and `migrate`. Export formats include interactive HTML, static HTML, and static PDF. Standard HTML export supports state files and local raster inlining. Interactive HTML also supports component-state sidecars, standalone mount APIs, auto-mount, and the Web Component.
 
-Not included in this release: `format`, UMD, remote image fetching, SVG inlining, framework plugins (Vite, Astro, Docusaurus, Next.js), Shadow DOM, and general SSR hydration guarantees outside the single-file export path.
 
 Single-file static-first hydration is covered by the Playwright Chromium checks and local Edge checks. Firefox, Safari/WebKit and general server-side hydration remain unverified and are not claimed as supported.

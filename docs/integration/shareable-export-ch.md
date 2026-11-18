@@ -4,7 +4,7 @@
 
 本文说明 `local-draft-2` 新增的单文件 HTML 导出能力。编译与运行时接口见[本地模式集成](local-integration-ch.md)，语法见[交互语法规范](../reference/local-interaction-syntax-ch.md)，修订声明与迁移见[源码修订与迁移](../compatibility/source-versioning-ch.md)，升级说明见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
-## 两种产物
+## 导出产物
 
 默认 ReactiveMD 文档遵循下述导出规则。原生 HTML 文档的交互导出保留 `compileOptions` 和整篇 HTML 路径，静态导出禁用作者 JavaScript；这类文档没有 ReactiveMD 参数。编译开关、隔离和暂时性分流政策见 [HTML 部分兼容](../reference/html-compatibility-ch.md)。
 
@@ -14,7 +14,7 @@
 
 **静态 HTML**（`--mode static`）只包含只读结果，不携带可执行运行时。它适合邮件附件、归档和静态站点。供交互使用的按钮、表单控件和重置操作会被移除。
 
-两种模式都复用 React 渲染器，因此条件内容、插值、表格、公式、图表和布局都按运行时状态求值。
+**静态 PDF**（`--format pdf`）使用 Chromium 将静态 HTML 排版为分页文档。三个产物共用 React 渲染，使用所选状态计算条件内容、插值、表格、公式和图表。
 
 ## CLI
 
@@ -33,7 +33,9 @@ reactive-md lint "docs/**/*.reactive.md" --json --strict
 | 选项 | 含义 |
 | --- | --- |
 | `-o, --output <file>` | 必填输出路径；父目录必须已存在。 |
-| `--mode interactive\|static` | 输出模式，默认 `interactive`。 |
+| `--mode interactive\|static` | HTML 默认 `interactive`，PDF 使用 `static`。 |
+| `--format html\|pdf` | 文件格式，默认 HTML。 |
+| `--project-root <dir>` | 在可信项目目录中装配精简预设，自动发现 `plugin/` 与 `theme/`。需要 Vite。 |
 | `--state-file <json>` | 使用经过校验的 `reactive-md-state/v1` 文件作为打开和重置基线。 |
 | `--component-state-file <json>` | 将经过校验的 `reactive-md-component-state/v1` sidecar 写入交互式 HTML；静态导出拒绝该选项。 |
 | `--document-id <id>` | 组件状态的稳定文档身份；默认使用源码摘要。 |
@@ -55,7 +57,17 @@ reactive-md lint "docs/**/*.reactive.md" --json --strict
 | `4` | 输入/输出文件错误 |
 | `5` | 资源或安全策略错误 |
 
-CLI 没有“当前预览”概念，只有 `--state-file` 可以选择非初值基线。本版本暂不提供 `format`。
+使用 `--state-file` 指定导出状态。直接构建 PDF 时先安装可选引擎。
+
+```sh
+npm install playwright
+npx playwright install chromium
+reactive-md build doc.reactive.md -o doc.pdf --format pdf --pdf-margin 12mm
+```
+
+默认纸张为 A4，纵向排版并打印背景。可用 `--pdf-paper Letter`、`--pdf-landscape` 和 `--pdf-background off` 调整。Node 调用方也可以将静态 HTML 传给 `reactive-md/pdf` 的 `renderLocalPdf`，获取 PDF 字节。
+
+`--pdf-margin` 覆盖默认页边距。Chromium 无法解码图片时，CLI 会发出警告。加上 `--strict` 会终止导出。
 
 ## 迁移源码
 
@@ -289,8 +301,7 @@ Demo 的 `vite.export-assets.ts` 用它把样式表、打印样式表、notices�
 
 ## 当前范围
 
-已实现：CLI 的 `build`/`lint`/`migrate`、交互与静态 HTML、状态文件、组件状态 sidecar、本地位图内联、打印输出、standalone 挂载 API、自动挂载和 Web Component。
+CLI 提供 `build`、`lint` 和 `migrate`。导出格式包括交互 HTML、静态 HTML 和静态 PDF。标准 HTML 导出支持状态文件和本地位图内联，交互 HTML 还支持组件状态 sidecar、自动挂载、standalone API 和 Web Component。
 
-本版本不包含：`format`、UMD、远程图片抓取、SVG 内联、框架插件（Vite、Astro、Docusaurus、Next.js）、Shadow DOM，以及单文件导出之外的通用 SSR 水合保证。
 
 单文件静态首屏水合由 Playwright Chromium 和本地 Edge 检查覆盖。Firefox、Safari/WebKit 以及通用服务端水合尚未验证，不作支持声明。
