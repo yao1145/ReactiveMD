@@ -35,6 +35,8 @@ import {
 import { getLocalComponentDefinition } from '../../sdk/registry';
 import { localKey, type LocalBinding, type LocalComputation, type LocalDocument, type LocalNode, type LocalRuntime, type LocalRuntimeOptions, type LocalValueKind, type LocalSnapshot, type LocalValidation, type LocalValue } from '../contracts/types';
 import { createLocalRuntimeServices, type LocalRuntimeServices } from '../../runtime-services/runtime';
+import { createNetworkSession, type Json } from '../../runtime-services/network';
+import type { LocalSubmissionFieldCheck, LocalSubmissionFieldsResult } from '../contracts/types';
 import { componentStateKey, localSourceDigest } from '../../runtime-services/identity';
 
 const EPSILON = 1e-9;
@@ -794,6 +796,8 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
   if (problem) throw new Error(problem);
 
   const ownsServices = options?.services === undefined;
+  const networkSession = createNetworkSession(options?.network);
+  const submissionFields = new Map<string, Map<LocalSubmissionFieldCheck, string>>();
   const sourceDigest = localSourceDigest(document.source);
 
   /** Source-keyed cache shared by control expressions and document metadata. */
@@ -880,6 +884,11 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
   const ensure = (): void => {
     if (disposed) throw new Error('The local interaction runtime has been disposed.');
   };
+
+  function parameterValue(loaded: RuntimeCore, name: string): LocalValue | undefined {
+    if (name.startsWith('@') || !Object.hasOwn(loaded.document.bindings, name)) return undefined;
+    return Object.hasOwn(state, name) ? state[name] : undefined;
+  }
 
   /**
    * Compute the read-only layer for a candidate document/state pair without
@@ -1356,6 +1365,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
   };
 
   const runtime: LocalRuntime = {
+    network: networkSession.network,
     get document(): LocalDocument {
       return core.document;
     },
@@ -1458,9 +1468,8 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
 
     getParameter(name: string): LocalValue | undefined {
       ensure();
-      const loaded = current();
-      if (name.startsWith('@') || !Object.hasOwn(loaded.document.bindings, name)) return undefined;
-      return Object.hasOwn(state, name) ? cloneValue(state[name]) : undefined;
+      const value = parameterValue(current(), name);
+      return value === undefined ? undefined : cloneValue(value);
     },
 
     getParameters(): Readonly<Record<string, LocalValue>> {
@@ -1472,6 +1481,51 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
         values[name] = Array.isArray(value) ? Object.freeze([...value]) as unknown as LocalValue : value;
       }
       return Object.freeze(values);
+    },
+
+    readSubmissionFields(fields): LocalSubmissionFieldsResult {
+      ensure();
+      const loaded = current();
+      const values = new Map<string, LocalValue>();
+      const readConstraint = (node: LocalNode, attribute: 'min' | 'max' | 'required'): DynamicRead =>
+        readDynamic(node, attribute, evaluationEnv, loaded);
+      if (fields.length === 0) return { ok: false, field: '', reason: 'unavailable' };
+      for (const field of fields) {
+        const value = parameterValue(loaded, field);
+        if (value === undefined || values.has(field)) return { ok: false, field, reason: 'unavailable' };
+        const checked = validateValue(loaded.document.bindings[field], loaded.controls.get(field) ?? [],
+          value, readConstraint, loaded.valueRules, loaded.legacyValueRules);
+        if (!checked.ok) {
+          const key = checked.detail.key;
+          const required = key === 'local.runtime.value.field-required' || key === 'local.runtime.value.date-required';
+          return { ok: false, field, reason: required ? 'required' : 'invalid' };
+        }
+        values.set(field, value);
+      }
+      const payload: Record<string, Json> = Object.create(null);
+      for (const [field, value] of values) {
+        for (const [check, nodeId] of submissionFields.get(field) ?? []) {
+          if (!loaded.controls.get(field)?.some(node => node.id === nodeId)) continue;
+          const reason = check(cloneValue(value));
+          if (reason) return { ok: false, field, reason };
+        }
+        payload[field] = Array.isArray(value) ? Object.freeze([...value]) : value;
+      }
+      return { ok: true, payload: Object.freeze(payload) };
+    },
+
+    registerSubmissionField(node, check): () => void {
+      if (disposed) return () => {};
+      const loaded = current();
+      const key = loaded.slotKeys.get(node.id)?.value ?? loaded.bindingByNode.get(node.id);
+      if (!key || key.startsWith('@')) return () => {};
+      let checks = submissionFields.get(key);
+      if (!checks) submissionFields.set(key, checks = new Map());
+      checks.set(check, node.id);
+      return () => {
+        checks.delete(check);
+        if (checks.size === 0 && submissionFields.get(key) === checks) submissionFields.delete(key);
+      };
     },
 
     setParameter(name: string, value: LocalValue): Diagnostic[] {
@@ -1566,6 +1620,8 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     dispose(): void {
       if (disposed) return;
       disposed = true;
+      networkSession.dispose();
+      submissionFields.clear();
       // Coalesced saves would otherwise be dropped when a preview is replaced.
       services.state.flush();
       if (ownsServices) services.scheduler.dispose();

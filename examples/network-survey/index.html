@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reactive MD 命名通道问卷示例</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+    max-width: 52rem;
+    font-family: system-ui, sans-serif;
+    background: #f6f5f3;
+    color: #111;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #151618; color: #f2f1ef; }
+  }
+  .survey-page-title { margin: 0 0 1.5rem; font-size: 1.125rem; letter-spacing: 0.01em; }
+  .survey-host-ledger {
+    margin-top: 2rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid #d6d4d2;
+    border-radius: 12px;
+    background: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    .survey-host-ledger { background: #1c1d20; border-color: #34363a; }
+  }
+  .survey-host-ledger h2 { margin: 0 0 0.75rem; font-size: 1rem; }
+  .survey-host-ledger dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.35rem 1rem;
+    margin: 0;
+  }
+  .survey-host-ledger div { display: contents; }
+  .survey-host-ledger dt { color: #6f6c68; }
+  .survey-host-ledger dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .survey-host-ledger p { margin: 0.9rem 0 0; color: #55524e; font-size: 0.875rem; line-height: 1.5; }
+  .survey-host-ledger code { font-size: 0.8125rem; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

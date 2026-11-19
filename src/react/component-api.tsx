@@ -7,6 +7,8 @@ import type {
   LocalNode,
   LocalRuntime,
   LocalSnapshot,
+  LocalSubmissionFieldCheck,
+  LocalSubmissionFieldsResult,
   LocalValue,
   SourceRange,
 } from '../local/contracts/types';
@@ -28,6 +30,7 @@ import { createDetachedRuntimeServices } from '../runtime-services/runtime';
 import { deriveSeed, localSourceDigest, normalizeStateKey, resolveComponentSeed } from '../runtime-services/identity';
 import type { LocalComponentStateHandle } from '../runtime-services/component-state';
 import type { LocalClock, LocalScheduler } from '../runtime-services/scheduler';
+import { unavailableNetwork, type ComponentNetwork } from '../runtime-services/network';
 
 /* ------------------------------------------------------------------ values */
 
@@ -170,6 +173,9 @@ export interface LocalComponentRuntime {
   resetToken(item: LocalComponentContent): number;
   evaluate(expression: string): LocalComponentValue;
   snapshot(): LocalSnapshot;
+  /** Select public writable fields and check mounted controls for invalid drafts. */
+  readSubmissionFields?(fields: readonly string[]): LocalSubmissionFieldsResult;
+  registerSubmissionField?(item: LocalComponentContent, check: LocalSubmissionFieldCheck): () => void;
   validate(): Diagnostic[];
   text(template: string): string;
 }
@@ -223,6 +229,8 @@ export interface LocalComponentServices {
   readonly clock: LocalClock;
   readonly scheduler: LocalScheduler;
   readonly state: LocalComponentStateHandle;
+  /** Present in SDK-created contexts, optional for older hand-built contexts. */
+  readonly network?: ComponentNetwork;
 }
 
 /** Context passed to every SDK component. It contains no AST. */
@@ -291,6 +299,7 @@ export interface LocalReactPreset {
  */
 export interface LocalComponentAdapterEnvironment {
   readonly runtime: LocalRuntime;
+  readonly network?: ComponentNetwork;
   /** Optional runtime-scoped services. Falls back to detached services. */
   readonly services?: LocalRuntimeServices;
   readonly mode: LocalRenderMode;
@@ -694,6 +703,19 @@ function contentRuntime(
         return { revision: 0, state: {} };
       }
     },
+    readSubmissionFields(fields: readonly string[]): LocalSubmissionFieldsResult {
+      const unavailable = { ok: false, field: fields[0] ?? '', reason: 'unavailable' } as const;
+      if (readOnly) return unavailable;
+      try {
+        return runtime.readSubmissionFields?.(fields) ?? unavailable;
+      } catch {
+        return unavailable;
+      }
+    },
+    registerSubmissionField(item: LocalComponentContent, check: LocalSubmissionFieldCheck): () => void {
+      if (readOnly) return () => {};
+      return runtime.registerSubmissionField?.(nodeOf(item), check) ?? (() => {});
+    },
     validate(): Diagnostic[] {
       try {
         return runtime.validate();
@@ -983,6 +1005,8 @@ export function createLocalComponentContext(
     stateKey,
   });
   const services: LocalComponentServices = Object.freeze({
+    network: environment.mode === 'static' ? unavailableNetwork
+      : environment.network ?? environment.runtime.network ?? unavailableNetwork,
     random: Object.freeze({
       seed,
       derive: (label: string): number => deriveSeed(seed, label),

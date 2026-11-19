@@ -13,6 +13,9 @@ import type {
 import { MAX_COMPONENT_STATE_DOCUMENT_INPUT } from '../component-state';
 import { normalizeDocumentId } from '../identity';
 
+export * from './duplex';
+export * from './http-sse';
+
 /** The subset of the Web Storage API this adapter needs. */
 export interface LocalWebStorageLike {
   getItem(key: string): string | null;

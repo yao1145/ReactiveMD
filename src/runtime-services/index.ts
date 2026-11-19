@@ -79,3 +79,22 @@ export type {
   CreateLocalRuntimeServicesOptions,
   LocalRuntimeServices,
 } from './runtime';
+
+export { DEFAULT_NETWORK_MAX_BYTES } from './network';
+export type {
+  ChannelError,
+  ChannelValidator,
+  ComponentNetwork,
+  Json,
+  JsonPayload,
+  NetworkChannel,
+  NetworkConfig,
+  StreamEvent,
+  StreamStatus,
+  SubmitAdapter,
+  SubmitAdapterContext,
+  SubmitOptions,
+  SubmitResult,
+  SubscribeAdapter,
+  SubscribeAdapterContext,
+} from './network';

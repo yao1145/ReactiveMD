@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["vite/client"],
+    "paths": {
+      "reactive-md/styles.css": ["../../src/styles.css"],
+      "reactive-md/react/minimal": ["../../src/react/minimal.tsx"],
+      "reactive-md/react": ["../../src/react/index.ts"],
+      "reactive-md/runtime/browser": ["../../src/runtime-services/browser/index.ts"],
+      "reactive-md/runtime": ["../../src/runtime-services/index.ts"],
+      "reactive-md/plugins/network": ["../../src/components/plugins/network.ts"],
+      "reactive-md/presets/minimal/react": ["../../src/components/minimal-preset.ts"],
+      "reactive-md/presets/minimal": ["../../src/presets/minimal.ts"],
+      "reactive-md/sdk": ["../../src/sdk/index.ts"],
+      "reactive-md": ["../../src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

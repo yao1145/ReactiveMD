@@ -46,6 +46,7 @@ try {
     assert.ok(packedFiles.has(target.replace(/^\.\//, '')), `Package export is missing: ${target}`);
   }
   assert.ok(!packed.files.some(file => /^docs\/(?:archive|architecture_roadmap)\//.test(file.path)), 'Package contains local archived development documents');
+  assert.ok(!packed.files.some(file => /^examples\/.*\/(?:dist|node_modules)\//.test(file.path)), 'Package contains generated example output');
   assert.ok(!packed.files.some(file => /^examples\/sci-fi-theme\/(?:dist|screenshots)\//.test(file.path)), 'Package contains generated theme preview output');
   writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies: {
     'reactive-md': `file:${join(consumer, packed.filename).replaceAll('\\', '/')}`,
@@ -60,15 +61,17 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createStandardCompiler } from 'reactive-md/compiler/standard';
 import { createCompiler } from 'reactive-md/compiler';
-import { compileLocal, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
+import { compileLocal, createLocalRuntime, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
 import { analyzeLocalSource, insertTemplate, getNativeComponentCatalog } from 'reactive-md/authoring';
 import { createRandom } from 'reactive-md/runtime';
-import { createLocalBrowserStateStorage } from 'reactive-md/runtime/browser';
+import { createLocalBrowserStateStorage, httpSubmit, sseStream, webSocketChannel, webRtcChannel } from 'reactive-md/runtime/browser';
 import { useSwipe } from 'reactive-md/react/runtime';
 import { layoutPack } from 'reactive-md/presets/default/packs';
+import { createReactHost } from 'reactive-md/react';
 import { createReactHost as createMinimalHost } from 'reactive-md/react/minimal';
 import { minimalReactPresetPackage } from 'reactive-md/presets/minimal/react';
 import navigation from 'reactive-md/plugins/navigation';
+import network from 'reactive-md/plugins/network';
 import { renderLocalPdf } from 'reactive-md/pdf';
 import { prepareLocalPrintHtml, waitForLocalPrintImages } from 'reactive-md/export';
 import { listExportAssets, readExportAsset, resolveExportAsset } from 'reactive-md/export-assets';
@@ -84,10 +87,36 @@ assert.equal(typeof insertTemplate, 'function');
 assert.ok(getNativeComponentCatalog());
 assert.equal(createRandom(7).state, 7);
 assert.equal(typeof createLocalBrowserStateStorage, 'function');
+assert.ok([httpSubmit, sseStream, webSocketChannel, webRtcChannel].every(factory => typeof factory === 'function'));
 assert.equal(typeof useSwipe, 'function');
 assert.equal(layoutPack.id, 'reactive-md/default-layout');
 assert.equal(createMinimalHost().config.registry.length, 18);
+assert.equal(createReactHost().config.registry.some(item => item.name === 'submit-button'), false);
+assert.equal(createMinimalHost().config.registry.some(item => item.name === 'submit-button'), false);
 assert.ok(createMinimalHost({ presets: [minimalReactPresetPackage, navigation] }).config.registry.some(item => item.name === 'tabs'));
+const surveyHost = createMinimalHost({ presets: [minimalReactPresetPackage, network] });
+const survey = compileLocal([
+  '<input bind="answer" label="Answer" required>',
+  '<submit-button channel="answers" fields="answer" label="Send answer">',
+].join('\\n'), { config: surveyHost.config });
+assert.ok(survey.ok, JSON.stringify(survey.diagnostics));
+let requests = 0;
+const surveyNetwork = { channels: { answers: { submit: httpSubmit({
+  endpoint: '/private-survey-endpoint', validate: () => true, fetch: () => { requests++; throw new Error('Unexpected request'); },
+}) } } };
+const surveyRuntime = createLocalRuntime(survey.document, { network: surveyNetwork });
+try {
+  const rendered = server.renderLocalStaticDocument({
+    document: survey.document, runtime: surveyRuntime, reactConfig: surveyHost.reactConfig,
+    network: surveyNetwork, resources: surveyHost.resources,
+  });
+  assert.ok(rendered.ok, JSON.stringify(rendered.diagnostics));
+  assert.match(rendered.markup, /Send answer/);
+  assert.doesNotMatch(rendered.markup, /private-survey-endpoint/);
+  assert.equal(requests, 0);
+} finally {
+  surveyRuntime.dispose();
+}
 await assert.rejects(renderLocalPdf('<h1>PDF</h1>'), /PDF export requires Playwright/);
 assert.equal(prepareLocalPrintHtml('<h1>PDF</h1>'), '<h1>PDF</h1>');
 assert.equal(typeof waitForLocalPrintImages, 'function');
@@ -110,7 +139,20 @@ console.log('Packed public compiler, authoring, Worker, SDK, React/SSR, export a
 `);
   process.stdout.write(run(process.execPath, ['smoke.mjs'], consumer));
   writeFileSync(join(consumer, 'consumer.ts'), `import {createCompiler} from 'reactive-md/compiler';\nimport {createStandardCompiler} from 'reactive-md/compiler/standard';\nimport {analyzeLocalSource, insertTemplate} from 'reactive-md/authoring';\nimport {startLocalCompileWorker} from 'reactive-md';\nimport {layoutPack} from 'reactive-md/presets/default/packs';\nimport {listExportAssets, readExportAsset, resolveExportAsset} from 'reactive-md/export-assets';\ncreateCompiler().compile('hello'); createStandardCompiler().compile('hello'); analyzeLocalSource('hello'); void insertTemplate; void startLocalCompileWorker; void layoutPack;\nfor (const asset of listExportAssets().assets) { void resolveExportAsset(asset.id); }\nvoid readExportAsset;\n`);
-  writeFileSync(join(consumer, 'tsconfig.json'), JSON.stringify({compilerOptions:{target:'ES2022', module:'NodeNext',moduleResolution:'NodeNext',strict:true,noEmit:true,skipLibCheck:false},include:['consumer.ts']}));
+  writeFileSync(join(consumer, 'network.ts'), `
+import { createLocalRuntime, compileLocal } from 'reactive-md';
+import { httpSubmit, sseStream } from 'reactive-md/runtime/browser';
+import type { NetworkConfig } from 'reactive-md/runtime';
+import networkPlugin from 'reactive-md/plugins/network';
+const network: NetworkConfig = { channels: {
+  answers: { submit: httpSubmit({ endpoint: '/answers', validate: payload => typeof payload.choice === 'string' }) },
+  results: { subscribe: sseStream({ endpoint: '/results', validate: value => typeof value === 'number' }) },
+} };
+const compiled = compileLocal('# Survey');
+if (compiled.ok) createLocalRuntime(compiled.document, { network }).dispose();
+void networkPlugin;
+`);
+  writeFileSync(join(consumer, 'tsconfig.json'), JSON.stringify({compilerOptions:{target:'ES2022', module:'NodeNext',moduleResolution:'NodeNext',strict:true,noEmit:true,skipLibCheck:false},include:['consumer.ts', 'network.ts']}));
   run(process.execPath, [resolve(consumer, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.json'], consumer);
   console.log('Packed NodeNext declarations passed in an independent consumer.');
 } finally {

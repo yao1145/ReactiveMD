@@ -10,6 +10,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -18,6 +19,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
+import { createNetworkSession, unavailableNetwork, type ComponentNetwork, type NetworkConfig } from '../../runtime-services/network';
 import type {
   Diagnostic,
   LocalCompileOptions,
@@ -136,6 +138,8 @@ export type LocalImageResolver = (url: string) => string | null;
 export interface LocalDocumentViewProps {
   document: LocalDocument;
   runtime: LocalRuntime;
+  /** Optional view-scoped channels. Keep the reference stable while authorization is unchanged. */
+  network?: NetworkConfig;
   onDiagnostics?: (diagnostics: Diagnostic[]) => void;
   urlPolicy?: LocalUrlPolicy;
   /** UI language for built-in labels and validation messages; defaults to English. */
@@ -184,6 +188,8 @@ export interface LocalDocumentViewProps {
 
 export interface LocalReactiveDocumentProps {
   source: string;
+  /** Channels granted to the current document and user. */
+  network?: NetworkConfig;
   onDiagnostics?: (diagnostics: Diagnostic[]) => void;
   urlPolicy?: LocalUrlPolicy;
   /** UI language for built-in labels and validation messages; defaults to English. */
@@ -280,6 +286,10 @@ function assertExtensionProps(
 /* --------------------------------------------------------------- contexts */
 
 type BaseConfigProps = { readonly getBaseConfig: () => LocalReactConfig };
+type LocalDocumentViewCoreProps = LocalDocumentViewProps & BaseConfigProps & {
+  readonly networkScope?: string | symbol;
+};
+const DEFAULT_NETWORK_SCOPE = Symbol('implicit document identity');
 type LocalReactiveDocumentCoreProps = LocalReactiveDocumentProps & BaseConfigProps & {
   readonly useBaseCompileConfig?: boolean;
 };
@@ -616,6 +626,7 @@ function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5'
 }
 
 interface RenderEnv {
+  network?: ComponentNetwork;
   runtime: LocalRuntime;
   rootRef: RefObject<HTMLElement | null>;
   urlPolicy?: LocalUrlPolicy;
@@ -759,6 +770,7 @@ function extensionEnvironment(
   return {
     runtime: env.runtime,
     services: env.runtime.services,
+    network: env.network,
     mode: env.mode,
     visible,
     disabled: disabledRead.ok ? disabledRead.value : true,
@@ -1803,7 +1815,7 @@ function LocalDocumentViewHtml({ document, mode = 'interactive', staticFirst = f
 }
 
 /** Keep the two render paths in separate components so mode changes obey hook ordering. */
-export function LocalDocumentViewCore(props: LocalDocumentViewProps & BaseConfigProps) {
+export function LocalDocumentViewCore(props: LocalDocumentViewCoreProps) {
   assertExtensionProps(props.reactConfig, props);
   // One render pass: static prop diagnostics are deduplicated inside it and
   // reset for the next independent render/SSR pass.
@@ -1816,6 +1828,8 @@ export function LocalDocumentViewCore(props: LocalDocumentViewProps & BaseConfig
 function LocalDocumentViewLocal({
   document,
   runtime,
+  network,
+  networkScope,
   onDiagnostics,
   urlPolicy,
   locale = 'en',
@@ -1830,7 +1844,7 @@ function LocalDocumentViewLocal({
   externalValues,
   onSourceNavigate,
   getBaseConfig,
-}: LocalDocumentViewProps & BaseConfigProps) {
+}: LocalDocumentViewCoreProps) {
   const [staticFirstSettled, setStaticFirstSettled] = useState(!staticFirst);
   useEffect(() => {
     if (staticFirst) setStaticFirstSettled(true);
@@ -1838,6 +1852,26 @@ function LocalDocumentViewLocal({
   const renderedMode: LocalRenderMode = mode === 'interactive' && staticFirst && !staticFirstSettled
     ? 'static'
     : mode;
+  const networkIdentity = networkScope ?? runtime;
+  const [activeNetwork, setActiveNetwork] = useState<{
+    config: NetworkConfig;
+    identity: typeof networkIdentity;
+    network: ComponentNetwork;
+  }>();
+  useLayoutEffect(() => {
+    if (renderedMode !== 'interactive' || network === undefined) {
+      setActiveNetwork(undefined);
+      return;
+    }
+    // Each effect setup owns a session, including effect replay and remounts.
+    const session = createNetworkSession(network);
+    setActiveNetwork({ config: network, identity: networkIdentity, network: session.network });
+    return () => session.dispose();
+  }, [network, networkIdentity, renderedMode]);
+  const viewNetwork = network === undefined ? undefined
+    : activeNetwork?.config === network && activeNetwork.identity === networkIdentity
+      ? activeNetwork.network
+      : unavailableNetwork;
   const instanceId = useId();
   const t = useMemo<Localize>(
     () => (en: string, zh: string) => localize(locale, en, zh),
@@ -2071,6 +2105,7 @@ function LocalDocumentViewLocal({
   const env = useMemo<RenderEnv>(
     () => ({
       runtime,
+      network: viewNetwork,
       rootRef,
       urlPolicy,
       imageResolver,
@@ -2089,7 +2124,7 @@ function LocalDocumentViewLocal({
       validation,
       report,
     }),
-    [runtime, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, extensionContractsValid, extensionRenderer, componentRenderer, definitions, anchors, t, locale, renderedMode, dependencyIndex, footnotes, sourceNavigation, validation, report],
+    [runtime, viewNetwork, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, extensionContractsValid, extensionRenderer, componentRenderer, definitions, anchors, t, locale, renderedMode, dependencyIndex, footnotes, sourceNavigation, validation, report],
   );
 
   // Revision-independent deps keep this closure and the provider value stable
@@ -2193,6 +2228,7 @@ export function LocalReactiveDocumentCore({
   reactConfig,
   useBaseCompileConfig,
   externalValues,
+  network,
   documentId,
   randomSeed,
   componentState,
@@ -2630,6 +2666,8 @@ export function LocalReactiveDocumentCore({
       key={optionsKey}
       document={result.document}
       runtime={runtime}
+      network={network}
+      networkScope={documentId ?? DEFAULT_NETWORK_SCOPE}
       onDiagnostics={handleViewDiagnostics}
       urlPolicy={urlPolicy}
       locale={locale}

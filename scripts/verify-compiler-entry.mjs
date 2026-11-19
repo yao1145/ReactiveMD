@@ -111,6 +111,7 @@ const rootOnlyDomains = [
   [/reactive-md-html\/v1/, 'shareable HTML envelope'],
   [/local\.extension\.contract-metadata/, 'export validation'],
   [/local\.extension\.bundle-integrity/, 'export bundle planning'],
+  [/This channel operation is unavailable\./, 'named network channels'],
   [/md-document local-document/, 'React document renderer'],
   [/reactive-md-mounted/, 'standalone host mount'],
 ];

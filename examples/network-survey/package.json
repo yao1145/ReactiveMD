@@ -1,0 +1,26 @@
+{
+  "name": "reactive-md-network-survey",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Runnable Reactive MD survey: one submit-button posting answers and two custom components subscribing to shared results.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --config vite.config.ts",
+    "dev:http": "vite --config vite.config.ts --mode http",
+    "build": "vite build --config vite.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "reactive-md": "^0.8.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.0",
+    "vite": "^8.0.0"
+  }
+}

@@ -1,6 +1,7 @@
 import type { LocalConfig, LocalExtensionRequirements } from '../../sdk/types';
 import type { LocalRuntimeServices } from '../../runtime-services/runtime';
 import type { LocalComponentStateStorage } from '../../runtime-services/component-state';
+import type { ComponentNetwork, JsonPayload, NetworkConfig } from '../../runtime-services/network';
 
 export interface SourceRange { start: number; end: number }
 /** A source-level syntax declaration; offsets use original UTF-16 units. */
@@ -408,6 +409,8 @@ export type LocalCompileResult =
 export interface LocalSnapshot { revision: number; state: Readonly<Record<string, LocalValue>> }
 /** Host-provided initial external values; invalid entries are treated as unavailable. */
 export interface LocalRuntimeOptions {
+  /** Named channels granted to this document runtime. */
+  readonly network?: NetworkConfig;
   /**
    * Initial read-only host values for `<external>` declarations. Declared names
    * without a valid value stay unavailable until a later `setExternalValues`.
@@ -444,6 +447,7 @@ export interface LocalRuntimeOptions {
 }
 export interface LocalRuntime {
   document: LocalDocument;
+  readonly network?: ComponentNetwork;
   /**
    * Runtime-scoped services (clock, scheduler, component state). Hand-built
    * runtimes in tests may omit them; contexts fall back to detached services.
@@ -462,6 +466,10 @@ export interface LocalRuntime {
   getParameter(name: string): LocalValue | undefined;
   /** Snapshot of all public parameters; `@...` and external values are excluded. */
   getParameters(): Readonly<Record<string, LocalValue>>;
+  /** Project selected public parameters from one revision for a submission. */
+  readSubmissionFields?(fields: readonly string[]): LocalSubmissionFieldsResult;
+  /** Register a mounted field's validity check until the returned cleanup runs. */
+  registerSubmissionField?(node: LocalNode, check: LocalSubmissionFieldCheck): () => void;
   /** Validate and atomically write one public parameter. */
   setParameter(name: string, value: LocalValue): Diagnostic[];
   /** Validate and atomically write one or more public parameters. */
@@ -484,4 +492,10 @@ export interface LocalRuntime {
   subscribe(listener: () => void): () => void;
   dispose(): void;
 }
+export type LocalSubmissionFieldProblem = 'invalid' | 'required';
+export type LocalSubmissionFieldCheck = (value: LocalValue) => LocalSubmissionFieldProblem | undefined;
+export type LocalSubmissionFieldsResult =
+  | { ok: true; payload: JsonPayload }
+  | { ok: false; field: string; reason: 'unavailable' | LocalSubmissionFieldProblem };
+
 export const localKey = (node: LocalNode): string => node.attrs?.bind ?? `@${node.id}`;

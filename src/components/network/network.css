@@ -1,0 +1,53 @@
+/* Official optional submit button. Layout stays here; colour, type, radius,
+   focus and motion come from the shared tokens. */
+
+@layer rmd.components {
+.local-submit-button-control:where(.md-document, .md-document *) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0.7em 0;
+}
+
+.local-document .md-button.local-submit-button {
+  min-height: var(--control-height);
+  margin: 0;
+  padding: 0 var(--control-inset-x);
+  font-size: var(--text-sm);
+}
+
+:is(.local-submit-button-control, .local-submit-button-static)[hidden]:where(.md-document, .md-document *) {
+  display: none;
+}
+
+.local-submit-button-status:where(.md-document, .md-document *) {
+  min-height: 1.2em;
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.local-submit-button-status[data-tone="success"]:where(.md-document, .md-document *) {
+  color: var(--success);
+}
+
+.local-submit-button-status[data-tone="warning"]:where(.md-document, .md-document *) {
+  color: var(--warning, var(--ink-soft));
+}
+
+.local-submit-button-status[data-tone="error"]:where(.md-document, .md-document *) {
+  color: var(--danger);
+}
+
+/* Static export keeps a non-interactive, textual representation. */
+.local-submit-button-static:where(.md-document, .md-document *) {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+}

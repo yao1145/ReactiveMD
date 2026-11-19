@@ -129,6 +129,10 @@
       "types": "./dist-library/types/components/plugins/forms.d.ts",
       "import": "./dist-library/reactive-md-plugin-forms.js"
     },
+    "./plugins/network": {
+      "types": "./dist-library/types/components/plugins/network.d.ts",
+      "import": "./dist-library/reactive-md-plugin-network.js"
+    },
     "./plugins/navigation": {
       "types": "./dist-library/types/components/plugins/navigation.d.ts",
       "import": "./dist-library/reactive-md-plugin-navigation.js"

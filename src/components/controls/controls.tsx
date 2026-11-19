@@ -42,7 +42,7 @@ import {
   useWriter,
 } from '../../react/component-utils';
 import { textProblem } from '../../react/field-validation';
-import { useDraftField } from '../../react/use-draft-field';
+import { useDraftField, useSubmissionField } from '../../react/use-draft-field';
 
 /** Re-exported for compatibility; the pure validation lives in the React layer. */
 export { textProblem };
@@ -107,8 +107,18 @@ function TextFieldView({
     setFocused,
     touched, setTouched,
     draftError, setDraftError,
-    composing,
+    composing, pendingDraft,
   } = useDraftField(context, display, setError);
+
+  const problemFor = (value: string) =>
+    textProblem(value, { required, minLength, maxLength, email }, t);
+  useSubmissionField(context, (value) => {
+    if (composing.current) return 'invalid';
+    const current = displayValue(value);
+    const candidate = pendingDraft.current ?? current;
+    if (required && candidate === '') return 'required';
+    if (candidate !== current) return 'invalid';
+  });
 
   if (mode === 'static') {
     return (
@@ -121,8 +131,9 @@ function TextFieldView({
     );
   }
 
-  const problemFor = (value: string) =>
-    textProblem(value, { required, minLength, maxLength, email }, t);
+  const commitDraft = (value: string): void => {
+    if (write(value)) pendingDraft.current = undefined;
+  };
 
   const fieldProps = {
     id: `${domId}-${multiline ? 'textarea' : 'input'}`,
@@ -139,14 +150,14 @@ function TextFieldView({
       setTouched(true);
       const problem = problemFor(draft);
       setDraftError(problem);
-      if (!problem && draft !== display) write(draft);
+      if (!problem && draft !== display) commitDraft(draft);
     },
     onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const value = event.target.value;
       setDraft(value);
       setError(null);
       if (touched) setDraftError(problemFor(value));
-      if (!composing.current && problemFor(value) === null) write(value);
+      if (!composing.current && problemFor(value) === null) commitDraft(value);
     },
     onCompositionStart: () => {
       composing.current = true;
@@ -156,7 +167,7 @@ function TextFieldView({
       const value = event.currentTarget.value;
       setDraft(value);
       if (touched) setDraftError(problemFor(value));
-      if (problemFor(value) === null) write(value);
+      if (problemFor(value) === null) commitDraft(value);
     },
   };
 
@@ -245,8 +256,17 @@ export function NumberView(context: LocalComponentContext) {
     focused, setFocused,
     touched, setTouched,
     draftError, setDraftError,
-    composing,
+    composing, pendingDraft,
   } = useDraftField(context, display, setError);
+
+  useSubmissionField(context, (value) => {
+    if (composing.current) return 'invalid';
+    const pending = pendingDraft.current;
+    if (pending !== undefined) {
+      const parsed = parseNumberDraft(pending);
+      if (parsed.kind !== 'valid' || parsed.value !== value) return 'invalid';
+    }
+  });
 
   const hint = (
     <>
@@ -280,7 +300,9 @@ export function NumberView(context: LocalComponentContext) {
       return false;
     }
     setDraftError(null);
-    return write(parsed.value);
+    const accepted = write(parsed.value);
+    if (accepted) pendingDraft.current = undefined;
+    return accepted;
   };
 
   return (
@@ -317,6 +339,7 @@ export function NumberView(context: LocalComponentContext) {
         }}
         onCompositionEnd={(event) => {
           composing.current = false;
+          setDraft(event.currentTarget.value);
           commitText(event.currentTarget.value, touched);
         }}
       />

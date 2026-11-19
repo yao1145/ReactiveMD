@@ -23,6 +23,7 @@ export { LOCAL_SYNTAX_VERSION } from './contracts/version';
 export { inspectLocalSourceVersion, checkLocalUpgrade, migrateLocalSource } from './source/source-migration';
 export type { LocalSourceVersion, LocalUpgradeOptions, LocalUpgradeReport, LocalMigrationResult } from './source/source-migration';
 export type { LocalVersionDeclaration } from './contracts/types';
+export type { LocalSubmissionFieldCheck, LocalSubmissionFieldProblem, LocalSubmissionFieldsResult } from './contracts/types';
 export type { LocalLocale } from './contracts/locale';
 export { LOCAL_THEME_PROTOCOL, DEFAULT_LOCAL_THEME, resolveLocalTheme, isLocalThemeName } from './theme/theme';
 export type { LocalColorScheme, LocalThemeDefinition, LocalThemeResolution } from './theme/theme';

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
 const pluginEntries = Object.fromEntries(
-  ['forms', 'navigation', 'data', 'chart', 'plot', 'diagram', 'gallery'].map((name) => [
+  ['forms', 'network', 'navigation', 'data', 'chart', 'plot', 'diagram', 'gallery'].map((name) => [
     `reactive-md-plugin-${name}`, fileURLToPath(new URL(`./src/components/plugins/${name}.ts`, import.meta.url)),
   ]),
 );
