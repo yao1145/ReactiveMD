@@ -226,7 +226,7 @@ GFM 表格中的竖线须写成 `\|`，例如逻辑或写 `\|\|`。表格解析�
 
 宿主通过 `LocalReactiveDocument` 的 `externalValues` 或 `runtime.setExternalValues()` 提供值，值按声明类型和常规容量预算校验。值缺失时只影响读取它的表达式，其他内容继续工作；值到达后相关结果自动重算。缺失值不会被隐式转换为 `0`、`false` 或空字符串。静态导出和 SSR 行为相同：由宿主集成传入值，导出文件本身不抓取也不嵌入外部数据。
 
-在交互文档中，宿主也可通过命名通道的 `mapExternalValues` 将一条订阅消息写入多个已声明的外部变量。正文插值、计算表达式和条件块可直接读取这些值。批量更新外部变量时会保留读者的输入。[命名通道的宿主配置](../development/named-network-channels-ch.md#5-订阅与资源生命周期)
+在交互文档中，宿主也可通过命名通道的 `mapExternalValues` 将一条订阅消息写入多个已声明的外部变量。正文插值、计算表达式和条件块可直接读取这些值。批量更新外部变量时会保留读者的输入。[命名通道的宿主配置](../architecture_roadmap/named-network-channels-ch.md#5-订阅与资源生命周期)
 
 本版本通过顶层 `computed` 与 `const` 声明增加只读命名值。简短计算仍可就地书写；需要被正文、条件、公式和图表共享的中间结果使用声明。依赖、错误和缓存规则见[复用计算与格式化数值](computations-formatting-ch.md)。
 
