@@ -6,7 +6,7 @@ import {
   localComponentNames,
 } from '../src/local/configuration/schema';
 import { DEFAULT_COMPONENT_VIEWS } from '../src/components/default-preset';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 import { DEFAULT_COMPONENT_DEFINITIONS } from '../src/presets/default-components';
 import { componentSchemaFromDefinition } from '../src/sdk/registry-core';
 

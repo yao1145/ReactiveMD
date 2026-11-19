@@ -7,7 +7,7 @@
  * are supplied explicitly. It is the single-pass counterpart of the legacy
  * `compileLocal` without sessions, workers, React or theme loading.
  */
-import type { LocalCompileOptions } from '../local/contracts/types';
+import type { LocalCompileOptions } from '../local/types';
 import type { LocalOptionCheck } from '../local/configuration/options-core';
 import { compileLocalCore } from '../local/compilation/compiler-core';
 import { inspectLocalMathDisplay } from '../local/evaluation/math-display';
@@ -31,7 +31,7 @@ export type {
   Program,
 } from './types';
 export type { DeepReadonly } from './types';
-export type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../local/contracts/types';
+export type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../local/types';
 
 function requireOptions(options?: LocalCompileOptions): Extract<LocalOptionCheck, { ok: true }> {
   const check = readCompilerOptions(options, defaultPreset.components, STANDARD_PARSER_CAPABILITIES);

@@ -9,7 +9,7 @@ import type {
   LocalComputation,
   LocalValue,
   LocalValueKind,
-} from '../contracts/types';
+} from '../types';
 import { MAX_LOCAL_DIAGNOSTICS } from '../configuration/limits';
 
 /**

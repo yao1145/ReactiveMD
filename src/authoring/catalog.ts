@@ -1,5 +1,5 @@
 import type { EditorLocale } from './command-types';
-import type { LocalCompileOptions, LocalNode, LocalValue } from '../local/contracts/types';
+import type { LocalCompileOptions, LocalNode, LocalValue } from '../local/types';
 import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../local/configuration/options';
 import { parseLocal } from '../local/parsing/parser';
 import type { LocalComponentForm, LocalPropKind, LocalPropSchema } from '../local/configuration/schema';

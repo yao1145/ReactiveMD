@@ -1,4 +1,4 @@
-import { isLocalThemeName } from '../theme/theme-name';
+import { isLocalThemeName } from '../theme/theme';
 
 interface ThemeTag { start: number; end: number; rest: string; closing: boolean; selfClosing: boolean; unclosed: boolean }
 

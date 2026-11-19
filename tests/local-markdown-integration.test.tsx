@@ -4,7 +4,7 @@ import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
 import { completeLocalSource, formatLocalSource, renameLocalBinding } from '../src/local/source/authoring';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
 

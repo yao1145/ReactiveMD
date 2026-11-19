@@ -4,7 +4,7 @@ import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { LocalDocumentView, LocalReactiveDocument } from '../src/local/rendering/LocalDocumentView';
 import { LOCAL_THEME_PROTOCOL, type LocalThemeDefinition } from '../src/local/theme/theme';
-import type { Diagnostic, LocalDocument } from '../src/local/contracts/types';
+import type { Diagnostic, LocalDocument } from '../src/local/types';
 
 function manifest(
   name: string,

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
-import type { LocalDocument } from '../src/local/contracts/types';
+import type { LocalDocument } from '../src/local/types';
 
 function plain(html: string): string {
   return html

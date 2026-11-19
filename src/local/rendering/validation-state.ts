@@ -1,6 +1,8 @@
-import type { Diagnostic, LocalDocument, LocalNode, LocalRuntime } from '../contracts/types';
+import type { Localize } from '../theme/i18n';
+import { useRef } from 'react';
+import type { Diagnostic, LocalDocument, LocalNode, LocalRuntime } from '../types';
 import { LOCAL_VALIDATION_EXPRESSION_CODE, LOCAL_VALIDATION_FAILED_CODE } from '../evaluation/validation';
-import { localCodeUnitPrefix } from '../source/text-length';
+import { localCodeUnitPrefix } from '../source/source-context';
 
 export interface LocalValidationHint {
   /** Per-document-instance id, kept stable for every rule state. */
@@ -127,4 +129,31 @@ export function createValidationState(
         : NO_VALIDATION_FIELD;
     },
   };
+}
+
+interface ValidationCache {
+  runtime: LocalRuntime;
+  t: Localize;
+  key: string;
+  value: LocalValidationState;
+}
+
+/**
+ * Validation rendering only depends on the rule/binding projection and the
+ * current diagnostic signature, not on prose elsewhere in the document.
+ */
+export function useStableValidation(
+  document: LocalDocument,
+  runtime: LocalRuntime,
+  instanceId: string,
+  t: Localize,
+  key: string,
+): LocalValidationState {
+  const cache = useRef<ValidationCache | null>(null);
+  let entry = cache.current;
+  if (!entry || entry.runtime !== runtime || entry.t !== t || entry.key !== key) {
+    entry = { runtime, t, key, value: createValidationState(document, runtime, instanceId, t) };
+    cache.current = entry;
+  }
+  return entry.value;
 }

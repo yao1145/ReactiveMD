@@ -1,51 +1,26 @@
 # Local mode source layout
 
-`src/local` implements local-draft parsing, compilation, evaluation, runtime, transport and React rendering. Implementation files are grouped by responsibility. `src/local/index.ts` is the only barrel in this tree and defines the local API that the package root re-exports.
+`src/local` contains the local document pipeline. `types.ts` defines the document, diagnostic and runtime contracts shared across the pipeline. `index.ts` lists the local API re-exported by the package root.
 
-## Responsibility folders
+| Folder | Responsibility |
+| --- | --- |
+| `source/` | Source offsets and ranges, node traversal, editor analysis and syntax migration. |
+| `configuration/` | Compiler options, manifest normalization, resource limits and diagnostic templates. |
+| `parsing/` | CommonMark parsing, tag and region scanning, token conversion, parser caches and tolerant recovery. |
+| `html/` | Native HTML grammar, sanitization, recovery, tables and disclosures. |
+| `compilation/` | Semantic passes, component rules, compiled metadata, dependency indexing and incremental compilation. |
+| `evaluation/` | Expression and LaTeX parsing, inference and evaluation, value formatting and validation. |
+| `transport/` | Worker scheduling and protocol, serialized documents, source edits and result patches. |
+| `runtime/` | Live document state, value checks, updates, state migration and retention. |
+| `rendering/` | React document views, revision and validation projections, node rendering, leaf views and local styles. |
+| `theme/` | Theme names and manifests, colors and localization. |
 
-| Folder | Responsibility | Main files |
-| --- | --- | --- |
-| `contracts/` | Shared data shapes: document, node, diagnostic, compilation and runtime types; syntax version; locale. | `types.ts`, `version.ts`, `locale.ts` |
-| `source/` | Source text facts and author tooling: line, fence and indent scans, node traversal, code-point length, version inspection and migration, editor analysis. | `source-context.ts`, `node-walk.ts`, `text-length.ts`, `source-migration.ts`, `authoring.ts` |
-| `configuration/` | Compile option validation and identity, default preset assembly, limits, diagnostic templates, component schema. | `options.ts`, `options-core.ts`, `portable-options.ts`, `limits.ts`, `diagnostics.ts`, `schema.ts`, `schema-core.ts` |
-| `parsing/` | Parser kernel and facade, parse work budgets, tolerant RMD recovery. | `parser.ts`, `parser-core.ts`, `parse-budget.ts`, `rmd-recovery.ts` |
-| `markdown/` | Markdown fast paths and transforms: block planning, plain paragraphs, heading anchors, footnotes. | `fast-markdown.ts`, `markdown-blocks.ts`, `plain-paragraphs.ts`, `heading-anchors.ts`, `footnotes.ts` |
-| `html/` | HTML parsing, allowlists, tables, details and recovery. | `html.ts`, `html-names.ts`, `html-table.ts`, `html-details.ts`, `html-recovery.ts` |
-| `compilation/` | Single semantic pass, compile entry points, service interfaces, component kernel, dependency index. | `compiler.ts`, `compiler-core.ts`, `compiler-services.ts`, `component-kernel.ts`, `dependencies.ts` |
-| `evaluation/` | Expression language, computable LaTeX and plot sampling, KaTeX display checks, computations, dates, formatting, collection and data functions, validation. | `expression.ts`, `math.ts`, `math-display.ts`, `computations.ts`, `formatting.ts`, `validation.ts` |
-| `session/` | Cross-revision reuse: semantic and parse caches, incremental block session, row reuse. | `compiler-cache.ts`, `parse-session.ts`, `incremental.ts`, `row-reuse.ts` |
-| `transport/` | Worker protocol and message shapes; full, shared and flat result forms; source edits and result patches. | `worker.ts`, `compile-patch.ts`, `compiled-data.ts`, `flat-compiled-data.ts`, `shared-data.ts` |
-| `runtime/` | Reactive runtime, state import and export, retention. | `runtime.ts`, `state.ts`, `retention.ts` |
-| `rendering/` | React document view, render contracts, legacy adapter, view revision projections, view styles. | `LocalDocumentView.tsx`, `render-types.ts`, `view-revision.ts`, `local.css` |
-| `widgets/` | Leaf React views: code highlighting, data tables, images, math, table surface, diagrams and visuals. | `code-block.tsx`, `data-table.tsx`, `math-view.tsx`, `visuals.tsx` |
-| `theme/` | Theme protocol and name validation, colors, localization. | `theme.ts`, `theme-name.ts`, `colors.ts`, `i18n.tsx` |
+## Compiler and renderer
 
-## Placing a new file
+`compilation/compiler-core.ts` runs the compilation phases in order. The phase modules own attribute decoding and validation, bindings, declarations, expression checks and component-specific validation. `compiler-values.ts` holds shared value parsing and initial-value checks. `compiler-structure.ts` handles component traversal, child rules and metadata that the runtime consumes.
 
-1. Follow the output. Code that builds parse facts belongs in `parsing/` or `source/`, Markdown transforms in `markdown/`, HTML normalization in `html/`, and computed or formatted values in `evaluation/`.
-2. Put shared data contracts in `contracts/`. Put option validation, limits, diagnostic text and component schema in `configuration/`.
-3. Put cross-revision reuse in `session/`, worker messages and patches in `transport/`, and live document state in `runtime/`.
-4. Put React document and leaf views in `rendering/` or `widgets/`. Locale and theme code goes in `theme/`; `theme/i18n.tsx` is the React-aware file there.
-5. Fit an existing folder first. Add a folder only when the new responsibility is distinct from every folder above.
+`rendering/LocalDocumentViewCore.tsx` assembles the document view from a compiled document. `LocalReactiveDocumentCore.tsx` owns the compile session and runtime lifecycle. `render-nodes.tsx` renders the node tree. `view-revision.ts`, `validation-state.ts` and `use-color-scheme.ts` supply the derived state the view consumes.
 
-## Cross-folder imports
+## Imports
 
-Import the exact module path:
-
-```ts
-import { parseLocal } from '../parsing/parser';
-import type { LocalNode } from '../contracts/types';
-```
-
-Keep these imports direct. Do not add folder-level `index.ts` barrels. A barrel such as `evaluation/index.ts` would put KaTeX into every expression import, and a broad rendering barrel would pull React into compile-only paths. Import optional capabilities where they are used:
-
-- React views: `rendering/` and `widgets/`
-- Worker scheduling and protocol: `transport/worker`
-- KaTeX display: `evaluation/math-display`
-
-## Public entry
-
-`src/local/index.ts` is a curated export list. Add an export only when the symbol belongs to the package-level local API. Package subpaths stay as declared in `package.json`; the file move creates no new deep-import path.
-
-This is a path-only reorganization of 75 files into 14 responsibility folders. Public exports and runtime behavior are unchanged, with no release or version bump.
+Import implementation symbols directly from their modules. Shared contracts live in `types.ts`. Keep optional dependencies at the assembly or feature that uses them. For example, `parsing/parser-standard.ts` installs GFM and Lezer planning, `evaluation/math-display.ts` handles KaTeX display checks, and `rendering/` owns React views.

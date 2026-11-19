@@ -1,4 +1,4 @@
-import {walkLocalNodes} from '../source/node-walk';
+import {walkLocalNodes} from '../source/source-context';
 import { kernelDocumentMetadata } from '../compilation/component-kernel';
 import { getLocalComponentDefinition } from '../../sdk/registry';
 import type {
@@ -8,7 +8,7 @@ import type {
   LocalNode,
   LocalRuntime,
   LocalValue,
-} from '../contracts/types';
+} from '../types';
 
 export type LocalStateRetentionReason =
   | 'internal' | 'unknown' | 'unretainable' | 'type' | 'initial' | 'invalid';

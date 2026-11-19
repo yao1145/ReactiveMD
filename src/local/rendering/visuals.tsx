@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import type { LocalVisualProps } from '../rendering/render-types';
-import { renderLegacyComponent } from '../rendering/legacy-component-adapter';
+import type { LocalVisualProps } from './render-types';
+import { renderLegacyComponent } from './legacy-component-adapter';
 
 /**
  * Legacy visual entry points.

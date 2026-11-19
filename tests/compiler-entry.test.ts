@@ -6,7 +6,7 @@ import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
 import { createLocalConfig } from '../src/sdk/config';
 import { defineLocalComponent } from '../src/sdk/manifest';
 import { minimalPreset } from '../src/presets/minimal';
-import type { LocalCompileOptions, LocalCompileResult, LocalNode } from '../src/local/contracts/types';
+import type { LocalCompileOptions, LocalCompileResult, LocalNode } from '../src/local/types';
 
 function flatten(nodes: readonly LocalNode[]): LocalNode[] {
   return nodes.flatMap((node) => [node, ...flatten(node.children ?? [])]);

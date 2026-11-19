@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { compileLocal, createLocalRuntime } from '../../src/index';
 import { LocalDocumentView, LocalReactiveDocument } from '../../src/react/index';
-import type { LocalRuntime } from '../../src/local/contracts/types';
+import type { LocalRuntime } from '../../src/local/types';
 import '../../src/styles.css';
 
 const source = `<panel title="实验参数" reset="true">

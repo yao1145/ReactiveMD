@@ -1,4 +1,4 @@
-import type {LocalCompileResult,LocalNode} from '../contracts/types';
+import type {LocalCompileResult,LocalNode} from '../types';
 
 /** Plain compiler data only: no executable values, class instances or cycles. */
 type Primitive = string | number | boolean | null | undefined;

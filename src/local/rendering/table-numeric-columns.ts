@@ -1,4 +1,4 @@
-import type { LocalNode, LocalRuntime, LocalValue } from '../contracts/types';
+import type { LocalNode, LocalRuntime, LocalValue } from '../types';
 import { defaultLocalize, type Localize } from '../theme/i18n';
 
 const NUMERIC_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;

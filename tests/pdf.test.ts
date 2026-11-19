@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalStateFile } from '../src/local/runtime/state';
 import { createShareableHtml } from '../src/shareable';
-import type { LocalCompileOptions } from '../src/local/contracts/types';
+import type { LocalCompileOptions } from '../src/local/types';
 import { prepareLocalPrintHtml, waitForLocalPrintImages } from '../src/export/print-document';
 
 function compile(source: string, options: LocalCompileOptions = {}) {

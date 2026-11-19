@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { LocalSubmissionFieldCheck } from '../local/contracts/types';
+import type { LocalSubmissionFieldCheck } from '../local/types';
 import type { LocalComponentContext } from './component-api';
 import { useResetToken } from './component-utils';
 

@@ -6,7 +6,7 @@ import {
   encodeLocalResultPatch,
   LOCAL_RESULT_PATCH_PROTOCOL,
 } from '../src/local/transport/compile-patch';
-import type { LocalCompileResult, LocalCompileOptions } from '../src/local/contracts/types';
+import type { LocalCompileResult, LocalCompileOptions } from '../src/local/types';
 import {
   FakeWorker,
   fullRequest,

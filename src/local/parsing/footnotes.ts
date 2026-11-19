@@ -1,4 +1,4 @@
-import type { LocalDocument, LocalNode } from '../contracts/types';
+import type { LocalDocument, LocalNode } from '../types';
 
 /**
  * Footnote identity fields. The core parser adds them to `LocalNode`; the

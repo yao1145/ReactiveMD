@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime } from '../src/local';
-import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
+import type { LocalDocument, LocalNode } from '../src/local/types';
 import { boundLocalDiagnosticMessage } from '../src/local/evaluation/validation';
 import { formatLocalDiagnostic, localDiagnosticDetails } from '../src/local/configuration/diagnostics';
-import { localCodeUnitPrefix } from '../src/local/source/text-length';
+import { localCodeUnitPrefix } from '../src/local/source/source-context';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

@@ -8,7 +8,7 @@ import {
   normalizeHtmlDetailsChildren,
   splitHtmlDetailsChildren,
 } from '../src/local/html/html-details';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 
 type Mode = 'interactive' | 'static';
 

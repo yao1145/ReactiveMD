@@ -1,7 +1,7 @@
 import { MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../configuration/limits';
 import { createLocalRuntime } from './runtime';
-import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
-import { localCodeUnitPrefix } from '../source/text-length';
+import { LOCAL_SYNTAX_VERSION } from '../types';
+import { localCodeUnitPrefix } from '../source/source-context';
 import { localSourceDigest } from '../../runtime-services/identity';
 import type {
   Diagnostic,
@@ -10,7 +10,7 @@ import type {
   LocalNode,
   LocalRuntime,
   LocalValue,
-} from '../contracts/types';
+} from '../types';
 
 export { localSourceDigest };
 

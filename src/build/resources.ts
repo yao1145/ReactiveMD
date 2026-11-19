@@ -1,7 +1,7 @@
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
-import type { Diagnostic } from '../local/contracts/types';
-import { localCodeUnitPrefix } from '../local/source/text-length';
+import type { Diagnostic } from '../local/types';
+import { localCodeUnitPrefix } from '../local/source/source-context';
 import type { LocalConfig } from '../sdk/types';
 import type { LocalStyleResource, LocalThemePackage } from '../sdk/theme';
 import { buildDiagnostic } from './diagnostics';

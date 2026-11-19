@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { isLocalColor } from '../src/local/theme/colors';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
+import type { LocalDocument, LocalNode } from '../src/local/types';
 
 function all(nodes: LocalNode[]): LocalNode[] {
   return nodes.flatMap((node) => [node, ...all(node.children ?? [])]);

@@ -1,4 +1,4 @@
-import type { LocalValueKind } from '../local/contracts/types';
+import type { LocalValueKind } from '../local/types';
 import type {
   KernelBindingConstraint,
   KernelBindingSchema,

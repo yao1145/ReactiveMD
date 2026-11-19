@@ -84,7 +84,7 @@ export type {
   LocalHtmlPolicy,
   LocalValue,
   SourceRange,
-} from '../local/contracts/types';
+} from '../local/types';
 
 export {
   EXTENDED_NATIVE_COMPONENT_COPY_ZH,

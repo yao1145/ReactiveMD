@@ -1,5 +1,5 @@
-import type { Diagnostic } from '../local/contracts/types';
-import { localCodeUnitPrefix } from '../local/source/text-length';
+import type { Diagnostic } from '../local/types';
+import { localCodeUnitPrefix } from '../local/source/source-context';
 
 /** Build-side diagnostics use the same shape as compile and export diagnostics. */
 export function buildDiagnostic(code: string, message: string): Diagnostic {

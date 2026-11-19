@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
-import type { LocalValue } from '../src/local/contracts/types';
+import type { LocalValue } from '../src/local/types';
 import { createLocalRuntime, updateLocalRuntime } from '../src/local/runtime/runtime';
 import { createDetachedRuntimeServices } from '../src/runtime-services/runtime';
 import type {

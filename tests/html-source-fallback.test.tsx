@@ -6,7 +6,7 @@ import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { LocalDocumentView, LocalReactiveDocument } from '../src/local/rendering/LocalDocumentView';
 import { sanitizeLocalHtmlDocument } from '../src/local/html/html';
 import { prepareStandaloneDocument } from '../src/standalone/prepare';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flatten(n.children ?? [])]);
 const text = (n: any): string => (n.nodeName === '#text' ? n.value : '') + (n.childNodes ?? []).map(text).join('');

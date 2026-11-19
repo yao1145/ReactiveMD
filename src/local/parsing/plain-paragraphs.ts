@@ -1,4 +1,4 @@
-import type { LocalNode } from '../contracts/types';
+import type { LocalNode } from '../types';
 
 type CreateNode = (type: string, start: number, end: number, extra?: Partial<LocalNode>) => LocalNode;
 

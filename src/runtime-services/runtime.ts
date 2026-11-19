@@ -2,7 +2,7 @@
  * Document-level runtime services. The compiler never imports this module.
  */
 
-import type { Diagnostic } from '../local/contracts/types';
+import type { Diagnostic } from '../local/types';
 import {
   fnv1a32,
   localSourceDigest,

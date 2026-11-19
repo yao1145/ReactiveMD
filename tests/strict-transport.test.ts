@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
-import { createLocalCompileSession, type LocalCompileSession } from '../src/local/session/incremental';
+import { createLocalCompileSession, type LocalCompileSession } from '../src/local/compilation/incremental';
 import {
   applyLocalResultPatch,
   encodeLocalResultPatch,
@@ -25,7 +25,7 @@ import {
   type LocalCompileWorkerResponse,
   type LocalCompileWorkerScope,
 } from '../src/local/transport/worker';
-import type { LocalCompileOptions, LocalCompileResult, LocalNode, LocalRecovery } from '../src/local/contracts/types';
+import type { LocalCompileOptions, LocalCompileResult, LocalNode, LocalRecovery } from '../src/local/types';
 import {
   FakeWorker,
   fullRequest,

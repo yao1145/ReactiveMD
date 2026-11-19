@@ -8,7 +8,7 @@ import type {
   LocalNode,
   LocalRuntime,
   LocalValidation,
-} from '../src/local/contracts/types';
+} from '../src/local/types';
 
 /* ------------------------------------------------------------- fixtures */
 

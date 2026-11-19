@@ -4,7 +4,7 @@ import { portableCompileOptions } from '../local/configuration/portable-options'
 import { validateLocalExtensionRequirements } from '../export/requirements';
 import { validateLocalRestorationRequirements } from '../export/restoration';
 import { readLocalExportResources } from '../export/resources';
-import type { Diagnostic, LocalCompileOptions } from '../local/contracts/types';
+import type { Diagnostic, LocalCompileOptions } from '../local/types';
 import type { ShareableMountPayload } from '../shareable';
 import {
   parseLocalComponentStateDocument,

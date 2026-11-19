@@ -1,5 +1,5 @@
 import type { LocalComponentForm, LocalComponentSchema } from './schema-core';
-import type { LocalValue } from '../contracts/types';
+import type { LocalValue } from '../types';
 import { DEFAULT_SEMANTIC_COMPONENTS } from '../../presets/default-semantics';
 import { componentSchemaFromDefinition } from '../../sdk/registry-core';
 import { LOCAL_KERNEL_DECLARATIONS, closestName } from './schema-core';

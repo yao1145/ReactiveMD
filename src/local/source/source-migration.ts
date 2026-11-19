@@ -2,8 +2,8 @@ import { compileLocal } from '../compilation/compiler';
 import { diagnosticEnglish, localDiagnosticDetails } from '../configuration/diagnostics';
 import { MAX_LOCAL_DIAGNOSTICS } from '../configuration/limits';
 import { parseLocal, type ParsedLocal } from '../parsing/parser';
-import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
-import type { Diagnostic, LocalNode, SourceRange } from '../contracts/types';
+import { LOCAL_SYNTAX_VERSION } from '../types';
+import type { Diagnostic, LocalNode, SourceRange } from '../types';
 
 export interface LocalSourceVersion {
   declaredVersion: string | null;

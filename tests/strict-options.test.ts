@@ -6,7 +6,7 @@ import { compileLocal } from '../src/local/compilation/compiler';
 import { localCompileOptionsKey, readLocalCompileOptions } from '../src/local/configuration/options';
 import { LOCAL_RECOVERY_STRATEGY_VERSION } from '../src/local/configuration/options-core';
 import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
-import type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../src/local/contracts/types';
+import type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../src/local/types';
 
 function effectiveStrict(options?: LocalCompileOptions): boolean {
   const check = readLocalCompileOptions(options);

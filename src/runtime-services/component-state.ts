@@ -7,7 +7,7 @@
  * there is no cross-tab synchronization.
  */
 
-import type { Diagnostic } from '../local/contracts/types';
+import type { Diagnostic } from '../local/types';
 import { componentStateKey, resolveDocumentId } from './identity';
 import {
   normalizeRandomState,

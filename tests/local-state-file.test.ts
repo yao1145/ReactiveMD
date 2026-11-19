@@ -11,8 +11,8 @@ import {
   serializeLocalState,
   type LocalStateFile,
 } from '../src/local/runtime/state';
-import { LOCAL_SYNTAX_VERSION } from '../src/local/contracts/version';
-import type { LocalDocument, LocalNode, LocalValue } from '../src/local/contracts/types';
+import { LOCAL_SYNTAX_VERSION } from '../src/local/types';
+import type { LocalDocument, LocalNode, LocalValue } from '../src/local/types';
 
 const SOURCE = [
   '<slider bind="count" label="Count" initial="2" min="0" max="10" step="1">',

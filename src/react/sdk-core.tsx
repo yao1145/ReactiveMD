@@ -3,7 +3,7 @@ import {
   createElement,
   type ReactNode,
 } from 'react';
-import type { Diagnostic, LocalNode, LocalRuntime, SourceRange } from '../local/contracts/types';
+import type { Diagnostic, LocalNode, LocalRuntime, SourceRange } from '../local/types';
 import type {
   LocalHostComponentContext,
   LocalHostRenderer,

@@ -4,7 +4,7 @@ import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
 import { LOCAL_THEME_PROTOCOL, type LocalThemeDefinition } from '../src/local/theme/theme';
-import type { LocalDocument } from '../src/local/contracts/types';
+import type { LocalDocument } from '../src/local/types';
 
 function compileDocument(source: string): LocalDocument {
   const result = compileLocal(source);

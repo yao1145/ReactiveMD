@@ -27,7 +27,7 @@ import type {
   LocalHostPropKind,
   LocalHostPropSchema,
   LocalHtmlPolicy,
-} from '../contracts/types';
+} from '../types';
 
 /** Capability flags that select the temporary whole-document HTML branch. */
 export const LOCAL_HTML_FLAGS = ['enableCss', 'enableJavaScript', 'enableExtendedHtml'] as const;

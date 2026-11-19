@@ -6,17 +6,17 @@
  * signatures and their exact default behavior, including option validation,
  * the concrete semantic cache and the KaTeX display precheck.
  */
-import type { LocalCompileOptions, LocalCompileResult } from '../contracts/types';
+import type { LocalCompileOptions, LocalCompileResult } from '../types';
 import { compileLocalCore } from './compiler-core';
 import { plainCompiledData } from '../transport/compiled-data';
-import { LocalSemanticCache, type SemanticCacheStats } from '../session/compiler-cache';
+import { LocalSemanticCache, type SemanticCacheStats } from './compiler-cache';
 import { inspectLocalMathDisplay } from '../evaluation/math-display';
 import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../evaluation/math';
 import { sanitizeLocalHtmlDocument } from '../html/html';
 import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../configuration/options';
 import { parseLocal } from '../parsing/parser';
 import type { LocalCompilerCoreServices } from './compiler-services';
-import type { InlinePlanLookup } from '../markdown/fast-markdown';
+import type { InlinePlanLookup } from '../parsing/fast-markdown';
 import type { SourceContext } from '../source/source-context';
 
 /** Compile to plain data that can cross a React Server Component boundary. */

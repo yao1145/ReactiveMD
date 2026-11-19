@@ -1,4 +1,4 @@
-import type { LocalNode } from '../contracts/types';
+import type { LocalNode } from '../types';
 
 /**
  * `<details>` child layout shared by the parser and the renderer.

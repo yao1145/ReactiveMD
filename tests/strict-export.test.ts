@@ -11,7 +11,7 @@ import { createLocalShareableHtml } from '../src/export';
 import { findUnavailableExtensionMarkup, unavailableExtensionMessage } from '../src/export/render-markup';
 import { renderLocalStaticDocument } from '../src/react/server';
 import { createLocalConfig } from '../src/sdk/config';
-import type { LocalCompileOptions } from '../src/local/contracts/types';
+import type { LocalCompileOptions } from '../src/local/types';
 
 /** One structural repair: the unclosed <card> is literal until the next heading. */
 const RECOVERED_SOURCE = '<card>\n正文\n\n## 后续\n\n后文 **粗体**';

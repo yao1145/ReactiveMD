@@ -1,9 +1,9 @@
-import type { LocalDocument, LocalNode, LocalRuntime } from '../contracts/types';
-import { localKey } from '../contracts/types';
+import type { LocalDocument, LocalNode, LocalRuntime } from '../types';
+import { localKey } from '../types';
 import { compileExpression, templateDependencies } from '../evaluation/expression';
 import { compileLatex } from '../evaluation/math';
 import { kernelDocumentMetadata, kernelRules, type KernelComponentSchema, type KernelRule } from './component-kernel';
-import {walkLocalNodes} from '../source/node-walk';
+import {walkLocalNodes} from '../source/source-context';
 import type { LocalComponentDefinition } from '../../sdk/types';
 
 /**

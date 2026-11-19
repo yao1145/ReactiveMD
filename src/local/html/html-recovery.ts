@@ -1,6 +1,6 @@
 import { defaultTreeAdapter, html as parse5Html, parseFragment } from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
-import type { LocalNode, LocalRecovery, SourceRange } from '../contracts/types';
+import type { LocalNode, LocalRecovery, SourceRange } from '../types';
 import {
   LOCAL_HTML_ALIGN_ELEMENTS,
   LOCAL_HTML_NAMES,

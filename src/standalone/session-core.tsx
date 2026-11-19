@@ -1,7 +1,7 @@
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import type { ComponentType } from 'react';
 import type { LocalDocumentViewProps, LocalImageResolver, LocalUrlPolicy } from '../local/rendering/LocalDocumentViewCore';
-import type { LocalLocale } from '../local/contracts/locale';
+import type { LocalLocale } from '../local/types';
 import { createLocalRuntime } from '../local/runtime/runtime';
 import {
   exportLocalState,
@@ -9,7 +9,7 @@ import {
   type LocalStateGenerator,
 } from '../local/runtime/state';
 import type { LocalColorScheme, LocalThemeDefinition } from '../local/theme/theme';
-import type { Diagnostic, LocalCompileOptions, LocalRuntime } from '../local/contracts/types';
+import type { Diagnostic, LocalCompileOptions, LocalRuntime } from '../local/types';
 import { diagnosticsFromError, errorText, ReactiveMDMountError, standaloneDiagnostic } from './diagnostics';
 import { REACTIVE_MD_DIAGNOSTICS_EVENT } from './events';
 import { parseMountPayload } from './payload';

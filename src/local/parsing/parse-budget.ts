@@ -1,4 +1,4 @@
-import type { FastMarkdownCache } from '../markdown/fast-markdown';
+import type { FastMarkdownCache } from './fast-markdown';
 
 /** Which deterministic parser budget a rejection belongs to. */
 export type ParseBudgetKind = 'parse-work' | 'markdown-depth';

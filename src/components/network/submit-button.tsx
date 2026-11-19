@@ -6,7 +6,7 @@ import {
   useState,
 } from 'react';
 import type { LocalComponentContext } from '../../react/component-api';
-import type { LocalSubmissionFieldsResult } from '../../local/contracts/types';
+import type { LocalSubmissionFieldsResult } from '../../local/types';
 import {
   staticText,
   textAttr,

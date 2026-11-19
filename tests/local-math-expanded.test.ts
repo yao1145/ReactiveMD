@@ -5,7 +5,7 @@ import {
   inspectLocalMathDisplay,
   renderLocalMathDisplay,
 } from '../src/local/evaluation/math-display';
-import { LatexView } from '../src/local/widgets/math-view';
+import { LatexView } from '../src/local/rendering/math-view';
 import { compileLocal } from '../src/local/compilation/compiler';
 
 function render(source: string, display = true): string {

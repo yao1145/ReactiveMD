@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { parseLocal } from '../src/local/parsing/parser';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flatten(n.children ?? [])]);
 

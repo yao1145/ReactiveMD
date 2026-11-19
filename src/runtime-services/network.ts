@@ -1,4 +1,4 @@
-import type { LocalValue } from '../local/contracts/types';
+import type { LocalValue } from '../local/types';
 
 /** JSON values accepted by a named network channel. */
 export type Json = null | boolean | number | string | readonly Json[]

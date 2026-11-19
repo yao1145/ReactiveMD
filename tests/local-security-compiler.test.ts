@@ -8,7 +8,7 @@ import {
   MAX_LOCAL_PLOT_POINTS,
   MAX_LOCAL_STRING_LENGTH,
 } from '../src/local/configuration/limits';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] =>
   nodes.flatMap((node) => [node, ...flatten(node.children ?? [])]);

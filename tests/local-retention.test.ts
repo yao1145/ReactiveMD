@@ -6,7 +6,7 @@ import {
   type LocalStateRetentionDrop,
 } from '../src/local/runtime/retention';
 import { createLocalRuntime, updateLocalRuntime } from '../src/local/runtime/runtime';
-import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/contracts/types';
+import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/types';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

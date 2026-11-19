@@ -1,4 +1,4 @@
-import type {LocalCompileResult} from '../contracts/types';
+import type {LocalCompileResult} from '../types';
 
 export interface SharedDataResult<T>{value:T;reused:number;created:number}
 const ordinaryObjects=new WeakSet<object>();

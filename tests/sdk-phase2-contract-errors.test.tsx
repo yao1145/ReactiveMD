@@ -9,7 +9,7 @@ import type {
   LocalDocument,
   LocalHostComponentSchema,
   LocalRuntime,
-} from '../src/local/contracts/types';
+} from '../src/local/types';
 import { createLocalConfig, defineLocalComponent } from '../src/sdk';
 import { getLocalComponentRegistry } from '../src/sdk/registry';
 import {

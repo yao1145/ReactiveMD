@@ -6,7 +6,7 @@ import type {
   LocalCompileWorkerRequest,
   LocalCompileWorkerResponse,
 } from '../../src/local/transport/worker';
-import type { LocalCompileResult, LocalNode, LocalRecovery } from '../../src/local/contracts/types';
+import type { LocalCompileResult, LocalNode, LocalRecovery } from '../../src/local/types';
 
 /** A typed scheduler-side worker double shared by the transport tests. */
 export class FakeWorker implements LocalCompileWorker {

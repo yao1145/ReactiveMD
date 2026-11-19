@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { LocalDocumentView, LocalReactiveDocument, type LocalImageResolver, type LocalUrlPolicy } from '../src/local/rendering/LocalDocumentView';
-import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
+import type { LocalDocument, LocalNode } from '../src/local/types';
 import type { LocalRenderMode } from '../src/local/rendering/render-types';
 
 interface Compiled {

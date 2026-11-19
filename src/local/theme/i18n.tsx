@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import type { LocalLocale } from '../contracts/locale';
+import type { LocalLocale } from '../types';
 
-export type { LocalLocale } from '../contracts/locale';
+export type { LocalLocale } from '../types';
 
 /**
  * A localizer pair supplied at the call site. The English half is returned for

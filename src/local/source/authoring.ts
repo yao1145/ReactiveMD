@@ -1,15 +1,26 @@
-import { compileLocal } from '../compilation/compiler';
+import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalNode, SourceRange } from '../types';
 import { RESERVED_NAMES } from '../evaluation/expression';
+import { compileLocal } from '../compilation/compiler';
 import { readLocalCompileOptions } from '../configuration/options';
-import { parseLocal } from '../parsing/parser';
+import type { LocalComponentSchema, LocalPropSchema } from '../configuration/schema';
+import {
+  closingTagOf,
+  decodedAttribute,
+  expressionIdentifiers,
+  isIdentifierPart,
+  isIdentifierStart,
+  isWhitespace,
+  rawInterpolations,
+  readTagAt,
+  type IdentifierRange,
+  type RawAttribute,
+  type RawInterpolation,
+  type RawTag,
+} from './authoring-syntax';
 import { localLatexReferences } from '../evaluation/math';
 import { LOCAL_HTML_NAMES } from '../html/html-names';
 import { HTML_TABLE_NAMES } from '../html/html-table';
-import {
-  type LocalComponentSchema,
-  type LocalPropSchema,
-} from '../configuration/schema';
-import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalNode, SourceRange } from '../contracts/types';
+import { parseLocal } from '../parsing/parser';
 
 /**
  * DOM-free authoring services for the local interaction syntax.
@@ -24,7 +35,6 @@ import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalNode, SourceR
  * preview compiler. Host components and syntax limits therefore shape analysis
  * exactly as they shape rendering, and HTML mode is treated as opaque.
  */
-
 export interface AuthorToken {
   kind: string;
   range: SourceRange;
@@ -58,9 +68,12 @@ export interface AuthorRename {
 }
 
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 /** Mirrors the compiler's repeated-name guard. */
 const MAX_NAME_LENGTH = 128;
+
 const INACTIVE_NODE_TYPES = new Set(['code', 'inlineCode', 'math', 'inlineMath', 'fallback', 'comment', 'footnoteDefinition']);
+
 /** Parse-level failures leave parts of the document opaque, so renaming is unsafe. */
 const UNSAFE_RENAME_CODES = new Set([
   'local.version.unsupported', 'local.version.malformed', 'local.version.duplicate', 'local.version.placement',
@@ -73,18 +86,6 @@ const UNSAFE_RENAME_CODES = new Set([
   'local.attribute',
   'local.budget',
 ]);
-
-function isIdentifierStart(character: string | undefined): boolean {
-  return character !== undefined && /[A-Za-z_]/.test(character);
-}
-
-function isIdentifierPart(character: string | undefined): boolean {
-  return character !== undefined && /[A-Za-z0-9_]/.test(character);
-}
-
-function isWhitespace(character: string | undefined): boolean {
-  return character !== undefined && /\s/.test(character);
-}
 
 function validBindingName(name: string): boolean {
   return name.length > 0 && name.length <= MAX_NAME_LENGTH && IDENTIFIER.test(name) && !RESERVED_NAMES.has(name);
@@ -125,277 +126,6 @@ function authoringHostComponents(options: LocalCompileOptions | undefined): read
   const check = readLocalCompileOptions(options);
   return check.ok ? [...check.schemaByName.values()] : [];
 }
-
-/* ------------------------------------------------------------------ */
-/* Raw tag scanning                                                    */
-/* ------------------------------------------------------------------ */
-
-interface RawAttribute {
-  name: string;
-  nameRange: SourceRange;
-  /** Content between the quotes, without the quotes themselves. */
-  valueRange?: SourceRange;
-  quoteStart?: number;
-  quoteEnd?: number;
-  unquoted?: boolean;
-}
-
-interface RawTag {
-  start: number;
-  /** Offset just past `>`. */
-  end: number;
-  /** Offset of `>`. */
-  contentEnd: number;
-  name: string;
-  nameRange: SourceRange;
-  closing: boolean;
-  selfClosing: boolean;
-  attrs: RawAttribute[];
-}
-
-const TAG_START = /^<(\/?)([A-Za-z][A-Za-z0-9_-]*)(?=[\s/>])/;
-
-function readTagAt(source: string, start: number): RawTag | null {
-  if (source[start] !== '<') return null;
-  const match = TAG_START.exec(source.slice(start));
-  if (!match) return null;
-  const closing = Boolean(match[1]);
-  const name = match[2];
-  const nameStart = start + (closing ? 2 : 1);
-  let quote = '';
-  let index = start + match[0].length;
-  for (; index < source.length; index += 1) {
-    const character = source[index];
-    if (quote) {
-      if (character === quote) quote = '';
-    } else if (character === '"' || character === "'") {
-      quote = character;
-    } else if (character === '>') {
-      break;
-    }
-  }
-  if (index >= source.length) return null;
-  const contentEnd = index;
-  const end = index + 1;
-  if (closing) {
-    return {
-      start,
-      end,
-      contentEnd,
-      name,
-      nameRange: { start: nameStart, end: nameStart + name.length },
-      closing: true,
-      selfClosing: false,
-      attrs: [],
-    };
-  }
-  const attrs: RawAttribute[] = [];
-  let cursor = nameStart + name.length;
-  while (cursor < contentEnd) {
-    while (cursor < contentEnd && isWhitespace(source[cursor])) cursor += 1;
-    if (cursor >= contentEnd) break;
-    if (source[cursor] === '/') {
-      cursor += 1;
-      continue;
-    }
-    const attrMatch = /^[A-Za-z][A-Za-z0-9_-]*/.exec(source.slice(cursor, contentEnd));
-    if (!attrMatch) {
-      cursor += 1;
-      continue;
-    }
-    const attrStart = cursor;
-    const attrName = attrMatch[0];
-    cursor += attrName.length;
-    const afterName = cursor;
-    let lookahead = cursor;
-    while (lookahead < contentEnd && isWhitespace(source[lookahead])) lookahead += 1;
-    if (source[lookahead] !== '=') {
-      attrs.push({
-        name: attrName,
-        nameRange: { start: attrStart, end: attrStart + attrName.length },
-      });
-      cursor = afterName;
-      continue;
-    }
-    cursor = lookahead + 1;
-    while (cursor < contentEnd && isWhitespace(source[cursor])) cursor += 1;
-    const quote = source[cursor];
-    if (quote === '"' || quote === "'") {
-      const quoteStart = cursor;
-      const valueStart = cursor + 1;
-      const close = source.indexOf(quote, valueStart);
-      if (close < 0 || close > contentEnd) {
-        // Well-formed active tags never reach this branch, but returning a
-        // value up to `>` keeps partial documents useful to the editor.
-        attrs.push({
-          name: attrName,
-          nameRange: { start: attrStart, end: attrStart + attrName.length },
-          valueRange: { start: valueStart, end: contentEnd },
-          quoteStart,
-          quoteEnd: contentEnd,
-        });
-        cursor = contentEnd;
-        continue;
-      }
-      attrs.push({
-        name: attrName,
-        nameRange: { start: attrStart, end: attrStart + attrName.length },
-        valueRange: { start: valueStart, end: close },
-        quoteStart,
-        quoteEnd: close,
-      });
-      cursor = close + 1;
-      continue;
-    }
-    const valueStart = cursor;
-    while (cursor < contentEnd && !isWhitespace(source[cursor])) cursor += 1;
-    attrs.push({
-      name: attrName,
-      nameRange: { start: attrStart, end: attrStart + attrName.length },
-      valueRange: { start: valueStart, end: cursor },
-      unquoted: true,
-    });
-  }
-  return {
-    start,
-    end,
-    contentEnd,
-    name,
-    nameRange: { start: nameStart, end: nameStart + name.length },
-    closing: false,
-    selfClosing: /\/\s*$/.test(source.slice(nameStart + name.length, contentEnd)),
-    attrs,
-  };
-}
-
-function closingTagOf(source: string, node: LocalNode, openingEnd: number): RawTag | null {
-  if (node.range.end <= openingEnd) return null;
-  const start = source.lastIndexOf('</', node.range.end - 1);
-  if (start < openingEnd) return null;
-  const tag = readTagAt(source, start);
-  if (!tag || !tag.closing || tag.end > node.range.end) return null;
-  if (tag.name !== node.name && !((LOCAL_HTML_NAMES.has(tag.name.toLowerCase()) || HTML_TABLE_NAMES.has(tag.name.toLowerCase()))
-    && tag.name.toLowerCase() === node.name?.toLowerCase())) return null;
-  return tag;
-}
-
-/* ------------------------------------------------------------------ */
-/* Expression scanning                                                 */
-/* ------------------------------------------------------------------ */
-
-interface RawInterpolation {
-  /** Start of `{{`. */
-  start: number;
-  /** Offset just past `}}`. */
-  end: number;
-  innerStart: number;
-  innerEnd: number;
-}
-
-/** Mirrors the compiler's attribute-template scanner, including `\{{` escapes. */
-function rawInterpolations(source: string, start: number, end: number): RawInterpolation[] {
-  const found: RawInterpolation[] = [];
-  for (let index = start; index < end; ) {
-    if (source[index] === '\\' && source.startsWith('{{', index + 1)) {
-      index += 3;
-      continue;
-    }
-    if (!source.startsWith('{{', index)) {
-      index += 1;
-      continue;
-    }
-    let quote = '';
-    let cursor = index + 2;
-    for (; cursor < end - 1; cursor += 1) {
-      const character = source[cursor];
-      if (quote) {
-        if (character === '\\') cursor += 1;
-        else if (character === quote) quote = '';
-      } else if (character === '"' || character === "'") {
-        quote = character;
-      } else if (character === '}' && source[cursor + 1] === '}') {
-        break;
-      }
-    }
-    if (cursor >= end - 1) break;
-    found.push({ start: index, end: cursor + 2, innerStart: index + 2, innerEnd: cursor });
-    index = cursor + 2;
-  }
-  return found;
-}
-
-/** Attribute decoding matches the parser while retaining original boundaries. */
-function decodedAttribute(source: string, range: SourceRange): { text: string; offsets: number[] } {
-  const entities: Record<string, string> = { quot: '"', apos: "'", amp: '&', lt: '<', gt: '>' };
-  const offsets = [range.start];
-  let text = '';
-  for (let cursor = range.start; cursor < range.end;) {
-    const entity = source[cursor] === '&' ? /^&(quot|apos|amp|lt|gt);/.exec(source.slice(cursor, range.end)) : null;
-    text += entity ? entities[entity[1]] : source[cursor];
-    cursor += entity ? entity[0].length : 1;
-    offsets.push(cursor);
-  }
-  return { text, offsets };
-}
-
-interface IdentifierRange {
-  name: string;
-  range: SourceRange;
-}
-
-/** Identifiers that are real references: strings, literals, functions are skipped. */
-function expressionIdentifiers(source: string, start: number, end: number): IdentifierRange[] {
-  const found: IdentifierRange[] = [];
-  for (let index = start; index < end; ) {
-    const character = source[index];
-    if (character === '"' || character === "'") {
-      const quote = character;
-      index += 1;
-      while (index < end) {
-        if (source[index] === '\\') {
-          index += 2;
-          continue;
-        }
-        if (source[index] === quote) {
-          index += 1;
-          break;
-        }
-        index += 1;
-      }
-      continue;
-    }
-    if (
-      /[0-9]/.test(character)
-      || (character === '.' && source[index + 1] !== undefined && /[0-9]/.test(source[index + 1]))
-    ) {
-      // Skip numeric literals so the exponent marker in `1e3` is not a reference.
-      const number = /^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/.exec(source.slice(index, end));
-      if (number) {
-        index += number[0].length;
-        continue;
-      }
-    }
-    if (isIdentifierStart(character)) {
-      const identifierStart = index;
-      index += 1;
-      while (index < end && isIdentifierPart(source[index])) index += 1;
-      const name = source.slice(identifierStart, index);
-      let lookahead = index;
-      while (lookahead < end && isWhitespace(source[lookahead])) lookahead += 1;
-      if (source[lookahead] === '(') continue; // builtin function call
-      if (name === 'true' || name === 'false' || name === 'null' || name === 'pi' || name === 'e') continue;
-      if (RESERVED_NAMES.has(name)) continue;
-      found.push({ name, range: { start: identifierStart, end: index } });
-      continue;
-    }
-    index += 1;
-  }
-  return found;
-}
-
-/* ------------------------------------------------------------------ */
-/* Analysis                                                            */
-/* ------------------------------------------------------------------ */
 
 interface AnalysisData {
   tokens: AuthorToken[];
@@ -628,10 +358,6 @@ export function analyzeLocalSource(source: string, options?: LocalCompileOptions
   const data = buildAnalysisData(source, document.nodes, authoringHostComponents(options), document);
   return { tokens: data.tokens, bindings: data.bindings, diagnostics: settings.diagnostics === false ? [] : compileDiagnostics(source, options) };
 }
-
-/* ------------------------------------------------------------------ */
-/* Completion helpers                                                  */
-/* ------------------------------------------------------------------ */
 
 interface PrefixAttribute extends RawAttribute {
   nameStart: number;
@@ -997,10 +723,6 @@ export function completeLocalSource(
   return [];
 }
 
-/* ------------------------------------------------------------------ */
-/* Rename                                                              */
-/* ------------------------------------------------------------------ */
-
 function applyEdits(source: string, edits: { range: SourceRange; text: string }[]): string {
   let result = '';
   let cursor = 0;
@@ -1069,10 +791,6 @@ export function renameLocalBinding(
   }
   return { source: renamed, edits };
 }
-
-/* ------------------------------------------------------------------ */
-/* Formatting                                                          */
-/* ------------------------------------------------------------------ */
 
 function formatOpeningTag(source: string, tag: RawTag): string {
   const name = source.slice(tag.nameRange.start, tag.nameRange.end);

@@ -7,7 +7,7 @@ import {
   LOCAL_COMPONENT_STATE_FORMAT,
 } from '../src/runtime-services/component-state';
 import { componentStateKey, localSourceDigest } from '../src/runtime-services/identity';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 
 const PROTOCOL = 'reactive-md-component/v1';
 

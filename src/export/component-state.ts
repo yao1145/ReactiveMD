@@ -7,8 +7,8 @@
  * so an export never ships records the runtime would silently skip.
  */
 
-import { walkLocalNodes } from '../local/source/node-walk';
-import type { Diagnostic, LocalDocument } from '../local/contracts/types';
+import { walkLocalNodes } from '../local/source/source-context';
+import type { Diagnostic, LocalDocument } from '../local/types';
 import {
   LOCAL_COMPONENT_STATE_DOCUMENT_FORMAT,
   parseLocalComponentStateDocument,

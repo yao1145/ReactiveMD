@@ -1,7 +1,7 @@
 import { MAX_LOCAL_HOST_COMPONENTS } from './limits';
 import { LOCAL_HTML_FLAGS, LOCAL_RECOVERY_STRATEGY_VERSION, readOptionCheck } from './options-core';
 import type { LocalOptionCheck } from './options-core';
-import type { LocalCompileOptions } from '../contracts/types';
+import type { LocalCompileOptions } from '../types';
 import { localComponentConfigKey, localConfigKey, readLocalConfig } from '../../sdk/config';
 import { getLocalComponentRegistry } from '../../sdk/registry';
 import defaultPreset from '../../presets/default';

@@ -1,13 +1,13 @@
+import { DataTableView } from '../src/local/rendering/legacy-component-adapter';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import {
   buildDataTableModel,
-  DataTableView,
   encodeDataTableKey,
   evaluateDataTableRows,
-} from '../src/local/widgets/data-table';
+} from '../src/local/rendering/data-table';
 import { defaultLocalize } from '../src/local/theme/i18n';
-import type { LocalNode, LocalRuntime, LocalValue } from '../src/local/contracts/types';
+import type { LocalNode, LocalRuntime, LocalValue } from '../src/local/types';
 
 /* ------------------------------------------------------------- fixtures */
 

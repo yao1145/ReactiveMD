@@ -13,7 +13,7 @@ import {
   sameFootnoteProjection,
   validationProjectionKey,
 } from '../src/local/rendering/view-revision';
-import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
+import type { LocalDocument, LocalNode } from '../src/local/types';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

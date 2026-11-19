@@ -1,5 +1,5 @@
-import type { MarkdownStructure } from '../markdown/markdown-blocks';
-import type { LocalNode, LocalRecovery } from '../contracts/types';
+import type { MarkdownStructure } from './markdown-blocks';
+import type { LocalNode, LocalRecovery } from '../types';
 
 /**
  * Optional parser abilities installed by the compiler assembly.

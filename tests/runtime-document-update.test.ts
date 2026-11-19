@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime, notifyLocalRuntime, updateLocalRuntime } from '../src/local/runtime/runtime';
-import { createLocalCompileSession } from '../src/local/session/incremental';
-import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/contracts/types';
+import { createLocalCompileSession } from '../src/local/compilation/incremental';
+import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/types';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

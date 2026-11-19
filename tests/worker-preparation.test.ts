@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LocalCompileSession, LocalIncrementalStats } from '../src/local/session/incremental';
-import type { LocalCompileResult } from '../src/local/contracts/types';
+import type { LocalCompileSession, LocalIncrementalStats } from '../src/local/compilation/incremental';
+import type { LocalCompileResult } from '../src/local/types';
 import {
   startLocalCompileWorker,
   type LocalCompileRequest,

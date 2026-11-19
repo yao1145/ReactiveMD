@@ -22,7 +22,7 @@ import type {
   LocalHostComponentSchema,
   LocalHostPropSchema,
   LocalNode,
-} from '../src/local/contracts/types';
+} from '../src/local/types';
 
 type HostProps = LocalHostComponentSchema['props'];
 

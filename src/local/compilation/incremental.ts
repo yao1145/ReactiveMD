@@ -1,17 +1,17 @@
 import { TreeFragment, type Tree } from '@lezer/common';
 import { parser, GFM } from '@lezer/markdown';
-import { compileLocalTracked,type LocalCompilerServices } from '../compilation/compiler';
+import { compileLocalTracked,type LocalCompilerServices } from './compiler';
 import {LocalSemanticCache,type SemanticCacheStats} from './compiler-cache';
-import {LocalParseSession} from './parse-session';
+import {LocalParseSession} from '../parsing/parse-session';
 import {shareCompiledData,countSharedNodes} from '../transport/shared-data';
 import {reuseFlatRows} from './row-reuse';
-import type {InlinePlan,InlinePlanLookup} from '../markdown/fast-markdown';
+import type {InlinePlan,InlinePlanLookup} from '../parsing/fast-markdown';
 import { plainCompiledData } from '../transport/compiled-data';
 import { localCompileOptionsKey, readLocalCompileOptions } from '../configuration/options';
 import { readLocalConfig } from '../../sdk/config';
 import { getLocalComponent } from '../configuration/schema';
 import { MAX_LOCAL_DOCUMENT_LENGTH } from '../configuration/limits';
-import type { LocalCompileOptions, LocalCompileResult, LocalDocument, LocalNode, SourceRange } from '../contracts/types';
+import type { LocalCompileOptions, LocalCompileResult, LocalDocument, LocalNode, SourceRange } from '../types';
 
 /**
  * Recovery mode disables incremental block assembly. Repaired regions have

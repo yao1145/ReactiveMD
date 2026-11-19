@@ -7,7 +7,7 @@ import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { LocalReactiveDocument } from '../src/local/rendering/LocalDocumentView';
 import { parseLocal } from '../src/local/parsing/parser';
 import { isLocalEmail, MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_STRING_LENGTH } from '../src/local/configuration/limits';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
 

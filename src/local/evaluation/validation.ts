@@ -1,6 +1,6 @@
 import { MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../configuration/limits';
-import { localCodeUnitPrefix } from '../source/text-length';
-import type { Diagnostic, LocalValidation, SourceRange } from '../contracts/types';
+import { localCodeUnitPrefix } from '../source/source-context';
+import type { Diagnostic, LocalValidation, SourceRange } from '../types';
 
 /**
  * Shared pieces for advisory cross-field rules (`<validation>`).

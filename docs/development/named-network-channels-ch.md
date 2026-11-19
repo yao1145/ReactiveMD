@@ -54,7 +54,7 @@ const network = {
 
 | 层 | 现有入口与拟议改动 |
 | --- | --- |
-| 运行时 | 在 [runtime-services](../../src/runtime-services/runtime.ts) 附近添加协议无关的注册表、订阅管理和取消逻辑。在 [LocalRuntimeOptions](../../src/local/contracts/types.ts) 接受宿主配置，在 [createLocalRuntime](../../src/local/runtime/runtime.ts) 建立每个运行时独有的通道会话。 |
+| 运行时 | 在 [runtime-services](../../src/runtime-services/runtime.ts) 附近添加协议无关的注册表、订阅管理和取消逻辑。在 [LocalRuntimeOptions](../../src/local/types.ts) 接受宿主配置，在 [createLocalRuntime](../../src/local/runtime/runtime.ts) 建立每个运行时独有的通道会话。 |
 | React 与组件 SDK | [交互视图](../../src/local/rendering/LocalDocumentViewCore.tsx) 透传配置并处理宿主切换。[组件上下文](../../src/react/component-api.tsx) 在 `ctx.services.network` 暴露操作，不向组件公开端点或凭据。手工构造的旧上下文和 detached runtime 继续可用。 |
 | 传输 | 协议实现放在按需导入的浏览器入口。沿用 [runtime/browser](../../src/runtime-services/browser/index.ts) 的加载边界，导入模块时不访问浏览器全局。核心通过可注入的适配器接口工作，可在测试中使用内存替身。 |
 | 官方组件 | 参考[可选组件包](../../src/components/plugins/forms.ts)组织方式，建议新增 `reactive-md/plugins/network`。独立注册无正文标签 `submit-button` 的 manifest 与 React 实现。默认和 minimal 预设不隐式加入组件或适配器。 |

@@ -1,4 +1,4 @@
-import type { LocalNode } from '../contracts/types';
+import type { LocalNode } from '../types';
 
 /**
  * Conservative row-level node reuse for flat Markdown lists and tables.

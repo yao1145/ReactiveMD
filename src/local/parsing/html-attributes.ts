@@ -1,4 +1,4 @@
-interface HtmlAttributeValue {
+export interface HtmlAttributeValue {
   name: string;
   value: string;
   start: number;

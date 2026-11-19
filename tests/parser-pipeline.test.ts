@@ -3,7 +3,7 @@ import {unified} from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import {parseLocal} from '../src/local/parsing/parser';
-import type {LocalCompileOptions, LocalNode} from '../src/local/contracts/types';
+import type {LocalCompileOptions, LocalNode} from '../src/local/types';
 
 const markdown=unified().use(remarkParse).use(remarkGfm);
 function ordinary(source: string): {nodes:LocalNode[];order:LocalNode[]} {

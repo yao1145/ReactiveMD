@@ -1,5 +1,5 @@
 import { readLocalCompileOptions } from './options';
-import type { LocalCompileOptions } from '../contracts/types';
+import type { LocalCompileOptions } from '../types';
 import { readLocalConfig } from '../../sdk/config';
 
 /** Copy only validated, serializable compile semantics into a portable payload. */

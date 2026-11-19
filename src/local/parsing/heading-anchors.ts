@@ -1,7 +1,7 @@
 import { compileExpression, type LocalExpression } from '../evaluation/expression';
 import { evaluateComputations, orderComputations } from '../evaluation/computations';
-import type { LocalDocument, LocalNode, LocalValue } from '../contracts/types';
-import {walkLocalNodes} from '../source/node-walk';
+import type { LocalDocument, LocalNode, LocalValue } from '../types';
+import {walkLocalNodes} from '../source/source-context';
 import type { LocalComponentDefinition } from '../../sdk/types';
 
 function headingText(nodes: LocalNode[] | undefined, initialState: Record<string, LocalValue>): string {

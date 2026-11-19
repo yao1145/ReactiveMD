@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { parseLocal } from '../src/local/parsing/parser';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
 

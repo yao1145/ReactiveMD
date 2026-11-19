@@ -119,7 +119,8 @@ const rootOnlyDomains = [
 /** The same domains in the declaration graph, where module paths are visible. */
 const rootOnlyDeclarationPaths = [
   [/(?:^|\/)transport\/worker\.d\.ts$/, 'compile worker protocol'],
-  [/(?:^|\/)session\//, 'incremental compile session'],
+  [/(?:^|\/)compilation\/(?:compiler-cache|incremental|row-reuse)\.d\.ts$/, 'incremental compile session'],
+  [/(?:^|\/)parsing\/parse-session\.d\.ts$/, 'incremental parse session'],
   [/(?:^|\/)runtime\/retention\.d\.ts$/, 'state retention'],
   [/(?:^|\/)shareable\.d\.ts$/, 'shareable HTML envelope'],
   [/(?:^|\/)export\//, 'export planning'],
@@ -475,7 +476,7 @@ const report = {
   browser,
   isolation: {
     dom: false,
-    blockedModules: ['react', 'react-dom', 'scheduler', '@codemirror/*', 'node:*', 'CSS', 'worker/session/theme modules'],
+    blockedModules: ['react', 'react-dom', 'scheduler', '@codemirror/*', 'node:*', 'CSS', 'worker/incremental/theme modules'],
     directEsmCompile: true,
   },
   boundaries: {

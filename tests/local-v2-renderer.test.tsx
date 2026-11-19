@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { LocalDocumentView, type LocalUrlPolicy } from '../src/local/rendering/LocalDocumentView';
-import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
+import type { LocalDocument, LocalNode } from '../src/local/types';
 import type { LocalLocale } from '../src/local/theme/i18n';
 
 function compile(source: string): { document: LocalDocument; runtime: ReturnType<typeof createLocalRuntime> } {

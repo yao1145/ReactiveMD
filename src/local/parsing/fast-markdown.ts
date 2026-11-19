@@ -1,4 +1,4 @@
-import type { LocalNode } from '../contracts/types';
+import type { LocalNode } from '../types';
 
 /** Offset-only Markdown nodes consumed by the existing semantic transform. */
 interface FastNode {

@@ -8,7 +8,7 @@ import {
   localDiagnosticTemplate,
 } from '../src/local/configuration/diagnostics';
 import { parseLocal } from '../src/local/parsing/parser';
-import type { Diagnostic, LocalCompileOptions } from '../src/local/contracts/types';
+import type { Diagnostic, LocalCompileOptions } from '../src/local/types';
 
 const RECOVERY_WARNING_CODES = [
   'local.recovery.unclosed',

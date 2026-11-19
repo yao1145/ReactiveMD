@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseLocal } from '../src/local/parsing/parser';
 import { compileLocal } from '../src/local/compilation/compiler';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 const flat = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flat(n.children ?? [])]);
 
 describe('emphasis around interpolations', () => {

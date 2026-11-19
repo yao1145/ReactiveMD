@@ -8,7 +8,7 @@ import { defineLocalTheme } from '../src/sdk/theme';
 import { createLocalExportPlan, createLocalShareableHtml, defineLocalStandaloneBundle, validateLocalExtensionRequirements } from '../src/export';
 import { parseMountPayload } from '../src/standalone/payload';
 import { portableCompileOptions } from '../src/local/configuration/portable-options';
-import type { LocalDocument } from '../src/local/contracts/types';
+import type { LocalDocument } from '../src/local/types';
 
 const component = defineLocalComponent({
   id: 'test/note', name: 'sdk-note', version: '1.0.0', protocol: 'reactive-md-component/v1', form: 'container',

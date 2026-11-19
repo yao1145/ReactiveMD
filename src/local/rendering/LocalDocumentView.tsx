@@ -2,10 +2,10 @@ import { createReactHost } from '../../react/package';
 import type { LocalReactConfig } from '../../react/sdk-core';
 import {
   LocalDocumentViewCore,
-  LocalReactiveDocumentCore,
   type LocalDocumentViewProps,
   type LocalReactiveDocumentProps,
 } from './LocalDocumentViewCore';
+import { LocalReactiveDocumentCore } from './LocalReactiveDocumentCore';
 
 export { textProblem } from './LocalDocumentViewCore';
 export type { LocalDocumentViewProps, LocalReactiveDocumentProps, LocalUrlPolicy, LocalImageResolver } from './LocalDocumentViewCore';

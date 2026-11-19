@@ -10,7 +10,7 @@ import {
   formatPercent,
   formatScientific,
 } from '../src/local/evaluation/formatting';
-import type { LocalValue, LocalValueKind } from '../src/local/contracts/types';
+import type { LocalValue, LocalValueKind } from '../src/local/types';
 
 function evaluate(source: string, env: Record<string, LocalValue> = {}): LocalValue {
   return compileExpression(source).evaluate(env);

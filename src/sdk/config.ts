@@ -29,7 +29,7 @@ import type {
   LocalPresetPackage,
   LocalPresetReference,
 } from './types';
-import type { Diagnostic, LocalDocument } from '../local/contracts/types';
+import type { Diagnostic, LocalDocument } from '../local/types';
 import {
   CONFIG_KEYS,
   MAX_LOCAL_SDK_CONFIG_BYTES,

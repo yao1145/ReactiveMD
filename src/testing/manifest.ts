@@ -1,4 +1,4 @@
-import type { LocalRuntime } from '../local/contracts/types';
+import type { LocalRuntime } from '../local/types';
 import {
   defineLocalComponent,
   localComponentDigest,

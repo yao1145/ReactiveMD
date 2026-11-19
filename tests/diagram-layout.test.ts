@@ -5,7 +5,7 @@ import {
   layoutDiagram,
   type DiagramLayoutInput,
   type DiagramLayoutResult,
-} from '../src/local/widgets/diagram-layout';
+} from '../src/local/rendering/diagram-layout';
 
 const NODE = { width: 120, height: 46 };
 

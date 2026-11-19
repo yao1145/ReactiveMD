@@ -8,7 +8,7 @@
  * plain-data snapshot. It never creates a runtime, session, worker, timer or
  * cache.
  */
-import type { LocalCompileResult, LocalDocument, LocalRecovery } from '../local/contracts/types';
+import type { LocalCompileResult, LocalDocument, LocalRecovery } from '../local/types';
 import { plainCompiledData } from '../local/transport/compiled-data';
 import type { CheckCoverage, CompileResult, Program } from './types';
 

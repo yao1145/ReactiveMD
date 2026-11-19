@@ -1,6 +1,6 @@
 import { compileLocal } from '../local/compilation/compiler';
 import { createLocalRuntime } from '../local/runtime/runtime';
-import type { LocalNode, LocalRuntime, LocalValue } from '../local/contracts/types';
+import type { LocalNode, LocalRuntime, LocalValue } from '../local/types';
 import { readLocalConfig } from '../sdk/config';
 import { getLocalComponentRegistry } from '../sdk/registry';
 import type { LocalComponentDefinition, LocalConfig } from '../sdk/types';

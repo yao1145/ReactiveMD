@@ -1,58 +1,55 @@
-import { scanHtmlAttributes } from './html-attributes';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
-import type { Diagnostic } from '../contracts/types';
-import type { LocalNode, LocalVersionDeclaration, SourceRange, LocalRecovery } from '../contracts/types';
-import type { LocalOptionCheck } from '../configuration/options-core';
-import { LOCAL_SYNTAX_VERSION } from '../contracts/version';
-import { diagnosticEnglish, localDiagnosticDetails, renderLocalDiagnostic, type LocalDiagnosticDetails } from '../configuration/diagnostics';
-import { HTML_TABLE_NAMES } from '../html/html-table-names';
-import { closestName } from '../configuration/schema-core';
-import { LOCAL_HTML_NAMES, LOCAL_HTML_ALIGN_ELEMENTS } from '../html/html-names';
-import {
-  HTML_INLINE_NODE_TYPES,
-  HTML_VOID_ELEMENTS,
-  HTML_RAW_TEXT_ELEMENTS,
-  htmlCommentEnd,
-  htmlTagEnd,
-  htmlAlignValue,
-  isHtmlAttributeNameAllowed,
-  isValidHtmlAttributeValue,
-} from '../html/html-policy';
-import { scanInterpolationEnd } from './lexical';
-import { isThemeTagAt, themeTagAt, skipThemePrefix, standaloneTheme, themeNameFrom } from './theme-declaration';
-import { normalizeFootnoteIdentifier } from '../markdown/footnotes';
-import {
-  MAX_LOCAL_DOCUMENT_LENGTH,
-  MAX_LOCAL_DIAGNOSTICS,
-  MAX_LOCAL_DIAGNOSTIC_LENGTH,
-  MAX_LOCAL_STRING_LENGTH,
-} from '../configuration/limits';
-import { parsePlainParagraphs } from '../markdown/plain-paragraphs';
-import type { FastMarkdownPlan, InlinePlanLookup, FastMarkdownContext } from '../markdown/fast-markdown';
-import { parseMarkdownBlocks,markdownTreeFacts,type MarkdownStructure } from '../markdown/markdown-blocks';
 import type { LocalParserCapabilities } from './parser-capabilities';
-import { SourceContext, MappedSource } from '../source/source-context';
-import { localCodeUnitPrefix } from '../source/text-length';
-import { ParseBudgetError, ParseWorkBudget, type ParseSessionCache, type ParseSessionCounters } from './parse-budget';
+import type {
+  Diagnostic,
+  LocalNode,
+  LocalRecovery,
+  LocalVersionDeclaration,
+  SourceRange,
+} from '../types';
+import type { FastMarkdownContext, FastMarkdownPlan, InlinePlanLookup } from './fast-markdown';
+import type { LocalOptionCheck } from '../configuration/options-core';
+import { SourceContext } from '../source/source-context';
+import {
+  ParseBudgetError,
+  ParseWorkBudget,
+  type ParseSessionCache,
+  type ParseSessionCounters,
+} from './parse-budget';
+import {
+  MAX_LOCAL_DIAGNOSTIC_LENGTH,
+  MAX_LOCAL_DIAGNOSTICS,
+  MAX_LOCAL_DOCUMENT_LENGTH,
+} from '../configuration/limits';
+import {
+  diagnosticEnglish,
+  localDiagnosticDetails,
+  renderLocalDiagnostic,
+  type LocalDiagnosticDetails,
+} from '../configuration/diagnostics';
+import { markdownTreeFacts, parseMarkdownBlocks, type MarkdownStructure } from './markdown-blocks';
+import {
+  HTML_NAMES,
+  LocalBudgetError,
+  MARK_CLOSE,
+  MARK_OPEN,
+  NATIVE_HTML_VOID,
+  type DefinitionRange,
+} from './parser-internals';
+import { parsePlainParagraphs } from './plain-paragraphs';
+import { scanInterpolationEnd } from './lexical';
+import { localCodeUnitPrefix } from '../source/source-context';
+import { createRegionScanner, type DocumentHeaders } from './parser-region';
+import { createMarkdownConverter } from './parser-convert';
+import { createTagScanner } from './parser-tags';
 import { planRmdRecovery } from './rmd-recovery';
-import { normalizeHtmlDetailsChildren } from '../html/html-details';
+import { HTML_VOID_ELEMENTS } from '../html/html-policy';
 
 /* Accepted tag shapes come from the unified registry snapshot passed through
  * compile options; tests/schema-shapes.test.ts pins the default preset forms. */
 /** Private-use sentinels keep source tokens opaque while Markdown is parsed. */
-const MARK_OPEN = String.fromCharCode(0xe000);
-const MARK_CLOSE = String.fromCharCode(0xe001);
-const MARK_BOUNDARY = String.fromCharCode(0xe002);
-const TAG_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
-const ATTR_NAME = TAG_NAME;
 /** P0 native HTML accepted inline in Markdown documents. */
-const HTML_NAMES = LOCAL_HTML_NAMES;
-const HTML_BLOCK = new Set([
-  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'div', 'details', 'blockquote', 'pre', 'ul', 'ol', 'li',
-]);
-const BLOCK_HTML_RESULTS = new Set(['paragraph', 'heading', 'div', 'details', 'blockquote', 'code', 'list', 'listItem', 'thematicBreak', 'htmlTable']);
 /** Structural recoveries that explain partial rendering with one warning each. */
 const RECOVERY_DIAGNOSTIC_CODES = new Set([
   'local.recovery.unclosed',
@@ -61,24 +58,18 @@ const RECOVERY_DIAGNOSTIC_CODES = new Set([
   'local.html.repair',
   'local.html.literal',
 ]);
-const NATIVE_HTML_VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
 /** Names longer than this are rejected and never fed to suggestion search. */
-const MAX_LOCAL_NAME_LENGTH = 128;
-/** Displayed math source, in UTF-16 code units, per formula. */
-const MAX_DISPLAY_MATH_SOURCE = Math.min(50_000, MAX_LOCAL_STRING_LENGTH);
-/** Component nesting depth, counted per parse call chain. */
-const MAX_COMPONENT_DEPTH = 100;
-/** Footnote labels longer than this are treated as ordinary text. */
-const MAX_FOOTNOTE_LABEL_LENGTH = 1_000;
 /** Monotonic wall clock for optional phase observations (never for budgets). */
 function clock(): number {
   const perf = globalThis.performance;
   return perf && typeof perf.now === 'function' ? perf.now() : Date.now();
 }
+
 function roundMs(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
+
 /**
  * Cheap over-approximation of "this source may contain Markdown containers".
  * When it is false the shared facts scan can be skipped entirely, preserving
@@ -86,11 +77,14 @@ function roundMs(value: number): number {
  * used in prose does not trigger the scan.
  */
 const CONTAINER_HINT = /(?:^|[\r\n])(?:[ \t]{0,3}>|[ \t]*(?:[-+*]|\d{1,9}[.)])(?=[ \t]|[\r\n]|$))/;
+
 function mayHaveContainer(source: string): boolean {
   return CONTAINER_HINT.test(source)
     || (source.charCodeAt(0) === 0xfeff && CONTAINER_HINT.test(source.slice(1)));
 }
+
 const coreMarkdown: any = unified().use(remarkParse);
+
 const markdownCache = new WeakMap<object, any>();
 
 /** CommonMark is core; GFM and other syntax arrive as assembly capabilities. */
@@ -105,27 +99,7 @@ function markdownFor(capabilities?: LocalParserCapabilities): any {
   }
   return processor;
 }
-interface Token { start: number; end: number; block?: boolean; node: LocalNode }
-interface RegionResult { tokens: Token[]; end: number; contentEnd: number; indent: number }
-/** Source range of one `[^label]:` definition block. */
-interface DefinitionRange { start: number; end: number }
-interface RegionOptions {
-  /** Footnote bodies keep controls, interpolations and math as literal text. */
-  footnote?: boolean;
-  /** Base indentation removed from continuation lines when converting. */
-  indent?: number;
-  /** Container bodies use container-aware code fence detection. */
-  container?: boolean;
-  /** Definition blocks visible to this region. */
-  definitions?: readonly DefinitionRange[];
-  stripBlockquote?: boolean;
-}
-interface ConvertOptions {
-  /** Show raw HTML as text instead of diagnosing it (footnote bodies). */
-  literalHtml?: boolean;
-  /** Strip the enclosing Markdown quote markers before dedenting a note. */
-  stripBlockquote?: boolean;
-}
+
 export interface ParsedLocal {
   nodes: LocalNode[];
   diagnostics: Diagnostic[];
@@ -183,20 +157,6 @@ export interface ParserWork {
     convertMs: number;
     totalMs: number;
   };
-}
-
-class LocalBudgetError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly start: number,
-    readonly end: number,
-    readonly key: string = code,
-    readonly params?: Record<string, string | number | boolean | null>,
-  ) {
-    super(message);
-    this.name = 'LocalBudgetError';
-  }
 }
 
 /** A lexical pass shields code before recognizing local tags, interpolation and math. */
@@ -342,7 +302,6 @@ export function parseLocalCore(
   };
   let serial = 0;
   let nodeCount = 0;
-  let markerSerial = 0;
   /** Fast plans actually emitted, in document order (incremental reuse hints). */
   const fastPlans = new Set<FastMarkdownPlan>();
   const node = (type: string, start: number, end: number, extra: Partial<LocalNode> = {}): LocalNode => {
@@ -382,19 +341,6 @@ export function parseLocalCore(
   let recoveryRanges: readonly SourceRange[] = [];
   let recoveries: LocalRecovery[] = [];
   const rootMathLiterals: SourceRange[] = [];
-  // Markdown destinations use backslashes to escape parentheses/brackets.
-  // Only labels are prose; a destination, title, or image is never TeX.
-  function inMathLiteral(ranges: readonly SourceRange[], offset: number): boolean {
-    let low = 0, high = ranges.length - 1;
-    while (low <= high) {
-      const middle = (low + high) >>> 1;
-      const range = ranges[middle];
-      if (offset < range.start) high = middle - 1;
-      else if (offset >= range.end) low = middle + 1;
-      else return true;
-    }
-    return false;
-  }
   /** Root-level footnote definitions, located by the Markdown parser. */
   const rootDefinitions: DefinitionRange[] = [];
   const sourceBomOffset = source.charCodeAt(0) === 0xfeff ? 1 : 0;
@@ -412,7 +358,7 @@ export function parseLocalCore(
       let cursor=0,search=0;
       while(search<text.length){
         const start=text.indexOf('{{',search);if(start<0)break;
-        const stop=interpolationEnd(start+offset+sourceBomOffset,offset+sourceBomOffset+text.length)-offset-sourceBomOffset;
+        const stop=scanInterpolationEnd(source,start+offset+sourceBomOffset,offset+sourceBomOffset+text.length)-offset-sourceBomOffset;
         // Only validated simple blocks may use equal-length advisory text.
         // Multiline expressions keep the original shielding parser.
         if(stop<=start||/[\r\n]/.test(text.slice(start,stop)))return;
@@ -469,7 +415,6 @@ export function parseLocalCore(
     }
     return null;
   };
-  let codeIndex = 0;
   function diagnostic(
     code: string,
     message: string,
@@ -544,1310 +489,20 @@ export function parseLocalCore(
     error('local.budget', { key, params: { limit: cause.limit } }, cause.start, cause.end);
   }
 
-  /* ---------------------------------------------------------- theme header */
 
-  /**
-   * Theme declarations are document metadata. Only a leading, standalone
-   * `<theme name="...">` is consumed; it is replaced with a dropped comment
-   * token so every remaining source offset, line and column stays original.
-   * Malformed, repeated, late and nested declarations warn but never stop the
-   * body from compiling, and theme never enters the component schema.
-   */
-  let theme: string | undefined;
-  let themeRange: SourceRange | undefined;
-  let themeHeaders = 0;
-  let headerCursor = 0;
-  let versionDeclaration: LocalVersionDeclaration | undefined;
-  let versionHeaders = 0;
+  const headers: DocumentHeaders = { themeHeaders: 0, headerCursor: 0, versionHeaders: 0 };
+  const convert = createMarkdownConverter({
+    source, maxSyntaxNodes, budget, markdownBreaks, isInlineName, sourceContext,
+    work, parseMarkdown, readNodeCount: () => nodeCount, fastPlans, node,
+    reservedMarkers, sourceBomOffset, rootMarkdown, error,
+  });
+  let region: ReturnType<typeof createRegionScanner>;
+  const scanner = createTagScanner({
+    source, strict, known, htmlSupport, decodeEntities, decodeAttribute, sourceContext,
+    node, codeEndAt, error, region: (...args) => region(...args), convert,
+  });
+  const { htmlCloseEnd, protectedEnd, scanTag, beginsLine } = scanner;
 
-  function decode(value: string) {
-    return value.replace(/&(quot|apos|amp|lt|gt);/g, (_, key: string) => ({ quot: '"', apos: "'", amp: '&', lt: '<', gt: '>' })[key]!);
-  }
-  function attributes(raw: string, offset: number): Record<string, string> {
-    const attrs: Record<string, string> = Object.create(null);
-    let i = 0;
-    while (i < raw.length) {
-      while (i < raw.length && /\s/.test(raw[i])) i++;
-      if (i >= raw.length || raw[i] === '/') break;
-      const start = i;
-      const match = /^[A-Za-z][A-Za-z0-9_-]*/.exec(raw.slice(i));
-      if (!match) {
-        error('local.attribute', { key: 'local.attribute.format' }, offset + i, undefined);
-        while (i < raw.length && !/\s/.test(raw[i])) i++;
-        continue;
-      }
-      const name = match[0]; i += name.length;
-      if (name.length > MAX_LOCAL_NAME_LENGTH) {
-        error('local.budget.name', { key: 'local.budget.name.attribute', params: { limit: MAX_LOCAL_NAME_LENGTH } }, offset + start, offset + i);
-      } else if (!ATTR_NAME.test(name)) {
-        error('local.attribute.name', { key: 'local.attribute.name', params: { name } }, offset + start, offset + i);
-      }
-      while (i < raw.length && /\s/.test(raw[i])) i++;
-      let value = 'true';
-      if (raw[i] === '=') {
-        i++; while (i < raw.length && /\s/.test(raw[i])) i++;
-        const quote = raw[i++];
-        if (quote !== '"' && quote !== "'") { error('local.attribute', { key: 'local.attribute.value-quoted', params: { name } }, offset + Math.max(0, i - 1), undefined); break; }
-        const end = raw.indexOf(quote, i);
-        if (end < 0) { error('local.attribute', { key: 'local.attribute.closing-quote', params: { name } }, offset + Math.max(0, i - 1), undefined); break; }
-        value = decode(raw.slice(i, end)); i = end + 1;
-      }
-      if (Object.hasOwn(attrs, name)) error('local.attribute.duplicate', { key: 'local.attribute.duplicate', params: { name } }, offset + start, offset + i);
-      else attrs[name] = value;
-      if (i < raw.length && !/\s|\//.test(raw[i])) { error('local.attribute', { key: 'local.attribute.separator' }, offset + i, undefined); break; }
-    }
-    return attrs;
-  }
-  function tagAt(start: number, limit: number) {
-    const match = /^<(\/?)([A-Za-z][A-Za-z0-9_-]*)(?=[\s/>])/.exec(source.slice(start, limit));
-    if (!match) return null;
-    const head = start + match[0].length;
-    // A prose fragment such as `<y` must never borrow a `>` from a later
-    // line. Unknown names followed by whitespace are therefore line-bounded;
-    // known containers keep their documented multi-line attribute syntax.
-    let scanLimit = limit;
-    const boundary = source[head];
-    if ((boundary === ' ' || boundary === '\t' || boundary === '\n' || boundary === '\r')
-      && !known.has(match[2].toLowerCase()) && !beginsLine(start)) {
-      const newline = source.indexOf('\n', head);
-      if (newline >= 0) scanLimit = Math.min(limit, newline);
-    }
-    const close = htmlTagEnd(source, head, scanLimit);
-    const name = match[2];
-    if (close < 0) return { name, closing: !!match[1], self: false, start, end: scanLimit, attrs: {}, head, unclosed: true };
-    const end = close - 1;
-    if (name.length > MAX_LOCAL_NAME_LENGTH) {
-      error('local.budget.name', { key: 'local.budget.name.tag', params: { limit: MAX_LOCAL_NAME_LENGTH } }, start, start + 1 + name.length);
-    }
-    const rest = source.slice(head, end);
-    if (match[1]) {
-      if (rest.trim()) error('local.tag.closing', { key: 'local.tag.closing', params: { name } }, start, close);
-      return { name, closing: true, self: false, start, end: close, attrs: {}, head, unclosed: false };
-    }
-    return { name, closing: false, self: /\/\s*$/.test(rest), start, end: close, attrs: known.has(name.toLowerCase()) ? attributes(rest, head) : {}, head, unclosed: false };
-  }
-  /**
-   * Silent tag boundary reader used for unknown components. Their attributes
-   * are inert, so they must never reach `attributes()` or emit diagnostics.
-   */
-  function scanTag(start: number, limit: number) {
-    const match = /^<(\/?)([A-Za-z][A-Za-z0-9_-]*)(?=[\s/>])/.exec(source.slice(start, limit));
-    if (!match) return null;
-    const head = start + match[0].length;
-    let scanLimit = limit;
-    const boundary = source[head];
-    if ((boundary === ' ' || boundary === '\t' || boundary === '\n' || boundary === '\r')
-      && !known.has(match[2].toLowerCase()) && !beginsLine(start)) {
-      const newline = source.indexOf('\n', head);
-      if (newline >= 0) scanLimit = Math.min(limit, newline);
-    }
-    const close = htmlTagEnd(source, head, scanLimit);
-    if (close < 0) return null;
-    const rest = source.slice(head, close - 1);
-    return { name: match[2], closing: !!match[1], self: !match[1] && /\/\s*$/.test(rest), end: close };
-  }
-  /** Keep an unclosed HTML fragment local to its paragraph. */
-  function htmlLiteralEnd(start: number, limit: number, parent?: string, rawName?: string): number {
-    if (!strict && rawName && HTML_RAW_TEXT_ELEMENTS.has(rawName.toLowerCase())) return limit;
-    const boundary = /\r?\n[\t ]*\r?\n/.exec(source.slice(start, limit));
-    let stop = boundary ? start + boundary.index : limit;
-    if (parent) {
-      const closing = new RegExp(`</${parent}\\s*>`, 'g');
-      closing.lastIndex = start;
-      const match = closing.exec(source);
-      if (match && match.index < stop) stop = match.index;
-    }
-    return stop;
-  }
-  function beginsLine(offset: number): boolean {
-    const lineStart = sourceContext.lineStartAt(offset);
-    return /^[ \t]*$/.test(source.slice(lineStart, offset));
-  }
-  /** Label and normalized identifier of `[^label]` at `start`, if present. */
-  function footnoteLabelAt(start: number, limit: number): { label: string; identifier: string; openEnd: number; closeEnd: number } | null {
-    if (source[start] !== '[' || source[start + 1] !== '^') return null;
-    let close = start + 2;
-    const stop = Math.min(limit, start + 2 + MAX_FOOTNOTE_LABEL_LENGTH);
-    for (; close < stop; close++) {
-      const character = source[close];
-      if (character === '\\' && /[!-/:-@\[\]\\^_`{|}~]/.test(source[close + 1] ?? '')) { close += 1; continue; }
-      if (character === ']') break;
-      if (character === '[' || character === '\n' || character === '\r') return null;
-    }
-    if (close >= stop || source[close] !== ']') return null;
-    const label = source.slice(start + 2, close);
-    if (!label.trim()) return null;
-    const identifier = normalizeFootnoteIdentifier(label);
-    return identifier ? { label, identifier, openEnd: start + 2, closeEnd: close + 1 } : null;
-  }
-  /** A definition marker `[^label]:` at `start`; positions are source offsets. */
-  function definitionLabelAt(start: number): { label: string; identifier: string; bodyStart: number } | null {
-    const found = footnoteLabelAt(start, source.length);
-    if (!found || source[found.closeEnd] !== ':') return null;
-    return { label: found.label, identifier: found.identifier, bodyStart: found.closeEnd + 1 };
-  }
-  /** Basic HTML tag shape (name only); attributes are validated by the caller. */
-  function htmlTagAt(start: number, limit: number, tableContext = false) {
-    if (htmlSupport === undefined) return null;
-    const match = /^<(\/?)([A-Za-z][A-Za-z0-9]*)(?=[\s/>])/.exec(source.slice(start, Math.min(limit, start + 64)));
-    if (!match) return null;
-    const lower = match[2].toLowerCase();
-    if (!HTML_NAMES.has(lower) && !(tableContext && HTML_TABLE_NAMES.has(lower))) return null;
-    const head = start + match[0].length;
-    const close = htmlTagEnd(source, head, limit);
-    if (close < 0) return null;
-    const end = close - 1;
-    const rest = source.slice(head, end);
-    const closing = Boolean(match[1]);
-    const scan = closing ? { attrs: Object.create(null), entries: [], invalid: [] } : scanHtmlAttributes(rest, head, decodeAttribute);
-    return {
-      lower,
-      closing,
-      self: !closing && /\/\s*$/.test(rest),
-      rest,
-      attrs: scan.attrs,
-      entries: scan.entries,
-      invalid: scan.invalid,
-      start,
-      head,
-      end: end + 1,
-    };
-  }
-  /** Matching close of a paired basic HTML tag, nesting same-name tags. */
-  function htmlCloseEnd(start: number, name: string, limit: number, insideContainer: boolean): { start: number; end: number } | null {
-    let depth = 1;
-    for (let i = start; i < limit;) {
-      if (!insideContainer) {
-        const codeEnd = codeEndAt(i);
-        if (codeEnd !== null && codeEnd > i) { i = Math.min(codeEnd, limit); continue; }
-      }
-      const shield = protectedEnd(i, limit, insideContainer);
-      if (shield !== null) { i = shield; continue; }
-      if (source.startsWith('<!--', i)) {
-        i = htmlCommentEnd(source, i, limit);
-        continue;
-      }
-      if (source[i] === '<') {
-        const tag = htmlTagAt(i, limit);
-        if (tag) {
-          if (tag.lower === name) {
-            if (tag.closing) {
-              depth -= 1;
-              if (depth === 0) return { start: i, end: tag.end };
-            } else if (!tag.self && !HTML_VOID_ELEMENTS.has(name)) {
-              depth += 1;
-            }
-          } else if (!tag.closing && (tag.lower === 'pre' || tag.lower === 'code') && !HTML_VOID_ELEMENTS.has(tag.lower)) {
-            // Raw code content is inert: tags inside it never change the
-            // nesting of the surrounding HTML container.
-            const inner = htmlCloseEnd(tag.end, tag.lower, limit, insideContainer);
-            if (inner) { i = inner.end; continue; }
-          }
-          i = tag.end;
-          continue;
-        }
-      }
-      i++;
-    }
-    return null;
-  }
-  /** P0 attribute policy. Any unsupported name or unsafe value degrades the whole tag to source. */
-  function selectHtmlAttributes(lower: string, tag: ReturnType<typeof htmlTagAt> & {}): { ok: true; attrs: Record<string, string> } | { ok: false; attr: string } {
-    if (!tag) return { ok: false, attr: '' };
-    const attrs: Record<string, string> = Object.create(null);
-    if (tag.invalid.length) return { ok: false, attr: tag.invalid[0].name };
-    for (const entry of tag.entries) {
-      const name = entry.name;
-      if (!isHtmlAttributeNameAllowed(lower, name)) return { ok: false, attr: name };
-      // Duplicates are still validated, but the first occurrence wins as in HTML.
-      const first = !Object.hasOwn(attrs, name);
-      if (name === 'align' && LOCAL_HTML_ALIGN_ELEMENTS.has(lower)) {
-        const align = htmlAlignValue(lower, entry.value);
-        if (!align) return { ok: false, attr: name };
-        if (first) attrs.align = align;
-        continue;
-      }
-      if (!isValidHtmlAttributeValue(name, entry.value)) return { ok: false, attr: name };
-      if (first) attrs[name] = entry.value;
-    }
-    if (lower === 'details' && Object.hasOwn(attrs, 'open')) attrs.open = 'true';
-    return { ok: true, attrs };
-  }
-  /** Inline children of an HTML formatting element, unwrapping one paragraph. */
-  function inlineHtmlChildren(nodes: LocalNode[]): LocalNode[] {
-    return nodes.length === 1 && nodes[0].type === 'paragraph' ? nodes[0].children ?? [] : nodes;
-  }
-  function flattenParagraphs(nodes: LocalNode[]): LocalNode[] {
-    return nodes.flatMap((child) => (child.type === 'paragraph' ? child.children ?? [] : [child]));
-  }
-  interface HtmlNodeContext {
-    footnote: boolean;
-    container: boolean;
-    indent: number;
-    stripBlockquote: boolean;
-    depth: number;
-  }
-  /**
-   * Convert one P0 HTML element. Paired containers keep every Markdown,
-   * formula, interpolation and ReactiveMD token their body produced; `<code>`
-   * and `<pre>` stay raw and inert, and details/summary keep rich children.
-   */
-  function buildHtmlNode(
-    tag: { lower: string; start: number; head: number; end: number },
-    close: { start: number; end: number },
-    attrs: Record<string, string>,
-    context: HtmlNodeContext,
-  ): LocalNode {
-    const start = tag.start;
-    const end = close.end;
-    const bodyNodes = (): LocalNode[] => {
-      const body = region(tag.end, close.start, undefined, start, tag.end, context.depth + 1, {
-        footnote: context.footnote,
-        indent: context.indent,
-        container: context.container,
-        definitions: [],
-        stripBlockquote: context.stripBlockquote,
-      });
-      return convert(tag.end, close.start, body.tokens, context.indent, {
-        literalHtml: context.footnote,
-        stripBlockquote: context.stripBlockquote,
-      });
-    };
-    const inline = (): LocalNode[] => inlineHtmlChildren(bodyNodes());
-    const listItems = (nodes: LocalNode[]): LocalNode[] => {
-      const items: LocalNode[] = [];
-      for (const child of nodes) {
-        if (child.type === 'list') {
-          for (const item of child.children ?? []) if (item.type === 'listItem') items.push(item);
-          continue;
-        }
-        if (child.type === 'listItem') {
-          items.push(child);
-          continue;
-        }
-        if (child.type === 'comment' || (child.type === 'text' && !(child.value ?? '').trim())) continue;
-        items.push(node('listItem', child.range.start, child.range.end, {
-          children: child.type === 'paragraph' ? child.children ?? [] : [child],
-        }));
-      }
-      return items;
-    };
-
-    switch (tag.lower) {
-      case 'code': {
-        // Raw content: `{{ }}`, Markdown and tags stay literal; entities decode.
-        return node('inlineCode', start, end, { value: decodeEntities(source.slice(tag.end, close.start)) });
-      }
-      case 'pre': {
-        const raw = source.slice(tag.end, close.start);
-        const wrapped = /^<code(?:\s[^>]*)?>([\s\S]*)<\/code>$/.exec(raw);
-        return node('code', start, end, {
-          value: decodeEntities(wrapped ? wrapped[1] : raw),
-          attrs,
-        });
-      }
-      case 'summary':
-        return node('summary', start, end, { attrs, children: inline() });
-      case 'details': {
-        return node('details', start, end, {
-          attrs,
-          children: normalizeHtmlDetailsChildren(bodyNodes()),
-        });
-      }
-      case 'p':
-        return node('paragraph', start, end, { attrs, children: flattenParagraphs(bodyNodes()) });
-      case 'h1': case 'h2': case 'h3': case 'h4': case 'h5': case 'h6':
-        return node('heading', start, end, {
-          depth: Number(tag.lower.slice(1)),
-          attrs,
-          children: flattenParagraphs(bodyNodes()),
-        });
-      case 'div':
-        return node('div', start, end, { attrs, children: bodyNodes() });
-      case 'blockquote':
-        return node('blockquote', start, end, { attrs, children: bodyNodes() });
-      case 'ul':
-      case 'ol': {
-        const ordered = tag.lower === 'ol';
-        const rawStart = attrs.start;
-        const startNumber = ordered && rawStart !== undefined ? Number(rawStart) : undefined;
-        return node('list', start, end, {
-          ordered,
-          ...(ordered && startNumber !== undefined && Number.isFinite(startNumber) ? { start: startNumber } : {}),
-          attrs,
-          children: listItems(bodyNodes()),
-        });
-      }
-      case 'li': {
-        const nodes = bodyNodes();
-        return node('listItem', start, end, {
-          attrs,
-          children: nodes.length === 1 && nodes[0].type === 'paragraph'
-            ? nodes[0].children ?? []
-            : nodes,
-        });
-      }
-      case 'a': {
-        if (attrs.href === undefined) {
-          return node('span', start, end, { attrs, children: inline() });
-        }
-        return node('link', start, end, {
-          url: attrs.href,
-          title: attrs.title ?? null,
-          attrs,
-          children: inline(),
-        });
-      }
-      case 'span':
-        return node('span', start, end, { attrs, children: inline() });
-      default:
-        return node(HTML_INLINE_NODE_TYPES[tag.lower] ?? tag.lower, start, end, {
-          attrs,
-          children: inline(),
-        });
-    }
-  }
-  const ROOT_FENCE_LINE = /^ {0,3}$/;
-  const CONTAINER_FENCE_LINE = /^[ \t]*$/;
-  function protectedEnd(i: number, end: number, insideContainer: boolean): number | null {
-    const character = source[i];
-    if (character === '\\') return Math.min(end, i + 2);
-    if (character !== '`' && character !== '~') return null;
-    // Recognize fenced code at a Markdown line boundary, including container indentation.
-    const lineStart = sourceContext.lineStartAt(i);
-    if ((insideContainer ? CONTAINER_FENCE_LINE : ROOT_FENCE_LINE).test(source.slice(lineStart, i))) {
-      // CommonMark: a backtick fence's info string cannot contain a backtick;
-      // such a line is ordinary paragraph text (a code span at most).
-      const fence = /^(?:(`{3,})[^`\n]*|(~{3,})[^\n]*)(?:\n|$)/.exec(source.slice(i, end));
-      if (fence) {
-        const run = fence[1] ?? fence[2];
-        const prefix = insideContainer ? '[ \\t]*' : ' {0,3}';
-        const close = new RegExp(`^${prefix}${run[0]}{${run.length},}[ \\t]*\\r?$`, 'gm');
-        close.lastIndex = i + fence[0].length;
-        const match = close.exec(source);
-        return match && match.index < end ? Math.min(end, match.index + match[0].length) : end;
-      }
-    }
-    if (character === '`') {
-      const ticks = /^`+/.exec(source.slice(i, end))![0];
-      let next = source.indexOf(ticks, i + ticks.length);
-      while (next >= 0 && next < end) {
-        if (source[next - 1] !== '`' && source[next + ticks.length] !== '`') return next + ticks.length;
-        next = source.indexOf(ticks, next + ticks.length);
-      }
-      return i + ticks.length;
-    }
-    return null;
-  }
-  /**
-   * Find the matching close of an unknown paired tag. Only the tag's own name
-   * changes depth; nested unknowns, attributes, comments, code and escapes are
-   * opaque, so malformed content inside cannot produce document-wide errors.
-   */
-  function unknownTagEnd(start: number, name: string, limit: number, insideContainer: boolean, ignoreCase = false): { start: number; end: number } | null {
-    let depth = 1;
-    for (let i = start; i < limit;) {
-      if (!insideContainer) {
-        const codeEnd = codeEndAt(i);
-        if (codeEnd !== null && codeEnd > i) { i = Math.min(codeEnd, limit); continue; }
-      }
-      const shield = protectedEnd(i, limit, insideContainer);
-      if (shield !== null) { i = shield; continue; }
-      if (source.startsWith('<!--', i)) {
-        i = htmlCommentEnd(source, i, limit);
-        continue;
-      }
-      if (source[i] === '<') {
-        const tag = scanTag(i, limit);
-        if (tag) {
-          if (tag.name === name || (ignoreCase && tag.name.toLowerCase() === name.toLowerCase())) {
-            if (tag.closing) {
-              depth -= 1;
-              if (depth === 0) return { start: i, end: tag.end };
-            } else if (!tag.self) {
-              depth += 1;
-            }
-          }
-          i = tag.end;
-          continue;
-        }
-      }
-      i++;
-    }
-    return null;
-  }
-  function interpolationEnd(start: number, end: number) {
-    return scanInterpolationEnd(source, start, end);
-  }
-  /**
-   * Common leading indentation of the lines owned by a container. Fenced code
-   * content is ignored so an unindented code sample does not cancel dedenting.
-   */
-  function commonIndent(start: number, end: number): number {
-    let indent = Number.POSITIVE_INFINITY;
-    let fenceChar = '', fenceLength = 0;
-    let pos = start;
-    while (pos < end) {
-      const lineEnd = source.indexOf('\n', pos);
-      const stop = lineEnd < 0 || lineEnd > end ? end : lineEnd;
-      const text = source.slice(pos, stop);
-      const atLineStart = sourceContext.lineStartAt(pos) === pos;
-      if (atLineStart) {
-        if (fenceChar) {
-          if (new RegExp(`^[ \\t]*${fenceChar}{${fenceLength},}[ \\t]*\\r?$`).test(text)) fenceChar = '';
-        } else {
-          const open = /^([ \t]*)(`{3,}(?=[^`]*$)|~{3,})/.exec(text);
-          if (open) {
-            indent = Math.min(indent, open[1].length);
-            fenceChar = open[2][0]; fenceLength = open[2].length;
-          } else if (text.trim() !== '') {
-            indent = Math.min(indent, /^[ \t]*/.exec(text)![0].length);
-          }
-        }
-      }
-      if (stop >= end) break;
-      pos = stop + 1;
-    }
-    return Number.isFinite(indent) ? indent : 0;
-  }
-  function region(start: number, end: number, parent?: string, openStart = start, openEnd = start, depth = 0, options: RegionOptions = {}): RegionResult {
-    const tokens: Token[] = [];
-    if (end > start) budget.charge(end - start, start, end);
-    work.maxComponentDepth=Math.max(work.maxComponentDepth,depth);
-    if (depth > MAX_COMPONENT_DEPTH) {
-      throw new LocalBudgetError('local.budget','Component nesting exceeds the 100-level limit.',openStart,openEnd,'local.budget.nesting',{limit:MAX_COMPONENT_DEPTH});
-    }
-    const footnoteMode = options.footnote === true;
-    const insideContainer = options.container ?? parent !== undefined;
-    let contentIndent = options.indent ?? 0;
-    // Raw component tags can hide footnote definitions from the document's
-    // first Markdown pass. Re-scan each dedented body for definition ranges so
-    // a definition inside a container still becomes a real footnote node.
-    let regionDefinitions: readonly DefinitionRange[] = options.definitions ?? rootDefinitionRanges;
-    let mathLiterals: readonly SourceRange[] = rootMathLiterals;
-    // 根层代码块来自全文 Markdown 解析；容器正文被组件标签遮住，需按去缩进
-    // 后的正文重新确定代码块（缩进代码、引用/列表里的围栏），使其保持原文。
-    let containerCode: readonly SourceRange[] = [];
-    if (parent) {
-      const bodyEnd = unknownTagEnd(start, parent, end, true)?.start ?? end;
-      const indent = commonIndent(start, bodyEnd);
-      contentIndent = indent;
-      const mapped = new MappedSource(sourceContext);
-      mapped.original(start, bodyEnd, indent); mapped.finish(bodyEnd);
-      work.mappingSegments+=mapped.segmentCount;
-      const text = mapped.text();
-      // Definitions/images need `[`, autolinks need a protocol, `www.` or an
-      // email `@`. Code blocks need four columns of indentation or a fence
-      // after a quote/list prefix (line-leading fences are already shielded
-      // lexically). Without these features there are no facts to find.
-      // Retain the same deterministic work/depth charges on this shortcut.
-      let facts:{definitions:SourceRange[];mathLiterals:SourceRange[];codeRanges:SourceRange[]};
-      if(!/[\[:@]|www\./i.test(text)&&!/^[ \t>*+\-0-9.)]*(?: {4}|\t|`{3}|~{3})/m.test(text)){
-        budget.charge(text.length+1,0,Math.max(1,text.length));
-        ensureDepth(text);
-        facts={definitions:[],mathLiterals:[],codeRanges:[]};
-      }else facts=markdownTreeFacts(parseMarkdown(text),false);
-      const translate=(range:SourceRange):SourceRange=>({start:mapped.at(range.start,bodyEnd),end:mapped.at(range.end,bodyEnd)});
-      const found=facts.definitions.map(translate).filter(range=>range.end>range.start);
-      const literals=facts.mathLiterals.map(translate);
-      mathLiterals = literals.sort((a, b) => a.start - b.start);
-      containerCode = facts.codeRanges.map(translate)
-        .filter(range => range.end > range.start && range.start >= start && range.end <= bodyEnd)
-        .sort((a, b) => a.start - b.start);
-      regionDefinitions = found
-        .filter(range => range.start >= start && range.end <= bodyEnd)
-        .sort((a, b) => a.start - b.start || b.end - a.end);
-    } else if (start > 0 && options.definitions !== undefined && !footnoteMode) {
-      // HTML bodies can be opaque to the root Markdown pass, just like
-      // component bodies. Discover destinations without changing note scope.
-      const literals=markdownTreeFacts(parseMarkdown(source.slice(start,end))).mathLiterals.map(range=>({start:range.start+start,end:range.end+start}));
-      mathLiterals = literals.sort((a, b) => a.start - b.start);
-    }
-    let definitionIndex = 0;
-    let containerCodeIndex = 0;
-    // Recovery spans are single literal tokens: their content is never
-    // re-parsed for components, bindings, interpolation, math or Markdown.
-    let recoveryIndex = 0;
-    while (recoveryIndex < recoveryRanges.length && recoveryRanges[recoveryIndex].end <= start) recoveryIndex += 1;
-    for (let i = start; i < end;) {
-      while (recoveryIndex < recoveryRanges.length && recoveryRanges[recoveryIndex].end <= i) recoveryIndex += 1;
-      const recovery = recoveryRanges[recoveryIndex];
-      if (recovery && recovery.start <= i && i < recovery.end) {
-        const stop = Math.min(end, recovery.end);
-        tokens.push({
-          start: i,
-          end: stop,
-          block: beginsLine(i),
-          node: node('fallback', i, stop, { value: source.slice(i, stop) }),
-        });
-        i = stop;
-        continue;
-      }
-      if (!insideContainer) {
-        while (codeRanges[codeIndex]?.end <= i) codeIndex++;
-        const code = codeRanges[codeIndex];
-        if (code && code.start <= i) { i = code.end; continue; }
-      } else if (containerCode.length) {
-        while (containerCode[containerCodeIndex]?.end <= i) containerCodeIndex++;
-        const code = containerCode[containerCodeIndex];
-        if (code && code.start <= i) { i = code.end; continue; }
-      }
-      // Definitions are real Markdown blocks even when the surrounding
-      // component tag hides them from the document-wide Markdown pass.
-      while (regionDefinitions[definitionIndex]?.end <= i) definitionIndex++;
-      const definition = regionDefinitions[definitionIndex];
-      if (definition && definition.start === i) {
-        let labelStart = i;
-        let marker = definitionLabelAt(labelStart);
-        // Block positions may include up to three leading spaces before `[`.
-        while (!marker && labelStart - i < 4 && labelStart < definition.end
-          && (source[labelStart] === ' ' || source[labelStart] === '\t')) {
-          labelStart += 1;
-          marker = definitionLabelAt(labelStart);
-        }
-        if (marker && marker.bodyStart <= definition.end) {
-          const lineStart = sourceContext.lineStartAt(labelStart);
-          const prefix = source.slice(lineStart, labelStart);
-          const quotePrefix = /^(?:[ \t]{0,3}>[ \t]?)+/.exec(prefix)?.[0] ?? '';
-          const definitionIndent = /^[ \t]*/.exec(prefix.slice(quotePrefix.length))![0].length;
-          const bodyIndent = definitionIndent + 4;
-          const body = region(marker.bodyStart, definition.end, undefined, marker.bodyStart, marker.bodyStart, depth + 1, {
-            footnote: true,
-            indent: bodyIndent,
-            container: insideContainer || definitionIndent > 0,
-            definitions: [],
-            stripBlockquote: quotePrefix.length > 0,
-          });
-          const children = convert(marker.bodyStart, definition.end, body.tokens, bodyIndent, { literalHtml: true, stripBlockquote: quotePrefix.length > 0 });
-          tokens.push({
-            start: definition.start,
-            end: definition.end,
-            block: true,
-            node: node('footnoteDefinition', definition.start, definition.end, {
-              identifier: marker.identifier,
-              label: marker.label,
-              children,
-            }),
-          });
-          i = definition.end;
-          definitionIndex += 1;
-          continue;
-        }
-        // A malformed definition keeps its source as ordinary Markdown text.
-        definitionIndex += 1;
-      }
-      // TeX-style delimiters precede Markdown backslash escapes. Code ranges,
-      // fences and inline-code spans are still shielded by the surrounding
-      // scan. Plot deliberately retains its $$...$$-only body grammar.
-      // Imported Markdown sometimes retains escaped display wrappers. Only
-      // accept padded \\[ ... \\] wrappers so ordinary escaped brackets stay literal.
-      const escapedDisplay = source.startsWith('\\\\[', i) && /\s/.test(source[i + 3] ?? '');
-      if (!footnoteMode && parent !== 'plot' && source[i] === '\\'
-        && (source[i + 1] === '(' || source[i + 1] === '[' || escapedDisplay) && !inMathLiteral(mathLiterals, i)) {
-        const display = escapedDisplay || source[i + 1] === '[';
-        const delimiterLength = escapedDisplay ? 3 : 2;
-        const closing = display ? ']' : ')';
-        let stop = i + delimiterLength;
-        while (stop < end) {
-          if (source[stop] === '\\') {
-            if (escapedDisplay
-              ? source.startsWith('\\\\]', stop) && stop + 2 < end && /\s/.test(source[stop - 1] ?? '')
-              : source[stop + 1] === closing && stop + 1 < end) break;
-            stop += 2;
-          } else stop++;
-        }
-        if (stop >= end) {
-          error('local.math.unclosed', { key: 'local.math.unclosed' }, i, end);
-          i = end;
-          continue;
-        }
-        const finish = stop + delimiterLength;
-        let value = source.slice(i + delimiterLength, stop);
-        if (value.length > MAX_DISPLAY_MATH_SOURCE) {
-          error('local.budget.math', { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } }, i, finish);
-          value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
-        }
-        tokens.push({ start: i, end: finish, node: node(display ? 'math' : 'inlineMath', i, finish, { value }) });
-        i = finish;
-        continue;
-      }
-      const shield = protectedEnd(i, end, insideContainer);
-      if (shield !== null) { i = shield; continue; }
-      if (source.startsWith('<!--', i)) {
-        const stop = htmlCommentEnd(source, i, end);
-        const comment = source.slice(i, stop);
-        if (!footnoteMode && /^<!--\s*reactive-md(?=[\s:]|-->|$)/i.test(comment)) {
-          versionHeaders += 1;
-          const lineStart = sourceContext.lineStartAt(i);
-          const nextLine = source.indexOf('\n', stop);
-          const standalone = /^\s*$/.test(source.slice(lineStart, i))
-            && /^\s*$/.test(source.slice(stop, nextLine < 0 ? source.length : nextLine));
-          const match = /^<!--[ \t]*reactive-md:[ \t]*(local-draft-[1-9][0-9]*)[ \t]*-->$/.exec(comment);
-          if (versionHeaders > 1) {
-            error('local.version.duplicate', 'Only one source syntax declaration is allowed.', i, stop);
-          } else if (!match || /[\r\n]/.test(comment)) {
-            error('local.version.malformed', `Use <!-- reactive-md: ${LOCAL_SYNTAX_VERSION} --> on one line.`, i, stop);
-          } else {
-            versionDeclaration = { version: match[1], range: { start: i, end: stop } };
-            if (parent !== undefined || !standalone || skipThemePrefix(source, 0, i) !== i) {
-              error('local.version.placement', 'The syntax declaration must be on its own line before the theme and document body.', i, stop);
-            } else if (match[1] !== LOCAL_SYNTAX_VERSION) {
-              error('local.version.unsupported', {
-                key: 'local.version.unsupported', params: { declared: match[1], supported: LOCAL_SYNTAX_VERSION },
-              }, i, stop);
-            }
-          }
-        }
-        tokens.push({ start: i, end: stop, node: node('comment', i, stop) }); i = stop; continue;
-      }
-      if (!footnoteMode && source.startsWith('{{', i)) {
-        const stop = interpolationEnd(i, end);
-        if (stop < 0) { error('local.interpolation', { key: 'local.interpolation.unclosed' }, i, end); i += 2; continue; }
-        tokens.push({ start: i, end: stop, node: node('interpolation', i, stop, { value: source.slice(i + 2, stop - 2).trim() }) }); i = stop; continue;
-      }
-      if (!footnoteMode && source[i] === '$') {
-        const display = source[i + 1] === '$', delimiter = display ? '$$' : '$';
-        if (display) {
-          let stop = i + delimiter.length;
-          for (; stop < end; stop++) {
-            if (source[stop] === '\\') { stop++; continue; }
-            if (source.startsWith(delimiter, stop)) break;
-          }
-          if (stop >= end || !source.startsWith(delimiter, stop)) { error('local.math.unclosed', { key: 'local.math.unclosed' }, i, undefined); i += delimiter.length; continue; }
-          let value = source.slice(i + delimiter.length, stop);
-          if (value.length > MAX_DISPLAY_MATH_SOURCE) {
-            error('local.budget.math', { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } }, i, stop + delimiter.length);
-            value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
-          }
-          const finish = stop + delimiter.length;
-          tokens.push({ start: i, end: finish, node: node('math', i, finish, { value }) }); i = finish; continue;
-        }
-        // A single dollar only opens inline math at an explainable boundary.
-        // Currency such as `$5 and $10` stays literal: the closer must not be
-        // immediately followed by a digit, and the content must contain a
-        // non-whitespace character. The first `$` that fails this boundary ends the current
-        // match, so a later, well-formed formula is still recognized on its own.
-        let stop = i + 1;
-        let close = -1;
-        for (; stop < end; stop++) {
-          const character = source[stop];
-          if (character === '\\') { stop++; continue; }
-          if (character === '\n' || character === '\r') break;
-          if (character !== '$') continue;
-          const value = source.slice(i + 1, stop);
-          const after = source[stop + 1];
-          if (!value.trim()) break;
-          // A tight numeric opener followed by prose is a price, not a formula.
-          // Do not consume the opening `$` of a later formula as its closer.
-          if (/\s$/.test(value) && /^\d[\d.,]*(?:[，、；：。！？]|[.,;:!?]\s|\s+(?:and|or|to|each|per|for)\b)/i.test(value)) break;
-          if (after !== undefined && after >= '0' && after <= '9') break;
-          close = stop;
-          break;
-        }
-        if (close < 0) { i += 1; continue; }
-        let value = source.slice(i + 1, close);
-        if (value.length > MAX_DISPLAY_MATH_SOURCE) {
-          error('local.budget.math', { key: 'local.budget.math', params: { limit: MAX_DISPLAY_MATH_SOURCE } }, i, close + 1);
-          value = value.slice(0, MAX_DISPLAY_MATH_SOURCE);
-        }
-        const finish = close + 1;
-        tokens.push({ start: i, end: finish, node: node('inlineMath', i, finish, { value }) }); i = finish; continue;
-      }
-      if (source[i] === '[') {
-        const reference = footnoteLabelAt(i, end);
-        // `[^label]:` only opens a definition at the start of a line; anywhere
-        // else it is an ordinary footnote call followed by a colon.
-        if (reference && (source[reference.closeEnd] !== ':' || !beginsLine(i))) {
-          tokens.push({
-            start: i,
-            end: reference.closeEnd,
-            node: node('footnoteReference', i, reference.closeEnd, {
-              identifier: reference.identifier,
-              label: reference.label,
-            }),
-          });
-          i = reference.closeEnd;
-          continue;
-        }
-      }
-      if (source[i] === '<') {
-        if (htmlSupport) {
-        const htmlDiagnosticStart = diagnostics.length;
-        let invalidNativeTable = false;
-        let nativeTable: ReturnType<NonNullable<LocalParserCapabilities['html']>['readTable']>;
-        try {
-          nativeTable = htmlSupport.readTable(source, i, end, {
-          shield: (offset: number, limit: number) => {
-            if (source.startsWith('{{', offset)) {
-              const finish = interpolationEnd(offset, limit);
-              if (finish >= 0) return finish;
-            }
-            if (source[offset] === '<') {
-              const tag = scanTag(offset, limit);
-              if (tag && !tag.closing && !HTML_TABLE_NAMES.has(tag.name.toLowerCase())
-                && !HTML_NAMES.has(tag.name.toLowerCase()) && !known.has(tag.name.toLowerCase())) {
-                const close = unknownTagEnd(tag.end, tag.name, limit, insideContainer);
-                if (close) return close.end;
-              }
-            }
-            return protectedEnd(offset, limit, insideContainer);
-          },
-          budget: (offset: number, count: number) => {
-            if (count > maxSyntaxNodes * 2) throw new LocalBudgetError('local.budget', `Syntax nodes exceed the limit of ${maxSyntaxNodes}.`, offset, offset + 1, 'local.budget.nodes', { limit: maxSyntaxNodes });
-          },
-          node,
-          problem: (kind: string, from: number, to: number, tag?: string, name?: string) => {
-            invalidNativeTable = true;
-            const key = `html.table.${kind}`;
-            const params = { tag: tag ?? 'table', name: name ?? '' };
-            warning('local.html.fallback', { key, params }, from, to);
-          },
-          attributes: (name: string, from: number, to: number) => {
-            const tag = htmlTagAt(from, to, true);
-            const selected = tag && selectHtmlAttributes(name, tag);
-            if (!selected || !selected.ok) {
-              invalidNativeTable = true;
-              const attribute = selected && !selected.ok ? selected.attr : '';
-              const key = `html.table.${['colspan', 'rowspan', 'span', 'scope', 'align'].includes(attribute) ? 'value' : 'attribute'}`;
-              const params = { tag: name, name: attribute };
-              warning('local.html.fallback', { key, params }, from, to);
-              return {};
-            }
-            return selected.attrs;
-          },
-          content: (from: number, to: number) => {
-            const body = region(from, to, undefined, from, from, depth + 1, { ...options, definitions: [] });
-            return convert(from, to, body.tokens, commonIndent(from, to), { literalHtml: footnoteMode, stripBlockquote: options.stripBlockquote === true });
-          },
-          });
-        } catch (cause) {
-          if (cause instanceof LocalBudgetError) throw cause;
-          const opening = scanTag(i, end);
-          if (!opening || opening.closing || opening.name.toLowerCase() !== 'table') throw cause;
-          const stop = unknownTagEnd(opening.end, opening.name, end, insideContainer, true)?.end ?? htmlLiteralEnd(opening.end, end, parent);
-          const retained = diagnostics.slice(htmlDiagnosticStart).filter(d => d.code.startsWith('local.budget'));
-          diagnostics.splice(htmlDiagnosticStart, diagnostics.length - htmlDiagnosticStart, ...retained);
-          warning('local.html.fallback', {key: 'local.html.fallback'}, i, stop);
-          nativeTable = {node: node('fallback', i, stop, {value: source.slice(i, stop)}), end: stop};
-          invalidNativeTable = false;
-        }
-        if (nativeTable) {
-          if (invalidNativeTable) {
-            // Discard diagnostics from content that will now be shown literally.
-            // Resource budgets remain fatal, including those hit in nested cells.
-            const retained = diagnostics.slice(htmlDiagnosticStart).filter(d => d.code === 'local.html.fallback' || d.code.startsWith('local.budget'));
-            diagnostics.splice(htmlDiagnosticStart, diagnostics.length - htmlDiagnosticStart, ...retained);
-          }
-          tokens.push({ start: i, end: nativeTable.end, block: true, node: invalidNativeTable
-            ? node('fallback', i, nativeTable.end, {value: source.slice(i, nativeTable.end)}) : nativeTable.node });
-          i = nativeTable.end;
-          continue;
-        }
-        }
-        const html = htmlTagAt(i, end);
-        if (html) {
-          if (html.closing) {
-            // A stray closing tag is inert source, never a structural error.
-            warning('local.html.fallback', {key: 'local.html.fallback'}, i, html.end);
-            tokens.push({ start: i, end: html.end, block: false, node: node('fallback', i, html.end, { value: source.slice(i, html.end) }) });
-            i = html.end;
-            continue;
-          }
-          const selection = selectHtmlAttributes(html.lower, html);
-          if (!selection.ok) {
-            const stop = html.self || HTML_VOID_ELEMENTS.has(html.lower)
-              ? html.end
-              : (htmlCloseEnd(html.end, html.lower, end, insideContainer)?.end ?? htmlLiteralEnd(html.end, end, parent, html.lower));
-            warning('local.html.fallback', {key: 'local.html.fallback.attribute', params: {name: selection.attr}}, i, stop);
-            tokens.push({ start: i, end: stop, block: false, node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
-            i = stop;
-            continue;
-          }
-          const attrs = selection.attrs;
-          if (HTML_VOID_ELEMENTS.has(html.lower)) {
-            if (html.lower === 'br') {
-              tokens.push({ start: i, end: html.end, node: node('break', i, html.end, { attrs }) });
-            } else if (html.lower === 'hr') {
-              const block = true;
-              tokens.push({ start: i, end: html.end, ...(block ? { block: true } : {}), node: node('thematicBreak', i, html.end, { attrs }) });
-            } else {
-              const width = attrs.width !== undefined ? Number(attrs.width) : undefined;
-              const height = attrs.height !== undefined ? Number(attrs.height) : undefined;
-              tokens.push({
-                start: i,
-                end: html.end,
-                node: node('image', i, html.end, {
-                  url: attrs.src,
-                  alt: attrs.alt ?? '',
-                  title: attrs.title ?? null,
-                  ...(width !== undefined ? { width } : {}),
-                  ...(height !== undefined ? { height } : {}),
-                  attrs,
-                }),
-              });
-            }
-            i = html.end;
-            continue;
-          }
-          const close = htmlCloseEnd(html.end, html.lower, end, insideContainer);
-          if (!close) {
-            const stop = htmlLiteralEnd(html.end, end, parent, html.lower);
-            if (!strict && htmlSupport) {
-              budget.charge(stop - i, i, stop);
-              const repaired = htmlSupport.recoverFragment(source, i, stop, node, new Set(known.keys()));
-              if (repaired) {
-                recoveries.push(repaired.recovery);
-                for (const child of repaired.nodes) tokens.push({
-                  start: child.range.start, end: child.range.end,
-                  block: HTML_BLOCK.has(html.lower) || BLOCK_HTML_RESULTS.has(child.type), node: child,
-                });
-              } else {
-                recoveries.push({ code: 'local.html.literal', causeRange: { start: i, end: html.end },
-                  affectedRange: { start: i, end: stop }, action: 'literal-fallback', boundary: 'fragment' });
-                tokens.push({ start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
-              }
-              i = stop;
-              continue;
-            }
-            warning('local.html.fallback', {key: 'local.html.fallback'}, i, stop);
-            tokens.push({ start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
-            i = stop;
-            continue;
-          }
-          const block = HTML_BLOCK.has(html.lower);
-          const built = buildHtmlNode(html, close, attrs, {
-            footnote: footnoteMode,
-            container: insideContainer,
-            indent: contentIndent,
-            stripBlockquote: options.stripBlockquote === true,
-            depth,
-          });
-          tokens.push({ start: i, end: close.end, ...(block ? { block: true } : {}), node: built });
-          i = close.end;
-          continue;
-        }
-        if (footnoteMode) { i += 1; continue; }
-        const metadata = isThemeTagAt(source, i) ? themeTagAt(source, i, end) : null;
-        if (metadata) {
-          const inHeader = parent === undefined && skipThemePrefix(source, headerCursor, i) === i;
-          if (inHeader) {
-            themeHeaders += 1;
-            if (themeHeaders === 1) themeRange = { start: metadata.start, end: metadata.end };
-            if (metadata.unclosed) {
-              warning('local.theme.malformed', { key: 'local.theme.malformed.unclosed' }, i, metadata.end);
-            } else if (metadata.closing) {
-              warning('local.theme.malformed', { key: 'local.theme.malformed.closing' }, i, metadata.end);
-            } else if (!standaloneTheme(source, metadata)) {
-              warning('local.theme.malformed', { key: 'local.theme.malformed.placement' }, i, metadata.end);
-            } else if (themeHeaders > 1) {
-              warning('local.theme.duplicate', { key: 'local.theme.duplicate.declaration' }, i, metadata.end);
-            } else {
-              const parsedTheme = themeNameFrom(metadata.rest);
-              if (parsedTheme.code) warning(parsedTheme.code, parsedTheme.message ?? 'Invalid theme declaration.', i, metadata.end, {
-                key: parsedTheme.key ?? parsedTheme.code,
-                ...(parsedTheme.params ? { params: parsedTheme.params } : {}),
-              });
-              else theme = parsedTheme.name;
-            }
-            headerCursor = metadata.end;
-            // A comment token is dropped by convert(), removing the metadata
-            // while every following source offset, line and column stays as is.
-            tokens.push({ start: i, end: metadata.end, block: true, node: node('comment', i, metadata.end) });
-            i = metadata.end;
-            continue;
-          }
-          const lateCode = parent === undefined ? 'local.theme.late' : 'local.theme.nested';
-          const lateMessage = parent === undefined
-            ? 'Theme declarations after document content are ignored.'
-            : 'Theme declarations inside document content are ignored.';
-          // Only the declaration tag itself is inert. Its surrounding content
-          // (including healthy controls) keeps compiling and stays interactive.
-          warning(lateCode, lateMessage, i, metadata.end, { key: lateCode });
-          tokens.push({ start: i, end: metadata.end, block: false, node: node('fallback', i, metadata.end, { value: source.slice(i, metadata.end) }) });
-          i = metadata.end;
-          continue;
-        }
-        const scanned = scanTag(i, end);
-        if (scanned && !known.has(scanned.name.toLowerCase()) && nativeHtmlNames.has(scanned.name.toLowerCase())) {
-          const paired = !scanned.closing && !scanned.self && !NATIVE_HTML_VOID.has(scanned.name.toLowerCase())
-            ? unknownTagEnd(scanned.end, scanned.name, end, insideContainer, true) : null;
-          const rawFallback = !strict && !scanned.closing && !scanned.self && HTML_RAW_TEXT_ELEMENTS.has(scanned.name.toLowerCase())
-            && (!paired || scanned.name.toLowerCase() === 'plaintext');
-          const stop = scanned.closing || scanned.self || NATIVE_HTML_VOID.has(scanned.name.toLowerCase())
-            ? scanned.end : rawFallback ? end : (paired?.end ?? htmlLiteralEnd(scanned.end, end, parent, scanned.name));
-          if (rawFallback) recoveries.push({ code: 'local.html.literal', causeRange: { start: i, end: scanned.end },
-            affectedRange: { start: i, end: stop }, action: 'literal-fallback', boundary: stop === source.length ? 'eof' : 'fragment' });
-          else warning('local.html.fallback', {key: 'local.html.fallback'}, i, stop);
-          tokens.push({start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, {value: source.slice(i, stop)})});
-          i = stop;
-          continue;
-        }
-        if (
-          scanned && !scanned.closing && TAG_NAME.test(scanned.name)
-          && scanned.name.length <= MAX_LOCAL_NAME_LENGTH && !known.has(scanned.name)
-        ) {
-          const stop = scanned.self || unmountedLeafNames.has(scanned.name)
-            ? scanned.end
-            : (unknownTagEnd(scanned.end, scanned.name, end, insideContainer)?.end ?? null);
-          if (stop === null) {
-            if (!beginsLine(i)) {
-              // A lone `<name>` inside running prose is ordinary text, not a
-              // malformed component that should fail the whole document.
-              tokens.push({ start: i, end: scanned.end, block: false, node: node('text', i, scanned.end, { value: source.slice(i, scanned.end) }) });
-              i = scanned.end;
-              continue;
-            }
-            // A line-leading unknown tag without a reliable same-name boundary
-            // stays fatal.
-            error('local.tag.unclosed', { key: 'local.tag.unclosed.pair', params: { name: scanned.name } }, i, scanned.end);
-            i = scanned.end;
-            continue;
-          }
-          const suggestion = closestName(scanned.name, suggestionNames);
-          warning('local.component.unknown', {
-              key: suggestion ? 'local.component.unknown.suggestion' : 'local.component.unknown',
-              params: suggestion ? { name: scanned.name, suggestion } : { name: scanned.name },
-            }, i, stop);
-          tokens.push({
-            start: i,
-            end: stop,
-            block: beginsLine(i),
-            node: node('fallback', i, stop, { value: source.slice(i, stop) }),
-          });
-          i = stop;
-          continue;
-        }
-        const tag = tagAt(i, end);
-        if (tag) {
-          if (tag.unclosed) {
-            if (!known.has(tag.name.toLowerCase()) && nativeHtmlNames.has(tag.name.toLowerCase())) {
-              const stop = htmlLiteralEnd(tag.head, end, parent, tag.name);
-              if (!strict && HTML_RAW_TEXT_ELEMENTS.has(tag.name.toLowerCase())) recoveries.push({ code: 'local.html.literal',
-                causeRange: { start: i, end: tag.head }, affectedRange: { start: i, end: stop },
-                action: 'literal-fallback', boundary: stop === source.length ? 'eof' : 'fragment' });
-              else warning('local.html.fallback', {key: 'local.html.fallback'}, i, stop);
-              tokens.push({start: i, end: stop, block: beginsLine(i), node: node('fallback', i, stop, {value: source.slice(i, stop)})});
-              i = stop;
-              continue;
-            }
-            if (!known.has(tag.name.toLowerCase()) && !beginsLine(i)) {
-              // `<y` in `x<y` and similar prose fragments are literal text.
-              tokens.push({ start: i, end: tag.head, block: false, node: node('text', i, tag.head, { value: source.slice(i, tag.head) }) });
-              i = tag.head;
-              continue;
-            }
-            error('local.tag.unclosed', { key: 'local.tag.unclosed.open', params: { name: tag.name } }, i, end);
-            i = end;
-            continue;
-          }
-          if (!TAG_NAME.test(tag.name) && !known.has(tag.name.toLowerCase())) {
-            // Uppercase prose such as `Array<T>` never reaches remark as HTML.
-            tokens.push({ start: i, end: tag.end, block: false, node: node('text', i, tag.end, { value: source.slice(i, tag.end) }) });
-            i = tag.end;
-            continue;
-          }
-          if (!TAG_NAME.test(tag.name)) {
-            error('local.tag.name', { key: 'local.tag.name', params: { name: tag.name } }, i, i + 1 + tag.name.length);
-          }
-          if (tag.closing) {
-            if (tag.name === parent) return { tokens, end: tag.end, contentEnd: i, indent: commonIndent(start, i) };
-            if (externalNames.has(tag.name) && schemaByName.get(tag.name)?.form === 'leaf') {
-              error('local.host.structure', { key: 'local.host.structure.leaf', params: { component: tag.name } }, i, tag.end);
-              i = tag.end;
-              continue;
-            }
-            error('local.tag.mismatch', {
-              key: parent ? 'local.tag.mismatch.parent' : 'local.tag.mismatch.root',
-              params: parent ? { name: tag.name, parent } : { name: tag.name },
-            }, i, tag.end); i = tag.end; continue;
-          }
-          // Registry forms decide tag shape for builtins, external manifests and
-          // legacy host adapters alike.
-          const schema = schemaByName.get(tag.name);
-          const isHost = externalNames.has(tag.name);
-          const hostForm = isHost ? schema?.form : undefined;
-          const paired = schema !== undefined ? schema.form !== 'leaf' : true;
-          const inline = schema?.form === 'inline';
-          const empty = !paired || tag.self;
-          if (tag.self && paired) error('local.tag.shape', { key: 'local.tag.shape', params: { name: tag.name } }, i, tag.end);
-          if (empty) { tokens.push({ start: i, end: tag.end, ...(isHost ? { block: beginsLine(i) } : {}), node: node(isHost ? 'hostComponent' : 'component', i, tag.end, { name: tag.name, attrs: tag.attrs, children: [], ...(isHost ? { hostForm } : {}) }) }); i = tag.end; continue; }
-          const nested = region(tag.end, end, tag.name, i, tag.end, depth + 1);
-          const children = convert(tag.end, nested.contentEnd, nested.tokens, inline ? 0 : nested.indent);
-          const component = node(isHost ? 'hostComponent' : 'component', i, nested.end, { name: tag.name, attrs: tag.attrs, children: inline && children.length === 1 && children[0].type === 'paragraph' ? children[0].children ?? [] : children, ...(isHost ? { hostForm } : {}) });
-          tokens.push({ start: i, end: nested.end, ...(isHost ? { block: beginsLine(i) } : {}), node: component }); i = nested.end; continue;
-        }
-      }
-      i++;
-    }
-    if (parent) error('local.tag.unclosed', { key: 'local.tag.unclosed.pair', params: { name: parent } }, openStart, Math.min(source.length, Math.max(openEnd, openStart + 1)));
-    return { tokens, end, contentEnd: end, indent: parent ? commonIndent(start, end) : 0 };
-  }
-  function convert(start: number, end: number, tokens: Token[], indent = 0, options: ConvertOptions = {}): LocalNode[] {
-    if (end > start) budget.charge(end - start, start, end);
-    let masked = '', cursor = start;
-    let hasProse = false;
-    // With no replacements or dedenting, the shielding pass already parsed
-    // exactly this source. Its positions only need the original BOM offset.
-    const reuseRoot = start === 0 && end === source.length && tokens.length === 0
-      && indent === 0 && !options.stripBlockquote && !options.literalHtml
-      && !rootMarkdown?.children.some((child:any)=>child.plan?.shieldOnly);
-    const mapped = new MappedSource(sourceContext);
-    const sourceAt = (offset: number, fallback: number): number =>
-      reuseRoot ? offset + sourceBomOffset : mapped.at(offset, fallback);
-    const markers = new Map<number, { marker: string; end: number; node: LocalNode }>();
-    const emphasisBoundaries = new Set<number>();
-    function appendEmphasisBoundary(at: number) {
-      emphasisBoundaries.add(mapped.length);
-      append(MARK_BOUNDARY, at, false);
-    }
-    function append(text: string, from: number, linear: boolean) {
-      // Remove a file BOM before calculating generated marker indices. remark
-      // ignores it, while this mapping retains original source coordinates.
-      if(linear) {
-        if(text.trim().length)hasProse=true;
-        mapped.original(from,from+text.length,indent,options.stripBlockquote,true);
-      }
-      else mapped.generated(text,from);
-    }
-    let tree: any;
-    if (reuseRoot) {
-      masked = source.slice(sourceBomOffset);
-      tree = rootMarkdown;
-      rootMarkdown = undefined;
-    } else {
-      if (start === 0 && end === source.length) rootMarkdown = undefined;
-      for (const token of tokens) {
-        append(source.slice(cursor, token.start), cursor, true);
-        let marker: string;
-        do { marker = MARK_OPEN + markerSerial++ + MARK_CLOSE; } while (reservedMarkers.has(marker));
-        const block = token.block ?? (token.node.type === 'math' || ((token.node.type === 'component' || token.node.type === 'hostComponent') && !isInlineName(token.node.name!)));
-        if (block) append('\n\n', token.start, false);
-        // An interpolation is a value, so adjacent emphasis delimiters must see
-        // a non-punctuation boundary. The image surrogate's `!` and `)` would
-        // otherwise prevent intraword emphasis such as 中文**{{ value }}**中文.
-        const interpolation = token.node.type === 'interpolation';
-        if (interpolation && /[*_]/.test(source[token.start - 1] ?? '')) appendEmphasisBoundary(token.start);
-        const markerStart = mapped.length;
-        // A generated Markdown image has its own source range. Restore only this
-        // exact range; entity decoding and adjacent code cannot forge a node.
-        append(`![${marker}](rmd-internal:placeholder)`, token.start, false);
-        markers.set(markerStart, { marker, end: mapped.length, node: token.node });
-        if (interpolation && /[*_]/.test(source[token.end] ?? '')) appendEmphasisBoundary(token.end);
-        if (block) append('\n\n', token.end, false);
-        cursor = token.end;
-      }
-      append(source.slice(cursor, end), cursor, true); mapped.finish(end);
-      masked = mapped.text();
-      work.mappingSegments+=mapped.segmentCount;
-      // A document containing only opaque lexical tokens and whitespace has
-      // no simple Markdown block to discover. Avoid building an advisory tree
-      // for thousands of generated control placeholders.
-      const placeholders=new Map([...markers].filter(([,slot])=>slot.node.type==='interpolation'));
-      tree = parseMarkdown(masked,hasProse,{allowBraces:true,...(placeholders.size?{placeholders}:{})});
-    }
-    function unescapeTablePipes(nodes: LocalNode[]) {
-      for (const child of nodes) {
-        if (child.type === 'interpolation' && child.value !== undefined) child.value = child.value.replace(/\\\|/g, '|');
-        if (child.children) unescapeTablePipes(child.children);
-      }
-    }
-    /**
-     * Split one remark text node at source soft breaks when the host asked for
-     * `<br>`-style breaks. Only line endings that exist both in the parsed value
-     * and in the masked source are converted, so decoded entities and escaped
-     * text keep their literal newlines. The source string is never rewritten:
-     * every produced node keeps the offsets of the slice it came from.
-     */
-    function textNodes(raw: any, from: number, to: number): LocalNode[] {
-      const value: unknown = raw.value;
-      if (typeof value !== 'string' || !value) return [];
-      if (!markdownBreaks || !/[\r\n]/.test(value)) return [node('text', from, to, { value })];
-      const rawStart = raw.position?.start?.offset;
-      const rawEnd = raw.position?.end?.offset;
-      if (!Number.isInteger(rawStart) || !Number.isInteger(rawEnd)
-        || rawStart < 0 || rawEnd <= rawStart || rawEnd > masked.length) {
-        return [node('text', from, to, { value })];
-      }
-      /**
-       * The next line of a text node can be preceded by container syntax that
-       * the Markdown parser consumed (`>`, list indentation). Start the segment
-       * at its first value character when that character is found close by;
-       * otherwise keep the original offset instead of guessing.
-       */
-      const segmentSource = (after: number, first: string | undefined): number => {
-        if (first === undefined) return after;
-        let index = after;
-        for (let skipped = 0; index < source.length && skipped < 32; skipped += 1) {
-          const character = source[index];
-          if (character !== ' ' && character !== '\t' && character !== '>') break;
-          index += 1;
-        }
-        return index < source.length && source[index] === first ? index : after;
-      };
-      // Masked-source line endings, in order. CRLF counts as one break.
-      const newlines: { start: number; end: number; literal?: boolean }[] = [];
-      for (let index = rawStart; index < rawEnd; index += 1) {
-        // Escaped ampersands stay literal; character references can decode to
-        // newline characters without representing source soft breaks.
-        if (masked[index] === '\\' && /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/.test(masked[index + 1] ?? '')) {
-          index += 1;
-          continue;
-        }
-        if (masked[index] === '&') {
-          const entity = /^&(?:#(?:[xX][\da-fA-F]{1,6}|\d{1,7})|NewLine);/.exec(masked.slice(index, Math.min(rawEnd, index + 34)))?.[0];
-          if (entity) {
-            const decoded = entity === '&NewLine;' ? 10 : entity[2].toLowerCase() === 'x'
-              ? Number.parseInt(entity.slice(3, -1), 16) : Number.parseInt(entity.slice(2, -1), 10);
-            if (decoded === 10 || decoded === 13) newlines.push({ start: index, end: index + entity.length, literal: true });
-            index += entity.length - 1;
-            continue;
-          }
-        }
-        if (masked[index] === '\r') {
-          const end = index + 1 < rawEnd && masked[index + 1] === '\n' ? index + 2 : index + 1;
-          newlines.push({ start: index, end });
-          index = end - 1;
-        } else if (masked[index] === '\n') {
-          newlines.push({ start: index, end: index + 1 });
-        }
-      }
-      if (!newlines.length) return [node('text', from, to, { value })];
-      const result: LocalNode[] = [];
-      let segmentValue = 0;
-      let sourceStart = from;
-      let next = 0;
-      for (let index = 0; index < value.length; index += 1) {
-        const character = value[index];
-        if (character !== '\n' && character !== '\r') continue;
-        // Some parsers retain CRLF inside text values; treat it as one break.
-        const lineEnding = newlines[next];
-        if (lineEnding === undefined) break;
-        next += 1;
-        const valueEnd = !lineEnding.literal && character === '\r' && value[index + 1] === '\n' ? index + 2 : index + 1;
-        if (lineEnding.literal) continue;
-        const breakStart = sourceAt(lineEnding.start, sourceStart);
-        const breakEnd = breakStart + (lineEnding.end - lineEnding.start);
-        if (index > segmentValue) {
-          result.push(node('text', sourceStart, breakStart, { value: value.slice(segmentValue, index) }));
-        }
-        result.push(node('break', breakStart, breakEnd));
-        segmentValue = valueEnd;
-        sourceStart = segmentSource(sourceAt(lineEnding.end, breakEnd), value[valueEnd]);
-        index = valueEnd - 1;
-      }
-      if (segmentValue < value.length) {
-        result.push(node('text', sourceStart, to, { value: value.slice(segmentValue) }));
-      }
-      return result;
-    }
-    /**
-     * remark derives an image alt from its label text, so lexical tokens in the
-     * label leave their generated surrogate (and emphasis guards) in the alt.
-     * Restore each parser-owned marker to the token's original source text;
-     * literal source markers are reserved and never match a generated slot.
-     */
-    let markerSlots: Map<string, { node: LocalNode }> | undefined;
-    function restoreAlt(alt: string): string {
-      if (alt.indexOf(MARK_OPEN) < 0) return alt;
-      markerSlots ??= new Map([...markers.values()].map(slot => [slot.marker, slot]));
-      return alt.replace(new RegExp(`${MARK_BOUNDARY}?(${MARK_OPEN}[0-9]+${MARK_CLOSE})${MARK_BOUNDARY}?`, 'g'), (whole, marker: string) => {
-        const slot = markerSlots!.get(marker);
-        return slot ? source.slice(slot.node.range.start, slot.node.range.end) : whole;
-      });
-    }
-    function transform(raw: any, children?: LocalNode[]): LocalNode[] {
-      const from = sourceAt(raw.position?.start?.offset ?? 0, start);
-      const to = sourceAt(raw.position?.end?.offset ?? masked.length, end);
-      if(raw.type==='rmdFastBlock') {
-        const plan=raw.plan as FastMarkdownPlan,base=raw.position.start.offset;
-        // Reuse hints are consumed per parse and never mutate the plan.
-        fastPlans.add(plan);
-        const overflow=plan.overflowAt(maxSyntaxNodes-nodeCount);
-        if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,sourceAt(base+overflow.start,from),sourceAt(base+overflow.end,to),'local.budget.nodes',{limit:maxSyntaxNodes});
-        const emitted=plan.emit((type,begin,finish,extra)=>{
-          if(type==='rmdOpaque'){
-            const slot=markers.get(base+begin);
-            if(!slot||slot.node.type!=='interpolation'||slot.end!==base+finish||slot.marker!==extra?.value)throw new Error('Invalid interpolation placeholder');
-            markers.delete(base+begin);return slot.node;
-          }
-          return node(type,sourceAt(base+begin,from),sourceAt(base+finish,to),extra);
-        });
-        // 与 remark 路径一致：表格单元格内插值的 `\|` 还原为 `|`。
-        for(const block of emitted)if(block.type==='table'&&block.children)unescapeTablePipes(block.children);
-        return emitted;
-      }
-      if (raw.type === 'image') {
-        const slot = markers.get(raw.position?.start?.offset);
-        if (slot && raw.position.end.offset === slot.end
-          && raw.url === 'rmd-internal:placeholder' && raw.alt === slot.marker) {
-          markers.delete(raw.position.start.offset);
-          return slot.node.type === 'comment' ? [] : [slot.node];
-        }
-      }
-      if (raw.type === 'text') {
-        // Boundary guards are always at text-node edges beside the generated
-        // image. Remove only guards at parser-owned offsets; identical literal
-        // or entity-decoded characters in the source remain ordinary text.
-        let begin = raw.position.start.offset, finish = raw.position.end.offset;
-        let value = raw.value as string;
-        while (begin < finish && emphasisBoundaries.has(begin)) { begin++; value = value.slice(1); }
-        while (finish > begin && emphasisBoundaries.has(finish - 1)) { finish--; value = value.slice(0, -1); }
-        if (begin !== raw.position.start.offset || finish !== raw.position.end.offset) {
-          raw = { ...raw, value, position: { start: { offset: begin }, end: { offset: finish } } };
-          return textNodes(raw, sourceAt(begin, from), sourceAt(finish, to));
-        }
-        return textNodes(raw, from, to);
-      }
-      // Footnote nodes normally arrive through lexical tokens. This branch only
-      // covers a remark-parsed node (hand-built Markdown fragments); it keeps
-      // the original identifier/label instead of degrading to source text.
-      if (raw.type === 'footnoteReference' || raw.type === 'footnoteDefinition') {
-        const label = typeof raw.label === 'string' && raw.label ? raw.label : String(raw.identifier ?? '');
-        const identifier = normalizeFootnoteIdentifier(String(raw.identifier ?? label));
-        if (raw.type === 'footnoteDefinition') {
-          return [node('footnoteDefinition', from, to, { identifier, label, children: children ?? [] })];
-        }
-        return [node('footnoteReference', from, to, { identifier, label })];
-      }
-      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || BLOCK_HTML_RESULTS.has(children[0].type) || ((children[0].type === 'component' || children[0].type === 'hostComponent') && !isInlineName(children[0].name!)))) return children;
-      if (raw.type === 'paragraph' && !children?.length) return [];
-      if (raw.type === 'html') {
-        if (options.literalHtml) {
-          // Footnote bodies show controls, interpolation and stray HTML as text,
-          // so a malformed tag can never fail the surrounding document.
-          return typeof raw.value === 'string' && raw.value
-            ? [node('text', from, to, { value: raw.value })]
-            : [];
-        }
-        error('local.html', { key: 'local.html' }, from, to);
-        return [];
-      }
-      const result = node(raw.type, from, to);
-      for (const key of ['value', 'depth', 'ordered', 'start', 'checked', 'url', 'title', 'alt', 'lang', 'align'] as const) if (raw[key] !== undefined) (result as any)[key] = raw[key];
-      if (typeof result.alt === 'string') result.alt = restoreAlt(result.alt);
-      if (children) result.children = children;
-      if (raw.type === 'table' && result.children) unescapeTablePipes(result.children);
-      return [result];
-    }
-    // Preserve postorder node allocation without consuming the JavaScript
-    // call stack for each Markdown container and its flatMap callback.
-    const frames: { raw: any; index: number; children?: LocalNode[] }[] = [
-      { raw: tree, index: 0, children: [] },
-    ];
-    while (frames.length) {
-      const frame = frames[frames.length - 1];
-      if (frame.raw.children && frame.index < frame.raw.children.length) {
-        const raw = frame.raw.children[frame.index++];
-        frames.push({ raw, index: 0, children: raw.children ? [] : undefined });
-        continue;
-      }
-      frames.pop();
-      if (!frames.length) return frame.children ?? [];
-      const output = transform(frame.raw, frame.children);
-      for (const child of output) frames[frames.length - 1].children!.push(child);
-    }
-    return [];
-  }
   /**
    * Undefined references stay visible as their original source. Definitions
    * are first-class nodes, so resolution happens once the whole tree (including
@@ -1936,6 +591,14 @@ export function parseLocalCore(
       recoveryRanges = plan.ranges;
       recoveries = [...plan.recoveries];
     }
+
+    region = createRegionScanner({
+      source, diagnostics, maxSyntaxNodes, strict, budget, known, externalNames,
+      unmountedLeafNames, suggestionNames, htmlSupport, nativeHtmlNames, sourceContext,
+      work, ensureDepth, parseMarkdown, node, codeRanges, recoveryRanges, recoveries,
+      rootMathLiterals, rootDefinitionRanges, error, warning, headers, scanner, convert,
+    });
+
     const regionStart = clock();
     const result = region(0, source.length);
     regionPhaseMs = clock() - regionStart;
@@ -1948,6 +611,7 @@ export function parseLocalCore(
       || left.affectedRange.end - right.affectedRange.end || left.code.localeCompare(right.code));
     emitRecoveryWarnings();
     finishWork();
+    const { theme, themeRange, versionDeclaration } = headers;
     return {
       nodes,
       diagnostics,

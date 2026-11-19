@@ -1,4 +1,4 @@
-import type { LocalDocument, LocalNode, LocalValueKind } from '../contracts/types';
+import type { LocalDocument, LocalNode, LocalValueKind } from '../types';
 import { kernelRule, type KernelRule } from './component-kernel';
 import type { AttrMap, Entry, ReportDiagnostic } from './compiler-structure';
 import { meaningful, parseNumberText, plainText, hasInterpolation, typeName } from './compiler-values';

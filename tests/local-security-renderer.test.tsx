@@ -10,10 +10,10 @@ import {
 } from '../src/local/rendering/LocalDocumentView';
 import { compileLatex, LatexError } from '../src/local/evaluation/math';
 import { samplePlot } from '../src/local/evaluation/math-sample';
-import { LatexView } from '../src/local/widgets/math-view';
-import { LocalVisual } from '../src/local/widgets/visuals';
+import { LatexView } from '../src/local/rendering/math-view';
+import { LocalVisual } from '../src/local/rendering/visuals';
 import { MAX_LOCAL_PLOT_POINTS } from '../src/local/configuration/limits';
-import type { LocalDocument, LocalNode, LocalRuntime, LocalValue } from '../src/local/contracts/types';
+import type { LocalDocument, LocalNode, LocalRuntime, LocalValue } from '../src/local/types';
 
 /* --------------------------------------------------------------- helpers */
 

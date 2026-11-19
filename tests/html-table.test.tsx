@@ -4,7 +4,7 @@ import { parseFragment } from 'parse5';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
 
 const flat = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flat(n.children ?? [])]);

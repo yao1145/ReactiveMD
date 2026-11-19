@@ -1,5 +1,5 @@
 import type { SourceFacts } from '../source/source-context';
-import type { LocalRecovery, SourceRange } from '../contracts/types';
+import type { LocalRecovery, SourceRange } from '../types';
 import { HTML_RAW_TEXT_ELEMENTS, htmlCommentEnd } from '../html/html-policy';
 import { mathTokenEnd, scanInterpolationEnd } from './lexical';
 

@@ -1,4 +1,4 @@
-import type { Diagnostic } from '../../local/contracts/types';
+import type { Diagnostic } from '../../local/types';
 import type { LocalComponentContext } from '../component-api';
 
 export function componentDiagnostic(

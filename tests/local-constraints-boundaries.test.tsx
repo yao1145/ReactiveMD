@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileExpression, compileLocal } from '../src/local';
 import { createLocalRuntime } from '../src/local';
-import { buildDataTableModel } from '../src/local/widgets/data-table';
+import { buildDataTableModel } from '../src/local/rendering/data-table';
 import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
 import { renderToStaticMarkup } from 'react-dom/server';
 

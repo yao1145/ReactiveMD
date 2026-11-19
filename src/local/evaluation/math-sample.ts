@@ -6,7 +6,7 @@
  */
 import { LatexError, MAX_IMPLICIT_GRID } from './math';
 import type { LatexEvaluationBudget, LatexExpression, PlotPoint, PlotSample, PlotSegmentPoint } from './math';
-import type { LocalValue } from '../contracts/types';
+import type { LocalValue } from '../types';
 
 /** Sample points per curve, including endpoints. */
 const MAX_SAMPLES = 2_000;

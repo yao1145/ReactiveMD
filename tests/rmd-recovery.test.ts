@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseLocal, type ParsedLocal } from '../src/local/parsing/parser';
 import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
-import type { Diagnostic, LocalNode } from '../src/local/contracts/types';
+import type { Diagnostic, LocalNode } from '../src/local/types';
 
 const flat = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap((node) => [node, ...flat(node.children ?? [])]);
 const loose = { strict: false } as const;

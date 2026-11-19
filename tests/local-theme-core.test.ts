@@ -7,7 +7,7 @@ import {
   resolveLocalTheme,
   type LocalThemeDefinition,
 } from '../src/local/theme/theme';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 
 const flat = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap((node) => [node, ...flat(node.children ?? [])]);
 

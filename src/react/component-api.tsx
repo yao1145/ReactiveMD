@@ -11,7 +11,7 @@ import type {
   LocalSubmissionFieldsResult,
   LocalValue,
   SourceRange,
-} from '../local/contracts/types';
+} from '../local/types';
 import type {
   LocalRenderMode,
   LocalSourceTarget,

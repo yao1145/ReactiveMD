@@ -13,7 +13,7 @@ import {
   type LocalStateFile,
   type LocalStateGenerator,
 } from './local/runtime/state';
-import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalHtmlPolicy, LocalValue } from './local/contracts/types';
+import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalHtmlPolicy, LocalValue } from './local/types';
 import {
   parseLocalComponentStateDocument,
   type LocalComponentStateDocument,

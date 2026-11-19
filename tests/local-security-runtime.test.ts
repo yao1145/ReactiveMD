@@ -7,7 +7,7 @@ import {
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
 } from '../src/local/configuration/limits';
-import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
+import type { LocalDocument, LocalNode } from '../src/local/types';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

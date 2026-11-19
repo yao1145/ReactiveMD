@@ -114,7 +114,7 @@ Reactive MD 分别维护以下版本轴：
 | 兼容分类 | 能力新增、破坏性变更或实现/编辑性变更 |
 | 验收证据 | 自动测试、机器验收数据和人工浏览器检查 |
 
-当前声明表是 `src/local/configuration/schema.ts`，标签词法集合在 `src/local/parsing/parser.ts`，语义校验在 `src/local/compilation/compiler.ts`，写入约束在 `src/local/runtime/runtime.ts`，渲染在 `src/local/rendering/LocalDocumentView.tsx` 和 `src/local/widgets/visuals.tsx`。只改声明表不会自动获得解析、校验或渲染能力。
+当前声明表是 `src/local/configuration/schema.ts`，标签词法集合在 `src/local/parsing/parser.ts`，语义校验在 `src/local/compilation/compiler.ts`，写入约束在 `src/local/runtime/runtime.ts`，渲染在 `src/local/rendering/LocalDocumentView.tsx` 和 `src/local/rendering/visuals.tsx`。只改声明表不会自动获得解析、校验或渲染能力。
 
 ### CP-MODEL-04 名称集合（现有）
 
@@ -626,10 +626,10 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 | 编译校验 | `src/local/compilation/compiler.ts` | 结构、属性、初值、共享约束、表达式、表格和绘图预算 |
 | 运行时 | `src/local/runtime/runtime.ts` | `get`、`set`、`evaluate`、`text`、`reset`、`resetToken`、`dispose` |
 | React 参考适配器 | `src/local/rendering/LocalDocumentView.tsx` | 文档容器、控件、布局、可访问名称、重置和生命周期 |
-| 可视化适配器 | `src/local/widgets/visuals.tsx`、`src/local/evaluation/math.ts`、`src/local/widgets/math-view.tsx` | 表格、图表、绘图、时间轴、图解和数学渲染 |
+| 可视化适配器 | `src/local/rendering/visuals.tsx`、`src/local/evaluation/math.ts`、`src/local/rendering/math-view.tsx` | 表格、图表、绘图、时间轴、图解和数学渲染 |
 | 样式 | `src/styles/index.css`、`src/themes/default/`、`src/components/` 中的 CSS、`src/local/rendering/local.css` | 公共入口、完整默认值和组件样式 |
 | 预算 | `src/local/configuration/limits.ts` | 共享资源上限 |
-| 版本 | `src/local/contracts/version.ts`、`package.json` | 语法修订和包版本 |
+| 版本 | `src/local/types.ts`、`package.json` | 语法修订和包版本 |
 | 验收 | `tests/`、`examples/conformance/` | 语言测试和机器验收数据 |
 | 文档 | `docs/`、`README.md`、`CONTRIBUTING-ch.md`、`SECURITY-ch.md` | 语法、集成、兼容、安全和贡献规则 |
 

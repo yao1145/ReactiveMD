@@ -1,4 +1,4 @@
-import type { Diagnostic, LocalCompileResult, LocalDocument, LocalNode, LocalRecovery, SourceRange } from '../contracts/types';
+import type { Diagnostic, LocalCompileResult, LocalDocument, LocalNode, LocalRecovery, SourceRange } from '../types';
 import { plainCompiledData } from './compiled-data';
 
 /**

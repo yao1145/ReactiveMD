@@ -11,7 +11,7 @@ import {
 } from '../src/local/transport/worker';
 import { localCompileOptionsKey } from '../src/local/configuration/options';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import type { LocalCompileOptions, LocalNode } from '../src/local/contracts/types';
+import type { LocalCompileOptions, LocalNode } from '../src/local/types';
 import { createLocalConfig } from '../src/sdk/config';
 import { defineLocalComponent, localComponentDigest } from '../src/sdk/manifest';
 import type { LocalConfig } from '../src/sdk/types';

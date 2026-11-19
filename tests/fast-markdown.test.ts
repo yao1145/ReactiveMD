@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {unified} from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import {parseFastMarkdown, planFastMarkdown, type FastMarkdownCache} from '../src/local/markdown/fast-markdown';
+import {parseFastMarkdown, planFastMarkdown, type FastMarkdownCache} from '../src/local/parsing/fast-markdown';
 import {parseLocal} from '../src/local/parsing/parser';
 
 const markdown = unified().use(remarkParse).use(remarkGfm);

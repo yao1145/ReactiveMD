@@ -12,10 +12,10 @@
  * literal text" and "reported as a warning" stay in sync.
  */
 
-import type { LocalMathDisplayIssue, LocalDiagnosticParams } from '../contracts/types';
-export type { LocalMathDisplayIssue } from '../contracts/types';
+import type { LocalMathDisplayIssue, LocalDiagnosticParams } from '../types';
+export type { LocalMathDisplayIssue } from '../types';
 import { renderLocalDiagnostic } from '../configuration/diagnostics';
-import { localCodeUnitPrefix } from '../source/text-length';
+import { localCodeUnitPrefix } from '../source/source-context';
 import katex from 'katex';
 import 'katex/contrib/mhchem';
 

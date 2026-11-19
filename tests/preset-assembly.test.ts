@@ -17,7 +17,7 @@ import {
   validateLocalRestorationRequirements,
 } from '../src/export/restoration';
 import type { LocalComponentDefinition, LocalPresetPackage } from '../src/sdk/types';
-import type { LocalDocument } from '../src/local/contracts/types';
+import type { LocalDocument } from '../src/local/types';
 
 const capabilities = { interactive: true, static: true, ssr: true, offline: true };
 

@@ -1,9 +1,9 @@
-import { parseLocal, type ParsedLocal } from '../parsing/parser';
+import { parseLocal, type ParsedLocal } from './parser';
 import { localCompileOptionsKey } from '../configuration/options';
-import type { LocalCompileOptions } from '../contracts/types';
+import type { LocalCompileOptions } from '../types';
 import type { SourceContext } from '../source/source-context';
-import type { CacheLookup, FastMarkdownPlan, InlinePlan, InlinePlanLookup } from '../markdown/fast-markdown';
-import type { ParseSessionCache, ParseSessionCounters } from '../parsing/parse-budget';
+import type { CacheLookup, FastMarkdownPlan, InlinePlan, InlinePlanLookup } from './fast-markdown';
+import type { ParseSessionCache, ParseSessionCounters } from './parse-budget';
 
 /** Bounded entry counts; sessions retain only the current/recent document. */
 const MAX_PLAN_ENTRIES = 128;

@@ -13,8 +13,8 @@
 @import './primitives/navigation.css';
 @import './primitives/overlays.css';
 @import './primitives/data-display.css';
-@import '../local/widgets/code-block.css';
-@import '../local/widgets/image-view.css';
+@import '../local/rendering/code-block.css';
+@import '../local/rendering/image-view.css';
 @import '../local/rendering/local.css';
 @import '../components/controls/controls.css';
 @import './components/overlays.css';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LocalParseSession } from '../src/local/session/parse-session';
+import { LocalParseSession } from '../src/local/parsing/parse-session';
 import { parseLocal } from '../src/local/parsing/parser';
 
 const table = '|A|B|\n|-|-|\n|same|same|\n|same|same|';

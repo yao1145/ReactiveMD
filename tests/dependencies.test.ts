@@ -8,7 +8,7 @@ import {
 } from '../src/local/compilation/dependencies';
 import { LocalExpressionError, templateDependencies } from '../src/local/evaluation/expression';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import type { LocalDocument, LocalNode } from '../src/local/contracts/types';
+import type { LocalDocument, LocalNode } from '../src/local/types';
 
 function compile(source: string): LocalDocument {
   const result = compileLocal(source);

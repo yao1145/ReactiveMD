@@ -1,7 +1,7 @@
-import type { LocalConfig, LocalExtensionRequirements } from '../../sdk/types';
-import type { LocalRuntimeServices } from '../../runtime-services/runtime';
-import type { LocalComponentStateStorage } from '../../runtime-services/component-state';
-import type { ComponentNetwork, JsonPayload, NetworkConfig } from '../../runtime-services/network';
+import type { LocalConfig, LocalExtensionRequirements } from '../sdk/types';
+import type { LocalRuntimeServices } from '../runtime-services/runtime';
+import type { LocalComponentStateStorage } from '../runtime-services/component-state';
+import type { ComponentNetwork, JsonPayload, NetworkConfig } from '../runtime-services/network';
 
 export interface SourceRange { start: number; end: number }
 /** A source-level syntax declaration; offsets use original UTF-16 units. */
@@ -117,7 +117,7 @@ export interface LocalComputation {
 }
 export interface LocalBinding {
   /** Kernel value semantics, including ordered generic collections. */
-  family?: import('../../sdk/types').LocalBindingFamily;
+  family?: import('../sdk/types').LocalBindingFamily;
   name: string;
   nodeIds: string[];
   type: LocalValueKind;
@@ -280,7 +280,7 @@ export interface LocalDocument {
    * preset manifests. Plain, serializable data; runtime semantics resolve from
    * it with default-preset fallback for older hand-built documents.
    */
-  componentDefinitions?: readonly import('../../sdk/types').LocalComponentDefinition[];
+  componentDefinitions?: readonly import('../sdk/types').LocalComponentDefinition[];
   /**
    * Serializable component-semantics metadata lowered at compile time. Present
    * only when at least one component contributes a runtime rule, slot relation
@@ -499,3 +499,8 @@ export type LocalSubmissionFieldsResult =
   | { ok: false; field: string; reason: 'unavailable' | LocalSubmissionFieldProblem };
 
 export const localKey = (node: LocalNode): string => node.attrs?.bind ?? `@${node.id}`;
+
+export type LocalLocale = 'en' | 'zh';
+
+/** The local syntax revision accepted and rendered by this build. */
+export const LOCAL_SYNTAX_VERSION = 'local-draft-3' as const;

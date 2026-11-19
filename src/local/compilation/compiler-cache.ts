@@ -1,7 +1,7 @@
 import {compileExpression,type LocalExpression} from '../evaluation/expression';
 import {compileLatex,type LatexExpression} from '../evaluation/math';
 import {inspectLocalMathDisplay} from '../evaluation/math-display';
-import type {LocalValueKind,LocalMathDisplayIssue} from '../contracts/types';
+import type {LocalValueKind,LocalMathDisplayIssue} from '../types';
 
 export interface SemanticCacheStats {
   expressionsCompiled:number; expressionsReused:number;

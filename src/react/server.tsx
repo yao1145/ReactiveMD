@@ -9,7 +9,7 @@ import {
 } from '../export/requirements';
 import { findUnavailableExtensionMarkup, unavailableExtensionMessage } from '../export/render-markup';
 import { getLocalComponentRegistry } from '../sdk/registry';
-import type { Diagnostic } from '../local/contracts/types';
+import type { Diagnostic } from '../local/types';
 import type { LocalStyleResource } from '../sdk/theme';
 import { validateLocalDocumentConfig } from '../sdk/config';
 import { validateLocalReactExtensions } from './sdk';

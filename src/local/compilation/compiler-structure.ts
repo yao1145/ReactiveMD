@@ -1,32 +1,41 @@
+import type { LocalBinding, LocalNode, LocalValue } from '../types';
 import {
   kernelProjectionForFamily,
   kernelRule,
   kernelRules,
+  kernelSlotBindings,
+  kernelSlotRelations,
   kernelStructure,
+  kernelUsesLegacyDiagnostics,
   kernelValueBinding,
+  kernelValueRules,
   type KernelProjectionKind,
   type KernelRule,
   type KernelStructure,
+  type KernelValueRule,
   type NormalizedComponent,
 } from './component-kernel';
 import {
-  MAX_LOCAL_ARRAY_LENGTH,
-  MAX_LOCAL_DATA_TABLE_COLUMNS,
-} from '../configuration/limits';
+  LOCAL_EXTENSIONS_PROTOCOL,
+  type LocalComponentDefinition,
+  type LocalComponentRequirement,
+  type LocalExtensionRequirements,
+} from '../../sdk/types';
 import type { LocalDiagnosticDetails } from '../configuration/diagnostics';
-import type { LocalNode, LocalValue } from '../contracts/types';
-import type { LocalComponentDefinition } from '../../sdk/types';
 import {
   hasComponent,
+  MAX_LOCAL_NAME_LENGTH,
   meaningful,
   numberValue,
   parseNumberText,
   staticAttributeString,
 } from './compiler-values';
-
-/* ------------------------------------------------------------------ */
-/* Shared structure state                                              */
-/* ------------------------------------------------------------------ */
+import { MAX_LOCAL_ARRAY_LENGTH, MAX_LOCAL_DATA_TABLE_COLUMNS } from '../configuration/limits';
+import { closestName } from '../configuration/schema-core';
+import { walkLocalNodes } from '../source/source-context';
+import type { CompileState } from './compiler-services';
+import { localComponentRequirement } from '../../sdk/manifest';
+import { reportWarning } from './compiler-services';
 
 export interface AttrState {
   raw: string;
@@ -78,10 +87,6 @@ export interface StructureState {
   readonly checklists: Map<string, ChecklistInfo>;
   readonly tables: Map<string, LocalNode>;
 }
-
-/* ------------------------------------------------------------------ */
-/* Children                                                            */
-/* ------------------------------------------------------------------ */
 
 interface ChildComponent {
   node: LocalNode;
@@ -670,4 +675,184 @@ export function validateChecklist(
   const info = { ids, checked };
   state.checklists.set(entry.node.id, info);
   return info;
+}
+
+function suggestRegistryName(name: string, candidates: Iterable<string>): string | undefined {
+  if (name.length > MAX_LOCAL_NAME_LENGTH) return undefined;
+  return closestName(name, [...candidates]);
+}
+
+export function collectLegacyFences(nodes: LocalNode[]): LocalNode[] {
+  const found: LocalNode[] = [];
+    for (const node of walkLocalNodes(nodes)) {
+      if (node.type === 'code' && (node.lang ?? '').trim().toLowerCase() === 'reactive-md') found.push(node);
+    }
+  return found;
+}
+
+export function collectEntries(nodes: LocalNode[], parent: Entry | null, out: Entry[], state: CompileState): void {
+  const pending=[{nodes,parent,index:0}];
+  while(pending.length){
+    const frame=pending[pending.length-1];
+    if(frame.index===frame.nodes.length){pending.pop();continue;}
+    const node=frame.nodes[frame.index++],parent=frame.parent;
+    let nextParent=parent;
+    const isComponent = (node.type === 'component' || node.type === 'hostComponent') && !!node.name;
+    if (isComponent) {
+      const kernel = state.schemaByName.get(node.name!);
+      if (kernel) {
+        const definition = state.definitionsByName.get(node.name!);
+        // Phase-one external manifests (no phase-two rules) keep host wording.
+        const legacy = kernelUsesLegacyDiagnostics(kernel)
+          || (definition !== undefined && !definition.rules?.length && node.type === 'hostComponent');
+        const entry: Entry = {
+          node,
+          name: node.name!,
+          kernel,
+          ...(definition ? { definition } : {}),
+          legacy,
+          parent,
+        };
+        out.push(entry);
+        nextParent = entry;
+      } else if (node.type === 'component') {
+        const suggestion = suggestRegistryName(node.name!, state.schemaByName.keys());
+        state.report('local.component.unknown', {
+            key: suggestion ? 'local.component.unknown.suggestion' : 'local.component.unknown',
+            params: suggestion ? { name: node.name!, suggestion } : { name: node.name! },
+          }, node.range.start, node.range.end);
+      }
+      // An unmatched hostComponent warns in reportUnmatchedHostComponents; it
+      // owns no binding or runtime state.
+    }
+    if(node.children)pending.push({nodes:node.children,parent:nextParent,index:0});
+  }
+}
+
+/**
+ * Requirements for external components actually used by the document. A
+ * configured component that never appears in the source contributes nothing,
+ * so restoring a document only needs the implementations it really references.
+ */
+export function extensionRequirements(
+  nodes: LocalNode[],
+  sdkByName: ReadonlyMap<string, LocalComponentDefinition>,
+): LocalExtensionRequirements | undefined {
+  if (sdkByName.size === 0) return undefined;
+  const used = new Map<string, LocalComponentRequirement>();
+  for (const node of walkLocalNodes(nodes)) {
+    if (node.type !== 'hostComponent' || !node.name) continue;
+    const definition = sdkByName.get(node.name);
+    if (definition !== undefined) used.set(definition.id, localComponentRequirement(definition));
+  }
+  if (used.size === 0) return undefined;
+  const components = Object.freeze(
+    [...used.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+  );
+  return Object.freeze({ protocol: LOCAL_EXTENSIONS_PROTOCOL, components });
+}
+
+/** Lower manifest rules to the serializable metadata the runtime consumes. */
+export function compileKernelMetadata(
+  state: CompileState,
+  bindings: Record<string, LocalBinding>,
+): {
+  valueRules: Record<string, readonly KernelValueRule[]>;
+  slotRelations: readonly { nodeId: string; lower: string; upper: string }[];
+  retentionExclusions: readonly string[];
+  bindingAttributes?: Record<string, { bind: string; initial: string }>;
+  dependencyRules?: Record<string, { selfBinding?: { mode: 'always' | 'attribute'; attribute?: string }; inlineMathReads?: boolean }>;
+} {
+  const valueRules: Record<string, readonly KernelValueRule[]> = {};
+  const dependencyRules: Record<string, { selfBinding?: { mode: 'always' | 'attribute'; attribute?: string }; inlineMathReads?: boolean }> = {};
+  const bindingAttributes: Record<string, { bind: string; initial: string }> = {};
+  const slotRelations: { nodeId: string; lower: string; upper: string }[] = [];
+  const entryById = new Map(state.entries.map((entry) => [entry.node.id, entry]));
+  const slotOwner = new Map<string, { entry: Entry; slot: string }>();
+  for (const [nodeId, map] of Object.entries(state.bindingSlots)) {
+    const entry = entryById.get(nodeId);
+    if (!entry) continue;
+    for (const [slot, key] of Object.entries(map)) slotOwner.set(key, { entry, slot });
+  }
+  for (const [key, binding] of Object.entries(bindings)) {
+    const slot = slotOwner.get(key);
+    if (slot) {
+      const definition = kernelSlotBindings(slot.entry.kernel).find((candidate) => candidate.slot === slot.slot);
+      if (definition) bindingAttributes[key] = { bind: definition.bind, initial: definition.initial };
+      continue;
+    }
+    const entry = entryById.get(binding.owner ?? binding.nodeIds[0] ?? '');
+    const scalar = entry ? kernelValueBinding(entry.kernel) : undefined;
+    if (scalar) bindingAttributes[key] = { bind: scalar.bind, initial: scalar.initial };
+  }
+  for (const entry of state.entries) {
+    const rules = kernelValueRules(entry.kernel);
+    if (rules.length) valueRules[entry.node.id] = Object.freeze([...rules]);
+    const self = kernelRule(entry.kernel, 'self-binding-read');
+    const inlineMath = kernelRule(entry.kernel, 'inline-math-reads');
+    if (self || inlineMath) {
+      dependencyRules[entry.node.id] = {
+        ...(self ? { selfBinding: { mode: self.mode, ...(self.attribute ? { attribute: self.attribute } : {}) } } : {}),
+        ...(inlineMath ? { inlineMathReads: true } : {}),
+      };
+    }
+    for (const relation of kernelSlotRelations(entry.kernel)) {
+      if (!state.bindingSlots[entry.node.id]?.[relation.lower]) continue;
+      if (!state.bindingSlots[entry.node.id]?.[relation.upper]) continue;
+      slotRelations.push({ nodeId: entry.node.id, lower: relation.lower, upper: relation.upper });
+    }
+  }
+  const retentionExclusions: string[] = [];
+  for (const [key, binding] of Object.entries(bindings)) {
+    if (binding.nodeIds.some((id) => {
+      const entry = entryById.get(id);
+      const scalar = entry ? kernelValueBinding(entry.kernel) : undefined;
+      return scalar?.retain === false;
+    })) retentionExclusions.push(key);
+  }
+  if (
+    Object.keys(valueRules).length === 0
+    && Object.keys(dependencyRules).length === 0
+    && Object.keys(bindingAttributes).length === 0
+    && slotRelations.length === 0
+    && retentionExclusions.length === 0
+  ) {
+    // Still publish an empty marker: a compiled document must never fall back
+    // to phase-one tag-name semantics, even when it has no state at all.
+    return { valueRules: Object.freeze({}), slotRelations: Object.freeze([]), retentionExclusions: Object.freeze([]) };
+  }
+  return {
+    valueRules: Object.freeze(valueRules),
+    slotRelations: Object.freeze(slotRelations.map((item) => Object.freeze(item))),
+    retentionExclusions: Object.freeze(retentionExclusions.sort()),
+    ...(Object.keys(bindingAttributes).length
+      ? { bindingAttributes: Object.freeze(bindingAttributes) }
+      : {}),
+    ...(Object.keys(dependencyRules).length
+      ? { dependencyRules: Object.freeze(dependencyRules) }
+      : {}),
+  };
+}
+
+/** Distinct manifests referenced by the compiled document, in first-use order. */
+export function componentDefinitionsFor(state: CompileState): LocalComponentDefinition[] {
+  const seen = new Set<string>();
+  const definitions: LocalComponentDefinition[] = [];
+  for (const entry of state.entries) {
+    const definition = entry.definition;
+    if (!definition || seen.has(definition.id)) continue;
+    seen.add(definition.id);
+    definitions.push(definition);
+  }
+  return definitions;
+}
+
+/** Host-shaped nodes with no registry entry warn instead of failing the document. */
+export function reportUnmatchedHostComponents(nodes: LocalNode[], state: CompileState): void {
+  for (const node of walkLocalNodes(nodes)) {
+    if (node.type !== 'hostComponent') continue;
+    if (node.name && state.schemaByName.has(node.name)) continue;
+    const name = node.name ?? '';
+    reportWarning(state, 'local.component.unknown', { key: 'local.component.unknown', params: { name } }, node.range.start, node.range.end);
+  }
 }

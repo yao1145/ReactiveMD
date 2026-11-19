@@ -7,7 +7,7 @@ import { getLocalComponentRegistry } from '../sdk/registry';
 import { LOCAL_SDK_VERSION } from '../sdk/version';
 import type { LocalStyleResource } from '../sdk/theme';
 import type { LocalConfig, LocalExtensionRequirements } from '../sdk/types';
-import type { Diagnostic, LocalDocument } from '../local/contracts/types';
+import type { Diagnostic, LocalDocument } from '../local/types';
 import { readLocalExportResources } from './resources';
 import { createLocalBundleManifest, createLocalRestorationRequirements, localExportContentDigest, localThemeContractDigest, type LocalStandaloneBundleManifest } from './restoration';
 export * from './restoration';

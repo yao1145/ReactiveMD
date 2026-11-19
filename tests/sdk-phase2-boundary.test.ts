@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { compileLocal, createLocalRuntime, createLocalCompileSession, encodeLocalResultPatch, applyLocalResultPatch, exportLocalState, parseLocalState, applyLocalState } from '../src/local';
 import { createLocalConfig, defineLocalComponent, type LocalComponentDefinition } from '../src/sdk';
 import { defaultPreset } from '../src/presets/default';
-import { createHeadingAnchors } from '../src/local/markdown/heading-anchors';
+import { createHeadingAnchors } from '../src/local/parsing/heading-anchors';
 import { parseLocal } from '../src/local/parsing/parser';
 
 const baseline = JSON.parse(readFileSync(new URL('./fixtures/sdk-phase2-baseline.json', import.meta.url), 'utf8'));

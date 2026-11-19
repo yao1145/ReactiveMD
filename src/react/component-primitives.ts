@@ -18,7 +18,7 @@ export {
   MAX_LOCAL_VALUE_CHARACTERS,
   isLocalEmail,
 } from '../local/configuration/limits';
-export { countLocalCodePoints } from '../local/source/text-length';
+export { countLocalCodePoints } from '../local/source/source-context';
 export { formatLocalDiagnostic } from '../local/configuration/diagnostics';
 export { compileExpression, type LocalExpression } from '../local/evaluation/expression';
 export {
@@ -36,8 +36,8 @@ export {
   type PlotSample,
 } from '../local/evaluation/math';
 export { sampleImplicit, sampleParametric, samplePlot, samplePolar } from '../local/evaluation/math-sample';
-export { LatexView } from '../local/widgets/math-view';
-export { TableSurface } from '../local/widgets/table-surface';
+export { LatexView } from '../local/rendering/math-view';
+export { TableSurface } from '../local/rendering/data-table';
 export {
   createDiagramLayoutFallback,
   diagramEdgePath,
@@ -45,8 +45,8 @@ export {
   layoutDiagram,
   type DiagramLayoutInput,
   type DiagramLayoutResult,
-} from '../local/widgets/diagram-layout';
+} from '../local/rendering/diagram-layout';
 export { isLocalColor } from '../local/theme/colors';
-export type { Diagnostic, LocalValue } from '../local/contracts/types';
+export type { Diagnostic, LocalValue } from '../local/types';
 export type { LocalRenderMode } from '../local/rendering/render-types';
 export type { LocalLocale, Localize } from '../local/theme/i18n';

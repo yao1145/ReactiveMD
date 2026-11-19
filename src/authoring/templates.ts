@@ -3,7 +3,7 @@ import { RESERVED_NAMES } from '../local/evaluation/expression';
 import { insertTemplate } from './editor-commands';
 import { renderNativeSnippet, type NativeComponentDefinition } from './native-components';
 import type { LocalComponentDefinition } from '../sdk/types';
-import type { LocalCompileOptions } from '../local/contracts/types';
+import type { LocalCompileOptions } from '../local/types';
 import type { LocalPropKind } from '../local/configuration/schema-core';
 
 /**

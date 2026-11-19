@@ -3,7 +3,7 @@ import type { EditorEdit, EditorLocale, EditorSelection } from './command-types'
 import { RESERVED_NAMES } from '../local/evaluation/expression';
 import { analyzeLocalSource, renameLocalBinding } from '../local/source/authoring';
 import { readLocalCompileOptions } from '../local/configuration/options';
-import type { LocalCompileOptions } from '../local/contracts/types';
+import type { LocalCompileOptions } from '../local/types';
 import { readLocalConfig } from '../sdk/config';
 import type { LocalConfig } from '../sdk/types';
 import {

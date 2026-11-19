@@ -1,7 +1,7 @@
 import {describe,it,expect} from 'vitest';
-import {createLocalCompileSession} from '../src/local/session/incremental';
+import {createLocalCompileSession} from '../src/local/compilation/incremental';
 import {compileLocal} from '../src/local/compilation/compiler';
-import type {LocalCompileResult,LocalNode} from '../src/local/contracts/types';
+import type {LocalCompileResult,LocalNode} from '../src/local/types';
 
 /** Incremental blocks carry renamed node ids; compare everything else exactly. */
 function canonical(result:LocalCompileResult):unknown {

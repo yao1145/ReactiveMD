@@ -2,9 +2,9 @@ import {describe, expect, it} from 'vitest';
 import {unified} from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import {parseMarkdownBlocks} from '../src/local/markdown/markdown-blocks';
-import {scanMarkdownStructure} from '../src/local/markdown/markdown-structure';
-import type {FastMarkdownCache} from '../src/local/markdown/fast-markdown';
+import {parseMarkdownBlocks} from '../src/local/parsing/markdown-blocks';
+import {scanMarkdownStructure} from '../src/local/parsing/parser-standard';
+import type {FastMarkdownCache} from '../src/local/parsing/fast-markdown';
 
 const markdown = unified().use(remarkParse).use(remarkGfm);
 const parseGeneral = (source: string): any => markdown.parse(source);

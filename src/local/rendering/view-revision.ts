@@ -1,11 +1,18 @@
-import type { DependencyIndex, NodeDependencies } from '../compilation/dependencies';
-import type { LocalDocument, LocalNode, LocalValue } from '../contracts/types';
-import {walkLocalNodes} from '../source/node-walk';
-import { anchorRuleAttributes } from '../markdown/heading-anchors';
+import type { Diagnostic, LocalDocument, LocalNode, LocalRuntime, LocalValue } from '../types';
+import type { LocalThemeDefinition } from '../theme/theme';
+import { useRef } from 'react';
 import type { LocalComponentDefinition } from '../../sdk/types';
+import {
+  collectNodeDependencies,
+  EMPTY_DEPENDENCY_INDEX,
+  type DependencyIndex,
+  type NodeDependencies,
+} from '../compilation/dependencies';
+import {walkLocalNodes} from '../source/source-context';
+import { anchorRuleAttributes } from '../parsing/heading-anchors';
 
 /**
- * Pure projections used to keep a rendered document's memo boundaries stable
+ * Projections and memoization used to keep a rendered document's memo boundaries stable
  * while the source is recompiled. Structural sharing from the incremental
  * compiler means an unchanged node keeps its object identity, so identity
  * comparison is enough for every projection whose result is derived solely
@@ -188,6 +195,167 @@ export function blockInputsEqual(previous: BlockComparisonInputs, next: BlockCom
   if (previous.depValues.length !== next.depValues.length) return false;
   for (let index = 0; index < previous.depValues.length; index += 1) {
     if (!Object.is(previous.depValues[index], next.depValues[index])) return false;
+  }
+  return true;
+}
+
+export function runtimeRevision(runtime: LocalRuntime): number {
+  try {
+    return runtime.snapshot().revision;
+  } catch {
+    return 0;
+  }
+}
+
+/* ---------------------------------------------------------------- theming */
+
+/**
+ * Stable content signature for the host manifest. Hosts frequently construct
+ * a fresh array on every render; resolving by content keeps the theme memo
+ * (and its diagnostics effect) from firing again for an identical manifest.
+ */
+export function themesSignature(themes?: readonly LocalThemeDefinition[]): string {
+  if (!Array.isArray(themes) || themes.length === 0) return '';
+  try {
+    return themes
+      .map((theme) => {
+        if (!theme || typeof theme !== 'object') return '';
+        const schemes = Array.isArray(theme.colorSchemes)
+          ? theme.colorSchemes.join('\u0001')
+          : '';
+        return `${theme.name}\u0000${theme.protocol}\u0000${schemes}`;
+      })
+      .join('\u0002');
+  } catch {
+    return '';
+  }
+}
+
+export function diagnosticsSignature(diagnostics: Diagnostic[]): string {
+  return diagnostics
+    .map((item) => `${item.code}\u0000${item.range.start}\u0000${item.range.end}\u0000${item.message}`)
+    .join('\u0001');
+}
+
+/** Merge diagnostic groups without reporting the same warning twice. */
+export function composeDiagnostics(...groups: Diagnostic[][]): Diagnostic[] {
+  const seen = new Set<string>();
+  const merged: Diagnostic[] = [];
+  for (const group of groups) {
+    for (const item of group) {
+      const key = `${item.code}\u0000${item.range.start}\u0000${item.range.end}\u0000${item.message}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(item);
+    }
+  }
+  return merged;
+}
+
+/* ------------------------------------------------------------ state hooks */
+interface ProjectionCache<P, T> {
+  document: LocalDocument;
+  projection: P;
+  value: T;
+}
+
+/**
+ * Memoize a value derived from a document while comparing only its relevant
+ * projection. An edit that leaves the projection untouched keeps both the
+ * previous value and its identity, so `env` (and every memoized block keyed on
+ * it) stays stable across recompiles.
+ */
+export function useProjectedMemo<P, T>(
+  document: LocalDocument,
+  project: (document: LocalDocument) => P,
+  equal: (previous: P, next: P) => boolean,
+  compute: () => T,
+): T {
+  const cache = useRef<ProjectionCache<P, T> | null>(null);
+  let entry = cache.current;
+  if (!entry || entry.document !== document) {
+    const projection = project(document);
+    if (entry && equal(entry.projection, projection)) {
+      entry = { document, projection, value: entry.value };
+    } else {
+      entry = { document, projection, value: compute() };
+    }
+    cache.current = entry;
+  }
+  return entry.value;
+}
+
+interface DependencyIndexCache {
+  document: LocalDocument | null;
+  installed: readonly LocalComponentDefinition[] | null;
+  index: DependencyIndex;
+  lookup: DependencyLookup;
+}
+
+/**
+ * A stable handle over the document's dependency index. The index is removed
+ * from `env` identity on purpose: recompiling one block changes node ids in
+ * the index without changing what any other block reads.
+ */
+export function useDependencyIndex(
+  document: LocalDocument,
+  installed: readonly LocalComponentDefinition[],
+): DependencyLookup {
+  const cache = useRef<DependencyIndexCache | null>(null);
+  let entry = cache.current;
+  if (!entry) {
+    entry = {
+      document: null,
+      installed: null,
+      index: EMPTY_DEPENDENCY_INDEX,
+      lookup: { get: (nodeId) => cache.current?.index.get(nodeId) },
+    };
+    cache.current = entry;
+  }
+  if (entry.document !== document || entry.installed !== installed) {
+    let index: DependencyIndex;
+    try {
+      index = collectNodeDependencies(document, installed);
+    } catch {
+      index = EMPTY_DEPENDENCY_INDEX;
+    }
+    entry.index = index;
+    entry.document = document;
+    entry.installed = installed;
+  }
+  return entry.lookup;
+}
+
+/* ------------------------------------------------------- parameter bridge */
+
+/** Defensive copy of host-supplied parameter values. */
+export function cloneParameterValues(
+  values: Readonly<Record<string, LocalValue>>,
+): Record<string, LocalValue> {
+  const copy: Record<string, LocalValue> = {};
+  for (const [key, value] of Object.entries(values)) {
+    copy[key] = Array.isArray(value) ? value.slice() : value;
+  }
+  return copy;
+}
+
+function parameterValueEqual(a: LocalValue | undefined, b: LocalValue | undefined): boolean {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((entry, index) => entry === b[index]);
+  }
+  return a === b;
+}
+
+export function parameterRecordsEqual(
+  a: Readonly<Record<string, LocalValue>>,
+  b: Readonly<Record<string, LocalValue>>,
+): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const key of aKeys) {
+    if (!Object.hasOwn(b, key) || !parameterValueEqual(a[key], b[key])) return false;
   }
   return true;
 }

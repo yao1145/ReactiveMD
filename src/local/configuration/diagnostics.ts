@@ -1,6 +1,6 @@
 import { MAX_LOCAL_DIAGNOSTIC_LENGTH } from './limits';
-import type { Diagnostic, LocalDiagnosticParams } from '../contracts/types';
-import { localCodeUnitPrefix } from '../source/text-length';
+import type { Diagnostic, LocalDiagnosticParams } from '../types';
+import { localCodeUnitPrefix } from '../source/source-context';
 import {
   LOCAL_DIAGNOSTIC_MESSAGES,
   LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES,

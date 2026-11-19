@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalStateFile, LOCAL_STATE_FORMAT, serializeLocalState } from '../src/local/runtime/state';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import type { LocalNode } from '../src/local/contracts/types';
+import type { LocalNode } from '../src/local/types';
 import { createShareableHtml, resolveLocalStateBaseline, serializeForScript } from '../src/shareable';
 
 function findComponent(nodes: LocalNode[], name: string): LocalNode {

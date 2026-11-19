@@ -114,7 +114,7 @@ A component proposal declaration contains at least the following information; it
 | Compatibility classification | Capability addition, breaking change or implementation/editorial change |
 | Acceptance evidence | Automated tests, machine conformance data and manual browser checks |
 
-The current declaration table is `src/local/configuration/schema.ts`; the tag lexical sets are in `src/local/parsing/parser.ts`, semantic validation in `src/local/compilation/compiler.ts`, write constraints in `src/local/runtime/runtime.ts`, and rendering in `src/local/rendering/LocalDocumentView.tsx` and `src/local/widgets/visuals.tsx`. Changing only the declaration table does not automatically provide parsing, validation or rendering.
+The current declaration table is `src/local/configuration/schema.ts`; the tag lexical sets are in `src/local/parsing/parser.ts`, semantic validation in `src/local/compilation/compiler.ts`, write constraints in `src/local/runtime/runtime.ts`, and rendering in `src/local/rendering/LocalDocumentView.tsx` and `src/local/rendering/visuals.tsx`. Changing only the declaration table does not automatically provide parsing, validation or rendering.
 
 ### CP-MODEL-04 Name set (existing)
 
@@ -627,10 +627,10 @@ Only SHOULD clauses can be exempted; exemptions must record the rationale, alter
 | Compile validation | `src/local/compilation/compiler.ts` | Structure, attributes, initial values, shared constraints, expressions, table and plot budgets |
 | Runtime | `src/local/runtime/runtime.ts` | `get`, `set`, `evaluate`, `text`, `reset`, `resetToken`, `dispose` |
 | React reference adapter | `src/local/rendering/LocalDocumentView.tsx` | Document container, controls, layout, accessible names, reset and lifecycle |
-| Visualization adapter | `src/local/widgets/visuals.tsx`, `src/local/evaluation/math.ts`, `src/local/widgets/math-view.tsx` | Tables, charts, plots, timelines, diagrams and math rendering |
+| Visualization adapter | `src/local/rendering/visuals.tsx`, `src/local/evaluation/math.ts`, `src/local/rendering/math-view.tsx` | Tables, charts, plots, timelines, diagrams and math rendering |
 | Styles | `src/styles/index.css`, `src/themes/default/`, component CSS under `src/components/`, `src/local/rendering/local.css` | Public entry, complete defaults and component styles |
 | Budgets | `src/local/configuration/limits.ts` | Shared resource limits |
-| Versions | `src/local/contracts/version.ts`, `package.json` | Syntax revision and package version |
+| Versions | `src/local/types.ts`, `package.json` | Syntax revision and package version |
 | Acceptance | `tests/`, `examples/conformance/` | Language tests and machine conformance data |
 | Documentation | `docs/`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | Syntax, integration, compatibility, security and contribution rules |
 

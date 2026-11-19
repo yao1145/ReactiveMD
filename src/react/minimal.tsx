@@ -1,10 +1,10 @@
 import { minimalReactPresetPackage } from '../components/minimal-preset';
 import {
   LocalDocumentViewCore,
-  LocalReactiveDocumentCore,
   type LocalDocumentViewProps,
   type LocalReactiveDocumentProps,
 } from '../local/rendering/LocalDocumentViewCore';
+import { LocalReactiveDocumentCore } from '../local/rendering/LocalReactiveDocumentCore';
 import { createReactHostWithBase, type LocalReactHostInput } from './package-core';
 import { createReactConfigWithDefaults, type CreateLocalReactConfigOptions, type LocalReactConfig } from './sdk-core';
 import type { LocalConfig } from '../sdk/types';

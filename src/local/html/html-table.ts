@@ -1,5 +1,5 @@
 import { parseFragment } from 'parse5';
-import type { LocalNode, SourceRange } from '../contracts/types';
+import type { LocalNode, SourceRange } from '../types';
 
 export { HTML_TABLE_NAMES, HTML_TABLE_ATTRIBUTES, validHtmlTableValue } from './html-table-names';
 import { HTML_TABLE_NAMES } from './html-table-names';
