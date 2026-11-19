@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, type ReactNode } from 'react';
-import { boundedLocalMathLiteral, renderLocalMathDisplay } from '../evaluation/math-display';
+import { boundedLocalMathLiteral, renderLocalMathDisplay } from '../evaluation/math/display';
 
 /**
  * Safe KaTeX rendering for local LaTeX.

@@ -14,8 +14,8 @@ import {
   localValueBudgetError,
   localValueBudgetIssue,
   type LocalExpression,
-} from '../evaluation/expression';
-import { kernelDocumentMetadata, type KernelValueRule } from '../compilation/component-kernel';
+} from '../evaluation/expression/compile';
+import { kernelDocumentMetadata, type KernelValueRule } from '../configuration/kernel-value-rules';
 import { cloneValue, diagnosticFor, normalizeComputationError, parameterDiagnostic } from './runtime-values';
 import { walkLocalNodes } from '../source/source-context';
 import {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
 import type { LocalCompileOptions } from '../src/local/types';
 import { parseFragment } from 'parse5';
 

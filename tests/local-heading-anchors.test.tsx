@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView, type LocalUrlPolicy } from '../src/local/rendering/LocalDocumentView';
+import { LocalDocumentView, type LocalUrlPolicy } from '../src/local/rendering/document/LocalDocumentView';
 
 function fixture(source: string) {
   const result = compileLocal(source);

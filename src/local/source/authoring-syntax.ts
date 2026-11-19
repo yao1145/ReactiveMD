@@ -1,7 +1,7 @@
 import type { LocalNode, SourceRange } from '../types';
 import { LOCAL_HTML_NAMES } from '../html/html-names';
 import { HTML_TABLE_NAMES } from '../html/html-table';
-import { RESERVED_NAMES } from '../evaluation/expression';
+import { RESERVED_NAMES } from '../evaluation/expression/compile';
 
 export interface RawAttribute {
   name: string;

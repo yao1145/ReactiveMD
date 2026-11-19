@@ -13,7 +13,7 @@ import { MAX_LOCAL_SDK_PATTERN_LENGTH } from '../../sdk/manifest';
 import { isSafeLocalPattern } from '../../sdk/pattern';
 import { localComponentHostBinding } from '../../sdk/props';
 import { normalizedComponentFromDefinition } from '../../sdk/registry-core';
-import { normalizeComponent, type NormalizedComponent } from '../compilation/component-kernel';
+import { normalizeComponent, type NormalizedComponent } from './component-kernel';
 import { NO_PARSER_CAPABILITIES, type LocalParserCapabilities } from '../parsing/parser-capabilities';
 import { MINIMAL_PRESET_ID } from '../../presets/identity';
 import { unmountedOfficialLeafTags } from './official-leaf-syntax';

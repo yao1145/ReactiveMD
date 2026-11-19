@@ -15,9 +15,9 @@
 @import './primitives/overlays.css';
 @import './primitives/data-display.css';
 @import '../components/gallery/gallery.css';
-@import '../local/rendering/code-block.css';
-@import '../local/rendering/image-view.css';
-@import '../local/rendering/local.css';
+@import '../local/rendering/code/code-block.css';
+@import '../local/rendering/image/image-view.css';
+@import '../local/rendering/document/local.css';
 @import '../components/controls/controls.css';
 @import '../components/shared/visuals.css';
 @import './components/overlays.css';

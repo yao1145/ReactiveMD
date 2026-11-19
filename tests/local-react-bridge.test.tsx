@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { compileLocal, createLocalRuntime, type LocalHostComponentSchema } from '../src/local';
 import type { LocalSourceTarget } from '../src/local/rendering/render-types';
-import { LocalDocumentView, LocalReactiveDocument } from '../src/local/rendering/LocalDocumentView';
+import { LocalDocumentView, LocalReactiveDocument } from '../src/local/rendering/document/LocalDocumentView';
 
 describe('LocalReactiveDocument state bridge', () => {
   it.each(['interactive', 'static'] as const)('keeps the stored slider value in %s output after a bound narrows', (mode) => {

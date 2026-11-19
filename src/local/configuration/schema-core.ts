@@ -5,7 +5,7 @@ import type {
   KernelInitialRule,
   KernelLegacySlot,
   KernelPropSchema,
-} from '../compilation/component-kernel';
+} from './component-kernel';
 
 /**
  * Theme-free component schema vocabulary.

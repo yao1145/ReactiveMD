@@ -8,13 +8,12 @@ import {
   kernelStructure,
   kernelUsesLegacyDiagnostics,
   kernelValueBinding,
-  kernelValueRules,
   type KernelProjectionKind,
   type KernelRule,
   type KernelStructure,
-  type KernelValueRule,
   type NormalizedComponent,
-} from './component-kernel';
+} from '../configuration/component-kernel';
+import { kernelValueRules, type KernelValueRule } from '../configuration/kernel-value-rules';
 import {
   LOCAL_EXTENSIONS_PROTOCOL,
   type LocalComponentDefinition,

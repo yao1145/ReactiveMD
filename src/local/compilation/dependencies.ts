@@ -1,8 +1,13 @@
 import type { LocalDocument, LocalNode, LocalRuntime } from '../types';
 import { localKey } from '../types';
-import { compileExpression, templateDependencies } from '../evaluation/expression';
-import { compileLatex } from '../evaluation/math';
-import { kernelDocumentMetadata, kernelRules, type KernelComponentSchema, type KernelRule } from './component-kernel';
+import { compileExpression, templateDependencies } from '../evaluation/expression/compile';
+import { compileLatex } from '../evaluation/math/latex';
+import {
+  kernelRules,
+  type KernelComponentSchema,
+  type KernelRule,
+} from '../configuration/component-kernel';
+import { kernelDocumentMetadata } from '../configuration/kernel-value-rules';
 import {walkLocalNodes} from '../source/source-context';
 import type { LocalComponentDefinition } from '../../sdk/types';
 

@@ -10,7 +10,7 @@ import {
   type LocalNode,
   type LocalValue,
 } from '../src/local';
-import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
 
 /* ------------------------------------------------------------------ */
 /* Fixture types                                                       */

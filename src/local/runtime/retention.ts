@@ -1,5 +1,5 @@
 import {walkLocalNodes} from '../source/source-context';
-import { kernelDocumentMetadata } from '../compilation/component-kernel';
+import { kernelDocumentMetadata } from '../configuration/kernel-value-rules';
 import { getLocalComponentDefinition } from '../../sdk/registry';
 import type {
   Diagnostic,

@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {createLocalCompileSession} from '../src/local/compilation/incremental';
+import {createLocalCompileSession} from '../src/local/compilation/session/incremental';
 import {compileLocal} from '../src/local/compilation/compiler';
 import type {LocalCompileResult,LocalNode} from '../src/local/types';
 

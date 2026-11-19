@@ -1,4 +1,4 @@
-import { LocalDocumentView } from '../local/rendering/LocalDocumentView';
+import { LocalDocumentView } from '../local/rendering/document/LocalDocumentView';
 import {
   createStandaloneMountWithView,
   mountAllWithView,

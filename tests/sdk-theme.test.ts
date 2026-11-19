@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOCAL_THEME_PROTOCOL } from '../src/local/theme/theme';
+import { LOCAL_THEME_PROTOCOL } from '../src/themes/document-theme';
 import { LOCAL_STYLE_LAYER_ORDER } from '../src/themes/contract';
 import {
   collectLocalThemeCss,

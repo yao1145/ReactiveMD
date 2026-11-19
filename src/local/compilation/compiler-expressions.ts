@@ -7,16 +7,11 @@ import {
   suggestName,
   typeName,
 } from './compiler-values';
-import { compileExpression, LocalExpressionError, type LocalExpression } from '../evaluation/expression';
+import { compileExpression, LocalExpressionError, type LocalExpression } from '../evaluation/expression/compile';
 import type { LocalBinding, LocalDocument, LocalValue, LocalValueKind } from '../types';
 import { walkLocalNodes } from '../source/source-context';
-import {
-  isKernelAnchorId,
-  kernelNavigationIssues,
-  kernelRule,
-  kernelRules,
-  type KernelRule,
-} from './component-kernel';
+import { kernelRule, kernelRules, type KernelRule } from '../configuration/component-kernel';
+import { isKernelAnchorId, kernelNavigationIssues } from '../configuration/kernel-value-rules';
 import { createHeadingAnchors } from '../parsing/heading-anchors';
 import type { AttrMap, AttrState } from './compiler-structure';
 import { MAX_LOCAL_DATA_TABLE_ROWS } from '../configuration/limits';

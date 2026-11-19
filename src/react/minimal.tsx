@@ -3,13 +3,13 @@ import {
   LocalDocumentViewCore,
   type LocalDocumentViewProps,
   type LocalReactiveDocumentProps,
-} from '../local/rendering/LocalDocumentViewCore';
-import { LocalReactiveDocumentCore } from '../local/rendering/LocalReactiveDocumentCore';
+} from '../local/rendering/document/LocalDocumentViewCore';
+import { LocalReactiveDocumentCore } from '../local/rendering/document/LocalReactiveDocumentCore';
 import { createReactHostWithBase, type LocalReactHostInput } from './package-core';
 import { createReactConfigWithDefaults, type CreateLocalReactConfigOptions, type LocalReactConfig } from './sdk-core';
 import type { LocalConfig } from '../sdk/types';
 
-export type { LocalDocumentViewProps, LocalReactiveDocumentProps, LocalUrlPolicy, LocalImageResolver } from '../local/rendering/LocalDocumentViewCore';
+export type { LocalDocumentViewProps, LocalReactiveDocumentProps, LocalUrlPolicy, LocalImageResolver } from '../local/rendering/document/LocalDocumentViewCore';
 export { defineReactComponentPackage, defineReactPreset } from './package-core';
 export type { LocalReactPackage, LocalReactPresetPackage, LocalReactHostInput, LocalReactHost } from './package-core';
 export { defineReactComponent } from './sdk-core';

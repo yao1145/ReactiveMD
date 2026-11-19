@@ -13,7 +13,7 @@ import { renderLegacyComponent } from './legacy-component-adapter';
  */
 
 export { VisualFrame } from '../../components/shared/visual-frame';
-export { tableNumericColumns } from './table-numeric-columns';
+export { tableNumericColumns } from './table/table-numeric-columns';
 
 /**
  * Legacy fixture renderer for one visual component. It adapts the historical

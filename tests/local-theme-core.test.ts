@@ -6,7 +6,7 @@ import {
   LOCAL_THEME_PROTOCOL,
   resolveLocalTheme,
   type LocalThemeDefinition,
-} from '../src/local/theme/theme';
+} from '../src/themes/document-theme';
 import type { LocalNode } from '../src/local/types';
 
 const flat = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap((node) => [node, ...flat(node.children ?? [])]);

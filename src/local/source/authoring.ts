@@ -1,5 +1,5 @@
 import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalNode, SourceRange } from '../types';
-import { RESERVED_NAMES } from '../evaluation/expression';
+import { RESERVED_NAMES } from '../evaluation/expression/compile';
 import { compileLocal } from '../compilation/compiler';
 import { readLocalCompileOptions } from '../configuration/options';
 import type { LocalComponentSchema, LocalPropSchema } from '../configuration/schema';
@@ -17,7 +17,7 @@ import {
   type RawInterpolation,
   type RawTag,
 } from './authoring-syntax';
-import { localLatexReferences } from '../evaluation/math';
+import { localLatexReferences } from '../evaluation/math/latex';
 import { LOCAL_HTML_NAMES } from '../html/html-names';
 import { HTML_TABLE_NAMES } from '../html/html-table';
 import { parseLocal } from '../parsing/parser';

@@ -5,7 +5,7 @@ import {
   countLocalCodePoints,
   createLocalRuntime,
 } from '../src/local';
-import { localValueBudgetError } from '../src/local/evaluation/expression';
+import { localValueBudgetError } from '../src/local/evaluation/expression/compile';
 import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_DIAGNOSTICS,

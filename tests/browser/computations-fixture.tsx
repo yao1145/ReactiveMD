@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { LocalReactiveDocument } from '../../src/local/rendering/LocalDocumentView';
+import { LocalReactiveDocument } from '../../src/local/rendering/document/LocalDocumentView';
 import '../../src/styles.css';
 import recipe from '../../examples/local/recipes/invoice.reactive.md?raw';
 

@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { findUnavailableExtensionMarkup } from '../export/render-markup';
 import { compileLocal } from '../local/compilation/compiler';
-import { LocalDocumentView } from '../local/rendering/LocalDocumentView';
+import { LocalDocumentView } from '../local/rendering/document/LocalDocumentView';
 import { createLocalRuntime } from '../local/runtime/runtime';
 import type { Diagnostic, LocalNode } from '../local/types';
 import { readLocalConfig } from '../sdk/config';

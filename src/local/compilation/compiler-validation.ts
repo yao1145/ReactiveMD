@@ -1,6 +1,6 @@
 import type { CompileState, LocalCompilerPlotMath } from './compiler-services';
 import type { AttrMap, Entry } from './compiler-structure';
-import { kernelRule, type KernelRule } from './component-kernel';
+import { kernelRule, type KernelRule } from '../configuration/component-kernel';
 import {
   expressionEnv,
   fullInterpolation,

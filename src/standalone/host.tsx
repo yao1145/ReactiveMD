@@ -1,4 +1,4 @@
-import { LocalDocumentViewCore, type LocalDocumentViewProps } from '../local/rendering/LocalDocumentViewCore';
+import { LocalDocumentViewCore, type LocalDocumentViewProps } from '../local/rendering/document/LocalDocumentViewCore';
 import type { LocalReactConfig } from '../react/sdk-core';
 import { mountAllWithView } from './session-core';
 

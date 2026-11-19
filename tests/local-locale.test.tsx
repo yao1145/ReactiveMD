@@ -2,9 +2,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView, LocalReactiveDocument, textProblem } from '../src/local/rendering/LocalDocumentView';
+import { LocalDocumentView, LocalReactiveDocument, textProblem } from '../src/local/rendering/document/LocalDocumentView';
 import { countLocalCodePoints, formatLocalDiagnostic } from '../src/local';
-import type { LocalLocale } from '../src/local/theme/i18n';
+import type { LocalLocale } from '../src/react/localization';
 
 function mount(source: string, locale?: LocalLocale): { html: string; text: string } {
   const result = compileLocal(source);

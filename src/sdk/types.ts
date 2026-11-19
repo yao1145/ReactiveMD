@@ -8,7 +8,7 @@ import type {
   KernelRule,
   KernelSlotRelation,
   KernelStructure,
-} from '../local/compilation/component-kernel';
+} from '../local/configuration/component-kernel';
 import {
   LOCAL_ASSEMBLY_PROTOCOL,
   LOCAL_COMPONENT_PROTOCOL,

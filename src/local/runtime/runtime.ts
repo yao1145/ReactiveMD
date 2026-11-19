@@ -29,7 +29,7 @@ import {
   LocalExpressionError,
   localValueBudgetIssue,
   type LocalExpression,
-} from '../evaluation/expression';
+} from '../evaluation/expression/compile';
 import { walkLocalNodes } from '../source/source-context';
 import { createLocalRuntimeServices, type LocalRuntimeServices } from '../../runtime-services/runtime';
 import {

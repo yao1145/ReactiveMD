@@ -1,8 +1,8 @@
 import { createElement, type ReactNode } from 'react';
 import type { Diagnostic, LocalNode, LocalRuntime, LocalValue } from '../types';
 import type { LocalRenderMode } from './render-types';
-import type { LocalLocale, Localize } from '../theme/i18n';
-import { localize } from '../theme/i18n';
+import type { LocalLocale, Localize } from '../../react/localization';
+import { localize } from '../../react/localization';
 import { getLocalComponentDefinition } from '../../sdk/registry';
 import {
   createLocalComponentContext,

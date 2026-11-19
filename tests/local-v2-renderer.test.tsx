@@ -2,9 +2,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView, type LocalUrlPolicy } from '../src/local/rendering/LocalDocumentView';
+import { LocalDocumentView, type LocalUrlPolicy } from '../src/local/rendering/document/LocalDocumentView';
 import type { LocalDocument, LocalNode } from '../src/local/types';
-import type { LocalLocale } from '../src/local/theme/i18n';
+import type { LocalLocale } from '../src/react/localization';
 
 function compile(source: string): { document: LocalDocument; runtime: ReturnType<typeof createLocalRuntime> } {
   const result = compileLocal(source);

@@ -6,7 +6,7 @@ import {
   exportLocalState,
   type LocalStateFile,
 } from '../../src/local';
-import { LocalDocumentView } from '../../src/local/rendering/LocalDocumentView';
+import { LocalDocumentView } from '../../src/local/rendering/document/LocalDocumentView';
 import { resolveLocalStateBaseline } from '../../src/shareable';
 import '../../src/styles.css';
 import source from './release-document.reactive.md?raw';

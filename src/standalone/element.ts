@@ -1,7 +1,7 @@
-import type { LocalImageResolver, LocalUrlPolicy } from '../local/rendering/LocalDocumentView';
+import type { LocalImageResolver, LocalUrlPolicy } from '../local/rendering/document/LocalDocumentView';
 import type { LocalLocale } from '../local/types';
 import type { LocalStateFile } from '../local/runtime/state';
-import type { LocalColorScheme, LocalThemeDefinition } from '../local/theme/theme';
+import type { LocalColorScheme, LocalThemeDefinition } from '../themes/document-theme';
 import type { Diagnostic } from '../local/types';
 import { diagnosticsFromError, errorText, standaloneDiagnostic } from './diagnostics';
 import { REACTIVE_MD_DIAGNOSTICS_EVENT, REACTIVE_MD_STATE_CHANGE_EVENT } from './events';

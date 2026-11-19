@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { parseFragment } from 'parse5';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
 import {
   normalizeHtmlDetailsChildren,
   splitHtmlDetailsChildren,

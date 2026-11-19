@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
-import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 
 it('server-renders the static pass before interactive enhancement', () => {

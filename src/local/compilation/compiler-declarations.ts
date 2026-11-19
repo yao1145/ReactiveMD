@@ -9,7 +9,7 @@ import {
   kernelSlotRelations,
   kernelValueBinding,
   type KernelBindingSchema,
-} from './component-kernel';
+} from '../configuration/component-kernel';
 import { EXTRA_RESERVED, lineAt, requireBindingAttribute } from './compiler-bindings';
 import {
   fullInterpolation,
@@ -17,7 +17,7 @@ import {
   MAX_LOCAL_NAME_LENGTH,
   type NumericConstraints,
 } from './compiler-values';
-import { RESERVED_NAMES } from '../evaluation/expression';
+import { RESERVED_NAMES } from '../evaluation/expression/compile';
 import type { AttrMap, AttrState, Entry } from './compiler-structure';
 import { openingTag } from './compiler-attributes';
 import { resolveComputationGraph, type ComputationInput } from '../evaluation/computations';

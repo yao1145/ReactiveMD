@@ -5,7 +5,7 @@ import {
   expressionValue,
   interpolate,
   localValueBudgetError,
-} from '../src/local/evaluation/expression';
+} from '../src/local/evaluation/expression/compile';
 import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_STRING_LENGTH,

@@ -1,5 +1,5 @@
 import { compileLocal } from '../local/compilation/compiler';
-import { RESERVED_NAMES } from '../local/evaluation/expression';
+import { RESERVED_NAMES } from '../local/evaluation/expression/compile';
 import { insertTemplate } from './editor-commands';
 import { renderNativeSnippet, type NativeComponentDefinition } from './native-components';
 import type { LocalComponentDefinition } from '../sdk/types';

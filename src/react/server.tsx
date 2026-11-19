@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
-import { LocalDocumentView, type LocalDocumentViewProps } from '../local/rendering/LocalDocumentView';
+import { LocalDocumentView, type LocalDocumentViewProps } from '../local/rendering/document/LocalDocumentView';
 import { createLocalExportPlan } from '../export';
 import {
   extensionDiagnostic,

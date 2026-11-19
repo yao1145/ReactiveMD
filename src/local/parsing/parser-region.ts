@@ -7,7 +7,7 @@ import type {
   SourceRange,
 } from '../types';
 import { ParseWorkBudget } from './parse-budget';
-import type { NormalizedComponent } from '../compilation/component-kernel';
+import type { NormalizedComponent } from '../configuration/component-kernel';
 import type { LocalParserCapabilities, LocalParserHtmlCapability } from './parser-capabilities';
 import { MappedSource, SourceContext } from '../source/source-context';
 import type { ParserWork } from './parser-core';

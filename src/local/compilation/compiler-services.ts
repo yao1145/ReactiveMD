@@ -12,8 +12,8 @@ import type {
 import { localCodeUnitPrefix, type SourceContext } from '../source/source-context';
 import type { InlinePlanLookup } from '../parsing/fast-markdown';
 import type { ParsedLocal } from '../parsing/parser-core';
-import type { LocalExpression } from '../evaluation/expression';
-import type { CompiledPlotFormula, LatexExpression, PlotFormulaKind } from '../evaluation/math';
+import type { LocalExpression } from '../evaluation/expression/compile';
+import type { CompiledPlotFormula, LatexExpression, PlotFormulaKind } from '../evaluation/math/latex';
 import type { Entry, StructureState } from './compiler-structure';
 import type { LocalComponentDefinition } from '../../sdk/types';
 import type { TableShape } from './compiler-tables';
@@ -54,6 +54,23 @@ export type LocalMathDisplayInspector = (
   source: string,
   block: boolean,
 ) => readonly LocalMathDisplayIssue[];
+
+export interface SemanticCacheStats {
+  expressionsCompiled:number; expressionsReused:number;
+  typesInferred:number; typesReused:number;
+  attributesValidated:number; attributesReused:number;
+  bindingsResolved:number;bindingsReused:number;
+  formulasCompiled:number; formulasReused:number;
+  displaysInspected:number; displaysReused:number;
+  entries:number;
+}
+
+/** Session cache operations used by the tracked compile entry. */
+export interface LocalTrackedSemanticService extends LocalCompilerSemanticService {
+  begin(key: string): void;
+  display: LocalMathDisplayInspector;
+  readonly stats: SemanticCacheStats;
+}
 
 /** Optional whole-document HTML sanitizer for the native HTML branch. */
 export type LocalHtmlDocumentSanitizer = (

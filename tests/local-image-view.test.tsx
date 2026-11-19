@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ZoomableImage } from '../src/local/rendering/image-view';
+import { ZoomableImage } from '../src/local/rendering/image/image-view';
 
 const IMAGE = {
   src: 'https://images.example.com/chart.png',

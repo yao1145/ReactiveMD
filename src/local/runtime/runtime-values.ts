@@ -12,15 +12,11 @@ import {
   localDiagnosticDetails,
   type LocalDiagnosticDetails,
 } from '../configuration/diagnostics';
-import {
-  isKernelDate,
-  kernelValueRules,
-  type KernelComponentSchema,
-  type KernelValueRule,
-} from '../compilation/component-kernel';
+import { isKernelDate, type KernelComponentSchema } from '../configuration/component-kernel';
+import { kernelValueRules, type KernelValueRule } from '../configuration/kernel-value-rules';
 import { isLocalEmail, MAX_LOCAL_EMAIL_LENGTH } from '../configuration/limits';
 import { getLocalComponentDefinition } from '../../sdk/registry';
-import { LocalExpressionError, localValueBudgetIssue } from '../evaluation/expression';
+import { LocalExpressionError, localValueBudgetIssue } from '../evaluation/expression/compile';
 
 function rawAttr(node: LocalNode, name: string): string | undefined {
   return node.attrs?.[name];

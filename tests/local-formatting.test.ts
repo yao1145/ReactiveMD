@@ -3,13 +3,13 @@ import {
   LocalExpressionError,
   RESERVED_NAMES,
   compileExpression,
-} from '../src/local/evaluation/expression';
+} from '../src/local/evaluation/expression/compile';
 import {
   formatCurrency,
   formatNumber,
   formatPercent,
   formatScientific,
-} from '../src/local/evaluation/formatting';
+} from '../src/local/evaluation/expression/formatting';
 import type { LocalValue, LocalValueKind } from '../src/local/types';
 
 function evaluate(source: string, env: Record<string, LocalValue> = {}): LocalValue {

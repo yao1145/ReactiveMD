@@ -8,7 +8,7 @@ import {
   type LocalRecovery,
   type LocalValue,
 } from '../types';
-import type { NormalizedComponent } from './component-kernel';
+import type { NormalizedComponent } from '../configuration/component-kernel';
 import type { LocalComponentDefinition } from '../../sdk/types';
 import { compilerComponentConfigKey, type LocalOptionCheck } from '../configuration/options-core';
 import {

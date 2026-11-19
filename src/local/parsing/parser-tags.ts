@@ -1,4 +1,4 @@
-import type { NormalizedComponent } from '../compilation/component-kernel';
+import type { NormalizedComponent } from '../configuration/component-kernel';
 import type { LocalParserHtmlCapability } from './parser-capabilities';
 import { SourceContext } from '../source/source-context';
 import {

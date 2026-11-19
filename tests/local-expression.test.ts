@@ -5,7 +5,7 @@ import {
   compileExpression,
   expressionValue,
   interpolate,
-} from '../src/local/evaluation/expression';
+} from '../src/local/evaluation/expression/compile';
 
 function failure(run: () => unknown): LocalExpressionError {
   try {

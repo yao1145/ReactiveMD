@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
-import { compileExpression, expressionValue, interpolate } from '../src/local/evaluation/expression';
+import { compileExpression, expressionValue, interpolate } from '../src/local/evaluation/expression/compile';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import {
   MAX_LOCAL_ARRAY_LENGTH,

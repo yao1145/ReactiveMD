@@ -1,4 +1,4 @@
-import { compileExpression, type LocalExpression } from '../evaluation/expression';
+import { compileExpression, type LocalExpression } from '../evaluation/expression/compile';
 import { evaluateComputations, orderComputations } from '../evaluation/computations';
 import type { LocalDocument, LocalNode, LocalValue } from '../types';
 import {walkLocalNodes} from '../source/source-context';

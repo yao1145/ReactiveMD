@@ -10,7 +10,7 @@ import {
   createLocalCompileSession,
   LocalCompileSession,
   type LocalIncrementalStats,
-} from '../compilation/incremental';
+} from '../compilation/session/incremental';
 import type { LocalCompileOptions, LocalCompileResult } from '../types';
 import {
   encodeLocalResultPatchWithCost,

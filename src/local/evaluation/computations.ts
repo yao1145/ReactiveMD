@@ -4,7 +4,7 @@ import {
   localValueBudgetError,
   LocalExpressionError,
   type LocalExpression,
-} from './expression';
+} from './expression/compile';
 import type {
   LocalComputation,
   LocalValue,

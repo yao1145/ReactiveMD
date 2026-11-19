@@ -7,14 +7,14 @@ import {
   kernelNumericConstraints,
   kernelOnStep,
   kernelValueBinding,
-  kernelValueRules,
   type KernelBindingSchema,
   type KernelNumericConstraints,
-} from './component-kernel';
+} from '../configuration/component-kernel';
+import { kernelValueRules } from '../configuration/kernel-value-rules';
 import type { Group, GroupMember } from './compiler-bindings';
 import { countLocalCodePoints } from '../source/source-context';
 import { isLocalEmail, MAX_LOCAL_EMAIL_LENGTH } from '../configuration/limits';
-import { localValueBudgetIssue } from '../evaluation/expression';
+import { localValueBudgetIssue } from '../evaluation/expression/compile';
 
 const NUMBER_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 

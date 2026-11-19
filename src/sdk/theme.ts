@@ -2,7 +2,7 @@ import {
   LOCAL_THEME_PROTOCOL,
   isLocalThemeName,
   type LocalThemeDefinition,
-} from '../local/theme/theme';
+} from '../themes/document-theme';
 import { LOCAL_STYLE_LAYER_ORDER, LOCAL_THEME_STYLE_LAYER } from '../themes/contract';
 
 /**

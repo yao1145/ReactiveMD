@@ -1,21 +1,13 @@
-/**
- * Compatibility facade for the historical compile entry points.
- *
- * The semantic pass lives in `compiler-core.ts`; this module keeps the
- * documented `compileLocal` / `compileLocalTracked` / `compileLocalDocument`
- * signatures and their exact default behavior, including option validation,
- * the concrete semantic cache and the KaTeX display precheck.
- */
+/** Full local compile entry and tracked adapter for editing sessions. */
 import type { LocalCompileOptions, LocalCompileResult } from '../types';
 import { compileLocalCore } from './compiler-core';
 import { plainCompiledData } from '../transport/compiled-data';
-import { LocalSemanticCache, type SemanticCacheStats } from './compiler-cache';
-import { inspectLocalMathDisplay } from '../evaluation/math-display';
-import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../evaluation/math';
+import { inspectLocalMathDisplay } from '../evaluation/math/display';
+import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../evaluation/math/latex';
 import { sanitizeLocalHtmlDocument } from '../html/html';
 import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../configuration/options';
 import { parseLocal } from '../parsing/parser';
-import type { LocalCompilerCoreServices } from './compiler-services';
+import type { LocalCompilerCoreServices, LocalTrackedSemanticService, SemanticCacheStats } from './compiler-services';
 import type { InlinePlanLookup } from '../parsing/fast-markdown';
 import type { SourceContext } from '../source/source-context';
 
@@ -27,7 +19,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
 /** Compiler-owned capture for editor sessions. Callers must copy before publishing. */
 export interface LocalCompilerServices {
   parser?: {parse(source:string,options?:LocalCompileOptions,context?:SourceContext,rowPlans?:InlinePlanLookup):ReturnType<typeof parseLocal>};
-  semantic?: LocalSemanticCache;
+  semantic?: LocalTrackedSemanticService;
   /**
    * Per-row inline plans from the previous revision. Checked before the
    * session LRU so large sequential row blocks cannot thrash it.
@@ -52,11 +44,7 @@ export function compileLocalDocument(source: string, options?: LocalCompileOptio
   return compileLocal(source, options);
 }
 
-/* ------------------------------------------------------------------ */
-/* Compatibility adapters                                              */
-/* ------------------------------------------------------------------ */
-
-/** Same legacy error shape as the pre-split compiler. */
+/** Publish option errors in the local compile result format. */
 function invalidOptionsResult(optionCheck: Exclude<LocalOptionCheck, { ok: true }>): LocalCompileResult {
   return {
     ok: false,
@@ -73,11 +61,7 @@ function invalidOptionsResult(optionCheck: Exclude<LocalOptionCheck, { ok: true 
   };
 }
 
-/**
- * Map the historical service bag onto the structural core services. The
- * display precheck stayed unconditional here: a session cache answers from its
- * store, and a plain compile inspects every formula directly.
- */
+/** Install the full compiler capabilities and reuse display checks when a session supplies a cache. */
 function coreServices(services?: LocalCompilerServices): LocalCompilerCoreServices {
   return {
     ...(services?.parser ? { parser: services.parser } : {}),

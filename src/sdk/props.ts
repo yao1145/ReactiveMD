@@ -1,5 +1,5 @@
 import type { LocalHostBindingSchema, LocalRuntime } from '../local/types';
-import { isLocalColor } from '../local/theme/colors';
+import { isLocalColor } from '../local/configuration/color-values';
 import type {
   LocalComponentDefinition,
   LocalComponentProp,

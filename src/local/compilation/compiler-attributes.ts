@@ -4,14 +4,14 @@ import type { AttrMap, AttrState, Entry } from './compiler-structure';
 import { MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_STRING_LENGTH } from '../configuration/limits';
 import { closestName } from '../configuration/schema-core';
 import { cloneValue, fullInterpolation, MAX_LOCAL_NAME_LENGTH, scanInterpolations, singleFullInterpolation } from './compiler-values';
-import { isLocalColor } from '../theme/colors';
+import { isLocalColor } from '../configuration/color-values';
 import {
   kernelAttributeIssues,
   kernelSlotBindings,
   kernelStructure,
   kernelValueBinding,
   type KernelPropSchema,
-} from './component-kernel';
+} from '../configuration/component-kernel';
 import { parseNumberText } from './compiler-values';
 
 /** Slice only the opening tag so attribute lookup never rescans component content. */

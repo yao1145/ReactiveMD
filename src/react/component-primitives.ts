@@ -20,7 +20,7 @@ export {
 } from '../local/configuration/limits';
 export { countLocalCodePoints } from '../local/source/source-context';
 export { formatLocalDiagnostic } from '../local/configuration/diagnostics';
-export { compileExpression, type LocalExpression } from '../local/evaluation/expression';
+export { compileExpression, type LocalExpression } from '../local/evaluation/expression/compile';
 export {
   compileLatex,
   compilePlotFormula,
@@ -34,10 +34,10 @@ export {
   type PlotFormulaKind,
   type PlotPoint,
   type PlotSample,
-} from '../local/evaluation/math';
-export { sampleImplicit, sampleParametric, samplePlot, samplePolar } from '../local/evaluation/math-sample';
+} from '../local/evaluation/math/latex';
+export { sampleImplicit, sampleParametric, samplePlot, samplePolar } from '../local/evaluation/math/sample';
 export { LatexView } from '../local/rendering/math-view';
-export { TableSurface } from '../local/rendering/data-table';
+export { TableSurface } from '../local/rendering/table/data-table';
 export {
   createDiagramLayoutFallback,
   diagramEdgePath,
@@ -45,8 +45,8 @@ export {
   layoutDiagram,
   type DiagramLayoutInput,
   type DiagramLayoutResult,
-} from '../local/rendering/diagram-layout';
-export { isLocalColor } from '../local/theme/colors';
+} from '../components/diagram/layout';
+export { isLocalColor } from '../local/configuration/color-values';
 export type { Diagnostic, LocalValue } from '../local/types';
 export type { LocalRenderMode } from '../local/rendering/render-types';
-export type { LocalLocale, Localize } from '../local/theme/i18n';
+export type { LocalLocale, Localize } from './localization';

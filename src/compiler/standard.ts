@@ -10,8 +10,8 @@
 import type { LocalCompileOptions } from '../local/types';
 import type { LocalOptionCheck } from '../local/configuration/options-core';
 import { compileLocalCore } from '../local/compilation/compiler-core';
-import { inspectLocalMathDisplay } from '../local/evaluation/math-display';
-import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../local/evaluation/math';
+import { inspectLocalMathDisplay } from '../local/evaluation/math/display';
+import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../local/evaluation/math/latex';
 import { sanitizeLocalHtmlDocument } from '../local/html/html';
 import { STANDARD_PARSER_CAPABILITIES } from '../local/parsing/parser-standard';
 import { readCompilerOptions } from '../local/configuration/options-core';

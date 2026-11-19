@@ -17,7 +17,7 @@ import {
   createLocalCompileSession,
   type LocalCompileSession,
   type LocalIncrementalStats,
-} from '../compilation/incremental';
+} from '../compilation/session/incremental';
 import {
   analyzeResult,
   LOCAL_COMPILE_DELAY_MS,

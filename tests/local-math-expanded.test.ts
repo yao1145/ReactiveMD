@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   inspectLocalMathDisplay,
   renderLocalMathDisplay,
-} from '../src/local/evaluation/math-display';
+} from '../src/local/evaluation/math/display';
 import { LatexView } from '../src/local/rendering/math-view';
 import { compileLocal } from '../src/local/compilation/compiler';
 

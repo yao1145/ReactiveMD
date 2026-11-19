@@ -6,7 +6,7 @@ import {
   collectSubtreeResetTokens,
   type NodeDependencies,
 } from '../src/local/compilation/dependencies';
-import { LocalExpressionError, templateDependencies } from '../src/local/evaluation/expression';
+import { LocalExpressionError, templateDependencies } from '../src/local/evaluation/expression/compile';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import type { LocalDocument, LocalNode } from '../src/local/types';
 

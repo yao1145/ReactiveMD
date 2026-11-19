@@ -11,7 +11,7 @@ import {
   MAX_LOCAL_MATH_DISPLAY_TOKENS,
   MATH_DISPLAY_DIAGNOSTIC_CODE,
   MATH_DISPLAY_MESSAGE_KEYS,
-} from '../src/local/evaluation/math-display';
+} from '../src/local/evaluation/math/display';
 import { LatexView } from '../src/local/rendering/math-view';
 import {
   isLocalDiagnosticCode,

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
-import { createLocalCompileSession, type LocalCompileSession } from '../src/local/compilation/incremental';
+import { createLocalCompileSession, type LocalCompileSession } from '../src/local/compilation/session/incremental';
 import {
   applyLocalResultPatch,
   encodeLocalResultPatch,

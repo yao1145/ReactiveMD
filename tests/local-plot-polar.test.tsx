@@ -1,9 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
-import { compileLatex, compilePlotFormula, localLatexReferences, plotFormulaKind } from '../src/local/evaluation/math';
-import { samplePolar } from '../src/local/evaluation/math-sample';
-import { LocalDocumentView } from '../src/local/rendering/LocalDocumentView';
+import { compileLatex, compilePlotFormula, localLatexReferences, plotFormulaKind } from '../src/local/evaluation/math/latex';
+import { samplePolar } from '../src/local/evaluation/math/sample';
+import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { analyzeLocalSource, renameLocalBinding } from '../src/local/source/authoring';
 

@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { compileLocal } from '../../../src/local/compilation/compiler';
 import { createLocalRuntime } from '../../../src/local/runtime/runtime';
-import { LocalDocumentView } from '../../../src/local/rendering/LocalDocumentView';
+import { LocalDocumentView } from '../../../src/local/rendering/document/LocalDocumentView';
 import '../../../src/styles.css';
 
 declare global {
