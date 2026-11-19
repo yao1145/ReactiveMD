@@ -12,6 +12,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | [compatibility/](compatibility/) | Compatibility, migration and source versioning |
 | [development/](development/) | Development, protocols and performance |
 | [releases/](releases/) | Release notes |
+| [plan/](plan/) | Local planning area; not published with the package |
 
 ## Start here
 

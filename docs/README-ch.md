@@ -12,6 +12,7 @@
 | [compatibility/](compatibility/) | 版本兼容、迁移与源码版本标记 |
 | [development/](development/) | 组件开发、协议与性能 |
 | [releases/](releases/) | 各版本发布记录 |
+| [plan/](plan/) | 本地规划区；不随包发布 |
 
 ## 从这里开始
 

@@ -1,6 +1,6 @@
 # 本地模块目录结构
 
-[English](local-module-layout-en.md)
+**中文** · [English](local-module-layout-en.md)
 
 当前目录与入口见 [源码地图](../../src/local/README.md)。
 

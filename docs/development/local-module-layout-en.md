@@ -1,6 +1,6 @@
 # Local module layout
 
-[中文](local-module-layout-ch.md)
+**English** · [中文](local-module-layout-ch.md)
 
 See the [source map](../../src/local/README.md) for the current directory tree.
 
