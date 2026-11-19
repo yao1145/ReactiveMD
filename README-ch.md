@@ -77,7 +77,7 @@ Reactive MD 把普通 Markdown 变成一个小型应用：命名输入、实时�
 
 ## 性能
 
-Reactive MD 面向长文档和连续编辑。当前测量日期为 2026-10-29，环境为 Node 22.17、Intel Core Ultra 5 125H 与 Edge 135 headless、1440×1000。机器未固定频率，以下数字是可复现的实验证据，不是性能保证。
+Reactive MD 面向长文档和连续编辑。当前测量日期为 2026-11-20，环境为 Node 22.17、Intel Core Ultra 5 125H 与 Edge 135 headless、1440×1000。机器未固定频率，以下数字是可复现的实验证据，不是性能保证。
 
 | 工作负载 | 结果 |
 | --- | --- |
@@ -91,7 +91,7 @@ Reactive MD 面向长文档和连续编辑。当前测量日期为 2026-10-29，
 
 编译器在 Worker 中运行，复用未变化的块，发布行级补丁，并为深层结构协商扁平结果格式。硬性预算会在异常输入冻结界面之前拒绝它：默认 10,000 个节点、1,000,000 个字符、100 层组件嵌套。
 
-完整的 45 个场景矩阵、回归项、内存检查和复现命令见[性能说明](docs/development/performance-overview-ch.md)，精简数据见 `benchmarks/performance-overview-2026-10-29.json`。
+完整的 45 个场景矩阵、回归项、内存检查和复现命令见[性能说明](docs/development/performance-overview-ch.md)，精简数据见 `benchmarks/performance-overview-2026-11-20.json`。
 
 ## 体验 Demo
 

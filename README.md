@@ -77,7 +77,7 @@ Expressions are deliberately small and safe: no assignment, method calls, proper
 
 ## Performance
 
-Reactive MD is built for long documents and continuous editing. The current measurements (2026-10-29) use Node 22.17 on an Intel Core Ultra 5 125H and headless Edge 135 at 1440×1000. The machine was not frequency-pinned, so these numbers are reproducible evidence, not a guarantee.
+Reactive MD is built for long documents and continuous editing. The current measurements (2026-11-20) use Node 22.17 on an Intel Core Ultra 5 125H and headless Edge 135 at 1440×1000. The machine was not frequency-pinned, so these numbers are reproducible evidence, not a guarantee.
 
 | Workload | Result |
 | --- | --- |
@@ -91,7 +91,7 @@ Reactive MD is built for long documents and continuous editing. The current meas
 
 The compiler runs in a Worker, reuses unchanged blocks, publishes row-level patches and negotiates a flat result format for deep trees. Hard budgets stop pathological input before it can freeze the interface: 10,000 nodes by default, 1,000,000 characters and 100 component nesting levels.
 
-See [Performance measurements](docs/development/performance-overview-en.md) for the full 45-scenario matrix, regressions, memory checks and reproduction commands, and `benchmarks/performance-overview-2026-10-29.json` for the condensed data.
+See [Performance measurements](docs/development/performance-overview-en.md) for the full 45-scenario matrix, regressions, memory checks and reproduction commands, and `benchmarks/performance-overview-2026-11-20.json` for the condensed data.
 
 ## Try the demo
 
