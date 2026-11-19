@@ -2,7 +2,7 @@
 
 **中文** · [English](component-protocol-en.md)
 
-协议修订 `component-protocol-3` · 适用语法 `local-draft-3` · 当前包版本 `0.7.0`
+协议修订 `component-protocol-3` · 适用语法 `local-draft-3` · 当前包版本 `0.8.0`
 
 Reactive MD 的组块就是语言中的组件。本协议规定组块在贡献、实现和验收中的共同契约，连接作者语法、编译器、运行时、React 参考适配器和机器验收数据。作者写文档时以[本地交互语法规范](../reference/local-interaction-syntax-ch.md)为准；宿主接入以[本地模式集成](../integration/local-integration-ch.md)为准；本文供贡献者、评审和测试使用。
 
@@ -214,7 +214,7 @@ $$ y = x^2 $$
 | `steps` | 当前步骤 value，独占 | `steps` |
 | `selection` | 稳定行标识，空字符串表示未选 | 带 key 的 `table`、`chart` |
 
-range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围、步长、默认值和原子批量写入见[扩展声明](../reference/local-components-v2-ch.md)。selection 允许表格和图表共享，但有序标识集合必须相同。新组件继续遵守以下初始化、拒绝写入、隐藏、重置和销毁条款。
+range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围、步长、默认值和原子批量写入见[语法规范](../reference/local-interaction-syntax-ch.md)。selection 允许表格和图表共享，但有序标识集合必须相同。新组件继续遵守以下初始化、拒绝写入、隐藏、重置和销毁条款。
 
 `timer`、`checklist`、`tabs`、`diagram` 同时是独占 family：一个公开参数只能由一个组块拥有，其他控件不能声明同名绑定。宿主仍可通过所属节点调用公开的 `runtime.set`，写入遵守同一套校验。
 
@@ -498,7 +498,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 
 本修订描述组件贡献要求和第 14 节的旧宿主接口。`LOCAL_COMPONENTS` 是默认预设的内部兼容投影；`hostComponents` 为单次编译接受纯 schema 数据，并作为输入适配到统一内核，组件实现由宿主提供。
 
-[扩展 SDK](../integration/extension-sdk-ch.md)随 `reactive-md@0.7.0` 发布，使用独立的 `reactive-md-component/v1` 数据契约和实例级配置，提供注册校验、React 实现绑定、编辑器目录、离线构建、版本恢复和公开合规工具。46 个默认渲染与结构组件采用同一公开契约。组件代码由宿主主动安装，文档声明不会装载代码。
+[扩展 SDK](../integration/extension-sdk-ch.md)随 `reactive-md@0.8.0` 发布，使用独立的 `reactive-md-component/v1` 数据契约和实例级配置，提供注册校验、React 实现绑定、编辑器目录、离线构建、版本恢复和公开合规工具。48 个默认渲染与结构组件采用同一公开契约。组件代码由宿主主动安装，文档声明不会装载代码。
 
 ## 10. 兼容、名称治理、修订和迁移
 
@@ -745,4 +745,4 @@ React 视图把 `hostComponent` 节点分发给 `hostRenderer(node, data, ctx)`�
 | `component-protocol-1` | 2026-10-23 | 初版；最初适用于 `local-draft-1` 和包版本 `0.3.0`，定义组块贡献、验收和扩展边界。现在适用于 `local-draft-2` 和 `0.4.0` 预览版，MUST 条款和机器格式不变。 |
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。`0.6.0` 同时提供于 `latest` 与 `next` 渠道。
+组块与状态规则见[本地交互语法规范](../reference/local-interaction-syntax-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。

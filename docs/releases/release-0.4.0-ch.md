@@ -42,7 +42,7 @@
 
 `sum`、`average`、`minOf`、`maxOf`、`formatNumber`、`formatPercent`、`formatScientific`、`formatCurrency`、`trim`、`lower`、`upper`、`startsWith`、`endsWith`、`replace`、`slice`、`dateCompare`、`dateDiff`。
 
-它们与原有保留名共同生效：数学与集合函数（`abs`、`sqrt`、`floor`、`ceil`、`round`、`min`、`max`、`pow`、`sin`、`cos`、`tan`、`asin`、`acos`、`atan`、`exp`、`log`、`len`、`contains`、`clamp`）、常量 `pi` 与 `e`、绘图名 `x` 与 `y`、字面量 `true`、`false`、`null`，以及 `__proto__`、`prototype`、`constructor`。详见[复用计算与格式化数值](../reference/computations-formatting-ch.md#兼容性)。
+它们与原有保留名共同生效：数学与集合函数（`abs`、`sqrt`、`floor`、`ceil`、`round`、`min`、`max`、`pow`、`sin`、`cos`、`tan`、`asin`、`acos`、`atan`、`exp`、`log`、`len`、`contains`、`clamp`）、常量 `pi` 与 `e`、绘图名 `x` 与 `y`、字面量 `true`、`false`、`null`，以及 `__proto__`、`prototype`、`constructor`。详见[本地交互语法规范](../reference/local-interaction-syntax-ch.md)。
 
 ### 新增可识别标签名
 
@@ -88,4 +88,4 @@
 
 静态 SSR 由 packed 检查覆盖。单文件导出的静态首屏水合由 Playwright Chromium 和本地 Edge 检查覆盖。该路径之外的通用 SSR 水合、Firefox 与 Safari/WebKit 尚未验证，不作支持声明。
 
-版本规则与诊断契约见[版本与兼容性](../compatibility/compatibility-ch.md)，修订指令与迁移工具见[源码修订与迁移](../compatibility/source-versioning-ch.md)，HTML 与状态格式见[可分享文档与静态导出](../integration/shareable-export-ch.md)，组块新增见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)。
+版本规则与诊断契约见[版本与兼容性](../compatibility/compatibility-ch.md)，修订指令与迁移工具见[源码修订与迁移](../compatibility/source-versioning-ch.md)，HTML 与状态格式见[可分享文档与静态导出](../integration/shareable-export-ch.md)，组块与规则见[本地交互语法规范](../reference/local-interaction-syntax-ch.md)。

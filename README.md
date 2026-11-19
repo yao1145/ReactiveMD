@@ -2,7 +2,7 @@
 
 **English** · [中文](README-ch.md)
 
-> Repository split: this checkout is the language engine. The [editor](https://github.com/yao1145/ReactiveMD-Editor) and [Demo](https://github.com/yao1145/ReactiveMD-Demo) build independently. Engine 0.8 uses the separate reactive-md-editor package. See the [migration guide](docs/integration/repository-split-en.md).
+> Repository split: this checkout is the language engine. The [editor](https://github.com/yao1145/ReactiveMD-Editor) and [Demo](https://github.com/yao1145/ReactiveMD-Demo) build independently. Engine 0.8 uses the separate reactive-md-editor package. See the [migration guide](docs/releases/release-0.8.0-en.md#repository-split-and-import-migration).
 
 [![npm](https://img.shields.io/npm/v/reactive-md.svg)](https://www.npmjs.com/package/reactive-md)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -211,7 +211,7 @@ npm install reactive-md@0.8.0
 npm install reactive-md-editor@0.1.0
 ```
 
-Read the [0.8.0 release notes](docs/releases/release-0.8.0-en.md) and the [repository migration guide](docs/integration/repository-split-en.md) before replacing `reactive-md/editor` imports. `0.8.0` keeps syntax `local-draft-3`, the `0.7.0` SDK contract and the existing state protocols, so document sources need no migration.
+Read the [0.8.0 release notes](docs/releases/release-0.8.0-en.md) and the [repository migration guide](docs/releases/release-0.8.0-en.md#repository-split-and-import-migration) before replacing `reactive-md/editor` imports. `0.8.0` keeps syntax `local-draft-3`, the `0.7.0` SDK contract and the existing state protocols, so document sources need no migration.
 
 The `reactive-md` entry provides the local compiler, expressions and runtime; `reactive-md/react` provides the React renderer. Import component styles from `reactive-md/styles.css`. The `reactive-md-editor` entry provides the source editor with its own stylesheet at `reactive-md-editor/styles.css`. Engine 0.8 removes the old `reactive-md/editor` entries; published 0.7 packages keep them.
 
@@ -407,7 +407,7 @@ benchmarks/    Condensed performance measurements with provenance
 - [Component protocol](docs/development/component-protocol-en.md) and [component plugin development guide](docs/development/component-development-en.md).
 - [Extension tutorial](docs/development/extension-tutorial-en.md): choose an entry, build a component package and verify it.
 - [Versions and compatibility](docs/compatibility/compatibility-en.md).
-- [Performance measurements](docs/development/performance-overview-en.md) and [release checklist](docs/development/releasing-en.md).
+- [Performance measurements](docs/development/performance-overview-en.md) and [release checklist](CONTRIBUTING.md#releasing).
 - [0.8.0 release notes](docs/releases/release-0.8.0-en.md), [0.7.0 release notes](docs/releases/release-0.7.0-en.md) and earlier release records in [docs/releases](docs/releases).
 
 ## Support and status
@@ -422,7 +422,7 @@ benchmarks/    Condensed performance measurements with provenance
 - [Contributing guide](CONTRIBUTING.md): environment, check commands and change requirements.
 - [Security policy](SECURITY.md): threat boundary, resource limits, host responsibilities and vulnerability reporting.
 - [Changelog](CHANGELOG.md).
-- [Release checklist](docs/development/releasing-en.md): the verification gate, notices, tarball and the manual release flow for maintainers.
+- [Release checklist](CONTRIBUTING.md#releasing): the verification gate, notices, tarball and the manual release flow for maintainers.
 
 ## License
 

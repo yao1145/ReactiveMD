@@ -38,9 +38,25 @@ npm install react@19 react-dom@19
 | `reactive-md/editor/styles.css` | `reactive-md-editor/styles.css` |
 | `reactive-md/editor/codemirror/styles.css` | `reactive-md-editor/codemirror/styles.css` |
 
-编辑器仍是受控的 React 19 组件，编辑能力保持不变：高亮、工具栏与插入命令、补全、绑定导航、重命名与格式化、撤销重做、诊断和 ref 句柄。见[编辑器指南](../integration/editor-ch.md)和[三仓库迁移说明](../integration/repository-split-ch.md)。
+编辑器仍是受控的 React 19 组件，编辑能力保持不变：高亮、工具栏与插入命令、补全、绑定导航、重命名与格式化、撤销重做、诊断和 ref 句柄。见[编辑器指南](../integration/editor-ch.md)和[仓库拆分与导入迁移](#仓库拆分与导入迁移)。
 
 本次变更不附带文档语法或状态格式迁移。`local-draft-3` 仍是唯一接受的修订，SDK、组块、主题和状态协议保持原值。恢复状态时仍校验源码摘要、组件配置键和身份。
+
+## 仓库拆分与导入迁移
+
+三个仓库独立安装、构建、维护版本和发布：
+
+| 仓库 | 准备发布的版本 | 交付 |
+| --- | --- | --- |
+| [ReactiveMD](https://github.com/yao1145/ReactiveMD) | `reactive-md@0.8.0` | 编译器、运行时、编译会话、Worker、作者服务、SDK、React/SSR、导出 |
+| [ReactiveMD-Editor](https://github.com/yao1145/ReactiveMD-Editor) | `reactive-md-editor@0.1.0` | CodeMirror、工具栏、导航、诊断呈现、编辑器 Worker |
+| [ReactiveMD-Demo](https://github.com/yao1145/ReactiveMD-Demo) | 私有网站包 `0.1.0` | 示例网站、组件装配、静态资源和部署 |
+
+导入替换表见上文[破坏性变更](#破坏性变更)。编辑器只通过 `reactive-md` 和 `reactive-md/authoring` 的公开 API 使用引擎；纯作者命令和组件目录可直接从 `reactive-md/authoring` 使用，不需要编辑器 UI。
+
+候选消费者提交内容寻址的 `vendor/*.tgz` tarball 和 lockfile integrity。编辑器按公共 API 兼容性声明引擎 peer 范围；其开发安装与 Demo 用精确 tarball 固定候选组合。先发布引擎 0.8.0，再发布编辑器 0.1.0。更新候选组合时，在引擎运行 `npm run check` 和 `npm run notices`，用 `--ignore-scripts` 打包，将包复制到编辑器的 `vendor` 目录，在编辑器中安装、运行检查并打包，最后按需更新 Demo 的 vendor 依赖。候选包内容变化时更新实际 tarball 和锁文件。正式发布后改用 registry 版本范围，并在干净目录重新安装验证。
+
+引擎 CI 使用一个 Node 24 作业：类型、构建、保留的回归和真实打包消费。编辑器检查自身 UI 服务与公开引擎消费；Demo 检查网站、导出和桌面/手机交互。旧阶段矩阵已停用，历史可通过 Git 追溯。站点部署遵循 Demo 仓库的 `AGENTS.md`；编辑器首次发布前需配置独立的 trusted publisher 和 `publish.yml`。
 
 ## 最小升级步骤
 
@@ -63,7 +79,7 @@ const standard = createStandardCompiler().compile('<number bind="n" label="数�
 
 `createCompiler` 不注册组件，保留 CommonMark、RMD 结构、表达式、绑定和预算。`createStandardCompiler` 安装默认预设和 KaTeX 展示检查。编译不创建编辑会话、Worker 或运行时，也不加载 React、主题实现或 CSS。结果使用 `status: 'valid' | 'recovered' | 'failed'`，并保留 `ok`、`document` 读取方式。最小入口的结果带有自己的组件配置键，把它交给使用默认配置的现有渲染器会报告 `local.extension.config-mismatch`；现有 React 与 SSR 宿主应使用标准入口。
 
-两个工厂都接受 `strict`，严格模式是默认值。设置 `strict: false` 后，未闭合或错配的区域保留为原始文本，每个最终恢复产生一条稳定 warning，编译在可靠边界继续。可恢复的结构问题不会降级绑定、类型、配置、版本或预算错误。两种模式都把无空行的 `<details>` / `<summary>` 片段映射为单个 disclosure。见[单次编译入口](../integration/compiler-ch.md)和[严格模式与局部恢复](../reference/tolerance-ch.md)。
+两个工厂都接受 `strict`，严格模式是默认值。设置 `strict: false` 后，未闭合或错配的区域保留为原始文本，每个最终恢复产生一条稳定 warning，编译在可靠边界继续。可恢复的结构问题不会降级绑定、类型、配置、版本或预算错误。两种模式都把无空行的 `<details>` / `<summary>` 片段映射为单个 disclosure。见[单次编译入口](../integration/compiler-ch.md)和[严格解析与局部恢复](../integration/local-integration-ch.md#严格解析与局部恢复)。
 
 ## 运行时服务与持久化
 

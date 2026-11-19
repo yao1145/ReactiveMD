@@ -11,10 +11,10 @@ artifacts/
 *.tgz
 
 # Archived development records kept locally only
-docs/archive/extension-sdk-*.md
+docs/archive/
 
-# Architecture roadmap is local planning; new files stay untracked
-docs/architecture_roadmap/
+# local planning; new files stay untracked
+docs/plan/
 
 # Agent instructions stay local
 AGENTS.md

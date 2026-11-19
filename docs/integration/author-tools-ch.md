@@ -2,7 +2,7 @@
 
 **中文** · [English](author-tools-en.md)
 
-安装 `reactive-md@0.6.0` 即可使用 CLI 和不依赖 React 的 `reactive-md/authoring` 入口。从本仓库开发时，先构建语言包：
+安装 `reactive-md@0.8.0` 即可使用 CLI 和不依赖 React 的 `reactive-md/authoring` 入口。从本仓库开发时，先构建语言包：
 
 ```sh
 npm ci
@@ -61,4 +61,4 @@ const formatted = formatLocalSource(renamed.source, compileOptions);
 
 `reactive-md/authoring` 还导出 `LOCAL_COMPONENTS`、`getLocalComponent`、`getNativeComponentCatalog`、`renderNativeSnippet`、`insertTemplate` 及其类型，无需 React 或 CSS。将预览使用的 `LocalCompileOptions` 传给这些函数的编译配置参数；省略时保持原有默认值。配置包括宿主 schema、HTML 模式、资源预算和 `markdownBreaks`。
 
-入口与样式接入方式见 [0.5.3 发布说明](../releases/release-0.5.3-ch.md)。
+作者工具入口与样式表接入见[公开接口参考](../reference/public-api-ch.md)的作者工具与样式表两节。

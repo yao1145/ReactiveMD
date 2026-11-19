@@ -2,7 +2,7 @@
 
 **English** · [中文](performance-overview-ch.md)
 
-Re-tested 2026-10-29. The full matrix records the row reuse, patch cost selection and CM6 single-editor migration of commit `4a8f1ea`; this round continues optimizing dynamic interpolation rows and deep nesting on top of that commit, with the targeted re-measurements listed separately in part two. The measurements were taken on the 0.6.1 codebase before the 0.7.0 release.
+Re-tested 2026-10-29. The full matrix records the row reuse, patch cost selection and CM6 single-editor migration of commit `4a8f1ea`; this round continues optimizing dynamic interpolation rows and deep nesting on top of that commit, with the targeted re-measurements listed separately in part two. Every number below comes from the 0.6.1 codebase measured on 2026-10-29. The measurements have not been re-run for 0.7.0 or 0.8.0, so treat the numbers as the 0.6.1 baseline.
 
 ## 1. Direction and outcome of each optimization round
 

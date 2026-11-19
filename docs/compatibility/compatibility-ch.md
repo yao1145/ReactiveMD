@@ -70,9 +70,9 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 `0.5.2` 新增可选的宿主组件扩展轴，并把组块协议提升到 `component-protocol-2`。语法修订和主题协议保持不变，现有导入继续有效，为 0.5.x 编写的文档无需迁移。见[0.5.2 发布说明](../releases/release-0.5.2-ch.md)。
 
-`0.4.0` 新增[条件、校验与本地集合](../reference/constraints-collections-ch.md)：`LocalRuntime.validate()`、可序列化的 `LocalValidation` 规则、数字数组及生成表格。自行实现运行时适配器的宿主需补充 `validate()`，值类型穷举需加入 `number-array`；与 `sum`、`average`、`minOf`、`maxOf` 同名的旧绑定应重命名。
+`0.4.0` 新增[跨字段校验、数组与生成表格](../reference/local-interaction-syntax-ch.md)：`LocalRuntime.validate()`、可序列化的 `LocalValidation` 规则、数字数组及生成表格。自行实现运行时适配器的宿主需补充 `validate()`，值类型穷举需加入 `number-array`；与 `sum`、`average`、`minOf`、`maxOf` 同名的旧绑定应重命名。
 
-`0.4.0` 新增[命名计算与格式化函数](../reference/computations-formatting-ch.md)。`computed`/`const` 使用现有本地标签形式；新函数名成为保留字，使用本版本前需重命名冲突的输入绑定并同步修改引用。`document.bindings` 和 `initialState` 继续只包含可写控件，快照同时提供成功求值的计算结果。
+`0.4.0` 新增[命名计算与格式化函数](../reference/local-interaction-syntax-ch.md)。`computed`/`const` 使用现有本地标签形式；新函数名成为保留字，使用本版本前需重命名冲突的输入绑定并同步修改引用。`document.bindings` 和 `initialState` 继续只包含可写控件，快照同时提供成功求值的计算结果。
 
 `0.4.0` 建立 `local-draft-2`。使用受支持 `local-draft-1` 写法的无指令源码继续有效；显式 `local-draft-1` 声明在迁移前会被拒绝。构建新增识别 15 个标签名：十个 `local-draft-2` 组块，以及 `computed`、`const`、`validation`、`data-table`、`column`。以前作为未知标签或普通文字显示的内容现在会解析为组块或声明；字面示例应移入行内代码或代码围栏。开头的 `<theme>` 声明是文档元数据，不计入组块。完整的重命名与升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
@@ -126,4 +126,4 @@ Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `c
 语言范围见[语法规范](../reference/local-interaction-syntax-ch.md)，安全边界与宿主责任见[安全策略](../../SECURITY-ch.md)。
 
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。`0.8.0` 使用 `latest` 渠道。
+当前语法修订的完整规则见[本地交互语法规范](../reference/local-interaction-syntax-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。`0.8.0` 使用 `latest` 渠道。

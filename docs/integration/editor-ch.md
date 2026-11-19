@@ -2,13 +2,13 @@
 
 **中文** · [English](editor-en.md)
 
-`reactive-md@0.8.0` 将编辑器拆分到独立的 `reactive-md-editor@0.1.0`，引擎先发布，编辑器随后发布。原 0.7 包已统一为 CodeMirror 6 编辑器；CM6 的事务、共享分析和坐标约定见 [CM6 集成](codemirror-ch.md)。
+`reactive-md@0.8.0` 将编辑器拆分到独立的 `reactive-md-editor@0.1.0`，引擎先发布，编辑器随后发布。编辑器基于 CodeMirror 6，事务、共享分析和源码坐标约定见下文。
 
 `reactive-md-editor` 是用于 Reactive MD 源码的受控 React 19 编辑器，由 Playground 编辑器抽出。它提供源码高亮、格式与插入工具栏、补全、绑定导航、重命名与格式化、撤销重做、行号及滚动同步。编辑器内置字数底栏及编辑、并排、预览三种视图。宿主保存源码，并提供预览内容、持久化和导出。
 
 编辑器有独立样式表 `reactive-md-editor/styles.css`，与 `reactive-md/styles.css` 分开。只编辑源码的页面不会加载文档渲染样式。
 
-升级时将旧的 `reactive-md/editor` 子路径及其样式导入换成独立包入口，见[三仓库迁移](repository-split-ch.md)。文档渲染仍使用 `reactive-md/react` 和 `reactive-md/styles.css`。
+升级时将旧的 `reactive-md/editor` 子路径及其样式导入换成独立包入口，见[三仓库迁移](../releases/release-0.8.0-ch.md#仓库拆分与导入迁移)。文档渲染仍使用 `reactive-md/react` 和 `reactive-md/styles.css`。
 
 ## 安装
 
@@ -126,6 +126,36 @@ export function SourceEditor() {
 | `onTransaction` | `(transaction: EditorTransaction) => void` | 无 | 接收原始源码坐标下的编辑事务。 |
 | `createAnalysisWorker` | `() => Worker` | 无 | 提供符合宿主 CSP 的分析 Worker 工厂。 |
 
+## CM6 事务、共享分析与源码坐标
+
+`onTransaction` 返回 `previousSource`、`source`、修订号、`changes`、选区和组合输入状态。`changes` 的所有范围对应 `previousSource`。多处编辑可合并为覆盖首末变化的替换，再交给 `LocalCompileScheduler.schedule(source, options, { baseSource, edit })`。编辑提示会被验证；基线不同或提示无效时，沿用源码差分和完整请求恢复。
+
+作者分析默认使用私有模块 Worker。宿主已有预览 Worker 时，在现有调度器生命周期启用共享分析：
+
+```tsx
+import { LocalCompileScheduler, localCompileOptionsKey } from 'reactive-md';
+
+// 放入宿主已有的调度器生命周期，不要在 render 中创建。
+const scheduler = new LocalCompileScheduler({
+  createWorker: createCompileWorker,
+  includeAuthorAnalysis: true,
+  onResult(outcome) {
+    setAnalysis(outcome.analysis ? {
+      source: outcome.source,
+      optionsKey: localCompileOptionsKey(outcome.options),
+      analysis: outcome.analysis,
+    } : null);
+  },
+});
+// <ReactiveMarkdownEditor analysis={analysis} ... />
+```
+
+`analysis={null}` 表示宿主结果待定，阻止创建私有 Worker；省略 `analysis` 启用私有 Worker。编辑器只接受与当前源码和选项签名一致的分析。成功编译复用同一文档及声明元数据生成作者分析；临时语义错误在 Worker 内按相同预算恢复语法高亮，预算或选项失败返回空分析。编译诊断仍通过 `diagnostics` 显示。旧 Worker 可继续编译；未提供分析时，作者面板等待支持分析的结果。`createAnalysisWorker` 可提供符合宿主 CSP 的工厂；默认模块 Worker 无法启动时回退到主线程编译。分析时间记录在 `metrics.worker.analysisMs`。
+
+编辑器只装饰可见语法范围，绑定和引用每页显示 50 项。预览由宿主提供，视图切换时预览 DOM 保持挂载。
+
+所有范围均为原始源码中的 UTF-16 偏移，与编译诊断及 `selectRange` 一致。未修改的 CRLF、LF、CR、BOM 和 emoji 会保留；原生输入的新换行使用文档第一个换行的样式。CRLF 内部的偏移映射到该换行之前。
+
 ## 编辑器内置视图
 
 底栏位于编辑器边框内，紧贴编辑区域下缘，显示 Unicode 字符数和视图按钮。提供 `preview` 后，编辑器管理编辑、并排和预览布局。容器宽度不超过 600px 时，仅显示编辑和预览选项；并排模式暂时显示为编辑模式，恢复宽屏后回到并排。
@@ -164,7 +194,7 @@ export function SourceEditor() {
 
 每次编辑都会以新源码调用 `onChange`，包括输入、工具栏格式化、插入模板、重命名、格式化及撤销重做。把该值回传给 `value`。编辑器把自己发出的修改视为当前会话的一部分，常规受控值回传会保留撤销步骤。
 
-外部修改 `value` 会更新显示的文本。宿主用另一份独立文档替换文本时，在同一次渲染中修改 `documentKey`。键变化会清空撤销重做、重置选区并采用新值。
+外部修改 `value` 会更新显示的文本。宿主用另一份独立文档替换文本时，在同一次渲染中修改 `documentKey`。键变化会清空撤销重做、重置选区并采用新值。宿主可以延迟回传 `onChange` 的值；超过 120 次未确认修改后，旧回传会作为外部替换处理。待确认队列保存逆向编辑。
 
 ```tsx
 const [documentKey, setDocumentKey] = useState('estimate');

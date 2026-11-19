@@ -2,13 +2,13 @@
 
 **English** · [中文](extension-sdk-ch.md)
 
-The `0.7.0` package includes the extension SDK for public extensions and unified default components. Install the published package; use a source-built tarball only when testing unreleased changes.
+The `0.8.0` package includes the extension SDK for public extensions and unified default components. Install the published package; use a source-built tarball only when testing unreleased changes.
 
 ```sh
-npm install reactive-md@0.7.0
+npm install reactive-md@0.8.0
 ```
 
-The registry package contains `reactive-md/build`, `reactive-md/testing` and the other phase-three entries. The consumer checks install the published package outside the repository, so the public import surface is exercised as published rather than through source aliases. Version ranges name `^0.7.0`.
+The registry package contains `reactive-md/build`, `reactive-md/testing` and the other phase-three entries. The consumer checks install the published package outside the repository, so the public import surface is exercised as published rather than through source aliases. SDK version ranges name `^0.7.0`.
 
 Component manifests and instance configuration are plain data. React implementations remain explicitly imported host code. The compiler, Worker, authoring tools, build adapter and exporter use the same validated configuration.
 
@@ -44,7 +44,7 @@ export function Reader({ source }: { source: string }) {
 }
 ```
 
-The default preset remains enabled. `reactive-md/presets/default` exports `defaultPreset` for explicit configuration. Its 46 components pass the public validator and share compilation and rendering with external components. Registration rejects name overrides.
+The default preset remains enabled. `reactive-md/presets/default` exports `defaultPreset` for explicit configuration. Its 48 components pass the public validator and share compilation and rendering with external components. Registration rejects name overrides.
 
 Registration validates identities, names, protocol, dependencies and budgets, then copies and freezes the data. `readLocalConfig` revalidates serialized configuration and recomputes its semantic key. React implementations must match their registered manifests.
 

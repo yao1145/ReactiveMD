@@ -38,9 +38,25 @@ The engine package no longer exports the editor. The old entries belong to publi
 | `reactive-md/editor/styles.css` | `reactive-md-editor/styles.css` |
 | `reactive-md/editor/codemirror/styles.css` | `reactive-md-editor/codemirror/styles.css` |
 
-The editor remains a controlled React 19 component with the same editing surface: highlighting, toolbar and insertion commands, completion, binding navigation, rename and format, undo and redo, diagnostics and the ref handle. See the [editor guide](../integration/editor-en.md) and the [repository migration guide](../integration/repository-split-en.md).
+The editor remains a controlled React 19 component with the same editing surface: highlighting, toolbar and insertion commands, completion, binding navigation, rename and format, undo and redo, diagnostics and the ref handle. See the [editor guide](../integration/editor-en.md) and [repository split and import migration](#repository-split-and-import-migration).
 
 No document-syntax or state-format migration accompanies this change. `local-draft-3` remains the only accepted revision, and the SDK, component, theme and state protocols keep their previous values. State restoration still checks the source digest, component configuration key and identity.
+
+## Repository split and import migration
+
+The engine, editor and website have independent repositories, versions and release workflows:
+
+| Repository | Prepared release | Responsibility |
+| --- | --- | --- |
+| [ReactiveMD](https://github.com/yao1145/ReactiveMD) | `reactive-md@0.8.0` | Compiler, runtime, sessions, Worker, authoring services, SDK, React/SSR, export |
+| [ReactiveMD-Editor](https://github.com/yao1145/ReactiveMD-Editor) | `reactive-md-editor@0.1.0` | CodeMirror, toolbar, navigation, diagnostics, editor Worker |
+| [ReactiveMD-Demo](https://github.com/yao1145/ReactiveMD-Demo) | Private website package `0.1.0` | Website, examples, extension assembly, deployment |
+
+The import replacement table is in [Breaking changes](#breaking-changes) above. The editor consumes only public `reactive-md` and `reactive-md/authoring` APIs; authoring commands and catalogs stay available from `reactive-md/authoring` without the editor UI.
+
+Candidate consumers commit content-addressed `vendor/*.tgz` tarballs with lockfile integrity. The editor declares its engine peer range from public API compatibility; its development install and the Demo pin exact tarballs. Publish the 0.8.0 engine before the 0.1.0 editor. To update the candidates: run the engine `npm run check` and `npm run notices`, pack with `--ignore-scripts`, copy the package into the editor `vendor` directory, install in the editor, run its check and pack it, then update the Demo vendor if a website update is requested. Refresh tarballs and lockfiles whenever candidate contents change. After registry publication, switch to registry version ranges and verify a clean install.
+
+Engine CI runs one Node 24 job for types, build, retained regressions and actual package consumption. Editor checks own UI services and public-engine consumption; Demo checks the website, export and desktop/mobile interaction. Historical phase matrices are retired; Git history preserves them. Website deployment follows the Demo repository's `AGENTS.md`, and the editor needs its own trusted publisher and `publish.yml`.
 
 ## Minimal upgrade
 
@@ -63,7 +79,7 @@ const standard = createStandardCompiler().compile('<number bind="n" label="Count
 
 `createCompiler` registers no components and keeps CommonMark, RMD structure, expressions, bindings and budgets. `createStandardCompiler` installs the default preset and the KaTeX display checks. Compilation creates no editing session, Worker or runtime and loads no React, theme implementation or CSS. Results use `status: 'valid' | 'recovered' | 'failed'` and keep the `ok` and `document` read path. A minimal result carries its own component configuration key, so passing it to the existing renderer with its default configuration reports `local.extension.config-mismatch`; use the standard entry for the existing React and SSR hosts.
 
-Both factories accept `strict`. Strict mode is the default. With `strict: false`, an unclosed or mismatched region stays as literal source, each finalized recovery produces one stable warning, and compilation resumes at a reliable boundary. Recoverable structure does not downgrade binding, type, configuration, version or budget errors. Both modes map a blank-line-free `<details>` / `<summary>` fragment to one disclosure. See [one-shot compilation](../integration/compiler-en.md) and [strict parsing and local recovery](../reference/tolerance-en.md).
+Both factories accept `strict`. Strict mode is the default. With `strict: false`, an unclosed or mismatched region stays as literal source, each finalized recovery produces one stable warning, and compilation resumes at a reliable boundary. Recoverable structure does not downgrade binding, type, configuration, version or budget errors. Both modes map a blank-line-free `<details>` / `<summary>` fragment to one disclosure. See [one-shot compilation](../integration/compiler-en.md) and [strict parsing and local recovery](../integration/local-integration-en.md#strict-parsing-and-local-recovery).
 
 ## Runtime services and persistence
 

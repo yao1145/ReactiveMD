@@ -45,7 +45,7 @@ try {
   for (const target of exportTargets(pkg.exports)) {
     assert.ok(packedFiles.has(target.replace(/^\.\//, '')), `Package export is missing: ${target}`);
   }
-  assert.ok(!packed.files.some(file => /^docs\/(?:archive|architecture_roadmap)\//.test(file.path)), 'Package contains local archived development documents');
+  assert.ok(!packed.files.some(file => /^docs\/(?:archive|plan)\//.test(file.path)), 'Package contains local archived development documents');
   assert.ok(!packed.files.some(file => /^examples\/.*\/(?:dist|node_modules)\//.test(file.path)), 'Package contains generated example output');
   assert.ok(!packed.files.some(file => /^examples\/sci-fi-theme\/(?:dist|screenshots)\//.test(file.path)), 'Package contains generated theme preview output');
   writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module', dependencies: {

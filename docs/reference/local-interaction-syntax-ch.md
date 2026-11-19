@@ -2,17 +2,13 @@
 
 **中文** · [English](local-interaction-syntax-en.md)
 
-本次新增的跳转、正文颜色、多选、区间、坐标、练习题、分步阅读和选择联动，见[新增组块与迁移](local-components-v2-ch.md)。
-
-语法标识：`local-draft-2`，2026-10-23。第一次接触这套语法，建议先读 [新用户入门指南](../guides/local-guide-ch.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](../integration/local-integration-ch.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](../compatibility/compatibility-ch.md)，可选修订指令与 `reactive-md migrate` 见[源码修订与迁移](../compatibility/source-versioning-ch.md)，从 `0.3.1` / `local-draft-1` 升级见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。完整示例见 [示例索引](../../examples/local/README.md)。
+语法标识：`local-draft-3`，2026-10-31。第一次接触这套语法，建议先读 [新用户入门指南](../guides/local-guide-ch.md)；本文是完整规范。宿主通过 `compileLocal` 和 `LocalReactiveDocument` 选择本地交互模式，见 [集成说明](../integration/local-integration-ch.md)。包版本关系、0.x 兼容规则和迁移见 [版本与兼容性](../compatibility/compatibility-ch.md)，可选修订指令与 `reactive-md migrate` 见[源码修订与迁移](../compatibility/source-versioning-ch.md)。完整示例见 [示例索引](../../examples/local/README.md)。
 
 ## 1. 定位与范围
 
-下个发行版新增的 P0 HTML 和作者能力开关见 [HTML 部分兼容](html-compatibility-ch.md)。本规范描述三个开关全部关闭的默认路径；任意开启作者 CSS、JavaScript 或扩展 HTML 时，按照暂时性分流政策将整篇源码交给原生 HTML 路径。
+默认文档路径接受 [P0 HTML](html-compatibility-ch.md#默认支持的-p0-html) 子集；作者 CSS、JavaScript 和扩展 HTML 的开关见 [HTML 部分兼容](html-compatibility-ch.md)。开启任一作者能力时，按照暂时性分流政策将整篇源码交给原生 HTML 路径，并停止 Markdown 与 ReactiveMD 解释。
 
-`0.4.0` 新增不可见的 `computed`/`const` 声明与数字、字符串、日期函数。声明语法、依赖与错误规则、函数签名及固定默认值见[复用计算与格式化数值](computations-formatting-ch.md)。
-
-跨字段校验、条件样式、数组与有限表格行生成见[条件、校验与本地集合](constraints-collections-ch.md)。
+命名计算、格式化、跨字段校验、条件色调、数组与生成表格行属于本规范：`computed`/`const` 声明见 [5.4 命名值](#54-命名值)，数字、字符串与日期函数见 [5.5 格式化、字符串与日期](#55-格式化字符串与日期)，跨字段校验见 [4.4 跨字段校验](#44-跨字段校验)，数组与聚合见 [5.6 数组与聚合](#56-数组与聚合)，条件色调见 [7.2 条件色调](#72-条件色调)，生成表格见 [9.5 生成表格](#95-生成表格)。
 
 字符长度、源码定位与资源预算的单位见[诊断与计数规则](diagnostics-counting-ch.md)。字符串 `len()` 和文本控件长度约束按 Unicode 码点计数。
 
@@ -20,7 +16,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 
 基础语言只需要掌握两条连接规则：`bind` 为输入命名，`{{ 表达式 }}` 在其他位置读取它。组件负责自己的选择、展开、搜索、排序、计时和重置。
 
-本草案不包含外部服务调用、提交表单、异步资源、命名动作、事件处理器、可编程集合增删、通用循环模板或任意脚本。旧版 `state/data/computed/actions` 配置块不属于新语法。表达式可以产生字符串或数字数组，清单与多选组件继续产生字符串数组。表格可直接写为 Markdown，也可通过带预算的 `data-table` 从本地值生成行。
+本规范不包含外部服务调用、提交表单、异步资源、命名动作、事件处理器、可编程集合增删、通用循环模板或任意脚本。旧版 `state/data/computed/actions` 配置块不属于新语法。表达式可以产生字符串或数字数组，清单与多选组件继续产生字符串数组。表格可直接写为 Markdown，也可通过带预算的 `data-table` 从本地值生成行。
 
 文档默认只保存当前实例的内存状态。重新打开从初值开始；持久化不属于作者语法。无需声明语言版本、导入组件或编写 YAML。文档可以在前导区、主题和正文之前用一行 `<!-- reactive-md: local-draft-3 -->` 可选地声明修订；无指令文档使用当前修订。见[源码修订与迁移](../compatibility/source-versioning-ch.md)。宿主应明确选择草案解析模式，不能把旧语法与新语法混合猜测解析。
 
@@ -53,7 +49,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 
 块组件的开始与结束标签各占一行。开始标签的属性可以跨多行书写。标签内部的 `>` 只有在引号之外才结束标签。缩进只用于可读性：容器内容按共同缩进量去缩进，再按 Markdown 解析；代码围栏内部的缩进保持原样。
 
-行内组件 `badge`、`tooltip`、`jump`、`text` 可以嵌入句子。其他组件为块组件；`option`、`tab`、`disclosure`、`node`、`edge` 是限定父容器内的子组件。
+行内组件 `badge`、`tooltip`、`jump`、`text` 可以嵌入句子。其他组件为块组件；`option`、`tab`、`disclosure`、`node`、`edge`、`step`、`column` 是限定父容器内的结构子项。
 
 ### 3.2 两种标签形态
 
@@ -62,7 +58,7 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 | 无正文组件 | `<slider bind="a" label="振幅">` | 不写结束标签；也接受末尾的 `/>` |
 | 有正文容器 | `<card title="说明">` 和 `</card>` | 必须显式闭合，允许嵌套 |
 
-无正文组件固定为 `input`、`textarea`、`number`、`slider`、`range-slider`、`coordinate`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`anchor`、`edge`。声明标签 `external`、`computed`、`const`、`validation` 以及结构子项 `column` 同样没有正文。其余本草案列出的组件均使用成对标签。`textarea` 的文本通过 `initial` 设置，因此属于无正文组件。
+无正文组件固定为 `input`、`textarea`、`number`、`slider`、`range-slider`、`coordinate`、`toggle`、`checkbox`、`date`、`counter`、`timer`、`progress`、`anchor`、`edge`。声明标签 `external`、`computed`、`const`、`validation` 以及结构子项 `column` 同样没有正文。其余本规范列出的组件均使用成对标签。`textarea` 的文本通过 `initial` 设置，因此属于无正文组件。
 
 例如：
 
@@ -168,6 +164,22 @@ Reactive MD 用于本地交互文档：作者写 Markdown、放置输入控件�
 
 条件区域隐藏时保留已有状态、标签页选择和清单勾选。隐藏区域中的计时器暂停，恢复显示后保持暂停，由读者再次启动。文档销毁后释放计时、订阅与组件状态。
 
+### 4.4 跨字段校验
+
+```markdown
+<number bind="people" label="人数" initial="4" min="1" max="20">
+<number bind="capacity" label="房间容量" initial="3" min="1" max="20">
+<validation when="{{ people <= capacity }}" message="请选择能容纳 {{ people }} 人的房间。" fields="people capacity">
+```
+
+`validation` 是无结束标签的声明，必须提供 `when`、`message`、`fields`。`when` 是一个完整的布尔表达式；`message` 是提示文字，可以包含普通插值；`fields` 以空白分隔关联的公开可写绑定名，名称不能重复；多槽位控件的槽位绑定也可以列入。规则能读取控件和计算值，允许前向引用；只读声明不能作为关联字段。
+
+约束提示文档当前是否一致。读者可以继续编辑不一致的计划，初始值不满足跨字段规则也能正常显示和修改：人数从四人改为六人后可能暂时超过容量，再换房间即可消除提示。单个控件原有的数字范围、日期合法性等规则继续拒绝非法写入。
+
+`runtime.validate()` 按源码顺序返回当前失败规则的诊断。条件为 false 时使用 `local.validation.failed`，表达式无法求值时使用 `local.validation.expression`，错误也视为失败。一条失败规则不会阻断其他规则。结果按运行时修订缓存，对外返回副本；编辑、原子槽位更新及重置会同步刷新计算与校验，调用本身不修改状态。
+
+渲染器显示失败提示，并通过 `aria-describedby` 和 `aria-invalid` 把提示关联到字段或其可访问分组。提示 ID 属于各自的文档实例；通过校验后清除错误文字。隐藏内容中的规则继续生效，但隐藏的提示不会主动播报。每份文档最多 100 条规则，隐藏区域也计入；诊断文字沿用 2,000 字符上限。`LocalDocument.validations` 保存可序列化的 `LocalValidation` 元数据；宿主可随时调用 `runtime.validate()`，编译后的文档仍可用 `structuredClone` 传递给 Worker。
+
 ## 5. 文本插值和表达式
 
 ```markdown
@@ -226,13 +238,111 @@ GFM 表格中的竖线须写成 `\|`，例如逻辑或写 `\|\|`。表格解析�
 
 宿主通过 `LocalReactiveDocument` 的 `externalValues` 或 `runtime.setExternalValues()` 提供值，值按声明类型和常规容量预算校验。值缺失时只影响读取它的表达式，其他内容继续工作；值到达后相关结果自动重算。缺失值不会被隐式转换为 `0`、`false` 或空字符串。静态导出和 SSR 行为相同：由宿主集成传入值，导出文件本身不抓取也不嵌入外部数据。
 
-在交互文档中，宿主也可通过命名通道的 `mapExternalValues` 将一条订阅消息写入多个已声明的外部变量。正文插值、计算表达式和条件块可直接读取这些值。批量更新外部变量时会保留读者的输入。[命名通道的宿主配置](../architecture_roadmap/named-network-channels-ch.md#5-订阅与资源生命周期)
+在交互文档中，宿主也可通过命名通道的 `mapExternalValues` 将一条订阅消息写入多个已声明的外部变量。正文插值、计算表达式和条件块可直接读取这些值。批量更新外部变量时会保留读者的输入。[命名通道的宿主配置](../plan/named-network-channels-ch.md#5-订阅与资源生命周期)
 
-本版本通过顶层 `computed` 与 `const` 声明增加只读命名值。简短计算仍可就地书写；需要被正文、条件、公式和图表共享的中间结果使用声明。依赖、错误和缓存规则见[复用计算与格式化数值](computations-formatting-ch.md)。
+顶层 `computed` 与 `const` 声明提供只读命名值，见 [5.4 命名值](#54-命名值)。简短计算仍可就地书写；需要被正文、条件、公式和图表共享的中间结果使用声明。
+
+### 5.4 命名值
+
+```markdown
+<const name="unitPrice" value="{{ 12.5 }}">
+<computed name="total" value="{{ quantity * unitPrice }}">
+<computed name="invoice" value="{{ formatCurrency(total, 'CNY', 2, 'zh-CN') }}">
+
+<number bind="quantity" label="数量" initial="2" min="0" max="100">
+
+账单：**{{ invoice }}**。
+
+<if when="{{ total >= 100 }}">
+达到批量配送门槛。
+</if>
+```
+
+`computed` 和 `const` 是不可见的无结束标签声明。每条声明独占文档顶层的一行，也接受 `/>`。两者都必须提供 `name` 和完整的 `value="{{ 表达式 }}"`。值支持数字、字符串、布尔值、null、字符串数组或数字数组；编译器推断类型，无需类型标注，也不进行隐式转换。
+
+名称沿用 `bind` 的标识符和保留字规则。控件、槽位绑定与声明共用命名空间，声明不能覆盖其他声明或控件。容器内声明是编译错误。代码块、行内代码和注释内的声明保持原有的字面显示。
+
+声明在整个文档中可见，可以先引用后声明。`computed` 可以读取控件、常量、其他计算值和 `<external>` 只读值。`const` 只能读取其他常量和 `pi` 等内置常量，必须独立于控件、计算值与外部数据；固定单价、阈值等参数因此无需显示禁用输入框。常量不提供编辑或重置控件。
+
+编译器从表达式 AST 提取全部分支的依赖，按依赖顺序推断类型。未知名称、重名、自引用和间接循环都产生带源码位置的错误；未执行分支里的环也是编译错误。运算符和函数沿用普通表达式的类型规则。运行时仍可能出现域错误，例如读者把作为分母的控件改为零。
+
+正文、动态属性、条件和图表表格中的数值单元格都可以读取命名值。可计算 LaTeX 公式中的多字母数字名称写为 `\mathrm{total}`，例如 `y = \mathrm{total} x`。格式化字符串用于正文或标签；图表数值单元格和曲线参数使用原始数字。
+
+每个运行时独立缓存计算结果。同一修订内复用中间值；控件修改、原子槽位修改或面板重置成功后更新计算。常量在编译时求值，创建运行时时复制。隐藏内容保留其输入与计算，重置范围沿用控件子树规则。消费者读取失败的计算值时收到其表达式错误，不会得到零、null 或上次成功值；独立消费者继续工作，有效输入可让失败的消费者恢复。逻辑与条件运算符保留运行时短路语义，未访问的分支不会读取其中的失败值。静态值非法的常量直接产生编译错误。
+
+`document.bindings` 与 `document.initialState` 描述可写控件。`document.computations` 保存可序列化的声明元数据，`document.externals` 保存只读外部声明。`runtime.snapshot().state` 还包含本次修订成功求出的命名值，失败值缺席；需要保留错误语义时使用 `runtime.evaluate(name)`。`set` 和 `setMany` 不能修改声明。对外数组继续防止外部修改污染运行时。
+
+声明诊断采用 `local.computation.*`：`placement`、`name`、`reserved`、`duplicate`、`value`、`unknown`、`cycle`、`const`、`expression`、`budget`；表达式类型错误沿用 `local.expression.*`，诊断包含源码范围、行号和列号。计算图采用迭代式依赖排序，长链不依赖递归求值；源码、语法节点、表达式和值的既有预算继续生效，循环诊断数量也受诊断预算限制。
+
+表达式函数名是保留标识符，控件不能绑定 [5.1](#51-表达式集合)中列出的 `sum`、`formatNumber`、`dateDiff` 等名称，编译器给出保留名诊断。已有文档中同名的旧绑定需改名，并同步修改引用。
+
+### 5.5 格式化、字符串与日期
+
+四个格式化函数都返回字符串，可选参数按位置传入。
+
+| 函数 | 默认值与示例 |
+| --- | --- |
+| `formatNumber(value, digits, locale, grouping)` | `digits=2`、`locale="en-US"`、`grouping=true`；`formatNumber(1234.5)` 得到 `"1,234.50"` |
+| `formatPercent(value, digits, locale)` | `digits=0`、`locale="en-US"`；`formatPercent(0.125, 1)` 得到 `"12.5%"` |
+| `formatScientific(value, digits, locale)` | `digits=2`、`locale="en-US"`；`formatScientific(1234)` 得到 `"1.23E3"` |
+| `formatCurrency(value, currency, digits, locale)` | `currency="USD"`、`digits=2`、`locale="en-US"`；`formatCurrency(12.5)` 得到 `"$12.50"` |
+
+`digits` 必须是 0 至 20 的整数，同时固定最少与最多小数位；JPY 等货币也遵守该规则。`grouping` 必须是布尔值。地区只接受 `en-US`、`zh-CN`、`de-DE`、`fr-FR`、`ja-JP`，省略时固定为 `en-US`，与界面语言、设备设置无关；不支持的地区会报错。货币代码必须是 `Intl.NumberFormat` 接受的三个大写 ASCII 字母，这是代码形式检查，不是流通货币名录验证。
+
+格式化采用十进制 `halfExpand` 舍入，中点向远离零的方向舍入：`formatNumber(1.005)` 为 `"1.01"`，`formatNumber(-1.005)` 为 `"-1.01"`。零不显示负号。表达式运算仍使用有限的 JavaScript 数字；`round(x)` 保留 `Math.round` 的中点向正无穷规则。格式化只改变显示，不改变源数值。
+
+null 格式化为空字符串，其余参数严格检查类型，不把字符串自动转为数字；应用函数前先判断可选日期或文本。地区对应的标点、货币符号与空格来自宿主的 `Intl` 数据；跨平台需要逐字一致时，宿主应固定运行时及地区数据版本。
+
+| 函数 | 规则 |
+| --- | --- |
+| `trim(text)` | 去除首尾 JavaScript Unicode 空白 |
+| `lower(text)`、`upper(text)` | 使用不依赖地区的默认 Unicode 大小写映射 |
+| `startsWith(text, search)`、`endsWith(text, search)` | 区分大小写的字面匹配，空搜索串匹配成功 |
+| `replace(text, search, replacement)` | 替换全部不重叠的字面匹配；空搜索串报错；`$&` 等替换文本保持字面含义 |
+| `slice(text, start, end)` | 按 Unicode 码点索引，终点不包含在结果内，默认到末尾；负索引从末尾计算；索引必须为整数，超界时截到边界 |
+
+这些函数要求字符串，null 也产生类型错误；不接受正则表达式或属性访问。码点不等于字素簇，一个组合表情或带组合重音的字母可能包含多个码点。所有结果沿用 100,000 个 UTF-16 代码单元的字符串预算；替换函数在分配超大结果前检查扩张长度。
+
+`dateCompare(a, b)` 返回 `-1`、`0` 或 `1`。`dateDiff(a, b, unit)` 返回有符号的 **a 减 b**，默认单位为 `"days"`，还支持 `"hours"`、`"minutes"`、`"seconds"`、`"milliseconds"`。
+
+两项输入必须是有效的 `YYYY-MM-DD` 字符串，年份为 `0001` 至 `9999`，与日期控件一致，按公历校验闰日。每个日期表示 UTC 零点，因此设备时区和夏令时不会改变结果：`dateDiff("2026-03-09", "2026-03-08", "hours")` 为 `24`。时间戳、时区后缀和有歧义的地区日期格式会被拒绝。
+
+空日期控件的值为 `""`，表示未选择日期。空串或非法日期产生域错误，null 产生类型错误。可选日期应先判断：
+
+```markdown
+<computed name="days" value="{{ startDate == '' || endDate == '' ? null : dateDiff(endDate, startDate) }}">
+天数：{{ days == null ? '请选择两个日期' : formatNumber(days, 0) }}
+```
+
+### 5.6 数组与聚合
+
+```markdown
+<const name="fixedFees" value="{{ [100, 20, 5] }}">
+<computed name="fees" value="{{ [people * 80, includeKit ? people * 20 : 0] }}">
+
+第一项：{{ fees[0] }}。合计：{{ sum(fees) }}。
+```
+
+数组字面量只能包含同一种类型的字符串或有限数字，元素表达式可以读取文档命名值。嵌套数组、混合类型、布尔值和 null 元素会被拒绝。`[]` 默认是空数字数组；条件分支直接写空字面量时，可采用另一分支的字符串数组类型，因此字符串多选值也可使用 `show ? subjects : []`。已有清单与多选控件继续产生字符串数组。公开类型 `LocalValue` 增加 `number[]`，`LocalValueKind` 增加 `number-array`，原来的 `array` 继续表示字符串数组。
+
+索引从零开始，`values[0]` 读取第一项。索引必须是有限的安全整数；超出范围的整数（包括负数）返回 null，非整数报错。字符串和其他标量不能作为数组索引。数组不能直接插值显示，应使用索引、`len`、聚合或数据表格。
+
+`len` 支持两种数组；`contains` 在字符串数组中接受字符串，在数字数组中接受数字，原有字符串子串检查不变。每个数组最多 10,000 项；数组字面量还计入既有表达式长度、AST 节点和求值预算。字符串数组内容继续受字符预算限制。运行时返回数组副本，快照数组被冻结。
+
+| 函数 | 结果 |
+| --- | --- |
+| `sum(values)` | 数字数组之和，空数组返回 `0` |
+| `average(values)` | 算术平均值，空数组返回 null |
+| `minOf(values)` | 最小项，空数组返回 null |
+| `maxOf(values)` | 最大项，空数组返回 null |
+
+聚合只接受数字数组，不自动转换看起来像数字的字符串。结果使用有限的 JavaScript 数字，求和或结果溢出会产生表达式错误；`average` 先求和再除以项数，中间求和溢出也会报错。空聚合产生的 null 沿用可空表达式规则，需要时先判断再参与数值运算。标量 `min`、`max`、`round` 保持原有签名与行为。
+
+聚合函数名与格式化、字符串、日期函数名都是保留标识符，冲突的旧绑定需要改名。对 `LocalValueKind` 做穷举检查的宿主应加入 `number-array`；可写多选与清单控件仍只接受字符串数组。
 
 ## 6. 输入与参数面板
 
-所有输入组件支持 `label`、可选 `bind`、可选标量 `initial` 和动态 `disabled`。允许的附加属性如下；未列出的属性不属于本草案。
+所有输入组件支持 `label`、可选 `bind`、可选初值和动态 `disabled`。允许的附加属性如下；未列出的属性不属于本规范。
 
 | 组件 | 附加属性及默认值 |
 | --- | --- |
@@ -247,7 +357,11 @@ GFM 表格中的竖线须写成 `\|`，例如逻辑或写 `\|\|`。表格解析�
 | date | 可选 min/max 日期（可动态）；required=false（可动态） |
 | select、choices、radio-group、multi-select | 正文为一个或多个 option；multi-select 增加 max-selected，值为字符串数组 |
 
-`range-slider` 和 `coordinate` 公开彼此独立的数字槽位。省略 `bind-start`/`bind-end` 或 `bind-x`/`bind-y` 时对应槽位只保留内部状态；每个槽位最多一处显式初值。端点交叉会被拒绝，不会自动交换。`multi-select` 的 `label` 必填，支持 `max-selected`，写入按源码顺序规范化。这些组件都支持可选 `color`。完整规则见[local-draft-2 扩展说明](local-components-v2-ch.md)。
+`multi-select` 是有正文容器，正文为一个或多个 `option` 子项，`label` 必填，`bind` 可省略；公开值为按源码顺序排列的字符串数组，默认空数组，该绑定为独占 family。`initial` 是逗号分隔的静态选项 value 列表；option.value 非空、唯一且不含逗号。`max-selected` 为非负整数，默认选项数。组件内置搜索和清空，达到上限后仍可取消已选项，`disabled` 可以使用布尔表达式；写入按源码顺序规范化，并保留已有数组大小和字符串预算。重置清除本地搜索并恢复初始选择，隐藏时保留搜索与选择。
+
+`range-slider` 和 `coordinate` 是无正文组件，`label` 必填，支持 `color` 与动态 `disabled`。每个 `bind-start`/`bind-end` 或 `bind-x`/`bind-y` 命名一个独占的数值槽位，省略时该槽位只保留内部状态，不能与其他控件共享；每个槽位最多一处显式初值。`x`、`y` 仍是保留参数名。范围与步长都是静态有限数，`step` 必须为正。`range-slider` 默认 `min=0`、`max=100`、`step=1`，起点默认 `min`，终点默认不超过 `max` 的最大合法步长值；`coordinate` 两个轴默认 -5 到 5，各轴初值取最接近零的合法值，支持拖动、键盘和数值输入，指针输入吸附到合法步长。端点交叉会被拒绝，不会自动交换。所有槽位在编译时初始化；多值写入和重置均为原子更新，拒绝写入时状态与 revision 保持不变。
+
+宿主使用 `runtime.get(node, slot?)`、`runtime.set(node, value, slot?)` 和 `runtime.setMany(node, values)` 读写槽位：`range-slider` 的槽位名为 `start`/`end`，`coordinate` 为 `x`/`y`，`setMany` 以槽位名作为对象键。运行时按登记的节点和槽位校验，非法批量写入保留整个快照与 revision，原有单值调用保持有效；调用方伪造的属性不改变权限或约束。
 
 选择器示例：
 
@@ -264,7 +378,7 @@ option.value 为非空、静态、唯一字符串；正文是选项的行内文�
 
 `counter` 自带减、加和恢复初值按钮，到达范围边界时禁用对应操作。`timer` 支持 label、可选 bind、duration（正整数秒，默认 60）；自带开始、暂停、重置，到零停止，按实际经过时间更新，切到后台不累计计时误差。
 
-`panel` 为容器，支持可选 title 和 reset（默认 true）。默认纵向排布，提供“恢复默认”。`reset="false"` 隐藏重置操作。嵌套面板允许：内层重置只影响内层，外层重置包含整个子树；条件中尚未显示的子控件也属于范围。面板重置同时恢复子树中的表格查询、排序、分页、标签页和图解选择。
+`panel` 为容器，支持可选 title 和 reset（默认 true）。默认纵向排布，提供“恢复默认”。`reset="false"` 隐藏重置操作。嵌套面板允许：内层重置只影响内层，外层重置包含整个子树；条件中尚未显示的子控件也属于范围。面板重置同时恢复子树中的表格查询、排序、分页、标签页、表格与图表选择以及图解选择。
 
 ## 7. 布局与内容探索
 
@@ -297,9 +411,26 @@ if 的 when 为假时不显示内容，内部参数仍按第 4 节初始化。�
 | steps | 可选 label、bind、initial；字符串绑定独占 | 一个或多个 step；默认选第一步 |
 | step | label 必填；可选 value | Markdown 正文；省略 value 时生成 step-1、step-2 等 |
 
-`jump.to` 与 `anchor.id` 匹配标题锚点或显式 ID。重复 anchor、与标题锚点冲突或目标不存在都是编译错误。`quiz` 的答案随源码提供，适合自学；草稿和反馈保留在组件内部，面板重置会清除。`steps` 中未激活的步骤仍参与初始化并保留状态；隐藏计时器暂停。颜色校验和槽位细节见[local-draft-2 扩展说明](local-components-v2-ch.md)。
+`jump.to` 与 `anchor.id` 匹配标题锚点或显式 ID，`to` 不写前导 `#`。重复 anchor、与标题锚点冲突或目标不存在都是编译错误。`anchor.id` 匹配 `[A-Za-z_][A-Za-z0-9_-]*`，实际 DOM ID 按文档实例隔离。点击后滚动并移动焦点；目标隐藏时显示局部提示，并保留读者已填写的参数。普通 Markdown 片段链接 `[结果](#result)` 同样指向显式 anchor。
 
-基础排版使用 Markdown；图片用 `![说明](../路径)`，链接用 `[文字](../地址)`，分隔线用 `---`。图片需由宿主通过 URL 策略明确允许后才加载，默认不产生图片请求，集成方式见[图片与链接策略](../integration/local-integration-ch.md#图片与链接策略)。本草案不提供 row、stack、spacer、icon、image、link-button 等对应的作者标签，也不开放 class/style。
+`color` 是静态颜色名或 `#RGB`、`#RRGGBB`，不接受表达式、CSS 函数、变量或声明；颜色名由共享校验表限定，无效值给出编译诊断。`text` 和 `section` 必须提供 `color`，设置前景色且不添加边框或背景，内层显式颜色覆盖继承，链接和交互控件保留自身配色。`jump`、`badge`、`progress`、`slider`、`toggle`、`checkbox`、`select`、`choices`、`radio-group`、`checklist`、`multi-select`、`range-slider` 和 `coordinate` 可选 `color`：`jump` 与 `badge` 用于文字或强调色，`progress` 用于填充色，输入组块用于激活、选中与进度显示，省略时沿用主题。`tone` 的语义保持不变。
+
+`quiz` 的 `type` 默认 choice，`label` 与 `answer` 必填；choice 接受 `option`，`answer` 必须是现有 value。number 的正文为空，`answer` 为有限数，`tolerance` 默认为 0，为非负的绝对误差。`explanation` 可选，可含文本插值。组件内置检查答案、反馈与重试，不公开 `bind`；答案随源码提供，适合自学练习。隐藏后保留草稿与反馈，面板重置清除它们。
+
+`steps` 只接受一个或多个 `step`。`steps.label` 可选，`bind` 可选且独占；`initial` 默认第一步 value。`step.label` 必填，`value` 可省略，按顺序生成 `step-1`、`step-2` 等，同组唯一。组件提供上一步、下一步和当前位置；仅当前内容显示，所有子控件仍参与编译和初始化。切换保留内容状态，隐藏计时器暂停；面板重置恢复初始步骤和子内容。
+
+基础排版使用 Markdown；图片用 `![说明](../路径)`，链接用 `[文字](../地址)`，分隔线用 `---`。图片需由宿主通过 URL 策略明确允许后才加载，默认不产生图片请求，集成方式见[图片与链接策略](../integration/local-integration-ch.md#图片与链接策略)。本规范不提供 row、stack、spacer、icon、image、link-button 等对应的作者标签，也不开放 class/style。
+
+### 7.2 条件色调
+
+```markdown
+<badge tone="{{ total <= budget ? 'success' : 'warning' }}">{{ formatCurrency(total) }}</badge>
+<alert tone="{{ total <= budget ? 'info' : 'warning' }}">预订前请核对预算。</alert>
+```
+
+`badge` 与 `alert` 的 `tone` 可以用字符串表达式动态设置。`badge` 接受 `neutral`、`success`、`warning`，`alert` 接受 `info`、`success`、`warning`；静态值保持原有行为。表达式必须是字符串类型，渲染器还会检查结果是否属于组件允许的枚举。表达式错误或非法值会回退默认 `tone`，并显示计算提示，不影响其他内容。
+
+有限枚举可表达警告和成功状态，同时让主题继续控制颜色与对比度。这个条件接口不引入作者 CSS、样式字符串或动态颜色。
 
 ## 8. 可勾选清单
 
@@ -314,7 +445,7 @@ if 的 when 为假时不显示内容，内部参数仍按第 4 节初始化。�
 <progress label="完成进度" value="{{ len(done) / 3 * 100 }}">
 ```
 
-checklist 正文是非空、单层 Markdown 任务列表，默认由读者勾选。普通 Markdown 任务列表仍是静态内容。条目可含行内 Markdown，但不能含嵌套任务列表或交互组件。
+checklist 正文是非空、单层 Markdown 任务列表，默认由读者勾选。普通 Markdown 任务列表仍是静态内容。条目可含行内 Markdown，但不能含嵌套任务列表或交互组件。勾选后仅该项正文加删除线并变淡，取消勾选后恢复；初始 `[x]` 条目也呈现完成样式。
 
 固定条目依次生成 `item-1`、`item-2` 等内部 ID；公开值为按源码顺序排列的已勾选 ID 数组，未选择时为 []。文档实例期间条目不增删、重排；编辑源码并新建实例后重新生成。重置恢复 `[x]` / `[ ]` 指定的初始状态。支持 label、可选 bind、动态 disabled。
 
@@ -344,9 +475,11 @@ ReactiveMD 的 table、chart、timeline 组件正文各为一张 Markdown 表格
 </table>
 ```
 
-table 支持可选 label、searchable=true、sortable=true、page-size=10（正整数）。默认提供搜索框、可排序表头和分页；只有一页时隐藏分页控件。`key` 指定静态、非空、唯一的标识列后，`bind` 与 `initial` 可以把选中行公开为稳定字符串；没有 `key` 时选择只保留在渲染器内部。
+table 支持可选 label、searchable=true、sortable=true、page-size=10（正整数）。默认提供搜索框、可排序表头和分页；只有一页时隐藏分页控件。
 
 搜索是全列显示文本的大小写不敏感子串匹配，去掉查询首尾空白；排序使用完整列的类型，数值列按数值，其余按文本 Unicode 码点顺序，保持同值行的原始顺序。表头点击依次升序、降序、恢复源码顺序。搜索或排序变化回到第一页，响应式数据变化后把当前页限制到有效范围。无匹配项显示“没有匹配结果”。这些交互只影响表格内部。
+
+`key` 指向静态、非空、唯一的文本列，列值不能包含插值。只有提供 `key` 时才启用选择状态，`bind` 与 `initial` 也要求同时提供 `key`；空字符串表示未选，显式 `initial` 必须匹配现有行。点击或键盘选择写入稳定标识符，排序、搜索、分页和图表隐藏图例都保留选择；面板重置恢复文档初始选择。`table` 与 `chart` 只有在有序 `key` 集合完全一致时才能共享选择绑定，且最多一处显式初值。没有 `key` 的文档保持原行为，不增加隐含绑定。
 
 ### 9.3 图表
 
@@ -372,11 +505,33 @@ line/area 的横轴按整列类型确定为数值轴或分类轴，按源码顺�
 
 default theme 的交互图表提供主题化提示框、图例聚焦与 200ms 数据过渡。折线和面积图读取同一行的可见系列；柱状图仅读取当前一根柱；散点图定位最近点；饼图和环形图显示数值及当前可见总和中的占比。静态模式保留完整数据图形，关闭悬浮交互与动效。
 
-数值列会随参数更新。计算错误显示在对应图表，不将错误值替换为 0。提供 `key` 时，图表可以通过 `bind` 公开选择，使用与 `table` 相同的稳定行标识规则；表格与图表只有在有序 key 一致时才能共享该绑定。
+数值列会随参数更新。计算错误显示在对应图表，不将错误值替换为 0。提供 `key` 时，图表可以通过 `bind` 公开选择，使用与 `table` 相同的稳定行标识和选择保留规则。
 
 ### 9.4 时间轴
 
 timeline 支持可选 title、unit（显示文本，默认“分钟”），正文为包含 `事项`、`开始`、`时长` 三列（可选 `说明`）或 `Task`、`Start`、`Duration` 三列（可选 `Notes`）的表格。这些列名是固定表头；开始和时长为非负数。按开始时间稳定排序，允许重叠区间，说明通过指针或键盘查看。表格内容可以使用插值。
+
+### 9.5 生成表格
+
+```markdown
+<const name="subjects" value="{{ ['mathematics', 'physics', 'chemistry'] }}">
+
+<data-table label="主题准备工作" rows="{{ subjects }}" key="{{ item }}" max-rows="3">
+<column label="主题" value="{{ item }}">
+<column label="序号" value="{{ index + 1 }}">
+<column label="准备工作" value="{{ item == 'chemistry' ? '准备材料' : '准备例题' }}">
+</data-table>
+```
+
+`data-table` 是成对的块组件，必须提供可访问名称 `label`、完整数组表达式 `rows`，以及完整字符串或数字表达式 `key`。子内容只能是 1 至 20 个无结束标签的 `column` 声明。列必须提供静态标题 `label` 和完整的标量 `value` 表达式；单元格只输出文本，null 为空单元格。
+
+每行有两个局部名称：`item` 是当前字符串或数字，`index` 是当前从零开始的位置。列表达式中这两个名称覆盖同名全局值，其他引用仍读取文档环境；`rows` 自身使用普通文档作用域。
+
+键表达式只能依赖 `item`，且至少引用它一次，不能依赖 `index` 或其他文档值。表格检查键是否为非空字符串或有限数字，并确保唯一。数字键和字符串键属于不同标识，数字正负零视为同一标识；条目重排时保留 React 行身份。需要重复显示值时，应以不同的本地 ID 组成 `rows`，再根据 ID 生成显示列。重复键或非法键会使整张表显示错误。
+
+`max-rows` 是 1 至 1,000 的静态整数，默认 100。整份文档各表声明的行预算总和最多 2,000，行预算乘列数的总和最多 10,000 个单元格，隐藏表格也计入。每张生成表还有 100,000 个 UTF-16 代码单元的预算，覆盖表头、单元格、错误或空状态占位文字及编码后的行键。渲染器在显示行之前检查预算，超出时显示错误，不截断数据。
+
+空数组显示表头与空状态。数据源或键求值失败时清除表格行并显示错误；单元格表达式失败只影响该单元格，其余内容继续显示。组件只生成原生表格行，不重复任意文档区块或控件。原有 Markdown 表格及其图表输入保持原有行为。
 
 ## 10. LaTeX 公式与函数绘图
 
@@ -436,7 +591,7 @@ plot 支持 min=-10、max=10（可动态，要求 min < max）、points=200（�
 
 ### 10.2 可计算的 LaTeX
 
-下面是本草案绘图计算必须支持的数学写法。公式排版与计算能力分别校验；能够排版不代表能够求值。
+下面是本规范绘图计算必须支持的数学写法。公式排版与计算能力分别校验；能够排版不代表能够求值。
 
 | 数学内容 | 写法 |
 | --- | --- |
@@ -508,7 +663,7 @@ node.id 为当前图解内唯一的 `[A-Za-z_][A-Za-z0-9_-]*`。edge 必填 from
 
 ## 12. 组件速查与语法裁剪
 
-| 用途 | 草案组件 |
+| 用途 | 组件 |
 | --- | --- |
 | 参数输入 | input、textarea、number、slider、range-slider、coordinate、toggle、checkbox、date、select、choices、radio-group、multi-select、option |
 | 自带操作 | counter、timer、checklist、progress |
@@ -521,7 +676,7 @@ node.id 为当前图解内唯一的 `[A-Za-z_][A-Za-z0-9_-]*`。edge 必填 from
 
 共 49 个标签名。`option`、`tab`、`disclosure`、`node`、`edge`、`step`、`column` 为父组件的结构子项。`external`、`computed`、`const`、`validation` 是文档声明，按标签解析但不渲染为控件。开头的 `<theme>` 声明是元数据，不计入这里。大部分文章只需 Markdown 和两三个输入/展示组件。普通金额可以直接写 `{{ total }} 元`；货币格式、统计卡片不作为入门必需品。
 
-本草案不接受旧版 form、submit、button、each、list、spinner、stat、value 等标签，也不接受 set/reset 动作属性或 on-* 事件属性。面板的 reset 是固定布尔选项，不是可编程动作。
+本规范不接受旧版 form、submit、button、each、list、spinner、stat、value 等标签，也不接受 set/reset 动作属性或 on-* 事件属性。面板的 reset 是固定布尔选项，不是可编程动作。
 
 ## 13. 诊断与验收规则
 
@@ -558,5 +713,12 @@ node.id 为当前图解内唯一的 `[A-Za-z_][A-Za-z0-9_-]*`。edge 必填 from
 
 这些规则用于编译器、运行时和浏览器验收。示例映射及预期观察点见[示例索引](../../examples/local/README.md)，机器可读的最小验收集见[语言验收数据](../../examples/conformance/README.md)。实际仓库检查记录保留在仓库内，不属于发布包。
 
+## 14. 宿主组件（宿主扩展）
 
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。`0.6.0` 同时提供于 `latest` 与 `next` 渠道。
+宿主组件不属于可移植的作者标签集合。宿主通过编译选项 `hostComponents` 登记 schema 后，文档可以用 `leaf`、`inline` 或 `container` 形态使用该标签。inline 与 container 使用结束标签；正文遵循普通 Markdown 与 ReactiveMD 规则，容器渲染器可以通过 `ctx.render()` 渲染子内容。没有对应 schema 时，同一标签是未知组件，保留惰性的源码回退。
+
+宿主 schema 可以声明 `string`、`number` 或 `boolean` 的标量绑定。此时组件隐式接受 `bind`、`initial` 和动态 `disabled`，并加入内置绑定 family：静态 `min`、`max`、`step` 一致时，`number` 绑定可以与 `<number>` 或 `<slider>` 配对。宿主渲染器收到当前 `value`、带校验的 `setValue`、`disabled`、`resetToken`、解析后的 `props` 和 `report` 函数。宿主 schema 是普通数据；渲染器是宿主可信代码，不进入 Worker。
+
+`<external>` 只读声明与动态约束属性属于当前修订；宿主组件的形态与绑定由[组块协议](../development/component-protocol-ch.md)决定，而不是作者语法修订。
+
+语法修订、包版本与迁移规则见[版本与兼容性](../compatibility/compatibility-ch.md)。

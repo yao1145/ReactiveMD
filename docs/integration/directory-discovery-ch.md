@@ -19,7 +19,7 @@ plugin/tetris/assets/
 
 新项目可以在宿主配置中选择 `reactiveMd({ defaultPreset: 'minimal' })`。应用从 `reactive-md/react/minimal` 导入渲染器，并导入 `reactive-md/styles/minimal.css`。要增加官方组件，在 `plugin/<名称>/index.ts` 默认导出对应的包。例如 `export { default } from 'reactive-md/plugins/chart'`。`reactiveMd()` 继续使用完整预设。
 
-使用 `reactive-md build ... --project-root .` 从同一目录发现插件和主题，以导出 HTML 或 PDF。 [官方插件清单](../architecture_roadmap/component-profiles-and-pdf-plan-ch.md#官方插件)
+使用 `reactive-md build ... --project-root .` 从同一目录发现插件和主题，以导出 HTML 或 PDF。 [官方插件清单](../plan/component-profiles-and-pdf-plan-ch.md#官方插件)
 
 `theme.css` 是主题的最小入口。主题名默认取目录名，包 ID 为 `local/theme/<目录名>`，版本为 `0.0.0`。可选 `theme.json` 可以声明 `id`、`name`、`version`、`protocol` 和 `colorSchemes`。内部用 `defineLocalTheme` 校验、作用域化并冻结。作者按主题协议编写深浅模式；发现主题后，文档通过 `<theme name="paper">` 选择它。
 

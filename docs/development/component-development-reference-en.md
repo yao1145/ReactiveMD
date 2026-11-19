@@ -4,7 +4,7 @@
 
 A plugin is an npm component or theme package that a host installs, imports and composes explicitly. Its contract consists of data manifests, React implementations, authoring information and resources. Hosts assemble it with `createLocalConfig` and `createReactConfig`.
 
-The SDK ships in `reactive-md@0.7.0`. Install the published package for this workflow; use a tarball built from the current source only when testing unreleased SDK changes. See the [SDK reference](../integration/extension-sdk-en.md) for types and limits. Historical delivery evidence is archived outside the published documentation.
+The SDK ships in `reactive-md@0.8.0`. Install the published package for this workflow; use a tarball built from the current source only when testing unreleased SDK changes. See the [SDK reference](../integration/extension-sdk-en.md) for types and limits. Historical delivery evidence is archived outside the published documentation.
 
 
 ## Convenience packages and host composition
@@ -36,7 +36,7 @@ New documents carry `componentConfigKey` through Worker transport and incrementa
 
 Use Node 22.12 or later and React 19 for the React adapter. The template's `package.json` declares its build and browser test dependencies.
 
-Copy [examples/component-package](../../examples/component-package/README.md) into a new sibling directory named `my-reactivemd-plugin`. The template depends on the published `reactive-md@0.7.0`. From that directory run:
+Copy [examples/component-package](../../examples/component-package/README.md) into a new sibling directory named `my-reactivemd-plugin`. The template depends on the published `reactive-md@0.8.0`. From that directory run:
 
 ```sh
 npm install

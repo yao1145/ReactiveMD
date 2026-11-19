@@ -2,7 +2,7 @@
 
 **English** · [中文](author-tools-ch.md)
 
-Install `reactive-md@0.6.0` to use the CLI and the React-free `reactive-md/authoring` entry. To work from this repository, build the package first:
+Install `reactive-md@0.8.0` to use the CLI and the React-free `reactive-md/authoring` entry. To work from this repository, build the package first:
 
 ```sh
 npm ci
@@ -61,4 +61,4 @@ Run `npm run dev` and choose **Show source**. The source editor provides highlig
 
 The `reactive-md/authoring` entry also exports `LOCAL_COMPONENTS`, `getLocalComponent`, `getNativeComponentCatalog`, `renderNativeSnippet`, `insertTemplate` and their types. It loads without React or CSS. Pass the preview's `LocalCompileOptions` to each function's compile-options parameter; omitted options keep the existing defaults. This includes host schemas, HTML mode, resource limits and `markdownBreaks`.
 
-For full entry and stylesheet details, see the [0.5.3 release notes](../releases/release-0.5.3-en.md).
+For the complete export list, see the [authoring tools section of the public API reference](../reference/public-api-en.md#authoring-tools).

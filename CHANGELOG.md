@@ -53,7 +53,7 @@ The release splits the editor into `reactive-md-editor` and the Demo into indepe
 
 ### Removed
 
-- Remove `reactive-md/editor`, `reactive-md/editor/codemirror` and their stylesheet exports. Install `reactive-md-editor@0.1.0` and use `reactive-md-editor`, `reactive-md-editor/codemirror` and the matching stylesheets. Published 0.7 packages keep the old entries.
+- Remove `reactive-md/editor`, `reactive-md/editor/codemirror` and their stylesheet exports. Install `reactive-md-editor@0.1.0` and use `reactive-md-editor`, `reactive-md-editor/codemirror` and the matching stylesheets. Published 0.7 packages keep the old entries. See [repository split and import migration](docs/releases/release-0.8.0-en.md#repository-split-and-import-migration).
 
 ### Compatibility
 
@@ -216,10 +216,10 @@ Compatible with 0.4.0; syntax remains `local-draft-2`, with `component-protocol-
 - Add dependency-aware rendering with browser equivalence checks for updates, resets, visual selections and locale changes.
 - Add `npm run verify:release` and matching CI shards, including combined-feature documents and actual tarball consumers outside the repository. Retain the verified archive with SHA256 and npm integrity records.
 - Add advisory cross-field `<validation>` rules with associated accessible hints and `runtime.validate()`. `alert` and `badge` accept conditional values from their existing tone enums.
-- Add homogeneous string/numeric array literals, array indexing, `sum`, `average`, `minOf` and `maxOf`, plus `<data-table>`/`<column>` for bounded local row generation with stable keys. See [constraints and collections](docs/reference/constraints-collections-en.md). `LocalValueKind` gains `number-array`; aggregate names become reserved identifiers.
+- Add homogeneous string/numeric array literals, array indexing, `sum`, `average`, `minOf` and `maxOf`, plus `<data-table>`/`<column>` for bounded local row generation with stable keys. See [local interaction syntax](docs/reference/local-interaction-syntax-en.md). `LocalValueKind` gains `number-array`; aggregate names become reserved identifiers.
 
 - Add invisible, read-only `<computed>` and `<const>` declarations with dependency ordering, inferred types, cycle detection and per-runtime calculation caching. Prose, conditions, formulas and charts can share intermediate results.
-- Add number, percentage, scientific and currency formatting, common string functions and UTC date comparison/differences. Defaults, rounding, nulls and accepted regions are specified in [Reusing calculations and formatting values](docs/reference/computations-formatting-en.md). New function names are reserved; rename any existing bindings with those names before upgrading to this release.
+- Add number, percentage, scientific and currency formatting, common string functions and UTC date comparison/differences. Defaults, rounding, nulls and accepted regions are specified in [local interaction syntax](docs/reference/local-interaction-syntax-en.md). New function names are reserved; rename any existing bindings with those names before upgrading to this release.
 
 - Add an optional `<!-- reactive-md: local-draft-2 -->` source revision directive. Explicit older, unknown, malformed, duplicate or misplaced revisions fail with `local.version.*` diagnostics and create no runtime; unversioned source keeps current-revision behavior. Readers built before the directive ignore it. See [Source revisions and migration](docs/compatibility/source-versioning-en.md).
 - Add `inspectLocalSourceVersion`, `checkLocalUpgrade` and `migrateLocalSource`, plus `reactive-md migrate` with `--from`, `--check`, `--json`, `-o/--output`, `--accept-semantic-changes` and `--locale`. Migration changes only the directive, preserves body bytes, BOM and CRLF, is idempotent, blocks reserved bindings, newly recognized tags, compile errors and text-length semantic changes, and never rewrites state files.
@@ -238,7 +238,7 @@ Compatible with 0.4.0; syntax remains `local-draft-2`, with `component-protocol-
 - Add document jumps/anchors, text/section color, multiple selection, interval and coordinate inputs, practice questions and guided steps.
 - Add checked-item strike-through, component accent colors and stable shared table/chart selection.
 - Extend runtime get/set with optional slots and add atomic setMany. New slot bindings are exclusive.
-- Add a bilingual feature tour and editor insertion templates. See [migration](docs/reference/local-components-v2-en.md). The preview is published on the `next` channel.
+- Add a bilingual feature tour and editor insertion templates. See [local interaction syntax](docs/reference/local-interaction-syntax-en.md). The preview is published on the `next` channel.
 
 - The Playground adds a Chinese/English toggle that localizes the interface, examples, guide and built-in control labels, and saves the choice in the browser.
 - `LocalDocumentView` and `LocalReactiveDocument` accept `locale: 'en' | 'zh'` (default `'en'`) for built-in UI labels. Displayed compile and runtime diagnostics use the shared English/Chinese catalogue; callbacks still receive structured diagnostics with stable machine fields.

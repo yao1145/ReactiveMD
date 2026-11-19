@@ -2,13 +2,13 @@
 
 **中文** · [English](extension-sdk-en.md)
 
-`0.7.0` 包正式包含扩展 SDK，覆盖公开扩展与默认组件统一。安装公开包即可；只有测试尚未发布的改动时才需要从源码打包 tarball。
+`0.8.0` 包正式包含扩展 SDK，覆盖公开扩展与默认组件统一。安装公开包即可；只有测试尚未发布的改动时才需要从源码打包 tarball。
 
 ```sh
-npm install reactive-md@0.7.0
+npm install reactive-md@0.8.0
 ```
 
-registry 包包含 `reactive-md/build`、`reactive-md/testing` 和第三阶段的其他入口。仓库内消费检查在源码树之外安装公开包，因此公开导入面按发布形态接受检查，而不是依赖源码别名。版本范围写 `^0.7.0`。
+registry 包包含 `reactive-md/build`、`reactive-md/testing` 和第三阶段的其他入口。仓库内消费检查在源码树之外安装公开包，因此公开导入面按发布形态接受检查，而不是依赖源码别名。SDK 版本范围写 `^0.7.0`。
 
 SDK 把组件声明、实例配置、React 实现和主题资源分开。声明和配置都是可序列化数据；组件代码由宿主显式安装和导入。编译器、Worker、作者工具、构建适配器和导出器消费同一配置。
 
@@ -46,7 +46,7 @@ export function Reader({ source }: { source: string }) {
 }
 ```
 
-默认预设保持启用。宿主也可从 `reactive-md/presets/default` 显式导入 `defaultPreset` 并传入 `presets: [defaultPreset]`。预设包含 46 个经过公开契约校验的组件；新增组件与默认组件共用编译和渲染机制。注册时拒绝同名覆盖。
+默认预设保持启用。宿主也可从 `reactive-md/presets/default` 显式导入 `defaultPreset` 并传入 `presets: [defaultPreset]`。预设包含 48 个经过公开契约校验的组件；新增组件与默认组件共用编译和渲染机制。注册时拒绝同名覆盖。
 
 配置创建时检查重复名称与 id、保留名称、协议、依赖和预算，并复制、冻结数据。`readLocalConfig` 对 Worker 或导出载荷中的配置重新校验，重新计算语义摘要。React 实现的 manifest 摘要必须与配置匹配。组件集合变化时创建新配置。
 

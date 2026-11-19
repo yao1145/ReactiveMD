@@ -70,9 +70,9 @@ Regression data in [the historical corpus](../../examples/conformance/history/v0
 
 `0.5.2` adds the opt-in host component extension axis and raises the component protocol to `component-protocol-2`. The syntax revision and theme protocol remain unchanged, existing imports keep working, and documents written for 0.5.x need no migration. See the [0.5.2 release notes](../releases/release-0.5.2-en.md).
 
-`0.4.0` adds [constraints and collections](../reference/constraints-collections-en.md): `LocalRuntime.validate()`, serializable `LocalValidation` rules, numeric arrays and generated tables. Hosts implementing a runtime adapter need the new `validate()` method; exhaustive value-kind checks need `number-array`. Rename bindings colliding with `sum`, `average`, `minOf` or `maxOf`.
+`0.4.0` adds [constraints and collections](../reference/local-interaction-syntax-en.md): `LocalRuntime.validate()`, serializable `LocalValidation` rules, numeric arrays and generated tables. Hosts implementing a runtime adapter need the new `validate()` method; exhaustive value-kind checks need `number-array`. Rename bindings colliding with `sum`, `average`, `minOf` or `maxOf`.
 
-`0.4.0` adds [named calculations and formatting functions](../reference/computations-formatting-en.md). `computed`/`const` use the existing local tag syntax. The new built-in function names become reserved; rename colliding input bindings and their references before using this release. `document.bindings` and `initialState` still contain writable controls; snapshots also expose successful calculated values.
+`0.4.0` adds [named calculations and formatting functions](../reference/local-interaction-syntax-en.md). `computed`/`const` use the existing local tag syntax. The new built-in function names become reserved; rename colliding input bindings and their references before using this release. `document.bindings` and `initialState` still contain writable controls; snapshots also expose successful calculated values.
 
 `0.4.0` establishes `local-draft-2`. Unversioned source that uses supported `local-draft-1` forms remains valid; an explicit `local-draft-1` declaration is rejected until migrated. The build now recognizes 15 additional tag names: the ten `local-draft-2` components plus `computed`, `const`, `validation`, `data-table` and `column`. Text that previously displayed as an unknown or literal tag now parses as a component or declaration; move literal examples into code spans or fences. The leading `<theme>` declaration is document metadata and is not counted as a component. See [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the complete rename and upgrade checklist.
 
@@ -126,4 +126,4 @@ Node-side consumption means importing `reactive-md` in Node and calling `compile
 See the [syntax specification](../reference/local-interaction-syntax-en.md) for the language scope, and the [security policy](../../SECURITY.md) for the security boundary and host responsibilities.
 
 
-See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.8.0` uses the `latest` channel.
+See the [syntax specification](../reference/local-interaction-syntax-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.8.0` uses the `latest` channel.

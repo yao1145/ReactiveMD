@@ -52,7 +52,7 @@
 
 ### 移除
 
-- 移除 `reactive-md/editor`、`reactive-md/editor/codemirror` 及其样式表导出。安装 `reactive-md-editor@0.1.0`，改用 `reactive-md-editor`、`reactive-md-editor/codemirror` 和对应样式表。已发布的 0.7 包仍保留旧入口。
+- 移除 `reactive-md/editor`、`reactive-md/editor/codemirror` 及其样式表导出。安装 `reactive-md-editor@0.1.0`，改用 `reactive-md-editor`、`reactive-md-editor/codemirror` 和对应样式表。已发布的 0.7 包仍保留旧入口。见[仓库拆分与导入迁移](docs/releases/release-0.8.0-ch.md#仓库拆分与导入迁移)。
 
 ### 兼容性
 
@@ -215,10 +215,10 @@
 - 新增按依赖更新的渲染优化，浏览器等价检查覆盖参数更新、重置、可视化选择和语言切换。
 - 新增 `npm run verify:release` 与对应 CI 分片，覆盖组合文档和仓库外的真实 tarball 消费；保留经过验证的安装包、SHA256 与 npm integrity 记录。
 - 新增跨字段 `<validation>` 规则、关联的可访问提示及 `runtime.validate()`；`alert` 和 `badge` 支持按条件选择现有 `tone` 枚举。
-- 新增同类型字符串/数字数组字面量、数组索引、`sum`、`average`、`minOf`、`maxOf`，以及带稳定行键和数量预算的 `<data-table>`/`<column>`。见[条件、校验与本地集合](docs/reference/constraints-collections-ch.md)。`LocalValueKind` 增加 `number-array`，新增聚合函数名成为保留字。
+- 新增同类型字符串/数字数组字面量、数组索引、`sum`、`average`、`minOf`、`maxOf`，以及带稳定行键和数量预算的 `<data-table>`/`<column>`。见[本地交互语法规范](docs/reference/local-interaction-syntax-ch.md)。`LocalValueKind` 增加 `number-array`，新增聚合函数名成为保留字。
 
 - 新增不可见、只读的 `<computed>` 与 `<const>` 声明，支持依赖排序、类型推断、循环检测和各运行时独立的计算缓存。正文、条件、公式与图表可共享中间结果。
-- 新增数字、百分比、科学计数法与货币格式化，常用字符串函数及 UTC 日期比较、日期差。默认值、舍入、空值和地区规则见[复用计算与格式化数值](docs/reference/computations-formatting-ch.md)。新函数名成为保留字；升级到本版本前需重命名同名旧绑定。
+- 新增数字、百分比、科学计数法与货币格式化，常用字符串函数及 UTC 日期比较、日期差。默认值、舍入、空值和地区规则见[本地交互语法规范](docs/reference/local-interaction-syntax-ch.md)。新函数名成为保留字；升级到本版本前需重命名同名旧绑定。
 
 - 新增可选的 `<!-- reactive-md: local-draft-2 -->` 源码修订指令。显式旧修订、未知、格式错误、重复或位置错误的声明会以 `local.version.*` 诊断拒绝，不创建运行时；无指令源码保持当前修订行为。早于该指令的读者会忽略它。见[源码修订与迁移](docs/compatibility/source-versioning-ch.md)。
 - 新增 `inspectLocalSourceVersion`、`checkLocalUpgrade`、`migrateLocalSource`，以及带 `--from`、`--check`、`--json`、`-o/--output`、`--accept-semantic-changes` 和 `--locale` 的 `reactive-md migrate`。迁移只改指令，保留正文原始字节、BOM 和 CRLF，幂等；阻止保留绑定、新增可识别标签、编译错误和文本长度语义变化，且从不改写状态文件。
@@ -237,7 +237,7 @@
 - 新增文档跳转与锚点、正文颜色、多选、区间与二维坐标输入、练习题及分步阅读。
 - 清单勾选后划线，新增组件主色及表格/图表稳定标识的共享选择。
 - runtime.get/set 支持可选槽位，新增原子 setMany；新增槽位绑定为独占。
-- 新增双语功能馆及编辑器插入模板。见[迁移说明](docs/reference/local-components-v2-ch.md)。预览版发布在 `next` 渠道。
+- 新增双语功能馆及编辑器插入模板。见[本地交互语法规范](docs/reference/local-interaction-syntax-ch.md)。预览版发布在 `next` 渠道。
 
 - Playground 新增中英文切换，界面、示例、指南和内置控件文案会同步切换，选择保存在浏览器中。
 - `LocalDocumentView` 和 `LocalReactiveDocument` 支持 `locale: 'en' | 'zh'`（默认 `'en'`），用于内置 UI 文案。显示用编译与运行时诊断通过中英文共享目录本地化，回调仍收到带稳定机器字段的结构化诊断。

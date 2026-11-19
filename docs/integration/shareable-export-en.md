@@ -73,7 +73,7 @@ Use `--pdf-margin` to override the default page margins. The CLI warns when Chro
 
 ## Migrating source
 
-`reactive-md migrate` moves one source revision declaration to `local-draft-2`:
+`reactive-md migrate` moves one source revision declaration to `local-draft-3`:
 
 ```sh
 reactive-md migrate old.reactive.md --from local-draft-1 -o new.reactive.md
@@ -93,7 +93,7 @@ A state file has this versioned shape:
 ```json
 {
   "format": "reactive-md-state/v1",
-  "syntax": "local-draft-2",
+  "syntax": "local-draft-3",
   "sourceDigest": "fnv1a32:0123abcd",
   "parameters": {
     "people": 7,
@@ -226,7 +226,7 @@ handle.unmount();
 ```html
 <div id="doc"></div>
 <script type="application/reactive-md+json" data-reactive-md-auto>
-{"version":1,"target":"doc","source":"# Hello","state":{"format":"reactive-md-state/v1","syntax":"local-draft-2","sourceDigest":"fnv1a32:01209266","parameters":{}},"locale":"en","colorScheme":"auto","hydrate":false}
+{"version":1,"target":"doc","source":"# Hello","state":{"format":"reactive-md-state/v1","syntax":"local-draft-3","sourceDigest":"fnv1a32:01209266","parameters":{}},"locale":"en","colorScheme":"auto","hydrate":false}
 </script>
 ```
 

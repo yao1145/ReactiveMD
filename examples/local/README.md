@@ -10,9 +10,9 @@ The new [HTML compatibility example](html-compat.reactive.md) combines rich disc
 
 ## Start with the short examples
 
-The [workshop recipe](recipes/workshop.reactive.md) ([中文](recipes/workshop-zh.reactive.md)) combines cross-field validation, conditional tones, numeric aggregates and generated table rows. See the [constraints and collections reference](../../docs/reference/constraints-collections-en.md) for rules and budgets.
+The [workshop recipe](recipes/workshop.reactive.md) ([中文](recipes/workshop-zh.reactive.md)) combines cross-field validation, conditional tones, numeric aggregates and generated table rows. See the [local interaction syntax specification](../../docs/reference/local-interaction-syntax-en.md) for rules and budgets.
 
-The [invoice recipe](recipes/invoice.reactive.md) ([中文](recipes/invoice-zh.reactive.md)) demonstrates shared calculations, constants, formatting and UTC date differences. The [calculation reference](../../docs/reference/computations-formatting-en.md) explains its rules.
+The [invoice recipe](recipes/invoice.reactive.md) ([中文](recipes/invoice-zh.reactive.md)) demonstrates shared calculations, constants, formatting and UTC date differences. The [local interaction syntax specification](../../docs/reference/local-interaction-syntax-en.md) explains its rules.
 
 Start with the [plan calculator](pricing.reactive.md), then choose a [feature tour](showcase/README.md). For the smallest possible state example, read the original [counter](counter.reactive.md). If you are new to the syntax, read the [new user guide](../../docs/guides/local-guide-en.md).
 

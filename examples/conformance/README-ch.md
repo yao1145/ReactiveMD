@@ -2,7 +2,7 @@
 
 **中文** · [English](README.md)
 
-[local-draft-2.json](local-draft-2.json) 是一份可复制的最小语义一致性套件，包含源文档、编译结果、初始参数、状态写入和期望文本。该数据随 npm 包分发，便于其他工具或实现读取同一份 JSON。
+[local-draft-3.json](local-draft-3.json) 是当前可复制的最小语义一致性套件，包含源文档、编译结果、初始参数、状态写入和期望文本。该数据随 npm 包分发，便于其他工具或实现读取同一份 JSON。`local-draft-1.json` 与 `local-draft-2.json` 继续作为旧修订的保留 fixture。
 
 - `syntaxVersion` 与核心导出的 `LOCAL_SYNTAX_VERSION` 一致。
 - `ok` 是期望的编译结果；`codes` 是去重后的期望诊断码集合，省略时表示不期望产生诊断。成功编译仍可能包含降级警告。
@@ -12,11 +12,11 @@
 
 运行器位于仓库的 `tests/conformance.test.ts`；运行 `npm test` 即可检查。该套件覆盖共享参数、隐藏初始化、写入约束、代码隔离、诊断、多槽控件、多选、生成表格选择以及一次计算值聚合重算。它不覆盖校验提示、生成表格渲染、HTML 导出、作者工具或浏览器行为；这些有专门的测试和发布门禁。完整的语法一致性还包括其他语言测试和浏览器检查，规则见[语法规范](../../docs/reference/local-interaction-syntax-ch.md)。诊断码的跨版本保证见[兼容性说明](../../docs/compatibility/compatibility-ch.md)。
 
-一致性源文件不带版本号，使用当前的 `local-draft-2` 修订。可选的序言版本声明属于编译元数据，不会改变这些语义用例。版本拒绝与迁移行为有专门的测试和历史 fixture。见[源码修订与迁移](../../docs/compatibility/source-versioning-ch.md)。
+一致性源文件不带版本号，使用当前的 `local-draft-3` 修订。可选的序言版本声明属于编译元数据，不会改变这些语义用例。版本拒绝与迁移行为有专门的测试和历史 fixture。见[源码修订与迁移](../../docs/compatibility/source-versioning-ch.md)。
 
 ## 组块协议一致性
 
-[component-protocol-1.json](component-protocol-1.json) 为[组块协议](../../docs/development/component-protocol-ch.md)提供代表性用例，覆盖 `slider`、`tabs`、`plot` 以及未知组块的延迟降级。协议修订现为 `component-protocol-2`，现有 `component-protocol-1.json` 仍是冻结的作者组件基线。[JSON Schema](component-protocol-1.schema.json) 定义了该一致性文件的格式，便于其他实现的工具读取。这份 JSON 是测试输入与期望结果；组件提案的声明模板见[开发指南](../../docs/development/component-development-ch.md)。
+[component-protocol-1.json](component-protocol-1.json) 为[组块协议](../../docs/development/component-protocol-ch.md)提供代表性用例，覆盖 `slider`、`tabs`、`plot` 以及未知组块的延迟降级。协议修订现为 `component-protocol-3`，现有 `component-protocol-1.json` 仍是冻结的作者组件基线。[JSON Schema](component-protocol-1.schema.json) 定义了该一致性文件的格式，便于其他实现的工具读取。这份 JSON 是测试输入与期望结果；组件提案的声明模板见[开发指南](../../docs/development/component-development-ch.md)。
 
 ```sh
 npm run test:components

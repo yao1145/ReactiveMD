@@ -116,6 +116,60 @@ When a result patch costs too much, the Worker can return a complete successful 
 
 `startLocalCompileWorker()`, the default `LocalCompileScheduler` fallback, and `LocalReactiveDocument` manage their own sessions. A custom `fallbackCompile` remains host-owned. `compileLocal()` remains the one-shot full compiler. See the [implementation and measurements](../development/performance-overview-en.md).
 
+## Strict parsing and local recovery
+
+The `strict` option controls structural recovery in compiler factories, `compileLocal`, editing sessions and Workers. It defaults to `true`; omission and explicit `undefined` use the same default. Other non-boolean values are configuration errors.
+
+```ts
+import { createStandardCompiler } from 'reactive-md/compiler/standard';
+
+const compiler = createStandardCompiler({ strict: false });
+const result = compiler.compile(`<alert>
+Unfinished content {{ missing }}.
+
+## Next section
+
+This **Markdown** still renders.
+`);
+
+if (result.status === 'recovered') {
+  console.log(result.diagnostics, result.recoveries, result.program.nodes);
+}
+```
+
+Loose mode keeps the damaged region as original source text. Components, expressions and declarations inside it stay inert. Compilation resumes at the next reliable boundary without rewriting the source.
+
+Complete pairs take priority, including components whose bodies cross headings. A stray closing tag becomes literal text by itself. An outer closing tag can terminate an intact outer container while its unclosed inner fragment becomes text. An unmatched, lexically complete opener can recover before an ATX heading with a preceding blank line in the same Markdown container. Code, comments, raw HTML text and unfinished attribute quotes do not supply heading boundaries. Ordinary paragraphs, blank lines and sibling components are not synchronization points; without a reliable heading, recovery extends to the outer boundary or end of file.
+
+Each recovery records `code`, `causeRange`, `affectedRange`, `action` and `boundary`. Ranges are half-open UTF-16 offsets into the original source. Records are sorted and deduplicated.
+
+Each finalized recovery also produces at most one warning at `causeRange` with the same stable code: `local.recovery.unclosed`, `local.recovery.mismatch`, `local.recovery.stray-close`, `local.html.repair` or `local.html.literal`. The message states what was repaired or kept as literal text, so recovery is never silent. Line and column use the raw UTF-16 source. Warnings are not emitted per token. The diagnostics budget applies: when it is full, a warning may be omitted while the recovery record remains in `recoveries`. Recovery inserts no error block in the document body.
+
+Binding errors, computation cycles, invalid initial values, required component attributes and component shape errors remain errors and fail compilation; recovery does not downgrade them. Configuration, version and budget errors also remain fatal. References outside a literal region to declarations removed inside it remain unknown bindings. A failed result can retain recoveries completed before the failure, their warnings and the separate error that caused failure.
+
+### HTML and details
+
+Loose mode repairs omitted or mismatched HTML tags within an isolated fragment using parse5. The existing element, attribute and URL policies still apply; loose mode grants no script, CSS or extended HTML capability. A repaired fragment yields one `local.html.repair` warning. A mixed RMD fragment becomes literal text with one `local.html.literal` warning when ownership and source ranges cannot be preserved. Synthetic nodes carry `synthetic` and `syntheticBoundary` metadata.
+
+Both modes support a details element without blank lines:
+
+```html
+<details>
+  <summary>1145</summary>
+  1145
+</details>
+```
+
+It renders as a single disclosure in an accordion with no group title. The trigger is `1145`, the panel contains `1145`, and it starts collapsed; click, Enter and Space toggle it. Boolean `open` starts it expanded, and static output exposes the body. Rich summaries and nested details retain their content.
+
+### Results and hosts
+
+Factory success results include `status: 'valid' | 'recovered'`, a deeply frozen `program`, diagnostics, recoveries and optional-check coverage in `checks`. A `valid` success has no recovery warning. A `recovered` success includes the program and one warning per recovery. Failures use `status: 'failed'` and contain no program; they may retain recoveries completed before the failure and their warnings. Unrecoverable semantic, type, binding, options, version and budget errors remain errors. The `ok` and `document` aliases remain available; `document` is a separate plain-data copy.
+
+`compileLocal` keeps its existing result type and adds `recoveries` only when present. Strict results keep their existing field shape. Export options preserve the selected mode so standalone replay compiles the same source with that mode.
+
+Loose editing sessions use the full reference path to avoid reusing blocks across recovery boundaries. Strict mode keeps its existing optimizations. Configuration identity includes strict mode and recovery strategy version 2. Demo and editor defaults remain strict.
+
 ## Core API
 
 ```ts
@@ -254,13 +308,13 @@ Migration changes only the metadata directive, preserves body bytes, BOM and CRL
 
 ### `createLocalRuntime(document: LocalDocument, options?: LocalRuntimeOptions)`
 
-Named read-only values are described by `LocalComputation` in the optional `document.computations` record. `bindings` and `initialState` remain writable controls; `snapshot().state` also includes successful calculated values for its revision. Read a named value with `evaluate(name)` to preserve expression errors; failed values are absent from snapshots. See [calculation and error semantics](../reference/computations-formatting-en.md).
+Named read-only values are described by `LocalComputation` in the optional `document.computations` record. `bindings` and `initialState` remain writable controls; `snapshot().state` also includes successful calculated values for its revision. Read a named value with `evaluate(name)` to preserve expression errors; failed values are absent from snapshots. See [calculation and error semantics](../reference/local-interaction-syntax-en.md).
 
 `options.externalValues` seeds declared `<external>` values; invalid entries are treated as unavailable and can be corrected through `setExternalValues`. The runtime creates an independent in-memory instance. Throws if `document` is not a local mode document, if initial values exceed budgets, or if the structure is invalid. Each instance has independent state; the runtime never stores or transmits state by itself.
 
 ### `LocalRuntime`
 
-`validate(): Diagnostic[]` reads advisory cross-field failures for the current revision. Dynamic `min`/`max`/`required` failures are enforced on writes and displayed on the control; `validate()` keeps its existing meaning. It preserves editability and returns copies of cached diagnostics. `document.validations?: LocalValidation[]` holds the serializable rule declarations. Numeric collections add `number[]` to `LocalValue` and `number-array` to `LocalValueKind`; existing writable selection controls keep string arrays. See [constraints and collections](../reference/constraints-collections-en.md).
+`validate(): Diagnostic[]` reads advisory cross-field failures for the current revision. Dynamic `min`/`max`/`required` failures are enforced on writes and displayed on the control; `validate()` keeps its existing meaning. It preserves editability and returns copies of cached diagnostics. `document.validations?: LocalValidation[]` holds the serializable rule declarations. Numeric collections add `number[]` to `LocalValue` and `number-array` to `LocalValueKind`; existing writable selection controls keep string arrays. See [constraints and collections](../reference/local-interaction-syntax-en.md).
 
 | Member | Parameters | Returns | Behavior |
 | --- | --- | --- | --- |
@@ -463,7 +517,7 @@ A single string is limited to 100,000 characters, an array to 10,000 items, and 
 
 A single document source is limited to 1,000,000 characters. There are at most 100 diagnostics, and a single message is at most 2,000 characters.
 
-Each plot component has at most 16 curves; the whole document requests at most 20,000 curve sample points, including hidden regions. Plotting computation is also limited by a shared execution budget of 2,000,000 steps. A document has at most 100 validation rules. Generated `data-table` rows, columns and text have per-table and whole-document budgets described in [constraints and collections](../reference/constraints-collections-en.md). Documents over a limit receive diagnostics; expression and math rendering also have their own depth and token budgets.
+Each plot component has at most 16 curves; the whole document requests at most 20,000 curve sample points, including hidden regions. Plotting computation is also limited by a shared execution budget of 2,000,000 steps. A document has at most 100 validation rules. Generated `data-table` rows, columns and text have per-table and whole-document budgets described in the [syntax specification](../reference/local-interaction-syntax-en.md). Documents over a limit receive diagnostics; expression and math rendering also have their own depth and token budgets.
 
 These limits bound the work for a single document; they do not replace host control over request size, concurrency and execution time. See the [security policy](../../SECURITY.md) for the full threat boundary.
 
@@ -478,9 +532,9 @@ These limits bound the work for a single document; they do not replace host cont
 
 The default ReactiveMD path supports P0 HTML. Host options for author CSS, JavaScript and extended HTML use the separate native HTML path described in [HTML compatibility](../reference/html-compatibility-en.md). Automatic state persistence, unrestricted network/storage calls, Vue, React 18 and CommonJS remain outside the current API. Hosts declare read-only values and invoke state export/import explicitly.
 
-The source [extension SDK](extension-sdk-en.md) provides custom component and theme package registration in `reactive-md@0.7.0`; follow the [component plugin development guide](../development/component-development-en.md). On ordinary source edits, `LocalReactiveDocument` tries to adopt the new document and retain compatible bindings. Use a new React `key` for independent documents, or manage documents and runtimes in the host.
+The source [extension SDK](extension-sdk-en.md) provides custom component and theme package registration in `reactive-md@0.8.0`; follow the [component plugin development guide](../development/component-development-en.md). On ordinary source edits, `LocalReactiveDocument` tries to adopt the new document and retain compatible bindings. Use a new React `key` for independent documents, or manage documents and runtimes in the host.
 
 
-See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist.
+See the [syntax specification](../reference/local-interaction-syntax-en.md) for the component tags, color options and slot state.
 
 0.5.3 adds compile-option-aware authoring and explicit screen/print styles. See [0.5.3 host integration](../releases/release-0.5.3-en.md). 0.6.0 makes `compileLocal` return plain data that can cross a React Server Components boundary; see the [0.6.0 release notes](../releases/release-0.6.0-en.md).

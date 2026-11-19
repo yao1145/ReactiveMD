@@ -2,7 +2,7 @@
 
 **English** · [中文](component-protocol-ch.md)
 
-Protocol revision `component-protocol-3` · applicable syntax `local-draft-3` · current package version `0.7.0`
+Protocol revision `component-protocol-3` · applicable syntax `local-draft-3` · current package version `0.8.0`
 
 Components are the building blocks of the Reactive MD language. This protocol defines the shared contract for contribution, implementation and acceptance, connecting author syntax, the compiler, the runtime, the React reference adapter and machine conformance data. Authors writing documents follow the [local interaction syntax specification](../reference/local-interaction-syntax-en.md); hosts integrating follow [local mode integration](../integration/local-integration-en.md); this document is for contributors, reviewers and tests.
 
@@ -214,7 +214,7 @@ Components without `bind` still have internal state under the internal key `@<no
 | `steps` | Current step value, exclusive | `steps` |
 | `selection` | Stable row key, empty string when unselected | `table` and `chart` with key |
 
-Each numeric slot of range-slider and coordinate is also exclusive. Bounds, steps, defaults and atomic batch writes are defined in the [extension declarations](../reference/local-components-v2-en.md). Selection can be shared by tables and charts only with identical ordered keys. The initialization, rejection, visibility, reset and disposal clauses below continue to apply.
+Each numeric slot of range-slider and coordinate is also exclusive. Bounds, steps, defaults and atomic batch writes are defined in the [syntax specification](../reference/local-interaction-syntax-en.md). Selection can be shared by tables and charts only with identical ordered keys. The initialization, rejection, visibility, reset and disposal clauses below continue to apply.
 
 `timer`, `checklist`, `tabs` and `diagram` are also exclusive families: a public parameter can be owned by only one component, and other controls cannot declare a same-name binding. Hosts can still call the public `runtime.set` through the owning node, and writes follow the same validation.
 
@@ -499,7 +499,7 @@ Components that reuse public rules need a definition, implementation and registr
 
 This revision describes contribution requirements and the legacy host interface in section 14. `LOCAL_COMPONENTS` is an internal compatibility projection of the default preset. `hostComponents` accepts plain schema data for one compilation and adapts it to the shared kernel, with implementations supplied by the host.
 
-The source tree's [extension SDK](../integration/extension-sdk-en.md) ships in `reactive-md@0.7.0` and uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, editor catalogs, offline builds, versioned restoration and public compliance tools. All 46 default rendered and structural components use this contract. Hosts explicitly install component code; document declarations never load it.
+The source tree's [extension SDK](../integration/extension-sdk-en.md) ships in `reactive-md@0.8.0` and uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, editor catalogs, offline builds, versioned restoration and public compliance tools. All 48 default rendered and structural components use this contract. Hosts explicitly install component code; document declarations never load it.
 
 ## 10. Compatibility, name governance, revisions and migration
 
@@ -747,4 +747,4 @@ Portable machine cases remain `examples/conformance/component-protocol-1.json`, 
 | `component-protocol-1` | 2026-10-23 | Initial version; originally applied to `local-draft-1` and package version `0.3.0`, defining component contribution, acceptance and extension boundaries. It now applies to `local-draft-2` and the `0.4.0` preview release without changing its MUST clauses or machine format. |
 
 
-See [local-draft-2 components and migration](../reference/local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.6.0` is available on both the `latest` and `next` channels.
+See the [syntax specification](../reference/local-interaction-syntax-en.md) for tags, colors, slot state and selection rules, and [Versions and compatibility](../compatibility/compatibility-en.md) for version mapping and migration guidance.

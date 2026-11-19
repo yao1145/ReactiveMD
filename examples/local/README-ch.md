@@ -2,7 +2,7 @@
 
 **中文** · [English](README.md)
 
-这些是 `local-draft-2` 的独立创作示例，说明见[本地交互语法规范](../../docs/reference/local-interaction-syntax-ch.md)。Playground 以[快速计算器](pricing.reactive.md)开始，随后是六个聚焦的[功能演示](showcase/README-ch.md)。组块分布在这六个场景中；诊断有独立的辅助菜单。宿主可通过[本地模式 API](../../docs/integration/local-integration-ch.md) 编译并渲染每份文档。
+这些是 `local-draft-3` 的独立创作示例，说明见[本地交互语法规范](../../docs/reference/local-interaction-syntax-ch.md)。Playground 以[快速计算器](pricing.reactive.md)开始，随后是六个聚焦的[功能演示](showcase/README-ch.md)。组块分布在这六个场景中；诊断有独立的辅助菜单。宿主可通过[本地模式 API](../../docs/integration/local-integration-ch.md) 编译并渲染每份文档。
 
 原有的十一个工作示例和一份故意损坏的诊断文档仍保留在本目录，中文版本在 [zh/](zh/)。六个功能演示位于 [showcase/](showcase/README-ch.md)，中文源码在 [showcase/zh/](showcase/zh/)。每个文件都可独立运行。控件、表达式和可视化都使用本地状态。
 
@@ -10,9 +10,9 @@
 
 ## 从简短示例开始
 
-[工作坊配方](recipes/workshop.reactive.md)（[中文](recipes/workshop-zh.reactive.md)）组合了跨字段校验、条件色调、数字聚合和生成表格行。规则与预算见[条件、校验与集合参考](../../docs/reference/constraints-collections-ch.md)。
+[工作坊配方](recipes/workshop.reactive.md)（[中文](recipes/workshop-zh.reactive.md)）组合了跨字段校验、条件色调、数字聚合和生成表格行。规则与预算见[本地交互语法规范](../../docs/reference/local-interaction-syntax-ch.md)。
 
-[账单配方](recipes/invoice.reactive.md)（[中文](recipes/invoice-zh.reactive.md)）演示共享计算、常量、格式化和 UTC 日期差。[计算参考](../../docs/reference/computations-formatting-ch.md)解释其规则。
+[账单配方](recipes/invoice.reactive.md)（[中文](recipes/invoice-zh.reactive.md)）演示共享计算、常量、格式化和 UTC 日期差。[命名值与格式化](../../docs/reference/local-interaction-syntax-ch.md)解释其规则。
 
 从[套餐计算器](pricing.reactive.md)开始，然后选择一个[功能演示](showcase/README-ch.md)。如需最小的状态示例，请阅读最初的[计数器](counter.reactive.md)。如果你刚接触该语法，请阅读[新用户指南](../../docs/guides/local-guide-ch.md)。
 

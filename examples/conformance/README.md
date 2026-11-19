@@ -2,7 +2,7 @@
 
 **English** · [中文](README-ch.md)
 
-[local-draft-2.json](local-draft-2.json) is a copyable minimal semantic conformance suite containing source documents, compilation results, initial parameters, state writes and expected text. The data is distributed with the npm package so other tools or implementations can read the same JSON.
+[local-draft-3.json](local-draft-3.json) is the current copyable minimal semantic conformance suite containing source documents, compilation results, initial parameters, state writes and expected text. The data is distributed with the npm package so other tools or implementations can read the same JSON. `local-draft-1.json` and `local-draft-2.json` remain retained fixtures for earlier revisions.
 
 - `syntaxVersion` matches the core export `LOCAL_SYNTAX_VERSION`.
 - `ok` is the expected compilation result; `codes` is the deduplicated set of expected diagnostic codes, and when omitted no diagnostics are expected. A successful compile can still contain degradation warnings.
@@ -12,11 +12,11 @@
 
 The runner lives at `tests/conformance.test.ts` in the repository; run `npm test` to check it. This suite covers shared parameters, hidden initialization, write constraints, code isolation, diagnostics, multi-slot controls, multiple selection, generated-table selection and a computed-value aggregate recalculation. It does not cover validation hints, generated table rendering, HTML export, author tooling or browser behavior; those have dedicated tests and the release gate. Full syntax conformance also includes other language tests and browser checks, with rules in the [syntax specification](../../docs/reference/local-interaction-syntax-en.md). See the [compatibility notes](../../docs/compatibility/compatibility-en.md) for cross-version guarantees on diagnostic codes.
 
-The conformance sources are unversioned and use the current `local-draft-2` revision. The optional prologue version declaration is compile metadata and does not change these semantic cases. Version rejection and migration behavior have dedicated tests and historical fixtures. See [Source revisions and migration](../../docs/compatibility/source-versioning-en.md).
+The conformance sources are unversioned and use the current `local-draft-3` revision. The optional prologue version declaration is compile metadata and does not change these semantic cases. Version rejection and migration behavior have dedicated tests and historical fixtures. See [Source revisions and migration](../../docs/compatibility/source-versioning-en.md).
 
 ## Component protocol conformance
 
-[component-protocol-1.json](component-protocol-1.json) provides representative cases for the [component protocol](../../docs/development/component-protocol-en.md), covering `slider`, `tabs`, `plot` and lazy degradation of unknown components. The existing `component-protocol-1.json` remains the frozen author-component baseline now that the protocol revision is `component-protocol-2`. The [JSON Schema](component-protocol-1.schema.json) defines the conformance file format so tools from other implementations can read it. This JSON is test input and expected results; see the [development guide](../../docs/development/component-development-en.md) for the declaration template of a component proposal.
+[component-protocol-1.json](component-protocol-1.json) provides representative cases for the [component protocol](../../docs/development/component-protocol-en.md), covering `slider`, `tabs`, `plot` and lazy degradation of unknown components. The existing `component-protocol-1.json` remains the frozen author-component baseline now that the protocol revision is `component-protocol-3`. The [JSON Schema](component-protocol-1.schema.json) defines the conformance file format so tools from other implementations can read it. This JSON is test input and expected results; see the [development guide](../../docs/development/component-development-en.md) for the declaration template of a component proposal.
 
 ```sh
 npm run test:components

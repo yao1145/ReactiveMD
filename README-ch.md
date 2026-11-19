@@ -2,7 +2,7 @@
 
 **中文** · [English](README.md)
 
-> 仓库已拆分：本仓库维护语言引擎；[编辑器](https://github.com/yao1145/ReactiveMD-Editor)与 [Demo](https://github.com/yao1145/ReactiveMD-Demo) 独立构建。引擎 0.8 使用独立 reactive-md-editor 包，见[迁移说明](docs/integration/repository-split-ch.md)。
+> 仓库已拆分：本仓库维护语言引擎；[编辑器](https://github.com/yao1145/ReactiveMD-Editor)与 [Demo](https://github.com/yao1145/ReactiveMD-Demo) 独立构建。引擎 0.8 使用独立 reactive-md-editor 包，见[迁移说明](docs/releases/release-0.8.0-ch.md#仓库拆分与导入迁移)。
 
 [![npm](https://img.shields.io/npm/v/reactive-md.svg)](https://www.npmjs.com/package/reactive-md)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -211,7 +211,7 @@ npm install reactive-md@0.8.0
 npm install reactive-md-editor@0.1.0
 ```
 
-替换 `reactive-md/editor` 导入前，请阅读[0.8.0 发布说明](docs/releases/release-0.8.0-ch.md)和[三仓库迁移说明](docs/integration/repository-split-ch.md)。`0.8.0` 保持语法 `local-draft-3`、`0.7.0` SDK 契约和现有状态协议，文档源码无需迁移。
+替换 `reactive-md/editor` 导入前，请阅读[0.8.0 发布说明](docs/releases/release-0.8.0-ch.md)和[三仓库迁移说明](docs/releases/release-0.8.0-ch.md#仓库拆分与导入迁移)。`0.8.0` 保持语法 `local-draft-3`、`0.7.0` SDK 契约和现有状态协议，文档源码无需迁移。
 
 `reactive-md` 入口提供本地编译器、表达式和运行时，`reactive-md/react` 提供 React 渲染器。组件样式通过 `reactive-md/styles.css` 引入。`reactive-md-editor` 提供源码编辑器，并使用独立样式 `reactive-md-editor/styles.css`。引擎 0.8 移除旧 `reactive-md/editor` 入口；已发布的 0.7 包仍保留它们。
 
@@ -231,6 +231,8 @@ if (result.ok) {
 完整的编译与运行时 API、宿主 URL 策略、生命周期和样式覆盖见[本地模式集成](docs/integration/local-integration-ch.md)。
 
 ## 按任务选择入口
+
+[公开接口参考](docs/reference/public-api-ch.md)逐个列出全部入口、导出、CLI 命令、浏览器协议与编辑器包，并注明各自的详细用途。下表按任务归纳引擎子路径。
 
 每个子路径都是 ESM 入口，并带有自己的声明文件。按要做的事情选择；可选 peer 只出现在最后一列。
 
@@ -407,7 +409,7 @@ benchmarks/    带来源说明的精简性能数据
 - [组块协议](docs/development/component-protocol-ch.md)与[组件插件开发指南](docs/development/component-development-ch.md)。
 - [扩展开发教程](docs/development/extension-tutorial-ch.md)：选择入口、编写组件包并验证。
 - [版本与兼容性](docs/compatibility/compatibility-ch.md)。
-- [性能说明](docs/development/performance-overview-ch.md)与[发布清单](docs/development/releasing-ch.md)。
+- [性能说明](docs/development/performance-overview-ch.md)与[发布清单](CONTRIBUTING-ch.md#发布流程)。
 - [0.8.0 发布说明](docs/releases/release-0.8.0-ch.md)、[0.7.0 发布说明](docs/releases/release-0.7.0-ch.md)以及 [docs/releases](docs/releases) 中的历史记录。
 
 ## 支持与状态
@@ -422,7 +424,7 @@ benchmarks/    带来源说明的精简性能数据
 - [贡献指南](CONTRIBUTING-ch.md)：环境、检查命令和改动要求。
 - [安全策略](SECURITY-ch.md)：威胁边界、资源上限、宿主责任和漏洞报告渠道。
 - [变更记录](CHANGELOG-ch.md)。
-- [发布清单](docs/development/releasing-ch.md)：验证门禁、notice、tarball 和人工发布流程。
+- [发布清单](CONTRIBUTING-ch.md#发布流程)：验证门禁、notice、tarball 和人工发布流程。
 
 ## 许可证
 

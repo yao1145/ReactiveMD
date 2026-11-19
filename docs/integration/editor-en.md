@@ -2,13 +2,13 @@
 
 **English** · [中文](editor-ch.md)
 
-`reactive-md@0.8.0` moves the editor into the independent `reactive-md-editor@0.1.0` package; the engine publishes before the editor. The old 0.7 package already used CodeMirror 6. See [CM6 integration](codemirror-en.md) for transactions, shared analysis and source coordinates.
+`reactive-md@0.8.0` moves the editor into the independent `reactive-md-editor@0.1.0` package; the engine publishes before the editor. The CM6 transaction, shared analysis and source-coordinate contract is described below.
 
 `reactive-md-editor` is a controlled React 19 editor for Reactive MD source. It comes from the Playground editor and provides source highlighting, a formatting and insertion toolbar, completion, binding navigation, rename and format commands, undo and redo, line numbers and scroll synchronization. Its built-in status bar provides a character count and Edit, Split and Preview views. The host keeps the source text and supplies preview content, persistence and export.
 
 The editor has its own stylesheet at `reactive-md-editor/styles.css`. It is separate from `reactive-md/styles.css`, so a page that only edits source does not load document rendering styles.
 
-Replace the old `reactive-md/editor` subpaths and styles with the independent package entries; see [repository migration](repository-split-en.md). Document rendering continues to use `reactive-md/react` and `reactive-md/styles.css`.
+Replace the old `reactive-md/editor` subpaths and styles with the independent package entries; see [repository migration](../releases/release-0.8.0-en.md#repository-split-and-import-migration). Document rendering continues to use `reactive-md/react` and `reactive-md/styles.css`.
 
 ## Install
 
@@ -125,6 +125,44 @@ The entry also exports `ReactiveMarkdownEditorProps`, `ReactiveMarkdownEditorHan
 | `analysis` | `EditorAuthorAnalysis \| null` | none | Omit to use a private analysis Worker; pass `null` while awaiting host analysis. |
 | `onTransaction` | `(transaction: EditorTransaction) => void` | none | Receives edits in original source coordinates. |
 | `createAnalysisWorker` | `() => Worker` | none | Supplies a CSP-compatible analysis Worker factory. |
+
+## Transactions, shared analysis and source coordinates
+
+`onTransaction` reports each edit in original source coordinates. A transaction carries `previousSource`, `source`, revisions, `changes`, the selection and composition state. All change ranges address `previousSource`, so a host can merge them into one replacement and pass `{ baseSource, edit }` as the third argument to `LocalCompileScheduler.schedule`. The scheduler checks the hint against its baseline; an invalid hint or a different baseline uses the existing diff and full-request recovery.
+
+A host that already runs a shared preview Worker can reuse its analysis. Enable author analysis on the scheduler and pass the result to the editor:
+
+```tsx
+import { LocalCompileScheduler, localCompileOptionsKey } from 'reactive-md';
+
+const scheduler = new LocalCompileScheduler({
+  createWorker: () => new Worker(new URL('./compile.worker.ts', import.meta.url), { type: 'module' }),
+  includeAuthorAnalysis: true,
+  onResult: setOutcome,
+});
+
+<ReactiveMarkdownEditor
+  value={source}
+  onChange={setSource}
+  analysis={
+    outcome?.analysis
+      ? {
+          source: outcome.source,
+          optionsKey: localCompileOptionsKey(outcome.options),
+          analysis: outcome.analysis,
+        }
+      : null
+  }
+/>;
+```
+
+The source and options signatures must match the current source. Analysis reuses the successful compiled document and declaration metadata. Temporary semantic errors recover syntax on the Worker under the same limits. Budget or options failures return empty analysis, and diagnostics still arrive through `diagnostics`. Older Workers keep compiling, but authoring waits for analysis-capable results. Pass `analysis={null}` while waiting for host analysis to turn off the private analysis Worker; omitting `analysis` enables it.
+
+`createAnalysisWorker` supplies a CSP-compatible Worker factory. If the default Worker cannot start, the scheduler uses its main-thread fallback. Analysis time is reported as `metrics.worker.analysisMs`.
+
+Only visible syntax ranges receive decorations, and binding and reference lists show 50 items per page. Host-supplied preview DOM stays mounted across view changes.
+
+Ranges are UTF-16 half-open offsets into the original source. Untouched CRLF, LF and CR breaks, a leading BOM and emoji stay as written. Native input uses the first line-break style for new breaks, and a position inside a CRLF pair maps to its beginning. Up to 120 unacknowledged edits are tracked with inverse edits; older echoes become external replacements.
 
 ## Built-in editor views
 

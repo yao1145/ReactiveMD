@@ -116,6 +116,67 @@ Worker 判断结果补丁不划算时，可对同一修订返回完整成功结�
 
 内置 `startLocalCompileWorker()`、`LocalCompileScheduler` 默认降级编译和 `LocalReactiveDocument` 已管理各自会话。自定义 `fallbackCompile` 继续由宿主管理。`compileLocal()` 保持单次完整编译 API。测试与性能数据见[块级增量编译](../development/performance-overview-ch.md)。
 
+## 严格解析与局部恢复
+
+`strict` 控制单次编译、`compileLocal`、编辑会话和 Worker 的结构恢复行为。默认值为 `true`；省略和显式 `undefined` 使用相同默认值。其他非布尔值是配置错误。
+
+```ts
+import { createStandardCompiler } from 'reactive-md/compiler/standard';
+
+const compiler = createStandardCompiler({ strict: false });
+const result = compiler.compile(`前文。
+
+<alert>
+尚未闭合的内容 {{ missing }}。
+
+## 后续章节
+
+这里的 **Markdown** 继续渲染。
+`);
+
+if (result.status === 'recovered') {
+  console.log(result.diagnostics, result.recoveries, result.program.nodes);
+}
+```
+
+宽松模式将 `<alert>` 起到后续同层标题前的片段保留为原始文本。片段中的组件、插值和声明不执行；后面的章节照常编译。源码本身不被改写。
+
+恢复遵循以下边界：
+
+- 完整配对优先。合法组件可以跨越标题，内部标题不会截断它。
+- 孤立结束标签只降级该标签。外层容器能正常闭合时，未闭合的内层片段降级到外层结束标签之前。
+- 起始标签完整且找不到闭合时，可以在前有空行、处于相同 Markdown 容器的 ATX 标题前继续解析。代码、注释、原始 HTML 文本及未结束引号中的标题不能作为边界。
+- 普通段落、空行和兄弟组件不是同步点。找不到可靠标题或起始标签词法未结束时，降级到可靠外层边界或文件末尾。
+
+恢复记录包含 `code`、`causeRange`、`affectedRange`、`action` 和 `boundary`。范围使用原始源码的 UTF-16 半开区间 `[start, end)`；`source.slice(start, end)` 得到实际片段。记录稳定排序并去重。
+
+每个最终恢复还在 `causeRange` 上产生至多一个 warning，使用与记录相同的稳定 `code`：`local.recovery.unclosed`、`local.recovery.mismatch`、`local.recovery.stray-close`、`local.html.repair` 或 `local.html.literal`。warning 说明该片段被降级为惰性源文本或经过 HTML 修复。行号和列号按原始 UTF-16 源码计算；不会逐 token 产生 warning。诊断预算仍生效：预算已满时可以省略 warning，记录仍保留在 `recoveries` 中。恢复不向正文插入错误块。
+
+绑定、计算循环、初值、组件必填属性和形态错误仍是 error，并使编译失败；恢复不会全局降级这些错误。版本、配置和预算错误同样保留。正常区域引用已降级片段内的声明时，该引用仍是未知绑定错误。
+
+### HTML 与 details
+
+宽松模式在已确定的局部 HTML 片段内使用 parse5 处理省略标签、错配和合成节点。修复继续服从原有元素、属性和 URL 策略，`strict: false` 不授予脚本、CSS 或扩展 HTML 权限。修复后的片段产生一条 `local.html.repair` warning。无法保留混合 RMD 归属和源范围的片段整体显示为文本，并产生一条 `local.html.literal` warning。合成节点带有 `synthetic` 与 `syntheticBoundary`，不会虚构原始标签位置。
+
+两种模式均支持以下无空行写法：
+
+```html
+<details>
+  <summary>1145</summary>
+  1145
+</details>
+```
+
+它呈现为一个空标题 accordion 内的单个 disclosure：按钮标题为 `1145`，面板正文为 `1145`。默认折叠，点击、Enter 和空格可切换；`open` 属性使初始状态展开，静态呈现显示正文。富文本 summary 和嵌套 details 保留各自内容。
+
+### 结果与宿主
+
+`createCompiler` 和 `createStandardCompiler` 的成功结果包含 `status: 'valid' | 'recovered'`、深只读且逐层冻结的 `program`、`diagnostics`、`recoveries` 和可选检查覆盖 `checks`。`valid` 不包含恢复 warning，`recovered` 包含每个恢复对应的 warning。失败为 `status: 'failed'`，不包含 program；可保留此前完成的恢复记录、这些恢复的 warning 以及导致失败的其他 error。`ok`、`document` 作为兼容字段继续可用，`document` 是独立的普通数据副本。
+
+`compileLocal` 保留原有返回类型，并在有恢复时附加 `recoveries`。默认严格结果保持既有字段形状。运行时、SSR 和 standalone 接收同一源码对应的编译结果；导出选项保留所选 strict 模式，重新挂载时使用同一模式。
+
+编辑会话在宽松模式下使用完整编译路径，避免复用跨越恢复边界的旧块；恢复策略版本 2 与 strict 模式参与配置身份。严格模式保留现有优化。Demo 和编辑器默认使用严格模式。
+
 ## 核心 API
 
 ```ts
@@ -232,13 +293,13 @@ const migrated = migrateLocalSource(source, { fromVersion: 'local-draft-1' });
 
 ### `createLocalRuntime(document: LocalDocument, options?: LocalRuntimeOptions)`
 
-只读命名值在可选的 `document.computations` 记录中用 `LocalComputation` 描述。`bindings` 和 `initialState` 继续只包含可写控件；`snapshot().state` 还包含该修订成功求值的计算结果。需要保留表达式错误语义时用 `evaluate(name)` 读取，失败值不会出现在快照里。见[计算与错误规则](../reference/computations-formatting-ch.md)。
+只读命名值在可选的 `document.computations` 记录中用 `LocalComputation` 描述。`bindings` 和 `initialState` 继续只包含可写控件；`snapshot().state` 还包含该修订成功求值的计算结果。需要保留表达式错误语义时用 `evaluate(name)` 读取，失败值不会出现在快照里。见[语法规范](../reference/local-interaction-syntax-ch.md)。
 
 为已编译文档创建独立的内存运行时。`document` 不是本地模式文档、初值超出预算或结构无效时会抛出错误。每个实例拥有独立状态；运行时本身不会保存或发送状态。
 
 ### `LocalRuntime`
 
-`validate(): Diagnostic[]` 读取当前修订的跨字段失败提示，保留字段可编辑性，并返回缓存诊断的副本。`document.validations?: LocalValidation[]` 保存可序列化规则。数字集合为 `LocalValue` 增加 `number[]`、为 `LocalValueKind` 增加 `number-array`，原有可写选择控件继续使用字符串数组。见[条件、校验与本地集合](../reference/constraints-collections-ch.md)。
+`validate(): Diagnostic[]` 读取当前修订的跨字段失败提示，保留字段可编辑性，并返回缓存诊断的副本。`document.validations?: LocalValidation[]` 保存可序列化规则。数字集合为 `LocalValue` 增加 `number[]`、为 `LocalValueKind` 增加 `number-array`，原有可写选择控件继续使用字符串数组。见[语法规范](../reference/local-interaction-syntax-ch.md)。
 
 | 成员 | 参数 | 返回 | 行为 |
 | --- | --- | --- | --- |
@@ -441,7 +502,7 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 单个文档源码最多 1,000,000 字符。诊断最多 100 条，单条消息最多 2,000 字符。
 
-每个绘图组件最多 16 条曲线，整篇文档最多请求 20,000 个曲线采样点，包括隐藏区域。绘图计算还受 2,000,000 步的共享执行预算限制。每份文档最多 100 条校验规则。`data-table` 的生成行、列数和文本有单表及整篇文档预算，见[条件、校验与本地集合](../reference/constraints-collections-ch.md)。超限文档会收到诊断；表达式和数学渲染也有各自的深度与记号预算。
+每个绘图组件最多 16 条曲线，整篇文档最多请求 20,000 个曲线采样点，包括隐藏区域。绘图计算还受 2,000,000 步的共享执行预算限制。每份文档最多 100 条校验规则。`data-table` 的生成行、列数和文本有单表及整篇文档预算，见[语法规范](../reference/local-interaction-syntax-ch.md)。超限文档会收到诊断；表达式和数学渲染也有各自的深度与记号预算。
 
 这些上限限制单个文档的工作量，不替代宿主对请求大小、并发和执行时间的控制。完整威胁边界见[安全策略](../../SECURITY-ch.md)。
 
@@ -456,9 +517,8 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 默认 ReactiveMD 路径支持 P0 HTML。作者 CSS、JavaScript 和扩展 HTML 的宿主开关使用独立的原生 HTML 路径，见 [HTML 部分兼容](../reference/html-compatibility-ch.md)。自动状态持久化、不受限的网络或存储调用、Vue、React 18 和 CommonJS 仍不在当前接口范围内。宿主数据使用显式只读声明，状态导出与导入由宿主调用。
 
-[扩展 SDK](extension-sdk-ch.md)随 `reactive-md@0.7.0` 提供自定义组件和主题包注册，开发流程见[组件插件开发指南](../development/component-development-ch.md)。`LocalReactiveDocument` 在普通源码编辑中尝试采用新文档并保留兼容绑定；切换独立文档时更换 React `key`，或由宿主管理文档与运行时。
+[扩展 SDK](extension-sdk-ch.md)随 `reactive-md@0.8.0` 提供自定义组件和主题包注册，开发流程见[组件插件开发指南](../development/component-development-ch.md)。`LocalReactiveDocument` 在普通源码编辑中尝试采用新文档并保留兼容绑定；切换独立文档时更换 React `key`，或由宿主管理文档与运行时。
 
-
-新增组块、颜色、槽位状态与迁移规则见[local-draft-2 扩展说明](../reference/local-components-v2-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
+组块、颜色、槽位状态与迁移规则见[交互语法规范](../reference/local-interaction-syntax-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
 0.5.3 新增接受编译配置的作者工具及显式屏幕、打印样式入口，见 [0.5.3 宿主集成](../releases/release-0.5.3-ch.md)。0.6.0 让 `compileLocal` 返回可跨 React Server Components 边界的普通数据，见 [0.6.0 发布说明](../releases/release-0.6.0-ch.md)。

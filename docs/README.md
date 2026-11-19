@@ -7,17 +7,17 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | Directory | Contents |
 | --- | --- |
 | [guides/](guides/) | Getting started |
-| [reference/](reference/) | Syntax, components and themes |
+| [reference/](reference/) | Public API, syntax, diagnostics and themes |
 | [integration/](integration/) | Integration, editor, author tools and export |
 | [compatibility/](compatibility/) | Compatibility, migration and source versioning |
-| [development/](development/) | Development, protocols, performance and publishing |
+| [development/](development/) | Development, protocols and performance |
 | [releases/](releases/) | Release notes |
 
 ## Start here
 
 - **Authors**: read the [beginner guide](guides/local-guide-en.md), then the syntax reference. Runnable examples are in [examples/local](../examples/local/README.md).
-- **Integrators**: start with [local mode integration](integration/local-integration-en.md). Copyable projects are in [examples/integration](../examples/integration/README.md).
-- **Upgrading**: check [compatibility](compatibility/compatibility-en.md), then the release notes for the target version. The current documentation baseline is 0.7.0; older release pages keep the behavior and migration notes of their release.
+- **Integrators**: check the [public API reference](reference/public-api-en.md) for every entry, then read [local mode integration](integration/local-integration-en.md). Copyable projects are in [examples/integration](../examples/integration/README.md).
+- **Upgrading**: check [compatibility](compatibility/compatibility-en.md), then the release notes for the target version. The current documentation baseline is 0.8.0; older release pages keep the behavior and migration notes of their release.
 
 ## Guides
 
@@ -29,13 +29,10 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 
 | Topic | English |
 | --- | --- |
+| Public API reference | [English](reference/public-api-en.md) |
 | Local interaction syntax | [English](reference/local-interaction-syntax-en.md) |
-| Local components v2 | [English](reference/local-components-v2-en.md) |
-| Computations and formatting | [English](reference/computations-formatting-en.md) |
-| Constraints and collections | [English](reference/constraints-collections-en.md) |
 | Diagnostics and counting | [English](reference/diagnostics-counting-en.md) |
 | HTML compatibility | [English](reference/html-compatibility-en.md) |
-| Strict parsing and local recovery | [English](reference/tolerance-en.md) |
 | Theme protocol | [English](reference/theme-protocol-en.md) |
 
 ## Integration
@@ -43,7 +40,8 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | Topic | English |
 | --- | --- |
 | Local mode integration | [English](integration/local-integration-en.md) |
-| One-shot compilation (new in workspace) | [English](integration/compiler-en.md) |
+| Directory discovery | [English](integration/directory-discovery-en.md) |
+| One-shot compilation | [English](integration/compiler-en.md) |
 | Extension SDK preview | [English](integration/extension-sdk-en.md) |
 | React source editor | [English](integration/editor-en.md) |
 | Author tools | [English](integration/author-tools-en.md) |
@@ -62,15 +60,17 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | --- | --- |
 | Extension author tutorial (definition to offline export) | [English](development/extension-tutorial-en.md) |
 | Component plugin development | [English](development/component-development-en.md) |
+| Component development contract | [English](development/component-development-reference-en.md) |
 | Component protocol | [English](development/component-protocol-en.md) |
 | Local module layout | [English](development/local-module-layout-en.md) |
 | Performance | [English](development/performance-overview-en.md) |
-| Publishing | [English](development/releasing-en.md) |
+| Publishing | [English](../CONTRIBUTING.md#releasing) |
 
 ## Releases
 
 | Version | English |
 | --- | --- |
+| 0.8.0 | [English](releases/release-0.8.0-en.md) |
 | 0.7.0 | [English](releases/release-0.7.0-en.md) |
 | 0.6.1 | [English](releases/release-0.6.1-en.md) |
 | 0.6.0 | [English](releases/release-0.6.0-en.md) |
@@ -88,4 +88,4 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 - Contributing: [English](../CONTRIBUTING.md)
 - Conformance fixtures: [examples/conformance](../examples/conformance/README.md)
 
-When adding a topic, place the English version in the matching directory, add it here, and run `npm run test:docs`.
+When adding a topic, place the English version in the matching directory, add it here, and check local links and heading anchors.

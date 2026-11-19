@@ -2,13 +2,11 @@
 
 **English** · [中文](local-interaction-syntax-ch.md)
 
-Syntax identifier: `local-draft-2`, 2026-10-23. If this is your first time with the syntax, read the [beginner guide](../guides/local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](../integration/local-integration-en.md). See [Versions and compatibility](../compatibility/compatibility-en.md) for package version relationships, 0.x compatibility rules and migration, [Source revisions and migration](../compatibility/source-versioning-en.md) for the optional revision directive and `reactive-md migrate`, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade from `0.3.1` / `local-draft-1`. Complete examples are in the [example index](../../examples/local/README.md).
+Syntax identifier: `local-draft-3`, 2026-10-31. If this is your first time with the syntax, read the [beginner guide](../guides/local-guide-en.md) first; this document is the complete specification. Hosts select local interaction mode through `compileLocal` and `LocalReactiveDocument`, see [integration notes](../integration/local-integration-en.md). See [Versions and compatibility](../compatibility/compatibility-en.md) for package version relationships, 0.x compatibility rules and migration, and [Source revisions and migration](../compatibility/source-versioning-en.md) for the optional revision directive and `reactive-md migrate`. Complete examples are in the [example index](../../examples/local/README.md).
 
 ## 1. Positioning and scope
 
-`0.4.0` adds invisible `computed`/`const` declarations and number, string and date functions. See [Reusing calculations and formatting values](computations-formatting-en.md) for declaration syntax, dependency and error rules, function signatures and deterministic defaults.
-
-For cross-field validation, conditional tones, arrays and bounded table-row generation, see [Constraints and collections](constraints-collections-en.md).
+Named values, formatting and date functions, cross-field validation, conditional tones, arrays and bounded table-row generation are part of this revision: [5.4 Named values](#54-named-values), [5.5 Formatting, strings and dates](#55-formatting-strings-and-dates), [5.6 Arrays and aggregates](#56-arrays-and-aggregates), [4.4 Cross-field validation](#44-cross-field-validation), [7.2 Conditional tones](#72-conditional-tones) and [9.5 Generated tables](#95-generated-tables).
 
 See [Diagnostics and counting rules](diagnostics-counting-en.md) for source positions, text lengths and resource units. String `len()` and text-control length constraints count Unicode code points.
 
@@ -16,7 +14,7 @@ Reactive MD is for local interactive documents: authors write Markdown and place
 
 The base language requires only two connection rules: `bind` names an input, and `{{ expression }}` reads it elsewhere. Components handle their own selection, expansion, search, sorting, timing and reset.
 
-This draft does not include external service calls, form submission, asynchronous resources, named actions, event handlers, programmable collection edits, general loop templates or arbitrary scripts. Legacy `state/data/computed/actions` configuration blocks are not part of the new syntax. Expressions can produce string or numeric arrays; checklist and multi-select components produce string arrays. Tables can use prose Markdown or bounded local row generation through `data-table`.
+This revision does not include external service calls, form submission, asynchronous resources, named actions, event handlers, programmable collection edits, general loop templates or arbitrary scripts. Legacy `state/data/computed/actions` configuration blocks are not part of this syntax. Expressions can produce string or numeric arrays; checklist and multi-select components produce string arrays. Tables can use prose Markdown or bounded local row generation through `data-table`.
 
 By default a document only keeps in-memory state for the current instance. Reopening starts from initial values; persistence is not part of the author syntax. No language version declaration, component import or YAML is required. A document may optionally declare its revision with one `<!-- reactive-md: local-draft-3 -->` line in the prologue, before the theme and body; unversioned documents use the current revision. See [Source revisions and migration](../compatibility/source-versioning-en.md). Hosts should explicitly select draft parsing mode and must not guess by mixing old and new syntax.
 
@@ -58,7 +56,7 @@ The inline components `badge`, `tooltip`, `jump` and `text` can be embedded in s
 | Void component | `<slider bind="a" label="Amplitude">` | No end tag; a trailing `/>` is also accepted |
 | Container with content | `<card title="Notes">` and `</card>` | Must be explicitly closed; nesting is allowed |
 
-Void components are fixed to `input`, `textarea`, `number`, `slider`, `range-slider`, `coordinate`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `anchor` and `edge`. The declaration tags `computed`, `const` and `validation`, and the structural `column`, also have no body. Every other component listed in this draft uses paired tags. `textarea` text is set through `initial`, so it is a void component.
+Void components are fixed to `input`, `textarea`, `number`, `slider`, `range-slider`, `coordinate`, `toggle`, `checkbox`, `date`, `counter`, `timer`, `progress`, `anchor` and `edge`. The declaration tags `external`, `computed`, `const` and `validation`, and the structural `column`, also have no body. Every other component listed in this revision uses paired tags. `textarea` text is set through `initial`, so it is a void component.
 
 For example:
 
@@ -72,7 +70,7 @@ Total cost: {{ people * 100 }} USD.
 </card>
 ```
 
-Tag names and attribute names use lowercase kebab-case; an end tag must match the most recently unclosed container. Automatic closing and correction of mismatched tags are not allowed. Legacy directives such as `:::card` are not interpreted as new components.
+Tag names and attribute names use lowercase kebab-case; an end tag must match the most recently unclosed container. Automatic closing and correction of mismatched tags are not allowed. Legacy directives such as `:::card` are not interpreted as components.
 
 ### 3.3 Attributes
 
@@ -97,7 +95,7 @@ Omitted boolean attributes use the component default rather than always assuming
 
 `bind`, `initial`, `name`, `id`, `value` (option identifier), `to`, `from`, `answer`, `kind`, field mappings and layout enums are static attributes. `min`, `max` and `required` are dynamic on `number`, `slider`, `date`, `input` and `textarea`: use one complete interpolation whose result is a number, a `YYYY-MM-DD` string (or empty string) or a boolean respectively. `step`, length limits, selector options and the range-slider/coordinate bounds remain static. Plot `min/max` may be dynamic to adjust the observed range. The `rows` attribute of `textarea` is a static row count, while `data-table.rows` is a required expression; do not confuse the two.
 
-Dynamic constraints are checked when a value is written and when the control is displayed. If another parameter narrows a range so that an existing value becomes invalid, the stored value is kept and the field shows the constraint error; it is never clamped or silently replaced. Shared bindings must declare the same static range and step and, when a bound is dynamic, the same expression.
+Dynamic constraints are checked when a value is written and when the control is displayed. Writes use the constraints in effect at that moment and still commit atomically. If another parameter narrows a range so that an existing value becomes invalid, the stored value is kept and the field shows the constraint error; it is never clamped, reset or snapped to a nearby legal value. Reducing the field to satisfy the new range, or restoring the dependency, clears the error. Dynamic `required` switching to true while the field is empty shows a hint and does not fill the field. A dynamic bound that cannot be evaluated, a dynamic `min` greater than `max`, or an invalid dynamic date bound rejects the related write and leaves state and revision unchanged. `runtime.validate()` keeps its cross-field meaning; dynamic constraint failures are enforced on writes and displayed on the field. Shared bindings must declare the same static range and step and, when a bound is dynamic, the same expression. `step` and text-length limits remain static.
 
 Unknown components, unknown attributes, wrong positions or wrong attribute types all produce source diagnostics. Registered tags are not executed as arbitrary HTML; authors cannot use `script`, `style`, `onclick` or other script entry points.
 
@@ -164,6 +162,24 @@ Disabled controls do not accept reader input. A panel reset commits all paramete
 
 When a conditional region is hidden, existing state, tab selection and checklist checks are preserved. Timers in hidden regions pause and stay paused when shown again until the reader starts them. Disposing a document releases timers, subscriptions and component state.
 
+### 4.4 Cross-field validation
+
+```markdown
+<number bind="people" label="Participants" initial="4" min="1" max="20">
+<number bind="capacity" label="Room capacity" initial="3" min="1" max="20">
+<validation when="{{ people <= capacity }}" message="Choose a room for at least {{ people }} people." fields="people capacity">
+```
+
+`validation` is a void block component with required `when`, `message` and `fields`. `when` contains one complete boolean expression. `message` is text with optional ordinary interpolations. `fields` lists distinct public writable binding names separated by whitespace; names from multi-slot controls are accepted. A rule can read controls and computed values, including values declared later in the source. Fields identify the controls associated with the rule's hint, and read-only declarations cannot be fields.
+
+Constraints report the current consistency of a document, so readers can still edit an inconsistent plan, including one whose initial values fail a cross-field rule. Changing the participant count from four to six can temporarily exceed room capacity; changing the room then clears the hint. Individual control rules such as numeric bounds and invalid calendar dates keep their write-rejection behavior.
+
+`runtime.validate()` returns diagnostics for all current failed rules in source order. It reports `local.validation.failed` when `when` is false and `local.validation.expression` when an expression cannot be evaluated; an expression error counts as a failure. One failed rule does not stop independent rules. The result is cached for the current runtime revision and returned as defensive copies. Edits, atomic slot updates and resets refresh calculations and validation together.
+
+The renderer displays failed-rule hints and associates them with the corresponding controls or their accessible groups through `aria-describedby` and `aria-invalid`. Hint IDs belong to the mounted document instance, and success removes the error text. Rules in hidden content remain active, as do their bindings; hidden hints do not announce themselves. A document supports at most 100 validation rules, including hidden regions, and diagnostic messages retain the existing 2,000-character bound.
+
+`LocalDocument.validations` contains serializable `LocalValidation` metadata. Hosts can call `runtime.validate()` at any time without changing state, and the compiled document remains transferable to a Worker with `structuredClone`.
+
 ## 5. Text interpolation and expressions
 
 ```markdown
@@ -222,11 +238,109 @@ Price: {{ priceCny }} CNY
 
 The host supplies values through `externalValues` on `LocalReactiveDocument` or `runtime.setExternalValues()`. Values are validated against the declared type and the usual size budgets. When a value is missing, only expressions that read that name fail locally; independent content keeps working, and the dependent content recalculates when the value arrives. A missing value is never converted to `0`, `false` or an empty string. Static export and SSR behave the same way: pass the values into the host integration; an export does not fetch or embed them.
 
-This build adds named read-only values through top-level `computed` and `const` declarations. Short calculations can still be written in place; use declarations for intermediate results shared by prose, conditions, formulas and charts. See [Reusing calculations and formatting values](computations-formatting-en.md) for dependency, error and caching rules.
+Top-level `computed` and `const` declarations provide named read-only values; see [5.4 Named values](#54-named-values). Short calculations can still be written in place; use declarations for intermediate results shared by prose, conditions, formulas and charts.
+
+### 5.4 Named values
+
+```markdown
+<const name="unitPrice" value="{{ 12.5 }}">
+<computed name="total" value="{{ quantity * unitPrice }}">
+<computed name="invoice" value="{{ formatCurrency(total) }}">
+
+<number bind="quantity" label="Quantity" initial="2" min="0" max="100">
+
+Invoice: **{{ invoice }}**.
+
+<if when="{{ total >= 100 }}">
+Eligible for bulk delivery.
+</if>
+```
+
+`computed` and `const` are invisible, void declarations. Write each on its own line at document top level; `/>` is accepted too. Both require `name` and a complete `value="{{ expression }}"`. Their values use the expression types: number, string, boolean, null, string array or numeric array. The compiler infers the type; there is no type annotation or implicit conversion.
+
+Names follow the same identifier and reserved-name rules as `bind`. Controls, multi-slot bindings and declarations share one namespace. A declaration cannot replace another declaration or a control. Declarations inside containers are compile errors. Code fences, inline code and comments remain literal or inert.
+
+Declarations are visible throughout the document, including before their source position. A `computed` value may read controls, constants and other computations. A `const` may read other constants and built-in constants such as `pi`; it stays independent of controls and computations. Constants have no editing or reset control.
+
+The compiler extracts dependencies from the expression AST, including all conditional branches, and orders declarations by dependency before inferring types. Unknown names, duplicate names, self references and indirect cycles produce source-positioned errors. A cycle in an unused branch is still a compile error. Type checking uses the same operator and function rules as ordinary expressions; runtime domain errors remain possible, for example division by a control that becomes zero. Names declared by top-level `<external>` tags are valid read-only dependencies for `computed` values, text and conditions; a `const` cannot depend on external data, and external names never become writable parameters.
+
+Use a named value anywhere an expression is accepted: prose, dynamic attributes, conditions and numeric table cells used by charts. Computable LaTeX formulas read multi-letter numeric names as `\mathrm{total}`, for example `y = \mathrm{total} x`. Formatted strings belong in labels or prose; numeric chart cells and plot parameters need the underlying number.
+
+Each runtime owns its calculation cache. Computations are reused within a revision and refreshed after a successful control edit, atomic multi-slot edit or panel reset. Constants are evaluated at compilation and copied into each runtime. Hiding a section keeps its inputs and calculations; reset follows the existing control subtree rules.
+
+A failed calculation propagates its expression error when a consumer reads it. The runtime never substitutes zero, null or a previous successful value. Independent consumers continue to work, and a valid input edit lets failed consumers recover. Runtime logical and conditional operators keep their short-circuit behavior, so an unvisited branch does not read its failed value. A constant with an invalid static value is a compile error.
+
+`document.bindings` and `document.initialState` describe writable controls. `document.computations` contains serializable declaration metadata, and `document.externals` contains the read-only external declarations. `runtime.snapshot().state` also contains successful named results for the current revision; failed results are absent. Use `runtime.evaluate(name)` to read a result with its error semantics. Declarations cannot be changed through `set` or `setMany`. Returned arrays remain protected from external mutation.
+
+Declaration diagnostics use `local.computation.*`: `placement`, `name`, `reserved`, `duplicate`, `value`, `unknown`, `cycle`, `const`, `expression` and `budget`. Expression type errors keep the existing `local.expression.*` codes, and diagnostics include source ranges, lines and columns. The graph uses an iterative dependency order, so long chains do not require recursive evaluation. Existing source, syntax-node, expression and value budgets still apply, and cycle reports are capped by the diagnostic budget.
+
+Expression function names are reserved identifiers. A binding or declaration cannot use `sum`, `formatNumber`, `dateDiff` or any other function listed in [5.1](#51-expression-set); the compiler reports the conflict with a reserved-name diagnostic. Rename the name and its references.
+
+### 5.5 Formatting, strings and dates
+
+All four formatting functions return strings; optional arguments are positional.
+
+| Function | Defaults and example |
+| --- | --- |
+| `formatNumber(value, digits, locale, grouping)` | `digits=2`, `locale="en-US"`, `grouping=true`; `formatNumber(1234.5)` gives `"1,234.50"` |
+| `formatPercent(value, digits, locale)` | `digits=0`, `locale="en-US"`; `formatPercent(0.125, 1)` gives `"12.5%"` |
+| `formatScientific(value, digits, locale)` | `digits=2`, `locale="en-US"`; `formatScientific(1234)` gives `"1.23E3"` |
+| `formatCurrency(value, currency, digits, locale)` | `currency="USD"`, `digits=2`, `locale="en-US"`; `formatCurrency(12.5)` gives `"$12.50"` |
+
+`digits` is an integer from 0 to 20 and fixes both minimum and maximum fraction digits, including for currencies such as JPY. `grouping` is a boolean. Supported locales are exactly `en-US`, `zh-CN`, `de-DE`, `fr-FR` and `ja-JP`; omission uses `en-US` regardless of the renderer's UI language or device settings, and an unsupported locale is an error. Currency codes are three uppercase ASCII letters accepted by `Intl.NumberFormat`; the check is syntactic and does not consult a registry of circulating currencies.
+
+Formatting uses decimal `halfExpand` rounding: ties round away from zero, so `formatNumber(1.005)` gives `"1.01"` and `formatNumber(-1.005)` gives `"-1.01"`. Zero displays without a negative sign. Arithmetic still uses finite JavaScript numbers; `round(x)` keeps its `Math.round` rule, with ties toward positive infinity. Formatting changes presentation, not the source number.
+
+A null value formats as an empty string. Other argument types remain strict, and strings are not converted into numbers, so guard optional dates or text explicitly before applying their functions. Locale-specific punctuation, currency symbols and spacing follow the host's `Intl` data; hosts that need byte-identical text across platforms pin their runtime and locale data.
+
+| String function | Behavior |
+| --- | --- |
+| `trim(text)` | Remove leading and trailing JavaScript Unicode whitespace |
+| `lower(text)`, `upper(text)` | Default Unicode case conversion, independent of locale |
+| `startsWith(text, search)`, `endsWith(text, search)` | Case-sensitive literal checks; empty search matches |
+| `replace(text, search, replacement)` | Replace every non-overlapping literal match; empty search is an error; replacement text such as `$&` stays literal |
+| `slice(text, start, end)` | Unicode code point indices; end is exclusive and defaults to the length; negative indices count from the end; indices are integers and clamp to bounds |
+
+These functions require strings, including when the value is null. No regular expressions or property access are available. Code points are distinct from grapheme clusters: a combined emoji or an accented letter can contain several code points. All results keep the existing string budget of 100,000 UTF-16 code units, and replacement expansion is checked before constructing an oversized result.
+
+`dateCompare(a, b)` returns `-1`, `0` or `1`. `dateDiff(a, b, unit)` returns the signed difference **a minus b**; the default unit is `"days"`, and other units are `"hours"`, `"minutes"`, `"seconds"` and `"milliseconds"`.
+
+Both arguments must be valid `YYYY-MM-DD` strings in years `0001` through `9999`, matching date controls. The calendar is Gregorian and leap days are validated. Each date means midnight UTC, so device timezone and daylight saving changes do not change the result: `dateDiff("2026-03-09", "2026-03-08", "hours")` is `24`. Timestamps, timezone suffixes and ambiguous regional date strings are rejected.
+
+An empty date control contains `""`, which is an absent date rather than epoch zero. Empty or invalid dates produce a domain error, and null produces a type error. Guard optional dates explicitly:
+
+```markdown
+<computed name="days" value="{{ startDate == '' || endDate == '' ? null : dateDiff(endDate, startDate) }}">
+Days: {{ days == null ? 'Choose both dates' : formatNumber(days, 0) }}
+```
+
+### 5.6 Arrays and aggregates
+
+```markdown
+<const name="fixedFees" value="{{ [100, 20, 5] }}">
+<computed name="fees" value="{{ [people * 80, includeKit ? people * 20 : 0] }}">
+
+First fee: {{ fees[0] }}. Total: {{ sum(fees) }}.
+```
+
+Array literals contain only strings or only finite numbers. Expressions inside a literal can read the document's named values. Nested arrays, mixed element types, booleans and null elements are rejected. `[]` is an empty numeric array by default; a direct empty literal in a conditional branch adopts a string-array sibling's kind, so `show ? subjects : []` works for string selections. Checklist and multi-select values remain string arrays. The public type `LocalValue` gains `number[]`, and `LocalValueKind` gains `number-array`; the existing `array` kind continues to mean a string array.
+
+Indexing is zero based: `values[0]` reads the first element. The index must be a finite safe integer. An integer outside the collection, including a negative index, returns null; a non-integer index is an error. Indexing a string or a scalar is a type error. Arrays cannot be interpolated as text; use an index, `len`, an aggregate or a data table.
+
+`len` counts both kinds of array. `contains` accepts a string member for a string array, a number for a numeric array, and a substring for a string. Every array is bounded by 10,000 elements; array literals also consume the existing expression-length, AST-node and evaluation budgets. The total contents of a string array keep the existing character budget. Returned runtime arrays are copied, and snapshot arrays are frozen.
+
+| Function | Result |
+| --- | --- |
+| `sum(values)` | Sum of a numeric array; empty input gives `0` |
+| `average(values)` | Arithmetic mean; empty input gives null |
+| `minOf(values)` | Smallest numeric member; empty input gives null |
+| `maxOf(values)` | Largest numeric member; empty input gives null |
+
+Aggregates accept numeric arrays, with no conversion of numeric-looking strings. Results use finite JavaScript numbers; an overflow in the sum or result is an expression error. `average` divides the sum by the count, so an overflowing intermediate sum is also an error. Null from an empty aggregate follows the existing nullable-expression rules, so guard it before numeric operations when needed. Scalar `min`, `max` and `round` keep their existing signatures and behavior.
 
 ## 6. Inputs and parameter panels
 
-All input components support `label`, optional `bind`, optional scalar `initial` and dynamic `disabled`. Additional attributes are listed below; unlisted attributes are not part of this draft.
+All input components support `label`, optional `bind`, optional scalar `initial` and dynamic `disabled`. Additional attributes are listed below; unlisted attributes are not part of this revision.
 
 | Component | Additional attributes and defaults |
 | --- | --- |
@@ -241,7 +355,11 @@ All input components support `label`, optional `bind`, optional scalar `initial`
 | date | optional min/max dates (dynamic); required=false (dynamic) |
 | select, choices, radio-group, multi-select | Body is one or more options; multi-select adds max-selected and uses a string-array value |
 
-`range-slider` and `coordinate` expose independent number slots. Omit a slot's `bind-start`/`bind-end` or `bind-x`/`bind-y` to keep that slot internal; provide at most one explicit initial per slot. Crossing endpoints is rejected, not silently swapped. `multi-select` requires `label`, accepts `max-selected`, and normalizes writes to source order. These components also accept an optional `color`. See [local-draft-2 components and migration](local-components-v2-en.md) for the complete rules.
+`range-slider` and `coordinate` are leaves with required `label`, optional `color` and dynamic `disabled`. Bounds and the positive step are static finite numbers. `range-slider` defaults to 0/100/1, with start=min and end=the largest valid step not exceeding max. Crossing is rejected rather than swapping endpoints. `coordinate` defaults to -5…5 on both axes, step 1, and the nearest legal zero per axis. It supports pointer dragging, keyboard control and numeric alternatives.
+
+Each optional `bind-start`/`bind-end` or `bind-x`/`bind-y` names one exclusive numeric slot; an omitted name keeps that slot internal. `x` and `y` remain reserved parameter names. Slots initialize at compile time and reset atomically. Host APIs extend to `runtime.get(node, slot?)`, `runtime.set(node, value, slot?)` and `runtime.setMany(node, values)`. Slots are start/end for ranges and x/y for coordinates. Every write validates canonical registered slots; an invalid batch preserves the entire snapshot and revision, and existing one-value calls remain valid.
+
+`multi-select` requires a `label` and one or more option children; `bind` is optional. Its exclusive string-array binding defaults to empty. `initial` is a comma-separated list of static values; values are nonempty, unique and comma-free. `max-selected` is a nonnegative integer, defaulting to the option count. Writes normalize to source order and obey the existing array budgets. Search and Clear are built in, and selected items remain removable at the limit. `disabled` may be dynamic; reset clears local search and restores the initial selection, while hiding preserves them. `multi-select` also accepts an optional `color`.
 
 Selector example:
 
@@ -291,9 +409,26 @@ When if's when is false, content is not displayed, but internal parameters are s
 | steps | optional label, bind and initial; exclusive string binding | One or more step children; first step selected by default |
 | step | label required; optional value | Markdown body; omitted values become step-1, step-2 and so on |
 
-`jump.to` and `anchor.id` match heading slugs or explicit IDs. Duplicate anchors, heading collisions and missing targets are compile errors. `quiz` answers are supplied in source for self-study; drafts and feedback stay inside the component and panel reset clears them. `steps` keeps inactive step content initialized and preserves its state; hidden timers pause. See [local-draft-2 components and migration](local-components-v2-en.md) for color validation and slot details.
+`jump.to` is a static heading slug or explicit anchor ID, written without a leading `#`. Explicit IDs match `[A-Za-z_][A-Za-z0-9_-]*`. Duplicate anchors, heading collisions and missing targets are compile errors. DOM IDs are namespaced per rendered document. Jumps scroll and move focus, and a hidden target shows local feedback. Existing Markdown fragment links also resolve explicit anchors.
 
-Base layout uses Markdown; images use `![description](../path)`, links use `[text](../address)`, and horizontal rules use `---`. Images load only after the host explicitly allows them through a URL policy; by default no image requests are made. See [Image and link policy](../integration/local-integration-en.md#image-and-link-policy) for integration. This draft does not provide author tags for row, stack, spacer, icon, image or link-button, and does not expose class/style.
+`text` and `section` require `color`. Other supported components accept an optional `color`: jump, badge, progress, slider, toggle, checkbox, select, choices, radio-group, checklist, multi-select, range-slider and coordinate. Static named colors from the shared table and `#RGB`/`#RRGGBB` are accepted. Expressions, CSS functions, variables and declarations are rejected. Text containers set foreground color, and inner values override inheritance; links and controls keep their own appearance. Other components use color for their accent, selected state or progress fill, while `tone` keeps its semantic meaning. Omitted values use the theme.
+
+`quiz` requires `label` and `answer`. `type` defaults to `choice`, with option children and a matching answer. A numeric quiz has an empty body, a finite `answer` and a nonnegative absolute `tolerance` defaulting to 0. `explanation` is optional and supports text interpolation. Check answer, feedback and Try again are built in. Drafts and feedback stay inside the component; this revision has no `quiz` bind. Hiding preserves them and panel reset clears them. Answers are supplied in source for self-study.
+
+`steps` accepts one or more `step` children, optional `label` and an exclusive string `bind`. `initial` defaults to the first step. Each `step` requires `label`; omitted values become `step-1`, `step-2` and so on, and values are unique within a group. Previous/Next and position are built in. Only active content is visible; all bindings still initialize, state persists between steps, and hidden timers pause. Reset restores the initial step and its subtree.
+
+Base layout uses Markdown; images use `![description](../path)`, links use `[text](../address)`, and horizontal rules use `---`. Images load only after the host explicitly allows them through a URL policy; by default no image requests are made. See [Image and link policy](../integration/local-integration-en.md#image-and-link-policy) for integration. This revision does not provide author tags for row, stack, spacer, icon, image or link-button, and does not expose class/style.
+
+### 7.2 Conditional tones
+
+```markdown
+<badge tone="{{ total <= budget ? 'success' : 'warning' }}">{{ formatCurrency(total) }}</badge>
+<alert tone="{{ total <= budget ? 'info' : 'warning' }}">Review the estimate before booking.</alert>
+```
+
+`badge` accepts dynamic `tone` with `neutral`, `success` and `warning`; `alert` accepts `info`, `success` and `warning`. Static `tone` values use the same enums. A dynamic expression must have string type, and the renderer checks the returned value against the component's allowed tones. An error or unsupported value uses the default tone and a visible computation hint. CSS classes, author styles and colors remain outside this conditional API.
+
+The enum covers warning and success emphasis while keeping theme colors and contrast under host control. Broader conditional styling is outside the author syntax.
 
 ## 8. Checklists
 
@@ -310,7 +445,7 @@ Completed {{ len(done) }} / 3 items.
 
 The checklist body is a non-empty, single-level Markdown task list, checked by the reader by default. Plain Markdown task lists remain static content. Items may contain inline Markdown but must not contain nested task lists or interactive components.
 
-Fixed entries generate internal IDs `item-1`, `item-2` and so on in order; the public value is an array of checked IDs in source order, and `[]` when nothing is selected. Entries are not added, removed or reordered during a document instance; they are regenerated after editing the source and creating a new instance. Reset restores the initial state specified by `[x]` / `[ ]`. Supports label, optional bind and dynamic disabled.
+Fixed entries generate internal IDs `item-1`, `item-2` and so on in order; the public value is an array of checked IDs in source order, and `[]` when nothing is selected. Entries are not added, removed or reordered during a document instance; they are regenerated after editing the source and creating a new instance. Reset restores the initial state specified by `[x]` / `[ ]`. Supports label, optional bind and dynamic disabled. Checked item text is struck through and muted, including initial `[x]` items; unchecking restores it, and only the checked item changes.
 
 progress is a void component; label/value are required, max defaults to 100, and value may be dynamic; max must be a positive finite number, value must be between 0 and max, and out-of-range values show a diagnostic instead of being silently clamped.
 
@@ -338,7 +473,9 @@ There is no need to declare a YAML array first, and remote URLs, data attributes
 </table>
 ```
 
-table supports optional label, searchable=true, sortable=true and page-size=10 (positive integer). It provides a search box, sortable headers and paging by default; paging controls are hidden when there is only one page. With `key` naming a static, nonempty, unique identifier column, `bind` and `initial` can expose the selected row as a stable string; without `key`, selection stays inside the renderer.
+table supports optional label, searchable=true, sortable=true and page-size=10 (positive integer). It provides a search box, sortable headers and paging by default; paging controls are hidden when there is only one page.
+
+`key` names a column of static, nonempty, unique text identifiers. Selection is enabled only when `key` is present, so `bind` and `initial` require it. The bound value is an empty string when no row is selected by default, and an explicit `initial` must match a row. Mouse or keyboard selection writes row identity. A table and a chart may share a selection binding only with identical ordered keys and at most one explicit initial. Sorting, searching, pagination and hidden chart legends preserve the selection; table filters still affect only that table, and components without `key` gain no implicit binding. Reset restores the initial selection along with the rest of the subtree.
 
 Search is a case-insensitive substring match over the displayed text of all columns, trimming whitespace from the query; sorting uses the full column type, numerically for numeric columns and by Unicode code point order for text otherwise, preserving the original order of equal rows. Clicking a header cycles ascending, descending and source order. Search or sort changes return to the first page, and reactive data changes clamp the current page to the valid range. No matches shows "No matching results". These interactions affect only the table.
 
@@ -366,11 +503,33 @@ line/area determine the horizontal axis as numeric or categorical from the full 
 
 Interactive default-theme charts provide themed tooltips, legend highlighting and 200ms data transitions. Line and area charts read visible series in the same row; bars read one hovered bar; scatter charts find the nearest point; pie and donut charts show values and shares of the visible total. Static mode keeps the data graphics and removes hover interaction and animation.
 
-Numeric columns update with parameters. Calculation errors display in the corresponding chart and are not replaced with 0. With `key`, a chart can expose selection through `bind`, using the same stable row-key rules as `table`; a table and chart may share that binding only when their ordered keys match.
+Numeric columns update with parameters. Calculation errors display in the corresponding chart and are not replaced with 0. With `key`, a chart exposes selection through `bind` under the same row-key rules as `table`.
 
 ### 9.4 Timelines
 
 timeline supports optional title and unit (display text, default "minutes"), and its body is a table with either `Task`, `Start` and `Duration` columns or `事项`, `开始` and `时长` columns, plus optional `Notes` or `说明`. These column names are fixed headers; start and duration are non-negative numbers. Sorting is stable by start time, overlapping intervals are allowed, and notes are viewed with a pointer or keyboard. Table content may use interpolation.
+
+### 9.5 Generated tables
+
+```markdown
+<const name="subjects" value="{{ ['mathematics', 'physics', 'chemistry'] }}">
+
+<data-table label="Subject preparation" rows="{{ subjects }}" key="{{ item }}" max-rows="3">
+<column label="Subject" value="{{ item }}">
+<column label="Position" value="{{ index + 1 }}">
+<column label="Preparation" value="{{ item == 'chemistry' ? 'Prepare materials' : 'Prepare examples' }}">
+</data-table>
+```
+
+`data-table` is a paired block component. It requires an accessible `label`, a complete array expression in `rows`, and a complete string or number expression in `key`. Its only children are 1 to 20 void `column` declarations. A column requires a static `label` and a complete scalar `value` expression. Cells output plain text; null gives an empty cell.
+
+Each row has two local names: `item` is the current string or number, and `index` is its current zero-based position. These names shadow same-named document values inside column expressions. Other references use the normal document environment. The source `rows` expression uses ordinary document scope.
+
+Keys depend only on `item`, including at least one reference to it. They cannot depend on `index` or other document values. The table checks that every evaluated key is a nonempty string or finite number and is unique. Numeric and string keys have distinct identities; signed numeric zeros have the same identity. React rows retain their identities when their items reorder. For records with repeated display values, use a collection of distinct local IDs as `rows` and derive the display cells from those IDs. Duplicate or invalid keys produce a whole-table error.
+
+`max-rows` is a static integer from 1 to 1,000, defaulting to 100. Across the document, declared row budgets may total at most 2,000 and row budgets multiplied by their column counts may total at most 10,000 cells. Hidden tables count too. Each generated table also has a budget of 100,000 UTF-16 code units for header text, cell text, error and empty placeholders, and encoded row keys. The renderer checks budgets before exposing rows; exceeding them reports an error without truncating the data.
+
+An empty array displays the headers and an empty-state message. Failure of the row source or a key clears the table's rows and displays an error. A cell-expression failure is shown in that cell while independent cells remain readable. The component creates native table rows, not arbitrary repeated document sections or controls. Markdown tables and their existing chart inputs keep their original behavior.
 
 ## 10. LaTeX math and function plots
 
@@ -430,7 +589,7 @@ plot supports min=-10, max=10 (dynamic allowed, requiring min < max), points=200
 
 ### 10.2 Computable LaTeX
 
-The following math forms must be supported by plotting computation in this draft. Formula layout and computation capability are validated separately; being able to lay out a formula does not mean it can be evaluated.
+This revision requires plotting computation to support the following math forms. Formula layout and computation capability are validated separately; being able to lay out a formula does not mean it can be evaluated.
 
 | Math content | Syntax |
 | --- | --- |
@@ -502,7 +661,7 @@ Nodes are clickable and keyboard-selectable by default, and the selected notes a
 
 ## 12. Component reference and syntax scope
 
-| Purpose | Draft components |
+| Purpose | Components |
 | --- | --- |
 | Parameter input | input, textarea, number, slider, range-slider, coordinate, toggle, checkbox, date, select, choices, radio-group, multi-select, option |
 | Built-in actions | counter, timer, checklist, progress |
@@ -513,9 +672,9 @@ Nodes are clickable and keyboard-selectable by default, and the selected notes a
 | Declarations and generated data | external, computed, const, validation, data-table, column |
 | Visualization | table, chart, plot, timeline, diagram, node, edge |
 
-49 tag names in total. `option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children of parent components. `external`, `external`, `computed`, `const` and `validation` are document declarations; they are parsed as tags but are not rendered controls. The leading `<theme>` declaration is metadata and is not counted here. Most articles only need Markdown and two or three input/display components. Plain amounts can be written directly as `{{ total }} USD`; currency formatting and statistic cards are not entry-level requirements.
+49 tag names in total. `option`, `tab`, `disclosure`, `node`, `edge`, `step` and `column` are structural children of parent components. `external`, `computed`, `const` and `validation` are document declarations; they are parsed as tags but are not rendered controls. The leading `<theme>` declaration is metadata and is not counted here. Most articles only need Markdown and two or three input/display components. Plain amounts can be written directly as `{{ total }} USD`; currency formatting and statistic cards are not entry-level requirements.
 
-This draft does not accept legacy tags such as form, submit, button, each, list, spinner, stat or value, nor set/reset action attributes or on-* event attributes. The panel reset is a fixed boolean option, not a programmable action.
+This revision does not accept legacy tags such as form, submit, button, each, list, spinner, stat or value, nor set/reset action attributes or on-* event attributes. The panel reset is a fixed boolean option, not a programmable action.
 
 ## 13. Diagnostics and acceptance rules
 
@@ -539,7 +698,7 @@ Diagnostics include severity, category, a short explanation, source line/column 
 
 Implementation acceptance must cover:
 
-1. Every regular new example compiles according to this specification; the diagnostics example reports the expected errors it lists.
+1. Every regular example compiles according to this specification; the diagnostics example reports the expected errors it lists.
 2. Headings, tables, lists and code inside Markdown containers parse normally; tags and interpolations inside code and comments are inactive.
 3. Components without bind work independently; bindings across components stay in sync, and an explicit initial value is applied only once.
 4. Forward references, conditional hiding, tab switching and panel reset follow the same state rules.
@@ -558,7 +717,6 @@ Host components are not part of the portable author tag set. When the host regis
 
 A host schema may declare an optional scalar binding for `string`, `number` or `boolean`. The component then accepts `bind`, `initial` and dynamic `disabled` implicitly and shares the built-in binding families: a `number` binding can pair with `<number>` or `<slider>` when its static `min`, `max` and `step` match. The host renderer receives the current `value`, a validating `setValue`, `disabled`, `resetToken`, resolved `props` and a `report` function. Host schemas remain plain data; the renderer is trusted host code and never enters a worker.
 
-**local-draft-3** adds `<external>` and the dynamic constraint attributes; host component forms and bindings are controlled by the host component protocol, not by the author syntax revision.
+`<external>` read-only declarations and dynamic constraint attributes are part of the current revision; host component forms and bindings are governed by the host component protocol, not by the author syntax revision.
 
-
-See [local-draft-2 components and migration](local-components-v2-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.6.0` is available on both the `latest` and `next` channels.
+See [Versions and compatibility](../compatibility/compatibility-en.md) for version mapping and compatibility rules, and [Source revisions and migration](../compatibility/source-versioning-en.md) for the revision directive and migration tools.

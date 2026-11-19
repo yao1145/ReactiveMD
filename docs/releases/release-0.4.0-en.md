@@ -42,7 +42,7 @@ The new expression functions are reserved binding names. Rename any existing con
 
 `sum`, `average`, `minOf`, `maxOf`, `formatNumber`, `formatPercent`, `formatScientific`, `formatCurrency`, `trim`, `lower`, `upper`, `startsWith`, `endsWith`, `replace`, `slice`, `dateCompare`, `dateDiff`.
 
-These join the existing reserved names: math and collection functions (`abs`, `sqrt`, `floor`, `ceil`, `round`, `min`, `max`, `pow`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `exp`, `log`, `len`, `contains`, `clamp`), the constants `pi` and `e`, the plot names `x` and `y`, the literals `true`, `false` and `null`, and `__proto__`, `prototype` and `constructor`. See [Reusing calculations and formatting values](../reference/computations-formatting-en.md#compatibility).
+These join the existing reserved names: math and collection functions (`abs`, `sqrt`, `floor`, `ceil`, `round`, `min`, `max`, `pow`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `exp`, `log`, `len`, `contains`, `clamp`), the constants `pi` and `e`, the plot names `x` and `y`, the literals `true`, `false` and `null`, and `__proto__`, `prototype` and `constructor`. See [Formatting, strings and dates](../reference/local-interaction-syntax-en.md#55-formatting-strings-and-dates).
 
 ### Newly recognized tag names
 
@@ -88,4 +88,4 @@ The `0.4.0` build targets Node.js 22.12 and Node 24; its CI gate uses Playwright
 
 Static SSR is covered by the packed check. Single-file export static-first hydration is covered by the Playwright Chromium and local Edge checks. General SSR hydration outside that path, Firefox and Safari/WebKit are unverified and are not claimed as supported.
 
-Use [Versions and compatibility](../compatibility/compatibility-en.md) for the version rules and diagnostics contract, [Source revisions and migration](../compatibility/source-versioning-en.md) for the directive and migration tools, [Shareable documents and static export](../integration/shareable-export-en.md) for the HTML and state formats, and [local-draft-2 components and migration](../reference/local-components-v2-en.md) for the component additions.
+Use [Versions and compatibility](../compatibility/compatibility-en.md) for the version rules and diagnostics contract, [Source revisions and migration](../compatibility/source-versioning-en.md) for the directive and migration tools, [Shareable documents and static export](../integration/shareable-export-en.md) for the HTML and state formats, and the [syntax specification](../reference/local-interaction-syntax-en.md) for the component additions.

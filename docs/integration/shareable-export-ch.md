@@ -71,7 +71,7 @@ reactive-md build doc.reactive.md -o doc.pdf --format pdf --pdf-margin 12mm
 
 ## 迁移源码
 
-`reactive-md migrate` 把单份源码的修订声明迁移到 `local-draft-2`：
+`reactive-md migrate` 把单份源码的修订声明迁移到 `local-draft-3`：
 
 ```sh
 reactive-md migrate old.reactive.md --from local-draft-1 -o new.reactive.md
@@ -91,7 +91,7 @@ reactive-md migrate old.reactive.md --check --json
 ```json
 {
   "format": "reactive-md-state/v1",
-  "syntax": "local-draft-2",
+  "syntax": "local-draft-3",
   "sourceDigest": "fnv1a32:0123abcd",
   "parameters": {
     "people": 7,
@@ -224,7 +224,7 @@ handle.unmount();
 ```html
 <div id="doc"></div>
 <script type="application/reactive-md+json" data-reactive-md-auto>
-{"version":1,"target":"doc","source":"# Hello","state":{"format":"reactive-md-state/v1","syntax":"local-draft-2","sourceDigest":"fnv1a32:01209266","parameters":{}},"locale":"en","colorScheme":"auto","hydrate":false}
+{"version":1,"target":"doc","source":"# Hello","state":{"format":"reactive-md-state/v1","syntax":"local-draft-3","sourceDigest":"fnv1a32:01209266","parameters":{}},"locale":"en","colorScheme":"auto","hydrate":false}
 </script>
 ```
 
