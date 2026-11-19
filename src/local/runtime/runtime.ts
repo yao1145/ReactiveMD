@@ -35,7 +35,7 @@ import {
 import { getLocalComponentDefinition } from '../../sdk/registry';
 import { localKey, type LocalBinding, type LocalComputation, type LocalDocument, type LocalNode, type LocalRuntime, type LocalRuntimeOptions, type LocalValueKind, type LocalSnapshot, type LocalValidation, type LocalValue } from '../contracts/types';
 import { createLocalRuntimeServices, type LocalRuntimeServices } from '../../runtime-services/runtime';
-import { createNetworkSession, type Json } from '../../runtime-services/network';
+import { createNetworkSession, type Json, type NetworkSession } from '../../runtime-services/network';
 import type { LocalSubmissionFieldCheck, LocalSubmissionFieldsResult } from '../contracts/types';
 import { componentStateKey, localSourceDigest } from '../../runtime-services/identity';
 
@@ -751,6 +751,7 @@ export interface LocalRuntimeDocumentUpdate {
 interface RuntimeController {
   update(next: LocalDocument, notify: boolean): LocalRuntimeDocumentUpdate;
   notify(): void;
+  bindNetworkExternals(session: NetworkSession, report?: (diagnostics: Diagnostic[]) => void): () => void;
 }
 
 const runtimeControllers = new WeakMap<LocalRuntime, RuntimeController>();
@@ -789,6 +790,15 @@ export function updateLocalRuntime(
 /** Flush a staged document update to subscribers after React commits. */
 export function notifyLocalRuntime(runtime: LocalRuntime): void {
   runtimeControllers.get(runtime)?.notify();
+}
+
+/** Connect a view-scoped network session to a ReactiveMD runtime. */
+export function bindLocalNetworkExternals(
+  runtime: LocalRuntime,
+  session: NetworkSession,
+  report?: (diagnostics: Diagnostic[]) => void,
+): () => void {
+  return runtimeControllers.get(runtime)?.bindNetworkExternals(session, report) ?? (() => {});
 }
 
 export function createLocalRuntime(document: LocalDocument, options?: LocalRuntimeOptions): LocalRuntime {
@@ -838,19 +848,28 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
   });
 
   const externalState: Record<string, LocalValue> = {};
+  const mappedExternals = new Map<Record<string, LocalValue>, () => void>();
   for (const [name, meta] of Object.entries(document.externals ?? {})) {
     const raw = options?.externalValues?.[name];
     if (raw === undefined) continue;
     const checked = validateExternalValue(meta.type, raw);
     if (checked.ok) externalState[name] = checked.value;
   }
-  const externalValuesFor = (loaded: RuntimeCore): Record<string, LocalValue> => {
+  const selectExternals = (
+    loaded: RuntimeCore,
+    source: Readonly<Record<string, LocalValue>>,
+  ): Record<string, LocalValue> => {
     const values: Record<string, LocalValue> = {};
     for (const [name, meta] of Object.entries(loaded.document.externals ?? {})) {
-      if (!Object.hasOwn(externalState, name)) continue;
-      const checked = validateExternalValue(meta.type, externalState[name]);
+      if (!Object.hasOwn(source, name)) continue;
+      const checked = validateExternalValue(meta.type, source[name]);
       if (checked.ok) values[name] = checked.value;
     }
+    return values;
+  };
+  const externalValuesFor = (loaded: RuntimeCore): Record<string, LocalValue> => {
+    const values = selectExternals(loaded, externalState);
+    for (const layer of mappedExternals.keys()) Object.assign(values, selectExternals(loaded, layer));
     return values;
   };
   const readDynamic = (node: LocalNode, attribute: 'min' | 'max' | 'required', env: Record<string, LocalValue>, loaded = current()): DynamicRead => {
@@ -989,7 +1008,17 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
     notify();
   };
 
-  const writeExternals = (values: Readonly<Record<string, LocalValue>>): Diagnostic[] => {
+  const changeExternals = (): void => {
+    revision += 1;
+    refreshComputations();
+    publish();
+    notify();
+  };
+
+  const writeExternals = (
+    values: Readonly<Record<string, LocalValue>>,
+    target = externalState,
+  ): Diagnostic[] => {
     ensure();
     if (values === null || typeof values !== 'object' || Array.isArray(values)) {
       throw new TypeError('setExternalValues requires an object of external values.');
@@ -1018,14 +1047,28 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
       normalized[key] = result.value;
     }
     if (diagnostics.length) return diagnostics;
-    const changed = keys.some((key) => !valuesEqual(externalState[key], normalized[key]));
+    const changed = keys.some((key) => !valuesEqual(target[key], normalized[key]));
     if (!changed) return [];
-    for (const [key, value] of Object.entries(normalized)) externalState[key] = value;
-    revision += 1;
-    refreshComputations();
-    publish();
-    notify();
+    Object.assign(target, normalized);
+    changeExternals();
     return [];
+  };
+
+  const bindNetworkExternals = (session: NetworkSession, report?: (diagnostics: Diagnostic[]) => void): (() => void) => {
+    if (disposed) return () => {};
+    const layer: Record<string, LocalValue> = {};
+    const release = session.bindExternalValues(values => {
+      if (disposed || !mappedExternals.has(layer)) return;
+      const diagnostics = writeExternals(values, layer);
+      if (diagnostics.length) report?.(diagnostics);
+    });
+    if (!release) return () => {};
+    mappedExternals.set(layer, release);
+    return () => {
+      if (!mappedExternals.delete(layer)) return;
+      release();
+      if (!disposed && Object.keys(layer).length) changeExternals();
+    };
   };
 
   const writeParameters = (values: Readonly<Record<string, LocalValue>>): Diagnostic[] => {
@@ -1333,9 +1376,11 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
       return freezeUpdate({ ok: false, changed: false, revision, retained: [], dropped: [], diagnostics: [] });
     }
 
-    const nextExternals = externalValuesFor(nextCore);
-    for (const name of Object.keys(externalState)) delete externalState[name];
-    Object.assign(externalState, nextExternals);
+    for (const source of [externalState, ...mappedExternals.keys()]) {
+      const nextExternals = selectExternals(nextCore, source);
+      for (const name of Object.keys(source)) delete source[name];
+      Object.assign(source, nextExternals);
+    }
     core = nextCore;
     state = migrated.values;
     evaluationEnv = layer.environment;
@@ -1545,14 +1590,14 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
 
     getExternal(name: string): LocalValue | undefined {
       ensure();
-      if (!Object.hasOwn(current().document.externals ?? {}, name) || !Object.hasOwn(externalState, name)) return undefined;
-      return cloneValue(externalState[name]);
+      if (!Object.hasOwn(current().document.externals ?? {}, name) || !Object.hasOwn(snapshotState, name)) return undefined;
+      return cloneValue(snapshotState[name]);
     },
 
     getExternalValues(): Readonly<Record<string, LocalValue>> {
       ensure();
       const values: Record<string, LocalValue> = {};
-      for (const [name, value] of Object.entries(externalState)) {
+      for (const [name, value] of Object.entries(externalValuesFor(current()))) {
         values[name] = Array.isArray(value) ? Object.freeze([...value]) as unknown as LocalValue : value;
       }
       return Object.freeze(values);
@@ -1621,6 +1666,8 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
       if (disposed) return;
       disposed = true;
       networkSession.dispose();
+      for (const release of mappedExternals.values()) release();
+      mappedExternals.clear();
       submissionFields.clear();
       // Coalesced saves would otherwise be dropped when a preview is replaced.
       services.state.flush();
@@ -1638,6 +1685,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
 
   runtimeControllers.set(runtime, {
     update,
+    bindNetworkExternals,
     notify() {
       if (disposed) return;
       for (const listener of listeners) listener();
@@ -1646,6 +1694,7 @@ export function createLocalRuntime(document: LocalDocument, options?: LocalRunti
 
   refreshComputations();
   publish();
+  bindNetworkExternals(networkSession);
 
   return runtime;
 }

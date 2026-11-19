@@ -89,6 +89,7 @@ export type {
   JsonPayload,
   NetworkChannel,
   NetworkConfig,
+  NetworkExternalValuesMapper,
   StreamEvent,
   StreamStatus,
   SubmitAdapter,

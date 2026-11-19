@@ -1,3 +1,5 @@
+import type { LocalValue } from '../local/contracts/types';
+
 /** JSON values accepted by a named network channel. */
 export type Json = null | boolean | number | string | readonly Json[]
   | { readonly [key: string]: Json };
@@ -7,7 +9,7 @@ export interface ChannelError {
   readonly code: 'unavailable' | 'invalid-data' | 'rejected' | 'transport' | 'unconfirmed' | 'cancelled';
   readonly message: string;
 }
-export type SubmitResult = { ok: true } | { ok: false; error: ChannelError };
+export type SubmitResult = { ok: true; readonly data?: Json } | { ok: false; error: ChannelError };
 export type StreamStatus = 'connecting' | 'open' | 'closed';
 export type StreamEvent =
   | { type: 'status'; state: StreamStatus }
@@ -54,9 +56,12 @@ export interface SubscribeAdapter {
   readonly maxBytes?: number;
   open(context: SubscribeAdapterContext): (() => void) | Promise<() => void>;
 }
+export type NetworkExternalValuesMapper = (value: Json) => Readonly<Record<string, LocalValue>> | undefined;
 export interface NetworkChannel {
   readonly submit?: SubmitAdapter;
   readonly subscribe?: SubscribeAdapter;
+  /** Opt in to a document subscription that maps validated messages to declared externals. */
+  readonly mapExternalValues?: NetworkExternalValuesMapper;
 }
 export interface NetworkConfig {
   readonly channels: Readonly<Record<string, NetworkChannel>>;
@@ -65,6 +70,7 @@ export interface NetworkConfig {
 }
 export interface NetworkSession {
   readonly network: ComponentNetwork;
+  bindExternalValues(write: (values: Readonly<Record<string, LocalValue>>) => void): (() => void) | undefined;
   dispose(): void;
 }
 
@@ -143,6 +149,17 @@ function checkedJson(input: unknown, maxBytes: number): Json {
   return result;
 }
 
+function snapshotSubmitResult(result: SubmitResult): SubmitResult {
+  if (!result.ok) return result;
+  try {
+    const entry = Object.getOwnPropertyDescriptor(result, 'data');
+    if (entry && 'value' in entry && entry.value !== undefined) {
+      return { ok: true, data: checkedJson(entry.value, DEFAULT_NETWORK_MAX_BYTES) };
+    }
+  } catch { /* Unusable receipt data does not change an acknowledged write. */ }
+  return { ok: true };
+}
+
 function validate<T>(value: T, validator: ChannelValidator<T>): ChannelError | undefined {
   const result = validator(value);
   if (result === true) return undefined;
@@ -170,15 +187,22 @@ interface ChannelStream {
 }
 
 export function createNetworkSession(config?: NetworkConfig): NetworkSession {
-  if (!config) return { network: unavailableNetwork, dispose() {} };
+  if (!config) return { network: unavailableNetwork, bindExternalValues: () => undefined, dispose() {} };
   const channels = new Map<string, NetworkChannel>();
+  const mappings = new Map<string, NetworkExternalValuesMapper>();
   for (const [name, channel] of Object.entries(config.channels)) {
-    const { submit, subscribe } = channel;
+    const { submit, subscribe, mapExternalValues } = channel;
     if (submit && (typeof submit.validate !== 'function' || typeof submit.send !== 'function')) {
       throw new TypeError('A submit channel requires a validator and a send function.');
     }
     if (subscribe && (typeof subscribe.validate !== 'function' || typeof subscribe.open !== 'function')) {
       throw new TypeError('A subscription channel requires a validator and an open function.');
+    }
+    if (mapExternalValues !== undefined) {
+      if (!subscribe || typeof mapExternalValues !== 'function') {
+        throw new TypeError('Mapping external values requires a subscription and a mapper function.');
+      }
+      mappings.set(name, mapExternalValues.bind(channel));
     }
     channels.set(name, {
       ...(submit && { submit: { maxBytes: budget(submit.maxBytes), validate: submit.validate.bind(submit), send: submit.send.bind(submit) } }),
@@ -312,7 +336,7 @@ export function createNetworkSession(config?: NetworkConfig): NetworkSession {
           settled = true;
           caller?.removeEventListener('abort', cancel);
           pending.delete(cancel);
-          resolve(result);
+          resolve(snapshotSubmitResult(result));
         };
         const cancel = (): void => {
           finish(failure(CANCELLED));
@@ -369,6 +393,15 @@ export function createNetworkSession(config?: NetworkConfig): NetworkSession {
 
   return {
     network: Object.freeze(network),
+    bindExternalValues(write) {
+      if (disposed || mappings.size === 0) return undefined;
+      const releases = [...mappings].map(([channel, map]) => network.subscribe(channel, event => {
+        if (event.type !== 'data') return;
+        const values = map(event.value);
+        if (values !== undefined) write(values);
+      }));
+      return () => { for (const release of releases) release(); };
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -377,6 +410,7 @@ export function createNetworkSession(config?: NetworkConfig): NetworkSession {
       for (const lifetime of lifetimes.values()) lifetime.abort();
       lifetimes.clear();
       channels.clear();
+      mappings.clear();
     },
   };
 }

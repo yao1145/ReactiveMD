@@ -96,6 +96,7 @@ assert.equal(createMinimalHost().config.registry.some(item => item.name === 'sub
 assert.ok(createMinimalHost({ presets: [minimalReactPresetPackage, navigation] }).config.registry.some(item => item.name === 'tabs'));
 const surveyHost = createMinimalHost({ presets: [minimalReactPresetPackage, network] });
 const survey = compileLocal([
+  '<external name="total" type="number">',
   '<input bind="answer" label="Answer" required>',
   '<submit-button channel="answers" fields="answer" label="Send answer">',
 ].join('\\n'), { config: surveyHost.config });
@@ -106,13 +107,18 @@ const surveyNetwork = { channels: { answers: { submit: httpSubmit({
 }) } } };
 const surveyRuntime = createLocalRuntime(survey.document, { network: surveyNetwork });
 try {
+  const staticNetwork = { channels: { ...surveyNetwork.channels, results: {
+    subscribe: { validate: () => true, open: () => { requests++; return () => {}; } },
+    mapExternalValues: () => ({ total: 42 }),
+  } } };
   const rendered = server.renderLocalStaticDocument({
     document: survey.document, runtime: surveyRuntime, reactConfig: surveyHost.reactConfig,
-    network: surveyNetwork, resources: surveyHost.resources,
+    network: staticNetwork, resources: surveyHost.resources,
   });
   assert.ok(rendered.ok, JSON.stringify(rendered.diagnostics));
   assert.match(rendered.markup, /Send answer/);
   assert.doesNotMatch(rendered.markup, /private-survey-endpoint/);
+  await Promise.resolve();
   assert.equal(requests, 0);
 } finally {
   surveyRuntime.dispose();
@@ -142,12 +148,19 @@ console.log('Packed public compiler, authoring, Worker, SDK, React/SSR, export a
   writeFileSync(join(consumer, 'network.ts'), `
 import { createLocalRuntime, compileLocal } from 'reactive-md';
 import { httpSubmit, sseStream } from 'reactive-md/runtime/browser';
-import type { NetworkConfig } from 'reactive-md/runtime';
+import type { NetworkConfig, SubmitResult } from 'reactive-md/runtime';
 import networkPlugin from 'reactive-md/plugins/network';
 const network: NetworkConfig = { channels: {
-  answers: { submit: httpSubmit({ endpoint: '/answers', validate: payload => typeof payload.choice === 'string' }) },
-  results: { subscribe: sseStream({ endpoint: '/results', validate: value => typeof value === 'number' }) },
+  answers: { submit: httpSubmit({
+    endpoint: '/answers', validate: payload => typeof payload.choice === 'string',
+    interpret: response => response.ok ? { ok: true, data: { registrationId: 'R-1042' } } : undefined,
+  }) },
+  results: {
+    subscribe: sseStream({ endpoint: '/results', validate: value => typeof value === 'number' }),
+    mapExternalValues: value => typeof value === 'number' ? { total: value } : undefined,
+  },
 } };
+export function receipt(result: SubmitResult) { return result.ok ? result.data : undefined; }
 const compiled = compileLocal('# Survey');
 if (compiled.ok) createLocalRuntime(compiled.document, { network }).dispose();
 void networkPlugin;

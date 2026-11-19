@@ -33,8 +33,7 @@ function HostLedger() {
         )}
       </dl>
       <p>
-        隐藏一个计票组件后，另一个继续接收消息。隐藏最后一个时释放连接，
-        重新显示后建立新连接。
+        两个计票组件与正文共用一条连接。关闭实时更新可释放这条连接。
       </p>
     </section>
   );
@@ -43,10 +42,15 @@ function HostLedger() {
 function Page() {
   const [tally, setTally] = useState(true);
   const [feed, setFeed] = useState(true);
+  const [live, setLive] = useState(true);
   return (
     <>
       <h1 className="survey-page-title">Reactive MD 命名通道问卷</h1>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem' }}>
+        <label style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          <input type="checkbox" checked={live} onChange={event => setLive(event.target.checked)} />
+          启用实时更新与提交
+        </label>
         <label style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
           <input
             type="checkbox"
@@ -71,9 +75,9 @@ function Page() {
       </div>
       <LocalReactiveDocument
         source={source}
-        externalValues={{ showTally: tally, showFeed: feed }}
+        externalValues={{ showTally: tally, showFeed: feed, votesReady: false, votesYes: 0, votesNo: 0 }}
         reactConfig={reactConfig}
-        network={surveyHost.network}
+        network={live ? surveyHost.network : undefined}
         documentId="network-survey"
         locale="zh"
       />

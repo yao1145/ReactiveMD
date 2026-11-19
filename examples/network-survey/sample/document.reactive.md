@@ -2,6 +2,10 @@
 
 <external name="showTally" type="boolean">
 <external name="showFeed" type="boolean">
+<external name="votesReady" type="boolean">
+<external name="votesYes" type="number">
+<external name="votesNo" type="number">
+<computed name="votesTotal" value="{{ votesYes + votesNo }}">
 
 这份文档只引用通道名，不包含地址、请求头或令牌。宿主在 `src/host.ts` 里决定
 `answers` 如何提交、`results` 来自哪里；文档换一个宿主就换一套接线。
@@ -26,8 +30,13 @@
 
 ## 实时统计
 
-两个计票组件订阅同一个 `results` 通道，共用一条连接。页面开关控制组件可见性。
-隐藏一个组件后，另一个继续接收消息。隐藏最后一个组件后，页面底部的宿主记录会显示连接已释放。
+<if when="{{ votesReady }}">
+
+已有 **{{ votesTotal }}** 人投票，其中 {{ votesYes }} 人会参加。
+
+</if>
+
+正文的只读值与两个计票组件共享 `results` 连接。隐藏计票面板后，正文仍会收到统计更新。
 
 <if when="{{ showTally }}">
 

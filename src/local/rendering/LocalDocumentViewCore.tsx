@@ -19,7 +19,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { createNetworkSession, unavailableNetwork, type ComponentNetwork, type NetworkConfig } from '../../runtime-services/network';
+import { createNetworkSession, unavailableNetwork, type ComponentNetwork, type NetworkConfig, type NetworkSession } from '../../runtime-services/network';
 import type {
   Diagnostic,
   LocalCompileOptions,
@@ -57,7 +57,7 @@ import {
   type NodeDependencies,
 } from '../compilation/dependencies';
 import { createLocalCompileSession, type LocalCompileSession } from '../session/incremental';
-import { createLocalRuntime, notifyLocalRuntime, updateLocalRuntime } from '../runtime/runtime';
+import { bindLocalNetworkExternals, createLocalRuntime, notifyLocalRuntime, updateLocalRuntime } from '../runtime/runtime';
 import type {
   LocalComponentStateDocument,
   LocalComponentStateStorage,
@@ -1856,7 +1856,7 @@ function LocalDocumentViewLocal({
   const [activeNetwork, setActiveNetwork] = useState<{
     config: NetworkConfig;
     identity: typeof networkIdentity;
-    network: ComponentNetwork;
+    session: NetworkSession;
   }>();
   useLayoutEffect(() => {
     if (renderedMode !== 'interactive' || network === undefined) {
@@ -1865,13 +1865,14 @@ function LocalDocumentViewLocal({
     }
     // Each effect setup owns a session, including effect replay and remounts.
     const session = createNetworkSession(network);
-    setActiveNetwork({ config: network, identity: networkIdentity, network: session.network });
+    setActiveNetwork({ config: network, identity: networkIdentity, session });
     return () => session.dispose();
   }, [network, networkIdentity, renderedMode]);
-  const viewNetwork = network === undefined ? undefined
-    : activeNetwork?.config === network && activeNetwork.identity === networkIdentity
-      ? activeNetwork.network
-      : unavailableNetwork;
+  const viewSession = renderedMode === 'interactive'
+    && activeNetwork?.config === network && activeNetwork?.identity === networkIdentity
+    ? activeNetwork.session
+    : undefined;
+  const viewNetwork = network === undefined ? undefined : viewSession?.network ?? unavailableNetwork;
   const instanceId = useId();
   const t = useMemo<Localize>(
     () => (en: string, zh: string) => localize(locale, en, zh),
@@ -1914,6 +1915,9 @@ function LocalDocumentViewLocal({
   const report = useCallback((diagnostics: Diagnostic[]) => {
     reportRef.current?.(diagnostics);
   }, []);
+  useLayoutEffect(() => {
+    if (viewSession) return bindLocalNetworkExternals(runtime, viewSession, report);
+  }, [runtime, viewSession, report]);
 
   // Builtin components always render through the public manifest index. When
   // the host supplies a React config it already carries the same preset, so

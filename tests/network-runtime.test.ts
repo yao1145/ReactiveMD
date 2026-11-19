@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
+import type { LocalValue } from '../src/local/contracts/types';
 import { createLocalRuntime, updateLocalRuntime } from '../src/local/runtime/runtime';
 import { createDetachedRuntimeServices } from '../src/runtime-services/runtime';
 import type {
@@ -18,6 +19,72 @@ function createDocument(source = '# Survey') {
 }
 
 describe('named runtime channels', () => {
+  it('maps one validated message to a single read-only update without rewriting answers', async () => {
+    let stream!: SubscribeAdapterContext;
+    const release = vi.fn();
+    const open = vi.fn((context: SubscribeAdapterContext) => {
+      stream = context;
+      return release;
+    });
+    const document = createDocument([
+      '<external name="voteYes" type="number">',
+      '<external name="voteNo" type="number">',
+      '<computed name="total" value="{{ voteYes + voteNo }}">',
+      '<input bind="answer" label="Answer">',
+      'Votes: {{ total }}',
+    ].join('\n'));
+    const runtime = createLocalRuntime(document, {
+      externalValues: { voteYes: 0, voteNo: 0 },
+      network: { channels: { results: {
+        subscribe: { validate: value => typeof value === 'number', open },
+        mapExternalValues(value): Readonly<Record<string, LocalValue>> {
+          return value === -1 ? { voteYes: 99, answer: 'overwrite' } : { voteYes: Number(value), voteNo: 2 };
+        },
+      } } },
+    });
+    try {
+      runtime.setParameter('answer', 'still typing');
+      await flush();
+      expect(open).toHaveBeenCalledOnce();
+      const component = vi.fn();
+      runtime.network!.subscribe('results', component);
+      await flush();
+      expect(open).toHaveBeenCalledOnce();
+      const observe = vi.fn(() => runtime.text('Votes: {{ total }}'));
+      runtime.subscribe(observe);
+      stream.data('rejected by the subscription validator');
+      stream.data(-1);
+      expect(observe).not.toHaveBeenCalled();
+      stream.data(23);
+      expect(observe.mock.results.map(result => result.value)).toEqual(['Votes: 25']);
+      expect(runtime.getExternalValues()).toEqual({ voteYes: 23, voteNo: 2 });
+      expect(runtime.getParameters()).toEqual({ answer: 'still typing' });
+      expect(runtime.setParameter('voteYes', 3)).toHaveLength(1);
+    } finally {
+      runtime.dispose();
+    }
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it('snapshots an optional success receipt and keeps confirmation when receipt data is unusable', async () => {
+    const receipt = { registrationId: 'R-1042', seats: [1, 2] };
+    const runtime = createLocalRuntime(createDocument(), { network: { channels: {
+      signup: { submit: { validate: () => true, send: () => ({ ok: true, data: receipt }) } },
+      invalid: { submit: { validate: () => true, send: () => ({ ok: true, data: { value: NaN } }) } },
+      oversized: { submit: { validate: () => true, send: () => ({ ok: true, data: 'x'.repeat(65_536) }) } },
+    } } });
+    try {
+      const result = await runtime.network!.submit('signup', {});
+      receipt.seats.push(3);
+      expect(result).toEqual({ ok: true, data: { registrationId: 'R-1042', seats: [1, 2] } });
+      expect(result.ok && Object.isFrozen((result.data as { seats: unknown }).seats)).toBe(true);
+      await expect(runtime.network!.submit('invalid', {})).resolves.toEqual({ ok: true });
+      await expect(runtime.network!.submit('oversized', {})).resolves.toEqual({ ok: true });
+    } finally {
+      runtime.dispose();
+    }
+  });
+
   it('starts no I/O until an authorized operation passes validation', async () => {
     const send = vi.fn(() => ({ ok: true } as const));
     const open = vi.fn(() => () => {});
@@ -139,7 +206,7 @@ describe('named runtime channels', () => {
     const release = vi.fn();
     completeOpen!(release);
     adapterContext!.data(1);
-    confirm!({ ok: true });
+    confirm!({ ok: true, data: { registrationId: 'late' } });
     await flush();
     expect(adapterContext!.signal.aborted).toBe(true);
     expect(submitSignal!.aborted).toBe(true);

@@ -92,7 +92,8 @@ export interface HttpSubmitOptions {
   /**
    * Business confirmation. Return a result to use it; return `undefined` to
    * fall back to the status rules (2xx confirms, 4xx rejects, anything else is
-   * unconfirmed). Receives the response body text.
+   * unconfirmed). A success may include validated JSON receipt data selected
+   * by the host from the response body.
    */
   readonly interpret?: (response: HttpSubmitResponse) => SubmitResult | undefined;
   /** Header used for `idempotencyKey`; `null` or `''` disables it. Defaults to `Idempotency-Key`. */

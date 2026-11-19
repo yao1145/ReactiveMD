@@ -122,6 +122,36 @@ async function checkHttpAndSse(page) {
   assert.equal(httpRequests.length, 2);
 }
 
+async function checkMappedExternalsAndReceipt(page) {
+  const authorization = page.getByRole('button', { name: 'Toggle authorization' });
+  const choice = page.getByRole('textbox', { name: 'Choice' });
+  await page.getByRole('button', { name: 'Toggle second' }).click();
+  await page.getByRole('button', { name: 'Toggle mapping' }).click();
+  await expect(page.getByText('Mapped votes: 0')).toBeVisible();
+  const previousOpens = streamOpens;
+  await authorization.click();
+  await expect(page.getByText('Mapped votes: 9')).toBeVisible();
+  await expect(page.getByText('Live voting data')).toBeVisible();
+  assert.equal(streamOpens, previousOpens + 1);
+
+  await choice.fill('yes');
+  await choice.fill('x');
+  for (const response of streams) response.write('data: 11\n\n');
+  await expect(page.getByText('Mapped votes: 13')).toBeVisible();
+  await expect(choice).toHaveValue('x');
+
+  await choice.fill('yes');
+  await page.getByRole('button', { name: 'Send and show receipt' }).click();
+  await expect.poll(() => httpRequests.length).toBe(3);
+  httpRequests[2].response.writeHead(200, { 'Content-Type': 'application/json' })
+    .end(JSON.stringify({ registrationId: 'R-1042', internalRecord: 'host-only' }));
+  await expect(page.getByLabel('Registration receipt')).toHaveText('R-1042');
+  await authorization.click();
+  await expect(page.getByText('Mapped votes: 0')).toBeVisible();
+  await expect(page.getByText('Live voting data')).toBeHidden();
+  await expect.poll(() => streams.size).toBe(0);
+}
+
 async function checkWebSocket(page, endpoint) {
   const result = await page.evaluate(async (url) => {
     const { createNetworkSession } = await import('/src/runtime-services/network.ts');
@@ -260,9 +290,11 @@ async function checkSurveyReplay(browser) {
     const button = page.getByRole('button', { name: '提交回答' });
     const feedback = page.locator('[data-rmd-component="submit-button"]').getByRole('status');
     await expect(tally).toHaveAttribute('data-survey-yes', '3');
+    await expect(page.getByText(/已有\s*4\s*人投票/)).toBeVisible();
     await button.click();
     await expect(feedback).toContainText('提交结果未确认');
     await expect(tally).toHaveAttribute('data-survey-yes', '4');
+    await expect(page.getByText(/已有\s*5\s*人投票/)).toBeVisible();
     await button.click();
     await expect(feedback).toHaveText('已提交。');
     assert.equal(replies.length, 2);
@@ -324,6 +356,8 @@ try {
   await page.goto(base + fixture);
   await checkHttpAndSse(page);
   console.log('PASS HTTP submission and React/SSE lifecycle');
+  await checkMappedExternalsAndReceipt(page);
+  console.log('PASS mapped Markdown, computed values, and submission receipts');
 
   const endpoint = new URL(base);
   endpoint.protocol = 'ws:';

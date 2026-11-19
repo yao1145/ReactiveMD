@@ -5,6 +5,7 @@ import type {
   Json,
   JsonPayload,
   NetworkConfig,
+  NetworkExternalValuesMapper,
   SubmitAdapterContext,
   SubmitResult,
   SubscribeAdapterContext,
@@ -74,6 +75,9 @@ const validateAnswer: ChannelValidator<JsonPayload> = (payload) => {
 const validateCounts: ChannelValidator<Json> = (value) => isCounts(value)
   ? true
   : '统计消息必须是 { yes, no } 两个非负整数。';
+const mapCounts: NetworkExternalValuesMapper = value => isCounts(value)
+  ? { votesReady: true, votesYes: value.yes, votesNo: value.no }
+  : undefined;
 
 function createLedger(transport: SurveyStats['transport']) {
   let stats: SurveyStats = {
@@ -163,6 +167,7 @@ function createMemoryHost(): SurveyHost {
         },
       },
       results: {
+        mapExternalValues: mapCounts,
         subscribe: {
           validate: validateCounts,
           open(context: SubscribeAdapterContext): () => void {
@@ -248,6 +253,7 @@ function createHttpHost(): SurveyHost {
         }),
       },
       results: {
+        mapExternalValues: mapCounts,
         subscribe: sseStream({
           endpoint: '/api/survey/results/events',
           validate: validateCounts,

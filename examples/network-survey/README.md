@@ -1,6 +1,6 @@
 # 命名网络通道问卷示例
 
-一个可操作的问卷页面：读者提交回答，两个自定义计票组件同时订阅同一份统计。
+读者可以提交回答，并在 Markdown 正文和两个自定义组件中看到实时计票。
 页面不依赖任何外部服务；默认使用内存适配器，也可以切到本地 HTTP + SSE 端点。
 
 所有导入都走公开包入口（`reactive-md/sdk`、`reactive-md/react/minimal`、
@@ -60,6 +60,7 @@ node scripts/verify-network-browser.mjs
 | HTTP 提交 | 键入有效值期间没有 POST。把已保存的合法输入改成不合法草稿后，提交提示字段错误，保留草稿。聚焦按钮按 Enter 发出一次请求，HTTP 503 后双击重试也只发一次，并沿用原幂等键。请求只含所选字段。 |
 | 问卷写入去重 | 示例后端记下第一票后，测试丢弃响应。浏览器用相同幂等键重试并收到首次结果，票数只增加一次。同键换载荷返回 409，另一位参与者可以独立使用同一个键。 |
 | React 与 SSE | 两个组件收到同一条流的数据。编辑普通正文和移除第一个组件时连接保持，最后一个组件卸载后连接关闭。切换文档时替换连接，撤销授权后释放旧流。 |
+| 外部变量与回执 | SSE 更新 Markdown 正文、计算值和条件块，保留输入草稿。撤销授权后恢复宿主初值。自定义组件只收到宿主选出的报名编号。 |
 | WebSocket | 浏览器连接本地受控端点，收到推送，并按 `requestId` 将乱序回复分给两个提交。带 emoji 的超限确认被丢弃，合法拒绝仍能结算对应提交。 |
 | WebRTC | 两个真实的 `RTCPeerConnection` 建立 DataChannel，完成推送与提交。最后一个订阅退出时，待确认的提交继续占用连接。确认到达后调用一次宿主的释放函数。 |
 
@@ -67,21 +68,18 @@ node scripts/verify-network-browser.mjs
 
 ## 观察生命周期
 
-1. 页面默认挂载两个订阅组件，它们订阅同一个 `results` 通道：
-   “通道打开”为 1，“当前连接”为 1。
+1. 打开问卷。正文和两个计票组件共享一个 `results` 通道，“通道打开”为 1，“当前连接”为 1。
 2. 取消「显示实时计票」。组件隐藏并退订，计票明细继续接收消息，连接计数保持为 1。
-3. 取消「显示计票明细」。最后一个监听者离开，“通道释放”加 1，“当前连接”归 0。
-   重新勾选后会建立新连接。
-4. 点击「提交回答」：一次点击只读取 `choice` 与 `comment` 的快照。编辑输入
-   不发送任何请求；提交失败时输入保留，成功后计数在两个组件里同步出现。
+3. 取消「显示计票明细」。正文仍能更新，“当前连接”保持为 1。再取消「启用实时更新与提交」，“通道释放”加 1，“当前连接”归 0，正文隐藏实时票数。
+4. 重新启用后点击「提交回答」。按钮读取 `choice` 与 `comment` 的快照，成功后正文和可见组件更新计数。备注在统计刷新时保留。
 
 ## 代码位置
 
 | 路径 | 作用 |
 | --- | --- |
-| `sample/document.reactive.md` | 问卷正文、提交按钮及两个按可见性订阅的组件。 |
+| `sample/document.reactive.md` | 外部变量、动态计票正文、提交按钮和两个按可见性订阅的组件。 |
 | `src/components.tsx` | `defineLocalComponent` 清单、`defineReactComponent` 实现、订阅 effect、`createReactHost` 装配。 |
-| `src/host.ts` | 宿主通道注册表、示例参与者标识和连接统计。 |
+| `src/host.ts` | 宿主通道注册表、计票消息到外部变量的映射、参与者标识和连接统计。 |
 | `src/main.tsx` | 页面外壳，通过 `externalValues` 控制统计组件可见性，展示连接记录。 |
 | `vite.config.ts` | 公开入口别名、`--mode http` 的受控端点。 |
 
@@ -127,17 +125,22 @@ const network = {
     results: {
       subscribe: sseStream({
         endpoint: '/api/survey/results/events',
-        validate: value => Number.isInteger(value?.yes) && Number.isInteger(value?.no),
+        validate: isCounts,
       }),
+      mapExternalValues: mapCounts,
     },
   },
 }
 ```
 
+`mapCounts` 将宿主校验过的 `{ yes, no }` 映射为 `votesYes`、`votesNo` 和 `votesReady`。文档直接用这三个只读变量计算总票数、控制正文何时出现并显示结果。
+
 `httpSubmit` 默认 POST JSON，并按 `2xx` 确认、`4xx` 明确拒绝、其余为未确认；
 `interpret` 返回 `undefined` 时沿用这套规则。`timeoutMs` 默认 15 秒，覆盖等待响应和读取响应体。
 配置 `interpret` 时，适配器按 `maxResponseBytes` 流式限制响应体，默认 64 KiB。
 超时、超限或读不到完整确认时返回 `unconfirmed`，按钮可用原幂等键重试。
+
+需要在自定义组件里展示回执时，宿主可以在 `interpret` 中校验服务端返回的业务字段，只选取组件需要的数据。例如，报名端点可以返回 `{ ok: true, data: { registrationId } }`。组件调用 `network.submit()`，在 `result.ok` 为真时读取可选的 `result.data`。
 
 示例后端按 `X-Survey-Participant`、提交操作和 `Idempotency-Key` 保存首次计票结果。
 同键同载荷返回首次快照，同键不同载荷返回 409。记录保存在当前开发服务进程中，最多 1024 条。
