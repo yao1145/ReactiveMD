@@ -18,7 +18,7 @@
 
 - **编写文档**：先读[入门指南](guides/local-guide-ch.md)，再查语法参考；可运行的示例见 [examples/local](../examples/local/README-ch.md)。
 - **接入项目**：先查[公开接口参考](reference/public-api-ch.md)确认入口，再读[本地模式集成](integration/local-integration-ch.md)；独立项目示例见 [examples/integration](../examples/integration/README-ch.md)。
-- **升级版本**：先查[兼容性](compatibility/compatibility-ch.md)，再读目标版本的发布记录。当前文档版本为 0.8.0；各版本记录保留当时的行为与迁移说明。
+- 升级前请参阅[兼容性](compatibility/compatibility-ch.md)和目标版本的发布记录。主文档适用于 0.9.0。
 
 ## 入门
 
@@ -47,6 +47,7 @@
 | React 源码编辑器 | [中文](integration/editor-ch.md) |
 | 作者工具 | [中文](integration/author-tools-ch.md) |
 | 分享与静态导出 | [中文](integration/shareable-export-ch.md) |
+| 宿主网络通道 | [中文](integration/network-host-ch.md) |
 
 ## 兼容与迁移
 
@@ -71,6 +72,7 @@
 
 | 版本 | 中文 |
 | --- | --- |
+| 0.9.0 | [中文](releases/release-0.9.0-ch.md) |
 | 0.8.0 | [中文](releases/release-0.8.0-ch.md) |
 | 0.7.0 | [中文](releases/release-0.7.0-ch.md) |
 | 0.6.1 | [中文](releases/release-0.6.1-ch.md) |

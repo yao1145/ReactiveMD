@@ -2,13 +2,19 @@
 
 **English** · [中文](CHANGELOG-ch.md)
 
-## Unreleased
+## 0.9.0 (2026-11-20, latest channel)
 
-Parser, state restoration and incremental editing edge cases, plus a red error tone for alert callouts.
+Theme cascade and controls, a focused 18-component minimal preset, static PDF export, named host network channels, and parser, state restoration and incremental editing fixes.
 
 ### Added
 
+- Add named host-owned network channels for validated submit and subscribe operations, with bounded JSON payloads, cancellation, idempotency keys, shared channel lifetimes, external-value mapping and HTTP, SSE, WebSocket and WebRTC adapters.
+- Add static PDF output through `reactive-md/pdf` and the CLI, rendered from static HTML with Chromium.
 - `<alert tone="error">` renders a red danger-toned callout with `role="alert"`; dynamic tone expressions accept `error` as well.
+- Add `reactive-md/presets/minimal` and `reactive-md/react/minimal`, an 18-component profile for lightweight hosts. The extension SDK provides optional components.
+- Add semantic theme tokens and cascade layers that let host and extension styles compose with the default theme, plus heading levels h5 and h6.
+- Add polar equations and configurable sample points for `<plot>`, with bounded sampling and formula diagnostics.
+- Add the minimal extension author tutorial and `reactive-md/export-assets` for stable lookup of the files consumed by HTML export.
 
 ### Fixed
 
@@ -24,13 +30,15 @@ Parser, state restoration and incremental editing edge cases, plus a red error t
 
 ### Changed
 
+- Align the default theme's document typography and layered component styling, including controls and tables.
+- Refresh performance measurements for the current source layout and runtime.
 - An incremental editing session validates the boundaries next to a recompiled block against the local parser and falls back to a full compile when they disagree, so a session result always matches `compileLocal`. Sources with a lone `\r`, or a context block followed directly by Markdown, always use the full path.
 - Block planning keeps ambiguous inputs on the general parser: a bare `1.` / `2)`, lazy continuation after a fast list, interruption after a masked paragraph, lists Lezer ends early, loose lists joined across masked lines, indented code, and lists ending in an empty item. Those edge inputs now parse as remark does.
 - A container that may contain indented code makes one extra Markdown parse of its body; plain containers do no extra work.
 
 ### Compatibility
 
-- No protocol version change. The alert tone enum gains `error`; `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1` and `reactive-md-state/v1` are unchanged.
+- The release uses `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1`, `reactive-md-state/v1` and the existing `0.7.0` SDK contract.
 
 ## 0.8.0 (2026-11-12, latest channel)
 

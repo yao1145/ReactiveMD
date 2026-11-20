@@ -234,10 +234,11 @@ async function browserChecks(temp) {
 
     await check('Web Component and mount API work from one standalone file', async () => {
       const runtime = await readFile(standalone, 'utf8');
+      const inlineRuntime = runtime.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
       const componentHtml = `<!doctype html><meta charset="utf-8">
 <reactive-md-doc id="wc" locale="en"></reactive-md-doc>
 <div id="manual"></div>
-<script>${runtime.replace(/<\/script/gi, '<\\/script')}</script>
+<script>${inlineRuntime}</script>
 <script>
 const wc = document.getElementById('wc');
 window.__states = [];
@@ -253,14 +254,15 @@ window.__handle = handle;
       const page2 = await browser.newPage();
       attach(page2);
       await page2.goto(fileUrl(componentFile));
-      await page2.locator('reactive-md-doc input').waitFor({ timeout: 15000 });
-      assert.equal(await page2.locator('reactive-md-doc input').inputValue(), '2');
-      assert.equal(await page2.locator('#manual input').inputValue(), 'Standalone');
+      const slider = page2.locator('reactive-md-doc').getByRole('slider', { name: 'Count', exact: true });
+      await expect(slider).toHaveAttribute('aria-valuenow', '2', { timeout: 15000 });
+      await expect(page2.locator('#manual').getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Standalone');
       const state = await page2.evaluate(() => window.__handle.getState());
       assert.equal(state.format, 'reactive-md-state/v1');
       assert.equal(state.parameters.name, 'Standalone');
       await page2.evaluate(() => window.__handle.unmount());
-      assert.equal(await page2.locator('reactive-md-doc input').count(), 1);
+      await expect(page2.locator('#manual')).toBeEmpty();
+      await expect(slider).toHaveAttribute('aria-valuenow', '2');
       await page2.close();
     });
 
@@ -343,13 +345,11 @@ async function sizeBaseline() {
     cssGzip: gzipSync(css).byteLength,
   };
   console.log(`Standalone size: ${sizes.js} B (${sizes.jsGzip} B gzip), CSS ${sizes.css} B (${sizes.cssGzip} B gzip)`);
-  // Includes ELK/highlighting, KaTeX + mhchem, and 20 inlined WOFF2 fonts.
-  // The KaTeX migration measures about 2.88/0.87 MB JS and 0.45/0.28 MB CSS
-  // (raw/gzip). Keep roughly 10% headroom for regressions.
-  assert.ok(sizes.js <= 3 * 1024 * 1024, `Standalone JS grew beyond the 3 MiB alarm: ${sizes.js}`);
-  assert.ok(sizes.jsGzip <= 950 * 1024, `Standalone JS gzip grew beyond the 950 KiB alarm: ${sizes.jsGzip}`);
-  assert.ok(sizes.css <= 480 * 1024, `Standalone CSS grew beyond the 480 KiB alarm: ${sizes.css}`);
-  assert.ok(sizes.cssGzip <= 300 * 1024, `Standalone CSS gzip grew beyond the 300 KiB alarm: ${sizes.cssGzip}`);
+  // Leave roughly 10% headroom above the 0.9.0 full-preset build.
+  assert.ok(sizes.js <= 4 * 1024 * 1024, `Standalone JS grew beyond the 4 MiB alarm: ${sizes.js}`);
+  assert.ok(sizes.jsGzip <= 1250 * 1024, `Standalone JS gzip grew beyond the 1250 KiB alarm: ${sizes.jsGzip}`);
+  assert.ok(sizes.css <= 680 * 1024, `Standalone CSS grew beyond the 680 KiB alarm: ${sizes.css}`);
+  assert.ok(sizes.cssGzip <= 325 * 1024, `Standalone CSS gzip grew beyond the 325 KiB alarm: ${sizes.cssGzip}`);
   return sizes;
 }
 

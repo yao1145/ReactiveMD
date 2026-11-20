@@ -2,13 +2,19 @@
 
 **中文** · [English](CHANGELOG.md)
 
-## 未发布
+## 0.9.0（2026-11-20，latest 渠道）
 
-解析器、状态恢复与增量编辑的边界情况修复，并为 alert 提示块增加红色 error 色调。
+主题层叠与控件、18 个组件的精简预设、静态 PDF 导出、具名宿主网络通道，以及解析器、状态恢复和增量编辑修复。
 
 ### 新增
 
+- 新增由宿主管理的具名网络通道，支持经过校验的提交与订阅、有界 JSON 负载、取消、幂等键、共享通道生命周期、外部变量映射，以及 HTTP、SSE、WebSocket 和 WebRTC 适配器。
+- 通过 `reactive-md/pdf` 和 CLI 新增静态 PDF 导出，使用 Chromium 将静态 HTML 排版为 PDF。
 - `<alert tone="error">` 使用红色危险色调并带有 `role="alert"`；动态 tone 表达式也接受 `error`。
+- 新增 `reactive-md/presets/minimal` 与 `reactive-md/react/minimal`，提供包含 18 个组件的精简预设。可通过扩展 SDK 按需增加组件。
+- 新增语义主题 token 和层叠层，使宿主与扩展样式可和默认主题组合，并增加 h5、h6 标题级别。
+- `<plot>` 新增极坐标方程和可配置采样点数，并提供有界采样与公式诊断。
+- 新增精简扩展作者教程和 `reactive-md/export-assets`，用于稳定定位 HTML 导出所需文件。
 
 ### 修复
 
@@ -23,13 +29,15 @@
 
 ### 变更
 
+- 调整默认主题的文档排版和分层组件样式，包括控件与表格表面。
+- 更新当前源码布局和运行时的性能测量。
 - 增量编辑会话用本地解析器校验重编译块相邻的边界，不一致时退回全量编译，会话结果与 `compileLocal` 始终一致；含孤立 `\r`、或上下文块紧跟 Markdown 的源码始终走全量路径。
 - 分块规划把歧义输入留在通用解析器上：裸 `1.` / `2)`、快路径列表之后的惰性续行、被遮罩段落之后的打断、Lezer 提前结束的列表、跨遮罩行连接的松散列表、缩进代码，以及以空项结束的列表。这些边界输入如今与 remark 一致。
 - 可能包含缩进代码的容器会多做一次 body 的 Markdown 解析，普通容器不受影响。
 
 ### 兼容性
 
-- 协议版本均无变化：alert 的 tone 枚举新增 `error`；`local-draft-3`、`component-protocol-3`、`reactive-md-theme-1`、`reactive-md-state/v1` 保持原版本。
+- 本版本沿用 `local-draft-3`、`component-protocol-3`、`reactive-md-theme-1`、`reactive-md-state/v1` 和 `0.7.0` SDK 契约。
 
 ## 0.8.0（2026-11-12，latest 渠道）
 

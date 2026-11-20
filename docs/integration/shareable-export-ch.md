@@ -288,16 +288,14 @@ Demo 的 `vite.export-assets.ts` 用它把样式表、打印样式表、notices�
 
 ## 产物体积基线
 
-`npm run test:shareable` 会记录 standalone 产物体积，并在超过以下回归阈值时失败：
+在引擎源码目录完成构建后，运行 `node scripts/verify-shareable.mjs` 检查静态首屏水合并测量原始及 gzip 体积。当前体积阈值以 0.9.0 默认预设的构建为基线。
 
 | 产物 | 当前基线 | 报警阈值 |
 | --- | --- | --- |
-| `reactive-md-standalone.js` | 约 925 kB（gzip 约 276 kB） | 1024 KiB / gzip 320 KiB |
-| `reactive-md-standalone.css` | 约 81.2 kB（gzip 约 13.5 kB） | 80 KiB / gzip 20 KiB |
+| `reactive-md-standalone.js` | 3.66 MiB / gzip 1,135 KiB | 4 MiB / gzip 1,250 KiB |
+| `reactive-md-standalone.css` | 616 KiB / gzip 293 KiB | 680 KiB / gzip 325 KiB |
 
-0.5 基线包含语法高亮器和常见语言语法，离线文件也能高亮。
-
-数值会随压缩器和 React 补丁版本小幅变化。阈值远高于正常波动，同时能捕获 React 或渲染器被重复打包的退化。完整 HTML 还包含源码、notices 和内联图片，因此会大于这个基线。
+生成的 HTML 还包含源码、notices 和内联图片。
 
 ## 当前范围
 

@@ -192,15 +192,15 @@ Reactive MD requires Node.js 22.12 or newer and ships only ESM entries:
 npm install reactive-md
 ```
 
-The 0.8.0 stable release uses the `latest` channel:
+The 0.9.0 stable release uses the `latest` channel. Pin the version if your project requires it.
 
 ```sh
 npm install reactive-md
 # or pin the version
-npm install reactive-md@0.8.0
+npm install reactive-md@0.9.0
 ```
 
-Read the [0.8.0 release notes](docs/releases/release-0.8.0-en.md) for this release, and the [compatibility guide](docs/compatibility/compatibility-en.md) before upgrading from `0.6.x` / `local-draft-2`.
+Read the [0.9.0 release notes](docs/releases/release-0.9.0-en.md) and the [compatibility guide](docs/compatibility/compatibility-en.md) before upgrading.
 
 ### Upgrade to 0.8.0
 
@@ -410,14 +410,14 @@ benchmarks/    Condensed performance measurements with provenance
 - [Extension tutorial](docs/development/extension-tutorial-en.md): choose an entry, build a component package and verify it.
 - [Versions and compatibility](docs/compatibility/compatibility-en.md).
 - [Performance measurements](docs/development/performance-overview-en.md) and [release checklist](CONTRIBUTING.md#releasing).
-- [0.8.0 release notes](docs/releases/release-0.8.0-en.md), [0.7.0 release notes](docs/releases/release-0.7.0-en.md) and earlier release records in [docs/releases](docs/releases).
+- [0.9.0 release notes](docs/releases/release-0.9.0-en.md) and [previous releases](docs/releases).
 
 ## Support and status
 
-- CI targets Node 22.12 and Node 24 with Playwright Chromium for the full browser gate and Firefox/WebKit for core workflows; local browser checks use Microsoft Edge. The packed check covers static SSR, and `npm run test:shareable` covers the single-file export's static-first hydration. General SSR hydration outside that path and the full Firefox/WebKit interaction suites remain unverified.
+- CI runs the engine checks and preset scaffold verification on Node 24. The packed-consumer check covers static SSR. Run `node scripts/verify-shareable.mjs` after building to test single-file hydration in Chromium and measure the standalone bundle.
 - 0.x minor releases may contain breaking changes. Persist the original `.reactive.md` source, not the runtime AST or in-memory state.
-- `0.8.0` is the stable release on `latest`. Security fixes may ship in minor releases.
-- The extension SDK contract is `0.7.0`; `0.8.0` keeps it unchanged. Component packages, themes, the Vite adapter, offline builds and compliance tools use the public entries.
+- `0.9.0` is the stable release on `latest`. Security fixes may ship in minor releases.
+- The extension SDK contract is `0.7.0`. Component packages, themes, the Vite adapter, offline builds and compliance tools use the public entries.
 
 ## Contributing and security
 

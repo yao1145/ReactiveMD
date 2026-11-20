@@ -18,7 +18,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 
 - **Authors**: read the [beginner guide](guides/local-guide-en.md), then the syntax reference. Runnable examples are in [examples/local](../examples/local/README.md).
 - **Integrators**: check the [public API reference](reference/public-api-en.md) for every entry, then read [local mode integration](integration/local-integration-en.md). Copyable projects are in [examples/integration](../examples/integration/README.md).
-- **Upgrading**: check [compatibility](compatibility/compatibility-en.md), then the release notes for the target version. The current documentation baseline is 0.8.0; older release pages keep the behavior and migration notes of their release.
+- If you are upgrading, check [compatibility](compatibility/compatibility-en.md) and the release notes for your target version. The main guides cover 0.9.0.
 
 ## Guides
 
@@ -47,6 +47,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | React source editor | [English](integration/editor-en.md) |
 | Author tools | [English](integration/author-tools-en.md) |
 | Sharing and static export | [English](integration/shareable-export-en.md) |
+| Host network channels | [English](integration/network-host-en.md) |
 
 ## Compatibility and migration
 
@@ -71,6 +72,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 
 | Version | English |
 | --- | --- |
+| 0.9.0 | [English](releases/release-0.9.0-en.md) |
 | 0.8.0 | [English](releases/release-0.8.0-en.md) |
 | 0.7.0 | [English](releases/release-0.7.0-en.md) |
 | 0.6.1 | [English](releases/release-0.6.1-en.md) |

@@ -290,16 +290,14 @@ The demo's `vite.export-assets.ts` uses it to expose the stylesheet, print style
 
 ## Bundle baseline
 
-`npm run test:shareable` records the standalone artifact size and fails above these regression alarms:
+In the engine checkout, run `node scripts/verify-shareable.mjs` after building. It tests static-first hydration and reports the raw and gzip sizes. The 0.9.0 full-preset build sets the baseline for the current size limits.
 
 | Artifact | Current baseline | Alarm |
 | --- | --- | --- |
-| `reactive-md-standalone.js` | ≈925 kB (≈276 kB gzip) | 1024 KiB / 320 KiB gzip |
-| `reactive-md-standalone.css` | ≈81.2 kB (≈13.5 kB gzip) | 80 KiB / 20 KiB gzip |
+| `reactive-md-standalone.js` | 3.66 MiB / 1,135 KiB gzip | 4 MiB / 1,250 KiB gzip |
+| `reactive-md-standalone.css` | 616 KiB / 293 KiB gzip | 680 KiB / 325 KiB gzip |
 
-The 0.5 baseline includes the syntax highlighter and common language grammars for offline use.
-
-Sizes vary slightly with the minifier and React patch release. The alarm is intentionally well above normal noise while catching a React or renderer duplication regression. The full generated HTML also contains the source, notices and inline images, so it is larger than this baseline.
+The generated HTML also contains the source, notices and any inlined images.
 
 ## Current scope
 
