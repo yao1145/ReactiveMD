@@ -162,6 +162,27 @@ describe('LocalCompileSession source phases', () => {
     }
   });
 
+  it('accepts a full source replacement between streaming snapshots', () => {
+    const session = createLocalCompileSession();
+    try {
+      const first = session.compileShared('# First\n\nAlpha', undefined, 'streaming');
+      expect(first.ok && first.status).toBe('partial');
+      if (first.ok) expect(first.document.source).toBe('# First\n\nAlpha');
+
+      const replacement = '# Second\n\nTotal: {{ missing';
+      const second = session.compileShared(replacement, undefined, 'streaming');
+      expect(second.ok && second.status).toBe('partial');
+      if (second.ok) expect(second.document.source).toBe(replacement);
+      expect(second.transientDiagnostics?.length).toBeGreaterThan(0);
+
+      const final = session.compileShared('# Second\n\nComplete', undefined, 'final');
+      expect(final.ok && final.status).toBe('valid');
+      if (final.ok) expect(final.document.source).toBe('# Second\n\nComplete');
+    } finally {
+      session.dispose();
+    }
+  });
+
   it('never lets a streaming snapshot change the final incremental path', () => {
     const session = createLocalCompileSession();
     try {
