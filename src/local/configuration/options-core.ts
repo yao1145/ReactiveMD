@@ -604,6 +604,19 @@ export function readOptionCheck(
     }
   }
 
+  // The phase selects preview semantics; it never joins the compile identity
+  // or changes strict recovery. Unknown values are rejected like other flags.
+  if (Object.hasOwn(record, 'sourcePhase')) {
+    const value = record.sourcePhase;
+    if (value !== undefined && value !== 'streaming' && value !== 'final') {
+      return {
+        ok: false,
+        message: 'Compile option sourcePhase must be "streaming" or "final".',
+        key: 'local.options.invalid.source-phase',
+      };
+    }
+  }
+
   const limits = record.limits;
   let maxSyntaxNodes = DEFAULT_MAX_LOCAL_SYNTAX_NODES;
   let maxParseWork = DEFAULT_MAX_LOCAL_PARSE_WORK;

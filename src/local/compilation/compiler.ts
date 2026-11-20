@@ -1,5 +1,5 @@
 /** Full local compile entry and tracked adapter for editing sessions. */
-import type { LocalCompileOptions, LocalCompileResult } from '../types';
+import type { LocalCompileOptions, LocalCompileResult, SourceRange } from '../types';
 import { compileLocalCore } from './compiler-core';
 import { plainCompiledData } from '../transport/compiled-data';
 import { inspectLocalMathDisplay } from '../evaluation/math/display';
@@ -18,7 +18,7 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
 
 /** Compiler-owned capture for editor sessions. Callers must copy before publishing. */
 export interface LocalCompilerServices {
-  parser?: {parse(source:string,options?:LocalCompileOptions,context?:SourceContext,rowPlans?:InlinePlanLookup):ReturnType<typeof parseLocal>};
+  parser?: {parse(source:string,options?:LocalCompileOptions,context?:SourceContext,rowPlans?:InlinePlanLookup,literalRanges?:readonly SourceRange[]):ReturnType<typeof parseLocal>};
   semantic?: LocalTrackedSemanticService;
   /**
    * Per-row inline plans from the previous revision. Checked before the
@@ -26,7 +26,12 @@ export interface LocalCompilerServices {
    */
   rowPlans?: InlinePlanLookup;
 }
-export function compileLocalTracked(source: string, options?: LocalCompileOptions, services?:LocalCompilerServices): {
+export function compileLocalTracked(
+  source: string,
+  options?: LocalCompileOptions,
+  services?:LocalCompilerServices,
+  literalRanges?: readonly SourceRange[],
+): {
   result: LocalCompileResult; parsed?: ReturnType<typeof parseLocal>;
   semantic?:SemanticCacheStats; timings:Record<string,number>;
 } {
@@ -35,7 +40,7 @@ export function compileLocalTracked(source: string, options?: LocalCompileOption
   const started=now(),timings:Record<string,number>={};let previous=started;
   const mark=(name:string)=>{const time=now();timings[name]=time-previous;previous=time;};
   services?.semantic?.begin(localCompileOptionsKey(options));
-  const result = compileLocalInternal(source, options, tree => { parsed = tree; },services,mark);
+  const result = compileLocalInternal(source, options, tree => { parsed = tree; },services,mark,literalRanges);
   timings.totalMs=now()-started;
   return { result, parsed, ...(services?.semantic?{semantic:services.semantic.stats}:{}),timings };
 }
@@ -81,8 +86,9 @@ function compileLocalInternal(
   capture?: (tree: ReturnType<typeof parseLocal>) => void,
   services?:LocalCompilerServices,
   mark?:(name:string)=>void,
+  literalRanges?: readonly SourceRange[],
 ): LocalCompileResult {
   const optionCheck = readLocalCompileOptions(options);
   if (!optionCheck.ok) return invalidOptionsResult(optionCheck);
-  return compileLocalCore(source, options, optionCheck, coreServices(services), capture, mark);
+  return compileLocalCore(source, options, optionCheck, coreServices(services), capture, mark, literalRanges);
 }

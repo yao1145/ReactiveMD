@@ -11,7 +11,7 @@ import {
   FLAT_COMPILED_DATA_PROTOCOL,
   type FlatCompiledData,
 } from './flat-compiled-data';
-import type { Diagnostic, LocalCompileOptions, LocalCompileResult } from '../types';
+import type { Diagnostic, LocalCompileOptions, LocalCompileResult, LocalSourcePhase } from '../types';
 import type { AuthorAnalysis } from '../source/authoring';
 import {
   createLocalCompileSession,
@@ -46,6 +46,13 @@ export interface LocalCompileRequest {
    * reference path.
    */
   options?: LocalCompileOptions;
+  /**
+   * Source generation phase. Omitted keeps the legacy final compile: the
+   * response then has the historical shape without `status`. `streaming`
+   * returns the provisional snapshot in the result itself; the transport does
+   * not alter or patch it.
+   */
+  sourcePhase?: LocalSourcePhase;
   /**
    * Advertised by a client that understands `patch-v1`. A worker echoes its
    * support on the full response, after which both sides may exchange edits
@@ -118,6 +125,8 @@ export interface LocalCompilePatchResponse {
   revision: number;
   patch: LocalResultPatch;
   duration: number;
+  /** Phase of the result this patch extends; present when the client asked for one. */
+  sourcePhase?: LocalSourcePhase;
   incremental?: Readonly<LocalIncrementalStats>;
   metrics?: LocalCompileWorkerMetrics;
 }
@@ -128,6 +137,8 @@ export type LocalCompileResponse =
       ok: true;
       result: LocalCompileResult;
       duration: number;
+      /** Echo of the request phase; omitted for legacy clients. */
+      sourcePhase?: LocalSourcePhase;
       incremental?: Readonly<LocalIncrementalStats>;
       protocol?: LocalCompileProtocol;
       revision?: number;
@@ -181,6 +192,11 @@ export interface LocalCompileOutcome {
   metrics?: LocalCompileMetrics;
   /** Source revision when the worker negotiated `patch-v1`. */
   revision?: number;
+  /**
+   * Set for streaming snapshots and for callers that supplied a phase
+   * themselves. Legacy final jobs omit it and keep the historical shape.
+   */
+  sourcePhase?: LocalSourcePhase;
 }
 
 export interface LocalCompileSchedulerOptions {
@@ -188,9 +204,10 @@ export interface LocalCompileSchedulerOptions {
   createWorker(): LocalCompileWorker;
   /**
    * Defaults to compileLocal. Runs on the main thread only when the worker is
-   * unavailable or failed. One-argument callbacks remain supported.
+   * unavailable or failed. One- and two-argument callbacks remain supported;
+   * an explicit source phase is passed as the third argument.
    */
-  fallbackCompile?(source: string, options?: LocalCompileOptions): LocalCompileResult;
+  fallbackCompile?(source: string, options?: LocalCompileOptions, sourcePhase?: LocalSourcePhase): LocalCompileResult;
   onResult(outcome: LocalCompileOutcome): void;
   onPendingChange?(pending: boolean): void;
   onModeChange?(mode: LocalCompileMode, detail?: string): void;
@@ -211,6 +228,10 @@ interface CompileJob {
   optionsKey: string;
   /** When `schedule` was called; used for queue metrics only. */
   scheduledAt: number;
+  /** Effective phase; part of job identity so a stale result cannot cross phases. */
+  sourcePhase: LocalSourcePhase;
+  /** True when the caller supplied a phase and expects it echoed on the outcome. */
+  explicitPhase: boolean;
   /** Full-result recovery attempts for this job (bounded to one). */
   recovery?: number;
 }
@@ -257,8 +278,15 @@ function validAnalysis(value: unknown, length: number): value is AuthorAnalysis 
   return true;
 }
 
-function createJob(source: string, options: LocalCompileOptions | undefined): CompileJob {
+function createJob(
+  source: string,
+  options: LocalCompileOptions | undefined,
+  sourcePhase?: LocalSourcePhase,
+): CompileJob {
   const snapshot = snapshotCompileOptions(options);
+  // An unspecified phase keeps the legacy final request byte-for-byte; a
+  // declared one travels as its own field and is echoed on the outcome.
+  const declared = sourcePhase !== undefined ? sourcePhase : declaredOptionPhase(options);
   // Key the snapshot that is actually sent: a bounded oversized host array
   // must produce the same signature on both sides of the worker boundary.
   return {
@@ -266,11 +294,32 @@ function createJob(source: string, options: LocalCompileOptions | undefined): Co
     options: snapshot,
     optionsKey: localWorkerOptionsKey(snapshot),
     scheduledAt: now(),
+    sourcePhase: declared === 'streaming' ? 'streaming' : 'final',
+    explicitPhase: declared !== undefined,
   };
 }
 
+/** Read `options.sourcePhase` without letting a hostile getter break scheduling. */
+function declaredOptionPhase(options: LocalCompileOptions | undefined): LocalSourcePhase | undefined {
+  try {
+    if (!options || typeof options !== 'object' || Array.isArray(options)) return undefined;
+    const value = (options as { sourcePhase?: unknown }).sourcePhase;
+    return value === 'streaming' || value === 'final' ? value : value === undefined ? undefined : 'final';
+  } catch {
+    return undefined;
+  }
+}
+
 function sameJob(left: CompileJob, right: CompileJob): boolean {
-  return left.source === right.source && left.optionsKey === right.optionsKey;
+  return left.source === right.source
+    && left.optionsKey === right.optionsKey
+    && left.sourcePhase === right.sourcePhase
+    && left.explicitPhase === right.explicitPhase;
+}
+
+/** Phase fields an outcome carries; legacy final jobs stay without them. */
+function phaseFields(job: CompileJob): { sourcePhase?: LocalSourcePhase } {
+  return job.sourcePhase === 'streaming' || job.explicitPhase ? { sourcePhase: job.sourcePhase } : {};
 }
 
 function isCompileResult(value: unknown): value is LocalCompileResult {
@@ -348,20 +397,46 @@ export class LocalCompileScheduler {
    * any, is replaced. Options are copied so a later mutation cannot change the
    * permissions of an in-flight compile. An options-only edit still supersedes
    * an older result for the same source.
+   *
+   * `sourcePhase` is optional. Streaming snapshots keep the debounce; a
+   * snapshot that explicitly declares `final` is dispatched immediately so it
+   * can replace a queued intermediate one and settle as soon as any in-flight
+   * compile returns. Calls that declare no phase keep the historical debounce
+   * and wire shape.
    */
-  schedule(source: string, options?: LocalCompileOptions, hint?: LocalCompileEditHint): void {
+  schedule(
+    source: string,
+    options?: LocalCompileOptions,
+    hint?: LocalCompileEditHint,
+    sourcePhase?: LocalSourcePhase,
+  ): void {
     if (this.disposed) return;
-    this.queued = createJob(source, options);
+    const job = createJob(source, options, sourcePhase);
+    this.queued = job;
     if (hint && typeof hint.baseSource === 'string' && isPatchEdit(hint.edit) && hint.edit.to <= hint.baseSource.length
       && hint.baseSource.slice(0, hint.edit.from) + hint.edit.insert + hint.baseSource.slice(hint.edit.to) === source) {
       this.queued.editHint = { baseSource: hint.baseSource, edit: { ...hint.edit } };
     }
     this.clearTimer();
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      this.drain();
-    }, this.delay);
+    if (job.sourcePhase === 'streaming') {
+      // An intermediate snapshot invalidates the patch chain: no final job may
+      // extend a baseline that a streaming compile has moved past.
+      this.baseline = null;
+    }
     this.setPending(true);
+    if (job.sourcePhase === 'streaming' || !job.explicitPhase) {
+      // Intermediate snapshots, and the historical calls that never declared a
+      // phase, keep the existing debounce window.
+      this.timer = setTimeout(() => {
+        this.timer = null;
+        this.drain();
+      }, this.delay);
+    } else {
+      // An explicitly final snapshot never waits for the debounce; it may wait
+      // for an in-flight compile, whose result is then dropped because job
+      // identity differs by phase.
+      this.drain();
+    }
   }
 
   /** Stop the timer and terminate the worker. No callbacks fire afterwards. */
@@ -406,11 +481,15 @@ export class LocalCompileScheduler {
       this.compileFallback(job);
       return;
     }
+    // Streaming snapshots are never sent as edits: they must produce their own
+    // complete result and must not extend the final patch chain.
+    if (job.sourcePhase === 'streaming') this.baseline = null;
     const id = this.nextId++;
     const revision = this.nextRevision++;
     const startedAt = now();
     const baseline = this.baseline;
-    const usePatch = this.patchState === 'enabled'
+    const usePatch = job.sourcePhase === 'final'
+      && this.patchState === 'enabled'
       && baseline !== null
       && baseline.optionsKey === job.optionsKey;
     const request: LocalCompileWorkerRequest = usePatch
@@ -431,6 +510,9 @@ export class LocalCompileScheduler {
           protocol: LOCAL_RESULT_PATCH_PROTOCOL,
           revision,
           flatResults: FLAT_COMPILED_DATA_PROTOCOL,
+          // Legacy final jobs keep the historical wire shape; a declared phase
+          // (including an explicit `final`) is sent and echoed.
+          ...(job.sourcePhase === 'streaming' || job.explicitPhase ? { sourcePhase: job.sourcePhase } : {}),
         };
     this.inFlight = { id, job, startedAt, revision };
     if (this.options.includeAuthorAnalysis) request.includeAuthorAnalysis = true;
@@ -460,17 +542,27 @@ export class LocalCompileScheduler {
 
   private compileFallback(job: CompileJob): void {
     if (this.disposed) return;
+    // A streaming job is answered by a complete compile; it never extends a
+    // patch chain, so the next final request has to be complete as well.
+    if (job.sourcePhase === 'streaming') this.baseline = null;
     const started = now();
     let result: LocalCompileResult;
     try {
-      const fallbackCompile = this.options.fallbackCompile ?? ((source: string, options?: LocalCompileOptions) => {
+      const fallbackCompile = this.options.fallbackCompile ?? ((
+        source: string,
+        options?: LocalCompileOptions,
+        sourcePhase?: LocalSourcePhase,
+      ) => {
         this.fallbackSession ??= createLocalCompileSession();
-        return this.fallbackSession.compile(source, options);
+        return this.fallbackSession.compile(source, options, sourcePhase);
       });
-      // Keep the historical one-argument call shape when no options were given.
-      result = job.options === undefined
-        ? fallbackCompile(job.source)
-        : fallbackCompile(job.source, job.options);
+      // Keep the historical call shape for legacy jobs. A declared phase is
+      // passed as the third argument; one- and two-argument callbacks ignore it.
+      result = job.explicitPhase
+        ? fallbackCompile(job.source, job.options, job.sourcePhase)
+        : job.options === undefined
+          ? fallbackCompile(job.source)
+          : fallbackCompile(job.source, job.options);
     } catch (error) {
       result = { ok: false, diagnostics: [compileFailureDiagnostic(error)] };
     }
@@ -481,6 +573,7 @@ export class LocalCompileScheduler {
       mode: 'fallback',
       ...(this.options.includeAuthorAnalysis ? { analysis: analyzeResult(job.source, job.options, result) } : {}),
       ...(job.options === undefined ? {} : { options: job.options }),
+      ...phaseFields(job),
       metrics: { queueMs: safeDuration(started - job.scheduledAt) },
     });
     this.finishRun();
@@ -528,7 +621,12 @@ export class LocalCompileScheduler {
         } else {
           result = full.result;
           revision = typeof full.revision === 'number' ? full.revision : undefined;
-          if (
+          // A streaming snapshot never becomes a patch baseline and never
+          // changes the negotiated transport state, whatever it echoes.
+          const streaming = job.sourcePhase === 'streaming' || full.sourcePhase === 'streaming';
+          if (streaming) {
+            this.baseline = null;
+          } else if (
             full.protocol === LOCAL_RESULT_PATCH_PROTOCOL
             && typeof full.revision === 'number'
             && Number.isSafeInteger(full.revision)
@@ -571,6 +669,7 @@ export class LocalCompileScheduler {
           mode,
           ...(response.ok && this.options.includeAuthorAnalysis && validAnalysis(response.analysis, job.source.length) ? { analysis: response.analysis } : {}),
           ...(job.options === undefined ? {} : { options: job.options }),
+          ...phaseFields(job),
           metrics: {
             queueMs,
             roundTripMs,
@@ -592,6 +691,7 @@ export class LocalCompileScheduler {
           duration: 0,
           mode,
           ...(job.options === undefined ? {} : { options: job.options }),
+          ...phaseFields(job),
           metrics: { queueMs, roundTripMs },
         });
       }
@@ -613,6 +713,7 @@ export class LocalCompileScheduler {
         duration: 0,
         mode,
         ...(job.options === undefined ? {} : { options: job.options }),
+        ...phaseFields(job),
         metrics: { queueMs, roundTripMs, ...(applyMs > 0 ? { applyMs } : {}) },
       });
     } else {
@@ -627,6 +728,9 @@ export class LocalCompileScheduler {
    * for any mismatch so the caller can resend a complete source once.
    */
   private applyResponsePatch(job: CompileJob, response: LocalCompilePatchResponse): LocalCompileResult | null {
+    // Only a final job may join the patch chain; a streaming job answers with
+    // complete results and never adopts (or creates) a baseline.
+    if (job.sourcePhase !== 'final') return null;
     const baseline = this.baseline;
     if (
       baseline === null
@@ -643,13 +747,21 @@ export class LocalCompileScheduler {
     // The applied source must be exactly the queued source; anything else is
     // a misaligned edit and must not enter the revision chain.
     if (!applied.ok || applied.document.source !== job.source) return null;
+    // Patch frames carry document data only. An explicit final consumer expects
+    // the status a complete final compile would have returned, so restore it
+    // here instead of letting the transport change the result shape.
+    const result: LocalCompileResult = job.sourcePhase === 'final' && job.explicitPhase
+      ? applied.recoveries === undefined
+        ? { ...applied, status: 'valid' }
+        : { ...applied, status: 'recovered' }
+      : applied;
     this.baseline = {
       source: job.source,
       optionsKey: job.optionsKey,
       revision: response.revision,
-      result: applied,
+      result,
     };
-    return applied;
+    return result;
   }
 
   /** Re-dispatch the same job with a complete source, at most once per job. */

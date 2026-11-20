@@ -218,6 +218,24 @@ describe('markdownBreaks soft line breaks', () => {
     expect(localCompileOptionsKey({ markdownBreaks: true })).toBe(on);
   });
 
+  it('rejects an unknown source phase and keeps phases out of the option identity', () => {
+    expect(compileLocal('hello', { sourcePhase: 'streaming' }).ok).toBe(true);
+    expect(compileLocal('hello', { sourcePhase: 'final' }).ok).toBe(true);
+    for (const value of ['partial', '', null, 1, true]) {
+      const options = { sourcePhase: value } as unknown as LocalCompileOptions;
+      const result = compileLocal('hello', options);
+      expect(result.ok).toBe(false);
+      expect(result.diagnostics).toEqual([expect.objectContaining({
+        code: 'local.options.invalid',
+        messageKey: 'local.options.invalid.source-phase',
+      })]);
+      expect(parseLocal('hello', options).nodes).toEqual([]);
+    }
+    const legacy = localCompileOptionsKey(undefined);
+    expect(localCompileOptionsKey({ sourcePhase: 'streaming' })).toBe(legacy);
+    expect(localCompileOptionsKey({ sourcePhase: 'final' })).toBe(legacy);
+  });
+
   it('charges the split nodes against the syntax-node budget', () => {
     const result = compileLocal('a\nb', { markdownBreaks: true, limits: { maxSyntaxNodes: 3 } });
     expect(result.ok).toBe(false);

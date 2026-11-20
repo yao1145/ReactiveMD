@@ -5,6 +5,7 @@ import type {
   LocalNode,
   LocalRuntime,
   LocalSnapshot,
+  LocalSourcePhase,
   LocalValue,
 } from '../../types';
 import {
@@ -152,6 +153,21 @@ export interface LocalReactiveDocumentProps {
   /** Channels granted to the current document and user. */
   network?: NetworkConfig;
   onDiagnostics?: (diagnostics: Diagnostic[]) => void;
+  /**
+   * Marks the source snapshot as still being generated. Streaming snapshots
+   * are provisional: the document renders read-only (`static`), and network
+   * sessions, submissions and component side effects stay deferred until the
+   * phase returns to `final`. Omit it (or pass `final`) for the historical
+   * compile and interaction semantics. It is independent of `strict` and does
+   * not rebuild the session or reset runtime state.
+   */
+  sourcePhase?: LocalSourcePhase;
+  /**
+   * Fixable issues from a streaming snapshot. They never appear in
+   * `onDiagnostics`; when the source finalizes, hosts that received transient
+   * diagnostics get one `[]` call. Omit it to ignore provisional issues.
+   */
+  onTransientDiagnostics?: (diagnostics: Diagnostic[]) => void;
   urlPolicy?: LocalUrlPolicy;
   /** UI language for built-in labels and validation messages; defaults to English. */
   locale?: LocalLocale;

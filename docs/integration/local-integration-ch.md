@@ -46,6 +46,8 @@ export function Article() {
 | 属性 | 类型 | 组件 | 说明 |
 | --- | --- | --- | --- |
 | `source` | `string` | `LocalReactiveDocument` | 源码变化时重新编译，并在现有运行时中采用新文档，迁移仍符合契约的参数值；影响编译语义的宿主选项变化或文档无法采用时创建新运行时，旧实例状态不保留。见[源码变化时保留参数](#源码变化时保留参数) |
+| `sourcePhase` | `'streaming' \| 'final'` | `LocalReactiveDocument` | 标记源码是否仍在生成，默认 `final`。`streaming` 期间文档以只读静态模式呈现并暂缓副作用交互；与 `strict` 独立。见[流式源码编译](#流式源码编译) |
+| `onTransientDiagnostics` | `(diagnostics: Diagnostic[]) => void` | `LocalReactiveDocument` | 接收流式快照中的可修复问题，不进入 `onDiagnostics`；完成时若曾上报，最后回调一次空数组。省略时忽略暂态问题 |
 | `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | 单次编译预算、HTML 能力开关和宿主组件 schema；省略时使用默认 ReactiveMD 模式 |
 | `document` | `LocalDocument` | `LocalDocumentView` | 已编译文档；由宿主编译一次 |
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | 宿主创建并负责销毁 |
@@ -102,7 +104,7 @@ console.log(session.stats); // mode: 'incremental', compiledBlocks: 1, reusedBlo
 session.dispose(); // 关闭文档时释放会话缓存
 ```
 
-`compile(source, options?)` 返回 `LocalCompileResult`。`clear()` 清空复用数据，`dispose()` 释放缓存并结束会话；销毁后的会话不能再次编译。结果是可序列化的普通数据，每次返回独立快照，修改旧结果不会污染缓存。会话内未修改块的节点 ID 可跨编辑保持稳定，编号不要求与独立 `compileLocal()` 调用相同；节点 ID 及其元数据关联始终以同一份结果为准。
+`compile(source, options?, phase?)` 返回 `LocalCompileResult`；阶段用法见[流式源码编译](#流式源码编译)。`clear()` 清空复用数据，`dispose()` 释放缓存并结束会话；销毁后的会话不能再次编译。结果是可序列化的普通数据，每次返回独立快照，修改旧结果不会污染缓存。会话内未修改块的节点 ID 可跨编辑保持稳定，编号不要求与独立 `compileLocal()` 调用相同；节点 ID 及其元数据关联始终以同一份结果为准。
 
 同一会话内，参数与声明上下文保持不变时，只重新编译受影响的 Markdown 块。改变声明、组件内容、编译选项、权限或宿主 schema 时执行完整编译。引用定义、脚注、导航锚点、HTML、BOM、代码定界符变化及无法确认安全边界的输入也保守回到完整编译。出现诊断时返回完整编译的诊断。整篇源码和累计节点预算仍然生效，缓存只保留当前版本。
 
@@ -115,6 +117,124 @@ session.dispose(); // 关闭文档时释放会话缓存
 Worker 判断结果补丁不划算时，可对同一修订返回完整成功结果，并以该结果继续后续补丁链。`metrics.patchFallback === 'cost'` 表示成本选择；`patchBytes` / `fullBytes` 为 JSON UTF-8 估算，不是结构化克隆的实际大小。这种切换不会触发完整请求重试。
 
 内置 `startLocalCompileWorker()`、`LocalCompileScheduler` 默认降级编译和 `LocalReactiveDocument` 已管理各自会话。自定义 `fallbackCompile` 继续由宿主管理。`compileLocal()` 保持单次完整编译 API。测试与性能数据见[块级增量编译](../development/performance-overview-ch.md)。
+
+## 流式源码编译
+
+模型输出、协作回放或分块生成内容时，宿主可以把仍在增长的源码持续交给编译会话、调度器、Worker 或 `LocalReactiveDocument`，不必等到全文结束才呈现。引擎只接受完整源码快照和阶段标记；token 累积、模型连接、会话历史、重试与取消策略都由宿主负责。
+
+### 快照与阶段
+
+每次提交都是截至当前的完整源码。宿主收到 token 后追加到自己的缓冲区，按节流窗口或结构边界提交缓冲区；断线恢复、替换错误片段也提交完整文本。阶段表达为：
+
+```ts
+type LocalSourcePhase = 'streaming' | 'final';
+```
+
+`streaming` 表示本轮生成尚未结束，`final` 表示源码已经完整。阶段可以作为 `LocalCompileOptions.sourcePhase` 传入，也可以作为会话、调度器的显式参数传入。两者都省略时完全沿用现有的最终编译语义。`sourcePhase` 不是编译身份的一部分，不进入 `localCompileOptionsKey`，也不会改变 `strict`：
+
+- `strict` 仍只控制最终源码的结构恢复。`strict: false` 不是流式模式，它会把最终仍损坏的结构恢复为惰性原文并产生 warning。
+- `sourcePhase` 表达源码是否仍在生成。流式快照把当前无法安全解释的区域降级为原文，并保留已完成前缀的节点身份和源码范围；它不会因为尾部尚未补全就让整篇预览失败。`strict: false` 的恢复记录和 warning 仍按既有规则产生，不会被标成暂态；`final` 再按所选严格模式完整编译。
+- 流式中临时可见的未闭合标签、属性引号、组件体、插值和公式不应由宿主改写成语法修复；补全后按普通源码重新编译。
+
+### 状态与暂态诊断
+
+显式提供阶段时，结果增加 `status`；流式结果还可带 `transientDiagnostics`。未提供阶段时保持既有结果形状，不增加这两个字段。`diagnostics` 始终只包含非暂态诊断：
+
+| 源阶段 | `status` | 结果语义 |
+| --- | --- | --- |
+| `streaming` | `partial` | `ok: true`，返回当前可安全呈现的文档；可由后续源码修复的问题进入 `transientDiagnostics`，不可安全解释的区域以原文显示。 |
+| `streaming` + 确定性错误 | `failed` | `ok: false`；只有配置、版本、预算、HTML 能力、权限、源码类型或长度等确定性错误留在 `diagnostics`。 |
+| `final` | `valid` | 完整编译成功，且未执行结构恢复。 |
+| `final` + `strict: false` 恢复 | `recovered` | 返回文档、`recoveries` 和每个恢复对应的 warning。 |
+| `final` | `failed` | 沿用最终编译错误规则，不把错误标为暂态。 |
+
+暂态诊断保留原来的 `code`、`message` 和源码范围，只出现在 `transientDiagnostics` 中；宽松模式的恢复 warning 仍按最终诊断规则产生，不会被复制到暂态列表。消费端应依据 `status` 和字段判断阶段，不要从诊断文本推断是否还在生成。流式成功结果可以暂时带有未闭合结构或未求值表达式；收到 `final` 后应清空宿主的暂态诊断状态，并以最终 `diagnostics` 为准。确定性错误仍会立即失败，不能当作可等待补全的暂态问题。
+
+### 会话、调度器与 Worker
+
+```ts
+import { LocalCompileScheduler, createLocalCompileSession } from 'reactive-md';
+
+const session = createLocalCompileSession();
+const partial = session.compile(snapshot, options, 'streaming');
+if (partial.status === 'partial') {
+  render(partial.document);
+  showTransient(partial.transientDiagnostics ?? []);
+}
+
+const final = session.compile(completedSource, options, 'final');
+if (final.status === 'valid' || final.status === 'recovered') {
+  clearTransient();
+  render(final.document);
+}
+```
+
+`compile(source, options?, phase?)` 和 `compileShared(source, options?, phase?)` 的显式 `phase` 优先于 `options.sourcePhase`。显式 `final` 与省略阶段使用同一条最终编译路径，只是额外返回 `status`。
+
+`LocalCompileScheduler.schedule(source, options?, hint?, phase?)` 按同一套阶段工作：
+
+```ts
+const scheduler = new LocalCompileScheduler({
+  createWorker: () => new Worker(new URL('./compile.worker.ts', import.meta.url), { type: 'module' }),
+  onResult: ({ result, sourcePhase }) => applySnapshot(result, sourcePhase),
+  delay: 150,
+});
+
+scheduler.schedule(snapshot, options, undefined, 'streaming');
+scheduler.schedule(completedSource, options, undefined, 'final');
+```
+
+- 流式快照使用调度器的节流窗口（默认 `LOCAL_COMPILE_DELAY_MS`，150 ms）合并，只保留最新排队快照；不会为每个 token 单独编译。
+- `final` 跳过防抖立即排队。它可以等待正在执行的编译结束，但旧任务的结果因阶段和修订不同被丢弃，不会覆盖收尾结果。
+- 修订号随调度递增，过期 Worker 回包不能更新当前预览。流式任务不属于 `patch-v1` 基线；安排流式快照会使现有基线失效，只有最终结果可以建立补丁基线。
+- Worker 的完整请求与响应回显 `sourcePhase`，`LocalCompileOutcome.sourcePhase` 报告结果阶段。主线程回退使用相同语义；自定义 `fallbackCompile` 会在第三个参数收到阶段。
+
+同一会话的流式编译与最终编译不共享中间缓存；最终结果仍使用现有的增量或完整编译路径。流式任务之间可以复用最近一次相同快照的结果，但不要依赖跨快照的块级复用。
+
+### React 宿主
+
+```tsx
+import { useState } from 'react';
+import type { Diagnostic, LocalSourcePhase } from 'reactive-md';
+import { LocalReactiveDocument } from 'reactive-md/react';
+
+export function StreamedArticle({ source, phase }: {
+  source: string;
+  phase: LocalSourcePhase;
+}) {
+  const [transient, setTransient] = useState<Diagnostic[]>([]);
+  const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
+
+  return (
+    <>
+      <LocalReactiveDocument
+        source={source}
+        sourcePhase={phase}
+        onTransientDiagnostics={setTransient}
+        onDiagnostics={setDiagnostics}
+      />
+      {transient.length > 0 && <p>{transient.length} 个暂态问题</p>}
+      {phase === 'final' && diagnostics.length > 0 && <p>编译失败，请查看诊断。</p>}
+    </>
+  );
+}
+```
+
+流式期间 `LocalReactiveDocument` 使用 `mode="static"` 渲染：控件只读，网络会话不建立，提交、重置和其他组件副作用 effect 不启动。它仍复用同一编译会话和运行时，普通源码更新按现有迁移规则保留兼容的读者参数和输入草稿；阶段切换不会重建运行时或重置状态。`final` 恢复宿主传入的 `mode`、`staticFirst` 和正式交互，`onDiagnostics` 给出最终诊断。`onTransientDiagnostics` 只报告暂态问题；如果宿主曾收到暂态诊断，最终时会再收到一次空数组用于清除。确定性失败仍按现有规则显示错误提示。
+
+宿主必须自行把新快照写入 `source`，并在生成结束时把 `sourcePhase` 切回 `final`。取消生成、切换文档或卸载时停止提交并丢弃旧结果；引擎只校验修订和阶段，不管理生成轮次。
+
+### 安全边界
+
+流式编译不改变文档的安全模型：
+
+- 模型传输、凭据、请求重试和取消都由宿主负责。ReactiveMD 只接收文本快照，不连接模型服务，不为流式能力新增网络请求或代码执行。
+- `streaming` 不会打开作者 HTML、脚本、CSS 或其他语言能力；这些仍由宿主通过显式编译选项授予。确定性安全、配置、版本和预算错误仍是最终失败。
+- 流式期间副作用组件按静态模式暂缓，避免未完成内容触发提交、订阅或其他外部操作；`final` 后才恢复正式交互。宿主仍应执行自己的权限、CSP 和不可信内容策略。
+
+### 性能预期
+
+每个被接受的流式快照都编译完整源码。无法安全解释的区域通过有界的稳定化重试降级为原文，最多 6 轮；该路径不承诺块级增量成本。调度器负责节流和合并快照，`final` 立即排队。源码仍受 1,000,000 字符上限和编译预算约束；快照越长，单次编译成本越高。长文档应测量输入到预览的延迟和编译量，并根据测量结果调整宿主的提交窗口；不要逐 token 调用编译入口。
 
 ## 严格解析与局部恢复
 
@@ -421,9 +541,9 @@ const scheduler = new LocalCompileScheduler({
 scheduler.schedule(source);
 ```
 
-`LocalCompileScheduler` 按 `LOCAL_COMPILE_DELAY_MS`（150 ms，可用 `delay` 覆盖）合并编辑，只保留一个进行中的任务和最新排队源码，并丢弃已被新编辑取代的结果。没有可用 Worker 或 Worker 出错后，它在主线程调用 `fallbackCompile`（默认 `compileLocal`）；Worker 失败后会永久切换到该回退，并通过 `onModeChange` 报告。Worker 抛出的错误或回退编译抛出的错误使用 `local.worker.compile` 诊断码。
+`LocalCompileScheduler` 按 `LOCAL_COMPILE_DELAY_MS`（150 ms，可用 `delay` 覆盖）合并编辑，只保留一个进行中的任务和最新排队源码，并丢弃已被新编辑取代的结果。没有可用 Worker 或 Worker 出错后，它在主线程调用 `fallbackCompile`（默认 `compileLocal`）；Worker 失败后会永久切换到该回退，并通过 `onModeChange` 报告。Worker 抛出的错误或回退编译抛出的错误使用 `local.worker.compile` 诊断码。需要提交流式快照时使用 `schedule(source, options?, hint?, phase?)`，`final` 会跳过防抖；详见[流式源码编译](#流式源码编译)。
 
-`onResult` 接收 `LocalCompileOutcome`（`source`、`result`、`duration`、`mode`），`onPendingChange` 报告是否仍有排队或进行中的任务，`dispose()` 停止计时器、终止 Worker，并阻止之后的回调。
+`onResult` 接收 `LocalCompileOutcome`（`source`、`result`、`duration`、`mode`、`sourcePhase`），`onPendingChange` 报告是否仍有排队或进行中的任务，`dispose()` 停止计时器、终止 Worker，并阻止之后的回调。
 
 ### 其他核心导出
 
@@ -436,7 +556,8 @@ scheduler.schedule(source);
 - 源码修订：`inspectLocalSourceVersion`、`checkLocalUpgrade` 和 `migrateLocalSource`；`LocalUpgradeOptions` 配置源修订和语义变化许可。
 - 参数保留：`planLocalStateRetention` 和 `applyLocalStateRetention`。
 - 后台编译：`LocalCompileScheduler`、`LOCAL_COMPILE_DELAY_MS` 和 `startLocalCompileWorker`。
-- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalComputation`、`LocalValidation`、`LocalDocument`、`LocalCompileLimits`、`LocalCompileOptions`、`LocalCompileResult`、`LocalHostPropKind`、`LocalHostPropSchema`、`LocalHostComponentSchema`、`LocalUpgradeOptions`、`LocalRuntime`、`LocalSnapshot`、`LocalStateFile`、`LocalStateGenerator`、`LocalStateParseResult`、`LocalStateResolution`、`LocalRetainedState`、`LocalStateRetentionReason`、`LocalStateRetentionDrop`、`LocalStateRetentionInput`、`LocalStateRetentionResult`、`LocalCompileWorker`、`LocalCompileWorkerScope`、`LocalCompileRequest`、`LocalCompileResponse`、`LocalCompileOutcome`、`LocalCompileMode`、`LocalCompileSchedulerOptions`。
+- 流式阶段：`LocalSourcePhase`、`LocalCompileStatus`；显式阶段结果中的 `status` 和 `transientDiagnostics`。
+- 类型导出：`Diagnostic`、`SourceRange`、`LocalValue`、`LocalValueKind`、`LocalNode`、`LocalBinding`、`LocalComputation`、`LocalValidation`、`LocalDocument`、`LocalCompileLimits`、`LocalCompileOptions`、`LocalCompileResult`、`LocalSourcePhase`、`LocalCompileStatus`、`LocalHostPropKind`、`LocalHostPropSchema`、`LocalHostComponentSchema`、`LocalUpgradeOptions`、`LocalRuntime`、`LocalSnapshot`、`LocalStateFile`、`LocalStateGenerator`、`LocalStateParseResult`、`LocalStateResolution`、`LocalRetainedState`、`LocalStateRetentionReason`、`LocalStateRetentionDrop`、`LocalStateRetentionInput`、`LocalStateRetentionResult`、`LocalCompileWorker`、`LocalCompileWorkerScope`、`LocalCompileRequest`、`LocalCompileResponse`、`LocalCompileOutcome`、`LocalCompileMode`、`LocalCompileSchedulerOptions`。
 
 `compileExpression`、`compileLatex` 和 `samplePlot` 是较低层的工具，稳定级别与核心 API 相同；通常只需要 `compileLocal` 和 `createLocalRuntime`。
 

@@ -27,7 +27,7 @@ export type { LocalSubmissionFieldCheck, LocalSubmissionFieldProblem, LocalSubmi
 export type { LocalLocale } from './types';
 export { LOCAL_THEME_PROTOCOL, DEFAULT_LOCAL_THEME, resolveLocalTheme, isLocalThemeName } from '../themes/document-theme';
 export type { LocalColorScheme, LocalThemeDefinition, LocalThemeResolution } from '../themes/document-theme';
-export type { Diagnostic, LocalDiagnosticParam, LocalDiagnosticParams, SourceRange, LocalRecovery, LocalValue, LocalValueKind, LocalNode, LocalBinding, LocalComputation, LocalExternal, LocalDynamicConstraint, LocalDynamicConstraints, LocalValidation, LocalDocument, LocalHtmlOptions, LocalHtmlPolicy, LocalCompileLimits, LocalCompileOptions, LocalCompileResult, LocalRuntime, LocalRuntimeOptions, LocalSnapshot, LocalHostPropKind, LocalHostPropSchema, LocalHostComponentForm, LocalHostBindingSchema, LocalHostComponentSchema } from './types';
+export type { Diagnostic, LocalDiagnosticParam, LocalDiagnosticParams, SourceRange, LocalRecovery, LocalValue, LocalValueKind, LocalNode, LocalBinding, LocalComputation, LocalExternal, LocalDynamicConstraint, LocalDynamicConstraints, LocalValidation, LocalDocument, LocalHtmlOptions, LocalHtmlPolicy, LocalCompileLimits, LocalCompileOptions, LocalCompileResult, LocalSourcePhase, LocalCompileStatus, LocalRuntime, LocalRuntimeOptions, LocalSnapshot, LocalHostPropKind, LocalHostPropSchema, LocalHostComponentForm, LocalHostBindingSchema, LocalHostComponentSchema } from './types';
 export {
   LOCAL_STATE_FORMAT,
   localSourceDigest,

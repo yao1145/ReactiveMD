@@ -199,6 +199,19 @@ export interface LocalDocumentKernel {
   >;
 }
 
+/**
+ * Source generation phase supplied by a streaming host. Omitted keeps the
+ * historical final-compilation semantics; `strict` remains an independent
+ * structural-recovery switch.
+ */
+export type LocalSourcePhase = 'streaming' | 'final';
+/**
+ * Compilation status. `partial` is only produced for an explicit streaming
+ * snapshot; final callers that do not opt into phases keep the historical
+ * result shape without a `status` field.
+ */
+export type LocalCompileStatus = 'partial' | 'valid' | 'recovered' | 'failed';
+
 /** Compiler-produced documents contain only plain records, arrays and primitives. */
 export interface LocalDocument {
   syntax: 'local';
@@ -396,11 +409,39 @@ export interface LocalCompileOptions extends LocalHtmlOptions {
    * errors remain errors. Only booleans are accepted.
    */
   readonly strict?: boolean;
+  /**
+   * Marks the snapshot as still being generated. Omitted or `final` keeps the
+   * historical final-compilation semantics, including `strict` recovery.
+   * `streaming` selects provisional rendering and diagnostics; it is not part
+   * of the compile identity and must not be used as a structural-recovery
+   * switch. Only accepted values are `streaming` and `final`.
+   */
+  readonly sourcePhase?: LocalSourcePhase;
 }
-/** Public compiler output is plain data, including nested attributes and dependencies. */
+/**
+ * Public compiler output is plain data, including nested attributes and
+ * dependencies. `status` and `transientDiagnostics` are present only for
+ * callers that explicitly supplied a source phase; legacy callers keep the
+ * historical shape.
+ */
 export type LocalCompileResult =
-  | { ok: true; document: LocalDocument; diagnostics: Diagnostic[]; recoveries?: LocalRecovery[] }
-  | { ok: false; diagnostics: Diagnostic[]; recoveries?: LocalRecovery[] };
+  | {
+      ok: true;
+      document: LocalDocument;
+      diagnostics: Diagnostic[];
+      recoveries?: LocalRecovery[];
+      status?: Exclude<LocalCompileStatus, 'failed'>;
+      /** Fixable issues from a streaming snapshot; never merged into `diagnostics`. */
+      transientDiagnostics?: Diagnostic[];
+    }
+  | {
+      ok: false;
+      diagnostics: Diagnostic[];
+      recoveries?: LocalRecovery[];
+      status?: 'failed';
+      /** Fixable issues observed before a deterministic failure. */
+      transientDiagnostics?: Diagnostic[];
+    };
 /**
  * Frozen state of the current revision. It contains controls, successful
  * computed values and currently available external values. Use

@@ -18,7 +18,7 @@
 
 | 入口 | 类型 | 需要 React | 仅 Node | 一句话用途 |
 | --- | --- | --- | --- | --- |
-| `reactive-md` | ESM | 否 | 否 | 完整核心面：编译、增量会话、运行时、状态、Worker、可分享 HTML |
+| `reactive-md` | ESM | 否 | 否 | 完整核心面：单次与流式编译、增量会话、运行时、状态、Worker、可分享 HTML |
 | `reactive-md/compiler` | ESM | 否 | 否 | 单次语义编译，不带默认预设 |
 | `reactive-md/compiler/standard` | ESM | 否 | 否 | 单次编译，带 GFM、原生 HTML、KaTeX 与默认预设 |
 | `reactive-md/react` | ESM | 是 | 否 | React 文档渲染器与组件开发接口 |
@@ -64,6 +64,7 @@
 | --- | --- |
 | 单次编译 | `compileLocal`、`LocalCompileResult`、`LocalCompileOptions` |
 | 增量编辑 | `createLocalCompileSession`、`LocalCompileSession`、`LocalIncrementalStats` |
+| 流式源码 | `LocalSourcePhase`、`LocalCompileStatus`；会话与调度器的阶段参数 |
 | 运行时 | `createLocalRuntime`、`updateLocalRuntime`、`notifyLocalRuntime`、`LocalRuntime`、`LocalSnapshot` |
 | 表达式与数学 | `compileExpression`、`LocalExpressionError`、`compileLatex`、`compilePlotFormula`、`plotFormulaKind`、`implicitGridSize`、`samplePlot`、`sampleImplicit`、`sampleParametric`、`samplePolar` |
 | 诊断 | `formatLocalDiagnostic`、`LOCAL_DIAGNOSTIC_CODES`、`isLocalDiagnosticCode`、`localDiagnosticTemplate`、`localDiagnosticTemplateKeys` |
@@ -71,13 +72,15 @@
 | 状态保留 | `planLocalStateRetention`、`applyLocalStateRetention` |
 | 源码版本 | `inspectLocalSourceVersion`、`checkLocalUpgrade`、`migrateLocalSource`、`LOCAL_SYNTAX_VERSION` |
 | 作者服务（再导出） | `analyzeLocalSource`、`completeLocalSource`、`renameLocalBinding`、`formatLocalSource` |
-| 后台编译 | `LocalCompileScheduler`、`startLocalCompileWorker`、`LOCAL_COMPILE_DELAY_MS`、`LOCAL_COMPILE_PREPARATION_DELAY_MS`、`compileFailureDiagnostic`、`localWorkerOptionsKey` |
+| 后台编译 | `LocalCompileScheduler`、`startLocalCompileWorker`、`LOCAL_COMPILE_DELAY_MS`、`LOCAL_COMPILE_PREPARATION_DELAY_MS`、`compileFailureDiagnostic`、`localWorkerOptionsKey`、`LocalCompileOutcome`、`LocalCompileRequest`、`LocalCompileResponse` |
 | 结果补丁 | `LOCAL_RESULT_PATCH_PROTOCOL`、`diffSourceEdit`、`applySourceEdit`、`encodeLocalResultPatch`、`applyLocalResultPatch` |
 | 主题 | `LOCAL_THEME_PROTOCOL`、`DEFAULT_LOCAL_THEME`、`resolveLocalTheme`、`isLocalThemeName` |
 | HTML 信封 | `createShareableHtml`、`resolveLocalStateBaseline`、`SHAREABLE_HTML_FORMAT`、`SHAREABLE_HTML_FORMAT_V2`、`serializeForScript` |
 | 组件状态 | `localSourceDigest` 及 `./export/component-state` 一族 |
 
 宿主在内存中编译、运行并持久化文档时用这个入口。`compileLocal()` 是一次性完整编译器；`createLocalCompileSession()` 在连续编辑中复用未变动的 Markdown 块；`createLocalRuntime()` 持有参数、订阅与销毁。运行时本身不写存储、Cookie 或网络。
+
+`LocalCompileOptions.sourcePhase` 把快照标记为 `streaming` 或 `final`；会话接受 `compile(source, options?, phase?)` 和 `compileShared(source, options?, phase?)`，`LocalCompileScheduler.schedule(source, options?, hint?, phase?)` 使用同一阶段，`final` 跳过防抖。显式阶段结果增加 `status`（`partial`、`valid`、`recovered`、`failed`），流式结果还可带 `transientDiagnostics`；暂态诊断不会出现在 `diagnostics` 中。Worker 的完整请求与响应回显 `sourcePhase`，`LocalCompileOutcome.sourcePhase` 报告该阶段，修订号保持单调递增，流式结果永不建立补丁基线。一次性 `compileLocal` 与编译器入口仍只做最终编译。
 
 ### `reactive-md/compiler`
 
@@ -112,7 +115,7 @@ const result = createCompiler().compile('# Notes\n\nPlain Markdown.');
 | 适配原语 | `compileExpression`、`compileLatex`、`compilePlotFormula`、`samplePlot`、`sampleImplicit`、`sampleParametric`、`samplePolar`、`layoutDiagram`、`diagramEdgePath`、`TableSurface`、`LatexView`、各类上限与格式化函数 |
 | 适配工具 | `useComponentView`、`useWriter`、`useDisabled`、`useResetToken`、`useSourceAttributes`、`useValidationField`、`useValidationHint`、`formatNumber`、`snapToStep` 等 `component-utils` 成员 |
 
-渲染器属性见[本地模式集成](../integration/local-integration-ch.md)。两个组件都不接受 `className`、`style` 或子元素。
+`LocalReactiveDocument` 还接受 `sourcePhase?: 'streaming' | 'final'` 和 `onTransientDiagnostics?: (diagnostics: Diagnostic[]) => void`。流式期间以静态模式渲染并暂缓副作用，`final` 恢复宿主交互模式。见[流式源码编译](../integration/local-integration-ch.md#流式源码编译)。渲染器属性见[本地模式集成](../integration/local-integration-ch.md)。两个组件都不接受 `className`、`style` 或子元素。
 
 ### `reactive-md/react/unstyled`
 

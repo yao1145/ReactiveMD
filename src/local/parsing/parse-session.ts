@@ -1,6 +1,6 @@
 import { parseLocal, type ParsedLocal } from './parser';
 import { localCompileOptionsKey } from '../configuration/options';
-import type { LocalCompileOptions } from '../types';
+import type { LocalCompileOptions, SourceRange } from '../types';
 import type { SourceContext } from '../source/source-context';
 import type { CacheLookup, FastMarkdownPlan, InlinePlan, InlinePlanLookup } from './fast-markdown';
 import type { ParseSessionCache, ParseSessionCounters } from './parse-budget';
@@ -96,7 +96,13 @@ export class LocalParseSession implements ParseSessionCache {
     reusedAst: 0,
   };
 
-  parse(source: string, options?: LocalCompileOptions, context?: SourceContext, rowPlans?: InlinePlanLookup): ParsedLocal {
+  parse(
+    source: string,
+    options?: LocalCompileOptions,
+    context?: SourceContext,
+    rowPlans?: InlinePlanLookup,
+    literalRanges?: readonly SourceRange[],
+  ): ParsedLocal {
     if (this.disposed) throw new Error('Local parse session is disposed');
     const key = localCompileOptionsKey(options);
     // Options, capability flags and budgets all fold into this key. Recovery
@@ -107,6 +113,11 @@ export class LocalParseSession implements ParseSessionCache {
       this.optionKey = key;
       this.recoveryMode = recoveryMode;
       this.reset();
+    }
+    // Forced literal spans change the structural output for identical text, so
+    // these calls neither read nor populate the session caches.
+    if (literalRanges && literalRanges.length > 0) {
+      return parseLocal(source, options, context, undefined, undefined, literalRanges);
     }
     return parseLocal(source, options, context, this, rowPlans);
   }

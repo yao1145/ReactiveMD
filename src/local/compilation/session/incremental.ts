@@ -1,6 +1,7 @@
 import { TreeFragment, type Tree } from '@lezer/common';
 import { parser, GFM } from '@lezer/markdown';
 import { compileLocalTracked, type LocalCompilerServices } from '../compiler';
+import { compileLocalStreamingTracked } from '../streaming';
 import { LocalSemanticCache } from './semantic-cache';
 import type { SemanticCacheStats } from '../compiler-services';
 import {LocalParseSession} from '../../parsing/parse-session';
@@ -12,7 +13,7 @@ import { localCompileOptionsKey, readLocalCompileOptions } from '../../configura
 import { readLocalConfig } from '../../../sdk/config';
 import { getLocalComponent } from '../../configuration/schema';
 import { MAX_LOCAL_DOCUMENT_LENGTH } from '../../configuration/limits';
-import type { LocalCompileOptions, LocalCompileResult, LocalDocument, LocalNode, SourceRange } from '../../types';
+import type { LocalCompileOptions, LocalCompileResult, LocalDocument, LocalNode, LocalSourcePhase, SourceRange } from '../../types';
 
 /**
  * Recovery mode disables incremental block assembly. Repaired regions have
@@ -29,6 +30,22 @@ function isRecoveryMode(options: LocalCompileOptions | undefined): boolean {
 /** Any present recovery list, including an explicit empty one, disables block reuse. */
 function hasRecoveries(result: LocalCompileResult): boolean {
   return Object.hasOwn(result, 'recoveries') && result.recoveries !== undefined;
+}
+
+/** Only the two declared values are phases; anything else keeps legacy semantics. */
+function readSourcePhase(value: unknown): LocalSourcePhase | undefined {
+  return value === 'streaming' || value === 'final' ? value : undefined;
+}
+
+/** A host may mark the phase on the options object instead of the call argument. */
+function optionSourcePhase(options: LocalCompileOptions | undefined): LocalSourcePhase | undefined {
+  try {
+    return typeof options === 'object' && options !== null
+      ? readSourcePhase((options as {sourcePhase?: unknown}).sourcePhase)
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 const markdown = parser.configure(GFM);
@@ -183,7 +200,7 @@ function rowPlansFor(tracked: Tracked, text: string): ReadonlyMap<string, Inline
 
 
 export interface LocalIncrementalStats {
-  mode: 'full' | 'incremental' | 'cached';
+  mode: 'full' | 'incremental' | 'cached' | 'streaming';
   totalBlocks: number;
   compiledBlocks: number;
   reusedBlocks: number;
@@ -207,20 +224,63 @@ export class LocalCompileSession {
   private shared:LocalCompileResult|null=null;
   private sharedKey:string|undefined;
   private sharedMode:boolean|undefined;
+  /**
+   * One streaming snapshot is enough for preview consumption: the scheduler
+   * throttles updates and an identical snapshot must not be recompiled. It is
+   * deliberately separate from the final caches above.
+   */
+  private streamingCache:{source:string;key:string;result:LocalCompileResult;blocks:number}|null=null;
   private epoch=0;
   private cacheBuilds = 0;
   private serial = 0;
   private lastStats: LocalIncrementalStats = { mode: 'full', totalBlocks: 0, compiledBlocks: 0, reusedBlocks: 0, compiledCharacters: 0 };
   get stats(): Readonly<LocalIncrementalStats> { return { ...this.lastStats, cacheBuilds: this.cacheBuilds }; }
-  compile(source: string, options?: LocalCompileOptions): LocalCompileResult {
-    const result=this.compileShared(source,options),start=performance.now();
+  compile(source: string, options?: LocalCompileOptions, phase?: LocalSourcePhase): LocalCompileResult {
+    const result=this.compileShared(source,options,phase),start=performance.now();
     const published=plainCompiledData(result);
     this.lastStats={...this.lastStats,stages:{...this.lastStats.stages,publicSnapshotMs:performance.now()-start}};
     return published;
   }
-  /** Compiler-owned persistent result for the Worker and preview. Treat as read-only. */
-  compileShared(source:string,options?:LocalCompileOptions):LocalCompileResult {
+  /**
+   * Compiler-owned persistent result for the Worker and preview. Treat as read-only.
+   * `phase` wins over `options.sourcePhase`; when neither supplies a valid phase
+   * the call keeps the historical final-compilation result shape.
+   */
+  compileShared(source:string,options?:LocalCompileOptions,phase?:LocalSourcePhase):LocalCompileResult {
     if(this.disposed)throw new Error('Local compile session is disposed');
+    const effective=readSourcePhase(phase)??optionSourcePhase(options);
+    // Streaming never reads or mutates the final caches: a later final compile
+    // must not inherit a stabilized partial snapshot, deferred index or shared
+    // result graph from an intermediate snapshot.
+    if(effective==='streaming')return this.compileStreaming(source,options);
+    if(effective==='final')return this.compileFinal(source,options);
+    return this.compileFinalOrLegacy(source,options);
+  }
+  /** Explicit final phase: the normal path plus the resolved compile status. */
+  private compileFinal(source:string,options?:LocalCompileOptions):LocalCompileResult {
+    const result=this.compileFinalOrLegacy(source,options);
+    // Node and document identity stay untouched; only the result wrapper is new.
+    return result.ok
+      ?{...result,status:hasRecoveries(result)?'recovered' as const:'valid' as const}
+      :{...result,status:'failed' as const};
+  }
+  private compileStreaming(source:string,options?:LocalCompileOptions):LocalCompileResult {
+    const key=localCompileOptionsKey(options),cached=this.streamingCache;
+    if(cached!==null&&cached.source===source&&cached.key===key){
+      this.lastStats={mode:'streaming',totalBlocks:cached.blocks,compiledBlocks:0,reusedBlocks:0,compiledCharacters:0};
+      return cached.result;
+    }
+    const tracked=compileLocalStreamingTracked(source,options,this.services);
+    const blocks=tracked.parsed?.nodes.length??0;
+    this.lastStats={mode:'streaming',totalBlocks:blocks,compiledBlocks:blocks,reusedBlocks:0,
+      compiledCharacters:typeof source==='string'?source.length:0,stages:tracked.timings};
+    // This result is the one the compiler owns for this snapshot; callers that
+    // need independence use `compile`, which snapshots it into plain data.
+    this.streamingCache={source,key,result:tracked.result,blocks};
+    return tracked.result;
+  }
+  /** The historical compile path, shared by legacy and explicit-final callers. */
+  private compileFinalOrLegacy(source:string,options?:LocalCompileOptions):LocalCompileResult {
     this.epoch++;
     const key=localCompileOptionsKey(options);
     // A mode switch must never be answered from a result produced under the
@@ -605,7 +665,7 @@ export class LocalCompileSession {
       this.snapshot=snapshot;this.deferred=null;return snapshot!==null;
     } catch {return false;} finally {this.cacheBuilds=builds;}
   }
-  clear(): void { this.epoch++;this.snapshot = null; this.deferred = null; this.serial = 0; this.cacheBuilds = 0;this.shared=null;this.sharedKey=undefined;this.sharedMode=undefined;this.parseSession.clear();this.semantic.clear(); }
+  clear(): void { this.epoch++;this.snapshot = null; this.deferred = null; this.serial = 0; this.cacheBuilds = 0;this.shared=null;this.sharedKey=undefined;this.sharedMode=undefined;this.streamingCache=null;this.parseSession.clear();this.semantic.clear(); }
   dispose(): void { this.clear(); this.parseSession.dispose();this.disposed = true; }
 }
 

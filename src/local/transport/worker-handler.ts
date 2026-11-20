@@ -11,7 +11,7 @@ import {
   LocalCompileSession,
   type LocalIncrementalStats,
 } from '../compilation/session/incremental';
-import type { LocalCompileOptions, LocalCompileResult } from '../types';
+import type { LocalCompileOptions, LocalCompileResult, LocalSourcePhase } from '../types';
 import {
   encodeLocalResultPatchWithCost,
   LOCAL_RESULT_PATCH_PROTOCOL,
@@ -58,7 +58,7 @@ export interface LocalCompileWorkerOptions {
 
 /** Optional session methods the main implementation may add later. */
 interface LocalCompileSessionExtensions {
-  compileShared?(source: string, options?: LocalCompileOptions): LocalCompileResult;
+  compileShared?(source: string, options?: LocalCompileOptions, phase?: LocalSourcePhase): LocalCompileResult;
   prepareAsync?(
     signal?: { readonly aborted: boolean },
     yieldTask?: () => Promise<void>,
@@ -73,17 +73,29 @@ interface WorkerState {
   result: LocalCompileResult;
   deep: boolean;
   flatResults: boolean;
+  /**
+   * Phase declared by the request that produced this state, exactly as the
+   * client sent it. Absent for legacy clients and therefore implicitly final;
+   * a streaming state may never serve a patch request.
+   */
+  sourcePhase?: LocalSourcePhase;
 }
 
 function compileWithSession(
   session: LocalCompileSession,
   source: string,
   options?: LocalCompileOptions,
+  sourcePhase?: LocalSourcePhase,
 ): LocalCompileResult {
   const extended = session as LocalCompileSession & LocalCompileSessionExtensions;
   return typeof extended.compileShared === 'function'
-    ? extended.compileShared(source, options)
-    : session.compile(source, options);
+    ? extended.compileShared(source, options, sourcePhase)
+    : session.compile(source, options, sourcePhase);
+}
+
+/** Only the two declared values are phases; anything else is a protocol error. */
+function isSourcePhase(value: unknown): value is LocalSourcePhase {
+  return value === 'streaming' || value === 'final';
 }
 
 function sessionStats(session: LocalCompileSession): Readonly<LocalIncrementalStats> {
@@ -260,6 +272,7 @@ export function startLocalCompileWorker(
             result: state.result,
             duration,
             incremental: sessionStats(session),
+            ...(state.sourcePhase === undefined ? {} : { sourcePhase: state.sourcePhase }),
             protocol: LOCAL_RESULT_PATCH_PROTOCOL,
             revision,
             metrics,
@@ -270,6 +283,7 @@ export function startLocalCompileWorker(
             result: state.result,
             duration,
             incremental: sessionStats(session),
+            ...(state.sourcePhase === undefined ? {} : { sourcePhase: state.sourcePhase }),
           };
       if (includeAnalysis && response.ok) {
         const started = now();
@@ -300,8 +314,14 @@ export function startLocalCompileWorker(
 
     // A complete source always resets the incremental chain.
     if (typeof request.source === 'string') {
-      cancelPreparation();
       const full = request as LocalCompileRequest;
+      if (full.sourcePhase !== undefined && !isSourcePhase(full.sourcePhase)) {
+        // A malformed phase must not poison the session state; report it as a
+        // failure response instead of throwing out of the message handler.
+        postFailure(target, full.id, 'The requested source phase is not supported: expected "streaming" or "final"');
+        return;
+      }
+      cancelPreparation();
       const snapshot = snapshotCompileOptions(full.options);
       // Key the snapshot that is actually compiled and returned to analysis;
       // the scheduler keys the same copied object on its side.
@@ -319,7 +339,7 @@ export function startLocalCompileWorker(
             /* a session without clear simply recompiles */
           }
         }
-        const result = compileWithSession(session, full.source, snapshot);
+        const result = compileWithSession(session, full.source, snapshot, full.sourcePhase);
         const compileMs = safeDuration(now() - started);
         lastRevision = revision;
         current = {
@@ -330,6 +350,7 @@ export function startLocalCompileWorker(
           result,
           deep: needsFlatCompileResult(result),
           flatResults: full.flatResults===FLAT_COMPILED_DATA_PROTOCOL,
+          ...(full.sourcePhase === undefined ? {} : { sourcePhase: full.sourcePhase }),
         };
         if (respondFull(full.id, revision, compileMs, negotiated, full.includeAuthorAnalysis === true)) {
           schedulePreparation();
@@ -349,6 +370,12 @@ export function startLocalCompileWorker(
     };
     if (state === null) {
       retry('No complete compile is available to patch', 'stale-base');
+      return;
+    }
+    if ((state.sourcePhase ?? 'final') !== 'final') {
+      // A streaming snapshot is not a patch baseline; only a final result may
+      // start or extend the edit chain.
+      retry('The baseline was compiled from a streaming snapshot', 'phase-mismatch');
       return;
     }
     if (
@@ -382,7 +409,7 @@ export function startLocalCompileWorker(
     const revision = resolveRevision(patchRequest.revision);
     const started = now();
     try {
-      const result = compileWithSession(session, nextSource, state.options);
+      const result = compileWithSession(session, nextSource, state.options, state.sourcePhase);
       const compileMs = safeDuration(now() - started);
       const baseRevision = state.revision;
       const baseResult = state.result;
@@ -395,6 +422,7 @@ export function startLocalCompileWorker(
         result,
         deep: needsFlatCompileResult(result),
         flatResults: state.flatResults,
+        ...(state.sourcePhase === undefined ? {} : { sourcePhase: state.sourcePhase }),
       };
       let encoding: ReturnType<typeof encodeLocalResultPatchWithCost> = null;
       let patchEncodeMs = 0;
@@ -452,6 +480,7 @@ export function startLocalCompileWorker(
           patch,
           duration: compileMs,
           incremental: sessionStats(session),
+          ...(state.sourcePhase === undefined ? {} : { sourcePhase: state.sourcePhase }),
           metrics,
         };
         if (patchRequest.includeAuthorAnalysis === true) {
