@@ -248,6 +248,11 @@ describe('controlled tone', () => {
     const alert = renderTone(toneDocument('alert', 'warning'));
     expect(alert).toContain('local-alert-warning');
     expect(alert).toContain('role="alert"');
+
+    const error = renderTone(toneDocument('alert', 'error'));
+    expect(error).toContain('md-alert-error');
+    expect(error).toContain('local-alert-error');
+    expect(error).toContain('role="alert"');
   });
 
   it('follows a dynamic expression between allowed enum values', () => {
@@ -262,6 +267,12 @@ describe('controlled tone', () => {
     );
     expect(success).toContain('md-badge-success');
     expect(success).not.toContain('local-tone-error');
+
+    const error = renderTone(
+      toneDocument('alert', "{{ flag ? 'error' : 'info' }}", booleanBinding(true)),
+    );
+    expect(error).toContain('local-alert-error');
+    expect(error).not.toContain('local-tone-error');
   });
 
   it('falls back visibly for an out-of-enum dynamic value without injecting classes', () => {

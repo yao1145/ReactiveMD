@@ -389,7 +389,7 @@ option.value is a non-empty, static, unique string; the body is the option's inl
 | accordion | optional label | One or more disclosure |
 | disclosure | label required; open=false | Click to expand; multiple entries can be open at once |
 | if | when required, complete boolean interpolation | Shows Markdown and components when true |
-| alert | optional title; tone=info/success/warning, default info | Regular Markdown |
+| alert | optional title; tone=info/success/warning/error, default info | Regular Markdown |
 | badge | tone=neutral/success/warning, default neutral | Inline text |
 | tooltip | text required | Focusable inline explanatory text |
 
@@ -426,9 +426,9 @@ Base layout uses Markdown; images use `![description](../path)`, links use `[tex
 <alert tone="{{ total <= budget ? 'info' : 'warning' }}">Review the estimate before booking.</alert>
 ```
 
-`badge` accepts dynamic `tone` with `neutral`, `success` and `warning`; `alert` accepts `info`, `success` and `warning`. Static `tone` values use the same enums. A dynamic expression must have string type, and the renderer checks the returned value against the component's allowed tones. An error or unsupported value uses the default tone and a visible computation hint. CSS classes, author styles and colors remain outside this conditional API.
+`badge` accepts dynamic `tone` with `neutral`, `success` and `warning`; `alert` accepts `info`, `success`, `warning` and `error`. Static `tone` values use the same enums. A dynamic expression must have string type, and the renderer checks the returned value against the component's allowed tones. An error or unsupported value uses the default tone and a visible computation hint. CSS classes, author styles and colors remain outside this conditional API.
 
-The enum covers warning and success emphasis while keeping theme colors and contrast under host control. Broader conditional styling is outside the author syntax.
+The enum covers info, warning, success and error emphasis while keeping theme colors and contrast under host control. Broader conditional styling is outside the author syntax.
 
 ## 8. Checklists
 

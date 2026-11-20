@@ -4,7 +4,11 @@
 
 ## 未发布
 
-解析器、状态恢复与增量编辑的边界情况修复，不涉及协议或 API 变更。
+解析器、状态恢复与增量编辑的边界情况修复，并为 alert 提示块增加红色 error 色调。
+
+### 新增
+
+- `<alert tone="error">` 使用红色危险色调并带有 `role="alert"`；动态 tone 表达式也接受 `error`。
 
 ### 修复
 
@@ -25,7 +29,7 @@
 
 ### 兼容性
 
-- 语法、组件与状态协议均无变化：`local-draft-3`、`component-protocol-3`、`reactive-md-theme-1`、`reactive-md-state/v1` 保持原版本。
+- 协议版本均无变化：alert 的 tone 枚举新增 `error`；`local-draft-3`、`component-protocol-3`、`reactive-md-theme-1`、`reactive-md-state/v1` 保持原版本。
 
 ## 0.8.0（2026-11-12，latest 渠道）
 

@@ -189,7 +189,7 @@ Shared classes cover the remaining public UI. They supply appearance; the author
 | --- | --- |
 | Surfaces | `md-card`, `md-card-title`, `md-card-body`, `md-panel`, `md-panel-title`, `md-panel-body`, `md-group` |
 | Status | `md-badge` and `md-status` with `md-badge-neutral`, `md-badge-success`, `md-badge-warning`, `md-badge-danger`, `md-badge-info` and the matching `md-status-*` variants |
-| Feedback | `md-alert` with `md-alert-success`, `md-alert-warning`, `md-alert-danger`, `md-alert-info`, `md-alert-title`, `md-alert-body`; `md-empty-state`, `md-empty-state-title`, `md-empty-state-description`; `md-spinner`, `md-loading`, `md-skeleton` |
+| Feedback | `md-alert` with `md-alert-success`, `md-alert-warning`, `md-alert-danger`, `md-alert-error`, `md-alert-info`, `md-alert-title`, `md-alert-body`; `md-empty-state`, `md-empty-state-title`, `md-empty-state-description`; `md-spinner`, `md-loading`, `md-skeleton` |
 | Navigation | `md-tabs`, `md-tablist`, `md-tab`, `md-tabpanel`, `md-pagination`, `md-page`, `md-steps`, `md-step` |
 | Content | Document typography for headings, paragraphs, links, lists, quotes, rules, `kbd`, inline code and code blocks; native tables and `md-table` |
 | Charts | `md-chart`, `md-chart-axis`, `md-chart-grid`, `md-chart-legend`, `md-chart-node`, `md-chart-edge`, `md-chart-series-line`, `md-chart-series-area` |

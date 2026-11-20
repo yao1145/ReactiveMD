@@ -488,11 +488,11 @@ const AUTHORING_DATA = {
     alert: {
       title: { en: 'Alert', zh: '提示框' },
       description: {
-        en: 'Highlight info, success or warning messages with different tones.',
-        zh: '用不同语气突出普通、成功或警告信息。',
+        en: 'Highlight info, success, warning or error messages with different tones.',
+        zh: '用不同语气突出普通、成功、警告或错误信息。',
       },
       category: 'hint',
-      keywords: { en: ['alert', 'notice', 'warning', 'info', 'message'], zh: ['提示', '警告', '通知', '信息', '消息'] },
+      keywords: { en: ['alert', 'notice', 'warning', 'error', 'info', 'message'], zh: ['提示', '警告', '错误', '通知', '信息', '消息'] },
       insertText: {
         en: '<alert tone="info" title="Notice">\n{{selection:Sample content}}\n</alert>',
         zh: '<alert tone="info" title="提示">\n{{selection:示例内容}}\n</alert>',

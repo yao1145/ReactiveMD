@@ -4,7 +4,11 @@
 
 ## Unreleased
 
-Parser, state restoration and incremental editing edge cases, with no protocol or API change.
+Parser, state restoration and incremental editing edge cases, plus a red error tone for alert callouts.
+
+### Added
+
+- `<alert tone="error">` renders a red danger-toned callout with `role="alert"`; dynamic tone expressions accept `error` as well.
 
 ### Fixed
 
@@ -26,7 +30,7 @@ Parser, state restoration and incremental editing edge cases, with no protocol o
 
 ### Compatibility
 
-- No syntax, component or state protocol change. `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1` and `reactive-md-state/v1` are unchanged.
+- No protocol version change. The alert tone enum gains `error`; `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1` and `reactive-md-state/v1` are unchanged.
 
 ## 0.8.0 (2026-11-12, latest channel)
 

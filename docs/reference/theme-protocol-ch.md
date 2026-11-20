@@ -170,7 +170,7 @@ export function Article({ source }: { source: string }) {
 | --- | --- |
 | 容器 | `md-card`、`md-card-title`、`md-card-body`、`md-panel`、`md-panel-title`、`md-panel-body`、`md-group` |
 | 状态 | `md-badge`、`md-status`，以及 `md-badge-neutral`、`md-badge-success`、`md-badge-warning`、`md-badge-danger`、`md-badge-info` 和对应的 `md-status-*` 变体 |
-| 反馈 | `md-alert` 及 `md-alert-success`、`md-alert-warning`、`md-alert-danger`、`md-alert-info`、`md-alert-title`、`md-alert-body`；`md-empty-state`、`md-empty-state-title`、`md-empty-state-description`；`md-spinner`、`md-loading`、`md-skeleton` |
+| 反馈 | `md-alert` 及 `md-alert-success`、`md-alert-warning`、`md-alert-danger`、`md-alert-error`、`md-alert-info`、`md-alert-title`、`md-alert-body`；`md-empty-state`、`md-empty-state-title`、`md-empty-state-description`；`md-spinner`、`md-loading`、`md-skeleton` |
 | 导航 | `md-tabs`、`md-tablist`、`md-tab`、`md-tabpanel`、`md-pagination`、`md-page`、`md-steps`、`md-step` |
 | 正文 | 标题、段落、链接、列表、引用、分隔线、`kbd`、行内代码和代码块的文档排版；原生表格和 `md-table` |
 | 图表 | `md-chart`、`md-chart-axis`、`md-chart-grid`、`md-chart-legend`、`md-chart-node`、`md-chart-edge`、`md-chart-series-line`、`md-chart-series-area` |

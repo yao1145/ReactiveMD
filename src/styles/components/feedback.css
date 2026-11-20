@@ -109,7 +109,8 @@
   color: var(--warning);
 }
 
-.md-document .md-alert-danger {
+.md-document .md-alert-danger,
+.md-document .md-alert-error {
   background: var(--danger-soft);
   border-color: var(--danger-line);
   border-left-color: var(--danger);

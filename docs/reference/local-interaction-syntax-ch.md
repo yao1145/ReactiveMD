@@ -391,7 +391,7 @@ option.value 为非空、静态、唯一字符串；正文是选项的行内文�
 | accordion | 可选 label | 一个或多个 disclosure |
 | disclosure | label 必填；open=false | 点击展开，多个条目可同时打开 |
 | if | when 必填，完整布尔插值 | 为真时显示 Markdown 与组件 |
-| alert | 可选 title；tone=info/success/warning，默认 info | 普通 Markdown |
+| alert | 可选 title；tone=info/success/warning/error，默认 info | 普通 Markdown |
 | badge | tone=neutral/success/warning，默认 neutral | 行内文字 |
 | tooltip | text 必填 | 可聚焦的行内说明文字 |
 
@@ -428,9 +428,9 @@ if 的 when 为假时不显示内容，内部参数仍按第 4 节初始化。�
 <alert tone="{{ total <= budget ? 'info' : 'warning' }}">预订前请核对预算。</alert>
 ```
 
-`badge` 与 `alert` 的 `tone` 可以用字符串表达式动态设置。`badge` 接受 `neutral`、`success`、`warning`，`alert` 接受 `info`、`success`、`warning`；静态值保持原有行为。表达式必须是字符串类型，渲染器还会检查结果是否属于组件允许的枚举。表达式错误或非法值会回退默认 `tone`，并显示计算提示，不影响其他内容。
+`badge` 与 `alert` 的 `tone` 可以用字符串表达式动态设置。`badge` 接受 `neutral`、`success`、`warning`，`alert` 接受 `info`、`success`、`warning`、`error`；静态值保持原有行为。表达式必须是字符串类型，渲染器还会检查结果是否属于组件允许的枚举。表达式错误或非法值会回退默认 `tone`，并显示计算提示，不影响其他内容。
 
-有限枚举可表达警告和成功状态，同时让主题继续控制颜色与对比度。这个条件接口不引入作者 CSS、样式字符串或动态颜色。
+有限枚举可表达提示、警告、成功和错误状态，同时让主题继续控制颜色与对比度。这个条件接口不引入作者 CSS、样式字符串或动态颜色。
 
 ## 8. 可勾选清单
 

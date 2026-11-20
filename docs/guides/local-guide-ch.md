@@ -336,7 +336,7 @@ $$ (x^2 + y^2)^2 = 2a^2(x^2 - y^2) $$
 
 `if` 的 `when` 必须是完整的布尔插值，写成 `when="{{ people >= 5 }}"`。条件为真时显示内部内容，为假时隐藏。
 
-`alert` 是一块提示，`tone` 可取 `info`、`success` 或 `warning`，默认 `info`。`title` 可选，正文继续使用 Markdown。
+`alert` 是一块提示，`tone` 可取 `info`、`success`、`warning` 或 `error`，默认 `info`；`error` 使用红色危险色调。`title` 可选，正文继续使用 Markdown。
 
 ### accordion 与 disclosure
 
@@ -496,7 +496,7 @@ $$ (x^2 + y^2)^2 = 2a^2(x^2 - y^2) $$
 
 | 标签 | 形态 | 主要属性 | 用途 |
 | --- | --- | --- | --- |
-| `alert` | 容器 | `title`、`tone=info/success/warning` | 提示块 |
+| `alert` | 容器 | `title`、`tone=info/success/warning/error` | 提示块 |
 | `badge` | 行内 | `tone=neutral/success/warning`、`color` | 状态标签；`tone` 可静态或动态 |
 | `tooltip` | 行内 | `text` 必填 | 行内说明；悬停或键盘聚焦时显示 |
 

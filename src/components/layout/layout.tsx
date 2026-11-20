@@ -519,10 +519,10 @@ export function AlertView(context: LocalComponentContext) {
   const { tone, error } = toneAttr(
     context,
     'tone',
-    ['info', 'success', 'warning'] as const,
+    ['info', 'success', 'warning', 'error'] as const,
     'info',
   );
-  const role = tone === 'warning' ? 'alert' : 'status';
+  const role = tone === 'warning' || tone === 'error' ? 'alert' : 'status';
   return (
     <>
       {error ? <ToneProblem message={view.t('Invalid tone; using the default style', '色调无效，已使用默认样式')} /> : null}

@@ -552,7 +552,7 @@ const ifDef = definition('if', 'container', {
 const alertDef = definition('alert', 'container', {
   props: {
     title: optionalTitle(),
-    tone: props.choice(['info', 'success', 'warning'], { dynamic: true, default: 'info' }),
+    tone: props.choice(['info', 'success', 'warning', 'error'], { dynamic: true, default: 'info' }),
   },
   structure: structure({ rule: 'any', label: 'none' }),
 });

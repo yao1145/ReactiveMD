@@ -336,7 +336,7 @@ At 5 or more people, you can request group pricing.
 
 `if` requires a complete boolean interpolation in `when`, such as `when="{{ people >= 5 }}"`. It shows its content when the condition is true and hides it when false.
 
-`alert` is a callout block. `tone` accepts `info`, `success` or `warning` and defaults to `info`. `title` is optional, and the body continues to use Markdown.
+`alert` is a callout block. `tone` accepts `info`, `success`, `warning` or `error` and defaults to `info`; `error` uses the red danger palette. `title` is optional, and the body continues to use Markdown.
 
 ### accordion and disclosure
 
@@ -496,7 +496,7 @@ Most interactive controls support `label`, optional `bind`, optional `initial` a
 
 | Tag | Form | Key attributes | Purpose |
 | --- | --- | --- | --- |
-| `alert` | Container | `title`, `tone=info/success/warning` | Callout block |
+| `alert` | Container | `title`, `tone=info/success/warning/error` | Callout block |
 | `badge` | Inline | `tone=neutral/success/warning`, `color` | Status label; `tone` can be static or dynamic |
 | `tooltip` | Inline | `text` required | Inline explanation; shown on hover or keyboard focus |
 

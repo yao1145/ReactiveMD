@@ -201,7 +201,9 @@
   color: var(--warning);
 }
 
-:where(.md-document .md-alert-danger:not([data-rmd-appearance="custom"])) {
+:where(
+  .md-document :is(.md-alert-danger, .md-alert-error):not([data-rmd-appearance="custom"])
+) {
   background: var(--danger-soft);
   border-color: var(--danger-line);
   color: var(--danger);
