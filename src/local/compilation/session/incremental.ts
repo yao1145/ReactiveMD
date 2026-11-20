@@ -265,8 +265,12 @@ export class LocalCompileSession {
       :{...result,status:'failed' as const};
   }
   private compileStreaming(source:string,options?:LocalCompileOptions):LocalCompileResult {
+    // The streaming cache is keyed by source and option identity; invalid
+    // options must always reach the compiler so their diagnostic is not hidden
+    // by a cached success for the same text.
+    const check=readLocalCompileOptions(options),cacheable=check.ok;
     const key=localCompileOptionsKey(options),cached=this.streamingCache;
-    if(cached!==null&&cached.source===source&&cached.key===key){
+    if(cacheable&&cached!==null&&cached.source===source&&cached.key===key){
       this.lastStats={mode:'streaming',totalBlocks:cached.blocks,compiledBlocks:0,reusedBlocks:0,compiledCharacters:0};
       return cached.result;
     }
@@ -276,7 +280,7 @@ export class LocalCompileSession {
       compiledCharacters:typeof source==='string'?source.length:0,stages:tracked.timings};
     // This result is the one the compiler owns for this snapshot; callers that
     // need independence use `compile`, which snapshots it into plain data.
-    this.streamingCache={source,key,result:tracked.result,blocks};
+    if(cacheable)this.streamingCache={source,key,result:tracked.result,blocks};
     return tracked.result;
   }
   /** The historical compile path, shared by legacy and explicit-final callers. */

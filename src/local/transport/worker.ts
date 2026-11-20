@@ -322,6 +322,13 @@ function phaseFields(job: CompileJob): { sourcePhase?: LocalSourcePhase } {
   return job.sourcePhase === 'streaming' || job.explicitPhase ? { sourcePhase: job.sourcePhase } : {};
 }
 
+/** A transport failure still reports a phase-aware status for explicit jobs. */
+function failureResult(job: CompileJob, diagnostic: Diagnostic): LocalCompileResult {
+  return job.explicitPhase
+    ? { ok: false, diagnostics: [diagnostic], status: 'failed' }
+    : { ok: false, diagnostics: [diagnostic] };
+}
+
 function isCompileResult(value: unknown): value is LocalCompileResult {
   if (!value || typeof value !== 'object') return false;
   const result = value as { ok?: unknown; diagnostics?: unknown; document?: unknown };
@@ -564,7 +571,7 @@ export class LocalCompileScheduler {
           ? fallbackCompile(job.source)
           : fallbackCompile(job.source, job.options);
     } catch (error) {
-      result = { ok: false, diagnostics: [compileFailureDiagnostic(error)] };
+      result = failureResult(job, compileFailureDiagnostic(error));
     }
     this.deliver({
       source: job.source,
@@ -687,7 +694,7 @@ export class LocalCompileScheduler {
       if (!superseded) {
         this.deliver({
           source: job.source,
-          result: { ok: false, diagnostics: [compileFailureDiagnostic(failure)] },
+          result: failureResult(job, compileFailureDiagnostic(failure)),
           duration: 0,
           mode,
           ...(job.options === undefined ? {} : { options: job.options }),
@@ -706,10 +713,7 @@ export class LocalCompileScheduler {
       this.baseline = null;
       this.deliver({
         source: job.source,
-        result: {
-          ok: false,
-          diagnostics: [compileFailureDiagnostic('The compile worker could not apply an incremental result patch')],
-        },
+        result: failureResult(job, compileFailureDiagnostic('The compile worker could not apply an incremental result patch')),
         duration: 0,
         mode,
         ...(job.options === undefined ? {} : { options: job.options }),

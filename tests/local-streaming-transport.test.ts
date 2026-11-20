@@ -5,7 +5,7 @@ import {
 } from '../src/local/transport/compile-patch';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalCompileSession } from '../src/local/compilation/session/incremental';
-import type { LocalCompileResult, LocalSourcePhase } from '../src/local/types';
+import type { LocalCompileOptions, LocalCompileResult, LocalSourcePhase } from '../src/local/types';
 import {
   FakeWorker,
   fullRequest,
@@ -119,6 +119,24 @@ describe('LocalCompileSession source phases', () => {
     }
   });
 
+  it('does not let the streaming cache skip option validation', () => {
+    const session = createLocalCompileSession();
+    try {
+      const cached = session.compileShared('hello', undefined, 'streaming');
+      expect(cached.ok).toBe(true);
+      const invalid = session.compileShared(
+        'hello',
+        { sourcePhase: 'later' } as unknown as LocalCompileOptions,
+        'streaming',
+      );
+      expect(invalid.ok).toBe(false);
+      expect(invalid.status).toBe('failed');
+      expect(invalid.diagnostics.map((diagnostic) => diagnostic.code)).toEqual(['local.options.invalid']);
+    } finally {
+      session.dispose();
+    }
+  });
+
   it('returns a streaming snapshot as partial and caches an identical snapshot', () => {
     const session = createLocalCompileSession();
     try {
@@ -220,6 +238,22 @@ describe('LocalCompileScheduler source phases', () => {
       expect(results).toHaveLength(1);
       expect(results[0].source).toBe('half done');
       expect(results[0].sourcePhase).toBe('final');
+    } finally {
+      scheduler.dispose();
+    }
+  });
+
+  it('reports a failed status for explicit-phase transport failures', () => {
+    const { worker, results, scheduler } = setup();
+    try {
+      scheduler.schedule('snap', undefined, undefined, 'streaming');
+      vi.advanceTimersByTime(LOCAL_COMPILE_DELAY_MS);
+      const request = fullRequest(worker.requests[0]);
+      worker.receive({ id: request.id, ok: false, message: 'worker failed' });
+      expect(results).toHaveLength(1);
+      expect(results[0].sourcePhase).toBe('streaming');
+      expect(results[0].result.ok).toBe(false);
+      expect(results[0].result.status).toBe('failed');
     } finally {
       scheduler.dispose();
     }
