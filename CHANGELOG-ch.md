@@ -6,7 +6,7 @@
 
 ### 新增
 
-- 新增流式源码编译。编译会话、`LocalCompileScheduler`、Worker 和 `LocalReactiveDocument` 接受显式的 `streaming` 或 `final` 源码阶段；未完成区域以原文呈现，可修复问题进入 `transientDiagnostics`，确定性错误与最终严格/恢复语义保持不变。受控编辑器现在把相关的外部源码快照作为原地编辑应用，保留选区、滚动位置和撤销历史，并在输入法组合期间暂缓更新。
+- 新增流式源码编译。编译会话、`LocalCompileScheduler`、Worker 和 `LocalReactiveDocument` 接受显式的 `streaming` 或 `final` 源码阶段；未完成区域以原文呈现，可修复问题进入 `transientDiagnostics`，确定性错误与最终严格/恢复语义保持不变。独立的 `reactive-md-editor` 包现在把相关的外部源码快照作为原地编辑应用，保留选区、滚动位置和撤销历史，并在输入法组合期间暂缓更新。
 
 ## 0.9.0（2026-11-20，latest 渠道）
 

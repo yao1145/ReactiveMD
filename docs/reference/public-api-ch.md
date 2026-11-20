@@ -8,7 +8,7 @@
 
 | 包 | 版本 | 职责 |
 | --- | --- | --- |
-| `reactive-md` | `0.8.0` | 编译器、运行时、作者服务、SDK、React 与 SSR 渲染、导出、构建适配 |
+| `reactive-md` | `0.9.0` | 编译器、运行时、作者服务、SDK、React 与 SSR 渲染、导出、构建适配 |
 | `reactive-md-editor` | `0.1.0` | CodeMirror 6 源码编辑器、工具栏、编辑器侧导航 |
 | `reactive-md-demo` | 私有 | 站点、示例与部署，不提供对外接口 |
 
@@ -80,7 +80,7 @@
 
 宿主在内存中编译、运行并持久化文档时用这个入口。`compileLocal()` 是一次性完整编译器；`createLocalCompileSession()` 在连续编辑中复用未变动的 Markdown 块；`createLocalRuntime()` 持有参数、订阅与销毁。运行时本身不写存储、Cookie 或网络。
 
-`LocalCompileOptions.sourcePhase` 把快照标记为 `streaming` 或 `final`；会话接受 `compile(source, options?, phase?)` 和 `compileShared(source, options?, phase?)`，`LocalCompileScheduler.schedule(source, options?, hint?, phase?)` 使用同一阶段，`final` 跳过防抖。显式阶段结果增加 `status`（`partial`、`valid`、`recovered`、`failed`），流式结果还可带 `transientDiagnostics`；暂态诊断不会出现在 `diagnostics` 中。Worker 的完整请求与响应回显 `sourcePhase`，`LocalCompileOutcome.sourcePhase` 报告该阶段，修订号保持单调递增，流式结果永不建立补丁基线。一次性 `compileLocal` 与编译器入口仍只做最终编译。
+`LocalCompileOptions.sourcePhase` 把快照标记为 `streaming` 或 `final`；会话接受 `compile(source, options?, phase?)` 和 `compileShared(source, options?, phase?)`，`LocalCompileScheduler.schedule(source, options?, hint?, phase?)` 使用同一阶段，`final` 跳过防抖。显式阶段结果增加 `status`（`partial`、`valid`、`recovered`、`failed`），流式结果还可带 `transientDiagnostics`；暂态诊断不会出现在 `diagnostics` 中。Worker 的完整请求与响应在声明了阶段时回显 `sourcePhase`（请求字段或 options 对象均可）；未声明阶段的旧客户端省略该字段。`LocalCompileOutcome.sourcePhase` 报告该阶段，修订号保持单调递增，流式结果永不建立补丁基线。一次性 `compileLocal` 与编译器入口仍只做最终编译。
 
 ### `reactive-md/compiler`
 
@@ -386,7 +386,7 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 
 | 常量 | 值 | 作用范围 |
 | --- | --- | --- |
-| 包版本 | `0.8.0` | 引擎发布 |
+| 包版本 | `0.9.0` | 引擎发布 |
 | SDK 契约 | `0.7.0`（`LOCAL_SDK_VERSION`） | 组件、预设与配置清单 |
 | 语法修订 | `local-draft-3`（`LOCAL_SYNTAX_VERSION`） | 文档源码 |
 | 状态文件 | `reactive-md-state/v1`（`LOCAL_STATE_FORMAT`） | 导出的参数 |

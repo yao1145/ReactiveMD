@@ -104,13 +104,13 @@ console.log(session.stats); // mode: 'incremental', compiledBlocks: 1, reusedBlo
 session.dispose(); // 关闭文档时释放会话缓存
 ```
 
-`compile(source, options?, phase?)` 返回 `LocalCompileResult`；阶段用法见[流式源码编译](#流式源码编译)。`clear()` 清空复用数据，`dispose()` 释放缓存并结束会话；销毁后的会话不能再次编译。结果是可序列化的普通数据，每次返回独立快照，修改旧结果不会污染缓存。会话内未修改块的节点 ID 可跨编辑保持稳定，编号不要求与独立 `compileLocal()` 调用相同；节点 ID 及其元数据关联始终以同一份结果为准。
+`compile(source, options?, phase?)` 返回 `LocalCompileResult`；阶段用法见[流式源码编译](#流式源码编译)。`compileShared` 返回 Worker 与预览使用的编译器只读结果图，调用方不得修改；需要独立数据时使用 `compile`，它会发布普通数据快照。`clear()` 清空复用数据，`dispose()` 释放缓存并结束会话；销毁后的会话不能再次编译。结果是可序列化的普通数据，每次返回独立快照，修改旧结果不会污染缓存。会话内未修改块的节点 ID 可跨编辑保持稳定，编号不要求与独立 `compileLocal()` 调用相同；节点 ID 及其元数据关联始终以同一份结果为准。
 
 同一会话内，参数与声明上下文保持不变时，只重新编译受影响的 Markdown 块。改变声明、组件内容、编译选项、权限或宿主 schema 时执行完整编译。引用定义、脚注、导航锚点、HTML、BOM、代码定界符变化及无法确认安全边界的输入也保守回到完整编译。出现诊断时返回完整编译的诊断。整篇源码和累计节点预算仍然生效，缓存只保留当前版本。
 
 连续修改组件或声明时，会话保留最新的成功编译结果，延迟建立块索引。恢复编辑独立正文块时，再建立一次索引并复用其他块。相同源码可直接返回独立快照；选项变化、错误、`clear()` 和 `dispose()` 都会清除待恢复状态。
 
-`stats` 提供最近一次调用的 `mode`（`full`、`incremental`、`cached`）、块数、复用数、编译字符数与可选失效原因，用于观测实际复用。`cacheBuilds` 记录本次调用尝试建立块索引的次数，包括延迟恢复。修改块会在不变的声明前缀下编译，前缀工作量计入 `compiledCharacters`。差异检测、范围重定位和完整结果快照组装仍随文档规模增长；会话不保证每次编辑都是常数时间。
+`stats` 提供最近一次调用的 `mode`（`full`、`incremental`、`cached` 或 `streaming`）、块数、复用数、编译字符数与可选失效原因，用于观测实际复用。`cacheBuilds` 记录本次调用尝试建立块索引的次数，包括延迟恢复。修改块会在不变的声明前缀下编译，前缀工作量计入 `compiledCharacters`。差异检测、范围重定位和完整结果快照组装仍随文档规模增长；会话不保证每次编辑都是常数时间。
 
 扁平单行列表、表格即使占满整个文档，也可建立增量快照。修改一行后，会话复用上一版的简单行解析计划，并在完整语义校验后保留未修改行的节点 ID。位置不变的行可共享对象；位置变化时克隆并更新 UTF-16 范围。动态插值仍由通用解析器处理。`stats.parse` 中的 `reusedRows` / `reusedItems` 累计解析计划复用，`reusedRowNodes` / `reusedItemNodes` 单独累计最终行节点复用。
 
@@ -143,7 +143,7 @@ type LocalSourcePhase = 'streaming' | 'final';
 | 源阶段 | `status` | 结果语义 |
 | --- | --- | --- |
 | `streaming` | `partial` | `ok: true`，返回当前可安全呈现的文档；可由后续源码修复的问题进入 `transientDiagnostics`，不可安全解释的区域以原文显示。 |
-| `streaming` + 确定性错误 | `failed` | `ok: false`；只有配置、版本、预算、HTML 能力、权限、源码类型或长度等确定性错误留在 `diagnostics`。 |
+| `streaming` + 确定性错误 | `failed` | `ok: false`；只有确定性错误留在 `diagnostics`：选项、源码类型或长度、语法版本、预算、原生 HTML/安全策略、配置、注册表与能力失败，以及内部解析失败（`local.parse.*`）。 |
 | `final` | `valid` | 完整编译成功，且未执行结构恢复。 |
 | `final` + `strict: false` 恢复 | `recovered` | 返回文档、`recoveries` 和每个恢复对应的 warning。 |
 | `final` | `failed` | 沿用最终编译错误规则，不把错误标为暂态。 |
@@ -185,9 +185,10 @@ scheduler.schedule(completedSource, options, undefined, 'final');
 ```
 
 - 流式快照使用调度器的节流窗口（默认 `LOCAL_COMPILE_DELAY_MS`，150 ms）合并，只保留最新排队快照；不会为每个 token 单独编译。
-- `final` 跳过防抖立即排队。它可以等待正在执行的编译结束，但旧任务的结果因阶段和修订不同被丢弃，不会覆盖收尾结果。
+- `final` 跳过防抖立即排队。它可以等待正在执行的编译结束，但旧任务的结果因阶段不同无法交付；单调修订号确保后续响应不会覆盖已接受的状态。
 - 修订号随调度递增，过期 Worker 回包不能更新当前预览。流式任务不属于 `patch-v1` 基线；安排流式快照会使现有基线失效，只有最终结果可以建立补丁基线。
-- Worker 的完整请求与响应回显 `sourcePhase`，`LocalCompileOutcome.sourcePhase` 报告结果阶段。主线程回退使用相同语义；自定义 `fallbackCompile` 会在第三个参数收到阶段。
+- Worker 的完整请求与响应在声明了阶段时回显 `sourcePhase`；未声明阶段的旧客户端保持原有报文形状并省略该字段。阶段放在 options 对象上同样生效。`LocalCompileOutcome.sourcePhase` 报告结果阶段。主线程回退使用相同语义；自定义 `fallbackCompile` 会在第三个参数收到阶段。
+- Worker 补丁重试使用 `retryFull`，代码为 `stale-base`、`options-mismatch`、`invalid-edit` 或 `phase-mismatch`；调度器改发一次完整请求，而不是信任错位的补丁。
 
 同一会话的流式编译不会读取或写入最终编译的块索引、延迟索引和共享结果缓存；`final` 始终从既有的增量或完整编译路径开始。按精确源码文本索引的底层解析缓存可以同时服务两个阶段，因为它们是文本和选项的纯函数。流式任务之间可以复用最近一次相同快照的结果，但不要依赖跨快照的块级复用。
 
@@ -220,7 +221,7 @@ export function StreamedArticle({ source, phase }: {
 }
 ```
 
-流式期间 `LocalReactiveDocument` 使用 `mode="static"` 渲染：控件只读，网络会话不建立，提交、重置和其他组件副作用 effect 不启动。它仍复用同一编译会话和运行时，普通源码更新按现有迁移规则保留兼容的读者参数和输入草稿；阶段切换不会重建运行时或重置状态。`final` 恢复宿主传入的 `mode`、`staticFirst` 和正式交互，`onDiagnostics` 给出最终诊断。`onTransientDiagnostics` 只报告暂态问题；如果宿主曾收到暂态诊断，最终时会再收到一次空数组用于清除，后续没有暂态问题的流式快照也会同样撤回。确定性失败仍按现有规则显示错误提示。
+流式期间 `LocalReactiveDocument` 使用 `mode="static"` 渲染：控件只读，网络会话不建立，提交、重置和其他组件副作用 effect 不启动。它仍复用同一编译会话和运行时，普通源码更新按现有迁移规则保留兼容的读者参数和输入草稿；阶段切换不会重建运行时或重置状态。`final` 恢复宿主传入的 `mode`、`staticFirst` 和正式交互。`onDiagnostics` 承载当前快照的非暂态诊断，暂态问题不会进入该通道。`onTransientDiagnostics` 只报告暂态问题；如果宿主曾收到暂态诊断，最终时会再收到一次空数组用于清除，后续没有暂态问题的流式快照也会同样撤回。确定性失败仍按现有规则显示错误提示。
 
 宿主必须自行把新快照写入 `source`，并在生成结束时把 `sourcePhase` 切回 `final`。取消生成、切换文档或卸载时停止提交并丢弃旧结果；引擎只校验修订和阶段，不管理生成轮次。
 
@@ -234,7 +235,7 @@ export function StreamedArticle({ source, phase }: {
 
 ### 性能预期
 
-每个被接受的流式快照都编译完整源码。无法安全解释的区域通过有界的稳定化重试降级为原文，最多 6 轮；该路径不承诺块级增量成本。调度器负责节流和合并快照，`final` 立即排队。源码仍受 1,000,000 字符上限和编译预算约束；快照越长，单次编译成本越高。长文档应测量输入到预览的延迟和编译量，并根据测量结果调整宿主的提交窗口；不要逐 token 调用编译入口。仓库基准 `npm run bench:streaming` 对一份 15.5 KB、227 块的文档以 64 字符片段测得每个流式快照 p50 约 15–23 ms、p95 约 33–53 ms（多次运行范围），最终文档与一次性编译完全一致；150 ms 窗口下约合并为 31 次提交。该结果只作为基线，不构成跨机器的统一 SLO。
+每个被接受的流式快照都编译完整源码。无法安全解释的区域通过最多 6 轮稳定化重试降级为原文；若仍有损伤，再执行一次整篇原文编译。该路径不承诺块级增量成本。调度器负责节流和合并快照，`final` 立即排队。源码仍受 1,000,000 字符上限和编译预算约束；快照越长，单次编译成本越高。长文档应测量输入到预览的延迟和编译量，并根据测量结果调整宿主的提交窗口；不要逐 token 调用编译入口。仓库基准 `npm run bench:streaming` 对一份 15.5 KB、227 块的文档以 64 字符片段测得每个流式快照 p50 约 15–23 ms、p95 约 33–53 ms（多次运行范围），最终文档与一次性编译完全一致；150 ms 窗口下约合并为 31 次提交。该结果只作为基线，不构成跨机器的统一 SLO。
 
 ## 严格解析与局部恢复
 
@@ -541,7 +542,7 @@ const scheduler = new LocalCompileScheduler({
 scheduler.schedule(source);
 ```
 
-`LocalCompileScheduler` 按 `LOCAL_COMPILE_DELAY_MS`（150 ms，可用 `delay` 覆盖）合并编辑，只保留一个进行中的任务和最新排队源码，并丢弃已被新编辑取代的结果。没有可用 Worker 或 Worker 出错后，它在主线程调用 `fallbackCompile`（默认 `compileLocal`）；Worker 失败后会永久切换到该回退，并通过 `onModeChange` 报告。Worker 抛出的错误或回退编译抛出的错误使用 `local.worker.compile` 诊断码。需要提交流式快照时使用 `schedule(source, options?, hint?, phase?)`，`final` 会跳过防抖；详见[流式源码编译](#流式源码编译)。
+`LocalCompileScheduler` 按 `LOCAL_COMPILE_DELAY_MS`（150 ms，可用 `delay` 覆盖）合并编辑，只保留一个进行中的任务和最新排队源码，并丢弃已被新编辑取代的结果。没有可用 Worker 或 Worker 出错后，它在主线程调用 `fallbackCompile`；默认实现使用内部会话编译，结果与 `compileLocal` 相同但不跨调用复用。Worker 失败后会永久切换到该回退，并通过 `onModeChange` 报告。Worker 抛出的错误或回退编译抛出的错误使用 `local.worker.compile` 诊断码。需要提交流式快照时使用 `schedule(source, options?, hint?, phase?)`，`final` 会跳过防抖；详见[流式源码编译](#流式源码编译)。
 
 `onResult` 接收 `LocalCompileOutcome`（`source`、`result`、`duration`、`mode`、`sourcePhase`），`onPendingChange` 报告是否仍有排队或进行中的任务，`dispose()` 停止计时器、终止 Worker，并阻止之后的回调。
 

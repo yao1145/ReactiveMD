@@ -6,7 +6,7 @@
 
 ### Added
 
-- Add streaming source compilation. Compile sessions, `LocalCompileScheduler`, Workers and `LocalReactiveDocument` accept an explicit `streaming` or `final` source phase; unfinished regions render as literal text and fixable issues are reported through `transientDiagnostics`, while deterministic errors and final strict/recovery semantics stay unchanged. A controlled editor now applies related external source snapshots as in-place edits, preserving selection, scroll and undo history and deferring updates during IME composition.
+- Add streaming source compilation. Compile sessions, `LocalCompileScheduler`, Workers and `LocalReactiveDocument` accept an explicit `streaming` or `final` source phase; unfinished regions render as literal text and fixable issues are reported through `transientDiagnostics`, while deterministic errors and final strict/recovery semantics stay unchanged. The separate `reactive-md-editor` package now applies related external source snapshots as in-place edits, preserving selection, scroll and undo history and deferring updates during IME composition.
 
 ## 0.9.0 (2026-11-20, latest channel)
 

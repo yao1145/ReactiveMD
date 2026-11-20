@@ -61,7 +61,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createStandardCompiler } from 'reactive-md/compiler/standard';
 import { createCompiler } from 'reactive-md/compiler';
-import { compileLocal, createLocalRuntime, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
+import { compileLocal, createLocalCompileSession, createLocalRuntime, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
 import { analyzeLocalSource, insertTemplate, getNativeComponentCatalog } from 'reactive-md/authoring';
 import { createRandom } from 'reactive-md/runtime';
 import { createLocalBrowserStateStorage, httpSubmit, sseStream, webSocketChannel, webRtcChannel } from 'reactive-md/runtime/browser';
@@ -80,6 +80,19 @@ import * as server from 'reactive-md/react/server';
 assert.equal(createStandardCompiler().compile('# Package boundary').status, 'valid');
 assert.equal(createCompiler().compile('plain text').status, 'valid');
 assert.equal(compileLocal('plain text').ok, true);
+const streamingSession = createLocalCompileSession();
+try {
+  const partialSource = '<number bind="count" label="Count" initial="1">\\n\\nTotal: {{ count';
+  const partial = streamingSession.compile(partialSource, undefined, 'streaming');
+  assert.equal(partial.ok, true);
+  assert.equal(partial.status, 'partial');
+  assert.ok(Array.isArray(partial.transientDiagnostics));
+  const complete = streamingSession.compile(partialSource + ' }}', undefined, 'final');
+  assert.equal(complete.ok, true);
+  assert.equal(complete.status, 'valid');
+} finally {
+  streamingSession.dispose();
+}
 assert.equal(typeof startLocalCompileWorker, 'function');
 assert.equal(typeof localCompileOptionsKey({strict:false}), 'string');
 assert.ok(analyzeLocalSource('hello'));
