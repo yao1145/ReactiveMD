@@ -79,7 +79,7 @@ export function Article({ source }: { source: string }) {
 
 每个实例独立选择主题与模式。主题 CSS 的每条规则必须限制在该主题根节点及其后代，例如 `[data-rmd-theme="paper"][data-color-scheme="dark"]`。不得使用会影响宿主的全局 `body`、`:root` 或无作用域的元素规则。
 
-改变 `themes` 或 `colorScheme` 不创建新运行时。`LocalReactiveDocument` 更换 `source` 时仍遵从既有规则，重新编译并创建运行时；宿主需要保留参数时可自行管理 `LocalDocumentView` 的文档和运行时。
+改变 `themes` 或 `colorScheme` 不创建新运行时。`LocalReactiveDocument` 更换 `source` 时重新编译，并在现有运行时中采用新文档；文档无法采用或影响编译语义的宿主选项变化时创建新运行时。需要自行控制迁移时，宿主可以管理 `LocalDocumentView` 的文档和运行时。
 
 ## 共享样式变量
 

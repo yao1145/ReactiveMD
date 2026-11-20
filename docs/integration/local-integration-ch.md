@@ -45,7 +45,7 @@ export function Article() {
 
 | 属性 | 类型 | 组件 | 说明 |
 | --- | --- | --- | --- |
-| `source` | `string` | `LocalReactiveDocument` | 源码变化时重新编译并创建新运行时；旧实例状态不保留。见[源码变化时保留参数](#源码变化时保留参数) |
+| `source` | `string` | `LocalReactiveDocument` | 源码变化时重新编译，并在现有运行时中采用新文档，迁移仍符合契约的参数值；影响编译语义的宿主选项变化或文档无法采用时创建新运行时，旧实例状态不保留。见[源码变化时保留参数](#源码变化时保留参数) |
 | `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | 单次编译预算、HTML 能力开关和宿主组件 schema；省略时使用默认 ReactiveMD 模式 |
 | `document` | `LocalDocument` | `LocalDocumentView` | 已编译文档；由宿主编译一次 |
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | 宿主创建并负责销毁 |
@@ -57,7 +57,7 @@ export function Article() {
 | `hostData` | `Readonly<Record<string, unknown>>` | 两者 | 按 `${kind}:${ref}` 索引的 JSON 安全宿主数据，用于 `hostComponent` 节点；不进入 worker |
 | `hostRenderer` | `LocalHostRenderer` | 两者 | `hostComponent` 的客户端渲染函数；缺少 renderer 或数据时显示占位 |
 | `externalValues` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | `<external>` 声明的值；更新不重新编译、不重置参数。`LocalDocumentView` 也接受该属性以更新宿主自管的运行时 |
-| `initialParameters` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | 每次创建新运行时后、首次交互前应用一次的公开参数；非法集合原子拒绝并通过 `onDiagnostics` 报告 |
+| `initialParameters` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | 每次创建新运行时后、首次交互前应用一次的公开参数；普通源码更新复用运行时，不会重新应用。非法集合原子拒绝并通过 `onDiagnostics` 报告 |
 | `onParametersChange` | `(parameters, snapshot) => void` | `LocalReactiveDocument` | 公开可写参数实际变化时每次提交调用一次；初始化、被拒绝的写入、未变化的值和纯 external 更新不触发 |
 | `onSourceNavigate` | `(target: LocalSourceTarget) => void` | 两者 | 报告预览节点的源码范围；启用时输出 source 元数据，省略时 DOM 保持不变 |
 
@@ -74,7 +74,7 @@ export function Article() {
 />
 ```
 
-每个组件实例独立管理内存状态。修改源码会重新编译并从初值开始；销毁实例会清理订阅和计时器。需要在源码变化时保留值时，使用保留工具或自行管理运行时，见[源码变化时保留参数](#源码变化时保留参数)。文档中的面板重置其内部参数、输入草稿和组件状态，同名参数在面板外的显示也会同步更新。
+每个组件实例独立管理内存状态。修改源码会重新编译，并在现有运行时中采用新文档：绑定、类型与初值定义仍匹配的参数保留其值，不兼容的值回退到新初值；销毁实例会清理订阅和计时器。需要在创建新运行时或自行管理运行时的情况下显式迁移值时，使用保留工具，见[源码变化时保留参数](#源码变化时保留参数)。文档中的面板重置其内部参数、输入草稿和组件状态，同名参数在面板外的显示也会同步更新。
 
 宿主 React 根与 standalone IIFE 共存于同一页面时，为宿主根设置独立的 `identifierPrefix`，例如 `createRoot(container, { identifierPrefix: 'host-' })`。两个 bundle 各自拥有 React 实例，默认 `useId` 计数可能重叠。独立的服务端渲染根也应在服务端和客户端使用相同且互不重复的前缀。
 
@@ -362,7 +362,7 @@ const diagnostics = importLocalState(runtime, saved);
 
 ### 源码变化时保留参数
 
-`LocalReactiveDocument` 在 `source` 变化时仍会按初值创建新运行时。自行管理运行时的宿主可以保留兼容的值：
+`LocalReactiveDocument` 在普通源码更新时会复用运行时并迁移兼容的值。自行管理运行时或在独立文档之间切换的宿主，可以显式规划迁移：
 
 ```ts
 import {
@@ -448,11 +448,11 @@ scheduler.schedule(source);
 
 ## 状态、实例与清理
 
-- `LocalReactiveDocument` 在 `source` 变化时重新编译并创建运行时，清理旧实例；支持 React StrictMode。
+- `LocalReactiveDocument` 在 `source` 变化时重新编译并在现有运行时中采用新文档，迁移兼容的值；影响编译语义的宿主选项变化或文档无法采用时创建新运行时。支持 React StrictMode。
 - 自行管理生命周期时，用 `<LocalDocumentView document={result.document} runtime={runtime} />` 渲染，并在卸载时调用 `runtime.dispose()`。
 - `subscribe()` 返回取消订阅函数。`dispose()` 会清空剩余订阅，之后调用其他运行时方法会抛出错误。
 - `snapshot()` 在状态变化前返回同一对象，可用于外部存储订阅。`reset(panelNode)` 对面板子树只提交一次，订阅者收到一次通知；面板内隐藏控件也在重置范围内。
-- 文档状态只保存在内存中；运行时不会写入存储、Cookie 或网络。刷新、重新挂载或更换源码都从初值开始。持久化是宿主的显式操作，使用 `exportLocalState` 和 `importLocalState`；[参数保留工具](#源码变化时保留参数)可以把兼容的值带入新运行时。
+- 文档状态只保存在内存中；运行时不会写入存储、Cookie 或网络。刷新或重新挂载从初值开始；源码变化时复用运行时，并迁移仍符合新文档契约的值。持久化是宿主的显式操作，使用 `exportLocalState` 和 `importLocalState`；[参数保留工具](#源码变化时保留参数)用于自行管理运行时或切换到独立文档的宿主。
 - 隐藏区域保留参数、标签页和清单状态；隐藏区域中的计时器暂停，恢复显示后保持暂停，由读者再次启动。实例销毁后释放计时器和订阅。
 
 ## 图片与链接策略

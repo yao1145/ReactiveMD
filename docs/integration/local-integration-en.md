@@ -45,7 +45,7 @@ export function Article() {
 
 | Prop | Type | Component | Notes |
 | --- | --- | --- | --- |
-| `source` | `string` | `LocalReactiveDocument` | Recompiles and creates a new runtime when the source changes; old instance state is not kept. See [Keeping values when source changes](#keeping-values-when-source-changes) |
+| `source` | `string` | `LocalReactiveDocument` | Recompiles on source changes and adopts the new document in the existing runtime, migrating parameter values that still satisfy their contracts. Host option changes that affect compilation semantics or a document the runtime cannot adopt create a new runtime and drop the old instance state. See [Keeping values when source changes](#keeping-values-when-source-changes) |
 | `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | Per-compilation limits, HTML capability flags and host component schemas; omitted options use the default ReactiveMD path |
 | `document` | `LocalDocument` | `LocalDocumentView` | Compiled document; compiled once by the host |
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | Created by the host, which is responsible for disposal |
@@ -57,7 +57,7 @@ export function Article() {
 | `hostData` | `Readonly<Record<string, unknown>>` | Both | JSON-safe host data keyed `${kind}:${ref}` for `hostComponent` nodes; never enters the worker |
 | `hostRenderer` | `LocalHostRenderer` | Both | Client-only renderer for `hostComponent` nodes; a missing renderer or data renders a visible placeholder |
 | `externalValues` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | Values for `<external>` declarations; updates never recompile or reset parameters. `LocalDocumentView` also accepts it for host-managed runtimes |
-| `initialParameters` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | Public parameter values applied once after each new runtime is created, before interaction; an invalid set is rejected atomically and reported through `onDiagnostics` |
+| `initialParameters` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | Public parameter values applied once after each new runtime is created, before interaction; ordinary source updates reuse the runtime and do not reapply them. An invalid set is rejected atomically and reported through `onDiagnostics` |
 | `onParametersChange` | `(parameters, snapshot) => void` | `LocalReactiveDocument` | Called once per commit when the public writable parameter set actually changes; initialization, rejected writes, unchanged values and external-only updates do not call it |
 | `onSourceNavigate` | `(target: LocalSourceTarget) => void` | Both | Reports a preview node's source range; enabling it adds source metadata attributes, omitting it leaves the DOM unchanged |
 
@@ -74,7 +74,7 @@ Neither component has `className`, `style` or slot props. `LocalReactiveDocument
 />
 ```
 
-Each component instance manages in-memory state independently. Changing the source recompiles and starts from initial values; disposing an instance clears subscriptions and timers. To carry values across a source change, use the retention helpers or manage the runtime yourself; see [Keeping values when source changes](#keeping-values-when-source-changes). A panel reset in the document restores its internal parameters, input drafts and component state, and displays of same-name parameters outside the panel update as well.
+Each component instance manages in-memory state independently. Changing the source recompiles and adopts the new document in the existing runtime: parameters keep their values when their bindings, types and initial definitions still match, and incompatible values fall back to the new initial values. Disposing an instance clears subscriptions and timers. To migrate values explicitly when creating a new runtime or managing the runtime yourself, use the retention helpers; see [Keeping values when source changes](#keeping-values-when-source-changes). A panel reset in the document restores its internal parameters, input drafts and component state, and displays of same-name parameters outside the panel update as well.
 
 When a host React root shares a page with the standalone IIFE, give the host root a distinct `identifierPrefix`, for example `createRoot(container, { identifierPrefix: 'host-' })`. The bundles own separate React instances, so their default `useId` counters can overlap. Independent server-rendered roots need matching unique prefixes on the server and client too.
 
@@ -377,7 +377,7 @@ The lower-level `createLocalStateFile`, `parseLocalState`, `resolveLocalState`, 
 
 ### Keeping values when source changes
 
-`LocalReactiveDocument` still creates a new runtime from initial values when `source` changes. Hosts that manage the runtime themselves can carry compatible values over:
+`LocalReactiveDocument` reuses its runtime and migrates compatible values on ordinary source updates. Hosts that manage the runtime themselves or switch between independent documents can plan the migration explicitly:
 
 ```ts
 import {
@@ -463,11 +463,11 @@ The fields and stability levels of `Diagnostic` are described in the diagnostics
 
 ## State, instances and cleanup
 
-- `LocalReactiveDocument` recompiles and creates a runtime when `source` changes, cleaning up the old instance; React StrictMode is supported.
+- `LocalReactiveDocument` recompiles on `source` changes and adopts the new document in its existing runtime, migrating compatible values; host option changes that affect compilation semantics or an incompatible document create a new runtime. React StrictMode is supported.
 - When managing the lifecycle yourself, render with `<LocalDocumentView document={result.document} runtime={runtime} />` and call `runtime.dispose()` on unmount.
 - `subscribe()` returns an unsubscribe function. `dispose()` clears remaining subscriptions; calling other runtime methods afterwards throws.
 - `snapshot()` returns the same object until state changes, which is useful for external store subscriptions. `reset(panelNode)` commits once for the panel subtree, and subscribers receive one notification; hidden controls inside the panel are also within reset scope.
-- Document state lives only in memory; the runtime never writes storage, cookies or the network. Refreshing, remounting or replacing the source starts from initial values. Persistence is an explicit host action through `exportLocalState` and `importLocalState`; the [retention helpers](#keeping-values-when-source-changes) can carry compatible values into a new runtime.
+- Document state lives only in memory; the runtime never writes storage, cookies or the network. Refreshing or remounting starts from initial values; a source change reuses the runtime and migrates values that still satisfy the new document's contracts. Persistence is an explicit host action through `exportLocalState` and `importLocalState`; the [retention helpers](#keeping-values-when-source-changes) serve hosts that manage the runtime themselves or switch between independent documents.
 - Hidden regions keep parameters, tab selection and checklist state; timers in hidden regions pause and stay paused when shown again until the reader starts them. Disposing an instance releases timers and subscriptions.
 
 ## Image and link policy

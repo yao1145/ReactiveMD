@@ -79,7 +79,7 @@ The renderer exposes the resolved selection on its document root:
 
 Each instance chooses independently. Every theme rule must be scoped to its named root or descendants, for example `[data-rmd-theme="paper"][data-color-scheme="dark"]`. Global `body`, `:root` and unscoped element rules must not affect the host.
 
-Changing `themes` or `colorScheme` does not create a runtime. Changing `LocalReactiveDocument.source` retains its existing behavior: recompilation and a new runtime. Hosts that retain parameters across source changes can manage `LocalDocumentView` and its runtime themselves.
+Changing `themes` or `colorScheme` does not create a runtime. Changing `LocalReactiveDocument.source` recompiles and adopts the new document in the existing runtime; an incompatible document or a host option change that affects compilation semantics creates a new runtime. Hosts that need control over migration can manage `LocalDocumentView` and its runtime themselves.
 
 ## Shared style variables
 
