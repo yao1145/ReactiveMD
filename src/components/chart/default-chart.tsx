@@ -752,7 +752,7 @@ export function DefaultChart(props: DefaultChartProps) {
         x={plotLeft - 7}
         y={yOf(tick)}
         textAnchor="end"
-        dominantBaseline="middle"
+        dominantBaseline="central"
         style={{ fill: AXIS_FILL }}
       >
         {formatAxisNumber(tick)}

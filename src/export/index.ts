@@ -8,6 +8,7 @@ import { LOCAL_SDK_VERSION } from '../sdk/version';
 import type { LocalStyleResource } from '../sdk/theme';
 import type { LocalConfig, LocalExtensionRequirements } from '../sdk/types';
 import type { Diagnostic, LocalDocument } from '../local/types';
+import { LOCAL_STYLE_LAYER_ORDER } from '../themes/contract';
 import { readLocalExportResources } from './resources';
 import { createLocalBundleManifest, createLocalRestorationRequirements, localExportContentDigest, localThemeContractDigest, type LocalStandaloneBundleManifest } from './restoration';
 export * from './restoration';
@@ -147,7 +148,7 @@ export function createLocalExportPlan(options: LocalExportPlanOptions): LocalExp
   const collected = Object.freeze([...resources.values()]);
   return Object.freeze({
     target, extensions: requirements, resources: collected,
-    css: collected.map(item => item.css).join('\n'), diagnostics: Object.freeze(diagnostics), ok: diagnostics.length === 0,
+    css: `${LOCAL_STYLE_LAYER_ORDER}\n${collected.map(item => item.css).join('\n')}`, diagnostics: Object.freeze(diagnostics), ok: diagnostics.length === 0,
   });
 }
 

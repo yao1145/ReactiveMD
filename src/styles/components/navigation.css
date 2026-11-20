@@ -199,7 +199,7 @@
 
 .md-document .local-accordion {
   gap: 0;
-  border-top: 1px solid var(--line);
+  border-top: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
@@ -569,6 +569,9 @@
   outline-offset: 2px;
 }
 .md-document .local-jump-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
   background-image: none;
 }

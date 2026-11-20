@@ -4,6 +4,7 @@ import type { Diagnostic } from '../local/types';
 import { localCodeUnitPrefix } from '../local/source/source-context';
 import type { LocalConfig } from '../sdk/types';
 import type { LocalStyleResource, LocalThemePackage } from '../sdk/theme';
+import { LOCAL_STYLE_LAYER_ORDER } from '../themes/contract';
 import { buildDiagnostic } from './diagnostics';
 import { sha256, sha256Bytes, utf8ByteLength } from './digest';
 
@@ -896,7 +897,9 @@ export async function collectLocalBuildResources(
   return Object.freeze({
     resources: Object.freeze(resources),
     assets: Object.freeze(assets),
-    css: resources.map((resource) => resource.css).join('\n'),
+    // The layer statement must precede every resource, including resources
+    // that are loaded before the public CSS entry.
+    css: `${LOCAL_STYLE_LAYER_ORDER}\n${resources.map((resource) => resource.css).join('\n')}`,
     diagnostics: Object.freeze(diagnostics),
   });
 }

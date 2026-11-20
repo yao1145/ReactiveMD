@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createServer } from 'vite';
 import { reactiveMd } from '../src/vite';
+import { LOCAL_STYLE_LAYER_ORDER } from '../src/themes/contract';
 
 describe('directory stylesheet ownership', () => {
   it.each(['package', 'preset'])('keeps component.css for an unstyled %s manifest', async (kind) => {
@@ -38,6 +39,7 @@ export default defineReactPreset({
         { id: 'directory-plugin/board.css', css: '.local-document .board { display: grid; }' },
       ]);
       expect(host.css).toContain('display: grid');
+      expect(host.css.startsWith(`${LOCAL_STYLE_LAYER_ORDER}\n`)).toBe(true);
     } finally {
       await server.close();
       await rm(root, { recursive: true, force: true });

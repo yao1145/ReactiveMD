@@ -657,7 +657,7 @@ export function TableView(context: LocalComponentContext) {
           ) : null}
           {totalPages > 1 ? (
             <nav className="local-visual-pagination" aria-label={t('Table pagination', '表格分页')}>
-              <button type="button" data-rmd-appearance="custom" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+              <button type="button" className="md-button md-button-secondary" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
                 {t('Previous', '上一页')}
               </button>
               <span>
@@ -666,7 +666,7 @@ export function TableView(context: LocalComponentContext) {
                   `第 ${currentPage} / ${totalPages} 页 · 共 ${ordered.length} 行`,
                 )}
               </span>
-              <button type="button" data-rmd-appearance="custom" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
+              <button type="button" className="md-button md-button-secondary" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
                 {t('Next', '下一页')}
               </button>
             </nav>
@@ -1314,7 +1314,7 @@ export function ChartView(context: LocalComponentContext) {
             {yTicks.map((tick) => (
               <g key={`y-${tick}`}>
                 <line className="local-visual-grid-line" x1={plotLeft} x2={plotRight} y1={yOf(tick)} y2={yOf(tick)} />
-                <text className="local-visual-axis-label" x={plotLeft - 6} y={yOf(tick)} textAnchor="end" dominantBaseline="middle">
+                <text className="local-visual-axis-label" x={plotLeft - 6} y={yOf(tick)} textAnchor="end" dominantBaseline="central">
                   {formatAxisNumber(tick)}
                 </text>
               </g>
@@ -1987,7 +1987,7 @@ export function PlotView(context: LocalComponentContext) {
             {yTicks.map((tick) => (
               <g key={`y-${tick}`}>
                 <line className="local-visual-grid-line" x1={plotLeft} x2={plotRight} y1={yOf(tick)} y2={yOf(tick)} />
-                <text className="local-visual-axis-label" x={plotLeft - 6} y={yOf(tick)} textAnchor="end" dominantBaseline="middle">
+                <text className="local-visual-axis-label" x={plotLeft - 6} y={yOf(tick)} textAnchor="end" dominantBaseline="central">
                   {formatAxisNumber(tick)}
                 </text>
               </g>

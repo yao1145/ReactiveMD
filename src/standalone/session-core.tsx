@@ -21,6 +21,7 @@ import { readLocalConfig } from '../sdk/config';
 import { validateLocalExtensionRequirements } from '../export/requirements';
 import { validateLocalRestorationRequirements, type LocalRestorationRequirements } from '../export/restoration';
 import type { LocalStyleResource } from '../sdk/theme';
+import { LOCAL_STYLE_LAYER_ORDER } from '../themes/contract';
 import { readLocalExportResources } from '../export/resources';
 
 export interface ReactiveMDMountOptions {
@@ -300,10 +301,12 @@ export function createStandaloneMountWithView(
   let root: Root | null = null;
   const installedStyles: HTMLStyleElement[] = [];
   try {
-    for (const resource of styleResources.resources) {
+    for (const [index, resource] of styleResources.resources.entries()) {
       const style = element.ownerDocument.createElement('style');
       style.setAttribute('data-reactive-md-resource', resource.id);
-      style.textContent = resource.css;
+      // Resources may be mounted before the host's public stylesheet, so the
+      // first one carries the layer order that the cascade depends on.
+      style.textContent = index === 0 ? `${LOCAL_STYLE_LAYER_ORDER}\n${resource.css}` : resource.css;
       (element.ownerDocument.head ?? element.ownerDocument.documentElement).appendChild(style);
       installedStyles.push(style);
     }

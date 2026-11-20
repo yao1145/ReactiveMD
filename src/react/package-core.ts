@@ -4,6 +4,7 @@ import { readLocalPresetPackage } from '../sdk/preset';
 import { LOCAL_COMPONENT_PROTOCOL, LOCAL_REACT_PRESET_PROTOCOL, type LocalComponentDefinition, type LocalConfig, type LocalPresetPackage } from '../sdk/types';
 import type { LocalStyleResource, LocalThemePackage } from '../sdk/theme';
 import { readLocalExportResources } from '../export/resources';
+import { LOCAL_STYLE_LAYER_ORDER } from '../themes/contract';
 import { createReactConfigWithDefaults, type LocalReactConfig } from './sdk-core';
 import { defineReactComponent, type LocalReactComponent, type LocalReactComponentImplementation } from './component-api';
 
@@ -232,7 +233,9 @@ export function createReactHostWithBase(input: LocalReactHostInput, base: LocalR
   return Object.freeze({
     config: reactConfig.config, reactConfig,
     compileOptions: Object.freeze({ config: reactConfig.config }), resources,
-    css: resources.map(item => item.css).join('\n'),
+    // Declare the layer order before any resource so hosts that inject this
+    // stylesheet ahead of the public CSS entry keep the intended cascade.
+    css: `${LOCAL_STYLE_LAYER_ORDER}\n${resources.map(item => item.css).join('\n')}`,
     notices,
   });
 }

@@ -152,11 +152,11 @@ table.local-visual-table:where(.md-document, .md-document *) {
 }
 
 .local-visual-table th:first-child:where(.md-document, .md-document *) {
-  background: var(--surface);
+  background: var(--local-table-surface, var(--surface));
 }
 
 .local-visual-table td:first-child:where(.md-document, .md-document *) {
-  background: var(--surface);
+  background: var(--local-table-surface, var(--surface));
 }
 
 .local-visual-table tbody tr:hover td:where(.md-document, .md-document *) {
@@ -171,6 +171,10 @@ table.local-visual-table:where(.md-document, .md-document *) {
 .local-visual-select-cell:where(.md-document, .md-document *) {
   text-align: center;
   white-space: nowrap;
+}
+
+.local-visual-table tbody td:where(.md-document, .md-document *) {
+  transition: background-color var(--motion-fast) var(--ease-standard);
 }
 
 .local-visual-select-button:where(.md-document, .md-document *) {
@@ -191,17 +195,26 @@ table.local-visual-table:where(.md-document, .md-document *) {
   font-size: var(--text-xs);
   line-height: 1;
   cursor: pointer;
+  transition: scale var(--motion-fast) var(--ease-standard);
 }
 
+/* Same checkbox recipe as the multi-select options: the tick grows from a
+   zero-size background so checking and unchecking keep their motion. */
 .local-visual-select-button:where(.md-document, .md-document *)::before {
   content: '';
-  width: 16px;
-  height: 16px;
-  background: transparent;
-  border: 1.5px solid var(--line-strong);
-  border-radius: var(--radius-circle);
-  transition: border-color var(--motion-base) var(--ease-standard),
-    background-color var(--motion-base) var(--ease-standard);
+  box-sizing: border-box;
+  width: var(--rmd-uiarc-checkbox-size, 18px);
+  height: var(--rmd-uiarc-checkbox-size, 18px);
+  background-color: var(--surface);
+  background-image: none;
+  background-position: center;
+  background-size: 0 0;
+  background-repeat: no-repeat;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--rmd-uiarc-checkbox-radius, var(--radius-control));
+  transition: background-color var(--motion-fast) var(--ease-standard),
+    background-size var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
 }
 
 .local-visual-select-button > span:where(.md-document, .md-document *) {
@@ -213,8 +226,12 @@ table.local-visual-table:where(.md-document, .md-document *) {
   background: transparent;
 }
 
-.local-visual-select-button:hover:where(.md-document, .md-document *)::before {
-  border-color: var(--ink-soft);
+.local-visual-select-button:hover:not(.is-selected):where(.md-document, .md-document *)::before {
+  border-color: var(--ink-muted);
+}
+
+.local-visual-select-button:active:not(:disabled):where(.md-document, .md-document *) {
+  scale: 0.95;
 }
 
 .local-visual-select-button.is-selected:where(.md-document, .md-document *) {
@@ -222,20 +239,15 @@ table.local-visual-table:where(.md-document, .md-document *) {
 }
 
 .local-visual-select-button.is-selected:where(.md-document, .md-document *)::before {
-  background: var(--control-selected, var(--ink));
-  border-color: var(--control-selected, var(--ink));
-}
-.local-visual-select-button.is-selected:where(.md-document, .md-document *)::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: 4px;
-  height: 8px;
-  margin: auto;
-  border: solid var(--control-selected-ink, var(--surface));
-  border-width: 0 1.5px 1.5px 0;
-  border-radius: 0 0 var(--radius-hairline);
-  transform: translateY(-1px) rotate(45deg);
+  background-color: var(--local-accent, var(--control-selected, var(--accent)));
+  background-image: var(
+    --rmd-uiarc-check-image,
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2018%2018'%3E%3Cpath%20d='M4.25%209.25%207.25%2012.25%2013.75%205.75'%20fill='none'%20stroke='%23ffffff'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E")
+  );
+  background-position: center;
+  background-size: var(--rmd-uiarc-checkbox-size, 18px) var(--rmd-uiarc-checkbox-size, 18px);
+  background-repeat: no-repeat;
+  border-color: transparent;
 }
 
 .local-visual-select-button:focus-visible:where(.md-document, .md-document *) {
@@ -244,7 +256,7 @@ table.local-visual-table:where(.md-document, .md-document *) {
 }
 
 .local-visual-table tbody tr.is-selected td:where(.md-document, .md-document *) {
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  background: var(--local-accent-soft, var(--accent-soft));
 }
 
 .local-visual-table tbody tr.is-selected td:first-child:where(.md-document, .md-document *) {
@@ -312,35 +324,13 @@ table.local-visual-table:where(.md-document, .md-document *) {
   font-variant-numeric: tabular-nums;
 }
 
-.local-visual-pagination button:where(.md-document, .md-document *) {
-  padding: var(--space-1) 0;
-  color: var(--ink-soft);
-  background: none;
-  border: 0;
-  border-radius: var(--radius-control);
-  font: inherit;
-  text-decoration: underline;
-  text-decoration-color: var(--line-strong);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  cursor: pointer;
-  transition: color var(--motion-base) var(--ease-standard);
-}
-
-.local-visual-pagination button:not(:disabled):hover:where(.md-document, .md-document *) {
-  color: var(--ink);
-  text-decoration-color: currentColor;
-}
-
-.local-visual-pagination button:disabled:where(.md-document, .md-document *) {
-  opacity: var(--disabled-opacity);
-  text-decoration-color: transparent;
-  cursor: default;
-}
-
-.local-visual-pagination button:focus-visible:where(.md-document, .md-document *) {
-  outline: var(--focus-outline);
-  outline-offset: 1px;
+.local-visual-pagination .md-button:where(.md-document, .md-document *) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height-sm);
+  padding-inline: var(--space-3);
+  font-size: var(--text-xs);
 }
 
 .local-visual-readout:where(.md-document, .md-document *) {
@@ -903,7 +893,7 @@ table.local-visual-table:where(.md-document, .md-document *) {
 }
 
 .local-static-table tbody tr.is-selected td:where(.md-document, .md-document *) {
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  background: var(--local-accent-soft, var(--accent-soft));
 }
 
 .local-static-table tbody tr.is-selected td:first-child:where(.md-document, .md-document *) {
@@ -1215,7 +1205,7 @@ table.local-visual-table:where(.md-document, .md-document *) {
    then not its first logical column and cannot safely be sticky. */
 
 /* The sticky first column needs an opaque fill so scrolled cells do not show
-   through it. It stays on the document surface rather than a second card. */
+   through it. It follows the surrounding card or panel surface. */
 
 /* Opt-in row selection: an extra leading column with a real button. A custom
    circular check keeps the selected row identifiable without relying on color

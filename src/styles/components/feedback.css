@@ -21,6 +21,7 @@
 .md-document .md-card {
   gap: var(--space-3, 12px);
   padding: var(--space-4, 16px) var(--space-5, 24px);
+  --local-table-surface: var(--surface-subtle);
   background: var(--surface-subtle);
   border: 0;
   border-radius: var(--radius-card);
@@ -131,7 +132,7 @@
   border: 0;
   border-bottom: 1px solid var(--line);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .md-document :is(table, .md-table) th {
@@ -200,7 +201,7 @@
   color: var(--ink);
 }
 
-.md-document pre code {
+.md-document :is(pre, .md-code) code {
   padding: 0;
   background: none;
   border: 0;

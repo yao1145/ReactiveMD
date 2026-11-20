@@ -9,6 +9,7 @@ import { createLocalExportPlan, createLocalShareableHtml, defineLocalStandaloneB
 import { parseMountPayload } from '../src/standalone/payload';
 import { portableCompileOptions } from '../src/local/configuration/portable-options';
 import type { LocalDocument } from '../src/local/types';
+import { LOCAL_STYLE_LAYER_ORDER } from '../src/themes/contract';
 
 const component = defineLocalComponent({
   id: 'test/note', name: 'sdk-note', version: '1.0.0', protocol: 'reactive-md-component/v1', form: 'container',
@@ -72,6 +73,7 @@ describe('SDK portable exports', () => {
     const plan = createLocalExportPlan({ document: doc, config, target: 'static', resources: [{id:'first.css',css:'.first { color: red; }'}, ...theme.css] });
     expect(plan.ok).toBe(true);
     expect(plan.resources.map(item => item.id)).toEqual(['first.css', 'paper.css']);
+    expect(plan.css.startsWith(`${LOCAL_STYLE_LAYER_ORDER}\n`)).toBe(true);
     expect(createLocalExportPlan({ document: doc, config, target: 'static', resources: [{ id: 'remote', css: '.a{background:url(https://example.com/x)}' }] }).ok).toBe(false);
     expect(createLocalExportPlan({ document: doc, config, target: 'static', resources: [{ id: 'paper.css', css: '.different{}' }] }).ok).toBe(false);
   });
