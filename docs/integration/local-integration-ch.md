@@ -46,7 +46,7 @@ export function Article() {
 | 属性 | 类型 | 组件 | 说明 |
 | --- | --- | --- | --- |
 | `source` | `string` | `LocalReactiveDocument` | 源码变化时重新编译，并在现有运行时中采用新文档，迁移仍符合契约的参数值；影响编译语义的宿主选项变化或文档无法采用时创建新运行时，旧实例状态不保留。见[源码变化时保留参数](#源码变化时保留参数) |
-| `sourcePhase` | `'streaming' \| 'final'` | `LocalReactiveDocument` | 标记源码是否仍在生成，默认 `final`。`streaming` 期间文档以只读静态模式呈现并暂缓副作用交互；与 `strict` 独立。见[流式源码编译](#流式源码编译) |
+| `sourcePhase` | `'streaming' \| 'final'` | `LocalReactiveDocument` | 标记源码是否仍在生成，默认 `final`。`streaming` 期间文档以只读静态模式呈现并暂缓副作用交互；与 `strict` 独立。宿主也可设置 `compileOptions.sourcePhase`，两者同时提供时以 prop 为准。见[流式源码编译](#流式源码编译) |
 | `onTransientDiagnostics` | `(diagnostics: Diagnostic[]) => void` | `LocalReactiveDocument` | 接收流式快照中的可修复问题，不进入 `onDiagnostics`；完成时若曾上报，最后回调一次空数组。省略时忽略暂态问题 |
 | `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | 单次编译预算、HTML 能力开关和宿主组件 schema；省略时使用默认 ReactiveMD 模式 |
 | `document` | `LocalDocument` | `LocalDocumentView` | 已编译文档；由宿主编译一次 |
@@ -189,7 +189,7 @@ scheduler.schedule(completedSource, options, undefined, 'final');
 - 修订号随调度递增，过期 Worker 回包不能更新当前预览。流式任务不属于 `patch-v1` 基线；安排流式快照会使现有基线失效，只有最终结果可以建立补丁基线。
 - Worker 的完整请求与响应回显 `sourcePhase`，`LocalCompileOutcome.sourcePhase` 报告结果阶段。主线程回退使用相同语义；自定义 `fallbackCompile` 会在第三个参数收到阶段。
 
-同一会话的流式编译与最终编译不共享中间缓存；最终结果仍使用现有的增量或完整编译路径。流式任务之间可以复用最近一次相同快照的结果，但不要依赖跨快照的块级复用。
+同一会话的流式编译不会读取或写入最终编译的块索引、延迟索引和共享结果缓存；`final` 始终从既有的增量或完整编译路径开始。按精确源码文本索引的底层解析缓存可以同时服务两个阶段，因为它们是文本和选项的纯函数。流式任务之间可以复用最近一次相同快照的结果，但不要依赖跨快照的块级复用。
 
 ### React 宿主
 
@@ -220,7 +220,7 @@ export function StreamedArticle({ source, phase }: {
 }
 ```
 
-流式期间 `LocalReactiveDocument` 使用 `mode="static"` 渲染：控件只读，网络会话不建立，提交、重置和其他组件副作用 effect 不启动。它仍复用同一编译会话和运行时，普通源码更新按现有迁移规则保留兼容的读者参数和输入草稿；阶段切换不会重建运行时或重置状态。`final` 恢复宿主传入的 `mode`、`staticFirst` 和正式交互，`onDiagnostics` 给出最终诊断。`onTransientDiagnostics` 只报告暂态问题；如果宿主曾收到暂态诊断，最终时会再收到一次空数组用于清除。确定性失败仍按现有规则显示错误提示。
+流式期间 `LocalReactiveDocument` 使用 `mode="static"` 渲染：控件只读，网络会话不建立，提交、重置和其他组件副作用 effect 不启动。它仍复用同一编译会话和运行时，普通源码更新按现有迁移规则保留兼容的读者参数和输入草稿；阶段切换不会重建运行时或重置状态。`final` 恢复宿主传入的 `mode`、`staticFirst` 和正式交互，`onDiagnostics` 给出最终诊断。`onTransientDiagnostics` 只报告暂态问题；如果宿主曾收到暂态诊断，最终时会再收到一次空数组用于清除，后续没有暂态问题的流式快照也会同样撤回。确定性失败仍按现有规则显示错误提示。
 
 宿主必须自行把新快照写入 `source`，并在生成结束时把 `sourcePhase` 切回 `final`。取消生成、切换文档或卸载时停止提交并丢弃旧结果；引擎只校验修订和阶段，不管理生成轮次。
 
@@ -234,7 +234,7 @@ export function StreamedArticle({ source, phase }: {
 
 ### 性能预期
 
-每个被接受的流式快照都编译完整源码。无法安全解释的区域通过有界的稳定化重试降级为原文，最多 6 轮；该路径不承诺块级增量成本。调度器负责节流和合并快照，`final` 立即排队。源码仍受 1,000,000 字符上限和编译预算约束；快照越长，单次编译成本越高。长文档应测量输入到预览的延迟和编译量，并根据测量结果调整宿主的提交窗口；不要逐 token 调用编译入口。
+每个被接受的流式快照都编译完整源码。无法安全解释的区域通过有界的稳定化重试降级为原文，最多 6 轮；该路径不承诺块级增量成本。调度器负责节流和合并快照，`final` 立即排队。源码仍受 1,000,000 字符上限和编译预算约束；快照越长，单次编译成本越高。长文档应测量输入到预览的延迟和编译量，并根据测量结果调整宿主的提交窗口；不要逐 token 调用编译入口。仓库基准 `npm run bench:streaming` 对一份 15.5 KB、227 块的文档以 64 字符片段测得每个流式快照 p50 约 15–23 ms、p95 约 33–53 ms（多次运行范围），最终文档与一次性编译完全一致；150 ms 窗口下约合并为 31 次提交。该结果只作为基线，不构成跨机器的统一 SLO。
 
 ## 严格解析与局部恢复
 

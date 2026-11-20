@@ -493,6 +493,59 @@ describe('startLocalCompileWorker source phases', () => {
       control.dispose();
     }
   });
+
+  it('honors sourcePhase placed on compile options', () => {
+    const scope = createScope();
+    const control = startLocalCompileWorker(scope);
+    try {
+      scope.onmessage!(requestEvent({
+        id: 1,
+        source: 'body **bold**',
+        protocol: LOCAL_RESULT_PATCH_PROTOCOL,
+        revision: 1,
+        options: { sourcePhase: 'streaming' },
+      }));
+      const response = scope.messages[0];
+      expect(response.ok).toBe(true);
+      if (!response.ok) return;
+      expect(response.sourcePhase).toBe('streaming');
+      expect(response.result.status).toBe('partial');
+
+      // The options-declared phase moves the same state as the request field.
+      scope.onmessage!(requestEvent({
+        id: 2,
+        protocol: LOCAL_RESULT_PATCH_PROTOCOL,
+        baseRevision: 1,
+        revision: 2,
+        edit: { from: 0, to: 0, insert: '#' },
+        targetLength: '#body **bold**'.length,
+      }));
+      const rejected = scope.responses.at(-1);
+      expect(rejected?.ok).toBe(false);
+      if (rejected && !rejected.ok) expect(rejected.code).toBe('phase-mismatch');
+    } finally {
+      control.dispose();
+    }
+  });
+
+  it('rejects an unsupported phase on compile options without touching state', () => {
+    const scope = createScope();
+    const control = startLocalCompileWorker(scope);
+    try {
+      scope.onmessage!(requestEvent({ id: 1, source: 'phase', options: { sourcePhase: 'later' } }));
+      expect(scope.messages).toHaveLength(0);
+      const response = scope.responses[0];
+      expect(response.ok).toBe(false);
+      if (!response.ok) expect(response.message).toContain('source phase');
+
+      scope.onmessage!(requestEvent({ id: 2, source: 'phase' }));
+      const valid = scope.messages[0];
+      expect(valid.ok).toBe(true);
+      if (valid.ok) expect('sourcePhase' in valid).toBe(false);
+    } finally {
+      control.dispose();
+    }
+  });
 });
 
 /** Wires the scheduler directly to the real worker-side handler. */

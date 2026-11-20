@@ -315,14 +315,18 @@ export function startLocalCompileWorker(
     // A complete source always resets the incremental chain.
     if (typeof request.source === 'string') {
       const full = request as LocalCompileRequest;
-      if (full.sourcePhase !== undefined && !isSourcePhase(full.sourcePhase)) {
-        // A malformed phase must not poison the session state; report it as a
-        // failure response instead of throwing out of the message handler.
+      const snapshot = snapshotCompileOptions(full.options);
+      // The phase travels either on the request or on the options object; a
+      // malformed value must not poison the session state.
+      const requestedPhase = full.sourcePhase !== undefined
+        ? full.sourcePhase
+        : (snapshot as { sourcePhase?: unknown } | undefined)?.sourcePhase;
+      if (requestedPhase !== undefined && !isSourcePhase(requestedPhase)) {
         postFailure(target, full.id, 'The requested source phase is not supported: expected "streaming" or "final"');
         return;
       }
+      const sourcePhase = requestedPhase as LocalSourcePhase | undefined;
       cancelPreparation();
-      const snapshot = snapshotCompileOptions(full.options);
       // Key the snapshot that is actually compiled and returned to analysis;
       // the scheduler keys the same copied object on its side.
       const optionsKey = localWorkerOptionsKey(snapshot);
@@ -339,7 +343,7 @@ export function startLocalCompileWorker(
             /* a session without clear simply recompiles */
           }
         }
-        const result = compileWithSession(session, full.source, snapshot, full.sourcePhase);
+        const result = compileWithSession(session, full.source, snapshot, sourcePhase);
         const compileMs = safeDuration(now() - started);
         lastRevision = revision;
         current = {
@@ -350,7 +354,7 @@ export function startLocalCompileWorker(
           result,
           deep: needsFlatCompileResult(result),
           flatResults: full.flatResults===FLAT_COMPILED_DATA_PROTOCOL,
-          ...(full.sourcePhase === undefined ? {} : { sourcePhase: full.sourcePhase }),
+          ...(sourcePhase === undefined ? {} : { sourcePhase }),
         };
         if (respondFull(full.id, revision, compileMs, negotiated, full.includeAuthorAnalysis === true)) {
           schedulePreparation();

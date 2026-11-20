@@ -96,6 +96,11 @@ export function snapshotCompileOptions(options: LocalCompileOptions | undefined)
     if (Object.hasOwn(source, 'markdownBreaks')) {
       copy.markdownBreaks = source.markdownBreaks;
     }
+    // The phase is not part of the compile identity, but the worker still
+    // honors it when the host placed it on the options object.
+    if (Object.hasOwn(source, 'sourcePhase')) {
+      copy.sourcePhase = source.sourcePhase;
+    }
     // Preserve the raw value, including invalid ones that the compiler must
     // report. Only an explicit `false` changes the recovery identity.
     if (Object.hasOwn(source, 'strict')) {

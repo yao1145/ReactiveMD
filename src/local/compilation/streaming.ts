@@ -45,6 +45,7 @@ function isDefiniteDiagnostic(diagnostic: Diagnostic, source: string): boolean {
     || family('local.budget')
     || family('local.version')
     || family('local.html')
+    || family('local.parse')
     || family('local.security')
     || family('local.config')
     || family('local.registry')
@@ -277,15 +278,66 @@ export function compileLocalStreamingTracked(
     }
   }
 
-  // Only transient damage remains after the budget of passes. No definite
-  // diagnostic exists, so the result is a stabilized failure without mixing
-  // provisional diagnostics into the final `diagnostics` list.
+  // Only transient damage remains after the budget of passes. Render the whole
+  // snapshot literally rather than publish a failure with no diagnostics: a
+  // literal-only source cannot raise structural or semantic errors, so any
+  // remaining diagnostic is deterministic and stays visible.
+  if (typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH
+    && !coversSource(literalRanges, source.length)) {
+    const whole = [{ start: 0, end: source.length }];
+    const fullLiteral = compileLocalTracked(source, options, services, whole);
+    addTimings(timings, fullLiteral.timings);
+    attempts += 1;
+    if (fullLiteral.result.ok) {
+      const transient = transientForResult(collected, fullLiteral.result.diagnostics);
+      return {
+        result: { ...fullLiteral.result, status: 'partial', transientDiagnostics: transient },
+        ...(fullLiteral.parsed ? { parsed: fullLiteral.parsed } : {}),
+        transientDiagnostics: transient,
+        literalRanges: whole,
+        attempts,
+        timings,
+      };
+    }
+    const { definite, transient } = partitionDiagnostics(fullLiteral.result.diagnostics, source);
+    const mergedTransient = mergeDiagnostics([...collected, transient]);
+    if (definite.length > 0) {
+      return {
+        result: {
+          ok: false,
+          diagnostics: definite,
+          ...(fullLiteral.result.recoveries ? { recoveries: [...fullLiteral.result.recoveries] } : {}),
+          status: 'failed',
+          transientDiagnostics: mergedTransient,
+        },
+        ...(fullLiteral.parsed ? { parsed: fullLiteral.parsed } : {}),
+        transientDiagnostics: mergedTransient,
+        literalRanges: whole,
+        attempts,
+        timings,
+      };
+    }
+    literalRanges = whole;
+  }
+
   const last = tracked;
   const mergedTransient = mergeDiagnostics(collected);
+  const failureDiagnostics = last !== undefined && last.result.ok === false && last.result.diagnostics.length > 0
+    ? [...last.result.diagnostics]
+    : mergedTransient.length > 0
+      ? mergedTransient
+      : [{
+          code: 'local.parse',
+          message: 'The streaming snapshot could not be compiled.',
+          severity: 'error' as const,
+          range: { start: 0, end: 0 },
+          line: 1,
+          column: 1,
+        }];
   return {
     result: {
       ok: false,
-      diagnostics: [],
+      diagnostics: failureDiagnostics,
       ...(last?.result.recoveries ? { recoveries: [...last.result.recoveries] } : {}),
       status: 'failed',
       transientDiagnostics: mergedTransient,

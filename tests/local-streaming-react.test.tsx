@@ -91,6 +91,27 @@ describe('LocalReactiveDocument streaming source phase', () => {
     expect(legacy).toBe(explicit);
   });
 
+  it('honors compileOptions.sourcePhase when the prop is omitted', () => {
+    const html = renderToStaticMarkup(
+      <LocalReactiveDocument source={PARTIAL} compileOptions={{ sourcePhase: 'streaming' }} />,
+    );
+    expect(html).toContain('data-local-fallback');
+    expect(html).toContain('data-render-mode="static"');
+    expect(html).not.toContain('local-inactive');
+  });
+
+  it('lets the prop win over compileOptions.sourcePhase', () => {
+    const html = renderToStaticMarkup(
+      <LocalReactiveDocument
+        source={COMPLETE}
+        sourcePhase="final"
+        compileOptions={{ sourcePhase: 'streaming' }}
+      />,
+    );
+    expect(html).not.toContain('data-local-fallback');
+    expect(html).toContain('role="slider"');
+  });
+
   it('accepts a transient diagnostics callback without changing the rendered document', () => {
     const seen: unknown[] = [];
     const html = renderToStaticMarkup(

@@ -116,8 +116,12 @@ export function LocalReactiveDocumentCore({
   const optionsKey = localCompileOptionsKey(effectiveCompileOptions);
   const runtimeKey = `${optionsKey}|${documentId ?? ''}|${randomSeed ?? ''}`;
   // The phase travels beside the options, so a streaming snapshot reuses the
-  // same session and runtime. It never enters the compile identity below.
-  const phase: LocalSourcePhase = sourcePhase ?? 'final';
+  // same session and runtime. It never enters the compile identity below. A
+  // host may put it on compileOptions instead of the prop; the prop wins.
+  const optionPhase = effectiveCompileOptions?.sourcePhase;
+  const phase: LocalSourcePhase = sourcePhase === 'streaming' || sourcePhase === 'final'
+    ? sourcePhase
+    : optionPhase === 'streaming' ? 'streaming' : 'final';
   const streaming = phase === 'streaming';
   // The latest external values seed a newly created runtime; later changes go
   // through the view's update effect without recompiling or resetting state.

@@ -46,7 +46,7 @@ export function Article() {
 | Prop | Type | Component | Notes |
 | --- | --- | --- | --- |
 | `source` | `string` | `LocalReactiveDocument` | Recompiles on source changes and adopts the new document in the existing runtime, migrating parameter values that still satisfy their contracts. Host option changes that affect compilation semantics or a document the runtime cannot adopt create a new runtime and drop the old instance state. See [Keeping values when source changes](#keeping-values-when-source-changes) |
-| `sourcePhase` | `'streaming' \| 'final'` | `LocalReactiveDocument` | Marks whether the source is still being generated; defaults to `final`. While `streaming`, the document renders read-only in static mode and defers side effects; independent of `strict`. See [Streaming source compilation](#streaming-source-compilation) |
+| `sourcePhase` | `'streaming' \| 'final'` | `LocalReactiveDocument` | Marks whether the source is still being generated; defaults to `final`. While `streaming`, the document renders read-only in static mode and defers side effects; independent of `strict`. A host may also set `compileOptions.sourcePhase`; the prop wins. See [Streaming source compilation](#streaming-source-compilation) |
 | `onTransientDiagnostics` | `(diagnostics: Diagnostic[]) => void` | `LocalReactiveDocument` | Receives fixable issues from streaming snapshots; they never enter `onDiagnostics`. When generation finishes, hosts that received them get one final empty array. Omit to ignore provisional issues |
 | `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | Per-compilation limits, HTML capability flags and host component schemas; omitted options use the default ReactiveMD path |
 | `document` | `LocalDocument` | `LocalDocumentView` | Compiled document; compiled once by the host |
@@ -189,7 +189,7 @@ scheduler.schedule(completedSource, options, undefined, 'final');
 - Revisions increase monotonically, and a stale Worker response cannot update the current preview. Streaming jobs never join the `patch-v1` baseline; scheduling a streaming snapshot invalidates the existing baseline, and only a final result can establish a patch baseline.
 - Worker full requests and responses echo `sourcePhase`, and `LocalCompileOutcome.sourcePhase` reports the result phase. Main-thread fallback uses the same semantics; a custom `fallbackCompile` receives the phase as its third argument.
 
-Streaming and final compiles in one session do not share intermediate caches; final results still use the existing incremental or full path. Streaming jobs may reuse the last result for an identical snapshot, but do not depend on block-level reuse across snapshots.
+Streaming snapshots never read or populate the final block, deferred-index or shared-result caches; a final compile always starts from the existing incremental or full path. Lower-level parser caches keyed by exact source text may still serve both phases, because they are pure functions of that text and options. Streaming jobs may reuse the last result for an identical snapshot, but do not depend on block-level reuse across snapshots.
 
 ### React hosts
 
@@ -220,7 +220,7 @@ export function StreamedArticle({ source, phase }: {
 }
 ```
 
-While streaming, `LocalReactiveDocument` renders with `mode="static"`: controls are read-only, network sessions are not established, and submissions, resets and other component side effects do not start. It still reuses the same compile session and runtime, and ordinary source updates retain compatible reader values and input drafts through the existing migration rules; a phase change does not rebuild the runtime or reset state. `final` restores the host's `mode`, `staticFirst` and full interaction, and `onDiagnostics` reports final diagnostics. `onTransientDiagnostics` reports provisional issues only; if the host received any, finalization calls it once more with an empty array. Deterministic failures still show the existing error notice.
+While streaming, `LocalReactiveDocument` renders with `mode="static"`: controls are read-only, network sessions are not established, and submissions, resets and other component side effects do not start. It still reuses the same compile session and runtime, and ordinary source updates retain compatible reader values and input drafts through the existing migration rules; a phase change does not rebuild the runtime or reset state. `final` restores the host's `mode`, `staticFirst` and full interaction, and `onDiagnostics` reports final diagnostics. `onTransientDiagnostics` reports provisional issues only; if the host received any, finalization calls it once more with an empty array, and a later streaming snapshot without provisional issues retracts the same way. Deterministic failures still show the existing error notice.
 
 The host must write each new snapshot to `source` and switch `sourcePhase` back to `final` when generation ends. On cancellation, document switches or unmount, stop submitting and discard old results; the engine validates revisions and phases only and does not manage generation rounds.
 
@@ -234,7 +234,7 @@ Streaming compilation does not change the document security model:
 
 ### Performance expectations
 
-Every accepted streaming snapshot compiles the complete source. Regions that cannot be interpreted safely are degraded to literal text through bounded stabilization attempts, at most 6 passes; this path does not promise block-level incremental cost. The scheduler throttles and coalesces snapshots, and `final` queues immediately. Source still respects the 1,000,000-character limit and compile budgets; longer snapshots cost more per compile. Measure input-to-preview latency and compile volume on long documents, then tune the host's submission window accordingly; do not call a compile entry per token.
+Every accepted streaming snapshot compiles the complete source. Regions that cannot be interpreted safely are degraded to literal text through bounded stabilization attempts, at most 6 passes; this path does not promise block-level incremental cost. The scheduler throttles and coalesces snapshots, and `final` queues immediately. Source still respects the 1,000,000-character limit and compile budgets; longer snapshots cost more per compile. Measure input-to-preview latency and compile volume on long documents, then tune the host's submission window accordingly; do not call a compile entry per token. The repository benchmark `npm run bench:streaming` reports, for a 15.5 KB / 227-block document in 64-character chunks, p50 ≈ 15–23 ms and p95 ≈ 33–53 ms per streaming snapshot across runs, exact final equality with one-shot compilation, and about 31 coalesced submissions under a 150 ms window. Treat these numbers as a baseline, not a cross-machine SLO.
 
 ## Strict parsing and local recovery
 

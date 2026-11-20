@@ -748,13 +748,20 @@ export class LocalCompileScheduler {
     // a misaligned edit and must not enter the revision chain.
     if (!applied.ok || applied.document.source !== job.source) return null;
     // Patch frames carry document data only. An explicit final consumer expects
-    // the status a complete final compile would have returned, so restore it
-    // here instead of letting the transport change the result shape.
-    const result: LocalCompileResult = job.sourcePhase === 'final' && job.explicitPhase
-      ? applied.recoveries === undefined
+    // the status a complete final compile would have returned; a legacy job
+    // must not inherit the baseline's phase status.
+    let result: LocalCompileResult;
+    if (job.sourcePhase === 'final' && job.explicitPhase) {
+      result = applied.recoveries === undefined
         ? { ...applied, status: 'valid' }
-        : { ...applied, status: 'recovered' }
-      : applied;
+        : { ...applied, status: 'recovered' };
+    } else if (applied.ok && applied.status !== undefined) {
+      const legacy = { ...applied } as LocalCompileResult & { status?: unknown };
+      delete legacy.status;
+      result = legacy;
+    } else {
+      result = applied;
+    }
     this.baseline = {
       source: job.source,
       optionsKey: job.optionsKey,
