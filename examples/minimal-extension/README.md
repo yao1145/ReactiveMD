@@ -32,13 +32,13 @@ npm install
 npm run preview
 ```
 
-The template targets `reactive-md@^0.8.0`. Before 0.8.0 is published, replace `npm install` with the engine tarball:
+The template declares `reactive-md@^0.8.0`; adjust the range to the release you are validating. To test an unreleased candidate, replace `npm install` with a tarball packed from the current source:
 
 ```sh
-npm install ../reactive-md-0.8.0.tgz
+npm install ../reactive-md-<version>.tgz
 ```
 
-That command also installs `react`, `react-dom` and the dev dependencies. After the engine release, run plain `npm install`. Open the Vite URL (default `http://localhost:5173`); the page shows the sample document and the rating card.
+That command also installs `react`, `react-dom` and the dev dependencies. Otherwise run plain `npm install`. Open the Vite URL (default `http://localhost:5173`); the page shows the sample document and the rating card.
 
 ## Files
 

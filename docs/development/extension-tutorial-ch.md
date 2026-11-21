@@ -32,10 +32,10 @@ npm install
 npm run preview
 ```
 
-模板依赖 `reactive-md@^0.8.0`。引擎尚未发布时，用当前源码打包的 tarball 替换 registry 安装：
+模板声明 `reactive-md@^0.8.0`，安装前先把范围提升到目标发布版本。测试尚未发布的候选版本时，用当前源码打包的 tarball 替换 registry 安装：
 
 ```sh
-npm install ../reactive-md-0.8.0.tgz
+npm install ../reactive-md-<version>.tgz
 ```
 
 该命令同时安装 `react`、`react-dom` 和开发依赖。打开 Vite 打印的地址（默认 `http://localhost:5173`），确认页面出现示例文档、评分卡和内置数字框。
@@ -284,7 +284,7 @@ npm test
 npm pack --ignore-scripts
 ```
 
-把 tarball 安装到一个全新项目，验证 `.`、`./react`（以及可选的 `./theme`、`./styles.css`）能导入，SSR 和离线导出都能运行。`package.json` 写明 `peerDependencies` 或依赖范围；组件契约或 SDK 范围变化时提升插件自己的版本并给出迁移说明。模板的 `reactive-md` 依赖范围是 `^0.8.0`，SDK 契约版本以实际发布包为准。
+把 tarball 安装到一个全新项目，验证 `.`、`./react`（以及可选的 `./theme`、`./styles.css`）能导入，SSR 和离线导出都能运行。`package.json` 写明 `peerDependencies` 或依赖范围；组件契约或 SDK 范围变化时提升插件自己的版本并给出迁移说明。模板的 `reactive-md` 依赖范围是 `^0.8.0`，面向更新的引擎时应提升该范围；SDK 契约版本以实际发布包为准。
 
 Demo 仓库消费候选包时使用内容摘要命名的 vendor tarball 加 lockfile 完整性，不使用 `file:..` 或源码别名。候选包更新流程见 Demo 仓库的[更新候选安装包](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-ch.md)；vendor 清单见 [Demo vendor README](https://github.com/yao1145/ReactiveMD-Demo/blob/main/vendor/README-ch.md)。
 

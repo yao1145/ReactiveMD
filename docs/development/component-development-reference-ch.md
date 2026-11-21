@@ -4,7 +4,7 @@
 
 这里的插件是宿主通过 npm 安装、显式导入并组合的组件包或主题包。组件声明、React 实现、编辑器信息与资源共同形成开发契约；宿主用 `createLocalConfig` 和 `createReactConfig` 装配它们。
 
-扩展 SDK 随 `reactive-md@0.8.0` 发布，SDK 契约仍为 0.7.0。以下流程安装公开包；只有测试尚未发布的 SDK 改动时才需要从当前源码打包 tarball。完整类型与限制见 [SDK 指南](../integration/extension-sdk-ch.md)。历史实现与验收记录已归档，不再随文档维护。
+扩展 SDK 自 `reactive-md@0.8.0` 起提供，SDK 契约仍为 0.7.0。以下流程安装当前公开包；只有测试尚未发布的 SDK 改动时才需要从当前源码打包 tarball。完整类型与限制见 [SDK 指南](../integration/extension-sdk-ch.md)。历史实现与验收记录已归档，不再随文档维护。
 
 
 ## 便捷定义与宿主组合
@@ -51,7 +51,7 @@ export default { plugins: [reactiveMd()] };
 
 准备 Node 22.12 或更高版本。React 适配器使用 React 19；模板的构建与浏览器测试依赖以它的 `package.json` 为准。
 
-把 [examples/component-package](../../examples/component-package/README-ch.md) 复制到仓库之外的新目录，与 ReactiveMD 仓库并列，命名为 `my-reactivemd-plugin`。模板依赖已发布的 `reactive-md@0.8.0`。在新目录执行：
+把 [examples/component-package](../../examples/component-package/README-ch.md) 复制到仓库之外的新目录，与 ReactiveMD 仓库并列，命名为 `my-reactivemd-plugin`。模板的 `package.json` 声明 `reactive-md@^0.8.0`；新建组件包时，把该范围提升到目标发布版本。在新目录执行：
 
 ```sh
 npm install

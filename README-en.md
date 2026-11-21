@@ -359,7 +359,7 @@ export function Article({ source }: { source: string }) {
 
 ## Edit source with React
 
-The reusable source editor lives in the separate `reactive-md-editor` package (`0.1.0` in the 0.8 release), with its own stylesheet. Install it alongside the engine after publication. In 0.7 it shipped as `reactive-md/editor`. The component is controlled and requires React 19:
+The reusable source editor lives in the separate `reactive-md-editor` package (`0.2.0`, supporting the `reactive-md@0.9.x` series), with its own stylesheet. Install it alongside the engine. In 0.7 it shipped as `reactive-md/editor`; it has been a separate package since 0.8. The component is controlled and requires React 19:
 
 ```tsx
 import { useState } from 'react';

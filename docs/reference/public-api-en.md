@@ -9,7 +9,7 @@ Three packages exist. Each has its own version and release workflow.
 | Package | Version | Responsibility |
 | --- | --- | --- |
 | `reactive-md` | `0.9.0` | Compiler, runtime, authoring services, SDK, React and SSR rendering, export, build adapters |
-| `reactive-md-editor` | `0.1.0` | CodeMirror 6 source editor, toolbar, editor-side navigation |
+| `reactive-md-editor` | `0.2.0` | CodeMirror 6 source editor, toolbar, editor-side navigation |
 | `reactive-md-demo` | private | Website, examples and deployment. No public API |
 
 The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. React 19 and Vite 8 are optional peers, each used by a subset of the entries.
@@ -398,7 +398,7 @@ The DOM-free toolbar commands, re-exported from `reactive-md/authoring`, with th
 | Build manifest | `reactive-md-build/v1` | Standalone build output |
 | Component protocol | `reactive-md-component/v1`, `component-protocol-3` | Component contribution |
 | Theme protocol | `reactive-md-theme-1` | Document themes |
-| Editor package | `0.1.0` | Editor releases, peer `reactive-md: ^0.8.0` |
+| Editor package | `0.2.0` | Editor releases, peer `reactive-md: ^0.9.0` |
 
 Each constant is versioned independently: a package release can ship a new HTML envelope without moving the syntax revision, and a new theme protocol does not change the SDK contract.
 

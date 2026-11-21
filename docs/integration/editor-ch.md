@@ -2,7 +2,7 @@
 
 **中文** · [English](editor-en.md)
 
-`reactive-md@0.8.0` 将编辑器拆分到独立的 `reactive-md-editor@0.1.0`，引擎先发布，编辑器随后发布。编辑器基于 CodeMirror 6，事务、共享分析和源码坐标约定见下文。
+`reactive-md-editor@0.2.0` 支持 `reactive-md@0.9.x` 系列。编辑器自 `reactive-md@0.8.0` / 编辑器 `0.1.0` 起独立为单独的包。编辑器基于 CodeMirror 6，事务、共享分析和源码坐标约定见下文。
 
 `reactive-md-editor` 是用于 Reactive MD 源码的受控 React 19 编辑器，由 Playground 编辑器抽出。它提供源码高亮、格式与插入工具栏、补全、绑定导航、重命名与格式化、撤销重做、行号及滚动同步。编辑器内置字数底栏及编辑、并排、预览三种视图。宿主保存源码，并提供预览内容、持久化和导出。
 
@@ -13,11 +13,11 @@
 ## 安装
 
 ```sh
-npm install reactive-md@0.8.0 reactive-md-editor@0.1.0
+npm install reactive-md@0.9.0 reactive-md-editor@0.2.0
 npm install react@19 react-dom@19
 ```
 
-以上命令用于两个正式版本发布之后；准备期间安装各自经过验证的本地 tarball。包只提供 ESM，工具和服务端渲染需要 Node.js 22.12 或更新版本。
+两个正式版本均已发布；只有测试尚未发布的候选版本时，才需要安装从当前源码打包的 tarball。包只提供 ESM，工具和服务端渲染需要 Node.js 22.12 或更新版本。
 
 ## 最小受控编辑器
 

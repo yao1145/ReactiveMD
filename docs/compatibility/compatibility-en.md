@@ -19,7 +19,7 @@ Reactive MD is currently a 0.x preview. This page covers package versions, synta
 | Unstyled React entry | `reactive-md/react/unstyled` | React renderer without a stylesheet dependency |
 | Core entry | `reactive-md` | Compilation, expressions and runtime, without loading React |
 | React entry | `reactive-md/react` | `LocalReactiveDocument`, `LocalDocumentView` |
-| Editor entry | `reactive-md-editor` | `ReactiveMarkdownEditor` and its types in the separate `0.1.0` package; requires React 19. Engine 0.8 no longer exports `reactive-md/editor` |
+| Editor entry | `reactive-md-editor` | `ReactiveMarkdownEditor` and its types in the separate `0.2.0` package for the `0.9.x` engine series; requires React 19. Engine 0.8 and later no longer export `reactive-md/editor` |
 | Renderer style entry | `reactive-md/styles.css` | Document and component styles, explicitly imported by the host |
 | Screen style entry | `reactive-md/screen.css` | Alias of `reactive-md/styles.css` |
 | Print style entry | `reactive-md/print.css` | Optional document print layout and page margins |

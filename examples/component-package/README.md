@@ -7,7 +7,7 @@ container, ships a package theme and an inlined SVG asset, and runs the public
 compliance tools against the installed package. Every import comes from a
 public `reactive-md` entry.
 
-This template targets `reactive-md@^0.8.0`. Copy this folder outside the repository. Before 0.8.0 is published, install a freshly packed engine tarball from the current source; after publication, run `npm install` against the registry. The SDK contract remains at `0.7.0`.
+This template declares `reactive-md@^0.8.0`. Copy this folder outside the repository and adjust the range to the release you are validating. Install from the registry with `npm install`; for an unreleased candidate, install a tarball packed from the current source instead. The SDK contract remains at `0.7.0`.
 
 ## Public entries
 

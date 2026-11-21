@@ -359,7 +359,7 @@ export function Article({ source }: { source: string }) {
 
 ## 用 React 编辑源码
 
-可复用的源码编辑器位于独立包 `reactive-md-editor`（0.8 发布中为 `0.1.0`），使用独立样式表，发布后与引擎一起安装。0.7 中它以 `reactive-md/editor` 提供。组件是受控的，需要 React 19：
+可复用的源码编辑器位于独立包 `reactive-md-editor`（`0.2.0`，支持 `reactive-md@0.9.x` 系列），使用独立样式表，与引擎一起安装。0.7 中它以 `reactive-md/editor` 提供；自 0.8 起独立为单独的包。组件是受控的，需要 React 19：
 
 ```tsx
 import { useState } from 'react';

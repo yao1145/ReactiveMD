@@ -32,13 +32,13 @@ npm install
 npm run preview
 ```
 
-模板依赖 `reactive-md@^0.8.0`。0.8.0 发布前，把 `npm install` 换成引擎 tarball：
+模板声明 `reactive-md@^0.8.0`，请把范围调整为要验证的发布版本。测试尚未发布的候选版本时，把 `npm install` 换成当前源码打包的引擎 tarball：
 
 ```sh
-npm install ../reactive-md-0.8.0.tgz
+npm install ../reactive-md-<version>.tgz
 ```
 
-该命令同时安装 `react`、`react-dom` 和开发依赖；引擎发布后直接运行 `npm install`。打开 Vite 打印的地址（默认 `http://localhost:5173`），页面显示示例文档和评分卡。
+该命令同时安装 `react`、`react-dom` 和开发依赖；常规安装直接运行 `npm install`。打开 Vite 打印的地址（默认 `http://localhost:5173`），页面显示示例文档和评分卡。
 
 ## 文件
 

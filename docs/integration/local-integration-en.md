@@ -654,7 +654,7 @@ These limits bound the work for a single document; they do not replace host cont
 
 ReactiveMD supports P0 HTML and independent author capabilities. See [HTML compatibility](../reference/html-compatibility-en.md). Automatic state persistence, unrestricted network/storage calls, Vue, React 18 and CommonJS remain outside the current API. Hosts declare read-only values and invoke state export/import explicitly.
 
-The source [extension SDK](extension-sdk-en.md) provides custom component and theme package registration in `reactive-md@0.8.0`; follow the [component plugin development guide](../development/component-development-en.md). On ordinary source edits, `LocalReactiveDocument` tries to adopt the new document and retain compatible bindings. Use a new React `key` for independent documents, or manage documents and runtimes in the host.
+The source [extension SDK](extension-sdk-en.md) provides custom component and theme package registration since `reactive-md@0.8.0`; follow the [component plugin development guide](../development/component-development-en.md). On ordinary source edits, `LocalReactiveDocument` tries to adopt the new document and retain compatible bindings. Use a new React `key` for independent documents, or manage documents and runtimes in the host.
 
 
 See the [syntax specification](../reference/local-interaction-syntax-en.md) for the component tags, color options and slot state.

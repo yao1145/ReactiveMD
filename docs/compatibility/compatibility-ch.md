@@ -19,7 +19,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | 无样式 React 入口 | `reactive-md/react/unstyled` | 不依赖样式表的 React 渲染器 |
 | 核心入口 | `reactive-md` | 编译、表达式与运行时，不加载 React |
 | React 入口 | `reactive-md/react` | `LocalReactiveDocument`、`LocalDocumentView` |
-| 编辑器入口 | `reactive-md-editor` | 独立 `0.1.0` 包中的 `ReactiveMarkdownEditor` 及其类型；需要 React 19。引擎 0.8 不再导出 `reactive-md/editor` |
+| 编辑器入口 | `reactive-md-editor` | 独立 `0.2.0` 包中的 `ReactiveMarkdownEditor` 及其类型，面向 `0.9.x` 引擎系列；需要 React 19。引擎 0.8 及之后的版本不再导出 `reactive-md/editor` |
 | 渲染器样式入口 | `reactive-md/styles.css` | 文档与组块样式，由宿主显式引入 |
 | 屏幕样式入口 | `reactive-md/screen.css` | `reactive-md/styles.css` 的别名 |
 | 打印样式入口 | `reactive-md/print.css` | 可选的文档打印布局与页边距 |

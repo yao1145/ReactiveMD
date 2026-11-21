@@ -2,7 +2,7 @@
 
 **English** · [中文](editor-ch.md)
 
-`reactive-md@0.8.0` moves the editor into the independent `reactive-md-editor@0.1.0` package; the engine publishes before the editor. The CM6 transaction, shared analysis and source-coordinate contract is described below.
+`reactive-md-editor@0.2.0` supports the `reactive-md@0.9.x` series. The editor has been a separate package since `reactive-md@0.8.0` / editor `0.1.0`. The CM6 transaction, shared analysis and source-coordinate contract is described below.
 
 `reactive-md-editor` is a controlled React 19 editor for Reactive MD source. It comes from the Playground editor and provides source highlighting, a formatting and insertion toolbar, completion, binding navigation, rename and format commands, undo and redo, line numbers and scroll synchronization. Its built-in status bar provides a character count and Edit, Split and Preview views. The host keeps the source text and supplies preview content, persistence and export.
 
@@ -13,11 +13,11 @@ Replace the old `reactive-md/editor` subpaths and styles with the independent pa
 ## Install
 
 ```sh
-npm install reactive-md@0.8.0 reactive-md-editor@0.1.0
+npm install reactive-md@0.9.0 reactive-md-editor@0.2.0
 npm install react@19 react-dom@19
 ```
 
-Use these commands after both stable versions are published; during preparation, install their verified local tarballs. The packages ship ESM only and need Node.js 22.12 or newer for tooling and server rendering.
+Both releases are published. A tarball built from the current source is only needed for an unreleased candidate. The packages ship ESM only and need Node.js 22.12 or newer for tooling and server rendering.
 
 ## Minimal controlled editor
 

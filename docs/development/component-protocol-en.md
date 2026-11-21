@@ -2,7 +2,7 @@
 
 **English** · [中文](component-protocol-ch.md)
 
-Protocol revision `component-protocol-3` · applicable syntax `local-draft-3` · current package version `0.8.0`
+Protocol revision `component-protocol-3` · applicable syntax `local-draft-3` · current package version `0.9.0`
 
 Components are the building blocks of the Reactive MD language. This protocol defines the shared contract for contribution, implementation and acceptance, connecting author syntax, the compiler, the runtime, the React reference adapter and machine conformance data. Authors writing documents follow the [local interaction syntax specification](../reference/local-interaction-syntax-en.md); hosts integrating follow [local mode integration](../integration/local-integration-en.md); this document is for contributors, reviewers and tests.
 
@@ -499,7 +499,7 @@ Components that reuse public rules need a definition, implementation and registr
 
 This revision describes contribution requirements and the legacy host interface in section 14. `LOCAL_COMPONENTS` is an internal compatibility projection of the default preset. `hostComponents` accepts plain schema data for one compilation and adapts it to the shared kernel, with implementations supplied by the host.
 
-The source tree's [extension SDK](../integration/extension-sdk-en.md) ships in `reactive-md@0.8.0` and uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, editor catalogs, offline builds, versioned restoration and public compliance tools. All 48 default rendered and structural components use this contract. Hosts explicitly install component code; document declarations never load it.
+The source tree's [extension SDK](../integration/extension-sdk-en.md) has shipped since `reactive-md@0.8.0` and uses a separate `reactive-md-component/v1` data contract and instance configuration for registration validation, React implementations, editor catalogs, offline builds, versioned restoration and public compliance tools. All 48 default rendered and structural components use this contract. Hosts explicitly install component code; document declarations never load it.
 
 ## 10. Compatibility, name governance, revisions and migration
 

@@ -9,7 +9,7 @@
 | 包 | 版本 | 职责 |
 | --- | --- | --- |
 | `reactive-md` | `0.9.0` | 编译器、运行时、作者服务、SDK、React 与 SSR 渲染、导出、构建适配 |
-| `reactive-md-editor` | `0.1.0` | CodeMirror 6 源码编辑器、工具栏、编辑器侧导航 |
+| `reactive-md-editor` | `0.2.0` | CodeMirror 6 源码编辑器、工具栏、编辑器侧导航 |
 | `reactive-md-demo` | 私有 | 站点、示例与部署，不提供对外接口 |
 
 引擎只提供 ESM 入口，Node 侧要求 Node.js 22.12 或更新版本。React 19 与 Vite 8 都是可选 peer，各自只服务一部分入口。
@@ -398,7 +398,7 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 | 构建清单 | `reactive-md-build/v1` | 独立构建产物 |
 | 组件协议 | `reactive-md-component/v1`、`component-protocol-3` | 组件贡献 |
 | 主题协议 | `reactive-md-theme-1` | 文档主题 |
-| 编辑器包 | `0.1.0` | 编辑器发布，peer `reactive-md: ^0.8.0` |
+| 编辑器包 | `0.2.0` | 编辑器发布，peer `reactive-md: ^0.9.0` |
 
 每个常量独立演进：一次包发布可以引入新的 HTML 信封而不动语法修订，新的主题协议也不会改变 SDK 契约。
 

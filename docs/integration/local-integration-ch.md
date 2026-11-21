@@ -639,7 +639,7 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 基础 HTML 与 RMD 混排，作者能力由宿主独立授权。参见 [HTML 兼容](../reference/html-compatibility-ch.md)。自动状态持久化、不受限的网络或存储调用、Vue、React 18 和 CommonJS 仍不在当前接口范围内。宿主数据使用显式只读声明，状态导出与导入由宿主调用。
 
-[扩展 SDK](extension-sdk-ch.md)随 `reactive-md@0.8.0` 提供自定义组件和主题包注册，开发流程见[组件插件开发指南](../development/component-development-ch.md)。`LocalReactiveDocument` 在普通源码编辑中尝试采用新文档并保留兼容绑定；切换独立文档时更换 React `key`，或由宿主管理文档与运行时。
+[扩展 SDK](extension-sdk-ch.md)自 `reactive-md@0.8.0` 起提供自定义组件和主题包注册，开发流程见[组件插件开发指南](../development/component-development-ch.md)。`LocalReactiveDocument` 在普通源码编辑中尝试采用新文档并保留兼容绑定；切换独立文档时更换 React `key`，或由宿主管理文档与运行时。
 
 组块、颜色、槽位状态与迁移规则见[交互语法规范](../reference/local-interaction-syntax-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 

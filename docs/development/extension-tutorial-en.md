@@ -32,10 +32,10 @@ npm install
 npm run preview
 ```
 
-The template targets `reactive-md@^0.8.0`. Before the engine ships, install the tarball packed from the current source instead of the registry version:
+The template declares `reactive-md@^0.8.0`; raise the range to the release you target before installing. To test an unreleased candidate, install the tarball packed from the current source instead of the registry version:
 
 ```sh
-npm install ../reactive-md-0.8.0.tgz
+npm install ../reactive-md-<version>.tgz
 ```
 
 That command also installs `react`, `react-dom` and the dev dependencies. Open the Vite URL (default `http://localhost:5173`) and confirm the sample document, the rating card and the built-in number field all appear.
@@ -284,7 +284,7 @@ npm test
 npm pack --ignore-scripts
 ```
 
-Install the tarball into a fresh project and verify that `.`, `./react` (plus optional `./theme` and `./styles.css`) import, and that SSR and offline export run. Declare `peerDependencies` or version ranges in `package.json`. Raise the plugin's own version with migration notes when its contract or SDK range changes. The template's `reactive-md` range is `^0.8.0`; the SDK contract version follows the published package.
+Install the tarball into a fresh project and verify that `.`, `./react` (plus optional `./theme` and `./styles.css`) import, and that SSR and offline export run. Declare `peerDependencies` or version ranges in `package.json`. Raise the plugin's own version with migration notes when its contract or SDK range changes. The template's `reactive-md` range is `^0.8.0`; raise it when targeting a newer engine. The SDK contract version follows the published package.
 
 The Demo repository consumes candidate packages as content-addressed vendor tarballs with lockfile integrity, never `file:..` or source aliases. The update procedure is [Updating candidate packages](https://github.com/yao1145/ReactiveMD-Demo/blob/main/docs/candidate-package-updates-en.md); the fixture list is in the [Demo vendor README](https://github.com/yao1145/ReactiveMD-Demo/blob/main/vendor/README.md).
 
