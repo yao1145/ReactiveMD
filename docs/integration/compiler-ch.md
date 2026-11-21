@@ -42,6 +42,8 @@ try {
 
 旧根入口的 `compileLocal(source, options)`、编辑会话和 Worker 默认保持严格语义，并保留原有返回类型。有恢复时会附加 `recoveries` 及对应 warning。显式传入 `strict: false` 可启用[局部恢复](local-integration-ch.md#严格解析与局部恢复)。
 
-最小入口保留 CommonMark、RMD 结构、表达式、绑定与预算。GFM 语法、原生 HTML 解析与修复、Lezer 块规划、KaTeX 显示和绘图公式语义由 standard 与兼容入口显式装配；开启作者能力时，最小入口仍解析 RMD 并建立绑定。原生 HTML 片段解析和净化使用标准入口。最小入口的运行与声明依赖图不再包含 `parse5`、`@lezer/markdown`、`remark-gfm` 或 KaTeX，也不再加载默认预设及其作者信息。standard 保留完整行为。
+单次入口始终只做最终编译：`compileLocal`、`createCompiler().compile` 和 `createStandardCompiler().compile` 不承担流式生命周期，不会返回 `status: 'partial'` 或暂态诊断，`sourcePhase` 选项也不会把它们变成流式入口。仍在生成中的源码应交给 `createLocalCompileSession()`、`LocalCompileScheduler`、Worker 或 `LocalReactiveDocument`；见[流式源码编译](local-integration-ch.md#流式源码编译)。
+
+最小入口保留 CommonMark、RMD 结构、表达式、绑定与预算。作者能力开关独立于 RMD 解析和绑定。原生 HTML 片段解析和净化、GFM、Lezer 块规划、KaTeX 和绘图公式语义由标准入口与兼容入口提供。最小入口的运行与声明依赖图不包含 `parse5`、`@lezer/markdown`、`remark-gfm`、KaTeX、默认预设及其作者信息。
 
 构建后运行 `npm run test:compiler-entry`，检查直接 ESM 导入、生产共享 chunk、声明依赖和浏览器消费。源码行为回归使用 `npm test -- tests/compiler-entry.test.ts`。

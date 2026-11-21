@@ -8,7 +8,7 @@ Three packages exist. Each has its own version and release workflow.
 
 | Package | Version | Responsibility |
 | --- | --- | --- |
-| `reactive-md` | `0.8.0` | Compiler, runtime, authoring services, SDK, React and SSR rendering, export, build adapters |
+| `reactive-md` | `0.9.0` | Compiler, runtime, authoring services, SDK, React and SSR rendering, export, build adapters |
 | `reactive-md-editor` | `0.1.0` | CodeMirror 6 source editor, toolbar, editor-side navigation |
 | `reactive-md-demo` | private | Website, examples and deployment. No public API |
 
@@ -18,7 +18,7 @@ The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. Rea
 
 | Entry | Kind | React | Node-only | One-line purpose |
 | --- | --- | --- | --- | --- |
-| `reactive-md` | ESM | No | No | Full core surface: compile, session, runtime, state, Worker, shareable HTML |
+| `reactive-md` | ESM | No | No | Full core surface: one-shot and streaming compile, incremental sessions, runtime, state, Worker, shareable HTML |
 | `reactive-md/compiler` | ESM | No | No | One-shot semantic compiler without the default preset |
 | `reactive-md/compiler/standard` | ESM | No | No | One-shot compiler with GFM, native HTML, KaTeX and the default preset |
 | `reactive-md/react` | ESM | Yes | No | React document renderer and component development API |
@@ -64,6 +64,7 @@ The full core surface. No React, no stylesheet, no DOM.
 | --- | --- |
 | One-shot compile | `compileLocal`, `LocalCompileResult`, `LocalCompileOptions` |
 | Incremental editing | `createLocalCompileSession`, `LocalCompileSession`, `LocalIncrementalStats` |
+| Streaming source | `LocalSourcePhase`, `LocalCompileStatus`; phased session and scheduler arguments |
 | Runtime | `createLocalRuntime`, `updateLocalRuntime`, `notifyLocalRuntime`, `LocalRuntime`, `LocalSnapshot` |
 | Expressions and math | `compileExpression`, `LocalExpressionError`, `compileLatex`, `compilePlotFormula`, `plotFormulaKind`, `implicitGridSize`, `samplePlot`, `sampleImplicit`, `sampleParametric`, `samplePolar` |
 | Diagnostics | `formatLocalDiagnostic`, `LOCAL_DIAGNOSTIC_CODES`, `isLocalDiagnosticCode`, `localDiagnosticTemplate`, `localDiagnosticTemplateKeys` |
@@ -71,13 +72,15 @@ The full core surface. No React, no stylesheet, no DOM.
 | State retention | `planLocalStateRetention`, `applyLocalStateRetention` |
 | Source versions | `inspectLocalSourceVersion`, `checkLocalUpgrade`, `migrateLocalSource`, `LOCAL_SYNTAX_VERSION` |
 | Authoring (re-export) | `analyzeLocalSource`, `completeLocalSource`, `renameLocalBinding`, `formatLocalSource` |
-| Background compile | `LocalCompileScheduler`, `startLocalCompileWorker`, `LOCAL_COMPILE_DELAY_MS`, `LOCAL_COMPILE_PREPARATION_DELAY_MS`, `compileFailureDiagnostic`, `localWorkerOptionsKey` |
+| Background compile | `LocalCompileScheduler`, `startLocalCompileWorker`, `LOCAL_COMPILE_DELAY_MS`, `LOCAL_COMPILE_PREPARATION_DELAY_MS`, `compileFailureDiagnostic`, `localWorkerOptionsKey`, `LocalCompileOutcome`, `LocalCompileRequest`, `LocalCompileResponse` |
 | Result patches | `LOCAL_RESULT_PATCH_PROTOCOL`, `diffSourceEdit`, `applySourceEdit`, `encodeLocalResultPatch`, `applyLocalResultPatch` |
 | Themes | `LOCAL_THEME_PROTOCOL`, `DEFAULT_LOCAL_THEME`, `resolveLocalTheme`, `isLocalThemeName` |
 | HTML envelope | `createShareableHtml`, `resolveLocalStateBaseline`, `SHAREABLE_HTML_FORMAT`, `SHAREABLE_HTML_FORMAT_V2`, `serializeForScript` |
 | Component state | `LOCAL_STATE_FORMAT`, `localSourceDigest`, plus the `./export/component-state` surface |
 
 Use this entry when a host compiles, runs and persists documents in memory. `compileLocal()` is the one-shot full compiler; `createLocalCompileSession()` reuses unchanged Markdown blocks across edits; `createLocalRuntime()` owns parameters, subscriptions and disposal. The runtime writes no storage, cookies or network on its own.
+
+`LocalCompileOptions.sourcePhase` marks a snapshot as `streaming` or `final`; sessions accept `compile(source, options?, phase?)` and `compileShared(source, options?, phase?)`, and `LocalCompileScheduler.schedule(source, options?, hint?, phase?)` takes the same phase, with `final` bypassing the debounce. Explicit phases add `status` (`partial`, `valid`, `recovered`, `failed`), and streaming results may add `transientDiagnostics`; transient diagnostics never appear in `diagnostics`. Worker full requests and responses echo `sourcePhase` when a phase was declared (on the request or the options object); phase-less legacy jobs omit it. `LocalCompileOutcome.sourcePhase` reports it, revisions stay monotonic, and streaming results never become patch baselines. One-shot `compileLocal` and the compiler entries remain final-only.
 
 ### `reactive-md/compiler`
 
@@ -112,7 +115,7 @@ Both factories validate options at creation and freeze a snapshot. Invalid confi
 | Adapter primitives | `compileExpression`, `compileLatex`, `compilePlotFormula`, `samplePlot`, `sampleImplicit`, `sampleParametric`, `samplePolar`, `layoutDiagram`, `diagramEdgePath`, `TableSurface`, `LatexView`, limits and formatting helpers |
 | Adapter utilities | `useComponentView`, `useWriter`, `useDisabled`, `useResetToken`, `useSourceAttributes`, `useValidationField`, `useValidationHint`, `formatNumber`, `snapToStep` and the other `component-utils` helpers |
 
-The renderer props are documented in [Local mode integration](../integration/local-integration-en.md). Neither component accepts `className`, `style` or children.
+`LocalReactiveDocument` also accepts `sourcePhase?: 'streaming' | 'final'` and `onTransientDiagnostics?: (diagnostics: Diagnostic[]) => void`. While streaming it renders in static mode and defers side effects; `final` restores the host's interaction mode. See [Streaming source compilation](../integration/local-integration-en.md#streaming-source-compilation). Neither component accepts `className`, `style` or children.
 
 ### `reactive-md/react/unstyled`
 
@@ -383,7 +386,7 @@ The DOM-free toolbar commands, re-exported from `reactive-md/authoring`, with th
 
 | Constant | Value | Scope |
 | --- | --- | --- |
-| Package version | `0.8.0` | Engine releases |
+| Package version | `0.9.0` | Engine releases |
 | SDK contract | `0.7.0` (`LOCAL_SDK_VERSION`) | Component, preset and configuration manifests |
 | Syntax revision | `local-draft-3` (`LOCAL_SYNTAX_VERSION`) | Document source |
 | State file | `reactive-md-state/v1` (`LOCAL_STATE_FORMAT`) | Exported parameters |

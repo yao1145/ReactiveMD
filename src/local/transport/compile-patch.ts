@@ -859,8 +859,10 @@ export function applyLocalResultPatch(base: LocalCompileResult, patch: LocalResu
     }
     // `null` removes records the baseline carried; omission keeps an equal
     // baseline list. A result that never had recoveries stays without the key.
+    // A phase-aware baseline keeps its resolved status on patched results.
+    const status = base.status === undefined ? {} : { status: base.status };
     if (patch.recoveries === null) {
-      return { ok: true, document: document as unknown as LocalDocument, diagnostics };
+      return { ok: true, document: document as unknown as LocalDocument, diagnostics, ...status };
     }
     const recoveries = patch.recoveries === undefined
       ? base.recoveries
@@ -869,6 +871,7 @@ export function applyLocalResultPatch(base: LocalCompileResult, patch: LocalResu
       ok: true,
       document: document as unknown as LocalDocument,
       diagnostics,
+      ...status,
       ...(recoveries === undefined ? {} : { recoveries }),
     };
   } catch {

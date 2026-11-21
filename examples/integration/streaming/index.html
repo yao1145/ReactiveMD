@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactive MD streaming source compilation</title>
+    <style>
+      body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 72ch; padding: 0 1rem; }
+      pre { background: #f4f4f5; border: 1px solid #e4e4e7; overflow: auto; padding: 0.75rem; white-space: pre-wrap; }
+      button { margin-right: 0.5rem; }
+      .muted { color: #52525b; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Streaming source compilation</h1>
+      <p>
+        Fixed text chunks arrive on a timer. Each complete snapshot is submitted with
+        <code>sourcePhase: "streaming"</code>; the last submission is
+        <code>sourcePhase: "final"</code>. No model service or credential is involved.
+      </p>
+      <p>
+        <button id="start" type="button">Start / restart</button>
+        <button id="cancel" type="button">Cancel generation</button>
+      </p>
+      <p class="muted">
+        Cancel invalidates the current generation. A result that arrives later is discarded
+        instead of updating this page.
+      </p>
+      <p id="status" role="status">Starting...</p>
+
+      <h2>Source submitted</h2>
+      <pre id="source"></pre>
+
+      <h2>Transient diagnostics</h2>
+      <pre id="transient">None.</pre>
+
+      <h2>Final diagnostics</h2>
+      <pre id="diagnostics">None.</pre>
+
+      <h2>Compiled snapshot</h2>
+      <pre id="preview">Waiting for the first snapshot.</pre>
+
+      <p id="stale" class="muted">0 stale results discarded.</p>
+    </main>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

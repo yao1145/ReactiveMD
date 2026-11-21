@@ -83,6 +83,18 @@ function applyOrThrow(
   return applied;
 }
 
+it('preserves an explicit phase status on patched results', () => {
+  const base = { ...makeResult('a', [makeNode('a', 0, 'a')]), status: 'valid' as const };
+  const next = { ...makeResult('ab', [makeNode('ab', 0, 'ab')]), status: 'valid' as const };
+  const applied = applyOrThrow(base, encodeLocalResultPatch(base, next)!);
+  expect(applied.status).toBe('valid');
+
+  const legacyBase = makeResult('a', [makeNode('a', 0, 'a')]);
+  const legacyNext = makeResult('ab', [makeNode('ab', 0, 'ab')]);
+  const legacy = applyOrThrow(legacyBase, encodeLocalResultPatch(legacyBase, legacyNext)!);
+  expect(Object.hasOwn(legacy, 'status')).toBe(false);
+});
+
 describe('source edit transport', () => {
   it('encodes and reapplies a UTF-16 replacement', () => {
     const before = 'alpha 😀 beta';

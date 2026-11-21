@@ -7,6 +7,7 @@ import {
   type LocalDocument,
   type LocalRecovery,
   type LocalValue,
+  type SourceRange,
 } from '../types';
 import type { NormalizedComponent } from '../configuration/component-kernel';
 import type { LocalComponentDefinition } from '../../sdk/types';
@@ -96,6 +97,21 @@ function registryDefinitionMap(check: LocalOptionCheck & UnifiedRegistryCheck): 
 }
 
 /**
+ * Parser services may accept forced literal spans as an optional final
+ * argument. The shared service contract stays at four arguments so custom
+ * parsers keep working; a parser that predates the parameter simply ignores it.
+ */
+type LiteralRangeParser = {
+  parse(
+    source: string,
+    options?: LocalCompileOptions,
+    context?: SourceContext,
+    rowPlans?: LocalCompilerCoreServices['rowPlans'],
+    literalRanges?: readonly SourceRange[],
+  ): ParsedLocal;
+};
+
+/**
  * Whole-document native HTML branch. The Markdown parser, components,
  * expressions, computations and bindings are all bypassed; the source only
  * becomes grammar-aware sanitized HTML for an isolated `srcdoc` iframe.
@@ -162,6 +178,7 @@ export function compileLocalCore(
   services?: LocalCompilerCoreServices,
   capture?: (tree: ParsedLocal) => void,
   mark?: (name: string) => void,
+  literalRanges?: readonly SourceRange[],
 ): LocalCompileResult {
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     // Source-shape diagnostics come from the kernel parser; a session parser
@@ -218,8 +235,8 @@ export function compileLocalCore(
   let parsed: ParsedLocal;
   try {
     parsed = services?.parser
-      ? services.parser.parse(source, options, sourceContext, services.rowPlans)
-      : parseLocalCore(source, optionCheck, sourceContext);
+      ? (services.parser as LiteralRangeParser).parse(source, options, sourceContext, services.rowPlans, literalRanges)
+      : parseLocalCore(source, optionCheck, sourceContext, undefined, undefined, literalRanges);
     capture?.(parsed);
     mark?.('parseMs');
   } catch (error) {

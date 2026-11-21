@@ -4,7 +4,7 @@ import { compileLocal, createLocalRuntime } from '../../src/local';
 import { LocalDocumentView, LocalReactiveDocument } from '../../src/local/rendering/document/LocalDocumentView';
 import { createLocalStateFile } from '../../src/local/runtime/state';
 import { createShareableHtml } from '../../src/shareable';
-import type { LocalHtmlPolicy } from '../../src/local/types';
+import type { LocalHtmlPolicy, LocalSourcePhase } from '../../src/local/types';
 import '../../src/local/rendering/document/local.css';
 
 const SOURCE = [
@@ -58,8 +58,8 @@ const generator = { name: 'test', version: '1.0.0' };
 
 Object.assign(window, {
   rmdCapabilities: {
-    render(policy: LocalHtmlPolicy, key?: string) {
-      root.render(<LocalReactiveDocument key={key} source={SOURCE} compileOptions={policy} onDiagnostics={onDiagnostics} />);
+    render(policy: LocalHtmlPolicy, key?: string, sourcePhase?: LocalSourcePhase) {
+      root.render(<LocalReactiveDocument key={key} source={SOURCE} sourcePhase={sourcePhase} compileOptions={policy} onDiagnostics={onDiagnostics} />);
     },
     actions(enableJavaScript: boolean, edit?: 'add' | 'remove' | 'restore') {
       const source = edit === 'add'

@@ -70,6 +70,15 @@ try {
   await page.locator('#root iframe').waitFor({ state: 'detached' });
   await value('#root', 12);
 
+  const streamingGrants = policy(true, true, true);
+  await page.evaluate(options => window.rmdCapabilities.render(options, 'streaming', 'streaming'), streamingGrants);
+  await page.locator('#root article[data-render-mode="static"]').waitFor();
+  await page.getByText('People: 2', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('slider').count(), 0);
+  assert.equal(await page.locator('#root [data-rmd-author-css]').count(), 1);
+  await page.evaluate(options => window.rmdCapabilities.render(options, 'streaming', 'final'), streamingGrants);
+  await value('#root', 10);
+
   await page.evaluate((options) => {
     const Worker = window.Worker;
     const descriptor = Object.getOwnPropertyDescriptor(Worker.prototype, 'onmessage');

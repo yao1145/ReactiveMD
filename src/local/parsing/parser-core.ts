@@ -160,6 +160,37 @@ export interface ParserWork {
   };
 }
 
+/**
+ * Clamp, sort and merge source spans for the region scanner. Empty or
+ * reversed spans are dropped; overlapping spans become one. Forced literal
+ * spans use the same representation as loose-mode recovery spans so the
+ * scanner renders each as one fallback token with its original text.
+ */
+export function normalizeSourceRanges(
+  ranges: readonly SourceRange[] | undefined,
+  length: number,
+): SourceRange[] {
+  if (!ranges || ranges.length === 0) return [];
+  const clamped: SourceRange[] = [];
+  for (const range of ranges) {
+    if (!Number.isFinite(range.start) || !Number.isFinite(range.end)) continue;
+    const start = Math.max(0, Math.min(length, range.start));
+    const end = Math.max(0, Math.min(length, range.end));
+    if (end > start) clamped.push({ start, end });
+  }
+  clamped.sort((left, right) => left.start - right.start || left.end - right.end);
+  const merged: SourceRange[] = [];
+  for (const range of clamped) {
+    const last = merged[merged.length - 1];
+    if (last && range.start <= last.end) {
+      if (range.end > last.end) last.end = range.end;
+    } else {
+      merged.push({ ...range });
+    }
+  }
+  return merged;
+}
+
 /** A lexical pass shields code before recognizing local tags, interpolation and math. */
 export function parseLocalCore(
   source: string,
@@ -167,6 +198,7 @@ export function parseLocalCore(
   context?: SourceContext,
   cache?: ParseSessionCache,
   rowPlans?: InlinePlanLookup,
+  literalRanges?: readonly SourceRange[],
 ): ParsedLocal {
   const diagnostics: Diagnostic[] = [];
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
@@ -319,7 +351,11 @@ export function parseLocalCore(
     budget.charge(source.length, 0, Math.max(1, source.length));
     // Only sources that may contain a container pay for the shared facts scan.
     ensureDepth(source);
-    const plain = parsePlainParagraphs(source, markdownBreaks, node);
+    // Forced literal spans require region scanning; the plain-paragraph fast
+    // path cannot represent them.
+    const plain = literalRanges && literalRanges.length > 0
+      ? undefined
+      : parsePlainParagraphs(source, markdownBreaks, node);
     if (plain !== undefined) {
       work.fastBlocks=plain.length;work.fastCharacters=source.length;
       finishWork();
@@ -608,6 +644,11 @@ export function parseLocalCore(
       });
       recoveryRanges = plan.ranges;
       recoveries = [...plan.recoveries];
+    }
+    // Streaming hosts can force regions to stay literal. They share the loose
+    // mode fallback token path but never produce recovery records.
+    if (literalRanges && literalRanges.length > 0) {
+      recoveryRanges = normalizeSourceRanges([...recoveryRanges, ...literalRanges], source.length);
     }
 
     region = createRegionScanner({

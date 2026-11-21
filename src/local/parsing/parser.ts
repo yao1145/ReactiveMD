@@ -1,4 +1,4 @@
-import type { LocalCompileOptions } from '../types';
+import type { LocalCompileOptions, SourceRange } from '../types';
 import { MAX_LOCAL_DOCUMENT_LENGTH } from '../configuration/limits';
 import type { LocalOptionCheck } from '../configuration/options-core';
 import { readLocalCompileOptions } from '../configuration/options';
@@ -24,9 +24,10 @@ export function parseLocal(
   context?: SourceContext,
   cache?: ParseSessionCache,
   rowPlans?: InlinePlanLookup,
+  literalRanges?: readonly SourceRange[],
 ): ParsedLocal {
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
-    return parseLocalCore(source, undefined as unknown as LocalOptionCheck, context, cache, rowPlans);
+    return parseLocalCore(source, undefined as unknown as LocalOptionCheck, context, cache, rowPlans, literalRanges);
   }
-  return parseLocalCore(source, readLocalCompileOptions(options), context, cache, rowPlans);
+  return parseLocalCore(source, readLocalCompileOptions(options), context, cache, rowPlans, literalRanges);
 }

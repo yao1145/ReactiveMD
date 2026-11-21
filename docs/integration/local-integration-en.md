@@ -46,6 +46,8 @@ export function Article() {
 | Prop | Type | Component | Notes |
 | --- | --- | --- | --- |
 | `source` | `string` | `LocalReactiveDocument` | Recompiles on source changes and adopts the new document in the existing runtime, migrating parameter values that still satisfy their contracts. Host option changes that affect compilation semantics or a document the runtime cannot adopt create a new runtime and drop the old instance state. See [Keeping values when source changes](#keeping-values-when-source-changes) |
+| `sourcePhase` | `'streaming' \| 'final'` | `LocalReactiveDocument` | Marks whether the source is still being generated; defaults to `final`. While `streaming`, the document renders read-only in static mode and defers side effects; independent of `strict`. A host may also set `compileOptions.sourcePhase`; the prop wins. See [Streaming source compilation](#streaming-source-compilation) |
+| `onTransientDiagnostics` | `(diagnostics: Diagnostic[]) => void` | `LocalReactiveDocument` | Receives fixable issues from streaming snapshots; they never enter `onDiagnostics`. When generation finishes, hosts that received them get one final empty array. Omit to ignore provisional issues |
 | `compileOptions` | `LocalCompileOptions` | `LocalReactiveDocument` | Per-compilation limits, HTML capability flags and host component schemas; omitted options use the default ReactiveMD path |
 | `document` | `LocalDocument` | `LocalDocumentView` | Compiled document; compiled once by the host |
 | `runtime` | `LocalRuntime` | `LocalDocumentView` | Created by the host, which is responsible for disposal |
@@ -102,19 +104,138 @@ console.log(session.stats); // mode: 'incremental', compiledBlocks: 1, reusedBlo
 session.dispose(); // when closing the document
 ```
 
-`compile(source, options?)` returns `LocalCompileResult`. `clear()` releases reusable state; `dispose()` releases it and ends the session. Compiling after disposal throws. Each result is an independent, serializable plain-data snapshot, so mutating an earlier result cannot corrupt cached blocks. Unchanged blocks may retain node IDs across edits. Their numbering can differ from a separate `compileLocal()` call; resolve metadata IDs within the same result.
+`compile(source, options?, phase?)` returns `LocalCompileResult`; see [Streaming source compilation](#streaming-source-compilation) for phases. `compileShared` exposes the compiler-owned read-only result graph used by the Worker and preview; callers must not mutate it, and `compile` publishes an independent plain-data snapshot instead. `clear()` releases reusable state; `dispose()` releases it and ends the session. Compiling after disposal throws. Each result is an independent, serializable plain-data snapshot, so mutating an earlier result cannot corrupt cached blocks. Unchanged blocks may retain node IDs across edits. Their numbering can differ from a separate `compileLocal()` call; resolve metadata IDs within the same result.
 
 With an unchanged declaration and binding context, only affected Markdown blocks are recompiled. Changes to declarations, component contents, options, permissions or host schemas trigger full compilation. Reference definitions, footnotes, navigation anchors, HTML, BOMs, code-delimiter changes and uncertain boundaries also use full compilation. Inputs producing diagnostics return the full compiler's diagnostics. Whole-document source and cumulative node budgets still apply, and only the current version is retained.
 
 During consecutive component or declaration edits, the session retains the latest successful full result and defers building its block index. The next independent prose edit builds the index once and reuses the other blocks. Identical source can return an independent cached snapshot. Option changes, errors, `clear()` and `dispose()` discard deferred state.
 
-`stats` reports the latest mode (`full`, `incremental`, or `cached`), block counts, reuse counts, compiled characters and an optional invalidation reason. `cacheBuilds` counts block-index construction attempts during the call, including deferred recovery. Changed blocks compile under the unchanged declaration prefix; that work is included in `compiledCharacters`. Source comparison, range relocation and complete result snapshot assembly still scale with document size.
+`stats` reports the latest mode (`full`, `incremental`, `cached`, or `streaming`), block counts, reuse counts, compiled characters and an optional invalidation reason. `cacheBuilds` counts block-index construction attempts during the call, including deferred recovery. Changed blocks compile under the unchanged declaration prefix; that work is included in `compiledCharacters`. Source comparison, range relocation and complete result snapshot assembly still scale with document size.
 
 A document consisting of one flat list or table can also establish an incremental snapshot. Simple inline plans survive row edits; unchanged rows retain node IDs after semantic validation. Rows at unchanged offsets can share objects; shifted rows are cloned with updated UTF-16 ranges. Dynamic interpolation still uses the general parser. The cumulative `stats.parse.reusedRows` / `reusedItems` counters track inline plans, while `reusedRowNodes` / `reusedItemNodes` track final row subtrees separately.
 
 When a result patch costs too much, the Worker can return a complete successful result for the same revision and continue the patch chain from it. `metrics.patchFallback === 'cost'` identifies this choice. `patchBytes` / `fullBytes` estimate JSON UTF-8 size, not structured-clone size. This choice does not trigger a full-request retry.
 
 `startLocalCompileWorker()`, the default `LocalCompileScheduler` fallback, and `LocalReactiveDocument` manage their own sessions. A custom `fallbackCompile` remains host-owned. `compileLocal()` remains the one-shot full compiler. See the [implementation and measurements](../development/performance-overview-en.md).
+
+## Streaming source compilation
+
+When a model, a collaborative replay or another producer grows a document in chunks, the host can submit the growing source to a compile session, scheduler, Worker or `LocalReactiveDocument` without waiting for the complete text. The engine accepts complete source snapshots and a phase marker only; token accumulation, model connections, conversation history, retries and cancellation stay with the host.
+
+### Snapshots and phases
+
+Every submission is the complete source so far. The host appends tokens to its own buffer and submits that buffer at a throttling window or structural boundary; reconnecting or replacing a damaged fragment also submits complete text. The phase is:
+
+```ts
+type LocalSourcePhase = 'streaming' | 'final';
+```
+
+`streaming` means the current generation is unfinished; `final` means the source is complete. The phase may be supplied as `LocalCompileOptions.sourcePhase` or as an explicit session or scheduler argument. When both are omitted, compilation keeps the existing final semantics. Only these two values are accepted at runtime; sessions and `LocalCompileScheduler` return the same `local.options.invalid` failure for any other value instead of falling back to `final`. `sourcePhase` is not part of compile identity: it does not enter `localCompileOptionsKey` and does not change `strict`:
+
+- `strict` still controls structural recovery of the final source only. `strict: false` is not a streaming mode; it recovers structures that remain damaged in the final source as literal text and reports warnings.
+- `sourcePhase` reports whether the source is still being generated. A streaming snapshot degrades regions that cannot be interpreted safely to literal text while keeping node identity and source ranges for the completed prefix; an unfinished tail does not fail the whole preview. `strict: false` recovery records and warnings keep their existing rules and are not marked transient. `final` compiles the complete source under the selected strict mode.
+- Unclosed tags, attribute quotes, component bodies, interpolations and formulas that are temporarily visible during streaming should not be rewritten into syntax repairs by the host; submit the completed source and compile it normally.
+
+### Status and transient diagnostics
+
+Results for calls that supply an explicit phase add `status`; streaming results may also carry `transientDiagnostics`. Calls that omit the phase keep the existing result shape without either field. `diagnostics` always contains non-transient diagnostics only:
+
+| Source phase | `status` | Result meaning |
+| --- | --- | --- |
+| `streaming` | `partial` | `ok: true`; returns the document that can be shown safely. Issues that later source can repair go to `transientDiagnostics`, and regions that cannot be interpreted safely stay literal. |
+| `streaming` + deterministic error | `failed` | `ok: false`; only deterministic errors remain in `diagnostics`: options, source type or length, syntax version, budgets, native-HTML/security policy, configuration, registry and capability failures, plus internal parse failures (`local.parse.*`). |
+| `final` | `valid` | Complete compilation succeeded without structural recovery. |
+| `final` + `strict: false` recovery | `recovered` | Returns the document, `recoveries` and one warning per recovery. |
+| `final` | `failed` | Keeps the final compilation error rules; errors are not marked transient. |
+
+Transient diagnostics keep their original `code`, `message` and source range and appear only in `transientDiagnostics`; loose-mode recovery warnings keep their final diagnostic rules and are never copied into the transient list. Consumers should use `status` and the explicit fields instead of inferring the phase from diagnostic text. A streaming success may temporarily contain unclosed structures or unevaluated expressions; on `final`, clear the host's transient state and use the final `diagnostics`. Deterministic errors still fail immediately and are not repairable placeholders.
+
+### Sessions, schedulers and Workers
+
+```ts
+import { LocalCompileScheduler, createLocalCompileSession } from 'reactive-md';
+
+const session = createLocalCompileSession();
+const partial = session.compile(snapshot, options, 'streaming');
+if (partial.status === 'partial') {
+  render(partial.document);
+  showTransient(partial.transientDiagnostics ?? []);
+}
+
+const final = session.compile(completedSource, options, 'final');
+if (final.status === 'valid' || final.status === 'recovered') {
+  clearTransient();
+  render(final.document);
+}
+```
+
+The explicit `phase` of `compile(source, options?, phase?)` and `compileShared(source, options?, phase?)` wins over `options.sourcePhase`. An explicit `final` uses the same final compilation path as an omitted phase and only adds `status`.
+
+`LocalCompileScheduler.schedule(source, options?, hint?, phase?)` follows the same phases:
+
+```ts
+const scheduler = new LocalCompileScheduler({
+  createWorker: () => new Worker(new URL('./compile.worker.ts', import.meta.url), { type: 'module' }),
+  onResult: ({ result, sourcePhase }) => applySnapshot(result, sourcePhase),
+  delay: 150,
+});
+
+scheduler.schedule(snapshot, options, undefined, 'streaming');
+scheduler.schedule(completedSource, options, undefined, 'final');
+```
+
+- Streaming snapshots share the scheduler's throttle window (`LOCAL_COMPILE_DELAY_MS`, 150 ms by default) and only the latest queued snapshot is kept; no compilation runs per token.
+- `final` bypasses the debounce and queues immediately. It may wait for an in-flight compile, but the older result cannot be delivered because the phase is part of job identity; monotonic revisions keep later responses from overwriting earlier accepted state.
+- Revisions increase monotonically, and a stale Worker response cannot update the current preview. Streaming jobs never join the `patch-v1` baseline; scheduling a streaming snapshot invalidates the existing baseline, and only a final result can establish a patch baseline.
+- Worker full requests and responses echo `sourcePhase` whenever a phase was declared; phase-less legacy jobs keep the historical wire shape and omit it. A phase on the options object is honored the same way. `LocalCompileOutcome.sourcePhase` reports the result phase. Main-thread fallback uses the same semantics; a custom `fallbackCompile` receives the phase as its third argument.
+- Worker patch retries use `retryFull` with the codes `stale-base`, `options-mismatch`, `invalid-edit` or `phase-mismatch`; the scheduler falls back to one complete request instead of trusting a misaligned patch.
+
+Streaming snapshots never read or populate the final block, deferred-index or shared-result caches; a final compile always starts from the existing incremental or full path. Lower-level parser caches keyed by exact source text may still serve both phases, because they are pure functions of that text and options. Streaming jobs may reuse the last result for an identical snapshot, but do not depend on block-level reuse across snapshots.
+
+### React hosts
+
+```tsx
+import { useState } from 'react';
+import type { Diagnostic, LocalSourcePhase } from 'reactive-md';
+import { LocalReactiveDocument } from 'reactive-md/react';
+
+export function StreamedArticle({ source, phase }: {
+  source: string;
+  phase: LocalSourcePhase;
+}) {
+  const [transient, setTransient] = useState<Diagnostic[]>([]);
+  const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
+
+  return (
+    <>
+      <LocalReactiveDocument
+        source={source}
+        sourcePhase={phase}
+        onTransientDiagnostics={setTransient}
+        onDiagnostics={setDiagnostics}
+      />
+      {transient.length > 0 && <p>{transient.length} provisional issues</p>}
+      {phase === 'final' && diagnostics.length > 0 && <p>Compilation failed; see diagnostics.</p>}
+    </>
+  );
+}
+```
+
+While streaming, `LocalReactiveDocument` renders with `mode="static"`: controls are read-only, network sessions are not established, and submissions, resets and other component side effects do not start. It still reuses the same compile session and runtime, and ordinary source updates retain compatible reader values and input drafts through the existing migration rules; a phase change does not rebuild the runtime or reset state. `final` restores the host's `mode`, `staticFirst` and full interaction. `onDiagnostics` carries non-transient diagnostics for the current snapshot; provisional issues never enter that channel. `onTransientDiagnostics` reports provisional issues only; if the host received any, finalization calls it once more with an empty array, and a later streaming snapshot without provisional issues retracts the same way. Deterministic failures still show the existing error notice.
+
+The host must write each new snapshot to `source` and switch `sourcePhase` back to `final` when generation ends. On cancellation, document switches or unmount, stop submitting and discard old results; the engine validates revisions and phases only and does not manage generation rounds.
+
+### Security boundaries
+
+Streaming compilation does not change the document security model:
+
+- The host owns model transport, credentials, retries and cancellation. ReactiveMD receives text snapshots only; it does not connect to model services or add network requests or code execution for streaming.
+- `streaming` does not enable author HTML, scripts, CSS or other language capabilities; the host still grants them through explicit compile options. Deterministic security, configuration, version and budget errors remain final failures.
+- During streaming, side-effecting components are deferred by static mode so incomplete content cannot submit, subscribe or perform other external actions; full interaction returns on `final`. Hosts still enforce their own permissions, CSP and untrusted-content policies.
+
+### Performance expectations
+
+Every accepted streaming snapshot compiles the complete source. Regions that cannot be interpreted safely are degraded to literal text through up to six stabilization passes, followed by one whole-source literal compile when damage persists; this path does not promise block-level incremental cost. The scheduler throttles and coalesces snapshots, and `final` queues immediately. Source still respects the 1,000,000-character limit and compile budgets; longer snapshots cost more per compile. Measure input-to-preview latency and compile volume on long documents, then tune the host's submission window accordingly; do not call a compile entry per token. The repository benchmark `npm run bench:streaming` reports, for a 15.5 KB / 227-block document in 64-character chunks, p50 ≈ 15–23 ms and p95 ≈ 33–53 ms per streaming snapshot across runs, exact final equality with one-shot compilation, and about 31 coalesced submissions under a 150 ms window. Treat these numbers as a baseline, not a cross-machine SLO.
 
 ## Strict parsing and local recovery
 
@@ -436,9 +557,9 @@ const scheduler = new LocalCompileScheduler({
 scheduler.schedule(source);
 ```
 
-`LocalCompileScheduler` coalesces edits for `LOCAL_COMPILE_DELAY_MS` (150 ms; override with `delay`), keeps one compile in flight plus only the latest queued source, and discards results that a newer edit has superseded. When no worker is available, or after a worker error, it compiles on the main thread with `fallbackCompile`, which defaults to `compileLocal`; a worker failure switches permanently to this fallback and reports it through `onModeChange`. Failures thrown by the worker or during fallback compilation use the `local.worker.compile` diagnostic code.
+`LocalCompileScheduler` coalesces edits for `LOCAL_COMPILE_DELAY_MS` (150 ms; override with `delay`), keeps one compile in flight plus only the latest queued source, and discards results that a newer edit has superseded. When no worker is available, or after a worker error, it compiles on the main thread with `fallbackCompile`; the default is an internal session-backed compile with the same results as `compileLocal`, without cross-call reuse. A worker failure switches permanently to this fallback and reports it through `onModeChange`. Failures thrown by the worker or during fallback compilation use the `local.worker.compile` diagnostic code. Use `schedule(source, options?, hint?, phase?)` for streaming snapshots; `final` bypasses the debounce. See [Streaming source compilation](#streaming-source-compilation).
 
-`onResult` receives `LocalCompileOutcome` (`source`, `result`, `duration`, `mode`), `onPendingChange` reports whether work is queued or in flight, and `dispose()` stops the timer, terminates the worker and suppresses later callbacks.
+`onResult` receives `LocalCompileOutcome` (`source`, `result`, `duration`, `mode`, `sourcePhase`), `onPendingChange` reports whether work is queued or in flight, and `dispose()` stops the timer, terminates the worker and suppresses later callbacks.
 
 ### Other core exports
 
@@ -451,7 +572,8 @@ scheduler.schedule(source);
 - Source revisions: `inspectLocalSourceVersion`, `checkLocalUpgrade` and `migrateLocalSource`; `LocalUpgradeOptions` configures the source revision and semantic-change allowance.
 - Retention: `planLocalStateRetention` and `applyLocalStateRetention`.
 - Background compilation: `LocalCompileScheduler`, `LOCAL_COMPILE_DELAY_MS` and `startLocalCompileWorker`.
-- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalComputation`, `LocalValidation`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalHostPropKind`, `LocalHostPropSchema`, `LocalHostComponentForm`, `LocalHostBindingSchema`, `LocalHostComponentSchema`, `LocalExternal`, `LocalDynamicConstraint`, `LocalDynamicConstraints`, `LocalRuntimeOptions`, `LocalUpgradeOptions`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
+- Streaming phases: `LocalSourcePhase`, `LocalCompileStatus`; the `status` and `transientDiagnostics` fields on explicit-phase results.
+- Type exports: `Diagnostic`, `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalNode`, `LocalBinding`, `LocalComputation`, `LocalValidation`, `LocalDocument`, `LocalCompileLimits`, `LocalCompileOptions`, `LocalCompileResult`, `LocalSourcePhase`, `LocalCompileStatus`, `LocalHostPropKind`, `LocalHostPropSchema`, `LocalHostComponentForm`, `LocalHostBindingSchema`, `LocalHostComponentSchema`, `LocalExternal`, `LocalDynamicConstraint`, `LocalDynamicConstraints`, `LocalRuntimeOptions`, `LocalUpgradeOptions`, `LocalRuntime`, `LocalSnapshot`, `LocalStateFile`, `LocalStateGenerator`, `LocalStateParseResult`, `LocalStateResolution`, `LocalRetainedState`, `LocalStateRetentionReason`, `LocalStateRetentionDrop`, `LocalStateRetentionInput`, `LocalStateRetentionResult`, `LocalCompileWorker`, `LocalCompileWorkerScope`, `LocalCompileRequest`, `LocalCompileResponse`, `LocalCompileOutcome`, `LocalCompileMode`, `LocalCompileSchedulerOptions`.
 
 `compileExpression`, `compileLatex` and `samplePlot` are lower-level utilities with the same stability level as the core API; usually only `compileLocal` and `createLocalRuntime` are needed.
 

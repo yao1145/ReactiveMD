@@ -4,9 +4,11 @@
 
 These directories use the package's public entry points and can be copied outside the repository. The commands below start from the current directory.
 
-These examples target `reactive-md@0.6.0`, published on both `latest` and `next`. Copy the desired example directory outside the repository, then install the pinned version from npm as shown below. React and Vite are installed from the example's own dependencies where needed.
+Most examples below target `reactive-md@0.6.0`, published on both `latest` and `next`. Copy the desired example directory outside the repository, then install the pinned version from npm as shown below. React and Vite are installed from the example's own dependencies where needed.
 
-The [extension SDK consumer](extension-sdk/README.md) targets `reactive-md@0.8.0` and verifies static and offline interactive sharing through public exports. Release preparation uses a locally built tarball; the SDK contract remains at `0.7.0`. The older examples below retain their 0.6.0 pins.
+The [extension SDK consumer](extension-sdk/README.md) targets `reactive-md@0.8.0` and verifies static and offline interactive sharing through public exports. Release preparation uses a locally built tarball; the SDK contract remains at `0.7.0`. The other older examples retain their 0.6.0 pins.
+
+The [streaming source](streaming) example uses `reactive-md@0.9.0` and requires the streaming-source compilation API added after that package was published. Run it from a tarball packed in this repository as described below.
 
 ## Node core
 
@@ -43,6 +45,23 @@ npm run dev
 ```
 
 The UI and scheduler wiring live in [worker/main.js](worker/main.js); the Worker entry is [worker/worker.js](worker/worker.js).
+
+## Streaming source compilation
+
+[streaming](streaming) is a deterministic browser example for streaming-source compilation. It appends fixed text chunks on a timer, submits each complete snapshot with `sourcePhase: 'streaming'`, then submits the completed source with `sourcePhase: 'final'`. The page shows the provisional status, transient diagnostics, final diagnostics and a compiled snapshot summary. Cancel or restart invalidates the current run; results from an older run are counted and discarded instead of repainting the page. It uses no model service, network request or credential.
+
+Build a tarball in the repository root, then install it in the example:
+
+```sh
+# in the repository root
+npm pack
+
+cd examples/integration/streaming
+npm install ../../../reactive-md-0.9.0.tgz
+npm run dev
+```
+
+If the directory was copied outside the repository, pass the tarball's absolute path to `npm install` instead. The example uses only `reactive-md` public entries; scheduling lives in [streaming/main.js](streaming/main.js) and the Worker entry is [streaming/worker.js](streaming/worker.js).
 
 ## Comprehensive host example
 

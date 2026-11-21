@@ -10,6 +10,7 @@ import type {
   LocalDocument,
   LocalRuntime,
   LocalSnapshot,
+  LocalSourcePhase,
   LocalValue,
 } from '../../types';
 import { assertExtensionProps } from './view-render-context';
@@ -38,15 +39,19 @@ type LocalReactiveDocumentCoreProps = LocalReactiveDocumentProps & BaseConfigPro
 /**
  * Optional private compile path supplied by the incremental compiler. It
  * returns a read-only result whose unchanged nodes keep their identity; the
- * public `compile` protocol is unaffected.
+ * public `compile` protocol is unaffected. The optional phase lets streaming
+ * hosts reuse the same session without changing the compile identity.
  */
 interface SharedCompileSession {
-  compileShared?(source: string, options?: LocalCompileOptions): LocalCompileResult;
+  compileShared?(source: string, options?: LocalCompileOptions, phase?: LocalSourcePhase): LocalCompileResult;
+  compile?(source: string, options?: LocalCompileOptions, phase?: LocalSourcePhase): LocalCompileResult;
 }
 
 export function LocalReactiveDocumentCore({
   source,
   onDiagnostics,
+  sourcePhase,
+  onTransientDiagnostics,
   urlPolicy,
   locale = 'en',
   themes,
@@ -111,6 +116,16 @@ export function LocalReactiveDocumentCore({
   const effectiveThemes = reactConfig?.themes ?? themes ?? implicitConfig?.themes;
   const optionsKey = localCompileOptionsKey(effectiveCompileOptions);
   const runtimeKey = `${localRuntimeOptionsKey(effectiveCompileOptions)}|${documentId ?? ''}|${randomSeed ?? ''}`;
+  // The phase travels beside the options, so a streaming snapshot reuses the
+  // same session and runtime. It never enters the compile identity below. A
+  // host may put it on compileOptions instead of the prop; the prop wins.
+  // An unsupported runtime value is passed through so compilation fails closed
+  // instead of silently rendering the unfinished document interactively.
+  const declaredPhase: unknown = sourcePhase !== undefined ? sourcePhase : effectiveCompileOptions?.sourcePhase;
+  const phase: LocalSourcePhase = declaredPhase === 'streaming' || declaredPhase === 'final'
+    ? declaredPhase
+    : declaredPhase === undefined ? 'final' : declaredPhase as LocalSourcePhase;
+  const streaming = phase === 'streaming';
   // The latest external values seed a newly created runtime; later changes go
   // through the view's update effect without recompiling or resetting state.
   const externalRef = useRef(externalValues);
@@ -174,10 +189,12 @@ export function LocalReactiveDocumentCore({
     const session = compileSession.current as LocalCompileSession & SharedCompileSession;
     // `compileShared` keeps object identity for unchanged nodes. Until it is
     // available the public compile path still produces a valid document.
+    // The phase is explicit so `optionsKey` stays phase-free and a phase
+    // change recompiles without remounting the view or resetting state.
     return typeof session.compileShared === 'function'
-      ? session.compileShared(source, effectiveCompileOptions)
-      : session.compile(source, effectiveCompileOptions);
-  }, [source, optionsKey]);
+      ? session.compileShared(source, effectiveCompileOptions, phase)
+      : session.compile(source, effectiveCompileOptions, phase);
+  }, [source, optionsKey, phase]);
 
   const runtimeRef = useRef<LocalRuntime | null>(null);
   const runtimeOptionsKey = useRef<string | null>(null);
@@ -240,6 +257,32 @@ export function LocalReactiveDocumentCore({
   const reportRef = useRef(onDiagnostics);
   reportRef.current = onDiagnostics;
   const mounted = useRef(0);
+
+  // Transient streaming issues travel on their own channel: `onDiagnostics`
+  // keeps the final diagnostic contract. The signature dedupes repeated
+  // snapshots, and finalizing retracts the last report exactly once.
+  const transientReportRef = useRef(onTransientDiagnostics);
+  transientReportRef.current = onTransientDiagnostics;
+  const lastTransientSignature = useRef('');
+  const reportedTransient = useRef(false);
+  const transientDiagnostics = result.transientDiagnostics ?? [];
+  const transientSignature = transientDiagnostics.length === 0
+    ? ''
+    : diagnosticsSignature(transientDiagnostics);
+  useEffect(() => {
+    if (transientSignature === lastTransientSignature.current) return;
+    lastTransientSignature.current = transientSignature;
+    if (transientDiagnostics.length === 0) {
+      // Retract only what the host actually received; a final compile with no
+      // transient history reports nothing.
+      if (!reportedTransient.current) return;
+      reportedTransient.current = false;
+      transientReportRef.current?.([]);
+      return;
+    }
+    reportedTransient.current = true;
+    transientReportRef.current?.(transientDiagnostics);
+  }, [transientSignature]);
 
   // Theme/color-mode props never feed the compilation above, so changing them
   // re-renders the document without recreating state.
@@ -511,8 +554,11 @@ export function LocalReactiveDocumentCore({
       // fills an omitted manifest and must not mask an empty host array.
       themes={reactConfig === undefined ? effectiveThemes : undefined}
       colorScheme={colorScheme}
-      mode={mode}
-      staticFirst={staticFirst}
+      // A provisional stream stays read-only: static rendering keeps controls
+      // inert and skips network sessions and component side effects. Final
+      // snapshots resume the host's mode and static-first behavior.
+      mode={streaming ? 'static' : mode}
+      staticFirst={streaming ? false : staticFirst}
       imageResolver={imageResolver}
       hostData={hostData}
       hostRenderer={hostRenderer}
