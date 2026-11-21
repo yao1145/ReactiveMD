@@ -28,6 +28,7 @@ import {
 import type { createTagScanner } from './parser-tags';
 import { markdownTreeFacts } from './markdown-blocks';
 import { HTML_RAW_TEXT_ELEMENTS, HTML_VOID_ELEMENTS, htmlCommentEnd } from '../html/html-policy';
+import { EXTENDED_HTML_NAMES, opaqueHtmlClose } from './author-markdown';
 import { LOCAL_SYNTAX_VERSION } from '../types';
 import {
   isThemeTagAt,
@@ -50,15 +51,6 @@ const MAX_LOCAL_NAME_LENGTH = 128;
 
 /** Conditional document declaration names. A registered component wins first. */
 const DECLARATION_NAMES: ReadonlySet<string> = new Set(['css', 'javascript']);
-
-/**
- * Additive native HTML subtrees recognized beyond the basic mixed surface.
- * Registered RMD tags and the basic P0 names always take precedence, so these
- * are only reached when no component owns the name.
- */
-const EXTENDED_HTML_NAMES: ReadonlySet<string> = new Set([
-  'iframe', 'dl', 'section', 'figure', 'figcaption',
-]);
 
 /** Displayed math source, in UTF-16 code units, per formula. */
 const MAX_DISPLAY_MATH_SOURCE = Math.min(50_000, MAX_LOCAL_STRING_LENGTH);
@@ -785,9 +777,7 @@ export function createRegionScanner({
           && !known.has(lowerName) && !NATIVE_HTML_VOID.has(lowerName)
           && (lowerName === 'iframe' || beginsLine(i))) {
           const close = scanned.self ? { start: scanned.end, end: scanned.end }
-            : HTML_RAW_TEXT_ELEMENTS.has(lowerName)
-              ? rawClose(scanned.end, lowerName, end)
-              : unknownTagEnd(scanned.end, scanned.name, end, insideContainer, true);
+            : opaqueHtmlClose(source, scanned.end, lowerName, end);
           // An unpaired subtree or one that would cross its container's close
           // falls through to the ordinary native fallback below.
           const parentClose = parent === undefined ? null : rawClose(i, parent, end);

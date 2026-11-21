@@ -21,7 +21,7 @@ let browser;
 try {
   await server.listen();
   browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined });
-  const page = await browser.newPage();
+  const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
   const url = server.resolvedUrls.local[0];
   page.on('pageerror', error => console.error(error.message));
   await page.goto(new URL(fixture, url).href);
@@ -48,6 +48,7 @@ try {
     assert.equal(inline, options.enableCss ? '24rem' : '');
     if (options.enableCss) {
       assert.equal(await page.locator('.local-slider').evaluate(node => getComputedStyle(node).marginLeft), '3px');
+      assert.equal(await page.locator('.local-slider').evaluate(node => getComputedStyle(node).color), 'rgb(255, 0, 0)');
     }
     assert.equal(await page.locator('#root iframe').count() > 0, options.enableExtendedHtml);
     if (options.enableExtendedHtml) {
@@ -215,6 +216,7 @@ try {
       assert.equal(await reopened.locator('iframe').count() > 0, true);
       assert.equal(await reopened.getByText('Example term', { exact: true }).count(), 1);
       assert.equal(await reopened.locator('.local-slider').evaluate(element => getComputedStyle(element).marginLeft), '3px');
+      assert.equal(await reopened.locator('.local-slider').evaluate(element => getComputedStyle(element).color), 'rgb(255, 0, 0)');
     } finally {
       await reopened.close();
     }

@@ -209,7 +209,7 @@ describe('ExtendedHtmlFragment render adapter', () => {
   });
 
   it('renders a definition list in the document DOM', () => {
-    const markup = renderToStaticMarkup(<ExtendedHtmlFragment source={'<dl><dt>Term</dt><dd>Definition</dd></dl>'} policy={policy()} />);
+    const markup = renderToStaticMarkup(<ExtendedHtmlFragment source={'<dl><!-- a note --><dt>Term</dt><dd>Definition</dd></dl>'} policy={policy()} />);
     const tree = parseFragment(markup);
     expect(elements(tree, 'iframe')).toHaveLength(0);
     expect(elements(tree, 'dl')).toHaveLength(1);

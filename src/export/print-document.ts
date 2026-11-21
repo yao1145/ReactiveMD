@@ -9,6 +9,16 @@ type PChild = DefaultTreeAdapterTypes.ChildNode;
 const NATIVE_WRAPPER_CLASS = 'reactive-md-native-document';
 const NATIVE_FRAME_CLASS = 'reactive-md-native-frame';
 const EXPORT_ROOT_CLASS = 'reactive-md-export-root';
+const FRAGMENT_FRAME_CLASS = 'local-extended-fragment-frame';
+const HTML_NS = 'http://www.w3.org/1999/xhtml';
+const PRINT_FRAGMENT_TAGS = new Set([
+  'article', 'section', 'header', 'footer', 'div', 'p', 'span', 'figure', 'figcaption',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'br', 'hr',
+  'b', 'strong', 'i', 'em', 'u', 's', 'del', 'mark', 'sub', 'sup', 'img',
+  'dl', 'dd', 'dt', 'ol', 'ul', 'li', 'table', 'caption', 'colgroup', 'col', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+]);
+const PRINT_FRAGMENT_ATTRIBUTES = new Set(['alt', 'title', 'dir', 'lang', 'start', 'colspan', 'rowspan', 'scope']);
+const INLINE_IMAGE = /^data:image\/(?:png|jpeg|gif|webp);base64,[a-z0-9+/]+=*$/i;
 
 /** Only engine-generated envelopes carry this format marker. */
 const ENGINE_FORMAT = /^reactive-md-html\/v[0-9]+$/;
@@ -134,20 +144,77 @@ function scrub(nodes: PChild[]): PChild[] {
   return kept;
 }
 
+function printableFrame(frame: PElement, depth: number): PChild[] {
+  const srcdoc = attribute(frame, 'srcdoc');
+  const sandbox = attribute(frame, 'sandbox');
+  if (srcdoc && sandbox !== undefined && !/\ballow-(?:same-origin|scripts)\b/i.test(sandbox) && depth < 5) {
+    const root = firstElement(parse(srcdoc, { scriptingEnabled: false }), 'html');
+    const head = root && firstElement(root, 'head');
+    const body = root && firstElement(root, 'body');
+    if (head && body && hasContentSecurityPolicy(head)) return printableFragment(body.childNodes, depth + 1);
+  }
+  const title = attribute(frame, 'title');
+  return title ? [{ nodeName: '#text', value: title, parentNode: null }] : [];
+}
+
+/** Promote only inert HTML, plain text and inline raster images out of frames. */
+function printableFragment(nodes: readonly PChild[], depth: number): PChild[] {
+  const result: PChild[] = [];
+  for (const node of nodes) {
+    if (isText(node)) { result.push(node); continue; }
+    if (!isElement(node) || node.namespaceURI !== HTML_NS) continue;
+    if (node.tagName === 'iframe') {
+      const block = defaultTreeAdapter.createElement('div', node.namespaceURI, []);
+      for (const child of printableFrame(node, depth)) defaultTreeAdapter.appendChild(block, child);
+      result.push(block);
+      continue;
+    }
+    if (FORBIDDEN_ELEMENTS.has(node.tagName) || node.tagName === 'style' || node.tagName === 'template') continue;
+    const children = printableFragment(node.childNodes, depth);
+    if (!PRINT_FRAGMENT_TAGS.has(node.tagName)) { result.push(...children); continue; }
+    node.attrs = node.attrs.filter(({ name, value, namespace }) => !namespace && (PRINT_FRAGMENT_ATTRIBUTES.has(name)
+      || node.tagName === 'img' && name === 'src' && INLINE_IMAGE.test(value)));
+    node.childNodes = children;
+    result.push(node);
+  }
+  return result;
+}
+
+function expandExtendedPrintFrames(root: PParent): boolean {
+  let changed = false;
+  for (const child of root.childNodes) {
+    if (!isElement(child)) continue;
+    if (attribute(child, 'data-extended-html') !== 'sandbox') {
+      if (expandExtendedPrintFrames(child)) changed = true;
+      continue;
+    }
+    const frame = onlyElement(child);
+    if (!frame || frame.tagName !== 'iframe' || !hasClass(frame, FRAGMENT_FRAME_CLASS)) continue;
+    child.childNodes = printableFrame(frame, 0);
+    changed = true;
+  }
+  return changed;
+}
+
 /**
  * Move a static native document out of its preview frame so Chromium can
  * paginate the body. Keep the author's HTML and body attributes, along with
  * the export's print styles and restrictions on resource loading.
  */
 export function prepareLocalPrintHtml(html: string): string {
-  if (!html.includes(NATIVE_WRAPPER_CLASS) || !html.includes(NATIVE_FRAME_CLASS)) return html;
-  const shell = firstElement(parse(html, { scriptingEnabled: false }), 'html');
+  const hasNativeFrame = html.includes(NATIVE_WRAPPER_CLASS) && html.includes(NATIVE_FRAME_CLASS);
+  if (!hasNativeFrame && !html.includes(FRAGMENT_FRAME_CLASS)) return html;
+  const parsed = parse(html, { scriptingEnabled: false });
+  const shell = firstElement(parsed, 'html');
   const head = shell && firstElement(shell, 'head');
   const body = shell && firstElement(shell, 'body');
   if (!head || !body || !isStaticEngineShell(head)) return html;
 
   const markup = nativeFrame(body);
-  if (!markup || !ENGINE_DOCTYPE.test(markup)) return html;
+  if (!markup || !ENGINE_DOCTYPE.test(markup)) {
+    const root = body.childNodes.find(node => isElement(node) && hasClass(node, EXPORT_ROOT_CLASS));
+    return root && isElement(root) && expandExtendedPrintFrames(root) ? serialize(parsed, { scriptingEnabled: false }) : html;
+  }
   const native = parse(markup, { scriptingEnabled: false });
   const root = firstElement(native, 'html');
   const nativeHead = root && firstElement(root, 'head');

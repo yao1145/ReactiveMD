@@ -13,6 +13,13 @@ import type { Diagnostic, LocalNode } from '../src/local/types';
 /** Plain, structured-clone-safe form used for structural equality. */
 const plain = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 
+it.each(['css', 'javascript'])('reports unfinished %s only as a transient streaming diagnostic', tag => {
+  const source = `<${tag}>\n`;
+  const partial = compileLocalStreamingTracked(source, { enableCss: true, enableJavaScript: true }).result;
+  expect(partial).toMatchObject({ status: 'partial', diagnostics: [], transientDiagnostics: [{ code: 'local.author.unclosed' }] });
+  expect(compileLocal(source).diagnostics).toContainEqual(expect.objectContaining({ code: 'local.author.unclosed' }));
+});
+
 function flatten(nodes: readonly LocalNode[]): LocalNode[] {
   return nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
 }

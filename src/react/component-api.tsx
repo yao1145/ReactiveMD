@@ -239,6 +239,8 @@ export interface LocalComponentContext {
   readonly props: Readonly<Record<string, LocalComponentValue>>;
   /** Author declarations for the component's visible root. */
   readonly authorStyle?: CSSProperties;
+  /** Sanitized ordered declarations when repeated properties need browser fallbacks. */
+  readonly authorStyleText?: string;
   /** Return true when the current mount delegates this action to author JavaScript. */
   readonly dispatchAuthorAction?: (action: import('../local/runtime/author-script-protocol').AuthorAction) => boolean;
   readonly content: LocalComponentContent;
@@ -304,6 +306,7 @@ export interface LocalReactPreset {
  */
 export interface LocalComponentAdapterEnvironment {
   readonly authorStyle?: LocalComponentContext['authorStyle'];
+  readonly authorStyleText?: LocalComponentContext['authorStyleText'];
   readonly dispatchAuthorAction?: LocalComponentContext['dispatchAuthorAction'];
   readonly runtime: LocalRuntime;
   readonly network?: ComponentNetwork;
@@ -1145,6 +1148,7 @@ export function createLocalComponentContext(
   return Object.freeze({
     props: content.props,
     authorStyle: environment.authorStyle,
+    authorStyleText: environment.authorStyleText,
     dispatchAuthorAction: environment.dispatchAuthorAction,
     content,
     services,

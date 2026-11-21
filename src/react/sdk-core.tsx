@@ -50,6 +50,7 @@ export {
 export interface LocalReactRenderEnvironment {
   runtime: LocalRuntime;
   authorStyle?: LocalComponentAdapterEnvironment['authorStyle'];
+  authorStyleText?: LocalComponentAdapterEnvironment['authorStyleText'];
   dispatchAuthorAction?: LocalComponentAdapterEnvironment['dispatchAuthorAction'];
   network?: ComponentNetwork;
   /** Runtime-scoped services; omitted only by hand-built render environments. */
@@ -409,6 +410,7 @@ function LocalExtensionView({
   const adapter: LocalComponentAdapterEnvironment = {
     runtime: environment.runtime,
     authorStyle: environment.authorStyle,
+    authorStyleText: environment.authorStyleText,
     dispatchAuthorAction: environment.dispatchAuthorAction,
     network: environment.network,
     services: environment.services ?? environment.runtime.services,

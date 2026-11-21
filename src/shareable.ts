@@ -56,7 +56,7 @@ export interface ShareableHtmlOptions {
   title: string;
   source: string;
   state: LocalStateFile;
-  /** Trusted static markup. Render it with the same author CSS grant as the export. */
+  /** Trusted static markup. Render it with the same CSS and Extended HTML grants as the export. */
   staticMarkup: string;
   /** Trusted host stylesheet, normally the built reactive-md.css. */
   css: string;
@@ -180,17 +180,24 @@ function envelopePolicy(interactive: boolean, policy: LocalHtmlPolicy): string {
   return `default-src 'none'; img-src data:; style-src 'unsafe-inline'; ${script}; font-src data:; ${network}object-src 'none'; ${frame}; ${workers}; base-uri 'none'; form-action 'none'`;
 }
 
-function snapshotHasAuthorCss(markup: string): boolean {
-  if (!/data-rmd-(?:snapshot|author)-css/i.test(markup)) return false;
+function checkSnapshotCapabilities(markup: string, policy: LocalHtmlPolicy): void {
+  if (policy.enableCss && policy.enableExtendedHtml) return;
+  if (!/data-(?:rmd-(?:snapshot|author)-css|extended-html)/i.test(markup)) return;
   const pending: DefaultTreeAdapterTypes.ChildNode[] = [...parseFragment(markup).childNodes];
   while (pending.length) {
     const node = pending.pop()!;
     if (!defaultTreeAdapter.isElementNode(node)) continue;
-    if (node.attrs.some(({ name }) => name === 'data-rmd-snapshot-css'
-      || node.tagName === 'style' && name === 'data-rmd-author-css')) return true;
+    for (const { name, value } of node.attrs) {
+      if (!policy.enableCss && (name === 'data-rmd-snapshot-css'
+        || node.tagName === 'style' && name === 'data-rmd-author-css')) {
+        throw new TypeError('Render staticMarkup with author CSS disabled before exporting with enableCss: false.');
+      }
+      if (!policy.enableExtendedHtml && name === 'data-extended-html' && (value === 'direct' || value === 'sandbox')) {
+        throw new TypeError('Render staticMarkup with Extended HTML disabled before exporting with enableExtendedHtml: false.');
+      }
+    }
     for (const child of node.childNodes) pending.push(child);
   }
-  return false;
 }
 
 function embeddedImages(images: Readonly<Record<string, string>> | undefined): Record<string, string> | undefined {
@@ -302,9 +309,7 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
     // normalizeCompileOptions already validated the same payload.
     throw new TypeError(`createShareableHtml received invalid compileOptions: ${optionCheck.message}`);
   }
-  if (!optionCheck.html.enableCss && snapshotHasAuthorCss(options.staticMarkup)) {
-    throw new TypeError('Render staticMarkup with author CSS disabled before exporting with enableCss: false.');
-  }
+  checkSnapshotCapabilities(options.staticMarkup, optionCheck.html);
 
   const documentId = options.documentId === undefined
     ? undefined

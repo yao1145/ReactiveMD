@@ -106,12 +106,17 @@ function mergeDiagnostics(groups: readonly (readonly Diagnostic[])[]): Diagnosti
  * Transient diagnostics never repeat entries the stabilized result already
  * reports itself; consumer code can rely on the two lists being disjoint.
  */
-function transientForResult(
+function diagnosticsForPartial(
   groups: readonly (readonly Diagnostic[])[],
-  finalDiagnostics: readonly Diagnostic[],
-): Diagnostic[] {
-  const reported = new Set(finalDiagnostics.map(diagnosticIdentity));
-  return mergeDiagnostics(groups).filter(diagnostic => !reported.has(diagnosticIdentity(diagnostic)));
+  allDiagnostics: Diagnostic[],
+): { diagnostics: Diagnostic[]; transientDiagnostics: Diagnostic[] } {
+  const diagnostics = allDiagnostics.filter(diagnostic => diagnostic.code !== 'local.author.unclosed');
+  const unfinished = allDiagnostics.filter(diagnostic => diagnostic.code === 'local.author.unclosed');
+  const reported = new Set(diagnostics.map(diagnosticIdentity));
+  return {
+    diagnostics,
+    transientDiagnostics: mergeDiagnostics([...groups, unfinished]).filter(diagnostic => !reported.has(diagnosticIdentity(diagnostic))),
+  };
 }
 
 function sameRanges(left: readonly SourceRange[], right: readonly SourceRange[]): boolean {
@@ -231,11 +236,11 @@ export function compileLocalStreamingTracked(
     const result = tracked.result;
 
     if (result.ok) {
-      const transient = transientForResult(collected, result.diagnostics);
+      const partial = diagnosticsForPartial(collected, result.diagnostics);
       return {
-        result: { ...result, status: 'partial', transientDiagnostics: transient },
+        result: { ...result, status: 'partial', ...partial },
         ...(tracked.parsed ? { parsed: tracked.parsed } : {}),
-        transientDiagnostics: transient,
+        transientDiagnostics: partial.transientDiagnostics,
         literalRanges: [...literalRanges],
         attempts,
         timings,
@@ -289,11 +294,11 @@ export function compileLocalStreamingTracked(
     addTimings(timings, fullLiteral.timings);
     attempts += 1;
     if (fullLiteral.result.ok) {
-      const transient = transientForResult(collected, fullLiteral.result.diagnostics);
+      const partial = diagnosticsForPartial(collected, fullLiteral.result.diagnostics);
       return {
-        result: { ...fullLiteral.result, status: 'partial', transientDiagnostics: transient },
+        result: { ...fullLiteral.result, status: 'partial', ...partial },
         ...(fullLiteral.parsed ? { parsed: fullLiteral.parsed } : {}),
-        transientDiagnostics: transient,
+        transientDiagnostics: partial.transientDiagnostics,
         literalRanges: whole,
         attempts,
         timings,

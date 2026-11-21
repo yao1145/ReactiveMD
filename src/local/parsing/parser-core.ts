@@ -413,7 +413,7 @@ export function parseLocalCore(
       if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,overflow.start+sourceBomOffset,overflow.end+sourceBomOffset,'local.budget.nodes',{limit:maxSyntaxNodes});
     }
     let facts=markdownTreeFacts(rootMarkdown);
-    if (/<(?:css|javascript)(?=[\s/>])/.test(markdownSource)) {
+    if (/<(?:css|javascript|iframe|dl|section|figure|figcaption)(?=[\s/>])/i.test(markdownSource)) {
       let shadow = markdownSource;
       let cursor = 0;
       // Recompute before classifying later tags: the leaked fence may have

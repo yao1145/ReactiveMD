@@ -9,7 +9,7 @@ import type { LocalComponentDefinition } from '../../../sdk/types';
 import { useLocalize, type Localize, type LocalLocale } from '../../../react/localization';
 import type { Diagnostic, LocalHtmlPolicy, LocalNode, LocalRuntime, LocalValue } from '../../types';
 import type { AuthorAction } from '../../runtime/author-script-protocol';
-import { parseAuthorDeclarations } from '../../css/author-css';
+import { parseAuthorDeclarations, serializeAuthorDeclarationFallbacks } from '../../css/author-css';
 import type { LocalImageResolver, LocalUrlPolicy } from './LocalDocumentViewCore';
 import { createHeadingAnchors } from '../../parsing/heading-anchors';
 import {
@@ -377,6 +377,9 @@ export function extensionEnvironment(
     runtime: env.runtime,
     authorStyle: env.componentStyles && Object.hasOwn(env.componentStyles, node.id)
       ? parseAuthorDeclarations(env.componentStyles[node.id])
+      : undefined,
+    authorStyleText: env.componentStyles && Object.hasOwn(env.componentStyles, node.id)
+      ? serializeAuthorDeclarationFallbacks(env.componentStyles[node.id])
       : undefined,
     dispatchAuthorAction: env.dispatchAuthorAction && (action => env.dispatchAuthorAction!(node.id, action)),
     services: env.runtime.services,

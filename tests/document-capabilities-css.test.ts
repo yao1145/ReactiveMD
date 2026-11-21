@@ -157,10 +157,11 @@ describe('author stylesheet scoping', () => {
     expect(scoped).not.toContain('background');
   });
 
-  it('escapes `<` so the result cannot end a style element', () => {
-    const scoped = scopeAuthorStyles('h2::before { content: "<style>"; }', '#root');
-    expect(scoped).not.toContain('<');
-    expect(scoped).toContain('content: "\\3c style>";');
+  it('escapes the style closing token and preserves range comparisons', () => {
+    const scoped = scopeAuthorStyles('@media (width < 1200px) { h2::before { content: "</StYle><style>"; } }', '#root');
+    expect(scoped).not.toMatch(/<\/style/i);
+    expect(scoped).toContain('content: "\\3c /StYle><style>";');
+    expect(scoped).toContain('@media (width < 1200px)');
   });
 
   it('recovers from an unterminated trailing block and skips invalid declarations', () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseLocal } from '../src/local/parsing/parser';
 import { compileLocal } from '../src/local/compilation/compiler';
+import { createLocalCompileSession } from '../src/local/compilation/session/incremental';
 import type { LocalCompileOptions, LocalNode } from '../src/local/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flatten(n.children ?? [])]);
@@ -131,6 +132,21 @@ describe('document declaration blocks', () => {
 });
 
 describe('extended HTML subtrees', () => {
+  it.each(['dl', 'iframe'])('keeps Markdown fence text inside a closed %s in both source phases', tag => {
+    const fragment = `<${tag}>\n\n~~~\n\n</${tag}>`;
+    const source = `${fragment}\n\n## After the fragment\n\n<counter bind="after" label="After" initial="2">\n\n{{ after }}`;
+    const session = createLocalCompileSession();
+    try {
+      for (const phase of ['streaming', 'final'] as const) {
+        const result = session.compile(source, { enableExtendedHtml: true }, phase);
+        if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+        expect(of(result.document.nodes, 'extendedHtml')[0].value).toBe(fragment);
+        expect(of(result.document.nodes, 'heading')).toHaveLength(1);
+        expect(result.document.bindings.after.initial).toBe(2);
+      }
+    } finally { session.dispose(); }
+  });
+
   it.each([false, true])('keeps an inline iframe and surrounding Markdown with Extended HTML %s', enabled => {
     const source = '<slider bind="people" label="People" initial="2">\n\n**Before** <iframe title="Example" srcdoc="<p>Example</p>"></iframe> after {{ people }}.';
     const result = compileLocal(source, { enableExtendedHtml: enabled });

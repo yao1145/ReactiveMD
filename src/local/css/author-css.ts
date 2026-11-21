@@ -95,6 +95,21 @@ export function parseAuthorDeclarations(source: string): Readonly<Record<string,
   return Object.freeze(declarations);
 }
 
+/** React's property object cannot express repeated declarations with fallback values. */
+export function serializeAuthorDeclarationFallbacks(source: string): string | undefined {
+  const declarations: string[] = [];
+  const properties = new Set<string>();
+  let repeated = false;
+  for (const part of splitTopLevel(stripComments(source), ';')) {
+    const declaration = readDeclaration(part);
+    if (!declaration) continue;
+    if (properties.has(declaration.property)) repeated = true;
+    properties.add(declaration.property);
+    declarations.push(`${declaration.property}:${declaration.value}${declaration.important ? ' !important' : ''};`);
+  }
+  return repeated ? declarations.join('') : undefined;
+}
+
 /** Split a serialized declaration value from its `!important` suffix. */
 export function parseAuthorPriority(value: string): { value: string; important: boolean } {
   const match = /^([\s\S]*?)\s*!\s*important\s*$/i.exec(value.trim());
@@ -113,8 +128,7 @@ export function parseAuthorPriority(value: string): { value: string; important: 
  * in from the outer document by normal CSS inheritance.
  *
  * Returns an empty string when the stylesheet or selector yields nothing
- * usable. The result is safe to place inside a `<style>` element: every `<`
- * is CSS-escaped, so it cannot terminate the element.
+ * usable. The result escapes style end tags while preserving CSS operators.
  */
 export function scopeAuthorStyles(source: string, selector?: string): string {
   const root = selector === undefined ? ':scope' : normalizeScopeSelector(selector);
@@ -348,9 +362,9 @@ function normalizeScopeSelector(selector: string): string {
   return trimmed;
 }
 
-/** Keep `<` from ending the surrounding style element; CSS decodes it back. */
+/** Escape the HTML raw-text closing token while keeping CSS's range syntax. */
 function safeForStyleText(css: string): string {
-  return css.replace(/\u0000/g, '�').replace(/</g, '\\3c ');
+  return css.replace(/\u0000/g, '�').replace(/<(?=\/style[\t\n\f\r />])/gi, '\\3c ');
 }
 
 function indent(text: string): string {

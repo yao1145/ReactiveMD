@@ -958,7 +958,7 @@ function fragmentCanRenderDirectly(fragment: PParent): boolean {
   const stack = [...fragment.childNodes];
   while (stack.length) {
     const child = stack.pop()!;
-    if (defaultTreeAdapter.isTextNode(child)) continue;
+    if (defaultTreeAdapter.isTextNode(child) || defaultTreeAdapter.isCommentNode(child)) continue;
     // The direct path permits only inert HTML. URL and CSS attributes,
     // event handlers, foreign content and embedded browsing contexts depend
     // on the isolated container's additional restrictions.

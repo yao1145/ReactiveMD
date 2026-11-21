@@ -389,19 +389,44 @@ export function staticText(value: string): string {
   return value.trim() === '' ? EMPTY_STATIC_VALUE : value;
 }
 
+const cssProperty = (name: string): string => name.startsWith('--') ? name
+  : name.replace(/^ms-?/, '-ms').replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
+
+function applyOrderedAuthorStyle(element: HTMLElement, defaults: CSSProperties | undefined, source: string) {
+  const baseline = element.ownerDocument.createElement('span').style;
+  for (const [name, value] of Object.entries(defaults ?? {})) {
+    if (value === null || value === undefined) continue;
+    const property = cssProperty(name);
+    baseline.setProperty(property, String(value));
+    if (typeof value === 'number' && !property.startsWith('--') && !baseline.getPropertyValue(property)) {
+      baseline.setProperty(property, `${value}px`);
+    }
+  }
+  const base = baseline.cssText;
+  element.style.cssText = base + source;
+  return () => { element.style.cssText = base; };
+}
+
 export function useAuthorComponentRoot(context: LocalComponentContext) {
   const authorStyle = context.authorStyle;
+  const authorStyleText = context.authorStyleText;
   const ref = useCallback((element: HTMLElement | null) => {
     if (!element || !authorStyle) return;
     const declarations = Object.entries(authorStyle).map(([name, value]) => {
-      const property = name.startsWith('--') ? name : name.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
-      return `${property}:${value};`;
+      return `${cssProperty(name)}:${value};`;
     }).join('');
     // React diffs property values independently. Reapply the ordered author
     // declarations as CSS so reordering and !important use the native cascade.
     element.style.cssText += declarations;
   }, [authorStyle]);
   return (defaults?: CSSProperties) => {
+    if (authorStyleText) {
+      // React escapes the style attribute when rendering HTML. The CSS custom
+      // property supplies a delimiter for the sanitized, ordered declarations.
+      // On mount the DOM parser applies the same declarations to the root.
+      const style = { ...defaults, '--rmd-author-inline': `initial;${authorStyleText}` } as CSSProperties;
+      return { style, ref: (element: HTMLElement | null) => element ? applyOrderedAuthorStyle(element, defaults, authorStyleText) : undefined };
+    }
     if (!authorStyle) return { style: defaults, ref: undefined };
     const style = { ...defaults } as Record<string, string | number>;
     for (const [name, value] of Object.entries(authorStyle)) {

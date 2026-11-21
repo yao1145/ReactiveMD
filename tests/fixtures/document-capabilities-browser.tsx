@@ -9,12 +9,12 @@ import '../../src/local/rendering/document/local.css';
 
 const SOURCE = [
   '<css>',
-  'h2 { color: #24549a; }',
+  '@media (width < 1200px) { h2 { color: #24549a; } }',
   '</css>',
   '',
   '## People',
   '',
-  '<slider bind="people" label="People" initial="2" min="1" max="20" css="max-width: 24rem; margin-block: 1rem; margin-left: 1px; margin: 2px; margin-left: 3px">',
+  '<slider bind="people" label="People" initial="2" min="1" max="20" css="max-width: 24rem; margin-block: 1rem; margin-left: 1px; margin: 2px; margin-left: 3px; color: red; color: garbage">',
   '',
   'People: {{ people }}',
   '',

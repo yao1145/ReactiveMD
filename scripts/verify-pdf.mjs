@@ -34,10 +34,12 @@ function boxForWord(path) {
 try {
   const paragraphs = Array.from({ length: 160 }, (_, index) =>
     `<p>PdfParagraph${String(index + 1).padStart(4, '0')}</p>`).join('\n');
+  const embedded = Array.from({ length: 80 }, (_, index) =>
+    `<p>EmbeddedParagraph${String(index + 1).padStart(4, '0')}</p>`).join('');
   const source = [
     '<css>h3 { display: none; }</css>', '', '## People', '',
     '<slider bind="people" label="People" initial="2" min="1" max="20" css="max-width: 24rem">',
-    '', 'People: {{ people }}', '', '<iframe title="Example" srcdoc="<p>Example</p>"></iframe>',
+    '', 'People: {{ people }}', '', `<iframe title="Example" srcdoc="${embedded}"></iframe>`,
     '', '<javascript>await rmd.set("people", 10)</javascript>', '', '### HiddenByAuthorCss', '', paragraphs,
   ].join('\n');
   const compileOptions = { enableCss: true, enableJavaScript: true, enableExtendedHtml: true };
@@ -58,10 +60,14 @@ try {
     const extracted = readPdf(pdf);
     assert.equal([...extracted.matchAll(/PdfParagraph\d{4}/g)].length, 160, 'Print lost or duplicated paragraphs');
     assert.match(extracted, /PdfParagraph0160/);
+    assert.equal([...new Set(extracted.match(/EmbeddedParagraph\d{4}/g))].length, 80, 'Print lost embedded paragraphs');
+    for (const marker of ['EmbeddedParagraph0001', 'EmbeddedParagraph0080']) {
+      assert.equal(extracted.split(marker).length, 2, `${marker} must appear exactly once`);
+    }
     assert.match(extracted, /People:\s*7/);
     assert.doesNotMatch(extracted, /People:\s*10|HiddenByAuthorCss/);
     assert.ok(readPdf(pdf, '-bbox').match(/<page\b/g)?.length > 1);
-    console.log('PASS the mixed document preserves its static state, CSS and all 160 paragraphs');
+    console.log('PASS the mixed document preserves its static state, CSS and paginates both the embedded and surrounding paragraphs');
   } finally {
     runtime.dispose();
   }

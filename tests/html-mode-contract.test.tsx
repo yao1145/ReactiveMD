@@ -17,6 +17,22 @@ const MIXED = [
 ].join('\n');
 
 describe('independent document capability contract', () => {
+  it('rejects an Extended HTML snapshot when exporting with the capability off', () => {
+    const source = '<dl><dt>Term</dt><dd>Definition</dd></dl>';
+    const result = compileLocal(source, { enableExtendedHtml: true });
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const { document } = result;
+    const runtime = createLocalRuntime(document);
+    try {
+      const staticMarkup = renderToStaticMarkup(<LocalDocumentView document={document} runtime={runtime}
+        mode="static" capabilityGrants={{ enableExtendedHtml: true }} />);
+      expect(staticMarkup).toContain('<dl>');
+      expect(() => createShareableHtml({ title: 'HTML snapshot', source, staticMarkup,
+        state: createLocalStateFile(document, runtime.snapshot().state), mode: 'static', css: 'article{}',
+        compileOptions: { enableExtendedHtml: false } })).toThrow(/Extended HTML/i);
+    } finally { runtime.dispose(); }
+  });
+
   it.each([
     '<css>h2 { color: red; }</css>\n\n## People',
     '<slider bind="people" label="People" css="margin-left:3px">',
