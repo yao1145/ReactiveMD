@@ -8,7 +8,7 @@
 
 | 包 | 版本 | 职责 |
 | --- | --- | --- |
-| `reactive-md` | `0.9.0` | 编译器、运行时、作者服务、SDK、React 与 SSR 渲染、导出、构建适配 |
+| `reactive-md` | `0.9.1` | 编译器、运行时、作者服务、SDK、React 与 SSR 渲染、导出、构建适配 |
 | `reactive-md-editor` | `0.2.0` | CodeMirror 6 源码编辑器、工具栏、编辑器侧导航 |
 | `reactive-md-demo` | 私有 | 站点、示例与部署，不提供对外接口 |
 
@@ -386,7 +386,7 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 
 | 常量 | 值 | 作用范围 |
 | --- | --- | --- |
-| 包版本 | `0.9.0` | 引擎发布 |
+| 包版本 | `0.9.1` | 引擎发布 |
 | SDK 契约 | `0.7.0`（`LOCAL_SDK_VERSION`） | 组件、预设与配置清单 |
 | 语法修订 | `local-draft-3`（`LOCAL_SYNTAX_VERSION`） | 文档源码 |
 | 状态文件 | `reactive-md-state/v1`（`LOCAL_STATE_FORMAT`） | 导出的参数 |

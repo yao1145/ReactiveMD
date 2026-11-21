@@ -292,7 +292,7 @@ The demo's `vite.export-assets.ts` uses it to expose the stylesheet, print style
 
 ## Bundle baseline
 
-In the engine checkout, run `node scripts/verify-shareable.mjs` after building. It tests static-first hydration and reports the raw and gzip sizes. The 0.9.0 full-preset build sets the baseline for the current size limits.
+In the engine checkout, run `node scripts/verify-shareable.mjs` after building. It tests static-first hydration and reports the raw and gzip sizes. The current full-preset build sets the baseline for the current size limits.
 
 | Artifact | Current baseline | Alarm |
 | --- | --- | --- |

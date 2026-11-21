@@ -345,7 +345,7 @@ async function sizeBaseline() {
     cssGzip: gzipSync(css).byteLength,
   };
   console.log(`Standalone size: ${sizes.js} B (${sizes.jsGzip} B gzip), CSS ${sizes.css} B (${sizes.cssGzip} B gzip)`);
-  // Leave roughly 10% headroom above the 0.9.0 full-preset build.
+  // Leave roughly 10% headroom above the current full-preset build.
   assert.ok(sizes.js <= 4 * 1024 * 1024, `Standalone JS grew beyond the 4 MiB alarm: ${sizes.js}`);
   assert.ok(sizes.jsGzip <= 1250 * 1024, `Standalone JS gzip grew beyond the 1250 KiB alarm: ${sizes.jsGzip}`);
   assert.ok(sizes.css <= 680 * 1024, `Standalone CSS grew beyond the 680 KiB alarm: ${sizes.css}`);

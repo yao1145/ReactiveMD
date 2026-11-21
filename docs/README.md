@@ -18,7 +18,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 
 - **Authors**: read the [beginner guide](guides/local-guide-en.md), then the syntax reference. Runnable examples are in [examples/local](../examples/local/README.md).
 - **Integrators**: check the [public API reference](reference/public-api-en.md) for every entry, then read [local mode integration](integration/local-integration-en.md). Copyable projects are in [examples/integration](../examples/integration/README.md).
-- If you are upgrading, check [compatibility](compatibility/compatibility-en.md) and the release notes for your target version. The main guides cover 0.9.0.
+- If you are upgrading, check [compatibility](compatibility/compatibility-en.md) and the release notes for your target version. The main guides cover 0.9.1.
 
 ## Guides
 
@@ -72,6 +72,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 
 | Version | English |
 | --- | --- |
+| 0.9.1 | [English](releases/release-0.9.1-en.md) |
 | 0.9.0 | [English](releases/release-0.9.0-en.md) |
 | 0.8.0 | [English](releases/release-0.8.0-en.md) |
 | 0.7.0 | [English](releases/release-0.7.0-en.md) |

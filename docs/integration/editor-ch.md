@@ -13,7 +13,7 @@
 ## 安装
 
 ```sh
-npm install reactive-md@0.9.0 reactive-md-editor@0.2.0
+npm install reactive-md@0.9.1 reactive-md-editor@0.2.0
 npm install react@19 react-dom@19
 ```
 

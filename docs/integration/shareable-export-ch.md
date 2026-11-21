@@ -290,7 +290,7 @@ Demo 的 `vite.export-assets.ts` 用它把样式表、打印样式表、notices�
 
 ## 产物体积基线
 
-在引擎源码目录完成构建后，运行 `node scripts/verify-shareable.mjs` 检查静态首屏水合并测量原始及 gzip 体积。当前体积阈值以 0.9.0 默认预设的构建为基线。
+在引擎源码目录完成构建后，运行 `node scripts/verify-shareable.mjs` 检查静态首屏水合并测量原始及 gzip 体积。体积阈值以当前完整预设构建为基线。
 
 | 产物 | 当前基线 | 报警阈值 |
 | --- | --- | --- |

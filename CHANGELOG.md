@@ -2,7 +2,9 @@
 
 **English** · [中文](CHANGELOG-ch.md)
 
-## Unreleased
+## 0.9.1 (2026-11-22, latest channel)
+
+Streaming source compilation, document-scoped jump scrolling, and stricter source-phase validation.
 
 ### Added
 

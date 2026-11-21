@@ -8,7 +8,7 @@ Three packages exist. Each has its own version and release workflow.
 
 | Package | Version | Responsibility |
 | --- | --- | --- |
-| `reactive-md` | `0.9.0` | Compiler, runtime, authoring services, SDK, React and SSR rendering, export, build adapters |
+| `reactive-md` | `0.9.1` | Compiler, runtime, authoring services, SDK, React and SSR rendering, export, build adapters |
 | `reactive-md-editor` | `0.2.0` | CodeMirror 6 source editor, toolbar, editor-side navigation |
 | `reactive-md-demo` | private | Website, examples and deployment. No public API |
 
@@ -386,7 +386,7 @@ The DOM-free toolbar commands, re-exported from `reactive-md/authoring`, with th
 
 | Constant | Value | Scope |
 | --- | --- | --- |
-| Package version | `0.9.0` | Engine releases |
+| Package version | `0.9.1` | Engine releases |
 | SDK contract | `0.7.0` (`LOCAL_SDK_VERSION`) | Component, preset and configuration manifests |
 | Syntax revision | `local-draft-3` (`LOCAL_SYNTAX_VERSION`) | Document source |
 | State file | `reactive-md-state/v1` (`LOCAL_STATE_FORMAT`) | Exported parameters |

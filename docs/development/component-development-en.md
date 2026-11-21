@@ -2,14 +2,14 @@
 
 **English** · [中文](component-development-ch.md) · [Full development contract](component-development-reference-en.md)
 
-Start with a note container that can expand Markdown. The extension SDK has shipped since `reactive-md@0.8.0`, and its `0.7.0` contract is unchanged in `0.9.0`; install the current published package.
+Start with a note container that can expand Markdown. The extension SDK has shipped since `reactive-md@0.8.0`, and its `0.7.0` contract is unchanged in `0.9.1`; install the current published package.
 
 ## Create and run
 
 ```sh
 npx reactive-md init component ../my-note --name my-note --id acme/my-note --form container --props '{"label":{"kind":"string","default":"Note"}}' --yes
 cd ../my-note
-npm install reactive-md@0.9.0 react@^19 react-dom@^19
+npm install reactive-md@0.9.1 react@^19 react-dom@^19
 npm run dev
 ```
 

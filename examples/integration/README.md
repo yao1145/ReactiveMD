@@ -8,7 +8,7 @@ Most examples below target `reactive-md@0.6.0`, published on both `latest` and `
 
 The [extension SDK consumer](extension-sdk/README.md) targets `reactive-md@0.8.0` and verifies static and offline interactive sharing through public exports. Release preparation uses a locally built tarball; the SDK contract remains at `0.7.0`. The other older examples retain their 0.6.0 pins.
 
-The [streaming source](streaming) example uses `reactive-md@0.9.0` and requires the streaming-source compilation API added after that package was published. Run it from a tarball packed in this repository as described below.
+The [streaming source](streaming) example uses `reactive-md@0.9.1`, which includes the streaming-source compilation API. Run it from a tarball packed in this repository as described below.
 
 ## Node core
 
@@ -57,7 +57,7 @@ Build a tarball in the repository root, then install it in the example:
 npm pack
 
 cd examples/integration/streaming
-npm install ../../../reactive-md-0.9.0.tgz
+npm install ../../../reactive-md-0.9.1.tgz
 npm run dev
 ```
 

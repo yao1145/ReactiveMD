@@ -8,7 +8,7 @@
 
 [扩展 SDK 使用方](extension-sdk/README-ch.md)面向`reactive-md@0.8.0`，通过公开导出验证静态分享和离线交互分享。准备发布时使用本地构建的 tarball，SDK 契约仍为 `0.7.0`。其余较早的示例保留其 0.6.0 固定版本。
 
-[流式源码](streaming)示例使用 `reactive-md@0.9.0`，依赖该版本发布之后才加入的流式源码编译接口。按下面的说明，从本仓库打包的 tarball 运行它。
+[流式源码](streaming)示例使用 `reactive-md@0.9.1`，该版本已包含流式源码编译接口。按下面的说明，从本仓库打包的 tarball 运行它。
 
 ## Node 核心
 
@@ -57,7 +57,7 @@ UI 和调度连接位于 [worker/main.js](worker/main.js)；Worker 入口是 [wo
 npm pack
 
 cd examples/integration/streaming
-npm install ../../../reactive-md-0.9.0.tgz
+npm install ../../../reactive-md-0.9.1.tgz
 npm run dev
 ```
 
