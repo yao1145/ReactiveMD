@@ -59,6 +59,7 @@
     "check": "npm run check:styles && npm run build && npm test && npm run test:boundary && npm run test:compiler-entry && npm run check:versions",
     "check:styles": "node scripts/verify-style-boundaries.mjs",
     "test:theme:browser": "node scripts/verify-shared-theme-browser.mjs",
+    "test:capabilities:browser": "node scripts/verify-document-capabilities.mjs",
     "test:streaming:browser": "node scripts/verify-streaming-browser.mjs",
     "test:boundary": "node scripts/verify-public-package.mjs",
     "test:compiler-entry": "node scripts/verify-compiler-entry.mjs",
@@ -240,6 +241,7 @@
     }
   },
   "devDependencies": {
+    "@jitl/quickjs-singlefile-browser-release-sync": "0.32.0",
     "@lezer/common": "1.5.4",
     "@lezer/highlight": "1.2.5",
     "@lezer/markdown": "1.8.1",
@@ -258,6 +260,7 @@
     "motion": "14.12.0",
     "parse5": "8.0.1",
     "postcss": "8.5.31",
+    "quickjs-emscripten-core": "0.32.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "remark-gfm": "4.0.1",

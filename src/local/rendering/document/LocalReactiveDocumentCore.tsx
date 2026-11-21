@@ -1,6 +1,5 @@
 import {
   LocalDocumentViewCore,
-  LocalHtmlSourceFallback,
   type BaseConfigProps,
   type LocalReactiveDocumentProps,
 } from './LocalDocumentViewCore';
@@ -16,7 +15,7 @@ import type {
 } from '../../types';
 import { assertExtensionProps } from './view-render-context';
 import { readLocalConfig } from '../../../sdk/config';
-import { localCompileOptionsKey, readLocalCompileOptions } from '../../configuration/options';
+import { localCompileOptionsKey, localRuntimeOptionsKey, readLocalCompileOptions } from '../../configuration/options';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { createLocalRuntime, notifyLocalRuntime, updateLocalRuntime } from '../../runtime/runtime';
 import {
@@ -76,6 +75,8 @@ export function LocalReactiveDocumentCore({
   onParametersChange,
   onSourceNavigate,
   compileOptions,
+  capabilityGrants,
+  allowedFrameOrigins,
   getBaseConfig,
 }: LocalReactiveDocumentCoreProps) {
   assertExtensionProps(reactConfig, { hostData, hostRenderer, themes });
@@ -114,7 +115,7 @@ export function LocalReactiveDocumentCore({
   // wins and the implicit default only fills an omitted prop.
   const effectiveThemes = reactConfig?.themes ?? themes ?? implicitConfig?.themes;
   const optionsKey = localCompileOptionsKey(effectiveCompileOptions);
-  const runtimeKey = `${optionsKey}|${documentId ?? ''}|${randomSeed ?? ''}`;
+  const runtimeKey = `${localRuntimeOptionsKey(effectiveCompileOptions)}|${documentId ?? ''}|${randomSeed ?? ''}`;
   // The phase travels beside the options, so a streaming snapshot reuses the
   // same session and runtime. It never enters the compile identity below. A
   // host may put it on compileOptions instead of the prop; the prop wins.
@@ -212,8 +213,7 @@ export function LocalReactiveDocumentCore({
   } else {
     const nextDocument = result.document;
     if (runtime && runtimeOptionsKey.current !== runtimeKey) {
-      // Host options (including HTML capabilities) may change document
-      // semantics, so the previous runtime is released rather than migrated.
+      // Changes to the document identity or structural options release the runtime.
       // Flush before the replacement reads storage again.
       try { runtime.services?.state.flush(); } catch { /* Disposal is best-effort. */ }
       retiredRuntimes.current.push(runtime);
@@ -493,10 +493,6 @@ export function LocalReactiveDocumentCore({
   }, [runtime]);
 
   if (!result.ok || !runtime) {
-    const options = readLocalCompileOptions(effectiveCompileOptions);
-    if (typeof source === 'string' && options.ok && options.htmlActive) {
-      return <LocalHtmlSourceFallback source={source} mode={mode} />;
-    }
     return (
       <div
         className={`md-document local-document local-inactive${mode === 'static' ? ' local-static' : ''}`}
@@ -534,13 +530,21 @@ export function LocalReactiveDocumentCore({
     );
   }
 
+  const options = readLocalCompileOptions(effectiveCompileOptions);
+  const grants = options.ok ? {
+    enableCss: options.html.enableCss && (capabilityGrants?.enableCss ?? true) === true,
+    enableJavaScript: options.html.enableJavaScript && (capabilityGrants?.enableJavaScript ?? true) === true,
+    enableExtendedHtml: options.html.enableExtendedHtml && (capabilityGrants?.enableExtendedHtml ?? true) === true,
+  } : undefined;
   return (
     <LocalDocumentViewCore
       // Re-mount only when host options change; source edits update the
       // document and runtime in place so unchanged blocks keep their state.
-      key={optionsKey}
+      key={runtimeKey}
       document={result.document}
       runtime={runtime}
+      capabilityGrants={grants}
+      allowedFrameOrigins={allowedFrameOrigins}
       network={network}
       networkScope={documentId ?? DEFAULT_NETWORK_SCOPE}
       onDiagnostics={handleViewDiagnostics}

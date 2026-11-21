@@ -679,8 +679,7 @@ export function localComponentHelp(entry: LocalComponentCatalogEntry): string {
 
 /**
  * Ancestor components at `offset`, outermost to innermost. Uses the same
- * validated compile options as analysis and completion. Returns no ancestors
- * in HTML mode or when options are invalid.
+ * validated compile options as analysis and completion.
  */
 export function localCatalogAncestors(
   source: string,
@@ -689,7 +688,7 @@ export function localCatalogAncestors(
 ): readonly string[] {
   if (typeof source !== 'string' || !Number.isFinite(offset)) return Object.freeze([]);
   const check = readLocalCompileOptions(options);
-  if (!check.ok || check.htmlActive) return Object.freeze([]);
+  if (!check.ok) return Object.freeze([]);
   const limit = Math.max(0, Math.min(source.length, Math.floor(offset)));
   let found: readonly string[] = Object.freeze([]);
   let parsed: ReturnType<typeof parseLocal>;

@@ -65,7 +65,7 @@ describe('native HTML source fallback', () => {
     expect(result.diagnostics).toContainEqual(expect.objectContaining({code: 'local.html.fallback', severity: 'warning'}));
   });
 
-  it('shows the full native document as text when compilation exceeds its node budget', () => {
+  it('reports an RMD syntax budget failure with author capabilities enabled', () => {
     const source = '<p>Before</p>\n<script>window.bad = true</script>\n<p>{{ literal }}</p>';
     const options = {enableCss: true, enableJavaScript: true, limits: {maxSyntaxNodes: 1}};
     expect(compileLocal(source, options).ok).toBe(false);
@@ -73,7 +73,7 @@ describe('native HTML source fallback', () => {
     const tree = parseFragment(markup);
     expect(elements(tree, 'iframe')).toHaveLength(0);
     expect(elements(tree, 'script')).toHaveLength(0);
-    expect(elements(tree, 'pre').map(text)).toEqual([source]);
+    expect(markup).toContain('local-inactive');
   });
 
   it('returns literal markup as well as diagnostics from native sanitization failures', () => {
@@ -86,7 +86,7 @@ describe('native HTML source fallback', () => {
   it('keeps standalone mounts literal after a native compilation failure', () => {
     const source = '<p>Source</p>\n<script>window.bad = true</script>';
     const prepared = prepareStandaloneDocument(source, undefined, undefined,
-      {enableJavaScript: true, limits: {maxSyntaxNodes: 1}});
+      {enableJavaScript: true, limits: {maxSyntaxNodes: 1}}, undefined, true);
     expect(prepared.diagnostics).toContainEqual(expect.objectContaining({code: 'local.budget', severity: 'error'}));
     const runtime = createLocalRuntime(prepared.document);
     try {

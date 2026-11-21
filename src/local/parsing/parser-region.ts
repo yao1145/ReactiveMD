@@ -48,6 +48,18 @@ const HTML_BLOCK = new Set([
 
 const MAX_LOCAL_NAME_LENGTH = 128;
 
+/** Conditional document declaration names. A registered component wins first. */
+const DECLARATION_NAMES: ReadonlySet<string> = new Set(['css', 'javascript']);
+
+/**
+ * Additive native HTML subtrees recognized beyond the basic mixed surface.
+ * Registered RMD tags and the basic P0 names always take precedence, so these
+ * are only reached when no component owns the name.
+ */
+const EXTENDED_HTML_NAMES: ReadonlySet<string> = new Set([
+  'iframe', 'dl', 'section', 'figure', 'figcaption',
+]);
+
 /** Displayed math source, in UTF-16 code units, per formula. */
 const MAX_DISPLAY_MATH_SOURCE = Math.min(50_000, MAX_LOCAL_STRING_LENGTH);
 
@@ -118,6 +130,105 @@ export function createRegionScanner({
     unknownTagEnd, interpolationEnd, commonIndent,
   } = scanner;
   let codeIndex = 0;
+  /** A top-level `<javascript>` ends the leading CSS region. */
+  let scriptSeen = false;
+  /**
+   * Once the leading metadata region is broken by body content, no later
+   * declaration can join it. Caching that fact keeps repeated late blocks from
+   * rescanning the same prefix.
+   */
+  let headerBlocked = false;
+
+  /**
+   * True when only leading metadata separates `headerCursor` from `offset`.
+   * The scan is limited to `offset`, so the element at `offset` is not part of
+   * its own prefix.
+   */
+  function inHeaderPrefix(offset: number): boolean {
+    if (headerBlocked) return false;
+    if (headerSkip(headers.headerCursor, offset) === offset) return true;
+    headerBlocked = true;
+    return false;
+  }
+
+  /** Declaration blocks sit on their own line; a leading BOM is not content. */
+  function declarationLineStart(offset: number): boolean {
+    const start = sourceContext.lineStartAt(offset);
+    for (let index = start; index < offset; index += 1) {
+      const code = source.charCodeAt(index);
+      if (code !== 0xfeff && code !== 0x20 && code !== 0x09) return false;
+    }
+    return true;
+  }
+
+  /** First `</name>` after `from`, as raw-text content requires. */
+  function rawClose(from: number, name: string, limit: number): { start: number; end: number } | null {
+    const closing = new RegExp(`</${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*>`, 'i');
+    const match = closing.exec(source.slice(from, limit));
+    return match ? { start: from + match.index, end: from + match.index + match[0].length } : null;
+  }
+
+  /**
+   * Leading metadata may mix whitespace, comments, `<theme>` declarations and
+   * document CSS blocks. Returns the offset reached, or -1 for an unterminated
+   * comment (the prefix is then unsafe). The syntax declaration must precede
+   * the theme, so its placement check disables theme skipping.
+   */
+  function headerSkip(from: number, to: number, skipThemes = true): number {
+    let index = from;
+    while (index < to) {
+      const character = source[index];
+      if (character.charCodeAt(0) === 0xfeff || character === ' ' || character === '\t'
+        || character === '\r' || character === '\n') {
+        index += 1;
+        continue;
+      }
+      if (source.startsWith('<!--', index)) {
+        const close = source.indexOf('-->', index + 4);
+        if (close < 0 || close + 3 > to) return -1;
+        index = close + 3;
+        continue;
+      }
+      if (skipThemes && isThemeTagAt(source, index)) {
+        const theme = themeTagAt(source, index, to);
+        if (theme && !theme.closing && !theme.unclosed && standaloneTheme(source, theme)) {
+          index = theme.end;
+          continue;
+        }
+        return index;
+      }
+      const css = declarationAt(index, to);
+      if (css && css.name === 'css' && css.close && !known.has('css')) {
+        index = css.close.end;
+        continue;
+      }
+      break;
+    }
+    return index;
+  }
+
+  /**
+   * Read a document declaration (`<css>` / `<javascript>`). The body is an
+   * exact source slice: no trimming, dedenting or line-ending changes, so
+   * every following offset still points at the original document.
+   */
+  function declarationAt(start: number, limit: number): {
+    name: 'css' | 'javascript';
+    open: { end: number; self: boolean };
+    close: { start: number; end: number } | null;
+  } | null {
+    const match = /^<(css|javascript)(?=[\s/>])/.exec(source.slice(start, Math.min(limit, start + 16)));
+    if (!match) return null;
+    const name = match[1] as 'css' | 'javascript';
+    const scanned = scanTag(start, limit);
+    if (!scanned || scanned.closing) return null;
+    // A self-closing declaration never borrows a later closing tag.
+    return {
+      name,
+      open: { end: scanned.end, self: scanned.self },
+      close: scanned.self ? null : rawClose(scanned.end, name, limit),
+    };
+  }
 
   function region(start: number, end: number, parent?: string, openStart = start, openEnd = start, depth = 0, options: RegionOptions = {}): RegionResult {
     const tokens: Token[] = [];
@@ -298,6 +409,8 @@ export function createRegionScanner({
             error('local.version.malformed', `Use <!-- reactive-md: ${LOCAL_SYNTAX_VERSION} --> on one line.`, i, stop);
           } else {
             headers.versionDeclaration = { version: match[1], range: { start: i, end: stop } };
+            // The syntax declaration must precede the theme: skipping themes
+            // here would accept a swapped header order.
             if (parent !== undefined || !standalone || skipThemePrefix(source, 0, i) !== i) {
               error('local.version.placement', 'The syntax declaration must be on its own line before the theme and document body.', i, stop);
             } else if (match[1] !== LOCAL_SYNTAX_VERSION) {
@@ -380,6 +493,76 @@ export function createRegionScanner({
         }
       }
       if (source[i] === '<') {
+        // Document declarations are line-leading blocks and conditional names:
+        // a registered component with the same tag always wins. A declaration
+        // name inside running prose is inert source.
+        const declared = footnoteMode ? null : declarationAt(i, end);
+        const atLine = declared !== null && declarationLineStart(i);
+        // A declaration never swallows its enclosing container's close tag.
+        let declarationClose: { start: number; end: number } | null = null;
+        if (declared) {
+          const raw = declared.close;
+          const parentClose = parent === undefined ? null : rawClose(i, parent, end);
+          declarationClose = raw && (!parentClose || raw.end <= parentClose.start) ? raw : null;
+        }
+        if (declared && !atLine && !known.has(declared.name)) {
+          // A declaration inside running prose never splits the paragraph's
+          // Markdown: only a single-line block is claimed as a whole.
+          const inline = declarationClose !== null
+            && !/\r?\n[\t ]*\r?\n/.test(source.slice(declared.open.end, declarationClose.start));
+          const stop = inline ? declarationClose!.end : declared.open.end;
+          warning('local.author.placement', { key: 'local.author.placement' }, i, stop);
+          tokens.push({ start: i, end: stop, block: false, node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
+          i = stop;
+          continue;
+        }
+        if (declared && atLine && !known.has(declared.name)) {
+          // Declarations must be standalone, leading (CSS) or top-level
+          // (JavaScript); anything else stays inert source with a warning.
+          const top = parent === undefined && depth === 0;
+          const header = top && !scriptSeen && inHeaderPrefix(i);
+          const block = declarationClose ? declarationClose.end : (declared.open.self ? declared.open.end : end);
+          const legal = declared.name === 'javascript' ? top : header;
+          const fallback = () => {
+            tokens.push({ start: i, end: block, block: true, node: node('fallback', i, block, { value: source.slice(i, block) }) });
+            i = block;
+          };
+          if (declared.open.self) {
+            warning('local.author.placement', { key: 'local.author.placement' }, i, declared.open.end);
+            fallback();
+            continue;
+          }
+          if (!declarationClose) {
+            // An in-progress declaration only claims its own fragment; later
+            // healthy nodes keep compiling from the recovery boundary.
+            const stop = htmlLiteralEnd(declared.open.end, end, parent);
+            warning('local.author.unclosed', { key: 'local.author.unclosed', params: { name: declared.name } }, i, stop);
+            tokens.push({ start: i, end: stop, block: true, node: node('fallback', i, stop, { value: source.slice(i, stop) }) });
+            i = stop;
+            continue;
+          }
+          if (!legal) {
+            warning(declared.name === 'css' ? 'local.author.css-placement' : 'local.author.script-placement',
+              { key: declared.name === 'css' ? 'local.author.css-placement' : 'local.author.script-placement' },
+              i, declarationClose.end);
+            fallback();
+            continue;
+          }
+          if (declared.name === 'javascript' && top) scriptSeen = true;
+          const type = declared.name === 'css' ? 'authorCss' : 'authorJavaScript';
+          tokens.push({
+            start: i,
+            end: declarationClose.end,
+            block: true,
+            node: node(type, i, declarationClose.end, { value: source.slice(declared.open.end, declarationClose.start) }),
+          });
+          // Only a declaration still contiguous with the leading region
+          // advances the cursor; a mid-body script must not make a later theme
+          // look like leading metadata.
+          if (header) headers.headerCursor = declarationClose.end;
+          i = declarationClose.end;
+          continue;
+        }
         if (htmlSupport) {
         const htmlDiagnosticStart = diagnostics.length;
         let invalidNativeTable = false;
@@ -538,7 +721,7 @@ export function createRegionScanner({
         if (footnoteMode) { i += 1; continue; }
         const metadata = isThemeTagAt(source, i) ? themeTagAt(source, i, end) : null;
         if (metadata) {
-          const inHeader = parent === undefined && skipThemePrefix(source, headers.headerCursor, i) === i;
+          const inHeader = parent === undefined && !scriptSeen && inHeaderPrefix(i);
           if (inHeader) {
             headers.themeHeaders += 1;
             if (headers.themeHeaders === 1) headers.themeRange = { start: metadata.start, end: metadata.end };
@@ -577,6 +760,43 @@ export function createRegionScanner({
           continue;
         }
         const scanned = scanTag(i, end);
+        if (scanned && !footnoteMode && scanned.closing
+          && !known.has(scanned.name.toLowerCase()) && DECLARATION_NAMES.has(scanned.name.toLowerCase())) {
+          // A stray close only claims itself; the rest of the document keeps
+          // compiling instead of failing on an unknown root close tag.
+          warning('local.author.placement', { key: 'local.author.placement' }, i, scanned.end);
+          tokens.push({ start: i, end: scanned.end, block: false, node: node('fallback', i, scanned.end, { value: source.slice(i, scanned.end) }) });
+          i = scanned.end;
+          continue;
+        }
+        // Registered components own a declaration name; the declaration is only
+        // conditional and never replaces the component or its bindings.
+        if (scanned && !footnoteMode && known.has(scanned.name.toLowerCase())
+          && DECLARATION_NAMES.has(scanned.name.toLowerCase()) && !scanned.closing) {
+          warning('local.author.component-conflict', { key: 'local.author.component-conflict', params: { name: scanned.name } }, i, scanned.end);
+        }
+        // Extended subtrees are recognized after registered components and
+        // basic HTML. Iframes may also appear within a paragraph. Recognition does not
+        // depend on the sanitizer being installed; a missing fragment service
+        // only affects the compiled fragment, never parsing.
+        const lowerName = scanned?.name.toLowerCase() ?? '';
+        if (!footnoteMode && scanned && !scanned.closing && lowerName
+          && EXTENDED_HTML_NAMES.has(lowerName) && !HTML_NAMES.has(lowerName)
+          && !known.has(lowerName) && !NATIVE_HTML_VOID.has(lowerName)
+          && (lowerName === 'iframe' || beginsLine(i))) {
+          const close = scanned.self ? { start: scanned.end, end: scanned.end }
+            : HTML_RAW_TEXT_ELEMENTS.has(lowerName)
+              ? rawClose(scanned.end, lowerName, end)
+              : unknownTagEnd(scanned.end, scanned.name, end, insideContainer, true);
+          // An unpaired subtree or one that would cross its container's close
+          // falls through to the ordinary native fallback below.
+          const parentClose = parent === undefined ? null : rawClose(i, parent, end);
+          if (close && (!parentClose || close.end <= parentClose.start)) {
+            tokens.push({ start: i, end: close.end, block: beginsLine(i), node: node('extendedHtmlRaw', i, close.end, { value: source.slice(i, close.end) }) });
+            i = close.end;
+            continue;
+          }
+        }
         if (scanned && !known.has(scanned.name.toLowerCase()) && nativeHtmlNames.has(scanned.name.toLowerCase())) {
           const paired = !scanned.closing && !scanned.self && !NATIVE_HTML_VOID.has(scanned.name.toLowerCase())
             ? unknownTagEnd(scanned.end, scanned.name, end, insideContainer, true) : null;

@@ -6,7 +6,7 @@
 
 ## 运行环境与入口
 
-下个发行版的 P0 HTML 和三个宿主能力开关见 [HTML 部分兼容](../reference/html-compatibility-ch.md)。本版采用暂时性分流政策：任意开启作者 CSS、JavaScript 或扩展 HTML，整篇文档即按原生 HTML 渲染，停止解析 Markdown 和 ReactiveMD。
+ReactiveMD 支持混排基础 HTML、Markdown 与组件。宿主分别授权作者样式、脚本与扩展 HTML。参见 [HTML 兼容](../reference/html-compatibility-ch.md)。
 
 | 入口 | 内容 | 依赖 |
 | --- | --- | --- |
@@ -637,7 +637,7 @@ const urlPolicy: LocalUrlPolicy = (raw, kind) => {
 
 ## 不提供的功能
 
-默认 ReactiveMD 路径支持 P0 HTML。作者 CSS、JavaScript 和扩展 HTML 的宿主开关使用独立的原生 HTML 路径，见 [HTML 部分兼容](../reference/html-compatibility-ch.md)。自动状态持久化、不受限的网络或存储调用、Vue、React 18 和 CommonJS 仍不在当前接口范围内。宿主数据使用显式只读声明，状态导出与导入由宿主调用。
+基础 HTML 与 RMD 混排，作者能力由宿主独立授权。参见 [HTML 兼容](../reference/html-compatibility-ch.md)。自动状态持久化、不受限的网络或存储调用、Vue、React 18 和 CommonJS 仍不在当前接口范围内。宿主数据使用显式只读声明，状态导出与导入由宿主调用。
 
 [扩展 SDK](extension-sdk-ch.md)随 `reactive-md@0.8.0` 提供自定义组件和主题包注册，开发流程见[组件插件开发指南](../development/component-development-ch.md)。`LocalReactiveDocument` 在普通源码编辑中尝试采用新文档并保留兼容绑定；切换独立文档时更换 React `key`，或由宿主管理文档与运行时。
 

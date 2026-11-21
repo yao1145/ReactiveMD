@@ -1,5 +1,6 @@
 import {
   type ComponentType,
+  type CSSProperties,
   type ReactNode,
 } from 'react';
 import type {
@@ -236,6 +237,10 @@ export interface LocalComponentServices {
 /** Context passed to every SDK component. It contains no AST. */
 export interface LocalComponentContext {
   readonly props: Readonly<Record<string, LocalComponentValue>>;
+  /** Author declarations for the component's visible root. */
+  readonly authorStyle?: CSSProperties;
+  /** Return true when the current mount delegates this action to author JavaScript. */
+  readonly dispatchAuthorAction?: (action: import('../local/runtime/author-script-protocol').AuthorAction) => boolean;
   readonly content: LocalComponentContent;
   readonly services: LocalComponentServices;
   readonly bindings: {
@@ -298,6 +303,8 @@ export interface LocalReactPreset {
  * internal nodes only to `component-api`, never to component implementations.
  */
 export interface LocalComponentAdapterEnvironment {
+  readonly authorStyle?: LocalComponentContext['authorStyle'];
+  readonly dispatchAuthorAction?: LocalComponentContext['dispatchAuthorAction'];
   readonly runtime: LocalRuntime;
   readonly network?: ComponentNetwork;
   /** Optional runtime-scoped services. Falls back to detached services. */
@@ -1137,6 +1144,8 @@ export function createLocalComponentContext(
   });
   return Object.freeze({
     props: content.props,
+    authorStyle: environment.authorStyle,
+    dispatchAuthorAction: environment.dispatchAuthorAction,
     content,
     services,
     bindings,

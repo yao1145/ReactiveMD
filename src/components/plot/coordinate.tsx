@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import type { LocalComponentContext } from '../../react/component-api';
-import {
+import { useAuthorComponentRoot,
   StaticValue,
   PrintValue,
   FieldError,
@@ -96,6 +96,7 @@ function NumberDraftField({
 }
 
 export function CoordinateView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { content, mode, resetToken, t } = view;
@@ -121,7 +122,7 @@ export function CoordinateView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <StaticValue
+      <StaticValue authorRoot={authorRoot()}
         className="local-coordinate"
         label={label}
         value={coordinateSummary}
@@ -207,7 +208,7 @@ export function CoordinateView(context: LocalComponentContext) {
   return (
     <div
       className="local-coordinate"
-      style={accentStyle(localColor(content))}
+      {...authorRoot(accentStyle(localColor(content)))}
       role="group"
       aria-label={label}
       data-rmd-component="coordinate"

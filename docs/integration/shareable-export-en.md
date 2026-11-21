@@ -6,7 +6,9 @@ This guide covers the single-file HTML exporter introduced with `local-draft-2`.
 
 ## Output modes
 
-The rules below describe default ReactiveMD documents. Native HTML interactive export preserves `compileOptions` and whole-document HTML routing; static export disables author JavaScript. These documents have no ReactiveMD parameters. See [HTML compatibility](../reference/html-compatibility-en.md) for capability flags, isolation and the temporary routing policy.
+Interactive exports save the RMD state baseline, capability flags and `sourceSemantics: "mixed-rmd-v1"`. The runtime’s legacy reader preserves the original interpretation of older exports. Static output uses the selected state without executing author scripts. See [HTML compatibility](../reference/html-compatibility-en.md).
+
+When calling `createShareableHtml` directly, render `staticMarkup` with the same author CSS grant as the export. An export with author CSS disabled rejects a snapshot that still carries author styles or a fragment CSS grant.
 
 **Interactive HTML** is one self-contained `.html` file. It embeds the original source, the standalone browser runtime, React 19, the current stylesheet and print styles. Readers can open it through `file://` without Node.js, React, the reactive-md package or network access.
 

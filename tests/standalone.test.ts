@@ -56,6 +56,36 @@ function validPayload(overrides: Record<string, unknown> = {}): Record<string, u
 }
 
 describe('standalone mount payload', () => {
+  it('reopens legacy native, legacy RMD and versioned mixed source separately', () => {
+    const source = '# People\n\n<slider bind="people" label="People" initial="2">';
+    const mixed = compileLocal(source);
+    if (!mixed.ok) throw new Error('Expected valid source.');
+    const generator = { name: 'test', version: '1.0.0' };
+    const open = (options: Record<string, unknown>, legacyNative = false) => {
+      const state = createLocalStateFile(
+        legacyNative ? { ...mixed.document, bindings: {}, initialState: {} } : mixed.document,
+        legacyNative ? {} : { people: 7 },
+        generator,
+      );
+      const result = parseMountPayload(validPayload({ source, state, ...options }));
+      if (!result.ok) throw new Error(result.diagnostics.map(item => item.message).join('\n'));
+      const { payload } = result;
+      return prepareStandaloneDocument(payload.source, payload.state, undefined, payload.compileOptions, undefined,
+        payload.sourceSemantics === undefined).document;
+    };
+    const oldRmd = open({});
+    const oldHtml = open({ compileOptions: { enableCss: true, enableJavaScript: false, enableExtendedHtml: false } }, true);
+    const current = open({
+      sourceSemantics: 'mixed-rmd-v1',
+      compileOptions: { enableCss: true, enableJavaScript: false, enableExtendedHtml: false },
+    });
+    expect(oldRmd.initialState.people).toBe(7);
+    expect(oldHtml.nodes.map(node => node.type)).toEqual(['htmlDocument']);
+    expect(oldHtml.bindings).toEqual({});
+    expect(current.initialState.people).toBe(7);
+    expect(current.nodes.map(node => node.type)).toContain('heading');
+    expect(parseMountPayload(validPayload({ sourceSemantics: 'future' })).ok).toBe(false);
+  });
   it('accepts the shareable payload and keeps only known fields', () => {
     const payload = { ...validPayload(), ignored: '<script>alert(1)</script>' };
     const result = parseMountPayload(payload);

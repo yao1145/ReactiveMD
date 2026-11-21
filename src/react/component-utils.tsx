@@ -389,21 +389,46 @@ export function staticText(value: string): string {
   return value.trim() === '' ? EMPTY_STATIC_VALUE : value;
 }
 
+export function useAuthorComponentRoot(context: LocalComponentContext) {
+  const authorStyle = context.authorStyle;
+  const ref = useCallback((element: HTMLElement | null) => {
+    if (!element || !authorStyle) return;
+    const declarations = Object.entries(authorStyle).map(([name, value]) => {
+      const property = name.startsWith('--') ? name : name.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
+      return `${property}:${value};`;
+    }).join('');
+    // React diffs property values independently. Reapply the ordered author
+    // declarations as CSS so reordering and !important use the native cascade.
+    element.style.cssText += declarations;
+  }, [authorStyle]);
+  return (defaults?: CSSProperties) => {
+    if (!authorStyle) return { style: defaults, ref: undefined };
+    const style = { ...defaults } as Record<string, string | number>;
+    for (const [name, value] of Object.entries(authorStyle)) {
+      delete style[name];
+      style[name] = value;
+    }
+    return { style: style as CSSProperties, ref };
+  };
+}
+
 export function StaticValue({
   label,
   value,
   hint,
   className = '',
   multiline = false,
+  authorRoot,
 }: {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
   className?: string;
   multiline?: boolean;
+  authorRoot?: ReturnType<ReturnType<typeof useAuthorComponentRoot>>;
 }) {
   return (
-    <div className={`md-control local-static-control ${className}`.trim()}>
+    <div className={`md-control local-static-control ${className}`.trim()} {...authorRoot}>
       <span className="md-label">{label}</span>
       <span
         className={`local-static-value${multiline ? ' local-static-multiline' : ''}`}

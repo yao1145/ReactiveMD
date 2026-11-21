@@ -49,6 +49,8 @@ export {
 /** Everything a renderer needs from the document view. */
 export interface LocalReactRenderEnvironment {
   runtime: LocalRuntime;
+  authorStyle?: LocalComponentAdapterEnvironment['authorStyle'];
+  dispatchAuthorAction?: LocalComponentAdapterEnvironment['dispatchAuthorAction'];
   network?: ComponentNetwork;
   /** Runtime-scoped services; omitted only by hand-built render environments. */
   services?: LocalRuntimeServices;
@@ -406,6 +408,8 @@ function LocalExtensionView({
   }
   const adapter: LocalComponentAdapterEnvironment = {
     runtime: environment.runtime,
+    authorStyle: environment.authorStyle,
+    dispatchAuthorAction: environment.dispatchAuthorAction,
     network: environment.network,
     services: environment.services ?? environment.runtime.services,
     mode: environment.mode,

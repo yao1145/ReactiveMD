@@ -5,6 +5,8 @@ import { resolveLocalStateBaseline } from '../shareable';
 import { ReactiveMDMountError, standaloneDiagnostic } from './diagnostics';
 import { readLocalCompileOptions } from '../local/configuration/options';
 import { LOCAL_SYNTAX_VERSION } from '../local/types';
+import { compileLegacyHtmlLocal } from '../local/compilation/compiler-core';
+import { sanitizeLocalHtmlDocument } from '../local/html/html';
 
 export interface PreparedStandaloneDocument {
   document: LocalDocument;
@@ -31,6 +33,7 @@ export function prepareStandaloneDocument(
   theme?: string,
   compileOptions?: LocalCompileOptions,
   beforeState?: (document: LocalDocument) => void,
+  legacyPayload = false,
 ): PreparedStandaloneDocument {
   if (typeof source !== 'string') {
     throw new ReactiveMDMountError(
@@ -39,11 +42,18 @@ export function prepareStandaloneDocument(
     );
   }
 
-  const compiled = compileLocal(source, compileOptions);
+  const effectiveOptions = legacyPayload && compileOptions?.enableCss === undefined
+    ? { ...compileOptions, enableCss: false }
+    : compileOptions;
+  const options = readLocalCompileOptions(effectiveOptions);
+  const legacyHtml = legacyPayload && options.ok
+    && (options.html.enableCss || options.html.enableJavaScript || options.html.enableExtendedHtml);
+  const compiled = legacyHtml
+    ? compileLegacyHtmlLocal(source, options, sanitizeLocalHtmlDocument)
+    : compileLocal(source, effectiveOptions);
   let document: LocalDocument;
   if (!compiled.ok) {
-    const options = readLocalCompileOptions(compileOptions);
-    if (!options.ok || !options.htmlActive) {
+    if (!legacyHtml) {
       throw new ReactiveMDMountError(
         'Cannot mount a Reactive MD document: the source contains syntax errors.',
         compiled.diagnostics,

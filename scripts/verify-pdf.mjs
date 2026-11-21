@@ -34,30 +34,34 @@ function boxForWord(path) {
 try {
   const paragraphs = Array.from({ length: 160 }, (_, index) =>
     `<p>PdfParagraph${String(index + 1).padStart(4, '0')}</p>`).join('\n');
-  const source = '<!doctype html><html lang="en"><head>'
-    + '<style>body.native-print > .print-omitted { display: none; }</style></head>'
-    + '<body class="native-print"><p class="print-omitted">HiddenByAuthorCss</p>\n'
-    + paragraphs + '\n</body></html>';
-  const compileOptions = { enableCss: true };
+  const source = [
+    '<css>h3 { display: none; }</css>', '', '## People', '',
+    '<slider bind="people" label="People" initial="2" min="1" max="20" css="max-width: 24rem">',
+    '', 'People: {{ people }}', '', '<iframe title="Example" srcdoc="<p>Example</p>"></iframe>',
+    '', '<javascript>await rmd.set("people", 10)</javascript>', '', '### HiddenByAuthorCss', '', paragraphs,
+  ].join('\n');
+  const compileOptions = { enableCss: true, enableJavaScript: true, enableExtendedHtml: true };
   const compiled = compileLocal(source, compileOptions);
-  assert.ok(compiled.ok && compiled.document.html, JSON.stringify(compiled.diagnostics));
+  assert.ok(compiled.ok, JSON.stringify(compiled.diagnostics));
   const runtime = createLocalRuntime(compiled.document);
   try {
-    const rendered = renderLocalStaticDocument({ document: compiled.document, runtime });
+    assert.deepEqual(runtime.setParameter('people', 7), []);
+    const rendered = renderLocalStaticDocument({ document: compiled.document, runtime, capabilityGrants: compileOptions });
     assert.ok(rendered.ok, JSON.stringify(rendered.diagnostics));
     const html = createShareableHtml({
-      title: 'Native PDF', source, compileOptions, mode: 'static', css: printCss,
+      title: 'Mixed document PDF', source, compileOptions, mode: 'static', css: printCss,
       staticMarkup: rendered.markup,
-      state: createLocalStateFile(compiled.document, compiled.document.initialState),
+      state: createLocalStateFile(compiled.document, runtime.snapshot().state),
     });
-    const pdf = join(directory, 'native.pdf');
+    const pdf = join(directory, 'mixed.pdf');
     writeFileSync(pdf, await renderLocalPdf(html));
     const extracted = readPdf(pdf);
-    assert.equal([...extracted.matchAll(/PdfParagraph\d{4}/g)].length, 160, 'Native HTML lost or duplicated paragraphs');
+    assert.equal([...extracted.matchAll(/PdfParagraph\d{4}/g)].length, 160, 'Print lost or duplicated paragraphs');
     assert.match(extracted, /PdfParagraph0160/);
-    assert.doesNotMatch(extracted, /HiddenByAuthorCss/, 'Printing changed the native document structure or styles');
+    assert.match(extracted, /People:\s*7/);
+    assert.doesNotMatch(extracted, /People:\s*10|HiddenByAuthorCss/);
     assert.ok(readPdf(pdf, '-bbox').match(/<page\b/g)?.length > 1);
-    console.log('PASS all 160 native HTML paragraphs survive pagination');
+    console.log('PASS the mixed document preserves its static state, CSS and all 160 paragraphs');
   } finally {
     runtime.dispose();
   }

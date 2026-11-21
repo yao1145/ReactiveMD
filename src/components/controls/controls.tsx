@@ -14,7 +14,7 @@ import type { LocalComponentContext, LocalComponentContent } from '../../react/c
 import { DatePicker as UiarcDatePicker } from '../uiarc/date-picker/date-picker';
 import { rmdMotion } from '../uiarc/rmd-motion';
 import { Select as UiarcSelect } from '../uiarc/select/select';
-import {
+import { useAuthorComponentRoot,
   StaticValue,
   PrintValue,
   FieldError,
@@ -86,6 +86,7 @@ function TextFieldView({
   multiline?: boolean;
   rows?: number;
 }) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const sourceAttrs = useSourceAttributes(context);
@@ -122,7 +123,7 @@ function TextFieldView({
 
   if (mode === 'static') {
     return (
-      <StaticValue
+      <StaticValue authorRoot={authorRoot()}
         className={className}
         label={label}
         value={staticText(display)}
@@ -172,7 +173,7 @@ function TextFieldView({
   };
 
   return (
-    <div
+    <div {...authorRoot()}
       className={`md-control ${className}`}
       data-rmd-component={multiline ? 'textarea' : 'input'}
       {...sourceAttrs}
@@ -231,6 +232,7 @@ function numberProblem(
 }
 
 export function NumberView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const sourceAttrs = useSourceAttributes(context);
@@ -279,7 +281,7 @@ export function NumberView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <StaticValue
+      <StaticValue authorRoot={authorRoot()}
         className="local-number"
         label={label}
         value={staticText(display)}
@@ -306,7 +308,7 @@ export function NumberView(context: LocalComponentContext) {
   };
 
   return (
-    <div className="md-control local-number" data-rmd-component="number" {...sourceAttrs}>
+    <div {...authorRoot()} className="md-control local-number" data-rmd-component="number" {...sourceAttrs}>
       <label className="md-label" htmlFor={`${domId}-number`}>
         {label}
       </label>
@@ -355,6 +357,7 @@ export function NumberView(context: LocalComponentContext) {
 export { SliderView, RangeSliderView } from './numeric-sliders';
 
 export function ToggleView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const sourceAttrs = useSourceAttributes(context);
@@ -367,13 +370,13 @@ export function ToggleView(context: LocalComponentContext) {
   const stateLabel = checked ? t('On', '开') : t('Off', '关');
 
   if (mode === 'static') {
-    return <StaticValue className="md-toggle local-toggle" label={label} value={stateLabel} />;
+    return <StaticValue authorRoot={authorRoot()} className="md-toggle local-toggle" label={label} value={stateLabel} />;
   }
 
   return (
     <div
       className="md-control md-toggle local-toggle"
-      style={accentStyle(localColor(content))}
+      {...authorRoot(accentStyle(localColor(content)))}
       data-rmd-component="toggle"
       {...sourceAttrs}
     >
@@ -396,6 +399,7 @@ export function ToggleView(context: LocalComponentContext) {
 }
 
 export function CheckboxView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const sourceAttrs = useSourceAttributes(context);
@@ -408,13 +412,13 @@ export function CheckboxView(context: LocalComponentContext) {
   const stateLabel = checked ? t('Checked', '已勾选') : t('Unchecked', '未勾选');
 
   if (mode === 'static') {
-    return <StaticValue className="local-checkbox" label={label} value={stateLabel} />;
+    return <StaticValue authorRoot={authorRoot()} className="local-checkbox" label={label} value={stateLabel} />;
   }
 
   return (
     <div
       className="md-control local-checkbox"
-      style={accentStyle(localColor(content))}
+      {...authorRoot(accentStyle(localColor(content)))}
       data-rmd-component="checkbox"
       {...sourceAttrs}
     >
@@ -458,6 +462,7 @@ function dateValueKey(date: Date): string {
 }
 
 export function DateView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const sourceAttrs = useSourceAttributes(context);
@@ -487,7 +492,7 @@ export function DateView(context: LocalComponentContext) {
   const problem = missingProblem ?? rangeProblem;
 
   if (mode === 'static') {
-    return <StaticValue className="local-date" label={label} value={staticText(value)} />;
+    return <StaticValue authorRoot={authorRoot()} className="local-date" label={label} value={staticText(value)} />;
   }
 
   const message = disabledInvalid || constraintError
@@ -495,7 +500,7 @@ export function DateView(context: LocalComponentContext) {
     : (problem ?? error);
   const errorId = message ? `${domId}-date-error` : undefined;
   return (
-    <div
+    <div {...authorRoot()}
       className="md-control local-date local-date-picker"
       data-rmd-part="control"
       {...sourceAttrs}
@@ -537,6 +542,7 @@ export function DateView(context: LocalComponentContext) {
 /* --------------------------------------------------------------- choices */
 
 export function SelectView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { content, mode, t } = view;
@@ -557,7 +563,7 @@ export function SelectView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <StaticValue
+      <StaticValue authorRoot={authorRoot()}
         className="md-select local-select"
         label={label}
         value={staticText(activeLabel)}
@@ -577,7 +583,7 @@ export function SelectView(context: LocalComponentContext) {
   return (
     <div
       className="md-control md-select local-select"
-      style={accentStyle(localColor(content))}
+      {...authorRoot(accentStyle(localColor(content)))}
       data-rmd-part="control"
     >
       <UiarcSelect
@@ -603,6 +609,7 @@ export function SelectView(context: LocalComponentContext) {
 }
 
 export function ChoicesView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { content, mode, visible, t } = view;
@@ -637,7 +644,7 @@ export function ChoicesView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <StaticValue
+      <StaticValue authorRoot={authorRoot()}
         className="local-choices"
         label={label}
         value={staticText(selectedLabel)}
@@ -666,7 +673,7 @@ export function ChoicesView(context: LocalComponentContext) {
   return (
     <div
       className="md-control local-choices"
-      style={accentStyle(localColor(content))}
+      {...authorRoot(accentStyle(localColor(content)))}
       data-rmd-component="choices"
     >
       <span className="md-label" id={`${domId}-choices-label`}>
@@ -715,6 +722,7 @@ export function ChoicesView(context: LocalComponentContext) {
 }
 
 export function RadioGroupView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { content, mode, visible, t } = view;
@@ -733,7 +741,7 @@ export function RadioGroupView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <StaticValue
+      <StaticValue authorRoot={authorRoot()}
         className="local-radio-group"
         label={label}
         value={staticText(selectedLabel)}
@@ -744,7 +752,7 @@ export function RadioGroupView(context: LocalComponentContext) {
   return (
     <fieldset
       className="md-control local-radio-group"
-      style={accentStyle(localColor(content))}
+      {...authorRoot(accentStyle(localColor(content)))}
       data-rmd-component="radio-group"
       disabled={disabled}
       aria-invalid={validation.invalid || undefined}
@@ -784,6 +792,7 @@ function readChecklistItems(content: LocalComponentContent): ChecklistItem[] {
 }
 
 export function ChecklistView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { content, mode, visible, t } = view;
@@ -807,7 +816,7 @@ export function ChecklistView(context: LocalComponentContext) {
     return (
       <div
         className="local-checklist local-static-checklist"
-        style={accentStyle(localColor(content))}
+        {...authorRoot(accentStyle(localColor(content)))}
         role="group"
         aria-label={label}
       >
@@ -839,7 +848,7 @@ export function ChecklistView(context: LocalComponentContext) {
   return (
     <fieldset
       className="local-checklist"
-      style={accentStyle(localColor(content))}
+      {...authorRoot(accentStyle(localColor(content)))}
       data-rmd-component="checklist"
       disabled={disabled}
       aria-invalid={validation.invalid || undefined}
@@ -891,6 +900,7 @@ export function ChecklistView(context: LocalComponentContext) {
 /* ------------------------------------------------------- counter & timer */
 
 export function CounterView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const { content, runtime, mode, t } = view;
   const { write, error } = useWriter(context);
@@ -909,20 +919,22 @@ export function CounterView(context: LocalComponentContext) {
   const canIncrease = max === undefined || value + safeStep <= max + tolerance;
 
   if (mode === 'static') {
-    return <StaticValue className="local-counter" label={label} value={String(value)} />;
+    return <StaticValue authorRoot={authorRoot()} className="local-counter" label={label} value={String(value)} />;
   }
 
   const change = (direction: 1 | -1) => {
+    if (context.dispatchAuthorAction?.(direction === 1 ? 'increment' : 'decrement')) return;
     const next = Number((value + direction * safeStep).toFixed(12));
     write(next);
   };
 
   const reset = () => {
+    if (context.dispatchAuthorAction?.('reset')) return;
     runtime.reset(content);
   };
 
   return (
-    <div
+    <div {...authorRoot()}
       className="local-counter"
       role="group"
       aria-label={label}
@@ -969,6 +981,7 @@ export function CounterView(context: LocalComponentContext) {
 }
 
 export function TimerView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const { content, runtime, mode, visible, locale, t } = view;
   const label = textAttr(context, 'label', t('Timer', '计时器'));
@@ -1040,7 +1053,7 @@ export function TimerView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <StaticValue
+      <StaticValue authorRoot={authorRoot()}
         className="local-timer"
         label={label}
         value={formatSeconds(remaining, t)}
@@ -1078,7 +1091,7 @@ export function TimerView(context: LocalComponentContext) {
   };
 
   return (
-    <div
+    <div {...authorRoot()}
       className="local-timer"
       role="group"
       aria-label={label}
@@ -1131,6 +1144,7 @@ export function TimerView(context: LocalComponentContext) {
 }
 
 export function ProgressView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const { content, t } = view;
   const label = textAttr(context, 'label', t('Progress', '进度'));
@@ -1164,7 +1178,7 @@ export function ProgressView(context: LocalComponentContext) {
     <div
       className="local-progress"
       data-rmd-component="progress"
-      style={color ? ({ '--local-progress-color': color } as CSSProperties) : undefined}
+      {...authorRoot(color ? ({ '--local-progress-color': color } as CSSProperties) : undefined)}
     >
       <div className="local-progress-head">
         <span className="md-label">{label}</span>
@@ -1187,6 +1201,7 @@ export function ProgressView(context: LocalComponentContext) {
 /* --------------------------------------------------------------- controls */
 
 export function MultiSelectView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { content, mode, visible, t } = view;
@@ -1216,7 +1231,7 @@ export function MultiSelectView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <StaticValue
+      <StaticValue authorRoot={authorRoot()}
         className="local-multi-select"
         label={label}
         value={staticText(selectedLabels.join(', '))}
@@ -1253,7 +1268,7 @@ export function MultiSelectView(context: LocalComponentContext) {
   return (
     <fieldset
       className="local-multi-select"
-      style={accentStyle(localColor(content))}
+      {...authorRoot(accentStyle(localColor(content)))}
       data-rmd-component="multi-select"
       disabled={disabled}
       aria-invalid={validation.invalid || undefined}
@@ -1315,6 +1330,7 @@ export function MultiSelectView(context: LocalComponentContext) {
 type QuizResult = 'correct' | 'incorrect' | 'incomplete';
 
 export function QuizView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { content, mode, visible, t } = view;
@@ -1346,7 +1362,7 @@ export function QuizView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <div className="local-quiz local-static-quiz" role="group" aria-label={label}>
+      <div {...authorRoot()} className="local-quiz local-static-quiz" role="group" aria-label={label}>
         <span className="md-label">{label}</span>
         {type === 'choice' ? (
           <ul className="local-static-list local-static-quiz-options">
@@ -1400,7 +1416,7 @@ export function QuizView(context: LocalComponentContext) {
     result === 'correct' ? ' is-correct' : result === 'incorrect' ? ' is-incorrect' : '';
 
   return (
-    <div className="local-quiz" role="group" aria-label={label} data-rmd-component="quiz">
+    <div {...authorRoot()} className="local-quiz" role="group" aria-label={label} data-rmd-component="quiz">
       {type === 'choice' ? (
         <fieldset className="local-quiz-options" disabled={disabled}>
           <legend className="md-label">{label}</legend>

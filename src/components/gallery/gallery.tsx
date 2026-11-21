@@ -1,3 +1,4 @@
+import { useAuthorComponentRoot } from '../../react/component-utils';
 import {
   useCallback,
   useEffect,
@@ -52,6 +53,7 @@ function itemCaption(item: LocalComponentContent): string {
 /* ------------------------------------------------------------- interactive */
 
 export function Gallery(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const items = galleryItems(context);
   const total = items.length;
   const width = clampItemWidth(context.props['item-width']);
@@ -324,8 +326,12 @@ export function Gallery(context: LocalComponentContext) {
     ? context.locale.t(`Browse ${label}`, `浏览${label}`)
     : context.locale.t('Gallery items', '画廊项目');
 
+  const rootProps = authorRoot(style);
   return (
-    <section ref={rootRef} className="rmd-gallery" style={style} aria-label={label || undefined}>
+    <section className="rmd-gallery" style={rootProps.style} aria-label={label || undefined} ref={element => {
+      rootRef.current = element;
+      rootProps.ref?.(element);
+    }}>
       <div className="rmd-gallery-head">
         <h3 className="rmd-gallery-title" title={label || undefined}>{label}</h3>
         <div className="rmd-gallery-controls">
@@ -407,12 +413,13 @@ export function Gallery(context: LocalComponentContext) {
 /* ------------------------------------------------------------------ static */
 
 export function GalleryStatic(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const items = galleryItems(context);
   const width = clampItemWidth(context.props['item-width']);
   const label = typeof context.props.label === 'string' ? context.props.label.trim() : '';
   const style = { '--rmd-gallery-item-width': `${width}px` } as CSSProperties;
   return (
-    <section className="rmd-gallery rmd-gallery-static" style={style} aria-label={label || undefined}>
+    <section className="rmd-gallery rmd-gallery-static" {...authorRoot(style)} aria-label={label || undefined}>
       <div className="rmd-gallery-head">
         <h3 className="rmd-gallery-title" title={label || undefined}>{label}</h3>
       </div>
@@ -440,9 +447,10 @@ export function GalleryStatic(context: LocalComponentContext) {
 /* ------------------------------------------------------- item (standalone) */
 
 export function GalleryItemView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const caption = typeof context.props.label === 'string' ? context.props.label.trim() : '';
   return (
-    <section className="rmd-gallery-item-standalone" aria-label={caption || undefined}>
+    <section {...authorRoot()} className="rmd-gallery-item-standalone" aria-label={caption || undefined}>
       {caption ? <h3 className="rmd-gallery-caption" title={caption}>{caption}</h3> : null}
       <div className="rmd-gallery-body">{context.children.render()}</div>
     </section>

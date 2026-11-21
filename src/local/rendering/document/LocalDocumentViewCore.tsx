@@ -2,6 +2,7 @@ import type {
   Diagnostic,
   LocalCompileOptions,
   LocalDocument,
+  LocalHtmlOptions,
   LocalNode,
   LocalRuntime,
   LocalSnapshot,
@@ -51,6 +52,7 @@ import {
   type ReactNode,
 } from 'react';
 import { localHtmlSandbox, sanitizeLocalHtmlDocument } from '../../html/html';
+import { intersectCapabilityPolicy } from '../../configuration/capability-policy';
 import { DEFAULT_MAX_LOCAL_SYNTAX_NODES } from '../../configuration/limits';
 import { assertExtensionProps } from './view-render-context';
 import { beginLocalComponentRender } from '../../../react/component-api';
@@ -79,6 +81,8 @@ import { useResolvedColorScheme } from './use-color-scheme';
 import { useStableValidation } from './validation-state';
 import { LocalViewContext, type RenderEnv } from './view-render-context';
 import { EndnotesView, renderNodes } from './render-nodes';
+import { useAuthorScript } from './use-author-script';
+import { scopeAuthorStyles } from '../../css/author-css';
 import { OverflowTextTooltip } from '../../../react/overflow-text-tooltip';
 
 /* ------------------------------------------------------------------ props */
@@ -100,6 +104,12 @@ export type LocalImageResolver = (url: string) => string | null;
 export interface LocalDocumentViewProps {
   document: LocalDocument;
   runtime: LocalRuntime;
+  /** Mount-local grants, bounded by the permissions recorded at compilation. */
+  capabilityGrants?: LocalHtmlOptions;
+  /** Pause author script binding requests and actions while source validation is pending. */
+  authorScriptPaused?: boolean;
+  /** Exact HTTPS origins available to an extended iframe in this mount. */
+  allowedFrameOrigins?: readonly string[];
   /** Optional view-scoped channels. Keep the reference stable while authorization is unchanged. */
   network?: NetworkConfig;
   onDiagnostics?: (diagnostics: Diagnostic[]) => void;
@@ -150,6 +160,9 @@ export interface LocalDocumentViewProps {
 
 export interface LocalReactiveDocumentProps {
   source: string;
+  /** Further restrict the grants given by compileOptions for this mount. */
+  capabilityGrants?: LocalHtmlOptions;
+  allowedFrameOrigins?: readonly string[];
   /** Channels granted to the current document and user. */
   network?: NetworkConfig;
   onDiagnostics?: (diagnostics: Diagnostic[]) => void;
@@ -261,13 +274,14 @@ export function LocalHtmlSourceFallback({source, mode}: {source: string; mode: L
   </article>;
 }
 
-function LocalDocumentViewHtml({ document, mode = 'interactive', staticFirst = false, locale = 'en', onDiagnostics }: LocalDocumentViewProps) {
+function LocalDocumentViewHtml({ document, capabilityGrants, mode = 'interactive', staticFirst = false, locale = 'en', onDiagnostics }: LocalDocumentViewProps) {
   const [settled, setSettled] = useState(!staticFirst);
   useEffect(() => { if (staticFirst) setSettled(true); }, [staticFirst]);
   const renderedMode = mode === 'interactive' && staticFirst && !settled ? 'static' : mode;
-  const enableCss = document.html?.enableCss === true;
-  const enableJavaScript = renderedMode === 'interactive' && document.html?.enableJavaScript === true;
-  const enableExtendedHtml = document.html?.enableExtendedHtml === true;
+  const effective = intersectCapabilityPolicy(document.html, capabilityGrants);
+  const enableCss = effective.enableCss;
+  const enableJavaScript = renderedMode === 'interactive' && effective.enableJavaScript;
+  const enableExtendedHtml = effective.enableExtendedHtml;
   const policy = useMemo(() => ({ enableCss, enableJavaScript, enableExtendedHtml }), [enableCss, enableJavaScript, enableExtendedHtml]);
   const sourceFallback = document.nodes.length === 1 && document.nodes[0].type === 'fallback';
   // Compilation already validated the host budget. A second pass applies the
@@ -280,7 +294,8 @@ function LocalDocumentViewHtml({ document, mode = 'interactive', staticFirst = f
   if (sourceFallback || result.diagnostics.some(item => item.severity === 'error')) {
     return <LocalHtmlSourceFallback source={document.source} mode={renderedMode} />;
   }
-  return <article className={`md-document local-document reactive-md-native-document${renderedMode === 'static' ? ' local-static' : ''}`} data-source-mode="html" data-render-mode={renderedMode}>
+  return <article className={`md-document local-document reactive-md-native-document${renderedMode === 'static' ? ' local-static' : ''}`} data-source-mode="html" data-render-mode={renderedMode}
+    data-rmd-snapshot-css={enableCss ? '' : undefined}>
     <iframe
       key={`${Number(enableCss)}${Number(enableJavaScript)}${Number(enableExtendedHtml)}:${document.source}`}
       className="reactive-md-native-frame"
@@ -299,7 +314,8 @@ export function LocalDocumentViewCore(props: LocalDocumentViewCoreProps) {
   // One render pass: static prop diagnostics are deduplicated inside it and
   // reset for the next independent render/SSR pass.
   beginLocalComponentRender(props.runtime);
-  return props.document.html
+  return props.document.html && props.document.nodes.length === 1
+    && ['htmlDocument', 'fallback'].includes(props.document.nodes[0].type)
     ? <LocalDocumentViewHtml {...props} />
     : <LocalDocumentViewLocal {...props} />;
 }
@@ -307,6 +323,9 @@ export function LocalDocumentViewCore(props: LocalDocumentViewCoreProps) {
 function LocalDocumentViewLocal({
   document,
   runtime,
+  capabilityGrants,
+  authorScriptPaused = false,
+  allowedFrameOrigins,
   network,
   networkScope,
   onDiagnostics,
@@ -331,6 +350,13 @@ function LocalDocumentViewLocal({
   const renderedMode: LocalRenderMode = mode === 'interactive' && staticFirst && !staticFirstSettled
     ? 'static'
     : mode;
+  const granted = intersectCapabilityPolicy(document.capabilities?.policy, capabilityGrants);
+  const authorCss = granted.enableCss;
+  const authorJavaScript = renderedMode === 'interactive' && granted.enableJavaScript;
+  const extendedHtml = granted.enableExtendedHtml;
+  const policy = useMemo(() => ({
+    enableCss: authorCss, enableJavaScript: authorJavaScript, enableExtendedHtml: extendedHtml,
+  }), [authorCss, authorJavaScript, extendedHtml]);
   const networkIdentity = networkScope ?? runtime;
   const [activeNetwork, setActiveNetwork] = useState<{
     config: NetworkConfig;
@@ -353,6 +379,10 @@ function LocalDocumentViewLocal({
     : undefined;
   const viewNetwork = network === undefined ? undefined : viewSession?.network ?? unavailableNetwork;
   const instanceId = useId();
+  const sourceStyles = authorCss ? document.capabilities?.styles : undefined;
+  const sourceRules = useMemo(() => sourceStyles?.map(block => scopeAuthorStyles(block.text)).join('\n'), [sourceStyles]);
+  const componentStyles = authorCss ? document.capabilities?.componentStyles : undefined;
+  const hasAuthorStyles = Boolean(sourceRules || componentStyles && Object.keys(componentStyles).length);
   const t = useMemo<Localize>(
     () => (en: string, zh: string) => localize(locale, en, zh),
     [locale],
@@ -394,6 +424,7 @@ function LocalDocumentViewLocal({
   const report = useCallback((diagnostics: Diagnostic[]) => {
     reportRef.current?.(diagnostics);
   }, []);
+  const dispatchAuthorAction = useAuthorScript(document, runtime, authorJavaScript, authorScriptPaused, report);
   useLayoutEffect(() => {
     if (viewSession) return bindLocalNetworkExternals(runtime, viewSession, report);
   }, [runtime, viewSession, report]);
@@ -589,6 +620,10 @@ function LocalDocumentViewLocal({
     () => ({
       runtime,
       network: viewNetwork,
+      capabilityPolicy: policy,
+      allowedFrameOrigins,
+      componentStyles,
+      dispatchAuthorAction,
       rootRef,
       urlPolicy,
       imageResolver,
@@ -607,7 +642,7 @@ function LocalDocumentViewLocal({
       validation,
       report,
     }),
-    [runtime, viewNetwork, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, extensionContractsValid, extensionRenderer, componentRenderer, definitions, anchors, t, locale, renderedMode, dependencyIndex, footnotes, sourceNavigation, validation, report],
+    [runtime, viewNetwork, policy, allowedFrameOrigins, componentStyles, dispatchAuthorAction, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, extensionContractsValid, extensionRenderer, componentRenderer, definitions, anchors, t, locale, renderedMode, dependencyIndex, footnotes, sourceNavigation, validation, report],
   );
 
   // Revision-independent deps keep this closure and the provider value stable
@@ -647,6 +682,8 @@ function LocalDocumentViewLocal({
         className={`md-document local-document${renderedMode === 'static' ? ' local-static' : ''}`}
         lang={locale === 'zh' ? 'zh-CN' : 'en'}
         data-rmd-theme={theme.name}
+        data-rmd-document=""
+        data-rmd-snapshot-css={hasAuthorStyles ? '' : undefined}
         data-color-scheme={resolvedScheme}
         data-render-mode={renderedMode}
         data-rmd-long-prose={document.nodes.length >= 200 ? '' : undefined}
@@ -658,6 +695,7 @@ function LocalDocumentViewLocal({
             : t('Interactive document', '交互文档')
         }
       >
+        {sourceRules && <style data-rmd-author-css="" dangerouslySetInnerHTML={{ __html: sourceRules }} />}
         <LocalViewContext.Provider value={contextValue}>
           {extensionDiagnostics.length > 0 ? (
             <div

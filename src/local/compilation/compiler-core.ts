@@ -57,6 +57,7 @@ import { validateExpressions, validateNavigation } from './compiler-expressions'
 import { validateDataTables, validatePlots, validateValidations } from './compiler-validation';
 import { cloneValue } from './compiler-values';
 import { attachNodeDependencies } from './dependencies';
+import { compileDocumentCapabilities } from './compiler-capabilities';
 
 /**
  * The parser owns recovery detection. Until its optional field is part of the
@@ -115,7 +116,7 @@ type LiteralRangeParser = {
  * expressions, computations and bindings are all bypassed; the source only
  * becomes grammar-aware sanitized HTML for an isolated `srcdoc` iframe.
  */
-function compileHtmlLocal(
+export function compileLegacyHtmlLocal(
   source: string,
   check: Extract<LocalOptionCheck, { ok: true }>,
   sanitize: LocalHtmlDocumentSanitizer,
@@ -179,23 +180,6 @@ export function compileLocalCore(
   mark?: (name: string) => void,
   literalRanges?: readonly SourceRange[],
 ): LocalCompileResult {
-  if (optionCheck.htmlActive) {
-    if (!services?.htmlDocument) {
-      return {
-        ok: false,
-        diagnostics: [{
-          code: 'local.capability.html',
-          message: diagnosticEnglish({ key: 'local.capability.html' }),
-          severity: 'error',
-          range: { start: 0, end: 0 },
-          line: 1,
-          column: 1,
-          messageKey: 'local.capability.html',
-        }],
-      };
-    }
-    return compileHtmlLocal(source, optionCheck, services.htmlDocument);
-  }
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     // Source-shape diagnostics come from the kernel parser; a session parser
     // is never asked to compile a non-string or oversized revision.
@@ -295,7 +279,7 @@ export function compileLocalCore(
   const state: CompileState = {
     semantic: services?.semantic,
     display: services?.display,
-    htmlDocument: services?.htmlDocument,
+    htmlFragment: services?.htmlFragment,
     plotMath: services?.plotMath,
     source,
     lineStarts,
@@ -324,7 +308,8 @@ export function compileLocalCore(
     expressionKinds: new Map(),
   };
 
-  collectEntries(parsed.nodes, null, state.entries, state);
+  const capabilities = compileDocumentCapabilities(state, optionCheck.html, optionCheck.maxSyntaxNodes);
+  collectEntries(state.nodes, null, state.entries, state);
   for (const entry of state.entries) {
     state.attrs.set(entry.node.id, validateAttributes(entry, state));
     validateAttributeRelations(entry, state);
@@ -359,9 +344,9 @@ export function compileLocalCore(
   const initialState: Record<string, LocalValue> = {};
   for (const [key, binding] of Object.entries(bindings)) initialState[key] = cloneValue(binding.initial);
   validateNavigation(state, bindings, initialState);
-  reportUnmatchedHostComponents(parsed.nodes, state);
+  reportUnmatchedHostComponents(state.nodes, state);
   mark?.('hostAndNavigationMs');
-  const displayNodes = [...parsed.nodes];
+  const displayNodes = [...state.nodes];
   while (displayNodes.length && diagnostics.length < MAX_LOCAL_DIAGNOSTICS) {
     const node = displayNodes.pop()!;
     if (node.type === 'math' || node.type === 'inlineMath') {
@@ -389,7 +374,7 @@ export function compileLocalCore(
   const dynamicConstraints = Object.keys(state.dynamicConstraints).length
     ? state.dynamicConstraints
     : undefined;
-  const extensions = extensionRequirements(parsed.nodes, optionCheck.sdkByName);
+  const extensions = extensionRequirements(state.nodes, optionCheck.sdkByName);
   const kernelMetadata = compileKernelMetadata(state, bindings);
   const usedDefinitions = componentDefinitionsFor(state);
   const document: LocalDocument = {
@@ -399,7 +384,8 @@ export function compileLocalCore(
       ? { componentConfigKey: compilerComponentConfigKey(optionCheck) } : {}),
     syntaxVersion: LOCAL_SYNTAX_VERSION,
     ...(parsed.versionDeclaration ? { versionDeclaration: parsed.versionDeclaration } : {}),
-    nodes: stripDeclarationNodes(parsed.nodes),
+    nodes: stripDeclarationNodes(state.nodes),
+    ...(capabilities ? { capabilities } : {}),
     initialState,
     bindings,
     // Themes are host metadata: the compiler only names the built-in default

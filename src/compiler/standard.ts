@@ -12,7 +12,7 @@ import type { LocalOptionCheck } from '../local/configuration/options-core';
 import { compileLocalCore } from '../local/compilation/compiler-core';
 import { inspectLocalMathDisplay } from '../local/evaluation/math/display';
 import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../local/evaluation/math/latex';
-import { sanitizeLocalHtmlDocument } from '../local/html/html';
+import { sanitizeLocalHtmlFragment } from '../local/html/html';
 import { STANDARD_PARSER_CAPABILITIES } from '../local/parsing/parser-standard';
 import { readCompilerOptions } from '../local/configuration/options-core';
 import { defaultPreset } from '../presets/default';
@@ -53,7 +53,7 @@ export function createStandardCompiler(options?: LocalCompileOptions): Compiler 
   // plot semantics are value-free functions.
   const services = {
     display: inspectLocalMathDisplay,
-    htmlDocument: sanitizeLocalHtmlDocument,
+    htmlFragment: sanitizeLocalHtmlFragment,
     plotMath: { kind: plotFormulaKind, gridSize: implicitGridSize, compile: compilePlotFormula },
   };
   return {

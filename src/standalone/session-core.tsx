@@ -39,8 +39,7 @@ export interface ReactiveMDMountOptions {
   hydrate?: boolean;
   generator?: LocalStateGenerator;
   /**
-   * Capability flags and limits used by the export. Only explicit host or
-   * payload values enable the native HTML route; source text and state never do.
+   * Capability flags and limits used by the export.
    */
   compileOptions?: LocalCompileOptions;
   /** Trusted implementations explicitly installed by the standalone host. */
@@ -65,6 +64,8 @@ export interface ReactiveMDHandle {
 
 /** Internal hooks used by the Web Component; not part of the public mount API. */
 export interface StandaloneHostHooks {
+  /** Version 1 and 2 payloads created before sourceSemantics was introduced. */
+  legacyPayload?: boolean;
   /** Host-only theme override, applied to an immutable document clone. */
   theme?: string;
   onDiagnostics?: (diagnostics: Diagnostic[]) => void;
@@ -215,6 +216,7 @@ export function createStandaloneMountWithView(
       }));
       if (errors.length) throw new ReactiveMDMountError('Installed contracts must match before state recovery.', errors);
     },
+    hooks.legacyPayload,
   );
   const compiledRequirements = validateLocalExtensionRequirements(prepared.document.extensions, options.reactConfig?.config);
   if (compiledRequirements.length) throw new ReactiveMDMountError('Installed extension implementations are required.', compiledRequirements);
@@ -279,6 +281,7 @@ export function createStandaloneMountWithView(
   const view = (
     <DocumentView
       document={prepared.document}
+      capabilityGrants={compileOptions}
       runtime={runtime}
       onDiagnostics={handleDiagnostics}
       urlPolicy={urlPolicy}
@@ -496,6 +499,7 @@ export function mountAllWithView(
         componentState: payload.componentState,
         reactConfig: host.reactConfig,
       }, DocumentView, {
+        legacyPayload: payload.sourceSemantics === undefined,
         onDiagnostics: (diagnostics) => reportAutoDiagnostics(doc, target, diagnostics),
       }));
     } catch (error) {

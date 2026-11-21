@@ -18,6 +18,7 @@ import {
   snapToStep,
   textAttr,
   useComponentView,
+  useAuthorComponentRoot,
   useDisabled,
   useResetToken,
   useSourceAttributes,
@@ -41,6 +42,7 @@ export function SliderView(context: LocalComponentContext) {
   const domId = useId();
   const sourceAttrs = useSourceAttributes(context);
   const { content, mode, t } = view;
+  const authorRoot = useAuthorComponentRoot(context);
   const { write, error } = useWriter(context);
   const label = textAttr(context, 'label', t('Slider', '滑块'));
   const { disabled, invalid: disabledInvalid } = useDisabled(context);
@@ -64,6 +66,7 @@ export function SliderView(context: LocalComponentContext) {
   if (mode === 'static') {
     return (
       <StaticValue
+        authorRoot={authorRoot()}
         className="md-slider local-slider"
         label={label}
         value={String(rawValue)}
@@ -74,7 +77,7 @@ export function SliderView(context: LocalComponentContext) {
   return (
     <div
       className="md-control md-slider local-slider"
-      style={accentStyle(localColor(content))}
+      {...authorRoot(accentStyle(localColor(content)))}
       {...sourceAttrs}
       data-rmd-part="control"
       aria-invalid={invalid || undefined}
@@ -121,6 +124,7 @@ export function SliderView(context: LocalComponentContext) {
 
 
 export function RangeSliderView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const { content, mode, t } = view;
   const { writeMany, error, setError } = useWriter(context);
@@ -147,7 +151,7 @@ export function RangeSliderView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <StaticValue
+      <StaticValue authorRoot={authorRoot()}
         className="local-range-slider"
         label={label}
         value={rangeSummary}
@@ -158,11 +162,11 @@ export function RangeSliderView(context: LocalComponentContext) {
   return (
     <div
       className="md-control local-range-slider"
-      style={{
+      {...authorRoot({
         ...(accentStyle(localColor(content)) ?? {}),
         '--local-range-start': startPercent,
         '--local-range-end': endPercent,
-      } as CSSProperties}
+      } as CSSProperties)}
       data-rmd-part="control"
       role="group"
       aria-label={label}

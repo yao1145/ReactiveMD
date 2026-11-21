@@ -1,9 +1,13 @@
 import {
+  Children,
+  cloneElement,
+  isValidElement,
   useEffect,
   useId,
   useMemo,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ComponentProps,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
@@ -12,6 +16,7 @@ import { DiagramInspector, useDiagramInspector } from '../diagram/diagram-inspec
 import { MafsPlotSurface, type PlotSurfaceSegment } from '../plot/mafs-visuals';
 import { useHydrated } from './use-hydrated';
 import { VisualFrame } from './visual-frame';
+import { useAuthorComponentRoot } from '../../react/component-utils';
 import {
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
@@ -357,6 +362,11 @@ function VisualShell({
   const view = useComponentView(context);
   const validation = useValidationField(context);
   const attrs = context.source.attributes();
+  const authorRoot = useAuthorComponentRoot(context);
+  const frames = context.authorStyle ? Children.map(children, child =>
+    isValidElement<ComponentProps<typeof VisualFrame>>(child) && child.type === VisualFrame
+      ? cloneElement(child, { authorRoot: authorRoot() })
+      : child) : children;
   const content = validation.invalid ? (
     <div
       role="group"
@@ -364,9 +374,9 @@ function VisualShell({
       aria-invalid={validation.invalid || undefined}
       aria-describedby={validation.describedBy}
     >
-      {children}
+      {frames}
     </div>
-  ) : children;
+  ) : frames;
   return Object.keys(attrs).length > 0 ? <div {...attrs}>{content}</div> : <>{content}</>;
 }
 
@@ -2737,6 +2747,7 @@ export function DiagramView(context: LocalComponentContext) {
 /* ------------------------------------------------------------------ */
 
 export function NodeView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
-  return <div className="local-tabpanel-body">{view.render()}</div>;
+  return <div className="local-tabpanel-body" {...authorRoot()}>{view.render()}</div>;
 }

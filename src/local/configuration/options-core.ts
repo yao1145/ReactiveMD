@@ -18,6 +18,7 @@ import { NO_PARSER_CAPABILITIES, type LocalParserCapabilities } from '../parsing
 import { MINIMAL_PRESET_ID } from '../../presets/identity';
 import { unmountedOfficialLeafTags } from './official-leaf-syntax';
 import { DEFAULT_COMPILER_PRESET, compilerDefaultConfigKey, readCompilerConfig } from '../../sdk/compiler-config';
+import { DEFAULT_CAPABILITY_POLICY } from './capability-policy';
 import type { LocalComponentDefinition, LocalComponentProp, LocalConfig } from '../../sdk/types';
 import type {
   LocalCompileOptions,
@@ -29,7 +30,7 @@ import type {
   LocalHtmlPolicy,
 } from '../types';
 
-/** Capability flags that select the temporary whole-document HTML branch. */
+/** Independent grants for author content. */
 export const LOCAL_HTML_FLAGS = ['enableCss', 'enableJavaScript', 'enableExtendedHtml'] as const;
 
 export type LocalHtmlFlag = (typeof LOCAL_HTML_FLAGS)[number];
@@ -53,7 +54,6 @@ export type LocalOptionCheck =
       /** Effective HTML policy; every flag is false by default. */
       html: LocalHtmlPolicy;
       /** True when at least one capability flag is enabled. */
-      htmlActive: boolean;
       /** Render ordinary Markdown soft line breaks as `break` nodes. */
       markdownBreaks: boolean;
       /**
@@ -552,11 +552,7 @@ export function readOptionCheck(
   }
   const record = (options ?? {}) as unknown as Record<string, unknown>;
 
-  const html: { enableCss: boolean; enableJavaScript: boolean; enableExtendedHtml: boolean } = {
-    enableCss: false,
-    enableJavaScript: false,
-    enableExtendedHtml: false,
-  };
+  const html = { ...DEFAULT_CAPABILITY_POLICY };
   for (const flag of LOCAL_HTML_FLAGS) {
     if (!Object.hasOwn(record, flag)) continue;
     const value = record[flag];
@@ -725,7 +721,6 @@ export function readOptionCheck(
     maxParseWork,
     maxMarkdownDepth,
     html,
-    htmlActive: html.enableCss || html.enableJavaScript || html.enableExtendedHtml,
     markdownBreaks,
     strict,
     hostComponents,

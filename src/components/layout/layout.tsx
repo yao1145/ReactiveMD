@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { LocalComponentContext } from '../../react/component-api';
 import { useTooltipLayoutEffect, useTooltipPopover } from '../../react/tooltip-layer';
-import {
+import { useAuthorComponentRoot,
   FieldError,
   LocalError,
   PrintValue,
@@ -30,6 +30,7 @@ import {
 /* ------------------------------------------------------------------ layout */
 
 export function PanelView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const { content, runtime, mode, t } = view;
   const title = textAttr(context, 'title', '');
@@ -47,7 +48,7 @@ export function PanelView(context: LocalComponentContext) {
   };
 
   return (
-    <section className="md-panel local-panel" aria-label={title || t('Parameter panel', '参数面板')}>
+    <section {...authorRoot()} className="md-panel local-panel" aria-label={title || t('Parameter panel', '参数面板')}>
       {title || showReset ? (
         <div className="local-panel-head">
           {title ? <h3 className="md-panel-title local-panel-title">{title}</h3> : <span />}
@@ -70,10 +71,11 @@ export function PanelView(context: LocalComponentContext) {
 }
 
 export function CardView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const title = textAttr(context, 'title', '');
   return (
-    <section className="md-card local-card">
+    <section {...authorRoot()} className="md-card local-card">
       {title ? <h3 className="md-card-title">{title}</h3> : null}
       <div className="md-card-body">{view.render()}</div>
     </section>
@@ -81,19 +83,21 @@ export function CardView(context: LocalComponentContext) {
 }
 
 export function GridView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const columns = Math.min(4, Math.max(1, Math.floor(Number(context.props.columns ?? 2) || 2)));
   const style = { '--local-grid-columns': String(columns) } as CSSProperties;
   return (
-    <div className="local-grid" style={style}>
+    <div className="local-grid" {...authorRoot(style)}>
       {view.render()}
     </div>
   );
 }
 
 export function TabView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
-  return <div className="local-tabpanel-body">{view.render()}</div>;
+  return <div {...authorRoot()} className="local-tabpanel-body">{view.render()}</div>;
 }
 
 export function StepsTabView(context: LocalComponentContext) {
@@ -113,6 +117,7 @@ export function EdgeView() {
 }
 
 export function TabsView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { content, mode, visible, t } = view;
@@ -141,7 +146,7 @@ export function TabsView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <section className="local-tabs local-static-tabs" aria-label={label || t('Tabs', '选项卡')}>
+      <section {...authorRoot()} className="local-tabs local-static-tabs" aria-label={label || t('Tabs', '选项卡')}>
         {label ? <div className="local-tabs-label">{label}</div> : null}
         {tabs.map((tab, index) => (
           <section className="local-static-tab" key={tab.id}>
@@ -178,7 +183,7 @@ export function TabsView(context: LocalComponentContext) {
   };
 
   return (
-    <section
+    <section {...authorRoot()}
       className="md-tabs local-tabs"
       aria-label={label || t('Tabs', '选项卡')}
       aria-invalid={validation.invalid || undefined}
@@ -241,6 +246,7 @@ export function TabsView(context: LocalComponentContext) {
 }
 
 export function StepsView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { content, mode, visible, t } = view;
@@ -280,7 +286,7 @@ export function StepsView(context: LocalComponentContext) {
   if (mode === 'static') {
     const active = steps[activeIndex];
     return (
-      <section className="local-steps local-static-steps" aria-label={label || t('Steps', '步骤')}>
+      <section {...authorRoot()} className="local-steps local-static-steps" aria-label={label || t('Steps', '步骤')}>
         {label ? <div className="local-steps-label">{label}</div> : null}
         <ol
           className="local-steps-rail"
@@ -313,7 +319,7 @@ export function StepsView(context: LocalComponentContext) {
   };
 
   return (
-    <section
+    <section {...authorRoot()}
       className="local-steps"
       aria-label={label || t('Steps', '步骤')}
       aria-invalid={validation.invalid || undefined}
@@ -381,10 +387,11 @@ export function StepView() {
 }
 
 export function AccordionView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const label = textAttr(context, 'label', '');
   return (
-    <div className="local-accordion" role="group" aria-label={label || view.t('Accordion', '折叠面板')}>
+    <div {...authorRoot()} className="local-accordion" role="group" aria-label={label || view.t('Accordion', '折叠面板')}>
       {label ? <div className="local-accordion-label">{label}</div> : null}
       {view.render()}
     </div>
@@ -392,6 +399,7 @@ export function AccordionView(context: LocalComponentContext) {
 }
 
 export function DisclosureView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { mode, visible, t } = view;
@@ -405,7 +413,7 @@ export function DisclosureView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <section className="local-disclosure local-static-disclosure">
+      <section {...authorRoot()} className="local-disclosure local-static-disclosure">
         <h3 className="local-disclosure-heading">{label}</h3>
         <div className="local-disclosure-panel">{view.render()}</div>
       </section>
@@ -416,7 +424,7 @@ export function DisclosureView(context: LocalComponentContext) {
   const panelId = `${domId}-disclosure-panel`;
 
   return (
-    <div className="local-disclosure">
+    <div {...authorRoot()} className="local-disclosure">
       <h3 className="local-disclosure-heading">
         <button
           id={triggerId}
@@ -461,6 +469,7 @@ export function DisclosureView(context: LocalComponentContext) {
 }
 
 export function IfView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context)();
   const view = useComponentView(context);
   const { content, t, visible } = view;
   const raw = rawAttr(content, 'when');
@@ -489,7 +498,11 @@ export function IfView(context: LocalComponentContext) {
     <>
       {conditionError ? <LocalError message={t('Cannot compute', '无法计算')} /> : null}
       <div
-        ref={container}
+        style={authorRoot.style}
+        ref={element => {
+          container.current = element;
+          authorRoot.ref?.(element);
+        }}
         className="local-if md-if"
         role="group"
         aria-label={t('Conditional content', '条件内容')}
@@ -514,6 +527,7 @@ export function IfView(context: LocalComponentContext) {
 /* --------------------------------------------------------------- feedback */
 
 export function AlertView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const title = textAttr(context, 'title', '');
   const { tone, error } = toneAttr(
@@ -526,7 +540,7 @@ export function AlertView(context: LocalComponentContext) {
   return (
     <>
       {error ? <ToneProblem message={view.t('Invalid tone; using the default style', '色调无效，已使用默认样式')} /> : null}
-      <div className={`md-alert md-alert-${tone} local-alert local-alert-${tone}`} role={role}>
+      <div className={`md-alert md-alert-${tone} local-alert local-alert-${tone}`} role={role} {...authorRoot()}>
         {title ? <div className="md-alert-title local-alert-title">{title}</div> : null}
         <div className="md-alert-body local-alert-body">{view.render()}</div>
       </div>
@@ -535,6 +549,7 @@ export function AlertView(context: LocalComponentContext) {
 }
 
 export function BadgeView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const { tone, error } = toneAttr(
     context,
@@ -548,7 +563,7 @@ export function BadgeView(context: LocalComponentContext) {
       {error ? <ToneProblem message={view.t('Invalid tone; using the default style', '色调无效，已使用默认样式')} /> : null}
       <span
         className={`md-badge md-badge-${tone} local-badge`}
-        style={color ? { color } : undefined}
+        {...authorRoot(color ? { color } : undefined)}
       >
         <span className="md-badge-label">{view.renderInline()}</span>
       </span>
@@ -557,6 +572,7 @@ export function BadgeView(context: LocalComponentContext) {
 }
 
 export function TooltipView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { mode, t } = view;
@@ -598,7 +614,7 @@ export function TooltipView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <span className="local-tooltip local-static-tooltip">
+      <span {...authorRoot()} className="local-tooltip local-static-tooltip">
         <span className="local-tooltip-trigger">{view.renderInline()}</span>
         <span className="md-tooltip local-tooltip-bubble is-visible" role="note">
           {text}
@@ -608,7 +624,7 @@ export function TooltipView(context: LocalComponentContext) {
   }
 
   return (
-    <span
+    <span {...authorRoot()}
       className="local-tooltip"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
@@ -651,6 +667,7 @@ export function TooltipView(context: LocalComponentContext) {
 /* ------------------------------------------------------ inline additions */
 
 export function JumpView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { content, mode, t } = view;
@@ -671,14 +688,14 @@ export function JumpView(context: LocalComponentContext) {
         <a
           href={`#${target}`}
           className="local-jump local-jump-link local-jump-static"
-          style={accentStyle(color)}
+          {...authorRoot(accentStyle(color))}
         >
           {view.renderInline()}
         </a>
       );
     }
     return (
-      <span className="local-jump local-jump-static-blocked" style={accentStyle(color)}>
+      <span className="local-jump local-jump-static-blocked" {...authorRoot(accentStyle(color))}>
         {view.renderInline()}
       </span>
     );
@@ -727,7 +744,7 @@ export function JumpView(context: LocalComponentContext) {
             ? 'local-jump local-jump-button md-button md-button-secondary'
             : 'local-jump local-jump-link'
         }
-        style={accentStyle(color)}
+        {...authorRoot(accentStyle(color))}
         data-local-custom-color={color ? 'true' : undefined}
         data-local-target-missing={target ? undefined : 'true'}
         data-local-jump-blocked={target && !allowed ? 'true' : undefined}
@@ -751,27 +768,30 @@ export function JumpView(context: LocalComponentContext) {
 }
 
 export function AnchorView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const id = view.navigation.anchorId();
   if (!id) return null;
-  return <span className="local-anchor" id={id} data-local-anchor="" />;
+  return <span {...authorRoot()} className="local-anchor" id={id} data-local-anchor="" />;
 }
 
 export function TextView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const color = localColor(view.content);
   return (
-    <span className="local-text" style={color ? { color } : undefined}>
+    <span className="local-text" {...authorRoot(color ? { color } : undefined)}>
       {view.renderInline()}
     </span>
   );
 }
 
 export function SectionView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const color = localColor(view.content);
   return (
-    <div className="local-section" style={color ? { color } : undefined}>
+    <div className="local-section" {...authorRoot(color ? { color } : undefined)}>
       {view.render()}
     </div>
   );
@@ -780,13 +800,14 @@ export function SectionView(context: LocalComponentContext) {
 /* ------------------------------------------------------------- validation */
 
 export function ValidationView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const hint = context.validation.hintFor(context.content);
   if (!hint) return null;
   const failed = hint.failed || hint.error;
   const announce = view.visible && failed;
   return (
-    <span
+    <span {...authorRoot()}
       id={hint.id}
       className="local-validation-hint"
       data-local-validation={hint.error ? 'error' : hint.failed ? 'failed' : 'passed'}

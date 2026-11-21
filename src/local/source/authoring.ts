@@ -72,7 +72,10 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 /** Mirrors the compiler's repeated-name guard. */
 const MAX_NAME_LENGTH = 128;
 
-const INACTIVE_NODE_TYPES = new Set(['code', 'inlineCode', 'math', 'inlineMath', 'fallback', 'comment', 'footnoteDefinition']);
+const INACTIVE_NODE_TYPES = new Set([
+  'code', 'inlineCode', 'math', 'inlineMath', 'fallback', 'comment', 'footnoteDefinition',
+  'authorCss', 'authorJavaScript', 'extendedHtmlRaw',
+]);
 
 /** Parse-level failures leave parts of the document opaque, so renaming is unsafe. */
 const UNSAFE_RENAME_CODES = new Set([
@@ -105,16 +108,8 @@ function compileDiagnostics(source: string, options?: LocalCompileOptions): Diag
   }
 }
 
-/**
- * In HTML mode the whole document is opaque native HTML: local tags and
- * interpolations are not interpreted, so authoring must not analyse, complete,
- * rename or reformat them. Invalid options are also kept opaque; the compiler
- * reports them through the normal diagnostic path.
- */
-function authoringOptionMode(options: LocalCompileOptions | undefined): 'markdown' | 'html' | 'invalid' {
-  const check = readLocalCompileOptions(options);
-  if (!check.ok) return 'invalid';
-  return check.htmlActive ? 'html' : 'markdown';
+function validAuthoringOptions(options: LocalCompileOptions | undefined): boolean {
+  return readLocalCompileOptions(options).ok;
 }
 
 /**
@@ -351,7 +346,7 @@ export function analyzeLocalSource(source: string, options?: LocalCompileOptions
   if (typeof source !== 'string') {
     return { tokens: [], bindings: [], diagnostics: [] };
   }
-  if (authoringOptionMode(options) !== 'markdown') {
+  if (!validAuthoringOptions(options)) {
     return { tokens: [], bindings: [], diagnostics: settings.diagnostics === false ? [] : compileDiagnostics(source, options) };
   }
   const document = settings.document?.source === source ? settings.document : parseLocal(source, options);
@@ -639,7 +634,15 @@ function attributeCompletions(source: string, offset: number, prefix: TagPrefix,
       .filter((attribute) => attribute.nameEnd < prefix.partialStart)
       .map((attribute) => attribute.name),
   );
-  return Object.entries(props)
+  const authorable = { ...props };
+  if (!['computed', 'const', 'external', 'validation', 'option', 'column', 'edge', 'step'].includes(prefix.name)
+    && !Object.hasOwn(props, 'css')) {
+    authorable.css = { kind: 'string', static: true };
+  }
+  if (prefix.name === 'counter' && !Object.hasOwn(props, 'action-id')) {
+    authorable['action-id'] = { kind: 'string', static: true };
+  }
+  return Object.entries(authorable)
     .filter(([name]) => !present.has(name) && name.startsWith(partial))
     .map(([name, prop]) => ({
       label: name,
@@ -666,14 +669,18 @@ function tagCompletions(source: string, offset: number,
   const hostNames = closing
     ? hostComponents.filter((component) => component.form !== 'leaf').map((component) => component.name)
     : hostComponents.map((component) => component.name);
-  return hostNames
+  const authorNames = ['css', 'javascript'].filter(name => !hostComponents.some(component => component.name === name));
+  return [...hostNames, ...authorNames]
     .filter((name) => name.startsWith(partial))
     .map((name) => ({
       label: name,
-      insertText: name,
+      insertText: !closing && authorNames.includes(name)
+        && source[completionRange(source, nameStart, offset, name).end] !== '>'
+        ? `${name}>\n\n</${name}>`
+        : name,
       range: completionRange(source, nameStart, offset, name),
       kind: 'tag' as const,
-      detail: closing ? 'closing tag' : 'component',
+      detail: closing ? 'closing tag' : authorNames.includes(name) ? 'document declaration' : 'component',
     }));
 }
 
@@ -688,7 +695,7 @@ export function completeLocalSource(
   options?: LocalCompileOptions,
 ): AuthorCompletion[] {
   if (typeof source !== 'string' || !Number.isFinite(offset)) return [];
-  if (authoringOptionMode(options) !== 'markdown') return [];
+  if (!validAuthoringOptions(options)) return [];
   const limit = Math.max(0, Math.min(source.length, Math.floor(offset)));
   const hostComponents = authoringHostComponents(options);
   const parsed = parseLocal(source, options);
@@ -703,7 +710,7 @@ export function completeLocalSource(
       const prefix = readTagPrefix(source, tagStart, limit);
       if (prefix?.inValue && prefix.currentAttribute) {
         const prop = authoringProps(prefix.name, hostComponents)?.[prefix.currentAttribute.name];
-        if (prop?.static) return [];
+        if (prop?.static || (!prop && ['css', 'action-id'].includes(prefix.currentAttribute.name))) return [];
       }
     }
     return bindingCompletions(source, limit, interpolation, data.bindings);
@@ -749,8 +756,8 @@ export function renameLocalBinding(
   if (typeof source !== 'string' || typeof oldName !== 'string' || typeof newName !== 'string') {
     throw new Error('Rename requires string arguments.');
   }
-  if (authoringOptionMode(options) === 'html') {
-    throw new Error('Bindings cannot be renamed in HTML mode.');
+  if (!validAuthoringOptions(options)) {
+    throw new Error('Bindings cannot be renamed with invalid compile options.');
   }
   if (!validBindingName(newName)) {
     throw new Error(`"${newName}" is not a valid binding name. Use [A-Za-z_][A-Za-z0-9_]* and avoid reserved names.`);
@@ -815,7 +822,7 @@ function formatOpeningTag(source: string, tag: RawTag): string {
  */
 export function formatLocalSource(source: string, options?: LocalCompileOptions): string {
   if (typeof source !== 'string') return source;
-  if (authoringOptionMode(options) !== 'markdown') return source;
+  if (!validAuthoringOptions(options)) return source;
   let compiled: ReturnType<typeof compileLocal>;
   try {
     compiled = compileLocal(source, options);

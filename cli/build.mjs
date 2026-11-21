@@ -315,6 +315,7 @@ export async function runBuild(options, context) {
     const props = {
       document: baseline.document,
       runtime,
+      capabilityGrants: project?.host.compileOptions,
       mode: options.mode,
       locale: options.locale,
       colorScheme: options.colorScheme,

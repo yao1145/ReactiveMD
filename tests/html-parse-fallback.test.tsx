@@ -3,8 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { parseFragment } from 'parse5';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { sanitizeLocalHtmlDocument } from '../src/local/html/html';
-import { LocalDocumentView, LocalReactiveDocument } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { prepareStandaloneDocument } from '../src/standalone/prepare';
 
 // parse5 normally repairs malformed HTML. Inject actual parser/serializer
 // failures to exercise the error boundary rather than its repair behavior.
@@ -55,14 +56,17 @@ describe('native HTML engine failure fallback', () => {
     expect(result.diagnostics).toContainEqual(expect.objectContaining({code: 'local.parse', severity: 'error'}));
     expect(elements(parseFragment(result.markup), 'pre').map(text)).toEqual([source]);
     expect(elements(parseFragment(result.markup), 'script')).toHaveLength(0);
-    const markup = renderToStaticMarkup(<LocalReactiveDocument source={source} compileOptions={policy} />);
-    expect(elements(parseFragment(markup), 'pre').map(text)).toEqual([source]);
-    expect(elements(parseFragment(markup), 'iframe')).toHaveLength(0);
+    const { document } = prepareStandaloneDocument(source, undefined, undefined, policy, undefined, true);
+    const runtime = createLocalRuntime(document);
+    try {
+      const markup = renderToStaticMarkup(<LocalDocumentView document={document} runtime={runtime} />);
+      expect(elements(parseFragment(markup), 'pre').map(text)).toEqual([source]);
+      expect(elements(parseFragment(markup), 'iframe')).toHaveLength(0);
+    } finally { runtime.dispose(); }
   });
 
   it('also falls back when an already compiled document fails render-time sanitization', () => {
-    const compiled = compileLocal('<p>Valid</p>', {enableCss: true});
-    if (!compiled.ok) throw new Error('Expected valid fixture');
+    const compiled = prepareStandaloneDocument('<p>Valid</p>', undefined, undefined, {enableCss: true}, undefined, true);
     const source = '<!-- force-parse-failure -->\n<p>Source</p>';
     const document = {...compiled.document, source};
     const runtime = createLocalRuntime(document);
@@ -78,10 +82,8 @@ describe('native HTML engine failure fallback', () => {
   ])('reports safe srcdoc engine fallback without failing its host: %s', nested => {
     const encoded = nested.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     const source = `<iframe srcdoc="${encoded}"></iframe>`;
-    const result = compileLocal(source, {enableExtendedHtml: true});
-    expect(result.ok).toBe(true);
+    const result = prepareStandaloneDocument(source, undefined, undefined, {enableExtendedHtml: true}, undefined, true);
     expect(result.diagnostics).toContainEqual(expect.objectContaining({code: 'local.html.fallback', severity: 'warning'}));
-    if (!result.ok) return;
     const frame = elements(parseFragment(result.document.nodes[0].value!), 'iframe')[0];
     const srcdoc = frame.attrs.find((attr: any) => attr.name === 'srcdoc').value;
     expect(elements(parseFragment(srcdoc), 'pre').map(text)).toEqual([nested]);
