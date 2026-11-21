@@ -137,6 +137,23 @@ describe('LocalCompileSession source phases', () => {
     }
   });
 
+  it('rejects an unsupported explicit phase instead of compiling as final', () => {
+    const session = createLocalCompileSession();
+    try {
+      for (const phase of ['streamingg', 'partial', '', null, 1]) {
+        const result = session.compile('hello', undefined, phase as unknown as LocalSourcePhase);
+        expect(result.ok).toBe(false);
+        expect(result.status).toBe('failed');
+        expect(result.diagnostics).toEqual([expect.objectContaining({
+          code: 'local.options.invalid',
+          messageKey: 'local.options.invalid.source-phase',
+        })]);
+      }
+    } finally {
+      session.dispose();
+    }
+  });
+
   it('returns a streaming snapshot as partial and caches an identical snapshot', () => {
     const session = createLocalCompileSession();
     try {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LocalReactiveDocument } from '../src/local/rendering/document/LocalDocumentView';
+import type { LocalSourcePhase } from '../src/local/types';
 
 // A model stream commonly ends mid-component: the closing tag has not arrived
 // yet. The streaming phase must keep that tail readable instead of failing the
@@ -110,6 +111,18 @@ describe('LocalReactiveDocument streaming source phase', () => {
     );
     expect(html).not.toContain('data-local-fallback');
     expect(html).toContain('role="slider"');
+  });
+
+  it('fails closed for an unsupported runtime sourcePhase prop', () => {
+    const html = renderToStaticMarkup(
+      <LocalReactiveDocument
+        source={COMPLETE}
+        sourcePhase={'streamingg' as unknown as LocalSourcePhase}
+      />,
+    );
+    expect(html).toContain('local-inactive');
+    expect(html).toContain('role="alert"');
+    expect(html).not.toContain('role="slider"');
   });
 
   it('accepts a transient diagnostics callback without changing the rendered document', () => {

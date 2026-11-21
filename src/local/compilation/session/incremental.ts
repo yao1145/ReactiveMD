@@ -37,6 +37,23 @@ function readSourcePhase(value: unknown): LocalSourcePhase | undefined {
   return value === 'streaming' || value === 'final' ? value : undefined;
 }
 
+/** An explicitly declared but unsupported phase must fail closed, never compile as final. */
+function invalidSourcePhaseResult(): LocalCompileResult {
+  return {
+    ok: false,
+    status: 'failed',
+    diagnostics: [{
+      code: 'local.options.invalid',
+      message: 'Compile option sourcePhase must be "streaming" or "final".',
+      severity: 'error',
+      range: { start: 0, end: 0 },
+      line: 1,
+      column: 1,
+      messageKey: 'local.options.invalid.source-phase',
+    }],
+  };
+}
+
 /** A host may mark the phase on the options object instead of the call argument. */
 function optionSourcePhase(options: LocalCompileOptions | undefined): LocalSourcePhase | undefined {
   try {
@@ -215,8 +232,7 @@ export interface LocalIncrementalStats {
 }
 
 export class LocalCompileSession {
-  private disposed = false;
-  private snapshot: Snapshot | null = null;
+  private disposed = false;  private snapshot: Snapshot | null = null;
   private deferred: {source: string; key: string; tracked: Tracked; options?:LocalCompileOptions} | null = null;
   private readonly parseSession=new LocalParseSession();
   private readonly semantic=new LocalSemanticCache();
@@ -248,6 +264,9 @@ export class LocalCompileSession {
    */
   compileShared(source:string,options?:LocalCompileOptions,phase?:LocalSourcePhase):LocalCompileResult {
     if(this.disposed)throw new Error('Local compile session is disposed');
+    // A phase argument is an explicit contract: an unsupported value fails
+    // instead of silently falling back to the interactive final semantics.
+    if(phase!==undefined&&readSourcePhase(phase)===undefined)return invalidSourcePhaseResult();
     const effective=readSourcePhase(phase)??optionSourcePhase(options);
     // Streaming never reads or mutates the final caches: a later final compile
     // must not inherit a stabilized partial snapshot, deferred index or shared

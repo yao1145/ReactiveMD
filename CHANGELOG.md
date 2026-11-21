@@ -8,6 +8,10 @@
 
 - Add streaming source compilation. Compile sessions, `LocalCompileScheduler`, Workers and `LocalReactiveDocument` accept an explicit `streaming` or `final` source phase; unfinished regions render as literal text and fixable issues are reported through `transientDiagnostics`, while deterministic errors and final strict/recovery semantics stay unchanged. The separate `reactive-md-editor` package now applies related external source snapshots as in-place edits, preserving selection, scroll and undo history and deferring updates during IME composition.
 
+### Fixed
+
+- Reject unsupported runtime `sourcePhase` values instead of falling back to interactive final rendering.
+
 ## 0.9.0 (2026-11-20, latest channel)
 
 Theme cascade and controls, a focused 18-component minimal preset, static PDF export, named host network channels, and parser, state restoration and incremental editing fixes.
