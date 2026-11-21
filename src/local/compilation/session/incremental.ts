@@ -72,6 +72,8 @@ function dependencies(nodes: LocalNode[], document: LocalDocument, rename?: Map<
 function contextKind(node: LocalNode): 'context' | 'fragment' | 'unsupported' {
   let context = false;
   for (const child of allNodes([node])) {
+    if (['authorCss', 'authorJavaScript', 'extendedHtmlRaw'].includes(child.type)
+      || (child.attrs && (Object.hasOwn(child.attrs, 'css') || Object.hasOwn(child.attrs, 'action-id')))) return 'unsupported';
     if (['definition', 'footnoteDefinition', 'footnoteReference', 'linkReference', 'imageReference'].includes(child.type)) return 'unsupported';
     if (child.type === 'hostComponent' || child.type === 'htmlDocument' || child.type === 'fallback') return 'unsupported';
     if (child.type === 'component') {
@@ -247,7 +249,7 @@ export class LocalCompileSession {
     let defer = false;
     const pending = this.deferred;
     this.deferred = null;
-    if (!recoveryMode && pending && pending.key === key && check.ok && !check.htmlActive && typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH) {
+    if (!recoveryMode && pending && pending.key === key && check.ok && typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH) {
       if (source === pending.source) {
         this.deferred = pending;
         this.lastStats = {mode: 'cached', totalBlocks: this.lastStats.totalBlocks, compiledBlocks: 0, reusedBlocks: this.lastStats.totalBlocks, compiledCharacters: 0};
@@ -268,7 +270,7 @@ export class LocalCompileSession {
       }
     } else if (pending) reason = recoveryMode ? 'recovery-reference' : 'options-or-limits';
     const previous = this.snapshot;
-    if (!recoveryMode && previous && previous.key === key && check.ok && !check.htmlActive && typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH) {
+    if (!recoveryMode && previous && previous.key === key && check.ok && typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH) {
       if (source === previous.source) {
         this.lastStats = {mode: 'cached', totalBlocks: previous.blocks.length, compiledBlocks: 0, reusedBlocks: previous.blocks.length, compiledCharacters: 0};
         return this.publish(previous);
@@ -283,7 +285,7 @@ export class LocalCompileSession {
     this.snapshot = null;
     const tracked = compileLocalTracked(source, options,this.services);
     this.lastStats = {mode: 'full', totalBlocks: tracked.parsed?.nodes.length ?? 0, compiledBlocks: tracked.parsed?.nodes.length ?? 0, reusedBlocks: 0, compiledCharacters: typeof source === 'string' ? source.length : 0, fallbackReason: reason,semantic:tracked.semantic,stages:tracked.timings};
-    if (!recoveryMode && tracked.result.ok && tracked.result.diagnostics.length === 0 && !hasRecoveries(tracked.result) && check.ok && !check.htmlActive && key !== 'invalid') {
+    if (!recoveryMode && tracked.result.ok && !tracked.result.document.capabilities && tracked.result.diagnostics.length === 0 && !hasRecoveries(tracked.result) && check.ok && key !== 'invalid') {
       if (defer) {
         const deferredOptions = options === undefined ? undefined : plainCompiledData(options);
         // Keep the validated, frozen config so per-block compile keys do not

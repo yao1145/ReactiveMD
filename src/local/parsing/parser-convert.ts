@@ -269,7 +269,7 @@ export function createMarkdownConverter({
         }
         return [node('footnoteReference', from, to, { identifier, label })];
       }
-      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || BLOCK_HTML_RESULTS.has(children[0].type) || ((children[0].type === 'component' || children[0].type === 'hostComponent') && !isInlineName(children[0].name!)))) return children;
+      if (raw.type === 'paragraph' && children?.length === 1 && (children[0].type === 'math' || children[0].type === 'fallback' || children[0].type === 'footnoteDefinition' || children[0].type === 'authorCss' || children[0].type === 'authorJavaScript' || children[0].type === 'extendedHtmlRaw' || BLOCK_HTML_RESULTS.has(children[0].type) || ((children[0].type === 'component' || children[0].type === 'hostComponent') && !isInlineName(children[0].name!)))) return children;
       if (raw.type === 'paragraph' && !children?.length) return [];
       if (raw.type === 'html') {
         if (options.literalHtml) {

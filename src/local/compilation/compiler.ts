@@ -4,7 +4,7 @@ import { compileLocalCore } from './compiler-core';
 import { plainCompiledData } from '../transport/compiled-data';
 import { inspectLocalMathDisplay } from '../evaluation/math/display';
 import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../evaluation/math/latex';
-import { sanitizeLocalHtmlDocument } from '../html/html';
+import { sanitizeLocalHtmlFragment } from '../html/html';
 import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../configuration/options';
 import { parseLocal } from '../parsing/parser';
 import type { LocalCompilerCoreServices, LocalTrackedSemanticService, SemanticCacheStats } from './compiler-services';
@@ -70,7 +70,7 @@ function coreServices(services?: LocalCompilerServices): LocalCompilerCoreServic
     display: services?.semantic
       ? (source, block) => services.semantic!.display(source, block)
       : inspectLocalMathDisplay,
-    htmlDocument: sanitizeLocalHtmlDocument,
+    htmlFragment: sanitizeLocalHtmlFragment,
     plotMath: { kind: plotFormulaKind, gridSize: implicitGridSize, compile: compilePlotFormula },
   };
 }

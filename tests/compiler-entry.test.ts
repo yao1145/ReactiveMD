@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { CompilerConfigurationError, createCompiler } from '../src/compiler/index';
 import { createStandardCompiler } from '../src/compiler/standard';
-import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
 import { createLocalConfig } from '../src/sdk/config';
 import { defineLocalComponent } from '../src/sdk/manifest';
 import { minimalPreset } from '../src/presets/minimal';
@@ -192,12 +191,10 @@ describe('standard compiler entry', () => {
     expect(minimal.compile('<rating bind="score" initial="8">').ok).toBe(false);
   });
 
-  it('diagnoses capabilities the minimal assembly does not install', () => {
-    const minimal = createCompiler({ enableCss: true }).compile('<p>Hello</p>');
-    expect(minimal.ok).toBe(false);
-    expect(minimal.diagnostics[0]?.code).toBe('local.capability.html');
-    expect(formatLocalDiagnostic(minimal.diagnostics[0], 'en')).toContain('native HTML');
-    expect(formatLocalDiagnostic(minimal.diagnostics[0], 'zh')).toMatch(/[㐀-鿿]/);
+  it('keeps the minimal compiler on the Markdown path when CSS is enabled', () => {
+    const minimal = createCompiler({ enableCss: true }).compile('## Hello');
+    expect(minimal.ok).toBe(true);
+    if (minimal.ok) expect(minimal.document.nodes[0].type).toBe('heading');
     expect(createStandardCompiler({ enableCss: true }).compile('<p>Hello</p>').ok).toBe(true);
   });
 

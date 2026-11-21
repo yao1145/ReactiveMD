@@ -129,13 +129,13 @@ describe('HTML table compatibility', () => {
     expect(flat(result.document.nodes).some(n => n.type === 'htmlTableElement')).toBe(false);
   });
 
-  it('also accepts table elements in native mode without enabling extended HTML', () => {
+  it('keeps native tables in the RMD tree when only CSS is enabled', () => {
     const result = compileLocal('<table><tr><th scope="col">Header</th></tr><tr><td rowspan="0">Cell</td></tr></table>', { enableCss: true });
     expect(result.ok).toBe(true);
     expect(result.diagnostics).toEqual([]);
     if (!result.ok) return;
-    expect(result.document.html?.enableExtendedHtml).toBe(false);
-    expect(result.document.nodes[0].value).toContain('<table>');
+    expect(result.document.html).toBeUndefined();
+    expect(flat(result.document.nodes).some(node => node.type === 'htmlTable')).toBe(true);
   });
 
   it('enforces the existing syntax budget for native structures', () => {

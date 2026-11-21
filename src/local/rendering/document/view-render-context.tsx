@@ -7,7 +7,9 @@ import type {
 } from '../render-types';
 import type { LocalComponentDefinition } from '../../../sdk/types';
 import { useLocalize, type Localize, type LocalLocale } from '../../../react/localization';
-import type { Diagnostic, LocalNode, LocalRuntime, LocalValue } from '../../types';
+import type { Diagnostic, LocalHtmlPolicy, LocalNode, LocalRuntime, LocalValue } from '../../types';
+import type { AuthorAction } from '../../runtime/author-script-protocol';
+import { parseAuthorDeclarations } from '../../css/author-css';
 import type { LocalImageResolver, LocalUrlPolicy } from './LocalDocumentViewCore';
 import { createHeadingAnchors } from '../../parsing/heading-anchors';
 import {
@@ -195,6 +197,10 @@ export function safeUrl(
 
 export interface RenderEnv {
   network?: ComponentNetwork;
+  capabilityPolicy?: LocalHtmlPolicy;
+  allowedFrameOrigins?: readonly string[];
+  componentStyles?: Readonly<Record<string, string>>;
+  dispatchAuthorAction?: (nodeId: string, action: AuthorAction) => boolean;
   runtime: LocalRuntime;
   rootRef: RefObject<HTMLElement | null>;
   urlPolicy?: LocalUrlPolicy;
@@ -263,7 +269,7 @@ export function sourceProps(
 /* ------------------------------------------------------- public adapter */
 
 /** Line/column for an adapter-owned diagnostic, clamped to the source. */
-function sourcePosition(env: RenderEnv, offset: number): { line: number; column: number } {
+export function sourcePosition(env: RenderEnv, offset: number): { line: number; column: number } {
   let source = '';
   try {
     source = env.runtime.document.source ?? '';
@@ -341,6 +347,10 @@ export function extensionEnvironment(
   }
   return {
     runtime: env.runtime,
+    authorStyle: env.componentStyles && Object.hasOwn(env.componentStyles, node.id)
+      ? parseAuthorDeclarations(env.componentStyles[node.id])
+      : undefined,
+    dispatchAuthorAction: env.dispatchAuthorAction && (action => env.dispatchAuthorAction!(node.id, action)),
     services: env.runtime.services,
     network: env.network,
     mode: env.mode,

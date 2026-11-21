@@ -4,6 +4,7 @@ import { createLocalStateFile } from '../src/local/runtime/state';
 import { createShareableHtml } from '../src/shareable';
 import type { LocalCompileOptions } from '../src/local/types';
 import { prepareLocalPrintHtml, waitForLocalPrintImages } from '../src/export/print-document';
+import { sanitizeLocalHtmlDocument } from '../src/local/html/html';
 
 function compile(source: string, options: LocalCompileOptions = {}) {
   const result = compileLocal(source, options);
@@ -11,14 +12,18 @@ function compile(source: string, options: LocalCompileOptions = {}) {
   return result.document;
 }
 
-/** Engine envelope around a native document, exactly as the CLI builds it. */
+/** Engine envelope around legacy whole-document markup. */
 function nativeEnvelope(source: string): string {
-  const document = compile(source, { enableCss: true });
+  const document = { ...compile(''), source };
+  const { markup } = sanitizeLocalHtmlDocument(source, {
+    enableCss: true, enableJavaScript: false, enableExtendedHtml: false,
+  }, 1_000);
+  const escaped = markup.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
   return createShareableHtml({
     title: 'Print',
     source,
     state: createLocalStateFile(document, document.initialState),
-    staticMarkup: '<article class="md-document"></article>',
+    staticMarkup: `<div class="reactive-md-native-document"><iframe class="reactive-md-native-frame" sandbox="" srcdoc="${escaped}"></iframe></div>`,
     css: 'body { color: black; }',
     mode: 'static',
     compileOptions: { enableCss: true },

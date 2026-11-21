@@ -79,6 +79,12 @@ export type LocalHtmlDocumentSanitizer = (
   maxSyntaxNodes: number,
 ) => { markup: string; diagnostics: Diagnostic[] };
 
+export type LocalHtmlFragmentSanitizer = (
+  source: string,
+  policy: LocalHtmlPolicy,
+  maxSyntaxNodes: number,
+) => { markup?: string; diagnostics: Diagnostic[] };
+
 /** Optional plot-formula compiler; omitted assemblies reject plot formulas. */
 export interface LocalCompilerPlotMath {
   kind(source: string): PlotFormulaKind | null;
@@ -96,8 +102,8 @@ export interface LocalCompilerCoreServices {
    */
   rowPlans?: InlinePlanLookup;
   display?: LocalMathDisplayInspector;
-  /** Whole-document HTML branch; absent in the minimal assembly. */
-  htmlDocument?: LocalHtmlDocumentSanitizer;
+  /** Extended HTML fragment service; absent in the minimal assembly. */
+  htmlFragment?: LocalHtmlFragmentSanitizer;
   /** Plot formula semantics; absent in the minimal assembly. */
   plotMath?: LocalCompilerPlotMath;
 }
@@ -106,8 +112,8 @@ export interface CompileState extends StructureState {
   semantic?: LocalCompilerSemanticService;
   /** Optional KaTeX display precheck; absent in the minimal core entry. */
   display?: LocalMathDisplayInspector;
-  /** Optional native HTML document branch; absent in the minimal core entry. */
-  htmlDocument?: LocalHtmlDocumentSanitizer;
+  /** Extended HTML fragment service; absent in the minimal assembly. */
+  htmlFragment?: LocalHtmlFragmentSanitizer;
   /** Optional plot formula semantics; absent in the minimal core entry. */
   plotMath?: LocalCompilerPlotMath;
   source: string;

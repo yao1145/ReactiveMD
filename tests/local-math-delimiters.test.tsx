@@ -196,11 +196,12 @@ $$e^2$$
     expect(issue.line).toBe(4);
   });
 
-  it('keeps native HTML mode literal', () => {
-    const result = compileLocal('<p>\\(x\\)</p>\\[y\\]', { enableCss: true });
+  it('keeps LaTeX active with author CSS enabled', () => {
+    const source = '<p>\\(x\\)</p>\n\n\\[y\\]';
+    const result = compileLocal(source, { enableCss: true });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.document.html).toBeDefined();
-    expect(formulas(result.document.nodes)).toEqual([]);
+    expect(result.document.html).toBeUndefined();
+    expect(formulas(result.document.nodes).map(node => node.type)).toEqual(['inlineMath', 'math']);
   });
 });

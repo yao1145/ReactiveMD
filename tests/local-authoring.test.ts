@@ -424,20 +424,19 @@ describe('compile options', () => {
     expect(analysis.diagnostics.some((diagnostic) => diagnostic.code === 'local.budget')).toBe(true);
   });
 
-  it('treats HTML mode as opaque for analysis, completion, rename and formatting', () => {
+  it('keeps RMD authoring active around an opaque extended HTML fragment', () => {
     const options: LocalCompileOptions = { enableExtendedHtml: true };
-    const source = '<div class="card">{{ nope }}</div>';
+    const fragment = '<iframe srcdoc="<p>{{ people }}</p>"></iframe>';
+    const source = `<slider bind="people" label="People">\n\n${fragment}\n\n{{ people }}`;
     const analysis = analyzeLocalSource(source, options);
-    expect(analysis).toEqual({
-      tokens: [],
-      bindings: [],
-      diagnostics: compileLocal(source, options).diagnostics,
-    });
-    expect(completeLocalSource(source, source.indexOf('nope') + 2, options)).toEqual([]);
-    expect(() => renameLocalBinding(source, 'nope', 'other', options)).toThrow(/HTML mode/);
-
-    const spacedHtml = '<div   class = "card" >x</div>';
-    expect(formatLocalSource(spacedHtml, options)).toBe(spacedHtml);
+    expect(analysis.bindings.map(binding => binding.name)).toEqual(['people']);
+    expect(completeLocalSource(source, source.indexOf('people', source.indexOf('<iframe')) + 2, options)).toEqual([]);
+    expect(completeLocalSource(source, source.lastIndexOf('people') + 2, options).map(item => item.label)).toContain('people');
+    const renamed = renameLocalBinding(source, 'people', 'count', options);
+    expect(renamed.source).toContain(fragment);
+    expect(renamed.source).toContain('bind="count"');
+    expect(renamed.source).toContain('{{ count }}');
+    expect(formatLocalSource(source, options)).toContain(fragment);
   });
 });
 

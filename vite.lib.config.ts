@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
+import { bundleAuthorWorker } from './scripts/bundle-author-worker';
 
 const pluginEntries = Object.fromEntries(
   ['forms', 'network', 'navigation', 'data', 'chart', 'plot', 'diagram', 'gallery'].map((name) => [
@@ -9,7 +10,7 @@ const pluginEntries = Object.fromEntries(
 );
 
 export default defineConfig({
-  plugins: [{
+  plugins: [bundleAuthorWorker(), {
     name: 'optional-print-css',
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'reactive-md-print.css', source: readFileSync(new URL('./src/print.css', import.meta.url), 'utf8') });

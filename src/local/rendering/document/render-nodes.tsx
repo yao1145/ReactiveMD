@@ -7,6 +7,7 @@ import {
   readBooleanAttr,
   safeUrl,
   scalarText,
+  sourcePosition,
   sourceProps,
   type RenderEnv,
 } from './view-render-context';
@@ -26,6 +27,7 @@ import { CodeBlockView } from '../code/code-block';
 import { ZoomableImage } from '../image/image-view';
 import { LatexView } from '../math-view';
 import type { Localize } from '../../../react/localization';
+import { ExtendedHtmlFragment } from './ExtendedHtmlFragment';
 
 function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' {
   const level = Math.min(6, Math.max(1, depth ?? 1));
@@ -205,6 +207,7 @@ function renderFallback(env: RenderEnv, node: LocalNode, key: string, block: boo
       key={key}
       className={block ? 'local-fallback local-fallback-block' : 'local-fallback local-fallback-inline'}
       title={env.t('Unsupported syntax shown as source', '未支持的语法，已按源码原样显示')}
+      {...sourceProps(env, node)}
       data-local-fallback=""
     >
       {fallbackSource(env, node)}
@@ -719,6 +722,23 @@ function renderNode(
           {node.value ?? ''}
         </span>
       );
+
+    case 'extendedHtml':
+      if (env.capabilityPolicy?.enableExtendedHtml) {
+        return <ExtendedHtmlFragment
+          key={key}
+          inline={!block}
+          source={fallbackSource(env, node)}
+          sourceAttributes={sourceProps(env, node)}
+          policy={env.capabilityPolicy}
+          allowedFrameOrigins={env.allowedFrameOrigins}
+          onDiagnostics={items => env.report?.(items.map(item => {
+            const start = node.range.start + item.range.start;
+            return { ...item, ...sourcePosition(env, start), range: { start, end: node.range.start + item.range.end } };
+          }))}
+        />;
+      }
+      return renderFallback(env, node, key, block);
 
     case 'fallback':
       return renderFallback(env, node, key, block);

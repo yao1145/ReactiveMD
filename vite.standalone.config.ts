@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
+import { bundleAuthorWorker } from './scripts/bundle-author-worker';
 
 export default defineConfig({
+  plugins: [bundleAuthorWorker()],
   // This dependency's browser entry touches document at import time; its default entry is universal.
   resolve: { alias: { 'decode-named-character-reference': fileURLToPath(import.meta.resolve('decode-named-character-reference')) } },
   define: { 'process.env.NODE_ENV': JSON.stringify('production') },

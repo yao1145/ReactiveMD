@@ -206,6 +206,36 @@ export function planRmdRecovery(source: string, hooks: RmdRecoveryHooks): RmdRec
     const lower = tag.name.toLowerCase();
     const kind = classify(tag.name, lower);
     const next = Math.max(tag.end, index + 1);
+    // Document declarations are raw author source: markup-looking text inside
+    // their bodies (for example `a < b` in a script) never changes structure,
+    // and their own closing tag is not a stray component closer.
+    if (kind === 'rmd' && !hooks.isKnown(tag.name)
+      && (lower === 'css' || lower === 'javascript')) {
+      if (tag.closing || !tag.complete) { index = next; continue; }
+      const stop = hooks.rawHtmlEnd(lower, tag.end, insideContainer);
+      if (!hooks.beginsLine(index)) {
+        // A declaration name inside prose owns only an inline block; a
+        // multiline body there stays ordinary paragraph text.
+        const inline = stop !== null && !/\r?\n[\t ]*\r?\n/.test(source.slice(tag.end, stop));
+        index = inline && stop !== null ? Math.max(stop, next) : next;
+        continue;
+      }
+      if (stop !== null) { index = Math.max(stop, next); continue; }
+      // An unclosed declaration is reported by the region scanner, which uses
+      // the same blank-line (or enclosing close) boundary. Skipping the same
+      // fragment keeps the planner from recording an overlapping recovery.
+      const blank = /\r?\n[\t ]*\r?\n/.exec(source.slice(tag.end));
+      let boundary = blank ? tag.end + blank.index : source.length;
+      const enclosing = stack[stack.length - 1]?.name;
+      if (enclosing) {
+        const closing = new RegExp(`</${enclosing}\\s*>`, 'gi');
+        closing.lastIndex = tag.end;
+        const match = closing.exec(source);
+        if (match && match.index < boundary) boundary = match.index;
+      }
+      index = Math.max(boundary, tag.end);
+      continue;
+    }
     if (kind === 'theme' || kind === 'ignore' || tag.name.length > MAX_TAG_NAME) {
       index = next;
       continue;

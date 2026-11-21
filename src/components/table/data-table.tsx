@@ -3,7 +3,7 @@ import type {
   LocalComponentContext,
   LocalComponentContent,
 } from '../../react/component-api';
-import {
+import { useAuthorComponentRoot,
   DEFAULT_LOCAL_DATA_TABLE_ROWS,
   MAX_LOCAL_DATA_TABLE_COLUMNS,
   MAX_LOCAL_DATA_TABLE_ROWS,
@@ -371,11 +371,12 @@ function parseDataTable(context: LocalComponentContext): ParseResult {
 }
 
 export function DataTableView(context: LocalComponentContext): ReactNode {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const parsed = parseDataTable(context);
   if (!parsed.ok) {
     return (
-      <div className="local-error local-data-table-error" role="alert">
+      <div {...authorRoot()} className="local-error local-data-table-error" role="alert">
         {dataTableFailureMessage(view.t, parsed.failure)}
       </div>
     );
@@ -403,7 +404,7 @@ export function DataTableView(context: LocalComponentContext): ReactNode {
 
   if (!result.ok) {
     return (
-      <div className="local-error local-data-table-error" role="alert">
+      <div {...authorRoot()} className="local-error local-data-table-error" role="alert">
         {dataTableFailureMessage(view.t, result.failure)}
       </div>
     );
@@ -411,7 +412,7 @@ export function DataTableView(context: LocalComponentContext): ReactNode {
 
   const { model } = result;
   return (
-    <div className="md-table-scroll local-data-table-scroll" data-local-data-table="">
+    <div {...authorRoot()} className="md-table-scroll local-data-table-scroll" data-local-data-table="">
       <table className="md-table local-data-table" aria-label={parsed.table.label}>
         <thead>
           <tr>

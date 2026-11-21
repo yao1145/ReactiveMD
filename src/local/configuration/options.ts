@@ -6,6 +6,7 @@ import { localComponentConfigKey, localConfigKey, readLocalConfig } from '../../
 import { getLocalComponentRegistry } from '../../sdk/registry';
 import defaultPreset from '../../presets/default';
 import { STANDARD_PARSER_CAPABILITIES } from '../parsing/parser-standard';
+import { DEFAULT_CAPABILITY_POLICY } from './capability-policy';
 
 export { LOCAL_HTML_FLAGS, LOCAL_RECOVERY_STRATEGY_VERSION };
 export type { LocalHtmlFlag, LocalOptionCheck } from './options-core';
@@ -137,16 +138,23 @@ function hostComponentsSignature(value: unknown): string {
  * the source text. Unknown keys are deliberately ignored.
  */
 export function localCompileOptionsKey(options?: LocalCompileOptions): string {
+  return compileOptionsKey(options, true);
+}
+
+export function localRuntimeOptionsKey(options?: LocalCompileOptions): string {
+  return compileOptionsKey(options, false);
+}
+
+function compileOptionsKey(options: LocalCompileOptions | undefined, includeCapabilities: boolean): string {
   if (options === undefined) options = {};
   if (!isRecord(options)) return 'invalid';
-  const flags = LOCAL_HTML_FLAGS.map((flag) => {
-    if (!Object.hasOwn(options, flag)) return '-';
-    const value = options[flag];
-    if (value === undefined) return '-';
+  const flags = includeCapabilities ? LOCAL_HTML_FLAGS.map((flag) => {
+    const value = Object.hasOwn(options, flag) ? options[flag] : undefined;
+    if (value === undefined) return DEFAULT_CAPABILITY_POLICY[flag] ? '1' : '0';
     if (value === true) return '1';
     if (value === false) return '0';
     return '!';
-  }).join('');
+  }).join('') : '';
   let limitsKey = '';
   if (Object.hasOwn(options, 'limits')) {
     const limits = options.limits;

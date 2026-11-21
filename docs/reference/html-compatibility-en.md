@@ -1,60 +1,26 @@
-# Partial HTML compatibility and temporary routing policy
+# HTML compatibility and author capabilities
 
 **English** · [中文](html-compatibility-ch.md)
 
-Pass `strict: false` to enable [local structural recovery](../integration/local-integration-en.md#strict-parsing-and-local-recovery) in the default document path. It grants no additional HTML capability. A details summary and body can use consecutive lines without blank separators; they render as a single disclosure in an accordion, with rich summary text and keyboard support.
-
-This feature targets the next release. Documents use Markdown, ReactiveMD controls and expressions by default, with the P0 HTML subset below. Host applications can enable author CSS, JavaScript and extended HTML separately. All three options default to `false`.
-
-## Temporary routing policy
-
-This release routes whole documents to avoid mixed parsing and rendering conflicts between author CSS, JavaScript, extended HTML and ReactiveMD.
-
-| Compile options | Document behavior |
-| --- | --- |
-| All three options omitted or `false` | ReactiveMD parsing and the existing React renderer, including P0 HTML |
-| Any option `true` | Native HTML for the entire source, rendered in an isolated iframe |
-
-In native HTML mode, `# headings`, `**emphasis**`, LaTeX and `{{ expressions }}` remain ordinary text. Elements such as `input` and `table` use HTML semantics. ReactiveMD components establish no bindings. Turning all options off recompiles the document in the default mode. This is a transitional policy for this release; mixed compatibility can be evaluated later.
-
-Options are host capabilities. Source tags and parameter state files cannot grant them. The demo displays the active mode and resets all three capabilities when the page reloads.
-
-## Options and API
-
-```ts
-import { compileLocal } from 'reactive-md';
-
-// Markdown, ReactiveMD and P0 HTML.
-const reactive = compileLocal(source);
-
-// Native HTML for the entire source; author CSS is enabled.
-const html = compileLocal(source, {
-  enableCss: true,
-  enableJavaScript: false,
-  enableExtendedHtml: false,
-});
-```
+ReactiveMD documents mix Markdown, RMD components, expressions and basic HTML. The host controls author capabilities independently.
 
 | Option | Default | Capability |
 | --- | --- | --- |
-| `enableCss` | `false` | Author CSS |
-| `enableJavaScript` | `false` | Author scripts and event handlers |
-| `enableExtendedHtml` | `false` | P1 elements, embeds, forms, SVG/MathML and whole-page HTML features |
+| `enableCss` | `true` | Document styles, component declarations and styles in granted HTML fragments |
+| `enableJavaScript` | `false` | Author scripts in interactive mounts |
+| `enableExtendedHtml` | `false` | Additional native HTML fragments |
 
-Each option must be boolean. Enabling one does not enable the others. Styled extended elements require both extended HTML and CSS; scripts in extended elements require both extended HTML and JavaScript. Built-in styles, interactions, chart SVG and formula MathML continue to work independently of these author capabilities.
+Give a source view its grants through `LocalReactiveDocument.compileOptions`. Give a precompiled view its own grants through `LocalDocumentView.capabilityGrants`. A direct mount defaults to CSS on, JavaScript off and extended HTML off. Effective permission requires both compilation and mount permission. Changing only these capabilities preserves the source view's runtime state.
 
-Source-length limits and `limits.maxSyntaxNodes` still apply. The HTML path counts traversed parse-tree nodes, with a cumulative budget shared by nested `srcdoc` documents.
+### Styles
 
-The React convenience component accepts the same settings through `compileOptions`:
+Place paired `<css>` blocks before the body. Multiple blocks cascade in source order. A component's `css` attribute applies declarations to its visible root. Document selectors stop at nested document roots. Ordinary inheritance still applies when the host nests documents. External author stylesheets and CSS resource loads are outside the inline style policy. A late style block or a declaration on a node without a visible root produces a source diagnostic. A registered component named `css` or `javascript` keeps its tag. A component schema's own `css` property keeps its original meaning.
 
-```tsx
-<LocalReactiveDocument
-  source={source}
-  compileOptions={{ enableCss: true }}
-/>
-```
+### Scripts
 
-Lower-level hosts pass the compiled document to `LocalDocumentView`. Native HTML documents have a `document.html` field with the three normalized flags and empty parameter and binding collections. This field is runtime metadata. Store the original source and host settings when saving a document.
+Place code in a paired `<javascript>` block. After an interactive mount restores its state, an isolated worker initializes the blocks in source order. Each block has its own lexical scope. Use `await rmd.get(name)`, `await rmd.set(name, value)` and `await rmd.setMany(values)` to operate on named bindings. Writes follow the component's existing validation and read-only rules.
+
+The counter exposes `increment`, `decrement` and `reset`. Give a counter an `action-id` and register `rmd.handleAction(id, "increment", callback)` to take over that action on that instance. `rmd.observeAction` observes an action without changing its default handler. Revocation, script replacement and unmount end the session. Static HTML, PDF and the static phase of hydration use the supplied RMD state.
 
 ## P0 HTML in the default mode
 
@@ -116,25 +82,12 @@ Native HTML fragments that cannot compile are displayed as their original text, 
 
 In the native HTML route, an unsupported attribute makes its element fall back to source while neighboring elements continue to render. If whole-document parsing, serialization or compilation budget checks fail, React previews and standalone mounts display the complete source with preserved line breaks and escaped tags. Error results from `compileLocal`, resource limits and `onDiagnostics` reports are retained. Invalid host options and ReactiveMD component syntax errors keep their existing behavior.
 
-## Extended HTML
+## Extended HTML and export
 
-`enableExtendedHtml` controls the following author syntax:
+Registered components take precedence. For example, `<input bind="name">` remains an RMD input, and `details` keeps Markdown and expressions in its body. Added native elements render as isolated fragments. Denied fragments appear as source at their original positions.
 
-- Definition lists: `dl`, `dt`, `dd`.
-- Additional text semantics: `small`, `kbd`, `samp`, `var`, `abbr`, `q`, `cite`, `ins`.
-- Figures and structure: `figure`, `figcaption`, `article`, `section`, `aside`, `header`, `footer`, `ruby`, `rt`, `rp`, `wbr`.
-- Native forms, `iframe`, `object`, `embed`, `dialog`, arbitrary SVG/MathML and whole-page HTML features.
+Use sanitized `srcdoc` for self-contained embeds. Grant exact remote HTTPS origins with the mount's `allowedFrameOrigins` option. Fragment styles and scripts require their respective grants. The sandbox governs navigation, forms and parent document access.
 
-In the default mode, `table` distinguishes native and ReactiveMD syntax by its body; existing components such as `section`, `input` and `select` retain their current meanings. In native HTML mode, these names use browser semantics.
+New interactive exports record `sourceSemantics: "mixed-rmd-v1"`, the capability flags and the chosen state baseline. Old v1/v2 files without the field retain their original interpretation, including whole-document HTML where a capability was enabled. The envelope version continues to distinguish restoration contracts.
 
-## Isolation and export
-
-Author HTML runs inside a sandboxed iframe without `allow-same-origin`. Whole-page structure, styles and scripts apply to this isolated document. CSP and sandbox restrictions still govern resources, form submission and navigation. Extended HTML does not grant unrestricted network access.
-
-This release supports inline CSS and JavaScript. Enabling the options does not automatically load external scripts, stylesheets, images, media or embedded resources. Extended HTML permits HTTP(S) form submission and `base` URL resolution inside the isolated document while retaining host-access and top-navigation restrictions. Iframes can use `srcdoc` for inline content; external `object` and `embed` resources remain subject to CSP.
-
-Once arbitrary JavaScript is enabled, scripts can create elements and styles dynamically. The other options primarily constrain author source; they do not promise to block individual runtime DOM operations. Host isolation remains in place.
-
-Interactive export preserves compile options and the selected rendering path. Native HTML static export retains built-in browser disclosure and form behavior while disabling author JavaScript. These documents have no ReactiveMD parameters to save. Older export payloads without compile options use the default with all three capabilities off.
-
-See [integration](../integration/local-integration-en.md), [shareable export](../integration/shareable-export-en.md) and [security](../../SECURITY.md).
+See [local integration](../integration/local-integration-en.md), [shareable export](../integration/shareable-export-en.md) and the [security policy](../../SECURITY.md).

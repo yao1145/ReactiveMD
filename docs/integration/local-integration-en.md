@@ -6,7 +6,7 @@ Local interaction mode uses HTML-style tags, in-place parameters and `{{ express
 
 ## Runtime and entries
 
-See [HTML compatibility](../reference/html-compatibility-en.md) for the next release's P0 HTML support and host capability options. The temporary routing policy sends the entire document to native HTML when author CSS, JavaScript or extended HTML is enabled. Markdown and ReactiveMD interpretation stop in that path.
+ReactiveMD mixes P0 HTML with Markdown and components. Hosts grant author styles, scripts and extended HTML fragments independently. See [HTML compatibility](../reference/html-compatibility-en.md).
 
 | Entry | Contents | Dependency |
 | --- | --- | --- |
@@ -530,7 +530,7 @@ These limits bound the work for a single document; they do not replace host cont
 
 ## Features not provided
 
-The default ReactiveMD path supports P0 HTML. Host options for author CSS, JavaScript and extended HTML use the separate native HTML path described in [HTML compatibility](../reference/html-compatibility-en.md). Automatic state persistence, unrestricted network/storage calls, Vue, React 18 and CommonJS remain outside the current API. Hosts declare read-only values and invoke state export/import explicitly.
+ReactiveMD supports P0 HTML and independent author capabilities. See [HTML compatibility](../reference/html-compatibility-en.md). Automatic state persistence, unrestricted network/storage calls, Vue, React 18 and CommonJS remain outside the current API. Hosts declare read-only values and invoke state export/import explicitly.
 
 The source [extension SDK](extension-sdk-en.md) provides custom component and theme package registration in `reactive-md@0.8.0`; follow the [component plugin development guide](../development/component-development-en.md). On ordinary source edits, `LocalReactiveDocument` tries to adopt the new document and retain compatible bindings. Use a new React `key` for independent documents, or manage documents and runtimes in the host.
 

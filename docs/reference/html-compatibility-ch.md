@@ -1,60 +1,26 @@
-# HTML 部分兼容与暂时性分流政策
+# HTML 兼容与作者能力
 
 **中文** · [English](html-compatibility-en.md)
 
-此功能面向下个发行版。默认文档继续使用 Markdown、ReactiveMD 控件和表达式，并支持下表中的 P0 HTML。CSS、JavaScript 和扩展 HTML 由宿主分别开启，默认全部关闭。
-
-`strict: false` 可在默认文档路径中启用[局部结构恢复](../integration/local-integration-ch.md#严格解析与局部恢复)，无需开启上述能力。`details` 的 `summary` 与正文可连续换行，呈现为单个 disclosure 的 accordion，支持富文本标题和键盘切换。
-
-## 暂时性分流政策
-
-为了避开作者 CSS、JavaScript、扩展 HTML 与 ReactiveMD 之间的混合解析和渲染冲突，本版采用整篇分流：
-
-| 编译选项 | 文档行为 |
-| --- | --- |
-| 三个开关全部关闭或省略 | 使用 ReactiveMD 解析器和现有 React 渲染器，支持 P0 HTML |
-| 任意一个开关为 `true` | 整篇源码按原生 HTML 处理，在隔离的 iframe 中渲染 |
-
-原生 HTML 路径中的 `# 标题`、`**强调**`、LaTeX 和 `{{ 表达式 }}` 保持普通文本；`<input>`、`<table>` 等按 HTML 语义处理，ReactiveMD 组件不建立绑定。关闭全部开关会重新编译回默认模式。此政策是本版的过渡方案，后续版本再评估混合兼容。
-
-开关是宿主能力设置，源码、参数状态文件和文档标签不能自行开启它们。Demo 始终显示当前模式，刷新页面后回到三个开关全部关闭的状态。
-
-## 开关与 API
-
-```ts
-import { compileLocal } from 'reactive-md';
-
-// Markdown、ReactiveMD 与 P0 HTML。
-const reactive = compileLocal(source);
-
-// 整篇按原生 HTML 处理；只允许作者 CSS。
-const html = compileLocal(source, {
-  enableCss: true,
-  enableJavaScript: false,
-  enableExtendedHtml: false,
-});
-```
+同一份文档可混排 Markdown、RMD 组件、表达式和基础 HTML。宿主独立控制三项能力。
 
 | 选项 | 默认值 | 作用 |
 | --- | --- | --- |
-| `enableCss` | `false` | 允许作者 CSS |
-| `enableJavaScript` | `false` | 允许作者脚本和事件处理代码 |
-| `enableExtendedHtml` | `false` | 允许 P1 标签、嵌入、表单、SVG/MathML 和整页 HTML 功能 |
+| `enableCss` | `true` | 文档样式、组件行内声明及获准 HTML 片段中的样式 |
+| `enableJavaScript` | `false` | 在交互挂载时执行作者脚本 |
+| `enableExtendedHtml` | `false` | 允许额外的原生 HTML 片段 |
 
-选项必须是布尔值。开启一个开关不会顺带开启其他两个。带样式的扩展元素需要同时允许扩展 HTML 和 CSS；扩展元素中的脚本需要同时允许扩展 HTML 和 JavaScript。内置组件使用的样式、交互代码、图表 SVG 和公式 MathML 不受作者能力开关影响。
+源码视图从 `LocalReactiveDocument.compileOptions` 取得授权。预编译视图通过 `LocalDocumentView.capabilityGrants` 授权，缺省为 CSS 开、JavaScript 关、扩展 HTML 关。每项能力需要编译与当前挂载同时允许。单独切换开关保留源码视图的运行时状态。
 
-现有源码长度和 `limits.maxSyntaxNodes` 预算继续生效。HTML 路径按解析遍历的节点计数，嵌套 `srcdoc` 共用累计预算。
+### 样式
 
-React 快捷组件通过 `compileOptions` 接收同样的设置：
+在正文前放一个或多个成对的 `<css>` 块，按源码顺序层叠。组件实例的 `css` 属性接收 CSS 声明，应用到可见根。文档选择器止于嵌套文档根，DOM 的 CSS 继承照常生效。作者样式使用文内规则，外链样式表和样式资源请求受策略过滤。迟置样式块和无可见根的组件会收到定点诊断。已注册的 `css`、`javascript` 组件保留各自的标签，组件 schema 自行定义的 `css` 属性保留原有语义。
 
-```tsx
-<LocalReactiveDocument
-  source={source}
-  compileOptions={{ enableCss: true }}
-/>
-```
+### 脚本
 
-底层宿主把 `compileLocal` 生成的文档交给 `LocalDocumentView`。原生 HTML 文档的 `document.html` 记录三个归一化开关；参数和绑定集合为空。该字段属于运行时元数据，保存文档时保留原始源码和宿主设置。
+用成对的 `<javascript>` 声明代码。交互运行时恢复状态后，隔离 Worker 按源码顺序执行脚本。每个块有自己的词法作用域。通过 `await rmd.get(name)` 读取命名绑定，通过 `await rmd.set(name, value)` 写入单项，或通过 `await rmd.setMany(values)` 原子更新多项。写入沿用组件的约束和只读规则。
+
+通过计数器的 `action-id` 命名实例。调用 `rmd.handleAction(id, "increment", callback)` 接管该实例的增加动作。计数器还提供 `decrement` 和 `reset`。用 `rmd.observeAction` 观察动作，默认处理照常运行。替换脚本、撤销授权或卸载文档时清理会话。静态 HTML、PDF 和 hydration 的静态阶段使用给定的 RMD 状态。
 
 ## 默认支持的 P0 HTML
 
@@ -83,7 +49,7 @@ React 快捷组件通过 `compileOptions` 接收同样的设置：
 <p align="right">右对齐的 **Markdown** 段落。</p>
 ```
 
-对齐不需要开启 CSS 或扩展 HTML，容器内的 Markdown 和绑定继续生效；嵌套元素可以设置自己的对齐。原生 HTML 路径同样接受这些限定值。
+对齐不需要开启 CSS 或扩展 HTML，容器内的 Markdown 和绑定继续生效；嵌套元素可以设置自己的对齐。
 
 通用属性按允许列表接收，支持文档标识、标题、语言、方向和可访问性属性。默认模式中的作者 `style`、事件处理属性及不支持的标签保持惰性源码或产生定位诊断。图片仍需宿主明确允许后才加载。代码与不支持区域不执行脚本。
 
@@ -114,27 +80,12 @@ React 快捷组件通过 `compileOptions` 接收同样的设置：
 
 无法编译的局部原生 HTML 按原文显示，其余 Markdown、公式和控件继续工作。回退覆盖不支持的标签或属性、无效的原生表格，以及缺少完整结束标记的 HTML 片段。无法找到结束标签时，片段截至当前段落或外层 ReactiveMD 容器的结束标签。回退片段中的 Markdown、`{{ 表达式 }}`、组件和脚本均保留为文本。
 
-原生 HTML 路径中，不支持的属性会使所在元素回退为原文；相邻元素继续渲染。整篇解析、序列化或编译预算检查失败时，React 预览和 standalone 挂载显示完整源码，保留换行并转义标签。`compileLocal` 的错误结果、资源限制和 `onDiagnostics` 诊断仍保留；配置错误及 ReactiveMD 组件语法错误继续按原规则处理。
+## 扩展 HTML 与导出
 
-## 扩展 HTML
+已注册组件优先。比如 `<input bind="name">` 仍是 RMD 输入框，`details` 的正文继续支持 Markdown 和表达式。新增放行的标签按片段隔离渲染。未获准的片段在原位置显示转义源码。
 
-`enableExtendedHtml` 管理以下作者语法：
+自包含嵌入可用经净化的 `srcdoc`。通过挂载参数 `allowedFrameOrigins` 开放精确的 HTTPS 来源。片段样式和脚本继续受对应开关管理，沙箱约束导航、表单和对父文档的访问。
 
-- 定义列表：`dl`、`dt`、`dd`。
-- 补充文字语义：`small`、`kbd`、`samp`、`var`、`abbr`、`q`、`cite`、`ins`。
-- 图文和结构：`figure`、`figcaption`、`article`、`section`、`aside`、`header`、`footer`、`ruby`、`rt`、`rp`、`wbr`。
-- 原生表单、`iframe`、`object`、`embed`、`dialog`、任意 SVG/MathML 和整页 HTML 功能。
+新版交互导出记录 `sourceSemantics: "mixed-rmd-v1"`、开关和状态基线。缺少该字段的 v1/v2 导出按原语义打开，包含此前显式开启能力时的整页 HTML 路径。载荷的 v1/v2 继续区分恢复契约。
 
-在默认模式中，ReactiveMD `<table>` 按正文结构与原生表格区分；`<section>`、`<input>`、`<select>` 等同名组件继续采用当前语义。在原生 HTML 模式中，同名元素采用浏览器语义。
-
-## 隔离与导出
-
-作者 HTML 放在不带 `allow-same-origin` 的沙箱 iframe 中。源码中的整页结构、样式和脚本作用于该隔离文档。资源加载、表单提交和导航仍受 CSP 与沙箱限制；启用扩展 HTML 不代表获得全部网络能力。
-
-本版支持内联 CSS 和 JavaScript，自动外部资源请求仍受限：外部脚本、样式表、图片、媒体及嵌入资源不会因开启开关而自动加载。扩展 HTML 允许隔离文档中的 HTTP(S) 表单提交和 `<base>` 地址解析，保留顶层导航与宿主访问限制。iframe 可用 `srcdoc` 提供内联内容；`object`、`embed` 的外部资源仍受 CSP 限制。
-
-启用任意 JavaScript 后，脚本可以动态创建元素和样式，另两个开关主要约束作者源码。宿主隔离仍有效，但这些开关不承诺逐项阻止脚本的运行时 DOM 操作。
-
-交互导出保留本次编译选项和文档路径。原生 HTML 的静态导出保留浏览器内建的折叠和表单行为，并禁用作者 JavaScript。这类文档没有可保存的 ReactiveMD 参数。旧导出载荷省略编译选项时采用三个开关全部关闭的默认行为。
-
-相关规则见[集成说明](../integration/local-integration-ch.md)、[可分享导出](../integration/shareable-export-ch.md)和[安全约定](../../SECURITY-ch.md)。
+参见[集成说明](../integration/local-integration-ch.md)、[可分享导出](../integration/shareable-export-ch.md)和[安全约定](../../SECURITY-ch.md)。

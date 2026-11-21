@@ -7,7 +7,7 @@ import {
 } from 'react';
 import type { LocalComponentContext } from '../../react/component-api';
 import type { LocalSubmissionFieldsResult } from '../../local/types';
-import {
+import { useAuthorComponentRoot,
   staticText,
   textAttr,
   useComponentView,
@@ -92,6 +92,7 @@ function createIdempotencyKey(): string {
 }
 
 export function SubmitButtonView(context: LocalComponentContext) {
+  const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
   const domId = useId();
   const { mode, visible, t } = view;
@@ -129,7 +130,7 @@ export function SubmitButtonView(context: LocalComponentContext) {
 
   if (mode === 'static') {
     return (
-      <span
+      <span {...authorRoot()}
         className="local-submit-button local-submit-button-static"
         data-rmd-static-submit=""
         aria-disabled="true"
@@ -237,7 +238,7 @@ export function SubmitButtonView(context: LocalComponentContext) {
   };
 
   return (
-    <div
+    <div {...authorRoot()}
       className="local-submit-button-control"
       data-rmd-component="submit-button"
       data-field={status?.field}

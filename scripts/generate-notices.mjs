@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 // Markdown is bundled by core; renderer code highlighting bundles lowlight.
 // The standalone IIFE also bundles React/DOM.
-const roots = ['remark-gfm', 'remark-parse', 'unified', '@lezer/markdown', '@lezer/common', 'parse5', 'lowlight', 'elkjs', 'katex', 'mafs', 'react', 'react-dom', 'motion', 'lucide-react', '@radix-ui/react-select'];
+const roots = ['remark-gfm', 'remark-parse', 'unified', '@lezer/markdown', '@lezer/common', 'parse5', 'lowlight', 'elkjs', 'katex', 'mafs', 'react', 'react-dom', 'motion', 'lucide-react', '@radix-ui/react-select', 'quickjs-emscripten-core', '@jitl/quickjs-singlefile-browser-release-sync'];
 const visited = new Map();
 async function findPackage(name, from) {
   let current = from;
@@ -42,7 +42,7 @@ const packages = [...visited.values()].sort((a, b) => `${a.name}@${a.version}`.l
 const notice = [
   '# Third-party notices',
   '',
-  'Reactive MD bundles its Markdown, HTML parsing, syntax-highlighting, diagram-layout and KaTeX math typesetting dependencies, including KaTeX fonts and the mhchem extension. The standalone HTML runtime also bundles React, React DOM and scheduler. This file preserves license texts for those installed dependency trees, including supporting type packages. The library React entry uses host-provided React and React DOM peers.',
+  'Reactive MD bundles its Markdown, HTML parsing, syntax-highlighting, diagram-layout and KaTeX math typesetting dependencies, including KaTeX fonts and the mhchem extension. The author script worker bundles QuickJS and the Emscripten bindings. The standalone HTML runtime also bundles React, React DOM and scheduler. This file preserves license texts for those installed dependency trees, including supporting type packages. The library React entry uses host-provided React and React DOM peers.',
   '',
   'Regenerate after dependency updates with `node scripts/generate-notices.mjs`.',
   '',

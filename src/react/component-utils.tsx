@@ -389,21 +389,39 @@ export function staticText(value: string): string {
   return value.trim() === '' ? EMPTY_STATIC_VALUE : value;
 }
 
+export function useAuthorComponentRoot(context: LocalComponentContext) {
+  const authorStyle = context.authorStyle;
+  const ref = useCallback((element: HTMLElement | null) => {
+    if (!element || !authorStyle) return;
+    for (const [name, value] of Object.entries(authorStyle)) {
+      if (typeof value !== 'string' || !/\s*!important$/i.test(value)) continue;
+      const property = name.startsWith('--') ? name : name.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
+      element.style.setProperty(property, value.replace(/\s*!important$/i, ''), 'important');
+    }
+  }, [authorStyle]);
+  return (defaults?: CSSProperties) => ({
+    style: authorStyle ? { ...defaults, ...authorStyle } : defaults,
+    ref: authorStyle ? ref : undefined,
+  });
+}
+
 export function StaticValue({
   label,
   value,
   hint,
   className = '',
   multiline = false,
+  authorRoot,
 }: {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
   className?: string;
   multiline?: boolean;
+  authorRoot?: ReturnType<ReturnType<typeof useAuthorComponentRoot>>;
 }) {
   return (
-    <div className={`md-control local-static-control ${className}`.trim()}>
+    <div className={`md-control local-static-control ${className}`.trim()} {...authorRoot}>
       <span className="md-label">{label}</span>
       <span
         className={`local-static-value${multiline ? ' local-static-multiline' : ''}`}

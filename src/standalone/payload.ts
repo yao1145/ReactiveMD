@@ -187,7 +187,14 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
   if (!isPlainRecord(state)) {
     fail('standalone.payload.state', 'The payload state must be a JSON object.');
   }
-  const compileOptions = parseCompileOptions(value.compileOptions, fail);
+  const sourceSemantics = value.sourceSemantics;
+  if (sourceSemantics !== undefined && sourceSemantics !== 'mixed-rmd-v1') {
+    fail('standalone.payload.source-semantics', 'Unsupported Reactive MD source semantics.');
+  }
+  const legacyOptions = sourceSemantics === undefined && isPlainRecord(value.compileOptions)
+    ? { enableCss: false, ...value.compileOptions }
+    : value.compileOptions;
+  const compileOptions = parseCompileOptions(legacyOptions, fail);
   diagnostics.push(...validateLocalExtensionRequirements(value.extensions, compileOptions?.config));
   const resources = readLocalExportResources(value.resources ?? []);
   diagnostics.push(...resources.diagnostics);
@@ -204,6 +211,7 @@ function parseUnsafe(value: unknown): MountPayloadParseResult {
   // Build a fresh object: unknown keys and inherited data never reach mount.
   const payload: ShareableMountPayload = {
     version: value.version as 1 | 2,
+    ...(sourceSemantics === 'mixed-rmd-v1' ? { sourceSemantics } : {}),
     target: target as string,
     source: source as string,
     state: state as unknown as LocalStateFile,

@@ -42,6 +42,6 @@ try {
 
 旧根入口的 `compileLocal(source, options)`、编辑会话和 Worker 默认保持严格语义，并保留原有返回类型。有恢复时会附加 `recoveries` 及对应 warning。显式传入 `strict: false` 可启用[局部恢复](local-integration-ch.md#严格解析与局部恢复)。
 
-最小入口保留 CommonMark、RMD 结构、表达式、绑定与预算。GFM 语法、原生 HTML 解析与修复、Lezer 块规划、KaTeX 显示和绘图公式语义由 standard 与兼容入口显式装配；缺少某项能力时返回明确的能力诊断，而不是静默改变含义，例如最小入口会以 `local.capability.html` 拒绝 `enableCss`。最小入口的运行与声明依赖图不再包含 `parse5`、`@lezer/markdown`、`remark-gfm` 或 KaTeX，也不再加载默认预设及其作者信息。standard 保留完整行为。
+最小入口保留 CommonMark、RMD 结构、表达式、绑定与预算。GFM 语法、原生 HTML 解析与修复、Lezer 块规划、KaTeX 显示和绘图公式语义由 standard 与兼容入口显式装配；开启作者能力时，最小入口仍解析 RMD 并建立绑定。原生 HTML 片段解析和净化使用标准入口。最小入口的运行与声明依赖图不再包含 `parse5`、`@lezer/markdown`、`remark-gfm` 或 KaTeX，也不再加载默认预设及其作者信息。standard 保留完整行为。
 
 构建后运行 `npm run test:compiler-entry`，检查直接 ESM 导入、生产共享 chunk、声明依赖和浏览器消费。源码行为回归使用 `npm test -- tests/compiler-entry.test.ts`。

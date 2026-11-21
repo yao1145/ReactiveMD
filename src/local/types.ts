@@ -208,12 +208,12 @@ export interface LocalDocument {
   /** Effective syntax revision; absent on older hand-built runtime documents. */
   syntaxVersion?: 'local-draft-3';
   /**
-   * Present only when at least one HTML capability flag was enabled. Its
-   * presence routes rendering to the isolated native-HTML branch; the
-   * original source is preserved and `nodes` carries one `htmlDocument` node
-   * whose `value` is the sanitized, complete iframe document.
+   * Policy on legacy whole-document HTML results. Mixed-source compilers
+   * record author content in `capabilities`.
    */
   html?: LocalHtmlPolicy;
+  /** Serializable author content and its compile-time permission ceiling. */
+  capabilities?: LocalDocumentCapabilities;
   versionDeclaration?: LocalVersionDeclaration;
   nodes: LocalNode[];
   initialState: Record<string, LocalValue>;
@@ -305,28 +305,35 @@ export interface LocalCompileLimits {
   readonly maxMarkdownDepth?: number;
 }
 /**
- * Host-owned capability flags for the temporary whole-document HTML mode.
- *
- * All flags default to `false`. When every flag is false the existing
- * Markdown/ReactiveMD pipeline runs unchanged. When any flag is true the whole
- * source is interpreted as native HTML and rendered inside a sandboxed iframe;
- * Markdown, interpolation, bindings, formulas and ReactiveMD components are not
- * interpreted in that mode.
+ * Host-owned capability flags for the mixed Markdown and ReactiveMD pipeline.
  */
 export interface LocalHtmlOptions {
-  /** Allow authored CSS; external resources remain subject to the native CSP. */
+  /** Allow document styles and component declarations. Defaults to true. */
   readonly enableCss?: boolean;
-  /** Allow authored scripts and inline event handlers. */
+  /** Allow author JavaScript in interactive mounts. Defaults to false. */
   readonly enableJavaScript?: boolean;
-  /** Allow HTML beyond the safe P0 subset (tables, forms, SVG/MathML, ...). */
+  /** Allow additional native HTML fragments. Defaults to false. */
   readonly enableExtendedHtml?: boolean;
 }
 
-/** Effective, non-optional policy recorded on a compiled HTML-branch document. */
+/** Resolved document capability flags. */
 export interface LocalHtmlPolicy {
   readonly enableCss: boolean;
   readonly enableJavaScript: boolean;
   readonly enableExtendedHtml: boolean;
+}
+
+export interface LocalAuthorBlock {
+  readonly text: string;
+  readonly range: SourceRange;
+}
+
+export interface LocalDocumentCapabilities {
+  readonly policy: LocalHtmlPolicy;
+  readonly styles: readonly LocalAuthorBlock[];
+  readonly scripts: readonly LocalAuthorBlock[];
+  readonly componentStyles: Readonly<Record<string, string>>;
+  readonly actionTargets: Readonly<Record<string, string>>;
 }
 
 export type LocalHostPropKind = 'string' | 'number' | 'boolean' | 'enum';
