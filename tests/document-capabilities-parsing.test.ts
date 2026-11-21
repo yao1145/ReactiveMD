@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseLocal } from '../src/local/parsing/parser';
+import { compileLocal } from '../src/local/compilation/compiler';
 import type { LocalCompileOptions, LocalNode } from '../src/local/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flatten(n.children ?? [])]);
@@ -8,6 +9,19 @@ const codes = (source: string, options?: LocalCompileOptions): string[] =>
   parseLocal(source, options).diagnostics.map(d => d.code);
 
 describe('document declaration blocks', () => {
+  it.each([false, true])('keeps fence text in raw declarations opaque with author capabilities %s', enabled => {
+    const css = '<css>\n/*\n\n~~~\n*/\n</css>';
+    const script = '<javascript>\nconst example = `\n\n~~~\n`;\n</javascript>';
+    const example = '````\n<css>\n\n~~~\n</css>\n````';
+    const source = [css, example, script, '<slider bind="people" label="People" initial="2">', 'People: {{ people }}'].join('\n\n');
+    const result = compileLocal(source, { enableCss: enabled, enableJavaScript: enabled });
+    expect(result.ok, JSON.stringify(result.diagnostics)).toBe(true);
+    if (!result.ok) return;
+    expect(result.document.bindings.people).toBeDefined();
+    expect(of(result.document.nodes, 'code')[0].value).toContain('<css>');
+    expect(of(result.document.nodes, 'interpolation')).toHaveLength(1);
+  });
+
   it('keeps every leading CSS block as exact author source', () => {
     const source = '<css>\r\nh2 { color: #24549a; }\r\n</css>\n\n<css>p{ margin:0 }</css>\n\n## 人数\n\n<slider bind="people" label="人数" initial="2">';
     const parsed = parseLocal(source);
@@ -117,6 +131,17 @@ describe('document declaration blocks', () => {
 });
 
 describe('extended HTML subtrees', () => {
+  it.each([false, true])('keeps an inline iframe and surrounding Markdown with Extended HTML %s', enabled => {
+    const source = '<slider bind="people" label="People" initial="2">\n\n**Before** <iframe title="Example" srcdoc="<p>Example</p>"></iframe> after {{ people }}.';
+    const result = compileLocal(source, { enableExtendedHtml: enabled });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const nodes = result.document.nodes;
+    expect(of(nodes, enabled ? 'extendedHtml' : 'fallback')[0]?.value).toMatch(/^<iframe/);
+    expect(of(nodes, 'strong')).toHaveLength(1);
+    expect(of(nodes, 'interpolation')).toHaveLength(1);
+  });
+
   it('captures recognized extended subtrees with raw source ranges', () => {
     const source = '<dl>\n<dt>Term</dt><dd>Definition</dd>\n</dl>\n\nAfter {{ n }}';
     const parsed = parseLocal(source);

@@ -261,6 +261,14 @@ export async function createAuthorScriptVm(
       candidates.sort((a, b) => Number(b.registration.takeover) - Number(a.registration.takeover));
       for (const item of candidates) await run(item.block, () => vm.callFunction(item.callback, vm.undefined));
     },
+    removeTargets(targets: readonly string[]) {
+      for (const target of targets) allowed.delete(target);
+      for (let index = handlers.length - 1; index >= 0; index--) {
+        if (allowed.has(handlers[index].registration.target)) continue;
+        handlers[index].callback.dispose();
+        handlers.splice(index, 1);
+      }
+    },
     dispose() {
       handlers.forEach(item => item.callback.dispose());
       isArray.dispose();

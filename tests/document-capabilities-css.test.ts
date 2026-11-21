@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
+import { compileLocal } from '../src/local/compilation/compiler';
 import {
   parseAuthorDeclarations,
   parseAuthorPriority,
   scopeAuthorStyles,
 } from '../src/local/css/author-css';
+
+it('preserves multiline selectors and points at filtered global rules', () => {
+  expect(scopeAuthorStyles(':scope\n\t h2 { color: red; }')).toMatch(/:scope\s+h2/);
+  const source = '<css>\r\n/* note */\r\n@media print {\r\n  @keyframes fade { to { opacity: 1 } }\r\n}\r\n</css>\r\n\r\n# Body';
+  const result = compileLocal(source);
+  expect(result.ok).toBe(true);
+  const [issue] = result.diagnostics;
+  expect(issue).toMatchObject({ code: 'local.author.css-global-rule', severity: 'warning', line: 4, column: 3 });
+  expect(source.slice(issue.range.start, issue.range.end)).toBe('@keyframes');
+});
 
 describe('author declaration parsing', () => {
   it('converts CSS properties to React keys and keeps custom properties', () => {

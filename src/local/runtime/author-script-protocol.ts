@@ -19,10 +19,11 @@ export interface AuthorActionRegistration {
 export type AuthorWorkerInput =
   | { kind: 'start'; blocks: readonly string[]; targets: readonly string[] }
   | { kind: 'reply'; id: number; result: AuthorBindingReply }
+  | { kind: 'remove-targets'; targets: string[] }
   | { kind: 'action'; target: string; action: AuthorAction };
 
 export type AuthorWorkerOutput =
-  | { kind: 'request'; id: number; request: AuthorBindingRequest }
+  | { kind: 'request'; id: number; request: AuthorBindingRequest; target?: string }
   | { kind: 'registered'; registrations: AuthorActionRegistration[] }
   | { kind: 'diagnostic'; block: number; message: string }
   | { kind: 'failed'; message: string };

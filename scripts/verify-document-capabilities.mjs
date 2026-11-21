@@ -133,9 +133,17 @@ try {
   await page.getByText('Counters: 4 and 6', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'First decrease' }).click();
   await page.getByText('Counters: 3 and 6', { exact: true }).waitFor();
+  await page.evaluate(() => window.rmdCapabilities.actions(true, 'add'));
+  await page.getByRole('button', { name: 'Third increase' }).waitFor();
+  await increments.click();
+  await page.getByText('Counters: 5 and 6', { exact: true }).waitFor();
+  await page.evaluate(() => window.rmdCapabilities.actions(true, 'remove'));
+  await page.getByRole('button', { name: 'Third increase' }).waitFor({ state: 'detached' });
+  await increments.click();
+  await page.getByText('Counters: 6 and 6', { exact: true }).waitFor();
   await page.evaluate(() => window.rmdCapabilities.actions(false));
   await increments.click();
-  await page.getByText('Counters: 4 and 6', { exact: true }).waitFor();
+  await page.getByText('Counters: 7 and 6', { exact: true }).waitFor();
 
   await page.evaluate(() => window.rmdCapabilities.nested());
   const nested = page.getByRole('heading', { name: 'Inner' });

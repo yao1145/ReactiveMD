@@ -18,7 +18,7 @@ const SOURCE = [
   '',
   'People: {{ people }}',
   '',
-  '<iframe title="Example" srcdoc="<p>Embedded example</p>"></iframe>',
+  'Before <iframe title="Example" srcdoc="<p>Embedded example</p>"></iframe> after.',
   '',
   '<javascript>',
   'await rmd.set("people", 10);',
@@ -32,6 +32,7 @@ const ACTIONS = [
   'Counters: {{ a }} and {{ b }}',
   '',
   '<javascript>',
+  'await rmd.set("a", 2);',
   'rmd.handleAction("first", "increment", async () => { await rmd.set("a", await rmd.get("a") + 2); });',
   'rmd.observeAction("second", "increment", () => {});',
   '</javascript>',
@@ -57,8 +58,11 @@ Object.assign(window, {
     render(policy: LocalHtmlPolicy, key?: string) {
       root.render(<LocalReactiveDocument key={key} source={SOURCE} compileOptions={policy} onDiagnostics={onDiagnostics} />);
     },
-    actions(enableJavaScript: boolean) {
-      root.render(<LocalReactiveDocument key="actions" source={ACTIONS} compileOptions={actionPolicy}
+    actions(enableJavaScript: boolean, edit?: 'add' | 'remove') {
+      const source = edit === 'add'
+        ? '<counter bind="c" label="Third" initial="0" action-id="third">\n' + ACTIONS
+        : edit === 'remove' ? ACTIONS.replace(' action-id="first"', '') : ACTIONS;
+      root.render(<LocalReactiveDocument key="actions" source={source} compileOptions={actionPolicy}
         capabilityGrants={{ enableJavaScript }} onDiagnostics={onDiagnostics} />);
     },
     twoViews(enableJavaScript: boolean) {

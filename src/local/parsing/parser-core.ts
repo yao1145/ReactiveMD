@@ -38,6 +38,7 @@ import {
   type DefinitionRange,
 } from './parser-internals';
 import { parsePlainParagraphs } from './plain-paragraphs';
+import { maskLeakingAuthorBody } from './author-markdown';
 import { scanInterpolationEnd } from './lexical';
 import { localCodeUnitPrefix } from '../source/source-context';
 import { createRegionScanner, type DocumentHeaders } from './parser-region';
@@ -351,8 +352,10 @@ export function parseLocalCore(
    * interpolations inert while still formatting safe Markdown.
    */
   let rootMarkdown: any;
+  let maskedAuthorBody = false;
   try {
-    rootMarkdown = parseMarkdown(source.slice(sourceBomOffset),true,{allowBraces:true,shield(text,offset){
+    const markdownSource = source.slice(sourceBomOffset);
+    rootMarkdown = parseMarkdown(markdownSource,true,{allowBraces:true,shield(text,offset){
       if(!text.includes('{{'))return;
       const parts:string[]=[];
       let cursor=0,search=0;
@@ -373,7 +376,22 @@ export function parseLocalCore(
       const overflow=(rootMarkdown.children[0].plan as FastMarkdownPlan).overflowAt(maxSyntaxNodes);
       if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,overflow.start+sourceBomOffset,overflow.end+sourceBomOffset,'local.budget.nodes',{limit:maxSyntaxNodes});
     }
-    const facts=markdownTreeFacts(rootMarkdown);
+    let facts=markdownTreeFacts(rootMarkdown);
+    if (/<(?:css|javascript)(?=[\s/>])/.test(markdownSource)) {
+      let shadow = markdownSource;
+      let cursor = 0;
+      // Recompute before classifying later tags: the leaked fence may have
+      // hidden a real fence or made a fenced example look like a declaration.
+      for (;;) {
+        const repaired = maskLeakingAuthorBody(shadow, facts.codeRanges, facts.definitions, known, cursor);
+        if (!repaired) break;
+        maskedAuthorBody = true;
+        shadow = repaired.source;
+        cursor = repaired.end;
+        rootMarkdown = parseMarkdown(shadow, false);
+        facts = markdownTreeFacts(rootMarkdown);
+      }
+    }
     const shift=(range:SourceRange):SourceRange=>({start:range.start+sourceBomOffset,end:range.end+sourceBomOffset});
     for(const range of facts.codeRanges)codeRanges.push(shift(range));
     for(const range of facts.definitions)if(range.end>range.start)rootDefinitions.push(shift(range));
@@ -494,7 +512,7 @@ export function parseLocalCore(
   const convert = createMarkdownConverter({
     source, maxSyntaxNodes, budget, markdownBreaks, isInlineName, sourceContext,
     work, parseMarkdown, readNodeCount: () => nodeCount, fastPlans, node,
-    reservedMarkers, sourceBomOffset, rootMarkdown, error,
+    reservedMarkers, sourceBomOffset, rootMarkdown, maskedAuthorBody, error,
   });
   let region: ReturnType<typeof createRegionScanner>;
   const scanner = createTagScanner({

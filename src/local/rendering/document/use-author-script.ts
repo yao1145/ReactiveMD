@@ -8,6 +8,7 @@ import type {
   AuthorWorkerInput,
   AuthorWorkerOutput,
 } from '../../runtime/author-script-protocol';
+import { COUNTER_ACTIONS } from '../../runtime/author-script-protocol';
 import AuthorScriptWorker from '../../runtime/author-script.worker?worker&inline';
 
 function applyRequest(runtime: LocalRuntime, request: AuthorBindingRequest): AuthorBindingReply {
@@ -29,6 +30,7 @@ function applyRequest(runtime: LocalRuntime, request: AuthorBindingRequest): Aut
 interface ScriptSession {
   worker: Worker;
   actions: Map<string, { takeover: boolean }>;
+  targets: Set<string>;
 }
 
 const actionKey = (target: string, action: AuthorAction) => `${target}:${action}`;
@@ -44,11 +46,19 @@ export function useAuthorScript(
   const scriptsKey = enabled && capabilities?.scripts.length
     ? JSON.stringify(capabilities.scripts.map(item => item.text)) : '';
   const targets = capabilities?.actionTargets ?? EMPTY_TARGETS;
-  const targetKey = JSON.stringify(Object.keys(targets).sort());
   const latest = useRef({ document, targets, report });
   const active = useRef<ScriptSession | undefined>(undefined);
   useLayoutEffect(() => {
     latest.current = { document, targets, report };
+    const session = active.current;
+    if (!session) return;
+    const removed = [...session.targets].filter(id => !Object.hasOwn(targets, id));
+    if (!removed.length) return;
+    for (const id of removed) {
+      session.targets.delete(id);
+      for (const action of COUNTER_ACTIONS) session.actions.delete(actionKey(id, action));
+    }
+    session.worker.postMessage({ kind: 'remove-targets', targets: removed } satisfies AuthorWorkerInput);
   }, [document, targets, report]);
 
   useLayoutEffect(() => {
@@ -78,17 +88,23 @@ export function useAuthorScript(
         const opened = new AuthorScriptWorker();
         worker = opened;
         const actions: ScriptSession['actions'] = new Map();
-        active.current = { worker: opened, actions };
+        const sessionTargets = new Set(Object.keys(latest.current.targets));
+        active.current = { worker: opened, actions, targets: sessionTargets };
         const send = (message: AuthorWorkerInput) => opened.postMessage(message);
         opened.onmessage = ({ data }: MessageEvent<AuthorWorkerOutput>) => {
           if (revoked) return;
           if (data.kind === 'request') {
             let result: AuthorBindingReply;
-            try { result = applyRequest(runtime, data.request); }
+            try {
+              result = data.target !== undefined && !sessionTargets.has(data.target)
+                ? { ok: false, message: 'The action target was removed.' }
+                : applyRequest(runtime, data.request);
+            }
             catch { result = { ok: false, message: 'The binding value is unavailable.' }; }
             send({ kind: 'reply', id: data.id, result });
           } else if (data.kind === 'registered') {
             for (const item of data.registrations) {
+              if (!sessionTargets.has(item.target)) continue;
               const key = actionKey(item.target, item.action);
               actions.set(key, { takeover: item.takeover || actions.get(key)?.takeover === true });
             }
@@ -104,7 +120,7 @@ export function useAuthorScript(
           reportFailure(0, 'Unable to start the isolated author JavaScript worker.');
           close();
         };
-        send({ kind: 'start', blocks: JSON.parse(scriptsKey), targets: JSON.parse(targetKey) });
+        send({ kind: 'start', blocks: JSON.parse(scriptsKey), targets: [...sessionTargets] });
       } catch {
         if (revoked) return;
         reportFailure(0, 'Unable to create the isolated author JavaScript worker.');
@@ -112,7 +128,7 @@ export function useAuthorScript(
       }
     });
     return close;
-  }, [runtime, scriptsKey, targetKey]);
+  }, [runtime, scriptsKey]);
 
   return useCallback((nodeId: string, action: AuthorAction) => {
     const session = active.current;

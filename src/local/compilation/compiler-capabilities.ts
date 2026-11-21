@@ -2,6 +2,8 @@ import { scanHtmlAttributes } from '../parsing/html-attributes';
 import type { LocalAuthorBlock, LocalDocumentCapabilities, LocalHtmlPolicy, LocalNode } from '../types';
 import { openingTag } from './compiler-attributes';
 import { reportWarning, type CompileState } from './compiler-services';
+import { unsupportedAuthorCssRules } from '../css/author-css';
+import { MAX_LOCAL_DIAGNOSTICS } from '../configuration/limits';
 
 const HIDDEN_COMPONENTS = new Set(['computed', 'const', 'external', 'validation', 'option', 'column', 'edge', 'step']);
 const DOCUMENT_HTML_TAGS = new Set(['html', 'head', 'body', 'base', 'title', 'link', 'meta', 'style', 'script']);
@@ -17,6 +19,7 @@ export function compileDocumentCapabilities(
   const actionTargets: Record<string, string> = Object.create(null);
   const duplicateIds = new Set<string>();
   let hasCapabilities = false;
+  let cssIssueBudget = MAX_LOCAL_DIAGNOSTICS;
   const warn = (code: string, start: number, end: number, params?: Record<string, string>) => {
     reportWarning(state, code, { key: code, params }, start, end);
   };
@@ -28,6 +31,13 @@ export function compileDocumentCapabilities(
       const start = range.start + openingTag(state.source, range.start, range.end).length;
       if (css ? policy.enableCss : policy.enableJavaScript) {
         (css ? styles : scripts).push({ text, range: { start, end: start + text.length } });
+        if (css && cssIssueBudget > 0) {
+          const issues = unsupportedAuthorCssRules(text, cssIssueBudget);
+          cssIssueBudget -= issues.length;
+          for (const issue of issues) {
+            warn('local.author.css-global-rule', start + issue.start, start + issue.end, { name: issue.name });
+          }
+        }
         hasCapabilities = true;
       } else {
         warn('local.author.disabled', range.start, start, { feature: css ? 'CSS' : 'JavaScript' });

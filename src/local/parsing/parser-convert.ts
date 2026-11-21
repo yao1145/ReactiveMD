@@ -32,13 +32,14 @@ interface MarkdownConverterOptions {
   reservedMarkers: Set<string>;
   sourceBomOffset: number;
   rootMarkdown: any;
+  maskedAuthorBody: boolean;
   error: ParseDiagnostic;
 }
 
 export function createMarkdownConverter({
   source, maxSyntaxNodes, budget, markdownBreaks, isInlineName, sourceContext,
   work, parseMarkdown, readNodeCount, fastPlans, node, reservedMarkers,
-  sourceBomOffset, rootMarkdown, error,
+  sourceBomOffset, rootMarkdown, maskedAuthorBody, error,
 }: MarkdownConverterOptions) {
   let markerSerial = 0;
 
@@ -49,7 +50,7 @@ export function createMarkdownConverter({
     // With no replacements or dedenting, the shielding pass already parsed
     // exactly this source. Its positions only need the original BOM offset.
     const reuseRoot = start === 0 && end === source.length && tokens.length === 0
-      && indent === 0 && !options.stripBlockquote && !options.literalHtml
+        && indent === 0 && !options.stripBlockquote && !options.literalHtml && !maskedAuthorBody
       && !rootMarkdown?.children.some((child:any)=>child.plan?.shieldOnly);
     const mapped = new MappedSource(sourceContext);
     const sourceAt = (offset: number, fallback: number): number =>

@@ -776,14 +776,14 @@ export function createRegionScanner({
           warning('local.author.component-conflict', { key: 'local.author.component-conflict', params: { name: scanned.name } }, i, scanned.end);
         }
         // Extended subtrees are recognized after registered components and
-        // basic HTML, and only as standalone blocks. Recognition does not
+        // basic HTML. Iframes may also appear within a paragraph. Recognition does not
         // depend on the sanitizer being installed; a missing fragment service
         // only affects the compiled fragment, never parsing.
         const lowerName = scanned?.name.toLowerCase() ?? '';
         if (!footnoteMode && scanned && !scanned.closing && lowerName
           && EXTENDED_HTML_NAMES.has(lowerName) && !HTML_NAMES.has(lowerName)
           && !known.has(lowerName) && !NATIVE_HTML_VOID.has(lowerName)
-          && beginsLine(i)) {
+          && (lowerName === 'iframe' || beginsLine(i))) {
           const close = scanned.self ? { start: scanned.end, end: scanned.end }
             : HTML_RAW_TEXT_ELEMENTS.has(lowerName)
               ? rawClose(scanned.end, lowerName, end)

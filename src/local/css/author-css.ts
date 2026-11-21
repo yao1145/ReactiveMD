@@ -65,6 +65,8 @@ export interface AuthorCssDeclaration {
 interface CssChunk {
   readonly prelude: string;
   readonly block: string | null;
+  readonly start: number;
+  readonly blockStart: number;
 }
 
 /**
@@ -120,6 +122,28 @@ export function scopeAuthorStyles(source: string, selector?: string): string {
   const start = selector === undefined ? '' : ` (${root})`;
   const scoped = `@scope${start} to (${limit}) {\n${indent(rules.join('\n'))}\n}`;
   return safeForStyleText(scoped);
+}
+
+/** Locate unsupported global rules without rewriting comments or line endings. */
+export function unsupportedAuthorCssRules(source: string, maxIssues: number) {
+  const issues: { name: string; start: number; end: number }[] = [];
+  function collect(text: string, offset: number, depth: number): void {
+    if (depth > MAX_SCOPE_DEPTH) return;
+    for (const chunk of readChunks(text)) {
+      if (issues.length >= maxIssues) return;
+      const name = /^@([A-Za-z-]+)/.exec(chunk.prelude)?.[1];
+      if (!name) continue;
+      const lower = name.toLowerCase();
+      if (GLOBAL_AT_RULES.has(lower)) {
+        const start = offset + chunk.start;
+        issues.push({ name, start, end: start + name.length + 1 });
+      } else if (SCOPED_AT_RULES.has(lower) && chunk.block !== null) {
+        collect(chunk.block, offset + chunk.blockStart, depth + 1);
+      }
+    }
+  }
+  collect(source, 0, 0);
+  return issues;
 }
 
 /* --------------------------------------------------------------- declaration */
@@ -282,7 +306,7 @@ function declarationBlock(block: string): string[] {
 /** Selectors that could match outside the mounted root keep their meaning only when scoped. */
 function scopedSelector(selector: string): boolean {
   if (selector === '' || selector.length > 512) return false;
-  if (/[{}@;\u0000-\u001f\u007f]/.test(selector)) return false;
+  if (/[{}@;]/.test(selector) || /[\u0000-\u0008\u000b\u000e-\u001f\u007f]/.test(selector)) return false;
   if (/:root\b/i.test(selector)) return false;
   // Element selectors for the page roots would cross the document boundary.
   if (/(^|[\s>+~,])(?:html|body)(?:$|[\s.#:[>+~,])/i.test(selector)) return false;
@@ -457,7 +481,13 @@ function readChunks(source: string): CssChunk[] {
   const chunks: CssChunk[] = [];
   let index = 0;
   while (index < source.length) {
-    while (index < source.length && /\s/.test(source[index])) index += 1;
+    while (index < source.length) {
+      if (/\s/.test(source[index])) index += 1;
+      else if (source.startsWith('/*', index)) {
+        const close = source.indexOf('*/', index + 2);
+        index = close < 0 ? source.length : close + 2;
+      } else break;
+    }
     if (index >= source.length) break;
     const start = index;
     let quote = '';
@@ -492,14 +522,14 @@ function readChunks(source: string): CssChunk[] {
     if (terminator === '{') {
       const close = blockEnd(source, index);
       if (close < 0) {
-        if (prelude) chunks.push({ prelude, block: null });
+        if (prelude) chunks.push({ prelude, block: null, start, blockStart: index + 1 });
         break;
       }
-      if (prelude) chunks.push({ prelude, block: source.slice(index + 1, close) });
+      if (prelude) chunks.push({ prelude, block: source.slice(index + 1, close), start, blockStart: index + 1 });
       index = close + 1;
       continue;
     }
-    if (prelude) chunks.push({ prelude, block: null });
+    if (prelude) chunks.push({ prelude, block: null, start, blockStart: index });
     if (terminator === '') break;
     index += 1;
   }

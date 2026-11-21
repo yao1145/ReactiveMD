@@ -11,13 +11,15 @@ let failed = false;
 let session: Awaited<ReturnType<typeof createAuthorScriptVm>> | undefined;
 let queue = Promise.resolve();
 let pendingActions = 0;
+let actionTarget: string | undefined;
+const removedTargets = new Set<string>();
 const replies = new Map<number, (value: AuthorBindingReply) => void>();
 
 function request(value: AuthorBindingRequest): Promise<AuthorBindingReply> {
   const id = ++requestId;
   return new Promise(resolve => {
     replies.set(id, resolve);
-    worker.postMessage({ kind: 'request', id, request: value });
+    worker.postMessage({ kind: 'request', id, request: value, target: actionTarget });
   });
 }
 
@@ -52,6 +54,9 @@ worker.onmessage = ({ data }) => {
       );
       await session.initialize(data.blocks);
     });
+  } else if (data.kind === 'remove-targets') {
+    for (const target of data.targets) removedTargets.add(target);
+    enqueue(async () => session?.removeTargets(data.targets));
   } else if (data.kind === 'action' && started && !failed) {
     if (pendingActions >= 128) {
       failed = true;
@@ -61,8 +66,11 @@ worker.onmessage = ({ data }) => {
     pendingActions += 1;
     enqueue(async () => {
       try {
+        if (removedTargets.has(data.target)) return;
+        actionTarget = data.target;
         await session?.dispatch(data.target, data.action);
       } finally {
+        actionTarget = undefined;
         pendingActions -= 1;
       }
     });

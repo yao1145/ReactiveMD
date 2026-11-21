@@ -252,6 +252,7 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
   'local.author.component-conflict': { en: 'The registered <{name}> component owns this tag.', zh: '此标签归已注册的 <{name}> 组件。' },
   'local.author.css-owned': { en: '<{name}> defines its own css attribute.', zh: '<{name}> 自行定义了 css 属性。' },
   'local.author.css-hidden': { en: '<{name}> has no visible root for a css declaration.', zh: '<{name}> 没有可应用 css 声明的可见根元素。' },
+  'local.author.css-global-rule': { en: 'Author CSS does not support the global rule @{name}.', zh: '作者 CSS 暂不支持全局规则 @{name}。' },
   'local.author.action-invalid': { en: 'Invalid or unsupported action target "{id}".', zh: '动作目标 "{id}" 无效或不受支持。' },
   'local.author.action-duplicate': { en: 'Duplicate action target "{id}".', zh: '动作目标 "{id}" 重复。' },
   'local.author.fragment-tag': { en: 'Use a document declaration or an extended element instead of <{name}>.', zh: '<{name}> 已按原文显示。请使用文档声明或扩展元素。' },
