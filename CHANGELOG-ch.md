@@ -4,11 +4,11 @@
 
 ## 0.9.1（2026-11-22，latest 渠道）
 
-流式源码编译、文档内跳转滚动，以及更严格的源码阶段校验。
+优化流式源码编译、文档内跳转滚动，以及更严格的源码阶段校验。
 
-### 新增
+### 变更
 
-- 新增流式源码编译。编译会话、`LocalCompileScheduler`、Worker 和 `LocalReactiveDocument` 接受显式的 `streaming` 或 `final` 源码阶段；未完成区域以原文呈现，可修复问题进入 `transientDiagnostics`，确定性错误与最终严格/恢复语义保持不变。独立的 `reactive-md-editor` 包现在把相关的外部源码快照作为原地编辑应用，保留选区、滚动位置和撤销历史，并在输入法组合期间暂缓更新。
+- 优化流式源码编译。编译会话、`LocalCompileScheduler`、Worker 和 `LocalReactiveDocument` 现在接受显式的 `streaming` 或 `final` 源码阶段；未完成区域以原文呈现，可修复问题进入 `transientDiagnostics`，确定性错误与最终严格/恢复语义保持不变。编辑器侧的对应快照处理随单独的编辑器版本发布。
 
 ### 修复
 

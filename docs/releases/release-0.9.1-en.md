@@ -12,9 +12,9 @@ Release notes for the 0.9.1 patch release (2026-11-22).
 
 ## Highlights
 
-### Streaming source compilation
+### Streaming source compilation improvements
 
-Compile sessions, `LocalCompileScheduler`, Workers and `LocalReactiveDocument` accept an explicit `streaming` or `final` source phase. Unfinished regions render as literal text, and fixable issues are reported through `transientDiagnostics`. Deterministic errors and the final strict and recovery semantics remain unchanged. The separate `reactive-md-editor` package applies related external source snapshots as in-place edits, preserving selection, scroll position and undo history, and defers updates during IME composition. See [Streaming source compilation](../integration/local-integration-en.md#streaming-source-compilation).
+The streaming source path now accepts explicit `streaming` or `final` phases across compile sessions, `LocalCompileScheduler`, Workers and `LocalReactiveDocument`. Unfinished regions render as literal text, and fixable issues are reported through `transientDiagnostics`. Deterministic errors and the final strict and recovery semantics remain unchanged. See [Streaming source compilation](../integration/local-integration-en.md#streaming-source-compilation).
 
 ### Document-scoped jump scrolling
 
@@ -26,4 +26,4 @@ The runtime rejects unsupported `sourcePhase` values instead of falling back to 
 
 ## Compatibility
 
-No syntax, SDK, theme, component or state protocol revision changes. `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1`, `reactive-md-state/v1` and the SDK contract `0.7.0` remain current. Existing document source and state files need no migration. `reactive-md-editor@0.2.0` supports the `0.9.x` engine series.
+No syntax, SDK, theme, component or state protocol revision changes. `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1`, `reactive-md-state/v1` and the SDK contract `0.7.0` remain current. Existing document source and state files need no migration. The published `reactive-md-editor@0.2.0` remains compatible with the `0.9.x` engine series; editor-side snapshot refinements ship in a separate editor release.

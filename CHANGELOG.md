@@ -4,11 +4,11 @@
 
 ## 0.9.1 (2026-11-22, latest channel)
 
-Streaming source compilation, document-scoped jump scrolling, and stricter source-phase validation.
+Streaming source compilation refinements, document-scoped jump scrolling, and stricter source-phase validation.
 
-### Added
+### Changed
 
-- Add streaming source compilation. Compile sessions, `LocalCompileScheduler`, Workers and `LocalReactiveDocument` accept an explicit `streaming` or `final` source phase; unfinished regions render as literal text and fixable issues are reported through `transientDiagnostics`, while deterministic errors and final strict/recovery semantics stay unchanged. The separate `reactive-md-editor` package now applies related external source snapshots as in-place edits, preserving selection, scroll and undo history and deferring updates during IME composition.
+- Refine streaming source compilation. Compile sessions, `LocalCompileScheduler`, Workers and `LocalReactiveDocument` now accept explicit `streaming` or `final` phases; unfinished regions render as literal text and fixable issues are reported through `transientDiagnostics`, while deterministic errors and final strict/recovery semantics stay unchanged. Matching editor-side snapshot handling ships in a separate editor release.
 
 ### Fixed
 
