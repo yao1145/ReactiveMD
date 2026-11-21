@@ -55,7 +55,7 @@ export function sanitizeExtendedFragment(
   // Nothing renderable (empty source, or every element was rejected) means the
   // caller should show the inert source instead of an empty sandbox frame.
   if (result.markup === undefined || result.markup.trim() === '') return { diagnostics };
-  return { markup: result.markup, diagnostics };
+  return { markup: result.markup, inlineSafe: result.inlineSafe, diagnostics };
 }
 
 /**

@@ -16,14 +16,18 @@ export interface AuthorActionRegistration {
   takeover: boolean;
 }
 
+export interface AuthorActionTarget {
+  id: string;
+  epoch: number;
+}
+
 export type AuthorWorkerInput =
   | { kind: 'start'; blocks: readonly string[]; targets: readonly string[] }
   | { kind: 'reply'; id: number; result: AuthorBindingReply }
-  | { kind: 'remove-targets'; targets: string[] }
-  | { kind: 'action'; target: string; action: AuthorAction };
+  | { kind: 'action'; target: AuthorActionTarget; action: AuthorAction };
 
 export type AuthorWorkerOutput =
-  | { kind: 'request'; id: number; request: AuthorBindingRequest; target?: string }
+  | { kind: 'request'; id: number; request: AuthorBindingRequest; target?: AuthorActionTarget }
   | { kind: 'registered'; registrations: AuthorActionRegistration[] }
   | { kind: 'diagnostic'; block: number; message: string }
   | { kind: 'failed'; message: string };

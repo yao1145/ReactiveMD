@@ -6,6 +6,11 @@ import {
   scopeAuthorStyles,
 } from '../src/local/css/author-css';
 
+it('orders the last winning longhand after the preceding shorthand', () => {
+  expect(Object.entries(parseAuthorDeclarations('margin-left:1px; margin:2px; margin-left:3px')))
+    .toEqual([['margin', '2px'], ['marginLeft', '3px']]);
+});
+
 it('preserves multiline selectors and points at filtered global rules', () => {
   expect(scopeAuthorStyles(':scope\n\t h2 { color: red; }')).toMatch(/:scope\s+h2/);
   const source = '<css>\r\n/* note */\r\n@media print {\r\n  @keyframes fade { to { opacity: 1 } }\r\n}\r\n</css>\r\n\r\n# Body';

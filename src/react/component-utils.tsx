@@ -393,16 +393,23 @@ export function useAuthorComponentRoot(context: LocalComponentContext) {
   const authorStyle = context.authorStyle;
   const ref = useCallback((element: HTMLElement | null) => {
     if (!element || !authorStyle) return;
-    for (const [name, value] of Object.entries(authorStyle)) {
-      if (typeof value !== 'string' || !/\s*!important$/i.test(value)) continue;
+    const declarations = Object.entries(authorStyle).map(([name, value]) => {
       const property = name.startsWith('--') ? name : name.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
-      element.style.setProperty(property, value.replace(/\s*!important$/i, ''), 'important');
-    }
+      return `${property}:${value};`;
+    }).join('');
+    // React diffs property values independently. Reapply the ordered author
+    // declarations as CSS so reordering and !important use the native cascade.
+    element.style.cssText += declarations;
   }, [authorStyle]);
-  return (defaults?: CSSProperties) => ({
-    style: authorStyle ? { ...defaults, ...authorStyle } : defaults,
-    ref: authorStyle ? ref : undefined,
-  });
+  return (defaults?: CSSProperties) => {
+    if (!authorStyle) return { style: defaults, ref: undefined };
+    const style = { ...defaults } as Record<string, string | number>;
+    for (const [name, value] of Object.entries(authorStyle)) {
+      delete style[name];
+      style[name] = value;
+    }
+    return { style: style as CSSProperties, ref };
+  };
 }
 
 export function StaticValue({

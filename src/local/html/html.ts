@@ -104,6 +104,8 @@ export interface LocalHtmlSanitizeResult {
 /** Fragment result: `markup` is absent when the fragment is not renderable. */
 export interface LocalHtmlFragmentResult {
   markup?: string;
+  /** Cleaned content that can be inserted without relying on frame isolation. */
+  inlineSafe?: boolean;
   diagnostics: Diagnostic[];
 }
 
@@ -949,6 +951,25 @@ export function sanitizeLocalHtmlDocument(
 export const LOCAL_HTML_P0_ELEMENTS = P0_ELEMENTS;
 export const LOCAL_HTML_VOID_ELEMENTS = VOID_ELEMENTS;
 
+const DIRECT_FRAGMENT_ELEMENTS = new Set([...P0_ELEMENTS, 'dl', 'dt', 'dd', 'section', 'figure', 'figcaption']);
+const DIRECT_FRAGMENT_ATTRIBUTES = new Set(['class', 'title', 'lang', 'dir', 'role', 'alt', 'open', 'start', 'rowspan', 'colspan', 'scope']);
+
+function fragmentCanRenderDirectly(fragment: PParent): boolean {
+  const stack = [...fragment.childNodes];
+  while (stack.length) {
+    const child = stack.pop()!;
+    if (defaultTreeAdapter.isTextNode(child)) continue;
+    // The direct path permits only inert HTML. URL and CSS attributes,
+    // event handlers, foreign content and embedded browsing contexts depend
+    // on the isolated container's additional restrictions.
+    if (!defaultTreeAdapter.isElementNode(child) || child.namespaceURI !== HTML_NS
+      || !DIRECT_FRAGMENT_ELEMENTS.has(child.tagName)
+      || child.attrs.some(attr => attr.namespace || (!DIRECT_FRAGMENT_ATTRIBUTES.has(attr.name) && !/^aria-[a-z-]+$/.test(attr.name)))) return false;
+    for (const nested of child.childNodes) stack.push(nested);
+  }
+  return true;
+}
+
 /** Iterative depth check; `template` content is a separate nesting branch. */
 function fragmentDepthExceeded(fragment: DefaultTreeAdapterTypes.DocumentFragment, limit: number): boolean {
   const stack: Array<{ node: PParent; depth: number }> = [{ node: fragment, depth: 0 }];
@@ -1034,7 +1055,7 @@ export function sanitizeLocalHtmlFragment(
     const fallbackMarkup = state.bodyFallbacks
       .map((value) => serializeOuter(makeText(value), { scriptingEnabled: false }))
       .join('');
-    return { markup: fallbackMarkup + serializeChildren(fragment), diagnostics };
+    return { markup: fallbackMarkup + serializeChildren(fragment), inlineSafe: fragmentCanRenderDirectly(fragment), diagnostics };
   } catch (error) {
     if (error instanceof HtmlBudgetError) {
       const place = position(state, error.start, error.end);

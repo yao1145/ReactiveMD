@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
+import { createLocalStateFile } from '../src/local/runtime/state';
 import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
+import { createShareableHtml } from '../src/shareable';
 import type { LocalCompileOptions } from '../src/local/types';
 
 const MIXED = [
@@ -15,6 +17,26 @@ const MIXED = [
 ].join('\n');
 
 describe('independent document capability contract', () => {
+  it.each([
+    '<css>h2 { color: red; }</css>\n\n## People',
+    '<slider bind="people" label="People" css="margin-left:3px">',
+  ])('checks the static snapshot CSS grant before exporting %s', source => {
+    const result = compileLocal(source);
+    if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+    const { document } = result;
+    const runtime = createLocalRuntime(document);
+    try {
+      const markup = (enableCss: boolean) => renderToStaticMarkup(<LocalDocumentView document={document}
+        runtime={runtime} mode="static" capabilityGrants={{ enableCss }} />);
+      const options = {
+        title: 'CSS snapshot', source, state: createLocalStateFile(document, runtime.snapshot().state),
+        css: 'article{}', mode: 'static' as const, compileOptions: { enableCss: false },
+      };
+      expect(() => createShareableHtml({ ...options, staticMarkup: markup(true) })).toThrow(/author CSS/i);
+      expect(createShareableHtml({ ...options, staticMarkup: markup(false) })).not.toMatch(/@scope|margin-left:3px/);
+    } finally { runtime.dispose(); }
+  });
+
   it('renders P0 HTML with Markdown and live bindings in the default path', () => {
     const result = compileLocal('<details open><summary>Read <strong>more</strong></summary>\n\n# Heading\n\n<sup>2</sup> <sub>n</sub>\n\n<counter bind="count" label="Count" initial="2">\n\nValue: {{ count }}\n</details>');
     expect(result.ok).toBe(true);

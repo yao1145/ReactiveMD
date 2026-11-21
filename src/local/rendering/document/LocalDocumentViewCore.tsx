@@ -105,6 +105,8 @@ export interface LocalDocumentViewProps {
   runtime: LocalRuntime;
   /** Mount-local grants, bounded by the permissions recorded at compilation. */
   capabilityGrants?: LocalHtmlOptions;
+  /** Pause author script binding requests and actions while source validation is pending. */
+  authorScriptPaused?: boolean;
   /** Exact HTTPS origins available to an extended iframe in this mount. */
   allowedFrameOrigins?: readonly string[];
   /** Optional view-scoped channels. Keep the reference stable while authorization is unchanged. */
@@ -276,7 +278,8 @@ function LocalDocumentViewHtml({ document, capabilityGrants, mode = 'interactive
   if (sourceFallback || result.diagnostics.some(item => item.severity === 'error')) {
     return <LocalHtmlSourceFallback source={document.source} mode={renderedMode} />;
   }
-  return <article className={`md-document local-document reactive-md-native-document${renderedMode === 'static' ? ' local-static' : ''}`} data-source-mode="html" data-render-mode={renderedMode}>
+  return <article className={`md-document local-document reactive-md-native-document${renderedMode === 'static' ? ' local-static' : ''}`} data-source-mode="html" data-render-mode={renderedMode}
+    data-rmd-snapshot-css={enableCss ? '' : undefined}>
     <iframe
       key={`${Number(enableCss)}${Number(enableJavaScript)}${Number(enableExtendedHtml)}:${document.source}`}
       className="reactive-md-native-frame"
@@ -305,6 +308,7 @@ function LocalDocumentViewLocal({
   document,
   runtime,
   capabilityGrants,
+  authorScriptPaused = false,
   allowedFrameOrigins,
   network,
   networkScope,
@@ -362,6 +366,7 @@ function LocalDocumentViewLocal({
   const sourceStyles = authorCss ? document.capabilities?.styles : undefined;
   const sourceRules = useMemo(() => sourceStyles?.map(block => scopeAuthorStyles(block.text)).join('\n'), [sourceStyles]);
   const componentStyles = authorCss ? document.capabilities?.componentStyles : undefined;
+  const hasAuthorStyles = Boolean(sourceRules || componentStyles && Object.keys(componentStyles).length);
   const t = useMemo<Localize>(
     () => (en: string, zh: string) => localize(locale, en, zh),
     [locale],
@@ -403,7 +408,7 @@ function LocalDocumentViewLocal({
   const report = useCallback((diagnostics: Diagnostic[]) => {
     reportRef.current?.(diagnostics);
   }, []);
-  const dispatchAuthorAction = useAuthorScript(document, runtime, authorJavaScript, report);
+  const dispatchAuthorAction = useAuthorScript(document, runtime, authorJavaScript, authorScriptPaused, report);
   useLayoutEffect(() => {
     if (viewSession) return bindLocalNetworkExternals(runtime, viewSession, report);
   }, [runtime, viewSession, report]);
@@ -662,6 +667,7 @@ function LocalDocumentViewLocal({
         lang={locale === 'zh' ? 'zh-CN' : 'en'}
         data-rmd-theme={theme.name}
         data-rmd-document=""
+        data-rmd-snapshot-css={hasAuthorStyles ? '' : undefined}
         data-color-scheme={resolvedScheme}
         data-render-mode={renderedMode}
         data-rmd-long-prose={document.nodes.length >= 200 ? '' : undefined}

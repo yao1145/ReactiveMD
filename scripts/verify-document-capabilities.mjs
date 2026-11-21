@@ -46,8 +46,12 @@ try {
     assert.equal(headingColor === 'rgb(36, 84, 154)', options.enableCss);
     const inline = await page.locator('.local-slider').evaluate(node => node.style.maxWidth);
     assert.equal(inline, options.enableCss ? '24rem' : '');
+    if (options.enableCss) {
+      assert.equal(await page.locator('.local-slider').evaluate(node => getComputedStyle(node).marginLeft), '3px');
+    }
     assert.equal(await page.locator('#root iframe').count() > 0, options.enableExtendedHtml);
     if (options.enableExtendedHtml) {
+      assert.equal(await page.locator('#root dl').getByText('Example term').count(), 1);
       await page.waitForFunction(() => Array.from(document.querySelectorAll('iframe[srcdoc]'))
         .some(frame => frame.getAttribute('srcdoc').includes('Embedded example')));
     } else {
@@ -104,6 +108,28 @@ try {
   });
   await value('#root', 12);
 
+  await page.evaluate(() => {
+    const Worker = window.Worker;
+    window.Worker = new Proxy(Worker, {
+      construct(ctor, args) {
+        const worker = Reflect.construct(ctor, args);
+        worker.addEventListener('message', ({ data }) => {
+          if (data.kind === 'request') window.rmdPausedRequestObserved = true;
+        });
+        return worker;
+      },
+    });
+    window.rmdRestoreWorker = () => { window.Worker = Worker; };
+    window.rmdCapabilities.pausedView(true);
+  });
+  await page.waitForFunction(() => window.rmdPausedRequestObserved);
+  await value('#paused-view', 2);
+  await page.evaluate(() => {
+    window.rmdRestoreWorker();
+    window.rmdCapabilities.pausedView(false);
+  });
+  await value('#paused-view', 10);
+
   await page.evaluate(() => window.rmdCapabilities.twoViews(true));
   await value('#allowed', 10);
   await value('#denied', 2);
@@ -141,9 +167,13 @@ try {
   await page.getByRole('button', { name: 'Third increase' }).waitFor({ state: 'detached' });
   await increments.click();
   await page.getByText('Counters: 6 and 6', { exact: true }).waitFor();
+  await page.evaluate(() => window.rmdCapabilities.actions(true, 'restore'));
+  await page.getByText('Original action restored.', { exact: true }).waitFor();
+  await increments.click();
+  await page.getByText('Counters: 8 and 6', { exact: true }).waitFor();
   await page.evaluate(() => window.rmdCapabilities.actions(false));
   await increments.click();
-  await page.getByText('Counters: 7 and 6', { exact: true }).waitFor();
+  await page.getByText('Counters: 9 and 6', { exact: true }).waitFor();
 
   await page.evaluate(() => window.rmdCapabilities.nested());
   const nested = page.getByRole('heading', { name: 'Inner' });
@@ -174,6 +204,8 @@ try {
       }
       assert.deepEqual(errors, []);
       assert.equal(await reopened.locator('iframe').count() > 0, true);
+      assert.equal(await reopened.getByText('Example term', { exact: true }).count(), 1);
+      assert.equal(await reopened.locator('.local-slider').evaluate(element => getComputedStyle(element).marginLeft), '3px');
     } finally {
       await reopened.close();
     }

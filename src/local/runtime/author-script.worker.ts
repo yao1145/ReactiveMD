@@ -1,4 +1,4 @@
-import type { AuthorBindingReply, AuthorBindingRequest, AuthorWorkerInput, AuthorWorkerOutput } from './author-script-protocol';
+import type { AuthorActionTarget, AuthorBindingReply, AuthorBindingRequest, AuthorWorkerInput, AuthorWorkerOutput } from './author-script-protocol';
 import { createAuthorScriptVm } from './author-script-vm';
 
 const worker = globalThis as unknown as {
@@ -11,8 +11,7 @@ let failed = false;
 let session: Awaited<ReturnType<typeof createAuthorScriptVm>> | undefined;
 let queue = Promise.resolve();
 let pendingActions = 0;
-let actionTarget: string | undefined;
-const removedTargets = new Set<string>();
+let actionTarget: AuthorActionTarget | undefined;
 const replies = new Map<number, (value: AuthorBindingReply) => void>();
 
 function request(value: AuthorBindingRequest): Promise<AuthorBindingReply> {
@@ -54,9 +53,6 @@ worker.onmessage = ({ data }) => {
       );
       await session.initialize(data.blocks);
     });
-  } else if (data.kind === 'remove-targets') {
-    for (const target of data.targets) removedTargets.add(target);
-    enqueue(async () => session?.removeTargets(data.targets));
   } else if (data.kind === 'action' && started && !failed) {
     if (pendingActions >= 128) {
       failed = true;
@@ -66,9 +62,8 @@ worker.onmessage = ({ data }) => {
     pendingActions += 1;
     enqueue(async () => {
       try {
-        if (removedTargets.has(data.target)) return;
         actionTarget = data.target;
-        await session?.dispatch(data.target, data.action);
+        await session?.dispatch(data.target.id, data.action);
       } finally {
         actionTarget = undefined;
         pendingActions -= 1;

@@ -8,7 +8,6 @@ import type {
   AuthorWorkerInput,
   AuthorWorkerOutput,
 } from '../../runtime/author-script-protocol';
-import { COUNTER_ACTIONS } from '../../runtime/author-script-protocol';
 import AuthorScriptWorker from '../../runtime/author-script.worker?worker&inline';
 
 function applyRequest(runtime: LocalRuntime, request: AuthorBindingRequest): AuthorBindingReply {
@@ -30,7 +29,9 @@ function applyRequest(runtime: LocalRuntime, request: AuthorBindingRequest): Aut
 interface ScriptSession {
   worker: Worker;
   actions: Map<string, { takeover: boolean }>;
-  targets: Set<string>;
+  targets: Map<string, number>;
+  nextEpoch: number;
+  resume(): void;
 }
 
 const actionKey = (target: string, action: AuthorAction) => `${target}:${action}`;
@@ -40,26 +41,29 @@ export function useAuthorScript(
   document: LocalDocument,
   runtime: LocalRuntime,
   enabled: boolean,
+  paused: boolean,
   report: (diagnostics: Diagnostic[]) => void,
 ) {
   const capabilities = document.capabilities;
   const scriptsKey = enabled && capabilities?.scripts.length
     ? JSON.stringify(capabilities.scripts.map(item => item.text)) : '';
   const targets = capabilities?.actionTargets ?? EMPTY_TARGETS;
-  const latest = useRef({ document, targets, report });
+  const latest = useRef({ document, targets, paused, report });
   const active = useRef<ScriptSession | undefined>(undefined);
   useLayoutEffect(() => {
-    latest.current = { document, targets, report };
+    latest.current = { document, targets, paused, report };
     const session = active.current;
     if (!session) return;
-    const removed = [...session.targets].filter(id => !Object.hasOwn(targets, id));
-    if (!removed.length) return;
-    for (const id of removed) {
-      session.targets.delete(id);
-      for (const action of COUNTER_ACTIONS) session.actions.delete(actionKey(id, action));
+    // Keep registrations for the life of the script. A returning stable ID
+    // can use its registration again, with a new epoch for its binding writes.
+    for (const id of session.targets.keys()) {
+      if (!Object.hasOwn(targets, id)) session.targets.delete(id);
     }
-    session.worker.postMessage({ kind: 'remove-targets', targets: removed } satisfies AuthorWorkerInput);
-  }, [document, targets, report]);
+    for (const id of Object.keys(targets)) {
+      if (!session.targets.has(id)) session.targets.set(id, ++session.nextEpoch);
+    }
+    if (!paused) queueMicrotask(session.resume);
+  }, [document, targets, paused, report]);
 
   useLayoutEffect(() => {
     if (!scriptsKey) return;
@@ -88,23 +92,34 @@ export function useAuthorScript(
         const opened = new AuthorScriptWorker();
         worker = opened;
         const actions: ScriptSession['actions'] = new Map();
-        const sessionTargets = new Set(Object.keys(latest.current.targets));
-        active.current = { worker: opened, actions, targets: sessionTargets };
+        const IDs = Object.keys(latest.current.targets);
+        const sessionTargets = new Map(IDs.map((id, index) => [id, index + 1]));
         const send = (message: AuthorWorkerInput) => opened.postMessage(message);
+        const pending: Extract<AuthorWorkerOutput, { kind: 'request' }>[] = [];
+        const reply = (data: typeof pending[number]) => {
+          let result: AuthorBindingReply;
+          try {
+            result = data.target && sessionTargets.get(data.target.id) !== data.target.epoch
+              ? { ok: false, message: 'The action target was removed.' }
+              : applyRequest(runtime, data.request);
+          } catch { result = { ok: false, message: 'The binding value is unavailable.' }; }
+          if (!revoked) send({ kind: 'reply', id: data.id, result });
+        };
+        active.current = {
+          worker: opened, actions, targets: sessionTargets, nextEpoch: IDs.length,
+          resume() {
+            // A replacement or revoked grant disposes this session before a
+            // queued request can act on the newly committed document.
+            while (!revoked && !latest.current.paused && pending.length) reply(pending.shift()!);
+          },
+        };
         opened.onmessage = ({ data }: MessageEvent<AuthorWorkerOutput>) => {
           if (revoked) return;
           if (data.kind === 'request') {
-            let result: AuthorBindingReply;
-            try {
-              result = data.target !== undefined && !sessionTargets.has(data.target)
-                ? { ok: false, message: 'The action target was removed.' }
-                : applyRequest(runtime, data.request);
-            }
-            catch { result = { ok: false, message: 'The binding value is unavailable.' }; }
-            send({ kind: 'reply', id: data.id, result });
+            if (latest.current.paused) pending.push(data);
+            else reply(data);
           } else if (data.kind === 'registered') {
             for (const item of data.registrations) {
-              if (!sessionTargets.has(item.target)) continue;
               const key = actionKey(item.target, item.action);
               actions.set(key, { takeover: item.takeover || actions.get(key)?.takeover === true });
             }
@@ -120,7 +135,7 @@ export function useAuthorScript(
           reportFailure(0, 'Unable to start the isolated author JavaScript worker.');
           close();
         };
-        send({ kind: 'start', blocks: JSON.parse(scriptsKey), targets: [...sessionTargets] });
+        send({ kind: 'start', blocks: JSON.parse(scriptsKey), targets: IDs });
       } catch {
         if (revoked) return;
         reportFailure(0, 'Unable to create the isolated author JavaScript worker.');
@@ -132,12 +147,14 @@ export function useAuthorScript(
 
   return useCallback((nodeId: string, action: AuthorAction) => {
     const session = active.current;
-    if (!session) return false;
+    if (!session || latest.current.paused) return false;
     const target = Object.keys(latest.current.targets).find(id => latest.current.targets[id] === nodeId);
     if (!target) return false;
+    const epoch = session.targets.get(target);
+    if (epoch === undefined) return false;
     const registered = session.actions.get(actionKey(target, action));
     if (!registered) return false;
-    session.worker.postMessage({ kind: 'action', target, action } satisfies AuthorWorkerInput);
+    session.worker.postMessage({ kind: 'action', target: { id: target, epoch }, action } satisfies AuthorWorkerInput);
     return registered.takeover;
   }, []);
 }

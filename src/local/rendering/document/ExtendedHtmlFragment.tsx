@@ -20,21 +20,7 @@ export interface ExtendedHtmlFragmentProps {
   onDiagnostics?: (items: Diagnostic[]) => void;
 }
 
-/**
- * Isolated container for one extended HTML fragment.
- *
- * The fragment is sanitized locally and rendered inside a sandboxed `srcdoc`
- * iframe, so author markup never joins the host document: no event handlers
- * reach host nodes, no author style crosses the boundary, and the sandbox token
- * list excludes same-origin, top-level navigation and permission expansion.
- * A fragment that cannot be sanitized falls back to inert source text.
- *
- * Host grants are read at render time: a remote frame survives only when its
- * exact HTTPS origin is listed, and the same list becomes the container CSP's
- * `frame-src`. Everything else stays in the sanitizer's diagnostics; this
- * component renders the permitted subset. When the mount does not grant
- * extended HTML at all, the source is shown as inert text.
- */
+/** Render sanitized inert HTML in the document and isolate active fragments. */
 export function ExtendedHtmlFragment({
   source, policy, allowedFrameOrigins, inline, sourceAttributes, onDiagnostics,
 }: ExtendedHtmlFragmentProps) {
@@ -63,8 +49,14 @@ export function ExtendedHtmlFragment({
     );
   }
 
+  if (result.inlineSafe) {
+    return <Frame className="local-extended-fragment" data-extended-html="direct" {...sourceAttributes}
+      dangerouslySetInnerHTML={{ __html: result.markup }} />;
+  }
+
   return (
-    <Frame className="local-extended-fragment" data-extended-html="sandbox" {...sourceAttributes}>
+    <Frame className="local-extended-fragment" data-extended-html="sandbox"
+      data-rmd-snapshot-css={policy.enableCss ? '' : undefined} {...sourceAttributes}>
       <iframe
         key={`${Number(policy.enableCss)}${Number(policy.enableJavaScript)}${Number(policy.enableExtendedHtml)}:${source}`}
         className="local-extended-fragment-frame"

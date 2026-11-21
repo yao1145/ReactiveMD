@@ -22,6 +22,8 @@ Place code in a paired `<javascript>` block. After an interactive mount restores
 
 The counter exposes `increment`, `decrement` and `reset`. Give a counter an `action-id` and register `rmd.handleAction(id, "increment", callback)` to take over that action on that instance. `rmd.observeAction` observes an action without changing its default handler. Revocation, script replacement and unmount end the session. Static HTML, PDF and the static phase of hydration use the supplied RMD state.
 
+Set `LocalDocumentView.authorScriptPaused` to pause author actions and binding requests while an asynchronous preview recompiles. When the script is unchanged, resume the existing session. Restoring a counter's `action-id` restores its registration within that session.
+
 ## P0 HTML in the default mode
 
 | Purpose | Elements |
@@ -84,7 +86,7 @@ In the native HTML route, an unsupported attribute makes its element fall back t
 
 ## Extended HTML and export
 
-Registered components take precedence. For example, `<input bind="name">` remains an RMD input, and `details` keeps Markdown and expressions in its body. Added native elements render as isolated fragments. Denied fragments appear as source at their original positions.
+Registered components take precedence. For example, `<input bind="name">` remains an RMD input, and `details` keeps Markdown and expressions in its body. Sanitized definition lists and other inert structures render in the document. Embeds, fragment scripts and styles run inside a sandbox. Denied fragments appear as source at their original positions.
 
 Use sanitized `srcdoc` for self-contained embeds. Grant exact remote HTTPS origins with the mount's `allowedFrameOrigins` option. Fragment styles and scripts require their respective grants. The sandbox governs navigation, forms and parent document access.
 

@@ -14,11 +14,13 @@ const SOURCE = [
   '',
   '## People',
   '',
-  '<slider bind="people" label="People" initial="2" min="1" max="20" css="max-width: 24rem; margin-block: 1rem">',
+  '<slider bind="people" label="People" initial="2" min="1" max="20" css="max-width: 24rem; margin-block: 1rem; margin-left: 1px; margin: 2px; margin-left: 3px">',
   '',
   'People: {{ people }}',
   '',
   'Before <iframe title="Example" srcdoc="<p>Embedded example</p>"></iframe> after.',
+  '',
+  '<dl><dt>Example term</dt><dd>Example definition</dd></dl>',
   '',
   '<javascript>',
   'await rmd.set("people", 10);',
@@ -50,6 +52,7 @@ const actionPolicy = { enableCss: true, enableJavaScript: true, enableExtendedHt
 const precompiled = compile(SOURCE, actionPolicy);
 const first = createLocalRuntime(precompiled);
 const second = createLocalRuntime(precompiled);
+const pausedRuntime = createLocalRuntime(precompiled);
 const standaloneRuntime = await fetch('/dist-standalone/reactive-md-standalone.js').then(response => response.text());
 const generator = { name: 'test', version: '1.0.0' };
 
@@ -58,10 +61,11 @@ Object.assign(window, {
     render(policy: LocalHtmlPolicy, key?: string) {
       root.render(<LocalReactiveDocument key={key} source={SOURCE} compileOptions={policy} onDiagnostics={onDiagnostics} />);
     },
-    actions(enableJavaScript: boolean, edit?: 'add' | 'remove') {
+    actions(enableJavaScript: boolean, edit?: 'add' | 'remove' | 'restore') {
       const source = edit === 'add'
         ? '<counter bind="c" label="Third" initial="0" action-id="third">\n' + ACTIONS
-        : edit === 'remove' ? ACTIONS.replace(' action-id="first"', '') : ACTIONS;
+        : edit === 'remove' ? ACTIONS.replace(' action-id="first"', '')
+          : edit === 'restore' ? ACTIONS + '\n\nOriginal action restored.' : ACTIONS;
       root.render(<LocalReactiveDocument key="actions" source={source} compileOptions={actionPolicy}
         capabilityGrants={{ enableJavaScript }} onDiagnostics={onDiagnostics} />);
     },
@@ -71,6 +75,10 @@ Object.assign(window, {
           capabilityGrants={{ enableJavaScript }} onDiagnostics={onDiagnostics} /></div>
         <div id="denied"><LocalDocumentView document={precompiled} runtime={second} onDiagnostics={onDiagnostics} /></div>
       </>);
+    },
+    pausedView(paused: boolean) {
+      root.render(<div id="paused-view"><LocalDocumentView document={precompiled} runtime={pausedRuntime}
+        capabilityGrants={{ enableJavaScript: true }} authorScriptPaused={paused} onDiagnostics={onDiagnostics} /></div>);
     },
     nested() {
       const outer = compile([

@@ -22,6 +22,8 @@
 
 通过计数器的 `action-id` 命名实例。调用 `rmd.handleAction(id, "increment", callback)` 接管该实例的增加动作。计数器还提供 `decrement` 和 `reset`。用 `rmd.observeAction` 观察动作，默认处理照常运行。替换脚本、撤销授权或卸载文档时清理会话。静态 HTML、PDF 和 hydration 的静态阶段使用给定的 RMD 状态。
 
+异步预览重新编译时，可用 `LocalDocumentView.authorScriptPaused` 暂停作者动作和绑定请求。确认脚本未变后恢复原会话。撤销计数器 `action-id` 的删除后，同一脚本会话可继续接管这个动作。
+
 ## 默认支持的 P0 HTML
 
 | 用途 | 标签 |
@@ -82,7 +84,7 @@
 
 ## 扩展 HTML 与导出
 
-已注册组件优先。比如 `<input bind="name">` 仍是 RMD 输入框，`details` 的正文继续支持 Markdown 和表达式。新增放行的标签按片段隔离渲染。未获准的片段在原位置显示转义源码。
+已注册组件优先。比如 `<input bind="name">` 仍是 RMD 输入框，`details` 的正文继续支持 Markdown 和表达式。净化后的普通定义列表等结构直接进入文档，包含嵌入、作者脚本或样式的片段由沙箱承载。未获准的片段在原位置显示转义源码。
 
 自包含嵌入可用经净化的 `srcdoc`。通过挂载参数 `allowedFrameOrigins` 开放精确的 HTTPS 来源。片段样式和脚本继续受对应开关管理，沙箱约束导航、表单和对父文档的访问。
 

@@ -204,7 +204,11 @@ export async function createAuthorScriptVm(
       } else if (!pending.size && !runtime.hasPendingJob()) {
         throw new Error('Author JavaScript is waiting for an unavailable operation.');
       }
-      if (pending.size) await Promise.race(pending);
+      if (pending.size) {
+        const waitingSince = performance.now();
+        await Promise.race(pending);
+        deadline += performance.now() - waitingSince;
+      }
     }
   }
 
@@ -260,14 +264,6 @@ export async function createAuthorScriptVm(
       const candidates = handlers.filter(({ registration }) => registration.target === target && registration.action === name);
       candidates.sort((a, b) => Number(b.registration.takeover) - Number(a.registration.takeover));
       for (const item of candidates) await run(item.block, () => vm.callFunction(item.callback, vm.undefined));
-    },
-    removeTargets(targets: readonly string[]) {
-      for (const target of targets) allowed.delete(target);
-      for (let index = handlers.length - 1; index >= 0; index--) {
-        if (allowed.has(handlers[index].registration.target)) continue;
-        handlers[index].callback.dispose();
-        handlers.splice(index, 1);
-      }
     },
     dispose() {
       handlers.forEach(item => item.callback.dispose());

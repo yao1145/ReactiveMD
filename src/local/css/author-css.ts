@@ -87,6 +87,9 @@ export function parseAuthorDeclarations(source: string): Readonly<Record<string,
     if (!key || !REACT_KEY.test(key)) continue;
     if (important[key] && !declaration.important) continue;
     important[key] = declaration.important;
+    // A winning declaration belongs at its own source position. A shorthand
+    // between the old and new occurrences can affect the same longhand.
+    delete declarations[key];
     declarations[key] = declaration.important ? `${declaration.value} !important` : declaration.value;
   }
   return Object.freeze(declarations);

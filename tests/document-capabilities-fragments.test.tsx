@@ -208,15 +208,20 @@ describe('ExtendedHtmlFragment render adapter', () => {
     expect(srcdoc).toContain('frame-src about: https://widgets.example.test');
   });
 
-  it('renders ordinary fragments in the sandbox container', () => {
-    const markup = renderToStaticMarkup(<ExtendedHtmlFragment source={'<p>a</p><p>b</p>'} policy={policy()} />);
+  it('renders a definition list in the document DOM', () => {
+    const markup = renderToStaticMarkup(<ExtendedHtmlFragment source={'<dl><dt>Term</dt><dd>Definition</dd></dl>'} policy={policy()} />);
     const tree = parseFragment(markup);
-    const [frame] = elements(tree, 'iframe');
-    expect(frame).toBeDefined();
-    expect(attrs(frame).sandbox).toBe('allow-forms');
-    expect(attrs(frame).srcdoc).toContain('<p>a</p>');
-    // The fragment body stays inside srcdoc; nothing leaks into host markup.
-    expect(elements(tree, 'p')).toHaveLength(0);
+    expect(elements(tree, 'iframe')).toHaveLength(0);
+    expect(elements(tree, 'dl')).toHaveLength(1);
+    expect(text(elements(tree, 'dt')[0])).toBe('Term');
+    expect(text(elements(tree, 'dd')[0])).toBe('Definition');
+  });
+
+  it('keeps author styles and active descendants inside the sandbox', () => {
+    const markup = renderToStaticMarkup(<ExtendedHtmlFragment source={'<dl><dt style="color:red">Term</dt><dd>Definition</dd></dl>'} policy={policy()} />);
+    const tree = parseFragment(markup);
+    expect(elements(tree, 'dl')).toHaveLength(0);
+    expect(attrs(elements(tree, 'iframe')[0]).srcdoc).toContain('style="color:red"');
   });
 
   it('shows source text when the mount does not grant extended HTML', () => {
