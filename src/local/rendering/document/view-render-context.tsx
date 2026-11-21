@@ -289,6 +289,15 @@ export function sourcePosition(env: RenderEnv, offset: number): { line: number; 
   return { line, column: limit - lineStart + 1 };
 }
 
+/** Nearest scroll container the host wraps around this document instance. */
+function documentScrollContainer(root: HTMLElement): HTMLElement | null {
+  for (let element = root.parentElement; element; element = element.parentElement) {
+    const overflowY = getComputedStyle(element).overflowY;
+    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') return element;
+  }
+  return null;
+}
+
 /** Focus and scroll to one rendered anchor inside this document instance. */
 function jumpWithinDocument(
   root: HTMLElement | null,
@@ -315,6 +324,25 @@ function jumpWithinDocument(
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) behavior = 'auto';
   } catch {
     behavior = 'auto';
+  }
+  const container = documentScrollContainer(root);
+  if (container) {
+    // Scrolling only the host's document viewport keeps an embedded preview
+    // from dragging the surrounding page along.
+    const containerStyle = getComputedStyle(container);
+    const border = Number.parseFloat(containerStyle.borderTopWidth) || 0;
+    const padding = Number.parseFloat(containerStyle.scrollPaddingTop) || 0;
+    const margin = Number.parseFloat(getComputedStyle(element).scrollMarginTop) || 0;
+    const top = container.scrollTop
+      + element.getBoundingClientRect().top
+      - container.getBoundingClientRect().top
+      - border - padding - margin;
+    try {
+      container.scrollTo({ top: Math.max(0, top), behavior });
+    } catch {
+      container.scrollTop = Math.max(0, top);
+    }
+    return 'ok';
   }
   try {
     element.scrollIntoView({ behavior, block: 'start' });

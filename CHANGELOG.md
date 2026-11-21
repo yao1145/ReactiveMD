@@ -10,6 +10,7 @@
 
 ### Fixed
 
+- Scope `<jump>` navigation to the nearest scroll container the host wraps around the rendered document; an embedded preview scrolls its own viewport instead of the surrounding page.
 - Reject unsupported runtime `sourcePhase` values instead of falling back to interactive final rendering.
 
 ## 0.9.0 (2026-11-20, latest channel)
