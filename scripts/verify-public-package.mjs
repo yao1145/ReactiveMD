@@ -61,7 +61,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createStandardCompiler } from 'reactive-md/compiler/standard';
 import { createCompiler } from 'reactive-md/compiler';
-import { compileLocal, createLocalCompileSession, createLocalRuntime, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
+import { compileLocal, createLocalCompileSession, createLocalRuntime, LocalCompileScheduler, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
 import { analyzeLocalSource, insertTemplate, getNativeComponentCatalog } from 'reactive-md/authoring';
 import { createRandom } from 'reactive-md/runtime';
 import { createLocalBrowserStateStorage, httpSubmit, sseStream, webSocketChannel, webRtcChannel } from 'reactive-md/runtime/browser';
@@ -92,6 +92,21 @@ try {
   assert.equal(complete.status, 'valid');
 } finally {
   streamingSession.dispose();
+}
+const scheduledResults = [];
+const invalidPhaseScheduler = new LocalCompileScheduler({
+  createWorker: () => { throw new Error('no worker in the packed consumer'); },
+  onResult: (outcome) => scheduledResults.push(outcome),
+});
+try {
+  invalidPhaseScheduler.schedule('# Hello', undefined, undefined, 'streamingg');
+  assert.equal(scheduledResults.length, 1);
+  assert.equal(scheduledResults[0].result.ok, false);
+  assert.equal(scheduledResults[0].result.status, 'failed');
+  assert.equal(scheduledResults[0].result.diagnostics[0].code, 'local.options.invalid');
+  assert.equal(scheduledResults[0].result.diagnostics[0].messageKey, 'local.options.invalid.source-phase');
+} finally {
+  invalidPhaseScheduler.dispose();
 }
 assert.equal(typeof startLocalCompileWorker, 'function');
 assert.equal(typeof localCompileOptionsKey({strict:false}), 'string');

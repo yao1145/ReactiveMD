@@ -384,6 +384,66 @@ describe('LocalCompileScheduler source phases', () => {
     }
   });
 
+  it('rejects an unsupported explicit phase before dispatching', () => {
+    const { worker, results, scheduler } = setup();
+    try {
+      scheduler.schedule('hello', undefined, undefined, 'streamingg' as unknown as LocalSourcePhase);
+      expect(worker.messages).toHaveLength(0);
+      expect(results).toHaveLength(1);
+      expect('sourcePhase' in results[0]).toBe(false);
+      expect(results[0].result.ok).toBe(false);
+      expect(results[0].result.status).toBe('failed');
+      expect(results[0].result.diagnostics).toEqual([expect.objectContaining({
+        code: 'local.options.invalid',
+        messageKey: 'local.options.invalid.source-phase',
+      })]);
+    } finally {
+      scheduler.dispose();
+    }
+  });
+
+  it('rejects an unsupported options phase before dispatching', () => {
+    const { worker, results, scheduler } = setup();
+    try {
+      scheduler.schedule('hello', { sourcePhase: 'streamingg' } as unknown as LocalCompileOptions);
+      expect(worker.messages).toHaveLength(0);
+      expect(results).toHaveLength(1);
+      expect(results[0].result.ok).toBe(false);
+      expect(results[0].result.diagnostics).toEqual([expect.objectContaining({
+        code: 'local.options.invalid',
+        messageKey: 'local.options.invalid.source-phase',
+      })]);
+    } finally {
+      scheduler.dispose();
+    }
+  });
+
+  it('rejects an unsupported explicit phase in fallback mode without calling fallbackCompile', () => {
+    const results: LocalCompileOutcome[] = [];
+    const fallbackCompile = vi.fn((source: string): LocalCompileResult => okResult(source));
+    const scheduler = new LocalCompileScheduler({
+      createWorker: () => {
+        throw new Error('no workers here');
+      },
+      fallbackCompile,
+      onResult: (outcome) => results.push(outcome),
+    });
+    try {
+      scheduler.schedule('hello', undefined, undefined, 'streamingg' as unknown as LocalSourcePhase);
+      expect(fallbackCompile).not.toHaveBeenCalled();
+      expect(results).toHaveLength(1);
+      expect(results[0].mode).toBe('fallback');
+      expect(results[0].result.ok).toBe(false);
+      expect(results[0].result.status).toBe('failed');
+      expect(results[0].result.diagnostics).toEqual([expect.objectContaining({
+        code: 'local.options.invalid',
+        messageKey: 'local.options.invalid.source-phase',
+      })]);
+    } finally {
+      scheduler.dispose();
+    }
+  });
+
   it('supports streaming and final snapshots in fallback mode', () => {
     const results: LocalCompileOutcome[] = [];
     const scheduler = new LocalCompileScheduler({

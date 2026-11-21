@@ -130,7 +130,7 @@ Worker 判断结果补丁不划算时，可对同一修订返回完整成功结�
 type LocalSourcePhase = 'streaming' | 'final';
 ```
 
-`streaming` 表示本轮生成尚未结束，`final` 表示源码已经完整。阶段可以作为 `LocalCompileOptions.sourcePhase` 传入，也可以作为会话、调度器的显式参数传入。两者都省略时完全沿用现有的最终编译语义。运行时只接受这两个值；其他值会使编译失败，而不是回退到 `final`。`sourcePhase` 不是编译身份的一部分，不进入 `localCompileOptionsKey`，也不会改变 `strict`：
+`streaming` 表示本轮生成尚未结束，`final` 表示源码已经完整。阶段可以作为 `LocalCompileOptions.sourcePhase` 传入，也可以作为会话、调度器的显式参数传入。两者都省略时完全沿用现有的最终编译语义。运行时只接受这两个值；会话与 `LocalCompileScheduler` 对其他值都返回相同的 `local.options.invalid` 失败，而不是回退到 `final`。`sourcePhase` 不是编译身份的一部分，不进入 `localCompileOptionsKey`，也不会改变 `strict`：
 
 - `strict` 仍只控制最终源码的结构恢复。`strict: false` 不是流式模式，它会把最终仍损坏的结构恢复为惰性原文并产生 warning。
 - `sourcePhase` 表达源码是否仍在生成。流式快照把当前无法安全解释的区域降级为原文，并保留已完成前缀的节点身份和源码范围；它不会因为尾部尚未补全就让整篇预览失败。`strict: false` 的恢复记录和 warning 仍按既有规则产生，不会被标成暂态；`final` 再按所选严格模式完整编译。

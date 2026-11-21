@@ -232,6 +232,8 @@ interface CompileJob {
   sourcePhase: LocalSourcePhase;
   /** True when the caller supplied a phase and expects it echoed on the outcome. */
   explicitPhase: boolean;
+  /** Original unsupported phase, preserved so scheduling fails like a direct compile. */
+  invalidPhase?: unknown;
   /** Full-result recovery attempts for this job (bounded to one). */
   recovery?: number;
 }
@@ -286,7 +288,9 @@ function createJob(
   const snapshot = snapshotCompileOptions(options);
   // An unspecified phase keeps the legacy final request byte-for-byte; a
   // declared one travels as its own field and is echoed on the outcome.
-  const declared = sourcePhase !== undefined ? sourcePhase : declaredOptionPhase(options);
+  const declared: unknown = sourcePhase !== undefined ? sourcePhase : declaredOptionPhase(options);
+  const validPhase = declared === 'streaming' || declared === 'final' ? declared : undefined;
+  const invalidPhase = declared !== undefined && validPhase === undefined ? declared : undefined;
   // Key the snapshot that is actually sent: a bounded oversized host array
   // must produce the same signature on both sides of the worker boundary.
   return {
@@ -294,17 +298,17 @@ function createJob(
     options: snapshot,
     optionsKey: localWorkerOptionsKey(snapshot),
     scheduledAt: now(),
-    sourcePhase: declared === 'streaming' ? 'streaming' : 'final',
+    sourcePhase: validPhase === 'streaming' ? 'streaming' : 'final',
     explicitPhase: declared !== undefined,
+    ...(invalidPhase === undefined ? {} : { invalidPhase }),
   };
 }
 
 /** Read `options.sourcePhase` without letting a hostile getter break scheduling. */
-function declaredOptionPhase(options: LocalCompileOptions | undefined): LocalSourcePhase | undefined {
+function declaredOptionPhase(options: LocalCompileOptions | undefined): unknown {
   try {
     if (!options || typeof options !== 'object' || Array.isArray(options)) return undefined;
-    const value = (options as { sourcePhase?: unknown }).sourcePhase;
-    return value === 'streaming' || value === 'final' ? value : value === undefined ? undefined : 'final';
+    return (options as { sourcePhase?: unknown }).sourcePhase;
   } catch {
     return undefined;
   }
@@ -314,7 +318,8 @@ function sameJob(left: CompileJob, right: CompileJob): boolean {
   return left.source === right.source
     && left.optionsKey === right.optionsKey
     && left.sourcePhase === right.sourcePhase
-    && left.explicitPhase === right.explicitPhase;
+    && left.explicitPhase === right.explicitPhase
+    && left.invalidPhase === right.invalidPhase;
 }
 
 /** Phase fields an outcome carries; legacy final jobs stay without them. */
@@ -327,6 +332,23 @@ function failureResult(job: CompileJob, diagnostic: Diagnostic): LocalCompileRes
   return job.explicitPhase
     ? { ok: false, diagnostics: [diagnostic], status: 'failed' }
     : { ok: false, diagnostics: [diagnostic] };
+}
+
+/** Same diagnostic shape a direct session compile returns for a bad phase. */
+function invalidSourcePhaseResult(): LocalCompileResult {
+  return {
+    ok: false,
+    status: 'failed',
+    diagnostics: [{
+      code: 'local.options.invalid',
+      message: 'Compile option sourcePhase must be "streaming" or "final".',
+      severity: 'error',
+      range: { start: 0, end: 0 },
+      line: 1,
+      column: 1,
+      messageKey: 'local.options.invalid.source-phase',
+    }],
+  };
 }
 
 function isCompileResult(value: unknown): value is LocalCompileResult {
@@ -483,6 +505,20 @@ export class LocalCompileScheduler {
   }
 
   private compile(job: CompileJob): void {
+    // An unsupported phase fails at the scheduler boundary for both transports,
+    // matching `session.compile` and never compiling the snapshot as final.
+    if (job.invalidPhase !== undefined) {
+      this.deliver({
+        source: job.source,
+        result: invalidSourcePhaseResult(),
+        duration: 0,
+        mode: this.worker === null ? 'fallback' : 'worker',
+        ...(job.options === undefined ? {} : { options: job.options }),
+        metrics: { queueMs: safeDuration(now() - job.scheduledAt) },
+      });
+      this.finishRun();
+      return;
+    }
     const worker = this.worker;
     if (!worker) {
       this.compileFallback(job);
