@@ -145,6 +145,35 @@ if (changelogEn.length === 0 || changelogZh.length === 0) {
   }
 }
 
+const compatibilityPages = [
+  ['docs/compatibility/compatibility-en.md', /^\|\s*Package version\s*\|\s*`([^`]+)`/m],
+  ['docs/compatibility/compatibility-ch.md', /^\|\s*包版本\s*\|\s*`([^`]+)`/m],
+];
+for (const [file, pattern] of compatibilityPages) {
+  const match = pattern.exec(await read(file));
+  if (!match) {
+    fail(`${file} does not declare the current package version.`);
+  } else if (match[1] !== packageInfo.version) {
+    fail(`${file} declares package version ${match[1]}, but package.json is ${packageInfo.version}.`);
+  } else {
+    pass(`${file} declares package version ${packageInfo.version}.`);
+  }
+}
+
+const currentVersion = versionCore(packageInfo.version);
+for (const file of ['docs/compatibility/support-matrix-en.md', 'docs/compatibility/support-matrix-ch.md']) {
+  const match = /`reactive-md`\s+(\d+)\.(\d+)\.x/.exec(await read(file));
+  if (!match) {
+    fail(`${file} does not declare the reactive-md release line.`);
+  } else if (currentVersion === null) {
+    fail(`${file} release line cannot be compared with an invalid package version.`);
+  } else if (Number(match[1]) !== currentVersion.parts[0] || Number(match[2]) !== currentVersion.parts[1]) {
+    fail(`${file} declares reactive-md ${match[1]}.${match[2]}.x, but package.json is ${packageInfo.version}.`);
+  } else {
+    pass(`${file} declares the active reactive-md ${match[1]}.${match[2]}.x release line.`);
+  }
+}
+
 if (failures.length > 0) {
   for (const message of failures) process.stderr.write(`version check failed: ${message}\n`);
   process.exitCode = 1;

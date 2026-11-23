@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -11,7 +12,7 @@ import { fileURLToPath } from 'node:url';
  */
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
-const schema = 'reactive-md-support-evidence/v1';
+const schema = 'reactive-md-support-evidence/v2';
 const defaultEvidencePath = path.join(root, 'artifacts', 'support', 'latest.json');
 const matrixDocs = ['docs/compatibility/support-matrix-en.md', 'docs/compatibility/support-matrix-ch.md'];
 const profileNames = ['fast', 'release', 'all'];
@@ -176,6 +177,14 @@ const manifest = [
     run: checkDocsMatrix,
   },
   {
+    id: 'documented-versions',
+    label: 'Documented version consistency',
+    owner: 'engine',
+    profile: 'fast',
+    kind: 'command',
+    command: 'node scripts/check-versions.mjs',
+  },
+  {
     id: 'worker-unit',
     label: 'Local compile worker tests',
     owner: 'engine',
@@ -202,13 +211,31 @@ const manifest = [
     requires: [{ path: 'dist-library', hint: 'run npm run build first' }],
   },
   {
-    id: 'chromium-core',
-    label: 'Chromium browser core',
+    id: 'playwright-chromium-core',
+    label: 'Playwright Chromium browser core',
     owner: 'engine',
     profile: 'release',
     kind: 'command',
     command: 'node scripts/verify-required-form-browser.mjs',
-    env: { PLAYWRIGHT_ENGINE: 'chromium' },
+    env: { PLAYWRIGHT_ENGINE: 'chromium', PLAYWRIGHT_CHANNEL: 'chromium' },
+  },
+  {
+    id: 'chrome-core',
+    label: 'Google Chrome browser core',
+    owner: 'engine',
+    profile: 'release',
+    kind: 'command',
+    command: 'node scripts/verify-required-form-browser.mjs',
+    env: { PLAYWRIGHT_ENGINE: 'chromium', PLAYWRIGHT_CHANNEL: 'chrome' },
+  },
+  {
+    id: 'edge-core',
+    label: 'Microsoft Edge browser core',
+    owner: 'engine',
+    profile: 'release',
+    kind: 'command',
+    command: 'node scripts/verify-required-form-browser.mjs',
+    env: { PLAYWRIGHT_ENGINE: 'chromium', PLAYWRIGHT_CHANNEL: 'msedge' },
   },
   {
     id: 'firefox-core',
@@ -244,6 +271,7 @@ const manifest = [
     kind: 'command',
     command: 'npm run test:browser:smoke',
     cwd: '../ReactiveMD-Demo',
+    env: { PLAYWRIGHT_CHANNEL: 'msedge' },
   },
   {
     id: 'editor-pack',
@@ -283,11 +311,32 @@ function parseArguments(argv) {
   return options;
 }
 
-function readCommit() {
-  const result = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' });
-  if (result.error || result.status !== 0) return null;
-  const commit = (result.stdout ?? '').trim();
-  return commit.length > 0 ? commit : null;
+function gitState(directory) {
+  const commit = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: directory, encoding: 'utf8' });
+  const status = spawnSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: directory, encoding: 'utf8' });
+  return {
+    commit: commit.status === 0 ? (commit.stdout ?? '').trim() || null : null,
+    dirty: status.status === 0 ? (status.stdout ?? '').trim().length > 0 : null,
+  };
+}
+
+async function sourceAt(directory) {
+  const packageFile = path.join(directory, 'package.json');
+  if (!existsSync(packageFile)) return null;
+  const info = JSON.parse(await readFile(packageFile, 'utf8'));
+  return { name: info.name ?? null, version: info.version ?? null, ...gitState(directory) };
+}
+
+async function readManifestInfo() {
+  const file = path.join(root, 'docs/compatibility/compatibility-manifest.json');
+  if (!existsSync(file)) return null;
+  const bytes = await readFile(file);
+  const info = JSON.parse(bytes.toString('utf8'));
+  return {
+    path: displayPath(file),
+    schema: info.schema ?? null,
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+  };
 }
 
 function displayPath(target) {
@@ -340,6 +389,7 @@ async function runCheck(check, context, options) {
     status: result.status,
     durationMs: Math.round(performance.now() - startedAt),
     ...(check.command ? { command: check.command } : {}),
+    ...(check.env ? { env: check.env } : {}),
     ...(result.details ? { details: result.details } : {}),
     ...(result.reason ? { reason: result.reason } : {}),
   };
@@ -361,8 +411,11 @@ if (options.help) {
 
 if (options.list) {
   const lines = manifest.map((check) => {
+    const env = check.env
+      ? ` [${Object.entries(check.env).map(([name, value]) => `${name}=${value}`).join(' ')}]`
+      : '';
     const target = check.kind === 'command'
-      ? `${check.command}${check.note ? ` (${check.note})` : ''}`
+      ? `${check.command}${env}${check.note ? ` (${check.note})` : ''}`
       : check.description;
     return `${check.id}  ${check.owner}  ${check.profile}  ${check.kind}  ${target}`;
   });
@@ -396,11 +449,19 @@ const context = { packageInfo };
 const results = [];
 for (const check of selection) results.push(await runCheck(check, context, options));
 
+const sources = {
+  engine: await sourceAt(root),
+  editor: await sourceAt(path.resolve(root, '..', 'ReactiveMD-Editor')),
+  demo: await sourceAt(path.resolve(root, '..', 'ReactiveMD-Demo')),
+};
 const evidence = {
   schema,
+  schemaVersion: 2,
   generatedAt: new Date().toISOString(),
   repository: 'reactive-md',
-  commit: readCommit(),
+  commit: sources.engine?.commit ?? null,
+  sources,
+  manifest: await readManifestInfo(),
   package: { name: packageInfo.name, version: packageInfo.version },
   profile: options.only.length > 0 ? 'only' : profile,
   environment: {

@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yao1145/ReactiveMD/blob/main/docs/compatibility/compatibility-manifest.schema.json",
+  "title": "Reactive MD compatibility manifest",
+  "description": "Cross-package versions, protocols, Demo candidates, verified versions and the recommended install set.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema", "engine", "editor", "demo", "protocols", "verified", "runtimes", "install"],
+  "properties": {
+    "$schema": { "const": "./compatibility-manifest.schema.json" },
+    "schema": { "const": "reactive-md-compatibility/v1" },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "reactive-md" },
+        "version": { "$ref": "#/$defs/semver" }
+      }
+    },
+    "editor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "enginePeer", "repository"],
+      "properties": {
+        "name": { "const": "reactive-md-editor" },
+        "version": { "$ref": "#/$defs/semver" },
+        "enginePeer": { "type": "string", "pattern": "^\\^\\d+\\.\\d+\\.\\d+$" },
+        "repository": { "type": "string", "minLength": 1 }
+      }
+    },
+    "demo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "candidates"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "candidates": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["engine", "editor"],
+          "properties": {
+            "engine": { "$ref": "#/$defs/candidate" },
+            "editor": { "$ref": "#/$defs/candidate" }
+          }
+        }
+      }
+    },
+    "protocols": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sdk", "syntax", "component", "theme"],
+      "properties": {
+        "sdk": { "type": "string", "minLength": 1 },
+        "syntax": { "type": "string", "minLength": 1 },
+        "component": { "type": "string", "minLength": 1 },
+        "theme": { "type": "string", "minLength": 1 }
+      }
+    },
+    "verified": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "node", "browsers"],
+      "properties": {
+        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "node": { "$ref": "#/$defs/semver" },
+        "browsers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "Google Chrome",
+              "Microsoft Edge",
+              "Playwright Chromium",
+              "Playwright Firefox",
+              "Playwright WebKit",
+              "Safari"
+            ]
+          }
+        }
+      }
+    },
+    "runtimes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["react", "react-dom", "vite"],
+      "properties": {
+        "react": { "$ref": "#/$defs/testedRuntime" },
+        "react-dom": { "$ref": "#/$defs/testedRuntime" },
+        "vite": { "$ref": "#/$defs/testedRuntime" }
+      }
+    },
+    "install": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "packages", "optional"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "packages": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reactive-md", "reactive-md-editor", "react", "react-dom"],
+          "properties": {
+            "reactive-md": { "type": "string", "minLength": 1 },
+            "reactive-md-editor": { "type": "string", "minLength": 1 },
+            "react": { "type": "string", "minLength": 1 },
+            "react-dom": { "type": "string", "minLength": 1 }
+          }
+        },
+        "optional": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["vite"],
+          "properties": {
+            "vite": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package", "version", "tarball", "sha256"],
+      "properties": {
+        "package": { "type": "string", "minLength": 1 },
+        "version": { "$ref": "#/$defs/semver" },
+        "tarball": { "type": "string", "pattern": "^vendor/.+\\.tgz$" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "testedRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared", "tested"],
+      "properties": {
+        "declared": { "type": "string", "minLength": 1 },
+        "tested": { "$ref": "#/$defs/semver" },
+        "optional": { "type": "boolean" }
+      }
+    }
+  }
+}

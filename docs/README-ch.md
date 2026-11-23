@@ -56,6 +56,7 @@
 | 版本与兼容性 | [中文](compatibility/compatibility-ch.md) |
 | 支持矩阵 | [中文](compatibility/support-matrix-ch.md) |
 | 兼容性清单 | [JSON](compatibility/compatibility-manifest.json) |
+| 兼容性清单 schema | [JSON Schema](compatibility/compatibility-manifest.schema.json) |
 | 源码版本标记 | [中文](compatibility/source-versioning-ch.md) |
 
 ## 开发维护

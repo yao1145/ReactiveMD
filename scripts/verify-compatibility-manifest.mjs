@@ -1,18 +1,21 @@
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Check the machine-readable compatibility manifest against the engine
- * constants, the editor package and the Demo vendor candidates.
+ * Check the machine-readable compatibility manifest against its JSON Schema,
+ * the engine constants, installed runtimes, the editor package and the Demo
+ * vendor candidates.
  */
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const workspace = path.resolve(root, '..');
 const requireWorkspace = process.argv.includes('--require-workspace');
 const manifestPath = 'docs/compatibility/compatibility-manifest.json';
+const schemaPath = 'docs/compatibility/compatibility-manifest.schema.json';
 const failures = [];
 const checks = [];
 const skips = [];
@@ -35,6 +38,10 @@ async function readJson(relative) {
 
 async function readJsonAt(absolute) {
   return JSON.parse(await readTextAt(absolute));
+}
+
+async function readJsonIfExistsAt(absolute) {
+  return existsSync(absolute) ? readJsonAt(absolute) : null;
 }
 
 async function sha256(absolute) {
@@ -73,6 +80,13 @@ function compareVersions(left, right) {
   return 0;
 }
 
+function satisfiesMinimum(version, range) {
+  const match = /^>=(\d+)\.(\d+)\.(\d+)$/.exec(String(range ?? '').trim());
+  const actual = versionParts(version);
+  if (!match || !actual) return false;
+  return compareVersions(actual, [Number(match[1]), Number(match[2]), Number(match[3])]) >= 0;
+}
+
 function satisfiesCaret(version, range) {
   const match = /^\^(\d+)\.(\d+)\.(\d+)$/.exec(String(range).trim());
   const actual = versionParts(version);
@@ -92,15 +106,144 @@ function versionFromTarball(filename, packageName) {
   return pattern.exec(filename)?.[1] ?? null;
 }
 
+function readTarString(buffer, start, length) {
+  const slice = buffer.subarray(start, start + length);
+  const zero = slice.indexOf(0);
+  return slice.subarray(0, zero === -1 ? slice.length : zero).toString('utf8').trim();
+}
+
+async function readTarballPackageJson(absolute) {
+  const archive = gunzipSync(await readFile(absolute));
+  let offset = 0;
+  while (offset + 512 <= archive.length) {
+    const header = archive.subarray(offset, offset + 512);
+    if (header.every((byte) => byte === 0)) break;
+    const name = readTarString(header, 0, 100);
+    const prefix = readTarString(header, 345, 155);
+    const entry = prefix ? `${prefix}/${name}` : name;
+    const size = Number.parseInt(readTarString(header, 124, 12), 8) || 0;
+    const dataStart = offset + 512;
+    if (entry === 'package/package.json') {
+      return JSON.parse(archive.subarray(dataStart, dataStart + size).toString('utf8'));
+    }
+    offset = dataStart + Math.ceil(size / 512) * 512;
+  }
+  return null;
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function resolveRef(rootSchema, reference) {
+  if (!reference.startsWith('#/')) return null;
+  return reference
+    .slice(2)
+    .split('/')
+    .reduce((node, key) => (node === undefined || node === null ? undefined : node[key]), rootSchema);
+}
+
+function validateInstance(instance, schema, rootSchema, pointer, errors) {
+  if (typeof schema.$ref === 'string') {
+    const target = resolveRef(rootSchema, schema.$ref);
+    if (!target) {
+      errors.push(`${pointer}: unresolved schema reference ${schema.$ref}.`);
+      return;
+    }
+    validateInstance(instance, target, rootSchema, pointer, errors);
+    return;
+  }
+  if ('const' in schema && instance !== schema.const) {
+    errors.push(`${pointer}: expected ${JSON.stringify(schema.const)}, found ${JSON.stringify(instance)}.`);
+    return;
+  }
+  if (Array.isArray(schema.enum) && !schema.enum.includes(instance)) {
+    errors.push(`${pointer}: expected one of ${schema.enum.join(', ')}, found ${JSON.stringify(instance)}.`);
+    return;
+  }
+  if (schema.type) {
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    const matches = types.some((type) => {
+      if (type === 'object') return isPlainObject(instance);
+      if (type === 'array') return Array.isArray(instance);
+      if (type === 'string') return typeof instance === 'string';
+      if (type === 'boolean') return typeof instance === 'boolean';
+      if (type === 'number') return typeof instance === 'number';
+      if (type === 'integer') return Number.isInteger(instance);
+      return false;
+    });
+    if (!matches) {
+      errors.push(`${pointer}: expected ${types.join(' or ')}, found ${Array.isArray(instance) ? 'array' : instance === null ? 'null' : typeof instance}.`);
+      return;
+    }
+  }
+  if (typeof instance === 'string') {
+    if (typeof schema.minLength === 'number' && instance.length < schema.minLength) {
+      errors.push(`${pointer}: expected at least ${schema.minLength} characters.`);
+    }
+    if (typeof schema.pattern === 'string' && !new RegExp(schema.pattern).test(instance)) {
+      errors.push(`${pointer}: does not match ${schema.pattern}.`);
+    }
+  }
+  if (Array.isArray(instance)) {
+    if (typeof schema.minItems === 'number' && instance.length < schema.minItems) {
+      errors.push(`${pointer}: expected at least ${schema.minItems} items.`);
+    }
+    if (schema.uniqueItems === true) {
+      const seen = new Set();
+      instance.forEach((item, index) => {
+        const key = JSON.stringify(item);
+        if (seen.has(key)) errors.push(`${pointer}[${index}]: duplicate item.`);
+        seen.add(key);
+      });
+    }
+    if (schema.items) {
+      instance.forEach((item, index) => validateInstance(item, schema.items, rootSchema, `${pointer}[${index}]`, errors));
+    }
+  }
+  if (isPlainObject(instance)) {
+    if (Array.isArray(schema.required)) {
+      for (const key of schema.required) {
+        if (!(key in instance)) errors.push(`${pointer}: missing required property "${key}".`);
+      }
+    }
+    if (schema.properties) {
+      for (const [key, childSchema] of Object.entries(schema.properties)) {
+        if (key in instance) validateInstance(instance[key], childSchema, rootSchema, `${pointer}.${key}`, errors);
+      }
+    }
+    if (schema.additionalProperties === false) {
+      const allowed = new Set(Object.keys(schema.properties ?? {}));
+      for (const key of Object.keys(instance)) {
+        if (!allowed.has(key)) errors.push(`${pointer}: unexpected property "${key}".`);
+      }
+    }
+  }
+}
+
+const schema = await readJson(schemaPath);
 const manifest = await readJson(manifestPath);
-equal(manifest.schema, 'reactive-md-compatibility/v1', 'manifest schema');
+const schemaErrors = [];
+validateInstance(manifest, schema, schema, 'manifest', schemaErrors);
+if (schemaErrors.length > 0) {
+  for (const message of schemaErrors) process.stderr.write(`compatibility check failed: ${message}\n`);
+  process.exit(1);
+}
+pass(`manifest matches ${path.basename(schemaPath)}`);
 
 const enginePackage = await readJson('package.json');
 equal(enginePackage.name, manifest.engine.name, 'engine package name');
 equal(enginePackage.version, manifest.engine.version, 'engine version');
-equal(enginePackage.peerDependencies?.react, manifest.install.packages.react, 'engine React peer');
-equal(enginePackage.peerDependencies?.['react-dom'], manifest.install.packages['react-dom'], 'engine react-dom peer');
-equal(enginePackage.peerDependencies?.vite, manifest.install.optional.vite, 'engine Vite peer');
+equal(enginePackage.peerDependencies?.react, manifest.runtimes.react.declared, 'engine React peer');
+equal(enginePackage.peerDependencies?.['react-dom'], manifest.runtimes['react-dom'].declared, 'engine react-dom peer');
+equal(enginePackage.peerDependencies?.vite, manifest.runtimes.vite.declared, 'engine Vite peer');
+equal(enginePackage.devDependencies?.react, manifest.runtimes.react.tested, 'engine React dev pin');
+equal(enginePackage.devDependencies?.['react-dom'], manifest.runtimes['react-dom'].tested, 'engine react-dom dev pin');
+equal(enginePackage.devDependencies?.vite, manifest.runtimes.vite.tested, 'engine Vite dev pin');
+truth(satisfiesMinimum(manifest.verified.node, enginePackage.engines?.node), 'verified Node version satisfies engines.node', `${manifest.verified.node} is outside ${enginePackage.engines?.node}.`);
+for (const name of ['react', 'react-dom', 'vite']) {
+  truth(satisfiesCaret(manifest.runtimes[name].tested, manifest.runtimes[name].declared), `${name} tested version satisfies declared range`, `${manifest.runtimes[name].tested} is outside ${manifest.runtimes[name].declared}.`);
+}
 
 const sdkSource = await readText('src/sdk/version.ts');
 equal(constant(sdkSource, 'LOCAL_SDK_VERSION', 'src/sdk/version.ts'), manifest.protocols.sdk, 'SDK protocol');
@@ -124,6 +267,19 @@ for (const [file, pattern] of componentDocs) {
   equal(match[3], manifest.engine.version, `${file} package version`);
 }
 
+async function checkInstalledRuntime(directory, name, label) {
+  const installed = await readJsonIfExistsAt(path.join(directory, 'node_modules', name, 'package.json'));
+  if (installed === null) {
+    fail(`${label} does not install ${name}.`);
+    return;
+  }
+  equal(installed.version, manifest.runtimes[name].tested, `${label} ${name} tested version`);
+}
+
+await checkInstalledRuntime(root, 'react', 'engine');
+await checkInstalledRuntime(root, 'react-dom', 'engine');
+await checkInstalledRuntime(root, 'vite', 'engine');
+
 const editorRoot = path.join(workspace, manifest.editor.repository);
 if (!existsSync(editorRoot)) {
   const message = `editor checkout is missing at ${manifest.editor.repository}.`;
@@ -135,8 +291,14 @@ if (!existsSync(editorRoot)) {
   equal(editorPackage.version, manifest.editor.version, 'editor version');
   equal(editorPackage.peerDependencies?.['reactive-md'], manifest.editor.enginePeer, 'editor engine peer');
   truth(satisfiesCaret(manifest.engine.version, manifest.editor.enginePeer), 'engine version satisfies editor peer', `${manifest.engine.version} is outside ${manifest.editor.enginePeer}.`);
-  equal(editorPackage.peerDependencies?.react, manifest.install.packages.react, 'editor React peer');
-  equal(editorPackage.peerDependencies?.['react-dom'], manifest.install.packages['react-dom'], 'editor react-dom peer');
+  equal(editorPackage.peerDependencies?.react, manifest.runtimes.react.declared, 'editor React peer');
+  equal(editorPackage.peerDependencies?.['react-dom'], manifest.runtimes['react-dom'].declared, 'editor react-dom peer');
+  equal(editorPackage.devDependencies?.react, manifest.runtimes.react.tested, 'editor React dev pin');
+  equal(editorPackage.devDependencies?.['react-dom'], manifest.runtimes['react-dom'].tested, 'editor react-dom dev pin');
+  equal(editorPackage.devDependencies?.vite, manifest.runtimes.vite.tested, 'editor Vite dev pin');
+  await checkInstalledRuntime(editorRoot, 'react', 'editor');
+  await checkInstalledRuntime(editorRoot, 'react-dom', 'editor');
+  await checkInstalledRuntime(editorRoot, 'vite', 'editor');
 
   const candidate = editorPackage.devDependencies?.['reactive-md'];
   if (typeof candidate !== 'string' || !candidate.startsWith('file:')) {
@@ -160,6 +322,13 @@ if (!existsSync(demoRoot)) {
   else skip(message);
 } else {
   const demoPackage = await readJsonAt(path.join(demoRoot, 'package.json'));
+  equal(demoPackage.dependencies?.react, manifest.runtimes.react.tested, 'demo React pin');
+  equal(demoPackage.dependencies?.['react-dom'], manifest.runtimes['react-dom'].tested, 'demo react-dom pin');
+  equal(demoPackage.devDependencies?.vite, manifest.runtimes.vite.tested, 'demo Vite dev pin');
+  await checkInstalledRuntime(demoRoot, 'react', 'demo');
+  await checkInstalledRuntime(demoRoot, 'react-dom', 'demo');
+  await checkInstalledRuntime(demoRoot, 'vite', 'demo');
+
   const candidates = [
     ['engine', manifest.demo.candidates.engine, manifest.engine.version, manifest.engine.name],
     ['editor', manifest.demo.candidates.editor, manifest.editor.version, manifest.editor.name],
@@ -175,12 +344,22 @@ if (!existsSync(demoRoot)) {
     }
     equal(await sha256(tarballPath), candidate.sha256, `demo ${role} candidate SHA256`);
     equal(versionFromTarball(path.basename(candidate.tarball), candidate.package), candidate.version, `demo ${role} tarball version`);
-  }
-  const demoReact = demoPackage.dependencies?.react ?? demoPackage.devDependencies?.react;
-  if (typeof demoReact === 'string') {
-    truth(satisfiesCaret(demoReact, manifest.install.packages.react), 'demo React satisfies recommended range', `${demoReact} is outside ${manifest.install.packages.react}.`);
-  } else {
-    fail('demo package.json does not pin React.');
+    let internal = null;
+    try {
+      internal = await readTarballPackageJson(tarballPath);
+    } catch (error) {
+      fail(`demo ${role} tarball cannot be read: ${error.message}.`);
+      continue;
+    }
+    if (internal === null) {
+      fail(`demo ${role} tarball does not contain package/package.json.`);
+      continue;
+    }
+    equal(internal.name, candidate.package, `demo ${role} tarball package name`);
+    equal(internal.version, candidate.version, `demo ${role} tarball package version`);
+    if (role === 'editor') {
+      equal(internal.peerDependencies?.['reactive-md'], manifest.editor.enginePeer, 'demo editor tarball engine peer');
+    }
   }
 }
 
@@ -190,7 +369,9 @@ const expectedCommand = `npm install ${Object.entries(manifest.install.packages)
 equal(manifest.install.command, expectedCommand, 'recommended install command');
 equal(manifest.install.packages['reactive-md'], manifest.engine.version, 'install engine version');
 equal(manifest.install.packages['reactive-md-editor'], manifest.editor.version, 'install editor version');
-equal(manifest.install.optional.vite, enginePackage.peerDependencies?.vite, 'install optional Vite peer');
+equal(manifest.install.packages.react, manifest.runtimes.react.declared, 'install React range');
+equal(manifest.install.packages['react-dom'], manifest.runtimes['react-dom'].declared, 'install react-dom range');
+equal(manifest.install.optional.vite, manifest.runtimes.vite.declared, 'install Vite range');
 
 for (const message of skips) process.stdout.write(`skip: ${message}\n`);
 if (failures.length > 0) {
@@ -198,5 +379,5 @@ if (failures.length > 0) {
   process.exitCode = 1;
 } else {
   for (const message of checks) process.stdout.write(`ok: ${message}\n`);
-  process.stdout.write(`Compatibility manifest verified: ${manifest.engine.name} ${manifest.engine.version}, ${manifest.editor.name} ${manifest.editor.version}, SDK ${manifest.protocols.sdk}, syntax ${manifest.protocols.syntax}, component ${manifest.protocols.component}, theme ${manifest.protocols.theme}.\n`);
+  process.stdout.write(`Compatibility manifest verified: ${manifest.engine.name} ${manifest.engine.version}, ${manifest.editor.name} ${manifest.editor.version}, Node ${manifest.verified.node}, React ${manifest.runtimes.react.tested}, React DOM ${manifest.runtimes['react-dom'].tested}, Vite ${manifest.runtimes.vite.tested}, SDK ${manifest.protocols.sdk}, syntax ${manifest.protocols.syntax}, component ${manifest.protocols.component}, theme ${manifest.protocols.theme}.\n`);
 }

@@ -56,6 +56,7 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | Versions and compatibility | [English](compatibility/compatibility-en.md) |
 | Support matrix | [English](compatibility/support-matrix-en.md) |
 | Compatibility manifest | [JSON](compatibility/compatibility-manifest.json) |
+| Compatibility manifest schema | [JSON Schema](compatibility/compatibility-manifest.schema.json) |
 | Source versioning | [English](compatibility/source-versioning-en.md) |
 
 ## Development
