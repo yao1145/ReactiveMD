@@ -24,6 +24,9 @@ Reactive MD is currently a 0.x preview. This page covers package versions, synta
 | Screen style entry | `reactive-md/screen.css` | Alias of `reactive-md/styles.css` |
 | Print style entry | `reactive-md/print.css` | Optional document print layout and page margins |
 | Editor style entry | `reactive-md-editor/styles.css` | Independent editor styles, scoped to the editor root |
+| Machine-readable manifest | [compatibility-manifest.json](compatibility-manifest.json) | Cross-package versions, Demo candidates and the recommended install set; checked by `npm run compatibility:verify` |
+
+The same identities are recorded in the machine-readable manifest and verified against the engine constants, the editor package and the Demo vendor candidates.
 
 One package version corresponds to exactly one syntax revision. Before upgrading the package, record the `LOCAL_SYNTAX_VERSION` your application uses. If document sources come from another syntax revision, keep rendering them with the old package version or rewrite them according to the migration notes below. `compileLocal(source, options?)` has no syntax version parameter; hosts can adjust the syntax node budget for a single compilation through `options.limits.maxSyntaxNodes`, see [Local mode integration](../integration/local-integration-en.md).
 
@@ -107,19 +110,21 @@ See [Diagnostics and counting rules](../reference/diagnostics-counting-en.md) fo
 
 ## Platforms and runtimes
 
+The [support matrix](support-matrix-en.md) is the authoritative status and verification page for these environments.
+
 | Environment | Current status |
 | --- | --- |
-| Node.js 22.12+ | Minimum for development and Node-side consumption; CI targets both 22.12 and 24 |
+| Node.js 22.12+ | Minimum for development and Node-side consumption; verified locally on Node 22.x and declared for Node 24 |
 | ESM | The only module format; no CommonJS entry |
 | React 19 | Required by `reactive-md/react` and the separate `reactive-md-editor` package; the core entry does not depend on React |
 | Vite 8 | Optional peer of `reactive-md`, required only when using `reactive-md/vite` |
 | Microsoft Edge (Chromium-based) | Local browser verification has used Edge |
-| Playwright Chromium | Full Linux CI browser suite |
-| Playwright Firefox and WebKit | Core workflows at 1280px and 375px, including personal documents and interactive HTML export; included in the browser release gate and CI |
+| Playwright Chromium | Engine browser fixture passed locally through the installed Chromium channel |
+| Playwright Firefox and WebKit | Engine browser fixtures available locally; outside the current verified set |
 | Safari on Apple devices | Device testing remains separate from Playwright WebKit engine checks |
 | Shareable state format | `reactive-md-state/v1`: public parameter values with a syntax version and source digest; see [Shareable documents](../integration/shareable-export-en.md) |
 | Single-file HTML format | `reactive-md-html/v1`: interactive or static export, with an inline standalone runtime only in interactive mode |
-| SSR | `react-dom/server` static rendering is covered by the packed check. The editor entry has no top-level DOM access and can be imported and rendered on the server; editing interactions run on the client. Static-first hydration of the single-file export is covered in Playwright Chromium/Edge; general SSR hydration is unverified and should be checked before use |
+| SSR | `react-dom/server` static rendering is covered by the packed check. The editor entry has no top-level DOM access and can be imported and rendered on the server; editing interactions run on the client. The supported hydration path is the single-file export, checked in Chromium and Edge. General host hydration is outside the supported scope |
 
 Node-side consumption means importing `reactive-md` in Node and calling `compileLocal` and `createLocalRuntime` without a DOM. React rendering requires a browser environment, or the host must handle server output itself.
 

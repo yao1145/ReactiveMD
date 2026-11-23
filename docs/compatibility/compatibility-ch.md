@@ -24,6 +24,9 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | 屏幕样式入口 | `reactive-md/screen.css` | `reactive-md/styles.css` 的别名 |
 | 打印样式入口 | `reactive-md/print.css` | 可选的文档打印布局与页边距 |
 | 编辑器样式入口 | `reactive-md-editor/styles.css` | 独立编辑器样式，作用域限定在编辑器根节点 |
+| 机器可读清单 | [compatibility-manifest.json](compatibility-manifest.json) | 跨包版本、Demo 候选包与推荐安装组合；由 `npm run compatibility:verify` 校验 |
+
+同一组版本标识记录在机器可读清单中，并对照引擎常量、编辑器包与 Demo 候选包校验。
 
 一个包版本只对应一个语法修订。升级包之前，记录应用使用的 `LOCAL_SYNTAX_VERSION`。如果文档源码来自另一个语法修订，保留旧包版本渲染，或按下面的迁移说明改写。`compileLocal(source, options?)` 不提供语法版本参数；宿主可以通过 `options.limits.maxSyntaxNodes` 调整单次编译的语法节点预算，见[本地模式集成](../integration/local-integration-ch.md)。
 
@@ -107,19 +110,21 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 ## 平台与运行环境
 
+[支持矩阵](support-matrix-ch.md)是这些环境的权威状态与验证页面。
+
 | 环境 | 当前状态 |
 | --- | --- |
-| Node.js 22.12+ | 开发和 Node 端消费的最低版本；CI 目标为 22.12 与 24 |
+| Node.js 22.12+ | 开发和 Node 端消费的最低版本；Node 22.x 已在本地验证，Node 24 为声明支持 |
 | ESM | 唯一模块格式；不提供 CommonJS 入口 |
 | React 19 | `reactive-md/react` 和独立的 `reactive-md-editor` 包的要求；核心入口不依赖 React |
 | Vite 8 | `reactive-md` 的可选 peer，仅在使用的 `reactive-md/vite` 时需要 |
 | Microsoft Edge（Chromium 内核） | 本地浏览器验证使用 Edge |
-| Playwright Chromium | Linux CI 的完整浏览器验证 |
-| Playwright Firefox、WebKit | 1280px、375px 核心流程，包含个人文档和交互 HTML 导出；纳入浏览器发布门禁与 CI |
+| Playwright Chromium | 引擎浏览器 fixture 已通过本机 Chromium 渠道在本地运行 |
+| Playwright Firefox、WebKit | 引擎浏览器 fixture 可在本地运行，不在当前已验证集合内 |
 | Apple 设备上的 Safari | 实机测试与 Playwright WebKit 引擎验证分开进行 |
 | 可分享状态格式 | `reactive-md-state/v1`：公开参数、语法版本与源码摘要；见[可分享文档](../integration/shareable-export-ch.md) |
 | 单文件 HTML 格式 | `reactive-md-html/v1`：交互或静态导出；仅交互模式内嵌独立运行时 |
-| SSR | `react-dom/server` 静态渲染由 packed 检查覆盖。编辑器入口没有顶层 DOM 访问，可在服务端导入和渲染；编辑交互在客户端运行。单文件导出的静态首屏水合已在 Playwright Chromium/Edge 验证；通用 SSR 水合未验证，使用前需自行检查 |
+| SSR | `react-dom/server` 静态渲染由 packed 检查覆盖。编辑器入口没有顶层 DOM 访问，可在服务端导入和渲染；编辑交互在客户端运行。支持的水合路径是单文件导出，已在 Chromium 和 Edge 中检查；通用宿主水合不在支持范围内 |
 
 Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `createLocalRuntime`，不需要 DOM。React 渲染要求浏览器环境或宿主自行处理服务端输出。
 

@@ -200,7 +200,7 @@ npm install reactive-md
 npm install reactive-md@0.9.1
 ```
 
-升级前请阅读 [0.9.1 发布说明](docs/releases/release-0.9.1-ch.md)和[兼容性说明](docs/compatibility/compatibility-ch.md)。
+升级前请阅读 [0.9.1 发布说明](docs/releases/release-0.9.1-ch.md)、[兼容性说明](docs/compatibility/compatibility-ch.md)和[支持矩阵](docs/compatibility/support-matrix-ch.md)。
 
 ### 升级到 0.8.0
 
@@ -408,7 +408,7 @@ benchmarks/    带来源说明的精简性能数据
 - [React 源码编辑器](docs/integration/editor-ch.md)与[作者工具](docs/integration/author-tools-ch.md)。
 - [组块协议](docs/development/component-protocol-ch.md)与[组件插件开发指南](docs/development/component-development-ch.md)。
 - [扩展开发教程](docs/development/extension-tutorial-ch.md)：选择入口、编写组件包并验证。
-- [版本与兼容性](docs/compatibility/compatibility-ch.md)。
+- [版本与兼容性](docs/compatibility/compatibility-ch.md)与[支持矩阵](docs/compatibility/support-matrix-ch.md)。
 - [性能说明](docs/development/performance-overview-ch.md)与[发布清单](CONTRIBUTING-ch.md#发布流程)。
 - [0.9.1 发布说明](docs/releases/release-0.9.1-ch.md)和[历史发布记录](docs/releases)。
 

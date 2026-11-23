@@ -1,0 +1,48 @@
+{
+  "schema": "reactive-md-compatibility/v1",
+  "engine": {
+    "name": "reactive-md",
+    "version": "0.9.1"
+  },
+  "editor": {
+    "name": "reactive-md-editor",
+    "version": "0.2.0",
+    "enginePeer": "^0.9.0",
+    "repository": "ReactiveMD-Editor"
+  },
+  "demo": {
+    "repository": "ReactiveMD-Demo",
+    "candidates": {
+      "engine": {
+        "package": "reactive-md",
+        "version": "0.9.1",
+        "tarball": "vendor/reactive-md-0.9.1-27af3c66ce88.tgz",
+        "sha256": "27af3c66ce8803147e3595916ddce8eda1e2c23878a84deacf17c61d4aae5533"
+      },
+      "editor": {
+        "package": "reactive-md-editor",
+        "version": "0.2.0",
+        "tarball": "vendor/reactive-md-editor-0.2.0-07454a2f1d63.tgz",
+        "sha256": "07454a2f1d630be93b2cb8305711786b45d33f46a9ec7d758a7c6815f1055fa3"
+      }
+    }
+  },
+  "protocols": {
+    "sdk": "0.7.0",
+    "syntax": "local-draft-3",
+    "component": "component-protocol-3",
+    "theme": "reactive-md-theme-1"
+  },
+  "install": {
+    "command": "npm install reactive-md@0.9.1 reactive-md-editor@0.2.0 react@^19.0.0 react-dom@^19.0.0",
+    "packages": {
+      "reactive-md": "0.9.1",
+      "reactive-md-editor": "0.2.0",
+      "react": "^19.0.0",
+      "react-dom": "^19.0.0"
+    },
+    "optional": {
+      "vite": "^8.0.0"
+    }
+  }
+}

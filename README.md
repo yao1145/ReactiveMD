@@ -200,7 +200,7 @@ npm install reactive-md
 npm install reactive-md@0.9.1
 ```
 
-Read the [0.9.1 release notes](docs/releases/release-0.9.1-en.md) and the [compatibility guide](docs/compatibility/compatibility-en.md) before upgrading.
+Read the [0.9.1 release notes](docs/releases/release-0.9.1-en.md), the [compatibility guide](docs/compatibility/compatibility-en.md) and the [support matrix](docs/compatibility/support-matrix-en.md) before upgrading.
 
 ### Upgrade to 0.8.0
 
@@ -406,7 +406,7 @@ benchmarks/    Condensed performance measurements with provenance
 - [React source editor](docs/integration/editor-en.md) and [author tools](docs/integration/author-tools-en.md).
 - [Component protocol](docs/development/component-protocol-en.md) and [component plugin development guide](docs/development/component-development-en.md).
 - [Extension tutorial](docs/development/extension-tutorial-en.md): choose an entry, build a component package and verify it.
-- [Versions and compatibility](docs/compatibility/compatibility-en.md).
+- [Versions and compatibility](docs/compatibility/compatibility-en.md) and [support matrix](docs/compatibility/support-matrix-en.md).
 - [Performance measurements](docs/development/performance-overview-en.md) and [release checklist](CONTRIBUTING.md#releasing).
 - [0.9.1 release notes](docs/releases/release-0.9.1-en.md) and [previous releases](docs/releases).
 
