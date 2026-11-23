@@ -15,6 +15,7 @@ import type { Diagnostic, LocalCompileOptions, LocalCompileResult, LocalSourcePh
 import { createLocalObservabilityDiagnostic } from '../observability';
 import { createLocalTraceId, emitLocalDiagnostic, emitLocalTrace, type LocalObserver, type LocalTraceEvent } from '../observability-core';
 import type { AuthorAnalysis } from '../source/authoring';
+import { localCodeUnitPrefix } from '../source/source-context';
 import {
   createLocalCompileSession,
   type LocalCompileSession,
@@ -389,13 +390,28 @@ function isPatchResponse(response: LocalCompileWorkerResponse): response is Loca
   return response.ok && 'patch' in response && response.patch !== undefined;
 }
 
+/** Bounded free text from an exception; it is never copied into a report. */
+const MAX_COMPILE_FAILURE_DETAIL = 160;
+
+function compileFailureDetail(error: unknown): string {
+  const text = messageOf(error).trim();
+  if (text.length === 0) return '';
+  return text.length > MAX_COMPILE_FAILURE_DETAIL
+    ? `${localCodeUnitPrefix(text, MAX_COMPILE_FAILURE_DETAIL - 1)}…`
+    : text;
+}
+
 export function compileFailureDiagnostic(error: unknown): Diagnostic {
+  const detail = compileFailureDetail(error);
   return {
     code: 'local.worker.compile',
-    messageKey: 'local.worker.compile',
+    // The generic key stays when the exception carries no text; a bounded
+    // detail goes through local.worker.compile.detail instead of a raw message.
+    messageKey: detail ? 'local.worker.compile.detail' : 'local.worker.compile',
+    ...(detail ? { params: { detail } } : {}),
     phase: 'worker',
     recoverable: false,
-    message: `Compilation failed: ${messageOf(error)}`,
+    message: detail ? `Compilation failed: ${detail}` : 'Compilation failed',
     severity: 'error',
     range: { start: 0, end: 0 },
     line: 1,
@@ -422,6 +438,12 @@ export class LocalCompileScheduler {
   private nextId = 1;
   private nextRevision = 1;
   private nextSourceRevision = 1;
+  /**
+   * Source revision of the newest scheduled job. Observer callbacks may
+   * schedule another source; a run whose revision is not current must not
+   * deliver results, diagnostics or terminal traces.
+   */
+  private currentSourceRevision = 0;
   private pending = false;
   private fallbackSession: LocalCompileSession | null = null;
   private disposed = false;
@@ -475,6 +497,7 @@ export class LocalCompileScheduler {
   ): void {
     if (this.disposed) return;
     const job = { ...createJob(source, options, sourcePhase), sourceRevision: this.nextSourceRevision++, traceId: createLocalTraceId() };
+    this.currentSourceRevision = job.sourceRevision;
     if (this.inFlight && !sameJob(this.inFlight.job, job)) this.obsoleteRequestIds.add(this.inFlight.id);
     this.queued = job;
     if (hint && typeof hint.baseSource === 'string' && isPatchEdit(hint.edit) && hint.edit.to <= hint.baseSource.length
@@ -549,7 +572,7 @@ export class LocalCompileScheduler {
     // An unsupported phase fails at the scheduler boundary for both transports,
     // matching `session.compile` and never compiling the snapshot as final.
     if (job.invalidPhase !== undefined) {
-      this.deliver({
+      this.deliver(job, {
         source: job.source,
         result: invalidSourcePhaseResult(),
         duration: 0,
@@ -642,8 +665,17 @@ export class LocalCompileScheduler {
     if (job.sourcePhase === 'streaming') this.baseline = null;
     const started = now();
     const { traceId, sourceRevision } = job;
+    if (!this.isCurrentJob(job)) {
+      this.finishRun();
+      return;
+    }
     emitLocalTrace(this.options.observer, { type: 'compile-start', traceId, sourceRevision, timestamp: Date.now(), status: 'fallback' });
-    if (this.disposed) return;
+    // An observer may have scheduled a newer source while handling the start
+    // trace. That source supersedes this run before any compile happens.
+    if (!this.isCurrentJob(job)) {
+      this.finishRun();
+      return;
+    }
     let result: LocalCompileResult;
     try {
       const fallbackCompile = this.options.fallbackCompile ?? ((
@@ -665,8 +697,18 @@ export class LocalCompileScheduler {
       result = failureResult(job, compileFailureDiagnostic(error));
     }
     const duration = safeDuration(now() - started);
+    // A newer source that arrived during the compile owns the next result;
+    // this run is no longer allowed to report a terminal trace or outcome.
+    if (!this.isCurrentJob(job)) {
+      this.finishRun();
+      return;
+    }
     emitLocalTrace(this.options.observer, { type: 'compile-end', traceId, sourceRevision, timestamp: Date.now(), durationMs: duration, status: result.ok ? 'ok' : 'failed' });
-    this.deliver({
+    if (!this.isCurrentJob(job)) {
+      this.finishRun();
+      return;
+    }
+    this.deliver(job, {
       source: job.source,
       result,
       duration,
@@ -677,6 +719,15 @@ export class LocalCompileScheduler {
       metrics: { queueMs: safeDuration(started - job.scheduledAt) },
     });
     this.finishRun();
+  }
+
+  /**
+   * The newest scheduled source revision identifies the current generation.
+   * Observer callbacks run between delivery steps and may schedule a newer
+   * source, which retires the running one.
+   */
+  private isCurrentJob(job: CompileJob): boolean {
+    return !this.disposed && job.sourceRevision === this.currentSourceRevision;
   }
 
   private receive(wireResponse: LocalCompileWorkerResponse): void {
@@ -780,16 +831,17 @@ export class LocalCompileScheduler {
       this.obsoleteRequestIds.add(inFlight.id);
       this.reportStale(inFlight.id, inFlight.traceId, inFlight.sourceRevision, queued.sourceRevision);
     }
-    if (queued !== null && !superseded) {
+    if (queued !== null && !superseded && this.queued === queued) {
       // The queued edit compiles to the same source and options, so this
-      // result still counts.
+      // result still counts, and this job remains the current generation.
       this.queued = null;
       this.clearTimer();
+      this.currentSourceRevision = job.sourceRevision;
     }
 
     if (result !== null) {
       if (!superseded) {
-        this.deliver({
+        this.deliver(job, {
           source: job.source,
           result,
           duration: safeDuration(response.ok ? response.duration : 0),
@@ -812,7 +864,7 @@ export class LocalCompileScheduler {
 
     if (failure !== null) {
       if (!superseded) {
-        this.deliver({
+        this.deliver(job, {
           source: job.source,
           result: failureResult(job, compileFailureDiagnostic(failure)),
           duration: 0,
@@ -831,7 +883,7 @@ export class LocalCompileScheduler {
       // One bounded retry was already spent: never loop on protocol errors.
       this.patchState = 'disabled';
       this.baseline = null;
-      this.deliver({
+      this.deliver(job, {
         source: job.source,
         result: failureResult(job, compileFailureDiagnostic('The compile worker could not apply an incremental result patch')),
         duration: 0,
@@ -903,6 +955,8 @@ export class LocalCompileScheduler {
     if (queued !== null) {
       this.queued = null;
       this.clearTimer();
+      // The retried request answers the same waiting edit; it stays current.
+      this.currentSourceRevision = job.sourceRevision;
     }
     this.resetProtocol();
     this.compile({ ...job, recovery: (job.recovery ?? 0) + 1 });
@@ -925,8 +979,11 @@ export class LocalCompileScheduler {
     if (this.disposed) return;
     if (inFlight && (this.queued === null || sameJob(this.queued, inFlight.job))) {
       if (this.queued !== null) {
+        // The waiting edit compiles to the same source and options; the failed
+        // request remains the current generation for its fallback run.
         this.queued = null;
         this.clearTimer();
+        this.currentSourceRevision = inFlight.job.sourceRevision;
       }
       this.compileFallback(inFlight.job);
     }
@@ -961,8 +1018,8 @@ export class LocalCompileScheduler {
     this.setPending(this.timer !== null || this.inFlight !== null || this.queued !== null);
   }
 
-  private deliver(outcome: LocalCompileOutcome): void {
-    if (this.disposed) return;
+  private deliver(job: CompileJob, outcome: LocalCompileOutcome): void {
+    if (!this.isCurrentJob(job)) return;
     // Only the scheduler's patch baseline is retained. Everything else is
     // already independent (a worker message or a fresh fallback compile).
     // `shareResults` is an explicit opt-in to the internal read-only graph.
@@ -971,10 +1028,12 @@ export class LocalCompileScheduler {
       ? outcome.result
       : cloneLocalCompileResult(outcome.result);
     for (const diagnostic of [...result.diagnostics, ...(result.transientDiagnostics ?? [])]) {
-      if (this.disposed) return;
+      // Every observer callback may schedule a newer source; revalidate the
+      // generation so an older run never delivers after it.
+      if (!this.isCurrentJob(job)) return;
       emitLocalDiagnostic(this.options.observer, diagnostic);
     }
-    if (this.disposed) return;
+    if (!this.isCurrentJob(job)) return;
     this.options.onResult({ ...outcome, result });
   }
 

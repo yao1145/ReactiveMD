@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  compileLocal, createDiagnosticReport, formatLocalDiagnostic, LocalCompileScheduler,
+  compileFailureDiagnostic, compileLocal, createDiagnosticReport, formatLocalDiagnostic, LocalCompileScheduler,
   type Diagnostic, type LocalCompileWorker, type LocalCompileWorkerRequest, type LocalTraceEvent,
 } from '../src';
 
@@ -119,5 +119,62 @@ describe('local observability', () => {
     handler?.({ data: { id: request!.id, ok: true, result: compileLocal('{{ missing }}'), duration: 1 } });
     expect(onResult).not.toHaveBeenCalled();
     expect(worker.terminate).toHaveBeenCalledOnce();
+  });
+
+  it('formats a worker compile failure with its bounded underlying reason in both locales', () => {
+    const diagnostic = compileFailureDiagnostic(new Error('boom: the worker stack disappeared'));
+    expect(diagnostic.code).toBe('local.worker.compile');
+    expect(diagnostic.params?.detail).toBe('boom: the worker stack disappeared');
+
+    const en = formatLocalDiagnostic(diagnostic, 'en');
+    const zh = formatLocalDiagnostic(diagnostic, 'zh');
+    expect(en).toContain('boom: the worker stack disappeared');
+    expect(zh).toContain('boom: the worker stack disappeared');
+    expect(en.length).toBeLessThanOrEqual(2_000);
+    expect(zh.length).toBeLessThanOrEqual(2_000);
+  });
+
+  it('bounds a long worker failure reason and keeps it out of diagnostic reports', () => {
+    const secret = `boom-${'private-token-'.repeat(400)}`;
+    const diagnostic = compileFailureDiagnostic(new Error(secret));
+    const detail = String(diagnostic.params?.detail ?? '');
+    expect(detail.length).toBeLessThanOrEqual(160);
+    expect(detail.startsWith('boom-private-token-')).toBe(true);
+
+    const en = formatLocalDiagnostic(diagnostic, 'en');
+    const zh = formatLocalDiagnostic(diagnostic, 'zh');
+    expect(en.length).toBeLessThan(400);
+    expect(zh.length).toBeLessThan(400);
+    expect(en).toContain('boom-private-token-');
+    expect(zh).toContain('boom-private-token-');
+
+    const report = createDiagnosticReport('document', { diagnostics: [diagnostic] });
+    expect(JSON.stringify(report)).not.toContain('private-token-');
+    expect(report.diagnostics[0]).toMatchObject({
+      code: 'local.worker.compile',
+      messageKey: 'local.worker.compile.detail',
+    });
+  });
+
+  it('keeps the generic template when the exception carries no text', () => {
+    const diagnostic = compileFailureDiagnostic(new Error(''));
+    expect(diagnostic.messageKey).toBe('local.worker.compile');
+    expect(diagnostic.params).toBeUndefined();
+    expect(formatLocalDiagnostic(diagnostic, 'en')).toBe('The background compiler could not complete this request.');
+    expect(formatLocalDiagnostic(diagnostic, 'zh')).toBe('编译 Worker 无法完成此请求。');
+  });
+
+  it('keeps export cancellation events with bounded statuses in reports', () => {
+    const base = { type: 'export-cancel' as const, traceId: 'trace-export-1', timestamp: 10, stage: 'download' };
+    const report = createDiagnosticReport('document', {
+      events: [
+        { ...base, status: 'cancelled' },
+        { ...base, status: 'printed' },
+        { ...base, status: 'anything-else' },
+        { ...base, type: 'export-unknown' as LocalTraceEvent['type'] },
+      ],
+    });
+    expect(report.events?.map(event => event.status)).toEqual(['cancelled', 'printed', undefined]);
+    expect(report.events?.every(event => event.type === 'export-cancel')).toBe(true);
   });
 });

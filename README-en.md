@@ -192,15 +192,15 @@ Reactive MD requires Node.js 22.12 or newer and ships only ESM entries:
 npm install reactive-md
 ```
 
-The 0.9.1 stable release uses the `latest` channel. Pin the version if your project requires it.
+The 0.9.2 stable release uses the `latest` channel. Pin the version if your project requires it.
 
 ```sh
 npm install reactive-md
 # or pin the version
-npm install reactive-md@0.9.1
+npm install reactive-md@0.9.2
 ```
 
-Read the [0.9.1 release notes](docs/releases/release-0.9.1-en.md) and the [compatibility guide](docs/compatibility/compatibility-en.md) before upgrading.
+Read the [0.9.2 release notes](docs/releases/release-0.9.2-en.md) and the [compatibility guide](docs/compatibility/compatibility-en.md) before upgrading.
 
 ### Upgrade to 0.8.0
 
@@ -359,7 +359,7 @@ export function Article({ source }: { source: string }) {
 
 ## Edit source with React
 
-The reusable source editor lives in the separate `reactive-md-editor` package (`0.2.0`, supporting the `reactive-md@0.9.x` series), with its own stylesheet. Install it alongside the engine. In 0.7 it shipped as `reactive-md/editor`; it has been a separate package since 0.8. The component is controlled and requires React 19:
+The reusable source editor lives in the separate `reactive-md-editor` package (`0.2.1`, requiring the `reactive-md@^0.9.2` engine peer), with its own stylesheet. Install it alongside the engine. In 0.7 it shipped as `reactive-md/editor`; it has been a separate package since 0.8. The component is controlled and requires React 19:
 
 ```tsx
 import { useState } from 'react';
@@ -410,13 +410,13 @@ benchmarks/    Condensed performance measurements with provenance
 - [Extension tutorial](docs/development/extension-tutorial-en.md): choose an entry, build a component package and verify it.
 - [Versions and compatibility](docs/compatibility/compatibility-en.md).
 - [Performance measurements](docs/development/performance-overview-en.md) and [release checklist](CONTRIBUTING.md#releasing).
-- [0.9.1 release notes](docs/releases/release-0.9.1-en.md) and [previous releases](docs/releases).
+- [0.9.2 release notes](docs/releases/release-0.9.2-en.md) and [previous releases](docs/releases).
 
 ## Support and status
 
 - CI runs the engine checks and preset scaffold verification on Node 24. The packed-consumer check covers static SSR. Run `node scripts/verify-shareable.mjs` after building to test single-file hydration in Chromium and measure the standalone bundle.
 - 0.x minor releases may contain breaking changes. Persist the original `.reactive.md` source, not the runtime AST or in-memory state.
-- `0.9.1` is the stable release on `latest`. Security fixes may ship in minor releases.
+- `0.9.2` is the stable release on `latest`. Security fixes may ship in minor releases.
 - The extension SDK contract is `0.7.0`. Component packages, themes, the Vite adapter, offline builds and compliance tools use the public entries.
 
 ## Contributing and security

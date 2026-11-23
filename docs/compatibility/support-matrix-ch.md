@@ -36,7 +36,7 @@
 | 引擎 Worker | `LocalCompileScheduler` 与 `LocalCompileWorker` | Verified | `worker-unit` | fast 检查运行引擎 Worker 单元测试套件。 |
 | 编辑器分析 Worker | CodeMirror 分析 Worker | Declared | `editor-pack` | 打包消费者检查产出的 Worker 资源及其导入；浏览器 UI 见上方浏览器各行。 |
 | PDF | `reactive-md/pdf` | Declared | `pdf-static` | 验证环境需要 Playwright Chromium 与 `pdftotext`。 |
-| 编辑器包 | `reactive-md-editor` 0.2.0 | Declared | `editor-pack` | 打包消费者覆盖 SSR 导入、Worker 资源和 NodeNext 声明；浏览器 UI 见上方浏览器各行。 |
+| 编辑器包 | `reactive-md-editor` 0.2.1 | Declared | `editor-pack` | 打包消费者覆盖 SSR 导入、Worker 资源和 NodeNext 声明；浏览器 UI 见上方浏览器各行。 |
 | 兼容性清单 | 跨包版本集合 | Verified | `compatibility-manifest` | 经 schema 校验的 `compatibility-manifest.json` 校验引擎常量、已安装运行时版本、编辑器包、Demo tarball 和推荐安装命令。 |
 
 ## 验证检查

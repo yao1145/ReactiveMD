@@ -12,7 +12,7 @@ export function buildDiagnostic(
     code,
     message,
     severity: 'error',
-    ...(resource ? { phase: 'resource' as const, recoverable: true, messageKey: 'local.resource.budget', details: structured } : { phase: 'host' as const, recoverable: false }),
+    ...(resource ? { phase: 'resource' as const, recoverable: false, messageKey: 'local.resource.budget', details: structured } : { phase: 'host' as const, recoverable: false }),
     range: { start: 0, end: 0 },
     line: 1,
     column: 1,

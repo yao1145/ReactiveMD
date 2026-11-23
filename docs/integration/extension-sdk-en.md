@@ -2,10 +2,10 @@
 
 **English** · [中文](extension-sdk-ch.md)
 
-The extension SDK has shipped since `reactive-md@0.8.0` for public extensions and unified default components; `0.9.1` keeps it at the same `0.7.0` contract. Install the current published package; use a source-built tarball only when testing unreleased changes.
+The extension SDK has shipped since `reactive-md@0.8.0` for public extensions and unified default components; `0.9.2` keeps it at the same `0.7.0` contract. Install the current published package; use a source-built tarball only when testing unreleased changes.
 
 ```sh
-npm install reactive-md@0.9.1
+npm install reactive-md@0.9.2
 ```
 
 The registry package contains `reactive-md/build`, `reactive-md/testing` and the other phase-three entries. The consumer checks install the published package outside the repository, so the public import surface is exercised as published rather than through source aliases. SDK version ranges name `^0.7.0`.

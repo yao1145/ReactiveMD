@@ -8,8 +8,8 @@
 
 | 包 | 版本 | 职责 |
 | --- | --- | --- |
-| `reactive-md` | `0.9.1` | 编译器、运行时、作者服务、SDK、React 与 SSR 渲染、导出、构建适配 |
-| `reactive-md-editor` | `0.2.0` | CodeMirror 6 源码编辑器、工具栏、编辑器侧导航 |
+| `reactive-md` | `0.9.2` | 编译器、运行时、作者服务、SDK、React 与 SSR 渲染、导出、构建适配 |
+| `reactive-md-editor` | `0.2.1` | CodeMirror 6 源码编辑器、工具栏、编辑器侧导航 |
 | `reactive-md-demo` | 私有 | 站点、示例与部署，不提供对外接口 |
 
 引擎只提供 ESM 入口，Node 侧要求 Node.js 22.12 或更新版本。React 19 与 Vite 8 都是可选 peer，各自只服务一部分入口。
@@ -386,7 +386,7 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 
 | 常量 | 值 | 作用范围 |
 | --- | --- | --- |
-| 包版本 | `0.9.1` | 引擎发布 |
+| 包版本 | `0.9.2` | 引擎发布 |
 | SDK 契约 | `0.7.0`（`LOCAL_SDK_VERSION`） | 组件、预设与配置清单 |
 | 语法修订 | `local-draft-3`（`LOCAL_SYNTAX_VERSION`） | 文档源码 |
 | 状态文件 | `reactive-md-state/v1`（`LOCAL_STATE_FORMAT`） | 导出的参数 |
@@ -398,7 +398,7 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 | 构建清单 | `reactive-md-build/v1` | 独立构建产物 |
 | 组件协议 | `reactive-md-component/v1`、`component-protocol-3` | 组件贡献 |
 | 主题协议 | `reactive-md-theme-1` | 文档主题 |
-| 编辑器包 | `0.2.0` | 编辑器发布，peer `reactive-md: ^0.9.0` |
+| 编辑器包 | `0.2.1` | 编辑器发布，peer `reactive-md: ^0.9.2` |
 
 每个常量独立演进：一次包发布可以引入新的 HTML 信封而不动语法修订，新的主题协议也不会改变 SDK 契约。
 
@@ -407,7 +407,7 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 从 `reactive-md/observability` 导入 `LocalObserver`、`LocalTraceEvent`、`createDiagnosticReport` 和 `formatLocalDiagnostic`。通过 `compileLocal(source, { observer })` 或 `new LocalCompileScheduler({ observer, createWorker, onResult })` 订阅事件。回调接收独立副本，回调异常由调用边界隔离。
 
 ```ts
-import { compileLocal } from 'reactive-md/compiler';
+import { compileLocal } from 'reactive-md';
 import { createDiagnosticReport, type LocalObserver, type LocalTraceEvent } from 'reactive-md/observability';
 
 const events: LocalTraceEvent[] = [];
@@ -423,7 +423,7 @@ const result = compileLocal(source, { observer });
 const report = createDiagnosticReport(source, { diagnostics: result.diagnostics, events });
 ```
 
-诊断新增可选的 `phase`、`messageKey`、`recoverable` 和标量 `details` 字段。现有诊断码保留原有语义。Worker、导出和资源诊断的中英文模板通过 `LOCAL_OBSERVABILITY_MESSAGES` 导出。Worker 请求携带 `traceId`、`sourceRevision` 和与传输 `id` 相同的 `requestId`。完整请求重试保留源码修订和 trace。调度器默认超时为 30,000 毫秒，可通过 `timeoutMs` 配置，传输失败后回退到主线程编译。
+诊断新增可选的 `phase`、`messageKey`、`recoverable` 和标量 `details` 字段。现有诊断码保留原有语义。Worker、导出和资源诊断的中英文模板通过 `LOCAL_OBSERVABILITY_MESSAGES` 导出。`LocalTraceEvent` 覆盖编译、Worker 和导出阶段；`export-cancel` 类型记录中止的导出，诊断报告接受其 `cancelled` 和 `printed` 状态。Worker 请求携带 `traceId`、`sourceRevision` 和与传输 `id` 相同的 `requestId`。完整请求重试保留源码修订和 trace。调度器默认超时为 30,000 毫秒，可通过 `timeoutMs` 配置，传输失败后回退到主线程编译。
 
 报告采用 `reactive-md-diagnostic/v1` schema，包含包与协议版本、运行环境、源码字节数和摘要、已注册诊断码、源码位置、选定预算字段及最近 50 条事件。浏览器环境包含 user agent 和平台，Node 环境包含 Node 版本和平台。宿主通过 `options.package` 提供 Editor、React 和 Vite 版本。序列化报告上限为 64 KiB，超限时依次移除最早事件和末尾诊断。报告省略源码正文、自由文本消息、诊断参数和资源 owner 路径。宿主负责复制、存储和传输。
 

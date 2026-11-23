@@ -58,7 +58,8 @@ const SAFE_UNITS = new Set(['bytes', 'nodes', 'files', 'depth', 'steps', 'work',
 const SAFE_STAGES = new Set(['compile', 'assets', 'bundle', 'render', 'download', 'pdf']);
 const SAFE_EVENT_TYPES = new Set<LocalTraceEvent['type']>([
   'compile-start', 'compile-end', 'worker-request', 'worker-response', 'worker-timeout',
-  'worker-stale-response', 'worker-cancel', 'worker-error', 'export-start', 'export-end', 'export-error',
+  'worker-stale-response', 'worker-cancel', 'worker-error', 'export-start', 'export-end',
+  'export-cancel', 'export-error',
 ]);
 
 function reportDetails(details: Diagnostic['details']): Diagnostic['details'] | undefined {
@@ -82,7 +83,7 @@ function safeEvent(event: LocalTraceEvent): LocalTraceEvent | undefined {
     || !Number.isSafeInteger(event.timestamp) || event.timestamp < 0) return undefined;
   const code = typeof event.code === 'string' && SAFE_CODE.test(event.code) ? event.code : undefined;
   const stage = typeof event.stage === 'string' && SAFE_STAGES.has(event.stage) ? event.stage : undefined;
-  const status = typeof event.status === 'string' && /^(?:ok|failed|stale|timeout|disposed|fallback|retry)$/.test(event.status)
+  const status = typeof event.status === 'string' && /^(?:ok|failed|stale|timeout|disposed|fallback|retry|cancelled|printed)$/.test(event.status)
     ? event.status : undefined;
   return {
     type: event.type,

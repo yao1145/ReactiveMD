@@ -7,6 +7,7 @@ import {
   LOCAL_RESULT_PATCH_PROTOCOL,
 } from '../src/local/transport/compile-patch';
 import type { LocalCompileResult, LocalCompileOptions } from '../src/local/types';
+import type { LocalTraceEvent } from '../src/local/observability-core';
 import {
   FakeWorker,
   fullRequest,
@@ -300,6 +301,161 @@ describe('LocalCompileScheduler', () => {
     worker.receive({ id: worker.messages[1].id, ok: true, result: okResult('a\nb'), duration: 1 });
     expect(results).toHaveLength(1);
     expect(results[0].options).toEqual({ markdownBreaks: false });
+  });
+});
+
+describe('LocalCompileScheduler fallback generations', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function diagnosticResult(source: string, codes: readonly string[]): LocalCompileResult {
+    return {
+      ok: true,
+      document: { syntax: 'local', source, nodes: [], initialState: {}, bindings: {} },
+      diagnostics: codes.map((code, index) => ({
+        code,
+        message: code,
+        severity: 'warning' as const,
+        range: { start: index, end: index + 1 },
+        line: 1,
+        column: 1,
+      })),
+    };
+  }
+
+  it('drops an older fallback run when a newer source is scheduled from compile-start', () => {
+    let scheduler!: LocalCompileScheduler;
+    const results: LocalCompileOutcome[] = [];
+    const traces: LocalTraceEvent[] = [];
+    let rescheduled = false;
+    scheduler = new LocalCompileScheduler({
+      createWorker: () => {
+        throw new Error('no workers here');
+      },
+      fallbackCompile: source => okResult(source),
+      observer: {
+        onTrace(event) {
+          traces.push(event);
+          if (event.type === 'compile-start' && !rescheduled) {
+            rescheduled = true;
+            scheduler.schedule('new-source', undefined, undefined, 'final');
+          }
+        },
+      },
+      onResult: outcome => results.push(outcome),
+    });
+    scheduler.schedule('old-source', undefined, undefined, 'final');
+
+    expect(results.map(outcome => outcome.source)).toEqual(['new-source']);
+    expect(traces.filter(event => event.type === 'compile-end').map(event => event.sourceRevision)).toEqual([2]);
+    expect(traces.some(event => event.type === 'compile-end' && event.sourceRevision === 1)).toBe(false);
+  });
+
+  it('skips the outcome of a fallback run when a newer source is scheduled from compile-end', () => {
+    let scheduler!: LocalCompileScheduler;
+    const results: LocalCompileOutcome[] = [];
+    let rescheduled = false;
+    scheduler = new LocalCompileScheduler({
+      createWorker: () => {
+        throw new Error('no workers here');
+      },
+      fallbackCompile: source => okResult(source),
+      observer: {
+        onTrace(event) {
+          if (event.type === 'compile-end' && !rescheduled) {
+            rescheduled = true;
+            scheduler.schedule('new-source', undefined, undefined, 'final');
+          }
+        },
+      },
+      onResult: outcome => results.push(outcome),
+    });
+    scheduler.schedule('old-source', undefined, undefined, 'final');
+
+    expect(results.map(outcome => outcome.source)).toEqual(['new-source']);
+    expect(results).toHaveLength(1);
+  });
+
+  it('stops the remaining fallback diagnostics and outcome when onDiagnostic schedules a newer source', () => {
+    let scheduler!: LocalCompileScheduler;
+    const results: LocalCompileOutcome[] = [];
+    const delivered: string[] = [];
+    let rescheduled = false;
+    scheduler = new LocalCompileScheduler({
+      createWorker: () => {
+        throw new Error('no workers here');
+      },
+      fallbackCompile: source => diagnosticResult(source, source === 'old-source'
+        ? ['old.first', 'old.second']
+        : ['new.first']),
+      observer: {
+        onDiagnostic(diagnostic) {
+          delivered.push(diagnostic.code);
+          if (!rescheduled) {
+            rescheduled = true;
+            scheduler.schedule('new-source', undefined, undefined, 'final');
+          }
+        },
+      },
+      onResult: outcome => results.push(outcome),
+    });
+    scheduler.schedule('old-source', undefined, undefined, 'final');
+
+    expect(delivered).toEqual(['old.first', 'new.first']);
+    expect(results.map(outcome => outcome.source)).toEqual(['new-source']);
+  });
+
+  it('isolates observer exceptions while delivering a fallback outcome', () => {
+    const results: LocalCompileOutcome[] = [];
+    const scheduler = new LocalCompileScheduler({
+      createWorker: () => {
+        throw new Error('no workers here');
+      },
+      fallbackCompile: source => diagnosticResult(source, ['local.test.warning']),
+      observer: {
+        onTrace() {
+          throw new Error('trace observer failure');
+        },
+        onDiagnostic() {
+          throw new Error('diagnostic observer failure');
+        },
+      },
+      onResult: outcome => results.push(outcome),
+    });
+    scheduler.schedule('observed', undefined, undefined, 'final');
+
+    expect(results.map(outcome => outcome.source)).toEqual(['observed']);
+    expect(results[0].result.diagnostics).toHaveLength(1);
+  });
+
+  it('stops fallback delivery when a diagnostic observer disposes the scheduler', () => {
+    let scheduler!: LocalCompileScheduler;
+    const results: LocalCompileOutcome[] = [];
+    const delivered: string[] = [];
+    scheduler = new LocalCompileScheduler({
+      createWorker: () => {
+        throw new Error('no workers here');
+      },
+      fallbackCompile: source => diagnosticResult(source, ['local.test.first', 'local.test.second']),
+      observer: {
+        onDiagnostic(diagnostic) {
+          delivered.push(diagnostic.code);
+          scheduler.dispose();
+        },
+      },
+      onResult: outcome => results.push(outcome),
+    });
+    scheduler.schedule('disposed', undefined, undefined, 'final');
+
+    expect(delivered).toEqual(['local.test.first']);
+    expect(results).toEqual([]);
+    scheduler.schedule('after dispose', undefined, undefined, 'final');
+    expect(results).toEqual([]);
   });
 });
 

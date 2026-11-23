@@ -2,6 +2,20 @@
 
 **English** · [中文](CHANGELOG-ch.md)
 
+## 0.9.2 (2026-11-23, latest channel)
+
+Fallback delivery ordering, diagnostic recoverability flags, Worker failure details, and the export-cancellation trace contract.
+
+### Fixed
+
+- Keep the newest fallback compile: an observer that schedules another source during a fallback compile-start, compile-end or diagnostic callback no longer receives the older result, diagnostics or terminal trace afterwards. Every scheduled generation carries a currentness token checked after each observer callback.
+- Preserve the underlying Worker compile exception in formatted English and Chinese diagnostics through a bounded `detail` parameter. Diagnostic reports continue to omit free text.
+- Mark build preflight and export plan resource and budget diagnostics as `recoverable: false`, matching callers that stop on them.
+
+### Added
+
+- Add the `export-cancel` trace type and accept `cancelled` and `printed` statuses in diagnostic reports.
+
 ## 0.9.1 (2026-11-22, latest channel)
 
 Streaming source compilation refinements, document-scoped jump scrolling, and stricter source-phase validation.

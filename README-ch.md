@@ -192,15 +192,15 @@ Reactive MD 需要 Node.js 22.12 或更新版本，包只提供 ESM 入口：
 npm install reactive-md
 ```
 
-0.9.1 稳定版使用 `latest` 渠道。项目也可以固定版本。
+0.9.2 稳定版使用 `latest` 渠道。项目也可以固定版本。
 
 ```sh
 npm install reactive-md
 # 或固定版本
-npm install reactive-md@0.9.1
+npm install reactive-md@0.9.2
 ```
 
-升级前请阅读 [0.9.1 发布说明](docs/releases/release-0.9.1-ch.md)、[兼容性说明](docs/compatibility/compatibility-ch.md)和[支持矩阵](docs/compatibility/support-matrix-ch.md)。
+升级前请阅读 [0.9.2 发布说明](docs/releases/release-0.9.2-ch.md)、[兼容性说明](docs/compatibility/compatibility-ch.md)和[支持矩阵](docs/compatibility/support-matrix-ch.md)。
 
 ### 升级到 0.8.0
 
@@ -359,7 +359,7 @@ export function Article({ source }: { source: string }) {
 
 ## 用 React 编辑源码
 
-可复用的源码编辑器位于独立包 `reactive-md-editor`（`0.2.0`，支持 `reactive-md@0.9.x` 系列），使用独立样式表，与引擎一起安装。0.7 中它以 `reactive-md/editor` 提供；自 0.8 起独立为单独的包。组件是受控的，需要 React 19：
+可复用的源码编辑器位于独立包 `reactive-md-editor`（`0.2.1`，要求 `reactive-md@^0.9.2` 引擎 peer），使用独立样式表，与引擎一起安装。0.7 中它以 `reactive-md/editor` 提供；自 0.8 起独立为单独的包。组件是受控的，需要 React 19：
 
 ```tsx
 import { useState } from 'react';
@@ -410,13 +410,13 @@ benchmarks/    带来源说明的精简性能数据
 - [扩展开发教程](docs/development/extension-tutorial-ch.md)：选择入口、编写组件包并验证。
 - [版本与兼容性](docs/compatibility/compatibility-ch.md)与[支持矩阵](docs/compatibility/support-matrix-ch.md)。
 - [性能说明](docs/development/performance-overview-ch.md)与[发布清单](CONTRIBUTING-ch.md#发布流程)。
-- [0.9.1 发布说明](docs/releases/release-0.9.1-ch.md)和[历史发布记录](docs/releases)。
+- [0.9.2 发布说明](docs/releases/release-0.9.2-ch.md)和[历史发布记录](docs/releases)。
 
 ## 支持与状态
 
 - CI 使用 Node 24 运行引擎检查和预设脚手架验证。打包消费者检查覆盖静态 SSR。构建后运行 `node scripts/verify-shareable.mjs`，可用 Chromium 验证单文件水合并测量 standalone 体积。
 - 0.x 次版本可能包含破坏性变更。请保存原始 `.reactive.md` 源码，而不是运行时 AST 或内存状态。
-- `0.9.1` 是 `latest` 渠道的稳定版本。安全修复可能随次版本发布。
+- `0.9.2` 是 `latest` 渠道的稳定版本。安全修复可能随次版本发布。
 - 扩展 SDK 契约为 `0.7.0`。组件包、主题、Vite 适配器、离线构建和合规工具均使用公开入口。
 
 ## 贡献与安全

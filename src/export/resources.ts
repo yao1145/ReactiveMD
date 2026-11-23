@@ -10,10 +10,12 @@ export function isInlineExportCss(css: string): boolean {
 
 export function readLocalExportResources(value: unknown): { resources: readonly LocalStyleResource[]; diagnostics: Diagnostic[] } {
   const diagnostics: Diagnostic[] = [];
-  const fail = (code: string, message: string) => diagnostics.push({ code, message, severity: 'error', phase: 'export', recoverable: true, range: { start: 0, end: 0 }, line: 1, column: 1 });
+  // Every caller rejects the export plan on these diagnostics, so neither is recoverable.
+  const fail = (code: string, message: string) => diagnostics.push({ code, message, severity: 'error', phase: 'export', recoverable: false, range: { start: 0, end: 0 }, line: 1, column: 1 });
   const budgetFailure = (message: string, budget: string, limit: number, actual: number, unit: string, owner?: string) => {
     diagnostics.push({
       ...createLocalObservabilityDiagnostic('local.resource.budget', { budget, limit, actual, unit, ...(owner ? { owner } : {}) }),
+      recoverable: false,
       code: 'local.extension.resource-budget',
       message,
     });

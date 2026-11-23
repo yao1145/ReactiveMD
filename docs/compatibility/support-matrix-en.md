@@ -36,7 +36,7 @@ This page is the canonical public support statement for `reactive-md` 0.9.x, `re
 | Engine Worker | `LocalCompileScheduler` and `LocalCompileWorker` | Verified | `worker-unit` | The fast check runs the engine Worker unit suite. |
 | Editor analysis Worker | CodeMirror analysis Worker | Declared | `editor-pack` | The packed consumer checks the emitted Worker asset and its imports; browser UI uses the browser rows above. |
 | PDF | `reactive-md/pdf` | Declared | `pdf-static` | The verification environment needs Playwright Chromium and `pdftotext`. |
-| Editor package | `reactive-md-editor` 0.2.0 | Declared | `editor-pack` | The packed consumer covers SSR import, the Worker asset and NodeNext declarations; browser UI uses the browser rows above. |
+| Editor package | `reactive-md-editor` 0.2.1 | Declared | `editor-pack` | The packed consumer covers SSR import, the Worker asset and NodeNext declarations; browser UI uses the browser rows above. |
 | Compatibility manifest | Cross-package version set | Verified | `compatibility-manifest` | The schema-validated `compatibility-manifest.json` checks engine constants, installed runtime versions, the editor package, Demo tarballs and the recommended install command. |
 
 ## Verification checks

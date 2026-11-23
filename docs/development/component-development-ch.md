@@ -2,14 +2,14 @@
 
 **中文** · [English](component-development-en.md) · [完整开发契约](component-development-reference-ch.md)
 
-先用一个可以展开 Markdown 的提示容器跑通预览。扩展 SDK 自 `reactive-md@0.8.0` 起提供，SDK 契约在 `0.9.1` 中仍为 0.7.0，直接安装当前公开包即可。
+先用一个可以展开 Markdown 的提示容器跑通预览。扩展 SDK 自 `reactive-md@0.8.0` 起提供，SDK 契约在 `0.9.2` 中仍为 0.7.0，直接安装当前公开包即可。
 
 ## 创建并启动
 
 ```sh
 npx reactive-md init component ../my-note --name my-note --id acme/my-note --form container --props '{"label":{"kind":"string","default":"Note"}}' --yes
 cd ../my-note
-npm install reactive-md@0.9.1 react@^19 react-dom@^19
+npm install reactive-md@0.9.2 react@^19 react-dom@^19
 npm run dev
 ```
 
