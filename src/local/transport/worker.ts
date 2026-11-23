@@ -453,6 +453,11 @@ export class LocalCompileScheduler {
   private readonly reportedStaleRequestIds = new Set<number>();
   private baseline: CompileBaseline | null = null;
   private patchState: PatchState = 'unknown';
+  /**
+   * Bounded reason the worker factory threw, kept until the first task that
+   * actually runs on the fallback thread reports it once. `null` afterwards.
+   */
+  private startupFailure: string | null = null;
 
   constructor(options: LocalCompileSchedulerOptions) {
     this.options = options;
@@ -473,6 +478,7 @@ export class LocalCompileScheduler {
       this.worker = worker;
     } catch (error) {
       this.worker = null;
+      this.startupFailure = compileFailureDetail(error);
       options.onModeChange?.('fallback', `Could not start the compile worker: ${messageOf(error)}`);
     }
   }
@@ -703,6 +709,26 @@ export class LocalCompileScheduler {
       this.finishRun();
       return;
     }
+    if (this.startupFailure !== null) {
+      // The factory threw before this run started. Report the bounded reason
+      // once, on the first task that actually reached the fallback compile,
+      // so observer-only hosts see why the worker is unavailable.
+      const detail = this.startupFailure;
+      this.startupFailure = null;
+      emitLocalTrace(this.options.observer, {
+        type: 'worker-error',
+        traceId,
+        sourceRevision,
+        timestamp: Date.now(),
+        status: 'failed',
+        code: 'local.worker.startup',
+        ...(detail ? { detail } : {}),
+      });
+      if (!this.isCurrentJob(job)) {
+        this.finishRun();
+        return;
+      }
+    }
     emitLocalTrace(this.options.observer, { type: 'compile-end', traceId, sourceRevision, timestamp: Date.now(), durationMs: duration, status: result.ok ? 'ok' : 'failed' });
     if (!this.isCurrentJob(job)) {
       this.finishRun();
@@ -878,20 +904,23 @@ export class LocalCompileScheduler {
       return;
     }
 
-    if (!superseded && this.recoverWithFullResult(job)) return;
     if (!superseded) {
-      // One bounded retry was already spent: never loop on protocol errors.
-      this.patchState = 'disabled';
-      this.baseline = null;
-      this.deliver(job, {
-        source: job.source,
-        result: failureResult(job, compileFailureDiagnostic('The compile worker could not apply an incremental result patch')),
-        duration: 0,
-        mode,
-        ...(job.options === undefined ? {} : { options: job.options }),
-        ...phaseFields(job),
-        metrics: { queueMs, roundTripMs, ...(applyMs > 0 ? { applyMs } : {}) },
-      });
+      const recovery = this.recoverWithFullResult(job);
+      if (recovery === 'dispatched') return;
+      if (recovery !== 'abandoned') {
+        // One bounded retry was already spent: never loop on protocol errors.
+        this.patchState = 'disabled';
+        this.baseline = null;
+        this.deliver(job, {
+          source: job.source,
+          result: failureResult(job, compileFailureDiagnostic('The compile worker could not apply an incremental result patch')),
+          duration: 0,
+          mode,
+          ...(job.options === undefined ? {} : { options: job.options }),
+          ...phaseFields(job),
+          metrics: { queueMs, roundTripMs, ...(applyMs > 0 ? { applyMs } : {}) },
+        });
+      }
     } else {
       // A newer job is waiting; it will be dispatched from a clean full state.
       this.resetProtocol();
@@ -947,20 +976,21 @@ export class LocalCompileScheduler {
     return result;
   }
 
-  /** Re-dispatch the same job with a complete source, at most once per job. */
-  private recoverWithFullResult(job: CompileJob): boolean {
-    if (this.worker === null || (job.recovery ?? 0) >= 1) return false;
-    const queued = this.queued;
-    if (queued !== null && !sameJob(queued, job)) return false;
-    if (queued !== null) {
-      this.queued = null;
-      this.clearTimer();
-      // The retried request answers the same waiting edit; it stays current.
-      this.currentSourceRevision = job.sourceRevision;
-    }
+  /**
+   * Re-dispatch the same job with a complete source, at most once per job.
+   *
+   * The response trace runs observer callbacks before this call, and one may
+   * synchronously schedule an explicit final request that already reached the
+   * worker. The retry is sent only while this job is still the current source
+   * generation and no request is in flight, so it can never replace a newer
+   * request or deliver a stale failure.
+   */
+  private recoverWithFullResult(job: CompileJob): 'dispatched' | 'spent' | 'abandoned' {
+    if (this.worker === null || (job.recovery ?? 0) >= 1) return 'spent';
+    if (this.disposed || this.inFlight !== null || !this.isCurrentJob(job)) return 'abandoned';
     this.resetProtocol();
     this.compile({ ...job, recovery: (job.recovery ?? 0) + 1 });
-    return true;
+    return 'dispatched';
   }
 
   private handleWorkerFailure(detail: string, diagnostic: Diagnostic = { ...createLocalObservabilityDiagnostic('local.worker.error'), recoverable: true }): void {

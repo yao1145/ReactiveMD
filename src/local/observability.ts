@@ -78,6 +78,7 @@ function reportDetails(details: Diagnostic['details']): Diagnostic['details'] | 
   return Object.keys(safe).length ? safe : undefined;
 }
 
+/** `detail` stays observer-only free text and is never copied into a report. */
 function safeEvent(event: LocalTraceEvent): LocalTraceEvent | undefined {
   if (!event || !SAFE_ID.test(event.traceId) || !SAFE_EVENT_TYPES.has(event.type)
     || !Number.isSafeInteger(event.timestamp) || event.timestamp < 0) return undefined;

@@ -292,6 +292,8 @@ const LOCAL_STATIC_DIAGNOSTIC_CODES: readonly string[] = [
   'local.worker.compile',
   'local.build.resource-budget',
   'local.extension.resource-budget',
+  'local.extension.resource-conflict',
+  'local.extension.resource-invalid',
   'local.version.unsupported', 'local.version.malformed', 'local.version.duplicate', 'local.version.placement',
   'local.upgrade.from-version', 'local.upgrade.reserved-binding', 'local.upgrade.tag', 'local.upgrade.text-length',
   'local.upgrade.expression', 'local.upgrade.version-missing',

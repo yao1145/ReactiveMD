@@ -608,6 +608,60 @@ describe('LocalCompileScheduler patch-v1 transport', () => {
     expect(results.map((outcome) => outcome.source)).toEqual(['base', 'base edit']);
   });
 
+  it('abandons a bounded full retry when the response trace already scheduled the next final', () => {
+    const worker = new FakeWorker();
+    const results: LocalCompileOutcome[] = [];
+    const events: LocalTraceEvent[] = [];
+    let scheduled = false;
+    const scheduler = new LocalCompileScheduler({
+      createWorker: () => worker,
+      fallbackCompile: (source: string): LocalCompileResult => okResult(source),
+      onResult: (outcome) => results.push(outcome),
+      delay: 10,
+      observer: {
+        onTrace(event) {
+          events.push(event);
+          if (!scheduled && event.type === 'worker-response' && event.status === 'retry') {
+            scheduled = true;
+            scheduler.schedule('fresh', undefined, undefined, 'final');
+          }
+        },
+      },
+    });
+    try {
+      scheduler.schedule('base');
+      vi.advanceTimersByTime(10);
+      const first = fullRequest(worker.requests[0]);
+      worker.receive(negotiatedResponse(first, okResult('base')));
+
+      scheduler.schedule('base edit');
+      vi.advanceTimersByTime(10);
+      const second = patchRequest(worker.requests[1]);
+      worker.receive({
+        id: second.id,
+        ok: false,
+        message: 'The requested base revision is not current',
+        retryFull: true,
+        code: 'stale-base',
+      });
+
+      // The observer's explicit final owns the transport. The old job must not
+      // send its retry or clear the patch state behind the newer request.
+      expect(worker.requests).toHaveLength(3);
+      const latest = patchRequest(worker.requests[2]);
+      expect(applySourceEdit('base', latest.edit)).toBe('fresh');
+      expect(worker.requests.filter((request) => 'source' in request && request.source === 'base edit')).toHaveLength(0);
+      expect(events.filter((event) => event.type === 'worker-response' && event.status === 'retry')).toHaveLength(1);
+
+      worker.receive(resultPatchResponse(latest, okResult('base'), okResult('fresh')));
+      expect(results.map((outcome) => outcome.source)).toEqual(['base', 'fresh']);
+      vi.advanceTimersByTime(50);
+      expect(worker.requests).toHaveLength(3);
+    } finally {
+      scheduler.dispose();
+    }
+  });
+
   it('recovers once from an unappliable patch without looping', () => {
     const { worker, results, scheduler } = setup();
     scheduler.schedule('base');

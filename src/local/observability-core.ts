@@ -12,6 +12,12 @@ export interface LocalTraceEvent {
   readonly code?: string;
   readonly status?: string;
   readonly stage?: string;
+  /**
+   * Bounded free text for the observer only. Diagnostic reports copy an
+   * allowlist that omits it, so a reason can reach host logging without
+   * entering a shareable report.
+   */
+  readonly detail?: string;
 }
 
 export interface LocalObserver {

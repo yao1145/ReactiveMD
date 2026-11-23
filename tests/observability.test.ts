@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readLocalExportResources } from '../src/export';
 import {
   compileFailureDiagnostic, compileLocal, createDiagnosticReport, formatLocalDiagnostic, LocalCompileScheduler,
-  type Diagnostic, type LocalCompileWorker, type LocalCompileWorkerRequest, type LocalTraceEvent,
+  type Diagnostic, type LocalCompileOutcome, type LocalCompileWorker, type LocalCompileWorkerRequest, type LocalTraceEvent,
 } from '../src';
 
 describe('local observability', () => {
@@ -176,5 +177,75 @@ describe('local observability', () => {
     });
     expect(report.events?.map(event => event.status)).toEqual(['cancelled', 'printed', undefined]);
     expect(report.events?.every(event => event.type === 'export-cancel')).toBe(true);
+  });
+
+  it('keeps export resource failure codes in reports and still drops unknown codes and free text', () => {
+    const invalid = readLocalExportResources([
+      { id: 'remote.css', css: '.a { background: url(https://example.com/x.png); }' },
+    ]).diagnostics;
+    const conflict = readLocalExportResources([
+      { id: 'same.css', css: '.a { color: red; }' },
+      { id: 'same.css', css: '.a { color: blue; }' },
+    ]).diagnostics;
+    const unknownCode: Diagnostic = {
+      code: 'local.extension.unknown-report-code',
+      message: 'secret free code',
+      severity: 'error',
+      range: { start: 0, end: 0 },
+      line: 1,
+      column: 1,
+    };
+    const hostCode: Diagnostic = { ...unknownCode, code: 'host.free-text', message: 'secret free text' };
+    const report = createDiagnosticReport('document', {
+      diagnostics: [...invalid, ...conflict, unknownCode, hostCode],
+    });
+    expect(report.diagnostics.map(diagnostic => diagnostic.code)).toEqual([
+      'local.extension.resource-invalid',
+      'local.extension.resource-conflict',
+    ]);
+    expect(report.diagnostics.every(diagnostic => diagnostic.phase === 'export' && diagnostic.severity === 'error')).toBe(true);
+    expect(JSON.stringify(report)).not.toContain('secret free');
+  });
+
+  it('reports a bounded worker startup failure once on the first fallback task', () => {
+    const reason = `factory exploded: ${'private-startup-token-'.repeat(20)}`;
+    const events: LocalTraceEvent[] = [];
+    const results: LocalCompileOutcome[] = [];
+    const scheduler = new LocalCompileScheduler({
+      createWorker: () => {
+        throw new Error(reason);
+      },
+      fallbackCompile: source => compileLocal(source),
+      onResult: outcome => results.push(outcome),
+      observer: { onTrace: event => events.push(event) },
+    });
+    try {
+      scheduler.schedule('first', undefined, undefined, 'final');
+      scheduler.schedule('second', undefined, undefined, 'final');
+      expect(results.map(outcome => outcome.source)).toEqual(['first', 'second']);
+
+      const startup = events.filter(event => event.type === 'worker-error');
+      expect(startup).toHaveLength(1);
+      const firstStart = events.find(event => event.type === 'compile-start')!;
+      expect(startup[0]).toMatchObject({
+        type: 'worker-error',
+        code: 'local.worker.startup',
+        status: 'failed',
+        traceId: firstStart.traceId,
+        sourceRevision: firstStart.sourceRevision,
+      });
+      const detail = startup[0].detail;
+      expect(detail).toBeTypeOf('string');
+      expect(detail!.length).toBeLessThanOrEqual(160);
+      expect(detail!.startsWith('factory exploded: private-startup-token-')).toBe(true);
+
+      const report = createDiagnosticReport('document', { events });
+      expect(JSON.stringify(report)).not.toContain('private-startup-token-');
+      const reported = report.events?.find(event => event.code === 'local.worker.startup');
+      expect(reported).toMatchObject({ type: 'worker-error', status: 'failed', traceId: firstStart.traceId });
+      expect(reported && Object.hasOwn(reported, 'detail')).toBe(false);
+    } finally {
+      scheduler.dispose();
+    }
   });
 });

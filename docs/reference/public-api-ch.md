@@ -425,7 +425,9 @@ const report = createDiagnosticReport(source, { diagnostics: result.diagnostics,
 
 诊断新增可选的 `phase`、`messageKey`、`recoverable` 和标量 `details` 字段。现有诊断码保留原有语义。Worker、导出和资源诊断的中英文模板通过 `LOCAL_OBSERVABILITY_MESSAGES` 导出。`LocalTraceEvent` 覆盖编译、Worker 和导出阶段；`export-cancel` 类型记录中止的导出，诊断报告接受其 `cancelled` 和 `printed` 状态。Worker 请求携带 `traceId`、`sourceRevision` 和与传输 `id` 相同的 `requestId`。完整请求重试保留源码修订和 trace。调度器默认超时为 30,000 毫秒，可通过 `timeoutMs` 配置，传输失败后回退到主线程编译。
 
-报告采用 `reactive-md-diagnostic/v1` schema，包含包与协议版本、运行环境、源码字节数和摘要、已注册诊断码、源码位置、选定预算字段及最近 50 条事件。浏览器环境包含 user agent 和平台，Node 环境包含 Node 版本和平台。宿主通过 `options.package` 提供 Editor、React 和 Vite 版本。序列化报告上限为 64 KiB，超限时依次移除最早事件和末尾诊断。报告省略源码正文、自由文本消息、诊断参数和资源 owner 路径。宿主负责复制、存储和传输。
+`createWorker` 工厂抛错时，调度器在首个于主线程回退执行的任务上发出一次 `worker-error` 事件，码为 `local.worker.startup`，状态为 `failed`。该事件复用此任务的 `traceId` 和 `sourceRevision`，并通过可选的 `detail` 字段携带经过截断的原因。后续任务不再重复。`detail` 仅为观察者可见的自由文本。
+
+报告采用 `reactive-md-diagnostic/v1` schema，包含包与协议版本、运行环境、源码字节数和摘要、已注册诊断码、源码位置、选定预算字段及最近 50 条事件。浏览器环境包含 user agent 和平台，Node 环境包含 Node 版本和平台。宿主通过 `options.package` 提供 Editor、React 和 Vite 版本。序列化报告上限为 64 KiB，超限时依次移除最早事件和末尾诊断。报告省略源码正文、自由文本消息、诊断参数、资源 owner 路径和 trace 的 `detail` 字段。宿主负责复制、存储和传输。
 
 ## 下一步读什么
 
