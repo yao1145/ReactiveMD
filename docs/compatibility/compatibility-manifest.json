@@ -3,28 +3,33 @@
   "schema": "reactive-md-compatibility/v1",
   "engine": {
     "name": "reactive-md",
-    "version": "0.9.1"
+    "version": "0.9.2"
   },
   "editor": {
     "name": "reactive-md-editor",
-    "version": "0.2.0",
-    "enginePeer": "^0.9.0",
+    "version": "0.2.1",
+    "enginePeer": "^0.9.2",
     "repository": "ReactiveMD-Editor"
+  },
+  "previous": {
+    "engine": "0.9.1",
+    "editor": "0.2.0",
+    "enginePeer": "^0.9.0"
   },
   "demo": {
     "repository": "ReactiveMD-Demo",
     "candidates": {
       "engine": {
         "package": "reactive-md",
-        "version": "0.9.1",
-        "tarball": "vendor/reactive-md-0.9.1-27af3c66ce88.tgz",
-        "sha256": "27af3c66ce8803147e3595916ddce8eda1e2c23878a84deacf17c61d4aae5533"
+        "version": "0.9.2",
+        "tarball": "vendor/reactive-md-0.9.2-7a0757798643.tgz",
+        "sha256": "7a0757798643b0e88cd22d73ec1d88e36b0801f0ad78c2858cd14e0f3dd716a6"
       },
       "editor": {
         "package": "reactive-md-editor",
-        "version": "0.2.0",
-        "tarball": "vendor/reactive-md-editor-0.2.0-07454a2f1d63.tgz",
-        "sha256": "07454a2f1d630be93b2cb8305711786b45d33f46a9ec7d758a7c6815f1055fa3"
+        "version": "0.2.1",
+        "tarball": "vendor/reactive-md-editor-0.2.1-910d8496099b.tgz",
+        "sha256": "910d8496099b79ab9ad53598a17b3a3ace64be1e07d5b8cb244ae4d6a102fe7c"
       }
     }
   },
@@ -36,10 +41,11 @@
   },
   "verified": {
     "date": "2026-11-23",
-    "node": "22.17.0",
+    "node": "24.22.2",
     "browsers": [
       "Google Chrome",
-      "Microsoft Edge"
+      "Microsoft Edge",
+      "Playwright Chromium"
     ]
   },
   "runtimes": {
@@ -58,10 +64,10 @@
     }
   },
   "install": {
-    "command": "npm install reactive-md@0.9.1 reactive-md-editor@0.2.0 react@^19.0.0 react-dom@^19.0.0",
+    "command": "npm install reactive-md@0.9.2 reactive-md-editor@0.2.1 react@^19.0.0 react-dom@^19.0.0",
     "packages": {
-      "reactive-md": "0.9.1",
-      "reactive-md-editor": "0.2.0",
+      "reactive-md": "0.9.2",
+      "reactive-md-editor": "0.2.1",
       "react": "^19.0.0",
       "react-dom": "^19.0.0"
     },

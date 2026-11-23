@@ -1,2 +1,4 @@
 archive/
 plan/
+# The workspace manifest records the SHA256 of this package.
+compatibility/compatibility-manifest.json

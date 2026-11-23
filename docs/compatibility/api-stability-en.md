@@ -1,0 +1,25 @@
+# Stable public API
+
+[中文](api-stability-ch.md) · **English**
+
+This baseline takes effect with `reactive-md@0.9.2` and `reactive-md-editor@0.2.1`. It covers the packages' public ESM entries, compatibility aliases and stylesheet entries, along with the documented exports, types and behavior in the [public API reference](../reference/public-api-en.md) and [editor README](https://github.com/yao1145/ReactiveMD-Editor#entry-points). Package `exports` define import resolution. Implementation files, build chunk names and internal modules can change.
+
+Patch releases within a 0.x minor line preserve existing imports, declarations and semantics. They may add compatible entries, optional fields and diagnostic codes. Required fields, closed unions, error handling and documented defaults form part of the contract. Renames, removals and other incompatible changes follow the [deprecation and migration policy](deprecation-en.md).
+
+## Subsystem contracts
+
+| Subsystem | Stable surface | Version and boundaries |
+| --- | --- | --- |
+| Compiler | Root `compileLocal`, `LocalCompileOptions` and `LocalCompileResult`. Both compiler subpaths' factories, `Compiler` and `CompilerConfigurationError`. Consumers can branch on the factory result's `ok` and `status`, inspect its diagnostics, recoveries and check coverage, and read `document` and `program` on success. | Accepted `local-draft-3` semantics follow [version compatibility](compatibility-en.md). One-shot compilers perform final compilation. The documented phase arguments and result fields of sessions and the scheduler are public. Program objects and caches are in-memory data for the current release. Custom Workers should use the public request and response types with the matching engine. |
+| Runtime | `createLocalRuntime`, the public parameter writes, subscriptions, reset and disposal of `LocalRuntime`, and documented services in `reactive-md/runtime` and `reactive-md/runtime/browser`. Invalid writes preserve valid state and multi-value writes commit atomically. | Persist using `reactive-md-state/v1` or the documented component-state format. Readers validate the source digest, revision and the relevant bindings or component identity. In-memory snapshots, node IDs, anonymous keys and scheduling internals belong to the implementation. |
+| SDK | Public component and preset definitions, configuration validation, version ranges, binding rules and declared capabilities in `reactive-md/sdk`. Extension hosts can rely on component identity, name, version and contract checks. | The SDK contract is `0.7.0`. Syntax, component and theme contracts have their own versions. Restoration checks the component contract and configuration after checking the supported range. Extensions can use the [conformance tests](../integration/extension-sdk-en.md) to verify capabilities. |
+| Export | `createShareableHtml`, preflight and restoration in `reactive-md/export`, and the protocol, stable resource IDs and meaning of `specifier` in `reactive-md/export-assets`. | Basic HTML writes v1. HTML with restoration requirements writes v2. The current standalone runtime reads valid payloads in both formats, requires restoration metadata for v2 and rejects mismatched restoration. Legacy payloads without `sourceSemantics` use the documented compatibility path. Bundle manifests, restoration requirements and export asset manifests version independently. See the [shareable export guide](../integration/shareable-export-en.md). |
+| Diagnostics | `Diagnostic` machine fields, original-source UTF-16 coordinates, `error` and `warning` severity, and the meanings of existing codes. The observation entry exposes `LocalObserver`, `LocalTraceEvent`, `createDiagnosticReport` and formatting. The optional `recoverable` flag describes whether the current operation can continue. | A minor line can add codes and optional metadata. `reactive-md-diagnostic/v1` preserves the types and meanings of existing fields and may add optional fields or events. Readers should check the schema and skip unknown fields, events and enumeration values. Changing a required field's type or an existing meaning requires a new report schema. Display wording can evolve. |
+
+## Editor contract
+
+`reactive-md-editor`, `/codemirror` and `/commands` are public entries. Components, their public props and handles, selection types, command results and stylesheet entries ship with the package. The root component and CodeMirror alias refer to the same component. The optional observer receives diagnostics and traces from private analysis. Replacing it recreates the analysis scheduler. See the [compatibility page](compatibility-en.md) for the editor's engine peer and tested pair.
+
+## Release checks
+
+Both packages run `npm run check` to verify public entries, packed files and an independent NodeNext consumer. The engine also checks compiler isolation, legacy consumers of the two-level diagnostic type, protocol identifiers and semantic regressions. Paired releases also run `npm run compatibility:verify` and record their tested environments in the [support matrix](support-matrix-en.md).

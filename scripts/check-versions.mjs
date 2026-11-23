@@ -162,7 +162,17 @@ for (const [file, pattern] of compatibilityPages) {
 
 const currentVersion = versionCore(packageInfo.version);
 for (const file of ['docs/compatibility/support-matrix-en.md', 'docs/compatibility/support-matrix-ch.md']) {
-  const match = /`reactive-md`\s+(\d+)\.(\d+)\.x/.exec(await read(file));
+  const document = await read(file);
+  const candidate = /`reactive-md@([^`]+)`/.exec(document)?.[1];
+  if (candidate !== undefined) {
+    if (candidate === packageInfo.version) {
+      pass(`${file} declares the reactive-md@${candidate} candidate.`);
+    } else {
+      fail(`${file} declares reactive-md@${candidate}, but package.json is ${packageInfo.version}.`);
+    }
+    continue;
+  }
+  const match = /`reactive-md`\s+(\d+)\.(\d+)\.x/.exec(document);
   if (!match) {
     fail(`${file} does not declare the reactive-md release line.`);
   } else if (currentVersion === null) {

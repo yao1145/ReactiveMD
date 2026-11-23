@@ -24,9 +24,16 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 | 屏幕样式入口 | `reactive-md/screen.css` | `reactive-md/styles.css` 的别名 |
 | 打印样式入口 | `reactive-md/print.css` | 可选的文档打印布局与页边距 |
 | 编辑器样式入口 | `reactive-md-editor/styles.css` | 独立编辑器样式，作用域限定在编辑器根节点 |
-| 机器可读清单 | [compatibility-manifest.json](compatibility-manifest.json) | 跨包版本、协议、Demo 候选包、已验证的 Node/React/Vite 版本与推荐安装组合；schema 见 [compatibility-manifest.schema.json](compatibility-manifest.schema.json)；由 `npm run compatibility:verify` 校验 |
+| 机器可读清单 | [compatibility-manifest.json](https://github.com/yao1145/ReactiveMD/blob/main/docs/compatibility/compatibility-manifest.json) | 跨包版本、协议、Demo 候选包、运行时版本与推荐安装组合。格式见 [compatibility-manifest.schema.json](compatibility-manifest.schema.json)，可以用 `npm run compatibility:verify` 校验。 |
 
 同一组版本标识记录在机器可读清单中，按 JSON Schema 校验，并对照引擎常量、已安装运行时版本、编辑器包与 Demo tarball 检查。声明范围与实测版本分别记录。
+
+| 编辑器 | 引擎 peer | 配对引擎 |
+| --- | --- | --- |
+| `0.2.1` | `^0.9.2` | `0.9.2` |
+| `0.2.0` | `^0.9.0` | `0.9.1`（上一组验收组合） |
+
+成对发布前，从引擎仓库运行 `npm run compatibility:verify`。按清单中的产物先发布引擎，再比对 npm 上的引擎完整性值和编辑器锁定的候选包，随后发布编辑器。
 
 一个包版本只对应一个语法修订。升级包之前，记录应用使用的 `LOCAL_SYNTAX_VERSION`。如果文档源码来自另一个语法修订，保留旧包版本渲染，或按下面的迁移说明改写。`compileLocal(source, options?)` 不提供语法版本参数；宿主可以通过 `options.limits.maxSyntaxNodes` 调整单次编译的语法节点预算，见[本地模式集成](../integration/local-integration-ch.md)。
 
@@ -38,9 +45,9 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 ## 0.x 的兼容规则
 
-- 次版本（`0.3` 到 `0.4`）可能包含破坏性变更；补丁版本只做兼容修复和安全修复。
-- 0.x 阶段不承诺固定弃用周期。每项破坏性变更都会写入 [变更记录](../../CHANGELOG-ch.md)，说明旧写法、新写法和迁移步骤。
-- 1.0 之前，把每次升级都当成可能需要修改文档源码或宿主代码。
+- 0.x 次版本可以按弃用政策引入破坏性变更。补丁版本保留已有稳定契约，可以加入兼容的能力和修复。
+- [稳定公共 API](api-stability-ch.md) 定义两包的入口、类型和协议范围。
+- [弃用与迁移政策](deprecation-ch.md) 定义公告、保留期、移除版本和迁移记录。
 - 应用应固定包版本，保留原始 `.reactive.md` 源码，并在升级后用自己的文档和示例重新运行编译与渲染检查。
 
 ## 核心语义兼容范围
@@ -98,7 +105,7 @@ Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可
 
 ## 诊断契约
 
-`Diagnostic` 包含 `code`、`message`、`severity`、`range`、`line` 和 `column`。
+`Diagnostic` 包含 `code`、`message`、`severity`、`range`、`line` 和 `column`。诊断可附带 `phase`、`recoverable` 和结构化 `details`。宿主可以用 `recoverable` 判断当前操作能否继续。
 
 - `line` 和 `column` 从 1 开始；列和 `range` 均按原始源码的 UTF-16 代码单元计数，范围为半开区间。
 - `line`、`column` 和 `range` 可以用于程序定位和编辑器跳转。

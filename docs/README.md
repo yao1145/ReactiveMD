@@ -55,7 +55,9 @@ Documents are grouped by purpose. Each topic has an English version (`-en.md`); 
 | --- | --- |
 | Versions and compatibility | [English](compatibility/compatibility-en.md) |
 | Support matrix | [English](compatibility/support-matrix-en.md) |
-| Compatibility manifest | [JSON](compatibility/compatibility-manifest.json) |
+| Stable public API | [English](compatibility/api-stability-en.md) |
+| Deprecation and migration policy | [English](compatibility/deprecation-en.md) |
+| Compatibility manifest | [JSON](https://github.com/yao1145/ReactiveMD/blob/main/docs/compatibility/compatibility-manifest.json) |
 | Compatibility manifest schema | [JSON Schema](compatibility/compatibility-manifest.schema.json) |
 | Source versioning | [English](compatibility/source-versioning-en.md) |
 

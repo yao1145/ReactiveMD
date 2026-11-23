@@ -120,7 +120,7 @@ export function createDiagnosticReport(source: string, options: DiagnosticReport
   const safeDiagnostics = (Array.isArray(options.diagnostics) ? options.diagnostics : []).slice(0, Math.min(MAX_LOCAL_DIAGNOSTICS, 1_000))
     .flatMap((diagnostic) => {
       if (!diagnostic || !(isLocalDiagnosticCode(diagnostic.code) || isReportOnlyDiagnosticCode(diagnostic.code))
-        || !['info', 'warning', 'error', 'fatal'].includes(diagnostic.severity)
+        || (diagnostic.severity !== 'error' && diagnostic.severity !== 'warning')
         || !diagnostic.range || !Number.isSafeInteger(diagnostic.range.start) || !Number.isSafeInteger(diagnostic.range.end)) return [];
       const start = Math.max(0, Math.min(source.length, diagnostic.range.start));
       const end = Math.max(start, Math.min(source.length, diagnostic.range.end));

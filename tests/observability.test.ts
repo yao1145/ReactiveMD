@@ -6,6 +6,18 @@ import {
 } from '../src';
 
 describe('local observability', () => {
+  it('emits only public diagnostic severities in reports', () => {
+    const diagnostic = compileLocal('{{ missing }}').diagnostics[0];
+    const diagnostics = [
+      { ...diagnostic, severity: 'error' },
+      { ...diagnostic, severity: 'warning' },
+    ] satisfies Diagnostic[];
+    // JavaScript callers can supply values outside the public TypeScript union.
+    const unsupported = ['info', 'fatal'].map(severity => ({ ...diagnostic, severity })) as Diagnostic[];
+    const report = createDiagnosticReport('source', { diagnostics: [...diagnostics, ...unsupported] });
+    expect(report.diagnostics.map(item => item.severity)).toEqual(['error', 'warning']);
+  });
+
   it('keeps source-derived messages and attributes out of reports by default', () => {
     const source = '{{ privateBinding }}';
     const original = compileLocal(source).diagnostics[0];

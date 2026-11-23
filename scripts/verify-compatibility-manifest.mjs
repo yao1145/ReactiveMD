@@ -44,10 +44,6 @@ async function readJsonIfExistsAt(absolute) {
   return existsSync(absolute) ? readJsonAt(absolute) : null;
 }
 
-async function sha256(absolute) {
-  return createHash('sha256').update(await readFile(absolute)).digest('hex');
-}
-
 function constant(source, name, file) {
   const match = new RegExp(`export const ${name}\\s*=\\s*'([^']+)'`).exec(source);
   if (!match) {
@@ -104,6 +100,47 @@ function satisfiesCaret(version, range) {
 function versionFromTarball(filename, packageName) {
   const pattern = new RegExp(`^${packageName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(.+)-([0-9a-f]+)\\.tgz$`);
   return pattern.exec(filename)?.[1] ?? null;
+}
+
+function sha512Integrity(bytes) {
+  return `sha512-${createHash('sha512').update(bytes).digest('base64')}`;
+}
+
+function checkContentAddress(tarball, digest, label) {
+  const prefix = /-([0-9a-f]{12})\.tgz$/.exec(path.basename(tarball))?.[1] ?? null;
+  truth(prefix !== null, `${label} tarball name carries a content address`, `${tarball} does not end with a 12-character SHA256 prefix.`);
+  if (prefix !== null) {
+    truth(digest.startsWith(prefix), `${label} tarball name matches SHA256`, `${prefix} is not a prefix of ${digest}.`);
+  }
+}
+
+function normalizeSpec(value) {
+  return typeof value === 'string' ? value.split('\\').join('/') : value;
+}
+
+function checkLockEntry(lock, packageName, expectations, label) {
+  const key = `node_modules/${packageName}`;
+  const entry = lock?.packages?.[key];
+  if (!isPlainObject(entry)) {
+    fail(`${label} lock is missing packages["${key}"].`);
+    return;
+  }
+  if (typeof expectations.version === 'string') {
+    equal(entry.version, expectations.version, `${label} lock version`);
+  }
+  if (typeof expectations.resolved === 'string') {
+    const resolved = normalizeSpec(entry.resolved);
+    truth(typeof entry.resolved === 'string' && entry.resolved.startsWith('file:'), `${label} lock resolved is a file: spec`, `${JSON.stringify(entry.resolved)} is not a file: spec.`);
+    equal(resolved, normalizeSpec(expectations.resolved), `${label} lock resolved`);
+    const lockRoot = lock?.packages?.[''] ?? {};
+    const declared = lockRoot.dependencies?.[packageName] ?? lockRoot.devDependencies?.[packageName];
+    if (declared !== undefined) {
+      equal(normalizeSpec(declared), normalizeSpec(expectations.resolved), `${label} lock root dependency`);
+    }
+  }
+  if (typeof expectations.integrity === 'string') {
+    equal(entry.integrity, expectations.integrity, `${label} lock integrity`);
+  }
 }
 
 function readTarString(buffer, start, length) {
@@ -281,6 +318,7 @@ await checkInstalledRuntime(root, 'react-dom', 'engine');
 await checkInstalledRuntime(root, 'vite', 'engine');
 
 const editorRoot = path.join(workspace, manifest.editor.repository);
+let editorEngineDigest = null;
 if (!existsSync(editorRoot)) {
   const message = `editor checkout is missing at ${manifest.editor.repository}.`;
   if (requireWorkspace) fail(`${message} Run from the workspace or omit --require-workspace.`);
@@ -311,6 +349,32 @@ if (!existsSync(editorRoot)) {
     } else {
       const version = versionFromTarball(path.basename(candidatePath), 'reactive-md');
       truth(version !== null && satisfiesCaret(version, manifest.editor.enginePeer), 'editor engine candidate satisfies peer', `${version ?? 'unknown'} is outside ${manifest.editor.enginePeer}.`);
+      const bytes = await readFile(candidatePath);
+      const digest = createHash('sha256').update(bytes).digest('hex');
+      editorEngineDigest = digest;
+      checkContentAddress(relative, digest, 'editor engine candidate');
+      equal(digest, manifest.demo.candidates.engine.sha256, 'editor engine candidate matches demo engine candidate SHA256');
+      const internal = await readTarballPackageJson(candidatePath).catch((error) => {
+        fail(`editor engine candidate tarball cannot be read: ${error.message}.`);
+        return null;
+      });
+      if (internal !== null) {
+        equal(internal.name, manifest.engine.name, 'editor engine candidate package name');
+        equal(internal.version, manifest.engine.version, 'editor engine candidate package version');
+        if (version !== null) equal(version, internal.version, 'editor engine candidate tarball version');
+      } else {
+        fail('editor engine candidate tarball does not contain package/package.json.');
+      }
+      const editorLock = await readJsonIfExistsAt(path.join(editorRoot, 'package-lock.json'));
+      if (editorLock === null) {
+        fail(`editor package-lock.json is missing at ${manifest.editor.repository}.`);
+      } else {
+        checkLockEntry(editorLock, 'reactive-md', {
+          version: internal?.version ?? version ?? undefined,
+          resolved: candidate,
+          integrity: sha512Integrity(bytes),
+        }, 'editor engine candidate');
+      }
     }
   }
 }
@@ -329,6 +393,9 @@ if (!existsSync(demoRoot)) {
   await checkInstalledRuntime(demoRoot, 'react-dom', 'demo');
   await checkInstalledRuntime(demoRoot, 'vite', 'demo');
 
+  const demoLock = await readJsonIfExistsAt(path.join(demoRoot, 'package-lock.json'));
+  if (demoLock === null) fail(`demo package-lock.json is missing at ${manifest.demo.repository}.`);
+
   const candidates = [
     ['engine', manifest.demo.candidates.engine, manifest.engine.version, manifest.engine.name],
     ['editor', manifest.demo.candidates.editor, manifest.editor.version, manifest.editor.name],
@@ -342,7 +409,10 @@ if (!existsSync(demoRoot)) {
       fail(`demo ${role} candidate is missing: ${candidate.tarball}.`);
       continue;
     }
-    equal(await sha256(tarballPath), candidate.sha256, `demo ${role} candidate SHA256`);
+    const bytes = await readFile(tarballPath);
+    const digest = createHash('sha256').update(bytes).digest('hex');
+    equal(digest, candidate.sha256, `demo ${role} candidate SHA256`);
+    checkContentAddress(candidate.tarball, digest, `demo ${role} candidate`);
     equal(versionFromTarball(path.basename(candidate.tarball), candidate.package), candidate.version, `demo ${role} tarball version`);
     let internal = null;
     try {
@@ -360,6 +430,16 @@ if (!existsSync(demoRoot)) {
     if (role === 'editor') {
       equal(internal.peerDependencies?.['reactive-md'], manifest.editor.enginePeer, 'demo editor tarball engine peer');
     }
+    if (demoLock !== null) {
+      checkLockEntry(demoLock, candidate.package, {
+        version: internal.version,
+        resolved: demoPackage.dependencies?.[candidate.package],
+        integrity: sha512Integrity(bytes),
+      }, `demo ${role} candidate`);
+    }
+    if (role === 'engine' && editorEngineDigest !== null) {
+      equal(editorEngineDigest, digest, 'editor and demo engine candidate bytes share SHA256');
+    }
   }
 }
 
@@ -372,6 +452,11 @@ equal(manifest.install.packages['reactive-md-editor'], manifest.editor.version, 
 equal(manifest.install.packages.react, manifest.runtimes.react.declared, 'install React range');
 equal(manifest.install.packages['react-dom'], manifest.runtimes['react-dom'].declared, 'install react-dom range');
 equal(manifest.install.optional.vite, manifest.runtimes.vite.declared, 'install Vite range');
+
+if (manifest.previous !== undefined) {
+  const previous = manifest.previous;
+  truth(satisfiesCaret(previous.engine, previous.enginePeer), 'previous engine satisfies previous editor peer', `${previous.engine} is outside ${previous.enginePeer}.`);
+}
 
 for (const message of skips) process.stdout.write(`skip: ${message}\n`);
 if (failures.length > 0) {

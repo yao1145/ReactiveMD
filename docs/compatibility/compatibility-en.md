@@ -24,9 +24,16 @@ Reactive MD is currently a 0.x preview. This page covers package versions, synta
 | Screen style entry | `reactive-md/screen.css` | Alias of `reactive-md/styles.css` |
 | Print style entry | `reactive-md/print.css` | Optional document print layout and page margins |
 | Editor style entry | `reactive-md-editor/styles.css` | Independent editor styles, scoped to the editor root |
-| Machine-readable manifest | [compatibility-manifest.json](compatibility-manifest.json) | Cross-package versions, protocols, Demo candidates, verified Node/React/Vite versions and the recommended install set; schema at [compatibility-manifest.schema.json](compatibility-manifest.schema.json); checked by `npm run compatibility:verify` |
+| Machine-readable manifest | [compatibility-manifest.json](https://github.com/yao1145/ReactiveMD/blob/main/docs/compatibility/compatibility-manifest.json) | Cross-package versions, protocols, Demo candidates, runtime versions and the recommended install set. See the [schema](compatibility-manifest.schema.json). Run `npm run compatibility:verify` to check the manifest. |
 
 The same identities are recorded in the machine-readable manifest, validated against its JSON Schema, and checked against the engine constants, installed runtime versions, the editor package and the Demo tarballs. Declared ranges and tested versions are stored separately.
+
+| Editor | Engine peer | Paired engine |
+| --- | --- | --- |
+| `0.2.1` | `^0.9.2` | `0.9.2` |
+| `0.2.0` | `^0.9.0` | `0.9.1` (previous verified pair) |
+
+Run `npm run compatibility:verify` from the engine repository before a paired release. Publish the engine artifact listed in the manifest first. Compare its npm integrity value with the candidate pinned by the editor, then publish the editor.
 
 One package version corresponds to exactly one syntax revision. Before upgrading the package, record the `LOCAL_SYNTAX_VERSION` your application uses. If document sources come from another syntax revision, keep rendering them with the old package version or rewrite them according to the migration notes below. `compileLocal(source, options?)` has no syntax version parameter; hosts can adjust the syntax node budget for a single compilation through `options.limits.maxSyntaxNodes`, see [Local mode integration](../integration/local-integration-en.md).
 
@@ -38,9 +45,9 @@ Readers built before this directive existed, including `0.3.1`, treat it as an o
 
 ## Compatibility rules for 0.x
 
-- Minor versions (`0.3` to `0.4`) may contain breaking changes; patch versions contain only compatibility and security fixes.
-- The 0.x phase does not promise a fixed deprecation period. Every breaking change is recorded in the [changelog](../../CHANGELOG.md), with the old form, new form and migration steps.
-- Before 1.0, treat every upgrade as potentially requiring changes to document sources or host code.
+- A 0.x minor release can break compatibility under the deprecation policy. Patch releases preserve existing stable contracts and may add compatible capabilities and fixes.
+- The [stable public API](api-stability-en.md) defines the supported entry points, types and protocols of both packages.
+- The [deprecation and migration policy](deprecation-en.md) defines announcements, notice periods, removal releases and migration records.
 - Applications should pin the package version, keep the original `.reactive.md` sources, and rerun compile and render checks with their own documents and examples after upgrading.
 
 ## Core semantic compatibility
@@ -98,7 +105,7 @@ Persist the original `.reactive.md` source. A `reactive-md-state/v1` file may pr
 
 ## Diagnostics contract
 
-`Diagnostic` contains `code`, `message`, `severity`, `range`, `line` and `column`.
+`Diagnostic` contains `code`, `message`, `severity`, `range`, `line` and `column`. Optional fields include `phase`, `recoverable` and structured `details`. Hosts can use `recoverable` to determine whether the current operation can continue.
 
 - Lines and columns are one-based. Columns and half-open ranges count UTF-16 code units in the original source.
 - `line`, `column` and `range` can be used for programmatic location and editor jumps.

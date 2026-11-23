@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,17 +15,19 @@ const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const schema = 'reactive-md-support-evidence/v2';
 const defaultEvidencePath = path.join(root, 'artifacts', 'support', 'latest.json');
 const matrixDocs = ['docs/compatibility/support-matrix-en.md', 'docs/compatibility/support-matrix-ch.md'];
-const profileNames = ['fast', 'release', 'all'];
+const profileNames = ['fast', 'release', 'optional', 'all'];
 
 const usage = `Usage: node scripts/verify-support-matrix.mjs [options]
 
 Options:
   --list               Print every support check and exit without running any.
-  --profile <name>     Select fast (default), release, or all checks.
+  --profile <name>     Select fast (default), release, optional, or all checks.
+                       release includes every fast check and the release checks.
   --only <ids>         Run only the comma-separated check ids, ignoring the profile.
   --include-external   Also run checks owned by the demo and editor repositories.
   --json               Print the evidence document to stdout.
-  --out <path>         Write evidence to a custom path (default artifacts/support/latest.json).
+  --out <path>         Write evidence to a custom path. A custom path leaves
+                       artifacts/support/latest.json and the archive untouched.
   --help               Print this help and exit.
 `;
 
@@ -91,13 +93,24 @@ async function readJson(relative) {
 async function checkNodeRuntime(context) {
   const range = context.packageInfo.engines?.node;
   const actual = process.versions.node;
-  const details = { required: typeof range === 'string' ? range : null, actual, platform: process.platform, arch: process.arch };
+  const line = actual.split('.')[0];
+  const details = {
+    required: typeof range === 'string' ? range : null,
+    actual,
+    line,
+    platform: process.platform,
+    arch: process.arch,
+  };
   if (typeof range !== 'string' || range.length === 0) {
     return { status: 'fail', reason: 'package.json does not declare engines.node.', details };
   }
   const satisfied = satisfiesRange(actual, range);
   if (satisfied === null) return { status: 'fail', reason: `unsupported Node.js range "${range}".`, details };
   if (!satisfied) return { status: 'fail', reason: `Node.js ${actual} does not satisfy ${range}.`, details };
+  // The matrix declares 22.x from 22.12.0 and 24.x. Other majors inside
+  // engines.node still pass the range check, but the run is labelled so a
+  // record for an undeclared major is not mistaken for a declared one.
+  details.declaredLine = line === '22' || line === '24';
   return { status: 'pass', details };
 }
 
@@ -142,7 +155,7 @@ async function checkDocsMatrix() {
 const manifest = [
   {
     id: 'node-runtime',
-    label: 'Node.js 22.12+',
+    label: 'Node.js 22.12+ or 24.x',
     owner: 'engine',
     profile: 'fast',
     kind: 'built-in',
@@ -211,15 +224,6 @@ const manifest = [
     requires: [{ path: 'dist-library', hint: 'run npm run build first' }],
   },
   {
-    id: 'playwright-chromium-core',
-    label: 'Playwright Chromium browser core',
-    owner: 'engine',
-    profile: 'release',
-    kind: 'command',
-    command: 'node scripts/verify-required-form-browser.mjs',
-    env: { PLAYWRIGHT_ENGINE: 'chromium', PLAYWRIGHT_CHANNEL: 'chromium' },
-  },
-  {
     id: 'chrome-core',
     label: 'Google Chrome browser core',
     owner: 'engine',
@@ -227,6 +231,7 @@ const manifest = [
     kind: 'command',
     command: 'node scripts/verify-required-form-browser.mjs',
     env: { PLAYWRIGHT_ENGINE: 'chromium', PLAYWRIGHT_CHANNEL: 'chrome' },
+    capture: { report: 'artifacts/required-form/chrome-core.json', engine: 'chromium', channel: 'chrome' },
   },
   {
     id: 'edge-core',
@@ -236,24 +241,40 @@ const manifest = [
     kind: 'command',
     command: 'node scripts/verify-required-form-browser.mjs',
     env: { PLAYWRIGHT_ENGINE: 'chromium', PLAYWRIGHT_CHANNEL: 'msedge' },
+    capture: { report: 'artifacts/required-form/edge-core.json', engine: 'chromium', channel: 'msedge' },
+  },
+  {
+    id: 'playwright-chromium-core',
+    label: 'Playwright Chromium browser core',
+    owner: 'engine',
+    profile: 'optional',
+    kind: 'command',
+    command: 'node scripts/verify-required-form-browser.mjs',
+    env: { PLAYWRIGHT_ENGINE: 'chromium', PLAYWRIGHT_CHANNEL: 'chromium' },
+    note: 'needs the bundled Playwright Chromium downloads',
+    capture: { report: 'artifacts/required-form/playwright-chromium-core.json', engine: 'chromium', channel: 'chromium' },
   },
   {
     id: 'firefox-core',
-    label: 'Firefox browser core',
+    label: 'Playwright Firefox browser core',
     owner: 'engine',
-    profile: 'release',
+    profile: 'optional',
     kind: 'command',
     command: 'node scripts/verify-required-form-browser.mjs',
     env: { PLAYWRIGHT_ENGINE: 'firefox' },
+    note: 'not a declared support environment',
+    capture: { report: 'artifacts/required-form/firefox-core.json', engine: 'firefox', channel: null },
   },
   {
     id: 'webkit-core',
-    label: 'WebKit browser core',
+    label: 'Playwright WebKit browser core',
     owner: 'engine',
-    profile: 'release',
+    profile: 'optional',
     kind: 'command',
     command: 'node scripts/verify-required-form-browser.mjs',
     env: { PLAYWRIGHT_ENGINE: 'webkit' },
+    note: 'Playwright WebKit is not Safari',
+    capture: { report: 'artifacts/required-form/webkit-core.json', engine: 'webkit', channel: null },
   },
   {
     id: 'pdf-static',
@@ -262,6 +283,7 @@ const manifest = [
     profile: 'release',
     kind: 'command',
     command: 'node scripts/verify-pdf.mjs',
+    tools: [{ command: 'pdftotext', args: ['-v'], hint: 'install Poppler so pdftotext is on PATH' }],
   },
   {
     id: 'demo-smoke',
@@ -283,6 +305,12 @@ const manifest = [
     cwd: '../ReactiveMD-Editor',
   },
 ];
+
+function selectByProfile(profile) {
+  if (profile === 'all') return manifest;
+  if (profile === 'release') return manifest.filter((check) => check.profile === 'fast' || check.profile === 'release');
+  return manifest.filter((check) => check.profile === profile);
+}
 
 function parseArguments(argv) {
   const options = { list: false, profile: null, only: [], includeExternal: false, json: false, out: null, help: false };
@@ -345,21 +373,63 @@ function displayPath(target) {
   return relative.split(path.sep).join('/');
 }
 
+function toolAvailable(tool) {
+  // Probing with a flag is unreliable: several tools print usage to stderr and
+  // exit non-zero. A spawn without ENOENT is enough to know the tool exists.
+  const result = spawnSync(tool.command, tool.args ?? [], { stdio: 'ignore' });
+  return result.error === undefined;
+}
+
+async function readBrowserCapture(check) {
+  if (!check.capture) return null;
+  const reportFile = path.join(root, check.capture.report);
+  let report;
+  try {
+    report = JSON.parse(await readFile(reportFile, 'utf8'));
+  } catch {
+    return { report: displayPath(reportFile), browserName: null, browserVersion: null, note: 'report was not written' };
+  }
+  const entry = Array.isArray(report)
+    ? report.find((item) => item.engine === check.capture.engine && (item.channel ?? null) === check.capture.channel)
+    : null;
+  return {
+    report: displayPath(reportFile),
+    requestedChannel: check.capture.channel,
+    browserName: entry?.browserName ?? check.capture.engine,
+    browserVersion: entry?.browserVersion ?? null,
+    status: entry?.status ?? null,
+  };
+}
+
 async function executeCheck(check, context, options) {
   if (check.kind === 'built-in') return check.run(context);
+  // A check named by --only is an explicit request: anything that prevents it
+  // from running is a failure. Profile runs may skip unavailable optional
+  // environments, and the skip reason is written to the evidence.
+  const explicit = options.only.includes(check.id);
+  const blocked = (reason) => (explicit
+    ? { status: 'fail', reason: `explicitly requested but cannot run: ${reason}` }
+    : { status: 'skip', reason });
   if (check.owner !== 'engine' && !options.includeExternal) {
-    return { status: 'skip', reason: `external check owned by ${check.owner}; pass --include-external to run it.` };
+    return blocked(`external check owned by ${check.owner}; pass --include-external to run it.`);
   }
+  const missingTool = (check.tools ?? []).find((tool) => !toolAvailable(tool));
+  if (missingTool) return blocked(`${missingTool.command} is not available; ${missingTool.hint}.`);
   const cwd = check.cwd ? path.resolve(root, check.cwd) : root;
-  if (check.cwd && !existsSync(cwd)) {
-    return { status: 'skip', reason: `working directory ${check.cwd} is missing.` };
-  }
+  if (check.cwd && !existsSync(cwd)) return blocked(`working directory ${check.cwd} is missing.`);
   for (const requirement of check.requires ?? []) {
     if (!existsSync(path.join(root, requirement.path))) {
       return { status: 'fail', reason: `${requirement.path} is missing; ${requirement.hint}.` };
     }
   }
-  const spawnOptions = { cwd, shell: true, env: { ...process.env, ...(check.env ?? {}) } };
+  const env = { ...check.env };
+  if (check.capture) {
+    const reportFile = path.join(root, check.capture.report);
+    await mkdir(path.dirname(reportFile), { recursive: true });
+    await rm(reportFile, { force: true });
+    env.REQUIRED_FORM_REPORT = reportFile;
+  }
+  const spawnOptions = { cwd, shell: true, env: { ...process.env, ...env } };
   if (options.json) {
     spawnOptions.stdio = ['ignore', 'pipe', 'pipe'];
     spawnOptions.maxBuffer = 64 * 1024 * 1024;
@@ -376,7 +446,8 @@ async function executeCheck(check, context, options) {
     const outcome = result.signal ? `signal ${result.signal}` : `exit code ${result.status}`;
     return { status: 'fail', reason: `command exited with ${outcome}.` };
   }
-  return { status: 'pass' };
+  const details = check.capture ? { browser: await readBrowserCapture(check) } : null;
+  return { status: 'pass', ...(details ? { details } : {}) };
 }
 
 async function runCheck(check, context, options) {
@@ -386,10 +457,12 @@ async function runCheck(check, context, options) {
     id: check.id,
     label: check.label,
     owner: check.owner,
+    profile: check.profile,
     status: result.status,
     durationMs: Math.round(performance.now() - startedAt),
     ...(check.command ? { command: check.command } : {}),
     ...(check.env ? { env: check.env } : {}),
+    ...(check.cwd ? { cwd: check.cwd } : {}),
     ...(result.details ? { details: result.details } : {}),
     ...(result.reason ? { reason: result.reason } : {}),
   };
@@ -425,11 +498,11 @@ if (options.list) {
 
 const profile = options.profile ?? 'fast';
 if (!profileNames.includes(profile)) {
-  process.stderr.write(`support:verify: unknown profile "${profile}"; expected fast, release, or all.\n`);
+  process.stderr.write(`support:verify: unknown profile "${profile}"; expected fast, release, optional, or all.\n`);
   process.exit(2);
 }
 
-let selection = manifest;
+let selection = selectByProfile(profile);
 if (options.only.length > 0) {
   const known = new Set(manifest.map((check) => check.id));
   const unknown = [...new Set(options.only)].filter((id) => !known.has(id));
@@ -440,8 +513,6 @@ if (options.only.length > 0) {
   }
   const wanted = new Set(options.only);
   selection = manifest.filter((check) => wanted.has(check.id));
-} else if (profile !== 'all') {
-  selection = manifest.filter((check) => check.profile === profile);
 }
 
 const packageInfo = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
@@ -454,6 +525,7 @@ const sources = {
   editor: await sourceAt(path.resolve(root, '..', 'ReactiveMD-Editor')),
   demo: await sourceAt(path.resolve(root, '..', 'ReactiveMD-Demo')),
 };
+const nodeLine = process.versions.node.split('.')[0];
 const evidence = {
   schema,
   schemaVersion: 2,
@@ -466,6 +538,11 @@ const evidence = {
   profile: options.only.length > 0 ? 'only' : profile,
   environment: {
     node: process.versions.node,
+    nodeLine,
+    // The matrix declares Node 22.x from 22.12.0 and 24.x. A passing
+    // node-runtime record on another major satisfies engines.node but is not
+    // a declared line; the flag keeps the two apart.
+    nodeLineDeclared: nodeLine === '22' || nodeLine === '24',
     platform: process.platform,
     arch: process.arch,
     playwrightChannel: process.env.PLAYWRIGHT_CHANNEL ?? null,

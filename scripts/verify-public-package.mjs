@@ -9,6 +9,19 @@ import postcss from 'postcss';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const consumer = mkdtempSync(join(tmpdir(), 'reactive-md-boundary-'));
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+// Keep existing specifiers in the same minor series, including compatibility aliases.
+const stableEntries = [
+  '.', './compiler', './compiler/standard', './authoring', './sdk',
+  './presets/default', './presets/default/packs', './presets/minimal', './presets/minimal/react',
+  './plugins/forms', './plugins/network', './plugins/navigation', './plugins/data',
+  './plugins/chart', './plugins/plot', './plugins/diagram', './plugins/gallery',
+  './react', './react/unstyled', './react/minimal', './react/server', './react/runtime',
+  './runtime', './runtime/browser', './observability', './export', './export-assets',
+  './build', './vite', './vite/client', './pdf', './standalone', './standalone/host',
+  './testing', './testing/react', './testing/browser',
+  './styles.css', './styles/minimal.css', './screen.css', './print.css',
+  './package.json', './notices', './assets/standalone.js',
+];
 function run(command, args, cwd = root) {
   const isNpm = command === npm;
   const executable = isNpm && process.env.npm_execpath ? process.execPath : command;
@@ -39,9 +52,14 @@ try {
   assert.ok(!packed.files.some(f => /^(?:src|demo|editor|tests)\//.test(f.path)), 'Package contains repository source');
   assert.ok(!packed.files.some(f => /(?:types\/editor\/|reactive-md-(?:editor|codemirror))/.test(f.path)), 'Package still contains editor artifacts');
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  for (const specifier of stableEntries) {
+    assert.ok(Object.hasOwn(pkg.exports, specifier), `Stable package entry was removed: ${specifier}`);
+  }
   const exportTargets = (target) => typeof target === 'string' ? [target]
     : target && typeof target === 'object' ? Object.values(target).flatMap(exportTargets) : [];
   const packedFiles = new Set(packed.files.map(file => file.path));
+  assert.ok(!packedFiles.has('docs/compatibility/compatibility-manifest.json'),
+    'The workspace compatibility manifest records this tarball digest and must stay outside it');
   for (const target of exportTargets(pkg.exports)) {
     assert.ok(packedFiles.has(target.replace(/^\.\//, '')), `Package export is missing: ${target}`);
   }
@@ -198,7 +216,25 @@ const compiled = compileLocal('# Survey');
 if (compiled.ok) createLocalRuntime(compiled.document, { network }).dispose();
 void networkPlugin;
 `);
-  writeFileSync(join(consumer, 'tsconfig.json'), JSON.stringify({compilerOptions:{target:'ES2022', module:'NodeNext',moduleResolution:'NodeNext',strict:true,noEmit:true,skipLibCheck:false},include:['consumer.ts', 'network.ts']}));
+  writeFileSync(join(consumer, 'diagnostics.ts'), `
+import { compileLocal, type Diagnostic } from 'reactive-md';
+import { createDiagnosticReport, type LocalObserver } from 'reactive-md/observability';
+
+const labels: Record<Diagnostic['severity'], string> = { warning: 'Warning', error: 'Error' };
+function oldHostSeverity(diagnostic: Diagnostic): 'warning' | 'error' {
+  return diagnostic.severity;
+}
+const observer: LocalObserver = { onDiagnostic(diagnostic) {
+  void labels[oldHostSeverity(diagnostic)];
+} };
+const result = compileLocal('hello', { observer });
+const report = createDiagnosticReport('hello', { diagnostics: result.diagnostics });
+for (const diagnostic of report.diagnostics) {
+  const severity: 'warning' | 'error' = diagnostic.severity;
+  void labels[severity];
+}
+`);
+  writeFileSync(join(consumer, 'tsconfig.json'), JSON.stringify({compilerOptions:{target:'ES2022', module:'NodeNext',moduleResolution:'NodeNext',strict:true,noEmit:true,skipLibCheck:false},include:['consumer.ts', 'network.ts', 'diagnostics.ts']}));
   run(process.execPath, [resolve(consumer, 'node_modules/typescript/bin/tsc'), '-p', 'tsconfig.json'], consumer);
   console.log('Packed NodeNext declarations passed in an independent consumer.');
 } finally {

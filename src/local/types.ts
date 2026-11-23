@@ -22,7 +22,7 @@ export interface LocalMathDisplayIssue {
 export interface Diagnostic {
   code: string;
   message: string;
-  severity: 'info' | 'warning' | 'error' | 'fatal';
+  severity: 'error' | 'warning';
   range: SourceRange;
   line: number;
   column: number;
