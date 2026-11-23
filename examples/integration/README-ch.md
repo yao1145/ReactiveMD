@@ -4,11 +4,11 @@
 
 这些目录使用包的公开入口，可以复制到仓库之外。以下命令均从当前目录开始执行。
 
-以下多数示例面向 `reactive-md@0.6.0`，该版本同时发布在 `latest` 和 `next` 渠道。把所需的示例目录复制到仓库之外，然后按下面的方式从 npm 安装固定版本。React 和 Vite 在需要时从示例自身的依赖安装。
+以下多数示例面向 `reactive-md@0.6.0`。将所需的示例目录复制到仓库之外，再从 npm 安装示例固定的版本。React 和 Vite 按各示例的依赖安装。
 
 [扩展 SDK 使用方](extension-sdk/README-ch.md)面向`reactive-md@0.8.0`，通过公开导出验证静态分享和离线交互分享。准备发布时使用本地构建的 tarball，SDK 契约仍为 `0.7.0`。其余较早的示例保留其 0.6.0 固定版本。
 
-[流式源码](streaming)示例使用 `reactive-md@0.9.1`，该版本已包含流式源码编译接口。按下面的说明，从本仓库打包的 tarball 运行它。
+用当前检出运行[流式源码](streaming)示例时，按下文打包并安装 `reactive-md-0.9.2.tgz`。示例独立使用时以 `package.json` 中固定的 `0.9.1` 为基线。
 
 ## Node 核心
 
@@ -50,14 +50,14 @@ UI 和调度连接位于 [worker/main.js](worker/main.js)；Worker 入口是 [wo
 
 [streaming](streaming) 是流式源码编译的确定性浏览器示例。它按定时器追加固定文本片段，用 `sourcePhase: 'streaming'` 提交每个完整快照，最后用 `sourcePhase: 'final'` 提交完成后的源码。页面展示暂态状态、暂态诊断、最终诊断和编译快照摘要。取消或重新开始会使当前轮次失效；旧轮次的结果只计入丢弃数量，不会重绘页面。示例不调用模型服务、不发起网络请求，也不持有凭据。
 
-在仓库根目录打包 tarball，然后在示例中安装：
+在仓库根目录从当前树打包 tarball，然后在示例中安装：
 
 ```sh
 # 在仓库根目录
 npm pack
 
 cd examples/integration/streaming
-npm install ../../../reactive-md-0.9.1.tgz
+npm install ../../../reactive-md-0.9.2.tgz
 npm run dev
 ```
 

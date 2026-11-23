@@ -4,11 +4,11 @@
 
 These directories use the package's public entry points and can be copied outside the repository. The commands below start from the current directory.
 
-Most examples below target `reactive-md@0.6.0`, published on both `latest` and `next`. Copy the desired example directory outside the repository, then install the pinned version from npm as shown below. React and Vite are installed from the example's own dependencies where needed.
+Most examples below target `reactive-md@0.6.0`. Copy the desired example directory outside the repository, then install its pinned version from npm. React and Vite are installed from the example's own dependencies where needed.
 
 The [extension SDK consumer](extension-sdk/README.md) targets `reactive-md@0.8.0` and verifies static and offline interactive sharing through public exports. Release preparation uses a locally built tarball; the SDK contract remains at `0.7.0`. The other older examples retain their 0.6.0 pins.
 
-The [streaming source](streaming) example uses `reactive-md@0.9.1`, which includes the streaming-source compilation API. Run it from a tarball packed in this repository as described below.
+To run the [streaming source](streaming) example against the current checkout, install the `reactive-md-0.9.2.tgz` built below. The example's standalone manifest pins `0.9.1` as its baseline.
 
 ## Node core
 
@@ -50,14 +50,14 @@ The UI and scheduler wiring live in [worker/main.js](worker/main.js); the Worker
 
 [streaming](streaming) is a deterministic browser example for streaming-source compilation. It appends fixed text chunks on a timer, submits each complete snapshot with `sourcePhase: 'streaming'`, then submits the completed source with `sourcePhase: 'final'`. The page shows the provisional status, transient diagnostics, final diagnostics and a compiled snapshot summary. Cancel or restart invalidates the current run; results from an older run are counted and discarded instead of repainting the page. It uses no model service, network request or credential.
 
-Build a tarball in the repository root, then install it in the example:
+Build a tarball from the current tree in the repository root, then install it in the example:
 
 ```sh
 # in the repository root
 npm pack
 
 cd examples/integration/streaming
-npm install ../../../reactive-md-0.9.1.tgz
+npm install ../../../reactive-md-0.9.2.tgz
 npm run dev
 ```
 
