@@ -921,8 +921,10 @@ export class LocalCompileScheduler {
           metrics: { queueMs, roundTripMs, ...(applyMs > 0 ? { applyMs } : {}) },
         });
       }
-    } else {
-      // A newer job is waiting; it will be dispatched from a clean full state.
+    } else if (this.inFlight === null) {
+      // A newer queued job must start from a clean full state. If the response
+      // trace already dispatched one, it owns the current baseline and must
+      // keep it for its own patch response.
       this.resetProtocol();
     }
     this.finishRun();

@@ -6,6 +6,7 @@ import { localSourceDigest } from '../runtime-services/identity';
 import { formatObservabilityMessage, type LocalObservabilityMessageKey } from './observability-messages';
 import { MAX_LOCAL_DIAGNOSTICS } from './configuration/limits';
 import { isLocalDiagnosticCode, localDiagnosticTemplate } from './configuration/diagnostics';
+import { isReportOnlyDiagnosticCode } from './observability-codes';
 import type { LocalTraceEvent } from './observability-core';
 export { createLocalTraceId, emitLocalDiagnostic, emitLocalTrace } from './observability-core';
 export type { LocalObserver, LocalTraceEvent } from './observability-core';
@@ -118,7 +119,7 @@ export function createDiagnosticReport(source: string, options: DiagnosticReport
   ));
   const safeDiagnostics = (Array.isArray(options.diagnostics) ? options.diagnostics : []).slice(0, Math.min(MAX_LOCAL_DIAGNOSTICS, 1_000))
     .flatMap((diagnostic) => {
-      if (!diagnostic || !isLocalDiagnosticCode(diagnostic.code)
+      if (!diagnostic || !(isLocalDiagnosticCode(diagnostic.code) || isReportOnlyDiagnosticCode(diagnostic.code))
         || !['info', 'warning', 'error', 'fatal'].includes(diagnostic.severity)
         || !diagnostic.range || !Number.isSafeInteger(diagnostic.range.start) || !Number.isSafeInteger(diagnostic.range.end)) return [];
       const start = Math.max(0, Math.min(source.length, diagnostic.range.start));

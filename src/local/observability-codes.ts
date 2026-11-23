@@ -1,0 +1,66 @@
+/**
+ * Fixed build, export, packaging, restoration and SSR failures accepted by
+ * diagnostic reports. This stays out of the compiler entry: the compiler does
+ * not depend on export validation or its code vocabulary.
+ */
+const REPORT_ONLY_DIAGNOSTIC_CODES: ReadonlySet<string> = new Set([
+  'local.build.budget',
+  'local.build.config',
+  'local.build.config-key',
+  'local.build.host',
+  'local.build.host-import',
+  'local.build.notice-budget',
+  'local.build.notice-conflict',
+  'local.build.notice-invalid',
+  'local.build.resource-budget',
+  'local.build.resource-conflict',
+  'local.build.resource-cycle',
+  'local.build.resource-invalid',
+  'local.build.resource-missing',
+  'local.build.resource-remote',
+  'local.build.resource-traversal',
+  'local.build.resource-unsupported',
+  'local.build.resource-unresolved',
+  'local.build.script',
+  'local.build.theme',
+  'local.build.vite',
+  'local.extension.binding',
+  'local.extension.bundle-assembly',
+  'local.extension.bundle-integrity',
+  'local.extension.bundle-mismatch',
+  'local.extension.bundle-missing',
+  'local.extension.bundle-theme',
+  'local.extension.config',
+  'local.extension.config-mismatch',
+  'local.extension.contract',
+  'local.extension.contract-metadata',
+  'local.extension.event',
+  'local.extension.export-capability',
+  'local.extension.render',
+  'local.extension.renderer-missing',
+  'local.extension.requirements',
+  'local.extension.resource-budget',
+  'local.extension.resource-conflict',
+  'local.extension.resource-invalid',
+  'local.extension.resource-missing',
+  'local.extension.restore-assembly',
+  'local.extension.restore-capability',
+  'local.extension.restore-component-missing',
+  'local.extension.restore-config',
+  'local.extension.restore-contract',
+  'local.extension.restore-metadata',
+  'local.extension.restore-resource-digest',
+  'local.extension.restore-resource-missing',
+  'local.extension.restore-sdk',
+  'local.extension.restore-source',
+  'local.extension.restore-theme',
+  'local.extension.restore-version',
+  'local.extension.ssr-render',
+  'local.extension.theme-missing',
+  'local.extension.write',
+]);
+
+/** True for an engine-owned report code outside the compiler's registry. */
+export function isReportOnlyDiagnosticCode(code: string): boolean {
+  return REPORT_ONLY_DIAGNOSTIC_CODES.has(code);
+}

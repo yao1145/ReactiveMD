@@ -662,6 +662,52 @@ describe('LocalCompileScheduler patch-v1 transport', () => {
     }
   });
 
+  it('keeps the baseline owned by a request dispatched from a superseded response trace', () => {
+    const worker = new FakeWorker();
+    const results: LocalCompileOutcome[] = [];
+    let scheduledFromOldResponse = false;
+    let oldRequestId: number | undefined;
+    const scheduler = new LocalCompileScheduler({
+      createWorker: () => worker,
+      fallbackCompile: (source: string): LocalCompileResult => okResult(source),
+      onResult: (outcome) => results.push(outcome),
+      delay: 10,
+      observer: {
+        onTrace(event) {
+          if (!scheduledFromOldResponse && event.type === 'worker-response' && event.requestId === oldRequestId) {
+            scheduledFromOldResponse = true;
+            scheduler.schedule('fresh', undefined, undefined, 'final');
+          }
+        },
+      },
+    });
+    try {
+      scheduler.schedule('base');
+      vi.advanceTimersByTime(10);
+      const first = fullRequest(worker.requests[0]);
+      worker.receive(negotiatedResponse(first, okResult('base')));
+
+      scheduler.schedule('base edit', undefined, undefined, 'final');
+      const oldPatch = patchRequest(worker.requests[1]);
+      oldRequestId = oldPatch.id;
+      scheduler.schedule('queued edit', undefined, undefined, 'final');
+
+      // The old response is superseded, but its trace dispatches the request
+      // that will consume the patch baseline established by that response.
+      worker.receive(resultPatchResponse(oldPatch, okResult('base'), okResult('base edit')));
+      expect(worker.requests).toHaveLength(3);
+      const freshPatch = patchRequest(worker.requests[2]);
+      expect(applySourceEdit('base edit', freshPatch.edit)).toBe('fresh');
+
+      worker.receive(resultPatchResponse(freshPatch, okResult('base edit'), okResult('fresh')));
+      expect(results.map((outcome) => outcome.source)).toEqual(['base', 'fresh']);
+      expect(worker.requests).toHaveLength(3);
+      expect(worker.requests.some((request) => 'source' in request && request.source === 'fresh')).toBe(false);
+    } finally {
+      scheduler.dispose();
+    }
+  });
+
   it('recovers once from an unappliable patch without looping', () => {
     const { worker, results, scheduler } = setup();
     scheduler.schedule('base');
