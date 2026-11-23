@@ -50,6 +50,8 @@ function invalidSourcePhaseResult(): LocalCompileResult {
       line: 1,
       column: 1,
       messageKey: 'local.options.invalid.source-phase',
+      phase: 'host',
+      recoverable: false,
     }],
   };
 }

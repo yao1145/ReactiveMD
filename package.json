@@ -210,6 +210,10 @@
       "types": "./dist-library/types/runtime-services/browser/index.d.ts",
       "import": "./dist-library/reactive-md-runtime-browser.js"
     },
+    "./observability": {
+      "types": "./dist-library/types/observability.d.ts",
+      "import": "./dist-library/reactive-md-observability.js"
+    },
     "./styles.css": "./dist-library/reactive-md.css",
     "./styles/minimal.css": "./dist-library/reactive-md-minimal.css",
     "./react/unstyled": {

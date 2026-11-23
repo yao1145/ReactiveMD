@@ -9,6 +9,7 @@
   },
   "include": [
     "src/index.ts",
+    "src/observability.ts",
     "src/react/index.ts",
     "src/react/minimal.tsx",
     "src/react/runtime/index.ts",

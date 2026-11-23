@@ -2,11 +2,17 @@ import type { Diagnostic } from '../local/types';
 import { localCodeUnitPrefix } from '../local/source/source-context';
 
 /** Build-side diagnostics use the same shape as compile and export diagnostics. */
-export function buildDiagnostic(code: string, message: string): Diagnostic {
+export function buildDiagnostic(
+  code: string,
+  message: string,
+  structured?: Readonly<Record<string, string | number | boolean>>,
+): Diagnostic {
+  const resource = structured && Object.hasOwn(structured, 'budget');
   return {
     code,
     message,
     severity: 'error',
+    ...(resource ? { phase: 'resource' as const, recoverable: true, messageKey: 'local.resource.budget', details: structured } : { phase: 'host' as const, recoverable: false }),
     range: { start: 0, end: 0 },
     line: 1,
     column: 1,

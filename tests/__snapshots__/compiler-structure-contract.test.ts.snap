@@ -56,10 +56,12 @@ exports[`component structure contract, strict=false > checklist mixed body 1`] =
       "line": 1,
       "message": "The body of <checklist> must be exactly one single-level Markdown task list.",
       "messageKey": "local.checklist.body.single",
+      "phase": "semantic",
       "range": {
         "end": 96,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -68,10 +70,12 @@ exports[`component structure contract, strict=false > checklist mixed body 1`] =
       "line": 4,
       "message": "<checklist> does not support nested lists.",
       "messageKey": "local.checklist.body.no-nested",
+      "phase": "semantic",
       "range": {
         "end": 72,
         "start": 46,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -80,10 +84,12 @@ exports[`component structure contract, strict=false > checklist mixed body 1`] =
       "line": 6,
       "message": "<checklist> can only contain task list items (- [ ] / - [x]).",
       "messageKey": "local.checklist.body.task-only",
+      "phase": "semantic",
       "range": {
         "end": 83,
         "start": 73,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -146,10 +152,12 @@ exports[`component structure contract, strict=false > choices invalid children 1
       "params": {
         "name": "choices",
       },
+      "phase": "semantic",
       "range": {
         "end": 175,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -162,10 +170,12 @@ exports[`component structure contract, strict=false > choices invalid children 1
         "name": "choices",
         "value": "a",
       },
+      "phase": "semantic",
       "range": {
         "end": 113,
         "start": 77,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -178,10 +188,12 @@ exports[`component structure contract, strict=false > choices invalid children 1
         "component": "option",
         "name": "value",
       },
+      "phase": "semantic",
       "range": {
         "end": 138,
         "start": 114,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -190,10 +202,12 @@ exports[`component structure contract, strict=false > choices invalid children 1
       "line": 5,
       "message": "<option> requires a non-empty value.",
       "messageKey": "local.option.value.required",
+      "phase": "semantic",
       "range": {
         "end": 138,
         "start": 114,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -260,10 +274,12 @@ exports[`component structure contract, strict=false > diagram invalid references
       "line": 1,
       "message": "<diagram> can only contain <node> and <edge>.",
       "messageKey": "local.structure.diagram.only",
+      "phase": "semantic",
       "range": {
         "end": 193,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -275,10 +291,12 @@ exports[`component structure contract, strict=false > diagram invalid references
       "params": {
         "id": "a",
       },
+      "phase": "semantic",
       "range": {
         "end": 113,
         "start": 75,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -290,10 +308,12 @@ exports[`component structure contract, strict=false > diagram invalid references
       "params": {
         "id": "missing",
       },
+      "phase": "semantic",
       "range": {
         "end": 142,
         "start": 114,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -305,10 +325,12 @@ exports[`component structure contract, strict=false > diagram invalid references
       "params": {
         "id": "missing",
       },
+      "phase": "semantic",
       "range": {
         "end": 171,
         "start": 143,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -322,10 +344,12 @@ exports[`component structure contract, strict=false > diagram invalid references
         "label": "",
         "to": "a",
       },
+      "phase": "semantic",
       "range": {
         "end": 171,
         "start": 143,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -349,10 +373,12 @@ exports[`component structure contract, strict=false > grid invalid children 1`] 
         "min": 1,
         "name": "grid",
       },
+      "phase": "semantic",
       "range": {
         "end": 58,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -365,10 +391,12 @@ exports[`component structure contract, strict=false > grid invalid children 1`] 
         "children": "<card>",
         "name": "grid",
       },
+      "phase": "semantic",
       "range": {
         "end": 58,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -381,10 +409,12 @@ exports[`component structure contract, strict=false > grid invalid children 1`] 
         "children": "<card>",
         "name": "grid",
       },
+      "phase": "semantic",
       "range": {
         "end": 50,
         "start": 12,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -425,10 +455,12 @@ exports[`component structure contract, strict=false > quiz invalid answer 1`] = 
         "answer": "missing",
         "options": "a",
       },
+      "phase": "semantic",
       "range": {
         "end": 24,
         "start": 23,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -441,10 +473,12 @@ exports[`component structure contract, strict=false > quiz invalid answer 1`] = 
         "name": "quiz",
         "value": "a",
       },
+      "phase": "semantic",
       "range": {
         "end": 110,
         "start": 74,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -463,10 +497,12 @@ exports[`component structure contract, strict=false > quiz numeric body 1`] = `
       "line": 1,
       "message": "A numeric <quiz> cannot have body content; use type="choice" for option-based quizzes.",
       "messageKey": "local.structure.quiz.numeric-no-body",
+      "phase": "semantic",
       "range": {
         "end": 84,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -475,10 +511,12 @@ exports[`component structure contract, strict=false > quiz numeric body 1`] = `
       "line": 1,
       "message": "A numeric <quiz> answer must be a finite number.",
       "messageKey": "local.quiz.answer.numeric",
+      "phase": "semantic",
       "range": {
         "end": 38,
         "start": 37,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -491,10 +529,12 @@ exports[`component structure contract, strict=false > quiz numeric body 1`] = `
         "min": 0,
         "name": "tolerance",
       },
+      "phase": "semantic",
       "range": {
         "end": 51,
         "start": 50,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -503,10 +543,12 @@ exports[`component structure contract, strict=false > quiz numeric body 1`] = `
       "line": 1,
       "message": "<quiz> tolerance must be a nonnegative finite number.",
       "messageKey": "local.constraint.quiz-tolerance",
+      "phase": "semantic",
       "range": {
         "end": 51,
         "start": 50,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -570,10 +612,12 @@ exports[`component structure contract, strict=false > tabs duplicate values 1`] 
         "child": "tab",
         "name": "tabs",
       },
+      "phase": "semantic",
       "range": {
         "end": 134,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -585,10 +629,12 @@ exports[`component structure contract, strict=false > tabs duplicate values 1`] 
       "params": {
         "value": "same",
       },
+      "phase": "semantic",
       "range": {
         "end": 115,
         "start": 73,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -654,10 +700,12 @@ exports[`component structure contract, strict=true > checklist mixed body 1`] = 
       "line": 1,
       "message": "The body of <checklist> must be exactly one single-level Markdown task list.",
       "messageKey": "local.checklist.body.single",
+      "phase": "semantic",
       "range": {
         "end": 96,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -666,10 +714,12 @@ exports[`component structure contract, strict=true > checklist mixed body 1`] = 
       "line": 4,
       "message": "<checklist> does not support nested lists.",
       "messageKey": "local.checklist.body.no-nested",
+      "phase": "semantic",
       "range": {
         "end": 72,
         "start": 46,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -678,10 +728,12 @@ exports[`component structure contract, strict=true > checklist mixed body 1`] = 
       "line": 6,
       "message": "<checklist> can only contain task list items (- [ ] / - [x]).",
       "messageKey": "local.checklist.body.task-only",
+      "phase": "semantic",
       "range": {
         "end": 83,
         "start": 73,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -744,10 +796,12 @@ exports[`component structure contract, strict=true > choices invalid children 1`
       "params": {
         "name": "choices",
       },
+      "phase": "semantic",
       "range": {
         "end": 175,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -760,10 +814,12 @@ exports[`component structure contract, strict=true > choices invalid children 1`
         "name": "choices",
         "value": "a",
       },
+      "phase": "semantic",
       "range": {
         "end": 113,
         "start": 77,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -776,10 +832,12 @@ exports[`component structure contract, strict=true > choices invalid children 1`
         "component": "option",
         "name": "value",
       },
+      "phase": "semantic",
       "range": {
         "end": 138,
         "start": 114,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -788,10 +846,12 @@ exports[`component structure contract, strict=true > choices invalid children 1`
       "line": 5,
       "message": "<option> requires a non-empty value.",
       "messageKey": "local.option.value.required",
+      "phase": "semantic",
       "range": {
         "end": 138,
         "start": 114,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -858,10 +918,12 @@ exports[`component structure contract, strict=true > diagram invalid references 
       "line": 1,
       "message": "<diagram> can only contain <node> and <edge>.",
       "messageKey": "local.structure.diagram.only",
+      "phase": "semantic",
       "range": {
         "end": 193,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -873,10 +935,12 @@ exports[`component structure contract, strict=true > diagram invalid references 
       "params": {
         "id": "a",
       },
+      "phase": "semantic",
       "range": {
         "end": 113,
         "start": 75,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -888,10 +952,12 @@ exports[`component structure contract, strict=true > diagram invalid references 
       "params": {
         "id": "missing",
       },
+      "phase": "semantic",
       "range": {
         "end": 142,
         "start": 114,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -903,10 +969,12 @@ exports[`component structure contract, strict=true > diagram invalid references 
       "params": {
         "id": "missing",
       },
+      "phase": "semantic",
       "range": {
         "end": 171,
         "start": 143,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -920,10 +988,12 @@ exports[`component structure contract, strict=true > diagram invalid references 
         "label": "",
         "to": "a",
       },
+      "phase": "semantic",
       "range": {
         "end": 171,
         "start": 143,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -947,10 +1017,12 @@ exports[`component structure contract, strict=true > grid invalid children 1`] =
         "min": 1,
         "name": "grid",
       },
+      "phase": "semantic",
       "range": {
         "end": 58,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -963,10 +1035,12 @@ exports[`component structure contract, strict=true > grid invalid children 1`] =
         "children": "<card>",
         "name": "grid",
       },
+      "phase": "semantic",
       "range": {
         "end": 58,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -979,10 +1053,12 @@ exports[`component structure contract, strict=true > grid invalid children 1`] =
         "children": "<card>",
         "name": "grid",
       },
+      "phase": "semantic",
       "range": {
         "end": 50,
         "start": 12,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -1023,10 +1099,12 @@ exports[`component structure contract, strict=true > quiz invalid answer 1`] = `
         "answer": "missing",
         "options": "a",
       },
+      "phase": "semantic",
       "range": {
         "end": 24,
         "start": 23,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -1039,10 +1117,12 @@ exports[`component structure contract, strict=true > quiz invalid answer 1`] = `
         "name": "quiz",
         "value": "a",
       },
+      "phase": "semantic",
       "range": {
         "end": 110,
         "start": 74,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -1061,10 +1141,12 @@ exports[`component structure contract, strict=true > quiz numeric body 1`] = `
       "line": 1,
       "message": "A numeric <quiz> cannot have body content; use type="choice" for option-based quizzes.",
       "messageKey": "local.structure.quiz.numeric-no-body",
+      "phase": "semantic",
       "range": {
         "end": 84,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -1073,10 +1155,12 @@ exports[`component structure contract, strict=true > quiz numeric body 1`] = `
       "line": 1,
       "message": "A numeric <quiz> answer must be a finite number.",
       "messageKey": "local.quiz.answer.numeric",
+      "phase": "semantic",
       "range": {
         "end": 38,
         "start": 37,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -1089,10 +1173,12 @@ exports[`component structure contract, strict=true > quiz numeric body 1`] = `
         "min": 0,
         "name": "tolerance",
       },
+      "phase": "semantic",
       "range": {
         "end": 51,
         "start": 50,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -1101,10 +1187,12 @@ exports[`component structure contract, strict=true > quiz numeric body 1`] = `
       "line": 1,
       "message": "<quiz> tolerance must be a nonnegative finite number.",
       "messageKey": "local.constraint.quiz-tolerance",
+      "phase": "semantic",
       "range": {
         "end": 51,
         "start": 50,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],
@@ -1168,10 +1256,12 @@ exports[`component structure contract, strict=true > tabs duplicate values 1`] =
         "child": "tab",
         "name": "tabs",
       },
+      "phase": "semantic",
       "range": {
         "end": 134,
         "start": 0,
       },
+      "recoverable": false,
       "severity": "error",
     },
     {
@@ -1183,10 +1273,12 @@ exports[`component structure contract, strict=true > tabs duplicate values 1`] =
       "params": {
         "value": "same",
       },
+      "phase": "semantic",
       "range": {
         "end": 115,
         "start": 73,
       },
+      "recoverable": false,
       "severity": "error",
     },
   ],

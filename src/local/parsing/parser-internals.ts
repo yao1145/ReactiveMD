@@ -49,6 +49,7 @@ export class LocalBudgetError extends Error {
     readonly end: number,
     readonly key: string = code,
     readonly params?: Record<string, string | number | boolean | null>,
+    readonly actual?: number,
   ) {
     super(message);
     this.name = 'LocalBudgetError';

@@ -12,6 +12,8 @@ import {
   type FlatCompiledData,
 } from './flat-compiled-data';
 import type { Diagnostic, LocalCompileOptions, LocalCompileResult, LocalSourcePhase } from '../types';
+import { createLocalObservabilityDiagnostic } from '../observability';
+import { createLocalTraceId, emitLocalDiagnostic, emitLocalTrace, type LocalObserver, type LocalTraceEvent } from '../observability-core';
 import type { AuthorAnalysis } from '../source/authoring';
 import {
   createLocalCompileSession,
@@ -32,6 +34,10 @@ import { isPatchEdit } from './worker-handler';
 export type LocalCompileProtocol = typeof LOCAL_RESULT_PATCH_PROTOCOL;
 
 export interface LocalCompileRequest {
+  traceId?: string;
+  /** Alias of id for trace consumers. */
+  requestId?: number;
+  sourceRevision?: number;
   /** Opt into depth-independent full results. Absent on legacy clients. */
   flatResults?: typeof FLAT_COMPILED_DATA_PROTOCOL;
   /** Return authoring data from the same compiled document. Off by default. */
@@ -65,6 +71,9 @@ export interface LocalCompileRequest {
 
 /** An incremental request; only sent once a `patch-v1` worker was confirmed. */
 export interface LocalCompilePatchRequest {
+  traceId?: string;
+  requestId?: number;
+  sourceRevision?: number;
   includeAuthorAnalysis?: boolean;
   id: number;
   protocol: LocalCompileProtocol;
@@ -117,6 +126,9 @@ export interface LocalCompileMetrics {
 }
 
 export interface LocalCompilePatchResponse {
+  traceId?: string;
+  requestId?: number;
+  sourceRevision?: number;
   analysis?: AuthorAnalysis;
   id: number;
   ok: true;
@@ -134,6 +146,9 @@ export interface LocalCompilePatchResponse {
 export type LocalCompileResponse =
   | {
       id: number;
+      traceId?: string;
+      requestId?: number;
+      sourceRevision?: number;
       ok: true;
       result: LocalCompileResult;
       duration: number;
@@ -147,6 +162,9 @@ export type LocalCompileResponse =
     }
   | {
       id: number;
+      traceId?: string;
+      requestId?: number;
+      sourceRevision?: number;
       ok: false;
       message: string;
       /** The request cannot be served incrementally; resend the full source. */
@@ -200,6 +218,8 @@ export interface LocalCompileOutcome {
 }
 
 export interface LocalCompileSchedulerOptions {
+  observer?: LocalObserver;
+  timeoutMs?: number;
   includeAuthorAnalysis?: boolean;
   createWorker(): LocalCompileWorker;
   /**
@@ -220,6 +240,8 @@ export interface LocalCompileSchedulerOptions {
 }
 
 interface CompileJob {
+  sourceRevision: number;
+  traceId: string;
   editHint?: LocalCompileEditHint;
   source: string;
   /** Copied at schedule time so later caller mutation cannot change permissions or host schemas. */
@@ -249,6 +271,8 @@ interface InFlightJob {
   job: CompileJob;
   startedAt: number;
   revision: number;
+  traceId: string;
+  sourceRevision: number;
 }
 
 interface CompileBaseline {
@@ -284,7 +308,7 @@ function createJob(
   source: string,
   options: LocalCompileOptions | undefined,
   sourcePhase?: LocalSourcePhase,
-): CompileJob {
+): Omit<CompileJob, 'traceId' | 'sourceRevision'> {
   const snapshot = snapshotCompileOptions(options);
   // An unspecified phase keeps the legacy final request byte-for-byte; a
   // declared one travels as its own field and is echoed on the outcome.
@@ -347,6 +371,8 @@ function invalidSourcePhaseResult(): LocalCompileResult {
       line: 1,
       column: 1,
       messageKey: 'local.options.invalid.source-phase',
+      phase: 'host',
+      recoverable: false,
     }],
   };
 }
@@ -366,6 +392,9 @@ function isPatchResponse(response: LocalCompileWorkerResponse): response is Loca
 export function compileFailureDiagnostic(error: unknown): Diagnostic {
   return {
     code: 'local.worker.compile',
+    messageKey: 'local.worker.compile',
+    phase: 'worker',
+    recoverable: false,
     message: `Compilation failed: ${messageOf(error)}`,
     severity: 'error',
     range: { start: 0, end: 0 },
@@ -392,9 +421,14 @@ export class LocalCompileScheduler {
   private inFlight: InFlightJob | null = null;
   private nextId = 1;
   private nextRevision = 1;
+  private nextSourceRevision = 1;
   private pending = false;
   private fallbackSession: LocalCompileSession | null = null;
   private disposed = false;
+  private timeout: ReturnType<typeof setTimeout> | null = null;
+  private readonly requestContexts = new Map<number, { traceId: string; sourceRevision: number }>();
+  private readonly obsoleteRequestIds = new Set<number>();
+  private readonly reportedStaleRequestIds = new Set<number>();
   private baseline: CompileBaseline | null = null;
   private patchState: PatchState = 'unknown';
 
@@ -440,7 +474,8 @@ export class LocalCompileScheduler {
     sourcePhase?: LocalSourcePhase,
   ): void {
     if (this.disposed) return;
-    const job = createJob(source, options, sourcePhase);
+    const job = { ...createJob(source, options, sourcePhase), sourceRevision: this.nextSourceRevision++, traceId: createLocalTraceId() };
+    if (this.inFlight && !sameJob(this.inFlight.job, job)) this.obsoleteRequestIds.add(this.inFlight.id);
     this.queued = job;
     if (hint && typeof hint.baseSource === 'string' && isPatchEdit(hint.edit) && hint.edit.to <= hint.baseSource.length
       && hint.baseSource.slice(0, hint.edit.from) + hint.edit.insert + hint.baseSource.slice(hint.edit.to) === source) {
@@ -472,6 +507,12 @@ export class LocalCompileScheduler {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    if (this.inFlight) {
+      this.traceWorker(this.inFlight, 'worker-cancel', { status: 'disposed' });
+      this.obsoleteRequestIds.add(this.inFlight.id);
+    }
+    if (this.timeout !== null) clearTimeout(this.timeout);
+    this.timeout = null;
     this.clearTimer();
     this.queued = null;
     this.inFlight = null;
@@ -529,6 +570,7 @@ export class LocalCompileScheduler {
     if (job.sourcePhase === 'streaming') this.baseline = null;
     const id = this.nextId++;
     const revision = this.nextRevision++;
+    const { traceId, sourceRevision } = job;
     const startedAt = now();
     const baseline = this.baseline;
     const usePatch = job.sourcePhase === 'final'
@@ -537,6 +579,9 @@ export class LocalCompileScheduler {
       && baseline.optionsKey === job.optionsKey;
     const request: LocalCompileWorkerRequest = usePatch
       ? {
+          traceId,
+          requestId: id,
+          sourceRevision,
           id,
           protocol: LOCAL_RESULT_PATCH_PROTOCOL,
           baseRevision: baseline!.revision,
@@ -547,6 +592,9 @@ export class LocalCompileScheduler {
           optionsKey: job.optionsKey,
         }
       : {
+          traceId,
+          requestId: id,
+          sourceRevision,
           id,
           source: job.source,
           ...(job.options === undefined ? {} : { options: job.options }),
@@ -557,29 +605,33 @@ export class LocalCompileScheduler {
           // (including an explicit `final`) is sent and echoed.
           ...(job.sourcePhase === 'streaming' || job.explicitPhase ? { sourcePhase: job.sourcePhase } : {}),
         };
-    this.inFlight = { id, job, startedAt, revision };
+    const flight = { id, job, startedAt, revision, traceId, sourceRevision };
+    this.inFlight = flight;
+    const configuredTimeout = this.options.timeoutMs;
+    const timeoutMs = typeof configuredTimeout === 'number' && Number.isFinite(configuredTimeout) && configuredTimeout > 0
+      ? Math.min(2_147_483_647, Math.ceil(configuredTimeout)) : 30_000;
+    this.requestContexts.set(id, { traceId, sourceRevision });
+    while (this.requestContexts.size > 128) {
+      const oldest = this.requestContexts.keys().next().value;
+      if (oldest === undefined) break;
+      this.requestContexts.delete(oldest);
+      this.obsoleteRequestIds.delete(oldest);
+      this.reportedStaleRequestIds.delete(oldest);
+    }
+    this.timeout = setTimeout(() => {
+      if (this.inFlight?.id !== id) return;
+      const diagnostic = { ...createLocalObservabilityDiagnostic('local.worker.timeout', { timeoutMs, requestId: id, sourceRevision }), phase: 'worker' as const };
+      this.obsoleteRequestIds.add(id);
+      this.handleWorkerFailure(diagnostic.message, diagnostic);
+    }, timeoutMs);
+    this.traceWorker(flight, 'worker-request');
+    if (this.disposed || this.inFlight !== flight) return;
     if (this.options.includeAuthorAnalysis) request.includeAuthorAnalysis = true;
     try {
       worker.postMessage(request);
     } catch (error) {
-      this.inFlight = null;
-      const detail = `Could not send the source to the compile worker: ${messageOf(error)}`;
-      const queued = this.queued;
-      if (queued !== null && !sameJob(queued, job)) {
-        // A newer source or permission set owns the next result; do not deliver
-        // this superseded job after it.
-        this.resetProtocol();
-        this.degrade(detail);
-        this.finishRun();
-        return;
-      }
-      if (queued !== null) {
-        this.queued = null;
-        this.clearTimer();
-      }
-      this.resetProtocol();
-      this.degrade(detail);
-      this.compileFallback(job);
+      this.obsoleteRequestIds.add(id);
+      this.handleWorkerFailure(`Could not send the source to the compile worker: ${messageOf(error)}`);
     }
   }
 
@@ -589,6 +641,9 @@ export class LocalCompileScheduler {
     // patch chain, so the next final request has to be complete as well.
     if (job.sourcePhase === 'streaming') this.baseline = null;
     const started = now();
+    const { traceId, sourceRevision } = job;
+    emitLocalTrace(this.options.observer, { type: 'compile-start', traceId, sourceRevision, timestamp: Date.now(), status: 'fallback' });
+    if (this.disposed) return;
     let result: LocalCompileResult;
     try {
       const fallbackCompile = this.options.fallbackCompile ?? ((
@@ -609,10 +664,12 @@ export class LocalCompileScheduler {
     } catch (error) {
       result = failureResult(job, compileFailureDiagnostic(error));
     }
+    const duration = safeDuration(now() - started);
+    emitLocalTrace(this.options.observer, { type: 'compile-end', traceId, sourceRevision, timestamp: Date.now(), durationMs: duration, status: result.ok ? 'ok' : 'failed' });
     this.deliver({
       source: job.source,
       result,
-      duration: safeDuration(now() - started),
+      duration,
       mode: 'fallback',
       ...(this.options.includeAuthorAnalysis ? { analysis: analyzeResult(job.source, job.options, result) } : {}),
       ...(job.options === undefined ? {} : { options: job.options }),
@@ -625,7 +682,24 @@ export class LocalCompileScheduler {
   private receive(wireResponse: LocalCompileWorkerResponse): void {
     if (this.disposed) return;
     const inFlight = this.inFlight;
-    if (!inFlight || !wireResponse || wireResponse.id !== inFlight.id) return;
+    if (!wireResponse) return;
+    if (inFlight && wireResponse.id === inFlight.id
+      && ((wireResponse.requestId !== undefined && wireResponse.requestId !== inFlight.id)
+        || (wireResponse.traceId !== undefined && wireResponse.traceId !== inFlight.traceId)
+        || (wireResponse.sourceRevision !== undefined && wireResponse.sourceRevision !== inFlight.sourceRevision))) {
+      this.reportStale(inFlight.id, inFlight.traceId, inFlight.sourceRevision, this.queued?.sourceRevision);
+      this.handleWorkerFailure('The compile worker returned a response with a mismatched request context.');
+      return;
+    }
+    if (!inFlight || wireResponse.id !== inFlight.id) {
+      if (Number.isSafeInteger(wireResponse.id) && wireResponse.id > 0 && this.obsoleteRequestIds.has(wireResponse.id)) {
+        const context = this.requestContexts.get(wireResponse.id);
+        if (context) this.reportStale(wireResponse.id, context.traceId, context.sourceRevision, this.queued?.sourceRevision);
+      }
+      return;
+    }
+    if (this.timeout !== null) clearTimeout(this.timeout);
+    this.timeout = null;
     let response:LocalCompileResponse|LocalCompilePatchResponse;
     let flatApplyMs=0;
     if(wireResponse.ok&&'flatResult'in wireResponse){
@@ -696,6 +770,16 @@ export class LocalCompileScheduler {
 
     const queued = this.queued;
     const superseded = queued !== null && !sameJob(queued, job);
+    if (failure !== null) {
+      this.traceWorker(inFlight, 'worker-error', { durationMs: roundTripMs, status: 'failed', code: 'local.worker.compile' });
+    } else {
+      this.traceWorker(inFlight, 'worker-response', { durationMs: roundTripMs, status: result ? (result.ok ? 'ok' : 'failed') : failure ? 'failed' : 'retry' });
+    }
+    if (this.disposed) return;
+    if (superseded) {
+      this.obsoleteRequestIds.add(inFlight.id);
+      this.reportStale(inFlight.id, inFlight.traceId, inFlight.sourceRevision, queued.sourceRevision);
+    }
     if (queued !== null && !superseded) {
       // The queued edit compiles to the same source and options, so this
       // result still counts.
@@ -825,12 +909,20 @@ export class LocalCompileScheduler {
     return true;
   }
 
-  private handleWorkerFailure(detail: string): void {
+  private handleWorkerFailure(detail: string, diagnostic: Diagnostic = { ...createLocalObservabilityDiagnostic('local.worker.error'), recoverable: true }): void {
     if (this.disposed) return;
+    if (this.timeout !== null) clearTimeout(this.timeout);
+    this.timeout = null;
     this.resetProtocol();
-    this.degrade(detail);
     const inFlight = this.inFlight;
     this.inFlight = null;
+    if (inFlight) this.obsoleteRequestIds.add(inFlight.id);
+    this.degrade(detail);
+    if (this.disposed) return;
+    if (inFlight) this.traceWorker(inFlight, diagnostic.code === 'local.worker.timeout' ? 'worker-timeout' : 'worker-error', { code: diagnostic.code, durationMs: safeDuration(now() - inFlight.startedAt) });
+    if (this.disposed) return;
+    emitLocalDiagnostic(this.options.observer, diagnostic);
+    if (this.disposed) return;
     if (inFlight && (this.queued === null || sameJob(this.queued, inFlight.job))) {
       if (this.queued !== null) {
         this.queued = null;
@@ -878,7 +970,30 @@ export class LocalCompileScheduler {
     const result = this.options.shareResults === true || !retained
       ? outcome.result
       : cloneLocalCompileResult(outcome.result);
+    for (const diagnostic of [...result.diagnostics, ...(result.transientDiagnostics ?? [])]) {
+      if (this.disposed) return;
+      emitLocalDiagnostic(this.options.observer, diagnostic);
+    }
+    if (this.disposed) return;
     this.options.onResult({ ...outcome, result });
+  }
+
+  private traceWorker(
+    flight: InFlightJob, type: LocalTraceEvent['type'], details: Pick<LocalTraceEvent, 'durationMs' | 'status' | 'code'> = {},
+  ): void {
+    emitLocalTrace(this.options.observer, { type, traceId: flight.traceId, requestId: flight.id, sourceRevision: flight.sourceRevision, timestamp: Date.now(), ...details });
+  }
+
+  private reportStale(requestId: number, traceId: string, sourceRevision: number, currentRevision?: number): void {
+    if (this.disposed || this.reportedStaleRequestIds.has(requestId)) return;
+    this.reportedStaleRequestIds.add(requestId);
+    const code = 'local.worker.stale-response';
+    const diagnostic = { ...createLocalObservabilityDiagnostic(code, {
+      requestId, sourceRevision, ...(currentRevision === undefined ? {} : { currentRevision }),
+    }), phase: 'worker' as const };
+    emitLocalTrace(this.options.observer, { type: 'worker-stale-response', traceId, requestId, sourceRevision, timestamp: Date.now(), code });
+    if (this.disposed) return;
+    emitLocalDiagnostic(this.options.observer, diagnostic);
   }
 
   private setPending(pending: boolean): void {

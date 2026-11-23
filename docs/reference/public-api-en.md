@@ -402,6 +402,31 @@ The DOM-free toolbar commands, re-exported from `reactive-md/authoring`, with th
 
 Each constant is versioned independently: a package release can ship a new HTML envelope without moving the syntax revision, and a new theme protocol does not change the SDK contract.
 
+## Observability
+
+Import `LocalObserver`, `LocalTraceEvent`, `createDiagnosticReport` and `formatLocalDiagnostic` from `reactive-md/observability`. Supply an observer through `compileLocal(source, { observer })` or `new LocalCompileScheduler({ observer, createWorker, onResult })`. Observer callbacks receive independent copies, and callback exceptions are isolated from compilation.
+
+```ts
+import { compileLocal } from 'reactive-md/compiler';
+import { createDiagnosticReport, type LocalObserver, type LocalTraceEvent } from 'reactive-md/observability';
+
+const events: LocalTraceEvent[] = [];
+const observer: LocalObserver = {
+  onDiagnostic(diagnostic) { console.warn(diagnostic.code, diagnostic.phase); },
+  onTrace(event) {
+    events.push(event);
+    if (events.length > 50) events.shift();
+  },
+};
+const source = '# Example';
+const result = compileLocal(source, { observer });
+const report = createDiagnosticReport(source, { diagnostics: result.diagnostics, events });
+```
+
+Diagnostics expose optional `phase`, `messageKey`, `recoverable` and scalar `details`. Existing codes retain their meanings. English and Chinese templates for Worker, export and resource diagnostics are exported as `LOCAL_OBSERVABILITY_MESSAGES`. Worker requests carry `traceId`, `sourceRevision`, and `requestId`, which equals the transport `id`. Recovery requests preserve the source revision and trace. The scheduler defaults to a 30,000 ms timeout, configurable through `timeoutMs`, and falls back to main-thread compilation on transport failure.
+
+Reports use schema `reactive-md-diagnostic/v1` and include package/protocol versions, runtime environment, source byte count and digest, registered diagnostic codes, ranges, selected budget details and the latest 50 events. Browser reports include user agent and platform. Node reports include Node version and platform. Hosts may supply editor, React and Vite versions through `options.package`. Report serialization is bounded to 64 KiB by removing oldest events and then trailing diagnostics. Free-text messages, source, diagnostic parameters and resource owner paths are omitted. The host controls copying, storage and transmission.
+
 ## Where to read next
 
 | Task | Document |

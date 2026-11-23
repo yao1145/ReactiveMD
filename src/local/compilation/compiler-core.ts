@@ -134,6 +134,9 @@ export function compileLegacyHtmlLocal(
         line: 1,
         column: 1,
         messageKey: typeof source === 'string' ? 'local.budget.document' : 'local.parse.source',
+        phase: typeof source === 'string' ? 'resource' : 'source',
+        recoverable: false,
+        ...(typeof source === 'string' ? { details: { budget: 'maxDocumentLength', limit: MAX_LOCAL_DOCUMENT_LENGTH, actual: source.length, unit: 'codeUnits' } } : {}),
         ...(typeof source === 'string' ? { params: { limit: MAX_LOCAL_DOCUMENT_LENGTH } } : {}),
       }],
     };
@@ -228,6 +231,8 @@ export function compileLocalCore(
       line: low + 1,
       column: safeStart - lineStarts[low] + 1,
       messageKey: bounded.key,
+      phase: code.includes('budget') ? 'resource' : code === 'local.parse' ? 'parse' : 'semantic',
+      recoverable: false,
       ...(bounded.params ? { params: bounded.params } : {}),
     });
   };

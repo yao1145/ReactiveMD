@@ -1,6 +1,7 @@
 import { MAX_LOCAL_DIAGNOSTIC_LENGTH } from './limits';
 import type { Diagnostic, LocalDiagnosticParams } from '../types';
 import { localCodeUnitPrefix } from '../source/source-context';
+import { LOCAL_OBSERVABILITY_MESSAGES } from '../observability-messages';
 import {
   LOCAL_DIAGNOSTIC_MESSAGES,
   LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES,
@@ -287,6 +288,10 @@ export const LOCAL_LATEX_ERROR_CODES = [
 export type LocalLatexErrorCode = (typeof LOCAL_LATEX_ERROR_CODES)[number];
 
 const LOCAL_STATIC_DIAGNOSTIC_CODES: readonly string[] = [
+  ...Object.keys(LOCAL_OBSERVABILITY_MESSAGES),
+  'local.worker.compile',
+  'local.build.resource-budget',
+  'local.extension.resource-budget',
   'local.version.unsupported', 'local.version.malformed', 'local.version.duplicate', 'local.version.placement',
   'local.upgrade.from-version', 'local.upgrade.reserved-binding', 'local.upgrade.tag', 'local.upgrade.text-length',
   'local.upgrade.expression', 'local.upgrade.version-missing',
@@ -321,7 +326,7 @@ export type LocalDiagnosticTemplateKey = keyof typeof LOCAL_DIAGNOSTIC_TEMPLATE_
 
 /** Registered message keys, sorted for stable test snapshots. */
 export const localDiagnosticTemplateKeys: readonly string[] = Object.freeze(
-  [...Object.keys(LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES), ...Object.keys(LOCAL_DIAGNOSTIC_MESSAGES).filter(key => key.startsWith('error.'))].sort(),
+  [...Object.keys(LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES), ...Object.keys(LOCAL_DIAGNOSTIC_MESSAGES).filter(key => key.startsWith('error.')), ...Object.keys(LOCAL_OBSERVABILITY_MESSAGES)].sort(),
 );
 
 function templateKeyOf(key: string): LocalDiagnosticMessageKey | undefined {
@@ -339,6 +344,9 @@ export function localDiagnosticTemplate(
   key: string,
   locale: LocalDiagnosticLocale = 'en',
 ): string | undefined {
+  if (Object.hasOwn(LOCAL_OBSERVABILITY_MESSAGES, key)) {
+    return LOCAL_OBSERVABILITY_MESSAGES[key as keyof typeof LOCAL_OBSERVABILITY_MESSAGES][locale === 'zh' ? 'zh' : 'en'];
+  }
   const semantic = templateKeyOf(key);
   if (!semantic) return undefined;
   return LOCAL_DIAGNOSTIC_MESSAGES[semantic][locale === 'zh' ? 'zh' : 'en'];
@@ -383,7 +391,7 @@ export function formatLocalDiagnostic(
 ): string {
   const key = typeof diagnostic.messageKey === 'string' ? diagnostic.messageKey : undefined;
   const template = key === undefined ? undefined : localDiagnosticTemplate(key, locale);
-  let params = diagnostic.params;
+  let params = diagnostic.params ?? diagnostic.details;
   if (locale === 'zh' && params) {
     const semantic = key === undefined ? undefined : templateKeyOf(key);
     if (semantic === 'expression.error' || semantic === 'math.computeFailed') {

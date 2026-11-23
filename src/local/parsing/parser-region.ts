@@ -227,7 +227,7 @@ export function createRegionScanner({
     if (end > start) budget.charge(end - start, start, end);
     work.maxComponentDepth=Math.max(work.maxComponentDepth,depth);
     if (depth > MAX_COMPONENT_DEPTH) {
-      throw new LocalBudgetError('local.budget','Component nesting exceeds the 100-level limit.',openStart,openEnd,'local.budget.nesting',{limit:MAX_COMPONENT_DEPTH});
+      throw new LocalBudgetError('local.budget','Component nesting exceeds the 100-level limit.',openStart,openEnd,'local.budget.nesting',{limit:MAX_COMPONENT_DEPTH},MAX_COMPONENT_DEPTH+1);
     }
     const footnoteMode = options.footnote === true;
     const insideContainer = options.container ?? parent !== undefined;
@@ -577,7 +577,7 @@ export function createRegionScanner({
             return protectedEnd(offset, limit, insideContainer);
           },
           budget: (offset: number, count: number) => {
-            if (count > maxSyntaxNodes * 2) throw new LocalBudgetError('local.budget', `Syntax nodes exceed the limit of ${maxSyntaxNodes}.`, offset, offset + 1, 'local.budget.nodes', { limit: maxSyntaxNodes });
+            if (count > maxSyntaxNodes * 2) throw new LocalBudgetError('local.budget', `Syntax nodes exceed the limit of ${maxSyntaxNodes}.`, offset, offset + 1, 'local.budget.nodes', { limit: maxSyntaxNodes }, count);
           },
           node,
           problem: (kind: string, from: number, to: number, tag?: string, name?: string) => {

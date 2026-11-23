@@ -93,6 +93,7 @@ export function snapshotCompileOptions(options: LocalCompileOptions | undefined)
     for (const flag of LOCAL_HTML_FLAGS) {
       if (Object.hasOwn(source, flag)) copy[flag] = source[flag];
     }
+    // Observers are host callbacks and must never cross the Worker boundary.
     if (Object.hasOwn(source, 'markdownBreaks')) {
       copy.markdownBreaks = source.markdownBreaks;
     }

@@ -224,7 +224,7 @@ export function createMarkdownConverter({
         // Reuse hints are consumed per parse and never mutate the plan.
         fastPlans.add(plan);
         const overflow=plan.overflowAt(maxSyntaxNodes-readNodeCount());
-        if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,sourceAt(base+overflow.start,from),sourceAt(base+overflow.end,to),'local.budget.nodes',{limit:maxSyntaxNodes});
+        if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,sourceAt(base+overflow.start,from),sourceAt(base+overflow.end,to),'local.budget.nodes',{limit:maxSyntaxNodes},maxSyntaxNodes+1);
         const emitted=plan.emit((type,begin,finish,extra)=>{
           if(type==='rmdOpaque'){
             const slot=markers.get(base+begin);

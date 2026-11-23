@@ -76,3 +76,9 @@ export type {
 } from './transport/worker';
 export {LOCAL_RESULT_PATCH_PROTOCOL,diffSourceEdit,applySourceEdit,encodeLocalResultPatch,applyLocalResultPatch} from './transport/compile-patch';
 export type {LocalSourceEdit,LocalResultPatch,LocalNodePatch,LocalDocumentPatch,LocalRecordPatch} from './transport/compile-patch';
+export { createDiagnosticReport, createLocalObservabilityDiagnostic } from './observability';
+export { createLocalTraceId, emitLocalDiagnostic, emitLocalTrace } from './observability-core';
+export type { LocalDiagnosticReport, DiagnosticReportOptions } from './observability';
+export type { LocalObserver, LocalTraceEvent } from './observability-core';
+export { LOCAL_OBSERVABILITY_MESSAGES, formatObservabilityMessage } from './observability-messages';
+export type { LocalObservabilityMessageKey } from './observability-messages';

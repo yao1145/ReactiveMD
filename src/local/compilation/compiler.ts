@@ -10,10 +10,24 @@ import { parseLocal } from '../parsing/parser';
 import type { LocalCompilerCoreServices, LocalTrackedSemanticService, SemanticCacheStats } from './compiler-services';
 import type { InlinePlanLookup } from '../parsing/fast-markdown';
 import type { SourceContext } from '../source/source-context';
+import { createLocalTraceId, emitLocalDiagnostic, emitLocalTrace } from '../observability-core';
 
 /** Compile to plain data that can cross a React Server Component boundary. */
 export function compileLocal(source: string, options?: LocalCompileOptions): LocalCompileResult {
-  return plainCompiledData(compileLocalInternal(source, options));
+  const observer = options?.observer;
+  const traceId = observer?.onTrace ? createLocalTraceId() : undefined;
+  const started = traceId ? (globalThis.performance?.now() ?? Date.now()) : 0;
+  if (traceId) emitLocalTrace(observer, { type: 'compile-start', traceId, timestamp: Date.now() });
+  const result = plainCompiledData(compileLocalInternal(source, options));
+  if (observer?.onDiagnostic) {
+    for (const diagnostic of result.diagnostics) emitLocalDiagnostic(observer, diagnostic);
+    for (const diagnostic of result.transientDiagnostics ?? []) emitLocalDiagnostic(observer, diagnostic);
+  }
+  if (traceId) {
+    const durationMs = Math.max(0, Math.round((globalThis.performance?.now() ?? Date.now()) - started));
+    emitLocalTrace(observer, { type: 'compile-end', traceId, timestamp: Date.now(), status: result.ok ? 'ok' : 'failed', durationMs });
+  }
+  return result;
 }
 
 /** Compiler-owned capture for editor sessions. Callers must copy before publishing. */
@@ -57,6 +71,8 @@ function invalidOptionsResult(optionCheck: Exclude<LocalOptionCheck, { ok: true 
       code: 'local.options.invalid',
       message: optionCheck.message,
       severity: 'error',
+      phase: 'host',
+      recoverable: false,
       range: { start: 0, end: 0 },
       line: 1,
       column: 1,

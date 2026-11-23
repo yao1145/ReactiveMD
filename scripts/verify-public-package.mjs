@@ -62,6 +62,7 @@ import { fileURLToPath } from 'node:url';
 import { createStandardCompiler } from 'reactive-md/compiler/standard';
 import { createCompiler } from 'reactive-md/compiler';
 import { compileLocal, createLocalCompileSession, createLocalRuntime, LocalCompileScheduler, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
+import { createDiagnosticReport } from 'reactive-md/observability';
 import { analyzeLocalSource, insertTemplate, getNativeComponentCatalog } from 'reactive-md/authoring';
 import { createRandom } from 'reactive-md/runtime';
 import { createLocalBrowserStateStorage, httpSubmit, sseStream, webSocketChannel, webRtcChannel } from 'reactive-md/runtime/browser';
@@ -80,6 +81,10 @@ import * as server from 'reactive-md/react/server';
 assert.equal(createStandardCompiler().compile('# Package boundary').status, 'valid');
 assert.equal(createCompiler().compile('plain text').status, 'valid');
 assert.equal(compileLocal('plain text').ok, true);
+const diagnosticReport = createDiagnosticReport('plain text');
+assert.equal(diagnosticReport.schema, 'reactive-md-diagnostic/v1');
+assert.equal(diagnosticReport.document.sourceBytes, 10);
+assert.equal(JSON.stringify(diagnosticReport).includes('plain text'), false);
 const streamingSession = createLocalCompileSession();
 try {
   const partialSource = '<number bind="count" label="Count" initial="1">\\n\\nTotal: {{ count';

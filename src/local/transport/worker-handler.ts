@@ -102,9 +102,14 @@ function sessionStats(session: LocalCompileSession): Readonly<LocalIncrementalSt
   return session.stats;
 }
 
-function postFailure(scope: LocalCompileWorkerScope, id: number, message: string): void {
+function postFailure(
+  scope: LocalCompileWorkerScope,
+  id: number,
+  message: string,
+  request?: Pick<LocalCompileRequest | LocalCompilePatchRequest, 'traceId' | 'requestId' | 'sourceRevision'>,
+): void {
   try {
-    scope.postMessage({ id, ok: false, message });
+    scope.postMessage({ id, ...(request?.traceId === undefined ? {} : { traceId: request.traceId, requestId: request.requestId, sourceRevision: request.sourceRevision }), ok: false, message });
   } catch {
     /* A scope that cannot receive the failure response is already broken. */
   }
@@ -112,14 +117,15 @@ function postFailure(scope: LocalCompileWorkerScope, id: number, message: string
 
 function postRetryableFailure(
   scope: LocalCompileWorkerScope,
-  id: number,
+  request: LocalCompilePatchRequest,
   message: string,
   code: string,
   revision: number | undefined,
 ): void {
   try {
     scope.postMessage({
-      id,
+      id: request.id,
+      ...(request.traceId === undefined ? {} : { traceId: request.traceId, requestId: request.requestId, sourceRevision: request.sourceRevision }),
       ok: false,
       message,
       retryFull: true,
@@ -251,13 +257,14 @@ export function startLocalCompileWorker(
   };
 
   const respondFull = (
-    id: number,
+    request: LocalCompileRequest | LocalCompilePatchRequest,
     revision: number,
     compileMs: number,
     negotiated: boolean,
     includeAnalysis = false,
     extraMetrics?: LocalCompileWorkerMetrics,
   ): boolean => {
+    const { id, traceId, requestId, sourceRevision } = request;
     const state = current;
     if (state === null) return false;
     const duration = safeDuration(compileMs);
@@ -268,6 +275,7 @@ export function startLocalCompileWorker(
       const response: LocalCompileResponse = negotiated
         ? {
             id,
+            ...(traceId === undefined ? {} : { traceId, requestId, sourceRevision }),
             ok: true,
             result: state.result,
             duration,
@@ -279,6 +287,7 @@ export function startLocalCompileWorker(
           }
         : {
             id,
+            ...(traceId === undefined ? {} : { traceId, requestId, sourceRevision }),
             ok: true,
             result: state.result,
             duration,
@@ -298,7 +307,7 @@ export function startLocalCompileWorker(
       return true;
     } catch (error) {
       // The result itself may not be cloneable; report the failure instead.
-      postFailure(target, id, `Could not return the compile result: ${messageOf(error)}`);
+    postFailure(target, id, `Could not return the compile result: ${messageOf(error)}`, { traceId, requestId, sourceRevision });
       return false;
     }
   };
@@ -322,7 +331,7 @@ export function startLocalCompileWorker(
         ? full.sourcePhase
         : (snapshot as { sourcePhase?: unknown } | undefined)?.sourcePhase;
       if (requestedPhase !== undefined && !isSourcePhase(requestedPhase)) {
-        postFailure(target, full.id, 'The requested source phase is not supported: expected "streaming" or "final"');
+      postFailure(target, full.id, 'The requested source phase is not supported: expected "streaming" or "final"', full);
         return;
       }
       const sourcePhase = requestedPhase as LocalSourcePhase | undefined;
@@ -356,11 +365,11 @@ export function startLocalCompileWorker(
           flatResults: full.flatResults===FLAT_COMPILED_DATA_PROTOCOL,
           ...(sourcePhase === undefined ? {} : { sourcePhase }),
         };
-        if (respondFull(full.id, revision, compileMs, negotiated, full.includeAuthorAnalysis === true)) {
+        if (respondFull(full, revision, compileMs, negotiated, full.includeAuthorAnalysis === true)) {
           schedulePreparation();
         }
       } catch (error) {
-        postFailure(target, full.id, messageOf(error));
+        postFailure(target, full.id, messageOf(error), full);
       }
       return;
     }
@@ -370,7 +379,7 @@ export function startLocalCompileWorker(
     const patchRequest = request as LocalCompilePatchRequest;
     const state = current;
     const retry = (message: string, code: string): void => {
-      postRetryableFailure(target, patchRequest.id, message, code, state?.revision);
+      postRetryableFailure(target, patchRequest, message, code, state?.revision);
     };
     if (state === null) {
       retry('No complete compile is available to patch', 'stale-base');
@@ -439,7 +448,7 @@ export function startLocalCompileWorker(
       if (patch === null) {
         // A failed/cached-exception result cannot be patched; the complete
         // result still keeps the revision chain usable.
-        if (respondFull(patchRequest.id, revision, compileMs, true, patchRequest.includeAuthorAnalysis === true)) {
+        if (respondFull(patchRequest, revision, compileMs, true, patchRequest.includeAuthorAnalysis === true)) {
           schedulePreparation();
         }
         return;
@@ -457,7 +466,7 @@ export function startLocalCompileWorker(
           ...(cost.fullBytes === undefined ? {} : { fullBytes: cost.fullBytes }),
         };
         if (respondFull(
-          patchRequest.id,
+          patchRequest,
           revision,
           compileMs,
           true,
@@ -477,6 +486,7 @@ export function startLocalCompileWorker(
       try {
         const response: LocalCompilePatchResponse = {
           id: patchRequest.id,
+          ...(patchRequest.traceId === undefined ? {} : { traceId: patchRequest.traceId, requestId: patchRequest.requestId, sourceRevision: patchRequest.sourceRevision }),
           ok: true,
           protocol: LOCAL_RESULT_PATCH_PROTOCOL,
           baseRevision,
@@ -497,10 +507,10 @@ export function startLocalCompileWorker(
         target.postMessage(response as unknown as LocalCompileResponse);
         schedulePreparation();
       } catch (error) {
-        postFailure(target, patchRequest.id, `Could not return the compile result: ${messageOf(error)}`);
+      postFailure(target, patchRequest.id, `Could not return the compile result: ${messageOf(error)}`, patchRequest);
       }
     } catch (error) {
-      postFailure(target, patchRequest.id, messageOf(error));
+      postFailure(target, patchRequest.id, messageOf(error), patchRequest);
     }
   };
 

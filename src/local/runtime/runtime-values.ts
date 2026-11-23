@@ -370,6 +370,8 @@ export function diagnosticFor(document: LocalDocument, node: LocalNode, code: st
     line: prefix.length,
     column: (prefix.at(-1) ?? '').length + 1,
     messageKey: detail.key,
+    phase: 'runtime',
+    recoverable: true,
     ...(detail.params ? { params: detail.params } : {}),
   };
 }
@@ -382,6 +384,8 @@ export function parameterDiagnostic(code: string, message: string, detail?: Loca
     range: { start: 0, end: 0 },
     line: 1,
     column: 1,
+    phase: 'runtime',
+    recoverable: true,
     ...(detail ? { messageKey: detail.key, ...(detail.params ? { params: detail.params } : {}) } : {}),
   };
 }

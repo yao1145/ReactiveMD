@@ -210,11 +210,15 @@ export function parseLocalCore(
       message: typeof source === 'string' ? `Document exceeds the ${MAX_LOCAL_DOCUMENT_LENGTH}-character limit.` : 'Document source must be a string.',
       severity: 'error', range: { start: 0, end: typeof source === 'string' && source.length ? 1 : 0 }, line: 1, column: 1,
       messageKey: details.key, ...(details.params ? { params: details.params } : {}),
+      phase: typeof source === 'string' ? 'resource' : 'source',
+      recoverable: false,
+      ...(typeof source === 'string' ? { details: { budget: 'maxDocumentLength', limit: MAX_LOCAL_DOCUMENT_LENGTH, actual: source.length, unit: 'codeUnits' } } : {}),
     }] };
   }
   if (!optionCheck.ok) {
     return { nodes: [], diagnostics: [{
       code: 'local.options.invalid', message: optionCheck.message, severity: 'error',
+      phase: 'host', recoverable: false,
       range: { start: 0, end: 0 }, line: 1, column: 1, messageKey: optionCheck.key,
       ...(optionCheck.detail === undefined ? {} : { params: { detail: optionCheck.detail } }),
     }] };
@@ -339,7 +343,7 @@ export function parseLocalCore(
   const fastPlans = new Set<FastMarkdownPlan>();
   const node = (type: string, start: number, end: number, extra: Partial<LocalNode> = {}): LocalNode => {
     if (nodeCount >= maxSyntaxNodes) {
-      throw new LocalBudgetError('local.budget', `Syntax nodes exceed the limit of ${maxSyntaxNodes}.`, start, end, 'local.budget.nodes', { limit: maxSyntaxNodes });
+      throw new LocalBudgetError('local.budget', `Syntax nodes exceed the limit of ${maxSyntaxNodes}.`, start, end, 'local.budget.nodes', { limit: maxSyntaxNodes }, nodeCount + 1);
     }
     nodeCount += 1;
     return { type, id: `local-${serial++}`, range: { start, end }, ...extra };
@@ -368,7 +372,7 @@ export function parseLocalCore(
       return { nodes: [], diagnostics, work };
     }
     if (!(cause instanceof LocalBudgetError)) throw cause;
-    error(cause.code, cause.message, cause.start, cause.end, { key: cause.key, params: cause.params });
+    reportLocalBudget(cause);
     return { nodes: [], diagnostics };
   }
   const reservedMarkers = new Set(source.match(new RegExp(MARK_OPEN + '[0-9]+' + MARK_CLOSE, 'g')) ?? []);
@@ -410,7 +414,7 @@ export function parseLocalCore(
     // exact first over-budget node before constructing any LocalNode tree.
     if(!source.includes('{{')&&rootMarkdown.children.length===1 && rootMarkdown.children[0].type==='rmdFastBlock') {
       const overflow=(rootMarkdown.children[0].plan as FastMarkdownPlan).overflowAt(maxSyntaxNodes);
-      if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,overflow.start+sourceBomOffset,overflow.end+sourceBomOffset,'local.budget.nodes',{limit:maxSyntaxNodes});
+      if(overflow)throw new LocalBudgetError('local.budget',`Syntax nodes exceed the limit of ${maxSyntaxNodes}.`,overflow.start+sourceBomOffset,overflow.end+sourceBomOffset,'local.budget.nodes',{limit:maxSyntaxNodes},maxSyntaxNodes+1);
     }
     let facts=markdownTreeFacts(rootMarkdown);
     if (/<(?:css|javascript|iframe|dl|section|figure|figcaption)(?=[\s/>])/i.test(markdownSource)) {
@@ -440,7 +444,7 @@ export function parseLocalCore(
       return { nodes: [], diagnostics, work };
     }
     if(cause instanceof LocalBudgetError) {
-      error(cause.code,cause.message,cause.start,cause.end,{key:cause.key,params:cause.params});
+      reportLocalBudget(cause);
       return {nodes:[],diagnostics,work};
     }
     error('local.parse', { key: 'local.parse.markdown' }, 0, undefined);
@@ -476,6 +480,7 @@ export function parseLocalCore(
     start: number,
     end = start + 1,
     details?: LocalDiagnosticDetails,
+    structuredDetails?: Diagnostic['details'],
   ) {
     if (diagnostics.length >= MAX_LOCAL_DIAGNOSTICS) {
       // Warnings must never crowd out a real error: once the budget is full a
@@ -499,7 +504,14 @@ export function parseLocalCore(
     const text = message.length > MAX_LOCAL_DIAGNOSTIC_LENGTH
       ? `${localCodeUnitPrefix(message, MAX_LOCAL_DIAGNOSTIC_LENGTH - 1)}…`
       : message;
-    const bounded = localDiagnosticDetails(details?.key ?? code, details?.params);
+    const key = details?.key ?? code;
+    const resource = key === 'local.budget.nodes' ? { budget: 'maxSyntaxNodes', unit: 'nodes' }
+      : key === 'local.budget.nesting' ? { budget: 'maxComponentDepth', unit: 'depth' }
+      : key === 'local.budget.parse-work' ? { budget: 'maxParseWork', unit: 'work' }
+      : key === 'local.budget.markdown-depth' ? { budget: 'maxMarkdownDepth', unit: 'depth' }
+      : undefined;
+    const bounded = localDiagnosticDetails(key, details?.params);
+    const limit = bounded.params?.limit;
     diagnostics.push({
       code,
       message: text,
@@ -508,6 +520,10 @@ export function parseLocalCore(
       line,
       column: safeStart - lineStarts[low] + 1,
       messageKey: bounded.key,
+      phase: code.startsWith('local.budget') ? 'resource' : 'parse',
+      recoverable: severity === 'warning',
+      ...(resource && typeof limit === 'number' && typeof structuredDetails?.actual === 'number'
+        ? { details: { ...resource, limit, actual: structuredDetails.actual, ...structuredDetails } } : {}),
       ...(bounded.params ? { params: bounded.params } : {}),
     });
   }
@@ -523,9 +539,10 @@ export function parseLocalCore(
     start: number,
     end = start + 1,
     details?: LocalDiagnosticDetails,
+    structuredDetails?: Diagnostic['details'],
   ) {
     const resolved = resolveDiagnosticMessage(message);
-    diagnostic(code, resolved.text, 'error', start, end, resolved.details ?? details);
+    diagnostic(code, resolved.text, 'error', start, end, resolved.details ?? details, structuredDetails);
   }
   function warning(
     code: string,
@@ -537,10 +554,24 @@ export function parseLocalCore(
     const resolved = resolveDiagnosticMessage(message);
     diagnostic(code, resolved.text, 'warning', start, end, resolved.details ?? details);
   }
+  function reportLocalBudget(cause: LocalBudgetError): void {
+    const resource = cause.key === 'local.budget.nodes' ? { budget: 'maxSyntaxNodes', unit: 'nodes' }
+      : cause.key === 'local.budget.nesting' ? { budget: 'maxComponentDepth', unit: 'depth' }
+      : undefined;
+    const limit = cause.params?.limit;
+    error(cause.code, cause.message, cause.start, cause.end,
+      { key: cause.key, ...(cause.params ? { params: cause.params } : {}) },
+      resource && typeof limit === 'number' && cause.actual !== undefined
+        ? { ...resource, limit, actual: cause.actual }
+        : undefined,
+    );
+  }
   /** Convert a deterministic budget failure into a localized parse diagnostic. */
   function reportParseBudget(cause: ParseBudgetError): void {
     const key = cause.kind === 'parse-work' ? 'local.budget.parse-work' : 'local.budget.markdown-depth';
-    error('local.budget', { key, params: { limit: cause.limit } }, cause.start, cause.end);
+    const actual = cause.kind === 'parse-work' ? budget.parseWork : budget.maxDepth;
+    const resource = cause.kind === 'parse-work' ? { budget: 'maxParseWork', unit: 'work' } : { budget: 'maxMarkdownDepth', unit: 'depth' };
+    error('local.budget', { key, params: { limit: cause.limit } }, cause.start, cause.end, undefined, { ...resource, limit: cause.limit, actual });
   }
 
 
@@ -689,10 +720,7 @@ export function parseLocalCore(
       return { nodes: [], diagnostics, work, ...(recoveries.length ? { recoveries } : {}) };
     }
     if (cause instanceof LocalBudgetError) {
-      error(cause.code, cause.message, cause.start, cause.end, {
-        key: cause.key,
-        params: cause.params,
-      });
+      reportLocalBudget(cause);
       finishWork();
       return { nodes: [], diagnostics, work, ...(recoveries.length ? { recoveries } : {}) };
     }

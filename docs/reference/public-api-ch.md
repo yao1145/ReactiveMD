@@ -402,6 +402,31 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 
 每个常量独立演进：一次包发布可以引入新的 HTML 信封而不动语法修订，新的主题协议也不会改变 SDK 契约。
 
+## 可观察性
+
+从 `reactive-md/observability` 导入 `LocalObserver`、`LocalTraceEvent`、`createDiagnosticReport` 和 `formatLocalDiagnostic`。通过 `compileLocal(source, { observer })` 或 `new LocalCompileScheduler({ observer, createWorker, onResult })` 订阅事件。回调接收独立副本，回调异常由调用边界隔离。
+
+```ts
+import { compileLocal } from 'reactive-md/compiler';
+import { createDiagnosticReport, type LocalObserver, type LocalTraceEvent } from 'reactive-md/observability';
+
+const events: LocalTraceEvent[] = [];
+const observer: LocalObserver = {
+  onDiagnostic(diagnostic) { console.warn(diagnostic.code, diagnostic.phase); },
+  onTrace(event) {
+    events.push(event);
+    if (events.length > 50) events.shift();
+  },
+};
+const source = '# 示例';
+const result = compileLocal(source, { observer });
+const report = createDiagnosticReport(source, { diagnostics: result.diagnostics, events });
+```
+
+诊断新增可选的 `phase`、`messageKey`、`recoverable` 和标量 `details` 字段。现有诊断码保留原有语义。Worker、导出和资源诊断的中英文模板通过 `LOCAL_OBSERVABILITY_MESSAGES` 导出。Worker 请求携带 `traceId`、`sourceRevision` 和与传输 `id` 相同的 `requestId`。完整请求重试保留源码修订和 trace。调度器默认超时为 30,000 毫秒，可通过 `timeoutMs` 配置，传输失败后回退到主线程编译。
+
+报告采用 `reactive-md-diagnostic/v1` schema，包含包与协议版本、运行环境、源码字节数和摘要、已注册诊断码、源码位置、选定预算字段及最近 50 条事件。浏览器环境包含 user agent 和平台，Node 环境包含 Node 版本和平台。宿主通过 `options.package` 提供 Editor、React 和 Vite 版本。序列化报告上限为 64 KiB，超限时依次移除最早事件和末尾诊断。报告省略源码正文、自由文本消息、诊断参数和资源 owner 路径。宿主负责复制、存储和传输。
+
 ## 下一步读什么
 
 | 任务 | 文档 |

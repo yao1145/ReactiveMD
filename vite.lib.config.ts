@@ -23,6 +23,7 @@ export default defineConfig({
     lib: {
       entry: {
         'reactive-md': fileURLToPath(new URL('./src/index.ts', import.meta.url)),
+        'reactive-md-observability': fileURLToPath(new URL('./src/observability.ts', import.meta.url)),
         'reactive-md-react': fileURLToPath(new URL('./src/react/library.ts', import.meta.url)),
         'reactive-md-react-runtime': fileURLToPath(new URL('./src/react/runtime/index.ts', import.meta.url)),
         'reactive-md-runtime': fileURLToPath(new URL('./src/runtime-services/index.ts', import.meta.url)),

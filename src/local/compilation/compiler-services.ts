@@ -165,6 +165,8 @@ export function reportWarning(
     line: low + 1,
     column: safeStart - state.lineStarts[low] + 1,
     messageKey: bounded.key,
+    phase: code.includes('budget') ? 'resource' : 'semantic',
+    recoverable: true,
     ...(bounded.params ? { params: bounded.params } : {}),
   });
 }

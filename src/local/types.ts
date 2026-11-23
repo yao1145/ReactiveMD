@@ -22,7 +22,7 @@ export interface LocalMathDisplayIssue {
 export interface Diagnostic {
   code: string;
   message: string;
-  severity: 'error' | 'warning';
+  severity: 'info' | 'warning' | 'error' | 'fatal';
   range: SourceRange;
   line: number;
   column: number;
@@ -33,6 +33,12 @@ export interface Diagnostic {
   messageKey?: string;
   /** Bounded scalar parameters for `messageKey`. */
   params?: LocalDiagnosticParams;
+  /** Processing stage for host-side filtering and reporting. */
+  phase?: 'source' | 'parse' | 'semantic' | 'runtime' | 'worker' | 'resource' | 'export' | 'host';
+  /** Whether the affected operation can continue after this diagnostic. */
+  recoverable?: boolean;
+  /** Bounded, structured values safe to expose to host observers. */
+  details?: Readonly<Record<string, string | number | boolean>>;
 }
 export type LocalValue = string | number | boolean | null | string[] | number[];
 /** `array` retains its existing meaning: a homogeneous string array. */
@@ -389,6 +395,8 @@ export interface LocalHostComponentSchema {
 }
 
 export interface LocalCompileOptions extends LocalHtmlOptions {
+  /** Optional host observer for direct compiler calls. */
+  readonly observer?: import('./observability').LocalObserver;
   readonly limits?: LocalCompileLimits;
   /**
    * Render ordinary Markdown soft line breaks as `<br>`.

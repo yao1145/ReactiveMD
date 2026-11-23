@@ -234,21 +234,23 @@ function canonicalResourceInput(input: LocalStyleResourceInput): string {
   return JSON.stringify({ id: input.id, css: input.css, path: input.path, base: input.base });
 }
 
-function reportFileBudget(ctx: CssContext): void {
+function reportFileBudget(ctx: CssContext, budget: string, limit: number, actual: number, owner: string): void {
   if (ctx.fileBudgetReported) return;
   ctx.fileBudgetReported = true;
   ctx.diagnostics.push(buildDiagnostic(
     'local.build.resource-budget',
     `Resource collection exceeds ${ctx.budgets.maxFiles} files or a ${ctx.budgets.maxFileBytes}-byte file.`,
+    { budget, limit, actual, unit: budget === 'maxFiles' ? 'files' : 'bytes', owner },
   ));
 }
 
-function reportInlineBudget(ctx: CssContext): void {
+function reportInlineBudget(ctx: CssContext, actual: number): void {
   if (ctx.inlinedBudgetReported) return;
   ctx.inlinedBudgetReported = true;
   ctx.diagnostics.push(buildDiagnostic(
     'local.build.resource-budget',
     `Inlined resources exceed the ${ctx.budgets.maxInlinedBytes}-byte budget.`,
+    { budget: 'maxInlinedBytes', limit: ctx.budgets.maxInlinedBytes, actual, unit: 'bytes' },
   ));
 }
 
@@ -304,7 +306,13 @@ async function resolveAllowed(candidate: string, ctx: CssContext, label: string)
     return null;
   }
   if (ctx.files >= ctx.budgets.maxFiles || info.size > ctx.budgets.maxFileBytes) {
-    reportFileBudget(ctx);
+    const fileLimitExceeded = ctx.files >= ctx.budgets.maxFiles;
+    reportFileBudget(ctx,
+      fileLimitExceeded ? 'maxFiles' : 'maxFileBytes',
+      fileLimitExceeded ? ctx.budgets.maxFiles : ctx.budgets.maxFileBytes,
+      fileLimitExceeded ? ctx.files + 1 : info.size,
+      posixRelative(ctx.root, real),
+    );
     return null;
   }
   ctx.files += 1;
@@ -515,6 +523,7 @@ async function loadCssFile(
     ctx.diagnostics.push(buildDiagnostic(
       'local.build.resource-budget',
       `CSS imports exceed the ${ctx.budgets.maxImportDepth}-level depth budget.`,
+      { budget: 'maxImportDepth', limit: ctx.budgets.maxImportDepth, actual: stack.length, unit: 'depth', owner: posixRelative(ctx.root, file) },
     ));
     return null;
   }
@@ -538,7 +547,7 @@ async function readBinaryAsset(file: string, ctx: CssContext, label: string): Pr
     return null;
   }
   if (ctx.inlinedBytes + bytes.byteLength > ctx.budgets.maxInlinedBytes) {
-    reportInlineBudget(ctx);
+    reportInlineBudget(ctx, ctx.inlinedBytes + bytes.byteLength);
     return null;
   }
   ctx.inlinedBytes += bytes.byteLength;
@@ -840,6 +849,7 @@ export async function collectLocalBuildResources(
     diagnostics.push(buildDiagnostic(
       'local.build.resource-budget',
       `Resource collection exceeds the ${input.budgets.maxResources}-resource budget.`,
+      { budget: 'maxResources', limit: input.budgets.maxResources, actual: order.length, unit: 'files' },
     ));
   }
   const limited = order.slice(0, input.budgets.maxResources);
@@ -863,6 +873,7 @@ export async function collectLocalBuildResources(
       diagnostics.push(buildDiagnostic(
         'local.build.resource-budget',
         `Collected CSS exceeds the ${input.budgets.maxCssBytes}-byte budget.`,
+        { budget: 'maxCssBytes', limit: input.budgets.maxCssBytes, actual: cssBytes, unit: 'bytes', owner: id },
       ));
     }
     resources.push(Object.freeze({
