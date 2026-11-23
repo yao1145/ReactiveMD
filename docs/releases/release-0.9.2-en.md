@@ -30,4 +30,4 @@ Build preflight and export plan resource and budget diagnostics are `recoverable
 
 ## Compatibility
 
-No syntax, SDK, theme, component or state protocol revision changes. `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1`, `reactive-md-state/v1` and the SDK contract `0.7.0` remain current. Existing document source and state files need no migration. The published `reactive-md-editor@0.2.0` remains compatible with the `0.9.x` engine series.
+No syntax, SDK, theme, component or state protocol revision changes. `local-draft-3`, `component-protocol-3`, `reactive-md-theme-1`, `reactive-md-state/v1` and the SDK contract `0.7.0` remain current. Existing document source and state files need no migration. The published `reactive-md-editor@0.2.0` remains compatible with the `0.9.x` engine series. When upgrading to `reactive-md-editor@0.2.1`, the engine must satisfy `^0.9.2`. Hosts still pinned to engine 0.9.0 or 0.9.1 must upgrade the engine as well.

@@ -45,6 +45,7 @@ The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. Rea
 | `reactive-md/testing/browser` | ESM | No | No | Browser lifecycle compliance with an optional Playwright driver |
 | `reactive-md/runtime` | ESM | No | No | Document identity, seeds, random, scheduler, component-state registry, network channels |
 | `reactive-md/runtime/browser` | ESM | No | No | `localStorage` persistence, page-hide flush, HTTP/SSE, WebSocket, WebRTC adapters |
+| `reactive-md/observability` | ESM | No | No | Observe compile and Worker events and produce diagnostic reports |
 | `reactive-md/pdf` | ESM | No | Yes | Render prepared static HTML to PDF bytes through Playwright |
 | `reactive-md/styles.css` | CSS | — | — | Document, component and theme styles |
 | `reactive-md/styles/minimal.css` | CSS | — | — | Styles for the minimal preset |
@@ -396,6 +397,7 @@ The DOM-free toolbar commands, re-exported from `reactive-md/authoring`, with th
 | Restoration | `reactive-md-restore/v1` | Export-side contract requirements |
 | Export assets | `reactive-md-export-assets/v1` | Asset manifest |
 | Build manifest | `reactive-md-build/v1` | Standalone build output |
+| Diagnostic report | `reactive-md-diagnostic/v1` | Diagnostic report format version |
 | Component protocol | `reactive-md-component/v1`, `component-protocol-3` | Component contribution |
 | Theme protocol | `reactive-md-theme-1` | Document themes |
 | Editor package | `0.2.1` | Editor releases, peer `reactive-md: ^0.9.2` |

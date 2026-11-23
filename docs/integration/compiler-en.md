@@ -2,7 +2,7 @@
 
 **English** · [中文](compiler-ch.md)
 
-The current workspace adds two compiler entries. They return plain data for a host to run or render. These changes have not been published to npm.
+ReactiveMD provides minimal and standard one-shot compiler entries. They return plain data for a host to run or render.
 
 ```ts
 import { createCompiler } from 'reactive-md/compiler';

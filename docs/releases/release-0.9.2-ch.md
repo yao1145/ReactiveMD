@@ -30,4 +30,4 @@ npm install reactive-md@0.9.2
 
 ## 兼容性
 
-本次补丁发布不改变语法、SDK、主题、组件或状态协议版本。`local-draft-3`、`component-protocol-3`、`reactive-md-theme-1`、`reactive-md-state/v1` 和 `0.7.0` SDK 契约继续有效。升级引擎包无需迁移已有文档源码和状态文件。已发布的 `reactive-md-editor@0.2.0` 仍兼容 `0.9.x` 引擎系列。
+本次补丁发布不改变语法、SDK、主题、组件或状态协议版本。`local-draft-3`、`component-protocol-3`、`reactive-md-theme-1`、`reactive-md-state/v1` 和 `0.7.0` SDK 契约继续有效。升级引擎包无需迁移已有文档源码和状态文件。已发布的 `reactive-md-editor@0.2.0` 仍兼容 `0.9.x` 引擎系列。升级到 `reactive-md-editor@0.2.1` 时，引擎需满足 `^0.9.2`。仍固定在引擎 0.9.0 或 0.9.1 的宿主需要同时升级引擎。

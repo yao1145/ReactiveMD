@@ -45,6 +45,7 @@
 | `reactive-md/testing/browser` | ESM | 否 | 否 | 浏览器生命周期合规，可选 Playwright 驱动 |
 | `reactive-md/runtime` | ESM | 否 | 否 | 文档标识、种子、随机、调度、组件状态注册表、网络通道 |
 | `reactive-md/runtime/browser` | ESM | 否 | 否 | `localStorage` 持久化、页面隐藏刷写、HTTP/SSE、WebSocket、WebRTC 适配 |
+| `reactive-md/observability` | ESM | 否 | 否 | 观察编译与 Worker 事件、生成诊断报告 |
 | `reactive-md/pdf` | ESM | 否 | 是 | 将准备好的静态 HTML 渲染为 PDF 字节 |
 | `reactive-md/styles.css` | CSS | — | — | 文档、组件与主题样式 |
 | `reactive-md/styles/minimal.css` | CSS | — | — | 精简预设所需样式 |
@@ -396,6 +397,7 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 | 恢复要求 | `reactive-md-restore/v1` | 导出侧契约要求 |
 | 导出资源 | `reactive-md-export-assets/v1` | 资源清单 |
 | 构建清单 | `reactive-md-build/v1` | 独立构建产物 |
+| 诊断报告 | `reactive-md-diagnostic/v1` | 诊断报告的格式版本 |
 | 组件协议 | `reactive-md-component/v1`、`component-protocol-3` | 组件贡献 |
 | 主题协议 | `reactive-md-theme-1` | 文档主题 |
 | 编辑器包 | `0.2.1` | 编辑器发布，peer `reactive-md: ^0.9.2` |

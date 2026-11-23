@@ -2,7 +2,7 @@
 
 **中文** · [English](compiler-en.md)
 
-当前工作区新增两个单次编译入口。它们返回普通数据，宿主可自行创建运行时或选择呈现方式。这些改动尚未发布到 npm。
+ReactiveMD 提供最小和标准两个单次编译入口。它们返回普通数据，宿主可自行创建运行时或选择呈现方式。
 
 ```ts
 import { createCompiler } from 'reactive-md/compiler';

@@ -579,7 +579,7 @@ scheduler.schedule(source);
 
 ## Diagnostics
 
-The fields and stability levels of `Diagnostic` are described in the diagnostics contract in [Versions and compatibility](../compatibility/compatibility-en.md). Key points: `line`, `column` and `range` are for programmatic location; `code` can be used for coarse classification in the current version, but 0.x does not promise cross-version stability; `message` is display text and should not be parsed.
+The fields and stability levels of `Diagnostic` are described in the diagnostics contract in [Versions and compatibility](../compatibility/compatibility-en.md). Key points: `line`, `column` and `range` are for programmatic location; `code` supports coarse classification. Existing diagnostic codes keep their meaning within one 0.x minor series, and new codes may be added. Removal, renaming or a change of meaning requires a new minor version and migration notes. `message` is display text and should not be parsed.
 
 `onDiagnostics` receives compile diagnostics when the compilation result changes, and runtime diagnostics when control writes are rejected. Documents with compile errors do not activate interaction; runtime local errors replace only the corresponding content.
 

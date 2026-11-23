@@ -564,7 +564,7 @@ scheduler.schedule(source);
 
 ## 诊断
 
-`Diagnostic` 的字段与稳定级别见[版本与兼容性](../compatibility/compatibility-ch.md)中的诊断契约。要点：`line`、`column` 和 `range` 用于程序定位；`code` 可用于当前版本的粗分类，但 0.x 不承诺跨版本稳定；`message` 是默认英文显示文本，不要解析。渲染器和 CLI 可通过共享诊断目录显示中文，回调仍收到结构化字段。
+`Diagnostic` 的字段与稳定级别见[版本与兼容性](../compatibility/compatibility-ch.md)中的诊断契约。要点：`line`、`column` 和 `range` 用于程序定位；`code` 可用于粗分类，同一 0.x 次版本系列内，既有诊断码的含义保持稳定，可以新增码。删除、改名或改变含义时，在新次版本提供迁移说明；`message` 是默认英文显示文本，不要解析。渲染器和 CLI 可通过共享诊断目录显示中文，回调仍收到结构化字段。
 
 `onDiagnostics` 会在编译结果变化时收到编译诊断，也会收到控件写入被拒绝时的运行时诊断。编译错误文档不激活交互；运行时局部错误只替换对应内容。
 
