@@ -6,12 +6,12 @@ import type {
   LocalSourceTarget,
 } from '../render-types';
 import type { LocalComponentDefinition } from '../../../sdk/types';
-import { useLocalize, type Localize, type LocalLocale } from '../../../react/localization';
-import type { Diagnostic, LocalHtmlPolicy, LocalNode, LocalRuntime, LocalValue } from '../../types';
-import type { AuthorAction } from '../../runtime/author-script-protocol';
-import { parseAuthorDeclarations, serializeAuthorDeclarationFallbacks } from '../../css/author-css';
+import { useLocalize, type Localize, type LocalLocale } from '../../localization';
+import type { Diagnostic, LocalHtmlPolicy, LocalNode, LocalRuntime, LocalValue } from '../../../local/types';
+import type { AuthorAction } from '../../../local/runtime/author-script-protocol';
+import { parseAuthorDeclarations, serializeAuthorDeclarationFallbacks } from '../../../local/css/author-css';
 import type { LocalImageResolver, LocalUrlPolicy } from './LocalDocumentViewCore';
-import { createHeadingAnchors } from '../../parsing/heading-anchors';
+import { createHeadingAnchors } from '../../../local/parsing/heading-anchors';
 import {
   Component,
   createContext,
@@ -25,11 +25,11 @@ import {
 } from 'react';
 import type { LocalValidationState } from './validation-state';
 import type { DependencyLookup } from './view-revision';
-import type { LocalFootnoteIndex } from '../../parsing/footnotes';
+import type { LocalFootnoteIndex } from '../../../local/parsing/footnotes';
 import type { ComponentNetwork } from '../../../runtime-services/network';
-import type { LocalReactConfig, LocalReactRenderEnvironment } from '../../../react/sdk-core';
-import { splitHtmlDetailsChildren } from '../../html/html-details';
-import { PrintValue } from '../../../react/component-utils';
+import type { LocalReactConfig, LocalReactRenderEnvironment } from '../../sdk-core';
+import { splitHtmlDetailsChildren } from '../../../local/html/html-details';
+import { PrintValue } from '../../component-utils';
 
 export interface LocalViewContext extends LocalRenderContext {
   definitions: ReadonlyMap<string, LocalComponentDefinition>;

@@ -1,4 +1,4 @@
-import { MAX_LOCAL_DIAGNOSTIC_LENGTH } from './limits';
+import { MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../../contracts/limits';
 import type { Diagnostic, LocalDiagnosticParams } from '../types';
 import { localCodeUnitPrefix } from '../source/source-context';
 import { LOCAL_OBSERVABILITY_MESSAGES } from '../observability-messages';

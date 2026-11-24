@@ -1,8 +1,8 @@
-import type { Localize } from '../../../react/localization';
+import type { Localize } from '../../localization';
 import { useRef } from 'react';
-import type { Diagnostic, LocalDocument, LocalNode, LocalRuntime } from '../../types';
-import { LOCAL_VALIDATION_EXPRESSION_CODE, LOCAL_VALIDATION_FAILED_CODE } from '../../evaluation/validation';
-import { localCodeUnitPrefix } from '../../source/source-context';
+import type { Diagnostic, LocalDocument, LocalNode, LocalRuntime } from '../../../local/types';
+import { LOCAL_VALIDATION_EXPRESSION_CODE, LOCAL_VALIDATION_FAILED_CODE } from '../../../local/evaluation/validation';
+import { localCodeUnitPrefix } from '../../../local/source/source-context';
 
 export interface LocalValidationHint {
   /** Per-document-instance id, kept stable for every rule state. */

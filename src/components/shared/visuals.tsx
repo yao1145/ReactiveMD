@@ -16,6 +16,7 @@ import { DiagramInspector, useDiagramInspector } from '../diagram/diagram-inspec
 import { MafsPlotSurface, type PlotSurfaceSegment } from '../plot/mafs-visuals';
 import { useHydrated } from './use-hydrated';
 import { VisualFrame } from './visual-frame';
+import { TableSurface } from './table-surface';
 import { useAuthorComponentRoot } from '../../react/component-utils';
 import {
   MAX_LOCAL_PLOT_CURVES,
@@ -23,7 +24,6 @@ import {
   MAX_LOCAL_PLOT_STEPS,
   LatexError,
   LatexView,
-  TableSurface,
   compileLatex,
   compilePlotFormula,
   createDiagramLayoutFallback,

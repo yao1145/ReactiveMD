@@ -2,9 +2,9 @@ import { insertTemplate } from './editor-commands';
 import type { EditorEdit, EditorLocale, EditorSelection } from './command-types';
 import { RESERVED_NAMES } from '../local/evaluation/expression/compile';
 import { analyzeLocalSource, renameLocalBinding } from '../local/source/authoring';
-import { readLocalCompileOptions } from '../local/configuration/options';
+import { readLocalCompileOptions } from '../assemblies/default-options';
 import type { LocalCompileOptions } from '../local/types';
-import { readLocalConfig } from '../sdk/config';
+import { readLocalConfig } from '../assemblies/default-config';
 import type { LocalConfig } from '../sdk/types';
 import {
   createLocalComponentCatalogForOptions,

@@ -1,9 +1,10 @@
-import type { LocalConfig, LocalExtensionRequirements } from '../sdk/types';
+import type { LocalConfig, LocalExtensionRequirements, LocalComponentDefinition } from '../sdk/types';
+import type { LocalValue, LocalValueKind, SourceRange, LocalHostBindingSchema } from '../contracts/runtime-types';
+export type { LocalLocale, LocalValue, LocalValueKind, SourceRange, LocalHostBindingSchema } from '../contracts/runtime-types';
 import type { LocalRuntimeServices } from '../runtime-services/runtime';
 import type { LocalComponentStateStorage } from '../runtime-services/component-state';
 import type { ComponentNetwork, JsonPayload, NetworkConfig } from '../runtime-services/network';
 
-export interface SourceRange { start: number; end: number }
 /** A source-level syntax declaration; offsets use original UTF-16 units. */
 export interface LocalVersionDeclaration { version: string; range: SourceRange }
 /** A scalar, JSON/structured-clone-safe diagnostic template parameter. */
@@ -40,9 +41,6 @@ export interface Diagnostic {
   /** Bounded, structured values safe to expose to host observers. */
   details?: Readonly<Record<string, string | number | boolean>>;
 }
-export type LocalValue = string | number | boolean | null | string[] | number[];
-/** `array` retains its existing meaning: a homogeneous string array. */
-export type LocalValueKind = 'string' | 'number' | 'boolean' | 'null' | 'array' | 'number-array';
 /** Markdown nodes retain their original source ranges; component attributes remain raw decoded strings. */
 export interface LocalNode {
   type: string;
@@ -299,7 +297,7 @@ export interface LocalDocument {
    * preset manifests. Plain, serializable data; runtime semantics resolve from
    * it with default-preset fallback for older hand-built documents.
    */
-  componentDefinitions?: readonly import('../sdk/types').LocalComponentDefinition[];
+  componentDefinitions?: readonly LocalComponentDefinition[];
   /**
    * Serializable component-semantics metadata lowered at compile time. Present
    * only when at least one component contributes a runtime rule, slot relation
@@ -372,21 +370,6 @@ export type LocalHostComponentForm = 'leaf' | 'inline' | 'container';
  * `initial` and `disabled` attributes implicitly and shares the built-in
  * binding families, so it can pair with `number`, `input` and `toggle`.
  */
-export interface LocalHostBindingSchema {
-  readonly kind: 'string' | 'number' | 'boolean';
-  /** Default value rule when `initial` is omitted. */
-  readonly initialRule?: 'empty' | 'false' | 'nearest-zero' | 'min' | 'first-option';
-  /** `number` only: static lower bound. */
-  readonly min?: number;
-  /** `number` only: static upper bound. */
-  readonly max?: number;
-  /** `number` only: static step; defaults to 1. */
-  readonly step?: number;
-  /** `string` only: when present, the binding family is `choice`. */
-  readonly options?: readonly string[];
-  /** Only one component may own this binding. */
-  readonly exclusive?: boolean;
-}
 export interface LocalHostComponentSchema {
   readonly name: string;
   readonly form: LocalHostComponentForm;
@@ -556,7 +539,6 @@ export type LocalSubmissionFieldsResult =
 
 export const localKey = (node: LocalNode): string => node.attrs?.bind ?? `@${node.id}`;
 
-export type LocalLocale = 'en' | 'zh';
 
 /** The local syntax revision accepted and rendered by this build. */
 export const LOCAL_SYNTAX_VERSION = 'local-draft-3' as const;

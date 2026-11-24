@@ -9,10 +9,10 @@ import {shareCompiledData,countSharedNodes} from '../../transport/shared-data';
 import {reuseFlatRows} from './row-reuse';
 import type {InlinePlan,InlinePlanLookup} from '../../parsing/fast-markdown';
 import { plainCompiledData } from '../../transport/compiled-data';
-import { localCompileOptionsKey, readLocalCompileOptions } from '../../configuration/options';
-import { readLocalConfig } from '../../../sdk/config';
-import { getLocalComponent } from '../../configuration/schema';
-import { MAX_LOCAL_DOCUMENT_LENGTH } from '../../configuration/limits';
+import { localCompileOptionsKey, readLocalCompileOptions } from '../../../assemblies/default-options';
+import { readLocalConfig } from '../../../assemblies/default-config';
+import { getLocalComponent } from '../../../assemblies/default-schema';
+import { MAX_LOCAL_DOCUMENT_LENGTH } from '../../../contracts/limits';
 import type { LocalCompileOptions, LocalCompileResult, LocalDocument, LocalNode, LocalSourcePhase, SourceRange } from '../../types';
 
 /**

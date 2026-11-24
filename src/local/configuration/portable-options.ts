@@ -1,6 +1,6 @@
-import { readLocalCompileOptions } from './options';
+import { readLocalCompileOptions } from '../../assemblies/default-options';
 import type { LocalCompileOptions } from '../types';
-import { readLocalConfig } from '../../sdk/config';
+import { readLocalConfig } from '../../assemblies/default-config';
 
 /** Copy only validated, serializable compile semantics into a portable payload. */
 export function portableCompileOptions(input?: LocalCompileOptions): LocalCompileOptions | undefined {

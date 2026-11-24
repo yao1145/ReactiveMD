@@ -1,9 +1,9 @@
 import { createShareableHtml, resolveLocalStateBaseline, type ShareableHtmlOptions } from '../shareable';
 import { parseLocalState } from '../local/runtime/state';
-import { readLocalConfig, validateLocalDocumentConfig } from '../sdk/config';
+import { readLocalConfig, validateLocalDocumentConfig } from '../assemblies/default-config';
 import { localAssemblyIdentity, localAssemblySeal, localConfigKeyMatches } from '../sdk/assembly';
 import { localComponentDigest } from '../sdk/manifest';
-import { getLocalComponentRegistry } from '../sdk/registry';
+import { getLocalComponentRegistry } from '../assemblies/default-registry';
 import { LOCAL_SDK_VERSION } from '../sdk/version';
 import type { LocalStyleResource } from '../sdk/theme';
 import type { LocalConfig, LocalExtensionRequirements } from '../sdk/types';

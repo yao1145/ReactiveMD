@@ -9,7 +9,7 @@ import {
   type LocalValue,
   type SourceRange,
 } from '../types';
-import type { NormalizedComponent } from '../configuration/component-kernel';
+import type { NormalizedComponent } from '../../contracts/component-kernel';
 import type { LocalComponentDefinition } from '../../sdk/types';
 import { compilerComponentConfigKey, type LocalOptionCheck } from '../configuration/options-core';
 import {
@@ -22,7 +22,7 @@ import {
   MAX_LOCAL_DIAGNOSTIC_LENGTH,
   MAX_LOCAL_DIAGNOSTICS,
   MAX_LOCAL_DOCUMENT_LENGTH,
-} from '../configuration/limits';
+} from '../../contracts/limits';
 import {
   diagnosticEnglish,
   localDiagnosticDetails,

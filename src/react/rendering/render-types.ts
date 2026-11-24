@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Diagnostic, LocalNode, LocalRuntime, LocalValue, SourceRange } from '../types';
+import type { Diagnostic, LocalNode, LocalRuntime, LocalValue, SourceRange } from '../../local/types';
 
 /** Rendering contract shared by the React views. Kept out of types.ts so the
  * core compiler and runtime types never depend on React. */

@@ -1,14 +1,14 @@
 import { useCallback, useLayoutEffect, useRef } from 'react';
-import { SourceContext } from '../../source/source-context';
-import type { Diagnostic, LocalDocument, LocalRuntime } from '../../types';
+import { SourceContext } from '../../../local/source/source-context';
+import type { Diagnostic, LocalDocument, LocalRuntime } from '../../../local/types';
 import type {
   AuthorAction,
   AuthorBindingReply,
   AuthorBindingRequest,
   AuthorWorkerInput,
   AuthorWorkerOutput,
-} from '../../runtime/author-script-protocol';
-import AuthorScriptWorker from '../../runtime/author-script.worker?worker&inline';
+} from '../../../local/runtime/author-script-protocol';
+import AuthorScriptWorker from '../../../local/runtime/author-script.worker?worker&inline';
 
 function applyRequest(runtime: LocalRuntime, request: AuthorBindingRequest): AuthorBindingReply {
   if (request.operation === 'get') {

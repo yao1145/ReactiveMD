@@ -3,7 +3,7 @@ import { parseLocalState, type LocalStateFile } from '../local/runtime/state';
 import type { Diagnostic, LocalCompileOptions, LocalDocument } from '../local/types';
 import { resolveLocalStateBaseline } from '../shareable';
 import { ReactiveMDMountError, standaloneDiagnostic } from './diagnostics';
-import { readLocalCompileOptions } from '../local/configuration/options';
+import { readLocalCompileOptions } from '../assemblies/default-options';
 import { LOCAL_SYNTAX_VERSION } from '../local/types';
 import { compileLegacyHtmlLocal } from '../local/compilation/compiler-core';
 import { sanitizeLocalHtmlDocument } from '../local/html/html';

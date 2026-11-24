@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { compileLocal } from '../src/local/compilation/compiler';
-import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView } from '../src/react/rendering/document/LocalDocumentView';
 import { createLocalRuntime, updateLocalRuntime } from '../src/local/runtime/runtime';
 import { collectNodeDependencies } from '../src/local/compilation/dependencies';
 import {
@@ -12,7 +12,7 @@ import {
   sameAnchorProjection,
   sameFootnoteProjection,
   validationProjectionKey,
-} from '../src/local/rendering/document/view-revision';
+} from '../src/react/rendering/document/view-revision';
 import type { LocalDocument, LocalNode } from '../src/local/types';
 
 function compile(source: string): LocalDocument {

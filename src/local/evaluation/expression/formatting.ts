@@ -1,4 +1,4 @@
-import { MAX_LOCAL_STRING_LENGTH } from '../../configuration/limits';
+import { MAX_LOCAL_STRING_LENGTH } from '../../../contracts/limits';
 
 /**
  * Deterministic number formatting for the local expression language.

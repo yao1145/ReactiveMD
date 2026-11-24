@@ -4,7 +4,7 @@ import type { LocalNode, LocalRecovery, SourceRange } from '../types';
 import {
   LOCAL_HTML_ALIGN_ELEMENTS,
   LOCAL_HTML_NAMES,
-} from './html-names';
+} from '../../contracts/html-names';
 import { HTML_TABLE_NAMES } from './html-table-names';
 import { decodeLocalHtmlEntities } from './html-entities';
 import {

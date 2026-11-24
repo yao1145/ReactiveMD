@@ -1,11 +1,11 @@
-import { DataTableView } from '../src/local/rendering/legacy-component-adapter';
+import { DataTableView } from '../src/react/rendering/legacy-component-adapter';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import {
   buildDataTableModel,
   encodeDataTableKey,
   evaluateDataTableRows,
-} from '../src/local/rendering/table/data-table';
+} from '../src/react/rendering/table/data-table';
 import { defaultLocalize } from '../src/react/localization';
 import type { LocalNode, LocalRuntime, LocalValue } from '../src/local/types';
 

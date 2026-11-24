@@ -8,7 +8,7 @@ import {
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocalize } from '../../../react/localization';
+import { useLocalize } from '../../localization';
 
 /**
  * A Markdown image that opens its original source in a native modal dialog.

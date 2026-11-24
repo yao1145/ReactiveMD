@@ -56,8 +56,9 @@
     "build:standalone": "vite build --config vite.standalone.config.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts --maxWorkers=4",
-    "check": "npm run check:styles && npm run build && npm test && npm run test:boundary && npm run test:compiler-entry && npm run check:versions",
+    "check": "npm run check:styles && npm run check:boundaries && npm run build && npm test && npm run test:boundary && npm run test:compiler-entry && npm run check:versions",
     "check:styles": "node scripts/verify-style-boundaries.mjs",
+    "check:boundaries": "node scripts/verify-architecture-boundaries.mjs",
     "test:theme:browser": "node scripts/verify-shared-theme-browser.mjs",
     "test:capabilities:browser": "node scripts/verify-document-capabilities.mjs",
     "test:streaming:browser": "node scripts/verify-streaming-browser.mjs",
@@ -113,6 +114,10 @@
     "./sdk": {
       "types": "./dist-library/types/sdk/index.d.ts",
       "import": "./dist-library/reactive-md-sdk.js"
+    },
+    "./contracts": {
+      "types": "./dist-library/types/contracts/index.d.ts",
+      "import": "./dist-library/reactive-md-contracts.js"
     },
     "./presets/default": {
       "types": "./dist-library/types/presets/default.d.ts",

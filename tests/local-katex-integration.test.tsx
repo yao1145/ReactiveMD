@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
-import { LocalReactiveDocument } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalReactiveDocument } from '../src/react/rendering/document/LocalDocumentView';
 import { compileLatex } from '../src/local/evaluation/math/latex';
 
 describe('KaTeX document integration', () => {

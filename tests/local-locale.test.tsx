@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView, LocalReactiveDocument, textProblem } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView, LocalReactiveDocument, textProblem } from '../src/react/rendering/document/LocalDocumentView';
 import { countLocalCodePoints, formatLocalDiagnostic } from '../src/local';
 import type { LocalLocale } from '../src/react/localization';
 

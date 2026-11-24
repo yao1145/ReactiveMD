@@ -1,10 +1,10 @@
-export { LocalDocumentView, LocalReactiveDocument } from '../local/rendering/document/LocalDocumentView';
+export { LocalDocumentView, LocalReactiveDocument } from './rendering/document/LocalDocumentView';
 export type {
   LocalDocumentViewProps,
   LocalReactiveDocumentProps,
   LocalUrlPolicy,
   LocalImageResolver,
-} from '../local/rendering/document/LocalDocumentView';
+} from './rendering/document/LocalDocumentView';
 export type {
   LocalRenderMode,
   LocalRenderContext,
@@ -13,7 +13,7 @@ export type {
   LocalHostComponentContext,
   LocalHostPropValue,
   LocalSourceTarget,
-} from '../local/rendering/render-types';
+} from './rendering/render-types';
 export type { LocalLocale } from '../local/types';
 export type { LocalColorScheme, LocalThemeDefinition } from '../themes/document-theme';
 export { LOCAL_STYLE_CONTRACT, LOCAL_STYLE_LAYERS, LOCAL_THEME_STYLE_LAYER, LOCAL_STYLE_LAYER_ORDER } from '../themes/contract';

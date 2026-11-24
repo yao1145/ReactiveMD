@@ -18,6 +18,7 @@
     "src/react/server.tsx",
     "src/authoring/index.ts",
     "src/sdk/index.ts",
+    "src/contracts/index.ts",
     "src/presets/default.ts",
     "src/presets/packs.ts",
     "src/presets/minimal.ts",

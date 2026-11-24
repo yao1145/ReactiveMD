@@ -1,6 +1,6 @@
-import { readLocalConfig } from '../sdk/config';
+import { readLocalConfig } from '../assemblies/default-config';
 import { localComponentDigest } from '../sdk/manifest';
-import { getLocalComponentRegistry } from '../sdk/registry';
+import { getLocalComponentRegistry } from '../assemblies/default-registry';
 import type { LocalComponentDefinition } from '../sdk/types';
 import { failed, localCase } from './cases';
 import {

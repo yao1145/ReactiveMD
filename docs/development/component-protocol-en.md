@@ -39,7 +39,7 @@ When this protocol restates existing behavior, the following files are authorita
 - Versions, diagnostics contract and platform scope: [Versions and compatibility](../compatibility/compatibility-en.md).
 - Implementation code: the parser, declaration table, compiler, runtime and renderer under `src/local/`.
 
-This protocol does not copy the full attribute tables. Attribute defaults, allowed values and static/dynamic markers follow `src/local/configuration/schema.ts` and the syntax specification.
+This protocol does not copy the full attribute tables. Default manifests in `src/presets/default-semantics.ts` define the component data, while `src/assemblies/default-schema.ts` builds the compatibility schema used by local parsing and authoring.
 
 ### CP-SCOPE-03 Normative terms (required)
 
@@ -114,7 +114,7 @@ A component proposal declaration contains at least the following information; it
 | Compatibility classification | Capability addition, breaking change or implementation/editorial change |
 | Acceptance evidence | Automated tests, machine conformance data and manual browser checks |
 
-The current declaration table is `src/local/configuration/schema.ts`; the tag lexical sets are in `src/local/parsing/parser.ts`, semantic validation in `src/local/compilation/compiler.ts`, write constraints in `src/local/runtime/runtime.ts`, and rendering in `src/local/rendering/document/LocalDocumentView.tsx` and `src/local/rendering/visuals.tsx`. Changing only the declaration table does not automatically provide parsing, validation or rendering.
+Default component data lives in `src/presets/default-semantics.ts`, with its local schema projection in `src/assemblies/default-schema.ts`. Kernel declarations and normalization live in `src/contracts/component-kernel.ts`. Tag lexical sets are in `src/local/parsing/parser.ts`, semantic validation in `src/local/compilation/compiler.ts`, write constraints in `src/local/runtime/runtime.ts`, and React rendering in `src/react/rendering/document/LocalDocumentView.tsx` and `src/react/rendering/visuals.tsx`.
 
 ### CP-MODEL-04 Name set (existing)
 
@@ -486,11 +486,11 @@ SSR HTML, class names and DOM structure in machine acceptance are evidence for t
 New components must check the following integration points and change the corresponding implementation according to their behavior; when reusing existing generic validation, explain it in the proposal:
 
 1. The public manifest's `form`; the parser reads shapes from instance configuration.
-2. Component definitions and registration. Default manifests live in `src/presets/default-components.ts`; `src/local/configuration/schema.ts` provides a compatibility projection.
+2. Component definitions and registration. Default manifests live in `src/presets/default-semantics.ts`; `src/assemblies/default-schema.ts` provides the local compatibility projection.
 3. Manifest props, structures, bindings, initial values and rules, executed by the shared compiler.
 4. Generic kernel write constraints when existing public rules cannot express a new value or state.
 5. Implementations registered through the public React SDK. Default views live in `src/components/`.
-6. Budgets in `src/local/configuration/limits.ts` (if new computation or collections are introduced).
+6. Budgets in `src/contracts/limits.ts` (if new computation or collections are introduced).
 7. Styles, tests, examples, syntax documentation, integration documentation and conformance data.
 
 Components that reuse public rules need a definition, implementation and registration. New kernel primitives also require a public contract and acceptance cases.
@@ -623,13 +623,13 @@ Only SHOULD clauses can be exempted; exemptions must record the rationale, alter
 | Contract surface | Main location | Notes |
 | --- | --- | --- |
 | Tag lexing and shapes | `src/local/parsing/parser.ts` | `VOID`, `PAIRED`, `INLINE`, unknown-tag fallback, footnote shielding |
-| Component declarations | `src/local/configuration/schema.ts` | Names, shapes, child rules, attributes, bindings, initial-value rules |
+| Component declarations | `src/presets/default-semantics.ts`, `src/assemblies/default-schema.ts` | Default manifests and their local compatibility projection |
 | Compile validation | `src/local/compilation/compiler.ts` | Structure, attributes, initial values, shared constraints, expressions, table and plot budgets |
 | Runtime | `src/local/runtime/runtime.ts` | `get`, `set`, `evaluate`, `text`, `reset`, `resetToken`, `dispose` |
-| React reference adapter | `src/local/rendering/document/LocalDocumentView.tsx` | Document container, controls, layout, accessible names, reset and lifecycle |
-| Visualization adapter | `src/local/rendering/visuals.tsx`, `src/local/evaluation/math/latex.ts`, `src/local/rendering/math-view.tsx` | Tables, charts, plots, timelines, diagrams and math rendering |
-| Styles | `src/styles/index.css`, `src/themes/default/`, component CSS under `src/components/`, `src/local/rendering/document/local.css` | Public entry, complete defaults and component styles |
-| Budgets | `src/local/configuration/limits.ts` | Shared resource limits |
+| React reference adapter | `src/react/rendering/document/LocalDocumentView.tsx` | Document container, controls, layout, accessible names, reset and lifecycle |
+| Visualization adapter | `src/react/rendering/visuals.tsx`, `src/local/evaluation/math/latex.ts`, `src/react/rendering/math-view.tsx` | Tables, charts, plots, timelines, diagrams and math rendering |
+| Styles | `src/styles/index.css`, `src/themes/default/`, component CSS under `src/components/`, `src/react/rendering/document/local.css` | Public entry, complete defaults and component styles |
+| Budgets | `src/contracts/limits.ts` | Shared resource limits |
 | Versions | `src/local/types.ts`, `package.json` | Syntax revision and package version |
 | Acceptance | `tests/`, `examples/conformance/` | Language tests and machine conformance data |
 | Documentation | `docs/`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md` | Syntax, integration, compatibility, security and contribution rules |

@@ -4,7 +4,7 @@ import {
   LOCAL_COMPONENTS,
   LOCAL_COMPONENT_NAMES,
   localComponentNames,
-} from '../src/local/configuration/schema';
+} from '../src/assemblies/default-schema';
 import { DEFAULT_COMPONENT_VIEWS } from '../src/components/default-preset';
 import type { LocalNode } from '../src/local/types';
 import { DEFAULT_COMPONENT_DEFINITIONS } from '../src/presets/default-components';

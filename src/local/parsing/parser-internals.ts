@@ -1,4 +1,4 @@
-import { LOCAL_HTML_NAMES } from '../html/html-names';
+import { LOCAL_HTML_NAMES } from '../../contracts/html-names';
 import type { LocalNode } from '../types';
 import type { LocalDiagnosticDetails } from '../configuration/diagnostics';
 import type { FastMarkdownContext } from './fast-markdown';

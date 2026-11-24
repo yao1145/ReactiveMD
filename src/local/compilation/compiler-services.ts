@@ -22,7 +22,7 @@ import {
   localDiagnosticDetails,
   type LocalDiagnosticDetails,
 } from '../configuration/diagnostics';
-import { MAX_LOCAL_DIAGNOSTIC_LENGTH, MAX_LOCAL_DIAGNOSTICS } from '../configuration/limits';
+import { MAX_LOCAL_DIAGNOSTIC_LENGTH, MAX_LOCAL_DIAGNOSTICS } from '../../contracts/limits';
 
 /** Parser entry used by tracked compiles; the session owns the cache. */
 export interface LocalCompilerParserService {

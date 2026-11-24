@@ -1,5 +1,5 @@
-import { createReactHost } from '../../../react/package';
-import type { LocalReactConfig } from '../../../react/sdk-core';
+import { createReactHost } from '../../package';
+import type { LocalReactConfig } from '../../sdk-core';
 import {
   LocalDocumentViewCore,
   type LocalDocumentViewProps,

@@ -14,7 +14,7 @@
 
 ### 当前耦合与迁移顺序
 
-1. 编译器以 `htmlActive` 把整篇源码交给 HTML 净化器，生成单个 `htmlDocument` 节点和空绑定。渲染器按 `document.html` 选择整页 iframe，编译失败分支也受它控制。先切断分流，保留当时的三项默认值，验证显式打开任一项仍能编译并操作绑定。 [编译入口](../../src/local/compilation/compiler-core.ts) · [文档视图](../../src/local/rendering/document/LocalDocumentViewCore.tsx) · [源文档视图](../../src/local/rendering/document/LocalReactiveDocumentCore.tsx) · [旧契约测试](../../tests/html-mode-contract.test.tsx)
+1. 编译器以 `htmlActive` 把整篇源码交给 HTML 净化器，生成单个 `htmlDocument` 节点和空绑定。渲染器按 `document.html` 选择整页 iframe，编译失败分支也受它控制。先切断分流，保留当时的三项默认值，验证显式打开任一项仍能编译并操作绑定。 [编译入口](../../src/local/compilation/compiler-core.ts) · [文档视图](../../src/react/rendering/document/LocalDocumentViewCore.tsx) · [源文档视图](../../src/react/rendering/document/LocalReactiveDocumentCore.tsx) · [旧契约测试](../../tests/html-mode-contract.test.tsx)
 2. 同一阶段移除其他 `htmlActive` 消费端的语言分流。组件目录持续可用，补全、格式化和重命名继续识别 RMD。增量编译由实际节点与元数据的更新能力决定。静态、交互和 standalone 使用统一的编译结果及 RMD 状态。 [组件目录](../../src/authoring/catalog.ts) · [源码工具](../../src/local/source/authoring.ts) · [增量编译](../../src/local/compilation/session/incremental.ts) · [导出](../../src/shareable.ts) · [standalone 准备](../../src/standalone/prepare.ts)
 3. 接入三项能力并验证新旧数据路径。引擎与 Demo 在集成候选中切换 CSS 缺省值，同时保留显式 `false`。重新执行八组合、默认值和关停回归，再包装最终候选。 [选项归一化](../../src/local/configuration/options-core.ts) · [可移植选项](../../src/local/configuration/portable-options.ts)
 
@@ -71,7 +71,7 @@
 - CSS 负责人先跑通滑块的 SSR、hydration 和交互样式切换。用原生 CSS 声明语义检查自定义属性、带优先级的属性和重复声明。交互更新可通过 CSSOM 保留优先级，SSR 必须产生等价的行内声明。开启后关闭时清除作者声明并恢复控件本身的样式，检查实例沿用原绑定与焦点。
 - 接口稳定后扩展至内置可见组件。可选组件和宿主组件通过同一根接点加入，缺少可见根接点时在源码属性处提示。评审分别检查首批组件的可见根、只读节点和扩展组件的兼容路径。
 
-[组件渲染契约](../../src/react/component-api.tsx) · [节点渲染](../../src/local/rendering/document/render-nodes.tsx) · [数字滑块](../../src/components/controls/numeric-sliders.tsx)
+[组件渲染契约](../../src/react/component-api.tsx) · [节点渲染](../../src/react/rendering/document/render-nodes.tsx) · [数字滑块](../../src/components/controls/numeric-sliders.tsx)
 
 ## JavaScript
 
@@ -122,7 +122,7 @@ await rmd.handleAction("people-counter", "increment", async () => {
 - 计数器沿用现有可用性、只读和禁用判断，在原始事件入口集中派发。在派发瞬间有有效接管者时，当前动作只调用该处理器一次。其他动作及其他实例按原 RMD 实现。接管处理器报错时记录诊断，当前动作结束。后续派发依据届时的注册状态。观察事件采用独立的通知通道，返回值和异常都不参与动作选择。
 - 编辑导致实例删除、动作契约变化或 ID 重复时，撤销相应登记。连续事件保持每次触发与处理器一一对应，按派发顺序处理同一实例的事件。首个接管验收用两个计数器、多个动作、观察回调和会话撤销，校验单次执行及绑定更新。
 
-[计数器视图](../../src/components/controls/controls.tsx) · [视图上下文](../../src/local/rendering/document/view-render-context.tsx)
+[计数器视图](../../src/components/controls/controls.tsx) · [视图上下文](../../src/react/rendering/document/view-render-context.tsx)
 
 ## Extended HTML
 

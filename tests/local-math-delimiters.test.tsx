@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { parseLocal } from '../src/local/parsing/parser';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView } from '../src/react/rendering/document/LocalDocumentView';
 import type { LocalNode } from '../src/local/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] => nodes.flatMap(n => [n, ...flatten(n.children ?? [])]);

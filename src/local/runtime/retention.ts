@@ -1,6 +1,6 @@
 import {walkLocalNodes} from '../source/source-context';
 import { kernelDocumentMetadata } from '../configuration/kernel-value-rules';
-import { getLocalComponentDefinition } from '../../sdk/registry';
+import { getLocalComponentDefinition } from '../../assemblies/default-registry';
 import type {
   Diagnostic,
   LocalBinding,

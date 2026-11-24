@@ -6,7 +6,7 @@ import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
-} from '../src/local/configuration/limits';
+} from '../src/contracts/limits';
 import type { LocalDocument, LocalNode } from '../src/local/types';
 
 function compile(source: string): LocalDocument {

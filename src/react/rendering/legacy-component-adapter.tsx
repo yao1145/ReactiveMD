@@ -1,15 +1,15 @@
 import { createElement, type ReactNode } from 'react';
-import type { Diagnostic, LocalNode, LocalRuntime, LocalValue } from '../types';
+import type { Diagnostic, LocalNode, LocalRuntime, LocalValue } from '../../local/types';
 import type { LocalRenderMode } from './render-types';
-import type { LocalLocale, Localize } from '../../react/localization';
-import { localize } from '../../react/localization';
-import { getLocalComponentDefinition } from '../../sdk/registry';
+import type { LocalLocale, Localize } from '../localization';
+import { localize } from '../localization';
+import { getLocalComponentDefinition } from '../../assemblies/default-registry';
 import {
   createLocalComponentContext,
   type LocalComponentAdapterEnvironment,
   type LocalComponentContext,
   type LocalReactComponent,
-} from '../../react/component-api';
+} from '../component-api';
 import { defaultReactPreset } from '../../components/default-preset';
 
 /**

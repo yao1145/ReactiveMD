@@ -12,7 +12,7 @@ import {
   MATH_DISPLAY_DIAGNOSTIC_CODE,
   MATH_DISPLAY_MESSAGE_KEYS,
 } from '../src/local/evaluation/math/display';
-import { LatexView } from '../src/local/rendering/math-view';
+import { LatexView } from '../src/react/rendering/math-view';
 import {
   isLocalDiagnosticCode,
   localDiagnosticTemplate,

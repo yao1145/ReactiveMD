@@ -1,5 +1,5 @@
-import { readLocalConfig } from '../sdk/config';
-import { getLocalComponentRegistry } from '../sdk/registry';
+import { readLocalConfig } from '../assemblies/default-config';
+import { getLocalComponentRegistry } from '../assemblies/default-registry';
 import type { LocalConfig } from '../sdk/types';
 import { failed, passed, skipped } from './cases';
 import {

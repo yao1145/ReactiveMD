@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { parseFragment } from 'parse5';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView, type LocalUrlPolicy } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView, type LocalUrlPolicy } from '../src/react/rendering/document/LocalDocumentView';
 
 const elements = (node: any, tag: string): any[] => [
   ...(node.tagName === tag ? [node] : []), ...(node.childNodes ?? []).flatMap((child: any) => elements(child, tag)),

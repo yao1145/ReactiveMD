@@ -1,4 +1,4 @@
-import type { Diagnostic, LocalDocument, LocalNode, LocalRuntime, LocalValue } from '../../types';
+import type { Diagnostic, LocalDocument, LocalNode, LocalRuntime, LocalValue } from '../../../local/types';
 import type { LocalThemeDefinition } from '../../../themes/document-theme';
 import { useRef } from 'react';
 import type { LocalComponentDefinition } from '../../../sdk/types';
@@ -7,9 +7,9 @@ import {
   EMPTY_DEPENDENCY_INDEX,
   type DependencyIndex,
   type NodeDependencies,
-} from '../../compilation/dependencies';
-import {walkLocalNodes} from '../../source/source-context';
-import { anchorRuleAttributes } from '../../parsing/heading-anchors';
+} from '../../../local/compilation/dependencies';
+import {walkLocalNodes} from '../../../local/source/source-context';
+import { anchorRuleAttributes } from '../../../local/parsing/heading-anchors';
 
 /**
  * Projections and memoization used to keep a rendered document's memo boundaries stable

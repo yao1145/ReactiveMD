@@ -1,9 +1,9 @@
 import { defaultTreeAdapter, parse, parseFragment, serializeOuter } from 'parse5';
 import type { DefaultTreeAdapterTypes } from 'parse5';
 import { localDiagnosticDetails } from '../configuration/diagnostics';
-import { MAX_LOCAL_DIAGNOSTICS } from '../configuration/limits';
+import { MAX_LOCAL_DIAGNOSTICS } from '../../contracts/limits';
 import type { Diagnostic, LocalHtmlPolicy } from '../types';
-import { LOCAL_HTML_ALIGN_ELEMENTS, LOCAL_HTML_ANCHOR_ATTRIBUTES, localHtmlAlign, localHtmlLinkRel } from './html-names';
+import { LOCAL_HTML_ALIGN_ELEMENTS, LOCAL_HTML_ANCHOR_ATTRIBUTES, localHtmlAlign, localHtmlLinkRel } from '../../contracts/html-names';
 import { HTML_TABLE_NAMES, HTML_TABLE_ATTRIBUTES, validHtmlTableValue } from './html-table';
 
 type PElement = DefaultTreeAdapterTypes.Element;

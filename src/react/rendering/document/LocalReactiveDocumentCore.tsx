@@ -12,12 +12,12 @@ import type {
   LocalSnapshot,
   LocalSourcePhase,
   LocalValue,
-} from '../../types';
+} from '../../../local/types';
 import { assertExtensionProps } from './view-render-context';
-import { readLocalConfig } from '../../../sdk/config';
-import { localCompileOptionsKey, localRuntimeOptionsKey, readLocalCompileOptions } from '../../configuration/options';
+import { readLocalConfig } from '../../../assemblies/default-config';
+import { localCompileOptionsKey, localRuntimeOptionsKey, readLocalCompileOptions } from '../../../assemblies/default-options';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { createLocalRuntime, notifyLocalRuntime, updateLocalRuntime } from '../../runtime/runtime';
+import { createLocalRuntime, notifyLocalRuntime, updateLocalRuntime } from '../../../local/runtime/runtime';
 import {
   cloneParameterValues,
   composeDiagnostics,
@@ -25,10 +25,10 @@ import {
   parameterRecordsEqual,
   themesSignature,
 } from './view-revision';
-import { createLocalCompileSession, type LocalCompileSession } from '../../compilation/session/incremental';
+import { createLocalCompileSession, type LocalCompileSession } from '../../../local/compilation/session/incremental';
 import { resolveLocalTheme } from '../../../themes/document-theme';
-import { localize } from '../../../react/localization';
-import { formatLocalDiagnostic } from '../../configuration/diagnostics';
+import { localize } from '../../localization';
+import { formatLocalDiagnostic } from '../../../local/configuration/diagnostics';
 
 const DEFAULT_NETWORK_SCOPE = Symbol('implicit document identity');
 

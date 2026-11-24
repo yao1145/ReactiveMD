@@ -1,10 +1,10 @@
-import { kernelRules, type KernelComponentSchema, type KernelDiagnosticIssue } from './component-kernel';
+import { kernelRules, type KernelComponentSchema, type KernelDiagnosticIssue } from '../../contracts/component-kernel';
 import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_DATA_TABLE_COLUMNS,
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
-} from './limits';
+} from '../../contracts/limits';
 import type { LocalNode } from '../types';
 
 export type KernelValueRule =

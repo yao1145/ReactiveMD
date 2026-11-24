@@ -1,17 +1,17 @@
 import type { CompileState } from './compiler-services';
 import type { LocalNode } from '../types';
 import type { AttrMap, AttrState, Entry } from './compiler-structure';
-import { MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_STRING_LENGTH } from '../configuration/limits';
-import { closestName } from '../configuration/schema-core';
+import { MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_STRING_LENGTH } from '../../contracts/limits';
+import { closestName } from '../../contracts/schema-core';
 import { cloneValue, fullInterpolation, MAX_LOCAL_NAME_LENGTH, scanInterpolations, singleFullInterpolation } from './compiler-values';
-import { isLocalColor } from '../configuration/color-values';
+import { isLocalColor } from '../../contracts/color-values';
 import {
   kernelAttributeIssues,
   kernelSlotBindings,
   kernelStructure,
   kernelValueBinding,
   type KernelPropSchema,
-} from '../configuration/component-kernel';
+} from '../../contracts/component-kernel';
 import { parseNumberText } from './compiler-values';
 
 /** Slice only the opening tag so attribute lookup never rescans component content. */

@@ -1,6 +1,6 @@
 import { compileLocal } from '../compilation/compiler';
 import { diagnosticEnglish, localDiagnosticDetails } from '../configuration/diagnostics';
-import { MAX_LOCAL_DIAGNOSTICS } from '../configuration/limits';
+import { MAX_LOCAL_DIAGNOSTICS } from '../../contracts/limits';
 import { parseLocal, type ParsedLocal } from '../parsing/parser';
 import { LOCAL_SYNTAX_VERSION } from '../types';
 import type { Diagnostic, LocalNode, SourceRange } from '../types';

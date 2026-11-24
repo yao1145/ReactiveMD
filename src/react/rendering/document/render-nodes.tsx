@@ -11,22 +11,22 @@ import {
   sourceProps,
   type RenderEnv,
 } from './view-render-context';
-import type { LocalNode, LocalRuntime, LocalValue } from '../../types';
-import { localHtmlAlign, localHtmlLinkRel } from '../../html/html-names';
+import type { LocalNode, LocalRuntime, LocalValue } from '../../../local/types';
+import { localHtmlAlign, localHtmlLinkRel } from '../../../contracts/html-names';
 import { createElement, Fragment, memo, type ReactNode } from 'react';
 import { tableNumericColumns } from '../table/table-numeric-columns';
-import { HTML_TABLE_NAMES } from '../../html/html-table';
+import { HTML_TABLE_NAMES } from '../../../local/html/html-table';
 import { VisualFrame } from '../../../components/shared/visual-frame';
 import { TableSurface } from '../table/data-table';
 import { blockInputsEqual, runtimeRevision } from './view-revision';
-import { collectSubtreeResetTokens, type NodeDependencies } from '../../compilation/dependencies';
-import { footnoteLabelText, type LocalFootnoteEntry } from '../../parsing/footnotes';
+import { collectSubtreeResetTokens, type NodeDependencies } from '../../../local/compilation/dependencies';
+import { footnoteLabelText, type LocalFootnoteEntry } from '../../../local/parsing/footnotes';
 import type { LocalHostComponentContext, LocalHostPropValue } from '../render-types';
-import { LocalReactExtensionMissingError } from '../../../react/sdk-core';
+import { LocalReactExtensionMissingError } from '../../sdk-core';
 import { CodeBlockView } from '../code/code-block';
 import { ZoomableImage } from '../image/image-view';
 import { LatexView } from '../math-view';
-import type { Localize } from '../../../react/localization';
+import type { Localize } from '../../localization';
 import { ExtendedHtmlFragment } from './ExtendedHtmlFragment';
 
 function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' {

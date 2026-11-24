@@ -9,7 +9,7 @@ import {
   kernelSlotRelations,
   kernelValueBinding,
   type KernelBindingSchema,
-} from '../configuration/component-kernel';
+} from '../../contracts/component-kernel';
 import { EXTRA_RESERVED, lineAt, requireBindingAttribute } from './compiler-bindings';
 import {
   fullInterpolation,

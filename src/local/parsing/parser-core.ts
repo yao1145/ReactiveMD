@@ -21,7 +21,7 @@ import {
   MAX_LOCAL_DIAGNOSTIC_LENGTH,
   MAX_LOCAL_DIAGNOSTICS,
   MAX_LOCAL_DOCUMENT_LENGTH,
-} from '../configuration/limits';
+} from '../../contracts/limits';
 import {
   diagnosticEnglish,
   localDiagnosticDetails,

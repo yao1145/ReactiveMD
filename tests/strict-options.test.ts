@@ -3,7 +3,7 @@ import { CompilerConfigurationError, createCompiler } from '../src/compiler/inde
 import { createStandardCompiler } from '../src/compiler/standard';
 import { MINIMAL_CHECKS, toCompileResult } from '../src/compiler/result';
 import { compileLocal } from '../src/local/compilation/compiler';
-import { localCompileOptionsKey, readLocalCompileOptions } from '../src/local/configuration/options';
+import { localCompileOptionsKey, readLocalCompileOptions } from '../src/assemblies/default-options';
 import { LOCAL_RECOVERY_STRATEGY_VERSION } from '../src/local/configuration/options-core';
 import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
 import type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../src/local/types';

@@ -12,7 +12,7 @@ import {
   type KernelRule,
   type KernelStructure,
   type NormalizedComponent,
-} from '../configuration/component-kernel';
+} from '../../contracts/component-kernel';
 import { kernelValueRules, type KernelValueRule } from '../configuration/kernel-value-rules';
 import {
   LOCAL_EXTENSIONS_PROTOCOL,
@@ -29,8 +29,8 @@ import {
   parseNumberText,
   staticAttributeString,
 } from './compiler-values';
-import { MAX_LOCAL_ARRAY_LENGTH, MAX_LOCAL_DATA_TABLE_COLUMNS } from '../configuration/limits';
-import { closestName } from '../configuration/schema-core';
+import { MAX_LOCAL_ARRAY_LENGTH, MAX_LOCAL_DATA_TABLE_COLUMNS } from '../../contracts/limits';
+import { closestName } from '../../contracts/schema-core';
 import { walkLocalNodes } from '../source/source-context';
 import type { CompileState } from './compiler-services';
 import { localComponentRequirement } from '../../sdk/manifest';

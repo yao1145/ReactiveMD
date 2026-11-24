@@ -1,6 +1,6 @@
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client';
 import type { ComponentType } from 'react';
-import type { LocalDocumentViewProps, LocalImageResolver, LocalUrlPolicy } from '../local/rendering/document/LocalDocumentViewCore';
+import type { LocalDocumentViewProps, LocalImageResolver, LocalUrlPolicy } from '../react/rendering/document/LocalDocumentViewCore';
 import type { LocalLocale } from '../local/types';
 import { createLocalRuntime } from '../local/runtime/runtime';
 import {
@@ -17,7 +17,7 @@ import { prepareStandaloneDocument } from './prepare';
 import { REACTIVE_MD_STANDALONE_GENERATOR } from './version';
 import type { LocalReactConfig } from '../react/sdk';
 import type { LocalExtensionRequirements } from '../sdk/types';
-import { readLocalConfig } from '../sdk/config';
+import { readLocalConfig } from '../assemblies/default-config';
 import { validateLocalExtensionRequirements } from '../export/requirements';
 import { validateLocalRestorationRequirements, type LocalRestorationRequirements } from '../export/restoration';
 import type { LocalStyleResource } from '../sdk/theme';

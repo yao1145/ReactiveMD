@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { parseFragment } from 'parse5';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView, LocalReactiveDocument } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView, LocalReactiveDocument } from '../src/react/rendering/document/LocalDocumentView';
 import { sanitizeLocalHtmlDocument } from '../src/local/html/html';
 import { prepareStandaloneDocument } from '../src/standalone/prepare';
 import type { LocalNode } from '../src/local/types';

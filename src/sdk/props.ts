@@ -1,5 +1,5 @@
-import type { LocalHostBindingSchema, LocalRuntime } from '../local/types';
-import { isLocalColor } from '../local/configuration/color-values';
+import type { LocalHostBindingSchema, LocalValue } from '../contracts/runtime-types';
+import { isLocalColor } from '../contracts/color-values';
 import type {
   LocalComponentDefinition,
   LocalComponentProp,
@@ -14,6 +14,11 @@ export interface LocalResolvedBindingConstraints {
   max?: number;
   step?: number;
 }
+
+type LocalPropRuntime = {
+  evaluate(expression: string): LocalValue;
+  text(template: string): string;
+};
 
 const NUMBER_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
@@ -64,7 +69,7 @@ function evaluateProp(
   definition: LocalComponentDefinition,
   name: string,
   expression: string,
-  runtime: Pick<LocalRuntime, 'evaluate'>,
+  runtime: Pick<LocalPropRuntime, 'evaluate'>,
 ): unknown {
   try {
     return runtime.evaluate(expression);
@@ -154,7 +159,7 @@ function resolveProp(
   name: string,
   prop: LocalComponentProp,
   raw: string | undefined,
-  runtime: Pick<LocalRuntime, 'evaluate' | 'text'>,
+  runtime: LocalPropRuntime,
 ): string | number | boolean | null {
   if (raw === undefined) {
     if (prop.required === true && prop.default === undefined) {
@@ -246,7 +251,7 @@ function resolveProp(
 export function resolveLocalComponentProps(
   definition: LocalComponentDefinition,
   attrs: Record<string, string>,
-  runtime: Pick<LocalRuntime, 'evaluate' | 'text'>,
+  runtime: LocalPropRuntime,
 ): LocalResolvedProps {
   if (!definition || typeof definition !== 'object') {
     throw new TypeError('resolveLocalComponentProps requires a component definition.');
@@ -274,7 +279,7 @@ export function resolveLocalComponentProp(
   definition: LocalComponentDefinition,
   name: string,
   raw: string | undefined,
-  runtime: Pick<LocalRuntime, 'evaluate' | 'text'>,
+  runtime: LocalPropRuntime,
 ): string | number | boolean | null {
   const prop = definition.props[name];
   if (!prop) throw propError(definition, name, 'is not declared.');

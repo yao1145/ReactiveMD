@@ -10,7 +10,7 @@ import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
-} from '../src/local/configuration/limits';
+} from '../src/contracts/limits';
 import type { LocalValue } from '../src/local';
 
 function failure(run: () => unknown): LocalExpressionError {

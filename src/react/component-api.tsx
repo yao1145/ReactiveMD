@@ -16,8 +16,8 @@ import type {
 import type {
   LocalRenderMode,
   LocalSourceTarget,
-} from '../local/rendering/render-types';
-import type { LocalUrlPolicy } from '../local/rendering/document/LocalDocumentView';
+} from './rendering/render-types';
+import type { LocalUrlPolicy } from './rendering/document/LocalDocumentView';
 import type { LocalLocale } from './localization';
 import { localComponentDigest } from '../sdk/manifest';
 import { resolveLocalComponentProp } from '../sdk/props';

@@ -1,4 +1,4 @@
-import { MAX_LOCAL_DIAGNOSTICS } from '../configuration/limits';
+import { MAX_LOCAL_DIAGNOSTICS } from '../../contracts/limits';
 import type { Diagnostic, LocalHtmlPolicy } from '../types';
 import {
   localHtmlContentSecurityPolicy,

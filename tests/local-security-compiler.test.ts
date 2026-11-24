@@ -7,7 +7,7 @@ import {
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
   MAX_LOCAL_STRING_LENGTH,
-} from '../src/local/configuration/limits';
+} from '../src/contracts/limits';
 import type { LocalNode } from '../src/local/types';
 
 const flatten = (nodes: LocalNode[]): LocalNode[] =>

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView } from '../src/react/rendering/document/LocalDocumentView';
 import { completeLocalSource, formatLocalSource, renameLocalBinding } from '../src/local/source/authoring';
 import type { LocalNode } from '../src/local/types';
 

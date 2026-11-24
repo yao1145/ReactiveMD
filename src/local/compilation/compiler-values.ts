@@ -9,11 +9,11 @@ import {
   kernelValueBinding,
   type KernelBindingSchema,
   type KernelNumericConstraints,
-} from '../configuration/component-kernel';
+} from '../../contracts/component-kernel';
 import { kernelValueRules } from '../configuration/kernel-value-rules';
 import type { Group, GroupMember } from './compiler-bindings';
 import { countLocalCodePoints } from '../source/source-context';
-import { isLocalEmail, MAX_LOCAL_EMAIL_LENGTH } from '../configuration/limits';
+import { isLocalEmail, MAX_LOCAL_EMAIL_LENGTH } from '../../contracts/limits';
 import { localValueBudgetIssue } from '../evaluation/expression/compile';
 
 const NUMBER_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;

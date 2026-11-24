@@ -1,5 +1,5 @@
 import type { LocalStateFile } from '../local/runtime/state';
-import { readLocalCompileOptions } from '../local/configuration/options';
+import { readLocalCompileOptions } from '../assemblies/default-options';
 import { portableCompileOptions } from '../local/configuration/portable-options';
 import { validateLocalExtensionRequirements } from '../export/requirements';
 import { validateLocalRestorationRequirements } from '../export/restoration';

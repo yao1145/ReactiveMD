@@ -4,7 +4,7 @@ import { insertTemplate } from './editor-commands';
 import { renderNativeSnippet, type NativeComponentDefinition } from './native-components';
 import type { LocalComponentDefinition } from '../sdk/types';
 import type { LocalCompileOptions } from '../local/types';
-import type { LocalPropKind } from '../local/configuration/schema-core';
+import type { LocalPropKind } from '../contracts/schema-core';
 
 /**
  * Minimal legal insertion-template synthesis for manifests that do not supply

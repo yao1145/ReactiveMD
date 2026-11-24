@@ -1,7 +1,7 @@
 import type { LocalCompileOptions, SourceRange } from '../types';
-import { MAX_LOCAL_DOCUMENT_LENGTH } from '../configuration/limits';
+import { MAX_LOCAL_DOCUMENT_LENGTH } from '../../contracts/limits';
 import type { LocalOptionCheck } from '../configuration/options-core';
-import { readLocalCompileOptions } from '../configuration/options';
+import { readLocalCompileOptions } from '../../assemblies/default-options';
 import { parseLocalCore, type ParsedLocal } from './parser-core';
 import type { SourceContext } from '../source/source-context';
 import type { ParseSessionCache } from './parse-budget';

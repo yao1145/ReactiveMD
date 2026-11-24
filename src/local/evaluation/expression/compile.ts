@@ -1,5 +1,5 @@
 import type { LocalValue, LocalValueKind } from '../../types';
-import { MAX_LOCAL_STRING_LENGTH } from '../../configuration/limits';
+import { MAX_LOCAL_STRING_LENGTH } from '../../../contracts/limits';
 import { LocalExpressionError, MAX_EXPRESSION_LENGTH, MAX_STRING_LENGTH } from './values';
 import { Parser } from './syntax';
 import { evalAst } from './evaluation';

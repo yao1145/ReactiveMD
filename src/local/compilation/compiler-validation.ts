@@ -1,6 +1,6 @@
 import type { CompileState, LocalCompilerPlotMath } from './compiler-services';
 import type { AttrMap, Entry } from './compiler-structure';
-import { kernelRule, type KernelRule } from '../configuration/component-kernel';
+import { kernelRule, type KernelRule } from '../../contracts/component-kernel';
 import {
   expressionEnv,
   fullInterpolation,
@@ -17,7 +17,7 @@ import {
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
   MAX_LOCAL_VALIDATIONS,
-} from '../configuration/limits';
+} from '../../contracts/limits';
 import type { LocalValidation, LocalValueKind } from '../types';
 import { parseValidationFields } from '../evaluation/validation';
 

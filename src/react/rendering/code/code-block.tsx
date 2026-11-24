@@ -12,7 +12,7 @@ import latex from 'highlight.js/lib/languages/latex';
 import django from 'highlight.js/lib/languages/django';
 import dockerfile from 'highlight.js/lib/languages/dockerfile';
 import type { Element, RootContent } from 'hast';
-import { useLocalize } from '../../../react/localization';
+import { useLocalize } from '../../localization';
 import { cattca, mermaid, vue } from './code-languages';
 
 /**

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { Diagnostic, LocalHtmlPolicy } from '../../types';
-import { localize, useLocalLocale } from '../../../react/localization';
+import type { Diagnostic, LocalHtmlPolicy } from '../../../local/types';
+import { localize, useLocalLocale } from '../../localization';
 import {
   extendedFragmentDocument,
   extendedFragmentSandbox,
   sanitizeExtendedFragment,
   type ExtendedFragmentResult,
-} from '../../html/extended-fragment';
+} from '../../../local/html/extended-fragment';
 
 export interface ExtendedHtmlFragmentProps {
   /** Raw fragment source as it appeared in the document, without its fence. */

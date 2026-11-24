@@ -1,7 +1,7 @@
 import { readdir, readFile, realpath, stat } from 'node:fs/promises';
 import type { Dirent, Stats } from 'node:fs';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { createLocalConfig } from '../sdk/config';
+import { createLocalConfig } from '../assemblies/default-config';
 import type { LocalConfig } from '../sdk/types';
 import {
   defineLocalTheme,

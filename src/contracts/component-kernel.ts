@@ -1,4 +1,4 @@
-import type { LocalValue, LocalValueKind, SourceRange } from '../types';
+import type { LocalValue, LocalValueKind, SourceRange } from './runtime-types';
 
 export type KernelComponentForm = 'leaf' | 'inline' | 'container';
 

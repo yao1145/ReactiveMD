@@ -5,7 +5,7 @@ import { createLocalRuntime } from '../src/local/runtime/runtime';
 import {
   LocalDocumentView,
   LocalReactiveDocument,
-} from '../src/local/rendering/document/LocalDocumentView';
+} from '../src/react/rendering/document/LocalDocumentView';
 
 function mount(source: string): { html: string; text: string } {
   const result = compileLocal(source);

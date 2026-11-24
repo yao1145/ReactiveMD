@@ -1,6 +1,6 @@
 import { compileLocalTracked, type LocalCompilerServices } from './compiler';
 import { normalizeSourceRanges, type ParsedLocal } from '../parsing/parser-core';
-import { MAX_LOCAL_DOCUMENT_LENGTH } from '../configuration/limits';
+import { MAX_LOCAL_DOCUMENT_LENGTH } from '../../contracts/limits';
 import type {
   Diagnostic,
   LocalCompileOptions,

@@ -1,8 +1,8 @@
 import React, { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { LocalReactiveDocument } from '../../src/local/rendering/document/LocalDocumentView';
+import { LocalReactiveDocument } from '../../src/react/rendering/document/LocalDocumentView';
 import type { LocalHostComponentSchema, LocalValue } from '../../src/local';
-import type { LocalSourceTarget } from '../../src/local/rendering/render-types';
+import type { LocalSourceTarget } from '../../src/react/rendering/render-types';
 import '../../src/styles.css';
 
 const SOURCE = [

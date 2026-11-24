@@ -1,5 +1,5 @@
 import type { Diagnostic, LocalDocument } from '../local/types';
-import { createLocalConfig, readLocalConfig } from '../sdk/config';
+import { createLocalConfig, readLocalConfig } from '../assemblies/default-config';
 import { localAssemblyIdentity, localAssemblySeal, localConfigKeyMatches, type LocalAssemblyIdentity } from '../sdk/assembly';
 import { localHash } from '../sdk/hash';
 import { localComponentDigest, localJsonByteLength } from '../sdk/manifest';

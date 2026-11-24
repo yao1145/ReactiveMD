@@ -10,7 +10,7 @@ import type {
   LocalValue,
   LocalValueKind,
 } from '../types';
-import { MAX_LOCAL_DIAGNOSTICS } from '../configuration/limits';
+import { MAX_LOCAL_DIAGNOSTICS } from '../../contracts/limits';
 
 /**
  * Declarations are resolved in one bounded pass: every expression is compiled

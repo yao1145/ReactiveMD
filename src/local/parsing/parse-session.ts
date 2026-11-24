@@ -1,5 +1,5 @@
 import { parseLocal, type ParsedLocal } from './parser';
-import { localCompileOptionsKey } from '../configuration/options';
+import { localCompileOptionsKey } from '../../assemblies/default-options';
 import type { LocalCompileOptions, SourceRange } from '../types';
 import type { SourceContext } from '../source/source-context';
 import type { CacheLookup, FastMarkdownPlan, InlinePlan, InlinePlanLookup } from './fast-markdown';

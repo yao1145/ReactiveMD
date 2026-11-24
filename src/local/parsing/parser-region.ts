@@ -1,4 +1,4 @@
-import { MAX_LOCAL_STRING_LENGTH } from '../configuration/limits';
+import { MAX_LOCAL_STRING_LENGTH } from '../../contracts/limits';
 import type {
   Diagnostic,
   LocalNode,
@@ -7,7 +7,7 @@ import type {
   SourceRange,
 } from '../types';
 import { ParseWorkBudget } from './parse-budget';
-import type { NormalizedComponent } from '../configuration/component-kernel';
+import type { NormalizedComponent } from '../../contracts/component-kernel';
 import type { LocalParserCapabilities, LocalParserHtmlCapability } from './parser-capabilities';
 import { MappedSource, SourceContext } from '../source/source-context';
 import type { ParserWork } from './parser-core';
@@ -38,7 +38,7 @@ import {
   themeTagAt,
 } from './theme-declaration';
 import { HTML_TABLE_NAMES } from '../html/html-table-names';
-import { closestName } from '../configuration/schema-core';
+import { closestName } from '../../contracts/schema-core';
 
 const TAG_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 

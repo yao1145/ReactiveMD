@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView } from '../src/react/rendering/document/LocalDocumentView';
 import type { LocalDocument, LocalHostComponentSchema, LocalNode } from '../src/local/types';
 
 const HOST_SOURCE = '<host-widget kind="weather" ref="berlin"/>';

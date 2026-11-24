@@ -10,7 +10,7 @@ import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_DIAGNOSTICS,
   MAX_LOCAL_STRING_LENGTH,
-} from '../src/local/configuration/limits';
+} from '../src/contracts/limits';
 
 const AUTHOR_TEXT_CASES: [string, number][] = [
   ['😀', 1],

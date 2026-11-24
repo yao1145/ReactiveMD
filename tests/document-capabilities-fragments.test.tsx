@@ -8,7 +8,7 @@ import {
   extendedFragmentSandbox,
   sanitizeExtendedFragment,
 } from '../src/local/html/extended-fragment';
-import { ExtendedHtmlFragment } from '../src/local/rendering/document/ExtendedHtmlFragment';
+import { ExtendedHtmlFragment } from '../src/react/rendering/document/ExtendedHtmlFragment';
 
 const policy = (overrides: Partial<LocalHtmlPolicy> = {}): LocalHtmlPolicy => ({
   enableCss: true, enableJavaScript: false, enableExtendedHtml: true, ...overrides,

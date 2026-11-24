@@ -1,8 +1,8 @@
-import type { LocalComponentForm, LocalComponentSchema } from './schema-core';
-import type { LocalValue } from '../types';
-import { DEFAULT_SEMANTIC_COMPONENTS } from '../../presets/default-semantics';
-import { componentSchemaFromDefinition } from '../../sdk/registry-core';
-import { LOCAL_KERNEL_DECLARATIONS, closestName } from './schema-core';
+import type { LocalComponentForm, LocalComponentSchema } from '../contracts/schema-core';
+import type { LocalValue } from '../contracts/runtime-types';
+import { DEFAULT_SEMANTIC_COMPONENTS } from '../presets/default-semantics';
+import { componentSchemaFromDefinition } from '../sdk/registry-core';
+import { LOCAL_KERNEL_DECLARATIONS, closestName } from '../contracts/schema-core';
 
 export type {
   LocalComponentForm,
@@ -14,8 +14,8 @@ export type {
   LocalBindingSlotSchema,
   LocalInitialRule,
   LocalComponentSchema,
-} from './schema-core';
-export { LOCAL_KERNEL_DECLARATIONS, closestName } from './schema-core';
+} from '../contracts/schema-core';
+export { LOCAL_KERNEL_DECLARATIONS, closestName } from '../contracts/schema-core';
 
 /**
  * Static description of the `local-draft-1` component set, derived from the

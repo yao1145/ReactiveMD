@@ -1,4 +1,4 @@
-import type { LocalImageResolver, LocalUrlPolicy } from '../local/rendering/document/LocalDocumentView';
+import type { LocalImageResolver, LocalUrlPolicy } from '../react/rendering/document/LocalDocumentView';
 import type { LocalLocale } from '../local/types';
 import type { LocalStateFile } from '../local/runtime/state';
 import type { LocalColorScheme, LocalThemeDefinition } from '../themes/document-theme';

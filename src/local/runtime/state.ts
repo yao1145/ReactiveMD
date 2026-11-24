@@ -1,4 +1,4 @@
-import { MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../configuration/limits';
+import { MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../../contracts/limits';
 import { createLocalRuntime } from './runtime';
 import { LOCAL_SYNTAX_VERSION } from '../types';
 import { localCodeUnitPrefix } from '../source/source-context';

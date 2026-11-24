@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { LocalReactiveDocument } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalReactiveDocument } from '../src/react/rendering/document/LocalDocumentView';
 import type { LocalSourcePhase } from '../src/local/types';
 
 // A model stream commonly ends mid-component: the closing tag has not arrived

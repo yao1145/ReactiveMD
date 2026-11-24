@@ -1,8 +1,8 @@
 import type { LocalCompileOptions, LocalCompileResult } from '../types';
 import { analyzeLocalSource, type AuthorAnalysis } from '../source/authoring';
-import { MAX_LOCAL_HOST_COMPONENTS, MAX_LOCAL_HOST_ENUM_VALUES } from '../configuration/limits';
-import { LOCAL_HTML_FLAGS, localCompileOptionsKey } from '../configuration/options';
-import { snapshotLocalConfig } from '../../sdk/config';
+import { MAX_LOCAL_HOST_COMPONENTS, MAX_LOCAL_HOST_ENUM_VALUES } from '../../contracts/limits';
+import { LOCAL_HTML_FLAGS, localCompileOptionsKey } from '../../assemblies/default-options';
+import { snapshotLocalConfig } from '../../assemblies/default-config';
 
 /** Editors are coalesced for this long before a compile is dispatched. */
 export const LOCAL_COMPILE_DELAY_MS = 150;

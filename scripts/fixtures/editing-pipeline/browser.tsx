@@ -4,7 +4,7 @@ import * as Library from 'reactive-md';
 import {LocalDocumentView,LocalReactiveDocument} from 'reactive-md/react';
 import type {LocalCompileOutcome,LocalCompileWorker} from 'reactive-md';
 import type {LocalCompileOptions,LocalRuntime} from 'reactive-md';
-import '../../../src/local/rendering/document/local.css';
+import '../../../src/react/rendering/document/local.css';
 
 const probe:any={requests:[],responses:[],commits:[],inputToFrame:[],inputToPreview:[],outcomes:[],modes:[],longTasks:[],ready:false,compiledSource:null,renderedSource:null,runtimeCreations:0};
 (window as any).editingPipeline=probe;

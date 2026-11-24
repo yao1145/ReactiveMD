@@ -1,5 +1,5 @@
 import type { LocalDocument, LocalNode, LocalValueKind } from '../types';
-import { kernelRule, type KernelRule } from '../configuration/component-kernel';
+import { kernelRule, type KernelRule } from '../../contracts/component-kernel';
 import type { AttrMap, Entry, ReportDiagnostic } from './compiler-structure';
 import { meaningful, parseNumberText, plainText, hasInterpolation, typeName } from './compiler-values';
 

@@ -16,7 +16,7 @@ import {
   kernelSchemaFor,
   type KernelComponentSchema,
   type KernelRule,
-} from '../src/local/configuration/component-kernel';
+} from '../src/contracts/component-kernel';
 import { normalizedComponentFromDefinition } from '../src/sdk/registry-core';
 
 const CAPABILITIES = { interactive: true, static: true, ssr: true, offline: true };

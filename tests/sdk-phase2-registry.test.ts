@@ -5,8 +5,8 @@ import {
   LOCAL_KERNEL_DECLARATIONS,
   getLocalComponent,
   localComponentNames,
-} from '../src/local/configuration/schema';
-import { readLocalCompileOptions } from '../src/local/configuration/options';
+} from '../src/assemblies/default-schema';
+import { readLocalCompileOptions } from '../src/assemblies/default-options';
 import { parseLocal } from '../src/local/parsing/parser';
 import {
   DEFAULT_COMPONENT_DEFINITIONS,

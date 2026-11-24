@@ -4,7 +4,7 @@ import {
   MAX_LOCAL_SDK_COMPONENTS,
   readLocalComponentManifest,
 } from '../sdk/manifest';
-import { readLocalConfig } from '../sdk/config';
+import { readLocalConfig } from '../assemblies/default-config';
 import type {
   LocalComponentDefinition,
   LocalConfig,

@@ -17,7 +17,7 @@ export {
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
   isLocalEmail,
-} from '../local/configuration/limits';
+} from '../contracts/limits';
 export { countLocalCodePoints } from '../local/source/source-context';
 export { formatLocalDiagnostic } from '../local/configuration/diagnostics';
 export { compileExpression, type LocalExpression } from '../local/evaluation/expression/compile';
@@ -36,8 +36,8 @@ export {
   type PlotSample,
 } from '../local/evaluation/math/latex';
 export { sampleImplicit, sampleParametric, samplePlot, samplePolar } from '../local/evaluation/math/sample';
-export { LatexView } from '../local/rendering/math-view';
-export { TableSurface } from '../local/rendering/table/data-table';
+export { LatexView } from './rendering/math-view';
+export { TableSurface } from '../components/shared/table-surface';
 export {
   createDiagramLayoutFallback,
   diagramEdgePath,
@@ -46,7 +46,7 @@ export {
   type DiagramLayoutInput,
   type DiagramLayoutResult,
 } from '../components/diagram/layout';
-export { isLocalColor } from '../local/configuration/color-values';
+export { isLocalColor } from '../contracts/color-values';
 export type { Diagnostic, LocalValue } from '../local/types';
-export type { LocalRenderMode } from '../local/rendering/render-types';
+export type { LocalRenderMode } from './rendering/render-types';
 export type { LocalLocale, Localize } from './localization';

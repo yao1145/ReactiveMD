@@ -1,8 +1,8 @@
 import type { EditorLocale } from './command-types';
 import type { LocalCompileOptions, LocalNode, LocalValue } from '../local/types';
-import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../local/configuration/options';
+import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../assemblies/default-options';
 import { parseLocal } from '../local/parsing/parser';
-import type { LocalComponentForm, LocalPropKind, LocalPropSchema } from '../local/configuration/schema';
+import type { LocalComponentForm, LocalPropKind, LocalPropSchema } from '../assemblies/default-schema';
 import {
   DEFAULT_AUTHORING_GROUPS,
   DEFAULT_AUTHORING_ORDER,
@@ -12,8 +12,8 @@ import {
   defaultManifestAuthoring,
   pickDefaultAuthoringText,
 } from '../presets/default-authoring';
-import { readLocalConfig } from '../sdk/config';
-import { componentSchemaFromDefinition } from '../sdk/registry';
+import { readLocalConfig } from '../assemblies/default-config';
+import { componentSchemaFromDefinition } from '../assemblies/default-registry';
 import type {
   LocalComponentAuthoring,
   LocalComponentDefinition,

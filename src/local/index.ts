@@ -3,7 +3,8 @@ export type { AuthorToken, AuthorBinding, AuthorAnalysis, AuthorCompletion, Auth
 export { compileLocal } from './compilation/compiler';
 export { createLocalCompileSession, LocalCompileSession } from './compilation/session/incremental';
 export type { LocalIncrementalStats } from './compilation/session/incremental';
-export { localCompileOptionsKey } from './configuration/options';
+/** Public re-export of the default-assembly option key; see src/local/README.md. */
+export { localCompileOptionsKey } from '../assemblies/default-options';
 export {
   formatLocalDiagnostic,
   LOCAL_DIAGNOSTIC_CODES,

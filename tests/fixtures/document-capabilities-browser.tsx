@@ -1,11 +1,11 @@
 import { createRoot } from 'react-dom/client';
 import { renderToString } from 'react-dom/server';
 import { compileLocal, createLocalRuntime } from '../../src/local';
-import { LocalDocumentView, LocalReactiveDocument } from '../../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView, LocalReactiveDocument } from '../../src/react/rendering/document/LocalDocumentView';
 import { createLocalStateFile } from '../../src/local/runtime/state';
 import { createShareableHtml } from '../../src/shareable';
 import type { LocalHtmlPolicy, LocalSourcePhase } from '../../src/local/types';
-import '../../src/local/rendering/document/local.css';
+import '../../src/react/rendering/document/local.css';
 
 const SOURCE = [
   '<css>',

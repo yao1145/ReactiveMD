@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { LocalVisual } from '../src/local/rendering/visuals';
+import { LocalVisual } from '../src/react/rendering/visuals';
 import type { LocalDocument, LocalNode, LocalRuntime, LocalValue } from '../src/local/types';
 
 let serial = 0;

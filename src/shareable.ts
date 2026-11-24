@@ -1,5 +1,5 @@
 import { defaultTreeAdapter, parseFragment, type DefaultTreeAdapterTypes } from 'parse5';
-import { readLocalCompileOptions } from './local/configuration/options';
+import { readLocalCompileOptions } from './assemblies/default-options';
 import { portableCompileOptions } from './local/configuration/portable-options';
 import type { LocalExtensionRequirements } from './sdk/types';
 import { validateLocalExtensionRequirements } from './export/requirements';

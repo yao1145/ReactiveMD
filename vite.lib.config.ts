@@ -32,6 +32,7 @@ export default defineConfig({
         'reactive-md-react-minimal': fileURLToPath(new URL('./src/react/minimal.tsx', import.meta.url)),
         'reactive-md-authoring': fileURLToPath(new URL('./src/authoring/index.ts', import.meta.url)),
         'reactive-md-sdk': fileURLToPath(new URL('./src/sdk/index.ts', import.meta.url)),
+        'reactive-md-contracts': fileURLToPath(new URL('./src/contracts/index.ts', import.meta.url)),
         'reactive-md-testing': fileURLToPath(new URL('./src/testing/index.ts', import.meta.url)),
         'reactive-md-testing-react': fileURLToPath(new URL('./src/testing/react.tsx', import.meta.url)),
         'reactive-md-testing-browser': fileURLToPath(new URL('./src/testing/browser.ts', import.meta.url)),

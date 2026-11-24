@@ -8,7 +8,7 @@ import type {
   LocalSnapshot,
   LocalSourcePhase,
   LocalValue,
-} from '../../types';
+} from '../../../local/types';
 import {
   createNetworkSession,
   unavailableNetwork,
@@ -21,7 +21,7 @@ import {
   LocalLocaleProvider,
   type Localize,
   type LocalLocale,
-} from '../../../react/localization';
+} from '../../localization';
 import {
   DEFAULT_LOCAL_THEME,
   resolveLocalTheme,
@@ -33,12 +33,12 @@ import {
   localReactExtensionRenderer,
   validateLocalReactExtensions,
   type LocalReactConfig,
-} from '../../../react/sdk-core';
+} from '../../sdk-core';
 import type {
   LocalComponentStateDocument,
   LocalComponentStateStorage,
 } from '../../../runtime-services/component-state';
-import { textProblem as componentTextProblem } from '../../../react/field-validation';
+import { textProblem as componentTextProblem } from '../../field-validation';
 import {
   useCallback,
   useEffect,
@@ -51,12 +51,12 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
-import { localHtmlSandbox, sanitizeLocalHtmlDocument } from '../../html/html';
-import { intersectCapabilityPolicy } from '../../configuration/capability-policy';
-import { DEFAULT_MAX_LOCAL_SYNTAX_NODES } from '../../configuration/limits';
+import { localHtmlSandbox, sanitizeLocalHtmlDocument } from '../../../local/html/html';
+import { intersectCapabilityPolicy } from '../../../local/configuration/capability-policy';
+import { DEFAULT_MAX_LOCAL_SYNTAX_NODES } from '../../../contracts/limits';
 import { assertExtensionProps } from './view-render-context';
-import { beginLocalComponentRender } from '../../../react/component-api';
-import { getLocalComponentRegistry } from '../../../sdk/registry';
+import { beginLocalComponentRender } from '../../component-api';
+import { getLocalComponentRegistry } from '../../../assemblies/default-registry';
 import {
   diagnosticsSignature,
   themesSignature,
@@ -71,19 +71,19 @@ import {
   validationDiagnosticKey,
   validationProjectionKey,
 } from './view-revision';
-import { createHeadingAnchors } from '../../parsing/heading-anchors';
-import { collectLocalFootnotes } from '../../parsing/footnotes';
-import { bindLocalNetworkExternals } from '../../runtime/runtime';
+import { createHeadingAnchors } from '../../../local/parsing/heading-anchors';
+import { collectLocalFootnotes } from '../../../local/parsing/footnotes';
+import { bindLocalNetworkExternals } from '../../../local/runtime/runtime';
 import type { LocalComponentDefinition } from '../../../sdk/types';
-import { validateLocalDocumentConfig } from '../../../sdk/config';
+import { validateLocalDocumentConfig } from '../../../assemblies/default-config';
 import { validateLocalComponentContracts } from '../../../export/requirements';
 import { useResolvedColorScheme } from './use-color-scheme';
 import { useStableValidation } from './validation-state';
 import { LocalViewContext, type RenderEnv } from './view-render-context';
 import { EndnotesView, renderNodes } from './render-nodes';
 import { useAuthorScript } from './use-author-script';
-import { scopeAuthorStyles } from '../../css/author-css';
-import { OverflowTextTooltip } from '../../../react/overflow-text-tooltip';
+import { scopeAuthorStyles } from '../../../local/css/author-css';
+import { OverflowTextTooltip } from '../../overflow-text-tooltip';
 
 /* ------------------------------------------------------------------ props */
 

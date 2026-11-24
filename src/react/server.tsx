@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
-import { LocalDocumentView, type LocalDocumentViewProps } from '../local/rendering/document/LocalDocumentView';
+import { LocalDocumentView, type LocalDocumentViewProps } from './rendering/document/LocalDocumentView';
 import { createLocalExportPlan } from '../export';
 import {
   extensionDiagnostic,
@@ -8,10 +8,10 @@ import {
   validateLocalExtensionRequirements,
 } from '../export/requirements';
 import { findUnavailableExtensionMarkup, unavailableExtensionMessage } from '../export/render-markup';
-import { getLocalComponentRegistry } from '../sdk/registry';
+import { getLocalComponentRegistry } from '../assemblies/default-registry';
 import type { Diagnostic } from '../local/types';
 import type { LocalStyleResource } from '../sdk/theme';
-import { validateLocalDocumentConfig } from '../sdk/config';
+import { validateLocalDocumentConfig } from '../assemblies/default-config';
 import { validateLocalReactExtensions } from './sdk';
 
 export type LocalStaticRenderResult =

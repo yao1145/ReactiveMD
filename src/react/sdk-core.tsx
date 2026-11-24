@@ -8,13 +8,13 @@ import type {
   LocalHostComponentContext,
   LocalHostRenderer,
   LocalRenderMode,
-} from '../local/rendering/render-types';
-import type { LocalUrlPolicy } from '../local/rendering/document/LocalDocumentView';
+} from './rendering/render-types';
+import type { LocalUrlPolicy } from './rendering/document/LocalDocumentView';
 import type { LocalLocale } from './localization';
 import type { LocalThemePackage } from '../sdk/theme';
 import type { LocalRuntimeServices } from '../runtime-services/runtime';
 import type { ComponentNetwork } from '../runtime-services/network';
-import { readLocalConfig } from '../sdk/config';
+import { readLocalConfig } from '../assemblies/default-config';
 import { localComponentDigest } from '../sdk/manifest';
 import type {
   LocalComponentDefinition,

@@ -1,5 +1,5 @@
-import type { LocalNode, LocalRuntime, LocalValue } from '../../types';
-import { defaultLocalize, type Localize } from '../../../react/localization';
+import type { LocalNode, LocalRuntime, LocalValue } from '../../../local/types';
+import { defaultLocalize, type Localize } from '../../localization';
 
 const NUMERIC_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 

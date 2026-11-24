@@ -1,8 +1,8 @@
 import { compileLocal } from '../local/compilation/compiler';
 import { createLocalRuntime } from '../local/runtime/runtime';
 import type { LocalNode, LocalRuntime, LocalValue } from '../local/types';
-import { readLocalConfig } from '../sdk/config';
-import { getLocalComponentRegistry } from '../sdk/registry';
+import { readLocalConfig } from '../assemblies/default-config';
+import { getLocalComponentRegistry } from '../assemblies/default-registry';
 import type { LocalComponentDefinition, LocalConfig } from '../sdk/types';
 import { failed, passed, skipped } from './cases';
 import {

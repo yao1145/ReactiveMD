@@ -1,15 +1,15 @@
-import { MAX_LOCAL_HOST_COMPONENTS } from './limits';
-import { LOCAL_HTML_FLAGS, LOCAL_RECOVERY_STRATEGY_VERSION, readOptionCheck } from './options-core';
-import type { LocalOptionCheck } from './options-core';
-import type { LocalCompileOptions } from '../types';
-import { localComponentConfigKey, localConfigKey, readLocalConfig } from '../../sdk/config';
-import { getLocalComponentRegistry } from '../../sdk/registry';
-import defaultPreset from '../../presets/default';
-import { STANDARD_PARSER_CAPABILITIES } from '../parsing/parser-standard';
-import { DEFAULT_CAPABILITY_POLICY } from './capability-policy';
+import { MAX_LOCAL_HOST_COMPONENTS } from '../contracts/limits';
+import { LOCAL_HTML_FLAGS, LOCAL_RECOVERY_STRATEGY_VERSION, readOptionCheck } from '../local/configuration/options-core';
+import type { LocalOptionCheck } from '../local/configuration/options-core';
+import type { LocalCompileOptions } from '../local/types';
+import { localComponentConfigKey, localConfigKey, readLocalConfig } from './default-config';
+import { getLocalComponentRegistry } from './default-registry';
+import defaultPreset from '../presets/default';
+import { STANDARD_PARSER_CAPABILITIES } from '../local/parsing/parser-standard';
+import { DEFAULT_CAPABILITY_POLICY } from '../local/configuration/capability-policy';
 
 export { LOCAL_HTML_FLAGS, LOCAL_RECOVERY_STRATEGY_VERSION };
-export type { LocalHtmlFlag, LocalOptionCheck } from './options-core';
+export type { LocalHtmlFlag, LocalOptionCheck } from '../local/configuration/options-core';
 
 /**
  * Compatibility entry: validates the full instance configuration, including

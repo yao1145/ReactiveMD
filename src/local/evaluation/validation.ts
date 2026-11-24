@@ -1,4 +1,4 @@
-import { MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../configuration/limits';
+import { MAX_LOCAL_DIAGNOSTIC_LENGTH } from '../../contracts/limits';
 import { localCodeUnitPrefix } from '../source/source-context';
 import type { Diagnostic, LocalValidation, SourceRange } from '../types';
 

@@ -3,9 +3,9 @@ import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalVisual } from '../src/local/rendering/visuals';
+import { LocalVisual } from '../src/react/rendering/visuals';
 import type { LocalDocument, LocalNode, LocalRuntime } from '../src/local/types';
-import type { LocalRenderContext, LocalRenderMode } from '../src/local/rendering/render-types';
+import type { LocalRenderContext, LocalRenderMode } from '../src/react/rendering/render-types';
 
 function compile(source: string): { document: LocalDocument; runtime: LocalRuntime } {
   const result = compileLocal(source);

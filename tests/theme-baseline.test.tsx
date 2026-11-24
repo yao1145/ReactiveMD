@@ -4,7 +4,7 @@ import { LocalReactiveDocument } from '../src/react/index';
 import { LOCAL_THEME_PROTOCOL } from '../src/themes/document-theme';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
-import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView } from '../src/react/rendering/document/LocalDocumentView';
 
 const emptyTheme = { name: 'empty-theme', protocol: LOCAL_THEME_PROTOCOL, colorSchemes: ['light', 'dark'] as const };
 const content = `<slider label="Amount" initial="3" min="0" max="10">

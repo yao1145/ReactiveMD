@@ -3,7 +3,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Diagnostic } from '../local/types';
 import type { LocalReactConfig } from '../react/sdk';
-import { readLocalConfig } from '../sdk/config';
+import { readLocalConfig } from '../assemblies/default-config';
 import { localComponentDigest } from '../sdk/manifest';
 import type { LocalComponentDefinition, LocalConfig } from '../sdk/types';
 import { buildDiagnostic } from './diagnostics';

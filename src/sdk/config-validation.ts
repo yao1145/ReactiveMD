@@ -1,5 +1,5 @@
-import { LOCAL_HTML_NAMES } from '../local/html/html-names';
-import { LOCAL_KERNEL_DECLARATIONS } from '../local/configuration/schema-core';
+import { LOCAL_HTML_NAMES } from '../contracts/html-names';
+import { LOCAL_KERNEL_DECLARATIONS } from '../contracts/schema-core';
 import {
   MAX_LOCAL_SDK_COMPONENTS,
   localComponentDigest,

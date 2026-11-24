@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/index';
 import { parseLocal } from '../src/local/parsing/parser';
 import { compileLocalDocument } from '../src/local/compilation/compiler';
-import { localCompileOptionsKey } from '../src/local/configuration/options';
+import { localCompileOptionsKey } from '../src/assemblies/default-options';
 import type { LocalCompileOptions, LocalNode } from '../src/index';
 
 function flatten(nodes: LocalNode[]): LocalNode[] {

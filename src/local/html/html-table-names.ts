@@ -1,4 +1,4 @@
-import { localHtmlAlign } from './html-names';
+import { localHtmlAlign } from '../../contracts/html-names';
 
 /**
  * Theme-free table vocabulary shared by the parser, HTML policy and audit

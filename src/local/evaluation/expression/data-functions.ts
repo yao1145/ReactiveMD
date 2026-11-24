@@ -1,5 +1,5 @@
 import { LocalFunctionError, ensureStringBudget } from './formatting';
-import { MAX_LOCAL_STRING_LENGTH } from '../../configuration/limits';
+import { MAX_LOCAL_STRING_LENGTH } from '../../../contracts/limits';
 
 /**
  * Deterministic string and calendar-date functions for the local expression

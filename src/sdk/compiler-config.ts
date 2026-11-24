@@ -13,7 +13,7 @@ import { localJsonByteLength } from './manifest';
 import { defineLocalPreset } from './preset-core';
 import { CONFIG_KEYS, MAX_LOCAL_SDK_CONFIG_BYTES, checkKeys, fail, isPlainRecord, readComponents, readPresetReferences, validateCompatProfileComponents } from './config-validation';
 import { LOCAL_ASSEMBLY_PROTOCOL, LOCAL_CONFIG_PROTOCOL, LOCAL_CONFIG_PROTOCOL_V2, LOCAL_PRESET_PROTOCOL } from './version';
-import { DEFAULT_PRESET_ID, DEFAULT_PRESET_VERSION } from '../presets/identity';
+import { DEFAULT_PRESET_ID, DEFAULT_PRESET_VERSION } from './default-identity';
 import type {
   LocalAssemblySnapshot,
   LocalComponentDefinition,

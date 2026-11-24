@@ -8,7 +8,7 @@ import {
   MAX_LOCAL_PLOT_CURVES,
   MAX_LOCAL_PLOT_POINTS,
   MAX_LOCAL_VALIDATIONS,
-} from '../local/configuration/limits';
+} from '../contracts/limits';
 import { defineLocalComponent } from '../sdk/manifest';
 import {
   LOCAL_COMPONENT_PROTOCOL,
@@ -770,7 +770,7 @@ const edgeDef = definition('edge', 'leaf', {
 /**
  * The rendered/structural components of the default preset, in declaration
  * order. `computed`, `const` and `external` stay kernel grammar
- * metadata in `src/local/configuration/schema.ts`.
+ * metadata in `src/contracts/component-kernel.ts`.
  */
 export const DEFAULT_SEMANTIC_COMPONENTS: readonly LocalComponentDefinition[] = Object.freeze([
   inputDef,

@@ -4,8 +4,8 @@ import { formatLocalDiagnostic } from '../src/local/configuration/diagnostics';
 import {
   MAX_LOCAL_HOST_COMPONENTS,
   MAX_LOCAL_STRING_LENGTH,
-} from '../src/local/configuration/limits';
-import { localCompileOptionsKey } from '../src/local/configuration/options';
+} from '../src/contracts/limits';
+import { localCompileOptionsKey } from '../src/assemblies/default-options';
 import {
   LOCAL_COMPILE_DELAY_MS,
   LocalCompileScheduler,

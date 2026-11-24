@@ -9,7 +9,7 @@ import {
   type LocalCompileWorker,
   type LocalCompileWorkerScope,
 } from '../src/local/transport/worker';
-import { localCompileOptionsKey } from '../src/local/configuration/options';
+import { localCompileOptionsKey } from '../src/assemblies/default-options';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import type { LocalCompileOptions, LocalNode } from '../src/local/types';
 import { createLocalConfig } from '../src/sdk/config';

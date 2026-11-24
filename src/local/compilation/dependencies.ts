@@ -6,7 +6,7 @@ import {
   kernelRules,
   type KernelComponentSchema,
   type KernelRule,
-} from '../configuration/component-kernel';
+} from '../../contracts/component-kernel';
 import { kernelDocumentMetadata } from '../configuration/kernel-value-rules';
 import {walkLocalNodes} from '../source/source-context';
 import type { LocalComponentDefinition } from '../../sdk/types';

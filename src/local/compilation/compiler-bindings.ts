@@ -11,7 +11,7 @@ import {
   kernelValueBinding,
   type KernelBindingSchema,
   type NormalizedComponent,
-} from '../configuration/component-kernel';
+} from '../../contracts/component-kernel';
 import { kernelValueRules } from '../configuration/kernel-value-rules';
 import type { CompileState } from './compiler-services';
 import type { LocalBinding, LocalValue, LocalValueKind } from '../types';
@@ -28,8 +28,8 @@ import {
 } from './compiler-values';
 import { RESERVED_NAMES } from '../evaluation/expression/compile';
 import { plainCompiledData } from '../transport/compiled-data';
-import { MAX_LOCAL_DIAGNOSTICS } from '../configuration/limits';
-import type { LocalBindingFamily } from '../configuration/schema-core';
+import { MAX_LOCAL_DIAGNOSTICS } from '../../contracts/limits';
+import type { LocalBindingFamily } from '../../contracts/schema-core';
 
 /** Keep conflict bursts readable while bounding diagnostic volume. */
 const MAX_INITIAL_CONFLICT_DIAGNOSTICS = 4;

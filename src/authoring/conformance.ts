@@ -1,6 +1,6 @@
 import type { EditorLocale } from './command-types';
 import { compileLocal } from '../local/compilation/compiler';
-import { readLocalConfig } from '../sdk/config';
+import { readLocalConfig } from '../assemblies/default-config';
 import type { LocalConfig } from '../sdk/types';
 import { createLocalComponentCatalogUnchecked, localCatalogParentContext } from './catalog';
 import { insertCatalogEntryFromOptions } from './insert';

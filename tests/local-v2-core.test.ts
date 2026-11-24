@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileLocal } from '../src/local/compilation/compiler';
-import { isLocalColor } from '../src/local/configuration/color-values';
+import { isLocalColor } from '../src/contracts/color-values';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import type { LocalDocument, LocalNode } from '../src/local/types';
 

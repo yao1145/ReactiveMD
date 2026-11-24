@@ -6,14 +6,14 @@ import {
   MAX_LOCAL_HOST_ENUM_VALUES,
   MAX_LOCAL_HOST_NAME_LENGTH,
   MAX_LOCAL_HOST_PATTERN_LENGTH,
-} from './limits';
-import { LOCAL_KERNEL_DECLARATIONS, type LocalComponentSchema } from './schema-core';
-import { LOCAL_HTML_NAMES } from '../html/html-names';
+} from '../../contracts/limits';
+import { LOCAL_KERNEL_DECLARATIONS, type LocalComponentSchema } from '../../contracts/schema-core';
+import { LOCAL_HTML_NAMES } from '../../contracts/html-names';
 import { MAX_LOCAL_SDK_PATTERN_LENGTH } from '../../sdk/manifest';
 import { isSafeLocalPattern } from '../../sdk/pattern';
 import { localComponentHostBinding } from '../../sdk/props';
 import { normalizedComponentFromDefinition } from '../../sdk/registry-core';
-import { normalizeComponent, type NormalizedComponent } from './component-kernel';
+import { normalizeComponent, type NormalizedComponent } from '../../contracts/component-kernel';
 import { NO_PARSER_CAPABILITIES, type LocalParserCapabilities } from '../parsing/parser-capabilities';
 import { MINIMAL_PRESET_ID } from '../../presets/identity';
 import { unmountedOfficialLeafTags } from './official-leaf-syntax';

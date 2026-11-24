@@ -1,4 +1,4 @@
-import type { NormalizedComponent } from '../configuration/component-kernel';
+import type { NormalizedComponent } from '../../contracts/component-kernel';
 import type { LocalParserHtmlCapability } from './parser-capabilities';
 import { SourceContext } from '../source/source-context';
 import {
@@ -24,7 +24,7 @@ import {
 import { normalizeFootnoteIdentifier } from './footnotes';
 import { HTML_TABLE_NAMES } from '../html/html-table-names';
 import { scanHtmlAttributes } from './html-attributes';
-import { LOCAL_HTML_ALIGN_ELEMENTS } from '../html/html-names';
+import { LOCAL_HTML_ALIGN_ELEMENTS } from '../../contracts/html-names';
 import { normalizeHtmlDetailsChildren } from '../html/html-details';
 import { scanInterpolationEnd } from './lexical';
 

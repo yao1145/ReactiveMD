@@ -36,6 +36,9 @@
       "reactive-md/sdk": [
         "./src/sdk/index.ts"
       ],
+      "reactive-md/contracts": [
+        "./src/contracts/index.ts"
+      ],
       "reactive-md/presets/default": [
         "./src/presets/default.ts"
       ],

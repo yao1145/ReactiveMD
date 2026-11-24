@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import { createLocalStateFile } from '../src/local/runtime/state';
-import { LocalDocumentView } from '../src/local/rendering/document/LocalDocumentView';
+import { LocalDocumentView } from '../src/react/rendering/document/LocalDocumentView';
 import { createShareableHtml } from '../src/shareable';
 import type { LocalCompileOptions } from '../src/local/types';
 

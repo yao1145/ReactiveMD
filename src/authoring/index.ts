@@ -60,7 +60,7 @@ export {
   localComponentNames,
   suggestAttribute,
   suggestComponent,
-} from '../local/configuration/schema';
+} from '../assemblies/default-schema';
 export type {
   LocalBindingFamily,
   LocalBindingSchema,
@@ -71,7 +71,7 @@ export type {
   LocalInitialRule,
   LocalPropKind,
   LocalPropSchema,
-} from '../local/configuration/schema';
+} from '../assemblies/default-schema';
 
 export type {
   Diagnostic,

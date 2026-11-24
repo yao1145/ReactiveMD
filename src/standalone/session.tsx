@@ -1,4 +1,4 @@
-import { LocalDocumentView } from '../local/rendering/document/LocalDocumentView';
+import { LocalDocumentView } from '../react/rendering/document/LocalDocumentView';
 import {
   createStandaloneMountWithView,
   mountAllWithView,

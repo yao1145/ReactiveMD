@@ -2,7 +2,7 @@ import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_STRING_LENGTH,
   MAX_LOCAL_VALUE_CHARACTERS,
-} from '../../configuration/limits';
+} from '../../../contracts/limits';
 import {
   diagnosticEnglish,
   localDiagnosticDetails,

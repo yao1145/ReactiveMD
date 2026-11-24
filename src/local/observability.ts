@@ -4,7 +4,7 @@ import { LOCAL_THEME_PROTOCOL } from '../themes/document-theme';
 import { LOCAL_SYNTAX_VERSION, type Diagnostic } from './types';
 import { localSourceDigest } from '../runtime-services/identity';
 import { formatObservabilityMessage, type LocalObservabilityMessageKey } from './observability-messages';
-import { MAX_LOCAL_DIAGNOSTICS } from './configuration/limits';
+import { MAX_LOCAL_DIAGNOSTICS } from '../contracts/limits';
 import { isLocalDiagnosticCode, localDiagnosticTemplate } from './configuration/diagnostics';
 import { isReportOnlyDiagnosticCode } from './observability-codes';
 import type { LocalTraceEvent } from './observability-core';

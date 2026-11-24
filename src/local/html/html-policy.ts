@@ -1,4 +1,4 @@
-import { LOCAL_HTML_ALIGN_ELEMENTS, LOCAL_HTML_ANCHOR_ATTRIBUTES, localHtmlAlign } from './html-names';
+import { LOCAL_HTML_ALIGN_ELEMENTS, LOCAL_HTML_ANCHOR_ATTRIBUTES, localHtmlAlign } from '../../contracts/html-names';
 import { HTML_TABLE_ATTRIBUTES, validHtmlTableValue } from './html-table-names';
 
 /**

@@ -1,6 +1,6 @@
 import variant from '@jitl/quickjs-singlefile-browser-release-sync';
 import { newQuickJSWASMModuleFromVariant, type QuickJSContext, type QuickJSHandle } from 'quickjs-emscripten-core';
-import { MAX_LOCAL_ARRAY_LENGTH, MAX_LOCAL_STRING_LENGTH } from '../configuration/limits';
+import { MAX_LOCAL_ARRAY_LENGTH, MAX_LOCAL_STRING_LENGTH } from '../../contracts/limits';
 import type { LocalValue } from '../types';
 import {
   COUNTER_ACTIONS,

@@ -3,7 +3,7 @@ import type { LocalAuthorBlock, LocalDocumentCapabilities, LocalHtmlPolicy, Loca
 import { openingTag } from './compiler-attributes';
 import { reportWarning, type CompileState } from './compiler-services';
 import { unsupportedAuthorCssRules } from '../css/author-css';
-import { MAX_LOCAL_DIAGNOSTICS } from '../configuration/limits';
+import { MAX_LOCAL_DIAGNOSTICS } from '../../contracts/limits';
 
 const HIDDEN_COMPONENTS = new Set(['computed', 'const', 'external', 'validation', 'option', 'column', 'edge', 'step']);
 const DOCUMENT_HTML_TAGS = new Set(['html', 'head', 'body', 'base', 'title', 'link', 'meta', 'style', 'script']);

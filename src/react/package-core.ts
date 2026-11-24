@@ -1,4 +1,4 @@
-import { createLocalConfig } from '../sdk/config';
+import { createLocalConfig } from '../assemblies/default-config';
 import { defineLocalComponent, localComponentDigest } from '../sdk/manifest';
 import { readLocalPresetPackage } from '../sdk/preset';
 import { LOCAL_COMPONENT_PROTOCOL, LOCAL_REACT_PRESET_PROTOCOL, type LocalComponentDefinition, type LocalConfig, type LocalPresetPackage } from '../sdk/types';
