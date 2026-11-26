@@ -14,7 +14,7 @@ export const LOCAL_COMPILE_DELAY_MS = 150;
 export const LOCAL_COMPILE_PREPARATION_DELAY_MS = 200;
 
 /** Extra limits this transport snapshots before another module adds them. */
-const LIMIT_KEYS = ['maxSyntaxNodes', 'maxParseWork', 'maxMarkdownDepth'] as const;
+const LIMIT_KEYS = ['maxSyntaxNodes', 'maxParseWork', 'maxMarkdownDepth', 'maxRawBodyChars'] as const;
 
 export function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -81,8 +81,9 @@ function snapshotHostComponents(value: unknown): unknown {
  * Copy the option values that affect routing, budgets and host components.
  * Invalid values are preserved so the compiler can report them; known keys are
  * snapshotted so a caller mutating its object after `schedule` cannot widen an
- * in-flight compile. `maxParseWork` and `maxMarkdownDepth` are copied even
- * before their declarations land, so a queued job keeps its own budget.
+ * in-flight compile. `maxParseWork`, `maxMarkdownDepth` and `maxRawBodyChars`
+ * are copied even before their declarations land, so a queued job keeps its
+ * own budget.
  */
 export function snapshotCompileOptions(options: LocalCompileOptions | undefined): LocalCompileOptions | undefined {
   if (options === undefined) return undefined;
@@ -146,7 +147,7 @@ function limitsKeyPart(options: LocalCompileOptions | undefined): string {
       const value = record[key];
       return `${typeof value}:${String(value)}`;
     };
-    return `:${part('maxParseWork')}:${part('maxMarkdownDepth')}`;
+    return `:${part('maxParseWork')}:${part('maxMarkdownDepth')}:${part('maxRawBodyChars')}`;
   } catch {
     return ':unreadable';
   }

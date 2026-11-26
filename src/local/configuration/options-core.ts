@@ -1,11 +1,13 @@
 import {
   DEFAULT_MAX_LOCAL_MARKDOWN_DEPTH,
   DEFAULT_MAX_LOCAL_PARSE_WORK,
+  DEFAULT_MAX_LOCAL_RAW_BODY_CHARS,
   DEFAULT_MAX_LOCAL_SYNTAX_NODES,
   MAX_LOCAL_HOST_COMPONENTS,
   MAX_LOCAL_HOST_ENUM_VALUES,
   MAX_LOCAL_HOST_NAME_LENGTH,
   MAX_LOCAL_HOST_PATTERN_LENGTH,
+  MAX_LOCAL_RAW_BODY_CHARS,
 } from '../../contracts/limits';
 import { LOCAL_KERNEL_DECLARATIONS, type LocalComponentSchema } from '../../contracts/schema-core';
 import { LOCAL_HTML_NAMES } from '../../contracts/html-names';
@@ -13,7 +15,11 @@ import { MAX_LOCAL_SDK_PATTERN_LENGTH } from '../../sdk/manifest';
 import { isSafeLocalPattern } from '../../sdk/pattern';
 import { localComponentHostBinding } from '../../sdk/props';
 import { normalizedComponentFromDefinition } from '../../sdk/registry-core';
-import { normalizeComponent, type NormalizedComponent } from '../../contracts/component-kernel';
+import {
+  normalizeComponent,
+  type KernelStructure,
+  type NormalizedComponent,
+} from '../../contracts/component-kernel';
 import { NO_PARSER_CAPABILITIES, type LocalParserCapabilities } from '../parsing/parser-capabilities';
 import { MINIMAL_PRESET_ID } from '../../presets/identity';
 import { unmountedOfficialLeafTags } from './official-leaf-syntax';
@@ -28,6 +34,7 @@ import type {
   LocalHostPropKind,
   LocalHostPropSchema,
   LocalHtmlPolicy,
+  LocalSourcePhase,
 } from '../types';
 
 /** Independent grants for author content. */
@@ -51,6 +58,10 @@ export type LocalOptionCheck =
       maxParseWork: number;
       /** Validated nested Markdown container depth budget. */
       maxMarkdownDepth: number;
+      /** Validated raw container body budget, in UTF-16 code units. */
+      maxRawBodyChars: number;
+      /** Effective source phase; omitted keeps final-compilation semantics. */
+      sourcePhase?: LocalSourcePhase;
       /** Effective HTML policy; every flag is false by default. */
       html: LocalHtmlPolicy;
       /** True when at least one capability flag is enabled. */
@@ -129,6 +140,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const HOST_COMPONENTS_KEY = 'local.options.invalid.host-components';
+const HOST_BODY_KEY = 'local.options.invalid.host-body';
 const HOST_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const HOST_PROP_KINDS: ReadonlySet<string> = new Set(['string', 'number', 'boolean', 'enum']);
 const HOST_FORMS: ReadonlySet<string> = new Set(['leaf', 'inline', 'container']);
@@ -137,7 +149,9 @@ const HOST_BINDING_KINDS: ReadonlySet<string> = new Set(['string', 'number', 'bo
 const HOST_BINDING_ATTRIBUTES = new Set(['bind', 'initial', 'disabled']);
 
 /** Limit keys accepted under `options.limits`; anything else is a typo. */
-const LIMIT_KEYS: ReadonlySet<string> = new Set(['maxSyntaxNodes', 'maxParseWork', 'maxMarkdownDepth']);
+const LIMIT_KEYS: ReadonlySet<string> = new Set([
+  'maxSyntaxNodes', 'maxParseWork', 'maxMarkdownDepth', 'maxRawBodyChars',
+]);
 
 type LimitRead =
   | { ok: true; value: number }
@@ -145,21 +159,33 @@ type LimitRead =
 
 /**
  * Read one positive-safe-integer limit. An explicit `undefined` means the
- * default, matching every other optional compile option.
+ * default, matching every other optional compile option. `maximum` bounds
+ * limits that have a documented hard cap.
  */
-function readLimit(limits: Record<string, unknown>, name: string, fallback: number): LimitRead {
+function readLimit(
+  limits: Record<string, unknown>,
+  name: string,
+  fallback: number,
+  maximum?: number,
+): LimitRead {
   if (!Object.hasOwn(limits, name)) return { ok: true, value: fallback };
   const value = limits[name];
   if (value === undefined) return { ok: true, value: fallback };
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1
+    || (maximum !== undefined && value > maximum)) {
     const suffix = name === 'maxSyntaxNodes'
       ? 'max-syntax-nodes'
       : name === 'maxParseWork'
         ? 'max-parse-work'
-        : 'max-markdown-depth';
+        : name === 'maxRawBodyChars'
+          ? 'max-raw-body-chars'
+          : 'max-markdown-depth';
+    const message = name === 'maxRawBodyChars'
+      ? `Compile option limits.maxRawBodyChars must be a positive safe integer no greater than ${maximum}.`
+      : `Compile option limits.${name} must be a positive safe integer.`;
     return {
       ok: false,
-      message: `Compile option limits.${name} must be a positive safe integer.`,
+      message,
       key: `local.options.invalid.${suffix}`,
     };
   }
@@ -174,11 +200,14 @@ type HostComponentCheck =
     }
   | { ok: false; message: string; key: string; detail: string };
 
-function invalidHost(detail: string): { ok: false; message: string; key: string; detail: string } {
+function invalidHost(
+  detail: string,
+  key: string = HOST_COMPONENTS_KEY,
+): { ok: false; message: string; key: string; detail: string } {
   return {
     ok: false,
     message: `Compile option hostComponents is invalid: ${detail}`,
-    key: HOST_COMPONENTS_KEY,
+    key,
     detail,
   };
 }
@@ -336,6 +365,16 @@ function readLocalHostComponents(
       return invalidHost(`${lead} "form" must be "leaf", "inline" or "container".`);
     }
     const form = entry.form as LocalHostComponentForm;
+    let body: 'markdown' | 'raw' | undefined;
+    if (Object.hasOwn(entry, 'body') && entry.body !== undefined) {
+      if (entry.body !== 'markdown' && entry.body !== 'raw') {
+        return invalidHost(`${lead} "body" must be "markdown" or "raw".`, HOST_BODY_KEY);
+      }
+      if (form !== 'container') {
+        return invalidHost(`${lead} "body" is only valid for a container component.`, HOST_BODY_KEY);
+      }
+      body = entry.body;
+    }
     const bindingCheck = readHostBinding(entry.binding, lead);
     if (!bindingCheck.ok) return bindingCheck;
     const hostBinding = bindingCheck.binding;
@@ -437,6 +476,7 @@ function readLocalHostComponents(
       form,
       props,
       ...(hostBinding ? { binding: hostBinding } : {}),
+      ...(body ? { body } : {}),
     };
     hostComponents.push(component);
     hostByName.set(name, component);
@@ -486,6 +526,12 @@ interface LoweredConfigComponents {
   sdkByName: ReadonlyMap<string, LocalComponentDefinition>;
 }
 
+/** Internal structure a host schema's `body` declaration lowers to. */
+function hostKernelStructure(schema: LocalHostComponentSchema): KernelStructure | undefined {
+  if (schema.form !== 'container' || schema.body !== 'raw') return undefined;
+  return { rule: 'raw-body', label: 'none' };
+}
+
 /**
  * Adapt external SDK manifests to the phase-one parser/compiler host view.
  * The unified registry is authoritative; this view only keeps legacy call
@@ -504,6 +550,9 @@ function lowerConfigComponents(config: LocalConfig): LoweredConfigComponents {
       form: definition.form,
       props,
       ...(binding ? { binding } : {}),
+      ...(definition.form === 'container' && definition.structure?.rule === 'raw-body'
+        ? { body: 'raw' as const }
+        : {}),
     };
     hostComponents.push(schema);
     hostByName.set(definition.name, schema);
@@ -602,6 +651,7 @@ export function readOptionCheck(
 
   // The phase selects preview semantics; it never joins the compile identity
   // or changes strict recovery. Unknown values are rejected like other flags.
+  let sourcePhase: LocalSourcePhase | undefined;
   if (Object.hasOwn(record, 'sourcePhase')) {
     const value = record.sourcePhase;
     if (value !== undefined && value !== 'streaming' && value !== 'final') {
@@ -611,12 +661,14 @@ export function readOptionCheck(
         key: 'local.options.invalid.source-phase',
       };
     }
+    if (value === 'streaming' || value === 'final') sourcePhase = value;
   }
 
   const limits = record.limits;
   let maxSyntaxNodes = DEFAULT_MAX_LOCAL_SYNTAX_NODES;
   let maxParseWork = DEFAULT_MAX_LOCAL_PARSE_WORK;
   let maxMarkdownDepth = DEFAULT_MAX_LOCAL_MARKDOWN_DEPTH;
+  let maxRawBodyChars = DEFAULT_MAX_LOCAL_RAW_BODY_CHARS;
   if (limits !== undefined) {
     if (!isRecord(limits)) {
       return { ok: false, message: 'Compile option limits must be an object.', key: 'local.options.invalid.limits' };
@@ -642,6 +694,11 @@ export function readOptionCheck(
     const markdownDepth = readLimit(limits, 'maxMarkdownDepth', maxMarkdownDepth);
     if (!markdownDepth.ok) return markdownDepth;
     maxMarkdownDepth = markdownDepth.value;
+    const rawBodyChars = readLimit(
+      limits, 'maxRawBodyChars', maxRawBodyChars, MAX_LOCAL_RAW_BODY_CHARS,
+    );
+    if (!rawBodyChars.ok) return rawBodyChars;
+    maxRawBodyChars = rawBodyChars.value;
   }
 
   const hasConfig = Object.hasOwn(record, 'config') && record.config !== undefined;
@@ -694,8 +751,10 @@ export function readOptionCheck(
     registry = defaults;
     const schemas = baseModels(defaults);
     for (const [name, schema] of hosts.hostByName) {
+      const structure = hostKernelStructure(schema);
       schemas.set(name, normalizeComponent(
         { ...(schema as unknown as LocalComponentSchema), legacyHost: true },
+        structure ? { structure } : undefined,
       ));
     }
     const unified = unifiedRegistry(defaults, schemas);
@@ -720,6 +779,8 @@ export function readOptionCheck(
     maxSyntaxNodes,
     maxParseWork,
     maxMarkdownDepth,
+    maxRawBodyChars,
+    ...(sourcePhase ? { sourcePhase } : {}),
     html,
     markdownBreaks,
     strict,

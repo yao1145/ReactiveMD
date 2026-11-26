@@ -56,6 +56,10 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Markdown nesting exceeds the {limit}-level limit.',
     zh: 'Markdown 嵌套超过 {limit} 层上限。',
   },
+  'budget.raw': {
+    en: 'Raw body of <{name}> exceeds the {limit}-character limit.',
+    zh: '组件 <{name}> 的原始正文超过 {limit} 个字符的上限。',
+  },
   'budget.nesting': {
     en: 'Component nesting exceeds the {limit}-level limit.',
     zh: '组件嵌套超过 {limit} 层上限。',
@@ -79,6 +83,14 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
   'options.maxMarkdownDepth': {
     en: 'Compile option limits.maxMarkdownDepth must be a positive safe integer.',
     zh: '编译选项 limits.maxMarkdownDepth 必须是正安全整数。',
+  },
+  'options.maxRawBodyChars': {
+    en: 'Compile option limits.maxRawBodyChars must be a positive safe integer no greater than 1000000.',
+    zh: '编译选项 limits.maxRawBodyChars 必须是正安全整数，且不能超过 1000000。',
+  },
+  'options.hostBody': {
+    en: 'Compile option hostComponents body must be "markdown" or "raw", and only containers accept it.',
+    zh: '编译选项 hostComponents 的 body 只能是 "markdown" 或 "raw"，且仅容器组件可声明。',
   },
   'options.unknownLimit': {
     en: 'Compile option limits.{detail} is not supported.',
@@ -672,12 +684,15 @@ export const LOCAL_DIAGNOSTIC_TEMPLATE_ALIASES = {
   'local.options.invalid.max-syntax-nodes': 'options.maxSyntaxNodes',
   'local.options.invalid.max-parse-work': 'options.maxParseWork',
   'local.options.invalid.max-markdown-depth': 'options.maxMarkdownDepth',
+  'local.options.invalid.max-raw-body-chars': 'options.maxRawBodyChars',
+  'local.options.invalid.host-body': 'options.hostBody',
   'local.options.invalid.limits-unknown': 'options.unknownLimit',
   'local.options.invalid.host-components': 'options.hostComponents',
   'local.budget.document': 'budget.document',
   'local.budget.nodes': 'budget.syntaxNodes',
   'local.budget.parse-work': 'budget.parseWork',
   'local.budget.markdown-depth': 'budget.markdownDepth',
+  'local.budget.raw': 'budget.raw',
   'local.budget.nesting': 'budget.nesting',
   'local.budget.name.attribute': 'budget.attributeName',
   'local.budget.name.tag': 'budget.tagName',

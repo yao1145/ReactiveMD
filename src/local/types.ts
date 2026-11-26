@@ -320,6 +320,12 @@ export interface LocalCompileLimits {
    * (blockquotes and open list levels). Fenced and indented code is ignored.
    */
   readonly maxMarkdownDepth?: number;
+  /**
+   * Positive safe integer; defaults to 100,000 UTF-16 code units of raw body
+   * source per `raw-body` component, counted before common-indent removal and
+   * excluding the opener and close tags. Accepts at most 1,000,000.
+   */
+  readonly maxRawBodyChars?: number;
 }
 /**
  * Host-owned capability flags for the mixed Markdown and ReactiveMD pipeline.
@@ -375,6 +381,12 @@ export interface LocalHostComponentSchema {
   readonly form: LocalHostComponentForm;
   readonly props: Readonly<Record<string, LocalHostPropSchema>>;
   readonly binding?: LocalHostBindingSchema;
+  /**
+   * Container body semantics. `markdown` (the default) keeps the existing
+   * parsed body; `raw` delivers one lazy `rawBody` child without Markdown,
+   * interpolation, entity or tag parsing. Only containers accept it.
+   */
+  readonly body?: 'markdown' | 'raw';
 }
 
 export interface LocalCompileOptions extends LocalHtmlOptions {

@@ -490,7 +490,7 @@ export function localReactExtensionRenderer(
 function plainNodeText(nodes: LocalNode[] | undefined): string {
   let text = '';
   for (const node of nodes ?? []) {
-    if (node.type === 'text' || node.type === 'inlineCode' || node.type === 'code') {
+    if (node.type === 'text' || node.type === 'inlineCode' || node.type === 'code' || node.type === 'rawBody') {
       text += node.value ?? '';
     } else if (node.type === 'math' || node.type === 'inlineMath' || node.type === 'image') {
       text += node.value ?? node.alt ?? '';

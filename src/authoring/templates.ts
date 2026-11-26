@@ -128,7 +128,11 @@ export function synthesizeInsertText(
   if (form !== 'leaf' && form !== 'inline' && form !== 'container') {
     throw new Error(`component "${name}" has an unsupported form; provide an authoring.insertText.`);
   }
-  if (manifestRequiresChildren(definition)) {
+  const rawBody = definition.structure?.rule === 'raw-body';
+  if (rawBody && form !== 'container') {
+    throw new Error(`component "${name}" declares a raw body on a non-container form; provide an authoring.insertText.`);
+  }
+  if (!rawBody && manifestRequiresChildren(definition)) {
     throw new Error(`component "${name}" requires children; provide an authoring.insertText.`);
   }
   const bindings = Object.entries(definition.bindings ?? {});
@@ -145,6 +149,13 @@ export function synthesizeInsertText(
   const head = `<${name}${attributes.length > 0 ? ` ${attributes.join(' ')}` : ''}`;
   if (form === 'leaf') return `${head}>`;
   if (form === 'inline') return `${head}></${name}>`;
+  if (rawBody) {
+    // The body is one lazy raw region: plain source text, never Markdown or
+    // an interpolation. A required body gets a literal placeholder line; an
+    // optional body stays empty. `</name>` only closes from its own line.
+    const body = (definition.structure?.min ?? 0) > 0 ? '\n…\n' : '\n\n';
+    return `${head}>${body}</${name}>`;
+  }
   return `${head}>\n\n</${name}>`;
 }
 

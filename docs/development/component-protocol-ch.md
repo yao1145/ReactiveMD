@@ -120,6 +120,21 @@ Reactive MD 分别维护以下版本轴：
 
 `local-draft-3` 的 49 个名称是当前语法的完整集合。新增名称、删除名称或改变名称含义都属于作者可见变化，按第 10 节处理。实现可以在内部使用未公开的节点类型，但作者只能使用这里和语法规范列出的名称。
 
+### CP-MODEL-05 raw 正文容器（要求）
+
+容器组块可以在 SDK manifest 中声明 `structure: { rule: 'raw-body', label: ..., min?: ... }`，或在旧版 `hostComponents` schema 中声明 `body: 'raw'`。正文作为单个惰性 `rawBody` 子节点交付，不参与解析：
+
+- 只有 `form: 'container'` 接受该声明。leaf 或 inline 的 manifest 或宿主 schema 在读取时被拒绝。
+- 正文内的 Markdown、组块标签、`{{ }}` 插值、HTML 实体、反斜杠转义和公式都保持原文。`<name>` 行是文本，同名嵌套不建立结构。
+- 正文只在一行结束：该行第一个非空白内容必须恰好是 `</name>`，其后只能是空格、制表符或行结束符。允许前置缩进，名称区分大小写，该行之前的标签形文本仍是正文。关闭标签前的引用 `>` 或其他前缀标记不属于空白，因此关闭行带这类前缀时 raw 容器不会闭合；raw 容器应放在无前缀的行上。
+- 交付的 `value` 是去除容器共同缩进后的正文源码，保留行结束符和剩余空白。`rawBody.range` 指向原始正文区间，不含开启和结束标签；组块区间仍覆盖整个元素。
+- 编译始终生成恰好一个 `rawBody` 子节点，空正文也生成 `value: ''` 的节点。`structure.min > 0` 要求非空正文，并用 `local.structure.children` / `local.structure.children.minimum` 诊断；Markdown 子项规则不作用于正文。
+- 正文源码计入 `limits.maxRawBodyChars`（默认 100,000 个 UTF-16 代码单元，最多 1,000,000，在去缩进前计数且不含两个标签），扫描计入 `maxParseWork`。超限编译以 `local.budget` / `local.budget.raw` 和 `{ name, limit }` 失败，不产生部分节点。
+- strict 模式下未闭合正文沿用 `local.tag.unclosed` 的 pair 分支；`strict: false` 沿用既有未闭合容器恢复；`sourcePhase: 'streaming'` 把未完成正文显示到快照末尾且不报告最终诊断，之后的一次 final 编译报告 pair 诊断。
+- React 渲染器把该值作为纯文本输出，交互、SSR 与离线/静态导出一致；不进入 `dangerouslySetInnerHTML`、Markdown 渲染器或 HTML 渲染器。宿主若自行把字符串插入 HTML，由宿主负责转义。
+- `analyzeLocalSource` 把正文视为不透明区间：不产生标签、属性、插值、绑定、注释或补全 token。catalog 报告 `bodyKind: 'raw'`；manifest 未提供 `authoring.insertText` 时合成 `<name>\n\n</name>`（正文必填时使用一行字面 `…` 占位）。
+- 版本身份不变：manifest 协议仍为 `reactive-md-component/v1`，协议修订仍为 `component-protocol-3`。旧读取端会拒绝未知结构规则，且没有默认组块声明 `raw-body`。
+
 ## 3. 名称、语法和属性
 
 ### CP-SYNTAX-01 名称拼写（现有）
@@ -178,6 +193,7 @@ $$ y = x^2 $$
 | 公式 | 一个或多个 `$$...$$` 公式块 | `plot` |
 | 内容 | 任务列表或静态说明 | `checklist`、`node` |
 | 普通内容 | Markdown 和组块，按组块附加规则 | `panel`、`card`、`tab`、`step`、`if`、`alert`、`section` |
+| raw 正文 | 单个惰性原文正文；不解析 Markdown、插值或子组块 | 声明 `raw-body` 的 SDK 或宿主容器；48 个作者标签均不使用 |
 
 `checklist` 的正文必须正好是一层 Markdown 任务列表；`node` 的说明可以包含文本插值，但不得包含交互组块。`choice` 类型的 `quiz` 接受 `option` 子项，`number` 类型的正文为空。结构子项出现在错误父级、容器缺少必需子项或子项类型不符时，编译失败。
 
@@ -436,6 +452,7 @@ range-slider 和 coordinate 的每个数值槽位也独占拥有绑定；范围�
 | 限制 | 值 |
 | --- | --- |
 | 单份文档源码 | 1,000,000 字符 |
+| 每个 `raw-body` 组块的正文源码 | 默认 100,000 个 UTF-16 代码单元；宿主可将 `limits.maxRawBodyChars` 提升至 1,000,000 |
 | 解析期间累计创建的语法节点 | 默认 10,000，可由宿主按次配置 |
 | 单个字符串值、属性或模板 | 100,000 字符 |
 | 单个数组 | 10,000 项 |
@@ -713,8 +730,9 @@ manifest 与绑定测试使用 `reactive-md/testing`，渲染与生命周期证�
 | 字段 | 内容 |
 | --- | --- |
 | `name` | 小写 kebab-case，在集合内唯一，不能是 49 个作者标签名、P0 HTML 标签名或主题声明名 `theme` |
-| `form` | `'leaf'`、`'inline'` 或 `'container'`；inline 与 container 的正文按普通 Markdown 编译，可包含组件 |
+| `form` | `'leaf'`、`'inline'` 或 `'container'`；inline 与 container 的正文按普通 Markdown 编译，可包含组件；`body` 可选择 raw 交付 |
 | `props` | 宿主属性表；属性名使用小写 kebab-case |
+| `body` | 可选的容器正文交付方式：`'markdown'`（默认）或 `'raw'`。`'raw'` 按 CP-MODEL-05 降为内部 `raw-body` 结构规则；其他形态会被拒绝 |
 
 每次编译最多接受 32 个宿主组块 Schema。每个属性声明 `kind`（`string`、`number`、`boolean` 或 `enum`）、`required`、`static`、`enum` 和 `pattern`。`enum` 用于 `enum` 属性，`pattern` 用于 `string` 属性。P0 HTML 标签名保留给解析器优先处理的 HTML，不得复用。`pattern` 限制在线性时间安全子集内：拒绝反向引用、环视、命名组、嵌套量词和被量词修饰的分支。非法 Schema 以 `local.options.invalid` 诊断拒绝；编译失败，该集合不会部分生效。
 
@@ -743,6 +761,8 @@ React 视图把 `hostComponent` 节点分发给 `hostRenderer(node, data, ctx)`�
 | `component-protocol-3` | 2026-10-29 | 宿主组件新增 inline/container 形态和标量绑定；`local-draft-3` 增加 `<external>` 和动态约束。 |
 | `component-protocol-2` | 2026-10-25 | 新增宿主组件扩展轴；作者语法仍为 `local-draft-2`。 |
 | `component-protocol-1` | 2026-10-23 | 初版；最初适用于 `local-draft-1` 和包版本 `0.3.0`，定义组块贡献、验收和扩展边界。现在适用于 `local-draft-2` 和 `0.4.0` 预览版，MUST 条款和机器格式不变。 |
+
+`raw-body` 容器（CP-MODEL-05）在 `component-protocol-3` 之后加入，未提升协议修订：该声明属于增量 SDK 与宿主数据，旧读取端会拒绝未知结构规则而不是误读，没有默认组块使用它，manifest 协议仍为 `reactive-md-component/v1`（`src/sdk/version.ts`）。
 
 
 组块与状态规则见[本地交互语法规范](../reference/local-interaction-syntax-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。

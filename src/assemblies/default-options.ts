@@ -163,7 +163,7 @@ function compileOptionsKey(options: LocalCompileOptions | undefined, includeCapa
     else {
       const part = (name: string): string =>
         !Object.hasOwn(limits, name) || limits[name] === undefined ? 'default' : String(limits[name]);
-      limitsKey = `${part('maxSyntaxNodes')}:${part('maxParseWork')}:${part('maxMarkdownDepth')}`;
+      limitsKey = `${part('maxSyntaxNodes')}:${part('maxParseWork')}:${part('maxMarkdownDepth')}:${part('maxRawBodyChars')}`;
     }
   }
   let hostSignature = '';

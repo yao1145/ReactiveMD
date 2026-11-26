@@ -72,7 +72,7 @@ const INITIAL_RULES: ReadonlySet<string> = new Set([
 ]);
 const CHILD_KINDS: ReadonlySet<string> = new Set(['none', 'inline', 'markdown']);
 const CHILD_RULES: ReadonlySet<string> = new Set([
-  'none', 'any', 'inline', 'content', 'table', 'plot', 'diagram', 'quiz',
+  'none', 'any', 'inline', 'raw-body', 'content', 'table', 'plot', 'diagram', 'quiz',
   'options', 'tabs', 'steps', 'components',
 ]);
 const RULE_KINDS: ReadonlySet<string> = new Set([
@@ -265,6 +265,9 @@ function readStructure(value: unknown, form: LocalComponentForm, path: string): 
   const rawRule = value.rule;
   if (typeof rawRule !== 'string' || !CHILD_RULES.has(rawRule)) fail(`${path}.rule`, 'is not a supported child rule.');
   const rule = rawRule as LocalChildRule;
+  if (rule === 'raw-body' && form !== 'container') {
+    fail(path, '"raw-body" requires form "container".');
+  }
   if (form === 'leaf' && rule !== 'none') fail(path, 'a leaf component cannot declare body content.');
   if (form === 'inline' && rule !== 'none' && rule !== 'inline' && rule !== 'any') {
     fail(path, 'an inline component only supports "none", "inline" or "any".');

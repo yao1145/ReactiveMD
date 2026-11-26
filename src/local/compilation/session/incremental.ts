@@ -9,7 +9,10 @@ import {shareCompiledData,countSharedNodes} from '../../transport/shared-data';
 import {reuseFlatRows} from './row-reuse';
 import type {InlinePlan,InlinePlanLookup} from '../../parsing/fast-markdown';
 import { plainCompiledData } from '../../transport/compiled-data';
-import { localCompileOptionsKey, readLocalCompileOptions } from '../../../assemblies/default-options';
+import {
+  localCompileOptionsKey,
+  readLocalCompileOptions,
+} from '../../../assemblies/default-options';
 import { readLocalConfig } from '../../../assemblies/default-config';
 import { getLocalComponent } from '../../../assemblies/default-schema';
 import { MAX_LOCAL_DOCUMENT_LENGTH } from '../../../contracts/limits';
@@ -73,6 +76,16 @@ type Dependencies = Record<string, readonly string[] | null>;
 interface Block {
   from: number; to: number; origin: number; text: string;
   nodes: LocalNode[]; dependencies: Dependencies; cost: number;
+  /**
+   * A raw-body container compiles as one opaque block. Its Markdown-free text
+   * may contain tag-shaped lines, so it is masked for the Lezer pass and
+   * recompiled whole when an edit lands inside it.
+   */
+  opaque?: true;
+  /** Prefix used for this block's isolated compile (opaque blocks omit themselves). */
+  prefix?: string;
+  /** Syntax nodes of `prefix`; subtracted from the isolated compile count. */
+  prefixCost?: number;
   /** Per-row inline plans from the compile that produced this block. */
   rowPlans?: ReadonlyMap<string, InlinePlan | undefined>;
   publication?:{delta:number;nodes:LocalNode[]};
@@ -105,14 +118,44 @@ function dependencies(nodes: LocalNode[], document: LocalDocument, rename?: Map<
   for (const node of allNodes(nodes)) result[rename?.get(node.id) ?? node.id] = document.dependencies?.[node.id] ?? null;
   return result;
 }
-function contextKind(node: LocalNode): 'context' | 'fragment' | 'unsupported' {
+const NO_RAW_NAMES: ReadonlySet<string> = new Set();
+const RAW_BODY_RULE = 'raw-body';
+
+/** Container names whose body is delivered as one lazy raw node. */
+function rawComponentNames(options: LocalCompileOptions | undefined): ReadonlySet<string> {
+  try {
+    const check = readLocalCompileOptions(options);
+    if (!check.ok) return NO_RAW_NAMES;
+    const names = new Set<string>();
+    for (const [name, schema] of check.schemaByName) {
+      if (schema.form === 'container' && schema.structure.rule === RAW_BODY_RULE) names.add(name);
+    }
+    return names.size ? names : NO_RAW_NAMES;
+  } catch {
+    return NO_RAW_NAMES;
+  }
+}
+function isRawNode(node: LocalNode, rawNames: ReadonlySet<string>): boolean {
+  return (node.type === 'component' || node.type === 'hostComponent')
+    && node.name !== undefined && rawNames.has(node.name);
+}
+type BlockKind = 'context' | 'fragment' | 'unsupported' | 'raw';
+function contextKind(node: LocalNode, rawNames: ReadonlySet<string> = NO_RAW_NAMES): BlockKind {
+  // A raw container is one opaque unit, even though it is a component node.
+  if (isRawNode(node, rawNames)) return 'raw';
   let context = false;
   for (const child of allNodes([node])) {
     if (['authorCss', 'authorJavaScript', 'extendedHtmlRaw'].includes(child.type)
       || (child.attrs && (Object.hasOwn(child.attrs, 'css') || Object.hasOwn(child.attrs, 'action-id')))) return 'unsupported';
     if (['definition', 'footnoteDefinition', 'footnoteReference', 'linkReference', 'imageReference'].includes(child.type)) return 'unsupported';
-    if (child.type === 'hostComponent' || child.type === 'htmlDocument' || child.type === 'fallback') return 'unsupported';
+    if (child.type === 'hostComponent' || child.type === 'htmlDocument' || child.type === 'fallback') {
+      // A raw container nested in a Markdown container stays opaque text; the
+      // enclosing root is still one context unit.
+      if (isRawNode(child, rawNames)) { context = true; continue; }
+      return 'unsupported';
+    }
     if (child.type === 'component') {
+      if (isRawNode(child, rawNames)) { context = true; continue; }
       if (['anchor', 'jump'].includes(child.name ?? '') || !getLocalComponent(child.name ?? '')) return 'unsupported';
       context = true;
     }
@@ -241,6 +284,7 @@ export class LocalCompileSession {
   private readonly parseSession=new LocalParseSession();
   private readonly semantic=new LocalSemanticCache();
   private readonly services:LocalCompilerServices={parser:this.parseSession,semantic:this.semantic};
+  private rawNamesCache:{key:string;names:ReadonlySet<string>}|null=null;
   private shared:LocalCompileResult|null=null;
   private sharedKey:string|undefined;
   private sharedMode:boolean|undefined;
@@ -326,6 +370,9 @@ export class LocalCompileSession {
     if (this.disposed) throw new Error('Local compile session is disposed');
     this.cacheBuilds = 0;
     const key = localCompileOptionsKey(options), check = readLocalCompileOptions(options);
+    // Raw-body containers are opaque units, not Markdown fragments. Their
+    // names follow the validated schema list for this option identity.
+    const rawNames = this.rawNames(key, options);
     // Loose mode reuses no block index: repaired boundaries, withdrawn nodes
     // and synthetic nodes must come from one complete reference compile so the
     // recovered result keeps exactly the strict pass's budgets and ranges.
@@ -348,9 +395,9 @@ export class LocalCompileSession {
       const touches = (range: SourceRange) => edit.from <= range.end && edit.oldTo >= range.start;
       const parsed = pending.tracked.parsed;
       if (parsed && !/[`\\~]/.test(pending.source.slice(edit.from, edit.oldTo) + source.slice(edit.from, edit.newTo))
-        && !parsed.nodes.some(n => touches(n.range) && contextKind(n) !== 'fragment')
+        && !parsed.nodes.some(n => touches(n.range) && contextKind(n, rawNames) !== 'fragment')
         && ![parsed.versionDeclaration?.range, parsed.themeRange].some(r => r && touches(r))) {
-        try { this.snapshot = this.seed(pending.source, key, pending.tracked, options); }
+        try { this.snapshot = this.seed(pending.source, key, pending.tracked, options, undefined, rawNames); }
         catch { this.snapshot = null; }
       }
     } else if (pending) reason = recoveryMode ? 'recovery-reference' : 'options-or-limits';
@@ -361,7 +408,7 @@ export class LocalCompileSession {
         return this.publish(previous);
       }
       let updated: Snapshot | null = null;
-      try { updated = this.update(previous, source, options, check.maxSyntaxNodes); }
+      try { updated = this.update(previous, source, options, check.maxSyntaxNodes, rawNames); }
       catch { /* Incremental machinery must preserve the full compiler's error boundary. */ }
       if (updated) { this.snapshot = updated; return this.publish(updated); }
       reason = 'scope-or-boundary';
@@ -386,55 +433,93 @@ export class LocalCompileSession {
         }
         this.deferred = {source, key, tracked, options: trustedOptions};
       } else {
-        try { this.snapshot = this.seed(source, key, tracked, options); }
+        try { this.snapshot = this.seed(source, key, tracked, options, undefined, rawNames); }
         catch { this.snapshot = null; }
       }
       if (this.snapshot) this.lastStats.totalBlocks = this.lastStats.compiledBlocks = this.snapshot.blocks.length;
     }
     return this.snapshot?this.publish(this.snapshot):tracked.result;
   }
-  private seed(source: string, key: string, tracked: Tracked, options?: LocalCompileOptions,preparedTree?:Tree): Snapshot | null {
+  private seed(source: string, key: string, tracked: Tracked, options?: LocalCompileOptions,preparedTree?:Tree,knownRaw?:ReadonlySet<string>): Snapshot | null {
     this.cacheBuilds++;
     if (!tracked.result.ok || !tracked.parsed || hasRecoveries(tracked.result) || source.includes('[^') || source.includes('\ufeff')
       || hasLoneCarriageReturn(source)) return null;
-    const roots = tracked.parsed.nodes, kinds = roots.map(contextKind);
+    const rawNames = knownRaw ?? this.rawNamesFor(options);
+    const roots = tracked.parsed.nodes, kinds = roots.map(node => contextKind(node, rawNames));
     // A plain single-block document normally has nothing to reuse. One huge
     // flat list or table is the exception: row-level reuse makes the
-    // incremental path cheaper than a full recompile, so let it seed.
+    // incremental path cheaper than a full recompile, so let it seed. A raw
+    // container block is reusable on its own as well.
     const rowBlock = roots.length === 1 && kinds[0] === 'fragment'
       && (roots[0].type === 'list' || roots[0].type === 'table');
+    const rawRoots = kinds.filter(kind => kind === 'raw').length;
     if (kinds.includes('unsupported')
-      || (!rowBlock && kinds.filter(kind => kind === 'fragment').length < 2)) return null;
+      || (!rowBlock && rawRoots === 0 && kinds.filter(kind => kind === 'fragment').length < 2)) return null;
     const doc:LocalDocument = {...tracked.result.document,nodes:[],source:''};
     const rendered = new Map(tracked.result.document.nodes.map(node => [node.id, node]));
-    const context: Block[] = [];
+    /** Every non-fragment root, including raw bodies; used for masking. */
+    const masking: Block[] = [];
     const fragments: LocalNode[] = [];
     for (let index = 0; index < roots.length; index++) {
       const node = roots[index], kind = kinds[index];
-      if (kind === 'fragment') fragments.push(node);
-      else {
-        const nodes = rendered.has(node.id) ? [rendered.get(node.id)!] : [];
-        context.push({from: node.range.start, to: node.range.end, origin: node.range.start,
-          text: source.slice(node.range.start, node.range.end), nodes, dependencies: dependencies(nodes, doc), cost: 0});
+      if (kind === 'fragment') { fragments.push(node); continue; }
+      const nodes = rendered.has(node.id) ? [rendered.get(node.id)!] : [];
+      const block: Block = {from: node.range.start, to: node.range.end, origin: node.range.start,
+        text: source.slice(node.range.start, node.range.end), nodes, dependencies: dependencies(nodes, doc), cost: 0};
+      if (kind === 'raw') {
+        // A raw component is published as one block, so an interior edit
+        // recompiles exactly this unit instead of Markdown fragments of it.
+        if (!nodes.length) return null;
+        block.opaque = true;
+        block.cost = allNodes(nodes).length;
       }
+      masking.push(block);
     }
     for (const range of [tracked.parsed.versionDeclaration?.range, tracked.parsed.themeRange]) {
-      if (range && !context.some(b => range.start >= b.from && range.end <= b.to)) {
-        context.push({from: range.start, to: range.end, origin: range.start, text: source.slice(range.start,range.end), nodes: [], dependencies: {}, cost: 0});
+      if (range && !masking.some(b => range.start >= b.from && range.end <= b.to)) {
+        masking.push({from: range.start, to: range.end, origin: range.start, text: source.slice(range.start,range.end), nodes: [], dependencies: {}, cost: 0});
       }
     }
-    context.sort((a,b) => a.from-b.from);
-    if (contextRunsOn(source, context)) return null;
-    const masked = mask(source, context);
+    masking.sort((a,b) => a.from-b.from);
+    if (contextRunsOn(source, masking)) return null;
+    const masked = mask(source, masking);
     // The local HTML scanner and Markdown's HTML lexer have different block
     // boundaries. Keep their whole-document shielding on the full path.
     if (masked.includes('<')) return null;
     const tree = preparedTree??markdown.parse(masked);
-    const ranges = boundaries(tree, context, masked);
+    const ranges = boundaries(tree, masking, masked);
     if (!ranges) return null;
+    const opaqueBlocks = masking.filter(block => block.opaque);
+    for (const block of opaqueBlocks) {
+      if (ranges.some(range => range.start < block.to && range.end > block.from)) return null;
+    }
+    const entries: {range: SourceRange; opaque?: Block}[] = [
+      ...ranges.map(range => ({range})),
+      ...opaqueBlocks.map(block => ({range: {start: block.from, end: block.to}, opaque: block})),
+    ].sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
     const blocks: Block[] = [];
     let assigned = 0;
-    for (const range of ranges) {
+    for (const entry of entries) {
+      const range = entry.range;
+      if (entry.opaque) {
+        const block = entry.opaque;
+        if (assigned < fragments.length && fragments[assigned].range.start < range.end) return null;
+        // Prefix for the isolated compile: every other context unit. The raw
+        // body cannot declare bindings, but its attributes may read them, and
+        // omitting its own text avoids duplicate declarations.
+        const rest = masking.filter(item => item !== block);
+        const prefixText = rest.length ? rest.map(item => item.text).join(separator) + separator : '';
+        let prefixCost = 0;
+        if (prefixText) {
+          const prefixResult = this.parseSession.parse(prefixText, options);
+          if (prefixResult.diagnostics.length) return null;
+          prefixCost = prefixResult.syntaxNodes ?? 0;
+        }
+        block.prefix = prefixText;
+        block.prefixCost = prefixCost;
+        blocks.push(block);
+        continue;
+      }
       const members: LocalNode[] = [];
       while (assigned < fragments.length && fragments[assigned].range.start < range.end) {
         const member = fragments[assigned];
@@ -449,7 +534,7 @@ export class LocalCompileSession {
         dependencies: dependencies(nodes, doc), cost, rowPlans: rowPlansFor(tracked, text)});
     }
     if (assigned !== fragments.length) return null;
-    const prefix = context.length ? context.map(b => b.text).join(separator) + separator : '';
+    const prefix = masking.length ? masking.map(b => b.text).join(separator) + separator : '';
     // All semantic context already belongs to a successful complete result.
     // Recount the separator-prefixed syntax without revalidating every binding.
     const prefixResult = prefix ? this.parseSession.parse(prefix, options) : null;
@@ -457,10 +542,15 @@ export class LocalCompileSession {
     const contextCost = (tracked.parsed.syntaxNodes ?? 0) - blocks.reduce((sum,b) => sum + b.cost, 0);
     if (contextCost < 0) return null;
     doc.nodes = []; doc.source = ''; delete doc.dependencies;
+    // Stored context excludes opaque blocks: they are already in `blocks`,
+    // and update() reconstructs the masking view from both lists.
+    const context = masking.filter(block => !block.opaque);
     return {source, key, tree, metadata: doc, blocks, context, contextCost, prefix, prefixCost: prefixResult?.syntaxNodes ?? 0};
   }
-  private update(old: Snapshot, source: string, options: LocalCompileOptions | undefined, budget: number): Snapshot | null {
+  private update(old: Snapshot, source: string, options: LocalCompileOptions | undefined, budget: number,
+    knownRaw?: ReadonlySet<string>): Snapshot | null {
     if (source.includes('[^') || source.includes('\ufeff') || hasLoneCarriageReturn(source)) return null;
+    const rawNames = knownRaw ?? this.rawNamesFor(options);
     const edit = change(old.source, source);
     // Local code shielding can extend beyond a Markdown leaf block. Changing
     // its delimiters invalidates that lexical context, even if Lezer kept a
@@ -474,13 +564,39 @@ export class LocalCompileSession {
       if (source.slice(next.from, next.to) !== b.text) return null;
       context.push(next);
     }
-    if (contextRunsOn(source, context)) return null;
+    // A raw-body container is one opaque unit. An edit strictly inside it
+    // recompiles that block; anything touching its tags keeps the full path.
+    const opaque: Block[] = [];
+    for (const b of old.blocks) {
+      if (!b.opaque) continue;
+      if (edit.from > b.from && edit.oldTo < b.to) {
+        const to = b.to + edit.delta;
+        opaque.push({...b, to, text: source.slice(b.from, to)});
+        continue;
+      }
+      if (edit.from <= b.to && edit.oldTo >= b.from) return null;
+      const delta = b.from >= edit.oldTo ? edit.delta : 0;
+      const next: Block = {...b, from: b.from + delta, to: b.to + delta};
+      if (source.slice(next.from, next.to) !== b.text) return null;
+      opaque.push(next);
+    }
+    /** Every non-fragment unit: masking, boundary protection and blank-line runs. */
+    const masking = [...context, ...opaque].sort((a,b) => a.from - b.from);
+    if (contextRunsOn(source, masking)) return null;
     const fragments = TreeFragment.applyChanges(TreeFragment.addTree(old.tree), [{fromA: edit.from, toA: edit.oldTo, fromB: edit.from, toB: edit.newTo}], 0);
-    const masked = mask(source, context);
+    const masked = mask(source, masking);
     if (masked.includes('<')) return null;
     const tree = markdown.parse(masked, fragments);
-    const ranges = boundaries(tree, context, masked);
+    const ranges = boundaries(tree, masking, masked);
     if (!ranges) return null;
+    for (const block of opaque) {
+      if (ranges.some(range => range.start < block.to && range.end > block.from)) return null;
+    }
+    /** Markdown boundaries plus the opaque raw ranges, in source order. */
+    const entries: {range: SourceRange; opaque?: Block}[] = [
+      ...ranges.map(range => ({range})),
+      ...opaque.map(block => ({range: {start: block.from, end: block.to}, opaque: block})),
+    ].sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
     const index = new Map(old.blocks.map(b => [`${b.from}:${b.to}`, b]));
     const blocks: Block[] = [];
     /** IDs already claimed by this revision; prevents a split block from duplicating them. */
@@ -488,7 +604,8 @@ export class LocalCompileSession {
     /** Blocks compiled in isolation during this revision. */
     const recompiled = new Set<Block>();
     let reused = 0, compiled = 0, characters = 0, cost = old.contextCost;
-    for (const range of ranges) {
+    for (const entry of entries) {
+      const range = entry.range;
       const delta = range.start >= edit.newTo ? edit.delta : 0;
       const reusable = range.end <= edit.from || range.start >= edit.newTo;
       const cached = reusable ? index.get(`${range.start - delta}:${range.end - delta}`) : undefined;
@@ -496,6 +613,31 @@ export class LocalCompileSession {
       if (cached && cached.text === text) {
         blocks.push({...cached, from: range.start, to: range.end}); reused++; cost += cached.cost;
         for (const node of allNodes(cached.nodes)) claimed.add(node.id);
+      } else if (entry.opaque) {
+        // Recompile the raw container alone. Its prefix holds every other
+        // context unit, so attribute expressions keep their declarations
+        // while the block's own text is not compiled twice.
+        const prefix = entry.opaque.prefix ?? '';
+        const from = prefix.length;
+        const tracked = compileLocalTracked(prefix + text, options, this.services);
+        characters += from + text.length; compiled++;
+        if (!tracked.result.ok || tracked.result.diagnostics.length || !tracked.parsed || hasRecoveries(tracked.result)) return null;
+        const parsed = tracked.parsed.nodes.filter(n => n.range.start >= from);
+        if (parsed.length !== 1 || contextKind(parsed[0], rawNames) !== 'raw') return null;
+        const fresh = tracked.result.document.nodes.filter(n => n.range.start >= from);
+        if (fresh.length !== 1) return null;
+        const rename = new Map(allNodes(fresh).map(n => [n.id, `incremental-${++this.serial}-${n.id}`]));
+        const nodes = copyNodes(fresh, 0, rename);
+        const count = (tracked.parsed.syntaxNodes ?? 0) - (entry.opaque.prefixCost ?? 0);
+        if (count < allNodes(nodes).length) return null;
+        const freshDeps = dependencies(fresh, tracked.result.document, rename);
+        const deps: Dependencies = Object.create(null);
+        for (const node of allNodes(nodes)) deps[node.id] = freshDeps[node.id] ?? null;
+        const block: Block = {from: range.start, to: range.end, origin: from, text, nodes,
+          dependencies: deps, cost: count, opaque: true,
+          prefix, prefixCost: entry.opaque.prefixCost ?? 0};
+        blocks.push(block); recompiled.add(block);
+        cost += count;
       } else {
         // The unchanged declaration prefix supplies the same binding and type
         // environment. Only this new block is semantically compiled.
@@ -632,8 +774,9 @@ export class LocalCompileSession {
       Object.defineProperty(deps, id, {value: values === null ? null : Object.freeze([...values]), enumerable: true});
     }
     doc.dependencies = Object.freeze(deps);
+    const shiftUnits = [...snapshot.context, ...snapshot.blocks.filter(b => b.opaque)];
     const shift = (range: SourceRange): SourceRange => {
-      const block = snapshot.context.find(b => range.start >= b.origin && range.end <= b.origin + b.text.length);
+      const block = shiftUnits.find(b => range.start >= b.origin && range.end <= b.origin + b.text.length);
       const delta = block ? block.from - block.origin : 0;
       return {start: range.start + delta, end: range.end + delta};
     };
@@ -667,10 +810,11 @@ export class LocalCompileSession {
     if(!pending.tracked.result.ok||!pending.tracked.parsed)return false;
     const context:Block[]=[];
     const roots=pending.tracked.parsed.nodes;
+    const rawNames=this.rawNamesFor(pending.options);
     for(let index=0;index<roots.length;index++) {
-      const node=roots[index],kind=contextKind(node);
+      const node=roots[index],kind=contextKind(node,rawNames);
       if(kind==='unsupported')return false;
-      if(kind==='context')context.push({from:node.range.start,to:node.range.end,origin:node.range.start,text:pending.source.slice(node.range.start,node.range.end),nodes:[],dependencies:{},cost:0});
+      if(kind==='context'||kind==='raw')context.push({from:node.range.start,to:node.range.end,origin:node.range.start,text:pending.source.slice(node.range.start,node.range.end),nodes:[],dependencies:{},cost:0});
       if(index%64===63){await yieldTask();if(!valid())return false;}
     }
     for(const range of [pending.tracked.parsed.versionDeclaration?.range,pending.tracked.parsed.themeRange]) {
@@ -687,12 +831,20 @@ export class LocalCompileSession {
     await yieldTask();if(!valid())return false;
     const builds=this.cacheBuilds;
     try {
-      const snapshot=this.seed(pending.source,pending.key,pending.tracked,pending.options,tree);
+      const snapshot=this.seed(pending.source,pending.key,pending.tracked,pending.options,tree,rawNames);
       if(!valid())return false;
       this.snapshot=snapshot;this.deferred=null;return snapshot!==null;
     } catch {return false;} finally {this.cacheBuilds=builds;}
   }
-  clear(): void { this.epoch++;this.snapshot = null; this.deferred = null; this.serial = 0; this.cacheBuilds = 0;this.shared=null;this.sharedKey=undefined;this.sharedMode=undefined;this.streamingCache=null;this.parseSession.clear();this.semantic.clear(); }
+  /** Validated raw-body container names for one compile-option identity. */
+  private rawNames(key: string, options: LocalCompileOptions | undefined): ReadonlySet<string> {
+    if (this.rawNamesCache?.key !== key) this.rawNamesCache = {key, names: rawComponentNames(options)};
+    return this.rawNamesCache.names;
+  }
+  private rawNamesFor(options: LocalCompileOptions | undefined): ReadonlySet<string> {
+    return this.rawNames(localCompileOptionsKey(options), options);
+  }
+  clear(): void { this.epoch++;this.snapshot = null; this.deferred = null; this.serial = 0; this.cacheBuilds = 0;this.shared=null;this.sharedKey=undefined;this.sharedMode=undefined;this.streamingCache=null;this.rawNamesCache=null;this.parseSession.clear();this.semantic.clear(); }
   dispose(): void { this.clear(); this.parseSession.dispose();this.disposed = true; }
 }
 

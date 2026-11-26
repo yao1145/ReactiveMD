@@ -95,6 +95,12 @@ interface RegionScannerOptions {
   nativeHtmlNames: ReadonlySet<string>;
   sourceContext: SourceContext;
   work: ParserWork;
+  streaming: boolean;
+  /**
+   * Raw close scans already performed (and charged) by the loose-mode recovery
+   * planner, keyed by the opener end. Sharing them prevents double charging.
+   */
+  rawCloseCache?: ReadonlyMap<number, { bodyEnd: number; closeStart: number; closeEnd: number } | null>;
   ensureDepth: (text: string) => void;
   parseMarkdown: ParseMarkdown;
   node: CreateNode;
@@ -113,13 +119,13 @@ interface RegionScannerOptions {
 export function createRegionScanner({
   source, diagnostics, maxSyntaxNodes, strict, budget, known, externalNames,
   unmountedLeafNames, suggestionNames, htmlSupport, nativeHtmlNames, sourceContext,
-  work, ensureDepth, parseMarkdown, node, codeRanges, recoveryRanges, recoveries,
+  work, streaming, rawCloseCache, ensureDepth, parseMarkdown, node, codeRanges, recoveryRanges, recoveries,
   rootMathLiterals, rootDefinitionRanges, error, warning, headers, scanner, convert,
 }: RegionScannerOptions) {
   const {
     tagAt, scanTag, htmlLiteralEnd, beginsLine, footnoteLabelAt, definitionLabelAt,
     htmlTagAt, htmlCloseEnd, selectHtmlAttributes, buildHtmlNode, protectedEnd,
-    unknownTagEnd, interpolationEnd, commonIndent,
+    unknownTagEnd, interpolationEnd, commonIndent, rawBodyClose,
   } = scanner;
   let codeIndex = 0;
   /** A top-level `<javascript>` ends the leading CSS region. */
@@ -158,6 +164,22 @@ export function createRegionScanner({
     const closing = new RegExp(`</${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*>`, 'i');
     const match = closing.exec(source.slice(from, limit));
     return match ? { start: from + match.index, end: from + match.index + match[0].length } : null;
+  }
+
+  /**
+   * Raw container body text: the exact source slice with the container's
+   * common indentation removed. Line endings and remaining whitespace are
+   * preserved; the body is never Markdown parsed.
+   */
+  function rawBodyValue(from: number, to: number): string {
+    if (from >= to) return '';
+    const indent = commonIndent(from, to);
+    if (!indent) return source.slice(from, to);
+    const mapped = new MappedSource(sourceContext);
+    mapped.original(from, to, indent);
+    mapped.finish(to);
+    work.mappingSegments += mapped.segmentCount;
+    return mapped.text();
   }
 
   /**
@@ -890,6 +912,52 @@ export function createRegionScanner({
           const empty = !paired || tag.self;
           if (tag.self && paired) error('local.tag.shape', { key: 'local.tag.shape', params: { name: tag.name } }, i, tag.end);
           if (empty) { tokens.push({ start: i, end: tag.end, ...(isHost ? { block: beginsLine(i) } : {}), node: node(isHost ? 'hostComponent' : 'component', i, tag.end, { name: tag.name, attrs: tag.attrs, children: [], ...(isHost ? { hostForm } : {}) }) }); i = tag.end; continue; }
+          // A raw-body container is opaque: its body is one lazy raw node and
+          // never Markdown, component, interpolation, entity or escape parsed.
+          if (schema !== undefined && schema.form === 'container' && schema.structure.rule === 'raw-body') {
+            const chargeClose = (units: number, from: number, to: number) => budget.charge(units, from, to);
+            const cached = rawCloseCache?.has(tag.end) ? rawCloseCache.get(tag.end) : undefined;
+            // The loose-mode planner already scanned and charged to source end.
+            // Reuse that result unless it points past this region's limit.
+            const close = cached === undefined
+              ? rawBodyClose(tag.end, tag.name, end, chargeClose)
+              : cached === null || cached.closeEnd <= end
+                ? cached
+                : rawBodyClose(tag.end, tag.name, end, chargeClose);
+            const bodyEnd = close ? close.bodyEnd : end;
+            // Reject an oversized body before creating any node.
+            budget.checkRawBody(bodyEnd - tag.end, tag.end, Math.max(tag.end + 1, bodyEnd), tag.name);
+            const rawNode = node('rawBody', tag.end, bodyEnd, { value: rawBodyValue(tag.end, bodyEnd) });
+            const componentFor = (limit: number): LocalNode => node(
+              isHost ? 'hostComponent' : 'component', i, limit,
+              { name: tag.name, attrs: tag.attrs, children: [rawNode], ...(isHost ? { hostForm } : {}) },
+            );
+            if (close) {
+              const finish = close.closeEnd;
+              tokens.push({ start: i, end: finish, ...(isHost ? { block: beginsLine(i) } : {}), node: componentFor(finish) });
+              i = finish;
+              continue;
+            }
+            if (streaming) {
+              // Provisional source: show the unfinished body to the region
+              // limit and leave the final `local.tag.unclosed` to final compile.
+              tokens.push({ start: i, end, ...(isHost ? { block: beginsLine(i) } : {}), node: componentFor(end) });
+              i = end;
+              continue;
+            }
+            if (strict) {
+              // The unclosed pair path keeps its historical ranges.
+              error('local.tag.unclosed', { key: 'local.tag.unclosed.pair', params: { name: tag.name } }, i, tag.end);
+              tokens.push({ start: i, end, ...(isHost ? { block: beginsLine(i) } : {}), node: componentFor(end) });
+              i = end;
+              continue;
+            }
+            // Loose mode normally degrades the opener through the recovery
+            // planner; keep the fragment literal if that never happened.
+            tokens.push({ start: i, end, block: beginsLine(i), node: node('fallback', i, end, { value: source.slice(i, end) }) });
+            i = end;
+            continue;
+          }
           const nested = region(tag.end, end, tag.name, i, tag.end, depth + 1);
           const children = convert(tag.end, nested.contentEnd, nested.tokens, inline ? 0 : nested.indent);
           const component = node(isHost ? 'hostComponent' : 'component', i, nested.end, { name: tag.name, attrs: tag.attrs, children: inline && children.length === 1 && children[0].type === 'paragraph' ? children[0].children ?? [] : children, ...(isHost ? { hostForm } : {}) });

@@ -98,6 +98,8 @@ const result = ctx.bindings.setMany({ x: 2, y: 3 });
 
 `structure` 声明直接子项、父层要求和内容形态；`rules` 声明可复用的编译或状态规则。规则可描述数值区间、日期、选项序列、表格、图形、导航和预算。内核执行规则，组件实现负责交互。外部组件可以复用默认定义的规则，或组合公开类型声明的原语。
 
+`structure: { rule: 'raw-body' }` 声明正文以单个惰性 `rawBody` 子节点交付的容器，不按 Markdown 解析。正文内的组块标签、`{{ }}`、实体、转义和 Markdown 都保持原文。正文只在一行的第一个非空白内容恰好为 `</name>` 时结束；交付值是去缩进后的源码，`limits.maxRawBodyChars` 限制其长度（默认 100,000，最多 1,000,000）。正文必填（`min > 0`）且为空白时使用既有 children minimum 诊断。渲染时把值当作文本：`ctx.children.render()` 输出一个转义后的文本节点；宿主若自行把字符串写入 HTML，由宿主负责转义。analyzer 把正文视为不透明区间。详见[组块协议](../development/component-protocol-ch.md#cp-model-05-raw-正文容器要求)。
+
 React 上下文的 `content` 与 `children.items()` 提供公开内容投影。组件通过 `children.render()`、`children.options()`、`children.table()` 等方法消费子内容，通过 `validation`、`navigation`、`source` 和 `locale` 使用通用服务。运行时服务提供求值、状态读写与重置；内部 AST 保留在适配器中。
 
 `examples/integration/extension-sdk/advanced.tsx` 展示了自定义坐标、集合和 Markdown 容器。
@@ -115,6 +117,8 @@ const edit = insertLocalComponent(config, 'example/note', source, selection, 'zh
 ```
 
 标签、属性、说明、插入模板及成对标签闭合来自同一配置。`insertLocalComponent` 处理绑定名分配、选区和光标模板，返回编辑结果。`validateLocalComponentInsertTemplates` 编译实际插入结果，报告与当前配置不匹配的模板。宿主可以把目录接入自己的菜单。
+
+由 manifest 生成的 catalog 条目和标签 authoring 数据从归一化结构规则提供 `bodyKind: 'markdown' | 'raw'`；标签视图也覆盖声明 `body: 'raw'` 的旧版宿主 schema，但该 schema 不生成 catalog 条目。manifest 未提供 `authoring.insertText` 时，raw 容器得到可编译的 `<name>\n\n</name>` 模板；正文必填时使用一行字面 `…` 占位。正文是纯文本，模板不会引入 Markdown 或插值。
 
 ## 主题包与组合
 

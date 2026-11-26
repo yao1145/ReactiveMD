@@ -21,6 +21,7 @@ export function portableCompileOptions(input?: LocalCompileOptions): LocalCompil
         ...(input.limits.maxSyntaxNodes === undefined ? {} : { maxSyntaxNodes: check.maxSyntaxNodes }),
         ...(input.limits.maxParseWork === undefined ? {} : { maxParseWork: check.maxParseWork }),
         ...(input.limits.maxMarkdownDepth === undefined ? {} : { maxMarkdownDepth: check.maxMarkdownDepth }),
+        ...(input.limits.maxRawBodyChars === undefined ? {} : { maxRawBodyChars: check.maxRawBodyChars }),
       },
     }),
   };

@@ -120,6 +120,21 @@ Default component data lives in `src/presets/default-semantics.ts`, with its loc
 
 The 49 names of `local-draft-3` are the complete set for the current syntax. Adding, removing or changing the meaning of a name is an author-visible change and is handled under section 10. Implementations may use undocumented node types internally, but authors can only use the names listed here and in the syntax specification.
 
+### CP-MODEL-05 Raw-body containers (required)
+
+A container component may declare `structure: { rule: 'raw-body', label: ..., min?: ... }` in an SDK manifest, or `body: 'raw'` in a legacy `hostComponents` schema. Its body is delivered as one lazy `rawBody` child and is never parsed:
+
+- Only `form: 'container'` accepts the declaration. A leaf or inline manifest or host schema is rejected when it is read.
+- Inside the body, Markdown, component tags, `{{ }}` interpolation, HTML entities, backslash escapes and formulas stay literal. A `<name>` line is text; same-name nesting creates no structure.
+- The body ends only on a line whose first non-whitespace content is exactly `</name>` and whose remaining characters are spaces, tabs or the line ending. Leading indentation is allowed, matching is case-sensitive, and tag-shaped text before that line stays body text. A blockquote `>` or other prefix marker before the closing tag is not whitespace, so a raw container whose close line sits under such a prefix does not close; keep raw containers on unprefixed lines.
+- The delivered `value` is the body source with the container's common indentation removed; line endings and remaining whitespace are kept. `rawBody.range` points at the original body source without the opener or close tag, and the component range still spans the whole element.
+- Compilation emits exactly one `rawBody` child, including for an empty body (`value: ''`). `structure.min > 0` requires a non-blank body and reports `local.structure.children` with `local.structure.children.minimum`; Markdown child rules do not run against the body.
+- Body source counts toward `limits.maxRawBodyChars` (default 100,000 UTF-16 code units, at most 1,000,000, counted before dedenting and excluding both tags), and scanning counts toward `maxParseWork`. An over-limit compile fails with `local.budget` / `local.budget.raw` and `{ name, limit }`, without a partial node.
+- Strict unclosed bodies use the existing `local.tag.unclosed` pair branch; `strict: false` uses the existing unclosed-container recovery; `sourcePhase: 'streaming'` renders the unfinished body to the end of the snapshot without a final diagnostic, and the next final compile reports the pair diagnostic.
+- The React renderer emits the value as plain text, identically in interactive, SSR and offline/static output. It never enters `dangerouslySetInnerHTML`, a Markdown renderer or an HTML renderer. A host that inserts the string into its own HTML owns that escaping.
+- `analyzeLocalSource` treats the body as opaque: no tag, attribute, interpolation, binding, comment or completion token comes from it. The catalog reports `bodyKind: 'raw'` and synthesizes `<name>\n\n</name>` (a required body uses a literal `…` line) unless the manifest supplies `authoring.insertText`.
+- Identity is unchanged: the manifest protocol stays `reactive-md-component/v1` and the protocol revision stays `component-protocol-3`. Older readers reject an unknown structure rule, and no default component declares `raw-body`.
+
 ## 3. Names, syntax and attributes
 
 ### CP-SYNTAX-01 Name spelling (existing)
@@ -178,6 +193,7 @@ Whether `label` is required, optional or not applicable is determined by the com
 | Formulas | One or more `$$...$$` formula blocks | `plot` |
 | Content | A task list or static notes | `checklist`, `node` |
 | General content | Markdown and components, with component-specific rules | `panel`, `card`, `tab`, `step`, `if`, `alert`, `section` |
+| Raw body | One lazy raw text body; no Markdown, interpolation or child components | SDK or host containers declaring `raw-body`; none of the 48 author tags |
 
 The `checklist` body must be exactly one level of Markdown task list; `node` notes may contain text interpolation but must not contain interactive components. A `choice` quiz accepts `option` children and a `number` quiz has an empty body. Compilation fails when a structural child appears under the wrong parent, a container lacks a required child, or a child type does not match.
 
@@ -437,6 +453,7 @@ All images are rejected by default, including relative paths; they load only whe
 | Limit | Value |
 | --- | --- |
 | Source per document | 1,000,000 characters |
+| Raw body source per `raw-body` component | 100,000 UTF-16 code units by default; host may raise `limits.maxRawBodyChars` to 1,000,000 |
 | Syntax nodes created cumulatively during parsing | 10,000 by default, configurable per call by the host |
 | A single string value, attribute or template | 100,000 characters |
 | A single array | 10,000 items |
@@ -714,8 +731,9 @@ The tables below are for review. See the [component development guide](component
 | Field | Content |
 | --- | --- |
 | `name` | Lowercase kebab-case, unique within the set, not one of the 48 author tag names, a P0 HTML tag name or the theme declaration name |
-| `form` | `'leaf'`, `'inline'` or `'container'`; inline and container bodies are compiled as normal Markdown and may contain components |
+| `form` | `'leaf'`, `'inline'` or `'container'`; inline and container bodies are compiled as normal Markdown and may contain components, unless `body` selects raw delivery |
 | `props` | A table of host properties; property names use lowercase kebab-case |
+| `body` | Optional container body delivery: `'markdown'` (the default) or `'raw'`. `'raw'` lowers to the internal `raw-body` structure rule under CP-MODEL-05; other forms are rejected |
 | `binding` | Optional scalar binding (`string`, `number`, `boolean`) with static `min`, `max`, `step`, `options`, `initialRule` and `exclusive`; the component then accepts `bind`, `initial` and dynamic `disabled` implicitly |
 
 One compilation accepts at most 32 host component schemas. Each property declares `kind` (`string`, `number`, `boolean` or `enum`), `required`, `static`, `enum` and `pattern`. A host binding shares the built-in families; when its name matches a built-in control, family and static constraints must agree. `enum` applies to `enum` properties, and `pattern` applies to `string` properties. P0 HTML tag names are reserved because the parser handles them before component tags. `pattern` is restricted to a linear-time-safe subset: backreferences, lookarounds, named groups, nested quantifiers and quantified alternation are rejected. Invalid schemas are rejected with a `local.options.invalid` diagnostic; compilation fails and no host component from that set is partially registered.
@@ -745,6 +763,8 @@ Portable machine cases remain `examples/conformance/component-protocol-1.json`, 
 | `component-protocol-3` | 2026-10-29 | Host components gain inline/container forms and scalar bindings; `local-draft-3` adds `<external>` and dynamic constraints. |
 | `component-protocol-2` | 2026-10-25 | Added the host component extension axis; author syntax remains `local-draft-2`. |
 | `component-protocol-1` | 2026-10-23 | Initial version; originally applied to `local-draft-1` and package version `0.3.0`, defining component contribution, acceptance and extension boundaries. It now applies to `local-draft-2` and the `0.4.0` preview release without changing its MUST clauses or machine format. |
+
+`raw-body` containers (CP-MODEL-05) were added after `component-protocol-3` without raising the revision. The declaration is additive SDK and host data, an unknown structure rule is rejected rather than misread, no default component uses it, and the manifest protocol remains `reactive-md-component/v1` (`src/sdk/version.ts`).
 
 
 See the [syntax specification](../reference/local-interaction-syntax-en.md) for tags, colors, slot state and selection rules, and [Versions and compatibility](../compatibility/compatibility-en.md) for version mapping and migration guidance.

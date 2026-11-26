@@ -84,6 +84,8 @@ Use `family: 'collection'` with `kind: 'array'` or `'number-array'` for general 
 
 `structure` describes direct children, placement and content shape. `rules` declares reusable compile or state semantics for numeric ranges, dates, option sequences, tables, diagrams, navigation and budgets. External components may reuse default contracts or compose the primitives described by the public types.
 
+`structure: { rule: 'raw-body' }` declares a container whose body is delivered as one lazy `rawBody` child instead of Markdown. Nothing inside is parsed: component tags, `{{ }}`, entities, escapes and Markdown stay literal. The body closes only on a line whose first non-whitespace content is exactly `</name>`; the delivered value is the dedented source and `limits.maxRawBodyChars` bounds it (default 100,000; at most 1,000,000). A required body (`min > 0`) reports the existing children-minimum diagnostic when blank. Render the value as text: `ctx.children.render()` emits one escaped text node, and a host that inserts the string into its own HTML must escape it. Analysis treats the body as opaque. See CP-MODEL-05 in the [component protocol](../development/component-protocol-en.md#cp-model-05-raw-body-containers-required).
+
 The React context exposes public content projections through `content` and `children.items()`. Use `children.render()`, `children.options()` and `children.table()` for child content, plus `validation`, `navigation`, `source` and `locale` for shared services. Runtime services expose evaluation, state writes and resets. The adapter owns internal AST access.
 
 `examples/integration/extension-sdk/advanced.tsx` implements an external coordinate control, collection control and Markdown container.
@@ -103,6 +105,8 @@ const edit = insertLocalComponent(config, 'example/note', source, selection, 'zh
 ```
 
 `insertLocalComponent` resolves insertion tokens and allocates fresh binding names. `validateLocalComponentInsertTemplates` compiles actual insertion output under the same configuration. Props can carry localized descriptions; editor copy and theme changes do not alter the compilation key.
+
+Manifest-derived catalog entries and tag authoring data expose `bodyKind: 'markdown' | 'raw'` from the normalized structure rule; the tag view also covers a legacy host schema with `body: 'raw'`, which does not become a catalog entry. Without `authoring.insertText`, a raw container receives the compilable `<name>\n\n</name>` template; a required body uses a literal `…` placeholder line. The body is plain text, so the template never introduces Markdown or interpolation.
 
 `defineLocalTheme`, `composeLocalTheme` and `collectLocalThemeCss` define, combine and collect independent theme packages. A theme package is plain data: identity, protocol `reactive-md-theme-1`, both light and dark color schemes, and bounded inline CSS resources. Every selector is scoped to `[data-rmd-theme="name"]`. Component structural styles remain independent of theme enhancements and use shared semantic variables.
 

@@ -212,6 +212,19 @@ function addTimings(total: Record<string, number>, timings: Record<string, numbe
 }
 
 /**
+ * Option payload seen by the parser for a streaming snapshot. A valid declared
+ * phase is replaced because the streaming entry point owns the phase; invalid
+ * option values stay untouched so the option reader reports them.
+ */
+function streamingParserOptions(options: LocalCompileOptions | undefined): LocalCompileOptions | undefined {
+  const raw: unknown = options;
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return options;
+  const declared = (raw as { sourcePhase?: unknown }).sourcePhase;
+  if (declared !== undefined && declared !== 'streaming' && declared !== 'final') return options;
+  return { ...(options as LocalCompileOptions), sourcePhase: 'streaming' };
+}
+
+/**
  * Compile one source snapshot that is still being generated. Structural and
  * semantic damage that later source can repair is rendered literally and
  * reported through transient diagnostics; deterministic failures (options,
@@ -223,6 +236,10 @@ export function compileLocalStreamingTracked(
   options?: LocalCompileOptions,
   services?: LocalCompilerServices,
 ): LocalStreamingTrackedCompile {
+  // The parser must know the phase so an unfinished raw body renders to the
+  // end of the snapshot instead of planning a final unclosed-tag failure.
+  // Malformed option payloads keep their original shape for validation.
+  const parserOptions = streamingParserOptions(options);
   let literalRanges: SourceRange[] = [];
   const collected: Diagnostic[][] = [];
   const timings: Record<string, number> = {};
@@ -231,7 +248,7 @@ export function compileLocalStreamingTracked(
 
   for (let attempt = 1; attempt <= LOCAL_STREAMING_MAX_ATTEMPTS; attempt += 1) {
     attempts = attempt;
-    tracked = compileLocalTracked(source, options, services, literalRanges);
+    tracked = compileLocalTracked(source, parserOptions, services, literalRanges);
     addTimings(timings, tracked.timings);
     const result = tracked.result;
 
@@ -290,7 +307,7 @@ export function compileLocalStreamingTracked(
   if (typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH
     && !coversSource(literalRanges, source.length)) {
     const whole = [{ start: 0, end: source.length }];
-    const fullLiteral = compileLocalTracked(source, options, services, whole);
+    const fullLiteral = compileLocalTracked(source, parserOptions, services, whole);
     addTimings(timings, fullLiteral.timings);
     attempts += 1;
     if (fullLiteral.result.ok) {

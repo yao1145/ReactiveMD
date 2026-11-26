@@ -43,6 +43,7 @@ export { validateLocalComponentInsertTemplates } from './conformance';
 export type {
   LocalAttributeAuthoring,
   LocalAuthoringLookup,
+  LocalComponentBodyKind,
   LocalComponentCatalogEntry,
   LocalComponentCatalogFilter,
   LocalComponentCatalogGroup,

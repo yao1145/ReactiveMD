@@ -102,6 +102,22 @@ Validated number props are numbers for both `max="5"` and `max="{{ 5 }}"`. Imple
 
 Forms are `leaf`, `inline` and `container`. Containers declare content rules and render Markdown through `ctx.children.render()`. Use public content projections for options, tables and structural children. The template's `note` demonstrates a container. Section 10 covers new kernel primitives.
 
+Provide a raw body when the content is DSL source rather than Markdown:
+
+```ts
+const script = defineLocalComponent({
+  id: 'example/script', name: 'script-box', version: '1.0.0',
+  protocol: 'reactive-md-component/v1', form: 'container',
+  props: {},
+  structure: { rule: 'raw-body' },
+  capabilities: { interactive: true, static: true, ssr: true, offline: true },
+});
+```
+
+`raw-body` is container-only. The compiler emits exactly one `rawBody` child whose `value` is the dedented body source and whose range points at the original body text; nothing inside becomes Markdown, an interpolation, an entity or a component tag. The body closes only on a line whose first non-whitespace content is exactly `</name>`, so put the close tag on its own line. The strict unclosed diagnostic and streaming behavior follow [CP-MODEL-05](component-protocol-en.md#cp-model-05-raw-body-containers-required). `limits.maxRawBodyChars` bounds one body (default 100,000 UTF-16 code units, at most 1,000,000, counted before dedenting and excluding both tags).
+
+Render `node.value` as text. `ctx.children.render()` emits one escaped text node; a host that writes the string into its own HTML owns that escaping. The catalog reports `bodyKind: 'raw'`, and without `authoring.insertText` it synthesizes `<script-box>\n\n</script-box>` (a required body uses a literal `…` line). Analysis treats the body as opaque, so the editor produces no tag, attribute, binding, comment or completion tokens inside it.
+
 ## 4. React and static output
 
 A standalone `src/components.tsx` implementation can be:

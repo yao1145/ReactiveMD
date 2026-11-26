@@ -1,11 +1,14 @@
 import type { FastMarkdownCache } from './fast-markdown';
+import { DEFAULT_MAX_LOCAL_RAW_BODY_CHARS } from '../../contracts/limits';
 
 /** Which deterministic parser budget a rejection belongs to. */
-export type ParseBudgetKind = 'parse-work' | 'markdown-depth';
+export type ParseBudgetKind = 'parse-work' | 'markdown-depth' | 'raw-body';
 
 export interface ParseBudgetLimits {
   readonly maxParseWork: number;
   readonly maxMarkdownDepth: number;
+  /** Raw container body source, in UTF-16 code units. */
+  readonly maxRawBodyChars?: number;
 }
 
 /**
@@ -19,10 +22,16 @@ export class ParseBudgetError extends Error {
     readonly limit: number,
     readonly start: number,
     readonly end: number,
+    /** Component name for `raw-body` failures. */
+    readonly component?: string,
+    /** Observed value for structured diagnostic details. */
+    readonly actual?: number,
   ) {
     super(kind === 'parse-work'
       ? `Parsing work exceeds the limit of ${limit}.`
-      : `Markdown nesting exceeds the ${limit}-level limit.`);
+      : kind === 'markdown-depth'
+        ? `Markdown nesting exceeds the ${limit}-level limit.`
+        : `Raw body of <${component ?? 'component'}> exceeds the ${limit}-character limit.`);
     this.name = 'ParseBudgetError';
   }
 }
@@ -60,6 +69,18 @@ export class ParseWorkBudget {
     if (depth > this.observedDepth) this.observedDepth = depth;
     if (depth > this.limits.maxMarkdownDepth) {
       throw new ParseBudgetError('markdown-depth', this.limits.maxMarkdownDepth, start, Math.max(start + 1, end));
+    }
+  }
+
+  /**
+   * Reject a raw container body whose source exceeds the configured budget.
+   * The length is counted before common-indent removal and excludes the
+   * opener and close tags.
+   */
+  checkRawBody(length: number, start: number, end: number, component: string): void {
+    const limit = this.limits.maxRawBodyChars ?? DEFAULT_MAX_LOCAL_RAW_BODY_CHARS;
+    if (length > limit) {
+      throw new ParseBudgetError('raw-body', limit, start, Math.max(start + 1, end), component, length);
     }
   }
 }

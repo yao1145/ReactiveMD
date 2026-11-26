@@ -476,6 +476,12 @@ function renderNode(
     case 'text':
       return <span key={key}>{node.value ?? ''}</span>;
 
+    // A raw-body container body is author source text. It reaches the DOM as
+    // one escaped text child: never innerHTML, never Markdown, never an HTML
+    // renderer. SSR and static export read the same compiled value.
+    case 'rawBody':
+      return <span className="local-raw-body" key={key}>{node.value ?? ''}</span>;
+
     case 'emphasis':
       return <em key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</em>;
 

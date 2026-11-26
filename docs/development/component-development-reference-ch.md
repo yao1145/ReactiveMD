@@ -117,6 +117,22 @@ export const rating = defineLocalComponent({
 
 形态支持 `leaf`、`inline`、`container`。容器在 manifest 中声明内容规则，由 `ctx.children.render()` 渲染 Markdown；有选项、表格或结构子项时使用对应公开内容投影。模板的 `note` 演示了容器实现。新增核心规则另见第 10 节。
 
+正文是 DSL 源码而非 Markdown 时，容器声明 raw 正文：
+
+```ts
+const script = defineLocalComponent({
+  id: 'example/script', name: 'script-box', version: '1.0.0',
+  protocol: 'reactive-md-component/v1', form: 'container',
+  props: {},
+  structure: { rule: 'raw-body' },
+  capabilities: { interactive: true, static: true, ssr: true, offline: true },
+});
+```
+
+`raw-body` 只适用于容器。编译器只生成一个 `rawBody` 子节点，`value` 是去除共同缩进后的正文源码，range 指向原始正文；正文内的内容不会变成 Markdown、插值、实体或组块标签。正文只在一行的第一个非空白内容恰好为 `</name>` 时结束，因此结束标签要单独成行。strict 未闭合诊断与 streaming 行为见 [CP-MODEL-05](component-protocol-ch.md#cp-model-05-raw-正文容器要求)。`limits.maxRawBodyChars` 限制单个正文（默认 100,000 个 UTF-16 代码单元，最多 1,000,000，在去缩进前计数且不含两个标签）。
+
+渲染时把 `node.value` 当作文本：`ctx.children.render()` 输出一个转义后的文本节点；宿主若自行把字符串写入 HTML，由宿主负责转义。catalog 报告 `bodyKind: 'raw'`；未提供 `authoring.insertText` 时合成 `<script-box>\n\n</script-box>`（正文必填时使用一行字面 `…` 占位）。analyzer 把正文视为不透明区间，编辑器不在其中生成标签、属性、绑定、注释或补全 token。
+
 ## 4. 实现 React 和静态输出
 
 `src/components.tsx` 可以提供以下独立实现：

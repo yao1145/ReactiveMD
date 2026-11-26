@@ -51,6 +51,8 @@ const formatted = formatLocalSource(renamed.source, compileOptions);
 
 已有成功编译结果时，可调用 `analyzeLocalSource(source, compileOptions, { document, diagnostics: false })` 复用节点，并省略诊断编译。`document` 必须来自同一源码与编译配置；源码不同会重新解析。省略第三个参数时仍生成完整诊断。内置编辑器使用独立的增量会话复用作者分析节点，诊断由宿主编译结果提供。
 
+raw 正文容器（`structure.rule: 'raw-body'`，或声明 `body: 'raw'` 的宿主 schema）对分析不透明：正文区间内不产生标签、属性、插值、绑定、注释或补全 token，重命名与格式化也不会改动正文。由 manifest 生成的 catalog 条目和 `createLocalAuthoringLookup` 的标签数据提供 `bodyKind: 'markdown' | 'raw'`；旧版宿主 schema 只出现在标签 authoring 中，不生成 catalog 条目。未提供 `authoring.insertText` 时，raw 条目得到可编译的 `<name>\n\n</name>` 模板；正文必填时使用一行字面 `…` 占位。编辑器负责自己的 raw 文本编辑模式，引擎保证不透明区间和元数据。
+
 重命名修改生效的绑定声明、表达式引用和绘图参数，保留普通文字与展示公式。绘图参数在重命名后写为 `\mathrm{newName}`。非法名称和名称冲突会抛出错误。格式化整理已识别组件标签内的空白，保留 Markdown 排版、引号内容、公式、代码与降级区域的源码。编辑器应持续保存原始文档。
 
 ## Playground

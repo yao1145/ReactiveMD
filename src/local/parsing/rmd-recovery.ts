@@ -22,6 +22,10 @@ export interface RmdRecoveryHooks {
   /** Root footnote definitions are literal bodies, not structural RMD. */
   readonly definitions: readonly SourceRange[];
   isKnown(name: string): boolean;
+  /** True for a container whose body is delivered as one lazy raw region. */
+  isRawBody(name: string): boolean;
+  /** End offset of a closed raw-body region (including its close tag), or null. */
+  rawBodyEnd(name: string, bodyStart: number): number | null;
   /** False for registered leaf components, which never require a closing tag. */
   isPaired(name: string): boolean;
   isHtmlName(lower: string): boolean;
@@ -279,6 +283,24 @@ export function planRmdRecovery(source: string, hooks: RmdRecoveryHooks): RmdRec
       );
       if (outerClose !== null) { index = outerClose; continue; }
       break;
+    }
+
+    // A closed raw body is one opaque region: tags, headings and definitions
+    // inside it are plain text, never recovery points. An unclosed raw body
+    // reuses the unclosed-container degradation for the opener.
+    if (!tag.closing && !tag.self && hooks.isRawBody(tag.name)) {
+      const stop = hooks.rawBodyEnd(tag.name, tag.end);
+      if (stop !== null) { index = Math.max(stop, next); continue; }
+      const fragment = containerBoundary(source, tag.end, index, hooks);
+      const boundary = fragment ?? source.length;
+      record(
+        RECOVERY_UNCLOSED,
+        { start: index, end: tag.end },
+        { start: index, end: boundary },
+        fragment === null ? 'eof' : 'fragment',
+      );
+      index = Math.max(boundary, next);
+      continue;
     }
 
     if (kind === 'html') {

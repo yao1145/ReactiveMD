@@ -23,6 +23,8 @@ export type KernelChildRule =
   | 'none'
   | 'any'
   | 'inline'
+  /** Container body delivered as one lazy `rawBody` node; Markdown is never parsed. */
+  | 'raw-body'
   | 'content'
   | 'table'
   | 'plot'

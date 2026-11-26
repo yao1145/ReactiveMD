@@ -61,6 +61,7 @@ function plainNodeText(
       case 'text':
       case 'inlineCode':
       case 'code':
+      case 'rawBody':
       case 'fallback':
         text += node.value ?? '';
         break;

@@ -75,6 +75,9 @@ const MAX_NAME_LENGTH = 128;
 const INACTIVE_NODE_TYPES = new Set([
   'code', 'inlineCode', 'math', 'inlineMath', 'fallback', 'comment', 'footnoteDefinition',
   'authorCss', 'authorJavaScript', 'extendedHtmlRaw',
+  // A raw-body container body is opaque source: no tags, attributes,
+  // interpolations, bindings, comments or completions come from it.
+  'rawBody',
 ]);
 
 /** Parse-level failures leave parts of the document opaque, so renaming is unsafe. */

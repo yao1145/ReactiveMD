@@ -51,6 +51,9 @@ export interface LocalComponentCatalogProp {
   readonly description?: string;
 }
 
+/** Body delivery of a component: parsed Markdown (default) or one lazy raw body. */
+export type LocalComponentBodyKind = 'markdown' | 'raw';
+
 /** One frozen insertion-catalog entry. */
 export interface LocalComponentCatalogEntry {
   readonly id: string;
@@ -62,6 +65,12 @@ export interface LocalComponentCatalogEntry {
   readonly categoryLabel: string;
   readonly insertText: string;
   readonly form: LocalComponentForm;
+  /**
+   * Container body delivery. `raw` marks a `structure.rule: 'raw-body'`
+   * container, including a host schema with `body: 'raw'`; every other
+   * component reports `markdown`.
+   */
+  readonly bodyKind: LocalComponentBodyKind;
   /** True for inline and container forms, which accept a closing tag. */
   readonly paired: boolean;
   /** Inline components are inserted without block padding. */
@@ -82,6 +91,8 @@ export interface LocalComponentCatalogEntry {
 export interface LocalTagAuthoring {
   readonly name: string;
   readonly form: LocalComponentForm;
+  /** Container body delivery; see `LocalComponentCatalogEntry.bodyKind`. */
+  readonly bodyKind: LocalComponentBodyKind;
   /** True for inline and container forms, which accept a closing tag. */
   readonly paired: boolean;
   readonly title: string;
@@ -151,6 +162,15 @@ function scalarDefault(value: unknown): string | number | boolean | null | undef
   return undefined;
 }
 
+/**
+ * The manifest structure rule decides body delivery. Host schemas with
+ * `body: 'raw'` lower to the same internal `raw-body` rule, so every catalog
+ * view reports one kind.
+ */
+function bodyKindOf(structure: { readonly rule?: string } | undefined): LocalComponentBodyKind {
+  return structure?.rule === 'raw-body' ? 'raw' : 'markdown';
+}
+
 function propFromSchema(name: string, schema: LocalPropSchema): LocalComponentCatalogProp {
   return Object.freeze({
     name,
@@ -207,6 +227,7 @@ function freezeEntry(input: {
   categoryLabel: string;
   insertText: string;
   form: LocalComponentForm;
+  bodyKind: LocalComponentBodyKind;
   /** Overrides the form-derived inline insertion hint for default entries. */
   inline?: boolean;
   parents?: readonly string[];
@@ -225,6 +246,7 @@ function freezeEntry(input: {
     categoryLabel: input.categoryLabel,
     insertText: input.insertText,
     form: input.form,
+    bodyKind: input.bodyKind,
     paired: input.form !== 'leaf',
     inline: input.inline ?? (input.form === 'inline'),
     ...(input.parents !== undefined ? { parents: Object.freeze([...input.parents]) } : {}),
@@ -433,6 +455,7 @@ function entryFromDefinition(
     categoryLabel,
     insertText,
     form: definition.form,
+    bodyKind: bodyKindOf(schema.structure),
     inline: data ? data.inline === true : definition.form === 'inline',
     ...structure,
     ...(keywords !== undefined ? { keywords } : {}),
@@ -507,6 +530,7 @@ function catalogMetadataKey(definition: LocalComponentDefinition, locale: Editor
     ),
     insertText: declaredInsertText(definition, locale) ?? null,
     inline: data ? data.inline === true : definition.form === 'inline',
+    bodyKind: bodyKindOf(componentSchemaFromDefinition(definition).structure),
     keywords: defaultAuthoringKeywords(definition.name) ?? null,
     manifest: authoring ?? null,
     preset: data ?? null,
@@ -734,6 +758,7 @@ function builtinAttributes(schema: ReturnType<typeof componentSchemaFromDefiniti
 function freezeTag(info: {
   name: string;
   form: LocalComponentForm;
+  bodyKind: LocalComponentBodyKind;
   title: string;
   description: string;
   category: string;
@@ -749,6 +774,7 @@ function freezeTag(info: {
   return Object.freeze({
     name: info.name,
     form: info.form,
+    bodyKind: info.bodyKind,
     paired: info.form !== 'leaf',
     title: info.title,
     description: info.description,
@@ -813,6 +839,7 @@ export function createLocalAuthoringLookup(
     tags.push(freezeTag({
       name,
       form: schema.form,
+      bodyKind: bodyKindOf(schema.structure),
       title: entry?.title ?? name,
       description: entry?.description ?? '',
       category: entry?.category ?? 'component',

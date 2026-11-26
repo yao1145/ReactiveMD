@@ -158,6 +158,42 @@ export function createTagScanner({
     const lineStart = sourceContext.lineStartAt(offset);
     return /^[ \t]*$/.test(source.slice(lineStart, offset));
   }
+  /**
+   * Close of a `raw-body` container under the line rule: on the body's first
+   * physical line (which starts at `from`) or any later physical line, the
+   * first non-whitespace content must be exactly `</name>` with only spaces,
+   * tabs and the line ending after it. The first line is measured from `from`,
+   * so `<name></name>` is an immediate close. `bodyEnd` is the start of the
+   * close line (or `from` for an immediate close); `closeEnd` is the end of
+   * that line's text, before its line ending.
+   */
+  function rawBodyClose(
+    from: number,
+    name: string,
+    limit: number,
+    charge?: (units: number, start: number, end: number) => void,
+  ): { bodyEnd: number; closeStart: number; closeEnd: number } | null {
+    const stop = Math.min(limit, source.length);
+    const tag = `</${name}>`;
+    let lineStart = from;
+    while (lineStart <= stop) {
+      let lineEnd = source.indexOf('\n', lineStart);
+      if (lineEnd < 0 || lineEnd > stop) lineEnd = stop;
+      let contentEnd = lineEnd;
+      if (contentEnd > lineStart && source[contentEnd - 1] === '\r') contentEnd -= 1;
+      charge?.(contentEnd - lineStart, lineStart, Math.max(lineStart + 1, contentEnd));
+      let probe = lineStart;
+      while (probe < contentEnd && (source[probe] === ' ' || source[probe] === '\t')) probe += 1;
+      if (probe + tag.length <= contentEnd && source.startsWith(tag, probe)) {
+        let after = probe + tag.length;
+        while (after < contentEnd && (source[after] === ' ' || source[after] === '\t')) after += 1;
+        if (after === contentEnd) return { bodyEnd: lineStart, closeStart: probe, closeEnd: contentEnd };
+      }
+      if (lineEnd >= stop) break;
+      lineStart = lineEnd + 1;
+    }
+    return null;
+  }
   /** Label and normalized identifier of `[^label]` at `start`, if present. */
   function footnoteLabelAt(start: number, limit: number): { label: string; identifier: string; openEnd: number; closeEnd: number } | null {
     if (source[start] !== '[' || source[start + 1] !== '^') return null;
@@ -501,7 +537,7 @@ export function createTagScanner({
   return {
     tagAt, scanTag, htmlLiteralEnd, beginsLine, footnoteLabelAt, definitionLabelAt,
     htmlTagAt, htmlCloseEnd, selectHtmlAttributes, buildHtmlNode, protectedEnd,
-    unknownTagEnd, interpolationEnd, commonIndent,
+    unknownTagEnd, interpolationEnd, commonIndent, rawBodyClose,
   };
 }
 

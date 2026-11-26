@@ -11,7 +11,8 @@
  *
  * Each limit is inclusive: a value equal to the limit is accepted, a larger
  * value is rejected. Only the per-compilation parser budgets are configurable:
- * `limits.maxSyntaxNodes`, `limits.maxParseWork` and `limits.maxMarkdownDepth`.
+ * `limits.maxSyntaxNodes`, `limits.maxParseWork`, `limits.maxMarkdownDepth` and
+ * `limits.maxRawBodyChars`.
  */
 
 /** Original source length for one compilation, in UTF-16 code units. */
@@ -31,6 +32,13 @@ export const DEFAULT_MAX_LOCAL_PARSE_WORK = 20_000_000;
  * The value is inclusive: a depth equal to the limit is accepted.
  */
 export const DEFAULT_MAX_LOCAL_MARKDOWN_DEPTH = 1_000;
+/**
+ * Raw container body source per component, in UTF-16 code units. Counted
+ * before common-indent removal and excluding the opener and close tags.
+ */
+export const DEFAULT_MAX_LOCAL_RAW_BODY_CHARS = 100_000;
+/** Upper bound for a host-configured `limits.maxRawBodyChars`. */
+export const MAX_LOCAL_RAW_BODY_CHARS = 1_000_000;
 /** One string value, attribute, template or concatenation result, in UTF-16 code units. */
 export const MAX_LOCAL_STRING_LENGTH = 100_000;
 /** Number of elements in one array value or selection. */

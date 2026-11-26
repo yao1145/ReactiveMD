@@ -465,7 +465,28 @@ export function validateChildren(entry: Entry, state: StructureState): void {
 
   let consumedBody = false;
   let countEnforced = false;
+  if (structure.rule === 'raw-body') {
+    // The parser delivers exactly one lazy node. Never count its text as
+    // child blocks and never run Markdown-child rules against it; only a
+    // required-and-blank body reports `minimum`.
+    consumedBody = true;
+    countEnforced = true;
+    const raw = kids.find((kid) => kid.type === 'rawBody');
+    // `structure.min` is the required-body signal; `label` names an attribute
+    // requirement and must not turn a blank body into an error.
+    const required = structureMinimum(structure);
+    if (required > 0 && !(raw?.value ?? '').trim()) {
+      report(
+        'local.structure.children',
+        `Component <${entry.name}> requires body content.`,
+        entry.node.range.start,
+        entry.node.range.end,
+        { key: 'local.structure.children.minimum', params: { name: entry.name, min: required, children: 'body block' } },
+      );
+    }
+  }
   for (const rule of rules) {
+    if (structure.rule === 'raw-body') break;
     switch (rule.kind) {
       case 'inline-body':
         consumedBody = true;

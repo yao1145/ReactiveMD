@@ -51,6 +51,8 @@ Analysis returns ordered highlight tokens, bindings with declaration/reference r
 
 With a successful compile result, call `analyzeLocalSource(source, compileOptions, { document, diagnostics: false })` to reuse its nodes and skip diagnostic compilation. The document must come from the same source and compile options; a different source is parsed again. Omitting the third argument still produces full diagnostics. The built-in editor uses its own incremental session for analysis nodes, while visible diagnostics come from the host compiler.
 
+Raw-body containers (`structure.rule: 'raw-body'`, or a host schema with `body: 'raw'`) are opaque to analysis: a body range produces no tag, attribute, interpolation, binding, comment or completion token, and rename or formatting leaves it untouched. Manifest-derived catalog entries and `createLocalAuthoringLookup` tag data report `bodyKind: 'markdown' | 'raw'`; a legacy host schema appears in tag authoring but does not create a catalog entry. Without `authoring.insertText`, a raw entry receives the compilable `<name>\n\n</name>` template; a required body uses a literal `…` placeholder line. The editor owns the raw text editing mode; the engine guarantees the opaque range and metadata.
+
 Rename updates active binding declarations, expression references and computed plot parameters, preserving literal text and display formulas. Plot parameters use `\mathrm{newName}` after a rename. Invalid names and collisions throw an error. Formatting normalizes spacing inside recognized component tags; Markdown layout, quoted content, formulas, code and fallback regions retain their source. Keep the original source as the editable document.
 
 ## Playground

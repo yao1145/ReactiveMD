@@ -229,6 +229,7 @@ export function parseLocalCore(
   const budget = new ParseWorkBudget({
     maxParseWork: optionCheck.maxParseWork,
     maxMarkdownDepth: optionCheck.maxMarkdownDepth,
+    maxRawBodyChars: optionCheck.maxRawBodyChars,
   });
   // Soft breaks only become nodes when the host opts in; the source string is
   // never normalized, so offsets keep pointing at the original code units.
@@ -509,6 +510,7 @@ export function parseLocalCore(
       : key === 'local.budget.nesting' ? { budget: 'maxComponentDepth', unit: 'depth' }
       : key === 'local.budget.parse-work' ? { budget: 'maxParseWork', unit: 'work' }
       : key === 'local.budget.markdown-depth' ? { budget: 'maxMarkdownDepth', unit: 'depth' }
+      : key === 'local.budget.raw' ? { budget: 'maxRawBodyChars', unit: 'characters' }
       : undefined;
     const bounded = localDiagnosticDetails(key, details?.params);
     const limit = bounded.params?.limit;
@@ -568,10 +570,20 @@ export function parseLocalCore(
   }
   /** Convert a deterministic budget failure into a localized parse diagnostic. */
   function reportParseBudget(cause: ParseBudgetError): void {
-    const key = cause.kind === 'parse-work' ? 'local.budget.parse-work' : 'local.budget.markdown-depth';
-    const actual = cause.kind === 'parse-work' ? budget.parseWork : budget.maxDepth;
-    const resource = cause.kind === 'parse-work' ? { budget: 'maxParseWork', unit: 'work' } : { budget: 'maxMarkdownDepth', unit: 'depth' };
-    error('local.budget', { key, params: { limit: cause.limit } }, cause.start, cause.end, undefined, { ...resource, limit: cause.limit, actual });
+    const key = cause.kind === 'parse-work' ? 'local.budget.parse-work'
+      : cause.kind === 'markdown-depth' ? 'local.budget.markdown-depth'
+        : 'local.budget.raw';
+    const actual = cause.kind === 'parse-work' ? budget.parseWork
+      : cause.kind === 'markdown-depth' ? budget.maxDepth
+        : cause.actual;
+    const resource = cause.kind === 'parse-work' ? { budget: 'maxParseWork', unit: 'work' }
+      : cause.kind === 'markdown-depth' ? { budget: 'maxMarkdownDepth', unit: 'depth' }
+        : { budget: 'maxRawBodyChars', unit: 'characters' };
+    const params: Record<string, string | number> = cause.kind === 'raw-body'
+      ? { name: cause.component ?? '', limit: cause.limit }
+      : { limit: cause.limit };
+    error('local.budget', { key, params }, cause.start, cause.end, undefined,
+      typeof actual === 'number' ? { ...resource, limit: cause.limit, actual } : undefined);
   }
 
 
@@ -637,6 +649,8 @@ export function parseLocalCore(
     if (emitted) diagnostics.sort((left, right) => left.range.start - right.range.start || left.range.end - right.range.end);
   }
   try {
+    /** Close scans the loose planner already performed and charged. */
+    const rawCloseCache = new Map<number, { bodyEnd: number; closeStart: number; closeEnd: number } | null>();
     if (!strict && source.includes('<')) {
       // Decide every structure recovery before the region scanner allocates
       // component, declaration or interpolation nodes. The planner shares the
@@ -645,6 +659,21 @@ export function parseLocalCore(
         facts: sourceContext.facts,
         definitions: rootDefinitionRanges,
         isKnown: (name) => known.has(name),
+        isRawBody: (name) => {
+          const schema = known.get(name);
+          return schema !== undefined && schema.form === 'container' && schema.structure.rule === 'raw-body';
+        },
+        rawBodyEnd: (name, bodyStart) => {
+          const cached = rawCloseCache.get(bodyStart);
+          if (cached !== undefined || rawCloseCache.has(bodyStart)) return cached?.closeEnd ?? null;
+          const close = scanner.rawBodyClose(
+            bodyStart, name, source.length, (units, from, to) => budget.charge(units, from, to),
+          );
+          // The region scanner reuses this scan instead of charging the body
+          // twice when the document is compiled in loose mode.
+          rawCloseCache.set(bodyStart, close);
+          return close ? close.closeEnd : null;
+        },
         isPaired: (name) => {
           const schema = known.get(name);
           return schema === undefined ? !unmountedLeafNames.has(name) : schema.form !== 'leaf';
@@ -687,6 +716,8 @@ export function parseLocalCore(
       unmountedLeafNames, suggestionNames, htmlSupport, nativeHtmlNames, sourceContext,
       work, ensureDepth, parseMarkdown, node, codeRanges, recoveryRanges, recoveries,
       rootMathLiterals, rootDefinitionRanges, error, warning, headers, scanner, convert,
+      streaming: optionCheck.sourcePhase === 'streaming',
+      rawCloseCache,
     });
 
     const regionStart = clock();

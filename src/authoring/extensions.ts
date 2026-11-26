@@ -22,6 +22,7 @@ export {
 export type {
   LocalAttributeAuthoring,
   LocalAuthoringLookup,
+  LocalComponentBodyKind,
   LocalComponentCatalogEntry,
   LocalComponentCatalogFilter,
   LocalComponentCatalogGroup,
