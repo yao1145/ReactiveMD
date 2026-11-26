@@ -99,6 +99,14 @@
       "types": "./dist-library/types/compiler/standard.d.ts",
       "import": "./dist-library/reactive-md-compiler-standard.js"
     },
+    "./compiler/session": {
+      "types": "./dist-library/types/compiler/session.d.ts",
+      "import": "./dist-library/reactive-md-compiler-session.js"
+    },
+    "./scan": {
+      "types": "./dist-library/types/scan/index.d.ts",
+      "import": "./dist-library/reactive-md-scan.js"
+    },
     "./testing": {
       "types": "./dist-library/types/testing/index.d.ts",
       "import": "./dist-library/reactive-md-testing.js"

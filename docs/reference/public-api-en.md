@@ -21,6 +21,8 @@ The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. Rea
 | `reactive-md` | ESM | No | No | Full core surface: one-shot and streaming compile, incremental sessions, runtime, state, Worker, shareable HTML |
 | `reactive-md/compiler` | ESM | No | No | One-shot semantic compiler without the default preset |
 | `reactive-md/compiler/standard` | ESM | No | No | One-shot compiler with GFM, native HTML, KaTeX and the default preset |
+| `reactive-md/compiler/session` | ESM | No | No | Stateful per-document compile session with block reuse and disposal |
+| `reactive-md/scan` | ESM | No | No | Read-only source analysis returning tokens, bindings and UTF-16 ranges |
 | `reactive-md/react` | ESM | Yes | No | React document renderer and component development API |
 | `reactive-md/react/unstyled` | ESM | Yes | No | The same renderer without the stylesheet side effect |
 | `reactive-md/react/minimal` | ESM | Yes | No | Renderer built on the 18-component minimal preset |
@@ -100,6 +102,42 @@ Capabilities the minimal assembly does not install produce an explicit capabilit
 The same result contract, wired to the full experience: the default preset, GFM, native HTML parsing and repair, Lezer block planning, the KaTeX display precheck and plot formula semantics. Use it when a host wants one-shot compilation with the complete language but without sessions, Workers or React.
 
 Both factories validate options at creation and freeze a snapshot. Invalid configuration throws `CompilerConfigurationError`. Results carry `status: 'valid' | 'recovered' | 'failed'`, plus `ok`, `document`, `diagnostics`, `program`, `recoveries` and check coverage.
+
+### `reactive-md/compiler/session`
+
+| Export | Purpose |
+| --- | --- |
+| `createLocalCompileSession` | Create one incremental session per document |
+| `LocalCompileSession` | `compile`, `compileShared`, `stats`, `prepare`, `clear` and `dispose` |
+| `LocalIncrementalStats` | Mode, block and timing counters for the last compile |
+| `localCompileOptionsKey` | Canonical compile option identity; combine it with the source and component configuration key |
+
+```ts
+import { createLocalCompileSession } from 'reactive-md/compiler/session';
+
+const session = createLocalCompileSession();
+const result = session.compile('<number bind="count" label="Count" initial="1">\n\nTotal: {{ count }}', undefined, 'final');
+console.log(result.status, session.stats.mode);
+session.dispose();
+```
+
+The entry may load the parser and the standard compile assembly. It loads no React, CSS, DOM, Worker scheduling, or authoring service, catalog or command modules; the standard assembly may carry preset authoring data such as localized titles, keywords and insertion text. Cache identity remains source + option key + component configuration key. Compiled document objects are not promised as a cross-version serialization format.
+
+### `reactive-md/scan`
+
+| Export | Purpose |
+| --- | --- |
+| `analyzeLocalSource` | Read-only analysis of tags, attributes, interpolations, bindings and diagnostics |
+| `AuthorToken`, `AuthorBinding`, `AuthorAnalysis` | Result types; every `range` is a UTF-16 source offset |
+
+```ts
+import { analyzeLocalSource } from 'reactive-md/scan';
+
+const analysis = analyzeLocalSource('<number bind="count" label="Count">');
+for (const token of analysis.tokens) console.log(token.kind, token.range);
+```
+
+The entry returns data only: completion, rename, formatting, insertion templates, catalog and toolbar commands stay in `reactive-md/authoring`. Its graph may include the pure parser, source ranges, compile options, diagnostics and preset authoring data; it excludes the catalog and command services, React, CSS and the incremental session.
 
 ## React rendering
 
@@ -198,7 +236,7 @@ DOM-free and React-free, so it runs in a Worker or a server process.
 | Native catalog | `NATIVE_COMPONENTS`, `NATIVE_COMPONENTS_ZH`, `NATIVE_COMPONENT_GROUPS`, `EXTENDED_NATIVE_COMPONENTS`, `getNativeComponentCatalog`, `renderNativeSnippet` |
 | Toolbar commands | `formatBold`, `formatItalic`, `formatStrike`, `formatInlineCode`, `formatHeading`, `formatBulletList`, `formatOrderedList`, `formatTaskList`, `formatQuote`, `indentSelection`, `outdentSelection`, `insertLink`, `insertImage`, `insertCodeBlock`, `insertTable`, `insertDivider`, `insertText`, `insertTemplate`, `readFormatState` |
 
-Pass the same `LocalCompileOptions` used for rendering, so diagnostics, host components, limits and HTML mode stay consistent. Analysis ranges refer to the source version that produced them.
+Pass the same `LocalCompileOptions` used for rendering, so diagnostics, host components, limits and HTML mode stay consistent. Analysis ranges refer to the source version that produced them. A host that only needs read-only analysis can import `analyzeLocalSource` from `reactive-md/scan` and skip the catalog, templates and commands above.
 
 ## Export and deployment
 

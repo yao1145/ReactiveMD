@@ -35,6 +35,8 @@
     "src/testing/browser.ts",
     "src/vite/index.ts",
     "src/compiler/index.ts",
-    "src/compiler/standard.ts"
+    "src/compiler/standard.ts",
+    "src/compiler/session.ts",
+    "src/scan/index.ts"
   ]
 }

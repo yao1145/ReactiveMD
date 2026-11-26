@@ -33,4 +33,40 @@ One-shot entries always compile a final document: `compileLocal`, `createCompile
 
 The minimal entry keeps CommonMark, RMD structure, expressions, bindings and budgets. Author capability switches are independent of RMD parsing and bindings. Use the standard or compatibility entry for native HTML fragment parsing and sanitization, GFM, Lezer block planning, KaTeX and plot formula semantics. The minimal runtime and declaration graphs exclude `parse5`, `@lezer/markdown`, `remark-gfm`, KaTeX, the default preset and its authoring copy.
 
+## Incremental sessions and source scanning
+
+Two narrow subpaths serve chat-style hosts that keep one document open and draw their own markers. `reactive-md/compiler` and `reactive-md/compiler/standard` keep their one-shot contracts unchanged.
+
+### `reactive-md/compiler/session`
+
+Exports `createLocalCompileSession`, `LocalCompileSession`, the `LocalIncrementalStats` type and `localCompileOptionsKey`. Keep one session per document, compile each snapshot, and dispose the session when the document closes. Unchanged Markdown blocks are reused between updates.
+
+```ts
+import { createLocalCompileSession, localCompileOptionsKey } from 'reactive-md/compiler/session';
+
+const session = createLocalCompileSession();
+const optionsKey = localCompileOptionsKey({ strict: false });
+const first = session.compile('<number bind="count" label="Count" initial="1">\n\nTotal: {{ count }}', undefined, 'final');
+const next = session.compile('<number bind="count" label="Count" initial="2">\n\nTotal: {{ count }}', undefined, 'final');
+console.log(first.status, next.status, session.stats.mode, optionsKey);
+session.dispose();
+```
+
+Cache identity still combines the source, the compile option key and the component configuration key. The session may load the parser and the standard compile assembly because it compiles complete documents. It loads no React, CSS, DOM globals, Worker scheduling, or authoring service, catalog or command modules. The standard assembly may carry preset authoring data such as localized titles, keywords and insertion text.
+
+### `reactive-md/scan`
+
+Exports `analyzeLocalSource` with the read-only `AuthorToken`, `AuthorBinding` and `AuthorAnalysis` types. Ranges are UTF-16 offsets into the submitted source, so a host can place markers beside the same text the compiler reads.
+
+```ts
+import { analyzeLocalSource } from 'reactive-md/scan';
+
+const source = '<number bind="count" label="Count" initial="2">\n\nTotal: {{ count }}';
+const analysis = analyzeLocalSource(source);
+for (const marker of analysis.tokens) console.log(marker.kind, marker.range.start, marker.range.end);
+for (const binding of analysis.bindings) console.log(binding.name, binding.declarations, binding.references);
+```
+
+The entry returns data only. Completion, rename, formatting, insertion templates, catalog and toolbar commands remain in `reactive-md/authoring`. `analyzeLocalSource(source, options, { diagnostics: false })` skips the compiler diagnostic pass when the host already reports them. The scan graph may include the pure parser, source ranges, compile options, diagnostics and preset authoring data; it excludes the catalog and command services, React, CSS and the incremental session.
+
 After building, run `npm run test:compiler-entry` to check direct ESM imports, production chunks, declaration dependencies and browser consumption. Run `npm test -- tests/compiler-entry.test.ts` for source behavior checks.

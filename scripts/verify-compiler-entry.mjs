@@ -16,14 +16,23 @@ const runtimeEntries = {
   root: path.join(dist, 'reactive-md.js'),
   compiler: path.join(dist, 'reactive-md-compiler.js'),
   standard: path.join(dist, 'reactive-md-compiler-standard.js'),
+  session: path.join(dist, 'reactive-md-compiler-session.js'),
+  scan: path.join(dist, 'reactive-md-scan.js'),
 };
 const declarationEntries = {
   root: path.join(dist, 'types', 'index.d.ts'),
   compiler: path.join(dist, 'types', 'compiler', 'index.d.ts'),
   standard: path.join(dist, 'types', 'compiler', 'standard.d.ts'),
+  session: path.join(dist, 'types', 'compiler', 'session.d.ts'),
+  scan: path.join(dist, 'types', 'scan', 'index.d.ts'),
 };
 /** Entries that promise the light compiler surface. The root entry owns the rest. */
 const compilerEntries = ['compiler', 'standard'];
+/**
+ * Narrow host entries. They are not one-shot compilers, so they carry the
+ * session or the read-only analyzer instead of the plain compile factory.
+ */
+const narrowEntries = ['session', 'scan'];
 const m1ResidualMarkers = [
   ['@lezer', 'Lezer'],
   ['katex', 'KaTeX'],
@@ -48,6 +57,7 @@ async function inspectRuntimeGraph(entry, label) {
   const files = [];
   const externals = [];
   const cssImports = [];
+  const modules = new Set();
   let workerConstruction = 0;
   let themeProtocol = 0;
   const pending = [entry];
@@ -58,6 +68,9 @@ async function inspectRuntimeGraph(entry, label) {
     seen.add(file);
     files.push(file);
     const source = await readFile(file, 'utf8');
+    // Rolldown keeps one `// src/...` provenance comment per bundled module.
+    // The entry-reachable set of these comments is the true module graph.
+    for (const match of source.matchAll(/^\/\/ (src\/\S+)\s*$/gm)) modules.add(match[1]);
     if (/\bnew\s+(?:Shared)?Worker\b/.test(source)) workerConstruction += 1;
     if (source.includes('data-rmd-theme')) themeProtocol += 1;
     assert.ok(!/import\s*\(\s*(?!["'`])/.test(source), `Unresolvable dynamic import in ${relative(file)}`);
@@ -78,7 +91,7 @@ async function inspectRuntimeGraph(entry, label) {
     }
   }
   files.sort();
-  return { files, externals, cssImports, workerConstruction, themeProtocol };
+  return { files, externals, cssImports, modules: [...modules].sort(), workerConstruction, themeProtocol };
 }
 
 /** Compiler entries are self-contained and cannot reach a root-only domain. */
@@ -87,6 +100,69 @@ function assertCompilerRuntimeBoundaries(name, graph) {
   assert.deepEqual(graph.cssImports, [], `CSS import reached the compiler ${name} graph: ${JSON.stringify(graph.cssImports)}`);
   assert.equal(graph.workerConstruction, 0, `Worker construction leaked into the compiler ${name} graph`);
   assert.equal(graph.themeProtocol, 0, `Theme CSS protocol leaked into the compiler ${name} graph`);
+}
+
+/**
+ * Module domains that the narrow entries must not reach. They are checked
+ * against the entry-reachable provenance set, so a shared chunk only fails the
+ * entry that actually imports it. The session keeps its own incremental
+ * modules; the scan entry must not reach them either.
+ */
+const narrowRuntimeForbiddenModules = {
+  session: [
+    [/^src\/react\//, 'React layer'],
+    [/^src\/authoring\//, 'authoring catalog and commands'],
+    [/^src\/components\//, 'built-in React components'],
+    [/^src\/local\/transport\/worker/, 'compile worker transport'],
+    [/^src\/standalone\//, 'standalone host'],
+    [/^src\/export\//, 'export planning'],
+    [/^src\/themes\/default\//, 'default theme implementation'],
+    [/\.css(?:\?|$)/, 'stylesheet'],
+  ],
+  scan: [
+    [/^src\/react\//, 'React layer'],
+    [/^src\/authoring\//, 'authoring catalog and commands'],
+    [/^src\/components\//, 'built-in React components'],
+    [/^src\/local\/transport\/worker/, 'compile worker transport'],
+    [/^src\/local\/compilation\/session\//, 'incremental compile session'],
+    [/^src\/local\/parsing\/parse-session\.ts$/, 'incremental parse session'],
+    [/^src\/standalone\//, 'standalone host'],
+    [/^src\/export\//, 'export planning'],
+    [/^src\/themes\/default\//, 'default theme implementation'],
+    [/\.css(?:\?|$)/, 'stylesheet'],
+  ],
+};
+/** Domain markers that prove each narrow graph still owns its core modules. */
+const narrowRuntimeRequiredModules = {
+  session: ['src/local/compilation/session/incremental.ts', 'src/local/parsing/parser.ts'],
+  scan: ['src/local/source/authoring.ts', 'src/local/parsing/parser.ts'],
+};
+/** The authoring entry owns these modules; it proves the forbidden patterns detect real code. */
+const authoringEvidenceModules = [
+  'src/authoring/catalog.ts',
+  'src/authoring/editor-commands.ts',
+  'src/authoring/templates.ts',
+];
+
+/**
+ * The session may carry the parser and default assembly; the scan may carry
+ * the pure parser and analyzer. Neither may carry authoring UI, React,
+ * stylesheets or Worker scheduling.
+ */
+function assertNarrowRuntimeBoundaries(name, graph) {
+  assert.deepEqual(graph.externals, [], `Narrow ${name} bundle must be self-contained, found ${JSON.stringify(graph.externals)}`);
+  assert.deepEqual(graph.cssImports, [], `CSS import reached the narrow ${name} graph: ${JSON.stringify(graph.cssImports)}`);
+  assert.equal(graph.workerConstruction, 0, `Worker construction leaked into the narrow ${name} graph`);
+  const forbidden = graph.modules.filter((module) =>
+    narrowRuntimeForbiddenModules[name].some(([pattern]) => pattern.test(module)));
+  assert.deepEqual(
+    forbidden,
+    [],
+    `Narrow ${name} runtime graph must not include ${narrowRuntimeForbiddenModules[name].map(([, label]) => label).join(', ')}: ${forbidden.join(', ')}`,
+  );
+  for (const module of narrowRuntimeRequiredModules[name]) {
+    assert.ok(graph.modules.includes(module), `Narrow ${name} runtime graph is missing ${module}`);
+  }
 }
 
 /**
@@ -131,6 +207,33 @@ const rootOnlyDeclarationPaths = [
 const minimalCompilerDeclarationPaths = [
   [/(?:^|\/)(?:presets\/|default-(?:components|semantics|authoring)\.d\.ts$)/, 'default preset'],
 ];
+/** Narrow entries publish their own declarations and must stay equally closed. */
+const narrowDeclarationForbiddenPaths = {
+  session: [
+    [/(?:^|\/)react\//, 'React entry'],
+    [/(?:^|\/)authoring\//, 'authoring catalog and commands'],
+    [/(?:^|\/)components\//, 'built-in React components'],
+    [/(?:^|\/)transport\/worker\.d\.ts$/, 'compile worker transport'],
+    [/(?:^|\/)standalone\//, 'standalone host'],
+    [/(?:^|\/)export\//, 'export planning'],
+    [/(?:^|\/)vite\//, 'Vite integration'],
+  ],
+  scan: [
+    [/(?:^|\/)react\//, 'React entry'],
+    [/(?:^|\/)authoring\//, 'authoring catalog and commands'],
+    [/(?:^|\/)components\//, 'built-in React components'],
+    [/(?:^|\/)transport\/worker\.d\.ts$/, 'compile worker transport'],
+    [/(?:^|\/)compilation\/session\//, 'incremental compile session'],
+    [/(?:^|\/)parsing\/parse-session\.d\.ts$/, 'incremental parse session'],
+    [/(?:^|\/)standalone\//, 'standalone host'],
+    [/(?:^|\/)export\//, 'export planning'],
+    [/(?:^|\/)vite\//, 'Vite integration'],
+  ],
+};
+const narrowDeclarationRequiredFiles = {
+  session: ['dist-library/types/local/compilation/session/incremental.d.ts'],
+  scan: ['dist-library/types/local/source/authoring.d.ts'],
+};
 
 function declarationCandidates(specifier, from) {
   return [
@@ -268,8 +371,9 @@ const blocked = [
   /(?:^|\\/)react\\//,
   /(?:^|\\/)editor\\//,
 ];
+const publicNarrowEntries = new Set(['reactive-md/compiler/session', 'reactive-md/scan']);
 export async function resolve(specifier, context, nextResolve) {
-  if (blocked.some((pattern) => pattern.test(specifier))) {
+  if (!publicNarrowEntries.has(specifier) && blocked.some((pattern) => pattern.test(specifier))) {
     throw new Error('Blocked module in compiler isolation check: ' + specifier);
   }
   return nextResolve(specifier, context);
@@ -285,6 +389,14 @@ assert.deepEqual(pkg.exports['./compiler/standard'], {
   types: './dist-library/types/compiler/standard.d.ts',
   import: './dist-library/reactive-md-compiler-standard.js',
 });
+assert.deepEqual(pkg.exports['./compiler/session'], {
+  types: './dist-library/types/compiler/session.d.ts',
+  import: './dist-library/reactive-md-compiler-session.js',
+});
+assert.deepEqual(pkg.exports['./scan'], {
+  types: './dist-library/types/scan/index.d.ts',
+  import: './dist-library/reactive-md-scan.js',
+});
 assert.deepEqual(pkg.exports['.'], {
   types: './dist-library/types/index.d.ts',
   import: './dist-library/reactive-md.js',
@@ -299,6 +411,7 @@ const runtimeSources = {};
 for (const [name, entry] of Object.entries(runtimeEntries)) {
   const graph = await inspectRuntimeGraph(entry, `${name} runtime`);
   if (compilerEntries.includes(name)) assertCompilerRuntimeBoundaries(name, graph);
+  else if (narrowEntries.includes(name)) assertNarrowRuntimeBoundaries(name, graph);
   else assertRootRuntimeBoundaries(graph);
   runtimeFiles[name] = graph.files;
   runtimeGraphs[name] = graph;
@@ -313,6 +426,36 @@ for (const [name, entry] of Object.entries(declarationEntries)) {
   declarationFiles[name] = graph.files;
   declarationExternals[name] = graph.externals;
   declarationGraph[name] = graph.files.map(relative);
+}
+for (const name of narrowEntries) {
+  assert.deepEqual(
+    declarationExternals[name],
+    [],
+    `Narrow ${name} declarations must be self-contained, found ${JSON.stringify(declarationExternals[name])}`,
+  );
+  const domains = narrowDeclarationForbiddenPaths[name];
+  const forbidden = declarationGraph[name].filter((file) => domains.some(([pattern]) => pattern.test(file)));
+  assert.deepEqual(
+    forbidden,
+    [],
+    `Narrow ${name} declaration graph must not include ${domains.map(([, label]) => label).join(', ')}: ${forbidden.join(', ')}`,
+  );
+  for (const file of narrowDeclarationRequiredFiles[name]) {
+    assert.ok(
+      declarationGraph[name].includes(file),
+      `Narrow ${name} declaration graph is missing ${file}`,
+    );
+  }
+}
+/** The authoring entry proves the narrow-entry module markers detect real code. */
+const authoringEvidenceEntry = path.join(dist, 'reactive-md-authoring.js');
+requireFile(authoringEvidenceEntry, 'authoring evidence entry');
+const authoringEvidence = await inspectRuntimeGraph(authoringEvidenceEntry, 'authoring evidence graph');
+for (const module of authoringEvidenceModules) {
+  assert.ok(
+    authoringEvidence.modules.includes(module),
+    `Authoring evidence graph is missing ${module}; narrow-entry module markers would be meaningless`,
+  );
 }
 
 /**
@@ -438,6 +581,44 @@ assert.ok(recovered.recoveries.length > 0);
 assert.ok(Object.isFrozen(recovered.program));
 assert.equal(standardEntry.createStandardCompiler().compile(damagedSource).status, 'failed');
 
+const sessionEntry = await import('reactive-md/compiler/session');
+const scanEntry = await import('reactive-md/scan');
+assert.equal(typeof sessionEntry.createLocalCompileSession, 'function');
+assert.equal(typeof sessionEntry.LocalCompileSession, 'function');
+assert.equal(typeof sessionEntry.localCompileOptionsKey, 'function');
+assert.equal(typeof sessionEntry.localCompileOptionsKey({ strict: false }), 'string');
+const narrowSource = '<number bind="count" label="Count" initial="1">\n\nTotal: {{ count }}\n\nA second paragraph keeps the block index reusable.';
+const narrowSession = sessionEntry.createLocalCompileSession();
+try {
+  const first = narrowSession.compile(narrowSource, undefined, 'final');
+  assert.equal(first.ok, true, JSON.stringify(first.diagnostics));
+  assert.equal(first.status, 'valid');
+  const repeated = narrowSession.compile(narrowSource, undefined, 'final');
+  assert.equal(repeated.ok, true, JSON.stringify(repeated.diagnostics));
+  assert.equal(repeated.status, 'valid');
+  assert.equal(narrowSession.stats.mode, 'cached', 'The session must reuse an unchanged snapshot');
+  const edited = narrowSession.compile(`${narrowSource}\n\nAnother clause.`, undefined, 'final');
+  assert.equal(edited.ok, true, JSON.stringify(edited.diagnostics));
+  assert.equal(edited.status, 'valid');
+} finally {
+  narrowSession.dispose();
+}
+assert.throws(() => narrowSession.compile(narrowSource), /disposed/, 'A disposed session must reject further compiles');
+
+assert.deepEqual(Object.keys(scanEntry), ['analyzeLocalSource']);
+const scanned = scanEntry.analyzeLocalSource(narrowSource);
+assert.ok(scanned.tokens.some((token) => token.kind === 'tag' && token.range.start === 1), 'Scan must report the opening tag');
+assert.ok(scanned.tokens.some((token) => token.kind === 'attribute'), 'Scan must report attributes');
+assert.ok(scanned.tokens.some((token) => token.kind === 'expression'), 'Scan must report interpolation expressions');
+const scannedBinding = scanned.bindings.find((binding) => binding.name === 'count');
+assert.ok(scannedBinding && scannedBinding.declarations.length === 1, 'Scan must report the binding declaration');
+assert.equal(narrowSource.slice(scannedBinding.declarations[0].start, scannedBinding.declarations[0].end), 'count');
+assert.equal(narrowSource.slice(scannedBinding.references[0].start, scannedBinding.references[0].end), 'count');
+assert.ok(scanned.diagnostics.length === 0, JSON.stringify(scanned.diagnostics));
+const scannedFailure = scanEntry.analyzeLocalSource('<number bind="count">');
+assert.ok(scannedFailure.diagnostics.some((diagnostic) => diagnostic.code === 'local.label.required'));
+assert.deepEqual(scanEntry.analyzeLocalSource('<number bind="count">', undefined, { diagnostics: false }).diagnostics, []);
+
 const residual = residualDependencies(Object.values(runtimeSources));
 const minimalResidual = residualDependencies([runtimeSources.compiler]);
 
@@ -478,12 +659,23 @@ const report = {
     dom: false,
     blockedModules: ['react', 'react-dom', 'scheduler', '@codemirror/*', 'node:*', 'CSS', 'worker/incremental/theme modules'],
     directEsmCompile: true,
+    narrowEntries: {
+      session: 'create, compile final, reuse cached snapshot, edit, dispose',
+      scan: 'analyze tags, attributes, expressions, bindings and diagnostics',
+    },
   },
   boundaries: {
     rootOnlyDomains: rootOnlyDomains.map(([, label]) => label),
     rootOnlyDeclarationPaths: rootOnlyDeclarationPaths.map(([, label]) => label),
     minimalCompilerDeclarationPaths: minimalCompilerDeclarationPaths.map(([, label]) => label),
+    narrowRuntimeForbiddenModules: Object.fromEntries(
+      Object.entries(narrowRuntimeForbiddenModules).map(([name, domains]) => [name, domains.map(([, label]) => label)]),
+    ),
+    narrowDeclarationForbiddenPaths: Object.fromEntries(
+      Object.entries(narrowDeclarationForbiddenPaths).map(([name, domains]) => [name, domains.map(([, label]) => label)]),
+    ),
     rootEvidence: rootMarkerEvidence,
+    authoringEvidence: authoringEvidenceModules,
     observed: boundaries,
   },
   residualM1Dependencies: residual,
@@ -497,4 +689,4 @@ const report = {
 await mkdir(artifacts, { recursive: true });
 await writeFile(path.join(artifacts, 'compiler-entry-report.json'), JSON.stringify(report, null, 2));
 const kib = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
-console.log(`PASS compiler entry packaging and isolation (graphs: root ${sizes.root.runtime.files} files/${kib(sizes.root.runtime.bytes)}, compiler ${sizes.compiler.runtime.files} files/${kib(sizes.compiler.runtime.bytes)}, standard ${sizes.standard.runtime.files} files/${kib(sizes.standard.runtime.bytes)}; browser bundle ${browser.bytes} bytes, minimal residual: ${minimalResidual.join(', ') || 'none'}, all entries residual: ${residual.join(', ') || 'none'})`);
+console.log(`PASS compiler entry packaging and isolation (graphs: root ${sizes.root.runtime.files} files/${kib(sizes.root.runtime.bytes)}, compiler ${sizes.compiler.runtime.files} files/${kib(sizes.compiler.runtime.bytes)}, standard ${sizes.standard.runtime.files} files/${kib(sizes.standard.runtime.bytes)}, session ${sizes.session.runtime.files} files/${kib(sizes.session.runtime.bytes)}, scan ${sizes.scan.runtime.files} files/${kib(sizes.scan.runtime.bytes)}; browser bundle ${browser.bytes} bytes, minimal residual: ${minimalResidual.join(', ') || 'none'}, all entries residual: ${residual.join(', ') || 'none'})`);

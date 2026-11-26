@@ -11,7 +11,7 @@ const consumer = mkdtempSync(join(tmpdir(), 'reactive-md-boundary-'));
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 // Keep existing specifiers in the same minor series, including compatibility aliases.
 const stableEntries = [
-  '.', './compiler', './compiler/standard', './authoring', './sdk',
+  '.', './compiler', './compiler/standard', './compiler/session', './scan', './authoring', './sdk',
   './presets/default', './presets/default/packs', './presets/minimal', './presets/minimal/react',
   './plugins/forms', './plugins/network', './plugins/navigation', './plugins/data',
   './plugins/chart', './plugins/plot', './plugins/diagram', './plugins/gallery',
@@ -79,6 +79,8 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createStandardCompiler } from 'reactive-md/compiler/standard';
 import { createCompiler } from 'reactive-md/compiler';
+import { createLocalCompileSession as createNarrowCompileSession, localCompileOptionsKey as narrowCompileOptionsKey } from 'reactive-md/compiler/session';
+import { analyzeLocalSource as scanLocalSource } from 'reactive-md/scan';
 import { compileLocal, createLocalCompileSession, createLocalRuntime, LocalCompileScheduler, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
 import { createDiagnosticReport } from 'reactive-md/observability';
 import { analyzeLocalSource, insertTemplate, getNativeComponentCatalog } from 'reactive-md/authoring';
@@ -136,6 +138,32 @@ assert.equal(typeof localCompileOptionsKey({strict:false}), 'string');
 assert.ok(analyzeLocalSource('hello'));
 assert.equal(typeof insertTemplate, 'function');
 assert.ok(getNativeComponentCatalog());
+const narrowOptionsKey = narrowCompileOptionsKey({ strict: false });
+assert.equal(typeof narrowOptionsKey, 'string');
+const narrowSource = '<number bind="count" label="Count" initial="1">\\n\\nTotal: {{ count }}\\n\\nA reusable paragraph.';
+const narrowSession = createNarrowCompileSession();
+try {
+  const firstNarrow = narrowSession.compile(narrowSource, undefined, 'final');
+  assert.equal(firstNarrow.ok, true, JSON.stringify(firstNarrow.diagnostics));
+  assert.equal(firstNarrow.status, 'valid');
+  const repeatedNarrow = narrowSession.compile(narrowSource, undefined, 'final');
+  assert.equal(repeatedNarrow.status, 'valid');
+  assert.equal(narrowSession.stats.mode, 'cached');
+  const editedNarrow = narrowSession.compile(narrowSource + '\\n\\nMore text.', undefined, 'final');
+  assert.equal(editedNarrow.ok, true, JSON.stringify(editedNarrow.diagnostics));
+  assert.equal(editedNarrow.status, 'valid');
+} finally {
+  narrowSession.dispose();
+}
+assert.throws(() => narrowSession.compile(narrowSource), /disposed/);
+const narrowAnalysis = scanLocalSource(narrowSource);
+assert.ok(narrowAnalysis.tokens.some((token) => token.kind === 'tag'));
+assert.ok(narrowAnalysis.tokens.some((token) => token.kind === 'expression'));
+const narrowBinding = narrowAnalysis.bindings.find((binding) => binding.name === 'count');
+assert.equal(narrowSource.slice(narrowBinding.declarations[0].start, narrowBinding.declarations[0].end), 'count');
+assert.equal(narrowSource.slice(narrowBinding.references[0].start, narrowBinding.references[0].end), 'count');
+assert.equal(narrowAnalysis.diagnostics.length, 0);
+assert.ok(scanLocalSource('<number bind="count">').diagnostics.some((diagnostic) => diagnostic.code === 'local.label.required'));
 assert.equal(createRandom(7).state, 7);
 assert.equal(typeof createLocalBrowserStateStorage, 'function');
 assert.ok([httpSubmit, sseStream, webSocketChannel, webRtcChannel].every(factory => typeof factory === 'function'));
@@ -192,10 +220,30 @@ for (const asset of manifest.assets) {
 }
 assert.equal(JSON.parse(readExportAsset('package-json')).name, 'reactive-md');
 assert.throws(() => readExportAsset('not-an-asset'), TypeError, 'Unknown export assets must throw a TypeError');
-console.log('Packed public compiler, authoring, Worker, SDK, React/SSR, export and export-asset boundaries passed.');
+console.log('Packed public compiler, session, scan, authoring, Worker, SDK, React/SSR, export and export-asset boundaries passed.');
 `);
   process.stdout.write(run(process.execPath, ['smoke.mjs'], consumer));
-  writeFileSync(join(consumer, 'consumer.ts'), `import {createCompiler} from 'reactive-md/compiler';\nimport {createStandardCompiler} from 'reactive-md/compiler/standard';\nimport {analyzeLocalSource, insertTemplate} from 'reactive-md/authoring';\nimport {startLocalCompileWorker} from 'reactive-md';\nimport {layoutPack} from 'reactive-md/presets/default/packs';\nimport {listExportAssets, readExportAsset, resolveExportAsset} from 'reactive-md/export-assets';\ncreateCompiler().compile('hello'); createStandardCompiler().compile('hello'); analyzeLocalSource('hello'); void insertTemplate; void startLocalCompileWorker; void layoutPack;\nfor (const asset of listExportAssets().assets) { void resolveExportAsset(asset.id); }\nvoid readExportAsset;\n`);
+  writeFileSync(join(consumer, 'consumer.ts'), `import {createCompiler} from 'reactive-md/compiler';
+import {createStandardCompiler} from 'reactive-md/compiler/standard';
+import {createLocalCompileSession, localCompileOptionsKey} from 'reactive-md/compiler/session';
+import type {LocalCompileSession, LocalIncrementalStats} from 'reactive-md/compiler/session';
+import {analyzeLocalSource as scanLocalSource} from 'reactive-md/scan';
+import type {AuthorAnalysis, AuthorBinding, AuthorToken} from 'reactive-md/scan';
+import {analyzeLocalSource, insertTemplate} from 'reactive-md/authoring';
+import {startLocalCompileWorker} from 'reactive-md';
+import {layoutPack} from 'reactive-md/presets/default/packs';
+import {listExportAssets, readExportAsset, resolveExportAsset} from 'reactive-md/export-assets';
+createCompiler().compile('hello'); createStandardCompiler().compile('hello'); analyzeLocalSource('hello'); void insertTemplate; void startLocalCompileWorker; void layoutPack;
+const narrowSession: LocalCompileSession = createLocalCompileSession();
+const narrowStats: LocalIncrementalStats = narrowSession.stats;
+narrowSession.dispose();
+const narrowAnalysis: AuthorAnalysis = scanLocalSource('hello');
+const narrowToken: AuthorToken | undefined = narrowAnalysis.tokens[0];
+const narrowBinding: AuthorBinding | undefined = narrowAnalysis.bindings[0];
+void localCompileOptionsKey; void narrowStats; void narrowToken; void narrowBinding;
+for (const asset of listExportAssets().assets) { void resolveExportAsset(asset.id); }
+void readExportAsset;
+`);
   writeFileSync(join(consumer, 'network.ts'), `
 import { createLocalRuntime, compileLocal } from 'reactive-md';
 import { httpSubmit, sseStream } from 'reactive-md/runtime/browser';

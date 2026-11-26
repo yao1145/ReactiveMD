@@ -46,4 +46,40 @@ try {
 
 最小入口保留 CommonMark、RMD 结构、表达式、绑定与预算。作者能力开关独立于 RMD 解析和绑定。原生 HTML 片段解析和净化、GFM、Lezer 块规划、KaTeX 和绘图公式语义由标准入口与兼容入口提供。最小入口的运行与声明依赖图不包含 `parse5`、`@lezer/markdown`、`remark-gfm`、KaTeX、默认预设及其作者信息。
 
+## 增量会话与源码扫描
+
+聊天式宿主常驻一份文档并自行绘制标记，可用两个窄入口。`reactive-md/compiler` 与 `reactive-md/compiler/standard` 的单次编译契约保持不变。
+
+### `reactive-md/compiler/session`
+
+导出 `createLocalCompileSession`、`LocalCompileSession`、`LocalIncrementalStats` 类型和 `localCompileOptionsKey`。每份文档持有一个会话，逐次编译快照，文档关闭时销毁会话。两次更新之间未改动的 Markdown 块会被复用。
+
+```ts
+import { createLocalCompileSession, localCompileOptionsKey } from 'reactive-md/compiler/session';
+
+const session = createLocalCompileSession();
+const optionsKey = localCompileOptionsKey({ strict: false });
+const first = session.compile('<number bind="count" label="数量" initial="1">\n\n合计：{{ count }}', undefined, 'final');
+const next = session.compile('<number bind="count" label="数量" initial="2">\n\n合计：{{ count }}', undefined, 'final');
+console.log(first.status, next.status, session.stats.mode, optionsKey);
+session.dispose();
+```
+
+缓存身份仍由源码、编译选项键和组件配置键共同组成。会话会加载解析器与标准编译装配，因为它要完成整篇文档的编译；但不加载 React、CSS、DOM 全局、Worker 调度，也不加载作者目录/命令等服务模块。标准装配可能携带预设作者数据（本地化标题、关键词与插入文本）。
+
+### `reactive-md/scan`
+
+导出 `analyzeLocalSource` 与只读类型 `AuthorToken`、`AuthorBinding`、`AuthorAnalysis`。范围是提交源码中的 UTF-16 偏移，宿主可直接在编译器读取的同一份文本旁放置标记。
+
+```ts
+import { analyzeLocalSource } from 'reactive-md/scan';
+
+const source = '<number bind="count" label="数量" initial="2">\n\n合计：{{ count }}';
+const analysis = analyzeLocalSource(source);
+for (const marker of analysis.tokens) console.log(marker.kind, marker.range.start, marker.range.end);
+for (const binding of analysis.bindings) console.log(binding.name, binding.declarations, binding.references);
+```
+
+入口只返回数据。补全、重命名、格式化、插入模板、目录与工具栏命令仍由 `reactive-md/authoring` 提供。宿主已自行报告诊断时，可用 `analyzeLocalSource(source, options, { diagnostics: false })` 跳过编译诊断。scan 依赖图可以包含纯解析器、源码范围、编译选项、诊断与预设作者数据；不包含目录与命令服务、React、CSS 和增量会话。
+
 构建后运行 `npm run test:compiler-entry`，检查直接 ESM 导入、生产共享 chunk、声明依赖和浏览器消费。源码行为回归使用 `npm test -- tests/compiler-entry.test.ts`。

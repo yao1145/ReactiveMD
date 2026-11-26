@@ -21,6 +21,8 @@
 | `reactive-md` | ESM | 否 | 否 | 完整核心面：单次与流式编译、增量会话、运行时、状态、Worker、可分享 HTML |
 | `reactive-md/compiler` | ESM | 否 | 否 | 单次语义编译，不带默认预设 |
 | `reactive-md/compiler/standard` | ESM | 否 | 否 | 单次编译，带 GFM、原生 HTML、KaTeX 与默认预设 |
+| `reactive-md/compiler/session` | ESM | 否 | 否 | 有状态的逐文档编译会话，复用未变块并可销毁 |
+| `reactive-md/scan` | ESM | 否 | 否 | 只读源码分析，返回标记、绑定与 UTF-16 范围 |
 | `reactive-md/react` | ESM | 是 | 否 | React 文档渲染器与组件开发接口 |
 | `reactive-md/react/unstyled` | ESM | 是 | 否 | 同一渲染器，但不产生样式表副作用 |
 | `reactive-md/react/minimal` | ESM | 是 | 否 | 基于 18 个组件精简预设的渲染器 |
@@ -100,6 +102,42 @@ const result = createCompiler().compile('# Notes\n\nPlain Markdown.');
 结果契约相同，但装配完整语言能力：默认预设、GFM、原生 HTML 解析与修复、Lezer 块规划、KaTeX 显示预检与绘图公式语义。宿主需要一次性完整编译、又不想引入会话、Worker 或 React 时使用它。
 
 两个工厂都在创建时校验选项并冻结快照。非法配置抛出 `CompilerConfigurationError`。结果带 `status: 'valid' | 'recovered' | 'failed'`，以及 `ok`、`document`、`diagnostics`、`program`、`recoveries` 和检查覆盖信息。
+
+### `reactive-md/compiler/session`
+
+| 导出 | 用途 |
+| --- | --- |
+| `createLocalCompileSession` | 为每份文档创建一个增量会话 |
+| `LocalCompileSession` | `compile`、`compileShared`、`stats`、`prepare`、`clear` 与 `dispose` |
+| `LocalIncrementalStats` | 最近一次编译的模式、块数与耗时计数 |
+| `localCompileOptionsKey` | 规范编译选项身份；与源码、组件配置键共同决定缓存 |
+
+```ts
+import { createLocalCompileSession } from 'reactive-md/compiler/session';
+
+const session = createLocalCompileSession();
+const result = session.compile('<number bind="count" label="数量" initial="1">\n\n合计：{{ count }}', undefined, 'final');
+console.log(result.status, session.stats.mode);
+session.dispose();
+```
+
+入口会加载解析器与标准编译装配。它不加载 React、CSS、DOM、Worker 调度，也不加载作者目录/命令等服务模块；标准装配可能携带预设作者数据（本地化标题、关键词与插入文本）。缓存身份仍为源码 + 选项键 + 组件配置键。编译文档对象不承诺跨版本序列化兼容。
+
+### `reactive-md/scan`
+
+| 导出 | 用途 |
+| --- | --- |
+| `analyzeLocalSource` | 只读分析标签、属性、插值、绑定与诊断 |
+| `AuthorToken`、`AuthorBinding`、`AuthorAnalysis` | 结果类型；每个 `range` 都是 UTF-16 源码偏移 |
+
+```ts
+import { analyzeLocalSource } from 'reactive-md/scan';
+
+const analysis = analyzeLocalSource('<number bind="count" label="数量">');
+for (const token of analysis.tokens) console.log(token.kind, token.range);
+```
+
+入口只返回数据：补全、重命名、格式化、插入模板、目录和工具栏命令仍在 `reactive-md/authoring`。其依赖图可以包含纯解析器、源码范围、编译选项、诊断与预设作者数据；不包含目录与命令服务、React、CSS 和增量会话。
 
 ## React 渲染
 
@@ -198,7 +236,7 @@ packs 本身就是普通预设，宿主选择一个或多个，但不能与 `def
 | 内置目录 | `NATIVE_COMPONENTS`、`NATIVE_COMPONENTS_ZH`、`NATIVE_COMPONENT_GROUPS`、`EXTENDED_NATIVE_COMPONENTS`、`getNativeComponentCatalog`、`renderNativeSnippet` |
 | 工具栏命令 | `formatBold`、`formatItalic`、`formatStrike`、`formatInlineCode`、`formatHeading`、`formatBulletList`、`formatOrderedList`、`formatTaskList`、`formatQuote`、`indentSelection`、`outdentSelection`、`insertLink`、`insertImage`、`insertCodeBlock`、`insertTable`、`insertDivider`、`insertText`、`insertTemplate`、`readFormatState` |
 
-传入与渲染相同的 `LocalCompileOptions`，诊断、宿主组件、资源上限与 HTML 模式才能保持一致。分析返回的范围只对生成它的那份源码有效。
+传入与渲染相同的 `LocalCompileOptions`，诊断、宿主组件、资源上限与 HTML 模式才能保持一致。分析返回的范围只对生成它的那份源码有效。只需要只读分析的宿主可以从 `reactive-md/scan` 引入 `analyzeLocalSource`，不必带上这里的目录、模板和命令。
 
 ## 导出与部署
 

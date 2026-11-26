@@ -63,6 +63,23 @@ npm run dev
 
 If the directory was copied outside the repository, pass the tarball's absolute path to `npm install` instead. The example uses only `reactive-md` public entries; scheduling lives in [streaming/main.js](streaming/main.js) and the Worker entry is [streaming/worker.js](streaming/worker.js).
 
+## Chat session and scan
+
+[chat-session](chat-session) is a DOM-free Node example that imports only `reactive-md/compiler/session` and `reactive-md/scan`. It keeps one incremental compile session per chat document, shows a cached recompile for unchanged source, an incremental edit, and disposes the session. Host markers come from the scan result's UTF-16 ranges. It imports no React, `reactive-md/authoring`, template or catalog code.
+
+Build a tarball from the current tree in the repository root, then install it in the example:
+
+```sh
+# in the repository root
+npm pack
+
+cd examples/integration/chat-session
+npm install ../../../reactive-md-0.9.2.tgz
+npm start
+```
+
+The whole example is [chat-session/index.mjs](chat-session/index.mjs); the same file can run inside a Worker.
+
 ## Comprehensive host example
 
 [react-comprehensive](react-comprehensive) combines the host-facing additions in one page: a host-provided exchange rate and inventory, dynamic `max="{{ inventory }}"`, a `host-rating` component that shares its binding with built-in controls, saved and restored public parameters through `initialParameters` and `onParametersChange`, and preview-to-source navigation through `onSourceNavigate`.

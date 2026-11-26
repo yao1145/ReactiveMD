@@ -63,6 +63,23 @@ npm run dev
 
 如果目录已复制到仓库之外，请改用 tarball 的绝对路径安装。示例只使用 `reactive-md` 的公开入口；调度逻辑位于 [streaming/main.js](streaming/main.js)，Worker 入口是 [streaming/worker.js](streaming/worker.js)。
 
+## 聊天会话与扫描
+
+[chat-session](chat-session) 是不依赖 DOM 的 Node 示例，只引入 `reactive-md/compiler/session` 与 `reactive-md/scan`。它为每份聊天文档保留一个增量编译会话，展示未改动源码的缓存复用、一次增量编辑以及会话销毁。宿主标记直接取自扫描结果的 UTF-16 范围。示例不引入 React、`reactive-md/authoring`、模板或目录代码。
+
+在仓库根目录从当前树打包 tarball，然后在示例中安装：
+
+```sh
+# 在仓库根目录
+npm pack
+
+cd examples/integration/chat-session
+npm install ../../../reactive-md-0.9.2.tgz
+npm start
+```
+
+整个示例就是 [chat-session/index.mjs](chat-session/index.mjs)，同一文件可以直接放入 Worker 运行。
+
 ## 综合宿主示例
 
 [react-comprehensive](react-comprehensive) 在一个页面中组合了面向宿主的各项新增能力：宿主提供的汇率和库存、动态 `max="{{ inventory }}"`、与内置控件共享绑定的 `host-rating` 组块、通过 `initialParameters` 和 `onParametersChange` 保存与恢复公开参数，以及通过 `onSourceNavigate` 从预览导航到源码。

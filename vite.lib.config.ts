@@ -47,6 +47,8 @@ export default defineConfig({
         'reactive-md-standalone-configured': fileURLToPath(new URL('./src/standalone/host.tsx', import.meta.url)),
         'reactive-md-compiler': fileURLToPath(new URL('./src/compiler/index.ts', import.meta.url)),
         'reactive-md-compiler-standard': fileURLToPath(new URL('./src/compiler/standard.ts', import.meta.url)),
+        'reactive-md-compiler-session': fileURLToPath(new URL('./src/compiler/session.ts', import.meta.url)),
+        'reactive-md-scan': fileURLToPath(new URL('./src/scan/index.ts', import.meta.url)),
       },
       formats: ['es'], fileName: (_format, name) => `${name}.js`, cssFileName: 'reactive-md',
     },
