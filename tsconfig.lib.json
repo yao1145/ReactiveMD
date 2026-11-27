@@ -23,6 +23,7 @@
     "src/contracts/index.ts",
     "src/presets/default.ts",
     "src/presets/packs.ts",
+    "src/presets/pack-style-manifest.ts",
     "src/presets/minimal.ts",
     "src/components/minimal-preset.ts",
     "src/components/plugins/*.ts",

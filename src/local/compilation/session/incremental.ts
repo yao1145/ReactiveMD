@@ -323,7 +323,7 @@ export class LocalCompileSession {
     // Streaming never reads or mutates the final caches: a later final compile
     // must not inherit a stabilized partial snapshot, deferred index or shared
     // result graph from an intermediate snapshot.
-    if(effective==='streaming')return this.compileStreaming(source,options);
+    if(effective==='streaming')return this.compileStreaming(source,options,collectPerformance);
     if(effective==='final')return this.compileFinal(source,options,collectPerformance);
     return this.compileFinalOrLegacy(source,options,collectPerformance);
   }
@@ -335,7 +335,7 @@ export class LocalCompileSession {
       ?{...result,status:hasRecoveries(result)?'recovered' as const:'valid' as const}
       :{...result,status:'failed' as const};
   }
-  private compileStreaming(source:string,options?:LocalCompileOptions):LocalCompileResult {
+  private compileStreaming(source:string,options:LocalCompileOptions | undefined,collectPerformance:boolean):LocalCompileResult {
     // The streaming cache is keyed by source and option identity; invalid
     // options must always reach the compiler so their diagnostic is not hidden
     // by a cached success for the same text.
@@ -345,7 +345,7 @@ export class LocalCompileSession {
       this.lastStats={mode:'streaming',totalBlocks:cached.blocks,compiledBlocks:0,reusedBlocks:0,compiledCharacters:0};
       return cached.result;
     }
-    const tracked=compileLocalStreamingTracked(source,options,this.services);
+    const tracked=compileLocalStreamingTracked(source,options,this.services,collectPerformance);
     const blocks=tracked.parsed?.nodes.length??0;
     this.lastStats={mode:'streaming',totalBlocks:blocks,compiledBlocks:blocks,reusedBlocks:0,
       compiledCharacters:typeof source==='string'?source.length:0,stages:tracked.timings};

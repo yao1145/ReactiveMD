@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import postcss from 'postcss';
+import { build } from 'vite';
 import { moduleSpecifiers } from './module-specifiers.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -19,6 +20,9 @@ const stableEntries = [
   './react', './react/unstyled', './react/minimal', './react/server', './react/runtime',
   './react/packed', './react/static', './react/static/server', './worker-pool',
   ...['controls', 'layout', 'data', 'visuals'].map(name => `./presets/default/packs/react/${name}`),
+  './presets/default/packs/styles', './presets/default/packs/react/component/*',
+  './presets/default/packs/css/resources/*.css',
+  ...['controls', 'layout', 'data', 'visuals'].map(name => `./presets/default/packs/css/${name}.css`),
   './runtime', './runtime/browser', './observability', './export', './export-assets',
   './build', './vite', './vite/client', './pdf', './standalone', './standalone/host',
   './testing', './testing/react', './testing/browser',
@@ -53,6 +57,37 @@ function verifyPackGraph(entry, forbidden) {
   }
   return modules;
 }
+
+async function verifySelectedComponents() {
+  // Match JSX output in the packed JS. Function names are minified, and a
+  // shared stylesheet can contain selectors for views that were shaken out.
+  const markers = {
+    card: /className:\s*["']md-card local-card["']/,
+    badge: /className:\s*["']md-badge-label["']/,
+    panel: /className:\s*["']md-panel local-panel["']/,
+    gallery: /className:\s*["']rmd-gallery["']/,
+    table: /className:\s*["']local-visual-table-block["']/,
+    timeline: /className:\s*["']local-visual-timeline-axis["']/,
+  };
+  const cases = [
+    ['card'], ['card', 'badge'], ['card', 'table'], ['panel', 'gallery', 'timeline'],
+  ];
+  for (const names of cases) {
+    const entry = join(consumer, 'selected.mjs');
+    const imports = names.map((name, i) => `import view${i} from 'reactive-md/presets/default/packs/react/component/${name}';`);
+    writeFileSync(entry, `import { createReactHost } from 'reactive-md/react/packed';\n${imports.join('\n')}\nexport default createReactHost({ presets: [${names.map((_, i) => `view${i}`).join(', ')}] });\n`);
+    const built = await build({ root: consumer, configFile: false, logLevel: 'error', build: {
+      write: false, minify: false, lib: { entry, formats: ['es'], fileName: 'selected' },
+      rolldownOptions: { external: id => /^react(?:-dom)?(?:\/|$)/.test(id) },
+    } });
+    const text = (Array.isArray(built) ? built : [built]).flatMap(item => item.output)
+      .filter(item => item.type === 'chunk').map(item => item.code).join('\n');
+    for (const [name, marker] of Object.entries(markers)) {
+      assert.equal(marker.test(text), names.includes(name), `${names.join(', ')} bundle: unexpected ${name} implementation presence`);
+    }
+  }
+  console.log('Packed consumer bundles omit unselected sibling and cross-pack implementations.');
+}
 try {
   const expectedLayers = ['rmd.reset', 'rmd.defaults', 'rmd.components', 'rmd.themes', 'rmd.overrides'];
   for (const cssFile of ['dist-library/reactive-md.css', 'dist-library/reactive-md-minimal.css', 'dist-standalone/reactive-md-standalone.css']) {
@@ -84,7 +119,11 @@ try {
   assert.ok(!packedFiles.has('docs/compatibility/compatibility-manifest.json'),
     'The workspace compatibility manifest records this tarball digest and must stay outside it');
   for (const target of exportTargets(pkg.exports)) {
-    assert.ok(packedFiles.has(target.replace(/^\.\//, '')), `Package export is missing: ${target}`);
+    const file = target.replace(/^\.\//, '');
+    if (file.includes('*')) {
+      const [prefix, suffix] = file.split('*');
+      assert.ok([...packedFiles].some(path => path.startsWith(prefix) && path.endsWith(suffix)), `Package export has no targets: ${target}`);
+    } else assert.ok(packedFiles.has(file), `Package export is missing: ${target}`);
   }
   verifyPackGraph('reactive-md-react-pack-layout.js', /^src\/components\/(?:controls|chart|plot|diagram|table)\//);
   verifyPackGraph('reactive-md-react-pack-data.js', /^src\/components\/(?:controls|chart|plot|diagram|gallery)\/|\/shared\/visuals\.tsx$/);
@@ -108,6 +147,40 @@ try {
     typescript: pkg.devDependencies.typescript,
   }}));
   run(npm, ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--legacy-peer-deps'], consumer);
+  await verifySelectedComponents();
+  writeFileSync(join(consumer, 'pack-styles.mjs'), `
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { controlsPack, layoutPack, dataPack, visualsPack } from 'reactive-md/presets/default/packs';
+import { packStyleManifest } from 'reactive-md/presets/default/packs/styles';
+const css = entry => readFileSync(new URL(import.meta.resolve(entry)), 'utf8');
+for (const [name, preset] of Object.entries({ controls: controlsPack, layout: layoutPack, data: dataPack, visuals: visualsPack })) {
+  const pack = packStyleManifest.packs[name];
+  const style = css(pack.file);
+  assert.match(style, /^@layer rmd.reset, rmd.defaults, rmd.components, rmd.themes, rmd.overrides;/);
+  const expected = new Set(preset.components.flatMap(component => component.styles ?? []));
+  assert.deepEqual(new Set(pack.resources), expected);
+  assert.equal(pack.resources.length, expected.size);
+  for (const definition of preset.components) {
+    const { default: component } = await import('reactive-md/presets/default/packs/react/component/' + definition.name);
+    assert.deepEqual(component.preset.components, [definition]);
+    assert.deepEqual(component.resources?.map(resource => resource.id) ?? [], definition.styles ?? []);
+    assert.deepEqual(packStyleManifest.components[definition.name], definition.styles ?? []);
+  }
+  for (const id of pack.resources) {
+    const resource = packStyleManifest.resources[id];
+    const content = css(resource.file);
+    assert.ok(resource.selectors.length > 0, id);
+    for (const selector of resource.selectors) {
+      assert.ok(content.includes(selector), selector);
+      assert.ok(style.includes(selector), selector);
+    }
+  }
+}
+assert.doesNotMatch(css(packStyleManifest.packs.data.file), /\\.local-visual-(?:chart|plot|diagram)-/);
+assert.doesNotMatch(css(packStyleManifest.packs.layout.file), /\\.local-visual-(?:chart|plot|table|timeline)-/);
+`);
+  run(process.execPath, ['pack-styles.mjs'], consumer);
   writeFileSync(join(consumer, 'smoke.mjs'), `
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
@@ -123,6 +196,7 @@ import { createReactHost as createPackedHost, deriveLocalReactPreset } from 'rea
 import { LocalStaticDocumentView } from 'reactive-md/react/static';
 import { renderLocalStaticMarkup } from 'reactive-md/react/static/server';
 import layoutReact from 'reactive-md/presets/default/packs/react/layout';
+import card from 'reactive-md/presets/default/packs/react/component/card';
 import dataReact from 'reactive-md/presets/default/packs/react/data';
 import visualsReact from 'reactive-md/presets/default/packs/react/visuals';
 import { analyzeLocalSource, insertTemplate, getNativeComponentCatalog } from 'reactive-md/authoring';
@@ -144,6 +218,17 @@ assert.equal(createStandardCompiler().compile('# Package boundary').status, 'val
 assert.equal(createCompiler().compile('plain text').status, 'valid');
 assert.equal(compileLocal('plain text').ok, true);
 const packedHost = createPackedHost({ presets: [layoutReact] });
+const cardOnly = createPackedHost({ presets: [card] });
+assert.deepEqual(cardOnly.config.registry.map(definition => definition.name), ['card']);
+const embed = compileLocal('<card title="Chosen card">\\n\\nBody\\n\\n</card>\\n\\n<gallery />', {
+  ...cardOnly.compileOptions, embedding: { expressions: 'literal', onUnsupported: 'fallback' },
+});
+assert.ok(embed.ok, JSON.stringify(embed.diagnostics));
+assert.deepEqual(embed.document.componentDefinitions.map(definition => definition.name), ['card']);
+const staticEmbed = renderLocalStaticMarkup({ document: embed.document, reactConfig: cardOnly.reactConfig });
+assert.ok(staticEmbed.ok, JSON.stringify(staticEmbed.diagnostics));
+assert.match(staticEmbed.markup, /Chosen card/);
+assert.match(staticEmbed.markup, /data-local-fallback/);
 assert.ok(packedHost.config.registry.some(definition => definition.name === 'alert'));
 assert.ok(!packedHost.config.registry.some(definition => definition.name === 'chart'));
 assert.match(packedHost.css, /local-accordion/);
@@ -299,8 +384,10 @@ import {analyzeLocalSource, insertTemplate} from 'reactive-md/authoring';
 import {startLocalCompileWorker} from 'reactive-md';
 import type {LocalEmbeddingOptions, LocalRuntimePool} from 'reactive-md';
 import type {LocalCompilePoolRequest} from 'reactive-md/worker-pool';
-import {createReactHost as createPackedHost} from 'reactive-md/react/packed';
+import {createReactHost as createPackedHost, type LocalReactSynchronousComponentResolver} from 'reactive-md/react/packed';
 import layoutReact from 'reactive-md/presets/default/packs/react/layout';
+import card from 'reactive-md/presets/default/packs/react/component/card';
+import {packStyleManifest, type LocalPackStyleManifest} from 'reactive-md/presets/default/packs/styles';
 import {LocalStaticDocumentView, type LocalStaticExternalResolver} from 'reactive-md/react/static';
 import {renderLocalStaticMarkup} from 'reactive-md/react/static/server';
 import {createLocalPerformanceReport, type LocalPerformanceReport} from 'reactive-md/observability';
@@ -315,6 +402,9 @@ const resolveExternalSlot: LocalStaticExternalResolver = async ({ name }) => () 
 if (staticResult.ok) renderLocalStaticMarkup({ document: staticResult.document, resolveExternalSlot });
 const performance: LocalPerformanceReport = createLocalPerformanceReport([]);
 void request; void release; void LocalStaticDocumentView; void performance; createPackedHost({ presets: [layoutReact] });
+const styleManifest: LocalPackStyleManifest = packStyleManifest;
+const resolveSync: LocalReactSynchronousComponentResolver = () => null;
+createPackedHost({ presets: [card] }); void styleManifest; void resolveSync;
 const narrowSession: LocalCompileSession = createLocalCompileSession();
 const narrowStats: LocalIncrementalStats = narrowSession.stats;
 narrowSession.dispose();

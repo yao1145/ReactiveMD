@@ -9,6 +9,12 @@ interface Outcomes {
   successfulMs: number;
 }
 
+interface RenderTimings {
+  mountMs?: number;
+  mountedMs?: number;
+  unmountMs?: number;
+}
+
 interface RevisionPerformance {
   traceId: string;
   documentId?: string;
@@ -22,6 +28,9 @@ interface RevisionPerformance {
   reusedBlocks?: number;
   mountMs?: number;
   mountedMs?: number;
+  unmountMs?: number;
+  documentRender?: RenderTimings;
+  componentRender?: RenderTimings;
   componentLoads: Outcomes;
   developmentMounts: number;
   productionMounts: number;
@@ -29,12 +38,21 @@ interface RevisionPerformance {
   productionRetained: number;
 }
 
+interface PoolPerformance {
+  workerPoolId: string;
+  readyMs?: number;
+  status?: string;
+}
+
 interface WorkerPerformance {
   workerId: number;
+  workerPoolId?: string;
   attempts: number;
   busyMs: number;
   idleMs: number;
   queueMs: number;
+  spawnMs?: number;
+  warmupMs?: number;
 }
 
 interface ComponentPerformance extends Outcomes {
@@ -49,6 +67,7 @@ export interface LocalPerformanceReport {
   readonly window: { readonly from: number; readonly to: number } | null;
   readonly revisions: readonly RevisionPerformance[];
   readonly workers: readonly WorkerPerformance[];
+  readonly pools: readonly PoolPerformance[];
   readonly components: readonly ComponentPerformance[];
 }
 
@@ -89,12 +108,26 @@ function record(target: Outcomes, event: LocalTraceEvent): void {
 
 const compileMetrics = ['parseMs', 'semanticMs', 'reuseMs', 'rebuildMs', 'compiledBlocks', 'reusedBlocks'] as const;
 
+function recordCompileMetrics(revision: RevisionPerformance, event: LocalTraceEvent) {
+  for (const key of compileMetrics) {
+    const value = event[key];
+    if (value !== undefined) revision[key] = (revision[key] ?? 0) + value;
+  }
+}
+
+function recordRender(target: RenderTimings, event: LocalTraceEvent) {
+  if (event.type === 'render-mount' && event.durationMs !== undefined) target.mountMs = (target.mountMs ?? 0) + event.durationMs;
+  if (event.type === 'render-unmount' && event.mountedMs !== undefined) target.mountedMs = (target.mountedMs ?? 0) + event.mountedMs;
+  if (event.type === 'render-unmount' && event.unmountMs !== undefined) target.unmountMs = (target.unmountMs ?? 0) + event.unmountMs;
+}
+
 /** Summarize the last 512 trace records. The input stays host-owned. */
 export function createLocalPerformanceReport(events: readonly LocalTraceEvent[]): LocalPerformanceReport {
   const revisions = new Map<string, RevisionPerformance>();
-  const workers = new Map<number, WorkerPerformance>();
+  const workers = new Map<string, WorkerPerformance>();
+  const pools = new Map<string, PoolPerformance>();
   const components = new Map<string, ComponentPerformance>();
-  const terminalByRequest = new Map<string, { revision: RevisionPerformance; kind: OutcomeKind; durationMs: number }>();
+  const terminalByRequest = new Map<string, { revision: RevisionPerformance; event: LocalTraceEvent; kind: OutcomeKind }>();
   let from = Number.POSITIVE_INFINITY, to = 0, eventCount = 0;
   for (const raw of events.slice(-512)) {
     const event = safeLocalTraceEvent(raw);
@@ -102,11 +135,11 @@ export function createLocalPerformanceReport(events: readonly LocalTraceEvent[])
     from = Math.min(from, event.timestamp);
     to = Math.max(to, event.timestamp);
     eventCount++;
-    const { traceId, documentId, sourceRevision, workerId, componentName, type } = event;
+    const { traceId, documentId, sourceRevision, workerId, workerPoolId, componentName, type } = event;
     const compile = type === 'compile-end' || type === 'worker-response' || type === 'worker-cancel'
-      || type === 'worker-error' || type === 'worker-timeout';
+      || ((type === 'worker-error' || type === 'worker-timeout') && (workerPoolId === undefined || event.requestId !== undefined));
     const load = type === 'component-load-start' || type === 'component-load-end';
-    if (compile || load || type === 'render-mount' || type === 'render-unmount' || type === 'render-retained') {
+    if (compile || load || type === 'component-load-wait-end' || type === 'render-mount' || type === 'render-unmount' || type === 'render-retained') {
       const key = JSON.stringify([traceId, documentId, sourceRevision]);
       let revision = revisions.get(key);
       if (!revision) {
@@ -118,27 +151,23 @@ export function createLocalPerformanceReport(events: readonly LocalTraceEvent[])
       if (compile) {
         if (event.requestId === undefined) {
           record(revision.compile, event);
+          if (event.status === 'ok') recordCompileMetrics(revision, event);
         } else {
           const kind = outcomeKind(event.status);
           if (kind) {
             const requestKey = `${key}\u0000${event.requestId}`;
             const previous = terminalByRequest.get(requestKey);
-            if (previous) unapply(previous.revision.compile, previous.kind, previous.durationMs);
-            const durationMs = event.durationMs ?? 0;
-            terminalByRequest.set(requestKey, { revision, kind, durationMs });
-            apply(revision.compile, kind, durationMs);
-          }
-        }
-        if (event.status === 'ok') {
-          for (const key of compileMetrics) {
-            const value = event[key];
-            if (value !== undefined) revision[key] = (revision[key] ?? 0) + value;
+            if (previous) unapply(previous.revision.compile, previous.kind, previous.event.durationMs ?? 0);
+            terminalByRequest.set(requestKey, { revision, kind, event });
+            apply(revision.compile, kind, event.durationMs ?? 0);
           }
         }
       }
-      if (type === 'render-mount' && event.durationMs !== undefined) revision.mountMs = (revision.mountMs ?? 0) + event.durationMs;
-      if (type === 'render-unmount' && event.mountedMs !== undefined) revision.mountedMs = (revision.mountedMs ?? 0) + event.mountedMs;
-      if (type === 'component-load-end') record(revision.componentLoads, event);
+      if (type === 'render-mount' || type === 'render-unmount') {
+        recordRender(revision, event);
+        recordRender(componentName ? (revision.componentRender ??= {}) : (revision.documentRender ??= {}), event);
+      }
+      if (type === 'component-load-wait-end' || (type === 'component-load-end' && event.loadId === undefined)) record(revision.componentLoads, event);
       if (componentName && type === 'render-mount') {
         if (event.environment === 'development') revision.developmentMounts++;
         if (event.environment === 'production') {
@@ -148,15 +177,24 @@ export function createLocalPerformanceReport(events: readonly LocalTraceEvent[])
       }
       if (componentName && type === 'render-retained' && event.environment === 'production') revision.productionRetained++;
     }
+    if (type === 'worker-ready' && workerPoolId !== undefined) {
+      pools.set(workerPoolId, { workerPoolId, readyMs: event.durationMs, status: event.status });
+    }
     if (workerId !== undefined) {
-      let worker = workers.get(workerId);
-      if (!worker) { worker = { workerId, attempts: 0, busyMs: 0, idleMs: 0, queueMs: 0 }; workers.set(workerId, worker); }
+      const key = JSON.stringify([workerPoolId, workerId]);
+      let worker = workers.get(key);
+      if (!worker) {
+        worker = { workerId, ...(workerPoolId === undefined ? {} : { workerPoolId }), attempts: 0, busyMs: 0, idleMs: 0, queueMs: 0 };
+        workers.set(key, worker);
+      }
       if (type === 'worker-request') worker.attempts++;
       if (type === 'worker-response' || type === 'worker-timeout' || type === 'worker-error' || type === 'worker-warmup') {
         worker.busyMs += event.durationMs ?? 0;
         worker.queueMs += event.queueMs ?? 0;
       }
       if (type === 'worker-idle') worker.idleMs += event.durationMs ?? 0;
+      if (type === 'worker-spawn' && event.durationMs !== undefined) worker.spawnMs = (worker.spawnMs ?? 0) + event.durationMs;
+      if (type === 'worker-warmup' && event.durationMs !== undefined) worker.warmupMs = (worker.warmupMs ?? 0) + event.durationMs;
     }
     if (load && componentName) {
       let component = components.get(componentName);
@@ -171,6 +209,9 @@ export function createLocalPerformanceReport(events: readonly LocalTraceEvent[])
       }
     }
   }
+  for (const { revision, event, kind } of terminalByRequest.values()) {
+    if (kind === 'succeeded') recordCompileMetrics(revision, event);
+  }
   return { schema: 'reactive-md-performance/v1', eventCount, window: eventCount ? { from, to } : null,
-    revisions: [...revisions.values()], workers: [...workers.values()], components: [...components.values()] };
+    revisions: [...revisions.values()], workers: [...workers.values()], pools: [...pools.values()], components: [...components.values()] };
 }

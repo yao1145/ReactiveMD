@@ -61,7 +61,7 @@ const SAFE_EVENT_TYPES = new Set<LocalTraceEvent['type']>([
   'compile-start', 'compile-end', 'worker-request', 'worker-response', 'worker-timeout',
   'worker-stale-response', 'worker-cancel', 'worker-error', 'export-start', 'export-end',
   'export-cancel', 'export-error',
-  'worker-spawn', 'worker-ready', 'worker-warmup', 'worker-idle', 'component-load-start', 'component-load-end', 'render-mount', 'render-unmount', 'render-retained',
+  'worker-spawn', 'worker-ready', 'worker-warmup', 'worker-idle', 'component-load-start', 'component-load-end', 'component-load-wait-end', 'render-mount', 'render-unmount', 'render-retained',
 ]);
 const SAFE_COMPONENT_NAME = /^[a-z][a-z0-9-]{0,63}$/;
 
@@ -97,6 +97,8 @@ export function safeLocalTraceEvent(event: LocalTraceEvent): LocalTraceEvent | u
     ...(event.sourcePhase === 'streaming' || event.sourcePhase === 'final' ? { sourcePhase: event.sourcePhase } : {}),
     ...(typeof event.documentId === 'string' && SAFE_ID.test(event.documentId) ? { documentId: event.documentId } : {}),
     ...(Number.isSafeInteger(event.workerId) && (event.workerId ?? -1) >= 0 ? { workerId: event.workerId } : {}),
+    ...(typeof event.workerPoolId === 'string' && SAFE_ID.test(event.workerPoolId) ? { workerPoolId: event.workerPoolId } : {}),
+    ...(typeof event.loadId === 'string' && SAFE_ID.test(event.loadId) ? { loadId: event.loadId } : {}),
     ...(typeof event.componentName === 'string' && SAFE_COMPONENT_NAME.test(event.componentName) ? { componentName: event.componentName } : {}),
     ...(typeof event.componentVersion === 'string' && SAFE_VERSION.test(event.componentVersion) ? { componentVersion: event.componentVersion } : {}),
     ...(Number.isSafeInteger(event.subscribers) && (event.subscribers ?? -1) >= 0 ? { subscribers: event.subscribers } : {}),
@@ -111,6 +113,7 @@ export function safeLocalTraceEvent(event: LocalTraceEvent): LocalTraceEvent | u
     ...(Number.isSafeInteger(event.reusedBlocks) && (event.reusedBlocks ?? -1) >= 0 ? { reusedBlocks: event.reusedBlocks } : {}),
     ...(Number.isSafeInteger(event.queueMs) && (event.queueMs ?? -1) >= 0 ? { queueMs: event.queueMs } : {}),
     ...(Number.isSafeInteger(event.mountedMs) && (event.mountedMs ?? -1) >= 0 ? { mountedMs: event.mountedMs } : {}),
+    ...(Number.isSafeInteger(event.unmountMs) && (event.unmountMs ?? -1) >= 0 ? { unmountMs: event.unmountMs } : {}),
     ...(code ? { code } : {}), ...(status ? { status } : {}), ...(stage ? { stage } : {}),
   };
 }

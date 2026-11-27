@@ -20,6 +20,7 @@ import {
 } from './compile-patch';
 import {
   analyzeResult,
+  compilePhaseMetrics,
   LOCAL_COMPILE_PREPARATION_DELAY_MS,
   localWorkerOptionsKey,
   messageOf,
@@ -317,16 +318,9 @@ function startCompileContext(target: LocalCompileWorkerScope, options: LocalComp
   };
 
   const workerMetrics = (compileMs: number): LocalCompileWorkerMetrics => {
-    const stats = sessionStats(session);
-    const { parseMs, semanticMs, reuseMs, rebuildMs } = stats.stages ?? {};
     return {
       compileMs,
-      ...(stats.compiledBlocks === undefined ? {} : { compiledBlocks: stats.compiledBlocks }),
-      ...(stats.reusedBlocks === undefined ? {} : { reusedBlocks: stats.reusedBlocks }),
-      ...(parseMs === undefined ? {} : { parseMs: safeDuration(parseMs) }),
-      ...(semanticMs === undefined ? {} : { semanticMs: safeDuration(semanticMs) }),
-      ...(reuseMs === undefined ? {} : { reuseMs: safeDuration(reuseMs) }),
-      ...(rebuildMs === undefined ? {} : { rebuildMs: safeDuration(rebuildMs) }),
+      ...compilePhaseMetrics(sessionStats(session)),
       ...(preparationMs === undefined ? {} : { preparationMs }),
     };
   };

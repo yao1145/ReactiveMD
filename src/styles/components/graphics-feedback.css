@@ -1,0 +1,69 @@
+@layer rmd.components {
+.md-document .md-chart {
+  color: var(--ink);
+}
+
+.md-document .md-chart-axis {
+  fill: var(--chart-axis, var(--ink-muted));
+  stroke: var(--chart-axis, var(--ink-muted));
+}
+
+.md-document .md-chart-axis text {
+  fill: var(--chart-axis, var(--ink-muted));
+  stroke: none;
+}
+
+.md-document .md-chart-grid {
+  stroke: var(--chart-grid, var(--line));
+}
+
+.md-document .md-chart-legend {
+  color: var(--ink-soft);
+  fill: var(--ink-soft);
+}
+
+.md-document .md-chart-node {
+  fill: var(--surface);
+  stroke: var(--line-strong);
+}
+
+.md-document .md-chart-edge {
+  stroke: var(--line-strong);
+}
+
+.md-document .local-visual-chart {
+  padding: var(--space-3, 12px) var(--space-4, 16px) var(--space-4, 16px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: none;
+}
+
+.md-document .local-visual-grid-line {
+  stroke: var(--chart-grid, var(--line));
+}
+
+.md-document :is(.local-visual-axis-line, .local-visual-tick) {
+  stroke: var(--line-strong);
+}
+
+.md-document .local-visual-axis-label {
+  fill: var(--chart-axis, var(--ink-muted));
+}
+
+.md-document .local-visual-axis-title,
+.md-document .local-visual-legend {
+  color: var(--ink-soft);
+  fill: var(--ink-soft);
+}
+.md-document .local-visual-plot-legend-item .local-visual-swatch {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 3px;
+  margin-top: 0;
+  border-radius: var(--radius-pill);
+  /* Align the segment with the optical centre of the formula, including the
+     descender and parenthesis height, rather than the KaTeX line-box centre. */
+  transform: translateY(1.5px);
+}
+}

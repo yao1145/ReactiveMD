@@ -4,6 +4,7 @@ import { MAX_LOCAL_HOST_COMPONENTS, MAX_LOCAL_HOST_ENUM_VALUES } from '../../con
 import { LOCAL_HTML_FLAGS, localCompileOptionsKey } from '../../assemblies/default-options';
 import { snapshotLocalConfig } from '../../assemblies/default-config';
 import { readEmbedding } from '../configuration/embedding';
+import type { LocalIncrementalStats } from '../compilation/session/incremental';
 
 /** Editors are coalesced for this long before a compile is dispatched. */
 export const LOCAL_COMPILE_DELAY_MS = 150;
@@ -27,6 +28,18 @@ export function now(): number {
 
 export function safeDuration(value: number): number {
   return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+}
+
+export function compilePhaseMetrics(stats: Partial<LocalIncrementalStats>) {
+  const { parseMs, semanticMs, reuseMs, rebuildMs } = stats.stages ?? {};
+  return {
+    ...(stats.compiledBlocks === undefined ? {} : { compiledBlocks: stats.compiledBlocks }),
+    ...(stats.reusedBlocks === undefined ? {} : { reusedBlocks: stats.reusedBlocks }),
+    ...(parseMs === undefined ? {} : { parseMs: safeDuration(parseMs) }),
+    ...(semanticMs === undefined ? {} : { semanticMs: safeDuration(semanticMs) }),
+    ...(reuseMs === undefined ? {} : { reuseMs: safeDuration(reuseMs) }),
+    ...(rebuildMs === undefined ? {} : { rebuildMs: safeDuration(rebuildMs) }),
+  };
 }
 
 // Budget failures must never start another parse. Successful documents carry

@@ -11,7 +11,7 @@ export { LocalStaticDocumentView } from './rendering/document/LocalStaticDocumen
 export type { LocalReactPresetPackage, LocalReactHost } from './package-core';
 export { deriveLocalReactPreset } from './package-core';
 export type { LocalDocumentViewProps, LocalReactiveDocumentProps } from './rendering/document/LocalDocumentViewCore';
-export type { CreateDeferredLocalReactConfigOptions, LocalReactComponentResolver, LocalReactTraceContext } from './sdk-core';
+export type { CreateDeferredLocalReactConfigOptions, LocalReactComponentResolver, LocalReactSynchronousComponentResolver, LocalReactTraceContext } from './sdk-core';
 
 const empty: LocalReactPresetPackage = {
   protocol: LOCAL_REACT_PRESET_PROTOCOL,

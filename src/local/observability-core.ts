@@ -5,7 +5,7 @@ export interface LocalTraceEvent {
   readonly type: 'compile-start' | 'compile-end' | 'worker-request' | 'worker-response'
     | 'worker-timeout' | 'worker-stale-response' | 'worker-cancel' | 'worker-error'
     | 'worker-spawn' | 'worker-ready' | 'worker-warmup' | 'worker-idle'
-    | 'component-load-start' | 'component-load-end' | 'render-mount' | 'render-unmount' | 'render-retained'
+    | 'component-load-start' | 'component-load-end' | 'component-load-wait-end' | 'render-mount' | 'render-unmount' | 'render-retained'
     | 'export-start' | 'export-end' | 'export-cancel' | 'export-error';
   readonly traceId: string;
   readonly requestId?: number;
@@ -13,6 +13,8 @@ export interface LocalTraceEvent {
   readonly sourcePhase?: LocalSourcePhase;
   readonly documentId?: string;
   readonly workerId?: number;
+  readonly workerPoolId?: string;
+  readonly loadId?: string;
   readonly componentName?: string;
   readonly componentVersion?: string;
   readonly subscribers?: number;
@@ -27,6 +29,7 @@ export interface LocalTraceEvent {
   readonly reusedBlocks?: number;
   readonly queueMs?: number;
   readonly mountedMs?: number;
+  readonly unmountMs?: number;
   readonly code?: string;
   readonly status?: string;
   readonly stage?: string;

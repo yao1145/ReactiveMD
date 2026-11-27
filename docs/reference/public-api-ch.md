@@ -197,6 +197,23 @@ React 接口完全相同，但不导入 `styles.css`。宿主自行注入样式�
 
 通过 `reactive-md/react/packed` 的 `createReactHost({ presets })` 组合所选 React pack。编译传入 `host.compileOptions`，渲染传入 `host.reactConfig`，并将 `host.css` 与文档基础样式一起加载。`deriveLocalReactPreset(pack, { include })` 或 `{ exclude }` 同时选取语义清单和 React 实现，保留清单引用的样式。仅编译时可用 `deriveLocalPreset` 选择语义清单。两者均保留预设声明的依赖。按需导入各 pack 以控制打包依赖。
 
+要让构建工具裁掉同一 pack 中未选的组件，直接导入单组件入口：
+
+```ts
+import { createReactHost } from 'reactive-md/react/packed';
+import card from 'reactive-md/presets/default/packs/react/component/card';
+import badge from 'reactive-md/presets/default/packs/react/component/badge';
+import 'reactive-md/presets/default/packs/css/resources/layout.css';
+
+const host = createReactHost({ presets: [card, badge] });
+```
+
+每个入口提供一个组件的语义清单和 React 实现。文档用到的结构组件也要纳入，例如带显式列定义的 `data-table` 需要 `column`。未选组件走编译器的未知组件或嵌入降级规则。筛选已导入的整个 pack 只改变注册集合；直接导入单组件入口才会缩小构建依赖。
+
+整个 pack 的样式可从 `reactive-md/presets/default/packs/css/<pack>.css` 导入。只选几个组件时，可通过 `reactive-md/presets/default/packs/styles` 的 `packStyleManifest` 查组件对应的样式 ID，以及 pack 和资源对应的 CSS 路径与选择器。用 `file` 字段作为导入路径，每份共享资源只加载一次。独立 CSS 与文档基础样式一起使用；也可以用 `host.css` 提供所选资源。
+
+用 `createDeferredReactConfig(config, { components, resolver, resolveSync })` 为已有编译配置提供 React 实现。预注册的实现优先使用；可选的 `resolveSync({ name, definition })` 在 SSR 和浏览器中同步查找已加载的实现，两端应使用同一查找规则。异步 `resolver({ name, definition, signal })` 在挂载后运行，相同定义共享请求，最后一个订阅者离开时收到中止信号。SSR 为未就绪的组件输出稳定占位。`LocalStaticDocumentView` 还要求自定义组件的契约支持静态渲染、无交互能力，且编译结果无需运行时。
+
 `createDeferredReactConfig(config, { components, resolver })` 让 React 按需装载编译文档已声明的组件。Resolver 接收 `{ name, definition, signal }`，同一清单身份的多个槽位共用请求。SSR 输出加载占位，客户端挂载后开始装载。需要直接输出组件的 SSR 标记时，可预先注册实现。
 
 ### `reactive-md/sdk`
@@ -471,7 +488,9 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 
 从 `reactive-md/observability` 导入 `LocalObserver`、`LocalTraceEvent`、`createDiagnosticReport`、`createLocalPerformanceReport` 和 `formatLocalDiagnostic`。通过 `compileLocal(source, { observer })` 或 `new LocalCompileScheduler({ observer, createWorker, onResult })` 订阅事件。回调接收独立副本，回调异常由调用边界隔离。
 
-`createLocalPerformanceReport(events)` 汇总最近最多 512 条事件，按 trace、文档 revision、Worker 槽位和组件聚合数据。成功时长、失败、取消和预算拒绝分别统计。携带 `requestId` 的事件每个请求只记一个终态，因此超时后 fallback 成功只计一次成功；`retry` 不计数。Worker 时长涵盖排队、忙碌及已结束的空闲区间。`mountMs` 汇总挂载延迟，`mountedMs` 汇总挂载存活时间；`render-unmount` 仍保留 `durationMs` 作为 `mountedMs` 的兼容别名。组件从流式快照切换到最终稿时若保持挂载，会发出 `render-retained`。开发环境的 effect 重放单独计数。
+`createLocalPerformanceReport(events)` 汇总最近最多 512 条事件，按 trace、文档 revision、Worker 池和槽位、组件名聚合。成功时长、失败、取消和预算拒绝分别统计。每个 `requestId` 只记一个终态，超时后回退编译成功只计一次成功。`pools` 显示池的就绪耗时与状态；`workers` 显示启动、预热、排队、忙碌及已结束的空闲区间。编译阶段耗时仅在实际采集时出现。
+
+`component-load-start` 和 `component-load-end` 统计实际的异步 resolver 调用。`component-load-wait-end` 用同一个 `loadId` 记录各订阅 revision 的等待结果，包括某个 revision 退出、其余订阅者仍在等待的情况。将编译 trace ID、文档 ID 和 revision 传给视图的 `trace`，即可关联这些事件与渲染。`documentRender` 和 `componentRender` 分别汇总挂载延迟、挂载存活时间，以及从 React layout effect 清理到 passive effect 清理的间隔 `unmountMs`。`render-unmount.durationMs` 仍代表存活时间。组件在流式快照切换到最终稿时若保持挂载，会发出 `render-retained`；开发环境的 effect 重放单独计数。
 
 ```ts
 import { compileLocal } from 'reactive-md';

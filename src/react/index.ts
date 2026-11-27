@@ -38,6 +38,7 @@ export type {
   CreateLocalReactConfigOptions,
   CreateDeferredLocalReactConfigOptions,
   LocalReactComponentResolver,
+  LocalReactSynchronousComponentResolver,
   LocalReactTraceContext,
   LocalComponentBindingHandle,
   LocalComponentContext,

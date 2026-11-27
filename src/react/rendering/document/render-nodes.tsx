@@ -794,7 +794,7 @@ function renderNode(
       return null;
 
     case 'hostComponent':
-      return 'runtime' in env ? renderHostComponent(env, node, key, visible) : null;
+      return 'runtime' in env ? renderHostComponent(env, node, key, visible) : renderStaticComponent(env, node, key, visible);
 
     case 'externalSlot': {
       const name = node.name ?? '';

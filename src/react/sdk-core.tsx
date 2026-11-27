@@ -8,9 +8,9 @@ import {
 } from 'react';
 import type { Diagnostic, LocalNode, LocalRuntime, SourceRange } from '../local/types';
 import { localDiagnosticTemplate } from '../local/configuration/diagnostics';
-import { LocalComponentLoader, type LocalReactComponentResolver, type LocalReactTraceContext } from './component-loader';
+import { LocalComponentLoader, type LocalReactComponentResolver, type LocalReactSynchronousComponentResolver, type LocalReactTraceContext } from './component-loader';
 import { RenderLifecycle } from './render-lifecycle';
-export type { LocalReactComponentResolver, LocalReactTraceContext } from './component-loader';
+export type { LocalReactComponentResolver, LocalReactSynchronousComponentResolver, LocalReactTraceContext } from './component-loader';
 import type {
   LocalHostComponentContext,
   LocalHostRenderer,
@@ -112,6 +112,8 @@ export interface CreateLocalReactConfigOptions {
 
 export interface CreateDeferredLocalReactConfigOptions extends CreateLocalReactConfigOptions {
   readonly resolver: LocalReactComponentResolver;
+  /** Return an installed implementation synchronously on both server and client. */
+  readonly resolveSync?: LocalReactSynchronousComponentResolver;
 }
 
 /**
@@ -195,7 +197,7 @@ export function createReactConfigWithDefaults(
   input: LocalConfig,
   options: CreateLocalReactConfigOptions,
   defaults: readonly LocalReactComponent[],
-  resolver?: LocalReactComponentResolver,
+  deferred?: Pick<CreateDeferredLocalReactConfigOptions, 'resolver' | 'resolveSync'>,
 ): LocalReactConfig {
   const config = readLocalConfig(input);
   const supplied = options?.components;
@@ -250,7 +252,7 @@ export function createReactConfigWithDefaults(
           `React component "${definition.id}@${definition.version}" does not match the installed manifest contract.`,
         );
       }
-      if (resolver) deferredDefinitions.set(definition.name, definition);
+      if (deferred) deferredDefinitions.set(definition.name, definition);
       else missing.push(`${definition.id}@${definition.version}`);
       continue;
     }
@@ -288,7 +290,7 @@ export function createReactConfigWithDefaults(
     hostRenderer: createHostRenderer(index),
   });
   reactIndexes.set(result, index);
-  if (resolver) deferredIndexes.set(result, { loader: new LocalComponentLoader(resolver), definitions: deferredDefinitions });
+  if (deferred) deferredIndexes.set(result, { loader: new LocalComponentLoader(deferred.resolver, deferred.resolveSync), definitions: deferredDefinitions });
   return result;
 }
 
@@ -296,7 +298,8 @@ export function createDeferredReactConfigWithDefaults(
   config: LocalConfig, options: CreateDeferredLocalReactConfigOptions, defaults: readonly LocalReactComponent[],
 ): LocalReactConfig {
   if (typeof options?.resolver !== 'function') throw new TypeError('A deferred React config requires a resolver.');
-  return createReactConfigWithDefaults(config, options, defaults, options.resolver);
+  if (options.resolveSync !== undefined && typeof options.resolveSync !== 'function') throw new TypeError('resolveSync must be a function.');
+  return createReactConfigWithDefaults(config, options, defaults, options);
 }
 
 /* -------------------------------------------------------------- rendering */
@@ -554,6 +557,8 @@ export function localReactExtensionRenderer(
     const declared = environment.runtime.document.componentDefinitions?.find(item => item.name === name);
     if (!declared || declared.id !== definition.id || declared.version !== definition.version
       || localComponentDigest(declared) !== localComponentDigest(definition)) throw new LocalReactExtensionMissingError(name);
+    const mounted = deferred.loader.synchronousImplementation(definition);
+    if (mounted) return renderExtensionNode(index, node, environment, mounted);
     return <LocalDeferredComponent loader={deferred.loader} index={index} definition={definition} node={node} environment={environment} />;
   };
 }

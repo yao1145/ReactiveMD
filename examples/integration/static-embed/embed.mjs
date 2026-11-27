@@ -1,6 +1,7 @@
 import { compileLocal } from 'reactive-md';
-import { createReactHost, deriveLocalReactPreset } from 'reactive-md/react/packed';
-import layout from 'reactive-md/presets/default/packs/react/layout';
+import { createReactHost } from 'reactive-md/react/packed';
+import card from 'reactive-md/presets/default/packs/react/component/card';
+import conditional from 'reactive-md/presets/default/packs/react/component/if';
 
 const source = `# Read-only embed
 
@@ -27,8 +28,7 @@ The conditional branch stays static.
 The surrounding document stays visible.`;
 
 export function prepareEmbed(observer) {
-  const layoutSubset = deriveLocalReactPreset(layout, { include: ['card', 'if'] });
-  const host = createReactHost({ presets: [layoutSubset] });
+  const host = createReactHost({ presets: [card, conditional] });
   let traceId;
   const result = compileLocal(source, {
     ...host.compileOptions,
@@ -39,6 +39,6 @@ export function prepareEmbed(observer) {
     } },
   });
   if (!result.ok || result.document.requiresRuntime) throw new Error(JSON.stringify(result.diagnostics));
-  return { document: result.document, reactConfig: host.reactConfig, css: host.css,
+  return { document: result.document, reactConfig: host.reactConfig,
     trace: { observer, traceId, documentId: 'static-embed', sourceRevision: 1, sourcePhase: 'final' } };
 }

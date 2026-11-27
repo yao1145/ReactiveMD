@@ -156,6 +156,19 @@
       "types": "./dist-library/types/components/packs/visuals.d.ts",
       "import": "./dist-library/reactive-md-react-pack-visuals.js"
     },
+    "./presets/default/packs/react/component/*": {
+      "types": "./dist-library/types/components/entries/*.d.ts",
+      "import": "./dist-library/reactive-md-react-component-*.js"
+    },
+    "./presets/default/packs/styles": {
+      "types": "./dist-library/types/presets/pack-style-entry.d.ts",
+      "import": "./dist-library/reactive-md-pack-style-manifest.js"
+    },
+    "./presets/default/packs/css/controls.css": "./dist-library/rmd-pack-controls.css",
+    "./presets/default/packs/css/layout.css": "./dist-library/rmd-pack-layout.css",
+    "./presets/default/packs/css/data.css": "./dist-library/rmd-pack-data.css",
+    "./presets/default/packs/css/visuals.css": "./dist-library/rmd-pack-visuals.css",
+    "./presets/default/packs/css/resources/*.css": "./dist-library/rmd-pack-resource-*.css",
     "./presets/minimal": {
       "types": "./dist-library/types/presets/minimal.d.ts",
       "import": "./dist-library/reactive-md-minimal-preset.js"

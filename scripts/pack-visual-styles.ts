@@ -5,6 +5,7 @@ import type { Plugin } from 'vite';
 
 const prefix = 'virtual:rmd-visual-styles/';
 const source = fileURLToPath(new URL('../src/components/shared/visuals.css', import.meta.url));
+const feedback = fileURLToPath(new URL('../src/styles/components/graphics-feedback.css', import.meta.url));
 const common = new Set(['title', 'sr-only', 'message', 'alert', 'notes', 'cell-error', 'swatch']);
 const data = /^(?:table|search|sort|select|pagination|timeline)(?:-|$)/;
 
@@ -15,6 +16,18 @@ function ownership(selector: string): 'shared' | 'data' | 'visuals' {
 }
 
 /** Project pack styles from the same source used by the full stylesheet. */
+export function visualPackCss(group: 'shared' | 'data' | 'visuals'): string {
+  const css = postcss.parse(readFileSync(source, 'utf8'), { from: source });
+  css.walkRules(rule => {
+    const selectors = rule.selectors.filter(selector => ownership(selector) === group);
+    if (selectors.length) rule.selectors = selectors;
+    else rule.remove();
+  });
+  css.walkComments(comment => { comment.remove(); });
+  css.walkAtRules(rule => { if (rule.nodes?.length === 0) rule.remove(); });
+  return css.toString() + (group === 'visuals' ? `\n${readFileSync(feedback, 'utf8')}` : '');
+}
+
 export function packVisualStyles(): Plugin {
   return {
     name: 'reactive-md-pack-visual-styles',
@@ -24,15 +37,8 @@ export function packVisualStyles(): Plugin {
       const group = id.slice(prefix.length + 1);
       if (group !== 'shared' && group !== 'data' && group !== 'visuals') throw new Error(`Unknown visual stylesheet ${group}`);
       this.addWatchFile(source);
-      const css = postcss.parse(readFileSync(source, 'utf8'), { from: source });
-      css.walkRules(rule => {
-        const selectors = rule.selectors.filter(selector => ownership(selector) === group);
-        if (selectors.length) rule.selectors = selectors;
-        else rule.remove();
-      });
-      css.walkComments(comment => { comment.remove(); });
-      css.walkAtRules(rule => { if (rule.nodes?.length === 0) rule.remove(); });
-      return `export default ${JSON.stringify(css.toString())};`;
+      if (group === 'visuals') this.addWatchFile(feedback);
+      return `export default ${JSON.stringify(visualPackCss(group))};`;
     },
   };
 }

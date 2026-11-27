@@ -235,6 +235,7 @@ export function compileLocalStreamingTracked(
   source: string,
   options?: LocalCompileOptions,
   services?: LocalCompilerServices,
+  collectPerformance = false,
 ): LocalStreamingTrackedCompile {
   // The parser must know the phase so an unfinished raw body renders to the
   // end of the snapshot instead of planning a final unclosed-tag failure.
@@ -248,7 +249,7 @@ export function compileLocalStreamingTracked(
 
   for (let attempt = 1; attempt <= LOCAL_STREAMING_MAX_ATTEMPTS; attempt += 1) {
     attempts = attempt;
-    tracked = compileLocalTracked(source, parserOptions, services, literalRanges);
+    tracked = compileLocalTracked(source, parserOptions, services, literalRanges, collectPerformance);
     addTimings(timings, tracked.timings);
     const result = tracked.result;
 
@@ -307,7 +308,7 @@ export function compileLocalStreamingTracked(
   if (typeof source === 'string' && source.length <= MAX_LOCAL_DOCUMENT_LENGTH
     && !coversSource(literalRanges, source.length)) {
     const whole = [{ start: 0, end: source.length }];
-    const fullLiteral = compileLocalTracked(source, parserOptions, services, whole);
+    const fullLiteral = compileLocalTracked(source, parserOptions, services, whole, collectPerformance);
     addTimings(timings, fullLiteral.timings);
     attempts += 1;
     if (fullLiteral.result.ok) {

@@ -367,4 +367,22 @@ describe('component loading and preset packs', () => {
     expect(deriveLocalPreset(layoutPack.preset, { include: ['alert', 'text'] }).components.map(item => item.name)).toEqual(['text', 'alert']);
     expect(() => deriveLocalPreset(layoutPack.preset, { include: ['alert', 'alert'] })).toThrow();
   });
+
+  it('projects registered host components without a runtime and leaves asynchronous implementations for hydration', () => {
+    const second = defineLocalComponent({ ...definition, id: 'embed/other-card', name: 'other-card' });
+    const config = createLocalConfig({ components: [definition, second] });
+    const document = compile('Before\n\n<test-card />\n\n<other-card />\n\nAfter', { config });
+    const resolver = vi.fn(() => null);
+    const resolveSync = vi.fn(() => component); // Deliberately mismatched for other-card.
+    const reactConfig = createDeferredReactConfig(config, { components: [], resolver, resolveSync });
+    expect(document.requiresRuntime).toBe(false);
+    const rendered = renderLocalStaticMarkup({ document, reactConfig });
+    expect(rendered).toMatchObject({ ok: true, markup: expect.stringContaining('<b>Loaded card</b>') });
+    if (!rendered.ok) throw new Error('Static projection failed');
+    expect(rendered.markup.match(/data-rmd-component-load="loading"/g)).toHaveLength(1);
+    expect(rendered.markup).toContain('After');
+    expect(resolveSync.mock.calls).toHaveLength(2);
+    expect(resolver).not.toHaveBeenCalled();
+    expect(renderLocalStaticMarkup({ document: { ...document, extensions: undefined }, reactConfig })).toMatchObject({ ok: false });
+  });
 });

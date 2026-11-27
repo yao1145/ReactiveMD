@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { getLocalComponentRegistry } from '../../../assemblies/default-registry';
-import { localReactExtensionRenderer } from '../../sdk-core';
+import { localReactExtensionRenderer, validateLocalReactExtensions } from '../../sdk-core';
 import { createStaticRuntime } from './static-runtime';
 import { validateLocalDocumentConfig } from '../../../assemblies/default-config';
 import { extensionDiagnostic, validateLocalComponentContracts } from '../../../export/requirements';
@@ -38,7 +38,9 @@ export function staticDocumentDiagnostics({ document, reactConfig }: LocalStatic
   const config = reactConfig?.config;
   return [
     ...validateLocalDocumentConfig(document, config),
-    ...validateLocalComponentContracts({ document, installed: getLocalComponentRegistry(config) }),
+    ...(reactConfig && document.extensions ? validateLocalReactExtensions(reactConfig, document.extensions) : []),
+    ...validateLocalComponentContracts({ document, installed: getLocalComponentRegistry(config),
+      externalNames: config && document.extensions ? new Set(config.components.map(definition => definition.name)) : undefined }),
   ];
 }
 

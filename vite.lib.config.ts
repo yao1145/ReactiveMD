@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { bundleAuthorWorker } from './scripts/bundle-author-worker';
 import { packVisualStyles } from './scripts/pack-visual-styles';
+import { packComponentEntries, packedComponentInputs } from './scripts/pack-component-entries';
 
 const pluginEntries = Object.fromEntries(
   ['forms', 'network', 'navigation', 'data', 'chart', 'plot', 'diagram', 'gallery'].map((name) => [
@@ -14,7 +15,7 @@ const reactPackEntries = Object.fromEntries(['controls', 'layout', 'data', 'visu
 ]));
 
 export default defineConfig({
-  plugins: [bundleAuthorWorker(), packVisualStyles(), {
+  plugins: [bundleAuthorWorker(), packVisualStyles(), packComponentEntries(), {
     name: 'optional-print-css',
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'reactive-md-print.css', source: readFileSync(new URL('./src/print.css', import.meta.url), 'utf8') });
@@ -48,6 +49,7 @@ export default defineConfig({
         'reactive-md-minimal-react-preset': fileURLToPath(new URL('./src/components/minimal-preset.ts', import.meta.url)),
         ...pluginEntries,
         ...reactPackEntries,
+        ...packedComponentInputs,
         'reactive-md-export': fileURLToPath(new URL('./src/export/index.ts', import.meta.url)),
         'reactive-md-react-server': fileURLToPath(new URL('./src/react/server.tsx', import.meta.url)),
         'reactive-md-react-static': fileURLToPath(new URL('./src/react/rendering/document/LocalStaticDocumentView.tsx', import.meta.url)),

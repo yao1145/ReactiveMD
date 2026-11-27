@@ -197,6 +197,23 @@ Hooks for component implementations: `useTicker`, `useFrame`, `useSwipe` with `c
 
 For a smaller host, pass React pack packages to `createReactHost({ presets })` from `reactive-md/react/packed`. Compile with `host.compileOptions`, render with `host.reactConfig` and load `host.css` alongside the document base styles. `deriveLocalReactPreset(pack, { include })` or `{ exclude }` selects semantic manifests and React implementations together, retaining the styles those manifests reference. `deriveLocalPreset` selects the semantic manifests for compiler-only use. Both preserve declared preset dependencies. Use the individual pack imports to control the bundle graph.
 
+To omit unselected implementations within a pack, import the components individually:
+
+```ts
+import { createReactHost } from 'reactive-md/react/packed';
+import card from 'reactive-md/presets/default/packs/react/component/card';
+import badge from 'reactive-md/presets/default/packs/react/component/badge';
+import 'reactive-md/presets/default/packs/css/resources/layout.css';
+
+const host = createReactHost({ presets: [card, badge] });
+```
+
+Each entry provides one manifest and its React implementation. Include any structural components used by the document, such as `column` for a `data-table` with explicit columns. Components outside the selected schema follow the compiler's unknown component or embedding fallback rules. Filtering an imported aggregate pack selects the registry; direct imports let the bundler omit sibling views.
+
+Use `reactive-md/presets/default/packs/css/<pack>.css` for a whole pack, or load only the resource files needed by your subset. `packStyleManifest` from `reactive-md/presets/default/packs/styles` maps component names to style IDs, packs to CSS files and resource IDs, and resource IDs to CSS files and selectors. Use the `file` values as package specifiers. A resource may serve several components or packs; load a shared resource once. Load these files alongside the document base styles, or use `host.css` for the selected resources instead.
+
+`createDeferredReactConfig(config, { components, resolver, resolveSync })` pairs an existing compiler config with React implementations. Pre-registered implementations take precedence. Optional `resolveSync({ name, definition })` can serve an already loaded implementation during SSR and in the browser; use the same lookup on both sides. The async `resolver({ name, definition, signal })` starts after mount, shares one request per definition, and receives an abort signal when its last subscriber leaves. SSR emits a stable loading placeholder for unresolved implementations. In `LocalStaticDocumentView`, custom components also need a matching contract that declares static, noninteractive rendering, and the compiled document must be runtime free.
+
 `createDeferredReactConfig(config, { components, resolver })` allows React to load implementations for manifests declared by the compiled document. The resolver receives `{ name, definition, signal }`. Concurrent render slots share a request for the same manifest identity. SSR renders a loading placeholder, and the client begins loading after mount. Pre-register an implementation when SSR needs its markup.
 
 ### `reactive-md/sdk`
@@ -471,7 +488,9 @@ Each constant is versioned independently: a package release can ship a new HTML 
 
 Import `LocalObserver`, `LocalTraceEvent`, `createDiagnosticReport`, `createLocalPerformanceReport` and `formatLocalDiagnostic` from `reactive-md/observability`. Supply an observer through `compileLocal(source, { observer })` or `new LocalCompileScheduler({ observer, createWorker, onResult })`. Observer callbacks receive independent copies, and callback exceptions are isolated from compilation.
 
-`createLocalPerformanceReport(events)` summarizes up to the last 512 events by trace, document revision, Worker slot and component name. It separates successful durations from failure, cancellation and budget rejection counts. Events carrying a `requestId` contribute one terminal outcome per request, so a timeout followed by a successful fallback counts once as a success; `retry` is ignored. Worker timings cover queue wait, busy intervals and completed idle intervals. `mountMs` sums mount latency and `mountedMs` sums mounted lifetime; `render-unmount` also retains `durationMs` as a compatibility alias for `mountedMs`. Retained components emit `render-retained` on a streaming-to-final update. Development effect replays have their own counters.
+`createLocalPerformanceReport(events)` summarizes up to the last 512 events by trace, document revision, Worker pool and slot, and component name. It separates successful durations from failure, cancellation and budget rejection counts. Each `requestId` contributes one terminal outcome, so a timeout followed by a successful fallback counts once as a success. `pools` shows readiness, and `workers` shows spawn, warmup, queue, busy and completed idle intervals. Phase timings are present when the compiler or Worker measured them.
+
+`component-load-start` and `component-load-end` measure actual async resolver calls. `component-load-wait-end` records how each subscribed revision finished waiting for the same `loadId`, including when one revision leaves while other subscribers remain. Pass the compile trace ID, document ID and revision in the view's `trace` prop to join these events with rendering. `documentRender` and `componentRender` separate mount latency, mounted lifetime, and the interval from React's layout cleanup to passive cleanup (`unmountMs`). `render-unmount.durationMs` remains an alias for mounted lifetime. Retained components emit `render-retained` on a streaming-to-final update, and development effect replays have their own counters.
 
 ```ts
 import { compileLocal } from 'reactive-md';

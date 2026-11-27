@@ -6,7 +6,7 @@ import type { LocalCompileOptions, LocalSourcePhase } from '../types';
 import { decodeFlatCompiledData, FLAT_COMPILED_DATA_PROTOCOL } from './flat-compiled-data';
 import { applyLocalResultPatch, cloneLocalCompileResult, diffSourceEdit, LOCAL_RESULT_PATCH_PROTOCOL } from './compile-patch';
 import { DEFAULT_LOCAL_WORKER_DOCUMENTS } from './worker-handler';
-import { localWorkerOptionsKey, now, safeDuration, snapshotCompileOptions } from './worker-job';
+import { compilePhaseMetrics, localWorkerOptionsKey, now, safeDuration, snapshotCompileOptions } from './worker-job';
 import { isCompileResult } from './worker';
 import type { LocalCompileOutcome, LocalCompileSchedulerOptions, LocalCompileWorker,
   LocalCompileWorkerRequest, LocalCompileWorkerResponse } from './worker';
@@ -153,6 +153,7 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
   const ready = new Promise<LocalCompilePoolReadyEvent>(resolve => { resolveReady = resolve; });
   let lastCounts = '';
   const readinessStartedAt = options.observer?.onTrace ? now() : undefined;
+  let workerPoolId: string | undefined;
 
   function counts(): LocalCompilePoolCounts {
     let oldest = Number.POSITIVE_INFINITY;
@@ -186,7 +187,7 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     metrics?: Pick<LocalTraceEvent, 'queueMs' | 'parseMs' | 'semanticMs' | 'reuseMs' | 'rebuildMs' | 'compiledBlocks' | 'reusedBlocks'>): void {
     if (!options.observer?.onTrace) return;
     emitLocalTrace(options.observer, { type, traceId: task?.traceId ?? createLocalTraceId(), timestamp: Date.now(),
-      workerId: slot?.id, documentId: task?.request.documentId, sourceRevision: task?.request.revision,
+      workerPoolId: workerPoolId ??= createLocalTraceId(), workerId: slot?.id, documentId: task?.request.documentId, sourceRevision: task?.request.revision,
       requestId: task?.id, sourcePhase: task?.request.sourcePhase, status, durationMs, ...metrics });
   }
 
@@ -213,10 +214,16 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     if (!pending.has(task)) return;
     try {
       let result: LocalCompileOutcome['result'];
+      let phases: ReturnType<typeof compilePhaseMetrics> | undefined;
       if (options.fallbackCompile) result = options.fallbackCompile(source, compileOptions, sourcePhase);
       else {
         const session = createLocalCompileSession();
-        try { result = session.compile(source, compileOptions, sourcePhase); }
+        try {
+          if (options.observer?.onTrace) {
+            result = cloneLocalCompileResult(session.compileShared(source, compileOptions, sourcePhase, true));
+            phases = compilePhaseMetrics(session.stats);
+          } else result = session.compile(source, compileOptions, sourcePhase);
+        }
         finally { session.dispose(); }
       }
       const duration = safeDuration(now() - before);
@@ -224,7 +231,7 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       resolve(task, { source, result, options: compileOptions, duration, mode: 'fallback', sourcePhase,
         metrics: { queueMs: safeDuration(before - task.queuedAt) } });
       if (options.observer?.onTrace) trace('worker-response', undefined, task, compileTraceStatus(result), duration,
-        { queueMs: safeDuration(before - task.queuedAt) });
+        { queueMs: safeDuration(before - task.queuedAt), ...phases });
     } catch { fail(task, 'worker-failed'); }
   }
 
@@ -258,7 +265,7 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     const flight = finish(slot);
     slot.failed = true;
     closeWorker(slot);
-    trace(type, slot, flight?.task, type === 'worker-timeout' ? 'timeout' : 'failed',
+    trace(flight && !flight.task ? 'worker-warmup' : type, slot, flight?.task, type === 'worker-timeout' ? 'timeout' : 'failed',
       flight && options.observer?.onTrace ? safeDuration(now() - flight.started) : undefined);
     if (flight?.task) fallback(flight.task);
     reportReady();
@@ -374,7 +381,10 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       worker.onmessage = event => { if (slot.worker === worker) receive(slot, event?.data); };
       worker.onerror = worker.onmessageerror = () => { if (slot.worker === worker) workerFailed(slot, 'worker-error'); };
       trace('worker-spawn', slot, undefined, 'ok', traceEnabled ? safeDuration(now() - before) : undefined);
-    } catch { workerFailed(slot, 'worker-error'); }
+    } catch {
+      trace('worker-spawn', slot, undefined, 'failed', traceEnabled ? safeDuration(now() - before) : undefined);
+      workerFailed(slot, 'worker-error');
+    }
   }
 
   function requestDrain(): void {
@@ -490,7 +500,11 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       closed = true;
       clearTimeout(wakeup);
       for (const task of pending) fail(task, 'disposed');
-      for (const slot of slots) { finish(slot); closeWorker(slot); }
+      for (const slot of slots) {
+        const flight = finish(slot);
+        if (flight && !flight.task && options.observer?.onTrace) trace('worker-warmup', slot, undefined, 'disposed', safeDuration(now() - flight.started));
+        closeWorker(slot);
+      }
       revisions.clear();
       reportReady();
       notify();
