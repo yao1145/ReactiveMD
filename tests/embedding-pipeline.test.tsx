@@ -13,7 +13,7 @@ import layoutPack from '../src/components/packs/layout';
 import dataPack from '../src/components/packs/data';
 import visualsPack from '../src/components/packs/visuals';
 import { createLocalConfig, defineLocalComponent, deriveLocalPreset, LOCAL_COMPONENT_PROTOCOL } from '../src/sdk';
-import type { LocalCompileOptions } from '../src/local/types';
+import type { Diagnostic, LocalCompileOptions } from '../src/local/types';
 
 function compile(source: string, options?: LocalCompileOptions) {
   const result = compileLocal(source, options);
@@ -34,6 +34,51 @@ describe('embedding and static rendering', () => {
     });
     expect(conditional.requiresRuntime).toBe(false);
     expect(renderLocalStaticMarkup({ document: conditional })).toMatchObject({ ok: true, markup: expect.stringContaining('class="local-if md-if"') });
+  });
+
+  it('renders a selected static pack component without a runtime', () => {
+    const layoutSubset = deriveLocalReactPreset(layoutPack, { include: ['card'] });
+    const host = createReactHost({ presets: [layoutSubset] });
+    const source = '<card title="Selected card">\n\nPack body **bold**\n\n</card>';
+    const result = compileLocal(source, {
+      ...host.compileOptions,
+      embedding: { expressions: 'literal', onUnsupported: 'fallback', allowImages: false },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.document.requiresRuntime).toBe(false);
+    expect([...walkLocalNodes(result.document.nodes)].some(node => node.type === 'component' && node.name === 'card')).toBe(true);
+
+    const rendered = renderLocalStaticMarkup({ document: result.document, reactConfig: host.reactConfig });
+    expect(rendered.ok).toBe(true);
+    if (!rendered.ok) return;
+    expect(rendered.markup).toContain('md-card');
+    expect(rendered.markup).toContain('Selected card');
+    expect(rendered.markup).toContain('<strong>');
+    expect(rendered.markup).toContain('Pack body');
+    expect(rendered.markup).not.toContain('class="local-if');
+  });
+
+  it('keeps sibling content when one static slot renderer throws', () => {
+    const document = compile('<external slot="good" />\n\nBetween\n\n<external slot="bad" />\n\nAfter', {
+      embedding: { allowExternalSlots: true, expressions: 'literal' },
+    });
+    const diagnostics: Diagnostic[] = [];
+    const rendered = renderLocalStaticMarkup({
+      document,
+      onDiagnostics: items => diagnostics.push(...items),
+      renderExternalSlot: slot => {
+        if (slot.name === 'bad') throw new Error('slot exploded');
+        return <b>{slot.name}</b>;
+      },
+    });
+    expect(rendered.ok).toBe(true);
+    if (!rendered.ok) return;
+    expect(rendered.markup).toContain('<b>good</b>');
+    expect(rendered.markup).toContain('Between');
+    expect(rendered.markup).toContain('After');
+    expect(rendered.markup).toContain('data-local-host-reason="error"');
+    expect(diagnostics).toContainEqual(expect.objectContaining({ code: 'local.extension.render', severity: 'error' }));
   });
 
   it('renders opted-in static external slots through the host or an inert placeholder', () => {

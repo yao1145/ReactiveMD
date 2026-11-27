@@ -11,6 +11,9 @@ const render = (args = []) => execFileSync(process.execPath, [join(root, 'render
 const synchronous = render();
 const deferred = render(['--defer']);
 assert.match(synchronous, /References provided by the host/);
+assert.match(synchronous, /md-card-title/);
+assert.match(synchronous, /Selected layout card/);
+assert.match(synchronous, /class="local-if md-if"/);
 assert.equal((deferred.match(/data-rmd-component-load="loading"/g) ?? []).length, 2);
 assert.equal((deferred.match(/data-local-fallback/g) ?? []).length, 1);
 assert.match(deferred, /\{\{ visitor.name \}\}/);
@@ -33,10 +36,12 @@ async function verify(url, environment) {
     });
     await page.goto(url);
     await expect(page.locator('main aside')).toHaveCount(2);
-    await expect(page.locator('main .local-if')).toContainText('This paragraph uses the selected layout component.');
+    await expect(page.locator('main .local-card')).toContainText('This paragraph uses the selected layout component.');
+    await expect(page.locator('main .local-if')).toContainText('The conditional branch stays static.');
     const readReport = async () => JSON.parse(await page.locator('#report').textContent());
+    // Two host slots plus the selected pack card mount under one revision.
     await expect.poll(async () => (await readReport()).revisions[0].productionFinalMounts)
-      .toBe(environment === 'production' ? 2 : 0);
+      .toBe(environment === 'production' ? 3 : 0);
     const report = await readReport();
     assert.equal(report.components[0].requests, 1);
     assert.equal(report.components[0].peakSubscribers, 2);

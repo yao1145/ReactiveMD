@@ -1,5 +1,7 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { getLocalComponentRegistry } from '../../../assemblies/default-registry';
+import { localReactExtensionRenderer } from '../../sdk-core';
+import { createStaticRuntime } from './static-runtime';
 import { validateLocalDocumentConfig } from '../../../assemblies/default-config';
 import { extensionDiagnostic, validateLocalComponentContracts } from '../../../export/requirements';
 import { localDocumentRequiresRuntime } from '../../../local/compilation/runtime-requirement';
@@ -60,12 +62,18 @@ function StaticProjection({ document, reactConfig, themes, colorScheme = 'auto',
   const theme = resolveLocalTheme(document.theme, reactConfig?.config.themes ?? themes, document.themeRange, document.source);
   const policy = intersectCapabilityPolicy(document.capabilities?.policy, capabilityGrants);
   const authorCss = policy.enableCss ? document.capabilities?.styles.map(style => scopeAuthorStyles(style.text)).join('\n') : undefined;
+  const staticRuntime = useMemo(() => createStaticRuntime(document), [document]);
+  const definitions = useMemo(() => new Map(getLocalComponentRegistry(reactConfig?.config).map(definition => [definition.name, definition])),
+    [reactConfig]);
+  const componentRenderer = useMemo(() => reactConfig ? localReactExtensionRenderer(reactConfig) : undefined, [reactConfig]);
   const env: StaticRenderEnv = {
     source: document.source, mode: 'static', locale, t, rootRef, urlPolicy, imageResolver, allowedFrameOrigins,
     renderExternalSlot, resolveExternalSlot, trace,
     capabilityPolicy: { ...policy, enableJavaScript: false }, report: onDiagnostics,
     anchors: createHeadingAnchors(document, `local-heading-${instanceId}`),
     footnotes: collectLocalFootnotes(document, instanceId),
+    staticRuntime, definitions, componentRenderer,
+    componentStyles: document.capabilities?.componentStyles,
   };
   return <LocalLocaleProvider locale={locale}>
     <article ref={rootRef} className="md-document local-document local-static"

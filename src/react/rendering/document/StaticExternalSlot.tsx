@@ -26,8 +26,48 @@ export function StaticExternalSlot({ slot, render, resolver, trace, report, posi
   report?: Report;
   position?: () => Position;
 }) {
-  const content = render?.(slot);
-  if (content != null) return content;
+  const failure = useRef<unknown>(null);
+  const reported = useRef(false);
+  let content: ReactNode = null;
+  if (render) {
+    try {
+      content = render(slot);
+      failure.current = null;
+    } catch (error) {
+      failure.current = error;
+    }
+  }
+  if (content != null) {
+    reported.current = false;
+    return content;
+  }
+  if (failure.current !== null) {
+    // One slot must not abort the document. SSR has no error boundary pass,
+    // so report and project the failure here; hydration stays deterministic.
+    if (!reported.current) {
+      reported.current = true;
+      try {
+        report?.([{
+          code: 'local.extension.render',
+          message: `External slot "${slot.name}" failed: ${
+            failure.current instanceof Error ? failure.current.message : String(failure.current)
+          }`,
+          severity: 'error',
+          range: slot.range,
+          ...(position?.() ?? { line: 1, column: 1 }),
+          phase: 'host',
+          recoverable: true,
+        }]);
+      } catch {
+        /* Reporting must never break the surrounding document. */
+      }
+    }
+    return (
+      <span data-rmd-external-slot={slot.name} data-local-host-reason="error" role="note">
+        {localize(slot.locale, 'Content unavailable', '内容暂不可用')}
+      </span>
+    );
+  }
   if (resolver) return <DeferredExternalSlot slot={slot} resolver={resolver} trace={trace} report={report} position={position} />;
   return <span data-rmd-external-slot={slot.name}>{localize(slot.locale, 'Content unavailable', '内容暂不可用')}</span>;
 }

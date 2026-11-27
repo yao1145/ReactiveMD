@@ -68,13 +68,13 @@
 
 `LocalCompileOptions.embedding` 的默认值是 `{ expressions: 'evaluate', onUnsupported: 'error', allowImages: true, allowInteractive: true, allowExternalSlots: false }`。`expressions: 'literal'` 在正文和兼容的字符串属性中保留插值定界符。通过编译 `config` 选择组件注册表，通过现有 HTML 权限字段控制原生 HTML 能力。
 
-启用 `onUnsupported: 'fallback'` 后，受限节点和表达式属性无效的组件会保留为转义后的原文。`node.fallback` 记录诊断码和 UTF-16 范围，降级子树会从运行时元数据中移除。成功编译会写入 `document.requiresRuntime`。`requiresRuntime: false` 的文档可交给 `reactive-md/react/static` 的 `LocalStaticDocumentView`，或 `reactive-md/react/static/server` 的 `renderLocalStaticMarkup`。后者成功时返回标记和诊断，失败时返回结构化诊断。字面模式支持 `<if when="true">` 和 `<if when="false">`。
+启用 `onUnsupported: 'fallback'` 后，受限节点和表达式属性无效的组件会保留为转义后的原文。`node.fallback` 记录诊断码和 UTF-16 范围，降级子树会从运行时元数据中移除。成功编译会写入 `document.requiresRuntime`。`requiresRuntime: false` 的文档可交给 `reactive-md/react/static` 的 `LocalStaticDocumentView`，或 `reactive-md/react/static/server` 的 `renderLocalStaticMarkup`。后者成功时返回标记和诊断，失败时返回结构化诊断。字面模式支持 `<if when="true">` 和 `<if when="false">`。文档还可包含 manifest 声明静态渲染且属性均为字面值的组件；传入匹配的 `reactConfig`（例如派生的 React pack 子集）即可由对应 pack 实现直接渲染，不创建文档 runtime。缺少实现的组件显示稳定占位。
 
-启用 `allowExternalSlots` 后，可用 `<external slot="references" />` 声明宿主槽位。通过 `renderExternalSlot({ name, locale, range })` 同步提供内容，或由 `resolveExternalSlot({ name, signal })` 在浏览器挂载后返回 React 组件或 Promise。服务端在配置 resolver 时输出稳定的加载占位。未提供宿主渲染器的槽位显示不可用占位。宿主先确定允许的槽位名称，再加载对应实现。槽位渲染函数或 resolver 必须在多次渲染间保持稳定；loader 按 resolver 身份缓存，内联函数会重新发起请求。服务端渲染与客户端水合必须采用同一槽位策略，确保首帧标记一致。见[静态嵌入示例](../../examples/integration/README-ch.md#静态嵌入)。
+启用 `allowExternalSlots` 后，可用 `<external slot="references" />` 声明宿主槽位。通过 `renderExternalSlot({ name, locale, range })` 同步提供内容，或由 `resolveExternalSlot({ name, signal })` 在浏览器挂载后返回 React 组件或 Promise。服务端在配置 resolver 时输出稳定的加载占位。未提供宿主渲染器的槽位显示不可用占位。宿主先确定允许的槽位名称，再加载对应实现。单个槽位渲染函数抛出异常时，该槽位通过 `onDiagnostics` 报告错误并显示不可用占位，正常兄弟节点继续渲染。槽位渲染函数或 resolver 必须在多次渲染间保持稳定；loader 按 resolver 身份缓存，内联函数会重新发起请求。服务端渲染与客户端水合必须采用同一槽位策略，确保首帧标记一致。见[静态嵌入示例](../../examples/integration/README-ch.md#静态嵌入)。
 
 从 `reactive-md` 导入 `createLocalRuntimePool()`，可在兼容的文档与运行时选项之间复用租约。消费方卸载时释放租约，也可使用 `LocalPooledDocumentView` 由 React 生命周期管理租约。`stableComponentKeys` 在同一父级的追加更新中保留既有 React 槽位。
 
-`createLocalCompilePool()` 接收 `{ documentId, revision, source, options, sourcePhase, priority }`，每份文档的 revision 递增。超过文档长度上限的源码在入队前即以 `source-too-large` 拒绝。默认 `latest` 策略以 `superseded` 拒绝被取代的任务；新流式快照排在待处理的最终稿之后。需要逐个处理 revision 时使用 `all`，并处理队列满时的 `backpressure`。文档永久关闭后调用 `release(documentId)`：取消该文档待处理的任务，并清除其 revision 链和基线，之后可复用同一 ID。协商支持 `patch-v1` 的 Worker 可复用同一文档的兼容最终稿基线；基线被回收时，池会以完整源码重试。传入 `LocalObserver` 可读取池事件，再将结果的 trace ID、文档 ID 和 revision 作为 `trace` 传给 React 视图，即可关联装载与挂载事件。
+`createLocalCompilePool()` 接收 `{ documentId, revision, source, options, sourcePhase, priority }`，每份文档的 revision 递增。超过文档长度上限的源码在入队前即以 `source-too-large` 拒绝。默认 `latest` 策略以 `superseded` 拒绝被取代的任务；同一文档的新 final 会取代较早的待处理 final，新流式快照只取代较早的流式快照并排在 final 之后。需要逐个处理 revision 时使用 `all`，并处理队列满时的 `backpressure`。文档永久关闭后调用 `release(documentId)`：取消该文档待处理的任务，并清除其 revision 链和基线，之后可复用同一 ID。协商支持 `patch-v1` 的 Worker 可复用同一文档的兼容最终稿基线；基线被回收时，池会以完整源码重试。传入 `LocalObserver` 可读取池事件，再将结果的 trace ID、文档 ID 和 revision 作为 `trace` 传给 React 视图，即可关联装载与挂载事件。
 
 基础优先级限在 `[-10, 10]`，默认值为 `0`，每排队 100 毫秒加一分。`setPriority` 更新该文档已排队的请求，正在运行的任务继续执行。
 

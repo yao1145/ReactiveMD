@@ -12,7 +12,7 @@ To run the [streaming source](streaming) example against the current checkout, i
 
 ## Static embed
 
-The [static embed](static-embed) uses one layout component, keeps `{{ visitor.name }}` as text and shows a fallback for the unselected slider. Two identical host slots share one dynamic import. The performance report groups compilation, loading and rendering under one revision.
+The [static embed](static-embed) selects a layout card and the static `<if>` branch from the layout pack, renders the card through its pack implementation without a document runtime, keeps `{{ visitor.name }}` as text and shows a fallback for an unknown component. Two identical host slots share one dynamic import. The performance report groups compilation, loading and rendering under one revision.
 
 From the engine repository root, build the package and render the server example:
 

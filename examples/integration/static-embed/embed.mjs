@@ -6,13 +6,19 @@ const source = `# Read-only embed
 
 The original placeholder is {{ visitor.name }}.
 
-<if when="true">
+<card title="Selected layout card">
 
 This paragraph uses the selected layout component.
 
+</card>
+
+<if when="true">
+
+The conditional branch stays static.
+
 </if>
 
-<slider bind="zoom" />
+<unknown-widget />
 
 <external slot="references" />
 
@@ -21,12 +27,12 @@ This paragraph uses the selected layout component.
 The surrounding document stays visible.`;
 
 export function prepareEmbed(observer) {
-  const layoutSubset = deriveLocalReactPreset(layout, { include: ['if'] });
+  const layoutSubset = deriveLocalReactPreset(layout, { include: ['card', 'if'] });
   const host = createReactHost({ presets: [layoutSubset] });
   let traceId;
   const result = compileLocal(source, {
     ...host.compileOptions,
-    embedding: { expressions: 'literal', onUnsupported: 'fallback', allowImages: false, allowInteractive: false, allowExternalSlots: true },
+    embedding: { expressions: 'literal', onUnsupported: 'fallback', allowImages: false, allowExternalSlots: true },
     observer: observer && { onTrace(event) {
       traceId = event.traceId;
       observer.onTrace({ ...event, documentId: 'static-embed', sourceRevision: 1, sourcePhase: 'final' });

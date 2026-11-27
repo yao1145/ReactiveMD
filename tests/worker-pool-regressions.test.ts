@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   startLocalCompileWorker,
   type LocalCompileWorker,
@@ -100,6 +100,94 @@ describe('worker pool document state', () => {
       const outcome = await fresh;
       expect(outcome.revision).toBe(0);
       expect(outcome.result.ok).toBe(true);
+    } finally {
+      pool.dispose();
+    }
+  });
+});
+
+describe('worker pool lifecycle', () => {
+  it('warms one worker and reports readiness', async () => {
+    const slot = workerSlot();
+    const onReady = vi.fn();
+    const pool = createLocalCompilePool({
+      workers: 1, warmup: true, createWorker: () => slot.worker, onReady,
+    });
+    try {
+      const ready = pool.ready;
+      await Promise.resolve();
+      expect(slot.jobs[0]).toMatchObject({ documentId: '', revision: 0, source: '' });
+      slot.answer();
+      await expect(ready).resolves.toMatchObject({ status: 'ready', availableWorkers: 1, failedWorkers: 0 });
+      await Promise.resolve();
+      expect(onReady).toHaveBeenCalledWith(expect.objectContaining({ status: 'ready' }));
+    } finally {
+      pool.dispose();
+    }
+  });
+
+  it('recycles idle workers through maxIdle and idleDisposeMs', async () => {
+    const zero = workerSlot();
+    const zeroTerminate = vi.spyOn(zero.worker, 'terminate');
+    const zeroPool = createLocalCompilePool({ workers: 1, maxIdle: 0, createWorker: () => zero.worker });
+    try {
+      const job = zeroPool.schedule({ documentId: 'doc', revision: 0, source: 'text' });
+      await Promise.resolve();
+      zero.answer();
+      await job;
+      await Promise.resolve();
+      expect(zeroTerminate).toHaveBeenCalledTimes(1);
+    } finally {
+      zeroPool.dispose();
+    }
+
+    const timed = workerSlot();
+    const timedTerminate = vi.spyOn(timed.worker, 'terminate');
+    const timedPool = createLocalCompilePool({
+      workers: 1, maxIdle: 1, idleDisposeMs: 5, createWorker: () => timed.worker,
+    });
+    try {
+      const job = timedPool.schedule({ documentId: 'doc', revision: 0, source: 'text' });
+      await Promise.resolve();
+      timed.answer();
+      await job;
+      await new Promise(resolve => setTimeout(resolve, 25));
+      expect(timedTerminate).toHaveBeenCalledTimes(1);
+    } finally {
+      timedPool.dispose();
+    }
+  });
+
+  it('disposes queued and in-flight tasks', async () => {
+    const slot = workerSlot();
+    const terminate = vi.spyOn(slot.worker, 'terminate');
+    const pool = createLocalCompilePool({ workers: 1, createWorker: () => slot.worker });
+    const inFlight = pool.schedule({ documentId: 'a', revision: 0, source: 'in flight' });
+    await Promise.resolve();
+    const queued = pool.schedule({ documentId: 'b', revision: 0, source: 'queued' });
+    pool.dispose();
+    await expect(inFlight).rejects.toMatchObject({ kind: 'disposed' });
+    await expect(queued).rejects.toMatchObject({ kind: 'disposed' });
+    expect(terminate).toHaveBeenCalledTimes(1);
+    await expect(pool.schedule({ documentId: 'c', revision: 0, source: 'later' }))
+      .rejects.toMatchObject({ kind: 'disposed' });
+  });
+
+  it('lets a newer queued final replace an older final', async () => {
+    const slot = workerSlot();
+    const pool = createLocalCompilePool({ workers: 1, createWorker: () => slot.worker });
+    try {
+      const other = pool.schedule({ documentId: 'other', revision: 0, source: 'other' });
+      await Promise.resolve();
+      const older = pool.schedule({ documentId: 'doc', revision: 1, source: 'old' }).catch(error => error);
+      const newer = pool.schedule({ documentId: 'doc', revision: 2, source: 'new' });
+      expect(await older).toMatchObject({ kind: 'superseded' });
+      slot.answer();
+      await other;
+      await Promise.resolve();
+      expect(slot.jobs[0]).toMatchObject({ documentId: 'doc', revision: 2, source: 'new' });
+      slot.answer();
+      expect(await newer).toMatchObject({ documentId: 'doc', revision: 2, result: { ok: true } });
     } finally {
       pool.dispose();
     }

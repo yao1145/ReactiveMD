@@ -9,8 +9,10 @@ import {
   scalarText,
   sourcePosition,
   sourceProps,
+  staticExtensionEnvironment,
   type ProjectionEnv,
   type RenderEnv,
+  type StaticRenderEnv,
 } from './view-render-context';
 import type { LocalNode, LocalRuntime, LocalValue } from '../../../local/types';
 import { localHtmlAlign, localHtmlLinkRel } from '../../../contracts/html-names';
@@ -455,9 +457,12 @@ function renderNode(
 
   if (node.type === 'component') {
     if (!('runtime' in env)) {
-      const shown = node.attrs?.when === 'true';
-      return <div key={key} className="local-if md-if" role="group" hidden={!shown} aria-hidden={!shown}
-        aria-label={env.t('Conditional content', '条件内容')}>{shown ? renderNodes(env, node.children, visible) : null}</div>;
+      if (node.name === 'if') {
+        const shown = node.attrs?.when === 'true';
+        return <div key={key} className="local-if md-if" role="group" hidden={!shown} aria-hidden={!shown}
+          aria-label={env.t('Conditional content', '条件内容')}>{shown ? renderNodes(env, node.children, visible) : null}</div>;
+      }
+      return renderStaticComponent(env, node, key, visible);
     }
     return (
       <LocalErrorBoundary key={key} revision={runtimeRevision(env.runtime)}>
@@ -834,6 +839,43 @@ function renderTableCells(
       </td>
     );
   });
+}
+
+/**
+ * Runtime-free component projection. The compiler only admits manifests that
+ * declare static rendering, and the host supplies the pack implementation via
+ * `reactConfig`; without one the node keeps a stable placeholder.
+ */
+function renderStaticComponent(
+  env: StaticRenderEnv,
+  node: LocalNode,
+  key: string,
+  visible: boolean,
+): ReactNode {
+  const name = node.name ?? '';
+  if (name === 'computed' || name === 'const' || name === 'external') return null;
+  const unavailable = (reason: 'renderer' | 'error'): ReactNode => (
+    <span
+      key={key}
+      className="local-host-component local-host-unavailable local-sdk-unavailable"
+      data-local-host-component={name}
+      data-local-host-reason={reason}
+      role="note"
+    >
+      {env.t(`Component <${name}> is unavailable here.`, `组件 <${name}> 在此不可用。`)}
+    </span>
+  );
+  const renderer = env.componentRenderer;
+  if (!renderer) return unavailable('renderer');
+  try {
+    return (
+      <LocalErrorBoundary key={key} revision={0}>
+        {renderer(node, staticExtensionEnvironment(env, node, visible, renderNodes, renderInlineNodes))}
+      </LocalErrorBoundary>
+    );
+  } catch (error) {
+    return unavailable(error instanceof LocalReactExtensionMissingError ? 'renderer' : 'error');
+  }
 }
 
 function renderComponent(

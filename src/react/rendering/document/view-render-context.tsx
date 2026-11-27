@@ -28,7 +28,7 @@ import type { DependencyLookup } from './view-revision';
 import type { LocalFootnoteIndex } from '../../../local/parsing/footnotes';
 import type { LocalStaticExternalResolver } from './StaticExternalSlot';
 import type { ComponentNetwork } from '../../../runtime-services/network';
-import type { LocalReactConfig, LocalReactRenderEnvironment } from '../../sdk-core';
+import type { LocalReactConfig, LocalReactExtensionRenderer, LocalReactRenderEnvironment } from '../../sdk-core';
 import { splitHtmlDetailsChildren } from '../../../local/html/html-details';
 import { PrintValue } from '../../component-utils';
 import type { LocalReactTraceContext } from '../../component-loader';
@@ -248,9 +248,13 @@ export interface LocalStaticExternalSlot {
 }
 
 export type StaticRenderEnv = Pick<RenderEnv, 'rootRef' | 'urlPolicy' | 'imageResolver' | 'anchors' | 't' | 'locale'
-  | 'footnotes' | 'capabilityPolicy' | 'allowedFrameOrigins' | 'report' | 'trace'> & {
+  | 'footnotes' | 'capabilityPolicy' | 'allowedFrameOrigins' | 'report' | 'trace' | 'componentStyles'> & {
   mode: 'static'; source: string; renderExternalSlot?: (slot: LocalStaticExternalSlot) => ReactNode;
   resolveExternalSlot?: LocalStaticExternalResolver;
+  /** Read-only projection used by statically renderable components. */
+  staticRuntime: LocalRuntime;
+  definitions: ReadonlyMap<string, LocalComponentDefinition>;
+  componentRenderer?: LocalReactExtensionRenderer;
 };
 export type ProjectionEnv = RenderEnv | StaticRenderEnv;
 
@@ -375,6 +379,73 @@ function jumpWithinDocument(
  * only.
  */
 type NodeRenderer = (env: RenderEnv, nodes: LocalNode[] | undefined, visible: boolean) => ReactNode;
+type StaticNodeRenderer = (env: StaticRenderEnv, nodes: LocalNode[] | undefined, visible: boolean) => ReactNode;
+
+/** Plain text projection for static components; nothing is evaluated. */
+function staticContentText(nodes: LocalNode[] | undefined): string {
+  return (nodes ?? []).map(node => {
+    if (node.type === 'image') return node.alt ?? '';
+    if (node.type === 'break') return ' ';
+    if (node.type === 'interpolation') return node.value ?? '';
+    return node.children?.length ? staticContentText(node.children) : node.value ?? '';
+  }).join('');
+}
+
+/**
+ * Component environment for the runtime-free projection. It mirrors
+ * `extensionEnvironment` but reads from the static runtime and supplies inert
+ * validation/navigation state, so pack views run their `mode: 'static'`
+ * branches without holding a live document runtime.
+ */
+export function staticExtensionEnvironment(
+  env: StaticRenderEnv,
+  node: LocalNode,
+  visible: boolean,
+  renderNodes: StaticNodeRenderer,
+  renderInlineNodes: StaticNodeRenderer,
+): LocalReactRenderEnvironment {
+  const runtime = env.staticRuntime;
+  const rawDisabled = node.attrs?.disabled;
+  return {
+    runtime,
+    trace: env.trace,
+    authorStyle: env.componentStyles && Object.hasOwn(env.componentStyles, node.id)
+      ? parseAuthorDeclarations(env.componentStyles[node.id])
+      : undefined,
+    authorStyleText: env.componentStyles && Object.hasOwn(env.componentStyles, node.id)
+      ? serializeAuthorDeclarationFallbacks(env.componentStyles[node.id])
+      : undefined,
+    mode: 'static',
+    visible,
+    disabled: rawDisabled === 'true',
+    disabledInvalid: false,
+    resetToken: 0,
+    locale: env.locale,
+    renderChildren: (nodes, nextVisible) => renderNodes(env, nodes ?? [], nextVisible),
+    renderInline: (nodes, nextVisible) => renderInlineNodes(env, nodes ?? [], nextVisible),
+    renderToText: (nodes) => staticContentText(nodes),
+    report: (diagnostics) => env.report?.(diagnostics),
+    positionOf: (offset) => sourcePosition(env, offset),
+    definitionFor: (name) => env.definitions.get(name),
+    validationField: () => ({ invalid: false }),
+    validationHint: () => null,
+    sourceAttributes: () => ({}),
+    targetId: (to) => env.anchors.targetId(to),
+    anchorId: (target) => env.anchors.anchorIds.get(target),
+    jumpAllowed: (to) => {
+      if (env.anchors.targetId(to) === undefined) return false;
+      if (env.urlPolicy === undefined) return true;
+      try {
+        return env.urlPolicy(`#${to}`, 'link') === true;
+      } catch {
+        return false;
+      }
+    },
+    jumpTo: (target) => jumpWithinDocument(env.rootRef.current, target),
+    urlPolicy: env.urlPolicy,
+    imageResolver: env.imageResolver,
+  };
+}
 
 export function extensionEnvironment(
   env: RenderEnv,
