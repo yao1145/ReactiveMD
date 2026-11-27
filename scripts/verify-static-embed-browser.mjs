@@ -23,11 +23,19 @@ assert.match(deferred, /\{\{ visitor.name \}\}/);
 const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'chromium';
 const browser = await chromium.launch({ ...(channel === 'chromium' ? {} : { channel }), headless: true });
 
+// Chromium blocks local-network WebSockets even when HMR is disabled. Vite's
+// client still attempts the optional HMR connection; that noise is unrelated
+// to the document checks below.
+const isViteHmrNoise = (text) => /^WebSocket connection to 'ws:\/\/127\.0\.0\.1:/.test(text)
+  || text.startsWith('[vite] failed to connect to websocket.');
+
 async function verify(url, environment) {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('console', message => {
+    if (message.type() === 'error' && !isViteHmrNoise(message.text())) errors.push(message.text());
+  });
   try {
     await page.route(url, async route => {
       const response = await route.fetch();
@@ -65,7 +73,9 @@ async function verifyDeferredComponents(url) {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('console', message => {
+    if (message.type() === 'error' && !isViteHmrNoise(message.text())) errors.push(message.text());
+  });
   try {
     await page.route(url, async route => {
       const response = await route.fetch();
@@ -99,7 +109,8 @@ async function verifyDeferredComponents(url) {
 
 try {
   process.env.NODE_ENV = 'development';
-  const dev = await createServer({ root, configFile: false, server: { host: '127.0.0.1', port: 0 } });
+  // HMR is unnecessary here; current Chromium blocks the local WebSocket, which would fail the console check.
+  const dev = await createServer({ root, configFile: false, server: { host: '127.0.0.1', port: 0, hmr: false, ws: false } });
   try {
     await dev.listen();
     await verify(dev.resolvedUrls.local[0], 'development');
@@ -123,7 +134,7 @@ try {
 
   process.env.NODE_ENV = 'development';
   const fixture = await createServer({ root: fileURLToPath(new URL('../tests/fixtures/deferred-components/', import.meta.url)),
-    configFile: false, server: { host: '127.0.0.1', port: 0 } });
+    configFile: false, server: { host: '127.0.0.1', port: 0, hmr: false, ws: false } });
   try {
     await fixture.listen();
     await verifyDeferredComponents(fixture.resolvedUrls.local[0]);
