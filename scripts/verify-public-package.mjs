@@ -37,18 +37,21 @@ function run(command, args, cwd = root) {
 function verifyPackGraph(entry, forbidden) {
   const files = [join(root, 'dist-library', entry)];
   const visited = new Set();
+  const modules = new Set();
   while (files.length) {
     const file = files.pop();
     if (visited.has(file)) continue;
     visited.add(file);
     const source = readFileSync(file, 'utf8');
     for (const [, module] of source.matchAll(/^\/\/ (src\/\S+)\s*$/gm)) {
+      modules.add(module);
       assert.ok(!forbidden.test(module), `${entry} includes an unselected module: ${module}`);
     }
     for (const specifier of moduleSpecifiers(source, basename(file))) {
       if (specifier.startsWith('.') && specifier.endsWith('.js')) files.push(resolve(dirname(file), specifier));
     }
   }
+  return modules;
 }
 try {
   const expectedLayers = ['rmd.reset', 'rmd.defaults', 'rmd.components', 'rmd.themes', 'rmd.overrides'];
@@ -86,9 +89,15 @@ try {
   verifyPackGraph('reactive-md-react-pack-layout.js', /^src\/components\/(?:controls|chart|plot|diagram|table)\//);
   verifyPackGraph('reactive-md-react-pack-data.js', /^src\/components\/(?:controls|chart|plot|diagram|gallery)\/|\/shared\/visuals\.tsx$/);
   verifyPackGraph('reactive-md-react-packed.js', /\/default-preset\.ts$/);
-  const staticForbidden = /^src\/local\/(?:compilation\/session\/|transport\/worker|runtime\/local-runtime)/;
-  verifyPackGraph('reactive-md-react-static.js', staticForbidden);
-  verifyPackGraph('reactive-md-react-static-server.js', staticForbidden);
+  // Static entries may reach pure compilation helpers such as dependencies.ts and
+  // runtime-requirement.ts, but never the compiler pipeline, incremental sessions,
+  // Workers, or the live local runtime.
+  const staticForbidden = /^src\/local\/(?:runtime\/|compilation\/(?:session\/|compiler)|transport\/worker)/;
+  for (const entry of ['reactive-md-react-static.js', 'reactive-md-react-static-server.js']) {
+    const graph = verifyPackGraph(entry, staticForbidden);
+    assert.ok(graph.has('src/local/compilation/runtime-requirement.ts'),
+      `${entry} no longer reaches compilation/runtime-requirement.ts; the static isolation assertion is vacuous`);
+  }
   assert.ok(!packed.files.some(file => /^docs\/(?:archive|plan)\//.test(file.path)), 'Package contains local archived development documents');
   assert.ok(!packed.files.some(file => /^examples\/.*\/(?:dist|node_modules)\//.test(file.path)), 'Package contains generated example output');
   assert.ok(!packed.files.some(file => /^examples\/sci-fi-theme\/(?:dist|screenshots)\//.test(file.path)), 'Package contains generated theme preview output');

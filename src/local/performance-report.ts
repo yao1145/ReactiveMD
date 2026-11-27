@@ -20,6 +20,8 @@ interface RevisionPerformance {
   rebuildMs?: number;
   compiledBlocks?: number;
   reusedBlocks?: number;
+  mountMs?: number;
+  mountedMs?: number;
   componentLoads: Outcomes;
   developmentMounts: number;
   productionMounts: number;
@@ -54,11 +56,35 @@ function outcomes(): Outcomes {
   return { succeeded: 0, failed: 0, cancelled: 0, budgetRejected: 0, successfulMs: 0 };
 }
 
+type OutcomeKind = 'succeeded' | 'failed' | 'cancelled' | 'budgetRejected';
+
+function outcomeKind(status: LocalTraceEvent['status']): OutcomeKind | undefined {
+  if (status === 'ok') return 'succeeded';
+  if (status === 'budget-rejected') return 'budgetRejected';
+  if (status === 'failed' || status === 'worker-failed' || status === 'timeout') return 'failed';
+  if (status === 'cancelled' || status === 'superseded' || status === 'disposed' || status === 'abandoned') return 'cancelled';
+  return undefined;
+}
+
+function apply(target: Outcomes, kind: OutcomeKind, durationMs: number): void {
+  if (kind === 'succeeded') { target.succeeded++; target.successfulMs += durationMs; return; }
+  if (kind === 'failed') target.failed++;
+  else if (kind === 'cancelled') target.cancelled++;
+  else target.budgetRejected++;
+}
+
+function unapply(target: Outcomes, kind: OutcomeKind, durationMs: number): void {
+  if (kind === 'succeeded') { target.succeeded--; target.successfulMs -= durationMs; return; }
+  if (kind === 'failed') target.failed--;
+  else if (kind === 'cancelled') target.cancelled--;
+  else target.budgetRejected--;
+}
+
+/** Legacy per-event counting for events without a requestId; abandoned and retry stay unrecorded. */
 function record(target: Outcomes, event: LocalTraceEvent): void {
-  if (event.status === 'ok') { target.succeeded++; target.successfulMs += event.durationMs ?? 0; }
-  if (event.status === 'budget-rejected') target.budgetRejected++;
-  if (event.status === 'failed' || event.status === 'worker-failed' || event.status === 'timeout') target.failed++;
-  if (event.status === 'cancelled' || event.status === 'superseded' || event.status === 'disposed') target.cancelled++;
+  if (event.status === 'abandoned') return;
+  const kind = outcomeKind(event.status);
+  if (kind) apply(target, kind, event.durationMs ?? 0);
 }
 
 const compileMetrics = ['parseMs', 'semanticMs', 'reuseMs', 'rebuildMs', 'compiledBlocks', 'reusedBlocks'] as const;
@@ -68,6 +94,7 @@ export function createLocalPerformanceReport(events: readonly LocalTraceEvent[])
   const revisions = new Map<string, RevisionPerformance>();
   const workers = new Map<number, WorkerPerformance>();
   const components = new Map<string, ComponentPerformance>();
+  const terminalByRequest = new Map<string, { revision: RevisionPerformance; kind: OutcomeKind; durationMs: number }>();
   let from = Number.POSITIVE_INFINITY, to = 0, eventCount = 0;
   for (const raw of events.slice(-512)) {
     const event = safeLocalTraceEvent(raw);
@@ -79,7 +106,7 @@ export function createLocalPerformanceReport(events: readonly LocalTraceEvent[])
     const compile = type === 'compile-end' || type === 'worker-response' || type === 'worker-cancel'
       || type === 'worker-error' || type === 'worker-timeout';
     const load = type === 'component-load-start' || type === 'component-load-end';
-    if (compile || load || type === 'render-mount' || type === 'render-retained') {
+    if (compile || load || type === 'render-mount' || type === 'render-unmount' || type === 'render-retained') {
       const key = JSON.stringify([traceId, documentId, sourceRevision]);
       let revision = revisions.get(key);
       if (!revision) {
@@ -89,7 +116,19 @@ export function createLocalPerformanceReport(events: readonly LocalTraceEvent[])
         revisions.set(key, revision);
       }
       if (compile) {
-        record(revision.compile, event);
+        if (event.requestId === undefined) {
+          record(revision.compile, event);
+        } else {
+          const kind = outcomeKind(event.status);
+          if (kind) {
+            const requestKey = `${key}\u0000${event.requestId}`;
+            const previous = terminalByRequest.get(requestKey);
+            if (previous) unapply(previous.revision.compile, previous.kind, previous.durationMs);
+            const durationMs = event.durationMs ?? 0;
+            terminalByRequest.set(requestKey, { revision, kind, durationMs });
+            apply(revision.compile, kind, durationMs);
+          }
+        }
         if (event.status === 'ok') {
           for (const key of compileMetrics) {
             const value = event[key];
@@ -97,6 +136,8 @@ export function createLocalPerformanceReport(events: readonly LocalTraceEvent[])
           }
         }
       }
+      if (type === 'render-mount' && event.durationMs !== undefined) revision.mountMs = (revision.mountMs ?? 0) + event.durationMs;
+      if (type === 'render-unmount' && event.mountedMs !== undefined) revision.mountedMs = (revision.mountedMs ?? 0) + event.mountedMs;
       if (type === 'component-load-end') record(revision.componentLoads, event);
       if (componentName && type === 'render-mount') {
         if (event.environment === 'development') revision.developmentMounts++;

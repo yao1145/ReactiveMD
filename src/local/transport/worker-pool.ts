@@ -300,7 +300,11 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       if (!isCompileResult(decoded) || !Number.isFinite(frame.duration) || frame.duration < 0
         || (decoded.ok && decoded.document.source !== (request?.source ?? ''))
         || frame.sourcePhase !== (request?.sourcePhase ?? 'final')) throw new TypeError('Invalid compile result.');
-      result = decoded;
+      // A patch frame carries document data only; its status must describe this
+      // revision's recoveries, never the baseline it was applied to.
+      result = 'patch' in frame && decoded.ok
+        ? { ...decoded, status: decoded.recoveries === undefined ? 'valid' : 'recovered' }
+        : decoded;
     } catch {
       if (retryFull()) return;
       workerFailed(slot, 'worker-error');

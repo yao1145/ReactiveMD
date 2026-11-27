@@ -21,7 +21,7 @@ npm run build:lib
 node examples/integration/static-embed/render.mjs
 ```
 
-要查看浏览器示例，在同一目录运行 `npx vite examples/integration/static-embed`，然后打开终端显示的地址。
+要查看浏览器示例，在同一目录运行 `npx vite examples/integration/static-embed`，然后打开终端显示的地址。`node examples/integration/static-embed/render.mjs --defer` 输出浏览器水合入口所需的加载占位；服务端与客户端必须使用相同的宿主槽位策略。
 
 ## Node 核心
 

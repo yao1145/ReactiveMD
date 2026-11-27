@@ -6,6 +6,11 @@ import { RenderLifecycle } from '../../render-lifecycle';
 import type { LocalStaticExternalSlot } from './view-render-context';
 
 type SlotComponent = ComponentType<LocalStaticExternalSlot>;
+/**
+ * Slot props must be stable across renders: the loader cache is keyed by resolver
+ * identity. Server rendering and client hydration must use the same strategy
+ * (`resolveExternalSlot` or `renderExternalSlot`) or their markup will diverge.
+ */
 export type LocalStaticExternalResolver = (input: { readonly name: string; readonly signal: AbortSignal }) => SlotComponent | null | PromiseLike<SlotComponent | null>;
 
 const loaders = new WeakMap<LocalStaticExternalResolver, SharedComponentLoader<{ name: string }, SlotComponent>>();

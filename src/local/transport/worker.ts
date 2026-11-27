@@ -681,7 +681,7 @@ export class LocalCompileScheduler {
     }
   }
 
-  private compileFallback(job: CompileJob): void {
+  private compileFallback(job: CompileJob, requestId?: number): void {
     if (this.disposed) return;
     // A streaming job is answered by a complete compile; it never extends a
     // patch chain, so the next final request has to be complete as well.
@@ -692,7 +692,8 @@ export class LocalCompileScheduler {
       this.finishRun();
       return;
     }
-    emitLocalTrace(this.options.observer, { type: 'compile-start', traceId, sourceRevision, timestamp: Date.now(), status: 'fallback' });
+    emitLocalTrace(this.options.observer, { type: 'compile-start', ...(requestId === undefined ? {} : { requestId }), traceId, sourceRevision,
+      timestamp: Date.now(), status: 'fallback' });
     // An observer may have scheduled a newer source while handling the start
     // trace. That source supersedes this run before any compile happens.
     if (!this.isCurrentJob(job)) {
@@ -734,6 +735,7 @@ export class LocalCompileScheduler {
       this.startupFailure = null;
       emitLocalTrace(this.options.observer, {
         type: 'worker-error',
+        ...(requestId === undefined ? {} : { requestId }),
         traceId,
         sourceRevision,
         timestamp: Date.now(),
@@ -746,7 +748,8 @@ export class LocalCompileScheduler {
         return;
       }
     }
-    emitLocalTrace(this.options.observer, { type: 'compile-end', traceId, sourceRevision, timestamp: Date.now(), durationMs: duration, status: compileTraceStatus(result) });
+    emitLocalTrace(this.options.observer, { type: 'compile-end', ...(requestId === undefined ? {} : { requestId }), traceId, sourceRevision,
+      timestamp: Date.now(), durationMs: duration, status: compileTraceStatus(result) });
     if (!this.isCurrentJob(job)) {
       this.finishRun();
       return;
@@ -1039,7 +1042,7 @@ export class LocalCompileScheduler {
         this.clearTimer();
         this.currentSourceRevision = inFlight.job.sourceRevision;
       }
-      this.compileFallback(inFlight.job);
+      this.compileFallback(inFlight.job, inFlight.id);
     }
     this.finishRun();
   }

@@ -344,8 +344,11 @@ export function compileLocalCore(
   mark?.('dataTablesMs');
   const validations = validateValidations(state, rejectAttribute);
   mark?.('validationsMs');
-  if (rejectedIds?.size && !diagnostics.some(item => item.severity === 'error' && item.phase === 'resource')) {
-    // Rebuild the semantic model after pruning invalid components and their bindings.
+  if (rejectedIds?.size) {
+    // Rebuild the semantic model after pruning invalid components and their
+    // bindings. Resource budgets are recomputed against the pruned tree, so an
+    // overflow caused by a rejected node itself disappears here. The replay
+    // disables rejectedIds, which bounds this to a single extra pass.
     return compileLocalCore(source, options, optionCheck, services, undefined, mark, literalRanges, { parsed, rejectedIds });
   }
   validatePlots(state);

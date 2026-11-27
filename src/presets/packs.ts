@@ -17,7 +17,7 @@ const CONTROL_NAMES = new Set([
 ]);
 
 const LAYOUT_NAMES = new Set([
-  'jump', 'anchor', 'text', 'section', 'panel', 'card', 'grid', 'column',
+  'jump', 'anchor', 'text', 'section', 'panel', 'card', 'grid',
   'tabs', 'tab', 'steps', 'step', 'accordion', 'disclosure', 'if', 'alert',
   'badge', 'tooltip', 'validation', 'gallery', 'gallery-item',
 ]);
@@ -43,8 +43,8 @@ function pack(id: string, names: ReadonlySet<string>, styles: (name: string) => 
 
 export const controlsPack = pack('reactive-md/default-controls', CONTROL_NAMES, name => name === 'coordinate'
   ? ['reactive-md/controls.css', 'reactive-md/mafs-core.css', 'reactive-md/mafs.css'] : ['reactive-md/controls.css']);
-export const layoutPack = pack('reactive-md/default-layout', LAYOUT_NAMES, name => name === 'column' ? []
-  : name === 'gallery' || name === 'gallery-item' ? ['reactive-md/gallery.css'] : ['reactive-md/layout.css']);
+export const layoutPack = pack('reactive-md/default-layout', LAYOUT_NAMES, name => name === 'gallery' || name === 'gallery-item'
+  ? ['reactive-md/gallery.css'] : ['reactive-md/layout.css']);
 export const dataPack = pack('reactive-md/default-data', DATA_NAMES, name => name === 'column' ? []
   : ['reactive-md/visual-base.css', 'reactive-md/data-visuals.css']);
 export const visualsPack = pack('reactive-md/default-visuals', VISUAL_NAMES, name => {

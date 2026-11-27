@@ -62,6 +62,7 @@
     "test:theme:browser": "node scripts/verify-shared-theme-browser.mjs",
     "test:capabilities:browser": "node scripts/verify-document-capabilities.mjs",
     "test:streaming:browser": "node scripts/verify-streaming-browser.mjs",
+    "test:static-embed:browser": "node scripts/verify-static-embed-browser.mjs",
     "test:boundary": "node scripts/verify-public-package.mjs",
     "test:compiler-entry": "node scripts/verify-compiler-entry.mjs",
     "test:pdf": "node scripts/verify-pdf.mjs",

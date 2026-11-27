@@ -15,7 +15,8 @@ assert.equal((deferred.match(/data-rmd-component-load="loading"/g) ?? []).length
 assert.equal((deferred.match(/data-local-fallback/g) ?? []).length, 1);
 assert.match(deferred, /\{\{ visitor.name \}\}/);
 
-const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge';
+// Chromium is installed by CI; local runs on Windows can set PLAYWRIGHT_CHANNEL=msedge.
+const channel = process.env.PLAYWRIGHT_CHANNEL ?? 'chromium';
 const browser = await chromium.launch({ ...(channel === 'chromium' ? {} : { channel }), headless: true });
 
 async function verify(url, environment) {

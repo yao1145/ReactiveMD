@@ -28,7 +28,11 @@ export function replaceEmbeddingNodes(nodes: LocalNode[], replace: (node: LocalN
 
 export function applyEmbedding(state: CompileState, profile: Embedding): void {
   const literal = profile.expressions === 'literal';
-  if (!literal && profile.onUnsupported === 'error' && profile.allowImages && profile.allowInteractive && !profile.allowExternalSlots) return;
+  // A restrictive profile is what makes parser fallbacks fatal: it forbids
+  // content the parser had to leave uninterpreted. Opting into external slots
+  // alone is additive, so it must never change fallback severity.
+  const restrictive = literal || !profile.allowImages || !profile.allowInteractive;
+  if (!restrictive && profile.onUnsupported === 'error' && !profile.allowExternalSlots) return;
   const parserFallbacks = new Map<string, Diagnostic>();
   const errors = new Set<Diagnostic>();
   for (const item of state.diagnostics) {
@@ -40,7 +44,7 @@ export function applyEmbedding(state: CompileState, profile: Embedding): void {
     if (node.type === 'fallback') {
       const diagnostic = parserFallbacks.get(`${node.range.start}:${node.range.end}`);
       if (!diagnostic) return node;
-      if (profile.onUnsupported === 'error') errors.add(diagnostic);
+      if (restrictive && profile.onUnsupported === 'error') errors.add(diagnostic);
       return { ...node, fallback: { code: diagnostic.code, range: node.range, reasonKey: diagnostic.messageKey } };
     }
     if (literal && node.type === 'interpolation') {

@@ -24,7 +24,7 @@ export function RenderLifecycle({ trace, component }: { trace: LocalReactTraceCo
     return () => {
       const latest = current.current;
       const mountedMs = Math.max(0, Math.round((globalThis.performance?.now() ?? Date.now()) - started));
-      emitLocalTrace(context.observer, { ...identity, traceId: latest.traceId ?? traceId, type: 'render-unmount', timestamp: Date.now(), mountedMs,
+      emitLocalTrace(context.observer, { ...identity, traceId: latest.traceId ?? traceId, type: 'render-unmount', timestamp: Date.now(), mountedMs, durationMs: mountedMs,
         documentId: latest.documentId, sourceRevision: latest.sourceRevision, sourcePhase: latest.sourcePhase });
     };
   }, [trace.observer, component]);

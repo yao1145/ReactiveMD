@@ -21,7 +21,7 @@ npm run build:lib
 node examples/integration/static-embed/render.mjs
 ```
 
-For the browser example, start `npx vite examples/integration/static-embed` from the same directory and open the printed URL.
+For the browser example, start `npx vite examples/integration/static-embed` from the same directory and open the printed URL. `node examples/integration/static-embed/render.mjs --defer` emits the loading placeholder that the browser hydration entry expects; use the same external-slot strategy on both sides.
 
 ## Node core
 

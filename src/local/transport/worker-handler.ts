@@ -212,7 +212,10 @@ export function startLocalCompileWorker(
     }
     if (typeof request?.documentId !== 'string') { legacy.scope.onmessage?.(event); return; }
     const { documentId, revision } = request;
-    if (documentId.length > 256 || !Number.isSafeInteger(revision) || revision < 0) {
+    // A document-scoped full request may omit `revision`; only a present,
+    // malformed value is a protocol error.
+    if (documentId.length > 256
+      || (revision !== undefined && (!Number.isSafeInteger(revision) || revision < 0))) {
       postFailure(target, request.id, 'Invalid worker document or revision', request);
       return;
     }

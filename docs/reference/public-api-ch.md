@@ -70,7 +70,7 @@
 
 启用 `onUnsupported: 'fallback'` 后，受限节点和表达式属性无效的组件会保留为转义后的原文。`node.fallback` 记录诊断码和 UTF-16 范围，降级子树会从运行时元数据中移除。成功编译会写入 `document.requiresRuntime`。`requiresRuntime: false` 的文档可交给 `reactive-md/react/static` 的 `LocalStaticDocumentView`，或 `reactive-md/react/static/server` 的 `renderLocalStaticMarkup`。后者成功时返回标记和诊断，失败时返回结构化诊断。字面模式支持 `<if when="true">` 和 `<if when="false">`。
 
-启用 `allowExternalSlots` 后，可用 `<external slot="references" />` 声明宿主槽位。通过 `renderExternalSlot({ name, locale, range })` 同步提供内容，或由 `resolveExternalSlot({ name, signal })` 在浏览器挂载后返回 React 组件或 Promise。服务端在配置 resolver 时输出稳定的加载占位。未提供宿主渲染器的槽位显示不可用占位。宿主先确定允许的槽位名称，再加载对应实现。见[静态嵌入示例](../../examples/integration/README-ch.md#静态嵌入)。
+启用 `allowExternalSlots` 后，可用 `<external slot="references" />` 声明宿主槽位。通过 `renderExternalSlot({ name, locale, range })` 同步提供内容，或由 `resolveExternalSlot({ name, signal })` 在浏览器挂载后返回 React 组件或 Promise。服务端在配置 resolver 时输出稳定的加载占位。未提供宿主渲染器的槽位显示不可用占位。宿主先确定允许的槽位名称，再加载对应实现。槽位渲染函数或 resolver 必须在多次渲染间保持稳定；loader 按 resolver 身份缓存，内联函数会重新发起请求。服务端渲染与客户端水合必须采用同一槽位策略，确保首帧标记一致。见[静态嵌入示例](../../examples/integration/README-ch.md#静态嵌入)。
 
 从 `reactive-md` 导入 `createLocalRuntimePool()`，可在兼容的文档与运行时选项之间复用租约。消费方卸载时释放租约，也可使用 `LocalPooledDocumentView` 由 React 生命周期管理租约。`stableComponentKeys` 在同一父级的追加更新中保留既有 React 槽位。
 
@@ -219,11 +219,11 @@ React 接口完全相同，但不导入 `styles.css`。宿主自行注入样式�
 | 入口 | 内容 |
 | --- | --- |
 | `reactive-md/presets/default` | `defaultPreset`，id `reactive-md/default`，48 个组件：`input`、`textarea`、`number`、`slider`、`range-slider`、`coordinate`、`toggle`、`checkbox`、`date`、`select`、`choices`、`radio-group`、`multi-select`、`option`、`counter`、`timer`、`checklist`、`progress`、`jump`、`anchor`、`text`、`section`、`quiz`、`panel`、`card`、`grid`、`gallery`、`gallery-item`、`tabs`、`tab`、`steps`、`step`、`accordion`、`disclosure`、`if`、`alert`、`badge`、`tooltip`、`validation`、`data-table`、`column`、`table`、`chart`、`plot`、`timeline`、`diagram`、`node`、`edge` |
-| `reactive-md/presets/default/packs` | `controlsPack`（19）、`layoutPack`（21）、`dataPack`（4）、`visualsPack`（5） |
+| `reactive-md/presets/default/packs` | `controlsPack`（19）、`layoutPack`（20）、`dataPack`（4）、`visualsPack`（5） |
 | `reactive-md/presets/minimal` | `minimalPreset`，id `reactive-md/minimal`，18 个组件：`input`、`textarea`、`number`、`slider`、`toggle`、`date`、`select`、`option`、`jump`、`anchor`、`text`、`section`、`panel`、`card`、`grid`、`if`、`alert`、`badge` |
 | `reactive-md/presets/minimal/react` | `minimalReactPresetPackage`：上述 18 个组件的 React 实现 |
 
-packs 是普通预设，可为 packed React 宿主选择一个或多个。`visualsPack` 依赖 `dataPack`，因为 `plot` 与 `data-table` 共用 `column` 布局组件。组合 `layout` 和 `data` 时，packed React 宿主只登记一次共用的 `column`。同名组件的契约或实现冲突时，宿主会报配置错误。
+packs 是普通预设，可为 packed React 宿主选择一个或多个。`visualsPack` 声明依赖 `dataPack`；使用 visuals pack 时需一并传入。`column` 是 data-table 的子组件，因此归属于 `dataPack`；`layoutPack` 与 `dataPack` 可在 packed 或普通 React 宿主中组合。同名组件的契约或实现冲突时，宿主仍会报配置错误。
 
 ### 可选插件包
 
@@ -469,7 +469,7 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 
 从 `reactive-md/observability` 导入 `LocalObserver`、`LocalTraceEvent`、`createDiagnosticReport`、`createLocalPerformanceReport` 和 `formatLocalDiagnostic`。通过 `compileLocal(source, { observer })` 或 `new LocalCompileScheduler({ observer, createWorker, onResult })` 订阅事件。回调接收独立副本，回调异常由调用边界隔离。
 
-`createLocalPerformanceReport(events)` 汇总最近最多 512 条事件，按 trace、文档 revision、Worker 槽位和组件聚合数据。成功时长、失败、取消和预算拒绝分别统计。Worker 时长涵盖排队、忙碌及已结束的空闲区间。`render-mount.durationMs` 从渲染生命周期标记计至其 effect setup，`render-unmount.mountedMs` 从 setup 计至 cleanup。组件从流式快照切换到最终稿时若保持挂载，会发出 `render-retained`。开发环境的 effect 重放单独计数。
+`createLocalPerformanceReport(events)` 汇总最近最多 512 条事件，按 trace、文档 revision、Worker 槽位和组件聚合数据。成功时长、失败、取消和预算拒绝分别统计。携带 `requestId` 的事件每个请求只记一个终态，因此超时后 fallback 成功只计一次成功；`retry` 不计数。Worker 时长涵盖排队、忙碌及已结束的空闲区间。`mountMs` 汇总挂载延迟，`mountedMs` 汇总挂载存活时间；`render-unmount` 仍保留 `durationMs` 作为 `mountedMs` 的兼容别名。组件从流式快照切换到最终稿时若保持挂载，会发出 `render-retained`。开发环境的 effect 重放单独计数。
 
 ```ts
 import { compileLocal } from 'reactive-md';
