@@ -2,10 +2,10 @@
 
 **中文** · [English](extension-sdk-en.md)
 
-扩展 SDK 自 `reactive-md@0.8.0` 起提供，覆盖公开扩展与默认组件统一；`0.9.2` 保持同一 `0.7.0` 契约。安装当前公开包即可；只有测试尚未发布的改动时才需要从源码打包 tarball。
+扩展 SDK 自 `reactive-md@0.8.0` 起提供，覆盖公开扩展与默认组件统一；`0.9.3` 保持同一 `0.7.0` 契约。安装当前公开包即可；只有测试尚未发布的改动时才需要从源码打包 tarball。
 
 ```sh
-npm install reactive-md@0.9.2
+npm install reactive-md@0.9.3
 ```
 
 registry 包包含 `reactive-md/build`、`reactive-md/testing` 和第三阶段的其他入口。仓库内消费检查在源码树之外安装公开包，因此公开导入面按发布形态接受检查，而不是依赖源码别名。SDK 版本范围写 `^0.7.0`。

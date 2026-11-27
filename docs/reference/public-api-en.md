@@ -8,7 +8,7 @@ Three packages exist. Each has its own version and release workflow.
 
 | Package | Version | Responsibility |
 | --- | --- | --- |
-| `reactive-md` | `0.9.2` | Compiler, runtime, authoring services, SDK, React and SSR rendering, export, build adapters |
+| `reactive-md` | `0.9.3` | Compiler, runtime, authoring services, SDK, React and SSR rendering, export, build adapters |
 | `reactive-md-editor` | `0.2.1` | CodeMirror 6 source editor, toolbar, editor-side navigation |
 | `reactive-md-demo` | private | Website, examples and deployment. No public API |
 
@@ -33,6 +33,7 @@ The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. Rea
 | `reactive-md/react/server` | ESM | Yes | Yes | Strict SSR adapter returning markup or diagnostics |
 | `reactive-md/react/runtime` | ESM | Yes | No | Component-facing React hooks: timers, frames, swipe, keys, state |
 | `reactive-md/sdk` | ESM | No | No | Component, preset and theme manifests with validation |
+| `reactive-md/contracts` | ESM | No | No | Pure cross-stage types and helpers: limits, component kernel, schema, colors and HTML names |
 | `reactive-md/presets/default` | ESM | No | No | The 48-component default preset as plain data |
 | `reactive-md/presets/default/packs` | ESM | No | No | Four named subsets of the default preset |
 | `reactive-md/presets/default/packs/react/<pack>` | ESM | Yes | No | React implementation and CSS resources for `controls`, `layout`, `data` or `visuals` |
@@ -83,6 +84,8 @@ Enable `allowExternalSlots` for `<external slot="references" />`. The host can s
 `createLocalRuntimePool()` from `reactive-md` provides leases scoped to compatible document and runtime options. Release each lease when the consumer unmounts, or use `LocalPooledDocumentView` to tie lease ownership to the React lifecycle.
 
 `stableComponentKeys` preserves React slots across append-only updates when the rendered parent, sibling index, node type and component name stay the same. React retains the instance when the rendered component type also stays the same. Inserts, deletes and reordering can remount a component or leave its state at the old slot when the replacement has the same type and name. Moving a node to another rendered parent mounts a new instance there. Slots that disappear unmount.
+
+### `reactive-md/worker-pool`
 
 `createLocalCompilePool()` accepts `{ documentId, revision, source, options, sourcePhase, priority }`. Revisions increase per document. A source beyond the document length limit is rejected as `source-too-large` before it enters the queue. The default `latest` policy rejects replaced tasks with `LocalCompilePoolTaskError.kind === 'superseded'`. A newer final supersedes an older pending final for the same document; a newer streaming snapshot only supersedes older streaming snapshots and queues behind a final. Use `all` for ordered delivery and handle `backpressure` when its queue fills. Call `release(documentId)` when a document is permanently closed; it cancels that document's pending tasks and forgets its revision chain and baselines so the ID can be reused. A Worker that negotiates `patch-v1` can reuse a compatible final baseline for the same document. The pool retries with full source if the Worker no longer holds the baseline. Pass a `LocalObserver` to read pool events, then forward an outcome's trace ID, document ID and revision as `trace` on the React view to correlate loading and mount events.
 
@@ -226,8 +229,6 @@ Use `reactive-md/presets/default/packs/css/<pack>.css` for a whole pack, or load
 
 `createDeferredReactConfig(config, { components, resolver, resolveSync })` pairs an existing compiler config with React implementations. Pre-registered implementations take precedence. Optional `resolveSync({ name, definition })` can serve an already loaded implementation during SSR and in the browser; use the same lookup on both sides. The async `resolver({ name, definition, signal })` starts after mount, shares one request per definition, and receives an abort signal when its last subscriber leaves. SSR emits a stable loading placeholder for unresolved implementations. In `LocalStaticDocumentView`, custom components also need a matching contract that declares static, noninteractive rendering, and the compiled document must be runtime free.
 
-`createDeferredReactConfig(config, { components, resolver })` allows React to load implementations for manifests declared by the compiled document. The resolver receives `{ name, definition, signal }`. Concurrent render slots share a request for the same manifest identity. SSR renders a loading placeholder, and the client begins loading after mount. Pre-register an implementation when SSR needs its markup.
-
 ### `reactive-md/sdk`
 
 | Group | Exports |
@@ -244,6 +245,16 @@ Use `reactive-md/presets/default/packs/css/<pack>.css` for a whole pack, or load
 | Style contract | `LOCAL_STYLE_CONTRACT`, `LOCAL_STYLE_LAYERS`, `LOCAL_THEME_STYLE_LAYER`, `LOCAL_STYLE_LAYER_ORDER` |
 
 Manifests are plain, serializable data. Registration validates identities, names, protocols, dependencies and budgets, then copies and freezes. `readLocalConfig` revalidates a serialized configuration and recomputes its semantic key, so a host can round-trip configuration through JSON safely.
+
+### `reactive-md/contracts`
+
+The pure cross-stage types and helpers shared by the SDK, the language core and component packages. The entry imports no other engine layer.
+
+| Group | Exports |
+| --- | --- |
+| Limits | `MAX_LOCAL_DOCUMENT_LENGTH`, `DEFAULT_MAX_LOCAL_RAW_BODY_CHARS`, `MAX_LOCAL_RAW_BODY_CHARS`, `MAX_LOCAL_HOST_COMPONENTS`, plot and data-table limits, `isLocalEmail` |
+| Component kernel | `KernelComponentSchema`, `NormalizedComponent`, `normalizeComponent`, `kernelStructure`, `kernelRules`, `kernelAttributeIssues`, `kernelNumericConstraints` and the related binding and value types |
+| Schema, values and names | `SourceRange`, `LocalValue`, `LocalValueKind`, `LocalHostBindingSchema`, `LOCAL_KERNEL_DECLARATIONS`, `localize`, `defaultLocalize`, `isLocalColor`, `LOCAL_HTML_NAMES`, `localHtmlAlign` |
 
 ### Built-in presets
 
@@ -479,7 +490,7 @@ The DOM-free toolbar commands, re-exported from `reactive-md/authoring`, with th
 
 | Constant | Value | Scope |
 | --- | --- | --- |
-| Package version | `0.9.2` | Engine releases |
+| Package version | `0.9.3` | Engine releases |
 | SDK contract | `0.7.0` (`LOCAL_SDK_VERSION`) | Component, preset and configuration manifests |
 | Syntax revision | `local-draft-3` (`LOCAL_SYNTAX_VERSION`) | Document source |
 | State file | `reactive-md-state/v1` (`LOCAL_STATE_FORMAT`) | Exported parameters |

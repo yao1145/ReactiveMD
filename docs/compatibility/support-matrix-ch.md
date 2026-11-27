@@ -2,7 +2,7 @@
 
 **中文** · [English](support-matrix-en.md)
 
-本页定义 `reactive-md@0.9.2`、`reactive-md-editor@0.2.1` 和对应 Demo 候选的公开支持范围。配对版本见[版本与兼容性](compatibility-ch.md)。
+本页定义 `reactive-md@0.9.3`、`reactive-md-editor@0.2.1` 和对应 Demo 候选的公开支持范围。配对版本见[版本与兼容性](compatibility-ch.md)。
 
 ## 支持等级
 

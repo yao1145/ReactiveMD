@@ -10,7 +10,7 @@ const SEMANTIC_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)
 const SCAFFOLD_PACKAGE_VERSION = '0.1.0';
 // The published engine package version used for generated npm dependencies and
 // install instructions. Kept in sync with package.json by check-versions.
-const SCAFFOLD_ENGINE_VERSION = '0.9.2';
+const SCAFFOLD_ENGINE_VERSION = '0.9.3';
 // The SDK data contract version, independent of the engine release. Kept in
 // sync with src/sdk/version.ts by scripts/check-versions.mjs.
 const SCAFFOLD_SDK_VERSION = '0.7.0';

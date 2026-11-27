@@ -18,4 +18,4 @@ Editor `0.2.1` requires engine `0.9.2` or a later `0.9.x` release through its `^
 
 `LocalComponentPropValue` is the deprecated phase-one scalar alias. New extensions can use `LocalComponentValue` and narrow it where a scalar is required. The notice period for the alias starts with its first recorded release under this policy.
 
-Source migrations follow their own syntax revisions. Run the [source revision and migration tools](source-versioning-en.md) before upgrading across revisions. Export a fresh state file after migration to record the new source digest. Engine `0.9.2` keeps `local-draft-3` and `reactive-md-state/v1`.
+Source migrations follow their own syntax revisions. Run the [source revision and migration tools](source-versioning-en.md) before upgrading across revisions. Export a fresh state file after migration to record the new source digest. Engine `0.9.3` keeps `local-draft-3` and `reactive-md-state/v1`.

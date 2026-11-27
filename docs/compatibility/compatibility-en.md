@@ -2,15 +2,15 @@
 
 **English** · [中文](compatibility-ch.md)
 
-Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](../integration/local-integration-en.md) for the public API and style integration, the [0.9.2 release notes](../releases/release-0.9.2-en.md) for this release, the [0.9.1 release notes](../releases/release-0.9.1-en.md) for the previous release, the [0.9.0 release notes](../releases/release-0.9.0-en.md), and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for that minor series.
+Reactive MD is currently a 0.x preview. This page covers package versions, syntax versions, what can be persisted, the diagnostics contract and the current platform scope. See [Source revisions and migration](source-versioning-en.md) for explicit revision declarations, the migration API and `reactive-md migrate`, [Local mode integration](../integration/local-integration-en.md) for the public API and style integration, the [0.9.3 release notes](../releases/release-0.9.3-en.md) for this release, the [0.9.2 release notes](../releases/release-0.9.2-en.md) for the previous release, the [0.9.1 release notes](../releases/release-0.9.1-en.md), the [0.9.0 release notes](../releases/release-0.9.0-en.md), and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for that minor series.
 
 ## Version mapping
 
 | Item | Current value | Notes |
 | --- | --- | --- |
-| Package version | `0.9.2` | Stable release, 2026-11-23 |
-| Distribution tags | `latest`: `0.9.2` | `next` is maintained independently; query npm when selecting that channel |
-| SDK contract | `0.7.0` | `LOCAL_SDK_VERSION`; independent of the package version and unchanged by `0.9.2` |
+| Package version | `0.9.3` | Stable release, 2026-11-27 |
+| Distribution tags | `latest`: `0.9.3` | `next` is maintained independently; query npm when selecting that channel |
+| SDK contract | `0.7.0` | `LOCAL_SDK_VERSION`; independent of the package version and unchanged by `0.9.3` |
 | Syntax version | `local-draft-3` | `LOCAL_SYNTAX_VERSION`; this revision is the only one accepted by the package |
 | Source revision directive | Optional `<!-- reactive-md: local-draft-3 -->` | One line in the document prologue; unversioned source keeps current-revision behavior |
 | Component protocol | `component-protocol-3` | Contribution and acceptance contract, see [Component protocol](../development/component-protocol-en.md); not a runtime version selection parameter |
@@ -143,4 +143,4 @@ Node-side consumption means importing `reactive-md` in Node and calling `compile
 See the [syntax specification](../reference/local-interaction-syntax-en.md) for the language scope, and the [security policy](../../SECURITY.md) for the security boundary and host responsibilities.
 
 
-See the [syntax specification](../reference/local-interaction-syntax-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.9.2` uses the `latest` channel.
+See the [syntax specification](../reference/local-interaction-syntax-en.md) for new tags, colors and slot state, and [0.4.0 release and migration](../releases/release-0.4.0-en.md) for the upgrade checklist. `0.9.3` uses the `latest` channel.

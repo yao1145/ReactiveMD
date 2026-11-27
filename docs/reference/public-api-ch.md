@@ -8,7 +8,7 @@
 
 | 包 | 版本 | 职责 |
 | --- | --- | --- |
-| `reactive-md` | `0.9.2` | 编译器、运行时、作者服务、SDK、React 与 SSR 渲染、导出、构建适配 |
+| `reactive-md` | `0.9.3` | 编译器、运行时、作者服务、SDK、React 与 SSR 渲染、导出、构建适配 |
 | `reactive-md-editor` | `0.2.1` | CodeMirror 6 源码编辑器、工具栏、编辑器侧导航 |
 | `reactive-md-demo` | 私有 | 站点、示例与部署，不提供对外接口 |
 
@@ -33,6 +33,7 @@
 | `reactive-md/react/server` | ESM | 是 | 是 | 严格 SSR 适配器，返回标记或诊断 |
 | `reactive-md/react/runtime` | ESM | 是 | 否 | 面向组件的 React hooks：计时、帧、滑动、按键、状态 |
 | `reactive-md/sdk` | ESM | 否 | 否 | 组件、预设与主题清单定义及校验 |
+| `reactive-md/contracts` | ESM | 否 | 否 | 纯跨阶段类型与辅助函数：资源上限、组件内核、schema、颜色与 HTML 名称 |
 | `reactive-md/presets/default` | ESM | 否 | 否 | 48 个组件的默认预设（纯数据） |
 | `reactive-md/presets/default/packs` | ESM | 否 | 否 | 默认预设的四个命名子集 |
 | `reactive-md/presets/default/packs/react/<pack>` | ESM | 是 | 否 | `controls`、`layout`、`data` 或 `visuals` 的 React 实现与 CSS 资源 |
@@ -83,6 +84,8 @@
 从 `reactive-md` 导入 `createLocalRuntimePool()`，可在兼容的文档与运行时选项之间复用租约。消费方卸载时释放租约，也可使用 `LocalPooledDocumentView` 由 React 生命周期管理租约。
 
 `stableComponentKeys` 在追加更新时保留渲染父级、同级索引、节点类型和组件名均未变化的 React 槽位。实际渲染的 React 组件类型也相同时会保留实例。插入、删除和重排可能让组件重新挂载，也可能让同类型、同名的替换节点接到原槽位的状态。节点移到不同的渲染父级时，会在新父级下挂载新实例。消失的槽位会卸载。
+
+### `reactive-md/worker-pool`
 
 `createLocalCompilePool()` 接收 `{ documentId, revision, source, options, sourcePhase, priority }`，每份文档的 revision 递增。超过文档长度上限的源码在入队前即以 `source-too-large` 拒绝。默认 `latest` 策略以 `superseded` 拒绝被取代的任务；同一文档的新 final 会取代较早的待处理 final，新流式快照只取代较早的流式快照并排在 final 之后。需要逐个处理 revision 时使用 `all`，并处理队列满时的 `backpressure`。文档永久关闭后调用 `release(documentId)`：取消该文档待处理的任务，并清除其 revision 链和基线，之后可复用同一 ID。协商支持 `patch-v1` 的 Worker 可复用同一文档的兼容最终稿基线；基线被回收时，池会以完整源码重试。传入 `LocalObserver` 可读取池事件，再将结果的 trace ID、文档 ID 和 revision 作为 `trace` 传给 React 视图，即可关联装载与挂载事件。
 
@@ -226,8 +229,6 @@ const host = createReactHost({ presets: [card, badge] });
 
 用 `createDeferredReactConfig(config, { components, resolver, resolveSync })` 为已有编译配置提供 React 实现。预注册的实现优先使用；可选的 `resolveSync({ name, definition })` 在 SSR 和浏览器中同步查找已加载的实现，两端应使用同一查找规则。异步 `resolver({ name, definition, signal })` 在挂载后运行，相同定义共享请求，最后一个订阅者离开时收到中止信号。SSR 为未就绪的组件输出稳定占位。`LocalStaticDocumentView` 还要求自定义组件的契约支持静态渲染、无交互能力，且编译结果无需运行时。
 
-`createDeferredReactConfig(config, { components, resolver })` 让 React 按需装载编译文档已声明的组件。Resolver 接收 `{ name, definition, signal }`，同一清单身份的多个槽位共用请求。SSR 输出加载占位，客户端挂载后开始装载。需要直接输出组件的 SSR 标记时，可预先注册实现。
-
 ### `reactive-md/sdk`
 
 | 分组 | 导出 |
@@ -244,6 +245,16 @@ const host = createReactHost({ presets: [card, badge] });
 | 样式契约 | `LOCAL_STYLE_CONTRACT`、`LOCAL_STYLE_LAYERS`、`LOCAL_THEME_STYLE_LAYER`、`LOCAL_STYLE_LAYER_ORDER` |
 
 清单是可序列化的纯数据。注册时校验身份、名称、协议、依赖与预算，然后复制并冻结。`readLocalConfig` 会重新校验序列化后的配置并重算语义键，因此宿主可以安全地让配置在 JSON 中往返。
+
+### `reactive-md/contracts`
+
+SDK、语言核心与组件包共用的纯跨阶段类型和辅助函数。该入口不引入其他引擎层。
+
+| 分组 | 导出 |
+| --- | --- |
+| 资源上限 | `MAX_LOCAL_DOCUMENT_LENGTH`、`DEFAULT_MAX_LOCAL_RAW_BODY_CHARS`、`MAX_LOCAL_RAW_BODY_CHARS`、`MAX_LOCAL_HOST_COMPONENTS`、绘图与数据表上限、`isLocalEmail` |
+| 组件内核 | `KernelComponentSchema`、`NormalizedComponent`、`normalizeComponent`、`kernelStructure`、`kernelRules`、`kernelAttributeIssues`、`kernelNumericConstraints` 及相关绑定与值类型 |
+| Schema、值与名称 | `SourceRange`、`LocalValue`、`LocalValueKind`、`LocalHostBindingSchema`、`LOCAL_KERNEL_DECLARATIONS`、`localize`、`defaultLocalize`、`isLocalColor`、`LOCAL_HTML_NAMES`、`localHtmlAlign` |
 
 ### 内置预设
 
@@ -479,7 +490,7 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 
 | 常量 | 值 | 作用范围 |
 | --- | --- | --- |
-| 包版本 | `0.9.2` | 引擎发布 |
+| 包版本 | `0.9.3` | 引擎发布 |
 | SDK 契约 | `0.7.0`（`LOCAL_SDK_VERSION`） | 组件、预设与配置清单 |
 | 语法修订 | `local-draft-3`（`LOCAL_SYNTAX_VERSION`） | 文档源码 |
 | 状态文件 | `reactive-md-state/v1`（`LOCAL_STATE_FORMAT`） | 导出的参数 |

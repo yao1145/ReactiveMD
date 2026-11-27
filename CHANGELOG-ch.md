@@ -2,6 +2,36 @@
 
 **中文** · [English](CHANGELOG.md)
 
+## 0.9.3（2026-11-27，latest 渠道）
+
+受限嵌入与降级编译、无运行时的静态 React 与 SSR（含旧式宿主组件）、编译缓存身份与组件清单、精简的会话与扫描入口、支持暂停/恢复的多文档 Worker 池、性能报告，以及按需组件装载。
+
+### 新增
+
+- 新增 `embedding` 编译档位。`expressions: 'literal'` 把插值定界符保留为文本；`onUnsupported: 'fallback'` 将受限节点以及属性、结构、绘图、表格、导航等节点级错误替换为转义原文，同时保留有效兄弟节点。`node.fallback` 记录诊断码与 UTF-16 范围；依赖和运行时元数据按存留节点重建，资源预算超限仍使编译失败。成功编译会报告 `document.requiresRuntime`。
+- 新增无运行时渲染：`reactive-md/react/static`（`LocalStaticDocumentView`）与 `reactive-md/react/static/server`（`renderLocalStaticMarkup`）；新增 `createLocalRuntimePool` 与 `LocalPooledDocumentView`，按兼容选项复用运行时租约。静态组件由宿主 pack 实现直接渲染；宿主槽位支持同步渲染函数或浏览器中的延迟 resolver，单个槽位渲染失败不影响同级节点。属性为字面值的旧式 `hostComponents` 可通过 `hostData`/`hostRenderer` 渲染，缺失的键控数据由 `resolveHostData` 在水合后解析。
+- 新增 `reactive-md/compiler/session`（`createLocalCompileSession`、`LocalCompileSession`、`localCompileOptionsKey`、`localCompileCacheKey`）与 `reactive-md/scan`（`analyzeLocalSource`）。`localCompileCacheKey` 组合精确源码、已验证选项、组件配置、有效阶段、编译器入口和策略版本。两个精简依赖图均不引入 React、CSS、DOM、Worker 调度或作者服务。
+- 新增 `document.usedComponents`：按首次出现顺序去重列出内置、SDK 和已声明的旧式宿主组件，单次编译入口的 `program` 也提供该字段，用于预加载实现和选择 CSS。
+- 新增 `reactive-md/worker-pool`。`createLocalCompilePool` 在有界 Worker 队列上按文档调度 revision，支持 `latest` 与 `all` 交付、优先级老化、`backpressure`、`release(documentId)`、预热、空闲回收，以及暂停文档派发、重试和回退的 `hold()`/`resume()`。超过文档长度上限的源码在入队或复制前以 `source-too-large` 拒绝。
+- 新增 `createLocalPerformanceReport`，schema 为 `reactive-md-performance/v1`，覆盖池就绪、Worker 启动与预热、编译阶段、组件装载等待，以及文档与组件的挂载、存活和卸载耗时。
+- 新增按需组件装载。`reactive-md/react/packed` 提供 `createReactHost`、`deriveLocalReactPreset` 与 `createDeferredReactConfig`；`reactive-md/presets/default/packs/react/component/*` 的逐组件入口把未选视图排除在 bundle 之外；`packStyleManifest` 与 pack CSS 入口提供组件到样式的映射。异步 resolver 按定义共享请求，最后一个订阅者离开时中止；同步 `resolveSync` 服务 SSR 与水合。
+- 新增 raw-body 容器语义。manifest 的 `structure: { rule: 'raw-body' }` 或宿主 schema 的 `body: 'raw'` 交付一个惰性、不解析的 `rawBody` 子节点，受 `limits.maxRawBodyChars` 约束，并在交互、SSR 与静态输出中转义为文本。
+- 发布 `reactive-md/contracts`，提供 SDK、语言核心与组件包共用的纯跨阶段类型和辅助函数。
+
+### 变更
+
+- 将 contracts 与 assemblies 从 `src/local` 拆出，把 React 文档视图移到 `src/react/rendering/`，并把架构边界检查加入 `npm run check`。
+- 将 `column` 归入 data pack，`layoutPack` 与 `dataPack` 因而可以同时安装；`visualsPack` 声明依赖 `dataPack`。
+
+### 修复
+
+- 宽松流式编译中，未闭合的 raw body 交付到快照末尾，并保留该路径的 raw 长度预算。
+- 扩展 HTML 片段预算超限改为全局错误，不再作为 warning。
+- 通过有界重放恢复无效嵌入节点及其绑定，同时不丢失资源预算。
+- Worker 池在入队前拒绝超长源码；释放文档时清除 revision 链与基线；重新计算补丁后的 Worker 状态；接受不带可选 revision 的文档级 Worker 请求。
+- 仅启用外部槽位时，解析器的降级 warning 不再被视为致命错误；性能结果按请求去重并合并挂载存活时间。
+- 编译缓存版本改用显式引擎版本常量，不再导入 `package.json`，精简编译器入口因此不再携带包元数据。
+
 ## 0.9.2（2026-11-23，latest 渠道）
 
 修复回退编译的交付顺序、诊断的可恢复性标记和 Worker 失败原因格式，并加入导出取消的事件契约。

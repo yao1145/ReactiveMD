@@ -8,7 +8,7 @@ Most examples below target `reactive-md@0.6.0`. Copy the desired example directo
 
 The [extension SDK consumer](extension-sdk/README.md) targets `reactive-md@0.8.0` and verifies static and offline interactive sharing through public exports. Release preparation uses a locally built tarball; the SDK contract remains at `0.7.0`. The other older examples retain their 0.6.0 pins.
 
-To run the [streaming source](streaming) example against the current checkout, install the `reactive-md-0.9.2.tgz` built below. The example's standalone manifest pins `0.9.1` as its baseline.
+To run the [streaming source](streaming) example against the current checkout, install the `reactive-md-0.9.3.tgz` built below. The example's standalone manifest pins `0.9.1` as its baseline.
 
 ## Static embed
 
@@ -22,6 +22,8 @@ node examples/integration/static-embed/render.mjs
 ```
 
 For the browser example, start `npx vite examples/integration/static-embed` from the same directory and open the printed URL. `node examples/integration/static-embed/render.mjs --defer` emits the loading placeholder that the browser hydration entry expects; use the same external-slot strategy on both sides.
+
+Component implementations can also load on demand instead of entering the initial bundle. `createDeferredReactConfig` from `reactive-md/react/packed` shares one resolver request per component definition, aborts when its last subscriber leaves, and accepts `resolveSync` for SSR and hydration. The async resolver starts after mount, so server output keeps a stable loading placeholder until the implementation is available.
 
 ## Node core
 
@@ -70,7 +72,7 @@ Build a tarball from the current tree in the repository root, then install it in
 npm pack
 
 cd examples/integration/streaming
-npm install ../../../reactive-md-0.9.2.tgz
+npm install ../../../reactive-md-0.9.3.tgz
 npm run dev
 ```
 
@@ -87,7 +89,7 @@ Build a tarball from the current tree in the repository root, then install it in
 npm pack
 
 cd examples/integration/chat-session
-npm install ../../../reactive-md-0.9.2.tgz
+npm install ../../../reactive-md-0.9.3.tgz
 npm start
 ```
 

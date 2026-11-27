@@ -2,7 +2,7 @@
 
 **English** · [中文](support-matrix-ch.md)
 
-This matrix defines public support for `reactive-md@0.9.2`, `reactive-md-editor@0.2.1` and the paired Demo candidate. See [Versions and compatibility](compatibility-en.md) for the package pair.
+This matrix defines public support for `reactive-md@0.9.3`, `reactive-md-editor@0.2.1` and the paired Demo candidate. See [Versions and compatibility](compatibility-en.md) for the package pair.
 
 ## Support levels
 

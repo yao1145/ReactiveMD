@@ -18,4 +18,4 @@
 
 公开的 `LocalComponentPropValue` 是早期标量类型别名，已在声明中标记弃用。新的扩展应使用 `LocalComponentValue`，需要标量时先缩窄类型。该别名的保留期从本政策首次记录的发布开始计算。
 
-源码迁移独立于宿主 API 弃用。跨语法修订时，先使用 [源码修订和迁移工具](source-versioning-ch.md) 检查源码。迁移后的源码应重新导出状态文件，以更新源码摘要。引擎 `0.9.2` 继续使用 `local-draft-3` 与 `reactive-md-state/v1`。
+源码迁移独立于宿主 API 弃用。跨语法修订时，先使用 [源码修订和迁移工具](source-versioning-ch.md) 检查源码。迁移后的源码应重新导出状态文件，以更新源码摘要。引擎 `0.9.3` 继续使用 `local-draft-3` 与 `reactive-md-state/v1`。

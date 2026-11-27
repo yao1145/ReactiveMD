@@ -2,15 +2,15 @@
 
 **中文** · [English](compatibility-en.md)
 
-Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。显式修订声明、迁移 API 与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，公开 API 与样式接入见[本地模式集成](../integration/local-integration-ch.md)，本版本见[0.9.2 发布说明](../releases/release-0.9.2-ch.md)，上一版本见[0.9.1 发布说明](../releases/release-0.9.1-ch.md)，更早版本见[0.9.0 发布说明](../releases/release-0.9.0-ch.md)，该 minor 系列见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
+Reactive MD 目前是 0.x 预览版。本页说明包版本、语法版本、可持久化的内容、诊断契约和当前平台范围。显式修订声明、迁移 API 与 `reactive-md migrate` 见[源码修订与迁移](source-versioning-ch.md)，公开 API 与样式接入见[本地模式集成](../integration/local-integration-ch.md)，本版本见[0.9.3 发布说明](../releases/release-0.9.3-ch.md)，上一版本见[0.9.2 发布说明](../releases/release-0.9.2-ch.md)，更早版本见[0.9.1 发布说明](../releases/release-0.9.1-ch.md)和[0.9.0 发布说明](../releases/release-0.9.0-ch.md)，该 minor 系列见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。
 
 ## 版本对应
 
 | 项目 | 当前值 | 说明 |
 | --- | --- | --- |
-| 包版本 | `0.9.2` | 稳定版，2026-11-23 |
-| 分发标签 | `latest`：`0.9.2` | `next` 独立维护；使用该渠道前请查询 npm |
-| SDK 契约 | `0.7.0` | `LOCAL_SDK_VERSION`；与包版本独立，`0.9.2` 不改变它 |
+| 包版本 | `0.9.3` | 稳定版，2026-11-27 |
+| 分发标签 | `latest`：`0.9.3` | `next` 独立维护；使用该渠道前请查询 npm |
+| SDK 契约 | `0.7.0` | `LOCAL_SDK_VERSION`；与包版本独立，`0.9.3` 不改变它 |
 | 语法版本 | `local-draft-3` | `LOCAL_SYNTAX_VERSION`；本包只接受这一修订 |
 | 源码修订指令 | 可选 `<!-- reactive-md: local-draft-3 -->` | 文档前导区中的一行；无指令源码继续按当前修订解析 |
 | 组块协议 | `component-protocol-3` | 贡献与验收契约，见[组块协议](../development/component-protocol-ch.md)；不是运行时版本选择参数 |
@@ -143,4 +143,4 @@ Node 端消费指在 Node 中导入 `reactive-md`、调用 `compileLocal` 和 `c
 语言范围见[语法规范](../reference/local-interaction-syntax-ch.md)，安全边界与宿主责任见[安全策略](../../SECURITY-ch.md)。
 
 
-当前语法修订的完整规则见[本地交互语法规范](../reference/local-interaction-syntax-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。`0.9.2` 使用 `latest` 渠道。
+当前语法修订的完整规则见[本地交互语法规范](../reference/local-interaction-syntax-ch.md)，升级清单见[0.4.0 发布与迁移](../releases/release-0.4.0-ch.md)。`0.9.3` 使用 `latest` 渠道。

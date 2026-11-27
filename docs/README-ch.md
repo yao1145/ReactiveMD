@@ -18,7 +18,7 @@
 
 - **编写文档**：先读[入门指南](guides/local-guide-ch.md)，再查语法参考；可运行的示例见 [examples/local](../examples/local/README-ch.md)。
 - **接入项目**：先查[公开接口参考](reference/public-api-ch.md)确认入口，再读[本地模式集成](integration/local-integration-ch.md)；独立项目示例见 [examples/integration](../examples/integration/README-ch.md)。
-- 升级前请参阅[兼容性](compatibility/compatibility-ch.md)和目标版本的发布记录。主文档适用于 0.9.2。
+- 升级前请参阅[兼容性](compatibility/compatibility-ch.md)和目标版本的发布记录。主文档适用于 0.9.3。
 
 ## 入门
 
@@ -77,6 +77,7 @@
 
 | 版本 | 中文 |
 | --- | --- |
+| 0.9.3 | [中文](releases/release-0.9.3-ch.md) |
 | 0.9.2 | [中文](releases/release-0.9.2-ch.md) |
 | 0.9.1 | [中文](releases/release-0.9.1-ch.md) |
 | 0.9.0 | [中文](releases/release-0.9.0-ch.md) |

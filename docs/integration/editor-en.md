@@ -13,7 +13,7 @@ Replace the old `reactive-md/editor` subpaths and styles with the independent pa
 ## Install
 
 ```sh
-npm install reactive-md@0.9.2 reactive-md-editor@0.2.1
+npm install reactive-md@0.9.3 reactive-md-editor@0.2.1
 npm install react@19 react-dom@19
 ```
 

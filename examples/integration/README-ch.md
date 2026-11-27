@@ -8,7 +8,7 @@
 
 [扩展 SDK 使用方](extension-sdk/README-ch.md)面向`reactive-md@0.8.0`，通过公开导出验证静态分享和离线交互分享。准备发布时使用本地构建的 tarball，SDK 契约仍为 `0.7.0`。其余较早的示例保留其 0.6.0 固定版本。
 
-用当前检出运行[流式源码](streaming)示例时，按下文打包并安装 `reactive-md-0.9.2.tgz`。示例独立使用时以 `package.json` 中固定的 `0.9.1` 为基线。
+用当前检出运行[流式源码](streaming)示例时，按下文打包并安装 `reactive-md-0.9.3.tgz`。示例独立使用时以 `package.json` 中固定的 `0.9.1` 为基线。
 
 ## 静态嵌入
 
@@ -22,6 +22,8 @@ node examples/integration/static-embed/render.mjs
 ```
 
 要查看浏览器示例，在同一目录运行 `npx vite examples/integration/static-embed`，然后打开终端显示的地址。`node examples/integration/static-embed/render.mjs --defer` 输出浏览器水合入口所需的加载占位；服务端与客户端必须使用相同的宿主槽位策略。
+
+组件实现也可以按需装载，而不进入初始 bundle。`reactive-md/react/packed` 的 `createDeferredReactConfig` 按组件定义共享一次 resolver 请求，最后一个订阅者离开时中止，并接受 `resolveSync` 以服务 SSR 与水合。异步 resolver 在挂载后启动，服务端输出在实现可用前保留稳定的加载占位。
 
 ## Node 核心
 
@@ -70,7 +72,7 @@ UI 和调度连接位于 [worker/main.js](worker/main.js)；Worker 入口是 [wo
 npm pack
 
 cd examples/integration/streaming
-npm install ../../../reactive-md-0.9.2.tgz
+npm install ../../../reactive-md-0.9.3.tgz
 npm run dev
 ```
 
@@ -87,7 +89,7 @@ npm run dev
 npm pack
 
 cd examples/integration/chat-session
-npm install ../../../reactive-md-0.9.2.tgz
+npm install ../../../reactive-md-0.9.3.tgz
 npm start
 ```
 

@@ -2,6 +2,36 @@
 
 **English** · [中文](CHANGELOG-ch.md)
 
+## 0.9.3 (2026-11-27, latest channel)
+
+Restricted embedding and fallback compilation, runtime-free static React and SSR with legacy host components, compiler cache identity and component inventory, narrow session and scan entries, a multi-document Worker pool with pause/resume, performance reports, and on-demand component loading.
+
+### Added
+
+- Add `embedding` compile profiles. `expressions: 'literal'` keeps interpolation delimiters as text, and `onUnsupported: 'fallback'` replaces unsupported nodes and node-level attribute, structure, plot, table and navigation errors with escaped source while keeping valid siblings. `node.fallback` records the diagnostic code and UTF-16 range; dependencies and runtime metadata are rebuilt from the surviving nodes, and resource budget failures stay fatal. Successful compilations report `document.requiresRuntime`.
+- Add runtime-free rendering through `reactive-md/react/static` (`LocalStaticDocumentView`) and `reactive-md/react/static/server` (`renderLocalStaticMarkup`), plus `createLocalRuntimePool` and `LocalPooledDocumentView` for lease-scoped runtime reuse. Static components render through host pack implementations; host slots accept a synchronous renderer or a deferred browser resolver, and one failing slot leaves its siblings intact. Legacy `hostComponents` with literal attributes render through `hostData`/`hostRenderer`, and `resolveHostData` supplies missing keyed data after hydration.
+- Add `reactive-md/compiler/session` (`createLocalCompileSession`, `LocalCompileSession`, `localCompileOptionsKey`, `localCompileCacheKey`) and `reactive-md/scan` (`analyzeLocalSource`). `localCompileCacheKey` combines the exact source, validated options, component configuration, effective phase, compiler entry and policy version. Both narrow graphs exclude React, CSS, DOM, Worker scheduling and authoring services.
+- Add `document.usedComponents`, a deduplicated first-use list of built-in, SDK and declared legacy host components, also exposed on the single-pass compiler's `program`, for preloading implementations and selecting CSS.
+- Add `reactive-md/worker-pool`. `createLocalCompilePool` schedules revisions per document across a bounded Worker queue with `latest` or `all` delivery, priority aging, backpressure, `release(documentId)`, warmup, idle recycling, and `hold()`/`resume()` for pausing document dispatch, retries and fallback. A source beyond the document length limit is rejected as `source-too-large` before queueing or cloning.
+- Add `createLocalPerformanceReport` with schema `reactive-md-performance/v1`, covering pool readiness, Worker spawn and warmup, compile phases, component-load waits, and document and component mount, lifetime and unmount timings.
+- Add on-demand component loading. `reactive-md/react/packed` provides `createReactHost`, `deriveLocalReactPreset` and `createDeferredReactConfig`; per-component entries at `reactive-md/presets/default/packs/react/component/*` keep unselected views out of the bundle; `packStyleManifest` and the pack CSS entries map components to the styles to load. The async resolver shares one request per definition, aborts when its last subscriber leaves, and synchronous `resolveSync` serves SSR and hydration.
+- Add raw-body container semantics. A manifest `structure: { rule: 'raw-body' }` or a host `body: 'raw'` delivers one lazy, unparsed `rawBody` child, bounded by `limits.maxRawBodyChars` and rendered as escaped text in interactive, SSR and static output.
+- Publish `reactive-md/contracts` for the pure cross-stage types and helpers shared by the SDK, the language core and component packages.
+
+### Changed
+
+- Split contracts and assemblies out of `src/local`, move React document views to `src/react/rendering/`, and add the architecture boundary check to `npm run check`.
+- Move `column` to the data pack, so `layoutPack` and `dataPack` can be installed together; `visualsPack` declares its `dataPack` dependency.
+
+### Fixed
+
+- Deliver an unclosed raw body to the snapshot end in loose streaming and keep the raw length budget on that path.
+- Forward extended HTML fragment budget failures as global errors instead of warnings.
+- Recover invalid embedding nodes and their bindings in bounded replay passes without losing resource budgets.
+- Reject oversized sources before the pool queues or clones them, clear a released document's revision chain and baselines, recompute patched Worker status, and accept document-scoped Worker requests without an optional revision.
+- Keep parser fallback warnings non-fatal when only external slots are enabled, and deduplicate performance outcomes and aggregate mount lifetimes.
+- Build the compile cache version from an explicit engine version constant instead of importing `package.json`, so narrow compiler entries do not include package metadata.
+
 ## 0.9.2 (2026-11-23, latest channel)
 
 Fallback delivery ordering, diagnostic recoverability flags, Worker failure details, and the export-cancellation trace contract.
