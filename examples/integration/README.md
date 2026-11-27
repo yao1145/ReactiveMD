@@ -10,6 +10,19 @@ The [extension SDK consumer](extension-sdk/README.md) targets `reactive-md@0.8.0
 
 To run the [streaming source](streaming) example against the current checkout, install the `reactive-md-0.9.2.tgz` built below. The example's standalone manifest pins `0.9.1` as its baseline.
 
+## Static embed
+
+The [static embed](static-embed) uses one layout component, keeps `{{ visitor.name }}` as text and shows a fallback for the unselected slider. Two identical host slots share one dynamic import. The performance report groups compilation, loading and rendering under one revision.
+
+From the engine repository root, build the package and render the server example:
+
+```sh
+npm run build:lib
+node examples/integration/static-embed/render.mjs
+```
+
+For the browser example, start `npx vite examples/integration/static-embed` from the same directory and open the printed URL.
+
 ## Node core
 
 Requires Node.js 22.12 or newer. The core example runs without React or network access after installation.

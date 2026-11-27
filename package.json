@@ -231,6 +231,14 @@
       "types": "./dist-library/types/react/runtime/index.d.ts",
       "import": "./dist-library/reactive-md-react-runtime.js"
     },
+    "./react/static": {
+      "types": "./dist-library/types/react/rendering/document/LocalStaticDocumentView.d.ts",
+      "import": "./dist-library/reactive-md-react-static.js"
+    },
+    "./react/static/server": {
+      "types": "./dist-library/types/react/static-server.d.ts",
+      "import": "./dist-library/reactive-md-react-static-server.js"
+    },
     "./react/packed": {
       "types": "./dist-library/types/react/packed.d.ts",
       "import": "./dist-library/reactive-md-react-packed.js"

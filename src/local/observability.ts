@@ -61,7 +61,7 @@ const SAFE_EVENT_TYPES = new Set<LocalTraceEvent['type']>([
   'compile-start', 'compile-end', 'worker-request', 'worker-response', 'worker-timeout',
   'worker-stale-response', 'worker-cancel', 'worker-error', 'export-start', 'export-end',
   'export-cancel', 'export-error',
-  'worker-spawn', 'worker-ready', 'worker-warmup', 'component-load-start', 'component-load-end', 'render-mount', 'render-unmount',
+  'worker-spawn', 'worker-ready', 'worker-warmup', 'worker-idle', 'component-load-start', 'component-load-end', 'render-mount', 'render-unmount', 'render-retained',
 ]);
 const SAFE_COMPONENT_NAME = /^[a-z][a-z0-9-]{0,63}$/;
 
@@ -82,18 +82,19 @@ function reportDetails(details: Diagnostic['details']): Diagnostic['details'] | 
 }
 
 /** `detail` stays observer-only free text and is never copied into a report. */
-function safeEvent(event: LocalTraceEvent): LocalTraceEvent | undefined {
-  if (!event || !SAFE_ID.test(event.traceId) || !SAFE_EVENT_TYPES.has(event.type)
+export function safeLocalTraceEvent(event: LocalTraceEvent): LocalTraceEvent | undefined {
+  if (!event || typeof event.traceId !== 'string' || !SAFE_ID.test(event.traceId) || !SAFE_EVENT_TYPES.has(event.type)
     || !Number.isSafeInteger(event.timestamp) || event.timestamp < 0) return undefined;
   const code = typeof event.code === 'string' && SAFE_CODE.test(event.code) ? event.code : undefined;
   const stage = typeof event.stage === 'string' && SAFE_STAGES.has(event.stage) ? event.stage : undefined;
-  const status = typeof event.status === 'string' && /^(?:ok|failed|stale|timeout|disposed|fallback|retry|cancelled|printed|ready|degraded|superseded|budget-rejected|worker-failed)$/.test(event.status)
+  const status = typeof event.status === 'string' && /^(?:ok|failed|stale|timeout|disposed|fallback|retry|cancelled|printed|ready|degraded|superseded|budget-rejected|worker-failed|abandoned)$/.test(event.status)
     ? event.status : undefined;
   return {
     type: event.type,
     traceId: event.traceId.slice(0, 96),
     ...(Number.isSafeInteger(event.requestId) && (event.requestId ?? -1) >= 0 ? { requestId: event.requestId } : {}),
     ...(Number.isSafeInteger(event.sourceRevision) && (event.sourceRevision ?? -1) >= 0 ? { sourceRevision: event.sourceRevision } : {}),
+    ...(event.sourcePhase === 'streaming' || event.sourcePhase === 'final' ? { sourcePhase: event.sourcePhase } : {}),
     ...(typeof event.documentId === 'string' && SAFE_ID.test(event.documentId) ? { documentId: event.documentId } : {}),
     ...(Number.isSafeInteger(event.workerId) && (event.workerId ?? -1) >= 0 ? { workerId: event.workerId } : {}),
     ...(typeof event.componentName === 'string' && SAFE_COMPONENT_NAME.test(event.componentName) ? { componentName: event.componentName } : {}),
@@ -104,6 +105,12 @@ function safeEvent(event: LocalTraceEvent): LocalTraceEvent | undefined {
     ...(Number.isSafeInteger(event.durationMs) && (event.durationMs ?? -1) >= 0 ? { durationMs: event.durationMs } : {}),
     ...(Number.isSafeInteger(event.parseMs) && (event.parseMs ?? -1) >= 0 ? { parseMs: event.parseMs } : {}),
     ...(Number.isSafeInteger(event.semanticMs) && (event.semanticMs ?? -1) >= 0 ? { semanticMs: event.semanticMs } : {}),
+    ...(Number.isSafeInteger(event.reuseMs) && (event.reuseMs ?? -1) >= 0 ? { reuseMs: event.reuseMs } : {}),
+    ...(Number.isSafeInteger(event.rebuildMs) && (event.rebuildMs ?? -1) >= 0 ? { rebuildMs: event.rebuildMs } : {}),
+    ...(Number.isSafeInteger(event.compiledBlocks) && (event.compiledBlocks ?? -1) >= 0 ? { compiledBlocks: event.compiledBlocks } : {}),
+    ...(Number.isSafeInteger(event.reusedBlocks) && (event.reusedBlocks ?? -1) >= 0 ? { reusedBlocks: event.reusedBlocks } : {}),
+    ...(Number.isSafeInteger(event.queueMs) && (event.queueMs ?? -1) >= 0 ? { queueMs: event.queueMs } : {}),
+    ...(Number.isSafeInteger(event.mountedMs) && (event.mountedMs ?? -1) >= 0 ? { mountedMs: event.mountedMs } : {}),
     ...(code ? { code } : {}), ...(status ? { status } : {}), ...(stage ? { stage } : {}),
   };
 }
@@ -153,7 +160,7 @@ export function createDiagnosticReport(source: string, options: DiagnosticReport
   const safeTraceId = options.traceId && SAFE_ID.test(options.traceId) ? options.traceId : undefined;
   const safeRevision = typeof options.sourceRevision === 'string' && SAFE_ID.test(options.sourceRevision) ? options.sourceRevision : undefined;
   const safeEvents = (Array.isArray(options.events) ? options.events : []).slice(-50).flatMap(event => {
-    const safe = safeEvent({ ...event, type: event?.type?.slice(0, 64), traceId: event?.traceId?.slice(0, 96), status: event?.status?.slice(0, 32), stage: event?.stage?.slice(0, 32), code: event?.code?.slice(0, 128) });
+    const safe = safeLocalTraceEvent(event);
     return safe ? [safe] : [];
   });
   const report: LocalDiagnosticReport = {

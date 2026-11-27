@@ -54,11 +54,15 @@ export interface LocalCompileWorkerOptions {
   createSession?(): LocalCompileSession;
   /** Idle delay before session preparation; defaults to `LOCAL_COMPILE_PREPARATION_DELAY_MS`. */
   preparationDelay?: number;
+  /** Maximum number of isolated document baselines retained by one worker. */
+  maxDocuments?: number;
 }
+
+export const DEFAULT_LOCAL_WORKER_DOCUMENTS = 8;
 
 /** Optional session methods the main implementation may add later. */
 interface LocalCompileSessionExtensions {
-  compileShared?(source: string, options?: LocalCompileOptions, phase?: LocalSourcePhase): LocalCompileResult;
+  compileShared?(source: string, options?: LocalCompileOptions, phase?: LocalSourcePhase, collectPerformance?: boolean): LocalCompileResult;
   prepareAsync?(
     signal?: { readonly aborted: boolean },
     yieldTask?: () => Promise<void>,
@@ -87,10 +91,11 @@ function compileWithSession(
   source: string,
   options?: LocalCompileOptions,
   sourcePhase?: LocalSourcePhase,
+  collectPerformance?: boolean,
 ): LocalCompileResult {
   const extended = session as LocalCompileSession & LocalCompileSessionExtensions;
   return typeof extended.compileShared === 'function'
-    ? extended.compileShared(source, options, sourcePhase)
+    ? extended.compileShared(source, options, sourcePhase, collectPerformance)
     : session.compile(source, options, sourcePhase);
 }
 
@@ -132,7 +137,9 @@ function postRetryableFailure(
       message,
       retryFull: true,
       code,
-      ...(revision === undefined ? {} : { revision }),
+      ...(request.documentId === undefined
+        ? (revision === undefined ? {} : { revision })
+        : { documentId: request.documentId, revision: request.revision }),
     });
   } catch {
     /* A scope that cannot receive the failure response is already broken. */
@@ -169,6 +176,67 @@ export function startLocalCompileWorker(
   if (!target || typeof target.postMessage !== 'function') {
     throw new TypeError('startLocalCompileWorker requires a worker scope with postMessage');
   }
+  type Context = { scope: LocalCompileWorkerScope; control: LocalCompileWorkerControl };
+  const documents = new Map<string, Context>();
+  const limit = options.maxDocuments ?? DEFAULT_LOCAL_WORKER_DOCUMENTS;
+  if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError('Invalid worker document limit');
+  let disposed = false;
+  const legacy = context();
+
+  function context(): Context {
+    const inner: LocalCompileWorkerScope = { onmessage: null, postMessage: message => target.postMessage(message) };
+    return { scope: inner, control: startCompileContext(inner, options) };
+  }
+
+  function cancelPreparation(): void {
+    legacy.control.cancelPreparation();
+    for (const document of documents.values()) document.control.cancelPreparation();
+  }
+
+  function dispose(): void {
+    if (disposed) return;
+    disposed = true;
+    target.onmessage = null;
+    legacy.control.dispose();
+    for (const document of documents.values()) document.control.dispose();
+    documents.clear();
+  }
+
+  target.onmessage = event => {
+    if (disposed) return;
+    const request = event?.data;
+    if (isControlMessage(request)) {
+      if (request.control === 'dispose') dispose();
+      else cancelPreparation();
+      return;
+    }
+    if (typeof request?.documentId !== 'string') { legacy.scope.onmessage?.(event); return; }
+    const { documentId, revision } = request;
+    if (documentId.length > 256 || !Number.isSafeInteger(revision) || revision < 0) {
+      postFailure(target, request.id, 'Invalid worker document or revision', request);
+      return;
+    }
+    let document = documents.get(documentId);
+    if (!document) {
+      if (typeof request.source !== 'string') {
+        postRetryableFailure(target, request, 'The document baseline is unavailable', 'stale-base', revision);
+        return;
+      }
+      document = context();
+    }
+    documents.delete(documentId);
+    documents.set(documentId, document);
+    if (documents.size > limit) {
+      const oldest = documents.keys().next().value!;
+      documents.get(oldest)?.control.dispose();
+      documents.delete(oldest);
+    }
+    document.scope.onmessage?.(event);
+  };
+  return { dispose, cancelPreparation, get disposed() { return disposed; } };
+}
+
+function startCompileContext(target: LocalCompileWorkerScope, options: LocalCompileWorkerOptions): LocalCompileWorkerControl {
   const session = options.createSession ? options.createSession() : createLocalCompileSession();
   const extensions = session as LocalCompileSession & LocalCompileSessionExtensions;
   const requestedDelay = options.preparationDelay;
@@ -247,13 +315,15 @@ export function startLocalCompileWorker(
 
   const workerMetrics = (compileMs: number): LocalCompileWorkerMetrics => {
     const stats = sessionStats(session);
-    const { parseMs, totalMs } = stats.stages ?? {};
+    const { parseMs, semanticMs, reuseMs, rebuildMs } = stats.stages ?? {};
     return {
       compileMs,
       ...(stats.compiledBlocks === undefined ? {} : { compiledBlocks: stats.compiledBlocks }),
       ...(stats.reusedBlocks === undefined ? {} : { reusedBlocks: stats.reusedBlocks }),
       ...(parseMs === undefined ? {} : { parseMs: safeDuration(parseMs) }),
-      ...(parseMs === undefined || totalMs === undefined ? {} : { semanticMs: safeDuration(totalMs - parseMs) }),
+      ...(semanticMs === undefined ? {} : { semanticMs: safeDuration(semanticMs) }),
+      ...(reuseMs === undefined ? {} : { reuseMs: safeDuration(reuseMs) }),
+      ...(rebuildMs === undefined ? {} : { rebuildMs: safeDuration(rebuildMs) }),
       ...(preparationMs === undefined ? {} : { preparationMs }),
     };
   };
@@ -285,6 +355,7 @@ export function startLocalCompileWorker(
       const response: LocalCompileResponse = negotiated
         ? {
             id,
+            ...(state.documentId === undefined ? {} : { documentId: state.documentId }),
             ...(traceId === undefined ? {} : { traceId, requestId, sourceRevision }),
             ok: true,
             result: state.result,
@@ -351,7 +422,7 @@ export function startLocalCompileWorker(
       // the scheduler keys the same copied object on its side.
       const optionsKey = localWorkerOptionsKey(snapshot);
       const negotiated = full.protocol === LOCAL_RESULT_PATCH_PROTOCOL;
-      const revision = resolveRevision(full.revision);
+      const revision = full.documentId === undefined ? resolveRevision(full.revision) : full.revision!;
       const started = now();
       try {
         if (current !== null && (current.optionsKey !== optionsKey || current.documentId !== full.documentId)) {
@@ -363,7 +434,7 @@ export function startLocalCompileWorker(
             /* a session without clear simply recompiles */
           }
         }
-        const result = compileWithSession(session, full.source, snapshot, sourcePhase);
+        const result = compileWithSession(session, full.source, snapshot, sourcePhase, full.collectPerformance === true);
         const compileMs = safeDuration(now() - started);
         lastRevision = revision;
         current = {
@@ -431,15 +502,20 @@ export function startLocalCompileWorker(
       retry('The source edit produced an unexpected length', 'invalid-edit');
       return;
     }
-    const revision = resolveRevision(patchRequest.revision);
+    const revision = patchRequest.documentId === undefined ? resolveRevision(patchRequest.revision) : patchRequest.revision;
+    if (revision <= state.revision) {
+      retry('The new revision must follow its baseline', 'stale-base');
+      return;
+    }
     const started = now();
     try {
-      const result = compileWithSession(session, nextSource, state.options, state.sourcePhase);
+      const result = compileWithSession(session, nextSource, state.options, state.sourcePhase, patchRequest.collectPerformance === true);
       const compileMs = safeDuration(now() - started);
       const baseRevision = state.revision;
       const baseResult = state.result;
       lastRevision = revision;
       current = {
+        documentId: state.documentId,
         source: nextSource,
         revision,
         options: state.options,
@@ -490,7 +566,7 @@ export function startLocalCompileWorker(
         return;
       }
       const metrics: LocalCompileWorkerMetrics = {
-        compileMs,
+        ...workerMetrics(compileMs),
         patchEncodeMs,
         patchNodes: patch.document.nodes?.length ?? 0,
         ...(preparationMs === undefined ? {} : { preparationMs }),
@@ -498,6 +574,7 @@ export function startLocalCompileWorker(
       try {
         const response: LocalCompilePatchResponse = {
           id: patchRequest.id,
+          ...(state.documentId === undefined ? {} : { documentId: state.documentId }),
           ...(patchRequest.traceId === undefined ? {} : { traceId: patchRequest.traceId, requestId: patchRequest.requestId, sourceRevision: patchRequest.sourceRevision }),
           ok: true,
           protocol: LOCAL_RESULT_PATCH_PROTOCOL,

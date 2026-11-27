@@ -717,6 +717,7 @@ export function parseLocalCore(
       work, ensureDepth, parseMarkdown, node, codeRanges, recoveryRanges, recoveries,
       rootMathLiterals, rootDefinitionRanges, error, warning, headers, scanner, convert,
       streaming: optionCheck.sourcePhase === 'streaming',
+      literalExpressions: optionCheck.embedding.expressions === 'literal',
       rawCloseCache,
     });
 

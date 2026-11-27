@@ -17,7 +17,7 @@ const stableEntries = [
   './plugins/forms', './plugins/network', './plugins/navigation', './plugins/data',
   './plugins/chart', './plugins/plot', './plugins/diagram', './plugins/gallery',
   './react', './react/unstyled', './react/minimal', './react/server', './react/runtime',
-  './react/packed', './worker-pool',
+  './react/packed', './react/static', './react/static/server', './worker-pool',
   ...['controls', 'layout', 'data', 'visuals'].map(name => `./presets/default/packs/react/${name}`),
   './runtime', './runtime/browser', './observability', './export', './export-assets',
   './build', './vite', './vite/client', './pdf', './standalone', './standalone/host',
@@ -42,8 +42,8 @@ function verifyPackGraph(entry, forbidden) {
     if (visited.has(file)) continue;
     visited.add(file);
     const source = readFileSync(file, 'utf8');
-    for (const [, module] of source.matchAll(/^\/\/ (src\/components\/\S+)\s*$/gm)) {
-      assert.ok(!forbidden.test(module), `${entry} includes an unselected component module: ${module}`);
+    for (const [, module] of source.matchAll(/^\/\/ (src\/\S+)\s*$/gm)) {
+      assert.ok(!forbidden.test(module), `${entry} includes an unselected module: ${module}`);
     }
     for (const specifier of moduleSpecifiers(source, basename(file))) {
       if (specifier.startsWith('.') && specifier.endsWith('.js')) files.push(resolve(dirname(file), specifier));
@@ -83,9 +83,12 @@ try {
   for (const target of exportTargets(pkg.exports)) {
     assert.ok(packedFiles.has(target.replace(/^\.\//, '')), `Package export is missing: ${target}`);
   }
-  verifyPackGraph('reactive-md-react-pack-layout.js', /\/(?:controls|chart|plot|diagram|table)\//);
-  verifyPackGraph('reactive-md-react-pack-data.js', /\/(?:controls|chart|plot|diagram|gallery)\/|\/shared\/visuals\.tsx$/);
+  verifyPackGraph('reactive-md-react-pack-layout.js', /^src\/components\/(?:controls|chart|plot|diagram|table)\//);
+  verifyPackGraph('reactive-md-react-pack-data.js', /^src\/components\/(?:controls|chart|plot|diagram|gallery)\/|\/shared\/visuals\.tsx$/);
   verifyPackGraph('reactive-md-react-packed.js', /\/default-preset\.ts$/);
+  const staticForbidden = /^src\/local\/(?:compilation\/session\/|transport\/worker|runtime\/local-runtime)/;
+  verifyPackGraph('reactive-md-react-static.js', staticForbidden);
+  verifyPackGraph('reactive-md-react-static-server.js', staticForbidden);
   assert.ok(!packed.files.some(file => /^docs\/(?:archive|plan)\//.test(file.path)), 'Package contains local archived development documents');
   assert.ok(!packed.files.some(file => /^examples\/.*\/(?:dist|node_modules)\//.test(file.path)), 'Package contains generated example output');
   assert.ok(!packed.files.some(file => /^examples\/sci-fi-theme\/(?:dist|screenshots)\//.test(file.path)), 'Package contains generated theme preview output');
@@ -105,9 +108,11 @@ import { createCompiler } from 'reactive-md/compiler';
 import { createLocalCompileSession as createNarrowCompileSession, localCompileOptionsKey as narrowCompileOptionsKey } from 'reactive-md/compiler/session';
 import { analyzeLocalSource as scanLocalSource } from 'reactive-md/scan';
 import { compileLocal, createLocalCompileSession, createLocalRuntime, LocalCompileScheduler, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
-import { createDiagnosticReport } from 'reactive-md/observability';
+import { createDiagnosticReport, createLocalPerformanceReport } from 'reactive-md/observability';
 import { createLocalCompilePool } from 'reactive-md/worker-pool';
-import { createReactHost as createPackedHost } from 'reactive-md/react/packed';
+import { createReactHost as createPackedHost, deriveLocalReactPreset } from 'reactive-md/react/packed';
+import { LocalStaticDocumentView } from 'reactive-md/react/static';
+import { renderLocalStaticMarkup } from 'reactive-md/react/static/server';
 import layoutReact from 'reactive-md/presets/default/packs/react/layout';
 import dataReact from 'reactive-md/presets/default/packs/react/data';
 import visualsReact from 'reactive-md/presets/default/packs/react/visuals';
@@ -134,9 +139,19 @@ assert.ok(packedHost.config.registry.some(definition => definition.name === 'ale
 assert.ok(!packedHost.config.registry.some(definition => definition.name === 'chart'));
 assert.match(packedHost.css, /local-accordion/);
 assert.ok(createPackedHost({ presets: [dataReact, visualsReact] }).config.registry.some(definition => definition.name === 'chart'));
+const combined = createPackedHost({ presets: [layoutReact, dataReact] });
+assert.equal(combined.config.registry.filter(definition => definition.name === 'column').length, 1);
+const tableHost = createPackedHost({ presets: [deriveLocalReactPreset(dataReact, { include: ['data-table', 'column'] })] });
+assert.match(tableHost.css, /local-visual-table/);
+assert.doesNotMatch(tableHost.css, /local-visual-(?:plot|chart|diagram)/);
 const embedded = compileLocal('Literal {{ none }}', { embedding: { expressions: 'literal' } });
 assert.ok(embedded.ok && embedded.document.requiresRuntime === false);
 assert.ok(server.renderLocalStaticMarkup({ document: embedded.document }).ok);
+const slots = compileLocal('<external slot="references" />', { embedding: { allowExternalSlots: true } });
+assert.ok(slots.ok && typeof LocalStaticDocumentView === 'function');
+const staticMarkup = renderLocalStaticMarkup({ document: slots.document, renderExternalSlot: slot => slot.name });
+assert.ok(staticMarkup.ok && staticMarkup.markup.includes('references'));
+assert.equal(createLocalPerformanceReport([]).schema, 'reactive-md-performance/v1');
 const compilePool = createLocalCompilePool({ workers: 1, createWorker() { throw new Error('No Worker in Node'); } });
 try {
   const outcome = await compilePool.schedule({ documentId: 'packed-smoke', revision: 1, source: 'Worker fallback' });
@@ -277,14 +292,20 @@ import type {LocalEmbeddingOptions, LocalRuntimePool} from 'reactive-md';
 import type {LocalCompilePoolRequest} from 'reactive-md/worker-pool';
 import {createReactHost as createPackedHost} from 'reactive-md/react/packed';
 import layoutReact from 'reactive-md/presets/default/packs/react/layout';
-import {renderLocalStaticMarkup} from 'reactive-md/react/server';
+import {LocalStaticDocumentView, type LocalStaticExternalResolver} from 'reactive-md/react/static';
+import {renderLocalStaticMarkup} from 'reactive-md/react/static/server';
+import {createLocalPerformanceReport, type LocalPerformanceReport} from 'reactive-md/observability';
 import {layoutPack} from 'reactive-md/presets/default/packs';
 import {listExportAssets, readExportAsset, resolveExportAsset} from 'reactive-md/export-assets';
 createCompiler().compile('hello'); createStandardCompiler().compile('hello'); analyzeLocalSource('hello'); void insertTemplate; void startLocalCompileWorker; void layoutPack;
-const embedding: LocalEmbeddingOptions = { expressions: 'literal' };
+const embedding: LocalEmbeddingOptions = { expressions: 'literal', allowExternalSlots: true };
 const request: LocalCompilePoolRequest = { documentId: 'doc', revision: 1, source: 'test', options: { embedding } };
 const release = (pool: LocalRuntimePool) => pool.dispose();
-void request; void release; void renderLocalStaticMarkup; createPackedHost({ presets: [layoutReact] });
+const staticResult = createCompiler({ embedding }).compile('<external slot="notes" />');
+const resolveExternalSlot: LocalStaticExternalResolver = async ({ name }) => () => name;
+if (staticResult.ok) renderLocalStaticMarkup({ document: staticResult.document, resolveExternalSlot });
+const performance: LocalPerformanceReport = createLocalPerformanceReport([]);
+void request; void release; void LocalStaticDocumentView; void performance; createPackedHost({ presets: [layoutReact] });
 const narrowSession: LocalCompileSession = createLocalCompileSession();
 const narrowStats: LocalIncrementalStats = narrowSession.stats;
 narrowSession.dispose();

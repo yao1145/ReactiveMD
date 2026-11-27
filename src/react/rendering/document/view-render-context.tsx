@@ -7,7 +7,7 @@ import type {
 } from '../render-types';
 import type { LocalComponentDefinition } from '../../../sdk/types';
 import { useLocalize, type Localize, type LocalLocale } from '../../localization';
-import type { Diagnostic, LocalHtmlPolicy, LocalNode, LocalRuntime, LocalValue } from '../../../local/types';
+import type { Diagnostic, LocalHtmlPolicy, LocalNode, LocalRuntime, LocalValue, SourceRange } from '../../../local/types';
 import type { AuthorAction } from '../../../local/runtime/author-script-protocol';
 import { parseAuthorDeclarations, serializeAuthorDeclarationFallbacks } from '../../../local/css/author-css';
 import type { LocalImageResolver, LocalUrlPolicy } from './LocalDocumentViewCore';
@@ -26,6 +26,7 @@ import {
 import type { LocalValidationState } from './validation-state';
 import type { DependencyLookup } from './view-revision';
 import type { LocalFootnoteIndex } from '../../../local/parsing/footnotes';
+import type { LocalStaticExternalResolver } from './StaticExternalSlot';
 import type { ComponentNetwork } from '../../../runtime-services/network';
 import type { LocalReactConfig, LocalReactRenderEnvironment } from '../../sdk-core';
 import { splitHtmlDetailsChildren } from '../../../local/html/html-details';
@@ -240,8 +241,17 @@ export interface RenderEnv {
   report?: (diagnostics: Diagnostic[]) => void;
 }
 
+export interface LocalStaticExternalSlot {
+  readonly name: string;
+  readonly locale: LocalLocale;
+  readonly range: SourceRange;
+}
+
 export type StaticRenderEnv = Pick<RenderEnv, 'rootRef' | 'urlPolicy' | 'imageResolver' | 'anchors' | 't' | 'locale'
-  | 'footnotes' | 'capabilityPolicy' | 'allowedFrameOrigins' | 'report'> & { mode: 'static'; source: string };
+  | 'footnotes' | 'capabilityPolicy' | 'allowedFrameOrigins' | 'report' | 'trace'> & {
+  mode: 'static'; source: string; renderExternalSlot?: (slot: LocalStaticExternalSlot) => ReactNode;
+  resolveExternalSlot?: LocalStaticExternalResolver;
+};
 export type ProjectionEnv = RenderEnv | StaticRenderEnv;
 
 /**

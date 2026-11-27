@@ -18,7 +18,7 @@ import {
   MAX_LOCAL_PLOT_POINTS,
   MAX_LOCAL_VALIDATIONS,
 } from '../../contracts/limits';
-import type { LocalValidation, LocalValueKind } from '../types';
+import type { LocalNode, LocalValidation, LocalValueKind } from '../types';
 import { parseValidationFields } from '../evaluation/validation';
 
 /**
@@ -26,20 +26,29 @@ import { parseValidationFields } from '../evaluation/validation';
  * budgets. Rows use the ordinary global environment; `key` and the child value
  * attribute additionally see the immutable row locals `item`/`index`.
  */
-export function validateDataTables(state: CompileState): void {
+function attributeReports(state: CompileState, owner: LocalNode, reject?: (node: LocalNode) => void): CompileState {
+  if (!reject) return state;
+  return { ...state, report: (code, ...args) => {
+    if (code.includes('budget')) state.report(code, ...args);
+    else reject(owner);
+  } };
+}
+
+export function validateDataTables(document: CompileState, reject?: (node: LocalNode) => void): void {
   const dataTables: [Entry, Extract<KernelRule, { kind: 'data-table' }>][] = [];
-  for (const entry of state.entries) {
+  for (const entry of document.entries) {
     const rule = kernelRule(entry.kernel, 'data-table');
     if (rule) dataTables.push([entry, rule]);
   }
   if (!dataTables.length) return;
-  const env = expressionEnv(state);
+  const env = expressionEnv(document);
   let totalRows = 0;
   let totalCells = 0;
   let rowsBudgetReported = false;
   let cellsBudgetReported = false;
 
   for (const [entry, rule] of dataTables) {
+    const state = attributeReports(document, entry.node, reject);
     const attrs = state.attrs.get(entry.node.id) ?? {};
     const columns = meaningful(entry.node.children)
       .filter((child) => (child.type === 'component' || child.type === 'hostComponent') && child.name === rule.child);
@@ -145,14 +154,14 @@ export function validateDataTables(state: CompileState): void {
  * tag itself stays in the tree so the renderer can place the hint; unlike
  * `<computed>`, it is not stripped.
  */
-export function validateValidations(state: CompileState): LocalValidation[] {
+export function validateValidations(document: CompileState, reject?: (node: LocalNode) => void): LocalValidation[] {
   const validations: LocalValidation[] = [];
   let declarations = 0;
   let budgetReported = false;
-  const writable = Object.keys(state.bindingKinds);
-  const env = expressionEnv(state);
+  const writable = Object.keys(document.bindingKinds);
+  const env = expressionEnv(document);
 
-  for (const entry of state.entries) {
+  for (const entry of document.entries) {
     const rule = kernelRule(entry.kernel, 'validation-rule');
     if (!rule) continue;
     declarations += 1;
@@ -161,7 +170,7 @@ export function validateValidations(state: CompileState): LocalValidation[] {
     if (declarations > maxRules) {
       if (!budgetReported) {
         budgetReported = true;
-        state.report(
+        document.report(
           'local.validation.budget',
           `The document declares more than ${maxRules} validation rules; rules in hidden regions count too.`,
           node.range.start,
@@ -174,7 +183,7 @@ export function validateValidations(state: CompileState): LocalValidation[] {
       entry.parent
       && (entry.parent.kernel.form !== 'container' || kernelRule(entry.parent.kernel, 'data-table') !== undefined)
     ) {
-      state.report(
+      document.report(
         'local.validation.placement',
         `<${entry.name}> can appear in normal prose or a container, but not inside inline content or a data table.`,
         node.range.start,
@@ -182,6 +191,7 @@ export function validateValidations(state: CompileState): LocalValidation[] {
       );
     }
 
+    const state = attributeReports(document, node, reject);
     const attrs = state.attrs.get(node.id) ?? {};
     let expression = '';
     let dependencies: string[] = [];

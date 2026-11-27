@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { bundleAuthorWorker } from './scripts/bundle-author-worker';
+import { packVisualStyles } from './scripts/pack-visual-styles';
 
 const pluginEntries = Object.fromEntries(
   ['forms', 'network', 'navigation', 'data', 'chart', 'plot', 'diagram', 'gallery'].map((name) => [
@@ -13,7 +14,7 @@ const reactPackEntries = Object.fromEntries(['controls', 'layout', 'data', 'visu
 ]));
 
 export default defineConfig({
-  plugins: [bundleAuthorWorker(), {
+  plugins: [bundleAuthorWorker(), packVisualStyles(), {
     name: 'optional-print-css',
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'reactive-md-print.css', source: readFileSync(new URL('./src/print.css', import.meta.url), 'utf8') });
@@ -49,6 +50,8 @@ export default defineConfig({
         ...reactPackEntries,
         'reactive-md-export': fileURLToPath(new URL('./src/export/index.ts', import.meta.url)),
         'reactive-md-react-server': fileURLToPath(new URL('./src/react/server.tsx', import.meta.url)),
+        'reactive-md-react-static': fileURLToPath(new URL('./src/react/rendering/document/LocalStaticDocumentView.tsx', import.meta.url)),
+        'reactive-md-react-static-server': fileURLToPath(new URL('./src/react/static-server.tsx', import.meta.url)),
         'reactive-md-standalone-host': fileURLToPath(new URL('./src/standalone/library.ts', import.meta.url)),
         'reactive-md-standalone-configured': fileURLToPath(new URL('./src/standalone/host.tsx', import.meta.url)),
         'reactive-md-compiler': fileURLToPath(new URL('./src/compiler/index.ts', import.meta.url)),

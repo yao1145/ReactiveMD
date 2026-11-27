@@ -18,11 +18,13 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   const observer = options?.observer;
   const traceId = observer?.onTrace ? createLocalTraceId() : undefined;
   const started = traceId ? (globalThis.performance?.now() ?? Date.now()) : 0;
+  let parseStartedAt: number | undefined;
   let parsedAt: number | undefined;
-  let publishedAt: number | undefined;
+  let semanticEndedAt: number | undefined;
   const mark = traceId ? (stage: string) => {
+    if (stage === 'parse-start') parseStartedAt = globalThis.performance?.now() ?? Date.now();
     if (stage === 'parseMs') parsedAt = globalThis.performance?.now() ?? Date.now();
-    if (stage === 'publicationMs') publishedAt = globalThis.performance?.now() ?? Date.now();
+    if (stage === 'mathDisplayMs') semanticEndedAt = globalThis.performance?.now() ?? Date.now();
   } : undefined;
   if (traceId) emitLocalTrace(observer, { type: 'compile-start', traceId, timestamp: Date.now() });
   const result = plainCompiledData(compileLocalInternal(source, options, undefined, undefined, mark));
@@ -33,8 +35,8 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   if (traceId) {
     const durationMs = Math.max(0, Math.round((globalThis.performance?.now() ?? Date.now()) - started));
     emitLocalTrace(observer, { type: 'compile-end', traceId, timestamp: Date.now(), status: compileTraceStatus(result), durationMs,
-      ...(parsedAt === undefined ? {} : { parseMs: Math.max(0, Math.round(parsedAt - started)) }),
-      ...(parsedAt === undefined || publishedAt === undefined ? {} : { semanticMs: Math.max(0, Math.round(publishedAt - parsedAt)) }) });
+      ...(parseStartedAt === undefined || parsedAt === undefined ? {} : { parseMs: Math.max(0, Math.round(parsedAt - parseStartedAt)) }),
+      ...(parsedAt === undefined || semanticEndedAt === undefined ? {} : { semanticMs: Math.max(0, Math.round(semanticEndedAt - parsedAt)) }) });
   }
   return result;
 }
@@ -54,6 +56,7 @@ export function compileLocalTracked(
   options?: LocalCompileOptions,
   services?:LocalCompilerServices,
   literalRanges?: readonly SourceRange[],
+  collectPerformance = false,
 ): {
   result: LocalCompileResult; parsed?: ReturnType<typeof parseLocal>;
   semantic?:SemanticCacheStats; timings:Record<string,number>;
@@ -61,7 +64,18 @@ export function compileLocalTracked(
   let parsed: ReturnType<typeof parseLocal> | undefined;
   const now=()=>globalThis.performance?.now?.()??Date.now();
   const started=now(),timings:Record<string,number>={};let previous=started;
-  const mark=(name:string)=>{const time=now();timings[name]=time-previous;previous=time;};
+  let parsedAt: number | undefined;
+  const mark = (name: string) => {
+    if (name === 'parse-start') {
+      if (collectPerformance) previous = now();
+      return;
+    }
+    const time = now();
+    timings[name] = time - previous;
+    previous = time;
+    if (collectPerformance && name === 'parseMs') parsedAt = time;
+    if (parsedAt !== undefined && name === 'mathDisplayMs') timings.semanticMs = time - parsedAt;
+  };
   services?.semantic?.begin(localCompileOptionsKey(options));
   const result = compileLocalInternal(source, options, tree => { parsed = tree; },services,mark,literalRanges);
   timings.totalMs=now()-started;

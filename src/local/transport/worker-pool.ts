@@ -3,10 +3,12 @@ import { compileTraceStatus } from '../compilation/compile-status';
 import { createLocalTraceId, emitLocalTrace, type LocalObserver, type LocalTraceEvent } from '../observability-core';
 import type { LocalCompileOptions, LocalSourcePhase } from '../types';
 import { decodeFlatCompiledData, FLAT_COMPILED_DATA_PROTOCOL } from './flat-compiled-data';
-import { now, safeDuration, snapshotCompileOptions } from './worker-job';
+import { applyLocalResultPatch, cloneLocalCompileResult, diffSourceEdit, LOCAL_RESULT_PATCH_PROTOCOL } from './compile-patch';
+import { DEFAULT_LOCAL_WORKER_DOCUMENTS } from './worker-handler';
+import { localWorkerOptionsKey, now, safeDuration, snapshotCompileOptions } from './worker-job';
 import { isCompileResult } from './worker';
-import type { LocalCompileOutcome, LocalCompileRequest, LocalCompileSchedulerOptions, LocalCompileWorker,
-  LocalCompileResponse, LocalCompileFlatResponse } from './worker';
+import type { LocalCompileOutcome, LocalCompileSchedulerOptions, LocalCompileWorker,
+  LocalCompileWorkerRequest, LocalCompileWorkerResponse } from './worker';
 
 export interface LocalCompilePoolRequest {
   readonly documentId: string;
@@ -76,8 +78,10 @@ interface Task {
   readonly id: number;
   readonly request: LocalCompilePoolRequest;
   readonly queuedAt: number;
+  readonly optionsKey: string;
   readonly eligibleAt: number;
   readonly traceId?: string;
+  priority: number;
   readonly resolve: (outcome: LocalCompilePoolOutcome) => void;
   readonly reject: (error: LocalCompilePoolTaskError) => void;
 }
@@ -87,24 +91,38 @@ interface Flight {
   readonly id: number;
   readonly started: number;
   readonly timeout: ReturnType<typeof setTimeout>;
+  readonly baseline?: Baseline;
+}
+
+interface Baseline {
+  readonly revision: number;
+  readonly optionsKey: string;
+  readonly result: Extract<LocalCompileOutcome['result'], { ok: true }>;
 }
 
 interface Slot {
   readonly id: number;
+  readonly baselines: Map<string, Baseline>;
   worker?: LocalCompileWorker;
   flight?: Flight;
   idle?: ReturnType<typeof setTimeout>;
+  idleSince?: number;
   failed: boolean;
 }
 
 const WARMUP_DOCUMENT = '';
 const AGING_MS = 100;
+const MAX_PRIORITY = 10;
+
+function basePriority(value: number | undefined): number {
+  return Number.isFinite(value) ? Math.max(-MAX_PRIORITY, Math.min(MAX_PRIORITY, value!)) : 0;
+}
 
 function finite(value: number | undefined, fallback: number): number {
   return Number.isFinite(value) ? Math.max(0, Math.min(value!, 2_147_483_647)) : fallback;
 }
 
-/** A bounded multi-document queue. Each slot owns one full-source flight at a time. */
+/** A bounded multi-document queue. Each slot runs one compile flight at a time. */
 export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalCompilePool {
   const capacity = options.workers === 'auto' ? Math.max(1, Math.min(4, globalThis.navigator?.hardwareConcurrency || 2)) : options.workers;
   if (!Number.isSafeInteger(capacity) || capacity < 1 || capacity > 32) throw new RangeError('Worker pool capacity must be between 1 and 32.');
@@ -113,11 +131,10 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
   const timeoutMs = Math.max(1, finite(options.timeoutMs, 10_000));
   const streamingDelayMs = finite(options.streamingDelayMs, 75);
   const idleDisposeMs = options.idleDisposeMs === undefined ? undefined : finite(options.idleDisposeMs, 0);
-  const slots: Slot[] = Array.from({ length: capacity }, (_, id) => ({ id: id + 1, failed: false }));
+  const slots: Slot[] = Array.from({ length: capacity }, (_, id) => ({ id: id + 1, failed: false, baselines: new Map() }));
   const queue = new Set<Task>();
   const pending = new Set<Task>();
   const revisions = new Map<string, number>();
-  const priorities = new Map<string, number>();
   let closed = false;
   let started = false;
   let starting = false;
@@ -128,6 +145,7 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
   let resolveReady!: (event: LocalCompilePoolReadyEvent) => void;
   const ready = new Promise<LocalCompilePoolReadyEvent>(resolve => { resolveReady = resolve; });
   let lastCounts = '';
+  const readinessStartedAt = options.observer?.onTrace ? now() : undefined;
 
   function counts(): LocalCompilePoolCounts {
     let oldest = Number.POSITIVE_INFINITY;
@@ -153,22 +171,25 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     const event: LocalCompilePoolReadyEvent = { status: closed ? 'disposed' : failedWorkers ? 'degraded' : 'ready',
       availableWorkers: slots.filter(slot => slot.worker).length, failedWorkers };
     resolveReady(event);
-    trace('worker-ready', undefined, undefined, event.status);
+    trace('worker-ready', undefined, undefined, event.status, readinessStartedAt === undefined ? undefined : safeDuration(now() - readinessStartedAt));
     queueMicrotask(() => { try { options.onReady?.(event); } catch { /* Isolate host callbacks. */ } });
   }
 
-  function trace(type: LocalTraceEvent['type'], slot: Slot | undefined, task?: Task, status?: string, durationMs?: number): void {
+  function trace(type: LocalTraceEvent['type'], slot: Slot | undefined, task?: Task, status?: string, durationMs?: number,
+    metrics?: Pick<LocalTraceEvent, 'queueMs' | 'parseMs' | 'semanticMs' | 'reuseMs' | 'rebuildMs' | 'compiledBlocks' | 'reusedBlocks'>): void {
     if (!options.observer?.onTrace) return;
     emitLocalTrace(options.observer, { type, traceId: task?.traceId ?? createLocalTraceId(), timestamp: Date.now(),
       workerId: slot?.id, documentId: task?.request.documentId, sourceRevision: task?.request.revision,
-      requestId: task?.id, status, durationMs });
+      requestId: task?.id, sourcePhase: task?.request.sourcePhase, status, durationMs, ...metrics });
   }
 
   function fail(task: Task, kind: LocalCompilePoolTaskErrorKind): void {
     if (!pending.delete(task)) return;
     queue.delete(task);
     task.reject(new LocalCompilePoolTaskError(kind));
-    trace('worker-cancel', slots.find(slot => slot.flight?.task === task), task, kind);
+    const slot = slots.find(item => item.flight?.task === task);
+    if (slot || kind === 'cancelled') for (const item of slots) item.baselines.delete(task.request.documentId);
+    trace('worker-cancel', slot, task, kind);
   }
 
   function resolve(task: Task, outcome: LocalCompileOutcome): void {
@@ -192,9 +213,11 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
         finally { session.dispose(); }
       }
       const duration = safeDuration(now() - before);
+      if (!pending.has(task)) return;
       resolve(task, { source, result, options: compileOptions, duration, mode: 'fallback', sourcePhase,
         metrics: { queueMs: safeDuration(before - task.queuedAt) } });
-      trace('worker-response', undefined, task, compileTraceStatus(result), duration);
+      if (options.observer?.onTrace) trace('worker-response', undefined, task, compileTraceStatus(result), duration,
+        { queueMs: safeDuration(before - task.queuedAt) });
     } catch { fail(task, 'worker-failed'); }
   }
 
@@ -203,6 +226,8 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     slot.idle = undefined;
     const worker = slot.worker;
     slot.worker = undefined;
+    slot.baselines.clear();
+    reportIdle(slot);
     if (!worker) return;
     worker.onmessage = worker.onerror = worker.onmessageerror = null;
     try { worker.terminate(); } catch { /* The slot already owns no worker. */ }
@@ -212,20 +237,28 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     const flight = slot.flight;
     if (flight) clearTimeout(flight.timeout);
     slot.flight = undefined;
+    if (flight && slot.worker && options.observer?.onTrace) slot.idleSince = now();
     return flight;
+  }
+
+  function reportIdle(slot: Slot): void {
+    const idleSince = slot.idleSince;
+    slot.idleSince = undefined;
+    if (idleSince !== undefined && options.observer?.onTrace) trace('worker-idle', slot, undefined, undefined, safeDuration(now() - idleSince));
   }
 
   function workerFailed(slot: Slot, type: 'worker-error' | 'worker-timeout'): void {
     const flight = finish(slot);
     slot.failed = true;
     closeWorker(slot);
-    trace(type, slot, flight?.task, type === 'worker-timeout' ? 'timeout' : 'failed');
+    trace(type, slot, flight?.task, type === 'worker-timeout' ? 'timeout' : 'failed',
+      flight && options.observer?.onTrace ? safeDuration(now() - flight.started) : undefined);
     if (flight?.task) fallback(flight.task);
     reportReady();
     requestDrain();
   }
 
-  function receive(slot: Slot, frame: LocalCompileResponse | LocalCompileFlatResponse | undefined): void {
+  function receive(slot: Slot, frame: LocalCompileWorkerResponse | undefined): void {
     const flight = slot.flight;
     if (!flight || !frame) return;
     const task = flight.task;
@@ -235,37 +268,83 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       trace('worker-stale-response', slot, task, 'stale');
       return;
     }
-    if (task && !pending.has(task)) { finish(slot); requestDrain(); return; }
-    if (!frame.ok) { workerFailed(slot, 'worker-error'); return; }
+    if (task && !pending.has(task)) {
+      finish(slot);
+      if (options.observer?.onTrace) trace('worker-response', slot, task, 'abandoned', safeDuration(now() - flight.started));
+      requestDrain();
+      return;
+    }
+    const retryFull = () => {
+      if (!task || !flight.baseline) return false;
+      slot.baselines.delete(task.request.documentId);
+      finish(slot);
+      if (options.observer?.onTrace) trace('worker-response', slot, task, 'retry', safeDuration(now() - flight.started));
+      if (!closed && pending.has(task)) dispatch(slot, task, true);
+      else requestDrain();
+      return true;
+    };
+    if (!frame.ok) {
+      if (frame.retryFull && retryFull()) return;
+      workerFailed(slot, 'worker-error');
+      return;
+    }
     let result: LocalCompileOutcome['result'];
+    let applyMs: number | undefined;
     try {
-      const decoded = 'flatResult' in frame ? decodeFlatCompiledData(frame.flatResult) : frame.result;
+      const applyStarted = options.observer?.onTrace && ('patch' in frame || 'flatResult' in frame) ? now() : undefined;
+      const decoded = 'patch' in frame
+        ? (flight.baseline && frame.baseRevision === flight.baseline.revision
+          ? applyLocalResultPatch(flight.baseline.result, frame.patch) : null)
+        : 'flatResult' in frame ? decodeFlatCompiledData(frame.flatResult) : frame.result;
+      if (applyStarted !== undefined) applyMs = safeDuration(now() - applyStarted);
       if (!isCompileResult(decoded) || !Number.isFinite(frame.duration) || frame.duration < 0
         || (decoded.ok && decoded.document.source !== (request?.source ?? ''))
         || frame.sourcePhase !== (request?.sourcePhase ?? 'final')) throw new TypeError('Invalid compile result.');
       result = decoded;
-    } catch { workerFailed(slot, 'worker-error'); return; }
+    } catch {
+      if (retryFull()) return;
+      workerFailed(slot, 'worker-error');
+      return;
+    }
     finish(slot);
     const duration = safeDuration(now() - flight.started);
     if (task && request) {
+      for (const item of slots) item.baselines.delete(request.documentId);
+      if (result.ok && request.sourcePhase === 'final' && frame.protocol === LOCAL_RESULT_PATCH_PROTOCOL) {
+        slot.baselines.set(request.documentId, { revision: request.revision, optionsKey: task.optionsKey, result: cloneLocalCompileResult(result) });
+        if (slot.baselines.size > DEFAULT_LOCAL_WORKER_DOCUMENTS) slot.baselines.delete(slot.baselines.keys().next().value!);
+      }
       resolve(task, { source: request.source, result, options: request.options, mode: 'worker', duration: frame.duration,
-        sourcePhase: request.sourcePhase, metrics: { worker: frame.metrics, roundTripMs: duration,
+        sourcePhase: request.sourcePhase, metrics: { worker: frame.metrics, roundTripMs: duration, applyMs,
           queueMs: safeDuration(flight.started - task.queuedAt) } });
-      trace('worker-response', slot, task, compileTraceStatus(result), duration);
+      if (options.observer?.onTrace) trace('worker-response', slot, task, compileTraceStatus(result), duration, {
+        queueMs: safeDuration(flight.started - task.queuedAt), parseMs: frame.metrics?.parseMs, semanticMs: frame.metrics?.semanticMs,
+        reuseMs: frame.metrics?.reuseMs, rebuildMs: frame.metrics?.rebuildMs,
+        compiledBlocks: frame.metrics?.compiledBlocks, reusedBlocks: frame.metrics?.reusedBlocks,
+      });
     } else trace('worker-warmup', slot, undefined, 'ok', duration);
     reportReady();
     requestDrain();
   }
 
-  function dispatch(slot: Slot, task?: Task): void {
+  function dispatch(slot: Slot, task?: Task, forceFull = false): void {
     clearTimeout(slot.idle);
     slot.idle = undefined;
-    const id = task?.id ?? ++sequence;
-    const request: LocalCompileRequest = { id, documentId: task?.request.documentId ?? WARMUP_DOCUMENT,
-      revision: task?.request.revision ?? 0, source: task?.request.source ?? '',
-      sourcePhase: task?.request.sourcePhase ?? 'final', options: task?.request.options,
-      traceId: task?.traceId, requestId: task?.id, sourceRevision: task?.request.revision, flatResults: FLAT_COMPILED_DATA_PROTOCOL };
-    slot.flight = { task, id, started: now(), timeout: setTimeout(() => workerFailed(slot, 'worker-timeout'), timeoutMs) };
+    const id = ++sequence;
+    const documentId = task?.request.documentId ?? WARMUP_DOCUMENT;
+    const base = task?.request.sourcePhase === 'final' && !forceFull ? slot.baselines.get(documentId) : undefined;
+    const baseline = base?.optionsKey === task?.optionsKey ? base : undefined;
+    const correlation = { id, documentId, revision: task?.request.revision ?? 0, protocol: LOCAL_RESULT_PATCH_PROTOCOL,
+      traceId: task?.traceId, requestId: task?.id, sourceRevision: task?.request.revision,
+      ...(task?.traceId ? { collectPerformance: true } : {}) } as const;
+    const request: LocalCompileWorkerRequest = baseline && task
+      ? { ...correlation, baseRevision: baseline.revision, optionsKey: task.optionsKey, targetLength: task.request.source.length,
+        edit: diffSourceEdit(baseline.result.document.source, task.request.source) ?? { from: 0, to: 0, insert: '' } }
+      : { ...correlation, source: task?.request.source ?? '', sourcePhase: task?.request.sourcePhase ?? 'final',
+        options: task?.request.options, flatResults: FLAT_COMPILED_DATA_PROTOCOL };
+    slot.flight = { task, id, baseline, started: now(), timeout: setTimeout(() => workerFailed(slot, 'worker-timeout'), timeoutMs) };
+    reportIdle(slot);
+    if (closed || slot.flight?.id !== id) return;
     if (task) trace('worker-request', slot, task);
     if (closed || slot.flight?.id !== id) return;
     if (task && !pending.has(task)) { finish(slot); return; }
@@ -280,6 +359,7 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       const worker = options.createWorker(slot.id);
       if (closed) { worker.terminate(); return; }
       slot.worker = worker;
+      if (traceEnabled) slot.idleSince = now();
       worker.onmessage = event => { if (slot.worker === worker) receive(slot, event?.data); };
       worker.onerror = worker.onmessageerror = () => { if (slot.worker === worker) workerFailed(slot, 'worker-error'); };
       trace('worker-spawn', slot, undefined, 'ok', traceEnabled ? safeDuration(now() - before) : undefined);
@@ -317,11 +397,11 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       const active = new Set(slots.flatMap(other => other.flight?.task?.request.documentId ?? []));
       const seen = new Set<string>();
       for (const task of queue) {
-        const { documentId, priority } = task.request;
+        const { documentId } = task.request;
         if (active.has(documentId) || seen.has(documentId)) continue;
         seen.add(documentId);
         if (task.eligibleAt > time) { nextWakeup = Math.min(nextWakeup, task.eligibleAt); continue; }
-        const value = (priorities.get(documentId) ?? priority ?? 0) + (time - task.queuedAt) / AGING_MS;
+        const value = task.priority + (time - task.queuedAt) / AGING_MS;
         if (value > score) { next = task; score = value; }
       }
       if (!next) continue;
@@ -355,14 +435,15 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       const compileOptions = snapshotCompileOptions(input.options);
       const sourcePhase = input.sourcePhase ?? compileOptions?.sourcePhase ?? 'final';
       if (sourcePhase !== 'final' && sourcePhase !== 'streaming') return Promise.reject(new LocalCompilePoolTaskError('invalid-request'));
-      const older = options.snapshotPolicy === 'all' ? [] : [...pending].filter(task => task.request.documentId === documentId);
+      const older = options.snapshotPolicy === 'all' ? [] : [...pending].filter(task => task.request.documentId === documentId
+        && (sourcePhase === 'final' || task.request.sourcePhase === 'streaming'));
       if (pending.size - older.length >= maxPending) return Promise.reject(new LocalCompilePoolTaskError('backpressure'));
       revisions.set(documentId, revision);
       const id = ++sequence;
       const queuedAt = now();
       const promise = new Promise<LocalCompilePoolOutcome>((resolve, reject) => {
-        const task: Task = { id, request: { ...input, options: compileOptions, sourcePhase,
-          priority: Number.isFinite(input.priority) ? input.priority : 0 }, queuedAt,
+        const task: Task = { id, request: { ...input, options: compileOptions, sourcePhase }, priority: basePriority(input.priority),
+          queuedAt, optionsKey: localWorkerOptionsKey(compileOptions),
           eligibleAt: queuedAt + (sourcePhase === 'streaming' ? streamingDelayMs : 0),
           traceId: options.observer?.onTrace ? createLocalTraceId() : undefined, resolve, reject };
         queue.add(task);
@@ -373,12 +454,13 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       return promise;
     },
     cancel(documentId) {
+      for (const slot of slots) slot.baselines.delete(documentId);
       for (const task of [...pending]) if (task.request.documentId === documentId) fail(task, 'cancelled');
       requestDrain();
     },
     setPriority(documentId, priority) {
-      if (!closed) priorities.set(documentId, Number.isFinite(priority) ? priority : 0);
-      requestDrain();
+      for (const task of queue) if (task.request.documentId === documentId) task.priority = basePriority(priority);
+      if (queue.size) requestDrain();
     },
     getCounts: counts,
     dispose() {
@@ -388,7 +470,6 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       for (const task of pending) fail(task, 'disposed');
       for (const slot of slots) { finish(slot); closeWorker(slot); }
       revisions.clear();
-      priorities.clear();
       reportReady();
       notify();
     },

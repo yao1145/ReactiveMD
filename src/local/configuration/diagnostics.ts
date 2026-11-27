@@ -96,6 +96,7 @@ const LOCAL_PARSER_CODES = [
   'local.embedding.image',
   'local.embedding.interactive',
   'local.embedding.attribute',
+  'local.embedding.external-slot',
   'local.embedding.declaration',
   'local.render.runtime-required',
   'local.extension.load',

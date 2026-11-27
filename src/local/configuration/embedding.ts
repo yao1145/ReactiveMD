@@ -1,12 +1,13 @@
 import type { LocalEmbeddingOptions } from '../types';
 
-export const LOCAL_EMBEDDING_PROFILE_VERSION = 1;
+export const LOCAL_EMBEDDING_PROFILE_VERSION = 2;
 
 const defaults: Readonly<Required<LocalEmbeddingOptions>> = Object.freeze({
   expressions: 'evaluate',
   onUnsupported: 'error',
   allowImages: true,
   allowInteractive: true,
+  allowExternalSlots: false,
 });
 
 export function readEmbedding(value: unknown): Readonly<Required<LocalEmbeddingOptions>> | null {
@@ -29,6 +30,7 @@ export function readEmbedding(value: unknown): Readonly<Required<LocalEmbeddingO
         break;
       case 'allowImages':
       case 'allowInteractive':
+      case 'allowExternalSlots':
         if (typeof item !== 'boolean') return null;
         profile[key] = item;
         break;

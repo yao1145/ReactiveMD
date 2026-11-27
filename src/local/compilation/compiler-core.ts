@@ -53,7 +53,7 @@ import { validateDataTables, validatePlots, validateValidations } from './compil
 import { cloneValue } from './compiler-values';
 import { attachNodeDependencies } from './dependencies';
 import { compileDocumentCapabilities } from './compiler-capabilities';
-import { applyEmbedding, compileEmbeddingAttributes } from './compiler-embedding';
+import { applyEmbedding, compileEmbeddingAttributes, embeddingFallback, replaceEmbeddingNodes } from './compiler-embedding';
 import { localDocumentRequiresRuntime } from './runtime-requirement';
 
 /**
@@ -180,6 +180,7 @@ export function compileLocalCore(
   capture?: (tree: ParsedLocal) => void,
   mark?: (name: string) => void,
   literalRanges?: readonly SourceRange[],
+  semanticReplay?: { parsed: ParsedLocal; rejectedIds: ReadonlySet<string> },
 ): LocalCompileResult {
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     // Source-shape diagnostics come from the kernel parser; a session parser
@@ -237,11 +238,14 @@ export function compileLocalCore(
 
   let parsed: ParsedLocal;
   try {
-    parsed = services?.parser
+    if (!semanticReplay) mark?.('parse-start');
+    parsed = semanticReplay?.parsed ?? (services?.parser
       ? (services.parser as LiteralRangeParser).parse(source, options, sourceContext, services.rowPlans, literalRanges)
-      : parseLocalCore(source, optionCheck, sourceContext, undefined, undefined, literalRanges);
-    capture?.(parsed);
-    mark?.('parseMs');
+      : parseLocalCore(source, optionCheck, sourceContext, undefined, undefined, literalRanges));
+    if (!semanticReplay) {
+      capture?.(parsed);
+      mark?.('parseMs');
+    }
   } catch (error) {
     report('local.parse', `Cannot parse document: ${error instanceof Error ? error.message : String(error)}`, 0, undefined, {
       key: 'local.parse.document',
@@ -312,6 +316,8 @@ export function compileLocalCore(
   };
 
   applyEmbedding(state, optionCheck.embedding);
+  if (semanticReplay) state.nodes = replaceEmbeddingNodes(state.nodes, node => semanticReplay.rejectedIds.has(node.id)
+    ? embeddingFallback(state, node, optionCheck.embedding, 'local.embedding.attribute') : undefined);
   const capabilities = compileDocumentCapabilities(state, optionCheck.html, optionCheck.maxSyntaxNodes, optionCheck.embedding);
   collectEntries(state.nodes, null, state.entries, state);
   compileEmbeddingAttributes(state, optionCheck.embedding, capabilities);
@@ -330,12 +336,18 @@ export function compileLocalCore(
   mark?.('computationsMs');
   collectDynamicConstraints(state);
 
-  validateExpressions(state);
+  const rejectedIds = optionCheck.embedding.onUnsupported === 'fallback' && !semanticReplay ? new Set<string>() : undefined;
+  const rejectAttribute = rejectedIds && ((node: { id: string }) => rejectedIds.add(node.id));
+  validateExpressions(state, rejectAttribute);
   mark?.('expressionsMs');
-  validateDataTables(state);
+  validateDataTables(state, rejectAttribute);
   mark?.('dataTablesMs');
-  const validations = validateValidations(state);
+  const validations = validateValidations(state, rejectAttribute);
   mark?.('validationsMs');
+  if (rejectedIds?.size && !diagnostics.some(item => item.severity === 'error' && item.phase === 'resource')) {
+    // Rebuild the semantic model after pruning invalid components and their bindings.
+    return compileLocalCore(source, options, optionCheck, services, undefined, mark, literalRanges, { parsed, rejectedIds });
+  }
   validatePlots(state);
   mark?.('plotsMs');
   validateTables(state);

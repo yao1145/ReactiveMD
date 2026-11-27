@@ -14,6 +14,7 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
   'local.embedding.image': { en: 'Images are disabled for this document.', zh: '此文档已禁用图片。' },
   'local.embedding.interactive': { en: 'Interactive content is disabled for this document.', zh: '此文档已禁用交互内容。' },
   'local.embedding.attribute': { en: 'This component has an unsupported attribute or attribute value.', zh: '此组件含有不支持的属性或属性值。' },
+  'local.embedding.external-slot': { en: 'An external slot requires one valid slot name.', zh: '静态宿主槽位需要一个有效的 slot 名称。' },
   'local.embedding.declaration': { en: 'This declaration requires expression evaluation.', zh: '此声明需要表达式求值。' },
   'local.render.runtime-required': { en: 'This document requires a runtime to render.', zh: '此文档需要运行时才能渲染。' },
   'local.extension.load': { en: 'Loading component…', zh: '正在加载组件…' },

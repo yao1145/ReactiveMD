@@ -1,14 +1,16 @@
 import type { Diagnostic } from './types';
+import type { LocalSourcePhase } from './types';
 
 export interface LocalTraceEvent {
   readonly type: 'compile-start' | 'compile-end' | 'worker-request' | 'worker-response'
     | 'worker-timeout' | 'worker-stale-response' | 'worker-cancel' | 'worker-error'
-    | 'worker-spawn' | 'worker-ready' | 'worker-warmup'
-    | 'component-load-start' | 'component-load-end' | 'render-mount' | 'render-unmount'
+    | 'worker-spawn' | 'worker-ready' | 'worker-warmup' | 'worker-idle'
+    | 'component-load-start' | 'component-load-end' | 'render-mount' | 'render-unmount' | 'render-retained'
     | 'export-start' | 'export-end' | 'export-cancel' | 'export-error';
   readonly traceId: string;
   readonly requestId?: number;
   readonly sourceRevision?: number;
+  readonly sourcePhase?: LocalSourcePhase;
   readonly documentId?: string;
   readonly workerId?: number;
   readonly componentName?: string;
@@ -19,6 +21,12 @@ export interface LocalTraceEvent {
   readonly durationMs?: number;
   readonly parseMs?: number;
   readonly semanticMs?: number;
+  readonly reuseMs?: number;
+  readonly rebuildMs?: number;
+  readonly compiledBlocks?: number;
+  readonly reusedBlocks?: number;
+  readonly queueMs?: number;
+  readonly mountedMs?: number;
   readonly code?: string;
   readonly status?: string;
   readonly stage?: string;

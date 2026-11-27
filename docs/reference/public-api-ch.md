@@ -28,6 +28,8 @@
 | `reactive-md/react/unstyled` | ESM | 是 | 否 | 同一渲染器，但不产生样式表副作用 |
 | `reactive-md/react/minimal` | ESM | 是 | 否 | 基于 18 个组件精简预设的渲染器 |
 | `reactive-md/react/packed` | ESM | 是 | 否 | 组合和渲染宿主选定的 React 预设 |
+| `reactive-md/react/static` | ESM | 是 | 否 | 渲染编译器判定可静态输出的文档，无需运行时或编译会话 |
+| `reactive-md/react/static/server` | ESM | 是 | 是 | 将同一静态视图渲染为可水合的服务端标记 |
 | `reactive-md/react/server` | ESM | 是 | 是 | 严格 SSR 适配器，返回标记或诊断 |
 | `reactive-md/react/runtime` | ESM | 是 | 否 | 面向组件的 React hooks：计时、帧、滑动、按键、状态 |
 | `reactive-md/sdk` | ESM | 否 | 否 | 组件、预设与主题清单定义及校验 |
@@ -50,7 +52,7 @@
 | `reactive-md/testing/browser` | ESM | 否 | 否 | 浏览器生命周期合规，可选 Playwright 驱动 |
 | `reactive-md/runtime` | ESM | 否 | 否 | 文档标识、种子、随机、调度、组件状态注册表、网络通道 |
 | `reactive-md/runtime/browser` | ESM | 否 | 否 | `localStorage` 持久化、页面隐藏刷写、HTTP/SSE、WebSocket、WebRTC 适配 |
-| `reactive-md/observability` | ESM | 否 | 否 | 观察编译与 Worker 事件、生成诊断报告 |
+| `reactive-md/observability` | ESM | 否 | 否 | 观察编译、Worker 和渲染事件，生成诊断与性能报告 |
 | `reactive-md/pdf` | ESM | 否 | 是 | 将准备好的静态 HTML 渲染为 PDF 字节 |
 | `reactive-md/styles.css` | CSS | — | — | 文档、组件与主题样式 |
 | `reactive-md/styles/minimal.css` | CSS | — | — | 精简预设所需样式 |
@@ -64,13 +66,17 @@
 
 ### 嵌入与多文档编译
 
-`LocalCompileOptions.embedding` 的默认值是 `{ expressions: 'evaluate', onUnsupported: 'error', allowImages: true, allowInteractive: true }`。`expressions: 'literal'` 在正文和兼容的字符串属性中保留 `{{ ... }}` 原文。通过编译 `config` 选择组件注册表，通过现有 HTML 权限字段控制原生 HTML 能力。
+`LocalCompileOptions.embedding` 的默认值是 `{ expressions: 'evaluate', onUnsupported: 'error', allowImages: true, allowInteractive: true, allowExternalSlots: false }`。`expressions: 'literal'` 在正文和兼容的字符串属性中保留插值定界符。通过编译 `config` 选择组件注册表，通过现有 HTML 权限字段控制原生 HTML 能力。
 
-启用 `onUnsupported: 'fallback'` 后，编译器将不支持的节点按源码文本展示，并在 `node.fallback` 中记录诊断码和 UTF-16 范围。编译成功的文档带有 `document.requiresRuntime`。将 `requiresRuntime: false` 的文档传给 `LocalStaticDocumentView`，或传给 `reactive-md/react/server` 的 `renderLocalStaticMarkup`，在服务端取得 `{ ok, markup, diagnostics }`。字面模式支持 `<if when="true">` 和 `<if when="false">`。
+启用 `onUnsupported: 'fallback'` 后，受限节点和表达式属性无效的组件会保留为转义后的原文。`node.fallback` 记录诊断码和 UTF-16 范围，降级子树会从运行时元数据中移除。成功编译会写入 `document.requiresRuntime`。`requiresRuntime: false` 的文档可交给 `reactive-md/react/static` 的 `LocalStaticDocumentView`，或 `reactive-md/react/static/server` 的 `renderLocalStaticMarkup`。后者成功时返回标记和诊断，失败时返回结构化诊断。字面模式支持 `<if when="true">` 和 `<if when="false">`。
+
+启用 `allowExternalSlots` 后，可用 `<external slot="references" />` 声明宿主槽位。通过 `renderExternalSlot({ name, locale, range })` 同步提供内容，或由 `resolveExternalSlot({ name, signal })` 在浏览器挂载后返回 React 组件或 Promise。服务端在配置 resolver 时输出稳定的加载占位。未提供宿主渲染器的槽位显示不可用占位。宿主先确定允许的槽位名称，再加载对应实现。见[静态嵌入示例](../../examples/integration/README-ch.md#静态嵌入)。
 
 从 `reactive-md` 导入 `createLocalRuntimePool()`，可在兼容的文档与运行时选项之间复用租约。消费方卸载时释放租约，也可使用 `LocalPooledDocumentView` 由 React 生命周期管理租约。`stableComponentKeys` 在同一父级的追加更新中保留既有 React 槽位。
 
-`createLocalCompilePool()` 接收 `{ documentId, revision, source, options, sourcePhase, priority }`，每份文档的 revision 递增。默认 `latest` 策略以 `superseded` 拒绝被取代的任务。需要按序处理每个 revision 时使用 `all`，并处理队列满时的 `backpressure`。池向 Worker 发送完整源码。传入 `LocalObserver` 可读取池事件，再将结果的 trace ID、文档 ID 和 revision 作为 `trace` 传给 React 视图，即可关联装载与挂载事件。
+`createLocalCompilePool()` 接收 `{ documentId, revision, source, options, sourcePhase, priority }`，每份文档的 revision 递增。默认 `latest` 策略以 `superseded` 拒绝被取代的任务；新流式快照排在待处理的最终稿之后。需要逐个处理 revision 时使用 `all`，并处理队列满时的 `backpressure`。协商支持 `patch-v1` 的 Worker 可复用同一文档的兼容最终稿基线；基线被回收时，池会以完整源码重试。传入 `LocalObserver` 可读取池事件，再将结果的 trace ID、文档 ID 和 revision 作为 `trace` 传给 React 视图，即可关联装载与挂载事件。
+
+基础优先级限在 `[-10, 10]`，默认值为 `0`，每排队 100 毫秒加一分。`setPriority` 更新该文档已排队的请求，正在运行的任务继续执行。
 
 ### `reactive-md`
 
@@ -187,7 +193,7 @@ React 接口完全相同，但不导入 `styles.css`。宿主自行注入样式�
 
 ## 组件 SDK 与预设
 
-通过 `reactive-md/react/packed` 的 `createReactHost({ presets })` 组合所选 React pack。编译传入 `host.compileOptions`，渲染传入 `host.reactConfig`，并将 `host.css` 与文档基础样式一起加载。`visuals` 依赖 `data`。`deriveLocalPreset(preset, { include })` 或 `{ exclude }` 按原顺序选取语义清单，保留预设声明的依赖。
+通过 `reactive-md/react/packed` 的 `createReactHost({ presets })` 组合所选 React pack。编译传入 `host.compileOptions`，渲染传入 `host.reactConfig`，并将 `host.css` 与文档基础样式一起加载。`deriveLocalReactPreset(pack, { include })` 或 `{ exclude }` 同时选取语义清单和 React 实现，保留清单引用的样式。仅编译时可用 `deriveLocalPreset` 选择语义清单。两者均保留预设声明的依赖。按需导入各 pack 以控制打包依赖。
 
 `createDeferredReactConfig(config, { components, resolver })` 让 React 按需装载编译文档已声明的组件。Resolver 接收 `{ name, definition, signal }`，同一清单身份的多个槽位共用请求。SSR 输出加载占位，客户端挂载后开始装载。需要直接输出组件的 SSR 标记时，可预先注册实现。
 
@@ -217,7 +223,7 @@ React 接口完全相同，但不导入 `styles.css`。宿主自行注入样式�
 | `reactive-md/presets/minimal` | `minimalPreset`，id `reactive-md/minimal`，18 个组件：`input`、`textarea`、`number`、`slider`、`toggle`、`date`、`select`、`option`、`jump`、`anchor`、`text`、`section`、`panel`、`card`、`grid`、`if`、`alert`、`badge` |
 | `reactive-md/presets/minimal/react` | `minimalReactPresetPackage`：上述 18 个组件的 React 实现 |
 
-packs 本身就是普通预设，宿主选择一个或多个，但不能与 `defaultPreset` 同时使用。`visualsPack` 依赖 `dataPack`，因为 `plot` 与 `data-table` 共用 `column` 布局组件；`layoutPack` 也声明了 `column`，所以 `layoutPack` 与 `dataPack` 不能同时安装。
+packs 是普通预设，可为 packed React 宿主选择一个或多个。`visualsPack` 依赖 `dataPack`，因为 `plot` 与 `data-table` 共用 `column` 布局组件。组合 `layout` 和 `data` 时，packed React 宿主只登记一次共用的 `column`。同名组件的契约或实现冲突时，宿主会报配置错误。
 
 ### 可选插件包
 
@@ -461,7 +467,9 @@ IIFE 产物，暴露全局 `ReactiveMD`，加载时对 `application/reactive-md+
 
 ## 可观察性
 
-从 `reactive-md/observability` 导入 `LocalObserver`、`LocalTraceEvent`、`createDiagnosticReport` 和 `formatLocalDiagnostic`。通过 `compileLocal(source, { observer })` 或 `new LocalCompileScheduler({ observer, createWorker, onResult })` 订阅事件。回调接收独立副本，回调异常由调用边界隔离。
+从 `reactive-md/observability` 导入 `LocalObserver`、`LocalTraceEvent`、`createDiagnosticReport`、`createLocalPerformanceReport` 和 `formatLocalDiagnostic`。通过 `compileLocal(source, { observer })` 或 `new LocalCompileScheduler({ observer, createWorker, onResult })` 订阅事件。回调接收独立副本，回调异常由调用边界隔离。
+
+`createLocalPerformanceReport(events)` 汇总最近最多 512 条事件，按 trace、文档 revision、Worker 槽位和组件聚合数据。成功时长、失败、取消和预算拒绝分别统计。Worker 时长涵盖排队、忙碌及已结束的空闲区间。`render-mount.durationMs` 从渲染生命周期标记计至其 effect setup，`render-unmount.mountedMs` 从 setup 计至 cleanup。组件从流式快照切换到最终稿时若保持挂载，会发出 `render-retained`。开发环境的 effect 重放单独计数。
 
 ```ts
 import { compileLocal } from 'reactive-md';

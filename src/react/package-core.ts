@@ -1,6 +1,7 @@
 import { createLocalConfig } from '../assemblies/default-config';
 import { defineLocalComponent, localComponentDigest } from '../sdk/manifest';
 import { readLocalPresetPackage } from '../sdk/preset';
+import { deriveLocalPreset, type LocalPresetSelection } from '../sdk/preset';
 import { LOCAL_COMPONENT_PROTOCOL, LOCAL_REACT_PRESET_PROTOCOL, type LocalComponentDefinition, type LocalConfig, type LocalPresetPackage } from '../sdk/types';
 import type { LocalStyleResource, LocalThemePackage } from '../sdk/theme';
 import { readLocalExportResources } from '../export/resources';
@@ -100,6 +101,21 @@ export function defineReactPreset(input: LocalReactPresetPackage): LocalReactPre
     resources,
     ...(input.notices === undefined ? {} : { notices: Object.freeze([...input.notices]) }),
   });
+}
+
+/** Keep the React implementations and declared resources for a semantic subset. */
+export function deriveLocalReactPreset(input: LocalReactPresetPackage, selection: LocalPresetSelection): LocalReactPresetPackage {
+  const original = defineReactPreset(input);
+  const preset = deriveLocalPreset(original.preset, selection);
+  const ids = new Set(preset.components.map(definition => definition.id));
+  const styles = new Set(preset.components.flatMap(definition => definition.styles ?? []));
+  const declared = new Set(original.preset.components.flatMap(definition => definition.styles ?? []));
+  const resources = original.resources?.filter(resource => styles.has(resource.id) || (ids.size > 0 && !declared.has(resource.id)));
+  for (const style of styles) {
+    if (!resources?.some(resource => resource.id === style)) throw new TypeError(`Preset ${preset.id} is missing style resource ${style}.`);
+  }
+  return defineReactPreset({ ...original, preset, resources,
+    components: original.components.filter(component => ids.has(component.definition.id)) });
 }
 
 /** One authoring declaration; its manifest stays plain data for Worker use. */

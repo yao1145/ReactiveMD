@@ -29,6 +29,7 @@ import { ZoomableImage } from '../image/image-view';
 import { LatexView } from '../math-view';
 import type { Localize } from '../../localization';
 import { ExtendedHtmlFragment } from './ExtendedHtmlFragment';
+import { StaticExternalSlot } from './StaticExternalSlot';
 import { splitHtmlDetailsChildren } from '../../../local/html/html-details';
 
 function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' {
@@ -789,6 +790,16 @@ function renderNode(
 
     case 'hostComponent':
       return 'runtime' in env ? renderHostComponent(env, node, key, visible) : null;
+
+    case 'externalSlot': {
+      const name = node.name ?? '';
+      return <LocalErrorBoundary key={key} revision={env.trace?.sourceRevision ?? 0}>
+        <StaticExternalSlot slot={{ name, locale: env.locale, range: node.range }} trace={env.trace} report={env.report}
+          position={env.report ? () => sourcePosition(env, node.range.start) : undefined}
+          render={'renderExternalSlot' in env ? env.renderExternalSlot : undefined}
+          resolver={'resolveExternalSlot' in env ? env.resolveExternalSlot : undefined} />
+      </LocalErrorBoundary>;
+    }
 
     default:
       if (node.children && node.children.length) {

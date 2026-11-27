@@ -20,9 +20,15 @@ export function embeddingFallback(state: CompileState, node: LocalNode, profile:
   };
 }
 
+export function replaceEmbeddingNodes(nodes: LocalNode[], replace: (node: LocalNode) => LocalNode | undefined): LocalNode[] {
+  return nodes.map(node => replace(node) ?? (node.children?.length
+    ? { ...node, children: replaceEmbeddingNodes(node.children, replace) }
+    : node));
+}
+
 export function applyEmbedding(state: CompileState, profile: Embedding): void {
   const literal = profile.expressions === 'literal';
-  if (!literal && profile.onUnsupported === 'error' && profile.allowImages && profile.allowInteractive) return;
+  if (!literal && profile.onUnsupported === 'error' && profile.allowImages && profile.allowInteractive && !profile.allowExternalSlots) return;
   const parserFallbacks = new Map<string, Diagnostic>();
   const errors = new Set<Diagnostic>();
   for (const item of state.diagnostics) {
@@ -48,15 +54,23 @@ export function applyEmbedding(state: CompileState, profile: Embedding): void {
     }
     if (node.type === 'component' || node.type === 'hostComponent') {
       const name = node.name ?? '';
+      if (name === 'external' && profile.allowExternalSlots && Object.hasOwn(node.attrs ?? {}, 'slot')) {
+        const slot = node.attrs!.slot;
+        if (Object.keys(node.attrs!).length !== 1 || node.children?.length || !/^[a-z][a-z0-9_-]{0,63}$/.test(slot)) {
+          return embeddingFallback(state, node, profile, 'local.embedding.external-slot');
+        }
+        return { type: 'externalSlot', id: node.id, range: node.range, name: slot };
+      }
       const definition = state.definitionsByName.get(name);
-      if (!profile.allowInteractive && (definition?.capabilities.interactive || (!definition && node.type === 'hostComponent'))) {
+      const staticIf = literal && definition?.id === 'reactive-md/if' && (node.attrs?.when === 'true' || node.attrs?.when === 'false');
+      if (!profile.allowInteractive && !staticIf && (definition?.capabilities.interactive || (!definition && node.type === 'hostComponent'))) {
         return embeddingFallback(state, node, profile, 'local.embedding.interactive');
       }
       if (literal && (name === 'const' || name === 'computed' || name === 'validation' || name === 'external')) {
         return embeddingFallback(state, node, profile, 'local.embedding.declaration');
       }
       if (literal) {
-        if (definition?.id === 'reactive-md/if' && (node.attrs?.when === 'true' || node.attrs?.when === 'false')) {
+        if (staticIf) {
           node = { ...node, literalAttributes: true };
         }
         const templates = Object.entries(node.attrs ?? {}).filter(([, value]) => {
@@ -117,15 +131,11 @@ export function compileEmbeddingAttributes(state: CompileState, profile: Embeddi
   if (rejected.size === 0) return;
 
   const excludedIds = new Set<string>();
-  const rewrite = (node: LocalNode): LocalNode => {
+  state.nodes = replaceEmbeddingNodes(state.nodes, node => {
     const replacement = rejected.get(node);
-    if (replacement) {
-      for (const discarded of walkLocalNodes([node])) excludedIds.add(discarded.id);
-      return replacement;
-    }
-    return node.children?.length ? { ...node, children: node.children.map(rewrite) } : node;
-  };
-  state.nodes = state.nodes.map(rewrite);
+    if (replacement) for (const discarded of walkLocalNodes([node])) excludedIds.add(discarded.id);
+    return replacement;
+  });
   state.entries.length = 0;
   collectEntries(state.nodes, null, state.entries, state);
   if (capabilities) {

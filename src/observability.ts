@@ -12,4 +12,5 @@ export type {
 } from './local/observability';
 export type { LocalObservabilityMessageKey } from './local/observability-messages';
 export { formatLocalDiagnostic } from './local/configuration/diagnostics';
+export { createLocalPerformanceReport, type LocalPerformanceReport } from './local/performance-report';
 export type { Diagnostic, SourceRange } from './local/types';

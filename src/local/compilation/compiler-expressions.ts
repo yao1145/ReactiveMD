@@ -8,7 +8,7 @@ import {
   typeName,
 } from './compiler-values';
 import { compileExpression, LocalExpressionError, type LocalExpression } from '../evaluation/expression/compile';
-import type { LocalBinding, LocalDocument, LocalValue, LocalValueKind } from '../types';
+import type { LocalBinding, LocalDocument, LocalNode, LocalValue, LocalValueKind } from '../types';
 import { walkLocalNodes } from '../source/source-context';
 import { kernelRule, kernelRules, type KernelRule } from '../../contracts/component-kernel';
 import { isKernelAnchorId, kernelNavigationIssues } from '../configuration/kernel-value-rules';
@@ -16,13 +16,18 @@ import { createHeadingAnchors } from '../parsing/heading-anchors';
 import type { AttrMap, AttrState } from './compiler-structure';
 import { MAX_LOCAL_DATA_TABLE_ROWS } from '../../contracts/limits';
 
-export function validateExpressions(state: CompileState): void {
+export function validateExpressions(state: CompileState, rejectAttribute?: (node: LocalNode) => void): void {
   const env = expressionEnv(state);
   const names = Object.keys(env);
+  let attributeOwner: LocalNode | undefined;
+  const report: CompileState['report'] = (code, ...args) => {
+    if (attributeOwner && rejectAttribute && !code.includes('budget')) rejectAttribute(attributeOwner);
+    else state.report(code, ...args);
+  };
 
   const expressionError = (error: unknown, base: number): void => {
     if (error instanceof LocalExpressionError) {
-      state.report(
+      report(
         `local.expression.${error.code || 'invalid'}`,
         `Expression error: ${error.message}`,
         base + (Number.isFinite(error.offset) ? error.offset : 0),
@@ -34,7 +39,7 @@ export function validateExpressions(state: CompileState): void {
       );
       return;
     }
-    state.report('local.expression.invalid', { key: 'local.expression.error', params: { detail: error instanceof Error ? error.message : String(error), code: 'invalid' } }, base, undefined);
+    report('local.expression.invalid', { key: 'local.expression.error', params: { detail: error instanceof Error ? error.message : String(error), code: 'invalid' } }, base, undefined);
   };
 
   const validate = (
@@ -43,7 +48,7 @@ export function validateExpressions(state: CompileState): void {
     expected: 'text' | 'number' | 'boolean' | 'string',
   ): LocalValueKind | null => {
     if (!expression.trim()) {
-      state.report('local.expression.empty', { key: 'local.expression.empty' }, base, undefined);
+      report('local.expression.empty', { key: 'local.expression.empty' }, base, undefined);
       return null;
     }
     let compiled: LocalExpression | null = null;
@@ -58,7 +63,7 @@ export function validateExpressions(state: CompileState): void {
     for (const dependency of compiled.dependencies) {
       if (!Object.hasOwn(env, dependency)) {
         const suggestion = suggestName(dependency, names);
-        state.report('local.binding.unknown', suggestion
+        report('local.binding.unknown', suggestion
             ? { key: 'local.binding.unknown.suggestion', params: { name: dependency, suggestion } }
             : { key: 'local.binding.unknown', params: { name: dependency } }, base + Math.max(0, expression.indexOf(dependency)), undefined);
         missing = true;
@@ -73,13 +78,13 @@ export function validateExpressions(state: CompileState): void {
       return null;
     }
     if (expected === 'number' && kind !== 'number') {
-      state.report('local.type', { key: 'local.type.number', params: { kind: typeName(kind) } }, base, undefined);
+      report('local.type', { key: 'local.type.number', params: { kind: typeName(kind) } }, base, undefined);
     } else if (expected === 'boolean' && kind !== 'boolean') {
-      state.report('local.type', { key: 'local.type.boolean', params: { kind: typeName(kind) } }, base, undefined);
+      report('local.type', { key: 'local.type.boolean', params: { kind: typeName(kind) } }, base, undefined);
     } else if (expected === 'string' && kind !== 'string') {
-      state.report('local.type', { key: 'local.type.string', params: { kind: typeName(kind) } }, base, undefined);
+      report('local.type', { key: 'local.type.string', params: { kind: typeName(kind) } }, base, undefined);
     } else if (expected === 'text' && (kind === 'array' || kind === 'number-array')) {
-      state.report('local.type', { key: 'local.type.array' }, base, undefined);
+      report('local.type', { key: 'local.type.array' }, base, undefined);
     }
     return kind;
   };
@@ -98,6 +103,7 @@ export function validateExpressions(state: CompileState): void {
     // Declaration values are expressions, not text templates; they are
     // validated by resolveComputations with their own dependency graph.
     if (entry.name === 'computed' || entry.name === 'const') continue;
+    attributeOwner = entry.node;
     const attrs = state.attrs.get(entry.node.id) ?? {};
     const scoped = new Set<string>();
     const fullRequired = new Set<string>();
@@ -125,7 +131,7 @@ export function validateExpressions(state: CompileState): void {
         }
         const scanned = scanInterpolations(info.raw);
         for (const offset of scanned.unterminated) {
-          state.report('local.interpolation', { key: 'local.interpolation.unclosed' }, info.offset + offset, undefined);
+          report('local.interpolation', { key: 'local.interpolation.unclosed' }, info.offset + offset, undefined);
         }
         for (const segment of scanned.segments) {
           validate(segment.expression, info.offset + segment.start, 'text');
@@ -146,7 +152,7 @@ export function validateExpressions(state: CompileState): void {
       if (entry.node.literalAttributes && entry.definition?.id === 'reactive-md/if'
         && name === 'when' && typeof info?.value === 'boolean') continue;
       if (info && !singleFullInterpolation(info.raw)) {
-        state.report('local.attribute.interpolation', { key: 'local.attribute.interpolation', params: { name, component: entry.name } }, info.offset, undefined);
+        report('local.attribute.interpolation', { key: 'local.attribute.interpolation', params: { name, component: entry.name } }, info.offset, undefined);
       }
     }
   }

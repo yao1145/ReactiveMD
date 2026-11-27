@@ -28,6 +28,8 @@ The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. Rea
 | `reactive-md/react/unstyled` | ESM | Yes | No | The same renderer without the stylesheet side effect |
 | `reactive-md/react/minimal` | ESM | Yes | No | Renderer built on the 18-component minimal preset |
 | `reactive-md/react/packed` | ESM | Yes | No | Compose and render explicitly selected React presets |
+| `reactive-md/react/static` | ESM | Yes | No | Render a compiler-proven static document without a runtime or compile session |
+| `reactive-md/react/static/server` | ESM | Yes | Yes | Render the same static view to hydratable server markup |
 | `reactive-md/react/server` | ESM | Yes | Yes | Strict SSR adapter returning markup or diagnostics |
 | `reactive-md/react/runtime` | ESM | Yes | No | Component-facing React hooks: timers, frames, swipe, keys, state |
 | `reactive-md/sdk` | ESM | No | No | Component, preset and theme manifests with validation |
@@ -50,7 +52,7 @@ The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. Rea
 | `reactive-md/testing/browser` | ESM | No | No | Browser lifecycle compliance with an optional Playwright driver |
 | `reactive-md/runtime` | ESM | No | No | Document identity, seeds, random, scheduler, component-state registry, network channels |
 | `reactive-md/runtime/browser` | ESM | No | No | `localStorage` persistence, page-hide flush, HTTP/SSE, WebSocket, WebRTC adapters |
-| `reactive-md/observability` | ESM | No | No | Observe compile and Worker events and produce diagnostic reports |
+| `reactive-md/observability` | ESM | No | No | Observe compilation, Workers and rendering, and produce diagnostic and performance reports |
 | `reactive-md/pdf` | ESM | No | Yes | Render prepared static HTML to PDF bytes through Playwright |
 | `reactive-md/styles.css` | CSS | — | — | Document, component and theme styles |
 | `reactive-md/styles/minimal.css` | CSS | — | — | Styles for the minimal preset |
@@ -64,13 +66,17 @@ The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. Rea
 
 ### Embedding and multiple documents
 
-`LocalCompileOptions.embedding` defaults to `{ expressions: 'evaluate', onUnsupported: 'error', allowImages: true, allowInteractive: true }`. `expressions: 'literal'` preserves `{{ ... }}` in text and compatible string attributes. Use the compile `config` to select the component registry. HTML permissions come from the existing capability flags.
+`LocalCompileOptions.embedding` defaults to `{ expressions: 'evaluate', onUnsupported: 'error', allowImages: true, allowInteractive: true, allowExternalSlots: false }`. `expressions: 'literal'` preserves interpolation delimiters in text and compatible string attributes. Use the compile `config` to select the component registry. HTML permissions come from the existing capability flags.
 
-With `onUnsupported: 'fallback'`, the compiler preserves an unsupported node as escaped source and records its code and UTF-16 range in `node.fallback`. Successful compilations report `document.requiresRuntime`. Pass a document with `requiresRuntime: false` to `LocalStaticDocumentView` or `renderLocalStaticMarkup` from `reactive-md/react/server`. The latter returns `{ ok, markup, diagnostics }` on success. The literal profile supports `<if when="true">` and `<if when="false">`.
+With `onUnsupported: 'fallback'`, the compiler preserves an unsupported node or a component with an invalid expression attribute as escaped source, records its code and UTF-16 range in `node.fallback`, and excludes its subtree from runtime metadata. Successful compilations report `document.requiresRuntime`. Pass a document with `requiresRuntime: false` to `LocalStaticDocumentView` from `reactive-md/react/static` or `renderLocalStaticMarkup` from `reactive-md/react/static/server`. The server function returns markup and diagnostics on success, and structured diagnostics on failure. The literal profile supports `<if when="true">` and `<if when="false">`.
+
+Enable `allowExternalSlots` for `<external slot="references" />`. The host can supply content synchronously through `renderExternalSlot({ name, locale, range })`. `resolveExternalSlot({ name, signal })` can return a React component or a promise, and is invoked after mounting in the browser. Server rendering with a resolver emits a stable loading placeholder. Slots with no host renderer show an unavailable placeholder. Choose permitted slot names in the host before loading any implementation. See the [static embed example](../../examples/integration/README.md#static-embed).
 
 `createLocalRuntimePool()` from `reactive-md` provides leases scoped to compatible document and runtime options. Release each lease when the consumer unmounts, or use `LocalPooledDocumentView` to tie lease ownership to the React lifecycle. `stableComponentKeys` preserves React slots across append-only updates under the same parent.
 
-`createLocalCompilePool()` accepts `{ documentId, revision, source, options, sourcePhase, priority }`. Revisions increase per document. The default `latest` policy rejects replaced tasks with `LocalCompilePoolTaskError.kind === 'superseded'`. Use `all` for ordered delivery and handle `backpressure` when its queue fills. Pool Workers receive full source. Pass a `LocalObserver` to read pool events, then forward an outcome's trace ID, document ID and revision as `trace` on the React view to correlate loading and mount events.
+`createLocalCompilePool()` accepts `{ documentId, revision, source, options, sourcePhase, priority }`. Revisions increase per document. The default `latest` policy rejects replaced tasks with `LocalCompilePoolTaskError.kind === 'superseded'`. A newer streaming snapshot queues behind a pending final revision. Use `all` for ordered delivery and handle `backpressure` when its queue fills. A Worker that negotiates `patch-v1` can reuse a compatible final baseline for the same document. The pool retries with full source if the Worker no longer holds the baseline. Pass a `LocalObserver` to read pool events, then forward an outcome's trace ID, document ID and revision as `trace` on the React view to correlate loading and mount events.
+
+Base priority is clamped to `[-10, 10]` and defaults to `0`. Each 100 ms of queue time adds one point. `setPriority` updates the document's queued requests and leaves in-flight work running.
 
 ### `reactive-md`
 
@@ -187,7 +193,7 @@ Hooks for component implementations: `useTicker`, `useFrame`, `useSwipe` with `c
 
 ## Component SDK and presets
 
-For a smaller host, pass React pack packages to `createReactHost({ presets })` from `reactive-md/react/packed`. Compile with `host.compileOptions`, render with `host.reactConfig` and load `host.css` alongside the document base styles. The visuals pack depends on the data pack. `deriveLocalPreset(preset, { include })` or `{ exclude }` selects semantic manifests in source order and preserves declared preset dependencies.
+For a smaller host, pass React pack packages to `createReactHost({ presets })` from `reactive-md/react/packed`. Compile with `host.compileOptions`, render with `host.reactConfig` and load `host.css` alongside the document base styles. `deriveLocalReactPreset(pack, { include })` or `{ exclude }` selects semantic manifests and React implementations together, retaining the styles those manifests reference. `deriveLocalPreset` selects the semantic manifests for compiler-only use. Both preserve declared preset dependencies. Use the individual pack imports to control the bundle graph.
 
 `createDeferredReactConfig(config, { components, resolver })` allows React to load implementations for manifests declared by the compiled document. The resolver receives `{ name, definition, signal }`. Concurrent render slots share a request for the same manifest identity. SSR renders a loading placeholder, and the client begins loading after mount. Pre-register an implementation when SSR needs its markup.
 
@@ -217,7 +223,7 @@ Manifests are plain, serializable data. Registration validates identities, names
 | `reactive-md/presets/minimal` | `minimalPreset`, id `reactive-md/minimal`, 18 components: `input`, `textarea`, `number`, `slider`, `toggle`, `date`, `select`, `option`, `jump`, `anchor`, `text`, `section`, `panel`, `card`, `grid`, `if`, `alert`, `badge` |
 | `reactive-md/presets/minimal/react` | `minimalReactPresetPackage`: React implementations for those 18 components |
 
-Packs are ordinary presets, so a host selects one or more and never combines a pack with `defaultPreset`. `visualsPack` depends on `dataPack` because `plot` and `data-table` share the `column` layout component. `layoutPack` declares `column` as well, so `layoutPack` and `dataPack` cannot be installed together.
+Packs are ordinary presets. Select one or more packs for a packed React host. `visualsPack` depends on `dataPack` because `plot` and `data-table` share the `column` layout component. A packed React host registers the shared `column` once when it combines `layout` and `data`. Duplicate entries with conflicting contracts or implementations still raise a configuration error.
 
 ### Optional plugin packages
 
@@ -461,7 +467,9 @@ Each constant is versioned independently: a package release can ship a new HTML 
 
 ## Observability
 
-Import `LocalObserver`, `LocalTraceEvent`, `createDiagnosticReport` and `formatLocalDiagnostic` from `reactive-md/observability`. Supply an observer through `compileLocal(source, { observer })` or `new LocalCompileScheduler({ observer, createWorker, onResult })`. Observer callbacks receive independent copies, and callback exceptions are isolated from compilation.
+Import `LocalObserver`, `LocalTraceEvent`, `createDiagnosticReport`, `createLocalPerformanceReport` and `formatLocalDiagnostic` from `reactive-md/observability`. Supply an observer through `compileLocal(source, { observer })` or `new LocalCompileScheduler({ observer, createWorker, onResult })`. Observer callbacks receive independent copies, and callback exceptions are isolated from compilation.
+
+`createLocalPerformanceReport(events)` summarizes up to the last 512 events by trace, document revision, Worker slot and component name. It separates successful durations from failure, cancellation and budget rejection counts. Worker timings cover queue wait, busy intervals and completed idle intervals. A `render-mount` duration runs from rendering the lifecycle marker to its effect setup. `render-unmount.mountedMs` measures the time from setup to cleanup. Retained components emit `render-retained` on a streaming-to-final update. Development effect replays have their own counters.
 
 ```ts
 import { compileLocal } from 'reactive-md';

@@ -6,7 +6,7 @@ const staticTypes = new Set([
   'mark', 'sup', 'sub', 'span', 'div', 'summary', 'details', 'inlineCode', 'code', 'blockquote',
   'break', 'thematicBreak', 'list', 'listItem', 'link', 'image', 'htmlTable', 'htmlTableElement',
   'table', 'tableRow', 'tableCell', 'math', 'inlineMath', 'html', 'extendedHtml', 'fallback',
-  'footnoteReference', 'footnoteDefinition', 'comment', 'definition',
+  'footnoteReference', 'footnoteDefinition', 'comment', 'definition', 'externalSlot',
 ]);
 
 export function localDocumentRequiresRuntime(document: LocalDocument): boolean {

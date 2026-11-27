@@ -546,7 +546,7 @@ export function LocalReactiveDocumentCore({
       document={result.document}
       runtime={runtime}
       stableComponentKeys={stableComponentKeys}
-      trace={trace}
+      trace={trace?.observer?.onTrace ? { ...trace, documentId: trace.documentId ?? documentId, sourcePhase: phase } : trace}
       capabilityGrants={grants}
       allowedFrameOrigins={allowedFrameOrigins}
       network={network}

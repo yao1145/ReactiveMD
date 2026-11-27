@@ -10,6 +10,19 @@
 
 用当前检出运行[流式源码](streaming)示例时，按下文打包并安装 `reactive-md-0.9.2.tgz`。示例独立使用时以 `package.json` 中固定的 `0.9.1` 为基线。
 
+## 静态嵌入
+
+[静态嵌入示例](static-embed)只选用一个布局组件，把 `{{ visitor.name }}` 保留为文本，并将未选中的 slider 降级为原文。两个同名宿主槽位共用一次动态导入。性能报告在同一 revision 下汇总编译、装载和渲染事件。
+
+在引擎仓库根目录构建包并运行服务端示例。
+
+```sh
+npm run build:lib
+node examples/integration/static-embed/render.mjs
+```
+
+要查看浏览器示例，在同一目录运行 `npx vite examples/integration/static-embed`，然后打开终端显示的地址。
+
 ## Node 核心
 
 需要 Node.js 22.12 或更高版本。安装后，核心示例无需 React 或网络访问即可运行。

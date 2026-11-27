@@ -86,6 +86,7 @@ interface RegionScannerOptions {
   diagnostics: Diagnostic[];
   maxSyntaxNodes: number;
   strict: boolean;
+  literalExpressions: boolean;
   budget: ParseWorkBudget;
   known: ReadonlyMap<string, NormalizedComponent>;
   externalNames: ReadonlySet<string>;
@@ -117,7 +118,7 @@ interface RegionScannerOptions {
 }
 
 export function createRegionScanner({
-  source, diagnostics, maxSyntaxNodes, strict, budget, known, externalNames,
+  source, diagnostics, maxSyntaxNodes, strict, literalExpressions, budget, known, externalNames,
   unmountedLeafNames, suggestionNames, htmlSupport, nativeHtmlNames, sourceContext,
   work, streaming, rawCloseCache, ensureDepth, parseMarkdown, node, codeRanges, recoveryRanges, recoveries,
   rootMathLiterals, rootDefinitionRanges, error, warning, headers, scanner, convert,
@@ -438,7 +439,11 @@ export function createRegionScanner({
       }
       if (!footnoteMode && source.startsWith('{{', i)) {
         const stop = interpolationEnd(i, end);
-        if (stop < 0) { error('local.interpolation', { key: 'local.interpolation.unclosed' }, i, end); i += 2; continue; }
+        if (stop < 0) {
+          if (!literalExpressions) error('local.interpolation', { key: 'local.interpolation.unclosed' }, i, end);
+          i += 2;
+          continue;
+        }
         tokens.push({ start: i, end: stop, node: node('interpolation', i, stop, { value: source.slice(i + 2, stop - 2).trim() }) }); i = stop; continue;
       }
       if (!footnoteMode && source[i] === '$') {

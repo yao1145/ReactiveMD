@@ -314,7 +314,7 @@ export class LocalCompileSession {
    * `phase` wins over `options.sourcePhase`; when neither supplies a valid phase
    * the call keeps the historical final-compilation result shape.
    */
-  compileShared(source:string,options?:LocalCompileOptions,phase?:LocalSourcePhase):LocalCompileResult {
+  compileShared(source:string,options?:LocalCompileOptions,phase?:LocalSourcePhase, collectPerformance = !!options?.observer?.onTrace):LocalCompileResult {
     if(this.disposed)throw new Error('Local compile session is disposed');
     // A phase argument is an explicit contract: an unsupported value fails
     // instead of silently falling back to the interactive final semantics.
@@ -324,12 +324,12 @@ export class LocalCompileSession {
     // must not inherit a stabilized partial snapshot, deferred index or shared
     // result graph from an intermediate snapshot.
     if(effective==='streaming')return this.compileStreaming(source,options);
-    if(effective==='final')return this.compileFinal(source,options);
-    return this.compileFinalOrLegacy(source,options);
+    if(effective==='final')return this.compileFinal(source,options,collectPerformance);
+    return this.compileFinalOrLegacy(source,options,collectPerformance);
   }
   /** Explicit final phase: the normal path plus the resolved compile status. */
-  private compileFinal(source:string,options?:LocalCompileOptions):LocalCompileResult {
-    const result=this.compileFinalOrLegacy(source,options);
+  private compileFinal(source:string,options:LocalCompileOptions | undefined, collectPerformance:boolean):LocalCompileResult {
+    const result=this.compileFinalOrLegacy(source,options,collectPerformance);
     // Node and document identity stay untouched; only the result wrapper is new.
     return result.ok
       ?{...result,status:hasRecoveries(result)?'recovered' as const:'valid' as const}
@@ -355,14 +355,14 @@ export class LocalCompileSession {
     return tracked.result;
   }
   /** The historical compile path, shared by legacy and explicit-final callers. */
-  private compileFinalOrLegacy(source:string,options?:LocalCompileOptions):LocalCompileResult {
+  private compileFinalOrLegacy(source:string,options:LocalCompileOptions | undefined, collectPerformance:boolean):LocalCompileResult {
     this.epoch++;
     const key=localCompileOptionsKey(options);
     // A mode switch must never be answered from a result produced under the
     // other strategy, even if another key component happens to collide.
     const mode=isRecoveryMode(options);
     if(key!==this.sharedKey||mode!==this.sharedMode){this.shared=null;this.sharedKey=key;this.sharedMode=mode;}
-    const result=this.compileCore(source,options),start=performance.now(),previous=this.shared;
+    const result=this.compileCore(source,options,collectPerformance),start=performance.now(),previous=this.shared;
     const persistent=shareCompiledData(previous??undefined,result).value;
     this.shared=persistent;
     this.lastStats={...this.lastStats,sharedNodes:countSharedNodes(previous,persistent),parse:this.parseSession.stats,
@@ -370,7 +370,7 @@ export class LocalCompileSession {
       stages:{...this.lastStats.stages,sharedPublicationMs:performance.now()-start}};
     return persistent;
   }
-  private compileCore(source: string, options?: LocalCompileOptions): LocalCompileResult {
+  private compileCore(source: string, options: LocalCompileOptions | undefined, collectPerformance: boolean): LocalCompileResult {
     if (this.disposed) throw new Error('Local compile session is disposed');
     this.cacheBuilds = 0;
     const key = localCompileOptionsKey(options), check = readLocalCompileOptions(options);
@@ -412,14 +412,14 @@ export class LocalCompileSession {
         return this.publish(previous);
       }
       let updated: Snapshot | null = null;
-      try { updated = this.update(previous, source, options, check.maxSyntaxNodes, rawNames); }
+      try { updated = this.update(previous, source, options, check.maxSyntaxNodes, rawNames, collectPerformance); }
       catch { /* Incremental machinery must preserve the full compiler's error boundary. */ }
       if (updated) { this.snapshot = updated; return this.publish(updated); }
       reason = 'scope-or-boundary';
       defer = true;
     } else if (previous) reason = recoveryMode ? 'recovery-reference' : 'options-or-limits';
     this.snapshot = null;
-    const tracked = compileLocalTracked(source, options,this.services);
+    const tracked = compileLocalTracked(source, options, this.services, undefined, collectPerformance);
     this.lastStats = {mode: 'full', totalBlocks: tracked.parsed?.nodes.length ?? 0, compiledBlocks: tracked.parsed?.nodes.length ?? 0, reusedBlocks: 0, compiledCharacters: typeof source === 'string' ? source.length : 0, fallbackReason: reason,semantic:tracked.semantic,stages:tracked.timings};
     if (!recoveryMode && tracked.result.ok && !tracked.result.document.capabilities && tracked.result.diagnostics.length === 0 && !hasRecoveries(tracked.result) && check.ok && key !== 'invalid') {
       if (defer) {
@@ -552,9 +552,9 @@ export class LocalCompileSession {
     return {source, key, tree, metadata: doc, blocks, context, contextCost, prefix, prefixCost: prefixResult?.syntaxNodes ?? 0};
   }
   private update(old: Snapshot, source: string, options: LocalCompileOptions | undefined, budget: number,
-    knownRaw?: ReadonlySet<string>): Snapshot | null {
+    knownRaw: ReadonlySet<string>, collectPerformance: boolean): Snapshot | null {
     if (source.includes('[^') || source.includes('\ufeff') || hasLoneCarriageReturn(source)) return null;
-    const rawNames = knownRaw ?? this.rawNamesFor(options);
+    const rawNames = knownRaw;
     const edit = change(old.source, source);
     // Local code shielding can extend beyond a Markdown leaf block. Changing
     // its delimiters invalidates that lexical context, even if Lezer kept a
@@ -608,6 +608,7 @@ export class LocalCompileSession {
     /** Blocks compiled in isolation during this revision. */
     const recompiled = new Set<Block>();
     let reused = 0, compiled = 0, characters = 0, cost = old.contextCost;
+    let reuseMs = 0, rebuildMs = 0, parseMs = 0, semanticMs = 0;
     for (const entry of entries) {
       const range = entry.range;
       const delta = range.start >= edit.newTo ? edit.delta : 0;
@@ -615,15 +616,22 @@ export class LocalCompileSession {
       const cached = reusable ? index.get(`${range.start - delta}:${range.end - delta}`) : undefined;
       const text = source.slice(range.start, range.end);
       if (cached && cached.text === text) {
+        const reuseStarted = collectPerformance ? performance.now() : 0;
         blocks.push({...cached, from: range.start, to: range.end}); reused++; cost += cached.cost;
         for (const node of allNodes(cached.nodes)) claimed.add(node.id);
+        if (collectPerformance) reuseMs += performance.now() - reuseStarted;
       } else if (entry.opaque) {
         // Recompile the raw container alone. Its prefix holds every other
         // context unit, so attribute expressions keep their declarations
         // while the block's own text is not compiled twice.
         const prefix = entry.opaque.prefix ?? '';
         const from = prefix.length;
-        const tracked = compileLocalTracked(prefix + text, options, this.services);
+        const tracked = compileLocalTracked(prefix + text, options, this.services, undefined, collectPerformance);
+        if (collectPerformance) {
+          rebuildMs += tracked.timings.totalMs;
+          parseMs += tracked.timings.parseMs ?? 0;
+          semanticMs += tracked.timings.semanticMs ?? 0;
+        }
         characters += from + text.length; compiled++;
         if (!tracked.result.ok || tracked.result.diagnostics.length || !tracked.parsed || hasRecoveries(tracked.result)) return null;
         const parsed = tracked.parsed.nodes.filter(n => n.range.start >= from);
@@ -656,7 +664,12 @@ export class LocalCompileSession {
           return mappedStart < range.end && mappedEnd > range.start;
         });
         const services = previous?.rowPlans ? {...this.services, rowPlans: previous.rowPlans} : this.services;
-        const tracked = compileLocalTracked(old.prefix + text, options, services);
+        const tracked = compileLocalTracked(old.prefix + text, options, services, undefined, collectPerformance);
+        if (collectPerformance) {
+          rebuildMs += tracked.timings.totalMs;
+          parseMs += tracked.timings.parseMs ?? 0;
+          semanticMs += tracked.timings.semanticMs ?? 0;
+        }
         characters += from + text.length; compiled++;
         if (!tracked.result.ok || tracked.result.diagnostics.length || !tracked.parsed || hasRecoveries(tracked.result)) return null;
         const parsed = tracked.parsed.nodes.filter(n => n.range.start >= from);
@@ -704,7 +717,8 @@ export class LocalCompileSession {
     }
     if (cost > budget) return null;
     if (!this.sameBoundaries(source, blocks, context, recompiled, edit, options)) return null;
-    this.lastStats = {mode: 'incremental', totalBlocks: blocks.length, compiledBlocks: compiled, reusedBlocks: reused, compiledCharacters: characters};
+    this.lastStats = {mode: 'incremental', totalBlocks: blocks.length, compiledBlocks: compiled, reusedBlocks: reused, compiledCharacters: characters,
+      ...(collectPerformance ? { stages: { ...(reused ? { reuseMs } : {}), ...(compiled ? { rebuildMs, parseMs, semanticMs } : {}) } } : {})};
     return {...old, source, tree, context, blocks};
   }
   /**

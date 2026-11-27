@@ -399,6 +399,8 @@ export interface LocalEmbeddingOptions {
   readonly onUnsupported?: 'error' | 'fallback';
   readonly allowImages?: boolean;
   readonly allowInteractive?: boolean;
+  /** Allow inert `<external slot="name" />` placeholders for host rendering. */
+  readonly allowExternalSlots?: boolean;
 }
 
 export interface LocalFallbackInfo {

@@ -37,6 +37,7 @@ export type LocalCompileProtocol = typeof LOCAL_RESULT_PATCH_PROTOCOL;
 
 export interface LocalCompileRequest {
   documentId?: string;
+  collectPerformance?: boolean;
   traceId?: string;
   /** Alias of id for trace consumers. */
   requestId?: number;
@@ -74,6 +75,8 @@ export interface LocalCompileRequest {
 
 /** An incremental request; only sent once a `patch-v1` worker was confirmed. */
 export interface LocalCompilePatchRequest {
+  documentId?: string;
+  collectPerformance?: boolean;
   traceId?: string;
   requestId?: number;
   sourceRevision?: number;
@@ -99,6 +102,8 @@ export interface LocalCompileWorkerMetrics {
   semanticMs?: number;
   compiledBlocks?: number;
   reusedBlocks?: number;
+  reuseMs?: number;
+  rebuildMs?: number;
   analysisMs?: number;
   /** Time spent inside the compile call, mirroring `duration`. */
   compileMs?: number;
@@ -133,6 +138,7 @@ export interface LocalCompileMetrics {
 }
 
 export interface LocalCompilePatchResponse {
+  documentId?: string;
   traceId?: string;
   requestId?: number;
   sourceRevision?: number;
@@ -614,11 +620,13 @@ export class LocalCompileScheduler {
       && this.patchState === 'enabled'
       && baseline !== null
       && baseline.optionsKey === job.optionsKey;
+    const collectPerformance = this.options.observer?.onTrace ? { collectPerformance: true } : undefined;
     const request: LocalCompileWorkerRequest = usePatch
       ? {
           traceId,
           requestId: id,
           sourceRevision,
+          ...collectPerformance,
           id,
           protocol: LOCAL_RESULT_PATCH_PROTOCOL,
           baseRevision: baseline!.revision,
@@ -632,6 +640,7 @@ export class LocalCompileScheduler {
           traceId,
           requestId: id,
           sourceRevision,
+          ...collectPerformance,
           id,
           source: job.source,
           ...(job.options === undefined ? {} : { options: job.options }),
@@ -855,10 +864,15 @@ export class LocalCompileScheduler {
 
     const queued = this.queued;
     const superseded = queued !== null && !sameJob(queued, job);
-    if (failure !== null) {
-      this.traceWorker(inFlight, 'worker-error', { durationMs: roundTripMs, status: 'failed', code: 'local.worker.compile' });
-    } else {
-      this.traceWorker(inFlight, 'worker-response', { durationMs: roundTripMs, status: result ? compileTraceStatus(result) : failure ? 'failed' : 'retry' });
+    if (this.options.observer?.onTrace) {
+      if (failure !== null) {
+        this.traceWorker(inFlight, 'worker-error', { durationMs: roundTripMs, queueMs, status: 'failed', code: 'local.worker.compile' });
+      } else {
+        const metrics = response.ok ? response.metrics : undefined;
+        this.traceWorker(inFlight, 'worker-response', { durationMs: roundTripMs, queueMs, status: result ? compileTraceStatus(result) : 'retry',
+          parseMs: metrics?.parseMs, semanticMs: metrics?.semanticMs, reuseMs: metrics?.reuseMs, rebuildMs: metrics?.rebuildMs,
+          compiledBlocks: metrics?.compiledBlocks, reusedBlocks: metrics?.reusedBlocks });
+      }
     }
     if (this.disposed) return;
     if (superseded) {
@@ -1078,9 +1092,12 @@ export class LocalCompileScheduler {
   }
 
   private traceWorker(
-    flight: InFlightJob, type: LocalTraceEvent['type'], details: Pick<LocalTraceEvent, 'durationMs' | 'status' | 'code'> = {},
+    flight: InFlightJob, type: LocalTraceEvent['type'], details: Pick<LocalTraceEvent, 'durationMs' | 'status' | 'code' | 'queueMs'
+      | 'parseMs' | 'semanticMs' | 'reuseMs' | 'rebuildMs' | 'compiledBlocks' | 'reusedBlocks'> = {},
   ): void {
-    emitLocalTrace(this.options.observer, { type, traceId: flight.traceId, requestId: flight.id, sourceRevision: flight.sourceRevision, timestamp: Date.now(), ...details });
+    if (!this.options.observer?.onTrace) return;
+    emitLocalTrace(this.options.observer, { type, traceId: flight.traceId, requestId: flight.id, sourceRevision: flight.sourceRevision,
+      sourcePhase: flight.job.sourcePhase, timestamp: Date.now(), ...details });
   }
 
   private reportStale(requestId: number, traceId: string, sourceRevision: number, currentRevision?: number): void {
