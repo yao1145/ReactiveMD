@@ -74,7 +74,7 @@
 
 从 `reactive-md` 导入 `createLocalRuntimePool()`，可在兼容的文档与运行时选项之间复用租约。消费方卸载时释放租约，也可使用 `LocalPooledDocumentView` 由 React 生命周期管理租约。`stableComponentKeys` 在同一父级的追加更新中保留既有 React 槽位。
 
-`createLocalCompilePool()` 接收 `{ documentId, revision, source, options, sourcePhase, priority }`，每份文档的 revision 递增。默认 `latest` 策略以 `superseded` 拒绝被取代的任务；新流式快照排在待处理的最终稿之后。需要逐个处理 revision 时使用 `all`，并处理队列满时的 `backpressure`。协商支持 `patch-v1` 的 Worker 可复用同一文档的兼容最终稿基线；基线被回收时，池会以完整源码重试。传入 `LocalObserver` 可读取池事件，再将结果的 trace ID、文档 ID 和 revision 作为 `trace` 传给 React 视图，即可关联装载与挂载事件。
+`createLocalCompilePool()` 接收 `{ documentId, revision, source, options, sourcePhase, priority }`，每份文档的 revision 递增。超过文档长度上限的源码在入队前即以 `source-too-large` 拒绝。默认 `latest` 策略以 `superseded` 拒绝被取代的任务；新流式快照排在待处理的最终稿之后。需要逐个处理 revision 时使用 `all`，并处理队列满时的 `backpressure`。文档永久关闭后调用 `release(documentId)`：取消该文档待处理的任务，并清除其 revision 链和基线，之后可复用同一 ID。协商支持 `patch-v1` 的 Worker 可复用同一文档的兼容最终稿基线；基线被回收时，池会以完整源码重试。传入 `LocalObserver` 可读取池事件，再将结果的 trace ID、文档 ID 和 revision 作为 `trace` 传给 React 视图，即可关联装载与挂载事件。
 
 基础优先级限在 `[-10, 10]`，默认值为 `0`，每排队 100 毫秒加一分。`setPriority` 更新该文档已排队的请求，正在运行的任务继续执行。
 

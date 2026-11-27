@@ -94,6 +94,15 @@ describe('independent document capability contract', () => {
       } finally { runtime.dispose(); }
   });
 
+  it('keeps an extended HTML budget failure global', () => {
+    const source = '<dl><dt>A</dt><dd>B</dd><dt>C</dt><dd>D</dd></dl>';
+    const result = compileLocal(source, { enableExtendedHtml: true, limits: { maxSyntaxNodes: 4 } });
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: 'local.budget', severity: 'error', messageKey: 'local.budget.nodes',
+    }));
+  });
+
   it('rejects non-boolean capability flags', () => {
     const result = compileLocal('text', { enableCss: 'false' } as unknown as LocalCompileOptions);
     expect(result.ok).toBe(false);

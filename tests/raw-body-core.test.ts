@@ -47,6 +47,10 @@ function component(nodes: readonly LocalNode[]): LocalNode {
   return found;
 }
 
+function flatten(nodes: readonly LocalNode[]): LocalNode[] {
+  return nodes.flatMap(node => [node, ...flatten(node.children ?? [])]);
+}
+
 function rawBody(node: LocalNode): LocalNode {
   expect(node.children).toHaveLength(1);
   const child = node.children![0];
@@ -344,6 +348,30 @@ describe('raw body parsing', () => {
     const raw = rawBody(node);
     expect(raw.value).toBe('\nhello');
     expect(node.range.end).toBe('<raw-box>\nhello'.length);
+  });
+
+  it('keeps an unfinished loose streaming body raw to the snapshot end', () => {
+    const source = '<raw-box>\nhello\n\nAfter **bold**';
+    const tracked = compileLocalStreamingTracked(source, { ...rawOptions(), strict: false });
+    expect(tracked.result.ok).toBe(true);
+    if (!tracked.result.ok) return;
+    expect(tracked.result.status).toBe('partial');
+    expect(tracked.result.diagnostics).toEqual([]);
+    const node = component(tracked.result.document.nodes);
+    expect(rawBody(node).value).toBe('\nhello\n\nAfter **bold**');
+    expect(node.range.end).toBe(source.length);
+  });
+
+  it('does not resume Markdown after a loose streaming body inside a blockquote', () => {
+    const source = '> <raw-box>\n> hello\n\nAfter **bold**';
+    const tracked = compileLocalStreamingTracked(source, { ...rawOptions(), strict: false });
+    expect(tracked.result.ok).toBe(true);
+    if (!tracked.result.ok) return;
+    const nodes = flatten(tracked.result.document.nodes);
+    expect(nodes.some(node => node.type === 'strong')).toBe(false);
+    const raw = nodes.find(node => node.type === 'rawBody');
+    expect(raw?.value).toContain('After **bold**');
+    expect(raw?.range.end).toBe(source.length);
   });
 });
 

@@ -7,6 +7,7 @@ import {
   type LocalCompileWorkerScope,
 } from '../src/local/transport/worker';
 import { createLocalCompilePool } from '../src/local/transport/worker-pool';
+import { MAX_LOCAL_DOCUMENT_LENGTH } from '../src/contracts/limits';
 
 /** A real worker handler behind a fake scope; the pool owns the fake worker. */
 function workerSlot() {
@@ -52,6 +53,53 @@ describe('worker pool result status', () => {
       if (!outcome.result.ok) return;
       expect(outcome.result.recoveries?.length).toBeGreaterThan(0);
       expect(outcome.result.document.source).toBe(damaged);
+    } finally {
+      pool.dispose();
+    }
+  });
+});
+
+describe('worker pool document state', () => {
+  it('rejects an oversized source before it reaches the queue', async () => {
+    const slot = workerSlot();
+    const pool = createLocalCompilePool({ workers: 1, createWorker: () => slot.worker });
+    try {
+      await expect(pool.schedule({
+        documentId: 'doc', revision: 0, source: 'x'.repeat(MAX_LOCAL_DOCUMENT_LENGTH + 1),
+      })).rejects.toMatchObject({ kind: 'source-too-large' });
+      await Promise.resolve();
+      expect(slot.jobs).toHaveLength(0);
+
+      const accepted = pool.schedule({ documentId: 'doc', revision: 0, source: 'ok' });
+      await Promise.resolve();
+      slot.answer();
+      expect((await accepted).result.ok).toBe(true);
+    } finally {
+      pool.dispose();
+    }
+  });
+
+  it('releases a closed document and its pending tasks', async () => {
+    const slot = workerSlot();
+    const pool = createLocalCompilePool({ workers: 1, createWorker: () => slot.worker });
+    try {
+      const first = pool.schedule({ documentId: 'doc', revision: 5, source: 'One' });
+      await Promise.resolve();
+      slot.answer();
+      await first;
+      await expect(pool.schedule({ documentId: 'doc', revision: 5, source: 'Again' }))
+        .rejects.toMatchObject({ kind: 'invalid-revision' });
+
+      const pending = pool.schedule({ documentId: 'doc', revision: 6, source: 'Pending' });
+      pool.release('doc');
+      await expect(pending).rejects.toMatchObject({ kind: 'cancelled' });
+
+      const fresh = pool.schedule({ documentId: 'doc', revision: 0, source: 'Fresh' });
+      await Promise.resolve();
+      slot.answer();
+      const outcome = await fresh;
+      expect(outcome.revision).toBe(0);
+      expect(outcome.result.ok).toBe(true);
     } finally {
       pool.dispose();
     }

@@ -70,8 +70,13 @@ export function compileDocumentCapabilities(
         return [embeddingFallback(state, node, embedding, 'local.embedding.interactive')];
       }
       for (const issue of checked.diagnostics) {
-        reportWarning(state, issue.code, issue.message, range.start + issue.range.start,
-          range.start + issue.range.end, { key: issue.messageKey ?? issue.code, params: issue.params });
+        const start = range.start + issue.range.start;
+        const end = range.start + issue.range.end;
+        const details = { key: issue.messageKey ?? issue.code, params: issue.params };
+        // Fragment budget and parse failures are document-wide errors; only
+        // capability-level sanitizer findings degrade to warnings.
+        if (issue.severity === 'error') state.report(issue.code, issue.message, start, end, details);
+        else reportWarning(state, issue.code, issue.message, start, end, details);
       }
       if (!checked.markup) return [{ ...node, type: 'fallback', value }];
       hasCapabilities = true;

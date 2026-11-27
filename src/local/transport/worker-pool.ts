@@ -1,3 +1,4 @@
+import { MAX_LOCAL_DOCUMENT_LENGTH } from '../../contracts/limits';
 import { createLocalCompileSession } from '../compilation/session/incremental';
 import { compileTraceStatus } from '../compilation/compile-status';
 import { createLocalTraceId, emitLocalTrace, type LocalObserver, type LocalTraceEvent } from '../observability-core';
@@ -56,7 +57,7 @@ export interface LocalCompilePoolOptions {
 }
 
 export type LocalCompilePoolTaskErrorKind = 'superseded' | 'cancelled' | 'disposed' | 'worker-failed'
-  | 'invalid-revision' | 'invalid-request' | 'backpressure';
+  | 'invalid-revision' | 'invalid-request' | 'source-too-large' | 'backpressure';
 
 export class LocalCompilePoolTaskError extends Error {
   constructor(readonly kind: LocalCompilePoolTaskErrorKind) {
@@ -69,6 +70,12 @@ export interface LocalCompilePool {
   readonly ready: Promise<LocalCompilePoolReadyEvent>;
   schedule(request: LocalCompilePoolRequest): Promise<LocalCompilePoolOutcome>;
   cancel(documentId: string): void;
+  /**
+   * Forget a permanently closed document: cancel its pending tasks and clear
+   * its revision chain and patch baselines. A later schedule for the same ID
+   * starts a fresh revision chain.
+   */
+  release(documentId: string): void;
   setPriority(documentId: string, priority: number): void;
   getCounts(): LocalCompilePoolCounts;
   dispose(): void;
@@ -433,6 +440,11 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       if (typeof documentId !== 'string' || documentId.trim() === '' || documentId.length > 256 || typeof input.source !== 'string') {
         return Promise.reject(new LocalCompilePoolTaskError('invalid-request'));
       }
+      // Reject an oversized source before it occupies the queue or crosses the
+      // Worker boundary; the compiler would only reject it after both copies exist.
+      if (input.source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
+        return Promise.reject(new LocalCompilePoolTaskError('source-too-large'));
+      }
       if (!Number.isSafeInteger(revision) || revision < 0 || revision <= (revisions.get(documentId) ?? -1)) {
         return Promise.reject(new LocalCompilePoolTaskError('invalid-revision'));
       }
@@ -460,6 +472,12 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     cancel(documentId) {
       for (const slot of slots) slot.baselines.delete(documentId);
       for (const task of [...pending]) if (task.request.documentId === documentId) fail(task, 'cancelled');
+      requestDrain();
+    },
+    release(documentId) {
+      for (const slot of slots) slot.baselines.delete(documentId);
+      for (const task of [...pending]) if (task.request.documentId === documentId) fail(task, 'cancelled');
+      revisions.delete(documentId);
       requestDrain();
     },
     setPriority(documentId, priority) {

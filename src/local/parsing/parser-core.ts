@@ -674,6 +674,8 @@ export function parseLocalCore(
           rawCloseCache.set(bodyStart, close);
           return close ? close.closeEnd : null;
         },
+        checkRawBody: (length, start, end, name) => budget.checkRawBody(length, start, end, name),
+        streaming: optionCheck.sourcePhase === 'streaming',
         isPaired: (name) => {
           const schema = known.get(name);
           return schema === undefined ? !unmountedLeafNames.has(name) : schema.form !== 'leaf';
