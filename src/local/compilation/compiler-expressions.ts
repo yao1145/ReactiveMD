@@ -15,13 +15,16 @@ import { isKernelAnchorId, kernelNavigationIssues } from '../configuration/kerne
 import { createHeadingAnchors } from '../parsing/heading-anchors';
 import type { AttrMap, AttrState } from './compiler-structure';
 import { MAX_LOCAL_DATA_TABLE_ROWS } from '../../contracts/limits';
+import type { ReportForNode } from './compiler-embedding';
 
-export function validateExpressions(state: CompileState, rejectAttribute?: (node: LocalNode) => void): void {
+export function validateExpressions(state: CompileState, rejectAttribute?: (node: LocalNode) => void, reportForNode?: ReportForNode): void {
   const env = expressionEnv(state);
   const names = Object.keys(env);
   let attributeOwner: LocalNode | undefined;
+  let reportInterpolation: CompileState['report'] | undefined;
   const report: CompileState['report'] = (code, ...args) => {
-    if (attributeOwner && rejectAttribute && !code.includes('budget')) rejectAttribute(attributeOwner);
+    if (reportInterpolation) reportInterpolation(code, ...args);
+    else if (attributeOwner && rejectAttribute && !code.includes('budget')) rejectAttribute(attributeOwner);
     else state.report(code, ...args);
   };
 
@@ -95,10 +98,12 @@ export function validateExpressions(state: CompileState, rejectAttribute?: (node
         const value = node.value ?? '';
         const leading = Math.max(0, raw.indexOf(value));
         const base = node.range.start + 2 + leading;
+        reportInterpolation = reportForNode?.(node);
         state.expressionKinds.set(node.id, validate(value, base, 'text'));
       }
     }
 
+  reportInterpolation = undefined;
   for (const entry of state.entries) {
     // Declaration values are expressions, not text templates; they are
     // validated by resolveComputations with their own dependency graph.
@@ -167,6 +172,7 @@ export function validateNavigation(
   state: CompileState,
   bindings: Record<string, LocalBinding>,
   initialState: Record<string, LocalValue>,
+  reportForNode?: ReportForNode,
 ): void {
   const document: LocalDocument = {
     syntax: 'local', source: state.source, nodes: state.nodes, initialState, bindings,
@@ -191,28 +197,31 @@ export function validateNavigation(
     const attrs = state.attrs.get(entry.node.id) ?? {};
     const info = attrs[rule.id];
     if (!info) continue;
+    const report = reportForNode?.(entry.node) ?? state.report;
     const id = typeof info.value === 'string' ? info.value : '';
     if (!id || !isKernelAnchorId(id)) {
-      state.report('local.anchor.id', { key: 'local.anchor.id', params: { id } }, info.offset, undefined);
+      report('local.anchor.id', { key: 'local.anchor.id', params: { id } }, info.offset, undefined);
       continue;
     }
     if (explicit.has(id)) {
-      state.report('local.anchor.duplicate', { key: 'local.anchor.duplicate', params: { id } }, info.offset, undefined);
+      report('local.anchor.duplicate', { key: 'local.anchor.duplicate', params: { id } }, info.offset, undefined);
     } else {
       explicit.add(id);
     }
     if (headingSlugs.has(id)) {
-      state.report('local.anchor.duplicate', { key: 'local.anchor.heading-collision', params: { id } }, info.offset, undefined);
+      report('local.anchor.duplicate', { key: 'local.anchor.heading-collision', params: { id } }, info.offset, undefined);
     }
   }
 
   const targets: { name: string; target: string; offset: number }[] = [];
+  const targetOwners = reportForNode ? new Map<number, LocalNode>() : undefined;
   for (const entry of state.entries) {
     const rule = kernelRule(entry.kernel, 'navigation');
     if (!rule) continue;
     const attrs = state.attrs.get(entry.node.id) ?? {};
     const info = attrs[rule.target];
     if (!info) continue;
+    targetOwners?.set(info.offset, entry.node);
     targets.push({
       name: entry.name,
       target: typeof info.value === 'string' ? info.value : '',
@@ -220,7 +229,9 @@ export function validateNavigation(
     });
   }
   for (const issue of kernelNavigationIssues(targets, explicit, headingSlugs)) {
-    state.report(
+    const owner = targetOwners?.get(issue.start);
+    const report = owner && reportForNode ? reportForNode(owner) : state.report;
+    report(
       issue.code,
       issue.message,
       issue.start,

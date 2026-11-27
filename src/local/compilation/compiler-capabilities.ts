@@ -63,11 +63,16 @@ export function compileDocumentCapabilities(
         return [{ ...node, type: 'fallback', value }];
       }
       const checked = state.htmlFragment(value, policy, maxSyntaxNodes);
-      if (!embedding.allowImages && checked.markup && /<(?:img|image|picture)\b/i.test(checked.markup)) {
-        return [embeddingFallback(state, node, embedding, 'local.embedding.image')];
-      }
-      if (!embedding.allowInteractive && /<(?:iframe|audio|video|button|input|select|textarea|form)\b/i.test(value)) {
-        return [embeddingFallback(state, node, embedding, 'local.embedding.interactive')];
+      // Keep a sanitizer error fatal even when this fragment would also be
+      // removed by the embedding capability filter.
+      const failed = checked.diagnostics.some(issue => issue.severity === 'error');
+      if (!failed) {
+        if (!embedding.allowImages && checked.markup && /<(?:img|image|picture)\b/i.test(checked.markup)) {
+          return [embeddingFallback(state, node, embedding, 'local.embedding.image')];
+        }
+        if (!embedding.allowInteractive && /<(?:iframe|audio|video|button|input|select|textarea|form)\b/i.test(value)) {
+          return [embeddingFallback(state, node, embedding, 'local.embedding.interactive')];
+        }
       }
       for (const issue of checked.diagnostics) {
         const start = range.start + issue.range.start;

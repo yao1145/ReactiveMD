@@ -16,6 +16,7 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
   'local.embedding.attribute': { en: 'This component has an unsupported attribute or attribute value.', zh: '此组件含有不支持的属性或属性值。' },
   'local.embedding.external-slot': { en: 'An external slot requires one valid slot name.', zh: '静态宿主槽位需要一个有效的 slot 名称。' },
   'local.embedding.declaration': { en: 'This declaration requires expression evaluation.', zh: '此声明需要表达式求值。' },
+  'local.budget.embedding': { en: 'Recovering invalid components exceeded {limit} semantic passes.', zh: '恢复无效组件所需的语义检查轮次超过 {limit}。' },
   'local.render.runtime-required': { en: 'This document requires a runtime to render.', zh: '此文档需要运行时才能渲染。' },
   'local.extension.load': { en: 'Loading component…', zh: '正在加载组件…' },
   'local.extension.load-failed': { en: 'The component could not be loaded.', zh: '组件加载失败。' },

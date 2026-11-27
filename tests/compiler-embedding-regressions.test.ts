@@ -48,4 +48,63 @@ describe('embedding profile regressions', () => {
     expect(result.diagnostics.map(item => item.code)).toEqual(['local.embedding.attribute']);
     expect(result.document.validations).toHaveLength(100);
   });
+
+  it.each([
+    ['<plot>Missing formula</plot>', 'local.structure.children'],
+    ['<plot>\n$$x + 1$$\n</plot>', 'local.math.formula'],
+    ['<table>\n\n| Name | Name |\n| --- | --- |\n| A | B |\n\n</table>', 'local.table.header'],
+    ['<jump to="missing">Go</jump>', 'local.jump.target'],
+  ])('degrades only the invalid node in %s', (invalid, code) => {
+    const source = `${invalid}\n\n<number bind="keep" label="Keep" initial="0">`;
+    expect(compileLocal(source)).toMatchObject({ ok: false, diagnostics: expect.arrayContaining([expect.objectContaining({ code })]) });
+    const result = compileLocal(source, { embedding: { onUnsupported: 'fallback' } });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const range = { start: 0, end: invalid.length };
+    expect(nodesOfType(result.document, 'fallback')).toMatchObject([{ value: invalid, range, fallback: { code, range } }]);
+    expect(result.diagnostics).toMatchObject([{ code, severity: 'warning' }]);
+    expect(Object.keys(result.document.bindings)).toEqual(['keep']);
+  });
+
+  it('drops metadata for rejected tables and rechecks components that used their binding', () => {
+    const invalid = '<table key="Missing" bind="picked" label="Choices">\n\n| Name |\n| --- |\n| A |\n\n</table>';
+    const dependent = '<number bind="other" label="{{ picked }}" initial="0">';
+    const last = '{{ other }}';
+    const result = compileLocal(`${invalid}\n\n${dependent}\n\n${last}\n\n<number bind="keep" label="Keep" initial="0">`, {
+      embedding: { onUnsupported: 'fallback' },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(nodesOfType(result.document, 'fallback').map(node => node.value)).toEqual([invalid, dependent, last]);
+    expect(Object.keys(result.document.bindings)).toEqual(['keep']);
+    expect(result.document.tableShapes).toBeUndefined();
+  });
+
+  it('keeps a valid anchor when a later anchor repeats its ID', () => {
+    const result = compileLocal('<anchor id="target">\n\n<anchor id="target">\n\n<jump to="target">Go</jump>', {
+      embedding: { onUnsupported: 'fallback' },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(nodesOfType(result.document, 'component').map(node => node.name)).toEqual(['anchor', 'jump']);
+    expect(nodesOfType(result.document, 'fallback')).toMatchObject([{ fallback: { code: 'local.anchor.duplicate' } }]);
+  });
+
+  it('keeps a plot curve budget failure global in fallback mode', () => {
+    const formulas = Array.from({ length: 17 }, () => '$$y = x$$').join('\n\n');
+    const result = compileLocal(`<plot>\n${formulas}\n</plot>`, { embedding: { onUnsupported: 'fallback' } });
+    expect(result).toMatchObject({ ok: false, diagnostics: expect.arrayContaining([expect.objectContaining({
+      code: 'local.budget.plot.curves', severity: 'error',
+    })]) });
+  });
+
+  it('preserves an HTML budget error when the fragment is also disabled by the embedding profile', () => {
+    const result = compileLocal('<dl><dt>A</dt><dd>B</dd><dd><button>C</button></dd></dl>', {
+      enableExtendedHtml: true, limits: { maxSyntaxNodes: 4 },
+      embedding: { allowInteractive: false, onUnsupported: 'fallback' },
+    });
+    expect(result).toMatchObject({ ok: false, diagnostics: [expect.objectContaining({
+      code: 'local.budget', messageKey: 'local.budget.nodes', severity: 'error',
+    })] });
+  });
 });

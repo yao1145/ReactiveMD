@@ -2,6 +2,7 @@ import type { LocalDocument, LocalNode, LocalValueKind } from '../types';
 import { kernelRule, type KernelRule } from '../../contracts/component-kernel';
 import type { AttrMap, Entry, ReportDiagnostic } from './compiler-structure';
 import { meaningful, parseNumberText, plainText, hasInterpolation, typeName } from './compiler-values';
+import type { ReportForNode } from './compiler-embedding';
 
 /** Only the state consumed by table validation and selection projection. */
 interface TableCompileState {
@@ -109,9 +110,10 @@ function columnIndex(header: string[], name: string): number {
   return header.indexOf(name);
 }
 
-export function validateTables(state: TableCompileState): void {
-  for (const entry of state.entries) {
+export function validateTables(document: TableCompileState, reportForNode?: ReportForNode): void {
+  for (const entry of document.entries) {
     if (!kernelRule(entry.kernel, 'single-table')) continue;
+    const state = reportForNode ? { ...document, report: reportForNode(entry.node) } : document;
     const chart = kernelRule(entry.kernel, 'chart-table');
     const timeline = kernelRule(entry.kernel, 'timeline-table');
     if (!chart && !timeline) {
@@ -162,10 +164,11 @@ export function attachTableShapes(document: LocalDocument, shapes: Map<string, T
  * by its optional `bind`. Selection is only compiled when `key` is present, so
  * old documents keep the renderer's internal selection state.
  */
-export function computeSelections(state: TableCompileState): void {
-  for (const entry of state.entries) {
+export function computeSelections(document: TableCompileState, reportForNode?: ReportForNode): void {
+  for (const entry of document.entries) {
     const rule = kernelRule(entry.kernel, 'table-selection');
     if (!rule) continue;
+    const state = reportForNode ? { ...document, report: reportForNode(entry.node) } : document;
     const attrs = state.attrs.get(entry.node.id) ?? {};
     const keyInfo = attrs[rule.key];
     if (!keyInfo) continue;

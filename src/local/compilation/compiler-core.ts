@@ -5,6 +5,7 @@ import {
   type LocalCompileOptions,
   type LocalCompileResult,
   type LocalDocument,
+  type LocalNode,
   type LocalRecovery,
   type LocalValue,
   type SourceRange,
@@ -37,6 +38,7 @@ import {
   extensionRequirements,
   reportUnmatchedHostComponents,
   validateChildren,
+  type ReportDiagnostic,
 } from './compiler-structure';
 import { attachTableShapes, computeSelections, validateTables } from './compiler-tables';
 import { bindingKinds, resolveBindings } from './compiler-bindings';
@@ -53,7 +55,7 @@ import { validateDataTables, validatePlots, validateValidations } from './compil
 import { cloneValue } from './compiler-values';
 import { attachNodeDependencies } from './dependencies';
 import { compileDocumentCapabilities } from './compiler-capabilities';
-import { applyEmbedding, compileEmbeddingAttributes, embeddingFallback, replaceEmbeddingNodes } from './compiler-embedding';
+import { applyEmbedding, collectEmbeddingRejections, compileEmbeddingAttributes, embeddingFallback, replaceEmbeddingNodes, type EmbeddingRejection } from './compiler-embedding';
 import { localDocumentRequiresRuntime } from './runtime-requirement';
 
 /**
@@ -163,8 +165,23 @@ export function compileLegacyHtmlLocal(
   return { ok: true, document, diagnostics: sanitized.diagnostics };
 }
 
+const MAX_EMBEDDING_REPLAYS = 16;
+
+interface ParsedCompile {
+  source: string;
+  options: LocalCompileOptions | undefined;
+  optionCheck: Extract<LocalOptionCheck, { ok: true }>;
+  services?: LocalCompilerCoreServices;
+  parsed: ParsedLocal;
+  lineStarts: number[];
+  diagnostics: Diagnostic[];
+  report: ReportDiagnostic;
+  recoveries?: readonly LocalRecovery[];
+  mark?: (name: string) => void;
+}
+
 /**
- * The single reference compiler pass. Options must already be validated; the
+ * The reference compiler. Options must already be validated; the
  * validated `optionCheck` is the option snapshot this pass reads, so later
  * mutation of the caller's options object cannot change compilation semantics.
  *
@@ -180,7 +197,6 @@ export function compileLocalCore(
   capture?: (tree: ParsedLocal) => void,
   mark?: (name: string) => void,
   literalRanges?: readonly SourceRange[],
-  semanticReplay?: { parsed: ParsedLocal; rejectedIds: ReadonlySet<string> },
 ): LocalCompileResult {
   if (typeof source !== 'string' || source.length > MAX_LOCAL_DOCUMENT_LENGTH) {
     // Source-shape diagnostics come from the kernel parser; a session parser
@@ -238,14 +254,12 @@ export function compileLocalCore(
 
   let parsed: ParsedLocal;
   try {
-    if (!semanticReplay) mark?.('parse-start');
-    parsed = semanticReplay?.parsed ?? (services?.parser
+    mark?.('parse-start');
+    parsed = services?.parser
       ? (services.parser as LiteralRangeParser).parse(source, options, sourceContext, services.rowPlans, literalRanges)
-      : parseLocalCore(source, optionCheck, sourceContext, undefined, undefined, literalRanges));
-    if (!semanticReplay) {
-      capture?.(parsed);
-      mark?.('parseMs');
-    }
+      : parseLocalCore(source, optionCheck, sourceContext, undefined, undefined, literalRanges);
+    capture?.(parsed);
+    mark?.('parseMs');
   } catch (error) {
     report('local.parse', `Cannot parse document: ${error instanceof Error ? error.message : String(error)}`, 0, undefined, {
       key: 'local.parse.document',
@@ -283,6 +297,35 @@ export function compileLocalCore(
     );
   }
 
+  const context: ParsedCompile = { source, options, optionCheck, services, parsed, lineStarts, diagnostics, report, recoveries, mark };
+  if (optionCheck.embedding.onUnsupported !== 'fallback') return compileParsedLocal(context)!;
+
+  const baseDiagnostics = diagnostics.slice();
+  const fallbacks = new Map<string, EmbeddingRejection>();
+  const rejected = new Map<string, EmbeddingRejection>();
+  for (let passes = 0; ; passes++) {
+    const result = compileParsedLocal(context, fallbacks, rejected);
+    if (result) return result;
+    if (passes >= MAX_EMBEDDING_REPLAYS) {
+      report('local.budget.embedding', { key: 'local.budget.embedding', params: { limit: MAX_EMBEDDING_REPLAYS } }, 0);
+      diagnostics.sort((a, b) => a.range.start - b.range.start || a.range.end - b.range.end);
+      return withRecoveries({ ok: false, diagnostics }, recoveries);
+    }
+    // Rebuild from the original parse with the rejected subtrees replaced.
+    // Discard the old pass, including any derived bindings and diagnostics.
+    for (const [id, reason] of rejected) fallbacks.set(id, reason);
+    rejected.clear();
+    diagnostics.length = 0;
+    diagnostics.push(...baseDiagnostics);
+  }
+}
+
+/** Return undefined when this pass found nodes to replace before compiling again. */
+function compileParsedLocal(
+  { source, options, optionCheck, services, parsed, lineStarts, diagnostics, report, recoveries, mark }: ParsedCompile,
+  fallbacks?: ReadonlyMap<string, EmbeddingRejection>,
+  rejected?: Map<string, EmbeddingRejection>,
+): LocalCompileResult | undefined {
   const state: CompileState = {
     semantic: services?.semantic,
     display: services?.display,
@@ -315,16 +358,32 @@ export function compileLocalCore(
     expressionKinds: new Map(),
   };
 
+  const reportForNode = rejected && collectEmbeddingRejections(report, rejected);
+  const rejectAttribute = reportForNode && ((node: LocalNode) =>
+    reportForNode(node)('local.embedding.attribute', { key: 'local.embedding.attribute' }, node.range.start, node.range.end));
+
+  if (fallbacks?.size) state.nodes = replaceEmbeddingNodes(state.nodes, node => {
+    const reason = fallbacks.get(node.id);
+    return reason && embeddingFallback(state, node, optionCheck.embedding, reason.code, reason.message, reason.details);
+  });
   applyEmbedding(state, optionCheck.embedding);
-  if (semanticReplay) state.nodes = replaceEmbeddingNodes(state.nodes, node => semanticReplay.rejectedIds.has(node.id)
-    ? embeddingFallback(state, node, optionCheck.embedding, 'local.embedding.attribute') : undefined);
   const capabilities = compileDocumentCapabilities(state, optionCheck.html, optionCheck.maxSyntaxNodes, optionCheck.embedding);
+  if (rejected && diagnostics.some(item => item.severity === 'error'
+    && (item.code.startsWith('local.budget') || item.code === 'local.parse'))) {
+    return withRecoveries({ ok: false, diagnostics }, recoveries);
+  }
   collectEntries(state.nodes, null, state.entries, state);
-  compileEmbeddingAttributes(state, optionCheck.embedding, capabilities);
+  compileEmbeddingAttributes(state, rejectAttribute);
   mark?.('attributesMs');
-  for (const entry of state.entries) validateChildren(entry, state);
-  computeSelections(state);
+  if (rejected?.size) return;
+
+  for (const entry of state.entries) {
+    validateChildren(entry, reportForNode ? { ...state, report: reportForNode(entry.node) } : state);
+  }
+  if (rejected?.size) return;
+  computeSelections(state, reportForNode);
   mark?.('structureMs');
+  if (rejected?.size) return;
 
   const bindings = resolveBindings(state);
   resolveSlotBindings(state, bindings);
@@ -336,29 +395,23 @@ export function compileLocalCore(
   mark?.('computationsMs');
   collectDynamicConstraints(state);
 
-  const rejectedIds = optionCheck.embedding.onUnsupported === 'fallback' && !semanticReplay ? new Set<string>() : undefined;
-  const rejectAttribute = rejectedIds && ((node: { id: string }) => rejectedIds.add(node.id));
-  validateExpressions(state, rejectAttribute);
+  validateExpressions(state, rejectAttribute, reportForNode);
   mark?.('expressionsMs');
   validateDataTables(state, rejectAttribute);
   mark?.('dataTablesMs');
   const validations = validateValidations(state, rejectAttribute);
   mark?.('validationsMs');
-  if (rejectedIds?.size) {
-    // Rebuild the semantic model after pruning invalid components and their
-    // bindings. Resource budgets are recomputed against the pruned tree, so an
-    // overflow caused by a rejected node itself disappears here. The replay
-    // disables rejectedIds, which bounds this to a single extra pass.
-    return compileLocalCore(source, options, optionCheck, services, undefined, mark, literalRanges, { parsed, rejectedIds });
-  }
-  validatePlots(state);
+  if (rejected?.size) return;
+  validatePlots(state, reportForNode);
   mark?.('plotsMs');
-  validateTables(state);
+  validateTables(state, reportForNode);
   mark?.('tablesMs');
+  if (rejected?.size) return;
 
   const initialState: Record<string, LocalValue> = {};
   for (const [key, binding] of Object.entries(bindings)) initialState[key] = cloneValue(binding.initial);
-  validateNavigation(state, bindings, initialState);
+  validateNavigation(state, bindings, initialState, reportForNode);
+  if (rejected?.size) return;
   reportUnmatchedHostComponents(state.nodes, state);
   mark?.('hostAndNavigationMs');
   const displayNodes = [...state.nodes];

@@ -295,16 +295,15 @@ export function planRmdRecovery(source: string, hooks: RmdRecoveryHooks): RmdRec
     if (!tag.closing && !tag.self && hooks.isRawBody(tag.name)) {
       const stop = hooks.rawBodyEnd(tag.name, tag.end);
       if (stop !== null) { index = Math.max(stop, next); continue; }
+      const fragment = hooks.streaming ? null : containerBoundary(source, tag.end, index, hooks);
+      const boundary = fragment ?? source.length;
+      hooks.checkRawBody(boundary - tag.end, tag.end, Math.max(tag.end + 1, boundary), tag.name);
       if (hooks.streaming) {
         // A provisional snapshot delivers the unfinished body to EOF, as the
         // strict streaming path does. A fragment boundary would hand the raw
         // text back to ordinary syntax recognition.
-        hooks.checkRawBody(source.length - tag.end, tag.end, Math.max(tag.end + 1, source.length), tag.name);
-        index = source.length;
-        continue;
+        break;
       }
-      const fragment = containerBoundary(source, tag.end, index, hooks);
-      const boundary = fragment ?? source.length;
       record(
         RECOVERY_UNCLOSED,
         { start: index, end: tag.end },

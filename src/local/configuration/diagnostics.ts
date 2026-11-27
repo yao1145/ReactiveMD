@@ -220,6 +220,7 @@ const LOCAL_COMPILER_CODES = [
   'local.jump.target',
   'local.budget.plot.curves',
   'local.budget.plot.points',
+  'local.budget.embedding',
   'local.math.formula',
   'local.math',
   'local.math.display',

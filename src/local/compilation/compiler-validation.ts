@@ -1,4 +1,5 @@
 import type { CompileState, LocalCompilerPlotMath } from './compiler-services';
+import type { ReportForNode } from './compiler-embedding';
 import type { AttrMap, Entry } from './compiler-structure';
 import { kernelRule, type KernelRule } from '../../contracts/component-kernel';
 import {
@@ -273,16 +274,17 @@ function plotSamples(entry: Entry, attrs: AttrMap, rule: Extract<KernelRule, { k
   return numberValue(entry, attrs, rule.samplesAlias) ?? numberValue(entry, attrs, rule.samples) ?? base;
 }
 
-export function validatePlots(state: CompileState): void {
+export function validatePlots(state: CompileState, reportForNode?: ReportForNode): void {
   const env = expressionEnv(state);
   let totalPoints = 0;
   let pointsBudgetExceeded = false;
   for (const entry of state.entries) {
     const rule = kernelRule(entry.kernel, 'plot-math');
     if (!rule) continue;
+    const report = reportForNode?.(entry.node) ?? state.report;
     const plotMath = state.plotMath;
     if (!plotMath) {
-      state.report(
+      report(
         'local.capability.plot',
         { key: 'local.capability.plot' },
         entry.node.range.start,
@@ -317,14 +319,14 @@ export function validatePlots(state: CompileState): void {
       const node = mathNodes[index];
       const recipe = (node.value ?? '').trim();
       if (kinds[index] === null) {
-        state.report('local.math.formula', { key: 'local.math.formula.shape' }, node.range.start, node.range.end);
+        report('local.math.formula', { key: 'local.math.formula.shape' }, node.range.start, node.range.end);
         continue;
       }
       let compiled: ReturnType<LocalCompilerPlotMath['compile']> | null = null;
       try {
         compiled = plotMath.compile(recipe);
       } catch (error) {
-        state.report('local.math', {
+        report('local.math', {
             key: 'local.math.compute',
             params: {
               detail: error instanceof Error ? error.message : String(error),
@@ -339,9 +341,9 @@ export function validatePlots(state: CompileState): void {
       for (const dependency of compiled.dependencies) {
         if (dependency === 'x' || dependency === 'y' || (dependency === 't' && compiled.kind !== 'polar')) continue;
         if (!Object.hasOwn(env, dependency)) {
-          state.report('local.math.binding', { key: 'local.math.binding.unknown', params: { name: dependency } }, node.range.start, node.range.end);
+          report('local.math.binding', { key: 'local.math.binding.unknown', params: { name: dependency } }, node.range.start, node.range.end);
         } else if (env[dependency] !== 'number') {
-          state.report('local.math.binding', { key: 'local.math.binding.type', params: { name: dependency, kind: typeName(env[dependency]) } }, node.range.start, node.range.end);
+          report('local.math.binding', { key: 'local.math.binding.type', params: { name: dependency, kind: typeName(env[dependency]) } }, node.range.start, node.range.end);
         }
       }
     }

@@ -130,7 +130,7 @@ Reactive MD 分别维护以下版本轴：
 - 交付的 `value` 是去除容器共同缩进后的正文源码，保留行结束符和剩余空白。`rawBody.range` 指向原始正文区间，不含开启和结束标签；组块区间仍覆盖整个元素。
 - 编译始终生成恰好一个 `rawBody` 子节点，空正文也生成 `value: ''` 的节点。`structure.min > 0` 要求非空正文，并用 `local.structure.children` / `local.structure.children.minimum` 诊断；Markdown 子项规则不作用于正文。
 - 正文源码计入 `limits.maxRawBodyChars`（默认 100,000 个 UTF-16 代码单元，最多 1,000,000，在去缩进前计数且不含两个标签），扫描计入 `maxParseWork`。超限编译以 `local.budget` / `local.budget.raw` 和 `{ name, limit }` 失败，不产生部分节点。
-- strict 模式下未闭合正文沿用 `local.tag.unclosed` 的 pair 分支；`strict: false` 沿用既有未闭合容器恢复；`sourcePhase: 'streaming'` 把未完成正文显示到快照末尾且不报告最终诊断，之后的一次 final 编译报告 pair 诊断。
+- final 编译时，严格模式对未闭合正文报告 `local.tag.unclosed`，`strict: false` 沿用未闭合容器的原文恢复。两种模式的流式快照都把未完成的正文按原文显示至快照末尾。宽松 final 模式对恢复区间内的正文仍执行长度限制。
 - React 渲染器把该值作为纯文本输出，交互、SSR 与离线/静态导出一致；不进入 `dangerouslySetInnerHTML`、Markdown 渲染器或 HTML 渲染器。宿主若自行把字符串插入 HTML，由宿主负责转义。
 - `analyzeLocalSource` 把正文视为不透明区间：不产生标签、属性、插值、绑定、注释或补全 token。catalog 报告 `bodyKind: 'raw'`；manifest 未提供 `authoring.insertText` 时合成 `<name>\n\n</name>`（正文必填时使用一行字面 `…` 占位）。
 - 版本身份不变：manifest 协议仍为 `reactive-md-component/v1`，协议修订仍为 `component-protocol-3`。旧读取端会拒绝未知结构规则，且没有默认组块声明 `raw-body`。

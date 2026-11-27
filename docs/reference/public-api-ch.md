@@ -68,7 +68,9 @@
 
 `LocalCompileOptions.embedding` 的默认值是 `{ expressions: 'evaluate', onUnsupported: 'error', allowImages: true, allowInteractive: true, allowExternalSlots: false }`。`expressions: 'literal'` 在正文和兼容的字符串属性中保留插值定界符。通过编译 `config` 选择组件注册表，通过现有 HTML 权限字段控制原生 HTML 能力。
 
-启用 `onUnsupported: 'fallback'` 后，受限节点和表达式属性无效的组件会保留为转义后的原文。`node.fallback` 记录诊断码和 UTF-16 范围，降级子树会从运行时元数据中移除。成功编译会写入 `document.requiresRuntime`。`requiresRuntime: false` 的文档可交给 `reactive-md/react/static` 的 `LocalStaticDocumentView`，或 `reactive-md/react/static/server` 的 `renderLocalStaticMarkup`。后者成功时返回标记和诊断，失败时返回结构化诊断。字面模式支持 `<if when="true">` 和 `<if when="false">`。文档还可包含 manifest 声明静态渲染且属性均为字面值的组件；传入匹配的 `reactConfig`（例如派生的 React pack 子集）即可由对应 pack 实现直接渲染，不创建文档 runtime。缺少实现的组件显示稳定占位。
+启用 `onUnsupported: 'fallback'` 后，受限节点和存在局部属性、组块结构、绘图、表格或导航错误的节点会降级为转义后的原文。`node.fallback` 记录诊断码和 UTF-16 范围。编译器重新检查依赖，并根据剩余节点生成运行时元数据。标题保留自己的锚点，显式锚点 ID 重复时保留第一个有效定义。资源预算超限仍会使编译失败，包括扩展 HTML 的上限。
+
+成功编译会写入 `document.requiresRuntime`。`requiresRuntime: false` 的文档可交给 `reactive-md/react/static` 的 `LocalStaticDocumentView`，或 `reactive-md/react/static/server` 的 `renderLocalStaticMarkup`。后者成功时返回标记和诊断，失败时返回结构化诊断。字面模式支持 `<if when="true">` 和 `<if when="false">`。文档还可包含 manifest 声明静态渲染且属性均为字面值的组件；传入匹配的 `reactConfig`（例如派生的 React pack 子集）即可由对应 pack 实现直接渲染，不创建文档 runtime。缺少实现的组件显示稳定占位。
 
 启用 `allowExternalSlots` 后，可用 `<external slot="references" />` 声明宿主槽位。通过 `renderExternalSlot({ name, locale, range })` 同步提供内容，或由 `resolveExternalSlot({ name, signal })` 在浏览器挂载后返回 React 组件或 Promise。服务端在配置 resolver 时输出稳定的加载占位。未提供宿主渲染器的槽位显示不可用占位。宿主先确定允许的槽位名称，再加载对应实现。单个槽位渲染函数抛出异常时，该槽位通过 `onDiagnostics` 报告错误并显示不可用占位，正常兄弟节点继续渲染。槽位渲染函数或 resolver 必须在多次渲染间保持稳定；loader 按 resolver 身份缓存，内联函数会重新发起请求。服务端渲染与客户端水合必须采用同一槽位策略，确保首帧标记一致。见[静态嵌入示例](../../examples/integration/README-ch.md#静态嵌入)。
 

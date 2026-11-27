@@ -1,18 +1,37 @@
 import type { LocalOptionCheck } from '../configuration/options-core';
-import type { Diagnostic, LocalDocumentCapabilities, LocalNode } from '../types';
+import type { Diagnostic, LocalNode } from '../types';
 import { reportWarning, type CompileState } from './compiler-services';
 import { scanInterpolations } from './compiler-values';
 import { kernelRules } from '../../contracts/component-kernel';
-import { collectEntries } from './compiler-structure';
 import { validateAttributeRelations, validateAttributes, validateBindingConstraintAttributes } from './compiler-attributes';
-import { walkLocalNodes } from '../source/source-context';
+import type { LocalDiagnosticDetails } from '../configuration/diagnostics';
+import type { ReportDiagnostic } from './compiler-structure';
 
 type Embedding = Extract<LocalOptionCheck, { ok: true }>['embedding'];
 
-export function embeddingFallback(state: CompileState, node: LocalNode, profile: Embedding, code: string, reasonKey = code): LocalNode {
+export type ReportForNode = (node: LocalNode) => ReportDiagnostic;
+
+export interface EmbeddingRejection {
+  code: string;
+  message: string | LocalDiagnosticDetails;
+  details?: LocalDiagnosticDetails;
+}
+
+export function collectEmbeddingRejections(report: ReportDiagnostic, rejected: Map<string, EmbeddingRejection>): ReportForNode {
+  return node => (code, message, start, end, details) => {
+    if (code.includes('budget')) report(code, message, start, end, details);
+    else if (!rejected.has(node.id)) rejected.set(node.id, { code, message, details });
+  };
+}
+
+export function embeddingFallback(
+  state: CompileState, node: LocalNode, profile: Embedding, code: string,
+  message: string | LocalDiagnosticDetails = { key: code }, details?: LocalDiagnosticDetails,
+): LocalNode {
   const { id, range } = node;
-  if (profile.onUnsupported === 'error') state.report(code, { key: reasonKey }, range.start, range.end);
-  else reportWarning(state, code, { key: reasonKey }, range.start, range.end);
+  const reasonKey = (typeof message === 'string' ? details?.key : message.key) ?? code;
+  if (profile.onUnsupported === 'error') state.report(code, message, range.start, range.end, details);
+  else reportWarning(state, code, message, range.start, range.end, details);
   return {
     type: 'fallback', id, range,
     value: state.source.slice(range.start, range.end),
@@ -107,11 +126,10 @@ export function applyEmbedding(state: CompileState, profile: Embedding): void {
   }
 }
 
-export function compileEmbeddingAttributes(state: CompileState, profile: Embedding, capabilities?: LocalDocumentCapabilities): void {
-  const rejected = new Map<LocalNode, LocalNode>();
+export function compileEmbeddingAttributes(state: CompileState, rejectAttribute?: (node: LocalNode) => void): void {
   const skipped = new Set<LocalNode>();
   let localError = false;
-  const validationState: CompileState = profile.onUnsupported === 'fallback' ? {
+  const validationState: CompileState = rejectAttribute ? {
     ...state, semantic: undefined,
     report: (code, ...args) => {
       if (code.startsWith('local.budget')) state.report(code, ...args);
@@ -128,24 +146,7 @@ export function compileEmbeddingAttributes(state: CompileState, profile: Embeddi
     validateAttributeRelations(entry, validationState);
     validateBindingConstraintAttributes(entry, validationState);
     if (!localError) continue;
-    rejected.set(entry.node, embeddingFallback(state, entry.node, profile, 'local.embedding.attribute'));
+    rejectAttribute?.(entry.node);
     skipped.add(entry.node);
-    state.attrs.delete(entry.node.id);
-  }
-  if (rejected.size === 0) return;
-
-  const excludedIds = new Set<string>();
-  state.nodes = replaceEmbeddingNodes(state.nodes, node => {
-    const replacement = rejected.get(node);
-    if (replacement) for (const discarded of walkLocalNodes([node])) excludedIds.add(discarded.id);
-    return replacement;
-  });
-  state.entries.length = 0;
-  collectEntries(state.nodes, null, state.entries, state);
-  if (capabilities) {
-    const styles = capabilities.componentStyles as Record<string, string>;
-    const targets = capabilities.actionTargets as Record<string, string>;
-    for (const id of excludedIds) delete styles[id];
-    for (const [name, id] of Object.entries(targets)) if (excludedIds.has(id)) delete targets[name];
   }
 }

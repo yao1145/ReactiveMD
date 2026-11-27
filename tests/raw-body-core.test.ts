@@ -376,6 +376,16 @@ describe('raw body parsing', () => {
 });
 
 describe('raw body budgets', () => {
+  it.each(['streaming', 'final'] as const)('keeps the length budget on unfinished loose %s bodies', (sourcePhase) => {
+    const source = '<raw-box>\nhello';
+    const options = { ...rawOptions(0, { maxRawBodyChars: 5 }), strict: false };
+    const result = sourcePhase === 'streaming' ? compileLocalStreamingTracked(source, options).result : compileLocal(source, options);
+    expect(result).toMatchObject({ ok: false, diagnostics: expect.arrayContaining([expect.objectContaining({
+      code: 'local.budget', messageKey: 'local.budget.raw', severity: 'error',
+      params: { name: 'raw-box', limit: 5 },
+    })]) });
+  });
+
   it('rejects an oversized body with local.budget.raw and no partial document', () => {
     const body = 'x'.repeat(10);
     const source = `<raw-box>\n${body}\n</raw-box>`;
