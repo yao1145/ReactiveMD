@@ -61,6 +61,7 @@ if (typeof packageInfo.version !== 'string' || versionCore(packageInfo.version) 
 }
 
 const versionSource = await read('src/sdk/version.ts');
+const engineVersion = constant(versionSource, 'LOCAL_ENGINE_VERSION', 'src/sdk/version.ts');
 const sdkVersion = constant(versionSource, 'LOCAL_SDK_VERSION', 'src/sdk/version.ts');
 const protocols = {
   LOCAL_COMPONENT_PROTOCOL: constant(versionSource, 'LOCAL_COMPONENT_PROTOCOL', 'src/sdk/version.ts'),
@@ -83,6 +84,11 @@ for (const [name, expected] of Object.entries(expectedProtocols)) {
 }
 if (failures.length === 0) pass('protocol constants match their documented revisions.');
 
+if (engineVersion !== packageInfo.version) {
+  fail(`src/sdk/version.ts declares LOCAL_ENGINE_VERSION ${engineVersion}, but package.json is ${packageInfo.version}.`);
+} else if (engineVersion !== undefined) {
+  pass(`engine version ${engineVersion} matches the package version.`);
+}
 if (sdkVersion !== undefined && packageInfo.version !== undefined) {
   const order = compareVersions(sdkVersion, packageInfo.version);
   if (order === null) fail(`Cannot compare LOCAL_SDK_VERSION "${sdkVersion}" with package version "${packageInfo.version}".`);

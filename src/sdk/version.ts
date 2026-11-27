@@ -5,6 +5,8 @@
  * syntax revision: a package release may move one without changing the others.
  */
 export const LOCAL_SDK_VERSION = '0.7.0' as const;
+/** Engine package release identity. Must match package.json. */
+export const LOCAL_ENGINE_VERSION = '0.9.2' as const;
 export const LOCAL_COMPONENT_PROTOCOL = 'reactive-md-component/v1' as const;
 /** Legacy configuration protocol. Readable through the v1 compatibility profile. */
 export const LOCAL_CONFIG_PROTOCOL = 'reactive-md-config/v1' as const;
