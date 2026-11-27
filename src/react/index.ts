@@ -1,4 +1,8 @@
 export { LocalDocumentView, LocalReactiveDocument } from './rendering/document/LocalDocumentView';
+export { LocalStaticDocumentView } from './rendering/document/LocalStaticDocumentView';
+export type { LocalStaticDocumentViewProps } from './rendering/document/LocalStaticDocumentView';
+export { LocalPooledDocumentView } from './rendering/document/LocalPooledDocumentView';
+export type { LocalPooledDocumentViewProps } from './rendering/document/LocalPooledDocumentView';
 export type {
   LocalDocumentViewProps,
   LocalReactiveDocumentProps,
@@ -23,6 +27,7 @@ export type { LocalReactComponentPackageInput, LocalReactComponentPackage, Local
 export {
   LocalReactExtensionMissingError,
   createReactConfig,
+  createDeferredReactConfig,
   defineReactComponent,
   localReactExtensionRenderer,
   reportLocalComponentError,
@@ -31,6 +36,9 @@ export {
 } from './sdk';
 export type {
   CreateLocalReactConfigOptions,
+  CreateDeferredLocalReactConfigOptions,
+  LocalReactComponentResolver,
+  LocalReactTraceContext,
   LocalComponentBindingHandle,
   LocalComponentContext,
   LocalComponentInstance,

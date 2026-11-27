@@ -1,9 +1,16 @@
 import {
   Component,
   createElement,
+  useCallback,
+  useEffect,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 import type { Diagnostic, LocalNode, LocalRuntime, SourceRange } from '../local/types';
+import { localDiagnosticTemplate } from '../local/configuration/diagnostics';
+import { LocalComponentLoader, type LocalReactComponentResolver, type LocalReactTraceContext } from './component-loader';
+import { RenderLifecycle } from './render-lifecycle';
+export type { LocalReactComponentResolver, LocalReactTraceContext } from './component-loader';
 import type {
   LocalHostComponentContext,
   LocalHostRenderer,
@@ -49,6 +56,7 @@ export {
 /** Everything a renderer needs from the document view. */
 export interface LocalReactRenderEnvironment {
   runtime: LocalRuntime;
+  trace?: LocalReactTraceContext;
   authorStyle?: LocalComponentAdapterEnvironment['authorStyle'];
   authorStyleText?: LocalComponentAdapterEnvironment['authorStyleText'];
   dispatchAuthorAction?: LocalComponentAdapterEnvironment['dispatchAuthorAction'];
@@ -102,6 +110,10 @@ export interface CreateLocalReactConfigOptions {
   presets?: readonly LocalReactPreset[];
 }
 
+export interface CreateDeferredLocalReactConfigOptions extends CreateLocalReactConfigOptions {
+  readonly resolver: LocalReactComponentResolver;
+}
+
 /**
  * Host implementation map for one immutable `LocalConfig`. The serializable
  * config is available as `.config`; React functions stay on this object and
@@ -136,6 +148,10 @@ interface LocalReactIndex {
 }
 
 const reactIndexes = new WeakMap<LocalReactConfig, LocalReactIndex>();
+const deferredIndexes = new WeakMap<LocalReactConfig, {
+  loader: LocalComponentLoader;
+  definitions: ReadonlyMap<string, LocalComponentDefinition>;
+}>();
 
 function indexOf(config: LocalReactConfig): LocalReactIndex {
   const cached = reactIndexes.get(config);
@@ -179,6 +195,7 @@ export function createReactConfigWithDefaults(
   input: LocalConfig,
   options: CreateLocalReactConfigOptions,
   defaults: readonly LocalReactComponent[],
+  resolver?: LocalReactComponentResolver,
 ): LocalReactConfig {
   const config = readLocalConfig(input);
   const supplied = options?.components;
@@ -220,6 +237,7 @@ export function createReactConfigWithDefaults(
 
   const selected: LocalReactComponent[] = [];
   const missing: string[] = [];
+  const deferredDefinitions = new Map<string, LocalComponentDefinition>();
   for (const definition of config.registry) {
     const digest = localComponentDigest(definition);
     const matches = candidates.filter((candidate) => candidate.definition.id === definition.id
@@ -232,7 +250,8 @@ export function createReactConfigWithDefaults(
           `React component "${definition.id}@${definition.version}" does not match the installed manifest contract.`,
         );
       }
-      missing.push(`${definition.id}@${definition.version}`);
+      if (resolver) deferredDefinitions.set(definition.name, definition);
+      else missing.push(`${definition.id}@${definition.version}`);
       continue;
     }
     if (matches.length > 1) {
@@ -269,7 +288,15 @@ export function createReactConfigWithDefaults(
     hostRenderer: createHostRenderer(index),
   });
   reactIndexes.set(result, index);
+  if (resolver) deferredIndexes.set(result, { loader: new LocalComponentLoader(resolver), definitions: deferredDefinitions });
   return result;
+}
+
+export function createDeferredReactConfigWithDefaults(
+  config: LocalConfig, options: CreateDeferredLocalReactConfigOptions, defaults: readonly LocalReactComponent[],
+): LocalReactConfig {
+  if (typeof options?.resolver !== 'function') throw new TypeError('A deferred React config requires a resolver.');
+  return createReactConfigWithDefaults(config, options, defaults, options.resolver);
 }
 
 /* -------------------------------------------------------------- rendering */
@@ -440,16 +467,19 @@ function LocalExtensionView({
     ? implementation.renderStatic
     : implementation.render;
   // The context is the component's props, matching ComponentType<LocalComponentContext>.
-  return createElement(ComponentImpl, context);
+  const rendered = createElement(ComponentImpl, context);
+  if (!environment.trace?.observer?.onTrace) return rendered;
+  return <>{rendered}<RenderLifecycle trace={environment.trace} component={implementation.definition} /></>;
 }
 
 function renderExtensionNode(
   index: LocalReactIndex,
   node: LocalNode,
   environment: LocalReactRenderEnvironment,
+  resolved?: LocalReactComponent,
 ): ReactNode {
   const name = node.name ?? '';
-  const implementation = index.byName.get(name);
+  const implementation = resolved ?? index.byName.get(name);
   if (!implementation) throw new LocalReactExtensionMissingError(name);
   let source: string | undefined;
   try {
@@ -476,6 +506,37 @@ function renderExtensionNode(
   );
 }
 
+const loadDiagnostics = new WeakMap<object, Set<string>>();
+
+function LocalDeferredComponent({ loader, index, definition, node, environment }: {
+  loader: LocalComponentLoader; index: LocalReactIndex; definition: LocalComponentDefinition;
+  node: LocalNode; environment: LocalReactRenderEnvironment;
+}) {
+  const trace = environment.trace;
+  const subscribe = useCallback((notify: () => void) => loader.subscribe(definition, notify, trace), [loader, definition, trace]);
+  const getSnapshot = useCallback(() => loader.snapshot(definition), [loader, definition]);
+  const state = useSyncExternalStore(subscribe, getSnapshot, loader.serverSnapshot);
+  const document = environment.runtime.document;
+  const loading = state.status === 'loading';
+  const code = loading ? 'local.extension.load' : 'local.extension.load-failed';
+  const message = localDiagnosticTemplate(code, environment.locale) ?? code;
+  useEffect(() => {
+    if (state.status === 'ready') return;
+    let seen = loadDiagnostics.get(document);
+    if (!seen) { seen = new Set(); loadDiagnostics.set(document, seen); }
+    const identity = `${trace?.sourceRevision ?? ''}:${definition.id}:${definition.version}:${code}`;
+    if (seen.size >= 64 || seen.has(identity)) return;
+    seen.add(identity);
+    environment.report([{ code, message, messageKey: code, severity: 'warning', range: node.range,
+      ...positionOf(document.source, node.range.start), phase: 'host', recoverable: true }]);
+  }, [document, definition, code, message, state.status, trace?.sourceRevision, environment, node]);
+  if (state.status === 'ready') return renderExtensionNode(index, node, environment, state.component);
+  const retry = environment.locale === 'zh' ? '重试' : 'Retry';
+  return <span className="local-component-loading" data-rmd-component-load={state.status} role="status">
+    {message}{!loading && <button type="button" onClick={() => loader.retry(definition, trace)}>{retry}</button>}
+  </span>;
+}
+
 /**
  * Renderer for `hostComponent` nodes produced from an SDK config. Unlike the
  * legacy host bridge it does not require host data, so a stateless leaf can
@@ -484,7 +545,17 @@ function renderExtensionNode(
 export function localReactExtensionRenderer(
   config: LocalReactConfig,
 ): LocalReactExtensionRenderer {
-  return (node, environment) => renderExtensionNode(indexOf(config), node, environment);
+  const index = indexOf(config);
+  const deferred = deferredIndexes.get(config);
+  return (node, environment) => {
+    const name = node.name ?? '';
+    const definition = deferred?.definitions.get(name);
+    if (!deferred || !definition) return renderExtensionNode(index, node, environment);
+    const declared = environment.runtime.document.componentDefinitions?.find(item => item.name === name);
+    if (!declared || declared.id !== definition.id || declared.version !== definition.version
+      || localComponentDigest(declared) !== localComponentDigest(definition)) throw new LocalReactExtensionMissingError(name);
+    return <LocalDeferredComponent loader={deferred.loader} index={index} definition={definition} node={node} environment={environment} />;
+  };
 }
 
 function plainNodeText(nodes: LocalNode[] | undefined): string {
@@ -539,8 +610,9 @@ export function validateLocalReactExtensions(
   const components = (requirements as LocalExtensionRequirements).components;
   if (!Array.isArray(components)) return diagnostics;
   const installed = indexOf(config);
+  const deferred = deferredIndexes.get(config);
   for (const requirement of components) {
-    if (!installed.byId.has(requirement.id)) diagnostics.push({
+    if (!installed.byId.has(requirement.id) && deferred?.definitions.get(requirement.name)?.id !== requirement.id) diagnostics.push({
       code: 'local.extension.renderer-missing', severity: 'error',
       message: new LocalReactExtensionMissingError(requirement.name).message,
       range: { start: 0, end: 0 }, line: 1, column: 1,

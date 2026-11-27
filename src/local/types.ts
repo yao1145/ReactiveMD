@@ -46,9 +46,12 @@ export interface LocalNode {
   type: string;
   id: string;
   range: SourceRange;
+  fallback?: LocalFallbackInfo;
   children?: LocalNode[];
   name?: string;
   attrs?: Record<string, string>;
+  /** Component attributes preserve interpolation delimiters as literal text. */
+  literalAttributes?: true;
   value?: string;
   depth?: number;
   ordered?: boolean;
@@ -220,6 +223,8 @@ export type LocalCompileStatus = 'partial' | 'valid' | 'recovered' | 'failed';
 export interface LocalDocument {
   syntax: 'local';
   source: string;
+  /** Whether rendering needs runtime services. Historical documents omit this field. */
+  requiresRuntime?: boolean;
   /** Registry fingerprint carried through compilation, Worker cloning and patches. */
   componentConfigKey?: string;
   /** Effective syntax revision; absent on older hand-built runtime documents. */
@@ -389,7 +394,21 @@ export interface LocalHostComponentSchema {
   readonly body?: 'markdown' | 'raw';
 }
 
+export interface LocalEmbeddingOptions {
+  readonly expressions?: 'evaluate' | 'literal';
+  readonly onUnsupported?: 'error' | 'fallback';
+  readonly allowImages?: boolean;
+  readonly allowInteractive?: boolean;
+}
+
+export interface LocalFallbackInfo {
+  readonly code: string;
+  readonly range: SourceRange;
+  readonly reasonKey?: string;
+}
+
 export interface LocalCompileOptions extends LocalHtmlOptions {
+  readonly embedding?: LocalEmbeddingOptions;
   /** Optional host observer for direct compiler calls. */
   readonly observer?: import('./observability').LocalObserver;
   readonly limits?: LocalCompileLimits;

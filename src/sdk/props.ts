@@ -280,9 +280,11 @@ export function resolveLocalComponentProp(
   name: string,
   raw: string | undefined,
   runtime: LocalPropRuntime,
+  literal = false,
 ): string | number | boolean | null {
   const prop = definition.props[name];
   if (!prop) throw propError(definition, name, 'is not declared.');
+  if (literal && raw !== undefined && prop.kind === 'string') return checkText(definition, name, prop, raw);
   const scoped = definition.rules?.some(rule =>
     rule.kind === 'scoped-expressions' && rule.attributes.includes(name)
     || rule.kind === 'row-values' && (rule.rows === name || rule.key === name));

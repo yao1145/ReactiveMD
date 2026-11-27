@@ -38,11 +38,6 @@ import {
   reportUnmatchedHostComponents,
   validateChildren,
 } from './compiler-structure';
-import {
-  validateAttributeRelations,
-  validateAttributes,
-  validateBindingConstraintAttributes,
-} from './compiler-attributes';
 import { attachTableShapes, computeSelections, validateTables } from './compiler-tables';
 import { bindingKinds, resolveBindings } from './compiler-bindings';
 import {
@@ -58,6 +53,8 @@ import { validateDataTables, validatePlots, validateValidations } from './compil
 import { cloneValue } from './compiler-values';
 import { attachNodeDependencies } from './dependencies';
 import { compileDocumentCapabilities } from './compiler-capabilities';
+import { applyEmbedding, compileEmbeddingAttributes } from './compiler-embedding';
+import { localDocumentRequiresRuntime } from './runtime-requirement';
 
 /**
  * The parser owns recovery detection. Until its optional field is part of the
@@ -150,6 +147,7 @@ export function compileLegacyHtmlLocal(
   const document: LocalDocument = {
     syntax: 'local',
     source,
+    requiresRuntime: true,
     syntaxVersion: LOCAL_SYNTAX_VERSION,
     html: check.html,
     nodes: [{
@@ -313,13 +311,10 @@ export function compileLocalCore(
     expressionKinds: new Map(),
   };
 
-  const capabilities = compileDocumentCapabilities(state, optionCheck.html, optionCheck.maxSyntaxNodes);
+  applyEmbedding(state, optionCheck.embedding);
+  const capabilities = compileDocumentCapabilities(state, optionCheck.html, optionCheck.maxSyntaxNodes, optionCheck.embedding);
   collectEntries(state.nodes, null, state.entries, state);
-  for (const entry of state.entries) {
-    state.attrs.set(entry.node.id, validateAttributes(entry, state));
-    validateAttributeRelations(entry, state);
-    validateBindingConstraintAttributes(entry, state);
-  }
+  compileEmbeddingAttributes(state, optionCheck.embedding, capabilities);
   mark?.('attributesMs');
   for (const entry of state.entries) validateChildren(entry, state);
   computeSelections(state);
@@ -408,6 +403,7 @@ export function compileLocalCore(
   };
   attachNodeDependencies(document, optionCheck.registry);
   attachTableShapes(document, state.tableShapes);
+  document.requiresRuntime = localDocumentRequiresRuntime(document);
   mark?.('publicationMs');
   return withRecoveries({ ok: true, document, diagnostics }, recoveries);
 }

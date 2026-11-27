@@ -83,6 +83,8 @@ import { LocalViewContext, type RenderEnv } from './view-render-context';
 import { EndnotesView, renderNodes } from './render-nodes';
 import { useAuthorScript } from './use-author-script';
 import { scopeAuthorStyles } from '../../../local/css/author-css';
+import { RenderLifecycle } from '../../render-lifecycle';
+import type { LocalReactTraceContext } from '../../component-loader';
 import { OverflowTextTooltip } from '../../overflow-text-tooltip';
 
 /* ------------------------------------------------------------------ props */
@@ -104,6 +106,9 @@ export type LocalImageResolver = (url: string) => string | null;
 export interface LocalDocumentViewProps {
   document: LocalDocument;
   runtime: LocalRuntime;
+  /** Preserve component and ancestor slots across append-only source updates. */
+  stableComponentKeys?: boolean;
+  trace?: LocalReactTraceContext;
   /** Mount-local grants, bounded by the permissions recorded at compilation. */
   capabilityGrants?: LocalHtmlOptions;
   /** Pause author script binding requests and actions while source validation is pending. */
@@ -160,6 +165,8 @@ export interface LocalDocumentViewProps {
 
 export interface LocalReactiveDocumentProps {
   source: string;
+  stableComponentKeys?: boolean;
+  trace?: LocalReactTraceContext;
   /** Further restrict the grants given by compileOptions for this mount. */
   capabilityGrants?: LocalHtmlOptions;
   allowedFrameOrigins?: readonly string[];
@@ -323,6 +330,8 @@ export function LocalDocumentViewCore(props: LocalDocumentViewCoreProps) {
 function LocalDocumentViewLocal({
   document,
   runtime,
+  stableComponentKeys,
+  trace,
   capabilityGrants,
   authorScriptPaused = false,
   allowedFrameOrigins,
@@ -619,6 +628,8 @@ function LocalDocumentViewLocal({
   const env = useMemo<RenderEnv>(
     () => ({
       runtime,
+      stableComponentKeys,
+      trace,
       network: viewNetwork,
       capabilityPolicy: policy,
       allowedFrameOrigins,
@@ -642,7 +653,7 @@ function LocalDocumentViewLocal({
       validation,
       report,
     }),
-    [runtime, viewNetwork, policy, allowedFrameOrigins, componentStyles, dispatchAuthorAction, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, extensionContractsValid, extensionRenderer, componentRenderer, definitions, anchors, t, locale, renderedMode, dependencyIndex, footnotes, sourceNavigation, validation, report],
+    [runtime, stableComponentKeys, trace, viewNetwork, policy, allowedFrameOrigins, componentStyles, dispatchAuthorAction, rootRef, urlPolicy, imageResolver, hostData, hostRenderer, extensionContractsValid, extensionRenderer, componentRenderer, definitions, anchors, t, locale, renderedMode, dependencyIndex, footnotes, sourceNavigation, validation, report],
   );
 
   // Revision-independent deps keep this closure and the provider value stable
@@ -695,6 +706,7 @@ function LocalDocumentViewLocal({
             : t('Interactive document', '交互文档')
         }
       >
+        {trace?.observer?.onTrace && <RenderLifecycle trace={trace} />}
         {sourceRules && <style data-rmd-author-css="" dangerouslySetInnerHTML={{ __html: sourceRules }} />}
         <LocalViewContext.Provider value={contextValue}>
           {extensionDiagnostics.length > 0 ? (

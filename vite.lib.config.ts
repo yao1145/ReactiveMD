@@ -8,6 +8,9 @@ const pluginEntries = Object.fromEntries(
     `reactive-md-plugin-${name}`, fileURLToPath(new URL(`./src/components/plugins/${name}.ts`, import.meta.url)),
   ]),
 );
+const reactPackEntries = Object.fromEntries(['controls', 'layout', 'data', 'visuals'].map(name => [
+  `reactive-md-react-pack-${name}`, fileURLToPath(new URL(`./src/components/packs/${name}.ts`, import.meta.url)),
+]));
 
 export default defineConfig({
   plugins: [bundleAuthorWorker(), {
@@ -24,12 +27,14 @@ export default defineConfig({
       entry: {
         'reactive-md': fileURLToPath(new URL('./src/index.ts', import.meta.url)),
         'reactive-md-observability': fileURLToPath(new URL('./src/observability.ts', import.meta.url)),
+        'reactive-md-worker-pool': fileURLToPath(new URL('./src/local/transport/worker-pool.ts', import.meta.url)),
         'reactive-md-react': fileURLToPath(new URL('./src/react/library.ts', import.meta.url)),
         'reactive-md-react-runtime': fileURLToPath(new URL('./src/react/runtime/index.ts', import.meta.url)),
         'reactive-md-runtime': fileURLToPath(new URL('./src/runtime-services/index.ts', import.meta.url)),
         'reactive-md-runtime-browser': fileURLToPath(new URL('./src/runtime-services/browser/index.ts', import.meta.url)),
         'reactive-md-react-unstyled': fileURLToPath(new URL('./src/react/index.ts', import.meta.url)),
         'reactive-md-react-minimal': fileURLToPath(new URL('./src/react/minimal.tsx', import.meta.url)),
+        'reactive-md-react-packed': fileURLToPath(new URL('./src/react/packed.tsx', import.meta.url)),
         'reactive-md-authoring': fileURLToPath(new URL('./src/authoring/index.ts', import.meta.url)),
         'reactive-md-sdk': fileURLToPath(new URL('./src/sdk/index.ts', import.meta.url)),
         'reactive-md-contracts': fileURLToPath(new URL('./src/contracts/index.ts', import.meta.url)),
@@ -41,6 +46,7 @@ export default defineConfig({
         'reactive-md-minimal-preset': fileURLToPath(new URL('./src/presets/minimal.ts', import.meta.url)),
         'reactive-md-minimal-react-preset': fileURLToPath(new URL('./src/components/minimal-preset.ts', import.meta.url)),
         ...pluginEntries,
+        ...reactPackEntries,
         'reactive-md-export': fileURLToPath(new URL('./src/export/index.ts', import.meta.url)),
         'reactive-md-react-server': fileURLToPath(new URL('./src/react/server.tsx', import.meta.url)),
         'reactive-md-standalone-host': fileURLToPath(new URL('./src/standalone/library.ts', import.meta.url)),

@@ -15,6 +15,9 @@ export {
 export type { LocalDiagnosticDetails } from './configuration/diagnostics';
 export { countLocalCodePoints } from './source/source-context';
 export { createLocalRuntime,updateLocalRuntime,notifyLocalRuntime } from './runtime/runtime';
+export { createLocalRuntimePool } from './runtime/runtime-pool';
+export type { LocalRuntimeLease, LocalRuntimePool, LocalRuntimePoolOptions } from './runtime/runtime-pool';
+export type { LocalEmbeddingOptions, LocalFallbackInfo } from './types';
 export type {LocalRuntimeUpdateOptions,LocalRuntimeDocumentUpdate} from './runtime/runtime';
 export { compileExpression, LocalExpressionError } from './evaluation/expression/compile';
 export { compileLatex, compilePlotFormula, implicitGridSize, plotFormulaKind } from './evaluation/math/latex';

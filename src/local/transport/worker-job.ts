@@ -3,6 +3,7 @@ import { analyzeLocalSource, type AuthorAnalysis } from '../source/authoring';
 import { MAX_LOCAL_HOST_COMPONENTS, MAX_LOCAL_HOST_ENUM_VALUES } from '../../contracts/limits';
 import { LOCAL_HTML_FLAGS, localCompileOptionsKey } from '../../assemblies/default-options';
 import { snapshotLocalConfig } from '../../assemblies/default-config';
+import { readEmbedding } from '../configuration/embedding';
 
 /** Editors are coalesced for this long before a compile is dispatched. */
 export const LOCAL_COMPILE_DELAY_MS = 150;
@@ -97,6 +98,10 @@ export function snapshotCompileOptions(options: LocalCompileOptions | undefined)
     // Observers are host callbacks and must never cross the Worker boundary.
     if (Object.hasOwn(source, 'markdownBreaks')) {
       copy.markdownBreaks = source.markdownBreaks;
+    }
+    if (Object.hasOwn(source, 'embedding')) {
+      const embedding = source.embedding;
+      copy.embedding = embedding === undefined ? undefined : readEmbedding(embedding);
     }
     // The phase is not part of the compile identity, but the worker still
     // honors it when the host placed it on the options object.

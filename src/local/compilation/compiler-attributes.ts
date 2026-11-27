@@ -86,7 +86,8 @@ function validateAttributesUncached(entry: Entry, state: CompileState): AttrMap 
       state.report('local.budget.attribute', { key: 'local.budget.attribute', params: { name, component: entry.name, limit: MAX_LOCAL_STRING_LENGTH } }, offset, offset + name.length);
       info.raw = raw.slice(0, MAX_LOCAL_STRING_LENGTH);
     }
-    validatePropValue(name, prop, info, state, legacy);
+    if (entry.node.literalAttributes && prop.kind === 'string' && raw.includes('{{')) info.value = info.raw;
+    else validatePropValue(name, prop, info, state, legacy);
     if (prop.color) {
       const scanned = scanInterpolations(info.raw);
       if (!scanned.segments.length && !scanned.unterminated.length && !isLocalColor(info.raw)) {

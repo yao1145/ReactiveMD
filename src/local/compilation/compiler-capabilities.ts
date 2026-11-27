@@ -4,6 +4,8 @@ import { openingTag } from './compiler-attributes';
 import { reportWarning, type CompileState } from './compiler-services';
 import { unsupportedAuthorCssRules } from '../css/author-css';
 import { MAX_LOCAL_DIAGNOSTICS } from '../../contracts/limits';
+import type { LocalOptionCheck } from '../configuration/options-core';
+import { embeddingFallback } from './compiler-embedding';
 
 const HIDDEN_COMPONENTS = new Set(['computed', 'const', 'external', 'validation', 'option', 'column', 'edge', 'step']);
 const DOCUMENT_HTML_TAGS = new Set(['html', 'head', 'body', 'base', 'title', 'link', 'meta', 'style', 'script']);
@@ -12,6 +14,7 @@ export function compileDocumentCapabilities(
   state: CompileState,
   policy: LocalHtmlPolicy,
   maxSyntaxNodes: number,
+  embedding: Extract<LocalOptionCheck, { ok: true }>['embedding'],
 ): LocalDocumentCapabilities | undefined {
   const styles: LocalAuthorBlock[] = [];
   const scripts: LocalAuthorBlock[] = [];
@@ -52,10 +55,20 @@ export function compileDocumentCapabilities(
         return [{ ...node, type: 'fallback', value }];
       }
       if (!policy.enableExtendedHtml || !state.htmlFragment) {
+        if (embedding.onUnsupported === 'fallback' || embedding.expressions === 'literal'
+          || !embedding.allowImages || !embedding.allowInteractive) {
+          return [embeddingFallback(state, node, embedding, 'local.html.fallback')];
+        }
         reportWarning(state, 'local.html.fallback', { key: 'local.html.extended', params: { name } }, range.start, range.end);
         return [{ ...node, type: 'fallback', value }];
       }
       const checked = state.htmlFragment(value, policy, maxSyntaxNodes);
+      if (!embedding.allowImages && checked.markup && /<(?:img|image|picture)\b/i.test(checked.markup)) {
+        return [embeddingFallback(state, node, embedding, 'local.embedding.image')];
+      }
+      if (!embedding.allowInteractive && /<(?:iframe|audio|video|button|input|select|textarea|form)\b/i.test(value)) {
+        return [embeddingFallback(state, node, embedding, 'local.embedding.interactive')];
+      }
       for (const issue of checked.diagnostics) {
         reportWarning(state, issue.code, issue.message, range.start + issue.range.start,
           range.start + issue.range.end, { key: issue.messageKey ?? issue.code, params: issue.params });

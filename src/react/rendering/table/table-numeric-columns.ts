@@ -18,7 +18,7 @@ function scalarText(value: LocalValue): string | null {
 
 function collectInlineText(
   nodes: LocalNode[] | undefined,
-  runtime: Pick<LocalRuntime, 'evaluate'>,
+  runtime: Pick<LocalRuntime, 'evaluate'> | undefined,
   state: { error: boolean },
 ): string {
   let text = '';
@@ -29,7 +29,7 @@ function collectInlineText(
     }
     if (node.type === 'interpolation') {
       try {
-        const scalar = scalarText(runtime.evaluate((node.value ?? '').trim()));
+        const scalar = runtime ? scalarText(runtime.evaluate((node.value ?? '').trim())) : null;
         if (scalar === null) state.error = true;
         else text += scalar;
       } catch {
@@ -60,7 +60,7 @@ function collectInlineText(
  */
 function readNumericCell(
   cell: LocalNode,
-  runtime: Pick<LocalRuntime, 'evaluate'>,
+  runtime: Pick<LocalRuntime, 'evaluate'> | undefined,
 ): CellNumber {
   const children = cell.children ?? [];
   const significant = children.filter(
@@ -68,7 +68,7 @@ function readNumericCell(
   );
   if (significant.length === 1 && significant[0].type === 'interpolation') {
     try {
-      const value = runtime.evaluate((significant[0].value ?? '').trim());
+      const value = runtime?.evaluate((significant[0].value ?? '').trim());
       return {
         empty: false,
         numeric: typeof value === 'number' && Number.isFinite(value) ? value : null,
@@ -94,7 +94,7 @@ function readNumericCell(
  */
 export function tableNumericColumns(
   rows: readonly LocalNode[][],
-  runtime: Pick<LocalRuntime, 'evaluate'>,
+  runtime: Pick<LocalRuntime, 'evaluate'> | undefined,
   _t: Localize = defaultLocalize,
 ): boolean[] {
   const width = rows[0]?.length ?? 0;

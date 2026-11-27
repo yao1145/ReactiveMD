@@ -71,6 +71,9 @@ try {
   await expect(page.locator('#parameters')).toContainText('"amount":7');
   observed = await probe();
   assert.deepEqual(observed.transientCodes, [['local.tag.unclosed'], []]);
+  const numberMounts = observed.traces.filter(event => event.componentName === 'number' && event.type === 'render-mount');
+  assert.ok(numberMounts.length > 0);
+  assert.ok(numberMounts.every(event => event.environment === 'development' && event.traceId === 'stream-first'));
   console.log('PASS final snapshot restores interaction, retracts transient diagnostics once and publishes the typed value');
 
   // 3. A later streaming round keeps the runtime value while the document is
@@ -103,6 +106,8 @@ try {
   await expect(documentRoot.getByLabel('Amount', { exact: true })).toHaveValue('7');
   await expect(page.locator('#transient-calls')).toHaveText('4');
   observed = await probe();
+  assert.equal(observed.traces.filter(event => event.componentName === 'number' && event.type === 'render-mount').length,
+    numberMounts.length, 'append-only streaming snapshots should preserve the number component slot');
   assert.equal(observed.transientCodes.length, 4);
   assert.deepEqual(observed.transientCodes[0], ['local.tag.unclosed']);
   assert.deepEqual(observed.transientCodes[1], []);

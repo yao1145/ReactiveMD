@@ -120,7 +120,7 @@ export function collectNodeDependencies(
     // Text interpolations are parsed into `interpolation` child nodes, so
     // attributes are the remaining template site. Any malformed template makes
     // the whole node undecidable.
-    if (node.attrs !== undefined) {
+    if (node.attrs !== undefined && !node.literalAttributes) {
       for (const value of Object.values(node.attrs)) {
         try {
           addAll(dependencies, templateDependencies(value));

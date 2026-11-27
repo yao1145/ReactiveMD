@@ -10,6 +10,14 @@ import { LOCAL_RUNTIME_DIAGNOSTIC_MESSAGES } from './diagnostic-runtime-messages
  */
 
 export const LOCAL_DIAGNOSTIC_MESSAGES = {
+  'local.options.invalid.embedding': { en: 'Invalid embedding compile options.', zh: '嵌入编译选项无效。' },
+  'local.embedding.image': { en: 'Images are disabled for this document.', zh: '此文档已禁用图片。' },
+  'local.embedding.interactive': { en: 'Interactive content is disabled for this document.', zh: '此文档已禁用交互内容。' },
+  'local.embedding.attribute': { en: 'This component has an unsupported attribute or attribute value.', zh: '此组件含有不支持的属性或属性值。' },
+  'local.embedding.declaration': { en: 'This declaration requires expression evaluation.', zh: '此声明需要表达式求值。' },
+  'local.render.runtime-required': { en: 'This document requires a runtime to render.', zh: '此文档需要运行时才能渲染。' },
+  'local.extension.load': { en: 'Loading component…', zh: '正在加载组件…' },
+  'local.extension.load-failed': { en: 'The component could not be loaded.', zh: '组件加载失败。' },
   'local.version.unsupported': { en: 'This reader accepts {supported}; migrate {declared} or use a compatible reader.', zh: '此阅读器支持 {supported}；请迁移 {declared} 或使用兼容的阅读器。' },
   'local.version.malformed': { en: 'Use <!-- reactive-md: local-draft-3 --> on one line.', zh: '请在单独一行使用 <!-- reactive-md: local-draft-3 -->。' },
   'local.version.duplicate': { en: 'Only one source syntax declaration is allowed.', zh: '源码只能声明一次语法版本。' },

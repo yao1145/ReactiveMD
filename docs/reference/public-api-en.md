@@ -23,14 +23,17 @@ The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. Rea
 | `reactive-md/compiler/standard` | ESM | No | No | One-shot compiler with GFM, native HTML, KaTeX and the default preset |
 | `reactive-md/compiler/session` | ESM | No | No | Stateful per-document compile session with block reuse and disposal |
 | `reactive-md/scan` | ESM | No | No | Read-only source analysis returning tokens, bindings and UTF-16 ranges |
+| `reactive-md/worker-pool` | ESM | No | No | Compile multiple documents with a bounded Worker queue |
 | `reactive-md/react` | ESM | Yes | No | React document renderer and component development API |
 | `reactive-md/react/unstyled` | ESM | Yes | No | The same renderer without the stylesheet side effect |
 | `reactive-md/react/minimal` | ESM | Yes | No | Renderer built on the 18-component minimal preset |
+| `reactive-md/react/packed` | ESM | Yes | No | Compose and render explicitly selected React presets |
 | `reactive-md/react/server` | ESM | Yes | Yes | Strict SSR adapter returning markup or diagnostics |
 | `reactive-md/react/runtime` | ESM | Yes | No | Component-facing React hooks: timers, frames, swipe, keys, state |
 | `reactive-md/sdk` | ESM | No | No | Component, preset and theme manifests with validation |
 | `reactive-md/presets/default` | ESM | No | No | The 48-component default preset as plain data |
 | `reactive-md/presets/default/packs` | ESM | No | No | Four named subsets of the default preset |
+| `reactive-md/presets/default/packs/react/<pack>` | ESM | Yes | No | React implementation and CSS resources for `controls`, `layout`, `data` or `visuals` |
 | `reactive-md/presets/minimal` | ESM | No | No | The 18-component minimal preset |
 | `reactive-md/presets/minimal/react` | ESM | Yes | No | React implementations for the minimal preset |
 | `reactive-md/plugins/*` | ESM | Yes | No | Eight optional official component packages |
@@ -58,6 +61,16 @@ The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. Rea
 | `reactive-md/package.json` | file | — | — | Package metadata |
 
 ## Compilation and the core runtime
+
+### Embedding and multiple documents
+
+`LocalCompileOptions.embedding` defaults to `{ expressions: 'evaluate', onUnsupported: 'error', allowImages: true, allowInteractive: true }`. `expressions: 'literal'` preserves `{{ ... }}` in text and compatible string attributes. Use the compile `config` to select the component registry. HTML permissions come from the existing capability flags.
+
+With `onUnsupported: 'fallback'`, the compiler preserves an unsupported node as escaped source and records its code and UTF-16 range in `node.fallback`. Successful compilations report `document.requiresRuntime`. Pass a document with `requiresRuntime: false` to `LocalStaticDocumentView` or `renderLocalStaticMarkup` from `reactive-md/react/server`. The latter returns `{ ok, markup, diagnostics }` on success. The literal profile supports `<if when="true">` and `<if when="false">`.
+
+`createLocalRuntimePool()` from `reactive-md` provides leases scoped to compatible document and runtime options. Release each lease when the consumer unmounts, or use `LocalPooledDocumentView` to tie lease ownership to the React lifecycle. `stableComponentKeys` preserves React slots across append-only updates under the same parent.
+
+`createLocalCompilePool()` accepts `{ documentId, revision, source, options, sourcePhase, priority }`. Revisions increase per document. The default `latest` policy rejects replaced tasks with `LocalCompilePoolTaskError.kind === 'superseded'`. Use `all` for ordered delivery and handle `backpressure` when its queue fills. Pool Workers receive full source. Pass a `LocalObserver` to read pool events, then forward an outcome's trace ID, document ID and revision as `trace` on the React view to correlate loading and mount events.
 
 ### `reactive-md`
 
@@ -173,6 +186,10 @@ The same two components and helpers, built on the 18-component minimal preset. `
 Hooks for component implementations: `useTicker`, `useFrame`, `useSwipe` with `classifySwipe`, `useKeys` with `isEditableTarget`, and `useComponentState`. The entry imports no renderer and no compiler.
 
 ## Component SDK and presets
+
+For a smaller host, pass React pack packages to `createReactHost({ presets })` from `reactive-md/react/packed`. Compile with `host.compileOptions`, render with `host.reactConfig` and load `host.css` alongside the document base styles. The visuals pack depends on the data pack. `deriveLocalPreset(preset, { include })` or `{ exclude }` selects semantic manifests in source order and preserves declared preset dependencies.
+
+`createDeferredReactConfig(config, { components, resolver })` allows React to load implementations for manifests declared by the compiled document. The resolver receives `{ name, definition, signal }`. Concurrent render slots share a request for the same manifest identity. SSR renders a loading placeholder, and the client begins loading after mount. Pre-register an implementation when SSR needs its markup.
 
 ### `reactive-md/sdk`
 

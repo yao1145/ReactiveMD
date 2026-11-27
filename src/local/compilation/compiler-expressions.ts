@@ -116,6 +116,7 @@ export function validateExpressions(state: CompileState): void {
       // validated by validateDataTables / validateValidations.
       if (scoped.has(name)) continue;
       if (prop.kind === 'string') {
+        if (entry.node.literalAttributes) continue;
         if (prop.dynamic) {
           // A full interpolation is a typed string expression; a literal is a
           // static fallback and has no expression to validate.
@@ -142,6 +143,8 @@ export function validateExpressions(state: CompileState): void {
     }
     for (const name of fullRequired) {
       const info = attrs[name];
+      if (entry.node.literalAttributes && entry.definition?.id === 'reactive-md/if'
+        && name === 'when' && typeof info?.value === 'boolean') continue;
       if (info && !singleFullInterpolation(info.raw)) {
         state.report('local.attribute.interpolation', { key: 'local.attribute.interpolation', params: { name, component: entry.name } }, info.offset, undefined);
       }

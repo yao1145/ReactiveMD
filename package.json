@@ -99,6 +99,10 @@
       "types": "./dist-library/types/compiler/standard.d.ts",
       "import": "./dist-library/reactive-md-compiler-standard.js"
     },
+    "./worker-pool": {
+      "types": "./dist-library/types/local/transport/worker-pool.d.ts",
+      "import": "./dist-library/reactive-md-worker-pool.js"
+    },
     "./compiler/session": {
       "types": "./dist-library/types/compiler/session.d.ts",
       "import": "./dist-library/reactive-md-compiler-session.js"
@@ -134,6 +138,22 @@
     "./presets/default/packs": {
       "types": "./dist-library/types/presets/packs.d.ts",
       "import": "./dist-library/reactive-md-default-packs.js"
+    },
+    "./presets/default/packs/react/controls": {
+      "types": "./dist-library/types/components/packs/controls.d.ts",
+      "import": "./dist-library/reactive-md-react-pack-controls.js"
+    },
+    "./presets/default/packs/react/layout": {
+      "types": "./dist-library/types/components/packs/layout.d.ts",
+      "import": "./dist-library/reactive-md-react-pack-layout.js"
+    },
+    "./presets/default/packs/react/data": {
+      "types": "./dist-library/types/components/packs/data.d.ts",
+      "import": "./dist-library/reactive-md-react-pack-data.js"
+    },
+    "./presets/default/packs/react/visuals": {
+      "types": "./dist-library/types/components/packs/visuals.d.ts",
+      "import": "./dist-library/reactive-md-react-pack-visuals.js"
     },
     "./presets/minimal": {
       "types": "./dist-library/types/presets/minimal.d.ts",
@@ -210,6 +230,10 @@
     "./react/runtime": {
       "types": "./dist-library/types/react/runtime/index.d.ts",
       "import": "./dist-library/reactive-md-react-runtime.js"
+    },
+    "./react/packed": {
+      "types": "./dist-library/types/react/packed.d.ts",
+      "import": "./dist-library/reactive-md-react-packed.js"
     },
     "./react/minimal": {
       "types": "./dist-library/types/react/minimal.d.ts",

@@ -104,17 +104,7 @@ export function StepsTabView(context: LocalComponentContext) {
   return TabView(context);
 }
 
-export function OptionView() {
-  return null;
-}
-
-export function ColumnView() {
-  return null;
-}
-
-export function EdgeView() {
-  return null;
-}
+export { OptionView, ColumnView, EdgeView } from './structural-views';
 
 export function TabsView(context: LocalComponentContext) {
   const authorRoot = useAuthorComponentRoot(context);

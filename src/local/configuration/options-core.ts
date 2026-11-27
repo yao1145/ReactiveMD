@@ -49,6 +49,8 @@ export type LocalHtmlFlag = (typeof LOCAL_HTML_FLAGS)[number];
  */
 export const LOCAL_RECOVERY_STRATEGY_VERSION = '2';
 
+import { readEmbedding } from './embedding';
+
 export type LocalOptionCheck =
   | {
       ok: true;
@@ -67,6 +69,7 @@ export type LocalOptionCheck =
       /** True when at least one capability flag is enabled. */
       /** Render ordinary Markdown soft line breaks as `break` nodes. */
       markdownBreaks: boolean;
+      embedding: NonNullable<ReturnType<typeof readEmbedding>>;
       /**
        * Effective structural mode. Defaults to `true`; `false` enables the
        * parser's isolated recovery strategy.
@@ -600,6 +603,8 @@ export function readOptionCheck(
     return { ok: false, message: 'Compile options must be an object.', key: 'local.options.invalid.object' };
   }
   const record = (options ?? {}) as unknown as Record<string, unknown>;
+  const embedding = readEmbedding(Object.hasOwn(record, 'embedding') ? record.embedding : undefined);
+  if (!embedding) return { ok: false, key: 'local.options.invalid.embedding', message: 'Invalid embedding compile options.' };
 
   const html = { ...DEFAULT_CAPABILITY_POLICY };
   for (const flag of LOCAL_HTML_FLAGS) {
@@ -783,6 +788,7 @@ export function readOptionCheck(
     ...(sourcePhase ? { sourcePhase } : {}),
     html,
     markdownBreaks,
+    embedding,
     strict,
     hostComponents,
     hostByName,

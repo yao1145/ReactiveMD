@@ -1,6 +1,6 @@
-import { ColumnView } from '../layout/layout';
+import { ColumnView } from '../layout/structural-views';
 import { DataTableView } from '../table/data-table';
-import { TableView, TimelineView } from '../shared/visuals';
+import { TableView, TimelineView } from '../shared/data-visuals';
 import { selectOfficialPreset } from '../../presets/plugin-packs';
 import { mountOfficialPreset } from '../mount-preset';
 import visualsCss from '../shared/visuals.css?inline';

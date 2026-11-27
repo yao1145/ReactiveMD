@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import postcss from 'postcss';
+import { moduleSpecifiers } from './module-specifiers.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const consumer = mkdtempSync(join(tmpdir(), 'reactive-md-boundary-'));
+const consumer = mkdtempSync(join(process.env.REACTIVE_MD_BOUNDARY_TEMP ?? tmpdir(), 'reactive-md-boundary-'));
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 // Keep existing specifiers in the same minor series, including compatibility aliases.
 const stableEntries = [
@@ -16,6 +17,8 @@ const stableEntries = [
   './plugins/forms', './plugins/network', './plugins/navigation', './plugins/data',
   './plugins/chart', './plugins/plot', './plugins/diagram', './plugins/gallery',
   './react', './react/unstyled', './react/minimal', './react/server', './react/runtime',
+  './react/packed', './worker-pool',
+  ...['controls', 'layout', 'data', 'visuals'].map(name => `./presets/default/packs/react/${name}`),
   './runtime', './runtime/browser', './observability', './export', './export-assets',
   './build', './vite', './vite/client', './pdf', './standalone', './standalone/host',
   './testing', './testing/react', './testing/browser',
@@ -29,6 +32,23 @@ function run(command, args, cwd = root) {
   const r = spawnSync(executable, parameters, { cwd, encoding: 'utf8', shell: isNpm && !process.env.npm_execpath && process.platform === 'win32', env: process.env });
   assert.equal(r.status, 0, `${command} ${args.join(' ')}\n${r.stdout}\n${r.stderr}`);
   return r.stdout;
+}
+
+function verifyPackGraph(entry, forbidden) {
+  const files = [join(root, 'dist-library', entry)];
+  const visited = new Set();
+  while (files.length) {
+    const file = files.pop();
+    if (visited.has(file)) continue;
+    visited.add(file);
+    const source = readFileSync(file, 'utf8');
+    for (const [, module] of source.matchAll(/^\/\/ (src\/components\/\S+)\s*$/gm)) {
+      assert.ok(!forbidden.test(module), `${entry} includes an unselected component module: ${module}`);
+    }
+    for (const specifier of moduleSpecifiers(source, basename(file))) {
+      if (specifier.startsWith('.') && specifier.endsWith('.js')) files.push(resolve(dirname(file), specifier));
+    }
+  }
 }
 try {
   const expectedLayers = ['rmd.reset', 'rmd.defaults', 'rmd.components', 'rmd.themes', 'rmd.overrides'];
@@ -63,6 +83,9 @@ try {
   for (const target of exportTargets(pkg.exports)) {
     assert.ok(packedFiles.has(target.replace(/^\.\//, '')), `Package export is missing: ${target}`);
   }
+  verifyPackGraph('reactive-md-react-pack-layout.js', /\/(?:controls|chart|plot|diagram|table)\//);
+  verifyPackGraph('reactive-md-react-pack-data.js', /\/(?:controls|chart|plot|diagram|gallery)\/|\/shared\/visuals\.tsx$/);
+  verifyPackGraph('reactive-md-react-packed.js', /\/default-preset\.ts$/);
   assert.ok(!packed.files.some(file => /^docs\/(?:archive|plan)\//.test(file.path)), 'Package contains local archived development documents');
   assert.ok(!packed.files.some(file => /^examples\/.*\/(?:dist|node_modules)\//.test(file.path)), 'Package contains generated example output');
   assert.ok(!packed.files.some(file => /^examples\/sci-fi-theme\/(?:dist|screenshots)\//.test(file.path)), 'Package contains generated theme preview output');
@@ -83,6 +106,11 @@ import { createLocalCompileSession as createNarrowCompileSession, localCompileOp
 import { analyzeLocalSource as scanLocalSource } from 'reactive-md/scan';
 import { compileLocal, createLocalCompileSession, createLocalRuntime, LocalCompileScheduler, startLocalCompileWorker, localCompileOptionsKey } from 'reactive-md';
 import { createDiagnosticReport } from 'reactive-md/observability';
+import { createLocalCompilePool } from 'reactive-md/worker-pool';
+import { createReactHost as createPackedHost } from 'reactive-md/react/packed';
+import layoutReact from 'reactive-md/presets/default/packs/react/layout';
+import dataReact from 'reactive-md/presets/default/packs/react/data';
+import visualsReact from 'reactive-md/presets/default/packs/react/visuals';
 import { analyzeLocalSource, insertTemplate, getNativeComponentCatalog } from 'reactive-md/authoring';
 import { createRandom } from 'reactive-md/runtime';
 import { createLocalBrowserStateStorage, httpSubmit, sseStream, webSocketChannel, webRtcChannel } from 'reactive-md/runtime/browser';
@@ -101,6 +129,20 @@ import * as server from 'reactive-md/react/server';
 assert.equal(createStandardCompiler().compile('# Package boundary').status, 'valid');
 assert.equal(createCompiler().compile('plain text').status, 'valid');
 assert.equal(compileLocal('plain text').ok, true);
+const packedHost = createPackedHost({ presets: [layoutReact] });
+assert.ok(packedHost.config.registry.some(definition => definition.name === 'alert'));
+assert.ok(!packedHost.config.registry.some(definition => definition.name === 'chart'));
+assert.match(packedHost.css, /local-accordion/);
+assert.ok(createPackedHost({ presets: [dataReact, visualsReact] }).config.registry.some(definition => definition.name === 'chart'));
+const embedded = compileLocal('Literal {{ none }}', { embedding: { expressions: 'literal' } });
+assert.ok(embedded.ok && embedded.document.requiresRuntime === false);
+assert.ok(server.renderLocalStaticMarkup({ document: embedded.document }).ok);
+const compilePool = createLocalCompilePool({ workers: 1, createWorker() { throw new Error('No Worker in Node'); } });
+try {
+  const outcome = await compilePool.schedule({ documentId: 'packed-smoke', revision: 1, source: 'Worker fallback' });
+  assert.equal(outcome.mode, 'fallback');
+  assert.equal(outcome.result.ok, true);
+} finally { compilePool.dispose(); }
 const diagnosticReport = createDiagnosticReport('plain text');
 assert.equal(diagnosticReport.schema, 'reactive-md-diagnostic/v1');
 assert.equal(diagnosticReport.document.sourceBytes, 10);
@@ -231,9 +273,18 @@ import {analyzeLocalSource as scanLocalSource} from 'reactive-md/scan';
 import type {AuthorAnalysis, AuthorBinding, AuthorToken} from 'reactive-md/scan';
 import {analyzeLocalSource, insertTemplate} from 'reactive-md/authoring';
 import {startLocalCompileWorker} from 'reactive-md';
+import type {LocalEmbeddingOptions, LocalRuntimePool} from 'reactive-md';
+import type {LocalCompilePoolRequest} from 'reactive-md/worker-pool';
+import {createReactHost as createPackedHost} from 'reactive-md/react/packed';
+import layoutReact from 'reactive-md/presets/default/packs/react/layout';
+import {renderLocalStaticMarkup} from 'reactive-md/react/server';
 import {layoutPack} from 'reactive-md/presets/default/packs';
 import {listExportAssets, readExportAsset, resolveExportAsset} from 'reactive-md/export-assets';
 createCompiler().compile('hello'); createStandardCompiler().compile('hello'); analyzeLocalSource('hello'); void insertTemplate; void startLocalCompileWorker; void layoutPack;
+const embedding: LocalEmbeddingOptions = { expressions: 'literal' };
+const request: LocalCompilePoolRequest = { documentId: 'doc', revision: 1, source: 'test', options: { embedding } };
+const release = (pool: LocalRuntimePool) => pool.dispose();
+void request; void release; void renderLocalStaticMarkup; createPackedHost({ presets: [layoutReact] });
 const narrowSession: LocalCompileSession = createLocalCompileSession();
 const narrowStats: LocalIncrementalStats = narrowSession.stats;
 narrowSession.dispose();

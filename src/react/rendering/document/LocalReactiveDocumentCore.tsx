@@ -49,6 +49,8 @@ interface SharedCompileSession {
 
 export function LocalReactiveDocumentCore({
   source,
+  stableComponentKeys,
+  trace,
   onDiagnostics,
   sourcePhase,
   onTransientDiagnostics,
@@ -543,6 +545,8 @@ export function LocalReactiveDocumentCore({
       key={runtimeKey}
       document={result.document}
       runtime={runtime}
+      stableComponentKeys={stableComponentKeys}
+      trace={trace}
       capabilityGrants={grants}
       allowedFrameOrigins={allowedFrameOrigins}
       network={network}

@@ -1,6 +1,7 @@
 import { TreeFragment, type Tree } from '@lezer/common';
 import { parser, GFM } from '@lezer/markdown';
 import { compileLocalTracked, type LocalCompilerServices } from '../compiler';
+import { localDocumentRequiresRuntime } from '../runtime-requirement';
 import { compileLocalStreamingTracked } from '../streaming';
 import { LocalSemanticCache } from './semantic-cache';
 import type { SemanticCacheStats } from '../compiler-services';
@@ -109,6 +110,9 @@ function copyNodes(nodes: LocalNode[], delta: number, rename?: Map<string, strin
   if(delta===0&&!rename)return nodes;
   return nodes.map(node => ({ ...node, id: rename?.get(node.id) ?? node.id,
     range: {start: node.range.start + delta, end: node.range.end + delta},
+    ...(node.fallback ? { fallback: { ...node.fallback, range: {
+      start: node.fallback.range.start + delta, end: node.fallback.range.end + delta,
+    } } } : {}),
     ...(node.attrs ? {attrs: {...node.attrs}} : {}), ...(node.align ? {align: [...node.align]} : {}),
     ...(node.children ? {children: copyNodes(node.children, delta, rename)} : {}),
   }));
@@ -790,6 +794,7 @@ export class LocalCompileSession {
         constraint.offset = shift({ start: constraint.offset, end: constraint.offset }).start;
       }
     }
+    doc.requiresRuntime = localDocumentRequiresRuntime(doc);
     return {ok: true, document: doc, diagnostics: []};
   }
   get hasPendingPreparation():boolean{return !this.disposed&&this.deferred!==null;}

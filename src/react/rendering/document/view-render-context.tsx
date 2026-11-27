@@ -30,6 +30,7 @@ import type { ComponentNetwork } from '../../../runtime-services/network';
 import type { LocalReactConfig, LocalReactRenderEnvironment } from '../../sdk-core';
 import { splitHtmlDetailsChildren } from '../../../local/html/html-details';
 import { PrintValue } from '../../component-utils';
+import type { LocalReactTraceContext } from '../../component-loader';
 
 export interface LocalViewContext extends LocalRenderContext {
   definitions: ReadonlyMap<string, LocalComponentDefinition>;
@@ -196,6 +197,8 @@ export function safeUrl(
 }
 
 export interface RenderEnv {
+  stableComponentKeys?: boolean;
+  trace?: LocalReactTraceContext;
   network?: ComponentNetwork;
   capabilityPolicy?: LocalHtmlPolicy;
   allowedFrameOrigins?: readonly string[];
@@ -237,6 +240,10 @@ export interface RenderEnv {
   report?: (diagnostics: Diagnostic[]) => void;
 }
 
+export type StaticRenderEnv = Pick<RenderEnv, 'rootRef' | 'urlPolicy' | 'imageResolver' | 'anchors' | 't' | 'locale'
+  | 'footnotes' | 'capabilityPolicy' | 'allowedFrameOrigins' | 'report'> & { mode: 'static'; source: string };
+export type ProjectionEnv = RenderEnv | StaticRenderEnv;
+
 /**
  * Source-location attributes are emitted only when navigation is enabled, so
  * ordinary SSR output and exported HTML stay unchanged.
@@ -259,20 +266,20 @@ function sourceAttributes(
 }
 
 export function sourceProps(
-  env: RenderEnv,
+  env: ProjectionEnv,
   node: LocalNode,
   componentName?: string,
 ): Record<string, string> {
-  return sourceAttributes(env.sourceNavigation !== undefined, node, componentName);
+  return sourceAttributes('sourceNavigation' in env && env.sourceNavigation !== undefined, node, componentName);
 }
 
 /* ------------------------------------------------------- public adapter */
 
 /** Line/column for an adapter-owned diagnostic, clamped to the source. */
-export function sourcePosition(env: RenderEnv, offset: number): { line: number; column: number } {
+export function sourcePosition(env: ProjectionEnv, offset: number): { line: number; column: number } {
   let source = '';
   try {
-    source = env.runtime.document.source ?? '';
+    source = 'runtime' in env ? env.runtime.document.source ?? '' : env.source;
   } catch {
     source = '';
   }
@@ -375,6 +382,7 @@ export function extensionEnvironment(
   }
   return {
     runtime: env.runtime,
+    trace: env.trace,
     authorStyle: env.componentStyles && Object.hasOwn(env.componentStyles, node.id)
       ? parseAuthorDeclarations(env.componentStyles[node.id])
       : undefined,

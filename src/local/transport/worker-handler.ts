@@ -66,6 +66,7 @@ interface LocalCompileSessionExtensions {
 }
 
 interface WorkerState {
+  documentId?: string;
   source: string;
   revision: number;
   options?: LocalCompileOptions;
@@ -106,10 +107,11 @@ function postFailure(
   scope: LocalCompileWorkerScope,
   id: number,
   message: string,
-  request?: Pick<LocalCompileRequest | LocalCompilePatchRequest, 'traceId' | 'requestId' | 'sourceRevision'>,
+  request?: Pick<LocalCompileRequest, 'traceId' | 'requestId' | 'sourceRevision' | 'documentId' | 'revision'>,
 ): void {
   try {
-    scope.postMessage({ id, ...(request?.traceId === undefined ? {} : { traceId: request.traceId, requestId: request.requestId, sourceRevision: request.sourceRevision }), ok: false, message });
+    scope.postMessage({ id, ...(request?.traceId === undefined ? {} : { traceId: request.traceId, requestId: request.requestId, sourceRevision: request.sourceRevision }),
+      ...(request?.documentId === undefined ? {} : { documentId: request.documentId, revision: request.revision }), ok: false, message });
   } catch {
     /* A scope that cannot receive the failure response is already broken. */
   }
@@ -243,10 +245,18 @@ export function startLocalCompileWorker(
     target.onmessage = null;
   };
 
-  const workerMetrics = (compileMs: number): LocalCompileWorkerMetrics => ({
-    compileMs,
-    ...(preparationMs === undefined ? {} : { preparationMs }),
-  });
+  const workerMetrics = (compileMs: number): LocalCompileWorkerMetrics => {
+    const stats = sessionStats(session);
+    const { parseMs, totalMs } = stats.stages ?? {};
+    return {
+      compileMs,
+      ...(stats.compiledBlocks === undefined ? {} : { compiledBlocks: stats.compiledBlocks }),
+      ...(stats.reusedBlocks === undefined ? {} : { reusedBlocks: stats.reusedBlocks }),
+      ...(parseMs === undefined ? {} : { parseMs: safeDuration(parseMs) }),
+      ...(parseMs === undefined || totalMs === undefined ? {} : { semanticMs: safeDuration(totalMs - parseMs) }),
+      ...(preparationMs === undefined ? {} : { preparationMs }),
+    };
+  };
 
   const resolveRevision = (value: unknown): number => {
     const candidate = typeof value === 'number' && Number.isSafeInteger(value) && value > 0
@@ -287,6 +297,7 @@ export function startLocalCompileWorker(
           }
         : {
             id,
+            ...(state.documentId === undefined ? {} : { documentId: state.documentId, revision: request.revision, metrics }),
             ...(traceId === undefined ? {} : { traceId, requestId, sourceRevision }),
             ok: true,
             result: state.result,
@@ -307,7 +318,7 @@ export function startLocalCompileWorker(
       return true;
     } catch (error) {
       // The result itself may not be cloneable; report the failure instead.
-    postFailure(target, id, `Could not return the compile result: ${messageOf(error)}`, { traceId, requestId, sourceRevision });
+      postFailure(target, id, `Could not return the compile result: ${messageOf(error)}`, request);
       return false;
     }
   };
@@ -343,7 +354,7 @@ export function startLocalCompileWorker(
       const revision = resolveRevision(full.revision);
       const started = now();
       try {
-        if (current !== null && current.optionsKey !== optionsKey) {
+        if (current !== null && (current.optionsKey !== optionsKey || current.documentId !== full.documentId)) {
           // The compiler's public option key does not yet include every budget
           // field; drop a cache built under different permissions or limits.
           try {
@@ -357,6 +368,7 @@ export function startLocalCompileWorker(
         lastRevision = revision;
         current = {
           source: full.source,
+          documentId: full.documentId,
           revision,
           options: snapshot,
           optionsKey,

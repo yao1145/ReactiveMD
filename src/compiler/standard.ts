@@ -32,6 +32,7 @@ export type {
 } from './types';
 export type { DeepReadonly } from './types';
 export type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../local/types';
+export type { LocalEmbeddingOptions, LocalFallbackInfo } from '../local/types';
 
 function requireOptions(options?: LocalCompileOptions): Extract<LocalOptionCheck, { ok: true }> {
   const check = readCompilerOptions(options, defaultPreset.components, STANDARD_PARSER_CAPABILITIES);

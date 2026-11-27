@@ -10,8 +10,10 @@
   "include": [
     "src/index.ts",
     "src/observability.ts",
+    "src/local/transport/worker-pool.ts",
     "src/react/index.ts",
     "src/react/minimal.tsx",
+    "src/react/packed.tsx",
     "src/react/runtime/index.ts",
     "src/runtime-services/index.ts",
     "src/runtime-services/browser/index.ts",
@@ -24,6 +26,7 @@
     "src/presets/minimal.ts",
     "src/components/minimal-preset.ts",
     "src/components/plugins/*.ts",
+    "src/components/packs/*.ts",
     "src/pdf.ts",
     "src/export/index.ts",
     "src/export-assets/index.ts",

@@ -50,6 +50,30 @@ export function defineLocalPreset(input: LocalPresetPackage): LocalPresetPackage
   return readLocalPresetPackage(input);
 }
 
+export type LocalPresetSelection =
+  | { readonly include: readonly string[]; readonly exclude?: never }
+  | { readonly exclude: readonly string[]; readonly include?: never };
+
+/** Select components in declaration order, preserving the preset's assembly dependencies. */
+export function deriveLocalPreset(input: LocalPresetPackage, selection: LocalPresetSelection): LocalPresetPackage {
+  const preset = readLocalPresetPackage(input);
+  const { include, exclude } = selection;
+  const names = include ?? exclude;
+  if ((include !== undefined && exclude !== undefined) || !Array.isArray(names)) {
+    throw new TypeError('Provide exactly one include or exclude array.');
+  }
+  const known = new Set(preset.components.map(component => component.name));
+  const selected = new Set<string>();
+  for (const name of names) {
+    if (!known.has(name) || selected.has(name)) throw new TypeError(`Invalid or repeated component name: ${name}.`);
+    selected.add(name);
+  }
+  const components = preset.components.filter(component => selected.has(component.name) === (include !== undefined));
+  const ids = new Set(components.map(component => component.id));
+  return defineLocalPreset({ ...preset, components,
+    ...(preset.authoring ? { authoring: preset.authoring.filter(entry => ids.has(entry.componentId)) } : {}) });
+}
+
 /** Semantic digest; themes and authoring are excluded. */
 export function localPresetDigest(preset: LocalPresetPackage): string {
   return localPresetDigestCore(preset);

@@ -1,6 +1,7 @@
 import { StrictMode, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { LocalReactiveDocument, type LocalReactiveDocumentProps } from 'reactive-md/react/minimal';
+import type { LocalTraceEvent } from 'reactive-md/observability';
 import 'reactive-md/styles.css';
 
 /**
@@ -44,6 +45,7 @@ interface Probe {
   parameterCalls: number;
   lastParameters: Record<string, unknown>;
   stale: number;
+  traces: LocalTraceEvent[];
 }
 
 declare global {
@@ -73,8 +75,10 @@ const probe: Probe = {
   parameterCalls: 0,
   lastParameters: {},
   stale: 0,
+  traces: [],
 };
 window.streamingProbe = probe;
+const observer = { onTrace: (event: LocalTraceEvent) => probe.traces.push(event) };
 
 function marker(id: string, text: string): void {
   const element = document.getElementById(id);
@@ -184,6 +188,8 @@ function App() {
             source={state.source}
             sourcePhase={state.phase}
             documentId={state.documentId}
+            stableComponentKeys
+            trace={{ observer, traceId: `stream-${state.documentId}`, documentId: state.documentId, sourceRevision: generation.current }}
             onTransientDiagnostics={recordTransient}
             onDiagnostics={recordDiagnostics}
             onParametersChange={recordParameters}

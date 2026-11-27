@@ -33,6 +33,7 @@ export type {
 } from './types';
 export type { DeepReadonly } from './types';
 export type { LocalCompileOptions, LocalCompileResult, LocalRecovery } from '../local/types';
+export type { LocalEmbeddingOptions, LocalFallbackInfo } from '../local/types';
 
 /** Validate once; invalid options never reach a compile call. */
 function requireOptions(options?: LocalCompileOptions): Extract<LocalOptionCheck, { ok: true }> {

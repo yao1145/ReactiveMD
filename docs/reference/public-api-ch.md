@@ -23,14 +23,17 @@
 | `reactive-md/compiler/standard` | ESM | 否 | 否 | 单次编译，带 GFM、原生 HTML、KaTeX 与默认预设 |
 | `reactive-md/compiler/session` | ESM | 否 | 否 | 有状态的逐文档编译会话，复用未变块并可销毁 |
 | `reactive-md/scan` | ESM | 否 | 否 | 只读源码分析，返回标记、绑定与 UTF-16 范围 |
+| `reactive-md/worker-pool` | ESM | 否 | 否 | 通过有界 Worker 队列编译多份文档 |
 | `reactive-md/react` | ESM | 是 | 否 | React 文档渲染器与组件开发接口 |
 | `reactive-md/react/unstyled` | ESM | 是 | 否 | 同一渲染器，但不产生样式表副作用 |
 | `reactive-md/react/minimal` | ESM | 是 | 否 | 基于 18 个组件精简预设的渲染器 |
+| `reactive-md/react/packed` | ESM | 是 | 否 | 组合和渲染宿主选定的 React 预设 |
 | `reactive-md/react/server` | ESM | 是 | 是 | 严格 SSR 适配器，返回标记或诊断 |
 | `reactive-md/react/runtime` | ESM | 是 | 否 | 面向组件的 React hooks：计时、帧、滑动、按键、状态 |
 | `reactive-md/sdk` | ESM | 否 | 否 | 组件、预设与主题清单定义及校验 |
 | `reactive-md/presets/default` | ESM | 否 | 否 | 48 个组件的默认预设（纯数据） |
 | `reactive-md/presets/default/packs` | ESM | 否 | 否 | 默认预设的四个命名子集 |
+| `reactive-md/presets/default/packs/react/<pack>` | ESM | 是 | 否 | `controls`、`layout`、`data` 或 `visuals` 的 React 实现与 CSS 资源 |
 | `reactive-md/presets/minimal` | ESM | 否 | 否 | 18 个组件的精简预设 |
 | `reactive-md/presets/minimal/react` | ESM | 是 | 否 | 精简预设的 React 实现 |
 | `reactive-md/plugins/*` | ESM | 是 | 否 | 八个可选官方组件包 |
@@ -58,6 +61,16 @@
 | `reactive-md/package.json` | 文件 | — | — | 包元数据 |
 
 ## 编译与核心运行时
+
+### 嵌入与多文档编译
+
+`LocalCompileOptions.embedding` 的默认值是 `{ expressions: 'evaluate', onUnsupported: 'error', allowImages: true, allowInteractive: true }`。`expressions: 'literal'` 在正文和兼容的字符串属性中保留 `{{ ... }}` 原文。通过编译 `config` 选择组件注册表，通过现有 HTML 权限字段控制原生 HTML 能力。
+
+启用 `onUnsupported: 'fallback'` 后，编译器将不支持的节点按源码文本展示，并在 `node.fallback` 中记录诊断码和 UTF-16 范围。编译成功的文档带有 `document.requiresRuntime`。将 `requiresRuntime: false` 的文档传给 `LocalStaticDocumentView`，或传给 `reactive-md/react/server` 的 `renderLocalStaticMarkup`，在服务端取得 `{ ok, markup, diagnostics }`。字面模式支持 `<if when="true">` 和 `<if when="false">`。
+
+从 `reactive-md` 导入 `createLocalRuntimePool()`，可在兼容的文档与运行时选项之间复用租约。消费方卸载时释放租约，也可使用 `LocalPooledDocumentView` 由 React 生命周期管理租约。`stableComponentKeys` 在同一父级的追加更新中保留既有 React 槽位。
+
+`createLocalCompilePool()` 接收 `{ documentId, revision, source, options, sourcePhase, priority }`，每份文档的 revision 递增。默认 `latest` 策略以 `superseded` 拒绝被取代的任务。需要按序处理每个 revision 时使用 `all`，并处理队列满时的 `backpressure`。池向 Worker 发送完整源码。传入 `LocalObserver` 可读取池事件，再将结果的 trace ID、文档 ID 和 revision 作为 `trace` 传给 React 视图，即可关联装载与挂载事件。
 
 ### `reactive-md`
 
@@ -173,6 +186,10 @@ React 接口完全相同，但不导入 `styles.css`。宿主自行注入样式�
 面向组件实现的 hooks：`useTicker`、`useFrame`、`useSwipe`（含 `classifySwipe`）、`useKeys`（含 `isEditableTarget`）、`useComponentState`。该入口不引入渲染器，也不引入编译器。
 
 ## 组件 SDK 与预设
+
+通过 `reactive-md/react/packed` 的 `createReactHost({ presets })` 组合所选 React pack。编译传入 `host.compileOptions`，渲染传入 `host.reactConfig`，并将 `host.css` 与文档基础样式一起加载。`visuals` 依赖 `data`。`deriveLocalPreset(preset, { include })` 或 `{ exclude }` 按原顺序选取语义清单，保留预设声明的依赖。
+
+`createDeferredReactConfig(config, { components, resolver })` 让 React 按需装载编译文档已声明的组件。Resolver 接收 `{ name, definition, signal }`，同一清单身份的多个槽位共用请求。SSR 输出加载占位，客户端挂载后开始装载。需要直接输出组件的 SSR 标记时，可预先注册实现。
 
 ### `reactive-md/sdk`
 

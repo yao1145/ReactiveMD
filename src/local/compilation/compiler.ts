@@ -1,6 +1,7 @@
 /** Full local compile entry and tracked adapter for editing sessions. */
 import type { LocalCompileOptions, LocalCompileResult, SourceRange } from '../types';
 import { compileLocalCore } from './compiler-core';
+import { compileTraceStatus } from './compile-status';
 import { plainCompiledData } from '../transport/compiled-data';
 import { inspectLocalMathDisplay } from '../evaluation/math/display';
 import { compilePlotFormula, implicitGridSize, plotFormulaKind } from '../evaluation/math/latex';
@@ -17,15 +18,23 @@ export function compileLocal(source: string, options?: LocalCompileOptions): Loc
   const observer = options?.observer;
   const traceId = observer?.onTrace ? createLocalTraceId() : undefined;
   const started = traceId ? (globalThis.performance?.now() ?? Date.now()) : 0;
+  let parsedAt: number | undefined;
+  let publishedAt: number | undefined;
+  const mark = traceId ? (stage: string) => {
+    if (stage === 'parseMs') parsedAt = globalThis.performance?.now() ?? Date.now();
+    if (stage === 'publicationMs') publishedAt = globalThis.performance?.now() ?? Date.now();
+  } : undefined;
   if (traceId) emitLocalTrace(observer, { type: 'compile-start', traceId, timestamp: Date.now() });
-  const result = plainCompiledData(compileLocalInternal(source, options));
+  const result = plainCompiledData(compileLocalInternal(source, options, undefined, undefined, mark));
   if (observer?.onDiagnostic) {
     for (const diagnostic of result.diagnostics) emitLocalDiagnostic(observer, diagnostic);
     for (const diagnostic of result.transientDiagnostics ?? []) emitLocalDiagnostic(observer, diagnostic);
   }
   if (traceId) {
     const durationMs = Math.max(0, Math.round((globalThis.performance?.now() ?? Date.now()) - started));
-    emitLocalTrace(observer, { type: 'compile-end', traceId, timestamp: Date.now(), status: result.ok ? 'ok' : 'failed', durationMs });
+    emitLocalTrace(observer, { type: 'compile-end', traceId, timestamp: Date.now(), status: compileTraceStatus(result), durationMs,
+      ...(parsedAt === undefined ? {} : { parseMs: Math.max(0, Math.round(parsedAt - started)) }),
+      ...(parsedAt === undefined || publishedAt === undefined ? {} : { semanticMs: Math.max(0, Math.round(publishedAt - parsedAt)) }) });
   }
   return result;
 }

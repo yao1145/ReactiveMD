@@ -61,7 +61,9 @@ const SAFE_EVENT_TYPES = new Set<LocalTraceEvent['type']>([
   'compile-start', 'compile-end', 'worker-request', 'worker-response', 'worker-timeout',
   'worker-stale-response', 'worker-cancel', 'worker-error', 'export-start', 'export-end',
   'export-cancel', 'export-error',
+  'worker-spawn', 'worker-ready', 'worker-warmup', 'component-load-start', 'component-load-end', 'render-mount', 'render-unmount',
 ]);
+const SAFE_COMPONENT_NAME = /^[a-z][a-z0-9-]{0,63}$/;
 
 function reportDetails(details: Diagnostic['details']): Diagnostic['details'] | undefined {
   if (!details) return undefined;
@@ -85,15 +87,23 @@ function safeEvent(event: LocalTraceEvent): LocalTraceEvent | undefined {
     || !Number.isSafeInteger(event.timestamp) || event.timestamp < 0) return undefined;
   const code = typeof event.code === 'string' && SAFE_CODE.test(event.code) ? event.code : undefined;
   const stage = typeof event.stage === 'string' && SAFE_STAGES.has(event.stage) ? event.stage : undefined;
-  const status = typeof event.status === 'string' && /^(?:ok|failed|stale|timeout|disposed|fallback|retry|cancelled|printed)$/.test(event.status)
+  const status = typeof event.status === 'string' && /^(?:ok|failed|stale|timeout|disposed|fallback|retry|cancelled|printed|ready|degraded|superseded|budget-rejected|worker-failed)$/.test(event.status)
     ? event.status : undefined;
   return {
     type: event.type,
     traceId: event.traceId.slice(0, 96),
     ...(Number.isSafeInteger(event.requestId) && (event.requestId ?? -1) >= 0 ? { requestId: event.requestId } : {}),
     ...(Number.isSafeInteger(event.sourceRevision) && (event.sourceRevision ?? -1) >= 0 ? { sourceRevision: event.sourceRevision } : {}),
+    ...(typeof event.documentId === 'string' && SAFE_ID.test(event.documentId) ? { documentId: event.documentId } : {}),
+    ...(Number.isSafeInteger(event.workerId) && (event.workerId ?? -1) >= 0 ? { workerId: event.workerId } : {}),
+    ...(typeof event.componentName === 'string' && SAFE_COMPONENT_NAME.test(event.componentName) ? { componentName: event.componentName } : {}),
+    ...(typeof event.componentVersion === 'string' && SAFE_VERSION.test(event.componentVersion) ? { componentVersion: event.componentVersion } : {}),
+    ...(Number.isSafeInteger(event.subscribers) && (event.subscribers ?? -1) >= 0 ? { subscribers: event.subscribers } : {}),
+    ...(event.environment === 'development' || event.environment === 'production' ? { environment: event.environment } : {}),
     timestamp: event.timestamp,
     ...(Number.isSafeInteger(event.durationMs) && (event.durationMs ?? -1) >= 0 ? { durationMs: event.durationMs } : {}),
+    ...(Number.isSafeInteger(event.parseMs) && (event.parseMs ?? -1) >= 0 ? { parseMs: event.parseMs } : {}),
+    ...(Number.isSafeInteger(event.semanticMs) && (event.semanticMs ?? -1) >= 0 ? { semanticMs: event.semanticMs } : {}),
     ...(code ? { code } : {}), ...(status ? { status } : {}), ...(stage ? { stage } : {}),
   };
 }

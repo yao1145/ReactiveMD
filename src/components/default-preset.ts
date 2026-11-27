@@ -50,13 +50,12 @@ import {
 } from './layout/layout';
 import { DataTableView } from './table/data-table';
 import { GalleryView, GalleryItemView } from './gallery/gallery';
+import { TableView, TimelineView } from './shared/data-visuals';
 import {
   ChartView,
   DiagramView,
   NodeView,
   PlotView,
-  TableView,
-  TimelineView,
 } from './shared/visuals';
 
 function NullView() {

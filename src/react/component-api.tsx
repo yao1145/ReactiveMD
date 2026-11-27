@@ -399,9 +399,10 @@ function readPropValue(
   name: string,
   raw: string | undefined,
   runtime: LocalRuntime,
+  literal: boolean,
 ): LenientPropRead {
   try {
-    return { ok: true, value: resolveLocalComponentProp(definition, name, raw, runtime) };
+    return { ok: true, value: resolveLocalComponentProp(definition, name, raw, runtime, literal) };
   } catch (error) {
     return { ok: false, error };
   }
@@ -414,6 +415,7 @@ export interface PropFailureSink {
     readonly id: string;
     readonly name?: string;
     readonly range: SourceRange;
+    readonly literalAttributes?: true;
   };
 }
 
@@ -536,7 +538,7 @@ export function resolveComponentProps(
     const raw = Object.hasOwn(attributes, name) && typeof attributes[name] === 'string'
       ? attributes[name]
       : undefined;
-    const read = readPropValue(definition, name, raw, runtime);
+    const read = readPropValue(definition, name, raw, runtime, failure?.node.literalAttributes === true);
     if (read.ok) {
       output[name] = read.value;
       if (failure && state) state.delete(`${failure.node.id}\u0000${name}`);

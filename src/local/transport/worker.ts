@@ -12,6 +12,7 @@ import {
   type FlatCompiledData,
 } from './flat-compiled-data';
 import type { Diagnostic, LocalCompileOptions, LocalCompileResult, LocalSourcePhase } from '../types';
+import { compileTraceStatus } from '../compilation/compile-status';
 import { createLocalObservabilityDiagnostic } from '../observability';
 import { createLocalTraceId, emitLocalDiagnostic, emitLocalTrace, type LocalObserver, type LocalTraceEvent } from '../observability-core';
 import type { AuthorAnalysis } from '../source/authoring';
@@ -35,6 +36,7 @@ import { isPatchEdit } from './worker-handler';
 export type LocalCompileProtocol = typeof LOCAL_RESULT_PATCH_PROTOCOL;
 
 export interface LocalCompileRequest {
+  documentId?: string;
   traceId?: string;
   /** Alias of id for trace consumers. */
   requestId?: number;
@@ -93,6 +95,10 @@ export interface LocalCompilePatchRequest {
 export type LocalCompileWorkerRequest = LocalCompileRequest | LocalCompilePatchRequest;
 
 export interface LocalCompileWorkerMetrics {
+  parseMs?: number;
+  semanticMs?: number;
+  compiledBlocks?: number;
+  reusedBlocks?: number;
   analysisMs?: number;
   /** Time spent inside the compile call, mirroring `duration`. */
   compileMs?: number;
@@ -147,6 +153,7 @@ export interface LocalCompilePatchResponse {
 export type LocalCompileResponse =
   | {
       id: number;
+      documentId?: string;
       traceId?: string;
       requestId?: number;
       sourceRevision?: number;
@@ -163,6 +170,7 @@ export type LocalCompileResponse =
     }
   | {
       id: number;
+      documentId?: string;
       traceId?: string;
       requestId?: number;
       sourceRevision?: number;
@@ -378,7 +386,7 @@ function invalidSourcePhaseResult(): LocalCompileResult {
   };
 }
 
-function isCompileResult(value: unknown): value is LocalCompileResult {
+export function isCompileResult(value: unknown): value is LocalCompileResult {
   if (!value || typeof value !== 'object') return false;
   const result = value as { ok?: unknown; diagnostics?: unknown; document?: unknown };
   if (typeof result.ok !== 'boolean' || !Array.isArray(result.diagnostics)) return false;
@@ -729,7 +737,7 @@ export class LocalCompileScheduler {
         return;
       }
     }
-    emitLocalTrace(this.options.observer, { type: 'compile-end', traceId, sourceRevision, timestamp: Date.now(), durationMs: duration, status: result.ok ? 'ok' : 'failed' });
+    emitLocalTrace(this.options.observer, { type: 'compile-end', traceId, sourceRevision, timestamp: Date.now(), durationMs: duration, status: compileTraceStatus(result) });
     if (!this.isCurrentJob(job)) {
       this.finishRun();
       return;
@@ -850,7 +858,7 @@ export class LocalCompileScheduler {
     if (failure !== null) {
       this.traceWorker(inFlight, 'worker-error', { durationMs: roundTripMs, status: 'failed', code: 'local.worker.compile' });
     } else {
-      this.traceWorker(inFlight, 'worker-response', { durationMs: roundTripMs, status: result ? (result.ok ? 'ok' : 'failed') : failure ? 'failed' : 'retry' });
+      this.traceWorker(inFlight, 'worker-response', { durationMs: roundTripMs, status: result ? compileTraceStatus(result) : failure ? 'failed' : 'retry' });
     }
     if (this.disposed) return;
     if (superseded) {

@@ -9,6 +9,7 @@ import {
   scalarText,
   sourcePosition,
   sourceProps,
+  type ProjectionEnv,
   type RenderEnv,
 } from './view-render-context';
 import type { LocalNode, LocalRuntime, LocalValue } from '../../../local/types';
@@ -28,10 +29,16 @@ import { ZoomableImage } from '../image/image-view';
 import { LatexView } from '../math-view';
 import type { Localize } from '../../localization';
 import { ExtendedHtmlFragment } from './ExtendedHtmlFragment';
+import { splitHtmlDetailsChildren } from '../../../local/html/html-details';
 
 function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' {
   const level = Math.min(6, Math.max(1, depth ?? 1));
   return `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+}
+
+function nodeKey(env: ProjectionEnv, node: LocalNode, index: number): string {
+  if ('runtime' in env && env.stableComponentKeys) return `${node.type}:${node.name ?? ''}:${index}`;
+  return node.id || `${node.type}-${index}`;
 }
 
 const SAFE_HTML_ATTRIBUTE = /^(?:aria|data)-[a-z0-9_.:-]+$/;
@@ -43,7 +50,7 @@ const HTML_IDREF_ATTRIBUTES = new Set(['aria-labelledby', 'aria-describedby', 'a
  * always rewritten through this render instance's anchor namespace; source
  * `class`, `style`, URL schemes and event hooks never pass through here.
  */
-export function safeHtmlProps(env: RenderEnv, node: LocalNode): Record<string, string> {
+export function safeHtmlProps(env: ProjectionEnv, node: LocalNode): Record<string, string> {
   const attrs = node.attrs;
   if (!attrs) return {};
   const props: Record<string, string> = {};
@@ -75,7 +82,7 @@ export function safeHtmlProps(env: RenderEnv, node: LocalNode): Record<string, s
   return props;
 }
 
-function renderNativeTable(env: RenderEnv, node: LocalNode, visible: boolean, key: string): ReactNode {
+function renderNativeTable(env: ProjectionEnv, node: LocalNode, visible: boolean, key: string): ReactNode {
   const rows: LocalNode[] = [];
   const collectRows = (nodes: LocalNode[]) => {
     for (const n of nodes) {
@@ -88,16 +95,16 @@ function renderNativeTable(env: RenderEnv, node: LocalNode, visible: boolean, ke
   const bodyRows = rows.filter(row => row.children?.some(cell => cell.name === 'td'));
   const text = (n: LocalNode): string => {
     if (n.type === 'interpolation') {
-      try { return scalarText(env.runtime.evaluate(n.value ?? '')) ?? ''; } catch { return ''; }
+      try { return 'runtime' in env ? scalarText(env.runtime.evaluate(n.value ?? '')) ?? '' : ''; } catch { return ''; }
     }
     return (n.value ?? '') + (n.children ?? []).map(text).join('');
   };
-  const numeric = merged ? [] : tableNumericColumns(bodyRows.map(row => row.children ?? []), env.runtime, env.t);
+  const numeric = merged ? [] : tableNumericColumns(bodyRows.map(row => row.children ?? []), 'runtime' in env ? env.runtime : undefined, env.t);
   const structural = (n: LocalNode, index = 0): ReactNode => {
     if (n.type === 'htmlTable') return renderNativeTable(env, n, visible, n.id);
     const name = n.name ?? '';
     if (!HTML_TABLE_NAMES.has(name) || name === 'table') return null;
-    const props: Record<string, unknown> = { ...safeHtmlProps(env, n), key: n.id };
+    const props: Record<string, unknown> = { ...safeHtmlProps(env, n), key: nodeKey(env, n, index) };
     const attrs = n.attrs ?? {};
     if (name === 'th' || name === 'td') {
       if (attrs.colspan !== undefined) props.colSpan = Number(attrs.colspan);
@@ -149,14 +156,14 @@ const LocalBlock = memo(function LocalBlock({ node, index, visible, env }: Local
 }, blockPropsEqual);
 
 export function renderNodes(
-  env: RenderEnv,
+  env: ProjectionEnv,
   nodes: LocalNode[] | undefined,
   visible: boolean,
   block = true,
 ): ReactNode {
   if (!nodes || nodes.length === 0) return null;
   // Inline content gets no boundary: it is recreated inside its owning block.
-  if (!block) return nodes.map((node, index) => renderNode(env, node, index, visible, false));
+  if (!block || !('runtime' in env)) return nodes.map((node, index) => renderNode(env, node, index, visible, block));
   // Read the snapshot once per call; an unreadable snapshot makes every block
   // in this batch a wildcard, exactly like an undecidable dependency entry.
   let currentState: Readonly<Record<string, LocalValue>> | null = null;
@@ -175,7 +182,7 @@ export function renderNodes(
     const resetToken = resetTokens?.get(node.id) ?? 0;
     return (
       <LocalBlock
-        key={node.id || `${node.type}-${index}`}
+        key={nodeKey(env, node, index)}
         node={node}
         index={index}
         visible={visible}
@@ -192,16 +199,16 @@ export function renderNodes(
  * original text in `value`; falling back to the document range keeps older or
  * hand-built trees readable without ever interpreting their contents.
  */
-function fallbackSource(env: RenderEnv, node: LocalNode): string {
+function fallbackSource(env: ProjectionEnv, node: LocalNode): string {
   if (typeof node.value === 'string') return node.value;
   const { start, end } = node.range;
   if (Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end >= start) {
-    return env.runtime.document.source.slice(start, end);
+    return ('runtime' in env ? env.runtime.document.source : env.source).slice(start, end);
   }
   return '';
 }
 
-function renderFallback(env: RenderEnv, node: LocalNode, key: string, block: boolean): ReactNode {
+function renderFallback(env: ProjectionEnv, node: LocalNode, key: string, block: boolean): ReactNode {
   return (
     <span
       key={key}
@@ -216,12 +223,12 @@ function renderFallback(env: RenderEnv, node: LocalNode, key: string, block: boo
 }
 
 /** Render block-parsed children as inline content for labels and options. */
-export function renderInlineNodes(env: RenderEnv, nodes: LocalNode[] | undefined, visible: boolean): ReactNode {
+export function renderInlineNodes(env: ProjectionEnv, nodes: LocalNode[] | undefined, visible: boolean): ReactNode {
   if (!nodes || nodes.length === 0) return null;
   return nodes.map((node, index) => {
     if (node.type === 'paragraph' || node.type === 'root') {
       return (
-        <span key={node.id || `inline-${index}`}>
+        <span key={nodeKey(env, node, index)}>
           {renderNodes(env, node.children, visible, false)}
         </span>
       );
@@ -236,7 +243,7 @@ export function renderInlineNodes(env: RenderEnv, nodes: LocalNode[] | undefined
  * anchor resolution never rewrite an internal target. Without a definition the
  * original source form stays visible instead of becoming a dead link.
  */
-function renderFootnoteReference(env: RenderEnv, node: LocalNode, key: string): ReactNode {
+function renderFootnoteReference(env: ProjectionEnv, node: LocalNode, key: string): ReactNode {
   const site = env.footnotes.siteFor(node);
   if (!site || !site.entry) {
     const label = site?.label || footnoteLabelText(node) || '?';
@@ -367,7 +374,7 @@ function renderHostComponent(
   const props: Record<string, LocalHostPropValue> = {};
   for (const [propName, raw] of Object.entries(node.attrs ?? {})) {
     if (propName === 'bind' || propName === 'initial' || propName === 'disabled') continue;
-    props[propName] = resolveHostProp(env.runtime, raw);
+    props[propName] = node.literalAttributes && raw.includes('{{') ? raw : resolveHostProp(env.runtime, raw);
   }
   let resetToken = 0;
   try {
@@ -411,7 +418,7 @@ function renderHostComponent(
 
 /** Collapse memo wrappers along deep single-child Markdown chains. The native
  * DOM stays nested, while React no longer needs one extra component per level. */
-function renderDeepContainerChain(env:RenderEnv,node:LocalNode,visible:boolean):ReactNode|undefined {
+function renderDeepContainerChain(env:ProjectionEnv,node:LocalNode,visible:boolean,rootKey:string):ReactNode|undefined {
   const plain=(node:LocalNode)=>node.type==='blockquote'||node.type==='list'
     ||(node.type==='listItem'&&typeof node.checked!=='boolean');
   if(!plain(node)||node.children?.length!==1||!plain(node.children[0]))return;
@@ -425,7 +432,7 @@ function renderDeepContainerChain(env:RenderEnv,node:LocalNode,visible:boolean):
   if(chain.length<32)return;
   let children=renderNodes(env,current.children,visible);
   for(let i=chain.length-1;i>=0;i--){
-    const item=chain[i],props=safeHtmlProps(env,item),key=item.id;
+    const item=chain[i],props=safeHtmlProps(env,item),key=i === 0 ? rootKey : nodeKey(env, item, 0);
     if(item.type==='blockquote')children=<blockquote key={key} {...props}>{children}</blockquote>;
     else if(item.type==='listItem')children=<li key={key} {...props} className="md-list-item">{children}</li>;
     else if(item.ordered)children=<ol key={key} {...props} start={item.start??1} className="md-list">{children}</ol>;
@@ -435,17 +442,22 @@ function renderDeepContainerChain(env:RenderEnv,node:LocalNode,visible:boolean):
 }
 
 function renderNode(
-  env: RenderEnv,
+  env: ProjectionEnv,
   node: LocalNode,
   index: number,
   visible: boolean,
   block = true,
 ): ReactNode {
-  const key = node.id || `${node.type}-${index}`;
-  const chain=renderDeepContainerChain(env,node,visible);
+  const key = nodeKey(env, node, index);
+  const chain=renderDeepContainerChain(env,node,visible,key);
   if(chain!==undefined)return chain;
 
   if (node.type === 'component') {
+    if (!('runtime' in env)) {
+      const shown = node.attrs?.when === 'true';
+      return <div key={key} className="local-if md-if" role="group" hidden={!shown} aria-hidden={!shown}
+        aria-label={env.t('Conditional content', '条件内容')}>{shown ? renderNodes(env, node.children, visible) : null}</div>;
+    }
     return (
       <LocalErrorBoundary key={key} revision={runtimeRevision(env.runtime)}>
         {renderComponent(env, node, visible)}
@@ -514,8 +526,20 @@ function renderNode(
     case 'summary':
       return <span key={key} {...safeHtmlProps(env, node)}>{renderNodes(env,node.children, visible, false)}</span>;
 
-    case 'details':
+    case 'details': {
+      if (!('runtime' in env)) {
+        const { summary, body } = splitHtmlDetailsChildren(node.children ?? []);
+        return <div key={key} className="local-accordion" role="group" aria-label={env.t('Accordion', '折叠面板')}>
+          <section className="local-disclosure local-static-disclosure local-html-details" {...safeHtmlProps(env, node)}>
+            <h3 className="local-disclosure-heading">{summary
+              ? <span {...safeHtmlProps(env, summary)}>{renderInlineNodes(env, summary.children, visible)}</span>
+              : env.t('Details', '折叠内容')}</h3>
+            <div className="local-disclosure-panel">{renderNodes(env, body, visible)}</div>
+          </section>
+        </div>;
+      }
       return <HtmlDetailsView key={key} node={node} visible={visible} renderInlineNodes={renderInlineNodes} safeHtmlProps={safeHtmlProps} />;
+    }
 
     case 'inlineCode':
       return (
@@ -669,7 +693,7 @@ function renderNode(
             {bodyRows.length ? (
               <tbody>
                 {bodyRows.map((row, rowIndex) => (
-                  <tr key={row.id || `${key}-row-${rowIndex}`}>
+                  <tr key={nodeKey(env, row, rowIndex)}>
                     {renderTableCells(env,row, 'td', node.align, visible)}
                   </tr>
                 ))}
@@ -693,6 +717,7 @@ function renderNode(
     }
 
     case 'interpolation': {
+      if (!('runtime' in env)) return null;
       try {
         const text = scalarText(env.runtime.evaluate(node.value ?? ''));
         if (text === null) throw new Error('Cannot display an array');
@@ -715,7 +740,7 @@ function renderNode(
           className={display ? 'local-math-display' : 'local-math-inline'}
           {...sourceProps(env, node)}
         >
-          <LocalErrorBoundary revision={runtimeRevision(env.runtime)}>
+          <LocalErrorBoundary revision={'runtime' in env ? runtimeRevision(env.runtime) : 0}>
             <LatexView source={node.value ?? ''} display={display} />
           </LocalErrorBoundary>
         </span>
@@ -763,7 +788,7 @@ function renderNode(
       return null;
 
     case 'hostComponent':
-      return renderHostComponent(env, node, key, visible);
+      return 'runtime' in env ? renderHostComponent(env, node, key, visible) : null;
 
     default:
       if (node.children && node.children.length) {
@@ -777,7 +802,7 @@ function renderNode(
 }
 
 function renderTableCells(
-  env: RenderEnv,
+  env: ProjectionEnv,
   row: LocalNode,
   tag: 'th' | 'td',
   tableAlign: ('left' | 'center' | 'right' | null)[] | undefined,
@@ -787,13 +812,13 @@ function renderTableCells(
     const textAlign = cell.align?.[0] ?? row.align?.[index] ?? tableAlign?.[index] ?? undefined;
     if (tag === 'th') {
       return (
-        <th key={cell.id || `${row.id}-h-${index}`} style={{ textAlign: textAlign ?? undefined }}>
+        <th key={nodeKey(env, cell, index)} style={{ textAlign: textAlign ?? undefined }}>
           {renderNodes(env,cell.children, visible, false)}
         </th>
       );
     }
     return (
-      <td key={cell.id || `${row.id}-c-${index}`} style={{ textAlign: textAlign ?? undefined }}>
+      <td key={nodeKey(env, cell, index)} style={{ textAlign: textAlign ?? undefined }}>
         {renderNodes(env,cell.children, visible, false)}
       </td>
     );
@@ -814,7 +839,7 @@ function renderComponent(
   if (renderer) {
     try {
       return createElement(Fragment, {
-        key: node.id,
+        key: env.stableComponentKeys ? undefined : node.id,
       }, renderer(node, extensionEnvironment(env, node, visible, renderNodes, renderInlineNodes)));
     } catch (error) {
       if (!(error instanceof LocalReactExtensionMissingError)) throw error;
@@ -830,7 +855,7 @@ function renderComponent(
 }
 
 /* --------------------------------------------------------------- endnotes */
-function footnoteBody(env: RenderEnv, entry: LocalFootnoteEntry): ReactNode {
+function footnoteBody(env: ProjectionEnv, entry: LocalFootnoteEntry): ReactNode {
   const children = entry.definition.children;
   if (children && children.length > 0) return renderNodes(env, children, true);
   // Older or hand-built definitions may only carry their text in `value`.
@@ -851,7 +876,7 @@ export function EndnotesView({
   titleId,
 }: {
   entries: readonly LocalFootnoteEntry[];
-  env: RenderEnv;
+  env: ProjectionEnv;
   t: Localize;
   titleId: string;
 }) {
