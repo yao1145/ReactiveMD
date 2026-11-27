@@ -14,6 +14,7 @@ import dataPack from '../src/components/packs/data';
 import visualsPack from '../src/components/packs/visuals';
 import { createLocalConfig, defineLocalComponent, deriveLocalPreset, LOCAL_COMPONENT_PROTOCOL } from '../src/sdk';
 import type { Diagnostic, LocalCompileOptions } from '../src/local/types';
+import type { LocalHostRenderer } from '../src/react';
 
 function compile(source: string, options?: LocalCompileOptions) {
   const result = compileLocal(source, options);
@@ -22,6 +23,49 @@ function compile(source: string, options?: LocalCompileOptions) {
 }
 
 describe('embedding and static rendering', () => {
+  const hostOptions = { hostComponents: [
+    { name: 'host-widget', form: 'leaf', props: { kind: { kind: 'string' }, ref: { kind: 'string' } } },
+    { name: 'host-panel', form: 'container', props: {} },
+  ] } as const;
+
+  it('renders original legacy host nodes synchronously and isolates missing data and callback failures', () => {
+    const source = '<host-widget kind="x" ref="good"/>\n\n<host-widget kind="x" ref="bad"/>\n\n'
+      + '<host-widget kind="x" ref="missing"/>\n\n<host-panel>**Child**</host-panel>\n\nAfter';
+    const document = compile(source, { ...hostOptions, embedding: { allowInteractive: false } });
+    const canonical = structuredClone(document);
+    const widgets = [...walkLocalNodes(document.nodes)].filter(node => node.name === 'host-widget');
+    const hostRenderer: LocalHostRenderer = (node, data, ctx) => {
+      if (node === widgets[1]) throw new Error('widget failed');
+      if (node.name === 'host-panel') return <section>{ctx.render()}</section>;
+      expect(node).toBe(widgets[0]);
+      expect(source.slice(node.range.start, node.range.end)).toBe('<host-widget kind="x" ref="good"/>');
+      expect(ctx.runtime.document).toBe(document);
+      expect(ctx.mode).toBe('static');
+      expect(ctx.props.ref).toBe('good');
+      expect(ctx.setValue('no')).toBe(false);
+      return <b>{String(data)}</b>;
+    };
+    expect(document).toMatchObject({ requiresRuntime: false, usedComponents: ['host-widget', 'host-panel'] });
+    const result = renderLocalStaticMarkup({ document, hostRenderer, hostData: { 'x:good': 0, 'x:bad': true } });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.markup).toContain('<b>0</b>');
+    expect(result.markup).toContain('data-local-host-reason="error"');
+    expect(result.markup).toContain('data-local-host-reason="data"');
+    expect(result.markup).toContain('<strong><span>Child</span></strong>');
+    expect(result.markup).toContain('After');
+    expect(document).toEqual(canonical);
+  });
+
+  it('uses a deterministic server placeholder for missing async host data', () => {
+    const document = compile('<host-widget kind="x" ref="pending"/>', hostOptions);
+    const resolveHostData = vi.fn(() => Promise.resolve(null));
+    const render = () => renderLocalStaticMarkup({ document, resolveHostData, hostRenderer: () => <b>Ready</b> });
+    expect(render()).toMatchObject({ ok: true, markup: expect.stringContaining('data-rmd-host-data="loading"') });
+    expect(render()).toEqual(render());
+    expect(resolveHostData).not.toHaveBeenCalled();
+  });
+
   it('prunes a component whose attribute fails semantic validation and rebuilds its bindings', () => {
     const result = compileLocal('<input bind="broken" label="{{ missing }}" />\n\nAfter', {
       embedding: { onUnsupported: 'fallback' },

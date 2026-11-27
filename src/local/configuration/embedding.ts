@@ -1,6 +1,6 @@
 import type { LocalEmbeddingOptions } from '../types';
 
-export const LOCAL_EMBEDDING_PROFILE_VERSION = 3;
+export const LOCAL_EMBEDDING_PROFILE_VERSION = 4;
 
 const defaults: Readonly<Required<LocalEmbeddingOptions>> = Object.freeze({
   expressions: 'evaluate',

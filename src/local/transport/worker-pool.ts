@@ -77,6 +77,10 @@ export interface LocalCompilePool {
    */
   release(documentId: string): void;
   setPriority(documentId: string, priority: number): void;
+  /** Pause starting document compiles, including retries and fallback. In-flight work may finish. */
+  hold(): void;
+  /** Resume dispatch of queued document compiles. */
+  resume(): void;
   getCounts(): LocalCompilePoolCounts;
   dispose(): void;
 }
@@ -88,6 +92,7 @@ interface Task {
   readonly optionsKey: string;
   readonly eligibleAt: number;
   readonly traceId?: string;
+  retry?: 'full' | 'fallback';
   priority: number;
   readonly resolve: (outcome: LocalCompilePoolOutcome) => void;
   readonly reject: (error: LocalCompilePoolTaskError) => void;
@@ -139,8 +144,9 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
   const streamingDelayMs = finite(options.streamingDelayMs, 75);
   const idleDisposeMs = options.idleDisposeMs === undefined ? undefined : finite(options.idleDisposeMs, 0);
   const slots: Slot[] = Array.from({ length: capacity }, (_, id) => ({ id: id + 1, failed: false, baselines: new Map() }));
-  const queue = new Set<Task>();
+  let queue = new Set<Task>();
   const pending = new Set<Task>();
+  let held = false;
   const revisions = new Map<string, number>();
   let closed = false;
   let started = false;
@@ -206,12 +212,20 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       ...(task.traceId ? { traceId: task.traceId } : {}) });
   }
 
+  /** A held retry must precede any later revision of the same document. */
+  function requeue(task: Task): void {
+    if (pending.has(task)) queue = new Set([task, ...queue]);
+  }
+
   function fallback(task: Task): void {
     if (!pending.has(task)) return;
+    task.retry = 'fallback';
+    if (held) { requeue(task); return; }
     const { source, options: compileOptions, sourcePhase } = task.request;
     const before = now();
     trace('worker-request', undefined, task, 'fallback');
     if (!pending.has(task)) return;
+    if (held) { requeue(task); return; }
     try {
       let result: LocalCompileOutcome['result'];
       let phases: ReturnType<typeof compilePhaseMetrics> | undefined;
@@ -293,7 +307,10 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       slot.baselines.delete(task.request.documentId);
       finish(slot);
       if (options.observer?.onTrace) trace('worker-response', slot, task, 'retry', safeDuration(now() - flight.started));
-      if (!closed && pending.has(task)) dispatch(slot, task, true);
+      if (!closed && pending.has(task)) {
+        task.retry = 'full';
+        dispatch(slot, task);
+      }
       else requestDrain();
       return true;
     };
@@ -345,12 +362,13 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     requestDrain();
   }
 
-  function dispatch(slot: Slot, task?: Task, forceFull = false): void {
+  function dispatch(slot: Slot, task?: Task): void {
+    if (task && held) { requeue(task); requestDrain(); return; }
     clearTimeout(slot.idle);
     slot.idle = undefined;
     const id = ++sequence;
     const documentId = task?.request.documentId ?? WARMUP_DOCUMENT;
-    const base = task?.request.sourcePhase === 'final' && !forceFull ? slot.baselines.get(documentId) : undefined;
+    const base = task?.request.sourcePhase === 'final' && task.retry !== 'full' ? slot.baselines.get(documentId) : undefined;
     const baseline = base?.optionsKey === task?.optionsKey ? base : undefined;
     const correlation = { id, documentId, revision: task?.request.revision ?? 0, protocol: LOCAL_RESULT_PATCH_PROTOCOL,
       traceId: task?.traceId, requestId: task?.id, sourceRevision: task?.request.revision,
@@ -366,6 +384,12 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     if (task) trace('worker-request', slot, task);
     if (closed || slot.flight?.id !== id) return;
     if (task && !pending.has(task)) { finish(slot); return; }
+    if (task && held) {
+      finish(slot);
+      requeue(task);
+      requestDrain();
+      return;
+    }
     try { slot.worker!.postMessage(request); }
     catch { if (slot.flight?.id === id) workerFailed(slot, 'worker-error'); }
   }
@@ -411,6 +435,7 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     let nextWakeup = Number.POSITIVE_INFINITY;
     for (const slot of slots) {
       if (closed) return;
+      if (held) break;
       if (slot.flight || (slot.failed && slots.some(other => !other.failed))) continue;
       const time = now();
       let next: Task | undefined;
@@ -427,6 +452,7 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
       }
       if (!next) continue;
       queue.delete(next);
+      if (next.retry === 'fallback') { fallback(next); requestDrain(); continue; }
       if (!slot.worker && !slot.failed) spawn(slot);
       if (closed) return;
       if (slot.worker) dispatch(slot, next);
@@ -493,6 +519,16 @@ export function createLocalCompilePool(options: LocalCompilePoolOptions): LocalC
     setPriority(documentId, priority) {
       for (const task of queue) if (task.request.documentId === documentId) task.priority = basePriority(priority);
       if (queue.size) requestDrain();
+    },
+    hold() {
+      if (closed || held) return;
+      held = true;
+      clearTimeout(wakeup);
+    },
+    resume() {
+      if (closed || !held) return;
+      held = false;
+      requestDrain();
     },
     getCounts: counts,
     dispose() {

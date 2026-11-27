@@ -2,7 +2,8 @@ import type { LocalOptionCheck } from '../configuration/options-core';
 import type { Diagnostic, LocalNode } from '../types';
 import { reportWarning, type CompileState } from './compiler-services';
 import { scanInterpolations } from './compiler-values';
-import { kernelRules } from '../../contracts/component-kernel';
+import { kernelRules, kernelValueBinding } from '../../contracts/component-kernel';
+import { hasLiteralComponentAttributes } from './runtime-requirement';
 import { validateAttributeRelations, validateAttributes, validateBindingConstraintAttributes } from './compiler-attributes';
 import type { LocalDiagnosticDetails } from '../configuration/diagnostics';
 import type { ReportDiagnostic } from './compiler-structure';
@@ -85,9 +86,13 @@ export function applyEmbedding(state: CompileState, profile: Embedding): void {
         return { type: 'externalSlot', id: node.id, range: node.range, name: slot };
       }
       const definition = state.definitionsByName.get(name);
+      const schema = state.schemaByName.get(name);
       const staticIf = literal && definition?.id === 'reactive-md/if' && (node.attrs?.when === 'true' || node.attrs?.when === 'false');
-      if (!profile.allowInteractive && !staticIf && (definition?.capabilities.interactive || (!definition && node.type === 'hostComponent'))) {
-        return embeddingFallback(state, node, profile, 'local.embedding.interactive');
+      if (!profile.allowInteractive && !staticIf) {
+        const legacyStatic = schema?.legacyHost && !kernelValueBinding(schema) && (literal || hasLiteralComponentAttributes(node));
+        if (definition?.capabilities.interactive || (!definition && node.type === 'hostComponent' && !legacyStatic)) {
+          return embeddingFallback(state, node, profile, 'local.embedding.interactive');
+        }
       }
       if (literal && (name === 'const' || name === 'computed' || name === 'validation' || name === 'external')) {
         return embeddingFallback(state, node, profile, 'local.embedding.declaration');
@@ -102,7 +107,6 @@ export function applyEmbedding(state: CompileState, profile: Embedding): void {
           return scanned.segments.length > 0 || scanned.unterminated.length > 0;
         });
         if (templates.length) {
-          const schema = state.schemaByName.get(name);
           const rules = schema ? kernelRules(schema) : [];
           const incompatible = templates.some(([attribute, value]) => {
             const prop = schema?.props[attribute];

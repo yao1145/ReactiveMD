@@ -57,7 +57,7 @@ export function Article() {
 | `themes` | `readonly LocalThemeDefinition[]` | Both | Host registrations; CSS loads separately; built-in `default` is always available |
 | `colorScheme` | `'light' \| 'dark' \| 'auto'` | Both | Defaults to `auto`, following the nearest explicit ancestor preference or the system |
 | `hostData` | `Readonly<Record<string, unknown>>` | Both | JSON-safe host data keyed `${kind}:${ref}` for `hostComponent` nodes; never enters the worker |
-| `hostRenderer` | `LocalHostRenderer` | Both | Client-only renderer for `hostComponent` nodes; a missing renderer or data renders a visible placeholder |
+| `hostRenderer` | `LocalHostRenderer` | Both | Renderer for `hostComponent` nodes. Missing data or a missing renderer shows a placeholder. |
 | `externalValues` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | Values for `<external>` declarations; updates never recompile or reset parameters. `LocalDocumentView` also accepts it for host-managed runtimes |
 | `initialParameters` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | Public parameter values applied once after each new runtime is created, before interaction; ordinary source updates reuse the runtime and do not reapply them. An invalid set is rejected atomically and reported through `onDiagnostics` |
 | `onParametersChange` | `(parameters, snapshot) => void` | `LocalReactiveDocument` | Called once per commit when the public writable parameter set actually changes; initialization, rejected writes, unchanged values and external-only updates do not call it |
@@ -398,6 +398,8 @@ Current rating: {{ rating }}
 ```
 
 The host renderer receives `(node, data, ctx)`. `ctx` extends the render context with `value`, a validating `setValue(value)`, `disabled`, `resetToken`, resolved `props` and `report(diagnostics)`. `setValue` goes through the runtime, so shared constraints and reset behavior still apply. Pass `hostData`, keyed `${kind}:${ref}`, only for components that declare those props; a binding-only or container host does not need host data. A missing renderer, missing declared data or a throwing renderer renders a visible placeholder instead of failing the document. `mode="static"` uses the same dispatch and passes `ctx.mode` to the renderer. Host schemas are plain data and cross the worker boundary; renderers never do.
+
+If compilation reports `document.requiresRuntime === false`, you can pass the same document, `hostData` and `hostRenderer` to the runtime-free static view or its SSR entry. See [static rendering and async host data](../reference/public-api-en.md#embedding-and-multiple-documents).
 
 ### External data
 

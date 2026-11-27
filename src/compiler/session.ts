@@ -16,3 +16,4 @@
 export { createLocalCompileSession, LocalCompileSession } from '../local/compilation/session/incremental';
 export type { LocalIncrementalStats } from '../local/compilation/session/incremental';
 export { localCompileOptionsKey } from '../assemblies/default-options';
+export { localCompileCacheKey, type LocalCompileCacheKeyOptions } from '../assemblies/compile-cache-key';

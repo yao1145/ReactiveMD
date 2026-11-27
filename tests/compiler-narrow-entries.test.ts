@@ -9,6 +9,7 @@ import {
   createLocalCompileSession as implementationFactory,
 } from '../src/local/compilation/session/incremental';
 import { localCompileOptionsKey as implementationKey } from '../src/assemblies/default-options';
+import { localCompileCacheKey } from '../src/local';
 import { analyzeLocalSource as implementationAnalyze } from '../src/local/source/authoring';
 
 const REUSABLE_SOURCE = [
@@ -24,6 +25,7 @@ describe('narrow compile session entry', () => {
     expect(Object.keys(sessionEntry).sort()).toEqual([
       'LocalCompileSession',
       'createLocalCompileSession',
+      'localCompileCacheKey',
       'localCompileOptionsKey',
     ]);
     expect(sessionEntry.createLocalCompileSession).toBe(implementationFactory);
@@ -61,6 +63,28 @@ describe('narrow compile session entry', () => {
   it('exposes the canonical compile option identity', () => {
     expect(sessionEntry.localCompileOptionsKey({ strict: false })).toBe(implementationKey({ strict: false }));
     expect(sessionEntry.localCompileOptionsKey({ strict: false })).not.toBe(sessionEntry.localCompileOptionsKey());
+  });
+
+  it('keys the exact source, effective phase, compiler entry, policy and host schemas', () => {
+    const source = '<host-widget kind="a" ref="b" />';
+    const options = { hostComponents: [{ name: 'host-widget', form: 'leaf',
+      props: { kind: { kind: 'string' }, ref: { kind: 'string' } } }] } as const;
+    const key = localCompileCacheKey(source, options);
+    const finalKey = localCompileCacheKey(source, options, { sourcePhase: 'final' });
+    expect(sessionEntry.localCompileCacheKey(source, structuredClone(options))).toBe(key);
+    expect(localCompileCacheKey(source, { ...options, sourcePhase: 'streaming' }, { sourcePhase: 'final' })).toBe(finalKey);
+    expect(new Set([
+      key,
+      finalKey,
+      localCompileCacheKey(source + '\n', options),
+      localCompileCacheKey(source, { ...options, enableCss: false }),
+      localCompileCacheKey(source, { ...options, sourcePhase: 'streaming' }),
+      localCompileCacheKey(source, options, { entry: 'local' }),
+      localCompileCacheKey(source, options, { entry: 'minimal' }),
+      localCompileCacheKey(source, options, { policyVersion: '2' }),
+      localCompileCacheKey(source),
+    ]).size).toBe(9);
+    expect(localCompileCacheKey('\ud800')).not.toBe(localCompileCacheKey('\ufffd'));
   });
 });
 

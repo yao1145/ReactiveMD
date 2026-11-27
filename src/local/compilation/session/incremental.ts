@@ -2,6 +2,7 @@ import { TreeFragment, type Tree } from '@lezer/common';
 import { parser, GFM } from '@lezer/markdown';
 import { compileLocalTracked, type LocalCompilerServices } from '../compiler';
 import { localDocumentRequiresRuntime } from '../runtime-requirement';
+import { collectUsedComponents } from '../component-usage';
 import { compileLocalStreamingTracked } from '../streaming';
 import { LocalSemanticCache } from './semantic-cache';
 import type { SemanticCacheStats } from '../compiler-services';
@@ -319,12 +320,13 @@ export class LocalCompileSession {
     // A phase argument is an explicit contract: an unsupported value fails
     // instead of silently falling back to the interactive final semantics.
     if(phase!==undefined&&readSourcePhase(phase)===undefined)return invalidSourcePhaseResult();
-    const effective=readSourcePhase(phase)??optionSourcePhase(options);
+    const optionPhase=optionSourcePhase(options);
+    const effective=readSourcePhase(phase)??optionPhase;
     // Streaming never reads or mutates the final caches: a later final compile
     // must not inherit a stabilized partial snapshot, deferred index or shared
     // result graph from an intermediate snapshot.
     if(effective==='streaming')return this.compileStreaming(source,options,collectPerformance);
-    if(effective==='final')return this.compileFinal(source,options,collectPerformance);
+    if(effective==='final')return this.compileFinal(source,optionPhase==='streaming' ? {...options,sourcePhase:'final'} : options,collectPerformance);
     return this.compileFinalOrLegacy(source,options,collectPerformance);
   }
   /** Explicit final phase: the normal path plus the resolved compile status. */
@@ -809,6 +811,7 @@ export class LocalCompileSession {
       }
     }
     doc.requiresRuntime = localDocumentRequiresRuntime(doc);
+    doc.usedComponents = collectUsedComponents(doc.nodes);
     return {ok: true, document: doc, diagnostics: []};
   }
   get hasPendingPreparation():boolean{return !this.disposed&&this.deferred!==null;}

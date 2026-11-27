@@ -107,6 +107,84 @@ describe('worker pool document state', () => {
 });
 
 describe('worker pool lifecycle', () => {
+  it('holds new work while an in-flight job completes, then drains in priority order', async () => {
+    const slot = workerSlot();
+    const pool = createLocalCompilePool({ workers: 1, maxPending: 2, createWorker: () => slot.worker });
+    try {
+      const first = pool.schedule({ documentId: 'active', revision: 0, source: 'first' });
+      await Promise.resolve();
+      pool.hold();
+      pool.hold();
+      const older = pool.schedule({ documentId: 'low', revision: 1, source: 'old' }).catch(error => error);
+      const low = pool.schedule({ documentId: 'low', revision: 2, source: 'low' });
+      expect(await older).toMatchObject({ kind: 'superseded' });
+      await expect(pool.schedule({ documentId: 'high', revision: 0, source: 'high' }))
+        .rejects.toMatchObject({ kind: 'backpressure' });
+      slot.answer();
+      await first;
+      const high = pool.schedule({ documentId: 'high', revision: 0, source: 'high', priority: 100 });
+      await Promise.resolve();
+      expect(slot.jobs).toHaveLength(0);
+      expect(pool.getCounts()).toMatchObject({ queuedDocuments: 2, inFlightWorkers: 0 });
+      pool.resume();
+      pool.resume();
+      await Promise.resolve();
+      expect(slot.jobs[0]?.documentId).toBe('high');
+      slot.answer();
+      await high;
+      expect(slot.jobs[0]?.documentId).toBe('low');
+      slot.answer();
+      await low;
+    } finally { pool.dispose(); }
+  });
+
+  it('defers both a full retry and a fallback compile while held', async () => {
+    const slot = workerSlot();
+    const fallbackCompile = vi.fn(() => ({ ok: false as const, diagnostics: [] }));
+    const pool = createLocalCompilePool({ workers: 1, createWorker: () => slot.worker, fallbackCompile });
+    try {
+      const first = pool.schedule({ documentId: 'doc', revision: 0, source: 'first' });
+      await Promise.resolve();
+      slot.answer();
+      await first;
+      const second = pool.schedule({ documentId: 'doc', revision: 1, source: 'second' });
+      await Promise.resolve();
+      const patch = slot.jobs.shift()!;
+      expect(patch).toHaveProperty('baseRevision');
+      pool.hold();
+      slot.worker.onmessage?.({ data: { id: patch.id, documentId: 'doc', revision: 1, ok: false,
+        protocol: 'patch-v1', retryFull: true, message: 'missing baseline' } });
+      await Promise.resolve();
+      expect(slot.jobs).toHaveLength(0);
+      pool.resume();
+      await Promise.resolve();
+      expect(slot.jobs[0]).toHaveProperty('source', 'second');
+      pool.hold();
+      slot.worker.onerror?.(new Error('worker failed'));
+      await Promise.resolve();
+      expect(fallbackCompile).not.toHaveBeenCalled();
+      pool.resume();
+      await expect(second).resolves.toMatchObject({ mode: 'fallback', revision: 1 });
+      expect(fallbackCompile).toHaveBeenCalledOnce();
+    } finally { pool.dispose(); }
+  });
+
+  it('keeps component usage current across full and patched responses', async () => {
+    const slot = workerSlot();
+    const pool = createLocalCompilePool({ workers: 1, createWorker: () => slot.worker });
+    try {
+      const before = pool.schedule({ documentId: 'doc', revision: 0, source: '<card>Card</card>\n\nText' });
+      await Promise.resolve();
+      slot.answer();
+      await expect(before).resolves.toMatchObject({ result: { document: { usedComponents: ['card'] } } });
+      const after = pool.schedule({ documentId: 'doc', revision: 1, source: '<alert>Alert</alert>\n\nText' });
+      await Promise.resolve();
+      expect(slot.jobs[0]).toHaveProperty('baseRevision', 0);
+      slot.answer();
+      await expect(after).resolves.toMatchObject({ mode: 'worker', result: { document: { usedComponents: ['alert'] } } });
+    } finally { pool.dispose(); }
+  });
+
   it('warms one worker and reports readiness', async () => {
     const slot = workerSlot();
     const onReady = vi.fn();

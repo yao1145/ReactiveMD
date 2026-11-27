@@ -52,20 +52,25 @@ try {
 
 ### `reactive-md/compiler/session`
 
-导出 `createLocalCompileSession`、`LocalCompileSession`、`LocalIncrementalStats` 类型和 `localCompileOptionsKey`。每份文档持有一个会话，逐次编译快照，文档关闭时销毁会话。两次更新之间未改动的 Markdown 块会被复用。
+导出 `createLocalCompileSession`、`LocalCompileSession`、`LocalIncrementalStats`、`localCompileCacheKey` 和 `localCompileOptionsKey`。每份文档持有一个会话，逐次编译快照，文档关闭时销毁会话。两次更新之间未改动的 Markdown 块会被复用。
 
 ```ts
-import { createLocalCompileSession, localCompileOptionsKey } from 'reactive-md/compiler/session';
+import { createLocalCompileSession, localCompileCacheKey } from 'reactive-md/compiler/session';
 
 const session = createLocalCompileSession();
-const optionsKey = localCompileOptionsKey({ strict: false });
-const first = session.compile('<number bind="count" label="数量" initial="1">\n\n合计：{{ count }}', undefined, 'final');
-const next = session.compile('<number bind="count" label="数量" initial="2">\n\n合计：{{ count }}', undefined, 'final');
-console.log(first.status, next.status, session.stats.mode, optionsKey);
+const source = '<number bind="count" label="数量" initial="1">\n\n合计：{{ count }}';
+const options = { strict: false } as const;
+const cacheKey = localCompileCacheKey(source, options, { sourcePhase: 'final' });
+const first = session.compile(source, options, 'final');
+const next = session.compile(source + '\n\n补充说明。', options, 'final');
+const cache = new Map([[cacheKey, first]]);
+console.log(cache.get(cacheKey)?.status, next.status, session.stats.mode);
 session.dispose();
 ```
 
-缓存身份仍由源码、编译选项键和组件配置键共同组成。会话会加载解析器与标准编译装配，因为它要完成整篇文档的编译；但不加载 React、CSS、DOM 全局、Worker 调度，也不加载作者目录/命令等服务模块。标准装配可能携带预设作者数据（本地化标题、关键词与插入文本）。
+`localCompileCacheKey(source, options, identity?)` 将原始源码、编译选项、实际生效的源码阶段、组件配置、编译器发布版本和策略版本合成一个键。默认 `entry: 'session'` 对应会话及其 Worker。生成键时传入与提交任务相同的阶段。省略阶段标识的是没有 `status` 字段的旧式会话结果。`compileLocal` 对应 `entry: 'local'`，两个单次编译入口分别对应 `'minimal'` 和 `'standard'`。宿主策略变化时可用 `policyVersion` 使旧缓存失效。函数接收有效的编译选项，返回包含源码的字符串，调用方无需解析其格式。依赖增量历史中的节点 ID 时，缓存应按文档或会话隔离。根入口 `reactive-md` 也导出此函数。
+
+会话加载解析器与标准编译装配，依赖图排除 React、CSS、DOM 全局、Worker 调度和作者服务。预设元数据可包含本地化标题、关键词和插入文本。
 
 ### `reactive-md/scan`
 

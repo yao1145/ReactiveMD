@@ -32,6 +32,7 @@ import { LatexView } from '../math-view';
 import type { Localize } from '../../localization';
 import { ExtendedHtmlFragment } from './ExtendedHtmlFragment';
 import { StaticExternalSlot } from './StaticExternalSlot';
+import { StaticHostData } from './StaticHostData';
 import { splitHtmlDetailsChildren } from '../../../local/html/html-details';
 
 function headingTag(depth: number | undefined): 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' {
@@ -303,34 +304,34 @@ function resolveHostProp(
 }
 
 /**
- * A host component renders entirely on the client. The placeholder is the
- * diagnostic surface: a missing renderer and a synchronous renderer failure
- * stay visible without reporting through `onDiagnostics`. Host data is only
- * required when the node declares a `kind`/`ref` key.
+ * The legacy renderer shares prop and data resolution across live and static
+ * views. The placeholder is the diagnostic surface for callback failures.
  */
 function renderHostComponent(
-  env: RenderEnv,
+  env: ProjectionEnv,
   node: LocalNode,
   key: string,
   visible: boolean,
 ): ReactNode {
   const name = node.name ?? '';
-  const unavailable = (reason: 'renderer' | 'data' | 'error', sdk = false): ReactNode => (
+  const unavailable = (reason: 'renderer' | 'data' | 'error' | 'loading', sdk = false): ReactNode => (
     <span
       key={key}
       className={`local-host-component local-host-unavailable${sdk ? ' local-sdk-unavailable' : ''}`}
       data-local-host-component={name}
       data-local-host-reason={reason}
-      role="note"
+      data-rmd-host-data={reason === 'loading' ? 'loading' : undefined}
+      role={reason === 'loading' ? 'status' : 'note'}
     >
-      {env.t(`Host component <${name}> is unavailable here.`, `宿主组件 <${name}> 在此不可用。`)}
+      {reason === 'loading' ? env.t('Loading host content…', '正在加载宿主内容…')
+        : env.t(`Host component <${name}> is unavailable here.`, `宿主组件 <${name}> 在此不可用。`)}
     </span>
   );
 
   // SDK components own their props and bindings, so the legacy requirement for
   // `kind`/`ref` host data never applies to them. Visibility travels into the
   // context and children render under that visibility.
-  if (env.extensionRenderer) {
+  if ('runtime' in env && env.extensionRenderer) {
     try {
       return createElement(Fragment, { key }, env.extensionRenderer(
         node,
@@ -341,6 +342,8 @@ function renderHostComponent(
     }
   }
 
+  const staticView = 'staticRuntime' in env;
+  const runtime = staticView ? env.staticRuntime : env.runtime;
   const kind = node.attrs?.kind?.trim() ?? '';
   const ref = node.attrs?.ref?.trim() ?? '';
   const dataKey = kind !== '' && ref !== '' ? `${kind}:${ref}` : null;
@@ -350,7 +353,7 @@ function renderHostComponent(
     // visible data placeholder.
     let bound = false;
     try {
-      bound = Object.values(env.runtime.document.bindings).some((binding) => binding.nodeIds.includes(node.id));
+      bound = Object.values(runtime.document.bindings).some((binding) => binding.nodeIds.includes(node.id));
     } catch {
       bound = false;
     }
@@ -360,16 +363,38 @@ function renderHostComponent(
   }
   const renderer = env.hostRenderer;
   if (!renderer) return unavailable('renderer');
-  let data: unknown;
-  if (dataKey !== null) {
-    // `undefined` alone means missing: null, false and 0 are valid host data.
-    data = env.hostData?.[dataKey];
-    if (data === undefined) return unavailable('data');
-  }
 
+  const render = (data: unknown): ReactNode => {
+    try {
+      const content = renderer(node, data, legacyHostContext(env, node, visible));
+      if (staticView) {
+        return <LocalErrorBoundary key={key} revision={env.trace?.sourceRevision ?? 0}
+          resetKey={data} fallback={unavailable('error')}>{content}</LocalErrorBoundary>;
+      }
+      return createElement(Fragment, { key }, content);
+    } catch {
+      return unavailable('error');
+    }
+  };
+  if (dataKey === null) return render(undefined);
+  // `undefined` alone means missing: null, false and 0 are valid host data.
+  const data = env.hostData?.[dataKey];
+  if (data === undefined) {
+    if (staticView && env.resolveHostData) {
+      return <StaticHostData key={key} kind={kind} reference={ref} resolve={env.resolveHostData}
+        render={render} placeholder={unavailable} />;
+    }
+    return unavailable('data');
+  }
+  return render(data);
+}
+
+function legacyHostContext(env: ProjectionEnv, node: LocalNode, visible: boolean): LocalHostComponentContext {
+  const staticView = 'staticRuntime' in env;
+  const runtime = staticView ? env.staticRuntime : env.runtime;
   const readValue = (): LocalValue => {
     try {
-      return env.runtime.get(node);
+      return runtime.get(node);
     } catch {
       return null;
     }
@@ -377,26 +402,27 @@ function renderHostComponent(
   const props: Record<string, LocalHostPropValue> = {};
   for (const [propName, raw] of Object.entries(node.attrs ?? {})) {
     if (propName === 'bind' || propName === 'initial' || propName === 'disabled') continue;
-    props[propName] = node.literalAttributes && raw.includes('{{') ? raw : resolveHostProp(env.runtime, raw);
+    props[propName] = staticView || (node.literalAttributes && raw.includes('{{')) ? raw : resolveHostProp(runtime, raw);
   }
   let resetToken = 0;
   try {
-    resetToken = env.runtime.resetToken(node);
+    resetToken = runtime.resetToken(node);
   } catch {
     resetToken = 0;
   }
-  const disabledRead = readBooleanAttr(env.runtime, node, 'disabled', false);
+  const disabledRead = readBooleanAttr(runtime, node, 'disabled', false);
 
-  const ctx: LocalHostComponentContext = {
-    runtime: env.runtime,
+  return {
+    runtime,
     // With no explicit nodes, a container renders its parsed children.
     render: (nodes, nextVisible = true) => renderNodes(env, nodes ?? node.children ?? [], nextVisible),
     visible,
     mode: env.mode,
     value: readValue(),
     setValue: (next: LocalValue): boolean => {
+      if (staticView) return false;
       try {
-        const diagnostics = env.runtime.set(node, next);
+        const diagnostics = runtime.set(node, next);
         if (diagnostics.length) {
           env.report?.(diagnostics);
           return false;
@@ -411,12 +437,6 @@ function renderHostComponent(
     props: Object.freeze(props),
     report: (diagnostics) => env.report?.(diagnostics),
   };
-  try {
-    // A Fragment keeps the outer list key stable around the renderer output.
-    return createElement(Fragment, { key }, renderer(node, data, ctx));
-  } catch {
-    return unavailable('error');
-  }
 }
 
 /** Collapse memo wrappers along deep single-child Markdown chains. The native
@@ -794,7 +814,9 @@ function renderNode(
       return null;
 
     case 'hostComponent':
-      return 'runtime' in env ? renderHostComponent(env, node, key, visible) : renderStaticComponent(env, node, key, visible);
+      return 'staticRuntime' in env && env.sdkHostNames.has(node.name ?? '')
+        ? renderStaticComponent(env, node, key, visible)
+        : renderHostComponent(env, node, key, visible);
 
     case 'externalSlot': {
       const name = node.name ?? '';

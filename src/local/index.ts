@@ -5,6 +5,7 @@ export { createLocalCompileSession, LocalCompileSession } from './compilation/se
 export type { LocalIncrementalStats } from './compilation/session/incremental';
 /** Public re-export of the default-assembly option key; see src/local/README.md. */
 export { localCompileOptionsKey } from '../assemblies/default-options';
+export { localCompileCacheKey, type LocalCompileCacheKeyOptions } from '../assemblies/compile-cache-key';
 export {
   formatLocalDiagnostic,
   LOCAL_DIAGNOSTIC_CODES,

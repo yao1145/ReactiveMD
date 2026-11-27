@@ -1,6 +1,6 @@
 export { LocalDocumentView, LocalReactiveDocument } from './rendering/document/LocalDocumentView';
 export { LocalStaticDocumentView } from './rendering/document/LocalStaticDocumentView';
-export type { LocalStaticDocumentViewProps } from './rendering/document/LocalStaticDocumentView';
+export type { LocalStaticDocumentViewProps, LocalStaticHostDataResolver } from './rendering/document/LocalStaticDocumentView';
 export { LocalPooledDocumentView } from './rendering/document/LocalPooledDocumentView';
 export type { LocalPooledDocumentViewProps } from './rendering/document/LocalPooledDocumentView';
 export type {

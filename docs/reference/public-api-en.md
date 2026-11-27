@@ -70,15 +70,25 @@ The engine ships ESM only and targets Node.js 22.12 or newer in Node builds. Rea
 
 With `onUnsupported: 'fallback'`, unsupported nodes and node-level errors in attributes, component structure, plots, tables, and navigation fall back to escaped source. `node.fallback` records the diagnostic code and UTF-16 range. The compiler rechecks dependencies and builds runtime metadata from the surviving nodes. Headings keep their anchors, and the first valid explicit anchor keeps its ID when another repeats it. Resource budget errors, including extended HTML limits, fail compilation.
 
-Successful compilations report `document.requiresRuntime`. Pass a document with `requiresRuntime: false` to `LocalStaticDocumentView` from `reactive-md/react/static` or `renderLocalStaticMarkup` from `reactive-md/react/static/server`. The server function returns markup and diagnostics on success, and structured diagnostics on failure. The literal profile supports `<if when="true">` and `<if when="false">`. A document can also include components whose manifest declares static rendering when every attribute is already literal; pass the matching `reactConfig`, such as a derived React pack subset, so those components render through their pack implementation without a document runtime. Components without an implementation keep a stable placeholder.
+Successful compilations report `document.requiresRuntime` and `document.usedComponents` (also on the single-pass compiler's `program`). Use `usedComponents` to preload implementations and select CSS before rendering. It lists distinct component names in first-use order from the published tree, including built-in, SDK and declared legacy host components. It includes components in conditional branches and omits declarations removed by the compiler, source fallbacks, and external slot names. Older documents may omit the field.
+
+Pass a document with `requiresRuntime: false` to `LocalStaticDocumentView` from `reactive-md/react/static` or `renderLocalStaticMarkup` from `reactive-md/react/static/server`. The server function returns markup and diagnostics on success, and structured diagnostics on failure. The literal profile supports `<if when="true">` and `<if when="false">`. Components whose manifest declares static rendering can use the matching `reactConfig` when their attributes are literal. Components without an implementation show a placeholder.
+
+Legacy `hostComponents` with literal attributes and no runtime dependencies also work in both static entry points. Pass the existing `hostData` and `hostRenderer(node, data, ctx)` directly. The callback receives the original node, including its ID and source range, and a read-only `ctx.runtime` projection. `ctx.mode` is `'static'` and `ctx.setValue()` returns `false`. Synchronous data is looked up as `kind:ref`. Only `undefined` means missing.
+
+For missing keyed data, pass a stable `resolveHostData({ kind, ref, signal })` callback. The server and first client render show the same loading placeholder, and resolution starts after hydration. Changing the lookup or removing the node aborts its pending request. A missing value, resolver failure, or synchronous renderer exception affects only that node. In the browser, a node boundary also handles errors thrown by the React subtree returned by the renderer. During SSR, errors thrown by that subtree fail the server render. Use the same synchronous data, renderer and resolver presence for SSR and hydration.
 
 Enable `allowExternalSlots` for `<external slot="references" />`. The host can supply content synchronously through `renderExternalSlot({ name, locale, range })`. `resolveExternalSlot({ name, signal })` can return a React component or a promise, and is invoked after mounting in the browser. Server rendering with a resolver emits a stable loading placeholder. Slots with no host renderer show an unavailable placeholder. Choose permitted slot names in the host before loading any implementation. If one slot renderer throws, the slot reports the failure through `onDiagnostics` and shows the unavailable placeholder while normal siblings keep rendering. Keep the slot renderer or resolver stable across renders; the loader caches by resolver identity, and an inline function restarts the request. Server rendering and client hydration must use the same slot strategy so the first client render matches the server markup. See the [static embed example](../../examples/integration/README.md#static-embed).
 
-`createLocalRuntimePool()` from `reactive-md` provides leases scoped to compatible document and runtime options. Release each lease when the consumer unmounts, or use `LocalPooledDocumentView` to tie lease ownership to the React lifecycle. `stableComponentKeys` preserves React slots across append-only updates under the same parent.
+`createLocalRuntimePool()` from `reactive-md` provides leases scoped to compatible document and runtime options. Release each lease when the consumer unmounts, or use `LocalPooledDocumentView` to tie lease ownership to the React lifecycle.
+
+`stableComponentKeys` preserves React slots across append-only updates when the rendered parent, sibling index, node type and component name stay the same. React retains the instance when the rendered component type also stays the same. Inserts, deletes and reordering can remount a component or leave its state at the old slot when the replacement has the same type and name. Moving a node to another rendered parent mounts a new instance there. Slots that disappear unmount.
 
 `createLocalCompilePool()` accepts `{ documentId, revision, source, options, sourcePhase, priority }`. Revisions increase per document. A source beyond the document length limit is rejected as `source-too-large` before it enters the queue. The default `latest` policy rejects replaced tasks with `LocalCompilePoolTaskError.kind === 'superseded'`. A newer final supersedes an older pending final for the same document; a newer streaming snapshot only supersedes older streaming snapshots and queues behind a final. Use `all` for ordered delivery and handle `backpressure` when its queue fills. Call `release(documentId)` when a document is permanently closed; it cancels that document's pending tasks and forgets its revision chain and baselines so the ID can be reused. A Worker that negotiates `patch-v1` can reuse a compatible final baseline for the same document. The pool retries with full source if the Worker no longer holds the baseline. Pass a `LocalObserver` to read pool events, then forward an outcome's trace ID, document ID and revision as `trace` on the React view to correlate loading and mount events.
 
 Base priority is clamped to `[-10, 10]` and defaults to `0`. Each 100 ms of queue time adds one point. `setPriority` updates the document's queued requests and leaves in-flight work running.
+
+Call `pool.hold()` while scrolling to pause dispatch of document compiles, including full retries and local fallback. Already dispatched work may finish, and pool warmup and idle recycling continue. The pool still accepts, supersedes and cancels queued requests under the normal policy and capacity. `pool.resume()` resumes dispatch with the existing priorities and queue age. Both calls are idempotent.
 
 ### `reactive-md`
 
@@ -87,6 +97,7 @@ The full core surface. No React, no stylesheet, no DOM.
 | Area | Exports |
 | --- | --- |
 | One-shot compile | `compileLocal`, `LocalCompileResult`, `LocalCompileOptions` |
+| Compilation cache identity | `localCompileCacheKey`, `LocalCompileCacheKeyOptions`, `localCompileOptionsKey` |
 | Incremental editing | `createLocalCompileSession`, `LocalCompileSession`, `LocalIncrementalStats` |
 | Streaming source | `LocalSourcePhase`, `LocalCompileStatus`; phased session and scheduler arguments |
 | Runtime | `createLocalRuntime`, `updateLocalRuntime`, `notifyLocalRuntime`, `LocalRuntime`, `LocalSnapshot` |
@@ -131,7 +142,8 @@ Both factories validate options at creation and freeze a snapshot. Invalid confi
 | `createLocalCompileSession` | Create one incremental session per document |
 | `LocalCompileSession` | `compile`, `compileShared`, `stats`, `prepare`, `clear` and `dispose` |
 | `LocalIncrementalStats` | Mode, block and timing counters for the last compile |
-| `localCompileOptionsKey` | Canonical compile option identity; combine it with the source and component configuration key |
+| `localCompileCacheKey` | Cache identity for a source snapshot, compile options, configuration, phase and policy version |
+| `localCompileOptionsKey` | Identity for compile options alone |
 
 ```ts
 import { createLocalCompileSession } from 'reactive-md/compiler/session';

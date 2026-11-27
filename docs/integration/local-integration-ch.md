@@ -57,7 +57,7 @@ export function Article() {
 | `themes` | `readonly LocalThemeDefinition[]` | 两者 | 宿主登记的主题；CSS 单独加载，内置 `default` 始终可用 |
 | `colorScheme` | `'light' \| 'dark' \| 'auto'` | 两者 | 默认 `auto`，跟随最近祖先的显式模式或系统偏好 |
 | `hostData` | `Readonly<Record<string, unknown>>` | 两者 | 按 `${kind}:${ref}` 索引的 JSON 安全宿主数据，用于 `hostComponent` 节点；不进入 worker |
-| `hostRenderer` | `LocalHostRenderer` | 两者 | `hostComponent` 的客户端渲染函数；缺少 renderer 或数据时显示占位 |
+| `hostRenderer` | `LocalHostRenderer` | 两者 | `hostComponent` 的渲染函数。缺少 renderer 或数据时显示占位。 |
 | `externalValues` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | `<external>` 声明的值；更新不重新编译、不重置参数。`LocalDocumentView` 也接受该属性以更新宿主自管的运行时 |
 | `initialParameters` | `Readonly<Record<string, LocalValue>>` | `LocalReactiveDocument` | 每次创建新运行时后、首次交互前应用一次的公开参数；普通源码更新复用运行时，不会重新应用。非法集合原子拒绝并通过 `onDiagnostics` 报告 |
 | `onParametersChange` | `(parameters, snapshot) => void` | `LocalReactiveDocument` | 公开可写参数实际变化时每次提交调用一次；初始化、被拒绝的写入、未变化的值和纯 external 更新不触发 |
@@ -389,6 +389,8 @@ const result = compileLocal(source, { hostComponents });
 `form` 为 `leaf`、`inline` 或 `container`；inline 和 container 使用成对标签，正文按普通 Markdown 与 ReactiveMD 规则编译，container renderer 可通过 `ctx.render()` 渲染子节点。`binding` 可选，接受 `string`、`number`、`boolean`，可声明静态 `min`、`max`、`step`、`options`、`initialRule` 和 `exclusive`。带绑定的宿主组件隐式接受 `bind`、`initial` 和动态 `disabled`，并与内置控件共享绑定族；例如宿主评分控件可与 `<number>` 共用同一个值。
 
 renderer 接收 `(node, data, ctx)`。`ctx` 在渲染上下文之外提供 `value`、经运行时校验的 `setValue(value)`、`disabled`、`resetToken`、解析后的 `props` 和 `report(diagnostics)`。`setValue` 不会绕过共享约束或 reset。只有声明了 `kind`/`ref` 的组件才需要 `hostData`；纯绑定组件和 container 不需要伪造宿主数据。缺少 renderer、缺少其声明的数据或 renderer 抛错时显示可见占位，不会让整个文档失败。schema 是普通数据，可进入 worker；renderer 永远不进入。
+
+编译结果为 `document.requiresRuntime === false` 时，可把同一份文档、`hostData` 和 `hostRenderer` 直接传给无运行时的静态视图或 SSR 入口。参见[静态渲染与异步宿主数据](../reference/public-api-ch.md#嵌入与多文档编译)。
 
 ### 版本查看与迁移
 

@@ -225,6 +225,8 @@ export interface LocalDocument {
   source: string;
   /** Whether rendering needs runtime services. Historical documents omit this field. */
   requiresRuntime?: boolean;
+  /** Distinct renderable component names in first-use order. Older documents may omit this field. */
+  usedComponents?: readonly string[];
   /** Registry fingerprint carried through compilation, Worker cloning and patches. */
   componentConfigKey?: string;
   /** Effective syntax revision; absent on older hand-built runtime documents. */

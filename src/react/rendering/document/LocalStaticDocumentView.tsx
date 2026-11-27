@@ -18,15 +18,20 @@ import { EndnotesView, renderNodes } from './render-nodes';
 import { useResolvedColorScheme } from './use-color-scheme';
 import type { LocalStaticExternalSlot, StaticRenderEnv } from './view-render-context';
 import type { LocalStaticExternalResolver } from './StaticExternalSlot';
+import type { LocalStaticHostDataResolver } from './StaticHostData';
 import { RenderLifecycle } from '../../render-lifecycle';
 export type { LocalStaticExternalSlot } from './view-render-context';
 export type { LocalStaticExternalResolver } from './StaticExternalSlot';
+export type { LocalStaticHostDataResolver } from './StaticHostData';
+export type { LocalHostComponentContext, LocalHostData, LocalHostRenderer } from '../render-types';
 
 export type LocalStaticDocumentViewProps = Pick<LocalDocumentViewProps,
   'document' | 'reactConfig' | 'themes' | 'colorScheme' | 'locale' | 'urlPolicy' | 'imageResolver'
-  | 'allowedFrameOrigins' | 'capabilityGrants' | 'onDiagnostics' | 'trace'> & {
+  | 'allowedFrameOrigins' | 'capabilityGrants' | 'onDiagnostics' | 'trace' | 'hostData' | 'hostRenderer'> & {
   renderExternalSlot?: (slot: LocalStaticExternalSlot) => ReactNode;
   resolveExternalSlot?: LocalStaticExternalResolver;
+  /** Resolve missing legacy host data after hydration. Synchronous hostData takes precedence. */
+  resolveHostData?: LocalStaticHostDataResolver;
 };
 
 export function staticDocumentDiagnostics({ document, reactConfig }: LocalStaticDocumentViewProps): Diagnostic[] {
@@ -56,7 +61,8 @@ export function LocalStaticDocumentView(props: LocalStaticDocumentViewProps) {
 }
 
 function StaticProjection({ document, reactConfig, themes, colorScheme = 'auto', locale = 'en', urlPolicy,
-  imageResolver, allowedFrameOrigins, capabilityGrants, onDiagnostics, renderExternalSlot, resolveExternalSlot, trace }: LocalStaticDocumentViewProps) {
+  imageResolver, allowedFrameOrigins, capabilityGrants, onDiagnostics, renderExternalSlot, resolveExternalSlot,
+  hostData, hostRenderer, resolveHostData, trace }: LocalStaticDocumentViewProps) {
   const instanceId = useId();
   const rootRef = useRef<HTMLElement>(null);
   const scheme = useResolvedColorScheme(rootRef, colorScheme);
@@ -68,13 +74,14 @@ function StaticProjection({ document, reactConfig, themes, colorScheme = 'auto',
   const definitions = useMemo(() => new Map(getLocalComponentRegistry(reactConfig?.config).map(definition => [definition.name, definition])),
     [reactConfig]);
   const componentRenderer = useMemo(() => reactConfig ? localReactExtensionRenderer(reactConfig) : undefined, [reactConfig]);
+  const sdkHostNames = useMemo(() => new Set(document.extensions?.components.map(requirement => requirement.name)), [document.extensions]);
   const env: StaticRenderEnv = {
     source: document.source, mode: 'static', locale, t, rootRef, urlPolicy, imageResolver, allowedFrameOrigins,
-    renderExternalSlot, resolveExternalSlot, trace,
+    renderExternalSlot, resolveExternalSlot, hostData, hostRenderer, resolveHostData, trace,
     capabilityPolicy: { ...policy, enableJavaScript: false }, report: onDiagnostics,
     anchors: createHeadingAnchors(document, `local-heading-${instanceId}`),
     footnotes: collectLocalFootnotes(document, instanceId),
-    staticRuntime, definitions, componentRenderer,
+    staticRuntime, sdkHostNames, definitions, componentRenderer,
     componentStyles: document.capabilities?.componentStyles,
   };
   return <LocalLocaleProvider locale={locale}>

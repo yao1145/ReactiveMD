@@ -134,6 +134,8 @@ export function LocalError({ message }: { message?: string }) {
 interface LocalBoundaryProps {
   children: ReactNode;
   revision: number;
+  fallback?: ReactNode;
+  resetKey?: unknown;
 }
 
 /**
@@ -149,13 +151,13 @@ export class LocalErrorBoundary extends Component<LocalBoundaryProps, { failed: 
   }
 
   componentDidUpdate(previous: Readonly<LocalBoundaryProps>) {
-    if (this.state.failed && previous.revision !== this.props.revision) {
+    if (this.state.failed && (previous.revision !== this.props.revision || !Object.is(previous.resetKey, this.props.resetKey))) {
       this.setState({ failed: false });
     }
   }
 
   render() {
-    if (this.state.failed) return <LocalError />;
+    if (this.state.failed) return this.props.fallback ?? <LocalError />;
     return this.props.children;
   }
 }
@@ -248,11 +250,13 @@ export interface LocalStaticExternalSlot {
 }
 
 export type StaticRenderEnv = Pick<RenderEnv, 'rootRef' | 'urlPolicy' | 'imageResolver' | 'anchors' | 't' | 'locale'
-  | 'footnotes' | 'capabilityPolicy' | 'allowedFrameOrigins' | 'report' | 'trace' | 'componentStyles'> & {
+  | 'footnotes' | 'capabilityPolicy' | 'allowedFrameOrigins' | 'report' | 'trace' | 'componentStyles' | 'hostData' | 'hostRenderer'> & {
   mode: 'static'; source: string; renderExternalSlot?: (slot: LocalStaticExternalSlot) => ReactNode;
   resolveExternalSlot?: LocalStaticExternalResolver;
+  resolveHostData?: import('./StaticHostData').LocalStaticHostDataResolver;
   /** Read-only projection used by statically renderable components. */
   staticRuntime: LocalRuntime;
+  sdkHostNames: ReadonlySet<string>;
   definitions: ReadonlyMap<string, LocalComponentDefinition>;
   componentRenderer?: LocalReactExtensionRenderer;
 };

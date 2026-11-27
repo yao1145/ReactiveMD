@@ -20,7 +20,7 @@ export interface LocalVisualProps extends Omit<LocalRenderContext, 'mode'> {
 
 /**
  * JSON-safe host data indexed by `${kind}:${ref}` for `hostComponent` nodes.
- * It is read only by the client renderer and never enters the worker.
+ * The host supplies it to the view; it never enters the compiler or worker.
  */
 export type LocalHostData = Readonly<Record<string, unknown>>;
 
@@ -48,9 +48,9 @@ export interface LocalHostComponentContext extends LocalRenderContext {
 }
 
 /**
- * Client-only renderer for `hostComponent` nodes. Receiving `unknown` keeps the
- * contract loose; a synchronous throw falls back to the inert placeholder, so
- * a bad renderer never blanks the whole document.
+ * Renderer for legacy `hostComponent` nodes. Synchronous callback failures
+ * fall back to a node placeholder. The runtime-free view also calls it on the
+ * server, with a read-only runtime projection.
  */
 export type LocalHostRenderer = (
   node: LocalNode,

@@ -39,20 +39,25 @@ Two narrow subpaths serve chat-style hosts that keep one document open and draw 
 
 ### `reactive-md/compiler/session`
 
-Exports `createLocalCompileSession`, `LocalCompileSession`, the `LocalIncrementalStats` type and `localCompileOptionsKey`. Keep one session per document, compile each snapshot, and dispose the session when the document closes. Unchanged Markdown blocks are reused between updates.
+Exports `createLocalCompileSession`, `LocalCompileSession`, `LocalIncrementalStats`, `localCompileCacheKey` and `localCompileOptionsKey`. Keep one session per document, compile each snapshot, and dispose the session when the document closes. Unchanged Markdown blocks are reused between updates.
 
 ```ts
-import { createLocalCompileSession, localCompileOptionsKey } from 'reactive-md/compiler/session';
+import { createLocalCompileSession, localCompileCacheKey } from 'reactive-md/compiler/session';
 
 const session = createLocalCompileSession();
-const optionsKey = localCompileOptionsKey({ strict: false });
-const first = session.compile('<number bind="count" label="Count" initial="1">\n\nTotal: {{ count }}', undefined, 'final');
-const next = session.compile('<number bind="count" label="Count" initial="2">\n\nTotal: {{ count }}', undefined, 'final');
-console.log(first.status, next.status, session.stats.mode, optionsKey);
+const source = '<number bind="count" label="Count" initial="1">\n\nTotal: {{ count }}';
+const options = { strict: false } as const;
+const cacheKey = localCompileCacheKey(source, options, { sourcePhase: 'final' });
+const first = session.compile(source, options, 'final');
+const next = session.compile(source + '\n\nMore details.', options, 'final');
+const cache = new Map([[cacheKey, first]]);
+console.log(cache.get(cacheKey)?.status, next.status, session.stats.mode);
 session.dispose();
 ```
 
-Cache identity still combines the source, the compile option key and the component configuration key. The session may load the parser and the standard compile assembly because it compiles complete documents. It loads no React, CSS, DOM globals, Worker scheduling, or authoring service, catalog or command modules. The standard assembly may carry preset authoring data such as localized titles, keywords and insertion text.
+`localCompileCacheKey(source, options, identity?)` combines the exact source, compile options, effective phase, component configuration, compiler release and strategy versions. The default `entry: 'session'` covers sessions and their Worker transport. Pass the same explicit phase you submit to the session or pool. Omitting the phase identifies the historical session result without a status field. Use `entry: 'local'` for `compileLocal`, or `'minimal'` and `'standard'` for the single-pass compilers. Set `policyVersion` to invalidate entries when the host policy changes. The function accepts valid compile options and returns an opaque string that contains the source. Scope caches to the document or session when consumers rely on node IDs from incremental history. The root `reactive-md` entry also exports the helper.
+
+The session loads the parser and standard compile assembly. Its graph excludes React, CSS, DOM globals, Worker scheduling and authoring services. Preset metadata can include localized titles, keywords and insertion text.
 
 ### `reactive-md/scan`
 

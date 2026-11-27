@@ -19,9 +19,11 @@ const staticTypes = new Set([
  * reject the remaining stateful cases.
  */
 function staticallyProjectable(node: LocalNode, definition: LocalComponentDefinition | undefined): boolean {
-  if (!definition || definition.capabilities.static !== true) return false;
-  if (node.literalAttributes === true) return true;
-  return !Object.values(node.attrs ?? {}).some(value => value.includes('{{'));
+  return definition?.capabilities.static === true && hasLiteralComponentAttributes(node);
+}
+
+export function hasLiteralComponentAttributes(node: LocalNode): boolean {
+  return node.literalAttributes === true || !Object.values(node.attrs ?? {}).some(value => value.includes('{{'));
 }
 
 export function localDocumentRequiresRuntime(document: LocalDocument): boolean {
@@ -41,10 +43,11 @@ export function localDocumentRequiresRuntime(document: LocalDocument): boolean {
       && (node.attrs?.when === 'true' || node.attrs?.when === 'false')) continue;
     const definition = definitions.get(node.name ?? '');
     if (node.type === 'component' && node.name !== 'if' && staticallyProjectable(node, definition)) continue;
-    if (node.type === 'hostComponent' && definition?.capabilities.interactive === false) {
-      const requirement = requirements?.get(definition.name);
-      if (requirement?.id === definition.id && requirement.version === definition.version
-        && staticallyProjectable(node, definition)) continue;
+    if (node.type === 'hostComponent' && node.name) {
+      const requirement = requirements?.get(node.name);
+      if (!definition && !requirement && node.hostForm !== undefined && hasLiteralComponentAttributes(node)) continue;
+      if (definition?.capabilities.interactive === false && requirement?.id === definition.id
+        && requirement.version === definition.version && staticallyProjectable(node, definition)) continue;
     }
     return true;
   }

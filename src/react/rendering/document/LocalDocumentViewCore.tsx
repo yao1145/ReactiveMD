@@ -106,7 +106,7 @@ export type LocalImageResolver = (url: string) => string | null;
 export interface LocalDocumentViewProps {
   document: LocalDocument;
   runtime: LocalRuntime;
-  /** Preserve component and ancestor slots across append-only source updates. */
+  /** Preserve React slots at unchanged sibling positions across append-only source updates. */
   stableComponentKeys?: boolean;
   trace?: LocalReactTraceContext;
   /** Mount-local grants, bounded by the permissions recorded at compilation. */
@@ -165,6 +165,7 @@ export interface LocalDocumentViewProps {
 
 export interface LocalReactiveDocumentProps {
   source: string;
+  /** Preserve React slots at unchanged sibling positions across append-only source updates. */
   stableComponentKeys?: boolean;
   trace?: LocalReactTraceContext;
   /** Further restrict the grants given by compileOptions for this mount. */

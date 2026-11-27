@@ -57,6 +57,7 @@ import { attachNodeDependencies } from './dependencies';
 import { compileDocumentCapabilities } from './compiler-capabilities';
 import { applyEmbedding, collectEmbeddingRejections, compileEmbeddingAttributes, embeddingFallback, replaceEmbeddingNodes, type EmbeddingRejection } from './compiler-embedding';
 import { localDocumentRequiresRuntime } from './runtime-requirement';
+import { collectUsedComponents } from './component-usage';
 
 /**
  * The parser owns recovery detection. Until its optional field is part of the
@@ -150,6 +151,7 @@ export function compileLegacyHtmlLocal(
     syntax: 'local',
     source,
     requiresRuntime: true,
+    usedComponents: Object.freeze([]),
     syntaxVersion: LOCAL_SYNTAX_VERSION,
     html: check.html,
     nodes: [{
@@ -445,6 +447,7 @@ function compileParsedLocal(
   const extensions = extensionRequirements(state.nodes, optionCheck.sdkByName);
   const kernelMetadata = compileKernelMetadata(state, bindings);
   const usedDefinitions = componentDefinitionsFor(state);
+  const nodes = stripDeclarationNodes(state.nodes);
   const document: LocalDocument = {
     syntax: 'local',
     source,
@@ -452,7 +455,8 @@ function compileParsedLocal(
       ? { componentConfigKey: compilerComponentConfigKey(optionCheck) } : {}),
     syntaxVersion: LOCAL_SYNTAX_VERSION,
     ...(parsed.versionDeclaration ? { versionDeclaration: parsed.versionDeclaration } : {}),
-    nodes: stripDeclarationNodes(state.nodes),
+    nodes,
+    usedComponents: collectUsedComponents(nodes),
     ...(capabilities ? { capabilities } : {}),
     initialState,
     bindings,
