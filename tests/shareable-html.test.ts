@@ -3,7 +3,7 @@ import { compileLocal } from '../src/local/compilation/compiler';
 import { createLocalStateFile, LOCAL_STATE_FORMAT, serializeLocalState } from '../src/local/runtime/state';
 import { createLocalRuntime } from '../src/local/runtime/runtime';
 import type { LocalNode } from '../src/local/types';
-import { createShareableHtml, resolveLocalStateBaseline, serializeForScript } from '../src/shareable';
+import { createShareableHtml, escapeInlineScript, resolveLocalStateBaseline, serializeForScript } from '../src/shareable';
 
 function findComponent(nodes: LocalNode[], name: string): LocalNode {
   for (const node of nodes) {
@@ -244,5 +244,51 @@ describe('shareable HTML envelope', () => {
     const serialized = serializeForScript({ text: '</script><!--&\u2028\u2029' });
     expect(serialized).not.toMatch(/[<>&\u2028\u2029]/);
     expect(JSON.parse(serialized)).toEqual({ text: '</script><!--&\u2028\u2029' });
+  });
+
+  it('escapes inline scripts without breaking strings, templates or unicode regexes', () => {
+    const source = [
+      'const closing = "</script><!--<script>";',
+      'const template = `</script><!--<script>`;',
+      'const htmlComment = /<!--/u.test("<!--");',
+      'const scriptTag = /<script\\b/u.test("<script ");',
+      'return [closing, template, htmlComment, scriptTag];',
+    ].join('\n');
+    const escaped = escapeInlineScript(source);
+    expect(escaped).not.toMatch(/<\/script/i);
+    expect(escaped).not.toContain('<!--');
+    expect(escaped).not.toMatch(/<script/i);
+    const run = new Function(escaped) as () => unknown[];
+    expect(run()).toEqual(['</script><!--<script>', '</script><!--<script>', true, true]);
+  });
+
+  it('keeps the runtime script executable inside the envelope', () => {
+    const { runtime, file } = fixture();
+    try {
+      const html = createShareableHtml({
+        title: 'Share',
+        source: runtime.document.source,
+        state: file,
+        staticMarkup: '<article class="md-document"></article>',
+        css: 'body{}',
+        mode: 'interactive',
+        runtimeScript: [
+          'const closing = "</script><!--<script>";',
+          'globalThis.__reactiveMDInlineCheck = [closing, /<!--/u.test("<!--"), /<script\\b/u.test("<script ")];',
+        ].join('\n'),
+      });
+      expect(html).not.toContain('<!--');
+      const runtimeScript = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)?.[1];
+      expect(runtimeScript).toBeDefined();
+      expect(runtimeScript).not.toMatch(/<\/script/i);
+      expect(runtimeScript).not.toContain('<!--');
+      expect(runtimeScript).not.toMatch(/<script/i);
+      new Function(runtimeScript!)();
+      expect((globalThis as { __reactiveMDInlineCheck?: unknown }).__reactiveMDInlineCheck)
+        .toEqual(['</script><!--<script>', true, true]);
+    } finally {
+      delete (globalThis as { __reactiveMDInlineCheck?: unknown }).__reactiveMDInlineCheck;
+      runtime.dispose();
+    }
   });
 });

@@ -158,6 +158,8 @@ export const notices = [
 
 `root` is the only directory the adapter reads from. Every `allowlist` directory must be inside `root`, and every resource file must resolve inside both. The entry module must also be inside `root`. `resources` (or `styles`) is optional; `notices` accepts an array of records or a string. The same `resources` and `notices` options passed to the build call are merged with host exports. Identical declarations deduplicate; conflicting contents produce a diagnostic.
 
+The entry module is also bundled for the browser, so its top-level code must stay browser-safe. Builds reject any Node built-in import (`node:path`, `node:url`, `fs`, `node:crypto`, ...) with `local.build.host-browser`; the rejection names the specifier and importer. Compute build-only values in the script that writes the host module, or use the documented `new URL('.', import.meta.url)` form for `root`.
+
 ### Preflight and build
 
 ```ts

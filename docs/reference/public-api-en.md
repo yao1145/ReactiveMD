@@ -113,7 +113,7 @@ The full core surface. No React, no stylesheet, no DOM.
 | Background compile | `LocalCompileScheduler`, `startLocalCompileWorker`, `LOCAL_COMPILE_DELAY_MS`, `LOCAL_COMPILE_PREPARATION_DELAY_MS`, `compileFailureDiagnostic`, `localWorkerOptionsKey`, `LocalCompileOutcome`, `LocalCompileRequest`, `LocalCompileResponse` |
 | Result patches | `LOCAL_RESULT_PATCH_PROTOCOL`, `diffSourceEdit`, `applySourceEdit`, `encodeLocalResultPatch`, `applyLocalResultPatch` |
 | Themes | `LOCAL_THEME_PROTOCOL`, `DEFAULT_LOCAL_THEME`, `resolveLocalTheme`, `isLocalThemeName` |
-| HTML envelope | `createShareableHtml`, `resolveLocalStateBaseline`, `SHAREABLE_HTML_FORMAT`, `SHAREABLE_HTML_FORMAT_V2`, `serializeForScript` |
+| HTML envelope | `createShareableHtml`, `resolveLocalStateBaseline`, `SHAREABLE_HTML_FORMAT`, `SHAREABLE_HTML_FORMAT_V2`, `serializeForScript`, `escapeInlineScript` |
 | Component state | `LOCAL_STATE_FORMAT`, `localSourceDigest`, plus the `./export/component-state` surface |
 
 Use this entry when a host compiles, runs and persists documents in memory. `compileLocal()` is the one-shot full compiler; `createLocalCompileSession()` reuses unchanged Markdown blocks across edits; `createLocalRuntime()` owns parameters, subscriptions and disposal. The runtime writes no storage, cookies or network on its own.
@@ -315,6 +315,7 @@ Pass the same `LocalCompileOptions` used for rendering, so diagnostics, host com
 | `createLocalBundleManifest`, `createLocalRestorationRequirements`, `validateLocalRestorationRequirements`, `localThemeContractDigest`, `localExportContentDigest` | Bundle and restoration metadata |
 | `resolveLocalComponentStateExport` | Validate a component-state sidecar against the document before embedding |
 | `readLocalExportResources` | Validate and normalize host style resources |
+| `escapeInlineScript` | Escape JavaScript source for an inline `<script>` element without changing string, template or regular expression values |
 | `prepareLocalPrintHtml`, `waitForLocalPrintImages` | Prepare static HTML for printing |
 | `validateLocalComponentContracts`, `validateLocalExtensionRequirements` | Contract checks shared with the CLI |
 
@@ -336,7 +337,7 @@ Read assets through this entry. Tarball layout and file names change between rel
 
 ### `reactive-md/build`
 
-Node adapter that reads only modules the host names explicitly, so third-party code stays a host dependency.
+Node adapter that reads only modules the host names explicitly, so third-party code stays a host dependency. Because the host entry is also bundled for the browser, Node built-in imports are rejected with `local.build.host-browser`.
 
 | Export | Purpose |
 | --- | --- |

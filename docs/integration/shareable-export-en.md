@@ -8,7 +8,7 @@ This guide covers the single-file HTML exporter introduced with `local-draft-2`.
 
 Interactive exports save the RMD state baseline, capability flags and `sourceSemantics: "mixed-rmd-v1"`. The runtime’s legacy reader preserves the original interpretation of older exports. Static output uses the selected state without executing author scripts. See [HTML compatibility](../reference/html-compatibility-en.md).
 
-When calling `createShareableHtml` directly, render `staticMarkup` with the same CSS and Extended HTML grants as the export. The function rejects a snapshot that still uses a capability disabled for the export.
+When calling `createShareableHtml` directly, render `staticMarkup` with the same CSS and Extended HTML grants as the export. The function rejects a snapshot that still uses a capability disabled for the export. When you assemble your own HTML around a runtime script, pass the script through `escapeInlineScript` (`reactive-md` or `reactive-md/export`): it prevents `</script` from closing the element and the `<!--` + `<script` sequence from entering the HTML tokenizer's double-escaped state without changing string, template or regular expression values.
 
 **Interactive HTML** is one self-contained `.html` file. It embeds the original source, the standalone browser runtime, React 19, the current stylesheet and print styles. Readers can open it through `file://` without Node.js, React, the reactive-md package or network access.
 

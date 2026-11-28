@@ -8,7 +8,7 @@
 
 交互导出保存 RMD 状态基线、能力开关与 `sourceSemantics: "mixed-rmd-v1"`。运行时按旧语义读取历史导出。静态导出使用选择的状态而不启动作者脚本。参见 [HTML 兼容](../reference/html-compatibility-ch.md)。
 
-直接调用 `createShareableHtml` 时，请用与导出一致的 CSS 和扩展 HTML 授权渲染 `staticMarkup`。导出关闭某项能力时，函数会拒绝仍使用该能力的快照。
+直接调用 `createShareableHtml` 时，请用与导出一致的 CSS 和扩展 HTML 授权渲染 `staticMarkup`。导出关闭某项能力时，函数会拒绝仍使用该能力的快照。自行拼装 HTML 时，把运行时脚本交给 `escapeInlineScript`（来自 `reactive-md` 或 `reactive-md/export`）：它会阻止 `</script` 关闭脚本元素，也阻止 `<!--` + `<script` 进入 HTML 的双转义状态，同时不改变字符串、模板和正则中的值。
 
 **交互式 HTML** 是一个自包含的 `.html` 文件。它内嵌原始源码、独立浏览器运行时、React 19、样式表和打印样式。读者通过 `file://` 打开即可交互，不需要 Node.js、React、reactive-md 包或网络连接。
 

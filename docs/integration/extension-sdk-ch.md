@@ -172,6 +172,8 @@ export const notices = [
 
 `root` 是适配器唯一读取的目录。每个 `allowlist` 目录都必须在 `root` 内，资源文件必须同时位于两者之内，入口模块也必须在 `root` 内。`resources`（或 `styles`）可选；`notices` 接受记录数组或字符串。构建调用中的同名 `resources` 与 `notices` 选项会和宿主导出的声明合并。相同声明去重；内容冲突产生诊断。
 
+入口模块同时会打进浏览器 bundle，因此它的顶层代码必须保持浏览器安全。构建会拒绝任何 Node 内置模块导入（`node:path`、`node:url`、`fs`、`node:crypto` 等），报 `local.build.host-browser` 并指出模块名与导入方。构建专用路径请在生成 host 模块的脚本里算好，或按文档用 `new URL('.', import.meta.url)` 表示 `root`。
+
 ### 预检与构建
 
 ```ts

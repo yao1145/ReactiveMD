@@ -13,6 +13,7 @@ import { readLocalExportResources } from './resources';
 import { createLocalBundleManifest, createLocalRestorationRequirements, localExportContentDigest, localThemeContractDigest, type LocalStandaloneBundleManifest } from './restoration';
 export * from './restoration';
 export * from './component-state';
+export { escapeInlineScript } from '../shareable';
 export { readLocalExportResources } from './resources';
 export { prepareLocalPrintHtml, waitForLocalPrintImages } from './print-document';
 import {

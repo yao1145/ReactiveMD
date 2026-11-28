@@ -113,7 +113,7 @@
 | 后台编译 | `LocalCompileScheduler`、`startLocalCompileWorker`、`LOCAL_COMPILE_DELAY_MS`、`LOCAL_COMPILE_PREPARATION_DELAY_MS`、`compileFailureDiagnostic`、`localWorkerOptionsKey`、`LocalCompileOutcome`、`LocalCompileRequest`、`LocalCompileResponse` |
 | 结果补丁 | `LOCAL_RESULT_PATCH_PROTOCOL`、`diffSourceEdit`、`applySourceEdit`、`encodeLocalResultPatch`、`applyLocalResultPatch` |
 | 主题 | `LOCAL_THEME_PROTOCOL`、`DEFAULT_LOCAL_THEME`、`resolveLocalTheme`、`isLocalThemeName` |
-| HTML 信封 | `createShareableHtml`、`resolveLocalStateBaseline`、`SHAREABLE_HTML_FORMAT`、`SHAREABLE_HTML_FORMAT_V2`、`serializeForScript` |
+| HTML 信封 | `createShareableHtml`、`resolveLocalStateBaseline`、`SHAREABLE_HTML_FORMAT`、`SHAREABLE_HTML_FORMAT_V2`、`serializeForScript`、`escapeInlineScript` |
 | 组件状态 | `localSourceDigest` 及 `./export/component-state` 一族 |
 
 宿主在内存中编译、运行并持久化文档时用这个入口。`compileLocal()` 是一次性完整编译器；`createLocalCompileSession()` 在连续编辑中复用未变动的 Markdown 块；`createLocalRuntime()` 持有参数、订阅与销毁。运行时本身不写存储、Cookie 或网络。
@@ -315,6 +315,7 @@ packs 是普通预设，可为 packed React 宿主选择一个或多个。`visua
 | `createLocalBundleManifest`、`createLocalRestorationRequirements`、`validateLocalRestorationRequirements`、`localThemeContractDigest`、`localExportContentDigest` | bundle 与恢复元数据 |
 | `resolveLocalComponentStateExport` | 在嵌入之前按文档校验组件状态 sidecar |
 | `readLocalExportResources` | 校验并规范化宿主样式资源 |
+| `escapeInlineScript` | 为内联 `<script>` 转义 JavaScript 源码，不改变字符串、模板或正则中的值 |
 | `prepareLocalPrintHtml`、`waitForLocalPrintImages` | 为打印准备静态 HTML |
 | `validateLocalComponentContracts`、`validateLocalExtensionRequirements` | 与 CLI 共用的契约检查 |
 
@@ -336,7 +337,7 @@ packs 是普通预设，可为 packed React 宿主选择一个或多个。`visua
 
 ### `reactive-md/build`
 
-Node 适配器，只读取宿主显式指定的模块，第三方代码始终是宿主自身的依赖。
+Node 适配器，只读取宿主显式指定的模块，第三方代码始终是宿主自身的依赖。入口模块同时会打进浏览器 bundle，因此 Node 内置模块导入会以 `local.build.host-browser` 拒绝。
 
 | 导出 | 用途 |
 | --- | --- |

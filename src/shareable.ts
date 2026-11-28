@@ -124,10 +124,18 @@ function escapeStyle(css: string): string {
   return css.replace(/<\/style/gi, '<\\/style');
 }
 
-function escapeScript(script: string): string {
+/**
+ * Escape JavaScript source for an inline `<script>` element. The result keeps
+ * the original values in strings, template literals and regular expression
+ * literals, including `u`/`v` patterns. It prevents `</script` from closing
+ * the element and blocks the `<!--` + `<script` sequence that puts the HTML
+ * tokenizer into the double-escaped state where `</script>` is plain text.
+ */
+export function escapeInlineScript(script: string): string {
   return script
     .replace(/<\/script/gi, '<\\/script')
-    .replace(/<!--/g, '<\\!--');
+    .replace(/<!--/g, '<\\u0021--')
+    .replace(/<script/gi, '<\\u0073cript');
 }
 
 function escapeMeta(value: string): string {
@@ -369,7 +377,7 @@ export function createShareableHtml(options: ShareableHtmlOptions): string {
 
   const payloadScript = interactive
     ? `<script type="application/reactive-md+json" data-reactive-md-auto>${serializeForScript(payload)}</script>
-<script>${escapeScript(options.runtimeScript!)}</script>`
+<script>${escapeInlineScript(options.runtimeScript!)}</script>`
     : '';
   const notices = options.notices?.trim()
     ? `<template id="reactive-md-notices"><pre>${escapeHtml(options.notices)}</pre></template>`

@@ -1,3 +1,4 @@
+import { builtinModules } from 'node:module';
 import type { Diagnostic } from '../local/types';
 import { buildDiagnostic } from './diagnostics';
 import { createLocalStandaloneEntrySource, VIRTUAL_HOST_ENTRY, VIRTUAL_HOST_MODULE } from './entry';
@@ -11,6 +12,23 @@ export interface LocalViteApi {
 export type LocalViteSource = LocalViteApi | (() => Promise<LocalViteApi>);
 
 const MAX_SCRIPT_BYTES = 32 * 1024 * 1024;
+
+const NODE_BUILTIN_MARKER = 'reactive-md-node-builtin: ';
+const NODE_BUILTINS = new Set<string>(builtinModules.flatMap((name) => [name, `node:${name}`]));
+
+function nodeBuiltinMessage(id: string, importer: string | undefined): string {
+  return `${NODE_BUILTIN_MARKER}"${id}"${importer ? ` (imported by ${importer})` : ''} cannot be bundled for a browser build. Host modules run in the browser; compute build-only paths in the build script or use new URL('.', import.meta.url) for root.`;
+}
+
+function browserSafetyDetail(error: unknown): string | null {
+  const message = error instanceof Error ? error.message : String(error);
+  const index = message.indexOf(NODE_BUILTIN_MARKER);
+  if (index < 0) return null;
+  const end = message.indexOf('\n', index);
+  return message
+    .slice(index + NODE_BUILTIN_MARKER.length, end < 0 ? undefined : end)
+    .replace(/\u001b\[[0-9;]*m/g, '');
+}
 
 const FORBIDDEN_SCRIPT_TOKENS: readonly (readonly [RegExp, string])[] = [
   [/\bimport\s*\.\s*meta\b/, 'import.meta'],
@@ -162,7 +180,8 @@ export async function buildLocalStandaloneScript(
   const plugin = {
     name: 'reactive-md-standalone-host',
     enforce: 'pre',
-    resolveId(id: string): string | null {
+    resolveId(id: string, importer?: string): string | null {
+      if (id.startsWith('node:') || NODE_BUILTINS.has(id)) throw new Error(nodeBuiltinMessage(id, importer));
       if (id === VIRTUAL_HOST_ENTRY) return `\0${VIRTUAL_HOST_ENTRY}`;
       if (id === VIRTUAL_HOST_MODULE) return hostId;
       return null;
@@ -230,7 +249,10 @@ export async function buildLocalStandaloneScript(
   try {
     result = await vite.build(config);
   } catch (error) {
-    diagnostics.push(buildDiagnostic('local.build.vite', `The Vite build failed: ${messageOf(error)}`));
+    const safety = browserSafetyDetail(error);
+    diagnostics.push(safety
+      ? buildDiagnostic('local.build.host-browser', `The standalone host is not browser-safe: ${safety}`)
+      : buildDiagnostic('local.build.vite', `The Vite build failed: ${messageOf(error)}`));
     return null;
   }
   const output = readSingleOutput(result, diagnostics);
