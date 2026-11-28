@@ -67,6 +67,33 @@ const hint: LocalComponentDefinition = defineLocalComponent({
 
 const config = createLocalConfig({ components: [rating, hint] });
 
+it('reports structural labels as required and attributes with defaults as optional', () => {
+  const definition = defineLocalComponent({
+    id: 'example/meter', name: 'meter', version: '1.0.0',
+    protocol: 'reactive-md-component/v1', form: 'leaf',
+    props: { label: { kind: 'string' }, max: { kind: 'number', required: true, default: 100 } },
+    bindings: { value: { kind: 'number', family: 'number', bind: 'bind', initial: 'initial', initialRule: 'nearest-zero', required: true } },
+    structure: { rule: 'none', label: 'required' },
+    capabilities: BOOLEAN_CAPABILITIES,
+  });
+  const cases = [
+    { tag: 'progress', options: undefined },
+    { tag: 'meter', options: { config: createLocalConfig({ components: [definition] }) } },
+  ];
+  for (const { tag, options } of cases) {
+    const lookup = createLocalAuthoringLookup(options);
+    expect(lookup.attribute(tag, 'label')?.required).toBe(true);
+    expect(lookup.attribute(tag, 'max')?.required).toBe(false);
+    const source = `<${tag} `;
+    const suggestions = completeLocalSource(source, source.length, options);
+    expect(suggestions.find(item => item.label === 'label')?.detail).toBe('string, required');
+    expect(suggestions.find(item => item.label === 'max')?.detail).toBe('number');
+  }
+  expect(createLocalAuthoringLookup(cases[1].options).attribute('meter', 'bind')?.required).toBe(true);
+  expect(compileLocal('<progress value="50" />').diagnostics.some(item => item.code === 'local.label.required')).toBe(true);
+  expect(compileLocal('<progress label="Progress" value="50" />').ok).toBe(true);
+});
+
 function leafManifest(input: {
   id: string;
   name: string;

@@ -2,7 +2,8 @@ import type { EditorLocale } from './command-types';
 import type { LocalCompileOptions, LocalNode, LocalValue } from '../local/types';
 import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../assemblies/default-options';
 import { parseLocal } from '../local/parsing/parser';
-import type { LocalComponentForm, LocalPropKind, LocalPropSchema } from '../assemblies/default-schema';
+import type { LocalComponentForm, LocalComponentSchema, LocalPropKind, LocalPropSchema } from '../assemblies/default-schema';
+import { requiresSourceAttribute } from '../local/source/authoring-requirements';
 import {
   DEFAULT_AUTHORING_GROUPS,
   DEFAULT_AUTHORING_ORDER,
@@ -42,6 +43,7 @@ import {
 export interface LocalComponentCatalogProp {
   readonly name: string;
   readonly kind: LocalPropKind;
+  /** Whether the component requires the attribute in its source. */
   readonly required: boolean;
   readonly static: boolean;
   readonly dynamic: boolean;
@@ -113,6 +115,7 @@ export interface LocalTagAuthoring {
 export interface LocalAttributeAuthoring {
   readonly name: string;
   readonly kind: LocalPropKind;
+  /** Whether the component requires the attribute in its source. */
   readonly required: boolean;
   readonly static: boolean;
   readonly dynamic: boolean;
@@ -171,11 +174,11 @@ function bodyKindOf(structure: { readonly rule?: string } | undefined): LocalCom
   return structure?.rule === 'raw-body' ? 'raw' : 'markdown';
 }
 
-function propFromSchema(name: string, schema: LocalPropSchema): LocalComponentCatalogProp {
+function propFromSchema(component: LocalComponentSchema, name: string, schema: LocalPropSchema): LocalComponentCatalogProp {
   return Object.freeze({
     name,
     kind: schema.kind,
-    required: schema.required === true,
+    required: requiresSourceAttribute(component, name, schema),
     static: schema.static === true,
     dynamic: schema.dynamic === true,
     ...(schema.values ? { values: Object.freeze([...schema.values]) } : {}),
@@ -183,13 +186,10 @@ function propFromSchema(name: string, schema: LocalPropSchema): LocalComponentCa
   });
 }
 
-function schemaProps(
-  schema: Readonly<Record<string, LocalPropSchema>>,
-  _locale: EditorLocale,
-): Record<string, LocalComponentCatalogProp> {
+function schemaProps(schema: LocalComponentSchema): Record<string, LocalComponentCatalogProp> {
   const props: Record<string, LocalComponentCatalogProp> = {};
-  for (const [name, prop] of Object.entries(schema)) {
-    props[name] = propFromSchema(name, prop);
+  for (const [name, prop] of Object.entries(schema.props)) {
+    props[name] = propFromSchema(schema, name, prop);
   }
   return props;
 }
@@ -441,7 +441,7 @@ function entryFromDefinition(
     }
   }
 
-  const props = definitionProps(definition, schemaProps(schema.props, locale), locale);
+  const props = definitionProps(definition, schemaProps(schema), locale);
   const keywords = defaultAuthoringKeywords(definition.name);
 
   return freezeEntry({
@@ -745,7 +745,7 @@ function builtinAttributes(schema: ReturnType<typeof componentSchemaFromDefiniti
     attributes[name] = Object.freeze({
       name,
       kind: prop.kind,
-      required: prop.required === true,
+      required: requiresSourceAttribute(schema, name, prop),
       static: prop.static === true,
       dynamic: prop.dynamic === true,
       ...(prop.values ? { values: Object.freeze([...prop.values]) } : {}),

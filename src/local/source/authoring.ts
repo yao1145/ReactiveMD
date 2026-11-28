@@ -3,6 +3,7 @@ import { RESERVED_NAMES } from '../evaluation/expression/compile';
 import { compileLocal } from '../compilation/compiler';
 import { readLocalCompileOptions } from '../../assemblies/default-options';
 import type { LocalComponentSchema, LocalPropSchema } from '../../assemblies/default-schema';
+import { requiresSourceAttribute } from './authoring-requirements';
 import {
   closingTagOf,
   decodedAttribute,
@@ -628,8 +629,9 @@ function valueCompletions(source: string, offset: number, prefix: TagPrefix,
 function attributeCompletions(source: string, offset: number, prefix: TagPrefix,
   hostComponents: readonly LocalComponentSchema[]): AuthorCompletion[] {
   if (prefix.closing || prefix.inValue || prefix.partialStart < 0) return [];
-  const props = authoringProps(prefix.name, hostComponents);
-  if (!props) return [];
+  const component = hostComponents.find(item => item.name === prefix.name);
+  if (!component) return [];
+  const { props } = component;
   const partial = source.slice(prefix.partialStart, offset);
   if (partial && !/^[A-Za-z0-9_-]*$/.test(partial)) return [];
   const present = new Set(
@@ -652,7 +654,7 @@ function attributeCompletions(source: string, offset: number, prefix: TagPrefix,
       insertText: name,
       range: completionRange(source, prefix.partialStart, offset, name),
       kind: 'attribute' as const,
-      detail: prop.required ? `${prop.kind}, required` : prop.kind,
+      detail: requiresSourceAttribute(component, name, prop, present) ? `${prop.kind}, required` : prop.kind,
     }));
 }
 
