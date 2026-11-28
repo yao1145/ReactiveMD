@@ -387,6 +387,12 @@ $$ (x^2 + y^2)^2 = 2a^2(x^2 - y^2) $$
 
 颜色写静态颜色名或 `#RGB`、`#RRGGBB`。它不接受表达式、CSS 函数或变量。
 
+`<text>` 至少填写 `color`、`size`、`font` 中的一项。省略的样式由上下文继承。`size` 接受主题字号 `sm`、`md`、`lg`、`xl` 或以像素为单位的正数，`size="20"` 表示 20px。`font` 接受 `sans`、`serif`、`mono`。
+
+```markdown
+<text size="20">报名截止</text> · 工单 <text font="mono">REF-24</text>
+```
+
 ### badge
 
 ```markdown
@@ -475,13 +481,13 @@ $$ (x^2 + y^2)^2 = 2a^2(x^2 - y^2) $$
 | `disclosure` | 子项 | `label` 必填、`open=false` | 可展开条目；多个可同时打开 |
 | `if` | 容器 | `when` 必填，完整布尔插值 | 条件显示；条件为假时隐藏 |
 
-### 跳转与文字颜色
+### 跳转与文字样式
 
 | 标签 | 形态 | 主要属性 | 用途 |
 | --- | --- | --- | --- |
 | `jump` | 行内 | `to` 必填、`appearance=link/button`、`color` | 跳转到标题锚点或显式 `anchor` |
 | `anchor` | 无正文 | `id` 必填且文档内唯一 | 显式跳转目标 |
-| `text` | 行内 | `color` 必填 | 行内文字颜色 |
+| `text` | 行内 | `color`、`size`、`font` 至少填一项 | 行内颜色、字号和字体 |
 | `section` | 容器 | `color` 必填 | 整段文字颜色；内部继续解析 Markdown |
 
 ### 练习与分步

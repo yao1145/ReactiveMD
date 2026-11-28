@@ -16,14 +16,7 @@ import { countLocalCodePoints } from '../source/source-context';
 import { isLocalEmail, MAX_LOCAL_EMAIL_LENGTH } from '../../contracts/limits';
 import { localValueBudgetIssue } from '../evaluation/expression/compile';
 
-const NUMBER_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
-
-export function parseNumberText(raw: string): number | null {
-  const text = raw.trim();
-  if (!NUMBER_TEXT.test(text)) return null;
-  const value = Number(text);
-  return Number.isFinite(value) ? value : null;
-}
+export { parseNumberLiteral as parseNumberText } from '../../contracts/number-literal';
 
 function isWhitespaceNode(node: LocalNode): boolean {
   return (

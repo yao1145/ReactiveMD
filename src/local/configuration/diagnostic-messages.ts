@@ -347,6 +347,10 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
     en: 'Component <{component}> is missing required attribute {name}.',
     zh: '组件 <{component}> 缺少必需属性 {name}。',
   },
+  'attribute.requiredOneOf': {
+    en: 'Component <{component}> requires at least one of: {attributes}.',
+    zh: '组件 <{component}> 至少需要填写以下一项属性：{attributes}。',
+  },
   'label.requiredMissing': {
     en: 'Component <{name}> requires a label.',
     zh: '组件 <{name}> 需要 label。',
@@ -430,6 +434,10 @@ export const LOCAL_DIAGNOSTIC_MESSAGES = {
   'attribute.enumInvalid': {
     en: 'Attribute {name} must be one of {values}, got "{value}".',
     zh: '属性 {name} 必须是 {values} 之一，当前为“{value}”。',
+  },
+  'attribute.enumOrPositiveNumber': {
+    en: 'Attribute {name} must be one of {values} or a positive number, got "{value}".',
+    zh: '属性 {name} 必须是 {values} 之一或正数，当前为“{value}”。',
   },
   'attribute.dateLower': {
     en: 'Date lower bound {value} is not a valid YYYY-MM-DD.',

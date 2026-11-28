@@ -495,6 +495,15 @@ function escapeSdkEnumValue(value: string): string {
 /** Lower one SDK prop to the internal host schema shape. */
 function lowerSdkProp(prop: LocalComponentProp): LocalHostPropSchema {
   const isStatic = prop.static === true || prop.dynamic === false;
+  if (prop.kind === 'enum' && prop.allowPositiveNumber) {
+    // The legacy string projection cannot express the union. The kernel
+    // schema still validates both branches of the enum.
+    return {
+      kind: 'string',
+      ...(prop.required === true && prop.default === undefined ? { required: true } : {}),
+      ...(isStatic ? { static: true } : {}),
+    };
+  }
   if (prop.kind === 'enum') {
     // Representing the enum as a string pattern keeps typed interpolation
     // available; the runtime still checks the declared value set.

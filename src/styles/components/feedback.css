@@ -11,6 +11,15 @@
 
 @layer rmd.components {
 
+.md-document .local-text[data-text-size="sm"] { font-size: var(--text-sm); }
+.md-document .local-text[data-text-size="md"] { font-size: var(--text-md); }
+.md-document .local-text[data-text-size="lg"] { font-size: var(--text-lg); }
+.md-document .local-text[data-text-size="xl"] { font-size: var(--text-xl); }
+
+.md-document .local-text[data-text-font="sans"] { font-family: var(--font-sans); }
+.md-document .local-text[data-text-font="serif"] { font-family: var(--font-serif); }
+.md-document .local-text[data-text-font="mono"] { font-family: var(--font-mono); }
+
 .md-document .md-card,
 .md-document .md-panel,
 .md-document .md-group,

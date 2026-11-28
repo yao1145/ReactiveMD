@@ -1,4 +1,5 @@
 import type { LocalValueKind } from '../contracts/runtime-types';
+import type { LocalFontAliases } from '../contracts/font-aliases';
 import type {
   KernelBindingConstraint,
   KernelBindingSchema,
@@ -19,6 +20,7 @@ import {
 import type { LocalThemePackage } from './theme';
 
 export * from './version';
+export type { LocalFontAliases } from '../contracts/font-aliases';
 
 export type LocalComponentForm = 'leaf' | 'inline' | 'container';
 export type LocalComponentPropKind = 'string' | 'number' | 'boolean' | 'enum';
@@ -220,6 +222,7 @@ export interface LocalAssemblySnapshot {
   readonly replacementPolicy: 'allow' | 'forbid';
   /** Host-supplied themes; preset themes remain inside `presets`. */
   readonly themes: readonly LocalThemePackage[];
+  readonly fonts?: LocalFontAliases;
 }
 
 export interface LocalResolvedPreset {
@@ -262,6 +265,7 @@ export interface LocalConfig {
   /** Full active registry in stable position order. */
   readonly registry: readonly LocalComponentDefinition[];
   readonly themes: readonly LocalThemePackage[];
+  readonly fonts?: LocalFontAliases;
   /** Supported legacy identity aliases, e.g. the v1 config key. */
   readonly legacyKeys: readonly LocalLegacyConfigKey[];
 }
@@ -276,4 +280,6 @@ export interface LocalConfigInput {
   /** Defaults to `'allow'`; only explicit `replaces` declarations apply. */
   readonly replacements?: 'allow' | 'forbid';
   readonly themes?: readonly LocalThemePackage[];
+  /** Available in every theme, unless the selected theme overrides an alias. */
+  readonly fonts?: LocalFontAliases;
 }

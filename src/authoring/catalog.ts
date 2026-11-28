@@ -1,4 +1,5 @@
 import type { EditorLocale } from './command-types';
+import { activeLocalFontAliases, LOCAL_TEXT_COMPONENT_ID, localTextFontChoices } from '../contracts/font-aliases';
 import type { LocalCompileOptions, LocalNode, LocalValue } from '../local/types';
 import { localCompileOptionsKey, readLocalCompileOptions, type LocalOptionCheck } from '../assemblies/default-options';
 import { parseLocal } from '../local/parsing/parser';
@@ -815,6 +816,7 @@ function makeLookup(tags: readonly LocalTagAuthoring[]): LocalAuthoringLookup {
 export function createLocalAuthoringLookup(
   options?: LocalCompileOptions,
   locale: EditorLocale = 'en',
+  theme?: string,
 ): LocalAuthoringLookup {
   const check = readLocalCompileOptions(options);
   if (!check.ok) return makeLookup([]);
@@ -835,6 +837,10 @@ export function createLocalAuthoringLookup(
     const props = builtinAttributes(schema);
     for (const [attribute, prop] of Object.entries(entry?.props ?? {})) {
       props[attribute] = Object.freeze({ ...props[attribute], ...prop });
+    }
+    if (name === 'text' && check.componentByName.get(name)?.id === LOCAL_TEXT_COMPONENT_ID && props.font?.kind === 'enum') {
+      const aliases = activeLocalFontAliases(check.config, theme);
+      props.font = Object.freeze({ ...props.font, values: Object.freeze(localTextFontChoices(aliases, props.font.values)) });
     }
     tags.push(freezeTag({
       name,

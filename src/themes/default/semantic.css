@@ -181,6 +181,7 @@
 
     --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui,
       "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    --font-serif: Georgia, "Times New Roman", "Noto Serif CJK SC", "Songti SC", SimSun, serif;
     --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", "Consolas",
       "Liberation Mono", monospace;
   }

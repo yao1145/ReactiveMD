@@ -84,6 +84,8 @@ Use `family: 'collection'` with `kind: 'array'` or `'number-array'` for general 
 
 `structure` describes direct children, placement and content shape. `rules` declares reusable compile or state semantics for numeric ranges, dates, option sequences, tables, diagrams, navigation and budgets. External components may reuse default contracts or compose the primitives described by the public types.
 
+The rule `{ kind: 'required-one-of', attributes: ['color', 'size'] }` requires at least one listed attribute to appear in the source. An enum prop with `allowPositiveNumber: true` also accepts finite positive numeric literals and delivers them to the component as strings. The editor suggests the declared enum values.
+
 `structure: { rule: 'raw-body' }` declares a container whose body is delivered as one lazy `rawBody` child instead of Markdown. Nothing inside is parsed: component tags, `{{ }}`, entities, escapes and Markdown stay literal. The body closes only on a line whose first non-whitespace content is exactly `</name>`; the delivered value is the dedented source and `limits.maxRawBodyChars` bounds it (default 100,000; at most 1,000,000). A required body (`min > 0`) reports the existing children-minimum diagnostic when blank. Render the value as text: `ctx.children.render()` emits one escaped text node, and a host that inserts the string into its own HTML must escape it. Analysis treats the body as opaque. See CP-MODEL-05 in the [component protocol](../development/component-protocol-en.md#cp-model-05-raw-body-containers-required).
 
 The React context exposes public content projections through `content` and `children.items()`. Use `children.render()`, `children.options()` and `children.table()` for child content, plus `validation`, `navigation`, `source` and `locale` for shared services. Runtime services expose evaluation, state writes and resets. The adapter owns internal AST access.
@@ -210,6 +212,28 @@ Default budgets are 128 resources, 4 MiB of CSS, 8 MiB per file, 24 MiB of inlin
 ### Optional Vite peer
 
 Vite 8 is an optional peer dependency. The adapter imports `vite` only when a build actually runs, so consumers that only preflight or read manifests do not install it. For tests or nonstandard hosts, pass `vite` as a `{ build }` facade or a factory returning one. The injected facade is checked before use.
+
+### Fonts for the host and selected theme
+
+Register source aliases in `createReactHost({ fonts })`. Use the same host's `compileOptions` in the editor and `reactConfig` in the renderer. In a Vite host entry, `defineLocalFont` takes the inline data URL of a WOFF or WOFF2 file and returns an alias map and a stylesheet resource.
+
+```ts
+import { defineLocalFont } from 'reactive-md/sdk';
+import { createReactHost } from 'reactive-md/react';
+import brandSource from './Brand.woff2?inline';
+
+const brand = defineLocalFont({ alias: 'brand', source: brandSource });
+export const host = createReactHost({
+  fonts: brand.fonts,
+  resources: [brand.resource],
+});
+```
+
+Authors use `<text font="brand" size="20">Heading</text>`. Load `host.css` in a manual React integration and pass `host.resources` to export. The Vite plugin installs the host stylesheet and collects resources for the standalone bundle.
+
+A theme can add aliases through the `fonts` option of `defineLocalTheme` or the `fonts` field of `theme.json` in directory mode. For example, map `display` to `Paper Display` and declare that family in the theme's `@font-face`. The directory loader inlines relative font files, and the SDK rewrites the alias to the scoped family name.
+
+The selected theme wins when it and the host register the same alias. Use lowercase kebab-case aliases. The names `sans`, `serif` and `mono` refer to the theme's font tokens. Directory-mode Vite hosts can also register host-wide aliases with `reactiveMd({ fonts: { display: 'Georgia' } })`.
 
 ## Offline export and the bundle seal
 

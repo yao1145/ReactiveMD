@@ -9,6 +9,8 @@ import type {
   LocalSourcePhase,
   LocalValue,
 } from '../../../local/types';
+import { activeLocalFontAliases, LOCAL_TEXT_COMPONENT_ID, localTextFontChoices } from '../../../contracts/font-aliases';
+import { LocalFontAliasesContext } from '../../font-aliases';
 import {
   createNetworkSession,
   unavailableNetwork,
@@ -442,14 +444,26 @@ function LocalDocumentViewLocal({
   // Builtin components always render through the public manifest index. When
   // the host supplies a React config it already carries the same preset, so
   // one lookup path serves default and external components.
+  const fontAliases = useMemo(
+    () => activeLocalFontAliases(effectiveReactConfig.config, document.theme),
+    [effectiveReactConfig.config, document.theme],
+  );
   const definitions = useMemo(() => {
     // Installed manifests own rendering semantics. Carried definitions are
     // validated by the contract preflight below but never override the
     // installed registry.
     const map = new Map<string, LocalComponentDefinition>();
     for (const definition of registry) map.set(definition.name, definition);
+    const text = map.get('text');
+    if (text?.id === LOCAL_TEXT_COMPONENT_ID && text.props.font?.kind === 'enum' && Object.keys(fontAliases).length) {
+      const font = text.props.font;
+      map.set('text', {
+        ...text,
+        props: { ...text.props, font: { ...font, enum: localTextFontChoices(fontAliases, font.enum) } },
+      });
+    }
     return map;
-  }, [registry]);
+  }, [registry, fontAliases]);
 
   // The document's extension requirements select installed implementations.
   // A mismatch is reported and keeps the placeholders visible instead of
@@ -709,6 +723,7 @@ function LocalDocumentViewLocal({
       >
         {trace?.observer?.onTrace && <RenderLifecycle trace={trace} />}
         {sourceRules && <style data-rmd-author-css="" dangerouslySetInnerHTML={{ __html: sourceRules }} />}
+        <LocalFontAliasesContext.Provider value={fontAliases}>
         <LocalViewContext.Provider value={contextValue}>
           {extensionDiagnostics.length > 0 ? (
             <div
@@ -733,6 +748,7 @@ function LocalDocumentViewLocal({
           ) : null}
           <OverflowTextTooltip rootRef={rootRef} enabled={renderedMode !== 'static'} />
         </LocalViewContext.Provider>
+        </LocalFontAliasesContext.Provider>
       </article>
     </LocalLocaleProvider>
   );

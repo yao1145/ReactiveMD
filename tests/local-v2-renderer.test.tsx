@@ -171,6 +171,15 @@ describe('foreground colors and checklist state', () => {
     expect(html).toContain('<h2');
   });
 
+  it('renders inline typography independently of foreground color', () => {
+    const { html } = mount('<text size="lg" font="serif">**Note** {{ 1 + 2 }}</text>\n\n<text font="mono">REF-24</text>\n\n<text size="20.5">Pixels</text>');
+    expect(html).toContain('<span class="local-text" data-text-size="lg" data-text-font="serif">');
+    expect(html).toContain('<span class="local-text" data-text-font="mono">');
+    expect(html).toContain('<span class="local-text" style="font-size:20.5px"><span>Pixels</span></span>');
+    expect(html).toMatch(/<strong>(?:<span>)?Note(?:<\/span>)?<\/strong>/);
+    expect(html).toContain('local-interpolation');
+  });
+
   it('revalidates colors defensively and never emits an invalid CSS value', () => {
     const { document, runtime } = compile(
       "<slider bind='s' label='S' color='#2563eb'>\n\n<text color='red'>Safe</text>\n\n<section color='blue'>Body</section>",

@@ -279,6 +279,7 @@ export function discoveryMetadata(discovery: DirectoryDiscovery): DiscoveryMetad
 export interface DirectoryRegistrationOptions {
   /** Select the complete (true), empty (false), or minimal base preset. */
   readonly defaultPreset?: boolean | 'minimal';
+  readonly fonts?: import('../contracts/font-aliases').LocalFontAliases;
 }
 
 /**
@@ -377,7 +378,7 @@ function __rmdCompose(directoryEntries) {
   const themes = directoryEntries.map((entry) => entry.theme);
   // Directory styles are host resources; manifests need not reference them.
   const resources = __rmdPluginEntries.flatMap(entry => entry.resources);
-  const host = createReactHost({ packages, themes, notices, presets, resources });
+  const host = createReactHost({ packages, themes, notices, presets, resources, fonts: ${JSON.stringify(options.fonts)} });
   return { host };
 }
 

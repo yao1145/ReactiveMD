@@ -144,10 +144,11 @@ describe('directory registration source', () => {
     expect(defaults.code).toContain('const __rmdPresetProtocol = "reactive-md-react-preset/v1";');
     expect(defaults.code).toContain('const presets = __rmdInstallDefaultPreset ? ["default"] : [];');
     expect(defaults.code).toContain('presets.push({ ...preset, resources: [...(preset.resources ?? []), ...entry.resources] });');
-    expect(defaults.code).toContain('createReactHost({ packages, themes, notices, presets, resources })');
+    expect(defaults.code).toContain('createReactHost({ packages, themes, notices, presets, resources, fonts: undefined })');
 
-    const bare = createDirectoryRegistration(discovery(), 'style-id', { defaultPreset: false });
+    const bare = createDirectoryRegistration(discovery(), 'style-id', { defaultPreset: false, fonts: { display: 'Georgia' } });
     expect(bare.code).toContain('const __rmdInstallDefaultPreset = false;');
+    expect(bare.code).toContain('fonts: {"display":"Georgia"}');
     expect(bare.code).not.toContain('const __rmdReadPackage');
   });
 

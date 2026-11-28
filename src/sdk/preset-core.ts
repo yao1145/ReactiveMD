@@ -1,4 +1,5 @@
 import { localHash } from './hash';
+import { readLocalFontAliases } from '../contracts/font-aliases';
 import { defineLocalComponent, isLocalComponentId, localComponentDigest } from './manifest';
 import type { LocalThemePackage } from './theme';
 import {
@@ -173,7 +174,8 @@ function readThemeList(value: unknown): readonly LocalThemePackage[] {
     if (names.has(name)) presetError('themes', `theme name "${name}" is declared more than once.`);
     ids.add(id);
     names.add(name);
-    themes.push(Object.freeze({ ...entry }) as unknown as LocalThemePackage);
+    const fonts = readLocalFontAliases(entry.fonts, `themes[${index}].fonts`);
+    themes.push(Object.freeze({ ...entry, ...(entry.fonts !== undefined ? { fonts } : {}) }) as unknown as LocalThemePackage);
   }
   return Object.freeze(themes.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)));
 }

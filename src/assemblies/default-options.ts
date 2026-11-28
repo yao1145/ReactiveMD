@@ -1,4 +1,5 @@
 import { MAX_LOCAL_HOST_COMPONENTS } from '../contracts/limits';
+import { localFontAvailabilityKey } from '../contracts/font-aliases';
 import { embeddingKey } from '../local/configuration/embedding';
 import { LOCAL_HTML_FLAGS, LOCAL_RECOVERY_STRATEGY_VERSION, readOptionCheck } from '../local/configuration/options-core';
 import type { LocalOptionCheck } from '../local/configuration/options-core';
@@ -206,7 +207,13 @@ function compileOptionsKey(options: LocalCompileOptions | undefined, includeCapa
   let configKey = '';
   if (Object.hasOwn(options, 'config') && options.config !== undefined) {
     // Recompute from contents; a supplied key or digest is never trusted.
-    configKey = `:config=${localConfigKey(options.config)}`;
+    try {
+      const config = readLocalConfig(options.config);
+      const fonts = includeCapabilities ? localFontAvailabilityKey(config) : '';
+      configKey = `:config=${config.key}${fonts ? `:fonts=${fonts}` : ''}`;
+    } catch {
+      configKey = `:config=${localConfigKey(options.config)}`;
+    }
   }
   const embedding = includeCapabilities && Object.hasOwn(options, 'embedding') ? embeddingKey(options.embedding) : '';
   return `${flags}:${limitsKey}:${breaks}:${strict}${hostSignature}${configKey}${embedding}`;

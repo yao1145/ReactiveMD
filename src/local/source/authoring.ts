@@ -1,5 +1,6 @@
 import type { Diagnostic, LocalCompileOptions, LocalDocument, LocalNode, SourceRange } from '../types';
 import { RESERVED_NAMES } from '../evaluation/expression/compile';
+import { activeLocalFontAliases, LOCAL_TEXT_COMPONENT_ID, localTextFontChoices } from '../../contracts/font-aliases';
 import { compileLocal } from '../compilation/compiler';
 import { readLocalCompileOptions } from '../../assemblies/default-options';
 import type { LocalComponentSchema, LocalPropSchema } from '../../assemblies/default-schema';
@@ -51,6 +52,8 @@ export interface AuthorAnalysis {
   tokens: AuthorToken[];
   bindings: AuthorBinding[];
   diagnostics: Diagnostic[];
+  /** Explicit source theme, when present. */
+  theme?: string;
 }
 
 export type AuthorCompletionKind = 'tag' | 'attribute' | 'binding' | 'value';
@@ -355,7 +358,12 @@ export function analyzeLocalSource(source: string, options?: LocalCompileOptions
   }
   const document = settings.document?.source === source ? settings.document : parseLocal(source, options);
   const data = buildAnalysisData(source, document.nodes, authoringHostComponents(options), document);
-  return { tokens: data.tokens, bindings: data.bindings, diagnostics: settings.diagnostics === false ? [] : compileDiagnostics(source, options) };
+  return {
+    tokens: data.tokens,
+    bindings: data.bindings,
+    diagnostics: settings.diagnostics === false ? [] : compileDiagnostics(source, options),
+    ...(document.themeRange && document.theme ? { theme: document.theme } : {}),
+  };
 }
 
 interface PrefixAttribute extends RawAttribute {
@@ -608,14 +616,15 @@ function bindingCompletions(source: string, offset: number, context: RawInterpol
 }
 
 function valueCompletions(source: string, offset: number, prefix: TagPrefix,
-  hostComponents: readonly LocalComponentSchema[]): AuthorCompletion[] {
+  hostComponents: readonly LocalComponentSchema[], textFonts: readonly string[] | undefined): AuthorCompletion[] {
   const attribute = prefix.currentAttribute;
   if (!attribute) return [];
   const prop = authoringProps(prefix.name, hostComponents)?.[attribute.name];
   if (!prop || prop.kind !== 'enum' || !prop.values) return [];
   const valueStart = attribute.valueRange?.start ?? offset;
   const valuePrefix = source.slice(valueStart, offset);
-  return prop.values
+  const values = prefix.name === 'text' && attribute.name === 'font' && textFonts ? textFonts : prop.values;
+  return values
     .filter((value) => value.startsWith(valuePrefix))
     .map((value) => ({
       label: value,
@@ -700,9 +709,10 @@ export function completeLocalSource(
   options?: LocalCompileOptions,
 ): AuthorCompletion[] {
   if (typeof source !== 'string' || !Number.isFinite(offset)) return [];
-  if (!validAuthoringOptions(options)) return [];
+  const check = readLocalCompileOptions(options);
+  if (!check.ok) return [];
   const limit = Math.max(0, Math.min(source.length, Math.floor(offset)));
-  const hostComponents = authoringHostComponents(options);
+  const hostComponents = [...check.schemaByName.values()];
   const parsed = parseLocal(source, options);
   const inactive = [...collectInactive(parsed.nodes), ...commentRanges(source, parsed.nodes)].sort((a, b) => a.start - b.start);
   if (rangeInside(inactive, limit) || (limit === source.length && inactive.some(range => range.end === limit && range.start < limit))) return [];
@@ -724,7 +734,14 @@ export function completeLocalSource(
   const tagStart = findOpeningTagStart(source, limit, parsed.nodes);
   if (tagStart >= 0) {
     const prefix = readTagPrefix(source, tagStart, limit);
-    if (prefix?.inValue) return valueCompletions(source, limit, prefix, hostComponents);
+    if (prefix?.inValue) {
+      const text = check.schemaByName.get('text');
+      const font = text?.props.font;
+      const textFonts = prefix.name === 'text' && font?.kind === 'enum'
+        && check.componentByName.get('text')?.id === LOCAL_TEXT_COMPONENT_ID
+        ? localTextFontChoices(activeLocalFontAliases(check.config, parsed.theme), font.values) : undefined;
+      return valueCompletions(source, limit, prefix, hostComponents, textFonts);
+    }
   }
   const tags = tagCompletions(source, limit, hostComponents);
   if (tags.length > 0) return tags;

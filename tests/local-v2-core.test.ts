@@ -48,9 +48,33 @@ describe('local-draft-3 colors', () => {
     expect(compile('<text color="red">A</text>\n<section color="blue">\nB\n</section>').nodes.length).toBeGreaterThan(0);
   });
 
-  it('requires color on text and section', () => {
-    expect(codes('<text>Missing</text>')).toContain('local.attribute.required');
+  it('requires color on section', () => {
     expect(codes('<section>Missing</section>')).toContain('local.attribute.required');
+  });
+});
+
+describe('inline text styles', () => {
+  it.each(['color="red"', 'size="sm"', 'size="md"', 'size="lg"', 'size="xl"',
+    'size="20"', 'size="20.5"', 'font="sans"', 'font="serif"', 'font="mono"', 'size="lg" font="serif"'])('accepts %s without other styles', (attrs) => {
+    expect(compileLocal(`<text ${attrs}>**Inline** {{ 1 + 1 }}</text>`).ok).toBe(true);
+  });
+
+  it('requires at least one style in both strict and tolerant compilation', () => {
+    const source = '<text>Missing</text>';
+    for (const strict of [true, false]) {
+      const result = compileLocal(source, { strict });
+      expect(result.ok).toBe(false);
+      expect(result.diagnostics).toMatchObject([{
+        code: 'local.attribute.required',
+        messageKey: 'attribute.requiredOneOf',
+        message: 'Component <text> requires at least one of: color, size, font.',
+        range: { start: 0, end: source.length },
+      }]);
+    }
+  });
+
+  it.each(['size="24px"', 'size="0"', 'size="-20"', 'size="Infinity"', 'font="Arial"', 'size=""', 'font=""'])('rejects %s as an invalid style', (attrs) => {
+    expect(codes(`<text ${attrs}>Inline</text>`)).toEqual(['local.attribute.type']);
   });
 });
 

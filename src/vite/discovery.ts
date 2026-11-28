@@ -81,7 +81,7 @@ const PLUGIN_ENTRIES = Object.freeze([
   'index.mjs',
 ]);
 
-const THEME_METADATA_KEYS = new Set(['id', 'name', 'version', 'protocol', 'colorSchemes']);
+const THEME_METADATA_KEYS = new Set(['id', 'name', 'version', 'protocol', 'colorSchemes', 'fonts']);
 
 function compareCodeUnits(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -264,12 +264,14 @@ function buildThemeInput(
   const version = metadataField(metadata, 'version');
   const protocol = metadataField(metadata, 'protocol');
   const colorSchemes = metadataField(metadata, 'colorSchemes');
+  const fonts = metadataField(metadata, 'fonts');
   return {
     id: id === undefined ? `local/theme/${folder}` : id,
     name: name === undefined ? folder : name,
     version: version === undefined ? '0.0.0' : version,
     ...(protocol === undefined ? {} : { protocol }),
     ...(colorSchemes === undefined ? {} : { colorSchemes }),
+    ...(fonts === undefined ? {} : { fonts }),
     css: [{ id: resourceId, css }],
   } as unknown as LocalThemeInput;
 }

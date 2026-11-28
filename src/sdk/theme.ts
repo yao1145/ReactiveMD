@@ -4,6 +4,7 @@ import {
   type LocalThemeDefinition,
 } from '../themes/document-theme';
 import { LOCAL_STYLE_LAYER_ORDER, LOCAL_THEME_STYLE_LAYER } from '../themes/contract';
+import { readLocalFontAliases, type LocalFontAliases } from '../contracts/font-aliases';
 
 /**
  * Preview theme-package contract.
@@ -40,6 +41,7 @@ export interface LocalThemePackage extends LocalThemeDefinition {
   readonly version: string;
   /** Inline CSS resources in stylesheet order. */
   readonly css: readonly LocalStyleResource[];
+  readonly fonts?: LocalFontAliases;
 }
 
 export interface LocalThemeInput {
@@ -51,6 +53,8 @@ export interface LocalThemeInput {
   /** Defaults to both light and dark; both are required. */
   readonly colorSchemes?: readonly ('light' | 'dark')[];
   readonly css: readonly LocalStyleResource[];
+  /** Source aliases available to documents selecting this theme. */
+  readonly fonts?: LocalFontAliases;
 }
 
 export interface LocalThemeCompositionInput {
@@ -60,6 +64,7 @@ export interface LocalThemeCompositionInput {
   readonly base: LocalThemePackage;
   /** Ordered resources appended after the base theme. */
   readonly overrides: readonly LocalStyleResource[];
+  readonly fonts?: LocalFontAliases;
 }
 
 const MAX_THEME_PACKAGE_ID_LENGTH = 128;
@@ -1025,7 +1030,7 @@ function rewriteDeclarationBody(body: string, families: ReadonlyMap<string, stri
   if (families.size === 0) return body;
   const replacements: TextReplacement[] = [];
   for (const declaration of scanDeclarations(body, true)) {
-    const familyProperty = declaration.name === 'font-family' || declaration.name === '--font-sans' || declaration.name === '--font-mono';
+    const familyProperty = ['font-family', '--font-sans', '--font-serif', '--font-mono'].includes(declaration.name);
     if (!familyProperty && declaration.name !== 'font') continue;
     const value = body.slice(declaration.valueStart, declaration.valueEnd);
     const rewritten = familyProperty
@@ -1360,6 +1365,7 @@ function freezePackage(input: {
   protocol: typeof LOCAL_THEME_PROTOCOL;
   colorSchemes: readonly ('light' | 'dark')[];
   css: readonly LocalStyleResource[];
+  fonts?: LocalFontAliases;
 }): LocalThemePackage {
   return Object.freeze({
     id: input.id,
@@ -1367,11 +1373,21 @@ function freezePackage(input: {
     version: input.version,
     protocol: input.protocol,
     colorSchemes: Object.freeze([...input.colorSchemes]),
+    ...(input.fonts ? { fonts: input.fonts } : {}),
     css: Object.freeze(input.css.map((resource) => Object.freeze({
       id: resource.id,
       css: resource.css,
     }))),
   });
+}
+
+function rewriteFontAliases(
+  fonts: LocalFontAliases | undefined,
+  families: ReadonlyMap<string, string>,
+): LocalFontAliases | undefined {
+  if (!fonts || families.size === 0) return fonts;
+  return Object.freeze(Object.fromEntries(Object.entries(fonts).map(([alias, family]) =>
+    [alias, families.get(normalizeFontFamily(family)) ?? family])));
 }
 
 function readPackage(value: unknown, path: string): LocalThemePackage {
@@ -1391,6 +1407,7 @@ function readPackage(value: unknown, path: string): LocalThemePackage {
     protocol: LOCAL_THEME_PROTOCOL,
     colorSchemes,
     css: resources,
+    fonts: readLocalFontAliases(record.fonts, `${path}.fonts`),
   });
 }
 
@@ -1422,6 +1439,7 @@ export function defineLocalTheme(input: LocalThemeInput): LocalThemePackage {
     protocol: LOCAL_THEME_PROTOCOL,
     colorSchemes,
     css: scoped,
+    fonts: rewriteFontAliases(readLocalFontAliases(record.fonts, 'theme.fonts'), families),
   });
 }
 
@@ -1469,6 +1487,8 @@ export function composeLocalTheme(input: LocalThemeCompositionInput): LocalTheme
   ];
   assertScopedStyleBudgets(css);
 
+  const overridesFonts = readLocalFontAliases(record.fonts, 'theme.fonts');
+  const fonts = overridesFonts ? readLocalFontAliases({ ...base.fonts, ...overridesFonts }, 'theme.fonts') : base.fonts;
   return freezePackage({
     id,
     name,
@@ -1476,6 +1496,7 @@ export function composeLocalTheme(input: LocalThemeCompositionInput): LocalTheme
     protocol: base.protocol,
     colorSchemes: base.colorSchemes,
     css,
+    fonts: rewriteFontAliases(fonts, families),
   });
 }
 

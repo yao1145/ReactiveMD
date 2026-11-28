@@ -31,7 +31,7 @@ export const MAX_LOCAL_SDK_CONFIG_BYTES = 16 * 1024 * 1024;
 export const DANGEROUS_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
 export const CONFIG_KEYS: ReadonlySet<string> = new Set([
   'protocol', 'key', 'assembly', 'presets', 'components', 'replacements',
-  'registry', 'themes', 'legacyKeys',
+  'registry', 'themes', 'fonts', 'legacyKeys',
 ]);
 
 export function fail(path: string, message: string): never {

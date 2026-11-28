@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build, type Plugin, type ResolvedConfig, type ViteDevServer } from 'vite';
 import { buildLocalStandaloneBundle, LocalBuildError } from '../build';
 import type { LocalReactHost } from '../react/package';
+import { readLocalFontAliases, type LocalFontAliases } from '../contracts/font-aliases';
 import { discoverDirectories, type DirectoryDiscovery } from './discovery';
 import {
   createDirectoryRegistration,
@@ -33,6 +34,8 @@ export interface ReactiveMdDirectoryOptions {
    * preset identity, dependency and resource in the normal order.
    */
   readonly includeMinimal?: boolean;
+  /** Source aliases for font families loaded by the host. */
+  readonly fonts?: LocalFontAliases;
 }
 
 /** Manual mode: one local module exporting `host = createReactHost(...)`. */
@@ -70,9 +73,10 @@ type RegistrationMode =
     readonly pluginDir?: string;
     readonly defaultPreset?: boolean | 'minimal';
     readonly includeMinimal?: boolean;
+    readonly fonts?: LocalFontAliases;
   };
 
-const OPTION_KEYS = new Set(['extensions', 'themeDir', 'pluginDir', 'defaultPreset', 'includeMinimal']);
+const OPTION_KEYS = new Set(['extensions', 'themeDir', 'pluginDir', 'defaultPreset', 'includeMinimal', 'fonts']);
 
 function readLocalModule(value: unknown): string {
   if (typeof value !== 'string' || !value.trim() || /^[a-z]+:\/\//i.test(value)) {
@@ -109,9 +113,10 @@ function readOptions(value: unknown): RegistrationMode {
   const hasPluginDir = Object.hasOwn(record, 'pluginDir');
   const hasDefaultPreset = Object.hasOwn(record, 'defaultPreset');
   const hasIncludeMinimal = Object.hasOwn(record, 'includeMinimal');
-  if (hasExtensions && (hasThemeDir || hasPluginDir || hasDefaultPreset || hasIncludeMinimal)) {
+  const hasFonts = Object.hasOwn(record, 'fonts');
+  if (hasExtensions && (hasThemeDir || hasPluginDir || hasDefaultPreset || hasIncludeMinimal || hasFonts)) {
     throw new TypeError(
-      'reactiveMd options cannot mix "extensions" with "themeDir", "pluginDir", "defaultPreset" or "includeMinimal".',
+      'reactiveMd options cannot mix "extensions" with "themeDir", "pluginDir", "defaultPreset", "includeMinimal" or "fonts".',
     );
   }
   if (hasDefaultPreset && typeof record.defaultPreset !== 'boolean' && record.defaultPreset !== 'minimal') {
@@ -121,12 +126,14 @@ function readOptions(value: unknown): RegistrationMode {
     throw new TypeError('reactiveMd includeMinimal must be a boolean.');
   }
   if (hasExtensions) return { kind: 'manual', entry: readLocalModule(record.extensions) };
+  const fonts = readLocalFontAliases(record.fonts, 'reactiveMd fonts');
   const directory: RegistrationMode = {
     kind: 'directories',
     ...(hasThemeDir ? { themeDir: readRelativeDirectory(record.themeDir, 'themeDir') } : {}),
     ...(hasPluginDir ? { pluginDir: readRelativeDirectory(record.pluginDir, 'pluginDir') } : {}),
     ...(hasDefaultPreset ? { defaultPreset: record.defaultPreset as boolean | 'minimal' } : {}),
     ...(hasIncludeMinimal ? { includeMinimal: record.includeMinimal as boolean } : {}),
+    ...(fonts ? { fonts } : {}),
   };
   return directory;
 }
@@ -219,7 +226,7 @@ export async function loadLocalDirectoryHost(
   if (mode.kind !== 'directories') throw new TypeError('A directory host requires directory options.');
   const root = resolve(projectRoot);
   const discovery = await discoverDirectories(root, mode);
-  const registration = createDirectoryRegistration(discovery, 'export', { defaultPreset: mode.defaultPreset });
+  const registration = createDirectoryRegistration(discovery, 'export', { defaultPreset: mode.defaultPreset, fonts: mode.fonts });
   const code = await buildNodeHost(root, { registration });
   const directory = await mkdtemp(join(root, '.reactive-md-host-'));
   const entry = join(directory, 'index.mjs');
@@ -300,13 +307,15 @@ export function reactiveMd(options: ReactiveMdViteOptions = {}): Plugin {
     const registration = createDirectoryRegistration(
       discovery,
       base,
-      { defaultPreset: mode.kind === 'directories' ? mode.defaultPreset : undefined },
+      { defaultPreset: mode.kind === 'directories' ? mode.defaultPreset : undefined, fonts: mode.kind === 'directories' ? mode.fonts : undefined },
     );
     // The minimal variant is the same discovery through a different base
     // preset: preset identities, dependencies, order and resources are
     // produced by one shared assembly, so they cannot drift.
     const minimalRegistration = includeMinimal
-      ? createDirectoryRegistration(discovery, `${base}-minimal`, { defaultPreset: 'minimal' })
+      ? createDirectoryRegistration(discovery, `${base}-minimal`, {
+        defaultPreset: 'minimal', fonts: mode.kind === 'directories' ? mode.fonts : undefined,
+      })
       : undefined;
     const value: DirectoryState = Object.freeze({
       discovery,

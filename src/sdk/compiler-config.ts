@@ -85,7 +85,7 @@ function configFromAssembly(
 
 function readAssembly(input: unknown): LocalAssemblySnapshot {
   if (!isPlainRecord(input)) fail('assembly', 'must be an object.');
-  checkKeys(input, new Set(['protocol', 'presets', 'components', 'replacementPolicy', 'themes']), 'assembly');
+  checkKeys(input, new Set(['protocol', 'presets', 'components', 'replacementPolicy', 'themes', 'fonts']), 'assembly');
   if (input.protocol !== LOCAL_ASSEMBLY_PROTOCOL) {
     fail('assembly.protocol', `must be "${LOCAL_ASSEMBLY_PROTOCOL}".`);
   }

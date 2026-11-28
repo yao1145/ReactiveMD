@@ -1,4 +1,5 @@
 import {
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -8,6 +9,8 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import type { LocalComponentContext } from '../../react/component-api';
+import { parsePositiveNumberLiteral } from '../../contracts/number-literal';
+import { LocalFontAliasesContext } from '../../react/font-aliases';
 import { useTooltipLayoutEffect, useTooltipPopover } from '../../react/tooltip-layer';
 import { useAuthorComponentRoot,
   FieldError,
@@ -768,9 +771,20 @@ export function AnchorView(context: LocalComponentContext) {
 export function TextView(context: LocalComponentContext) {
   const authorRoot = useAuthorComponentRoot(context);
   const view = useComponentView(context);
+  const fontAliases = useContext(LocalFontAliasesContext);
   const color = localColor(view.content);
+  const size = rawAttr(view.content, 'size');
+  const fontSize = size === undefined ? undefined : parsePositiveNumberLiteral(size);
+  const font = rawAttr(view.content, 'font');
+  const family = font && fontAliases && Object.hasOwn(fontAliases, font) ? fontAliases[font] : undefined;
+  const fontFamily = family === undefined ? undefined : `"${family}", var(--font-sans, sans-serif)`;
+  const style = color || fontSize !== undefined || fontFamily ? { color, fontSize, fontFamily } : undefined;
   return (
-    <span className="local-text" {...authorRoot(color ? { color } : undefined)}>
+    <span className="local-text"
+      data-text-size={fontSize === undefined ? size : undefined}
+      data-text-font={font}
+      {...authorRoot(style)}
+    >
       {view.renderInline()}
     </span>
   );

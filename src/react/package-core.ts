@@ -1,4 +1,5 @@
 import { createLocalConfig } from '../assemblies/default-config';
+import type { LocalFontAliases } from '../contracts/font-aliases';
 import { defineLocalComponent, localComponentDigest } from '../sdk/manifest';
 import { readLocalPresetPackage } from '../sdk/preset';
 import { deriveLocalPreset, type LocalPresetSelection } from '../sdk/preset';
@@ -149,6 +150,8 @@ export interface LocalReactHostInput {
   readonly packages?: readonly LocalReactPackage[];
   readonly components?: readonly LocalReactComponent[];
   readonly themes?: readonly LocalThemePackage[];
+  /** Host-wide source aliases whose font files are supplied via style resources. */
+  readonly fonts?: LocalFontAliases;
   readonly resources?: readonly LocalStyleResource[];
   readonly notices?: readonly LocalPackageNotice[];
 }
@@ -230,6 +233,7 @@ export function createReactHostWithBase(input: LocalReactHostInput, base: LocalR
     components: components.map(item => item.definition),
     ...(input.replacements === undefined ? {} : { replacements: input.replacements }),
     themes: [...packages.flatMap(item => item.themes ?? []), ...(input.themes ?? [])],
+    ...(input.fonts === undefined ? {} : { fonts: input.fonts }),
   });
   const reactConfig = createReactConfigWithDefaults(
     config, { components: [...presetComponents, ...components] },

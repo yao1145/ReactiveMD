@@ -67,6 +67,22 @@ const hint: LocalComponentDefinition = defineLocalComponent({
 
 const config = createLocalConfig({ components: [rating, hint] });
 
+it('offers each text style and its allowed values in source assistance', () => {
+  const tag = createLocalAuthoringLookup().tag('text')!;
+  expect(tag.description).toContain('at least one');
+  expect(Object.values(tag.props).filter(prop => prop.required)).toEqual([]);
+  const source = '<text ';
+  const attributes = completeLocalSource(source, source.length).filter(item => item.kind === 'attribute');
+  expect(attributes.map(item => item.label)).toEqual(expect.arrayContaining(['color', 'font', 'size']));
+  expect(tag.props.size.description).toContain('pixels');
+  for (const [name, values] of [['size', ['sm', 'md', 'lg', 'xl']], ['font', ['sans', 'serif', 'mono']]] as const) {
+    expect(tag.props[name].values).toEqual(values);
+    const value = `<text ${name}="`;
+    const suggestions = completeLocalSource(value, value.length).filter(item => item.kind === 'value');
+    expect(suggestions.map(item => item.label).sort()).toEqual([...values].sort());
+  }
+});
+
 it('reports structural labels as required and attributes with defaults as optional', () => {
   const definition = defineLocalComponent({
     id: 'example/meter', name: 'meter', version: '1.0.0',

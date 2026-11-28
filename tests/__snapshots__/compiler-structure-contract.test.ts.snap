@@ -20,7 +20,7 @@ exports[`component structure contract, strict=false > checklist 1`] = `
       "type": "array",
     },
   },
-  "componentConfigKey": "rmd-c60320143f1d93b5",
+  "componentConfigKey": "rmd-7876a1420f7f6a9d",
   "diagnostics": [],
   "extensions": undefined,
   "initialState": {
@@ -117,7 +117,7 @@ exports[`component structure contract, strict=false > choices 1`] = `
       "type": "string",
     },
   },
-  "componentConfigKey": "rmd-c60320143f1d93b5",
+  "componentConfigKey": "rmd-7876a1420f7f6a9d",
   "diagnostics": [],
   "extensions": undefined,
   "initialState": {
@@ -235,7 +235,7 @@ exports[`component structure contract, strict=false > diagram 1`] = `
       "type": "string",
     },
   },
-  "componentConfigKey": "rmd-c60320143f1d93b5",
+  "componentConfigKey": "rmd-7876a1420f7f6a9d",
   "diagnostics": [],
   "extensions": undefined,
   "initialState": {
@@ -427,7 +427,7 @@ exports[`component structure contract, strict=false > grid invalid children 1`] 
 exports[`component structure contract, strict=false > quiz choice 1`] = `
 {
   "bindings": {},
-  "componentConfigKey": "rmd-c60320143f1d93b5",
+  "componentConfigKey": "rmd-7876a1420f7f6a9d",
   "diagnostics": [],
   "extensions": undefined,
   "initialState": {},
@@ -576,7 +576,7 @@ exports[`component structure contract, strict=false > tabs 1`] = `
       "type": "string",
     },
   },
-  "componentConfigKey": "rmd-c60320143f1d93b5",
+  "componentConfigKey": "rmd-7876a1420f7f6a9d",
   "diagnostics": [],
   "extensions": undefined,
   "initialState": {
@@ -664,7 +664,7 @@ exports[`component structure contract, strict=true > checklist 1`] = `
       "type": "array",
     },
   },
-  "componentConfigKey": "rmd-c60320143f1d93b5",
+  "componentConfigKey": "rmd-7876a1420f7f6a9d",
   "diagnostics": [],
   "extensions": undefined,
   "initialState": {
@@ -761,7 +761,7 @@ exports[`component structure contract, strict=true > choices 1`] = `
       "type": "string",
     },
   },
-  "componentConfigKey": "rmd-c60320143f1d93b5",
+  "componentConfigKey": "rmd-7876a1420f7f6a9d",
   "diagnostics": [],
   "extensions": undefined,
   "initialState": {
@@ -879,7 +879,7 @@ exports[`component structure contract, strict=true > diagram 1`] = `
       "type": "string",
     },
   },
-  "componentConfigKey": "rmd-c60320143f1d93b5",
+  "componentConfigKey": "rmd-7876a1420f7f6a9d",
   "diagnostics": [],
   "extensions": undefined,
   "initialState": {
@@ -1071,7 +1071,7 @@ exports[`component structure contract, strict=true > grid invalid children 1`] =
 exports[`component structure contract, strict=true > quiz choice 1`] = `
 {
   "bindings": {},
-  "componentConfigKey": "rmd-c60320143f1d93b5",
+  "componentConfigKey": "rmd-7876a1420f7f6a9d",
   "diagnostics": [],
   "extensions": undefined,
   "initialState": {},
@@ -1220,7 +1220,7 @@ exports[`component structure contract, strict=true > tabs 1`] = `
       "type": "string",
     },
   },
-  "componentConfigKey": "rmd-c60320143f1d93b5",
+  "componentConfigKey": "rmd-7876a1420f7f6a9d",
   "diagnostics": [],
   "extensions": undefined,
   "initialState": {

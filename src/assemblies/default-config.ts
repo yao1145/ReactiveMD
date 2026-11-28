@@ -1,4 +1,5 @@
 import defaultPreset from '../presets/default';
+import { readLocalFontAliases } from '../contracts/font-aliases';
 import {
   LOCAL_COMPAT_PROFILES,
   findLocalCompatProfile,
@@ -55,7 +56,7 @@ export const MAX_LOCAL_SDK_THEMES = 16;
 /** Aggregate serialized-size budget for one configuration, including theme CSS. */
 export { MAX_LOCAL_SDK_CONFIG_BYTES };
 
-const INPUT_KEYS = new Set(['presets', 'components', 'replacements', 'themes']);
+const INPUT_KEYS = new Set(['presets', 'components', 'replacements', 'themes', 'fonts']);
 
 /**
  * Configurations produced by this module are deeply frozen and already
@@ -66,7 +67,7 @@ const trustedConfigs = new WeakSet<object>();
 
 function readThemePackage(value: unknown): LocalThemePackage {
   if (!isPlainRecord(value)) fail('themes', 'each theme must be an object.');
-  checkKeys(value, new Set(['id', 'name', 'version', 'protocol', 'colorSchemes', 'css']), 'theme');
+  checkKeys(value, new Set(['id', 'name', 'version', 'protocol', 'colorSchemes', 'css', 'fonts']), 'theme');
   try {
     return defineLocalTheme(value as unknown as LocalThemeInput);
   } catch (error) {
@@ -162,12 +163,14 @@ function readReplacementPolicy(value: unknown): 'allow' | 'forbid' {
 function buildAssembly(input: unknown, path: string): LocalAssemblySnapshot {
   if (!isPlainRecord(input)) fail(path, 'must be an object.');
   checkKeys(input, INPUT_KEYS, path);
+  const fonts = readLocalFontAliases(input.fonts, 'fonts');
   const assembly: LocalAssemblySnapshot = Object.freeze({
     protocol: LOCAL_ASSEMBLY_PROTOCOL,
     presets: readPresetInputs(input.presets),
     components: readInputComponents(input.components),
     replacementPolicy: readReplacementPolicy(input.replacements),
     themes: readInputThemes(input.themes),
+    ...(fonts ? { fonts } : {}),
   });
   if (localJsonByteLength(assembly) > MAX_LOCAL_SDK_CONFIG_BYTES) {
     fail(path, `serialized size exceeds the ${MAX_LOCAL_SDK_CONFIG_BYTES}-byte budget.`);

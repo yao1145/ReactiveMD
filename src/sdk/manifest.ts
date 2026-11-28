@@ -1,5 +1,6 @@
 import { localHash } from './hash';
 import { isSafeLocalPattern } from './pattern';
+import { parsePositiveNumberLiteral } from '../contracts/number-literal';
 import {
   MAX_LOCAL_ARRAY_LENGTH,
   MAX_LOCAL_DATA_DOCUMENT_CELLS,
@@ -77,7 +78,7 @@ const CHILD_RULES: ReadonlySet<string> = new Set([
 ]);
 const RULE_KINDS: ReadonlySet<string> = new Set([
   'numeric-range', 'text-length', 'date-bounds', 'nonempty', 'progress-bounds',
-  'timer-duration', 'option-count', 'selection-requires', 'inline-body',
+  'timer-duration', 'option-count', 'required-one-of', 'selection-requires', 'inline-body',
   'no-components', 'single-table', 'math-body', 'options-body', 'value-sequence',
   'only-children', 'diagram-body', 'quiz-body', 'checklist-body',
   'dynamic-constraints', 'require-full-interpolation', 'scoped-expressions',
@@ -94,7 +95,7 @@ const TOP_KEYS = new Set([
 ]);
 const PROP_KEYS = new Set([
   'kind', 'required', 'static', 'dynamic', 'default', 'nullable', 'enum', 'values',
-  'pattern', 'min', 'max', 'integer', 'positive', 'color', 'coerce', 'description',
+  'pattern', 'min', 'max', 'integer', 'positive', 'allowPositiveNumber', 'color', 'coerce', 'description',
 ]);
 const BINDING_KEYS = new Set([
   'kind', 'family', 'bind', 'initial', 'initialRule', 'required', 'exclusive',
@@ -402,6 +403,12 @@ function readRule(value: unknown, path: string): LocalComponentRule {
         kind,
         ...(value.max !== undefined ? { max: readRuleAttribute(value.max, `${path}.max`) } : {}),
       } as LocalComponentRule;
+    case 'required-one-of': {
+      allow(['attributes']);
+      const attributes = readRuleStringList(value.attributes, `${path}.attributes`);
+      if (!attributes.length) fail(`${path}.attributes`, 'must list at least one attribute.');
+      return { kind, attributes };
+    }
     case 'selection-requires':
       allow(['key', 'attributes']);
       return {
@@ -654,6 +661,7 @@ function readProp(value: unknown, path: string): LocalComponentProp {
     default?: string | number | boolean | null;
     nullable?: boolean;
     enum?: readonly string[];
+    allowPositiveNumber?: boolean;
     pattern?: string;
     min?: number;
     max?: number;
@@ -663,7 +671,7 @@ function readProp(value: unknown, path: string): LocalComponentProp {
     coerce?: 'text';
     description?: LocalComponentText;
   } = { kind: typedKind };
-  for (const flag of ['required', 'static', 'dynamic', 'integer', 'positive', 'color', 'nullable'] as const) {
+  for (const flag of ['required', 'static', 'dynamic', 'integer', 'positive', 'allowPositiveNumber', 'color', 'nullable'] as const) {
     if (value[flag] === undefined) continue;
     out[flag] = readBoolean(value[flag], `${path}.${flag}`);
   }
@@ -679,6 +687,7 @@ function readProp(value: unknown, path: string): LocalComponentProp {
   const hasEnum = rawEnum !== undefined;
   if (typedKind !== 'enum') {
     if (hasEnum) fail(path, `"enum" is only valid for kind "enum", not "${typedKind}".`);
+    if (out.allowPositiveNumber !== undefined) fail(path, '"allowPositiveNumber" is only valid for kind "enum".');
   } else {
     if (value.enum !== undefined && value.values !== undefined) {
       fail(path, 'use "enum" or "values", not both.');
@@ -759,7 +768,9 @@ function readProp(value: unknown, path: string): LocalComponentProp {
       out.default = readBoolean(fallback, `${path}.default`);
     } else {
       const text = readString(fallback, `${path}.default`, MAX_LOCAL_SDK_NAME_LENGTH);
-      if (!out.enum?.includes(text)) fail(`${path}.default`, `"${text}" is not an allowed enum value.`);
+      if (!out.enum?.includes(text) && !(out.allowPositiveNumber && parsePositiveNumberLiteral(text) !== undefined)) {
+        fail(`${path}.default`, `"${text}" is not an allowed enum value.`);
+      }
       out.default = text;
     }
     if (out.pattern !== undefined && typedKind === 'string' && typeof out.default === 'string') {
@@ -1157,6 +1168,12 @@ export function readLocalComponentManifest(value: unknown): LocalComponentDefini
     ? readStructure(value.structure, form, 'structure')
     : localStructureFromChildren(children);
   const rules = value.rules === undefined ? undefined : readRules(value.rules);
+  for (const [index, rule] of (rules ?? []).entries()) {
+    if (rule.kind !== 'required-one-of') continue;
+    for (const attribute of rule.attributes) {
+      if (!Object.hasOwn(props, attribute)) fail(`rules[${index}].attributes`, `refers to undeclared attribute "${attribute}".`);
+    }
+  }
   const slotRelations = value.slotRelations === undefined ? undefined : readSlotRelations(value.slotRelations);
   if (value.legacyHost !== undefined) readBoolean(value.legacyHost, 'legacyHost');
   const capabilities = readCapabilities(value.capabilities, 'capabilities');
@@ -1236,6 +1253,7 @@ function canonicalProp(prop: LocalComponentProp): Record<string, unknown> {
     ...(prop.max !== undefined ? { max: prop.max } : {}),
     ...(prop.integer === true ? { integer: true } : {}),
     ...(prop.positive === true ? { positive: true } : {}),
+    ...(prop.allowPositiveNumber === true ? { allowPositiveNumber: true } : {}),
     ...(prop.color === true ? { color: true } : {}),
     ...(prop.coerce !== undefined ? { coerce: prop.coerce } : {}),
   };

@@ -576,6 +576,17 @@ describe('SDK configuration', () => {
 });
 
 describe('SDK prop normalization', () => {
+  it('preserves positive numeric enum alternatives as strings', () => {
+    const definition = defineLocalComponent({
+      ...propsDefinition(),
+      props: { size: { kind: 'enum', enum: ['lg'], allowPositiveNumber: true, default: '20' } },
+    });
+    expect(resolveLocalComponentProps(definition, {}, runtime).size).toBe('20');
+    expect(resolveLocalComponentProps(definition, { size: 'lg' }, runtime).size).toBe('lg');
+    expect(resolveLocalComponentProps(definition, { size: '20.5' }, runtime).size).toBe('20.5');
+    expect(() => resolveLocalComponentProps(definition, { size: '20px' }, runtime)).toThrow(/positive number/);
+  });
+
   it('fills defaults and reports missing optional props as null', () => {
     const definition = propsDefinition();
     const props = resolveLocalComponentProps(definition, { label: 'Rate' }, runtime);

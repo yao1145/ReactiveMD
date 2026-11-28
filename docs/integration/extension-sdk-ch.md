@@ -98,6 +98,8 @@ const result = ctx.bindings.setMany({ x: 2, y: 3 });
 
 `structure` 声明直接子项、父层要求和内容形态；`rules` 声明可复用的编译或状态规则。规则可描述数值区间、日期、选项序列、表格、图形、导航和预算。内核执行规则，组件实现负责交互。外部组件可以复用默认定义的规则，或组合公开类型声明的原语。
 
+规则 `{ kind: 'required-one-of', attributes: ['color', 'size'] }` 要求源码至少填写列出的一项属性。枚举属性设置 `allowPositiveNumber: true` 后，也接受有限正数，组块收到的值为字符串。编辑器会补全声明的枚举值。
+
 `structure: { rule: 'raw-body' }` 声明正文以单个惰性 `rawBody` 子节点交付的容器，不按 Markdown 解析。正文内的组块标签、`{{ }}`、实体、转义和 Markdown 都保持原文。正文只在一行的第一个非空白内容恰好为 `</name>` 时结束；交付值是去缩进后的源码，`limits.maxRawBodyChars` 限制其长度（默认 100,000，最多 1,000,000）。正文必填（`min > 0`）且为空白时使用既有 children minimum 诊断。渲染时把值当作文本：`ctx.children.render()` 输出一个转义后的文本节点；宿主若自行把字符串写入 HTML，由宿主负责转义。analyzer 把正文视为不透明区间。详见[组块协议](../development/component-protocol-ch.md#cp-model-05-raw-正文容器要求)。
 
 React 上下文的 `content` 与 `children.items()` 提供公开内容投影。组件通过 `children.render()`、`children.options()`、`children.table()` 等方法消费子内容，通过 `validation`、`navigation`、`source` 和 `locale` 使用通用服务。运行时服务提供求值、状态读写与重置；内部 AST 保留在适配器中。
@@ -224,6 +226,28 @@ Vite 输出必须恰好是一个 chunk，且没有 asset。适配器拒绝带 im
 ### 可选 Vite peer
 
 Vite 8 是可选 peer 依赖。适配器只在真正执行构建时导入 `vite`，仅做预检或读取 manifest 的消费者无需安装。测试或非标准宿主可以把 `vite` 作为 `{ build }` facade 或其工厂传入；注入值会先经过检查。
+
+### 宿主字体与主题字体
+
+通过 `createReactHost({ fonts })` 注册源码可用的字体别名。编辑器传入同一宿主的 `compileOptions`，渲染器传入 `reactConfig`。在 Vite 宿主入口中，`defineLocalFont` 接收 WOFF 或 WOFF2 文件的内联 data URL，返回别名表和样式资源。
+
+```ts
+import { defineLocalFont } from 'reactive-md/sdk';
+import { createReactHost } from 'reactive-md/react';
+import brandSource from './Brand.woff2?inline';
+
+const brand = defineLocalFont({ alias: 'brand', source: brandSource });
+export const host = createReactHost({
+  fonts: brand.fonts,
+  resources: [brand.resource],
+});
+```
+
+作者可以写 `<text font="brand" size="20">报名截止</text>`。手工集成 React 时加载 `host.css`，导出时传入 `host.resources`。Vite 插件会安装宿主样式，并为离线包收集资源。
+
+主题可以通过 `defineLocalTheme` 的 `fonts` 选项注册别名，目录模式也可在 `theme.json` 中填写 `fonts`。例如，把 `display` 映射到 `Paper Display`，并在主题的 `@font-face` 中声明该字体族。目录加载器会内联相对路径字体文件，SDK 会同步改写别名指向的字体族名称。
+
+宿主和主题注册同名别名时，使用当前主题的字体。别名使用小写字母、数字和连字符。`sans`、`serif`、`mono` 仍对应主题的字体变量。Vite 目录模式可通过 `reactiveMd({ fonts: { display: 'Georgia' } })` 注册宿主级别名。
 
 ## 离线导出与 bundle seal
 

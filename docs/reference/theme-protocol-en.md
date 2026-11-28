@@ -121,7 +121,7 @@ internal DOM nesting remain component implementation details.
 | Status | `--info`, `--info-soft`, `--success`, `--success-soft`, `--success-line`, `--warning`, `--warning-soft`, `--warning-line`, `--danger`, `--danger-soft`, `--danger-line`, `--neutral-soft` |
 | Focus | `--focus`, `--focus-outline`, `--focus-ring` |
 | Data and code | `--chart-1` through `--chart-8`, `--chart-grid`, `--chart-axis`, `--code-bg`, `--code-bg-deep`, `--code-ink` |
-| Fonts | `--font-sans`, `--font-mono`, `--text-xs` through `--text-xl`, `--text-2xl`, `--text-h5`, `--text-h6`, `--text-block-title`, `--text-block-subtitle` |
+| Fonts | `--font-sans`, `--font-serif`, `--font-mono`, `--text-xs` through `--text-xl`, `--text-2xl`, `--text-h5`, `--text-h6`, `--text-block-title`, `--text-block-subtitle` |
 | Line height and weight | `--leading-tight`, `--leading-snug`, `--leading-normal`, `--leading-relaxed`, `--weight-regular`, `--weight-medium`, `--weight-semibold`, `--weight-bold` |
 | Spacing | `--space-1` through `--space-7`, `--field-gap` |
 | Radius | `--radius-control`, `--radius-card`, `--radius-panel`, `--radius-pill`, `--radius-field`, `--radius-field-multiline` |

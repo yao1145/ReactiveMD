@@ -1,4 +1,5 @@
 import { localHash } from './hash';
+import { readLocalFontAliases, type LocalFontAliases } from '../contracts/font-aliases';
 import { findLocalCompatProfile } from './compat-profile';
 import type { LocalCompatProfile } from './compat-profile';
 import {
@@ -72,7 +73,7 @@ interface ActiveContribution extends Contribution {
   readonly authoring?: LocalComponentAuthoring;
 }
 
-const SNAPSHOT_KEYS = new Set(['protocol', 'presets', 'components', 'replacementPolicy', 'themes']);
+const SNAPSHOT_KEYS = new Set(['protocol', 'presets', 'components', 'replacementPolicy', 'themes', 'fonts']);
 const MAX_ASSEMBLY_PRESETS = 32;
 const MAX_ASSEMBLY_COMPONENTS = 256;
 const MAX_ASSEMBLY_THEMES = 32;
@@ -165,7 +166,8 @@ function readAssemblyThemes(value: unknown): readonly LocalThemePackage[] {
     }
     if (ids.has(id)) fail('assembly.themes', `theme id "${id}" is declared more than once.`);
     ids.add(id);
-    return Object.freeze({ ...entry }) as unknown as LocalThemePackage;
+    const fonts = readLocalFontAliases(entry.fonts, `assembly.themes[${index}].fonts`);
+    return Object.freeze({ ...entry, ...(entry.fonts !== undefined ? { fonts } : {}) }) as unknown as LocalThemePackage;
   }), (theme) => theme.id));
 }
 
@@ -182,12 +184,14 @@ export function readLocalAssemblySnapshot(value: unknown): LocalAssemblySnapshot
   if (replacementPolicy !== 'allow' && replacementPolicy !== 'forbid') {
     fail('assembly.replacementPolicy', 'must be "allow" or "forbid".');
   }
+  const fonts = readLocalFontAliases(value.fonts, 'assembly.fonts');
   return Object.freeze({
     protocol: LOCAL_ASSEMBLY_PROTOCOL,
     presets: readAssemblyPresets(value.presets),
     components: readAssemblyComponents(value.components),
     replacementPolicy,
     themes: readAssemblyThemes(value.themes),
+    ...(fonts ? { fonts } : {}),
   });
 }
 
@@ -670,6 +674,7 @@ export function localConfigFromAssembly(
     replacements: resolved.replacements,
     registry: resolved.registry,
     themes: resolved.themes,
+    ...(assembly.fonts ? { fonts: assembly.fonts } : {}),
     legacyKeys: Object.freeze(legacyKeys),
   });
 }
@@ -686,6 +691,7 @@ export interface LocalAssemblyIdentity {
   readonly components: readonly LocalComponentRequirement[];
   readonly replacements: readonly LocalReplacementRecord[];
   readonly legacyKeys: readonly LocalLegacyConfigKey[];
+  readonly fontDigest?: string;
 }
 
 type AssemblyIdentityInput = {
@@ -694,6 +700,7 @@ type AssemblyIdentityInput = {
   readonly registry: readonly LocalComponentDefinition[];
   readonly replacements: readonly LocalReplacementRecord[];
   readonly legacyKeys: readonly LocalLegacyConfigKey[];
+  readonly fonts?: LocalFontAliases;
 };
 
 export function localAssemblyIdentity(input: AssemblyIdentityInput): LocalAssemblyIdentity {
@@ -704,6 +711,7 @@ export function localAssemblyIdentity(input: AssemblyIdentityInput): LocalAssemb
     components: Object.freeze(sortById(input.registry.map(localComponentRequirement), (item) => item.id)),
     replacements: Object.freeze(sortById(input.replacements, (item) => item.id)),
     legacyKeys: Object.freeze(sortById(input.legacyKeys, (item) => item.key)),
+    ...(input.fonts ? { fontDigest: localHash(JSON.stringify(input.fonts)) } : {}),
   });
 }
 

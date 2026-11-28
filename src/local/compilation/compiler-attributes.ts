@@ -5,6 +5,8 @@ import { MAX_LOCAL_DIAGNOSTICS, MAX_LOCAL_STRING_LENGTH } from '../../contracts/
 import { closestName } from '../../contracts/schema-core';
 import { cloneValue, fullInterpolation, MAX_LOCAL_NAME_LENGTH, scanInterpolations, singleFullInterpolation } from './compiler-values';
 import { isLocalColor } from '../../contracts/color-values';
+import { parsePositiveNumberLiteral } from '../../contracts/number-literal';
+import { LOCAL_TEXT_COMPONENT_ID } from '../../contracts/font-aliases';
 import {
   kernelAttributeIssues,
   kernelSlotBindings,
@@ -42,7 +44,8 @@ function attributeOffset(state: CompileState, node: LocalNode, name: string): nu
 
 export function validateAttributes(entry: Entry, state: CompileState): AttrMap {
   if(!state.semantic)return validateAttributesUncached(entry,state);
-  const key=entry.name+'\0'+openingTag(state.source,entry.node.range.start,entry.node.range.end);
+  const fonts = entry.definition?.id === LOCAL_TEXT_COMPONENT_ID ? entry.kernel.props.font?.values?.join(',') ?? '' : '';
+  const key=entry.name+'\0'+fonts+'\0'+openingTag(state.source,entry.node.range.start,entry.node.range.end);
   const cached=state.semantic.attributes<AttrMap>(key);
   const clone=(attrs:AttrMap,delta:number):AttrMap=>Object.fromEntries(Object.entries(attrs).map(([name,info])=>[name,{...info,offset:info.offset+delta,...(info.expressionOffset===undefined?{}:{expressionOffset:info.expressionOffset+delta}),...(Array.isArray(info.value)?{value:cloneValue(info.value)}:{})}]));
   if(cached)return clone(cached.value,entry.node.range.start-cached.origin);
@@ -337,11 +340,14 @@ function validatePropValue(
     return;
   }
   const values = kernelPropValues(prop);
-  if (!values.includes(info.raw)) {
+  if (!values.includes(info.raw) && !(prop.allowPositiveNumber && parsePositiveNumberLiteral(info.raw) !== undefined)) {
     if (legacy) {
       state.report('local.host.attribute', { key: 'local.host.attribute.enum', params: { name, values: values.join(' / '), value: info.raw } }, info.offset, info.offset + info.raw.length);
     } else {
-      state.report('local.attribute.type', { key: 'local.attribute.type.enum', params: { name, values: values.join(' / '), value: info.raw } }, info.offset, info.offset + info.raw.length);
+      state.report('local.attribute.type', {
+        key: prop.allowPositiveNumber ? 'attribute.enumOrPositiveNumber' : 'local.attribute.type.enum',
+        params: { name, values: values.join(' / '), value: info.raw },
+      }, info.offset, info.offset + info.raw.length);
     }
     return;
   }

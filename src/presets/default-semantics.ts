@@ -10,6 +10,7 @@ import {
   MAX_LOCAL_VALIDATIONS,
 } from '../contracts/limits';
 import { defineLocalComponent } from '../sdk/manifest';
+import { LOCAL_TEXT_FONT_CHOICES } from '../contracts/font-aliases';
 import {
   LOCAL_COMPONENT_PROTOCOL,
   type LocalComponentBinding,
@@ -403,9 +404,24 @@ const anchorDef = definition('anchor', 'leaf', {
 });
 
 const textDef = definition('text', 'inline', {
-  props: { color: props.staticText({ required: true, color: true }) },
+  props: {
+    color: color(),
+    size: props.choice(['sm', 'md', 'lg', 'xl'], {
+      static: true,
+      allowPositiveNumber: true,
+      description: {
+        en: 'A theme size or a positive number in pixels, such as 20.',
+        zh: '主题字号或以像素为单位的正数，例如 20。',
+      },
+    }),
+    font: props.choice(LOCAL_TEXT_FONT_CHOICES, { static: true }),
+  },
   structure: structure({ rule: 'inline', label: 'none', inlineOnly: true, noComponents: true }),
-  rules: rules({ kind: 'inline-body', strict: true }, { kind: 'no-components' }),
+  rules: rules(
+    { kind: 'required-one-of', attributes: ['color', 'size', 'font'] },
+    { kind: 'inline-body', strict: true },
+    { kind: 'no-components' },
+  ),
 });
 
 const sectionDef = definition('section', 'container', {

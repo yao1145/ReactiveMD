@@ -42,6 +42,8 @@ export interface KernelPropSchema {
   dynamic?: boolean;
   values?: readonly string[];
   enum?: readonly string[];
+  /** Also accept finite positive numeric literals as strings for enum props. */
+  allowPositiveNumber?: boolean;
   default?: LocalValue;
   integer?: boolean;
   positive?: boolean;
@@ -112,6 +114,7 @@ export interface KernelStructure {
 
 export type KernelRule =
   /* attribute relations */
+  | { kind: 'required-one-of'; attributes: readonly string[] }
   | {
       kind: 'numeric-range';
       min?: string;
@@ -607,6 +610,19 @@ export function kernelAttributeIssues(
 
   for (const rule of kernelRules(schema)) {
     switch (rule.kind) {
+      case 'required-one-of': {
+        if (rule.attributes.some(attribute => Object.hasOwn(attrs, attribute))) break;
+        const attributes = rule.attributes.join(', ');
+        issues.push({
+          code: 'local.attribute.required',
+          key: 'attribute.requiredOneOf',
+          message: `Component <${component}> requires at least one of: ${attributes}.`,
+          start: nodeRange.start,
+          end: nodeRange.end,
+          params: { component, attributes },
+        });
+        break;
+      }
       case 'numeric-range': {
         const min = staticNumber(schema, attrs, rule.min);
         const max = staticNumber(schema, attrs, rule.max);

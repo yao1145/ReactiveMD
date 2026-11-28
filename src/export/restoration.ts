@@ -39,7 +39,10 @@ export interface LocalStandaloneBundleManifest {
 export const localExportContentDigest = localHash;
 
 export function localThemeContractDigest(theme: LocalThemePackage): string {
-  return localHash(JSON.stringify([theme.id, theme.name, theme.version, theme.protocol, theme.colorSchemes, theme.css.map(({ id, css }) => [id, css])]));
+  return localHash(JSON.stringify([
+    theme.id, theme.name, theme.version, theme.protocol, theme.colorSchemes,
+    theme.css.map(({ id, css }) => [id, css]), ...(theme.fonts ? [theme.fonts] : []),
+  ]));
 }
 
 export function createLocalBundleManifest(script: string, config: LocalConfig): LocalStandaloneBundleManifest {
@@ -112,6 +115,10 @@ export function validateLocalRestorationRequirements(value: unknown, options: {
         || !boundedString(value.assembly.configKey)
         || !localConfigKeyMatches(config, value.assembly.configKey as string)) {
         fail('assembly', 'The exported assembly identity is invalid or belongs to another configuration.');
+      }
+      if (record(value.assembly) && value.assembly.fontDigest !== undefined
+        && value.assembly.fontDigest !== localAssemblyIdentity(config).fontDigest) {
+        fail('assembly', 'Host font aliases differ from the exported configuration.');
       }
     }
     if (localHash(options.source) !== value.sourceDigest) fail('source', 'The source differs from the exported source. Recompile before restoring state.');

@@ -1,5 +1,6 @@
 import type { LocalHostBindingSchema, LocalValue } from '../contracts/runtime-types';
 import { isLocalColor } from '../contracts/color-values';
+import { parseNumberLiteral, parsePositiveNumberLiteral } from '../contracts/number-literal';
 import type {
   LocalComponentDefinition,
   LocalComponentProp,
@@ -20,8 +21,6 @@ type LocalPropRuntime = {
   text(template: string): string;
 };
 
-const NUMBER_TEXT = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
-
 /** All attribute names owned implicitly by a manifest's declared bindings. */
 export function localBindingAttributeNames(definition: LocalComponentDefinition): ReadonlySet<string> {
   const names = new Set<string>();
@@ -30,13 +29,6 @@ export function localBindingAttributeNames(definition: LocalComponentDefinition)
     names.add(binding.initial);
   }
   return names;
-}
-
-function parseNumberLiteral(raw: string): number | null {
-  const text = raw.trim();
-  if (!NUMBER_TEXT.test(text)) return null;
-  const value = Number(text);
-  return Number.isFinite(value) ? value : null;
 }
 
 /** True when the value contains an unescaped interpolation opener. */
@@ -125,10 +117,9 @@ function checkEnum(
   value: string,
 ): string {
   const allowed = prop.enum ?? [];
-  if (!allowed.includes(value)) {
-    throw propError(definition, name, `must be one of ${allowed.join(' / ')}, got "${value}".`);
-  }
-  return value;
+  if (allowed.includes(value) || (prop.allowPositiveNumber && parsePositiveNumberLiteral(value) !== undefined)) return value;
+  const numeric = prop.allowPositiveNumber ? ' or a positive number' : '';
+  throw propError(definition, name, `must be one of ${allowed.join(' / ')}${numeric}, got "${value}".`);
 }
 
 function checkColor(

@@ -104,7 +104,7 @@ export function Article({ source }: { source: string }) {
 | 状态 | `--info`、`--info-soft`、`--success`、`--success-soft`、`--success-line`、`--warning`、`--warning-soft`、`--warning-line`、`--danger`、`--danger-soft`、`--danger-line`、`--neutral-soft` |
 | 焦点 | `--focus`、`--focus-outline`、`--focus-ring` |
 | 数据与代码 | `--chart-1` 至 `--chart-8`、`--chart-grid`、`--chart-axis`、`--code-bg`、`--code-bg-deep`、`--code-ink` |
-| 字体 | `--font-sans`、`--font-mono`、`--text-xs` 至 `--text-xl`、`--text-2xl`、`--text-h5`、`--text-h6`、`--text-block-title`、`--text-block-subtitle` |
+| 字体 | `--font-sans`、`--font-serif`、`--font-mono`、`--text-xs` 至 `--text-xl`、`--text-2xl`、`--text-h5`、`--text-h6`、`--text-block-title`、`--text-block-subtitle` |
 | 行高与字重 | `--leading-tight`、`--leading-snug`、`--leading-normal`、`--leading-relaxed`、`--weight-regular`、`--weight-medium`、`--weight-semibold`、`--weight-bold` |
 | 间距 | `--space-1` 至 `--space-7`、`--field-gap` |
 | 圆角 | `--radius-control`、`--radius-card`、`--radius-panel`、`--radius-pill`、`--radius-field`、`--radius-field-multiline` |

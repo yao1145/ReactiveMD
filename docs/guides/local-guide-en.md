@@ -387,6 +387,12 @@ Current attendees: **{{ people }}**. <text color="#a2273a">**Please confirm the 
 
 Colors are static names or `#RGB` / `#RRGGBB` values. They do not accept expressions, CSS functions or variables.
 
+`<text>` requires at least one of `color`, `size` or `font`. Omitted styles are inherited. Use `sm`, `md`, `lg` or `xl` for theme sizes, or a positive number in pixels. For example, `size="20"` sets 20px. Choose `sans`, `serif` or `mono` for `font`.
+
+```markdown
+<text size="20">Registration closes today</text> · Ticket <text font="mono">REF-24</text>
+```
+
 ### badge
 
 ```markdown
@@ -475,13 +481,13 @@ Most interactive controls support `label`, optional `bind`, optional `initial` a
 | `disclosure` | Child | `label` required, `open=false` | Expandable item; multiple items can be open at once |
 | `if` | Container | `when` required, complete boolean interpolation | Conditional display; hidden when the condition is false |
 
-### Jumps and text color
+### Jumps and inline text styles
 
 | Tag | Form | Key attributes | Purpose |
 | --- | --- | --- | --- |
 | `jump` | Inline | `to` required, `appearance=link/button`, `color` | Scrolls to a heading anchor or explicit `anchor` |
 | `anchor` | No body | `id` required and unique in the document | Explicit jump target |
-| `text` | Inline | `color` required | Inline text color |
+| `text` | Inline | At least one of `color`, `size` or `font` | Inline color, size and font |
 | `section` | Container | `color` required | Block text color; body continues to parse Markdown |
 
 ### Practice and steps

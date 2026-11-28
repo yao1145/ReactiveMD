@@ -78,13 +78,13 @@ const AUTHORING_DATA = {
       extended: true,
     },
     text: {
-      title: { en: 'Colored text', zh: '文字颜色' },
+      title: { en: 'Inline text style', zh: '行内文字样式' },
       description: {
-        en: 'Give selected words a foreground color.',
-        zh: '为选中的局部文字指定颜色。',
+        en: 'Set at least one of color, size or font. Omitted styles are inherited.',
+        zh: '至少填写 color、size、font 中的一项。省略的样式由上下文继承。',
       },
       category: 'hint',
-      keywords: { en: ['text', 'color', 'foreground'], zh: ['文字', '颜色', '前景'] },
+      keywords: { en: ['text', 'color', 'foreground', 'size', 'font'], zh: ['文字', '颜色', '前景', '字号', '字体'] },
       inline: true,
       insertText: {
         en: '<text color="#a2273a">{{selection:Important reminder}}</text>',

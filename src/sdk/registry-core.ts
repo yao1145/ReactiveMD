@@ -34,6 +34,7 @@ function schemaProp(prop: LocalComponentProp): LocalPropSchema {
     ...(prop.max !== undefined ? { max: prop.max } : {}),
     ...(prop.integer === true ? { integer: true } : {}),
     ...(prop.positive === true ? { positive: true } : {}),
+    ...(prop.allowPositiveNumber === true ? { allowPositiveNumber: true } : {}),
     ...(prop.color === true ? { color: true } : {}),
     ...(prop.coerce !== undefined ? { coerce: prop.coerce } : {}),
   } as LocalPropSchema;

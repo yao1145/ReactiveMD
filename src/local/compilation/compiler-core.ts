@@ -11,6 +11,7 @@ import {
   type SourceRange,
 } from '../types';
 import type { NormalizedComponent } from '../../contracts/component-kernel';
+import { activeLocalFontAliases, LOCAL_TEXT_COMPONENT_ID, localTextFontChoices } from '../../contracts/font-aliases';
 import type { LocalComponentDefinition } from '../../sdk/types';
 import { compilerComponentConfigKey, type LocalOptionCheck } from '../configuration/options-core';
 import {
@@ -94,6 +95,19 @@ function registrySchemaMap(check: LocalOptionCheck & UnifiedRegistryCheck): Read
 
 function registryDefinitionMap(check: LocalOptionCheck & UnifiedRegistryCheck): ReadonlyMap<string, LocalComponentDefinition> {
   return check.componentByName ?? new Map();
+}
+
+function documentSchemas(check: Extract<LocalOptionCheck, { ok: true }>, theme: string | undefined) {
+  const registry = registrySchemaMap(check);
+  const text = registry.get('text');
+  const font = text?.props.font;
+  if (!text || font?.kind !== 'enum' || check.componentByName.get('text')?.id !== LOCAL_TEXT_COMPONENT_ID) return registry;
+  const aliases = activeLocalFontAliases(check.config, theme);
+  if (!Object.keys(aliases).length) return registry;
+  return new Map(registry).set('text', {
+    ...text,
+    props: { ...text.props, font: { ...font, values: localTextFontChoices(aliases, font.values) } },
+  });
 }
 
 /**
@@ -337,7 +351,7 @@ function compileParsedLocal(
     lineStarts,
     nodes: parsed.nodes,
     diagnostics,
-    schemaByName: registrySchemaMap(optionCheck),
+    schemaByName: documentSchemas(optionCheck, parsed.theme),
     definitionsByName: registryDefinitionMap(optionCheck),
     report,
     entries: [],
@@ -460,8 +474,7 @@ function compileParsedLocal(
     ...(capabilities ? { capabilities } : {}),
     initialState,
     bindings,
-    // Themes are host metadata: the compiler only names the built-in default
-    // and never loads theme definitions, CSS or host code.
+    // The compiler uses only the registered font names and never loads CSS.
     theme: parsed.theme ?? 'default',
     ...(parsed.themeRange ? { themeRange: parsed.themeRange } : {}),
     ...(bindingSlots ? { bindingSlots } : {}),
